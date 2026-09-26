@@ -59,6 +59,9 @@ const ROLES = (TOKENS as readonly TokenEntry[]).filter(
 
 const MODES: readonly Mode[] = ['light', 'dark'];
 
+/** The links (theme-architecture.md 9.3). */
+const LINKS = (TOKENS as readonly TokenEntry[]).filter(entry => entry.link);
+
 /**
  * The roles with no built-in value: unset, the rule that applies each
  * carries what every control was drawn with, because they were never one
@@ -74,6 +77,15 @@ const UNSET = new Set([
   'focus-width',
   // No lower bound on a bar's width: as narrow as the plot makes it.
   'chart-bar-min-width',
+  // The item's own weight, the registry's edge of each mode, and a chip as
+  // tall as its controls (theme-architecture.md 9.3).
+  'item-selected-weight',
+  'outline-hover-edge',
+  'filter-height',
+  // Links: unset, a role is not linked.
+  ...(TOKENS as readonly TokenEntry[]).flatMap(entry =>
+    entry.link ? [entry.name] : [],
+  ),
 ]);
 
 /**
@@ -85,6 +97,8 @@ const BUILT_IN: Readonly<Record<string, string>> = {
   'card-shadow': '0 0 #0000',
   scrim: 'oklch(0 0 0deg / 10%)',
   'table-header-divider': 'transparent',
+  'item-selected': 'transparent',
+  'nav-current-shadow': '0 1px 2px 0 rgb(0 0 0 / 0.05)',
   'row-hover': 'color-mix(in oklab, var(--muted) 50%, var(--background))',
   'focus-offset': '0px',
   'focus-style': 'solid',
@@ -183,7 +197,13 @@ describe.each(ROLES.map(entry => [entry.name, entry] as const))(
       // moves the bands with it.
       if (entry.kind === 'color')
         for (const preset of PRESET_NAMES) {
-          const own = presetVariables(entry);
+          // A preset that sets the role, or links it to another token.
+          const own = [
+            ...presetVariables(entry),
+            ...LINKS.filter(link => link.link?.role === name).flatMap(
+              presetVariables,
+            ),
+          ];
           if (own.some(variable => presets().get(preset)?.has(variable)))
             continue;
           const tokens = resolveTokens(preset, mode, 'semantic', NO_HOST);

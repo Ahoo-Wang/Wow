@@ -143,28 +143,6 @@ spring:
 
 当 Elasticsearch 被选为 SnapshotStore 时，Wow 还会查找 `META-INF/wow/elasticsearch/{indexName}.json` 或 `config/wow/elasticsearch/{indexName}.json` 下的具体索引资源。具体资源在通用模板之后、SnapshotStore 创建之前处理。该机制独立于 `auto-init-template`；资源缺失时不执行任何操作。
 
-## 查询 {#query}
-
-配置类：`QueryProperties`（前缀 `wow.query`）；启用 Wow 即绑定，不需要单独的 capability。`wow.query.http.*` 预算作用于入口为 `HTTP` 的查询：Gateway 在准入时、任何存储 I/O 之前检查它，WebFlux 适配器也用同样的 list 与 page 大小作为响应行数上限。
-
-| 属性 | 类型 | 默认值 | 含义 |
-| --- | --- | --- | --- |
-| `wow.query.http.max-list-size` | Int | `1000` | list/aggregation limit；`0` 关闭上限并允许 limit `0` |
-| `wow.query.http.max-page-size` | Int | `100` | page size 上限；`0` 关闭 |
-| `wow.query.http.max-page-window` | Long | `10000` | `page.index * page.size` 上限；`0` 关闭 |
-| `wow.query.http.max-filter-nodes` | Int | `128` | FilterExpression 节点数上限；`0` 关闭 |
-| `wow.query.http.max-filter-values` | Int | `1000` | 集合型过滤条件的值数量上限；`0` 关闭 |
-| `wow.query.http.allow-expensive-operators` | Boolean | `true` | 允许 expensive filters、Elements、metric 排序/算术及 match-all count/paged |
-| `wow.query.http.max-residual-groups` | Integer | `10000` | 存储无法原生执行 HAVING 或按指标排序、由查询服务计算时（例如 Elasticsearch），一次 HTTP 聚合最多处理的分组数（dense 补齐的行也计入）；`0` 关闭上限 |
-| `wow.query.require-explicit-entry` | Boolean | `false` | 拒绝未声明查询入口（`HTTP` 或 `IN_PROCESS`）的 Gateway 查询；`wow.query.http.*` 预算作用于入口为 `HTTP` 的查询 |
-| `wow.query.require-authenticated-scope` | Boolean | `false` | 拒绝已认证范围未固定 `tenantId` 的 Snapshot 或 EventStream `HTTP` 查询（`403 IllegalAccessQueryScope`）；从请求头或路径变量读取的范围是自报的，不算已认证。见[范围来源](../../guide/query/query-gateway.md#范围来源) |
-| `wow.query.abac.require-principal-tags` | Boolean | `false` | 拒绝主体没有 ABAC 标签的 `HTTP` 快照查询（`403 IllegalAccessQueryScope`）；作用于以 `AbacQueryOptions` Bean 构造的 `AbacQueryPolicy` |
-| `wow.query.abac.match-missing-tag-key` | Boolean | `true` | 资源缺少主体的某个标签键时仍作为公开资源匹配；`false` 要求资源带有该键且取值落在主体的值中 |
-| `wow.query.schema.revalidate-interval` | Duration | `5m` | 每个实例定期重新加载查询 schema 以发现存储变化的间隔；`0s` 关闭。`wowQuerySchema` actuator 端点可按需立即重新校验 |
-| `wow.query.sensitivity.display-comparable` | Boolean | `true` | 是否允许过滤与分页排序比较 `DISPLAY` 敏感字段的原值；`false` 时与 `CONFIDENTIAL` 字段一样拒绝（见[字段脱敏](../../guide/query/masking.md)） |
-
-所有数值型查询上限必须非负；普通 page size 仍至少为 `1`，page offset 仍不得超过 `Int.MAX_VALUE`。`allow-expensive-operators=true` 是兼容性默认值，不是容量证明；收紧前需验证现有请求和升级路径。
-
 ## WebFlux
 
 配置类：`WebFluxProperties`；所需 capability：`webflux-support`。
@@ -175,13 +153,28 @@ spring:
 | `wow.webflux.global-error.enabled` | Boolean | `true` | 注册 Wow 全局 `WebExceptionHandler` |
 | `wow.webflux.batch.concurrency` | Int | `128` | 批量快照重建与 StateEvent 重发任务并发度 |
 | `wow.webflux.batch.prefetch` | Int | `4` | 批量任务 prefetch |
-| `wow.webflux.query.default-list-size` | Int | `100` | HTTP list 查询省略 `limit` 或传 `0` 时套用的默认值；不超过 `wow.query.http.max-list-size`；`0` 关闭默认值并恢复拒绝 limit `0` |
+| `wow.query.http.max-list-size` | Int | `1000` | list/aggregation limit；`0` 关闭上限并允许 limit `0` |
+| `wow.webflux.query.default-list-size` | Int | `100` | HTTP list 查询省略 `limit` 或传 `0` 时套用的默认值；不超过 `max-list-size`；`0` 关闭默认值并恢复拒绝 limit `0` |
+| `wow.query.http.max-page-size` | Int | `100` | page size 上限；`0` 关闭 |
+| `wow.query.http.max-page-window` | Long | `10000` | `page.index * page.size` 上限；`0` 关闭 |
+| `wow.query.http.max-filter-nodes` | Int | `128` | FilterExpression 节点数上限；`0` 关闭 |
+| `wow.query.http.max-filter-values` | Int | `1000` | 集合型过滤条件的值数量上限；`0` 关闭 |
+| `wow.query.http.allow-expensive-operators` | Boolean | `true` | 允许 expensive filters、Elements、metric 排序/算术及 match-all count/paged |
+| `wow.query.http.max-residual-groups` | Integer | `10000` | 存储无法原生执行 HAVING 或按指标排序、由查询服务计算时（例如 Elasticsearch），一次 HTTP 聚合最多处理的分组数（dense 补齐的行也计入）；`0` 关闭上限 |
+| `wow.query.abac.require-principal-tags` | Boolean | `false` | 拒绝主体没有 ABAC 标签的 `HTTP` 快照查询（`403 IllegalAccessQueryScope`）；作用于以 `AbacQueryOptions` Bean 构造的 `AbacQueryPolicy` |
+| `wow.query.abac.match-missing-tag-key` | Boolean | `true` | 资源缺少主体的某个标签键时仍作为公开资源匹配；`false` 要求资源带有该键且取值落在主体的值中 |
+| `wow.query.require-authenticated-scope` | Boolean | `false` | 拒绝已认证范围未固定 `tenantId` 的 Snapshot 或 EventStream `HTTP` 查询（`403 IllegalAccessQueryScope`）；从请求头或路径变量读取的范围是自报的，不算已认证。见[范围来源](../../guide/query/query-gateway.md#范围来源) |
+| `wow.query.require-explicit-entry` | Boolean | `false` | 拒绝未声明查询入口（`HTTP` 或 `IN_PROCESS`）的 Gateway 查询；`wow.query.http.*` 预算作用于入口为 `HTTP` 的查询 |
+| `wow.query.schema.revalidate-interval` | Duration | `5m` | 每个实例定期重新加载查询 schema 以发现存储变化的间隔；`0s` 关闭。`wowQuerySchema` actuator 端点可按需立即重新校验 |
+| `wow.query.sensitivity.display-comparable` | Boolean | `true` | 是否允许过滤与分页排序比较 `DISPLAY` 敏感字段的原值；`false` 时与 `CONFIDENTIAL` 字段一样拒绝（见[字段脱敏](../../guide/query/masking.md)） |
 | `wow.webflux.query.idle-timeout` | Duration | `10s` | 等待下一结果或完成的最长空闲时间；`0s` 关闭 |
 | `wow.webflux.query.strict-count-filter` | Boolean | `false` | 拒绝根对象既无 `op` 也无 `operator` 的 count 请求体（`400`，绑定错误 `op`/`INVALID_REQUEST`）。关闭时这样的请求体按旧版条件读取，其操作符默认为 `ALL`，写错的过滤会统计全部行 |
 | `wow.webflux.state.point-read-admission` | Boolean | `false` | State 路由读取的每个状态都像查询一样准入（在内存中判定调用方范围与 `QueryPolicy`，不满足视为不存在；响应按查询 schema 脱敏），并限制 tracing；见 [State 点读](../../guide/data-access.md#state-点读) |
 | `wow.webflux.state.tracing-max-versions` | Integer | `1000` | 点读准入下一次 tracing 最多返回的版本数；`0` 关闭上限 |
 | `wow.webflux.command.request.appender.agent.enabled` | Boolean | `true` | 把 `User-Agent` 写入命令上下文 |
 | `wow.webflux.command.request.appender.ip.enabled` | Boolean | `true` | 把解析出的远端 IP 写入命令上下文 |
+
+所有数值型查询上限必须非负；普通 page size 仍至少为 `1`，page offset 仍不得超过 `Int.MAX_VALUE`。`allow-expensive-operators=true` 是兼容性默认值，不是容量证明；收紧前需验证现有请求和升级路径。
 
 批量并发度按请求生效，并由快照重建与 StateEvent 重发共享；多个并发请求会叠加下游负载，应按应用与存储容量下调。
 

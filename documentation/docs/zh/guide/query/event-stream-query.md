@@ -132,7 +132,7 @@ JVM single 无匹配时返回空 `Mono`；list 返回空 `Flux`，paged 与 curs
 | 删除默认值 | 不添加删除条件 | 默认 `DELETION = ACTIVE` |
 | HTTP 数据查询 | list、paged、cursor、count、按版本加载 | single、list、paged、cursor、count 与 state-only |
 | HTTP 聚合 | `event/aggregation`，JSON 或 SSE | `snapshot/aggregation`，JSON 或 SSE |
-| HTTP Schema | `event/schema` 能力描述 | `snapshot/schema` 能力描述 |
+| HTTP Schema | `event/schema` 与 refresh | `snapshot/schema` 与 refresh |
 | API Client | 无 | 有独立快照合同 |
 
 ## 何时使用事件流查询

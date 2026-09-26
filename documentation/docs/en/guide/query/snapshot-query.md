@@ -114,7 +114,7 @@ POST /tenant/{tenantId}/sales-order/snapshot/{operation}
 POST /owner/{ownerId}/sales-order/snapshot/{operation}
 ```
 
-Here, `{operation}` is one of the nine operations above. List can negotiate JSON or SSE; single, paged, and cursor return JSON. Aggregation and [Query Model Schema](./query-model-schema.md) routes are separate contracts. Generated [OpenAPI](../open-api.md) from the running application is the source of truth for exact paths. An HTTP guard can still limit a DTO that is otherwise valid.
+Here, `{operation}` is one of the nine operations above. List can negotiate JSON or SSE; single, paged, and cursor return JSON. Aggregation and [Query Model Schema (current guidance)](./query-model-schema.md) routes are separate contracts. Generated [OpenAPI](../open-api.md) from the running application is the source of truth for exact paths. An HTTP guard can still limit a DTO that is otherwise valid.
 
 ## Complete Snapshot, State-only, and Dynamic Results
 

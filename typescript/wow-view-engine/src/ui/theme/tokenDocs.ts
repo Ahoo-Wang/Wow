@@ -12,6 +12,7 @@
  */
 
 import { BRAND_BOUND_DOCS } from './brandDocs.js';
+import { OWN_CONTROL, STATE_DOCS } from './stateDocs.js';
 import type { TokenName } from './tokens.js';
 
 /** One phrase, in both of the READMEs' languages. */
@@ -38,11 +39,6 @@ const UNSET: Words = { en: 'unset', zh: '不设' };
 
 /** A token's role, in both languages, and nothing more to say. */
 const said = (en: string, zh: string): TokenDoc => ({ role: { en, zh } });
-
-const OWN_CONTROL: Words = {
-  en: "unset: each control's own",
-  zh: '不设：各控件原样',
-};
 
 const slot = (n: number): TokenDoc => ({
   role: {
@@ -281,37 +277,7 @@ export const TOKEN_DOCS: Readonly<Record<TokenName, TokenDoc>> = {
       zh: '隔行的底（关：行自己的底）',
     },
   },
-  highlight: {
-    role: {
-      en: 'The item a menu, a select or a combobox has under the keyboard or the pointer',
-      zh: '菜单、选择框、组合框里键盘或指针所在的那一项',
-    },
-  },
-  'highlight-foreground': {
-    role: { en: 'The words on that item', zh: '那一项上的文字' },
-  },
-  'nav-current': {
-    role: {
-      en: 'The view on screen in the view list',
-      zh: '视图列表里正在看的那一个',
-    },
-  },
-  'nav-current-foreground': {
-    role: { en: 'Its words', zh: '它的文字' },
-  },
-  'control-hover': {
-    role: {
-      en: 'A button or a toggle under the pointer',
-      zh: '指针下的按钮或切换',
-    },
-    light: OWN_CONTROL,
-    dark: OWN_CONTROL,
-  },
-  'control-pressed': {
-    role: { en: 'A toggle pressed', zh: '按下的切换' },
-    light: { en: 'unset: `muted`', zh: '不设：`muted`' },
-    dark: { en: 'unset: `muted`', zh: '不设：`muted`' },
-  },
+  ...STATE_DOCS,
   'focus-width': {
     role: {
       en: "The width of a focused control's outline",
@@ -387,6 +353,16 @@ export const TOKEN_DOCS: Readonly<Record<TokenName, TokenDoc>> = {
     role: {
       en: "The width of a control's edge (a divider stays 1px)",
       zh: '控件边的宽度（分隔线仍是 1px）',
+    },
+  },
+  'filter-height': {
+    role: {
+      en: "A board filter chip's height, its controls filling it",
+      zh: '看板筛选芯片的高度，里面的控件填满它',
+    },
+    light: {
+      en: 'unset: its controls and padding',
+      zh: '不设：由控件与内边距撑开',
     },
   },
   'badge-edge': {

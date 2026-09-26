@@ -607,6 +607,9 @@ export function ControlFrame({
 }: React.ComponentProps<'div'>) {
   return (
     <div
+      // The chip's height and its controls' are `filter-height`'s
+      // (`styles.css`), found by this.
+      data-control-frame=""
       className={cn(
         'rounded-md border border-[color:var(--_fve-control-edge,var(--input))] bg-[color:var(--_fve-control,color-mix(in_oklab,var(--muted)_40%,transparent))] has-[[data-slot=input]]:border-input data-[idle]:border-dashed data-[idle]:border-input data-[idle]:bg-background',
         className,
@@ -676,7 +679,9 @@ export function TableDataRow({
  * The open one is a sheet of the work area's own ground lifted off the
  * column: `background`, the vendored button's own transparent border painted
  * `border` all the way round, and the registry's `shadow-xs` — not another
- * step of grey. Four states used to
+ * step of grey (the roles `nav-current`, `nav-current-edge` and
+ * `nav-current-shadow`, so a theme can draw it as a tint with no edge and
+ * no lift instead). Four states used to
  * share one 3% grey, so the open view and a hovered one painted the same
  * colour and the list had no "you are here" at all; a raised sheet is a
  * different *kind* of mark, and no amount of theming can collapse it into
@@ -701,7 +706,7 @@ const sidebarItemVariants = cva(
   {
     variants: {
       current: {
-        true: 'bg-nav-current text-nav-current-foreground hover:bg-nav-current hover:text-nav-current-foreground border-border font-medium shadow-xs',
+        true: 'bg-nav-current text-nav-current-foreground hover:bg-nav-current hover:text-nav-current-foreground border-nav-current-edge shadow-nav-current font-medium',
         false: '',
       },
     },

@@ -57,8 +57,17 @@ describe('the pairs measured', () => {
     mode => {
       const names = contrastPairs(mode).map(({ name }) => name);
       expect(new Set(names).size).toBe(names.length);
-      // `porcelain` fills its controls, so every pair applies to it.
-      expect(measure('porcelain', mode).map(({ name }) => name)).toEqual(names);
+      // `porcelain` fills its controls, so every pair a filled control
+      // paints applies to it — all but the hover fill it leaves unset.
+      expect(measure('porcelain', mode).map(({ name }) => name)).toEqual(
+        contrastPairs(mode)
+          .filter(({ requires }) => requires !== 'control-hover')
+          .map(({ name }) => name),
+      );
+      // `azure` gives the hover fill, so what is painted on it is measured.
+      expect(measure('azure', mode).map(({ name }) => name)).toContain(
+        'outline-hover-foreground text on hovered outline button on its hover fill',
+      );
       // Where a theme leaves the control fill unset, those pairs are not
       // painted, and the arithmetic has nothing to measure.
       expect(measure('neutral', mode).map(({ name }) => name)).toEqual(

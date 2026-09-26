@@ -194,6 +194,8 @@
   --color-row-stripe: var(--_fve-row-stripe);
   --color-nav-current: var(--_fve-nav-current);
   --color-nav-current-foreground: var(--_fve-nav-current-foreground);
+  --color-nav-current-edge: var(--_fve-nav-current-edge);
+  --shadow-nav-current: var(--_fve-nav-current-shadow);
   --color-chart-tooltip: var(--_fve-chart-tooltip);
   --color-chart-tooltip-foreground: var(--_fve-chart-tooltip-foreground);
   --shadow-chart-tooltip: var(--_fve-chart-tooltip-shadow);
@@ -355,6 +357,65 @@
         h
     );
   }
+}
+
+/*
+ * The links (theme-architecture.md 9.3): a role drawn in another token of
+ * the surface — a menu's highlight in the primary fill, the view on screen
+ * in a selected row's tint. A preset cannot say that with a value: its
+ * block sits on the element its attribute is on, usually `<html>`, above
+ * the surface, and a `var(--primary)` in it is worked out there, where the
+ * surface's primary — derived from a brand colour, a host's own
+ * `--fve-primary`, the mode — does not exist. So it says it by a number,
+ * which crosses the cascade unchanged, and the link is resolved here, on
+ * the boundary: `<role>-link` is how much of the token the role is drawn
+ * in, `100%` the token itself and less the token laid over what is under
+ * it. One number for both modes: the token it names resolves in each.
+ *
+ * Unset, `--_fve-<role>-link` is invalid, so is the link, and the role
+ * reads the preset's value behind it, as before. Each role reads its link
+ * between the host and the preset (`var(--fve-x, var(--_fve-link-x,
+ * var(--fvp-x, …)))`): the host's own colour still wins, and a link beats
+ * the preset's literal — whoever set it. Which token each role links to is
+ * the registry's (`link` in `src/ui/theme/tokens.ts`), and
+ * `test/themeFiles.test.ts` holds this rule to it.
+ */
+:where(.fve-root, .fve-tokens) {
+  --_fve-link-highlight: color-mix(
+    in oklab,
+    var(--primary) var(--_fve-highlight-link),
+    transparent
+  );
+  --_fve-link-highlight-foreground: color-mix(
+    in oklab,
+    var(--primary-foreground) var(--_fve-highlight-foreground-link),
+    transparent
+  );
+  --_fve-link-item-selected: color-mix(
+    in oklab,
+    var(--_fve-row-selected) var(--_fve-item-selected-link),
+    transparent
+  );
+  --_fve-link-nav-current: color-mix(
+    in oklab,
+    var(--_fve-row-selected) var(--_fve-nav-current-link),
+    transparent
+  );
+  --_fve-link-nav-current-foreground: color-mix(
+    in oklab,
+    var(--primary) var(--_fve-nav-current-foreground-link),
+    transparent
+  );
+  --_fve-link-outline-hover-edge: color-mix(
+    in oklab,
+    var(--primary) var(--_fve-outline-hover-edge-link),
+    transparent
+  );
+  --_fve-link-outline-hover-foreground: color-mix(
+    in oklab,
+    var(--primary) var(--_fve-outline-hover-foreground-link),
+    transparent
+  );
 }
 
 /*
@@ -817,30 +878,105 @@
   /*
    * What marks a state. `highlight` is the item a menu, a select or a
    * combobox has under the keyboard or the pointer — the registry's
-   * `accent`, a tint; a theme that highlights with the primary fill says
-   * `var(--primary)` and its foreground. `nav-current` is the view on
-   * screen in the view list, a sheet of the work area's own ground.
-   * `control-hover` and `control-pressed` have no built-in value: unset,
-   * each control keeps the fill it was drawn with (its rule below carries
-   * it), because they were never one value.
+   * `accent`, a tint. `item-selected` is the item it holds chosen (nothing
+   * unset: the check alone marks it), in `item-selected-weight` (the
+   * item's own unset). `nav-current` is the view on screen in the view
+   * list, a sheet of the work area's own ground with an edge and a lift
+   * (`nav-current-edge`, `nav-current-shadow`: the registry's `border` and
+   * `shadow-xs`). An outline button under the pointer keeps its edge and
+   * takes `foreground` unless `outline-hover-edge` and
+   * `outline-hover-foreground` say otherwise. `control-hover` and
+   * `control-pressed` have no built-in value: unset, each control keeps
+   * the fill it was drawn with (its rule below carries it), because they
+   * were never one value.
+   *
+   * A role that is another token of the surface — a highlight in the
+   * primary fill, the view on screen in a selected row's tint — says so by
+   * its link (`<role>-link`, theme-architecture.md 9.3), read between the
+   * host and the preset: see the links' rule below the blocks.
    */
-  --_fve-highlight: var(--fve-highlight, var(--fvp-highlight, var(--accent)));
+  --_fve-highlight: var(
+    --fve-highlight,
+    var(--_fve-link-highlight, var(--fvp-highlight, var(--accent)))
+  );
   --_fve-highlight-foreground: var(
     --fve-highlight-foreground,
-    var(--fvp-highlight-foreground, var(--accent-foreground))
+    var(
+      --_fve-link-highlight-foreground,
+      var(--fvp-highlight-foreground, var(--accent-foreground))
+    )
+  );
+  --_fve-highlight-link: var(--fve-highlight-link, var(--fvp-highlight-link));
+  --_fve-highlight-foreground-link: var(
+    --fve-highlight-foreground-link,
+    var(--fvp-highlight-foreground-link)
+  );
+  --_fve-item-selected: var(
+    --fve-item-selected,
+    var(--_fve-link-item-selected, var(--fvp-item-selected, transparent))
+  );
+  --_fve-item-selected-foreground: var(
+    --fve-item-selected-foreground,
+    var(--fvp-item-selected-foreground, var(--popover-foreground))
+  );
+  --_fve-item-selected-weight: var(
+    --fve-item-selected-weight,
+    var(--fvp-item-selected-weight)
+  );
+  --_fve-item-selected-link: var(
+    --fve-item-selected-link,
+    var(--fvp-item-selected-link)
   );
   --_fve-nav-current: var(
     --fve-nav-current,
-    var(--fvp-nav-current, var(--background))
+    var(--_fve-link-nav-current, var(--fvp-nav-current, var(--background)))
   );
   --_fve-nav-current-foreground: var(
     --fve-nav-current-foreground,
-    var(--fvp-nav-current-foreground, var(--foreground))
+    var(
+      --_fve-link-nav-current-foreground,
+      var(--fvp-nav-current-foreground, var(--foreground))
+    )
+  );
+  --_fve-nav-current-edge: var(
+    --fve-nav-current-edge,
+    var(--fvp-nav-current-edge, var(--border))
+  );
+  --_fve-nav-current-shadow: var(
+    --fve-nav-current-shadow,
+    var(--fvp-nav-current-shadow, 0 1px 2px 0 rgb(0 0 0 / 0.05))
+  );
+  --_fve-nav-current-link: var(
+    --fve-nav-current-link,
+    var(--fvp-nav-current-link)
+  );
+  --_fve-nav-current-foreground-link: var(
+    --fve-nav-current-foreground-link,
+    var(--fvp-nav-current-foreground-link)
   );
   --_fve-control-hover: var(--fve-control-hover, var(--fvp-control-hover));
   --_fve-control-pressed: var(
     --fve-control-pressed,
     var(--fvp-control-pressed)
+  );
+  --_fve-outline-hover-edge: var(
+    --fve-outline-hover-edge,
+    var(--_fve-link-outline-hover-edge, var(--fvp-outline-hover-edge))
+  );
+  --_fve-outline-hover-foreground: var(
+    --fve-outline-hover-foreground,
+    var(
+      --_fve-link-outline-hover-foreground,
+      var(--fvp-outline-hover-foreground, var(--foreground))
+    )
+  );
+  --_fve-outline-hover-edge-link: var(
+    --fve-outline-hover-edge-link,
+    var(--fvp-outline-hover-edge-link)
+  );
+  --_fve-outline-hover-foreground-link: var(
+    --fve-outline-hover-foreground-link,
+    var(--fvp-outline-hover-foreground-link)
   );
 
   /*
@@ -868,8 +1004,10 @@
    * (each rule carries what the control was drawn with), and a field one
    * types into keeps `input`, which owes 3:1 (WCAG 1.4.11).
    * `control-thumb-shadow` lifts the thumb off its track. The heights are
-   * the registry's two steps (`h-8`, `h-7`); a board filter's chip is the
-   * default step and its two 1px edges. `edge-width` is the width of a
+   * the registry's two steps (`h-8`, `h-7`); a board filter's chip is its
+   * controls, 2px round them and its two 1px edges — 34px round the small
+   * step, 38px round a text box — unless `filter-height` gives it one
+   * height, which its controls then fill. `edge-width` is the width of a
    * control's edge — only a control's: a divider stays 1px. `badge-edge`
    * and `badge-fill` are how much of its tone a toned badge's edge and wash
    * take; the edge is kept by default (D46 10.5).
@@ -889,6 +1027,7 @@
     --fve-control-height-sm,
     var(--fvp-control-height-sm, 1.75rem)
   );
+  --_fve-filter-height: var(--fve-filter-height, var(--fvp-filter-height));
   --_fve-edge-width: var(--fve-edge-width, var(--fvp-edge-width, 1px));
   --_fve-badge-edge: var(--fve-badge-edge, var(--fvp-badge-edge, 30%));
   --_fve-badge-fill: var(--fve-badge-fill, var(--fvp-badge-fill, 10%));
@@ -1369,6 +1508,25 @@
   }
 
   /*
+   * The item a menu, a select or a combobox holds chosen — a select's and a
+   * combobox's selected option, a menu's checked item — whether or not it
+   * is under the pointer: `item-selected` behind it, transparent unset, in
+   * `item-selected-foreground` and `item-selected-weight`. Unset the weight
+   * is invalid and the item inherits, as before. Two attributes, so the
+   * highlighted item (a state as well, three) still paints over it; the
+   * weight it keeps.
+   */
+  :is([data-slot='select-item'], [data-slot='combobox-item'])[data-selected],
+  :is(
+    [data-slot='dropdown-menu-checkbox-item'],
+    [data-slot='dropdown-menu-radio-item']
+  )[data-checked] {
+    background-color: var(--_fve-item-selected);
+    color: var(--_fve-item-selected-foreground);
+    font-weight: var(--_fve-item-selected-weight, inherit);
+  }
+
+  /*
    * The item a menu, a select or a combobox has under the keyboard or the
    * pointer, and every word and icon inside it — where the registry colours
    * those too. A destructive item keeps its own red.
@@ -1465,6 +1623,29 @@
 
   .group\/button:where(.size-7) {
     width: var(--_fve-control-height-sm);
+  }
+
+  /*
+   * A board filter's chip (`ControlFrame`) at `filter-height`, and the
+   * controls on it filling it: the chip's height less its 2px of padding
+   * and its two 1px edges. Unset, every one of the three is invalid — a
+   * height of `auto`, no minimum, no maximum — so the chip is its controls
+   * and its padding, 34px or 38px, as before.
+   */
+  [data-control-frame] {
+    height: var(--_fve-filter-height);
+  }
+
+  [data-control-frame]
+    :is(
+      :is(.group\/button, .group\/toggle):where(.h-8, .h-7),
+      [data-slot='input'],
+      [data-slot='input-group'],
+      [data-slot='select-trigger'],
+      [data-slot='combobox-chips']
+    ) {
+    min-height: calc(var(--_fve-filter-height) - 0.25rem - 2px);
+    max-height: calc(var(--_fve-filter-height) - 0.25rem - 2px);
   }
 
   /*
@@ -1675,6 +1856,38 @@
           --_fve-control-hover,
           color-mix(in oklab, var(--input) 50%, transparent)
         );
+      }
+    }
+
+    /*
+     * An outline button under the pointer — the registry's outline variant,
+     * found by its `border-border` (a button says no variant on the
+     * element): its edge in `outline-hover-edge`, the registry's own
+     * `border` unset, and its words in `outline-hover-foreground`, the
+     * registry's `hover:text-foreground` unset. Not while it is expanded,
+     * focused or invalid, whose edges are theirs. In the dark the registry's
+     * edge is `input`, so the rule is said again there, as above.
+     */
+    .group\/button:where(.border-border):hover:not(
+        [aria-expanded='true'],
+        [aria-invalid='true'],
+        :focus-visible
+      ) {
+      border-color: var(--_fve-outline-hover-edge, var(--border));
+      color: var(--_fve-outline-hover-foreground);
+    }
+
+    @media not print {
+      .group\/button:where(.border-border):where(
+          .fve-root[data-theme='dark'] *,
+          .dark .fve-root:not([data-theme='light']) *,
+          .dark .fve-tokens :not(.fve-root, .fve-root *)
+        ):hover:not(
+          [aria-expanded='true'],
+          [aria-invalid='true'],
+          :focus-visible
+        ) {
+        border-color: var(--_fve-outline-hover-edge, var(--input));
       }
     }
   }
@@ -2054,19 +2267,44 @@
     );
     --_fve-highlight: var(
       --fve-dark-highlight,
-      var(--fvp-dark-highlight, var(--accent))
+      var(--_fve-link-highlight, var(--fvp-dark-highlight, var(--accent)))
     );
     --_fve-highlight-foreground: var(
       --fve-dark-highlight-foreground,
-      var(--fvp-dark-highlight-foreground, var(--accent-foreground))
+      var(
+        --_fve-link-highlight-foreground,
+        var(--fvp-dark-highlight-foreground, var(--accent-foreground))
+      )
+    );
+    --_fve-item-selected: var(
+      --fve-dark-item-selected,
+      var(--_fve-link-item-selected, var(--fvp-dark-item-selected, transparent))
+    );
+    --_fve-item-selected-foreground: var(
+      --fve-dark-item-selected-foreground,
+      var(--fvp-dark-item-selected-foreground, var(--popover-foreground))
     );
     --_fve-nav-current: var(
       --fve-dark-nav-current,
-      var(--fvp-dark-nav-current, var(--background))
+      var(
+        --_fve-link-nav-current,
+        var(--fvp-dark-nav-current, var(--background))
+      )
     );
     --_fve-nav-current-foreground: var(
       --fve-dark-nav-current-foreground,
-      var(--fvp-dark-nav-current-foreground, var(--foreground))
+      var(
+        --_fve-link-nav-current-foreground,
+        var(--fvp-dark-nav-current-foreground, var(--foreground))
+      )
+    );
+    --_fve-nav-current-edge: var(
+      --fve-dark-nav-current-edge,
+      var(--fvp-dark-nav-current-edge, var(--border))
+    );
+    --_fve-nav-current-shadow: var(
+      --fve-dark-nav-current-shadow,
+      var(--fvp-dark-nav-current-shadow, 0 1px 2px 0 rgb(0 0 0 / 0.05))
     );
     --_fve-control-hover: var(
       --fve-dark-control-hover,
@@ -2075,6 +2313,17 @@
     --_fve-control-pressed: var(
       --fve-dark-control-pressed,
       var(--fvp-dark-control-pressed)
+    );
+    --_fve-outline-hover-edge: var(
+      --fve-dark-outline-hover-edge,
+      var(--_fve-link-outline-hover-edge, var(--fvp-dark-outline-hover-edge))
+    );
+    --_fve-outline-hover-foreground: var(
+      --fve-dark-outline-hover-foreground,
+      var(
+        --_fve-link-outline-hover-foreground,
+        var(--fvp-dark-outline-hover-foreground, var(--foreground))
+      )
     );
     --_fve-focus-halo: var(
       --fve-dark-focus-halo,
@@ -2280,14 +2529,34 @@
     --fvp-dark-highlight: initial;
     --fvp-highlight-foreground: initial;
     --fvp-dark-highlight-foreground: initial;
+    --fvp-highlight-link: initial;
+    --fvp-highlight-foreground-link: initial;
+    --fvp-item-selected: initial;
+    --fvp-dark-item-selected: initial;
+    --fvp-item-selected-foreground: initial;
+    --fvp-dark-item-selected-foreground: initial;
+    --fvp-item-selected-weight: initial;
+    --fvp-item-selected-link: initial;
     --fvp-nav-current: initial;
     --fvp-dark-nav-current: initial;
     --fvp-nav-current-foreground: initial;
     --fvp-dark-nav-current-foreground: initial;
+    --fvp-nav-current-edge: initial;
+    --fvp-dark-nav-current-edge: initial;
+    --fvp-nav-current-shadow: initial;
+    --fvp-dark-nav-current-shadow: initial;
+    --fvp-nav-current-link: initial;
+    --fvp-nav-current-foreground-link: initial;
     --fvp-control-hover: initial;
     --fvp-dark-control-hover: initial;
     --fvp-control-pressed: initial;
     --fvp-dark-control-pressed: initial;
+    --fvp-outline-hover-edge: initial;
+    --fvp-dark-outline-hover-edge: initial;
+    --fvp-outline-hover-foreground: initial;
+    --fvp-dark-outline-hover-foreground: initial;
+    --fvp-outline-hover-edge-link: initial;
+    --fvp-outline-hover-foreground-link: initial;
     --fvp-focus-width: initial;
     --fvp-focus-offset: initial;
     --fvp-focus-style: initial;
@@ -2303,6 +2572,7 @@
     --fvp-dark-control-thumb-shadow: initial;
     --fvp-control-height: initial;
     --fvp-control-height-sm: initial;
+    --fvp-filter-height: initial;
     --fvp-edge-width: initial;
     --fvp-badge-edge: initial;
     --fvp-badge-fill: initial;

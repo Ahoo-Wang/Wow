@@ -13,20 +13,6 @@ description: Query aggregate event history, event-stream field paths, and publis
 
 Query root fields directly, such as `aggregateId`, `tenantId`, `version`, and `createTime`. `body` is an event array; one event's metadata is `body.id`, `body.name`, `body.revision`, and `body.bodyType`, while its payload is `body.body`. Payload fields must be declared by Query Model Schema and are constrained by MongoDB queryable storage or Elasticsearch `body.body` mapping capability.
 
-### Payload projection and bodyType
-
-A projection that selects `body.body` or any node below it must also select `body.bodyType` and must not exclude `body.bodyType`. Deserializing the payload needs that type; the runtime only checks the contract and never adds fields or rewrites the projection behind your back. For example, this payload projection is valid:
-
-```json
-{
-  "projection": {
-    "include": ["body.body", "body.bodyType"]
-  }
-}
-```
-
-`include: ["body"]` already covers both the payload and `bodyType`. Including only `body.body`, including only payload subfields, or still selecting the payload while excluding `body.bodyType` is rejected by the Query Model Schema. This is a breaking change in query semantics.
-
 ## JVM Queries
 
 `EventStreamQueryGateway` supports typed and dynamic single/list/paged/cursor/count queries on the JVM; `dynamicQuery` returns `ObjectNode`. The Gateway also provides JVM aggregation; see [Event Stream Aggregation](./event-stream-aggregation.md) for its JVM and HTTP/OpenAPI contracts and examples.
@@ -132,7 +118,7 @@ A JVM single query returns an empty `Mono` for no match; list returns an empty `
 | Deletion default | No deletion condition | `DELETION = ACTIVE` by default |
 | HTTP data queries | list, paged, cursor, count, version-range load | single, list, paged, cursor, count, and state-only |
 | HTTP aggregation | `event/aggregation`, JSON or SSE | `snapshot/aggregation`, JSON or SSE |
-| HTTP Schema | `event/schema` capability descriptor | `snapshot/schema` capability descriptor |
+| HTTP Schema | `event/schema` and refresh | `snapshot/schema` and refresh |
 | API Client | None | Separate snapshot contracts exist |
 
 ## When to Use Event Stream Queries

@@ -10,7 +10,7 @@
 
 V9 是当前维护基线和默认术语。`wow-develop`、`wow-review` 与 `wow-debug` 仍可服务 V8 下游应用，但必须先从目标构建与解析依赖确认实际 Wow 版本，再应用精确符号、默认值或 V9 规则；无法确认时标记版本结论未验证。V8 到 V9 的旧类型、配置和行为映射只保存在 `wow-migrate`。
 
-同一主版本也可能有实现 SPI 变更。查询参考按目标是否具备 `QueryFilter.prepare`、`QueryPolicy.evaluate` 和 `QueryAdmission`（Backend 原语接收 `AdmittedQuery`）区分固定管道与历史实现；Backend 仍接收 `(query, schema)` 的中间目标只共享阶段顺序，不能把 around chain、验证模式或旧构造器套到所有 V9 目标。评估用例中的固定 commit 是源码基线，不是已发布制品证明；带明确历史版本的案例继续按其原始合同评估。
+同一主版本也可能有实现 SPI 变更。查询参考按目标是否具备 `QueryFilter.prepare`、`QueryPolicy.evaluate` 和 Backend `(query, schema)` 区分固定管道与历史实现，不能把 around chain、验证模式或旧构造器套到所有 V9 目标。评估用例中的固定 commit 是源码基线，不是已发布制品证明；带明确历史版本的案例继续按其原始合同评估。
 
 ## Skills
 

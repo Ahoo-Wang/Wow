@@ -15,9 +15,9 @@ description: 用七个业务场景说明事件流根文档与展开事件的 JVM
 - **JVM Gateway**：聚合级 `EventStreamQueryGateway` 可通过 `query.query(queryGateway)` 执行；Spring 管理的 Gateway 进入完整策略链，直接 Backend Factory 的绕过边界见[查询后端](./query-backend.md)。
 - **WebFlux HTTP/OpenAPI**：当前 `sales-order` OpenAPI 已证明 `POST /sales-order/event/aggregation`、`POST /tenant/{tenantId}/sales-order/event/aggregation` 与 `POST /owner/{ownerId}/sales-order/event/aggregation`。基础路由不包含 tenant/owner 路径作用域；tenant/owner 变体通过路径参数提供相应作用域。
 - **Schema HTTP**：`GET /sales-order/event/schema` 是独立的模型级路由，没有 tenant/owner 变体。
-- **公共合同**：Elements、group、metric、alias、排序与限制见[聚合查询](./aggregation-query.md)，根过滤的 Kotlin DSL 见[过滤条件](./filter-expression.md)，字段能力以 [Query Model Schema](./query-model-schema.md)为准。
+- **公共合同**：Elements、group、metric、alias、排序与限制见[聚合查询](./aggregation-query.md)，根过滤的 Kotlin DSL 见[过滤条件](./filter-expression.md)，字段能力以 [Query Model Schema（当前说明）](./query-model-schema.md)为准。
 
-HTTP Handler 严格解码请求，用 `QueryRequestScope` 解析 tenant/owner/space 并写入 Reactor Context，并把查询入口标为 `HTTP`；`HttpQueryGuard` 只执行 HTTP 适配器的响应行数上限、空闲超时与缓冲。EventStream Gateway 在准入时检查 `wow.query.http.*` 预算，随后执行 prepare、scope 与 `QueryPolicy` 约束合并，经 `QueryAdmission` 准入最终 Query，再把得到的 `AdmittedQuery`（带着本次订阅的 Schema 版本）交给 Backend 的 `aggregate` 原语。Snapshot ABAC 标签策略在 EventStream 上返回 `MatchAllFilter`，不读取标签。响应按 Accept 协商 JSON 数组或 SSE；JVM 返回 `Flux<ObjectNode>`。以下只是代表性节点行。
+HTTP Handler 严格解码请求，用 `QueryRequestScope` 解析 tenant/owner/space 并写入 Reactor Context，由独立 `HttpQueryGuard` 执行 HTTP 成本与响应限制。EventStream Gateway 随后执行 prepare、scope 与 `QueryPolicy` 约束合并、最终公共校验，再把逻辑 Query 和同一 Schema 交给 Backend 聚合。Snapshot ABAC 标签策略在 EventStream 上返回 `MatchAllFilter`，不读取标签。响应按 Accept 协商 JSON 数组或 SSE；JVM 返回 `Flux<ObjectNode>`。以下只是代表性节点行。
 
 ## 根文档、body 与统计单位
 

@@ -17,6 +17,7 @@ import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.modeling.materialize
 import me.ahoo.wow.query.QueryBackendBinding
+import me.ahoo.wow.query.schema.UnavailableQueryModelSchemaProvider
 import java.util.concurrent.ConcurrentHashMap
 
 fun interface EventStreamQueryBackendFactory {
@@ -31,4 +32,14 @@ abstract class AbstractEventStreamQueryBackendFactory : EventStreamQueryBackendF
         bindingCache.computeIfAbsent(namedAggregate.materialize(), ::createBinding)
 
     protected abstract fun createBinding(namedAggregate: NamedAggregate): QueryBackendBinding<EventStreamQueryBackend>
+}
+
+object NoOpEventStreamQueryBackendFactory : AbstractEventStreamQueryBackendFactory() {
+    override fun createBinding(namedAggregate: NamedAggregate): QueryBackendBinding<EventStreamQueryBackend> =
+        QueryBackendBinding(
+            NoOpEventStreamQueryBackend(namedAggregate),
+            UnavailableQueryModelSchemaProvider(
+                "Event stream query backend [$namedAggregate] does not provide QueryModelSchema."
+            ),
+        )
 }

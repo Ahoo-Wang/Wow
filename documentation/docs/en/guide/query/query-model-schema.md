@@ -65,8 +65,8 @@ flowchart LR
     Working["Working Directory 400"] --> Merger
     Merger --> Adapter["MongoDB / Elasticsearch Adapter"]
     Adapter --> Schema["QueryModelSchema"]
-    Schema --> Gateway["Gateway admission / Backend compilers"]
-    Schema --> HTTP["capability descriptor (GET /schema)"]
+    Schema --> Gateway["Gateway validation / native compilation"]
+    Schema --> HTTP["Schema / refresh HTTP"]
 ```
 
 - `System` supplies model-specific fields for Snapshot and EventStream. Extensions must remain under the Snapshot `state` root or the EventStream `body.body` root; a field leaf already set by System cannot be overwritten.
@@ -142,11 +142,11 @@ Numeric `EXACT_MATCH`/`RANGE` compares at native storage precision, not arbitrar
 
 Masking does not remove native capability facts. Public cursor and aggregation admission separately reject protected values and their native aliases. Public metadata supports discovery, not a replacement for final request validation.
 
-## Strict admission and revalidation
+## Strict admission and refresh
 
 Unknown fields or suffixes, missing capabilities, incompatible values, and incomplete element scopes fail closed. There is no configurable permissive field fallback. Public queries retain logical paths; `validateQuery(query, schema)` returns that same input without producing a physical Query.
 
-Each Gateway subscription uses one Schema version: preparation, admission and response masking read it, and the `AdmittedQuery` carries it to the Backend, whose compilers consume the resolved fields. Provider failures are not cached as successful values and never bypass validation. Revalidation (every `wow.query.schema.revalidate-interval`, or on demand through the `wowQuerySchema` actuator endpoint) publishes a new version; a subscription already running keeps its own. Direct Backend callers obtain an `AdmittedQuery` via `QueryAdmission`; see [Query Backend](./query-backend.md).
+Each Gateway subscription obtains one Schema shared by preparation, public checks, Backend compilation, and response masking. Provider failures are not cached as successful values and never bypass validation. Refresh publishes a new instance; an existing subscription keeps its captured instance. Direct Backend calls explicitly supply a Schema; see [Query Backend](./query-backend.md).
 
 ## HTTP and OpenAPI
 

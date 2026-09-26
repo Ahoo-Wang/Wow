@@ -63,9 +63,9 @@ EventStore batch 使用 Bulk `create`；SnapshotStore direct/batch 都以 `_sour
 
 ## 快照查询字段解析
 
-查询 factory 把逻辑 `QueryModelSchema` 与目标索引 mapping 合并，为 exact match、range、sort、presence、projection 等绑定物理路径；准入按这些 binding 解析每个字段引用，编译器消费得到的 `ResolvedField`。multi-field、runtime field 和禁用 object 服从 Elasticsearch mapping；不要在 HTTP 层猜测 `.keyword`。
+查询 factory 把逻辑 `QuerySchema` 与目标索引 mapping 合并，分别解析 exact match、range、sort、presence、projection 等物理路径。multi-field、runtime field 和禁用 object 服从 Elasticsearch mapping；不要在 HTTP 层猜测 `.keyword`。
 
-## 重新校验运行时查询 Schema
+## 刷新运行时查询 Schema
 
 mapping 变化后，运行时 schema 必须重新解析。每个实例按 `wow.query.schema.revalidate-interval` 定期重新校验查询 schema；需要立即生效时，在每个实例上调用 `wowQuerySchema` actuator 端点。重新校验只更新内存 schema，不回填历史文档或修改 mapping。
 
@@ -145,19 +145,19 @@ batch options 必须满足 `max-size>1`、正 `max-delay`、pending 不小于 ba
 
 #### 1. 查询报字段未映射、能力不兼容或 multi-field 存在歧义
 
-检查目标索引实际 mapping 与 runtime schema。不要硬编码 `.keyword` 修补所有字段；修正模板/mapping 或显式公共字段合同后重新校验 schema。
+检查目标索引实际 mapping 与 runtime schema。不要硬编码 `.keyword` 修补所有字段；修正模板/mapping 或显式公共字段合同后刷新 schema。
 
-#### 2. 重新校验端点不可用或重新校验失败
+#### 2. 刷新端点不可用或刷新失败
 
-确认 Spring Boot Actuator 在 classpath 上并在管理面暴露 `wowQuerySchema` 端点，且 query factory 已装配；`wow.query.schema.refresh` 指标记录每次结果。mapping 读取失败应保持失败，不应回退为“所有字段都可查”。
+确认 webflux/openapi capability、路由授权和 query factory 已装配。mapping 读取失败应保持失败，不应回退为“所有字段都可查”。
 
 #### 3. alias 或 data stream 无法解析
 
 当前 converter 生成具体索引名。若平台改为 alias/data stream，必须提供与读取、写入、mapping resolver 一致的迁移设计。
 
-#### 4. 更新索引模板并重新校验后，历史数据仍无法查询
+#### 4. 更新索引模板并刷新后，历史数据仍无法查询
 
-模板不重写历史 mapping/data。需要 reindex 或显式迁移；schema 重新校验只重新读取当前后端能力。
+模板不重写历史 mapping/data。需要 reindex 或显式迁移；schema refresh 只重新读取当前后端能力。
 
 #### 5. runtime field 查询被拒绝
 

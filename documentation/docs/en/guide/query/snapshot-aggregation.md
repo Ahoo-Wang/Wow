@@ -19,7 +19,7 @@ Every HTTP JSON block below is a request body for one of these `snapshot/aggrega
 
 ## Field Paths and Counting Units
 
-Without `elements`, the root filter, groups, and metrics use absolute snapshot logical paths such as `state.status`; one record is one current root snapshot document. Business fields under `state` need the corresponding filter, group, or numeric capabilities from the [Query Model Schema](./query-model-schema.md).
+Without `elements`, the root filter, groups, and metrics use absolute snapshot logical paths such as `state.status`; one record is one current root snapshot document. Business fields under `state` need the corresponding filter, group, or numeric capabilities from the [Query Model Schema (current guidance)](./query-model-schema.md).
 
 After `expand("state.items")`, the counting unit becomes one expanded order item. The first Element path remains absolute, while its filter and all following group, metric, and expression fields are relative to that element. Use `quantity`, `productId`, and `price`, not `state.items.quantity`. Groups only bucket records and do not change the counting unit; `COUNT` always counts the current innermost scope.
 
@@ -824,7 +824,7 @@ The `__missing__` bucket collects the 4 of the example's 6 order items that carr
 
 - The Snapshot Gateway appends `DELETION = ACTIVE` by default. Direct Backend callers supply deletion scope explicitly; the normalizer and compiler do not add defaults. The root filter first selects snapshots, and each Element filter then selects individual expanded elements.
 - The runtime Query Model Schema and selected MongoDB or Elasticsearch mapping jointly prove whether logical fields support exact match, range, Element scope, TERMS, numeric, or temporal aggregation. A valid request DTO does not establish backend support.
-- The HTTP Handler applies QueryRequestScope and marks the query entry `HTTP` before invoking `SnapshotQueryGateway`; the Gateway checks the `wow.query.http.*` budget at admission, and `HttpQueryGuard` keeps only response row caps, the `limit=0` default, idle timeout and buffering. When expensive operators are disabled, HTTP rejects Elements, metric-alias sorting, and arithmetic expressions. In-process JVM calls do not automatically receive these HTTP-only limits.
+- The HTTP Handler applies QueryRequestScope and independent `HttpQueryGuard` limits before invoking `SnapshotQueryGateway`. When expensive operators are disabled, HTTP rejects Elements, metric-alias sorting, and arithmetic expressions. In-process JVM calls do not automatically receive these HTTP-only limits.
 - `DISPLAY` sensitive fields remain valid for ordinary filters, full-text search, and sorting; `CONFIDENTIAL` ones do not. A group, field metric, or arithmetic expression that references one is rejected by Gateway public validation; `COUNT` is unchanged. See [Field Masking](./masking.md) for the complete matrix.
 - MongoDB and Elasticsearch share the public AST but do not promise identical physical pipelines, mappings, null handling, or bucket details. `ANY` in particular provides no stable value across executions or backends.
 - A custom `SnapshotQueryBackend` must implement the aggregation contract. Working data-query routes or published OpenAPI alone do not prove that the Backend executes aggregation.

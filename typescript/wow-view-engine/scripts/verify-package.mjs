@@ -481,7 +481,9 @@ assert.ok(presetLayer.length > 0, 'The registry gives a preset nothing to set');
 // Wherever the stylesheet reads a preset variable it reads the host's first:
 // `var(--fve-x, var(--fvp-x …))`, so no preset can beat the host — with the
 // brand's derivation between the two for a token the registry marks
-// `brand`: `var(--fve-x, var(--_fve-brand-x, var(--fvp-x …)))`.
+// `brand`: `var(--fve-x, var(--_fve-brand-x, var(--fvp-x …)))`, or a link
+// for a role a link token names (theme-architecture.md 9.3):
+// `var(--fve-x, var(--_fve-link-x, var(--fvp-x …)))`, one for both halves.
 const presetReads = scopedRules.flatMap(({ values }) =>
   [...values.values()].flatMap(value =>
     (value.match(/--fvp-[\w-]+/g) ?? []).map(variable => [variable, value]),
@@ -493,7 +495,7 @@ assert.deepEqual(
       ([variable, value]) =>
         !presetLayer.includes(variable) ||
         !new RegExp(
-          `var\\(${variable.replace('--fvp-', '--fve-')},\\s*(var\\(${variable.replace('--fvp-', '--_fve-brand-')},\\s*)?var\\(${variable}[,)]`,
+          `var\\(${variable.replace('--fvp-', '--fve-')},\\s*(var\\((${variable.replace('--fvp-', '--_fve-brand-')}|${variable.replace(/^--fvp-(dark-)?/, '--_fve-link-')}),\\s*)?var\\(${variable}[,)]`,
         ).test(value),
     )
     .map(([variable]) => variable),

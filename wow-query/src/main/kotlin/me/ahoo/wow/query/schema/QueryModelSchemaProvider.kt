@@ -30,11 +30,7 @@ interface QueryModelSchemaProvider {
     fun refresh(): Mono<QueryModelSchema>
 }
 
-/**
- * The schema provider of an aggregate model that has no query backend: every load fails with [message].
- * [QuerySchemaCatalog] skips it, since there is nothing to load or revalidate.
- */
-class UnavailableQueryModelSchemaProvider(
+internal class UnavailableQueryModelSchemaProvider(
     private val message: String,
 ) : QueryModelSchemaProvider {
     override fun schema(): Mono<QueryModelSchema> =

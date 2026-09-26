@@ -322,6 +322,25 @@ export const GROUNDS: readonly Ground[] = [
     pairs: texts('highlight-foreground'),
   },
   {
+    // The item a menu or a select holds chosen (theme-architecture.md 9.3).
+    name: 'selected item',
+    layers: [{ token: 'popover' }, { token: 'item-selected' }],
+    pairs: texts('item-selected-foreground'),
+  },
+  {
+    // An outline button under the pointer: its words on the registry's
+    // `muted` hover, and on a theme's `control-hover` where it gives one.
+    name: 'hovered outline button',
+    layers: [{ token: 'background' }, { token: 'muted' }],
+    pairs: texts('outline-hover-foreground'),
+  },
+  {
+    name: 'hovered outline button on its hover fill',
+    layers: [{ token: 'background' }, { token: 'control-hover' }],
+    pairs: texts('outline-hover-foreground'),
+    requires: 'control-hover',
+  },
+  {
     name: 'tooltip',
     layers: one('tooltip'),
     pairs: texts('tooltip-foreground'),

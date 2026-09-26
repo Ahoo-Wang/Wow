@@ -56,7 +56,3 @@ object BenchmarkQuerySchemas {
 
     fun path(field: String): QueryPathTemplate = QueryPathTemplate(field.split('.').map(QueryPathSegment::Property))
 }
-
-/** The physical field a top-level [field] is bound to for [capability]; fails when it has no such binding. */
-fun QueryModelSchema.physicalFieldOf(field: QueryField, capability: QueryCapability): QueryField =
-    checkNotNull(field(field)?.binding(capability)) { "Field [$field] does not support [$capability]." }.physicalField

@@ -11,37 +11,32 @@ description: Fixed aggregate-bound preparation, scope, authorization, validation
 
 Each subscription independently:
 
-0. Admits the entry and checks its budget: the query entry is read once from Reactor Context, and a query whose entry is `HTTP` must fit the `wow.query.http.*` budget (`QueryEntryPolicy`). This runs on the query as submitted, before any Schema or storage work.
-1. Obtains one Schema from the Provider; with `wow.query.require-authenticated-scope=true`, an `HTTP` query whose authenticated scope does not pin `tenantId` is rejected here.
+1. Obtains one Schema from the Provider.
 2. Runs ordered `QueryFilter.prepare` stages; each emits one prepared logical Query.
-3. Appends the caller scope from Reactor Context.
+3. Appends the request scope from Reactor Context.
 4. Appends configured `QueryPolicy` filters through the shared policy stage for both Snapshot and EventStream queries, after ordinary preparation.
-5. Appends the model default scope: Snapshot adds `DELETION = ACTIVE` unless the query states a deletion scope; EventStream adds no deletion predicate.
-6. `QueryAdmission` finishes the query: it replaces field aliases with their canonical fields, appends the model's unique tie-breaker sort to a cursor query, validates the query against the Schema, normalizes it (relative time, derived operators, logical simplification) and resolves every field reference. The result is an `AdmittedQuery`.
-7. Calls one Backend primitive with the `AdmittedQuery`: `stream`, `page`, `count` or `aggregate`. Single, list, paged and cursor queries are built on `stream` and `page`.
-8. Masks returned records with the same Schema.
-9. Materializes typed results when the caller asked for them.
-10. Notifies `QueryObserver` of completion, error, or cancellation.
+5. Only the Gateway applies model defaults: Snapshot adds `DELETION = ACTIVE` unless explicitly overridden; EventStream adds no deletion predicate. It also appends the model's unique cursor sort field.
+6. Validates the final public Query, then calls `backend.operation(query, schema)`.
+7. Masks returned query nodes with the captured Schema, then optionally materializes typed results.
+8. Notifies `QueryObserver` of completion, error, or cancellation.
 
 ```mermaid
 flowchart LR
-    Entry["Entry + budget"] --> Provider["Schema"]
     Provider --> Prepare["QueryFilter.prepare"]
-    Prepare --> Scope["Caller scope"]
+    Prepare --> Scope["Request scope"]
     Scope --> Policy["QueryPolicy.evaluate"]
-    Policy --> Default["Model default scope"]
-    Default --> Admission["QueryAdmission"]
-    Admission --> Backend["Backend primitive(AdmittedQuery)"]
+    Policy --> Validate["Defaults + public validation"]
+    Validate --> Backend["Backend query + schema"]
     Backend --> Mask["Mask"]
     Mask --> Result["ObjectNode / typed result"]
     Result --> Observer["Terminal observer"]
 ```
 
-One Schema version serves the whole subscription: preparation, admission and masking use it, and the `AdmittedQuery` carries it to the Backend, whose compilers read the resolved fields instead of looking the Schema up again. Schema failure or empty prepare completion fails before Backend execution. Retry/repeat starts a fresh subscription and obtains its Schema again. Count returns Long without result masking. Aggregation rejects protected grouping/metric/expression inputs before execution rather than attempting to conceal them in returned aggregate rows.
+Preparation, validation, Backend compilation, and Mask share that captured Schema. Schema failure or empty prepare completion fails before Backend execution. Retry/repeat starts a fresh subscription and obtains its Schema again. Count returns Long without result masking. Aggregation rejects protected grouping/metric/expression inputs before execution rather than attempting to conceal them in returned aggregate rows.
 
 ## Request preparation extension
 
-`QueryContext<Q>` contains only `query`, `namedAggregate`, `schema`, `queryType`, and `entry`. A Filter has no continuation, result object, or result-processing authority. It prepares a request and cannot wrap or re-execute the Backend:
+`QueryContext<Q>` contains only `query`, `namedAggregate`, and `schema`. A Filter has no continuation, result object, or result-processing authority. It prepares a request and cannot wrap or re-execute the Backend:
 
 ```kotlin
 interface QueryFilter {
@@ -49,7 +44,7 @@ interface QueryFilter {
 }
 ```
 
-`SnapshotQueryFilter` and `EventStreamQueryFilter` restrict the applicable model; a plain `QueryFilter` can apply to both. `@Order` controls preparation order. Prepared requests use logical fields and still undergo admission.
+`SnapshotQueryFilter` and `EventStreamQueryFilter` restrict the applicable model; a plain `QueryFilter` can apply to both. `@Order` controls preparation order. Prepared requests use logical fields and still undergo final Schema validation.
 
 ## Preparation and mandatory constraints
 
@@ -62,7 +57,7 @@ Both can construct filter expressions. Use QueryFilter when replacement is allow
 
 ## Request scope and policies
 
-A WebFlux Handler uses `QueryRequestScope` to obtain tenant/owner/space scope, places it in Reactor Context, and invokes the Gateway. The route marks the query entry `HTTP`, so the Gateway checks the `wow.query.http.*` budget at admission step 0. `HttpQueryGuard` keeps only the HTTP adapter's own duties outside the Gateway: response row caps, the `limit=0` default, idle timeout and buffering.
+A WebFlux Handler uses `QueryRequestScope` to obtain tenant/owner/space scope, places it in Reactor Context, and invokes the Gateway. `HttpQueryGuard` applies HTTP cost and response limits outside the Gateway Filter stages.
 
 A JVM caller can supply trusted scope explicitly:
 

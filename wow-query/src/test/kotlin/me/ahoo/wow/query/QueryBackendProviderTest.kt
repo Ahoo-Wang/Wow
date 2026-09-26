@@ -14,8 +14,8 @@
 package me.ahoo.wow.query
 
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.tck.query.NoOpEventStreamQueryBackendFactory
-import me.ahoo.wow.tck.query.NoOpSnapshotQueryBackendFactory
+import me.ahoo.wow.query.event.NoOpEventStreamQueryBackendFactory
+import me.ahoo.wow.query.snapshot.NoOpSnapshotQueryBackendFactory
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 

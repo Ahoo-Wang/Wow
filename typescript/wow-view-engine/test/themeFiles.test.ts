@@ -59,6 +59,11 @@ const ENTRIES: readonly TokenEntry[] = TOKENS;
 
 const REGISTERED = new Set(ENTRIES.flatMap(hostVariables));
 
+/** The roles a link can draw in another token, and the link of each. */
+const LINKS = new Map(
+  ENTRIES.flatMap(entry => (entry.link ? [[entry.link.role, entry]] : [])),
+);
+
 /** The token blocks of `styles.css`, as each declares its tokens. */
 function tokenBlocks(): Record<'light' | 'dark', Map<string, string>> {
   const blocks = { light: new Map<string, string>(), dark: new Map() };
@@ -140,13 +145,18 @@ describe('the registry is the contract', () => {
         // value; a token no preset owns reads the host alone. A token the
         // brand colour derives reads the derivation between the two,
         // `var(--_fve-brand-[dark-]x, …)` (theme-architecture.md 2).
+        // A role a link can draw in another token reads its link there,
+        // `var(--_fve-link-x, …)`, one for both halves (9.3).
         const preset = presets[half];
         const brand = `--_fve-brand-${half ? 'dark-' : ''}${entry.name}`;
+        const link = `--_fve-link-${entry.name}`;
         const shape = entry.brand
           ? `^var\\(${host}, var\\(${brand}, var\\(${preset}(, .+)?\\)\\)\\)$`
-          : preset
-            ? `^var\\(${host}, var\\(${preset}(, .+)?\\)\\)$`
-            : `^var\\(${host}(, .+)?\\)$`;
+          : LINKS.has(entry.name)
+            ? `^var\\(${host}, var\\(${link}, var\\(${preset}(, .+)?\\)\\)\\)$`
+            : preset
+              ? `^var\\(${host}, var\\(${preset}(, .+)?\\)\\)$`
+              : `^var\\(${host}(, .+)?\\)$`;
         expect(value, `${entry.name} (${half ? 'dark' : 'light'})`).toMatch(
           new RegExp(shape),
         );
@@ -155,7 +165,7 @@ describe('the registry is the contract', () => {
         expect(blocks.dark.get(declared), entry.name).toBeUndefined();
       // A built-in value that is another token is the registry's fallback.
       const other =
-        /^var\(--fve-[\w-]+, (?:var\(--_fve-brand-[\w-]+, )?(?:var\(--fvp-[\w-]+, )?var\(--(?:_fve-)?([\w-]+)\)\)+$/.exec(
+        /^var\(--fve-[\w-]+, (?:var\(--_fve-(?:brand|link)-[\w-]+, )?(?:var\(--fvp-[\w-]+, )?var\(--(?:_fve-)?([\w-]+)\)\)+$/.exec(
           blocks.light.get(declared)!,
         )?.[1];
       const registered = ENTRIES.some(({ name }) => name === other);
@@ -188,16 +198,54 @@ describe('the registry is the contract', () => {
         .replace(/\s+\)/g, ')');
       for (const match of value.matchAll(/--fvp-[\w-]+/g)) {
         const host = match[0].replace('--fvp-', '--fve-');
-        // The brand's derivation may sit between the two layers.
+        // The brand's derivation, or a link, may sit between the two layers.
+        // A brand's is per half (`--_fve-brand-dark-x`), a link one for both.
         const brand = match[0].replace('--fvp-', '--_fve-brand-');
+        const link = match[0].replace(/^--fvp-(dark-)?/, '--_fve-link-');
+        const between = [brand, link].map(
+          layer => `var(${host}, var(${layer}, var(${match[0]}`,
+        );
         if (
           !value.includes(`var(${host}, var(${match[0]}`) &&
-          !value.includes(`var(${host}, var(${brand}, var(${match[0]}`)
+          !between.some(layered => value.includes(layered))
         )
           alone.push(`${decl.prop}: ${value}`);
       }
     });
     expect(alone).toEqual([]);
+  });
+
+  it('links each linked role to the token the registry names, at its share', () => {
+    // theme-architecture.md 9.3: the links' rule declares one
+    // `--_fve-link-<role>` per link — the token it names, at the share the
+    // link token gives, over `transparent` — and nothing else.
+    const rule = new Map<string, string>();
+    postcss.parse(read('src/styles.css')).walkRules(node => {
+      if (node.selector !== ':where(.fve-root, .fve-tokens)') return;
+      if (node.parent?.type === 'atrule') return;
+      node.walkDecls(/^--_fve-link-/, decl => {
+        rule.set(decl.prop, decl.value.replace(/\s+/g, ' ').trim());
+      });
+    });
+    const expected = new Map(
+      [...LINKS].map(([role, entry]) => {
+        const to = ENTRIES.find(({ name }) => name === entry.link!.to)!;
+        return [
+          `--_fve-link-${role}`,
+          `color-mix( in oklab, var(${declaredVariable(to)}) var(${declaredVariable(entry)}), transparent )`,
+        ];
+      }),
+    );
+    expect(rule).toEqual(expected);
+    for (const [role, entry] of LINKS) {
+      const linked = ENTRIES.find(({ name }) => name === role);
+      // A colour role of both modes, linked by a number of one.
+      expect(linked?.tier, role).toBe('role');
+      expect(linked?.kind, role).toBe('color');
+      expect(entry.kind, entry.name).toBe('number');
+      expect(entry.modes, entry.name).toBe(1);
+      expect(entry.name, role).toBe(`${role}-link`);
+    }
   });
 
   it('gives each layout variable one default wherever it is read', () => {
