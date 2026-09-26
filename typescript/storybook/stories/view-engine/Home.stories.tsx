@@ -41,6 +41,9 @@ import {
   retailEnvironment,
 } from './retail/source.js';
 import '@ahoo-wang/wow-view-engine/styles.css';
+import sceneSource from './Home.stories.tsx?raw';
+import hostShell from './retail/RetailHost.tsx?raw';
+import { hostSource } from './hostSource.js';
 
 /**
  * The host application's home page: 栖木生活's operations daily report
@@ -206,13 +209,23 @@ const description = `**首页 · 运营日报**
 - **观察**：9 月 21 日华东（嘉兴）仓分拣线故障（A7）：「发货及时率」掉到约 82%，低于 95% 的目标；明细里有 11 张付款超过 48 小时仍未发出的单，全在华东仓。「退款率最高的 5 个商品」里竹纤维浴巾排在前面（A1）；点它进销售复盘的「品类」页，日期一并带过去。
 - **状态**：「加载中」「一个面板出错」「没有权限」「没有数据」各是一个变体。`;
 
+/** What 「Show code」 shows on this page (`hostSource.ts`). */
+const HOST_CODE = hostSource(
+  ['Home.stories.tsx', sceneSource],
+  ['retail/RetailHost.tsx', hostShell],
+);
+
 const meta = {
   title: 'View Engine/首页',
   component: HomePage,
   parameters: {
     // The host's page fills its page area, as it would a screen.
     layout: 'fullscreen',
-    docs: { description: { component: description } },
+    docs: {
+      description: { component: description },
+      // 「Show code」: the host's side of this scene, read from the file.
+      source: { code: HOST_CODE, language: 'tsx' },
+    },
   },
   args: { state: 'data' },
   argTypes: { state: { table: { disable: true } } },

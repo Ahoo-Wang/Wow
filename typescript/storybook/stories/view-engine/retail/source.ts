@@ -64,6 +64,12 @@ export function retailData(): RetailDataset {
   return dataset;
 }
 
+/**
+ * 数据源的「服务端时钟」：「早于现在」「晚于现在」和引擎一样读 `RETAIL_NOW`，
+ * 不读浏览器的钟。
+ */
+export const retailNow = (): number => RETAIL_NOW;
+
 let sources: Map<RetailSourceKey, ViewSource> | undefined;
 
 /**
@@ -77,23 +83,38 @@ export function retailSource(key: RetailSourceKey): ViewSource {
     sources = new Map<RetailSourceKey, ViewSource>([
       [
         RETAIL_SOURCES.orders,
-        rowSource(rows(data.orders), { timeField: 'firstEventTime' }),
+        rowSource(rows(data.orders), {
+          timeField: 'firstEventTime',
+          now: retailNow,
+        }),
       ],
       [
         RETAIL_SOURCES.afterSales,
-        rowSource(rows(data.afterSales), { timeField: 'firstEventTime' }),
+        rowSource(rows(data.afterSales), {
+          timeField: 'firstEventTime',
+          now: retailNow,
+        }),
       ],
       [
         RETAIL_SOURCES.members,
-        rowSource(rows(data.members), { timeField: 'firstEventTime' }),
+        rowSource(rows(data.members), {
+          timeField: 'firstEventTime',
+          now: retailNow,
+        }),
       ],
       [
         RETAIL_SOURCES.waybills,
-        rowSource(rows(data.waybills), { timeField: 'firstEventTime' }),
+        rowSource(rows(data.waybills), {
+          timeField: 'firstEventTime',
+          now: retailNow,
+        }),
       ],
       [
         RETAIL_SOURCES.orderEvents,
-        rowSource(rows(data.events), { timeField: 'createTime' }),
+        rowSource(rows(data.events), {
+          timeField: 'createTime',
+          now: retailNow,
+        }),
       ],
     ]);
   }

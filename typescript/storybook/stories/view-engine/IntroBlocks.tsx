@@ -10,7 +10,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import type { ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import {
   ArrowRightIcon,
   InboxIcon,
@@ -19,12 +19,69 @@ import {
   RefreshCcwIcon,
   SigmaIcon,
 } from 'lucide-react';
+import {
+  GUIDE_COUNTS,
+  guideAnswers,
+  type GuideAnswers,
+} from './retail/guide.js';
 
 /*
  * The pieces of the guided intro (`Intro.mdx`, docs/scenarios.md 5.2).
  * They hold no links of their own: every link is written in the MDX, where
  * `scripts/verify-storybook.mjs` finds it and checks it against the index.
  */
+
+type Settled =
+  | { state: 'ready'; answers: GuideAnswers }
+  | { state: 'failed'; error: unknown };
+
+/** One run of the guide's queries per page load, shared by every `<Guide>`. */
+let settled: Settled | undefined;
+let running: Promise<Settled> | undefined;
+
+function loadAnswers(): Promise<Settled> {
+  running ??= guideAnswers().then(
+    answers => (settled = { state: 'ready', answers }),
+    (error: unknown) => (settled = { state: 'failed', error }),
+  );
+  return running;
+}
+
+/**
+ * A number or a name the guide reads off the data (`retail/guide.ts`): the
+ * answer the saved analysis really gives, not one copied into the page.
+ * The data set is generated after the page first paints, so each reads
+ * 「…」 for that moment.
+ */
+export function Guide({
+  read,
+}: {
+  read: (answers: GuideAnswers) => ReactNode;
+}) {
+  const [result, setResult] = useState(settled);
+  useEffect(() => {
+    if (result) return;
+    let live = true;
+    void loadAnswers().then(done => {
+      if (live) setResult(done);
+    });
+    return () => {
+      live = false;
+    };
+  }, [result]);
+  if (!result) return <span aria-busy="true">…</span>;
+  if (result.state === 'failed')
+    return (
+      <span role="alert">
+        （没算出来：
+        {result.error instanceof Error
+          ? result.error.message
+          : String(result.error)}
+        ）
+      </span>
+    );
+  return <>{read(result.answers)}</>;
+}
 
 function Step({ verb }: { verb: string }) {
   return (
@@ -70,7 +127,9 @@ export function ValueChain() {
         <Step verb="投影" />
         <li className="story-intro-node">
           <strong>呈现</strong>
-          <span>表格、卡片、11 种图、指标卡、仪表盘</span>
+          <span>
+            表格、卡片、{GUIDE_COUNTS.chartTypes} 种图、指标卡、仪表盘
+          </span>
         </li>
       </ol>
       <p className="story-intro-loop">

@@ -23,6 +23,8 @@ import {
   retailAfterSalesDefinition,
 } from './retail/views.js';
 import '@ahoo-wang/wow-view-engine/styles.css';
+import sceneSource from './RetailAfterSales.stories.tsx?raw';
+import { hostSource } from './hostSource.js';
 
 function AfterSaleScene() {
   return (
@@ -62,12 +64,19 @@ ${RETAIL_DATA_NOTE}
 - **看什么**：「竹纤维浴巾：每月售后理由」——5 月之前质量问题一年只有一两单，**5 月 10 日之后每月十几二十单质量问题**（埋下的异常 A1）；「各类目的售后理由」里床品布艺的质量问题因此压过了尺寸或颜色不符。从分析工作台「退款率最高的商品」追下来，就是这里。
 - **还能做**：在「本月售后」上导出 CSV（本页或全部）；按售后理由、渠道筛；卡片布局；点一行看全部字段。`;
 
+/** What 「Show code」 shows on this page (`hostSource.ts`). */
+const HOST_CODE = hostSource(['RetailAfterSales.stories.tsx', sceneSource]);
+
 const meta = {
   title: 'View Engine/业务场景/售后工作台',
   component: AfterSaleScene,
   parameters: {
     layout: 'fullscreen',
-    docs: { description: { component: description } },
+    docs: {
+      description: { component: description },
+      // 「Show code」: the host's side of this scene, read from the file.
+      source: { code: HOST_CODE, language: 'tsx' },
+    },
   },
   decorators: [retailShell('retail-after-sales')],
 } satisfies Meta<typeof AfterSaleScene>;

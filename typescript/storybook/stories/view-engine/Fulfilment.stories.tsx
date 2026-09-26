@@ -16,6 +16,9 @@ import { AppShell } from '../shared/AppShell.js';
 import { FULFILMENT } from './retail/boards.js';
 import { RetailBoardScene } from './retail/RetailHost.js';
 import '@ahoo-wang/wow-view-engine/styles.css';
+import sceneSource from './Fulfilment.stories.tsx?raw';
+import hostShell from './retail/RetailHost.tsx?raw';
+import { hostSource } from './hostSource.js';
 
 /** 履约与售后 in the dashboard workbench, on its two tabs. */
 function Fulfilment({
@@ -45,12 +48,22 @@ const description = `**业务场景 · 履约与售后**
 - **履约**：按付款周的发货超时率，红线 5%（A-12：春节停运那几周冲过红线，A6；双 11 的积压也在）；付款到发货的 P50 与 P90（≈）按仓库；承运商 × 周的平均签收时长（A-13，设「省份 = 广东省」，中通 7 月下旬那几格一下亮起来，A2）；超时明细。
 - **售后**：售后理由（点一个理由，打开售后单明细，条件就是这个理由）、退款率最高的 10 个商品（A-07）、每日退款金额、售后单明细。`;
 
+/** What 「Show code」 shows on this page (`hostSource.ts`). */
+const HOST_CODE = hostSource(
+  ['Fulfilment.stories.tsx', sceneSource],
+  ['retail/RetailHost.tsx', hostShell],
+);
+
 const meta = {
   title: 'View Engine/业务场景/履约与售后',
   component: Fulfilment,
   parameters: {
     layout: 'fullscreen',
-    docs: { description: { component: description } },
+    docs: {
+      description: { component: description },
+      // 「Show code」: the host's side of this scene, read from the file.
+      source: { code: HOST_CODE, language: 'tsx' },
+    },
   },
   argTypes: {
     tab: { table: { disable: true } },

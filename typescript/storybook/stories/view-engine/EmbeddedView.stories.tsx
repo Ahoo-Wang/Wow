@@ -49,6 +49,8 @@ import {
 } from './fixtures.js';
 import { StoryEngine } from './StoryEngine.js';
 import '@ahoo-wang/wow-view-engine/styles.css';
+import sceneSource from './EmbeddedView.stories.tsx?raw';
+import { hostSource } from './hostSource.js';
 
 /**
  * 一个已经存好的视图，嵌在宿主自己的业务页面里——只有结果，没有别的。
@@ -358,11 +360,18 @@ const description = `**数据视图 · 嵌入视图**
 - **操作**：打开任一场景。客户详情页放在宿主应用的页面区里——顶部导航与左侧应用导航是宿主的，页面也是宿主的，只有「最近运单」卡片里那一块是视图引擎——嵌入本来就是这样。
 - **观察**：没有标题栏、没有工具栏、没有保存——变的只有结果和它自己的说明。`;
 
+/** What 「Show code」 shows on this page (`hostSource.ts`). */
+const HOST_CODE = hostSource(['EmbeddedView.stories.tsx', sceneSource]);
+
 const meta = {
   parameters: {
     // The host's page fills its page area, as it would a screen.
     layout: 'fullscreen',
-    docs: { description: { component: description } },
+    docs: {
+      description: { component: description },
+      // 「Show code」: the host's side of this scene, read from the file.
+      source: { code: HOST_CODE, language: 'tsx' },
+    },
   },
   decorators: [
     Story => (

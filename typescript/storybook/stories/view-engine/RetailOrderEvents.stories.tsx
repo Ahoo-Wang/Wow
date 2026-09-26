@@ -22,6 +22,8 @@ import {
   retailOrderEventsDefinition,
 } from './retail/views.js';
 import '@ahoo-wang/wow-view-engine/styles.css';
+import sceneSource from './RetailOrderEvents.stories.tsx?raw';
+import { hostSource } from './hostSource.js';
 
 function OrderEventScene() {
   return (
@@ -51,12 +53,19 @@ ${RETAIL_DATA_NOTE}
 - **看什么**：打开「订单历史」，在订单号里填 \`TO2026091900005\`——9 月 19 日付款之后再没有下文：它是华东（嘉兴）仓分拣线故障卡住的单之一（埋下的异常 A7，订单工作台「发货超时」里的那 11 张）。对照一张正常的单，付款成功之后是包裹发出、包裹签收、交易完成。
 - **还能做**：「事件类型分布」按事件类型展开计数；「每日事件量」补齐没有事件的日子；点「变动最多的订单」里任一单「查看这些记录」。`;
 
+/** What 「Show code」 shows on this page (`hostSource.ts`). */
+const HOST_CODE = hostSource(['RetailOrderEvents.stories.tsx', sceneSource]);
+
 const meta = {
   title: 'View Engine/业务场景/订单事件流',
   component: OrderEventScene,
   parameters: {
     layout: 'fullscreen',
-    docs: { description: { component: description } },
+    docs: {
+      description: { component: description },
+      // 「Show code」: the host's side of this scene, read from the file.
+      source: { code: HOST_CODE, language: 'tsx' },
+    },
   },
   decorators: [retailShell('retail-order-events')],
 } satisfies Meta<typeof OrderEventScene>;

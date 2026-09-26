@@ -16,6 +16,9 @@ import { AppShell } from '../shared/AppShell.js';
 import { SALES_REVIEW } from './retail/boards.js';
 import { RetailBoardScene } from './retail/RetailHost.js';
 import '@ahoo-wang/wow-view-engine/styles.css';
+import sceneSource from './SalesReview.stories.tsx?raw';
+import hostShell from './retail/RetailHost.tsx?raw';
+import { hostSource } from './hostSource.js';
 
 /**
  * 销售复盘 in the dashboard workbench: the monthly review, on four tabs, and
@@ -51,12 +54,22 @@ const description = `**业务场景 · 销售复盘（月度）**
 - **渠道与地域**：渠道份额按月（A-05，点一个渠道整板筛到它）、省份前 15、城市等级 × 渠道（「（未上报）」那一行是旧版小程序没报城市，A5）、各活动的 GMV 与客单价（A-11）。
 - **客户**：GMV 前 20 的买家带合计（A-08）、新老客（A-15）、按首单月的复购率（A-18，会员数据，日期与渠道接不上它，面板头会说）。`;
 
+/** What 「Show code」 shows on this page (`hostSource.ts`). */
+const HOST_CODE = hostSource(
+  ['SalesReview.stories.tsx', sceneSource],
+  ['retail/RetailHost.tsx', hostShell],
+);
+
 const meta = {
   title: 'View Engine/业务场景/销售复盘',
   component: SalesReview,
   parameters: {
     layout: 'fullscreen',
-    docs: { description: { component: description } },
+    docs: {
+      description: { component: description },
+      // 「Show code」: the host's side of this scene, read from the file.
+      source: { code: HOST_CODE, language: 'tsx' },
+    },
   },
   argTypes: {
     tab: { table: { disable: true } },

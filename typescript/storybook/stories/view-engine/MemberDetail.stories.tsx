@@ -36,6 +36,8 @@ import {
 } from './retail/RetailHost.js';
 import { RETAIL_ZONE, retailData } from './retail/source.js';
 import '@ahoo-wang/wow-view-engine/styles.css';
+import sceneSource from './MemberDetail.stories.tsx?raw';
+import { hostSource } from './hostSource.js';
 
 /** The member the page opens on: the shop's largest buyer this year. */
 const MEMBER_ID = 'M101795';
@@ -171,12 +173,19 @@ const description = `**业务场景 · 会员详情页**
 - **面板**：这段时间的实付与订单数、每月实付、他的订单（可导出）、他的售后。「⋯ → 在工作台中打开」进宿主的订单工作台，锁定的买家成了那边拿不掉的作用域。
 - **注意**：锁定不是安全边界——条件是在浏览器里拼进查询的，租户、归属与权限必须由 Wow 后端强制。`;
 
+/** What 「Show code」 shows on this page (`hostSource.ts`). */
+const HOST_CODE = hostSource(['MemberDetail.stories.tsx', sceneSource]);
+
 const meta = {
   title: 'View Engine/业务场景/会员详情页',
   component: MemberDetail,
   parameters: {
     layout: 'fullscreen',
-    docs: { description: { component: description } },
+    docs: {
+      description: { component: description },
+      // 「Show code」: the host's side of this scene, read from the file.
+      source: { code: HOST_CODE, language: 'tsx' },
+    },
   },
   args: { memberId: MEMBER_ID },
   argTypes: {

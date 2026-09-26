@@ -1,5 +1,7 @@
 import { Meta } from '@storybook/addon-docs/blocks';
-import { Answer, KindCard, KindCards, ValueChain } from './IntroBlocks';
+import { zhCN } from '@ahoo-wang/wow-view-engine/ui';
+import { Answer, Guide, KindCard, KindCards, ValueChain } from './IntroBlocks';
+import { GUIDE_COUNTS, about, monthDay, percent } from './retail/guide';
 
 <Meta title="View Engine/导览" />
 
@@ -29,7 +31,7 @@ View Engine 是 Wow 的数据视图引擎。业务系统里大多数页面是「
   </KindCard>
   <KindCard kind="analysis" title="分析">
 
-    按维度分组、算指标，画成 11 种图或带合计行的表格；点任何一组「查看这些记录」，追到背后的单。
+    按维度分组、算指标，画成 {GUIDE_COUNTS.chartTypes} 种图或带合计行的表格；点任何一组「查看这些记录」，追到背后的单。
 
     [看分析工作台 →](./?path=/story/view-engine-业务场景-分析工作台--order-analysis)
 
@@ -54,7 +56,7 @@ View Engine 是 Wow 的数据视图引擎。业务系统里大多数页面是「
 
 1. [首页](./?path=/story/view-engine-首页--daily-report)：一个运营后台打开就是运营日报，宿主的外壳、导航与「催发货」都在，中间整块是引擎嵌入的仪表盘。
 2. [订单工作台](./?path=/story/view-engine-业务场景-订单工作台--order-workbench-scene)：客服每天打开的几张系统视图，左侧视图列表里切换；改一个筛选，标题会提醒你还没保存。
-3. [分析工作台](./?path=/story/view-engine-业务场景-分析工作台--order-analysis)：分析师存下的 18 个问题，每张打开就是答案。
+3. [分析工作台](./?path=/story/view-engine-业务场景-分析工作台--order-analysis)：分析师存下的 {GUIDE_COUNTS.analysisQuestions} 个问题，每张打开就是答案。
 4. [销售复盘](./?path=/story/view-engine-业务场景-销售复盘--overview)：四个标签页的月度复盘，点「编辑」就地搭板。
 5. [订单详情页](./?path=/story/view-engine-业务场景-订单详情页--order-detail-page)：宿主的页面里嵌着一张视图，只看这一张单。
 
@@ -62,19 +64,19 @@ View Engine 是 Wow 的数据视图引擎。业务系统里大多数页面是「
 
 「栖木生活」是一家虚构的中型家居生活品牌，做全渠道零售：三家店（官方旗舰店、直播专营店、企业团购店），五个渠道（自有 App、微信小程序、PC 商城、直播间、分销），四个仓（华东嘉兴、华北天津、华南东莞、西南成都）。
 
-- **时间**：2024-09-01 到 2026-09-22，约 2 万张子订单、1700 张售后单、6700 个会员、1.9 万个包裹，外加订单的事件流。
+- **时间**：2024-09-01 到 2026-09-22，约 <Guide read={g => about(g.sizes.orders, '张')} />子订单、<Guide read={g => about(g.sizes.afterSales, '张')} />售后单、<Guide read={g => about(g.sizes.members, '个')} />会员、<Guide read={g => about(g.sizes.waybills, '个')} />包裹，外加订单的事件流。
 - **现在**：钉在 2026-09-22 10:00（Asia/Shanghai），「今天」「昨日」「本月」「近 30 天」每次打开都一样，数字经得起核对。
 - **怎么来的**：由种子生成、在浏览器里当场算，季节、大促、长尾、地域偏斜都在里面。数据源把引擎发出的 Wow 查询翻译成 MongoDB 查询作答，不预聚合——你看到的每个数，都是那个查询真的算出来的。
 
 ### 找一找：埋下的七处异常
 
-数据里有意埋了七件「出了事」的事，每件都有一张分析或一块板能把它找出来。先自己找，再展开答案。
+数据里有意埋了七件「出了事」的事，每件都有一张分析或一块板能把它找出来。先自己找，再展开答案。答案里的数与名字不是抄在这一页上的：打开这一页时，把那张分析保存的查询当场跑一遍读出来，和点进去看到的是同一个数。
 
 1. 一个商品的退款率在 2026 年 5 月之后突然升高，理由集中在「质量问题」。是哪一个？
 
    <Answer>
 
-   竹纤维浴巾 70×140 · 米白，约 26%，其余都在 13% 以下。看[分析工作台](./?path=/story/view-engine-业务场景-分析工作台--order-analysis)的「退款率最高的商品（近 3 个月）」，或[销售复盘的品类页](./?path=/story/view-engine-业务场景-销售复盘--category)。
+   是<Guide read={g => g.a1.title} />：退款率约 <Guide read={g => percent(g.a1.rate)} />，其余商品都不超过 <Guide read={g => percent(g.a1.othersAtMost)} />。看[分析工作台](./?path=/story/view-engine-业务场景-分析工作台--order-analysis)的「<Guide read={g => g.a1.view} />」，或[销售复盘的品类页](./?path=/story/view-engine-业务场景-销售复盘--category)的「<Guide read={g => g.a1.panel} />」。
 
    </Answer>
 
@@ -82,7 +84,7 @@ View Engine 是 Wow 的数据视图引擎。业务系统里大多数页面是「
 
    <Answer>
 
-   中通，台风期间最慢的一周超过 100 小时。看[履约与售后（省份 = 广东省）](./?path=/story/view-engine-业务场景-履约与售后--guangdong)的「承运商 × 周」。
+   是<Guide read={g => g.a2.carrier} />：台风那几天，<Guide read={g => monthDay(g.a2.week)} />起的那一周在广东的平均签收时长约 <Guide read={g => Math.round(g.a2.hours)} /> 小时，它平常一周约 <Guide read={g => Math.round(g.a2.usualHours)} /> 小时。看[履约与售后（省份 = 广东省）](./?path=/story/view-engine-业务场景-履约与售后--guangdong)的「<Guide read={g => g.a2.panel} />」。
 
    </Answer>
 
@@ -90,7 +92,7 @@ View Engine 是 Wow 的数据视图引擎。业务系统里大多数页面是「
 
    <Answer>
 
-   券可以叠加：那一天优惠占比约 43%，其余日子不到 27%。看[分析工作台](./?path=/story/view-engine-业务场景-分析工作台--order-analysis)的「直播间：优惠占比 × 退款率」里最右边那一点。
+   券可以叠加：<Guide read={g => monthDay(g.a3.day)} />那一天优惠占比约 <Guide read={g => percent(g.a3.discountRate)} />，其余日子都不超过 <Guide read={g => percent(g.a3.othersAtMost)} />。看[分析工作台](./?path=/story/view-engine-业务场景-分析工作台--order-analysis)的「<Guide read={g => g.a3.view} />」里最右边那一点。
 
    </Answer>
 
@@ -98,7 +100,7 @@ View Engine 是 Wow 的数据视图引擎。业务系统里大多数页面是「
 
    <Answer>
 
-   云闪付：零点那一段选它的单全部超时取消。看[分析工作台](./?path=/story/view-engine-业务场景-分析工作台--order-analysis)的「双 11 零点：各支付方式的超时率」。
+   是<Guide read={g => g.a4.method} />：零点那一段选它的单，超时取消的占 <Guide read={g => percent(g.a4.timeoutRate)} />。看[分析工作台](./?path=/story/view-engine-业务场景-分析工作台--order-analysis)的「<Guide read={g => g.a4.view} />」。
 
    </Answer>
 
@@ -106,15 +108,15 @@ View Engine 是 Wow 的数据视图引擎。业务系统里大多数页面是「
 
    <Answer>
 
-   旧版小程序没有上报城市，约占 0.4%，单独成一组「（未上报）」。看[销售复盘的渠道与地域页](./?path=/story/view-engine-业务场景-销售复盘--channels)的「城市等级 × 渠道」。
+   旧版小程序没有上报城市：<Guide read={g => g.a5.count} /> 张子单，约占 <Guide read={g => percent(g.a5.share)} />，城市等级为空，单独成一行「{zhCN['label.analysis.missing-group']}」，只落在「<Guide read={g => g.a5.channels.join('、')} />」那一列。看[销售复盘的渠道与地域页](./?path=/story/view-engine-业务场景-销售复盘--channels)的「<Guide read={g => g.a5.panel} />」。
 
    </Answer>
 
-6. 2026 年 2 月，发货及时率掉到了一年里的最低点。为什么？
+6. 2026 年 2 月，发货超时率冲到了一年里的最高点。为什么？
 
    <Answer>
 
-   春节停运：及时率掉到约 60%，节后积压一周才消化。看[履约与售后](./?path=/story/view-engine-业务场景-履约与售后--fulfilment-tab)的「发货超时率（按付款周）」。
+   春节停运：<Guide read={g => monthDay(g.a6.week)} />起的那一周付款的单，发货超时率约 <Guide read={g => percent(g.a6.lateRate)} />，远过 <Guide read={g => percent(g.a6.redLine)} /> 的红线；节后积压消化完，<Guide read={g => monthDay(g.a6.backWeek)} />起的那一周回到红线以内。看[履约与售后](./?path=/story/view-engine-业务场景-履约与售后--fulfilment-tab)的「<Guide read={g => g.a6.panel} />」。
 
    </Answer>
 
@@ -122,7 +124,7 @@ View Engine 是 Wow 的数据视图引擎。业务系统里大多数页面是「
 
    <Answer>
 
-   华东（嘉兴）仓分拣线故障：9 月 21 日的发货及时率约 82%，低于 95% 的目标；付款超过 48 小时仍未发货的有十来张，全在嘉兴仓。看[首页](./?path=/story/view-engine-首页--daily-report)的运营日报，一路点到订单与它的事件流。
+   是<Guide read={g => g.a7.warehouses.join('、')} />仓，分拣线故障：<Guide read={g => g.a7.reportDay} />的「<Guide read={g => g.a7.onTimeCard} />」是 <Guide read={g => g.a7.onTime} />，低于 <Guide read={g => g.a7.target} /> 的目标；「<Guide read={g => g.a7.overdueView} />」的有 <Guide read={g => g.a7.overdue} /> 张，全在这个仓。看[首页](./?path=/story/view-engine-首页--daily-report)的<Guide read={g => g.a7.board} />，一路点到订单与它的事件流。
 
    </Answer>
 
@@ -140,7 +142,8 @@ View Engine 是 Wow 的数据视图引擎。业务系统里大多数页面是「
 
 ### 分析
 
-- 分组与指标、派生指标、只保留与前 N 组、数组展开、空值分组、11 种图与表格：[分析工作台](./?path=/story/view-engine-业务场景-分析工作台--order-analysis)
+- 分组与指标、派生指标、只保留与前 N 组、数组展开、空值分组、{GUIDE_COUNTS.chartTypes} 种图与表格：[分析工作台](./?path=/story/view-engine-业务场景-分析工作台--order-analysis)
+- 统计与结构图型（箱线、K 线、刻度盘、雷达、平行坐标、旭日、桑基、日历……），一种图一个真问题：[图型陈列](./?path=/story/view-engine-业务场景-图型陈列--boxplot)
 - 帕累托、按首单月的复购率：[分析工作台 · 会员](./?path=/story/view-engine-业务场景-分析工作台--member-analysis)
 - 对数轴、散点的轴、超过调色板的系列并成「其他」：[显示收口](./?path=/story/view-engine-能力-显示收口--log-scale)
 - 平均线、目标区间、趋势、移动平均、累计：[参考与算出的系列](./?path=/story/view-engine-能力-参考与算出的系列--average-and-target)
@@ -162,7 +165,8 @@ View Engine 是 Wow 的数据视图引擎。业务系统里大多数页面是「
 
 ## 目录怎么读
 
-- **业务场景**回答「引擎能替我的业务做什么」：栖木生活的三块仪表盘、五个工作台与两张嵌入页。
+- **接入导览**回答「我怎样把一个业务对象接进来」：定义、数据源、引擎与页面四个文件的真实代码，和它们跑起来的样子：[接入导览](./?path=/docs/view-engine-接入导览--docs)。
+- **业务场景**回答「引擎能替我的业务做什么」：栖木生活的三块仪表盘、五个工作台、两张嵌入页与一面图型陈列。
 - **能力**回答「某一项功能长什么样」：一项能力一页，场景尽量小。
 - **组件状态**回答「空、加载、失败、冲突、窄屏时它是什么样」：[记录工作台](./?path=/docs/view-engine-组件状态-记录工作台--docs)、[分析工作台](./?path=/docs/view-engine-组件状态-分析工作台--docs)、[仪表盘](./?path=/docs/view-engine-组件状态-仪表盘--docs)、[EmbeddedView](./?path=/docs/view-engine-组件状态-embeddedview--docs)、[EmbeddedDashboard](./?path=/docs/view-engine-组件状态-embeddeddashboard--docs) 与 [筛选编辑器](./?path=/docs/view-engine-组件状态-筛选编辑器--docs)，用的是专为断言手挑的小夹具。
 - **真实后端**回答「连上真服务是什么样」：[客户](./?path=/docs/view-engine-真实后端-客户-快照控制台--docs)、交易订单与商品定价三个服务的快照控制台与事件流分析台（补偿服务的控制台就是产品本身，在 `compensation/dashboard`），要先把服务转发到本机（见仓库里 Storybook 的 README）；文档页不挂载示例，打开目录不会发请求。

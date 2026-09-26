@@ -416,7 +416,7 @@ function fixtureExecution(index: number, openedAt: number): RecordData {
 /** The home page's engine over the fixture, on the fixture's morning. */
 export function createHomeFixtureEngine(): ViewEngine {
   return createHomeEngine(
-    rowSource(HOME_FIXTURE_EXECUTIONS),
+    rowSource(HOME_FIXTURE_EXECUTIONS, { now: () => HOME_FIXTURE_NOW }),
     defaultRuntimeEnvironment({
       now: () => new Date(HOME_FIXTURE_NOW),
       timeZone: HOME_FIXTURE_ZONE,

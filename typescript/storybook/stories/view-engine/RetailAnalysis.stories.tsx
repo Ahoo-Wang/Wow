@@ -28,6 +28,8 @@ import {
   retailOrderAnalysisDefinition,
 } from './retail/views.js';
 import '@ahoo-wang/wow-view-engine/styles.css';
+import sceneSource from './RetailAnalysis.stories.tsx?raw';
+import { hostSource } from './hostSource.js';
 
 /** Which dataset the analyst works on: the orders, or the members. */
 type Dataset = 'orders' | 'members';
@@ -82,12 +84,19 @@ ${RETAIL_DATA_NOTE}
   - A6 春节停运——「每周发货超时率」2026-02-16 那一周约 62%，远在 5% 红线之上；两次双 11 那一周约 22%。
 - **计数单位**：按商品分析（品类、退款率、单价）展开商品行，以订单行为单位；其余以子订单为单位。退款率、超时率这类比率读作百分比，客单价读作金额（派生指标的读法）；「本月至今」「上月同期（至今）」是命名时段，不会过期。`;
 
+/** What 「Show code」 shows on this page (`hostSource.ts`). */
+const HOST_CODE = hostSource(['RetailAnalysis.stories.tsx', sceneSource]);
+
 const meta = {
   title: 'View Engine/业务场景/分析工作台',
   component: AnalysisScene,
   parameters: {
     layout: 'fullscreen',
-    docs: { description: { component: description } },
+    docs: {
+      description: { component: description },
+      // 「Show code」: the host's side of this scene, read from the file.
+      source: { code: HOST_CODE, language: 'tsx' },
+    },
   },
   decorators: [retailShell('retail-analysis')],
 } satisfies Meta<typeof AnalysisScene>;
