@@ -311,14 +311,21 @@ function cartesianSentence(
   );
   const bounds = highLow(items);
   if (!bounds) return undefined;
-  const count = data.points.length;
+  // The periods are the dated buckets: the records with no date stand last
+  // on the axis as 「（空）」, and are no period for 「从…到…」 to end at
+  // (second review R2-P1-4: 「从 2024年 Q3 到 ，」).
+  const periods =
+    data.timeline === true
+      ? data.points.filter(point => point.x !== null && point.x !== undefined)
+      : data.points;
+  const count = periods.length;
   if (data.timeline !== true || count < 2)
     return ctx.messages.label('label.chart.sentence', {
-      count,
+      count: data.points.length,
       ...said(ctx, bounds),
     });
-  const first = data.points[0];
-  const last = data.points[count - 1];
+  const first = periods[0];
+  const last = periods[count - 1];
   return ctx.messages.label('label.chart.sentence.time', {
     count,
     first: ctx.label(cartesian?.x, first.x),

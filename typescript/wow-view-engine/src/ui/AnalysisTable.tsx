@@ -294,13 +294,13 @@ export function AnalysisTable({
   });
   type Column = (typeof columns)[number];
   // One value as a cell draws it: the text, in an id's monospace where the
-  // field is one, and whole in the `title` for when the width cut it — as
+  // field is one and the row has one (「（空）」 is no id), and whole in the `title` for when the width cut it — as
   // the record table's clipped cells do.
   const cell = (row: RecordData, { column, wears }: Column) => {
     const text = show(row, column);
     return (
       <TableCell key={column.alias} {...wears} title={text || undefined}>
-        {isIdentifier(column) && text !== '' ? (
+        {isIdentifier(column) && row[column.alias] != null ? (
           <span data-slot="identifier" className={IDENTIFIER_FACE}>
             {text}
           </span>

@@ -525,6 +525,70 @@ export const HeatmapLogReads: Story = {
   },
 };
 
+/**
+ * 按日期字段细分时，没有这个日期的记录（未付款的单）那一组叫「（空）」，
+ * 排在最后——图上、读屏表里、表格里都一样；摘要句的「从…到…」不以它结尾
+ * （第二轮审查 R2-P1-4：横轴空白、表格首格空白、「从 2024年 Q3 到 ，」、
+ * 表格排第二而图上排最后）。
+ */
+export const SplitByADateNamesTheUndated: Story = {
+  ...DisplayOrderAnalysis,
+  name: '按日期细分时没有日期的一组叫（空）、排最后（R2-P1-4）',
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const frame = await openAnalysis(canvasElement, '省份 GMV 前 15');
+    const bars = await waitFor(() => {
+      const found = drawnMarks(frame);
+      expect(found.length).toBeGreaterThan(10);
+      return found;
+    });
+    pressMark(bars[1]!);
+    const menu = await drillMenu(zhCN['label.drill.menu']);
+    await userEvent.hover(
+      within(menu).getByRole('menuitem', { name: zhCN['label.drill.split'] }),
+    );
+    const split = await waitFor(() => {
+      const found = document.body.querySelector<HTMLElement>(
+        '[data-slot="dropdown-menu-sub-content"]',
+      );
+      expect(found).not.toBeNull();
+      return found!;
+    });
+    await userEvent.click(
+      within(split).getByRole('menuitem', { name: '付款时间' }),
+    );
+    await chartsDrawn(canvasElement);
+    const periods = await waitFor(() => {
+      const table = canvasElement.querySelector<HTMLElement>(
+        '[data-slot="chart-reading"] table',
+      );
+      const first = [...(table?.querySelectorAll('tbody tr') ?? [])].map(
+        row => row.querySelector('th, td')?.textContent?.trim() ?? '',
+      );
+      expect(first.at(-1)).toBe(zhCN['label.analysis.missing-group']);
+      return first;
+    });
+    await expect(periods).not.toContain('');
+    const sentence =
+      canvasElement.querySelector('[data-slot="chart-sentence"]')
+        ?.textContent ?? '';
+    await expect(sentence).not.toMatch(/到 ，/);
+
+    await userEvent.click(
+      canvas.getByRole('button', { name: zhCN['label.layout.table'] }),
+    );
+    await waitFor(() => {
+      const table = canvasElement.querySelector<HTMLElement>(
+        '[data-slot="analysis-table"] table',
+      );
+      const first = [...(table?.querySelectorAll('tbody tr') ?? [])].map(
+        row => row.querySelector('th, td')?.textContent?.trim() ?? '',
+      );
+      expect(first).toEqual(periods);
+    });
+  },
+};
+
 export const MemberAnalysis: Story = {
   ...DisplayMemberAnalysis,
   play: async ({ canvasElement }) => {
