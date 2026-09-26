@@ -635,6 +635,13 @@ describe('date kinds', () => {
         amount: 7,
         unit: 'day',
       }),
+    ).toEqual({ input: 'relativeDate', range: true, withTime: true });
+    expect(
+      dateTimeFieldKind.editor('GTE', def, {
+        type: 'relative',
+        amount: 7,
+        unit: 'day',
+      }),
     ).toEqual({ input: 'relativeDate', withTime: true });
   });
 

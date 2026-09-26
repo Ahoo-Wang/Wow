@@ -425,6 +425,7 @@ function FilterChip({
             kind={field.kind}
             label={field.label}
             value={filterControlValue(field, value)}
+            required={field.required}
             onChange={next =>
               dashboard.setFilterValue(
                 field.name,

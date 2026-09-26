@@ -12,7 +12,7 @@
  */
 
 import { useState } from 'react';
-import type { FilterValue } from '../../../model/index.js';
+import { sameJson, type FilterValue } from '../../../model/index.js';
 import { writeValue, type DateTimeFilterValue } from '../../../filter/index.js';
 import { useViewMessages } from '../../MessagesProvider.js';
 import { AbsoluteDate } from './daterange.js';
@@ -32,6 +32,12 @@ const DATE_SHAPES: readonly DateShape[] = ['absolute', 'relative', 'preset'];
  * `date`, `dateRange` and `relativeDate` all arrive here — the kind's input
  * decides whether the calendar picks one bound or two, not which shapes are
  * on offer.
+ *
+ * A `required` value is never blanked from here: a board's starred date
+ * filter puts its default back the moment it is emptied, so 「指定日期」
+ * writing nothing-yet was undone before its calendar could be drawn, and the
+ * shape jumped back to 「时间段」. There the value in force stays until a
+ * date is picked, and the calendar waits beside it with nothing on it.
  */
 export function DateValue({
   value,
@@ -41,15 +47,28 @@ export function DateValue({
   invalid,
   range,
   withTime,
-}: ValueProps & { range: boolean; withTime: boolean }) {
+  required = false,
+}: ValueProps & { range: boolean; withTime: boolean; required?: boolean }) {
   const messages = useViewMessages();
   const stored = readDateValue(value);
-  // Which shape a blank row is in. Emptying the amount of "in the last 7
-  // days" blanks the leaf, and without this the editor would jump back to
-  // the calendar under the user's hands.
+  // Which shape the controls are in: the stored value's, until the user
+  // picks another. Emptying the amount of "in the last 7 days" blanks the
+  // leaf, and a required value keeps its old answer while a calendar date
+  // is still to be picked — either way the editor must not jump back under
+  // the user's hands, so the shape follows the value only when the value
+  // itself moves (a date picked, 「清空」, a brush on a panel).
   const [shape, setShape] = useState<DateShape>(stored?.type ?? 'absolute');
-  if (stored !== null && stored.type !== shape) setShape(stored.type);
-  const current = stored ?? blankDateValue(shape);
+  const [seen, setSeen] = useState<FilterValue>(value);
+  if (!sameJson(value, seen)) {
+    setSeen(value);
+    if (stored !== null) setShape(stored.type);
+  }
+  const current =
+    stored !== null && stored.type === shape ? stored : blankDateValue(shape);
+  const write = (next: FilterValue) => {
+    if (next === null && required) return;
+    onChange(next);
+  };
 
   return (
     <div className="flex flex-wrap items-center gap-2">
@@ -68,13 +87,15 @@ export function DateValue({
           // here: the leaf stays blank and would otherwise report the
           // calendar's own default back on the next render.
           setShape(picked);
-          onChange(shapeDefault(picked));
+          // Back to the shape the value in force is in: that value again,
+          // not the shape's default over it.
+          if (picked !== stored?.type) write(shapeDefault(picked));
         }}
       />
       {current.type === 'absolute' && (
         <AbsoluteDate
           value={current}
-          onChange={onChange}
+          onChange={write}
           label={label}
           disabled={disabled}
           invalid={invalid}
@@ -85,7 +106,7 @@ export function DateValue({
       {current.type === 'relative' && (
         <RelativeDate
           value={current}
-          onChange={onChange}
+          onChange={write}
           label={label}
           disabled={disabled}
           invalid={invalid}
@@ -94,7 +115,7 @@ export function DateValue({
       {current.type === 'preset' && (
         <PresetDate
           value={current}
-          onChange={onChange}
+          onChange={write}
           label={label}
           disabled={disabled}
           invalid={invalid}

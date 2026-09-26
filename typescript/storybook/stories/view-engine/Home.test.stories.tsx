@@ -397,6 +397,71 @@ export const ChannelCrossFilters: Story = {
 };
 
 /**
+ * The board's day off the calendar (「选择 指定日期 无效」, 2026-09-25): the
+ * starred 日期 turns from 「时间段」 into 「指定日期」 without a blank in
+ * between — the board puts a required filter's default straight back — and
+ * the day picked runs: every card reads it against the day before (D39).
+ * Back to 「时间段」 is the same select.
+ */
+export const PicksASpecificDay: Story = {
+  ...DisplayDailyReport,
+  name: '日期改为指定日期',
+  play: async ({ canvasElement }) => {
+    await boardDrawn(canvasElement);
+    const date = screen.getByRole('group', { name: /^日期/ });
+    const kind = within(date).getByRole('combobox', {
+      name: label('label.date.shape-of', { field: '日期' }),
+    });
+    await userEvent.click(kind);
+    await userEvent.click(
+      await screen.findByRole('option', { name: zhCN['label.date.absolute'] }),
+    );
+    await expect(kind).toHaveTextContent(zhCN['label.date.absolute']);
+    const calendar = within(date).getByRole('button', { name: '日期' });
+    await expect(calendar).toHaveTextContent(zhCN['label.date.pick']);
+    // Nothing picked yet: the cards still read 9 月 21 日.
+    await expect(
+      panelOf('GMV').querySelector('[data-slot="metric-period"]'),
+    ).toHaveTextContent('2026年9月21日');
+
+    await userEvent.click(calendar);
+    const popup = await screen.findByRole('dialog', { name: '日期' });
+    // The calendar opens on the reader's own month; walk it to 2026-09.
+    const day = /^2026年9月15日/;
+    const step = new Date() > new Date(2026, 8, 30) ? '上个月' : '下个月';
+    for (let turn = 0; turn < 60; turn++) {
+      if (within(popup).queryByRole('button', { name: day })) break;
+      await userEvent.click(within(popup).getByRole('button', { name: step }));
+    }
+    await userEvent.click(within(popup).getByRole('button', { name: day }));
+    await userEvent.keyboard('{Escape}');
+
+    await waitFor(
+      () => {
+        for (const name of DAILY_CARDS)
+          expect(
+            panelOf(name).querySelector('[data-slot="metric-period"]'),
+          ).toHaveTextContent('2026年9月15日');
+      },
+      { timeout: 10_000 },
+    );
+    await expect(calendar).toHaveTextContent('2026年9月15日');
+    await expect(
+      panelOf('GMV').querySelector('[data-slot="metric-change"]'),
+    ).toHaveTextContent(zhCN['label.chart.change.against.DAY']);
+    await waitFor(() =>
+      expect(valueOf('GMV')).not.toBe(DAILY_GOLDEN.cards.GMV),
+    );
+
+    await userEvent.click(kind);
+    await userEvent.click(
+      await screen.findByRole('option', { name: zhCN['label.date.preset'] }),
+    );
+    await expect(kind).toHaveTextContent(zhCN['label.date.preset']);
+  },
+};
+
+/**
  * A press on a product among the after-sales refunds opens 销售复盘 on its
  * 品类 tab (D23 Q17), carrying the board's 渠道 over — not its day, which
  * says nothing about three months' refund rates — where the bath towel tops

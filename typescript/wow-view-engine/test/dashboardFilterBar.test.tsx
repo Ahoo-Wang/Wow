@@ -347,6 +347,76 @@ describe('the filter bar (D22 F)', () => {
     });
   });
 
+  /**
+   * A required date filter never holds nothing, so 「指定日期」 — which has
+   * no answer until a day is picked — used to write a blank the board put
+   * its default straight back over, and the shape jumped back to 「时间段」
+   * before its calendar was drawn. The value in force now stays until a day
+   * is picked; the day then runs, and the way back is the shape select.
+   */
+  it('turns a required date into a day off the calendar, and back', async () => {
+    const user = userEvent.setup();
+    const { runtime } = setup();
+    const filters = await bar();
+    const created = within(filters).getByRole('group', {
+      name: 'Created (required)',
+    });
+    const month = { type: 'relative', amount: 1, unit: 'month' };
+    runtime().setFilterValue('created', month);
+    const kind = within(created).getByRole('combobox', {
+      name: 'Created kind',
+    });
+    await waitFor(() => expect(kind.textContent).toContain('Relative'));
+
+    await user.click(kind);
+    await user.click(
+      await screen.findByRole('option', { name: 'Specific dates' }),
+    );
+    expect(kind.textContent).toContain('Specific dates');
+    const calendar = within(created).getByRole('button', { name: 'Created' });
+    expect(calendar.textContent).toContain('Pick a date');
+    // Nothing is picked yet, so what runs is still what ran.
+    expect(runtime().getSnapshot().filters.values.created).toEqual(month);
+
+    await user.click(calendar);
+    const popup = await screen.findByRole('dialog', { name: 'Created' });
+    await user.click(
+      within(popup).getAllByRole('button', { name: /\s15(th)?,/ })[0],
+    );
+    await waitFor(() =>
+      expect(runtime().getSnapshot().filters.values.created).toMatchObject({
+        type: 'absolute',
+      }),
+    );
+    const picked = runtime().getSnapshot().filters.values.created as {
+      type: string;
+      from: string;
+      to: string;
+    };
+    expect(picked).toMatchObject({ type: 'absolute' });
+    expect(picked.from).toMatch(/^\d{4}-\d{2}-15$/);
+    expect(picked.to).toBe(picked.from);
+    await waitFor(() =>
+      expect(
+        JSON.stringify(
+          runtime()
+            .getSnapshot()
+            .panels.find(entry => entry.id === 'a')?.runtime?.scopeFilter,
+        ),
+      ).toContain(picked.from),
+    );
+    expect(kind.textContent).toContain('Specific dates');
+
+    await user.keyboard('{Escape}');
+    await user.click(kind);
+    await user.click(await screen.findByRole('option', { name: 'A period' }));
+    expect(runtime().getSnapshot().filters.values.created).toEqual({
+      type: 'preset',
+      preset: 'today',
+    });
+    expect(kind.textContent).toContain('A period');
+  });
+
   it('switches the time grouping of every panel that can take it', async () => {
     const user = userEvent.setup();
     const { runtime } = setup();

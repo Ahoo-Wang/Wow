@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import { useMemo, type ComponentProps } from 'react';
+import { memo, useMemo, type ComponentProps } from 'react';
 import { cn } from 'cn';
 import { Calendar } from '../../components/calendar.js';
 import {
@@ -42,7 +42,7 @@ import { useSurfaceDisplay } from '../../ViewSurface.js';
  * What is **not** covered: the month and year dropdowns' own names, which
  * only exist under `captionLayout="dropdown"` and nothing here asks for.
  */
-export function SurfaceCalendar({
+export const SurfaceCalendar = memo(function SurfaceCalendar({
   className,
   ...props
 }: ComponentProps<typeof Calendar>) {
@@ -66,7 +66,7 @@ export function SurfaceCalendar({
       className={cn('[--cell-size:--spacing(9)]', className)}
     />
   );
-}
+});
 
 /** Every string the picker draws, in one language. */
 function calendarLocale(
