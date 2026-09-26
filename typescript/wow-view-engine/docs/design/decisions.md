@@ -621,6 +621,16 @@
   - 场景文档页的「Show code」显示宿主一侧的真实源码；接入写法以 `stories/view-engine/integration/` 为准（参与类型检查，`integration.test.ts` 用引擎校验定义）。
 - **落点**：`typescript/storybook/stories/view-engine/{rowSource.ts,retail/guide.ts,integration/}`、`Integration.mdx`。
 
+## D56 窄卡上的涨跌只写百分比（2026-09-26）
+
+- **来由**：Storybook 审查 P1-4：390 宽下指标卡的主数字被裁，涨跌胶囊折成两行把走势线挤出面板。
+- **裁定**（#3661，主题样式道提出、协调者认可）：
+  - 主数字随长度缩小：字号取 `min(要的字号, 100cqi / (字符数 × 0.62))`，不换行；数字短的保持原字号。
+  - 卡片窄于 10rem 时，涨跌胶囊看得见的只写百分比（`data-share`，`::after` 画），完整的涨跌金额留在 `title` 与读屏文字里；上一期为 0、没有百分比时仍写金额。阈值针对手机上两个一行的格子，1280 宽下 190px 的格子照旧写全。
+  - 已知代价：手机没有悬停，窄卡上的涨跌金额只有读屏读得到；主数字已经给出绝对值，百分比是窄处信息最多的写法。
+- **没选**：让胶囊另起一行、压缩走势线（卡片高度在板上是存下的几何）；截断金额。
+- **落点**：`src/styles.css`、`src/ui/charts/MetricCard.tsx`；回归断言 `typescript/storybook/stories/view-engine/metricFit.ts`（#3663）。
+
 ## 搁置待议
 
 尚无结论，不要当作规则执行。
