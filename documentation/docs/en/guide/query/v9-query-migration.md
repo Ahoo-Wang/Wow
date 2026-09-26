@@ -106,7 +106,7 @@ The left column lists removed historical APIs, not current callable contracts:
 
 ## Custom QueryBackend migration
 
-A Backend implements four primitives. Each receives an `AdmittedQuery` carrying the logical Query, its Schema, the query entry and the resolution of each field reference (`admitted.field(reference)`):
+A Backend implements four primitives. Each receives an `AdmittedQuery` carrying the logical Query, the query entry, the read `model` and the resolution of each field reference (`admitted.field(reference)`); the Schema stays internal to admission:
 
 ```kotlin
 val cursorPositions: CursorPositionCodec

@@ -1,6 +1,6 @@
 # 查询子系统目标架构
 
-日期：2026-09-24，修订于 2026-09-25。状态：目标设计已定稿（§12），尚未实施。
+日期：2026-09-24，修订于 2026-09-26。状态：已实施。迁移按附录 A 的步骤 0～9 完成，之后的结构重构与复审修复记在 §12；设计名与代码名的对照见 §4 末尾。
 
 本文从第一性原理推导查询子系统的目标架构。现有实现不是设计前提：它只在两处出现，一是 §1 的兼容边界，二是附录 A 的迁移起点。其余各章描述的是“应该是什么”，不是“现在是什么”。
 
@@ -62,26 +62,28 @@
 flowchart LR
     subgraph Edge[边缘：驱动适配器与门面，兼容契约只在这里]
         GW[QueryGateway 门面<br/>唯一的入站端口]
-        HTTP[HTTP 适配器<br/>解码 · 入口 · 预算 · 错误目录]
+        HTTP[HTTP 适配器<br/>解码 · 写入 HTTP 入口 · 行数上限<br/>limit=0 默认 · 空闲超时 · 缓冲]
         DSL[DSL 构建器]
         LEG[legacy condition 适配器]
     end
 
     subgraph In[治理扩展点]
-        SCOPE[ScopeProvider]
+        SCOPE[ScopeProvider<br/>QueryRequestScope]
         POL[QueryFilter · QueryPolicy]
     end
 
     subgraph Core[查询核心]
-        CAT[Catalog<br/>声明 + 存储事实 → CompiledModel]
-        ADM[准入 QueryAdmission<br/>→ AdmittedQuery]
+        CAT[Catalog QuerySchemaCatalog<br/>声明 + 存储事实 → CompiledModel]
+        ENT[入口策略 QueryEntryPolicy<br/>预算与门控 QueryBudget]
+        ADM[准入 QueryAdmission<br/>第 0 步入口 → AdmittedQuery]
+        ERR[错误目录 QueryViolation]
         DEL[交付<br/>残余算子 · 游标 · 脱敏 · 物化 · 审计]
         DESC[能力描述构造]
     end
 
     subgraph Out[基础设施扩展点]
-        SRC[ModelSource<br/>类型推断 · 声明]
-        PROV[QueryBackendProvider<br/>StorageAdapter + QueryBackend]
+        SRC[ModelSource<br/>类型推断 QueryModelSource · 声明 QuerySchemaSource]
+        PROV[QueryBackendProvider<br/>QueryStorageAdapter + QueryBackend]
     end
 
     DSL --> GW
@@ -90,7 +92,10 @@ flowchart LR
     SCOPE --> ADM
     POL --> ADM
     GW --> ADM
+    ENT --> ADM
     CAT --> ADM
+    ADM --> ERR
+    ERR --> HTTP
     ADM --> PROV
     PROV --> DEL
     DEL --> GW
@@ -112,6 +117,24 @@ flowchart LR
 | 治理扩展点 | `ScopeProvider`、`QueryFilter`、`QueryPolicy` | `ScopeProvider` 由边缘适配器或 CoSec 实现；`QueryFilter`、`QueryPolicy` 由应用实现 | 每次订阅：范围在订阅开始时读取，第 0 步计入预算，第 2 步强制追加；`QueryFilter` 在第 1 步，`QueryPolicy` 在第 2 步 |
 | 基础设施扩展点 | `ModelSource`、`QueryBackendProvider`（StorageAdapter 与 QueryBackend） | 框架内置，或新存储的实现者 | 模型编译时，以及执行时 |
 
+入口预算、门控与错误目录都在核心（wow-query）：预算与门控是准入第 0 步，由 `QueryEntryPolicy` 按入口选出 `QueryBudget` 执行；错误目录是 `QueryViolation`。HTTP 适配器只写入 `HTTP` 入口，并负责返回行数上限、`limit=0` 改写为默认列表大小、空闲超时与非 SSE 时的缓冲；它把结构化违规映射为 HTTP 状态，不自己定义错误。
+
+**设计名与代码名**（实现后的对照；各章沿用设计名时指的就是右列）：
+
+| 设计名 | 代码 |
+|---|---|
+| Catalog | `QuerySchemaCatalog`（wow-query `schema/`），每个模型经 `QueryModelCompiler` 编译；默认 `QueryModelCompiler.of(sources, sensitivity)`，应用可注册自己的 `QueryModelCompiler` Bean |
+| CompiledModel | `QueryModelSchema`；每个字段的编译能力记录为 `QueryFieldCapabilities` |
+| StorageAdapter | `QueryStorageAdapter`：`facts()` / `refresh()` 返回 `QueryStorageFacts`（`bindings`、`capabilities`、`storage`）；没有查询后端的模型为 `UnavailableQueryStorageAdapter` |
+| ModelSource | 类型推断 `QueryModelSource`（wow-schema 实现）；声明 `QuerySchemaSource` |
+| ScopeProvider | `QueryRequestScope`（wow-webflux） |
+| `StorageCapability` | `QueryCapability`（wow-api） |
+| `OperatorSpec` | `FilterOperatorSpec`、`GroupSpec`、`MetricSpec`（wow-api `api/query/spec`） |
+| 入口策略、预算 | `QueryEntryPolicy`、`QueryBudget`（wow-query） |
+| 错误目录 | `QueryViolation`（wow-query）；错误码 `QueryErrorCodes`（wow-api） |
+| 低层准入 | `QueryAdmission.Trusted`（只执行第 4～6 步） |
+| 服务端故障 | `QueryExecutionException`（500 `InternalServerError`） |
+
 ## 5. 组件
 
 ### 5.1 查询协议
@@ -120,16 +143,16 @@ flowchart LR
 
 - **查询 AST**：`FilterExpression` 与各查询类型，是 wire 格式与 DSL 的共同产物。
 - **`OperatorSpec`**：每个过滤运算符、聚合指标与分组唯一的一份规格（§6.1）。
-- **存储能力词汇 `StorageCapability`**：封闭枚举，StorageAdapter 用它向 Catalog 声明原生能力，规格用它说明需要哪种能力。
+- **存储能力词汇 `StorageCapability`**（代码为 `QueryCapability`）：封闭枚举，StorageAdapter 用它向 Catalog 声明原生能力，规格用它说明需要哪种能力。
 - **语义规范**：每个运算符在 null、缺失、数组、大小写上的行为，由它生成 TCK 矩阵（§6.2）。
-- **协议限额**：对任何入口都成立的上限，例如聚合最多 32 个分组、64 个指标、5 层元素、32 个排序字段。它们在 AST 构造时检查，属于 wire 不变量。REST 解码时违反，由错误目录按解码错误返回。
+- **协议限额**：对任何入口都成立的上限，例如聚合最多 32 个分组、64 个指标、5 层元素、32 个排序字段。它们在 AST 构造时检查，属于 wire 不变量。REST 解码时违反，由错误目录按解码错误返回。排序字段数与重复排序字段在准入时再按 `SORT_TOO_MANY`、`SORT_FIELD_DUPLICATE` 检查一次，覆盖不经 REST 解码的查询。
 - **字段注解**（§6.4）与**能力描述 DTO**（§7）。
 
 DSL 构建器留在 wow-query（§9）。
 
 ### 5.2 Catalog 与 CompiledModel
 
-Catalog 把“一个聚合的一个读模型”编译成不可变、带版本的 `CompiledModel`：
+Catalog（`QuerySchemaCatalog`）把“一个聚合的一个读模型”编译成不可变、带版本的 `CompiledModel`（代码为 `QueryModelSchema`）。编译由 `QueryModelCompiler` 完成：合并模型来源与声明，读取 `QueryStorageAdapter` 报告的 `QueryStorageFacts`，再统一应用与存储无关的规则（游标要求每条记录一个值、时间聚合要求日期或 epoch 编码、元素作用域是对象数组）：
 
 ```mermaid
 flowchart LR
@@ -142,7 +165,7 @@ flowchart LR
     C --> CM[CompiledModel<br/>字段表 · 能力表 · 保护索引 · 约束 · version]
 ```
 
-**能力表在编译时算好。**每个字段、每个动态字段模板，都有一份有效能力：运算符、排序、游标排序、分组、函数、能否作为表达式输入、能否出现在指标过滤中、是否忽略大小写。准入按字段查表；能力描述把表序列化（P2）。
+**能力表在编译时算好。**每个字段、每个动态字段模板，都有一份有效能力（编译记录 `QueryFieldCapabilities`）：运算符、排序、游标排序、分组、函数、能否作为表达式输入、能否出现在指标过滤中、是否忽略大小写。准入按字段查表；能力描述把表序列化（P2）。
 
 **编译时能确定的，与只能在准入时判断的，要分开：**
 
@@ -183,10 +206,13 @@ flowchart LR
   - 路由契约测试遍历全部内置查询路由，断言入口为 `HTTP`。
 - **读取一次**：入口与调用方范围只在订阅开始时从 Reactor context 读取一次。之后的扩展即使改写 context，也改变不了它们。
 - **不向嵌套调用泄漏**：扩展与策略内部发起的进程内查询、缓存加载器，都在清掉继承来的入口与范围的 context 中执行，入口显式设为 `IN_PROCESS`。
-- **预算与门控的计量对象**：调用方提交的原样查询，加上边缘给出的范围。这份快照在准入第 1 步之前取得并检查，所以：
+- **预算与门控的归属**：由 wow-query 的 `QueryEntryPolicy` 在准入第 0 步执行，`http` 与 `inProcess` 各一份 `QueryBudget`；HTTP 的能力描述读同一份预算。HTTP 适配器只保留上表最后一行的职责。
+- **预算与门控的计量对象**：调用方提交的原样查询，加上边缘给出的调用方范围。这份快照在准入第 1 步之前取得并检查，所以：
+  - 路由选择（加载路由的聚合 id 与版本范围）不是调用方写的，不计入预算；
   - 策略追加的条件、默认的删除范围、游标追加的排序都不计入预算；
   - 策略可以使用门控的运算符，不会被门控误拒；
-  - 检查顺序与错误码与现在一致。
+  - 检查顺序不变；预算类违规改用各自专用的 binding code（`SIZE_OUT_OF_RANGE`、`FILTER_TOO_LARGE`、`EXPENSIVE_OPERATOR_DISABLED`、`COUNT_REQUIRES_FILTER`、`RESIDUAL_GROUPS_EXCEEDED`），`errorCode` 仍为 `IllegalArgument`。
+- **点读同样经过入口策略**：开启点读准入（§5.8）时，State 与 tracing 读取也执行 `QueryEntryPolicy` 的入口检查与“范围缺失时拒绝”，只是没有查询可计量，不做预算检查。
 - 能力描述按入口生成：HTTP 描述中已经去掉被门控关闭的能力，并附上 HTTP 预算（§7）。
 
 ### 5.4 准入与 AdmittedQuery
@@ -195,17 +221,24 @@ flowchart LR
 
 ```kotlin
 /** 只能由 QueryAdmission 构造。 */
-class AdmittedQuery<Q> internal constructor(
+class AdmittedQuery<out Q : Any> internal constructor(
     val query: Q,                                            // 规范化后的查询，仍是原来的 AST 类型
-    private val fields: IdentityHashMap<Any, ResolvedField>, // 以节点身份为键的解析结果
-    val model: CompiledModel,
+    internal val schema: QueryModelSchema,                   // 本次订阅的编译模型，只在 wow-query 内部可见
     val entry: QueryEntry,
-)
+    private val fields: IdentityHashMap<Any, ResolvedField>, // 以节点身份为键的解析结果
+) {
+    val model: QueryModel                                    // 读模型；后端看到的是它，不是 schema
+
+    fun field(reference: QueryField): ResolvedField
+    fun systemField(filter: FilterExpression): ResolvedField
+}
 ```
+
+后端拿到的是查询、入口、读模型与字段解析结果；编译模型本身留在准入内部，后端需要的窄事实（物理绑定、响应路径、基数、时间编码）都在 `ResolvedField` 上。
 
 准入按固定顺序执行：
 
-0. **入口预算与门控**：检查调用方提交的查询加边缘范围（§5.3）。
+0. **入口预算与门控**：`QueryEntryPolicy` 接受入口，并按入口的 `QueryBudget` 检查调用方提交的查询加调用方范围（§5.3）；取得模型后，开关开启时要求已认证的范围。
 1. **改写**：普通 `QueryFilter` 改写查询。这是扩展点，按顺序执行。
 2. **强制范围**：追加调用方范围与 `QueryPolicy` 的条件。这一步在所有扩展之后，普通 Filter 删不掉。路由选择（加载、点读所指定的聚合 id 与版本范围）也在这里作为操作约束追加，它不是调用方范围。
 3. **模型默认范围**：模型为没有声明某类范围的查询补上默认条件。一般规则是：默认范围只看调用方提交的条件与第 1 步的改写结果，不看策略追加的条件，保证策略只收紧、不会因为追加条件而取消默认。
@@ -228,23 +261,28 @@ class AdmittedQuery<Q> internal constructor(
 - **`ResolvedField` 是每次请求的实例**：包含逻辑绝对路径、元素祖先、相对物理父路径、按能力替换好具体键的物理绑定。它引用 CompiledModel 的字段记录，不产生改写后的字段名。
 - **准入通过不等于原生合法**：后端仍然做原生检查。
 - **每一次拒绝都产生结构化违规信息**：违反的规则、字段、约束。对外的错误码与文案由错误目录决定（§5.9）。
-- **低层调用**：TCK、测试与工具先经过 `QueryAdmission` 取得 `AdmittedQuery`，再调用后端。
+- **低层调用**：TCK、测试、工具与基准经 `QueryAdmission.Trusted` 取得 `AdmittedQuery`：只执行第 4～6 步，不做任何治理，名字就说明了这一点。
+- **准入内部的协议错误不是客户端错误**：扩展返回空、节点未登记解析结果等，都报 `QueryExecutionException`（500），文案不带查询取值。
 
 ### 5.5 后端
 
 后端只做三件事：**原生检查、翻译、执行**。SPI 由四个原语组成：
 
 ```kotlin
-interface QueryBackend {
+interface QueryBackend : NamedAggregateDecorator {
+    /** 编解码 page 在 Keyset 窗口下返回的原生位置。 */
+    val cursorPositions: CursorPositionCodec
+
     /** 按查询自身的 limit 流式返回记录。 */
     fun stream(query: AdmittedQuery<IListQuery>): Flux<ObjectNode>
 
     /** 返回一页：记录、可选的总数，以及每条记录的原生位置（keyset 窗口时）。 */
-    fun page(query: AdmittedQuery<out Queryable<*>>, window: PageWindow): Mono<BackendPage>
+    fun page(query: AdmittedQuery<Queryable<*>>, window: PageWindow): Mono<BackendPage>
 
     fun count(query: AdmittedQuery<FilterExpression>): Mono<Long>
 
-    fun aggregate(query: AdmittedQuery<AggregationQuery>): Flux<ObjectNode>
+    /** 按有效排序流式返回分组：前 limit 个，或残余算子需要时的全部分组。 */
+    fun aggregate(query: AdmittedQuery<AggregationQuery>, window: GroupWindow): Flux<ObjectNode>
 }
 
 sealed interface PageWindow {
@@ -252,19 +290,25 @@ sealed interface PageWindow {
     data class Keyset(val after: CursorPosition?, val limit: Int) : PageWindow
 }
 
-class BackendPage(val rows: List<ObjectNode>, val total: Long?, val positions: List<CursorPosition>?)
+sealed interface GroupWindow {
+    data class First(val limit: Int) : GroupWindow
+    data object All : GroupWindow
+}
+
+class BackendPage(val rows: List<ObjectNode>, val total: Long? = null, val positions: List<CursorPosition>? = null)
 ```
 
 - **窗口只由核心从查询派生**：single 用 `page(Offset(0, 1, withTotal = false))`；list 用 `stream`；paged 用 `page(Offset(…, withTotal = true))`；cursor 用 `page(Keyset)`。后端自己决定用一次还是两次 I/O 满足 `withTotal`：ES 在同一次搜索中取得总数与列表；Mongo 并行执行计数与查找。
 - **游标位置是原生值**：ES 取 `hit.sort()`，Mongo 取投影之前的 BSON 值。位置在补投影的字段被剥离、结果被脱敏之前产生；后端每页多取一条作为预读，决定是否还有下一页。游标排序使用字段的游标排序绑定。
-- **令牌分工**：后端提供位置值的编解码（`CursorPositionCodec`）；核心负责令牌外壳：指纹、封装、校验（§6.5）。
-- **能力声明**：StorageAdapter 除了字段的原生能力，还声明：
+- **令牌分工**：后端通过 `cursorPositions` 提供位置值的编解码（`CursorPositionCodec`）；核心负责令牌外壳：指纹、封装、校验（§6.5）。
+- **能力声明**：StorageAdapter（`QueryStorageAdapter`）报告的 `QueryStorageFacts` 除了字段的原生能力（`bindings`）与模型级能力（`capabilities`），还在 `storage`（`StorageSupport`）中声明：
   - 分页支持：原生 keyset、不限量流式；
   - 聚合支持：having、top-N、dense 补空、百分位、去重计数，以及 §11 的新能力，各自为 `NATIVE`、`RESIDUAL` 或 `NONE`。
 - **残余算子由核心规划与调用**：某项支持方式为 `RESIDUAL` 时，由核心在交付中用共享的纯函数计算，并相应调整下发给后端的查询，例如 having 以残余方式计算时，不向后端下发 limit，以免结果错误。残余计算的开销计入入口门控。
 - **共享逻辑都在核心**：游标令牌、聚合的逻辑形状（元素作用域、指标过滤、dense 补空的识别）、残余算子、结果的有限数检查与标准 JSON 检查。
 - **后端独有**：翻译成原生请求、原生约束检查、分页资源（PIT 等）、驱动值到标准 JSON 的转换、响应完整性检查。
-- **注册**：`QueryBackendProvider` 是开放的 SPI，按存储名注册，为每个聚合、每个读模型提供成对的 StorageAdapter 与 QueryBackend。新增存储不需要改动 starter。
+- **存储失败是服务端故障**：后端抛出的 Wow 错误原样传播；其他存储与驱动异常由核心统一改为 `QueryExecutionException("Query storage failed.")`（500），原异常只作为服务端的 cause，它的消息可能引用查询取值，不返回给客户端，日志观察者也隐去它。
+- **注册**：`QueryBackendProvider` 是开放的 SPI，按存储名注册，为每个聚合、每个读模型提供成对的 StorageAdapter 与 QueryBackend（Factory 返回 `QueryBackendBinding(backend, storage)`）。新增存储不需要改动 starter。
 - **事件存储不走查询后端**：事件存储需要的原生过滤与排序翻译，由存储模块内部的原生构件提供，只接受框架内部构造的物理条件，不属于 `QueryBackend`，也不经过准入。
 
 ### 5.6 交付
@@ -323,7 +367,8 @@ class BackendPage(val rows: List<ObjectNode>, val total: Long?, val positions: L
 
 **点读准入**（可选开关，默认关闭）：
 - 按 id 加载、按版本加载、按时间加载与 tracing 等 State 读取走状态回放，没有查询 AST。
-- 开启后，调用方范围的谓词在内存中对状态头判定，脱敏作用于状态 JSON；tracing 另有版本数上限与所有者校验。
+- 开启后，读取先经过 `QueryEntryPolicy`（含“范围缺失时拒绝”），再由 `QueryAdmission.admitRecord` 在内存中对状态判定调用方范围、策略与快照默认范围（已删除的状态视为不存在；tracing 包含已删除的版本），脱敏作用于状态 JSON；tracing 另有版本数上限与所有者校验。
+- “范围缺失时拒绝”在这些路由上只有点读准入能执行，所以开启它而不开启点读准入时，starter 启动失败，不留下看似开启、实际不生效的开关。
 - 默认关闭时行为不变，而且不依赖 Catalog。已知的风险面是：结果不遮挡、不执行 ABAC、tracing 不校验所有者、不设上限。
 
 **全部可选的安全开关**：
@@ -344,8 +389,8 @@ class BackendPage(val rows: List<ObjectNode>, val total: Long?, val positions: L
 | 适配器 | 职责 |
 |---|---|
 | QueryGateway 门面 | 实现冻结的十个方法：取模型 → 准入 → 组合后端原语 → 交付 |
-| HTTP 适配器 | 解码 REST 请求体（按 wow-api 查询类型定义的 JSON 形态）；构造性写入 `HTTP` 入口；实现 `ScopeProvider`；入口预算与门控；返回行数上限、`limit=0` 改写、空闲超时、非 SSE 缓冲；能力描述端点（ETag）；通过错误目录映射错误 |
-| 错误目录 | 集中定义对外错误码、HTTP 状态与文案模板，由结构化违规信息渲染文案 |
+| HTTP 适配器 | 解码 REST 请求体（按 wow-api 查询类型定义的 JSON 形态）；构造性写入 `HTTP` 入口；实现 `ScopeProvider`（`QueryRequestScope`）；返回行数上限、`limit=0` 改写、空闲超时、非 SSE 缓冲；能力描述端点（ETag）；把结构化违规映射为 HTTP 状态。入口预算与门控不在这里，在准入第 0 步（`QueryEntryPolicy`、`QueryBudget`，wow-query） |
+| 错误目录 | `QueryViolation`（wow-query）：集中定义每条规则的错误码、异常类型（请求类为 `IllegalArgument`，模型类为 `QuerySchemaValidation`）与文案，由结构化违规信息渲染；错误码常量在 wow-api `QueryErrorCodes` |
 | DSL | 构建 AST；执行扩展调用 Gateway |
 | legacy `condition` 适配器 | 解码时把 `condition` 转换为 AST，Kotlin `Condition` API 在构造时转换，保留 `ignoreCase`、`datePattern`、`zoneId` 等选项。核心看不到 `Condition`。JSON 解码放在 wow-api 查询类型的反序列化器里（私有 DTO；`filter` 严格，`condition` 宽松），因为 JSON 形态属于类型本身：任何 Jackson 解码都接受两种形态，而不只是 HTTP |
 
@@ -353,8 +398,8 @@ class BackendPage(val rows: List<ObjectNode>, val total: Long?, val positions: L
 - 覆盖所有对外文案：解码、入口预算、准入、后端原生检查、结果完整性。
 - 后端的原生检查也抛结构化违规，而不是自由文本。
 - 现有的对外文案约有 170 条模板，要在第 0 步盘点并全部纳入黄金测试，连同错误的**优先级**：多个违规同时存在时先报哪一个。
-- 错误码按异常类型区分的现状保持：预算类为 `IllegalArgument`，能力类为 `QuerySchemaValidation`。
-- 未预期的异常统一返回既有的 500 文案，不向客户端泄露内部信息。
+- 错误码按异常类型区分的现状保持：预算类为 `IllegalArgument`，能力类为 `QuerySchemaValidation`；每条规则另有专用的 binding code。
+- 服务端故障（遮挡失败、游标编码、完整性、存储超时与分片失败、准入内部的协议错误）为 `QueryExecutionException`，500 `InternalServerError`；其他存储与驱动异常统一为 `Query storage failed.`，不向客户端泄露内部信息或查询取值。
 
 ## 6. 单一能力真相
 
@@ -623,8 +668,8 @@ DataViewDefinition = 能力层（描述允许的子集） ⊕ 呈现层（显示
 
 | 模块 | 承载 |
 |---|---|
-| wow-api | 查询协议：AST、`OperatorSpec`、`StorageCapability`、语义规范、协议限额、字段注解、能力描述 DTO；legacy `Condition` 及其到 AST 的转换，查询类型的 JSON 解码（含 `condition` 的宽松解码；边缘适配器，9.x 保留） |
-| wow-query | 查询核心：Catalog、准入、交付、能力描述构造、端口、Gateway 门面，以及 DSL 构建器与执行扩展 |
+| wow-api | 查询协议：AST、`OperatorSpec`（`FilterOperatorSpec`、`GroupSpec`、`MetricSpec`）、`StorageCapability`（`QueryCapability`）、错误码 `QueryErrorCodes`、语义规范、协议限额、字段注解、能力描述 DTO；legacy `Condition` 及其到 AST 的转换，查询类型的 JSON 解码（含 `condition` 的宽松解码；边缘适配器，9.x 保留） |
+| wow-query | 查询核心：Catalog、准入（含入口策略与预算）、错误目录、交付、能力描述构造、端口、Gateway 门面，以及 DSL 构建器与执行扩展 |
 | wow-mongo、wow-elasticsearch | 事件存储、快照存储，以及各自的 StorageAdapter 与 QueryBackend |
 | wow-schema | JSON Schema 生成，以及实现 `ModelSource` 的类型推断。只报告类型事实，不含查询语义（脱敏规则、时间编码含义、模型 Profile 都在 wow-query） |
 | wow-webflux | HTTP 适配器 |
@@ -700,12 +745,16 @@ DataViewDefinition = 能力层（描述允许的子集） ⊕ 呈现层（显示
 | 2026-09-25 | D9：TS 客户端的运算符与限额表保留手写，加一致性测试 |
 | 2026-09-25 | D10：修订 `skills/README.md`，允许视图定义在仓库内激活；Skill 名为 `wow-data-query` |
 | 2026-09-25 | 第 7 步语义矩阵：ES 的 8 处分歧（7 处存在性、1 处数组相等）作为存储事实在描述中声明，并以 `ARRAY_EQUALITY` 结构化拒绝；精确存在性按 §6.2 的触发条件再做 |
-| 2026-09-26 | 默认事件存储与快照存储可以是具名 binding（`wow.eventsourcing.store.binding` / `wow.eventsourcing.snapshot.binding`），与路由层的 `storage` \| `binding` 对称，纯新增（用户确认） |
-| 2026-09-26 | 金额与小数精度按 §6.6：第一阶段只是描述中的语义类型，不改变查询行为（用户确认按建议） |
-| 2026-09-26 | 状态与事件敏感等级一致按 §5.8：值类型上的 `@Sensitive` 传播、只能更严，加启发式告警；不做「同一个值」的推断，也不提供按路径关联（用户确认按建议） |
 | 2026-09-25 | 默认删除范围是 §5.4 第 3 步一般规则的例外：前两步的条件（含策略追加的）已有删除范围就遵循，没有才追加 `ACTIVE`，保持现有行为（用户确认） |
 | 2026-09-25 | 能力优先、保守策略配置化：默认开放全部能力，昂贵运算（含 DATE_PART、FIRST/LAST、稠密补齐）可经 `wow.query.http.allow-expensive-operators=false` 拒绝（用户确认） |
 | 2026-09-25 | 服务端故障（遮挡失败、游标编码、未知 bodyType、非有限值、ES 超时/分片/PIT 失败、后端超出行数上限）改报 500 InternalServerError，按缺陷修复（用户确认） |
+| 2026-09-25 | R3：每个字段在编译时得到一份能力记录 `QueryFieldCapabilities`，准入、能力描述与入口门控都读它；运算符、分组、指标的取值规则与开销只在这里判定一次（§5.2）（按推荐） |
+| 2026-09-25 | R4：存储只经 `QueryStorageAdapter` 报告原生事实（`QueryStorageFacts`），与存储无关的规则由核心 Catalog 统一编译；`QueryModelCompiler` 是 Catalog 的编译接缝，应用可替换；HTTP 预算只有一份，归 `QueryEntryPolicy`，HTTP 适配器与能力描述都读它（§4、§5.3）（按推荐） |
+| 2026-09-26 | 默认事件存储与快照存储可以是具名 binding（`wow.eventsourcing.store.binding` / `wow.eventsourcing.snapshot.binding`），与路由层的 `storage` \| `binding` 对称，纯新增（用户确认） |
+| 2026-09-26 | 金额与小数精度按 §6.6：第一阶段只是描述中的语义类型，不改变查询行为（用户确认按建议） |
+| 2026-09-26 | 状态与事件敏感等级一致按 §5.8：值类型上的 `@Sensitive` 传播、只能更严，加启发式告警；不做「同一个值」的推断，也不提供按路径关联（用户确认按建议） |
+| 2026-09-26 | 复审修复 A：开启点读准入时，State 与 tracing 读取也执行 `QueryEntryPolicy`（入口检查与“范围缺失时拒绝”）；路由选择不计入入口预算；存储与驱动失败返回 500 `Query storage failed.`，不带查询取值，准入内部的协议错误同样按 500 处理（§5.3、§5.5、§5.9）（按推荐） |
+| 2026-09-26 | 复审修复 B：开启 `require-authenticated-scope` 而未开启 `point-read-admission` 时启动失败，不留下对点读不生效的开关；`QueryPolicy` 与 `QueryFilter` 一样按 `@Order` 顺序执行（§5.8）（启动失败：用户确认；`@Order`：按推荐） |
 
 所有待确认事项都已决定。
 

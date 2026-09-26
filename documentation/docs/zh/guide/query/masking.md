@@ -98,7 +98,7 @@ data class NoteState(
 
 运行时，默认的 `JsonQueryModelSource` 报告每个序列化成员及其注解，`InferredQuerySchemaSource` 应用其中有效的 `@Sensitive` 注解；成员包括字段、Jackson 可见的非 public getter，以及从父类 Kotlin property 或接口 getter 继承的注解。规则随 Query Schema 合并和后端 adapter 传递，但公开的能力描述只以字段的 `sensitivity`（等级与是否允许比较）暴露它们；Strategy 类型、遮挡参数和可执行函数只存在于内存中。
 
-Gateway 每次订阅只使用一个 Schema 版本：prepare、准入与响应 Mask 都读取它，`AdmittedQuery` 把它带给 Backend。Mask 遍历定义在 Schema 版本发布时构建，订阅只使用这一版不可变数据；重新校验发布新版本不会改变在途订阅。Schema 获取失败不会跳过脱敏返回原值。没有 Mask 声明时不遍历响应 JSON。
+Gateway 每次订阅只使用一个 Schema 版本：准入与响应 Mask 都读取它，Backend 只收到准入按它解析的字段。Mask 遍历定义在 Schema 版本发布时构建，订阅只使用这一版不可变数据；重新校验发布新版本不会改变在途订阅。Schema 获取失败不会跳过脱敏返回原值。没有 Mask 声明时不遍历响应 JSON。
 
 ## 行为矩阵
 

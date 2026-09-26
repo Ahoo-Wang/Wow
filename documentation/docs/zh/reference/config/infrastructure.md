@@ -157,7 +157,7 @@ spring:
 | `wow.query.http.allow-expensive-operators` | Boolean | `true` | 允许 expensive filters、Elements、metric 排序/算术、表达式分组、`DATE_PART` 分组、dense 补齐、`FIRST`/`LAST` 指标及 match-all count/paged |
 | `wow.query.http.max-residual-groups` | Integer | `10000` | 存储无法原生执行 HAVING 或按指标排序、由查询服务计算时（例如 Elasticsearch），一次 HTTP 聚合最多处理的分组数（dense 补齐的行也计入）；`0` 关闭上限 |
 | `wow.query.require-explicit-entry` | Boolean | `false` | 拒绝未声明查询入口（`HTTP` 或 `IN_PROCESS`）的 Gateway 查询；`wow.query.http.*` 预算作用于入口为 `HTTP` 的查询 |
-| `wow.query.require-authenticated-scope` | Boolean | `false` | 拒绝已认证范围未固定 `tenantId` 的 Snapshot 或 EventStream `HTTP` 查询（`403 IllegalAccessQueryScope`）；从请求头或路径变量读取的范围是自报的，不算已认证。见[范围来源](../../guide/query/query-gateway.md#范围来源) |
+| `wow.query.require-authenticated-scope` | Boolean | `false` | 拒绝已认证范围未固定 `tenantId` 的 Snapshot 或 EventStream `HTTP` 查询（`403 IllegalAccessQueryScope`）；从请求头或路径变量读取的范围是自报的，不算已认证。加载、State 与 tracing 路由只在开启 `wow.webflux.state.point-read-admission` 时遵循此开关，所以只开此开关、不开点读准入时启动失败。见[范围来源](../../guide/query/query-gateway.md#范围来源) |
 | `wow.query.abac.require-principal-tags` | Boolean | `false` | 拒绝主体没有 ABAC 标签的 `HTTP` 快照查询（`403 IllegalAccessQueryScope`）；作用于以 `AbacQueryOptions` Bean 构造的 `AbacQueryPolicy` |
 | `wow.query.abac.match-missing-tag-key` | Boolean | `true` | 资源缺少主体的某个标签键时仍作为公开资源匹配；`false` 要求资源带有该键且取值落在主体的值中 |
 | `wow.query.schema.revalidate-interval` | Duration | `5m` | 每个实例定期重新加载查询 schema 以发现存储变化的间隔；`0s` 关闭。`wowQuerySchema` actuator 端点可按需立即重新校验 |
@@ -178,7 +178,7 @@ spring:
 | `wow.webflux.query.default-list-size` | Int | `100` | HTTP list 查询省略 `limit` 或传 `0` 时套用的默认值；不超过 `wow.query.http.max-list-size`；`0` 关闭默认值并恢复拒绝 limit `0` |
 | `wow.webflux.query.idle-timeout` | Duration | `10s` | 等待下一结果或完成的最长空闲时间；`0s` 关闭 |
 | `wow.webflux.query.strict-count-filter` | Boolean | `false` | 拒绝根对象既无 `op` 也无 `operator` 的 count 请求体（`400`，绑定错误 `op`/`INVALID_REQUEST`）。关闭时这样的请求体按旧版条件读取，其操作符默认为 `ALL`，写错的过滤会统计全部行 |
-| `wow.webflux.state.point-read-admission` | Boolean | `false` | State 路由读取的每个状态都像查询一样准入（在内存中判定调用方范围与 `QueryPolicy`，不满足视为不存在；响应按查询 schema 脱敏），并限制 tracing；见 [State 点读](../../guide/data-access.md#state-点读) |
+| `wow.webflux.state.point-read-admission` | Boolean | `false` | State 路由读取的每个状态都像查询一样准入：执行入口策略（含 `wow.query.require-authenticated-scope`），并在内存中判定调用方范围、`QueryPolicy` 与快照默认范围，不满足视为不存在（已删除的状态视为不存在；tracing 包含已删除的版本）；响应按查询 schema 脱敏，并限制 tracing。`wow.query.require-authenticated-scope` 依赖此开关：只开前者、不开此开关时启动失败；见 [State 点读](../../guide/data-access.md#state-点读) |
 | `wow.webflux.state.tracing-max-versions` | Integer | `1000` | 点读准入下一次 tracing 最多返回的版本数；`0` 关闭上限 |
 | `wow.webflux.command.request.appender.agent.enabled` | Boolean | `true` | 把 `User-Agent` 写入命令上下文 |
 | `wow.webflux.command.request.appender.ip.enabled` | Boolean | `true` | 把解析出的远端 IP 写入命令上下文 |

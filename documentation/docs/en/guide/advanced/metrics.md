@@ -86,7 +86,7 @@ With `wow.metrics.enabled` and a `MeterRegistry`, the Snapshot and EventStream q
 | `wow.query.schema.refresh` | Timer | `context`, `aggregate`, `model`, `outcome` (`success`, `failure`) |
 | `wow.query.schema.version.changes` | Counter | `context`, `aggregate`, `model` |
 
-`code` is the rejected rule, for example `QuerySchemaValidation:UNKNOWN_FIELD` or `IllegalArgument`, and `none` for a query that did not fail, so grouping `wow.query` by `code` classifies admission rejections by the rule they broke. No tag carries a filter value, a scope value or a query fingerprint. A failed schema refresh (`outcome=failure`) keeps the previous version. The meters come from `QueryMetricsObserver`, combined with `QueryLogObserver` through `CompositeQueryObserver`; a custom observer bean replaces both.
+`code` is the error code joined with the rejected rule, for example `QuerySchemaValidation:UNKNOWN_FIELD` or `IllegalArgument:SIZE_OUT_OF_RANGE`, the error code alone when the error states no rule (`InternalServerError` for a server fault), and `none` for a query that did not fail, so grouping `wow.query` by `code` classifies admission rejections by the rule they broke. No tag carries a filter value, a scope value or a query fingerprint. A failed schema refresh (`outcome=failure`) keeps the previous version. The meters come from `QueryMetricsObserver`, combined with `QueryLogObserver` through `CompositeQueryObserver`; a custom observer bean replaces both.
 
 ## Non-Spring setup
 

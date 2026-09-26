@@ -37,7 +37,7 @@ The descriptor answers `ETag`. Send `If-None-Match` with the held version to get
 - `limits`: maximum list and page size, page window, filter nodes and values, and aggregation limits. The descriptor's limits win over anything remembered.
 - `analysis`: metric kinds, `approximate`, `dateUnits` for DATE_HISTOGRAM, `dateParts` for DATE_PART, `dateDiffUnits`, and whether HAVING, metric sort and dense fill are admitted.
 - `constraints[]`: rules that span fields, such as `CURSOR_UNIQUE_SORT`, `COUNT_REQUIRES_FILTER`, `PARALLEL_ARRAY_SORT`, `NULL_OR_EMPTY_AS_MISSING` and `ARRAY_EQUALITY`. Apply them before sending.
-- `variants[]` (event streams): the event types by `bodyType`, each with its payload fields relative to the event.
+- `variants` (event streams): the `element` holding the events (`body`), its `discriminator` (`bodyType`), and `values[]`: each event type's `value` with its payload `fields` relative to the event. Filter a payload field inside an `ELEMENT_MATCH` on the element together with the discriminator.
 
 ## Query shapes
 
@@ -64,7 +64,10 @@ A rejected query answers `400` (or `403` for scope) with `errorCode` and `bindin
 - `ELEMENT_SCOPE_REQUIRED`: move the condition inside an `ELEMENT_MATCH`.
 - `PROTECTED_COMPARISON`, `PROTECTED_AGGREGATION`: a protected field was compared, grouped or used as a metric. Do not work around it.
 - `PARALLEL_ARRAY_SORT`, `ARRAY_EQUALITY`, `CURSOR_NOT_ALLOWED`: a storage constraint the descriptor lists.
-- `IllegalArgument` with an HTTP limit message: the query exceeds the entry budget. Narrow it.
+- `SIZE_OUT_OF_RANGE`, `FILTER_TOO_LARGE`, `EXPENSIVE_OPERATOR_DISABLED`, `COUNT_REQUIRES_FILTER`, `RESIDUAL_GROUPS_EXCEEDED` (`errorCode` `IllegalArgument`): the query exceeds the entry budget. Narrow it (smaller limit or page, fewer conditions or values, a filter on a count) or drop the expensive feature `msg` names.
+- `STORAGE_UNSUPPORTED`, `TEMPORAL_AGGREGATION_UNSUPPORTED`: the feature is not available on this model or storage. Answer without it.
+- `SORT_TOO_MANY`, `SORT_FIELD_DUPLICATE`: fix the sort (fewer fields, each once).
+- `INVALID_CURSOR`: the cursor token does not fit this model and sort. Restart from the first page.
 - `IllegalAccessQueryScope` (403): the server requires an authenticated tenant scope; the credentials lack it.
 
-A second rejection after one fix, a `5xx`, or a result that contradicts the data is a `wow-debug` task.
+A `500` (`InternalServerError`, for example `Query storage failed.`) is a server fault, not a query error: retry, and do not change the query. A second rejection after one fix, a repeated `5xx`, or a result that contradicts the data is a `wow-debug` task.

@@ -78,7 +78,7 @@ Snapshot 与 EventStream 都接收 `AggregationQuery`：
 - `.../snapshot/aggregation` 聚合快照模型；
 - `.../event/aggregation` 聚合事件流模型，并与 event/list、event/paged、event/count 使用相同的基础、tenant、owner 路由规则。
 
-普通 JSON 会先收集动态行数组，`Accept: text/event-stream` 则逐行流式返回。query guards 同样限制 condition、values、limit、Elements、metric sort 和高成本表达式。
+普通 JSON 会先收集动态行数组，`Accept: text/event-stream` 则逐行流式返回。Gateway 的 HTTP 入口预算（`wow.query.http.*`，在准入第 0 步检查）同样限制 condition、values、limit、Elements、metric sort 和高成本表达式；路由守卫只负责返回行数上限、默认列表大小、空闲超时与缓冲。
 
 EventStream 的根 filter 作用于事件流文档；使用 `elements = [{"path":"body"}]` 展开事件数组后，group 和 metric 字段相对事件项。Elasticsearch 当前不索引 `body.body` payload，因此跨后端聚合范围是事件流 envelope 与 `body` 事件元数据；需要 payload 聚合时必须先单独设计 mapping 与历史数据重建。
 

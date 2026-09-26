@@ -233,16 +233,17 @@ Starter 根据 `wow.query.abac.*` 发布 `AbacQueryOptions` Bean；像上例那�
 
 ### 查询入口与策略执行
 
-Spring 注册的 Snapshot 与 EventStream Gateway 都执行请求 prepare、受信 scope 和 `QueryPolicy`。策略通过 `QueryContext` 判断适用范围，不适用时返回 `MatchAllFilter`；`AbacQueryPolicy` 仅对 Snapshot 读取 Principal 标签并生成条件，不为 EventStream 提供标签授权。Registrar 把路由后的 Backend 与 `QuerySchemaCatalog` 编译的 Schema Provider 交给 Gateway。JVM 调用不执行 HTTP scope 解析；可用 `contextWrite { it.withQueryScope(scope) }` 提供受信作用域。公共校验在 prepare、scope、policy 与默认条件全部合并后进行。受管查询与 aggregate-state load 的 Mask 行为见[字段脱敏](./query/masking.md)。
+Spring 注册的 Snapshot 与 EventStream Gateway 都执行准入各步：入口预算、`QueryFilter` 改写、受信 scope 和 `QueryPolicy`。策略通过 `QueryContext` 判断适用范围，不适用时返回 `MatchAllFilter`；`AbacQueryPolicy` 仅对 Snapshot 读取 Principal 标签并生成条件，不为 EventStream 提供标签授权。Registrar 把路由后的 Backend 与 `QuerySchemaCatalog` 编译的 Schema Provider 交给 Gateway。JVM 调用不执行 HTTP scope 解析；可用 `contextWrite { it.withQueryScope(scope) }` 提供受信作用域。公共校验在改写、scope、policy 与默认条件全部合并后进行。受管查询与 aggregate-state load 的 Mask 行为见[字段脱敏](./query/masking.md)。
 
 `SnapshotQueryBackendFactory` 与 `EventStreamQueryBackendFactory` 返回 `QueryBackendBinding`；受信原始执行明确解包 `factory.create(namedAggregate).backend`。它绕过 `QueryGateway` 策略链，属于必须保护的基础设施访问。自定义 Backend 从不实现 Provider；其 Factory 在 binding 中配对 Backend 与报告原生事实的 `QueryStorageAdapter`，Schema 由 `QuerySchemaCatalog` 编译。Schema 不可用时，所有受管查询都会在订阅 Backend 前失败关闭。
 
-两种模型的聚合查询都复用 Gateway 请求 prepare、scope 与 `QueryPolicy`；公共校验允许普通 filter/search/sort 使用脱敏字段，但拒绝 group、字段 metric 或 expression 引用受保护值，count 不变。仍不能仅因普通快照查询受 ABAC 约束就开放敏感聚合接口。
+两种模型的聚合查询都执行同样的准入各步、scope 与 `QueryPolicy`；公共校验允许普通 filter/search/sort 使用脱敏字段，但拒绝 group、字段 metric 或 expression 引用受保护值，count 不变。仍不能仅因普通快照查询受 ABAC 约束就开放敏感聚合接口。
 
 ### State 点读
 
-State 路由（按 id、按版本、按时间加载与 tracing）通过事件回放读取，不经过 Gateway，因此默认不执行请求准备、范围、`QueryPolicy` 与脱敏；拥有者路由上的拥有者前置检查照常生效。设 `wow.webflux.state.point-read-admission=true` 后，每个读取的状态先转换为快照形状的记录，然后：
+State 路由（按 id、按版本、按时间加载与 tracing）通过事件回放读取，不经过 Gateway，因此默认不执行准入各步、范围、`QueryPolicy` 与脱敏；拥有者路由上的拥有者前置检查照常生效。设 `wow.webflux.state.point-read-admission=true` 后，每个读取的状态先转换为快照形状的记录，然后：
 
+- Gateway 的入口策略接受 `HTTP` 入口；开启 `wow.query.require-authenticated-scope` 时，已认证范围未固定租户的调用方与查询路由一样被拒绝（`403`）。这些路由只在点读准入下执行该开关，所以只开该开关、不开 `point-read-admission` 时启动失败；
 - 由查询准入（`QueryAdmission.admitRecord`）在内存中对它执行查询的范围、策略与默认范围三步：`QueryRequestScope` 给出的调用方范围、每个 `QueryPolicy` 的限制条件，以及快照的默认范围（读取未声明删除范围时隐藏已删除的状态；tracing 读取全部版本，含已删除）。策略与 Gateway 使用的是同一组 Bean，顺序相同，看到的是来自 `HTTP` 入口、按 id 的 `SINGLE` 查询。不满足的状态视为不存在：加载返回 `404`，tracing 返回 `[]`。限制条件先与查询一样规范化（字段别名替换为规范字段，`null` 的 `EQ`/`NE` 降级），再按所有后端遵循的语义判定（数值按值比较；值为 `null` 的字段视为存在）。内存判定支持范围与 ABAC 策略会产生的节点：id、租户、拥有者、空间与删除状态过滤，`AND`/`OR`/`NOR`，以及字段上的 `EQ`/`NE`/`IN`/`NOT_IN`/`IS_NULL`/`IS_NOT_NULL`/`EXISTS`/`NOT_EXISTS`/`IS_EMPTY`；其他节点按失败关闭处理；
 - 响应按聚合的快照查询 schema 脱敏，tracing 响应还按事件流 schema 脱敏；schema 无法加载时读取失败（`503`），不会返回未脱敏的数据；
 - tracing 最多返回 `wow.webflux.state.tracing-max-versions` 个版本（默认 `1000`，`0` 关闭上限）。超出的范围在响应开始前以 `400` 拒绝，可用 `headVersion`、`tailVersion` 或 `limit` 缩小；只有全部被追踪的状态都获准入时才输出结果。

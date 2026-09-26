@@ -63,7 +63,7 @@ Default event indexes are `wow.${contextAlias}.${aggregateName}.es`; snapshot in
 
 ## Snapshot Query Field Resolution
 
-The query factory combines the logical `QueryModelSchema` with target mappings to bind physical paths for exact match, range, sorting, presence, and projection; admission resolves each field reference against those bindings, and the compilers consume the resulting `ResolvedField`s. Multi-fields, runtime fields, and disabled objects follow Elasticsearch mappings; do not guess `.keyword` in the HTTP layer.
+The storage adapter (`ElasticsearchQuerySchemaAdapter`, a `QueryStorageAdapter`) reads the target mappings and reports them as storage facts: the physical paths bound for exact match, range, sorting, presence, and projection. `QuerySchemaCatalog` compiles those facts with the logical model into the `QueryModelSchema`; admission resolves each field reference against those bindings, and the compilers consume the resulting `ResolvedField`s. Multi-fields, runtime fields, and disabled objects follow Elasticsearch mappings; do not guess `.keyword` in the HTTP layer.
 
 ## Revalidate the Runtime Query Schema
 
@@ -149,7 +149,7 @@ Inspect the actual mapping and runtime schema. Do not hard-code `.keyword` for e
 
 #### 2. The revalidation endpoint is unavailable or revalidation fails
 
-Verify that Spring Boot Actuator is on the classpath and exposes the `wowQuerySchema` endpoint on the management plane, and that the query factory is wired; its `wow.query.schema.refresh` metric reports each outcome. Mapping-read failure must remain a failure rather than degrading to “all fields are queryable.”
+Verify that Spring Boot Actuator is on the classpath and exposes the `wowQuerySchema` endpoint on the management plane, and that the query factory is wired so `QuerySchemaCatalog` has the model to revalidate; the catalog's `wow.query.schema.refresh` metric reports each outcome. Mapping-read failure must remain a failure rather than degrading to “all fields are queryable.”
 
 #### 3. An alias or data stream cannot be resolved
 

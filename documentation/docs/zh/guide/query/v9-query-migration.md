@@ -106,7 +106,7 @@ V8 传入 `DateTimeFormatter` 而不是 pattern string 时，直接构造对应 
 
 ## 自定义 QueryBackend 迁移
 
-Backend 实现四个原语。每个原语都接收 `AdmittedQuery`，其中带着逻辑 Query、Schema、查询入口与每个字段引用的解析结果（`admitted.field(reference)`）。例如：
+Backend 实现四个原语。每个原语都接收 `AdmittedQuery`，其中带着逻辑 Query、查询入口、读模型 `model` 与每个字段引用的解析结果（`admitted.field(reference)`）；Schema 留在准入内部。例如：
 
 ```kotlin
 val cursorPositions: CursorPositionCodec

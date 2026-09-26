@@ -78,7 +78,7 @@ Both Snapshot and EventStream routes accept `AggregationQuery`:
 - `.../snapshot/aggregation` aggregates the snapshot model;
 - `.../event/aggregation` aggregates the event-stream model and follows the same base, tenant, and owner route rules as event/list, event/paged, and event/count.
 
-Normal JSON collects dynamic rows into an array; `Accept: text/event-stream` streams rows. Query guards also limit conditions, values, limits, Elements, metric sorting, and expensive expressions.
+Normal JSON collects dynamic rows into an array; `Accept: text/event-stream` streams rows. The gateway's HTTP entry budget (`wow.query.http.*`, checked at admission step 0) also limits conditions, values, limits, Elements, metric sorting, and expensive expressions; the route guard only caps returned rows, applies the default list size, the idle timeout and buffering.
 
 An EventStream root filter applies to the event-stream document. After `elements = [{"path":"body"}]` expands the event array, group and metric fields are relative to each event item. Elasticsearch currently does not index the `body.body` payload, so the cross-backend aggregation scope is the event-stream envelope and `body` event metadata. Payload aggregation requires a separate mapping and historical reindex design first.
 
