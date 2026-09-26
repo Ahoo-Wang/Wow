@@ -854,7 +854,12 @@ function controller(
     rows: [{ key: 'o-1', data }],
     card: { title: columns[0].field, fields: [] },
     paging: pagedPaging({ index: 1, size: 20, total: 1 }),
-    summaries: { scope: 'page', cells: [] },
+    // A count under the first column: a band is drawn only under a column
+    // that carries a summary (review P1-3).
+    summaries: {
+      scope: 'page',
+      cells: [{ field: columns[0].field, label: '', fn: 'COUNT', value: 1 }],
+    },
     columnFields: columns.map(entry => entry.field),
     ...overrides,
   });

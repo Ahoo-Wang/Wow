@@ -25,7 +25,11 @@ import type {
   ViewInstance,
   ViewSource,
 } from '../src/index.js';
-import { cursorPaging, pagedPaging } from '../src/record/index.js';
+import {
+  cursorPaging,
+  pagedPaging,
+  type SummaryRow,
+} from '../src/record/index.js';
 import {
   useDashboard,
   type RecordTableController,
@@ -524,7 +528,7 @@ describe('the summary rows on a single page', () => {
  * panel are each held to it here.
  */
 describe('the summary band without a summarised column', () => {
-  const offColumn: RecordTableController['summaries'] = {
+  const offColumn: SummaryRow = {
     scope: 'total',
     cells: [{ field: 'customer', label: 'Customer', fn: 'COUNT', value: 2 }],
   };
