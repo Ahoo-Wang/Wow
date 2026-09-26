@@ -312,9 +312,7 @@ function TabRemoval({
           {messages.label('label.tabs.remove-heading', { title })}
         </AlertDialogTitle>
         <AlertDialogDescription>
-          {count === 1
-            ? messages.label('label.tabs.remove-description-one')
-            : messages.label('label.tabs.remove-description', { count })}
+          {messages.label('label.tabs.remove-description', { count })}
         </AlertDialogDescription>
       </AlertDialogHeader>
       <AlertDialogFooter>

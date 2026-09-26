@@ -719,7 +719,7 @@ describe('the applied badge in another language', () => {
   it('tells a relative window from the moment at the end of it', () => {
     inChinese([
       when({
-        text: 'Created last 7 day',
+        text: 'Created last 7 days',
         path: ['children', 0],
         operator: 'BETWEEN',
         value: {
@@ -731,7 +731,7 @@ describe('the applied badge in another language', () => {
         },
       }),
       when({
-        text: 'Created on or before 7 day ago',
+        text: 'Created on or before 7 days ago',
         path: ['children', 1],
         operator: 'LTE',
         value: {
@@ -743,7 +743,7 @@ describe('the applied badge in another language', () => {
         },
       }),
       when({
-        text: 'Created on or after 7 day ahead',
+        text: 'Created on or after 7 days ahead',
         path: ['children', 2],
         operator: 'GTE',
         value: {

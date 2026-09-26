@@ -59,8 +59,7 @@ import { tabTitle } from './dashboard/DashboardTabs.js';
 import { useGridPlacement } from './gridPlacement.js';
 import { FIXED_BOARD_WIDTH } from './layout.js';
 import type { RenderFailureHandler } from './RenderBoundary.js';
-import { useViewMessages, type MessageFormatters } from './MessagesProvider.js';
-import type { MessageKey } from './messages.js';
+import { useViewMessages } from './MessagesProvider.js';
 import { PanelWiring, useFilterWiring } from './dashboard/FilterWiring.js';
 import { panelPress } from './dashboard/press.js';
 import {
@@ -273,8 +272,9 @@ export function DashboardGrid({
         // Said as a reader counts them, from one.
         column: next.x + 1,
         row: next.y + 1,
-        width: count(messages, next.w, COLUMNS),
-        height: count(messages, next.h, ROWS),
+        // 「1 column」, never 「1 columns」: the count picks the form.
+        width: messages.label('label.panel.columns', { count: next.w }),
+        height: messages.label('label.panel.rows', { count: next.h }),
       }),
     );
     return true;
@@ -591,23 +591,6 @@ function useGridWidth(boardWidth: DashboardWidth) {
  * be the first width that has it.
  */
 const BREAKPOINTS = { narrow: 0, wide: 767 } as const;
-
-/**
- * A count said with its noun: 「1 column」, never 「1 columns」. The package
- * spells the singular as a key of its own rather than inflecting a word.
- */
-function count(
-  messages: MessageFormatters,
-  value: number,
-  [many, one]: readonly [MessageKey, MessageKey],
-): string {
-  return value === 1
-    ? messages.label(one)
-    : messages.label(many, { count: value });
-}
-
-const COLUMNS = ['label.panel.columns', 'label.panel.columns-one'] as const;
-const ROWS = ['label.panel.rows', 'label.panel.rows-one'] as const;
 
 /**
  * A dashboard with nothing on it: what a dashboard is, that this one holds

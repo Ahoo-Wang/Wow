@@ -323,7 +323,7 @@ describe('a hierarchy or a flow drawn and read', () => {
     ]);
     const notes = container.querySelector('[data-slot="sunburst-notes"]');
     expect(notes?.textContent).toContain('Shares of the groups shown');
-    expect(notes?.textContent).toContain('1 groups not above zero');
+    expect(notes?.textContent).toContain('1 group not above zero');
     expect(container.textContent).toContain('highest 家居 · 床品, 50');
   });
 

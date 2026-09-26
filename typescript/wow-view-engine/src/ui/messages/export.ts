@@ -46,9 +46,11 @@ export const exportMessages = {
   // both are already on screen, and repeating them here is what makes the
   // file the thing in front of you rather than a guess about it.
   'label.export.rows': '{count} records',
+  'label.export.rows-one': '1 record',
   'label.export.rows-unknown': 'Whatever the current conditions match',
   'label.export.conditions': 'Conditions: {conditions}',
   'label.export.columns': '{count} columns: {names}',
+  'label.export.columns-one': '1 column: {names}',
   'label.export.file': 'File: {name}',
   // The ceiling, put before the button rather than after the download:
   // pressing Export is the consent, so what is consented to has to be on
@@ -66,6 +68,7 @@ export const exportMessages = {
   // How it ended. A file the ceiling cut short is not a failure — it is the
   // file that was agreed to — so it is said here rather than as a warning.
   'label.export.done': '{count} records exported',
+  'label.export.done-one': '1 record exported',
   'label.export.done-capped':
     'The file holds the first {max} of the {total} records that match.',
   'label.export.done-capped-unknown':
@@ -79,6 +82,8 @@ export const exportMessages = {
   'label.export.groups-one': '1 group',
   'label.export.groups-first':
     'The first {count} groups (there are more; the file leaves them out)',
+  'label.export.groups-first-one':
+    'The first group (there are more; the file leaves them out)',
   'label.export.whole': '1 row: every record in the range',
   'label.export.and-totals': '{rows}, then a totals row',
   'label.export.done-analysis': 'Exported: {rows}',

@@ -122,16 +122,11 @@ export function useBoardFilters({
         // A search reaches each record view's search box whatever it is
         // called (`bindPanel`), so the toast names no field.
         const search = filterTypeOf(filter.kind) === 'search';
-        const one = connected.length === 1;
         toasts.add({
           title: messages.label(
             search
-              ? one
-                ? 'label.filters.auto-wired-search-one'
-                : 'label.filters.auto-wired-search'
-              : one
-                ? 'label.filters.auto-wired-one'
-                : 'label.filters.auto-wired',
+              ? 'label.filters.auto-wired-search'
+              : 'label.filters.auto-wired',
             { count: connected.length, field: label },
           ),
           timeout: 10_000,

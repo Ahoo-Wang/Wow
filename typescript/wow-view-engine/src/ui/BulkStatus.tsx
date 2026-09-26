@@ -108,8 +108,7 @@ function reading(
   for (const { reason, count } of reasons.slice(0, REASONS))
     parts.push(messages.label('label.bulk.reason', { reason, count }));
   const more = reasons.length - REASONS;
-  if (more === 1) parts.push(messages.label('label.bulk.more-reasons-one'));
-  else if (more > 1)
+  if (more > 0)
     parts.push(messages.label('label.bulk.more-reasons', { count: more }));
   if (failed + skipped > 0) parts.push(messages.label('label.bulk.left'));
   return [tone, parts.join(' · ')];

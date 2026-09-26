@@ -592,13 +592,18 @@ export const analysisMessages = {
   'label.chart.waterfall.decrease': 'Decrease',
   // Rows whose number is not above zero have no area a tile could take.
   'label.chart.treemap.omitted': '{count} groups not above zero are not drawn',
+  'label.chart.treemap.omitted-one': '1 group not above zero is not drawn',
   // Wow computes a percentile approximately: a box's quartiles and median
   // are, and the chart says so over itself, as the table's 「≈」 does.
   'label.chart.boxplot.approximate': 'Quartiles and median are approximate',
   'label.chart.boxplot.omitted':
     '{count} groups without all five numbers are not drawn',
+  'label.chart.boxplot.omitted-one':
+    '1 group without all five numbers is not drawn',
   'label.chart.candlestick.omitted':
     '{count} periods without all four numbers are not drawn',
+  'label.chart.candlestick.omitted-one':
+    '1 period without all four numbers is not drawn',
   // A candle's direction in words, beside its colour: a colour-blind eye
   // reads red and green as one.
   'label.chart.candlestick.rise': 'Closed higher',
@@ -607,8 +612,10 @@ export const analysisMessages = {
   // Past the palette a shape would wear another's colour: the first ones
   // are drawn, the rest are the table's.
   'label.chart.radar.omitted': '{count} more groups are only in the table',
+  'label.chart.radar.omitted-one': '1 more group is only in the table',
   'label.chart.parallel.omitted':
     '{count} groups missing a number are not drawn',
+  'label.chart.parallel.omitted-one': '1 group missing a number is not drawn',
   'label.chart.gauge.above': 'The value is past the end of the scale',
   'label.chart.gauge.below': 'The value is below the start of the scale',
   'label.chart.gauge.reached': '{share} of the target',
@@ -642,6 +649,8 @@ export const analysisMessages = {
   // where it starts, where it ends and which way it went.
   'label.chart.sentence':
     '{count} groups; highest {high}, {highValue}; lowest {low}, {lowValue}.',
+  'label.chart.sentence-one':
+    '1 group; highest {high}, {highValue}; lowest {low}, {lowValue}.',
   'label.chart.sentence.time':
     '{count} periods from {first} to {last}, {trend}; highest {high}, {highValue}; lowest {low}, {lowValue}.',
   'label.chart.sentence.up': 'rising overall',
@@ -649,8 +658,12 @@ export const analysisMessages = {
   'label.chart.sentence.flat': 'about level overall',
   'label.chart.sentence.scatter':
     '{count} points; {x} from {xLow} to {xHigh}, {y} from {yLow} to {yHigh}.',
+  'label.chart.sentence.scatter-one':
+    '1 point; {x} from {xLow} to {xHigh}, {y} from {yLow} to {yHigh}.',
   'label.chart.sentence.boxplot':
     '{count} groups; highest median {high}, {highValue}; lowest median {low}, {lowValue}.',
+  'label.chart.sentence.boxplot-one':
+    '1 group; highest median {high}, {highValue}; lowest median {low}, {lowValue}.',
   'label.chart.sentence.gauge': '{value} on a scale from {min} to {max}.',
   'label.chart.sentence.funnel':
     '{count} stages from {first}, {firstValue}, to {last}, {lastValue}; {overall} overall.',
@@ -664,6 +677,7 @@ export const analysisMessages = {
   'label.chart.sentence.profiles': '{count} groups across {metrics} metrics.',
   'label.chart.sentence.sankey':
     '{count} flows; the largest {high}, {highValue}.',
+  'label.chart.sentence.sankey-one': '1 flow; the largest {high}, {highValue}.',
   'label.chart.sentence.themeRiver':
     '{streams} streams over {count} periods from {first} to {last}, {trend}.',
   // A river cannot break: a point the rows lack is drawn as 0, and where
@@ -671,9 +685,13 @@ export const analysisMessages = {
   'label.chart.map.missing': 'No map is available to draw on',
   'label.chart.map.failed': 'The map could not be loaded',
   'label.chart.map.unplaced': '{count} regions are not on this map',
+  'label.chart.map.unplaced-one': '1 region is not on this map',
   'label.chart.map.omitted': '{count} regions without a number are not drawn',
+  'label.chart.map.omitted-one': '1 region without a number is not drawn',
   'label.chart.themeRiver.uncertain':
     '{count} points have no row and are drawn as 0; the rows may be cut short',
+  'label.chart.themeRiver.uncertain-one':
+    '1 point has no row and is drawn as 0; the rows may be cut short',
   'label.chart.column.category': 'Category',
   'label.chart.column.value': 'Value',
   'label.chart.column.direction': 'Direction',

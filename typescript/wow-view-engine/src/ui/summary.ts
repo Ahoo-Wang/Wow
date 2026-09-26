@@ -269,7 +269,10 @@ function summaryValue(
         `label.relative.${value.bound}.${value.direction}`,
         {
           amount: valueText(value.amount, messages, undefined, context.locale),
-          unit: messages.label(`label.relative.unit.${value.unit}`),
+          // The unit agrees with the amount: 「last 1 day」, 「last 30 days」.
+          unit: messages.label(`label.relative.unit.${value.unit}`, {
+            count: value.amount,
+          }),
         },
       );
     case 'preset':

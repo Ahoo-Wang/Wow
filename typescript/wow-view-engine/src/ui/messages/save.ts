@@ -76,7 +76,8 @@ export const saveMessages = {
     '{pageSize} per page · {layout} · {columns} columns · {sorts} sorts',
   'label.conflict.summary.analysis':
     '{groups} dimensions · {metrics} metrics · top {limit} groups',
-  'label.conflict.summary.dashboard': '{panels} panels',
+  'label.conflict.summary.dashboard': '{count} panels',
+  'label.conflict.summary.dashboard-one': '1 panel',
   // A conflicting config comes from the store as it is: this release may
   // never have written it, and a shape the summary cannot count says so
   // rather than taking the dialog down with it.

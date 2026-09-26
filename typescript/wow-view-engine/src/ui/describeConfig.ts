@@ -72,7 +72,9 @@ export function describeConfig(
     case 'dashboard': {
       const panels = countOf(read(config, 'panels'));
       if (panels === null) return unreadable(messages);
-      return messages.label('label.conflict.summary.dashboard', { panels });
+      return messages.label('label.conflict.summary.dashboard', {
+        count: panels,
+      });
     }
     // A kind this release does not know is as unreadable as a broken one,
     // and it is the same sentence: there is nothing here to count.

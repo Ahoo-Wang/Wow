@@ -957,7 +957,7 @@ describe('summaryText', () => {
 
   /**
    * The same stored distance, two conditions. `text` has always got this
-   * right — "last 7 day" for the span, "7 day ago" for the moment at the end
+   * right — "last 7 days" for the span, "7 days ago" for the moment at the end
    * of it — so it is the oracle for what the badge must say.
    */
   it('tells a relative window from the moment at the end of it', () => {
@@ -976,10 +976,10 @@ describe('summaryText', () => {
         value: { kind: 'relative', amount: 7, unit: 'day', direction, bound },
       });
 
-    expect(relative('window', 'past')).toBe('Created between last 7 day');
-    expect(relative('window', 'future')).toBe('Created between next 7 day');
-    expect(relative('instant', 'past')).toBe('Created at most 7 day ago');
-    expect(relative('instant', 'future')).toBe('Created at most 7 day ahead');
+    expect(relative('window', 'past')).toBe('Created between last 7 days');
+    expect(relative('window', 'future')).toBe('Created between next 7 days');
+    expect(relative('instant', 'past')).toBe('Created at most 7 days ago');
+    expect(relative('instant', 'future')).toBe('Created at most 7 days ahead');
   });
 
   it('uses the label a kind resolved rather than resolving it again', () => {

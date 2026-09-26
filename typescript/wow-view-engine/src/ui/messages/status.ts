@@ -31,6 +31,7 @@ export const statusMessages = {
   // What an analysis query landed with; the record view's rows say their
   // pagination sentence instead.
   'label.status.groups': '{count} groups',
+  'label.status.groups-one': '1 group',
   // The way out of the one error the strip says outright: the columns are
   // what a record view's own findings are nearly always about — a column
   // the definition no longer has, one pinned where it may not be — and the

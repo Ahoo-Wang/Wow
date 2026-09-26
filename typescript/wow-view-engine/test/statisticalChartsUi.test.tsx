@@ -675,7 +675,7 @@ describe('a statistical chart pressed and read', () => {
     ]);
     expect(
       container.querySelector('[data-slot="boxplot-notes"]')?.textContent,
-    ).toContain('1 groups without all five numbers are not drawn');
+    ).toContain('1 group without all five numbers is not drawn');
     expect(
       container
         .querySelector('[data-slot="chart-plot"]')

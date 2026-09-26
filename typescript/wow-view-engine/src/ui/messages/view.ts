@@ -39,6 +39,7 @@ export const viewMessages = {
   'label.view.remove-unavailable': 'Remove unavailable conditions',
   // Several of them collapse to one line, so the line has to say how many.
   'label.view.warnings-count': '{count} things worth noting',
+  'label.view.warnings-count-one': '1 thing worth noting',
   'label.view.none': 'No view yet',
   // The line under the title bar of a view opened from another (D20): the
   // way back, which names where this one came from — `{title}` is the

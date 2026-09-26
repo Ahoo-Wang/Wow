@@ -308,9 +308,9 @@ describe('relative windows and named periods', () => {
   });
 
   it.each([
-    [undefined, 'last 7 day'],
-    ['past', 'last 7 day'],
-    ['future', 'next 7 day'],
+    [undefined, 'last 7 days'],
+    ['past', 'last 7 days'],
+    ['future', 'next 7 days'],
   ])('summarises a %s window as %s', (direction, want) => {
     // A forward window described as "last" would contradict the query that
     // actually ran, in the one place a user checks what is in force.
@@ -401,13 +401,13 @@ describe('a relative value as a single bound', () => {
   });
 
   it('says which instant it compares against', () => {
-    expect(text('GTE', last)).toBe('Created on or after 7 day ago');
-    expect(text('LTE', last)).toBe('Created on or before 7 day ago');
-    expect(text('GTE', next)).toBe('Created on or after 7 day ahead');
-    expect(text('LTE', next)).toBe('Created on or before 7 day ahead');
+    expect(text('GTE', last)).toBe('Created on or after 7 days ago');
+    expect(text('LTE', last)).toBe('Created on or before 7 days ago');
+    expect(text('GTE', next)).toBe('Created on or after 7 days ahead');
+    expect(text('LTE', next)).toBe('Created on or before 7 days ahead');
     expect(text('GTE', today)).toBe('Created on or after today');
     expect(text('LTE', today)).toBe('Created on or before today');
-    expect(text('BETWEEN', last)).toBe('Created last 7 day');
+    expect(text('BETWEEN', last)).toBe('Created last 7 days');
   });
 
   it('names the bound an absolute value stands on', () => {
