@@ -20,6 +20,7 @@ import {
   type DataViewConfig,
   type FilterNode,
   type FilterTree,
+  type RecordViewConfig,
 } from '../model/index.js';
 import { durationFrom } from '../filter/index.js';
 
@@ -40,38 +41,11 @@ export function withCanonicalNames<C extends DataViewConfig>(
 ): C {
   if (Object.keys(renamed).length === 0) return config;
   const name = (field: string) => renamed[field] ?? field;
-  const base = { ...config, filter: renamedTree(config.filter, name) };
   if (config.kind === 'record') {
-    const next = {
-      ...base,
-      kind: 'record' as const,
-      sort: config.sort.map(entry => ({ ...entry, field: name(entry.field) })),
-      table: {
-        ...config.table,
-        columns: config.table.columns.map(column => ({
-          ...column,
-          field: name(column.field),
-        })),
-      },
-      card: {
-        ...config.card,
-        title: name(config.card.title),
-        fields: config.card.fields.map(name),
-        ...(config.card.image === undefined
-          ? {}
-          : { image: name(config.card.image) }),
-      },
-      ...(config.summaries
-        ? {
-            summaries: config.summaries.map(summary => ({
-              ...summary,
-              field: name(summary.field),
-            })),
-          }
-        : {}),
-    };
+    const next = renamedRecord(config, name) as C;
     return sameJson(next, config) ? config : next;
   }
+  const base = { ...config, filter: renamedTree(config.filter, name) };
   const next = {
     ...base,
     kind: 'analysis' as const,
@@ -97,6 +71,59 @@ export function withCanonicalNames<C extends DataViewConfig>(
       : {}),
   };
   return sameJson(next, config) ? config : next;
+}
+
+/**
+ * A definition's starting record config (`record.defaults`, a partial one)
+ * with every field it names by an alias renamed to the path, as a saved
+ * config is read (`withCanonicalNames`): a view created from it asks by the
+ * path from the start. Returns the defaults themselves when they name no
+ * alias.
+ */
+export function withCanonicalDefaults(
+  defaults: Partial<RecordViewConfig>,
+  renamed: Readonly<Record<string, string>>,
+): Partial<RecordViewConfig> {
+  if (Object.keys(renamed).length === 0) return defaults;
+  const next = renamedRecord(defaults, name => renamed[name] ?? name);
+  return sameJson(next, defaults) ? defaults : next;
+}
+
+/** The record members that name a root field, each renamed where present. */
+function renamedRecord<R extends Partial<RecordViewConfig>>(
+  config: R,
+  name: (field: string) => string,
+): R {
+  const next: R = { ...config };
+  if (config.filter) next.filter = renamedTree(config.filter, name);
+  if (config.sort)
+    next.sort = config.sort.map(entry => ({
+      ...entry,
+      field: name(entry.field),
+    }));
+  if (config.table)
+    next.table = {
+      ...config.table,
+      columns: config.table.columns.map(column => ({
+        ...column,
+        field: name(column.field),
+      })),
+    };
+  if (config.card)
+    next.card = {
+      ...config.card,
+      title: name(config.card.title),
+      fields: config.card.fields.map(name),
+      ...(config.card.image === undefined
+        ? {}
+        : { image: name(config.card.image) }),
+    };
+  if (config.summaries)
+    next.summaries = config.summaries.map(summary => ({
+      ...summary,
+      field: name(summary.field),
+    }));
+  return next;
 }
 
 function renamedMetric(

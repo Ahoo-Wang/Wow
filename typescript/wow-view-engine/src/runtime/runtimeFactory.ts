@@ -196,7 +196,16 @@ export class RuntimeFactory {
     const declared = this.host.definitions.require(instance.definitionId);
     await this.host.capabilities.prepare(declared);
     const definition = this.admitted(declared);
-    return { instance, definition, fields: panelFields(definition) };
+    // The board reads the view as its child runs it: under the paths its
+    // definition renames aliases to (#3519), so a press names its groups
+    // as a binding names its field.
+    const renamed =
+      (definition.kind === 'data' && definition.narrowing?.renamed) || {};
+    return {
+      instance: canonicalInstance(instance, renamed) ?? instance,
+      definition,
+      fields: panelFields(definition),
+    };
   };
 
   /**

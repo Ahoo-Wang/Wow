@@ -21,12 +21,12 @@ import type { FieldKindRegistry } from '../filter/index.js';
 import { narrowAnalysis } from './analysis.js';
 import { narrowFields } from './fields.js';
 import { narrowRecord } from './record.js';
-import { withCanonicalNames } from './aliases.js';
+import { withCanonicalDefaults, withCanonicalNames } from './aliases.js';
 
 /**
  * The definition's own references to a field it names by an alias, renamed
- * to the path: its groups, row key and row fields, its aggregation
- * capability and its system views. The fields themselves — a search's
+ * to the path: its groups, row key, row fields and record defaults, its
+ * aggregation capability and its system views. The fields themselves — a search's
  * fields among them — are renamed as they are narrowed.
  */
 function renamedDefinition(
@@ -54,6 +54,14 @@ function renamedDefinition(
       rowKey: name(definition.record.rowKey),
       ...(definition.record.rowFields
         ? { rowFields: definition.record.rowFields.map(name) }
+        : {}),
+      ...(definition.record.defaults
+        ? {
+            defaults: withCanonicalDefaults(
+              definition.record.defaults,
+              renamed,
+            ),
+          }
         : {}),
     };
   if (definition.analysis)
