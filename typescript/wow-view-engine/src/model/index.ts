@@ -19,6 +19,8 @@
 export * from './analysis.js';
 export * from './chart.js';
 export * from './config.js';
+// By name: the readings are the kernels' and the UI's, read from the file.
+export type { CurrencyReading } from './currency.js';
 export * from './dashboard.js';
 export * from './definition.js';
 export * from './field.js';

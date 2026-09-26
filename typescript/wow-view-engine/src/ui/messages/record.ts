@@ -138,6 +138,9 @@ export const recordMessages = {
   'label.value.items-one': '1 item',
   'label.value.fields': '{count} fields',
   'label.value.fields-one': '1 field',
+  // An aggregate of money whose records are in several currencies: no
+  // amount, so it says what it is instead of a number.
+  'label.value.mixed-currencies': 'Mixed currencies',
   // An element whose title field is empty: still an element, still counted.
   'label.value.untitled': 'Untitled',
   // How many elements a table cell leaves to its title and the card.

@@ -12,8 +12,13 @@
  */
 
 import { useCallback } from 'react';
-import type { RecordData, RuntimeLimits } from '../../model/index.js';
-import { serializeCsv } from '../../record/index.js';
+import {
+  type CurrencyReading,
+  type RecordData,
+  type RuntimeLimits,
+} from '../../model/index.js';
+import { isCurrencyCode } from '../../model/currency.js';
+import { serializeCsv, type RecordColumnView } from '../../record/index.js';
 import type { RecordViewRuntime } from '../../runtime/index.js';
 import { exportPlan } from '../../runtime/exportRows.js';
 import {
@@ -23,9 +28,13 @@ import {
   type RecordTableController,
 } from '../../react/index.js';
 import { csvCellText, isoDay } from '../display.js';
+import { currencyCsvText } from '../currency.js';
 import { downloadFile, fileName } from '../download.js';
 import type { ExportWindowProps } from '../ExportDialog.js';
-import { useViewMessages } from '../MessagesProvider.js';
+import {
+  useViewMessages,
+  type MessageFormatters,
+} from '../MessagesProvider.js';
 import { useSurfaceDisplay } from '../ViewSurface.js';
 
 /** The media type every export is handed over as: a UTF-8 CSV. */
@@ -41,6 +50,40 @@ export function neutralizesFormulas(
   limits: Pick<RuntimeLimits, 'exportNeutralizeFormulas'>,
 ): boolean {
   return limits.exportNeutralizeFormulas !== false;
+}
+
+/**
+ * A file's columns: the table's, each amount of money followed by one for
+ * its currency (`currencyCsvText`) — the amount itself is written as the
+ * number it is (`csvCellText`). A currency held per record is read from
+ * where the record holds it; a fixed one is the same on every line.
+ */
+function fileColumns(
+  columns: readonly RecordColumnView[],
+  messages: MessageFormatters,
+): (RecordColumnView & { currencyOf?: RecordColumnView })[] {
+  return columns.flatMap(column =>
+    column.numeric?.type === 'money'
+      ? [
+          column,
+          {
+            ...column,
+            field: column.currencyPath ?? column.field,
+            label: messages.label('label.export.currency-column', {
+              field: column.label,
+            }),
+            currencyOf: column,
+          },
+        ]
+      : [column],
+  );
+}
+
+/** A record's own currency code, as the file's currency column reads it. */
+function currencyOfValue(value: unknown): CurrencyReading | undefined {
+  return isCurrencyCode(value)
+    ? { type: 'one', code: value.toUpperCase() }
+    : undefined;
 }
 
 /** One file an export produced, as it was handed over. */
@@ -105,8 +148,15 @@ export function useExportOffer({
     (rows: readonly RecordData[], scope: RecordExportScope, name: string) => {
       const text = serializeCsv(
         rows,
-        columns,
-        (value, column) => csvCellText(value, column, messages, display),
+        fileColumns(columns, messages),
+        (value, column) =>
+          column.currencyOf
+            ? currencyCsvText(
+                column.currencyOf.numeric,
+                currencyOfValue(value),
+                messages,
+              )
+            : csvCellText(value, column, messages, display),
         { neutralizeFormulas },
       );
       downloadFile({ name, content: text, type: CSV_TYPE });

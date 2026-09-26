@@ -47,6 +47,10 @@ export interface FieldDefinition {
   summary?: SummaryFunction[]; // 允许的汇总函数；一列时刻（kind 或 cell 为 date／datetime）只认 MIN／MAX／COUNT，声明 SUM／AVG 会被准入按 record.summary.unsupported 拒绝（`summaryFunctionsOf`）
   cell?: FieldCellId; // 这一列怎么读，缺省按 kind；闭合取值，准入拒绝未知值
   temporal?: FieldTemporal; // date／datetime 字段的时间怎样存，决定条件的边怎样发出；缺省纪元毫秒，见下文
+  // 数是什么（描述的 DECIMAL／MONEY，#3552，收窄写入；定义也可以自己写）：小数位 scale，
+  // 金额的币种固定（currency）或由同级字段按记录给（currencyField）。只在没写 numberFormat 时决定读法
+  // （numberFormatOf）；按记录的币种见 currencyPathOf 与 D50。
+  numeric?: FieldNumeric;
   // 数组字段的元素持有什么。它属于字段本身：items 就是那个数组，这些是它装的东西。
   // 声明在别处就得用路径字符串回指，而路径可以指向不存在的字段——那一整类悬空引用
   // 在这里根本写不出来。元素名字自成作用域，可与根字段重名，引用一律写 `field.element`。

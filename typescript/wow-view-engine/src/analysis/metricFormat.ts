@@ -14,6 +14,7 @@
 import {
   isDateCell,
   isValueMetric,
+  numberFormatOf,
   type AnalysisDateDiffUnit,
   type AnalysisDerivedExpression,
   type AnalysisExpression,
@@ -78,9 +79,9 @@ const AVERAGED = { minimumFractionDigits: 2, maximumFractionDigits: 2 };
  */
 export function metricFormat(
   metric: AnalysisMetric,
-  field?: Pick<FieldDefinition, 'numberFormat'>,
+  field?: Pick<FieldDefinition, 'numberFormat' | 'numeric'>,
 ): NumberFormat | undefined {
-  const format = field?.numberFormat;
+  const format = numberFormatOf(field);
   switch (metricFunctionOf(metric)) {
     case 'COUNT':
     case 'DISTINCT_COUNT':
@@ -162,7 +163,9 @@ export function derivedOperandFormat(
  */
 export function metricFormats(
   metrics: readonly AnalysisMetric[],
-  fieldOf: (name: string) => Pick<FieldDefinition, 'numberFormat'> | undefined,
+  fieldOf: (
+    name: string,
+  ) => Pick<FieldDefinition, 'numberFormat' | 'numeric'> | undefined,
 ): Map<string, NumberFormat | undefined> {
   const formats = new Map<string, NumberFormat | undefined>();
   for (const metric of metrics) {
@@ -178,9 +181,8 @@ export function metricFormats(
             }
           : metric.type === 'NUMERIC' || metric.type === 'PERCENTILE'
             ? {
-                numberFormat: formulaFormat(
-                  metric.expression,
-                  field => fieldOf(field)?.numberFormat,
+                numberFormat: formulaFormat(metric.expression, field =>
+                  numberFormatOf(fieldOf(field)),
                 ),
               }
             : undefined;
@@ -420,7 +422,10 @@ function unitOf(format: NumberFormat | undefined): string | undefined {
  */
 export function metricMeasures(
   metrics: readonly AnalysisMetric[],
-  fields: ReadonlyMap<string, Pick<FieldDefinition, 'numberFormat'>>,
+  fields: ReadonlyMap<
+    string,
+    Pick<FieldDefinition, 'numberFormat' | 'numeric'>
+  >,
 ): Map<string, string> {
   // The formats the result table's columns take (`projectAnalysis`), so the
   // editor's picker and the drawn chart put the same metrics on one axis.

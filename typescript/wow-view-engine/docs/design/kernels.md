@@ -76,6 +76,7 @@ filtersOnTab(panels, tab): Set<string>                         // 在一个标�
 - 反过来，声明按自身作用域写相对名——`elements[].aggregations[].field` 写元素内的名字，路径由 `qualify` 唯一合成，它一律加前缀，不再放过「已经以路径开头」的名字（两种拼写都接受等于没有约定，还会让 `items.sku` 在元素根部和在一个恰好同名的嵌套对象里含义不同）；
 - `elements[].aggregations[].field` 必须是该元素声明过的字段，与根字段的同名检查对齐；
 - `temporal` 只能写在 `date`／`datetime` 字段上（否则 `definition.field.temporal-misplaced`：写在不写时间的字段上是一句什么也不做的声明），且必须是引擎写得出的一种——`{ type: 'epoch', timeUnit?: 'MILLISECONDS' | 'SECONDS' }` 或 `{ type: 'date' }`（否则 `definition.field.temporal-invalid`）。它决定每一条日期条件发出去是什么，读不懂的声明不会报错，只会按缺省发出、然后被服务拒绝或什么也匹配不到；元素字段同样检查；
+- `numeric` 必须是引擎写得出的一种——`{ type: 'decimal', scale }`、`{ type: 'money', scale, currency }` 或 `{ type: 'money', scale, currencyField }`，`scale` 是 0～20 的整数（`MAX_NUMERIC_SCALE`），币种是三个字母（`CURRENCY_CODE_PATTERN`），`currencyField` 是字段名（否则 `definition.field.numeric-invalid`）：写不出的币种不会报错，只会让数不带格式地显示（[D50](decisions.md#d50-金额与小数按描述的语义读2026-09-25)）；
 - `cell` 必须是 `FieldCellId` 里的一个（`definition.field.cell-invalid`），`options[].tone` 必须是四档语气里的一档（`definition.field.tone-invalid`，Issue 落在那一项选项上而不是字段上，好让一个有八个状态的定义知道该去改哪一个）。两者都是闭合取值：`/ui` 没有渲染器注册表，没人分派的键不会报错，只会悄悄走默认渲染，于是一列声明成链接的 URL 仍旧是一串点不动的字——正是这类沉默让"引擎给得出的，定义才写得出"（D4）在这里也成立；
 - `elementTitle` 必须是该字段 `elements` 里声明过的字段（否则 `definition.field.element-title-unknown`，没有 `elements` 的字段同样报它：没有元素可题名），且它得自己持有值——无字段种类（搜索／元数据）不是元素的成员，又一层对象数组是一个列表而不是一个名字（`definition.field.element-title-not-a-value`）。它决定单元格按什么读每一个元素，读不到的名字不会报错，只会让每个元素都读成「未命名」（[model.md#数组对象在单元格里按元素的标题读](model.md#数组对象在单元格里按元素的标题读)）；
 - `fieldGroups[]` 的 `id` 与 `label` 非空且 `id` 唯一（`definition.fieldGroup.invalid`／`duplicate`），其 `fields[]` 必须是已声明的根字段，且一个字段不得被两个分组同时列出（`definition.fieldGroup.field-unknown`／`field-duplicate`）；
@@ -211,6 +212,7 @@ filtersOnTab(panels, tab): Set<string>                         // 在一个标�
 - **格式化注入而不是在这里决定**：枚举的标签、时间的时区、数字的格式都是 `/ui` 的答案（`cellText`），内核没有目录、没有语言、也没有渲染器，读法写在这里就等于第二份读法；
 - 按 RFC 4180 转义：含 `,`、`"`、`\r`、`\n` 的字段加引号、内部引号翻倍，记录以 `CRLF` 结尾（含最后一条），前面加 UTF-8 BOM（`CSV_BOM`）——没有它 Excel 会按机器的 ANSI 代码页读，中文全成乱码；
 - **公式缺省中和**（[D37](decisions.md#d37-导出文件缺省中和公式2026-09-24)，修订了原先的「值原样写，不改写」）：文本以 `=`、`+`、`-`、`@`、制表符或回车开头的格子，前面加一个单引号 `'` 再转义（OWASP CSV Injection），表头的列名也算——列名来自定义。两种格子不动，因为表格软件只会把它们读成数、不会求值：**值本身是数**的（`number`／`bigint`，不管读成什么样——负金额「-$1,204.50」照写），以及**文本就是一个纯数**的（可选正负号、数字、一个小数点、指数，比如文本字段里的「-12.5」）——给它们加单引号只会让文件与屏幕不一致，换不来任何安全。纯数的判定故意窄：带千分位、货币、空格或运算符的都不算，照样加单引号。`options.neutralizeFormulas: false` 关掉，只给文件不进表格软件的宿主（把 CSV 当数据读回的管道）；缺省、`true` 或别的值都是开；
+- **读法来自描述语义的数写原数**（[D50](decisions.md#d50-金额与小数按描述的语义读2026-09-25)）：`csvCellText` 对带 `numeric` 的列写数本身；金额的币种由 `/ui` 在它后面另起一列（「{列名}（币种）」），分析导出同样；
 - 零行时只有表头。`format` 由宿主提供，因此返回值再被强制成字符串：`undefined` 写成 `undefined` 这个词，是表格从没显示过的值。（见 test/recordExport.test.ts「serializeCsv」「formulas in an exported file」）
 
 ## Analysis 内核的规则

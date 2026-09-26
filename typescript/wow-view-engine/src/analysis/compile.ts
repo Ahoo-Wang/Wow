@@ -59,6 +59,7 @@ import {
   scopePrefix,
   type AnalysisScope,
 } from './capability.js';
+import { companionMetrics, currencyCompanions } from './currency.js';
 import { limitBounds } from './defaults.js';
 
 /**
@@ -75,7 +76,7 @@ export function compileAnalysis(
   limits?: Pick<RuntimeLimits, 'maxAnalysisRows'>,
 ): AggregationQuery {
   const scope = scopeOf(definition, config);
-  const query = baseQuery(scope, config, kinds, context);
+  const query = baseQuery(definition, scope, config, kinds, context);
   const inner = innerPrefix(scope);
   return {
     ...query,
@@ -166,7 +167,13 @@ export function compileAnalysisTotals(
   context: FilterCompileContext,
 ): AggregationQuery | null {
   if (!asksForWhole(config)) return null;
-  return baseQuery(scopeOf(definition, config), config, kinds, context);
+  return baseQuery(
+    definition,
+    scopeOf(definition, config),
+    config,
+    kinds,
+    context,
+  );
 }
 
 function scopeOf(
@@ -193,6 +200,7 @@ function innerPrefix(scope: AnalysisScope): string {
 }
 
 function baseQuery(
+  definition: DataViewDefinition,
   scope: AnalysisScope,
   config: AnalysisViewConfig,
   kinds: FieldKindRegistry,
@@ -208,9 +216,14 @@ function baseQuery(
   const compileTree = (tree: FilterTree): FilterExpression =>
     compileFilter(innerFields, relativeTree(tree, inner), kinds, context);
 
-  const metrics = config.metrics.map(metric =>
-    compileMetric(metric, compileTree, inner),
-  );
+  // Money in a currency each record holds asks, beside itself, which
+  // currencies its records are in (`currencyCompanions`), so the answer can
+  // tell one currency from several.
+  const companions = currencyCompanions(definition, config).companions;
+  const metrics = [
+    ...config.metrics,
+    ...companionMetrics(config, companions),
+  ].map(metric => compileMetric(metric, compileTree, inner));
 
   return {
     filter: compileFilter(scope.rootFields, config.filter, kinds, context),

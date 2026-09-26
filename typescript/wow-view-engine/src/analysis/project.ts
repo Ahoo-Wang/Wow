@@ -15,6 +15,9 @@ import {
   approximateMetrics,
   epochUnitOf,
   isDateCell,
+  numberFormatOf,
+  type CurrencyReading,
+  type FieldNumeric,
   type AnalysisDatePart,
   type AnalysisDateUnit,
   type AnalysisGroup,
@@ -28,8 +31,14 @@ import {
   type EpochTimeUnit,
   type RuntimeLimits,
 } from '../model/index.js';
+import { inCurrency, joinCurrencies } from '../model/currency.js';
 import type { FieldKindRegistry } from '../filter/index.js';
 import { analysisScope } from './capability.js';
+import {
+  companionsReading,
+  currencyCompanions,
+  derivedOperands,
+} from './currency.js';
 import { shapeChart, type ChartData, type ShapeContext } from './chart.js';
 import { analysisProbeLimit } from './compile.js';
 import { chartUnfit } from './fitCharts.js';
@@ -88,6 +97,12 @@ export interface AnalysisColumnView {
    */
   numberFormat?: NumberFormat;
   /**
+   * What the number is by the source's semantics (`FieldNumeric`), where
+   * that — and not the author's `numberFormat` — decides how it reads: a
+   * file then holds the number itself, and money its currency beside it.
+   */
+  numeric?: FieldNumeric;
+  /**
    * For a group, or a metric whose value is one of the field's
    * (`readsAsItsField` — its earliest, its latest, a percentile, any one):
    * the field's kind, renderer key and choices, so its values show as the
@@ -136,10 +151,41 @@ export interface AnalysisColumnView {
    */
   approximate?: boolean;
   /**
+   * For a metric of money in a currency each record holds: how each row
+   * tells its currency (`rowCurrency`). A column whose rows are all in one
+   * currency already carries it in `numberFormat`.
+   */
+  currency?: ColumnCurrency;
+  /**
    * `false` for a metric the rows cannot be ordered by
    * (`AnalysisCapability.metricSort`); absent otherwise.
    */
   sortable?: false;
+}
+
+/**
+ * How a metric column of money in a currency each record holds is read, row
+ * by row: the companions telling each row's currency (`CurrencyCompanion`)
+ * — its own, or a derived metric's operands' — and whether its number is
+ * written in that currency. A ratio of two amounts (a derived metric with
+ * no currency format) is in none, yet still no number where its operands
+ * mix currencies.
+ */
+export interface ColumnCurrency {
+  /** Per companion, the aliases of its `ANY` and its `DISTINCT_COUNT`. */
+  companions: readonly { code: string; count: string }[];
+  writes: boolean;
+}
+
+/**
+ * What one row of a result says about a column's currency: the one its
+ * records are in, several, or nothing known (`companionsReading`).
+ */
+export function rowCurrency(
+  row: RecordData | undefined,
+  column: Pick<AnalysisColumnView, 'currency'>,
+): CurrencyReading | undefined {
+  return column.currency && companionsReading(row, column.currency.companions);
 }
 
 export interface AnalysisView {
@@ -421,6 +467,33 @@ export function projectAnalysis(
   // Every metric's format, operands before the derived metrics reading them.
   const formats = metricFormats(config.metrics, name => byName.get(name));
 
+  // Money in a currency each record holds: a row whose records hold several
+  // is no number — its sum adds unlike amounts — so its value goes, and
+  // the companions stay to say why (`currencyCompanions`). A column all of
+  // whose rows are in one currency is written in it, axis and card
+  // included; one whose rows differ is read row by row (`rowCurrency`).
+  const currencies = metricCurrencies(definition, config);
+  const settle = (rows: readonly RecordData[]) =>
+    rows.map(row => settleRow(row, currencies));
+  const cut = cutShort(definition, config, settle(result), limits);
+  const settledTotals = totals && settle(totals);
+  const overall =
+    settledTotals && settledTotals.length > 0 ? settledTotals[0] : undefined;
+  const splitWhole = context.splitWhole && settle(context.splitWhole);
+  const withCurrency = (
+    alias: string,
+    format: NumberFormat | undefined,
+  ): NumberFormat | undefined => {
+    const currency = currencies.get(alias);
+    if (!currency?.writes) return format;
+    const reading = joinCurrencies(
+      [...cut.rows, ...(overall ? [overall] : [])]
+        .filter(row => typeof row[alias] === 'number')
+        .map(row => companionsReading(row, currency.companions)),
+    );
+    return reading?.type === 'one' ? inCurrency(format, reading.code) : format;
+  };
+
   const describe = (alias: string): AnalysisColumnView[] => {
     const role = roles.get(alias);
     if (!role) return [];
@@ -437,10 +510,10 @@ export function projectAnalysis(
         ? computed.expression
         : undefined;
     const numberFormat = metric
-      ? formats.get(alias)
+      ? withCurrency(alias, formats.get(alias))
       : expression
-        ? formulaFormat(expression, name => byName.get(name)?.numberFormat)
-        : field?.numberFormat;
+        ? formulaFormat(expression, name => numberFormatOf(byName.get(name)))
+        : numberFormatOf(field);
     return [
       {
         alias,
@@ -469,6 +542,8 @@ export function projectAnalysis(
         ...(condition ? { condition } : {}),
         width: declaredColumn?.width,
         numberFormat,
+        ...(currencies.has(alias) ? { currency: currencies.get(alias) } : {}),
+        ...(metric && field ? numericOf(metric, field) : {}),
         ...(field && valued.has(alias) ? valueOf(field) : {}),
         ...bucketOf(groups.get(alias)),
         // What its number is a quantity of: the unit its format declares,
@@ -486,16 +561,13 @@ export function projectAnalysis(
     ];
   };
 
-  const cut = cutShort(definition, config, result, limits);
-  const overall = totals && totals.length > 0 ? totals[0] : undefined;
-
   return {
     columns: order.flatMap(describe),
     schema: resultSchema(config).flatMap(describe),
     approximate,
     ...cut,
     ...(overall ? { overall } : {}),
-    ...(context.splitWhole ? { splitWhole: [...context.splitWhole] } : {}),
+    ...(splitWhole ? { splitWhole } : {}),
     ...(overall && config.table.totals && config.groups.length > 0
       ? { totals: wholeOf(overall, config) }
       : {}),
@@ -513,6 +585,7 @@ export function projectAnalysis(
       ? {
           chart: shapeChart(config, cut.rows, overall, {
             ...context,
+            ...(splitWhole ? { splitWhole } : {}),
             approximate,
             cutShort: cut.truncated || cut.atLimit !== undefined,
           }),
@@ -565,6 +638,79 @@ function cutShort(
     truncated: false,
     ...(result.length >= limit ? { atLimit: limit } : {}),
   };
+}
+
+/**
+ * The source's semantics a metric column reads by: its field's, where the
+ * author gave the field no format, for a metric in the field's unit — a
+ * sum of money is money. A count is in none.
+ */
+function numericOf(
+  metric: AnalysisMetric,
+  field: FieldDefinition,
+): Pick<AnalysisColumnView, 'numeric'> {
+  if (field.numberFormat !== undefined || !field.numeric) return {};
+  switch (metricFunctionOf(metric)) {
+    case 'COUNT':
+    case 'DISTINCT_COUNT':
+    case 'DERIVED':
+      return {};
+    default:
+      return { numeric: field.numeric };
+  }
+}
+
+/**
+ * Each metric of money in a currency each record holds, by alias, with the
+ * companions telling its currency: its own, or for a derived metric, those
+ * of the metrics it is computed from (`derivedOperands`). A derived metric
+ * is written in that currency only where its format says it is money.
+ */
+function metricCurrencies(
+  definition: DataViewDefinition,
+  config: AnalysisViewConfig,
+): Map<string, ColumnCurrency> {
+  const { companions } = currencyCompanions(definition, config);
+  if (companions.length === 0) return new Map();
+  const own = new Map(companions.map(found => [found.metric, found]));
+  const byAlias = new Map(config.metrics.map(metric => [metric.alias, metric]));
+  const found = new Map<string, ColumnCurrency>();
+  for (const metric of config.metrics) {
+    const told = derivedOperands(metric, byAlias).flatMap(alias => {
+      const companion = own.get(alias);
+      return companion
+        ? [{ code: companion.code, count: companion.count }]
+        : [];
+    });
+    if (told.length === 0) continue;
+    found.set(metric.alias, {
+      companions: told,
+      writes:
+        metric.type !== 'DERIVED' ||
+        (metric.format?.style === 'currency' &&
+          metric.format.currency === undefined),
+    });
+  }
+  return found;
+}
+
+/**
+ * A row with every metric whose records are in several currencies taken
+ * out: a sum of yuan and yen is no amount, so it reaches no cell, bar or
+ * card as one. The companions stay, so a reader is told why it is blank.
+ */
+function settleRow(
+  row: RecordData,
+  currencies: ReadonlyMap<string, ColumnCurrency>,
+): RecordData {
+  let settled = row;
+  for (const [alias, currency] of currencies) {
+    if (typeof row[alias] !== 'number') continue;
+    if (companionsReading(row, currency.companions)?.type !== 'mixed') continue;
+    if (settled === row) settled = { ...row };
+    settled[alias] = null;
+  }
+  return settled;
 }
 
 /**

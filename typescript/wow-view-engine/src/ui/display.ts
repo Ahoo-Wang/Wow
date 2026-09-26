@@ -16,6 +16,7 @@ import {
   isDateCell,
   type AnalysisDatePart,
   type AnalysisDateUnit,
+  type FieldNumeric,
   type RecordData,
   type FieldOption,
   type FieldTone,
@@ -51,6 +52,17 @@ export interface DisplayField {
   options?: readonly FieldOption[];
   /** How a number of this field is written, when the field says. */
   numberFormat?: NumberFormat;
+  /**
+   * For money whose currency each record holds: where the row holds it
+   * (`currencyPathOf`). A reader holding the row writes the value in that
+   * currency (`inRowCurrency`).
+   */
+  currencyPath?: string;
+  /**
+   * What the number is by the source's semantics, where that decides how
+   * it reads (`RecordColumnView.numeric`): a file holds it raw.
+   */
+  numeric?: FieldNumeric;
   /** For a date histogram group: its keys are the starts of these buckets. */
   dateUnit?: AnalysisDateUnit;
   /** The zone those buckets were cut in, when the group named one. */
@@ -610,7 +622,11 @@ function isStructured(value: unknown): value is object {
  * On screen such a number is grouped for the reader — 534,897 — but a CSV is
  * read by a spreadsheet, and `534,897` in a CSV is a string no column sums.
  * A number whose field *declares* a format (a currency, a percentage) keeps
- * it: the author said how it reads, and the file says the same.
+ * it: the author said how it reads, and the file says the same. One whose
+ * reading comes from the source's semantics instead (`numeric`: a decimal,
+ * money) is written as the number it is, and money's currency goes in a
+ * column of its own beside it (`currencyCsvText`) — a column of `¥1,204.50`
+ * and `JP¥1,205` is text no spreadsheet adds up, nor tells apart.
  */
 export function csvCellText(
   value: unknown,
@@ -618,7 +634,8 @@ export function csvCellText(
   messages: MessageFormatters,
   context: DisplayContext,
 ): string {
-  if (typeof value === 'number' && field.numberFormat === undefined)
+  // Written raw unless the author's own format decides how it reads.
+  if (typeof value === 'number' && !(field.numberFormat && !field.numeric))
     return Number.isFinite(value) ? String(value) : '';
   return cellText(value, field, messages, context);
 }

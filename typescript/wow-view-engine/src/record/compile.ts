@@ -21,9 +21,11 @@ import {
   type FilterPagedQuery,
   type Projection,
 } from '@ahoo-wang/wow-client';
+import { summaryCurrency } from './summaryCurrency.js';
 import {
   columnHidden,
   fieldAliasSegment,
+  currencyPathOf,
   isFieldlessKind,
   type DataViewDefinition,
   type RecordPageTarget,
@@ -151,10 +153,26 @@ export function recordProjection(
   for (const summary of config.summaries ?? [])
     if (summary.fn !== 'COUNT') asked.push(summary.field);
   asked.push(...(capability.rowFields ?? []));
+  // Money whose currency each record holds reads in that currency, so the
+  // field holding it comes back with the amount, shown or not. Its path is
+  // the definition's, never the stored config's, so it is asked for as
+  // written (`currencyPathOf`).
+  const currencies = new Set<string>();
+  const byName = new Map(valued.map(field => [field.name, field]));
+  for (const name of asked) {
+    const field = byName.get(name);
+    const currency = field && currencyPathOf(field);
+    if (currency !== undefined) currencies.add(currency);
+  }
 
   const include = [
     ...new Set(
-      asked.filter(field => field === capability.rowKey || paths.has(field)),
+      [...asked, ...currencies].filter(
+        field =>
+          field === capability.rowKey ||
+          paths.has(field) ||
+          currencies.has(field),
+      ),
     ),
   ];
   return {
@@ -254,6 +272,20 @@ export function compileSummaries(
       summaryAlias(summary.field, summary.fn),
     ),
   );
+  // Money in a currency each record holds asks which currencies the range
+  // holds (`summaryCurrency`), so its total is never a sum of unlike
+  // amounts passed off as one.
+  for (const summary of summaries) {
+    const currency = summaryCurrency(definition, summary);
+    if (!currency) continue;
+    metrics.push(
+      aggregation.distinctCount(
+        aggregation.field(currency.field),
+        currency.count,
+      ),
+      aggregation.any(currency.field, currency.code),
+    );
+  }
   return {
     filter: compileFilter(definition.fields, config.filter, kinds, context),
     metrics: metrics as [AggregationMetric, ...AggregationMetric[]],

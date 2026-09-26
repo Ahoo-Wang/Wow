@@ -16,12 +16,16 @@ import type {
   QuerySemanticType,
 } from '@ahoo-wang/wow-client';
 import {
+  CURRENCY_CODE_PATTERN,
   DEFAULT_SEARCH_MODE,
+  isFieldName,
+  MAX_NUMERIC_SCALE,
   isFieldlessKind,
   temporalOf,
   TEMPORAL_FIELD_KIND_IDS,
   without,
   type FieldDefinition,
+  type FieldNumeric,
   type FieldTemporal,
   type FilterOperatorName,
   type Issue,
@@ -178,6 +182,8 @@ function narrowField(
   }
   if (context.emptyIsMissing.has(path))
     next = { ...next, emptyIsMissing: true };
+  const numeric = numericOf(described.semantic);
+  if (numeric && next.numeric === undefined) next = { ...next, numeric };
   if (described.project === false) {
     context.findings.push(
       warn(issue('capability.field.not-projectable', at, { field: path })),
@@ -380,11 +386,53 @@ function temporalText(temporal: FieldTemporal): string {
     : `epoch ${temporal.timeUnit ?? 'MILLISECONDS'}`;
 }
 
-function semanticText(semantic: QuerySemanticType): string {
-  if (semantic.type === 'TEMPORAL_EPOCH')
-    return `epoch ${semantic.timeUnit ?? 'MILLISECONDS'}`;
-  if (semantic.type === 'TEMPORAL_FORMATTED') return `text ${semantic.pattern}`;
-  return 'date';
+/**
+ * The descriptor's semantic as the mismatch names it — every kind of it,
+ * so a time field the model keeps as money says `money CNY`, never `date`.
+ */
+export function semanticText(semantic: QuerySemanticType): string {
+  switch (semantic.type) {
+    case 'TEMPORAL_DATE':
+      return 'date';
+    case 'TEMPORAL_EPOCH':
+      return `epoch ${semantic.timeUnit ?? 'MILLISECONDS'}`;
+    case 'TEMPORAL_FORMATTED':
+      return `text ${semantic.pattern}`;
+    case 'DECIMAL':
+      return `decimal scale ${semantic.scale}`;
+    case 'MONEY':
+      return semantic.currency !== undefined
+        ? `money ${semantic.currency} scale ${semantic.scale}`
+        : `money by ${semantic.currencyField} scale ${semantic.scale}`;
+    default:
+      return (semantic as { type: string }).type;
+  }
+}
+
+/**
+ * A numeric semantic as the definition keeps it (`FieldNumeric`), or
+ * `undefined` for a temporal one, and for one whose scale or currency the
+ * engine could not write — a descriptor is data from another service, so
+ * it is read rather than trusted, and a number left plain is better than a
+ * format Intl refuses.
+ */
+export function numericOf(
+  semantic: QuerySemanticType | undefined,
+): FieldNumeric | undefined {
+  if (!semantic || (semantic.type !== 'DECIMAL' && semantic.type !== 'MONEY'))
+    return undefined;
+  const scale = semantic.scale;
+  if (!Number.isInteger(scale) || scale < 0 || scale > MAX_NUMERIC_SCALE)
+    return undefined;
+  if (semantic.type === 'DECIMAL') return { type: 'decimal', scale };
+  if (typeof semantic.currency === 'string')
+    return CURRENCY_CODE_PATTERN.test(semantic.currency)
+      ? { type: 'money', scale, currency: semantic.currency.toUpperCase() }
+      : undefined;
+  return typeof semantic.currencyField === 'string' &&
+    isFieldName(semantic.currencyField)
+    ? { type: 'money', scale, currencyField: semantic.currencyField }
+    : undefined;
 }
 
 /**

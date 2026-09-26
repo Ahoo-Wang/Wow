@@ -341,3 +341,9 @@ wow-client 已镜像这些描述字段，引擎尚未采用；各记一行线索
 ## 20. C6 撞到的一处（2026-09-25）
 
 - **`ELEMENT_MATCH` 来自 `elements[]`，不来自数组自己的算子**：Wow 服务端描述一个数组时，`filter.operators` 只列判空、判存在（MongoDB 上补偿事件流的 `body` 是 `IS_EMPTY`、`IS_NULL`、`IS_NOT_NULL`、`EXISTS`、`NOT_EXISTS`），能否按元素筛选由 `elements[].filter` 说。收窄原先拿元素匹配种类的算子与数组自己的算子取交集，`ELEMENT_MATCH` 因此总被去掉、报 `capability.field.unfilterable`，控制台概览上四张「元素匹配」条件的结局卡在真服务上成了「保存的设置已经用不了了」。改为 `elements[].filter` 为真时把 `ELEMENT_MATCH` 加进这条路径准入的算子（4.1 表里「元素字段」一行本来就是这个意思）；测试夹具的 `describedField` 给数组列出了全部算子，掩盖了它，新用例按服务端的真实写法描述数组。
+
+## 21. 数值语义的落地记录（2026-09-25，[D50](decisions.md#d50-金额与小数按描述的语义读2026-09-25)）
+
+- **收窄**：`FieldDescriptor.semantic` 是 `DECIMAL`／`MONEY` 时写进 `FieldDefinition.numeric`（`numericOf`；定义自己写了的不改，`scale` 不是 0～20 的整数、币种不是三个字母、`currencyField` 不是字段名时当作没有）。时间语义的不一致照旧报 `capability.field.temporal-mismatch`，其中描述那一侧现在按它的种类说（`semanticText`：`decimal scale 2`、`money CNY scale 2`、`money by currency scale 2`），不再把金额说成 `date`。
+- **读法、按记录的币种、伴随指标、「多种货币」与文件**：见 D50。伴随指标只在能力准许（币种字段 `any` 与 `distinctCount`）且不超过 `maxMetrics` 时发，否则报 `analysis.metric.currency-unchecked`；有组混了币种时报 `analysis.result.mixed-currency`。两条都画在结果上方（`CURRENCY_ISSUE_CODES`，不进状态行），带「按「币种」分组」。
+- **没做的**：元素里按记录记币种的金额（详情里一个元素的金额读不到它同级的币种，写不带币种的数）；由公式（`NUMERIC` 的表达式）算出的金额不带伴随指标；记录视图的全范围合计在能力答不了伴随指标时写不带币种的数、不另加提示（本页合计由屏上的行自己核对）；带条件的指标的伴随指标带同一个条件，所以只按它数到的记录判断；图的提示框在各行币种不同时写不带币种的数（表格与导出逐行写）。

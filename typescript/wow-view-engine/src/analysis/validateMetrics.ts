@@ -14,6 +14,7 @@
 import {
   DERIVED_FORMAT_STYLES,
   MAX_DERIVED_DECIMALS,
+  currencyPathOf,
   dateDiffUnitsOf,
   isValueMetric,
   type AnalysisMetric,
@@ -36,6 +37,7 @@ import {
   type AnalysisScope,
 } from './capability.js';
 import type { BudgetCounter } from './budget.js';
+import { derivedOperands } from './currency.js';
 import {
   budgetedDerivedIssues,
   budgetedExpressionIssues,
@@ -44,6 +46,7 @@ import { queryFilterIssues } from './queryFilter.js';
 import { displayNameIssues } from './validateAliases.js';
 import {
   derivedOperandFormat,
+  metricFieldOf,
   metricFormats,
   momentMetrics,
 } from './metricFormat.js';
@@ -329,7 +332,18 @@ function derivedFormatIssues(
     config.metrics.slice(0, config.metrics.indexOf(metric)),
     name => scope.fields.get(name),
   );
-  return derivedOperandFormat(metric.expression, alias => formats.get(alias))
+  if (derivedOperandFormat(metric.expression, alias => formats.get(alias)))
+    return [];
+  // An operand in the currency each record holds is read row by row
+  // (`currencyCompanions`, D50): that is a currency, just not one per field.
+  const byAlias = new Map(config.metrics.map(one => [one.alias, one]));
+  const rowMoney = derivedOperands(metric, byAlias).some(alias => {
+    const operand = byAlias.get(alias);
+    const name = operand && metricFieldOf(operand);
+    const field = name === undefined ? undefined : scope.fields.get(name);
+    return field !== undefined && currencyPathOf(field, name) !== undefined;
+  });
+  return rowMoney
     ? []
     : [issue('analysis.derived.currency-unknown', [...path, 'currency'])];
 }
