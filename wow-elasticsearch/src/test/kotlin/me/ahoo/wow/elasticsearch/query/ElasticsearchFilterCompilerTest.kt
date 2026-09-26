@@ -52,7 +52,6 @@ class ElasticsearchFilterCompilerTest {
     @Test
     fun `raw snapshot compiler must not inject a deletion predicate`() {
         SnapshotFilterCompiler.compileAdmitted(MatchAllFilter)._kind().assert().isEqualTo(Query.Kind.MatchAll)
-        assertQuery(SnapshotFilterCompiler.compileAdmitted(IdFilter("id-1")), ids { it.values("id-1") })
     }
 
     @Test
@@ -72,19 +71,32 @@ class ElasticsearchFilterCompilerTest {
     }
 
     @Test
-    fun `snapshot metadata filters should use document ids`() {
-        assertQuery(SnapshotFilterCompiler.compileAdmitted(IdFilter("id-1")), ids { it.values("id-1") })
+    fun `identity filters compile at the physical field their admission resolved`() {
+        // SCHEMA binds the identity to its `aggregateId` keyword; the Elasticsearch adapter binds it to `_id`.
+        val aggregateId = MessageRecords.AGGREGATE_ID
+        assertQuery(
+            SnapshotFilterCompiler.compileAdmitted(IdFilter("id-1")),
+            term { it.field(aggregateId).value("id-1") }
+        )
         assertQuery(
             SnapshotFilterCompiler.compileAdmitted(AggregateIdFilter("aggregate-1")),
-            ids { it.values("aggregate-1") },
+            term { it.field(aggregateId).value("aggregate-1") },
         )
         assertQuery(
             SnapshotFilterCompiler.compileAdmitted(IdsFilter(listOf("id-1", "id-2"))),
-            ids { it.values("id-1", "id-2") },
+            terms {
+                it.field(
+                    aggregateId
+                ).terms { t -> t.value(listOf(FieldValue.of("id-1"), FieldValue.of("id-2"))) }
+            },
         )
         assertQuery(
             SnapshotFilterCompiler.compileAdmitted(AggregateIdsFilter(listOf("aggregate-1", "aggregate-2"))),
-            ids { it.values("aggregate-1", "aggregate-2") },
+            terms {
+                it.field(
+                    aggregateId
+                ).terms { t -> t.value(listOf(FieldValue.of("aggregate-1"), FieldValue.of("aggregate-2"))) }
+            },
         )
     }
 

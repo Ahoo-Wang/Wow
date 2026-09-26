@@ -74,11 +74,10 @@ class EventStreamFilterCompilerTest {
     }
 
     @Test
-    fun `generic document id predicates should use event id field`() {
+    fun `a field bound to the native document id compiles to an ids query`() {
         val actual = EventStreamFilterCompiler.compileAdmitted(filter { "_id" eq "stream-id" })
 
-        actual.term().field().assert().isEqualTo(MessageRecords.ID)
-        actual.term().value().stringValue().assert().isEqualTo("stream-id")
+        actual.ids().values().assert().containsExactly("stream-id")
     }
 
     @Test

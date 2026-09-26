@@ -48,7 +48,8 @@ val AggregationQuery.metricSorted: Boolean
 /**
  * How the core runs one aggregation over a storage's [AggregationSupport]: the query and window it sends down, and
  * the residual operators it applies, in order, to the rows that come back (dense fill, then HAVING, then top-N or the
- * limit). A feature the storage declares [SupportMode.NONE] is rejected before any I/O.
+ * limit). A feature the storage declares [SupportMode.NONE] is rejected before any I/O. When dense fill is residual,
+ * HAVING and top-N are residual too, since both must see the fill rows.
  */
 internal class AggregationPlan private constructor(
     val query: AggregationQuery,
@@ -76,26 +77,18 @@ internal class AggregationPlan private constructor(
         fun of(query: AggregationQuery, support: AggregationSupport): AggregationPlan {
             val dense = query.denseGroup
             val metricSorted = query.metricSorted
-            support.having.require(query.having != null, "HAVING")
-            support.denseFill.require(dense != null, "dense DATE_HISTOGRAM")
-            support.topN.require(metricSorted, "sorting groups by a metric")
-            support.percentile.require(query.metrics.any { it is AggregationMetric.Percentile }, "PERCENTILE")
-            support.distinctCount.require(query.metrics.any { it is AggregationMetric.DistinctCount }, "DISTINCT_COUNT")
-            support.firstLast.require(query.metrics.any { it is AggregationMetric.Edge }, "FIRST and LAST")
+            requireSupported(query, support)
 
             query.denseDatePart?.let { return datePart(query, it) }
             val residualDense = dense != null && support.denseFill == SupportMode.RESIDUAL
-            val residualHaving = query.having != null && support.having == SupportMode.RESIDUAL
-            val residualTopN = metricSorted && support.topN == SupportMode.RESIDUAL
+            // HAVING and a metric sort must see the fill rows the core adds: run natively, they would act on the
+            // storage's rows before the fill, and a native top-N would also break the key order the fill walks.
+            val residualHaving = query.having != null && (support.having == SupportMode.RESIDUAL || residualDense)
+            val residualTopN = metricSorted && (support.topN == SupportMode.RESIDUAL || residualDense)
             if (!residualDense && !residualHaving && !residualTopN) {
                 return AggregationPlan(query, query, GroupWindow.First(query.limit), null, false, false)
             }
-            val groupAliases = query.groupBy.mapTo(hashSetOf(), AggregationGroup::alias)
-            val native = query.copy(
-                groupBy = if (residualDense) listOf(checkNotNull(dense).copy(dense = false)) else query.groupBy,
-                sort = if (residualTopN) query.sort.filter { it.field.path in groupAliases } else query.sort,
-                having = if (residualHaving) null else query.having,
-            )
+            val native = query.native(dense?.takeIf { residualDense }, residualHaving, residualTopN)
             val window = if (residualHaving || residualTopN) GroupWindow.All else GroupWindow.First(query.limit)
             return AggregationPlan(
                 query,
@@ -126,6 +119,30 @@ internal class AggregationPlan private constructor(
                 query.having != null,
                 query.metricSorted,
             )
+        }
+
+        /** The query sent down: without the residual [dense] flag, HAVING or metric sort. */
+        private fun AggregationQuery.native(
+            dense: AggregationGroup.DateHistogram?,
+            residualHaving: Boolean,
+            residualTopN: Boolean,
+        ): AggregationQuery {
+            val groupAliases = groupBy.mapTo(hashSetOf(), AggregationGroup::alias)
+            return copy(
+                groupBy = dense?.let { listOf(it.copy(dense = false)) } ?: groupBy,
+                sort = if (residualTopN) sort.filter { it.field.path in groupAliases } else sort,
+                having = if (residualHaving) null else having,
+            )
+        }
+
+        /** Rejects, before any I/O, a feature of [query] that [support] declares [SupportMode.NONE]. */
+        private fun requireSupported(query: AggregationQuery, support: AggregationSupport) {
+            support.having.require(query.having != null, "HAVING")
+            support.denseFill.require(query.denseGroup != null, "dense DATE_HISTOGRAM")
+            support.topN.require(query.metricSorted, "sorting groups by a metric")
+            support.percentile.require(query.metrics.any { it is AggregationMetric.Percentile }, "PERCENTILE")
+            support.distinctCount.require(query.metrics.any { it is AggregationMetric.DistinctCount }, "DISTINCT_COUNT")
+            support.firstLast.require(query.metrics.any { it is AggregationMetric.Edge }, "FIRST and LAST")
         }
 
         private fun SupportMode.require(used: Boolean, feature: String) {

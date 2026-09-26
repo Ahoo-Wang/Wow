@@ -303,7 +303,8 @@ class MongoSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
         val publisher = aggregation { count("count") }.query(QueryBackendBinding(backend, schemaProvider))
 
         schemaCalls.get().assert().isZero()
-        publisher.test().verifyComplete()
+        // No record matched: the core emits the empty summary of an aggregation without groups.
+        publisher.test().expectNextCount(1).verifyComplete()
         schemaCalls.get().assert().isOne()
     }
 

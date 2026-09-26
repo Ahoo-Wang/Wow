@@ -17,6 +17,8 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.query.AggregationDatePart
 import me.ahoo.wow.api.query.AggregationDateUnit
+import me.ahoo.wow.api.query.AggregationExpression
+import me.ahoo.wow.api.query.AggregationFunction
 import me.ahoo.wow.api.query.AggregationGroup
 import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.AggregationQuery
@@ -52,6 +54,7 @@ import org.junit.jupiter.api.assertThrows
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.kotlin.test.test
+import tools.jackson.databind.node.JsonNodeFactory
 import tools.jackson.databind.node.ObjectNode
 import java.util.Base64
 import java.util.concurrent.TimeUnit
@@ -348,6 +351,134 @@ class BackendQueriesTest {
     }
 
     @Test
+    fun `residual dense fill makes a native HAVING residual so it sees the fill rows`() {
+        val day = 86_400_000L
+        // A native HAVING would drop the day-1 bucket before the fill, which would then refill it with count 0.
+        val backend = RecordingBackend(groups = { Flux.just(bucket(0, 2), bucket(day, 1), bucket(2 * day, 3)) })
+        val query = AggregationQuery(
+            groupBy = listOf(
+                AggregationGroup.DateHistogram(QueryField("createdAt"), "day", AggregationDateUnit.DAY, dense = true),
+            ),
+            metrics = listOf(AggregationMetric.Count("count")),
+            having = HavingExpression.Condition("count", ComparisonOperator.GTE, 2.0),
+            limit = 10,
+        )
+        val residualDense = schema.withStorage(
+            StorageSupport(aggregation = AggregationSupport(denseFill = SupportMode.RESIDUAL)),
+        )
+        backend.aggregate(QueryAdmission.aggregate(query, residualDense)).collectList().block()!!
+            .map { it["day"].longValue() to it["count"].longValue() }
+            .assert().containsExactly(0L to 2L, 2 * day to 3L)
+        backend.aggregations.single().having.assert().isNull()
+        backend.groupWindows.single().assert().isEqualTo(GroupWindow.All)
+    }
+
+    @Test
+    fun `residual dense fill makes a native top-N residual so the fill walks key order`() {
+        val day = 86_400_000L
+        val backend = RecordingBackend(groups = { Flux.just(bucket(0, 2), bucket(2 * day, 5), bucket(3 * day, 1)) })
+        val query = AggregationQuery(
+            groupBy = listOf(
+                AggregationGroup.DateHistogram(QueryField("createdAt"), "day", AggregationDateUnit.DAY, dense = true),
+            ),
+            metrics = listOf(AggregationMetric.Count("count")),
+            sort = listOf(Sort(QueryField("count"), Sort.Direction.DESC)),
+            limit = 3,
+        )
+        val residualDense = schema.withStorage(
+            StorageSupport(aggregation = AggregationSupport(denseFill = SupportMode.RESIDUAL)),
+        )
+        backend.aggregate(QueryAdmission.aggregate(query, residualDense)).collectList().block()!!
+            .map { it["day"].longValue() to it["count"].longValue() }
+            .assert().containsExactly(2 * day to 5L, 0L to 2L, 3 * day to 1L)
+        val native = backend.aggregations.single()
+        native.sort.map { it.field.path }.assert().doesNotContain("count")
+        backend.groupWindows.single().assert().isEqualTo(GroupWindow.All)
+    }
+
+    @Test
+    fun `the core emits the empty summary when the backend emits no row without groups`() {
+        val backend = RecordingBackend()
+        val query = AggregationQuery(
+            metrics = listOf(
+                AggregationMetric.Count("count"),
+                AggregationMetric.Numeric(
+                    AggregationFunction.SUM,
+                    AggregationExpression.Field(QueryField("amount")),
+                    "total"
+                ),
+            ),
+        )
+        backend.aggregate(QueryAdmission.aggregate(query, schema)).collectList().block()!!.single().apply {
+            this["count"].longValue().assert().isZero()
+            this["total"].isNull.assert().isTrue()
+        }
+    }
+
+    @Test
+    fun `a summary the backend emits is never duplicated`() {
+        val backend = RecordingBackend(groups = { Flux.just("""{"count":0}""".toJsonNode()) })
+        val query = AggregationQuery(metrics = listOf(AggregationMetric.Count("count")))
+        backend.aggregate(QueryAdmission.aggregate(query, schema)).collectList().block()!!.assert().hasSize(1)
+    }
+
+    @Test
+    fun `every shape rejects a backend row that is not standard JSON`() {
+        val nan = JsonSerializer.createObjectNode().put("name", "a").also {
+            it.putObject("state").putArray("values").add(Double.NaN)
+        }
+        val infinite = JsonSerializer.createObjectNode().put("name", "a").put("amount", Float.POSITIVE_INFINITY)
+        val nonStandard = listOf(
+            JsonNodeFactory.instance.pojoNode(Any()),
+            JsonNodeFactory.instance.missingNode(),
+            JsonNodeFactory.instance.binaryNode(byteArrayOf(1)),
+        ).map { node ->
+            JsonSerializer.createObjectNode().also { it.putArray("nested").addObject().set("value", node) }
+        }
+
+        (listOf(nan, infinite) + nonStandard).forEach { row ->
+            val backend = RecordingBackend(
+                pages = { BackendPage(listOf(row), 1, listOf(CursorPosition(listOf(1L)))) },
+                records = { Flux.just(row) },
+            )
+            listOf<() -> Any?>(
+                { backend.single(QueryAdmission.single(SingleQuery(MatchAllFilter), schema)).block() },
+                { backend.list(QueryAdmission.list(ListQuery(MatchAllFilter), schema)).collectList().block() },
+                { backend.paged(QueryAdmission.paged(PagedQuery(MatchAllFilter), schema)).block() },
+                { backend.cursor(QueryAdmission.cursor(CursorQuery(MatchAllFilter), schema)).block() },
+            ).forEach { read -> assertThrows<IllegalArgumentException> { read() } }
+        }
+        assertThrows<IllegalArgumentException> {
+            RecordingBackend(records = { Flux.just(nan) })
+                .list(QueryAdmission.list(ListQuery(MatchAllFilter), schema)).blockLast()
+        }.message.assert().isEqualTo("Query result [state.values] must be finite.")
+        assertThrows<IllegalArgumentException> {
+            RecordingBackend(pages = { BackendPage(listOf(nonStandard.first())) })
+                .single(QueryAdmission.single(SingleQuery(MatchAllFilter), schema)).block()
+        }.message.assert().isEqualTo("Query result [nested.value] must be a standard JSON value.")
+    }
+
+    @Test
+    fun `aggregation rows with a non-finite metric fail the query`() {
+        val backend = RecordingBackend(groups = {
+            Flux.just(JsonSerializer.createObjectNode().put("name", "a").put("total", Double.POSITIVE_INFINITY))
+        })
+        val query = AggregationQuery(
+            groupBy = listOf(AggregationGroup.Terms(QueryField("name"), "name")),
+            metrics = listOf(
+                AggregationMetric.Numeric(
+                    AggregationFunction.SUM,
+                    AggregationExpression.Field(QueryField("amount")),
+                    "total"
+                )
+            ),
+        )
+        backend.aggregate(QueryAdmission.aggregate(query, schema)).test()
+            .expectErrorMessage("Aggregation metric [total] must be finite.")
+            .verify()
+    }
+
+    @Test
     fun `a feature the storage does not support is rejected before the backend runs`() {
         val backend = RecordingBackend()
         val none = schema.withStorage(StorageSupport(aggregation = AggregationSupport(having = SupportMode.NONE)))
@@ -365,6 +496,7 @@ class BackendQueriesTest {
         override val namedAggregate: NamedAggregate = MaterializedNamedAggregate("context", "aggregate"),
         private val pages: (PageWindow) -> BackendPage = { BackendPage(emptyList(), 0, emptyList()) },
         private val groups: () -> Flux<ObjectNode> = { Flux.empty() },
+        private val records: () -> Flux<ObjectNode> = { Flux.empty() },
     ) : QueryBackend {
         val windows = mutableListOf<PageWindow>()
         val groupWindows = mutableListOf<GroupWindow>()
@@ -374,7 +506,7 @@ class BackendQueriesTest {
 
         override fun stream(query: AdmittedQuery<IListQuery>): Flux<ObjectNode> = Flux.defer {
             streams++
-            Flux.empty()
+            records()
         }
 
         override fun page(query: AdmittedQuery<Queryable<*>>, window: PageWindow): Mono<BackendPage> =

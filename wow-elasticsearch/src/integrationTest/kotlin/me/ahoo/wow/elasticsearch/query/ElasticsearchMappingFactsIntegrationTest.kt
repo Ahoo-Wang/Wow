@@ -16,7 +16,6 @@ package me.ahoo.wow.elasticsearch.query
 import co.elastic.clients.elasticsearch._types.Refresh
 import co.elastic.clients.elasticsearch._types.mapping.TypeMapping
 import co.elastic.clients.elasticsearch._types.query_dsl.Query
-import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.ids
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.AggregationQuery
@@ -168,10 +167,7 @@ class ElasticsearchMappingFactsIntegrationTest {
                 override val elasticsearchClient: ReactiveElasticsearchClient = client
                 override val indexName: String = name
                 override val namedAggregate = me.ahoo.wow.modeling.MaterializedNamedAggregate("test", "mapping-facts")
-                override val filterCompiler = object : AbstractElasticsearchFilterCompiler() {
-                    override fun aggregateIdEqual(value: String): Query = ids { it.values(value) }
-                    override fun aggregateIdIn(values: List<String>): Query = ids { it.values(values) }
-                }
+                override val filterCompiler = object : AbstractElasticsearchFilterCompiler() {}
             }
             verify(backend, schema)
         } finally {

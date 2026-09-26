@@ -31,7 +31,6 @@ import me.ahoo.wow.query.CursorPositionCodec
 import me.ahoo.wow.query.GroupWindow
 import me.ahoo.wow.query.PageWindow
 import me.ahoo.wow.query.QueryBackend
-import me.ahoo.wow.query.aggregation.EmptyAggregationValues
 import org.bson.Document
 import org.bson.types.Decimal128
 import reactor.core.publisher.Flux
@@ -137,19 +136,10 @@ abstract class AbstractMongoQueryBackend : QueryBackend {
     override fun aggregate(query: AdmittedQuery<AggregationQuery>, window: GroupWindow): Flux<ObjectNode> {
         val aggregation = query.query
         val limit = (window as? GroupWindow.First)?.limit
-        val result = collection.aggregate(MongoAggregationCompiler(filterCompiler).compile(query, limit))
+        // Without groups, `$group` with a null id emits nothing over no documents: the core emits the empty summary.
+        return collection.aggregate(MongoAggregationCompiler(filterCompiler).compile(query, limit))
             .toFlux()
             .map { it.toAggregationResult(aggregation).toObjectNode() }
-        // `$group` with a null id emits nothing over no documents; an ungrouped aggregation still has its summary.
-        if (aggregation.groupBy.isNotEmpty()) {
-            return result
-        }
-        val summary = Flux.defer {
-            Flux.just(
-                Document(EmptyAggregationValues.values(aggregation.metrics)).toObjectNode()
-            )
-        }
-        return result.switchIfEmpty(summary)
     }
 
     private fun Document.toAggregationResult(query: AggregationQuery): Document {
@@ -161,26 +151,22 @@ abstract class AbstractMongoQueryBackend : QueryBackend {
                 is AggregationMetric.Count -> (get(metric.alias) as Number).toLong()
                 is AggregationMetric.Any -> get(metric.alias).toTermsValue(metric.alias)
                 is AggregationMetric.Edge -> get(metric.alias).toTermsValue(metric.alias)
-                is AggregationMetric.Numeric -> get(metric.alias).toFiniteDouble(metric.alias)
-                is AggregationMetric.Percentile -> get(metric.alias).toFiniteDouble(metric.alias)
+                is AggregationMetric.Numeric -> get(metric.alias).toDoubleValue(metric.alias)
+                is AggregationMetric.Percentile -> get(metric.alias).toDoubleValue(metric.alias)
                 is AggregationMetric.DistinctCount -> (get(metric.alias) as Number).toLong()
-                is AggregationMetric.Derived -> get(metric.alias).toFiniteDouble(metric.alias)
+                is AggregationMetric.Derived -> get(metric.alias).toDoubleValue(metric.alias)
             }
         }
         return this
     }
 
     private fun Any?.toTermsValue(alias: String): Any? =
-        if (this is Decimal128) toFiniteDouble(alias) else this
+        if (this is Decimal128) toDoubleValue(alias) else this
 
-    private fun Any?.toFiniteDouble(alias: String): Double? {
-        val value = when (this) {
-            null -> return null
-            is Decimal128 -> bigDecimalValue().toDouble()
-            is Number -> toDouble()
-            else -> error("Aggregation metric [$alias] must be numeric, but was [${this::class.java.name}].")
-        }
-        require(value.isFinite()) { "Aggregation metric [$alias] must be finite." }
-        return value
+    private fun Any?.toDoubleValue(alias: String): Double? = when (this) {
+        null -> null
+        is Decimal128 -> bigDecimalValue().toDouble()
+        is Number -> toDouble()
+        else -> error("Aggregation metric [$alias] must be numeric, but was [${this::class.java.name}].")
     }
 }

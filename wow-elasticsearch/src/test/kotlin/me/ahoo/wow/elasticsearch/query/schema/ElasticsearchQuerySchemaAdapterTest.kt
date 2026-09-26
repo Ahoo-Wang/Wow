@@ -15,13 +15,19 @@ package me.ahoo.wow.elasticsearch.query.schema
 
 import co.elastic.clients.elasticsearch._types.mapping.RuntimeFieldType
 import co.elastic.clients.elasticsearch._types.mapping.TypeMapping
+import co.elastic.clients.elasticsearch._types.query_dsl.Query
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.query.AggregateIdFilter
+import me.ahoo.wow.api.query.AggregateIdsFilter
+import me.ahoo.wow.api.query.IdFilter
+import me.ahoo.wow.api.query.IdsFilter
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.Projection
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.annotation.SensitivityLevel
 import me.ahoo.wow.api.query.schema.QueryCapability
+import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.api.query.schema.QueryValueKind
 import me.ahoo.wow.api.query.schema.QueryValueType
 import me.ahoo.wow.api.query.schema.Temporal
@@ -352,6 +358,41 @@ class ElasticsearchQuerySchemaAdapterTest {
         schema.field(QueryField("_score"))!!.bindings.assert().doesNotContainKey(QueryCapability.CURSOR_SORT)
         schema.field(QueryField("_score"))!!.projectionField.assert().isNull()
         schema.path("_id", QueryCapability.EXACT_MATCH).assert().isEqualTo("_id")
+    }
+
+    @Test
+    fun `snapshot identity binds exact matches to the document id and keeps the keyword for the rest`() {
+        val definition = logical(
+            "aggregateId" to scalar(QueryValueType.STRING),
+            "id" to scalar(QueryValueType.STRING),
+        )
+        val mapping = TypeMapping.of {
+            it.properties("aggregateId") { it.keyword { it } }.properties("id") { it.keyword { it } }
+        }
+        val snapshot = bind(definition, mapping)
+        snapshot.path("aggregateId", QueryCapability.EXACT_MATCH).assert().isEqualTo("_id")
+        snapshot.path("aggregateId", QueryCapability.SORT).assert().isEqualTo("aggregateId")
+        snapshot.path("aggregateId", QueryCapability.AGGREGATE_TERMS).assert().isEqualTo("aggregateId")
+        snapshot.path("aggregateId", QueryCapability.PRESENCE).assert().isEqualTo("aggregateId")
+        val compiler = object : me.ahoo.wow.elasticsearch.query.AbstractElasticsearchFilterCompiler() {}
+        listOf(
+            IdFilter("a") to Query.of { q -> q.ids { it.values("a") } },
+            AggregateIdFilter("a") to Query.of { q -> q.ids { it.values("a") } },
+            IdsFilter(listOf("a", "b")) to Query.of { q -> q.ids { it.values("a", "b") } },
+            AggregateIdsFilter(listOf("a", "b")) to Query.of { q -> q.ids { it.values("a", "b") } },
+        ).forEach { (filter, expected) ->
+            compiler.compile(filter, snapshot).toString().assert().isEqualTo(expected.toString())
+        }
+
+        // An event stream document's `_id` is `aggregateId-version`: its identity stays the `id` keyword.
+        val eventStream = ElasticsearchQuerySchemaAdapter.bind(
+            definition,
+            ElasticsearchIndexMapping.from("test", mapping),
+            QueryModel.EVENT_STREAM,
+        )
+        eventStream.path("aggregateId", QueryCapability.EXACT_MATCH).assert().isEqualTo("aggregateId")
+        compiler.compile(IdFilter("a"), eventStream).term().field().assert().isEqualTo("id")
+        compiler.compile(AggregateIdsFilter(listOf("a")), eventStream).terms().field().assert().isEqualTo("aggregateId")
     }
 
     @Test

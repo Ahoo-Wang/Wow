@@ -57,7 +57,9 @@ internal class StreamingJsonArrayResponse<T : Any>(
     }
 
     override fun writeTo(exchange: ServerWebExchange, context: ServerResponse.Context): Mono<Void> {
-        return body.switchOnFirst { signal, flux ->
+        // The write owns the body through its own subscription. A write whose Mono completes when it has taken the
+        // body over, before reading it (as the mock server does), must not cancel the body it has not read yet.
+        return body.switchOnFirst({ signal, flux ->
             when {
                 signal.isOnError -> exceptionHandler.handle(request, signal.throwable!!)
                     .flatMap {
@@ -65,7 +67,7 @@ internal class StreamingJsonArrayResponse<T : Any>(
                     }.flux()
                 else -> writeJsonArray(exchange, flux).flux()
             }
-        }.then()
+        }, false).then()
     }
 
     private fun writeJsonArray(exchange: ServerWebExchange, body: Flux<T>): Mono<Void> {

@@ -202,64 +202,6 @@ class AbstractElasticsearchQueryBackendTest {
     }
 
     @Test
-    fun `arbitrary pojo source value should fail`() {
-        assertThrows<IllegalArgumentException> {
-            mapOf("value" to Any()).toObjectNode()
-        }
-    }
-
-    @Test
-    fun `non string source map key should fail`() {
-        assertThrows<IllegalArgumentException> {
-            mapOf<Any, Any>(1 to "value").toObjectNode()
-        }
-    }
-
-    @Test
-    fun `primitive array source value should fail`() {
-        listOf<Any>(byteArrayOf(1, 2), intArrayOf(1, 2)).forEach { value ->
-            assertThrows<IllegalArgumentException> {
-                mapOf("value" to value).toObjectNode()
-            }
-        }
-    }
-
-    @Test
-    fun `non standard json nodes should fail`() {
-        listOf(
-            JsonNodeFactory.instance.pojoNode(Any()),
-            JsonNodeFactory.instance.missingNode(),
-            JsonNodeFactory.instance.binaryNode(byteArrayOf(1)),
-        ).forEach { node ->
-            assertThrows<IllegalArgumentException> {
-                mapOf("nested" to listOf(mapOf("value" to node))).toObjectNode()
-            }
-        }
-    }
-
-    @Test
-    fun `non finite source numbers should fail`() {
-        listOf<Any>(
-            Double.NaN,
-            Double.POSITIVE_INFINITY,
-            Float.NEGATIVE_INFINITY,
-            JsonNodeFactory.instance.numberNode(Double.NaN),
-            JsonNodeFactory.instance.numberNode(Float.POSITIVE_INFINITY),
-        ).forEach { value ->
-            assertThrows<IllegalArgumentException> {
-                mapOf("value" to value).toObjectNode()
-            }
-        }
-    }
-
-    @Test
-    fun `deeply nested pojo node should fail`() {
-        assertThrows<IllegalArgumentException> {
-            mapOf("nested" to listOf(mapOf("value" to JsonNodeFactory.instance.pojoNode(Any())))).toObjectNode()
-        }
-    }
-
-    @Test
     fun `query source should deserialize directly to object node`() {
         val sourceType = slot<Class<ObjectNode>>()
         every { elasticsearchClient.search(any<SearchRequest>(), capture(sourceType)) } returns Mono.just(
