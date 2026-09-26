@@ -48,7 +48,7 @@ import me.ahoo.wow.api.query.schema.Temporal
 import me.ahoo.wow.api.query.spec.Lowering
 import me.ahoo.wow.api.query.spec.spec
 import me.ahoo.wow.query.schema.QueryModelSchema
-import me.ahoo.wow.query.schema.QuerySchemaValidationException
+import me.ahoo.wow.query.schema.QueryViolation
 import me.ahoo.wow.query.schema.absoluteLogicalField
 import me.ahoo.wow.query.schema.temporal
 import me.ahoo.wow.query.schema.withTemporal
@@ -134,7 +134,7 @@ class FilterNormalizer(
             now,
             schema?.let {
                 val field = it.field(absoluteLogicalField(input.field, logicalParent))
-                    ?: throw QuerySchemaValidationException("Unknown relative-time field: [${input.field}].")
+                    ?: throw QueryViolation.UnknownField(absoluteLogicalField(input.field, logicalParent)).rejection()
                 input.temporal(field.effective.temporal)
             },
         )

@@ -18,13 +18,21 @@ import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.query.filter.QueryType
 import me.ahoo.wow.query.schema.QuerySchemaValidationException
 
+/**
+ * Logs every failed query. A rejection from the error catalog, and a server fault the core states
+ * ([QueryExecutionException]), is logged by its message alone: a fault's cause can hold record values (a failing mask
+ * strategy sees the raw value), so it never reaches the log.
+ */
 class QueryLogObserver : QueryObserver {
     companion object {
         private val log = KotlinLogging.logger { }
     }
 
     override fun onError(namedAggregate: NamedAggregate, queryType: QueryType, error: Throwable) {
-        if (error is QuerySchemaValidationException) {
+        val stated = error is QuerySchemaValidationException ||
+            error is QueryRequestException ||
+            error is QueryExecutionException
+        if (stated) {
             log.error { error.message }
         } else {
             log.error(error) { error.message }

@@ -31,6 +31,7 @@ import me.ahoo.wow.query.CursorPositionCodec
 import me.ahoo.wow.query.GroupWindow
 import me.ahoo.wow.query.PageWindow
 import me.ahoo.wow.query.QueryBackend
+import me.ahoo.wow.query.QueryExecutionException
 import org.bson.Document
 import org.bson.types.Decimal128
 import reactor.core.publisher.Flux
@@ -167,6 +168,6 @@ abstract class AbstractMongoQueryBackend : QueryBackend {
         null -> null
         is Decimal128 -> bigDecimalValue().toDouble()
         is Number -> toDouble()
-        else -> error("Aggregation metric [$alias] must be numeric, but was [${this::class.java.name}].")
+        else -> throw QueryExecutionException("Aggregation metric [$alias] must be numeric.")
     }
 }

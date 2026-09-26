@@ -18,8 +18,9 @@ import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.query.GroupWindow
 import me.ahoo.wow.query.schema.AggregationSupport
-import me.ahoo.wow.query.schema.QuerySchemaValidationException
+import me.ahoo.wow.query.schema.QueryViolation
 import me.ahoo.wow.query.schema.SupportMode
+import me.ahoo.wow.query.schema.requireValid
 import tools.jackson.databind.node.ObjectNode
 
 /*
@@ -48,7 +49,8 @@ val AggregationQuery.metricSorted: Boolean
 /**
  * How the core runs one aggregation over a storage's [AggregationSupport]: the query and window it sends down, and
  * the residual operators it applies, in order, to the rows that come back (dense fill, then HAVING, then top-N or the
- * limit). A feature the storage declares [SupportMode.NONE] is rejected before any I/O. When dense fill is residual,
+ * limit). A feature the storage declares [SupportMode.NONE] was rejected at admission ([requireSupported]). When
+ * dense fill is residual,
  * HAVING and top-N are residual too, since both must see the fill rows.
  */
 internal class AggregationPlan private constructor(
@@ -77,7 +79,6 @@ internal class AggregationPlan private constructor(
         fun of(query: AggregationQuery, support: AggregationSupport): AggregationPlan {
             val dense = query.denseGroup
             val metricSorted = query.metricSorted
-            requireSupported(query, support)
 
             query.denseDatePart?.let { return datePart(query, it) }
             val residualDense = dense != null && support.denseFill == SupportMode.RESIDUAL
@@ -134,21 +135,18 @@ internal class AggregationPlan private constructor(
                 having = if (residualHaving) null else having,
             )
         }
-
-        /** Rejects, before any I/O, a feature of [query] that [support] declares [SupportMode.NONE]. */
-        private fun requireSupported(query: AggregationQuery, support: AggregationSupport) {
-            support.having.require(query.having != null, "HAVING")
-            support.denseFill.require(query.denseGroup != null, "dense DATE_HISTOGRAM")
-            support.topN.require(query.metricSorted, "sorting groups by a metric")
-            support.percentile.require(query.metrics.any { it is AggregationMetric.Percentile }, "PERCENTILE")
-            support.distinctCount.require(query.metrics.any { it is AggregationMetric.DistinctCount }, "DISTINCT_COUNT")
-            support.firstLast.require(query.metrics.any { it is AggregationMetric.Edge }, "FIRST and LAST")
-        }
-
-        private fun SupportMode.require(used: Boolean, feature: String) {
-            if (used && this == SupportMode.NONE) {
-                throw QuerySchemaValidationException("Storage does not support $feature.")
-            }
-        }
     }
 }
+
+/** Rejects, at admission, a feature of [query] that [support] declares [SupportMode.NONE]. */
+internal fun requireSupported(query: AggregationQuery, support: AggregationSupport) {
+    support.having.require(query.having != null, "HAVING")
+    support.denseFill.require(query.denseGroup != null, "dense DATE_HISTOGRAM")
+    support.topN.require(query.metricSorted, "sorting groups by a metric")
+    support.percentile.require(query.metrics.any { it is AggregationMetric.Percentile }, "PERCENTILE")
+    support.distinctCount.require(query.metrics.any { it is AggregationMetric.DistinctCount }, "DISTINCT_COUNT")
+    support.firstLast.require(query.metrics.any { it is AggregationMetric.Edge }, "FIRST and LAST")
+}
+
+private fun SupportMode.require(used: Boolean, feature: String) =
+    requireValid(!used || this != SupportMode.NONE) { QueryViolation.StorageUnsupported(feature) }

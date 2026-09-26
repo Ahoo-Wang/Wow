@@ -23,6 +23,7 @@ import me.ahoo.wow.api.query.Projection
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.TenantIdFilter
 import me.ahoo.wow.api.query.schema.QueryModel
+import me.ahoo.wow.query.QueryExecutionException
 import me.ahoo.wow.serialization.JsonSerializer
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertDoesNotThrow
@@ -87,13 +88,13 @@ class QueryModelProfileTest {
                 declared,
             )
         }
-        assertThrows<QuerySchemaValidationException> {
+        assertThrows<QueryExecutionException> {
             EventStreamQueryModelProfile.requireDeclaredPayloadTypes(
                 record("""{"body":[{"bodyType":"other","body":{}}]}"""),
                 declared
             )
         }
-        assertThrows<QuerySchemaValidationException> {
+        assertThrows<QueryExecutionException> {
             EventStreamQueryModelProfile.requireDeclaredPayloadTypes(record("""{"body":{}}"""), declared)
         }
     }

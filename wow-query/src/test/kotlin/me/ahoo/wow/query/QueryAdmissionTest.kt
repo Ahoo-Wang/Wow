@@ -32,6 +32,7 @@ import me.ahoo.wow.api.query.LessThanFilter
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.OwnerIdFilter
+import me.ahoo.wow.api.query.QueryErrorCodes
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.RewritableFilter
 import me.ahoo.wow.api.query.TenantIdFilter
@@ -159,7 +160,7 @@ class QueryAdmissionTest {
                 }
             )
             .test()
-            .expectErrorMatches { it is IllegalStateException && it.message!!.contains("explicit") }
+            .expectErrorMatches { it is QueryRequestException && it.code == QueryErrorCodes.EXPLICIT_ENTRY_REQUIRED }
             .verify()
         loaded.assert().isFalse()
         QueryAdmission(namedAggregate)

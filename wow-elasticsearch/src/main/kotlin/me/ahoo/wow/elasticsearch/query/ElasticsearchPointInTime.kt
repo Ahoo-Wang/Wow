@@ -15,6 +15,7 @@ package me.ahoo.wow.elasticsearch.query
 
 import co.elastic.clients.elasticsearch.core.ClosePointInTimeRequest
 import co.elastic.clients.elasticsearch.core.OpenPointInTimeRequest
+import me.ahoo.wow.query.checkExecution
 import org.reactivestreams.Publisher
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
 import reactor.core.publisher.Flux
@@ -53,7 +54,7 @@ internal class ElasticsearchPointInTime(
                 }
             )
         }.map {
-            check(it.id().isNotBlank()) { "Elasticsearch returned an empty PIT ID." }
+            checkExecution(it.id().isNotBlank()) { "Elasticsearch returned an empty PIT ID." }
             Session(it.id())
         }
     }
@@ -62,7 +63,7 @@ internal class ElasticsearchPointInTime(
         return Mono.defer {
             client.closePointInTime(ClosePointInTimeRequest.of { it.id(session.id) })
         }.doOnNext {
-            check(it.succeeded()) { "Failed to close Elasticsearch PIT [${session.id}]." }
+            checkExecution(it.succeeded()) { "Failed to close an Elasticsearch PIT." }
         }.then()
     }
 }

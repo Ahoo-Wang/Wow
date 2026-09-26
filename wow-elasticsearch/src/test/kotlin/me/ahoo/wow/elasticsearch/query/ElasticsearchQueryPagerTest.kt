@@ -249,7 +249,7 @@ class ElasticsearchQueryPagerTest {
             .test()
             .expectNextCount(3)
             .expectErrorSatisfies {
-                it.cause?.message.assert().isEqualTo("Failed to close Elasticsearch PIT [pit-1].")
+                it.cause?.message.assert().isEqualTo("Failed to close an Elasticsearch PIT.")
             }
             .verify()
 

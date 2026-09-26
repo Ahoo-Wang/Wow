@@ -27,6 +27,7 @@ import me.ahoo.wow.api.query.schema.QueryValueKind
 import me.ahoo.wow.api.query.schema.QueryValueType
 import me.ahoo.wow.api.query.schema.Temporal
 import me.ahoo.wow.api.query.spec.SystemField
+import me.ahoo.wow.query.QueryExecutionException
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.serialization.event.DomainEventRecords
 import me.ahoo.wow.serialization.state.SnapshotRecords
@@ -88,7 +89,7 @@ sealed class QueryModelProfile(val model: QueryModel) {
     /** Rejects a projection that would return records the model cannot interpret. */
     open fun validateProjection(projection: Projection) = Unit
 
-    /** Rejects a response [record] whose payload types are not among the [declared] ones. */
+    /** Fails, as a server fault, on a stored [record] whose payload types are not among the [declared] ones. */
     internal open fun requireDeclaredPayloadTypes(record: ObjectNode, declared: Set<String>) = Unit
 
     companion object {
@@ -227,13 +228,13 @@ data object EventStreamQueryModelProfile : QueryModelProfile(QueryModel.EVENT_ST
     override fun requireDeclaredPayloadTypes(record: ObjectNode, declared: Set<String>) {
         val events = record.get(MessageRecords.BODY)?.takeUnless(JsonNode::isNull) ?: return
         if (!events.isArray || events.any { !it.isObject }) {
-            throw QuerySchemaValidationException("Event body must contain objects.")
+            throw QueryExecutionException("Event body must contain objects.")
         }
         events.forEach { event ->
             if (event.get(MessageRecords.BODY)?.isNull == false &&
                 event.get(MessageRecords.BODY_TYPE)?.stringValue() !in declared
             ) {
-                throw QuerySchemaValidationException("Unknown event bodyType.")
+                throw QueryExecutionException("Unknown event bodyType.")
             }
         }
     }
@@ -249,7 +250,7 @@ val QueryModelSchema.profile: QueryModelProfile?
  */
 fun QueryModelSchema.firstLastOrderBy(metric: AggregationMetric.Edge, scope: QueryField?): QueryField =
     metric.orderBy ?: profile?.eventTimeField?.takeIf { scope == null }
-        ?: throw QuerySchemaValidationException(QueryViolation.FirstLastRequiresOrderBy(QueryField(metric.alias)))
+        ?: throw QueryViolation.FirstLastRequiresOrderBy(QueryField(metric.alias)).rejection()
 
 /**
  * The logical field a system-field filter targets on this schema's model ([QueryModelProfile.systemField]). A custom
@@ -260,7 +261,7 @@ fun QueryModelSchema.systemField(field: SystemField): QueryField = profile?.syst
 
 /** Returns the record identity of this schema's model, rejecting custom models that define none. */
 fun QueryModelSchema.requireIdentityField(): QueryField = profile?.identityField
-    ?: throw QuerySchemaValidationException("Record identity is not defined for model [${model.value}].")
+    ?: throw QueryViolation.IdentityUndefined(model).rejection()
 
 private fun String.payloadField() = QueryField(this) to QueryFieldDeclaration(
     nullable = DeclarationValue.Set(false),

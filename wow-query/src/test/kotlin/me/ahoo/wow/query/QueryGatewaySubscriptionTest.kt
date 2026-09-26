@@ -31,6 +31,7 @@ import me.ahoo.wow.api.query.MaterializedSnapshot
 import me.ahoo.wow.api.query.OrFilter
 import me.ahoo.wow.api.query.OwnerIdFilter
 import me.ahoo.wow.api.query.Projection
+import me.ahoo.wow.api.query.QueryErrorCodes
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.Queryable
 import me.ahoo.wow.api.query.RewritableFilter
@@ -234,7 +235,7 @@ class QueryGatewaySubscriptionTest {
         gateway.dynamicSingle(SingleQuery(MatchAllFilter)).test().expectError().verify()
         audits.single().outcome.assert().isEqualTo(QueryAudit.Outcome.ERROR)
         audits.single().model.assert().isNull()
-        audits.single().errorCode.assert().isEqualTo("IllegalStateException")
+        audits.single().errorCode.assert().isEqualTo("IllegalArgument:EXPLICIT_ENTRY_REQUIRED")
     }
 
     @Test
@@ -245,9 +246,9 @@ class QueryGatewaySubscriptionTest {
             entryPolicy = QueryEntryPolicy(requireExplicitEntry = true),
         )
         gateway.dynamicSingle(SingleQuery(MatchAllFilter)).test()
-            .expectErrorMatches { it is IllegalStateException && it.message!!.startsWith("Query entry must be explicit") }
+            .expectErrorMatches { it is QueryRequestException && it.code == QueryErrorCodes.EXPLICIT_ENTRY_REQUIRED }
             .verify()
-        gateway.count(MatchAllFilter).test().expectError(IllegalStateException::class.java).verify()
+        gateway.count(MatchAllFilter).test().expectError(QueryRequestException::class.java).verify()
         received.assert().isEmpty()
 
         QueryEntry.entries.filter { it != QueryEntry.UNSPECIFIED }.forEach { entry ->

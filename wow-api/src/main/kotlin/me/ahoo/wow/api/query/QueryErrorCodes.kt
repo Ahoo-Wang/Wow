@@ -29,6 +29,15 @@ object QueryErrorCodes {
     const val INVALID_REQUEST = "INVALID_REQUEST"
     const val CURSOR_SORT_DUPLICATE = "CURSOR_SORT_DUPLICATE"
     const val CURSOR_SORT_TOO_MANY = "CURSOR_SORT_TOO_MANY"
+    const val INVALID_CURSOR = "INVALID_CURSOR"
+
+    // The entry budget and gates (errorCode IllegalArgument); BindingError.name is the request part the rule bounds.
+    const val SIZE_OUT_OF_RANGE = "SIZE_OUT_OF_RANGE"
+    const val FILTER_TOO_LARGE = "FILTER_TOO_LARGE"
+    const val EXPENSIVE_OPERATOR_DISABLED = "EXPENSIVE_OPERATOR_DISABLED"
+    const val COUNT_REQUIRES_FILTER = "COUNT_REQUIRES_FILTER"
+    const val RESIDUAL_GROUPS_EXCEEDED = "RESIDUAL_GROUPS_EXCEEDED"
+    const val EXPLICIT_ENTRY_REQUIRED = "EXPLICIT_ENTRY_REQUIRED"
 
     // Admission against the query model; BindingError.name is the absolute logical field path (for an element-scoped
     // field, the full path such as items.price), or "" for model-level violations.
@@ -56,4 +65,9 @@ object QueryErrorCodes {
     const val ARRAY_EQUALITY = "ARRAY_EQUALITY"
     const val FIRST_LAST_REQUIRES_SINGLE_VALUE = "FIRST_LAST_REQUIRES_SINGLE_VALUE"
     const val FIRST_LAST_REQUIRES_ORDER_BY = "FIRST_LAST_REQUIRES_ORDER_BY"
+    const val TEMPORAL_AGGREGATION_UNSUPPORTED = "TEMPORAL_AGGREGATION_UNSUPPORTED"
+    const val SORT_TOO_MANY = "SORT_TOO_MANY"
+    const val SORT_FIELD_DUPLICATE = "SORT_FIELD_DUPLICATE"
+    const val IDENTITY_UNDEFINED = "IDENTITY_UNDEFINED"
+    const val STORAGE_UNSUPPORTED = "STORAGE_UNSUPPORTED"
 }

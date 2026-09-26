@@ -141,85 +141,155 @@
   "route" : "wow.openapi.aggregate.snapshot.list-query",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "HTTP list query limit[1001] must be between 1 and 1000."
+  "errorMsg" : "HTTP list query limit[1001] must be between 1 and 1000.",
+  "bindingErrors" : [ {
+    "name" : "limit",
+    "msg" : "HTTP list query limit[1001] must be between 1 and 1000.",
+    "code" : "SIZE_OUT_OF_RANGE"
+  } ]
 }, {
   "case" : "guard.list-limit-negative",
   "route" : "wow.openapi.aggregate.snapshot.list-query",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "HTTP list query limit[-1] must be between 1 and 1000."
+  "errorMsg" : "HTTP list query limit[-1] must be between 1 and 1000.",
+  "bindingErrors" : [ {
+    "name" : "limit",
+    "msg" : "HTTP list query limit[-1] must be between 1 and 1000.",
+    "code" : "SIZE_OUT_OF_RANGE"
+  } ]
 }, {
   "case" : "guard.page-index-zero",
   "route" : "wow.openapi.aggregate.snapshot.paged-query",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "HTTP page index[0] must be greater than or equal to 1."
+  "errorMsg" : "HTTP page index[0] must be greater than or equal to 1.",
+  "bindingErrors" : [ {
+    "name" : "pagination.index",
+    "msg" : "HTTP page index[0] must be greater than or equal to 1.",
+    "code" : "SIZE_OUT_OF_RANGE"
+  } ]
 }, {
   "case" : "guard.page-size-too-large",
   "route" : "wow.openapi.aggregate.snapshot.paged-query",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "HTTP page size[101] must be between 1 and 100."
+  "errorMsg" : "HTTP page size[101] must be between 1 and 100.",
+  "bindingErrors" : [ {
+    "name" : "pagination.size",
+    "msg" : "HTTP page size[101] must be between 1 and 100.",
+    "code" : "SIZE_OUT_OF_RANGE"
+  } ]
 }, {
   "case" : "guard.page-window-too-large",
   "route" : "wow.openapi.aggregate.snapshot.paged-query",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "HTTP page window[10100] must not exceed 10000."
+  "errorMsg" : "HTTP page window[10100] must not exceed 10000.",
+  "bindingErrors" : [ {
+    "name" : "pagination",
+    "msg" : "HTTP page window[10100] must not exceed 10000.",
+    "code" : "SIZE_OUT_OF_RANGE"
+  } ]
 }, {
   "case" : "guard.cursor-size-too-large",
   "route" : "wow.openapi.aggregate.snapshot.cursor-query",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "HTTP cursor size[101] must be between 1 and 100."
+  "errorMsg" : "HTTP cursor size[101] must be between 1 and 100.",
+  "bindingErrors" : [ {
+    "name" : "size",
+    "msg" : "HTTP cursor size[101] must be between 1 and 100.",
+    "code" : "SIZE_OUT_OF_RANGE"
+  } ]
 }, {
   "case" : "guard.filter-nodes-too-many",
   "route" : "wow.openapi.aggregate.snapshot.list-query",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "HTTP query filter nodes[129] must not exceed 128."
+  "errorMsg" : "HTTP query filter nodes[129] must not exceed 128.",
+  "bindingErrors" : [ {
+    "name" : "filter",
+    "msg" : "HTTP query filter nodes[129] must not exceed 128.",
+    "code" : "FILTER_TOO_LARGE"
+  } ]
 }, {
   "case" : "guard.filter-values-too-many",
   "route" : "wow.openapi.aggregate.snapshot.list-query",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "HTTP query filter values[1001] must not exceed 1000."
+  "errorMsg" : "HTTP query filter values[1001] must not exceed 1000.",
+  "bindingErrors" : [ {
+    "name" : "filter",
+    "msg" : "HTTP query filter values[1001] must not exceed 1000.",
+    "code" : "FILTER_TOO_LARGE"
+  } ]
 }, {
   "case" : "guard.aggregation-limit-too-large",
   "route" : "wow.openapi.aggregate.snapshot.aggregation",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "HTTP aggregation query limit[1001] must be between 1 and 1000."
+  "errorMsg" : "HTTP aggregation query limit[1001] must be between 1 and 1000.",
+  "bindingErrors" : [ {
+    "name" : "limit",
+    "msg" : "HTTP aggregation query limit[1001] must be between 1 and 1000.",
+    "code" : "SIZE_OUT_OF_RANGE"
+  } ]
 }, {
   "case" : "strict.count-matches-all",
   "route" : "wow.openapi.aggregate.snapshot.count",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "HTTP counting query must not match all documents."
+  "errorMsg" : "HTTP counting query must not match all documents.",
+  "bindingErrors" : [ {
+    "name" : "filter",
+    "msg" : "HTTP counting query must not match all documents.",
+    "code" : "COUNT_REQUIRES_FILTER"
+  } ]
 }, {
   "case" : "strict.contains",
   "route" : "wow.openapi.aggregate.snapshot.list-query",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "HTTP query operator[CONTAINS] is disabled because expensive operators are not allowed."
+  "errorMsg" : "HTTP query operator[CONTAINS] is disabled because expensive operators are not allowed.",
+  "bindingErrors" : [ {
+    "name" : "filter",
+    "msg" : "HTTP query operator[CONTAINS] is disabled because expensive operators are not allowed.",
+    "code" : "EXPENSIVE_OPERATOR_DISABLED"
+  } ]
 }, {
   "case" : "strict.aggregation-elements",
   "route" : "wow.openapi.aggregate.snapshot.aggregation",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "HTTP aggregation elements are disabled because expensive operators are not allowed."
+  "errorMsg" : "HTTP aggregation elements are disabled because expensive operators are not allowed.",
+  "bindingErrors" : [ {
+    "name" : "elements",
+    "msg" : "HTTP aggregation elements are disabled because expensive operators are not allowed.",
+    "code" : "EXPENSIVE_OPERATOR_DISABLED"
+  } ]
 }, {
   "case" : "strict.metric-sort",
   "route" : "wow.openapi.aggregate.snapshot.aggregation",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "HTTP aggregation metric sorting is disabled because expensive operators are not allowed."
+  "errorMsg" : "HTTP aggregation metric sorting is disabled because expensive operators are not allowed.",
+  "bindingErrors" : [ {
+    "name" : "sort",
+    "msg" : "HTTP aggregation metric sorting is disabled because expensive operators are not allowed.",
+    "code" : "EXPENSIVE_OPERATOR_DISABLED"
+  } ]
 }, {
   "case" : "strict.arithmetic-expression",
   "route" : "wow.openapi.aggregate.snapshot.aggregation",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "HTTP aggregation arithmetic expressions are disabled because expensive operators are not allowed."
+  "errorMsg" : "HTTP aggregation arithmetic expressions are disabled because expensive operators are not allowed.",
+  "bindingErrors" : [ {
+    "name" : "metrics",
+    "msg" : "HTTP aggregation arithmetic expressions are disabled because expensive operators are not allowed.",
+    "code" : "EXPENSIVE_OPERATOR_DISABLED"
+  } ]
 }, {
   "case" : "admission.unknown-field",
   "route" : "wow.openapi.aggregate.snapshot.list-query",
@@ -467,7 +537,12 @@
   "route" : "wow.openapi.aggregate.snapshot.list-query",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "HTTP list query limit[1001] must be between 1 and 1000."
+  "errorMsg" : "HTTP list query limit[1001] must be between 1 and 1000.",
+  "bindingErrors" : [ {
+    "name" : "limit",
+    "msg" : "HTTP list query limit[1001] must be between 1 and 1000.",
+    "code" : "SIZE_OUT_OF_RANGE"
+  } ]
 }, {
   "case" : "priority.decode-before-budget",
   "route" : "wow.openapi.aggregate.snapshot.list-query",
@@ -484,7 +559,12 @@
   "route" : "wow.openapi.aggregate.snapshot.list-query",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "HTTP query operator[CONTAINS] is disabled because expensive operators are not allowed."
+  "errorMsg" : "HTTP query operator[CONTAINS] is disabled because expensive operators are not allowed.",
+  "bindingErrors" : [ {
+    "name" : "filter",
+    "msg" : "HTTP query operator[CONTAINS] is disabled because expensive operators are not allowed.",
+    "code" : "EXPENSIVE_OPERATOR_DISABLED"
+  } ]
 }, {
   "case" : "decode.body-not-object",
   "route" : "wow.openapi.aggregate.snapshot.list-query",
@@ -1825,91 +1905,166 @@
   "route" : "wow.openapi.aggregate.snapshot.paged-query",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "HTTP page size[0] must be between 1 and 100."
+  "errorMsg" : "HTTP page size[0] must be between 1 and 100.",
+  "bindingErrors" : [ {
+    "name" : "pagination.size",
+    "msg" : "HTTP page size[0] must be between 1 and 100.",
+    "code" : "SIZE_OUT_OF_RANGE"
+  } ]
 }, {
   "case" : "guard.single-filter-nodes-too-many",
   "route" : "wow.openapi.aggregate.snapshot.single",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "HTTP query filter nodes[129] must not exceed 128."
+  "errorMsg" : "HTTP query filter nodes[129] must not exceed 128.",
+  "bindingErrors" : [ {
+    "name" : "filter",
+    "msg" : "HTTP query filter nodes[129] must not exceed 128.",
+    "code" : "FILTER_TOO_LARGE"
+  } ]
 }, {
   "case" : "guard.count-filter-values-too-many",
   "route" : "wow.openapi.aggregate.snapshot.count",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "HTTP query filter values[1001] must not exceed 1000."
+  "errorMsg" : "HTTP query filter values[1001] must not exceed 1000.",
+  "bindingErrors" : [ {
+    "name" : "filter",
+    "msg" : "HTTP query filter values[1001] must not exceed 1000.",
+    "code" : "FILTER_TOO_LARGE"
+  } ]
 }, {
   "case" : "guard.aggregation-filter-nodes-too-many",
   "route" : "wow.openapi.aggregate.snapshot.aggregation",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "HTTP query filter nodes[129] must not exceed 128."
+  "errorMsg" : "HTTP query filter nodes[129] must not exceed 128.",
+  "bindingErrors" : [ {
+    "name" : "filter",
+    "msg" : "HTTP query filter nodes[129] must not exceed 128.",
+    "code" : "FILTER_TOO_LARGE"
+  } ]
 }, {
   "case" : "guard.aggregation-metric-filter-values-too-many",
   "route" : "wow.openapi.aggregate.snapshot.aggregation",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "HTTP query filter values[1001] must not exceed 1000."
+  "errorMsg" : "HTTP query filter values[1001] must not exceed 1000.",
+  "bindingErrors" : [ {
+    "name" : "filter",
+    "msg" : "HTTP query filter values[1001] must not exceed 1000.",
+    "code" : "FILTER_TOO_LARGE"
+  } ]
 }, {
   "case" : "guard.aggregation-having-nodes-too-many",
   "route" : "wow.openapi.aggregate.snapshot.aggregation",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "HTTP filter and having nodes[129] must not exceed 128."
+  "errorMsg" : "HTTP filter and having nodes[129] must not exceed 128.",
+  "bindingErrors" : [ {
+    "name" : "having",
+    "msg" : "HTTP filter and having nodes[129] must not exceed 128.",
+    "code" : "FILTER_TOO_LARGE"
+  } ]
 }, {
   "case" : "guard.aggregation-having-values-too-many",
   "route" : "wow.openapi.aggregate.snapshot.aggregation",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "HTTP having values[1001] must not exceed 1000."
+  "errorMsg" : "HTTP having values[1001] must not exceed 1000.",
+  "bindingErrors" : [ {
+    "name" : "having",
+    "msg" : "HTTP having values[1001] must not exceed 1000.",
+    "code" : "FILTER_TOO_LARGE"
+  } ]
 }, {
   "case" : "guard.list-state-limit-too-large",
   "route" : "wow.openapi.aggregate.snapshot.list-query-state",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "HTTP list query limit[1001] must be between 1 and 1000."
+  "errorMsg" : "HTTP list query limit[1001] must be between 1 and 1000.",
+  "bindingErrors" : [ {
+    "name" : "limit",
+    "msg" : "HTTP list query limit[1001] must be between 1 and 1000.",
+    "code" : "SIZE_OUT_OF_RANGE"
+  } ]
 }, {
   "case" : "guard.paged-state-size-too-large",
   "route" : "wow.openapi.aggregate.snapshot.paged-query-state",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "HTTP page size[101] must be between 1 and 100."
+  "errorMsg" : "HTTP page size[101] must be between 1 and 100.",
+  "bindingErrors" : [ {
+    "name" : "pagination.size",
+    "msg" : "HTTP page size[101] must be between 1 and 100.",
+    "code" : "SIZE_OUT_OF_RANGE"
+  } ]
 }, {
   "case" : "guard.cursor-state-size-too-large",
   "route" : "wow.openapi.aggregate.snapshot.cursor-query-state",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "HTTP cursor size[101] must be between 1 and 100."
+  "errorMsg" : "HTTP cursor size[101] must be between 1 and 100.",
+  "bindingErrors" : [ {
+    "name" : "size",
+    "msg" : "HTTP cursor size[101] must be between 1 and 100.",
+    "code" : "SIZE_OUT_OF_RANGE"
+  } ]
 }, {
   "case" : "guard.event-list-limit-too-large",
   "route" : "wow.openapi.aggregate.event.list-query",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "HTTP list query limit[1001] must be between 1 and 1000."
+  "errorMsg" : "HTTP list query limit[1001] must be between 1 and 1000.",
+  "bindingErrors" : [ {
+    "name" : "limit",
+    "msg" : "HTTP list query limit[1001] must be between 1 and 1000.",
+    "code" : "SIZE_OUT_OF_RANGE"
+  } ]
 }, {
   "case" : "guard.event-paged-window-too-large",
   "route" : "wow.openapi.aggregate.event.paged-query",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "HTTP page window[10100] must not exceed 10000."
+  "errorMsg" : "HTTP page window[10100] must not exceed 10000.",
+  "bindingErrors" : [ {
+    "name" : "pagination",
+    "msg" : "HTTP page window[10100] must not exceed 10000.",
+    "code" : "SIZE_OUT_OF_RANGE"
+  } ]
 }, {
   "case" : "guard.event-cursor-size-too-large",
   "route" : "wow.openapi.aggregate.event.cursor-query",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "HTTP cursor size[101] must be between 1 and 100."
+  "errorMsg" : "HTTP cursor size[101] must be between 1 and 100.",
+  "bindingErrors" : [ {
+    "name" : "size",
+    "msg" : "HTTP cursor size[101] must be between 1 and 100.",
+    "code" : "SIZE_OUT_OF_RANGE"
+  } ]
 }, {
   "case" : "guard.event-aggregation-limit-too-large",
   "route" : "wow.openapi.aggregate.event.aggregation",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "HTTP aggregation query limit[1001] must be between 1 and 1000."
+  "errorMsg" : "HTTP aggregation query limit[1001] must be between 1 and 1000.",
+  "bindingErrors" : [ {
+    "name" : "limit",
+    "msg" : "HTTP aggregation query limit[1001] must be between 1 and 1000.",
+    "code" : "SIZE_OUT_OF_RANGE"
+  } ]
 }, {
   "case" : "guard.event-load-range-too-large",
   "route" : "wow.openapi.aggregate.event.load",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "HTTP list query limit[1001] must be between 1 and 1000."
+  "errorMsg" : "HTTP list query limit[1001] must be between 1 and 1000.",
+  "bindingErrors" : [ {
+    "name" : "limit",
+    "msg" : "HTTP list query limit[1001] must be between 1 and 1000.",
+    "code" : "SIZE_OUT_OF_RANGE"
+  } ]
 }, {
   "case" : "guard.event-load-range-inverted",
   "route" : "wow.openapi.aggregate.event.load",
@@ -1930,43 +2085,78 @@
   "route" : "wow.openapi.aggregate.snapshot.paged-query",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "HTTP counting query must not match all documents."
+  "errorMsg" : "HTTP counting query must not match all documents.",
+  "bindingErrors" : [ {
+    "name" : "filter",
+    "msg" : "HTTP counting query must not match all documents.",
+    "code" : "COUNT_REQUIRES_FILTER"
+  } ]
 }, {
   "case" : "strict.count-deletion-all",
   "route" : "wow.openapi.aggregate.snapshot.count",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "HTTP counting query must not match all documents."
+  "errorMsg" : "HTTP counting query must not match all documents.",
+  "bindingErrors" : [ {
+    "name" : "filter",
+    "msg" : "HTTP counting query must not match all documents.",
+    "code" : "COUNT_REQUIRES_FILTER"
+  } ]
 }, {
   "case" : "strict.event-count-matches-all",
   "route" : "wow.openapi.aggregate.event.count",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "HTTP counting query must not match all documents."
+  "errorMsg" : "HTTP counting query must not match all documents.",
+  "bindingErrors" : [ {
+    "name" : "filter",
+    "msg" : "HTTP counting query must not match all documents.",
+    "code" : "COUNT_REQUIRES_FILTER"
+  } ]
 }, {
   "case" : "strict.starts-with-empty",
   "route" : "wow.openapi.aggregate.snapshot.list-query",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "HTTP query operator[STARTS_WITH] is disabled because expensive operators are not allowed."
+  "errorMsg" : "HTTP query operator[STARTS_WITH] is disabled because expensive operators are not allowed.",
+  "bindingErrors" : [ {
+    "name" : "filter",
+    "msg" : "HTTP query operator[STARTS_WITH] is disabled because expensive operators are not allowed.",
+    "code" : "EXPENSIVE_OPERATOR_DISABLED"
+  } ]
 }, {
   "case" : "strict.starts-with-case-insensitive",
   "route" : "wow.openapi.aggregate.snapshot.list-query",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "HTTP query operator[STARTS_WITH] is disabled because expensive operators are not allowed."
+  "errorMsg" : "HTTP query operator[STARTS_WITH] is disabled because expensive operators are not allowed.",
+  "bindingErrors" : [ {
+    "name" : "filter",
+    "msg" : "HTTP query operator[STARTS_WITH] is disabled because expensive operators are not allowed.",
+    "code" : "EXPENSIVE_OPERATOR_DISABLED"
+  } ]
 }, {
   "case" : "strict.aggregation-filter-operator",
   "route" : "wow.openapi.aggregate.snapshot.aggregation",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "HTTP query operator[NE] is disabled because expensive operators are not allowed."
+  "errorMsg" : "HTTP query operator[NE] is disabled because expensive operators are not allowed.",
+  "bindingErrors" : [ {
+    "name" : "filter",
+    "msg" : "HTTP query operator[NE] is disabled because expensive operators are not allowed.",
+    "code" : "EXPENSIVE_OPERATOR_DISABLED"
+  } ]
 }, {
   "case" : "strict.derived-metric",
   "route" : "wow.openapi.aggregate.snapshot.aggregation",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "HTTP aggregation arithmetic expressions are disabled because expensive operators are not allowed."
+  "errorMsg" : "HTTP aggregation arithmetic expressions are disabled because expensive operators are not allowed.",
+  "bindingErrors" : [ {
+    "name" : "metrics",
+    "msg" : "HTTP aggregation arithmetic expressions are disabled because expensive operators are not allowed.",
+    "code" : "EXPENSIVE_OPERATOR_DISABLED"
+  } ]
 }, {
   "case" : "admission.single-not-found",
   "route" : "wow.openapi.aggregate.snapshot.single",
@@ -2110,6 +2300,39 @@
     "name" : "sort",
     "msg" : "Effective cursor sort must contain at most 32 fields.",
     "code" : "CURSOR_SORT_TOO_MANY"
+  } ]
+}, {
+  "case" : "admission.cursor-invalid-token",
+  "route" : "wow.openapi.aggregate.snapshot.cursor-query",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "Invalid cursor.",
+  "bindingErrors" : [ {
+    "name" : "cursor",
+    "msg" : "Invalid cursor.",
+    "code" : "INVALID_CURSOR"
+  } ]
+}, {
+  "case" : "admission.sort-duplicate-field",
+  "route" : "wow.openapi.aggregate.snapshot.list-query",
+  "status" : 400,
+  "errorCode" : "QuerySchemaValidation",
+  "errorMsg" : "Sort field [state.name] maps to the same physical field as an earlier sort field.",
+  "bindingErrors" : [ {
+    "name" : "state.name",
+    "msg" : "Sort field [state.name] maps to the same physical field as an earlier sort field.",
+    "code" : "SORT_FIELD_DUPLICATE"
+  } ]
+}, {
+  "case" : "admission.sort-too-many",
+  "route" : "wow.openapi.aggregate.snapshot.list-query",
+  "status" : 400,
+  "errorCode" : "QuerySchemaValidation",
+  "errorMsg" : "Sort must contain at most 32 fields.",
+  "bindingErrors" : [ {
+    "name" : "",
+    "msg" : "Sort must contain at most 32 fields.",
+    "code" : "SORT_TOO_MANY"
   } ]
 }, {
   "case" : "admission.terms-missing-key-not-string",
@@ -2340,55 +2563,100 @@
   "route" : "wow.openapi.aggregate.snapshot.list-query",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "HTTP list query limit[1001] must be between 1 and 1000."
+  "errorMsg" : "HTTP list query limit[1001] must be between 1 and 1000.",
+  "bindingErrors" : [ {
+    "name" : "limit",
+    "msg" : "HTTP list query limit[1001] must be between 1 and 1000.",
+    "code" : "SIZE_OUT_OF_RANGE"
+  } ]
 }, {
   "case" : "priority.page-index-before-size",
   "route" : "wow.openapi.aggregate.snapshot.paged-query",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "HTTP page index[0] must be greater than or equal to 1."
+  "errorMsg" : "HTTP page index[0] must be greater than or equal to 1.",
+  "bindingErrors" : [ {
+    "name" : "pagination.index",
+    "msg" : "HTTP page index[0] must be greater than or equal to 1.",
+    "code" : "SIZE_OUT_OF_RANGE"
+  } ]
 }, {
   "case" : "priority.page-size-before-window",
   "route" : "wow.openapi.aggregate.snapshot.paged-query",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "HTTP page size[101] must be between 1 and 100."
+  "errorMsg" : "HTTP page size[101] must be between 1 and 100.",
+  "bindingErrors" : [ {
+    "name" : "pagination.size",
+    "msg" : "HTTP page size[101] must be between 1 and 100.",
+    "code" : "SIZE_OUT_OF_RANGE"
+  } ]
 }, {
   "case" : "priority.filter-traversal-values-first",
   "route" : "wow.openapi.aggregate.snapshot.list-query",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "HTTP query filter values[1001] must not exceed 1000."
+  "errorMsg" : "HTTP query filter values[1001] must not exceed 1000.",
+  "bindingErrors" : [ {
+    "name" : "filter",
+    "msg" : "HTTP query filter values[1001] must not exceed 1000.",
+    "code" : "FILTER_TOO_LARGE"
+  } ]
 }, {
   "case" : "priority.filter-traversal-nodes-first",
   "route" : "wow.openapi.aggregate.snapshot.list-query",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "HTTP query filter nodes[129] must not exceed 128."
+  "errorMsg" : "HTTP query filter nodes[129] must not exceed 128.",
+  "bindingErrors" : [ {
+    "name" : "filter",
+    "msg" : "HTTP query filter nodes[129] must not exceed 128.",
+    "code" : "FILTER_TOO_LARGE"
+  } ]
 }, {
   "case" : "priority.gating-before-count-matches-all",
   "route" : "wow.openapi.aggregate.snapshot.count",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "HTTP query operator[CONTAINS] is disabled because expensive operators are not allowed."
+  "errorMsg" : "HTTP query operator[CONTAINS] is disabled because expensive operators are not allowed.",
+  "bindingErrors" : [ {
+    "name" : "filter",
+    "msg" : "HTTP query operator[CONTAINS] is disabled because expensive operators are not allowed.",
+    "code" : "EXPENSIVE_OPERATOR_DISABLED"
+  } ]
 }, {
   "case" : "priority.aggregation-limit-before-gating",
   "route" : "wow.openapi.aggregate.snapshot.aggregation",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "HTTP aggregation query limit[1001] must be between 1 and 1000."
+  "errorMsg" : "HTTP aggregation query limit[1001] must be between 1 and 1000.",
+  "bindingErrors" : [ {
+    "name" : "limit",
+    "msg" : "HTTP aggregation query limit[1001] must be between 1 and 1000.",
+    "code" : "SIZE_OUT_OF_RANGE"
+  } ]
 }, {
   "case" : "priority.aggregation-elements-before-metric-sort",
   "route" : "wow.openapi.aggregate.snapshot.aggregation",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "HTTP aggregation elements are disabled because expensive operators are not allowed."
+  "errorMsg" : "HTTP aggregation elements are disabled because expensive operators are not allowed.",
+  "bindingErrors" : [ {
+    "name" : "elements",
+    "msg" : "HTTP aggregation elements are disabled because expensive operators are not allowed.",
+    "code" : "EXPENSIVE_OPERATOR_DISABLED"
+  } ]
 }, {
   "case" : "priority.aggregation-filter-nodes-before-having",
   "route" : "wow.openapi.aggregate.snapshot.aggregation",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "HTTP query filter nodes[129] must not exceed 128."
+  "errorMsg" : "HTTP query filter nodes[129] must not exceed 128.",
+  "bindingErrors" : [ {
+    "name" : "filter",
+    "msg" : "HTTP query filter nodes[129] must not exceed 128.",
+    "code" : "FILTER_TOO_LARGE"
+  } ]
 }, {
   "case" : "priority.filter-before-projection",
   "route" : "wow.openapi.aggregate.snapshot.list-query",

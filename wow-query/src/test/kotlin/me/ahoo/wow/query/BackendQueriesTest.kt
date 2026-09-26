@@ -31,17 +31,20 @@ import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.PagedQuery
 import me.ahoo.wow.api.query.Pagination
+import me.ahoo.wow.api.query.QueryErrorCodes
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.Queryable
 import me.ahoo.wow.api.query.SingleQuery
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.api.query.schema.QueryValueType
 import me.ahoo.wow.api.query.schema.Temporal
+import me.ahoo.wow.exception.ErrorCodes
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.query.schema.AggregationSupport
 import me.ahoo.wow.query.schema.PagingSupport
 import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QuerySchemaValidationException
+import me.ahoo.wow.query.schema.QueryViolation
 import me.ahoo.wow.query.schema.StorageSupport
 import me.ahoo.wow.query.schema.SupportMode
 import me.ahoo.wow.query.schema.boundSchemaFixture
@@ -92,11 +95,12 @@ class BackendQueriesTest {
     }
 
     @Test
-    fun `list without a limit is rejected when the storage cannot stream to the end`() {
+    fun `list without a limit is rejected at admission when the storage cannot stream to the end`() {
         val backend = RecordingBackend()
         val streaming = schema.withStorage(StorageSupport(paging = PagingSupport(unboundedStream = SupportMode.NONE)))
-        backend.list(QueryAdmission.Trusted.list(ListQuery(MatchAllFilter, limit = 0), streaming)).test()
-            .expectError(QuerySchemaValidationException::class.java).verify()
+        assertThrows<QuerySchemaValidationException> {
+            QueryAdmission.Trusted.list(ListQuery(MatchAllFilter, limit = 0), streaming)
+        }.violation.assert().isEqualTo(QueryViolation.StorageUnsupported("listing without a limit"))
         backend.list(
             QueryAdmission.Trusted.list(ListQuery(MatchAllFilter, limit = 1), streaming)
         ).test().verifyComplete()
@@ -158,14 +162,24 @@ class BackendQueriesTest {
             backend to CursorQuery(MatchAllFilter, size = 1, cursor = "not base64 !"),
         ).forEach { (target, query) ->
             val calls = target.windows.size
-            assertThrows<IllegalArgumentException> {
-                target.cursor(
-                    QueryAdmission.Trusted.cursor(query, schema)
-                ).block()
-            }
-                .message.assert().isEqualTo("Invalid cursor.")
+            assertThrows<QueryRequestException> { target.cursor(QueryAdmission.Trusted.cursor(query, schema)).block() }
+                .apply {
+                    message.assert().isEqualTo("Invalid cursor.")
+                    code.assert().isEqualTo(QueryErrorCodes.INVALID_CURSOR)
+                    bindingErrors.single().name.assert().isEqualTo("cursor")
+                }
             target.windows.size.assert().isEqualTo(calls)
         }
+    }
+
+    @Test
+    fun `a position the codec cannot encode is a server fault, not an invalid cursor`() {
+        val backend = RecordingBackend(
+            pages = { BackendPage(listOf(row("a"), row("b")), positions = List(2) { CursorPosition(listOf(Any())) }) },
+        )
+        assertThrows<QueryExecutionException> {
+            backend.cursor(QueryAdmission.Trusted.cursor(CursorQuery(MatchAllFilter, size = 1), schema)).block()
+        }.errorCode.assert().isEqualTo(ErrorCodes.INTERNAL_SERVER_ERROR)
     }
 
     @Test
@@ -456,13 +470,13 @@ class BackendQueriesTest {
                 { backend.list(QueryAdmission.Trusted.list(ListQuery(MatchAllFilter), schema)).collectList().block() },
                 { backend.paged(QueryAdmission.Trusted.paged(PagedQuery(MatchAllFilter), schema)).block() },
                 { backend.cursor(QueryAdmission.Trusted.cursor(CursorQuery(MatchAllFilter), schema)).block() },
-            ).forEach { read -> assertThrows<IllegalArgumentException> { read() } }
+            ).forEach { read -> assertThrows<QueryExecutionException> { read() } }
         }
-        assertThrows<IllegalArgumentException> {
+        assertThrows<QueryExecutionException> {
             RecordingBackend(records = { Flux.just(nan) })
                 .list(QueryAdmission.Trusted.list(ListQuery(MatchAllFilter), schema)).blockLast()
         }.message.assert().isEqualTo("Query result [state.values] must be finite.")
-        assertThrows<IllegalArgumentException> {
+        assertThrows<QueryExecutionException> {
             RecordingBackend(pages = { BackendPage(listOf(nonStandard.first())) })
                 .single(QueryAdmission.Trusted.single(SingleQuery(MatchAllFilter), schema)).block()
         }.message.assert().isEqualTo("Query result [nested.value] must be a standard JSON value.")
@@ -489,17 +503,23 @@ class BackendQueriesTest {
     }
 
     @Test
-    fun `a feature the storage does not support is rejected before the backend runs`() {
-        val backend = RecordingBackend()
+    fun `a feature the storage does not support is rejected at admission`() {
         val none = schema.withStorage(StorageSupport(aggregation = AggregationSupport(having = SupportMode.NONE)))
         val query = AggregationQuery(
             groupBy = listOf(AggregationGroup.Terms(QueryField("name"), "name")),
             metrics = listOf(AggregationMetric.Count("count")),
             having = HavingExpression.Condition("count", ComparisonOperator.GT, 1.0),
         )
-        backend.aggregate(QueryAdmission.Trusted.aggregate(query, none)).test()
-            .expectError(QuerySchemaValidationException::class.java).verify()
-        backend.aggregations.assert().isEmpty()
+        assertThrows<QuerySchemaValidationException> { QueryAdmission.Trusted.aggregate(query, none) }
+            .violation.assert().isEqualTo(QueryViolation.StorageUnsupported("HAVING"))
+    }
+
+    @Test
+    fun `a cursor is rejected at admission when the storage cannot page by keyset`() {
+        val keyset = schema.withStorage(StorageSupport(paging = PagingSupport(keyset = SupportMode.NONE)))
+        assertThrows<QuerySchemaValidationException> {
+            QueryAdmission.Trusted.cursor(CursorQuery(MatchAllFilter), keyset)
+        }.violation!!.code.assert().isEqualTo(QueryErrorCodes.STORAGE_UNSUPPORTED)
     }
 
     private class RecordingBackend(

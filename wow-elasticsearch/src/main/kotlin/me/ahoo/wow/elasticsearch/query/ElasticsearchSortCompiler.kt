@@ -19,7 +19,7 @@ import co.elastic.clients.elasticsearch._types.SortOrder
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.query.AdmittedQuery
-import me.ahoo.wow.query.schema.QuerySchemaValidationException
+import me.ahoo.wow.query.schema.QueryViolation
 import me.ahoo.wow.serialization.MessageRecords
 
 object ElasticsearchSortCompiler {
@@ -33,8 +33,8 @@ object ElasticsearchSortCompiler {
 
     internal fun compileCursor(sort: List<Sort>, admitted: AdmittedQuery<*>): List<SortOptions> {
         val physicalSort = sort.physical(admitted)
-        physicalSort.firstOrNull { it.field in METADATA_SORT_FIELDS }?.let {
-            throw QuerySchemaValidationException("Elasticsearch cursor sort field [${it.field}] is unstable.")
+        sort.firstOrNull { admitted.field(it.field).physicalField in METADATA_SORT_FIELDS }?.let {
+            throw QueryViolation.CursorNotAllowed(admitted.field(it.field).logicalField).rejection()
         }
         return compilePhysical(physicalSort) { logicalSort ->
             missing(if (logicalSort.direction == Sort.Direction.ASC) "_first" else "_last")

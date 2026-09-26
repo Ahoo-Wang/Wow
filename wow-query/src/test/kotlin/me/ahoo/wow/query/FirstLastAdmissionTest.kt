@@ -38,7 +38,6 @@ import me.ahoo.wow.query.schema.objectFixture
 import me.ahoo.wow.query.schema.scalarFixture
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
-import reactor.core.publisher.Flux
 import java.util.concurrent.TimeUnit
 
 class FirstLastAdmissionTest {
@@ -153,13 +152,9 @@ class FirstLastAdmissionTest {
             schema.bindings,
             storage = StorageSupport(aggregation = AggregationSupport(firstLast = SupportMode.NONE)),
         )
-        val admitted = QueryAdmission.Trusted.aggregate(
-            query(AggregationMetric.First(QueryField("state.price"), "open")),
-            without
-        )
-        object : QueryBackend by NoOpBackend {}.aggregate(admitted).collectList().let {
-            assertThrows<QuerySchemaValidationException> { it.block() }
-        }
+        assertThrows<QuerySchemaValidationException> {
+            QueryAdmission.Trusted.aggregate(query(AggregationMetric.First(QueryField("state.price"), "open")), without)
+        }.violation.assert().isEqualTo(QueryViolation.StorageUnsupported("FIRST and LAST"))
         without.describe(null, null).analysis.metrics.assert().doesNotContain("FIRST", "LAST")
         without.describe(null, null).analysis.firstLastOrderBy.assert().isNull()
 
@@ -170,19 +165,5 @@ class FirstLastAdmissionTest {
         val fields = described.fields.associateBy { it.path }
         fields.getValue("state.price").aggregate!!.firstLast.assert().isTrue()
         fields.getValue("state.tags").aggregate!!.firstLast.assert().isFalse()
-    }
-
-    private object NoOpBackend : QueryBackend {
-        override val namedAggregate = me.ahoo.wow.modeling.MaterializedNamedAggregate("context", "aggregate")
-        override val cursorPositions: CursorPositionCodec = CursorPositionCodec.JSON
-        override fun stream(
-            query: AdmittedQuery<me.ahoo.wow.api.query.IListQuery>
-        ) = Flux.empty<tools.jackson.databind.node.ObjectNode>()
-        override fun page(query: AdmittedQuery<me.ahoo.wow.api.query.Queryable<*>>, window: PageWindow) =
-            reactor.core.publisher.Mono.empty<BackendPage>()
-        override fun count(query: AdmittedQuery<me.ahoo.wow.api.query.FilterExpression>) =
-            reactor.core.publisher.Mono.just(0L)
-        override fun aggregate(query: AdmittedQuery<AggregationQuery>, window: GroupWindow) =
-            Flux.empty<tools.jackson.databind.node.ObjectNode>()
     }
 }

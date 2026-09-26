@@ -78,7 +78,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 
 class LoadQueryBoundaryTest {
     @Test
-    fun eventLoadBuffersWithinDefaultActualRowCapAndCancelsExcessRows() {
+    fun eventLoadRowsBeyondTheCapAreAServerFaultAndCancelUpstream() {
         val cancelled = AtomicBoolean()
         val exchange = exchange()
         write(
@@ -86,7 +86,7 @@ class LoadQueryBoundaryTest {
             request(tail = 999),
             exchange,
         ).block()
-        exchange.response.statusCode.assert().isEqualTo(HttpStatus.BAD_REQUEST)
+        exchange.response.statusCode.assert().isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR)
         exchange.response.bodyAsString.block()!!.contains("\"row\"").assert().isFalse()
         cancelled.get().assert().isTrue()
     }

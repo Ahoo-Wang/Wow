@@ -26,7 +26,7 @@ import me.ahoo.wow.api.query.PagedList
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.query.aggregation.AggregationPlan
 import me.ahoo.wow.query.aggregation.EmptyAggregationValues
-import me.ahoo.wow.query.schema.QuerySchemaValidationException
+import me.ahoo.wow.query.schema.QueryViolation
 import me.ahoo.wow.query.schema.SupportMode
 import me.ahoo.wow.serialization.JsonSerializer
 import reactor.core.publisher.Flux
@@ -38,7 +38,8 @@ import tools.jackson.databind.node.ObjectNode
  * Every query shape, derived by the core from the four backend primitives (design §5.5). The gateway calls these
  * after admission; low-level callers (backend conformance tests, tools) call them with a QueryAdmission result.
  * Every row a backend returns is checked here to be a standard JSON tree with finite numbers, so no backend repeats
- * the check.
+ * the check; a row that fails it is a server fault ([QueryExecutionException]). What the storage cannot run was
+ * rejected at admission.
  */
 
 /** The first record of [query]: `page(Offset(0, 1, withTotal = false))`. */
@@ -49,9 +50,6 @@ fun QueryBackend.single(query: AdmittedQuery<ISingleQuery>): Mono<ObjectNode> =
 
 /** The records of [query], streamed: at most its limit, or all of them when the limit is `0`. */
 fun QueryBackend.list(query: AdmittedQuery<IListQuery>): Flux<ObjectNode> = Flux.defer {
-    if (query.query.limit == 0 && query.schema.storage.paging.unboundedStream == SupportMode.NONE) {
-        throw QuerySchemaValidationException("Storage does not support listing without a limit.")
-    }
     stream(query).map(ObjectNode::requireStandardRecord)
 }
 
@@ -59,7 +57,7 @@ fun QueryBackend.list(query: AdmittedQuery<IListQuery>): Flux<ObjectNode> = Flux
 fun QueryBackend.paged(query: AdmittedQuery<IPagedQuery>): Mono<PagedList<ObjectNode>> {
     val pagination = query.query.pagination
     return page(query, PageWindow.Offset(pagination.offset(), pagination.size, withTotal = true)).map { page ->
-        val total = checkNotNull(page.total) { "Backend page must carry the total it was asked for." }
+        val total = page.total ?: throw QueryExecutionException("Backend page must carry the total it was asked for.")
         PagedList(total, page.rows.map(ObjectNode::requireStandardRecord))
     }
 }
@@ -71,16 +69,14 @@ fun QueryBackend.paged(query: AdmittedQuery<IPagedQuery>): Mono<PagedList<Object
  * as `Invalid cursor.` before any I/O.
  */
 fun QueryBackend.cursor(query: AdmittedQuery<ICursorQuery>): Mono<CursorPage<ObjectNode>> = Mono.defer {
-    if (query.schema.storage.paging.keyset == SupportMode.NONE) {
-        throw QuerySchemaValidationException("Storage does not support cursor queries.")
-    }
     val cursor = query.query
     val sort = cursor.sort.map { Sort(query.field(it.field).logicalField, it.direction) }
     val after = cursor.cursor?.let { CursorTokens.decode(it, namedAggregate, query.schema, sort, cursorPositions) }
     page(query, PageWindow.Keyset(after, cursor.size + 1)).map { page ->
         val rows = page.rows.take(cursor.size).map(ObjectNode::requireStandardRecord)
         val next = if (page.rows.size > cursor.size) {
-            val positions = checkNotNull(page.positions) { "Backend keyset page must carry each row's position." }
+            val positions = page.positions
+                ?: throw QueryExecutionException("Backend keyset page must carry each row's position.")
             CursorTokens.encode(positions[cursor.size - 1], namedAggregate, query.schema, sort, cursorPositions)
         } else {
             null
@@ -116,9 +112,8 @@ fun QueryBackend.aggregate(
     val maxGroups = budget?.maxResidualGroups ?: 0
     if (plan.window == GroupWindow.All && maxGroups > 0) {
         rows = rows.index().map { indexed ->
-            require(indexed.t1 < maxGroups) {
-                "${budget!!.label} aggregation processes more than [$maxGroups] groups, dense fill included, to " +
-                    "compute HAVING or a metric sort in the query service; narrow the filter or the period."
+            if (indexed.t1 >= maxGroups) {
+                throw QueryViolation.ResidualGroupsExceeded(budget!!.label, maxGroups).rejection()
             }
             indexed.t2
         }
@@ -144,7 +139,8 @@ private fun ObjectNode.requireStandardAggregation(metrics: Set<String>): ObjectN
 /**
  * Checks that this backend row holds only standard JSON values: objects, arrays, strings, booleans, nulls, integers
  * and finite decimals. Drivers convert their own values; a `NaN`, an infinity, a POJO or binary node that slips
- * through fails the query here instead of reaching the wire. [subject] names the offending path in the error.
+ * through fails the query here, as a server fault, instead of reaching the wire. [subject] names the offending path
+ * in the error.
  */
 internal fun ObjectNode.requireStandardJson(subject: (String) -> String): ObjectNode {
     requireStandardJson("", subject)
@@ -158,7 +154,7 @@ private fun JsonNode.requireStandardJson(path: String, subject: (String) -> Stri
         }
         isArray -> forEach { it.requireStandardJson(path, subject) }
         isString || isBoolean || isNull || isIntegralNumber || isBigDecimal -> Unit
-        isFloat || isDouble -> require(doubleValue().isFinite()) { "${subject(path)} must be finite." }
-        else -> throw IllegalArgumentException("${subject(path)} must be a standard JSON value.")
+        isFloat || isDouble -> checkExecution(doubleValue().isFinite()) { "${subject(path)} must be finite." }
+        else -> throw QueryExecutionException("${subject(path)} must be a standard JSON value.")
     }
 }

@@ -83,17 +83,17 @@ internal fun QueryModelSchema.physicalField(
     logicalParent: QueryField? = null,
 ): QueryField {
     val logical = absoluteLogicalField(field, logicalParent)
-    val definition = this.field(logical) ?: throw QuerySchemaValidationException("Unknown logical field [$logical].")
+    val definition = this.field(logical) ?: throw QueryViolation.UnknownField(logical).rejection()
     val ancestors = definition.elementAncestors
-    requireSchema(ancestors != null && ancestors == requiredElementAncestors(logicalParent)) {
-        "Field [$logical] requires its declared element scope."
+    requireValid(ancestors != null && ancestors == requiredElementAncestors(logicalParent)) {
+        QueryViolation.ElementScopeRequired(logical)
     }
     return definition.binding(capability)?.physicalField
-        ?: throw QuerySchemaValidationException("Field [$logical] does not support [$capability].")
+        ?: throw QueryViolation.UnsupportedCapability(logical, setOf(capability)).rejection()
 }
 
 fun QueryModelSchema.projectionField(field: QueryField): QueryField =
-    this.field(field)?.projectionField ?: throw QuerySchemaValidationException(QueryViolation.NotProjectable(field))
+    this.field(field)?.projectionField ?: throw QueryViolation.NotProjectable(field).rejection()
 
 internal fun QueryModelSchema.requiredElementAncestors(parent: QueryField?): List<QueryField>? =
     if (parent == null) emptyList() else field(parent)?.elementAncestors?.plus(parent)

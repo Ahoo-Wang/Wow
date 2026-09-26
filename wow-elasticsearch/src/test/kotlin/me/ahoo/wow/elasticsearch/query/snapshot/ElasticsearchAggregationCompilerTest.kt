@@ -37,6 +37,7 @@ import me.ahoo.wow.elasticsearch.query.schema.ElasticsearchQuerySchemaAdapter
 import me.ahoo.wow.elasticsearch.query.schema.bind
 import me.ahoo.wow.query.FilterNormalizer
 import me.ahoo.wow.query.QueryAdmission
+import me.ahoo.wow.query.QueryExecutionException
 import me.ahoo.wow.query.dsl.aggregation
 import me.ahoo.wow.query.schema.LogicalQuerySchema
 import me.ahoo.wow.query.schema.QueryModelSchema
@@ -308,7 +309,7 @@ class ElasticsearchAggregationCompilerTest {
                 sort { "c".desc() }
             },
         ).forEach { query ->
-            assertThrows<IllegalStateException> { compiler.compile(query, schema) }
+            assertThrows<QueryExecutionException> { compiler.compile(query, schema) }
         }
         compiler.compile(
             aggregation {

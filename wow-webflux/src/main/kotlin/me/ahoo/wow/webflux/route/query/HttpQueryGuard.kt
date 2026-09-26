@@ -18,6 +18,7 @@ import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.PagedList
 import me.ahoo.wow.query.QueryBudget
 import me.ahoo.wow.query.QueryGateway
+import me.ahoo.wow.query.checkExecution
 import me.ahoo.wow.webflux.route.acceptsEventStream
 import org.springframework.web.reactive.function.server.ServerRequest
 import reactor.core.publisher.Flux
@@ -59,8 +60,8 @@ class HttpQueryGuard(
             get() = if (defaultListSize == 0 || maxListSize == 0) null else defaultListSize.coerceAtMost(maxListSize)
 
         /**
-         * Bounds the execution of a single-result query: applies the idle timeout and rejects a page that
-         * exceeds the page limit. [result] runs on subscription, so checks it performs fail the publisher.
+         * Bounds the execution of a single-result query: applies the idle timeout and fails, as a server fault, on a
+         * page that exceeds the page limit. [result] runs on subscription, so checks it performs fail the publisher.
          */
         fun <T : Any> mono(result: () -> Mono<T>): Mono<T> {
             val source = Mono.defer(result).doOnNext { value ->
@@ -69,7 +70,7 @@ class HttpQueryGuard(
                     is CursorPage<*> -> value.list.size
                     else -> return@doOnNext
                 }
-                require(maxPageSize == 0 || size <= maxPageSize) {
+                checkExecution(maxPageSize == 0 || size <= maxPageSize) {
                     "HTTP query returned [$size] rows, exceeding page limit [$maxPageSize]."
                 }
             }
@@ -77,9 +78,9 @@ class HttpQueryGuard(
         }
 
         /**
-         * Bounds the execution of a streaming query: applies the idle timeout, rejects more rows than the list limit,
-         * and buffers the rows unless the client accepts an event stream, so a late failure still produces an error
-         * response. [result] runs on subscription.
+         * Bounds the execution of a streaming query: applies the idle timeout, fails (a server fault) on more rows
+         * than the list limit, and buffers the rows unless the client accepts an event stream, so a late failure still
+         * produces an error response. [result] runs on subscription.
          */
         fun <T : Any> flux(request: ServerRequest, result: () -> Flux<T>): Flux<T> {
             val source = Flux.defer(result)
@@ -88,7 +89,7 @@ class HttpQueryGuard(
                 timed
             } else {
                 timed.index().map { indexed ->
-                    require(indexed.t1 < maxListSize) { "HTTP query returned more than [$maxListSize] rows." }
+                    checkExecution(indexed.t1 < maxListSize) { "HTTP query returned more than [$maxListSize] rows." }
                     indexed.t2
                 }
             }

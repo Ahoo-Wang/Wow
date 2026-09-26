@@ -49,6 +49,7 @@ import me.ahoo.wow.query.CursorPositionCodec
 import me.ahoo.wow.query.GroupWindow
 import me.ahoo.wow.query.PageWindow
 import me.ahoo.wow.query.QueryAdmission
+import me.ahoo.wow.query.QueryExecutionException
 import me.ahoo.wow.query.QueryObserver
 import me.ahoo.wow.query.aggregate
 import me.ahoo.wow.query.cursor
@@ -65,7 +66,6 @@ import me.ahoo.wow.query.schema.MaskRule
 import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QueryModelSchemaProvider
 import me.ahoo.wow.query.schema.QuerySchemaUnavailableException
-import me.ahoo.wow.query.schema.QuerySchemaValidationException
 import me.ahoo.wow.query.single
 import me.ahoo.wow.serialization.JsonSerializer
 import me.ahoo.wow.serialization.toJsonNode
@@ -318,7 +318,7 @@ class DefaultSnapshotQueryGatewayTest {
                 observer = errorObserver { observed += it },
             ).dynamicSingle(singleQuery { }),
         ).expectErrorSatisfies { error ->
-            error.assert().isInstanceOf(QuerySchemaValidationException::class.java)
+            error.assert().isInstanceOf(QueryExecutionException::class.java)
             error.message.assert().isEqualTo("Mask strategy execution failed.")
             error.cause.assert().isSameAs(ThrowingMaskStrategy.failure)
             observed.single().assert().isSameAs(error)
@@ -348,7 +348,7 @@ class DefaultSnapshotQueryGatewayTest {
                     TestState::class.java,
                 ),
             ).dynamicSingle(singleQuery { }).test()
-                .expectError(QuerySchemaValidationException::class.java)
+                .expectError(QueryExecutionException::class.java)
                 .verify()
         }
 
@@ -460,10 +460,10 @@ class DefaultSnapshotQueryGatewayTest {
                 observer = errorObserver { observed += it }
             ).dynamicSingle(singleQuery { }),
         ).expectErrorMatches { error ->
-            error is QuerySchemaValidationException && observed.singleOrNull() === error
+            error is QueryExecutionException && observed.singleOrNull() === error
         }
             .verify()
-        observed.single().assert().isInstanceOf(QuerySchemaValidationException::class.java)
+        observed.single().assert().isInstanceOf(QueryExecutionException::class.java)
     }
 
     private fun gateway(

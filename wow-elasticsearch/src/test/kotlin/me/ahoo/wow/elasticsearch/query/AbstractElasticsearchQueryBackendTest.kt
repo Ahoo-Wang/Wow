@@ -51,6 +51,7 @@ import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.query.CursorPosition
 import me.ahoo.wow.query.PageWindow
 import me.ahoo.wow.query.QueryAdmission
+import me.ahoo.wow.query.QueryExecutionException
 import me.ahoo.wow.query.cursor
 import me.ahoo.wow.query.list
 import me.ahoo.wow.query.paged
@@ -107,7 +108,7 @@ class AbstractElasticsearchQueryBackendTest {
                     }
             },
         )
-        assertThrows<IllegalStateException> {
+        assertThrows<QueryExecutionException> {
             queryBackend.cursor(
                 QueryAdmission.Trusted.cursor(
                     CursorQuery(
@@ -161,7 +162,7 @@ class AbstractElasticsearchQueryBackendTest {
                 ).block()
             },
             { queryBackend.list(QueryAdmission.Trusted.list(ListQuery(MatchAllFilter), schema)).collectList().block() },
-        ).forEach { read -> assertThrows<IllegalStateException> { read() } }
+        ).forEach { read -> assertThrows<QueryExecutionException> { read() } }
         verify(exactly = 1) { elasticsearchClient.closePointInTime(any<ClosePointInTimeRequest>()) }
     }
 
@@ -605,7 +606,7 @@ class AbstractElasticsearchQueryBackendTest {
 
     @Test
     fun `cursor should reject last returned hit sort arity`() {
-        assertInvalidCursorResponse(
+        assertHitSortMismatch(
             "id-1" to listOf(FieldValue.of(1L)),
             cursorHit("id-2", 2L),
         )
@@ -613,12 +614,12 @@ class AbstractElasticsearchQueryBackendTest {
 
     @Test
     fun `cursor should reject terminal hit sort arity`() {
-        assertInvalidCursorResponse("id-1" to listOf(FieldValue.of(1L)))
+        assertHitSortMismatch("id-1" to listOf(FieldValue.of(1L)))
     }
 
     @Test
     fun `cursor should reject lookahead hit sort arity`() {
-        assertInvalidCursorResponse(
+        assertHitSortMismatch(
             cursorHit("id-1", 1L),
             "id-2" to listOf(FieldValue.of(2L)),
         )
@@ -689,12 +690,12 @@ class AbstractElasticsearchQueryBackendTest {
     private fun cursorHit(id: String, version: Long): Pair<String, List<FieldValue>> =
         id to listOf(FieldValue.of(version), FieldValue.of(id))
 
-    private fun assertInvalidCursorResponse(vararg hits: Pair<String, List<FieldValue>>) {
+    private fun assertHitSortMismatch(vararg hits: Pair<String, List<FieldValue>>) {
         every { elasticsearchClient.search(any<SearchRequest>(), ObjectNode::class.java) } returns Mono.just(
             cursorSearchResponse(*hits),
         )
 
-        val error = assertThrows<IllegalArgumentException> {
+        val error = assertThrows<QueryExecutionException> {
             queryBackend.cursor(
                 QueryAdmission.Trusted.cursor(
                     CursorQuery(
@@ -710,7 +711,7 @@ class AbstractElasticsearchQueryBackendTest {
             ).block()
         }
 
-        error.message.assert().isEqualTo("Invalid cursor.")
+        error.message.assert().isEqualTo("Elasticsearch hit sort values must match the sort.")
     }
 
     private fun cursorSearchResponse(

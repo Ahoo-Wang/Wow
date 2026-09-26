@@ -68,8 +68,8 @@ import java.nio.file.Path
 /**
  * Golden contract for the REST-visible outcome of invalid query requests: HTTP status, error code and error text.
  *
- * The query refactor must keep every entry unchanged (the REST API, including error texts, is a compatibility
- * contract). A case whose outcome changes on purpose is updated by rerunning with `WOW_GOLDEN_UPDATE=true` and
+ * Statuses, error codes and binding error codes are the contract; texts are not frozen but reviewed here. A case whose
+ * outcome changes on purpose is updated by rerunning with `WOW_GOLDEN_UPDATE=true` and
  * reviewing the diff of [GOLDEN].
  */
 class QueryRestErrorContractTest {
@@ -1242,6 +1242,21 @@ class QueryRestErrorContractTest {
                 "admission.cursor-effective-sort-too-many",
                 Route.SNAPSHOT_CURSOR,
                 cursor(ALL, ""","sort":[${sorts((1..32).map { "state.f$it" })}]"""),
+            ),
+            Case(
+                "admission.cursor-invalid-token",
+                Route.SNAPSHOT_CURSOR,
+                cursor(ALL, ""","cursor":"not-a-cursor""""),
+            ),
+            Case(
+                "admission.sort-duplicate-field",
+                Route.SNAPSHOT_LIST,
+                list(ALL, ""","sort":[${sorts(listOf("state.name", "state.name"))}]"""),
+            ),
+            Case(
+                "admission.sort-too-many",
+                Route.SNAPSHOT_LIST,
+                list(ALL, ""","sort":[${sorts((0..32).map { "state.name" })}]"""),
             ),
             Case(
                 "admission.terms-missing-key-not-string",
