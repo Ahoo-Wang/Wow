@@ -19,6 +19,7 @@ import io.micrometer.core.instrument.Tags
 import io.micrometer.core.instrument.Timer
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.query.filter.QueryType
+import java.util.concurrent.ConcurrentHashMap
 
 /**
  * Publishes one [QueryAudit] per query as meters (§10 可观测):
@@ -34,18 +35,36 @@ class QueryMetricsObserver(private val registry: MeterRegistry) : QueryObserver 
     override val audits: Boolean
         get() = true
 
+    /** The meters of one tag set, built and registered once: tags are bounded, so the maps are too. */
+    private data class MeterKey(
+        val contextName: String,
+        val aggregateName: String,
+        val model: String?,
+        val queryType: QueryType,
+        val entry: QueryEntry? = null,
+        val outcome: QueryAudit.Outcome? = null,
+        val code: String? = null,
+    )
+
+    private val timers = ConcurrentHashMap<MeterKey, Timer>()
+    private val summaries = ConcurrentHashMap<MeterKey, DistributionSummary>()
+
     override fun onAudit(audit: QueryAudit) {
-        val base = baseTags(audit.namedAggregate, audit.model?.value, audit.queryType)
-        Timer.builder(QUERY)
-            .tags(
-                base.and(ENTRY_TAG, audit.entry.name.lowercase())
-                    .and(OUTCOME_TAG, audit.outcome.metricValue)
-                    .and(CODE_TAG, audit.errorCode ?: NONE)
-            )
-            .register(registry)
-            .record(audit.elapsed)
+        val named = audit.namedAggregate
+        val base = MeterKey(named.contextName, named.aggregateName, audit.model?.value, audit.queryType)
+        timers.computeIfAbsent(base.copy(entry = audit.entry, outcome = audit.outcome, code = audit.errorCode)) {
+            Timer.builder(QUERY)
+                .tags(
+                    baseTags(named, it.model, it.queryType).and(ENTRY_TAG, audit.entry.name.lowercase())
+                        .and(OUTCOME_TAG, audit.outcome.metricValue)
+                        .and(CODE_TAG, audit.errorCode ?: NONE)
+                )
+                .register(registry)
+        }.record(audit.elapsed)
         if (audit.outcome == QueryAudit.Outcome.COMPLETE) {
-            DistributionSummary.builder(ROWS).tags(base).register(registry).record(audit.rows.toDouble())
+            summaries.computeIfAbsent(base) {
+                DistributionSummary.builder(ROWS).tags(baseTags(named, it.model, it.queryType)).register(registry)
+            }.record(audit.rows.toDouble())
         }
     }
 

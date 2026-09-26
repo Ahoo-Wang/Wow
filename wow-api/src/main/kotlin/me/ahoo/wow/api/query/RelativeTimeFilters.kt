@@ -19,6 +19,7 @@ import java.time.Duration
 import java.time.LocalTime
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
 
 private fun String?.requireZoneId() {
@@ -35,18 +36,33 @@ private fun String?.toDateFormatter(): DateTimeFormatter? {
 }
 
 /** Parses a time zone id, rejecting unknown ids with the framework's own message rather than the JDK's. */
-internal fun zoneIdOf(id: String): ZoneId = try {
-    ZoneId.of(id)
-} catch (error: java.time.DateTimeException) {
-    throw IllegalArgumentException("Unknown time zone [$id].", error)
+internal fun zoneIdOf(id: String): ZoneId = ZONES.parse(id) {
+    try {
+        ZoneId.of(id)
+    } catch (error: java.time.DateTimeException) {
+        throw IllegalArgumentException("Unknown time zone [$id].", error)
+    }
 }
 
 /** Parses a date-time pattern, rejecting invalid patterns with the framework's own message rather than the JDK's. */
-internal fun dateFormatterOf(pattern: String): DateTimeFormatter = try {
-    DateTimeFormatter.ofPattern(pattern)
-} catch (error: IllegalArgumentException) {
-    throw IllegalArgumentException("datePattern [$pattern] is not a valid date-time pattern.", error)
+internal fun dateFormatterOf(pattern: String): DateTimeFormatter = PATTERNS.parse(pattern) {
+    try {
+        DateTimeFormatter.ofPattern(pattern)
+    } catch (error: IllegalArgumentException) {
+        throw IllegalArgumentException("datePattern [$pattern] is not a valid date-time pattern.", error)
+    }
 }
+
+/*
+ * Zones and formatters are immutable and every relative-time node of every query parses one, so each is parsed once.
+ * Ids and patterns come from callers: only the first MAX_PARSED of each are kept, later ones are parsed per use.
+ */
+private const val MAX_PARSED = 256
+private val ZONES = ConcurrentHashMap<String, ZoneId>()
+private val PATTERNS = ConcurrentHashMap<String, DateTimeFormatter>()
+
+private inline fun <V : Any> ConcurrentHashMap<String, V>.parse(key: String, parse: () -> V): V =
+    this[key] ?: parse().also { if (size < MAX_PARSED) putIfAbsent(key, it) }
 
 sealed interface RelativeTimeFilter : FilterExpression {
     val field: QueryField
@@ -60,6 +76,9 @@ sealed interface RelativeTimeFilter : FilterExpression {
     val timeUnit: TimeUnit
 
     fun resolvedDateFormatter(): DateTimeFormatter? = dateFormatter ?: datePattern.toDateFormatter()
+
+    /** The zone [zoneId] names, parsed once per id; `null` when the filter names none. */
+    fun resolvedZoneId(): ZoneId? = zoneId?.let(::zoneIdOf)
 }
 
 private fun RelativeTimeFilter.validateConfiguration() {

@@ -122,6 +122,17 @@ class HttpQueryGuardTest {
     }
 
     @Test
+    fun streamsJsonWhenTheListCapIsOffSoNothingBuffersWithoutBound() {
+        val failure = IllegalStateException("late failure")
+        guard(maxListSize = 0, idleTimeout = Duration.ZERO).flux(request) {
+            Flux.concat(Flux.just(1), Flux.error(failure))
+        }.test()
+            .expectNext(1)
+            .expectErrorMatches { it === failure }
+            .verify()
+    }
+
+    @Test
     fun enforcesActualOutputSizesAndCancelsExcessFlux() {
         val cancelled = AtomicBoolean()
         val bounded = guard(maxListSize = 2, idleTimeout = Duration.ZERO)

@@ -24,7 +24,7 @@ import me.ahoo.wow.api.query.spec.spec
  * ungrouped empty summary: counts (the metrics whose [MetricResult] is a count) are zero, value metrics are null, deriveds evaluate in
  * declaration order over the synthetic values (null propagation, divide-by-zero to null).
  */
-object EmptyAggregationValues {
+internal object EmptyAggregationValues {
     fun values(metrics: List<AggregationMetric>): LinkedHashMap<String, Any?> {
         val values = LinkedHashMap<String, Any?>()
         metrics.forEach { metric ->

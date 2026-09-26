@@ -10,7 +10,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package me.ahoo.wow.query
 
 import io.github.oshai.kotlinlogging.KotlinLogging
@@ -19,9 +18,12 @@ import me.ahoo.wow.query.filter.QueryType
 import me.ahoo.wow.query.schema.QuerySchemaValidationException
 
 /**
- * Logs every failed query. A rejection from the error catalog, and a server fault the core states
- * ([QueryExecutionException]), is logged by its message alone: a fault's cause can hold record values (a failing mask
- * strategy sees the raw value), so it never reaches the log.
+ * Logs every failed query by who must act on it:
+ * - a rejection the caller can fix (an error-catalog violation, a missing authenticated scope) at DEBUG, by its
+ *   message alone: it is the client's error, answered 4xx, and logging it louder lets callers flood the log;
+ * - a server fault the core states ([QueryExecutionException]) at ERROR, by its message alone: its cause can hold
+ *   record values (a failing mask strategy sees the raw value), so it never reaches the log;
+ * - any other failure at ERROR with its stack trace.
  */
 class QueryLogObserver : QueryObserver {
     companion object {
@@ -29,13 +31,12 @@ class QueryLogObserver : QueryObserver {
     }
 
     override fun onError(namedAggregate: NamedAggregate, queryType: QueryType, error: Throwable) {
-        val stated = error is QuerySchemaValidationException ||
-            error is QueryRequestException ||
-            error is QueryExecutionException
-        if (stated) {
-            log.error { error.message }
-        } else {
-            log.error(error) { error.message }
+        when (error) {
+            is QuerySchemaValidationException, is QueryRequestException, is QueryScopeRequiredException ->
+                log.debug { "Query [$namedAggregate/$queryType] rejected: ${error.message}" }
+
+            is QueryExecutionException -> log.error { error.message }
+            else -> log.error(error) { error.message }
         }
     }
 }

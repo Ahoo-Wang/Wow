@@ -629,9 +629,9 @@ class ElasticsearchAggregationPagerTest {
     }
 
     @Test
-    fun `group aggregation should stop after reaching the limit`() {
-        stubPointInTime()
-        every { client.search(any<SearchRequest>(), Map::class.java) } returns Mono.just(
+    fun `group aggregation whose limit fits one page is one search without a point in time`() {
+        val request = slot<SearchRequest>()
+        every { client.search(capture(request), Map::class.java) } returns Mono.just(
             groupResponse("pit-2", listOf(bucket("a", 1), bucket("b", 1)), "b"),
         )
         val plan = compileAggregation(
@@ -646,6 +646,9 @@ class ElasticsearchAggregationPagerTest {
             .expectNextCount(2)
             .verifyComplete()
         verify(exactly = 1) { client.search(any<SearchRequest>(), Map::class.java) }
+        request.captured.pit().assert().isNull()
+        request.captured.index().assert().containsExactly("test-index")
+        client.verifyNoPointInTimeCalls()
     }
 
     @Test

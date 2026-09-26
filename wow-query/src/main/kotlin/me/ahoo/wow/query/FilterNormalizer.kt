@@ -176,29 +176,29 @@ class FilterNormalizer(
         is BeforeTodayFilter -> LessThanFilter(
             expression.field,
             instantNode(
-                today(now, expression.zoneId).atTime(LocalTime.parse(expression.time)),
-                zone(expression.zoneId),
+                today(now, expression).atTime(LocalTime.parse(expression.time)),
+                expression.zone(),
                 expression.resolvedDateFormatter(),
                 expression.timeUnit,
             ),
         )
         is RecentDaysFilter -> {
-            val today = today(now, expression.zoneId)
+            val today = today(now, expression)
             range(
                 expression.field,
                 today.minusDays(expression.days.toLong() - 1).atStartOfDay(),
                 today.plusDays(1).atStartOfDay(),
-                zone(expression.zoneId),
+                expression.zone(),
                 expression.resolvedDateFormatter(),
                 expression.timeUnit,
             )
         }
 
         is EarlierDaysFilter -> {
-            val end = today(now, expression.zoneId).minusDays(expression.days.toLong() - 1).atStartOfDay()
+            val end = today(now, expression).minusDays(expression.days.toLong() - 1).atStartOfDay()
             LessThanFilter(
                 expression.field,
-                instantNode(end, zone(expression.zoneId), expression.resolvedDateFormatter(), expression.timeUnit),
+                instantNode(end, expression.zone(), expression.resolvedDateFormatter(), expression.timeUnit),
             )
         }
     }
@@ -206,26 +206,26 @@ class FilterNormalizer(
     private fun RelativeTimeFilter.dayRange(now: Instant, offset: Long): FilterExpression =
         range(
             field,
-            today(now, zoneId).plusDays(offset).atStartOfDay(),
-            today(now, zoneId).plusDays(offset + 1).atStartOfDay(),
-            zone(zoneId),
+            today(now, this).plusDays(offset).atStartOfDay(),
+            today(now, this).plusDays(offset + 1).atStartOfDay(),
+            zone(),
             resolvedDateFormatter(),
             timeUnit,
         )
 
     private fun RelativeTimeFilter.weekRange(now: Instant, offset: Long): FilterExpression =
-        weekRange(field, today(now, zoneId), offset, zone(zoneId), resolvedDateFormatter(), timeUnit)
+        weekRange(field, today(now, this), offset, zone(), resolvedDateFormatter(), timeUnit)
 
     private fun RelativeTimeFilter.monthRange(now: Instant, offset: Long): FilterExpression =
-        monthRange(field, today(now, zoneId), offset, zone(zoneId), resolvedDateFormatter(), timeUnit)
+        monthRange(field, today(now, this), offset, zone(), resolvedDateFormatter(), timeUnit)
 
     private fun RelativeTimeFilter.yearRange(now: Instant, offset: Long): FilterExpression {
-        val start = today(now, zoneId).withDayOfYear(1).plusYears(offset)
+        val start = today(now, this).withDayOfYear(1).plusYears(offset)
         return range(
             field,
             start.atStartOfDay(),
             start.plusYears(1).atStartOfDay(),
-            zone(zoneId),
+            zone(),
             resolvedDateFormatter(),
             timeUnit,
         )
@@ -291,15 +291,21 @@ class FilterNormalizer(
         )
     }
 
-    private fun today(now: Instant, zoneId: String?): LocalDate = now.atZone(zone(zoneId)).toLocalDate()
+    private fun RelativeTimeFilter.zone(): ZoneId = resolvedZoneId() ?: defaultZoneId
 
-    private fun zone(zoneId: String?): ZoneId = zoneId?.let(ZoneId::of) ?: defaultZoneId
+    private fun today(now: Instant, filter: RelativeTimeFilter): LocalDate = now.atZone(filter.zone()).toLocalDate()
 
     /** A moment encoded like the field: epoch in its time unit, or formatted in its zone. */
     private fun RelativeTimeFilter.momentNode(moment: Instant) =
-        instantNode(moment.atZone(zone(zoneId)), resolvedDateFormatter(), timeUnit)
+        instantNode(moment.atZone(zone()), resolvedDateFormatter(), timeUnit)
+
+    private fun FilterExpression.isConstant(): Boolean = this === MatchAllFilter || this === MatchNoneFilter
 
     internal fun simplifyAnd(operands: List<FilterExpression>): FilterExpression {
+        // Already simple (no constant, no nested AND): the common case keeps the list it was given.
+        if (operands.size > 1 && operands.none { it.isConstant() || it is AndFilter }) {
+            return AndFilter(operands)
+        }
         val flattened = ArrayList<FilterExpression>(operands.size)
         operands.forEach { operand ->
             when {
@@ -317,6 +323,9 @@ class FilterNormalizer(
     }
 
     internal fun simplifyOr(operands: List<FilterExpression>): FilterExpression {
+        if (operands.size > 1 && operands.none { it.isConstant() || it is OrFilter }) {
+            return OrFilter(operands)
+        }
         val flattened = ArrayList<FilterExpression>(operands.size)
         operands.forEach { operand ->
             when {

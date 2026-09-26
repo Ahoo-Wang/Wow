@@ -79,8 +79,8 @@ class HttpQueryGuard(
 
         /**
          * Bounds the execution of a streaming query: applies the idle timeout, fails (a server fault) on more rows
-         * than the list limit, and buffers the rows unless the client accepts an event stream, so a late failure still
-         * produces an error response. [result] runs on subscription.
+         * than the list limit, and buffers the rows (at most the list limit) unless the client accepts an event stream or
+         * the list limit is off, so a late failure still produces an error response. [result] runs on subscription.
          */
         fun <T : Any> flux(request: ServerRequest, result: () -> Flux<T>): Flux<T> {
             val source = Flux.defer(result)
@@ -93,7 +93,9 @@ class HttpQueryGuard(
                     indexed.t2
                 }
             }
-            return if (request.acceptsEventStream()) {
+            // Buffering holds at most the list cap. With the cap off (0) nothing bounds the buffer, so the rows stream:
+            // a late failure then truncates the response instead of turning it into an error body.
+            return if (request.acceptsEventStream() || maxListSize == 0) {
                 bounded
             } else {
                 bounded.collectList().flatMapMany { Flux.fromIterable(it) }

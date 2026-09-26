@@ -15,12 +15,15 @@ package me.ahoo.wow.query.schema
 
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.annotation.SensitivityLevel
+import me.ahoo.wow.api.query.descriptor.QueryModelDescriptor
 import me.ahoo.wow.api.query.schema.QueryCapability
 import me.ahoo.wow.api.query.schema.QueryCardinality
 import me.ahoo.wow.api.query.schema.QueryDeprecation
 import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.api.query.schema.QueryValueKind
 import java.util.Collections
+import java.util.Optional
+import java.util.concurrent.ConcurrentHashMap
 
 private val EMPTY_VALUE_BINDINGS = QueryValueBindings()
 
@@ -148,6 +151,8 @@ class QueryModelSchema(
         },
     )
     private val bindingIndex = QueryBindingIndex(this.bindings)
+    private val descriptors = ConcurrentHashMap<DescriptorKey, QueryModelDescriptor>()
+    private val dynamicFields = ConcurrentHashMap<QueryField, Optional<QueryFieldSchema>>()
     private val staticFields: Map<QueryField, QueryFieldSchema?> = definition.staticMatches.mapValues { (field, matches) ->
         resolveField(field, matches)
     }
@@ -189,6 +194,10 @@ class QueryModelSchema(
 
     fun supports(capability: QueryCapability): Boolean = capability in capabilities
 
+    /** The descriptor for [key], described once: a few keys per schema (one per entry budget and zone), bounded. */
+    internal fun describedOnce(key: DescriptorKey, describe: () -> QueryModelDescriptor): QueryModelDescriptor =
+        descriptors[key] ?: describe().also { if (descriptors.size < MAX_CACHED_DESCRIPTORS) descriptors[key] = it }
+
     /** The content hash of what this schema lets callers do: the version of its budget-free capability descriptor. */
     val version: String by lazy { describe(budget = null, defaultListSize = null).version }
 
@@ -200,7 +209,21 @@ class QueryModelSchema(
         get() = definition.aliases.isNotEmpty()
 
     fun field(field: QueryField): QueryFieldSchema? =
-        if (staticFields.containsKey(field)) staticFields[field] else resolveField(field)
+        if (staticFields.containsKey(field)) staticFields[field] else dynamicField(field)
+
+    /**
+     * A field outside the static paths (a map key such as ABAC `tags.<key>`, or an unknown path), resolved once and
+     * kept with its compiled capability record. Keys come from callers, so at most [MAX_CACHED_DYNAMIC_FIELDS] are
+     * kept; beyond that a field is resolved per lookup.
+     */
+    private fun dynamicField(field: QueryField): QueryFieldSchema? {
+        dynamicFields[field]?.let { return it.orElse(null) }
+        val resolved = resolveField(field)
+        if (dynamicFields.size < MAX_CACHED_DYNAMIC_FIELDS) {
+            dynamicFields.putIfAbsent(field, Optional.ofNullable(resolved))
+        }
+        return resolved
+    }
 
     private fun resolveField(field: QueryField): QueryFieldSchema? = resolveField(
         field,
@@ -338,3 +361,5 @@ internal fun mergeQueryValues(matches: List<QueryValueMatch>): QueryValueSchema?
 
 /** The metric types whose results a backend may estimate. */
 internal val APPROXIMABLE_METRICS: Set<String> = setOf("DISTINCT_COUNT", "PERCENTILE")
+private const val MAX_CACHED_DESCRIPTORS = 16
+private const val MAX_CACHED_DYNAMIC_FIELDS = 1024

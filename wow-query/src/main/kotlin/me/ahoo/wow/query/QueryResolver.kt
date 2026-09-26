@@ -389,7 +389,12 @@ internal class QueryResolver(
         is LessThanFilter -> listOf(expression.value)
         is LessThanOrEqualFilter -> listOf(expression.value)
         is BetweenFilter -> listOf(expression.lowerBound, expression.upperBound)
-        else -> error("Filter [${expression.operator}] carries no domain values.")
+        MatchAllFilter, MatchNoneFilter, is AndFilter, is OrFilter, is NorFilter, is IdFilter, is IdsFilter,
+        is AggregateIdFilter, is AggregateIdsFilter, is TenantIdFilter, is OwnerIdFilter, is SpaceIdFilter,
+        is DeletionFilter, is SearchFilter, is ExpressionFilter, is ElementMatchFilter, is ContainsFilter,
+        is StartsWithFilter, is EndsWithFilter, is IsEmptyFilter, is IsEmptyStringFilter, is IsNotEmptyStringFilter,
+        is IsNullFilter, is IsNotNullFilter, is ExistsFilter, is NotExistsFilter, is RelativeTimeFilter,
+        -> error("Filter [${expression.operator}] carries no domain values.")
     }
 
     private fun equalityValues(value: JsonNode): Iterable<JsonNode>? {

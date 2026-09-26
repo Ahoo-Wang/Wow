@@ -19,10 +19,18 @@ import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.query.AdmittedQuery
 
 object ElasticsearchProjectionCompiler {
-    fun compile(projection: Projection, admitted: AdmittedQuery<*>): SourceFilter = SourceFilter.of {
-        it.includes(projection.include.toSourceFields(admitted))
-        it.excludes(projection.exclude.toSourceFields(admitted))
-    }
+    /** The source filter of an empty projection: immutable, so built once. */
+    private val EMPTY: SourceFilter = SourceFilter.of { it.includes(emptyList()).excludes(emptyList()) }
+
+    fun compile(projection: Projection, admitted: AdmittedQuery<*>): SourceFilter =
+        if (projection.include.isEmpty() && projection.exclude.isEmpty()) {
+            EMPTY
+        } else {
+            SourceFilter.of {
+                it.includes(projection.include.toSourceFields(admitted))
+                it.excludes(projection.exclude.toSourceFields(admitted))
+            }
+        }
 
     private fun List<QueryField>.toSourceFields(admitted: AdmittedQuery<*>): List<String> =
         flatMap { field ->

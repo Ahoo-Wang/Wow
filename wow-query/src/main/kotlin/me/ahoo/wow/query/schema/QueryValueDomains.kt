@@ -55,30 +55,32 @@ fun QueryValueSchema.alternativesOrSelf(): List<QueryValueSchema> =
 fun QueryValueSchema.hasArrayBranch(): Boolean = alternativesOrSelf().any { it.kind == QueryValueKind.ARRAY }
 
 internal fun QueryValueSchema.accepts(values: Iterable<JsonNode>): Boolean {
-    if (kind == QueryValueKind.SCALAR || kind == QueryValueKind.OBJECT) {
-        return values.all { input -> input.isNull || valueTypes.any { input.matches(it) } }
+    val domains = if (kind == QueryValueKind.SCALAR || kind == QueryValueKind.OBJECT) {
+        listOf(this)
+    } else {
+        operationValues().filter { it.kind != QueryValueKind.NULL && it.kind != QueryValueKind.UNKNOWN }
     }
-    val domains = operationValues().filter { it.kind != QueryValueKind.NULL }
     return values.all { input ->
-        input.isNull || domains.any { domain ->
-            domain.kind != QueryValueKind.UNKNOWN && domain.valueTypes.any { input.matches(it) }
-        }
+        if (input.isNull) return@all true
+        // A runtime POJO is compared as the JSON it serializes to, converted once for every domain and type.
+        val canonical = input.canonicalValue() ?: return@all false
+        domains.any { domain -> domain.valueTypes.any { canonical.matches(it) } }
     }
 }
 
-private fun JsonNode.matches(type: QueryValueType): Boolean {
-    if (isPojo) {
-        val canonical = JsonSerializer.valueToTree<JsonNode>((this as POJONode).pojo)
-        return !canonical.isPojo && canonical.matches(type)
-    }
-    return when (type) {
-        QueryValueType.STRING -> isString
-        QueryValueType.INTEGER -> isNumber && canConvertToExactIntegral()
-        QueryValueType.DECIMAL -> isNumber
-        QueryValueType.BOOLEAN -> isBoolean
-        QueryValueType.OBJECT -> isObject
-        else -> true
-    }
+/** This value as JSON: a runtime POJO serialized to its tree, or `null` when it serializes to a POJO again. */
+private fun JsonNode.canonicalValue(): JsonNode? {
+    if (!isPojo) return this
+    return JsonSerializer.valueToTree<JsonNode>((this as POJONode).pojo).takeUnless { it.isPojo }
+}
+
+private fun JsonNode.matches(type: QueryValueType): Boolean = when (type) {
+    QueryValueType.STRING -> isString
+    QueryValueType.INTEGER -> isNumber && canConvertToExactIntegral()
+    QueryValueType.DECIMAL -> isNumber
+    QueryValueType.BOOLEAN -> isBoolean
+    QueryValueType.OBJECT -> isObject
+    else -> true
 }
 
 /**
