@@ -12,6 +12,7 @@
  */
 
 import { BRAND_BOUND_DOCS } from './brandDocs.js';
+import { DENSITY_LENGTH_DOCS } from './densityDocs.js';
 import { OWN_CONTROL, STATE_DOCS } from './stateDocs.js';
 import type { TokenName } from './tokens.js';
 
@@ -480,6 +481,7 @@ export const TOKEN_DOCS: Readonly<Record<TokenName, TokenDoc>> = {
     'The lift of a chart tooltip',
     '图表提示框的浮起',
   ),
+  ...DENSITY_LENGTH_DOCS,
   'expanded-z-index': {
     role: {
       en: 'The stacking level of a view that fills the screen, against the host page',

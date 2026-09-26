@@ -582,17 +582,22 @@ A view that fills the screen (「铺满屏幕」 on a workbench or an embed) is 
 }
 ```
 
-It is one of five host variables that are lengths and a level of the layout rather than the theme — no preset sets them, and they have no dark half:
+It is one of ten host variables that are lengths and levels of the layout rather than the theme — no preset sets them, and they have no dark half. The first five are the [density](#density)'s lengths: the density step gives their default, and a value of yours wins over it:
 
 <!-- layout-variables:begin -->
 
-| Variable                     | Role                                                                                 | Default |
-| ---------------------------- | ------------------------------------------------------------------------------------ | ------- |
-| `--fve-expanded-z-index`     | The stacking level of a view that fills the screen, against the host page            | `0`     |
-| `--fve-popup-z-index`        | The stacking level every popup is portalled at                                       | `50`    |
-| `--fve-record-table-max-h`   | The height a record or analysis table stops at and scrolls inside (`size="content"`) | `70vh`  |
-| `--fve-record-text-max-w`    | How wide a `text` cell grows before it wraps                                         | `24rem` |
-| `--fve-workbench-min-height` | The floor under a workbench in a container of no definite height                     | `36rem` |
+| Variable                          | Role                                                                                                                   | Default                        |
+| --------------------------------- | ---------------------------------------------------------------------------------------------------------------------- | ------------------------------ |
+| `--fve-table-header-height`       | A table's header row, over the density                                                                                 | by the density: 32 / 40 / 44px |
+| `--fve-table-cell-padding-block`  | The space above and below a table cell's value, over the density                                                       | by the density: 4 / 8 / 10px   |
+| `--fve-table-cell-padding-inline` | The space either side of a table cell's value, over the density                                                        | by the density: 6 / 8 / 12px   |
+| `--fve-sidebar-item-height`       | A view in the view list, over the density; keep it 24px or more (WCAG 2.5.8)                                           | by the density: 24 / 28 / 32px |
+| `--fve-panel-padding`             | The space round a dashboard panel's content, over the density; above and below it stops at 12px (the board's 80px row) | by the density: 8 / 12 / 16px  |
+| `--fve-expanded-z-index`          | The stacking level of a view that fills the screen, against the host page                                              | `0`                            |
+| `--fve-popup-z-index`             | The stacking level every popup is portalled at                                                                         | `50`                           |
+| `--fve-record-table-max-h`        | The height a record or analysis table stops at and scrolls inside (`size="content"`)                                   | `70vh`                         |
+| `--fve-record-text-max-w`         | How wide a `text` cell grows before it wraps                                                                           | `24rem`                        |
+| `--fve-workbench-min-height`      | The floor under a workbench in a container of no definite height                                                       | `36rem`                        |
 
 <!-- layout-variables:end -->
 
@@ -710,6 +715,7 @@ How tightly the rows sit is the host's call too, separate from the preset:
 - **One view of its own**: `density` on `ViewSurface`, a workbench or an embed pins it on that surface and its popups.
 - **Left out, a surface sits where its preset recommends**: `porcelain` comfortable, the rest default. A preset says it with `--fvp-preset-density` (`-1`, `0`, `1`); your attribute or prop always wins over it.
 - At `default` the surface draws exactly the lengths it drew before the axis existed.
+- **One length of your own**: each of the lengths is a host variable too (`--fve-table-header-height`, `--fve-table-cell-padding-block`, `--fve-table-cell-padding-inline`, `--fve-sidebar-item-height`, `--fve-panel-padding`, in the table of layout variables above). Set, it wins over the step under any preset, any nesting and any `data-fve-density`; the step still gives the others. No preset sets them. Nothing floors them: a view in the list is a button, so keep `--fve-sidebar-item-height` at 24px or more (WCAG 2.5.8).
 
 #### A host with a shadcn theme: `shadcn-bridge.css`
 

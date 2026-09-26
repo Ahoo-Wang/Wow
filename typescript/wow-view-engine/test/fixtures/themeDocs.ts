@@ -65,7 +65,12 @@ export interface HostRead {
 }
 
 const READ = /--fve-[\w-]+/g;
-const READ_WITH_FALLBACK = /var\((--fve-[\w-]+)\s*(?:,\s*([^()]*))?\)/g;
+/** A fallback: anything, its brackets balanced up to three deep (a `calc()` of `var()`s). */
+const FALLBACK = String.raw`(?:[^()]|\((?:[^()]|\((?:[^()]|\([^()]*\))*\))*\))*`;
+const READ_WITH_FALLBACK = new RegExp(
+  String.raw`var\(\s*(--fve-[\w-]+)\s*(?:,\s*(${FALLBACK}))?\)`,
+  'g',
+);
 
 function readsIn(text: string, file: string): HostRead[] {
   const reads: HostRead[] = [];
@@ -246,15 +251,23 @@ export function layoutDefault(variable: string): string {
   return only;
 }
 
-/** The host's layout variables: lengths and a level, not the theme. */
+/**
+ * The host's layout variables: lengths and a level, not the theme. The
+ * default is the one read off the source, or the registry's words where it
+ * is no single value (a density length, which the step gives).
+ */
 export function layoutTable(language: Language): string {
   return table(
     HEADERS[language].layout,
-    ENTRIES.filter(entry => entry.tier === 'layout').map(entry => [
-      code(`--fve-${entry.name}`),
-      TOKEN_DOCS[entry.name as keyof typeof TOKEN_DOCS].role[language],
-      code(layoutDefault(`--fve-${entry.name}`)),
-    ]),
+    ENTRIES.filter(entry => entry.tier === 'layout').map(entry => {
+      const doc = TOKEN_DOCS[entry.name as keyof typeof TOKEN_DOCS];
+      const fallback = layoutDefault(`--fve-${entry.name}`);
+      return [
+        code(`--fve-${entry.name}`),
+        doc.role[language],
+        doc.light ? doc.light[language] : code(fallback),
+      ];
+    }),
   );
 }
 

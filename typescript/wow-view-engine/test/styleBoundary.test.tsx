@@ -24,6 +24,7 @@ import postcss, {
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { themesSource } from '../scripts/themes.mjs';
 import { CHART_TOKENS } from '../src/ui/charts/theme.js';
+import { TOKENS } from '../src/ui/theme/tokens.js';
 import { CHART_COLOR_SLOTS } from '../src/index.js';
 import { Dialog, DialogTitle } from '../src/ui/components/dialog.js';
 import { DialogContent } from '../src/ui/popups.js';
@@ -826,11 +827,22 @@ describe('the density axis', () => {
     });
   });
 
-  /** A length at one step, in px (1rem = 16px), the calc worked out. */
-  function px(token: string, step: number): number {
+  /**
+   * A length at one step, in px (1rem = 16px), the calc worked out — with
+   * `host` the host's own variables, read first as the stylesheet reads them.
+   */
+  function px(
+    token: string,
+    step: number,
+    host: Readonly<Record<string, string>> = {},
+  ): number {
     const text = lengths.get(token);
     if (!text) throw new Error(`${token} is not declared`);
-    const expression = text
+    const layered = /^var\(\s*(--fve-[\w-]+),\s*([\s\S]+)\)$/.exec(text);
+    if (layered && layered[1] in host)
+      return Number.parseFloat(host[layered[1]]);
+    const expression = (layered ? layered[2] : text)
+      .trim()
       .replace(/^calc\(/, '(')
       .replace(/var\(--_fve-density\)/g, `(${step})`)
       .replace(/([\d.]+)rem/g, '($1*16)')
@@ -843,13 +855,59 @@ describe('the density axis', () => {
 
   it.each([
     // compact, default, comfortable — the default the registry's own class.
-    ['--_fve-table-head-height', [32, 40, 44]], // h-10
+    ['--_fve-table-header-height', [32, 40, 44]], // h-10
     ['--_fve-table-cell-padding-block', [4, 8, 10]], // p-2
     ['--_fve-table-cell-padding-inline', [6, 8, 12]], // px-2 / p-2
     ['--_fve-sidebar-item-height', [24, 28, 32]], // the `sm` button, h-7
     ['--_fve-panel-padding', [8, 12, 16]], // p-3
   ] as const)('%s is %j', (token, expected) => {
     expect([-1, 0, 1].map(step => px(token, step))).toEqual(expected);
+  });
+
+  // theme-architecture.md 7: each length is a host variable of the layout,
+  // read first on every surface, so a host's value wins over the step —
+  // whichever step an attribute, a prop or a preset says, since those move
+  // `--_fve-density` alone.
+  const HOST_LENGTHS = [
+    ['--_fve-table-header-height', '--fve-table-header-height'],
+    ['--_fve-table-cell-padding-block', '--fve-table-cell-padding-block'],
+    ['--_fve-table-cell-padding-inline', '--fve-table-cell-padding-inline'],
+    ['--_fve-sidebar-item-height', '--fve-sidebar-item-height'],
+    ['--_fve-panel-padding', '--fve-panel-padding'],
+  ] as const;
+
+  it.each(HOST_LENGTHS)(
+    '%s reads the host’s %s before the step',
+    (token, host) => {
+      expect(lengths.get(token)?.replace(/\s+/g, ' ')).toMatch(
+        new RegExp(`^var\\( ?${host}, calc\\(`),
+      );
+      expect(TOKENS.find(({ name }) => `--fve-${name}` === host)).toMatchObject(
+        {
+          tier: 'layout',
+          kind: 'length',
+        },
+      );
+      expect(
+        [-1, 0, 1].map(step => px(token, step, { [host]: '37px' })),
+      ).toEqual([37, 37, 37]);
+    },
+  );
+
+  it('lets no density rule and no preset write a length', () => {
+    const written: string[] = [];
+    postcss.parse(STYLES).walkRules(/data-fve-density/, rule => {
+      rule.walkDecls(decl => {
+        if (decl.prop !== '--_fve-density') written.push(decl.prop);
+      });
+    });
+    const preset = new Set(
+      HOST_LENGTHS.map(([, host]) => host.replace('--fve-', '--fvp-')),
+    );
+    postcss.parse(themesSource()).walkDecls(decl => {
+      if (preset.has(decl.prop)) written.push(decl.prop);
+    });
+    expect(written).toEqual([]);
   });
 
   // The board's row is 80px at every density (D34), so what is above and

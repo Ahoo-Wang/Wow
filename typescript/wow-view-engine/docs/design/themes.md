@@ -113,6 +113,8 @@
 | 侧栏视图项高         | 28px | 32px         | 36px                                                                          |
 | 仪表盘面板内边距     | 8px  | 12px         | 16px（上下仍 12px：仪表盘行高不动，一行高的指标卡要放得下它的数，2026-09-25） |
 
+**每个长度也是宿主变量**（2026-09-26，[theme-architecture.md](theme-architecture.md) 第 7 节）：`--fve-table-header-height`、`--fve-table-cell-padding-block`、`--fve-table-cell-padding-inline`、`--fve-sidebar-item-height`、`--fve-panel-padding`，登记为 `tier: 'layout'`；档位只给缺省值，宿主写了哪个就是哪个，预设不写。
+
 **不动**：按钮与输入框的高度（点击目标 ≥24px，WCAG 2.5.8；Q49 的顾虑正是全局缩放 `--spacing` 会让 `icon-xs` 跌破它）；字号；**仪表盘行高 80px**（D34：存下的板子几何不变）；弹层的尺寸。记录表的行高今天写在 vendored `Table` 的 `h-10` 里，按 shadcn 的规矩不改 vendored 文件，改在我们自己的 `TableDataRow` 配方与 `styles.css` 里对表格的那几条规则上（与 `--text-ui` 钉住两个 vendored 字号是同一种做法）。
 
 **为什么修订 Q49**：Q49 当时的判断是「密度更像用户这次怎样看，归阶段 6 的偏好」，前提是「谁来选」没有答案。用户今天定了「宿主研发选」，密度就与预设一样是宿主的外观：运维平台要紧凑，面向业务人员的要舒适。阶段 6 若要做个人偏好，写的也是同一个 `data-fve-density`，不冲突。代价：多一条轴、多一组要量的尺寸（点击目标、表头与行的对齐、冻结列阴影），T4 一批做完。

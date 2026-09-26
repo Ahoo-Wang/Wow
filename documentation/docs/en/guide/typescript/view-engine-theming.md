@@ -13,12 +13,12 @@ The theme is the host's look, not a way of observing: nothing about it is saved 
 
 ## Stylesheets
 
-| Entry | What it is | Import it when |
-|---|---|---|
-| `@ahoo-wang/wow-view-engine/styles.css` | The theme: every rule scoped inside the view's own boundary, every token reading your variable first | Always |
-| `@ahoo-wang/wow-view-engine/themes.css` | The built-in presets, keyed by a `data-fve-preset` attribute | You switch presets at run time |
-| `@ahoo-wang/wow-view-engine/themes/<name>.css` | One built-in preset alone, the same block `themes.css` holds for it | You wear one preset |
-| `@ahoo-wang/wow-view-engine/shadcn-bridge.css` | Your shadcn/ui (Tailwind v4) tokens read into the preset layer | Your app already has a shadcn theme |
+| Entry                                          | What it is                                                                                           | Import it when                      |
+| ---------------------------------------------- | ---------------------------------------------------------------------------------------------------- | ----------------------------------- |
+| `@ahoo-wang/wow-view-engine/styles.css`        | The theme: every rule scoped inside the view's own boundary, every token reading your variable first | Always                              |
+| `@ahoo-wang/wow-view-engine/themes.css`        | The built-in presets, keyed by a `data-fve-preset` attribute                                         | You switch presets at run time      |
+| `@ahoo-wang/wow-view-engine/themes/<name>.css` | One built-in preset alone, the same block `themes.css` holds for it                                  | You wear one preset                 |
+| `@ahoo-wang/wow-view-engine/shadcn-bridge.css` | Your shadcn/ui (Tailwind v4) tokens read into the preset layer                                       | Your app already has a shadcn theme |
 
 The optional files only assign preset variables (`--fvp-*`): they paint nothing and never touch a variable of yours. The package's build checks that on every release.
 
@@ -26,11 +26,11 @@ The optional files only assign preset variables (`--fvp-*`): they paint nothing 
 
 Three parties write the theme, each under a prefix of its own, and every token reads them in one fixed order:
 
-| Prefix | Who writes it | Where | Examples |
-|---|---|---|---|
-| `--fve-*`, `--fve-dark-*` | **You**, the host | `:root`, any ancestor of a view, or a surface's `tokens` | `--fve-primary`, `--fve-brand`, `--fve-row-selected` |
-| `--fvp-*`, `--fvp-dark-*` | A **preset** — a built-in one, your own, or the shadcn bridge | a `:where([data-fve-preset='…'])` block | `--fvp-primary`, `--fvp-brand-l-max`, `--fvp-highlight-link` |
-| `--_fve-*` | The **engine**, for itself | inside the view | what it resolves and measures; never yours to write or read |
+| Prefix                    | Who writes it                                                 | Where                                                    | Examples                                                     |
+| ------------------------- | ------------------------------------------------------------- | -------------------------------------------------------- | ------------------------------------------------------------ |
+| `--fve-*`, `--fve-dark-*` | **You**, the host                                             | `:root`, any ancestor of a view, or a surface's `tokens` | `--fve-primary`, `--fve-brand`, `--fve-row-selected`         |
+| `--fvp-*`, `--fvp-dark-*` | A **preset** — a built-in one, your own, or the shadcn bridge | a `:where([data-fve-preset='…'])` block                  | `--fvp-primary`, `--fvp-brand-l-max`, `--fvp-highlight-link` |
+| `--_fve-*`                | The **engine**, for itself                                    | inside the view                                          | what it resolves and measures; never yours to write or read  |
 
 Each token of the surface is `var(--fve-<token>, var(--fvp-<token>, <built-in>))`: yours first, then the preset's, then the stylesheet's own value. So **a variable you set wins over any preset**, the one on `<html>` and one pinned on a surface alike, whichever stylesheet loads first — override one colour of a preset without restating the rest. To keep one surface out of an override, write the override on a narrower selector than `:root`.
 
@@ -46,28 +46,28 @@ import '@ahoo-wang/wow-view-engine/themes/porcelain.css';
 ```
 
 ```html
-<html data-fve-preset="porcelain">
+<html data-fve-preset="porcelain"></html>
 ```
 
 Import `themes.css` instead to have every preset and switch at run time. The attribute on `<html>` reaches every view and every popup; to give one view its own, pass `preset` (see [Pinning a preset](#pinning-a-preset)). `/ui` exports `BUILT_IN_PRESETS`, the list of built-in names, for a picker in your own chrome — the engine draws none.
 
-| Preset | Character | Corners | Chart colours |
-|---|---|---|---|
-| `neutral` | The default: neutral greys, a black primary | 10px | default |
-| `azure` | Chinese enterprise admin: a clear blue, white rows on a grey page, a type stack with the Chinese faces first | 6px | its own |
-| `porcelain` | Native desktop: system type, 6px controls on 12px cards, soft shadows, near-neutral greys, a filled menu highlight, striped tables | 6px / 12px cards | its own |
-| `contrast` | High contrast: text at 7:1, 2px edges and a 2px focus ring 2px off the control at 4.5:1, a tinted selected row, chart patterns on | 4px | its own |
+| Preset      | Character                                                                                                                          | Corners          | Chart colours |
+| ----------- | ---------------------------------------------------------------------------------------------------------------------------------- | ---------------- | ------------- |
+| `neutral`   | The default: neutral greys, a black primary                                                                                        | 10px             | default       |
+| `azure`     | Chinese enterprise admin: a clear blue, white rows on a grey page, a type stack with the Chinese faces first                       | 6px              | its own       |
+| `porcelain` | Native desktop: system type, 6px controls on 12px cards, soft shadows, near-neutral greys, a filled menu highlight, striped tables | 6px / 12px cards | its own       |
+| `contrast`  | High contrast: text at 7:1, 2px edges and a 2px focus ring 2px off the control at 4.5:1, a tinted selected row, chart patterns on  | 4px              | its own       |
 
 Which one fits your brand:
 
-| Your situation | Use |
-|---|---|
-| Your app is a shadcn app with its own theme | [`shadcn-bridge.css`](#the-shadcn-bridge), no preset |
-| No design system, and you want a ready look | The preset above closest to your product |
-| A back office in the style of the open-source kits common in China | `azure`, with `data-fve-change-colors="red-up"` on boards read by mainland-China markets |
-| A macOS / Apple desktop-app feel | `porcelain` |
-| Only a brand colour | `--fve-brand` on any preset, `neutral` included (see [I have a brand colour](#i-have-a-brand-colour)) |
-| A full design specification | The closest preset, then override the few `--fve-*` that differ on `:root` |
+| Your situation                                                     | Use                                                                                                   |
+| ------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------- |
+| Your app is a shadcn app with its own theme                        | [`shadcn-bridge.css`](#the-shadcn-bridge), no preset                                                  |
+| No design system, and you want a ready look                        | The preset above closest to your product                                                              |
+| A back office in the style of the open-source kits common in China | `azure`, with `data-fve-change-colors="red-up"` on boards read by mainland-China markets              |
+| A macOS / Apple desktop-app feel                                   | `porcelain`                                                                                           |
+| Only a brand colour                                                | `--fve-brand` on any preset, `neutral` included (see [I have a brand colour](#i-have-a-brand-colour)) |
+| A full design specification                                        | The closest preset, then override the few `--fve-*` that differ on `:root`                            |
 
 Each preset gives both a light and a dark half, measured pair by pair: text at 4.5:1, a control's edge and the focus mark at 3:1, and a palette of its own through the same colour-vision gates as the default eight. The values each one sets, and why, are in the package's `src/themes/<name>.css`.
 
@@ -113,7 +113,7 @@ A brand colour is not a preset: give it as `--fve-brand` and wear whichever pres
 ```
 
 ```html
-<html data-fve-preset="azure">
+<html data-fve-preset="azure"></html>
 ```
 
 The primary takes your colour's hue, and so do faint tints of the selected item (`accent`), the hovered view in the list (`sidebar-accent`) and a selected row (`row-selected`); where a preset's focus ring is its primary (`porcelain`, `contrast`) the ring follows too. The colours are derived in OKLCH, once, in `styles.css`, on the view itself, and each preset only gives the **bounds** it holds them to on its own grounds: `neutral` clamps the primary's lightness to 0.40–0.50 in light and 0.68–0.80 in dark, `contrast` to 0.25–0.36 and 0.80–0.90 for its 7:1. So any colour holds every contrast line of the preset you wear — a test sweeps the whole sRGB range on every preset, in both modes — and a very light or very dark brand comes out deeper or lighter than its book. The greys, `input`, the status colours and the chart palette stay the preset's.
@@ -176,16 +176,16 @@ A token like `muted` is a kind of colour, and the surface uses it in several pla
 
 That tints the selection and leaves the header band `muted`, sets the header at 600 with a line between its columns, trades the focus halo for a 2px outline 2px off the control, and makes the controls 36px and 30px tall.
 
-| Part of the surface | Roles |
-|---|---|
-| Grounds and cards | `canvas` (a board's grouped ground), `content` (the rows' ground), `card-edge`, `card-shadow`, `scrim` |
-| Tables | `table-header`, `table-header-foreground`, `table-header-weight`, `table-header-divider`, `totals`, `row-selected`, `row-selected-foreground`, `row-hover`, `row-stripe` (off unless set) |
-| States | `highlight`, `highlight-foreground` (the item a menu, a select or a combobox has under the keyboard); `item-selected`, `item-selected-foreground`, `item-selected-weight` (the item it holds chosen); `nav-current`, `nav-current-foreground`, `nav-current-edge`, `nav-current-shadow` (the view on screen in the list); `control-hover`, `control-pressed`; `outline-hover-edge`, `outline-hover-foreground` (an outline button under the pointer) |
-| Focus | `focus-width`, `focus-offset`, `focus-style`, `focus-halo` |
-| Controls | `control`, `control-edge`, `control-thumb`, `control-thumb-shadow`, `control-height`, `control-height-sm`, `filter-height` (a board's filter chip), `edge-width`, `badge-edge`, `badge-fill` |
-| Corners | `radius-card`, `radius-control`, `radius-popover`, `radius-badge`, `radius-checkbox` |
-| Type and tooltips | `title-weight`, `strong-weight`, `tooltip`, `tooltip-foreground` |
-| Charts | see [The charts' roles](#the-charts-roles) |
+| Part of the surface | Roles                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Grounds and cards   | `canvas` (a board's grouped ground), `content` (the rows' ground), `card-edge`, `card-shadow`, `scrim`                                                                                                                                                                                                                                                                                                                                               |
+| Tables              | `table-header`, `table-header-foreground`, `table-header-weight`, `table-header-divider`, `totals`, `row-selected`, `row-selected-foreground`, `row-hover`, `row-stripe` (off unless set)                                                                                                                                                                                                                                                            |
+| States              | `highlight`, `highlight-foreground` (the item a menu, a select or a combobox has under the keyboard); `item-selected`, `item-selected-foreground`, `item-selected-weight` (the item it holds chosen); `nav-current`, `nav-current-foreground`, `nav-current-edge`, `nav-current-shadow` (the view on screen in the list); `control-hover`, `control-pressed`; `outline-hover-edge`, `outline-hover-foreground` (an outline button under the pointer) |
+| Focus               | `focus-width`, `focus-offset`, `focus-style`, `focus-halo`                                                                                                                                                                                                                                                                                                                                                                                           |
+| Controls            | `control`, `control-edge`, `control-thumb`, `control-thumb-shadow`, `control-height`, `control-height-sm`, `filter-height` (a board's filter chip), `edge-width`, `badge-edge`, `badge-fill`                                                                                                                                                                                                                                                         |
+| Corners             | `radius-card`, `radius-control`, `radius-popover`, `radius-badge`, `radius-checkbox`                                                                                                                                                                                                                                                                                                                                                                 |
+| Type and tooltips   | `title-weight`, `strong-weight`, `tooltip`, `tooltip-foreground`                                                                                                                                                                                                                                                                                                                                                                                     |
+| Charts              | see [The charts' roles](#the-charts-roles)                                                                                                                                                                                                                                                                                                                                                                                                           |
 
 - **The lines a role owes**: a control stays 24px tall or more at either height (WCAG 2.5.8), and a theme promising AAA text gives its focus outline 2px or more (WCAG 2.4.13). Every role that is a ground is in the contrast matrix like the rest, so a theme that parts it from its token is measured on what it paints.
 - **The words and defaults** for each role are in the token table of the [package README](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/README.md#roles).
@@ -194,15 +194,15 @@ That tints the selection and leaves the header band `muted`, sets the header at 
 
 A colour a preset writes is fixed where the preset is named — usually `<html>` — so a preset cannot say "the menu highlight is the primary": that primary is resolved later, on the view, from your brand colour or your own `--fve-primary`. A **link** says it instead. `<role>-link` is a share of another token the view has resolved, `100%` being that token itself and less a translucent wash of it over the ground:
 
-| Link | Draws | In |
-|---|---|---|
-| `highlight-link` | `highlight` | `primary` |
-| `highlight-foreground-link` | `highlight-foreground` | `primary-foreground` |
-| `item-selected-link` | `item-selected` | `row-selected` |
-| `nav-current-link` | `nav-current` | `row-selected` |
-| `nav-current-foreground-link` | `nav-current-foreground` | `primary` |
-| `outline-hover-edge-link` | `outline-hover-edge` | `primary` |
-| `outline-hover-foreground-link` | `outline-hover-foreground` | `primary` |
+| Link                            | Draws                      | In                   |
+| ------------------------------- | -------------------------- | -------------------- |
+| `highlight-link`                | `highlight`                | `primary`            |
+| `highlight-foreground-link`     | `highlight-foreground`     | `primary-foreground` |
+| `item-selected-link`            | `item-selected`            | `row-selected`       |
+| `nav-current-link`              | `nav-current`              | `row-selected`       |
+| `nav-current-foreground-link`   | `nav-current-foreground`   | `primary`            |
+| `outline-hover-edge-link`       | `outline-hover-edge`       | `primary`            |
+| `outline-hover-foreground-link` | `outline-hover-foreground` | `primary`            |
 
 ```css
 :root {
@@ -217,25 +217,25 @@ With those two, every menu, select and combobox highlights its item with the pri
 
 The chart library draws its own SVG, which no stylesheet reaches, so a chart reads its whole look back off its element — a colour as a colour, a length in pixels, a number as a number, each worked out by the browser (`calc()`, `min()` and `oklch(from …)` included) — and is drawn in that:
 
-| Role | What | Unset |
-|---|---|---|
-| `chart-grid`, `chart-grid-width` | Gridlines and the axes' rules | `border`, 1px |
-| `chart-axis` | The chart's quiet text: ticks, axis names, a scale's ends | `muted-foreground` |
-| `chart-text-size`, `chart-label-size` | The chart's text and a value label | `text-ui` less 1px and 2px |
-| `chart-line-width`, `chart-area-opacity` | A line, and an area under it | 2px, 0.2 |
-| `chart-bar-radius`, `chart-bar-min-width`, `chart-bar-max-width` | A bar's corner and the bounds of its width | 0.6 of `radius` up to 2px; none; 80px |
-| `chart-slice-border` | The seam between two slices | 1px |
+| Role                                                                | What                                                                | Unset                                        |
+| ------------------------------------------------------------------- | ------------------------------------------------------------------- | -------------------------------------------- |
+| `chart-grid`, `chart-grid-width`                                    | Gridlines and the axes' rules                                       | `border`, 1px                                |
+| `chart-axis`                                                        | The chart's quiet text: ticks, axis names, a scale's ends           | `muted-foreground`                           |
+| `chart-text-size`, `chart-label-size`                               | The chart's text and a value label                                  | `text-ui` less 1px and 2px                   |
+| `chart-line-width`, `chart-area-opacity`                            | A line, and an area under it                                        | 2px, 0.2                                     |
+| `chart-bar-radius`, `chart-bar-min-width`, `chart-bar-max-width`    | A bar's corner and the bounds of its width                          | 0.6 of `radius` up to 2px; none; 80px        |
+| `chart-slice-border`                                                | The seam between two slices                                         | 1px                                          |
 | `chart-tooltip`, `chart-tooltip-foreground`, `chart-tooltip-shadow` | The chart's tooltip, which is HTML and reads them as any popup does | `popover`, `popover-foreground`, `shadow-md` |
 
 A bar's corner follows `radius`, so a square style's bars are square with no word about bars. A chart is told to read them again when its theme moves (see [Embeds and popups](#embeds-and-popups)).
 
 ## Light, dark and system
 
-| How | Effect |
-|---|---|
-| A `.dark` class on any ancestor, usually `<html>` | Views follow your page's mode |
-| `theme="light"` or `theme="dark"` on `ViewSurface`, a workbench or an embed | Pins that one view |
-| `theme="system"` | Follows the reader's `prefers-color-scheme`, live, for a page with no switch of its own |
+| How                                                                         | Effect                                                                                  |
+| --------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| A `.dark` class on any ancestor, usually `<html>`                           | Views follow your page's mode                                                           |
+| `theme="light"` or `theme="dark"` on `ViewSurface`, a workbench or an embed | Pins that one view                                                                      |
+| `theme="system"`                                                            | Follows the reader's `prefers-color-scheme`, live, for a page with no switch of its own |
 
 ## Pinning a preset
 
@@ -270,13 +270,13 @@ import '@ahoo-wang/wow-view-engine/shadcn-bridge.css';
 
 The bridge writes the preset layer — each `--fvp-<token>` and `--fvp-dark-<token>` — from the shadcn token of the same name: `background`, `foreground`, `card`, `popover`, `primary`, `secondary`, `muted`, `accent` with their `-foreground` pairs, `border`, the five `sidebar*` tokens and `radius`, and `--fvp-font-sans` from your `--font-sans`. It is resolved on `<html>`, so it takes your values in the mode `<html>` is in, and your own `--fve-*` still win over it.
 
-| Not bridged | Why |
-|---|---|
-| `input`, `ring` | A shadcn theme often writes `--input: var(--border)` and `--ring: var(--primary)`: a divider grey and a brand colour that owe nothing of the 3:1 a control's edge and a focus mark need |
-| `destructive`, `success`, `warning` | Text colours measured to 4.5:1 in both modes; shadcn has no `success` or `warning` |
-| The eight chart colours | shadcn palettes have five, often starting on red; these are measured for colour-vision distance |
-| The shadows | shadcn has no standard name for them |
-| `row-hover`, `quiet-foreground` | Derived from bridged tokens |
+| Not bridged                         | Why                                                                                                                                                                                     |
+| ----------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `input`, `ring`                     | A shadcn theme often writes `--input: var(--border)` and `--ring: var(--primary)`: a divider grey and a brand colour that owe nothing of the 3:1 a control's edge and a focus mark need |
+| `destructive`, `success`, `warning` | Text colours measured to 4.5:1 in both modes; shadcn has no `success` or `warning`                                                                                                      |
+| The eight chart colours             | shadcn palettes have five, often starting on red; these are measured for colour-vision distance                                                                                         |
+| The shadows                         | shadcn has no standard name for them                                                                                                                                                    |
+| `row-hover`, `quiet-foreground`     | Derived from bridged tokens                                                                                                                                                             |
 
 To adopt it in an app with an existing shadcn theme:
 
@@ -308,11 +308,11 @@ One line for each token the bridge covers, and its dark half, as `shadcn-bridge.
 
 Every built-in preset holds these lines in both modes, on every pair the surface paints — ink on its ground, an edge on what is behind it — measured in jsdom by the package's tests and in a real browser by the contrast matrix. The pairs are the package's list, `src/ui/theme/pairs.ts`, and every role that is a ground is on it.
 
-| Line | What |
-|---|---|
-| Text, ≥4.5:1 (7:1 for `contrast`) | Every foreground on its ground: the page, cards, popovers, the header and totals bands, a selected, striped or hovered row, a highlighted or chosen item, the current view, a tooltip, the chart's quiet text; the status colours as text, and as a badge's words on its own wash |
-| Controls, focus and state marks, ≥3:1 (4.5:1 for `contrast`) | `input` and `ring` on every ground a control sits on, a dark control's own `input/30` wash included; `primary`, `rise` and `fall` where they fill a mark that carries a state |
-| None | `border` and `sidebar-border` (dividers), `radius`, `text-ui` |
+| Line                                                         | What                                                                                                                                                                                                                                                                              |
+| ------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Text, ≥4.5:1 (7:1 for `contrast`)                            | Every foreground on its ground: the page, cards, popovers, the header and totals bands, a selected, striped or hovered row, a highlighted or chosen item, the current view, a tooltip, the chart's quiet text; the status colours as text, and as a badge's words on its own wash |
+| Controls, focus and state marks, ≥3:1 (4.5:1 for `contrast`) | `input` and `ring` on every ground a control sits on, a dark control's own `input/30` wash included; `primary`, `rise` and `fall` where they fill a mark that carries a state                                                                                                     |
+| None                                                         | `border` and `sidebar-border` (dividers), `radius`, `text-ui`                                                                                                                                                                                                                     |
 
 When you set a colour — a token, a role, a link, a brand bound — you take over its line on every ground it lands on. `--fve-ring` and `--fve-input` (or their `--fve-dark-` halves) are the ones hosts most often lose: an unticked checkbox is only its `input` edge, and a focused control is known by its `ring` edge. A brand colour within the preset's bounds, and a role you leave unset, owe you nothing.
 
@@ -337,17 +337,30 @@ The eight chart slots are tuned for colour-vision distance between neighbouring 
 
 A metric card's change and a waterfall's steps are coloured by the host's change convention, `data-fve-change-colors` on `<html>`:
 
-| Value | A metric card's change | A waterfall's rise / fall |
-| --- | --- | --- |
+| Value                | A metric card's change                  | A waterfall's rise / fall |
+| -------------------- | --------------------------------------- | ------------------------- |
 | unset, or `semantic` | good or bad (`success` / `destructive`) | `success` / `destructive` |
-| `green-up` | up or down | `success` / `destructive` |
-| `red-up` | up or down, red for up | `destructive` / `success` |
+| `green-up`           | up or down                              | `success` / `destructive` |
+| `red-up`             | up or down, red for up                  | `destructive` / `success` |
 
 It is the host's call by market and reader — never switched by the interface language, never set by a preset, and not a prop, since one page reads one market. `--fve-rise` / `--fve-fall` set the colours themselves. The direction is never said by colour alone: the card's change carries an arrow and a sign, and a waterfall's labels are signed.
 
 ## Density
 
 `data-fve-density` on `<html>` — `compact`, `default` or `comfortable` — sets how tightly tables, the view list and dashboard panels sit: a header row of 32, 40 or 44px, 6, 8 or 12px beside a value, views of 24, 28 or 32px, 8, 12 or 16px round a panel. Controls, type and the dashboard's 80px row never change. `density` on a surface pins one view. Without either, a surface sits where its preset recommends (`porcelain` comfortable), and at `default` it draws exactly what it drew before.
+
+### One length of your own
+
+Each of those lengths is a host variable as well, for a host whose tables or panels need one length the three steps do not give. Set one and it wins over the step — under any preset, pinned or not, and whatever `data-fve-density` says — while the step still gives the rest:
+
+```css
+:root {
+  --fve-table-header-height: 36px;
+  --fve-table-cell-padding-inline: 10px;
+}
+```
+
+The five are `--fve-table-header-height`, `--fve-table-cell-padding-block` and `--fve-table-cell-padding-inline` (a table's header row, and the space above and below and either side of a value), `--fve-sidebar-item-height` (a view in the list) and `--fve-panel-padding` (round a dashboard panel's content; above and below it stops at 12px, so a tile one 80px row tall keeps room for its number). They are layout, not theme: no preset sets them, a preset only recommends a step. Nothing floors them either — a view in the list is a button, so keep `--fve-sidebar-item-height` at 24px or more (WCAG 2.5.8).
 
 ## See it
 

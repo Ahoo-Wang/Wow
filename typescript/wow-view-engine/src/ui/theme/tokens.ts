@@ -487,6 +487,15 @@ export const TOKENS = [
     kind: 'shadow',
     fallback: 'shadow-md',
   },
+  // The density's lengths (themes.md 2.4): the step gives each its default,
+  // and a host's own value wins over the step. A preset only recommends the
+  // step (`preset-density`) and writes none of them (theme-architecture.md
+  // 4.6).
+  { name: 'table-header-height', ...LAYOUT, kind: 'length' },
+  { name: 'table-cell-padding-block', ...LAYOUT, kind: 'length' },
+  { name: 'table-cell-padding-inline', ...LAYOUT, kind: 'length' },
+  { name: 'sidebar-item-height', ...LAYOUT, kind: 'length' },
+  { name: 'panel-padding', ...LAYOUT, kind: 'length' },
   { name: 'expanded-z-index', ...LAYOUT, kind: 'number' },
   { name: 'popup-z-index', ...LAYOUT, kind: 'number' },
   { name: 'record-table-max-h', ...LAYOUT, kind: 'length' },
