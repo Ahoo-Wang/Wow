@@ -240,11 +240,16 @@ describe('the hint in a record table', () => {
       paging: pagedPaging({ index: 1, size: 20, total: 42 }),
     });
 
-  /** What the button shows: its words less the part only a reader hears. */
+  /**
+   * What the button shows, its two lines joined: its words less the part
+   * only a reader hears.
+   */
   const shown = (button: HTMLElement) => {
-    const words = button.querySelector('.truncate')!.cloneNode(true) as Element;
+    const words = button.cloneNode(true) as Element;
     words.querySelector('.sr-only')?.remove();
-    return words.textContent;
+    words.querySelector('svg')?.remove();
+    const label = words.querySelector('[data-slot="summary-offscreen-label"]');
+    return `${label?.textContent ?? ''} ${label?.nextElementSibling?.textContent?.trim() ?? ''}`;
   };
 
   /** The button a query by its whole accessible name finds. */

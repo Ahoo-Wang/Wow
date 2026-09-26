@@ -54,6 +54,36 @@ export const WaybillWideTable: Story = {
     await waitFor(() => expect(readHeaders(table)).toHaveLength(20));
     await waitFor(async () => expect(await total(canvasElement)).toBe(18976));
 
+    // D51 on a table twenty columns wide: each summary row names the
+    // columns it holds out of view, and neither line of it is cut — the
+    // number on its own line, the label above it (second review R1-P1-2:
+    // on one line 「本页 · 件数 总和 86 等 3 项」 did not fit its cell).
+    const hints = await waitFor(() => {
+      const found = [
+        ...table.querySelectorAll<HTMLElement>(
+          'tfoot [data-slot="summary-offscreen"]',
+        ),
+      ];
+      expect(found).toHaveLength(2);
+      return found;
+    });
+    for (const hint of hints) {
+      const value = hint.querySelector<HTMLElement>(
+        '[data-slot="summary-offscreen-value"]',
+      )!;
+      const label = hint.querySelector<HTMLElement>(
+        '[data-slot="summary-offscreen-label"]',
+      )!;
+      await expect(value.textContent).toMatch(/^[\d,]+$/);
+      await expect(value.scrollWidth).toBeLessThanOrEqual(value.clientWidth);
+      await expect(label.scrollWidth).toBeLessThanOrEqual(label.clientWidth);
+      await expect(label.scrollHeight).toBeLessThanOrEqual(label.clientHeight);
+      // Still within the cell it was given: the column is not widened.
+      await expect(hint.getBoundingClientRect().right).toBeLessThanOrEqual(
+        hint.closest('td')!.getBoundingClientRect().right,
+      );
+    }
+
     await userEvent.click(view('在途包裹'));
     await waitFor(async () => expect(await total(canvasElement)).toBe(56));
 
