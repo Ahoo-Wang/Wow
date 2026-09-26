@@ -148,14 +148,17 @@ describe.each(PRESET_NAMES)('preset %s', preset => {
  * owes it lands, the entry has to go (`PENDING` in the registry).
  */
 describe('the pending pairs', () => {
-  it.each(PENDING.map(entry => [entry.preset, entry.mode, entry.pair, entry]))(
-    '%s, %s: %s is still short',
-    (preset, mode, pair) => {
+  // One test over the list rather than one per entry: the list is empty
+  // whenever no batch owes a pair, and an empty table is no test at all.
+  it('are each still short', () => {
+    for (const { preset, mode, pair } of PENDING) {
       const found = measure(preset, mode).find(({ name }) => name === pair);
       expect(found, pair).toBeDefined();
-      expect(found!.ratio).toBeLessThan(found!.line);
-    },
-  );
+      expect(found!.ratio, `${preset} ${mode} ${pair}`).toBeLessThan(
+        found!.line,
+      );
+    }
+  });
 });
 
 /**

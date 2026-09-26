@@ -19,13 +19,28 @@
  *   7:1 (1.4.6), a control's edge and the focus mark at 4.5:1, and a mark
  *   or a filled state at 4.5:1 too. The numbers live in the contrast test
  *   (`PRESET_LINES`), not here.
- * - **Light**: black on white, the quiet grey #3D3D3D, `primary` #0332C7
- *   under white ink. **Dark**: white on black, the quiet grey #C8C8C8,
- *   `primary` #60AEFF under black ink. Both primaries are a step past the
- *   plan's #0040DD and #409CFF: a link in a selected row is written in
- *   `primary`, and on the band those read 6.6:1 and 6.4:1, short of 7.
- *   Cards and popups are the page's own colour, told apart by their
- *   edges, which here read 3:1 too.
+ * - **Light**: black on white, the quiet grey #3D3D3D, `primary` #0021B9
+ *   under white ink. **Dark**: white on black, the quiet grey #DEDEDE,
+ *   `primary` #98D0FF under black ink. The statuses sit a step deeper in
+ *   light (and the dark red a step lighter) so that a badge still reads
+ *   7:1 on the tinted selected row. Cards and popups are the page's own
+ *   colour, told apart by their edges: `card-edge` is the divider grey,
+ *   not the foreground at 10%.
+ * - **What the eye reads first (S11)**: every control's edge 2px
+ *   (`edge-width`), a 2px solid focus outline 2px off the control
+ *   (`focus-*`, no halo, so the gap is the ground and the mark reads on a
+ *   filled button too), a grey header band (#DEDEDE / #161616) in bold
+ *   with the divider between its columns, a selected row tinted blue
+ *   (#D7E5FF / #021738) that the row's checkbox also says, a menu's
+ *   highlighted item filled with the primary under white ink, a toned
+ *   badge edged in its full tone, bold titles and bands, and a hovered or
+ *   pressed control a clear step darker (black 10% / 18%).
+ * - **The dark control wash** (`bg-input/30`) is what set the dark edge,
+ *   ring and quiet grey: on the header band, the selected row and the
+ *   sidebar the edge reads 5.25, the ring 5.22 and the quiet grey 7.61.
+ *   A brand's dark ring is held at 0.83 and above and its dark chroma at
+ *   0.12 and below for the same wash: a saturated magenta clipped back to
+ *   sRGB loses light and read 4.3 there.
  * - **Patterns over the chart series are on** (`--fvp-chart-patterns: on`,
  *   the optional pattern group): a series here is never told by colour
  *   alone. It is the one built-in preset that sets it; a host that pins
@@ -46,7 +61,7 @@
   --fvp-foreground: oklch(0 0 0deg);
   --fvp-card-foreground: oklch(0 0 0deg);
   --fvp-popover-foreground: oklch(0 0 0deg);
-  --fvp-primary: oklch(0.42 0.23 264deg);
+  --fvp-primary: oklch(0.38 0.23 264deg);
   --fvp-primary-foreground: oklch(1 0 0deg);
   --fvp-secondary: oklch(0.94 0 0deg);
   --fvp-secondary-foreground: oklch(0 0 0deg);
@@ -59,14 +74,14 @@
   --fvp-sidebar-accent: oklch(0.9 0 0deg);
   --fvp-sidebar-accent-foreground: oklch(0 0 0deg);
   --fvp-sidebar-border: oklch(0.45 0 0deg);
-  --fvp-destructive: oklch(0.4 0.16 27deg);
+  --fvp-destructive: oklch(0.36 0.15 27deg);
   --fvp-destructive-foreground: oklch(1 0 0deg);
-  --fvp-success: oklch(0.38 0.1 150deg);
-  --fvp-warning: oklch(0.4 0.1 50deg);
+  --fvp-success: oklch(0.34 0.09 150deg);
+  --fvp-warning: oklch(0.36 0.09 50deg);
   --fvp-border: oklch(0.56 0 0deg);
   --fvp-quiet-foreground: oklch(0.36 0 0deg);
   --fvp-input: oklch(0.42 0 0deg);
-  --fvp-ring: oklch(0.42 0.23 264deg);
+  --fvp-ring: oklch(0.38 0.23 264deg);
   --fvp-radius: 0.25rem;
   --fvp-dark-background: oklch(0 0 0deg);
   --fvp-dark-foreground: oklch(1 0 0deg);
@@ -74,26 +89,26 @@
   --fvp-dark-card-foreground: oklch(1 0 0deg);
   --fvp-dark-popover: oklch(0 0 0deg);
   --fvp-dark-popover-foreground: oklch(1 0 0deg);
-  --fvp-dark-primary: oklch(0.74 0.15 253deg);
+  --fvp-dark-primary: oklch(0.84 0.1 250deg);
   --fvp-dark-primary-foreground: oklch(0 0 0deg);
   --fvp-dark-secondary: oklch(0.25 0 0deg);
   --fvp-dark-secondary-foreground: oklch(1 0 0deg);
   --fvp-dark-muted: oklch(0.2 0 0deg);
-  --fvp-dark-muted-foreground: oklch(0.8328 0 0deg);
+  --fvp-dark-muted-foreground: oklch(0.9 0 0deg);
   --fvp-dark-accent: oklch(0.27 0 0deg);
   --fvp-dark-accent-foreground: oklch(1 0 0deg);
-  --fvp-dark-sidebar: oklch(0.16 0 0deg);
+  --fvp-dark-sidebar: oklch(0.12 0 0deg);
   --fvp-dark-sidebar-foreground: oklch(1 0 0deg);
   --fvp-dark-sidebar-accent: oklch(0.28 0 0deg);
   --fvp-dark-sidebar-accent-foreground: oklch(1 0 0deg);
   --fvp-dark-sidebar-border: oklch(0.62 0 0deg);
-  --fvp-dark-destructive: oklch(0.82 0.15 22deg);
+  --fvp-dark-destructive: oklch(0.85 0.14 22deg);
   --fvp-dark-success: oklch(0.86 0.15 150deg);
   --fvp-dark-warning: oklch(0.88 0.15 85deg);
   --fvp-dark-border: oklch(0.55 0 0deg);
-  --fvp-dark-quiet-foreground: oklch(0.8328 0 0deg);
-  --fvp-dark-input: oklch(0.72 0 0deg);
-  --fvp-dark-ring: oklch(0.74 0.15 253deg);
+  --fvp-dark-quiet-foreground: oklch(0.9 0 0deg);
+  --fvp-dark-input: oklch(0.84 0 0deg);
+  --fvp-dark-ring: oklch(0.84 0.1 250deg);
   --fvp-chart-1: oklch(0.5196 0.1943 261.461deg);
   --fvp-chart-2: oklch(0.5555 0.1573 45.564deg);
   --fvp-chart-3: oklch(0.5268 0.0933 184.109deg);
@@ -117,20 +132,51 @@
   --fvp-dark-shadow-md: 0 0 0 0 oklch(0 0 0deg / 0%);
   --fvp-dark-shadow-lg: 0 0 0 0 oklch(0 0 0deg / 0%);
   --fvp-chart-patterns: on;
+  --fvp-card-edge: oklch(0.56 0 0deg);
+  --fvp-dark-card-edge: oklch(0.55 0 0deg);
+  --fvp-table-header: oklch(0.9 0 0deg);
+  --fvp-dark-table-header: oklch(0.2 0 0deg);
+  --fvp-table-header-weight: 700;
+  --fvp-table-header-divider: oklch(0.56 0 0deg);
+  --fvp-dark-table-header-divider: oklch(0.55 0 0deg);
+  --fvp-totals: oklch(0.935 0 0deg);
+  --fvp-dark-totals: oklch(0.22 0 0deg);
+  --fvp-row-selected: oklch(0.92 0.04 264deg);
+  --fvp-dark-row-selected: oklch(0.21 0.07 258deg);
+  --fvp-row-hover: oklch(0.955 0 0deg);
+  --fvp-dark-row-hover: oklch(0.2 0 0deg);
+  --fvp-highlight: oklch(0.38 0.23 264deg);
+  --fvp-highlight-foreground: oklch(1 0 0deg);
+  --fvp-dark-highlight: oklch(0.8 0.13 253deg);
+  --fvp-dark-highlight-foreground: oklch(0 0 0deg);
+  --fvp-control-hover: oklch(0 0 0deg / 10%);
+  --fvp-dark-control-hover: oklch(1 0 0deg / 16%);
+  --fvp-control-pressed: oklch(0 0 0deg / 18%);
+  --fvp-dark-control-pressed: oklch(1 0 0deg / 26%);
+  --fvp-focus-width: 2px;
+  --fvp-focus-offset: 2px;
+  --fvp-focus-style: solid;
+  --fvp-focus-halo: oklch(0 0 0deg / 0%);
+  --fvp-dark-focus-halo: oklch(0 0 0deg / 0%);
+  --fvp-edge-width: 2px;
+  --fvp-badge-edge: 100%;
+  --fvp-title-weight: 700;
+  --fvp-strong-weight: 700;
   --fvp-brand-l-min: 0.25;
   --fvp-brand-l-max: 0.36;
   --fvp-dark-brand-l-min: 0.8;
   --fvp-dark-brand-l-max: 0.9;
   --fvp-brand-ring-l-min: 0.25;
   --fvp-brand-ring-l-max: 0.36;
-  --fvp-dark-brand-ring-l-min: 0.8;
+  --fvp-dark-brand-ring-l-min: 0.83;
+  --fvp-dark-brand-c-max: 0.12;
   --fvp-dark-brand-ring-l-max: 0.9;
   --fvp-brand-accent-lc: 0.93 0.02;
   --fvp-brand-sidebar-accent-lc: 0.9 0.03;
-  --fvp-brand-row-selected-lc: 0.96 0.02;
+  --fvp-brand-row-selected-lc: 0.92 0.04;
   --fvp-dark-brand-accent-lc: 0.27 0.03;
   --fvp-dark-brand-sidebar-accent-lc: 0.28 0.03;
-  --fvp-dark-brand-row-selected-lc: 0.2 0.03;
+  --fvp-dark-brand-row-selected-lc: 0.21 0.07;
   --fvp-brand-chart-1-lc: 0.5196 0.1943;
   --fvp-dark-brand-chart-1-lc: 0.7538 0.1309;
 }

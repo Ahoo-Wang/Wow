@@ -123,14 +123,13 @@
 
 - **按方案逐批做**（[theme-architecture.md](theme-architecture.md) 第 9 节，裁定 [D46](decisions.md#d46-主题架构重构五条结构一张登记表2026-09-25)）；每批的完整判据以方案为准，这里只列线索：
   - 为什么：首发前把主题的结构一次改到位（品牌是输入、三层、角色、登记表、图表读角色）；本包在 `HELD_BACK`，不欠兼容。
-  - S1 登记表已合并（#3476），S2 三层（含控制台的 G16：宿主 Tailwind 与引擎样式的先后，#3518）、S3 角色（theme-architecture.md 4.8，#3528）、S4 品牌是输入（2.7，#3533；`brand` 预设删掉）、S5 图表读角色（6.7，#3536）、S9 porcelain 重调（9.1）与 S8 azure 重调（9.2）已完成，两批报出的机制缺口也已修（9.3）；首发收敛为四套预设（`neutral`、`azure`、`porcelain`、`contrast`；2026-09-25 删掉 `slate`、`graphite`、`fjord`）。
+  - S1 登记表已合并（#3476），S2 三层（含控制台的 G16：宿主 Tailwind 与引擎样式的先后，#3518）、S3 角色（theme-architecture.md 4.8，#3528）、S4 品牌是输入（2.7，#3533；`brand` 预设删掉）、S5 图表读角色（6.7，#3536）、S9 porcelain 重调（9.1）、S8 azure 重调（9.2）与 S11 contrast 重调（9.4）已完成，S8、S9 报出的机制缺口也已修（9.3）；首发收敛为四套预设（`neutral`、`azure`、`porcelain`、`contrast`；2026-09-25 删掉 `slate`、`graphite`、`fjord`）。
   - 结构批：S6 宿主文档与样板（主题指南按三层、角色重写，`acme.css` 改用 `--fve-brand`）→ S7 theme-check。
-  - 重调批（S3、S5 之后）：S11 contrast（S8、S9 已完成）；S10、S12、S13 随预设删掉取消。
   - 两次重调报出的机制缺口已在机制批修了（theme-architecture.md 9.3）：角色的**链接**（`<role>-link`，在面上解析，随品牌色与宿主的 `--fve-primary`）、侧栏当前项的边与浮起、菜单与选择框的已选项、描边按钮悬停的边与字、看板筛选芯片的高度（`filter-height`）；azure、porcelain 已用上。剩下的：
     - porcelain 暗色的菜单高亮链了主色后是 `#5AAEFF` 配深字，不再是 `#0058D0` 配白字——面上没有「暗色下更深一档的品牌色」，要两全得加一个角色或派生（9.3）。
     - 看板筛选芯片里打字的框必有 `input` 边（S9 的第二条）：要无边须先论证填色本身能当边界，再给配方一个角色。
     - 角色截图「提示框」（`ThemeRoles.test.stories.tsx` 的 `TooltipChip`）钉 neutral，却截到故事外壳顶栏的提示框（在 `<html>` 的预设下），应改截面内的触发器。
-  - 重调批还要还登记表 `PENDING` 里的缺口（`src/ui/theme/pairs.ts`，2026-09-25 Storybook 默认 `porcelain` 时补对查出）：S11 contrast 暗色表头带上复选框的边 4.13、焦点 4.40 与侧栏控件底上的弱字 6.74。S3 把表头带与选中行拆成两块底，这几条因此各记在 `header band` 与 `selected row` 两个名字上。修好一条删一条，两个对比度套件都守着它仍不达标。
+  - S11 查出的机制缺口（theme-architecture.md 9.4，没有给 contrast 开特例）：引擎自己的三个焦点配方（`FOCUS_ROW`、`FOCUS_CARD`、`FOCUS_INSET`：表格行、记录卡片、看板面板的滚动体）不读 `focus-width`／`focus-offset`，是 1px `ring` 加 `focus-halo`，而光晕是控件轮廓与控件之间的那道间隔、不能同时当行的粗边——contrast 的这三处因此是 1px；选中行没有颜色以外的标记角色（左侧色条或加粗的边），今天靠行里勾上的复选框；contrast 的菜单高亮没用 9.3 的链接，仍是字面值、不跟品牌色（要跟时加 `highlight-link`）。登记表 `PENDING` 已清空（S11 还清 contrast 暗色的六条），机制留着给以后的重调批。
   - 判据：S1～S7 每批全部截图逐像素相同（只有方案里明说的例外）；重调批只改它那一套的基线，PR 里并排给出改前改后。
   - 落点：[theme-architecture.md](theme-architecture.md)；做完一批删一行，全部落地后并入 [themes.md](themes.md) 与 [ui/README.md#主题弹层与明暗](ui/README.md#主题弹层与明暗)，删掉方案页与这一条。
 
