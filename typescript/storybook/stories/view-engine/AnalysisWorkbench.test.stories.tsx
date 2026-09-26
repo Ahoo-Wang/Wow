@@ -34,6 +34,7 @@ import displayMeta, {
   HorizontalBars as DisplayHorizontalBars,
   PieChart as DisplayPieChart,
   PinnedCategoryColor as DisplayPinnedCategoryColor,
+  ToneCategoryColor as DisplayToneCategoryColor,
   QueryFailed as DisplayQueryFailed,
   TableWithTotals as DisplayTableWithTotals,
   TenCities as DisplayTenCities,
@@ -46,7 +47,7 @@ import displayMeta, {
   Loading as DisplayLoading,
   LoadingChart as DisplayLoadingChart,
 } from './AnalysisWorkbench.stories.js';
-import { converter } from 'culori';
+import { converter, formatRgb, parse } from 'culori';
 import { aggregateCalls } from './fixtures.js';
 import {
   amountOf,
@@ -1461,6 +1462,30 @@ export const PinnedCategoryColor: Story = {
     });
     for (const slice of others)
       await expect(slice.fill).not.toBe('rgb(124, 58, 237)');
+  },
+};
+
+/**
+ * 每一片穿它选项语气的颜色，与状态徽标同一个角色色（W9）：已取消是
+ * `--destructive`、已发运 `--success`、待出库 `--warning`，从图所在的面读出来，
+ * 与图拿到的颜色同一种写法比。
+ */
+export const ToneCategoryColor: Story = {
+  ...DisplayToneCategoryColor,
+  play: async ({ canvasElement }) => {
+    await chartsDrawn(canvasElement);
+    await waitFor(() => expect(slices(canvasElement)).toHaveLength(3));
+    const chart = canvasElement.querySelector('[data-slot="chart"]')!;
+    const role = (name: string) =>
+      formatRgb(parse(getComputedStyle(chart).getPropertyValue(name).trim())!);
+    const fills = Object.fromEntries(
+      slices(canvasElement).map(slice => [slice.name, slice.fill]),
+    );
+    await expect(fills).toEqual({
+      待出库: role('--warning'),
+      已发运: role('--success'),
+      已取消: role('--destructive'),
+    });
   },
 };
 

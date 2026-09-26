@@ -12,7 +12,11 @@
  */
 
 import { isChartColor } from '../../analysis/index.js';
-import { CHART_COLOR_SLOTS, type ChartSpec } from '../../model/index.js';
+import {
+  CHART_COLOR_SLOTS,
+  type ChartSpec,
+  type FieldTone,
+} from '../../model/index.js';
 
 /**
  * The theme's categorical slots, `--chart-1` to `--chart-8`, in the fixed
@@ -60,9 +64,38 @@ export function colorOf(
   index: number,
   ...keys: string[]
 ): string {
+  return pinnedColor(spec, ...keys) ?? color(index);
+}
+
+/** The colour the spec pinned for the first of `keys` that names one. */
+export function pinnedColor(
+  spec: ChartSpec | undefined,
+  ...keys: string[]
+): string | undefined {
   for (const key of keys) {
     const configured = spec?.colors?.[key];
     if (isChartColor(configured)) return configured;
   }
-  return color(index);
+  return undefined;
+}
+
+/**
+ * What a category's tone paints on a chart: the same role colour its badge
+ * is tinted with (`ToneBadge`), so 「不可恢复」 is the danger colour in the
+ * table and on the pie alike. `neutral` says nothing about good or bad news
+ * and has no colour of its own — a badge draws it grey, and on a chart grey
+ * is the merged remainder's (`OTHER_COLOR`) — so it takes a slot, as a
+ * category with no tone does.
+ */
+const TONE_COLORS: Readonly<Record<Exclude<FieldTone, 'neutral'>, string>> = {
+  success: 'var(--success)',
+  warning: 'var(--warning)',
+  danger: 'var(--destructive)',
+};
+
+/** The role colour a tone paints with; `undefined` for none or neutral. */
+export function toneColor(tone: FieldTone | undefined): string | undefined {
+  return tone === undefined || tone === 'neutral'
+    ? undefined
+    : TONE_COLORS[tone];
 }

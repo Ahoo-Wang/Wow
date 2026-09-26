@@ -14,6 +14,7 @@
 import { useCallback, useMemo } from 'react';
 import { valueLabelsOn, type PieData } from '../../analysis/index.js';
 import { pointAnchor } from '../analysis/DrillMenu.js';
+import { AnalysisEmpty } from '../analysis/EmptyResult.js';
 import { useViewMessages } from '../MessagesProvider.js';
 import { useSurfaceDisplay } from '../ViewSurface.js';
 import { formatShare } from './axis.js';
@@ -54,6 +55,7 @@ export function PieSlices({
   label,
   column,
   seriesName,
+  toneOf,
   adds,
   name,
   onPick,
@@ -94,6 +96,7 @@ export function PieSlices({
             spec,
             label,
             seriesName,
+            toneOf,
             locale,
             other,
             total,
@@ -110,6 +113,7 @@ export function PieSlices({
       spec,
       label,
       seriesName,
+      toneOf,
       locale,
       other,
       total,
@@ -120,8 +124,8 @@ export function PieSlices({
     ],
   );
   const slices = useMemo(
-    () => drawnSlices(data, { spec, label, other, seriesName }),
-    [data, spec, label, other, seriesName],
+    () => drawnSlices(data, { spec, label, other, seriesName, toneOf }),
+    [data, spec, label, other, seriesName, toneOf],
   );
   const donut = spec?.pie?.donut === true;
   // Whether the plot has room for the labels, whole (`pieFit`).
@@ -174,6 +178,9 @@ export function PieSlices({
       : { value: formatShare(slice.share, locale) }),
   }));
   const measure = column(measured);
+  // No slice is no pie: the library drew a grey ring, and the legend its
+  // lead alone. A result of no groups says so wherever the pie is drawn.
+  if (data.slices.length === 0) return <AnalysisEmpty />;
   return (
     <EChart
       name={name}

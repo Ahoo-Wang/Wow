@@ -19,8 +19,8 @@ import {
 } from '../../analysis/index.js';
 import type { ChartSpec } from '../../model/index.js';
 import { formatShare } from './axis.js';
-import type { SeriesName, ValueLabel } from './family.js';
-import { OTHER_COLOR, colorOf } from './palette.js';
+import type { SeriesName, ToneOf, ValueLabel } from './family.js';
+import { OTHER_COLOR, color, pinnedColor, toneColor } from './palette.js';
 import {
   CHART_FALLBACK,
   chartText,
@@ -38,6 +38,8 @@ export interface PieContext {
    * yes/no field; left out, its category as its column reads it.
    */
   seriesName?: SeriesName;
+  /** The tone a category's option gives it (`useToneOf`). */
+  toneOf?: ToneOf;
   locale?: string;
   /** The merged remainder's name, 「其他」. */
   other: string;
@@ -56,7 +58,10 @@ export interface DrawnSlice {
   value: number;
   /** Its part of the whole, or nothing: a negative value has no share. */
   share?: number;
-  /** A CSS colour: the category's slot, the one pinned, or the grey of 「其他」. */
+  /**
+   * A CSS colour: the one pinned, the category's tone, its slot, or the
+   * grey of 「其他」.
+   */
   color: string;
 }
 
@@ -75,6 +80,13 @@ export const LABELLED_SHARE = 0.03;
  * `groupKeyText` — the spelling a split series is keyed by, so one key
  * colours a category in either chart; the merged remainder is no category
  * anyone could colour, so it is the neutral whatever the spec says.
+ *
+ * A category whose option names a tone wears the tone's role colour
+ * (`toneColor`) — 「不可恢复」 red, 「已成功」 green, as their badges are —
+ * unless the analyst pinned another. Two categories sharing a tone would
+ * then be one colour, and a pie is read by telling its slices apart, so a
+ * tone paints only the one category that holds it; the others take their
+ * slots, as a category without a tone does.
  */
 export function drawnSlices(
   data: PieData,
@@ -83,9 +95,18 @@ export function drawnSlices(
     label,
     other,
     seriesName = label,
-  }: Pick<PieContext, 'spec' | 'label' | 'other' | 'seriesName'>,
+    toneOf,
+  }: Pick<PieContext, 'spec' | 'label' | 'other' | 'seriesName' | 'toneOf'>,
 ): DrawnSlice[] {
   const whole = wholeOf(data);
+  const category = spec?.pie?.category;
+  const tones = data.slices.map(slice =>
+    slice.other === true
+      ? undefined
+      : toneColor(toneOf?.(category, slice.category)),
+  );
+  const held = (tone: string | undefined) =>
+    tone !== undefined && tones.filter(each => each === tone).length === 1;
   return data.slices.map((slice, index) => ({
     key: `p${index}`,
     name:
@@ -97,7 +118,9 @@ export function drawnSlices(
     color:
       slice.other === true
         ? OTHER_COLOR
-        : colorOf(spec, index, groupKeyText(slice.category)),
+        : (pinnedColor(spec, groupKeyText(slice.category)) ??
+          (held(tones[index]) ? tones[index] : undefined) ??
+          color(index)),
   }));
 }
 

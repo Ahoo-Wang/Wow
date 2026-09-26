@@ -55,6 +55,7 @@ import {
 } from './press.js';
 import { AnalysisChart } from '../AnalysisChart.js';
 import { AnalysisTable } from '../AnalysisTable.js';
+import { AnalysisEmpty, emptyWithoutGroups } from '../analysis/EmptyResult.js';
 import { RecordTable } from '../RecordTable.js';
 import { RecordPagination } from '../RecordPagination.js';
 import { BulkStatus } from '../BulkStatus.js';
@@ -317,8 +318,15 @@ export function AnalysisPanel({
   if (failed && !view)
     return <PanelFailed error={state.query.error} onRetry={onRetry} />;
   if (!view) return <PanelLoading />;
+  // A chart of no groups says so, in the table's words (`AnalysisEmpty`),
+  // as the workbench and an embedded analysis do.
   const body =
-    analysis.layout === 'chart' && chartData ? (
+    analysis.layout === 'chart' &&
+    chartData &&
+    view.rows.length === 0 &&
+    emptyWithoutGroups(chartData) ? (
+      <AnalysisEmpty />
+    ) : analysis.layout === 'chart' && chartData ? (
       <AnalysisChart
         data={chartData}
         spec={chart}

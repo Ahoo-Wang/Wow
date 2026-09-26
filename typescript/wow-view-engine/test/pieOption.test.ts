@@ -93,6 +93,59 @@ describe('drawnSlices', () => {
       'var(--muted-foreground)',
     ]);
   });
+
+  /**
+   * The console's recoverability pie drew 「不可恢复」 green: the slots were
+   * handed out in order, whatever the option's tone said (W9).
+   */
+  it("paints a toned category in its tone's role colour, as its badge", () => {
+    const tones: Record<string, 'success' | 'danger' | 'neutral'> = {
+      CN: 'danger',
+      JP: 'success',
+      KR: 'neutral',
+    };
+    const slices = drawnSlices(
+      data,
+      context({
+        toneOf: (alias, value) =>
+          alias === 'country' ? tones[String(value)] : undefined,
+      }),
+    );
+    expect(slices.map(slice => slice.color)).toEqual([
+      'var(--destructive)',
+      'var(--success)',
+      // Neutral says nothing, and grey is the remainder's: a slot.
+      'var(--chart-3)',
+      'var(--muted-foreground)',
+    ]);
+  });
+
+  it('keeps a pinned colour, and slots for categories sharing a tone', () => {
+    const slices = drawnSlices(
+      data,
+      context({
+        spec: spec({}),
+        toneOf: (_alias, value) =>
+          value === 'KR' ? 'warning' : value === null ? undefined : 'danger',
+      }),
+    );
+    // Two dangers would be one colour, and a pie is read by telling its
+    // slices apart: the tone paints only a category that holds it alone.
+    expect(slices.map(slice => slice.color)).toEqual([
+      'var(--chart-1)',
+      'var(--chart-2)',
+      'var(--warning)',
+      'var(--muted-foreground)',
+    ]);
+    const pinned = drawnSlices(
+      data,
+      context({
+        spec: { ...spec(), colors: { KR: '#123456' } },
+        toneOf: (_alias, value) => (value === 'KR' ? 'warning' : undefined),
+      }),
+    );
+    expect(pinned[2].color).toBe('#123456');
+  });
 });
 
 describe('pieOption', () => {

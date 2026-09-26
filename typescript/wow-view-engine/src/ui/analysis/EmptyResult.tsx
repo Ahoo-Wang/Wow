@@ -12,6 +12,7 @@
  */
 
 import { SigmaIcon } from 'lucide-react';
+import type { ChartData } from '../../analysis/index.js';
 import { Button } from '../components/button.js';
 import {
   Empty,
@@ -106,3 +107,15 @@ const ACTION: Record<Exclude<EmptyWayOut, 'add'>, MessageKey> = {
   clear: 'label.analysis.empty-clear',
   edit: 'label.analysis.empty-edit',
 };
+
+/**
+ * Whether a chart of a result with no groups is the empty state rather than
+ * a drawing. Every family that draws a mark per group has nothing to draw,
+ * and drew a drawing of nothing instead — a pie a grey ring beside a legend
+ * that named only the measure, a bar chart a pair of bare axes. The metric
+ * card and the gauge read one number, and a missing one is their 「—」: a
+ * board's count of zero records is an answer, not an empty range.
+ */
+export function emptyWithoutGroups(chart: ChartData): boolean {
+  return chart.type !== 'metric' && chart.type !== 'gauge';
+}

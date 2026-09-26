@@ -265,9 +265,10 @@ export const TOKENS = [
   { name: 'sidebar-accent', ...SHADCN, brand: true },
   { name: 'sidebar-accent-foreground', ...SHADCN },
   { name: 'sidebar-border', ...SHADCN },
-  { name: 'destructive', ...OWN },
-  { name: 'success', ...OWN },
-  { name: 'warning', ...OWN },
+  // A category's tone paints its slice in these (`charts/palette.ts`).
+  { name: 'destructive', ...OWN, chart: true },
+  { name: 'success', ...OWN, chart: true },
+  { name: 'warning', ...OWN, chart: true },
   { name: 'border', ...SHADCN },
   { name: 'input', ...OWN },
   { name: 'ring', ...OWN, brand: true },
