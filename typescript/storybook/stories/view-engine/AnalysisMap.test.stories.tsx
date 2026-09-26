@@ -388,8 +388,8 @@ export const ChinaProvinceRecords: Story = {
 
 /**
  * 按下广东，「按其他维度细分…」→「渠道」：同一个问题只问广东、按渠道分。
- * 只量范围（标题、「正在显示」的条件、读屏表里的渠道）；细分后的图型不在
- * 这里断言。
+ * 渠道不是地图上的地区，所以细分画成按渠道的柱（这个形状读得最好的图），
+ * 而不是一张什么都没画上的地图。
  */
 export const ChinaProvinceSplit: Story = {
   name: '中国省级（合成地图）：按其他维度细分',
@@ -438,6 +438,12 @@ export const ChinaProvinceSplit: Story = {
         ['PC 商城', '分销', '微信小程序', '直播间', '自有 App'].sort(),
       ),
     );
+    await waitFor(() => {
+      expect(mapFrame(canvasElement)).toBeNull();
+      expect(
+        canvasElement.querySelector('[data-slot="chart"]'),
+      ).toHaveAttribute('data-chart', 'bar');
+    });
   },
 };
 

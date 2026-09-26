@@ -608,6 +608,146 @@ describe('splitBy', () => {
       cartesian: { x: 'status_group', series: [{ metric: 'orders' }] },
     });
   });
+
+  const province: AnalysisGroup = {
+    type: 'TERMS',
+    field: 'province',
+    alias: 'province',
+  };
+  const gmv = {
+    alias: 'gmv',
+    type: 'NUMERIC',
+    function: 'SUM',
+    expression: { type: 'FIELD', field: 'amount' },
+  } as const;
+  const byProvince = analysisConfig({
+    groups: [province],
+    metrics: [{ alias: 'orders', type: 'COUNT' }, gmv],
+    chart: {
+      type: 'map',
+      map: { region: 'province', value: 'gmv', map: 'china' },
+    },
+  });
+
+  /**
+   * A map's regions are names its geography has areas for: a province
+   * split by status is not a map of statuses. The split draws what a result
+   * by status reads best as — bars — as picking bars in the picker would:
+   * a family never drawn draws every metric.
+   */
+  it('draws a map split by another dimension as the chart that fits it', () => {
+    const patch = splitBy(byProvince, ROW, status);
+
+    expect(patch.chart.type).toBe('bar');
+    expect(patch.chart.cartesian).toEqual({
+      x: 'status_group',
+      series: [{ metric: 'orders' }, { metric: 'gmv' }],
+    });
+    // The host's map stays in the spec for a switch back.
+    expect(patch.chart.map?.map).toBe('china');
+  });
+
+  it('keeps the map when the split is by the field it shades', () => {
+    const other: AnalysisGroup = { ...province, alias: 'province_group' };
+
+    const patch = splitBy(byProvince, ROW, other);
+
+    expect(patch.chart).toEqual({
+      type: 'map',
+      map: { region: 'province_group', value: 'gmv', map: 'china' },
+    });
+  });
+
+  /** A split over time reads best as a line, as a new result of that shape. */
+  it('draws a map split by a date as a line', () => {
+    const daily: AnalysisGroup = {
+      type: 'DATE_HISTOGRAM',
+      field: 'createdAt',
+      alias: 'day',
+      unit: 'DAY',
+    };
+
+    const patch = splitBy(byProvince, ROW, daily);
+
+    expect(patch.chart.type).toBe('line');
+    expect(patch.chart.cartesian?.x).toBe('day');
+    expect(patch.chart.cartesian?.series).toContainEqual({ metric: 'gmv' });
+  });
+
+  /** A funnel's stages are the old dimension's values in their order. */
+  it('draws a funnel of stages split by another dimension as bars', () => {
+    const config = analysisConfig({
+      groups: [{ type: 'TERMS', field: 'stage', alias: 'stage' }],
+      chart: {
+        type: 'funnel',
+        funnel: {
+          stages: {
+            from: 'group',
+            category: 'stage',
+            value: 'orders',
+            order: ['visited', 'carted', 'paid'],
+          },
+        },
+      },
+    });
+
+    const patch = splitBy(config, ROW, status);
+
+    expect(patch.chart.type).toBe('bar');
+    expect(patch.chart.cartesian?.x).toBe('status_group');
+  });
+
+  /** A calendar needs days, a candlestick a date: neither takes a status. */
+  it('draws a calendar or a candlestick split by a category as bars', () => {
+    const daily: AnalysisGroup = {
+      type: 'DATE_HISTOGRAM',
+      field: 'createdAt',
+      alias: 'day',
+      unit: 'DAY',
+    };
+    const calendar = analysisConfig({
+      groups: [daily],
+      metrics: [gmv],
+      chart: { type: 'calendar', calendar: { date: 'day', value: 'gmv' } },
+    });
+    const candlestick = analysisConfig({
+      groups: [daily],
+      metrics: [gmv],
+      chart: { type: 'candlestick' },
+    });
+
+    expect(splitBy(calendar, ROW, status).chart.type).toBe('bar');
+    expect(splitBy(candlestick, ROW, status).chart.type).toBe('bar');
+  });
+
+  /** A calendar split by another day field still has its days. */
+  it('keeps a calendar split by another day', () => {
+    const calendar = analysisConfig({
+      groups: [
+        {
+          type: 'DATE_HISTOGRAM',
+          field: 'createdAt',
+          alias: 'day',
+          unit: 'DAY',
+        },
+      ],
+      metrics: [gmv],
+      chart: { type: 'calendar', calendar: { date: 'day', value: 'gmv' } },
+    });
+    const shipped: AnalysisGroup = {
+      type: 'DATE_HISTOGRAM',
+      field: 'shippedAt',
+      alias: 'shipped_day',
+      unit: 'DAY',
+    };
+
+    const patch = splitBy(calendar, ROW, shipped);
+
+    expect(patch.chart).toEqual({
+      type: 'calendar',
+      calendar: { date: 'shipped_day', value: 'gmv' },
+    });
+  });
 });
 
 describe('groupFor', () => {
