@@ -67,6 +67,7 @@ function AnalysisWorkbenchDemo({
   labels = false,
   heatmap = false,
   horizontal = false,
+  toned = false,
 }: {
   behaviour?: SourceBehaviour;
   layout?: 'table' | 'chart';
@@ -137,6 +138,11 @@ function AnalysisWorkbenchDemo({
   heatmap?: boolean;
   /** Whether a cartesian chart lies on its side, the numbers running right. */
   horizontal?: boolean;
+  /**
+   * 按状态分的饼：状态的选项写了语气（待出库 warning、已发运 success、已取消
+   * danger），每一片穿它语气的颜色，与表格里的状态徽标同色。
+   */
+  toned?: boolean;
 }) {
   const { groups, metrics } = analysisConfig();
   const fitted = fitChartSlots({ type: chart }, groups, metrics);
@@ -202,23 +208,25 @@ function AnalysisWorkbenchDemo({
   });
   const config = heatmap
     ? heatmapConfig(layout, labels)
-    : latest
-      ? latestConfig(layout)
-      : savedFunnel
-        ? {
-            ...saved,
-            chart: {
-              type: 'funnel' as const,
-              funnel: {
-                stages: {
-                  from: 'group' as const,
-                  category: 'warehouse',
-                  ...savedFunnel,
+    : toned
+      ? statusPieConfig(layout)
+      : latest
+        ? latestConfig(layout)
+        : savedFunnel
+          ? {
+              ...saved,
+              chart: {
+                type: 'funnel' as const,
+                funnel: {
+                  stages: {
+                    from: 'group' as const,
+                    category: 'warehouse',
+                    ...savedFunnel,
+                  },
                 },
               },
-            },
-          }
-        : saved;
+            }
+          : saved;
 
   if (failures) {
     const view = failedEventsView(failuresScene(failures));
@@ -309,6 +317,24 @@ function AnalysisWorkbenchDemo({
       )}
     </StoryEngine>
   );
+}
+
+/** Orders by status, as a pie whose slices wear the options' tones. */
+function statusPieConfig(layout: 'table' | 'chart') {
+  const groups = [
+    { alias: 'status', field: 'status', type: 'TERMS' },
+  ] satisfies AnalysisViewConfig['groups'];
+  const metrics = [
+    { alias: 'orders', type: 'COUNT' },
+  ] satisfies AnalysisViewConfig['metrics'];
+  return analysisConfig({
+    layout,
+    groups,
+    metrics,
+    sort: [{ alias: 'orders', direction: SortDirection.DESC }],
+    table: { columns: [] },
+    chart: fitChartSlots({ type: 'pie' }, groups, metrics),
+  });
 }
 
 /** Orders by warehouse and status, as a heatmap. */
@@ -684,6 +710,15 @@ export const PieChart: Story = { args: { layout: 'chart', chart: 'pie' } };
  */
 export const PinnedCategoryColor: Story = {
   args: { layout: 'chart', chart: 'pie', pinned: true },
+};
+
+/**
+ * 状态的选项写了语气：「已取消」是 danger、「已发运」是 success、「待出库」是
+ * warning，饼的每一片就穿那个语气的颜色，与表格里的状态徽标一致；没写语气的
+ * 类别仍按调色板取色（补偿控制台走查 W9：「不可恢复」曾是绿色）。
+ */
+export const ToneCategoryColor: Story = {
+  args: { layout: 'chart', toned: true },
 };
 
 /**

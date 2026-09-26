@@ -13,7 +13,12 @@
 
 import { useMemo } from 'react';
 import type { AnalysisColumnView } from '../../analysis/index.js';
-import type { ChartSpec, FunnelStages, RecordData } from '../../model/index.js';
+import type {
+  ChartSpec,
+  FieldTone,
+  FunnelStages,
+  RecordData,
+} from '../../model/index.js';
 import { bandText } from '../band.js';
 import {
   columnTitle,
@@ -117,6 +122,12 @@ export interface FamilyProps<D> {
    * (`useSeriesName`); left out, the value as its column reads it.
    */
   seriesName?: SeriesName;
+  /**
+   * The tone the definition gave a group value (`FieldOption.tone`,
+   * `useToneOf`): a family that colours by category paints a toned one in
+   * its role colour, as its badge is (`toneColor`).
+   */
+  toneOf?: ToneOf;
   /**
    * The series the reader switched off in the legend, by key — a family
    * with a legend of series draws them nowhere else (`CartesianContext`).
@@ -287,4 +298,29 @@ export function stageName(
   if (stages?.from === 'group') return label(stages.category, projected);
   const item = stages?.items[index];
   return item?.label ?? column(item?.metric) ?? projected;
+}
+
+/** The tone a column's option gives a value; `undefined` when none does. */
+export type ToneOf = (
+  alias: string | undefined,
+  value: unknown,
+) => FieldTone | undefined;
+
+/**
+ * The tones of the group columns' options, read as the badge reads them: the
+ * option whose value is the group's (`FieldOption.tone`).
+ */
+export function useToneOf(
+  columns: readonly AnalysisColumnView[] | undefined,
+): ToneOf {
+  return useMemo(() => {
+    const byAlias = new Map(
+      (columns ?? []).map(column => [column.alias, column]),
+    );
+    return (alias, value) =>
+      alias === undefined
+        ? undefined
+        : byAlias.get(alias)?.options?.find(option => option.value === value)
+            ?.tone;
+  }, [columns]);
 }

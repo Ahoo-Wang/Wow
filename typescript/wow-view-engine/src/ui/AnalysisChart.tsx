@@ -27,6 +27,7 @@ import {
   useFilledNote,
   useColumnTitle,
   useSeriesName,
+  useToneOf,
   useValueLabel,
   type OnPick,
 } from './charts/family.js';
@@ -122,6 +123,7 @@ export function AnalysisChart({
   const label = useValueLabel(columns);
   const column = useColumnTitle(columns);
   const seriesName = useSeriesName(columns, label);
+  const toneOf = useToneOf(columns);
   const adds = useAdds(columns);
   const filled = useFilledNote(columns);
   const dateTicks = useDateTicks(columns);
@@ -146,6 +148,7 @@ export function AnalysisChart({
     label,
     column,
     seriesName,
+    toneOf,
     adds,
     dateTicks,
     name: reading.name,

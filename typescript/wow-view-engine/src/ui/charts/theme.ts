@@ -393,9 +393,19 @@ export function readChartTheme(element: Element): ChartTheme {
   return {
     ...read,
     // A rise and a fall are read through `resolve` (a waterfall's steps),
-    // so a host restyling only them — or naming another convention — is a
-    // new theme too.
-    key: JSON.stringify([read, token('--_fve-rise'), token('--_fve-fall')]),
+    // and so are the tones' colours (a toned category's slice), so a host
+    // restyling only them — or naming another convention — is a new theme
+    // too.
+    key: JSON.stringify([
+      read,
+      ...[
+        '--_fve-rise',
+        '--_fve-fall',
+        '--success',
+        '--warning',
+        '--destructive',
+      ].map(name => token(name)),
+    ]),
     resolve(color) {
       let found = resolved.get(color);
       if (found === undefined) {
