@@ -440,6 +440,50 @@ test("the panels stack on a phone, the cards two to a row, without overlapping o
   ).toBe(true);
 });
 
+// Second review, R3-P1-1: the four trend cards that say their span over the
+// figure ("All in range") needed 6px more than their two-row tile, so the
+// body scrolled, the trend was cut at its foot and a "More below" cue sat on
+// it. A metric card is not scrolling content: its trend takes the height
+// left, and its panel says nothing is below.
+test("every metric card fits its tile, the trend inside it and no cue over it", async ({
+  page,
+}) => {
+  await stub(page);
+  await page.goto("/");
+  // The trends are drawn (the chart library loads on first use).
+  await expect(
+    page
+      .locator("[data-slot='metric-card'] [data-chart='sparkline'] svg")
+      .first(),
+  ).toBeVisible();
+  // A card whose span is said over its figure is among them.
+  await expect(
+    page.locator("[data-slot='metric-card'] [data-slot='metric-period']"),
+  ).not.toHaveCount(0);
+  const misfits = () =>
+    page.locator("[data-slot='dashboard-panel']").evaluateAll((panels) =>
+      panels.flatMap((each) => {
+        const card = each.querySelector("[data-slot='metric-card']");
+        if (!card?.parentElement) return [];
+        const name = each
+          .querySelector("[role='group']")
+          ?.getAttribute("aria-label");
+        const body = card.parentElement.getBoundingClientRect();
+        const found: string[] = [];
+        const trend = card.querySelector("[data-chart='sparkline']");
+        if (trend) {
+          const box = trend.getBoundingClientRect();
+          if (box.top < body.top - 0.5 || box.bottom > body.bottom + 0.5)
+            found.push(`${name}: the trend runs out of the tile`);
+        }
+        if (each.querySelector("[data-slot='panel-scroll-cue']"))
+          found.push(`${name}: a scroll cue over the card`);
+        return found;
+      }),
+    );
+  await expect.poll(misfits).toEqual([]);
+});
+
 test("the old overview addresses open the board", async ({ page }) => {
   await stub(page);
   for (const path of ["/dashboard", "/analytics", "/missing-dashboard-route"]) {

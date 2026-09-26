@@ -19,6 +19,9 @@ export type ScrollMore = 'start' | 'end' | 'both';
 /** How far in from an edge the content fades out. */
 export const SCROLL_FADE = 32;
 
+/** A metric card, which fits its tile rather than scrolling in it. */
+const METRIC = '[data-slot="metric-card"]';
+
 /** The tables a panel's body can draw, as against a chart's reading table. */
 const TABLE = '[data-slot="record-table"], [data-slot="analysis-table"]';
 
@@ -175,7 +178,13 @@ export function measurePort(
     start && end ? 'both' : start ? 'start' : end ? 'end' : undefined;
   const bar = Math.max(0, node.offsetWidth - node.clientWidth);
   const table = node.querySelector<HTMLElement>(TABLE)?.querySelector('table');
-  const below = node.scrollHeight - node.clientHeight - node.scrollTop > 1;
+  // A metric card is not scrolling content: its trend takes what height
+  // is left (`styles.css`), so nothing of it is ever "below" to point at —
+  // a pixel of its words over the edge is not a reason to cover the trend
+  // with a cue (second review, R3-P1-1).
+  const below =
+    !node.querySelector(METRIC) &&
+    node.scrollHeight - node.clientHeight - node.scrollTop > 1;
   const box = node.getBoundingClientRect();
   const foot = table?.querySelector<HTMLElement>(
     ':scope > [data-sticky="bottom"]',
