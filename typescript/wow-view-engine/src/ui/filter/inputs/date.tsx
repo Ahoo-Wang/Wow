@@ -11,9 +11,15 @@
  * limitations under the License.
  */
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { sameJson, type FilterValue } from '../../../model/index.js';
-import { writeValue, type DateTimeFilterValue } from '../../../filter/index.js';
+import {
+  DATE_TIME_PRESETS,
+  writeValue,
+  type DateTimeFilterValue,
+  type DateTimePreset,
+} from '../../../filter/index.js';
+import { ONE_DAY_PRESETS } from '../../../dashboard/index.js';
 import { useViewMessages } from '../../MessagesProvider.js';
 import { AbsoluteDate } from './daterange.js';
 import { PresetDate, RelativeDate } from './relative.js';
@@ -23,6 +29,15 @@ type DateShape = DateTimeFilterValue['type'];
 
 /** `relative` no longer means backwards, so the shape no longer says it. */
 const DATE_SHAPES: readonly DateShape[] = ['absolute', 'relative', 'preset'];
+
+/**
+ * A one-day filter's shapes (`DashboardField.oneDay`): a day off the
+ * calendar, or one named. A window is never one day.
+ */
+const ONE_DAY_SHAPES: readonly DateShape[] = ['absolute', 'preset'];
+
+/** The shape of no value at all, where the control offers one (`blank`). */
+const UNSET = 'unset';
 
 /**
  * A moment in time, said in one of three ways: off a calendar, as a window
@@ -37,7 +52,17 @@ const DATE_SHAPES: readonly DateShape[] = ['absolute', 'relative', 'preset'];
  * filter puts its default back the moment it is emptied, so 「指定日期」
  * writing nothing-yet was undone before its calendar could be drawn, and the
  * shape jumped back to 「时间段」. There the value in force stays until a
- * date is picked, and the calendar waits beside it with nothing on it.
+ * date is picked, and the calendar waits beside it with nothing on it —
+ * and says so (`onAwaiting`), so what the value in force shows can say a
+ * date is to be picked rather than go on showing the old answer.
+ *
+ * `blank` words a value of nothing as a shape of its own, for a filter that
+ * may hold nothing: a board's optional date filter left unset narrows no
+ * panel, and its control says that — 「按各面板自己的范围」 — rather than
+ * 「指定日期 · 选择日期 – 选择日期」 over panels reading last month.
+ *
+ * `oneDay` holds it to one day (`DashboardField.oneDay`): one calendar day,
+ * or one of the days by name that have come; no window, no longer period.
  */
 export function DateValue({
   value,
@@ -48,27 +73,57 @@ export function DateValue({
   range,
   withTime,
   required = false,
-}: ValueProps & { range: boolean; withTime: boolean; required?: boolean }) {
+  oneDay = false,
+  blank,
+  onAwaiting,
+}: ValueProps & {
+  range: boolean;
+  withTime: boolean;
+  required?: boolean;
+  oneDay?: boolean;
+  blank?: string;
+  onAwaiting?: (awaiting: boolean) => void;
+}) {
   const messages = useViewMessages();
   const stored = readDateValue(value);
+  const unsettable = blank !== undefined && !required;
+  const empty: DateShape | typeof UNSET = unsettable ? UNSET : 'absolute';
   // Which shape the controls are in: the stored value's, until the user
   // picks another. Emptying the amount of "in the last 7 days" blanks the
   // leaf, and a required value keeps its old answer while a calendar date
   // is still to be picked — either way the editor must not jump back under
   // the user's hands, so the shape follows the value only when the value
   // itself moves (a date picked, 「清空」, a brush on a panel).
-  const [shape, setShape] = useState<DateShape>(stored?.type ?? 'absolute');
+  const [shape, setShape] = useState<DateShape | typeof UNSET>(
+    stored?.type ?? empty,
+  );
   const [seen, setSeen] = useState<FilterValue>(value);
   if (!sameJson(value, seen)) {
     setSeen(value);
-    if (stored !== null) setShape(stored.type);
+    setShape(stored?.type ?? (unsettable ? UNSET : shape));
   }
   const current =
-    stored !== null && stored.type === shape ? stored : blankDateValue(shape);
+    shape === UNSET
+      ? null
+      : stored !== null && stored.type === shape
+        ? stored
+        : blankDateValue(shape);
   const write = (next: FilterValue) => {
     if (next === null && required) return;
     onChange(next);
   };
+  // 「指定日期」 with no day on it: the control asks for a date the value
+  // in force is not.
+  const awaiting =
+    current !== null && current.type === 'absolute' && current.from === '';
+  useEffect(() => {
+    onAwaiting?.(awaiting);
+  }, [awaiting, onAwaiting]);
+  useEffect(() => () => onAwaiting?.(false), [onAwaiting]);
+  const shapes = [
+    ...(unsettable ? [UNSET] : []),
+    ...(oneDay ? ONE_DAY_SHAPES : DATE_SHAPES),
+  ];
 
   return (
     <div className="flex flex-wrap items-center gap-2">
@@ -76,34 +131,42 @@ export function DateValue({
         label={messages.label('label.date.shape-of', { field: label })}
         disabled={disabled}
         invalid={invalid}
-        value={current.type}
-        items={DATE_SHAPES.map(shape => ({
-          label: messages.label(`label.date.${shape}`),
+        value={current?.type ?? UNSET}
+        items={shapes.map(shape => ({
+          label:
+            shape === UNSET && blank !== undefined
+              ? blank
+              : messages.label(`label.date.${shape as DateShape}`),
           value: shape,
         }))}
         onChange={next => {
-          const picked = next as DateShape;
+          const picked = next as DateShape | typeof UNSET;
           // `absolute` writes nothing, so the shape has to be remembered
           // here: the leaf stays blank and would otherwise report the
           // calendar's own default back on the next render.
           setShape(picked);
+          if (picked === UNSET) {
+            if (stored !== null) write(null);
+            return;
+          }
           // Back to the shape the value in force is in: that value again,
           // not the shape's default over it.
           if (picked !== stored?.type) write(shapeDefault(picked));
         }}
       />
-      {current.type === 'absolute' && (
+      {current?.type === 'absolute' && (
         <AbsoluteDate
           value={current}
           onChange={write}
           label={label}
           disabled={disabled}
           invalid={invalid}
-          range={range}
-          withTime={withTime}
+          range={range && !oneDay}
+          withTime={withTime && !oneDay}
+          oneDay={oneDay}
         />
       )}
-      {current.type === 'relative' && (
+      {current?.type === 'relative' && (
         <RelativeDate
           value={current}
           onChange={write}
@@ -112,9 +175,10 @@ export function DateValue({
           invalid={invalid}
         />
       )}
-      {current.type === 'preset' && (
+      {current?.type === 'preset' && (
         <PresetDate
           value={current}
+          presets={oneDay ? ONE_DAY_PRESETS : DATE_TIME_PRESETS}
           onChange={write}
           label={label}
           disabled={disabled}
@@ -146,7 +210,8 @@ function readDateValue(value: FilterValue): DateTimeFilterValue | null {
  */
 function blankDateValue(shape: DateShape): DateTimeFilterValue {
   if (shape === 'relative') return { type: 'relative', amount: 7, unit: 'day' };
-  if (shape === 'preset') return { type: 'preset', preset: 'today' };
+  if (shape === 'preset')
+    return { type: 'preset', preset: 'today' satisfies DateTimePreset };
   return { type: 'absolute', from: '' };
 }
 

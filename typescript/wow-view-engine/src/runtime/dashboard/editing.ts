@@ -38,6 +38,7 @@ import {
   retypeFilter,
   setFilterDefault,
   setFilterMultiple,
+  setFilterOneDay,
   setFilterOptions,
   setFilterRequired,
   setTimeGrouping,
@@ -186,6 +187,8 @@ export interface DashboardFilterEditing {
   setFilterDefault(name: string, value: FilterValue | null): void;
   setFilterRequired(name: string, required: boolean): void;
   setFilterMultiple(name: string, multiple: boolean): void;
+  /** Whether a date filter holds one day and nothing else. */
+  setFilterOneDay(name: string, oneDay: boolean): void;
   /** A list of its own to pick from, or `null`: the wired fields' values. */
   setFilterOptions(name: string, options: FieldOption[] | null): void;
   /** Moves a filter to `index` on the bar. */
@@ -453,6 +456,10 @@ export function boardEditing(host: EditingHost): BoardEdits {
     setFilterMultiple: (name, multiple) =>
       edit('setFilterMultiple', name, config =>
         setFilterMultiple(config, name, multiple),
+      ),
+    setFilterOneDay: (name, oneDay) =>
+      edit('setFilterOneDay', name, config =>
+        setFilterOneDay(config, name, oneDay),
       ),
     setFilterOptions: (name, options) =>
       edit('setFilterOptions', name, config =>

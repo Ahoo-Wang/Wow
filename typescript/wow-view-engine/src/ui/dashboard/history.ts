@@ -50,6 +50,7 @@ const PHRASES: Readonly<
   setFilterDefault: ['label.history.change-filter', 'filter'],
   setFilterRequired: ['label.history.change-filter', 'filter'],
   setFilterMultiple: ['label.history.change-filter', 'filter'],
+  setFilterOneDay: ['label.history.change-filter', 'filter'],
   setFilterOptions: ['label.history.change-filter', 'filter'],
   moveFilter: ['label.history.change-filter', 'filter'],
   bindPanel: ['label.history.change-filter', 'filter'],

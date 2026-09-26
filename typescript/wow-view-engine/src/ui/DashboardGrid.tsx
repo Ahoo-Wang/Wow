@@ -519,6 +519,7 @@ export function DashboardGrid({
                           })
                     }
                     unreached={unreachedBy(panel, dashboard, filterModes)}
+                    awaiting={awaitedBy(panel, dashboard)}
                     record={boardWideHost(
                       recordPanel?.(panel),
                       dashboard.refresh,
@@ -646,6 +647,23 @@ function unreachedBy(
       ? [field.label]
       : [],
   );
+}
+
+/**
+ * The name of a filter wired to this panel whose control waits for a date
+ * (`DashboardController.awaiting`), or `undefined`: the panel then says a
+ * date is to be picked instead of showing the value in force.
+ */
+function awaitedBy(
+  panel: DashboardPanelView,
+  dashboard: DashboardController,
+): string | undefined {
+  if (panel.panel.kind !== 'view' || panel.broken) return undefined;
+  return dashboard.filterFields.find(
+    field =>
+      dashboard.awaiting.includes(field.name) &&
+      panel.reach[field.name]?.wired === true,
+  )?.label;
 }
 
 /**

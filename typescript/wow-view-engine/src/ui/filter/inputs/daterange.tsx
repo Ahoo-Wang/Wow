@@ -46,6 +46,7 @@ export function AbsoluteDate({
   invalid,
   range,
   withTime,
+  oneDay = false,
 }: {
   value: AbsoluteDateTimeValue;
   onChange(value: FilterValue): void;
@@ -55,6 +56,11 @@ export function AbsoluteDate({
   invalid?: boolean;
   range: boolean;
   withTime: boolean;
+  /**
+   * One whole day, as a one-day filter holds it: the day picked is both
+   * ends (`DashboardField.oneDay`), never 「from this day on」.
+   */
+  oneDay?: boolean;
 }) {
   const messages = useViewMessages();
   const display = useSurfaceDisplay();
@@ -83,7 +89,9 @@ export function AbsoluteDate({
               from: storeBound(start),
               to: end.day === '' ? undefined : storeBound(end),
             }
-          : { ...value, from: storeBound(start) },
+          : oneDay
+            ? { ...value, from: storeBound(start), to: storeBound(start) }
+            : { ...value, from: storeBound(start) },
       ),
     );
   };
@@ -127,7 +135,11 @@ export function AbsoluteDate({
       >
         <CalendarIcon data-icon="inline-start" />
         {formatDate(value.from, withTime, blank, display)}
-        {range ? ` – ${formatDate(value.to, withTime, blank, display)}` : ''}
+        {/* A range of one day is that day: 「9月21日 – 9月21日」 said it
+            twice, and read as a span. */}
+        {range && !(value.from !== '' && value.to === value.from)
+          ? ` – ${formatDate(value.to, withTime, blank, display)}`
+          : ''}
       </PopoverTrigger>
       {/* Base UI gives a popover `role="dialog"`, and a dialog with no name
           is one axe reports and a screen reader announces as nothing at all.

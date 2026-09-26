@@ -66,6 +66,13 @@ export interface DashboardField {
   required?: true;
   /** May hold several values at once: 华东 or 华南, not only one of them. */
   multiple?: true;
+  /**
+   * A date filter that holds one day and nothing else — the day a daily
+   * report reads. It is picked off a calendar as one day, or named as
+   * today, yesterday or the day before; never a window, a longer period,
+   * or a day to come.
+   */
+  oneDay?: true;
 }
 
 /**

@@ -1644,6 +1644,13 @@ export const zhCN: ViewMessages = {
   'label.filters.default': '默认值',
   'label.filters.multiple': '可多选',
   'label.filters.required-toggle': '必填',
+  'label.panel.awaiting-date': '请选择日期',
+  'label.panel.awaiting-date-hint':
+    '「{filter}」选了指定日期，挑一天后这里显示那一天的数。',
+  'label.filters.one-day-toggle': '只选一天',
+  'label.filters.one-day-hint':
+    '日历上的一天，或今天、昨天、前天；不能是一段时间。',
+  'label.filters.date-own': '按各面板自己的范围',
   'label.filters.required-hint': '永远有值：清空时回到默认值。',
   'label.filters.required-needs-default': '必填的筛选需要一个默认值。',
   'label.filters.source': '值从哪来',
@@ -1856,6 +1863,10 @@ export const zhCN: ViewMessages = {
   'dashboard.field.duplicate': '筛选字段 {field} 声明了两次。',
   'dashboard.field.name-empty': '筛选字段需要一个名称。',
   'dashboard.field.name-invalid': '{field} 不是可用的字段名。',
+  'dashboard.field.not-one-day':
+    '筛选 {field} 只能是一天：日历上的一天，或今天、昨天、前天。',
+  'dashboard.field.one-day-not-date':
+    '筛选 {field} 不是日期筛选，不能限定为一天。',
   'dashboard.field.not-multiple': '筛选 {field} 只能选一个值，这里有好几个。',
   'dashboard.field.options-empty':
     '筛选 {field} 从自己列的一组值里选，但这一组还是空的。',

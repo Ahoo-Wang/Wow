@@ -60,6 +60,11 @@ export const filtersMessages = {
   'label.filters.required-toggle': 'Required',
   'label.filters.required-hint':
     'Always has a value: clearing it goes back to the default.',
+  'label.filters.one-day-toggle': 'One day only',
+  'label.filters.one-day-hint':
+    'A day off the calendar, or today, yesterday or the day before; never a range.',
+  // An optional date filter holding nothing narrows no panel.
+  'label.filters.date-own': "Each panel's own dates",
   'label.filters.required-needs-default':
     'A required filter needs a default to start at.',
   'label.filters.source': 'Values from',

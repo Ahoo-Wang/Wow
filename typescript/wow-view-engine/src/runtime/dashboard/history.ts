@@ -42,6 +42,7 @@ export type EditCommand =
   | 'setFilterDefault'
   | 'setFilterRequired'
   | 'setFilterMultiple'
+  | 'setFilterOneDay'
   | 'setFilterOptions'
   | 'moveFilter'
   | 'bindPanel'

@@ -111,6 +111,10 @@ export const dashboardMessages = {
     'A dashboard puts saved record and analysis views side by side.',
   // A panel that has no title of its own is named after what it shows, and
   // one that shows nothing nameable after where it stands — never its id.
+  // A panel wired to a date filter whose control waits for a day.
+  'label.panel.awaiting-date': 'Pick a date',
+  'label.panel.awaiting-date-hint':
+    '{filter} is set to a specific date; pick one to see the numbers for it.',
   'label.panel.untitled': 'Panel {index}',
   // Two panels the board names alike are told apart by a number, in
   // reading order: 「Text」, 「Text 2」.
@@ -310,6 +314,10 @@ export const dashboardMessages = {
   'dashboard.field.name-invalid': '{field} is not a usable field name.',
   'dashboard.field.not-multiple':
     'The filter {field} takes one value, and this holds several.',
+  'dashboard.field.not-one-day':
+    'The filter {field} holds one day: a day off the calendar, or today, yesterday or the day before.',
+  'dashboard.field.one-day-not-date':
+    'The filter {field} is not a date filter, so it cannot be held to one day.',
   'dashboard.field.options-empty':
     'The filter {field} picks from a list of its own, and the list is empty.',
   'dashboard.field.required-no-default':

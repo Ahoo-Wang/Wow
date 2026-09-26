@@ -282,6 +282,7 @@ export function FilterSettings({
                 label={`${field.label} ${messages.label('label.filters.default')}`}
                 value={filterControlValue(field, field.default)}
                 invalid={needsDefault}
+                oneDay={field.oneDay === true}
                 onChange={next =>
                   edit.setFilterDefault(
                     field.name,
@@ -308,6 +309,15 @@ export function FilterSettings({
               label={messages.label('label.filters.multiple')}
               checked={field.multiple === true}
               onChange={on => edit.setFilterMultiple(field.name, on)}
+            />
+          )}
+          {type === 'date' && (
+            <CheckField
+              data-slot="filter-one-day"
+              label={messages.label('label.filters.one-day-toggle')}
+              hint={messages.label('label.filters.one-day-hint')}
+              checked={field.oneDay === true}
+              onChange={on => edit.setFilterOneDay(field.name, on)}
             />
           )}
           <CheckField
