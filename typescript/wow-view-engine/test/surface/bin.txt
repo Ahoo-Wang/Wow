@@ -1,0 +1,5 @@
+# The package's command — its bin and subcommands.
+# Written by test/publicSurface.test.ts; a change here is a change to
+# the public surface (README「Checking a theme」, theme-architecture.md 5.2).
+bin   wow-view-engine → ./dist/theme-check.mjs
+cmd   wow-view-engine theme-check

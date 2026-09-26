@@ -472,10 +472,18 @@ export interface ContrastPair {
   readonly requires?: string;
 }
 
-/** Every pair a preset is measured on in one mode, in `GROUNDS`' order. */
-export function contrastPairs(mode: 'light' | 'dark'): ContrastPair[] {
-  return GROUNDS.filter(ground => mode === 'dark' || !ground.dark).flatMap(
-    ({ name: where, layers, pairs, requires }) =>
+/**
+ * Every pair a list of grounds holds in one mode, in its order — the
+ * registry's own, or the same list read back from `dist/theme-tokens.json`
+ * (theme-check).
+ */
+export function expandPairs(
+  grounds: readonly Ground[],
+  mode: 'light' | 'dark',
+): ContrastPair[] {
+  return grounds
+    .filter(ground => mode === 'dark' || !ground.dark)
+    .flatMap(({ name: where, layers, pairs, requires }) =>
       pairs
         .filter(spec => spec.mode === undefined || spec.mode === mode)
         .map(({ ink, kind, alpha, wash }): ContrastPair => {
@@ -494,5 +502,10 @@ export function contrastPairs(mode: 'light' | 'dark'): ContrastPair[] {
             ...(requires ? { requires } : {}),
           };
         }),
-  );
+    );
+}
+
+/** Every pair a preset is measured on in one mode, in `GROUNDS`' order. */
+export function contrastPairs(mode: 'light' | 'dark'): ContrastPair[] {
+  return expandPairs(GROUNDS, mode);
 }

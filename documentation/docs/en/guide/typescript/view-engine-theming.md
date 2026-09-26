@@ -94,7 +94,7 @@ Your own preset is written the same way and selected by the same attribute or pr
 
 - **Outside any `@layer` of yours.** The reset sits in the lowest layer of `styles.css`; a preset inside a layer your stylesheet declared before it loses to the reset and paints nothing.
 - **`--fvp-*` only, and only what differs.** No `initial`, no copy of the values you keep. A `--fve-*` in a preset block is a host variable: every preset pinned inside that element would lose to it.
-- **Measure it.** Paste its declarations into the [contrast matrix](/storybook/?path=/story/view-engine-能力-主题与预设--contrast): they are measured beside the built-in presets, pair by pair, and its chart colours through the palette gates.
+- **Check it.** `wow-view-engine theme-check` holds it to the registry and every contrast pair in your CI (see [Checking a theme](#checking-a-theme)); paste its declarations into the [contrast matrix](/storybook/?path=/story/view-engine-能力-主题与预设--contrast): they are measured beside the built-in presets, pair by pair, and its chart colours through the palette gates.
 
 The Storybook page [A host's own theme](/storybook/?path=/story/view-engine-能力-主题与预设-宿主自定义主题--host-authored) is a complete example, `stories/view-engine/host-theme/acme.css` in the repository: a stylesheet outside the package with a brand colour, a few roles, a linked menu highlight and a palette of its own, held to the same gates in the browser and in the package's tests.
 
@@ -317,6 +317,17 @@ Every built-in preset holds these lines in both modes, on every pair the surface
 When you set a colour — a token, a role, a link, a brand bound — you take over its line on every ground it lands on. `--fve-ring` and `--fve-input` (or their `--fve-dark-` halves) are the ones hosts most often lose: an unticked checkbox is only its `input` edge, and a focused control is known by its `ring` edge. A brand colour within the preset's bounds, and a role you leave unset, owe you nothing.
 
 Measure a theme of your own in the Storybook [contrast matrix](/storybook/?path=/story/view-engine-能力-主题与预设--contrast): paste your `--fve-*` or `--fvp-*` declarations into its field and they are measured beside the built-in presets, pair by pair.
+
+## Checking a theme
+
+For a host's CI, the package ships a command that holds a stylesheet to the same gates, by the registry and the arithmetic the package's own tests use:
+
+```bash
+pnpm exec wow-view-engine theme-check src/theme.css
+pnpm exec wow-view-engine theme-check src/theme.css --preset azure --json
+```
+
+It reports, with the line and column: a `--fve-*` or `--fvp-*` the registry does not list, a `--_fve-*` written or read, a variable in the wrong layer, a preset inside an `@layer`, a chart palette or shadow ladder given in part; Tailwind v3 HSL channels where a colour is wanted, with the `hsl()` to write; brand bounds out of range, crossed, or letting some brand colour fall short (it sweeps them across sRGB); every contrast pair in both modes and every change convention, on each preset of yours and on the built-in presets your `:root` variables are worn on (`--preset` narrows them); and the chart palette's three gates when you bring one (or pass `--brand-chart`). It exits 1 on an error and 0 on warnings alone. It cannot see what your page does at run time, so the contrast matrix stays the check of what a browser paints. The details are in the [package README](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/README.md#checking-a-theme-theme-check).
 
 ## Chart colours
 

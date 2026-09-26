@@ -5,5 +5,5 @@
     "rootDir": ".",
     "types": ["vite/client", "node"]
   },
-  "include": ["src", "test", "examples"]
+  "include": ["src", "test", "examples", "theme-check"]
 }

@@ -94,7 +94,7 @@ import '@ahoo-wang/wow-view-engine/themes/porcelain.css';
 
 - **写在你自己的任何 `@layer` 之外。** 复位规则在 `styles.css` 最低的那一层；预设若写在你的样式表更早声明的层里，就输给复位，什么都画不出来。
 - **只写 `--fvp-*`，只写不一样的。** 不写 `initial`，也不抄你保留的值。预设块里的 `--fve-*` 是宿主变量：钉在这个元素里面的每一套预设都会输给它。
-- **量一量。** 把它的声明粘进[对比度矩阵](/storybook/?path=/story/view-engine-能力-主题与预设--contrast)：与内置预设一起逐对量，图表八色也过色板的门。
+- **检查它。** `wow-view-engine theme-check` 在你的 CI 里把它对到登记表与每一对对比度上（见[检查一套主题](#检查一套主题)）；也可以把它的声明粘进[对比度矩阵](/storybook/?path=/story/view-engine-能力-主题与预设--contrast)：与内置预设一起逐对量，图表八色也过色板的门。
 
 Storybook 的[宿主自定义主题](/storybook/?path=/story/view-engine-能力-主题与预设-宿主自定义主题--host-authored)是一个完整的例子，即仓库里的 `stories/view-engine/host-theme/acme.css`：包外的一份样式表，一个品牌色、几个角色、链接到主色的菜单高亮、一套自己的图表八色，在浏览器里与包的测试里过同样的门。
 
@@ -317,6 +317,17 @@ import '@ahoo-wang/wow-view-engine/shadcn-bridge.css';
 设了一个颜色——token、角色、链接、品牌色的边界——它落到的每一种底上的那条线就归你负责。宿主最常丢的是 `--fve-ring` 与 `--fve-input`（或它们的 `--fve-dark-` 一半）：没勾的复选框只剩 `input` 那一圈边，获焦的控件靠 `ring` 那条边认出来。落在预设边界之内的品牌色、你没设的角色，都不欠你什么。
 
 用 Storybook 的[对比度矩阵](/storybook/?path=/story/view-engine-能力-主题与预设--contrast)量自己的主题：把 `--fve-*` 或 `--fvp-*` 声明粘进输入框，它们与内置预设一起逐对量出。
+
+## 检查一套主题
+
+给宿主的 CI，包带了一个命令，按同样的门检查一份样式表，用的是包自己的测试用的那张登记表、那套算术：
+
+```bash
+pnpm exec wow-view-engine theme-check src/theme.css
+pnpm exec wow-view-engine theme-check src/theme.css --preset azure --json
+```
+
+它报出问题与行列号：登记表里没有的 `--fve-*`、`--fvp-*`，写了或读了 `--_fve-*`，写错了层的变量，写在 `@layer` 里的预设，只给了一部分的图表八色或阴影；该是颜色的地方写成了 Tailwind v3 的 HSL 通道，并给出要写的 `hsl()`；越界、上下颠倒或让某个品牌色不达标的品牌色边界（它扫过整个 sRGB）；两种明暗、每种涨跌约定下的每一对对比度，在你自己的每套预设上，以及你 `:root` 上的变量所落在的内置预设上（`--preset` 可以收窄）；带了自己的色板（或传了 `--brand-chart`）时图表八色的三道门。有错误退出码是 1，只有警告是 0。它看不见页面运行时做的事，所以浏览器里画出来的样子仍以对比度矩阵为准。细节见[包的 README](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/README.zh-CN.md#检查一套主题theme-check)。
 
 ## 图表颜色
 

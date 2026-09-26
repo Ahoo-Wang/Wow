@@ -28,7 +28,10 @@
  * holds each built JavaScript entry to the same list's values.
  */
 
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { COMMANDS } from '../theme-check/cli';
 import {
   ENTRIES,
   entryExports,
@@ -90,5 +93,33 @@ describe('the public surface of each entry', () => {
       'ValueCandidateSources',
     ].filter(name => root.has(name));
     expect(parts).toEqual([]);
+  });
+});
+
+/**
+ * The package's command is surface too (theme-architecture.md 5.2, S7): the
+ * `bin` a host's CI calls, and each subcommand it answers. Kept as a list
+ * beside the entries', made on purpose with `-u`.
+ */
+describe('the public surface of the command', () => {
+  it('names exactly its list', async () => {
+    const manifest = JSON.parse(
+      readFileSync(join(import.meta.dirname, '../package.json'), 'utf8'),
+    ) as { bin?: Record<string, string> };
+    const lines = Object.entries(manifest.bin ?? {}).flatMap(
+      ([command, file]) => [
+        `bin   ${command} → ${file}`,
+        ...COMMANDS.map(subcommand => `cmd   ${command} ${subcommand}`),
+      ],
+    );
+    await expect(
+      [
+        "# The package's command — its bin and subcommands.",
+        '# Written by test/publicSurface.test.ts; a change here is a change to',
+        '# the public surface (README「Checking a theme」, theme-architecture.md 5.2).',
+        ...lines,
+        '',
+      ].join('\n'),
+    ).toMatchFileSnapshot('surface/bin.txt');
   });
 });

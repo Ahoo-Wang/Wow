@@ -61,9 +61,10 @@ export default tseslint.config(
     ],
   },
   {
-    // test/、dev/、examples/ 不在 tsconfig 项目内，保持非类型检查规则。
+    // test/、dev/、examples/、theme-check/ 不在 tsconfig 项目内，保持非类型检查规则。
     files: [
       'test/**/*.{ts,tsx}',
+      'theme-check/**/*.ts',
       'dev/**/*.{ts,tsx}',
       'examples/**/*.{ts,tsx}',
     ],

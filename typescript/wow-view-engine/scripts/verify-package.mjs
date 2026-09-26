@@ -53,6 +53,9 @@ import {
   writeFileSync,
   rmSync,
 } from 'node:fs';
+import { spawnSync } from 'node:child_process';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { gzipSync } from 'node:zlib';
 import {
@@ -1088,6 +1091,53 @@ for (const [chunk, series] of Object.entries(familyChunks)) {
   }
 }
 
+// The command, `wow-view-engine theme-check` (theme-architecture.md 5.2, S7):
+// the file `bin` names runs from `dist` alone — it reads the registry, the
+// token rules and the presets shipped beside it — clears a sound host theme
+// and fails an unsound one.
+const manifestBin = JSON.parse(
+  readFileSync(new URL('package.json', packageRoot), 'utf8'),
+).bin;
+assert.deepEqual(
+  manifestBin,
+  { 'wow-view-engine': './dist/theme-check.mjs' },
+  'package.json names one command, wow-view-engine, at dist/theme-check.mjs',
+);
+const checkDir = mkdtempSync(join(tmpdir(), 'fve-theme-check-'));
+const themeCheck = (css, ...options) => {
+  const file = join(checkDir, 'host.css');
+  writeFileSync(file, css);
+  return spawnSync(
+    process.execPath,
+    [
+      fileURLToPath(new URL('dist/theme-check.mjs', packageRoot)),
+      'theme-check',
+      file,
+      ...options,
+    ],
+    { encoding: 'utf8' },
+  );
+};
+const sound = themeCheck(':root { --fve-brand: #0f766e; }');
+assert.equal(
+  sound.status,
+  0,
+  `theme-check fails a brand colour alone:\n${sound.stdout}${sound.stderr}`,
+);
+for (const [css, found] of [
+  [':root { --fve-bogus: red; }', /--fve-bogus is no host variable/],
+  [':root { --fve-ring: #eeeeee; }', /ring edge on page/],
+]) {
+  const unsound = themeCheck(css);
+  assert.equal(
+    unsound.status,
+    1,
+    `theme-check clears ${css}:\n${unsound.stdout}${unsound.stderr}`,
+  );
+  assert.match(unsound.stdout, found);
+}
+rmSync(checkDir, { recursive: true, force: true });
+
 console.log(
   `${targets.size} entries resolve and import, the code entries export at run time exactly the values their surface lists name, the root entry's types need no DOM lib, ${visited.size} runtime modules import no CSS, the chart chunk and each family chunk draw, the stylesheet holds no rule outside ${BOUNDARIES.join(' / ')} bar the preset reset (@layer ${RESET_LAYER}, the first layer, emptying ${reset.declarations.length} --fvp-* variables) and no :root selector at all, every one of its ${scopedRules.length} other rules carries the one-class scope naming both boundaries and none names only one, its dark: utilities turn on the same ${tokenSelectors.length} roots as its dark tokens, its ${lightTokens.tokens.length} light and ${darkTokens.tokens.length} dark tokens all read --fve-* host variables before the preset layer, themes.css holds ${presets.size} preset(s) (${[...presets.keys()].join(', ')}), each shipped alone too as themes/<name>.css, each assigning only --fvp-* variables it changes (${[
     ...presets,
@@ -1102,5 +1152,7 @@ console.log(
     cssSizes,
   )
     .map(([file, size]) => `${file} ${size} B`)
-    .join(', ')}; the entries weigh, gzipped against their ceilings, ${sizes}.`,
+    .join(
+      ', ',
+    )}; the entries weigh, gzipped against their ceilings, ${sizes}; and the theme-check command runs from dist, clearing a sound theme and failing an unsound one.`,
 );
