@@ -135,6 +135,11 @@ const withChangeColors: Decorator = (storyFn, context) => {
 const preview: Preview = {
   parameters: {
     a11y: {
+      // The package declares WCAG 2.2 AA; axe's default set leaves out its
+      // one 2.2 AA rule, `target-size` (second review R1, R3), so it is
+      // turned on here — the rest of the default set, best practices
+      // included, stays as it was.
+      options: { rules: { 'target-size': { enabled: true } } },
       context: {
         exclude: [
           ['.ant-select-dropdown'],
