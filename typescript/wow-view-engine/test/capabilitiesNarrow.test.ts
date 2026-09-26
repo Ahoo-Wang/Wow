@@ -156,6 +156,32 @@ describe('4.1 fields', () => {
     ]);
   });
 
+  it('keeps a key whose dynamic pattern admits no operator shown and unfilterable', () => {
+    // A protected dynamic value, or a key under a non-element array, lists
+    // no operator (#3604): the key stays a field of the view, never asked
+    // about.
+    const declared = ordersDefinition({
+      fields: [
+        ...ordersDefinition().fields,
+        { name: 'secrets.pin', label: 'PIN', kind: 'string' },
+      ],
+    });
+    const descriptor = ordersDescriptor({
+      dynamic: [
+        {
+          pattern: 'secrets.{key}',
+          types: ['STRING'],
+          kind: 'SCALAR' as never,
+          filter: { operators: [] },
+        },
+      ],
+    });
+    const { definition, findings } = narrow(declared, descriptor);
+
+    expect(field(definition, 'secrets.pin')?.operators).toEqual([]);
+    expect(codes(findings)).toEqual(['warning capability.field.unfilterable']);
+  });
+
   it('checks a declared time storage against the one the descriptor names, as an error', () => {
     const declared = ordersDefinition({
       fields: [
