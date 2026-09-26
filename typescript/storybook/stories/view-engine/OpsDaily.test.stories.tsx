@@ -33,6 +33,7 @@ import {
   rowsOf,
   valueOf,
 } from './retail/twins.js';
+import { findDataTable, readColumn, readHeaders } from './readTable.js';
 import { matchScreenshot } from './screenshot.js';
 
 /**
@@ -179,5 +180,48 @@ export const BrushThreeDaysOnTheReport: Story = {
     await userEvent.keyboard('{Escape}');
     // The cards stay on the report's day.
     await expect(valueOf('GMV')).toBe(DAILY_GOLDEN.cards.GMV);
+
+    // 「查看这些记录」: the panel's own 30 days bound the same field, and
+    // the three days' orders still open — rows, no error, the stretch on
+    // the applied band.
+    brushAcross(
+      panel.querySelector<HTMLElement>('[data-slot="chart-plot"]')!,
+      centres[20]!,
+      centres[22]!,
+    );
+    const again = await waitFor(() => {
+      const found = document.body.querySelector<HTMLElement>(
+        '[data-slot="drill-menu"]',
+      );
+      expect(found).toBeVisible();
+      return found!;
+    });
+    await userEvent.click(
+      // Named with where it goes: 「（在工作台中打开）」.
+      within(again)
+        .getAllByRole('menuitem')
+        .find(item =>
+          (item.textContent ?? '').startsWith(label('label.drill.records')),
+        )!,
+    );
+    const table = await findDataTable(canvasElement);
+    await waitFor(() => {
+      const first = readHeaders(table)[0]!;
+      expect(
+        readColumn(table, first).filter(key => key !== '').length,
+      ).toBeGreaterThan(0);
+    });
+    await expect(
+      canvasElement.querySelector(
+        '[data-slot="status-strip"][data-tone="error"]',
+      ),
+    ).toBeNull();
+    const applied =
+      within(canvasElement).getByRole('region', {
+        name: label('label.applied.title'),
+      }).textContent ?? '';
+    await expect(stretchDays(applied)).toEqual(
+      expect.arrayContaining([days[20], days[22]]),
+    );
   },
 };
