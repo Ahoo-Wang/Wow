@@ -24,8 +24,22 @@ export interface FunnelStage {
    * is no group.
    */
   group?: unknown;
-  /** Share of the previous stage or of the first, per the configuration. */
+  /**
+   * This stage against the one before it — 1 for the first stage, nothing
+   * when the one before is 0, where there is nothing to convert from.
+   */
   conversion?: number;
+  /**
+   * This stage against the first — nothing when the first is 0. The last
+   * stage's is the funnel's overall conversion.
+   */
+  share?: number;
+  /**
+   * What the one before it had and this stage has not: the one before's
+   * value minus this one's — negative where this stage is bigger. Absent on
+   * the first stage, which has nothing before it.
+   */
+  drop?: number;
 }
 
 export interface FunnelData {
@@ -38,6 +52,13 @@ export interface FunnelData {
    * table's, and a drawing that does not say so reads as a wrong number.
    */
   cumulative?: true;
+  /**
+   * The stage whose drop from the one before is the largest share of the
+   * one before — the step where the funnel loses the most, the first of
+   * equals. Absent when no stage lost anything, or none can say how much of
+   * what it had (the one before was 0).
+   */
+  largestDrop?: number;
 }
 
 export function shapeFunnel(
@@ -52,10 +73,12 @@ export function shapeFunnel(
         }))
       : stagesFromGroup(spec.stages, rows);
 
-  const stages = withConversion(raw, spec.conversion ?? 'previous');
+  const stages = withConversion(raw);
+  const largestDrop = largestDropOf(stages);
   return {
     type: 'funnel',
     stages,
+    ...(largestDrop === undefined ? {} : { largestDrop }),
     ...(spec.stages.from === 'group' && spec.stages.cumulative === true
       ? { cumulative: true as const }
       : {}),
@@ -109,18 +132,48 @@ function stagesFromGroup(
     .reverse();
 }
 
-function withConversion(
-  stages: FunnelStage[],
-  mode: 'previous' | 'first' | 'none',
-): FunnelStage[] {
-  if (mode === 'none' || stages.length === 0) return stages;
+/**
+ * Each stage against the one before it and against the first, and what it
+ * lost on the way from the one before. Both conversions, always: the one
+ * before says where the funnel leaks, the first says how much of what came
+ * in is still here, and a reader asks both of one drawing (2026-09-25).
+ * They are read off the numbers drawn, so a funnel that accumulates
+ * (`cumulative`) converts its "reached at least" numbers, and its drop
+ * between two stages is exactly the earlier stage's own rows — the ones
+ * that stopped there.
+ */
+function withConversion(stages: FunnelStage[]): FunnelStage[] {
+  if (stages.length === 0) return stages;
   const first = stages[0].value;
   return stages.map((stage, index) => {
-    if (index === 0) return { ...stage, conversion: 1 };
-    const base = mode === 'first' ? first : stages[index - 1].value;
+    const share = first === 0 ? undefined : stage.value / first;
+    if (index === 0)
+      return {
+        ...stage,
+        conversion: 1,
+        ...(share === undefined ? {} : { share }),
+      };
+    const before = stages[index - 1].value;
     return {
       ...stage,
-      conversion: base === 0 ? undefined : stage.value / base,
+      ...(before === 0 ? {} : { conversion: stage.value / before }),
+      ...(share === undefined ? {} : { share }),
+      drop: before - stage.value,
     };
   });
+}
+
+/** The stage that lost the largest share of the one before it, if any lost. */
+function largestDropOf(stages: readonly FunnelStage[]): number | undefined {
+  let found: number | undefined;
+  let deepest = 0;
+  stages.forEach((stage, index) => {
+    if (index === 0 || stage.conversion === undefined) return;
+    const lost = 1 - stage.conversion;
+    if (lost > deepest) {
+      deepest = lost;
+      found = index;
+    }
+  });
+  return found;
 }

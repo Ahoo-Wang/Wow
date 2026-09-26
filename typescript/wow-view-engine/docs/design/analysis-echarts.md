@@ -18,7 +18,7 @@
 | 饼、环                             | pie       | 一个维度、一个指标；可加指标第八片起并「其他」     | `src/model/chart.ts:173-185`，`src/ui/charts/pieOption.ts`            |
 | 热力图                             | heatmap   | 两个维度、一个指标；线性或对数上色                 | `src/model/chart.ts:187-195`，`src/ui/charts/heatmapOption.ts:63-121` |
 | 散点、气泡                         | scatter   | 一个维度（一点一组）、两到三个指标                 | `src/model/chart.ts:197-204`                                          |
-| 漏斗                               | funnel    | 按指标分段，或按一个维度的值分段；由柱画           | `src/model/chart.ts:210-231`，`src/ui/charts/funnelOption.ts`         |
+| 漏斗                               | funnel    | 按指标分段，或按一个维度的值分段；库的漏斗（D48）  | `src/model/chart.ts`，`src/ui/charts/funnelOption.ts`、`funnelFit.ts` |
 | 指标卡（迷你趋势、目标、较上一期） | metric    | 无维度，或一个日期维度作走势                       | `src/model/chart.ts:233-271`，`src/analysis/metricCard.ts:103`        |
 
 九种之外还有「表格」一张磁贴。家族的特性集中在 `CHART_FAMILIES`（`src/analysis/chartFamilies.ts:137`）。注册的库模块是五种图与五个组件——柱、热力、折线、饼、散点；图形、网格、连续色标、markLine、提示框——外加 LabelLayout 与 SVG 渲染器（`src/ui/charts/echarts.ts:28-45`、`:66-79`）。

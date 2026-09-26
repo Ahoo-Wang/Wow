@@ -13,7 +13,7 @@
 
 import type { ChartData } from '../../analysis/index.js';
 import type { ChartSpec } from '../../model/index.js';
-import { stageName } from './family.js';
+import { drawnStages, dropText } from './funnelOption.js';
 import { gaugeText, reachedShare } from './gaugeOption.js';
 import { drawnFlow, drawnParts } from './hierarchyOption.js';
 import type { ReadingContext } from './reading.js';
@@ -69,21 +69,8 @@ export function chartSentence(
     }
     case 'scatter':
       return scatterSentence(data, spec, ctx);
-    case 'funnel': {
-      const stages = spec?.funnel?.stages;
-      return extremes(
-        ctx,
-        data.stages.length,
-        data.stages.map((stage, index) => ({
-          name: stageName(stages, index, stage.label, ctx.label, ctx.column),
-          value: stage.value,
-          alias:
-            stages?.from === 'group'
-              ? stages.value
-              : stages?.items[index]?.metric,
-        })),
-      );
-    }
+    case 'funnel':
+      return funnelSentence(data, spec, ctx);
     case 'waterfall':
       return extremes(
         ctx,
@@ -377,4 +364,44 @@ function scatterSentence(
     yLow: y.low,
     yHigh: y.high,
   });
+}
+
+/**
+ * A funnel's sentence: how many stages, from what first to what last, the
+ * whole funnel's conversion, and the step that loses the most — what the
+ * drawing says with its taper and its one heavier drop.
+ */
+function funnelSentence(
+  data: Extract<ChartData, { type: 'funnel' }>,
+  spec: ChartSpec | undefined,
+  ctx: ReadingContext,
+): string | undefined {
+  const stages = drawnStages(data, {
+    spec,
+    label: ctx.label,
+    column: ctx.column,
+    locale: ctx.locale,
+  });
+  const first = stages[0];
+  const last = stages[stages.length - 1];
+  if (!first || !last || stages.length < 2) return undefined;
+  const whole = ctx.messages.label('label.chart.sentence.funnel', {
+    count: stages.length,
+    first: first.name,
+    firstValue: first.text,
+    last: last.name,
+    lastValue: last.text,
+    overall: last.share ?? ctx.messages.label('label.summary.unavailable'),
+  });
+  const at = data.largestDrop;
+  const to = at === undefined ? undefined : stages[at];
+  const from = at === undefined ? undefined : stages[at - 1];
+  if (!to?.drop || !from) return whole;
+  // Run on as the language runs sentences on: the catalogue's own space.
+  return `${whole}${ctx.messages.label('label.chart.sentence.funnel-drop', {
+    from: from.name,
+    to: to.name,
+    drop: to.drop.text,
+    rate: to.drop.rate ?? dropText(to.drop),
+  })}`;
 }

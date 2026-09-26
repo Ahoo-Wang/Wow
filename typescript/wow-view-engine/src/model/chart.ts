@@ -542,9 +542,13 @@ export interface MapSpec {
  * Stages come either from one filtered metric each, or from the values of a
  * single group with an explicit business order.
  */
+/**
+ * A funnel: its stages in the business's order. There is no choice of what
+ * a conversion is relative to — the drawing says each stage against the one
+ * before and against the first, and the drop between them (2026-09-25).
+ */
 export interface FunnelSpec {
   stages: FunnelStages;
-  conversion?: 'previous' | 'first' | 'none';
   orientation?: 'vertical' | 'horizontal';
 }
 

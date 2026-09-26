@@ -200,15 +200,15 @@ const readingOf = (canvas: HTMLElement) =>
   ].map(row => [row.cells[0]?.textContent, row.cells[1]?.textContent]);
 
 /**
- * 漏斗：从结果行起头，当场画出；每一段就是表格里那个仓库的数；条用色板的第一档，
- * 留着结果区的边，百分比说明是相对上一段的转化率。
+ * 漏斗：从结果行起头，当场画出；每一段就是表格里那个仓库的数；段用色板的第一档，
+ * 留着结果区的边，图上方说总转化与百分比、流失各是什么。
  *
  * 审查（2026-09-23）：漏斗贴着边、颜色是按钮的 primary 而不是图表色板、百分比
  * 没说是什么的百分比。四个仓库是四个阶段，从图型网格选中即按行来的顺序画出，
- * 状态行什么也不说；图离结果区左右各留 16px，每根条都在漏斗自己的框里，百分比
- * 那一列上面写着「转化率（相对上一段）」。图表审查（同日 P0-1）：漏斗缺省把后面
- * 各段累加进前面，「华东 6」而华东只有 2 条记录——与表格对不上。现在缺省不累计：
- * 漏斗读屏表里每一段的数就是切到表格后那个仓库的记录数，图上也不写「累计」。
+ * 状态行什么也不说；图离结果区左右各留 16px，每一段都在漏斗自己的框里。图表审查
+ * （同日 P0-1）：缺省不累计，漏斗读屏表里每一段的数就是切到表格后那个仓库的记录
+ * 数。用户（2026-09-25）：画成真正的漏斗——库自己的漏斗，一段一个梯形，上沿的宽
+ * 是这一段的数对最大那段的比，下沿收到下一段；段与段之间写流失。
  */
 export const FunnelFromTheRows: Story = {
   ...DisplayBarChart,
@@ -229,8 +229,11 @@ export const FunnelFromTheRows: Story = {
       return found!;
     });
     await chartsDrawn(canvasElement);
-    const stageBars = drawnMarks(funnel);
-    await expect(stageBars).toHaveLength(4);
+    const stageMarks = await waitFor(() => {
+      const found = drawnMarks(funnel);
+      expect(found).toHaveLength(4);
+      return found;
+    });
     await expect(
       canvasElement.querySelector('[data-slot="status-line"] [role="alert"]'),
     ).toBeNull();
@@ -242,33 +245,32 @@ export const FunnelFromTheRows: Story = {
     const box = funnel.getBoundingClientRect();
     await expect(box.left - block.left).toBeGreaterThanOrEqual(15);
     await expect(block.right - box.right).toBeGreaterThanOrEqual(15);
-    await expect(outside(stageBars, box)).toEqual([]);
+    await expect(outside(stageMarks, box)).toEqual([]);
     // The palette's first slot, as a lone series wears it — read back off
     // the stylesheet, as the drawing was handed it.
     const first = formatRgb(
       parse(getComputedStyle(funnel).getPropertyValue('--chart-1').trim()),
     );
-    for (const bar of stageBars)
-      await expect(getComputedStyle(bar).fill).toBe(first);
-    // One bar a stage, all centred on one line, each as long as its number
-    // against the longest — one length for one number. The library's
-    // trapezoids drew each stage from its own width to the next one's, two
-    // numbers in one area (2026-09-23 audit).
-    const boxes = stageBars
-      .map(bar => bar.getBoundingClientRect())
+    for (const mark of stageMarks)
+      await expect(getComputedStyle(mark).fill).toBe(first);
+    // A stage under a stage, all centred on one line, a narrow seam between.
+    const boxes = stageMarks
+      .map(mark => mark.getBoundingClientRect())
       .sort((a, b) => a.top - b.top);
     const centres = boxes.map(one => (one.left + one.right) / 2);
     await expect(
       centres.every(centre => Math.abs(centre - centres[0]!) < 1),
     ).toBe(true);
-    // Rectangles: a path's box is the bar itself, stage under stage.
-    for (const [index, box] of boxes.entries())
-      if (index > 0)
-        await expect(box.top).toBeGreaterThanOrEqual(boxes[index - 1]!.bottom);
+    for (const [index, one] of boxes.entries())
+      if (index > 0) {
+        const seam = one.top - boxes[index - 1]!.bottom;
+        await expect(seam).toBeGreaterThanOrEqual(0);
+        await expect(seam).toBeLessThan(4);
+      }
 
     await expect(
-      funnel.querySelector('[data-slot="funnel-conversion-heading"]'),
-    ).toHaveTextContent(zhCN['label.chart.column.conversion.previous']);
+      funnel.querySelector('[data-slot="funnel-key"]'),
+    ).toHaveTextContent(zhCN['label.chart.funnel.key']);
 
     // Nothing added up, so nothing to say about it — and each stage is the
     // number the table shows for its warehouse.
@@ -278,26 +280,34 @@ export const FunnelFromTheRows: Story = {
     ).toBeNull();
     const stages = readingOf(canvasElement);
     await expect(stages).toHaveLength(4);
-    // Each bar's length is its stage's number against the longest.
+    // Each stage's top edge is its number against the largest, from zero:
+    // the path's first two points are its top corners.
     const measured = stages.map(([, count]) => Number(count));
-    const widths = boxes.map(box => box.width);
-    const longest = Math.max(...measured);
+    const tops = [...stageMarks]
+      .sort(
+        (a, b) => a.getBoundingClientRect().top - b.getBoundingClientRect().top,
+      )
+      .map(mark => {
+        const [x0, , x1] = (mark.getAttribute('d') ?? '')
+          .match(/-?\d+(?:\.\d+)?/g)!
+          .map(Number);
+        return Math.abs(x1! - x0!);
+      });
+    const largest = Math.max(...measured);
     for (const [index, count] of measured.entries())
       await expect(
-        Math.abs(widths[index]! / Math.max(...widths) - count / longest),
+        Math.abs(tops[index]! / Math.max(...tops) - count / largest),
       ).toBeLessThan(0.02);
-    // The words stand in one column, past the longest bar: every stage's
-    // name starts at one left edge.
+    // Each stage's name is written inside it or beside it, never a column
+    // away: every one within the funnel's frame.
     const names = new Set(stages.map(([name]) => name));
-    const lefts = funnel.querySelectorAll('[data-slot="chart-plot"] svg text');
-    const starts = [...lefts]
-      .filter(text => names.has(text.textContent))
-      .map(text => Math.round(text.getBoundingClientRect().left));
-    await expect(starts).toHaveLength(4);
-    await expect(new Set(starts).size).toBe(1);
-    await expect(starts[0]).toBeGreaterThan(
-      Math.max(...boxes.map(box => box.right)),
+    const written = [
+      ...funnel.querySelectorAll('[data-slot="chart-plot"] svg text'),
+    ].filter(text =>
+      [...names].some(name => text.textContent?.startsWith(name!)),
     );
+    await expect(written).toHaveLength(4);
+    await expect(outside(written, box)).toEqual([]);
     await userEvent.click(
       within(canvasElement).getByRole('button', {
         name: zhCN['label.layout.table'],

@@ -754,7 +754,7 @@ export const ANALYSIS_VIEWS: ViewInstance[] = [
       },
     }),
   ),
-  // A-09：下单到完成，每一步各自的条件；转化按上一步算。付款这一步漏得最多。
+  // A-09：下单到完成，每一步各自的条件；图上写出每步的流失。付款这一步漏得最多。
   shared(
     ANALYSTS,
     'a09-funnel',
@@ -793,7 +793,6 @@ export const ANALYSIS_VIEWS: ViewInstance[] = [
               { metric: 'completed' },
             ],
           },
-          conversion: 'previous',
         },
       },
     }),

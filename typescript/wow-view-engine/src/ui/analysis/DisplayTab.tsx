@@ -285,17 +285,6 @@ function FunnelDisplay({ chart, onChange }: OptionsPageProps) {
   const stages = spec.stages.from === 'group' ? spec.stages : undefined;
   return (
     <>
-      <ChoiceField
-        label={messages.label('label.chart.conversion')}
-        items={(['previous', 'first', 'none'] as const).map(mode => ({
-          value: mode,
-          label: messages.label(`label.chart.conversion.${mode}`),
-        }))}
-        value={spec.conversion ?? 'previous'}
-        onChange={conversion =>
-          onChange({ ...chart, funnel: { ...spec, conversion } })
-        }
-      />
       {stages && (
         <CheckField
           data-slot="chart-cumulative"

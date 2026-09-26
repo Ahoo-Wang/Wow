@@ -551,7 +551,6 @@ function funnel(spec: FunnelSpec | undefined, shape: Shape): FunnelSpec {
   // way to the first that does.
   const counted = shape.quantities.filter(alias => shape.additive.has(alias));
   const rest = {
-    ...(spec?.conversion === undefined ? {} : { conversion: spec.conversion }),
     ...(spec?.orientation === undefined
       ? {}
       : { orientation: spec.orientation }),

@@ -18,21 +18,28 @@ import { useViewMessages } from '../MessagesProvider.js';
 import { useSurfaceDisplay } from '../ViewSurface.js';
 import { EChart, type ChartClick } from './EChart.js';
 import { faded, type Lit } from './highlight.js';
-import { conversionHeading, type FamilyProps } from './family.js';
-import { funnelOption } from './funnelOption.js';
+import type { FamilyProps } from './family.js';
+import { funnelFit, funnelPlotHeight } from './funnelFit.js';
+import { drawnStages, funnelOption, type FunnelWords } from './funnelOption.js';
 import { useChartMotion } from './motion.js';
 import type { ChartTheme } from './theme.js';
 
 /**
- * A funnel, drawn by ECharts from `funnelOption` (D21): the centred shape
- * Metabase draws rather than the left-aligned bars it replaced, each stage
- * with its name, value and conversion beside it. What the percentages are
- * relative to is said once, over the drawing, where the heading of their
- * column used to stand (`conversionHeading`) — a bare 「25%」 reads as a
- * share of the whole, which it is only against the first stage. A funnel
- * that accumulates says that there too: its numbers are "reached at least
- * this stage", not the stage's own rows the table shows, and a number that
+ * A funnel, drawn by ECharts' own funnel from `funnelOption` and fitted to
+ * its plot by `funnelFit` (2026-09-25): a trapezoid a stage, the words in
+ * or beside it, and between two stages what was lost — the step that lost
+ * the largest share said so in words. Over the drawing, one line says the
+ * whole funnel's conversion (「总转化 85.4%（交易完成 / 下单）」) and one
+ * what its numbers are: the percentage beside a stage is of the first, the
+ * words between two are the drop from the one before. A funnel that
+ * accumulates says that there too: its numbers are "reached at least this
+ * stage", not the stage's own rows the table shows, and a number that
  * differs from the table with nothing beside it reads as a wrong one.
+ *
+ * Its plot is as tall as its stages need (`funnelPlotHeight`) rather than
+ * the frame's 16:9 — unless the host sizes it, as a board's panel does
+ * (`className`), when the stages are centred in the panel at their
+ * longest.
  *
  * A funnel staged by a dimension's values is pressed a stage at a time, as
  * a bar is (D33 batch C): the stage is its group, which opens the follow-up
@@ -53,10 +60,31 @@ export function Funnel({
   const animate = useChartMotion();
   const messages = useViewMessages();
   const { locale } = useSurfaceDisplay();
-  const converts = data.stages.some(stage => stage.conversion !== undefined);
-  const conversion = messages.label(
-    conversionHeading(spec?.funnel?.conversion),
+  const words = useMemo<FunnelWords>(
+    () => ({
+      value: messages.label('label.chart.column.value'),
+      fromPrevious: messages.label('label.chart.column.conversion.previous'),
+      fromFirst: messages.label('label.chart.column.conversion.first'),
+      drop: messages.label('label.chart.column.drop'),
+      largest: messages.label('label.chart.funnel.largest-drop'),
+    }),
+    [messages],
   );
+  const drawn = useMemo(
+    () => drawnStages(data, { spec, label, column, locale }),
+    [data, spec, label, column, locale],
+  );
+  const first = drawn[0];
+  const last = drawn[drawn.length - 1];
+  // The whole funnel's conversion, when there is a first to be one of.
+  const overall =
+    drawn.length > 1 && first && last && last.share !== undefined
+      ? messages.label('label.chart.funnel.overall', {
+          share: last.share,
+          last: last.name,
+          first: first.name,
+        })
+      : undefined;
   const cumulative = data.cumulative === true;
   const stages = spec?.funnel?.stages;
   // The dimension a stage is a value of, when it is one.
@@ -81,13 +109,18 @@ export function Funnel({
       faded(
         funnelOption(
           data,
-          { spec, label, column, locale, conversion, animate, pickable },
+          { spec, label, column, locale, words, animate, pickable },
           theme,
         ),
         lit,
       ),
-    [data, spec, label, column, locale, conversion, animate, pickable, lit],
+    [data, spec, label, column, locale, words, animate, pickable, lit],
   );
+  const adapt = useMemo(
+    () => funnelFit(data, { spec, label, column, locale, words }),
+    [data, spec, label, column, locale, words],
+  );
+  const horizontal = spec?.funnel?.orientation === 'horizontal';
   const onClick = useMemo(
     () =>
       onPick &&
@@ -109,8 +142,16 @@ export function Funnel({
       className={className}
       option={option}
       onClick={onClick || undefined}
+      adapt={adapt}
+      chunk="statistics"
+      // A board's panel sizes its chart; anywhere else the stages do.
+      plotHeight={
+        className === undefined
+          ? funnelPlotHeight(data.stages.length, horizontal)
+          : undefined
+      }
       legend={
-        converts || cumulative
+        drawn.length > 1 || cumulative
           ? {
               at: 'top',
               node: (
@@ -120,9 +161,17 @@ export function Funnel({
                       {messages.label('label.chart.column.cumulative')}
                     </span>
                   )}
-                  {converts && (
-                    <span data-slot="funnel-conversion-heading">
-                      {conversion}
+                  {overall !== undefined && (
+                    <span
+                      data-slot="funnel-overall"
+                      className="font-medium text-foreground"
+                    >
+                      {overall}
+                    </span>
+                  )}
+                  {drawn.length > 1 && (
+                    <span data-slot="funnel-key">
+                      {messages.label('label.chart.funnel.key')}
                     </span>
                   )}
                 </span>
@@ -135,6 +184,7 @@ export function Funnel({
         'data-marks': data.stages.length,
         'data-orientation': spec?.funnel?.orientation ?? 'vertical',
         'data-cumulative': cumulative ? 'on' : 'off',
+        'data-largest-drop': data.largestDrop,
       }}
     />
   );

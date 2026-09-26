@@ -538,6 +538,20 @@
 - **公开面**：`ViewSource` 多可选的 `describe`；`RecordCapability` 多可选的 `maxSortFields`；`ViewEngineOptions.limits` 的类型改为 `Partial<RuntimeLimits>`。新增的 `src/capabilities/` 不出包。C2 余项：`AggregationFieldCapability` 多 `missingKey`、`inMetricFilter`、`expressionInput`，`AnalysisCapability` 多 `metricSort`、`dense`、`havingMetrics`、`approximate`，`FieldDefinition` 多 `projectable`，`DataViewDefinition` 多 `narrowing`（`DefinitionNarrowing`）；根入口多 `DEFAULT_APPROXIMATE_METRICS`、`approximateMetrics`、`isApproximate`。「近似值」不再写死，读能力（没有描述时缺省为百分位）。
 - **落点**：`src/capabilities/`、`src/runtime/capabilities.ts`、`src/runtime/{viewEngine,runtimeFactory,viewRuntime,source}.ts`、`src/record/validate.ts`（`maxSortFields`）、`src/filter/search.ts`（`searchFieldOf`）、`src/react/useFilterEditor.ts`（`fieldsFor`）、`src/ui/messages/capabilities.ts`；[capabilities.md](capabilities.md) 第 12 节、[model.md](model.md#runtimelimits-的源预算)。（见 test/capabilitiesNarrow.test.ts、test/capabilitiesCache.test.ts、test/capabilitiesRuntime.test.ts、test/capabilitiesUi.test.tsx，Storybook「能力/随部署收窄/回归」）
 
+## D48 漏斗画成真正的漏斗，写出每一步的流失（2026-09-25）
+
+- **来由**：用户看「下单、付款、发货、签收、交易完成」（20,375 → 17,401）问「这个漏斗图是不是有问题」。数没错，图没尽到漏斗的本分：五根居中的条几乎一样宽（最窄是最宽的 85%），读起来像柱状图，下单 → 付款 流失 1,625（8%）看不出来；五段按 16:9 画了 761px 高、每段 121px，字小小地站在右边很远。用户随后拿 ECharts 官方漏斗示例说「不应该是这样的吗，每个阶段之间的留白也太多了」。
+- **裁定**（用户定形，细节负责人按第一原理定）：
+  - **用库自己的漏斗**（`series.type: 'funnel'`，注册在统计类的块里）：一段一个梯形，上沿是这一段的数、收到下一段的宽；**不重排**（`sort: 'none'`，顺序是业务的）；宽从 0 起、到最大那段（`min: 0`），流失少就收得少，不夸大；段间 2px、1px 底色的缝。**修订 2026-09-23 审查的"一段一根条"**：那次担心梯形面积同时编码两个数、后一段更大时画成沙漏；现在上沿读数，字写在段里，读屏表与提示给出每个数。最后一段没有下一段，保持自身宽度到底（一个不可见、长度为 0 的"脚"），不收成尖——尖读起来是"什么也不剩"。
+  - **一种颜色**（色板第一档）：阶段是同一个量的先后几步，不是类别；每段一色会说它们是类别，明度渐变会给宽度之外再加一层读法、并让段里的字色逐段变。图案打开时照常叠在上面。
+  - **写出流失**：段与段之间、与缝齐平写「−1,625 · −8.0%」（数按该指标的列读法，百分比一位小数）；**流失占比最大的那一步**再加「最大流失」、加粗、并有一根从缝引到字的线——不只靠颜色。长大了的一步写「+」，持平写「0 · 0.0%」，上一段为 0 时只写数。
+  - **两种转化都说**：段里（放不下就在旁边加引线）写「名字 / 数 · 占第一段 %」；段间的流失即相对上一段；图上方一行「总转化 85.4%（交易完成 / 下单）」和一行说明「每段的百分比相对第一段，段与段之间是较上一段的流失」。**去掉「转化率相对」这个选项**（`FunnelSpec.conversion`）：两种都画出来了，没有可选的；存下来的配置里多出的这个键被忽略。
+  - **累计开关照旧**：它只改一段的数是什么（「至少到达这一段」）；流失与转化按画出来的数算，于是累计时两段之间的流失恰好是前一段自己的行——停在那一段的。
+  - **高度按段数**：一段最长 4.5 行字（12px 字即 54px），工作台与嵌入里图高按段数算（`funnelPlotHeight`），不再按宽度取 16:9；仪表盘面板自己定高，段在面板里居中、仍不超过上限。
+  - **横放同样处理**：段均分宽度，字放得下就写在段里，否则在段下一行（名字、数、占比三行）；流失在缝下，最多三行（数、百分比、最大流失）。
+- **读屏**：读屏表列为 阶段｜数值｜转化率（相对上一段）｜转化率（相对第一段）｜较上一段流失；一句话摘要「共 5 段，从 下单 20,375 到 交易完成 17,401，总转化 85.4%。流失最多在 下单 → 付款：−1,625（−8.0%）。」
+- **落点**：`src/analysis/funnel.ts`（`share`、`drop`、`largestDrop`）、`src/ui/charts/{funnelOption,funnelFit,Funnel,reading,sentence}.ts(x)`、`echartsStatistics.ts`、`EChart.tsx`（`plotHeight`）、`styles.css`、[ui/analysis.md](ui/analysis.md)。
+
 ## 搁置待议
 
 尚无结论，不要当作规则执行。

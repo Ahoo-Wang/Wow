@@ -2673,6 +2673,18 @@
 }
 
 /*
+ * A funnel is as tall as its stages (`funnelPlotHeight`), not as the result
+ * block: stretched to it, five stages stood 121px each with the words a
+ * hand's width away (2026-09-25).
+ */
+.fve-root
+  > [data-slot='workbench-main']
+  [data-slot='analysis-result']
+  > [data-slot='chart'][data-chart='funnel'] {
+  flex: none;
+}
+
+/*
  * A number on a dashboard is a tile one row tall.
  *
  * A metric panel's whole job is its label and its number, and the grid's row
