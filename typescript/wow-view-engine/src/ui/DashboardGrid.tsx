@@ -44,6 +44,7 @@ import { dropped } from './dragDrop.js';
 import { sortableList } from './dragPlugins.js';
 import { dragWording, type DragWordingKeys } from './dragWording.js';
 import { gridBlocks } from './dashboard/gridBlocks.js';
+import { fittedLayout, usePanelWholes } from './dashboard/panelFit.js';
 import {
   DashboardPanel,
   panelNames,
@@ -221,6 +222,7 @@ export function DashboardGrid({
   const building = useBoardBuilding();
   const extensions = useDashboardEditExtensions();
   const wiring = useFilterWiring();
+  const fit = usePanelWholes();
 
   // The tab on screen (D22 E) is the grid: its panels alone are drawn, and
   // every placement is judged among them — another tab is another grid. It
@@ -341,8 +343,11 @@ export function DashboardGrid({
   const boxes = panels.map(panel => ({ id: panel.id, ...panel.layout }));
   const cards = new Set(panels.filter(isMetricCard).map(panel => panel.id));
   // A pair of metric cards shares a row there (`stackedLayout`).
+  const read = narrow ? stackedLayout(boxes, id => cards.has(id)) : boxes;
+  // Read, a panel grows towards the height its body needs whole (P1-3);
+  // built, every panel is the size that is saved.
   const layout: Layout = (
-    narrow ? stackedLayout(boxes, id => cards.has(id)) : boxes
+    arranging ? read : fittedLayout(read, fit.wholes, rowHeight)
   ).map(({ id, ...box }) => ({ i: id, ...box }));
 
   // A fixed-width board (D31) is held to one width and centred: its filters,
@@ -535,6 +540,7 @@ export function DashboardGrid({
                       )
                     }
                     onRenderFailure={onRenderFailure}
+                    onWhole={fit.reporter(panel.id)}
                   />
                 </PanelGridItem>
               ))}

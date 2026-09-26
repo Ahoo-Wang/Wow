@@ -595,7 +595,9 @@ src/
       PanelExport.tsx         — 「导出数据…」: the export window over a panel's child view — a record panel's rows by `useExportOffer`, an analysis panel's groups by `useAnalysisExportOffer` — named after the panel
       PresentationDialog.tsx  — 「改这里的展示」: the chart picker and options writing one panel's look, beside the panel as it will look; Cancel puts back the look it opened with
       press.ts                — `PanelPress`: what the grid hands a panel for a press on its groups, `pressMode` (the menu and a destination only with a route), the board line the follow-up menu says, and what a cross-filter press says
-      scrollMore.ts           — `useScrollMore`: a panel's body fades out towards the side a wide table has more columns past (`data-scroll-more`, W13), a mask on the body that stops short of its scrollbar
+      scrollMore.ts           — `useScrollMore`: a panel's body fades out towards the side a wide table has more columns past (`data-scroll-more`, W13), a mask on the body that stops short of its scrollbar; the rows under its bottom edge and the columns past its end counted, and the height the panel needs to draw its body whole (`whole`, P1-3)
+      ScrollCue.tsx           — `ScrollCue`: 「下面还有 N 行」／「右边还有 N 列」／「下面还有内容」 on a panel body's end corner, above its scrollbar and totals band — a picture of the scroll, no Tab stop, `aria-hidden` (P1-3)
+      panelFit.ts             — `fittedLayout`: a board read with each table, note or links panel grown by whole rows to its body's height, at most `GROWS_TO_ROWS` (8), never below its saved height, what stood under it moved down (`grownLayout`); `usePanelWholes`, the heights the panels report (P1-3)
       ViewPicker.tsx          — Choosing a saved view: grouped as the switcher groups them, searched, narrowed by kind and data, 「已在板上」 and 「只有你看得到」 said on the row; or, for a click, another board
     columns/
       ColumnRow.tsx           — One row of the column settings: checkbox, two-state pin toggle, summary, handle

@@ -17,6 +17,7 @@ import {
   compactLayout,
   fitsGrid,
   freeSpot,
+  grownLayout,
   overlaps,
   placePanel,
   placePanelIn,
@@ -633,5 +634,59 @@ describe('reordering the one-column reading', () => {
     expect(order(reorderPanelIn(config, 'd', 0))).toEqual(['d', 'a', 'b', 'c']);
     expect(order(reorderPanelIn(config, 'a', 3))).toEqual(['b', 'c', 'd', 'a']);
     expect(order(reorderPanelIn(config, 'b', 2))).toEqual(['a', 'c', 'b', 'd']);
+  });
+});
+
+/**
+ * A board read with its table panels shown whole (P1-3): a panel grows, and
+ * what stood under it moves down with it — nothing else moves.
+ */
+describe('grownLayout', () => {
+  it('grows a panel and moves what stood under it down by as much', () => {
+    // a b      a is a table that wants 8 rows; b a chart beside it.
+    // c c      c spans both, under them; d stands under b alone, two rows
+    //   d      further down.
+    const stored = [
+      box('a', 0, 0, 12, 5),
+      box('b', 12, 0, 12, 5),
+      box('c', 0, 5, 24, 4),
+      box('d', 12, 11, 12, 3),
+    ];
+    expect(byId(grownLayout(stored, new Map([['a', 8]])))).toEqual({
+      a: { x: 0, y: 0, w: 12, h: 8 },
+      b: { x: 12, y: 0, w: 12, h: 5 },
+      c: { x: 0, y: 8, w: 24, h: 4 },
+      // It kept the two rows it had under c.
+      d: { x: 12, y: 14, w: 12, h: 3 },
+    });
+  });
+
+  it('never shrinks a panel, and leaves a board nothing grows on alone', () => {
+    const stored = [box('a', 0, 0, 12, 5), box('b', 0, 5, 12, 4)];
+    expect(grownLayout(stored, new Map([['a', 3]]))).toEqual(stored);
+    expect(grownLayout(stored, new Map())).toEqual(stored);
+  });
+
+  it('moves nothing sideways, and keeps panels a config put on one cell there', () => {
+    // b stands beside a, not under it; c and d share a cell as saved.
+    const stored = [
+      box('a', 0, 0, 12, 4),
+      box('b', 12, 2, 12, 4),
+      box('c', 0, 4, 12, 3),
+      box('d', 0, 4, 12, 3),
+    ];
+    expect(byId(grownLayout(stored, new Map([['c', 5]])))).toEqual({
+      a: { x: 0, y: 0, w: 12, h: 4 },
+      b: { x: 12, y: 2, w: 12, h: 4 },
+      c: { x: 0, y: 4, w: 12, h: 5 },
+      d: { x: 0, y: 4, w: 12, h: 3 },
+    });
+  });
+
+  it('hands the panels back in the order they came', () => {
+    const stored = [box('b', 0, 4, 24, 2), box('a', 0, 0, 24, 4)];
+    expect(
+      grownLayout(stored, new Map([['a', 6]])).map(panel => panel.id),
+    ).toEqual(['b', 'a']);
   });
 });

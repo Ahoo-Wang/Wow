@@ -19,7 +19,13 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from './components/empty.js';
-import { useRef, useState, type ReactNode, type RefObject } from 'react';
+import {
+  useEffect,
+  useRef,
+  useState,
+  type ReactNode,
+  type RefObject,
+} from 'react';
 import { cn } from 'cn';
 import { readingOrder, type ArrangeStep } from '../dashboard/index.js';
 import type { Issue } from '../model/index.js';
@@ -47,6 +53,7 @@ import type { PanelPress } from './dashboard/press.js';
 import { hasMenu, PanelMenu, PanelTitleInput } from './dashboard/PanelMenu.js';
 import { PanelExport } from './dashboard/PanelExport.js';
 import { useScrollMore } from './dashboard/scrollMore.js';
+import { ScrollCue } from './dashboard/ScrollCue.js';
 import { ImageFailed } from './analysis/ExportMenu.js';
 import {
   useChartImageOffer,
@@ -209,6 +216,13 @@ export interface DashboardPanelProps {
    */
   pressesFilter?: string;
   onRenderFailure?: RenderFailureHandler;
+  /**
+   * Told the height, in pixels, the panel needs to draw its body whole —
+   * a table's every row, a note's every line — and `0` where the body takes
+   * whatever room it is given (a chart). The grid grows a panel read on a
+   * board towards it (`fittedLayout`, P1-3).
+   */
+  onWhole?: (height: number) => void;
 }
 
 /**
@@ -243,6 +257,7 @@ export function DashboardPanel({
   press,
   pressesFilter,
   onRenderFailure,
+  onWhole,
 }: DashboardPanelProps) {
   const messages = useViewMessages();
   const name = given ?? panelName(panel, 0, messages);
@@ -255,9 +270,17 @@ export function DashboardPanel({
   // away (D33 Q58) — only where the board offers exports at all.
   const image = useChartImageSlot();
   // A table wider than the panel fades out towards the columns past its
-  // edge (`useScrollMore`, W13).
+  // edge (`useScrollMore`, W13); what is still past the bottom or the end
+  // is counted in a cue (P1-3), and the height the body needs whole goes
+  // to the grid. A note or a list of links keeps its own height as a table
+  // does; a chart fills whatever it is given.
   const [body, setBody] = useState<HTMLDivElement | null>(null);
-  const scroll = useScrollMore(body);
+  const scroll = useScrollMore(
+    body,
+    panel.panel.kind === 'markdown' || panel.panel.kind === 'links',
+  );
+  const whole = scroll.whole;
+  useEffect(() => onWhole?.(whole), [onWhole, whole]);
   const picture = useChartImageOffer({
     runtime: commands?.exportRows ?? null,
     title: name,
@@ -329,6 +352,7 @@ export function DashboardPanel({
           aria-label={name}
           ref={setBody}
           data-scroll-more={scroll.more}
+          data-scroll-below={scroll.below || undefined}
           style={scroll.style}
           className={cn(
             'min-h-0 flex-1 overflow-auto px-(--_fve-panel-padding)',
@@ -363,6 +387,7 @@ export function DashboardPanel({
           </RenderBoundary>
         </CardContent>
       )}
+      {(!heading || panel.broken) && <ScrollCue scroll={scroll} />}
       {!panel.broken && panel.runtime && isRecordRuntime(panel.runtime) && (
         <div className="px-(--_fve-panel-padding)" data-slot="panel-paging">
           <RecordPanelPaging

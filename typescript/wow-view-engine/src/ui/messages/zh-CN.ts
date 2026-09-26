@@ -1644,6 +1644,12 @@ export const zhCN: ViewMessages = {
   'label.filters.default': '默认值',
   'label.filters.multiple': '可多选',
   'label.filters.required-toggle': '必填',
+  'label.panel.more-rows': '下面还有 {count} 行',
+  'label.panel.more-rows-one': '下面还有 1 行',
+  'label.panel.more-columns': '右边还有 {count} 列',
+  'label.panel.more-columns-one': '右边还有 1 列',
+  'label.panel.more-both': '{rows}，{columns}',
+  'label.panel.more-below': '下面还有内容',
   'label.panel.awaiting-date': '请选择日期',
   'label.panel.awaiting-date-hint':
     '「{filter}」选了指定日期，挑一天后这里显示那一天的数。',

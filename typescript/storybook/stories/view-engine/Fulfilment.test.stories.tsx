@@ -19,6 +19,13 @@ import displayMeta, {
 } from './Fulfilment.stories.js';
 import { chartsDrawn, drawnMarks, pressMark } from './chartDom.js';
 import { expectTableBleeds } from './panelEdges.js';
+import {
+  expectColumnsCue,
+  expectCueIsNoStop,
+  expectNoPanelsOverlap,
+  expectRowsCue,
+  expectShownWhole,
+} from './panelFit.js';
 import { findReading, noPanelOut, panelOf, rowsOf } from './retail/twins.js';
 
 function percentOf(text: string | undefined): number {
@@ -129,5 +136,39 @@ export const AnalysisTableRunsToThePanelEdges: Story = {
   play: async ({ canvasElement }) => {
     await noPanelOut(canvasElement);
     await expectTableBleeds('退款率最高的商品（近 3 个月）', 'analysis-table');
+  },
+};
+
+/**
+ * 履约: the overdue detail on the board read shows its eleven orders whole
+ * (2026-09-26 review, P1-3: six showed and 发货仓 was cut), and says how
+ * many columns are past its end.
+ */
+export const OverdueDetailShowsItsRows: Story = {
+  ...DisplayFulfilment,
+  name: '履约与售后 · 超时明细按行长高',
+  play: async ({ canvasElement }) => {
+    await noPanelOut(canvasElement);
+    await expectShownWhole('超时明细：付款超过 48 小时仍未发货', 11);
+    await expectColumnsCue('超时明细：付款超过 48 小时仍未发货');
+    await expectNoPanelsOverlap(canvasElement);
+  },
+};
+
+/**
+ * 售后: the after-sales detail holds a page of twenty, more than a panel
+ * grows to — it stops at eight rows of the grid and says how many rows are
+ * under its bottom edge and how many columns past its end (实退金额 was
+ * cut with no sign, 2026-09-26 review, P1-3).
+ */
+export const AfterSalesDetailSaysWhatIsPast: Story = {
+  ...DisplayAfterSales,
+  name: '履约与售后 · 售后单明细说出还有多少',
+  play: async ({ canvasElement }) => {
+    await noPanelOut(canvasElement);
+    await expectRowsCue('售后单明细');
+    await expectColumnsCue('售后单明细');
+    await expectCueIsNoStop('售后单明细');
+    await expectNoPanelsOverlap(canvasElement);
   },
 };

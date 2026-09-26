@@ -15,6 +15,7 @@ import { expect, screen, userEvent, waitFor, within } from 'storybook/test';
 import { zhCN } from '@ahoo-wang/wow-view-engine/ui';
 import displayMeta, {
   Category as DisplayCategory,
+  Channels as DisplayChannels,
   OneDay as DisplayOneDay,
   Overview as DisplayOverview,
 } from './SalesReview.stories.js';
@@ -31,6 +32,11 @@ import {
 } from './retail/twins.js';
 import { densitySettled } from './panelEdges.js';
 import { expectBandsHeld } from './stickyBands.js';
+import {
+  expectColumnsCue,
+  expectNoPanelsOverlap,
+  expectShownWhole,
+} from './panelFit.js';
 
 /**
  * 销售复盘, as a lightweight twin (docs/scenarios.md 6.1): it draws without a
@@ -91,6 +97,7 @@ export const MonthlyTableHoldsItsBands: Story = {
   ...DisplayOverview,
   name: '月度指标的表头与合计贴住面板',
   play: async ({ canvasElement }) => {
+    await expectShownWhole('月度指标（今年）');
     const body = await waitFor(() => panelOf('月度指标（今年）'), {
       timeout: 10_000,
     });
@@ -102,10 +109,9 @@ export const MonthlyTableHoldsItsBands: Story = {
       expect(found?.querySelectorAll('tbody tr[data-index]')).toHaveLength(9);
       return found!;
     });
-    // As the board lays it out: nine months and the totals overflow it.
-    await expectBandsHeld(body, port);
-    // And at each density, in a body held shorter, so the rows overflow it
-    // however short the density makes them.
+    // As the board lays it out, the panel grows to the nine months and the
+    // totals (P1-3); so the bands are held in a body held shorter, at each
+    // density, so the rows overflow it however short the density makes them.
     body.style.maxHeight = '240px';
     for (const density of ['compact', 'default', 'comfortable']) {
       canvasElement.dataset.fveDensity = density;
@@ -314,5 +320,35 @@ export const SalesReviewIsBuilt: Story = {
     await expect(
       canvas.queryByRole('group', { name: '月度指标（今年）' }),
     ).toBeNull();
+  },
+};
+
+/**
+ * 品类: the top ten by refund rate shows all ten (2026-09-26 review, P1-3:
+ * eight, and blank room under them).
+ */
+export const TopTenShowsAllTen: Story = {
+  ...DisplayCategory,
+  name: '销售复盘 · 前 10 个商品都在面板里',
+  play: async ({ canvasElement }) => {
+    await noPanelOut(canvasElement);
+    await expectShownWhole('退款率最高的商品（近 3 个月）', 10);
+    await expectNoPanelsOverlap(canvasElement);
+  },
+};
+
+/**
+ * 渠道与地域: the campaigns' table shows every campaign, its last row whole
+ * (2026-09-26 review, P1-3: the last row half showed), and counts the
+ * columns past its end — the sixth was cut with no sign.
+ */
+export const CampaignsShowTheirRows: Story = {
+  ...DisplayChannels,
+  name: '销售复盘 · 各活动按行长高',
+  play: async ({ canvasElement }) => {
+    await noPanelOut(canvasElement);
+    await expectShownWhole('各活动的客单价与优惠力度');
+    await expectColumnsCue('各活动的客单价与优惠力度');
+    await expectNoPanelsOverlap(canvasElement);
   },
 };
