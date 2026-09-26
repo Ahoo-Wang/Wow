@@ -20,6 +20,7 @@ import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.messaging.DistributedMessageBus
 import me.ahoo.wow.messaging.MessageReceiver
 import me.ahoo.wow.messaging.MessageSubscription
+import me.ahoo.wow.messaging.durableIntake
 import me.ahoo.wow.messaging.handler.MessageExchange
 import me.ahoo.wow.serialization.toJsonString
 import me.ahoo.wow.serialization.toObject
@@ -169,7 +170,7 @@ abstract class AbstractKafkaBus<M, E>(
         return MessageReceiver(
             messages = messages,
             readiness = readiness.asMono(),
-        )
+        ).durableIntake()
     }
 
     private fun receive(

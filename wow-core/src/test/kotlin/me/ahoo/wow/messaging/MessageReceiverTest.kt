@@ -83,4 +83,43 @@ class MessageReceiverTest {
         processingAdmissions.get().assert().isZero()
         processingQuiescences.get().assert().isOne()
     }
+
+    @Test
+    fun `mapping messages preserves durable intake suspension`() {
+        val suspensions = AtomicInteger()
+        val receiver = MessageReceiver(
+            messages = Flux.just(1),
+            durableIntakeSuspension = suspensions::incrementAndGet,
+        ).mapMessages { messages ->
+            messages.map(Int::toString)
+        }
+
+        receiver.suspendDurableIntake()
+
+        suspensions.get().assert().isOne()
+    }
+
+    @Test
+    fun `durable intake stops requesting after suspension but delivers requested messages`() {
+        val requested = AtomicInteger()
+        val suspensions = AtomicInteger()
+        val source = Sinks.many().unicast().onBackpressureBuffer<Int>()
+        val receiver = MessageReceiver(
+            messages = source.asFlux().doOnRequest { requested.addAndGet(it.toInt()) },
+            durableIntakeSuspension = suspensions::incrementAndGet,
+        ).durableIntake()
+
+        StepVerifier.create(receiver.messages, 1)
+            .then { source.tryEmitNext(1).orThrow() }
+            .expectNext(1)
+            .then { receiver.suspendDurableIntake() }
+            .thenRequest(5)
+            .then { source.tryEmitNext(2).orThrow() }
+            .expectNoEvent(java.time.Duration.ofMillis(50))
+            .thenCancel()
+            .verify()
+
+        requested.get().assert().isOne()
+        suspensions.get().assert().isOne()
+    }
 }
