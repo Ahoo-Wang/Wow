@@ -31,17 +31,16 @@ export * from './defaults.js';
 export {
   bucketRange,
   drillConditions,
-  drillFilter,
   drillGroups,
   focusOn,
   groupFor,
-  narrowsTo,
   splitBy,
   wallClockAt,
   type BucketRange,
   type DrillContext,
   type DrilledGroup,
 } from './drill.js';
+export { drillFilter, narrowsTo } from './drillFilter.js';
 export * from './fitCharts.js';
 export * from './formula.js';
 export * from './expand.js';

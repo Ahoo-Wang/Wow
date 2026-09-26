@@ -13,7 +13,7 @@
 
 import type { StoryObj } from '@storybook/react-vite';
 import { expect, userEvent, waitFor, within } from 'storybook/test';
-import { zhCN } from '@ahoo-wang/wow-view-engine/ui';
+import { formatMessage, zhCN } from '@ahoo-wang/wow-view-engine/ui';
 import displayMeta, {
   MemberAnalysis as DisplayMemberAnalysis,
   OrderAnalysis as DisplayOrderAnalysis,
@@ -65,6 +65,44 @@ async function reading(canvasElement: HTMLElement) {
     );
     if (!table) throw new Error('No chart reading yet.');
     return table;
+  });
+}
+
+/**
+ * The records a follow-up opened, once they are on screen: how many rows
+ * came back, and the applied band they came back under. A drill that could
+ * not run opened a title over nothing — no rows, no loading, no word of why
+ * (a range on the field the analysis was already scoped by, 2026-09-25) —
+ * so the rows are counted and no error strip may stand above them.
+ */
+async function drilledRecords(canvasElement: HTMLElement) {
+  const table = await findDataTable(canvasElement);
+  const rows = await waitFor(() => {
+    const first = readHeaders(table)[0]!;
+    const keys = readColumn(table, first).filter(key => key !== '');
+    expect(keys.length).toBeGreaterThan(0);
+    return keys.length;
+  });
+  await expect(
+    canvasElement.querySelector(
+      '[data-slot="status-strip"][data-tone="error"]',
+    ),
+  ).toBeNull();
+  const applied = within(canvasElement).getByRole('region', {
+    name: zhCN['label.applied.title'],
+  });
+  return { rows, applied: applied.textContent ?? '' };
+}
+
+/** The follow-up menu, once it is open under the given title. */
+async function drillMenu(title: string) {
+  return waitFor(() => {
+    const found = document.body.querySelector<HTMLElement>(
+      '[data-slot="drill-menu"]',
+    );
+    expect(found).toHaveAttribute('aria-label', title);
+    expect(found).toBeVisible();
+    return found!;
   });
 }
 
@@ -607,6 +645,89 @@ export const BrushADailyStretch: Story = {
     await expect(
       canvasElement.querySelector('[data-slot="view-title"]'),
     ).toHaveTextContent('日 GMV 走势（近 25 个月）');
+
+    // The stretch's records, under the view's own 「截至昨日」 on the same
+    // field: both hold, and the records come back.
+    brushAcross(plot, box.left + box.width * 0.5, box.left + box.width * 0.51);
+    const again = await drillMenu(zhCN['label.drill.menu-span']);
+    const stretch = again
+      .querySelector('[data-slot="drill-group"]')!
+      .textContent!.match(
+        /\d{4}年\d{1,2}月\d{1,2}日 ~ \d{4}年\d{1,2}月\d{1,2}日/,
+      )![0];
+    await userEvent.click(
+      within(again).getByRole('menuitem', {
+        name: zhCN['label.drill.records'],
+      }),
+    );
+    const records = await drilledRecords(canvasElement);
+    await expect(records.rows).toBeGreaterThan(0);
+    await expect(records.applied).toContain(stretch);
+  },
+};
+
+/**
+ * A-11 is scoped to 2025-10-15 ~ 11-20 on the very field it buckets by, so
+ * a day of it is a range on a field the view already bounds. 「查看这些记录」
+ * opens that day's orders — the day taking the stretch's place, since the
+ * stretch holds it whole — and 「只看这一组」 asks the same question of the
+ * day alone: one bar.
+ */
+export const DrillIntoADayOfDouble11: Story = {
+  ...DisplayOrderAnalysis,
+  name: '双 11 当天：查看这些记录与只看这一组（A-11）',
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const title = '2025 双 11 前后的日 GMV';
+    await openAnalysis(canvasElement, title);
+    const press = async () => {
+      // The day itself is the tallest bar by far (the A-11 golden).
+      const tallest = await waitFor(() => {
+        // Asked afresh: the chart is drawn again after 「返回」.
+        const bars = drawnMarks(
+          canvasElement.querySelector<HTMLElement>('[data-slot="chart"]')!,
+        );
+        expect(bars.length).toBeGreaterThan(30);
+        return bars.reduce((one, other) =>
+          other.getBoundingClientRect().height >
+          one.getBoundingClientRect().height
+            ? other
+            : one,
+        );
+      });
+      pressMark(tallest);
+      const menu = await drillMenu(zhCN['label.drill.menu']);
+      await expect(menu).toHaveTextContent('2025年11月11日');
+      return menu;
+    };
+
+    await userEvent.click(
+      within(await press()).getByRole('menuitem', {
+        name: zhCN['label.drill.records'],
+      }),
+    );
+    const records = await drilledRecords(canvasElement);
+    await expect(records.rows).toBeGreaterThan(0);
+    await expect(records.applied).toContain('2025年11月11日');
+    // The day said once, in place of the stretch it lies in.
+    await expect(records.applied).not.toContain('2025年10月15日');
+
+    await userEvent.click(
+      canvas.getByRole('button', {
+        name: formatMessage(zhCN, 'label.origin.back', { title }),
+      }),
+    );
+    await chartsDrawn(canvasElement);
+    await userEvent.click(
+      within(await press()).getByRole('menuitem', {
+        name: zhCN['label.drill.focus'],
+      }),
+    );
+    await waitFor(async () =>
+      expect(readColumn(await reading(canvasElement), '日期')).toEqual([
+        '2025年11月11日',
+      ]),
+    );
   },
 };
 

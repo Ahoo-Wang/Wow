@@ -34,7 +34,7 @@ import type {
   ViewRuntimeState,
   WriteAction,
 } from '../runtime/index.js';
-import { untouchedSince } from '../runtime/navigation.js';
+import { untouchedSince, withFilterMode } from '../runtime/navigation.js';
 import { kindMismatch } from './issues.js';
 import { useAutoRefresh, type RefreshController } from './useAutoRefresh.js';
 import {
@@ -653,10 +653,12 @@ export function useWorkbench(
         return;
       // Under what ran, not what is being typed: the row came from the
       // applied conditions.
-      const config: RecordViewConfig = {
+      // Advanced where the row's range could not flatten beside the
+      // analysis's own on the same field (`drillFilter`).
+      const config: RecordViewConfig = withFilterMode({
         ...defaultRecordConfig(definition, engine.limits),
         filter: drillFilter(state.applied.filter, conditions),
-      };
+      });
       if (onDrilldown) {
         onDrilldown({
           definitionId,

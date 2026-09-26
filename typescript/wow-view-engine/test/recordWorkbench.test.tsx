@@ -306,6 +306,59 @@ describe('DataWorkbench', () => {
     expect(screen.queryByText(/needs fixing/)).toBeNull();
   });
 
+  /**
+   * A saved view opens folded, and a finding marked on a pill is said on
+   * that pill alone — so a view whose conditions would not run showed a
+   * title over an empty body, with nothing saying why (a drill into a
+   * time-scoped analysis, 2026-09-25). While the pills are off screen the
+   * status line says it, and opens them.
+   */
+  it('says why a folded view will not run, and shows the conditions that stop it', async () => {
+    const blocked: ViewInstance = {
+      ...mine,
+      config: recordConfig({
+        filter: {
+          op: 'and',
+          children: [
+            { field: 'warehouse', operator: 'EQ', value: 'CN' },
+            { field: 'warehouse', operator: 'EQ', value: 'US' },
+          ],
+        },
+      }),
+    };
+    const engine = new ViewEngine({
+      definitions: [ordersDefinition()],
+      store: new MemoryViewStore({ instances: [blocked] }),
+      resolveSource: () => testSource(),
+    });
+
+    render(
+      <DataWorkbench
+        engine={engine}
+        definitionId="orders"
+        instanceId="orders-1"
+      />,
+    );
+
+    const show = await screen.findByRole('button', {
+      name: 'Show conditions',
+    });
+    const notice = show.closest('[data-slot="status-strip"]');
+    expect(notice?.getAttribute('data-tone')).toBe('error');
+    expect(notice?.textContent).toContain(
+      'Fix its conditions before this view runs (1)',
+    );
+    expect(editorToggle().getAttribute('aria-expanded')).toBe('false');
+
+    fireEvent.click(show);
+
+    expect(editorToggle().getAttribute('aria-expanded')).toBe('true');
+    // The pill now says it, so the line does not say it twice.
+    expect(
+      screen.queryByRole('button', { name: 'Show conditions' }),
+    ).toBeNull();
+  });
+
   // Its own alerts render above the provider of the surface it draws, yet
   // must read the wording it was handed, as everything inside that surface does.
   it("takes the host's wording, for its own alerts and everything inside", async () => {
