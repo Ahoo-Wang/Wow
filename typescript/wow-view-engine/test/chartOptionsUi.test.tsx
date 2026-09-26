@@ -1100,18 +1100,19 @@ describe('the chart options of the other families', () => {
     const ran = queries();
     await user.click(within(panel()!).getByRole('tab', { name: 'Display' }));
 
-    // A cell's number is written on it — in the ink that stands off the
-    // cell, with no halo, so it is told apart from the axes' text only by
-    // being more of it.
+    // A cell's number is written on it unasked — in the ink that stands
+    // off the cell, with no halo, so it is told apart from the axes' text
+    // only by being more of it — and 「不标」 takes the numbers away.
     const written = () =>
       document.querySelectorAll('[data-slot="chart-plot"] svg text').length;
-    const before = written();
-    fireEvent.click(
+    const choice = (name: string) =>
       within(
         within(panel()!).getByRole('group', { name: 'Value labels' }),
-      ).getByRole('button', { name: 'Every value' }),
-    );
-    await waitFor(() => expect(written()).toBeGreaterThan(before));
+      ).getByRole('button', { name });
+    expect(choice('Every value').getAttribute('aria-pressed')).toBe('true');
+    const before = written();
+    fireEvent.click(choice('None'));
+    await waitFor(() => expect(written()).toBeLessThan(before));
 
     fireEvent.click(
       within(panel()!).getByRole('button', { name: 'Logarithmic' }),

@@ -105,7 +105,13 @@ describe('heatmapOption', () => {
     expect(option.xAxis.data).toEqual(['day=Mon', 'day=Tue']);
     expect(option.xAxis.name).toBe('day');
     expect(option.series[0].cursor).toBe('pointer');
-    expect(option.series[0].label.show).toBe(false);
+    // A cell's number is written unasked where every one fits
+    // (`heatmapLabelsFit`), and not when the analyst said none.
+    expect(option.series[0].label.show).toBe(true);
+    expect(
+      (heatmapOption(data, context(undefined, false), theme) as Loose).series[0]
+        .label.show,
+    ).toBe(false);
   });
 
   it('keeps a colour scale, from the ground to the first slot', () => {
@@ -148,13 +154,16 @@ describe('heatmapOption', () => {
 
   it('shades by the log on a log scale, and still writes the numbers', () => {
     const option = heatmapOption(data, context('log', true), theme) as Loose;
-    expect(option.series[0].data[1].value[2]).toBeCloseTo(Math.log1p(99));
+    // A true log: 1, 10 and 100 are three even steps of the scale. It was
+    // log1p(v − min), which crowded every value above the least into the
+    // top (second review R2-P1-3).
+    expect(option.series[0].data.map((cell: Loose) => cell.value[2])).toEqual([
+      0, 2, 1,
+    ]);
     expect(option.series[0].data[1].value[3]).toBe(100);
-    expect(option.visualMap.max).toBeCloseTo(Math.log1p(99));
+    expect([option.visualMap.min, option.visualMap.max]).toEqual([0, 2]);
     // The scale's ends are read back out of the log.
-    expect(
-      Number(option.visualMap.formatter(Math.log1p(9)).split('=')[1]),
-    ).toBeCloseTo(10);
+    expect(Number(option.visualMap.formatter(1).split('=')[1])).toBeCloseTo(10);
     expect(option.series[0].label.show).toBe(true);
     expect(option.series[0].label.formatter({ value: [0, 0, 4.6, 100] })).toBe(
       'short orders=100',
@@ -162,6 +171,20 @@ describe('heatmapOption', () => {
     expect(option.tooltip.formatter({ value: [1, 0, 4.6, 100] })).toContain(
       'region=CN · day=Tue',
     );
+  });
+
+  it('shades linearly where a cell holds a 0, which no log has a place for', () => {
+    const zero: HeatmapData = {
+      ...data,
+      cells: [
+        [0, 100],
+        [10, null],
+      ],
+    };
+    const option = heatmapOption(zero, context('log', true), theme) as Loose;
+    expect(option.series[0].data.map((cell: Loose) => cell.value[2])).toEqual([
+      0, 100, 10,
+    ]);
   });
 
   it('writes each number in the ink that stands off its own cell (audit)', () => {

@@ -577,3 +577,24 @@ describe('the value labels, as the chart draws them (review P1-6)', () => {
     expect(pressed()).toEqual(['Value and share']);
   });
 });
+
+describe('a heatmap’s colour scale (R2-P1-3)', () => {
+  it('greys the log scale, and says why, over a cell of 0', async () => {
+    await open(
+      {
+        type: 'heatmap',
+        heatmap: { x: 'status', y: 'warehouse', value: 'total' },
+      },
+      { groups: [WAREHOUSE, STATUS] },
+      [...ROWS, { warehouse: 'US', status: 'DONE', orders: 1, total: 0 }],
+    );
+    await displayPage('heatmap');
+    const choice = within(panel()).getByRole('group', {
+      name: 'Colour scale',
+    });
+    expect(
+      within(choice).getByRole('button', { name: 'Logarithmic' }),
+    ).toHaveProperty('disabled', true);
+    expect(describedText(choice)).toContain('no place for 0');
+  });
+});
