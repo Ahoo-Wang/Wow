@@ -132,7 +132,7 @@ Every token reads a host variable first: `--fve-<token>` for light and `--fve-da
 
 ```css
 :root {
-  --fve-primary: oklch(0.55 0.21 265deg);
+  --fve-primary: oklch(0.4 0.21 265deg);
   --fve-primary-foreground: oklch(0.99 0 0deg);
   --fve-dark-primary: oklch(0.75 0.15 265deg);
   --fve-dark-primary-foreground: oklch(0.21 0.05 265deg);
@@ -140,7 +140,7 @@ Every token reads a host variable first: `--fve-<token>` for light and `--fve-da
 }
 ```
 
-They win over the preset you chose and over one pinned on a surface, as [Three layers](#three-layers) says. For one surface alone, pass `tokens` to `ViewSurface`, a workbench or an embed rather than setting the variables on a wrapper: a popup is portalled to `<body>`, out from under the wrapper, and `tokens` is written on the surface and on every popup it opens. Its type, `FveToken` from `/ui`, is every host variable of the registry.
+They win over the preset you chose and over one pinned on a surface, as [Three layers](#three-layers) says — so they are measured on every preset: this primary is dark enough for `contrast`'s 7:1 as well as the 4.5:1 of the rest, and [`theme-check`](#checking-a-theme) measures yours the same way. For one surface alone, pass `tokens` to `ViewSurface`, a workbench or an embed rather than setting the variables on a wrapper: a popup is portalled to `<body>`, out from under the wrapper, and `tokens` is written on the surface and on every popup it opens. Its type, `FveToken` from `/ui`, is every host variable of the registry.
 
 <!-- typecheck-context
 import type { ViewEngine } from '@ahoo-wang/wow-view-engine';

@@ -210,14 +210,16 @@ describe('the CSS samples of the theming pages', () => {
     },
   );
 
+  // On every built-in preset, as `theme-check` measures a host's stylesheet
+  // when told nothing: a variable on `:root` is worn on whichever preset the
+  // page names. Measured on `neutral` and the presets a sample imports
+  // alone, the guide's 「宿主覆盖」 primary passed here and failed the
+  // command 14 times — porcelain's light pairs, contrast's 7:1 (second
+  // review, R3-P1-6).
   it.each(css.map(sample => [sample.at, sample] as const))(
-    '%s is a theme theme-check clears, warnings included',
+    '%s is a theme theme-check clears on every preset, warnings included',
     (_, { code }) => {
-      expect(
-        checkTheme(code, RESOLVER, REGISTRY, {
-          presets: ['neutral', ...theme(code).imports],
-        }),
-      ).toEqual([]);
+      expect(checkTheme(code, RESOLVER, REGISTRY)).toEqual([]);
     },
   );
 });
