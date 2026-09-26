@@ -482,6 +482,49 @@ async function funnelReadsAsAFunnel(canvasElement: HTMLElement) {
   ]);
 }
 
+/** WCAG luminance of a fill the chart wrote as `rgb(r, g, b)`. */
+function fillLuminance(fill: string): number {
+  const [r, g, b] = (fill.match(/[\d.]+/g) ?? []).map(Number).map(channel => {
+    const c = channel / 255;
+    return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+  });
+  return 0.2126 * r! + 0.7152 * g! + 0.0722 * b!;
+}
+
+/** The fill of the cell a number is written on. */
+function cellFill(frame: HTMLElement, number: string): string {
+  const text = [
+    ...frame.querySelectorAll('[data-slot="chart-plot"] svg text'),
+  ].find(one => one.textContent?.trim() === number)!;
+  const box = text.getBoundingClientRect();
+  const cell = document
+    .elementsFromPoint(box.left + box.width / 2, box.top + box.height / 2)
+    .find(hit => hit.tagName === 'path' && hit.getAttribute('fill'));
+  return cell!.getAttribute('fill')!;
+}
+
+/**
+ * 热力图的对数色阶是真的对数，格子里写着数（第二轮审查 R2-P1-3）：城市等级
+ * × 渠道里 405 与 2,548 差 6.3 倍，从前按 log1p(值 − 最小值) 上色，两格亮度
+ * 对比只有 1.39:1、格子里又没有数。现在每格写数，两格对比拉开。
+ */
+export const HeatmapLogReads: Story = {
+  ...DisplayOrderAnalysis,
+  name: '热力图的对数色阶读得出差异（R2-P1-3）',
+  play: async ({ canvasElement }) => {
+    const frame = await openAnalysis(canvasElement, '城市等级 × 渠道');
+    await waitFor(() => {
+      const texts = plotTexts(frame);
+      expect(texts).toContain('405');
+      expect(texts).toContain('2,548');
+    });
+    const [low, high] = [cellFill(frame, '405'), cellFill(frame, '2,548')].map(
+      fillLuminance,
+    );
+    await expect((low! + 0.05) / (high! + 0.05)).toBeGreaterThan(1.8);
+  },
+};
+
 export const MemberAnalysis: Story = {
   ...DisplayMemberAnalysis,
   play: async ({ canvasElement }) => {

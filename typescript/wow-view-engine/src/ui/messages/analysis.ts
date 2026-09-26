@@ -471,6 +471,8 @@ export const analysisMessages = {
   'label.chart.scale': 'Colour scale',
   'label.chart.scale.linear': 'Linear',
   'label.chart.scale.log': 'Logarithmic',
+  'label.chart.scale.not-positive':
+    'A log scale has no place for 0 or a negative number, and a cell here holds one: the cells are shaded linearly.',
   'label.chart.cumulative': 'Cumulative (reached at least this stage)',
   'label.chart.format': 'Number format',
   'label.chart.format.auto': 'Auto',

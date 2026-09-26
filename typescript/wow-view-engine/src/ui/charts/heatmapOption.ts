@@ -13,6 +13,7 @@
 
 import type { EChartsCoreOption } from 'echarts/core';
 import { valueLabelsOn, type HeatmapData } from '../../analysis/index.js';
+import { logScaleFits } from '../../analysis/logScale.js';
 import type { ChartSpec } from '../../model/index.js';
 import { categoryTick, sideTitle } from './axis.js';
 import type { ColumnTitle, ValueLabel } from './family.js';
@@ -52,8 +53,8 @@ export interface HeatmapContext {
  * session's walk of the real backend, 2026-09-23). The cells fill the plot,
  * the first row on top as a table reads; the colour runs from the ground to
  * the palette's first slot, and a `log` scale spreads out the low end of a
- * matrix one cell dwarfs — the shade follows the log, the numbers stay the
- * numbers. A cell nothing fell in is left empty: it is no group.
+ * matrix one cell dwarfs — the shade follows the value's log, the numbers
+ * stay the numbers. A cell nothing fell in is left empty: it is no group.
  */
 export function heatmapOption(
   data: HeatmapData,
@@ -66,10 +67,17 @@ export function heatmapOption(
     .filter((cell): cell is number => cell !== null);
   const low = values.length > 0 ? Math.min(...values) : 0;
   const high = values.length > 0 ? Math.max(...values) : 0;
-  const logged = heatmap?.scale === 'log';
-  /** Where a value sits on the colour scale: itself, or its log above the low. */
-  const shade = (value: number) => (logged ? Math.log1p(value - low) : value);
-  const unshade = (at: number) => (logged ? Math.expm1(at) + low : at);
+  // A log scale where every value leaves room for one: the shade is the
+  // value's power of ten, so a cell ten times another is a step of the
+  // scale however large both are. It was `log1p(value − low)`, which is no
+  // log scale at all: every value above the smallest was crowded into the
+  // scale's top, and 405 against 2,548 read 1.39:1 (second review R2-P1-3).
+  // Over a 0 or a negative number there is no log; the options page greys
+  // the choice and says why, and the cells are shaded linearly.
+  const logged = heatmap?.scale === 'log' && logScaleFits(values);
+  /** Where a value sits on the colour scale: itself, or its log. */
+  const shade = (value: number) => (logged ? Math.log10(value) : value);
+  const unshade = (at: number) => (logged ? 10 ** at : at);
   const xs = data.xs.map(x => label(heatmap?.x, x));
   const ys = data.ys.map(y => label(heatmap?.y, y));
   const fill = theme.resolve(color(0));
