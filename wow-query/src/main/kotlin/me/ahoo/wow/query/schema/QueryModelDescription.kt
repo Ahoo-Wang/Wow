@@ -47,7 +47,6 @@ import me.ahoo.wow.api.query.schema.QueryCapability
 import me.ahoo.wow.api.query.schema.QueryValueKind
 import me.ahoo.wow.api.query.schema.QueryValueType
 import me.ahoo.wow.api.query.spec.MetricSpec
-import me.ahoo.wow.api.query.spec.OperatorCost
 import me.ahoo.wow.api.query.spec.OperatorTarget
 import me.ahoo.wow.api.query.spec.SystemField
 import me.ahoo.wow.api.query.spec.spec
@@ -86,6 +85,9 @@ internal data class DescriptorKey(val budget: QueryBudget?, val defaultListSize:
 private class QueryModelDescription(private val schema: QueryModelSchema, private val budget: QueryBudget?) {
     private val allowExpensive = budget?.allowExpensiveOperators ?: true
     private val identity = schema.profile?.identityField?.path
+
+    /** Whether the storage pages by keyset at all: admission rejects every cursor query where it does not. */
+    private val keyset = schema.storage.paging.keyset != SupportMode.NONE
 
     fun descriptor(defaultListSize: Int?, timeZone: ZoneId): QueryModelDescriptor {
         val paths = schema.definition.values.filterKeys { it.segments.isNotEmpty() }
@@ -149,7 +151,7 @@ private class QueryModelDescription(private val schema: QueryModelSchema, privat
                 ?.let { SensitivityDescriptor(it, comparable) },
             project = projectable,
             filter = FieldFilterDescriptor(effective.operators(allowExpensive)),
-            sort = FieldSortDescriptor(paged = effective.sortable, cursor = field.cursorSortable),
+            sort = FieldSortDescriptor(paged = effective.sortable, cursor = field.cursorSortable && keyset),
             aggregate = aggregate(effective),
             scope = scope,
             deprecated = schema.definition.deprecations[field.logicalField],
@@ -234,7 +236,8 @@ private class QueryModelDescription(private val schema: QueryModelSchema, privat
 
     /**
      * Describes a dynamic pattern by resolving a probe key through [QueryModelSchema.field], exactly as admission
-     * resolves a concrete key, so an array pattern and its items yield one entry.
+     * resolves a concrete key, so an array pattern and its items yield one entry. The operators are the probe's
+     * compiled record, so the key's sensitivity and element scopes decide them as they decide a concrete key's.
      */
     private fun dynamic(path: QueryPathTemplate): DynamicFieldDescriptor? {
         val excluded = schema.definition.keyExclusions(path).values.flatten().toSet()
@@ -242,14 +245,11 @@ private class QueryModelDescription(private val schema: QueryModelSchema, privat
         val field = schema.field(path.field(List(path.keyCount) { probe })) ?: return null
         if (field.capabilities.isEmpty()) return null
         val value = field.value
-        val operators = field.effective.grantedOperators
         return DynamicFieldDescriptor(
             pattern = path.logicalPath(),
             types = value.typesInOrder(),
             kind = value.kind,
-            filter = FieldFilterDescriptor(
-                if (allowExpensive) operators else operators.filter { it.spec.baseCost != OperatorCost.EXPENSIVE },
-            ),
+            filter = FieldFilterDescriptor(field.effective.operators(allowExpensive)),
             excludedKeys = schema.definition.keyExclusions(path).values.flatten().distinct().sorted()
                 .takeIf { it.isNotEmpty() },
         )
@@ -339,24 +339,27 @@ private class QueryModelDescription(private val schema: QueryModelSchema, privat
     }
 
     private fun analysis(): AnalysisDescriptor {
-        // FIRST and LAST need storage support and, being expensive, an entry that allows expensive operations.
+        // A metric, HAVING, metric sort or dense fill the storage declares NONE is rejected at admission, so it is
+        // not listed. FIRST and LAST, being expensive, also need an entry that allows expensive operations.
         // DERIVED stays listed: `expressions` states whether its arithmetic is allowed.
-        val firstLast = schema.storage.aggregation.firstLast != SupportMode.NONE && allowExpensive
+        val support = schema.storage.aggregation
+        val firstLast = schema.storage.offers(MetricSpec.FIRST) && allowExpensive
         val specs = MetricSpec.entries.filter { metric ->
             when (metric) {
                 MetricSpec.FIRST, MetricSpec.LAST -> firstLast
-                else -> true
+                else -> schema.storage.offers(metric)
             }
         }
         val metrics = specs.map { it.name }
+        val having = if (support.having == SupportMode.NONE) emptyList() else specs.filter { it.havingOperand }
         return AnalysisDescriptor(
             metrics = metrics,
             approximate = metrics.filter { it in schema.approximateMetrics },
             expressions = allowExpensive,
-            having = HavingDescriptor(specs.filter { it.havingOperand }.map { it.name }),
-            sort = AnalysisSortDescriptor(groups = true, metrics = allowExpensive),
+            having = HavingDescriptor(having.map { it.name }),
+            sort = AnalysisSortDescriptor(groups = true, metrics = allowExpensive && support.topN != SupportMode.NONE),
             // Dense fill materializes every bucket of the range, an expensive group (GroupSpec.cost).
-            dense = allowExpensive,
+            dense = allowExpensive && support.denseFill != SupportMode.NONE,
             dateUnits = AggregationDateUnit.entries,
             dateParts = AggregationDatePart.entries,
             dateDiffUnits = if (allowExpensive) DateDiffUnit.entries else emptyList(),

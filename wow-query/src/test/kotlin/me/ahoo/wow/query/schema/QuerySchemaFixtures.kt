@@ -33,6 +33,11 @@ internal fun objectFixture(vararg properties: Pair<String, QueryValueSchema>) =
 
 internal fun arrayFixture(items: QueryValueSchema) = QueryValueSchema(QueryValueKind.ARRAY, items = items)
 
+/** An object whose keys are dynamic, each holding [values]. */
+internal fun mapFixture(
+    values: QueryValueSchema
+) = QueryValueSchema(QueryValueKind.OBJECT, additionalProperties = values)
+
 internal fun boundSchemaFixture(
     root: QueryValueSchema,
     model: QueryModel = QueryModel.SNAPSHOT,

@@ -93,17 +93,18 @@ class QueryFieldCapabilities internal constructor(
     val aggregatable: Boolean = !protected && AGGREGATE_CAPABILITIES.any { it in granted }
 
     /**
-     * The field operators storage grants, whose value rule the field satisfies, in operator order; before sensitivity
-     * and element scopes decide whether a caller may use them.
+     * The field operators a caller may apply, in operator order: those storage grants whose value rule the field
+     * satisfies, on a comparable field inside granted element scopes. A dynamic key's record reads the same checks.
      */
-    internal val grantedOperators: List<FilterOperator> = FilterOperator.entries.filter { operator ->
-        val spec = operator.spec
-        spec.target == OperatorTarget.FIELD && spec.valueRule != ValueRule.ELEMENT_SCOPE &&
-            spec.baseCapability in granted && satisfies(spec.valueRule)
+    val operators: List<FilterOperator> = if (!comparable || !scopeGranted) {
+        emptyList()
+    } else {
+        FilterOperator.entries.filter { operator ->
+            val spec = operator.spec
+            spec.target == OperatorTarget.FIELD && spec.valueRule != ValueRule.ELEMENT_SCOPE &&
+                spec.baseCapability in granted && satisfies(spec.valueRule)
+        }
     }
-
-    /** The field operators a caller may apply: [grantedOperators] of a comparable field inside granted scopes. */
-    val operators: List<FilterOperator> = if (comparable && scopeGranted) grantedOperators else emptyList()
 
     /** The group types that may group by the field, in spec order. */
     val groups: List<GroupSpec> = if (!aggregatable) {
@@ -154,13 +155,5 @@ class QueryFieldCapabilities internal constructor(
             QueryCapability.AGGREGATE_NUMERIC,
             QueryCapability.AGGREGATE_TEMPORAL,
         )
-
-        /** Whether the storage computes [metric] at all; FIRST and LAST have no residual form to fall back on. */
-        fun StorageSupport.offers(metric: MetricSpec): Boolean = when (metric) {
-            MetricSpec.FIRST, MetricSpec.LAST -> aggregation.firstLast != SupportMode.NONE
-            MetricSpec.COUNT, MetricSpec.NUMERIC, MetricSpec.ANY, MetricSpec.DISTINCT_COUNT, MetricSpec.PERCENTILE,
-            MetricSpec.DERIVED,
-            -> true
-        }
     }
 }

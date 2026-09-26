@@ -13,6 +13,8 @@
 
 package me.ahoo.wow.query.schema
 
+import me.ahoo.wow.api.query.spec.MetricSpec
+
 /** How storage supports a query feature (design §5.5). */
 enum class SupportMode {
     /** The backend computes it natively. */
@@ -102,4 +104,15 @@ data class StorageSupport(
         @JvmField
         val NATIVE = StorageSupport()
     }
+}
+
+/**
+ * Whether the storage computes [metric] at all. PERCENTILE, DISTINCT_COUNT, FIRST and LAST have no residual form to
+ * fall back on, so admission rejects them where the storage declares [SupportMode.NONE], and the descriptor omits them.
+ */
+internal fun StorageSupport.offers(metric: MetricSpec): Boolean = when (metric) {
+    MetricSpec.FIRST, MetricSpec.LAST -> aggregation.firstLast != SupportMode.NONE
+    MetricSpec.PERCENTILE -> aggregation.percentile != SupportMode.NONE
+    MetricSpec.DISTINCT_COUNT -> aggregation.distinctCount != SupportMode.NONE
+    MetricSpec.COUNT, MetricSpec.NUMERIC, MetricSpec.ANY, MetricSpec.DERIVED -> true
 }
