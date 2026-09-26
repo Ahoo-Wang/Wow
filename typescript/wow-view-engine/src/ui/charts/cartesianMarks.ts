@@ -374,10 +374,13 @@ export function extremeMarks(
       },
     };
   };
+  // Where the bar's or the point's own label says it, the word is the mark:
+  // a dot there sat on the label's first glyph.
+  const carried = carriedExtremes(plan, entry) !== undefined;
   return {
     markPoint: {
       symbol: 'circle',
-      symbolSize: 8,
+      symbolSize: carried ? 0 : EXTREME_DOT,
       silent: true,
       animation: false,
       itemStyle: { color: fill, borderColor: theme.ground, borderWidth: 2 },
@@ -388,6 +391,10 @@ export function extremeMarks(
         distance: 6,
         textBorderColor: theme.ground,
         textBorderWidth: 2,
+        // Where the series writes every value, its own labels say these two
+        // (`carriedExtremes`); `cartesianFit` shows these again where the
+        // size writes none.
+        ...(carried ? { show: false } : {}),
       },
       data: [
         point(found.high, words?.high, true),
@@ -397,12 +404,58 @@ export function extremeMarks(
   };
 }
 
+/** The dot on the highest and the lowest point, in pixels. */
+export const EXTREME_DOT = 8;
+
 /**
  * How near the floor of the plot, as a share of its height, a line's
  * lowest point writes its word over itself rather than under it: a line of
  * text and its distance on a plot of some 250px.
  */
 const FLOOR_SHARE = 0.1;
+
+/**
+ * The highest and the lowest point's words as the series' own value
+ * labels, where it writes every value: 「最高 ¥4.53万」 in the highest
+ * bar's own label, in its own slot, turned as its neighbours are, the
+ * mark a dot without a caption. Beside the mark, the word stood flat over
+ * the row of upright numbers beside it (second review R2-P1-8: 「最低
+ * ¥1,940」 over 「¥5,359」 and 「¥3,046」). Where the series writes only
+ * its peak and trough, or nothing, the mark says them: `undefined`.
+ */
+export function carriedExtremes(
+  plan: CartesianPlan,
+  entry: DrawnSeries,
+): ReadonlyMap<number, string> | undefined {
+  return plan.labelled(entry) && !plan.peaksOnly(entry)
+    ? extremeWords(plan, entry)
+    : undefined;
+}
+
+/** The highest and the lowest point's words, by their index, if marked. */
+export function extremeWords(
+  plan: CartesianPlan,
+  entry: DrawnSeries,
+): ReadonlyMap<number, string> | undefined {
+  const found = plan.extremesOf(entry);
+  if (!found) return undefined;
+  const words = plan.context.words;
+  const said = (index: number, word: string | undefined) => {
+    const text = plan.drawnText(entry, plan.drawnAt(entry, index) ?? 0);
+    return word === undefined ? text : `${word} ${text}`;
+  };
+  return new Map([
+    [found.high, said(found.high, words?.high)],
+    [found.low, said(found.low, words?.low)],
+  ]);
+}
+
+/** Every series' carried extremes' texts, for the room the labels take. */
+export function carriedTexts(plan: CartesianPlan): string[] {
+  return plan.series.flatMap(entry => [
+    ...(carriedExtremes(plan, entry)?.values() ?? []),
+  ]);
+}
 
 /** The points of a series whose value its extreme marks already write. */
 export function extremeIndexes(

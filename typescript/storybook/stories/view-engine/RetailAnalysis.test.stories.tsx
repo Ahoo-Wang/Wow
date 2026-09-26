@@ -640,6 +640,87 @@ export const ReferencesInTheScenes: Story = {
 };
 
 /**
+ * 换成饼图时图例不沿用「无」（第二轮审查 R2-P1-2）：省份 GMV 前 15 是一条柱、
+ * 图例设成了「无」；饼的每一片只写占比，图例是认出哪片是哪个省的唯一钥匙，
+ * 所以换到另一族图时图例回到「自动」——每个省一项，首项说量的是什么。
+ */
+export const PieKeepsItsLegend: Story = {
+  ...DisplayOrderAnalysis,
+  name: '换成饼图时图例回到自动（R2-P1-2）',
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await openAnalysis(canvasElement, '省份 GMV 前 15');
+    await expect(legendNames(canvasElement)).toEqual([]);
+    await userEvent.click(
+      canvas.getByRole('button', { name: zhCN['label.analysis.visualize'] }),
+    );
+    await userEvent.click(
+      await waitFor(() => {
+        const tile = document.querySelector<HTMLElement>(
+          '[data-slot="chart-tile"][data-chart-type="pie"]',
+        );
+        expect(tile).not.toBeNull();
+        return tile!;
+      }),
+    );
+    await chartsDrawn(canvasElement);
+    await waitFor(() =>
+      expect(legendNames(canvasElement).length).toBeGreaterThan(5),
+    );
+    await expect(
+      canvasElement.querySelector('[data-slot="pie-measure"]'),
+    ).toHaveTextContent('GMV');
+  },
+};
+
+/**
+ * 「每个都标」时峰谷的字写进那根柱自己的数值标签（第二轮审查 R2-P1-8）：37
+ * 根柱都写竖排的数时，「最高」「最低」各占自己那一格、跟邻居一样转；绘图区
+ * 窄到一个数也写不下时，两个字回到峰谷点上。两种情形下各只说一次，图上的字
+ * 两两不相交（D53）。从前峰谷字平放在点旁，压着左右两根柱的数。
+ */
+export const EveryValueWithItsExtremes: Story = {
+  ...DisplayOrderAnalysis,
+  name: '每个都标时峰谷字不压邻居（R2-P1-8）',
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const promotion = await openAnalysis(
+      canvasElement,
+      '2025 双 11 前后的日 GMV',
+    );
+    await userEvent.click(
+      canvas.getByRole('button', { name: zhCN['label.analysis.visualize'] }),
+    );
+    await userEvent.click(
+      await waitFor(() => {
+        const gear = document.querySelector<HTMLElement>(
+          '[data-slot="chart-picker"] [data-slot="chart-options-open"]',
+        );
+        expect(gear).not.toBeNull();
+        return gear!;
+      }),
+    );
+    await userEvent.click(
+      await canvas.findByRole('tab', { name: zhCN['label.chart.tab.display'] }),
+    );
+    await userEvent.click(
+      within(
+        await canvas.findByRole('group', { name: zhCN['label.chart.labels'] }),
+      ).getByRole('button', { name: zhCN['label.chart.labels.all'] }),
+    );
+    await chartsDrawn(canvasElement);
+    // Whether the plot has room for a number over every bar or for none, the
+    // two words are said once each: in the bars' labels, or on the marks.
+    await waitFor(() => {
+      const texts = plotTexts(promotion);
+      expect(texts.filter(text => text.startsWith('最高 '))).toHaveLength(1);
+      expect(texts.filter(text => text.startsWith('最低 '))).toHaveLength(1);
+    });
+    await expect(crossings(promotion)).toEqual([]);
+  },
+};
+
+/**
  * 批 C in A-02: dragging across a stretch of the 25 months of daily GMV
  * opens the follow-up menu for that stretch — 「下单时间 介于 A ～ B」 — with
  * 「查看这些记录」 and 「只看这段时间」. The saved view stays as it was.
