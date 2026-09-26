@@ -40,4 +40,18 @@ class QueryFieldTest {
         jsonMapper.readValue("\"state.name\"", QueryField::class.java).assert().isEqualTo(field)
         assertThrows<IllegalArgumentException> { QueryField("field.*") }
     }
+
+    @Test
+    fun `should accept exactly the paths the published pattern accepts`() {
+        val pattern = Regex(QueryField.PATTERN)
+        val alphabet = listOf("a", "Z", "_", "-", "0", "9", "@", ".", "*", " ", "é")
+        var paths = listOf("")
+        repeat(5) {
+            paths = paths.flatMap { prefix -> alphabet.map { prefix + it } }
+            paths.forEach { path ->
+                val accepted = runCatching { QueryField(path) }.isSuccess
+                accepted.assert().describedAs(path).isEqualTo(pattern.matches(path))
+            }
+        }
+    }
 }

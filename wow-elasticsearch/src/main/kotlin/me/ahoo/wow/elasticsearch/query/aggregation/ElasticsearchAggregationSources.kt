@@ -121,20 +121,16 @@ private fun AggregationGroup.DatePart.datePartRuntimeField(admitted: AdmittedQue
         "zone" to JsonData.of(timeZone),
         "part" to JsonData.of(part.name),
     )
-    val read = when (val temporal = resolved.temporal) {
-        Temporal.Date ->
-            "long instantMillis = doc[field].value.toInstant().toEpochMilli();\n" +
-                partEmit("instantMillis")
+    val source = when (val temporal = resolved.temporal) {
+        Temporal.Date -> DATE_PART_OF_DATE_SCRIPT
         is Temporal.Epoch -> {
             val (multiplier, divisor) = temporal.timeUnit.epochFactors
             params["multiplier"] = JsonData.of(multiplier)
             params["divisor"] = JsonData.of(divisor)
-            epochMillisScript(partEmit("epochMillis"))
+            DATE_PART_OF_EPOCH_SCRIPT
         }
         is Temporal.Formatted, null -> resolved.noInstantEncoding()
     }
-    val source = "String field = params.field;\n" +
-        "if (doc.containsKey(field) && doc[field].size() == 1) {\n" + read + "\n}"
     return RuntimeField.of { runtime ->
         runtime.type(RuntimeFieldType.Long)
             .script(
@@ -185,18 +181,12 @@ private fun epochDateRuntimeField(physicalPath: String, timeUnit: TimeUnit): Run
         "multiplier" to JsonData.of(multiplier),
         "divisor" to JsonData.of(divisor),
     )
-    val source = """
-        String field = params.field;
-        if (doc.containsKey(field) && doc[field].size() == 1) {
-            ${epochMillisScript("emit(epochMillis);")}
-        }
-    """.trimIndent()
     return RuntimeField.of { runtime ->
         runtime.type(RuntimeFieldType.Date)
             .script(
                 Script.of { script ->
                     script.lang(ScriptLanguage.Painless)
-                        .source { it.scriptString(source) }
+                        .source { it.scriptString(EPOCH_DATE_SCRIPT) }
                         .params(params)
                 },
             )
@@ -236,6 +226,27 @@ private fun epochMillisScript(onMillis: String): String = """
                 }
             }
 """.trimIndent()
+
+/*
+ * The scripts are built once: interpolating the shared fragments makes them non-constant, and rebuilding
+ * about a kilobyte of script text per group showed up in aggregation compile time.
+ */
+private val EPOCH_DATE_SCRIPT = """
+        String field = params.field;
+        if (doc.containsKey(field) && doc[field].size() == 1) {
+            ${epochMillisScript("emit(epochMillis);")}
+        }
+""".trimIndent()
+
+private val DATE_PART_OF_DATE_SCRIPT = datePartScript(
+    "long instantMillis = doc[field].value.toInstant().toEpochMilli();\n" + partEmit("instantMillis"),
+)
+
+private val DATE_PART_OF_EPOCH_SCRIPT = datePartScript(epochMillisScript(partEmit("epochMillis")))
+
+private fun datePartScript(read: String): String =
+    "String field = params.field;\n" +
+        "if (doc.containsKey(field) && doc[field].size() == 1) {\n" + read + "\n}"
 
 /**
  * Single-valued passthrough with a declared sentinel: the sentinel stays a plain string key so

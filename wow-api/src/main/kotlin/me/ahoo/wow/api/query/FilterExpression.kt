@@ -35,7 +35,7 @@ data class QueryField(
     @get:JsonValue val path: String,
 ) {
     init {
-        require(PATH_PATTERN.matches(path)) { "Query field is invalid: [$path]." }
+        require(isValidPath(path)) { "Query field is invalid: [$path]." }
     }
 
     fun append(relative: QueryField): QueryField = QueryField("$path.${relative.path}")
@@ -52,7 +52,42 @@ data class QueryField(
 
     companion object {
         const val PATTERN = "^@?[A-Za-z_][A-Za-z0-9_-]*(\\.(?:@?[A-Za-z_][A-Za-z0-9_-]*|[0-9]+))*$"
-        private val PATH_PATTERN = Regex(PATTERN)
+
+        /**
+         * Matches [PATTERN] without a regex: admission builds a field per reference on every request,
+         * so the check sits on the query hot path.
+         */
+        private fun isValidPath(path: String): Boolean {
+            var index = 0
+            var first = true
+            while (true) {
+                index = segmentEnd(path, index, first)
+                if (index < 0) return false
+                if (index == path.length) return true
+                if (path[index] != '.') return false
+                index++
+                first = false
+            }
+        }
+
+        /** The end of the segment starting at [start], or `-1` when no valid segment starts there. */
+        private fun segmentEnd(path: String, start: Int, first: Boolean): Int {
+            var index = start
+            if (index < path.length && path[index] == '@') index++
+            if (index >= path.length) return -1
+            val head = path[index]
+            if (head == '_' || head in 'A'..'Z' || head in 'a'..'z') {
+                index++
+                while (index < path.length && path[index].isNamePart()) index++
+                return index
+            }
+            if (first || index != start || head !in '0'..'9') return -1
+            while (index < path.length && path[index] in '0'..'9') index++
+            return index
+        }
+
+        private fun Char.isNamePart(): Boolean =
+            this == '_' || this == '-' || this in 'A'..'Z' || this in 'a'..'z' || this in '0'..'9'
 
         @JvmStatic
         @JsonCreator(mode = JsonCreator.Mode.DELEGATING)
