@@ -444,42 +444,10 @@ export interface PendingPair {
 }
 
 /**
- * The shortfalls found when the band's and the sidebar's dark control wash
- * joined the registry (2026-09-25, the porcelain default): the select-all
- * box on a header band — and a selected row's box, the same `muted` until
- * a theme parts the two roles (S3) — and a placeholder in the chart's
- * options.
+ * None owed: the last, contrast's dark control wash on its header band, its
+ * selected row and its sidebar, was paid back by S11.
  */
-export const PENDING: readonly PendingPair[] = [
-  ...(['header band', 'selected row'] as const).flatMap(
-    (where): PendingPair[] => [
-      {
-        preset: 'contrast',
-        mode: 'dark',
-        pair: `input edge on input wash on ${where}`,
-        batch: 'S11',
-      },
-      {
-        preset: 'contrast',
-        mode: 'dark',
-        pair: `ring edge on input wash on ${where}`,
-        batch: 'S11',
-      },
-    ],
-  ),
-  {
-    preset: 'contrast',
-    mode: 'dark',
-    pair: 'muted-foreground text on input wash on sidebar',
-    batch: 'S11',
-  },
-  {
-    preset: 'contrast',
-    mode: 'dark',
-    pair: 'quiet-foreground text on input wash on sidebar',
-    batch: 'S11',
-  },
-];
+export const PENDING: readonly PendingPair[] = [];
 
 /** Whether one preset's pair in one mode is a known, owed shortfall. */
 export function isPending(

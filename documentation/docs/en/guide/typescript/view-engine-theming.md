@@ -42,7 +42,7 @@ Import `themes.css` instead to have every preset and switch at run time. The att
 | `neutral` | The default: neutral greys, a black primary | 10px | default |
 | `azure` | Chinese enterprise admin: a clear blue, white cards on a grey page, a type stack with the Chinese faces first | 6px | its own |
 | `porcelain` | Native desktop: system type, 6px controls on 12px cards, soft shadows, near-neutral greys, a filled menu highlight, striped tables | 6px / 12px cards | its own |
-| `contrast` | High contrast: text at 7:1, edges and focus at 4.5:1, chart patterns on | 4px | its own |
+| `contrast` | High contrast: text at 7:1, 2px edges and a 2px focus ring 2px off the control at 4.5:1, a tinted selected row, chart patterns on | 4px | its own |
 
 Which one fits your brand:
 
