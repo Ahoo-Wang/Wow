@@ -284,9 +284,15 @@ describe('derived series', () => {
   it('takes a week of days, a quarter of months, three of anything else by default', () => {
     expect(movingWindow(config(), {})).toBe(7);
     expect(movingWindow(config(), { window: 5 })).toBe(5);
-    const monthly = config({}, { groups: [{ ...daily, unit: 'MONTH' }] });
+    const monthly = config(
+      {},
+      { groups: [{ ...daily, unit: 'MONTH' as const }] },
+    );
     expect(movingWindow(monthly, {})).toBe(3);
-    const yearly = config({}, { groups: [{ ...daily, unit: 'YEAR' }] });
+    const yearly = config(
+      {},
+      { groups: [{ ...daily, unit: 'YEAR' as const }] },
+    );
     expect(movingWindow(yearly, {})).toBe(3);
   });
 

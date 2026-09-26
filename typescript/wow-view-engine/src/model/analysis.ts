@@ -13,6 +13,7 @@
 
 import type {
   AggregationDatePart,
+  DateDiffUnit,
   AggregationDateUnit,
   AggregationExpressionOperator,
   AggregationFunction,
@@ -35,6 +36,20 @@ export type AnalysisGroupType = `${AggregationGroupType}`;
 export type AnalysisFunction = `${AggregationFunction}`;
 export type AnalysisDateUnit = `${AggregationDateUnit}`;
 export type AnalysisDatePart = `${AggregationDatePart}`;
+export type AnalysisDateDiffUnit = `${DateDiffUnit}`;
+
+/**
+ * Every unit a time between two moments is measured in (`DATE_DIFF`), in
+ * the order a choice among them is offered: the hour first, since 「付款到
+ * 发货几小时」 is the question it answers most, then the day, the minute
+ * and the second. Each has a fixed length — a day is exactly 24 hours.
+ */
+export const ANALYSIS_DATE_DIFF_UNITS = [
+  'HOUR',
+  'DAY',
+  'MINUTE',
+  'SECOND',
+] as const satisfies readonly AnalysisDateDiffUnit[];
 export type AnalysisExpressionOperator = `${AggregationExpressionOperator}`;
 
 /**
@@ -102,6 +117,52 @@ export interface DatePartOffer {
   dateParts?: readonly string[];
 }
 
+/** Every field an expression reads, in the order it reads them. */
+export function expressionFieldsOf(expression: AnalysisExpression): string[] {
+  switch (expression?.type) {
+    case 'FIELD':
+      return [expression.field];
+    case 'BINARY':
+      return [
+        ...expressionFieldsOf(expression.left),
+        ...expressionFieldsOf(expression.right),
+      ];
+    case 'DATE_DIFF':
+      return [expression.from, expression.to];
+    default:
+      return [];
+  }
+}
+
+/**
+ * The fields a dimension reads: its one field, or every field of the
+ * expression a band of a computed number is cut from (N3).
+ */
+export function groupFieldsOf(group: AnalysisGroup): string[] {
+  return group.field !== undefined
+    ? [group.field]
+    : 'expression' in group
+      ? expressionFieldsOf(group.expression)
+      : [];
+}
+
+/**
+ * The units a capability measures a time between two moments in
+ * (`AnalysisCapability.dateDiffUnits`): the declared ones in the offered
+ * order, every one when it declares none, and none where it offers no
+ * computed expressions at all.
+ */
+export function dateDiffUnitsOf(
+  capability:
+    { expressions?: boolean; dateDiffUnits?: readonly string[] } | undefined,
+): AnalysisDateDiffUnit[] {
+  if (capability?.expressions !== true) return [];
+  const declared = capability.dateDiffUnits;
+  return ANALYSIS_DATE_DIFF_UNITS.filter(
+    unit => declared === undefined || declared.includes(unit),
+  );
+}
+
 /**
  * What a dimension or a metric is called on screen (D20 显示名), when the
  * analyst gave it a name: the column header, the legend and the reading say
@@ -120,6 +181,19 @@ export type AnalysisGroup = AnalysisNamed &
   (
     | { type: 'TERMS'; field: string; alias: string; missingKey?: string }
     | { type: 'HISTOGRAM'; field: string; alias: string; interval: number }
+    | {
+        /**
+         * Bands of a number computed per record (N3), such as the hours
+         * from payment to shipment: 「0–2 小时」「2–4 小时」…. It names no
+         * field of its own — `field` is absent — and its bands follow the
+         * expression's unit.
+         */
+        type: 'HISTOGRAM';
+        expression: AnalysisExpression;
+        alias: string;
+        interval: number;
+        field?: undefined;
+      }
     | {
         type: 'DATE_HISTOGRAM';
         field: string;
@@ -148,6 +222,18 @@ export type AnalysisGroup = AnalysisNamed &
 export type AnalysisExpression =
   | { type: 'FIELD'; field: string }
   | { type: 'CONSTANT'; value: number }
+  | {
+      /**
+       * The time from one moment to another, `to − from`, in `unit` (N3):
+       * 付款到发货几小时. Negative when `to` is earlier; no value where either
+       * moment is missing. Both are time fields the analysis may bucket by
+       * date (`DATE_HISTOGRAM`), each read in its own encoding.
+       */
+      type: 'DATE_DIFF';
+      from: string;
+      to: string;
+      unit: AnalysisDateDiffUnit;
+    }
   | {
       type: 'BINARY';
       operator: AnalysisExpressionOperator;

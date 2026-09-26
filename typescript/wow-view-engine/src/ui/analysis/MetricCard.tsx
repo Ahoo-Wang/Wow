@@ -37,6 +37,7 @@ import { DropdownMenuContent } from '../popups.js';
 import { summaryFunctionKey } from '../display.js';
 import { EditorCard, EditorSlot } from '../variants.js';
 import {
+  isDuration,
   isFormula,
   metricOfSummary,
   summaryChoices,
@@ -45,7 +46,12 @@ import {
 } from '../../analysis/index.js';
 import { CardMenu, CardName } from './CardMenu.js';
 import { CompactSelect } from './CompactSelect.js';
-import { DerivedControls, FormulaControls } from './FormulaCard.js';
+import {
+  DerivedControls,
+  DurationControls,
+  durationFields,
+  FormulaControls,
+} from './FormulaCard.js';
 import { useListFocus, type ListFocus } from './listFocus.js';
 import {
   ConditionBlock,
@@ -204,6 +210,16 @@ export function MetricSlot({
               >
                 {messages.label('label.analysis.add-derived')}
               </DropdownMenuItem>
+              {analysis.dateDiffUnits.length > 0 && (
+                <DropdownMenuItem
+                  disabled={durationFields(analysis).length < 2}
+                  onClick={() =>
+                    analysis.addDuration(analysis.dateDiffUnits[0])
+                  }
+                >
+                  {messages.label('label.analysis.add-duration')}
+                </DropdownMenuItem>
+              )}
             </DropdownMenuGroup>
           )}
         </DropdownMenuContent>
@@ -342,6 +358,15 @@ function MetricCard({
             disabled={disabled}
           />
         )}
+        {isDuration(metric) && (
+          <DurationControls
+            analysis={analysis}
+            metric={metric}
+            index={index}
+            name={name}
+            disabled={disabled}
+          />
+        )}
         {metric.type === 'DERIVED' && (
           <DerivedControls
             analysis={analysis}
@@ -457,6 +482,11 @@ function MetricCard({
           {candled && (
             <DropdownMenuItem onClick={() => analysis.addOhlc(index)}>
               {messages.label('label.analysis.ohlc')}
+            </DropdownMenuItem>
+          )}
+          {isDuration(metric) && (
+            <DropdownMenuItem onClick={() => analysis.groupByDuration(index)}>
+              {messages.label('label.analysis.group-by-duration')}
             </DropdownMenuItem>
           )}
           {metric.type !== 'DERIVED' && (

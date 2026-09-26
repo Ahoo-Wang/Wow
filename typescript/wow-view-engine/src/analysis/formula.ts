@@ -12,6 +12,7 @@
  */
 
 import type {
+  AnalysisDateDiffUnit,
   AnalysisDerivedExpression,
   AnalysisExpression,
   AnalysisExpressionOperator,
@@ -168,6 +169,12 @@ export function expressionText(
       } ${expressionText(expression.right, nameOf, true)}`;
       return nested ? `(${text})` : text;
     }
+    // From one moment to the other: 「付款时间 → 发货时间」. The unit is the
+    // number's to say (`formulaFormat`: 「12.5 小时」), not the name's.
+    case 'DATE_DIFF': {
+      const text = `${nameOf(expression.from)} → ${nameOf(expression.to)}`;
+      return nested ? `(${text})` : text;
+    }
   }
   // No `default`: `AnalysisExpression` is a closed union, so the switch is
   // exhaustive and this end is unreachable. Add a member and it becomes
@@ -195,6 +202,38 @@ export function derivedText(
     }
   }
   // Closed union, exhaustive switch, unreachable end — as above.
+}
+
+/**
+ * A time between two moments measured as a metric (N3): the average hours
+ * from `from` to `to` across the group, which the card can change to a
+ * lowest, a highest, a total or a percentile.
+ */
+export function durationMetric(
+  from: string,
+  to: string,
+  unit: AnalysisDateDiffUnit,
+  taken: readonly string[],
+): AnalysisMetric {
+  return {
+    type: 'NUMERIC',
+    alias: freeAlias('duration', taken),
+    function: 'AVG',
+    expression: { type: 'DATE_DIFF', from, to, unit },
+  };
+}
+
+/** Whether a metric measures a time between two moments: the duration card's. */
+export function isDuration(metric: AnalysisMetric): metric is Extract<
+  AnalysisMetric,
+  { type: 'NUMERIC' | 'PERCENTILE' }
+> & {
+  expression: Extract<AnalysisExpression, { type: 'DATE_DIFF' }>;
+} {
+  return (
+    (metric.type === 'NUMERIC' || metric.type === 'PERCENTILE') &&
+    metric.expression?.type === 'DATE_DIFF'
+  );
 }
 
 /** Whether a metric is one the tray's formula card edits: one operation over two operands. */

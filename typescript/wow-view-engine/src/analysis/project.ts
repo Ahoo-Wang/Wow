@@ -34,6 +34,7 @@ import { shapeChart, type ChartData, type ShapeContext } from './chart.js';
 import { analysisProbeLimit } from './compile.js';
 import { chartUnfit } from './fitCharts.js';
 import {
+  formulaFormat,
   metricFieldOf,
   metricFormats,
   metricFunctionOf,
@@ -47,6 +48,7 @@ import {
   metricReferenceText,
   derivedText,
   expressionText,
+  isDuration,
   isFormula,
 } from './formula.js';
 
@@ -384,7 +386,9 @@ export function projectAnalysis(
     ),
   ]);
   const sourceField = new Map<string, string>([
-    ...config.groups.map(group => [group.alias, group.field] as const),
+    ...config.groups.flatMap(group =>
+      group.field === undefined ? [] : [[group.alias, group.field] as const],
+    ),
     ...config.metrics.flatMap(metric => {
       const field = metricFieldOf(metric);
       return field === undefined
@@ -426,13 +430,28 @@ export function projectAnalysis(
     const metric = byAlias.get(alias);
     const named = (groups.get(alias) ?? metric)?.label;
     const condition = metric && conditionOf(metric);
-    const numberFormat = metric ? formats.get(alias) : field?.numberFormat;
+    // A band of a computed number reads in its expression's unit (N3).
+    const computed = groups.get(alias);
+    const expression =
+      computed?.field === undefined && computed && 'expression' in computed
+        ? computed.expression
+        : undefined;
+    const numberFormat = metric
+      ? formats.get(alias)
+      : expression
+        ? formulaFormat(expression, name => byName.get(name)?.numberFormat)
+        : field?.numberFormat;
     return [
       {
         alias,
         label:
           named ??
           (metric && formulaLabel(metric, byName, byAlias, conditionOf)) ??
+          (expression &&
+            expressionText(
+              expression,
+              name => byName.get(name)?.label ?? name,
+            )) ??
           field?.label ??
           source ??
           alias,
@@ -584,7 +603,7 @@ function formulaLabel(
   conditionOf: (metric: AnalysisMetric) => MetricCondition | undefined,
 ): string | undefined {
   const fieldLabel = (field: string) => byName.get(field)?.label ?? field;
-  if (isFormula(metric))
+  if (isFormula(metric) || isDuration(metric))
     return expressionText(metric.expression, fieldLabel, true);
   if (metric.type !== 'DERIVED') return undefined;
   return derivedText(metric.expression, alias => {

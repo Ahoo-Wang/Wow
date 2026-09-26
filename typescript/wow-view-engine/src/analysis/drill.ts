@@ -380,6 +380,8 @@ export function drillGroups(
   if (!byName) return null;
   const drilled: DrilledGroup[] = [];
   for (const group of config.groups) {
+    // A band of a computed number names no field a condition could hold.
+    if (group.field === undefined) return null;
     const field = byName.get(group.field);
     if (!field) return null;
     const value = row[group.alias];
@@ -421,6 +423,7 @@ export function drillSpan(
   let spans = false;
   for (const group of config.groups) {
     if (!(group.alias in first) || !(group.alias in last)) continue;
+    if (group.field === undefined) return null;
     const field = byName.get(group.field);
     if (!field) return null;
     const from = first[group.alias];
@@ -496,6 +499,7 @@ function conditionsOf(
       return [equal(group.field, value, field, kinds)];
     }
     case 'HISTOGRAM': {
+      if (group.field === undefined) return null;
       if (typeof value !== 'number' || !Number.isFinite(value)) return null;
       return [
         { field: group.field, operator: 'GTE', value },

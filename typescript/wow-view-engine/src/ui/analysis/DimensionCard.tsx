@@ -13,7 +13,11 @@
 
 import { useCallback, useRef, useState } from 'react';
 import { PlusIcon, XIcon } from 'lucide-react';
-import { groupableFields, groupOfType } from '../../analysis/index.js';
+import {
+  expressionText,
+  groupableFields,
+  groupOfType,
+} from '../../analysis/index.js';
 import type { AnalysisGroup } from '../../model/index.js';
 import type {
   AnalysisEditorController,
@@ -174,7 +178,16 @@ function DimensionCard({
   // What the card is called, which is what every control on it is named
   // after: the name the analyst gave, else the field's display name — an
   // alias names the query and nobody chose it.
-  const fallback = field?.label ?? group.field;
+  // A band of a computed number names no field: it is called what it
+  // computes, 「付款时间 → 发货时间」 (N3).
+  const fallback =
+    group.field === undefined
+      ? expressionText(
+          group.expression,
+          name =>
+            analysis.fields.find(entry => entry.field === name)?.label ?? name,
+        )
+      : (field?.label ?? group.field);
   const name = group.label ?? fallback;
   // Only a time dimension standing alone may fill its empty periods: a
   // second dimension would multiply the filling out (Wow refuses it).
@@ -188,7 +201,10 @@ function DimensionCard({
     ),
   }));
   return (
-    <EditorCard data-slot="dimension-card" data-field={group.field}>
+    <EditorCard
+      data-slot="dimension-card"
+      data-field={group.field ?? `(${group.alias})`}
+    >
       <CardName
         name={fallback}
         given={group.label}

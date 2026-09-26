@@ -18,6 +18,7 @@
  * ------------------------------------------------------------------------ */
 
 import type {
+  AnalysisExpression,
   AnalysisMetric,
   AnalysisViewConfig,
   FilterLeaf,
@@ -49,7 +50,16 @@ const thisMonth = (field: string) =>
 const GMV = 'state.amounts.payableAmount';
 const REFUNDED = 'state.amounts.refundedAmount';
 const PAID = 'state.amounts.paidAmount';
-const SHIP_HOURS = 'state.payToShipHours';
+/**
+ * 付款到发货几小时：两个时刻之差（DATE_DIFF，N3），查询时现算，不再靠读模型
+ * 预先算好的字段。
+ */
+const SHIP_HOURS = {
+  type: 'DATE_DIFF',
+  from: 'state.timing.paidAt',
+  to: 'state.timing.shippedAt',
+  unit: 'HOUR',
+} as const;
 const ITEM_PAID = 'state.items.payAmount';
 
 const field = (name: string) => ({ type: 'FIELD', field: name }) as const;
@@ -71,12 +81,15 @@ const orders: AnalysisMetric = {
 };
 
 /** 一个字段的五个数：最小、P25、中位数、P75、最大（箱线图）。 */
-function fiveNumbers(name: string, label: string): AnalysisMetric[] {
+function fiveNumbers(
+  expression: AnalysisExpression,
+  label: string,
+): AnalysisMetric[] {
   const percentile = (at: number, word: string): AnalysisMetric => ({
     alias: `p${at}`,
     type: 'PERCENTILE',
     percentile: at,
-    expression: field(name),
+    expression,
     label: `${label}${word}`,
   });
   return [
@@ -84,7 +97,7 @@ function fiveNumbers(name: string, label: string): AnalysisMetric[] {
       alias: 'low',
       type: 'NUMERIC',
       function: 'MIN',
-      expression: field(name),
+      expression,
       label: `${label}最短`,
     },
     percentile(25, ' P25'),
@@ -94,7 +107,7 @@ function fiveNumbers(name: string, label: string): AnalysisMetric[] {
       alias: 'high',
       type: 'NUMERIC',
       function: 'MAX',
-      expression: field(name),
+      expression,
       label: `${label}最长`,
     },
   ];
@@ -164,6 +177,7 @@ function shared(
 /** 陈列里每张视图的 id，故事按它打开。 */
 export const CHART_VIEW_IDS = {
   boxplot: 'chart-boxplot-ship-hours',
+  durationBands: 'chart-histogram-ship-hours',
   candlestick: 'chart-candlestick-weekly-paid',
   gauge: 'chart-gauge-month-gmv',
   radar: 'chart-radar-channels',
@@ -232,6 +246,35 @@ export const CHART_VIEWS: ViewInstance[] = [
           low: 'low',
           close: 'close',
         },
+      },
+    }),
+  ),
+  // 直方分组：付款到发货落在哪一档——每 4 小时一档（两个时刻之差按区间分组，
+  // N3）。48 小时之后的几档就是超时发货。
+  shared(
+    CHART_VIEW_IDS.durationBands,
+    '付款到发货的时长分布（近 3 个月已发货的单，每 4 小时一档）',
+    analysis({
+      // 没发货的单没有这段时长：只看已发货的。
+      filter: and(recent('firstEventTime', 3, 'month'), {
+        field: 'state.timing.shippedAt',
+        operator: 'IS_NOT_NULL',
+        value: null,
+      }),
+      groups: [
+        {
+          type: 'HISTOGRAM',
+          alias: 'hours',
+          expression: SHIP_HOURS,
+          interval: 4,
+          label: '付款到发货',
+        },
+      ],
+      metrics: [orders],
+      sort: [{ alias: 'hours', direction: 'ASC' }],
+      chart: {
+        type: 'bar',
+        cartesian: { x: 'hours', series: [{ metric: 'orders' }] },
       },
     }),
   ),

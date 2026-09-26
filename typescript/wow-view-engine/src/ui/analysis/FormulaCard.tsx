@@ -15,7 +15,9 @@ import {
   EXPRESSION_OPERATORS,
   OPERATOR_SIGN,
   derivedText,
+  DEFAULT_PERCENTILE,
   expressionText,
+  isDuration,
   isFormula,
 } from '../../analysis/index.js';
 import {
@@ -225,6 +227,114 @@ export function FormulaControls({
         value={metric.function}
         disabled={disabled}
         onChange={fn => analysis.updateMetric(index, { function: fn })}
+      />
+    </>
+  );
+}
+
+/**
+ * The times a duration may run between (N3): the counting unit's fields
+ * that it buckets by date and takes into arithmetic — what Wow asks of each
+ * end of a `DATE_DIFF`.
+ */
+export function durationFields(
+  analysis: Pick<AnalysisEditorController, 'fields'>,
+): { value: string; label: string }[] {
+  return analysis.fields
+    .filter(
+      field =>
+        field.groups.includes('DATE_HISTOGRAM') &&
+        field.expressionInput !== false,
+    )
+    .map(field => ({ value: field.field, label: field.label }));
+}
+
+/** How a duration may be summarised across the group, in the order offered. */
+const DURATION_SUMMARIES = ['AVG', 'MIN', 'MAX', 'SUM', 'PERCENTILE'] as const;
+
+/**
+ * The controls of a duration (N3, 「两个时刻之差」): from which time to which,
+ * in which unit, and how the durations are summarised across the group — an
+ * average, a lowest, a highest, a total or a percentile (with its number).
+ */
+export function DurationControls({
+  analysis,
+  metric,
+  index,
+  name,
+  disabled,
+}: {
+  analysis: AnalysisEditorController;
+  metric: AnalysisMetric;
+  index: number;
+  name: string;
+  disabled?: boolean;
+}) {
+  const messages = useViewMessages();
+  if (!isDuration(metric)) return null;
+  const { expression } = metric;
+  const times = durationFields(analysis);
+  const write = (patch: Partial<typeof expression>) =>
+    analysis.updateMetric(index, { expression: { ...expression, ...patch } });
+  const summary = metric.type === 'PERCENTILE' ? 'PERCENTILE' : metric.function;
+  return (
+    <>
+      <CompactSelect
+        label={messages.label('label.analysis.duration-from', { name })}
+        items={times}
+        value={expression.from}
+        disabled={disabled}
+        onChange={from => write({ from })}
+      />
+      <span aria-hidden="true" className="text-muted-foreground">
+        →
+      </span>
+      <CompactSelect
+        label={messages.label('label.analysis.duration-to', { name })}
+        items={times}
+        value={expression.to}
+        disabled={disabled}
+        onChange={to => write({ to })}
+      />
+      <CompactSelect
+        label={messages.label('label.analysis.duration-unit', { name })}
+        items={(analysis.dateDiffUnits.includes(expression.unit)
+          ? analysis.dateDiffUnits
+          : [expression.unit, ...analysis.dateDiffUnits]
+        ).map(unit => ({
+          value: unit,
+          label: messages.label(`label.date-diff-unit.${unit}`),
+        }))}
+        value={expression.unit}
+        disabled={disabled}
+        onChange={unit => write({ unit: unit })}
+      />
+      <CompactSelect
+        label={messages.label('label.analysis.function-of', { name })}
+        items={DURATION_SUMMARIES.map(fn => ({
+          value: fn,
+          label: messages.label(`label.summary.fn.${fn}`),
+        }))}
+        value={summary}
+        disabled={disabled}
+        onChange={next =>
+          analysis.replaceMetric(
+            index,
+            next === 'PERCENTILE'
+              ? {
+                  ...without(metric, 'function' as never),
+                  type: 'PERCENTILE',
+                  percentile: DEFAULT_PERCENTILE,
+                  expression,
+                }
+              : {
+                  ...without(metric, 'percentile' as never),
+                  type: 'NUMERIC',
+                  function: next,
+                  expression,
+                },
+          )
+        }
       />
     </>
   );

@@ -12,8 +12,12 @@
  */
 
 import {
+  DEFAULT_RUNTIME_LIMITS,
+  dateDiffUnitsOf,
   datePartsOf,
   isSingleStringField,
+  type AnalysisGroup,
+  type RuntimeLimits,
   type AnalysisCapability,
   type AnalysisViewConfig,
   type Issue,
@@ -22,15 +26,41 @@ import {
 import { issue, type FieldKindRegistry } from '../filter/index.js';
 import { unknownOrOutside, type AnalysisScope } from './capability.js';
 import { displayNameIssues } from './validateAliases.js';
+import { budgetedExpressionIssues } from './expressions.js';
+import type { BudgetCounter } from './budget.js';
 
 export function validateGroups(
   config: AnalysisViewConfig,
   scope: AnalysisScope,
   kinds: FieldKindRegistry,
-  analysis?: Pick<AnalysisCapability, 'dense'>,
+  analysis?: Pick<
+    AnalysisCapability,
+    'dense' | 'expressions' | 'dateDiffUnits'
+  >,
+  limits: RuntimeLimits = DEFAULT_RUNTIME_LIMITS,
 ): Issue[] {
+  // Every group's expression is one more tree in the query's budget.
+  const counted: BudgetCounter = { nodes: 0 };
   return config.groups.flatMap((group, index) => {
     const path: IssuePath = ['groups', index];
+    // A band of a number computed per record (N3): its expression is held
+    // to the rules a formula's is, and its width to a band's.
+    if (group.field === undefined)
+      return [
+        ...displayNameIssues(group, path),
+        ...(group.type === 'HISTOGRAM' && 'expression' in group
+          ? budgetedExpressionIssues(
+              group.expression,
+              scope,
+              [...path, 'expression'],
+              analysis?.expressions === true,
+              limits,
+              counted,
+              dateDiffUnitsOf(analysis),
+            )
+          : [issue('analysis.config.malformed', [...path, 'field'])]),
+        ...intervalIssues(group, path),
+      ];
     const capability = scope.aggregations.get(group.field);
     if (!capability)
       return [
@@ -49,13 +79,10 @@ export function validateGroups(
         }),
       ];
 
-    const issues: Issue[] = displayNameIssues(group, path);
-    if (group.type === 'HISTOGRAM') {
-      if (!Number.isFinite(group.interval) || group.interval <= 0)
-        issues.push(
-          issue('analysis.group.interval-not-positive', [...path, 'interval']),
-        );
-    }
+    const issues: Issue[] = [
+      ...displayNameIssues(group, path),
+      ...intervalIssues(group, path),
+    ];
     if (group.type === 'DATE_HISTOGRAM') {
       if (!capability.dateUnits?.includes(group.unit as never))
         issues.push(
@@ -149,4 +176,12 @@ function missingKeyAllowed(
   const field = scope.fields.get(name);
   if (!field) return true;
   return isSingleStringField(field, kinds.get(field.kind));
+}
+
+/** A band must be wider than nothing. */
+function intervalIssues(group: AnalysisGroup, path: IssuePath): Issue[] {
+  return group.type === 'HISTOGRAM' &&
+    !(Number.isFinite(group.interval) && group.interval > 0)
+    ? [issue('analysis.group.interval-not-positive', [...path, 'interval'])]
+    : [];
 }

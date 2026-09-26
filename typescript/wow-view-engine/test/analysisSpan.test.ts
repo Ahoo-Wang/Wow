@@ -167,7 +167,7 @@ describe('drillSpan', () => {
     const drilled = span(
       { month: '2026-01-01T00:00:00+08:00' },
       { month: '2026-03-01T00:00:00+08:00' },
-      [{ ...DAYS, alias: 'month', unit: 'MONTH' }],
+      [{ ...DAYS, alias: 'month', unit: 'MONTH' as const }],
     );
     const { from, to } = bounds(drilled?.[0].conditions);
     expect(from).toBe(at('2026-01-01T00:00:00', SHANGHAI));

@@ -16,6 +16,7 @@ import { aggregate, find, Query } from 'mingo';
 import type { AnyObject } from 'mingo/types';
 import {
   AggregationDatePart,
+  DateDiffUnit,
   AggregationDateUnit,
   AggregationExpressionOperator,
   AggregationExpressionType,
@@ -723,14 +724,13 @@ function bucketed(
 ): RecordData[] {
   const cuts = groupBy.flatMap(group => {
     if (group.type === AggregationGroupType.HISTOGRAM) {
-      const { interval, field } = group;
-      if (field === undefined)
-        throw new Error(
-          'The story row source does not group by an expression yet.',
-        );
+      const { interval, field, expression } = group;
       return [
         (row: RecordData): [string, number | null] => {
-          const at = valueAt(row, field);
+          const at =
+            field === undefined
+              ? evaluated(expression, row)
+              : valueAt(row, field);
           return [
             `${BUCKET}${group.alias}`,
             typeof at === 'number' && Number.isFinite(at)
@@ -1173,6 +1173,80 @@ function measured(expression: AggregationExpression): unknown {
           measured(expression.right),
         ],
       };
+    // `to − from` in the unit, as wow-mongo subtracts the decoded dates: no
+    // value where either moment is missing.
+    case AggregationExpressionType.DATE_DIFF: {
+      const [from, to] = [`$${expression.from}`, `$${expression.to}`];
+      return {
+        $cond: [
+          {
+            $or: [
+              { $eq: [{ $ifNull: [from, null] }, null] },
+              { $eq: [{ $ifNull: [to, null] }, null] },
+            ],
+          },
+          null,
+          {
+            $divide: [
+              { $subtract: [to, from] },
+              { $literal: DATE_DIFF_MS[expression.unit] },
+            ],
+          },
+        ],
+      };
+    }
+    default:
+      throw new Error('The story source does not compute this expression.');
+  }
+}
+
+/** The length of each unit a `DATE_DIFF` measures in; a day is 24 hours. */
+const DATE_DIFF_MS: Record<DateDiffUnit, number> = {
+  [DateDiffUnit.SECOND]: 1_000,
+  [DateDiffUnit.MINUTE]: 60_000,
+  [DateDiffUnit.HOUR]: HOUR_MS,
+  [DateDiffUnit.DAY]: DAY_MS,
+};
+
+/**
+ * An expression's value on one row, worked out here rather than in the
+ * pipeline: what a band of a computed number is cut from. Null where a
+ * field it reads has no number, as the source leaves such a record out.
+ */
+function evaluated(
+  expression: AggregationExpression,
+  row: RecordData,
+): number | null {
+  switch (expression.type) {
+    case AggregationExpressionType.FIELD: {
+      const value = valueAt(row, expression.field);
+      return typeof value === 'number' && Number.isFinite(value) ? value : null;
+    }
+    case AggregationExpressionType.CONSTANT:
+      return expression.value;
+    case AggregationExpressionType.BINARY: {
+      const left = evaluated(expression.left, row);
+      const right = evaluated(expression.right, row);
+      if (left === null || right === null) return null;
+      switch (expression.operator) {
+        case AggregationExpressionOperator.ADD:
+          return left + right;
+        case AggregationExpressionOperator.SUBTRACT:
+          return left - right;
+        case AggregationExpressionOperator.MULTIPLY:
+          return left * right;
+        case AggregationExpressionOperator.DIVIDE:
+          return right === 0 ? null : left / right;
+      }
+      return null;
+    }
+    case AggregationExpressionType.DATE_DIFF: {
+      const from = instantOf(valueAt(row, expression.from));
+      const to = instantOf(valueAt(row, expression.to));
+      return from === null || to === null
+        ? null
+        : (to - from) / DATE_DIFF_MS[expression.unit];
+    }
     default:
       throw new Error('The story source does not compute this expression.');
   }

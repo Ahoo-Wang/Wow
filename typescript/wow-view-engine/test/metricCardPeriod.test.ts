@@ -216,7 +216,11 @@ describe('a metric card over a trend, read as its last period', () => {
   });
 
   it('names a week and a month by the bucket they start', () => {
-    const month: AnalysisGroup = { ...DAY, alias: 'month', unit: 'MONTH' };
+    const month: AnalysisGroup = {
+      ...DAY,
+      alias: 'month',
+      unit: 'MONTH' as const,
+    };
     const data = shape(card({}, month), [
       { month: Date.UTC(2026, 7, 1), orders: 40 },
       { month: Date.UTC(2026, 8, 1), orders: 30 },

@@ -14,6 +14,7 @@
 import {
   DERIVED_FORMAT_STYLES,
   MAX_DERIVED_DECIMALS,
+  dateDiffUnitsOf,
   isValueMetric,
   type AnalysisMetric,
   type AnalysisViewConfig,
@@ -64,6 +65,7 @@ export function validateMetrics(
   // forward references and cycles by construction.
   const earlier = new Set<string>();
   const expressionsAllowed = capability.expressions === true;
+  const units = dateDiffUnitsOf(capability);
   // One node budget over every aggregate expression and another over every
   // derived one, as Wow counts them.
   const expressionNodes: BudgetCounter = { nodes: 0 };
@@ -123,6 +125,7 @@ export function validateMetrics(
             expressionsAllowed,
             limits,
             expressionNodes,
+            units,
           ),
         );
         if (metric.expression?.type === 'FIELD') {
@@ -196,6 +199,7 @@ export function validateMetrics(
             expressionsAllowed,
             limits,
             expressionNodes,
+            units,
           ),
         );
         if (metric.expression?.type === 'FIELD') {
@@ -218,6 +222,7 @@ export function validateMetrics(
             expressionsAllowed,
             limits,
             expressionNodes,
+            units,
           ),
         );
         if (metric.expression?.type === 'FIELD') {

@@ -14,6 +14,7 @@
 import {
   isDateCell,
   isValueMetric,
+  type AnalysisDateDiffUnit,
   type AnalysisDerivedExpression,
   type AnalysisExpression,
   type AnalysisFunction,
@@ -175,7 +176,7 @@ export function metricFormats(
                 formats.get(alias),
               ),
             }
-          : metric.type === 'NUMERIC'
+          : metric.type === 'NUMERIC' || metric.type === 'PERCENTILE'
             ? {
                 numberFormat: formulaFormat(
                   metric.expression,
@@ -215,6 +216,18 @@ export function formulaFormat(
   return read === SCALAR ? undefined : read.format;
 }
 
+/**
+ * How a time between two moments prints: in its unit, to one decimal — an
+ * hour and a half is 1.5 hours, and a tenth is as fine as a duration is
+ * read on a dashboard.
+ */
+const DURATION_FORMATS: Readonly<Record<AnalysisDateDiffUnit, NumberFormat>> = {
+  SECOND: { style: 'unit', unit: 'second', maximumFractionDigits: 1 },
+  MINUTE: { style: 'unit', unit: 'minute', maximumFractionDigits: 1 },
+  HOUR: { style: 'unit', unit: 'hour', maximumFractionDigits: 1 },
+  DAY: { style: 'unit', unit: 'day', maximumFractionDigits: 1 },
+};
+
 /** A plain number: no unit of its own, and none taken from it. */
 const SCALAR = 'scalar';
 
@@ -232,6 +245,9 @@ function reading(
       return { format: formatOf(expression.field) };
     case 'CONSTANT':
       return SCALAR;
+    // A time between two moments is in its unit: 「12.5 小时」.
+    case 'DATE_DIFF':
+      return { format: DURATION_FORMATS[expression.unit] };
     case 'BINARY': {
       const left = reading(expression.left, formatOf);
       const right = reading(expression.right, formatOf);

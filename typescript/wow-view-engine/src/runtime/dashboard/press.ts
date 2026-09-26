@@ -296,7 +296,9 @@ export class PanelPresses {
       reference.fields,
     );
     const conditions: FilterLeaf[] = pressed.groups.flatMap(drilled =>
-      carries(drilled.group.field) ? drilled.conditions : [],
+      drilled.group.field !== undefined && carries(drilled.group.field)
+        ? drilled.conditions
+        : [],
     );
     const handed = this.host.handOver(panelId);
     const own = kept(handed?.filter ?? null, carries);
@@ -561,7 +563,8 @@ function tree(children: FilterNode[]): FilterTree | null {
 function groupTexts(groups: readonly DrilledGroup[]): Record<string, string> {
   const texts: Record<string, string> = {};
   for (const { group, value, conditions } of groups) {
-    if (conditions[0]?.operator === 'IS_NULL') continue;
+    if (group.field === undefined || conditions[0]?.operator === 'IS_NULL')
+      continue;
     const instant =
       group.type === 'DATE_HISTOGRAM' ? readInstant(value)?.ms : undefined;
     texts[group.field] =

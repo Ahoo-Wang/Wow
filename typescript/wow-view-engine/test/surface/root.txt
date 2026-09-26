@@ -1,8 +1,9 @@
-# @ahoo-wang/wow-view-engine — 796 names, from src/index.ts.
+# @ahoo-wang/wow-view-engine — 803 names, from src/index.ts.
 # Written by test/publicSurface.test.ts; a change here is a change to
 # the public surface (README「Entries」, docs/design/decisions.md D29).
 value ALWAYS_VISIBLE
 value ANALYSIS_AUTO_RUN_MEMBERS
+value ANALYSIS_DATE_DIFF_UNITS
 value ANALYSIS_DATE_PARTS
 value ANALYSIS_DATE_UNITS
 value ANALYSIS_PRESENTATION_MEMBERS
@@ -11,6 +12,7 @@ type  AggregationFieldCapability
 type  AnalysisCapability
 type  AnalysisColumn
 type  AnalysisColumnView
+type  AnalysisDateDiffUnit
 type  AnalysisDatePart
 type  AnalysisDateUnit
 type  AnalysisDerivedExpression
@@ -497,6 +499,7 @@ value coversScope
 value createFieldKindRegistry
 value crossFilterChoices
 value cursorPaging
+value dateDiffUnitsOf
 value dateFieldKind
 value datePartsOf
 value dateTimeFieldKind
@@ -518,6 +521,7 @@ value drillConditions
 value drillFilter
 value drillGroups
 value duplicatePanel
+value durationMetric
 value editContent
 value elementFields
 value elementFilterFields
@@ -528,6 +532,7 @@ value emptyFilter
 value emptyPreferences
 value enumFieldKind
 value epochUnitOf
+value expressionFieldsOf
 value expressionText
 value familyOf
 value fieldAliasSegment
@@ -556,6 +561,7 @@ value freeAlias
 value freeSpot
 value freshId
 value groupFacts
+value groupFieldsOf
 value groupFor
 value groupJoinWord
 value groupKeyText
@@ -577,6 +583,7 @@ value isContentPanel
 value isDateCell
 value isDateTimeFilterValue
 value isDeletionState
+value isDuration
 value isEmptyFilter
 value isExecutableFilter
 value isExportCancelled

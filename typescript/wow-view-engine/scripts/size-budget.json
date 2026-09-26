@@ -6,8 +6,8 @@
       "reason": "Raised 2026-09-25 with the calendar part dimension (N2), about 17% over the 119,245 B measured then: the kernel has grown by the descriptor narrowing (N5) and the chart families (D41) since the ceiling was set, and N1, N3 and N4 add to the same kernel next."
     },
     "./react": {
-      "gzip": 146000,
-      "reason": "Set 2026-09-25, about 17% over the 124,311 B measured then."
+      "gzip": 171000,
+      "reason": "Raised 2026-09-25 with the time between two moments (N3), about 17% over the 146,099 B measured then: the editor controllers carry the kernel's rules for calendar parts (N2), opening and closing values (N1) and durations (N3) since the ceiling was set."
     },
     "./ui": {
       "gzip": 616000,

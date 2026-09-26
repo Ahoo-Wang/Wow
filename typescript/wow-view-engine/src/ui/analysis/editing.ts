@@ -14,6 +14,7 @@
 import {
   derivedText,
   expressionText,
+  isDuration,
   freeAlias,
   groupOfType,
   isFormula,
@@ -180,8 +181,15 @@ export function groupReference(
     group.label === undefined
       ? {
           label:
-            analysis.fields.find(entry => entry.field === group.field)?.label ??
-            group.field,
+            group.field === undefined
+              ? expressionText(
+                  group.expression,
+                  name =>
+                    analysis.fields.find(entry => entry.field === name)
+                      ?.label ?? name,
+                )
+              : (analysis.fields.find(entry => entry.field === group.field)
+                  ?.label ?? group.field),
           ...(group.type === 'DATE_HISTOGRAM' ? { dateUnit: group.unit } : {}),
           ...(group.type === 'DATE_PART' ? { datePart: group.part } : {}),
         }
@@ -207,7 +215,7 @@ export function metricFallbackName(
     analysis.fields.find(entry => entry.field === field)?.label ?? field;
   if (metric.type === 'COUNT')
     return messages.label('label.analysis.row-count');
-  if (isFormula(metric))
+  if (isFormula(metric) || isDuration(metric))
     return expressionText(metric.expression, fieldLabel, composed);
   if (metric.type === 'DERIVED')
     return derivedText(metric.expression, alias => {
