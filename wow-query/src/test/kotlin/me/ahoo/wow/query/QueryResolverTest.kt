@@ -80,7 +80,7 @@ class QueryResolverTest {
         val tooMany = ListQuery(MatchAllFilter, sort = many.map { Sort(QueryField(it), Sort.Direction.ASC) })
         rejection { QueryAdmission.Trusted.list(tooMany, schema) }.apply {
             assert().isEqualTo(QueryViolation.SortTooMany(AggregationQuery.MAX_SORT_FIELDS))
-            code.assert().isEqualTo(QueryErrorCodes.INVALID_REQUEST)
+            code.assert().isEqualTo(QueryErrorCodes.SORT_TOO_MANY)
         }
     }
 

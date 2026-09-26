@@ -19,6 +19,7 @@ import co.elastic.clients.elasticsearch._types.query_dsl.Query
 import co.elastic.clients.elasticsearch.core.SearchRequest
 import co.elastic.clients.elasticsearch.core.search.Hit
 import co.elastic.clients.elasticsearch.core.search.SourceFilter
+import me.ahoo.wow.query.checkExecution
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
@@ -105,7 +106,7 @@ internal class ElasticsearchQueryPager(
             val hasNextPage = hits.size == pageSize && (limit == 0 || totalFetched < limit.toLong())
             val nextSearchAfter = if (hasNextPage) {
                 hits.last().sort().also {
-                    check(it.isNotEmpty()) { "Elasticsearch search_after cursor must not be empty." }
+                    checkExecution(it.isNotEmpty()) { "Elasticsearch search_after cursor must not be empty." }
                 }
             } else {
                 null

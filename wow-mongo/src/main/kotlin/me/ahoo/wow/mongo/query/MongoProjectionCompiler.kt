@@ -19,6 +19,7 @@ import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.isEmpty
 import me.ahoo.wow.mongo.Documents
 import me.ahoo.wow.query.AdmittedQuery
+import me.ahoo.wow.query.schema.QueryViolation
 import org.bson.conversions.Bson
 
 internal object MongoProjectionCompiler {
@@ -64,12 +65,11 @@ internal object MongoProjectionCompiler {
             normalized.exclude.none { it.isIdPath() }
         val excludesOnlyId = normalized.exclude.all { it.path == Documents.ID_FIELD } &&
             normalized.include.none { it.isIdPath() }
-        require(
-            normalized.include.isEmpty() ||
-                normalized.exclude.isEmpty() ||
-                includesOnlyId ||
-                excludesOnlyId,
-        ) { "MongoDB projection cannot mix inclusion and exclusion except when one side only controls [_id]." }
+        val mixed = normalized.include.isNotEmpty() && normalized.exclude.isNotEmpty()
+        if (mixed && !includesOnlyId && !excludesOnlyId) {
+            throw QueryViolation.StorageUnsupported("a projection that mixes inclusion and exclusion beyond [_id]")
+                .rejection()
+        }
         return if (normalized.include.isNotEmpty() && normalized.exclude.isNotEmpty() && includesOnlyId) {
             normalized.copy(include = emptyList())
         } else {

@@ -22,16 +22,20 @@
  * so a client treats a code it does not know as a generic rejection and shows
  * `errorMsg`. {@link QueryErrorCode} admits those codes too.
  *
- * Two groups, which `BindingError.name` locates differently:
+ * Three groups, which `BindingError.name` locates differently:
  * - decoding the request body (`errorCode` `IllegalArgument`): `name` is the
  *   JSON path of the offending value, such as `filter.state` or `metrics[0]`,
  *   or `body` for the body as a whole;
+ * - the entry's budget and gates (`errorCode` `IllegalArgument`): `name` is
+ *   the part of the request the rule bounds, such as `limit` or `filter`;
  * - admission against the query model (`errorCode` `QuerySchemaValidation`):
  *   `name` is the absolute logical field path, such as `state.items.sku`, or
  *   `''` when the rule is about the model rather than one field.
  *
- * HTTP budget rejections (`HTTP list query limit[...]` and the like) carry no
- * binding error yet.
+ * Budget and gate rejections carry a code from Wow 9.2 on; an older server
+ * answers them with text alone (`HTTP list query limit[...] must be …`). A
+ * failure of the server itself is no rejection: it answers HTTP 500
+ * `InternalServerError` without a binding error.
  */
 export const QueryErrorCodes = Object.freeze({
   /** The body is not valid JSON. */
@@ -54,6 +58,45 @@ export const QueryErrorCodes = Object.freeze({
   CURSOR_SORT_DUPLICATE: 'CURSOR_SORT_DUPLICATE',
   /** A cursor sort has too many fields once the identity tie-breaker is appended. */
   CURSOR_SORT_TOO_MANY: 'CURSOR_SORT_TOO_MANY',
+  /**
+   * The cursor token was not issued for this model and effective sort, or
+   * does not decode; `path` is `cursor`. Start again from the first page.
+   */
+  INVALID_CURSOR: 'INVALID_CURSOR',
+  /**
+   * The entry's budget: a list or aggregation `limit`, a page's index, size,
+   * window or offset, or a cursor page's `size` is out of range; `path` names
+   * which (`limit`, `pagination.size`, `size`, …).
+   */
+  SIZE_OUT_OF_RANGE: 'SIZE_OUT_OF_RANGE',
+  /**
+   * The entry's budget: the filter or `having` has too many nodes or values;
+   * `path` is `filter` or `having`.
+   */
+  FILTER_TOO_LARGE: 'FILTER_TOO_LARGE',
+  /**
+   * The entry does not allow expensive operators, and the query uses one: an
+   * operator, an element expansion, a metric sort, an arithmetic or
+   * expression group, a date part, a dense fill or FIRST / LAST; `path` names
+   * the part (`filter`, `elements`, `sort`, `metrics`, `groupBy`).
+   */
+  EXPENSIVE_OPERATOR_DISABLED: 'EXPENSIVE_OPERATOR_DISABLED',
+  /**
+   * A counting query (count, or a paged query's total) would match every
+   * record, which the entry refuses; `path` is `filter`.
+   */
+  COUNT_REQUIRES_FILTER: 'COUNT_REQUIRES_FILTER',
+  /**
+   * A `having` or metric sort the storage evaluates after grouping read more
+   * groups than the server allows; `path` is `body`. It may end a stream
+   * partway through.
+   */
+  RESIDUAL_GROUPS_EXCEEDED: 'RESIDUAL_GROUPS_EXCEEDED',
+  /**
+   * An in-process query named no entry where one is required. Never
+   * answered over HTTP; listed so the mirror stays complete.
+   */
+  EXPLICIT_ENTRY_REQUIRED: 'EXPLICIT_ENTRY_REQUIRED',
   /** The model has no such logical field. */
   UNKNOWN_FIELD: 'UNKNOWN_FIELD',
   /** The field does not offer the capability the query uses (sort, range, …). */
@@ -121,6 +164,27 @@ export const QueryErrorCodes = Object.freeze({
    * descriptor has no `analysis.firstLastOrderBy`; `path` is its field.
    */
   FIRST_LAST_REQUIRES_ORDER_BY: 'FIRST_LAST_REQUIRES_ORDER_BY',
+  /**
+   * A date group or date difference names a field that stores neither a
+   * date nor an epoch (a formatted string, say), so it cannot be aggregated
+   * by time.
+   */
+  TEMPORAL_AGGREGATION_UNSUPPORTED: 'TEMPORAL_AGGREGATION_UNSUPPORTED',
+  /** The sort has more fields than the protocol allows; `path` is `''`. */
+  SORT_TOO_MANY: 'SORT_TOO_MANY',
+  /** Two sort fields name the same stored field; `path` is the second. */
+  SORT_FIELD_DUPLICATE: 'SORT_FIELD_DUPLICATE',
+  /**
+   * An identity filter or a cursor on a model that defines no record
+   * identity; `path` is `''`.
+   */
+  IDENTITY_UNDEFINED: 'IDENTITY_UNDEFINED',
+  /**
+   * The storage does not support the feature the query uses, or its native
+   * query language cannot express it (a MongoDB PHRASE search with a quote,
+   * say); `path` is the field, or `''`.
+   */
+  STORAGE_UNSUPPORTED: 'STORAGE_UNSUPPORTED',
 } as const);
 
 /** One of the codes this package knows; see {@link QueryErrorCodes}. */

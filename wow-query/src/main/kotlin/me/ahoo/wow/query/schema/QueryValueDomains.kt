@@ -104,10 +104,6 @@ internal fun RelativeTimeFilter.withTemporal(temporal: Temporal): RelativeTimeFi
     Temporal.Date -> this
 }
 
-internal inline fun requireSchema(accepted: Boolean, message: () -> String) {
-    if (!accepted) throw QuerySchemaValidationException(message())
-}
-
 @Suppress("CyclomaticComplexMethod")
 internal fun RelativeTimeFilter.copyTemporal(
     field: QueryField,

@@ -24,6 +24,7 @@ import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.PagedList
 import me.ahoo.wow.query.QueryBudget
+import me.ahoo.wow.query.QueryExecutionException
 import me.ahoo.wow.query.QueryGateway
 import me.ahoo.wow.query.QueryScope
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
@@ -127,18 +128,18 @@ class HttpQueryGuardTest {
         bounded.flux(request) {
             Flux.range(1, 3).doOnCancel { cancelled.set(true) }
         }.test()
-            .expectError(IllegalArgumentException::class.java)
+            .expectError(QueryExecutionException::class.java)
             .verify()
         cancelled.get().assert().isTrue()
 
         val boundedPage = guard(maxPageSize = 2, idleTimeout = Duration.ZERO)
         boundedPage.mono {
             Mono.just(PagedList(3, listOf(1, 2, 3)))
-        }.test().expectError(IllegalArgumentException::class.java).verify()
+        }.test().expectError(QueryExecutionException::class.java).verify()
 
         boundedPage.mono {
             Mono.just(CursorPage(listOf(1, 2, 3), null))
-        }.test().expectError(IllegalArgumentException::class.java).verify()
+        }.test().expectError(QueryExecutionException::class.java).verify()
     }
 
     @Test

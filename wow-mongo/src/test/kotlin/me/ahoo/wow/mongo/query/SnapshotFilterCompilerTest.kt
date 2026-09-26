@@ -258,7 +258,7 @@ class SnapshotFilterCompilerTest {
 
     @Test
     fun `mongo phrase search should reject embedded quotes`() {
-        assertThrows<IllegalArgumentException> {
+        assertThrows<QuerySchemaValidationException> {
             compile(SearchFilter("event \"sourcing\"", mode = SearchMode.PHRASE))
         }
     }

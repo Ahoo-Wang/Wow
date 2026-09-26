@@ -24,7 +24,10 @@ import {
   type ViewErrorEvent,
   type ViewSource,
 } from '../src/index.js';
-import { queryFailureIssue } from '../src/runtime/queryFailure.js';
+import {
+  isForbiddenQuery,
+  queryFailureIssue,
+} from '../src/runtime/queryFailure.js';
 import { sourceFailure } from '../src/runtime/sourceReason.js';
 import { useFilterEditor } from '../src/react/index.js';
 import { en, FilterPanel, formatIssue, zhCN } from '../src/ui/index.js';
@@ -312,6 +315,64 @@ describe('queryFailureIssue', () => {
     expect(formatIssue(zhCN, orderBy)).toBe(
       '「price」的「首个值」「最后一个值」在这里要指定排序字段：这个位置没有事件时间可排。',
     );
+  });
+
+  it('words the budget and gate codes of Wow 9.2 with the service’s words', async () => {
+    const found = await issueFor(
+      'SIZE_OUT_OF_RANGE',
+      'limit',
+      'HTTP list query limit[2000] must be between 1 and 1000.',
+    );
+    expect(found.path).toEqual([]);
+    expect(formatIssue(en, found)).toBe(
+      'The service limits how many rows one request may read: HTTP list query limit[2000] must be between 1 and 1000.',
+    );
+    expect(formatIssue(zhCN, found)).toBe(
+      '服务端限制了一次能读多少行：HTTP list query limit[2000] must be between 1 and 1000.',
+    );
+    const counting = await issueFor(
+      'COUNT_REQUIRES_FILTER',
+      'filter',
+      'HTTP counting query must not match all documents.',
+    );
+    expect(formatIssue(zhCN, counting)).toBe(
+      '先添加一个条件：服务端不会统计全部记录。',
+    );
+  });
+
+  it('words a date group on a field that keeps no instant', async () => {
+    const found = await issueFor(
+      'TEMPORAL_AGGREGATION_UNSUPPORTED',
+      'state.placedOn',
+    );
+    expect(formatIssue(en, found)).toBe(
+      'state.placedOn does not store its time as a date or a timestamp, so it cannot be grouped or measured by time.',
+    );
+  });
+
+  it('reads a server fault (HTTP 500) as a plain failure to retry', async () => {
+    const body = {
+      errorCode: 'InternalServerError',
+      errorMsg: 'Elasticsearch search timed out.',
+    };
+    const failure = await sourceFailure(
+      Object.assign(new Error('Request failed with status code 500'), {
+        exchange: {
+          response: { status: 500 },
+          extractResult: () => Promise.resolve(body),
+        },
+      }),
+    );
+    expect(failure).toEqual({
+      reason: 'Elasticsearch search timed out.',
+      errorCode: 'InternalServerError',
+      status: 500,
+    });
+    const found = queryFailureIssue(failure, withItems(), FILTER);
+    expect(found.code).toBe('runtime.query.failed');
+    expect(found.path).toEqual([]);
+    // Not the reader's to fix, and not a permission: the retry stays.
+    expect(isForbiddenQuery(found)).toBe(false);
   });
 
   it('words a model-level rule without a field', async () => {

@@ -37,6 +37,8 @@ import me.ahoo.wow.query.CursorPositionCodec
 import me.ahoo.wow.query.GroupWindow
 import me.ahoo.wow.query.PageWindow
 import me.ahoo.wow.query.QueryBackend
+import me.ahoo.wow.query.QueryExecutionException
+import me.ahoo.wow.query.checkExecution
 import me.ahoo.wow.serialization.JsonSerializer
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
 import reactor.core.publisher.Flux
@@ -168,7 +170,7 @@ abstract class AbstractElasticsearchQueryBackend : QueryBackend {
 
     private fun ResponseBody<ObjectNode>.toKeysetPage(sortSize: Int): BackendPage {
         val hits = hits().hits()
-        require(hits.all { it.sort().size == sortSize }) { "Invalid cursor." }
+        checkExecution(hits.all { it.sort().size == sortSize }) { "Elasticsearch hit sort values must match the sort." }
         return BackendPage(
             rows = hits.map { it.toObjectNode() },
             positions = hits.map { CursorPosition(it.sort()) },
@@ -176,7 +178,7 @@ abstract class AbstractElasticsearchQueryBackend : QueryBackend {
     }
 
     private fun Hit<ObjectNode>.toObjectNode(): ObjectNode =
-        checkNotNull(source()) { "Elasticsearch hit [${index()}/${id()}] is missing _source." }
+        source() ?: throw QueryExecutionException("Elasticsearch hit is missing _source.")
 
     private fun search(searchRequest: SearchRequest): Mono<BackendPage> {
         return elasticsearchClient.search(searchRequest, ObjectNode::class.java)

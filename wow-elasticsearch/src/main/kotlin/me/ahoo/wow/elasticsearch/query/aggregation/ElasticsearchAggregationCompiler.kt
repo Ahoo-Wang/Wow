@@ -28,6 +28,7 @@ import me.ahoo.wow.elasticsearch.query.AbstractElasticsearchFilterCompiler
 import me.ahoo.wow.query.AdmittedQuery
 import me.ahoo.wow.query.aggregation.denseGroup
 import me.ahoo.wow.query.aggregation.metricSorted
+import me.ahoo.wow.query.checkExecution
 
 internal class ElasticsearchAggregationCompiler(
     private val filterCompiler: AbstractElasticsearchFilterCompiler,
@@ -39,7 +40,7 @@ internal class ElasticsearchAggregationCompiler(
      */
     fun compile(admitted: AdmittedQuery<AggregationQuery>): ElasticsearchAggregationPlan {
         val query = admitted.query
-        check(query.having == null && query.denseGroup == null && !query.metricSorted) {
+        checkExecution(query.having == null && query.denseGroup == null && !query.metricSorted) {
             "Elasticsearch aggregation received an operator it declares RESIDUAL."
         }
         val rootQuery = filterCompiler.compile(query.filter, admitted)

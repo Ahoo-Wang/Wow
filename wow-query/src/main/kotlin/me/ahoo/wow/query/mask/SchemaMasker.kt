@@ -15,11 +15,11 @@ package me.ahoo.wow.query.mask
 
 import me.ahoo.wow.api.query.schema.QueryValueKind
 import me.ahoo.wow.api.query.schema.QueryValueType
+import me.ahoo.wow.query.QueryExecutionException
 import me.ahoo.wow.query.schema.MaskRule
 import me.ahoo.wow.query.schema.QueryMaskDefinition
 import me.ahoo.wow.query.schema.QueryMaskValue
 import me.ahoo.wow.query.schema.QueryModelSchema
-import me.ahoo.wow.query.schema.QuerySchemaValidationException
 import me.ahoo.wow.query.schema.QueryValueSchema
 import me.ahoo.wow.query.schema.profile
 import me.ahoo.wow.query.schema.withMask
@@ -175,10 +175,10 @@ internal class SchemaMasker private constructor(private val definition: QueryMas
         val masked: String? = compiled.mask(value)
         masked ?: fail("Mask strategy returned null.")
     } catch (error: Exception) {
-        throw QuerySchemaValidationException("Mask strategy execution failed.", error)
+        throw QueryExecutionException("Mask strategy execution failed.", error)
     }
 
-    private fun fail(message: String): Nothing = throw QuerySchemaValidationException(message)
+    private fun fail(message: String): Nothing = throw QueryExecutionException(message)
 
     companion object {
         fun create(schema: QueryModelSchema): SchemaMasker? = schema.maskDefinition?.let(::SchemaMasker)

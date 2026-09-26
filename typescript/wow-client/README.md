@@ -193,7 +193,10 @@ async function findCart(snapshots: SnapshotQueryClient<unknown>, id: string) {
   `{ code, path, message }`, `code` one of `QueryErrorCodes` and `path` the
   JSON path (`filter.state`) or the logical field (`state.items.sku`). The
   list of codes only grows, so fall back to `errorMsg` for one you do not
-  handle. Budget rejections (`HTTP list query limit[...]`) carry no code yet.
+  handle. From Wow 9.2 budget and gate rejections carry a code too
+  (`SIZE_OUT_OF_RANGE`, `EXPENSIVE_OPERATOR_DISABLED`, …); older servers
+  answer them with text alone (`HTTP list query limit[...]`). A failure of
+  the server itself answers HTTP 500 `InternalServerError`, without a code.
 
 <!-- typecheck-context
 import type { WowError } from '@ahoo-wang/wow-client';

@@ -38,9 +38,19 @@ const MISSING_LIST_LIMIT = /\blist query limit\[0\] must be between /;
  * What to do about an error whose cause the client knows, appended to the
  * message only: `errorMsg` stays the server's own words.
  */
-function hintFor({ errorCode, errorMsg }: ErrorInfo): string {
+function hintFor({ errorCode, errorMsg, bindingErrors }: ErrorInfo): string {
+  // An older server says it with `IllegalArgument` alone; one that codes its
+  // budget rejections (Wow 9.2) says `SIZE_OUT_OF_RANGE` too. The words are
+  // what tell a missing limit from a limit out of range.
+  const outOfRange =
+    errorCode === ErrorCodes.ILLEGAL_ARGUMENT ||
+    (bindingErrors ?? []).some(
+      // `QueryErrorCodes.SIZE_OUT_OF_RANGE`, spelled out to keep this module
+      // free of the catalogue.
+      error => error?.code === 'SIZE_OUT_OF_RANGE',
+    );
   if (
-    errorCode === ErrorCodes.ILLEGAL_ARGUMENT &&
+    outOfRange &&
     errorMsg !== undefined &&
     MISSING_LIST_LIMIT.test(errorMsg)
   ) {
@@ -101,9 +111,12 @@ export class WowError extends Error implements ErrorInfo {
    * admitting it against the query model (`QuerySchemaValidation`) with one
    * such binding error, whose message is `errorMsg`. Switch on its `code`
    * against {@link QueryErrorCodes}, and fall back to `errorMsg` for a code
-   * this package does not know: the list only grows. HTTP budget rejections
-   * (`HTTP list query limit[...]`) and a few other request rules carry no code
-   * yet, and neither does a command's validation error.
+   * this package does not know: the list only grows. From Wow 9.2 the
+   * entry's budget and gates say their rule too (`SIZE_OUT_OF_RANGE`,
+   * `EXPENSIVE_OPERATOR_DISABLED`, …); an older server answers them with
+   * text alone (`HTTP list query limit[...]`). A command's validation error
+   * carries no code, and neither does a failure of the server itself (HTTP
+   * 500 `InternalServerError`).
    *
    * @example
    * ```typescript

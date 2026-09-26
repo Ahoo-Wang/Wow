@@ -16,9 +16,10 @@ package me.ahoo.wow.query
 import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.CursorQuery
 import me.ahoo.wow.api.query.ICursorQuery
-import me.ahoo.wow.api.query.QueryErrorCodes
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.Sort
+import me.ahoo.wow.query.schema.QueryViolation
+import me.ahoo.wow.query.schema.requireValid
 
 fun ICursorQuery.withUniqueSort(uniqueField: QueryField): ICursorQuery {
     val effective = if (sort.any { it.field == uniqueField }) {
@@ -28,18 +29,10 @@ fun ICursorQuery.withUniqueSort(uniqueField: QueryField): ICursorQuery {
     }
     val fields = effective.map(Sort::field)
     fields.groupingBy { it }.eachCount().entries.firstOrNull { it.value > 1 }?.let { (duplicate) ->
-        throw QueryRequestException(
-            "Cursor sort fields must be unique.",
-            QueryErrorCodes.CURSOR_SORT_DUPLICATE,
-            duplicate.path,
-        )
+        throw QueryViolation.CursorSortDuplicate(duplicate).rejection()
     }
-    if (effective.size > AggregationQuery.MAX_SORT_FIELDS) {
-        throw QueryRequestException(
-            "Effective cursor sort must contain at most ${AggregationQuery.MAX_SORT_FIELDS} fields.",
-            QueryErrorCodes.CURSOR_SORT_TOO_MANY,
-            "sort",
-        )
+    requireValid(effective.size <= AggregationQuery.MAX_SORT_FIELDS) {
+        QueryViolation.CursorSortTooMany(AggregationQuery.MAX_SORT_FIELDS)
     }
     return CursorQuery(filter, projection, effective, size, cursor)
 }

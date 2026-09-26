@@ -17,8 +17,8 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.annotation.SensitivityLevel
 import me.ahoo.wow.api.query.schema.QueryValueKind
 import me.ahoo.wow.api.query.schema.QueryValueType
+import me.ahoo.wow.query.QueryExecutionException
 import me.ahoo.wow.query.schema.MaskRule
-import me.ahoo.wow.query.schema.QuerySchemaValidationException
 import me.ahoo.wow.query.schema.QueryValueSchema
 import me.ahoo.wow.query.schema.boundSchemaFixture
 import me.ahoo.wow.query.schema.objectFixture
@@ -57,7 +57,7 @@ class SchemaMaskScalarDomainTest {
                     masker.mask(node).assert().isEqualTo(expected)
                 }
                 (rejected + listOf("{}", "[]")).forEach { json ->
-                    assertThrows<QuerySchemaValidationException> { masker.mask(document(json)) }
+                    assertThrows<QueryExecutionException> { masker.mask(document(json)) }
                 }
             }
         }
@@ -74,7 +74,7 @@ class SchemaMaskScalarDomainTest {
             nestedMasker.mask(document(json)).assert().isEqualTo(document(json))
         }
         nestedMasker.mask(document("\"abc\"")).path("state").path("value").stringValue().assert().isEqualTo("***")
-        assertThrows<QuerySchemaValidationException> { nestedMasker.mask(document("1")) }
+        assertThrows<QueryExecutionException> { nestedMasker.mask(document("1")) }
     }
 
     private fun masker(value: QueryValueSchema): SchemaMasker = checkNotNull(

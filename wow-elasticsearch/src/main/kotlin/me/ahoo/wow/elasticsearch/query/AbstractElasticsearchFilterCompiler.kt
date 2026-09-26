@@ -36,7 +36,8 @@ import co.elastic.clients.json.JsonData
 import me.ahoo.wow.api.query.*
 import me.ahoo.wow.elasticsearch.query.aggregation.RuntimeExpressionCompiler
 import me.ahoo.wow.query.AdmittedQuery
-import me.ahoo.wow.query.schema.QuerySchemaValidationException
+import me.ahoo.wow.query.QueryExecutionException
+import me.ahoo.wow.query.schema.QueryViolation
 import me.ahoo.wow.serialization.JsonSerializer
 
 /**
@@ -215,7 +216,7 @@ abstract class AbstractElasticsearchFilterCompiler {
         }
 
         is IsEmptyStringFilter, is IsNotEmptyStringFilter, is RelativeTimeFilter ->
-            error("Filter [${filter.operator}] must be normalized before compilation.")
+            throw QueryExecutionException("Filter [${filter.operator}] must be normalized before compilation.")
     }
 
     private fun QueryField.path(admitted: AdmittedQuery<*>): String = admitted.field(this).physicalField.path
@@ -255,7 +256,7 @@ abstract class AbstractElasticsearchFilterCompiler {
         isBoolean -> booleanValue()
         isPojo -> (this as tools.jackson.databind.node.POJONode).pojo
         isArray -> asSequence().map { it.nativeValue() }.toList()
-        else -> throw QuerySchemaValidationException("Elasticsearch filter operands must be scalar.")
+        else -> throw QueryViolation.StorageUnsupported("non-scalar filter operands").rejection()
     }
 
     private fun tools.jackson.databind.JsonNode.requiredNativeValue(): Any {
@@ -269,10 +270,10 @@ abstract class AbstractElasticsearchFilterCompiler {
             else -> true
         }
         if (!finite) {
-            throw QuerySchemaValidationException("Elasticsearch numeric filter operands must be finite.")
+            throw QueryViolation.StorageUnsupported("non-finite numeric filter operands").rejection()
         }
         if (value !is String && value !is Number && value !is Boolean) {
-            throw QuerySchemaValidationException("Elasticsearch filter operands must be scalar.")
+            throw QueryViolation.StorageUnsupported("non-scalar filter operands").rejection()
         }
         return value
     }

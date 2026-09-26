@@ -45,6 +45,7 @@ import me.ahoo.wow.query.CursorPositionCodec
 import me.ahoo.wow.query.GroupWindow
 import me.ahoo.wow.query.PageWindow
 import me.ahoo.wow.query.QueryAdmission
+import me.ahoo.wow.query.QueryExecutionException
 import me.ahoo.wow.query.QueryPolicy
 import me.ahoo.wow.query.aggregate
 import me.ahoo.wow.query.cursor
@@ -58,7 +59,6 @@ import me.ahoo.wow.query.paged
 import me.ahoo.wow.query.schema.MaskRule
 import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QueryModelSchemaProvider
-import me.ahoo.wow.query.schema.QuerySchemaValidationException
 import me.ahoo.wow.query.single
 import me.ahoo.wow.query.snapshot.filter.SnapshotQueryFilter
 import me.ahoo.wow.query.withQueryScope
@@ -320,7 +320,7 @@ class DefaultEventStreamQueryGatewayTest {
 
             gateway.dynamicSingle(SingleQuery(MatchAllFilter))
                 .test()
-                .expectError(QuerySchemaValidationException::class.java)
+                .expectError(QueryExecutionException::class.java)
                 .verify()
         }
     }

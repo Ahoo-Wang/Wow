@@ -42,7 +42,7 @@ function kotlinQueryErrorCodes(): Record<string, string> {
 describe('QueryErrorCodes', () => {
   it('mirrors the Kotlin QueryErrorCodes, name for name and in order', () => {
     const kotlin = kotlinQueryErrorCodes();
-    expect(Object.keys(kotlin)).toHaveLength(34);
+    expect(Object.keys(kotlin)).toHaveLength(46);
     expect(Object.entries(QueryErrorCodes)).toEqual(Object.entries(kotlin));
   });
 

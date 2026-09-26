@@ -17,6 +17,7 @@ import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.query.schema.QueryModelSchema
+import me.ahoo.wow.query.schema.QueryViolation
 import me.ahoo.wow.serialization.JsonSerializer
 import tools.jackson.databind.JsonNode
 import java.nio.ByteBuffer
@@ -89,12 +90,12 @@ private object JsonCursorPositionCodec : CursorPositionCodec {
  * signed: every page is admitted again and the keyset condition is ANDed with the full admitted filter.
  */
 internal object CursorTokens {
-    const val INVALID_CURSOR = "Invalid cursor."
     private const val VERSION: Byte = 2
     private const val FINGERPRINT_BYTES = 16
     private val encoder = Base64.getUrlEncoder().withoutPadding()
     private val decoder = Base64.getUrlDecoder()
 
+    @Suppress("TooGenericExceptionCaught")
     fun encode(
         position: CursorPosition,
         aggregate: NamedAggregate,
@@ -104,8 +105,8 @@ internal object CursorTokens {
     ): String {
         val payload = try {
             codec.encode(position)
-        } catch (_: Exception) {
-            throw IllegalArgumentException(INVALID_CURSOR)
+        } catch (error: Exception) {
+            throw QueryExecutionException("Cursor position could not be encoded.", error)
         }
         val token = ByteBuffer.allocate(1 + FINGERPRINT_BYTES + payload.size)
             .put(VERSION)
@@ -134,7 +135,7 @@ internal object CursorTokens {
             require(it.values.size == sort.size)
         }
     } catch (_: Exception) {
-        throw IllegalArgumentException(INVALID_CURSOR)
+        throw QueryViolation.InvalidCursor.rejection()
     }
 
     private fun fingerprint(aggregate: NamedAggregate, schema: QueryModelSchema, sort: List<Sort>): ByteArray {

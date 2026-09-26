@@ -122,7 +122,7 @@ class BackendPage(
     val positions: List<CursorPosition>? = null,
 ) {
     init {
-        require(total == null || total >= 0) { "total must be greater than or equal to 0." }
-        require(positions == null || positions.size == rows.size) { "Every row needs one cursor position." }
+        checkExecution(total == null || total >= 0) { "Backend page total must be greater than or equal to 0." }
+        checkExecution(positions == null || positions.size == rows.size) { "Every row needs one cursor position." }
     }
 }

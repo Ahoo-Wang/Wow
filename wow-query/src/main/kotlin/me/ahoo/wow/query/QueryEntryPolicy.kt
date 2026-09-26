@@ -22,6 +22,8 @@ import me.ahoo.wow.api.query.SpaceIdFilter
 import me.ahoo.wow.api.query.TenantIdFilter
 import me.ahoo.wow.api.query.spec.spec
 import me.ahoo.wow.query.schema.QueryModelProfile
+import me.ahoo.wow.query.schema.QueryViolation
+import me.ahoo.wow.query.schema.requireValid
 
 /**
  * What a gateway requires of a query's [QueryEntry] before admitting it, and the budget each entry runs under.
@@ -50,9 +52,9 @@ data class QueryEntryPolicy(
 
     /** The entry the query runs under, after this policy accepted it. */
     fun admit(entry: QueryEntry): QueryEntry {
-        check(!(requireExplicitEntry && entry == QueryEntry.UNSPECIFIED)) {
-            "Query entry must be explicit: run the query under QueryEntry.HTTP or QueryEntry.IN_PROCESS."
-        }
+        requireValid(
+            !(requireExplicitEntry && entry == QueryEntry.UNSPECIFIED)
+        ) { QueryViolation.ExplicitEntryRequired }
         return entry
     }
 

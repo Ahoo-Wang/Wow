@@ -56,4 +56,4 @@ class QuerySchemaUnavailableException(
 
 /** One binding error per violation: its field (or `""` for the model), its text and its stable code. */
 private fun QueryViolation?.toBindingErrors(): List<BindingError> =
-    if (this == null) emptyList() else listOf(BindingError(field?.path.orEmpty(), message, code))
+    if (this == null) emptyList() else listOf(BindingError(location, message, code))

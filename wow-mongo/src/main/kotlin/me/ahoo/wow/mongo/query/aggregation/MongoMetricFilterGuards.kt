@@ -13,7 +13,7 @@
 
 package me.ahoo.wow.mongo.query.aggregation
 
-import me.ahoo.wow.query.schema.QuerySchemaValidationException
+import me.ahoo.wow.query.schema.QueryViolation
 import org.bson.BsonArray
 import org.bson.BsonDocument
 import org.bson.BsonRegularExpression
@@ -90,9 +90,7 @@ private fun toGuardCondition(path: String, operator: String, value: BsonValue): 
         Document("\$eq", listOf(typeOf(path), "missing"))
     }
 
-    else -> throw QuerySchemaValidationException(
-        "MongoDB metric filters cannot translate operator [$operator] into a guard condition.",
-    )
+    else -> throw QueryViolation.StorageUnsupported("operator [$operator] in a metric filter").rejection()
 }
 
 private fun matchesNull(path: String): Any = Document(

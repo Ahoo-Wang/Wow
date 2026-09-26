@@ -21,8 +21,9 @@ import me.ahoo.wow.api.query.AggregationGroup
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.schema.Temporal
 import me.ahoo.wow.query.AdmittedQuery
+import me.ahoo.wow.query.QueryExecutionException
 import me.ahoo.wow.query.aggregation.DenseDateGrid
-import me.ahoo.wow.query.schema.QuerySchemaValidationException
+import me.ahoo.wow.query.schema.QueryViolation
 import org.bson.Document
 import org.bson.conversions.Bson
 import java.time.ZoneId
@@ -209,7 +210,7 @@ internal fun QueryField.dateInput(admitted: AdmittedQuery<*>): Any {
     return when (val temporal = resolved.temporal) {
         Temporal.Date -> convert(scalarOrSingleton("\$$physicalPath"), "date")
         is Temporal.Epoch -> epochDate(physicalPath, temporal.timeUnit)
-        is Temporal.Formatted, null -> error(
+        is Temporal.Formatted, null -> throw QueryExecutionException(
             "Admission resolved [${resolved.logicalField}] without an instant encoding."
         )
     }
@@ -219,7 +220,7 @@ internal fun mongoTimeZone(timeZone: String): String {
     val zone = ZoneId.of(timeZone).normalized()
     if (zone !is ZoneOffset) return timeZone
     if (zone.totalSeconds % 60 != 0) {
-        throw QuerySchemaValidationException("MongoDB time zone offsets must use whole minutes.")
+        throw QueryViolation.StorageUnsupported("time zone offsets with seconds").rejection()
     }
     return if (zone == ZoneOffset.UTC) "UTC" else zone.id
 }

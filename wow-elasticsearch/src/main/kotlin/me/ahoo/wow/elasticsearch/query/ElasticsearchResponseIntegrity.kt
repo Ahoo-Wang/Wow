@@ -16,9 +16,10 @@ package me.ahoo.wow.elasticsearch.query
 import co.elastic.clients.elasticsearch._types.ShardStatistics
 import co.elastic.clients.elasticsearch.core.CountResponse
 import co.elastic.clients.elasticsearch.core.search.ResponseBody
+import me.ahoo.wow.query.checkExecution
 
 internal fun <T> ResponseBody<T>.requireComplete(): ResponseBody<T> = apply {
-    check(!timedOut()) { "Elasticsearch search timed out." }
+    checkExecution(!timedOut()) { "Elasticsearch search timed out." }
     shards().requireNoFailures("search")
 }
 
@@ -28,5 +29,5 @@ internal fun CountResponse.requireComplete(): CountResponse = apply {
 
 private fun ShardStatistics.requireNoFailures(operation: String) {
     val failed = failed().toLong()
-    check(failed == 0L) { "Elasticsearch $operation failed on [$failed] shard(s)." }
+    checkExecution(failed == 0L) { "Elasticsearch $operation failed on [$failed] shard(s)." }
 }

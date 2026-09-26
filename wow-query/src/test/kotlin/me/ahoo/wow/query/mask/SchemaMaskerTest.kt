@@ -21,6 +21,7 @@ import me.ahoo.wow.api.query.schema.QueryCapability
 import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.api.query.schema.QueryValueKind
 import me.ahoo.wow.api.query.schema.QueryValueType
+import me.ahoo.wow.query.QueryExecutionException
 import me.ahoo.wow.query.schema.LogicalQuerySchema
 import me.ahoo.wow.query.schema.MaskRule
 import me.ahoo.wow.query.schema.QueryFieldBindingTemplate
@@ -28,7 +29,6 @@ import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QueryPathSegment
 import me.ahoo.wow.query.schema.QueryPathTemplate
 import me.ahoo.wow.query.schema.QuerySchemaConflictException
-import me.ahoo.wow.query.schema.QuerySchemaValidationException
 import me.ahoo.wow.query.schema.QueryValueBindings
 import me.ahoo.wow.query.schema.QueryValueSchema
 import me.ahoo.wow.query.schema.isFieldProtected
@@ -103,7 +103,7 @@ class SchemaMaskerTest {
         masker.mask(number).path("state").path("value").intValue().assert().isEqualTo(42)
         val text = """{"state":{"value":"abc"}}""".toJsonNode<ObjectNode>()
         masker.mask(text).path("state").path("value").stringValue().assert().isEqualTo("***")
-        assertThrows<QuerySchemaValidationException> {
+        assertThrows<QueryExecutionException> {
             masker.mask(
                 """{"state":{"value":true}}""".toJsonNode<ObjectNode>()
             )
@@ -132,7 +132,7 @@ class SchemaMaskerTest {
     fun `invalid string and ancestor wire shapes fail closed`() {
         val masker = SchemaMasker.create(schema(obj("secret" to string(fullMaskRule()))))!!
         listOf("""{"state":{"secret":2}}""", """{"state":2}""", """{"state":{"secret":["abc"]}}""").forEach {
-            assertThrows<QuerySchemaValidationException> { masker.mask(it.toJsonNode<ObjectNode>()) }
+            assertThrows<QueryExecutionException> { masker.mask(it.toJsonNode<ObjectNode>()) }
         }
     }
 
@@ -153,7 +153,7 @@ class SchemaMaskerTest {
     fun `custom mask failures are contained while fatal errors propagate`() {
         listOf(NullMaskStrategy::class, FailingMaskStrategy::class).forEach { strategy ->
             val masker = SchemaMasker.create(schema(obj("secret" to string(customRule(strategy)))))!!
-            assertThrows<QuerySchemaValidationException> {
+            assertThrows<QueryExecutionException> {
                 masker.mask(
                     """{"state":{"secret":"abc"}}""".toJsonNode<ObjectNode>()
                 )
@@ -194,7 +194,7 @@ class SchemaMaskerTest {
             """{"body":[{"body":{"secret":"abc"}}]}""",
             """{"body":[{"bodyType":"Unknown","body":{"secret":"abc"}}]}"""
         ).forEach {
-            assertThrows<QuerySchemaValidationException> { masker.mask(it.toJsonNode<ObjectNode>()) }
+            assertThrows<QueryExecutionException> { masker.mask(it.toJsonNode<ObjectNode>()) }
         }
         val node = """{"body":[{"bodyType":"Known","body":{"secret":"abc"}}]}""".toJsonNode<ObjectNode>()
         masker.mask(node).path("body").path(0).path("body").path("secret").stringValue().assert().isEqualTo("***")

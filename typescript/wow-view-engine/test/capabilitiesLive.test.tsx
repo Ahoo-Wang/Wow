@@ -352,6 +352,32 @@ function invalidCursor() {
   });
 }
 
+/** The same refusal from Wow 9.2, which names it `INVALID_CURSOR`. */
+function codedInvalidCursor(errorMsg = 'Invalid cursor.') {
+  const body = {
+    errorCode: 'IllegalArgument',
+    errorMsg,
+    bindingErrors: [{ name: 'cursor', msg: errorMsg, code: 'INVALID_CURSOR' }],
+  };
+  return Object.assign(new Error('Request failed with status code 400'), {
+    exchange: {
+      response: { status: 400 },
+      extractResult: () => Promise.resolve(body),
+    },
+  });
+}
+
+/** A failure of the service itself, which Wow 9.2 answers with 500. */
+function serverFault(errorMsg: string) {
+  const body = { errorCode: 'InternalServerError', errorMsg };
+  return Object.assign(new Error('Request failed with status code 500'), {
+    exchange: {
+      response: { status: 500 },
+      extractResult: () => Promise.resolve(body),
+    },
+  });
+}
+
 describe('a cursor-paged view (#3502)', () => {
   const cursorOrders = ordersDefinition({
     record: { rowKey: 'id', paging: 'cursor', layouts: ['table'] },
@@ -429,6 +455,54 @@ describe('a cursor-paged view (#3502)', () => {
     expect(runtime.getSnapshot().query.status).toBe('success');
     expect(onError).not.toHaveBeenCalled();
     expect(cursor.mock.lastCall?.[0]).not.toHaveProperty('cursor', 'stale');
+  });
+
+  it('falls back on the INVALID_CURSOR code, whatever its words', async () => {
+    const cursor = vi.fn((query: { cursor?: string | null }) =>
+      query.cursor === 'stale'
+        ? Promise.reject(codedInvalidCursor('The cursor expired.'))
+        : Promise.resolve({ nextCursor: 'more', list: [] }),
+    );
+    const { engine, onError } = cursorHarness(cursor as never);
+    const runtime = engine.create('orders', {
+      title: 'Orders',
+      scope: 'personal',
+      config: recordConfig(),
+    });
+    await nextTask();
+    if (!('page' in runtime)) throw new Error('a record view');
+
+    runtime.page({ cursor: 'stale' });
+    await nextTask();
+    await nextTask();
+
+    expect(runtime.getSnapshot().query.status).toBe('success');
+    expect(onError).not.toHaveBeenCalled();
+    expect(cursor.mock.lastCall?.[0]).not.toHaveProperty('cursor', 'stale');
+  });
+
+  it('says a server fault on a cursor page, and does not start over', async () => {
+    const cursor = vi.fn((query: { cursor?: string | null }) =>
+      query.cursor === 'next'
+        ? Promise.reject(serverFault('Cursor position could not be encoded.'))
+        : Promise.resolve({ nextCursor: 'next', list: [] }),
+    );
+    const { engine, onError } = cursorHarness(cursor as never);
+    const runtime = engine.create('orders', {
+      title: 'Orders',
+      scope: 'personal',
+      config: recordConfig(),
+    });
+    await nextTask();
+    if (!('page' in runtime)) throw new Error('a record view');
+
+    runtime.page({ cursor: 'next' });
+    await nextTask();
+    await nextTask();
+
+    expect(runtime.getSnapshot().query.status).toBe('error');
+    expect(onError).toHaveBeenCalledTimes(1);
+    expect(cursor.mock.lastCall?.[0]).toHaveProperty('cursor', 'next');
   });
 
   it('says the failure when the first page is refused too', async () => {

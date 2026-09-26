@@ -129,7 +129,7 @@ class AbstractMongoQueryBackendTest {
                     schema
                 )
             )
-        }.test().expectError(IllegalArgumentException::class.java).verify()
+        }.test().expectError(QuerySchemaValidationException::class.java).verify()
 
         verify(exactly = 0) { collection.countDocuments(any<Bson>()) }
         verify(exactly = 0) { collection.find(any<Bson>()) }

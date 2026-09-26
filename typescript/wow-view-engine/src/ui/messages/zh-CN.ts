@@ -697,6 +697,29 @@ export const zhCN: ViewMessages = {
     '「首个值」「最后一个值」只能用于单值字段，「{field}」可能有多个值。',
   'runtime.query.failed.first_last_requires_order_by':
     '「{field}」的「首个值」「最后一个值」在这里要指定排序字段：这个位置没有事件时间可排。',
+  'runtime.query.failed.invalid_cursor':
+    '这一页没法接着往下翻了，请从第一页重新开始。',
+  'runtime.query.failed.size_out_of_range':
+    '服务端限制了一次能读多少行：{reason}',
+  'runtime.query.failed.filter_too_large':
+    '条件超出了服务端一次查询能接受的数量：{reason}',
+  'runtime.query.failed.expensive_operator_disabled':
+    '服务端在这里不允许这种高代价的查询：{reason}',
+  'runtime.query.failed.count_requires_filter':
+    '先添加一个条件：服务端不会统计全部记录。',
+  'runtime.query.failed.residual_groups_exceeded':
+    '这份汇总的分组太多，服务端没法按指标筛选或排序；先缩小数据范围。',
+  'runtime.query.failed.explicit_entry_required':
+    '查询没有指明要在哪个入口上运行：{reason}',
+  'runtime.query.failed.temporal_aggregation_unsupported':
+    '「{field}」没有按日期或时间戳存时间，不能按时间分组或计算时间差。',
+  'runtime.query.failed.sort_too_many': '排序字段太多，去掉几个。',
+  'runtime.query.failed.sort_field_duplicate':
+    '「{field}」排了两次，保留一次即可。',
+  'runtime.query.failed.identity_undefined':
+    '这份数据没有定义记录标识，不能逐页翻阅或按标识选取。',
+  'runtime.query.failed.storage_unsupported':
+    '服务端的存储运行不了这条查询：{reason}',
   'record.detail.failed': '读不到完整记录：{reason}',
   'runtime.query.queue-full': '同时查询太多，过一会儿再试。',
   'runtime.query.too-many-nodes':

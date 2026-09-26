@@ -21,6 +21,7 @@ import me.ahoo.wow.api.query.schema.QueryCapability
 import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.api.query.schema.QueryValueKind
 import me.ahoo.wow.mongo.Documents
+import me.ahoo.wow.query.schema.QuerySchemaValidationException
 import me.ahoo.wow.query.schema.QueryValueSchema
 import me.ahoo.wow.serialization.MessageRecords
 import org.bson.conversions.Bson
@@ -60,7 +61,7 @@ class MongoProjectionCompilerTest {
 
     @Test
     fun `should reject mixed inclusion and exclusion`() {
-        assertThrows<IllegalArgumentException> {
+        assertThrows<QuerySchemaValidationException> {
             compiler.compile(
                 Projection(
                     include = listOf(QueryField("state.name")),
@@ -73,7 +74,7 @@ class MongoProjectionCompilerTest {
 
     @Test
     fun `cursor projection should reject mixed projection before restoring an excluded sort field`() {
-        assertThrows<IllegalArgumentException> {
+        assertThrows<QuerySchemaValidationException> {
             compiler.cursorProjection(
                 Projection(
                     include = listOf(QueryField("state.name")),
@@ -87,7 +88,7 @@ class MongoProjectionCompilerTest {
 
     @Test
     fun `should reject excluding id when id is explicitly included`() {
-        assertThrows<IllegalArgumentException> {
+        assertThrows<QuerySchemaValidationException> {
             compiler.compile(
                 Projection(
                     include = listOf(QueryField(MessageRecords.AGGREGATE_ID)),
@@ -137,7 +138,7 @@ class MongoProjectionCompilerTest {
                 exclude = listOf(QueryField(MessageRecords.AGGREGATE_ID)),
             ),
         ).forEach { projection ->
-            assertThrows<IllegalArgumentException> {
+            assertThrows<QuerySchemaValidationException> {
                 compiler.compile(projection, snapshotSchema)
             }
         }

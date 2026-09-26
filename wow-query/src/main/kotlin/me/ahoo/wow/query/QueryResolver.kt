@@ -73,20 +73,19 @@ import me.ahoo.wow.api.query.schema.QueryCardinality
 import me.ahoo.wow.api.query.schema.Temporal
 import me.ahoo.wow.api.query.spec.ValueRule
 import me.ahoo.wow.api.query.spec.spec
+import me.ahoo.wow.query.aggregation.requireSupported
 import me.ahoo.wow.query.filter.predicateField
 import me.ahoo.wow.query.filter.requiredCapability
 import me.ahoo.wow.query.filter.withPredicateField
 import me.ahoo.wow.query.schema.QueryFieldCapabilities
 import me.ahoo.wow.query.schema.QueryFieldSchema
 import me.ahoo.wow.query.schema.QueryModelSchema
-import me.ahoo.wow.query.schema.QuerySchemaValidationException
 import me.ahoo.wow.query.schema.QueryViolation
 import me.ahoo.wow.query.schema.SupportMode
 import me.ahoo.wow.query.schema.absoluteLogicalField
 import me.ahoo.wow.query.schema.accepts
 import me.ahoo.wow.query.schema.firstLastOrderBy
 import me.ahoo.wow.query.schema.profile
-import me.ahoo.wow.query.schema.requireSchema
 import me.ahoo.wow.query.schema.requireValid
 import me.ahoo.wow.query.schema.systemField
 import me.ahoo.wow.query.schema.temporal
@@ -152,7 +151,11 @@ internal class QueryResolver(
 
     fun list(query: IListQuery): IListQuery {
         val filter = filter(query.filter)
-        return ListQuery(filter, projection(query.projection), sort(query.sort, cursor = false), query.limit)
+        val list = ListQuery(filter, projection(query.projection), sort(query.sort, cursor = false), query.limit)
+        requireValid(query.limit != 0 || schema.storage.paging.unboundedStream != SupportMode.NONE) {
+            QueryViolation.StorageUnsupported("listing without a limit")
+        }
+        return list
     }
 
     fun paged(query: IPagedQuery): IPagedQuery {
@@ -163,7 +166,11 @@ internal class QueryResolver(
     fun cursor(query: ICursorQuery): ICursorQuery {
         val filter = filter(query.filter)
         val projection = projection(query.projection)
-        return CursorQuery(filter, projection, sort(query.sort, cursor = true), query.size, query.cursor)
+        val cursor = CursorQuery(filter, projection, sort(query.sort, cursor = true), query.size, query.cursor)
+        requireValid(schema.storage.paging.keyset != SupportMode.NONE) {
+            QueryViolation.StorageUnsupported("cursor queries")
+        }
+        return cursor
     }
 
     fun filter(expression: FilterExpression): FilterExpression = filter(expression, At(ROOT))
@@ -178,12 +185,14 @@ internal class QueryResolver(
             AggregationElement(path, filter(element.filter, At(scope)))
         }
         val inner = scope
-        return query.copy(
+        val aggregation = query.copy(
             filter = filter,
             elements = elements,
             groupBy = query.groupBy.map { group(it, inner) },
             metrics = query.metrics.map { metric(it, inner) },
         )
+        requireSupported(aggregation, schema.storage.aggregation)
+        return aggregation
     }
 
     /** The canonical form of [field], which is relative to [scope]'s canonical container. */
@@ -222,8 +231,8 @@ internal class QueryResolver(
     private fun bind(reference: Reference, scope: Scope, capability: QueryCapability): ResolvedField {
         val physical = reference.definition.binding(capability)?.physicalField
             ?: throw QueryViolation.UnsupportedCapability(reference.logical, setOf(capability)).rejection()
-        requireSchema(scope.physical == null || physical.relativeTo(scope.physical) != null) {
-            "Physical field [$physical] is outside element scope [${scope.physical}]."
+        requireValid(scope.physical == null || physical.relativeTo(scope.physical) != null) {
+            QueryViolation.ElementScopeRequired(reference.logical)
         }
         return ResolvedField(reference.logical, reference.definition, scope.physical, capability, physical)
     }
@@ -594,5 +603,3 @@ internal class QueryResolver(
         val normalizer = FilterNormalizer()
     }
 }
-
-private fun QueryViolation.rejection() = QuerySchemaValidationException(this)

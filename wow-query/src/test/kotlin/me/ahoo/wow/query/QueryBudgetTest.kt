@@ -42,6 +42,7 @@ import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.PagedQuery
 import me.ahoo.wow.api.query.Pagination
+import me.ahoo.wow.api.query.QueryErrorCodes
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.api.query.StringComparison
@@ -68,6 +69,46 @@ class QueryBudgetTest {
                 )
             }
         }
+    }
+
+    @Test
+    fun `every rejection is a request violation naming its code and the request part it bounds`() {
+        fun rejection(check: QueryBudget.() -> Unit) = assertThrows<QueryRequestException> { budget().check() }
+            .let { Triple(it.code, it.bindingErrors.single().name, it.message) }
+
+        rejection { check(ListQuery(MatchAllFilter, limit = 1001)) }.assert().isEqualTo(
+            Triple(
+                QueryErrorCodes.SIZE_OUT_OF_RANGE,
+                "limit",
+                "HTTP list query limit[1001] must be between 1 and 1000.",
+            ),
+        )
+        rejection { check(PagedQuery(IdFilter("id"), pagination = Pagination(index = 0))) }.assert().isEqualTo(
+            Triple(
+                QueryErrorCodes.SIZE_OUT_OF_RANGE,
+                "pagination.index",
+                "HTTP page index[0] must be greater than or equal to 1.",
+            ),
+        )
+        rejection { check(PagedQuery(IdFilter("id"), pagination = Pagination(index = 200, size = 100))) }.assert()
+            .isEqualTo(
+                Triple(
+                    QueryErrorCodes.SIZE_OUT_OF_RANGE,
+                    "pagination",
+                    "HTTP page window[20000] must not exceed 10000.",
+                ),
+            )
+        rejection { check(ListQuery(ContainsFilter(QueryField("name"), "a"), limit = 1)) }.first.assert()
+            .isEqualTo(QueryErrorCodes.EXPENSIVE_OPERATOR_DISABLED)
+        rejection { checkCount(MatchAllFilter) }.assert().isEqualTo(
+            Triple(
+                QueryErrorCodes.COUNT_REQUIRES_FILTER,
+                "filter",
+                "HTTP counting query must not match all documents.",
+            ),
+        )
+        rejection { check(ListQuery(IdsFilter((0..1000).map(Int::toString)), limit = 1)) }.first.assert()
+            .isEqualTo(QueryErrorCodes.FILTER_TOO_LARGE)
     }
 
     @Test

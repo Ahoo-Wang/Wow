@@ -59,7 +59,8 @@ import me.ahoo.wow.api.query.StringComparison
 import me.ahoo.wow.api.query.TenantIdFilter
 import me.ahoo.wow.mongo.query.aggregation.toMongoExpression
 import me.ahoo.wow.query.AdmittedQuery
-import me.ahoo.wow.query.schema.QuerySchemaValidationException
+import me.ahoo.wow.query.QueryExecutionException
+import me.ahoo.wow.query.schema.QueryViolation
 import org.bson.Document
 import org.bson.conversions.Bson
 
@@ -88,9 +89,9 @@ abstract class AbstractMongoFilterCompiler {
             when (expression) {
                 is SearchFilter -> {
                     if (underNor || ++count > 1) {
-                        throw QuerySchemaValidationException(
-                            "MongoDB permits one text expression and none beneath NOR."
-                        )
+                        throw QueryViolation.StorageUnsupported(
+                            "more than one search filter, or a search filter beneath NOR"
+                        ).rejection()
                     }
                 }
                 is AndFilter -> expression.operands.forEach { visit(it, underNor) }
@@ -197,7 +198,9 @@ abstract class AbstractMongoFilterCompiler {
         )
         is SearchFilter -> Filters.text(
             if (filter.mode == SearchMode.PHRASE) {
-                require('"' !in filter.query) { "MongoDB PHRASE search query cannot contain double quotes." }
+                if ('"' in filter.query) {
+                    throw QueryViolation.StorageUnsupported("double quotes in a PHRASE search query").rejection()
+                }
                 "\"${filter.query}\""
             } else {
                 filter.query
@@ -205,7 +208,7 @@ abstract class AbstractMongoFilterCompiler {
         )
         is ExpressionFilter -> Filters.expr(expressionComparison(filter, admitted))
         is IsEmptyStringFilter, is IsNotEmptyStringFilter, is RelativeTimeFilter ->
-            error("Filter [${filter.operator}] must be normalized before compilation.")
+            throw QueryExecutionException("Filter [${filter.operator}] must be normalized before compilation.")
     }
 
     /** The comparison of a computed value that exists; `null` would order before every number. */
@@ -248,7 +251,7 @@ abstract class AbstractMongoFilterCompiler {
         isBoolean -> booleanValue()
         isPojo -> (this as tools.jackson.databind.node.POJONode).pojo
         isArray -> asSequence().map { it.nativeValue() }.toList()
-        else -> error("Filter value must be a scalar, scalar array, or runtime POJO.")
+        else -> throw QueryExecutionException("Filter value must be a scalar, scalar array, or runtime POJO.")
     }
 
     private fun tools.jackson.databind.JsonNode.requiredNativeValue(): Any =
