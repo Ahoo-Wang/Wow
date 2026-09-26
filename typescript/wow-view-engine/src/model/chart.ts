@@ -42,8 +42,12 @@ export interface ChartSpec {
   /**
    * Whether the values are written on the marks. Left out, the mark
    * decides (`valueLabelsOn`): a bar writes them — a combo's bars too — a
-   * line, an area and the other families do not; `true` writes them on
-   * every mark, and `false` is a choice and stands.
+   * line, an area and the other families do not; and an upright row of
+   * `PEAKS_ONLY_FROM` bars or more that stand on their own writes only its
+   * highest and lowest (`peaksOnlyLabels`). `true` writes them on every
+   * mark however many there are, and `false` writes none; either is a
+   * choice and stands. A pie writes each slice's share whatever this says,
+   * and `true` writes its value with it.
    */
   labels?: boolean;
   /**

@@ -542,13 +542,16 @@ describe('the chart options’ display page', () => {
     ).toBeNull();
     // A line answers where the numbers go, and a number on every point
     // drowned it (audit P1-3): its values are off until asked for.
-    const box = () =>
-      within(panel()!).getByRole('checkbox', { name: 'Value labels' });
-    expect(box().getAttribute('aria-checked')).toBe('false');
+    // Two choices: 「auto」 on a line is 「none」, whatever the rows.
+    const choice = (name: string) =>
+      within(
+        within(panel()!).getByRole('group', { name: 'Value labels' }),
+      ).getByRole('button', { name });
+    expect(choice('None').getAttribute('aria-pressed')).toBe('true');
     const written = () =>
       document.querySelectorAll('[data-slot="chart-plot"] svg text[stroke]');
     expect(written()).toHaveLength(0);
-    fireEvent.click(box());
+    fireEvent.click(choice('Every value'));
     await waitFor(() => expect(draft().chart.labels).toBe(true));
     await waitFor(() => expect(written().length).toBeGreaterThan(0));
   });
@@ -1104,7 +1107,9 @@ describe('the chart options of the other families', () => {
       document.querySelectorAll('[data-slot="chart-plot"] svg text').length;
     const before = written();
     fireEvent.click(
-      within(panel()!).getByRole('checkbox', { name: 'Value labels' }),
+      within(
+        within(panel()!).getByRole('group', { name: 'Value labels' }),
+      ).getByRole('button', { name: 'Every value' }),
     );
     await waitFor(() => expect(written()).toBeGreaterThan(before));
 
@@ -1173,9 +1178,12 @@ describe('what the chart options change on screen', () => {
     // A bar chart writes its values without being asked, as Metabase's does
     // where they fit: one label per bar, each read as its own column reads
     // it, written short where it has only the bar's width.
-    const box = () =>
-      within(panel()!).getByRole('checkbox', { name: 'Value labels' });
-    expect(box().getAttribute('aria-checked')).toBe('true');
+    // A short upright row: 「auto」, which writes every bar's number.
+    const choice = (name: string) =>
+      within(
+        within(panel()!).getByRole('group', { name: 'Value labels' }),
+      ).getByRole('button', { name });
+    expect(choice('Auto').getAttribute('aria-pressed')).toBe('true');
     expect(draft().chart).not.toHaveProperty('labels');
     await waitFor(() => expect(labels().length).toBeGreaterThan(0));
     expect(
@@ -1188,7 +1196,7 @@ describe('what the chart options change on screen', () => {
     );
 
     // Turned off, they stay off: the choice is saved as a choice.
-    fireEvent.click(box());
+    fireEvent.click(choice('None'));
     await waitFor(() => expect(draft().chart.labels).toBe(false));
     await waitFor(() => expect(labels()).toHaveLength(0));
     expect(queries()).toBe(ran);

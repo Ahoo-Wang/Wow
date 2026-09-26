@@ -1035,6 +1035,18 @@ export const zhCN: ViewMessages = {
   'label.chart.legend.right': '右',
   'label.chart.legend.none': '无',
   'label.chart.labels': '数值标签',
+  'label.chart.labels.auto': '自动',
+  'label.chart.labels.all': '每个都标',
+  'label.chart.labels.none': '不标',
+  'label.chart.labels.share': '只标占比',
+  'label.chart.labels.value-share': '数值与占比',
+  'label.chart.labels.auto.peaks': '共 {count} 根柱，只标最高与最低',
+  'label.chart.labels.auto.peaks.lines':
+    '共 {count} 根柱，只标最高与最低；折线与面积不标',
+  'label.chart.labels.auto.bars':
+    '柱不到 {from} 根，每根都标；{from} 根及以上只标最高与最低',
+  'label.chart.labels.auto.bars.lines':
+    '柱不到 {from} 根，每根都标；{from} 根及以上只标最高与最低；折线与面积不标',
   'label.chart.stacked': '堆叠',
   'label.chart.stacked-alone': '堆叠需要两个以上的柱或面积系列',
   'label.chart.percent-stack': '百分比堆叠',

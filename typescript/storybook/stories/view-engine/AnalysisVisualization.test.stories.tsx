@@ -211,18 +211,23 @@ export const ChartOptionsPages: Story = {
       }),
     );
     // A bar chart writes its values unasked, as Metabase's does where they
-    // fit: turned off they go, and back on they return.
-    const labelsBox = () =>
-      within(panel()!).getByRole('checkbox', {
-        name: zhCN['label.chart.labels'],
-      });
-    await expect(labelsBox()).toHaveAttribute('aria-checked', 'true');
+    // fit (「自动」): 「不标」 takes them away, and 「自动」 brings them back.
+    const labelsChoice = (name: string) =>
+      within(
+        within(panel()!).getByRole('group', {
+          name: zhCN['label.chart.labels'],
+        }),
+      ).getByRole('button', { name });
+    await expect(labelsChoice(zhCN['label.chart.labels.auto'])).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
     await waitFor(() =>
       expect(valueLabels(canvasElement).length).toBeGreaterThan(0),
     );
-    await userEvent.click(labelsBox());
+    await userEvent.click(labelsChoice(zhCN['label.chart.labels.none']));
     await waitFor(() => expect(valueLabels(canvasElement)).toHaveLength(0));
-    await userEvent.click(labelsBox());
+    await userEvent.click(labelsChoice(zhCN['label.chart.labels.auto']));
     // A label over every bar there is room for, and none over another.
     await waitFor(() =>
       expect(valueLabels(canvasElement).length).toBeGreaterThan(0),

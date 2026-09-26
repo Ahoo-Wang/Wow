@@ -16,6 +16,7 @@ import {
   approximateMetrics,
   dateDiffUnitsOf,
   datePartsOf,
+  overlaid,
 } from '../model/index.js';
 import type {
   FieldGroupDefinition,
@@ -604,8 +605,11 @@ export function useAnalysisEditor(
       [change, fitTo],
     ),
     updateChart: useCallback(
+      // A member given as `undefined` is taken out, as `edit` takes out a
+      // config's: the value labels set back to 「自动」 left the view
+      // unsaved otherwise.
       (patch: Partial<ChartSpec>) =>
-        change(current => ({ chart: { ...current.chart, ...patch } })),
+        change(current => ({ chart: overlaid(current.chart, patch) })),
       [change],
     ),
     setTotals: useCallback(
