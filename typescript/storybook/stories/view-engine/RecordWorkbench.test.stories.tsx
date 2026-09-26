@@ -660,6 +660,53 @@ export const EarliestAndLatest: Story = {
 };
 
 /**
+ * No band without a column to sit under (review P1-3).
+ *
+ * The view sums 金额, but its table no longer shows 金额: the numbers have no
+ * column to go under, and a band of nothing but 「全部」 is a grey strip that
+ * says nothing. So the table draws none. The cards, which list a summary by
+ * its own name, still carry it — which is also how this play knows the
+ * totals had landed before it looked for the band. `WithData` holds the
+ * other side: a summarised column on screen, and the band under it.
+ */
+export const NoBandWithoutSummarisedColumn: Story = {
+  ...DisplayWithData,
+  args: { ...DisplayWithData.args, summaryOffTable: true },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const table = await canvas.findByRole('table');
+    // No condition: all six orders.
+    await waitFor(() => expect(readColumn(table, '订单号')).toHaveLength(6));
+    await expect(
+      readHeaders(table).some(header => header.includes('金额')),
+    ).toBe(false);
+
+    // Under the cards the sum is there, by name.
+    await userEvent.click(
+      canvas.getByRole('button', { name: zhCN['label.layout.cards'] }),
+    );
+    await waitFor(() =>
+      expect(
+        canvasElement.querySelector(
+          '[data-slot="record-summaries"][data-layout="card"]',
+        ),
+      ).toHaveTextContent(zhCN['label.summary.scope.total']),
+    );
+
+    // Back on the table, with the totals known: no band at all.
+    await userEvent.click(
+      canvas.getByRole('button', { name: zhCN['label.layout.table'] }),
+    );
+    const back = await canvas.findByRole('table');
+    await waitFor(() => expect(readColumn(back, '订单号')).toHaveLength(6));
+    await expect(
+      canvasElement.querySelector('[data-slot="record-summaries"]'),
+    ).toBeNull();
+    await expect(scopeLabels(back)).toEqual([]);
+  },
+};
+
+/**
  * The bar under the rows, on a result that has somewhere to go.
  *
  * It is one row: how many records there are in all on the left, and on the

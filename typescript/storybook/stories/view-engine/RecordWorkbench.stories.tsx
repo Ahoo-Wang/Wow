@@ -157,6 +157,25 @@ const elementsView = {
  * 成时刻的词（「最早」「最晚」，不是「最小」「最大」）。金额那一格照旧合计，
  * 于是同一行里两种读法并排，谁也没有被对方带歪。
  */
+/**
+ * A view that sums 金额 but whose table no longer shows the column: the
+ * summary has no column to sit under, so the table draws no band for it.
+ */
+const summaryOffTableView = {
+  ...savedViews[0],
+  title: '不带金额列',
+  config: recordConfig({
+    summaries: [{ field: 'amount' as const, fn: 'SUM' as const }],
+    table: {
+      columns: [
+        { field: 'id' as const, pinned: true },
+        { field: 'warehouse' as const },
+        { field: 'status' as const },
+      ],
+    },
+  }),
+};
+
 const datedView = {
   ...savedViews[0],
   title: '最早与最晚下单',
@@ -239,6 +258,7 @@ function RecordWorkbenchDemo({
   cellFamily = false,
   elements = false,
   dated = false,
+  summaryOffTable = false,
   exporting,
   wide = false,
   noViews = false,
@@ -342,6 +362,8 @@ function RecordWorkbenchDemo({
    * earliest and the latest order beside a sum of money.
    */
   dated?: boolean;
+  /** Opens a view that sums a column its table no longer shows. */
+  summaryOffTable?: boolean;
   /**
    * What the export window has to report: pages slow enough to watch the
    * bar fill, a ceiling below the result, or a backend that refuses the
@@ -451,7 +473,9 @@ function RecordWorkbenchDemo({
                         ? [cellFamilyView]
                         : dated
                           ? [datedView]
-                          : savedViews,
+                          : summaryOffTable
+                            ? [summaryOffTableView]
+                            : savedViews,
           });
         }}
       >

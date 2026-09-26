@@ -57,7 +57,7 @@ import { FillerCell, FillerHead } from './record/Filler.js';
 import { SkeletonRows } from './record/SkeletonRows.js';
 import { SortableHeader } from './record/SortableHeader.js';
 import { SummaryRows } from './record/SummaryRows.js';
-import { useSummaries } from './record/useSummaries.js';
+import { summarisesColumns, useSummaries } from './record/useSummaries.js';
 import { TableDataRow } from './variants.js';
 import {
   Table,
@@ -197,6 +197,8 @@ export function RecordTable({
   const allSelected =
     table.rows.length > 0 && table.selection.length === table.rows.length;
   const columns = table.columns;
+  // No band unless a column on screen carries one of the summaries.
+  const summarised = summarisesColumns(table.summaries, columns);
   const element = useRef<HTMLTableElement>(null);
   const port = useRef<HTMLDivElement>(null);
   const additiveId = useId();
@@ -222,7 +224,7 @@ export function RecordTable({
   const room = useRoomBelowRows(
     port,
     element,
-    scrolls && table.summaries !== null && table.rows.length > 0,
+    scrolls && summarised && table.rows.length > 0,
   );
   // Whether the middle really scrolls, which is what the held columns'
   // edges answer to (P-23). Asked before the cap, whose own observer a
@@ -238,7 +240,11 @@ export function RecordTable({
   // it publishes is where each held column stops, which is the one of them
   // that depends on the cap having had its say.
   usePinnedOffsets(element, pins);
-  const summaries = useSummaries(table.summaries, table.rows, table.paging);
+  const summaries = useSummaries(
+    summarised ? table.summaries : null,
+    table.rows,
+    table.paging,
+  );
 
   // No result to draw and none on the way. The table is built from the
   // result, so there are no columns either: what would be drawn is a header

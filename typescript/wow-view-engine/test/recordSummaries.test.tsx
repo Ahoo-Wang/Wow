@@ -36,6 +36,7 @@ import {
   RecordCards,
   RecordTable,
   DataWorkbench,
+  EmbeddedView,
   ViewSurface,
 } from '../src/ui/index.js';
 import {
@@ -51,7 +52,7 @@ import {
   testSource,
 } from './fixtures.js';
 import { panel, pending } from './fixtures/dashboard.js';
-import { mine, twoColumnTable } from './fixtures/ui.js';
+import { mine, settle, twoColumnTable } from './fixtures/ui.js';
 
 afterEach(cleanup);
 
@@ -508,5 +509,144 @@ describe('the summary rows on a single page', () => {
     // The fixture's two orders are one page of the panel's view.
     expect(scopes(footer)).toEqual(['total']);
     expect(footer.textContent).toContain('30');
+  });
+});
+
+/**
+ * No band without a column to sit under (review P1-3).
+ *
+ * The band is the numbers under the columns they summarise. When none of the
+ * summarised fields is a column on screen — the column taken out of the
+ * table after the summary was configured — what is left is a grey strip
+ * reading "All rows" and nothing else, which in a board panel is one more row
+ * of height taken from the records. Every surface that draws a table goes
+ * through `RecordTable`, so the workbench, the embedded view and the board
+ * panel are each held to it here.
+ */
+describe('the summary band without a summarised column', () => {
+  const offColumn: RecordTableController['summaries'] = {
+    scope: 'total',
+    cells: [{ field: 'customer', label: 'Customer', fn: 'COUNT', value: 2 }],
+  };
+
+  it('draws no footer when no drawn column carries a summary', () => {
+    const { container } = render(
+      <RecordTable
+        table={twoColumnTable({ summaries: offColumn, paging: MANY_PAGES })}
+      />,
+    );
+    expect(container.querySelector('tfoot')).toBeNull();
+  });
+
+  it('draws it as soon as one drawn column does', () => {
+    const { container } = render(
+      <RecordTable
+        table={twoColumnTable({
+          summaries: {
+            ...offColumn,
+            cells: [
+              ...offColumn.cells,
+              { field: 'amount', label: 'Amount', fn: 'COUNT', value: 2 },
+            ],
+          },
+          paging: MANY_PAGES,
+        })}
+      />,
+    );
+    const footer = container.querySelector('tfoot')!;
+    expect(scopes(footer)).toEqual(['page', 'total']);
+  });
+
+  it('keeps the summaries under the cards, which list them by name', () => {
+    const { container } = render(
+      <RecordCards
+        table={twoColumnTable({ summaries: offColumn, layout: 'card' })}
+      />,
+    );
+    expect(
+      container.querySelector('[data-slot="record-summaries"]'),
+    ).not.toBeNull();
+  });
+
+  /** A view summarising `amount` whose table no longer shows it. */
+  const hidden = (base: ViewInstance): ViewInstance => ({
+    ...base,
+    config: recordConfig({
+      summaries: [{ field: 'amount', fn: 'SUM' }],
+      table: { columns: [{ field: 'id' }] },
+    }),
+  });
+
+  /**
+   * Waits until the summaries were asked for and answered and the rows are
+   * on screen, then answers whether a footer came with them: the footer
+   * missing only because the totals had not landed yet would prove nothing.
+   */
+  async function footerOnceLoaded(container: HTMLElement, source: ViewSource) {
+    await waitFor(() => expect(source.aggregate).toHaveBeenCalled());
+    await settle();
+    await waitFor(() => expect(container.textContent).toContain('o-2'));
+    return container.querySelector('tfoot');
+  }
+
+  it('draws none in the workbench', async () => {
+    const source = testSource(MORE_THAN_A_PAGE);
+    const engine = new ViewEngine({
+      definitions: [ordersDefinition()],
+      store: new MemoryViewStore({ instances: [hidden(mine)] }),
+      resolveSource: () => source,
+    });
+    const { container } = render(
+      <DataWorkbench
+        engine={engine}
+        definitionId="orders"
+        instanceId="orders-1"
+      />,
+    );
+    expect(await footerOnceLoaded(container, source)).toBeNull();
+  });
+
+  it('draws none in an embedded view', async () => {
+    const source = testSource(MORE_THAN_A_PAGE);
+    const engine = new ViewEngine({
+      definitions: [ordersDefinition()],
+      store: new MemoryViewStore({ instances: [hidden(pending)] }),
+      resolveSource: () => source,
+    });
+    const { container } = render(
+      <EmbeddedView engine={engine} instanceId="pending" />,
+    );
+    expect(await footerOnceLoaded(container, source)).toBeNull();
+  });
+
+  it('draws none in a board table panel', async () => {
+    const source = testSource();
+    const store = new MemoryViewStore({ instances: [hidden(pending)] });
+    const engine = new ViewEngine({
+      definitions: [ordersDefinition(), overviewDefinition()],
+      store,
+      resolveSource: () => source,
+      environment: testEnvironment().environment,
+    });
+    const board = await store.create(
+      {
+        definitionId: 'overview',
+        title: 'Overview',
+        scope: 'personal',
+        config: dashboardConfig({ panels: [panel()] }),
+      },
+      { requestId: 'r' },
+    );
+    const runtime = (await engine.open(board.id)) as DashboardRuntime;
+    const view = renderHook(() => useDashboard(runtime));
+    await act(async () => {
+      await Promise.resolve();
+    });
+    const { container } = render(
+      <ViewSurface>
+        <DashboardGrid dashboard={view.result.current} />
+      </ViewSurface>,
+    );
+    expect(await footerOnceLoaded(container, source)).toBeNull();
   });
 });
