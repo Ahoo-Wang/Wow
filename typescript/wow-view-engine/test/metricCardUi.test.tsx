@@ -116,6 +116,24 @@ describe('a trend card read as its last period', () => {
     ).toBe('success');
   });
 
+  // Review 2026-09-26 P1-4: at 390px wide a figure ran past a tile half the
+  // phone wide, and the badge wrapped to two lines and pushed the trend out.
+  // The stylesheet sizes the figure by its characters and, on a card that
+  // narrow, shows the badge's share alone; what it reads is said here, and
+  // the browser checks the pixels at 390px (the review's walk).
+  it('says how long its figure is, and the share a narrow card shows alone', () => {
+    card(daily());
+    expect(
+      slot('metric-value')?.style.getPropertyValue('--_fve-metric-chars'),
+    ).toBe('2');
+    const badge = slot('metric-change')!.querySelector('[data-slot="badge"]')!;
+    // The share a narrow card draws in its place, and the whole for a pointer.
+    expect(badge.getAttribute('data-share')).toBe('+20%');
+    expect(badge.getAttribute('title')).toBe('+2 · +20%');
+    // The words stay the badge's text: a screen reader still reads them.
+    expect(badge.textContent).toBe('+2 · +20%');
+  });
+
   it('colours a fall as good where a fall is the good way', () => {
     card(daily({ lowerIsBetter: true }), [
       { day: day(22), orders: 6 },
