@@ -706,6 +706,7 @@ src/
     workbench/                — The shell's private parts, and the parts each kind of view puts into it
       AnalysisParts.tsx       — What makes an analysis view an analysis view: its editor and its table or chart, handed to the shell as slots
       ConditionBlock.tsx      — The view's editor on a tray of its own: the fold's band when it folds, an open block when it does not, behind one boundary
+      configRemedy.ts         — Where a record config that will not run is fixed: the part of it the first error is about
       NewView.tsx             — The "new view" command drawn as a press or as a menu of the kinds, in the sidebar, the empty work area and the switcher (D20 Ⅱ)
       NoViews.tsx             — The work area when the definition has no view of these kinds yet
       OpeningSkeleton.tsx     — The shape of the page that is opening: title-bar and result-block skeletons, one status sentence (P-13)

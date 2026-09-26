@@ -24,6 +24,7 @@
  * `recordColumns.ts` holds the same kind of function for a column list.
  */
 
+import { nearestPageSize } from '../model/index.js';
 import type {
   RecordSort,
   RecordSummary,
@@ -89,6 +90,25 @@ export function offeredPageSizes(
   return [...new Set([...offered, ...(current > 0 ? [current] : [])])].sort(
     (left, right) => left - right,
   );
+}
+
+/**
+ * The rung of the layout's ladder nearest a size the limits refuse — above
+ * `max`, not a whole number, or under one — or `null` for a size they
+ * admit. Only rungs the limits admit are offered.
+ */
+export function admittedPageSize(
+  ladder: readonly number[],
+  max: number | undefined,
+  size: number | undefined,
+): number | null {
+  if (size === undefined || max === undefined) return null;
+  if (Number.isInteger(size) && size >= 1 && size <= max) return null;
+  const admitted = ladder.filter(
+    rung => Number.isInteger(rung) && rung >= 1 && rung <= max,
+  );
+  if (admitted.length === 0) return null;
+  return nearestPageSize(admitted, Number.isFinite(size) ? size : 0);
 }
 
 /**

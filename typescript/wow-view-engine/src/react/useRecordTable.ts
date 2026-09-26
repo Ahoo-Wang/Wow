@@ -43,6 +43,7 @@ import {
   offeredPageSizes,
   repairing,
   summariesOf,
+  admittedPageSize,
 } from './recordEdits.js';
 import { clampPage, maxSortFields } from '../record/index.js';
 import type {
@@ -312,6 +313,14 @@ export interface RecordTableController {
   pageSizes: number[];
   /** A new size is a new query: runs under the rule `toggleSort` keeps. */
   setPageSize(size: number): void;
+  /**
+   * The admitted page size nearest the draft's, where the draft's is one
+   * the runtime refuses (`record.pageSize.too-large`, `not-positive`), and
+   * `null` otherwise: the one-press way out of a stored size the limits no
+   * longer admit. Nothing else offers it — a view that will not run has no
+   * result and so no pagination to pick a size in (second review R1-P1-3).
+   */
+  pageSizeFix: number | null;
 
   selection: RecordKey[];
   /**
@@ -715,6 +724,15 @@ export function useRecordTable(
     setPageSize: useCallback(
       (pageSize: number) => editAndApply({ pageSize }),
       [editAndApply],
+    ),
+    pageSizeFix: useMemo(
+      () =>
+        admittedPageSize(
+          ladderOf(runtime?.limits, state?.draft.layout ?? 'table'),
+          runtime?.limits.maxPageSize,
+          state?.draft.pageSize,
+        ),
+      [runtime, state?.draft.layout, state?.draft.pageSize],
     ),
 
     selection,

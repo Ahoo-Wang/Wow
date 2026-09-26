@@ -29,7 +29,11 @@ import {
 } from '../../react/index.js';
 import { useAnnouncer } from '../Announcer.js';
 import { Button } from '../components/button.js';
+import { CardSettings } from '../CardSettings.js';
 import { ColumnSettings } from '../ColumnSettings.js';
+import { SortSettings } from '../SortSettings.js';
+import { LAYOUT_LABEL } from '../ResultToolbar.js';
+import { configRemedy } from './configRemedy.js';
 import { useExportOffer, type ExportedFile } from '../record/exportOffer.js';
 import { useQueryAnnouncement } from '../record/queryAnnouncement.js';
 import { FilterPanel } from '../FilterPanel.js';
@@ -305,25 +309,81 @@ export function RecordParts({
         pick={pick?.id === runtimeId ? pick.n : 0}
       />
     ),
-    /* The way out of a config that will not run. It is the same panel the
-       toolbar's button opens — and it is offered here because the state
-       this line is read in is exactly the state there is no toolbar in:
-       nothing ran, so there is no result and no result block (F-14).
-       Offered under both layouts, because what the finding is about is the
-       view's columns and the card settings do not hold them. */
-    errorAction: shown.columns && (
-      <ColumnSettings
-        table={table}
-        fields={fields}
-        fieldGroups={table.fieldGroups}
-        rowKey={table.rowKey}
-        trigger={
-          <Button variant="outline" size="xs">
-            {messages.label('label.status.open-columns')}
-          </Button>
+    /* The way out of a config that will not run, for the part of it the
+       first error is about (`configRemedy`; second review R1-P1-3). A
+       panel is the same one the toolbar's button opens — offered here
+       because the state this line is read in is exactly the state there
+       is no toolbar in: nothing ran, so there is no result and no result
+       block (F-14). A page size or a layout is one press instead: the
+       pagination that offers sizes is not drawn either, and a layout the
+       definition refuses has one answer, the layout it offers. */
+    errorAction: (() => {
+      const button = (label: string, onClick?: () => void) => (
+        <Button variant="outline" size="xs" onClick={onClick}>
+          {label}
+        </Button>
+      );
+      switch (configRemedy(filter.unmarked)) {
+        case 'page-size': {
+          const size = table.pageSizeFix;
+          return (
+            size !== null &&
+            button(messages.label('label.status.use-page-size', { size }), () =>
+              table.setPageSize(size),
+            )
+          );
         }
-      />
-    ),
+        case 'layout': {
+          const layout = table.layouts[0];
+          return (
+            layout !== undefined &&
+            button(
+              messages.label('label.status.use-layout', {
+                layout: messages.label(LAYOUT_LABEL[layout]),
+              }),
+              () => table.setLayout(layout),
+            )
+          );
+        }
+        case 'sort':
+          return (
+            shown.sort && (
+              <SortSettings
+                table={table}
+                fields={fields}
+                {...(table.fieldGroups
+                  ? { fieldGroups: table.fieldGroups }
+                  : {})}
+                trigger={button(messages.label('label.status.open-sort'))}
+              />
+            )
+          );
+        case 'card':
+          return (
+            shown.columns && (
+              <CardSettings
+                table={table}
+                fields={fields}
+                trigger={button(messages.label('label.status.open-card'))}
+              />
+            )
+          );
+        case 'columns':
+          return (
+            shown.columns && (
+              <ColumnSettings
+                table={table}
+                fields={fields}
+                fieldGroups={table.fieldGroups}
+                rowKey={table.rowKey}
+                trigger={button(messages.label('label.status.open-columns'))}
+              />
+            )
+          );
+        default:
+          return null;
+      }
+    })(),
     /* An export says nothing here: it has a window of its own, and that
        window is where it reports what it produced, what the ceiling cut
        short and what went wrong (D14). A cancel says nothing anywhere — it

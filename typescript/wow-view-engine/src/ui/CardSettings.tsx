@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import { useId } from 'react';
+import { useId, type ReactElement } from 'react';
 import { LayoutGridIcon } from 'lucide-react';
 import {
   isFieldlessKind,
@@ -53,6 +53,12 @@ export interface CardSettingsProps {
   table: RecordTableController;
   /** The fields the definition offers, in its order. */
   fields: readonly FieldDefinition[];
+  /**
+   * The control that opens it, where the toolbar's is not on screen: the
+   * error strip's worded button for a config that will not run (as
+   * `ColumnSettings`' `trigger`). Left out, the toolbar's own button.
+   */
+  trigger?: ReactElement<Record<string, unknown>>;
 }
 
 /** The value the image select carries for "none": no field is named this. */
@@ -74,7 +80,7 @@ const PER_ROW: readonly (1 | 2 | 3 | 4)[] = [1, 2, 3, 4];
  * to bottom, and the definition's order is the order most hosts want; a
  * reorder is the one thing left to the phase after this.
  */
-export function CardSettings({ table, fields }: CardSettingsProps) {
+export function CardSettings({ table, fields, trigger }: CardSettingsProps) {
   const messages = useViewMessages();
   const ids = useId();
   const spec = table.cardSpec;
@@ -93,27 +99,33 @@ export function CardSettings({ table, fields }: CardSettingsProps) {
 
   return (
     <Popover>
-      <Tooltip>
-        <TooltipTrigger
-          render={
-            <ToolbarItem
-              render={
-                <PopoverTrigger
-                  // The same handle the column settings wear, so a host
-                  // or a test that reaches for "the arrangement control"
-                  // finds it under either layout.
-                  data-control="columns"
-                  aria-label={messages.label('label.toolbar.card')}
-                  render={<Button variant="outline" size="icon-sm" />}
-                />
-              }
-            />
-          }
-        >
-          <LayoutGridIcon />
-        </TooltipTrigger>
-        <TooltipContent>{messages.label('label.toolbar.card')}</TooltipContent>
-      </Tooltip>
+      {trigger ? (
+        <PopoverTrigger data-control="columns" render={trigger} />
+      ) : (
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <ToolbarItem
+                render={
+                  <PopoverTrigger
+                    // The same handle the column settings wear, so a host
+                    // or a test that reaches for "the arrangement control"
+                    // finds it under either layout.
+                    data-control="columns"
+                    aria-label={messages.label('label.toolbar.card')}
+                    render={<Button variant="outline" size="icon-sm" />}
+                  />
+                }
+              />
+            }
+          >
+            <LayoutGridIcon />
+          </TooltipTrigger>
+          <TooltipContent>
+            {messages.label('label.toolbar.card')}
+          </TooltipContent>
+        </Tooltip>
+      )}
       <PopoverContent align="end" className="w-80">
         <PopoverHeader>
           <PopoverTitle>{messages.label('label.card.title')}</PopoverTitle>
