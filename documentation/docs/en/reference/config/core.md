@@ -213,9 +213,20 @@ A purely in-memory application has no PrepareStorage implementation and must set
 
 ## Query admission
 
-There is no query validation-mode setting. The Gateway strictly validates the final logical Query against its captured Schema; unknown fields and missing capabilities fail closed. Independent `HttpQueryGuard` settings control HTTP costs; see [Infrastructure Configuration](./infrastructure.md#webflux).
+Configuration class: `QueryProperties`; prefix: `wow.query`. The Gateway always validates the final logical Query strictly against its captured Schema; unknown fields and missing capabilities fail closed, and no setting relaxes that.
 
-Any value of the old `wow.query.schema.validation-mode` property, including `strict`, fails startup with an instruction to remove it. CamelCase spellings are rejected too; the setting is not silently ignored.
+The properties tune what the Gateway admits:
+
+| Setting | Controls |
+| --- | --- |
+| `wow.query.require-explicit-entry` | Rejects gateway queries that do not state their entry (`HTTP` or `IN_PROCESS`) |
+| `wow.query.require-authenticated-scope` | Rejects `HTTP` queries whose authenticated scope does not pin `tenantId` |
+| `wow.query.http.*` | The budget of `HTTP`-entry queries, checked at admission: list and page sizes, page window, filter nodes and values, expensive operators, residual groups |
+| `wow.query.abac.*` | Tightenings handed to `AbacQueryPolicy` |
+| `wow.query.sensitivity.display-comparable` | Whether filters and paged sorts may compare `DISPLAY` sensitive fields |
+| `wow.query.schema.revalidate-interval` | How often query schemas are reloaded from storage |
+
+Types, defaults and details are listed in [Infrastructure Configuration](./infrastructure.md#query).
 
 ## Environment-Specific Configuration
 

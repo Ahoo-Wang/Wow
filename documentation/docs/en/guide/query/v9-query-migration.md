@@ -87,7 +87,7 @@ When V8 passes a `DateTimeFormatter` rather than a pattern string, use the match
 | `today`, `beforeToday`, `tomorrow`, week/month, `recentDays`, `earlierDays` | Matching `TodayFilter`, `BeforeTodayFilter`, `TomorrowFilter`, `ThisWeekFilter`, `NextWeekFilter`, `LastWeekFilter`, `ThisMonthFilter`, `LastMonthFilter`, `RecentDaysFilter`, `EarlierDaysFilter`; use typed constructor properties and the formatter boundary above |
 | `condition.toFilterExpression()` | Transitional V9.x adapter only; replace stored/public `Condition` values with their concrete expression before 10.0.0 |
 
-Data-query HTTP request and result envelopes, Backend wire trees, storage layouts, and existing data do not change because of this JVM refactor or static-annotation masking. Query Schema HTTP metadata and its generated OpenAPI component do change: each field adds `masked: Boolean`. No storage-data migration is required, and raw values in the Backend and storage are not rewritten. After old mask rules move to field annotations, the managed Gateway restores response confidentiality semantics.
+Data-query HTTP request and result envelopes, Backend wire trees, storage layouts, and existing data do not change because of this JVM refactor or static-annotation masking. The Query Schema HTTP route and its generated OpenAPI component do change: `GET …/snapshot/schema` and `GET …/event/schema` return the capability descriptor (`QueryModelDescriptor`), which lists each field's public capabilities and its `sensitivity` (level, and whether its raw value may be compared) instead of the old metadata tree. No storage-data migration is required, and raw values in the Backend and storage are not rewritten. After old mask rules move to field annotations, the managed Gateway restores response confidentiality semantics.
 
 ## Historical types and current replacements
 
@@ -96,19 +96,17 @@ The left column lists removed historical APIs, not current callable contracts:
 | Historical type or pattern | Current implementation |
 | --- | --- |
 | QueryService / SnapshotQueryService / EventStreamQueryService | Application aggregate QueryGateway; storage QueryBackend |
-| ResolvedQuery | Explicit `(query, schema)` arguments on every Backend operation |
+| ResolvedQuery | `AdmittedQuery` from `QueryAdmission`, received by the four Backend primitives (`stream`, `page`, `count`, `aggregate`) |
 | QueryFilterChain / around filter | `QueryFilter.prepare(QueryContext<Q>): Mono<Q>` for request preparation only |
-| RewriteRequestFilter / HttpQueryGuardFilter | Handler-level QueryRequestScope / HttpQueryGuard |
+| RewriteRequestFilter / HttpQueryGuardFilter | Handler-level QueryRequestScope; the Gateway checks the `wow.query.http.*` budget at admission, and HttpQueryGuard keeps response row caps, the `limit=0` default, idle timeout and buffering |
 | AbacQueryFilter | AbacQueryPolicy implementing QueryPolicy |
 | SchemaMaskQueryFilter / custom result Mask Filter | Fixed Gateway Mask stage and static domain declarations |
 | validation-mode / QuerySchemaValidationMode | Removed; strict validation of final logical requests |
-| Flat fields metadata / dynamicChildren | Recursive `QueryModelSchemaMetadata.root` with properties/items/additionalProperties/alternatives |
-
-Any value of the old `wow.query.schema.validation-mode` property, including `strict`, fails startup with an instruction to remove it. CamelCase spellings are rejected too; the setting is not silently ignored.
+| Flat fields metadata / dynamicChildren | Capability descriptor `QueryModelDescriptor`: `fields` by logical path (element fields carry their `scope`), `elements`, `dynamic` patterns, `variants` and `constraints` |
 
 ## Custom QueryBackend migration
 
-A Backend implements four primitives. Each receives an `AdmittedQuery` carrying the logical Query, its Schema, the query entry and the resolution of each field reference (`admitted.field(reference)`); destructure it with `val (query, schema) = admitted`:
+A Backend implements four primitives. Each receives an `AdmittedQuery` carrying the logical Query, its Schema, the query entry and the resolution of each field reference (`admitted.field(reference)`):
 
 ```kotlin
 val cursorPositions: CursorPositionCodec
@@ -120,13 +118,13 @@ fun aggregate(query: AdmittedQuery<AggregationQuery>, window: GroupWindow): Flux
 
 The core derives single, list, paged, cursor and aggregate from them, including the cursor token and the aggregation operators the storage declares `RESIDUAL`; see [Query Backend](./query-backend.md).
 
-The Backend consumes native bindings, checks native parameters and physical scope, and executes. It does not fetch a Provider or perform whole-query public validation, authorization, Mask, or typed materialization. The Factory pairs Backend and Provider in `QueryBackendBinding`. Every subscription emits independently owned standard JSON ObjectNodes.
+The Backend consumes the resolved fields of the `AdmittedQuery`, checks native parameters and physical scope, and executes. It does not fetch a Provider or perform whole-query public validation, authorization, Mask, or typed materialization. The Factory pairs Backend and Provider in `QueryBackendBinding`. Every subscription emits independently owned standard JSON ObjectNodes.
 
 ## Request extensions and entry points
 
-`QueryContext<Q>` contains only query, namedAggregate, and schema. Move request processing into prepare; put trusted identity scope in Reactor `withQueryScope` or `QueryPolicy` (including the Snapshot-specific `AbacQueryPolicy`). Observers only observe termination. The Gateway fixes the sequence: prepare, scope/policy, defaults, public validation, Backend, Mask, and typed materialization.
+`QueryContext<Q>` contains only query, namedAggregate, schema, queryType, and entry. Move request processing into prepare; put trusted identity scope in Reactor `withQueryScope` or `QueryPolicy` (including the Snapshot-specific `AbacQueryPolicy`). Observers only observe termination. The Gateway fixes the sequence: entry budget, prepare, scope/policy, model default scope, `QueryAdmission`, Backend primitive, Mask, and typed materialization.
 
-Applications keep using typed, dynamic, paged, cursor, count, and aggregate methods on SnapshotQueryGateway / EventStreamQueryGateway. Direct Backend access is a trusted low-level boundary; callers supply the Schema and own all governance responsibilities. The Gateway appends the cursor's unique sort field; the Backend does not.
+Applications keep using typed, dynamic, paged, cursor, count, and aggregate methods on SnapshotQueryGateway / EventStreamQueryGateway. Direct Backend access is a trusted low-level boundary; callers obtain an `AdmittedQuery` via `QueryAdmission` and own all governance responsibilities (scope, policies, model defaults, masking). `QueryAdmission.cursor` appends the cursor's unique sort field; the Backend does not.
 
 ## Static Mask migration
 

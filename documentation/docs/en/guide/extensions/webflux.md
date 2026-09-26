@@ -92,7 +92,7 @@ The default `RequestExceptionHandler` converts framework failures to `ErrorInfo`
 
 ## OpenAPI Integration
 
-Runtime metadata and route contracts assemble OpenAPI. Schema refresh updates only the receiving instance's query-schema cache and retains the old cache on failure. It does not broadcast or modify backend mappings. Authorize refresh separately from ordinary query routes.
+Runtime metadata and route contracts assemble OpenAPI. There is no HTTP route that refreshes query schemas: each instance revalidates its schemas every `wow.query.schema.revalidate-interval`, and the `wowQuerySchema` actuator endpoint lists each instance's schema versions and revalidates on demand. Revalidation affects only the instance it runs on and keeps the previous schema when it fails; it does not broadcast or modify backend mappings. Expose the actuator endpoint only on the management plane.
 
 ## Performance Optimization
 

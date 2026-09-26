@@ -39,7 +39,6 @@ import me.ahoo.wow.query.schema.MaskRule
 import me.ahoo.wow.query.schema.QuerySchemaUnavailableException
 import me.ahoo.wow.query.schema.QuerySchemaValidationException
 import me.ahoo.wow.query.schema.QueryValueSchema
-import me.ahoo.wow.query.schema.physicalField
 import me.ahoo.wow.query.schema.validateQuery
 import me.ahoo.wow.serialization.JsonSerializer
 import org.bson.Document
@@ -267,9 +266,6 @@ class MongoQuerySchemaAdapterTest {
             QueryField("homes.work.city")
         )!!.binding(QueryCapability.EXACT_MATCH)!!.storageTypes!!.single().value.assert().isEqualTo("string")
         schema.field(QueryField("homes.home.city"))!!.bindings.keys.assert().doesNotContain(QueryCapability.EXACT_MATCH)
-        assertThrows<QuerySchemaValidationException> {
-            schema.physicalField(QueryField("city"), QueryCapability.EXACT_MATCH, QueryField("homes.home"))
-        }
     }
 
     @Test

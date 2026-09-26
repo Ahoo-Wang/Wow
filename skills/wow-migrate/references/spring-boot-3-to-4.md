@@ -86,7 +86,7 @@ Treat temporary Jackson 2 support or old-default switches as migration bridges o
 |---|---|
 | `mongo-support` | Mongo Boot module/starter, property binding, selected database, client Bean, collection/index initialization, snapshot and query path. |
 | `redis-support` | Redis module/starter, client factory, property binding, bus/store selection, stream recovery and health. |
-| `elasticsearch-support` | Boot/client generation, customizers, mapping/template access, query Schema binding and refresh behavior. |
+| `elasticsearch-support` | Boot/client generation, customizers, mapping/template access, query Schema binding and revalidation behavior. |
 | `kafka-support` | Kafka/Spring Kafka train, client and retry customizers, receiver options, topic/consumer startup and shutdown. |
 | `webflux-support` / `openapi-support` | Reactor Netty/WebFlux modules, error handling, request binding, generated routes/OpenAPI and client regeneration. |
 | `opentelemetry-support` | Boot observability modules, Micrometer/OpenTelemetry bridge, exporter ownership, metrics/traces and graceful shutdown. |
