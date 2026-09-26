@@ -130,3 +130,89 @@ export const OrderWorkbenchScene: Story = {
     });
   },
 };
+
+/** The hint a summary row gives about the columns it sums out of view. */
+const offscreenHint = (table: HTMLElement) =>
+  table.querySelector<HTMLButtonElement>(
+    'tfoot tr[data-scope="total"] [data-slot="summary-offscreen"]',
+  );
+
+/** Whether a box lies whole between the held columns of the port. */
+function inView(port: HTMLElement, box: Element): boolean {
+  const held = [...port.querySelectorAll('thead [data-pin]')];
+  const edge = port.getBoundingClientRect();
+  let left = edge.left;
+  let right = edge.right;
+  for (const cell of held) {
+    const at = cell.getBoundingClientRect();
+    if (cell.getAttribute('data-pin') === 'left')
+      left = Math.max(left, at.right);
+    else right = Math.min(right, at.left);
+  }
+  const at = box.getBoundingClientRect();
+  return at.left >= left - 1 && at.right <= right + 1;
+}
+
+/**
+ * D51: the queue's one summary, 实付, stands far to the right of a table
+ * wider than its port, so the totals row says so at its left end — in the
+ * row key's held cell, beside the selection column — and takes the reader
+ * there. Scrolled back, it says so again. Left showing, for axe.
+ */
+export const OffscreenTotals: Story = {
+  ...DisplayOrderWorkbench,
+  play: async ({ canvasElement }) => {
+    const table = await findDataTable(canvasElement);
+    await waitFor(() => expect(readColumn(table, '订单号')).toHaveLength(11));
+    const port = table.closest<HTMLElement>('[data-slot="record-table"]')!;
+    await waitFor(() =>
+      expect(port.scrollWidth).toBeGreaterThan(port.clientWidth),
+    );
+    await expect(port.scrollLeft).toBe(0);
+
+    const hint = await waitFor(() => {
+      const found = offscreenHint(table);
+      expect(found).not.toBeNull();
+      return found!;
+    });
+    // Named by the words it shows, then what they leave unsaid: the row,
+    // that it is out of view, and where the press goes (WCAG 2.5.3).
+    // (The hidden part is out of the flow, so a browser puts a space
+    // before it.)
+    await expect(hint).toHaveAccessibleName(
+      /^实付 总和 ¥[\d,.]+ ?，全部，不在视野内，滚动到实付$/,
+    );
+    await expect(hint.dataset.side).toBe('right');
+    // In the row key's cell, which is held, and whole in view.
+    await expect(hint.closest('td')?.dataset.pin).toBe('left');
+    const cell = hint.closest('td')!.getBoundingClientRect();
+    const edge = port.getBoundingClientRect();
+    await expect(cell.left).toBeGreaterThanOrEqual(edge.left);
+    await expect(hint.getBoundingClientRect().right).toBeLessThanOrEqual(
+      cell.right,
+    );
+
+    const reading = table.querySelector(
+      'tfoot tr[data-scope="total"] [data-summary-field="state.amounts.paidAmount"]',
+    )!;
+    await expect(inView(port, reading)).toBe(false);
+    await userEvent.click(hint);
+    // The column is brought in, the hint goes, and focus is on the total.
+    await waitFor(() => expect(inView(port, reading)).toBe(true));
+    await expect(port.scrollLeft).toBeGreaterThan(0);
+    await waitFor(() => expect(offscreenHint(table)).toBeNull());
+    await expect(document.activeElement).toBe(reading.closest('td'));
+
+    // Back to the left edge: the hint says so again.
+    port.scrollLeft = 0;
+    await waitFor(() => expect(offscreenHint(table)).not.toBeNull());
+
+    // And by keyboard: Enter on it does the same.
+    offscreenHint(table)!.focus();
+    await userEvent.keyboard('{Enter}');
+    await waitFor(() => expect(inView(port, reading)).toBe(true));
+    await waitFor(() => expect(offscreenHint(table)).toBeNull());
+    port.scrollLeft = 0;
+    await waitFor(() => expect(offscreenHint(table)).not.toBeNull());
+  },
+};

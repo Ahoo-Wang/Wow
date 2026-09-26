@@ -676,7 +676,10 @@ src/
       detailPlacement.ts      — `placeSections`: the engine's field sections and the host's (`RecordDetailSection.placement`: start, end, after a group) in reading order, less the fields a host section shows itself (`RecordDetailSection.fields`)
       DetailStructure.tsx     — A structure in the detail read whole: an array of objects element by element (title, declared fields, what nothing declares), an object key by key, long text as a copyable block
       SortableHeader.tsx      — One column header: the sort button, its place in the sort, the resizer
-      SummaryRows.tsx         — The table footer: one row per summary scope; `SummaryValue`
+      SummaryRows.tsx         — The table footer: one row per summary scope, each naming its summarised columns out of view (D51); `SummaryValue`
+      summaryText.ts          — `summaryText`: how one summary reads, under its column, in a card and in the out-of-view hint alike
+      OffscreenSummary.tsx    — The totals row's button naming a summarised column out of view (D51): the first one's summary, 「等 N 项」, an arrow its way; never widens its cell
+      offscreenSummaries.ts   — `offscreenHint` (which hidden summaries → what a row says) and `hintHost` (which left-end cell says it, held for the footer where the table lets it scroll)
       cells.tsx               — `cellValue`/`cellText`: one value as its field reads it, for table, cards and CSV; `CellSurface` decides how many lines it may take, and nothing else
       columns.ts              — Which columns the table holds and what its cells wear otherwise: `tablePins`, `pinnedSlots`, `heldColumns`, `usePinnedOffsets` (the left offset chain, keyed on the pins), `HEAD_CELL`, `TABLE_CELLS`, `ACTION_CELL`; `ACTIONS_COLUMN` is the one column ever held on the right (D19)
       headerRoving.ts         — `useRovingHeader`: one Tab stop per header row, arrows between columns, Alt+arrows resize (P-02)
@@ -686,6 +689,7 @@ src/
       roomBelowRows.ts        — `useRoomBelowRows`: the room the rows leave in a taller port, so the totals sit at its bottom beside the pagination
       sticky.ts               — The one home of the table's sticky chrome (A-09): `stickyCell`/`stickyHead` (the held cell's recipe plus `data-pin`/`data-pin-edge`/`data-pin-index`), `stickyBand` and `BAND`/`BAND_ROW` (the two bands, `data-sticky`), `OWN_LAYER`, `pinVar`; `LeftPin` carries the offset chain and `RightPin` is the one column against the edge itself (A9, D19); the boundary's edge is drawn through `in-data-[overflowing]:`, so it answers to the port's word from `overflow.ts` (P-23)
       useSummaries.ts         — The two summary scopes from the one the runtime executed; table and cards share it
+      useOffscreenColumns.ts  — `useOffscreenColumns`: one `IntersectionObserver` rooted at the box that scrolls the table sideways, inset by the held columns — which summarised columns are out of view; `revealCell` scrolls one in between the held columns
     sort/
       drag.ts                 — What the sort editor makes of a drag: which entry a drop moves where, the order that comes out of it, and what a screen reader hears meanwhile
     theme/                    — The theme's registry (theme-architecture.md 5, D46): the contract as data, structure and never a value

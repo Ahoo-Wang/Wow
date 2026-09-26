@@ -51,6 +51,7 @@ import {
   compensationCommands,
   compensationFetcher,
   createCompensationEngine,
+  executionFailedDefinition,
   type CompensationCommands,
 } from './compensation.js';
 import {
@@ -355,7 +356,13 @@ export const RowCommandsAndDetail: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     // The definition is admitted: every system view lists — the records and
-    // the analyses in one list — and the first opens.
+    // the analyses in one list — and the first opens. Asked of the list
+    // itself: the totals row can name a button 「全部 · …」 too (D51).
+    const views = within(
+      await canvas.findByRole('navigation', {
+        name: executionFailedDefinition.title,
+      }),
+    );
     for (const title of [
       '活动中',
       '不可重试',
@@ -367,10 +374,10 @@ export const RowCommandsAndDetail: Story = {
       '每日新增失败',
     ])
       await expect(
-        await canvas.findByRole('button', { name: new RegExp(`^${title}`) }),
+        await views.findByRole('button', { name: new RegExp(`^${title}`) }),
       ).toBeVisible();
     await expect(
-      canvas.getByRole('button', { name: /^活动中/ }),
+      views.getByRole('button', { name: /^活动中/ }),
     ).toHaveAttribute('aria-current', 'true');
 
     // Active executions, newest first, read through the nested snapshot paths.
