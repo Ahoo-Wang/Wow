@@ -1,6 +1,6 @@
 ---
 title: Theming the View Engine
-description: How the unreleased wow-view-engine takes a host's look — presets, host variables, light, dark and system mode, pinning, embeds and popups, the shadcn bridge, and the contrast lines an override owes.
+description: How the unreleased wow-view-engine takes a host's look — three layers of variables, presets, a brand colour as an input, the engine's roles and links, the charts' roles, light, dark and system mode, pinning, embeds and popups, the shadcn bridge, and the contrast an override owes.
 ---
 
 # Theming the View Engine
@@ -9,18 +9,32 @@ description: How the unreleased wow-view-engine takes a host's look — presets,
 `@ahoo-wang/wow-view-engine` has not been published to npm and carries no compatibility promise. This page describes theming as it stands in the repository.
 :::
 
-The theme is the host's look, not a way of observing: nothing about it is saved in a view, a dashboard or a preference, and the workbench has no theme switch. The host picks a preset and a mode; the engine follows. Everything below is CSS custom properties — there is no theme object and no provider.
+The theme is the host's look, not a way of observing: nothing about it is saved in a view, a dashboard or a preference, and the workbench has no theme switch. The host picks a preset, a brand colour and a mode; the engine follows. Everything below is CSS custom properties — there is no theme object and no provider.
 
 ## Stylesheets
 
 | Entry | What it is | Import it when |
 |---|---|---|
-| `@ahoo-wang/wow-view-engine/styles.css` | The theme: every rule scoped inside the view's own boundary, every colour a token that reads a host variable | Always |
+| `@ahoo-wang/wow-view-engine/styles.css` | The theme: every rule scoped inside the view's own boundary, every token reading your variable first | Always |
 | `@ahoo-wang/wow-view-engine/themes.css` | The built-in presets, keyed by a `data-fve-preset` attribute | You switch presets at run time |
 | `@ahoo-wang/wow-view-engine/themes/<name>.css` | One built-in preset alone, the same block `themes.css` holds for it | You wear one preset |
-| `@ahoo-wang/wow-view-engine/shadcn-bridge.css` | Your shadcn/ui tokens read into the view's host variables | Your app already has a shadcn theme |
+| `@ahoo-wang/wow-view-engine/shadcn-bridge.css` | Your shadcn/ui (Tailwind v4) tokens read into the preset layer | Your app already has a shadcn theme |
 
-The optional files only assign `--fve-*` variables: they paint nothing and never touch a variable of yours. The package's build checks that on every release.
+The optional files only assign preset variables (`--fvp-*`): they paint nothing and never touch a variable of yours. The package's build checks that on every release.
+
+## Three layers
+
+Three parties write the theme, each under a prefix of its own, and every token reads them in one fixed order:
+
+| Prefix | Who writes it | Where | Examples |
+|---|---|---|---|
+| `--fve-*`, `--fve-dark-*` | **You**, the host | `:root`, any ancestor of a view, or a surface's `tokens` | `--fve-primary`, `--fve-brand`, `--fve-row-selected` |
+| `--fvp-*`, `--fvp-dark-*` | A **preset** — a built-in one, your own, or the shadcn bridge | a `:where([data-fve-preset='…'])` block | `--fvp-primary`, `--fvp-brand-l-max`, `--fvp-highlight-link` |
+| `--_fve-*` | The **engine**, for itself | inside the view | what it resolves and measures; never yours to write or read |
+
+Each token of the surface is `var(--fve-<token>, var(--fvp-<token>, <built-in>))`: yours first, then the preset's, then the stylesheet's own value. So **a variable you set wins over any preset**, the one on `<html>` and one pinned on a surface alike, whichever stylesheet loads first — override one colour of a preset without restating the rest. To keep one surface out of an override, write the override on a narrower selector than `:root`.
+
+A `--_fve-*` name is the engine's own and changes without notice; a `--fve-*` or `--fvp-*` name the registry does not list does nothing. The full list is the token table of the [package README](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/README.md#customising-the-theme), generated from the theme's registry, and `dist/theme-tokens.json` is that registry as data.
 
 ## Presets
 
@@ -40,7 +54,7 @@ Import `themes.css` instead to have every preset and switch at run time. The att
 | Preset | Character | Corners | Chart colours |
 |---|---|---|---|
 | `neutral` | The default: neutral greys, a black primary | 10px | default |
-| `azure` | Chinese enterprise admin: a clear blue, white cards on a grey page, a type stack with the Chinese faces first | 6px | its own |
+| `azure` | Chinese enterprise admin: a clear blue, white rows on a grey page, a type stack with the Chinese faces first | 6px | its own |
 | `porcelain` | Native desktop: system type, 6px controls on 12px cards, soft shadows, near-neutral greys, a filled menu highlight, striped tables | 6px / 12px cards | its own |
 | `contrast` | High contrast: text at 7:1, 2px edges and a 2px focus ring 2px off the control at 4.5:1, a tinted selected row, chart patterns on | 4px | its own |
 
@@ -58,34 +72,63 @@ Which one fits your brand:
 Each preset gives both a light and a dark half, measured pair by pair: text at 4.5:1, a control's edge and the focus mark at 3:1, and a palette of its own through the same colour-vision gates as the default eight. The values each one sets, and why, are in the package's `src/themes/<name>.css`.
 
 - **A preset and the mode are independent.** The preset supplies both halves of the values; light or dark is still decided as described under [Light, dark and system](#light-dark-and-system).
-- **A preset gives the colours and `radius` it changes**, and may add its own eight chart colours and three shadows (each set whole or not at all), a system font stack (`--fve-font-sans`), the chart patterns' pin (`--fve-chart-patterns`, which only `contrast` sets), and any of the [roles](#roles). It never sets `pin-shadow`, `text-ui` or the rise and fall colours. See [Chart colours](#chart-colours) and [Rising and falling](#rising-and-falling).
-- **Your own preset** is written the same way and selected by the same attribute: `:where([data-fve-preset='acme']) { --fve-primary: …; --fve-dark-primary: …; }`. The built-in presets use this same contract and nothing else — only the documented `--fve-*` variables, no private selector, no code path for one preset — so what they do, yours can do. To check yours, paste its declarations into the [contrast matrix](/storybook/?path=/story/view-engine-能力-主题与预设--contrast): they are measured beside the built-in presets, pair by pair, and its chart colours through the palette gates. The Storybook page [A host's own theme](/storybook/?path=/story/view-engine-能力-主题与预设-宿主自定义主题--host-authored) is a complete example, a stylesheet outside the package held to the same gates.
+- **A preset writes only what it changes.** Whatever it leaves out is the stylesheet's own value: `styles.css` empties the preset layer on every element that names a preset (a zero-weight rule in its lowest layer, `fve-reset`), so a preset pinned inside another takes nothing of the outer one's, and `neutral` writes nothing at all.
+- **What a preset may give**: the colours and `radius` it changes, any of the [roles](#roles) and [links](#role-links), the bounds a [brand colour](#i-have-a-brand-colour) is held to (`--fvp-brand-l-min` and the rest), its own eight chart colours and three shadows (each set whole, both modes, or not at all), a system font stack (`--fvp-font-sans`), the chart patterns' pin (`--fvp-chart-patterns`, which only `contrast` sets) and the density it recommends (`--fvp-preset-density`). It never sets `pin-shadow`, `text-ui`, the rise and fall colours or the brand colour itself.
+
+### Your own preset
+
+Your own preset is written the same way and selected by the same attribute or prop. The built-in presets use this same contract and nothing else — no private selector, no code path for one preset — so what they do, yours can do:
+
+```css
+:where([data-fve-preset='acme']) {
+  --fvp-radius: 0.5rem;
+  --fvp-table-header-weight: 600;
+  --fvp-highlight-link: 100%;
+  --fvp-highlight-foreground-link: 100%;
+  --fvp-focus-width: 2px;
+  --fvp-focus-offset: 2px;
+  --fvp-focus-halo: transparent;
+  --fvp-dark-focus-halo: transparent;
+}
+```
+
+- **Outside any `@layer` of yours.** The reset sits in the lowest layer of `styles.css`; a preset inside a layer your stylesheet declared before it loses to the reset and paints nothing.
+- **`--fvp-*` only, and only what differs.** No `initial`, no copy of the values you keep. A `--fve-*` in a preset block is a host variable: every preset pinned inside that element would lose to it.
+- **Measure it.** Paste its declarations into the [contrast matrix](/storybook/?path=/story/view-engine-能力-主题与预设--contrast): they are measured beside the built-in presets, pair by pair, and its chart colours through the palette gates.
+
+The Storybook page [A host's own theme](/storybook/?path=/story/view-engine-能力-主题与预设-宿主自定义主题--host-authored) is a complete example, `stories/view-engine/host-theme/acme.css` in the repository: a stylesheet outside the package with a brand colour, a few roles, a linked menu highlight and a palette of its own, held to the same gates in the browser and in the package's tests.
 
 ## I have a brand colour
 
 A brand colour is not a preset: give it as `--fve-brand` and wear whichever preset you like — or none.
 
-```ts
-import '@ahoo-wang/wow-view-engine/styles.css';
-import '@ahoo-wang/wow-view-engine/themes/azure.css';
+```css
+@import '@ahoo-wang/wow-view-engine/styles.css';
+@import '@ahoo-wang/wow-view-engine/themes/azure.css';
+
+:root {
+  --fve-brand: #7c3aed;
+  --fve-dark-brand: #a78bfa;
+}
 ```
 
 ```html
-<html data-fve-preset="azure" style="--fve-brand: #7c3aed">
+<html data-fve-preset="azure">
 ```
 
-The primary takes your colour's hue, and so do faint tints of the selected item, the hovered view in the list and a selected row; where a preset's focus ring is its primary (`porcelain`, `contrast`) the ring follows too. The colours are derived in OKLCH, once, in `styles.css`, and each preset only gives the bounds it holds them to on its own grounds: `neutral` clamps the primary's lightness to 0.40–0.50 in light and 0.68–0.80 in dark, `contrast` to 0.25–0.36 and 0.80–0.90 for its 7:1. So any colour holds every contrast line of the preset you wear; a very light or very dark brand comes out deeper or lighter than its book. The greys, the status colours and the chart palette stay the preset's.
+The primary takes your colour's hue, and so do faint tints of the selected item (`accent`), the hovered view in the list (`sidebar-accent`) and a selected row (`row-selected`); where a preset's focus ring is its primary (`porcelain`, `contrast`) the ring follows too. The colours are derived in OKLCH, once, in `styles.css`, on the view itself, and each preset only gives the **bounds** it holds them to on its own grounds: `neutral` clamps the primary's lightness to 0.40–0.50 in light and 0.68–0.80 in dark, `contrast` to 0.25–0.36 and 0.80–0.90 for its 7:1. So any colour holds every contrast line of the preset you wear — a test sweeps the whole sRGB range on every preset, in both modes — and a very light or very dark brand comes out deeper or lighter than its book. The greys, `input`, the status colours and the chart palette stay the preset's.
 
-- `--fve-dark-brand` gives the dark half its own colour.
+- `--fve-dark-brand` gives the dark half its own colour; left out, dark derives from `--fve-brand`.
 - Put the variable anywhere above the view — `:root`, a wrapper, or a surface's `tokens` (popups leave a wrapper, so for one view use `tokens`).
-- A `--fve-primary` (or `--fve-accent`, `--fve-row-selected`, `--fve-ring`) you set still wins over the brand.
-- The first chart colour stays the preset's unless you put `data-fve-brand-chart` on `<html>` (or any ancestor of the view): then it takes your hue at the lightness and chroma the preset tuned it to, and measuring the palette is yours, as when you set `--fve-chart-*`. It is an attribute, like the preset and the density: present is on, absent is off, and a view copies it onto its popups.
+- A `--fve-primary` (or `--fve-accent`, `--fve-sidebar-accent`, `--fve-row-selected`, `--fve-ring`) you set still wins over the brand, which wins over the preset's own colour.
+- The bounds are preset variables (`--fvp-brand-l-min`, `--fvp-brand-l-max`, `--fvp-brand-c-max` and the rest of the `brand-*` rows of the token table). You may widen or narrow one as `--fve-brand-l-max` and so on; then its measurement is yours.
+- The first chart colour stays the preset's unless you put `data-fve-brand-chart` on `<html>` (or any ancestor of the view): then it takes your hue at the lightness and chroma the preset tuned it to, and measuring the palette is yours, as when you set `--fve-chart-1`. It is an attribute, like the preset and the density: present is on, absent is off, and a view copies it onto its popups.
+- Roles [linked](#role-links) to the primary or the selected row follow the brand as well: `porcelain`'s menu highlight, `azure`'s current view and chosen item.
 - Without a colour, or in a browser older than Chrome 119, Safari 18 or Firefox 128, the preset is exactly as it ships.
-- The former `brand` preset is no preset (or `neutral`) with `--fve-brand`.
 
 ## Host overrides
 
-Every token reads a host variable with the built-in value as its fallback: `--fve-<token>` for light and `--fve-dark-<token>` for dark. Set them on your `:root`:
+Every token reads a host variable first: `--fve-<token>` for light and `--fve-dark-<token>` for dark. Set them on your `:root`:
 
 ```css
 :root {
@@ -97,36 +140,94 @@ Every token reads a host variable with the built-in value as its fallback: `--fv
 }
 ```
 
-Presets and the bridge are written as `:where(…)`, which weighs nothing, so a variable you set on `:root` wins over the preset you chose, whichever stylesheet loads first. Override one colour of a preset without restating the rest. The full token list is in the [package README](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/README.md#customising-the-theme).
+They win over the preset you chose and over one pinned on a surface, as [Three layers](#three-layers) says. For one surface alone, pass `tokens` to `ViewSurface`, a workbench or an embed rather than setting the variables on a wrapper: a popup is portalled to `<body>`, out from under the wrapper, and `tokens` is written on the surface and on every popup it opens. Its type, `FveToken` from `/ui`, is every host variable of the registry.
+
+<!-- typecheck-context
+import type { ViewEngine } from '@ahoo-wang/wow-view-engine';
+import { DataWorkbench } from '@ahoo-wang/wow-view-engine/ui';
+declare const engine: ViewEngine;
+-->
+
+```tsx
+<DataWorkbench
+  engine={engine}
+  definitionId="orders"
+  tokens={{ '--fve-brand': '#0f766e', '--fve-table-header-weight': '600' }}
+/>
+```
 
 ## Roles
 
-A token like `muted` is a kind of colour, and the surface uses it in several places: the header band, the totals band and a selected row are all `muted`. A **role** is one of those places — one surface of the engine's own — so you can change it alone. Each is a variable like every token (`--fve-<role>`, and `--fve-dark-<role>` for a colour's dark half) and, unset, falls back to the token it always read, or to what the surface drew before the role existed: setting no role changes nothing, and moving `--fve-muted` still moves the bands and the selection together.
+A token like `muted` is a kind of colour, and the surface uses it in several places: the header band, the totals band and a selected row are all `muted`. A **role** is one of those places — one surface of the engine's own — so you can change it alone. Each is a variable like every token (`--fve-<role>` for you, `--fvp-<role>` for a preset, `-dark-` for a colour's dark half) and, unset, falls back to the token it always read, or to what the surface drew before the role existed: setting no role changes nothing, and moving `--fve-muted` still moves the bands and the selection together.
 
 ```css
 :root {
-  --fve-row-selected: oklch(0.96 0.03 250deg); /* the selection, not the header */
+  --fve-row-selected: oklch(0.96 0.03 250deg);
   --fve-table-header-weight: 600;
-  --fve-table-header-divider: oklch(0.87 0 0deg); /* lines between the columns */
-  --fve-focus-width: 2px; /* an outline instead of the halo */
+  --fve-table-header-divider: oklch(0.87 0 0deg);
+  --fve-focus-width: 2px;
   --fve-focus-offset: 2px;
   --fve-focus-halo: transparent;
-  --fve-control-height: 2.25rem; /* 36px controls, 28px → 30px small ones */
+  --fve-dark-focus-halo: transparent;
+  --fve-control-height: 2.25rem;
   --fve-control-height-sm: 1.875rem;
 }
 ```
+
+That tints the selection and leaves the header band `muted`, sets the header at 600 with a line between its columns, trades the focus halo for a 2px outline 2px off the control, and makes the controls 36px and 30px tall.
 
 | Part of the surface | Roles |
 |---|---|
 | Grounds and cards | `canvas` (a board's grouped ground), `content` (the rows' ground), `card-edge`, `card-shadow`, `scrim` |
 | Tables | `table-header`, `table-header-foreground`, `table-header-weight`, `table-header-divider`, `totals`, `row-selected`, `row-selected-foreground`, `row-hover`, `row-stripe` (off unless set) |
-| States | `highlight`, `highlight-foreground` (the item a menu, a select or a combobox has under the keyboard), `nav-current`, `nav-current-foreground` (the view on screen in the list), `control-hover`, `control-pressed` |
+| States | `highlight`, `highlight-foreground` (the item a menu, a select or a combobox has under the keyboard); `item-selected`, `item-selected-foreground`, `item-selected-weight` (the item it holds chosen); `nav-current`, `nav-current-foreground`, `nav-current-edge`, `nav-current-shadow` (the view on screen in the list); `control-hover`, `control-pressed`; `outline-hover-edge`, `outline-hover-foreground` (an outline button under the pointer) |
 | Focus | `focus-width`, `focus-offset`, `focus-style`, `focus-halo` |
-| Controls | `control`, `control-edge`, `control-thumb`, `control-thumb-shadow`, `control-height`, `control-height-sm`, `edge-width`, `badge-edge`, `badge-fill` |
+| Controls | `control`, `control-edge`, `control-thumb`, `control-thumb-shadow`, `control-height`, `control-height-sm`, `filter-height` (a board's filter chip), `edge-width`, `badge-edge`, `badge-fill` |
 | Corners | `radius-card`, `radius-control`, `radius-popover`, `radius-badge`, `radius-checkbox` |
 | Type and tooltips | `title-weight`, `strong-weight`, `tooltip`, `tooltip-foreground` |
+| Charts | see [The charts' roles](#the-charts-roles) |
 
-A preset sets a role the same way (`--fvp-<role>`), so a menu that highlights with the primary fill is `--fvp-highlight: var(--primary)` with its foreground — a pair of colours, not a mode. A control stays 24px tall or more at either height (WCAG 2.5.8), and a theme promising AAA text gives its focus outline 2px or more (WCAG 2.4.13). Every role that is a ground is in the contrast matrix like the rest. The default and the words for each are in the [package README](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/README.md#roles); Storybook's [host theme](/storybook/?path=/story/view-engine-能力-主题与预设-宿主自定义主题--host-authored) sets several.
+- **The lines a role owes**: a control stays 24px tall or more at either height (WCAG 2.5.8), and a theme promising AAA text gives its focus outline 2px or more (WCAG 2.4.13). Every role that is a ground is in the contrast matrix like the rest, so a theme that parts it from its token is measured on what it paints.
+- **The words and defaults** for each role are in the token table of the [package README](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/README.md#roles).
+
+### Role links
+
+A colour a preset writes is fixed where the preset is named — usually `<html>` — so a preset cannot say "the menu highlight is the primary": that primary is resolved later, on the view, from your brand colour or your own `--fve-primary`. A **link** says it instead. `<role>-link` is a share of another token the view has resolved, `100%` being that token itself and less a translucent wash of it over the ground:
+
+| Link | Draws | In |
+|---|---|---|
+| `highlight-link` | `highlight` | `primary` |
+| `highlight-foreground-link` | `highlight-foreground` | `primary-foreground` |
+| `item-selected-link` | `item-selected` | `row-selected` |
+| `nav-current-link` | `nav-current` | `row-selected` |
+| `nav-current-foreground-link` | `nav-current-foreground` | `primary` |
+| `outline-hover-edge-link` | `outline-hover-edge` | `primary` |
+| `outline-hover-foreground-link` | `outline-hover-foreground` | `primary` |
+
+```css
+:root {
+  --fve-highlight-link: 100%;
+  --fve-highlight-foreground-link: 100%;
+}
+```
+
+With those two, every menu, select and combobox highlights its item with the primary's fill and ink — your brand's, in either mode. A link is one number for both modes, since its target resolves in each. A role colour you set wins over a link, and a link, yours or a preset's, wins over the preset's own colour; unset, the role is what it was. `porcelain` links its menu highlight, and `azure` its current view, its chosen item and an outline button's hovered edge — which is why they follow a brand colour.
+
+## The charts' roles
+
+The chart library draws its own SVG, which no stylesheet reaches, so a chart reads its whole look back off its element — a colour as a colour, a length in pixels, a number as a number, each worked out by the browser (`calc()`, `min()` and `oklch(from …)` included) — and is drawn in that:
+
+| Role | What | Unset |
+|---|---|---|
+| `chart-grid`, `chart-grid-width` | Gridlines and the axes' rules | `border`, 1px |
+| `chart-axis` | The chart's quiet text: ticks, axis names, a scale's ends | `muted-foreground` |
+| `chart-text-size`, `chart-label-size` | The chart's text and a value label | `text-ui` less 1px and 2px |
+| `chart-line-width`, `chart-area-opacity` | A line, and an area under it | 2px, 0.2 |
+| `chart-bar-radius`, `chart-bar-min-width`, `chart-bar-max-width` | A bar's corner and the bounds of its width | 0.6 of `radius` up to 2px; none; 80px |
+| `chart-slice-border` | The seam between two slices | 1px |
+| `chart-tooltip`, `chart-tooltip-foreground`, `chart-tooltip-shadow` | The chart's tooltip, which is HTML and reads them as any popup does | `popover`, `popover-foreground`, `shadow-md` |
+
+A bar's corner follows `radius`, so a square style's bars are square with no word about bars. A chart is told to read them again when its theme moves (see [Embeds and popups](#embeds-and-popups)).
 
 ## Light, dark and system
 
@@ -138,7 +239,7 @@ A preset sets a role the same way (`--fvp-<role>`), so a menu that highlights wi
 
 ## Pinning a preset
 
-`preset="porcelain"` on `ViewSurface`, a workbench or an embed pins that view to a preset, whatever `<html>` says. A `data-fve-preset` on any other ancestor works too: the surface finds the nearest one.
+`preset="porcelain"` on `ViewSurface`, a workbench or an embed pins that view to a preset, whatever `<html>` says. A `data-fve-preset` on any other ancestor works too: the surface finds the nearest one. A pinned preset replaces the outer one whole, and your own `--fve-*` still win inside it.
 
 <!-- typecheck-context
 import type { ViewEngine } from '@ahoo-wang/wow-view-engine';
@@ -153,10 +254,10 @@ declare const id: string;
 
 ## Embeds and popups
 
-Menus, selects, popovers, tooltips and dialogs are portalled to `<body>`, outside the part of the page the view sits in. They carry what the surface resolved — its mode as `data-theme` and its preset as `data-fve-preset` — so a pinned embed's popups match it.
+Menus, selects, popovers, tooltips and dialogs are portalled to `<body>`, outside the part of the page the view sits in. They carry what the surface resolved — its mode as `data-theme`, its preset as `data-fve-preset`, and the density, change convention and brand-chart switch it found — so a pinned embed's popups match it.
 
-- **Use an attribute, not a stylesheet swap.** A chart reads its colours off the tokens and is told to read them again when a `class`, `data-theme`, `data-fve-preset`, `data-fve-change-colors` or `style` attribute changes on the surface or an ancestor. A stylesheet replaced with no attribute changing leaves charts in the old colours.
-- **Variables set on one element stop at `<body>`.** `--fve-*` set on a card around an embed reach the embed but not its popups, which are not inside the card. Put page-wide values on `:root`; use `preset` for one view.
+- **Use an attribute, not a stylesheet swap.** A chart reads its look off the tokens and is told to read it again when one of these attributes changes on the surface or an ancestor: `class`, `data-theme`, `data-fve-preset`, `data-fve-change-colors`, `data-fve-density`, `data-fve-brand-chart` or `style`. A stylesheet replaced with no attribute changing leaves charts in the old colours.
+- **Variables set on one element stop at `<body>`.** `--fve-*` set on a card around an embed reach the embed but not its popups, which are not inside the card. Put page-wide values on `:root`; use `tokens` or `preset` for one view.
 - **An embed on a card** paints `--background`. Give it the card's colour on the card — `--fve-background` and `--fve-dark-background` — rather than `transparent`.
 - **Stacking**: popups paint at `z-index: 50`; raise them all with `--fve-popup-z-index` on `:root`.
 
@@ -167,39 +268,55 @@ import '@ahoo-wang/wow-view-engine/styles.css';
 import '@ahoo-wang/wow-view-engine/shadcn-bridge.css';
 ```
 
-The bridge points each `--fve-<token>` and `--fve-dark-<token>` at the shadcn token of the same name — `background`, `foreground`, `card`, `popover`, `primary`, `secondary`, `muted`, `accent` with their `-foreground` pairs, `border`, the five `sidebar*` tokens and `radius`. It is resolved on `<html>`, so it takes your values in the mode `<html>` is in.
+The bridge writes the preset layer — each `--fvp-<token>` and `--fvp-dark-<token>` — from the shadcn token of the same name: `background`, `foreground`, `card`, `popover`, `primary`, `secondary`, `muted`, `accent` with their `-foreground` pairs, `border`, the five `sidebar*` tokens and `radius`, and `--fvp-font-sans` from your `--font-sans`. It is resolved on `<html>`, so it takes your values in the mode `<html>` is in, and your own `--fve-*` still win over it.
 
 | Not bridged | Why |
 |---|---|
 | `input`, `ring` | A shadcn theme often writes `--input: var(--border)` and `--ring: var(--primary)`: a divider grey and a brand colour that owe nothing of the 3:1 a control's edge and a focus mark need |
 | `destructive`, `success`, `warning` | Text colours measured to 4.5:1 in both modes; shadcn has no `success` or `warning` |
 | The eight chart colours | shadcn palettes have five, often starting on red; these are measured for colour-vision distance |
-| The shadows | shadcn has no standard name for them (the type is bridged: `--fve-font-sans` from your `--font-sans`) |
+| The shadows | shadcn has no standard name for them |
 | `row-hover`, `quiet-foreground` | Derived from bridged tokens |
 
 To adopt it in an app with an existing shadcn theme:
 
 1. Keep your `:root` and `.dark` blocks as they are, with `.dark` on `<html>`.
-2. Import `styles.css` and `shadcn-bridge.css`. Drop any `data-fve-preset` on `<html>`: the bridge applies only while `<html>` names no preset, so a preset there wins.
+2. Import `styles.css` and `shadcn-bridge.css`. Drop any `data-fve-preset` on `<html>`: the bridge applies only while `<html>` names no preset, so a preset there wins, and a surface pinned with `preset` wears that preset instead.
 3. Let views follow your page's mode. A view pinned to the opposite mode would read your current values in both halves.
 4. Override what you want beyond the bridge one variable at a time, for example `--fve-ring`, and measure it (below).
 5. Check your own text tokens: they are carried across as they are. A `--muted-foreground` that misses 4.5:1 on your `--background` misses it in the views too.
 
-A Storybook regression test (`ShadcnBridge.test.stories.tsx`) hangs the compensation console's shadcn theme on a workbench with the bridge and measures its control edges and focus in both modes.
+### Tailwind v4 only
+
+The bridge reads your tokens as colours, as a Tailwind v4 shadcn theme writes them (`--primary: oklch(0.205 0 0)`). A Tailwind v3 theme writes HSL channels instead (`--primary: 222.2 47.4% 11.2%`), which are no colour on their own: bridged as they are, every one of them is invalid. For a v3 app, skip `shadcn-bridge.css` and write the same rule yourself, wrapping each channel token in `hsl()`:
+
+```css
+:where(:root:not([data-fve-preset])) {
+  --fvp-background: hsl(var(--background));
+  --fvp-dark-background: hsl(var(--background));
+  --fvp-foreground: hsl(var(--foreground));
+  --fvp-dark-foreground: hsl(var(--foreground));
+  --fvp-primary: hsl(var(--primary));
+  --fvp-dark-primary: hsl(var(--primary));
+  --fvp-radius: var(--radius);
+}
+```
+
+One line for each token the bridge covers, and its dark half, as `shadcn-bridge.css` lists them. A Storybook regression test (`ShadcnBridge.test.stories.tsx`) hangs the compensation console's shadcn theme on a workbench with the bridge and measures its control edges and focus in both modes.
 
 ## Contrast is the overrider's responsibility
 
-Every built-in preset holds these lines in both modes, measured in a real browser on every token pair:
+Every built-in preset holds these lines in both modes, on every pair the surface paints — ink on its ground, an edge on what is behind it — measured in jsdom by the package's tests and in a real browser by the contrast matrix. The pairs are the package's list, `src/ui/theme/pairs.ts`, and every role that is a ground is on it.
 
-| Line | Tokens |
+| Line | What |
 |---|---|
-| Text, ≥4.5:1 | Every `*-foreground` on its ground; `muted-foreground` on `background`, `card` and `popover`; `foreground` on `muted` and `row-hover`; `quiet-foreground`; `destructive`, `success` and `warning` as text on `background` and `card` |
-| Controls and focus, ≥3:1 | `input` and `ring` on `background`, `card` and `popover`, and on a dark control's own `input/30` wash |
+| Text, ≥4.5:1 (7:1 for `contrast`) | Every foreground on its ground: the page, cards, popovers, the header and totals bands, a selected, striped or hovered row, a highlighted or chosen item, the current view, a tooltip, the chart's quiet text; the status colours as text, and as a badge's words on its own wash |
+| Controls, focus and state marks, ≥3:1 (4.5:1 for `contrast`) | `input` and `ring` on every ground a control sits on, a dark control's own `input/30` wash included; `primary`, `rise` and `fall` where they fill a mark that carries a state |
 | None | `border` and `sidebar-border` (dividers), `radius`, `text-ui` |
 
-When you set `--fve-ring` or `--fve-input` — or their `--fve-dark-` halves — you take over the 3:1: an unticked checkbox is only its `input` edge, and a focused control is known by its `ring` edge. Setting `--fve-primary` or `--fve-border` leaves both alone.
+When you set a colour — a token, a role, a link, a brand bound — you take over its line on every ground it lands on. `--fve-ring` and `--fve-input` (or their `--fve-dark-` halves) are the ones hosts most often lose: an unticked checkbox is only its `input` edge, and a focused control is known by its `ring` edge. A brand colour within the preset's bounds, and a role you leave unset, owe you nothing.
 
-Measure a theme of your own in the Storybook [contrast matrix](/storybook/?path=/story/view-engine-能力-主题与预设--contrast): paste your `--fve-*` declarations into its field and they are measured beside the built-in presets, pair by pair.
+Measure a theme of your own in the Storybook [contrast matrix](/storybook/?path=/story/view-engine-能力-主题与预设--contrast): paste your `--fve-*` or `--fvp-*` declarations into its field and they are measured beside the built-in presets, pair by pair.
 
 ## Chart colours
 
@@ -223,4 +340,4 @@ It is the host's call by market and reader — never switched by the interface l
 
 ## See it
 
-The [theme gallery](/storybook/?path=/docs/view-engine-能力-主题与预设--docs) shows every preset in light, dark and system mode: a dashboard with its filter bar, a record table panel and an analysis chart panel, the same records as cards, and an export dialog. The Storybook toolbar has a **Preset** switch and a **system** mode for every other story.
+The [theme gallery](/storybook/?path=/docs/view-engine-能力-主题与预设--docs) has one story per preset, a light and a dark band each: a record view, an analysis chart and a dashboard with its filter bar. Beside it are a page per preset with a whole report in a host's shell, the brand colour on three presets, the contrast matrix, and a host's own theme. The Storybook toolbar has a **Preset** switch and a **system** mode for every other story.

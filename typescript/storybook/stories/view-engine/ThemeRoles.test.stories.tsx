@@ -18,12 +18,13 @@
  *   totals bands and a selected row are `muted`, the header is set at 500,
  *   a focused control has no outline of its own (the registry's edge and
  *   halo), the controls are 32px and 28px tall.
- * - A host's theme that sets roles — `host-theme/acme.css`, a preset
- *   written outside the package — moves each of those surfaces and nothing
- *   beside it: a selected row in a tint of its brand, a header band of its
- *   own with a heavier weight and a divider between the columns, a 2px
- *   focus outline 2px off the control and no halo, a step taller controls,
- *   a menu that highlights with the brand's fill.
+ * - A host's theme that gives a brand colour and sets roles —
+ *   `host-theme/acme.css`, a theme written outside the package — moves each
+ *   of those surfaces and nothing beside it: a selected row in the tint its
+ *   brand derives, a header band of its own with a heavier weight and a
+ *   divider between the columns, a 2px focus outline 2px off the control
+ *   and no halo, a step taller controls, a menu linked to the primary its
+ *   brand derives.
  *
  * Every story here runs axe (the preview's `a11y` parameter), so a role a
  * theme sets is held to the same accessibility rules as the rest of the
@@ -208,30 +209,44 @@ export const UnsetRolesDrawTheRegistry: Story = {
   },
 };
 
-/** What `host-theme/acme.css` sets, as the browser paints it. */
+/** What `host-theme/acme.css` sets as colours, as the browser paints it. */
 const ACME = {
   light: {
-    selected: 'rgb(240, 253, 250)',
     header: 'rgb(248, 250, 252)',
     divider: 'rgb(203, 213, 225)',
-    highlight: 'rgb(15, 118, 110)',
-    highlightInk: 'rgb(255, 255, 255)',
   },
   dark: {
-    selected: 'rgb(19, 42, 40)',
     header: 'rgb(30, 41, 59)',
     divider: 'rgb(71, 85, 105)',
-    highlight: 'rgb(94, 234, 212)',
-    highlightInk: 'rgb(4, 47, 46)',
   },
 } as const;
 
 /**
+ * Its brand, `--fve-brand` and `--fve-dark-brand`, whose hue the derived
+ * colours carry in each mode.
+ */
+const ACME_BRAND = { light: '#0f766e', dark: '#5eead4' } as const;
+
+const toOklch = converter('oklch');
+
+/**
+ * How far a painted colour's hue is from the brand's, in degrees — a faint
+ * tint, rounded to 8 bits a channel, drifts a few.
+ */
+function hueOffBrand(painted: string, theme: 'light' | 'dark'): number {
+  const hue = (value: string) => toOklch(parse(value)!).h ?? 0;
+  const apart = Math.abs(hue(painted) - hue(ACME_BRAND[theme])) % 360;
+  return Math.min(apart, 360 - apart);
+}
+
+/**
  * 宿主主题设的角色，各自只动它那一块面（theme-architecture.md 4.2）。
  *
- * acme 设了选中行、表头带（底、600 的字重、列分隔线）、2px 的焦点轮廓离控件
- * 2px 并去掉光晕、高一档的控件（36px 与 30px）、用品牌主色填充的菜单高亮。
- * 它没设的合计带仍是 `muted`，行仍是页面的底。
+ * acme 给了品牌色（`--fve-brand`），设了表头带（底、600 的字重、列分隔线）、
+ * 2px 的焦点轮廓离控件 2px 并去掉光晕、高一档的控件（36px 与 30px），菜单高亮
+ * 链接到面上的主色与主色的字（`highlight-link`）。选中行是品牌派生的淡色，
+ * 高亮是品牌派生的主色，都带品牌的色相；它没设的合计带仍是 `muted`，行仍是
+ * 页面的底。
  */
 const hostRoles = (theme: 'light' | 'dark'): Story => ({
   ...DisplayWithData,
@@ -258,8 +273,12 @@ const hostRoles = (theme: 'light' | 'dark'): Story => ({
     const last = heads.filter(head => head.dataset.column !== 'filler').at(-1)!;
     await expect(getComputedStyle(last).backgroundImage).toBe('none');
 
+    // The selected row is the tint the brand derives, not `muted`.
     const row = await selectFirstRow(table);
-    await expect(groundOf(row)).toBe(want.selected);
+    const selected = colorOf(surface, '--_fve-row-selected');
+    await expect(groundOf(row)).toBe(selected);
+    await expect(selected).not.toBe(colorOf(surface, '--muted'));
+    await expect(hueOffBrand(selected, theme)).toBeLessThan(10);
     await expect(groundOf(table.querySelector('tbody tr:nth-child(2)')!)).toBe(
       colorOf(surface, '--background'),
     );
@@ -284,7 +303,8 @@ const hostRoles = (theme: 'light' | 'dark'): Story => ({
         .replace(')', ', 0.50)'),
     );
 
-    // The menu highlights with the brand's fill and ink.
+    // The menu highlights with the surface's primary and its ink, by a link:
+    // the primary the brand derives, in either mode.
     const trigger = [
       ...canvasElement.querySelectorAll<HTMLElement>('[aria-haspopup="menu"]'),
     ].find(candidate => getComputedStyle(candidate).pointerEvents !== 'none')!;
@@ -308,9 +328,11 @@ const hostRoles = (theme: 'light' | 'dark'): Story => ({
       'acme',
     );
     await settled(() => getComputedStyle(highlighted).backgroundColor);
-    await expect(groundOf(highlighted)).toBe(want.highlight);
+    const primary = colorOf(surface, '--primary');
+    await expect(hueOffBrand(primary, theme)).toBeLessThan(10);
+    await expect(groundOf(highlighted)).toBe(primary);
     await expect(rgbOf(getComputedStyle(highlighted).color)).toBe(
-      want.highlightInk,
+      colorOf(surface, '--primary-foreground'),
     );
     await userEvent.keyboard('{Escape}');
   },

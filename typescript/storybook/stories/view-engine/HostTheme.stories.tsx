@@ -13,6 +13,7 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { expect, waitFor } from 'storybook/test';
 import { EmbeddedDashboard, EmbeddedView } from '@ahoo-wang/wow-view-engine/ui';
+import { converter, parse } from 'culori';
 import {
   HOST_LANGUAGE,
   createStoryEngine,
@@ -33,6 +34,22 @@ import './host-theme/acme.css';
 
 /** The name the host gave its preset in `host-theme/acme.css`. */
 const HOST_PRESET = 'acme';
+
+/** The brand colour `host-theme/acme.css` gives, `--fve-brand`. */
+const HOST_BRAND = '#0f766e';
+
+const toOklch = converter('oklch');
+
+/** A colour variable as the cascade resolved it on an element, in OKLCH. */
+function resolved(element: Element, variable: string) {
+  const probe = document.createElement('span');
+  probe.hidden = true;
+  probe.style.setProperty('background-color', `var(${variable})`);
+  element.append(probe);
+  const value = getComputedStyle(probe).backgroundColor;
+  probe.remove();
+  return toOklch(parse(value)!);
+}
 
 /**
  * A view and a board as a host embeds them, pinned to its own preset in
@@ -97,11 +114,11 @@ function HostThemePage() {
 
 const description = `**主题 · 宿主自定义主题**
 
-一个写在包外面的主题：宿主自己的样式表 \`host-theme/acme.css\`，放在 \`styles.css\` 之后引入，只用 README 记下的那份合同——\`--fve-*\`／\`--fve-dark-*\` 变量，写在 \`:where([data-fve-preset='acme'])\` 里。内置预设用的也是同一份合同，没有私有选择器、没有组件内部、没有为哪一套预设开的代码路径（themes.md 1.1）。
+一个写在包外面的主题：宿主自己的样式表 \`host-theme/acme.css\`，放在 \`styles.css\` 之后引入，只用 README 与主题指南记下的那份合同——品牌色是宿主层的输入（\`--fve-brand\`、\`--fve-dark-brand\`），主色、淡色与选中行都由它派生；风格写在预设层（\`--fvp-*\`），写在层外的 \`:where([data-fve-preset='acme'])\` 里，只写它改的：几个角色（表头带、焦点、控件高度）、链接到主色的菜单高亮（\`highlight-link\`）、一套图表八色。内置预设用的也是同一份合同，没有私有选择器、没有组件内部、没有为哪一套预设开的代码路径（themes.md 1.1）。
 
 - **页面上**：一块仪表盘与一张记录视图，钉在 \`preset="acme"\` 上，亮暗各一份。
 - **量它**：同一页下面是包的两道门——对比度矩阵（字 ≥4.5:1，控件边与焦点 ≥3:1）与图表八色的三道门（相邻色间距、对卡片 3:1、柱内墨色 4.5:1）。故事的交互测试断言两者全部达标。
-- **宿主怎样自查自己的主题**：打开「主题/预设 → 对比度矩阵」，把自己的 \`--fve-*\` 声明粘进输入框，它们作为一套预设当场与内置预设一起量，两道门都在那一页。`;
+- **宿主怎样自查自己的主题**：打开「主题/预设 → 对比度矩阵」，把自己的 \`--fve-*\`／\`--fvp-*\` 声明粘进输入框，它们作为一套预设当场与内置预设一起量，两道门都在那一页。`;
 
 const meta = {
   title: 'View Engine/能力/主题与预设/宿主自定义主题',
@@ -129,7 +146,8 @@ export const HostAuthored: Story = {
     a11y: { config: { rules: [{ id: 'landmark-unique', enabled: false }] } },
   },
   play: async ({ canvasElement }) => {
-    // The host's preset is worn: a surface pinned to it resolves its brand.
+    // The host's preset is worn: a surface pinned to it derives its primary
+    // from the brand colour — the brand's hue, not a copied colour.
     const surface = await waitFor(() => {
       const found = canvasElement.querySelector<HTMLElement>(
         `[data-host-band="light"] .fve-root[data-fve-preset="${HOST_PRESET}"]`,
@@ -137,9 +155,9 @@ export const HostAuthored: Story = {
       if (!found) throw new Error('宿主的面还没出来');
       return found;
     });
-    await expect(
-      getComputedStyle(surface).getPropertyValue('--primary').trim(),
-    ).toBe('#0f766e');
+    const primary = resolved(surface, '--primary');
+    const brand = toOklch(parse(HOST_BRAND)!);
+    await expect(Math.abs((primary.h ?? 0) - (brand.h ?? 0))).toBeLessThan(5);
     const matrix = await waitFor(() => {
       const found = canvasElement.querySelector<HTMLElement>('[data-matrix]');
       if (!found || found.dataset.matrix === 'measuring')

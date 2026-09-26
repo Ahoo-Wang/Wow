@@ -12,30 +12,38 @@
  */
 
 /*
- * A host's own preset, written outside the package the way any host would
+ * A host's own theme, written outside the package the way any host would
  * write one: a stylesheet of the host's, loaded after
  * `@ahoo-wang/wow-view-engine/styles.css`, using only the contract the
- * README documents — the preset layer, `--fvp-*` / `--fvp-dark-*`, on a
+ * README and the theming guide document — the host's layer (`--fve-*`) for
+ * its brand, the preset layer (`--fvp-*`) for its style, on a
  * `:where([data-fve-preset='…'])` block outside any `@layer`. No selector
- * reaches into a component, and the engine has no code path for it.
+ * reaches into a component, the engine's own `--_fve-*` are never written,
+ * and the engine has no code path for it.
  *
- * "Acme" is a made-up company with a teal brand. The preset changes what
- * the brand changes and leaves the rest to the stylesheet's own values:
+ * "Acme" is a made-up company with a teal brand. What it writes:
  *
- * - the brand colour and its ink, in both modes (teal-700 under white,
- *   5.47:1; teal-300 under a dark ink, 9.78:1);
- * - a tint of it where the surface marks a selection or a hover;
- * - its own chart palette, all sixteen (an optional group is given whole or
- *   not at all), led by the brand's teal and ordered for colour vision;
- * - softer corners and a system font stack;
- * - a few roles (theme-architecture.md 4) — the surfaces its brand shows on
- *   rather than colours: a selected row in a tint of the brand (a dark
- *   one kept dark enough that a row's checkbox still stands off it), a
- *   header band of its own with a heavier weight and a divider between the
- *   columns, a menu that highlights with the brand's fill and ink, a 2px
- *   focus outline standing 2px off the control in place of the halo, a
- *   step taller controls (36px and 30px, above the 24px a target needs),
- *   and a checkbox as rounded as the rest.
+ * - **Its brand, as an input** (theme-architecture.md 2): one colour a mode,
+ *   `--fve-brand` and `--fve-dark-brand`. The primary, the tints of a
+ *   selected item and of the hovered view in the list, and a selected row
+ *   are derived from it in `styles.css` and held to the lines by the bounds
+ *   of the preset it wears — the stylesheet's own, as it sets none — so it
+ *   copies no colour of the brand's and owes no measurement for them. The
+ *   brand is the host's variable, written here on the preset's selector
+ *   only so that the rest of Storybook, which loads this file too, keeps
+ *   its own colours; a host whose whole application is Acme writes it on
+ *   `:root`.
+ * - **A few roles** (theme-architecture.md 4) — the surfaces its style shows
+ *   on rather than colours: a header band of its own with a heavier weight
+ *   and a divider between the columns; a menu that highlights with the
+ *   primary's fill and ink, by **links** (9.3) rather than colours, so the
+ *   highlight is the primary the brand derives on the surface, in either
+ *   mode; a 2px focus outline standing 2px off the control in place of the
+ *   halo; a step taller controls (36px and 30px, above the 24px a target
+ *   needs); and a checkbox as rounded as the rest.
+ * - **Its own chart palette**, all sixteen (the group is given whole or not
+ *   at all), led by the brand's teal and ordered for colour vision; softer
+ *   corners and a system font stack.
  *
  * `input` and `ring` stay the stylesheet's greys, tuned to 3:1: a brand
  * focus ring is the one thing a host theme most often loses the line with.
@@ -45,26 +53,22 @@
  * Like every preset it writes only what it changes: the engine's reset
  * (`@layer fve-reset`) empties the preset layer wherever a preset is named,
  * so pinned inside another preset it takes nothing of the outer one's, and
- * what it leaves out is the stylesheet's own value (theme-architecture.md 3,
- * S2). A host's own `--fve-*` on `:root` still win over it.
+ * what it leaves out is the stylesheet's own value (theme-architecture.md 3).
+ * A host's own `--fve-*` on `:root` still win over its preset layer.
  *
- * The story 「宿主自定义主题」 holds it to the package's lines in the browser:
- * the contrast matrix and the palette gates (themes.md 5.1, 5.2).
+ * Held to the package's lines twice: in jsdom by
+ * `typescript/wow-view-engine/test/themeGuide.test.ts` (every contrast pair,
+ * both modes), and in the browser by the story 「宿主自定义主题」 (the contrast
+ * matrix and the palette gates, themes.md 5.1, 5.2).
  */
 :where([data-fve-preset='acme']) {
-  --fvp-primary: #0f766e;
-  --fvp-primary-foreground: #ffffff;
-  --fvp-accent: #f0fdfa;
-  --fvp-accent-foreground: #134e4a;
-  --fvp-sidebar-accent: #ccfbf1;
-  --fvp-sidebar-accent-foreground: #134e4a;
+  /* The host's brand: an input beside the preset, not a preset value. */
+  --fve-brand: #0f766e;
+  --fve-dark-brand: #5eead4;
+}
+
+:where([data-fve-preset='acme']) {
   --fvp-radius: 0.5rem;
-  --fvp-dark-primary: #5eead4;
-  --fvp-dark-primary-foreground: #042f2e;
-  --fvp-dark-accent: #134e4a;
-  --fvp-dark-accent-foreground: #f0fdfa;
-  --fvp-dark-sidebar-accent: #134e4a;
-  --fvp-dark-sidebar-accent-foreground: #f0fdfa;
   --fvp-chart-1: #0f8a8a;
   --fvp-chart-2: #d97706;
   --fvp-chart-3: #0284c7;
@@ -85,18 +89,15 @@
     system-ui, -apple-system, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei',
     sans-serif;
 
-  /* Roles (theme-architecture.md 4): the surfaces the brand shows on. */
-  --fvp-row-selected: #f0fdfa;
-  --fvp-dark-row-selected: #132a28;
+  /* Roles (theme-architecture.md 4): the surfaces its style shows on. */
   --fvp-table-header: #f8fafc;
   --fvp-dark-table-header: #1e293b;
   --fvp-table-header-weight: 600;
   --fvp-table-header-divider: #cbd5e1;
   --fvp-dark-table-header-divider: #475569;
-  --fvp-highlight: #0f766e;
-  --fvp-highlight-foreground: #ffffff;
-  --fvp-dark-highlight: #5eead4;
-  --fvp-dark-highlight-foreground: #042f2e;
+  /* Links (9.3): the highlight is the surface's own primary and its ink. */
+  --fvp-highlight-link: 100%;
+  --fvp-highlight-foreground-link: 100%;
   --fvp-focus-width: 2px;
   --fvp-focus-offset: 2px;
   --fvp-focus-halo: transparent;
