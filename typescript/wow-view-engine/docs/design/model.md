@@ -42,7 +42,7 @@ export interface FieldDefinition {
   sortable?: boolean;
   numberFormat?: Intl.NumberFormatOptions & { locale?: string };
   stringComparison?: 'CASE_SENSITIVE' | 'CASE_INSENSITIVE'; // CONTAINS／STARTS_WITH／ENDS_WITH 的比较方式，缺省不区分大小写
-  searchFields?: string[]; // search 字段查哪些文档字段（只收根字段，D39：Wow 的 SEARCH 做不到可移植地查数组元素里的字段）；缺省交给后端索引
+  searchFields?: string[]; // search 字段查哪些文档字段：根上的 search 只收根字段（D39），缺省交给后端索引；声明在数组 elements 里的 search 只收这个元素自己的字段（相对元素写）、且必须写（N4，准入报 definition.field.element-search-fields-required）
   searchMode?: 'TERMS' | 'PHRASE'; // 按词还是按短语，缺省 TERMS
   summary?: SummaryFunction[]; // 允许的汇总函数；一列时刻（kind 或 cell 为 date／datetime）只认 MIN／MAX／COUNT，声明 SUM／AVG 会被准入按 record.summary.unsupported 拒绝（`summaryFunctionsOf`）
   cell?: FieldCellId; // 这一列怎么读，缺省按 kind；闭合取值，准入拒绝未知值
@@ -375,6 +375,8 @@ type DerivedFormat =
 
 - **没有任何条件**（空树，或只剩空分组）→ `analysis.metricFilter.empty`／`analysis.elementFilter.empty`
 - **条件没填值** → `analysis.metricFilter.incomplete`／`analysis.elementFilter.incomplete`
+
+元素的闸门（`elements[].filter`）另有一条：**不收检索**。Wow 读聚合元素的筛选时一个 `SEARCH` 也不收，连元素匹配里收的那种点名元素字段的检索（N4）也不收，所以闸门里——含它持有的元素匹配的谓词里——一条检索报 `analysis.elementFilter.search`，闸门的字段拾取也不列检索字段（`useAnalysisEditor.elementFields`）。（见 test/elementSearch.test.ts「an analysis element's gate」、test/elementsSlot.test.tsx「gates a level over that level’s own fields」）
 
 这跟筛选面板的规则相反，是有意的：面板是**界面**，用户把常用条件摆上去、暂时不填值，表达的是"这次先不按它筛"。查询筛选不是界面，没有这层含义。
 

@@ -13,9 +13,11 @@
 
 import { cleanup, renderHook } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
-import type { QueryModelDescriptor } from '@ahoo-wang/wow-client';
+import { SearchMode, type QueryModelDescriptor } from '@ahoo-wang/wow-client';
 import {
   builtinFieldKinds,
+  elementFields,
+  emptyFilter,
   maxSortFields,
   MemoryViewStore,
   validateDefinition,
@@ -24,6 +26,8 @@ import {
   type DataViewDefinition,
 } from '../src/index.js';
 import { useFilterEditor, useSearchBox } from '../src/react/index.js';
+import { treeController } from '../src/react/useFilterEditor.js';
+import { narrowDefinition } from '../src/capabilities/index.js';
 import { ordersDefinition, recordConfig, testSource } from './fixtures.js';
 import {
   describedField,
@@ -96,6 +100,74 @@ describe('what the controls offer on a narrowed definition', () => {
     const offered = result.current.fieldsFor().map(field => field.name);
     expect(offered).not.toContain('status');
     expect(offered).toContain('warehouse');
+  });
+});
+
+describe("an element's search (N4)", () => {
+  const withLines = ordersDefinition({
+    fields: [
+      ...ordersDefinition().fields,
+      {
+        name: 'lines',
+        label: 'Lines',
+        kind: 'elementMatch',
+        elements: [
+          { name: 'sku', label: 'SKU', kind: 'string' },
+          {
+            name: 'q',
+            label: 'Search lines',
+            kind: 'search',
+            searchFields: ['sku'],
+          },
+        ],
+      },
+    ],
+  });
+  const described = (search: boolean): QueryModelDescriptor => {
+    const base = ordersDescriptor();
+    return {
+      ...base,
+      fields: [
+        ...base.fields,
+        describedField('lines'),
+        describedField('lines.sku', { scope: 'lines' }),
+      ],
+      elements: [
+        {
+          path: 'lines',
+          filter: true,
+          aggregate: true,
+          ...(search
+            ? { search: { modes: [SearchMode.TERMS], fields: ['lines.sku'] } }
+            : {}),
+        },
+      ],
+    };
+  };
+  /** What the element match's own picker offers. */
+  const offered = (definition: DataViewDefinition) => {
+    const lines = definition.fields.find(field => field.name === 'lines')!;
+    return treeController({
+      tree: emptyFilter(),
+      fields: elementFields(lines),
+      kinds: builtinFieldKinds,
+      issues: [],
+      onChange: () => undefined,
+    })
+      .fieldsFor()
+      .map(field => field.name);
+  };
+  const narrowed = (search: boolean) =>
+    narrowDefinition(withLines, described(search), builtinFieldKinds)
+      .definition;
+
+  it('is offered inside the element match where it is declared, or described', () => {
+    expect(offered(withLines)).toEqual(['lines.sku', 'lines.q']);
+    expect(offered(narrowed(true))).toEqual(['lines.sku', 'lines.q']);
+  });
+
+  it('is not offered where the source searches no element', () => {
+    expect(offered(narrowed(false))).toEqual(['lines.sku']);
   });
 });
 

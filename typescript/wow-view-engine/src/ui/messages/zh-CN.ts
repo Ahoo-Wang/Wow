@@ -1268,6 +1268,8 @@ export const zhCN: ViewMessages = {
   'analysis.elementFilter.empty': '这组条件是空的，所以每个明细项都会展开。',
   'analysis.elementFilter.incomplete':
     '给「{field}」一个值，否则每个明细项都会展开。',
+  'analysis.elementFilter.search':
+    '搜索不能决定展开哪些明细项：把「{field}」从这个条件里去掉。',
   'analysis.elements.too-many': '这份数据的展开太多了。',
   'analysis.expression.divide-by-zero': '这个表达式除以了零。',
   'analysis.expression.date-operand': '「{field}」是日期，不能参与计算。',
@@ -1858,6 +1860,8 @@ export const zhCN: ViewMessages = {
   // 定义准入。
   'definition.field.search-fields-unknown':
     '{field} 搜索 {missing}，定义没有声明它。',
+  'definition.field.element-search-fields-required':
+    '{field} 在条目里搜索，要写明它搜条目的哪些字段。',
   'definition.field.search-mode-invalid':
     '{field} 声明了未知的搜索模式：{value}。',
   'definition.analysis.date-part-not-temporal':

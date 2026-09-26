@@ -914,7 +914,13 @@ describe('ViewEngine and an unusable definition', () => {
     });
     const events: FieldDefinition[] = [
       { name: 'name', label: 'Event', kind: 'string' },
-      { name: 'text', label: 'Text', kind: 'search' },
+      // A handle even where it searches the element (N4).
+      {
+        name: 'text',
+        label: 'Text',
+        kind: 'search',
+        searchFields: ['name'],
+      },
       {
         name: 'lines',
         label: 'Lines',

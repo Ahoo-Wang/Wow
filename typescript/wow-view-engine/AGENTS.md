@@ -284,6 +284,7 @@ src/
     tabMemory.ts              — `TabMemory`: where each reader last read each dashboard (`ViewPreferences.lastTabs`), the tab a board opens on, and a burst of switches written as its last, never rejecting
     summaries.ts              — The instance-summary cache: noted on listing and on a confirmed write, dropped on delete, read before the store
     validateDefinition.ts     — Definition admission; needs all three kernels
+    validateFields.ts         — The fields' part of definition admission: names, kinds, what each kind reads, what a search looks in (an element's search names the element's fields, N4)
     valueCandidates.ts        — `ValueCandidateSources`: one `ValueCandidateSource` per offered field, compiled through the analysis kernel under the injected scope, answers kept for the life of the view and narrowed in hand where the source has nothing to add
     viewChanges.ts            — The change notifications a list of views subscribes to (D15)
     viewEngine.ts             — ViewEngine — the command surface: admission, then one dispatch

@@ -79,6 +79,13 @@ function chainedDefinition(): DataViewDefinition {
         elements: [
           { name: 'sku', label: 'SKU', kind: 'string' },
           { name: 'qty', label: 'Qty', kind: 'number' },
+          // An element search (N4): Wow takes none in an expansion's gate.
+          {
+            name: 'q',
+            label: 'Search items',
+            kind: 'search',
+            searchFields: ['sku'],
+          },
           {
             name: 'batches',
             label: 'Batches',
@@ -349,9 +356,10 @@ describe('the expansion slot', () => {
       expect(
         within(picker).getByRole('checkbox', { name: field }),
       ).toBeDefined();
-    expect(
-      within(picker).queryByRole('checkbox', { name: 'Warehouse' }),
-    ).toBeNull();
+    for (const field of ['Warehouse', 'Search items'])
+      expect(
+        within(picker).queryByRole('checkbox', { name: field }),
+      ).toBeNull();
     fireEvent.click(within(picker).getByRole('checkbox', { name: 'SKU' }));
     fireEvent.click(
       within(picker).getByRole('button', {
