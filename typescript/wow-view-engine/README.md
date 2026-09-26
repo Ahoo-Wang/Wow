@@ -408,7 +408,7 @@ For one surface alone, pass `tokens` to `ViewSurface`, a workbench or an embed â
 
 ```css
 :root {
-  --fve-primary: oklch(0.55 0.21 265deg);
+  --fve-primary: oklch(0.4 0.21 265deg);
   --fve-primary-foreground: oklch(0.99 0 0deg);
   --fve-dark-primary: oklch(0.75 0.15 265deg);
   --fve-dark-primary-foreground: oklch(0.21 0.05 265deg);

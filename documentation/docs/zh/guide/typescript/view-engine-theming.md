@@ -132,7 +132,7 @@ Storybook 的[宿主自定义主题](/storybook/?path=/story/view-engine-能力-
 
 ```css
 :root {
-  --fve-primary: oklch(0.55 0.21 265deg);
+  --fve-primary: oklch(0.4 0.21 265deg);
   --fve-primary-foreground: oklch(0.99 0 0deg);
   --fve-dark-primary: oklch(0.75 0.15 265deg);
   --fve-dark-primary-foreground: oklch(0.21 0.05 265deg);
@@ -140,7 +140,7 @@ Storybook 的[宿主自定义主题](/storybook/?path=/story/view-engine-能力-
 }
 ```
 
-按[三层](#三层)的规则，它们赢过你选的预设，也赢过钉在面上的预设。只给某一块面的，把 `tokens` 传给 `ViewSurface`、工作台或嵌入组件，而不是写在包裹层上：弹层 portal 到 `<body>`，不在包裹层下，`tokens` 会写在面上以及它打开的每个弹层上。它的类型是 `/ui` 导出的 `FveToken`，即登记表里的每一个宿主变量。
+按[三层](#三层)的规则，它们赢过你选的预设，也赢过钉在面上的预设——所以每一套预设上都要量：这里的主色够深，过得了 `contrast` 的 7:1，也过得了其余各套的 4.5:1；你的主题也由 [`theme-check`](#检查一套主题) 这样量。只给某一块面的，把 `tokens` 传给 `ViewSurface`、工作台或嵌入组件，而不是写在包裹层上：弹层 portal 到 `<body>`，不在包裹层下，`tokens` 会写在面上以及它打开的每个弹层上。它的类型是 `/ui` 导出的 `FveToken`，即登记表里的每一个宿主变量。
 
 <!-- typecheck-context
 import type { ViewEngine } from '@ahoo-wang/wow-view-engine';
