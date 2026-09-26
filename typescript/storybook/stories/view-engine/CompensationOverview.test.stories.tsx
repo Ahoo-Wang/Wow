@@ -275,6 +275,61 @@ function titles(canvasElement: HTMLElement): string[] {
 }
 
 /**
+ * 1280 宽下「最近的活动失败」比面板宽（W13：macOS 默认藏起滚动条，最后一列
+ * 像是不存在）。面板的正文朝还有列的那一侧淡出：未滚时右侧淡出，滚到头时换成
+ * 左侧；最后一列的右缘在正文里，不被面板的边距切掉；表头仍粘在顶上。
+ */
+export const WideTableFades: Story = {
+  name: '宽表朝未显示的列淡出',
+  parameters: {
+    viewport: {
+      options: {
+        laptop: {
+          name: '1280×800',
+          styles: { width: '1280px', height: '800px' },
+        },
+      },
+    },
+  },
+  globals: { viewport: { value: 'laptop' } },
+  play: async ({ canvasElement }) => {
+    await expect(window.innerWidth).toBe(1280);
+    const body = await waitFor(() => {
+      const found = within(canvasElement).getByRole('group', {
+        name: '最近的活动失败',
+      });
+      expect(found.querySelector('tbody tr')).toBeTruthy();
+      return found;
+    });
+    await expect(body.scrollWidth).toBeGreaterThan(body.clientWidth);
+    await waitFor(() =>
+      expect(body).toHaveAttribute('data-scroll-more', 'end'),
+    );
+    await expect(getComputedStyle(body).maskImage).toContain('linear-gradient');
+
+    body.scrollLeft = body.scrollWidth;
+    await waitFor(() =>
+      expect(body).toHaveAttribute('data-scroll-more', 'start'),
+    );
+    const heads = [...body.querySelectorAll('thead th')].filter(
+      head => head.getBoundingClientRect().width > 0,
+    );
+    const port = body.getBoundingClientRect();
+    const scrollbar = body.offsetWidth - body.clientWidth;
+    await expect(
+      heads.at(-1)!.getBoundingClientRect().right,
+    ).toBeLessThanOrEqual(port.right - scrollbar + 0.5);
+    // The header holds against a vertical scroll of the same body.
+    body.scrollTop = 40;
+    await waitFor(() =>
+      expect(
+        Math.round(heads[0].getBoundingClientRect().top),
+      ).toBeGreaterThanOrEqual(Math.round(port.top)),
+    );
+  },
+};
+
+/**
  * The overview is a report (D36): the interactive tier, read and never
  * built — no 「编辑」, no save and no save-as anywhere on it — while
  * 「铺满屏幕」 fills the screen with the board in place, and Escape puts it

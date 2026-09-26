@@ -49,8 +49,11 @@ export function RelativeDate({
   invalid?: boolean;
 }) {
   const messages = useViewMessages();
+  // The three wrap where the row is narrower than they are — a board's
+  // filter sheet on a phone, in English — rather than running under the
+  // reset beside them (compensation console walkthrough, W11).
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex flex-wrap items-center gap-2">
       <ChoiceValue
         label={messages.label('label.date.direction-of', {
           field: label,

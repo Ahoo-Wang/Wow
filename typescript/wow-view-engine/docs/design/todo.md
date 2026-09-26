@@ -92,8 +92,6 @@
 
 - **四种结局画成一张四条线的走势图**：要么 Wow 查询允许对数组元素写指标条件（今天拒绝：`METRIC_FILTER_ELEMENT_MATCH`、`METRIC_FILTER_ARRAY_FIELD`），要么展开元素时允许按根字段（事件流的 `createTime`）分组（今天报 `analysis.field.outside-scope`）。N1～N3 都没有改变这两点。
   - 为什么：控制台只能画四张各带走势的指标卡，看不出结局之间的相对走势。判据：补偿概览的「流入与结局」写成一张按事件名拆开的日直方图，对真服务答得出。落点：Wow 查询目标架构；本包 `analysis/`。
-- **窄屏的板**：筛选抽屉里时间范围一行比抽屉宽（重置按钮被切掉）；半宽指标卡上的「Not filtered by “Time range”」徽标两头被切。
-  - 判据：390 宽下两处都不溢出，Storybook 的板在手机视口的故事断言之。落点：`ui/dashboard/`、`ui/filter/inputs/relative.tsx`。
 - **直角坐标图的拆分系列读选项的 `tone`**：饼已按语气取色（[ui/analysis.md](ui/analysis.md)「饼的类别穿选项的语气」）；按带语气的枚举拆开的柱与线仍按次序取色位。
   - 为什么：同一个状态在饼上是红的、在拆分的柱上是某个色位，读者要重新对一遍图例。N1～N4 正在改图型，本条等它们合并后接，免得冲突。判据：按带 `tone` 的枚举拆分时系列颜色与徽标同语气，同语气的两条取色位。落点：`ui/charts/cartesianPlan.ts`、`timeOption.ts`（`toneColor`）。
 
