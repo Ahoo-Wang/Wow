@@ -614,6 +614,8 @@ src/
         suggested.tsx         — A text value typed or picked from the field's own values with their record counts: one value as the box itself, several as chips; free text stays a value
         shared.tsx            — Whether the condition holding this value is refused
         text.tsx              — Free text
+        time.tsx              — The time of day under a calendar: 「按整天」 until 「+ 指定时刻」, then hours and minutes a bound (Base UI `NumberField` each), × back to the whole day, 「移除时刻」
+        timeOfDay.ts          — A time's two segments: `parseTime`, `clampSegment`, `writeTime` (`HH:mm`), `hourIsComplete`
         unsupported.tsx       — A value no control can hold: the stored value and why it is read-only (F-06)
     lib/utils.ts              — shadcn cn() helper — vendored
     manage/
