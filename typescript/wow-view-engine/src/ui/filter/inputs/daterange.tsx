@@ -278,7 +278,10 @@ function formatDate(
 ): string {
   if (!stored) return blank;
   return (
-    displayValue(stored, { cell: withTime ? 'datetime' : 'date' }, display) ??
-    blank
+    displayValue(
+      stored,
+      { cell: withTime ? 'datetime' : 'date', timePrecision: 'minute' },
+      display,
+    ) ?? blank
   );
 }

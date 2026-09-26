@@ -413,7 +413,8 @@ export const WithTime: Story = {
     const shown = (utc: number, withTime: boolean) =>
       new Intl.DateTimeFormat('zh-CN', {
         dateStyle: 'medium',
-        ...(withTime ? { timeStyle: 'medium' as const } : {}),
+        // To the minute, as it was set: 「09:05」, not 「09:05:00」.
+        ...(withTime ? { timeStyle: 'short' as const } : {}),
         timeZone: 'UTC',
       }).format(utc);
     const days = `${shown(Date.UTC(2026, 8, 15), false)} – ${shown(Date.UTC(2026, 8, 17), false)}`;

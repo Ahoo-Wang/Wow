@@ -332,7 +332,11 @@ function segmentValue(
   messages: MessageFormatters,
   context: DisplayContext,
 ): string {
-  const field = { kind: item.kind, cell: item.cell };
+  const field = {
+    kind: item.kind,
+    cell: item.cell,
+    timePrecision: 'minute' as const,
+  };
   if (displayValue(value.from, field, context) === undefined)
     return segmentText(
       value.from,
@@ -393,7 +397,11 @@ function asField(
   context: DisplayContext,
 ): string {
   return (
-    displayValue(value, { kind: item.kind, cell: item.cell }, context) ??
-    valueText(value, messages, item.numberFormat, context.locale)
+    displayValue(
+      value,
+      // A condition's times are set to the minute, and read so.
+      { kind: item.kind, cell: item.cell, timePrecision: 'minute' },
+      context,
+    ) ?? valueText(value, messages, item.numberFormat, context.locale)
   );
 }
