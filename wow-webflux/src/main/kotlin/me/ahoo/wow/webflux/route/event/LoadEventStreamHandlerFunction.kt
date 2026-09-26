@@ -66,13 +66,11 @@ class LoadEventStreamHandlerFunction(
             MessageRecords.AGGREGATE_ID eq id
             MessageRecords.VERSION.between(headVersion, tailVersion)
         }
-        val requestScope = queryRequestScope.resolve(aggregateMetadata, request)
-        val scope = requestScope.copy(declared = selection.appendFilter(requestScope.declared))
         val listQuery = ListQuery(MatchAllFilter, limit = limit)
         return guard.flux(request) {
             eventStreamQueryGateway.dynamicList(listQuery)
         }
-            .withQueryContext(scope, request)
+            .withQueryContext(queryRequestScope.resolve(aggregateMetadata, request), request, selection)
             .toServerResponse(request, exceptionHandler)
     }
 }

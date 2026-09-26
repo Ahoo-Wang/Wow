@@ -86,7 +86,7 @@ class DefaultEventStreamQueryGatewayTest {
             MatchAllFilter,
             sort = listOf(me.ahoo.wow.api.query.Sort(QueryField("id"), me.ahoo.wow.api.query.Sort.Direction.ASC))
         )
-        NoOpEventStreamQueryBackend(MOCK_AGGREGATE_METADATA).cursor(QueryAdmission.cursor(query, schema))
+        NoOpEventStreamQueryBackend(MOCK_AGGREGATE_METADATA).cursor(QueryAdmission.Trusted.cursor(query, schema))
             .test()
             .assertNext { page ->
                 page.list.assert().isEmpty()

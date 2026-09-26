@@ -239,11 +239,11 @@ class MongoSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
         val list = ListQuery(filter, projection, limit = 1)
         val paged = PagedQuery(filter, projection, pagination = Pagination(size = 1))
         val results = listOf(
-            backend.single(QueryAdmission.single(single.also { validateQuery(it, schema) }, schema))
+            backend.single(QueryAdmission.Trusted.single(single.also { validateQuery(it, schema) }, schema))
                 .map(::listOf),
-            backend.list(QueryAdmission.list(list.also { validateQuery(it, schema) }, schema))
+            backend.list(QueryAdmission.Trusted.list(list.also { validateQuery(it, schema) }, schema))
                 .collectList(),
-            backend.paged(QueryAdmission.paged(paged.also { validateQuery(it, schema) }, schema))
+            backend.paged(QueryAdmission.Trusted.paged(paged.also { validateQuery(it, schema) }, schema))
                 .map { page ->
                     page.total.assert().isEqualTo(1L)
                     page.list
@@ -870,7 +870,7 @@ class MongoSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
             schemaSources = listOf(epochSource("state.epochMicros", TimeUnit.MICROSECONDS)),
         ).create(MOCK_AGGREGATE_METADATA)
         val dateInput = MongoAggregationCompiler(SnapshotFilterCompiler)
-            .compile(QueryAdmission.aggregate(query, service.schemaProvider.schema().block()!!))
+            .compile(QueryAdmission.Trusted.aggregate(query, service.schemaProvider.schema().block()!!))
             .first { it.toBsonDocument().containsKey("\$group") }
             .toBsonDocument().getDocument("\$group")
             .getDocument("_id").getDocument("day")
@@ -1182,14 +1182,14 @@ class MongoSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
 private fun AggregationQuery.query(
     binding: QueryBackendBinding<SnapshotQueryBackend>,
 ): Flux<ObjectNode> = Mono.defer { binding.schemaProvider.schema() }.flatMapMany { schema ->
-    binding.backend.aggregate(QueryAdmission.aggregate(this.also { validateQuery(it, schema) }, schema))
+    binding.backend.aggregate(QueryAdmission.Trusted.aggregate(this.also { validateQuery(it, schema) }, schema))
 }
 
 private fun QueryBackendBinding<SnapshotQueryBackend>.list(
     query: IListQuery,
 ): Flux<ObjectNode> {
     val schema = schemaProvider.schema().block()!!
-    return backend.list(QueryAdmission.list(query.also { validateQuery(it, schema) }, schema))
+    return backend.list(QueryAdmission.Trusted.list(query.also { validateQuery(it, schema) }, schema))
 }
 
 private fun resolveAggregation(

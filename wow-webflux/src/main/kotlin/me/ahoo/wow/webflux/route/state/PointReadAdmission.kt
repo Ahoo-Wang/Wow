@@ -13,41 +13,48 @@
 
 package me.ahoo.wow.webflux.route.state
 
+import me.ahoo.wow.api.query.AndFilter
+import me.ahoo.wow.api.query.DeletionFilter
+import me.ahoo.wow.api.query.DeletionState
 import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.IdFilter
 import me.ahoo.wow.modeling.metadata.AggregateMetadata
 import me.ahoo.wow.modeling.state.ReadOnlyStateAggregate
+import me.ahoo.wow.query.QueryAdmission
 import me.ahoo.wow.query.QueryEntry
 import me.ahoo.wow.query.QueryPolicy
-import me.ahoo.wow.query.admitsRecord
-import me.ahoo.wow.query.filter.QueryContext
 import me.ahoo.wow.query.filter.QueryType
 import me.ahoo.wow.query.maskRecord
 import me.ahoo.wow.query.schema.QueryModelSchema
+import me.ahoo.wow.query.withQueryEntry
+import me.ahoo.wow.query.withQueryScope
 import me.ahoo.wow.serialization.state.StateAggregateRecords
 import me.ahoo.wow.serialization.toJsonNode
 import me.ahoo.wow.webflux.route.query.DefaultQueryRequestScope
 import me.ahoo.wow.webflux.route.query.QueryRequestScope
 import org.springframework.web.reactive.function.server.ServerRequest
-import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import tools.jackson.databind.node.ObjectNode
+import java.util.Optional
 
 /**
  * Optional admission of state point reads: load by id, version or time, and tracing. They replay events and have no
  * query AST, so the gateway never admits them.
  *
- * Off (the default), they behave as before. On, each state read is turned into its snapshot-shaped record and:
- * - the caller's [request scope][QueryRequestScope] and every [QueryPolicy] restriction are evaluated on it in memory
- *   ([admitsRecord]); a state outside them reads as absent (404 for a load, no rows for tracing), and a filter node
- *   the in-memory evaluation does not support fails closed;
+ * Off (the default), they behave as before. On, each state read is turned into its snapshot-shaped record and
+ * admitted by the core ([QueryAdmission.admitRecord]) under an [QueryEntry.HTTP] entry and the caller's
+ * [request scope][QueryRequestScope]:
+ * - the caller's scope, every [QueryPolicy] restriction and the snapshot model's default scope are evaluated on it in
+ *   memory; a state outside them reads as absent (404 for a load, no rows for tracing), and a filter node the
+ *   in-memory evaluation does not support fails closed;
  * - the response is masked by the aggregate's snapshot query schema ([snapshotSchema]), and a tracing response also by
  *   its event-stream query schema ([eventStreamSchema]);
  * - tracing emits at most [tracingMaxVersions] versions (`0` disables the cap), and only when every traced state is
  *   admitted.
  *
- * Policies see a [QueryType.SINGLE] query by id from an [QueryEntry.HTTP] entry. They need the snapshot schema, so a
- * point read with policies fails when [snapshotSchema] is not given or cannot load.
+ * Policies see a [QueryType.SINGLE] query by id; a traced state's query also includes deleted states, since tracing
+ * replays history. Policies need the snapshot schema, so a point read with policies fails when [snapshotSchema] is not
+ * given or cannot load.
  */
 class PointReadAdmission(
     val enabled: Boolean = false,
@@ -71,23 +78,22 @@ class PointReadAdmission(
         state: ReadOnlyStateAggregate<*>,
         tracing: Boolean = false,
     ): Mono<ObjectNode> = Mono.defer {
-        val record = state.toJsonNode<ObjectNode>()
-        if (!queryRequestScope.resolve(aggregateMetadata, request).filter.admitsRecord(record)) {
-            return@defer Mono.empty()
+        val admission = QueryAdmission(aggregateMetadata.namedAggregate, policies = policies)
+        val selection: FilterExpression = IdFilter(state.aggregateId.id).let {
+            if (tracing) AndFilter(listOf(it, DeletionFilter(DeletionState.ALL))) else it
         }
         schemaOf(snapshotSchema, aggregateMetadata).flatMap { snapshot ->
-            restrictions(aggregateMetadata, state, snapshot.orElse(null)).all { it.admitsRecord(record) }
-                .filter { it }
-                .flatMap {
-                    val masked = snapshot.map { it.maskRecord(record) }.orElse(record)
-                    if (!tracing) {
-                        return@flatMap Mono.just(masked)
-                    }
-                    schemaOf(eventStreamSchema, aggregateMetadata).map { events ->
-                        events.map { it.maskRecord(masked) }.orElse(masked)
-                    }
+            admission.admitRecord(selection, state.toJsonNode(), snapshot.orElse(null)).flatMap { masked ->
+                if (!tracing) {
+                    return@flatMap Mono.just(masked)
                 }
+                schemaOf(eventStreamSchema, aggregateMetadata).map { events ->
+                    events.map { it.maskRecord(masked) }.orElse(masked)
+                }
+            }
         }
+    }.contextWrite {
+        it.withQueryScope(queryRequestScope.resolve(aggregateMetadata, request)).withQueryEntry(QueryEntry.HTTP)
     }
 
     /** What a load route returns for [state]: its state, or, when enabled, the admitted and masked state JSON. */
@@ -104,32 +110,8 @@ class PointReadAdmission(
     private fun schemaOf(
         schema: ((AggregateMetadata<*, *>) -> Mono<QueryModelSchema>)?,
         aggregateMetadata: AggregateMetadata<*, *>,
-    ): Mono<java.util.Optional<QueryModelSchema>> =
-        schema?.invoke(aggregateMetadata)?.map { java.util.Optional.of(it) } ?: Mono.just(java.util.Optional.empty())
-
-    private fun restrictions(
-        aggregateMetadata: AggregateMetadata<*, *>,
-        state: ReadOnlyStateAggregate<*>,
-        schema: QueryModelSchema?,
-    ): Flux<FilterExpression> {
-        if (policies.isEmpty()) {
-            return Flux.empty()
-        }
-        checkNotNull(schema) { "Point-read admission needs the snapshot query schema to evaluate query policies." }
-        val context = QueryContext<FilterExpression>(
-            IdFilter(state.aggregateId.id),
-            aggregateMetadata.namedAggregate,
-            schema,
-            QueryType.SINGLE,
-            QueryEntry.HTTP,
-        )
-        return Flux.deferContextual { contextView ->
-            Flux.fromIterable(policies).concatMap { policy ->
-                policy.evaluate(contextView, context)
-                    .switchIfEmpty(Mono.error { IllegalStateException("QueryPolicy must emit one filter.") })
-            }
-        }
-    }
+    ): Mono<Optional<QueryModelSchema>> =
+        schema?.invoke(aggregateMetadata)?.map { Optional.of(it) } ?: Mono.just(Optional.empty())
 
     /** Rejects a tracing range of [versions] versions beyond [tracingMaxVersions]. */
     fun requireTracingVersions(versions: Int) {

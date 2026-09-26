@@ -56,13 +56,11 @@ class LoadSnapshotHandlerFunction(
                 ownerId(ownerId)
             }
         }
-        val requestScope = queryRequestScope.resolve(aggregateMetadata, request)
-        val scope = requestScope.copy(declared = selection.appendFilter(requestScope.declared))
         val singleQuery = SingleQuery(MatchAllFilter)
         return guard.mono {
             snapshotQueryGateway.dynamicSingle(singleQuery)
         }
-            .withQueryContext(scope, request)
+            .withQueryContext(queryRequestScope.resolve(aggregateMetadata, request), request, selection)
             .throwNotFoundIfEmpty()
             .toServerResponse(request, exceptionHandler)
     }

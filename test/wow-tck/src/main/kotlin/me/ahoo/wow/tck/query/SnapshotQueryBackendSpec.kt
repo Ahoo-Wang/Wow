@@ -2346,32 +2346,32 @@ abstract class SnapshotQueryBackendSpec {
 
 private fun QueryBackendBinding<SnapshotQueryBackend>.single(query: ISingleQuery): Mono<ObjectNode> =
     Mono.defer { schemaProvider.schema() }.flatMap { schema ->
-        backend.single(QueryAdmission.single(query, schema))
+        backend.single(QueryAdmission.Trusted.single(query, schema))
     }
 
 private fun QueryBackendBinding<SnapshotQueryBackend>.list(query: IListQuery): Flux<ObjectNode> =
     Mono.defer { schemaProvider.schema() }.flatMapMany { schema ->
-        backend.list(QueryAdmission.list(query, schema))
+        backend.list(QueryAdmission.Trusted.list(query, schema))
     }
 
 private fun QueryBackendBinding<SnapshotQueryBackend>.paged(query: IPagedQuery): Mono<PagedList<ObjectNode>> =
     Mono.defer { schemaProvider.schema() }.flatMap { schema ->
-        backend.paged(QueryAdmission.paged(query, schema))
+        backend.paged(QueryAdmission.Trusted.paged(query, schema))
     }
 
 private fun QueryBackendBinding<SnapshotQueryBackend>.cursor(query: ICursorQuery): Mono<CursorPage<ObjectNode>> =
     Mono.defer { schemaProvider.schema() }.flatMap { schema ->
-        backend.cursor(QueryAdmission.cursor(query, schema))
+        backend.cursor(QueryAdmission.Trusted.cursor(query, schema))
     }
 
 private fun QueryBackendBinding<SnapshotQueryBackend>.count(filter: FilterExpression): Mono<Long> =
     Mono.defer { schemaProvider.schema() }.flatMap { schema ->
-        backend.count(QueryAdmission.count(filter, schema))
+        backend.count(QueryAdmission.Trusted.count(filter, schema))
     }
 
 private fun QueryBackendBinding<SnapshotQueryBackend>.aggregate(query: AggregationQuery): Flux<ObjectNode> =
     Mono.defer { schemaProvider.schema() }.flatMapMany { schema ->
-        backend.aggregate(QueryAdmission.aggregate(query, schema))
+        backend.aggregate(QueryAdmission.Trusted.aggregate(query, schema))
     }
 
 private fun ISingleQuery.query(

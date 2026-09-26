@@ -90,7 +90,7 @@ class QueryFieldAliasesTest {
             sort = listOf(Sort(QueryField("state.sum"), Sort.Direction.DESC)),
         )
 
-        val admitted = QueryAdmission.list(query, schema).query
+        val admitted = QueryAdmission.Trusted.list(query, schema).query
 
         val operands = (admitted.filter as AndFilter).operands
         (operands[0] as EqualFilter).field.assert().isEqualTo(QueryField("state.buyer.name"))
@@ -103,7 +103,7 @@ class QueryFieldAliasesTest {
     @Test
     fun `cursor sort uniqueness and protection are decided by canonical names`() {
         assertThrows<IllegalArgumentException> {
-            QueryAdmission.cursor(
+            QueryAdmission.Trusted.cursor(
                 CursorQuery(
                     MatchAllFilter,
                     sort = listOf(
@@ -115,7 +115,7 @@ class QueryFieldAliasesTest {
             )
         }
         assertThrows<QuerySchemaValidationException> {
-            QueryAdmission.count(EqualFilter(QueryField("state.hidden"), json("x")), schema)
+            QueryAdmission.Trusted.count(EqualFilter(QueryField("state.hidden"), json("x")), schema)
         }.violation.assert().isEqualTo(QueryViolation.ProtectedComparison(QueryField("state.secret")))
     }
 
@@ -132,7 +132,7 @@ class QueryFieldAliasesTest {
             ),
         )
 
-        val admitted = QueryAdmission.aggregate(query, schema).query
+        val admitted = QueryAdmission.Trusted.aggregate(query, schema).query
 
         admitted.groupBy.single().field.assert().isEqualTo(QueryField("state.buyer.name"))
         ((admitted.metrics.single() as AggregationMetric.Numeric).expression as AggregationExpression.Field)

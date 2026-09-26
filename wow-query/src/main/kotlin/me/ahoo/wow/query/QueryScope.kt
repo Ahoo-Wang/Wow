@@ -26,6 +26,8 @@ private object AuthenticatedQueryScopeKey
 
 private object QueryEntryKey
 
+private object QuerySelectionKey
+
 /** Where a caller's scope came from. Only [AUTHENTICATED] scope is a security boundary. */
 enum class QueryScopeProvenance {
     /** Taken from the caller's credentials, or checked against them by a trusted component. */
@@ -85,17 +87,32 @@ fun ContextView.queryScope(): FilterExpression = getOrDefault(QueryScopeKey, Mat
 /** The [authenticated][QueryScopeProvenance.AUTHENTICATED] part of the caller's scope. */
 fun ContextView.authenticatedQueryScope(): FilterExpression = getOrDefault(AuthenticatedQueryScopeKey, MatchAllFilter)!!
 
+/**
+ * Appends a route [selection] (the aggregate id and version range a load route names in its URL). It is an operation
+ * constraint, not caller scope: admission appends it at step 2 with the caller scope, after every
+ * [QueryFilter][me.ahoo.wow.query.filter.QueryFilter], so a rewrite can neither see nor remove it, and it is neither
+ * budgeted as scope nor reported among the audit's scope fields.
+ */
+fun Context.withQuerySelection(selection: FilterExpression): Context =
+    if (selection === MatchAllFilter) this else put(QuerySelectionKey, querySelection().appendFilter(selection))
+
+/** The route selection the query must stay within; see [withQuerySelection]. */
+fun ContextView.querySelection(): FilterExpression = getOrDefault(QuerySelectionKey, MatchAllFilter)!!
+
 fun Context.withQueryEntry(entry: QueryEntry): Context = put(QueryEntryKey, entry)
 
 fun ContextView.queryEntry(): QueryEntry = getOrDefault(QueryEntryKey, QueryEntry.UNSPECIFIED)!!
 
 /**
  * The context for a query issued from inside a query extension, a policy or a cache loader: the inherited caller
- * scope and entry are dropped and the entry is [QueryEntry.IN_PROCESS], so an HTTP caller's budgets and scope do not
- * leak into a nested lookup.
+ * scope, route selection and entry are dropped and the entry is [QueryEntry.IN_PROCESS], so an HTTP caller's
+ * budgets and scope do not leak into a nested lookup.
  */
 fun Context.forInProcessQuery(): Context =
-    delete(QueryScopeKey).delete(AuthenticatedQueryScopeKey).put(QueryEntryKey, QueryEntry.IN_PROCESS)
+    delete(QueryScopeKey)
+        .delete(AuthenticatedQueryScopeKey)
+        .delete(QuerySelectionKey)
+        .put(QueryEntryKey, QueryEntry.IN_PROCESS)
 
 /** Runs this query as a nested in-process query; see [forInProcessQuery]. */
 fun <T : Any> Mono<T>.asInProcessQuery(): Mono<T> = contextWrite { it.forInProcessQuery() }

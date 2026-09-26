@@ -76,15 +76,18 @@ class MongoQueryProjectionResultTest {
         val capturedProjection = arrange { Document("value", "visible") }
         val result = when (operation) {
             "single" -> backend.single(
-                QueryAdmission.single(SingleQuery(MatchAllFilter, projection), schema)
+                QueryAdmission.Trusted.single(SingleQuery(MatchAllFilter, projection), schema)
             ).map(::listOf)
 
             "list" -> backend.list(
-                QueryAdmission.list(ListQuery(MatchAllFilter, projection, limit = 1), schema)
+                QueryAdmission.Trusted.list(ListQuery(MatchAllFilter, projection, limit = 1), schema)
             ).collectList()
 
             "paged" -> backend.paged(
-                QueryAdmission.paged(PagedQuery(MatchAllFilter, projection, pagination = Pagination(size = 1)), schema)
+                QueryAdmission.Trusted.paged(
+                    PagedQuery(MatchAllFilter, projection, pagination = Pagination(size = 1)),
+                    schema
+                )
             ).map { page ->
                 page.total.assert().isEqualTo(7L)
                 page.list
@@ -165,7 +168,9 @@ class MongoQueryProjectionResultTest {
 
     private fun single(model: QueryModel, logicalId: String, document: () -> Document): Mono<ObjectNode> {
         arrange(document)
-        return backend(model).single(QueryAdmission.single(SingleQuery(MatchAllFilter), schema(model, logicalId)))
+        return backend(
+            model
+        ).single(QueryAdmission.Trusted.single(SingleQuery(MatchAllFilter), schema(model, logicalId)))
     }
 
     private fun arrange(document: () -> Document): io.mockk.CapturingSlot<Bson> {

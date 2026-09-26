@@ -483,7 +483,7 @@ class ElasticsearchSnapshotMappingQueryTest {
         )
 
         val query = ListQuery(filter = filter, limit = 10)
-        service.list(QueryAdmission.list(query, schema)).collectList().block()
+        service.list(QueryAdmission.Trusted.list(query, schema)).collectList().block()
 
         convertedFilter.captured.assert().isSameAs(filter)
         verify(exactly = 0) { client.indices() }

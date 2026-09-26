@@ -60,7 +60,7 @@ class DateDiffAdmissionTest {
 
     @Test
     fun `date difference operands resolve with the temporal capability`() {
-        val admitted = QueryAdmission.aggregate(
+        val admitted = QueryAdmission.Trusted.aggregate(
             AggregationQuery(
                 groupBy = listOf(AggregationGroup.Histogram(alias = "bucket", interval = 24.0, expression = hours)),
                 metrics = listOf(AggregationMetric.Numeric(AggregationFunction.AVG, hours, "avgHours")),
@@ -86,7 +86,7 @@ class DateDiffAdmissionTest {
             DateDiffUnit.DAY
         )
         assertThrows<QuerySchemaValidationException> {
-            QueryAdmission.aggregate(
+            QueryAdmission.Trusted.aggregate(
                 AggregationQuery(metrics = listOf(AggregationMetric.Numeric(AggregationFunction.SUM, amount, "days"))),
                 boundSchemaFixture(
                     objectFixture(
@@ -105,7 +105,7 @@ class DateDiffAdmissionTest {
     @Test
     fun `an expression filter is a root filter that reads its fields for aggregation`() {
         val late = ExpressionFilter(hours, ComparisonOperator.GT, 48.0)
-        val admitted = QueryAdmission.list(ListQuery(late, limit = 10), schema)
+        val admitted = QueryAdmission.Trusted.list(ListQuery(late, limit = 10), schema)
         val filter = admitted.query.filter as ExpressionFilter
         admitted.field((filter.expression as AggregationExpression.DateDiff).from).capability.assert()
             .isEqualTo(QueryCapability.AGGREGATE_TEMPORAL)

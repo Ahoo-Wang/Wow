@@ -61,7 +61,7 @@ class MongoMatchNoneIntegrationTest {
     @MethodSource("models")
     fun `match none must return no rows without examining documents or index keys`(model: QueryModel) {
         val collection = collection()
-        val compiled = compiler(model).compile(QueryAdmission.count(MatchNoneFilter, schema(model)))
+        val compiled = compiler(model).compile(QueryAdmission.Trusted.count(MatchNoneFilter, schema(model)))
         val sort = if (model == QueryModel.SNAPSHOT) Document("_id", 1) else Document()
         assertNoScan(collection, compiled, sort)
     }
@@ -102,7 +102,7 @@ class MongoMatchNoneIntegrationTest {
             emptyElements to 0L,
             NorFilter(listOf(emptyElements)) to 32L,
         ).forEach { (expression, count) ->
-            collection.countDocuments(compiler.compile(QueryAdmission.count(expression, schema))).toMono().block()!!
+            collection.countDocuments(compiler.compile(QueryAdmission.Trusted.count(expression, schema))).toMono().block()!!
                 .assert().isEqualTo(count)
         }
     }
@@ -121,7 +121,7 @@ class MongoMatchNoneIntegrationTest {
                 metrics = metrics,
             ),
         ).forEach { query ->
-            collection.aggregate(compiler.compile(QueryAdmission.aggregate(query, schema))).toFlux().collectList().block()!!
+            collection.aggregate(compiler.compile(QueryAdmission.Trusted.aggregate(query, schema))).toFlux().collectList().block()!!
                 .assert().isEmpty()
         }
     }

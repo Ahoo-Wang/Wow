@@ -505,7 +505,7 @@ class ElasticsearchQuerySchemaAdapterTest {
             access
         ).forEach { filter ->
             assertThrows<QuerySchemaValidationException> {
-                backend.list(QueryAdmission.list(ListQuery(filter = filter, limit = 0), schema))
+                backend.list(QueryAdmission.Trusted.list(ListQuery(filter = filter, limit = 0), schema))
             }
         }
         io.mockk.verify(exactly = 0) {

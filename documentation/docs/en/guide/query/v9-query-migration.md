@@ -124,7 +124,7 @@ The Backend consumes the resolved fields of the `AdmittedQuery`, checks native p
 
 `QueryContext<Q>` contains only query, namedAggregate, schema, queryType, and entry. Move request processing into prepare; put trusted identity scope in Reactor `withQueryScope` or `QueryPolicy` (including the Snapshot-specific `AbacQueryPolicy`). Observers only observe termination. The Gateway fixes the sequence: entry budget, prepare, scope/policy, model default scope, `QueryAdmission`, Backend primitive, Mask, and typed materialization.
 
-Applications keep using typed, dynamic, paged, cursor, count, and aggregate methods on SnapshotQueryGateway / EventStreamQueryGateway. Direct Backend access is a trusted low-level boundary; callers obtain an `AdmittedQuery` via `QueryAdmission` and own all governance responsibilities (scope, policies, model defaults, masking). `QueryAdmission.cursor` appends the cursor's unique sort field; the Backend does not.
+Applications keep using typed, dynamic, paged, cursor, count, and aggregate methods on SnapshotQueryGateway / EventStreamQueryGateway. Direct Backend access is a trusted low-level boundary; callers obtain an `AdmittedQuery` via `QueryAdmission.Trusted` and own all governance responsibilities (scope, policies, model defaults, masking). Admission (and `QueryAdmission.Trusted.cursor`) appends the cursor's unique sort field; the Backend does not.
 
 ## Static Mask migration
 

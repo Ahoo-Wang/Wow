@@ -100,12 +100,12 @@ public class ElasticsearchCursorSortBenchmark {
                 QueryCapability.CURSOR_SORT, new QueryField("aggregateId")));
         schema = BenchmarkQuerySchemas.create(QueryModel.Companion.getSNAPSHOT(), fields, bindings);
         List<Sort> sorts = List.copyOf(inputSorts);
-        ordinary = QueryAdmission.list(new ListQuery(MatchAllFilter.INSTANCE, Projection.Companion.getALL(), sorts, 0),
+        ordinary = QueryAdmission.Trusted.list(new ListQuery(MatchAllFilter.INSTANCE, Projection.Companion.getALL(), sorts, 0),
                 schema);
         List<Sort> cursorSorts = new ArrayList<>(sorts);
         cursorSorts.add(new Sort(identity, Sort.Direction.ASC));
         // Admitted once: the benchmark measures the backend's request assembly, not admission.
-        query = QueryAdmission.cursor(new CursorQuery(
+        query = QueryAdmission.Trusted.cursor(new CursorQuery(
                 MatchAllFilter.INSTANCE, Projection.Companion.getALL(), cursorSorts, 10, null), schema);
         backend = new CursorBackend(SnapshotFilterCompiler.INSTANCE);
 

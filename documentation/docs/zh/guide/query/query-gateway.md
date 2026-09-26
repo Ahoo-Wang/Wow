@@ -9,7 +9,7 @@ description: 聚合级请求准备、作用域、授权、校验和响应处理�
 
 ## 固定执行顺序
 
-每次订阅独立执行：
+每次订阅独立执行以下步骤。第 0 到 6 步由同一个 `QueryAdmission` 执行（Gateway 每种查询调用它一次），任何入口都跳不过其中一步。加载路由的选择（URL 中的聚合 id 与版本范围）在第 3 步与调用方 scope 一起作为操作约束追加，它不是调用方 scope：`QueryFilter` 看不到也删不掉它，审计也不把它列为 scope 字段。
 
 0. 准入入口并检查预算：从 Reactor Context 读取一次查询入口，入口为 `HTTP` 的查询必须符合 `wow.query.http.*` 预算（`QueryEntryPolicy`）。这一步作用于提交的原始 Query，发生在任何 Schema 或存储操作之前。
 1. 从 Provider 取得一个 Schema；开启 `wow.query.require-authenticated-scope=true` 时，已认证 scope 未固定 `tenantId` 的 `HTTP` 查询在此被拒绝。
@@ -17,7 +17,7 @@ description: 聚合级请求准备、作用域、授权、校验和响应处理�
 3. 追加 Reactor Context 中的调用方 scope。
 4. Snapshot 与 EventStream Gateway 通过公共策略链追加已配置 `QueryPolicy` 的规则条件；普通 Filter 不能把它提前删除。
 5. 追加模型默认范围：Snapshot 在 Query 未声明删除范围时补充 `DELETION = ACTIVE`，EventStream 不补充删除条件。
-6. `QueryAdmission` 完成准入：把字段别名替换为规范字段，为游标查询追加模型唯一排序字段，按 Schema 校验 Query，规范化（相对时间、派生操作符、逻辑化简）并解析每个字段引用，得到 `AdmittedQuery`。
+6. 准入收尾：把字段别名替换为规范字段，为游标查询追加模型唯一排序字段，按 Schema 校验 Query，规范化（相对时间、派生操作符、逻辑化简）并解析每个字段引用，得到 `AdmittedQuery`。
 7. 以 `AdmittedQuery` 调用一个 Backend 原语：`stream`、`page`、`count` 或 `aggregate`。single、list、paged、cursor 都建立在 `stream` 与 `page` 之上。
 8. 对返回记录按同一 Schema 脱敏。
 9. 按需进行 typed 物化。
@@ -30,7 +30,7 @@ flowchart LR
     Prepare --> Scope["调用方 scope"]
     Scope --> Policy["QueryPolicy.evaluate"]
     Policy --> Default["模型默认范围"]
-    Default --> Admission["QueryAdmission"]
+    Default --> Admission["收尾 · 校验 · 解析"]
     Admission --> Backend["Backend 原语(AdmittedQuery)"]
     Backend --> Mask["Mask"]
     Mask --> Result["ObjectNode / typed result"]

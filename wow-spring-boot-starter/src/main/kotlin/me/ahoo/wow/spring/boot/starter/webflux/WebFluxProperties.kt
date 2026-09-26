@@ -67,8 +67,9 @@ constructor(
     /**
      * State point reads (load by id, version or time, and tracing).
      *
-     * @property pointReadAdmission checks the caller's request scope in memory against each loaded state (a state
-     * outside it reads as absent) and caps tracing at [tracingMaxVersions]. Off by default.
+     * @property pointReadAdmission admits each loaded state through the query admission: the caller's request scope,
+     * the query policies and the snapshot default scope are checked on it in memory (a state outside them reads as
+     * absent), the response is masked, and tracing is capped at [tracingMaxVersions]. Off by default.
      * @property tracingMaxVersions the most versions one tracing request may return under point-read admission;
      * `0` disables the cap.
      */

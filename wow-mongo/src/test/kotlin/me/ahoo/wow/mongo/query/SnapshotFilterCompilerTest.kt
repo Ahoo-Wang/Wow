@@ -212,7 +212,7 @@ class SnapshotFilterCompilerTest {
 
     /** Compiles [filter] as the element filter of `state.orders.lines`, unwound for an aggregation. */
     private fun compileLineFilter(filter: FilterExpression): Bson {
-        val admitted = QueryAdmission.aggregate(
+        val admitted = QueryAdmission.Trusted.aggregate(
             AggregationQuery(
                 elements = listOf(
                     AggregationElement(QueryField("state.orders")),

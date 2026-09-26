@@ -116,7 +116,7 @@ public class AggregationCompilerBenchmark {
         if (!groups.isEmpty()) metrics.add(new AggregationMetric.Count("count", MatchAllFilter.INSTANCE));
         schema = BenchmarkQuerySchemas.create(QueryModel.Companion.getSNAPSHOT(), fields, bindings);
         // Admitted once: the benchmark measures native compilation, which reads admission's field resolutions.
-        query = QueryAdmission.aggregate(
+        query = QueryAdmission.Trusted.aggregate(
                 new AggregationQuery(MatchAllFilter.INSTANCE, List.of(), groups, metrics, List.of(), 100, null), schema);
         verifyPlan(compile());
     }

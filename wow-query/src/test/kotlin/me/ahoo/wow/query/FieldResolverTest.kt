@@ -72,7 +72,7 @@ class FieldResolverTest {
     @Test
     fun `one reused field instance resolves separately in each element scope`() {
         val price = QueryField("price")
-        val admitted = QueryAdmission.count(
+        val admitted = QueryAdmission.Trusted.count(
             AndFilter(
                 listOf(
                     EqualFilter(price, IntNode.valueOf(1)),
@@ -105,7 +105,7 @@ class FieldResolverTest {
 
     @Test
     fun `lowered operators resolve each fresh node for its own capability`() {
-        val admitted = QueryAdmission.count(IsNotEmptyStringFilter(QueryField("name")), schema)
+        val admitted = QueryAdmission.Trusted.count(IsNotEmptyStringFilter(QueryField("name")), schema)
         val (present, notEmpty) = (admitted.query as AndFilter).operands
         admitted.field((present as IsNotNullFilter).field).capability.assert().isEqualTo(QueryCapability.PRESENCE)
         admitted.field((notEmpty as NotEqualFilter).field).capability.assert().isEqualTo(QueryCapability.EXACT_MATCH)
@@ -113,7 +113,7 @@ class FieldResolverTest {
 
     @Test
     fun `system filters resolve by node identity`() {
-        val admitted = QueryAdmission.count(TenantIdFilter("tenant"), schema)
+        val admitted = QueryAdmission.Trusted.count(TenantIdFilter("tenant"), schema)
         val tenant = admitted.systemField(admitted.query)
         tenant.logicalField.assert().isEqualTo(QueryField("tenantId"))
         tenant.physicalField.assert().isEqualTo(QueryField("native.tenantId"))
@@ -123,7 +123,7 @@ class FieldResolverTest {
 
     @Test
     fun `sort and projection resolve at the root`() {
-        val admitted = QueryAdmission.list(
+        val admitted = QueryAdmission.Trusted.list(
             ListQuery(
                 filter = GreaterThanFilter(QueryField("price"), IntNode.valueOf(1)),
                 projection = Projection(include = listOf(QueryField("name"))),
@@ -145,7 +145,7 @@ class FieldResolverTest {
 
     @Test
     fun `cursor resolves the appended tie-breaker and rejects shared physical fields`() {
-        val admitted = QueryAdmission.cursor(CursorQuery(filter = MatchAllFilter), schema)
+        val admitted = QueryAdmission.Trusted.cursor(CursorQuery(filter = MatchAllFilter), schema)
         val tieBreaker = admitted.query.sort.single()
         tieBreaker.field.assert().isEqualTo(QueryField("aggregateId"))
         admitted.field(tieBreaker.field).run {
@@ -162,7 +162,7 @@ class FieldResolverTest {
             )
         }
         assertThrows<QuerySchemaValidationException> {
-            QueryAdmission.cursor(
+            QueryAdmission.Trusted.cursor(
                 CursorQuery(
                     filter = MatchAllFilter,
                     sort = listOf(
@@ -188,7 +188,7 @@ class FieldResolverTest {
             )
         }
         assertThrows<QuerySchemaValidationException> {
-            QueryAdmission.count(
+            QueryAdmission.Trusted.count(
                 ElementMatchFilter(QueryField("orders"), EqualFilter(QueryField("price"), IntNode.valueOf(1))),
                 escaped,
             )
@@ -197,7 +197,7 @@ class FieldResolverTest {
 
     @Test
     fun `aggregation references resolve under the innermost element scope`() {
-        val admitted = QueryAdmission.aggregate(
+        val admitted = QueryAdmission.Trusted.aggregate(
             AggregationQuery(
                 filter = EqualFilter(QueryField("name"), JsonNodeFactory.instance.stringNode("n")),
                 elements = listOf(
@@ -275,9 +275,9 @@ class FieldResolverTest {
         fun sort(vararg fields: String) =
             ListQuery(MatchAllFilter, sort = fields.map { Sort(QueryField(it), Sort.Direction.ASC) })
 
-        QueryAdmission.list(sort("tags", "codes"), arrays).query.sort.assert().hasSize(2)
-        QueryAdmission.list(sort("tags", "aggregateId"), parallel).query.sort.assert().hasSize(2)
-        assertThrows<QuerySchemaValidationException> { QueryAdmission.list(sort("tags", "codes"), parallel) }
+        QueryAdmission.Trusted.list(sort("tags", "codes"), arrays).query.sort.assert().hasSize(2)
+        QueryAdmission.Trusted.list(sort("tags", "aggregateId"), parallel).query.sort.assert().hasSize(2)
+        assertThrows<QuerySchemaValidationException> { QueryAdmission.Trusted.list(sort("tags", "codes"), parallel) }
             .violation.assert().isEqualTo(
                 me.ahoo.wow.query.schema.QueryViolation.ParallelArraySort(QueryField("codes"), QueryField("tags")),
             )
@@ -306,15 +306,18 @@ class FieldResolverTest {
         val scalar = me.ahoo.wow.serialization.JsonSerializer.valueToTree<tools.jackson.databind.JsonNode>("a")
         val field = QueryField("tags")
 
-        QueryAdmission.count(EqualFilter(field, array), tags).query.assert().isInstanceOf(EqualFilter::class.java)
-        QueryAdmission.count(EqualFilter(field, scalar), scalarOnly).query.assert()
+        QueryAdmission.Trusted.count(
+            EqualFilter(field, array),
+            tags
+        ).query.assert().isInstanceOf(EqualFilter::class.java)
+        QueryAdmission.Trusted.count(EqualFilter(field, scalar), scalarOnly).query.assert()
             .isInstanceOf(EqualFilter::class.java)
         listOf(
             EqualFilter(field, array),
             NotEqualFilter(field, array),
             EqualFilter(field, tools.jackson.databind.node.JsonNodeFactory.instance.pojoNode(listOf("a", "b"))),
         ).forEach { filter ->
-            assertThrows<QuerySchemaValidationException> { QueryAdmission.count(filter, scalarOnly) }
+            assertThrows<QuerySchemaValidationException> { QueryAdmission.Trusted.count(filter, scalarOnly) }
                 .violation.assert().isEqualTo(me.ahoo.wow.query.schema.QueryViolation.ArrayEquality(field))
         }
     }

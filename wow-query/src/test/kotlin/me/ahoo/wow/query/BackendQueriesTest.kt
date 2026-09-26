@@ -72,7 +72,7 @@ class BackendQueriesTest {
     @Test
     fun `single asks for the first record without a total`() {
         val backend = RecordingBackend(pages = { BackendPage(listOf(row("a"), row("b"))) })
-        backend.single(QueryAdmission.single(SingleQuery(MatchAllFilter), schema)).test()
+        backend.single(QueryAdmission.Trusted.single(SingleQuery(MatchAllFilter), schema)).test()
             .assertNext { it["name"].stringValue().assert().isEqualTo("a") }
             .verifyComplete()
         backend.windows.single().assert().isEqualTo(PageWindow.Offset(0, 1, withTotal = false))
@@ -81,7 +81,9 @@ class BackendQueriesTest {
     @Test
     fun `paged asks for its offset window with the total`() {
         val backend = RecordingBackend(pages = { BackendPage(listOf(row("a")), 7) })
-        backend.paged(QueryAdmission.paged(PagedQuery(MatchAllFilter, pagination = Pagination(3, 5)), schema)).test()
+        backend.paged(
+            QueryAdmission.Trusted.paged(PagedQuery(MatchAllFilter, pagination = Pagination(3, 5)), schema)
+        ).test()
             .assertNext { page ->
                 page.total.assert().isEqualTo(7)
                 page.list.single()["name"].stringValue().assert().isEqualTo("a")
@@ -93,9 +95,11 @@ class BackendQueriesTest {
     fun `list without a limit is rejected when the storage cannot stream to the end`() {
         val backend = RecordingBackend()
         val streaming = schema.withStorage(StorageSupport(paging = PagingSupport(unboundedStream = SupportMode.NONE)))
-        backend.list(QueryAdmission.list(ListQuery(MatchAllFilter, limit = 0), streaming)).test()
+        backend.list(QueryAdmission.Trusted.list(ListQuery(MatchAllFilter, limit = 0), streaming)).test()
             .expectError(QuerySchemaValidationException::class.java).verify()
-        backend.list(QueryAdmission.list(ListQuery(MatchAllFilter, limit = 1), streaming)).test().verifyComplete()
+        backend.list(
+            QueryAdmission.Trusted.list(ListQuery(MatchAllFilter, limit = 1), streaming)
+        ).test().verifyComplete()
         backend.streams.assert().isEqualTo(1)
     }
 
@@ -108,13 +112,15 @@ class BackendQueriesTest {
                 BackendPage(rows, positions = (after + 1..after + 3).map { CursorPosition(listOf(it)) })
             },
         )
-        val first = backend.cursor(QueryAdmission.cursor(CursorQuery(MatchAllFilter, size = 2), schema)).block()!!
+        val first = backend.cursor(
+            QueryAdmission.Trusted.cursor(CursorQuery(MatchAllFilter, size = 2), schema)
+        ).block()!!
         first.list.map { it["name"].stringValue() }.assert().containsExactly("r1", "r2")
         first.nextCursor.assert().isNotNull()
         backend.windows.last().assert().isEqualTo(PageWindow.Keyset(null, 3))
 
         val second = backend.cursor(
-            QueryAdmission.cursor(CursorQuery(MatchAllFilter, size = 2, cursor = first.nextCursor), schema)
+            QueryAdmission.Trusted.cursor(CursorQuery(MatchAllFilter, size = 2, cursor = first.nextCursor), schema)
         ).block()!!
         backend.windows.last().assert().isEqualTo(PageWindow.Keyset(CursorPosition(listOf(2L)), 3))
         second.list.map { it["name"].stringValue() }.assert().containsExactly("r3", "r4")
@@ -125,7 +131,7 @@ class BackendQueriesTest {
         val backend = RecordingBackend(
             pages = { BackendPage(listOf(row("only")), positions = listOf(CursorPosition(listOf(1L)))) },
         )
-        backend.cursor(QueryAdmission.cursor(CursorQuery(MatchAllFilter, size = 2), schema)).test()
+        backend.cursor(QueryAdmission.Trusted.cursor(CursorQuery(MatchAllFilter, size = 2), schema)).test()
             .assertNext { it.nextCursor.assert().isNull() }
             .verifyComplete()
     }
@@ -140,7 +146,7 @@ class BackendQueriesTest {
                 )
             },
         )
-        val token = backend.cursor(QueryAdmission.cursor(CursorQuery(MatchAllFilter, size = 1), schema))
+        val token = backend.cursor(QueryAdmission.Trusted.cursor(CursorQuery(MatchAllFilter, size = 1), schema))
             .block()!!.nextCursor!!
         val descending = listOf(Sort(QueryField("aggregateId"), Sort.Direction.DESC))
         val other = RecordingBackend(MaterializedNamedAggregate("other", "aggregate"))
@@ -152,7 +158,11 @@ class BackendQueriesTest {
             backend to CursorQuery(MatchAllFilter, size = 1, cursor = "not base64 !"),
         ).forEach { (target, query) ->
             val calls = target.windows.size
-            assertThrows<IllegalArgumentException> { target.cursor(QueryAdmission.cursor(query, schema)).block() }
+            assertThrows<IllegalArgumentException> {
+                target.cursor(
+                    QueryAdmission.Trusted.cursor(query, schema)
+                ).block()
+            }
                 .message.assert().isEqualTo("Invalid cursor.")
             target.windows.size.assert().isEqualTo(calls)
         }
@@ -168,7 +178,7 @@ class BackendQueriesTest {
             limit = 5,
             having = HavingExpression.Condition("count", ComparisonOperator.GT, 1.0),
         )
-        val admitted = QueryAdmission.aggregate(query, schema)
+        val admitted = QueryAdmission.Trusted.aggregate(query, schema)
         backend.aggregate(admitted).collectList().block()!!.assert().hasSize(1)
         backend.groupWindows.single().assert().isEqualTo(GroupWindow.First(5))
         backend.aggregations.single().assert().isSameAs(admitted.query)
@@ -186,7 +196,7 @@ class BackendQueriesTest {
         val residual = schema.withStorage(
             StorageSupport(aggregation = AggregationSupport(having = SupportMode.RESIDUAL))
         )
-        backend.aggregate(QueryAdmission.aggregate(query, residual)).collectList().block()!!
+        backend.aggregate(QueryAdmission.Trusted.aggregate(query, residual)).collectList().block()!!
             .map { it["name"].stringValue() }.assert().containsExactly("b")
         backend.groupWindows.single().assert().isEqualTo(GroupWindow.All)
         backend.aggregations.single().having.assert().isNull()
@@ -204,7 +214,7 @@ class BackendQueriesTest {
         val residual = schema.withStorage(
             StorageSupport(aggregation = AggregationSupport(having = SupportMode.RESIDUAL))
         )
-        val admitted = QueryAdmission.aggregate(query, residual)
+        val admitted = QueryAdmission.Trusted.aggregate(query, residual)
         backend.aggregate(admitted, QueryBudget(QueryBudget.HTTP_LABEL, maxResidualGroups = 2)).test()
             .expectErrorMessage(
                 "HTTP aggregation processes more than [2] groups, dense fill included, to compute HAVING or a " +
@@ -217,7 +227,7 @@ class BackendQueriesTest {
             .block()!!.assert().hasSize(1)
         // A natively computed aggregation reads only its limit, so the bound does not apply.
         backend.aggregate(
-            QueryAdmission.aggregate(query, schema),
+            QueryAdmission.Trusted.aggregate(query, schema),
             QueryBudget(QueryBudget.HTTP_LABEL, maxResidualGroups = 1)
         )
             .collectList().block()
@@ -233,7 +243,7 @@ class BackendQueriesTest {
             limit = 2,
         )
         val residual = schema.withStorage(StorageSupport(aggregation = AggregationSupport(topN = SupportMode.RESIDUAL)))
-        backend.aggregate(QueryAdmission.aggregate(query, residual)).collectList().block()!!
+        backend.aggregate(QueryAdmission.Trusted.aggregate(query, residual)).collectList().block()!!
             .map { it["name"].stringValue() }.assert().containsExactly("b", "c")
         backend.groupWindows.single().assert().isEqualTo(GroupWindow.All)
         backend.aggregations.single().sort.assert().isEmpty()
@@ -253,7 +263,7 @@ class BackendQueriesTest {
         val residual = schema.withStorage(
             StorageSupport(aggregation = AggregationSupport(denseFill = SupportMode.RESIDUAL)),
         )
-        backend.aggregate(QueryAdmission.aggregate(query, residual)).collectList().block()!!
+        backend.aggregate(QueryAdmission.Trusted.aggregate(query, residual)).collectList().block()!!
             .map { it["day"].longValue() to it["count"].longValue() }
             .assert().containsExactly(0L to 2L, day to 0L, 2 * day to 0L)
         backend.groupWindows.single().assert().isEqualTo(GroupWindow.First(3))
@@ -284,7 +294,7 @@ class BackendQueriesTest {
             ),
         )
         backend.aggregate(
-            QueryAdmission.aggregate(query, residual),
+            QueryAdmission.Trusted.aggregate(query, residual),
             QueryBudget(QueryBudget.HTTP_LABEL, maxResidualGroups = 1000)
         )
             .test()
@@ -316,7 +326,7 @@ class BackendQueriesTest {
             sort = listOf(Sort(QueryField("weekday"), Sort.Direction.DESC)),
         )
 
-        backend.aggregate(QueryAdmission.aggregate(query, schema)).collectList().block()!!
+        backend.aggregate(QueryAdmission.Trusted.aggregate(query, schema)).collectList().block()!!
             .map { it["weekday"].intValue() to it["count"].longValue() }
             .assert().containsExactly(7 to 0L, 6 to 0L, 5 to 1L, 4 to 0L, 3 to 0L, 2 to 3L, 1 to 0L)
         backend.groupWindows.single().assert().isEqualTo(GroupWindow.All)
@@ -343,7 +353,7 @@ class BackendQueriesTest {
             having = HavingExpression.Condition("count", ComparisonOperator.LT, 5.0),
         )
 
-        backend.aggregate(QueryAdmission.aggregate(query, schema)).collectList().block()!!
+        backend.aggregate(QueryAdmission.Trusted.aggregate(query, schema)).collectList().block()!!
             .map { it["hour"].intValue() to it["count"].longValue() }
             .assert().containsExactly(9 to 4L, 0 to 0L, 1 to 0L)
         backend.aggregations.single().having.assert().isNull()
@@ -487,7 +497,7 @@ class BackendQueriesTest {
             metrics = listOf(AggregationMetric.Count("count")),
             having = HavingExpression.Condition("count", ComparisonOperator.GT, 1.0),
         )
-        backend.aggregate(QueryAdmission.aggregate(query, none)).test()
+        backend.aggregate(QueryAdmission.Trusted.aggregate(query, none)).test()
             .expectError(QuerySchemaValidationException::class.java).verify()
         backend.aggregations.assert().isEmpty()
     }

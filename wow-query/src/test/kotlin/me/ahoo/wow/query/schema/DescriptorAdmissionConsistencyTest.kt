@@ -96,7 +96,7 @@ class DescriptorAdmissionConsistencyTest {
                 Case(
                     "${field.path} ${operator.name}",
                     listed
-                ) { QueryAdmission.list(ListQuery(filter, limit = 1), schema) }
+                ) { QueryAdmission.Trusted.list(ListQuery(filter, limit = 1), schema) }
             }
         }
 
@@ -107,10 +107,13 @@ class DescriptorAdmissionConsistencyTest {
             val sort = listOf(Sort(QueryField(field.path), Sort.Direction.ASC))
             listOf(
                 Case("${field.path} paged sort", field.sort.paged) {
-                    QueryAdmission.paged(PagedQuery(MatchAllFilter, sort = sort, pagination = Pagination(1, 1)), schema)
+                    QueryAdmission.Trusted.paged(
+                        PagedQuery(MatchAllFilter, sort = sort, pagination = Pagination(1, 1)),
+                        schema
+                    )
                 },
                 Case("${field.path} cursor sort", field.sort.cursor) {
-                    QueryAdmission.cursor(CursorQuery(MatchAllFilter, sort = sort, size = 1), schema)
+                    QueryAdmission.Trusted.cursor(CursorQuery(MatchAllFilter, sort = sort, size = 1), schema)
                 },
             )
         }
@@ -129,7 +132,10 @@ class DescriptorAdmissionConsistencyTest {
                 "DATE_PART" to AggregationGroup.DatePart(path, "g", AggregationDatePart.HOUR_OF_DAY),
             ).map { (name, group) ->
                 Case("${field.path} group $name", aggregate?.groups?.contains(name) == true) {
-                    QueryAdmission.aggregate(AggregationQuery(groupBy = listOf(group), metrics = listOf(count)), schema)
+                    QueryAdmission.Trusted.aggregate(
+                        AggregationQuery(groupBy = listOf(group), metrics = listOf(count)),
+                        schema
+                    )
                 }
             }
             val input = AggregationExpression.Field(path)
@@ -145,7 +151,7 @@ class DescriptorAdmissionConsistencyTest {
             groups + metrics.map { (named, metric) ->
                 val (name, listed) = named
                 Case("${field.path} metric $name", listed) {
-                    QueryAdmission.aggregate(AggregationQuery(metrics = listOf(metric)), schema)
+                    QueryAdmission.Trusted.aggregate(AggregationQuery(metrics = listOf(metric)), schema)
                 }
             }
         }

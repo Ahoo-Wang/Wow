@@ -21,6 +21,7 @@ import me.ahoo.wow.api.query.BetweenFilter
 import me.ahoo.wow.api.query.DeletionFilter
 import me.ahoo.wow.api.query.DeletionState
 import me.ahoo.wow.api.query.EqualFilter
+import me.ahoo.wow.api.query.FilterCapable
 import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.IdFilter
@@ -35,7 +36,9 @@ import me.ahoo.wow.api.query.TenantIdFilter
 import me.ahoo.wow.query.AdmittedQuery
 import me.ahoo.wow.query.BackendPage
 import me.ahoo.wow.query.PageWindow
+import me.ahoo.wow.query.QueryAudit
 import me.ahoo.wow.query.QueryBackendBinding
+import me.ahoo.wow.query.QueryObserver
 import me.ahoo.wow.query.QueryScope
 import me.ahoo.wow.query.event.DefaultEventStreamQueryGateway
 import me.ahoo.wow.query.event.EventStreamQueryBackend
@@ -146,9 +149,11 @@ class LoadQueryBoundaryTest {
     }
 
     @Test
-    fun snapshotRouteIdentitySurvivesPrepareReplacingFilterAndKeepsActiveDeletion() {
+    fun snapshotRouteSelectionSurvivesPrepareReplacingFilterAndIsNotScope() {
         listOf("trusted-tenant", "").forEach { tenant ->
             var received: FilterExpression? = null
+            var prepared: FilterExpression? = null
+            val audits = mutableListOf<QueryAudit>()
             val backend = object : SnapshotQueryBackend by NoOpSnapshotQueryBackend(
                 MOCK_AGGREGATE_METADATA.namedAggregate
             ) {
@@ -164,10 +169,8 @@ class LoadQueryBoundaryTest {
                     MaterializedSnapshot::class.java,
                     Any::class.java
                 ),
-                filters = listOf(object : QueryFilter {
-                    override fun <Q : RewritableFilter<Q>> prepare(context: QueryContext<Q>): Mono<Q> =
-                        Mono.just(context.query.withFilter(MatchAllFilter))
-                }),
+                filters = listOf(replacingFilter { prepared = it }),
+                observer = auditing(audits),
             )
             val handler = LoadSnapshotHandlerFunction(
                 RouteTestFixtures.MOCK_AGGREGATE_ROUTE_METADATA,
@@ -180,21 +183,28 @@ class LoadQueryBoundaryTest {
             val exchange = exchange()
             write(handler, request, exchange).block()
             exchange.response.statusCode.assert().isEqualTo(HttpStatus.NOT_FOUND)
+            // The route selection is not the caller's query: filters never see it, and a filter replacing the whole
+            // filter cannot escape the URL id, because the selection is appended at step 2 with the request scope.
+            prepared.assert().isEqualTo(MatchAllFilter)
             leaves(requireNotNull(received)).toSet().assert().isEqualTo(
                 setOf(
                     TenantIdFilter(tenant.ifEmpty { "(0)" }),
                     OwnerIdFilter("trusted-owner"),
                     IdFilter("specific-record"),
                     SpaceIdFilter("trusted-space"),
-                    DeletionFilter(DeletionState.ACTIVE)
+                    DeletionFilter(DeletionState.ACTIVE),
                 ),
             )
+            // The selection is an operation constraint, not caller scope.
+            audits.single().scopeFields.assert().containsExactly("spaceId")
         }
     }
 
     @Test
-    fun eventRouteIdentityAndVersionRangeSurvivePrepareReplacingFilter() {
+    fun eventRouteSelectionAndVersionRangeSurvivePrepareReplacingFilterAndAreNotScope() {
         var received: FilterExpression? = null
+        var prepared: FilterExpression? = null
+        val audits = mutableListOf<QueryAudit>()
         val backend = object : EventStreamQueryBackend by NoOpEventStreamQueryBackend(
             MOCK_AGGREGATE_METADATA.namedAggregate
         ) {
@@ -206,10 +216,8 @@ class LoadQueryBoundaryTest {
         val gateway = DefaultEventStreamQueryGateway(
             namedAggregate = MOCK_AGGREGATE_METADATA.namedAggregate,
             binding = QueryBackendBinding(backend, RouteTestFixtures.EVENT_STREAM_QUERY_SCHEMA_PROVIDER),
-            filters = listOf(object : QueryFilter {
-                override fun <Q : RewritableFilter<Q>> prepare(context: QueryContext<Q>): Mono<Q> =
-                    Mono.just(context.query.withFilter(MatchAllFilter))
-            }),
+            filters = listOf(replacingFilter { prepared = it }),
+            observer = auditing(audits),
         )
         val handler = LoadEventStreamHandlerFunction(
             MOCK_AGGREGATE_METADATA,
@@ -223,6 +231,7 @@ class LoadQueryBoundaryTest {
         val exchange = exchange()
         write(handler, request, exchange).block()
         exchange.response.statusCode.assert().isEqualTo(HttpStatus.OK)
+        prepared.assert().isEqualTo(MatchAllFilter)
         leaves(requireNotNull(received)).toSet().assert().isEqualTo(
             setOf(
                 TenantIdFilter("trusted-tenant"),
@@ -236,6 +245,61 @@ class LoadQueryBoundaryTest {
                 SpaceIdFilter("trusted-space"),
             ),
         )
+        audits.single().scopeFields.assert().containsExactly("spaceId")
+    }
+
+    @Test
+    fun loadRoutesWithoutRewritesRunTheirSelectionWithinTheRequestScope() {
+        var received: FilterExpression? = null
+        val backend = object : EventStreamQueryBackend by NoOpEventStreamQueryBackend(
+            MOCK_AGGREGATE_METADATA.namedAggregate
+        ) {
+            override fun stream(query: AdmittedQuery<IListQuery>): Flux<ObjectNode> {
+                received = query.query.filter
+                return Flux.empty()
+            }
+        }
+        val gateway = DefaultEventStreamQueryGateway(
+            namedAggregate = MOCK_AGGREGATE_METADATA.namedAggregate,
+            binding = QueryBackendBinding(backend, RouteTestFixtures.EVENT_STREAM_QUERY_SCHEMA_PROVIDER),
+        )
+        val handler = LoadEventStreamHandlerFunction(
+            MOCK_AGGREGATE_METADATA,
+            gateway,
+            QueryRequestScope { _, _ -> QueryScope(declared = SpaceIdFilter("trusted-space")) },
+            WebFluxRequestExceptionHandler(),
+        )
+        val request = MockServerRequest.builder().pathVariable("id", "specific-record")
+            .pathVariable("tenantId", "trusted-tenant")
+            .pathVariable("headVersion", "3").pathVariable("tailVersion", "5").build()
+        write(handler, request, exchange()).block()
+        leaves(requireNotNull(received)).toSet().assert().isEqualTo(
+            setOf(
+                TenantIdFilter("trusted-tenant"),
+                EqualFilter(QueryField("aggregateId"), JsonNodeFactory.instance.stringNode("specific-record")),
+                BetweenFilter(
+                    QueryField("version"),
+                    JsonNodeFactory.instance.numberNode(3),
+                    JsonNodeFactory.instance.numberNode(5)
+                ),
+                SpaceIdFilter("trusted-space"),
+            ),
+        )
+    }
+
+    /** A filter that records the filter it was handed and replaces it with match-all. */
+    private fun replacingFilter(seen: (FilterExpression) -> Unit) = object : QueryFilter {
+        override fun <Q : RewritableFilter<Q>> prepare(context: QueryContext<Q>): Mono<Q> {
+            seen((context.query as FilterCapable<*>).filter)
+            return Mono.just(context.query.withFilter(MatchAllFilter))
+        }
+    }
+
+    private fun auditing(audits: MutableList<QueryAudit>) = object : QueryObserver {
+        override val audits: Boolean = true
+        override fun onAudit(audit: QueryAudit) {
+            audits += audit
+        }
     }
 
     @Test

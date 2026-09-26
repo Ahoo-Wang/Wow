@@ -148,7 +148,7 @@ class QueryAutoConfigurationTest {
         eventBinding.assert().isSameAs(UnavailableEventStreamQueryBackendFactory.create(MOCK_AGGREGATE_METADATA))
         snapshotBinding.backend
             .single(
-                QueryAdmission.single(
+                QueryAdmission.Trusted.single(
                     singleQuery {
                     },
                     me.ahoo.wow.spring.boot.starter.query.testQuerySchema(QueryModel.SNAPSHOT)
@@ -245,12 +245,12 @@ class QueryAutoConfigurationTest {
 
                 val rawBackend = factory.create(MOCK_AGGREGATE_METADATA).backend
                 rawBackend.assert().isSameAs(factory.backend)
-                rawBackend.single(QueryAdmission.single(query, factory.schemaProvider.schema)).test()
+                rawBackend.single(QueryAdmission.Trusted.single(query, factory.schemaProvider.schema)).test()
                     .consumeNextWith { it["state"][SECRET].stringValue().assert().isEqualTo(RAW_SECRET) }
                     .verifyComplete()
                 factory.backend.lastQuery!!.assert().isEqualTo(query)
                 eventBackend.single(
-                    QueryAdmission.single(query, EventSchemaProvider.schema().block()!!)
+                    QueryAdmission.Trusted.single(query, EventSchemaProvider.schema().block()!!)
                 ).test().verifyComplete()
                 eventBackend.lastQuery!!.assert().isEqualTo(query)
                 policyCalls.get().assert().isEqualTo(2)

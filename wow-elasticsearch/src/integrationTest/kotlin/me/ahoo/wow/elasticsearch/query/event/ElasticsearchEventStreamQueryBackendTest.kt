@@ -187,7 +187,7 @@ class ElasticsearchEventStreamQueryBackendTest : EventStreamQueryBackendSpec() {
         eventStore.append(stream).block()
         val schema = queryBackendBinding.schemaProvider.schema().block()!!
         val query = CursorQuery(filterExpression { id(stream.id) }, size = 1)
-        val publisher = queryBackendBinding.backend.cursor(QueryAdmission.cursor(query, schema))
+        val publisher = queryBackendBinding.backend.cursor(QueryAdmission.Trusted.cursor(query, schema))
         val seen = mutableListOf<ObjectNode>()
 
         publisher.map { it.list.single() }.doOnNext { node ->
@@ -278,10 +278,10 @@ class ElasticsearchEventStreamQueryBackendTest : EventStreamQueryBackendSpec() {
 
 private fun FilterExpression.count(binding: QueryBackendBinding<EventStreamQueryBackend>) =
     Mono.defer { binding.schemaProvider.schema() }.flatMap { schema ->
-        binding.backend.count(QueryAdmission.count(me.ahoo.wow.query.schema.validateQuery(this, schema), schema))
+        binding.backend.count(QueryAdmission.Trusted.count(me.ahoo.wow.query.schema.validateQuery(this, schema), schema))
     }
 
 private fun IListQuery.query(binding: QueryBackendBinding<EventStreamQueryBackend>) =
     Mono.defer { binding.schemaProvider.schema() }.flatMapMany { schema ->
-        binding.backend.list(QueryAdmission.list(me.ahoo.wow.query.schema.validateQuery(this, schema), schema))
+        binding.backend.list(QueryAdmission.Trusted.list(me.ahoo.wow.query.schema.validateQuery(this, schema), schema))
     }
