@@ -98,7 +98,7 @@ A rule that retains character positions should count Unicode code points like th
 
 At runtime, the default `JsonQueryModelSource` reports each serialized member with its annotations, and `InferredQuerySchemaSource` applies the effective `@Sensitive` annotations it finds on fields, Jackson-visible non-public getters, inherited parent Kotlin properties, and interface getters. Rules flow through Query Schema merging and backend adapters, but the public capability descriptor exposes them only as a field's `sensitivity` (its level and whether it is comparable). Strategy types, mask parameters, and executable functions remain in memory.
 
-Each Gateway subscription uses one Schema version: preparation, admission and response masking read it, and the `AdmittedQuery` carries it to the Backend. Mask traversal definitions are built when the Schema version is published; subscriptions consume that immutable version. Revalidation publishing a new version does not change an in-flight subscription. Schema acquisition failure never skips masking to return raw data. No Mask declarations means no response JSON traversal.
+Each Gateway subscription uses one Schema version: admission and response masking read it, and the Backend receives only the fields admission resolved against it. Mask traversal definitions are built when the Schema version is published; subscriptions consume that immutable version. Revalidation publishing a new version does not change an in-flight subscription. Schema acquisition failure never skips masking to return raw data. No Mask declarations means no response JSON traversal.
 
 ## Behavior Matrix
 

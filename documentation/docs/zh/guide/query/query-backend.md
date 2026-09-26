@@ -7,7 +7,7 @@ description: 查询后端的逻辑 Query、Schema、原生编译与节点所有�
 
 ## QueryBackend 契约
 
-`QueryBackend` 是聚合绑定的原生查询执行边界。每个操作都接收一个 `AdmittedQuery`：最终逻辑 Query、本次订阅取得的 Schema、查询入口，以及查询中每个字段引用的解析结果。它只能由准入创建，未经校验的查询到不了 Backend：
+`QueryBackend` 是聚合绑定的原生查询执行边界。每个操作都接收一个 `AdmittedQuery`：最终逻辑 Query、查询入口、读模型 `model`，以及查询中每个字段引用的解析结果（按本次订阅取得的 Schema 解析，Schema 本身留在准入内部）。它只能由准入创建，未经校验的查询到不了 Backend：
 
 ```kotlin
 val cursorPositions: CursorPositionCodec
@@ -27,7 +27,7 @@ Backend 不读取 Provider，不执行请求策略、公共查询校验，不查
 
 ## Factory 与路由
 
-`SnapshotQueryBackendFactory.create(namedAggregate)` 与 `EventStreamQueryBackendFactory.create(namedAggregate)` 返回 `QueryBackendBinding`，配对 Backend 与它的存储适配器（`QueryStorageAdapter`）。适配器只报告原生事实：对每个逻辑路径，它的索引、mapping 或 validator 能执行哪些能力、各自绑定到哪里。核心的 `QuerySchemaCatalog` 持有模型来源与敏感等级策略，合并逻辑模型，应用与存储无关的规则（游标要求每条记录一个值，时间聚合要求日期或 epoch 编码，元素作用域是对象数组），并为每个聚合的每个模型发布一个 `QueryModelSchemaProvider`。Gateway、点读与 Schema HTTP 端点都读取 Catalog。抽象 Factory 缓存完整 binding；Routing Factory 原子转发它，Spring Registrar 在创建聚合 Gateway 时选择一次路由。
+`SnapshotQueryBackendFactory.create(namedAggregate)` 与 `EventStreamQueryBackendFactory.create(namedAggregate)` 返回 `QueryBackendBinding`，配对 Backend 与它的存储适配器（`QueryStorageAdapter`）。适配器只报告原生事实：`facts(logicalSchema)` 与 `refresh(logicalSchema)`（重新加载适配器缓存的原生结构）返回 `QueryStorageFacts`，包括每个逻辑路径的 `bindings`（它的索引、mapping 或 validator 能执行哪些能力、各自绑定到哪里）、模型级的 `capabilities`（例如整条记录的全文检索），以及 `storage` 支持声明（分页与聚合方式，见[存储支持声明](#存储支持声明)）。没有查询后端的聚合模型使用 `UnavailableQueryStorageAdapter`：加载时按它的消息失败，Catalog 也不重新校验它。核心的 `QuerySchemaCatalog` 持有模型来源与敏感等级策略，合并逻辑模型，应用与存储无关的规则（游标要求每条记录一个值，时间聚合要求日期或 epoch 编码，元素作用域是对象数组），并为每个聚合的每个模型发布一个 `QueryModelSchemaProvider`。Gateway、点读与 Schema HTTP 端点都读取 Catalog。Catalog 通过 `QueryModelCompiler` 编译每个模型，默认为 `QueryModelCompiler.of(sources, sensitivity)`；应用注册了 `QueryModelCompiler` Bean 时，starter 改用它（例如在测试中编译固定的 schema）。抽象 Factory 缓存完整 binding；Routing Factory 原子转发它，Spring Registrar 在创建聚合 Gateway 时选择一次路由。
 
 存储通过 `QueryBackendProvider` SPI 注册它的 Factory：一个 `name`，以及它提供的快照和/或事件流 Factory。Spring starter 收集所有 provider Bean，按名称路由；新增存储只需实现后端并注册 provider，不需要改动 starter：
 
@@ -73,6 +73,6 @@ MongoDB 使用 keyset，Elasticsearch 使用无 PIT 的 search_after；均不执
 
 ## 存储支持声明
 
-除了每个字段的原生能力，存储适配器还在 `QueryModelSchema.storage` 中声明分页方式（keyset 分页、不限量流式）与聚合方式（HAVING、按指标取前 N、dense 补空、百分位、去重计数），各自为 `NATIVE`、`RESIDUAL` 或 `NONE`。`RESIDUAL` 的算子由核心在 Backend 之后用共享的纯函数计算，并相应调整下发的查询：从查询中去掉 HAVING、指标排序或 dense 标记，算子需要全部分组时请求 `GroupWindow.All`，再依次执行 dense 补空、HAVING、前 N 或 limit。声明为 `NONE` 的能力在任何 I/O 之前拒绝，能力描述也不列出它。MongoDB 全部原生计算；Elasticsearch 的 composite 聚合没有 bucket selector、不能按指标排序、也没有空桶，所以把 HAVING、按指标取前 N 与 dense 补空声明为 `RESIDUAL`。
+除了每个字段的原生能力，存储适配器还在 `QueryStorageFacts.storage`（编译进 `QueryModelSchema.storage`）中声明分页方式（keyset 分页、不限量流式）与聚合方式（HAVING、按指标取前 N、dense 补空、百分位、去重计数），各自为 `NATIVE`、`RESIDUAL` 或 `NONE`。`RESIDUAL` 的算子由核心在 Backend 之后用共享的纯函数计算，并相应调整下发的查询：从查询中去掉 HAVING、指标排序或 dense 标记，算子需要全部分组时请求 `GroupWindow.All`，再依次执行 dense 补空、HAVING、前 N 或 limit。声明为 `NONE` 的能力在任何 I/O 之前拒绝，能力描述也不列出它。MongoDB 全部原生计算；Elasticsearch 的 composite 聚合没有 bucket selector、不能按指标排序、也没有空桶，所以把 HAVING、按指标取前 N 与 dense 补空声明为 `RESIDUAL`。
 
 Schema 端点与错误语义见[查询模型 Schema](./query-model-schema.md)、[WebFlux](../extensions/webflux.md)和[OpenAPI](../open-api.md)。

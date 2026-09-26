@@ -63,7 +63,7 @@ EventStore batch 使用 Bulk `create`；SnapshotStore direct/batch 都以 `_sour
 
 ## 快照查询字段解析
 
-查询 factory 把逻辑 `QueryModelSchema` 与目标索引 mapping 合并，为 exact match、range、sort、presence、projection 等绑定物理路径；准入按这些 binding 解析每个字段引用，编译器消费得到的 `ResolvedField`。multi-field、runtime field 和禁用 object 服从 Elasticsearch mapping；不要在 HTTP 层猜测 `.keyword`。
+存储适配器（`ElasticsearchQuerySchemaAdapter`，一个 `QueryStorageAdapter`）读取目标索引 mapping，把它报告为存储事实：为 exact match、range、sort、presence、projection 等绑定的物理路径；`QuerySchemaCatalog` 把这些事实与逻辑模型编译成 `QueryModelSchema`；准入按这些 binding 解析每个字段引用，编译器消费得到的 `ResolvedField`。multi-field、runtime field 和禁用 object 服从 Elasticsearch mapping；不要在 HTTP 层猜测 `.keyword`。
 
 ## 重新校验运行时查询 Schema
 
@@ -149,7 +149,7 @@ batch options 必须满足 `max-size>1`、正 `max-delay`、pending 不小于 ba
 
 #### 2. 重新校验端点不可用或重新校验失败
 
-确认 Spring Boot Actuator 在 classpath 上并在管理面暴露 `wowQuerySchema` 端点，且 query factory 已装配；`wow.query.schema.refresh` 指标记录每次结果。mapping 读取失败应保持失败，不应回退为“所有字段都可查”。
+确认 Spring Boot Actuator 在 classpath 上并在管理面暴露 `wowQuerySchema` 端点，且 query factory 已装配，`QuerySchemaCatalog` 才有模型可重新校验；Catalog 的 `wow.query.schema.refresh` 指标记录每次结果。mapping 读取失败应保持失败，不应回退为“所有字段都可查”。
 
 #### 3. alias 或 data stream 无法解析
 

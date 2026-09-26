@@ -37,7 +37,7 @@ flowchart LR
     Result --> Observer["Terminal observer"]
 ```
 
-整个订阅只使用一个 Schema 版本：准备、准入与脱敏都用它，`AdmittedQuery` 把它带给 Backend，Backend 的编译器读取已解析的字段，不再重新查找 Schema。Schema 获取失败或 prepare 空完成都是错误，Backend 不执行。retry/repeat 会重新订阅并重新取得 Schema。count 返回 Long，不执行结果 Mask；aggregation 在执行前拒绝受保护的分组/metric/expression，不依靠修改聚合结果掩盖泄漏。
+整个订阅只使用一个 Schema 版本：准入与脱敏都用它；Backend 的编译器读取准入按它解析、由 `AdmittedQuery` 携带的字段，不再重新查找 Schema。Schema 获取失败或 prepare 空完成都是错误，Backend 不执行。retry/repeat 会重新订阅并重新取得 Schema。count 返回 Long，不执行结果 Mask；aggregation 在执行前拒绝受保护的分组/metric/expression，不依靠修改聚合结果掩盖泄漏。
 
 ## 请求准备扩展
 
@@ -59,6 +59,8 @@ interface QueryFilter {
 | `QueryPolicy.evaluate` | 附加的逻辑 FilterExpression 或错误 | Gateway 在全部 prepare 之后以 AND 合并 |
 
 两者都能构造过滤条件。允许被覆盖的请求准备使用 QueryFilter；必须在全部 prepare 后仍生效的条件使用 QueryPolicy。例如，必须满足的 `state.visible = true`、数据生命周期限制和权限条件都属于 Policy。QueryPolicy 的规则领域是通用的，执行权限限于追加约束或拒绝查询。内置模型默认值、Schema 校验、Backend 执行和结果处理保留原有职责。
+
+策略与 `QueryFilter` 一样按 `@Order` 顺序逐个执行，未标注顺序的保持注册顺序。策略条件以 AND 合并，所以顺序只决定先报哪个策略的错误、审计中哪条记录在前。
 
 ## 请求作用域与策略
 
@@ -125,7 +127,7 @@ snapshotQueryGateway.dynamicList(lookup).asInProcessQuery()
 | `UNKNOWN_FIELD`、`UNSUPPORTED_CAPABILITY`、`ELEMENT_SCOPE_REQUIRED`、`VALUE_MISMATCH`、`NOT_COLLECTION`、`NOT_SINGLE_STRING`、`MODEL_SEARCH_UNSUPPORTED`、`CURSOR_NOT_ALLOWED`、`PROTECTED_AGGREGATION`、`PROTECTED_COMPARISON`、`MISSING_KEY_REQUIRES_STRING`、`ANY_REQUIRES_SINGLE_VALUE`、`INCOMPLETE_PROJECTION`、`METRIC_FILTER_SEARCH`、`METRIC_FILTER_ELEMENT_MATCH`、`METRIC_FILTER_ARRAY_FIELD`、`NOT_PROJECTABLE`、`EVENT_PROJECTION_TYPE_REQUIRED`、`TEMPORAL_REPRESENTATION_REQUIRED`、`TEMPORAL_CONFIGURATION_CONFLICT`、`PARALLEL_ARRAY_SORT`、`ARRAY_EQUALITY`、`FIRST_LAST_REQUIRES_SINGLE_VALUE`、`FIRST_LAST_REQUIRES_ORDER_BY`、`TEMPORAL_AGGREGATION_UNSUPPORTED`、`SORT_TOO_MANY`、`SORT_FIELD_DUPLICATE`、`IDENTITY_UNDEFINED` | 模型在准入时拒绝 |
 | `STORAGE_UNSUPPORTED` | 存储无法执行查询用到的特性（`msg` 写明）：存储声明不支持的，在准入时拒绝；原生查询语言表达不了的，由后端在任何 I/O 之前拒绝 |
 
-`UNKNOWN_FIELD` 所在行之前的代码，`errorCode` 为 `IllegalArgument`；该行及之后的为 `QuerySchemaValidation`。客户端改请求也无法解决的失败（脱敏策略执行失败、存储的记录或后端返回的行破坏完整性、存储超时或分片失败）是服务端故障：HTTP 500，`errorCode` 为 `InternalServerError`，不带 `bindingErrors`。
+`UNKNOWN_FIELD` 所在行之前的代码，`errorCode` 为 `IllegalArgument`；该行及之后的为 `QuerySchemaValidation`。客户端改请求也无法解决的失败（脱敏策略执行失败、存储的记录或后端返回的行破坏完整性、存储超时或分片失败、其他存储或驱动错误）是服务端故障：HTTP 500，`errorCode` 为 `InternalServerError`，不带 `bindingErrors`。存储或驱动错误的文案为 `Query storage failed.`；它自己的消息可能引用查询取值，只留在服务端，查询日志中也会隐去。服务端故障可以重试，修改查询没有帮助。
 
 ## 结果与观察
 

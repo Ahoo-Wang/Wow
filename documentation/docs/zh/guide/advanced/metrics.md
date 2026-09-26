@@ -85,7 +85,7 @@ instrumentation。属性为 `false` 时，最高优先级
 | `wow.query.schema.refresh` | Timer | `context`、`aggregate`、`model`、`outcome`（`success`、`failure`） |
 | `wow.query.schema.version.changes` | Counter | `context`、`aggregate`、`model` |
 
-`code` 是被拒绝时违反的规则，例如 `QuerySchemaValidation:UNKNOWN_FIELD` 或 `IllegalArgument`；未失败的查询为 `none`。按 `code` 分组 `wow.query`，即可把准入拒绝按违反的规则分类。标签中不含过滤取值、范围取值或查询指纹。schema 刷新失败（`outcome=failure`）时保留上一个版本。这些指标来自 `QueryMetricsObserver`，并通过 `CompositeQueryObserver` 与 `QueryLogObserver` 组合；自定义 observer Bean 会替换二者。
+`code` 是错误码与被违反的规则，例如 `QuerySchemaValidation:UNKNOWN_FIELD` 或 `IllegalArgument:SIZE_OUT_OF_RANGE`；错误未给出规则时只有错误码（服务端故障为 `InternalServerError`）；未失败的查询为 `none`。按 `code` 分组 `wow.query`，即可把准入拒绝按违反的规则分类。标签中不含过滤取值、范围取值或查询指纹。schema 刷新失败（`outcome=failure`）时保留上一个版本。这些指标来自 `QueryMetricsObserver`，并通过 `CompositeQueryObserver` 与 `QueryLogObserver` 组合；自定义 observer Bean 会替换二者。
 
 ## 非 Spring 接入
 

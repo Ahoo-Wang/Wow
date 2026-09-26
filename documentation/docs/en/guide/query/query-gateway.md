@@ -37,7 +37,7 @@ flowchart LR
     Result --> Observer["Terminal observer"]
 ```
 
-One Schema version serves the whole subscription: preparation, admission and masking use it, and the `AdmittedQuery` carries it to the Backend, whose compilers read the resolved fields instead of looking the Schema up again. Schema failure or empty prepare completion fails before Backend execution. Retry/repeat starts a fresh subscription and obtains its Schema again. Count returns Long without result masking. Aggregation rejects protected grouping/metric/expression inputs before execution rather than attempting to conceal them in returned aggregate rows.
+One Schema version serves the whole subscription: admission and masking use it, and the Backend's compilers read the fields admission resolved against it, carried by the `AdmittedQuery`, instead of looking the Schema up again. Schema failure or empty prepare completion fails before Backend execution. Retry/repeat starts a fresh subscription and obtains its Schema again. Count returns Long without result masking. Aggregation rejects protected grouping/metric/expression inputs before execution rather than attempting to conceal them in returned aggregate rows.
 
 ## Request preparation extension
 
@@ -59,6 +59,8 @@ interface QueryFilter {
 | `QueryPolicy.evaluate` | An additional logical FilterExpression or an error | Gateway applies it with AND after all prepare steps |
 
 Both can construct filter expressions. Use QueryFilter when replacement is allowed; use QueryPolicy when a condition must survive all preparation. For example, mandatory `state.visible = true`, a data lifecycle restriction, or an authorization condition belongs in a Policy. QueryPolicy remains generic in the rules it represents; its authority is limited to adding constraints or rejecting a query. Built-in model defaults, Schema validation, backend execution and result processing retain their existing owners.
+
+Policies run one after another in `@Order` order, like `QueryFilter`; unordered policies keep their registration order. Their filters are ANDed, so the order decides only which policy's error, and which audit entry, comes first.
 
 ## Request scope and policies
 
@@ -125,7 +127,7 @@ A query the client got wrong is answered with HTTP 400 and an `ErrorInfo` body. 
 | `UNKNOWN_FIELD`, `UNSUPPORTED_CAPABILITY`, `ELEMENT_SCOPE_REQUIRED`, `VALUE_MISMATCH`, `NOT_COLLECTION`, `NOT_SINGLE_STRING`, `MODEL_SEARCH_UNSUPPORTED`, `CURSOR_NOT_ALLOWED`, `PROTECTED_AGGREGATION`, `PROTECTED_COMPARISON`, `MISSING_KEY_REQUIRES_STRING`, `ANY_REQUIRES_SINGLE_VALUE`, `INCOMPLETE_PROJECTION`, `METRIC_FILTER_SEARCH`, `METRIC_FILTER_ELEMENT_MATCH`, `METRIC_FILTER_ARRAY_FIELD`, `NOT_PROJECTABLE`, `EVENT_PROJECTION_TYPE_REQUIRED`, `TEMPORAL_REPRESENTATION_REQUIRED`, `TEMPORAL_CONFIGURATION_CONFLICT`, `PARALLEL_ARRAY_SORT`, `ARRAY_EQUALITY`, `FIRST_LAST_REQUIRES_SINGLE_VALUE`, `FIRST_LAST_REQUIRES_ORDER_BY`, `TEMPORAL_AGGREGATION_UNSUPPORTED`, `SORT_TOO_MANY`, `SORT_FIELD_DUPLICATE`, `IDENTITY_UNDEFINED` | The model rejects the query at admission |
 | `STORAGE_UNSUPPORTED` | The storage cannot run a feature the query uses (named in `msg`): one it declares unsupported, rejected at admission, or one its native query language cannot express, rejected by the backend before any I/O |
 
-The rows above `UNKNOWN_FIELD` carry `errorCode` `IllegalArgument`; it and the rows below it carry `QuerySchemaValidation`. A failure the client cannot fix by changing the request (a failing mask strategy, a stored record or backend row that breaks integrity, a storage timeout or shard failure) is a server fault: HTTP 500 with `errorCode` `InternalServerError` and no `bindingErrors`.
+The rows above `UNKNOWN_FIELD` carry `errorCode` `IllegalArgument`; it and the rows below it carry `QuerySchemaValidation`. A failure the client cannot fix by changing the request (a failing mask strategy, a stored record or backend row that breaks integrity, a storage timeout or shard failure, any other storage or driver error) is a server fault: HTTP 500 with `errorCode` `InternalServerError` and no `bindingErrors`. A storage or driver error is answered as `Query storage failed.`; its own message, which may quote query values, stays server-side, and the query log redacts it. Retry a server fault; changing the query does not help.
 
 ## Results and observation
 
