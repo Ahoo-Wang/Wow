@@ -25,6 +25,7 @@ import io.mockk.verify
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.ElementMatchFilter
 import me.ahoo.wow.api.query.EqualFilter
+import me.ahoo.wow.api.query.FilterOperator
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.annotation.SensitivityLevel
 import me.ahoo.wow.api.query.schema.QueryCapability
@@ -317,6 +318,32 @@ class MongoQuerySchemaAdapterTest {
     }
 
     @Test
+    fun `items that are all objects are element scopes, a union of objects included, as on every storage`() {
+        val circle = obj("kind" to scalar(), "radius" to scalar(QueryValueType.INTEGER))
+        val square = obj("kind" to scalar(), "side" to scalar(QueryValueType.INTEGER))
+        val nothing = QueryValueSchema(QueryValueKind.NULL)
+        listOf(union(circle, square), union(circle, nothing)).forEach { items ->
+            val schema = bind("shapes", array(items))
+            schema.field(QueryField("shapes"))!!.bindings.keys.assert().contains(QueryCapability.ELEMENT_SCOPE)
+            schema.field(QueryField("shapes.kind"))!!.effective.operators.assert().contains(FilterOperator.EQ)
+        }
+        val validated = bind(
+            "shapes",
+            array(union(circle, square)),
+            Document("bsonType", "array").append("items", Document("bsonType", "object")),
+        )
+        validated.field(QueryField("shapes"))!!.bindings.keys.assert().contains(QueryCapability.ELEMENT_SCOPE)
+        // Storage that contradicts object items, or items that are not all objects, grant none.
+        bind(
+            "shapes",
+            array(union(circle, square)),
+            Document("bsonType", "array").append("items", Document("bsonType", "string")),
+        ).field(QueryField("shapes"))!!.bindings.keys.assert().doesNotContain(QueryCapability.ELEMENT_SCOPE)
+        bind("shapes", array(union(circle, scalar()))).field(QueryField("shapes"))!!.bindings.keys.assert()
+            .doesNotContain(QueryCapability.ELEMENT_SCOPE)
+    }
+
+    @Test
     fun `native date operands stay unsupported while date aggregation and cursor families remain available`() {
         listOf("date", "timestamp").forEach { native ->
             val schema = bind("created", scalar(semantic = Temporal.Date), Document("bsonType", listOf(native, "null")))
@@ -462,6 +489,8 @@ class MongoQuerySchemaAdapterTest {
         vararg fields: Pair<String, QueryValueSchema>
     ) = QueryValueSchema(QueryValueKind.OBJECT, properties = fields.toMap())
     private fun array(items: QueryValueSchema) = QueryValueSchema(QueryValueKind.ARRAY, items = items)
+    private fun union(vararg values: QueryValueSchema) =
+        QueryValueSchema(QueryValueKind.UNION, alternatives = values.toList())
     private fun scalar(type: QueryValueType = QueryValueType.STRING, semantic: Temporal? = null) =
         QueryValueSchema(QueryValueKind.SCALAR, valueTypes = setOf(type), semanticType = semantic)
     private fun bind(path: String, value: QueryValueSchema, validator: Document? = null) = MongoQuerySchemaAdapter.bind(

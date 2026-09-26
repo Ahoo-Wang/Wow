@@ -65,7 +65,8 @@ class QueryStorageFacts(
      * - a cursor orders by one value per record, so no path inside an array or with an array alternative is
      *   cursor-sortable;
      * - temporal aggregation reads instants, so it needs one date or epoch encoding shared by every value;
-     * - an element scope is an array of objects.
+     * - an element scope is an array of objects, a union of objects included ([isElementScope]); storages only say
+     *   whether their native structures can match one element.
      */
     fun compile(model: QueryModel, logicalSchema: LogicalQuerySchema): QueryModelSchema = QueryModelSchema(
         model = model,

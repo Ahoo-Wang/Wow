@@ -73,6 +73,6 @@ MongoDB 使用 keyset，Elasticsearch 使用无 PIT 的 search_after；均不执
 
 ## 存储支持声明
 
-除了每个字段的原生能力，存储适配器还在 `QueryModelSchema.storage` 中声明分页方式（keyset 分页、不限量流式）与聚合方式（HAVING、按指标取前 N、dense 补空、百分位、去重计数），各自为 `NATIVE`、`RESIDUAL` 或 `NONE`。`RESIDUAL` 的算子由核心在 Backend 之后用共享的纯函数计算，并相应调整下发的查询：从查询中去掉 HAVING、指标排序或 dense 标记，算子需要全部分组时请求 `GroupWindow.All`，再依次执行 dense 补空、HAVING、前 N 或 limit。声明为 `NONE` 的能力在任何 I/O 之前拒绝。MongoDB 全部原生计算；Elasticsearch 的 composite 聚合没有 bucket selector、不能按指标排序、也没有空桶，所以把 HAVING、按指标取前 N 与 dense 补空声明为 `RESIDUAL`。
+除了每个字段的原生能力，存储适配器还在 `QueryModelSchema.storage` 中声明分页方式（keyset 分页、不限量流式）与聚合方式（HAVING、按指标取前 N、dense 补空、百分位、去重计数），各自为 `NATIVE`、`RESIDUAL` 或 `NONE`。`RESIDUAL` 的算子由核心在 Backend 之后用共享的纯函数计算，并相应调整下发的查询：从查询中去掉 HAVING、指标排序或 dense 标记，算子需要全部分组时请求 `GroupWindow.All`，再依次执行 dense 补空、HAVING、前 N 或 limit。声明为 `NONE` 的能力在任何 I/O 之前拒绝，能力描述也不列出它。MongoDB 全部原生计算；Elasticsearch 的 composite 聚合没有 bucket selector、不能按指标排序、也没有空桶，所以把 HAVING、按指标取前 N 与 dense 补空声明为 `RESIDUAL`。
 
 Schema 端点与错误语义见[查询模型 Schema](./query-model-schema.md)、[WebFlux](../extensions/webflux.md)和[OpenAPI](../open-api.md)。

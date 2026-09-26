@@ -112,7 +112,7 @@ MongoDB 中，对于单值字段，`IS_NULL` 的 `field = null` 匹配 null 或�
 
 元素谓词不能包含 root-only 的 `ID`、`IDS`、`AGGREGATE_ID`、`AGGREGATE_IDS`、`TENANT_ID`、`OWNER_ID`、`SPACE_ID`、`DELETION` 或模型级 `SEARCH`（不带 `fields`），即使它们嵌套在 `AND`、`OR`、`NOR` 或另一个 `ELEMENT_MATCH` 中。
 
-MongoDB 将 `ELEMENT_MATCH` 编译为 `$elemMatch`；Elasticsearch 将其编译为 `nested` 查询，因此 Elasticsearch 需要对应字段使用 `nested` mapping。是否存在可用的元素作用域由 Query Schema 的 `ELEMENT_SCOPE` 能力决定；普通对象数组与 nested 数组不能互相推断。
+MongoDB 将 `ELEMENT_MATCH` 编译为 `$elemMatch`；Elasticsearch 将其编译为 `nested` 查询，因此 Elasticsearch 需要对应字段使用 `nested` mapping。是否存在可用的元素作用域由 Query Schema 的 `ELEMENT_SCOPE` 能力决定；普通对象数组与 nested 数组不能互相推断。在任何存储上，只有非 null 元素全是对象的数组（包括对象的联合，即密封类）才能成为元素作用域。
 
 ## 删除标记与全文搜索
 

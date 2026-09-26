@@ -215,8 +215,10 @@ class MongoQuerySchemaAdapter(
             val item = checkNotNull(items)
             val itemPath = QueryPathTemplate(path.segments + QueryPathSegment.Item)
             if (capability == QueryCapability.ELEMENT_SCOPE) {
-                // The validator proves the item object itself; MongoDB does not prove a union of objects.
-                return item.kind == QueryValueKind.OBJECT && item.containerSupported(native.storageAt(itemPath))
+                // `$elemMatch` reads any item; storage need only not contradict object items. Whether the logical
+                // items are objects (a union of objects included) is the Catalog's rule (QueryStorageFacts.compile).
+                val itemStorage = native.storageAt(itemPath)
+                return itemStorage?.uncertain != true && itemStorage?.types.proves(listOf(OBJECT_TYPES))
             }
             if (capability == QueryCapability.CURSOR_SORT || item.kind == QueryValueKind.ARRAY) return false
             return item.supports(capability, itemPath, native)

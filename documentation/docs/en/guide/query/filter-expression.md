@@ -112,7 +112,7 @@ The semantic matrix `FilterSemantics` (wow-api, next to `FilterOperatorSpec`) wr
 
 An element predicate cannot contain the root-only `ID`, `IDS`, `AGGREGATE_ID`, `AGGREGATE_IDS`, `TENANT_ID`, `OWNER_ID`, `SPACE_ID`, `DELETION`, or a model-wide `SEARCH` (one without `fields`), even when nested in `AND`, `OR`, `NOR`, or another `ELEMENT_MATCH`.
 
-MongoDB compiles `ELEMENT_MATCH` to `$elemMatch`; Elasticsearch compiles it to a `nested` query, so the corresponding Elasticsearch field must use a `nested` mapping. Whether an element scope is available is determined by the Query Schema's `ELEMENT_SCOPE` capability; an ordinary object array cannot be assumed to behave like a nested array.
+MongoDB compiles `ELEMENT_MATCH` to `$elemMatch`; Elasticsearch compiles it to a `nested` query, so the corresponding Elasticsearch field must use a `nested` mapping. Whether an element scope is available is determined by the Query Schema's `ELEMENT_SCOPE` capability; an ordinary object array cannot be assumed to behave like a nested array. On every storage, only an array whose non-null items are all objects, a union of objects (a sealed class) included, can be an element scope.
 
 ## Deletion Markers and Full-text Search
 
