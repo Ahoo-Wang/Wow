@@ -70,6 +70,14 @@ export interface DisplayField {
   elements?: readonly ElementField[];
   /** A time field kept in epoch seconds (`epochUnitOf`); milliseconds when unsaid. */
   timeUnit?: EpochTimeUnit;
+  /**
+   * How finely a time of day is read. A filter's times are set to the minute
+   * (用户 2026-09-25), so a condition says 「09:05」, not 「09:05:00」 —
+   * `'minute'`, used by the date control's trigger and the condition's
+   * summary. A time that does carry seconds still says them, so no bound is
+   * ever shown other than it runs. A record's own values keep the seconds.
+   */
+  timePrecision?: 'minute';
 }
 
 /** One field of an element, by its name within the element. */
@@ -123,7 +131,13 @@ export function displayValue(
             // datetime field as anywhere else: it is how a date condition
             // says "the whole day" (kernels.md), and printing 12:00:00 AM
             // beside it states a moment nobody wrote.
-            ...(time.dayOnly ? {} : { timeStyle: 'medium' as const }),
+            // `short` is hours and minutes: a filter's time on the minute.
+            timeStyle: time.dayOnly
+              ? undefined
+              : field.timePrecision === 'minute' &&
+                  time.date.getTime() % 60_000 === 0
+                ? 'short'
+                : 'medium',
             timeZone: time.timeZone,
           })
         : undefined;

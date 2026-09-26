@@ -405,10 +405,16 @@ describe('the states behind a click pass axe', () => {
         }),
       }),
     );
-    await screen.findByLabelText(defaultMessages['label.date.time-from']);
-    expect(
-      screen.getByLabelText(defaultMessages['label.date.time-to']),
-    ).toBeDefined();
+    // Folded to the whole day, and open to an hour and a minute a bound.
+    const add = await screen.findByRole('button', {
+      name: defaultMessages['label.date.time-add'],
+    });
+    expect(await violations(document.body)).toEqual([]);
+    await user.click(add);
+    for (const key of ['label.date.time-from', 'label.date.time-to'] as const)
+      expect(
+        screen.getByRole('group', { name: defaultMessages[key] }),
+      ).toBeDefined();
 
     expect(await violations(document.body)).toEqual([]);
   });

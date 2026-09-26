@@ -212,6 +212,16 @@ export const filterMessages = {
   'label.date.time': 'Time',
   'label.date.time-from': 'From time',
   'label.date.time-to': 'To time',
+  // Folded until a time is asked for (2026-09-25): a date is a whole day,
+  // and a time is typed to the minute, an hour box and a minute box.
+  'label.date.time-whole-day': 'Whole day',
+  'label.date.time-add': 'Set a time',
+  'label.date.time-remove': 'Remove time',
+  'label.date.time-removed': 'Time removed: whole days',
+  'label.date.time-clear': 'Clear {time}',
+  'label.date.time-cleared': '{time} cleared: the whole day',
+  'label.date.time-hour': '{time} hour',
+  'label.date.time-minute': '{time} minute',
   'label.date.time-hint':
     'Left empty, a day runs from 00:00:00 through 23:59:59.999.',
 

@@ -877,20 +877,52 @@ describe('summaryText', () => {
     // Written out of Intl rather than typed: the badge reads in the
     // surface's own language, and a typed string would only ever prove
     // which machine the suite ran on.
-    const shown = (utc: number, withTime: boolean) =>
+    const shown = (utc: number, time?: 'short' | 'medium') =>
       formatted(utc, undefined, {
         dateStyle: 'medium',
-        ...(withTime ? { timeStyle: 'medium' as const } : {}),
+        ...(time ? { timeStyle: time } : {}),
         timeZone: 'UTC',
       });
 
     expect(say(range('2026-01-01', '2026-01-31'))).toBe(
-      `Created between ${shown(Date.UTC(2026, 0, 1), false)} ~ ` +
-        shown(Date.UTC(2026, 0, 31), false),
+      `Created between ${shown(Date.UTC(2026, 0, 1))} ~ ` +
+        shown(Date.UTC(2026, 0, 31)),
     );
-    expect(say(range('2026-01-01T09:00:00', '2026-01-31T15:30:00'))).toBe(
-      `Created between ${shown(Date.UTC(2026, 0, 1, 9), true)} ~ ` +
-        shown(Date.UTC(2026, 0, 31, 15, 30), true),
+    // A condition's times are set to the minute (2026-09-25), and read to it.
+    expect(say(range('2026-01-01T09:05', '2026-01-31T15:30:00'))).toBe(
+      `Created between ${shown(Date.UTC(2026, 0, 1, 9, 5), 'short')} ~ ` +
+        shown(Date.UTC(2026, 0, 31, 15, 30), 'short'),
+    );
+    // One that carries seconds still says them: no bound reads other than
+    // it runs.
+    expect(say(range('2026-01-01T09:05:30', '2026-01-31T23:59:59.999'))).toBe(
+      `Created between ${shown(Date.UTC(2026, 0, 1, 9, 5, 30), 'medium')} ~ ` +
+        shown(Date.UTC(2026, 0, 31, 23, 59, 59, 999), 'medium'),
+    );
+  });
+
+  /**
+   * The minute reading is the filter's: a record's own time is a value the
+   * backend wrote, and a cell keeps its seconds.
+   */
+  it('reads a time to the minute only where the filter asks', () => {
+    const at = '2026-01-01T09:05:00';
+    const context = { locale: 'en-US' };
+    expect(displayValue(at, { cell: 'datetime' }, context)).toBe(
+      formatted(Date.UTC(2026, 0, 1, 9, 5), 'en-US', {
+        dateStyle: 'medium',
+        timeStyle: 'medium',
+        timeZone: 'UTC',
+      }),
+    );
+    expect(
+      displayValue(at, { cell: 'datetime', timePrecision: 'minute' }, context),
+    ).toBe(
+      formatted(Date.UTC(2026, 0, 1, 9, 5), 'en-US', {
+        dateStyle: 'medium',
+        timeStyle: 'short',
+        timeZone: 'UTC',
+      }),
     );
   });
 

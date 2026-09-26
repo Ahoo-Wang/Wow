@@ -12,9 +12,8 @@
  */
 
 import { CalendarIcon } from 'lucide-react';
-import { useCallback, useId, useLayoutEffect, useMemo, useRef } from 'react';
+import { useCallback, useLayoutEffect, useMemo, useRef } from 'react';
 import type { DateRange } from 'react-day-picker';
-import { cn } from 'cn';
 import type { FilterValue } from '../../../model/index.js';
 import {
   writeValue,
@@ -22,16 +21,9 @@ import {
 } from '../../../filter/index.js';
 import { Button } from '../../components/button.js';
 import { SurfaceCalendar } from './calendar.js';
-import {
-  Field,
-  FieldDescription,
-  FieldGroup,
-  FieldLabel,
-} from '../../components/field.js';
-import { Input } from '../../components/input.js';
+import { TimeOfDay } from './time.js';
 import { Popover, PopoverTrigger } from '../../components/popover.js';
 import { PopoverContent } from '../../popups.js';
-import { SPACE } from '../../layout.js';
 import { useViewMessages } from '../../MessagesProvider.js';
 import { displayValue, type DisplayContext } from '../../display.js';
 import { useSurfaceDisplay } from '../../ViewSurface.js';
@@ -180,87 +172,6 @@ export function AbsoluteDate({
 }
 
 /**
- * The clock half of the control: one box for a single bound, one per end for
- * a range.
- *
- * A native time input is what the registry's own calendar-and-time pattern
- * uses, and it is the only control that is a clock in every language and on
- * every keyboard — hours, minutes and seconds as separate spin fields, all
- * of them reachable with the arrow keys. `step="1"` is what puts the seconds
- * field there; they are optional in the value, and a time given without them
- * is stored on the whole second.
- *
- * A box is disabled while its own end has no day: a time of day is not a
- * moment until something says which day it is on, and seeding the day from
- * the clock is exactly what a blank date condition must not do.
- */
-function TimeOfDay({
-  range,
-  disabled,
-  from,
-  to,
-  onFrom,
-  onTo,
-}: {
-  range: boolean;
-  disabled?: boolean;
-  from: DayTime;
-  to: DayTime;
-  onFrom(time: string): void;
-  onTo(time: string): void;
-}) {
-  const messages = useViewMessages();
-  const id = useId();
-
-  // Label above box, which is `Field`'s own default and what the registry's
-  // forms are. Side by side, the two of them shared the popover's width with
-  // the box: 「起始时刻」 was given 48px and broke across two lines in the
-  // middle of a word, and the same 48px would not have held `From time`
-  // either — a name that has to be read twice to be read at all.
-  return (
-    <FieldGroup className={cn('border-t p-3', SPACE.ROWS)}>
-      <Field>
-        <FieldLabel htmlFor={`${id}-from`}>
-          {messages.label(range ? 'label.date.time-from' : 'label.date.time')}
-        </FieldLabel>
-        <Input
-          id={`${id}-from`}
-          type="time"
-          step="1"
-          className="w-full"
-          disabled={disabled || from.day === ''}
-          value={from.time}
-          onChange={event => onFrom(readTime(event.target.value))}
-        />
-      </Field>
-      {range && (
-        <Field>
-          <FieldLabel htmlFor={`${id}-to`}>
-            {messages.label('label.date.time-to')}
-          </FieldLabel>
-          <Input
-            id={`${id}-to`}
-            type="time"
-            step="1"
-            className="w-full"
-            disabled={disabled || to.day === ''}
-            value={to.time}
-            onChange={event => onTo(readTime(event.target.value))}
-          />
-        </Field>
-      )}
-      {/* What an empty box means is the whole point of the control, and it
-          is not guessable: left empty a bound is the day itself, read as an
-          interval — its first millisecond on the way in, its last on the way
-          out. */}
-      <FieldDescription>
-        {messages.label('label.date.time-hint')}
-      </FieldDescription>
-    </FieldGroup>
-  );
-}
-
-/**
  * One bound as the two controls hold it: the calendar day, and the time of
  * day when the bound names one. An empty `time` is the interval reading —
  * the whole day — and not midnight.
@@ -268,7 +179,7 @@ function TimeOfDay({
 interface DayTime {
   /** `2026-01-31`, or `''` while nothing is picked. */
   day: string;
-  /** `15:30:00`, or `''` when the bound names only a day. */
+  /** `15:30`, or `''` when the bound names only a day — to the minute. */
   time: string;
 }
 
@@ -299,7 +210,7 @@ function readBound(text: string | undefined, withTime: boolean): DayTime {
   const read = wall
     ? {
         day: wall[1],
-        time: wall[2] === undefined ? '' : `${wall[2]}:${wall[3] ?? '00'}`,
+        time: wall[2] ?? '',
       }
     : instantAt(text);
   return withTime ? read : { day: read.day, time: '' };
@@ -326,12 +237,6 @@ function storeBound(bound: DayTime): string {
   return bound.time === '' ? bound.day : `${bound.day}T${bound.time}`;
 }
 
-/** What the native control gives back: nothing, `HH:mm`, or `HH:mm:ss`. */
-function readTime(raw: string): string {
-  if (raw === '') return '';
-  return raw.length === 5 ? `${raw}:00` : raw;
-}
-
 /** A stored day as the `Date` the calendar selects by. */
 function parseDay(day: string): Date | undefined {
   if (day === '') return undefined;
@@ -345,7 +250,7 @@ function dayOf(date?: Date): string {
 }
 
 function timeOf(date: Date): string {
-  return `${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+  return `${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
 function pad(part: number): string {
@@ -373,7 +278,10 @@ function formatDate(
 ): string {
   if (!stored) return blank;
   return (
-    displayValue(stored, { cell: withTime ? 'datetime' : 'date' }, display) ??
-    blank
+    displayValue(
+      stored,
+      { cell: withTime ? 'datetime' : 'date', timePrecision: 'minute' },
+      display,
+    ) ?? blank
   );
 }

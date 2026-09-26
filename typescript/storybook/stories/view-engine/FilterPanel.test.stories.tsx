@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 import type { StoryObj } from '@storybook/react-vite';
-import { expect, fireEvent, userEvent, waitFor, within } from 'storybook/test';
+import { expect, userEvent, waitFor, within } from 'storybook/test';
 import { formatMessage, zhCN } from '@ahoo-wang/wow-view-engine/ui';
 import displayMeta, {
   Advanced as DisplayAdvanced,
@@ -370,13 +370,13 @@ export const DeletionReading: Story = {
 
 /**
  * A `withTime` field's condition carries a time of day, in the same control
- * as the calendar and with one submission (D17-1). The box starts empty,
- * which is the day itself — read at `00:00:00.000` as a start and at
- * `23:59:59.999` as an end — and the summary says the time only where one
- * was given, so the badge never claims a boundary the query did not run to.
- *
- * Only a real browser can drive a native time input, which is why this lives
- * here and not in jsdom.
+ * as the calendar and with one submission (D17-1) — folded to 「按整天」
+ * until 「指定时刻」 is pressed (用户 2026-09-25), then typed to the minute,
+ * an hour box and a minute box a bound. Each bound's × takes it back to the
+ * whole day, 「移除时刻」 folds the section again, and the summary says the
+ * time only where one was given, so the badge never claims a boundary the
+ * query did not run to. It ends with the section open, which the story's
+ * axe pass then reads.
  */
 export const WithTime: Story = {
   ...DisplayWithTime,
@@ -395,41 +395,73 @@ export const WithTime: Story = {
     await userEvent.click(trigger);
 
     const popup = within(document.body);
-    const from = await popup.findByLabelText(zhCN['label.date.time-from']);
-    // Both boxes are empty to begin with: that is the whole day, not
-    // midnight, and it is what the hint under them says.
-    await expect(from).toHaveValue('');
-    await expect(popup.getByLabelText(zhCN['label.date.time-to'])).toHaveValue(
-      '',
+    // A day to begin with: the whole of it, which the hint under it says.
+    // Visible once the popover has faded in.
+    await waitFor(() =>
+      expect(popup.getByText(zhCN['label.date.time-whole-day'])).toBeVisible(),
     );
-
-    // Reachable and editable from the keyboard: the box takes focus, and
-    // the value is then set the way the browser's own spin fields set it.
-    // Synthetic keystrokes do not drive a native time input's segments —
-    // they are untrusted, so Chromium ignores them — which is why this
-    // changes the value rather than typing six digits into it.
-    await userEvent.click(from);
-    await expect(from).toHaveFocus();
-    fireEvent.change(from, { target: { value: '15:30:00' } });
-    await waitFor(() => expect(from).toHaveValue('15:30:00'));
-    await userEvent.keyboard('{Escape}');
-
-    // The trigger reads the bound back with the time on the start edge and
-    // without one on the end, through the surface's own formatter: a
-    // wall-clock string names a time on a clock rather than a moment, so it
-    // is shown as written whatever zone the browser is in.
+    const add = () =>
+      popup.getByRole('button', { name: zhCN['label.date.time-add'] });
+    const hour = () =>
+      popup.getByRole('textbox', {
+        name: `${zhCN['label.date.time-from']} 小时`,
+      });
+    const minute = () =>
+      popup.getByRole('textbox', {
+        name: `${zhCN['label.date.time-from']} 分钟`,
+      });
     const shown = (utc: number, withTime: boolean) =>
       new Intl.DateTimeFormat('zh-CN', {
         dateStyle: 'medium',
-        ...(withTime ? { timeStyle: 'medium' as const } : {}),
+        // To the minute, as it was set: 「09:05」, not 「09:05:00」.
+        ...(withTime ? { timeStyle: 'short' as const } : {}),
         timeZone: 'UTC',
       }).format(utc);
-    await waitFor(() =>
-      expect(trigger.textContent).toBe(
-        `${shown(Date.UTC(2026, 8, 15, 15, 30), true)} – ` +
-          shown(Date.UTC(2026, 8, 17), false),
-      ),
+    const days = `${shown(Date.UTC(2026, 8, 15), false)} – ${shown(Date.UTC(2026, 8, 17), false)}`;
+    const timed = `${shown(Date.UTC(2026, 8, 15, 9, 5), true)} – ${shown(Date.UTC(2026, 8, 17), false)}`;
+
+    // Typed, not picked: two digits of hour move on to the minutes.
+    await userEvent.click(add());
+    await waitFor(() => expect(hour()).toHaveFocus());
+    await userEvent.keyboard('09');
+    await expect(minute()).toHaveFocus();
+    await userEvent.keyboard('05');
+    await waitFor(() => expect(trigger.textContent).toBe(timed));
+
+    // Its × takes the start back to the whole day, and says so.
+    await userEvent.click(
+      popup.getByRole('button', {
+        name: formatMessage(zhCN, 'label.date.time-clear', {
+          time: zhCN['label.date.time-from'],
+        }),
+      }),
     );
+    await waitFor(() => expect(trigger.textContent).toBe(days));
+    await expect(hour()).toHaveFocus();
+    await expect(hour()).toHaveValue('');
+    await expect(
+      document.querySelector('[data-slot="date-time-status"]'),
+    ).toHaveTextContent(
+      formatMessage(zhCN, 'label.date.time-cleared', {
+        time: zhCN['label.date.time-from'],
+      }),
+    );
+
+    // 「移除时刻」 folds it all away again.
+    await userEvent.keyboard('09');
+    await userEvent.keyboard('05');
+    await waitFor(() => expect(trigger.textContent).toBe(timed));
+    await userEvent.click(
+      popup.getByRole('button', { name: zhCN['label.date.time-remove'] }),
+    );
+    await waitFor(() => expect(trigger.textContent).toBe(days));
+    await expect(add()).toHaveFocus();
+
+    await userEvent.click(add());
+    await waitFor(() => expect(hour()).toHaveFocus());
+    await userEvent.keyboard('0905');
+    await waitFor(() => expect(trigger.textContent).toBe(timed));
+    await userEvent.keyboard('{Escape}');
 
     await userEvent.click(
       await canvas.findByRole('button', { name: zhCN['label.filter.apply'] }),
@@ -447,7 +479,7 @@ export const WithTime: Story = {
         ),
       ).toEqual([
         `创建时间 ${zhCN['label.operator.BETWEEN']} ` +
-          `${shown(Date.UTC(2026, 8, 15, 15, 30), true)} ~ ` +
+          `${shown(Date.UTC(2026, 8, 15, 9, 5), true)} ~ ` +
           shown(Date.UTC(2026, 8, 17), false),
         // The definition's soft-delete dimension, left blank: said as the
         // default (D17-2).
@@ -455,6 +487,11 @@ export const WithTime: Story = {
           zhCN['label.applied.implied'],
       ]),
     );
+
+    // Open again, the time is there to change.
+    await userEvent.click(trigger);
+    await waitFor(() => expect(hour()).toHaveValue('09'));
+    await expect(minute()).toHaveValue('05');
   },
 };
 
@@ -675,10 +712,15 @@ export const TheCalendarSpeaksTheSurfaceLanguage: Story = {
     // Each field's name on one line. A text node's client rects are one per
     // line it occupies, which is the only way to tell a name that wrapped
     // from one that happened to be tall.
+    // The times, once asked for: each field's name over its hours and
+    // minutes.
+    await userEvent.click(
+      popup.getByRole('button', { name: zhCN['label.date.time-add'] }),
+    );
     for (const key of ['label.date.time-from', 'label.date.time-to'] as const) {
-      const field = popup.getByLabelText(zhCN[key]);
+      const field = popup.getByRole('group', { name: zhCN[key] });
       const name = popover.querySelector<HTMLElement>(
-        `label[for="${field.id}"]`,
+        `#${CSS.escape(field.getAttribute('aria-labelledby')!)}`,
       )!;
       const lines = document.createRange();
       lines.selectNodeContents(name);
