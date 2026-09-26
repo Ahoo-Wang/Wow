@@ -179,7 +179,9 @@ abstract class AbstractQueryGateway<R : Any>(
     override fun cursor(query: ICursorQuery): Mono<CursorPage<R>> = cursor(query, ::materialize)
     override fun dynamicCursor(query: ICursorQuery): Mono<CursorPage<ObjectNode>> = cursor(query) { it }
     override fun count(filter: FilterExpression): Mono<Long> =
-        run(QueryOperation.COUNT, filter) { admitted -> backend.count(admitted) }.singleOrEmpty()
+        run(QueryOperation.COUNT, filter) { admitted ->
+            backend.count(admitted).onErrorMap(::storageFault)
+        }.singleOrEmpty()
 
     override fun aggregate(query: AggregationQuery): Flux<ObjectNode> =
         run(QueryOperation.AGGREGATION, query) { admitted ->

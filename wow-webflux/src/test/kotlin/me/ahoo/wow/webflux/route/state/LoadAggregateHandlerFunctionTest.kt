@@ -14,6 +14,7 @@
 package me.ahoo.wow.webflux.route.state
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.modeling.TenantId
 import me.ahoo.wow.eventsourcing.EventSourcingStateAggregateRepository
 import me.ahoo.wow.eventsourcing.InMemoryEventStore
 import me.ahoo.wow.eventsourcing.snapshot.NoOpSnapshotStore
@@ -21,6 +22,7 @@ import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
 import me.ahoo.wow.openapi.CommonComponent
 import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
+import me.ahoo.wow.query.QueryEntryPolicy
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.tck.mock.MockAggregateCreated
 import me.ahoo.wow.tck.mock.MockCommandAggregate
@@ -119,5 +121,20 @@ class LoadAggregateHandlerFunctionTest {
         status(on, "other-space").assert().isEqualTo(HttpStatus.NOT_FOUND)
         // Off, the declared space is not checked against the state.
         status(PointReadAdmission.DISABLED, "other-space").assert().isEqualTo(HttpStatus.OK)
+
+        // With require-authenticated-scope on, a declared-only tenant scope is refused as on the query routes,
+        // though the state exists in that tenant.
+        val authenticated = PointReadAdmission(
+            enabled = true,
+            entryPolicy = QueryEntryPolicy(requireAuthenticatedScope = true),
+        )
+        val tenantRequest = MockServerRequest.builder()
+            .method(HttpMethod.GET)
+            .uri(URI.create("http://localhost"))
+            .pathVariable(MessageRecords.ID, aggregateId)
+            .pathVariable(MessageRecords.TENANT_ID, TenantId.DEFAULT_TENANT_ID)
+            .build()
+        handler(authenticated).handle(tenantRequest).block()!!.statusCode().assert().isEqualTo(HttpStatus.FORBIDDEN)
+        handler(on).handle(tenantRequest).block()!!.statusCode().assert().isEqualTo(HttpStatus.OK)
     }
 }

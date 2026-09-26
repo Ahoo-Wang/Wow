@@ -24,6 +24,7 @@ import me.ahoo.wow.messaging.compensation.EventCompensateSupporter
 import me.ahoo.wow.modeling.state.StateAggregateFactory
 import me.ahoo.wow.modeling.state.StateAggregateRepository
 import me.ahoo.wow.openapi.RouterSpecs
+import me.ahoo.wow.query.QueryEntryPolicy
 import me.ahoo.wow.query.QueryPolicy
 import me.ahoo.wow.query.event.EventStreamQueryBackendFactory
 import me.ahoo.wow.query.schema.QuerySchemaCatalog
@@ -244,6 +245,7 @@ class WebFluxAutoConfiguration {
         snapshotQueryBackendFactory: ObjectProvider<SnapshotQueryBackendFactory>,
         eventStreamQueryBackendFactory: ObjectProvider<EventStreamQueryBackendFactory>,
         querySchemaCatalog: ObjectProvider<QuerySchemaCatalog>,
+        queryEntryPolicy: ObjectProvider<QueryEntryPolicy>,
     ): PointReadAdmission {
         val state = webFluxProperties.state
         if (!state.pointReadAdmission) {
@@ -269,6 +271,8 @@ class WebFluxAutoConfiguration {
                     catalog.schema(aggregate.namedAggregate, QueryModel.EVENT_STREAM)
                 }
             },
+            // The same entry policy as the query gateways, so point reads honour require-authenticated-scope.
+            entryPolicy = queryEntryPolicy.getIfAvailable { QueryEntryPolicy.DEFAULT },
         )
     }
 

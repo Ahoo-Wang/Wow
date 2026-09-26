@@ -227,7 +227,7 @@ class DefaultEventStreamQueryGatewayTest {
                 .forEach { operation ->
                     Flux.from(operation).test().expectErrorMatches {
                         if (index == 0) {
-                            it is IllegalStateException && it.message!!.contains("QueryPolicy")
+                            it is QueryExecutionException && it.message!!.contains("QueryPolicy")
                         } else {
                             it === rejection
                         }

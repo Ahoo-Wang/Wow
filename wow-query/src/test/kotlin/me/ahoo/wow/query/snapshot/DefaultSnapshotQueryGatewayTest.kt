@@ -326,7 +326,7 @@ class DefaultSnapshotQueryGatewayTest {
     }
 
     @Test
-    fun `default error handler should not log mask strategy cause`() {
+    fun `default error handler logs the mask strategy cause without its message`() {
         val schema = gatewaySchema(
             QueryModel.SNAPSHOT,
             emptySet(),
@@ -356,7 +356,37 @@ class DefaultSnapshotQueryGatewayTest {
         errors.single().formattedMessage.assert()
             .isEqualTo("Mask strategy execution failed.")
             .doesNotContain("secret-value")
-        errors.single().throwableProxy.assert().isNull()
+        val cause = errors.single().throwableProxy
+        cause.message.assert().isEqualTo(ThrowingMaskStrategy.failure.javaClass.name)
+        cause.stackTraceElementProxyArray.assert().isNotEmpty()
+    }
+
+    @Test
+    fun `a storage error is a server fault whose driver text stays out of the answer and the log`() {
+        val driverError = IllegalStateException("driver echoed secret-value")
+        val backend = SchemaSnapshotBackend(
+            { Mono.just(gatewaySchema(QueryModel.SNAPSHOT, emptySet(), emptyMap())) },
+        ) { throw driverError }
+        val errors = captureErrors {
+            DefaultSnapshotQueryGateway<TestState>(
+                namedAggregate = MOCK_AGGREGATE_METADATA,
+                backend = backend,
+                schemaProvider = backend.schemaProvider,
+                targetType = JsonSerializer.typeFactory.constructParametricType(
+                    MaterializedSnapshot::class.java,
+                    TestState::class.java,
+                ),
+            ).dynamicSingle(singleQuery { }).test()
+                .expectErrorSatisfies {
+                    it.assert().isInstanceOf(QueryExecutionException::class.java).hasMessage("Query storage failed.")
+                    it.cause.assert().isSameAs(driverError)
+                }
+                .verify()
+        }
+        errors.single().formattedMessage.assert().isEqualTo("Query storage failed.")
+        errors.single().throwableProxy.message.assert()
+            .isEqualTo(IllegalStateException::class.java.name)
+            .doesNotContain("secret-value")
     }
 
     @Test

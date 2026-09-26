@@ -36,6 +36,7 @@ import me.ahoo.wow.mongo.query.event.MongoEventStreamQueryBackend
 import me.ahoo.wow.mongo.query.snapshot.MongoSnapshotQueryBackend
 import me.ahoo.wow.query.QueryAdmission
 import me.ahoo.wow.query.QueryBackend
+import me.ahoo.wow.query.QueryExecutionException
 import me.ahoo.wow.query.list
 import me.ahoo.wow.query.paged
 import me.ahoo.wow.query.schema.QueryModelSchema
@@ -127,9 +128,9 @@ class MongoQueryProjectionResultTest {
             node.has("_id").assert().isFalse()
         }.verifyComplete()
         single(model, logicalId) { Document("_id", null) }
-            .test().verifyError(IllegalStateException::class.java)
+            .test().verifyErrorMatches { it is QueryExecutionException && it.cause is IllegalStateException }
         single(model, logicalId) { Document("_id", 42) }
-            .test().verifyError(ClassCastException::class.java)
+            .test().verifyErrorMatches { it is QueryExecutionException && it.cause is ClassCastException }
         assertThrows<IllegalStateException> {
             Document("value", "visible").replacePrimaryKeyTo(logicalId)
         }

@@ -15,6 +15,7 @@
 
 package me.ahoo.wow.query
 
+import me.ahoo.wow.api.exception.ErrorInfo
 import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.CursorPage
@@ -39,24 +40,33 @@ import tools.jackson.databind.node.ObjectNode
  * after admission; low-level callers (backend conformance tests, tools) call them with a QueryAdmission result.
  * Every row a backend returns is checked here to be a standard JSON tree with finite numbers, so no backend repeats
  * the check; a row that fails it is a server fault ([QueryExecutionException]). What the storage cannot run was
- * rejected at admission.
+ * rejected at admission, so a storage error that is not already a Wow error is a server fault too ([storageFault]).
  */
+
+/**
+ * [error] of a backend primitive as the caller sees it: a Wow error (a [QueryViolation] rejection, a
+ * [QueryExecutionException]) as is, anything else as `Query storage failed.` with [error] kept as the server-side
+ * cause, since driver text can carry query values.
+ */
+internal fun storageFault(error: Throwable): Throwable =
+    if (error is ErrorInfo) error else QueryExecutionException("Query storage failed.", error)
 
 /** The first record of [query]: `page(Offset(0, 1, withTotal = false))`. */
 fun QueryBackend.single(query: AdmittedQuery<ISingleQuery>): Mono<ObjectNode> =
-    page(query, PageWindow.Offset(0, 1, withTotal = false)).flatMap { page ->
+    page(query, PageWindow.Offset(0, 1, withTotal = false)).onErrorMap(::storageFault).flatMap { page ->
         Mono.justOrEmpty(page.rows.firstOrNull()?.requireStandardRecord())
     }
 
 /** The records of [query], streamed: at most its limit, or all of them when the limit is `0`. */
 fun QueryBackend.list(query: AdmittedQuery<IListQuery>): Flux<ObjectNode> = Flux.defer {
-    stream(query).map(ObjectNode::requireStandardRecord)
+    stream(query).onErrorMap(::storageFault).map(ObjectNode::requireStandardRecord)
 }
 
 /** One page of [query] with the total: `page(Offset(offset, size, withTotal = true))`. */
 fun QueryBackend.paged(query: AdmittedQuery<IPagedQuery>): Mono<PagedList<ObjectNode>> {
     val pagination = query.query.pagination
-    return page(query, PageWindow.Offset(pagination.offset(), pagination.size, withTotal = true)).map { page ->
+    val window = PageWindow.Offset(pagination.offset(), pagination.size, withTotal = true)
+    return page(query, window).onErrorMap(::storageFault).map { page ->
         val total = page.total ?: throw QueryExecutionException("Backend page must carry the total it was asked for.")
         PagedList(total, page.rows.map(ObjectNode::requireStandardRecord))
     }
@@ -72,7 +82,7 @@ fun QueryBackend.cursor(query: AdmittedQuery<ICursorQuery>): Mono<CursorPage<Obj
     val cursor = query.query
     val sort = cursor.sort.map { Sort(query.field(it.field).logicalField, it.direction) }
     val after = cursor.cursor?.let { CursorTokens.decode(it, namedAggregate, query.schema, sort, cursorPositions) }
-    page(query, PageWindow.Keyset(after, cursor.size + 1)).map { page ->
+    page(query, PageWindow.Keyset(after, cursor.size + 1)).onErrorMap(::storageFault).map { page ->
         val rows = page.rows.take(cursor.size).map(ObjectNode::requireStandardRecord)
         val next = if (page.rows.size > cursor.size) {
             val positions = page.positions
@@ -104,6 +114,7 @@ fun QueryBackend.aggregate(
     val aggregation = query.query
     val metrics = aggregation.metrics.mapTo(hashSetOf(), AggregationMetric::alias)
     var rows = aggregate(if (plan.adjusted) query.withQuery(plan.native) else query, plan.window)
+        .onErrorMap(::storageFault)
         .map { row -> row.requireStandardAggregation(metrics) }
     if (aggregation.groupBy.isEmpty()) {
         rows = rows.switchIfEmpty(Flux.defer { Flux.just(emptySummary(aggregation.metrics)) })

@@ -19,7 +19,6 @@ import java.time.Duration
 import java.time.LocalTime
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
-import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
 
 private fun String?.requireZoneId() {
@@ -55,14 +54,26 @@ internal fun dateFormatterOf(pattern: String): DateTimeFormatter = PATTERNS.pars
 
 /*
  * Zones and formatters are immutable and every relative-time node of every query parses one, so each is parsed once.
- * Ids and patterns come from callers: only the first MAX_PARSED of each are kept, later ones are parsed per use.
+ * Ids and patterns come from callers: only valid ones are kept, the MAX_PARSED most recently used of each, so no
+ * run of distinct keys can pin the cache and leave later ones parsed per use.
  */
 private const val MAX_PARSED = 256
-private val ZONES = ConcurrentHashMap<String, ZoneId>()
-private val PATTERNS = ConcurrentHashMap<String, DateTimeFormatter>()
+private val ZONES = ParsedCache<ZoneId>()
+private val PATTERNS = ParsedCache<DateTimeFormatter>()
 
-private inline fun <V : Any> ConcurrentHashMap<String, V>.parse(key: String, parse: () -> V): V =
-    this[key] ?: parse().also { if (size < MAX_PARSED) putIfAbsent(key, it) }
+/** A bounded, least-recently-used cache of parsed values; a key whose parse throws is never kept. */
+private class ParsedCache<V : Any> {
+    private val entries = object : LinkedHashMap<String, V>(16, 0.75f, true) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, V>?): Boolean = size > MAX_PARSED
+    }
+
+    fun parse(key: String, parse: () -> V): V {
+        synchronized(entries) { entries[key] }?.let { return it }
+        val parsed = parse()
+        synchronized(entries) { entries.putIfAbsent(key, parsed) }
+        return parsed
+    }
+}
 
 sealed interface RelativeTimeFilter : FilterExpression {
     val field: QueryField

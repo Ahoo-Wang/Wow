@@ -36,6 +36,7 @@ import me.ahoo.wow.elasticsearch.ReactiveElasticsearchClients
 import me.ahoo.wow.elasticsearch.query.ElasticsearchIndexMapping
 import me.ahoo.wow.elasticsearch.query.schema.ElasticsearchQuerySchemaAdapter
 import me.ahoo.wow.query.QueryAdmission
+import me.ahoo.wow.query.QueryExecutionException
 import me.ahoo.wow.query.aggregate
 import me.ahoo.wow.query.cursor
 import me.ahoo.wow.query.dsl.filterExpression
@@ -104,8 +105,11 @@ class ElasticsearchNumericContractTest {
         }
         ElasticsearchSnapshotQueryBackend(MOCK_AGGREGATE_METADATA, client)
             .aggregate(QueryAdmission.Trusted.aggregate(query, schema)).test()
-            .expectErrorMatches { error ->
-                error is ElasticsearchException && error.error().type() == "search_phase_execution_exception" &&
+            .expectErrorMatches { fault ->
+                // A storage failure is a server fault that keeps the driver's error as its server-side cause.
+                val error = fault.cause
+                fault is QueryExecutionException && error is ElasticsearchException &&
+                    error.error().type() == "search_phase_execution_exception" &&
                     error.error().toString().contains("mapped-runtime-failure")
             }.verify(Duration.ofSeconds(30))
     }

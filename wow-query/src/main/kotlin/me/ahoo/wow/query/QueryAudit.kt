@@ -97,6 +97,8 @@ internal class QueryAuditTrail(
     private val context: ContextView,
 ) {
     private val startedAt = System.nanoTime()
+
+    @Volatile
     private var schema: QueryModelSchema? = null
     private val policies = mutableListOf<String>()
 
@@ -153,11 +155,30 @@ internal class QueryAuditTrail(
     private fun maskedFieldsOf(schema: QueryModelSchema): List<String> {
         if (queryType == QueryType.COUNT || queryType == QueryType.AGGREGATION) return emptyList()
         val projection = projection ?: return emptyList()
-        fun QueryField.covers(path: String) = path == this.path || path.startsWith("${this.path}.")
         return schema.maskedFields.filter { path ->
-            (projection.include.isEmpty() || projection.include.any { it.covers(path) }) &&
-                projection.exclude.none { it.covers(path) }
+            val masked = path.split('.')
+            (projection.include.isEmpty() || projection.include.any { it.reads(masked) }) &&
+                projection.exclude.none { it.removes(masked) }
         }
+    }
+
+    /**
+     * Whether including this field reads some of [masked], a masked path whose `{key}` segments stand for any map
+     * key: the field is an ancestor of it, or a path inside it.
+     */
+    private fun QueryField.reads(masked: List<String>): Boolean {
+        val segments = path.split('.')
+        return segments.zip(masked).all { (field, template) -> template == KEY_SEGMENT || field == template }
+    }
+
+    /** Whether excluding this field removes all of [masked]: it is [masked] or an ancestor, a `{key}` matched literally. */
+    private fun QueryField.removes(masked: List<String>): Boolean {
+        val segments = path.split('.')
+        return segments.size <= masked.size && segments.indices.all { segments[it] == masked[it] }
+    }
+
+    private companion object {
+        const val KEY_SEGMENT = "{key}"
     }
 }
 

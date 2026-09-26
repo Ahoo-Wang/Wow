@@ -117,8 +117,10 @@ class FieldResolverTest {
         val tenant = admitted.systemField(admitted.query)
         tenant.logicalField.assert().isEqualTo(QueryField("tenantId"))
         tenant.physicalField.assert().isEqualTo(QueryField("native.tenantId"))
-        assertThrows<IllegalArgumentException> { admitted.systemField(TenantIdFilter("tenant")) }
-        assertThrows<IllegalArgumentException> { admitted.field(QueryField("tenantId")) }
+        // A node admission did not resolve is a server fault that does not echo the node's values.
+        assertThrows<QueryExecutionException> { admitted.systemField(TenantIdFilter("tenant")) }
+            .message.assert().isEqualTo("A [TenantIdFilter] node is not a node of this admitted query.")
+        assertThrows<QueryExecutionException> { admitted.field(QueryField("tenantId")) }
     }
 
     @Test

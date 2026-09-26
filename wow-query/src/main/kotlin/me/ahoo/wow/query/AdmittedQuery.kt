@@ -45,8 +45,9 @@ class AdmittedQuery<out Q : Any> internal constructor(
     /** The resolution of the system field a system-field filter of [query] (ID, TENANT_ID, DELETION, ...) targets. */
     fun systemField(filter: FilterExpression): ResolvedField = resolved(filter)
 
+    /** A node admission did not resolve is a backend defect; the node carries caller values, so it is not named. */
     private fun resolved(node: Any): ResolvedField = fields[node]
-        ?: throw IllegalArgumentException("[$node] is not a node of this admitted query.")
+        ?: throw QueryExecutionException("A [${node.javaClass.simpleName}] node is not a node of this admitted query.")
 
     /**
      * The same admission for a query the core derived from [query], such as the aggregation it sends a backend
