@@ -793,7 +793,7 @@ const RULES: ConformanceRule[] = [
   },
   {
     wow: 'Aggregation metric filters do not support search filters.',
-    source: 'wow-query MetricFilterValidation.kt',
+    source: 'wow-query QueryViolation.kt MetricFilterSearch',
     violate: () =>
       aggregation.query({
         metrics: anyMetrics(
@@ -805,7 +805,7 @@ const RULES: ConformanceRule[] = [
   },
   {
     wow: 'Aggregation metric filters do not support [ELEMENT_MATCH].',
-    source: 'wow-query MetricFilterValidation.kt',
+    source: 'wow-query QueryViolation.kt MetricFilterElementMatch',
     violate: () =>
       aggregation.query({
         metrics: anyMetrics(
@@ -820,10 +820,15 @@ const RULES: ConformanceRule[] = [
   },
   {
     wow: 'Aggregation metric filter field [$logical] must be scalar; array fields are not supported in metric filters.',
-    source:
-      'wow-query MetricFilterValidation.kt requireScalarMetricFilterField',
+    source: 'wow-query QueryViolation.kt MetricFilterArrayField',
     serverOnly:
       'Needs the aggregate schema to know which fields are array-valued. `@ahoo-wang/fetcher-view-engine` does it from its own FieldKind registry; this package holds no schema.',
+  },
+  {
+    wow: 'Field [${this.field}] must store a date or an epoch to be aggregated by time.',
+    source: 'wow-query QueryViolation.kt TemporalAggregationUnsupported',
+    serverOnly:
+      'Needs the aggregate schema to know how the field stores its instants (DATE_HISTOGRAM, DATE_PART and DATE_DIFF alike).',
   },
   {
     wow: 'Field [$logical] does not support [$capability].',

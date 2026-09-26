@@ -288,6 +288,42 @@ describe('narrowing by the descriptor', () => {
     });
   });
 
+  it('takes DATE_PART away where the field no longer groups by it', () => {
+    // An entry that does not allow expensive operators keeps its dateParts
+    // but drops DATE_PART from each field's groups (#3587).
+    const descriptor = described(Object.values(AggregationDatePart));
+    descriptor.fields = descriptor.fields.map(field =>
+      field.aggregate
+        ? {
+            ...field,
+            aggregate: {
+              ...field.aggregate,
+              groups: field.aggregate.groups.filter(
+                group => group !== AggregationGroupType.DATE_PART,
+              ),
+            },
+          }
+        : field,
+    );
+    const { definition: narrowed, findings } = narrowDefinition(
+      definition(),
+      descriptor,
+      builtinFieldKinds,
+    );
+    expect(narrowed.analysis?.fields[0]?.groups).toEqual(['DATE_HISTOGRAM']);
+    expect(narrowed.analysis?.fields.map(entry => entry.field)).not.toContain(
+      'shippedAt',
+    );
+    expect(findings).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: 'capability.analysis.field-narrowed',
+          params: expect.objectContaining({ field: 'placedAt' }),
+        }),
+      ]),
+    );
+  });
+
   it('takes DATE_PART away where the model reads no part', () => {
     const { definition: narrowed } = narrowDefinition(
       definition(),

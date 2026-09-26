@@ -390,7 +390,7 @@ type DerivedFormat =
 - 这条限制**只属于指标位置**。元素筛选是对元素自身字段的普通筛选，多值字段在那里是正当的
 - `DERIVED` 不参与：协议里它就不带筛选，`compileMetric` 也从不发出去。存储里残留的 `filter`（比如指标类型改过）不该拦住整份配置
 
-Wow 的对应规则在 `requireScalarMetricFilterFields`：形状那半条（`SEARCH`／`ELEMENT_MATCH`）由 `typescript/wow-client` 的 `aggregation.query()` 在协议层挡住，需要 schema 那半条（数组值字段）由这里挡住——因为只有这里知道 `FieldKind`。
+Wow 服务端在解析查询时对应地检查：指标筛选引用的字段若不能进指标筛选（描述里该字段的 `aggregate.inMetricFilter` 为假，数组值字段即如此），整条查询以 `METRIC_FILTER_ARRAY_FIELD` 拒绝。形状那半条（`SEARCH`／`ELEMENT_MATCH`）由 `typescript/wow-client` 的 `aggregation.query()` 在协议层挡住，需要 schema 那半条（数组值字段）由这里挡住——因为只有这里知道 `FieldKind`。
 
 除此之外它就是一棵普通的 Filter 树，按 analysis scope 的字段走 `validateFilter`，问题路径挂在 `['metrics', i, 'filter', ...]` 下。
 
