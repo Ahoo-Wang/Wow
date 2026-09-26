@@ -153,6 +153,15 @@ function byTerms(field: string, alias: string, label?: string): AnalysisGroup {
   return { type: 'TERMS', field, alias, ...(label ? { label } : {}) };
 }
 
+/** 按下单时间的一个日期部件分组：星期几、几点。 */
+function byPart(
+  field: string,
+  alias: string,
+  part: 'DAY_OF_WEEK' | 'HOUR_OF_DAY',
+): AnalysisGroup {
+  return { type: 'DATE_PART', field, alias, part };
+}
+
 function byDate(
   field: string,
   alias: string,
@@ -797,15 +806,16 @@ export const ANALYSIS_VIEWS: ViewInstance[] = [
       },
     }),
   ),
-  // A-10：买家什么时候下单——星期 × 时段（读模型字段，原因见定义）。
+  // A-10：买家什么时候下单——星期 × 时段，按下单时间的日期部件分组
+  // （DATE_PART，上海时间）。
   shared(
     ANALYSTS,
     'a10-weekday-hour',
     '下单时段热力（星期 × 时段）',
     analysis({
       groups: [
-        byTerms('state.placedHour', 'hour', '时段（点）'),
-        byTerms('state.placedWeekday', 'weekday', '星期'),
+        byPart('firstEventTime', 'hour', 'HOUR_OF_DAY'),
+        byPart('firstEventTime', 'weekday', 'DAY_OF_WEEK'),
       ],
       metrics: [orders()],
       sort: [

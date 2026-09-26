@@ -544,10 +544,10 @@ function opsDailyConfig(): DashboardViewConfig {
         analysis({
           groups: [
             {
-              type: 'TERMS',
-              field: 'state.placedHour',
+              type: 'DATE_PART',
+              field: 'firstEventTime',
               alias: 'hour',
-              label: '下单时段（点）',
+              part: 'HOUR_OF_DAY',
             },
           ],
           metrics: [

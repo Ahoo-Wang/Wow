@@ -12,10 +12,11 @@
  */
 
 import { useCallback, useMemo } from 'react';
-import { approximateMetrics } from '../model/index.js';
+import { approximateMetrics, datePartsOf } from '../model/index.js';
 import type {
   FieldGroupDefinition,
   FilterTree,
+  AnalysisDatePart,
   AnalysisDateUnit,
   AnalysisElement,
   AnalysisFunction,
@@ -67,6 +68,8 @@ export interface AnalysisFieldOption {
   /** Aggregation functions it offers; empty when it cannot be measured. */
   functions: AnalysisFunction[];
   dateUnits: AnalysisDateUnit[];
+  /** The calendar parts a `DATE_PART` dimension on it may take (`datePartsOf`). */
+  dateParts: AnalysisDatePart[];
   distinctCount: boolean;
   percentile: boolean;
   any: boolean;
@@ -359,10 +362,10 @@ export function useAnalysisEditor(
       return {
         field: field.name,
         label: field.label,
-        // DATE_PART (Wow 9.2) is not offered until the engine adopts it.
-        groups: offeredGroups(aggregation?.groups ?? []),
+        groups: aggregation?.groups ?? [],
         functions: aggregation?.functions ?? [],
         dateUnits: aggregation?.dateUnits ?? [],
+        dateParts: datePartsOf(aggregation),
         distinctCount: aggregation?.distinctCount === true,
         percentile: aggregation?.percentile === true,
         any: aggregation?.any === true,
@@ -585,11 +588,4 @@ export function useAnalysisEditor(
     focus: useCallback(() => runtime?.setEditing(true), [runtime]),
     blur: useCallback(() => runtime?.setEditing(false), [runtime]),
   };
-}
-
-/** The group types the engine offers: every one Wow has but `DATE_PART`, for now. */
-function offeredGroups(
-  groups: readonly `${AnalysisGroupType | 'DATE_PART'}`[],
-): AnalysisGroupType[] {
-  return groups.flatMap(group => (group === 'DATE_PART' ? [] : [group]));
 }

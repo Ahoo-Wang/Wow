@@ -209,7 +209,8 @@ src/
     validateReferences.ts     — What a cartesian chart draws over its marks, checked for shape: reference lines (a number or a statistic of a metric drawn on its axis), target bands (from below to), derived series (a known kind, a metric drawn, a window of 2 to `MAX_MOVING_WINDOW`)
     chartRefs.ts              — What every family's chart rules read (`ChartContext`) and the checks a slot is made of: a group, a metric, a quantity, every group consumed (internal)
     validateElements.ts       — The expansion chain, walked level by level, and each gate filter
-    validateGroups.ts         — Group kinds, date units, dense, missing-value keys
+    validateGroups.ts         — Group kinds, date units, calendar parts, dense, missing-value keys
+    validateOffers.ts         — `offerIssues`: what a definition's analysis capability offers per field — a declared field, and `DATE_PART` only on one that holds time, only parts Wow has; read by definition admission, not re-exported
     validateHaving.ts         — Having: declared, grouped, over known metrics
     validateLimits.ts         — Declared limits under Wow's own ceilings; the row limit against `limitBounds`, one finding for every way out of range
     validateMetrics.ts        — One rule set per metric type, filters included
@@ -411,7 +412,8 @@ src/
     alerts.tsx                — `LineAlert`: one callout one line high, tone deciding colour, icon and role
     band.ts                   — `bandText`: a number histogram's key as the band it starts, 「¥0～500」, its bounds short when short is exact; `segmentText`, a `GTE`＋`LT` segment written the same way
     describeConfig.ts         — One config in a sentence, for a conflict's side-by-side
-    display.ts                — A value as its field shows it: enum labels, dates, bucket keys, an array of objects by its elements' title or its count (`heldReading`), never JSON; `summaryFunctionKey` names a summary in its column's vocabulary, `columnTitle` composes an analysis header from its two parts, and a time dimension's with its granularity
+    datePart.ts               — `datePartValue`: a calendar part's key named in the reader's language — 「周一」/Mon, 「20时」/20:00, 「9月」, 「3日」
+    display.ts                — A value as its field shows it: enum labels, dates, bucket keys, calendar parts, an array of objects by its elements' title or its count (`heldReading`), never JSON; `summaryFunctionKey` names a summary in its column's vocabulary, `columnTitle` composes an analysis header from its two parts, and a time dimension's with its granularity or its cycle
     download.ts               — Hands a file to the browser; the whole of the DOM the export needs, and the name it is handed under
     dragAnnounce.ts           — What a screen reader hears while a row is dragged, in the shape the drag library takes; the four sortable lists share it
     dragWording.ts            — `dragWording`: one list's three drag sentences — the shared instructions (`label.reorder.instructions`) and its own pick-up and cancel, read under that list's keys; each `drag.ts` names only its keys

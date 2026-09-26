@@ -65,7 +65,8 @@ const ALIAS_ITSELF = 'analysis.alias.';
  * - a field (`field`, `path`) by its label, as the tray's pickers list it;
  * - a summary (`fn`) as the metric's summary select says it, 「平均」 for
  *   `AVG`, and the earliest of a moment 「最早」;
- * - a time unit (`unit`) as the dimension's granularity reads, 「按月」;
+ * - a time unit (`unit`) as the dimension's granularity reads, 「按月」, and
+ *   a calendar part (`part`) as its cycle reads, 「按星期」;
  * - a dimension type (`type` of `analysis.group.unsupported`) as the
  *   dimension card offers it, 「按数值区间」;
  * - a condition's operator (`operator`) as its operator select says it.
@@ -139,6 +140,9 @@ export function analysisIssueNamer(
       const unit = text('unit');
       if (unit !== undefined)
         say('unit', labelled(`label.date-unit.${unit}`, unit));
+      const part = text('part');
+      if (part !== undefined)
+        say('part', labelled(`label.date-part.${part}`, part));
       const type = text('type');
       if (found.code === 'analysis.group.unsupported' && type !== undefined)
         say('type', labelled(`label.group.type.${type}`, type));

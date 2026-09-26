@@ -161,16 +161,12 @@
 
 ## 需要后端的图型与分析
 
-D41 定下「除了需要后端支持的，全部都需要增加」；下面这些今天的 Wow 聚合算不出，本包不做，等查询模块。查询模块重构会话把它们记为 N1～N6，方案在 documentation/designs/2026-09-24-query-target-architecture-design.md §11（那个分支还没合入 main，合入后改成链接）。
+D41 定下「除了需要后端支持的，全部都需要增加」；下面这些当时 Wow 聚合算不出，查询模块重构会话把它们记为 N1～N6（方案 documentation/designs/2026-09-24-query-target-architecture-design.md §11）。wow-client 已有 DATE_PART（#3524，N2）、元素里的 SEARCH（#3525，N4）、FIRST／LAST（#3532，N1）、DATE_DIFF 与 EXPRESSION 条件（#3539，N3）；本包按 N2 → N1 → N3 → N4 一项一个 PR 采用，采用一项删一行。按日期部件分组（N2）已采用：定义准入、描述收窄、托盘的周期选择、周期轴与热力图「星期 × 时段」、Storybook 零售数据按真实下单时间分组（见 [kernels.md](kernels.md)、test/datePart.test.ts）。
 
 - **K 线（开高低收）**——N1 每桶的首值、末值（FIRST/LAST）。
   - 为什么：「任一值」不保证每次一样（D20），拿不出开盘与收盘；高低有 `MIN`/`MAX`。
   - 判据：Wow 聚合有 FIRST/LAST 后，本包加 `candlestick` 家族（一个按时间的维度、同一字段的首末高低四个指标，内核认作一组，同箱线图的做法），适合规则、读屏表、故事与孪生齐全。
   - 落点：`src/model/chart.ts`、`src/analysis/`、`src/ui/charts/`；[analysis-echarts.md](analysis-echarts.md) 第 6 节。
-- **星期 × 时段等周期模式**——N2 按日期部件分组（DATE_PART：星期几、几点、几月）。
-  - 为什么：「哪天几点单最多」是零售最常见的问题之一；今天 Storybook 用读模型的派生字段（`placedWeekday`、`placedHour`）绕过（[storybook/docs/scenarios.md](../../../storybook/docs/scenarios.md) Q4）。
-  - 判据：Wow 有 DATE_PART 分组后，本包在定义准入、托盘与编译里各加一条，热力图直接画「星期 × 时段」，不另加图型。
-  - 落点：Wow 查询模块，随后 [model.md](model.md)、[kernels.md](kernels.md)。
 - **两个时刻之差的指标**（付款到发货几小时）——N3 DATE_DIFF 表达式。
   - 为什么：今天只能由读模型预先算好一个字段（`payToShipHours`）；分析师不能自己问「签收到完成几天」。
   - 判据：表达式能写两个时刻之差后，托盘的公式卡能选它，箱线图、直方分组都能用它。
@@ -183,4 +179,4 @@ D41 定下「除了需要后端支持的，全部都需要增加」；下面这�
 - 准入发现里的字段用的是 `field.name`（「给 status 一个值」）而不是显示名——整个包的惯例，要改是包级的决定。
 - 「更多图型」折叠宿主扩展的图型：今天没有宿主扩展图型的入口，等有了再做。
 - 透视表（Q8）；精确的 M（Q7）；分析表冻结列；STDDEV／VARIANCE 与去重计数在 ES 上的近似提示按后端能力声明。
-- 按日期部件分组与两个时刻之差：已并入「需要后端的图型与分析」。
+- 两个时刻之差：已并入「需要后端的图型与分析」。

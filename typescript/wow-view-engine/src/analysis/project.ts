@@ -15,6 +15,7 @@ import {
   approximateMetrics,
   epochUnitOf,
   isDateCell,
+  type AnalysisDatePart,
   type AnalysisDateUnit,
   type AnalysisGroup,
   type AnalysisMetric,
@@ -100,6 +101,13 @@ export interface AnalysisColumnView {
   dateUnit?: AnalysisDateUnit;
   /** For a date histogram group: the zone its buckets were cut in. */
   timeZone?: string;
+  /**
+   * For a calendar part group: which part its keys are (the ISO weekday 1 to
+   * 7, the hour 0 to 23…), so a key reads 「周一」 or 「20时」 rather than a
+   * bare integer, and an axis runs through the part's whole domain
+   * (`DATE_PART_DOMAINS`).
+   */
+  datePart?: AnalysisDatePart;
   /**
    * For a value group that keeps a bucket of the records with no value: the
    * key that bucket comes back under (`AnalysisGroup.missingKey`). The
@@ -306,8 +314,9 @@ function bucketOf(
   group: AnalysisGroup | undefined,
 ): Pick<
   AnalysisColumnView,
-  'dateUnit' | 'timeZone' | 'interval' | 'missingKey'
+  'dateUnit' | 'timeZone' | 'interval' | 'missingKey' | 'datePart'
 > {
+  if (group?.type === 'DATE_PART') return { datePart: group.part };
   if (group?.type === 'HISTOGRAM') return { interval: group.interval };
   if (group?.type === 'TERMS')
     return group.missingKey === undefined
@@ -395,8 +404,13 @@ export function projectAnalysis(
   // The columns whose values are the field's own: a dimension's keys, and a
   // metric that is one of the field's values (`readsAsItsField`) — the
   // latest of a datetime is a datetime, not an epoch in milliseconds.
+  // A calendar part's keys are the part's own integers — 1 is a Monday, not
+  // a moment in 1970 — so it reads as its part (`datePart`), never as the
+  // time field it was taken from.
   const valued = new Set([
-    ...groups.keys(),
+    ...[...groups.values()]
+      .filter(group => group.type !== 'DATE_PART')
+      .map(group => group.alias),
     ...config.metrics.filter(readsAsItsField).map(metric => metric.alias),
   ]);
 

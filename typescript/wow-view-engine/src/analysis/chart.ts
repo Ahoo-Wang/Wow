@@ -37,8 +37,10 @@ import {
   type RadarData,
 } from './profiles.js';
 import {
+  alongPart,
   forwardInTime,
   hostTimeZone,
+  partGroup,
   timeGroup,
   withoutHoles,
 } from './timeAxis.js';
@@ -333,6 +335,12 @@ function heatmap(
     xs = withoutHoles(forwardInTime(xs, same), same, across, timeZone, same);
   if (down)
     ys = withoutHoles(forwardInTime(ys, same), same, down, timeZone, same);
+  // A calendar part runs its whole cycle: 星期 × 时段 is seven rows of
+  // twenty-four columns whichever hours had orders.
+  const cycleAcross = partGroup(config, spec.x);
+  const cycleDown = partGroup(config, spec.y);
+  if (cycleAcross) xs = alongPart(xs, same, cycleAcross, same);
+  if (cycleDown) ys = alongPart(ys, same, cycleDown, same);
 
   return {
     type: 'heatmap',

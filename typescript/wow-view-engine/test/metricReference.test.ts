@@ -42,6 +42,7 @@ function field(name: string, label: string): AnalysisFieldOption {
     groups: [],
     functions: ['SUM', 'AVG'],
     dateUnits: [],
+    dateParts: [],
     distinctCount: false,
     percentile: true,
     any: false,

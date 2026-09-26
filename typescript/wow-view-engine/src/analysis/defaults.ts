@@ -16,12 +16,15 @@ import {
   AggregationGroupType,
 } from '@ahoo-wang/wow-client';
 import {
+  ANALYSIS_DATE_PARTS,
+  datePartsOf,
   DEFAULT_RUNTIME_LIMITS,
   FIELD_METRIC_TYPES,
   fieldAliasSegment,
   isSingleStringField,
   without,
   type AggregationFieldCapability,
+  type AnalysisDatePart,
   type AnalysisDateUnit,
   type AnalysisFunction,
   type AnalysisGroup,
@@ -30,6 +33,7 @@ import {
   type AnalysisCapability,
   type AnalysisViewConfig,
   type DataViewDefinition,
+  type DatePartOffer,
   type FieldDefinition,
   type FieldMetricType,
   type RuntimeLimits,
@@ -122,6 +126,11 @@ export interface GroupFacts {
   missingKey: boolean;
   /** The date units the capability offers; a time dimension starts at the first. */
   dateUnits: readonly AnalysisDateUnit[];
+  /**
+   * The calendar parts the capability offers (`datePartsOf`); a part
+   * dimension starts at the first. Left out, every one.
+   */
+  dateParts?: readonly AnalysisDatePart[];
 }
 
 /**
@@ -134,7 +143,7 @@ export function groupFacts(
   field: FieldDefinition,
   dateUnits: readonly AnalysisDateUnit[] = [],
   kind?: { singleString?: boolean },
-  offered?: { missingKey?: boolean },
+  offered?: { missingKey?: boolean } & Partial<DatePartOffer>,
 ): GroupFacts {
   return {
     field: field.name,
@@ -143,6 +152,14 @@ export function groupFacts(
     missingKey:
       offered?.missingKey !== false && isSingleStringField(field, kind),
     dateUnits,
+    ...(offered?.groups
+      ? {
+          dateParts: datePartsOf({
+            groups: offered.groups,
+            dateParts: offered.dateParts,
+          }),
+        }
+      : {}),
   };
 }
 
@@ -157,7 +174,8 @@ export function groupFacts(
  *   records without saying so;
  * - by date, at `unit` when the caller recommends one (K4), else the first
  *   unit the capability offers, else a day;
- * - by band, one unit wide.
+ * - by band, one unit wide;
+ * - by calendar part, at the first part the capability offers — the weekday.
  */
 export function groupOfType(
   facts: GroupFacts,
@@ -175,6 +193,13 @@ export function groupOfType(
       };
     case 'HISTOGRAM':
       return { type, field: facts.field, alias, interval: DEFAULT_INTERVAL };
+    case 'DATE_PART':
+      return {
+        type,
+        field: facts.field,
+        alias,
+        part: facts.dateParts?.[0] ?? ANALYSIS_DATE_PARTS[0],
+      };
     case 'TERMS':
       return {
         type,

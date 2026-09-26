@@ -236,6 +236,36 @@ export const OrderAnalysis: Story = {
       within(canvasElement).getAllByText(/^共 88 条记录$/)[0],
     ).toBeVisible();
 
+    // A-10 (N2): when buyers order — the weekday by the hour of the order's
+    // own time, read on the Shanghai clock, the whole week by the whole day;
+    // the evening is the peak.
+    await userEvent.click(view('下单时段热力（星期 × 时段）'));
+    await waitFor(async () => {
+      const grid = await reading(canvasElement);
+      const [corner, ...hours] = readHeaders(grid);
+      expect(corner).toBe('下单时间（星期）');
+      expect(hours).toEqual(Array.from({ length: 24 }, (_, h) => `${h}时`));
+      expect(readColumn(grid, corner!)).toEqual([
+        '周一',
+        '周二',
+        '周三',
+        '周四',
+        '周五',
+        '周六',
+        '周日',
+      ]);
+      // The busiest hour of the week, summed over its seven days.
+      const byHour = hours.map(hour =>
+        readColumn(grid, hour).reduce(
+          (sum, text) => sum + (Number(text.replace(/,/g, '')) || 0),
+          0,
+        ),
+      );
+      expect(['20时', '21时', '22时', '23时']).toContain(
+        hours[byHour.indexOf(Math.max(...byHour))],
+      );
+    });
+
     // A-10 (A4): UnionPay failed at midnight on Double 11.
     await userEvent.click(view('双 11 零点：各支付方式的超时率'));
     await waitFor(async () =>

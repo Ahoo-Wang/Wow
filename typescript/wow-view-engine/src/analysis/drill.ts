@@ -44,7 +44,8 @@ import { aliasOf, groupFacts, groupOfType } from './defaults.js';
  * This is the inverse of bucketing (K1): a `TERMS` group is one value, a
  * `HISTOGRAM` group is the half-open interval `[key, key + interval)`, and a
  * `DATE_HISTOGRAM` group is the bucket `[start, next start)` cut in the zone
- * the histogram was cut in. The analysis kernel hands out conditions and
+ * the histogram was cut in. A `DATE_PART` group — every Monday — has no
+ * inverse a condition can hold, so a row with one leads to no records. The analysis kernel hands out conditions and
  * nothing else (K6): what view they open, and under which columns, is the
  * runtime's and the record kernel's to say, because `analysis` and `record`
  * never import each other.
@@ -523,6 +524,11 @@ function conditionsOf(
         },
       ];
     }
+    case 'DATE_PART':
+      // 「周一」 is every Monday the range holds, and no condition a view
+      // can store says that: a date condition is one stretch of time. The
+      // group is still named (a menu reads it), but it leads to no records.
+      return null;
   }
 }
 

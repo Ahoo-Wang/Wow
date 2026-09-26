@@ -766,6 +766,15 @@ export const zhCN: ViewMessages = {
   'label.date-unit.HOUR': '按小时',
   'label.date-unit.MINUTE': '按分钟',
   'label.date-unit.SECOND': '按秒',
+  'label.analysis.date-part': '周期',
+  'label.date-part.DAY_OF_WEEK': '按星期',
+  'label.date-part.HOUR_OF_DAY': '按时段（几点）',
+  'label.date-part.DAY_OF_MONTH': '按每月几号',
+  'label.date-part.MONTH_OF_YEAR': '按月份',
+  'label.analysis.part.DAY_OF_WEEK': '{field}（星期）',
+  'label.analysis.part.HOUR_OF_DAY': '{field}（时段）',
+  'label.analysis.part.DAY_OF_MONTH': '{field}（几号）',
+  'label.analysis.part.MONTH_OF_YEAR': '{field}（月份）',
   'label.analysis.dated.YEAR': '{field}（按年）',
   'label.analysis.dated.QUARTER': '{field}（按季）',
   'label.analysis.dated.MONTH': '{field}（按月）',
@@ -1054,6 +1063,8 @@ export const zhCN: ViewMessages = {
   'label.analysis.missing-group': '（空）',
   'label.analysis.dense': '补齐空的时段',
   'label.analysis.dense-alone': '补齐空的时段（只有一个维度时）',
+  'label.analysis.dense-part': '没有记录的也列出来',
+  'label.analysis.dense-part-alone': '没有记录的也列出来（只有一个维度时）',
   'label.analysis.remove-group': '移除维度 {name}',
   'label.analysis.function-of': '{name} 的汇总方式',
   'label.analysis.remove-metric': '移除指标 {name}',
@@ -1089,7 +1100,7 @@ export const zhCN: ViewMessages = {
   'label.group.type.TERMS': '按值',
   'label.group.type.HISTOGRAM': '按数值区间',
   'label.group.type.DATE_HISTOGRAM': '按时间粒度',
-  'label.group.type.DATE_PART': '按星期、小时、日或月',
+  'label.group.type.DATE_PART': '按周期（星期、时段…）',
   'label.chart.other': '其他',
   'label.chart.series.of-field': '{field}：{value}',
   'label.chart.share-basis': '占比按显示的组计算',
@@ -1237,6 +1248,7 @@ export const zhCN: ViewMessages = {
   'analysis.group.missing-key-unsupported':
     '「{field}」不能为缺失值单独分一组，只有单值文本字段可以。',
   'analysis.group.unit-unsupported': '这个维度不能{unit}分组。',
+  'analysis.group.part-unsupported': '这个维度不能{part}分组。',
   'analysis.label.blank': '显示名是空的。',
   'analysis.group.unsupported': '「{field}」不能{type}分组。',
   'analysis.groups.too-many': '这份数据的维度太多了。',
@@ -1799,6 +1811,10 @@ export const zhCN: ViewMessages = {
     '{field} 搜索 {missing}，定义没有声明它。',
   'definition.field.search-mode-invalid':
     '{field} 声明了未知的搜索模式：{value}。',
+  'definition.analysis.date-part-not-temporal':
+    '{field} 提供了按星期、时段分组，但它存的不是日期或时间。',
+  'definition.analysis.date-part-unknown':
+    '{field} 声明了未知的周期：{value}。',
   'definition.analysis.default-limit-too-large': '默认组数上限超过了最大值。',
   'definition.analysis.element-field-unknown':
     '{path} 没有声明名为 {field} 的字段。',

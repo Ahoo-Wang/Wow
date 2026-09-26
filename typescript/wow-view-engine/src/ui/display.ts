@@ -14,6 +14,7 @@
 import {
   DEFAULT_APPROXIMATE_METRICS,
   isDateCell,
+  type AnalysisDatePart,
   type AnalysisDateUnit,
   type RecordData,
   type FieldOption,
@@ -30,6 +31,7 @@ import {
   type MetricFunction,
 } from '../analysis/index.js';
 import { recordValue } from '../record/index.js';
+import { datePartValue } from './datePart.js';
 import type { MessageKey } from './messages.js';
 import type { MessageFormatters } from './MessagesProvider.js';
 
@@ -53,6 +55,8 @@ export interface DisplayField {
   dateUnit?: AnalysisDateUnit;
   /** The zone those buckets were cut in, when the group named one. */
   timeZone?: string;
+  /** For a calendar part group: its keys are this part's integers. */
+  datePart?: AnalysisDatePart;
   /**
    * For an array of objects, the element field each element is read by and
    * its name within the element (`FieldDefinition.elementTitle`).
@@ -101,6 +105,8 @@ export function displayValue(
     const label = optionLabel(value, field.options);
     if (label !== undefined) return label;
   }
+  if (field.datePart !== undefined)
+    return datePartValue(value, field.datePart, context.locale);
   if (field.dateUnit !== undefined) {
     const time = readTime(value, field.timeZone ?? context.timeZone);
     return time
@@ -226,6 +232,8 @@ export function columnTitle(
     cell?: string;
     /** A time group's granularity: what one of its rows spans. */
     dateUnit?: AnalysisDateUnit;
+    /** A calendar part group's part: what its rows fold together. */
+    datePart?: AnalysisDatePart;
     /** A metric's own condition: the one value it keeps, when it is one. */
     condition?: Pick<MetricCondition, 'value'>;
   },
@@ -247,12 +255,17 @@ export function columnTitle(
     ),
   );
   if (column.named) return label;
-  if (column.fn === undefined)
+  if (column.fn === undefined) {
+    if (column.datePart !== undefined)
+      return messages.label(`label.analysis.part.${column.datePart}`, {
+        field: label,
+      });
     return column.dateUnit === undefined
       ? label
       : messages.label(`label.analysis.dated.${column.dateUnit}`, {
           field: label,
         });
+  }
   // A derived metric is arithmetic over other metrics: no field stands behind
   // it, so its stored name is all there is to show.
   if (column.fn === 'DERIVED') return label;

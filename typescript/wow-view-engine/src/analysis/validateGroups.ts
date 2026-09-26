@@ -12,6 +12,7 @@
  */
 
 import {
+  datePartsOf,
   isSingleStringField,
   type AnalysisCapability,
   type AnalysisViewConfig,
@@ -62,9 +63,20 @@ export function validateGroups(
             unit: group.unit,
           }),
         );
-      // A DATE_HISTOGRAM fills in every bucket its range implies rather than
-      // only the ones that have rows, and a second dimension would multiply
-      // that filling out across each of its own keys. Wow refuses it.
+    }
+    if (group.type === 'DATE_PART') {
+      if (!datePartsOf(capability).includes(group.part))
+        issues.push(
+          issue('analysis.group.part-unsupported', [...path, 'part'], {
+            part: group.part,
+          }),
+        );
+    }
+    if (group.type === 'DATE_HISTOGRAM' || group.type === 'DATE_PART') {
+      // A calendar dimension fills in every bucket its range — or its part's
+      // domain — implies rather than only the ones that have rows, and a
+      // second dimension would multiply that filling out across each of its
+      // own keys. Wow refuses it.
       if (group.dense === true && analysis?.dense === false)
         issues.push(
           issue('analysis.group.dense-unsupported', [...path, 'dense']),

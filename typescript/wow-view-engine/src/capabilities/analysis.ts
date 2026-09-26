@@ -16,14 +16,15 @@ import {
   type FieldAggregateDescriptor,
   type QueryModelDescriptor,
 } from '@ahoo-wang/wow-client';
-import type {
-  AggregationFieldCapability,
-  AnalysisMetric,
-  AnalysisCapability,
-  AnalysisElementCapability,
-  AnalysisLimits,
-  Issue,
-  IssuePath,
+import {
+  datePartsOf,
+  type AggregationFieldCapability,
+  type AnalysisMetric,
+  type AnalysisCapability,
+  type AnalysisElementCapability,
+  type AnalysisLimits,
+  type Issue,
+  type IssuePath,
 } from '../model/index.js';
 import { issue } from '../filter/index.js';
 import { warn } from './fields.js';
@@ -51,6 +52,7 @@ export function narrowAnalysis(
   const context: AggregationContext = {
     metrics: offered.metrics,
     dateUnits: offered.dateUnits,
+    dateParts: offered.dateParts,
     findings,
   };
 
@@ -123,6 +125,8 @@ interface AggregationContext {
   metrics: readonly string[];
   /** The units a date histogram may bucket by (#3489). */
   dateUnits: readonly string[];
+  /** The calendar parts a `DATE_PART` group may take (#3524). */
+  dateParts: readonly string[];
   findings: Issue[];
 }
 
@@ -222,11 +226,18 @@ function narrowAggregation(
   const dateUnits = declared.dateUnits?.filter(unit =>
     context.dateUnits.includes(unit),
   );
+  // So does a calendar part: the parts the field offers (every one when
+  // it says none) that the model groups by.
+  const wantedParts = datePartsOf(declared);
+  const dateParts = wantedParts.filter(part =>
+    context.dateParts.includes(part),
+  );
   const groups = declared.groups.filter(
     group =>
       aggregate.groups.includes(group) &&
       (group !== AggregationGroupType.DATE_HISTOGRAM ||
-        (dateUnits ?? []).length > 0),
+        (dateUnits ?? []).length > 0) &&
+      (group !== AggregationGroupType.DATE_PART || dateParts.length > 0),
   );
   const functions = declared.functions.filter(
     fn => numeric && aggregate.functions.includes(fn),
@@ -268,6 +279,9 @@ function narrowAggregation(
     ...(groups.includes(AggregationGroupType.DATE_HISTOGRAM)
       ? (declared.dateUnits ?? []).filter(unit => !dateUnits?.includes(unit))
       : []),
+    ...(groups.includes(AggregationGroupType.DATE_PART)
+      ? wantedParts.filter(part => !dateParts.includes(part))
+      : []),
     ...declared.functions.filter(fn => !functions.includes(fn)),
     ...(declared.any && !any ? ['ANY'] : []),
     ...(declared.distinctCount && !distinctCount ? ['DISTINCT_COUNT'] : []),
@@ -288,6 +302,11 @@ function narrowAggregation(
     functions,
   };
   if (dateUnits !== undefined) capability.dateUnits = dateUnits;
+  if (
+    groups.includes(AggregationGroupType.DATE_PART) &&
+    dateParts.length < wantedParts.length
+  )
+    capability.dateParts = dateParts as AggregationFieldCapability['dateParts'];
   if (!missingKey && groups.includes(AggregationGroupType.TERMS))
     capability.missingKey = false;
   if (!aggregate.inMetricFilter) capability.inMetricFilter = false;

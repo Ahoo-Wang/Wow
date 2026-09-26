@@ -12,6 +12,7 @@
  */
 
 import type {
+  AggregationDatePart,
   AggregationDateUnit,
   AggregationFunction,
   AggregationGroupType,
@@ -280,6 +281,14 @@ export interface AggregationFieldCapability {
   groups: AggregationGroupType[];
   functions: AggregationFunction[];
   dateUnits?: AggregationDateUnit[];
+  /**
+   * The calendar parts a `DATE_PART` dimension may take (the weekday, the
+   * hour…), when `groups` lists `DATE_PART`. Left out, every one
+   * (`ANALYSIS_DATE_PARTS`): unlike a unit, a part says nothing of how many
+   * groups come back — at most 31 — so there is nothing to hold back by
+   * default. A descriptor narrows it to its `analysis.dateParts`.
+   */
+  dateParts?: AggregationDatePart[];
   any?: boolean;
   distinctCount?: boolean;
   percentile?: boolean;

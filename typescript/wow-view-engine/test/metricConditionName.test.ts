@@ -294,6 +294,7 @@ describe('metricReference over a conditioned metric', () => {
     groups: [],
     functions: ['SUM'],
     dateUnits: [],
+    dateParts: [],
     distinctCount: false,
     percentile: false,
     any: false,

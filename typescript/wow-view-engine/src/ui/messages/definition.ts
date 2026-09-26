@@ -22,6 +22,10 @@ export const definitionMessages = {
     '{field} searches {missing}, which the definition does not declare.',
   'definition.field.search-mode-invalid':
     '{field} declares an unknown search mode: {value}.',
+  'definition.analysis.date-part-not-temporal':
+    '{field} offers grouping by weekday or hour, but holds no date or time.',
+  'definition.analysis.date-part-unknown':
+    '{field} declares an unknown calendar part: {value}.',
   'definition.analysis.default-limit-too-large':
     'The default row limit exceeds the maximum.',
   'definition.analysis.element-field-unknown':
