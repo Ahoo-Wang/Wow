@@ -13,7 +13,7 @@
 import type { ComponentType } from 'react';
 import type { StoryObj } from '@storybook/react-vite';
 import { expect, screen, userEvent, waitFor, within } from 'storybook/test';
-import { zhCN } from '@ahoo-wang/wow-view-engine/ui';
+import { BUILT_IN_PRESETS, zhCN } from '@ahoo-wang/wow-view-engine/ui';
 import displayMeta, {
   AllPanels as DisplayAllPanels,
   Building as DisplayBuilding,
@@ -26,6 +26,9 @@ import displayMeta, {
 import { aggregateCalls } from './fixtures.js';
 import { chartsDrawn } from './chartDom.js';
 import { dragHandleOnto } from './pointerDrag.js';
+import { converter, formatRgb, parse } from 'culori';
+
+const toRgb = converter('rgb');
 
 const meta = {
   ...displayMeta,
@@ -375,6 +378,91 @@ export const EditBarStaysInView: Story = {
       await expect(
         onTop(within(bar).getByRole('button', { name: zhCN[way] })),
       ).toBe(true);
+  },
+};
+
+/**
+ * Between the title bar and the edit bar there is only the board's ground
+ * (docs/design/ui/dashboard.md, the user on 2026-09-25): the rem the edit bar
+ * covers above itself, so panels do not show through a scroller's padding
+ * while it is stuck, is the canvas a board stands on. It was `background`,
+ * a white strip under porcelain's grey ground that read as an empty row.
+ * Every preset, light and dark: each point of the gap is transparent or the
+ * canvas, whichever element — or the bar's own `::before` — is there.
+ */
+export const EditBarSitsOnTheGround: Story = {
+  ...DisplayBuilding,
+  decorators: [DESK],
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await userEvent.click(
+      await canvas.findByRole('button', { name: zhCN['label.dashboard.edit'] }),
+    );
+    const bar = await waitFor(() => {
+      const found = canvasElement.querySelector<HTMLElement>(
+        '[data-slot="dashboard-edit-bar"]',
+      );
+      expect(found).not.toBeNull();
+      return found!;
+    });
+    const surface = bar.closest<HTMLElement>('.fve-root')!;
+    // One spelling for a colour, whichever the cascade kept (`oklch(…)`
+    // from a token, `rgb(…)` from elsewhere), and none for a clear one.
+    const rgb = (color: string) => {
+      const found = toRgb(parse(color));
+      return !found || (found.alpha ?? 1) === 0
+        ? null
+        : formatRgb({ ...found, alpha: 1 });
+    };
+    /** What paints at a point: each element there, down to the surface. */
+    /**
+     * What paints at a point, from the top down to the surface: the point
+     * must be on the board, or the check would read the host's page.
+     */
+    const paints = (x: number, y: number) => {
+      const stack = document.elementsFromPoint(x, y);
+      const at = stack.indexOf(surface);
+      expect(at, `${x},${y} is on the board`).toBeGreaterThanOrEqual(0);
+      return stack
+        .slice(0, at + 1)
+        .map(element =>
+          rgb(
+            element === bar
+              ? // The bar itself starts below; above it, only its mask.
+                getComputedStyle(bar, '::before').backgroundColor
+              : getComputedStyle(element).backgroundColor,
+          ),
+        )
+        .filter(color => color !== null);
+    };
+    const html = document.documentElement;
+    const preset = html.getAttribute('data-fve-preset');
+    const dark = html.classList.contains('dark');
+    try {
+      for (const name of BUILT_IN_PRESETS)
+        for (const mode of [false, true]) {
+          html.setAttribute('data-fve-preset', name);
+          html.classList.toggle('dark', mode);
+          const ground = rgb(getComputedStyle(surface).backgroundColor);
+          bar.scrollIntoView({ block: 'center', inline: 'start' });
+          const box = bar.getBoundingClientRect();
+          const tag = `${name} ${mode ? 'dark' : 'light'}`;
+          // The mask, and every point of the gap above the bar that it
+          // covers: nothing but the ground.
+          await expect(
+            rgb(getComputedStyle(bar, '::before').backgroundColor),
+            tag,
+          ).toBe(ground);
+          for (const x of [box.left + 8, box.left + box.width / 2])
+            for (const y of [box.top - 4, box.top - 12])
+              for (const color of paints(x, y))
+                await expect(color, `${tag} at ${x},${y}`).toBe(ground);
+        }
+    } finally {
+      if (preset === null) html.removeAttribute('data-fve-preset');
+      else html.setAttribute('data-fve-preset', preset);
+      html.classList.toggle('dark', dark);
+    }
   },
 };
 

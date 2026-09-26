@@ -695,6 +695,100 @@ describe('EmbeddedDashboard', () => {
   });
 
   /**
+   * 「铺满屏幕」 never takes a row of its own (D10, the user on 2026-09-25):
+   * the first row where the host asked for one, else the end of the filter
+   * bar after 「清空」, else the end of the tabs; alone only on a board with
+   * nothing else above its panels. The expansion is the board's, so the
+   * button changing rows keeps it.
+   */
+  it('stands its full-screen control in a row the board draws anyway', async () => {
+    const control = () =>
+      screen.getByRole('button', { name: /Fill the screen|Leave full screen/ });
+    const { rerender } = embed({
+      interaction: 'interactive',
+      expandable: true,
+    });
+    await chartRow('CN');
+    const row = document.querySelector<HTMLElement>(
+      '[data-slot="dashboard-filter-row"]',
+    )!;
+    // After 「清空」, outside the filters' region, on the same row.
+    const bar = within(row).getByRole('region', { name: 'Filters' });
+    expect(bar.contains(control())).toBe(false);
+    expect(row.contains(control())).toBe(true);
+    const clear = within(bar).getByRole('button', { name: 'Clear' });
+    expect(
+      clear.compareDocumentPosition(control()) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(document.querySelector('[data-slot="embed-head"]')).toBeNull();
+
+    // Filling the screen, then the host asking for the time: the button
+    // moves to the first row, and the board stays filling the screen.
+    await userEvent.click(control());
+    const surface = control().closest<HTMLElement>('.fve-root')!;
+    expect(surface.getAttribute('data-view-expanded')).toBe('true');
+    rerender({
+      interaction: 'interactive',
+      expandable: true,
+      withRefresh: true,
+    });
+    await waitFor(() =>
+      expect(
+        document
+          .querySelector('[data-slot="embed-actions"]')
+          ?.contains(control()),
+      ).toBe(true),
+    );
+    expect(
+      document.querySelector('[data-slot="dashboard-filter-row"]'),
+    ).toBeNull();
+    expect(surface.getAttribute('data-view-expanded')).toBe('true');
+    expect(control().getAttribute('aria-expanded')).toBe('true');
+    await userEvent.keyboard('{Escape}');
+    expect(surface.hasAttribute('data-view-expanded')).toBe(false);
+  });
+
+  it('stands its full-screen control beside the tabs without filters, and alone only above nothing else', async () => {
+    const tabbed = dashboardConfig({
+      tabs: [
+        { id: 'summary', title: 'Summary' },
+        { id: 'detail', title: 'Detail' },
+      ],
+      panels: [{ ...note('# Weekly review'), tab: 'summary' }],
+    });
+    embed({
+      engine: engineOf(tabbed),
+      interaction: 'interactive',
+      expandable: true,
+    });
+    await screen.findByRole('heading', { name: 'Weekly review' });
+    const tabs = document.querySelector<HTMLElement>(
+      '[data-slot="dashboard-tabs"]',
+    )!;
+    const expand = screen.getByRole('button', { name: 'Fill the screen' });
+    expect(tabs.contains(expand)).toBe(true);
+    expect(screen.getByRole('tablist').contains(expand)).toBe(false);
+    expect(document.querySelector('[data-slot="embed-head"]')).toBeNull();
+    expect(
+      document.querySelector('[data-slot="dashboard-filter-bar"]'),
+    ).toBeNull();
+    cleanup();
+
+    embed({
+      engine: engineOf(dashboardConfig({ panels: [note('# Weekly review')] })),
+      interaction: 'interactive',
+      expandable: true,
+    });
+    await screen.findByRole('heading', { name: 'Weekly review' });
+    expect(
+      document
+        .querySelector('[data-slot="dashboard-board-controls"]')
+        ?.contains(screen.getByRole('button', { name: 'Fill the screen' })),
+    ).toBe(true);
+  });
+
+  /**
    * A board-level search (D36, item 4 of the embed batch): a filter of the
    * `search` kind, wired to each detail panel's search field, runs the
    * reader's words as Wow's `SEARCH` over the fields the definition names —

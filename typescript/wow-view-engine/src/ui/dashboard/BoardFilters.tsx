@@ -54,9 +54,11 @@ import {
 export interface BoardFilterParts {
   /**
    * The filter bar, over everything else on the board (D22 F); in the
-   * one-column reading, one button and a sheet (D26 Q38).
+   * one-column reading, one button and a sheet (D26 Q38). `trailing` is
+   * a control of the surface's own at the end of its row
+   * (`FilterBar.trailing`).
    */
-  bar(narrow: boolean): ReactNode;
+  bar(narrow: boolean, trailing?: ReactNode): ReactNode;
   /** 「添加筛选」, for the edit bar while the board is built (D22 G). */
   add: ReactNode;
   /** The line saying which filter is being wired, while one is. */
@@ -162,7 +164,7 @@ export function useBoardFilters({
     ) : null;
 
   return {
-    bar: narrow => (
+    bar: (narrow, trailing) => (
       <>
         <FiltersRefused issues={namedRefused} />
         <FilterBar
@@ -182,6 +184,7 @@ export function useBoardFilters({
               : undefined
           }
           modes={modes}
+          trailing={trailing}
           order={
             building
               ? { move: (name, to) => edit.moveFilter(name, to), say }

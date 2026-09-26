@@ -258,6 +258,56 @@ export const InPorcelain: Story = {
 };
 
 /**
+ * 「铺满屏幕」 shares the filter bar's row, after 「清空」, rather than a row
+ * of its own between the page's head and the filters (the user on
+ * 2026-09-25: 「这个需要独占一行吗？」). The page asks for no title and no
+ * time, so the embed has no first row: the filter row is the first thing
+ * on the surface, and the button stands on its first line, centred with the
+ * chips (or, below `md`, with the one button that opens them).
+ */
+export const ExpandSharesARow: Story = {
+  ...DisplayDailyReport,
+  name: '铺满屏幕与筛选同一行',
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await waitFor(() => expect(valueOf('GMV')).toBeTruthy());
+    const expand = canvas.getByRole('button', {
+      name: zhCN['label.workbench.expand-view'],
+    });
+    const surface = expand.closest<HTMLElement>('.fve-root')!;
+    await expect(surface.querySelector('[data-slot="embed-head"]')).toBeNull();
+    const row = expand.closest<HTMLElement>(
+      '[data-slot="dashboard-filter-row"]',
+    )!;
+    await expect(row).not.toBeNull();
+    // Nothing above it on the surface: no empty row.
+    await expect(
+      row.getBoundingClientRect().top - surface.getBoundingClientRect().top,
+    ).toBeLessThanOrEqual(1);
+    // On the first line of the bar, centred with what stands there.
+    const bar = within(row).getByRole('region', {
+      name: zhCN['label.filters.bar'],
+    });
+    const first = [...bar.children]
+      .map(child => child.getBoundingClientRect())
+      .filter(box => box.height > 0)
+      .sort((a, b) => a.top - b.top)[0];
+    const box = expand.getBoundingClientRect();
+    await expect(
+      Math.abs(box.top + box.height / 2 - (first.top + first.height / 2)),
+    ).toBeLessThanOrEqual(4);
+    // Outside the filters' region, after everything in it.
+    await expect(bar.contains(expand)).toBe(false);
+    await expect(box.left).toBeGreaterThanOrEqual(
+      Math.max(...[...bar.children].map(c => c.getBoundingClientRect().right)),
+    );
+    await expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(
+      window.innerWidth,
+    );
+  },
+};
+
+/**
  * Read-only by construction (D36): no 「编辑」, save or save-as anywhere,
  * the panel menus read only; 「铺满屏幕」 fills the screen and Escape puts it
  * back.
@@ -663,11 +713,19 @@ export const OnAPhone: Story = {
   play: async ({ canvasElement }) => {
     await expect(window.innerWidth).toBe(375);
     await waitFor(() => expect(valueOf('GMV')).toBe(DAILY_GOLDEN.cards.GMV));
-    await expect(
-      within(canvasElement).getByRole('button', {
-        name: label('label.filters.sheet-set', { count: '1' }),
-      }),
-    ).toBeVisible();
+    const opener = within(canvasElement).getByRole('button', {
+      name: label('label.filters.sheet-set', { count: '1' }),
+    });
+    await expect(opener).toBeVisible();
+    // 「铺满屏幕」 on the same row as that button, at its end — not a row of
+    // its own above it.
+    const expand = within(canvasElement)
+      .getByRole('button', { name: zhCN['label.workbench.expand-view'] })
+      .getBoundingClientRect();
+    const opens = opener.getBoundingClientRect();
+    await expect(Math.abs(expand.top - opens.top)).toBeLessThanOrEqual(4);
+    await expect(expand.left).toBeGreaterThan(opens.right);
+    await expect(expand.right).toBeLessThanOrEqual(window.innerWidth);
     await expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(
       window.innerWidth,
     );
@@ -697,11 +755,7 @@ export const OnAPhone: Story = {
 
     // In the filter sheet: every filter stays inside it — a relative window
     // wraps its three controls rather than running under the reset (W11).
-    await userEvent.click(
-      within(canvasElement).getByRole('button', {
-        name: label('label.filters.sheet-set', { count: '1' }),
-      }),
-    );
+    await userEvent.click(opener);
     const sheet = await screen.findByRole('dialog', {
       name: zhCN['label.filters.bar'],
     });

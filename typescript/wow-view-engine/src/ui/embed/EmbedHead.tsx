@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import { useRef, type ReactNode } from 'react';
+import { Children, useRef, type ReactNode } from 'react';
 import { ArrowUpRightIcon } from 'lucide-react';
 import { cn } from 'cn';
 import type { RefreshController } from '../../react/index.js';
@@ -43,7 +43,11 @@ export function EmbedHead({
   /** The controls on the right. */
   children?: ReactNode;
 }) {
-  if (title === undefined && !children) return null;
+  // Children the host did not switch on arrive as `false`: an array of
+  // them is no control, and must not draw an empty row that the surface's
+  // gap then doubles.
+  const controls = Children.toArray(children).length > 0;
+  if (title === undefined && !controls) return null;
   const Title: `h${PanelHeadingLevel}` = `h${headingLevel}`;
   return (
     <div data-slot="embed-head" className="flex flex-wrap items-center gap-2">
@@ -55,7 +59,7 @@ export function EmbedHead({
           {title}
         </Title>
       )}
-      {children && (
+      {controls && (
         <div
           data-slot="embed-actions"
           className="ml-auto flex shrink-0 items-center gap-2"
@@ -105,9 +109,22 @@ export function OpenInWorkbench({
  * hidden.
  */
 export function EmbedExpand() {
+  return useEmbedExpand(true);
+}
+
+/**
+ * `EmbedExpand` held by the caller, for an embed that decides where the
+ * button stands (`EmbeddedDashboard`: its first row, else the end of the
+ * filter bar or the tabs, D10). The expansion lives with the caller, so the
+ * button moving between rows — the filter bar giving way as the board
+ * narrows — never ends it. Nothing while `enabled` is off.
+ */
+export function useEmbedExpand(enabled: boolean): ReactNode {
   const toggleRef = useRef<HTMLButtonElement>(null);
-  const expansion = useViewExpansion(toggleRef, toggleRef);
-  return <ViewExpandToggle expansion={expansion} ref={toggleRef} />;
+  const expansion = useViewExpansion(toggleRef, toggleRef, enabled);
+  return enabled ? (
+    <ViewExpandToggle expansion={expansion} ref={toggleRef} />
+  ) : null;
 }
 
 /**
