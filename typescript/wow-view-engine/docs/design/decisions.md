@@ -595,6 +595,32 @@
 - **没选**：shadcn ScrollArea——粘住的表头与合计带、冻结列、虚拟滚动都挂在原生滚动口上，换掉要一起搬，它只解决 macOS 隐藏滚动条的一半。
 - **落点**：`src/dashboard/layout.ts`（`grownLayout`）、`src/ui/dashboard/{panelFit,scrollMore}.ts`、`ScrollCue.tsx`；[ui/dashboard.md](ui/dashboard.md)。
 
+## D53 图上的字互不压盖；柱多时只标峰谷；数值标签三选一（2026-09-26）
+
+- **来由**：Storybook 审查 P1-5（参考线名、峰谷字、轴标签、柱值互相压盖）、P1-6（柱多时每根柱一个旋转的数，成了噪声）。
+- **裁定**（#3654、#3657，分析道按第一原理定，协调者认可）：
+  - 参考线与区间的名字写在绘图区右侧，与线同高、与区间中线同高，挨得比一行字近时错开；有右轴、横放的图，或最宽的名字会占去图宽四分之一以上时，仍写在图里。柱图的峰谷字写在柱端外；线图的最低点离底不到一成高时写在点上方。
+  - 竖着的、不多段堆叠的柱（组合图里的柱也算），没设 `labels` 且类目 12 个及以上时只标最高、最低（`PEAKS_ONLY_FROM`）；缩放到屏上不足 12 根时每根都标。`labels: true` 每根都标，`false` 不标。横放、堆叠、整排一样高的柱不受影响。
+  - 显示页的「数值标签」按模型的三种状态给选择：只有「自动」会随结果变的图给「自动／每个都标／不标」三项，并在下面写出这张图此刻怎么标；其余的图给两项，选中项按实际效果显示；饼图问的是占比要不要带数值（「只标占比／数值与占比」）。`updateChart` 会拿掉给成 `undefined` 的成员，与 `ViewRuntime.edit` 一致。
+- **没选**：ECharts `labelLayout`（管不到标记组件的标签）；逐个故事调位置；复选框（「自动」时勾着却不是每根都标，状态不反映）。
+- **落点**：`src/ui/charts/{cartesianMarks,cartesianFit,cartesianPlan}.ts`、`src/analysis/chartFamilies.ts`、`src/ui/analysis/DisplayTab.tsx`；[ui/analysis.md](ui/analysis.md)。
+
+## D54 地图的区域靠边界线与底色分开（2026-09-26）
+
+- **来由**：暗色下南海诸岛、九段线几乎看不见，没数的区域（台湾、香港、澳门）与底色难分。
+- **裁定**（#3655，主题样式道提出、协调者认可）：新增图表角色 `chart-map-edge`（两种明暗、预设可写，缺省落回 `chart-axis`），每个区域的边界读它，对页底、卡片、陆地与色阶最浅一档都过 3:1（contrast 预设 4.5:1），进 `pairs.ts`。陆地与最浅一档的**填色**不守线：最浅一档离底色只有约 1.3:1，陆地若要同时离两者 3:1 就只能比最浅一档更亮，没数的区域会读成「有数」；区分交给 3:1 的边界线（WCAG 1.4.11）。
+- **没选**：提亮陆地填色；换色阶起点（另议）。
+- **落点**：`src/ui/theme/{tokens,pairs}.ts`、`src/ui/charts/{theme,mapOption}.ts`；[theme-architecture.md](theme-architecture.md) 6.7。
+
+## D55 Storybook 的导览读数据、接入用真代码（2026-09-26）
+
+- **来由**：Storybook 审查 P1-2、P1-7、P1-9：故事数据源不认「晚于／早于现在」「存在／不存在」；导览里的答案与数据对不上、计数过时；宿主学不到怎么接入。
+- **裁定**（#3656，故事道按第一原理定，协调者认可）：
+  - 故事数据源按 Wow 的语义回答 NOW 类与存在性算子：NOW 类先降成严格的 `LT`／`GT`，时钟用夹具钉住的「现在」（`rowSource(rows, { now })`）。
+  - 导览里的数与名一律由 `retail/guide.ts` 从数据、定义与故事清单读出：答案用引擎的 `compileAnalysis` 编译已存分析、交给场景自己的数据源作答，不手写；`guide.test.ts` 守住答案里的判断。
+  - 场景文档页的「Show code」显示宿主一侧的真实源码；接入写法以 `stories/view-engine/integration/` 为准（参与类型检查，`integration.test.ts` 用引擎校验定义）。
+- **落点**：`typescript/storybook/stories/view-engine/{rowSource.ts,retail/guide.ts,integration/}`、`Integration.mdx`。
+
 ## 搁置待议
 
 尚无结论，不要当作规则执行。
