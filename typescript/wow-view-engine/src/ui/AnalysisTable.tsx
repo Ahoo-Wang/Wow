@@ -196,15 +196,15 @@ export function AnalysisTable({
   // its field's values do; the rest, and anything the field's kind has
   // nothing to say about, as before.
   // The one reading the exported file shares (`analysisCellText`).
-  const show = (value: unknown, column: AnalysisView['columns'][number]) =>
-    analysisCellText(value, column, messages, display);
+  const show = (row: RecordData, column: AnalysisView['columns'][number]) =>
+    analysisCellText(row[column.alias], column, messages, display, row);
   const titled = view.columns.map(column => ({
     column,
     title: columnTitle(column, messages, view.approximate),
     // Read only for a column not yet sized: what it is first drawn with.
     values: () =>
       [...view.rows, ...(view.totals ? [view.totals] : [])].map(row =>
-        show(row[column.alias], column),
+        show(row, column),
       ),
   }));
   const widths = useHeldWidths(titled);
@@ -296,8 +296,8 @@ export function AnalysisTable({
   // One value as a cell draws it: the text, in an id's monospace where the
   // field is one, and whole in the `title` for when the width cut it — as
   // the record table's clipped cells do.
-  const cell = (value: unknown, { column, wears }: Column) => {
-    const text = show(value, column);
+  const cell = (row: RecordData, { column, wears }: Column) => {
+    const text = show(row, column);
     return (
       <TableCell key={column.alias} {...wears} title={text || undefined}>
         {isIdentifier(column) && text !== '' ? (
@@ -452,7 +452,7 @@ export function AnalysisTable({
                     : undefined
                 }
               >
-                {columns.map(entry => cell(row[entry.column.alias], entry))}
+                {columns.map(entry => cell(row, entry))}
                 <FillerCell />
               </TableRow>
             );
@@ -523,7 +523,7 @@ export function AnalysisTable({
                     )}
                   </TableCell>
                 ) : (
-                  cell(view.totals?.[entry.column.alias], entry)
+                  cell(view.totals ?? {}, entry)
                 ),
               )}
               <FillerCell />

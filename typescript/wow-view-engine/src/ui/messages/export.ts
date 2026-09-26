@@ -23,6 +23,7 @@
  */
 export const exportMessages = {
   'label.export.title': 'Export',
+  'label.export.currency-column': '{field} (currency)',
   // The analysis's export menu (D25 Q28, D33 Q58): the groups as a file,
   // or the chart as a picture — its title, legend and conditions drawn in —
   // named after the view (or 「图表」 when it has no title) and the day.

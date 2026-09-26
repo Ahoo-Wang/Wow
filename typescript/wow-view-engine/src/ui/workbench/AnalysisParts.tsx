@@ -18,7 +18,9 @@ import type {
   FieldOption,
 } from '../../model/index.js';
 import type { ViewRuntime } from '../../runtime/index.js';
+import { CURRENCY_ISSUE_CODES } from '../../analysis/currency.js';
 import { CUT_SHORT_CODES } from '../../runtime/execute.js';
+import { CurrencyStrip } from '../analysis/CurrencyStrip.js';
 import { resultIssues } from '../../runtime/source.js';
 import {
   useAnalysisEditor,
@@ -239,10 +241,15 @@ export function AnalysisParts({
   const cutShort = resultIssues(state?.result?.data).filter(found =>
     CUT_SHORT_CODES.includes(found.code),
   );
+  // What the result says about its money, with the offer to group by the
+  // currency field (`CurrencyStrip`), drawn over the rows as well.
+  const money = resultIssues(state?.result?.data)
+    .filter(found => CURRENCY_ISSUE_CODES.includes(found.code))
+    .map(nameIssue);
 
   if (!runtime) return children(NO_PARTS);
   return children({
-    besideResult: CUT_SHORT_CODES,
+    besideResult: BESIDE_RESULT,
     nameIssue,
     // The caption is this kind's furniture in the frame (`resultSlots`).
     resultSlots: RESULT_SLOTS,
@@ -385,6 +392,11 @@ export function AnalysisParts({
               <NoteStrip issues={cutShort} />
             </div>
           )}
+          {view && view.rows.length > 0 && money.length > 0 && (
+            <div data-slot="analysis-currency" className="pb-2">
+              <CurrencyStrip issues={money} analysis={analysis} />
+            </div>
+          )}
           {!view ? (
             // Before the first answer, its shape; after a first query that
             // failed, nothing — the failure is the query strip's to say, under
@@ -448,6 +460,15 @@ export function AnalysisParts({
 
 /** What the analysis result hands the frame to dress (`ResultBlock.slots`). */
 const RESULT_SLOTS = resultSlots('caption');
+
+/**
+ * The result's own sentences, drawn over its rows and left out of the
+ * status line: about the groups cut short, and about its money.
+ */
+const BESIDE_RESULT: readonly string[] = [
+  ...CUT_SHORT_CODES,
+  ...CURRENCY_ISSUE_CODES,
+];
 
 /** No sort has run yet: the order before any result. */
 const NO_SORT: readonly AnalysisSort[] = [];

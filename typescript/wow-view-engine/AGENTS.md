@@ -112,9 +112,10 @@ src/
     analysis.ts               — Wow aggregation enums as stored literals, the date units coarsest first (`ANALYSIS_DATE_UNITS`); which metric types measure one field (`FIELD_METRIC_TYPES`)
     chart.ts                  — ChartSpec — one sub-object per chart family (a waterfall's and a treemap's among them), every reference a group or metric alias; `CHART_TYPES`, `CHART_FAMILY`, `CHART_COLOR_SLOTS` (the palette's size, which a pie folds at); what a cartesian chart draws over its marks — reference lines at a number or a statistic (`REFERENCE_STATISTICS`), target bands, extremes, derived series (`DERIVED_KINDS`, `MAX_MOVING_WINDOW`)
     config.ts                 — ViewConfig — what each view kind stores, and which of its members only draw the result (`presentationMembers`)
+    currency.ts               — What currency an amount is in, for money whose currency each record holds (`CurrencyReading`: one, or mixed and no amount): read off the rows (`currencyOfRows`) or off an aggregate's companions (`companionReading`), joined (`joinCurrencies`)
     dashboard.ts              — Dashboard config: the 24-column grid it says it is in, the width it is laid out at (`DashboardWidth`, `boardWidth`: none is full; D31), its fixed scope (`fixed`), tabs, the filters (five types, `filterTypeOf`; default, required, multiple, a list) and the time grouping, what they hold (`DashboardFilters`, never saved), bindings (auto or by hand), panels on a saved view or one the board owns (`OwnedView`), how a panel looks at its view (`PanelPresentation`) and what a press on one of its groups does (`PanelClick`), content panels heading included
     definition.ts             — ViewDefinition, FieldDefinition, capabilities
-    field.ts                  — FieldKindId; what a cell reads as, which fields hold one string, and how a time field is stored (`temporalOf`, epoch milliseconds unless declared)
+    field.ts                  — FieldKindId; what a cell reads as, which fields hold one string, how a time field is stored (`temporalOf`, epoch milliseconds unless declared), and what a number is (`FieldNumeric`: a decimal, or money in a fixed currency or one each record holds) and how it reads (`numberFormatOf`, `currencyPathOf`)
     filter.ts                 — FilterOperator as stored in a config; the three group operators and the reading of one
     instance.ts               — ViewInstance: authorship, scope, permissions
     issue.ts                  — Issue — how every kernel reports a problem
@@ -160,6 +161,7 @@ src/
     export.ts                 — `serializeCsv`: rows as a CSV, values read the UI's way; `writeCsv`, the one writer every export goes through, formulas neutralized unless `neutralizeFormulas: false` (D37)
     path.ts                   — `readPath`: the value at a dot path in a row, how a row's key is read
     paging.ts                 — What the pager reads, from what ran: `pagedPaging` (the size that ran, the pages reachable inside the source's `maxWindow`, `hasNext`, `reachable` when the window cuts the total short), `cursorPaging`, `lastPageInWindow`, `clampPage`
+    summaryCurrency.ts        — `summaryCurrency`: what a total of money in each record's own currency asks beside itself to tell one currency from several
     project.ts                — projectRecord — the columns a table draws, the edge each is held against (`ColumnEdge`), the card layout (`RecordCardView`), the rows and their paging
     validate.ts               — validateRecord — columns, sort, card and summaries against the definition
     index.ts                  — The record kernel: a definition and a config in, a Wow query or a rendered view out
@@ -190,6 +192,7 @@ src/
     chartSlots.ts             — `fitChartSlots`: the family sub-object of the current chart type, filled from the groups and metrics in force; `comboMark`: a combo draws its first metric as bars, the others as lines; `comboAxis`: one that measures something else than the first goes to the other axis
     chartSwitch.ts            — `switchChartType`: a type switch carries the lead metric (`leadMetric`) into the new family
     compile.ts                — compileAnalysis → AggregationQuery
+    currency.ts               — Money in a currency each record holds (#3552): the companions a metric asks beside itself to tell one currency from several (`currencyCompanions`, a `DISTINCT_COUNT` and an `ANY` of the currency field), and what a result says about its money (`currencyIssues`)
     fitCharts.ts              — Which chart types can draw a result of this shape and which it reads best as (K3, Q6): the capability says which exist, this says which are greyed and why; `chartUnfit`, why a config's own chart cannot draw its shape — then it is drawn as the table (D20); `chartPickerGroups`, the picker's 「适合这个结果」 and 「其他图型」 (D33 Q54)
     formula.ts                — Formulas and derived metrics (D20 屏 B): their first shapes, `expressionText`／`derivedText` as the author would say them, `isFormula`; a time between two moments (N3): `durationMetric`, `isDuration`
     chartFamilies.ts          — What a chart family is, one row each: its options pages, legend and value labels, and the shapes it can draw — the forward reading of `validateChart`, held to it by a test over every shape
@@ -420,6 +423,7 @@ src/
     band.ts                   — `bandText`: a number histogram's key as the band it starts, 「¥0～500」, its bounds short when short is exact; `segmentText`, a `GTE`＋`LT` segment written the same way
     describeConfig.ts         — One config in a sentence, for a conflict's side-by-side
     datePart.ts               — `datePartValue`: a calendar part's key named in the reader's language — 「周一」/Mon, 「20时」/20:00, 「9月」, 「3日」
+    currency.ts               — Money in each record's own currency as the screen and a file read it: a field in the currency its row holds (`inRowCurrency`), an aggregate in its one currency or 「多种货币」 (`currencyText`), and the file's currency column (`currencyCsvText`)
     display.ts                — A value as its field shows it: enum labels, dates, bucket keys, calendar parts, an array of objects by its elements' title or its count (`heldReading`), never JSON; `summaryFunctionKey` names a summary in its column's vocabulary, `columnTitle` composes an analysis header from its two parts, and a time dimension's with its granularity or its cycle
     download.ts               — Hands a file to the browser; the whole of the DOM the export needs, and the name it is handed under
     dragAnnounce.ts           — What a screen reader hears while a row is dragged, in the shape the drag library takes; the four sortable lists share it
@@ -454,6 +458,7 @@ src/
       AxesTab.tsx             — The options' axes page, cartesian and scatter: title, bounds, number format and scale (linear or log, greyed with why over 0 or a negative) of each numeric axis
       optionControls.tsx      — The few controls the options pages are built of: slot select, check, choice, number, text and name fields, and a titled section
       CompactSelect.tsx       — The one select a tray card carries: a named choice among a few words
+      CurrencyStrip.tsx       — What a result says about its money, over its rows, with the offer to group by the currency field and run
       CardMenu.tsx            — A tray card's name and the way to rename it (`CardName`), and the card's own menu (`CardMenu`): display name, the sentinel bucket, filling empty periods
       DimensionCard.tsx       — The dimensions slot and its cards: field, and the control its type asks for (granularity, band width)
       ElementsSlot.tsx        — The expansion slot (D20 屏 G): the chain of arrays counted inside, one card a level with its own gate, 「展开：…」 along the declared chain, and the counting unit

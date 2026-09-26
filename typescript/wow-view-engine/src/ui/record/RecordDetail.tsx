@@ -43,6 +43,7 @@ import {
 import { RowActions } from '../RowActions.js';
 import { takeStop } from '../roving.js';
 import { useSurfaceDisplay } from '../ViewSurface.js';
+import { inRowCurrency } from '../currency.js';
 import { cellValue } from './cells.js';
 import { blockOf } from './DetailStructure.js';
 import { placeSections } from './detailPlacement.js';
@@ -282,7 +283,13 @@ function FieldSection({
             value === undefined && detail.loading ? (
               <Skeleton className="h-4 w-24" />
             ) : (
-              (cellValue(value, field, messages, display, 'detail') ?? '—')
+              (cellValue(
+                value,
+                inRowCurrency(field, record ?? undefined),
+                messages,
+                display,
+                'detail',
+              ) ?? '—')
             );
           // A structure or a paragraph takes the whole width, under its
           // label (`blockOf`).

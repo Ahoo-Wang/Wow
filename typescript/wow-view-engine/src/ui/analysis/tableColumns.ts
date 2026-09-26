@@ -11,9 +11,9 @@
  * limitations under the License.
  */
 
-import type { AnalysisColumnView } from '../../analysis/index.js';
+import { rowCurrency, type AnalysisColumnView } from '../../analysis/index.js';
 import { useState } from 'react';
-import { isDateCell } from '../../model/index.js';
+import { isDateCell, type RecordData } from '../../model/index.js';
 import type { RecordColumnView } from '../../record/index.js';
 import { bandText } from '../band.js';
 import {
@@ -22,6 +22,7 @@ import {
   valueText,
   type DisplayContext,
 } from '../display.js';
+import { currencyText } from '../currency.js';
 import type { MessageFormatters } from '../MessagesProvider.js';
 
 /**
@@ -47,14 +48,30 @@ export function readingOf(column: AnalysisColumnView): string {
  *
  * The table's cells and the exported file (`analysisFile`) both read through
  * it, so the file says what the screen said (D25 Q28).
+ *
+ * Money in a currency each record holds reads in the currency its `row`
+ * says (`rowCurrency`) — and a row whose records are in several says
+ * 「多种货币」 where its number would be, the kernel having taken that
+ * number away as no amount.
  */
 export function analysisCellText(
   value: unknown,
   column: AnalysisColumnView,
   messages: MessageFormatters,
   display: DisplayContext,
+  row?: RecordData,
 ): string {
+  const currency = rowCurrency(row, column);
   return (
+    (currency?.type === 'mixed' || column.currency?.writes
+      ? currencyText(
+          value,
+          currency,
+          column.numberFormat,
+          messages,
+          display.locale,
+        )
+      : undefined) ??
     missingText(value, column, messages) ??
     bandText(value, column, messages, display) ??
     displayValue(value, column, display) ??

@@ -12,11 +12,14 @@
  */
 
 import {
+  CURRENCY_CODE_PATTERN,
   EPOCH_TIME_UNITS,
   FIELD_CELL_IDS,
   FIELD_TONES,
   isFieldlessKind,
   isFieldName,
+  MAX_NUMERIC_SCALE,
+  NUMERIC_TYPES,
   SEARCH_MODES,
   STRING_COMPARISONS,
   TEMPORAL_FIELD_KIND_IDS,
@@ -104,6 +107,7 @@ export function validateFields(
       );
 
     issues.push(...validateTemporal(field, [...at, 'temporal']));
+    issues.push(...validateNumeric(field, [...at, 'numeric']));
 
     // The renderers are a closed set `RecordTable` switches over, so a key
     // nothing switches on would not fail — it would quietly render the
@@ -229,6 +233,47 @@ function validateElementTitle(
       }),
     ];
   return [];
+}
+
+/**
+ * `numeric` decides how every number of the field reads, and a currency
+ * Intl does not know, or a scale it will not write, would not fail — the
+ * number would show unformatted, or in no currency at all. Read rather
+ * than trusted, like `temporal`: a definition may be built from a schema.
+ */
+function validateNumeric(field: FieldDefinition, at: IssuePath): Issue[] {
+  const numeric: unknown = field.numeric;
+  if (numeric === undefined) return [];
+  const declared: {
+    type?: unknown;
+    scale?: unknown;
+    currency?: unknown;
+    currencyField?: unknown;
+  } | null = typeof numeric === 'object' ? numeric : null;
+  const scale = declared?.scale;
+  const known =
+    declared !== null &&
+    NUMERIC_TYPES.includes(declared.type as never) &&
+    typeof scale === 'number' &&
+    Number.isInteger(scale) &&
+    scale >= 0 &&
+    scale <= MAX_NUMERIC_SCALE &&
+    (declared.type === 'decimal'
+      ? declared.currency === undefined && declared.currencyField === undefined
+      : (typeof declared.currency === 'string' &&
+          CURRENCY_CODE_PATTERN.test(declared.currency) &&
+          declared.currencyField === undefined) ||
+        (declared.currency === undefined &&
+          typeof declared.currencyField === 'string' &&
+          isFieldName(declared.currencyField)));
+  return known
+    ? []
+    : [
+        issue('definition.field.numeric-invalid', at, {
+          field: field.name,
+          value: JSON.stringify(numeric),
+        }),
+      ];
 }
 
 /**

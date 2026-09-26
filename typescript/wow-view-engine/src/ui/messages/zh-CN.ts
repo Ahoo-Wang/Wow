@@ -109,6 +109,7 @@ export const zhCN: ViewMessages = {
 
   // 导出窗口：两种口径各带条数，先摆清文件里会有什么，再跑、再说结果（D14）。
   'label.export.title': '导出',
+  'label.export.currency-column': '{field}（币种）',
   'label.export.data': '导出数据…',
   'label.export.image-png': '导出图片（PNG）',
   'label.export.image-svg': '导出图片（SVG）',
@@ -203,6 +204,7 @@ export const zhCN: ViewMessages = {
   'label.value.items-one': '1 项',
   'label.value.fields': '{count} 个字段',
   'label.value.fields-one': '1 个字段',
+  'label.value.mixed-currencies': '多种货币',
   'label.value.untitled': '未命名',
   'label.value.more': '+{count}',
   'label.sort.ascending': '按{field}升序排序',
@@ -856,6 +858,7 @@ export const zhCN: ViewMessages = {
   'label.analysis.reading-kept-custom': '{reading} · 只保留符合自定义规则的组',
   'label.analysis.layout': '结果呈现为',
   'label.analysis.add-group': '添加维度',
+  'label.analysis.group-by-currency': '按「{field}」分组',
   'label.analysis.add-metric': '添加指标',
   'label.analysis.add-formula': '按公式',
   'label.analysis.add-derived': '按已有指标计算',
@@ -1382,6 +1385,10 @@ export const zhCN: ViewMessages = {
   'analysis.percentile.undeclared': '「{field}」不提供百分位。',
   'analysis.result.more-groups': '只显示了前 {limit} 组，还有更多未列出。',
   'analysis.result.at-limit': '只显示了前 {limit} 组，可能还有更多未列出。',
+  'analysis.result.mixed-currency':
+    '{metric}：有的组的记录分属几种货币，这些组的金额加不到一起，不显示；按「{field}」分组可以分开看。',
+  'analysis.metric.currency-unchecked':
+    '{metric} 按每条记录自己的币种记账，但数据源核对不了币种，加起来的数可能混了几种货币；按「{field}」分组可以分开看。',
   'analysis.split.whole-failed':
     '没能把较小的系列并成「其他」，颜色会重复：{reason}',
   'analysis.sort.duplicate': '排序已经按「{alias}」排过了。',
@@ -1950,6 +1957,8 @@ export const zhCN: ViewMessages = {
     '{field} 声明了 editor，这个成员已经没有了，删掉即可。',
   'definition.field.temporal-invalid':
     '{field} 声明的时间存储方式引擎写不出来：{value}。',
+  'definition.field.numeric-invalid':
+    '{field} 声明的数值格式引擎写不出来：{value}。',
   'definition.field.temporal-misplaced':
     '{field} 声明了时间存储方式，但它的类型 {kind} 不写时间。',
   'definition.field.tone-invalid': '{field} 声明了未知的选项语气：{value}。',

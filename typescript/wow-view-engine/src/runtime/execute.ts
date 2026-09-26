@@ -28,6 +28,7 @@ import {
   validateAnalysis,
   type AnalysisView,
 } from '../analysis/index.js';
+import { currencyIssues } from '../analysis/currency.js';
 import { foldsSplit, splitWholeConfig } from '../analysis/splitOther.js';
 import {
   issue,
@@ -383,6 +384,10 @@ async function executeAnalysis(
           ]
         : []),
       ...cutShortIssues(config, view),
+      ...currencyIssues(definition, config, [
+        ...view.rows,
+        ...(view.overall ? [view.overall] : []),
+      ]),
     ],
   };
 }

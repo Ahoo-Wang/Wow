@@ -23,6 +23,7 @@ import type {
   IssuePath,
   NumberFormat,
 } from '../model/index.js';
+import { numberFormatOf } from '../model/index.js';
 import {
   isBlankLeafValue,
   type FieldKind,
@@ -461,7 +462,7 @@ function fieldParts(
   return {
     kind: field.kind,
     ...(field.cell ? { cell: field.cell } : {}),
-    ...(field.numberFormat ? { numberFormat: field.numberFormat } : {}),
+    ...(numberFormatOf(field) ? { numberFormat: numberFormatOf(field) } : {}),
   };
 }
 

@@ -18,9 +18,13 @@ import {
   epochUnitOf,
   columnPinned,
   isDateCell,
+  currencyPathOf,
   isFieldlessKind,
+  type CurrencyReading,
+  numberFormatOf,
   type DataViewDefinition,
   type FieldDefinition,
+  type FieldNumeric,
   type FieldOption,
   type NumberFormat,
   type RecordCardSpec,
@@ -33,8 +37,10 @@ import {
   type SummaryFunction,
   type EpochTimeUnit,
 } from '../model/index.js';
+import { companionReading, currencyOfRows } from '../model/currency.js';
 import { readInstant } from '../filter/index.js';
 import { summaryAlias } from './compile.js';
+import { summaryCurrency } from './summaryCurrency.js';
 import {
   cursorPaging,
   pagedPaging,
@@ -80,6 +86,17 @@ export interface RecordColumnView {
   primary?: true;
   sortable: boolean;
   numberFormat?: NumberFormat;
+  /**
+   * What the number is by the source's semantics (`FieldNumeric`), where
+   * that — and not the author's `numberFormat` — decides how it reads: a
+   * file then holds the number itself, and money its currency beside it.
+   */
+  numeric?: FieldNumeric;
+  /**
+   * For money whose currency each record holds: where the row holds it
+   * (`currencyPathOf`), so the value reads in its own currency.
+   */
+  currencyPath?: string;
   /** An enum's choices, so a cell can show a value by its label. */
   options?: readonly FieldOption[];
   /** For an array of objects, what each element is read by. */
@@ -105,6 +122,11 @@ export interface ElementTitleView {
   cell: string;
   options?: readonly FieldOption[];
   numberFormat?: NumberFormat;
+  /**
+   * For money whose currency each record holds: where the row holds it
+   * (`currencyPathOf`), so the value reads in its own currency.
+   */
+  currencyPath?: string;
 }
 
 /**
@@ -125,7 +147,7 @@ export function elementTitleView(
     kind: title.kind,
     cell: title.cell ?? title.kind,
     ...(title.options ? { options: title.options } : {}),
-    ...(title.numberFormat ? { numberFormat: title.numberFormat } : {}),
+    ...numberFormatPart(title),
   };
 }
 
@@ -150,6 +172,11 @@ export interface RecordCardField {
   cell?: string;
   options?: readonly FieldOption[];
   numberFormat?: NumberFormat;
+  /**
+   * For money whose currency each record holds: where the row holds it
+   * (`currencyPathOf`), so the value reads in its own currency.
+   */
+  currencyPath?: string;
   /** For an array of objects, what each element is read by. */
   elementTitle?: ElementTitleView;
   /** A time kept in epoch seconds; milliseconds when unsaid. */
@@ -203,7 +230,7 @@ export function cardField(field: FieldDefinition): RecordCardField {
     kind: field.kind,
     cell: field.cell ?? field.kind,
     ...(field.options ? { options: field.options } : {}),
-    ...(field.numberFormat ? { numberFormat: field.numberFormat } : {}),
+    ...numberFormatPart(field),
     ...elementTitleOf(field),
     ...elementsOf(field),
     ...timeUnitOf(field),
@@ -258,10 +285,32 @@ function columnView(
     ...(place.pinned ? { pinned: place.pinned } : {}),
     ...(place.primary ? { primary: true } : {}),
     sortable: field.sortable === true,
-    numberFormat: field.numberFormat,
+    numberFormat: numberFormatOf(field),
+    ...currencyPart(field),
+    ...(field.numberFormat === undefined && field.numeric
+      ? { numeric: field.numeric }
+      : {}),
     ...(field.options ? { options: field.options } : {}),
     ...elementTitleOf(field),
     ...timeUnitOf(field),
+  };
+}
+
+function currencyPart(field: FieldDefinition): { currencyPath?: string } {
+  const currencyPath = currencyPathOf(field);
+  return currencyPath === undefined ? {} : { currencyPath };
+}
+
+/** How a number of the field is written, where it says. */
+function numberFormatPart(field: FieldDefinition): {
+  numberFormat?: NumberFormat;
+  currencyPath?: string;
+} {
+  const numberFormat = numberFormatOf(field);
+  const currencyPath = currencyPathOf(field);
+  return {
+    ...(numberFormat ? { numberFormat } : {}),
+    ...(currencyPath === undefined ? {} : { currencyPath }),
   };
 }
 
@@ -414,6 +463,17 @@ export interface SummaryCell {
   /** `null` when the source returned nothing for this cell. */
   value: number | string | null;
   numberFormat?: NumberFormat;
+  /**
+   * For money whose currency each record holds: where a row holds it, so
+   * the page's own total is read off the rows (`pageSummaries`).
+   */
+  currencyPath?: string;
+  /**
+   * For such money, the currency the total is in — or that it is in
+   * several, when the value is no amount and is `null` (`CurrencyReading`).
+   * Absent where it could not be told.
+   */
+  currency?: CurrencyReading;
   /** The epoch unit of the moment it holds, with `cell`; see `epochUnitOf`. */
   timeUnit?: EpochTimeUnit;
   /**
@@ -555,12 +615,24 @@ export function projectSummaries(
       source.scope === 'page'
         ? reduceRows(source.rows, summary.field, summary.fn, reading)
         : readAggregated(row, summaryAlias(summary.field, summary.fn), reading);
+    const currencyPath =
+      field && summary.fn !== 'COUNT' ? currencyPathOf(field) : undefined;
+    const companion = summaryCurrency(definition, summary);
+    const currency =
+      currencyPath === undefined
+        ? undefined
+        : source.scope === 'page'
+          ? rowsCurrency(source.rows, summary.field, currencyPath)
+          : companion && companionReading(row, companion);
     return {
       field: summary.field,
       label: field?.label ?? summary.field,
       fn: summary.fn,
-      value,
-      numberFormat: field?.numberFormat,
+      // A total of unlike amounts is no amount (`CurrencyReading`).
+      value: currency?.type === 'mixed' ? null : value,
+      numberFormat: numberFormatOf(field),
+      ...(currencyPath === undefined ? {} : { currencyPath }),
+      ...(currency ? { currency } : {}),
       ...(reading === undefined
         ? {}
         : { cell: reading, ...(field ? timeUnitOf(field) : {}) }),
@@ -568,6 +640,19 @@ export function projectSummaries(
   });
 
   return { scope: source.scope, cells };
+}
+
+/** The currency of a column's amounts over these rows (`currencyOfRows`). */
+function rowsCurrency(
+  rows: readonly RecordData[],
+  field: string,
+  currencyPath: string,
+): CurrencyReading | undefined {
+  return currencyOfRows(
+    rows,
+    row => readPath(row, field),
+    row => readPath(row, currencyPath),
+  );
 }
 
 /**
@@ -612,13 +697,22 @@ export function pageSummaries(
   const data = rows.map(row => row.data);
   return {
     scope: 'page',
-    cells: cells.map(cell => ({
-      ...cell,
+    cells: cells.map(cell => {
       // The reading travels on the cell, so this scope reduces a date column
       // to a date exactly as the projection did — two scopes reading one
       // column two ways is the drift these two functions sit together to
       // prevent.
-      value: reduceRows(data, cell.field, cell.fn, cell.cell),
-    })),
+      const value = reduceRows(data, cell.field, cell.fn, cell.cell);
+      const currency =
+        cell.currencyPath === undefined
+          ? undefined
+          : rowsCurrency(data, cell.field, cell.currencyPath);
+      const page: SummaryCell = {
+        ...cell,
+        value: currency?.type === 'mixed' ? null : value,
+      };
+      delete page.currency;
+      return currency ? { ...page, currency } : page;
+    }),
   };
 }

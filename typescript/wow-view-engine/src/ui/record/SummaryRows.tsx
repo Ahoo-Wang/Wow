@@ -17,6 +17,7 @@ import type {
   SummaryCell,
   SummaryRow,
 } from '../../record/index.js';
+import { inCurrency } from '../../model/currency.js';
 import { cellText, summaryFunctionKey } from '../display.js';
 import { useViewMessages } from '../MessagesProvider.js';
 import { Tooltip, TooltipTrigger } from '../components/tooltip.js';
@@ -202,24 +203,31 @@ export function SummaryValue({ cell }: { cell: SummaryCell }) {
       >
         <span className={QUIET}>{fn}</span>
         <span data-slot="summary-value" className="tabular-nums">
-          {cell.value === null
-            ? messages.label('label.summary.unavailable')
-            : // The same reading the column's cells get, and deliberately
-              // the same code path: a date in the surface's language and
-              // zone, a number in its field's format. `cell.cell` is set
-              // only where the value is not a number (`SummaryCell`), so a
-              // count under a date column is not formatted as a date; the
-              // field's kind is left out here for exactly that reason.
-              cellText(
-                cell.value,
-                {
-                  cell: cell.cell,
-                  numberFormat: cell.numberFormat,
-                  timeUnit: cell.timeUnit,
-                },
-                messages,
-                display,
-              )}
+          {cell.currency?.type === 'mixed'
+            ? // Unlike amounts have no total: said, never summed.
+              messages.label('label.value.mixed-currencies')
+            : cell.value === null
+              ? messages.label('label.summary.unavailable')
+              : // The same reading the column's cells get, and deliberately
+                // the same code path: a date in the surface's language and
+                // zone, a number in its field's format. `cell.cell` is set
+                // only where the value is not a number (`SummaryCell`), so a
+                // count under a date column is not formatted as a date; the
+                // field's kind is left out here for exactly that reason.
+                cellText(
+                  cell.value,
+                  {
+                    cell: cell.cell,
+                    // In the one currency the total's records are in.
+                    numberFormat:
+                      cell.currency?.type === 'one'
+                        ? inCurrency(cell.numberFormat, cell.currency.code)
+                        : cell.numberFormat,
+                    timeUnit: cell.timeUnit,
+                  },
+                  messages,
+                  display,
+                )}
         </span>
       </TooltipTrigger>
       <TooltipContent>{of}</TooltipContent>

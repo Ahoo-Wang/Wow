@@ -1,4 +1,4 @@
-# @ahoo-wang/wow-view-engine — 808 names, from src/index.ts.
+# @ahoo-wang/wow-view-engine — 820 names, from src/index.ts.
 # Written by test/publicSurface.test.ts; a change here is a change to
 # the public surface (README「Entries」, docs/design/decisions.md D29).
 value ALWAYS_VISIBLE
@@ -60,6 +60,7 @@ value CHART_TYPES
 value CLICK_GO_KINDS
 value CODE_REVISION
 value CSV_BOM
+value CURRENCY_CODE_PATTERN
 type  CalendarData
 type  CalendarDay
 type  CalendarSpec
@@ -84,6 +85,7 @@ type  ChartUnfit
 type  ClickChoice
 type  ClickDraft
 type  ClickGoKind
+type  ColumnCurrency
 type  ColumnEdge
 type  ConfigOfKind
 type  ConflictChoice
@@ -92,6 +94,7 @@ type  ContentPanelKind
 type  CreateInput
 type  CrossFilterOutcome
 type  CsvOptions
+type  CurrencyReading
 type  CursorPaging
 value DASHBOARD_FILTER_KINDS
 value DASHBOARD_FILTER_TYPES
@@ -142,6 +145,7 @@ type  DatePartOffer
 type  DateTemporal
 type  DateTimeFilterValue
 type  DateTimePreset
+type  DecimalNumeric
 type  DefinitionFor
 type  DefinitionNarrowing
 type  DerivedFormat
@@ -193,6 +197,7 @@ type  FieldKindId
 type  FieldKindRegistry
 type  FieldKindValidateContext
 type  FieldMetricType
+type  FieldNumeric
 type  FieldOption
 type  FieldTemporal
 type  FieldTone
@@ -210,6 +215,7 @@ type  FilterSummaryRelation
 type  FilterSummaryValue
 type  FilterTree
 type  FilterValue
+type  FixedMoneyNumeric
 type  FunnelData
 type  FunnelSpec
 type  FunnelStage
@@ -244,6 +250,7 @@ value MAX_DERIVED_DECIMALS
 value MAX_HEADING_LENGTH
 value MAX_MARKDOWN_LENGTH
 value MAX_MOVING_WINDOW
+value MAX_NUMERIC_SCALE
 value MAX_PANEL_LINKS
 value MAX_RELATIVE_DATE_AMOUNT
 value MAX_TIMER_DELAY_MS
@@ -268,6 +275,7 @@ type  MetricFunction
 type  MetricHeadline
 type  MetricPeriod
 type  MetricTrend
+value NUMERIC_TYPES
 type  NestedTree
 type  NewContentPanel
 type  NewFilter
@@ -347,6 +355,7 @@ type  RelativeDateDirection
 type  RelativeDateTimeValue
 type  RelativeDateUnit
 type  RiverStream
+type  RowMoneyNumeric
 type  RuntimeEnvironment
 type  RuntimeFor
 type  RuntimeLimits
@@ -501,6 +510,7 @@ value countLeaves
 value coversScope
 value createFieldKindRegistry
 value crossFilterChoices
+value currencyPathOf
 value cursorPaging
 value dateDiffUnitsOf
 value dateFieldKind
@@ -662,6 +672,7 @@ value nextExpansion
 value nextLevel
 value nodeAt
 value numberFieldKind
+value numberFormatOf
 value offersPercentStack
 value offersStacking
 value operatorsOf
@@ -722,6 +733,7 @@ value resolveDateTimeRange
 value resultSpan
 value retypeFilter
 value rootSearch
+value rowCurrency
 value sameFilterNode
 value sameFilterTree
 value sameFilterType

@@ -110,6 +110,7 @@ export const analysisMessages = {
     '{reading} · Keep only groups matching a custom rule',
   'label.analysis.layout': 'Show result as',
   'label.analysis.add-group': 'Add dimension',
+  'label.analysis.group-by-currency': 'Group by {field}',
   'label.analysis.add-metric': 'Add metric',
   // The two metrics written rather than picked (D20 屏 B), and their cards.
   'label.analysis.add-formula': 'By formula',
@@ -868,6 +869,12 @@ export const analysisMessages = {
     'Showing the first {limit} groups; there are more.',
   'analysis.result.at-limit':
     'Showing the first {limit} groups; there may be more.',
+  // Money in each record's own currency: a group whose records hold
+  // several has no total, and grouping by the currency field separates them.
+  'analysis.result.mixed-currency':
+    '{metric}: some groups hold records in several currencies, so their amounts are not added up; group by {field} to see each currency.',
+  'analysis.metric.currency-unchecked':
+    '{metric} is money in each record’s own currency, which the source cannot check, so its totals may add several currencies; group by {field} to see each currency.',
   // The split past the palette folds its rest into “Other” from a second
   // query; refused, every series is drawn and colours repeat (D42).
   'analysis.split.whole-failed':

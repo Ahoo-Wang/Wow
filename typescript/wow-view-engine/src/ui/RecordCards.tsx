@@ -41,6 +41,7 @@ import { SkeletonCards } from './record/SkeletonCards.js';
 import { useSummaries } from './record/useSummaries.js';
 import type { RecordCell } from './RecordTable.js';
 import { cellText, valueText } from './display.js';
+import { inRowCurrency } from './currency.js';
 import { useViewMessages, type MessageFormatters } from './MessagesProvider.js';
 import { useSurfaceDisplay } from './ViewSurface.js';
 import { cn } from 'cn';
@@ -126,7 +127,14 @@ export function RecordCards({
   const rangeId = useId();
   const render =
     renderCell ??
-    (found => cellValue(found.value, found.column, messages, display, 'card'));
+    (found =>
+      cellValue(
+        found.value,
+        inRowCurrency(found.column, found.row),
+        messages,
+        display,
+        'card',
+      ));
   // The column a card field stands in for: what a host's renderer reads
   // is the same shape the table hands it, with the parts a card never has
   // at their "no" values.
@@ -149,7 +157,7 @@ export function RecordCards({
     card.titleField
       ? cellText(
           recordValue(row.data, card.titleField.field),
-          card.titleField,
+          inRowCurrency(card.titleField, row.data),
           messages,
           display,
         ) || String(row.key)

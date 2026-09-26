@@ -49,6 +49,7 @@ import { usePinnedCap, type ReleasedPins } from './record/pinCap.js';
 import { useRoomBelowRows } from './record/roomBelowRows.js';
 import { useOverflowing } from './record/overflow.js';
 import { cellText } from './display.js';
+import { inRowCurrency } from './currency.js';
 import { cellValue } from './record/cells.js';
 import { EmptyResult } from './record/EmptyResult.js';
 import type { EmptyWayOut } from './record/emptyWayOut.js';
@@ -185,7 +186,14 @@ export function RecordTable({
   const display = useSurfaceDisplay();
   const renderOne =
     renderCell ??
-    (found => cellValue(found.value, found.column, messages, display, 'table'));
+    (found =>
+      cellValue(
+        found.value,
+        inRowCurrency(found.column, found.row),
+        messages,
+        display,
+        'table',
+      ));
   const allSelected =
     table.rows.length > 0 && table.selection.length === table.rows.length;
   const columns = table.columns;
@@ -405,7 +413,12 @@ export function RecordTable({
                       title={
                         column.width === undefined
                           ? undefined
-                          : cellText(value, column, messages, display)
+                          : cellText(
+                              value,
+                              inRowCurrency(column, row.data),
+                              messages,
+                              display,
+                            )
                       }
                     >
                       {renderOne({

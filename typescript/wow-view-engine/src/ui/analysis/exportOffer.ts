@@ -12,7 +12,11 @@
  */
 
 import { useCallback, useMemo, useState } from 'react';
-import type { AnalysisColumnView, AnalysisView } from '../../analysis/index.js';
+import {
+  rowCurrency,
+  type AnalysisColumnView,
+  type AnalysisView,
+} from '../../analysis/index.js';
 import type { Issue, RecordData } from '../../model/index.js';
 import {
   writeCsv,
@@ -29,6 +33,7 @@ import {
   type RecordExportOutcome,
 } from '../../react/index.js';
 import { columnTitle, isoDay, type DisplayContext } from '../display.js';
+import { currencyCsvText } from '../currency.js';
 import { downloadFile, fileName } from '../download.js';
 import type { ExportWindowProps } from '../ExportDialog.js';
 import {
@@ -82,13 +87,34 @@ export function analysisFile(
   // Each cell keeps the value it was read from beside its text, because the
   // writer's formula rule asks whether it was a number (`CsvOptions`): a
   // negative sum reads 「-$12.00」 and is still no formula.
+  //
+  // Money the source's semantics format (`numeric`) is written as the number
+  // it is, its currency in a column of its own beside it — the one it is
+  // in, or 「多种货币」 where a group's records are in several and there is
+  // no amount (`currencyCsvText`); a spreadsheet can add the one up and
+  // tell the other apart.
   const read = (row: RecordData): CsvCell[] =>
-    columns.map(column => {
+    columns.flatMap(column => {
       const value = row[column.alias];
-      return {
+      const currency = rowCurrency(row, column);
+      const cell: CsvCell = {
         value,
-        text: analysisCellText(value, column, messages, display),
+        text:
+          column.numeric === undefined
+            ? analysisCellText(value, column, messages, display, row)
+            : typeof value === 'number'
+              ? Number.isFinite(value)
+                ? String(value)
+                : ''
+              : // No amount where the records mix currencies: the column
+                // beside it says so, and this one stays a column of numbers.
+                currency?.type === 'mixed'
+                ? ''
+                : analysisCellText(value, column, messages, display, row),
       };
+      if (column.numeric?.type !== 'money') return [cell];
+      const code = currencyCsvText(column.numeric, currency, messages);
+      return [cell, { value: code, text: code }];
     });
   const cells = view.rows.map(read);
   if (view.totals) {
@@ -101,9 +127,19 @@ export function analysisFile(
     }
     cells.push(totals);
   }
-  const header = columns.map(column => ({
-    label: columnTitle(column, messages),
-  }));
+  const header = columns.flatMap(column => {
+    const label = columnTitle(column, messages);
+    return column.numeric?.type === 'money'
+      ? [
+          { label },
+          {
+            label: messages.label('label.export.currency-column', {
+              field: label,
+            }),
+          },
+        ]
+      : [{ label }];
+  });
   // Handed over already read, so the writer escapes and never reads: a row
   // is its cells by position, whatever the aliases are called.
   const text = writeCsv(
