@@ -44,7 +44,7 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
+          python-version: "3.14.7"
       # Standard library only: the validator checks structure, the plugin manifest and eval data.
       - name: Validate structure and eval data
         run: python3 -S scripts/validate_wow_skills.py

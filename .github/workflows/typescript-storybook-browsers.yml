@@ -47,7 +47,7 @@ jobs:
       - uses: pnpm/action-setup@v6
       - uses: actions/setup-node@v6
         with:
-          node-version: 24
+          node-version: 24.21.0
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       # No package build: Storybook resolves the Wow packages to their sources

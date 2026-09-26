@@ -64,7 +64,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
         with:
-          node-version: 24
+          node-version: 24.21.0
 
       # gradle.properties, every package.json and the release tag agree.
       - name: Verify release versions
@@ -101,7 +101,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
         with:
-          node-version: 24
+          node-version: 24.21.0
           cache: pnpm
 
       - name: Install JavaScript dependencies
@@ -282,7 +282,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
         with:
-          node-version: 24
+          node-version: 24.21.0
 
       - name: Set up npm
         run: npm install --global "npm@$NPM_VERSION"
