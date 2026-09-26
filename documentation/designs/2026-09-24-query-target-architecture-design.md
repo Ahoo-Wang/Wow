@@ -779,10 +779,9 @@ DataViewDefinition = 能力层（描述允许的子集） ⊕ 呈现层（显示
 | 性能对比 | 用 JMH 对比基线 `e54c6635d` 与当前 main 的关键路径（准入、描述、脱敏、聚合规划），核实第 13 节「关键路径基准不回退」 | 机器空闲时跑，与 CI 和其他会话错开 |
 | ES 精确存在性 | 区分「清空了」与「从未填写」，方案见 §6.2 | §6.2 的触发条件：出现具体需求 |
 | 金额第二阶段 | 带 `currencyField` 的金额做 SUM / AVG 时要求按币种分组或固定币种，见 §6.6 | §6.6 的触发条件：出现实际误用 |
-| DATE_DIFF 混合时间编码 | TCK 补一组夹具：两个时间字段分别是日期与纪元毫秒时，`DATE_DIFF` 在 Mongo 与 ES 上结果一致 | 下次改 TCK 或时间编码时顺带做 |
-| 描述层：动态条目的元素范围 | `DynamicFieldDescriptor` 没有 `scope`，元素内的动态 pattern 说不出自己需要 `ELEMENT_MATCH` | 改描述结构，需要与 TS 交接；视图引擎需要时做 |
-| 描述层：具体键撞上受保护路径 | 探测键只代表一般的键；某个具体键与受保护的物理或响应路径冲突时，仍在请求时才拒绝 | 同上 |
-| 描述层：`unboundedStream` 与元素聚合 | 存储声明 `unboundedStream` 为 `NONE` 时描述里没有对应取值；`elements[].aggregate` 只按 `allowExpensive` 判定，不读存储支持 | 同上 |
+| 描述层：动态条目的元素范围 | 普通字段在元素内时，描述带 `scope`，告诉客户端要放进该数组的 `ELEMENT_MATCH`；动态条目（如 `lines.attrs.{key}`）没有 `scope`，客户端可能写成顶层条件 `lines.attrs.color = red` 而被准入拒绝。修法：`DynamicFieldDescriptor` 增加 `scope` | 改描述结构，需要与 TS 交接；视图引擎需要时做 |
+| 描述层：具体键撞上受保护路径 | 动态 pattern 用探测键代表"任意一般的键"（如"`state.attrs.{key}` 支持 EQ"）；某个具体键映射到的物理或响应路径若正好是受保护字段，准入在请求时拒绝，描述里看不出这个例外。修法：描述列出这类例外键，或给出排除规则 | 同上 |
+| 描述层：`unboundedStream` 与元素聚合 | 存储声明 `unboundedStream` 为 `NONE` 时，准入以 `STORAGE_UNSUPPORTED` 拒绝不带 limit 的列表，描述里却没有取值表达这一点；`elements[].aggregate` 只按昂贵运算开关判定，不看存储是否支持，存储不支持元素内聚合时会多报。修法：描述补上这两项。Mongo 与 ES 都支持，内置存储触发不了 | 同上 |
 
 ## 附录 A：从现状出发
 

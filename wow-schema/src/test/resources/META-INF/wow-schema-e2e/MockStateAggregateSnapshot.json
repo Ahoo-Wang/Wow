@@ -129,6 +129,14 @@
                         "type" : "number",
                         "format" : "double"
                       }
+                    },
+                    "shippedAt" : {
+                      "anyOf" : [ {
+                        "type" : "null"
+                      }, {
+                        "type" : "integer",
+                        "format" : "int64"
+                      } ]
                     }
                   },
                   "required" : [ "amount", "createdAt", "discounts", "productId", "quantity" ]

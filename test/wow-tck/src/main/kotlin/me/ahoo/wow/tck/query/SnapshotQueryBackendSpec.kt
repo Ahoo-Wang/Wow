@@ -17,6 +17,7 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.AggregateIdsFilter
 import me.ahoo.wow.api.query.AggregationDatePart
 import me.ahoo.wow.api.query.AggregationDateUnit
+import me.ahoo.wow.api.query.AggregationElement
 import me.ahoo.wow.api.query.AggregationExpression
 import me.ahoo.wow.api.query.AggregationFunction
 import me.ahoo.wow.api.query.AggregationGroup
@@ -1032,6 +1033,75 @@ abstract class SnapshotQueryBackendSpec {
         )
         matching(ExpressionFilter(fromCreated, ComparisonOperator.NE, 1.0e12)).assert()
             .containsExactly("date-diff-b", "date-diff-c")
+    }
+
+    /** Lines created at one instant and shipped 3 h before, 30 h after, and never: `shippedAt` is epoch millis. */
+    private fun saveMixedEncodingDateDiffSnapshot(): String {
+        val createdAt = Instant.parse("2026-01-02T10:00:00Z")
+        val hour = 3_600_000L
+        fun line(productId: String, shippedAt: Long?) = MockLine(
+            productId = productId,
+            quantity = 1,
+            amount = 1.0,
+            createdAt = createdAt,
+            discounts = emptyList(),
+            shippedAt = shippedAt,
+        )
+        val lines = listOf(
+            line("early", createdAt.toEpochMilli() - 3 * hour),
+            line("late", createdAt.toEpochMilli() + 30 * hour),
+            line("unshipped", null),
+        )
+        saveAggregationStates(MockStateAggregate(id = "date-diff-mixed", orders = listOf(MockOrder("PAID", lines))))
+        return "date-diff-mixed"
+    }
+
+    @Test
+    fun `aggregation DATE_DIFF should subtract an epoch millis field and a date field in either order`() {
+        // lines.shippedAt is epoch milliseconds, lines.createdAt a native date: each operand decodes its own encoding.
+        val id = saveMixedEncodingDateDiffSnapshot()
+        val metrics = mapOf(
+            "millisToDate" to AggregationExpression.DateDiff(
+                QueryField("shippedAt"),
+                QueryField("createdAt"),
+                DateDiffUnit.HOUR,
+            ),
+            "dateToMillis" to AggregationExpression.DateDiff(
+                QueryField("createdAt"),
+                QueryField("shippedAt"),
+                DateDiffUnit.HOUR,
+            ),
+            "days" to AggregationExpression.DateDiff(QueryField("shippedAt"), QueryField("createdAt"), DateDiffUnit.DAY),
+            "seconds" to AggregationExpression.DateDiff(
+                QueryField("shippedAt"),
+                QueryField("createdAt"),
+                DateDiffUnit.SECOND,
+            ),
+        )
+        AggregationQuery(
+            filter = AggregateIdsFilter(listOf(id)),
+            elements = listOf(AggregationElement(QueryField("state.orders")), AggregationElement(QueryField("lines"))),
+            groupBy = listOf(AggregationGroup.Terms(QueryField("productId"), "productId")),
+            metrics = metrics.map { (alias, expression) ->
+                AggregationMetric.Numeric(AggregationFunction.MAX, expression, alias)
+            },
+        ).query(queryBackendBinding)
+            .collectList()
+            .test()
+            .assertNext { rows ->
+                rows.associate { row ->
+                    row.path("productId").asString() to metrics.keys.map {
+                        row.path(it).takeUnless { value -> value.isNull || value.isMissingNode }?.doubleValue()
+                    }
+                }.assert().isEqualTo(
+                    mapOf(
+                        "early" to listOf(3.0, -3.0, 0.125, 10_800.0),
+                        "late" to listOf(-30.0, 30.0, -1.25, -108_000.0),
+                        // Either operand absent: no difference, so the metric has no value.
+                        "unshipped" to listOf(null, null, null, null),
+                    ),
+                )
+            }.verifyComplete()
     }
 
     @Test

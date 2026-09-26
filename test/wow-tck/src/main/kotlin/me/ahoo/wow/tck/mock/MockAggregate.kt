@@ -75,6 +75,8 @@ data class MockLine(
     val discounts: List<MockDiscount>,
     val samples: List<Double> = emptyList(),
     val productName: String? = null,
+    @field:QueryTemporal(unit = TimeUnit.MILLISECONDS)
+    val shippedAt: Long? = null,
 )
 
 data class MockDiscount(val type: String, val amount: Double)
