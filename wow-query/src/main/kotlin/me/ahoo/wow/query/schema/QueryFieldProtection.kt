@@ -282,7 +282,7 @@ private fun transport(mask: List<SourcePart>, source: List<SourcePart>, target: 
     }
 }
 
-internal fun QueryValueSchema.withMask(rule: MaskRule): QueryValueSchema = QueryValueSchema(
+private fun QueryValueSchema.withMask(rule: MaskRule): QueryValueSchema = QueryValueSchema(
     kind = kind, title = title, description = description, enumValues = enumValues,
     enumDescriptions = enumDescriptions, valueTypes = valueTypes,
     properties = properties, items = items, additionalProperties = additionalProperties, alternatives = alternatives,

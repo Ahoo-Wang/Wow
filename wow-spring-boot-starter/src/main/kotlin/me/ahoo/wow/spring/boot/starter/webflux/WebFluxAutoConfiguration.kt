@@ -248,6 +248,13 @@ class WebFluxAutoConfiguration {
         queryEntryPolicy: ObjectProvider<QueryEntryPolicy>,
     ): PointReadAdmission {
         val state = webFluxProperties.state
+        val entryPolicy = queryEntryPolicy.getIfAvailable { QueryEntryPolicy.DEFAULT }
+        // Load, state and tracing routes read states without a query: only point-read admission checks their scope.
+        check(!entryPolicy.requireAuthenticatedScope || state.pointReadAdmission) {
+            "wow.query.require-authenticated-scope=true requires wow.webflux.state.point-read-admission=true: " +
+                "load, state and tracing routes honour the authenticated scope only under point-read admission. " +
+                "Turn both on."
+        }
         if (!state.pointReadAdmission) {
             return PointReadAdmission.DISABLED
         }
@@ -272,7 +279,7 @@ class WebFluxAutoConfiguration {
                 }
             },
             // The same entry policy as the query gateways, so point reads honour require-authenticated-scope.
-            entryPolicy = queryEntryPolicy.getIfAvailable { QueryEntryPolicy.DEFAULT },
+            entryPolicy = entryPolicy,
         )
     }
 

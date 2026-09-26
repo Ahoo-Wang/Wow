@@ -17,6 +17,7 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.CursorQuery
 import me.ahoo.wow.api.query.MatchAllFilter
+import me.ahoo.wow.api.query.QueryErrorCodes
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.Sort
 import org.junit.jupiter.api.Test
@@ -26,32 +27,31 @@ class CursorQueriesTest {
     @Test
     fun `unique sort normalization must not interpret backend field names`() {
         val field = QueryField("_score")
-        CursorQuery(MatchAllFilter, sort = listOf(Sort(field, Sort.Direction.ASC)))
-            .withUniqueSort(QueryField("aggregateId")).sort.first().field.assert().isEqualTo(field)
+        listOf(Sort(field, Sort.Direction.ASC))
+            .withUniqueSort(QueryField("aggregateId")).first().field.assert().isEqualTo(field)
     }
 
     @Test
     fun `should append unique sort once`() {
-        CursorQuery(MatchAllFilter, sort = listOf(Sort(QueryField("version"), Sort.Direction.DESC)))
-            .withUniqueSort(QueryField("aggregateId")).sort.assert().containsExactly(
+        listOf(Sort(QueryField("version"), Sort.Direction.DESC))
+            .withUniqueSort(QueryField("aggregateId")).assert().containsExactly(
                 Sort(QueryField("version"), Sort.Direction.DESC),
                 Sort(QueryField("aggregateId"), Sort.Direction.ASC),
             )
     }
 
     @Test
-    fun `should reject duplicate and overflowing sort`() {
-        assertThrows<IllegalArgumentException> {
-            CursorQuery(
-                MatchAllFilter,
-                sort = listOf(Sort(QueryField("id"), Sort.Direction.ASC), Sort(QueryField("id"), Sort.Direction.DESC)),
-            ).withUniqueSort(QueryField("aggregateId"))
-        }
-        assertThrows<IllegalArgumentException> {
-            CursorQuery(
-                MatchAllFilter,
-                sort = List(AggregationQuery.MAX_SORT_FIELDS) { Sort(QueryField("field$it"), Sort.Direction.ASC) },
-            ).withUniqueSort(QueryField("aggregateId"))
-        }
+    fun `admission rejects a duplicate or overflowing effective cursor sort with the cursor codes`() {
+        val schema = gatewaySchema()
+        fun admit(vararg fields: String) = QueryAdmission.Trusted.cursor(
+            CursorQuery(MatchAllFilter, sort = fields.map { Sort(QueryField(it), Sort.Direction.ASC) }),
+            schema,
+        )
+        assertThrows<QueryRequestException> { admit("id", "id") }.code
+            .assert().isEqualTo(QueryErrorCodes.CURSOR_SORT_DUPLICATE)
+        // The identity tie-breaker counts: MAX_SORT_FIELDS other fields overflow once it is appended.
+        assertThrows<QueryRequestException> {
+            admit(*Array(AggregationQuery.MAX_SORT_FIELDS) { "field$it" })
+        }.code.assert().isEqualTo(QueryErrorCodes.CURSOR_SORT_TOO_MANY)
     }
 }

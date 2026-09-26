@@ -51,7 +51,7 @@ internal fun ResponseBody<Map<*, *>>.innermost(plan: ElasticsearchAggregationPla
     return aggregations
 }
 
-internal fun Aggregate.innermostScope(
+private fun Aggregate.innermostScope(
     plan: ElasticsearchAggregationPlan,
 ): co.elastic.clients.elasticsearch._types.aggregations.FilterAggregate {
     var aggregations = nested().aggregations()
@@ -110,7 +110,7 @@ internal fun ElasticsearchAggregationMetric.Edge.edgeValue(aggregations: Map<Str
     return if (epochMillis) value.toString().toLong() else value
 }
 
-internal fun Aggregate.anyValue(alias: String): Any? = when {
+private fun Aggregate.anyValue(alias: String): Any? = when {
     isSterms -> sterms().buckets().array().firstOrNull()?.key()?.nativeValue()
     isLterms -> lterms().buckets().array().firstOrNull()?.let {
         it.keyAsString()?.toBooleanStrictOrNull() ?: it.key()

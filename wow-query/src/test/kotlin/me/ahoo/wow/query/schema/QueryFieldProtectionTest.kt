@@ -156,7 +156,7 @@ class QueryFieldProtectionTest {
     }
 
     private fun allowed(schema: QueryModelSchema, name: String): Boolean {
-        return checkNotNull(schema.field(QueryField("state.$name"))).cursorSortable
+        return checkNotNull(schema.field(QueryField("state.$name"))).effective.cursorSortable
     }
     private fun schema(state: QueryValueSchema, physical: Map<String, String>) = QueryModelSchema(
         QueryModel.SNAPSHOT,

@@ -66,16 +66,15 @@ class FilterNormalizerTest {
                 ),
             )
         )
-        val schema = me.ahoo.wow.query.schema.QueryModelSchema(
-            me.ahoo.wow.api.query.schema.QueryModel.SNAPSHOT,
-            emptySet(),
-            definition,
-            emptyMap(),
-        )
+        val schema = me.ahoo.wow.query.schema.boundSchemaFixture(definition.root)
         val instant = Instant.parse("2026-01-01T12:00:00Z")
         val filter = TodayFilter(QueryField("createdAt"), "UTC")
-        val root = normalizer.normalize(filter, schema, now = instant) as AndFilter
-        val scoped = normalizer.normalize(filter, schema, QueryField("orders"), now = instant) as AndFilter
+        // Admission's resolution pass normalizes against one moment, root and element filters alike.
+        val root = QueryResolver(schema, instant).filter(filter) as AndFilter
+        val scoped = (
+            QueryResolver(schema, instant).filter(ElementMatchFilter(QueryField("orders"), filter))
+                as ElementMatchFilter
+            ).predicate as AndFilter
         root.operands.assert().isEqualTo(scoped.operands)
         (scoped.operands.first() as GreaterThanOrEqualFilter).value.longValue().assert()
             .isEqualTo(Instant.parse("2026-01-01T00:00:00Z").epochSecond)

@@ -19,15 +19,15 @@ import reactor.core.publisher.Mono
 import reactor.util.context.ContextView
 
 /**
- * Evaluates mandatory query constraints after request preparation.
+ * A mandatory restriction of an aggregate's queries, evaluated at admission step 2 ([QueryAdmission]).
  *
- * Each configured policy reads the same prepared query and captured Reactor context and emits
- * one additional logical filter or an error. MatchAllFilter adds no restriction; an empty publisher is a
- * protocol error. The gateway combines policy filters with AND before defaults, validation and execution.
- * Prepared queries may be replaced by QueryFilter; policy filters are appended afterward.
- * Snapshot and EventStream gateways evaluate configured policies through the same fixed stage.
- * A policy uses the query context to determine applicability and emits MatchAllFilter when it does not apply.
- * Policies do not replace queries, execute backends, or transform results.
+ * Each policy reads the same query, the one every [QueryFilter][me.ahoo.wow.query.filter.QueryFilter] rewrite
+ * produced with the caller's scope and route selection appended, and the captured Reactor context, and emits one
+ * filter or an error. [MatchAllFilter][me.ahoo.wow.api.query.MatchAllFilter] adds no restriction; an empty publisher
+ * is a server fault. Admission appends the policy filters (ANDed) after every rewrite, so no filter can remove them;
+ * the model's default scope, validation and execution follow. Snapshot and EventStream gateways, and admitted point
+ * reads, run the same stage. A policy uses the query context to decide whether it applies, emitting `MatchAllFilter`
+ * when it does not. Policies do not replace queries, execute backends, or transform results.
  *
  * Policies run one after another in `@Order` order (`sortedByOrder`, like [QueryFilter]; unordered policies keep
  * their registration order). Their filters are ANDed, so the order decides only which policy's error, and which

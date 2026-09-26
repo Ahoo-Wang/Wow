@@ -16,7 +16,6 @@ package me.ahoo.wow.query.schema
 import me.ahoo.wow.api.query.schema.QueryCapability
 import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.api.query.schema.QueryValueKind
-import me.ahoo.wow.api.query.schema.Temporal
 import reactor.core.publisher.Mono
 
 /**
@@ -83,18 +82,12 @@ class QueryStorageFacts(
         val admitted = bindings.filterKeys { capability ->
             when (capability) {
                 QueryCapability.CURSOR_SORT -> path.segments.none { it == QueryPathSegment.Item } && !value.hasArrayBranch()
-                QueryCapability.AGGREGATE_TEMPORAL -> value.instantEncoded()
+                QueryCapability.AGGREGATE_TEMPORAL -> value.sharedTemporal().encodesInstant
                 QueryCapability.ELEMENT_SCOPE -> value.isElementScope()
                 else -> true
             }
         }
         return if (admitted.size == bindings.size) this else QueryValueBindings(admitted, projectionPath, responsePath)
-    }
-
-    private fun QueryValueSchema.instantEncoded(): Boolean {
-        val temporal = operationValues().filter { it.kind != QueryValueKind.NULL }.map { it.semanticType }.distinct()
-            .singleOrNull()
-        return temporal == Temporal.Date || temporal is Temporal.Epoch
     }
 }
 

@@ -47,6 +47,7 @@ import me.ahoo.wow.api.query.schema.QueryCapability
 import me.ahoo.wow.api.query.schema.QueryValueKind
 import me.ahoo.wow.api.query.schema.QueryValueType
 import me.ahoo.wow.api.query.spec.MetricSpec
+import me.ahoo.wow.api.query.spec.OperatorCost
 import me.ahoo.wow.api.query.spec.OperatorTarget
 import me.ahoo.wow.api.query.spec.SystemField
 import me.ahoo.wow.api.query.spec.spec
@@ -151,7 +152,7 @@ private class QueryModelDescription(private val schema: QueryModelSchema, privat
                 ?.let { SensitivityDescriptor(it, comparable) },
             project = projectable,
             filter = FieldFilterDescriptor(effective.operators(allowExpensive)),
-            sort = FieldSortDescriptor(paged = effective.sortable, cursor = field.cursorSortable && keyset),
+            sort = FieldSortDescriptor(paged = effective.sortable, cursor = field.effective.cursorSortable && keyset),
             aggregate = aggregate(effective),
             scope = scope,
             deprecated = schema.definition.deprecations[field.logicalField],
@@ -309,8 +310,9 @@ private class QueryModelDescription(private val schema: QueryModelSchema, privat
         return SearchDescriptor(modes, fields.map { it.logicalField.path })
     }
 
+    /** The path a system field names on this model ([systemField]); `null` for the identity of a custom model. */
     private fun systemPath(field: SystemField): String? =
-        if (field == SystemField.IDENTITY) identity else QueryModelProfile.metadataField(field).path
+        if (field == SystemField.IDENTITY && identity == null) null else schema.systemField(field).path
 
     /** The system role of [path]: a metadata field's own, or the identity's for the model's identity field. */
     private fun role(path: String): String? = METADATA_FIELDS.firstOrNull { systemPath(it) == path }?.name
@@ -321,7 +323,7 @@ private class QueryModelDescription(private val schema: QueryModelSchema, privat
         val maxList = budget?.maxListSize?.limit()
         return LimitsDescriptor(
             maxListSize = maxList,
-            defaultListSize = defaultListSize?.limit()?.let { if (maxList == null) it else minOf(it, maxList) },
+            defaultListSize = defaultListSize?.let { if (budget == null) it.limit() else budget.listDefault(it) },
             maxPageSize = budget?.maxPageSize?.limit(),
             maxPageWindow = budget?.maxPageWindow?.takeIf { it > 0 },
             maxFilterNodes = budget?.maxFilterNodes?.limit(),
@@ -340,16 +342,14 @@ private class QueryModelDescription(private val schema: QueryModelSchema, privat
 
     private fun analysis(): AnalysisDescriptor {
         // A metric, HAVING, metric sort or dense fill the storage declares NONE is rejected at admission, so it is
-        // not listed. FIRST and LAST, being expensive, also need an entry that allows expensive operations.
-        // DERIVED stays listed: `expressions` states whether its arithmetic is allowed.
+        // not listed; neither is an expensive metric on an entry that refuses expensive operations. DERIVED is the
+        // one exception: it stays listed, since `expressions` states whether its arithmetic is allowed.
         val support = schema.storage.aggregation
-        val firstLast = schema.storage.offers(MetricSpec.FIRST) && allowExpensive
         val specs = MetricSpec.entries.filter { metric ->
-            when (metric) {
-                MetricSpec.FIRST, MetricSpec.LAST -> firstLast
-                else -> schema.storage.offers(metric)
-            }
+            schema.storage.offers(metric) &&
+                (allowExpensive || metric.baseCost != OperatorCost.EXPENSIVE || metric == MetricSpec.DERIVED)
         }
+        val firstLast = MetricSpec.FIRST in specs
         val metrics = specs.map { it.name }
         val having = if (support.having == SupportMode.NONE) emptyList() else specs.filter { it.havingOperand }
         return AnalysisDescriptor(

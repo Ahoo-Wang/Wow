@@ -16,10 +16,14 @@ package me.ahoo.wow.query.aggregation
 import me.ahoo.wow.api.query.AggregationGroup
 import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.AggregationQuery
+import me.ahoo.wow.api.query.spec.MetricSpec
+import me.ahoo.wow.api.query.spec.spec
 import me.ahoo.wow.query.GroupWindow
 import me.ahoo.wow.query.schema.AggregationSupport
 import me.ahoo.wow.query.schema.QueryViolation
+import me.ahoo.wow.query.schema.StorageSupport
 import me.ahoo.wow.query.schema.SupportMode
+import me.ahoo.wow.query.schema.offers
 import me.ahoo.wow.query.schema.requireValid
 import tools.jackson.databind.node.ObjectNode
 
@@ -36,7 +40,7 @@ val AggregationQuery.denseGroup: AggregationGroup.DateHistogram?
  * The sole dense DATE_PART group, or `null`. Its fixed domain is filled by the core on every storage, so the storage
  * never sees it dense.
  */
-val AggregationQuery.denseDatePart: AggregationGroup.DatePart?
+private val AggregationQuery.denseDatePart: AggregationGroup.DatePart?
     get() = (groupBy.singleOrNull() as? AggregationGroup.DatePart)?.takeIf { it.dense }
 
 /** Whether the effective sort orders groups by a metric, which only a complete set of groups can answer. */
@@ -138,15 +142,28 @@ internal class AggregationPlan private constructor(
     }
 }
 
-/** Rejects, at admission, a feature of [query] that [support] declares [SupportMode.NONE]. */
-internal fun requireSupported(query: AggregationQuery, support: AggregationSupport) {
+/**
+ * Rejects, at admission, a feature of [query] that [storage] declares [SupportMode.NONE]: a metric type by the same
+ * rule the field records and the descriptor read ([StorageSupport.offers]).
+ */
+internal fun requireSupported(query: AggregationQuery, storage: StorageSupport) {
+    val support = storage.aggregation
     support.having.require(query.having != null, "HAVING")
     support.denseFill.require(query.denseGroup != null, "dense DATE_HISTOGRAM")
     support.topN.require(query.metricSorted, "sorting groups by a metric")
-    support.percentile.require(query.metrics.any { it is AggregationMetric.Percentile }, "PERCENTILE")
-    support.distinctCount.require(query.metrics.any { it is AggregationMetric.DistinctCount }, "DISTINCT_COUNT")
-    support.firstLast.require(query.metrics.any { it is AggregationMetric.Edge }, "FIRST and LAST")
+    val used = query.metrics.mapTo(hashSetOf()) { it.spec }
+    OFFERED_METRICS.forEach { (spec, feature) ->
+        requireValid(spec !in used || storage.offers(spec)) { QueryViolation.StorageUnsupported(feature) }
+    }
 }
+
+/** The metric types a storage may decline, in the order admission reports them. */
+private val OFFERED_METRICS = listOf(
+    MetricSpec.PERCENTILE to "PERCENTILE",
+    MetricSpec.DISTINCT_COUNT to "DISTINCT_COUNT",
+    MetricSpec.FIRST to "FIRST and LAST",
+    MetricSpec.LAST to "FIRST and LAST",
+)
 
 private fun SupportMode.require(used: Boolean, feature: String) =
     requireValid(!used || this != SupportMode.NONE) { QueryViolation.StorageUnsupported(feature) }

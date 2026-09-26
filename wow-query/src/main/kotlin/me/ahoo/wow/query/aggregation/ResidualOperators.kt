@@ -176,7 +176,7 @@ internal class BoundedTopRows(
 }
 
 /** The top [limit] of [rows] under [sort]; see [BoundedTopRows]. */
-fun selectTopRows(rows: Iterable<ObjectNode>, sort: List<Sort>, limit: Int): List<ObjectNode> =
+internal fun selectTopRows(rows: Iterable<ObjectNode>, sort: List<Sort>, limit: Int): List<ObjectNode> =
     BoundedTopRows(sort, limit).apply { rows.forEach(::add) }.result()
 
 private class RankedRow(

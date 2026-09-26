@@ -220,7 +220,8 @@ class MongoQuerySchemaAdapter(
                 val itemStorage = native.storageAt(itemPath)
                 return itemStorage?.uncertain != true && itemStorage?.types.proves(listOf(OBJECT_TYPES))
             }
-            if (capability == QueryCapability.CURSOR_SORT || item.kind == QueryValueKind.ARRAY) return false
+            // Whether a logical array may order a cursor is the Catalog's rule (QueryStorageFacts.compile).
+            if (item.kind == QueryValueKind.ARRAY) return false
             return item.supports(capability, itemPath, native)
         }
 

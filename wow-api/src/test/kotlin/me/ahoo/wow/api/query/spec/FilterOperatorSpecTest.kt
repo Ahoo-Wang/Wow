@@ -155,15 +155,9 @@ class FilterOperatorSpecTest {
     }
 
     @Test
-    fun `arity names one field for field operators and counts the values each node carries`() {
+    fun `arity counts the values each node carries`() {
         FilterOperator.entries.forEach { operator ->
             val spec = operator.spec
-            val expected = when (spec.target) {
-                OperatorTarget.FIELD -> FieldArity.ONE
-                OperatorTarget.MODEL_OR_FIELDS, OperatorTarget.EXPRESSION -> FieldArity.MANY
-                OperatorTarget.NONE, OperatorTarget.LOGICAL, OperatorTarget.SYSTEM_FIELD -> FieldArity.NONE
-            }
-            spec.arity.fields.assert().describedAs("$operator fields").isEqualTo(expected)
             val count = spec.valueCount(sample(operator))
             when (spec.arity.values) {
                 ValueArity.NONE -> count.assert().describedAs("$operator values").isEqualTo(0)

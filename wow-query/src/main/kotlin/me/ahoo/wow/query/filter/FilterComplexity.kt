@@ -108,7 +108,7 @@ fun FilterExpression.valueCount(): Int? = if (spec.arity.values == ValueArity.LI
  * The direct child filters of this node: the operands of `AND` / `OR` / `NOR` and the predicate of
  * `ELEMENT_MATCH`. Leaf nodes return an empty list.
  */
-fun FilterExpression.childFilters(): List<FilterExpression> = when (this) {
+internal fun FilterExpression.childFilters(): List<FilterExpression> = when (this) {
     is AndFilter -> operands
     is OrFilter -> operands
     is NorFilter -> operands
@@ -173,12 +173,6 @@ fun FilterExpression.childFilters(): List<FilterExpression> = when (this) {
 fun List<FilterExpression>.walkFilterNodes(): Sequence<FilterExpression> =
     walkTree(this, FilterExpression::childFilters)
 
-/** Lazily walks every node of this filter tree; see [walkFilterNodes]. */
-fun FilterExpression.walkFilterNodes(): Sequence<FilterExpression> = listOf(this).walkFilterNodes()
-
-/** The total number of nodes in this filter tree, the root included. */
-fun FilterExpression.filterNodeCount(): Int = walkFilterNodes().count()
-
 /**
  * The number of literal values carried by this having node: one for `CONDITION`, two for `BETWEEN`, the list
  * size for `IN`, and zero for `IS_NULL` and the logical `AND` / `OR` nodes.
@@ -193,7 +187,7 @@ fun HavingExpression.valueCount(): Int = when (this) {
 }
 
 /** The direct child expressions of this having node: the operands of `AND` / `OR`, otherwise empty. */
-fun HavingExpression.childExpressions(): List<HavingExpression> = when (this) {
+internal fun HavingExpression.childExpressions(): List<HavingExpression> = when (this) {
     is HavingExpression.And -> operands
     is HavingExpression.Or -> operands
     is HavingExpression.Condition,

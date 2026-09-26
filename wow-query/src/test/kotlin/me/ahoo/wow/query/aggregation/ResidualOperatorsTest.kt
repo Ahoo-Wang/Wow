@@ -22,8 +22,11 @@ import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.ComparisonOperator
 import me.ahoo.wow.api.query.HavingExpression
 import me.ahoo.wow.api.query.QueryField
+import me.ahoo.wow.api.query.Sort
+import me.ahoo.wow.serialization.JsonSerializer
 import me.ahoo.wow.serialization.toJsonNode
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import reactor.core.publisher.Flux
 import reactor.kotlin.test.test
 import tools.jackson.databind.node.ObjectNode
@@ -112,4 +115,87 @@ class ResidualOperatorsTest {
     private companion object {
         const val DAY_MILLIS = 86_400_000L
     }
+
+    @Test
+    fun `metric sort should retain exact bounded top N with complete tie sort`() {
+        val rows = listOf(
+            mapOf("product" to "c", "total" to 7.0).toObjectNode(),
+            mapOf("product" to "a", "total" to 7.0).toObjectNode(),
+            mapOf("product" to "b", "total" to 7.0).toObjectNode(),
+            mapOf("product" to "d", "total" to 3.0).toObjectNode(),
+        )
+
+        selectTopRows(
+            rows,
+            listOf(Sort(QueryField("total"), Sort.Direction.DESC), Sort(QueryField("product"), Sort.Direction.ASC)),
+            limit = 2,
+        ).map { it.path("product").asString() }.assert().containsExactly("a", "b")
+    }
+
+    @Test
+    fun `long sort above double precision should not fall through to tie sort`() {
+        val rows = listOf(
+            mapOf("product" to "z", "count" to 9_007_199_254_740_993L).toObjectNode(),
+            mapOf("product" to "a", "count" to 9_007_199_254_740_992L).toObjectNode(),
+        )
+
+        selectTopRows(
+            rows,
+            listOf(Sort(QueryField("count"), Sort.Direction.DESC), Sort(QueryField("product"), Sort.Direction.ASC)),
+            limit = 1,
+        ).single().path("product").asString().assert().isEqualTo("z")
+    }
+
+    @Test
+    fun `top rows should sort boolean and null values`() {
+        val rows = listOf(
+            mapOf("active" to true).toObjectNode(),
+            mapOf("active" to null).toObjectNode(),
+            mapOf("active" to false).toObjectNode(),
+        )
+
+        selectTopRows(rows, listOf(Sort(QueryField("active"), Sort.Direction.ASC)), limit = 3)
+            .map { if (it.path("active").isNull) null else it.path("active").booleanValue() }
+            .assert().containsExactly(null, false, true)
+    }
+
+    @Test
+    fun `top rows should reject incomparable values`() {
+        val rows = listOf(
+            mapOf("value" to 1).toObjectNode(),
+            mapOf("value" to "1").toObjectNode(),
+        )
+
+        assertThrows<IllegalStateException> {
+            selectTopRows(rows, listOf(Sort(QueryField("value"), Sort.Direction.ASC)), limit = 2)
+        }.message.assert().contains("Aggregation sort values must have comparable types")
+    }
+
+    @Test
+    fun `top rows should continue to tie breaker when primary values are both null`() {
+        val rows = listOf(
+            mapOf("id" to "a", "value" to null).toObjectNode(),
+            mapOf("id" to "b", "value" to null).toObjectNode(),
+        )
+
+        selectTopRows(
+            rows,
+            listOf(Sort(QueryField("value"), Sort.Direction.ASC), Sort(QueryField("id"), Sort.Direction.DESC)),
+            limit = 2,
+        ).map { it.path("id").asString() }.assert().containsExactly("b", "a")
+    }
+
+    @Test
+    fun `top rows should reject object and array sort values`() {
+        val rows = listOf(
+            mapOf("value" to mapOf("nested" to 1)).toObjectNode(),
+            mapOf("value" to listOf(1)).toObjectNode(),
+        )
+
+        assertThrows<IllegalStateException> {
+            selectTopRows(rows, listOf(Sort(QueryField("value"), Sort.Direction.ASC)), limit = 2)
+        }.message.assert().contains("Aggregation sort values must have comparable types")
+    }
+
+    private fun Map<String, Any?>.toObjectNode(): ObjectNode = JsonSerializer.valueToTree(this)
 }

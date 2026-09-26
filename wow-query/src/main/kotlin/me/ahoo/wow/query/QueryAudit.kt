@@ -182,7 +182,7 @@ internal class QueryAuditTrail(
     }
 }
 
-internal fun scopeFieldsOf(scope: FilterExpression): List<String> {
+private fun scopeFieldsOf(scope: FilterExpression): List<String> {
     val fields = linkedSetOf<String>()
     fun visit(filter: FilterExpression) {
         when (filter) {

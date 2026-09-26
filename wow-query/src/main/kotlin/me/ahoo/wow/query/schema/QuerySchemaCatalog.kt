@@ -44,7 +44,6 @@ import java.util.concurrent.ConcurrentHashMap
  * [UnavailableQueryStorageAdapter], has nothing to load or revalidate: its provider fails every load and revalidation
  * skips it.
  */
-@Suppress("LongParameterList")
 class QuerySchemaCatalog(
     private val snapshots: SnapshotQueryBackendFactory? = null,
     private val eventStreams: EventStreamQueryBackendFactory? = null,

@@ -14,8 +14,6 @@
 package me.ahoo.wow.query
 
 import me.ahoo.wow.api.query.AfterNowFilter
-import me.ahoo.wow.api.query.AggregationMetric
-import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.AndFilter
 import me.ahoo.wow.api.query.BeforeNowFilter
 import me.ahoo.wow.api.query.BeforeTodayFilter
@@ -47,10 +45,6 @@ import me.ahoo.wow.api.query.YesterdayFilter
 import me.ahoo.wow.api.query.schema.Temporal
 import me.ahoo.wow.api.query.spec.Lowering
 import me.ahoo.wow.api.query.spec.spec
-import me.ahoo.wow.query.schema.QueryModelSchema
-import me.ahoo.wow.query.schema.QueryViolation
-import me.ahoo.wow.query.schema.absoluteLogicalField
-import me.ahoo.wow.query.schema.temporal
 import me.ahoo.wow.query.schema.withTemporal
 import tools.jackson.databind.node.JsonNodeFactory
 import java.time.Clock
@@ -67,77 +61,18 @@ class FilterNormalizer(
     private val clock: Clock = Clock.systemDefaultZone(),
     private val defaultZoneId: ZoneId = ZoneId.systemDefault(),
 ) {
-    fun normalize(expression: FilterExpression): FilterExpression = normalize(expression, clock.instant(), null, null)
-
-    fun normalize(
-        expression: FilterExpression,
-        schema: QueryModelSchema,
-        logicalParent: QueryField? = null,
-        now: Instant = clock.instant(),
-    ): FilterExpression = normalize(expression, now, schema, logicalParent)
-
     /**
-     * Normalizes every filter of an aggregation against one moment: the root filter, each element filter under its
-     * element chain, and the metric filters under the innermost element. Unchanged parts keep their identity.
+     * Normalizes [expression] without a schema, at the clock's current moment: relative time lowers to a range in its
+     * own configuration, derived operators lower and logical nodes simplify. An admitted query is normalized by
+     * admission's resolution pass instead, which lowers relative time as each field stores it.
      */
-    fun normalize(query: AggregationQuery, schema: QueryModelSchema, now: Instant = clock.instant()): AggregationQuery {
-        var parent: QueryField? = null
-        val elements = query.elements.map { element ->
-            parent = absoluteLogicalField(element.path, parent)
-            val filter = normalize(element.filter, now, schema, parent)
-            if (filter === element.filter) element else element.copy(filter = filter)
-        }
-        val metrics = query.metrics.map { metric ->
-            if (metric.filter === MatchAllFilter) {
-                metric
-            } else {
-                metric.withFilter(normalize(metric.filter, now, schema, parent))
-            }
-        }
-        val filter = normalize(query.filter, now, schema, null)
-        return if (filter === query.filter && elements == query.elements && metrics == query.metrics) {
-            query
-        } else {
-            query.copy(filter = filter, elements = elements, metrics = metrics)
-        }
-    }
+    fun normalize(expression: FilterExpression): FilterExpression = normalize(expression, clock.instant())
 
-    private fun AggregationMetric.withFilter(filter: FilterExpression): AggregationMetric = when {
-        filter === this.filter -> this
-        else -> when (this) {
-            is AggregationMetric.Count -> copy(filter = filter)
-            is AggregationMetric.Numeric -> copy(filter = filter)
-            is AggregationMetric.Any -> copy(filter = filter)
-            is AggregationMetric.DistinctCount -> copy(filter = filter)
-            is AggregationMetric.Percentile -> copy(filter = filter)
-            is AggregationMetric.First -> copy(filter = filter)
-            is AggregationMetric.Last -> copy(filter = filter)
-            is AggregationMetric.Derived -> this
-        }
-    }
-
-    private fun normalize(
-        input: FilterExpression,
-        now: Instant,
-        schema: QueryModelSchema?,
-        logicalParent: QueryField?,
-    ): FilterExpression = when (input) {
-        is AndFilter -> simplifyAnd(input.operands.map { normalize(it, now, schema, logicalParent) })
-        is OrFilter -> simplifyOr(input.operands.map { normalize(it, now, schema, logicalParent) })
-        is NorFilter -> simplifyNor(input.operands.map { normalize(it, now, schema, logicalParent) })
-        is ElementMatchFilter -> ElementMatchFilter(
-            input.field,
-            normalize(input.predicate, now, schema, absoluteLogicalField(input.field, logicalParent)),
-        )
-        is RelativeTimeFilter -> lower(
-            input,
-            now,
-            schema?.let {
-                val field = it.field(absoluteLogicalField(input.field, logicalParent))
-                    ?: throw QueryViolation.UnknownField(absoluteLogicalField(input.field, logicalParent)).rejection()
-                input.temporal(field.effective.temporal)
-            },
-        )
+    private fun normalize(input: FilterExpression, now: Instant): FilterExpression = when (input) {
+        is AndFilter -> simplifyAnd(input.operands.map { normalize(it, now) })
+        is OrFilter -> simplifyOr(input.operands.map { normalize(it, now) })
+        is NorFilter -> simplifyNor(input.operands.map { normalize(it, now) })
+        is ElementMatchFilter -> ElementMatchFilter(input.field, normalize(input.predicate, now))
         else -> lower(input, now, null)
     }
 

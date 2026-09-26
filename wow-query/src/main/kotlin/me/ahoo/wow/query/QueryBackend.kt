@@ -43,8 +43,9 @@ data class QueryBackendBinding<out B : QueryBackend>(
  * [RESIDUAL][me.ahoo.wow.query.schema.SupportMode.RESIDUAL] and the empty summary row.
  *
  * Every input is an [AdmittedQuery]: validated against its schema, normalized, with each field reference resolved.
- * Model defaults such as Snapshot ACTIVE are applied by the gateway; direct callers obtain their input from
- * [QueryAdmission] and supply any required deletion or access predicates themselves.
+ * The gateway admits through a [QueryAdmission] instance, whose step 3 appends model defaults such as Snapshot
+ * ACTIVE. Direct callers admit through [QueryAdmission.Trusted], which skips steps 0 to 3, so they supply any required
+ * deletion or access predicates themselves.
  *
  * Every subscription to a returned publisher, including subscriptions created by `retry`, `repeat`, or concurrent
  * callers, must own fresh mutable [ObjectNode] instances. Implementations must not cache or share nodes across

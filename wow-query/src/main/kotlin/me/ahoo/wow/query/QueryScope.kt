@@ -88,10 +88,10 @@ fun ContextView.queryScope(): FilterExpression = getOrDefault(QueryScopeKey, Mat
 fun ContextView.authenticatedQueryScope(): FilterExpression = getOrDefault(AuthenticatedQueryScopeKey, MatchAllFilter)!!
 
 /**
- * Appends a route [selection] (the aggregate id and version range a load route names in its URL). It is an operation
- * constraint, not caller scope: admission appends it at step 2 with the caller scope, after every
- * [QueryFilter][me.ahoo.wow.query.filter.QueryFilter], so a rewrite can neither see nor remove it, and it is neither
- * budgeted as scope nor reported among the audit's scope fields.
+ * Appends a route [selection]: what a load route names in its URL, the aggregate id, a version range, and the tenant
+ * and owner its path carries. It is an operation constraint, not caller scope: admission appends it at step 2 with
+ * the caller scope, after every [QueryFilter][me.ahoo.wow.query.filter.QueryFilter], so a rewrite can neither see nor
+ * remove it, and it is neither budgeted as scope nor reported among the audit's scope fields.
  */
 fun Context.withQuerySelection(selection: FilterExpression): Context =
     if (selection === MatchAllFilter) this else put(QuerySelectionKey, querySelection().appendFilter(selection))
