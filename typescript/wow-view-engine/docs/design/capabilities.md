@@ -87,6 +87,7 @@ export interface ViewSource {
 
 - **算子**：生效的算子 = `operatorsOf(field, kind)` ∩ `filter.operators`。`operatorsOf` 不变，收窄后的定义把交集写进 `field.operators`。
 - **不带字段的算子**（`documentId`、`aggregateId`、`tenantId`、`ownerId`、`spaceId`、`deletion` 这几种种类）对照 `record.rootOperators`：`ID`／`IDS`、`AGGREGATE_ID(S)`、`TENANT_ID`、`OWNER_ID`、`SPACE_ID`、`DELETION`。不在其中的种类整个不可用。
+- **距另一时刻**（N3）：`EXPRESSION` 不是字段自己的算子，而是入口的根过滤（`record.rootOperators`）；入口关掉昂贵查询时不列它。所以根上的时间字段（描述的 `aggregate.groups` 列了 `DATE_HISTOGRAM`，Wow 就是凭这个认出时刻）只在 `rootOperators` 有 `EXPRESSION` 时保留「距另一时刻」，元素里的字段一律没有。
 - **检索**（G15）：`search` 种类的字段对照 `record.search`。
   - 没有 `record.search` 时，检索字段不可用。
   - `searchMode` 不在 `search.modes` 里时，换成描述里有的另一种。PHRASE 换 TERMS 仍然是在检索，只是更宽；反过来 TERMS 换 PHRASE 更窄。所以只做 PHRASE→TERMS 这一个方向；定义写 TERMS 而描述只有 PHRASE 时，按不可用处理。换了模式就报一条 note，说明检索按词进行。

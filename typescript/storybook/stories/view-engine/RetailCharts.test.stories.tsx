@@ -19,6 +19,7 @@ import displayMeta, {
   Calendar as DisplayCalendar,
   Candlestick as DisplayCandlestick,
   DurationBands as DisplayDurationBands,
+  LateShipments as DisplayLateShipments,
   Gauge as DisplayGauge,
   Parallel as DisplayParallel,
   Radar as DisplayRadar,
@@ -84,6 +85,32 @@ const tile = (root: ParentNode, type: string) =>
   root.querySelector<HTMLElement>(
     `[data-slot="chart-tile"][data-chart-type="${type}"]`,
   )!;
+
+/**
+ * 条件里的两个时刻之差：只数付款后超过 48 小时才发货的单；应用的条件读作
+ * 「发货时间 距 付款时间 > 48 小时」，各仓都有这样的单。
+ */
+export const LateShipmentsDrawn: Story = {
+  ...DisplayLateShipments,
+  name: '条件：付款后超过 48 小时才发货',
+  play: async ({ canvasElement }) => {
+    await chartOf(canvasElement, 'bar');
+    await waitFor(() =>
+      expect(canvasElement.textContent).toContain(
+        '发货时间 距 付款时间 > 48 小时',
+      ),
+    );
+    const rows = await waitFor(() => {
+      const found = readingOf(canvasElement);
+      expect(found.length).toBeGreaterThanOrEqual(2);
+      return found;
+    });
+    for (const row of rows)
+      await expect(
+        Number.parseFloat(row[1]!.replace(/,/g, '')),
+      ).toBeGreaterThan(0);
+  },
+};
 
 /**
  * 直方分组：付款到发货的小时数由两个时刻之差现算（DATE_DIFF），每 4 小时一档；

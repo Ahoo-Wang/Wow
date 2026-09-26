@@ -21,6 +21,7 @@ import {
   type FilterNode,
   type FilterTree,
 } from '../model/index.js';
+import { durationFrom } from '../filter/index.js';
 
 /**
  * A config with every field it names by an alias renamed to the field's
@@ -162,8 +163,16 @@ function renamedNode(
       ...node,
       children: node.children.map(child => renamedNode(child, name)),
     };
-  if ('field' in node && typeof node.field === 'string')
-    return { ...node, field: name(node.field) };
+  if ('field' in node && typeof node.field === 'string') {
+    const from = durationFrom(node);
+    return {
+      ...node,
+      field: name(node.field),
+      ...(from === undefined
+        ? {}
+        : { value: { ...(node.value as object), from: name(from) } }),
+    };
+  }
   return node;
 }
 

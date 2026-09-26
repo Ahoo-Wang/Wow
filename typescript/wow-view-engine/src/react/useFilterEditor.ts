@@ -47,6 +47,7 @@ import {
   type FilterSummaryItem,
   isFilterGroup,
 } from '../filter/index.js';
+import { holdsTime, isDurationOperator } from '../filter/kinds/duration.js';
 import {
   hasAsked,
   type OptionSource,
@@ -611,6 +612,13 @@ export interface TreeControllerInput {
   optionSource?(remote: string): OptionSource | null;
   /** The candidate source of a field by name; see `FilterTreeController.valueCandidates`. */
   valueCandidates?(field: string): ValueCandidateSource | null;
+  /**
+   * Whether a condition here may be a time since another moment (N3's
+   * `EXPRESSION`). Left out, it may; one entry of an element is asked
+   * nothing of the kind — Wow keeps it out of `ELEMENT_MATCH` — so the
+   * predicate block says `false`.
+   */
+  durations?: boolean;
 }
 
 /** The tree with the node at `path` set to say nothing; see `clearValue`. */
@@ -768,7 +776,15 @@ export function treeController(
     operatorsFor(field) {
       const definition = byName.get(field);
       const kind = definition && kinds?.get(definition.kind);
-      return definition && kind ? operatorsOf(definition, kind) : [];
+      if (!definition || !kind) return [];
+      // A time since another moment needs another time to run from: with
+      // none beside this one, or inside one entry, it is not offered.
+      const durations =
+        input.durations !== false &&
+        fields.some(entry => entry.name !== field && holdsTime(entry));
+      return operatorsOf(definition, kind).filter(
+        operator => durations || !isDurationOperator(operator),
+      );
     },
     editorFor(path) {
       const node = nodeAt(tree, path);

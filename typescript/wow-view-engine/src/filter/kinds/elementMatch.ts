@@ -294,6 +294,12 @@ function rootFilters(
 
   for (const { node, path } of walkFilter(tree)) {
     if (isFilterGroup(node)) continue;
+    // A time since another moment is a root filter too: Wow keeps
+    // `EXPRESSION` out of `ELEMENT_MATCH` (N3).
+    if (node.operator === 'EXPRESSION') {
+      issues.push(issue('filter.element.duration', path));
+      continue;
+    }
     const field = byName.get(node.field);
     // The registered kind answers this, not a list of built-in ids: a custom
     // kind that compiles to `SEARCH` or a metadata filter is a root filter

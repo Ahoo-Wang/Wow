@@ -1,4 +1,4 @@
-# @ahoo-wang/wow-view-engine — 803 names, from src/index.ts.
+# @ahoo-wang/wow-view-engine — 808 names, from src/index.ts.
 # Written by test/publicSurface.test.ts; a change here is a change to
 # the public surface (README「Entries」, docs/design/decisions.md D29).
 value ALWAYS_VISIBLE
@@ -113,6 +113,7 @@ value DEFAULT_TEMPORAL
 value DELETION_STATES
 value DERIVED_FORMAT_STYLES
 value DERIVED_KINDS
+value DURATION_COMPARISONS
 type  DashboardContentPanel
 type  DashboardDefinition
 type  DashboardEditing
@@ -152,6 +153,8 @@ type  DestinationBoard
 type  DetailSection
 type  DrillContext
 type  DrilledGroup
+type  DurationComparison
+type  DurationFilterValue
 value EDITOR_INPUTS
 value EPOCH_TIME_UNITS
 value EXPRESSION_OPERATORS
@@ -521,6 +524,7 @@ value drillConditions
 value drillFilter
 value drillGroups
 value duplicatePanel
+value durationFrom
 value durationMetric
 value editContent
 value elementFields
@@ -584,6 +588,7 @@ value isDateCell
 value isDateTimeFilterValue
 value isDeletionState
 value isDuration
+value isDurationFilterValue
 value isEmptyFilter
 value isExecutableFilter
 value isExportCancelled

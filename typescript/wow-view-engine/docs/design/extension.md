@@ -22,7 +22,7 @@ export interface FieldKind {
   ): Issue[];
   compile(leaf: FilterLeaf, field: FieldDefinition, ctx): FilterExpression;
   /** 由操作符与当前值的语义变体推出编辑器描述；组件名不进入配置。 */
-  editor(operator: FilterOperator, value?: unknown): EditorDescriptor; // input 只能是 EDITOR_INPUTS 里的一个；界面按它分派，没有渲染器注册表 // { input: 'none' | 'text' | 'number' | 'boolean' | 'deletion' | 'select' | 'remote' | 'date' | 'dateRange' | 'relativeDate' | 'predicate'; multiple?; range?; options?; remote?; withTime? }
+  editor(operator: FilterOperator, value?: unknown): EditorDescriptor; // input 只能是 EDITOR_INPUTS 里的一个；界面按它分派，没有渲染器注册表 // { input: 'none' | 'text' | 'number' | 'boolean' | 'deletion' | 'select' | 'remote' | 'date' | 'dateRange' | 'relativeDate' | 'predicate' | 'duration'; multiple?; range?; options?; remote?; withTime? }
   /** 一条已应用条件的部件，以及它们读作的那句英文。 */
   describe(ctx): FieldKindDescription; // { text; operator?; relation?; value: FilterSummaryValue; items?; group? }
 }

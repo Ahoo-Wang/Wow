@@ -15,6 +15,7 @@ import type { FieldKindId, FieldOption, FilterValue } from '../model/index.js';
 import type { EditorDescriptor } from '../filter/index.js';
 import { UnsupportedValue } from './filter/inputs/unsupported.js';
 import { DateValue } from './filter/inputs/date.js';
+import { DurationValue } from './filter/inputs/duration.js';
 import { NumberValue } from './filter/inputs/number.js';
 import type { OptionSource, ValueCandidateSource } from '../runtime/index.js';
 import { RemoteValue } from './filter/inputs/remote.js';
@@ -70,6 +71,11 @@ export interface FilterValueEditorProps {
    * the invitation to type one.
    */
   placeholder?: string;
+  /**
+   * The times a `duration` editor's gap may run from (N3): the other time
+   * fields beside the condition's own, from the pill that holds it.
+   */
+  times?: readonly { value: string; label: string }[];
 }
 
 /**
@@ -103,6 +109,7 @@ export function FilterValueEditor({
   source,
   candidates,
   placeholder,
+  times,
 }: FilterValueEditorProps) {
   switch (editor.input) {
     case 'none':
@@ -207,6 +214,18 @@ export function FilterValueEditor({
           invalid={invalid}
           multiple={editor.multiple === true}
           placeholder={placeholder}
+        />
+      );
+
+    case 'duration':
+      return (
+        <DurationValue
+          value={value}
+          onChange={onChange}
+          label={label}
+          disabled={disabled}
+          invalid={invalid}
+          times={times ?? []}
         />
       );
 

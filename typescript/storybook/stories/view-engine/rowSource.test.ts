@@ -1034,6 +1034,30 @@ describe('rowSource', () => {
     });
   });
 
+  describe('a computed value compared (EXPRESSION)', () => {
+    const rows = [
+      { id: 'a', paid: 0, shipped: 50 * HOUR },
+      { id: 'b', paid: 0, shipped: 10 * HOUR },
+      { id: 'c', paid: 0, shipped: null },
+    ];
+    it('keeps the records whose time since passes, never one missing a moment', async () => {
+      const { list } = await rowSource(rows).paged({
+        filter: {
+          op: FilterOperator.EXPRESSION,
+          expression: {
+            type: AggregationExpressionType.DATE_DIFF,
+            from: 'paid',
+            to: 'shipped',
+            unit: DateDiffUnit.HOUR,
+          },
+          comparison: ComparisonOperator.GT,
+          value: 48,
+        } as FilterExpression,
+      });
+      expect(list.map(row => row.id)).toEqual(['a']);
+    });
+  });
+
   describe('memory', () => {
     it('answers a repeated aggregation from memory, each time with its own copy', async () => {
       const rows: RecordData[] = [

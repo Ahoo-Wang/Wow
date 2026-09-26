@@ -154,6 +154,12 @@ export interface FieldKindValidateContext {
   operator: FilterOperatorName;
   field: FieldDefinition;
   /**
+   * The fields the condition sits among, when the caller has them: what a
+   * value that names another field — the earlier moment of a time since
+   * (N3) — is checked against.
+   */
+  fields?: readonly FieldDefinition[];
+  /**
    * The registry in play, for a kind whose value is itself a condition. It
    * is passed rather than imported so a predicate admits custom kinds on the
    * same terms as the tree around it.
@@ -184,6 +190,8 @@ export interface FieldKindCompileContext {
 export interface FieldKindDescribeContext {
   leaf: FilterLeaf;
   field: FieldDefinition;
+  /** The fields the condition sits among, for a value naming another one. */
+  fields?: readonly FieldDefinition[];
   /** The registry in play; see `FieldKindValidateContext`. */
   kinds: FieldKindRegistry;
 }
@@ -212,6 +220,8 @@ export const EDITOR_INPUTS = [
   'relativeDate',
   /** Not a value: a condition, built with the same editor as the outer one. */
   'predicate',
+  /** A time since another moment (N3): the earlier moment, a comparison, an amount and a unit. */
+  'duration',
 ] as const;
 
 export type EditorInput = (typeof EDITOR_INPUTS)[number];

@@ -135,7 +135,12 @@ function narrowField(
   let next = narrowOperators(
     field,
     kind,
-    admittedOperators(field, path, described, context),
+    withDuration(
+      admittedOperators(field, path, described, context),
+      scope,
+      described,
+      context,
+    ),
     at,
     quiet,
   );
@@ -183,6 +188,29 @@ function narrowField(
   checkTemporal(field, path, described.semantic, at, context);
   checkOptions(field, path, described, at, context);
   return next;
+}
+
+/**
+ * A time since another moment (N3) is no operator of the field's own: the
+ * entry offers it as a root `EXPRESSION` filter, over two times it can read
+ * as moments (`aggregate.groups` lists `DATE_HISTOGRAM`), and lists it only
+ * where expensive operators are on. So a root time field keeps it exactly
+ * where the entry's root operators name it; an element's never does, Wow
+ * keeping it out of `ELEMENT_MATCH`.
+ */
+function withDuration(
+  admitted: ReadonlySet<string>,
+  scope: string | undefined,
+  described: DescribedField,
+  context: FieldContext,
+): ReadonlySet<string> {
+  if (
+    scope !== undefined ||
+    !context.descriptor.record.rootOperators.includes('EXPRESSION' as never) ||
+    !described.aggregate?.groups.includes('DATE_HISTOGRAM')
+  )
+    return admitted;
+  return new Set([...admitted, 'EXPRESSION']);
 }
 
 /**

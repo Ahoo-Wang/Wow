@@ -145,6 +145,8 @@ filtersOnTab(panels, tab): Set<string>                         // 在一个标�
 
 **「早于现在」「晚于现在」不用 `ctx.now`**：`date`／`datetime` kind 的 `BEFORE_NOW`／`AFTER_NOW`（Wow 的 N6，服务端 9.2.0 起）原样编译成 `filter.beforeNow`／`filter.afterNow`，「此刻」由服务端在每次查询时读自己的时钟，所以存下的「已超时」不会过期，也不取决于哪台浏览器的钟。两者都是严格的（`<`／`>`），要含那一刻就写 `nor` 包住另一个（「未超时」= `NOR BEFORE_NOW`）。它们与 `IS_NULL` 一类一样不读叶子的值，编辑器是 `none`，摘要只说操作符（「到期时间 早于现在」）；时刻按字段的 `temporal` 带单位（秒存的带 `timeUnit: SECONDS`，其余用 Wow 缺省的毫秒）。偏移（`-PT30M`）暂不开放：还没有要它的视图。（见 test/fieldKinds.test.ts「compares with the service's clock」、test/nowConditions.test.tsx）
 
+**「距另一时刻」是时间字段自己的条件**（N3）：`date`／`datetime` kind 多一个 `EXPRESSION` 操作符，值是 `DurationFilterValue`——`{ from: 早一点的时刻, comparison: GT|GTE|LT|LTE|EQ|NE, value: 数, unit: SECOND|MINUTE|HOUR|DAY }`，叶子的字段是晚一点的时刻，编译成 Wow 的 `EXPRESSION` 过滤：`DATE_DIFF(from, 叶子字段, unit) comparison value`（`filter/kinds/duration.ts`）。任一时刻缺值的记录不算。准入按条件所在的那组字段查 `from`：不在其中（`filter.value.duration-from-unknown`）、不是时刻（`…-from-not-time`）、就是字段自己（`…-same-time`）都报 error；没选 `from` 时是没写完的条件，不准入、不编译。它问的是两个时刻之间的差，不是字段自己的值，所以同一组里同一字段的「在本月」与它并存不算重复（`filter.field.duplicate-in-group` 跳过它）；Wow 不收 `ELEMENT_MATCH` 里的 `EXPRESSION`，谓词里的报 `filter.element.duration`，谓词编辑器也不给这个操作符（`useFilterEditor` 的 `durations: false`）。`from` 也是这个条件读的字段：`filterFields`、别名改名（`withCanonicalNames`）与分析里按作用域改名（`relativeTree`）都带上它（`durationFrom`）。摘要读作「发货时间 距 付款时间 > 48 小时」（`FilterSummaryValue` 的 `duration`）。条件编辑器只在旁边还有别的时刻时给这个操作符。（见 test/durationCondition.test.tsx）
+
 ## 日期条件：一个字符串算哪一刻
 
 绝对日期的两条边是**存下来的字符串**，`resolveDateTimeRange`／`resolveDateTimeBound`（`filter/time.ts`）按下面三条读它，两条边各带一个 `RangeEdge`（`start`／`end`）——同一个字符串在两条边上可能是两个时刻，只有问的那一方知道是哪一边：
