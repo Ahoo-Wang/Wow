@@ -37,7 +37,12 @@ import type {
 import { ChartPicker } from '../src/ui/analysis/ChartPicker.js';
 import { chartMaps, loadChartMap } from '../src/ui/charts/maps.js';
 import { mapOption } from '../src/ui/charts/mapOption.js';
-import { CHART_FALLBACK, type ChartTheme } from '../src/ui/charts/theme.js';
+import {
+  CHART_FALLBACK,
+  type ChartTheme,
+  mixColor,
+} from '../src/ui/charts/theme.js';
+import { MAP_FILLS } from '../src/ui/theme/pairs.js';
 import {
   AnalysisChart,
   ViewSurface,
@@ -378,5 +383,35 @@ describe('the map’s option', () => {
     expect(data[0]).not.toHaveProperty('itemStyle');
     expect(data[1]).toHaveProperty('itemStyle');
     expect((option.visualMap as { max: number }).max).toBe(6);
+  });
+
+  // The 2026-09-26 walk of the China map: with the seams in the ground an
+  // island, a disputed line or an area with no number was lost against the
+  // dark page. Every boundary is the map's edge role, which `theme/pairs.ts`
+  // holds to 3:1 on the ground, on the land and on the palest shade; the
+  // land and the palest shade are painted at the strengths it measures.
+  it('outlines every area in the map’s edge, over the fills the pairs measure', () => {
+    const option = mapOption(
+      DATA as Extract<ChartData, { type: 'map' }>,
+      'squares',
+      {
+        spec,
+        label: (_alias, value) => String(value),
+        column: alias => alias,
+        animate: false,
+        pickable: false,
+      },
+      { ...theme, map: { edge: 'rgb(1, 2, 3)' } },
+    );
+    const style = (
+      option.series as { itemStyle: Record<string, unknown> }[]
+    )[0]!.itemStyle;
+    expect(style.borderColor).toBe('rgb(1, 2, 3)');
+    expect(style.areaColor).toBe(
+      mixColor(theme.ground, theme.muted, MAP_FILLS.land),
+    );
+    expect(
+      (option.visualMap as { inRange: { color: string[] } }).inRange.color[0],
+    ).toBe(mixColor(theme.ground, 'rgb(38, 117, 211)', MAP_FILLS.palest));
   });
 });

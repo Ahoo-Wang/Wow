@@ -155,9 +155,11 @@ describe('readChartTheme: the stylesheet read back as colours', () => {
     expect(CHART_FALLBACK.foreground).toBe(light('--foreground'));
     expect(CHART_FALLBACK.muted).toBe(light('--muted-foreground'));
     expect(CHART_FALLBACK.ground).toBe(light('--background'));
-    // The two colour roles fall back to those tokens (`test/themeRoles`).
+    // The colour roles fall back to those tokens (`test/themeRoles`); a
+    // map's edge to the chart's quiet grey, which is `muted-foreground`.
     expect(CHART_FALLBACK.grid.color).toBe(light('--border'));
     expect(CHART_FALLBACK.axis.color).toBe(light('--muted-foreground'));
+    expect(CHART_FALLBACK.map.edge).toBe(light('--muted-foreground'));
   });
 
   it('holds the built-in look to the chart roles’ own values in styles.css (S5)', () => {

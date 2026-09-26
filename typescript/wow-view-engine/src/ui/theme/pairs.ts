@@ -159,12 +159,48 @@ const STATUS = texts('destructive', 'success', 'warning');
  */
 const CHART_TEXT = texts('chart-axis');
 
+/**
+ * A map's boundaries (`chart-map-edge`), on each ground a chart stands on:
+ * the outline is what tells an area with no number, an island or a
+ * disputed line from the ground (2026-09-26 walk of the China map).
+ */
+const MAP_EDGE: InkSpec[] = [{ ink: 'chart-map-edge', kind: 'edge' }];
+
+/**
+ * What a map paints under its edges (`charts/mapOption.ts`): the land — an
+ * area with no number, the quiet grey at `LAND` — and the palest shade of
+ * the scale, the first slot at `PALEST`, each on the page and on a panel's
+ * card. Neither fill is held to a line of its own: the palest shade is 1.3:1
+ * off the ground by design (the scale starts near it), so no fill can stand
+ * 3:1 off both without reading as a number; the edge round each carries it.
+ * The map draws at these strengths (`mapOption` reads them from here).
+ */
+export const MAP_FILLS = { land: 0.08, palest: 0.2 } as const;
+
 const one = (token: string): Layer[] => [{ token }];
 
 const washed = (under: string, over: string, alpha: number): Layer[] => [
   { token: under },
   { token: over, alpha },
 ];
+
+const MAP_GROUNDS: Ground[] = (
+  [
+    ['page', 'background'],
+    ['card', 'card'],
+  ] as const
+).flatMap(([where, token]): Ground[] => [
+  {
+    name: `map land on ${where}`,
+    layers: washed(token, 'muted-foreground', MAP_FILLS.land),
+    pairs: MAP_EDGE,
+  },
+  {
+    name: `palest map shade on ${where}`,
+    layers: washed(token, 'chart-1', MAP_FILLS.palest),
+    pairs: MAP_EDGE,
+  },
+]);
 
 /** Every ground the surface paints and what it paints on each. */
 export const GROUNDS: readonly Ground[] = [
@@ -177,6 +213,7 @@ export const GROUNDS: readonly Ground[] = [
       ...texts('foreground', 'muted-foreground'),
       ...QUIET,
       ...CHART_TEXT,
+      ...MAP_EDGE,
       // A link in a cell and the default-view star are `primary`.
       ...texts('primary'),
       ...STATUS,
@@ -205,6 +242,7 @@ export const GROUNDS: readonly Ground[] = [
       ...texts('foreground', 'card-foreground', 'muted-foreground', 'primary'),
       ...QUIET,
       ...CHART_TEXT,
+      ...MAP_EDGE,
       ...STATUS,
       // A failed part's callout: its description in `destructive/90`.
       { ink: 'destructive', kind: 'text', alpha: 0.9 },
@@ -239,12 +277,14 @@ export const GROUNDS: readonly Ground[] = [
       ...texts('foreground', 'muted-foreground', 'primary'),
       ...QUIET,
       ...CHART_TEXT,
+      ...MAP_EDGE,
       ...STATUS,
       ...BADGES,
       ...marks('rise', 'fall', 'primary'),
       ...EDGES,
     ],
   },
+  ...MAP_GROUNDS,
   {
     // The header band: its words, the select-all box and the focus mark on
     // a column's button.

@@ -19,6 +19,7 @@ import { FADED_OPACITY } from './highlight.js';
 import { color } from './palette.js';
 import { emphasized, mixColor, type ChartTheme, chartText } from './theme.js';
 import { tooltipFrame, tooltipHtml } from './tooltip.js';
+import { MAP_FILLS } from '../theme/pairs.js';
 
 /** What a map reads besides its regions. */
 export interface MapContext {
@@ -31,11 +32,14 @@ export interface MapContext {
   highlight?: (row: RecordData) => boolean;
 }
 
-/** How strong the palest measured region is: still a shade, not the ground. */
-const PALEST = 0.2;
-
-/** How strong an area with no number is: the land, told apart from the sea. */
-const LAND = 0.08;
+/**
+ * How strong the palest measured region is — still a shade, not the ground —
+ * and an area with no number — the land, a step off the sea and below the
+ * palest shade, so it never reads as a number. The edge (`chart-map-edge`)
+ * is what tells the land from the ground; the theme's pairs measure it on
+ * both fills at these strengths.
+ */
+const { palest: PALEST, land: LAND } = MAP_FILLS;
 
 /** One measured region as drawn: its group, its name on the map, its number. */
 export interface DrawnRegion {
@@ -73,7 +77,7 @@ export function drawnRegions(
  * A map as the library draws it: the host's geography named `mapName`,
  * each region with a number shaded from the palest step of the first slot
  * to the full slot by it (the scale under the map), every other area the
- * land's faint grey, borders in the ground. It holds still — no roam: a
+ * land's faint grey, every boundary in the map's edge (`chart-map-edge`). It holds still — no roam: a
  * press opens the follow-up menu on the region, as a press on a bar does.
  */
 export function mapOption(
@@ -144,7 +148,7 @@ export function mapOption(
         label: { show: false },
         itemStyle: {
           areaColor: mixColor(theme.ground, theme.muted, LAND),
-          borderColor: theme.ground,
+          borderColor: theme.map.edge,
           borderWidth: 0.5,
         },
         emphasis: {

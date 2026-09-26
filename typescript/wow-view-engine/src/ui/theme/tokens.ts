@@ -473,6 +473,14 @@ export const TOKENS = [
   { name: 'chart-bar-min-width', ...measure('chart', 'length'), chart: true },
   { name: 'chart-bar-max-width', ...measure('chart', 'length'), chart: true },
   { name: 'chart-slice-border', ...measure('chart', 'length'), chart: true },
+  // A map's boundaries: every area's outline, the only thing that tells an
+  // area with no number — and an island, a disputed line — from the ground.
+  {
+    name: 'chart-map-edge',
+    ...role('chart'),
+    fallback: 'chart-axis',
+    chart: true,
+  },
   // The chart's tooltip is HTML inside the chart's element, so it reads its
   // roles through utilities (`charts/tooltip.ts`), as any popup does.
   { name: 'chart-tooltip', ...role('chart'), fallback: 'popover' },

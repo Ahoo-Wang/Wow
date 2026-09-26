@@ -90,6 +90,11 @@ export interface ChartTheme {
   /** The seam of the ground between two slices (`chart-slice-border`). */
   slice: { border: number };
   /**
+   * A map's boundaries (`chart-map-edge`): what outlines an area with no
+   * number, an island and a disputed line against the ground.
+   */
+  map: { edge: string };
+  /**
    * Patterns over the series' colours, as the host pinned them with
    * `--fve-chart-patterns: on | off`; `undefined` follows the reader's
    * system (`usePatterns`, D33 Q57).
@@ -167,6 +172,7 @@ export const CHART_FALLBACK = {
   line: { width: 2, areaOpacity: 0.2 },
   bar: { radius: 2, maxWidth: 80 },
   slice: { border: 1 },
+  map: { edge: 'rgb(115, 115, 115)' },
 } as const satisfies Omit<ChartTheme, 'resolve' | 'key'>;
 
 const FALLBACK = CHART_FALLBACK;
@@ -326,6 +332,7 @@ const ROLE = {
   barMinWidth: '--_fve-chart-bar-min-width',
   barMaxWidth: '--_fve-chart-bar-max-width',
   sliceBorder: '--_fve-chart-slice-border',
+  mapEdge: '--_fve-chart-map-edge',
 } as const;
 
 export function readChartTheme(element: Element): ChartTheme {
@@ -387,6 +394,7 @@ export function readChartTheme(element: Element): ChartTheme {
       maxWidth: least(ROLE.barMaxWidth, FALLBACK.bar.maxWidth, 1),
     },
     slice: { border: least(ROLE.sliceBorder, FALLBACK.slice.border) },
+    map: { edge: token(ROLE.mapEdge) ?? FALLBACK.map.edge },
     patterns: patternsPinned(patternsPin(style)),
   };
   const resolved = new Map<string, string>();
