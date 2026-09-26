@@ -21,6 +21,7 @@ import {
   type Snapshot,
   type SnapshotQueries,
 } from "./support/executionFailedService.ts";
+import { recordsInAll } from "./support/wording.ts";
 
 // The old queue addresses (rebuild proposal, batch 5; Q3): each still opens,
 // as a redirect to its system view on the failed executions' page, with what
@@ -134,7 +135,7 @@ for (const [path, id, title, category] of QUEUES)
     await expect(
       workbench
         .getByRole("navigation", { name: "Pagination" })
-        .getByText(`${expected.length} records in all`),
+        .getByText(recordsInAll(expected.length)),
     ).toBeVisible();
     expect([...(queries.matched.at(-1) ?? [])].sort()).toEqual(expected);
     // Up to the millisecond before the exclusive end, as the queue read it.
@@ -178,7 +179,7 @@ test("a cluster link opens its executions alone, until the narrowing goes", asyn
   await expect(
     workbench
       .getByRole("navigation", { name: "Pagination" })
-      .getByText(`${expected} records in all`),
+      .getByText(recordsInAll(expected)),
   ).toBeVisible();
   for (const field of [
     "state.error.errorCode",
@@ -202,7 +203,9 @@ test("a cluster link opens its executions alone, until the narrowing goes", asyn
     workbench
       .getByRole("navigation", { name: "Pagination" })
       .getByText(
-        `${DOCUMENTS.filter(({ state }) => state.status !== "SUCCEEDED").length} records in all`,
+        recordsInAll(
+          DOCUMENTS.filter(({ state }) => state.status !== "SUCCEEDED").length,
+        ),
       ),
   ).toBeVisible();
   expect(lastFilter(queries)).not.toContain("state.function.processorName");

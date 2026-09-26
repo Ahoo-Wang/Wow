@@ -49,6 +49,7 @@ import {
   stubExecutionFailedEvents,
   type EventStream,
 } from "./support/overviewService.ts";
+import { recordsInAll } from "./support/wording.ts";
 
 // The home page is the overview board since batch 6 (rebuild proposal, 2.3).
 // Its figures are the engine's queries; the old overview's are kept as the
@@ -251,7 +252,7 @@ for (const described of [false, true]) {
       panel(page, "Needing attention — due for retry"),
     ).toBeVisible();
     await expect(
-      page.getByText(`${count(old.summary.actionableNow)} records in all`),
+      page.getByText(recordsInAll(old.summary.actionableNow)),
     ).toBeVisible();
   });
 }

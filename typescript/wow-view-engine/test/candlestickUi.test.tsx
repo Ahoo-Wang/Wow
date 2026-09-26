@@ -466,7 +466,7 @@ describe('a candlestick pressed and read', () => {
     );
     expect(
       container.querySelector('[data-slot="candlestick-notes"]')?.textContent,
-    ).toBe('1 periods without all four numbers are not drawn');
+    ).toBe('1 period without all four numbers is not drawn');
     pressBody(container);
     await waitFor(() => expect(onPick).toHaveBeenCalled());
     expect(onPick.mock.calls[0]![0]).toEqual({ day: 1 });

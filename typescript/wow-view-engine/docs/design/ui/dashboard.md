@@ -25,7 +25,7 @@
 - **每个手柄以自己的面板命名**：「移动或调整「北区订单」大小」「调整「北区订单」的大小」，哪些键能用由 `aria-keyshortcuts` 说，而不写进名字。原来缩放角全板同名（「用方向键调整这个面板的大小」），读屏走一遍板子分不出自己在哪个面板上（U8）。`resizeConfig` 是整张栅格级的属性，库只把 axis 交给这个工厂——但它返回的元素被 `react-resizable` 追加进**栅格项本身**的子节点里，所以栅格项是我们的 `PanelGridItem`，它向子树提供「这是哪个面板、叫什么」，角从 context 读名字与 id；不在栅格项里时它只说「调整这个面板的大小」、什么键也不答；
 - **面板叫什么**（`panelName`）：自己的标题；没有标题的视图面板用它显示的视图的标题；标题卡片用它的字；内容面板用种类（标题／文字／图片／链接）；剩下的（视图打不开、又没有标题）按它在板上的位置叫「面板 3」。**从不用 `panel.id`**——那是配置里的键，不是看板子的人起的名字。**板子起的名字不重名**（`panelNames`，批 A 走查）：两块没标题的文字面板原来都叫同一个名字，抓手、发现、落位播报按名字指向的是两块；现在按阅读顺序编号「文字」「文字 2」，并绕开作者起的标题（作者自己起了两个同名的，那是作者的）。标题、抓手、角、菜单、正文滚动区、落位播报都用这同一个名字；（见 test/dashboardUi.test.tsx「names an untitled panel by what it shows, never by its id」「numbers the names it makes up, in reading order, around the titles given」「names each corner after its own panel」）
 - **标题卡片**（`heading`）：它的字就是面板的标题元素（`panelName`），卡片上**只有这个标题**、字号大一档（`text-base`）、没有正文——没有一块可滚动、可聚焦却空着的区域；新加的标题卡片叫「新标题」，加上就地改名。标题层级与其它面板同级（工作台里 `h3`）：标题卡片是读者扫板子时的路标，把它升一级会让它下面的面板在大纲里变成它的子节，而栅格上的「下面」并不是从属。（见 test/dashboardBuilding.test.tsx「adds a heading and names it in place」）
-- **落位要说出来**：指针能看见面板在自己手下动，键盘只有一个不在屏幕上的 layout，所以每一步都说这个面板现在在第几列第几行、多宽多高（`label.panel.placed`），说在板子的那一个播报区里（见下文「一块板一个声音」）。宽高各是一个带量词的整句（`label.panel.columns`／`-one`、`label.panel.rows`／`-one`），英文不再出「1 columns」；
+- **落位要说出来**：指针能看见面板在自己手下动，键盘只有一个不在屏幕上的 layout，所以每一步都说这个面板现在在第几列第几行、多宽多高（`label.panel.placed`），说在板子的那一个播报区里（见下文「一块板一个声音」）。宽高各是一个带量词的整句（`label.panel.columns`、`label.panel.rows`，英文单数各有 `-one`，按 `count` 选，见 [README](README.md)），英文不再出「1 columns」；
 - **聚焦时角必须看得见**：上游只在指针悬停在面板上时才画那个 20px 的角（`opacity: 0` → `:hover` 时 `1`），键盘到得了却看不见就等于没到。`styles.css` 里补了 `:focus-visible` 的一条。
 
 ### 一块板一个声音

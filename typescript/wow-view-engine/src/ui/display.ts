@@ -581,9 +581,7 @@ function countText(
   messages: MessageFormatters,
 ): string {
   if (count === 0) return '';
-  return count === 1
-    ? messages.label(`label.value.${noun}-one`)
-    : messages.label(`label.value.${noun}`, { count });
+  return messages.label(`label.value.${noun}`, { count });
 }
 
 /** An object a reader would otherwise see as JSON: a record, or a list. */

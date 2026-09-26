@@ -21,6 +21,7 @@ import {
   type Snapshot,
   type SnapshotQueries,
 } from "./support/executionFailedService.ts";
+import { recordsInAll } from "./support/wording.ts";
 
 // The queues do not change meaning when they move onto the view engine
 // (rebuild proposal, batch 2, criterion 1): over the same documents, with the
@@ -152,7 +153,7 @@ async function systemView(
   await expect(
     workbench
       .getByRole("navigation", { name: "Pagination" })
-      .getByText(`${ids.length} records in all`),
+      .getByText(recordsInAll(ids.length)),
   ).toBeVisible();
   return ids;
 }

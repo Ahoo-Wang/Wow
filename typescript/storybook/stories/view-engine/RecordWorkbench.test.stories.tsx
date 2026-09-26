@@ -213,7 +213,7 @@ export const WithData: Story = {
     // what the conditions select rather than what fitted on the screen.
     const paging = paginationBar(canvasElement);
     await expect(paging).toHaveTextContent(
-      say('label.pagination.total', { total: 4 }),
+      say('label.pagination.total', { count: 4 }),
     );
     // Four rows at twenty a page is the whole of it, said as such — and
     // with no arrows at all (D12 Ⅶ): two dead ones were the same fact in a
@@ -678,7 +678,7 @@ export const Paged: Story = {
     const bar = paginationBar(canvasElement);
     // The total is every order the conditions select, not the two on screen.
     await expect(bar).toHaveTextContent(
-      say('label.pagination.total', { total: 6 }),
+      say('label.pagination.total', { count: 6 }),
     );
     await expect(bar).toHaveTextContent(
       say('label.toolbar.page-of', { index: 1, pages: 3 }),
@@ -716,7 +716,7 @@ export const Paged: Story = {
       say('label.toolbar.page-of', { index: 2, pages: 3 }),
     );
     await expect(paginationBar(canvasElement)).toHaveTextContent(
-      say('label.pagination.total', { total: 6 }),
+      say('label.pagination.total', { count: 6 }),
     );
 
     // And back again, which is now open.
@@ -784,7 +784,7 @@ export const PagedWindow: Story = {
     const bar = paginationBar(canvasElement);
     // The total is still every order; the pages are the ones within reach.
     await expect(bar).toHaveTextContent(
-      say('label.pagination.total', { total: 6 }),
+      say('label.pagination.total', { count: 6 }),
     );
     await expect(bar).toHaveTextContent(
       say('label.toolbar.page-of', { index: 1, pages: 2 }),
@@ -2028,7 +2028,7 @@ export const English: Story = {
     // with numbers in them rather than numbers with words beside them.
     const bar = paginationBar(canvasElement);
     await expect(bar).toHaveTextContent(
-      formatMessage(defaultMessages, 'label.pagination.total', { total: 4 }),
+      formatMessage(defaultMessages, 'label.pagination.total', { count: 4 }),
     );
     await expect(
       within(bar).getByRole('combobox', {
@@ -3868,7 +3868,7 @@ export const QueryAnnouncedInTheResult: Story = {
       if (!found) throw new Error('the result has no live region');
       return found;
     };
-    const landed = say('label.pagination.total', { total: 4 });
+    const landed = say('label.pagination.total', { count: 4 });
 
     // The query that opened the view has already been read back.
     await waitFor(() => expect(region()).toHaveTextContent(landed));

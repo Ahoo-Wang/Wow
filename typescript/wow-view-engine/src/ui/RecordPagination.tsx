@@ -136,7 +136,7 @@ export function RecordPagination({
       ? messages.label('label.pagination.on-page', {
           count: table.rows.length,
         })
-      : messages.label('label.pagination.total', { total });
+      : messages.label('label.pagination.total', { count: total });
 
   // The unit belongs to the number, not to the words in front of it: Chinese
   // counts records with a measure word (`20 条`), so the option carries it

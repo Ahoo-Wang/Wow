@@ -12,6 +12,7 @@
  */
 
 import { expect, test, type APIRequestContext } from "@playwright/test";
+import { recordsInAll } from "../support/wording.ts";
 
 // The smoke of the console against a real compensation server: nothing is
 // stubbed. It runs only when WOW_COMPENSATION_URL names a server that serves
@@ -438,6 +439,6 @@ test("the overview board counts what the server holds", async ({
     }),
   ).toBeVisible();
   if (actionable !== "0")
-    await expect(page.getByText(`${actionable} records in all`)).toBeVisible();
+    await expect(page.getByText(recordsInAll(actionable))).toBeVisible();
   expect(failures).toEqual([]);
 });

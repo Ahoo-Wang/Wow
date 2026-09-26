@@ -198,7 +198,7 @@ describe('what a record query says out loud', () => {
         )}
         definitionId="orders"
         instanceId="orders-1"
-        messages={{ 'label.pagination.total': '共 {total} 条记录' }}
+        messages={{ 'label.pagination.total': '共 {count} 条记录' }}
       />,
     );
 

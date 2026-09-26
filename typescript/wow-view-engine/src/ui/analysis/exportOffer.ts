@@ -131,9 +131,7 @@ function holding(
     ? messages.label('label.export.whole')
     : view.truncated
       ? messages.label('label.export.groups-first', { count })
-      : count === 1
-        ? messages.label('label.export.groups-one')
-        : messages.label('label.export.groups', { count });
+      : messages.label('label.export.groups', { count });
   const rows = view.totals
     ? messages.label('label.export.and-totals', { rows: groups })
     : groups;

@@ -647,7 +647,7 @@ describe('date kinds', () => {
       }).text;
     expect(describe_({ type: 'preset', preset: 'today' })).toBe('Value today');
     expect(describe_({ type: 'relative', amount: 7, unit: 'day' })).toBe(
-      'Value last 7 day',
+      'Value last 7 days',
     );
     expect(describe_({ type: 'absolute', from: 'a', to: 'b' })).toBe(
       'Value a ~ b',
@@ -664,9 +664,9 @@ describe('date kinds', () => {
       }).text;
     const last = { type: 'relative', amount: 7, unit: 'day' };
 
-    expect(describe_('GTE', last)).toBe('Value on or after 7 day ago');
+    expect(describe_('GTE', last)).toBe('Value on or after 7 days ago');
     expect(describe_('LTE', { ...last, direction: 'future' })).toBe(
-      'Value on or before 7 day ahead',
+      'Value on or before 7 days ahead',
     );
     expect(describe_('LTE', { type: 'preset', preset: 'lastMonth' })).toBe(
       'Value on or before last month',

@@ -49,7 +49,7 @@ export function querySentence(
   const total = table.paging?.mode === 'paged' ? table.paging.total : undefined;
   return total === undefined
     ? messages.label('label.pagination.on-page', { count: table.rows.length })
-    : messages.label('label.pagination.total', { total });
+    : messages.label('label.pagination.total', { count: total });
 }
 
 /**

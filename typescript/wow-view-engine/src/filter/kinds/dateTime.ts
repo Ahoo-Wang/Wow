@@ -34,6 +34,7 @@ import {
   isDateTimeFilterValue,
   MAX_RELATIVE_DATE_AMOUNT,
   type DateTimeFilterValue,
+  type RelativeDateTimeValue,
 } from '../values.js';
 import {
   compilePresence,
@@ -178,11 +179,11 @@ function describeWindow(value: DateTimeFilterValue): DescribedValue {
             value: rangeParts(value.from, value.to, value.timeZone),
           };
     case 'relative':
-      // Reading "last 7 day" beside a query that ran forwards would be worse
+      // Reading "last 7 days" beside a query that ran forwards would be worse
       // than saying nothing: the summary bar is where a user checks what is
       // actually in force.
       return {
-        text: `${value.direction === 'future' ? 'next' : 'last'} ${value.amount} ${value.unit}`,
+        text: `${value.direction === 'future' ? 'next' : 'last'} ${unitsOf(value)}`,
         value: relativeParts(value, 'window'),
       };
     case 'preset':
@@ -319,7 +320,7 @@ function describeBound(
       // the far edge, so this compares against the moment seven days ago,
       // and "in the last 7 days" would name a span the query never ran over.
       return {
-        text: `${side} ${value.amount} ${value.unit} ${value.direction === 'future' ? 'ahead' : 'ago'}`,
+        text: `${side} ${unitsOf(value)} ${value.direction === 'future' ? 'ahead' : 'ago'}`,
         value: relativeParts(value, 'instant'),
       };
     case 'preset':
@@ -516,3 +517,12 @@ export const dateFieldKind: FieldKind = createDateKind('date', false);
 
 /** An instant, with a time of day. */
 export const dateTimeFieldKind: FieldKind = createDateKind('datetime', true);
+
+/**
+ * The amount with its unit, counted as English counts it: 「1 day」,
+ * 「7 days」. The kernel's `text` is plain English; the surface words it
+ * through its catalogue (`label.relative.*`).
+ */
+function unitsOf(value: RelativeDateTimeValue): string {
+  return `${value.amount} ${value.unit}${value.amount === 1 ? '' : 's'}`;
+}

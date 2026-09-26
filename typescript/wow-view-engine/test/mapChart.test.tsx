@@ -260,8 +260,8 @@ describe('a map drawn and read', () => {
     );
     expect(frame(container).getAttribute('data-marks')).toBe('2');
     const notes = container.querySelector('[data-slot="map-notes"]')!;
-    expect(notes.textContent).toContain('1 regions are not on this map');
-    expect(notes.textContent).toContain('1 regions without a number');
+    expect(notes.textContent).toContain('1 region is not on this map');
+    expect(notes.textContent).toContain('1 region without a number');
     expect(container.textContent).toContain('highest Norland, 30');
     const area = await waitFor(() => {
       const found = [

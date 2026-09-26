@@ -60,7 +60,8 @@ export function formatMessage(
   params?: Issue['params'],
   locale?: string,
 ): string {
-  const template = lookup(messages, key);
+  const template =
+    pluralForm(messages, key, params?.count, locale) ?? lookup(messages, key);
   if (template === undefined) return key;
   if (!params) return template;
   return template.replace(PLACEHOLDER, (whole, name: string) => {
@@ -70,6 +71,47 @@ export function formatMessage(
       ? formatNumber(value, undefined, locale)
       : value;
   });
+}
+
+/**
+ * The entry for how many `count` says, where the catalogue words it apart.
+ *
+ * English says 「1 record」 and 「2 records」, Chinese 「1 条」 and 「2 条」,
+ * and other languages cut more ways still — so which form a number takes is
+ * the language's rule (`Intl.PluralRules`), and the wording of each form is
+ * the catalogue's: `key` is the general form (`other`), and `key-one`,
+ * `key-two`, `key-few`, `key-many` or `key-zero` the others, each present
+ * only where the language says that form differently. Any sentence with a
+ * number in `count` is looked up this way, so a caller never picks a form
+ * itself. The rule is `locale`'s, English where none is set — the language
+ * of the catalogue this package ships; the Chinese one has only the general
+ * form. A form the catalogue does not word falls back to the general one.
+ */
+function pluralForm(
+  messages: ViewMessages,
+  key: string,
+  count: unknown,
+  locale: string | undefined,
+): string | undefined {
+  if (typeof count !== 'number' || !Number.isFinite(count)) return undefined;
+  const form = pluralRules(locale).select(count);
+  return form === 'other' ? undefined : messages[`${key}-${form}`];
+}
+
+const RULES = new Map<string, Intl.PluralRules>();
+
+function pluralRules(locale = 'en'): Intl.PluralRules {
+  let rules = RULES.get(locale);
+  if (!rules) {
+    try {
+      rules = new Intl.PluralRules(locale);
+    } catch {
+      // A locale the runtime cannot read counts as the catalogue's own.
+      rules = new Intl.PluralRules('en');
+    }
+    RULES.set(locale, rules);
+  }
+  return rules;
 }
 
 /**

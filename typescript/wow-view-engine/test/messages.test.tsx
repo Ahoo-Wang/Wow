@@ -179,10 +179,18 @@ describe('the message catalogue', () => {
     // maintains, and three of them were found sitting in the catalogue in
     // both languages with no way to reach the screen (A-11).
     const { literal, prefixes } = askedFor();
-    const idle = Object.keys(defaultMessages).filter(
-      key =>
-        !literal.has(key) && !prefixes.some(prefix => key.startsWith(prefix)),
-    );
+    const asked = (key: string) =>
+      literal.has(key) || prefixes.some(prefix => key.startsWith(prefix));
+    // A plural form is asked for whenever its general form is: the count
+    // picks it (`formatMessage`), no caller names it.
+    const plural = /^(.+)-(?:zero|one|two|few|many)$/;
+    const idle = Object.keys(defaultMessages).filter(key => {
+      const general = plural.exec(key)?.[1];
+      return (
+        !asked(key) &&
+        !(general !== undefined && general in defaultMessages && asked(general))
+      );
+    });
 
     expect(idle).toEqual([]);
   });
@@ -380,9 +388,11 @@ describe('the closed enums a control offers', () => {
     expect(en['label.chart.type.bar']).toBe('bar');
     expect(en['label.group.type.DATE_HISTOGRAM']).toBe('By time unit');
     expect(en['label.summary.fn.SUM']).toBe('Sum');
-    // The unit keeps the control's own spelling; the period keeps the one
-    // the summary bar already read it out by.
-    expect(en['label.relative.unit.day']).toBe('day');
+    // The unit keeps the control's own spelling, counted (「30 days」,
+    // 「1 day」); the period keeps the one the summary bar already read it
+    // out by.
+    expect(en['label.relative.unit.day-one']).toBe('day');
+    expect(en['label.relative.unit.day']).toBe('days');
     expect(en['label.relative.preset.nextQuarter']).toBe('next quarter');
   });
 });
@@ -408,7 +418,7 @@ describe('formatting', () => {
   it('groups a number param in the language asked for, and leaves a string', () => {
     expect(
       formatMessage(defaultMessages, 'label.pagination.total', {
-        total: 624082,
+        count: 624082,
       }),
     ).toBe(`${(624082).toLocaleString()} records in all`);
     expect(
@@ -423,7 +433,7 @@ describe('formatting', () => {
       formatMessage(
         defaultMessages,
         'label.pagination.total',
-        { total: 624082 },
+        { count: 624082 },
         'de-DE',
       ),
     ).toBe('624.082 records in all');
@@ -445,7 +455,7 @@ describe('formatting', () => {
           code: 'label.pagination.total',
           severity: 'error',
           path: [],
-          params: { total: 12000 },
+          params: { count: 12000 },
         },
         'en',
       ),

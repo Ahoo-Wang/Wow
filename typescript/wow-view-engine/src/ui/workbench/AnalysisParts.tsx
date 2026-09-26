@@ -498,15 +498,10 @@ function AnalysisCaption({
     >
       {rows === null
         ? messages.label('label.analysis.caption-whole', { seconds: time })
-        : messages.label(
-            rows === 1
-              ? 'label.analysis.caption-one'
-              : 'label.analysis.caption',
-            {
-              count: formatNumber(rows, undefined, locale),
-              seconds: time,
-            },
-          )}
+        : messages.label('label.analysis.caption', {
+            count: rows,
+            seconds: time,
+          })}
     </div>
   );
 }

@@ -506,7 +506,7 @@ describe('ResultToolbar export', () => {
     // How many, under what, which columns, and what it will be called.
     expect(dialog.textContent).toContain('42 records');
     expect(dialog.textContent).toContain('Conditions: All records');
-    expect(dialog.textContent).toContain('1 columns: Amount');
+    expect(dialog.textContent).toContain('1 column: Amount');
     expect(dialog.textContent).toContain('File: Mine-2026-09-21.csv');
     // One choice is not a choice: nothing is picked, so there is no radio.
     expect(within(dialog).queryByRole('radio')).toBeNull();

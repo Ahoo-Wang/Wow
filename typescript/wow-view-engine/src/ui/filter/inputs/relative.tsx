@@ -94,7 +94,10 @@ export function RelativeDate({
         // identifier — which is what left this control in English however
         // the catalogue was replaced.
         items={RELATIVE_DATE_UNITS.map(unit => ({
-          label: messages.label(`label.relative.unit.${unit}`),
+          // Named as the amount beside it counts it: 「30 days」, 「1 day」.
+          label: messages.label(`label.relative.unit.${unit}`, {
+            count: value.amount,
+          }),
           value: unit,
         }))}
         onChange={next =>

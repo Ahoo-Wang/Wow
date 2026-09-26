@@ -64,7 +64,8 @@ export const recordMessages = {
   // The count the bar opens with. A total comes from the query and a cursor
   // view has none, so the two are worded apart: with a total the bar says how
   // many there are, and without one it says only what it can see.
-  'label.pagination.total': '{total} records in all',
+  'label.pagination.total': '{count} records in all',
+  'label.pagination.total-one': '1 record in all',
   'label.pagination.on-page': '{count} on this page',
   // The words before the size control and the sizes it offers. The unit
   // rides with the number, which is what a Chinese measure word needs —
