@@ -502,6 +502,55 @@ describe('what the screen says about an analysis cut short', () => {
 
     await waitFor(() => expect(screen.getByText(MORE)).toBeDefined());
   });
+
+  /**
+   * Judged against the chart on screen, not the one the run carried
+   * (second review R2-P1-1): a ranking says nothing as bars or as the
+   * table, and warns the moment it is redrawn as a pie — before any save or
+   * run — and stops when the pie is redrawn as the table.
+   */
+  it('follows the chart on screen through redraws', async () => {
+    const pie = {
+      type: 'pie' as const,
+      pie: { category: 'warehouse', value: 'orders' },
+    };
+    const ranking = analysisConfig({
+      limit: 2,
+      layout: 'chart',
+      sort: [{ alias: 'orders', direction: 'DESC' }],
+      chart: {
+        type: 'bar',
+        cartesian: { x: 'warehouse', series: [{ metric: 'orders' }] },
+      },
+    });
+    const engine = engineOver(ranking, grouped(4));
+    render(
+      <DataWorkbench
+        engine={engine}
+        definitionId="orders"
+        instanceId="orders-1"
+        kinds={['analysis']}
+      />,
+    );
+    await waitFor(() =>
+      expect(engine.openRuntimes()[0]?.getSnapshot().query.status).toBe(
+        'success',
+      ),
+    );
+    const runtime = engine.openRuntimes()[0];
+    const beside = () =>
+      document.querySelector('[data-slot="analysis-cut-short"]');
+    expect(beside()).toBeNull();
+
+    act(() => runtime.edit({ chart: pie }));
+    await waitFor(() => expect(screen.getByText(MORE)).toBeDefined());
+
+    act(() => runtime.edit({ layout: 'table' }));
+    await waitFor(() => expect(beside()).toBeNull());
+
+    act(() => runtime.edit({ layout: 'chart' }));
+    await waitFor(() => expect(screen.getByText(MORE)).toBeDefined());
+  });
 });
 
 /** Both catalogues name every finding, and none was left in English. */

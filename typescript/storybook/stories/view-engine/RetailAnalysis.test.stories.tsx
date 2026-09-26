@@ -845,3 +845,50 @@ export const LongTailOnALogAxis: Story = {
     await expect(svg).toContain('条件');
   },
 };
+
+/**
+ * 「只显示了前 N 组」跟着屏上的图（第二轮审查 R2-P1-1）：省份 GMV 前 15 是
+ * 排名，画成柱或表格都不提示；在草稿里改画成饼图，立刻警告——饼的每一片是
+ * 屏上这些组的占比；再改回表格，警告随之消失。改图型只重画、不重跑，所以这
+ * 句话不能照上一次运行时的图型说。
+ */
+export const CutShortFollowsTheChart: Story = {
+  ...DisplayOrderAnalysis,
+  name: '「只显示了前 N 组」跟着屏上的图（R2-P1-1）',
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await openAnalysis(canvasElement, '省份 GMV 前 15');
+    const cutShort = () =>
+      canvasElement.querySelector('[data-slot="analysis-cut-short"]');
+    await expect(cutShort()).toBeNull();
+
+    await userEvent.click(
+      canvas.getByRole('button', { name: zhCN['label.analysis.visualize'] }),
+    );
+    await userEvent.click(
+      await waitFor(() => {
+        const tile = document.querySelector<HTMLElement>(
+          '[data-slot="chart-tile"][data-chart-type="pie"]',
+        );
+        expect(tile).not.toBeNull();
+        return tile!;
+      }),
+    );
+    await chartsDrawn(canvasElement);
+    await waitFor(() =>
+      expect(cutShort()).toHaveTextContent(
+        formatMessage(zhCN, 'analysis.result.more-groups', { limit: 15 }),
+      ),
+    );
+
+    await userEvent.click(
+      canvas.getByRole('button', { name: zhCN['label.layout.table'] }),
+    );
+    await waitFor(() =>
+      expect(
+        canvasElement.querySelector('[data-slot="analysis-table"]'),
+      ).not.toBeNull(),
+    );
+    await expect(cutShort()).toBeNull();
+  },
+};

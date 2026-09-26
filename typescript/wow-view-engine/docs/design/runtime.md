@@ -167,6 +167,7 @@ export class ViewWriteError extends Error {
   - **`runtime.summary.page-only`**（路径 `['summaries']`）——汇总查询失败，汇总行退回本页口径。行本身留着，因为本页合计本身有用；`SummaryRow.scope` 说明它答的是 `page` 还是 `total`，这条 Issue 说明为什么退。配置没要汇总时两者都没有，汇总查询成功时是 `scope: 'total'` 且没有 Issue。默默顶替才是这里唯一的错误：读者看到「总计」，会当成全部命中记录的总计，二十行的 AVG 被读成四万行的 AVG。
   - **`analysis.result.more-groups`**（路径 `['limit']`，参数 `{ limit }` 是读者设的那个上限，不是查询带的那个）——分析结果之下还有没列出的组；画成饼图时是 `warning`（份额只在已列出的组里算），其余是 `note`（每一行都是完整的数，视图本就只要前 N 组）。这是问出来的，不是猜的：分组查询要的是 `limit + 1`，多回来的那一行就是答案，随后被丢掉不上屏（判据见 [kernels.md#compileanalysis-与-projectanalysis](kernels.md#compileanalysis-与-projectanalysis)）。分析的合计行走自己的无分组查询，因此即使分组被截断它仍覆盖全部——两行加起来小于它们下面的合计，两个数都没错。
   - **`analysis.result.at-limit`**（同样的路径与参数）——探不成时的那一种：配置上限已经顶到天花板，多要一行会让查询被拒，于是只剩"恰好填满上限"这个二义信号，措辞相应是"**可能**还有更多"而不是断言。两条不会同时出现。
+  - **这两条的级别与去留跟着屏上的图，不跟上一次运行时的图**（第二轮审查 R2-P1-1）：改图型、改表格／图表只是重画、不重跑，所以读结果发现的三处——分析工作台、仪表盘面板（面板改展示同样只重画）、嵌入视图——都经 `drawnResultIssues(state)` 读：用运行的事实（`truncated`／`atLimit`、运行时的排序与上限）加上草稿当下的布局与图型重判一遍（`cutShortIssues`，与运行时同一个函数）。排名画成柱或表格不提示，草稿里一改成饼图就警告，再改回表格就没有，保存与重开都不改变这个结论（test/resultIssues.test.tsx「follows the chart on screen through redraws」，故事「分析工作台/回归」`CutShortFollowsTheChart`）。
   - 分析的**合计**查询单独失败不报：分组行仍然完整地回答了它们自己的问题，屏幕上没有哪个数字的含义与它的说法不符，少一行合计而已。（见 test/resultIssues.test.tsx）
 
 ## 自动刷新

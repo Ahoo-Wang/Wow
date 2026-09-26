@@ -41,6 +41,7 @@ import type {
   DataViewConfig,
   DataViewDefinition,
   Issue,
+  ViewConfig,
   RecordData,
   RecordPageTarget,
   RecordViewConfig,
@@ -48,7 +49,7 @@ import type {
 } from '../model/index.js';
 import type { RuntimeEnvironment } from './environment.js';
 import { isCalledOff, type QueryFailureReporter } from './failures.js';
-import type { ProjectedView, ViewSource } from './source.js';
+import { resultIssues, type ProjectedView, type ViewSource } from './source.js';
 import { sourceReason } from './sourceReason.js';
 import { deprecatedUses } from './deprecated.js';
 import {
@@ -443,7 +444,7 @@ export const CUT_SHORT_CODES: readonly string[] = [
  */
 function cutShortIssues(
   config: AnalysisViewConfig,
-  view: AnalysisView,
+  view: Pick<AnalysisView, 'truncated' | 'atLimit'>,
 ): Issue[] {
   // Only shares of a whole mislead when the whole is cut short: a pie's
   // slices are fractions of the groups shown. Elsewhere every row is its
@@ -475,6 +476,44 @@ function cutShortIssues(
       ['limit'],
       { limit: view.atLimit },
       severity,
+    ),
+  ];
+}
+
+/**
+ * The last result's findings as the screen draws them now
+ * (`resultIssues`), the groups cut short judged again for the layout and
+ * the chart in the draft: a redraw — table to chart, bars to a pie — runs
+ * nothing, so the finding the run made described the chart it ran with,
+ * and a ranking redrawn as a pie said nothing until it was saved and
+ * opened again, then went on warning as the table (second review
+ * R2-P1-1). The facts are the run's (`truncated`, `atLimit`, its sort and
+ * limit); only how the rows are drawn is the draft's.
+ */
+export function drawnResultIssues(
+  state:
+    | {
+        draft: ViewConfig;
+        result: { config: ViewConfig; data: ProjectedView } | null;
+      }
+    | null
+    | undefined,
+): readonly Issue[] {
+  const data = state?.result?.data;
+  const found = resultIssues(data);
+  const ran = state?.result?.config;
+  const draft = state?.draft;
+  if (
+    data?.kind !== 'analysis' ||
+    ran?.kind !== 'analysis' ||
+    draft?.kind !== 'analysis'
+  )
+    return found;
+  return [
+    ...found.filter(one => !CUT_SHORT_CODES.includes(one.code)),
+    ...cutShortIssues(
+      { ...ran, layout: draft.layout, chart: draft.chart },
+      data.view,
     ),
   ];
 }
