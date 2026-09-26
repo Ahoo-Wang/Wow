@@ -178,6 +178,7 @@ function shared(
 export const CHART_VIEW_IDS = {
   boxplot: 'chart-boxplot-ship-hours',
   durationBands: 'chart-histogram-ship-hours',
+  lateShipments: 'chart-late-shipments',
   candlestick: 'chart-candlestick-weekly-paid',
   gauge: 'chart-gauge-month-gmv',
   radar: 'chart-radar-channels',
@@ -275,6 +276,31 @@ export const CHART_VIEWS: ViewInstance[] = [
       chart: {
         type: 'bar',
         cartesian: { x: 'hours', series: [{ metric: 'orders' }] },
+      },
+    }),
+  ),
+  // 条件里的两个时刻之差：付款后超过 48 小时才发货的单，按仓库（EXPRESSION，
+  // N3）——「发货时间 距 付款时间 > 48 小时」写在范围里，不靠读模型的字段。
+  shared(
+    CHART_VIEW_IDS.lateShipments,
+    '付款后超过 48 小时才发货的单（近 3 个月，按仓库）',
+    analysis({
+      filter: and(recent('firstEventTime', 3, 'month'), {
+        field: 'state.timing.shippedAt',
+        operator: 'EXPRESSION',
+        value: {
+          from: 'state.timing.paidAt',
+          comparison: 'GT',
+          value: 48,
+          unit: 'HOUR',
+        },
+      }),
+      groups: [{ type: 'TERMS', field: 'state.warehouse', alias: 'warehouse' }],
+      metrics: [orders],
+      sort: [{ alias: 'orders', direction: 'DESC' }],
+      chart: {
+        type: 'bar',
+        cartesian: { x: 'warehouse', series: [{ metric: 'orders' }] },
       },
     }),
   ),

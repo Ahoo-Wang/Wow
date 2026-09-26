@@ -28,6 +28,7 @@ import {
   writeValue,
   type FilterPath,
 } from '../../filter/index.js';
+import { holdsTime } from '../../filter/kinds/duration.js';
 import {
   treeController,
   type FilterTreeController,
@@ -398,6 +399,17 @@ export function ConditionPill({
                 : null
             }
             candidates={filter.valueCandidates?.(path) ?? null}
+            // A time since another moment picks the earlier one among the
+            // other times beside it (N3).
+            times={
+              editor.input === 'duration'
+                ? filter.fields
+                    .filter(
+                      entry => entry.name !== field.name && holdsTime(entry),
+                    )
+                    .map(entry => ({ value: entry.name, label: entry.label }))
+                : undefined
+            }
             onChange={value => filter.updateLeaf(path, { value })}
           />
         )}
@@ -446,6 +458,7 @@ function NestedPredicate({
     issues: rebase(filter.issues, path),
     onChange: tree => filter.updateLeaf(path, { value: writeValue(tree) }),
     ...(filter.optionSource ? { optionSource: filter.optionSource } : {}),
+    durations: false,
   });
 
   return (

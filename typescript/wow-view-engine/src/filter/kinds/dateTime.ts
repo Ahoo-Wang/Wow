@@ -41,6 +41,14 @@ import {
   isPresenceOperator,
   PRESENCE_OPERATORS,
 } from './presence.js';
+import {
+  compileDuration,
+  describeDuration,
+  DURATION_OPERATOR,
+  isBlankDuration,
+  isDurationOperator,
+  validateDuration,
+} from './duration.js';
 
 function isParsableInstant(text: string): boolean {
   return !Number.isNaN(Date.parse(text));
@@ -385,6 +393,7 @@ function createDateKind(id: FieldKindId, withTime: boolean): FieldKind {
       'GTE',
       'LTE',
       ...NOW_OPERATORS,
+      DURATION_OPERATOR,
       ...PRESENCE_OPERATORS,
     ],
     defaultOperator: 'BETWEEN',
@@ -395,8 +404,15 @@ function createDateKind(id: FieldKindId, withTime: boolean): FieldKind {
       return null;
     },
 
-    validate({ value, operator, path }) {
+    isBlank({ value, operator }) {
+      if (isDurationOperator(operator)) return isBlankDuration(value);
+      return value === null || value === undefined || value === '';
+    },
+
+    validate({ value, operator, field, fields, path }) {
       if (isPresenceOperator(operator) || isNowOperator(operator)) return [];
+      if (isDurationOperator(operator))
+        return validateDuration(value, field, fields, path);
       if (!isDateTimeFilterValue(value))
         return [issue('filter.value.expected-date', path)];
       if (value.type === 'absolute') {
@@ -433,6 +449,8 @@ function createDateKind(id: FieldKindId, withTime: boolean): FieldKind {
       const presence = compilePresence(field.name, leaf.operator);
       if (presence) return presence;
       if (isNowOperator(leaf.operator)) return compileNow(field, leaf.operator);
+      if (isDurationOperator(leaf.operator))
+        return compileDuration(field, leaf.value);
 
       const value = readValue<DateTimeFilterValue>(leaf.value);
       const temporal = temporalOf(field);
@@ -460,6 +478,7 @@ function createDateKind(id: FieldKindId, withTime: boolean): FieldKind {
     editor(operator, _field, value) {
       if (isPresenceOperator(operator) || isNowOperator(operator))
         return { input: 'none' };
+      if (isDurationOperator(operator)) return { input: 'duration' };
       if (isDateTimeFilterValue(value) && value.type === 'relative')
         return { input: 'relativeDate', withTime };
       if (operator === 'BETWEEN')
@@ -467,9 +486,11 @@ function createDateKind(id: FieldKindId, withTime: boolean): FieldKind {
       return { input: 'date', withTime };
     },
 
-    describe({ leaf, field }) {
+    describe({ leaf, field, fields }) {
       const presence = describePresenceParts(leaf.operator, field);
       if (presence) return presence;
+      if (isDurationOperator(leaf.operator))
+        return describeDuration(leaf.value, field, fields);
       if (isNowOperator(leaf.operator))
         return describeNow(leaf.operator, field);
       // A window this kind cannot read has no phrase; `describeWindow` would

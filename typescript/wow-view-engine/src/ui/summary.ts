@@ -19,6 +19,7 @@ import {
   isDeletionState,
   isGroupItem,
   type FilterSummaryItem,
+  type DurationComparison,
   type FilterSummaryValue,
 } from '../filter/index.js';
 import { segmentText } from './band.js';
@@ -93,6 +94,11 @@ export function summaryText(
       field: item.label ?? '',
       segment: segmentValue(value, item, messages, context),
     });
+
+  // A time since another moment says the whole gap at once: 「发货时间 距
+  // 付款时间 > 48 小时」, the operator's word being the phrase itself.
+  if (value.kind === 'duration')
+    return durationText(value, item, messages, context);
 
   pushWord(said, conditionWord(item, messages));
   const shown = summaryValue(value, item, messages, context);
@@ -280,7 +286,35 @@ function summaryValue(
       return `${periodValue(value, context)} ${messages.label('label.filter.range-join')} ${periodValue({ ...value, from: value.last }, context)}`;
     case 'segment':
       return segmentValue(value, item, messages, context);
+    case 'duration':
+      return durationText(value, item, messages, context);
   }
+}
+
+/** A comparison as its sign, the same in every language. */
+export const COMPARISON_SIGN: Readonly<Record<DurationComparison, string>> = {
+  GT: '>',
+  GTE: '≥',
+  LT: '<',
+  LTE: '≤',
+  EQ: '=',
+  NE: '≠',
+};
+
+/** 「发货时间 距 付款时间 > 48 小时」: a time since another moment (N3). */
+function durationText(
+  value: Extract<FilterSummaryValue, { kind: 'duration' }>,
+  item: FilterSummaryItem,
+  messages: MessageFormatters,
+  context: DisplayContext,
+): string {
+  return messages.label('label.filter.duration', {
+    field: item.label ?? '',
+    from: value.from,
+    comparison: COMPARISON_SIGN[value.comparison],
+    amount: valueText(value.amount, messages, undefined, context.locale),
+    unit: messages.label(`label.date-diff-unit.${value.unit}`),
+  });
 }
 
 /**

@@ -1293,6 +1293,24 @@ function criteria(
       return {};
     case FilterOperator.MATCH_NONE:
       return { $nor: [{}] };
+    // A computed value compared with a number (N3), as wow-mongo's `$expr`
+    // does: a record the expression has no value for never matches.
+    case FilterOperator.EXPRESSION: {
+      const computed = measured(filter.expression);
+      return {
+        $expr: {
+          $and: [
+            { $ne: [{ $ifNull: [computed, null] }, null] },
+            {
+              [`$${filter.comparison.toLowerCase()}`]: [
+                computed,
+                { $literal: filter.value },
+              ],
+            },
+          ],
+        },
+      };
+    }
     // The logical and comparison operators carry MongoDB's names in capitals.
     case FilterOperator.AND:
     case FilterOperator.OR:

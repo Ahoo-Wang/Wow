@@ -350,6 +350,12 @@ export const zhCN: ViewMessages = {
   'label.filter.period': '{field} 在 {period}',
   'label.filter.period-week': '{field} 在 {period} 起的一周',
   'label.filter.segment': '{field} 在 {segment}',
+  'label.filter.duration': '{field} 距 {from} {comparison} {amount} {unit}',
+  'label.filter.duration-from': '距哪个时刻',
+  'label.filter.duration-comparison': '比较',
+  'label.filter.duration-amount': '时长',
+  'label.filter.duration-unit': '单位',
+  'label.filter.duration-pick': '选一个时刻…',
   'label.filter.new-value-of': '新的 {field}',
   'label.filter.add-value-of': '添加 {field}',
   'label.filter.add-value': '添加 {value}',
@@ -495,7 +501,13 @@ export const zhCN: ViewMessages = {
   'label.operator.EARLIER_DAYS': '几天前',
   'label.operator.BEFORE_NOW': '早于现在',
   'label.operator.AFTER_NOW': '晚于现在',
-  'label.operator.EXPRESSION': '计算值',
+  'label.operator.EXPRESSION': '距另一时刻',
+  'filter.value.expected-duration':
+    '「距另一时刻」要选早一点的时刻、比较、时长和单位。',
+  'filter.value.duration-same-time': '一个时刻不能距它自己。',
+  'filter.value.duration-from-unknown': '这里没有「{field}」这个字段。',
+  'filter.value.duration-from-not-time': '「{field}」存的不是时刻。',
+  'filter.element.duration': '「距另一时刻」不能用在明细项的条件里。',
   'filter.field.reference-without-source':
     '{field} 是引用字段，但没有声明候选来源。',
   'filter.field.duplicate-in-group':

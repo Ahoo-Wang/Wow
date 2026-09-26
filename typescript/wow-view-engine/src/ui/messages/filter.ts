@@ -118,6 +118,12 @@ export const filterMessages = {
   // bound — what a band of a number histogram opens its records under —
   // written as the band was (`label.analysis.band`).
   'label.filter.segment': '{field} in {segment}',
+  'label.filter.duration': '{field} since {from} {comparison} {amount} {unit}',
+  'label.filter.duration-from': 'Since which time',
+  'label.filter.duration-comparison': 'Comparison',
+  'label.filter.duration-amount': 'Amount',
+  'label.filter.duration-unit': 'Unit',
+  'label.filter.duration-pick': 'Pick a time…',
   // A list of values that grows: what is being typed, the popup that offers
   // it back as the one thing to add, and one remove button per value. Every
   // pill on the panel has all three, so the first two are named after their
@@ -342,9 +348,18 @@ export const filterMessages = {
   'label.operator.EARLIER_DAYS': 'earlier days',
   'label.operator.BEFORE_NOW': 'before now',
   'label.operator.AFTER_NOW': 'after now',
-  'label.operator.EXPRESSION': 'computed value',
+  // On a time field, EXPRESSION is a time since another moment (N3).
+  'label.operator.EXPRESSION': 'time since',
 
   // Filter kernel.
+  'filter.value.expected-duration':
+    'A time since needs an earlier time, a comparison, an amount and a unit.',
+  'filter.value.duration-same-time': 'A time cannot be measured since itself.',
+  'filter.value.duration-from-unknown':
+    'The earlier time {field} is not a field here.',
+  'filter.value.duration-from-not-time': '{field} holds no time.',
+  'filter.element.duration':
+    'A time since another moment cannot be asked of one entry.',
   'filter.field.reference-without-source':
     '{field} is a reference field with no candidate source declared.',
   'filter.field.duplicate-in-group':

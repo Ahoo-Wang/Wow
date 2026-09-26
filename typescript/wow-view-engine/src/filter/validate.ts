@@ -165,6 +165,7 @@ export function validateFilter(
         value: node.value,
         operator: node.operator,
         field,
+        fields,
         kinds,
         path,
         limits,
@@ -194,7 +195,10 @@ function duplicateFieldIssues(group: FilterGroup, path: IssuePath): Issue[] {
   const issues: Issue[] = [];
   const seen = new Map<string, FilterLeaf[]>();
   group.children.forEach((child, index) => {
-    if (!isFilterLeaf(child)) return;
+    // A time since another moment asks about the gap, not the field's own
+    // value: 「发货时间 在 本月」 and 「发货时间 距 付款时间 > 48 小时」 are two
+    // questions side by side.
+    if (!isFilterLeaf(child) || child.operator === 'EXPRESSION') return;
     const before = seen.get(child.field) ?? [];
     seen.set(child.field, [...before, child]);
     if (before.length === 0) return;

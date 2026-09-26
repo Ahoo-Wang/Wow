@@ -16,6 +16,11 @@
  * the query will contain: a relative range stays relative until compilation.
  */
 
+import {
+  ANALYSIS_DATE_DIFF_UNITS,
+  type AnalysisDateDiffUnit,
+} from '../model/index.js';
+
 export type StringFilterValue = string | string[];
 
 export type NumberFilterValue = number | number[] | NumberRange;
@@ -246,4 +251,49 @@ export function isDateTimeFilterValue(
     default:
       return false;
   }
+}
+
+/**
+ * A time since another moment (N3): the leaf's field is the later moment,
+ * `from` the earlier one, and the condition compares the time between them
+ * — 「发货时间 距 付款时间 > 48 小时」 — in `unit`, a day being 24 hours. A
+ * record missing either moment never matches, as Wow's `EXPRESSION` filter
+ * reads it.
+ */
+export interface DurationFilterValue {
+  from: string;
+  comparison: DurationComparison;
+  value: number;
+  unit: AnalysisDateDiffUnit;
+}
+
+/** The comparisons a time since another moment may make, in the order offered. */
+export const DURATION_COMPARISONS = [
+  'GT',
+  'GTE',
+  'LT',
+  'LTE',
+  'EQ',
+  'NE',
+] as const;
+
+export type DurationComparison = (typeof DURATION_COMPARISONS)[number];
+
+/** Whether a stored value reads as a whole `DurationFilterValue`. */
+export function isDurationFilterValue(
+  value: unknown,
+): value is DurationFilterValue {
+  if (value === null || typeof value !== 'object' || Array.isArray(value))
+    return false;
+  const candidate = value as Partial<DurationFilterValue>;
+  return (
+    typeof candidate.from === 'string' &&
+    candidate.from !== '' &&
+    (DURATION_COMPARISONS as readonly unknown[]).includes(
+      candidate.comparison,
+    ) &&
+    typeof candidate.value === 'number' &&
+    Number.isFinite(candidate.value) &&
+    (ANALYSIS_DATE_DIFF_UNITS as readonly unknown[]).includes(candidate.unit)
+  );
 }

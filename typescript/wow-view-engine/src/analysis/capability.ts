@@ -298,5 +298,18 @@ function relativeNode(node: FilterNode, prefix: string): FilterNode {
   // makes when it reads its own value back.
   if (isFilterGroup(node.value))
     leaf.value = relativeTree(node.value, prefix) as unknown as FilterValue;
+  // A time since another moment names its earlier moment in its value, and
+  // that name is compiled in the same scope as the leaf's own (N3).
+  else if (
+    node.operator === 'EXPRESSION' &&
+    node.value !== null &&
+    typeof node.value === 'object' &&
+    !Array.isArray(node.value) &&
+    typeof node.value.from === 'string'
+  )
+    leaf.value = {
+      ...node.value,
+      from: relativeName(node.value.from, prefix),
+    };
   return leaf;
 }

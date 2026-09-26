@@ -12,6 +12,7 @@
  */
 
 import type {
+  AnalysisDateDiffUnit,
   AnalysisDateUnit,
   FieldKindId,
   FieldDefinition,
@@ -30,6 +31,7 @@ import {
 import { isFilterGroup, isFilterNode } from './tree.js';
 import type {
   DateTimePreset,
+  DurationComparison,
   RelativeDateDirection,
   RelativeDateUnit,
 } from './values.js';
@@ -91,6 +93,17 @@ export type FilterSummaryValue =
       unit: RelativeDateUnit;
       direction: RelativeDateDirection;
       bound: 'window' | 'instant';
+    }
+  /**
+   * A time since another moment (N3): the earlier moment by its label, how
+   * the time between compares, the amount and its unit.
+   */
+  | {
+      kind: 'duration';
+      from: string;
+      comparison: DurationComparison;
+      amount: number;
+      unit: AnalysisDateDiffUnit;
     }
   /** A named calendar period, resolved at compile time. */
   | { kind: 'preset'; preset: DateTimePreset }
@@ -399,7 +412,9 @@ function describeCondition(
   )
     return null;
   const described =
-    field && kind ? describeLeaf(kind, node, field, kinds) : undefined;
+    field && kind
+      ? describeLeaf(kind, node, field, kinds, [...byName.values()])
+      : undefined;
   if (!field || described === undefined)
     return {
       path,
@@ -455,9 +470,10 @@ function describeLeaf(
   leaf: FilterLeaf,
   field: FieldDefinition,
   kinds: FieldKindRegistry,
+  fields: readonly FieldDefinition[],
 ): FieldKindDescription | undefined {
   try {
-    return kind.describe({ leaf, field, kinds });
+    return kind.describe({ leaf, field, kinds, fields });
   } catch {
     return undefined;
   }

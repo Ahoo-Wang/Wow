@@ -492,7 +492,24 @@ export function countLeaves(tree: FilterTree): number {
 /** Every field the tree mentions, in first-seen order. */
 export function filterFields(tree: FilterTree): string[] {
   const seen = new Set<string>();
-  for (const { node } of walkFilter(tree))
-    if (isFilterLeaf(node)) seen.add(node.field);
+  for (const { node } of walkFilter(tree)) {
+    if (!isFilterLeaf(node)) continue;
+    seen.add(node.field);
+    // A time since another moment names its earlier moment too (N3).
+    const from = durationFrom(node);
+    if (from !== undefined) seen.add(from);
+  }
   return [...seen];
+}
+
+/** The earlier moment a time since another moment (N3) names, if it is one. */
+export function durationFrom(leaf: FilterLeaf): string | undefined {
+  if (leaf.operator !== 'EXPRESSION') return undefined;
+  const value = leaf.value;
+  return value !== null &&
+    typeof value === 'object' &&
+    !Array.isArray(value) &&
+    typeof value.from === 'string'
+    ? value.from
+    : undefined;
 }

@@ -141,6 +141,7 @@ src/
       array.ts                — A field holding many values: `CONTAINS_ALL` and `IS_EMPTY` beside `IN`, closed by `options` or searched through `remote`
       boolean.ts
       dateTime.ts             — The one instant a single-bound operator compares against, as a phrase, and every bound written the way the field stores time; `readInstant`, the kind's own reading of a value, shared by the cells and the record kernel
+      duration.ts             — A time since another moment (N3, Wow's `EXPRESSION` over a `DATE_DIFF`) as a time field's `EXPRESSION` condition: its value's check against the fields beside it, compilation and parts; `holdsTime`, `isDurationOperator`
       deletion.ts             — The soft-delete dimension as a declared field kind (D17-2); `impliedDeletion`
       elementMatch.ts         — The fields of one element, named as a condition names them
       enum.ts                 — A closed set of values declared by the definition
@@ -601,6 +602,7 @@ src/
         calendar.tsx          — The registry's calendar, speaking the surface's language
         chips.tsx             — A list of typed values as chips (IN / NOT_IN)
         date.tsx              — A moment: off a calendar, a window from now, or a named period
+        duration.tsx          — A time since another moment: the earlier time among the fields beside it, a comparison, an amount and a unit
         daterange.tsx         — A day or a span of days, with the time of day where the field carries one
         number.tsx            — A number, a range of two; Base UI `NumberField`
         relative.tsx          — Which side of now a relative window lies on
