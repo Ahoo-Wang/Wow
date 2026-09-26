@@ -38,6 +38,7 @@ import type { PanelCommands } from './dashboard/commands.js';
 import type { PanelPress } from './dashboard/press.js';
 import { hasMenu, PanelMenu, PanelTitleInput } from './dashboard/PanelMenu.js';
 import { PanelExport } from './dashboard/PanelExport.js';
+import { useScrollMore } from './dashboard/scrollMore.js';
 import { ImageFailed } from './analysis/ExportMenu.js';
 import {
   useChartImageOffer,
@@ -238,6 +239,10 @@ export function DashboardPanel({
   // The chart the body draws, as 「导出图片」 in the same menu takes it
   // away (D33 Q58) — only where the board offers exports at all.
   const image = useChartImageSlot();
+  // A table wider than the panel fades out towards the columns past its
+  // edge (`useScrollMore`, W13).
+  const [body, setBody] = useState<HTMLDivElement | null>(null);
+  const scroll = useScrollMore(body);
   const picture = useChartImageOffer({
     runtime: commands?.exportRows ?? null,
     title: name,
@@ -307,6 +312,9 @@ export function DashboardPanel({
           role="group"
           tabIndex={0}
           aria-label={name}
+          ref={setBody}
+          data-scroll-more={scroll.more}
+          style={scroll.style}
           className={cn(
             'min-h-0 flex-1 overflow-auto px-(--_fve-panel-padding)',
             FOCUS_INSET,

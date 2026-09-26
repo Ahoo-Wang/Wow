@@ -155,6 +155,17 @@ function FindingGlyphs({ marks }: { marks: PanelMarkSet }) {
 }
 
 /*
+ * A badge on a panel's header wraps rather than runs past the panel: the
+ * registry's badge is one line, `nowrap` and centred with its overflow
+ * hidden, so a sentence wider than a half-width card on a phone — 「Not
+ * filtered by “Time range”」 — lost both its ends (compensation console
+ * walkthrough, W11). Its height follows its lines.
+ */
+// On one line it is the registry's 20px: the vertical padding gives back the
+// border that `h-5` counted in.
+const BADGE_WRAPS = 'h-auto min-h-5 max-w-full py-px whitespace-normal';
+
+/*
  * The title's line is the name's: a reader tells panels apart by it, so
  * the badges beside it take a line of their own under it rather than
  * squeezing it to nothing on a narrow panel (U-10).
@@ -170,7 +181,7 @@ function BadgeLine({ marks }: { marks: PanelMarkSet }) {
           data-slot="panel-not-reached"
           tone="warning"
           dot={false}
-          className="max-w-full"
+          className={BADGE_WRAPS}
         >
           {messages.label('label.filters.not-reached', {
             filters: unreached
@@ -190,6 +201,7 @@ function BadgeLine({ marks }: { marks: PanelMarkSet }) {
             <Badge
               data-slot="panel-click-filter"
               variant="outline"
+              className={BADGE_WRAPS}
               render={<button type="button" />}
             />
           }

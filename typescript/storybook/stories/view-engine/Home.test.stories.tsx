@@ -629,5 +629,71 @@ export const OnAPhone: Story = {
       )!;
       await expect(body.scrollWidth).toBeLessThanOrEqual(body.clientWidth);
     }
+
+    // In the filter sheet: every filter stays inside it — a relative window
+    // wraps its three controls rather than running under the reset (W11).
+    await userEvent.click(
+      within(canvasElement).getByRole('button', {
+        name: label('label.filters.sheet-set', { count: '1' }),
+      }),
+    );
+    const sheet = await screen.findByRole('dialog', {
+      name: zhCN['label.filters.bar'],
+    });
+    await userEvent.click(
+      within(sheet).getByRole('combobox', {
+        name: label('label.date.shape-of', { field: '日期' }),
+      }),
+    );
+    await userEvent.click(
+      await screen.findByRole('option', { name: zhCN['label.date.relative'] }),
+    );
+    const relative = await within(sheet).findByLabelText(
+      label('label.date.amount-of', { field: '日期' }),
+    );
+    await expect(getComputedStyle(relative.closest('div.flex')!).flexWrap).toBe(
+      'wrap',
+    );
+    const inside = (chip: Element) => {
+      const edge = chip.getBoundingClientRect().right;
+      return [...chip.querySelectorAll('*')].every(
+        part => part.getBoundingClientRect().right <= edge + 0.5,
+      );
+    };
+    for (const chip of sheet.querySelectorAll(
+      '[data-slot="dashboard-filter"]',
+    )) {
+      await expect(chip.getBoundingClientRect().right).toBeLessThanOrEqual(
+        window.innerWidth,
+      );
+      await expect(inside(chip)).toBe(true);
+    }
+
+    // A search the cards do not take: each half-width card says so in a
+    // badge that wraps inside the card rather than losing both ends.
+    await userEvent.type(
+      within(sheet).getByRole('textbox', { name: '搜索订单' }),
+      'TO2026',
+    );
+    await userEvent.keyboard('{Escape}');
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    for (const name of DAILY_CARDS) {
+      const card = panelOf(name).closest<HTMLElement>(
+        '[data-slot="dashboard-panel"]',
+      )!;
+      const badge = await waitFor(() => {
+        const found = card.querySelector<HTMLElement>(
+          '[data-slot="panel-not-reached"]',
+        );
+        expect(found).toBeTruthy();
+        return found!;
+      });
+      await expect(badge.scrollWidth).toBeLessThanOrEqual(badge.clientWidth);
+      const [inner, outer] = [badge, card].map(node =>
+        node.getBoundingClientRect(),
+      );
+      await expect(inner.left).toBeGreaterThanOrEqual(outer.left);
+      await expect(inner.right).toBeLessThanOrEqual(outer.right);
+    }
   },
 };
