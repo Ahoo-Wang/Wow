@@ -122,7 +122,8 @@ abstract class EventStreamQueryBackendSpec {
         val aggregate = aggregation { count("count") }.query(binding)
 
         schemaCalls.get().assert().isZero()
-        single.thenMany(aggregate).test().verifyComplete()
+        // The single finds nothing; the aggregation without groups still has its empty summary.
+        single.thenMany(aggregate).test().expectNextCount(1).verifyComplete()
         schemaCalls.get().assert().isEqualTo(2)
     }
 

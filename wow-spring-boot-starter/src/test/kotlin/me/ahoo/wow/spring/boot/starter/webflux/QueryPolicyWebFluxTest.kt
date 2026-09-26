@@ -214,13 +214,17 @@ class QueryPolicyWebFluxTest {
         const val INPUT_FILTER = """{"op":"TENANT_ID","value":"user-input"}"""
         const val QUERY_BODY = """{"filter":$INPUT_FILTER,"limit":10}"""
         const val AGGREGATION_BODY = """{"filter":$INPUT_FILTER,"metrics":[{"type":"COUNT","alias":"count"}]}"""
+
+        /** No record matched: an aggregation without groups still answers its empty summary. */
+        const val SUMMARY = """[{"count":0}]"""
+
         val ROUTES = listOf(
             Route(QueryModel.SNAPSHOT, BuiltInHttpRouteHandlerKeys.Snapshot.LIST_QUERY, QUERY_BODY, "[]"),
             Route(QueryModel.SNAPSHOT, BuiltInHttpRouteHandlerKeys.Snapshot.COUNT, INPUT_FILTER, "0"),
-            Route(QueryModel.SNAPSHOT, BuiltInHttpRouteHandlerKeys.Snapshot.AGGREGATION, AGGREGATION_BODY, "[]"),
+            Route(QueryModel.SNAPSHOT, BuiltInHttpRouteHandlerKeys.Snapshot.AGGREGATION, AGGREGATION_BODY, SUMMARY),
             Route(QueryModel.EVENT_STREAM, BuiltInHttpRouteHandlerKeys.Event.LIST_QUERY, QUERY_BODY, "[]"),
             Route(QueryModel.EVENT_STREAM, BuiltInHttpRouteHandlerKeys.Event.COUNT, INPUT_FILTER, "0"),
-            Route(QueryModel.EVENT_STREAM, BuiltInHttpRouteHandlerKeys.Event.AGGREGATION, AGGREGATION_BODY, "[]"),
+            Route(QueryModel.EVENT_STREAM, BuiltInHttpRouteHandlerKeys.Event.AGGREGATION, AGGREGATION_BODY, SUMMARY),
         )
     }
 }

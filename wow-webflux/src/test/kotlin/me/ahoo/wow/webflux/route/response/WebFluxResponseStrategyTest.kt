@@ -27,7 +27,9 @@ import org.springframework.http.codec.ServerSentEvent
 import org.springframework.mock.http.server.reactive.MockServerHttpRequest
 import org.springframework.mock.web.reactive.function.server.MockServerRequest
 import org.springframework.mock.web.server.MockServerWebExchange
+import org.springframework.test.web.reactive.server.WebTestClient
 import org.springframework.web.reactive.function.server.HandlerStrategies
+import org.springframework.web.reactive.function.server.RouterFunctions
 import org.springframework.web.reactive.function.server.ServerRequest
 import org.springframework.web.reactive.function.server.ServerResponse
 import reactor.core.publisher.Flux
@@ -49,6 +51,21 @@ class WebFluxResponseStrategyTest {
                 it.cookies().assert().isEmpty()
             }
             .verifyComplete()
+    }
+
+    @Test
+    fun `json array response should write rows through a server whose write completes before reading the body`() {
+        // The mock server's write completes when it takes the body over; that must not cancel the unread rows.
+        val router = RouterFunctions.route().GET("/rows") { request ->
+            DefaultWebFluxResponseStrategy.jsonArray(
+                Flux.just(BodyValue("one"), BodyValue("two")),
+                request,
+                WebFluxRequestExceptionHandler()
+            )
+        }.build()
+        WebTestClient.bindToRouterFunction(router).build().get().uri("/rows").exchange()
+            .expectStatus().isOk
+            .expectBody(String::class.java).isEqualTo("""[{"name":"one"},{"name":"two"}]""")
     }
 
     @Test

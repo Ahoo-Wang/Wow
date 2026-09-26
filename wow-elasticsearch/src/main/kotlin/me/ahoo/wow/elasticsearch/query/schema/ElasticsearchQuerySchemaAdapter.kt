@@ -39,6 +39,7 @@ import me.ahoo.wow.query.schema.SupportMode
 import me.ahoo.wow.query.schema.alternativesOrSelf
 import me.ahoo.wow.query.schema.hasArrayBranch
 import me.ahoo.wow.query.schema.operationValues
+import me.ahoo.wow.serialization.MessageRecords
 import reactor.core.publisher.Mono
 
 class ElasticsearchQuerySchemaAdapter(
@@ -138,8 +139,10 @@ class ElasticsearchQuerySchemaAdapter(
                             emptyMap()
                         } else {
                             BUILT_IN_CAPABILITIES.mapNotNull { capability ->
-                                mapping.binding(source, value, capability, invalidNested, nestedPaths, arrayPaths)
-                                    ?.let { capability to it }
+                                (
+                                    documentIdBinding(model, source, capability)
+                                        ?: mapping.binding(source, value, capability, invalidNested, nestedPaths, arrayPaths)
+                                    )?.let { capability to it }
                             }.toMap()
                         },
                         projectionPath = projection,
@@ -237,7 +240,7 @@ class ElasticsearchQuerySchemaAdapter(
             capability: QueryCapability,
         ): QueryFieldBindingTemplate? {
             val expected = when (source) {
-                "_id" -> QueryValueType.STRING to QueryCapability.EXACT_MATCH
+                DOCUMENT_ID -> QueryValueType.STRING to QueryCapability.EXACT_MATCH
                 "_score" -> QueryValueType.DECIMAL to QueryCapability.SORT
                 "_doc", "_shard_doc" -> QueryValueType.INTEGER to QueryCapability.SORT
                 else -> return null
@@ -245,6 +248,28 @@ class ElasticsearchQuerySchemaAdapter(
             if (logical.valueTypes != setOf(expected.first) || capability != expected.second) return null
             return QueryFieldBindingTemplate(source.template(), null)
         }
+
+        /**
+         * An exact match on the field a built-in store writes as the document `_id` addresses `_id` itself, so
+         * identity filters compile to an `ids` query. `_id` has no doc values, so sorting and aggregating keep the
+         * indexed field.
+         */
+        private fun documentIdBinding(
+            model: QueryModel,
+            source: String,
+            capability: QueryCapability,
+        ): QueryFieldBindingTemplate? {
+            if (capability != QueryCapability.EXACT_MATCH || DOCUMENT_ID_SOURCES[model] != source) return null
+            return QueryFieldBindingTemplate(DOCUMENT_ID.template(), null)
+        }
+
+        private const val DOCUMENT_ID = "_id"
+
+        /**
+         * The field each built-in store writes as the document `_id`: the snapshot store indexes a snapshot under its
+         * aggregate id. An event stream document's `_id` is `aggregateId-version`, which no queryable field holds.
+         */
+        private val DOCUMENT_ID_SOURCES = mapOf(QueryModel.SNAPSHOT to MessageRecords.AGGREGATE_ID)
 
         private fun QueryValueSchema.canCursorSort(
             source: String,

@@ -132,8 +132,7 @@ internal fun ElasticsearchAggregationMetric.Numeric.numericValue(
         AggregationFunction.STDDEV -> aggregations.getValue(alias).extendedStats().stdDeviationPopulation()
         AggregationFunction.VARIANCE -> aggregations.getValue(alias).extendedStats().variancePopulation()
     }
-    require(value != null && value.isFinite()) { "Aggregation metric [$alias] must be finite." }
-    return value
+    return requireNotNull(value) { "Aggregation metric [$alias] is missing its value." }
 }
 
 internal fun ElasticsearchAggregationMetric.Percentile.percentileValue(
@@ -144,8 +143,7 @@ internal fun ElasticsearchAggregationMetric.Percentile.percentileValue(
         .firstOrNull { it.key() == percentile }
         ?: error("Aggregation metric [$alias] is missing percentile [$percentile].")
     val value = entry.value()
-    require(value != null && value.isFinite()) { "Aggregation metric [$alias] must be finite." }
-    return value
+    return requireNotNull(value) { "Aggregation metric [$alias] is missing its value." }
 }
 
 internal fun FieldValue.nativeValue(): Any? = when {

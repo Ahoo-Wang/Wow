@@ -45,8 +45,9 @@ data class QueryBackendBinding<out B : QueryBackend>(
  * callers, must own fresh mutable [ObjectNode] instances. Implementations must not cache or share nodes across
  * subscriptions, publish cached nodes, mutate emitted nodes asynchronously, or mutate them after delivery.
  *
- * Results must contain only standard JSON-tree values. Storage-driver `Map`/`Document` values, BSON values,
- * `POJONode`, and arbitrary POJOs must be normalized inside the Backend or rejected before crossing this boundary.
+ * Results must contain only standard JSON-tree values: the Backend converts its driver's values (`Map`/`Document`,
+ * BSON values, decimals) to them. The core checks every returned row, so no Backend repeats the check: a row with a
+ * `NaN`, an infinity, a `POJONode`, a binary or missing node fails the query in the core.
  */
 interface QueryBackend : NamedAggregateDecorator {
     /** Encodes and decodes the native [CursorPosition]s [page] returns for a [PageWindow.Keyset]. */
@@ -67,6 +68,10 @@ interface QueryBackend : NamedAggregateDecorator {
     /**
      * Streams the groups of [query] in its effective sort order, at most [GroupWindow.First.limit] of them, or every
      * group for [GroupWindow.All]. The core has already removed from [query] what it computes itself.
+     *
+     * Without groups the result is one summary row over the matched records. The Backend may emit it always (as
+     * Elasticsearch does) or emit nothing when no record matched (as MongoDB `$group` does); the core emits the
+     * empty summary only when the Backend emits no row, so it never duplicates one.
      */
     fun aggregate(query: AdmittedQuery<AggregationQuery>, window: GroupWindow): Flux<ObjectNode>
 }

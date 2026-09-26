@@ -395,7 +395,8 @@ class ElasticsearchSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
         val publisher = aggregation { count("count") }.query(binding)
 
         schemaCalls.get().assert().isZero()
-        publisher.test().verifyComplete()
+        // No record matched: the core emits the empty summary of an aggregation without groups.
+        publisher.test().expectNextCount(1).verifyComplete()
         schemaCalls.get().assert().isOne()
     }
 

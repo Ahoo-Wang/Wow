@@ -134,7 +134,8 @@ class MongoEventStreamQueryBackendTest : EventStreamQueryBackendSpec() {
         val aggregationPublisher = aggregation { count("count") }.query(binding)
 
         schemaCalls.get().assert().isZero()
-        singlePublisher.thenMany(aggregationPublisher).test().verifyComplete()
+        // The single finds nothing; the aggregation without groups still has its empty summary.
+        singlePublisher.thenMany(aggregationPublisher).test().expectNextCount(1).verifyComplete()
         schemaCalls.get().assert().isEqualTo(2)
     }
 

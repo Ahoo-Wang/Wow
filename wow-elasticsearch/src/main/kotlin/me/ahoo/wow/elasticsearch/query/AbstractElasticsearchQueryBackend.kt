@@ -41,10 +41,7 @@ import me.ahoo.wow.serialization.JsonSerializer
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
-import tools.jackson.databind.JsonNode
 import tools.jackson.databind.node.ObjectNode
-import java.math.BigDecimal
-import java.math.BigInteger
 import java.time.Duration
 
 abstract class AbstractElasticsearchQueryBackend : QueryBackend {
@@ -218,48 +215,5 @@ abstract class AbstractElasticsearchQueryBackend : QueryBackend {
     )
 }
 
-internal fun Map<*, *>.toObjectNode(): ObjectNode {
-    requireStandardJsonValue()
-    val node = JsonSerializer.valueToTree<ObjectNode>(this)
-    node.requireStandardJson()
-    return node
-}
-
-private fun Any?.requireStandardJsonValue() {
-    when (this) {
-        null,
-        is String,
-        is Boolean,
-        is Byte,
-        is Short,
-        is Int,
-        is Long,
-        is BigInteger,
-        is BigDecimal,
-        -> Unit
-
-        is Float -> require(isFinite()) { STANDARD_JSON_SOURCE_ERROR }
-        is Double -> require(isFinite()) { STANDARD_JSON_SOURCE_ERROR }
-        is JsonNode -> requireStandardJson()
-        is Map<*, *> -> forEach { (key, value) ->
-            require(key is String) { STANDARD_JSON_SOURCE_ERROR }
-            value.requireStandardJsonValue()
-        }
-
-        is Iterable<*> -> forEach { it.requireStandardJsonValue() }
-        is Array<*> -> forEach { it.requireStandardJsonValue() }
-        else -> throw IllegalArgumentException(STANDARD_JSON_SOURCE_ERROR)
-    }
-}
-
-private fun JsonNode.requireStandardJson() {
-    when {
-        isObject || isArray -> forEach(JsonNode::requireStandardJson)
-        isString || isBoolean || isNull || isIntegralNumber || isBigDecimal -> Unit
-        isFloat -> require(floatValue().isFinite()) { STANDARD_JSON_SOURCE_ERROR }
-        isDouble -> require(doubleValue().isFinite()) { STANDARD_JSON_SOURCE_ERROR }
-        else -> throw IllegalArgumentException(STANDARD_JSON_SOURCE_ERROR)
-    }
-}
-
-private const val STANDARD_JSON_SOURCE_ERROR = "Elasticsearch source must contain only standard JSON values."
+/** Converts an aggregation row built from response values; the core checks that it is standard JSON. */
+internal fun Map<*, *>.toObjectNode(): ObjectNode = JsonSerializer.valueToTree(this)

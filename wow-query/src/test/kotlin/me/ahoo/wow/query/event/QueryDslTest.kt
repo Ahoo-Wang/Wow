@@ -65,7 +65,10 @@ class QueryDslTest {
             .verifyComplete()
         MatchAllFilter.count(gateway).test().expectNext(0L).verifyComplete()
         Condition().count(gateway).test().expectNext(0L).verifyComplete()
+        // No record matched: the core emits the empty summary of an aggregation without groups.
         AggregationQuery(metrics = listOf(AggregationMetric.Count("count")))
-            .query(gateway).test().verifyComplete()
+            .query(gateway).test()
+            .assertNext { it["count"].longValue().assert().isZero() }
+            .verifyComplete()
     }
 }

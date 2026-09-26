@@ -14,8 +14,5 @@
 package me.ahoo.wow.elasticsearch.query.event
 
 import me.ahoo.wow.elasticsearch.query.AbstractElasticsearchFilterCompiler
-import me.ahoo.wow.serialization.MessageRecords
 
-object EventStreamFilterCompiler : AbstractElasticsearchFilterCompiler(
-    documentIdField = MessageRecords.ID,
-)
+object EventStreamFilterCompiler : AbstractElasticsearchFilterCompiler()

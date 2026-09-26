@@ -38,11 +38,12 @@ import me.ahoo.wow.elasticsearch.query.aggregation.RuntimeExpressionCompiler
 import me.ahoo.wow.query.AdmittedQuery
 import me.ahoo.wow.query.schema.QuerySchemaValidationException
 import me.ahoo.wow.serialization.JsonSerializer
-import me.ahoo.wow.serialization.MessageRecords
 
-abstract class AbstractElasticsearchFilterCompiler(
-    private val documentIdField: String? = null,
-) {
+/**
+ * Compiles admitted filters to Elasticsearch queries. Every field, system fields included, compiles at the physical
+ * path its admission resolved; a root exact match on `_id` becomes an `ids` query.
+ */
+abstract class AbstractElasticsearchFilterCompiler {
     /** Compiles an admitted count filter. */
     fun compile(admitted: AdmittedQuery<FilterExpression>): Query = compile(admitted.query, admitted)
 
@@ -62,10 +63,10 @@ abstract class AbstractElasticsearchFilterCompiler(
     ): Query = when (filter) {
         MatchAllFilter -> matchAll { it }
         MatchNoneFilter -> matchNone { it }
-        is IdFilter -> documentIdEqual(filter.value)
-        is IdsFilter -> documentIdIn(filter.values)
-        is AggregateIdFilter -> aggregateIdEqual(filter.value)
-        is AggregateIdsFilter -> aggregateIdIn(filter.values)
+        is IdFilter -> exactEqual(filter.metadataPath(admitted), filter.value, nested)
+        is IdsFilter -> exactIn(filter.metadataPath(admitted), filter.values, nested)
+        is AggregateIdFilter -> exactEqual(filter.metadataPath(admitted), filter.value, nested)
+        is AggregateIdsFilter -> exactIn(filter.metadataPath(admitted), filter.values, nested)
         is TenantIdFilter -> term {
             it.field(filter.metadataPath(admitted)).value(filter.value)
         }
@@ -87,8 +88,8 @@ abstract class AbstractElasticsearchFilterCompiler(
         }
         is EqualFilter -> {
             val field = filter.field.path(admitted)
-            if (!nested && field == DOCUMENT_ID_FIELD) {
-                documentIdEqual(filter.value.requiredNativeValue().toString())
+            if (field.addressesDocumentId(nested)) {
+                ids { it.values(filter.value.requiredNativeValue().toString()) }
             } else {
                 term { it.field(field).value(filter.value.fieldValue()) }
             }
@@ -136,8 +137,8 @@ abstract class AbstractElasticsearchFilterCompiler(
         }
         is InFilter -> {
             val field = filter.field.path(admitted)
-            if (!nested && field == DOCUMENT_ID_FIELD) {
-                documentIdIn(filter.values.map { value -> value.requiredNativeValue().toString() })
+            if (field.addressesDocumentId(nested)) {
+                ids { it.values(filter.values.map { value -> value.requiredNativeValue().toString() }) }
             } else {
                 terms {
                     it.field(field).terms { terms ->
@@ -223,26 +224,26 @@ abstract class AbstractElasticsearchFilterCompiler(
     private fun FilterExpression.metadataPath(admitted: AdmittedQuery<*>): String =
         admitted.systemField(this).physicalField.path
 
+    /** Inside a nested query the document id is not addressable by `_id`. */
+    private fun String.addressesDocumentId(nested: Boolean): Boolean = !nested && this == DOCUMENT_ID_FIELD
+
+    private fun exactEqual(path: String, value: String, nested: Boolean): Query =
+        if (path.addressesDocumentId(nested)) {
+            ids { it.values(value) }
+        } else {
+            term { it.field(path).value(value) }
+        }
+
+    private fun exactIn(path: String, values: List<String>, nested: Boolean): Query =
+        if (path.addressesDocumentId(nested)) {
+            ids { it.values(values) }
+        } else {
+            terms { it.field(path).terms { terms -> terms.value(values.map(FieldValue::of)) } }
+        }
+
     private companion object {
         const val DOCUMENT_ID_FIELD = "_id"
     }
-
-    private fun documentIdEqual(value: String): Query = documentIdField?.let { field ->
-        term { it.field(field).value(value) }
-    } ?: ids { it.values(value) }
-
-    private fun documentIdIn(values: List<String>): Query = documentIdField?.let { field ->
-        terms { it.field(field).terms { terms -> terms.value(values.map(FieldValue::of)) } }
-    } ?: ids { it.values(values) }
-
-    protected open fun aggregateIdEqual(value: String): Query =
-        term { it.field(MessageRecords.AGGREGATE_ID).value(value) }
-
-    protected open fun aggregateIdIn(values: List<String>): Query =
-        terms {
-            it.field(MessageRecords.AGGREGATE_ID)
-                .terms { terms -> terms.value(values.map(FieldValue::of)) }
-        }
 
     private val StringComparison.ignoreCase: Boolean
         get() = this == StringComparison.CASE_INSENSITIVE

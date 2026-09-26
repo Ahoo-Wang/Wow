@@ -13,12 +13,6 @@
 
 package me.ahoo.wow.elasticsearch.query.snapshot
 
-import co.elastic.clients.elasticsearch._types.query_dsl.Query
-import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.ids
 import me.ahoo.wow.elasticsearch.query.AbstractElasticsearchFilterCompiler
 
-object SnapshotFilterCompiler : AbstractElasticsearchFilterCompiler() {
-    override fun aggregateIdEqual(value: String): Query = ids { it.values(value) }
-
-    override fun aggregateIdIn(values: List<String>): Query = ids { it.values(values) }
-}
+object SnapshotFilterCompiler : AbstractElasticsearchFilterCompiler()
