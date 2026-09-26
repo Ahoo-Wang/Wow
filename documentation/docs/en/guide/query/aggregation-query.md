@@ -144,7 +144,7 @@ sum("total", "paidTotal") { "status" eq "PAID" }
 
 An empty match keeps each metric's empty-set semantics: `COUNT` and `DISTINCT_COUNT` return `0`, while numeric metrics, `ANY`, and `PERCENTILE` return `null`.
 
-The following limits are shared by both backends and enforced at compile time:
+The following limits are shared by both backends and rejected at admission, before any I/O:
 
 - fields referenced by a metric filter must be scalar; array fields and unions containing arrays are unsupported, and conditions that necessarily target array fields — such as `IS_EMPTY`/`$size` — are rejected as well: their semantics could be preserved, but they are refused in favor of one uniform contract;
 - full-text `SEARCH`, `ELEMENT_MATCH`, and `CONTAINS_ALL` (`$all` semantics) are unsupported;
@@ -154,7 +154,7 @@ Versions and known boundaries:
 
 - metric filters on the MongoDB backend require server 5.0+ (`$not` inside the guard expression); the `PERCENTILE` metric itself still requires 7.0+. Older servers return their native error.
 - the `$gt`/`$lt` family in MongoDB guard expressions compares by the BSON total order rather than `$match` type bracketing, so counts over mixed-type data may run high; this is an edge case and does not promise bitwise cross-backend equality.
-- the HTTP query guard does not gate the metric filter construct itself as an expensive operator; operators inside a metric filter are subject to the same `wow.query.http.allow-expensive-operators` switch as root/element filters, and their filter value counts feed the same `wow.query.http.max-filter-values` cap as other filters.
+- the HTTP budget, which the Gateway checks at admission for `HTTP`-entry queries, does not gate the metric filter construct itself as an expensive operator; operators inside a metric filter are subject to the same `wow.query.http.allow-expensive-operators` switch as root/element filters, and their filter value counts feed the same `wow.query.http.max-filter-values` cap as other filters.
 
 ### Derived Metrics {#derived-metrics}
 

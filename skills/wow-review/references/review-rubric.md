@@ -2,7 +2,7 @@
 
 Use this rubric after resolving the actual diff and reading the current definitions and consumers.
 
-Pin the downstream version and target source before applying query rules. The fixed-pipeline rules below apply to targets exposing `QueryFilter.prepare`, `QueryPolicy.evaluate`, and Backend `(query, schema)`. Historical targets must be reviewed against their own contracts, not against every later V9 implementation.
+Pin the downstream version and target source before applying query rules. The fixed-pipeline rules below apply to targets exposing `QueryFilter.prepare`, `QueryPolicy.evaluate`, and `QueryAdmission`, whose Backend primitives receive an `AdmittedQuery`; intermediate targets with Backend `(query, schema)` arguments share the stage order without admission-time field resolution. Historical targets must be reviewed against their own contracts, not against every later V9 implementation.
 
 ## Correctness
 
@@ -11,18 +11,18 @@ Pin the downstream version and target source before applying query rules. The fi
 - Events contain enough durable meaning to rebuild state and preserve compatibility.
 - Saga branches, Projection/EventProcessor side effects, duplicate delivery, retry, and idempotency are verified at the correct boundary.
 - Mandatory tenant/owner/lifecycle/business constraints use `QueryPolicy`, AND-composed after all replaceable `QueryFilter.prepare` steps. Both models retain captured identity/scope across subscriptions; empty/error policies stop later policies and Backend invocation. A policy owns its applicability check; ABAC reads tags only for Snapshot.
-- Schema holds immutable structure, native binding/capability and protection facts; it neither admits requests nor selects policies. Gateway calls public validation; Backend owns native compilation and execution. Preserve declaration merge and refresh locality. OpenAPI `x-wow-query-fields` is not backend capability proof; refresh does not update other replicas, mappings or stored data.
+- Schema holds immutable structure, native binding/capability and protection facts; it neither admits requests nor selects policies. `QueryAdmission` validates, normalizes and resolves fields into an `AdmittedQuery` that carries the subscription's one Schema version; Backend compiles the resolved fields natively and executes. Preserve declaration merge and per-instance revalidation (`wow.query.schema.revalidate-interval`, `wowQuerySchema` actuator endpoint). OpenAPI `x-wow-query-fields` is not backend capability proof; revalidation does not update other replicas, mappings or stored data.
 - Cursor effective sort has independent `CURSOR_SORT` capability, single-valued ordered data and a stable unique tie-breaker; ordinary `SORT` alone is insufficient. Reject Mask and protected logical/projection/physical aliases. Use historical EXACT/mode status checks only when the inspected target exposes them.
 - Cursor tokens are opaque: application code does not decode, log, rewrite, or cross Backend boundaries with them; every page uses the managed Gateway and tokens carry no authorization.
 - Empty-string behavior distinguishes `""`, whitespace, null, missing fields, and collections; do not infer an HTTP expensive-operator guard from in-process capability.
 - EventStream aggregation uses the managed Gateway, `EVENT_STREAM` schema and event-relative `body` paths. Elements start absolute and then remain relative; final sort uses output aliases. Aggregation reuses scope/policy but does not mask results, so protected groups/metrics/expressions are rejected before execution. Verify available HTTP/OpenAPI/Schema routes from the target.
-- Request-facing queries use the managed aggregate `QueryGateway`. Raw `factory.create(namedAggregate).backend` access requires explicit Schema, admission and predicates; it bypasses scope, policies, defaults, Mask and observation. An identical Backend does not prove policy equivalence. WebFlux extracts scope into Reactor Context and applies its own guard; Gateway appends scope after prepare. JVM calls do not automatically inherit HTTP scope.
+- Request-facing queries use the managed aggregate `QueryGateway`. Raw `factory.create(namedAggregate).backend` access requires an `AdmittedQuery` from `QueryAdmission` plus explicit predicates; it bypasses scope, policies, defaults, Mask and observation. An identical Backend does not prove policy equivalence. WebFlux extracts scope into Reactor Context and marks the entry `HTTP`; the Gateway checks the `wow.query.http.*` budget at admission and appends scope after prepare, while `HttpQueryGuard` keeps only response row caps, the `limit=0` default, idle timeout and buffering. JVM calls do not automatically inherit HTTP scope.
 - Gateway/wait changes preserve identity, propagation, cancellation cleanup, timeout semantics, and ambiguous outcomes.
 - Runtime changes preserve one owner, admission/drain ordering, fatal cause, readiness, deadlines, and repeated-signal safety.
 
 ## Compatibility and integration
 
-- Public APIs, event revisions, serialization, schema, OpenAPI (including runtime Schema GET/refresh routes and generic query request bodies), generated metadata, and downstream consumers remain compatible unless breaking change is authorized.
+- Public APIs, event revisions, serialization, schema, OpenAPI (including the runtime Schema GET capability descriptor and generic query request bodies), generated metadata, and downstream consumers remain compatible unless breaking change is authorized.
 - Judge source, binary and wire compatibility separately against the requested scope. When implementation SPI changes are explicitly allowed, do not demand bridges for concrete Gateway constructors or intermediate overrides. Preserve the agreed QueryGateway API and existing Condition compatibility through 10.0.0; this exception does not authorize unrelated application breaks.
 - Configuration examples match current property classes and conditional auto-configuration.
 - Dependencies, module boundaries, and Gradle feature variants select the intended implementation.

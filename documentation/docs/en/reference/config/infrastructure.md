@@ -143,6 +143,28 @@ Batch validation matches MongoDB. EventStore batching uses Bulk `create`. Both d
 
 When Elasticsearch is selected for SnapshotStore, Wow also looks for concrete index resources under `META-INF/wow/elasticsearch/{indexName}.json` or `config/wow/elasticsearch/{indexName}.json`. Concrete resources are processed after the generic template and before SnapshotStore creation. This mechanism is independent of `auto-init-template`; missing resources remain a no-op.
 
+## Query {#query}
+
+Configuration class: `QueryProperties` (prefix `wow.query`); it is bound whenever Wow is enabled and needs no separate capability. The `wow.query.http.*` budget applies to queries whose entry is `HTTP`: the Gateway checks it at admission, before any storage I/O, and the WebFlux adapter uses the same list and page sizes as its response row caps.
+
+| Property | Type | Default | Meaning |
+| --- | --- | --- | --- |
+| `wow.query.http.max-list-size` | Int | `1000` | List/aggregation limit; `0` removes the cap and permits limit `0` |
+| `wow.query.http.max-page-size` | Int | `100` | Page-size cap; `0` disables it |
+| `wow.query.http.max-page-window` | Long | `10000` | `page.index * page.size` cap; `0` disables it |
+| `wow.query.http.max-filter-nodes` | Int | `128` | FilterExpression node cap; `0` disables it |
+| `wow.query.http.max-filter-values` | Int | `1000` | Value-count cap for collection filters; `0` disables it |
+| `wow.query.http.allow-expensive-operators` | Boolean | `true` | Allows expensive filters, Elements, metric sorting/arithmetic, and match-all count/paged requests |
+| `wow.query.http.max-residual-groups` | Integer | `10000` | Most groups, dense fill rows included, an HTTP aggregation may process when the storage cannot run its HAVING or metric sort natively and the query service computes them (e.g. Elasticsearch); `0` disables the bound |
+| `wow.query.require-explicit-entry` | Boolean | `false` | Rejects gateway queries that do not state their query entry (`HTTP` or `IN_PROCESS`); the `wow.query.http.*` budget applies to `HTTP` queries |
+| `wow.query.require-authenticated-scope` | Boolean | `false` | Rejects (`403 IllegalAccessQueryScope`) an `HTTP` query on Snapshot or EventStream whose authenticated scope does not pin `tenantId`; a scope read from headers or path variables is declared, not authenticated. See [scope provenance](../../guide/query/query-gateway.md#scope-provenance) |
+| `wow.query.abac.require-principal-tags` | Boolean | `false` | Rejects (`403 IllegalAccessQueryScope`) an `HTTP` snapshot query whose principal has no ABAC tags; applies to an `AbacQueryPolicy` constructed with the `AbacQueryOptions` bean |
+| `wow.query.abac.match-missing-tag-key` | Boolean | `true` | Lets a resource lacking one of the principal's tag keys match as public; `false` requires the key with a value the principal holds |
+| `wow.query.schema.revalidate-interval` | Duration | `5m` | How often each instance reloads its query schemas to pick up storage changes; `0s` disables it. The `wowQuerySchema` actuator endpoint revalidates on demand |
+| `wow.query.sensitivity.display-comparable` | Boolean | `true` | Whether filters and paged sorts may compare the raw value of a `DISPLAY` sensitive field; `false` rejects them like `CONFIDENTIAL` fields (see [Field Masking](../../guide/query/masking.md)) |
+
+All numeric query caps must be non-negative. Ordinary page size must still be at least `1`, and page offset cannot exceed `Int.MAX_VALUE`. `allow-expensive-operators=true` is the compatibility default, not capacity evidence. Test existing requests and the upgrade path before tightening it.
+
 ## WebFlux
 
 Configuration class: `WebFluxProperties`; required capability: `webflux-support`.
@@ -153,28 +175,13 @@ Configuration class: `WebFluxProperties`; required capability: `webflux-support`
 | `wow.webflux.global-error.enabled` | Boolean | `true` | Registers Wow's global `WebExceptionHandler` |
 | `wow.webflux.batch.concurrency` | Int | `128` | Concurrency for batch snapshot regeneration and StateEvent resend tasks |
 | `wow.webflux.batch.prefetch` | Int | `4` | Batch-task prefetch |
-| `wow.query.http.max-list-size` | Int | `1000` | List/aggregation limit; `0` removes the cap and permits limit `0` |
-| `wow.webflux.query.default-list-size` | Int | `100` | Limit applied to HTTP list queries that omit `limit` or send `0`; clamped to `max-list-size`; `0` disables the default and rejects limit `0` again |
-| `wow.query.http.max-page-size` | Int | `100` | Page-size cap; `0` disables it |
-| `wow.query.http.max-page-window` | Long | `10000` | `page.index * page.size` cap; `0` disables it |
-| `wow.query.http.max-filter-nodes` | Int | `128` | FilterExpression node cap; `0` disables it |
-| `wow.query.http.max-filter-values` | Int | `1000` | Value-count cap for collection filters; `0` disables it |
-| `wow.query.http.allow-expensive-operators` | Boolean | `true` | Allows expensive filters, Elements, metric sorting/arithmetic, and match-all count/paged requests |
-| `wow.query.http.max-residual-groups` | Integer | `10000` | Most groups, dense fill rows included, an HTTP aggregation may process when the storage cannot run its HAVING or metric sort natively and the query service computes them (e.g. Elasticsearch); `0` disables the bound |
-| `wow.query.abac.require-principal-tags` | Boolean | `false` | Rejects (`403 IllegalAccessQueryScope`) an `HTTP` snapshot query whose principal has no ABAC tags; applies to an `AbacQueryPolicy` constructed with the `AbacQueryOptions` bean |
-| `wow.query.abac.match-missing-tag-key` | Boolean | `true` | Lets a resource lacking one of the principal's tag keys match as public; `false` requires the key with a value the principal holds |
-| `wow.query.require-authenticated-scope` | Boolean | `false` | Rejects (`403 IllegalAccessQueryScope`) an `HTTP` query on Snapshot or EventStream whose authenticated scope does not pin `tenantId`; a scope read from headers or path variables is declared, not authenticated. See [scope provenance](../../guide/query/query-gateway.md#scope-provenance) |
-| `wow.query.require-explicit-entry` | Boolean | `false` | Rejects gateway queries that do not state their query entry (`HTTP` or `IN_PROCESS`); the `wow.query.http.*` budget applies to `HTTP` queries |
-| `wow.query.schema.revalidate-interval` | Duration | `5m` | How often each instance reloads its query schemas to pick up storage changes; `0s` disables it. The `wowQuerySchema` actuator endpoint revalidates on demand |
-| `wow.query.sensitivity.display-comparable` | Boolean | `true` | Whether filters and paged sorts may compare the raw value of a `DISPLAY` sensitive field; `false` rejects them like `CONFIDENTIAL` fields (see [Field Masking](../../guide/query/masking.md)) |
+| `wow.webflux.query.default-list-size` | Int | `100` | Limit applied to HTTP list queries that omit `limit` or send `0`; clamped to `wow.query.http.max-list-size`; `0` disables the default and rejects limit `0` again |
 | `wow.webflux.query.idle-timeout` | Duration | `10s` | Maximum idle wait for the next result or completion; `0s` disables it |
 | `wow.webflux.query.strict-count-filter` | Boolean | `false` | Rejects a count request body whose root names neither `op` nor `operator` (`400`, binding error `op`/`INVALID_REQUEST`). Off, such a body is read as a legacy condition whose operator defaults to `ALL`, so a malformed filter counts every row |
 | `wow.webflux.state.point-read-admission` | Boolean | `false` | Admits each state read by the state routes like a query (caller scope and `QueryPolicy` evaluated in memory, a state outside them reads as absent; response masked by the query schemas) and caps tracing; see [state point reads](../../guide/data-access.md#state-point-reads) |
 | `wow.webflux.state.tracing-max-versions` | Integer | `1000` | Most versions one tracing request may return under point-read admission; `0` disables the cap |
 | `wow.webflux.command.request.appender.agent.enabled` | Boolean | `true` | Adds `User-Agent` to command context |
 | `wow.webflux.command.request.appender.ip.enabled` | Boolean | `true` | Adds the resolved remote IP to command context |
-
-All numeric query caps must be non-negative. Ordinary page size must still be at least `1`, and page offset cannot exceed `Int.MAX_VALUE`. `allow-expensive-operators=true` is the compatibility default, not capacity evidence. Test existing requests and the upgrade path before tightening it.
 
 Batch concurrency applies per request and is shared by snapshot rebuild and StateEvent resend. Concurrent requests multiply downstream load; lower it to match application and storage capacity.
 
