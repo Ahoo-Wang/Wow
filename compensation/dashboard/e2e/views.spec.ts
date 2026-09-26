@@ -17,6 +17,7 @@ import {
   executions,
   stubExecutionFailedService,
 } from "./support/executionFailedService.ts";
+import { recordsInAll } from "./support/wording.ts";
 
 // 「失败执行」: the view engine's workbench over the failed executions
 // (rebuild proposal, batch 1; the queues' page since batch 5). The service is stubbed; the queries the engine
@@ -85,7 +86,7 @@ test("opens the failed executions on the Active system view", async ({
   await expect(
     workbench
       .getByRole("navigation", { name: "Pagination" })
-      .getByText(`${ACTIVE.length} records in all`),
+      .getByText(recordsInAll(ACTIVE.length)),
   ).toBeVisible();
 
   // The system views, record and analysis, in the workbench's list.
