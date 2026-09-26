@@ -523,6 +523,36 @@ export function valueLabelsOn(
   return marks.some(one => family.labelsByDefault.includes(one));
 }
 
+/**
+ * From this many categories a bar chart left to its default writes only
+ * its peak and trough (`peaksOnlyLabels`): about the count where a number
+ * over every bar has to be turned on its side to fit, and the row of
+ * upright numbers is noise rather than a reading (2026-09-26 review P1-6).
+ */
+export const PEAKS_ONLY_FROM = 12;
+
+/**
+ * Whether a cartesian chart's bars, left to their default, write only
+ * their highest and lowest value — as the extremes are marked — rather
+ * than a number over every bar: `labels` unset and `PEAKS_ONLY_FROM`
+ * categories or more. An explicit `labels: true` writes every bar's number
+ * however many there are, and `false` writes none. The kernel finds the
+ * extremes for it (`shapeChart`); which way the bars lie is the drawing's
+ * to decide, and a chart lying on its side keeps a number on each row.
+ */
+export function peaksOnlyLabels(
+  chart: ChartSpec | undefined,
+  categories: number,
+): boolean {
+  return (
+    chart !== undefined &&
+    CHART_FAMILY[chart.type] === 'cartesian' &&
+    chart.labels === undefined &&
+    chartMarks(chart).includes('bar') &&
+    categories >= PEAKS_ONLY_FROM
+  );
+}
+
 /** The traits of the family a chart type belongs to. */
 export function familyOf(type: ChartType): ChartFamilyTraits {
   return CHART_FAMILIES[CHART_FAMILY[type]];

@@ -40,7 +40,16 @@ export function drawnMarks(root: ParentNode): SVGPathElement[] {
 }
 
 /**
- * The marks drawn faint — a group other than the one pressed on a panel
+ * The bars alone, left to right: the painted marks without the dots on the
+ * highest and the lowest one, which are ringed by the ground — a long row
+ * of bars carries them unasked (review P1-6).
+ */
+export function drawnBars(root: ParentNode): SVGPathElement[] {
+  return drawnMarks(root).filter(mark => !mark.hasAttribute('stroke'));
+}
+
+/**
+ * The marks drawn faint —a group other than the one pressed on a panel
  * that filters the board — left to right.
  */
 export function fadedMarks(root: ParentNode): SVGPathElement[] {

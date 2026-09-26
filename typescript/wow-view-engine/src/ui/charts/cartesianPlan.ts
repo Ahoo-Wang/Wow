@@ -13,6 +13,7 @@
 
 import {
   isPercentStacked,
+  peaksOnlyLabels,
   seriesMark,
   valueLabelsOn,
   type CartesianData,
@@ -30,6 +31,7 @@ import type {
   SeriesName,
   ValueLabel,
 } from './family.js';
+import type { MarkWords } from './markWords.js';
 import { measureText } from './measure.js';
 import { colorOf, OTHER_COLOR } from './palette.js';
 import { sharedScales, type NiceScale } from './scale.js';
@@ -100,18 +102,6 @@ export interface CartesianContext {
   words?: MarkWords;
 }
 
-/** The words the reference, derived and extreme marks are written with. */
-export interface MarkWords {
-  /** A derived line's name: 「7 期移动平均（算出的）」, and whose. */
-  derived(line: DerivedLine, series: string | undefined): string;
-  /** A statistic line's caption, its number already written. */
-  statistic(of: 'average' | 'median', value: string): string;
-  high: string;
-  low: string;
-  /** A split's folded rest (D33 Q56), as the pie's is called: 「其他」. */
-  other: string;
-}
-
 /**
  * `data` without the series `hidden` names — what the marks, the scales and
  * the reading table say once the legend switched them off. The same object
@@ -128,11 +118,7 @@ export function withoutHidden(
     line =>
       !hidden.has(line.key) && series.some(entry => entry.key === line.metric),
   );
-  return {
-    ...data,
-    series,
-    ...(data.derived ? { derived } : {}),
-  };
+  return { ...data, series, ...(data.derived ? { derived } : {}) };
 }
 
 /** One series as drawn: the kernel's, and what the spec says about it. */
@@ -150,6 +136,9 @@ export interface DrawnSeries {
 }
 
 type Side = 'left' | 'right';
+
+/** What decides the stack a series stands in. */
+type Stackable = Pick<DrawnSeries, 'side' | 'configured' | 'kind'>;
 
 /** The series as the legend, the tooltip and the marks all name them. */
 export function drawnSeries(
@@ -247,9 +236,7 @@ export function stackPlan(
   data: CartesianData,
   spec: ChartSpec | undefined,
 ): {
-  stackOf(
-    series: Pick<DrawnSeries, 'side' | 'configured' | 'kind'>,
-  ): string | undefined;
+  stackOf(series: Stackable): string | undefined;
   /** Whether the stacks are drawn as shares. */
   percent: boolean;
   /** A series' share of its stack at one point, when it is drawn as one. */
@@ -259,9 +246,7 @@ export function stackPlan(
   const bySeries = new Map(
     (cartesian?.series ?? []).map(series => [series.metric, series]),
   );
-  const stackOf = (
-    series: Pick<DrawnSeries, 'side' | 'configured' | 'kind'>,
-  ) =>
+  const stackOf = (series: Stackable) =>
     series.configured?.stack === undefined || series.kind === 'line'
       ? undefined
       : `${series.side}:${series.configured.stack}`;
@@ -353,6 +338,15 @@ export interface CartesianPlan {
   /** Whether a series writes its values at all (`valueLabelsOn`). */
   labelled(entry: DrawnSeries): boolean;
   /**
+   * Whether a series' bars, left to their default, write only their peak
+   * and trough (`peaksOnlyLabels`), as its extremes are marked, rather than
+   * a number over every bar: an upright chart of `PEAKS_ONLY_FROM` bars or
+   * more that stand on their own and have a peak apart from their trough.
+   * Zoomed to fewer than that, every bar on screen writes its number again
+   * (`cartesianFit`).
+   */
+  peaksOnly(entry: DrawnSeries): boolean;
+  /**
    * Whether the kernel filled a series' value at one point rather than
    * measured it (`CartesianData.points[].filled`): a known 0, still drawn —
    * the line drops to it, the bar stands at nothing — but never labelled,
@@ -402,7 +396,8 @@ export interface CartesianPlan {
   /** Every derived line, switched off or not: what the legend lists. */
   derivedLegend: DrawnDerived[];
   /**
-   * Whether a series marks its highest and lowest point: the spec asks, the
+   * Whether a series marks its highest and lowest point: the spec asks or
+   * its bars write only those two (`peaksOnly`), the
    * kernel found two to mark, and it stands on its own — a segment of a
    * stack stands at the stack's height, and past `LARGE_FROM` bars there is
    * no mark to hang one on.
@@ -512,6 +507,14 @@ export function cartesianPlan(
   const labelled = (entry: DrawnSeries) =>
     valueLabelsOn(spec, entry.kind) &&
     !(entry.kind === 'bar' && data.points.length > LARGE_FROM);
+  // A line or an area is not labelled unasked, and asked, it writes all.
+  const peaksOnly = (entry: DrawnSeries) =>
+    !horizontal &&
+    peaksOnlyLabels(spec, data.points.length) &&
+    labelled(entry) &&
+    !stacked(entry) &&
+    !asShares(entry) &&
+    data.extremes?.[entry.key] !== undefined;
   const filledAt = (entry: DrawnSeries, index: number) =>
     data.points[index]?.filled?.includes(entry.key) === true;
   // An axis measures shares where a 100% stack stands on it, or where only
@@ -665,10 +668,12 @@ export function cartesianPlan(
 
   const outerTexts = [
     ...series
-      // A stacked bar writes its part inside its segment.
+      // A stacked bar writes its part inside its segment, and a long row
+      // of bars only its peak and trough, which their marks write.
       .filter(
         entry => labelled(entry) && !(entry.kind === 'bar' && stacked(entry)),
       )
+      .filter(entry => !peaksOnly(entry))
       .flatMap(entry =>
         data.points.map((_point, index) => {
           const value = drawnAt(entry, index);
@@ -687,6 +692,7 @@ export function cartesianPlan(
   });
   const tickOf = (name: string) => shortTick.get(name) ?? categoryTick(name);
   const extremesOf = (entry: DrawnSeries) =>
+    (cartesian?.extremes !== true && !peaksOnly(entry)) ||
     stacked(entry) ||
     asShares(entry) ||
     (entry.kind === 'bar' && data.points.length > LARGE_FROM)
@@ -710,6 +716,7 @@ export function cartesianPlan(
     drawnAt,
     drawnText,
     labelled,
+    peaksOnly,
     filledAt,
     insideText,
     totals,

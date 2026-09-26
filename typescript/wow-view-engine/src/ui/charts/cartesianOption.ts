@@ -311,7 +311,12 @@ export function optionOf(
             color: inside ? inkOn(theme, emphasized(theme, fill)) : label.color,
           },
         },
-        ...(plan.labelled(entry) ? { label } : {}),
+        // A long row of bars writes its peak and trough as marks, not a
+        // number over each (`peaksOnly`); zoomed in, `cartesianFit` writes
+        // the numbers on screen again.
+        ...(plan.labelled(entry)
+          ? { label: plan.peaksOnly(entry) ? { ...label, show: false } : label }
+          : {}),
         ...extremeMarks(plan, entry, fill, theme),
       };
     }

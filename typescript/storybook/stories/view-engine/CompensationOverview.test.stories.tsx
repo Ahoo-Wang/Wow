@@ -21,7 +21,7 @@ import {
 } from './compensationBoard.js';
 import { HOST_LANGUAGE } from './fixtures.js';
 import { findDataTable, readColumn } from './readTable.js';
-import { chartsDrawn, drawnMarks, valueLabels } from './chartDom.js';
+import { chartsDrawn, drawnBars, valueLabels } from './chartDom.js';
 import { StoryEngine } from './StoryEngine.js';
 import '@ahoo-wang/wow-view-engine/styles.css';
 
@@ -206,8 +206,9 @@ export const EveryPanel: Story = {
     }
 
     // One bar per day of September so far, one per status, and the
-    // processors ahead first.
-    const bars = (name: string) => drawnMarks(panel(name)).length;
+    // processors ahead first — the dots on the month's highest and lowest
+    // day not counted.
+    const bars = (name: string) => drawnBars(panel(name)).length;
     await chartsDrawn(canvasElement);
     await waitFor(() => expect(bars('本月每日新增失败')).toBe(22));
     await waitFor(() => expect(bars('按状态分布')).toBe(3));

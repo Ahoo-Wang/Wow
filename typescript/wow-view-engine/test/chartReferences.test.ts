@@ -232,6 +232,27 @@ describe('seriesExtremes', () => {
   it('marks nothing unless asked', () => {
     expect(shaped(config()).extremes).toBeUndefined();
   });
+
+  it('finds them for a long row of bars left to its default labels (review P1-6)', () => {
+    // Twelve days, each measured: a bar chart writes its peak and trough
+    // rather than a number over every bar, and the kernel finds the two.
+    const twelve = Array.from({ length: 12 }, (_, index) => ({
+      day: day(index + 1),
+      orders: index === 4 ? 30 : index === 7 ? 1 : 10,
+    }));
+    const bars = config({}, { type: 'bar' });
+    expect(shaped(bars, twelve).extremes).toEqual({
+      orders: { high: 4, low: 7 },
+    });
+    // Eleven are few enough for a number on each; a line writes none; an
+    // explicit choice of labels stands.
+    expect(shaped(bars, twelve.slice(0, 11)).extremes).toBeUndefined();
+    expect(shaped(config(), twelve).extremes).toBeUndefined();
+    expect(
+      shaped({ ...bars, chart: { ...bars.chart, labels: true } }, twelve)
+        .extremes,
+    ).toBeUndefined();
+  });
 });
 
 describe('derived series', () => {
