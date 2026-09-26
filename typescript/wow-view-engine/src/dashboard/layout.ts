@@ -310,6 +310,43 @@ export function stackedLayout(
   return stacked;
 }
 
+/**
+ * The layout read with some panels taller than saved (`heights`, rows by
+ * panel id): each grows to the height asked for, never shorter than it was
+ * saved, and whatever stood under it moves down with it, keeping the rows
+ * it had between them — so every panel under a grown one still reads where
+ * the author put it relative to it. Nothing rises, nothing moves sideways,
+ * and two panels a stored config put on one cell stay on it: only a panel
+ * that was clear of another is kept clear of it.
+ *
+ * A reading, like `stackedLayout`, never a placement: a table panel shown
+ * whole while the board is read (P1-3) is not a layout its author chose,
+ * and nothing hands it to `place`.
+ */
+export function grownLayout(
+  panels: readonly PlacedPanel[],
+  heights: ReadonlyMap<string, number>,
+): PlacedPanel[] {
+  const grown = new Map<string, PlacedPanel>();
+  const settled: { from: PlacedPanel; to: PlacedPanel }[] = [];
+  const read = readingOrder(panels.map(panel => ({ panel, layout: panel })));
+  for (const { panel: from } of read) {
+    const h = Math.max(from.h, Math.floor(heights.get(from.id) ?? 0));
+    let y = from.y;
+    for (const { from: above, to } of settled)
+      if (
+        above.y + above.h <= from.y &&
+        above.x < from.x + from.w &&
+        from.x < above.x + above.w
+      )
+        y = Math.max(y, to.y + to.h + (from.y - above.y - above.h));
+    const to = { ...from, y, h };
+    grown.set(from.id, to);
+    settled.push({ from, to });
+  }
+  return panels.map(panel => grown.get(panel.id) ?? panel);
+}
+
 /** One step along the one-column reading: before the panel read before it, or after the one read after it. */
 export type OrderStep = 'up' | 'down';
 

@@ -29,6 +29,12 @@ import {
   OVERDUE_ORDERS,
 } from './retail/goldens.js';
 import { matchScreenshot } from './screenshot.js';
+import {
+  expectColumnsCue,
+  expectCueIsNoStop,
+  expectNoPanelsOverlap,
+  expectShownWhole,
+} from './panelFit.js';
 
 /**
  * The home page — the operations daily report over the retail data set —
@@ -834,5 +840,25 @@ export const OnAPhone: Story = {
       await expect(inner.left).toBeGreaterThanOrEqual(outer.left);
       await expect(inner.right).toBeLessThanOrEqual(outer.right);
     }
+  },
+};
+
+/**
+ * The overdue list and the duty notes on the board read (2026-09-26 review,
+ * P1-3): the eleven orders all in view — six showed, the seventh cut in
+ * half — and the notes' last line with them (183px of content in a 118px
+ * body). The columns past the list's end are counted in a cue, which is no
+ * Tab stop, and the panels under the list moved down rather than under it.
+ */
+export const TablePanelsShowTheirRows: Story = {
+  ...DisplayDailyReport,
+  name: '表格面板按行长高',
+  play: async ({ canvasElement }) => {
+    await boardDrawn(canvasElement);
+    await expectShownWhole('付款超过 48 小时仍未发货', OVERDUE_ORDERS.length);
+    await expectColumnsCue('付款超过 48 小时仍未发货');
+    await expectCueIsNoStop('付款超过 48 小时仍未发货');
+    await expectShownWhole('值班手册');
+    await expectNoPanelsOverlap(canvasElement);
   },
 };

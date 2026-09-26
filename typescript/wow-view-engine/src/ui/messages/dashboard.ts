@@ -116,6 +116,15 @@ export const dashboardMessages = {
   'label.panel.awaiting-date-hint':
     '{filter} is set to a specific date; pick one to see the numbers for it.',
   'label.panel.untitled': 'Panel {index}',
+  // What a panel's body holds past its edges (P1-3), said on the body's
+  // bottom edge: the rows under it, the columns past its end, or, where the
+  // body holds no table, that there is more.
+  'label.panel.more-rows': '{count} more rows below',
+  'label.panel.more-rows-one': '1 more row below',
+  'label.panel.more-columns': '{count} more columns to the right',
+  'label.panel.more-columns-one': '1 more column to the right',
+  'label.panel.more-both': '{rows}, {columns}',
+  'label.panel.more-below': 'More below',
   // Two panels the board names alike are told apart by a number, in
   // reading order: 「Text」, 「Text 2」.
   'label.panel.numbered': '{name} {n}',
