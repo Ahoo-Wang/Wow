@@ -17,6 +17,8 @@ import {
   SYSTEM_INSTANCE_ID_SEPARATOR,
   isFieldlessKind,
   type AnalysisCapability,
+  type AnalysisViewConfig,
+  type DashboardViewConfig,
   type DataViewDefinition,
   type FieldDefinition,
   type Issue,
@@ -26,15 +28,27 @@ import {
   type SystemView,
   type ViewDefinition,
 } from '../model/index.js';
-import { issue, type FieldKindRegistry } from '../filter/index.js';
+import {
+  issue,
+  isPlainObject,
+  type FieldKindRegistry,
+} from '../filter/index.js';
 import { validateRecord } from '../record/index.js';
 import { analysisScope, validateAnalysis } from '../analysis/index.js';
 import { offerIssues } from '../analysis/validateOffers.js';
+import { validateShape } from '../analysis/validateShape.js';
 import { validateDashboard } from '../dashboard/index.js';
 import { validateFields } from './validateFields.js';
 
 export interface ValidateDefinitionOptions {
   limits?: RuntimeLimits;
+  /**
+   * The other definitions registered beside this one, by id. A board a
+   * definition declares may own an analysis of another definition, and that
+   * analysis is judged whole against it. Left out, an owned analysis is
+   * judged by its shape alone.
+   */
+  definitions?: (definitionId: string) => ViewDefinition | undefined;
 }
 
 /**
@@ -76,7 +90,9 @@ export function validateDefinition(
     issues.push(...validateAnalysisCapability(definition));
   }
 
-  issues.push(...validateSystemViews(definition, kinds, limits));
+  issues.push(
+    ...validateSystemViews(definition, kinds, limits, options.definitions),
+  );
   return issues;
 }
 
@@ -379,6 +395,7 @@ function validateSystemViews(
   definition: ViewDefinition,
   kinds: FieldKindRegistry,
   limits: RuntimeLimits,
+  lookup: ValidateDefinitionOptions['definitions'],
 ): Issue[] {
   const issues: Issue[] = [];
   const seen = new Set<string>();
@@ -398,7 +415,9 @@ function validateSystemViews(
       );
     seen.add(view.id);
 
-    issues.push(...validateSystemConfig(definition, view, path, kinds, limits));
+    issues.push(
+      ...validateSystemConfig(definition, view, path, kinds, limits, lookup),
+    );
   });
 
   return issues;
@@ -410,6 +429,7 @@ function validateSystemConfig(
   path: IssuePath,
   kinds: FieldKindRegistry,
   limits: RuntimeLimits,
+  lookup: ValidateDefinitionOptions['definitions'],
 ): Issue[] {
   const kind = view.config.kind;
   const mismatch = issue('definition.view.kind-mismatch', [...path, 'config'], {
@@ -419,18 +439,21 @@ function validateSystemConfig(
 
   if (definition.kind === 'dashboard')
     return kind === 'dashboard'
-      ? // Panels reference instances this layer cannot load, so only the
-        // local structure is judged here; `ViewEngine` re-checks the rest
-        // with the references in hand when the view is opened. A reference
-        // is therefore never "unavailable" here: saying so would be a
-        // finding about nothing but this layer, and the workbench shows a
-        // definition's findings for as long as it lists the board.
-        under(
-          path,
-          validateDashboard(view.config, 'system', EMPTY_REFERENCES, kinds, {
-            limits,
-          }).filter(found => found.code !== 'dashboard.panel.unavailable'),
-        )
+      ? [
+          // Panels reference instances this layer cannot load, so only the
+          // local structure is judged here; `ViewEngine` re-checks the rest
+          // with the references in hand when the view is opened. A reference
+          // is therefore never "unavailable" here: saying so would be a
+          // finding about nothing but this layer, and the workbench shows a
+          // definition's findings for as long as it lists the board.
+          ...under(
+            path,
+            validateDashboard(view.config, 'system', EMPTY_REFERENCES, kinds, {
+              limits,
+            }).filter(found => found.code !== 'dashboard.panel.unavailable'),
+          ),
+          ...validateOwnedAnalyses(view.config, path, kinds, limits, lookup),
+        ]
       : [mismatch];
 
   if (kind === 'record')
@@ -448,6 +471,59 @@ function validateSystemConfig(
 }
 
 const EMPTY_REFERENCES = new Map();
+
+/**
+ * The analyses a declared board owns, each judged as the analysis it is.
+ *
+ * The dashboard kernel may not import the analysis one, so on its own it
+ * checks only that an owned view says it is an analysis. A board in code
+ * holding `{ kind: 'analysis' }` and nothing else would then be admitted,
+ * and the first thing to read its chart — the board's period anchor, when
+ * the board syncs — would throw a `TypeError` instead. So each owned
+ * analysis is run through the analysis kernel here, against its own
+ * definition when it is registered beside this one, by its shape alone
+ * when it is not (the board's own admission says the definition is unknown
+ * when it is opened). One that fails is one finding on the panel, and the
+ * kernel's own findings under it say why.
+ */
+function validateOwnedAnalyses(
+  config: DashboardViewConfig,
+  path: IssuePath,
+  kinds: FieldKindRegistry,
+  limits: RuntimeLimits,
+  lookup: ValidateDefinitionOptions['definitions'],
+): Issue[] {
+  // The kernel above has already refused a board whose panels are not a
+  // list, and an owned view that is not an object naming an analysis.
+  if (!Array.isArray(config.panels)) return [];
+  return config.panels.flatMap((panel: unknown, index) => {
+    if (!isPlainObject(panel) || !isPlainObject(panel.owned)) return [];
+    const owned = panel.owned;
+    if (!isPlainObject(owned.config) || owned.config.kind !== 'analysis')
+      return [];
+    const at: IssuePath = [...path, 'config', 'panels', index, 'owned'];
+    const analysis = owned.config as unknown as AnalysisViewConfig;
+    const target =
+      typeof owned.definitionId === 'string'
+        ? lookup?.(owned.definitionId)
+        : undefined;
+    const found =
+      target?.kind === 'data' && target.analysis
+        ? validateAnalysis(target, analysis, kinds, { limits })
+        : validateShape(analysis);
+    const errors = found.filter(entry => entry.severity === 'error');
+    if (errors.length === 0) return [];
+    return [
+      issue('definition.view.owned-invalid', [...at, 'config'], {
+        panel: typeof panel.id === 'string' ? panel.id : String(index),
+      }),
+      ...errors.map(entry => ({
+        ...entry,
+        path: [...at, 'config', ...entry.path],
+      })),
+    ];
+  });
+}
 
 /** Re-paths a config's findings so they point at the view that holds it. */
 function under(path: IssuePath, issues: readonly Issue[]): Issue[] {

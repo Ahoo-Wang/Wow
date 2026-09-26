@@ -111,7 +111,10 @@ function panel(id: string, config: AnalysisViewConfig, x: number) {
   } as DashboardPanel;
 }
 
-async function harness(filters?: DashboardFilters) {
+async function harness(
+  filters?: DashboardFilters,
+  extra: readonly DashboardPanel[] = [],
+) {
   const clock = testEnvironment();
   const source = testSource({ aggregate: vi.fn(() => Promise.resolve([])) });
   const store = new MemoryViewStore();
@@ -150,6 +153,7 @@ async function harness(filters?: DashboardFilters) {
         },
         12,
       ),
+      ...extra,
     ],
   });
   const saved = await store.create(
@@ -286,6 +290,35 @@ describe('a board date of one day anchors its trend cards (D39)', () => {
     runtime.refresh();
     expect(window('bare')).toEqual(
       scoped(between('2026-09-15T00:00:00.000Z', '2026-09-16T23:59:59.999Z')),
+    );
+  });
+});
+
+/**
+ * A saved board owning an analysis that is nothing but its kind. The board's
+ * admission cannot judge an owned analysis (the dashboard kernel may not
+ * import the analysis one), so the board syncs with it, and the period
+ * anchor is read of every panel before any child has judged its view. It
+ * used to read `config.chart.type` there and throw a `TypeError` that took
+ * the whole board down; a view with no chart has no trend axis.
+ */
+describe('a board owning an incomplete analysis', () => {
+  it('syncs, and still anchors the cards that are whole', async () => {
+    const bare = {
+      id: 'bare-kind',
+      kind: 'view',
+      owned: { definitionId: 'orders', config: { kind: 'analysis' } },
+      bindings: [{ globalField: 'date', panelField: 'createdAt' }],
+      layout: { x: 16, y: 0, w: 4, h: 3 },
+    } as unknown as DashboardPanel;
+
+    const { runtime, window } = await harness(undefined, [bare]);
+
+    expect(runtime.getSnapshot().panels.map(entry => entry.id)).toContain(
+      'bare-kind',
+    );
+    expect(window('bare')).toEqual(
+      scoped(between('2026-09-14T00:00:00.000Z', '2026-09-15T23:59:59.999Z')),
     );
   });
 });

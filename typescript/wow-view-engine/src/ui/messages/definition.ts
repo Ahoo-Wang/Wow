@@ -90,4 +90,6 @@ export const definitionMessages = {
   'definition.view.id-separator': 'A view id cannot contain {separator}.',
   'definition.view.kind-mismatch':
     'A {kind} view does not belong to a {definition} definition.',
+  'definition.view.owned-invalid':
+    'The analysis panel {panel} holds is incomplete or set up wrong.',
 } as const satisfies Record<string, string>;

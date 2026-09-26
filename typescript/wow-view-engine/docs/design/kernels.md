@@ -87,6 +87,7 @@ filtersOnTab(panels, tab): Set<string>                         // 在一个标�
 - `AnalysisCapability.elements` 是一条链，按链自根向内走：第一层是根上一个声明了 `elements` 的字段，第 i 层必须是第 i−1 层元素里声明了 `elements` 的字段，否则报 `definition.analysis.element-undeclared`——并列的两个根数组就是在这里被拒的，那是一条断链而不是两条链；层数不得超过 Wow 的 `AGGREGATION_LIMITS.MAX_ELEMENTS`（5），否则报 `definition.analysis.elements-too-many`：再深的一层任何配置都展开不到；
 - 每个 `views[].config.kind` 必须与所属定义的能力匹配：`kind: 'data'` 只接受 `record`／`analysis` 且对应能力已声明，`kind: 'dashboard'` 只接受 `dashboard`，否则报 error（系统视图不可覆盖，不能交付一个只能待修复的只读视图）；
 - 每个系统视图的配置还要通过对应的 `validate*`（Dashboard 系统视图在此只做本地结构校验，面板引用需要加载被引用实例与其定义，因此由 Engine 在注册或首次打开时用 `validateDashboard` 的完整入参复验，失败按该面板不可用处理）；
+- **看板自带的分析要整份过分析内核**：Dashboard 内核不得引用分析内核，它自己只看自带视图（`owned`）说自己是分析；只写了 `{ kind: 'analysis' }` 的自带分析因此曾通过准入，看板同步时读它的图表（期间锚定的 `trendAxis`）就抛 `TypeError`。现在准入对每个自带分析跑 `validateAnalysis`——所属定义与本定义一起注册时（`ViewEngine` 的注册表经 `options.definitions` 递进来）对照那份定义整份校验，查不到时只校验结构（`validateShape`）；有 error 就报 `definition.view.owned-invalid`（参数 `panel`，路径指到该面板的 `owned.config`），分析内核自己的发现跟在后面、改指到同一路径下，说明缺了什么。`trendAxis` 本身也写成全函数：没有图表或维度的配置没有趋势轴，不抛错（test/definition.test.ts「a board that owns an analysis」、test/boardAnchor.test.ts「a board owning an incomplete analysis」）；
 - `definition.id` 与每个 `views[].id` 都不得包含 `:`，否则合成的 `system:${definitionId}:${id}` 会歧义（`('a:b','c')` 与 `('a','b:c')` 撞车），报 error；
 - `AnalysisCapability` 至少要能构造一个指标（`count` 为 true，或某个字段声明了非空 `functions`、`any`、`distinctCount` 或 `percentile`），否则该能力不可用，报 error。
 
