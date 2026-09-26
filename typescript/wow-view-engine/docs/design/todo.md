@@ -42,6 +42,11 @@
 - **场景描述里还有手写的数字**（故事道 P1-7 时记下）：如运营日报的「约 82%」「11 张」。
   - 判据：像导览一样由 `retail/guide.ts` 的做法从数据读出，或删掉数字。落点：`typescript/storybook/stories/view-engine/` 各场景的 docs 描述。
 
+## 首发后再议（用户 2026-09-26 要求记下，不要遗漏）
+
+- **补偿控制台的「四种结局」趋势与 N7**：控制台重写后总览的趋势先用两条线（每日新增失败、每日恢复成功，`compensation/dashboard/docs/design/console-redesign.md` Q2）。首发后与用户再议：值班是否需要看新增失败、准备重试、重试失败、重试成功的此消彼长；需要就先做查询 N7（指标条件里的元素匹配，查询设计 §11，§14 也记了），再在视图引擎采用、控制台改图。
+  - 判据：用户给出结论并写进 decisions；要做就开后端道。落点：查询设计 §11／§14、本包 `analysis/`、控制台总览板。
+
 ## 连真 Wow 服务端的端到端（2026-09-25 落地后的余项）
 
 端到端在 Wow 仓 `typescript/integration-test/test/view-engine/`，由 `typescript-contract.yml` 的同源契约作业对着同一提交构建的示例服务端（MongoDB）运行；覆盖面与本地跑法见那里的 README「View engine against the server」。落地时发现、没在那个 PR 里修的：
@@ -105,7 +110,7 @@
 
 补偿控制台按方案八批重构完（Wow 仓 [compensation/dashboard/docs/design/view-engine-rebuild.md](../../../../compensation/dashboard/docs/design/view-engine-rebuild.md)「批 7 的记录」与验证报告）；走查里的引擎缺口已合并的不再列，余下这几条：
 
-- **四种结局画成一张四条线的走势图**：要么 Wow 查询允许对数组元素写指标条件（今天拒绝：`METRIC_FILTER_ELEMENT_MATCH`、`METRIC_FILTER_ARRAY_FIELD`），要么展开元素时允许按根字段（事件流的 `createTime`）分组（今天报 `analysis.field.outside-scope`）。N1～N3 都没有改变这两点。
+- **四种结局画成一张四条线的走势图**（已并入上面「首发后再议」，控制台重写后先用两条线）：要么 Wow 查询允许对数组元素写指标条件（今天拒绝：`METRIC_FILTER_ELEMENT_MATCH`、`METRIC_FILTER_ARRAY_FIELD`），要么展开元素时允许按根字段（事件流的 `createTime`）分组（今天报 `analysis.field.outside-scope`）。N1～N3 都没有改变这两点。
   - 为什么：控制台只能画四张各带走势的指标卡，看不出结局之间的相对走势。判据：补偿概览的「流入与结局」写成一张按事件名拆开的日直方图，对真服务答得出。落点：Wow 查询目标架构；本包 `analysis/`。
 - **直角坐标图的拆分系列读选项的 `tone`**：饼已按语气取色（[ui/analysis.md](ui/analysis.md)「饼的类别穿选项的语气」）；按带语气的枚举拆开的柱与线仍按次序取色位。
   - 为什么：同一个状态在饼上是红的、在拆分的柱上是某个色位，读者要重新对一遍图例。N1～N4 正在改图型，本条等它们合并后接，免得冲突。判据：按带 `tone` 的枚举拆分时系列颜色与徽标同语气，同语气的两条取色位。落点：`ui/charts/cartesianPlan.ts`、`timeOption.ts`（`toneColor`）。
