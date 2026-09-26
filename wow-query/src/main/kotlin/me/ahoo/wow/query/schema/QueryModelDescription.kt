@@ -56,8 +56,6 @@ import me.ahoo.wow.api.query.spec.ValueRule
 import me.ahoo.wow.api.query.spec.spec
 import me.ahoo.wow.query.QueryBudget
 import me.ahoo.wow.serialization.JsonSerializer
-import me.ahoo.wow.serialization.MessageRecords
-import me.ahoo.wow.serialization.state.StateAggregateRecords
 import tools.jackson.databind.JsonNode
 import tools.jackson.databind.node.ArrayNode
 import tools.jackson.databind.node.ObjectNode
@@ -166,7 +164,7 @@ private class QueryModelDescription(private val schema: QueryModelSchema, privat
     /** A variant field lists its aliases relative to the variant element, as it lists its own path. */
     private fun aliasesOf(field: QueryField, variant: Boolean): List<String> {
         val aliases = aliasesByField[field].orEmpty()
-        val element = (schema.profile as? EventStreamQueryModelProfile)?.payloadField?.path?.substringBeforeLast('.')
+        val element = schema.profile?.variantElement?.path
         return if (variant && element != null) aliases.map { it.removePrefix("$element.") } else aliases
     }
 
@@ -175,8 +173,8 @@ private class QueryModelDescription(private val schema: QueryModelSchema, privat
      * relative to the element, and each field's capabilities as admission resolves the shared logical path.
      */
     private fun variants(): VariantsDescriptor? {
-        val profile = schema.profile as? EventStreamQueryModelProfile ?: return null
-        val element = profile.payloadField.path.substringBeforeLast('.')
+        val profile = schema.profile ?: return null
+        val element = profile.variantElement?.path ?: return null
         val payload = schema.definition.value(profile.payloadField.toPathTemplate()) ?: return null
         val variants = if (payload.variant != null) {
             listOf(
@@ -347,24 +345,12 @@ private class QueryModelDescription(private val schema: QueryModelSchema, privat
         return SearchDescriptor(modes, fields.map { it.logicalField.path })
     }
 
-    private fun systemPath(field: SystemField): String? = when (field) {
-        SystemField.IDENTITY -> identity
-        SystemField.AGGREGATE_ID -> MessageRecords.AGGREGATE_ID
-        SystemField.TENANT_ID -> MessageRecords.TENANT_ID
-        SystemField.OWNER_ID -> MessageRecords.OWNER_ID
-        SystemField.SPACE_ID -> MessageRecords.SPACE_ID
-        SystemField.DELETED -> StateAggregateRecords.DELETED
-    }
+    private fun systemPath(field: SystemField): String? =
+        if (field == SystemField.IDENTITY) identity else QueryModelProfile.metadataField(field).path
 
-    private fun role(path: String): String? = when (path) {
-        MessageRecords.TENANT_ID -> SystemField.TENANT_ID.name
-        MessageRecords.OWNER_ID -> SystemField.OWNER_ID.name
-        MessageRecords.SPACE_ID -> SystemField.SPACE_ID.name
-        MessageRecords.AGGREGATE_ID -> SystemField.AGGREGATE_ID.name
-        StateAggregateRecords.DELETED -> SystemField.DELETED.name
-        identity -> SystemField.IDENTITY.name
-        else -> null
-    }
+    /** The system role of [path]: a metadata field's own, or the identity's for the model's identity field. */
+    private fun role(path: String): String? = METADATA_FIELDS.firstOrNull { systemPath(it) == path }?.name
+        ?: SystemField.IDENTITY.name.takeIf { path == identity }
 
     private fun limits(defaultListSize: Int?): LimitsDescriptor {
         fun Int.limit(): Int? = takeIf { it > 0 }
@@ -496,3 +482,6 @@ private fun JsonNode.canonical(out: StringBuilder) {
 }
 
 private const val PROBE_KEY = "probe"
+
+/** The system fields every model shares, in the order a role is looked up. */
+private val METADATA_FIELDS = SystemField.entries.filter { it != SystemField.IDENTITY }

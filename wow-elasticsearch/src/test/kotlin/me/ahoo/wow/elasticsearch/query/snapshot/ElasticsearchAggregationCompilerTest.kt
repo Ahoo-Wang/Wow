@@ -35,12 +35,12 @@ import me.ahoo.wow.elasticsearch.query.aggregation.ElasticsearchAggregationMetri
 import me.ahoo.wow.elasticsearch.query.compile
 import me.ahoo.wow.elasticsearch.query.schema.ElasticsearchQuerySchemaAdapter
 import me.ahoo.wow.query.FilterNormalizer
+import me.ahoo.wow.query.QueryAdmission
 import me.ahoo.wow.query.dsl.aggregation
 import me.ahoo.wow.query.schema.LogicalQuerySchema
 import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QuerySchemaValidationException
 import me.ahoo.wow.query.schema.QueryValueSchema
-import me.ahoo.wow.query.schema.validateQuery
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import java.util.concurrent.TimeUnit
@@ -810,5 +810,5 @@ class ElasticsearchAggregationCompilerTest {
 
     /** Metric filter shape rules are enforced by query validation before any backend compiles the query. */
     private fun compileValidated(query: AggregationQuery, schema: QueryModelSchema) =
-        compiler.compile(validateQuery(query, schema), schema)
+        compiler.compile(query.also { QueryAdmission.Trusted.aggregate(it, schema) }, schema)
 }

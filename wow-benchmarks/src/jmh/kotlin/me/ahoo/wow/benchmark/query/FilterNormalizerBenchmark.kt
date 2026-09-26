@@ -16,8 +16,8 @@ package me.ahoo.wow.benchmark.query
 import me.ahoo.wow.api.query.AndFilter
 import me.ahoo.wow.api.query.EqualFilter
 import me.ahoo.wow.api.query.FilterExpression
-import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.MatchAllFilter
+import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.query.FilterNormalizer
 import org.openjdk.jmh.annotations.Benchmark
 import org.openjdk.jmh.annotations.BenchmarkMode

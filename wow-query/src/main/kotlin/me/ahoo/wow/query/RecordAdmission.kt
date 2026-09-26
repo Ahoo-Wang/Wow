@@ -38,11 +38,12 @@ import me.ahoo.wow.api.query.OwnerIdFilter
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.SpaceIdFilter
 import me.ahoo.wow.api.query.TenantIdFilter
+import me.ahoo.wow.api.query.spec.SystemField
+import me.ahoo.wow.api.query.spec.spec
 import me.ahoo.wow.query.mask.SchemaMasker
 import me.ahoo.wow.query.schema.QueryModelSchema
+import me.ahoo.wow.query.schema.SnapshotQueryModelProfile
 import me.ahoo.wow.serialization.JsonSerializer
-import me.ahoo.wow.serialization.MessageRecords
-import me.ahoo.wow.serialization.state.StateAggregateRecords
 import tools.jackson.databind.JsonNode
 import tools.jackson.databind.node.ObjectNode
 import tools.jackson.databind.node.POJONode
@@ -80,16 +81,18 @@ internal class RecordFilter(private val filter: FilterExpression) {
 
     /** The id, tenant, owner, space and deletion filters; `null` for any other node. */
     private fun FilterExpression.admitsByMetadata(record: ObjectNode): Boolean? {
-        val id = record.text(MessageRecords.AGGREGATE_ID)
+        fun text(): String? = record.text(SnapshotQueryModelProfile.systemField(checkNotNull(spec.systemField)).path)
         return when (this) {
-            is IdFilter -> id == value
-            is IdsFilter -> id in values
-            is AggregateIdFilter -> id == value
-            is AggregateIdsFilter -> id in values
-            is TenantIdFilter -> record.text(MessageRecords.TENANT_ID) == value
-            is OwnerIdFilter -> record.text(MessageRecords.OWNER_ID) == value
-            is SpaceIdFilter -> record.text(MessageRecords.SPACE_ID) == value
-            is DeletionFilter -> deletionState.admits(record.get(StateAggregateRecords.DELETED)?.booleanValue() == true)
+            is IdFilter -> text() == value
+            is IdsFilter -> text() in values
+            is AggregateIdFilter -> text() == value
+            is AggregateIdsFilter -> text() in values
+            is TenantIdFilter -> text() == value
+            is OwnerIdFilter -> text() == value
+            is SpaceIdFilter -> text() == value
+            is DeletionFilter -> deletionState.admits(
+                record.get(SnapshotQueryModelProfile.systemField(SystemField.DELETED).path)?.booleanValue() == true
+            )
             else -> null
         }
     }

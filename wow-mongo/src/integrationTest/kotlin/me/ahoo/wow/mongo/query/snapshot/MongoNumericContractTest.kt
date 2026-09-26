@@ -32,7 +32,6 @@ import me.ahoo.wow.query.list
 import me.ahoo.wow.query.paged
 import me.ahoo.wow.query.schema.LogicalQuerySchema
 import me.ahoo.wow.query.schema.QueryValueSchema
-import me.ahoo.wow.query.schema.validateQuery
 import me.ahoo.wow.query.single
 import me.ahoo.wow.tck.container.MongoTestFixture
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
@@ -60,7 +59,7 @@ class MongoNumericContractTest {
             val schema = MongoQuerySchemaAdapter(collection).resolve(definition(shape)).block()!!
             listOf(false, true).forEach { nested ->
                 val query = query(nested)
-                val rows = backend.aggregate(QueryAdmission.Trusted.aggregate(validateQuery(query, schema), schema)).collectList().block()!!
+                val rows = backend.aggregate(QueryAdmission.Trusted.aggregate(query, schema)).collectList().block()!!
                 rows.size.assert().isEqualTo(cases.size)
                 rows.forEach { row ->
                     val expected = cases.getValue(row.path("case").asString()).second
@@ -78,7 +77,7 @@ class MongoNumericContractTest {
         val unionSchema = MongoQuerySchemaAdapter(collection).resolve(definition(shapes.last())).block()!!
         listOf(false, true).forEach { nested ->
             val summary = query(nested).copy(groupBy = emptyList())
-            val row = backend.aggregate(QueryAdmission.Trusted.aggregate(validateQuery(summary, unionSchema), unionSchema)).single().block()!!
+            val row = backend.aggregate(QueryAdmission.Trusted.aggregate(summary, unionSchema)).single().block()!!
             summary.metrics.forEach { metric ->
                 row.path(metric.alias).doubleValue().assert().isEqualTo(summaryExpectedFor(metric.alias))
             }

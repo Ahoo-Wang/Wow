@@ -26,10 +26,11 @@ import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.SpaceIdFilter
 import me.ahoo.wow.api.query.TenantIdFilter
 import me.ahoo.wow.api.query.schema.QueryModel
+import me.ahoo.wow.api.query.spec.spec
 import me.ahoo.wow.query.filter.QueryType
 import me.ahoo.wow.query.filter.predicateField
+import me.ahoo.wow.query.schema.QueryModelProfile
 import me.ahoo.wow.query.schema.QueryModelSchema
-import me.ahoo.wow.serialization.MessageRecords
 import reactor.util.context.ContextView
 import java.time.Duration
 
@@ -167,9 +168,8 @@ internal fun scopeFieldsOf(scope: FilterExpression): List<String> {
             is AndFilter -> filter.operands.forEach(::visit)
             is OrFilter -> filter.operands.forEach(::visit)
             is NorFilter -> filter.operands.forEach(::visit)
-            is TenantIdFilter -> fields += MessageRecords.TENANT_ID
-            is OwnerIdFilter -> fields += MessageRecords.OWNER_ID
-            is SpaceIdFilter -> fields += MessageRecords.SPACE_ID
+            is TenantIdFilter, is OwnerIdFilter, is SpaceIdFilter ->
+                fields += QueryModelProfile.metadataField(checkNotNull(filter.spec.systemField)).path
             else -> filter.predicateField()?.let { fields += it.path }
         }
     }

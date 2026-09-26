@@ -68,13 +68,10 @@ class ElasticsearchSortCompilerTest {
 
     @Test
     fun `should resolve logical sort fields with the same missing order as cursor`() {
-        val actual = ElasticsearchSortCompiler.compile(
-            sort {
-                "name".asc()
-                "name".desc()
-            },
-            schema,
-        ).map { it.field() }
+        // One field sorts once per query, so each direction is compiled on its own.
+        val actual = listOf(sort { "name".asc() }, sort { "name".desc() }).map {
+            ElasticsearchSortCompiler.compile(it, schema).single().field()
+        }
 
         actual.map { it.field() }.assert().containsExactly("body.name", "body.name")
         actual.map { it.order() }.assert().containsExactly(SortOrder.Asc, SortOrder.Desc)

@@ -146,7 +146,7 @@ class QueryFieldAliasesTest {
         val query = ListQuery(EqualFilter(QueryField("state.name"), json("x")))
 
         plain.hasAliases.assert().isFalse()
-        query.withCanonicalFields(plain).assert().isSameAs(query)
+        QueryAdmission.Trusted.list(query, plain).query.filter.assert().isEqualTo(query.filter)
     }
 
     @Test

@@ -52,6 +52,7 @@ import me.ahoo.wow.api.query.TomorrowFilter
 import me.ahoo.wow.api.query.YesterdayFilter
 import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QuerySchemaValidationException
+import me.ahoo.wow.query.schema.QueryValueSchema
 import me.ahoo.wow.query.schema.absoluteLogicalField
 import me.ahoo.wow.query.schema.withTemporal
 import tools.jackson.databind.node.JsonNodeFactory
@@ -118,21 +119,38 @@ class FilterNormalizer(
         }
     }
 
-    @Suppress("CyclomaticComplexMethod")
     private fun normalize(
         input: FilterExpression,
         now: Instant,
         schema: QueryModelSchema?,
         logicalParent: QueryField?,
-    ): FilterExpression {
-        val expression = if (input is RelativeTimeFilter && schema != null) {
-            val value = schema.field(absoluteLogicalField(input.field, logicalParent))?.value
-                ?: throw QuerySchemaValidationException("Unknown relative-time field: [${input.field}].")
-            input.withTemporal(value)
-        } else {
-            input
-        }
-        return when (expression) {
+    ): FilterExpression = when (input) {
+        is AndFilter -> simplifyAnd(input.operands.map { normalize(it, now, schema, logicalParent) })
+        is OrFilter -> simplifyOr(input.operands.map { normalize(it, now, schema, logicalParent) })
+        is NorFilter -> simplifyNor(input.operands.map { normalize(it, now, schema, logicalParent) })
+        is ElementMatchFilter -> ElementMatchFilter(
+            input.field,
+            normalize(input.predicate, now, schema, absoluteLogicalField(input.field, logicalParent)),
+        )
+        is RelativeTimeFilter -> lower(
+            input,
+            now,
+            schema?.let {
+                it.field(absoluteLogicalField(input.field, logicalParent))?.value
+                    ?: throw QuerySchemaValidationException("Unknown relative-time field: [${input.field}].")
+            },
+        )
+        else -> lower(input, now, null)
+    }
+
+    /**
+     * Lowers one predicate to the operators backends implement: `EQ`/`NE` of `null` to `IS_NULL`/`IS_NOT_NULL`, the
+     * empty-string predicates to equality, and relative time to a range at [now], encoded as [value] (the field's
+     * value definition, when known) stores time. Any other node is returned as it is. Admission calls this with the
+     * value it resolved, so lowering never looks a field up again.
+     */
+    internal fun lower(expression: FilterExpression, now: Instant, value: QueryValueSchema?): FilterExpression =
+        when (expression) {
             is EqualFilter -> if (expression.value.isNull) IsNullFilter(expression.field) else expression
             is NotEqualFilter -> if (expression.value.isNull) IsNotNullFilter(expression.field) else expression
             is IsEmptyStringFilter -> EqualFilter(expression.field, JsonNodeFactory.instance.stringNode(""))
@@ -142,17 +160,9 @@ class FilterNormalizer(
                     NotEqualFilter(expression.field, JsonNodeFactory.instance.stringNode("")),
                 ),
             )
-            is AndFilter -> simplifyAnd(expression.operands.map { normalize(it, now, schema, logicalParent) })
-            is OrFilter -> simplifyOr(expression.operands.map { normalize(it, now, schema, logicalParent) })
-            is NorFilter -> simplifyNor(expression.operands.map { normalize(it, now, schema, logicalParent) })
-            is ElementMatchFilter -> ElementMatchFilter(
-                expression.field,
-                normalize(expression.predicate, now, schema, absoluteLogicalField(expression.field, logicalParent)),
-            )
-            is RelativeTimeFilter -> relativeTime(expression, now)
+            is RelativeTimeFilter -> relativeTime(value?.let { expression.withTemporal(it) } ?: expression, now)
             else -> expression
         }
-    }
 
     @Suppress("CyclomaticComplexMethod") // Exhaustive public relative-time operators share one captured clock instant.
     private fun relativeTime(expression: RelativeTimeFilter, now: Instant): FilterExpression = when (expression) {
@@ -296,7 +306,7 @@ class FilterNormalizer(
     private fun RelativeTimeFilter.momentNode(moment: Instant) =
         instantNode(moment.atZone(zone(zoneId)), resolvedDateFormatter(), timeUnit)
 
-    private fun simplifyAnd(operands: List<FilterExpression>): FilterExpression {
+    internal fun simplifyAnd(operands: List<FilterExpression>): FilterExpression {
         val flattened = ArrayList<FilterExpression>(operands.size)
         operands.forEach { operand ->
             when {
@@ -313,7 +323,7 @@ class FilterNormalizer(
         }
     }
 
-    private fun simplifyOr(operands: List<FilterExpression>): FilterExpression {
+    internal fun simplifyOr(operands: List<FilterExpression>): FilterExpression {
         val flattened = ArrayList<FilterExpression>(operands.size)
         operands.forEach { operand ->
             when {
@@ -330,7 +340,7 @@ class FilterNormalizer(
         }
     }
 
-    private fun simplifyNor(operands: List<FilterExpression>): FilterExpression {
+    internal fun simplifyNor(operands: List<FilterExpression>): FilterExpression {
         val filtered = ArrayList<FilterExpression>(operands.size)
         operands.forEach { operand ->
             when {

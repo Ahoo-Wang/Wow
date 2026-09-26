@@ -42,7 +42,6 @@ import me.ahoo.wow.query.schema.LogicalQuerySchema
 import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QuerySchemaValidationException
 import me.ahoo.wow.query.schema.QueryValueSchema
-import me.ahoo.wow.query.schema.validateQuery
 import me.ahoo.wow.query.single
 import me.ahoo.wow.serialization.JsonSerializer
 import me.ahoo.wow.tck.container.ElasticsearchTestFixture
@@ -69,7 +68,6 @@ class ElasticsearchMappingFactsIntegrationTest {
         withIndex("""{"properties":{"items":{"type":"nested","properties":{"code":{"type":"keyword"}}}}}""",
             mapOf("items" to items), """{"items":[null,{"code":"A"}]}""") { backend, schema ->
             val filter = ElementMatchFilter(QueryField("items"), EqualFilter(QueryField("code"), JsonNodeFactory.instance.stringNode("A")))
-            validateQuery(filter, schema)
             backend.count(QueryAdmission.Trusted.count(filter, schema)).block().assert().isEqualTo(1L)
         }
     }
@@ -143,11 +141,11 @@ class ElasticsearchMappingFactsIntegrationTest {
             metadata.keys.forEach { field ->
                 val sort = listOf(Sort(QueryField(field), Sort.Direction.DESC))
                 val single = SingleQuery(MatchAllFilter, sort = sort)
-                backend.single(QueryAdmission.Trusted.single(validateQuery(single, schema), schema)).block()!!.path("code").asString().assert().isEqualTo("A")
+                backend.single(QueryAdmission.Trusted.single(single, schema)).block()!!.path("code").asString().assert().isEqualTo("A")
                 val list = ListQuery(MatchAllFilter, sort = sort, limit = 1)
-                backend.list(QueryAdmission.Trusted.list(validateQuery(list, schema), schema)).single().block()!!.path("code").asString().assert().isEqualTo("A")
+                backend.list(QueryAdmission.Trusted.list(list, schema)).single().block()!!.path("code").asString().assert().isEqualTo("A")
                 val paged = PagedQuery(MatchAllFilter, sort = sort)
-                val page = backend.paged(QueryAdmission.Trusted.paged(validateQuery(paged, schema), schema)).block()!!
+                val page = backend.paged(QueryAdmission.Trusted.paged(paged, schema)).block()!!
                 page.total.assert().isEqualTo(1L)
                 page.list.single().path("code").asString().assert().isEqualTo("A")
             }

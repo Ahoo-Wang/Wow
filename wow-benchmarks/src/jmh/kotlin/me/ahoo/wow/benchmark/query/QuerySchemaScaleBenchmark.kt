@@ -27,6 +27,8 @@ import me.ahoo.wow.api.query.schema.QueryCapability
 import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.api.query.schema.QueryValueKind
 import me.ahoo.wow.api.query.schema.QueryValueType
+import me.ahoo.wow.query.AdmittedQuery
+import me.ahoo.wow.query.QueryAdmission
 import me.ahoo.wow.query.schema.LogicalQuerySchema
 import me.ahoo.wow.query.schema.QueryFieldBindingTemplate
 import me.ahoo.wow.query.schema.QueryFieldSchema
@@ -35,7 +37,6 @@ import me.ahoo.wow.query.schema.QueryPathSegment
 import me.ahoo.wow.query.schema.QueryPathTemplate
 import me.ahoo.wow.query.schema.QueryValueBindings
 import me.ahoo.wow.query.schema.QueryValueSchema
-import me.ahoo.wow.query.schema.validateQuery
 import org.openjdk.jmh.annotations.Benchmark
 import org.openjdk.jmh.annotations.BenchmarkMode
 import org.openjdk.jmh.annotations.Fork
@@ -154,15 +155,15 @@ open class QueryComponentResolutionBenchmark {
             it.function == AggregationFunction.SUM && it.expression is AggregationExpression.Binary
         })
         check(native.values.filter { it.bindings.isNotEmpty() }.all { it.bindings.keys == SCALE_CAPABILITIES })
-        check(validateQuery(projectionQuery, schema) === projectionQuery)
-        check(validateQuery(aggregationQuery, schema) === aggregationQuery)
+        QueryAdmission.Trusted.single(projectionQuery, schema)
+        QueryAdmission.Trusted.aggregate(aggregationQuery, schema)
     }
 
     @Benchmark
-    fun projection(): ISingleQuery = validateQuery(projectionQuery, schema)
+    fun projection(): AdmittedQuery<ISingleQuery> = QueryAdmission.Trusted.single(projectionQuery, schema)
 
     @Benchmark
-    fun aggregation(): AggregationQuery = validateQuery(aggregationQuery, schema)
+    fun aggregation(): AdmittedQuery<AggregationQuery> = QueryAdmission.Trusted.aggregate(aggregationQuery, schema)
 }
 
 private val SCALE_CAPABILITIES = setOf(

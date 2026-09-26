@@ -46,7 +46,6 @@ import me.ahoo.wow.query.schema.QuerySchemaSource
 import me.ahoo.wow.query.schema.QuerySchemaSourcePriority
 import me.ahoo.wow.query.schema.QueryValueBindings
 import me.ahoo.wow.query.schema.QueryValueSchema
-import me.ahoo.wow.query.schema.validateQuery
 import me.ahoo.wow.query.single
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.tck.container.MongoTestFixture
@@ -176,11 +175,11 @@ class MongoEventStreamQueryBackendTest : EventStreamQueryBackendSpec() {
         val list = ListQuery(filter, projection, limit = 1)
         val paged = PagedQuery(filter, projection, pagination = Pagination(size = 1))
         val results = listOf(
-            backend.single(QueryAdmission.Trusted.single(single.also { validateQuery(it, schema) }, schema))
+            backend.single(QueryAdmission.Trusted.single(single, schema))
                 .map(::listOf),
-            backend.list(QueryAdmission.Trusted.list(list.also { validateQuery(it, schema) }, schema))
+            backend.list(QueryAdmission.Trusted.list(list, schema))
                 .collectList(),
-            backend.paged(QueryAdmission.Trusted.paged(paged.also { validateQuery(it, schema) }, schema))
+            backend.paged(QueryAdmission.Trusted.paged(paged, schema))
                 .map { page ->
                     page.total.assert().isEqualTo(1L)
                     page.list
@@ -249,11 +248,11 @@ class MongoEventStreamQueryBackendTest : EventStreamQueryBackendSpec() {
 private fun ISingleQuery.query(
     binding: QueryBackendBinding<EventStreamQueryBackend>,
 ): Mono<ObjectNode> = Mono.defer { binding.schemaProvider.schema() }.flatMap { schema ->
-    binding.backend.single(QueryAdmission.Trusted.single(this.also { validateQuery(it, schema) }, schema))
+    binding.backend.single(QueryAdmission.Trusted.single(this, schema))
 }
 
 private fun AggregationQuery.query(
     binding: QueryBackendBinding<EventStreamQueryBackend>,
 ): Flux<ObjectNode> = Mono.defer { binding.schemaProvider.schema() }.flatMapMany { schema ->
-    binding.backend.aggregate(QueryAdmission.Trusted.aggregate(this.also { validateQuery(it, schema) }, schema))
+    binding.backend.aggregate(QueryAdmission.Trusted.aggregate(this, schema))
 }

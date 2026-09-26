@@ -23,6 +23,7 @@ import me.ahoo.wow.api.query.schema.QueryCapability
 import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.api.query.schema.QueryValueKind
 import me.ahoo.wow.api.query.schema.QueryValueType
+import me.ahoo.wow.query.QueryAdmission
 import me.ahoo.wow.query.schema.LogicalQuerySchema
 import me.ahoo.wow.query.schema.QueryFieldBindingTemplate
 import me.ahoo.wow.query.schema.QueryModelSchema
@@ -30,7 +31,6 @@ import me.ahoo.wow.query.schema.QueryPathSegment
 import me.ahoo.wow.query.schema.QueryPathTemplate
 import me.ahoo.wow.query.schema.QueryValueBindings
 import me.ahoo.wow.query.schema.QueryValueSchema
-import me.ahoo.wow.query.schema.validateQuery
 import org.openjdk.jmh.annotations.Benchmark
 import org.openjdk.jmh.annotations.BenchmarkMode
 import org.openjdk.jmh.annotations.Fork
@@ -99,37 +99,33 @@ open class QuerySchemaValidationBenchmark {
 
     @Benchmark
     fun identityQuery(blackhole: Blackhole) {
-        val accepted = validateQuery(identityQueryInput, identitySchema)
-        check(accepted === identityQueryInput)
-        blackhole.consume(accepted)
+        blackhole.consume(QueryAdmission.Trusted.single(identityQueryInput, identitySchema))
     }
 
     @Benchmark
     fun mappedSort(blackhole: Blackhole) {
-        blackhole.consume(validateQuery(mappedSortQuery, mappedSortSchema))
+        blackhole.consume(QueryAdmission.Trusted.single(mappedSortQuery, mappedSortSchema))
     }
 
     @Benchmark
     fun mappedFilter(blackhole: Blackhole) {
-        blackhole.consume(validateQuery(mappedFilterInput, mappedFilterSchema))
+        blackhole.consume(QueryAdmission.Trusted.count(mappedFilterInput, mappedFilterSchema))
     }
 
     @Benchmark
     fun identityDynamicFilter(blackhole: Blackhole) {
-        val accepted = validateQuery(dynamicFilter, identityDynamicSchema)
-        check(accepted === dynamicFilter)
-        blackhole.consume(accepted)
+        blackhole.consume(QueryAdmission.Trusted.count(dynamicFilter, identityDynamicSchema))
     }
 
     @Benchmark
     fun mappedDynamicFilter(blackhole: Blackhole) {
-        blackhole.consume(validateQuery(dynamicFilter, mappedDynamicSchema))
+        blackhole.consume(QueryAdmission.Trusted.count(dynamicFilter, mappedDynamicSchema))
     }
 
     @Benchmark
     fun projectionValidationPassThrough(blackhole: Blackhole) {
-        val accepted = validateQuery(projectionQuery, projectionSchema)
-        check(accepted.projection === projection)
+        val accepted = QueryAdmission.Trusted.single(projectionQuery, projectionSchema)
+        check(accepted.query.projection.include == projection.include)
         blackhole.consume(accepted)
     }
 

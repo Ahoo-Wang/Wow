@@ -26,6 +26,7 @@ import me.ahoo.wow.api.query.schema.QuerySemanticType
 import me.ahoo.wow.api.query.schema.QueryValueKind
 import me.ahoo.wow.api.query.schema.QueryValueType
 import me.ahoo.wow.api.query.schema.Temporal
+import me.ahoo.wow.api.query.spec.SystemField
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.serialization.event.DomainEventRecords
 import me.ahoo.wow.serialization.state.SnapshotRecords
@@ -60,7 +61,20 @@ sealed class QueryModelProfile(val model: QueryModel) {
      * [requireAuthenticatedScope][me.ahoo.wow.query.QueryEntryPolicy.requireAuthenticatedScope] is on: the tenant,
      * the isolation boundary of every built-in model.
      */
-    val requiredScope: QueryField = QueryField(MessageRecords.TENANT_ID)
+    val requiredScope: QueryField
+        get() = systemField(SystemField.TENANT_ID)
+
+    /**
+     * The logical field a system-field filter (ID, TENANT_ID, DELETION, ...) targets: [identityField] for the record
+     * identity, the shared record metadata otherwise.
+     */
+    fun systemField(field: SystemField): QueryField = when (field) {
+        SystemField.IDENTITY -> identityField
+        else -> metadataField(field)
+    }
+
+    /** The element whose variants are typed payloads (an event stream's `body`), or `null` for a monomorphic payload. */
+    open val variantElement: QueryField? = null
 
     /** Fields that every record of this model carries, independent of the aggregate. */
     abstract val systemDeclaration: QuerySchemaDeclaration
@@ -78,6 +92,22 @@ sealed class QueryModelProfile(val model: QueryModel) {
     internal open fun requireDeclaredPayloadTypes(record: ObjectNode, declared: Set<String>) = Unit
 
     companion object {
+        /** The record metadata field of [field], common to every model; the identity is the model's own. */
+        internal fun metadataField(field: SystemField): QueryField = when (field) {
+            SystemField.IDENTITY -> error("The record identity is defined by each model.")
+            SystemField.AGGREGATE_ID -> AGGREGATE_ID
+            SystemField.TENANT_ID -> TENANT_ID
+            SystemField.OWNER_ID -> OWNER_ID
+            SystemField.SPACE_ID -> SPACE_ID
+            SystemField.DELETED -> DELETED
+        }
+
+        private val AGGREGATE_ID = QueryField(MessageRecords.AGGREGATE_ID)
+        private val TENANT_ID = QueryField(MessageRecords.TENANT_ID)
+        private val OWNER_ID = QueryField(MessageRecords.OWNER_ID)
+        private val SPACE_ID = QueryField(MessageRecords.SPACE_ID)
+        private val DELETED = QueryField(StateAggregateRecords.DELETED)
+
         /** Returns the profile of a built-in [model], or `null` for a custom model. */
         fun of(model: QueryModel): QueryModelProfile? = when (model) {
             QueryModel.SNAPSHOT -> SnapshotQueryModelProfile
@@ -145,6 +175,7 @@ data object EventStreamQueryModelProfile : QueryModelProfile(QueryModel.EVENT_ST
     override val identityField: QueryField = QueryField(MessageRecords.ID)
     override val payloadField: QueryField = QueryField("${MessageRecords.BODY}.${MessageRecords.BODY}")
     override val payloadTypeField: QueryField = QueryField("${MessageRecords.BODY}.${MessageRecords.BODY_TYPE}")
+    override val variantElement: QueryField = QueryField(MessageRecords.BODY)
     override val eventTimeField: QueryField = QueryField(MessageRecords.CREATE_TIME)
     override val systemDeclaration: QuerySchemaDeclaration = QuerySchemaDeclaration(
         Collections.unmodifiableMap(
@@ -219,6 +250,13 @@ val QueryModelSchema.profile: QueryModelProfile?
 fun QueryModelSchema.firstLastOrderBy(metric: AggregationMetric.Edge, scope: QueryField?): QueryField =
     metric.orderBy ?: profile?.eventTimeField?.takeIf { scope == null }
         ?: throw QuerySchemaValidationException(QueryViolation.FirstLastRequiresOrderBy(QueryField(metric.alias)))
+
+/**
+ * The logical field a system-field filter targets on this schema's model ([QueryModelProfile.systemField]). A custom
+ * model shares the record metadata fields but defines no identity, so an identity filter on it is rejected.
+ */
+fun QueryModelSchema.systemField(field: SystemField): QueryField = profile?.systemField(field)
+    ?: if (field == SystemField.IDENTITY) requireIdentityField() else QueryModelProfile.metadataField(field)
 
 /** Returns the record identity of this schema's model, rejecting custom models that define none. */
 fun QueryModelSchema.requireIdentityField(): QueryField = profile?.identityField

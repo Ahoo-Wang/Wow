@@ -376,7 +376,7 @@ class BackendQueriesTest {
         val residualDense = schema.withStorage(
             StorageSupport(aggregation = AggregationSupport(denseFill = SupportMode.RESIDUAL)),
         )
-        backend.aggregate(QueryAdmission.aggregate(query, residualDense)).collectList().block()!!
+        backend.aggregate(QueryAdmission.Trusted.aggregate(query, residualDense)).collectList().block()!!
             .map { it["day"].longValue() to it["count"].longValue() }
             .assert().containsExactly(0L to 2L, 2 * day to 3L)
         backend.aggregations.single().having.assert().isNull()
@@ -398,7 +398,7 @@ class BackendQueriesTest {
         val residualDense = schema.withStorage(
             StorageSupport(aggregation = AggregationSupport(denseFill = SupportMode.RESIDUAL)),
         )
-        backend.aggregate(QueryAdmission.aggregate(query, residualDense)).collectList().block()!!
+        backend.aggregate(QueryAdmission.Trusted.aggregate(query, residualDense)).collectList().block()!!
             .map { it["day"].longValue() to it["count"].longValue() }
             .assert().containsExactly(2 * day to 5L, 0L to 2L, 3 * day to 1L)
         val native = backend.aggregations.single()
@@ -419,7 +419,7 @@ class BackendQueriesTest {
                 ),
             ),
         )
-        backend.aggregate(QueryAdmission.aggregate(query, schema)).collectList().block()!!.single().apply {
+        backend.aggregate(QueryAdmission.Trusted.aggregate(query, schema)).collectList().block()!!.single().apply {
             this["count"].longValue().assert().isZero()
             this["total"].isNull.assert().isTrue()
         }
@@ -429,7 +429,7 @@ class BackendQueriesTest {
     fun `a summary the backend emits is never duplicated`() {
         val backend = RecordingBackend(groups = { Flux.just("""{"count":0}""".toJsonNode()) })
         val query = AggregationQuery(metrics = listOf(AggregationMetric.Count("count")))
-        backend.aggregate(QueryAdmission.aggregate(query, schema)).collectList().block()!!.assert().hasSize(1)
+        backend.aggregate(QueryAdmission.Trusted.aggregate(query, schema)).collectList().block()!!.assert().hasSize(1)
     }
 
     @Test
@@ -452,19 +452,19 @@ class BackendQueriesTest {
                 records = { Flux.just(row) },
             )
             listOf<() -> Any?>(
-                { backend.single(QueryAdmission.single(SingleQuery(MatchAllFilter), schema)).block() },
-                { backend.list(QueryAdmission.list(ListQuery(MatchAllFilter), schema)).collectList().block() },
-                { backend.paged(QueryAdmission.paged(PagedQuery(MatchAllFilter), schema)).block() },
-                { backend.cursor(QueryAdmission.cursor(CursorQuery(MatchAllFilter), schema)).block() },
+                { backend.single(QueryAdmission.Trusted.single(SingleQuery(MatchAllFilter), schema)).block() },
+                { backend.list(QueryAdmission.Trusted.list(ListQuery(MatchAllFilter), schema)).collectList().block() },
+                { backend.paged(QueryAdmission.Trusted.paged(PagedQuery(MatchAllFilter), schema)).block() },
+                { backend.cursor(QueryAdmission.Trusted.cursor(CursorQuery(MatchAllFilter), schema)).block() },
             ).forEach { read -> assertThrows<IllegalArgumentException> { read() } }
         }
         assertThrows<IllegalArgumentException> {
             RecordingBackend(records = { Flux.just(nan) })
-                .list(QueryAdmission.list(ListQuery(MatchAllFilter), schema)).blockLast()
+                .list(QueryAdmission.Trusted.list(ListQuery(MatchAllFilter), schema)).blockLast()
         }.message.assert().isEqualTo("Query result [state.values] must be finite.")
         assertThrows<IllegalArgumentException> {
             RecordingBackend(pages = { BackendPage(listOf(nonStandard.first())) })
-                .single(QueryAdmission.single(SingleQuery(MatchAllFilter), schema)).block()
+                .single(QueryAdmission.Trusted.single(SingleQuery(MatchAllFilter), schema)).block()
         }.message.assert().isEqualTo("Query result [nested.value] must be a standard JSON value.")
     }
 
@@ -483,7 +483,7 @@ class BackendQueriesTest {
                 )
             ),
         )
-        backend.aggregate(QueryAdmission.aggregate(query, schema)).test()
+        backend.aggregate(QueryAdmission.Trusted.aggregate(query, schema)).test()
             .expectErrorMessage("Aggregation metric [total] must be finite.")
             .verify()
     }

@@ -69,7 +69,6 @@ import me.ahoo.wow.query.schema.QuerySchemaSourcePriority
 import me.ahoo.wow.query.schema.QuerySchemaValidationException
 import me.ahoo.wow.query.schema.QueryValueBindings
 import me.ahoo.wow.query.schema.QueryValueSchema
-import me.ahoo.wow.query.schema.validateQuery
 import me.ahoo.wow.query.single
 import me.ahoo.wow.query.snapshot.DefaultSnapshotQueryGateway
 import me.ahoo.wow.query.snapshot.SnapshotQueryBackend
@@ -239,11 +238,11 @@ class MongoSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
         val list = ListQuery(filter, projection, limit = 1)
         val paged = PagedQuery(filter, projection, pagination = Pagination(size = 1))
         val results = listOf(
-            backend.single(QueryAdmission.Trusted.single(single.also { validateQuery(it, schema) }, schema))
+            backend.single(QueryAdmission.Trusted.single(single, schema))
                 .map(::listOf),
-            backend.list(QueryAdmission.Trusted.list(list.also { validateQuery(it, schema) }, schema))
+            backend.list(QueryAdmission.Trusted.list(list, schema))
                 .collectList(),
-            backend.paged(QueryAdmission.Trusted.paged(paged.also { validateQuery(it, schema) }, schema))
+            backend.paged(QueryAdmission.Trusted.paged(paged, schema))
                 .map { page ->
                     page.total.assert().isEqualTo(1L)
                     page.list
@@ -1182,14 +1181,14 @@ class MongoSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
 private fun AggregationQuery.query(
     binding: QueryBackendBinding<SnapshotQueryBackend>,
 ): Flux<ObjectNode> = Mono.defer { binding.schemaProvider.schema() }.flatMapMany { schema ->
-    binding.backend.aggregate(QueryAdmission.Trusted.aggregate(this.also { validateQuery(it, schema) }, schema))
+    binding.backend.aggregate(QueryAdmission.Trusted.aggregate(this, schema))
 }
 
 private fun QueryBackendBinding<SnapshotQueryBackend>.list(
     query: IListQuery,
 ): Flux<ObjectNode> {
     val schema = schemaProvider.schema().block()!!
-    return backend.list(QueryAdmission.Trusted.list(query.also { validateQuery(it, schema) }, schema))
+    return backend.list(QueryAdmission.Trusted.list(query, schema))
 }
 
 private fun resolveAggregation(
@@ -1197,7 +1196,7 @@ private fun resolveAggregation(
     query: AggregationQuery,
 ): AggregationQuery {
     val schema = binding.schemaProvider.schema().block()!!
-    return query.also { validateQuery(it, schema) }
+    return query.also { QueryAdmission.Trusted.aggregate(it, schema) }
 }
 private fun Any.toWireJsonNode(): JsonNode = JsonSerializer.readTree(JsonSerializer.writeValueAsBytes(this))
 private fun ObjectNode.assertWireEquals(expected: Any) {

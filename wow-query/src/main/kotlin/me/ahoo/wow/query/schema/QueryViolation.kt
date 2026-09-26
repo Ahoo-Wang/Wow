@@ -234,6 +234,24 @@ sealed interface QueryViolation {
         override val message: String
             get() = "Field [${this.field}] cannot be compared to an array; the storage supports only scalar operands."
     }
+
+    /** A sort names more fields than any storage supports. */
+    data class SortTooMany(val max: Int) : QueryViolation {
+        override val code: String
+            get() = QueryErrorCodes.INVALID_REQUEST
+
+        override val message: String
+            get() = "Sort must contain at most $max fields."
+    }
+
+    /** Two sort fields ([field] is the later one) are bound to the same physical field, so one of them sorts nothing. */
+    data class DuplicateSortField(override val field: QueryField) : QueryViolation {
+        override val code: String
+            get() = QueryErrorCodes.INVALID_REQUEST
+
+        override val message: String
+            get() = "Sort field [${this.field}] maps to the same physical field as an earlier sort field."
+    }
 }
 
 internal inline fun requireValid(accepted: Boolean, violation: () -> QueryViolation) {

@@ -20,8 +20,8 @@ import me.ahoo.wow.api.query.OwnerIdFilter
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.SpaceIdFilter
 import me.ahoo.wow.api.query.TenantIdFilter
+import me.ahoo.wow.api.query.spec.spec
 import me.ahoo.wow.query.schema.QueryModelProfile
-import me.ahoo.wow.serialization.MessageRecords
 
 /**
  * What a gateway requires of a query's [QueryEntry] before admitting it, and the budget each entry runs under.
@@ -75,9 +75,8 @@ data class QueryEntryPolicy(
 /** Whether this scope restricts [field] to one value: at the top level, the field's metadata filter or an equality. */
 private fun FilterExpression.pins(field: QueryField): Boolean = when (this) {
     is AndFilter -> operands.any { it.pins(field) }
-    is TenantIdFilter -> field.path == MessageRecords.TENANT_ID
-    is OwnerIdFilter -> field.path == MessageRecords.OWNER_ID
-    is SpaceIdFilter -> field.path == MessageRecords.SPACE_ID
+    is TenantIdFilter, is OwnerIdFilter, is SpaceIdFilter ->
+        field == QueryModelProfile.metadataField(checkNotNull(spec.systemField))
     is EqualFilter -> this.field == field && !value.isNull
     else -> false
 }
