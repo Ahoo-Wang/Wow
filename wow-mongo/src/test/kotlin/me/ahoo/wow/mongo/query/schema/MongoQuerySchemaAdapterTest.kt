@@ -35,11 +35,11 @@ import me.ahoo.wow.api.query.schema.Temporal
 import me.ahoo.wow.mongo.query.AbstractMongoFilterCompiler
 import me.ahoo.wow.mongo.query.compile
 import me.ahoo.wow.mongo.query.mongoLogicalSchema
+import me.ahoo.wow.query.QueryAdmission
 import me.ahoo.wow.query.schema.MaskRule
 import me.ahoo.wow.query.schema.QuerySchemaUnavailableException
 import me.ahoo.wow.query.schema.QuerySchemaValidationException
 import me.ahoo.wow.query.schema.QueryValueSchema
-import me.ahoo.wow.query.schema.validateQuery
 import me.ahoo.wow.serialization.JsonSerializer
 import org.bson.Document
 import org.bson.conversions.Bson
@@ -176,13 +176,16 @@ class MongoQuerySchemaAdapterTest {
             Document("bsonType", "array").append("items", Document("bsonType", "long"))
         )
         val accepted = EqualFilter(QueryField("scores"), JsonSerializer.valueToTree(listOf(1, 2)))
-        compiler.compile(validateQuery(accepted, schema), schema).toBsonDocument().assert()
+        compiler.compile(accepted.also { QueryAdmission.Trusted.count(it, schema) }, schema).toBsonDocument().assert()
             .isEqualTo(Filters.eq("scores", listOf(1, 2)).toBsonDocument())
         assertThrows<QuerySchemaValidationException> {
-            validateQuery(EqualFilter(QueryField("scores"), JsonSerializer.valueToTree(listOf(1, "bad"))), schema)
+            QueryAdmission.Trusted.count(
+                EqualFilter(QueryField("scores"), JsonSerializer.valueToTree(listOf(1, "bad"))),
+                schema
+            )
         }
         assertThrows<QuerySchemaValidationException> {
-            validateQuery(EqualFilter(QueryField("scores"), JsonSerializer.valueToTree(1.5)), schema)
+            QueryAdmission.Trusted.count(EqualFilter(QueryField("scores"), JsonSerializer.valueToTree(1.5)), schema)
         }
     }
 

@@ -16,25 +16,20 @@ package me.ahoo.wow.mongo.query
 import com.mongodb.client.model.Sorts
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.query.AdmittedQuery
-import me.ahoo.wow.query.schema.QuerySchemaValidationException
 import org.bson.conversions.Bson
 
 internal object MongoSortCompiler {
 
     /**
-     * Compiles an admitted sort. MongoDB cannot sort by two independent arrays; its adapter declares
-     * [parallel array sort][me.ahoo.wow.query.schema.StorageSupport.parallelArraySort] NONE, so admission has already
-     * rejected such a sort.
+     * Compiles an admitted sort. Admission has already rejected what MongoDB cannot sort by: more than 32 keys, two
+     * keys bound to one physical field, and two independent arrays (its adapter declares
+     * [parallel array sort][me.ahoo.wow.query.schema.StorageSupport.parallelArraySort] NONE).
      */
     fun compile(sort: List<Sort>, admitted: AdmittedQuery<*>): Bson? =
         compilePhysical(sort.map { it.copy(field = admitted.field(it.field).physicalField) })
 
     internal fun compilePhysical(sort: List<Sort>): Bson? {
         if (sort.isEmpty()) return null
-        if (sort.size > 32) throw QuerySchemaValidationException("MongoDB sort supports at most 32 keys.")
-        if (sort.map { it.field }.distinct().size != sort.size) {
-            throw QuerySchemaValidationException("MongoDB sort fields must map to unique physical fields.")
-        }
         return Sorts.orderBy(
             sort.map {
                 when (it.direction) {

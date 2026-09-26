@@ -21,10 +21,10 @@ import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.CursorPage
 import me.ahoo.wow.api.query.CursorQuery
 import me.ahoo.wow.api.query.ICursorQuery
-import me.ahoo.wow.api.query.IdFilter
 import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.IPagedQuery
 import me.ahoo.wow.api.query.ISingleQuery
+import me.ahoo.wow.api.query.IdFilter
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.MaterializedSnapshot
@@ -46,10 +46,10 @@ import me.ahoo.wow.mongo.SnapshotSchemaInitializer
 import me.ahoo.wow.mongo.query.snapshot.MongoSnapshotQueryBackendFactory
 import me.ahoo.wow.query.QueryBackendBinding
 import me.ahoo.wow.query.dsl.aggregation
+import me.ahoo.wow.query.schema.InferredQuerySchemaSource
 import me.ahoo.wow.query.snapshot.DefaultSnapshotQueryGateway
 import me.ahoo.wow.query.snapshot.SnapshotQueryBackend
 import me.ahoo.wow.query.snapshot.SnapshotQueryGateway
-import me.ahoo.wow.query.schema.InferredQuerySchemaSource
 import me.ahoo.wow.schema.query.JsonQueryModelSource
 import me.ahoo.wow.serialization.JsonSerializer
 import me.ahoo.wow.serialization.toLinkedHashMap

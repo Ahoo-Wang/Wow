@@ -26,7 +26,12 @@ import me.ahoo.wow.api.query.CursorQuery
 import me.ahoo.wow.api.query.ElementMatchFilter
 import me.ahoo.wow.api.query.EqualFilter
 import me.ahoo.wow.api.query.ExistsFilter
+import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.GreaterThanOrEqualFilter
+import me.ahoo.wow.api.query.ICursorQuery
+import me.ahoo.wow.api.query.IListQuery
+import me.ahoo.wow.api.query.IPagedQuery
+import me.ahoo.wow.api.query.ISingleQuery
 import me.ahoo.wow.api.query.IdFilter
 import me.ahoo.wow.api.query.IsEmptyFilter
 import me.ahoo.wow.api.query.IsEmptyStringFilter
@@ -48,6 +53,8 @@ import me.ahoo.wow.api.query.schema.QueryValueKind
 import me.ahoo.wow.api.query.schema.QueryValueType
 import me.ahoo.wow.api.query.schema.Temporal
 import me.ahoo.wow.query.FilterNormalizer
+import me.ahoo.wow.query.QueryAdmission
+import me.ahoo.wow.query.QueryResolver
 import me.ahoo.wow.query.dsl.aggregation
 import me.ahoo.wow.serialization.JsonSerializer
 import org.junit.jupiter.api.Test
@@ -792,3 +799,29 @@ class QuerySchemaValidationTest {
 
     private fun json(value: Any?): JsonNode = JsonSerializer.valueToTree(value)
 }
+
+/*
+ * The validation this test pins now runs in admission's single resolution pass; each helper admits through the
+ * trusted path and returns its input, so a test reads as the rule it checks.
+ */
+private fun validateQuery(query: ISingleQuery, schema: QueryModelSchema): ISingleQuery =
+    query.also { QueryAdmission.Trusted.single(it, schema) }
+
+private fun validateQuery(query: IListQuery, schema: QueryModelSchema): IListQuery =
+    query.also { QueryAdmission.Trusted.list(it, schema) }
+
+private fun validateQuery(query: IPagedQuery, schema: QueryModelSchema): IPagedQuery =
+    query.also { QueryAdmission.Trusted.paged(it, schema) }
+
+/** The cursor's own sort, without the tie-breaker admission appends. */
+private fun validateQuery(query: ICursorQuery, schema: QueryModelSchema): ICursorQuery =
+    query.also { QueryResolver(schema, java.time.Instant.now()).cursor(it) }
+
+private fun validateQuery(query: FilterExpression, schema: QueryModelSchema): FilterExpression =
+    query.also { QueryAdmission.Trusted.count(it, schema) }
+
+private fun validateQuery(query: AggregationQuery, schema: QueryModelSchema): AggregationQuery =
+    query.also { QueryAdmission.Trusted.aggregate(it, schema) }
+
+private fun validateQuery(projection: Projection, schema: QueryModelSchema): Projection =
+    projection.also { QueryAdmission.Trusted.single(SingleQuery(MatchAllFilter, it), schema) }

@@ -16,6 +16,7 @@ package me.ahoo.wow.query
 import me.ahoo.wow.annotation.sortedByOrder
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.query.AggregationQuery
+import me.ahoo.wow.api.query.CursorQuery
 import me.ahoo.wow.api.query.FilterCapable
 import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.ICursorQuery
@@ -33,7 +34,6 @@ import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.SnapshotQueryModelProfile
 import me.ahoo.wow.query.schema.profile
 import me.ahoo.wow.query.schema.requireIdentityField
-import me.ahoo.wow.query.schema.validateQuery
 import me.ahoo.wow.query.schema.withCanonicalFields
 import reactor.core.publisher.Mono
 import reactor.util.context.ContextView
@@ -94,11 +94,12 @@ class QueryAdmission(
                 trail?.schema(model)
                 entryPolicy.requireScope(entry, identity.authenticatedQueryScope(), model.profile)
                 fun context(current: Q) = QueryContext(current, namedAggregate, model, operation.queryType, entry)
+                val appended = mutableListOf<FilterExpression>()
                 rewrite(query, ::context)
-                    .flatMap { rewritten -> restrict(rewritten, identity, ::context, trail) }
+                    .flatMap { rewritten -> restrict(rewritten, identity, ::context, trail, appended) }
                     .map { restricted ->
-                        val defaulted = restricted.withDefaultScope(model.profile)
-                        operation.finish(defaulted, model, entry).also { trail?.admitted(it.query) }
+                        val defaulted = restricted.withDefaultScope(model.profile, appended)
+                        operation.finish(defaulted, model, entry, appended).also { trail?.admitted(it.query) }
                     }
             }
     }
@@ -126,8 +127,9 @@ class QueryAdmission(
             checkNotNull(schema) { "Point-read admission needs the snapshot query schema to evaluate query policies." }
             return QueryContext(current, namedAggregate, schema, QueryType.SINGLE, entry)
         }
-        restrict(SingleQuery(selection) as ISingleQuery, identity, ::context, null).mapNotNull { restricted ->
-            val filter = restricted.withDefaultScope(schema?.profile ?: SnapshotQueryModelProfile).filter
+        val appended = mutableListOf<FilterExpression>()
+        restrict(SingleQuery(selection) as ISingleQuery, identity, ::context, null, appended).mapNotNull { restricted ->
+            val filter = restricted.withDefaultScope(schema?.profile ?: SnapshotQueryModelProfile, appended).filter
             val canonical = if (schema == null) filter else filter.withCanonicalFields(schema)
             record.takeIf { RecordFilter(normalizer.normalize(canonical)).admits(it) }
                 ?.let { schema?.maskRecord(it) ?: it }
@@ -147,15 +149,18 @@ class QueryAdmission(
 
     /**
      * Step 2: the caller's scope and the route selection, then every policy's restriction of the scoped query,
-     * appended.
+     * appended. Each condition admission appends is recorded in [appended], so validation treats it as trusted.
      */
     private fun <Q : RewritableFilter<Q>> restrict(
         query: Q,
         identity: ContextView,
         context: (Q) -> QueryContext<Q>,
         trail: QueryAuditTrail?,
+        appended: MutableList<FilterExpression>,
     ): Mono<Q> {
-        val scoped = query.restrict(identity.queryScope()).restrict(identity.querySelection())
+        val callerScope = identity.queryScope().also(appended::add)
+        val selection = identity.querySelection().also(appended::add)
+        val scoped = query.restrict(callerScope).restrict(selection)
         if (policies.isEmpty()) {
             return Mono.just(scoped)
         }
@@ -164,16 +169,22 @@ class QueryAdmission(
             pending.flatMap { combined ->
                 Mono.defer { policy.evaluate(identity, policyContext) }
                     .switchIfEmpty(Mono.error { IllegalStateException("QueryPolicy must emit one filter.") })
-                    .doOnNext { if (it !== MatchAllFilter) trail?.policy(policy) }
+                    .doOnNext {
+                        appended += it
+                        if (it !== MatchAllFilter) trail?.policy(policy)
+                    }
                     .map { combined.restrict(it) }
             }
         }.map { scoped.restrict(it) }
     }
 
     /** Step 3: the model's default scope, judged on the whole query steps 1 and 2 produced. */
-    private fun <Q : RewritableFilter<Q>> Q.withDefaultScope(profile: QueryModelProfile?): Q {
+    private fun <Q : RewritableFilter<Q>> Q.withDefaultScope(
+        profile: QueryModelProfile?,
+        appended: MutableList<FilterExpression>,
+    ): Q {
         profile ?: return this
-        return restrict(profile.defaultScope(filter))
+        return restrict(profile.defaultScope(filter).also(appended::add))
     }
 
     private val <Q : RewritableFilter<Q>> Q.filter: FilterExpression
@@ -206,62 +217,102 @@ class QueryAdmission(
         @JvmStatic
         @JvmOverloads
         fun single(query: ISingleQuery, schema: QueryModelSchema, entry: QueryEntry = QueryEntry.IN_PROCESS) =
-            resolve(schema, entry) {
-                single(validateQuery(query.withCanonicalFields(schema), schema).normalized(schema))
-            }
+            single(query, schema, entry, emptyList())
 
         @JvmStatic
         @JvmOverloads
         fun list(query: IListQuery, schema: QueryModelSchema, entry: QueryEntry = QueryEntry.IN_PROCESS) =
-            resolve(schema, entry) { list(validateQuery(query.withCanonicalFields(schema), schema).normalized(schema)) }
+            list(query, schema, entry, emptyList())
 
         @JvmStatic
         @JvmOverloads
         fun paged(query: IPagedQuery, schema: QueryModelSchema, entry: QueryEntry = QueryEntry.IN_PROCESS) =
-            resolve(schema, entry) {
-                paged(validateQuery(query.withCanonicalFields(schema), schema).normalized(schema))
-            }
+            paged(query, schema, entry, emptyList())
 
-        /** Appends the model's identity field as the unique tie-breaker sort before validating. */
+        /** Appends the model's identity field as the unique tie-breaker sort before resolving. */
         @JvmStatic
         @JvmOverloads
         fun cursor(query: ICursorQuery, schema: QueryModelSchema, entry: QueryEntry = QueryEntry.IN_PROCESS) =
-            resolve(schema, entry) {
-                val canonical = query.withCanonicalFields(schema).withUniqueSort(schema.requireIdentityField())
-                cursor(validateQuery(canonical, schema).normalized(schema))
-            }
+            cursor(query, schema, entry, emptyList())
 
         @JvmStatic
         @JvmOverloads
         fun count(filter: FilterExpression, schema: QueryModelSchema, entry: QueryEntry = QueryEntry.IN_PROCESS) =
-            resolve(schema, entry) {
-                val valid = validateQuery(filter.withCanonicalFields(schema), schema)
-                filter(normalizer.normalize(valid, schema, null, now()))
-            }
+            count(filter, schema, entry, emptyList())
 
         @JvmStatic
         @JvmOverloads
         fun aggregate(query: AggregationQuery, schema: QueryModelSchema, entry: QueryEntry = QueryEntry.IN_PROCESS) =
-            resolve(schema, entry) {
-                aggregate(normalizer.normalize(validateQuery(query.withCanonicalFields(schema), schema), schema, now()))
-            }
+            aggregate(query, schema, entry, emptyList())
+
+        internal fun single(
+            query: ISingleQuery,
+            schema: QueryModelSchema,
+            entry: QueryEntry,
+            trusted: Collection<FilterExpression>,
+        ): AdmittedQuery<ISingleQuery> = resolve(schema, entry, trusted) { single(query) }
+
+        internal fun list(
+            query: IListQuery,
+            schema: QueryModelSchema,
+            entry: QueryEntry,
+            trusted: Collection<FilterExpression>,
+        ): AdmittedQuery<IListQuery> = resolve(schema, entry, trusted) { list(query) }
+
+        internal fun paged(
+            query: IPagedQuery,
+            schema: QueryModelSchema,
+            entry: QueryEntry,
+            trusted: Collection<FilterExpression>,
+        ): AdmittedQuery<IPagedQuery> = resolve(schema, entry, trusted) { paged(query) }
+
+        internal fun cursor(
+            query: ICursorQuery,
+            schema: QueryModelSchema,
+            entry: QueryEntry,
+            trusted: Collection<FilterExpression>,
+        ): AdmittedQuery<ICursorQuery> = resolve(schema, entry, trusted) {
+            cursor(query.withCanonicalSort(schema).withUniqueSort(schema.requireIdentityField()))
+        }
+
+        internal fun count(
+            filter: FilterExpression,
+            schema: QueryModelSchema,
+            entry: QueryEntry,
+            trusted: Collection<FilterExpression>,
+        ): AdmittedQuery<FilterExpression> = resolve(schema, entry, trusted) { filter(filter) }
+
+        internal fun aggregate(
+            query: AggregationQuery,
+            schema: QueryModelSchema,
+            entry: QueryEntry,
+            trusted: Collection<FilterExpression>,
+        ): AdmittedQuery<AggregationQuery> = resolve(schema, entry, trusted) { aggregate(query) }
 
         private inline fun <Q : Any> resolve(
             schema: QueryModelSchema,
             entry: QueryEntry,
-            resolve: FieldResolver.() -> Q,
+            trusted: Collection<FilterExpression>,
+            resolve: QueryResolver.() -> Q,
         ): AdmittedQuery<Q> {
-            val resolver = FieldResolver(schema)
+            val resolver = QueryResolver(schema, Instant.now(), trusted)
             val query = resolver.resolve()
             return AdmittedQuery(query, schema, entry, resolver.fields)
         }
 
-        private fun now(): Instant = Instant.now()
-
-        private fun <Q : FilterCapable<Q>> Q.normalized(schema: QueryModelSchema): Q {
-            val normalized = normalizer.normalize(filter, schema, null, now())
-            return if (normalized === filter) this else withFilter(normalized)
-        }
+        /** The cursor's sort with aliases replaced, so the identity tie-breaker is found under any name. */
+        private fun ICursorQuery.withCanonicalSort(schema: QueryModelSchema): ICursorQuery =
+            if (!schema.hasAliases) {
+                this
+            } else {
+                CursorQuery(
+                    filter,
+                    projection,
+                    sort.map { it.copy(field = schema.definition.canonical(it.field)) },
+                    size,
+                    cursor
+                )
+            }
     }
 
     private companion object {
@@ -276,12 +327,16 @@ class QueryAdmission(
 class QueryOperation<Q : RewritableFilter<Q>> private constructor(
     val queryType: QueryType,
     private val budget: QueryBudget.(Q, FilterExpression) -> Unit,
-    private val finish: (Q, QueryModelSchema, QueryEntry) -> AdmittedQuery<Q>,
+    private val finish: (Q, QueryModelSchema, QueryEntry, Collection<FilterExpression>) -> AdmittedQuery<Q>,
 ) {
     internal fun budget(budget: QueryBudget, query: Q, scope: FilterExpression) = budget.budget(query, scope)
 
-    internal fun finish(query: Q, schema: QueryModelSchema, entry: QueryEntry): AdmittedQuery<Q> =
-        finish.invoke(query, schema, entry)
+    internal fun finish(
+        query: Q,
+        schema: QueryModelSchema,
+        entry: QueryEntry,
+        trusted: Collection<FilterExpression>,
+    ): AdmittedQuery<Q> = finish.invoke(query, schema, entry, trusted)
 
     override fun toString(): String = "QueryOperation($queryType)"
 

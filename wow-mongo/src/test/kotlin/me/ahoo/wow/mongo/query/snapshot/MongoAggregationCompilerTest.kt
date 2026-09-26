@@ -53,7 +53,6 @@ import me.ahoo.wow.query.schema.QueryPathTemplate
 import me.ahoo.wow.query.schema.QuerySchemaValidationException
 import me.ahoo.wow.query.schema.QueryValueBindings
 import me.ahoo.wow.query.schema.QueryValueSchema
-import me.ahoo.wow.query.schema.validateQuery
 import me.ahoo.wow.serialization.MessageRecords
 import org.bson.BsonArray
 import org.bson.BsonBoolean
@@ -1981,7 +1980,9 @@ class MongoAggregationCompilerTest {
 
     /** Metric filter shape rules are enforced by query validation before any backend compiles the query. */
     private fun compileValidated(query: AggregationQuery, schema: QueryModelSchema) =
-        MongoAggregationCompiler(SnapshotFilterCompiler).compile(validateQuery(query, schema), schema)
+        QueryAdmission.Trusted.aggregate(query, schema).let {
+            MongoAggregationCompiler(SnapshotFilterCompiler).compile(query, schema)
+        }
 }
 
 private val statusFilterSchema = schema(

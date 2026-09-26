@@ -14,6 +14,7 @@
 package me.ahoo.wow.benchmark.query
 
 import me.ahoo.wow.api.query.CursorQuery
+import me.ahoo.wow.api.query.ICursorQuery
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.Sort
@@ -22,10 +23,11 @@ import me.ahoo.wow.api.query.schema.QueryCapability
 import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.api.query.schema.QueryValueKind
 import me.ahoo.wow.api.query.schema.QueryValueType
+import me.ahoo.wow.query.AdmittedQuery
+import me.ahoo.wow.query.QueryAdmission
 import me.ahoo.wow.query.schema.MaskRule
 import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QueryValueSchema
-import me.ahoo.wow.query.schema.validateQuery
 import org.openjdk.jmh.annotations.Benchmark
 import org.openjdk.jmh.annotations.BenchmarkMode
 import org.openjdk.jmh.annotations.Fork
@@ -63,20 +65,19 @@ open class SchemaProtectionBenchmark {
             maskRule = MaskRule(SensitivityLevel.DISPLAY),
         )
         val fields = (0 until maskedFieldCount).associate { QueryField("state.secret$it") to masked } +
-            (QueryField("state.visible") to BenchmarkQuerySchemas.scalar(QueryValueType.STRING, null))
+            (QueryField("state.visible") to BenchmarkQuerySchemas.scalar(QueryValueType.STRING, null)) +
+            // The record identity, which cursor admission appends as the unique tie-breaker.
+            (QueryField("aggregateId") to BenchmarkQuerySchemas.scalar(QueryValueType.STRING, null))
         val caps = setOf(QueryCapability.EXACT_MATCH, QueryCapability.LITERAL_MATCH, QueryCapability.SORT, QueryCapability.CURSOR_SORT)
         schema = BenchmarkQuerySchemas.create(QueryModel.SNAPSHOT, fields, fields.keys.associateWith { field -> caps.associateWith { field } })
         check(schema.definition.values.values.count { it.maskRule != null } == maskedFieldCount)
-        check(validateQuery(query, schema) === query)
+        QueryAdmission.Trusted.cursor(query, schema)
     }
 
     @Benchmark
     fun publication(): QueryModelSchema = QueryModelSchema(schema.model, schema.capabilities, schema.definition, schema.bindings)
 
     @Benchmark
-    fun publicCursorAdmission(): CursorQuery {
-        validateQuery(query, schema)
-        return query
-    }
+    fun publicCursorAdmission(): AdmittedQuery<ICursorQuery> = QueryAdmission.Trusted.cursor(query, schema)
 
 }

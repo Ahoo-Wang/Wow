@@ -23,6 +23,7 @@ import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.api.query.schema.QueryValueKind
 import me.ahoo.wow.api.query.schema.QueryValueType
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
+import me.ahoo.wow.query.QueryAdmission
 import me.ahoo.wow.query.dsl.aggregation
 import me.ahoo.wow.query.mask.SchemaMasker
 import me.ahoo.wow.serialization.JsonSerializer
@@ -74,10 +75,13 @@ class SensitiveContainerValuesTest {
         masked.path("items").path(0).path("id").path("x").stringValue().assert().isEqualTo("****")
 
         assertThrows<QuerySchemaValidationException> {
-            validateQuery(EqualFilter(QueryField("state.idBook.main"), JsonSerializer.valueToTree("ab12")), schema)
+            QueryAdmission.Trusted.count(
+                EqualFilter(QueryField("state.idBook.main"), JsonSerializer.valueToTree("ab12")),
+                schema
+            )
         }.violation.assert().isInstanceOf(QueryViolation.ProtectedComparison::class.java)
         assertThrows<QuerySchemaValidationException> {
-            validateQuery(
+            QueryAdmission.Trusted.count(
                 ElementMatchFilter(
                     QueryField("state.items"),
                     EqualFilter(QueryField("id.x"), JsonSerializer.valueToTree("ab12")),
@@ -86,7 +90,7 @@ class SensitiveContainerValuesTest {
             )
         }.violation.assert().isInstanceOf(QueryViolation.ProtectedComparison::class.java)
         assertThrows<QuerySchemaValidationException> {
-            validateQuery(
+            QueryAdmission.Trusted.aggregate(
                 aggregation {
                     terms("state.phoneBook.home", "home")
                     count("count")

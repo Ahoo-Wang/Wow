@@ -353,7 +353,7 @@ class ElasticsearchSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
     fun `cursor repeat should create clean snapshot object nodes for every subscription`() {
         val schema = queryBackendBinding.schemaProvider.schema().block()!!
         val query = CursorQuery(filterExpression { "aggregateId" eq snapshot.aggregateId.id }, sort = listOf(Sort(QueryField("aggregateId"), Sort.Direction.ASC)), size = 1)
-        val publisher = snapshotQueryBackend.cursor(QueryAdmission.Trusted.cursor(me.ahoo.wow.query.schema.validateQuery(query, schema), schema))
+        val publisher = snapshotQueryBackend.cursor(QueryAdmission.Trusted.cursor(query, schema))
 
         publisher.map { it.list.single() }.repeat(1).index()
             .doOnNext { indexed -> if (indexed.t1 == 0L) indexed.t2.put("mutated", true) }
@@ -517,7 +517,7 @@ class ElasticsearchSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
         schema.field(QueryField(field))!!.projectionField.assert().isEqualTo(QueryField(field))
         listOf(me.ahoo.wow.api.query.IsNullFilter(QueryField(field)),
             me.ahoo.wow.api.query.EqualFilter(QueryField(field), JsonNodeFactory.instance.stringNode("NULL_TOKEN"))).forEach { query ->
-            assertThrows<QuerySchemaValidationException> { me.ahoo.wow.query.schema.validateQuery(query, schema) }
+            assertThrows<QuerySchemaValidationException> { QueryAdmission.Trusted.count(query, schema) }
         }
     }
 
@@ -532,14 +532,14 @@ class ElasticsearchSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
         updateState(mapOf("names" to mapOf("en" to mapOf("primary" to "Hello"), "fr" to mapOf("primary" to "Bonjour"))))
         val query = ListQuery(filter = filterExpression { "state.names.en.primary" eq "Hello" },
             projection = Projection(include = listOf(QueryField("state.names.en.primary"))), limit = 10)
-        binding.backend.list(QueryAdmission.Trusted.list(me.ahoo.wow.query.schema.validateQuery(query, schema), schema)).test()
+        binding.backend.list(QueryAdmission.Trusted.list(query, schema)).test()
             .assertNext { it.path("state").path("names").path("en").path("primary").asString().assert().isEqualTo("Hello") }
             .verifyComplete()
         schema.field(QueryField("state.names.en.primary"))!!.binding(QueryCapability.EXACT_MATCH)!!.physicalField
             .assert().isEqualTo(QueryField("state.names.en.primary.keyword"))
         schema.field(QueryField("state.names.en.primary.keyword")).assert().isNull()
         assertThrows<QuerySchemaValidationException> {
-            me.ahoo.wow.query.schema.validateQuery(ListQuery(filter = filterExpression { "state.names.fr.primary" eq "Bonjour" }), schema)
+            QueryAdmission.Trusted.list(ListQuery(filter = filterExpression { "state.names.fr.primary" eq "Bonjour" }), schema)
         }
     }
 
@@ -1151,14 +1151,14 @@ private fun AggregationQuery.query(
     binding: QueryBackendBinding<SnapshotQueryBackend>,
 
 ) = Mono.defer { binding.schemaProvider.schema() }.flatMapMany { schema ->
-    binding.backend.aggregate(QueryAdmission.Trusted.aggregate(me.ahoo.wow.query.schema.validateQuery(this, schema), schema))
+    binding.backend.aggregate(QueryAdmission.Trusted.aggregate(this, schema))
 }
 
 private fun IListQuery.query(
     binding: QueryBackendBinding<SnapshotQueryBackend>,
 
 ): Flux<ObjectNode> = Mono.defer { binding.schemaProvider.schema() }.flatMapMany { schema ->
-    binding.backend.list(QueryAdmission.Trusted.list(me.ahoo.wow.query.schema.validateQuery(this, schema), schema))
+    binding.backend.list(QueryAdmission.Trusted.list(this, schema))
 }
 
 private fun validated(
@@ -1167,5 +1167,5 @@ private fun validated(
 
 ): IListQuery {
     val schema = binding.schemaProvider.schema().block()!!
-    return me.ahoo.wow.query.schema.validateQuery(query, schema)
+    return query.also { QueryAdmission.Trusted.list(it, schema) }
 }

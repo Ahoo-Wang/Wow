@@ -39,7 +39,6 @@ import me.ahoo.wow.query.schema.LogicalQuerySchema
 import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QuerySchemaValidationException
 import me.ahoo.wow.query.schema.QueryValueSchema
-import me.ahoo.wow.query.schema.validateQuery
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import java.util.concurrent.TimeUnit
@@ -606,10 +605,10 @@ class ElasticsearchQuerySchemaAdapterTest {
             }
         )
         assertThrows<QuerySchemaValidationException> {
-            validateQuery(ListQuery(MatchAllFilter), schema)
+            QueryAdmission.Trusted.list(ListQuery(MatchAllFilter), schema)
         }
         assertThrows<QuerySchemaValidationException> {
-            validateQuery(
+            QueryAdmission.Trusted.list(
                 ListQuery(
                     MatchAllFilter,
                     projection = Projection(include = listOf(QueryField("code"))),
@@ -617,7 +616,7 @@ class ElasticsearchQuerySchemaAdapterTest {
                 schema
             )
         }
-        validateQuery(MatchAllFilter, schema)
+        QueryAdmission.Trusted.count(MatchAllFilter, schema)
         schema.path("code", QueryCapability.AGGREGATE_TERMS).assert().isEqualTo("code")
     }
 
@@ -646,7 +645,7 @@ class ElasticsearchQuerySchemaAdapterTest {
             val schema = bind(definition, mapping)
             listOf("obj", "obj.secret").forEach { field ->
                 assertThrows<QuerySchemaValidationException> {
-                    validateQuery(
+                    QueryAdmission.Trusted.list(
                         ListQuery(
                             MatchAllFilter,
                             projection = Projection(include = listOf(QueryField(field))),
@@ -656,10 +655,10 @@ class ElasticsearchQuerySchemaAdapterTest {
                 }
             }
             assertThrows<QuerySchemaValidationException> {
-                validateQuery(ListQuery(MatchAllFilter), schema)
+                QueryAdmission.Trusted.list(ListQuery(MatchAllFilter), schema)
             }
             schema.field(QueryField("alias"))!!.projectionField.assert().isEqualTo(QueryField("obj.code"))
-            validateQuery(
+            QueryAdmission.Trusted.list(
                 ListQuery(
                     MatchAllFilter,
                     projection = Projection(include = listOf(QueryField("alias"))),

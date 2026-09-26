@@ -43,7 +43,6 @@ import me.ahoo.wow.query.list
 import me.ahoo.wow.query.paged
 import me.ahoo.wow.query.schema.LogicalQuerySchema
 import me.ahoo.wow.query.schema.QueryValueSchema
-import me.ahoo.wow.query.schema.validateQuery
 import me.ahoo.wow.query.single
 import me.ahoo.wow.tck.container.ElasticsearchTestFixture
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
@@ -103,7 +102,7 @@ class ElasticsearchNumericContractTest {
             AggregationQuery(metrics = listOf(AggregationMetric.Numeric(AggregationFunction.SUM, expression, "total")))
         }
         ElasticsearchSnapshotQueryBackend(MOCK_AGGREGATE_METADATA, client)
-            .aggregate(QueryAdmission.Trusted.aggregate(validateQuery(query, schema), schema)).test()
+            .aggregate(QueryAdmission.Trusted.aggregate(query, schema)).test()
             .expectErrorMatches { error ->
                 error is ElasticsearchException && error.error().type() == "search_phase_execution_exception" &&
                     error.error().toString().contains("mapped-runtime-failure")
@@ -136,7 +135,7 @@ class ElasticsearchNumericContractTest {
             val schema = ElasticsearchQuerySchemaAdapter.bind(definition(shape), ElasticsearchIndexMapping.from(index, mapping))
             listOf(false, true).forEach { nested ->
                 val query = query(nested)
-                val rows = backend.aggregate(QueryAdmission.Trusted.aggregate(validateQuery(query, schema), schema)).collectList().block()!!
+                val rows = backend.aggregate(QueryAdmission.Trusted.aggregate(query, schema)).collectList().block()!!
                 rows.size.assert().isEqualTo(cases.size)
                 rows.forEach { row ->
                     val expected = cases.getValue(row.path("case").asString()).second
@@ -155,7 +154,7 @@ class ElasticsearchNumericContractTest {
         val unionSchema = ElasticsearchQuerySchemaAdapter.bind(definition(shapes.last()), ElasticsearchIndexMapping.from(index, mapping))
         listOf(false, true).forEach { nested ->
             val summary = query(nested).copy(groupBy = emptyList())
-            val row = backend.aggregate(QueryAdmission.Trusted.aggregate(validateQuery(summary, unionSchema), unionSchema)).single().block()!!
+            val row = backend.aggregate(QueryAdmission.Trusted.aggregate(summary, unionSchema)).single().block()!!
             summary.metrics.forEach { metric ->
                 row.path(metric.alias).doubleValue().assert().isEqualTo(summaryExpectedFor(metric.alias))
             }
@@ -186,7 +185,7 @@ class ElasticsearchNumericContractTest {
         listOf(Triple("scaled", 1.01, 1L), Triple("scaled", 1.11, 0L), Triple("precise", 1.01, 0L), Triple("precise", 1.04, 1L))
             .forEach { (field, value, expected) ->
                 val filter = filterExpression { field eq value }
-                backend.count(QueryAdmission.Trusted.count(validateQuery(filter, schema), schema)).block().assert().isEqualTo(expected)
+                backend.count(QueryAdmission.Trusted.count(filter, schema)).block().assert().isEqualTo(expected)
             }
     }
 
