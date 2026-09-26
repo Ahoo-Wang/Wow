@@ -109,7 +109,7 @@ All in the same pull request, each with a regression test (a jsdom unit test or 
 Each is in the "可访问性" section of the package's [todo.md](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/docs/design/todo.md) with its reason, done criteria and landing; when one is done, its row in the table below changes.
 
 - **A human screen-reader pass**: VoiceOver with Safari and NVDA with Firefox or Chrome have not been run. A 30-minute step-by-step checklist for it (the keys and the expected announcements per task, a results table and severity guidance, in Chinese) is the [screen-reader walkthrough](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/docs/design/screen-reader-walkthrough.md).
-- **2.5.7 Dragging Movements**: column order, sort priority, view order, dashboard filter order, panel move and resize, and column width can only be dragged with a pointer; each has a keyboard equivalent, but a pointer user who cannot drag has none.
+- **2.5.7 Dragging Movements**: every ordered list (column order, sort priority, view order, series, funnel stages, levels, tabs, filter order, the panel order on a narrow screen) is carried by one handle, and a click on it opens “Move to the start / one place earlier / one place later / to the end”, so no drag is needed; on the wide grid, panel move and resize, and column width can still only be dragged with a pointer — each has a keyboard equivalent, but a pointer user who cannot drag has none.
 - **2.5.8 Target Size**: the column-width drag area is 8px wide.
 - **2.4.11 Focus Not Obscured**: an overflowing cell in a narrow column covers a focused button.
 - **3.1.2 Language of Parts**: the surface does not declare its language, so where its wording differs from the host page's language a screen reader reads it in the host's.
@@ -168,7 +168,7 @@ Each is in the "可访问性" section of the package's [todo.md](https://github.
 | 2.5.2 Pointer Cancellation | A | Supports | Buttons act on release; dropping a drag where it started cancels it |
 | 2.5.3 Label in Name | A | Supports | Accessible names contain the visible words ("Order" → "Sort by Order, ascending") |
 | 2.5.4 Motion Actuation | A | Not applicable | Nothing is triggered by device motion |
-| 2.5.7 Dragging Movements | AA | Partially supports | Column order, sort priority, view order, filter order, panel move and resize, and column width can only be dragged; series order and tab order have buttons |
+| 2.5.7 Dragging Movements | AA | Partially supports | Every ordered list's handle opens a menu of places on a click; panel move and resize on the wide grid and column width can only be dragged |
 | 2.5.8 Target Size (Minimum) | AA | Partially supports | The column-width drag area is 8px wide; other controls are ≥24px or meet the spacing exception |
 
 ### 3 Understandable

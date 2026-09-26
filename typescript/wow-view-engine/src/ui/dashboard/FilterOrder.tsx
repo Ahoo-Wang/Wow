@@ -15,10 +15,10 @@ import { useEffect, useRef, type ReactNode } from 'react';
 import { DragDropProvider } from '@dnd-kit/react';
 import { useSortable } from '@dnd-kit/react/sortable';
 import type { DashboardField } from '../../model/index.js';
-import { DragHandle } from '../DragHandle.js';
+import { DragHandle, moveTarget, type HandleMove } from '../DragHandle.js';
 import { dragAccessibility } from '../dragAnnounce.js';
 import { dropped } from '../dragDrop.js';
-import { announcedPlugins, withoutOptimisticSorting } from '../dragPlugins.js';
+import { sortableList, withoutOptimisticSorting } from '../dragPlugins.js';
 import { dragWording } from '../dragWording.js';
 import { useViewMessages } from '../MessagesProvider.js';
 
@@ -46,7 +46,6 @@ export interface FilterCarry {
 
 /** Where the bar's drag sentences live in the catalogue. */
 const FILTER_DRAG_WORDING = {
-  instructions: 'label.filters.instructions',
   picked: 'label.filters.picked',
   cancelled: 'label.filters.cancelled',
   placeholder: 'filter',
@@ -114,7 +113,7 @@ export function useFilterOrder(
   return {
     wrap: children => (
       <DragDropProvider
-        plugins={announcedPlugins(
+        {...sortableList(
           dragAccessibility(
             dragWording(messages, FILTER_DRAG_WORDING),
             name => shown.find(field => field.name === name)?.label ?? name,
@@ -137,6 +136,7 @@ export function useFilterOrder(
         key={field.name}
         field={field}
         index={index}
+        total={shown.length}
         onHandle={element => {
           if (element) handles.current.set(field.name, element);
           else handles.current.delete(field.name);
@@ -144,7 +144,8 @@ export function useFilterOrder(
         onMove={step => {
           // Only a move that happened has a render to come back after: a
           // mark left standing would take the keyboard at some later one.
-          if (move(field.name, index + step)) refocusing.current = field.name;
+          if (move(field.name, moveTarget(step, index, shown.length)))
+            refocusing.current = field.name;
         }}
         chip={chip}
       />
@@ -156,14 +157,16 @@ export function useFilterOrder(
 function SortableFilter({
   field,
   index,
+  total,
   onHandle,
   onMove,
   chip,
 }: {
   field: DashboardField;
   index: number;
+  total: number;
   onHandle(element: HTMLElement | null): void;
-  onMove(step: -1 | 1): void;
+  onMove(move: HandleMove): void;
   chip(carry: FilterCarry): ReactNode;
 }) {
   const messages = useViewMessages();
@@ -185,6 +188,8 @@ function SortableFilter({
         label={messages.label('label.filters.reorder', {
           filter: field.label,
         })}
+        index={index}
+        total={total}
         dragging={isDragging}
         onMove={onMove}
       />

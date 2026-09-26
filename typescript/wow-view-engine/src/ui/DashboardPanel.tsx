@@ -13,11 +13,7 @@
 
 import { useRef, useState, type ReactNode, type RefObject } from 'react';
 import { cn } from 'cn';
-import {
-  readingOrder,
-  type ArrangeStep,
-  type OrderStep,
-} from '../dashboard/index.js';
+import { readingOrder, type ArrangeStep } from '../dashboard/index.js';
 import type { Issue } from '../model/index.js';
 import type { DashboardPanelView } from '../react/index.js';
 import { useAnalysisEditor } from '../react/index.js';
@@ -36,6 +32,7 @@ import {
 } from './dashboard/PanelMarks.js';
 import { analysisIssueNamer } from './analysis/issueNames.js';
 import { PanelHandle, PanelOrder } from './DashboardArrange.js';
+import type { HandleMove } from './DragHandle.js';
 import { ContentPanel } from './DashboardPanels.js';
 import type { PanelCommands } from './dashboard/commands.js';
 import type { PanelPress } from './dashboard/press.js';
@@ -151,11 +148,11 @@ export interface DashboardPanelProps {
   /** Takes back the last steps an arranging by keyboard took: its Escape. */
   onArrangeCancel?: (steps: number) => void;
   /**
-   * 「上移」／「下移」 in the one-column reading while the board is built
-   * (D22 J): where the panel stands in the column, how many there are, and
-   * the step. Left out everywhere else.
+   * The handle the panel is carried along the one-column reading by, while
+   * the board is built (D22 J): where the panel stands in the column, how
+   * many there are, and the move. Left out everywhere else.
    */
-  order?: { index: number; total: number; onMove(step: OrderStep): void };
+  order?: { index: number; total: number; onMove(move: HandleMove): void };
   /**
    * Re-runs this panel alone. Given, a panel whose query failed offers it
    * as its retry (`DashboardController.refreshPanel`).
@@ -365,7 +362,7 @@ export function DashboardPanel({
 
 /**
  * A panel's header: the marks before the title, the arrange handle while the
- * board is built, 上移／下移 in the one-column reading, the title — or the
+ * board is built, the reorder handle in the one-column reading, the title — or the
  * field it is renamed in — and the 「⋯」 menu; the badges on a line under it.
  */
 function PanelHeader({
@@ -434,6 +431,7 @@ function PanelHeader({
         )}
         {order && (
           <PanelOrder
+            panelId={panel.id}
             title={name}
             index={order.index}
             total={order.total}

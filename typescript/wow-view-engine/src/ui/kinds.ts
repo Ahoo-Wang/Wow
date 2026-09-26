@@ -96,7 +96,6 @@ const DASHBOARD_WORDS: Partial<Record<MessageKey, MessageKey>> = {
   'label.refresh.on': 'label.dashboard.refresh-on',
   'label.view.list': 'label.dashboard.list',
   'label.manage.view-group': 'label.dashboard.manage-group',
-  'label.manage.instructions': 'label.dashboard.manage-instructions',
   'label.workbench.collapse-sidebar': 'label.dashboard.collapse-sidebar',
   'label.workbench.expand-sidebar': 'label.dashboard.expand-sidebar',
   'label.workbench.switch-view': 'label.dashboard.switch',

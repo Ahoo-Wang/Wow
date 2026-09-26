@@ -11,9 +11,9 @@
  * limitations under the License.
  */
 
-import { ArrowDownIcon, ArrowUpIcon, XIcon } from 'lucide-react';
+import { XIcon } from 'lucide-react';
 import {
-  withMoved,
+  withMovedTo,
   withSlot,
   stageValues,
   withStageOrder,
@@ -27,8 +27,8 @@ import {
 import { without } from '../../model/index.js';
 import { IconButton } from '../IconButton.js';
 import { useViewMessages } from '../MessagesProvider.js';
-import { EditorCard } from '../variants.js';
 import { useListFocus } from './listFocus.js';
+import { OrderedCards } from './OrderedCards.js';
 import { TreemapSlots, WaterfallSlots } from './CompositionOptions.js';
 import { CalendarSlots, LevelSlots, RiverSlots } from './LevelOptions.js';
 import { MapSlots } from './MapOptions.js';
@@ -256,10 +256,10 @@ function FunnelData({ chart, shape, rows, label, onChange }: OptionsPageProps) {
             item.metric,
           given: item.label,
         }))}
-        onMove={(index, step) =>
+        onReorder={(from, to) =>
           update({
             ...spec,
-            stages: { from: 'metrics', items: withMoved(items, index, step) },
+            stages: { from: 'metrics', items: withMovedTo(items, from, to) },
           })
         }
         /**
@@ -325,8 +325,8 @@ function FunnelData({ chart, shape, rows, label, onChange }: OptionsPageProps) {
           key: value,
           name: label(stages.category, value),
         }))}
-        onMove={(index, step) =>
-          update(withStageOrder(spec, withMoved(order, index, step)))
+        onReorder={(from, to) =>
+          update(withStageOrder(spec, withMovedTo(order, from, to)))
         }
         onRemove={index =>
           update(
@@ -342,7 +342,8 @@ function FunnelData({ chart, shape, rows, label, onChange }: OptionsPageProps) {
 }
 
 /**
- * The stages in the order they are drawn in.
+ * The stages in the order they are drawn in, carried by the handle every
+ * ordered list here is (`OrderedCards`).
  *
  * A stage that comes from a metric also carries a name of its own
  * ({@link onName}), written in a box that is always there rather than
@@ -356,104 +357,85 @@ function FunnelData({ chart, shape, rows, label, onChange }: OptionsPageProps) {
 function StageList({
   title,
   stages,
-  onMove,
+  onReorder,
   onName,
   onRemove,
 }: {
   title: string;
   /** `name` is what the stage is called by default; `given`, what was typed. */
   stages: { key: string; name: string; given?: string }[];
-  onMove(index: number, step: -1 | 1): void;
+  onReorder(from: number, to: number): void;
   /** Names a stage, or takes the name back on an emptied box. */
   onName?(index: number, given: string | undefined): void;
   onRemove?(index: number): void;
 }) {
   const messages = useViewMessages();
-  // A stage that goes leaves the keyboard on the stage that took its place;
-  // a stage that moves keeps it on the button that moved it, at the index
-  // the stage landed on — including the boundary, where that button is now
-  // disabled and the other way round takes the focus (`listFocus.ts`).
+  // A stage that goes leaves the keyboard on the stage that took its place
+  // (`listFocus.ts`); one that moves keeps it on its handle, which moves
+  // with it.
   const focus = useListFocus({
     list: '[data-slot="chart-options-stages"]',
     item: '[data-slot="stage-card"]',
   });
   return (
     <OptionsSection name="stages" title={title}>
-      <ol className="flex flex-col gap-2">
-        {stages.map((stage, index) => {
-          // The buttons name the stage as it reads on screen: once it has
-          // been given a name, that is the stage as far as the analyst is
-          // concerned.
-          const name = stage.given ?? stage.name;
-          return (
-            <li key={stage.key}>
-              <EditorCard data-slot="stage-card" data-stage={stage.key}>
-                {onName ? (
-                  <NameField
-                    label={messages.label('label.chart.stage-name', {
-                      name: stage.name,
-                    })}
-                    placeholder={stage.name}
-                    value={stage.given}
-                    onChange={given => onName(index, given)}
-                  />
-                ) : (
-                  // Cut off at the card's width; `title` is how a pointer
-                  // reads the rest of it.
-                  <span
-                    data-slot="stage-name"
-                    className="truncate font-medium"
-                    title={name}
-                  >
-                    {name}
-                  </span>
-                )}
-                <IconButton
-                  label={messages.label('label.chart.move-up', { name })}
-                  variant="ghost"
-                  size="icon-xs"
-                  className="ml-auto"
-                  data-move="up"
-                  disabled={index === 0}
-                  onClick={event => {
-                    focus.moved(event, index - 1, 'up');
-                    onMove(index, -1);
-                  }}
-                >
-                  <ArrowUpIcon />
-                </IconButton>
-                <IconButton
-                  label={messages.label('label.chart.move-down', { name })}
-                  variant="ghost"
-                  size="icon-xs"
-                  data-move="down"
-                  disabled={index === stages.length - 1}
-                  onClick={event => {
-                    focus.moved(event, index + 1, 'down');
-                    onMove(index, 1);
-                  }}
-                >
-                  <ArrowDownIcon />
-                </IconButton>
-                {onRemove && (
-                  <IconButton
-                    label={messages.label('label.chart.remove-stage', { name })}
-                    variant="ghost"
-                    size="icon-xs"
-                    disabled={stages.length <= 2}
-                    onClick={event => {
-                      focus.removing(event, index);
-                      onRemove(index);
-                    }}
-                  >
-                    <XIcon />
-                  </IconButton>
-                )}
-              </EditorCard>
-            </li>
-          );
-        })}
-      </ol>
+      <OrderedCards
+        slot="stage-card"
+        mark="stage"
+        voice="stage-announcement"
+        label={title}
+        // The handle and the voice name the stage as it reads on screen:
+        // once it has been given a name, that is the stage as far as the
+        // analyst is concerned.
+        items={stages.map(stage => ({
+          ...stage,
+          name: stage.given ?? stage.name,
+          fallback: stage.name,
+        }))}
+        onReorder={onReorder}
+      >
+        {(stage, index) => (
+          <>
+            {onName ? (
+              <NameField
+                label={messages.label('label.chart.stage-name', {
+                  name: stage.fallback,
+                })}
+                placeholder={stage.fallback}
+                value={stage.given}
+                onChange={given => onName(index, given)}
+              />
+            ) : (
+              // Cut off at the card's width; `title` is how a pointer
+              // reads the rest of it.
+              <span
+                data-slot="stage-name"
+                className="truncate font-medium"
+                title={stage.name}
+              >
+                {stage.name}
+              </span>
+            )}
+            {onRemove && (
+              <IconButton
+                label={messages.label('label.chart.remove-stage', {
+                  name: stage.name,
+                })}
+                variant="ghost"
+                size="icon-xs"
+                className="ml-auto"
+                disabled={stages.length <= 2}
+                onClick={event => {
+                  focus.removing(event, index);
+                  onRemove(index);
+                }}
+              >
+                <XIcon />
+              </IconButton>
+            )}
+          </>
+        )}
+      </OrderedCards>
     </OptionsSection>
   );
 }

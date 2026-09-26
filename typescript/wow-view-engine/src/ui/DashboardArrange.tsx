@@ -13,6 +13,7 @@
 
 import {
   createContext,
+  useCallback,
   useContext,
   useId,
   useLayoutEffect,
@@ -20,9 +21,12 @@ import {
   useState,
 } from 'react';
 import type * as React from 'react';
-import { ArrowDownIcon, ArrowUpIcon, GripVerticalIcon } from 'lucide-react';
-import type { ArrangeStep, OrderStep } from '../dashboard/index.js';
-import { useListFocus } from './analysis/listFocus.js';
+import { Feedback } from '@dnd-kit/dom';
+import { useSortable } from '@dnd-kit/react/sortable';
+import { GripVerticalIcon } from 'lucide-react';
+import type { ArrangeStep } from '../dashboard/index.js';
+import { DragHandle, type HandleMove } from './DragHandle.js';
+import { withoutOptimisticSorting } from './dragPlugins.js';
 import { IconButton, IconTooltip } from './IconButton.js';
 import { useViewMessages } from './MessagesProvider.js';
 
@@ -299,55 +303,69 @@ export function PanelResizeHandle({
 }
 
 export interface PanelOrderProps {
-  /** What the panel is called, so each button says which one it moves. */
+  /** Which panel it carries: the id the library holds it by. */
+  panelId: string;
+  /** What the panel is called, so the handle says which one it moves. */
   title: string;
   /** Where the panel stands in the column, from 0, and how many there are. */
   index: number;
   total: number;
-  onMove(step: OrderStep): void;
+  /** Moves the panel, from the arrow keys on the handle or from its menu. */
+  onMove(move: HandleMove): void;
 }
 
 /**
- * 「上移」／「下移」 on a panel in the one-column reading (D22 J), where the
- * grip and the corner are not: a step along the column, which the runtime
- * writes back onto the grid as the layout that reads that way
- * (`reorderPanel`). The column is the order a reader goes down, so the
- * buttons are the tray's own pattern — named after the panel, disabled at
- * either end, and the keyboard kept on the button that moved it at the
- * place the panel landed, or on the other one once that way has run out
- * (`useListFocus`).
+ * The handle a panel is carried along the one-column reading by (D22 J),
+ * where the grip and the corner are not: the handle every ordered list here
+ * is (`DragHandle`, 「可排序的列表一律拖拽排序」) — dragged by a pointer onto
+ * another panel's place, moved a place by ↑／↓, picked up by Space, or
+ * clicked for the menu of the four places it can go. The runtime writes the
+ * place back onto the grid as the layout that reads that way
+ * (`reorderPanel`). It is what the grid's `DragDropProvider` sorts, the card
+ * being what the library carries; the handle is on the header, where the
+ * wide grid's grip is.
  */
-export function PanelOrder({ title, index, total, onMove }: PanelOrderProps) {
+export function PanelOrder({
+  panelId,
+  title,
+  index,
+  total,
+  onMove,
+}: PanelOrderProps) {
   const messages = useViewMessages();
-  const focus = useListFocus({
-    list: '[data-slot="dashboard-tab-panel"]',
-    item: '[data-slot="dashboard-panel"]',
+  const { ref, handleRef, isDragging } = useSortable({
+    id: panelId,
+    index,
+    // No flight home after the drop: the grid places the panel itself, by
+    // a transform of its own, and the library's animation towards the old
+    // place never settled there — the card was left unpressable.
+    plugins: defaults => [
+      ...withoutOptimisticSorting(defaults),
+      Feedback.configure({ dropAnimation: null }),
+    ],
   });
-  const button = (step: OrderStep, Icon: React.FC, disabled: boolean) => (
-    <IconButton
-      type="button"
-      data-slot="panel-order"
-      data-move={step}
-      label={messages.label(
-        step === 'up' ? 'label.panel.order-up' : 'label.panel.order-down',
-        { title },
-      )}
-      variant="ghost"
-      size="icon-sm"
-      className="shrink-0"
-      disabled={disabled}
-      onClick={(event: React.MouseEvent<HTMLElement>) => {
-        focus.moved(event, step === 'up' ? index - 1 : index + 1, step);
-        onMove(step);
-      }}
-    >
-      <Icon />
-    </IconButton>
+  // The card the handle is on is what the library lifts: the grid item
+  // around it is placed by the grid's own transform, which a drag must not
+  // fight over.
+  const hold = useCallback(
+    (element: HTMLElement | null) => {
+      handleRef(element);
+      ref(
+        element?.closest<HTMLElement>('[data-slot="dashboard-panel"]') ?? null,
+      );
+    },
+    [handleRef, ref],
   );
   return (
-    <>
-      {button('up', ArrowUpIcon, index === 0)}
-      {button('down', ArrowDownIcon, index >= total - 1)}
-    </>
+    <DragHandle
+      ref={hold}
+      label={messages.label('label.panel.reorder', { title })}
+      index={index}
+      total={total}
+      dragging={isDragging}
+      // `icon-sm`, as the header's other buttons are.
+      size="icon-sm"
+      onMove={onMove}
+    />
   );
 }

@@ -99,8 +99,6 @@ export const filtersMessages = {
   'label.filters.refused': 'Some of the filters in the link could not be used',
   // Putting the filters in another order while the board is built.
   'label.filters.reorder': 'Reorder “{filter}”',
-  'label.filters.instructions':
-    'Press Space to pick the filter up, the arrow keys to move it, Space again to put it down, or Escape to leave it where it was.',
   'label.filters.picked': 'Picked up the filter “{filter}”.',
   'label.filters.cancelled': 'The filter “{filter}” stayed where it was.',
   'label.filters.moved': '“{filter}” is now filter {index} of {total}',

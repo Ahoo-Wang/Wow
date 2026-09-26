@@ -28,6 +28,7 @@ import { manageMessages } from './manage.js';
 import { recordMessages } from './record.js';
 import { refreshMessages } from './refresh.js';
 import { renderMessages } from './render.js';
+import { reorderMessages } from './reorder.js';
 import { saveMessages } from './save.js';
 import { scopeMessages } from './scope.js';
 import { statusMessages } from './status.js';
@@ -69,4 +70,5 @@ export const en = {
   ...workbenchMessages,
   ...renderMessages,
   ...bulkMessages,
+  ...reorderMessages,
 } as const;

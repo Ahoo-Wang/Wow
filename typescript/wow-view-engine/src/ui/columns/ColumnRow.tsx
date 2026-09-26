@@ -16,7 +16,7 @@ import { useSortable } from '@dnd-kit/react/sortable';
 import { CircleSlashIcon, PinIcon } from 'lucide-react';
 import type { SummaryFunction } from '../../model/index.js';
 import { summaryFunctionKey } from '../display.js';
-import { DragHandle } from '../DragHandle.js';
+import { DragHandle, type HandleMove } from '../DragHandle.js';
 import { withoutOptimisticSorting } from '../dragPlugins.js';
 import { IconButton } from '../IconButton.js';
 import type { MessageFormatters } from '../MessagesProvider.js';
@@ -114,8 +114,13 @@ export interface ColumnRowProps {
    */
   released?: boolean;
   onSummary(fn: SummaryFunction | null): void;
-  /** Moves the row one place, from the arrow keys on its handle. */
-  onMove(step: -1 | 1): void;
+  /**
+   * Where the row stands among the columns it can trade places with — its
+   * area's movable ones — and how many there are, for the handle's menu.
+   */
+  place: { index: number; total: number };
+  /** Moves the row, from the arrow keys on its handle or from its menu. */
+  onMove(move: HandleMove): void;
   /** True while the library is carrying this row, so the arrows are its. */
   dragging?: boolean;
   elementRef?(element: HTMLElement | null): void;
@@ -144,6 +149,7 @@ export function ColumnRow({
   onPin,
   released = false,
   onSummary,
+  place,
   onMove,
   dragging,
   elementRef,
@@ -211,6 +217,8 @@ export function ColumnRow({
         <DragHandle
           ref={handleRef}
           label={messages.label('label.columns.drag', { field: label })}
+          index={place.index}
+          total={place.total}
           dragging={dragging}
           disabled={!row.movable}
           describedBy={refused && !row.movable ? noteId : undefined}

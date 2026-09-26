@@ -200,9 +200,9 @@ export function withSmooth(spec: CartesianSpec, on: boolean): CartesianSpec {
  * The list with the item at `from` taken out and put back at `to`, or as it
  * was when either place is not one this list has.
  *
- * Both ways a list on this panel is reordered end up here: an arrow key on a
- * handle names the place one step away, and a drop names the place it landed
- * on, which may be any of them.
+ * Every way a list on this panel is reordered ends up here: an arrow key on
+ * a handle names the place one step away, the handle's menu one step away or
+ * either end, and a drop the place it landed on, which may be any of them.
  */
 export function withMovedTo<T>(
   items: readonly T[],
@@ -214,15 +214,6 @@ export function withMovedTo<T>(
   const next = [...items];
   next.splice(to, 0, ...next.splice(from, 1));
   return next;
-}
-
-/** The list with the item at `index` moved one step, or as it was at an end. */
-export function withMoved<T>(
-  items: readonly T[],
-  index: number,
-  step: -1 | 1,
-): T[] {
-  return withMovedTo(items, index, index + step);
 }
 
 /**

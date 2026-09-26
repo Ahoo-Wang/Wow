@@ -25,7 +25,6 @@ import type { ViewAudience } from '../../model/index.js';
 import { dragAccessibility } from '../dragAnnounce.js';
 import { dragWording, type DragWordingKeys } from '../dragWording.js';
 import { dropped, type Drop, type DropOperation } from '../dragDrop.js';
-import type { MessageKey } from '../messages.js';
 import type { MessageFormatters } from '../MessagesProvider.js';
 
 /**
@@ -54,7 +53,6 @@ export function managerDrop(
 
 /** Where this list's drag sentences live in the catalogue. */
 export const MANAGE_DRAG_WORDING: DragWordingKeys = {
-  instructions: 'label.manage.instructions',
   picked: 'label.manage.picked',
   cancelled: 'label.manage.cancelled',
   placeholder: 'title',
@@ -68,14 +66,9 @@ export const MANAGE_DRAG_WORDING: DragWordingKeys = {
 export function manageDragAccessibility(
   messages: MessageFormatters,
   titleFor: (id: string) => string,
-  /** The kind's own word for the instructions (`useKindWord`). */
-  word: (key: MessageKey) => MessageKey = key => key,
 ) {
   return dragAccessibility(
-    dragWording(messages, {
-      ...MANAGE_DRAG_WORDING,
-      instructions: word(MANAGE_DRAG_WORDING.instructions),
-    }),
+    dragWording(messages, MANAGE_DRAG_WORDING),
     titleFor,
   );
 }

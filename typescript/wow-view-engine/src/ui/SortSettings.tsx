@@ -35,8 +35,8 @@ import {
   ItemTitle,
 } from './components/item.js';
 import { RowItem } from './RowItem.js';
-import { DragHandle } from './DragHandle.js';
-import { announcedPlugins, withoutOptimisticSorting } from './dragPlugins.js';
+import { DragHandle, moveTarget, type HandleMove } from './DragHandle.js';
+import { sortableList, withoutOptimisticSorting } from './dragPlugins.js';
 import { IconButton } from './IconButton.js';
 import {
   Popover,
@@ -294,7 +294,7 @@ export function SortSettings({
           </Empty>
         ) : (
           <DragDropProvider
-            plugins={announcedPlugins(sortDragAccessibility(messages, named))}
+            {...sortableList(sortDragAccessibility(messages, named))}
             onDragEnd={({ operation, canceled }) => {
               const drop = sortDrop(operation, canceled);
               if (drop) moveTo(drop.from, drop.to);
@@ -307,10 +307,12 @@ export function SortSettings({
             >
               {table.sort.map((entry, index) => (
                 <SortEntry
-                  // Keyed by its place as well as its field: a config that
-                  // sorts twice by one field is two entries, and removing one
-                  // of them has to leave the other where it is.
-                  key={`${entry.field}-${index}`}
+                  // Keyed by its field and which of that field's entries it
+                  // is: a config that sorts twice by one field is two
+                  // entries, and removing one of them has to leave the other
+                  // where it is — while a move keeps the row, so its handle
+                  // keeps the keyboard and its menu, as every list does.
+                  key={`${entry.field}-${occurrence(table.sort, index)}`}
                   entry={entry}
                   index={index}
                   total={table.sort.length}
@@ -327,7 +329,9 @@ export function SortSettings({
                       table.sort.filter((_other, at) => at !== index),
                     )
                   }
-                  onMove={step => moveTo(index, index + step)}
+                  onMove={move =>
+                    moveTo(index, moveTarget(move, index, table.sort.length))
+                  }
                 />
               ))}
             </ul>
@@ -409,8 +413,8 @@ function SortEntry({
   label: string;
   onFlip(): void;
   onRemove(): void;
-  /** Moves this entry one place, from the arrow keys on its handle. */
-  onMove(step: -1 | 1): void;
+  /** Moves this entry, from the arrow keys on its handle or its menu. */
+  onMove(move: HandleMove): void;
 }) {
   const messages = useViewMessages();
   const direction = directionOf(entry.direction);
@@ -434,6 +438,8 @@ function SortEntry({
         <DragHandle
           ref={handleRef}
           label={messages.label('label.sort.drag', { field: label })}
+          index={index}
+          total={total}
           dragging={isDragging}
           // A single entry is already first and last at once: a handle that
           // can only put it back where it is says it can do something it
@@ -567,4 +573,10 @@ function flip(entry: RecordSort): RecordSort {
     field: entry.field,
     direction: directionOf(entry.direction) === 'ASC' ? 'DESC' : 'ASC',
   };
+}
+
+/** Which of its field's entries the one at `index` is, counting from 0. */
+function occurrence(sort: readonly RecordSort[], index: number): number {
+  const field = sort[index]?.field;
+  return sort.slice(0, index).filter(entry => entry.field === field).length;
 }

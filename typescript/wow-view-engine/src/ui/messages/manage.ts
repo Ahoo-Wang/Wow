@@ -34,8 +34,6 @@ export const manageMessages = {
   // carrying a row rather than by clicking it up one step at a time; the
   // keyboard says the same thing on the same handle.
   'label.manage.drag': 'Reorder {title}',
-  'label.manage.instructions':
-    'Press the arrow keys to move this view one place. Press space to pick it up, the arrow keys to move it, space again to drop it and escape to cancel.',
   'label.manage.moved': '{title} moved to position {index} of {total}',
   'label.manage.picked': '{title} picked up',
   'label.manage.cancelled': 'Move cancelled; {title} stayed where it was',

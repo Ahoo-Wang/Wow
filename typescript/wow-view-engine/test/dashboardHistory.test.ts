@@ -329,14 +329,14 @@ describe('the history of building a board', () => {
 });
 
 describe('reordering the one-column reading, in the runtime', () => {
-  it('moves a panel one place along its tab, on the draft and on screen, as one step', async () => {
+  it('moves a panel to a place along its tab, on the draft and on screen, as one step', async () => {
     const runtime = await harness().open(
       dashboardConfig({
         panels: [note('top'), note('bottom', { x: 0, y: 2, w: 24, h: 2 })],
       }),
     );
 
-    runtime.reorderPanel('bottom', 'up');
+    runtime.reorderPanel('bottom', 0);
     let state = runtime.getSnapshot();
     expect(state.draft.panels.map(panel => [panel.id, panel.layout.y])).toEqual(
       [
@@ -350,8 +350,9 @@ describe('reordering the one-column reading, in the runtime', () => {
       subject: 'bottom',
     });
 
-    // Nowhere further up: no step.
-    runtime.reorderPanel('bottom', 'up');
+    // Where it already is, and a place the tab does not have: no step.
+    runtime.reorderPanel('bottom', 0);
+    runtime.reorderPanel('bottom', -1);
     runtime.undo();
     state = runtime.getSnapshot();
     expect(state.draft.panels.map(panel => panel.layout.y)).toEqual([0, 2]);

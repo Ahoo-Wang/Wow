@@ -39,10 +39,7 @@ import {
 } from '../src/index.js';
 import { DataWorkbench } from '../src/ui/index.js';
 import { defaultMessages } from '../src/ui/messages.js';
-import {
-  seriesDragAccessibility,
-  seriesDrop,
-} from '../src/ui/analysis/drag.js';
+import { chartDragAccessibility, listDrop } from '../src/ui/analysis/drag.js';
 import { ordersDefinition, testSource } from './fixtures.js';
 import { formattersFor } from './fixtures/columns.js';
 import { describedText } from './fixtures/ui.js';
@@ -942,10 +939,19 @@ describe('the chart options of the other families', () => {
         card.getAttribute('data-stage'),
       );
     expect(stages()).toEqual(['orders', 'total']);
-    fireEvent.click(
-      within(panel()!).getByRole('button', { name: 'Move Record count down' }),
-    );
+    // Carried by the handle every ordered list is: ↓ on it moves the stage
+    // one place, and the list says where it landed.
+    const handle = within(panel()!).getByRole('button', {
+      name: 'Reorder Record count',
+    });
+    handle.focus();
+    fireEvent.keyDown(handle, { key: 'ArrowDown' });
     await waitFor(() => expect(stages()).toEqual(['total', 'orders']));
+    expect(
+      document.querySelector('[data-slot="stage-announcement"]')!.textContent,
+    ).toBe('Record count moved to position 2 of 2');
+    // A move keeps the card, so the keyboard is still on the handle.
+    expect(document.activeElement).toBe(handle);
 
     // A stage is a step of a business — 「下单」 — and the metric's column
     // title says what was measured, which is rarely the same sentence. The
@@ -959,9 +965,9 @@ describe('the chart options of the other families', () => {
         items: [{ metric: 'total' }, { metric: 'orders', label: 'Placed' }],
       }),
     );
-    // The buttons on the card name the stage as the analyst renamed it.
+    // The handle names the stage as the analyst renamed it.
     expect(
-      within(panel()!).getByRole('button', { name: 'Move Placed up' }),
+      within(panel()!).getByRole('button', { name: 'Reorder Placed' }),
     ).toBeDefined();
 
     await user.clear(box);
@@ -1024,8 +1030,12 @@ describe('the chart options of the other families', () => {
       ),
     ).toEqual(['PENDING', 'SHIPPED', 'PAID']);
 
-    fireEvent.click(
-      within(panel()!).getByRole('button', { name: 'Move PENDING down' }),
+    // A click on the handle is the one-press way (WCAG 2.5.7): its menu.
+    await user.click(
+      within(panel()!).getByRole('button', { name: 'Reorder PENDING' }),
+    );
+    await user.click(
+      await screen.findByRole('menuitem', { name: 'Move one place later' }),
     );
     await waitFor(() =>
       expect(stages()).toEqual(['SHIPPED', 'PENDING', 'PAID']),
@@ -1221,13 +1231,9 @@ describe('what the chart options change on screen', () => {
  * gesture itself is a browser story, and what it means is tested here.
  */
 describe('what a drop on the series list means', () => {
-  const SERIES = [
-    { metric: 'orders' },
-    { metric: 'total' },
-    { metric: 'average' },
-  ];
+  const SERIES = ['orders', 'total', 'average'];
   const drop = (source: string, target: string, canceled?: boolean) =>
-    seriesDrop(
+    listDrop(
       SERIES,
       { source: { id: source }, target: { id: target } },
       canceled,
@@ -1240,8 +1246,8 @@ describe('what a drop on the series list means', () => {
   it('is nothing when the drag was given up, or ended where it began', () => {
     expect(drop('average', 'orders', true)).toBeNull();
     expect(drop('total', 'total')).toBeNull();
-    expect(seriesDrop(SERIES, { source: { id: 'total' } }, false)).toBeNull();
-    expect(seriesDrop(SERIES, { target: { id: 'total' } }, false)).toBeNull();
+    expect(listDrop(SERIES, { source: { id: 'total' } }, false)).toBeNull();
+    expect(listDrop(SERIES, { target: { id: 'total' } }, false)).toBeNull();
   });
 
   /**
@@ -1261,7 +1267,7 @@ describe('what a drop on the series list means', () => {
  * reader is looking at.
  */
 describe('what a series drag says out loud', () => {
-  const accessibility = seriesDragAccessibility(
+  const accessibility = chartDragAccessibility(
     formattersFor(defaultMessages),
     alias => (alias === 'total' ? 'Sum of Amount' : alias),
   );
@@ -1283,7 +1289,7 @@ describe('what a series drag says out loud', () => {
 
   it('carries the instructions a reader is given on the handle', () => {
     expect(accessibility.screenReaderInstructions.draggable).toBe(
-      defaultMessages['label.chart.series-instructions'],
+      defaultMessages['label.reorder.instructions'],
     );
   });
 });

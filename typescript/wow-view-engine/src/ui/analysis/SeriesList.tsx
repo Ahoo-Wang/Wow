@@ -34,14 +34,14 @@ import {
   ItemMedia,
   ItemTitle,
 } from '../components/item.js';
-import { DragHandle } from '../DragHandle.js';
+import { DragHandle, moveTarget, type HandleMove } from '../DragHandle.js';
 import { IconButton } from '../IconButton.js';
 import { useViewMessages } from '../MessagesProvider.js';
 import { DropdownMenuContent } from '../popups.js';
 import { RowItem } from '../RowItem.js';
 import { CompactSelect } from './CompactSelect.js';
-import { announcedPlugins, withoutOptimisticSorting } from '../dragPlugins.js';
-import { seriesDragAccessibility, seriesDrop } from './drag.js';
+import { sortableList, withoutOptimisticSorting } from '../dragPlugins.js';
+import { chartDragAccessibility, listDrop } from './drag.js';
 import { useListFocus, type ListFocus } from './listFocus.js';
 import { OptionsSection, type Choice } from './optionControls.js';
 
@@ -120,7 +120,7 @@ export function SeriesList({
     const order = withMovedTo(spec.series, from, to);
     update(order);
     say(
-      messages.label('label.chart.series-moved', {
+      messages.label('label.chart.moved', {
         name: nameOf(carried.metric),
         index: to + 1,
         total: order.length,
@@ -133,9 +133,13 @@ export function SeriesList({
       title={messages.label('label.chart.slot.series')}
     >
       <DragDropProvider
-        plugins={announcedPlugins(seriesDragAccessibility(messages, nameOf))}
+        {...sortableList(chartDragAccessibility(messages, nameOf))}
         onDragEnd={({ operation, canceled }) => {
-          const drop = seriesDrop(spec.series, operation, canceled);
+          const drop = listDrop(
+            spec.series.map(series => series.metric),
+            operation,
+            canceled,
+          );
           if (drop) moveTo(drop.from, drop.to);
         }}
       >
@@ -157,7 +161,9 @@ export function SeriesList({
               onRemove={() =>
                 update(spec.series.filter((_series, at) => at !== index))
               }
-              onMove={step => moveTo(index, index + step)}
+              onMove={move =>
+                moveTo(index, moveTarget(move, index, spec.series.length))
+              }
             />
           ))}
         </ul>
@@ -252,8 +258,8 @@ function SeriesRow({
   focus: ListFocus;
   onPatch(change: Partial<CartesianSeries>): void;
   onRemove(): void;
-  /** Moves this series one place, from the arrow keys on its handle. */
-  onMove(step: -1 | 1): void;
+  /** Moves this series, from the arrow keys on its handle or its menu. */
+  onMove(move: HandleMove): void;
 }) {
   const messages = useViewMessages();
   const { ref, handleRef, isDragging } = useSortable({
@@ -274,7 +280,9 @@ function SeriesRow({
       <ItemMedia>
         <DragHandle
           ref={handleRef}
-          label={messages.label('label.chart.drag-series', { name })}
+          label={messages.label('label.chart.reorder', { name })}
+          index={index}
+          total={total}
           dragging={isDragging}
           // One series is first and last at once: a handle that can only put
           // it back where it is says it can do something it cannot.

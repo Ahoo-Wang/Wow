@@ -26,8 +26,6 @@ export const dashboardMessages = {
     'This dashboard refreshes itself every {interval}.',
   'label.dashboard.list': 'Dashboards',
   'label.dashboard.manage-group': 'What to do with this dashboard',
-  'label.dashboard.manage-instructions':
-    'Press the arrow keys to move this dashboard one place. Press space to pick it up, the arrow keys to move it, space again to drop it and escape to cancel.',
   'label.dashboard.collapse-sidebar': 'Hide the dashboard list',
   'label.dashboard.expand-sidebar': 'Show the dashboard list',
   'label.dashboard.switch': 'Switch dashboard',
@@ -255,9 +253,11 @@ export const dashboardMessages = {
   'label.panel.move-to-tab': 'Move to tab',
   'label.panel.save-as-view': 'Save as a view…',
   'label.panel.remove': 'Remove from dashboard',
-  // The one-column reading's order (D22 J): a step along it, and where the panel came to.
-  'label.panel.order-up': 'Move “{title}” up',
-  'label.panel.order-down': 'Move “{title}” down',
+  // The one-column reading's order (D22 J): the handle it is carried by,
+  // what a pick-up says, and where the panel came to.
+  'label.panel.reorder': 'Reorder “{title}”',
+  'label.panel.picked': 'Picked up the panel “{title}”.',
+  'label.panel.cancelled': 'The panel “{title}” stayed where it was.',
   'label.panel.reordered': '“{title}” is now panel {index} of {total}',
   'label.panel.title-input': 'Panel title',
   'label.panel.heading-input': 'Heading text',

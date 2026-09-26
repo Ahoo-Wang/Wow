@@ -33,7 +33,7 @@ Record 工作台的结果区组件。三种视图共用的骨架、状态条、�
 - 汇总下拉的选项是"不汇总"加字段声明的函数，写入 `config.summaries`；配置可一字段多函数（表格照画），控件一列只给一个，选中即替换；
 - 固定开关写入 `table.columns[].pinned`；取消时**删掉**那个键而不是置 `undefined`——`dequal` 会把 `{ pinned: undefined }` 读成改动，视图一直"未保存"；
 - **拖放用现成的库**（`@dnd-kit/react` + `@dnd-kit/dom`，走 catalog）。只有可拖的行注册成 sortable item。`OptimisticSortingPlugin` 按 [interaction-primitives 设计](../../../../docs/superpowers/specs/2026-09-13-view-engine-interaction-primitives-design.md) 关掉——它在指针移动时重排 DOM，让落点下标失效；落点由 drop 报出的 source／target 两个 id 算出。真指针链路只能在浏览器里跑（jsdom 里盒子都是 0×0），是 `stories/view-engine/RecordWorkbench.test.stories.tsx` 的一条故事，断言表头列序与保存后的 `table.columns`；
-- **键盘**：手柄可聚焦，方向键在区内移一位；空格拾起后方向键交给库（`isDragging` 时本地让路），各有单一播报源，库的英文句子换成目录里的，落定由设置自己的 live region 说一次。**手柄只有一份**：`ui/DragHandle.tsx`，列设置、排序编辑器、视图管理器共用；放下由 `ui/dragDrop.ts` 的 `dropped()` 判定（test/dragHandle.test.tsx；test/accessibility.test.tsx「record, with the column settings open」）。
+- **键盘与一次点击**：手柄可聚焦，方向键在区内移一位；点一下手柄弹出「移到…」菜单（WCAG 2.5.7，[ui/README.md](README.md)「一列行只有一个配方」）；空格拾起后方向键交给库（`isDragging` 时本地让路），各有单一播报源，库的英文句子换成目录里的，落定由设置自己的 live region 说一次。**手柄只有一份**：`ui/DragHandle.tsx`，列设置、排序编辑器、视图管理器共用；放下由 `ui/dragDrop.ts` 的 `dropped()` 判定（test/dragHandle.test.tsx；test/accessibility.test.tsx「record, with the column settings open」）。
 
 ### 列设置的目录分组与搜索
 
@@ -66,7 +66,7 @@ Record 工作台的结果区组件。三种视图共用的骨架、状态条、�
 - **按钮上只有一枚箭头**：中性的 `↕` 只在没排序时戴，排了序由方向箭头接替，与表头（`SortableHeader`）同一朝向；它不占 `data-icon` 槽位（会收紧内边距，而多条时结尾是 `+{n}`）；
 - 编辑器逐条列出手柄、序号、字段与方向，方向可翻、条目可删；字段选择器只列**可排序且未用到**的字段，用完即禁用。新字段追加在末尾、升序——它是并列打破者，插在别处等于悄悄改了主排序；
 - **顺序可拖**（`label.sort.hint`「先按第一个字段排序，相同时再按下一个」），接列设置同一套（`@dnd-kit`，`OptimisticSortingPlugin` 关掉，播报用 `label.sort.*`）。**按位置认身份**（`sort-entry-{i}`）：重复字段是内核会拒的（`record.sort.duplicate`），编辑器仍列出两条好删掉一条。落点算出整份顺序，经 `table.setSort([...])` 一次写出。只有一条时手柄禁用。每条是一个 `Item`（D16 裁定三：`ItemMedia` 手柄与序号、`ItemContent` 字段名、`ItemActions` 方向与移除）；
-- **键盘**：同一个 `ui/DragHandle.tsx`（只给名字、`total < 2` 时禁用、移动回调）。落点是 `ui/sort/drag.ts` 的纯函数（先过 `dropped()`，再问两个 id 是否都指向本列表），jsdom 可测；真指针链路是 `stories/view-engine/RecordWorkbench.test.stories.tsx` 的一条故事，断言表头 `aria-sort` 与按钮摘要；
+- **键盘与一次点击**：同一个 `ui/DragHandle.tsx`（只给名字、位置、`total < 2` 时禁用、移动回调；方向键与「移到…」菜单都在那一份里）。条目按字段与它是这个字段的第几条作键，移动时行不重建，键盘与菜单留在手柄上。落点是 `ui/sort/drag.ts` 的纯函数（先过 `dropped()`，再问两个 id 是否都指向本列表），jsdom 可测；真指针链路是 `stories/view-engine/RecordWorkbench.test.stories.tsx` 的一条故事，断言表头 `aria-sort` 与按钮摘要；
 - **引擎追加的行键不是排序的一项**：记录查询以行键升序收尾，好让翻页不重不漏（[kernels.md「Record 内核的规则」](../kernels.md#record-内核的规则)）。排序编辑器、表头 `aria-sort` 与位次、按钮摘要一律读配置里的 `sort`（test/recordWorkbenchInteraction.test.tsx「keeps the tie-breaking row key out of every sort control」）；
 - 没有任何 `sortable` 字段时控件不渲染；
 - **选择器停在内核开始拒绝的地方**：游标源的排序上限是 `MAX_CURSOR_SORT_FIELDS`（含收尾行键），超了 `validateRecord` 报 `record.sort.too-many`。内核的 `maxSortFields(definition)` 经控制器的 `maxSortFields` 送到控件，满了禁用并以 `label.sort.full` 说明；

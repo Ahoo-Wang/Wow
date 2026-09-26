@@ -30,6 +30,7 @@ import {
   valueLabels,
 } from './chartDom.js';
 import { findDataTable, readColumn, readHeaders } from './readTable.js';
+import { dragHandleOnto } from './pointerDrag.js';
 import { formatRgb, parse } from 'culori';
 
 const meta = {
@@ -318,6 +319,113 @@ export const FunnelFromTheRows: Story = {
     await expect(stages).toEqual(
       readColumn(table, '仓库').map((name, index) => [name, counts[index]]),
     );
+  },
+};
+
+/**
+ * 漏斗的阶段调顺序：「漏斗图选项 › 数据 › 阶段顺序」和其他能排序的列表一样只用
+ * 拖拽排序（2026-09-25）——每张阶段卡片最前面一个抓手，没有上移／下移箭头。
+ *
+ * 三种手势同一个抓手：指针把第一段拖到第二段上；键盘停在抓手上按 ↓ 移一位，
+ * 播报落在第几位、焦点留在抓手上；点一下抓手弹出「移到最前／往前移一位／往后
+ * 移一位／移到最后」（拖不动的指针的一次点击替代，WCAG 2.5.7），到头的那几项
+ * 在、但置灰。每一步都画回图上：读屏表里各段的顺序跟着变。结尾菜单开着，让 axe
+ * 连菜单一起查。
+ */
+export const FunnelStageOrder: Story = {
+  ...DisplayBarChart,
+  play: async ({ canvasElement }) => {
+    await chartsDrawn(canvasElement);
+    await waitFor(() => expect(bars(canvasElement)).toHaveLength(4));
+    const panel = await visualize(canvasElement);
+    await userEvent.click(chartTile(panel, 'funnel'));
+    await waitFor(() =>
+      expect(
+        canvasElement.querySelector('[data-slot="chart"][data-chart="funnel"]'),
+      ).not.toBeNull(),
+    );
+    await chartsDrawn(canvasElement);
+    await userEvent.click(
+      within(document.body).getByRole('button', {
+        name: formatMessage(zhCN, 'label.chart.options', {
+          name: zhCN['label.chart.type.funnel'],
+        }),
+      }),
+    );
+    const cards = () => [
+      ...document.querySelectorAll<HTMLElement>('[data-slot="stage-card"]'),
+    ];
+    const order = () => cards().map(card => card.getAttribute('data-stage'));
+    const drawn = () => readingOf(canvasElement).map(([name]) => name);
+    await waitFor(() => expect(cards()).toHaveLength(4));
+    // Each stage by its key on the card and by its name on the drawing; a
+    // move is a permutation of both.
+    const start = order();
+    await waitFor(() => expect(drawn()).toHaveLength(4));
+    const names = drawn();
+    const as = (keys: (string | null | undefined)[]) =>
+      keys.map(key => names[start.indexOf(key ?? null)]);
+    // No arrows on a card: the handle leads it, and it is 24px at least.
+    await expect(
+      cards()[0]!.querySelectorAll('button[data-move]'),
+    ).toHaveLength(0);
+    const handleOf = (card: HTMLElement) =>
+      card.querySelector<HTMLElement>('[data-slot="drag-handle"]')!;
+    await expect(cards()[0]!.firstElementChild).toBe(handleOf(cards()[0]!));
+    const box = handleOf(cards()[0]!).getBoundingClientRect();
+    await expect(Math.min(box.width, box.height)).toBeGreaterThanOrEqual(24);
+
+    // The pointer: the first stage carried onto the second.
+    await dragHandleOnto(handleOf(cards()[0]!), cards()[1]!);
+    const dragged = [start[1], start[0], start[2], start[3]];
+    await waitFor(() => expect(order()).toEqual(dragged));
+    await waitFor(() => expect(drawn()).toEqual(as(dragged)));
+
+    // The keyboard: ↓ on the handle, said where it landed, focus kept.
+    const handle = handleOf(cards()[0]!);
+    const name = handle.getAttribute('aria-label')!;
+    handle.focus();
+    await userEvent.keyboard('{ArrowDown}');
+    const stepped = [start[0], start[1], start[2], start[3]];
+    await waitFor(() => expect(order()).toEqual(stepped));
+    await waitFor(() =>
+      expect(
+        document.querySelector('[data-slot="stage-announcement"]'),
+      ).toHaveTextContent(
+        formatMessage(zhCN, 'label.chart.moved', {
+          name: names[1]!,
+          index: '2',
+          total: '4',
+        }),
+      ),
+    );
+    await expect(handle).toHaveFocus();
+    await expect(name).toBe(
+      formatMessage(zhCN, 'label.chart.reorder', { name: names[1]! }),
+    );
+
+    // One press: the handle's menu, and 「移到最后」 from it.
+    await userEvent.click(handle);
+    const menu = await screen.findByRole('menu', { name });
+    await userEvent.click(
+      within(menu).getByRole('menuitem', { name: zhCN['label.reorder.last'] }),
+    );
+    const last = [start[0], start[2], start[3], start[1]];
+    await waitFor(() => expect(order()).toEqual(last));
+    await waitFor(() => expect(drawn()).toEqual(as(last)));
+    await waitFor(() => expect(handle).toHaveFocus());
+
+    // Last of four: the two later places are there and off.
+    await userEvent.click(handle);
+    const again = await screen.findByRole('menu', { name });
+    await expect(
+      within(again).getByRole('menuitem', { name: zhCN['label.reorder.last'] }),
+    ).toHaveAttribute('aria-disabled', 'true');
+    await expect(
+      within(again).getByRole('menuitem', {
+        name: zhCN['label.reorder.first'],
+      }),
+    ).not.toHaveAttribute('aria-disabled');
   },
 };
 

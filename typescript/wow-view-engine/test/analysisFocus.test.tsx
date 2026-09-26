@@ -523,14 +523,13 @@ describe('the options panel keeps the keyboard on the list it moved', () => {
   }
 
   /**
-   * A2, the move half. A stage carried to the end disables the very button
-   * that carried it, so the keyboard has to be put somewhere by hand — and
-   * the somewhere is the other direction on the same stage, which is the
-   * only thing left to press. Keeping the button enabled as a no-op was
-   * the alternative, and a button that does nothing reads worse than a
-   * focus that steps sideways.
+   * A2, the move half. A stage is carried by its handle (「可排序的列表一律
+   * 拖拽排序」), and the card is kept by what it holds, so a move takes the
+   * handle — and the keyboard on it — along: the next arrow moves it again,
+   * from the arrow keys and from the handle's menu alike, and a press past
+   * either end is no move at all.
    */
-  it('keeps the keyboard on the moving stage, and hands it over at the end', async () => {
+  it('keeps the keyboard on the moving stage’s handle, by key and by menu', async () => {
     await openOptions(
       {
         groups: [],
@@ -561,31 +560,32 @@ describe('the options panel keeps the keyboard on the list it moved', () => {
     expect(stages()).toEqual(['orders', 'total']);
 
     const count = label('label.analysis.row-count');
-    press(label('label.chart.move-down').replace('{name}', count));
-
-    // It landed last, where「move down」is disabled — so「move up」on that
-    // same stage holds the keyboard and the next press moves it back.
+    const handle = screen.getByRole('button', {
+      name: label('label.chart.reorder').replace('{name}', count),
+    });
+    handle.focus();
+    fireEvent.keyDown(handle, { key: 'ArrowDown' });
     await waitFor(() => expect(stages()).toEqual(['total', 'orders']));
-    await waitFor(() =>
-      expect(active()).toBe(
-        screen.getByRole('button', {
-          name: label('label.chart.move-up').replace('{name}', count),
-        }),
-      ),
-    );
+    expect(active()).toBe(handle);
 
-    press(label('label.chart.move-up').replace('{name}', count));
+    // Already last: ↓ again is no move, and says nothing.
+    fireEvent.keyDown(handle, { key: 'ArrowDown' });
+    expect(stages()).toEqual(['total', 'orders']);
 
-    // Back in the middle of the list, the button that made the move keeps
-    // the keyboard: a stage can be walked all the way up without leaving.
+    // The menu's 「移到最前」, and the keyboard back on the handle after it.
+    press(label('label.chart.reorder').replace('{name}', count));
+    const first = await screen.findByRole('menuitem', {
+      name: label('label.reorder.first'),
+    });
+    // Last of two: 「往后移一位」 and 「移到最后」 are there and off.
+    expect(
+      screen
+        .getByRole('menuitem', { name: label('label.reorder.last') })
+        .getAttribute('aria-disabled'),
+    ).toBe('true');
+    fireEvent.click(first);
     await waitFor(() => expect(stages()).toEqual(['orders', 'total']));
-    await waitFor(() =>
-      expect(active()).toBe(
-        screen.getByRole('button', {
-          name: label('label.chart.move-down').replace('{name}', count),
-        }),
-      ),
-    );
+    await waitFor(() => expect(active()).toBe(handle));
   });
 
   /**

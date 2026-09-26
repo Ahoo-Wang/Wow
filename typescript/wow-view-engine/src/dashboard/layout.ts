@@ -385,20 +385,35 @@ export function reorderPanel(
 }
 
 /**
- * A config with one panel moved one place along the reading order of its
- * tab (`reorderPanel`), or the same config when it has nowhere to go that
- * way. Read as untrusted like `placePanelIn`: an entry that is no panel, or
- * whose layout admission would refuse, takes no part.
+ * A config with one panel moved to place `to` (from 0) along the reading
+ * order of its tab, or the same config when it is already there or `to` is
+ * no place on the tab. The one-column reading carries a panel by a handle
+ * (D22 J): a drop names any place, an arrow key or the handle's menu one
+ * place along or either end. It gets there one place at a time
+ * (`reorderPanel`), each step the layout that reads that way and disturbs
+ * the rest least, so a move of several places is the steps it passes
+ * through — never a jump the grid could not have taken one place at a
+ * time. Read as untrusted like `placePanelIn`: an entry that is no panel,
+ * or whose layout admission would refuse, takes no part.
  */
 export function reorderPanelIn(
   config: DashboardViewConfig,
   id: string,
-  step: OrderStep,
+  to: number,
   columns: number = DASHBOARD_GRID_COLUMNS,
 ): DashboardViewConfig {
-  const boxes = tabBoxes(config, id, columns);
-  const placed = boxes && reorderPanel(boxes, id, step, columns);
-  return placed ? withLayouts(config, placed) : config;
+  let boxes = tabBoxes(config, id, columns);
+  if (!boxes || !Number.isInteger(to) || to < 0 || to >= boxes.length)
+    return config;
+  const from = readOf(boxes).indexOf(id);
+  if (from < 0 || from === to) return config;
+  const step: OrderStep = to < from ? 'up' : 'down';
+  for (let at = from; at !== to; at += step === 'up' ? -1 : 1) {
+    const placed = reorderPanel(boxes, id, step, columns);
+    if (!placed) break;
+    boxes = placed;
+  }
+  return withLayouts(config, boxes);
 }
 
 /** Whether two layouts are the same four numbers. */

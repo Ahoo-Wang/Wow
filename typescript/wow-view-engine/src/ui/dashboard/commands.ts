@@ -148,7 +148,7 @@ export interface PanelCommandInput {
    * The one-column reading of a narrow screen: there the board is built by
    * renaming, removing and reordering alone (D22 J) — a copy or a new tab is
    * a placement, and a place in a derived column means nothing on the grid;
-   * the order is the grid's own (「上移」／「下移」 on the panel).
+   * the order is the grid's own (the handle on the panel, `PanelOrder`).
    */
   narrow: boolean;
   extensions: DashboardEditExtensions;

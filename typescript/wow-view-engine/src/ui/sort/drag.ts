@@ -102,7 +102,6 @@ export function reorderSort(
 
 /** Where this list's drag sentences live in the catalogue. */
 export const SORT_DRAG_WORDING: DragWordingKeys = {
-  instructions: 'label.sort.instructions',
   picked: 'label.sort.picked',
   cancelled: 'label.sort.cancelled',
   placeholder: 'field',

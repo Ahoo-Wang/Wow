@@ -22,11 +22,11 @@ import { DragDropProvider } from '@dnd-kit/react';
 import { useSortable } from '@dnd-kit/react/sortable';
 import { EllipsisIcon, PlusIcon } from 'lucide-react';
 import type { DashboardTab } from '../../model/index.js';
-import { DragHandle } from '../DragHandle.js';
+import { DragHandle, moveTarget } from '../DragHandle.js';
 import { IconButton } from '../IconButton.js';
 import { dragAccessibility } from '../dragAnnounce.js';
 import { dropped } from '../dragDrop.js';
-import { announcedPlugins, withoutOptimisticSorting } from '../dragPlugins.js';
+import { sortableList, withoutOptimisticSorting } from '../dragPlugins.js';
 import { dragWording } from '../dragWording.js';
 import { useViewMessages } from '../MessagesProvider.js';
 import {
@@ -87,7 +87,7 @@ export function EditableTabBar({
   return (
     <div className="flex min-w-0 flex-wrap items-center gap-1 border-b pb-1">
       <DragDropProvider
-        plugins={announcedPlugins(
+        {...sortableList(
           dragAccessibility(dragWording(messages, TAB_DRAG_WORDING), id => {
             const at = tabs.findIndex(tab => tab.id === id);
             return at < 0 ? id : titleOf(tabs[at], at);
@@ -176,7 +176,6 @@ export function TabRemovalDialog({
 
 /** Where the tab bar's drag sentences live in the catalogue. */
 const TAB_DRAG_WORDING = {
-  instructions: 'label.tabs.instructions',
   picked: 'label.tabs.picked',
   cancelled: 'label.tabs.cancelled',
   placeholder: 'title',
@@ -233,8 +232,10 @@ function EditableTab({
         ref={handleRef}
         axis="horizontal"
         label={messages.label('label.tabs.reorder', { title })}
+        index={index}
+        total={total}
         dragging={isDragging}
-        onMove={step => onMove(index + step)}
+        onMove={move => onMove(moveTarget(move, index, total))}
       />
       {renaming ? (
         // A tab is never left without a name to be called by.
@@ -279,18 +280,6 @@ function EditableTab({
           <DropdownMenuGroup>
             <DropdownMenuItem onClick={onRename}>
               {messages.label('label.tabs.rename')}
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              disabled={index === 0}
-              onClick={() => onMove(index - 1)}
-            >
-              {messages.label('label.tabs.move-left')}
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              disabled={index === total - 1}
-              onClick={() => onMove(index + 1)}
-            >
-              {messages.label('label.tabs.move-right')}
             </DropdownMenuItem>
           </DropdownMenuGroup>
           <DropdownMenuSeparator />

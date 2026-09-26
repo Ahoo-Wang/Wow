@@ -25,6 +25,7 @@ import displayMeta, {
 } from './Dashboard.stories.js';
 import { aggregateCalls } from './fixtures.js';
 import { chartsDrawn } from './chartDom.js';
+import { dragHandleOnto } from './pointerDrag.js';
 
 const meta = {
   ...displayMeta,
@@ -576,12 +577,15 @@ export const RemoveThenUndo: Story = {
 };
 
 /**
- * The one-column reading built by keyboard (D22 J): a phone's width, where
- * a panel has 「上移」／「下移」 and nothing that places. Each press moves it
- * one place down the column and says where it came to; at the end of the
- * column the keyboard moves on to 「上移」; and 「撤销」 takes the moves back.
+ * The one-column reading built by its handles (D22 J): a phone's width,
+ * where each panel is carried by the handle every ordered list is (「可排序
+ * 的列表一律拖拽排序」) and nothing places — no grip, no 上移／下移. ↓ on the
+ * handle moves a panel one place down the column and says where it came to,
+ * the keyboard staying on the handle; the pointer carries it onto another
+ * panel's place; a click opens the menu of the four places (WCAG 2.5.7);
+ * and 「撤销」 takes each move back as one step.
  */
-export const NarrowReorderByKeyboard: Story = {
+export const NarrowReorderByHandle: Story = {
   ...DisplayAllPanels,
   decorators: [
     Story => (
@@ -601,17 +605,14 @@ export const NarrowReorderByKeyboard: Story = {
     await expect(
       canvasElement.querySelector('[data-slot="panel-grip"]'),
     ).toBeNull();
-    const down = canvas.getByRole('button', {
-      name: label('label.panel.order-down', { title: '待出库明细' }),
+    const handle = canvas.getByRole('button', {
+      name: label('label.panel.reorder', { title: '待出库明细' }),
     });
-    await expect(
-      canvas.getByRole('button', {
-        name: label('label.panel.order-up', { title: '待出库明细' }),
-      }),
-    ).toBeDisabled();
+    const box = handle.getBoundingClientRect();
+    await expect(Math.min(box.width, box.height)).toBeGreaterThanOrEqual(24);
 
-    down.focus();
-    await userEvent.keyboard('{Enter}');
+    handle.focus();
+    await userEvent.keyboard('{ArrowDown}');
     await waitFor(() =>
       expect(titles(canvasElement)).toEqual([
         '按仓库汇总',
@@ -628,9 +629,23 @@ export const NarrowReorderByKeyboard: Story = {
         }),
       ),
     ).toBeInTheDocument();
-    await waitFor(() => expect(down).toHaveFocus());
+    await expect(handle).toHaveFocus();
 
-    await userEvent.keyboard('{Enter}');
+    // The pointer: carried onto the last panel's place.
+    const card = (title: string) =>
+      [
+        ...canvasElement.querySelectorAll<HTMLElement>(
+          '[data-slot="dashboard-panel"]',
+        ),
+      ].find(panel => panel.textContent?.includes(title))!;
+    // Onto the header of the panel below — the pointer's own point is what
+    // the drop is read at, and a whole panel on a phone is taller than the
+    // screen the mouse can reach.
+    card('待出库明细').scrollIntoView({ block: 'start' });
+    await dragHandleOnto(
+      handle,
+      card('值班手册').querySelector<HTMLElement>('h3') ?? card('值班手册'),
+    );
     await waitFor(() =>
       expect(titles(canvasElement)).toEqual([
         '按仓库汇总',
@@ -638,24 +653,35 @@ export const NarrowReorderByKeyboard: Story = {
         '待出库明细',
       ]),
     );
-    // The end of the column: 下移 has run out, the keyboard is on 上移.
-    await waitFor(() =>
-      expect(
-        canvas.getByRole('button', {
-          name: label('label.panel.order-up', { title: '待出库明细' }),
-        }),
-      ).toHaveFocus(),
-    );
-    await expect(down).toBeDisabled();
 
-    const moving = label('label.history.move-panel', { title: '待出库明细' });
-    await userEvent.click(canvas.getByRole('button', { name: undoOf(moving) }));
-    await userEvent.click(canvas.getByRole('button', { name: undoOf(moving) }));
+    // One press: the handle's menu, 「移到最前」 from it.
+    await userEvent.click(handle);
+    const menu = await screen.findByRole('menu', {
+      name: label('label.panel.reorder', { title: '待出库明细' }),
+    });
+    await expect(
+      within(menu).getByRole('menuitem', { name: zhCN['label.reorder.last'] }),
+    ).toHaveAttribute('aria-disabled', 'true');
+    await userEvent.click(
+      within(menu).getByRole('menuitem', { name: zhCN['label.reorder.first'] }),
+    );
     await waitFor(() =>
       expect(titles(canvasElement)).toEqual([
         '待出库明细',
         '按仓库汇总',
         '值班手册',
+      ]),
+    );
+    await waitFor(() => expect(handle).toHaveFocus());
+
+    // Each move one step of the history.
+    const moving = label('label.history.move-panel', { title: '待出库明细' });
+    await userEvent.click(canvas.getByRole('button', { name: undoOf(moving) }));
+    await waitFor(() =>
+      expect(titles(canvasElement)).toEqual([
+        '按仓库汇总',
+        '值班手册',
+        '待出库明细',
       ]),
     );
   },

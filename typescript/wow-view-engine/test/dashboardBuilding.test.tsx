@@ -1108,7 +1108,7 @@ describe('building the one-column reading (D22 J)', () => {
     GridWidth.forget();
   });
 
-  it('moves a panel along the column by keyboard, says where it came to, and writes the grid back', async () => {
+  it('moves a panel along the column by its handle, says where it came to, and writes the grid back', async () => {
     vi.stubGlobal('ResizeObserver', GridWidth);
     const { engine, user } = open({
       panels: [
@@ -1123,27 +1123,22 @@ describe('building the one-column reading (D22 J)', () => {
       expect(slot('dashboard-grid')?.hasAttribute('data-narrow')).toBe(true),
     );
     // Read, the column has nothing to move a panel with.
-    expect(slot('panel-order')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Reorder “Left”' })).toBeNull();
     await enter(user);
-    // Built, it has 上移／下移 and nothing that places: no grip, no 添加.
+    // Built, each panel has the handle every ordered list is carried by,
+    // and nothing that places: no grip, no 添加, no 上移／下移.
     expect(slot('panel-grip')).toBeNull();
     expect(screen.queryByRole('button', { name: 'Add' })).toBeNull();
-    expect(
-      screen
-        .getByRole('button', { name: 'Move “Left” up' })
-        .hasAttribute('disabled'),
-    ).toBe(true);
+    expect(screen.queryByRole('button', { name: /^Move / })).toBeNull();
+    const handle = screen.getByRole('button', { name: 'Reorder “Left”' });
 
-    screen.getByRole('button', { name: 'Move “Left” down' }).focus();
-    await user.keyboard('{Enter}');
+    // ↓ on the handle: one place along the column.
+    handle.focus();
+    await user.keyboard('{ArrowDown}');
     await waitFor(() => expect(titles()).toEqual(['Right', 'Left']));
     expect(screen.getByText('“Left” is now panel 2 of 2')).toBeTruthy();
-    // At the end of the column 下移 has run out: the keyboard is on 上移.
-    await waitFor(() =>
-      expect(document.activeElement).toBe(
-        screen.getByRole('button', { name: 'Move “Left” up' }),
-      ),
-    );
+    // The card went with its handle, and so did the keyboard.
+    expect(document.activeElement).toBe(handle);
     // The wide grid reads that way too: the two traded places.
     expect(
       boardOf(engine)
@@ -1154,14 +1149,19 @@ describe('building the one-column reading (D22 J)', () => {
       ['b', 0, 0],
     ]);
 
-    await user.keyboard('{Enter}');
+    // A click on the handle is the one-press way (WCAG 2.5.7): its menu.
+    await user.click(handle);
+    expect(
+      (
+        await screen.findByRole('menuitem', { name: 'Move to the end' })
+      ).getAttribute('aria-disabled'),
+    ).toBe('true');
+    await user.click(
+      screen.getByRole('menuitem', { name: 'Move to the start' }),
+    );
     await waitFor(() => expect(titles()).toEqual(['Left', 'Right']));
     expect(screen.getByText('“Left” is now panel 1 of 2')).toBeTruthy();
-    await waitFor(() =>
-      expect(document.activeElement).toBe(
-        screen.getByRole('button', { name: 'Move “Left” down' }),
-      ),
-    );
+    await waitFor(() => expect(document.activeElement).toBe(handle));
     // One step each, 撤销 takes them back.
     await user.click(
       screen.getByRole('button', { name: 'Undo moving “Left”' }),
