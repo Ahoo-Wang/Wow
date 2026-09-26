@@ -1,0 +1,564 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>补偿控制台设计稿</title>
+<style>
+:root{
+  --ground:#F5F5F7;--card:#FFFFFF;--raised:#FFFFFF;--fg:#1D1D1F;--muted:#636368;--faint:#8E8E93;
+  --line:#E5E5EA;--line-strong:#D1D1D6;--primary:#0071ED;--primary-soft:#E8F1FD;--primary-ink:#FFFFFF;
+  --ok:#1E7F45;--ok-soft:#E4F4EA;--warn:#9A5300;--warn-soft:#FDF1DF;--bad:#C4182E;--bad-soft:#FCE8EA;
+  --select:#EAF2FE;--shadow:0 1px 2px rgba(0,0,0,.04),0 4px 14px rgba(0,0,0,.06);
+  --note:#5B3FB0;--note-soft:#F1ECFB;
+  --r:12px;--r-sm:6px;
+  --font:-apple-system,BlinkMacSystemFont,"SF Pro Text","PingFang SC","Hiragino Sans GB","Microsoft YaHei","Segoe UI",system-ui,sans-serif;
+  --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  color-scheme:dark;--ground:#1C1C1E;--card:#2C2C2E;--raised:#3A3A3C;--fg:#F5F5F7;--muted:#A1A1A6;--faint:#8E8E93;
+  --line:#3A3A3C;--line-strong:#48484A;--primary:#4C9BFF;--primary-soft:#1D3354;--primary-ink:#0B1A2E;
+  --ok:#5BD18B;--ok-soft:#173A26;--warn:#F2B35B;--warn-soft:#3D2C12;--bad:#FF6B7D;--bad-soft:#40181E;
+  --select:#1E3150;--shadow:0 1px 2px rgba(0,0,0,.4),0 6px 18px rgba(0,0,0,.35);--note:#C3B2F5;--note-soft:#2E2645;}}
+:root[data-theme="dark"]{
+  color-scheme:dark;--ground:#1C1C1E;--card:#2C2C2E;--raised:#3A3A3C;--fg:#F5F5F7;--muted:#A1A1A6;--faint:#8E8E93;
+  --line:#3A3A3C;--line-strong:#48484A;--primary:#4C9BFF;--primary-soft:#1D3354;--primary-ink:#0B1A2E;
+  --ok:#5BD18B;--ok-soft:#173A26;--warn:#F2B35B;--warn-soft:#3D2C12;--bad:#FF6B7D;--bad-soft:#40181E;
+  --select:#1E3150;--shadow:0 1px 2px rgba(0,0,0,.4),0 6px 18px rgba(0,0,0,.35);--note:#C3B2F5;--note-soft:#2E2645;}
+*{box-sizing:border-box}
+body{background:var(--ground);color:var(--fg);font:14px/1.5 var(--font);padding-inline:16px;padding-block:16px 32px}
+button,select,input{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--primary);outline-offset:2px}
+.num{font-variant-numeric:tabular-nums}
+
+/* 设计稿自己的控制条 */
+.deck{max-width:1440px;margin:0 auto 12px;display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center;justify-content:space-between}
+.deck h1{font-size:15px;font-weight:600;margin:0;text-wrap:balance}
+.deck h1 small{color:var(--muted);font-weight:400;margin-left:8px}
+.seg{display:inline-flex;border:1px solid var(--line-strong);border-radius:8px;overflow:hidden;background:var(--card)}
+.seg button{border:0;background:transparent;padding:4px 12px;cursor:pointer;min-height:28px}
+.seg button[aria-pressed="true"]{background:var(--primary);color:#fff}
+.deck .tools{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.deck label{display:inline-flex;gap:6px;align-items:center;color:var(--muted);cursor:pointer}
+
+/* 控制台 */
+.stage{max-width:1440px;margin:0 auto;display:flex;justify-content:center}
+.app{width:100%;background:var(--ground);border:1px solid var(--line-strong);border-radius:14px;overflow:hidden;box-shadow:var(--shadow);container-type:inline-size;transition:max-width .2s}
+.app.phone{max-width:390px}
+.top{display:flex;align-items:center;gap:20px;padding:0 16px;height:52px;background:var(--card);border-bottom:1px solid var(--line)}
+.brand{display:flex;align-items:center;gap:8px;font-weight:600;white-space:nowrap}
+.brand i{width:22px;height:22px;border-radius:6px;background:var(--primary);display:inline-block;position:relative}
+.brand i::after{content:"";position:absolute;inset:6px;border:2px solid #fff;border-radius:3px}
+.nav{display:flex;gap:4px;height:100%}
+.nav button{border:0;background:none;padding:0 12px;height:100%;cursor:pointer;color:var(--muted);border-bottom:2px solid transparent;font-weight:500}
+.nav button[aria-current="page"]{color:var(--fg);border-bottom-color:var(--primary)}
+.right{margin-left:auto;display:flex;gap:10px;align-items:center;color:var(--muted);white-space:nowrap}
+.right .chip{border:1px solid var(--line);border-radius:6px;padding:2px 8px;background:none;cursor:pointer;min-height:26px}
+.right .ver{font-family:var(--mono);font-size:12px}
+.avatar{width:26px;height:26px;border-radius:50%;background:var(--primary-soft);color:var(--primary);display:grid;place-items:center;font-size:11px;font-weight:600}
+.menu-btn{display:none;border:1px solid var(--line);background:none;border-radius:6px;min-width:32px;min-height:32px;cursor:pointer}
+.page{padding:16px;display:grid;gap:14px}
+.page[hidden]{display:none!important}
+.note{display:flex;gap:8px;align-items:flex-start;background:var(--note-soft);color:var(--note);border-radius:8px;padding:8px 12px;font-size:13px}
+.note b{white-space:nowrap}
+.notes-off .note{display:none}
+.head{display:flex;flex-wrap:wrap;gap:8px 16px;align-items:baseline;justify-content:space-between}
+.head h2{margin:0;font-size:20px;font-weight:600}
+.meta{color:var(--muted);font-size:12px}
+.filters{display:flex;flex-wrap:wrap;gap:8px}
+.pill{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line-strong);background:var(--card);border-radius:999px;padding:3px 10px;font-size:13px;min-height:28px}
+.pill b{font-weight:500}
+.pill .x{border:0;background:none;cursor:pointer;color:var(--muted);min-width:24px;min-height:24px;padding:0}
+.card{background:var(--card);border-radius:var(--r);box-shadow:var(--shadow)}
+.card h3{margin:0;font-size:14px;font-weight:600}
+.card .sub{color:var(--muted);font-size:12px}
+.pad{padding:14px 16px}
+
+.metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.metric{padding:14px 16px;display:grid;gap:4px;cursor:pointer;border:1px solid transparent;text-align:left;font:inherit}
+.metric:hover{border-color:var(--line-strong)}
+.metric .v{font-size:28px;font-weight:600;line-height:1.15}
+.metric .d{font-size:12px;display:flex;gap:6px;align-items:center;color:var(--muted);flex-wrap:wrap}
+.tag{display:inline-flex;align-items:center;border-radius:6px;padding:0 6px;font-size:12px;font-weight:500;line-height:20px;white-space:nowrap}
+.tag.bad{background:var(--bad-soft);color:var(--bad)}.tag.ok{background:var(--ok-soft);color:var(--ok)}
+.tag.warn{background:var(--warn-soft);color:var(--warn)}.tag.info{background:var(--primary-soft);color:var(--primary)}
+.tag.plain{background:var(--ground);color:var(--muted)}
+
+.row2{display:grid;grid-template-columns:1.35fr 1fr;gap:12px}
+.chart{padding:14px 16px 10px;display:grid;gap:8px}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--muted)}
+.legend i{display:inline-block;width:10px;height:3px;border-radius:2px;vertical-align:middle;margin-right:6px}
+svg text{fill:var(--muted);font-family:var(--font)}
+.summary{font-size:12px;color:var(--muted)}
+
+.tbl-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{text-align:left;font-weight:500;color:var(--muted);font-size:12px;padding:8px 10px;border-bottom:1px solid var(--line);white-space:nowrap}
+td{padding:8px 10px;border-bottom:1px solid var(--line);white-space:nowrap}
+tr.hit{cursor:pointer}tr.hit:hover td{background:var(--ground)}
+tr.sel td{background:var(--select)}
+td.code,.code{font-family:var(--mono);font-size:12px}
+.bar{height:6px;border-radius:3px;background:var(--line);overflow:hidden;min-width:60px;display:flex}
+.bar span{display:block;height:100%}
+.btn{border:1px solid var(--line-strong);background:var(--card);border-radius:var(--r-sm);padding:3px 10px;cursor:pointer;min-height:28px;white-space:nowrap}
+.btn.primary{background:var(--primary);border-color:var(--primary);color:#fff}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.link{color:var(--primary);cursor:pointer;background:none;border:0;padding:0}
+.box{width:16px;height:16px;accent-color:var(--primary);margin:4px}
+
+/* 工作台 */
+.wb{display:grid;grid-template-columns:236px 1fr;gap:12px;align-items:start}
+.views{padding:10px 8px;display:grid;gap:2px}
+.views .grp{font-size:11px;color:var(--faint);letter-spacing:.04em;padding:8px 8px 4px}
+.views button{display:flex;justify-content:space-between;gap:8px;border:0;background:none;text-align:left;padding:6px 8px;border-radius:8px;cursor:pointer;min-height:32px}
+.views button[aria-current="true"]{background:var(--primary-soft);color:var(--primary);font-weight:500}
+.views .n{color:var(--faint);font-size:12px}
+.main{display:grid;gap:10px;min-width:0}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:10px 12px;border-bottom:1px solid var(--line)}
+.toolbar .search{flex:1 1 180px;min-width:0;border:1px solid var(--line-strong);border-radius:8px;padding:4px 10px;background:var(--ground);min-height:30px}
+.toolbar .spacer{flex:1}
+.bulk{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:8px 12px;background:var(--select);border-bottom:1px solid var(--line)}
+.bulk[hidden]{display:none}
+.status{display:flex;gap:8px;align-items:center;padding:8px 12px;font-size:12px;color:var(--muted);flex-wrap:wrap}
+.status .prog{flex:0 0 120px;height:4px;border-radius:2px;background:var(--line);overflow:hidden}
+.status .prog span{display:block;height:100%;background:var(--ok)}
+.foot{display:flex;justify-content:space-between;gap:8px;padding:8px 12px;font-size:12px;color:var(--muted);flex-wrap:wrap}
+.cards-list{display:none}
+
+.acts{display:flex;gap:6px;align-items:center;justify-content:flex-end}
+.acts .why{font-size:12px;color:var(--faint)}
+.more{position:relative}
+.more-menu{position:absolute;right:0;top:calc(100% + 4px);z-index:3;background:var(--raised);border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow);padding:4px;display:grid;min-width:168px}
+.more-menu[hidden]{display:none}
+.more-menu button{border:0;background:none;text-align:left;padding:6px 10px;border-radius:6px;cursor:pointer;min-height:32px;white-space:nowrap}
+.more-menu button:hover{background:var(--ground)}
+.more-menu hr{border:0;border-top:1px solid var(--line);margin:4px 0}
+.more-menu .danger{color:var(--bad)}
+.row-result{font-size:12px;color:var(--ok)}
+.ecard .acts{justify-content:flex-start;flex-wrap:wrap}
+/* 详情抽屉 */
+.drawer{position:relative}
+.detail{position:absolute;top:0;right:0;bottom:0;width:min(460px,100%);background:var(--raised);border-left:1px solid var(--line);box-shadow:var(--shadow);display:grid;grid-template-rows:auto auto 1fr;z-index:2;border-radius:0 var(--r) var(--r) 0}
+.detail[hidden]{display:none}
+.dhead{padding:14px 16px 10px;display:grid;gap:8px;border-bottom:1px solid var(--line)}
+.dhead .t{display:flex;gap:8px;align-items:center;justify-content:space-between}
+.dhead h3{margin:0;font-size:16px;font-family:var(--mono)}
+.dact{display:flex;gap:8px;flex-wrap:wrap}
+.result{font-size:12px;color:var(--ok);display:flex;gap:6px;align-items:center}
+.dbody{overflow:auto;padding:4px 16px 16px;display:grid;gap:4px;align-content:start}
+.sec{border-bottom:1px solid var(--line);padding:10px 0;display:grid;gap:8px}
+.sec h4{margin:0;font-size:12px;color:var(--muted);font-weight:500;letter-spacing:.03em}
+.kv{display:grid;grid-template-columns:96px 1fr;gap:4px 12px;font-size:13px}
+.kv dt{color:var(--muted)}.kv dd{margin:0;min-width:0;overflow-wrap:anywhere}
+pre.stack{margin:0;background:var(--ground);border-radius:8px;padding:10px;font:12px/1.5 var(--mono);overflow-x:auto;max-height:140px}
+.form{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.form label{display:grid;gap:2px;font-size:12px;color:var(--muted)}
+.form input{border:1px solid var(--line-strong);border-radius:6px;padding:3px 8px;background:var(--card);min-height:28px;font-variant-numeric:tabular-nums}
+.timeline{display:grid;gap:0;font-size:13px}
+.ev{display:grid;grid-template-columns:14px 1fr auto;gap:8px;align-items:start;padding:4px 0}
+.ev i{width:8px;height:8px;border-radius:50%;margin-top:6px;background:var(--line-strong)}
+.ev.bad i{background:var(--bad)}.ev.ok i{background:var(--ok)}.ev.info i{background:var(--primary)}
+.ev .when{color:var(--faint);font-size:12px}
+
+/* 看板 */
+.board{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+.board .span2{grid-column:span 2}
+
+/* 窄屏：控制台自己的容器查询 */
+@container (max-width:720px){
+  .nav{display:none}.menu-btn{display:inline-grid;place-items:center}
+  .right .ver,.right .lang{display:none}
+  .metrics{grid-template-columns:repeat(2,1fr)}
+  .row2,.board{grid-template-columns:1fr}.board .span2{grid-column:auto}
+  .wb{grid-template-columns:1fr}
+  .views{display:flex;overflow-x:auto;gap:4px;padding:8px}
+  .views .grp{display:none}.views button{flex:0 0 auto;border:1px solid var(--line);border-radius:999px;padding:4px 10px}
+  .main table.ex{display:none}.cards-list{display:grid;gap:8px;padding:10px}
+  .detail{position:fixed;inset:auto 0 0 0;width:auto;max-height:78%;border-radius:14px 14px 0 0;border-left:0}
+  .form{grid-template-columns:1fr 1fr}
+  .metric .v{font-size:24px}
+}
+.mnav{display:none;background:var(--card);border-bottom:1px solid var(--line);padding:6px 12px;gap:4px;flex-direction:column}
+.mnav.open{display:flex}
+.mnav button{border:0;background:none;text-align:left;padding:8px;border-radius:8px;min-height:36px;cursor:pointer}
+.mnav button[aria-current="page"]{background:var(--primary-soft);color:var(--primary)}
+.ecard{border:1px solid var(--line);border-radius:10px;padding:10px 12px;display:grid;gap:6px;background:var(--card)}
+.ecard .l1{display:flex;justify-content:space-between;gap:8px;align-items:center}
+.ecard .l2{color:var(--muted);font-size:12px}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+
+<div class="deck">
+  <h1>补偿控制台设计稿 <small>以视图引擎重写 · porcelain · 样例数据</small></h1>
+  <div class="tools">
+    <div class="seg" role="group" aria-label="宽度">
+      <button type="button" id="w-desk" aria-pressed="true">桌面 1440</button>
+      <button type="button" id="w-phone" aria-pressed="false">手机 390</button>
+    </div>
+    <label for="notes"><input type="checkbox" id="notes" checked> 显示设计说明</label>
+  </div>
+</div>
+
+<div class="stage">
+<div class="app" id="app">
+  <header class="top">
+    <button class="menu-btn" id="menu" type="button" aria-label="打开导航" aria-expanded="false">☰</button>
+    <div class="brand"><i aria-hidden="true"></i>补偿控制台</div>
+    <nav class="nav" aria-label="主导航">
+      <button type="button" data-go="overview" aria-current="page">总览</button>
+      <button type="button" data-go="executions">失败执行</button>
+      <button type="button" data-go="events">事件流</button>
+      <button type="button" data-go="boards">看板</button>
+    </nav>
+    <div class="right">
+      <button class="chip lang" type="button">中文</button>
+      <select class="chip" id="mode" aria-label="明暗">
+        <option value="system">跟随系统</option><option value="light">亮</option><option value="dark">暗</option>
+      </select>
+      <span class="ver">v9.2.0 · 643bdee</span>
+      <span class="avatar" title="值班：林屿">林</span>
+    </div>
+  </header>
+  <div class="mnav" id="mnav">
+    <button type="button" data-go="overview" aria-current="page">总览</button>
+    <button type="button" data-go="executions">失败执行</button>
+    <button type="button" data-go="events">事件流</button>
+    <button type="button" data-go="boards">看板</button>
+  </div>
+
+  <!-- 总览 -->
+  <section class="page" id="p-overview">
+    <div class="note"><b>这一页回答</b><span>现在要处理什么 → 在变好还是变坏 → 从哪里下手；最需要处理的记录就在下面，行上直接处置。一块代码声明的系统板，看、筛、点，不存。</span></div>
+    <div class="head">
+      <h2>总览</h2>
+      <span class="meta num">09-26 22:41 更新 · 每 60 秒自动刷新</span>
+    </div>
+    <div class="filters">
+      <span class="pill">首次失败时间 <b>近 14 天</b></span>
+      <span class="pill">处理器 <b>全部</b></span>
+      <span class="pill">错误码 <b>全部</b></span>
+    </div>
+    <div class="metrics">
+      <button class="card metric" type="button" data-go="executions" data-view="0">
+        <span class="sub">可立即处理</span><span class="v num">128</span>
+        <span class="d"><span class="tag bad">较昨日 +12</span>到点待重试</span>
+      </button>
+      <button class="card metric" type="button" data-go="executions" data-view="2">
+        <span class="sub">已超时</span><span class="v num">9</span>
+        <span class="d"><span class="tag warn">较昨日 +3</span>执行超过 60 秒</span>
+      </button>
+      <button class="card metric" type="button" data-go="executions" data-view="4">
+        <span class="sub">不可恢复（存量）</span><span class="v num">43</span>
+        <span class="d"><span class="tag plain">持平</span>需人工处理</span>
+      </button>
+      <button class="card metric" type="button" data-go="executions" data-view="6">
+        <span class="sub">今日新增</span><span class="v num">57</span>
+        <span class="d"><span class="tag info">今天未结束</span>昨日 71</span>
+      </button>
+    </div>
+    <div class="row2">
+      <div class="card chart">
+        <div class="head"><h3>在变好还是变坏</h3><span class="meta">每日新增失败 · 每日恢复成功</span></div>
+        <div class="legend"><span><i style="background:var(--bad)"></i>新增失败</span><span><i style="background:var(--ok)"></i>恢复成功</span><span><i style="background:var(--line-strong)"></i>今天未结束</span></div>
+        <svg id="trend" viewBox="0 0 640 220" width="100%" role="img" aria-label="近 14 天每日新增失败与恢复成功"></svg>
+        <p class="summary" id="trend-sum"></p>
+      </div>
+      <div class="card">
+        <div class="pad head"><h3>从哪里下手</h3><span class="meta">错误码 × 处理器 × 函数 · 前 5 组 · 点一组看这些记录</span></div>
+        <div class="tbl-wrap"><table>
+          <thead><tr><th>错误码</th><th>处理器 · 函数</th><th class="num">条数</th><th>状态</th></tr></thead>
+          <tbody id="clusters"></tbody>
+        </table></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="pad head"><h3>最需要处理的</h3><span class="meta">到点待重试 · 按下次重试时刻升序 · 共 128 条</span></div>
+      <div class="tbl-wrap"><table>
+        <thead><tr><th>ID</th><th>处理器 · 函数</th><th>错误码</th><th class="num">已重试</th><th>下次重试</th><th></th></tr></thead>
+        <tbody id="attention"></tbody>
+      </table></div>
+    </div>
+  </section>
+
+  <!-- 失败执行 -->
+  <section class="page" id="p-executions" hidden>
+    <div class="note"><b>这一页回答</b><span>分诊、诊断、处置、确认。左侧是引擎工作台自己的视图列表（七个系统视图 + 自存视图），不再有控制台的侧栏；详情抽屉 = 引擎的分组读法 + 宿主节（表单、堆栈、执行历史）。地址只有 ?view= 与 ?id=。</span></div>
+    <div class="wb">
+      <aside class="card views" aria-label="视图" id="views"></aside>
+      <div class="main drawer">
+        <div class="card">
+          <div class="toolbar">
+            <span class="pill">处理器 = <b>OrderSaga</b> <button class="x" type="button" aria-label="移除条件">✕</button></span>
+            <span class="pill">错误码 = <b>ORDERSAGA_FAILED</b> <button class="x" type="button" aria-label="移除条件">✕</button></span>
+            <button class="btn" type="button">＋ 条件</button>
+            <input class="search" type="search" id="q" placeholder="搜索错误信息、堆栈" aria-label="搜索">
+            <button class="btn" type="button">列</button>
+            <button class="btn" type="button">导出</button>
+          </div>
+          <div class="bulk" id="bulk" hidden>
+            <b id="bulk-n">已选 0 条</b>
+            <button class="btn primary" type="button" id="bulk-prep">准备重试</button>
+            <button class="btn" type="button">强制准备</button>
+            <button class="btn" type="button">标记可恢复性…</button>
+            <button class="link" type="button" id="bulk-clear">取消选择</button>
+          </div>
+          <div class="status" id="bulk-status" hidden>
+            <span class="prog"><span id="prog" style="width:0"></span></span><span id="prog-t"></span>
+          </div>
+          <div class="tbl-wrap"><table class="ex">
+            <thead><tr><th><input class="box" type="checkbox" id="all" aria-label="选择全部行"></th><th>ID</th><th>状态</th><th>可恢复性</th><th>处理器 · 函数</th><th>错误码</th><th class="num">已重试</th><th>下次重试</th><th>最后更新</th><th style="text-align:right">操作</th></tr></thead>
+            <tbody id="rows"></tbody>
+          </table></div>
+          <div class="cards-list" id="rowcards"></div>
+          <div class="foot"><span class="num">正在显示 1–8 / 31 条 · 耗时 0.12 秒</span><span>每页 20 条 · ‹ 1 2 ›</span></div>
+        </div>
+        <aside class="detail" id="detail" hidden aria-label="执行详情">
+          <div class="dhead">
+            <div class="t"><h3 id="d-id">EF-1042</h3><button class="btn" type="button" id="d-close" aria-label="关闭详情">✕</button></div>
+            <div class="dact">
+              <span class="tag bad" id="d-status">失败</span><span class="tag ok">可恢复</span>
+              <button class="btn primary" type="button" id="d-prep">准备重试</button>
+              <button class="btn" type="button">强制准备</button>
+              <button class="btn" type="button">⋯</button>
+            </div>
+            <div class="result" id="d-result" hidden>✓ 已准备 · 下一次重试 22:43:10</div>
+          </div>
+          <div></div>
+          <div class="dbody">
+            <div class="sec"><h4>错误</h4>
+              <dl class="kv"><dt>错误码</dt><dd class="code">ORDERSAGA_FAILED</dd><dt>错误信息</dt><dd>Inventory refused the reservation: SKU 10442 has 0 available.</dd><dt>失败事件</dt><dd class="code">OrderCreated · order-8841 · v1</dd></dl>
+            </div>
+            <div class="sec"><h4>堆栈</h4>
+<pre class="stack">me.ahoo.wow.exception.WowException: Inventory refused the reservation
+  at com.acme.order.OrderSaga.onOrderCreated(OrderSaga.kt:57)
+  at me.ahoo.wow.saga.stateless.StatelessSagaFunction.invoke(...)
+  at reactor.core.publisher.MonoFlatMap$FlatMapMain.onNext(...)</pre>
+            </div>
+            <div class="sec"><h4>执行上下文 · 重试规格</h4>
+              <form class="form" id="spec" onsubmit="event.preventDefault()">
+                <label for="s-max">最多重试<input id="s-max" value="10" inputmode="numeric"></label>
+                <label for="s-min">最短间隔（秒）<input id="s-min" value="180" inputmode="numeric"></label>
+                <label for="s-to">执行超时（秒）<input id="s-to" value="60" inputmode="numeric"></label>
+              </form>
+              <div><button class="btn" type="button">应用重试规格</button> <span class="meta">改了才可用；结果写在这里，不弹提示</span></div>
+            </div>
+            <div class="sec"><h4>执行历史（引擎嵌入视图，按版本降序）</h4>
+              <div class="timeline" id="timeline"></div>
+            </div>
+          </div>
+        </aside>
+      </div>
+    </div>
+  </section>
+
+  <!-- 事件流 -->
+  <section class="page" id="p-events" hidden>
+    <div class="note"><b>这一页回答</b><span>刚刚发生了什么：所有失败执行的事件按时间倒序，像看日志一样盯着。与详情里的「执行历史」不同——那里只看一条执行，这里看全部。引擎工作台打开补偿事件流定义，左侧按事件类型的系统视图；点执行 ID 在本页打开那条执行的详情。</span></div>
+    <div class="wb">
+      <aside class="card views" aria-label="事件视图" id="evviews"></aside>
+      <div class="main drawer">
+        <div class="card">
+          <div class="toolbar">
+            <span class="pill">发生时间 <b>近 1 小时</b></span>
+            <span class="pill">处理器 <b>全部</b></span>
+            <button class="btn" type="button">＋ 条件</button>
+            <input class="search" type="search" id="eq" placeholder="搜索执行 ID、错误信息" aria-label="搜索事件">
+            <span class="spacer"></span>
+            <span class="meta num" id="live-t">每 10 秒刷新 · 上次 22:41:52</span>
+            <button class="btn" type="button" id="live" aria-pressed="true">暂停</button>
+          </div>
+          <div class="status" id="new-ev"><span class="tag info">＋3 条新事件</span><span>已并入列表顶部</span></div>
+          <div class="tbl-wrap"><table class="ex">
+            <thead><tr><th>发生时刻</th><th>事件</th><th>执行</th><th>处理器 · 函数</th><th>错误码</th><th>版本</th></tr></thead>
+            <tbody id="evrows"></tbody>
+          </table></div>
+          <div class="cards-list" id="evcards"></div>
+          <div class="foot"><span class="num">正在显示 1–12 / 486 条（近 1 小时）</span><span>向下滚动加载更多</span></div>
+        </div>
+        <aside class="detail" id="evdetail" hidden aria-label="执行详情">
+          <div class="dhead">
+            <div class="t"><h3 id="ev-d-id">EF-1042</h3><button class="btn" type="button" id="ev-d-close" aria-label="关闭详情">✕</button></div>
+            <div class="dact"><span class="tag bad">失败</span><span class="tag ok">可恢复</span><button class="btn primary" type="button">准备重试</button><button class="btn" type="button">在失败执行中打开</button></div>
+          </div>
+          <div></div>
+          <div class="dbody"><div class="sec"><h4>与失败执行页同一个详情抽屉</h4><p class="meta" style="margin:0">错误、堆栈、执行上下文、执行历史；这里省略，见「失败执行」页。</p></div></div>
+        </aside>
+      </div>
+    </div>
+  </section>
+
+  <!-- 看板 -->
+  <section class="page" id="p-boards" hidden>
+    <div class="note"><b>这一页回答</b><span>平台负责人的结构问题与复盘：两块系统板（补偿概览、补偿分析）+ 自建的板（阶段 6 前存本机）。「结构」类图不上首页，放这里。</span></div>
+    <div class="wb">
+      <aside class="card views" aria-label="看板">
+        <div class="grp">系统板</div>
+        <button type="button">补偿概览</button>
+        <button type="button" aria-current="true">补偿分析</button>
+        <div class="grp">我的</div>
+        <button type="button">支付服务周报</button>
+        <button type="button" class="link">＋ 新建看板</button>
+      </aside>
+      <div class="main">
+        <div class="head"><h2>补偿分析</h2><span class="meta">首次失败时间：近 30 天</span></div>
+        <div class="board">
+          <div class="card chart"><h3>可恢复性构成</h3><svg id="pie" viewBox="0 0 300 170" width="100%" role="img" aria-label="可恢复性构成"></svg></div>
+          <div class="card chart"><h3>重试次数分布</h3><svg id="hist" viewBox="0 0 300 170" width="100%" role="img" aria-label="重试次数分布"></svg></div>
+          <div class="card chart span2"><h3>按处理器的失败 · 前 6</h3><svg id="byproc" viewBox="0 0 640 190" width="100%" role="img" aria-label="按处理器的失败"></svg></div>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>
+</div>
+
+<script>
+(function(){
+  const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+  const app=$('#app');
+  const store={get(k){try{return localStorage.getItem(k)}catch(e){return null}},set(k,v){try{localStorage.setItem(k,v)}catch(e){}}};
+
+  // 宽度、说明
+  function width(phone){app.classList.toggle('phone',phone);$('#w-desk').setAttribute('aria-pressed',!phone);$('#w-phone').setAttribute('aria-pressed',phone);}
+  $('#w-desk').onclick=()=>width(false);$('#w-phone').onclick=()=>width(true);
+  $('#notes').onchange=e=>app.classList.toggle('notes-off',!e.target.checked);
+
+  // 明暗：控制台写 <html>，缺省跟随系统
+  const mode=$('#mode');
+  function applyMode(v){if(v==='system')document.documentElement.removeAttribute('data-theme');else document.documentElement.setAttribute('data-theme',v);store.set('console-mode',v);}
+  mode.value=store.get('console-mode')||'system';applyMode(mode.value);mode.onchange=()=>applyMode(mode.value);
+
+  // 导航
+  let viewIdx=0;
+  function go(p,v){['overview','executions','events','boards'].forEach(k=>{$('#p-'+k).hidden=k!==p});
+    $$('[data-go]').forEach(b=>{if(b.closest('.nav,.mnav'))b.toggleAttribute('aria-current',b.dataset.go===p),b.dataset.go===p&&b.setAttribute('aria-current','page')});
+    if(v!==undefined){viewIdx=+v;renderViews();}
+    $('#mnav').classList.remove('open');$('#menu').setAttribute('aria-expanded','false');}
+  document.addEventListener('click',e=>{const b=e.target.closest('[data-go]');if(b)go(b.dataset.go,b.dataset.view);});
+  $('#menu').onclick=()=>{const o=$('#mnav').classList.toggle('open');$('#menu').setAttribute('aria-expanded',o);};
+
+  // 趋势：近 14 天
+  const days=['9-13','9-14','9-15','9-16','9-17','9-18','9-19','9-20','9-21','9-22','9-23','9-24','9-25','9-26'];
+  const failed=[88,93,79,102,96,84,61,58,92,87,81,76,71,57];
+  const recovered=[70,81,85,90,94,90,72,66,88,93,89,86,84,49];
+  (function(){const W=640,H=220,L=40,R=12,T=12,B=28,max=120;
+    const x=i=>L+i*(W-L-R)/(days.length-1), y=v=>T+(H-T-B)*(1-v/max);
+    let s='';[0,30,60,90,120].forEach(t=>{s+=`<line x1="${L}" x2="${W-R}" y1="${y(t)}" y2="${y(t)}" stroke="var(--line)" stroke-width="1"/><text x="${L-8}" y="${y(t)+4}" font-size="11" text-anchor="end">${t}</text>`});
+    days.forEach((d,i)=>{if(i%2===0||i===days.length-1)s+=`<text x="${x(i)}" y="${H-8}" font-size="11" text-anchor="middle">${d}</text>`});
+    s+=`<rect x="${x(12)+ (x(13)-x(12))/2}" y="${T}" width="${W-R-(x(12)+(x(13)-x(12))/2)}" height="${H-T-B}" fill="var(--ground)"/>`;
+    const path=(a,n)=>a.slice(0,n).map((v,i)=>(i?'L':'M')+x(i)+','+y(v)).join('');
+    [['var(--bad)',failed],['var(--ok)',recovered]].forEach(([c,a])=>{
+      s+=`<path d="${path(a,13)}" fill="none" stroke="${c}" stroke-width="2.2"/>`;
+      s+=`<path d="M${x(12)},${y(a[12])}L${x(13)},${y(a[13])}" fill="none" stroke="${c}" stroke-width="2" stroke-dasharray="4 4" opacity=".7"/>`;
+      s+=`<circle cx="${x(12)}" cy="${y(a[12])}" r="3.5" fill="${c}"/>`;
+    });
+    s+=`<text x="${x(13)}" y="${T+12}" font-size="11" text-anchor="end">今天未结束</text>`;
+    $('#trend').innerHTML=s;
+    $('#trend-sum').textContent='近 13 个完整日，恢复成功在 9-16 之后持续高于新增失败，存量在下降；昨日新增 71、恢复 84。今天到 22:41 为止新增 57、恢复 49，未结束，不计入趋势。';
+  })();
+
+  // 集群
+  const clusters=[['ORDERSAGA_FAILED','OrderSaga · onOrderCreated',46,[30,10,6]],['PAYMENT_TIMEOUT','PaymentSaga · onPaymentRequested',31,[12,15,4]],['CONFLICT','InventoryProjector · onReserved',19,[19,0,0]],['STOCK_NOT_ENOUGH','OrderSaga · onItemAdded',14,[6,2,6]],['HTTP_503','ShipmentSaga · onPacked',9,[3,6,0]]];
+  $('#clusters').innerHTML=clusters.map(c=>{const t=c[2];return `<tr class="hit" data-go="executions" data-view="0"><td class="code">${c[0]}</td><td>${c[1]}</td><td class="num">${c[2]}</td><td><div class="bar" title="失败 ${c[3][0]} · 准备中 ${c[3][1]} · 不可恢复 ${c[3][2]}"><span style="width:${c[3][0]/t*100}%;background:var(--bad)"></span><span style="width:${c[3][1]/t*100}%;background:var(--primary)"></span><span style="width:${c[3][2]/t*100}%;background:var(--faint)"></span></div></td></tr>`}).join('');
+
+  // 执行样例
+  const execs=[
+    ['EF-1042','失败','bad','可恢复','OrderSaga · onOrderCreated','ORDERSAGA_FAILED',2,'22:41:30','22:38:30'],
+    ['EF-1039','失败','bad','可恢复','OrderSaga · onOrderCreated','ORDERSAGA_FAILED',3,'22:42:05','22:36:05'],
+    ['EF-1031','失败','bad','未知','PaymentSaga · onPaymentRequested','PAYMENT_TIMEOUT',1,'22:42:40','22:39:40'],
+    ['EF-1027','准备中','info','可恢复','OrderSaga · onOrderCreated','ORDERSAGA_FAILED',4,'—','22:40:12'],
+    ['EF-1019','失败','bad','可恢复','InventoryProjector · onReserved','CONFLICT',0,'22:44:00','22:34:00'],
+    ['EF-1011','失败','bad','可恢复','OrderSaga · onItemAdded','STOCK_NOT_ENOUGH',6,'22:45:15','22:30:15'],
+    ['EF-1004','已超时','warn','可恢复','ShipmentSaga · onPacked','HTTP_503',2,'22:45:50','22:29:02'],
+    ['EF-0998','失败','bad','可恢复','OrderSaga · onOrderCreated','ORDERSAGA_FAILED',9,'22:47:30','22:27:30']];
+  $('#attention').innerHTML=execs.filter(e=>e[1]==='失败').slice(0,5).map(e=>`<tr><td class="code">${e[0]}</td><td>${e[4]}</td><td class="code">${e[5]}</td><td class="num">${e[6]}</td><td class="num">${e[7]}</td><td><button class="btn" type="button">准备重试</button></td></tr>`).join('');
+
+  const views=[['可立即处理',128],['执行中',14],['已到重试时间',31],['不可重试',22],['不可恢复',43],['已成功','1,204'],['全部','1,442']];
+  function renderViews(){$('#views').innerHTML='<div class="grp">系统视图</div>'+views.map((v,i)=>`<button type="button" data-v="${i}" ${i===viewIdx?'aria-current="true"':''}><span>${v[0]}</span><span class="n num">${v[1]}</span></button>`).join('')+'<div class="grp">我的视图</div><button type="button"><span>我的处理器 · OrderSaga</span><span class="n num">46</span></button>';}
+  renderViews();$('#views').addEventListener('click',e=>{const b=e.target.closest('[data-v]');if(b){viewIdx=+b.dataset.v;renderViews();}});
+
+  // 行操作：可用性按这一行的状态算（宿主的 compensationCapabilities），不可用时写原因
+  const done={};
+  function acts(e){
+    const st=e[1];
+    if(done[e[0]])return `<div class="acts"><span class="row-result">✓ ${done[e[0]]}</span></div>`;
+    const prep=st==='失败'?'':'disabled';
+    const why=st==='准备中'?'已在执行中':st==='已超时'?'已超时，请强制准备':'';
+    const force=(st==='已超时'||st==='失败')?'':'disabled';
+    return `<div class="acts">${why?`<span class="why">${why}</span>`:''}<button class="btn primary" type="button" data-act="prep" ${prep}>准备重试</button><button class="btn" type="button" data-act="force" ${force}>强制准备</button><span class="more"><button class="btn" type="button" data-act="more" aria-haspopup="menu" aria-expanded="false" aria-label="${e[0]} 的更多操作">⋯</button><span class="more-menu" role="menu" hidden><button type="button" role="menuitem">标记为可恢复</button><button type="button" role="menuitem" class="danger">标记为不可恢复…</button><hr><button type="button" role="menuitem" data-act="open">应用重试规格…</button><button type="button" role="menuitem" data-act="open">修改目标函数…</button><hr><button type="button" role="menuitem" data-act="copy">复制执行 ID</button></span></span></div>`;
+  }
+  const sel=new Set();
+  function renderRows(){
+    $('#rows').innerHTML=execs.map(e=>`<tr class="hit ${sel.has(e[0])?'sel':''}" data-id="${e[0]}"><td><input class="box" type="checkbox" aria-label="选择 ${e[0]}" ${sel.has(e[0])?'checked':''}></td><td class="code">${e[0]}</td><td><span class="tag ${e[2]}">${e[1]}</span></td><td>${e[3]}</td><td>${e[4]}</td><td class="code">${e[5]}</td><td class="num">${e[6]}</td><td class="num">${e[7]}</td><td class="num">${e[8]}</td><td>${acts(e)}</td></tr>`).join('');
+    $('#rowcards').innerHTML=execs.map(e=>`<div class="ecard" data-id="${e[0]}"><div class="l1"><span class="code">${e[0]}</span><span class="tag ${e[2]}">${e[1]}</span></div><div>${e[4]}</div><div class="l2"><span class="code">${e[5]}</span> · 已重试 ${e[6]} · 下次 ${e[7]}</div>${acts(e)}</div>`).join('');
+    $('#bulk').hidden=sel.size===0;$('#bulk-n').textContent=`已选 ${sel.size} 条`;$('#all').checked=sel.size===execs.length;
+  }
+  renderRows();
+  function openDetail(id){$('#detail').hidden=false;$('#d-id').textContent=id;$('#d-result').hidden=true;}
+  function onAct(e,id){const a=e.target.closest('[data-act]');if(!a)return false;const act=a.dataset.act;
+    if(act==='more'){const m=a.nextElementSibling;const open=m.hidden;document.querySelectorAll('.more-menu').forEach(x=>{x.hidden=true;x.previousElementSibling.setAttribute('aria-expanded','false')});m.hidden=!open;a.setAttribute('aria-expanded',open);return true;}
+    if(act==='prep'){done[id]='已准备 · 下次重试 22:43:10';renderRows();return true;}
+    if(act==='force'){done[id]='已强制准备';renderRows();return true;}
+    if(act==='open'){openDetail(id);return true;}
+    if(act==='copy'){try{navigator.clipboard.writeText(id).catch(()=>{})}catch(err){}a.textContent='已复制 '+id;return true;}
+    return true;}
+  $('#rows').addEventListener('click',e=>{const tr=e.target.closest('tr');if(!tr)return;const id=tr.dataset.id;
+    if(e.target.closest('.acts')){onAct(e,id);return;}
+    if(e.target.matches('input')){e.target.checked?sel.add(id):sel.delete(id);renderRows();}else openDetail(id);});
+  $('#rowcards').addEventListener('click',e=>{const c=e.target.closest('.ecard');if(!c)return;if(e.target.closest('.acts')){onAct(e,c.dataset.id);return;}openDetail(c.dataset.id);});
+  document.addEventListener('keydown',e=>{if(e.key==='Escape')document.querySelectorAll('.more-menu').forEach(x=>x.hidden=true);});
+  $('#all').onchange=e=>{sel.clear();if(e.target.checked)execs.forEach(x=>sel.add(x[0]));renderRows();};
+  $('#bulk-clear').onclick=()=>{sel.clear();renderRows();};
+  $('#bulk-prep').onclick=()=>{const n=sel.size;const st=$('#bulk-status');st.hidden=false;let k=0;
+    const t=setInterval(()=>{k++;$('#prog').style.width=(k/n*100)+'%';$('#prog-t').textContent=`准备重试 ${k}/${n}`+(k===n?(n>1?' · 完成 '+(n-1)+'，1 条被拒：已在执行中（EF-1027），仍勾选':' · 完成'):'');
+      if(k>=n){clearInterval(t);}},350);};
+  $('#d-close').onclick=()=>{$('#detail').hidden=true;};
+  $('#d-prep').onclick=()=>{$('#d-result').hidden=false;$('#d-status').textContent='准备中';$('#d-status').className='tag info';};
+  const hist=[['CompensationPrepared','准备重试','info','22:38:31','v5'],['ExecutionFailedApplied','重试失败 · ORDERSAGA_FAILED','bad','22:38:30','v4'],['CompensationPrepared','准备重试','info','22:35:30','v3'],['ExecutionFailedApplied','重试失败 · ORDERSAGA_FAILED','bad','22:35:29','v2'],['ExecutionFailedCreated','首次失败 · OrderCreated','bad','22:32:29','v1']];
+  $('#timeline').innerHTML=hist.map(h=>`<div class="ev ${h[2]}"><i></i><div><span class="code">${h[0]}</span><div class="meta">${h[1]}</div></div><span class="when num">${h[4]} · ${h[3]}</span></div>`).join('');
+
+  // 事件流
+  const evviews=[['全部事件','486'],['首次失败','71'],['重试失败','152'],['准备重试','197'],['恢复成功','58'],['人工操作','8']];
+  let evIdx=0;
+  function renderEvViews(){$('#evviews').innerHTML='<div class="grp">系统视图</div>'+evviews.map((v,i)=>`<button type="button" data-ev="${i}" ${i===evIdx?'aria-current="true"':''}><span>${v[0]}</span><span class="n num">${v[1]}</span></button>`).join('');}
+  renderEvViews();$('#evviews').addEventListener('click',e=>{const b=e.target.closest('[data-ev]');if(b){evIdx=+b.dataset.ev;renderEvViews();}});
+  const evs=[
+    ['22:41:50','恢复成功','ok','ExecutionSuccessApplied','EF-1027','OrderSaga · onOrderCreated','—','v6',true],
+    ['22:41:47','准备重试','info','CompensationPrepared','EF-1031','PaymentSaga · onPaymentRequested','—','v3',true],
+    ['22:41:44','首次失败','bad','ExecutionFailedCreated','EF-1043','OrderSaga · onOrderCreated','ORDERSAGA_FAILED','v1',true],
+    ['22:41:30','重试失败','bad','ExecutionFailedApplied','EF-1042','OrderSaga · onOrderCreated','ORDERSAGA_FAILED','v4'],
+    ['22:41:12','强制准备','warn','CompensationPrepared','EF-1004','ShipmentSaga · onPacked','—','v5'],
+    ['22:40:58','重试失败','bad','ExecutionFailedApplied','EF-1039','OrderSaga · onOrderCreated','ORDERSAGA_FAILED','v6'],
+    ['22:40:41','恢复成功','ok','ExecutionSuccessApplied','EF-0987','CouponSaga · onCouponUsed','—','v4'],
+    ['22:40:22','首次失败','bad','ExecutionFailedCreated','EF-1042','OrderSaga · onOrderCreated','ORDERSAGA_FAILED','v1'],
+    ['22:40:03','标记不可恢复','plain','RecoverableMarked','EF-0955','PointsProjector · onAccrued','POINTS_EXPIRED','v7'],
+    ['22:39:40','重试失败','bad','ExecutionFailedApplied','EF-1031','PaymentSaga · onPaymentRequested','PAYMENT_TIMEOUT','v2'],
+    ['22:39:18','准备重试','info','CompensationPrepared','EF-1019','InventoryProjector · onReserved','—','v2'],
+    ['22:38:30','重试失败','bad','ExecutionFailedApplied','EF-1042','OrderSaga · onOrderCreated','ORDERSAGA_FAILED','v4']];
+  $('#evrows').innerHTML=evs.map(e=>`<tr class="${e[8]?'sel':''}"><td class="num">${e[0]}</td><td><span class="tag ${e[2]}">${e[1]}</span> <span class="code meta">${e[3]}</span></td><td><button class="link code" type="button" data-evid="${e[4]}">${e[4]}</button></td><td>${e[5]}</td><td class="code">${e[6]}</td><td class="num">${e[7]}</td></tr>`).join('');
+  $('#evcards').innerHTML=evs.map(e=>`<div class="ecard"><div class="l1"><span class="tag ${e[2]}">${e[1]}</span><span class="meta num">${e[0]}</span></div><div><button class="link code" type="button" data-evid="${e[4]}">${e[4]}</button> · ${e[5]}</div><div class="l2"><span class="code">${e[6]}</span> · ${e[7]}</div></div>`).join('');
+  document.addEventListener('click',e=>{const b=e.target.closest('[data-evid]');if(b){$('#evdetail').hidden=false;$('#ev-d-id').textContent=b.dataset.evid;}});
+  $('#ev-d-close').onclick=()=>{$('#evdetail').hidden=true;};
+  $('#live').onclick=e=>{const on=e.target.getAttribute('aria-pressed')==='true';e.target.setAttribute('aria-pressed',!on);e.target.textContent=on?'继续':'暂停';$('#live-t').textContent=on?'已暂停 · 上次 22:41:52':'每 10 秒刷新 · 上次 22:41:52';};
+
+  // 看板
+  (function(){const parts=[['可恢复',71,'var(--ok)'],['未知',18,'var(--primary)'],['不可恢复',11,'var(--faint)']];let a=-Math.PI/2,s='';const cx=85,cy=85,r=62,ri=38;
+    parts.forEach(p=>{const b=a+p[1]/100*2*Math.PI;const L=b-a>Math.PI?1:0;const P=(ang,rr)=>[cx+rr*Math.cos(ang),cy+rr*Math.sin(ang)];
+      const [x1,y1]=P(a,r),[x2,y2]=P(b,r),[x3,y3]=P(b,ri),[x4,y4]=P(a,ri);
+      s+=`<path d="M${x1},${y1}A${r},${r} 0 ${L} 1 ${x2},${y2}L${x3},${y3}A${ri},${ri} 0 ${L} 0 ${x4},${y4}Z" fill="${p[2]}"/>`;a=b;});
+    s+=`<text x="${cx}" y="${cy-2}" font-size="18" text-anchor="middle" style="fill:var(--fg)">612</text><text x="${cx}" y="${cy+14}" font-size="11" text-anchor="middle">条失败</text>`;
+    parts.forEach((p,i)=>{s+=`<rect x="175" y="${50+i*24}" width="10" height="10" rx="2" fill="${p[2]}"/><text x="192" y="${59+i*24}" font-size="12" style="fill:var(--fg)">${p[0]} ${p[1]}%</text>`});
+    $('#pie').innerHTML=s;})();
+  (function(){const b=[['0',212],['1',146],['2',98],['3',61],['4–5',48],['6–9',31],['10',16]];const W=300,H=170,L=34,B=24,T=10,max=240,bw=(W-L-8)/b.length;let s='';
+    [0,120,240].forEach(t=>{const y=T+(H-T-B)*(1-t/max);s+=`<line x1="${L}" x2="${W-4}" y1="${y}" y2="${y}" stroke="var(--line)"/><text x="${L-6}" y="${y+4}" font-size="10" text-anchor="end">${t}</text>`});
+    b.forEach((d,i)=>{const h=(H-T-B)*d[1]/max,x=L+i*bw+4;s+=`<rect x="${x}" y="${H-B-h}" width="${bw-8}" height="${h}" rx="3" fill="var(--primary)"/><text x="${x+(bw-8)/2}" y="${H-8}" font-size="10" text-anchor="middle">${d[0]}</text>`});
+    $('#hist').innerHTML=s;})();
+  (function(){const d=[['OrderSaga',184],['PaymentSaga',131],['InventoryProjector',97],['ShipmentSaga',72],['CouponSaga',41],['PointsProjector',19]];const W=640,L=150,R=48,max=200,rh=26;let s='';
+    d.forEach((r,i)=>{const w=(W-L-R)*r[1]/max,y=10+i*(rh+4);s+=`<text x="${L-10}" y="${y+17}" font-size="12" text-anchor="end" style="fill:var(--fg)">${r[0]}</text><rect x="${L}" y="${y+4}" width="${w}" height="${rh-8}" rx="3" fill="var(--primary)"/><text x="${L+w+6}" y="${y+17}" font-size="12" class="num">${r[1]}</text>`});
+    $('#byproc').innerHTML=s;})();
+})();
+</script>
+</body>
+</html>
