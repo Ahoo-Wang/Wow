@@ -2845,7 +2845,6 @@ export const VisualizePanel: Story = {
       'pie',
       'treemap',
       'scatter',
-      'funnel',
       'table',
       'themeRiver',
       'sunburst',
@@ -2858,6 +2857,8 @@ export const VisualizePanel: Story = {
       'candlestick',
       'radar',
       'parallel',
+      // Drawn, but no fit for warehouses side by side (R2-P1-5).
+      'funnel',
       'metric',
       'gauge',
     ]);

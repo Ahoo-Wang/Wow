@@ -83,6 +83,8 @@ export interface AnalysisFieldOption {
   firstLast: boolean;
   /** Whether a dimension on it may keep records missing the value as a group of their own. */
   missingKey: boolean;
+  /** Whether its values are the steps of one process (`steps`): a funnel's. */
+  steps?: boolean;
   /**
    * `false` where a formula may not take it as an operand
    * (`expressionInput`); absent or `true` where it may.
@@ -394,6 +396,7 @@ export function useAnalysisEditor(
           aggregation?.missingKey !== false &&
           isSingleStringField(field, runtime?.kinds.get(field.kind)),
         expressionInput: aggregation?.expressionInput !== false,
+        steps: aggregation?.steps === true,
         cell: field.cell ?? field.kind,
       };
     });

@@ -356,6 +356,10 @@ describe('funnelFit', () => {
     expect(funnelPlotHeight(5, false)).toBe('17.875rem');
     expect(funnelPlotHeight(2, false)).toBe('7.375rem');
     expect(funnelPlotHeight(5, true)).toBe('11.813rem');
+    // Fifteen stages share the height of ten, rather than standing 846px
+    // tall past the result (second review R2-P1-5).
+    expect(funnelPlotHeight(15, false)).toBe(funnelPlotHeight(10, false));
+    expect(funnelPlotHeight(11, false)).toBe(funnelPlotHeight(10, false));
     const tall = standing(stages, 776, 900, text, words);
     for (const stage of tall.stages)
       expect(stage.end - stage.start).toBe(stageLength(text.size));

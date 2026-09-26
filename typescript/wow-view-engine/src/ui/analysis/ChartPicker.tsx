@@ -224,8 +224,12 @@ export function ChartPicker({
                   // The two tiles of one number say what each answers, so
                   // the card and the gauge are told apart by more than a
                   // glyph (D41).
-                  const hint =
-                    fit.available && (value === 'metric' || value === 'gauge')
+                  // A type drawn but not offered as fitting says why under
+                  // its name — a funnel over categories that are no steps —
+                  // and stays pickable.
+                  const hint = fit.aside
+                    ? messages.label(fit.aside)
+                    : fit.available && (value === 'metric' || value === 'gauge')
                       ? messages.label(`label.chart.hint.${value}`)
                       : undefined;
                   const hintId = `${ids}-hint-${value}`;

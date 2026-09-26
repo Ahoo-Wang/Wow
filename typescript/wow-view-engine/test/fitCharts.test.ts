@@ -58,6 +58,38 @@ describe('a funnel’s fit', () => {
     fitCharts({ groups, metrics: [count], ...(rows ? { rows } : {}) }).funnel;
 
   /**
+   * A funnel reads its stages as one sequence (second review R2-P1-5):
+   * over categories side by side it still draws, but is listed among the
+   * other types with why; over a dimension the definition declares the
+   * steps of one process it is offered as fitting.
+   */
+  it('is offered as fitting over declared steps only', () => {
+    const rows = [{ warehouse: 'CN' }, { warehouse: 'US' }];
+    const side = fitCharts({
+      groups: [warehouse],
+      metrics: [count],
+      rows,
+      steps: new Set(),
+    });
+    expect(side.funnel).toEqual({
+      available: true,
+      aside: 'chart.fit.not-steps',
+    });
+    expect(chartPickerGroups(side).others).toContain('funnel');
+    expect(chartPickerGroups(side).suits).not.toContain('funnel');
+    const steps = fitCharts({
+      groups: [warehouse],
+      metrics: [count],
+      rows,
+      steps: new Set(['warehouse']),
+    });
+    expect(steps.funnel).toEqual({ available: true });
+    expect(chartPickerGroups(steps).suits).toContain('funnel');
+    // Not judged where nothing says which dimensions are steps.
+    expect(funnelOf([warehouse], rows)).toEqual({ available: true });
+  });
+
+  /**
    * Picking a funnel fills its stages from the rows (`withStagesFrom`), so
    * the rows decide whether it has the two a funnel needs. Judged on the
    * shape alone, a result of one group was offered a funnel, and picking it

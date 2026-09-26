@@ -83,6 +83,8 @@ async function open(
   chart: ChartSpec,
   overrides: Partial<AnalysisViewConfig>,
   rows: readonly RecordData[] = ROWS,
+  /** Whether the warehouse's values are declared the steps of a process. */
+  steps = false,
 ) {
   const source: ViewSource = testSource({
     aggregate: vi.fn((query: { groupBy?: unknown[] }) =>
@@ -136,6 +138,7 @@ async function open(
           field: 'warehouse',
           groups: [AggregationGroupType.TERMS],
           functions: [],
+          ...(steps ? { steps: true } : {}),
         },
         {
           field: 'status',
@@ -575,5 +578,32 @@ describe('the value labels, as the chart draws them (review P1-6)', () => {
     press('Value and share');
     await waitFor(() => expect(draft().chart.labels).toBe(true));
     expect(pressed()).toEqual(['Value and share']);
+  });
+});
+
+describe('a funnel over steps, and over categories (R2-P1-5)', () => {
+  const groupOf = (type: string) =>
+    document
+      .querySelector(`[data-slot="chart-tile"][data-chart-type="${type}"]`)
+      ?.closest('[data-slot="chart-group"]')
+      ?.getAttribute('aria-labelledby');
+  const bar: ChartSpec = {
+    type: 'bar',
+    cartesian: { x: 'warehouse', series: [{ metric: 'orders' }] },
+  };
+
+  it('offers it among the fitting types over declared steps', async () => {
+    await open(bar, { metrics: [ORDERS] }, ROWS, true);
+    await waitFor(() => expect(groupOf('funnel')).toBe(groupOf('bar')));
+  });
+
+  it('lists it among the others, pickable, with why, over categories', async () => {
+    await open(bar, { metrics: [ORDERS] });
+    await waitFor(() => expect(groupOf('funnel')).not.toBe(groupOf('bar')));
+    const tile = document.querySelector<HTMLElement>(
+      '[data-slot="chart-tile"][data-chart-type="funnel"]',
+    )!;
+    expect(tile.getAttribute('aria-disabled')).toBeNull();
+    expect(tile.textContent).toContain('not the steps of one process');
   });
 });

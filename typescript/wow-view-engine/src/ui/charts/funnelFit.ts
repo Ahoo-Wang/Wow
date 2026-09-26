@@ -29,6 +29,11 @@ type Text = ChartTheme['text'];
 
 /** The longest a stage is drawn, in lines of the chart's text. */
 const STAGE_LINES = 4.5;
+/**
+ * The most stages a standing funnel's plot is as tall as: some 560px at the
+ * page's text. More stages share that height.
+ */
+export const TALLEST_STAGES = 10;
 /** Lying down, the longest a stage runs along, in lines of the text. */
 const STAGE_ALONG = 16;
 /** A line of the chart's text, as a multiple of its size. */
@@ -59,9 +64,14 @@ export function stageLength(size: number): number {
 export function funnelPlotHeight(stages: number, horizontal: boolean): string {
   // The chart's text is 0.75rem (`text-xs`); a stage is STAGE_LINES of it.
   const stage = 0.75 * STAGE_LINES;
+  // Past `TALLEST_STAGES` the plot grows no taller and the stages grow
+  // thinner: fifteen stood 846px tall, past the result's bottom, their last
+  // five and their drops under the footer and out of reach (second review
+  // R2-P1-5).
+  const drawn = Math.min(stages, TALLEST_STAGES);
   const rem = horizontal
     ? stage * 3.5
-    : stages * stage + ((stages - 1) * GAP + PAD * 2) / 16;
+    : drawn * stage + ((drawn - 1) * GAP + PAD * 2) / 16;
   return `${Math.round(rem * 1000) / 1000}rem`;
 }
 
