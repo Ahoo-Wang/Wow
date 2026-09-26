@@ -30,7 +30,6 @@ import me.ahoo.wow.query.schema.QueryPathSegment
 import me.ahoo.wow.query.schema.QueryPathTemplate
 import me.ahoo.wow.query.schema.QueryValueBindings
 import me.ahoo.wow.query.schema.QueryValueSchema
-import me.ahoo.wow.query.schema.physicalField
 import me.ahoo.wow.query.schema.validateQuery
 import org.openjdk.jmh.annotations.Benchmark
 import org.openjdk.jmh.annotations.BenchmarkMode
@@ -54,28 +53,28 @@ import java.util.concurrent.TimeUnit
 @Measurement(iterations = 10, time = 200, timeUnit = TimeUnit.MILLISECONDS)
 @Fork(3)
 @Threads(1)
-open class QuerySchemaResolverBenchmark {
+open class QuerySchemaValidationBenchmark {
     private val value = JsonNodeFactory.instance.stringNode("value")
     private val identityField = QueryField("state.name")
     private val mappedSortField = QueryField("state.createdAt")
     private val mappedFilterField = QueryField("state.status")
     private val stringValue = QueryValueSchema(QueryValueKind.SCALAR, valueTypes = setOf(QueryValueType.STRING))
-    private val modelNoneSchema = fieldSchema(
+    private val identitySchema = fieldSchema(
         identityField, identityField, QueryCapability.EXACT_MATCH, QueryCapability.PRESENCE, QueryCapability.SORT,
     )
-    private val modelNoneQuery = SingleQuery(
+    private val identityQueryInput = SingleQuery(
         EqualFilter(identityField, value),
         Projection(include = listOf(identityField)),
         listOf(Sort(identityField, Sort.Direction.ASC)),
     )
-    private val fieldInferSchema = fieldSchema(mappedSortField, QueryField("document.createdAt"), QueryCapability.SORT)
-    private val fieldInferQuery = SingleQuery(MatchAllFilter, sort = listOf(Sort(mappedSortField, Sort.Direction.ASC)))
-    private val fieldRequiredSchema = fieldSchema(
+    private val mappedSortSchema = fieldSchema(mappedSortField, QueryField("document.createdAt"), QueryCapability.SORT)
+    private val mappedSortQuery = SingleQuery(MatchAllFilter, sort = listOf(Sort(mappedSortField, Sort.Direction.ASC)))
+    private val mappedFilterSchema = fieldSchema(
         mappedFilterField, QueryField("document.status.keyword"), QueryCapability.EXACT_MATCH,
     )
-    private val fieldRequiredFilter = EqualFilter(mappedFilterField, value)
+    private val mappedFilterInput = EqualFilter(mappedFilterField, value)
     private val identityDynamicSchema = dynamicSchema("state", true)
-    private val rewriteDynamicSchema = dynamicSchema("document", false)
+    private val mappedDynamicSchema = dynamicSchema("document", false)
     private val dynamicFilter = EqualFilter(QueryField("state.dynamic.code"), value)
     private val projectionSchema = fieldSchema(identityField, identityField, QueryCapability.PRESENCE)
     private val projection = Projection(include = listOf(identityField))
@@ -83,36 +82,36 @@ open class QuerySchemaResolverBenchmark {
 
     @Setup
     fun verifyEquivalentInputs() {
-        check(modelNoneSchema.field(identityField)!!.capabilities == setOf(QueryCapability.EXACT_MATCH, QueryCapability.PRESENCE, QueryCapability.SORT))
-        check(fieldInferSchema.field(mappedSortField)!!.capabilities == setOf(QueryCapability.SORT))
-        check(fieldRequiredSchema.field(mappedFilterField)!!.capabilities == setOf(QueryCapability.EXACT_MATCH))
-        check(fieldInferSchema.physicalField(mappedSortField, QueryCapability.SORT).path == "document.createdAt")
-        check(fieldRequiredSchema.physicalField(mappedFilterField, QueryCapability.EXACT_MATCH).path == "document.status.keyword")
+        check(identitySchema.field(identityField)!!.capabilities == setOf(QueryCapability.EXACT_MATCH, QueryCapability.PRESENCE, QueryCapability.SORT))
+        check(mappedSortSchema.field(mappedSortField)!!.capabilities == setOf(QueryCapability.SORT))
+        check(mappedFilterSchema.field(mappedFilterField)!!.capabilities == setOf(QueryCapability.EXACT_MATCH))
+        check(mappedSortSchema.physicalFieldOf(mappedSortField, QueryCapability.SORT).path == "document.createdAt")
+        check(mappedFilterSchema.physicalFieldOf(mappedFilterField, QueryCapability.EXACT_MATCH).path == "document.status.keyword")
         check(identityDynamicSchema.definition.root.properties.getValue("state").properties.size == 4)
-        check(rewriteDynamicSchema.definition.root.properties.getValue("state").properties.size == 1)
-        check(identityDynamicSchema.physicalField(dynamicFilter.field, QueryCapability.EXACT_MATCH) == dynamicFilter.field)
-        check(rewriteDynamicSchema.physicalField(dynamicFilter.field, QueryCapability.EXACT_MATCH).path == "document.dynamic.code")
+        check(mappedDynamicSchema.definition.root.properties.getValue("state").properties.size == 1)
+        check(identityDynamicSchema.physicalFieldOf(dynamicFilter.field, QueryCapability.EXACT_MATCH) == dynamicFilter.field)
+        check(mappedDynamicSchema.physicalFieldOf(dynamicFilter.field, QueryCapability.EXACT_MATCH).path == "document.dynamic.code")
         check(projectionSchema.field(identityField)!!.capabilities == setOf(QueryCapability.PRESENCE))
-        check(listOf(modelNoneSchema, fieldInferSchema, fieldRequiredSchema, projectionSchema).all {
+        check(listOf(identitySchema, mappedSortSchema, mappedFilterSchema, projectionSchema).all {
             it.definition.root.properties.getValue("state").properties.size == 1 && it.field(QueryField("deleted")) == null
         })
     }
 
     @Benchmark
-    fun modelNoneIdentityQuery(blackhole: Blackhole) {
-        val accepted = validateQuery(modelNoneQuery, modelNoneSchema)
-        check(accepted === modelNoneQuery)
+    fun identityQuery(blackhole: Blackhole) {
+        val accepted = validateQuery(identityQueryInput, identitySchema)
+        check(accepted === identityQueryInput)
         blackhole.consume(accepted)
     }
 
     @Benchmark
-    fun fieldInferMappedSort(blackhole: Blackhole) {
-        blackhole.consume(validateQuery(fieldInferQuery, fieldInferSchema))
+    fun mappedSort(blackhole: Blackhole) {
+        blackhole.consume(validateQuery(mappedSortQuery, mappedSortSchema))
     }
 
     @Benchmark
-    fun fieldRequiredMappedFilter(blackhole: Blackhole) {
-        blackhole.consume(validateQuery(fieldRequiredFilter, fieldRequiredSchema))
+    fun mappedFilter(blackhole: Blackhole) {
+        blackhole.consume(validateQuery(mappedFilterInput, mappedFilterSchema))
     }
 
     @Benchmark
@@ -123,8 +122,8 @@ open class QuerySchemaResolverBenchmark {
     }
 
     @Benchmark
-    fun rewriteDynamicFilter(blackhole: Blackhole) {
-        blackhole.consume(validateQuery(dynamicFilter, rewriteDynamicSchema))
+    fun mappedDynamicFilter(blackhole: Blackhole) {
+        blackhole.consume(validateQuery(dynamicFilter, mappedDynamicSchema))
     }
 
     @Benchmark

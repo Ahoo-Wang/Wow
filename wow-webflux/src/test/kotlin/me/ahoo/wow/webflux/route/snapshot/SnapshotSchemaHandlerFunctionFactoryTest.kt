@@ -31,10 +31,10 @@ import me.ahoo.wow.query.schema.QuerySchemaUnavailableException
 import me.ahoo.wow.query.schema.QueryStorageType
 import me.ahoo.wow.query.schema.QueryValueBindings
 import me.ahoo.wow.query.schema.QueryValueSchema
-import me.ahoo.wow.query.snapshot.NoOpSnapshotQueryBackend
 import me.ahoo.wow.query.snapshot.SnapshotQueryBackend
 import me.ahoo.wow.query.snapshot.SnapshotQueryBackendFactory
 import me.ahoo.wow.serialization.toJsonNode
+import me.ahoo.wow.tck.query.NoOpSnapshotQueryBackend
 import me.ahoo.wow.webflux.exception.WebFluxRequestExceptionHandler
 import me.ahoo.wow.webflux.route.testAggregateRouteContract
 import org.junit.jupiter.api.Test
@@ -44,7 +44,7 @@ import reactor.core.publisher.Mono
 import tools.jackson.databind.node.JsonNodeFactory
 import java.util.concurrent.atomic.AtomicInteger
 
-class SnapshotSchemaHandlerFunctionTest {
+class SnapshotSchemaHandlerFunctionFactoryTest {
 
     @Test
     fun `get should return the capability descriptor without physical bindings`() {
@@ -68,7 +68,7 @@ class SnapshotSchemaHandlerFunctionTest {
         a["filter"]["operators"].toString().assert().contains("\"EQ\"")
         a["types"][0].stringValue().assert().isEqualTo("STRING")
         a["enum"].toString().assert().isEqualTo("""[{"value":"OPEN"},{"value":2},{"value":true}]""")
-        body.assert().doesNotContain("resolvedField", "physicalField", "storageType", "projectionField", "rewriteMode")
+        body.assert().doesNotContain("resolvedField", "physicalField", "storageType", "projectionField")
 
         provider.schemaCalls.get().assert().isOne()
         provider.refreshCalls.get().assert().isZero()

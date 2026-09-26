@@ -104,11 +104,9 @@ The left column lists removed historical APIs, not current callable contracts:
 | validation-mode / QuerySchemaValidationMode | Removed; strict validation of final logical requests |
 | Flat fields metadata / dynamicChildren | Capability descriptor `QueryModelDescriptor`: `fields` by logical path (element fields carry their `scope`), `elements`, `dynamic` patterns, `variants` and `constraints` |
 
-Any value of the old `wow.query.schema.validation-mode` property, including `strict`, fails startup with an instruction to remove it. CamelCase spellings are rejected too; the setting is not silently ignored.
-
 ## Custom QueryBackend migration
 
-A Backend implements four primitives. Each receives an `AdmittedQuery` carrying the logical Query, its Schema, the query entry and the resolution of each field reference (`admitted.field(reference)`); destructure it with `val (query, schema) = admitted`:
+A Backend implements four primitives. Each receives an `AdmittedQuery` carrying the logical Query, its Schema, the query entry and the resolution of each field reference (`admitted.field(reference)`):
 
 ```kotlin
 val cursorPositions: CursorPositionCodec

@@ -13,21 +13,28 @@
 
 package me.ahoo.wow.benchmark.query
 
-import me.ahoo.wow.query.AdmittedQuery
+import me.ahoo.wow.api.modeling.NamedAggregate
+import me.ahoo.wow.api.query.AggregationQuery
+import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.ListQuery
-import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.MatchAllFilter
+import me.ahoo.wow.api.query.QueryField
+import me.ahoo.wow.api.query.Queryable
 import me.ahoo.wow.api.query.annotation.SensitivityLevel
 import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.api.query.schema.QueryValueType
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
+import me.ahoo.wow.query.AdmittedQuery
+import me.ahoo.wow.query.BackendPage
+import me.ahoo.wow.query.CursorPositionCodec
+import me.ahoo.wow.query.GroupWindow
+import me.ahoo.wow.query.PageWindow
 import me.ahoo.wow.query.QueryBackendBinding
 import me.ahoo.wow.query.schema.MaskRule
 import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QueryModelSchemaProvider
 import me.ahoo.wow.query.snapshot.DefaultSnapshotQueryGateway
-import me.ahoo.wow.query.snapshot.NoOpSnapshotQueryBackend
 import me.ahoo.wow.query.snapshot.SnapshotQueryBackend
 import me.ahoo.wow.query.snapshot.SnapshotQueryGateway
 import me.ahoo.wow.serialization.JsonSerializer
@@ -75,12 +82,20 @@ open class SchemaMaskGatewayBenchmark {
             (0 until maskedFieldCount).associate { index -> QueryField("state.secret$index") to maskedFieldSchema() },
             emptyMap(),
         )
-        val backend = object : SnapshotQueryBackend by NoOpSnapshotQueryBackend(namedAggregate) {
+        val backend = object : SnapshotQueryBackend {
+            override val name: String = "benchmark"
+            override val namedAggregate: NamedAggregate = this@SchemaMaskGatewayBenchmark.namedAggregate
+            override val cursorPositions: CursorPositionCodec = CursorPositionCodec.JSON
             override fun stream(query: AdmittedQuery<IListQuery>): Flux<ObjectNode> = Flux.range(0, resultCount).map {
                 JsonNodeFactory.instance.objectNode().also { node ->
                     node.putObject("state").put("visible", "value")
                 }
             }
+            override fun page(query: AdmittedQuery<Queryable<*>>, window: PageWindow): Mono<BackendPage> =
+                Mono.just(BackendPage(emptyList()))
+            override fun count(query: AdmittedQuery<FilterExpression>): Mono<Long> = Mono.just(0L)
+            override fun aggregate(query: AdmittedQuery<AggregationQuery>, window: GroupWindow): Flux<ObjectNode> =
+                Flux.empty()
         }
         val schemaProvider = object : QueryModelSchemaProvider {
             private val schemaMono = Mono.just(schema)

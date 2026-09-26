@@ -35,7 +35,6 @@ import me.ahoo.wow.query.dsl.singleQuery
 import me.ahoo.wow.query.event.EventStreamQueryBackend
 import me.ahoo.wow.query.event.EventStreamQueryBackendFactory
 import me.ahoo.wow.query.event.EventStreamQueryGateway
-import me.ahoo.wow.query.event.NoOpEventStreamQueryBackend
 import me.ahoo.wow.query.event.filter.EventStreamQueryFilter
 import me.ahoo.wow.query.filter.QueryContext
 import me.ahoo.wow.query.filter.QueryFilter
@@ -43,7 +42,6 @@ import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QueryModelSchemaProvider
 import me.ahoo.wow.query.schema.QuerySchemaUnavailableException
 import me.ahoo.wow.query.single
-import me.ahoo.wow.query.snapshot.NoOpSnapshotQueryBackend
 import me.ahoo.wow.query.snapshot.SnapshotQueryBackend
 import me.ahoo.wow.query.snapshot.SnapshotQueryBackendFactory
 import me.ahoo.wow.query.snapshot.SnapshotQueryGateway
@@ -52,6 +50,8 @@ import me.ahoo.wow.query.snapshot.filter.AbacQueryPolicy
 import me.ahoo.wow.query.snapshot.filter.SnapshotQueryFilter
 import me.ahoo.wow.spring.boot.starter.enableWow
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
+import me.ahoo.wow.tck.query.NoOpEventStreamQueryBackend
+import me.ahoo.wow.tck.query.NoOpSnapshotQueryBackend
 import org.junit.jupiter.api.Test
 import org.springframework.boot.test.context.assertj.AssertableApplicationContext
 import org.springframework.boot.test.context.runner.ApplicationContextRunner
@@ -107,16 +107,10 @@ class QueryAutoConfigurationTest {
                 context.assert()
                     .hasBean(SNAPSHOT_GATEWAY_BEAN_NAME)
                     .hasBean(EVENT_STREAM_GATEWAY_BEAN_NAME)
-                    .hasBean("noOpSnapshotQueryBackendFactory")
-                    .hasBean("noOpEventStreamQueryBackendFactory")
+                    .hasBean("unavailableSnapshotQueryBackendFactory")
+                    .hasBean("unavailableEventStreamQueryBackendFactory")
                     .hasBean("snapshotQueryObserver")
                     .hasBean("eventStreamQueryObserver")
-                    .doesNotHaveBean("stateObjectNodeMaskerRegistry")
-                    .doesNotHaveBean("eventStreamObjectNodeMaskerRegistry")
-                    .doesNotHaveBean("maskingSnapshotQueryFilter")
-                    .doesNotHaveBean("maskingEventStreamQueryFilter")
-                    .doesNotHaveBean("snapshotQueryFilterChain")
-                    .doesNotHaveBean("eventStreamQueryFilterChain")
                     .doesNotHaveBean("snapshotQueryGateway")
                     .doesNotHaveBean("eventStreamQueryGateway")
 
@@ -295,7 +289,8 @@ class QueryAutoConfigurationTest {
         var lastSchema: QueryModelSchema? = null
 
         override fun page(query: AdmittedQuery<Queryable<*>>, window: PageWindow): Mono<BackendPage> {
-            val (single, schema) = query
+            val single = query.query
+            val schema = query.schema
             lastQuery = single as ISingleQuery
             lastSchema = schema
             return Mono.just(

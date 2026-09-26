@@ -15,16 +15,6 @@ package me.ahoo.wow.query.schema
 
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.annotation.SensitivityLevel
-import me.ahoo.wow.api.query.schema.QueryCapability
-import me.ahoo.wow.api.query.schema.QueryCardinality
-
-internal fun isCursorFieldAllowed(
-    schema: QueryModelSchema,
-    path: QueryPathTemplate,
-    value: QueryValueSchema,
-    native: QueryValueBindings,
-): Boolean = QueryCapability.CURSOR_SORT in native.bindings && value.cardinality == QueryCardinality.SINGLE &&
-    QueryPathSegment.Item !in path.segments && !isFieldProtected(schema, path)
 
 /**
  * The strongest sensitivity level protecting any source of [field]: its logical path, its physical bindings, its
@@ -47,9 +37,6 @@ internal fun fieldProtection(
     }
     return levels.maxOrNull()
 }
-
-internal fun isFieldProtected(schema: QueryModelSchema, path: QueryPathTemplate): Boolean =
-    schema.hasMaskedFields && schema.protectedSources.protection(QuerySourceNamespace.LOGICAL, path.segments) != null
 
 internal data class QueryMaskValue(
     val masked: QueryValueSchema,
