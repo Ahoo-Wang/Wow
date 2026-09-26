@@ -58,6 +58,7 @@ import tools.jackson.databind.node.ArrayNode
 import tools.jackson.databind.node.ObjectNode
 import java.security.MessageDigest
 import java.time.ZoneId
+import java.util.HexFormat
 
 /**
  * Describes how this model can be queried on one entry, derived from the same capability table and operator specs that
@@ -71,7 +72,16 @@ fun QueryModelSchema.describe(
     budget: QueryBudget?,
     defaultListSize: Int?,
     timeZone: ZoneId = ZoneId.systemDefault(),
-): QueryModelDescriptor = QueryModelDescription(this, budget).descriptor(defaultListSize, timeZone)
+): QueryModelDescriptor = describedOnce(DescriptorKey(budget, defaultListSize, timeZone)) {
+    QueryModelDescription(this, budget).descriptor(defaultListSize, timeZone)
+}
+
+/**
+ * What a descriptor depends on besides its schema. A schema is immutable (a new version is a new instance), so the
+ * descriptor and its content hash are computed once per key; [budget] compares by identity, as an entry policy
+ * holds one budget per entry.
+ */
+internal data class DescriptorKey(val budget: QueryBudget?, val defaultListSize: Int?, val timeZone: ZoneId)
 
 private class QueryModelDescription(private val schema: QueryModelSchema, private val budget: QueryBudget?) {
     private val allowExpensive = budget?.allowExpensiveOperators ?: true
@@ -418,7 +428,7 @@ internal fun QueryPathTemplate.logicalPath(): String = segments.mapNotNull {
 private fun versionOf(descriptor: QueryModelDescriptor): String {
     val canonical = StringBuilder().also { JsonSerializer.valueToTree<JsonNode>(descriptor).canonical(it) }.toString()
     val digest = MessageDigest.getInstance("SHA-256").digest(canonical.toByteArray(Charsets.UTF_8))
-    return "sha256:" + digest.joinToString("") { "%02x".format(it) }
+    return "sha256:" + HexFormat.of().formatHex(digest)
 }
 
 private fun JsonNode.canonical(out: StringBuilder) {

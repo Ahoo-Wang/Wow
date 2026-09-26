@@ -70,7 +70,7 @@ class QueryAdmission(
     private val entryPolicy: QueryEntryPolicy = QueryEntryPolicy.DEFAULT,
 ) {
     private val filters = filters.sortedByOrder()
-    private val policies = policies.toList()
+    private val policies = policies.sortedByOrder()
 
     /** Admits [query] for [operation] against the one schema [schema] emits, under the subscriber's entry and scope. */
     fun <Q : RewritableFilter<Q>> admit(

@@ -62,7 +62,8 @@ internal class ElasticsearchAggregationPager(
 
     /**
      * Streams the plan's groups in composite order: every group for [GroupWindow.All], otherwise pages sized to stop
-     * at the window's limit. An ungrouped plan answers with its one summary row.
+     * at the window's limit. An ungrouped plan answers with its one summary row. A window whose limit fits one page
+     * is one search, so it needs no point in time: there is no second page for the index to change under.
      */
     fun execute(plan: ElasticsearchAggregationPlan, window: GroupWindow): Flux<ObjectNode> = Flux.defer {
         val limit = (window as? GroupWindow.First)?.limit
@@ -71,6 +72,10 @@ internal class ElasticsearchAggregationPager(
         } else {
             // Built before the point in time opens, so a plan that cannot be expressed fails without one.
             val firstAggregation = plan.aggregation(emptyMap(), plan.pageSize(limit, 0))
+            if (limit != null && limit <= plan.pageSize(null, 0)) {
+                return@defer searchPage(plan, null, limit, aggregation = firstAggregation)
+                    .flatMapIterable { it.rows }
+            }
             pointInTime.use { pit ->
                 searchPage(plan, pit, limit, aggregation = firstAggregation)
                     .expand { page ->
@@ -87,7 +92,7 @@ internal class ElasticsearchAggregationPager(
 
     private fun searchPage(
         plan: ElasticsearchAggregationPlan,
-        pit: ElasticsearchPointInTime.Session,
+        pit: ElasticsearchPointInTime.Session?,
         limit: Int?,
         afterKey: Map<String, FieldValue> = emptyMap(),
         fetched: Int = 0,
@@ -101,13 +106,20 @@ internal class ElasticsearchAggregationPager(
     }
 
     private fun ElasticsearchAggregationPlan.pageSize(limit: Int?, fetched: Int): Int {
-        val bucketWidth = 1 + metrics.count {
-            it is ElasticsearchAggregationMetric.Any || it is ElasticsearchAggregationMetric.Edge
-        } +
-            metrics.count { it.filter != null }
+        val bucketWidth = 1 + metrics.sumOf { it.subBuckets } + metrics.count { it.filter != null }
         val pageCapacity = (batchSize / bucketWidth).coerceAtLeast(1)
         return if (limit == null) pageCapacity else min(pageCapacity, limit - fetched)
     }
+
+    /** The buckets one metric adds per group: a terms or top-hits sub-aggregation adds one. */
+    private val ElasticsearchAggregationMetric.subBuckets: Int
+        get() = when (this) {
+            is ElasticsearchAggregationMetric.Any, is ElasticsearchAggregationMetric.Edge -> 1
+            is ElasticsearchAggregationMetric.Count, is ElasticsearchAggregationMetric.Numeric,
+            is ElasticsearchAggregationMetric.DistinctCount, is ElasticsearchAggregationMetric.Percentile,
+            is ElasticsearchAggregationMetric.Derived,
+            -> 0
+        }
 
     private fun search(
         plan: ElasticsearchAggregationPlan,

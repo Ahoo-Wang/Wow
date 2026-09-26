@@ -34,7 +34,7 @@ import java.util.PriorityQueue
  * Evaluates HAVING against one produced row. Null fails: a missing or JSON-null metric makes every comparison false;
  * [HavingExpression.IsNull] captures exactly those rows.
  */
-fun ObjectNode.matchesHaving(having: HavingExpression): Boolean = when (having) {
+internal fun ObjectNode.matchesHaving(having: HavingExpression): Boolean = when (having) {
     is HavingExpression.And -> having.operands.all { matchesHaving(it) }
     is HavingExpression.Or -> having.operands.any { matchesHaving(it) }
     is HavingExpression.IsNull -> isNullMetric(having.metric) != having.negated
@@ -69,7 +69,7 @@ private fun compare(left: Double, operator: ComparisonOperator, right: Double): 
 }
 
 /** Fills the empty buckets of a sole dense group; fill rows carry each metric's empty value ([EmptyAggregationValues]). */
-sealed interface DenseFill {
+internal sealed interface DenseFill {
     fun fill(rows: Flux<ObjectNode>): Flux<ObjectNode>
 
     companion object {
@@ -95,7 +95,7 @@ private fun emptyRow(alias: String, key: Any, emptyMetrics: Map<String, Any?>): 
  * are generated on demand, because one gap (two SECOND buckets a year apart) can span more buckets than the heap
  * holds.
  */
-class DateHistogramFill(private val group: AggregationGroup.DateHistogram, metrics: List<AggregationMetric>) :
+internal class DateHistogramFill(private val group: AggregationGroup.DateHistogram, metrics: List<AggregationMetric>) :
     DenseFill {
     private val grid = DenseDateGrid(group.unit, java.time.ZoneId.of(group.timeZone))
     private val emptyMetrics = EmptyAggregationValues.values(metrics)
@@ -123,7 +123,7 @@ class DateHistogramFill(private val group: AggregationGroup.DateHistogram, metri
  * Completes a sole dense DATE_PART group to its whole fixed domain, in [direction] order: a key with no row gets a
  * fill row. The domain has at most 31 keys, so the rows are collected before they are merged.
  */
-class DatePartFill(
+internal class DatePartFill(
     private val group: AggregationGroup.DatePart,
     private val direction: Sort.Direction,
     metrics: List<AggregationMetric>,
@@ -142,7 +142,7 @@ class DatePartFill(
  * are [groupAliases] keep the order the backend emitted the groups in, since the storage's group order (dates,
  * keywords) is not necessarily the JSON order of the keys; metric fields compare by value, nulls first.
  */
-class BoundedTopRows(
+internal class BoundedTopRows(
     sort: List<Sort>,
     private val limit: Int,
     private val groupAliases: List<String> = emptyList(),

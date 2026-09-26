@@ -28,6 +28,10 @@ import reactor.util.context.ContextView
  * Snapshot and EventStream gateways evaluate configured policies through the same fixed stage.
  * A policy uses the query context to determine applicability and emits MatchAllFilter when it does not apply.
  * Policies do not replace queries, execute backends, or transform results.
+ *
+ * Policies run one after another in `@Order` order (`sortedByOrder`, like [QueryFilter]; unordered policies keep
+ * their registration order). Their filters are ANDed, so the order decides only which policy's error, and which
+ * audit entry, comes first.
  */
 fun interface QueryPolicy {
     fun evaluate(contextView: ContextView, context: QueryContext<*>): Mono<FilterExpression>

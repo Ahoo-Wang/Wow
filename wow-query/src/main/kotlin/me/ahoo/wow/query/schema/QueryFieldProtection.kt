@@ -15,6 +15,7 @@ package me.ahoo.wow.query.schema
 
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.annotation.SensitivityLevel
+import me.ahoo.wow.api.query.schema.QueryValueKind
 
 /**
  * The strongest sensitivity level protecting any source of [field]: its logical path, its physical bindings, its
@@ -42,7 +43,25 @@ internal data class QueryMaskValue(
     val masked: QueryValueSchema,
     val allowed: QueryValueSchema,
     val excludedKeys: Map<Int, Set<String>> = emptyMap(),
-)
+) {
+    /**
+     * The mask values of this value's array items, computed once per mask value instead of once per masked array
+     * node: each masked item keeps this value's rule, allowed as any item [allowed] declares.
+     */
+    val arrayMembers: List<QueryMaskValue> by lazy {
+        val rule = checkNotNull(masked.maskRule)
+        val allowedItems = allowed.arrayItems()
+        if (allowedItems.isEmpty()) return@lazy emptyList()
+        val allowedValue = allowedItems.singleOrNull() ?: QueryValueSchema(QueryValueKind.UNION, alternatives = allowedItems)
+        masked.arrayItems().map { QueryMaskValue(it.withMask(rule), allowedValue) }
+    }
+}
+
+private fun QueryValueSchema.arrayItems(): List<QueryValueSchema> = when (kind) {
+    QueryValueKind.ARRAY -> listOf(checkNotNull(items))
+    QueryValueKind.UNION -> alternatives.flatMap { it.arrayItems() }
+    else -> emptyList()
+}
 
 internal enum class QuerySourceNamespace { LOGICAL, PROJECTION, RESPONSE, PHYSICAL }
 
@@ -272,7 +291,7 @@ internal fun QueryValueSchema.withMask(rule: MaskRule): QueryValueSchema = Query
 )
 
 private fun QueryValueSchema.stringMaskShape(rule: MaskRule): QueryValueSchema? = when (kind) {
-    me.ahoo.wow.api.query.schema.QueryValueKind.SCALAR -> if (me.ahoo.wow.api.query.schema.QueryValueType.STRING in valueTypes) {
+    QueryValueKind.SCALAR -> if (me.ahoo.wow.api.query.schema.QueryValueType.STRING in valueTypes) {
         QueryValueSchema(
             kind,
             valueTypes = setOf(me.ahoo.wow.api.query.schema.QueryValueType.STRING),

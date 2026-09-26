@@ -126,6 +126,24 @@ class QueryModelSchemaTest {
     }
 
     @Test
+    fun `a dynamic field is resolved once and the descriptor is described once per key`() {
+        val schema = boundSchemaFixture(
+            objectFixture(
+                "counts" to QueryValueSchema(
+                    QueryValueKind.OBJECT,
+                    additionalProperties = scalarFixture(QueryValueType.INTEGER),
+                ),
+            ),
+        )
+        schema.field(QueryField("counts.work")).assert().isSameAs(schema.field(QueryField("counts.work")))
+        schema.field(QueryField("counts.work.extra")).assert().isNull()
+        val budget = me.ahoo.wow.query.QueryBudget.HTTP_DEFAULT
+        schema.describe(budget, 10).assert().isSameAs(schema.describe(budget, 10))
+        schema.describe(budget, 20).assert().isNotSameAs(schema.describe(budget, 10))
+        schema.describe(budget, 10).version.assert().matches("sha256:[0-9a-f]{64}")
+    }
+
+    @Test
     fun `binding snapshot preserves shared values and cannot reference undeclared paths`() {
         val definition = LogicalQuerySchema(objectFixture("name" to scalarFixture()))
         val native = linkedMapOf<QueryPathTemplate, QueryValueBindings>()

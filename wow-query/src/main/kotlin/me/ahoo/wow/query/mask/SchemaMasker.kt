@@ -22,7 +22,6 @@ import me.ahoo.wow.query.schema.QueryMaskValue
 import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QueryValueSchema
 import me.ahoo.wow.query.schema.profile
-import me.ahoo.wow.query.schema.withMask
 import tools.jackson.databind.JsonNode
 import tools.jackson.databind.node.ArrayNode
 import tools.jackson.databind.node.JsonNodeFactory
@@ -82,7 +81,7 @@ internal class SchemaMasker private constructor(private val definition: QueryMas
             }
             node.isArray -> {
                 val children = nodes.mapNotNull { it.item }
-                val members = domains.flatMap { it.arrayMembers() }
+                val members = domains.flatMap { it.arrayMembers }
                 node.forEachIndexed { index, child ->
                     (node as ArrayNode).set(index, visit(child, children, members))
                 }
@@ -203,24 +202,6 @@ private fun QueryValueSchema.matchesScalarShape(node: JsonNode): Boolean = when 
     node.isNumber -> QueryValueType.DECIMAL in valueTypes
     node.isBoolean -> QueryValueType.BOOLEAN in valueTypes
     else -> false
-}
-
-private fun QueryMaskValue.arrayMembers(): List<QueryMaskValue> {
-    val rule = checkNotNull(masked.maskRule)
-    val allowedItems = allowed.arrayItems()
-    if (allowedItems.isEmpty()) return emptyList()
-    val allowedValue = if (allowedItems.size == 1) {
-        allowedItems.single()
-    } else {
-        QueryValueSchema(QueryValueKind.UNION, alternatives = allowedItems)
-    }
-    return masked.arrayItems().map { QueryMaskValue(it.withMask(rule), allowedValue) }
-}
-
-private fun QueryValueSchema.arrayItems(): List<QueryValueSchema> = when (kind) {
-    QueryValueKind.ARRAY -> listOf(checkNotNull(items))
-    QueryValueKind.UNION -> alternatives.flatMap { it.arrayItems() }
-    else -> emptyList()
 }
 
 private fun JsonNode.isScalarValue(): Boolean = !isObject && !isArray
