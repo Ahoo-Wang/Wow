@@ -1,4 +1,4 @@
-# @ahoo-wang/wow-view-engine — 790 names, from src/index.ts.
+# @ahoo-wang/wow-view-engine — 796 names, from src/index.ts.
 # Written by test/publicSurface.test.ts; a change here is a change to
 # the public surface (README「Entries」, docs/design/decisions.md D29).
 value ALWAYS_VISIBLE
@@ -61,6 +61,9 @@ value CSV_BOM
 type  CalendarData
 type  CalendarDay
 type  CalendarSpec
+type  Candle
+type  CandlestickData
+type  CandlestickSpec
 type  CartesianData
 type  CartesianGap
 type  CartesianMissing
@@ -381,6 +384,7 @@ type  TreemapTile
 type  UnsavedViewTarget
 value VALUE_CANDIDATE_LIMIT
 value VALUE_CANDIDATE_OPERATORS
+value VALUE_METRIC_TYPES
 value VIEW_AUDIENCES
 value VIEW_KINDS
 value VIEW_SCOPES
@@ -394,6 +398,7 @@ type  ValueCandidate
 type  ValueCandidateSource
 type  ValueCandidates
 type  ValueFormat
+type  ValueMetric
 type  ViewAudience
 type  ViewChange
 type  ViewChangeKind
@@ -606,6 +611,7 @@ value isStacked
 value isSystemInstanceId
 value isSystemScope
 value isValidTimeZone
+value isValueMetric
 value isViewCommandError
 value isViewPanel
 value isViewStoreError

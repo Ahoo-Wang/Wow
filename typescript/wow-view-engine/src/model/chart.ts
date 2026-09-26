@@ -28,6 +28,7 @@ export interface ChartSpec {
   waterfall?: WaterfallSpec;
   treemap?: TreemapSpec;
   boxplot?: BoxplotSpec;
+  candlestick?: CandlestickSpec;
   gauge?: GaugeSpec;
   radar?: RadarSpec;
   parallel?: ParallelSpec;
@@ -72,6 +73,7 @@ export type ChartType =
   | 'metric'
   | 'gauge'
   | 'boxplot'
+  | 'candlestick'
   | 'radar'
   | 'parallel'
   | 'sunburst'
@@ -89,7 +91,9 @@ export type ChartType =
  * several metrics per group; the sunburst and the tree after the treemap,
  * the other parts of a whole, and the sankey beside them; the calendar
  * after the heatmap, whose cells it lays out as days, and the theme river
- * after the area, whose stack it lets flow.
+ * after the area, whose stack it lets flow; the candlestick after the
+ * boxplot, the other chart that draws several numbers of one field as one
+ * mark.
  */
 export const CHART_TYPES: readonly ChartType[] = [
   'bar',
@@ -108,6 +112,7 @@ export const CHART_TYPES: readonly ChartType[] = [
   'map',
   'scatter',
   'boxplot',
+  'candlestick',
   'radar',
   'parallel',
   'funnel',
@@ -131,6 +136,7 @@ export type ChartFamily = Extract<
   | 'waterfall'
   | 'treemap'
   | 'boxplot'
+  | 'candlestick'
   | 'gauge'
   | 'radar'
   | 'parallel'
@@ -172,6 +178,7 @@ export const CHART_FAMILY: Readonly<Record<ChartType, ChartFamily>> =
     waterfall: 'waterfall',
     treemap: 'treemap',
     boxplot: 'boxplot',
+    candlestick: 'candlestick',
     gauge: 'gauge',
     radar: 'radar',
     parallel: 'parallel',
@@ -418,6 +425,28 @@ export interface BoxplotSpec {
   q3: string;
   /** Metric alias of the highest value (the `MAX`). */
   high: string;
+}
+
+/**
+ * A candlestick (K 线): how one number moved within each period — where it
+ * opened and closed, and how high and low it went — one candle per bucket
+ * of one time dimension. The four are four metrics of one field under one
+ * condition: its `FIRST` (the open, 期初值), `MAX`, `MIN` and `LAST` (the
+ * close, 期末值), the two ends ordered by one time (N1); the kernel only
+ * reads them (`ohlcSets`). A candle is coloured by whether it closed above
+ * its open, in the host's rise/fall convention.
+ */
+export interface CandlestickSpec {
+  /** Group alias of the time dimension: one candle per bucket. */
+  x: string;
+  /** Metric alias of the opening value (the `FIRST`). */
+  open: string;
+  /** Metric alias of the highest value (the `MAX`). */
+  high: string;
+  /** Metric alias of the lowest value (the `MIN`). */
+  low: string;
+  /** Metric alias of the closing value (the `LAST`). */
+  close: string;
 }
 
 /**

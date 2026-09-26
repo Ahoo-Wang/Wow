@@ -21,6 +21,7 @@ import {
   type RecordData,
 } from '../model/index.js';
 import { fiveNumberSets } from './boxplot.js';
+import { ohlcSets } from './candlestick.js';
 import { familyOf, type ChartUnfit, type ShapeFacts } from './chartFamilies.js';
 import { stageValues } from './chartOptions.js';
 import { isAdditiveMetric } from './validateChart.js';
@@ -137,6 +138,9 @@ function shapeFacts(shape: ChartShape): ShapeFacts {
       groups === 1 &&
       shape.groups[0]?.type === 'DATE_HISTOGRAM' &&
       shape.groups[0].unit === 'DAY',
+    ohlc:
+      ohlcSets(shape.metrics, new Set(quantities.map(metric => metric.alias)))
+        .length > 0,
     fiveNumbers:
       fiveNumberSets(
         shape.metrics,

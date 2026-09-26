@@ -69,6 +69,8 @@ function namedFields(config: DataViewConfig): string[] {
   names.push(...config.groups.map(group => group.field));
   for (const metric of config.metrics) {
     if (metric.type === 'ANY') names.push(metric.field);
+    else if (metric.type === 'FIRST' || metric.type === 'LAST')
+      names.push(metric.field, ...(metric.orderBy ? [metric.orderBy] : []));
     else if (
       'expression' in metric &&
       metric.expression &&

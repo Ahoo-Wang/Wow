@@ -116,6 +116,23 @@ export function chartSentence(
           })
         : undefined;
     }
+    case 'candlestick': {
+      const candlestick = spec?.candlestick;
+      const first = data.candles[0];
+      const last = data.candles[data.candles.length - 1];
+      if (!first || !last) return undefined;
+      const value = (slot: 'open' | 'high' | 'low' | 'close', at: number) =>
+        ctx.label(candlestick?.[slot], at);
+      return ctx.messages.label('label.chart.sentence.candlestick', {
+        count: data.candles.length,
+        first: ctx.label(candlestick?.x, first.x),
+        last: ctx.label(candlestick?.x, last.x),
+        open: value('open', first.open),
+        close: value('close', last.close),
+        high: value('high', Math.max(...data.candles.map(one => one.high))),
+        low: value('low', Math.min(...data.candles.map(one => one.low))),
+      });
+    }
     case 'gauge': {
       if (data.value === null) return undefined;
       const text = (value: number) =>

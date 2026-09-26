@@ -74,6 +74,45 @@ export function BoxplotSlots({ chart, shape, onChange }: OptionsPageProps) {
   );
 }
 
+/**
+ * A candlestick's options: which date dimension's buckets the candles are,
+ * and — when the metrics hold the four numbers of more than one field —
+ * whose moves are drawn. The four are never picked one by one: they are one
+ * field's, together (`ohlcSets`), and a set is named by its close's column.
+ */
+export function CandlestickSlots({ chart, shape, onChange }: OptionsPageProps) {
+  const messages = useViewMessages();
+  const spec = chart.candlestick;
+  if (!spec) return null;
+  const sets = shape.ohlc ?? [];
+  const titleOf = (alias: string) =>
+    shape.metrics.find(metric => metric.value === alias)?.label ?? alias;
+  return (
+    <>
+      <SlotSelect
+        label={messages.label('label.chart.slot.candle')}
+        items={shape.groups.filter(group => shape.dated?.has(group.value))}
+        value={spec.x}
+        onChange={x => onChange({ ...chart, candlestick: { ...spec, x } })}
+      />
+      {sets.length > 1 && (
+        <SlotSelect
+          label={messages.label('label.chart.slot.moves')}
+          items={sets.map(set => ({
+            value: set.close,
+            label: titleOf(set.close),
+          }))}
+          value={spec.close}
+          onChange={close => {
+            const set = sets.find(entry => entry.close === close);
+            if (set) onChange({ ...chart, candlestick: { ...spec, ...set } });
+          }}
+        />
+      )}
+    </>
+  );
+}
+
 /** A gauge's needle: the one number it places, a quantity. */
 export function GaugeSlots({ chart, shape, onChange }: OptionsPageProps) {
   const messages = useViewMessages();

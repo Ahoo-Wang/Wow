@@ -34,6 +34,7 @@ import { CalendarSlots, LevelSlots, RiverSlots } from './LevelOptions.js';
 import { MapSlots } from './MapOptions.js';
 import {
   BoxplotSlots,
+  CandlestickSlots,
   GaugeSlots,
   ProfileSlots,
 } from './StatisticalOptions.js';
@@ -75,6 +76,8 @@ export function DataTab(props: OptionsPageProps) {
       return <TreemapSlots {...props} />;
     case 'boxplot':
       return <BoxplotSlots {...props} />;
+    case 'candlestick':
+      return <CandlestickSlots {...props} />;
     case 'gauge':
       return <GaugeSlots {...props} />;
     case 'radar':

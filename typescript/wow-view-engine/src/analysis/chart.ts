@@ -18,6 +18,7 @@ import {
   type RecordData,
 } from '../model/index.js';
 import { shapeBoxplot, type BoxplotData } from './boxplot.js';
+import { shapeCandlestick, type CandlestickData } from './candlestick.js';
 import { shapeCartesian, type CartesianData } from './cartesian.js';
 import { num, seriesKey } from './chartRows.js';
 import { shapeFunnel, type FunnelData } from './funnel.js';
@@ -68,6 +69,7 @@ export type ChartData =
   | WaterfallData
   | TreemapData
   | BoxplotData
+  | CandlestickData
   | GaugeData
   | RadarData
   | ParallelData
@@ -82,6 +84,7 @@ export { periodRollover } from './metricCard.js';
 export type { WaterfallData, WaterfallStep } from './waterfall.js';
 export type { TreemapData, TreemapTile } from './treemap.js';
 export type { BoxplotBox, BoxplotData } from './boxplot.js';
+export type { Candle, CandlestickData } from './candlestick.js';
 export type { GaugeData } from './gauge.js';
 export type { MapData, MapRegion } from './map.js';
 export type {
@@ -244,6 +247,8 @@ export function shapeChart(
           ),
         )
       );
+    case 'candlestick':
+      return chart.candlestick && shapeCandlestick(chart.candlestick, rows);
     case 'gauge':
       return chart.gauge && shapeGauge(chart.gauge, rows);
     case 'radar':

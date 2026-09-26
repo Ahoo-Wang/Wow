@@ -17,6 +17,7 @@ import { zhCN } from '@ahoo-wang/wow-view-engine/ui';
 import displayMeta, {
   Boxplot as DisplayBoxplot,
   Calendar as DisplayCalendar,
+  Candlestick as DisplayCandlestick,
   Gauge as DisplayGauge,
   Parallel as DisplayParallel,
   Radar as DisplayRadar,
@@ -82,6 +83,45 @@ const tile = (root: ParentNode, type: string) =>
   root.querySelector<HTMLElement>(
     `[data-slot="chart-tile"][data-chart-type="${type}"]`,
   )!;
+
+/**
+ * K 线图：每周一根，开高低收四个数由 FIRST、MAX、MIN、LAST 算出；开与收都在
+ * 高低之间，涨跌在读屏表里用文字写出。可视化面板里 K 线在「适合这个结果」，
+ * 箱线图写着它为什么不行（没有五个数）。
+ */
+export const CandlestickDrawn: Story = {
+  ...DisplayCandlestick,
+  name: 'K 线图：每周成交单价',
+  play: async ({ canvasElement }) => {
+    const frame = await chartOf(canvasElement, 'candlestick');
+    const rows = readingOf(canvasElement);
+    await expect(Number(frame.getAttribute('data-marks'))).toBe(rows.length);
+    await expect(rows.length).toBeGreaterThanOrEqual(10);
+    const words = [
+      zhCN['label.chart.candlestick.rise'],
+      zhCN['label.chart.candlestick.fall'],
+      zhCN['label.chart.candlestick.flat'],
+    ];
+    for (const row of rows) {
+      const [open, high, low, close] = row
+        .slice(1, 5)
+        .map(cell => Number.parseFloat(cell.replace(/[^\d.-]/g, '')));
+      await expect(low).toBeLessThanOrEqual(Math.min(open!, close!));
+      await expect(high).toBeGreaterThanOrEqual(Math.max(open!, close!));
+      const said =
+        close! > open! ? words[0] : close! < open! ? words[1] : words[2];
+      await expect(row[5]).toBe(said);
+    }
+    const panel = await visualize(canvasElement);
+    await expect(tile(panel, 'candlestick')).not.toHaveAttribute(
+      'aria-disabled',
+    );
+    await expect(tile(panel, 'boxplot')).toHaveAttribute(
+      'aria-disabled',
+      'true',
+    );
+  },
+};
 
 /**
  * 箱线图：各仓一个箱，五个数从低到高；图上方写近似值。可视化面板里箱线图

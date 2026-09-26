@@ -148,6 +148,8 @@ describe('the summaries a field offers', () => {
       'NUMERIC',
       'DISTINCT_COUNT',
       'PERCENTILE',
+      'FIRST',
+      'LAST',
       'ANY',
     ]);
     expect(

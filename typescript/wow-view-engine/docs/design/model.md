@@ -138,6 +138,7 @@ export interface AggregationFieldCapability {
   dateUnits?: AggregationDateUnit[];
   dateParts?: AggregationDatePart[]; // DATE_PART 可取的周期；不写即全部四种（datePartsOf），描述按 analysis.dateParts 收窄
   any?: boolean;
+  firstLast?: boolean; // FIRST／LAST（期初值／期末值）可读这个字段的值；单值字段才行，不写即不可（N1）
   distinctCount?: boolean;
   percentile?: boolean;
   missingKey?: boolean; // false：按值分组不带缺失值一组（不写时单值文本字段带）
@@ -313,6 +314,17 @@ export type AnalysisMetric = AnalysisNamed &
         filter?: FilterTree;
       }
     | { type: 'ANY'; alias: string; field: string; filter?: FilterTree }
+    // 期初值／期末值（N1）：这一组里按 orderBy 最早／最晚那条记录的值；根上不写
+    // orderBy 即按模型的事件时间（描述的 analysis.firstLastOrderBy，写进
+    // AnalysisCapability.firstLastOrderBy），展开的明细项没有事件时间，必须写。
+    // 与 ANY 同是「一条记录的值」（VALUE_METRIC_TYPES）：派生指标与「只保留」都读不了它。
+    | {
+        type: 'FIRST' | 'LAST';
+        alias: string;
+        field: string;
+        orderBy?: string;
+        filter?: FilterTree;
+      }
     | {
         type: 'DISTINCT_COUNT';
         alias: string;

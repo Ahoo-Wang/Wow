@@ -176,6 +176,7 @@ src/
     logScale.ts               — Whether a log axis can carry the numbers (`logScaleFits`: every one above zero) and the numbers one cartesian axis measures (`cartesianAxisValues`); internal, not re-exported
     waterfall.ts              — `shapeWaterfall`: a waterfall's steps in reading order (time forward), each with the running total it starts and ends at, and the closing total unless the spec asks none (`WaterfallData`)
     treemap.ts                — `shapeTreemap`: a treemap's tiles, largest first, nested in one block per outer value when there are two dimensions; a row with no area (not above zero) counted as `omitted` rather than drawn (`TreemapData`)
+    candlestick.ts            — A candle's four numbers (N1): `ohlcSets` (each field's `FIRST`, `MAX`, `MIN` and `LAST` under one condition, the two ends by one order), `isOhlcSet`, `ohlcMetrics` (what 「补齐 K 线的四个数」 adds), `ohlcSet`, `shapeCandlestick` (a candle per row, time forward, its direction; a row missing one counted as `omitted`)
     boxplot.ts                — A boxplot's five numbers (D41): `fiveNumberSets` (each field's `MIN`, three rising `PERCENTILE`s and `MAX` under one condition), `isFiveNumberSet`, `fiveNumberMetrics` (what 「补齐箱线图的五个数」 adds), `shapeBoxplot` (a box per row, time forward, a row missing one counted as `omitted`, `approximate` since Wow's percentiles are)
     gauge.ts                  — `shapeGauge`: one number on a scale (D41) — the target and the share reached, the ends the spec's or 0 to a round number past the value and the target (`roundUp`), a value past a pinned end said `beyond`
     profiles.ts               — `shapeRadar` and `shapeParallel` (D41): each group's numbers on three metrics or more, time forward; a radar's groups past the palette and a row missing a number counted as `omitted`
@@ -205,7 +206,7 @@ src/
     validate.ts               — validateAnalysis — the one entry every per-rule file below is read through
     validateAliases.ts        — Alias syntax, the reserved prefix, duplicates
     validateChart.ts          — Chart rules; groups must all be consumed
-    validateLevels.ts         — The rules of the D41 charts of levels and time: a sunburst's, a tree's and a sankey's two to four levels and a size that adds up; a calendar's day dimension; a theme river's date, split and a width that adds up; a map's region dimension (`TERMS`) and its map's name
+    validateLevels.ts         — The rules of the D41 charts of levels and time: a sunburst's, a tree's and a sankey's two to four levels and a size that adds up; a calendar's day dimension; a theme river's date, split and a width that adds up; a map's region dimension (`TERMS`) and its map's name; a candlestick's date dimension and four numbers of one field (N1)
     validateReferences.ts     — What a cartesian chart draws over its marks, checked for shape: reference lines (a number or a statistic of a metric drawn on its axis), target bands (from below to), derived series (a known kind, a metric drawn, a window of 2 to `MAX_MOVING_WINDOW`)
     chartRefs.ts              — What every family's chart rules read (`ChartContext`) and the checks a slot is made of: a group, a metric, a quantity, every group consumed (internal)
     validateElements.ts       — The expansion chain, walked level by level, and each gate filter
@@ -497,6 +498,8 @@ src/
       waterfallOption.ts      — `waterfallOption`: bars stacked on an unseen base so each step floats on the running total, a rise in the success colour and a fall in the destructive one, the total in the first slot, signed values past each bar's end; `drawnBars`
       Treemap.tsx             — A treemap through `treemapOption`: a pressed tile handed back as its group (both, when nested), the groups with no area and the share basis said over it
       treemapOption.ts        — `treemapOption`: tiles by area named on themselves, a slot a tile up to eight and one hue shaded by rank past that, inner tiles shaded from their block's colour, no zoom or breadcrumb; `drawnTiles`
+      Candlestick.tsx         — A candlestick (K 线) through `candlestickOption`: a pressed candle handed back as its period; over it how many periods lack a number
+      candlestickOption.ts    — `candlestickOption`: a candle per period from its open to its close, wicks to its extremes, rising and falling in the host's rise/fall colours (`--_fve-rise` / `--_fve-fall`), each number named by its column and the direction in words in the tooltip; `drawnCandles`
       Boxplot.tsx             — A boxplot through `boxplotOption`: a pressed box handed back as its group; over it that the quartiles and median are approximate and how many groups lack a number
       boxplotOption.ts        — `boxplotOption`: a box per group from the lower to the upper quartile, the median across, whiskers to the extremes, each number named by its column in the tooltip; `drawnBoxes`
       Gauge.tsx               — A gauge through `gaugeOption`: one number on a scale, nothing pressed, a value off the scale said over it
@@ -514,7 +517,7 @@ src/
       maps.ts                 — `registerChartMap` (on `/ui`): the maps a host offers the map chart — this package ships no map data, the host owns the geography and its compliance (审图号); `useChartMaps`, `loadChartMap` (fetched on first use, handed to the library, kept)
       echartsGeo.ts           — The map family's chunk (the map series and the geo component) and `registerGeoMap`, the one way a host's geography reaches the library; registered on first use by `loadCharts('geo')`
       ChartNotes.tsx          — `chartNotes`: what a family without a legend says over its plot — groups left out, approximate numbers — in the legend's place, with the key when there is one
-      echartsStatistics.ts    — The statistical families' chunk (boxplot, funnel, gauge, radar, parallel and their components), registered on first use by `loadCharts('statistics')`
+      echartsStatistics.ts    — The statistical families' chunk (boxplot, candlestick, funnel, gauge, radar, parallel and their components), registered on first use by `loadCharts('statistics')`
       Funnel.tsx              — A funnel through `funnelOption` and `funnelFit`, the whole conversion and the reading said over it, the plot as tall as its stages; staged by a dimension, a stage pressed as its group and, on a board, marked
       funnelOption.ts         — `funnelOption`: the library's own funnel (D48), a trapezoid a stage in the order given, from zero, one colour, the last kept to its own width; `drawnStages` with both conversions and the drop, and the words' graphic elements
       funnelFit.ts            — `funnelFit`, the funnel's `adapt`: each stage bounded to 4.5 lines of text, its words inside it or beside it with a leader, the drops level with their seams (standing or lying down); `funnelPlotHeight`
@@ -535,7 +538,7 @@ src/
       patterns.ts             — Patterns over the colours (decal, D33 Q57): `usePatterns` follows `prefers-contrast: more` live, `--fve-chart-patterns` pins it, `withPatterns` turns on the aria component's decal alone
       palette.ts              — The eight slot colours, the grey of a pie's "Other", and the spec's overrides
       reading.ts              — A chart as text: its name and the numbers it draws
-      readingStatistics.ts    — The D41 families as text: a boxplot's five numbers, a gauge's number, target and scale, a radar's or parallel axes' profiles, a hierarchy's innermost parts under their parents, a sankey's bands, a calendar's days, a theme river's buckets, a map's regions
+      readingStatistics.ts    — The D41 families as text: a boxplot's five numbers, a candlestick's four and its direction in words, a gauge's number, target and scale, a radar's or parallel axes' profiles, a hierarchy's innermost parts under their parents, a sankey's bands, a calendar's days, a theme river's buckets, a map's regions
       sentence.ts             — `chartSentence`: a chart in one sentence, its description after its name — how many groups, the highest and the lowest, over a time axis its first and last bucket and which way it went (`direction`)
       image.ts                — A chart as a picture (D33 Q58): `ChartImageTarget` (where a chart hands over its capture), `chartImageSvg` (the drawing rendered off the page by the library's `ssr`, under a head of graphic elements — title, range, legend), `rasterize` (the SVG onto a canvas as a PNG)
       optionMerge.ts          — `merged`: an adjustment laid onto an option object by object and series by series, as the library merges one

@@ -171,6 +171,21 @@ export type AnalysisMetric = AnalysisNamed &
       }
     | { type: 'ANY'; alias: string; field: string; filter?: FilterTree }
     | {
+        /**
+         * The field's value on the group's earliest (`FIRST`, 期初值) or
+         * latest (`LAST`, 期末值) record by `orderBy` — the model's event
+         * time when left out at the root (the descriptor's
+         * `analysis.firstLastOrderBy`); inside an element it must be named.
+         * Only records with both a value and an `orderBy` count, and those
+         * the metric's `filter` keeps.
+         */
+        type: 'FIRST' | 'LAST';
+        alias: string;
+        field: string;
+        orderBy?: string;
+        filter?: FilterTree;
+      }
+    | {
         type: 'DISTINCT_COUNT';
         alias: string;
         expression: AnalysisExpression;
@@ -224,7 +239,8 @@ export const MAX_DERIVED_DECIMALS = 6;
 /**
  * The metric types that measure one field, in the order a field offers them
  * (D20 汇总方式): a function of its values, how many distinct values it
- * holds, a percentile of them, or any one of them. The record count names
+ * holds, a percentile of them, its value on the earliest or the latest
+ * record (期初值／期末值), or any one of them. The record count names
  * no field, and a derived metric names other metrics. Declared beside the
  * union so a `satisfies` refuses a type the metric does not have, and the
  * summary a tray card offers is derived from this rather than listed again.
@@ -233,10 +249,34 @@ export const FIELD_METRIC_TYPES = [
   'NUMERIC',
   'DISTINCT_COUNT',
   'PERCENTILE',
+  'FIRST',
+  'LAST',
   'ANY',
 ] as const satisfies readonly AnalysisMetric['type'][];
 
 export type FieldMetricType = (typeof FIELD_METRIC_TYPES)[number];
+
+/**
+ * The metric types whose value is one record's value of a field rather than
+ * a number computed over the group: any one (`ANY`), the earliest record's
+ * (`FIRST`) and the latest's (`LAST`). Wow lets neither a derived metric nor
+ * 「只保留」 read them, and a totals row has no whole of 「任一值」.
+ */
+export const VALUE_METRIC_TYPES = [
+  'ANY',
+  'FIRST',
+  'LAST',
+] as const satisfies readonly AnalysisMetric['type'][];
+
+export type ValueMetric = Extract<
+  AnalysisMetric,
+  { type: (typeof VALUE_METRIC_TYPES)[number] }
+>;
+
+/** Whether a metric is one record's value (`VALUE_METRIC_TYPES`). */
+export function isValueMetric(metric: AnalysisMetric): metric is ValueMetric {
+  return (VALUE_METRIC_TYPES as readonly string[]).includes(metric.type);
+}
 
 /** Wow's having/derived trees only reference aliases and numbers. */
 export type AnalysisHavingExpression = LiteralEnums<HavingExpression>;

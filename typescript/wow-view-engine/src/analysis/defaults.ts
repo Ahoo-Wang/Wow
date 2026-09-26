@@ -243,12 +243,15 @@ export interface MetricFacts {
   distinctCount?: boolean;
   percentile?: boolean;
   any?: boolean;
+  firstLast?: boolean;
 }
 
 /** Which flag of a field offers each metric type that is not a function. */
 const OFFERED_BY = {
   DISTINCT_COUNT: 'distinctCount',
   PERCENTILE: 'percentile',
+  FIRST: 'firstLast',
+  LAST: 'firstLast',
   ANY: 'any',
 } as const satisfies Record<
   Exclude<FieldMetricType, 'NUMERIC'>,
@@ -270,6 +273,8 @@ export function summaryOf(metric: AnalysisMetric): SummaryChoice | null {
       return metric.function;
     case 'DISTINCT_COUNT':
     case 'PERCENTILE':
+    case 'FIRST':
+    case 'LAST':
     case 'ANY':
       return metric.type;
     default:
@@ -299,7 +304,9 @@ export function metricOfSummary(
         percentile: DEFAULT_PERCENTILE,
       };
     case 'ANY':
-      return { type: 'ANY', alias, field: facts.field };
+    case 'FIRST':
+    case 'LAST':
+      return { type: choice, alias, field: facts.field };
     default:
       return { type: 'NUMERIC', alias, function: choice, expression };
   }
@@ -349,6 +356,11 @@ export function firstMetric(
 
   const any = fields.find(entry => entry.any);
   if (any) return metricOfSummary(any, 'ANY', aliasOf(any.field, 'any'));
+
+  // The closing value, last: it names a time to order by, which an
+  // expanded element has to be given (`analysis.first-last.order-by-required`).
+  const edge = fields.find(entry => entry.firstLast);
+  if (edge) return metricOfSummary(edge, 'LAST', aliasOf(edge.field, 'last'));
 
   throw new Error('analysis capability declares no usable metric');
 }

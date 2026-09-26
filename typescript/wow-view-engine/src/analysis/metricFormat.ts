@@ -13,6 +13,7 @@
 
 import {
   isDateCell,
+  isValueMetric,
   type AnalysisDerivedExpression,
   type AnalysisExpression,
   type AnalysisFunction,
@@ -35,6 +36,8 @@ export type MetricFunction =
   | 'COUNT'
   | 'DISTINCT_COUNT'
   | 'PERCENTILE'
+  | 'FIRST'
+  | 'LAST'
   | 'ANY'
   | 'DERIVED';
 
@@ -261,12 +264,13 @@ function sameFormat(
 }
 
 /**
- * The one field a metric summarises, when it has one: `ANY` names it, and the
+ * The one field a metric summarises, when it has one: a value metric
+ * (`ANY`, `FIRST`, `LAST`) names it, and the
  * three expression-carrying kinds through a `FIELD` expression. A formula, a
  * count and a derived metric summarise no single field.
  */
 export function metricFieldOf(metric: AnalysisMetric): string | undefined {
-  if (metric.type === 'ANY') return metric.field;
+  if (isValueMetric(metric)) return metric.field;
   if (
     metric.type === 'NUMERIC' ||
     metric.type === 'DISTINCT_COUNT' ||
@@ -292,6 +296,8 @@ export function readsAsItsField(metric: AnalysisMetric): boolean {
     case 'MIN':
     case 'MAX':
     case 'PERCENTILE':
+    case 'FIRST':
+    case 'LAST':
     case 'ANY':
       return true;
     default:

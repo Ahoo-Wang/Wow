@@ -99,6 +99,14 @@ function renamedMetric(
 ): AnalysisMetric {
   let next: AnalysisMetric = metric;
   if (metric.type === 'ANY') next = { ...metric, field: name(metric.field) };
+  else if (metric.type === 'FIRST' || metric.type === 'LAST')
+    next = {
+      ...metric,
+      field: name(metric.field),
+      ...(metric.orderBy === undefined
+        ? {}
+        : { orderBy: name(metric.orderBy) }),
+    };
   else if ('expression' in metric && metric.type !== 'DERIVED')
     next = {
       ...metric,

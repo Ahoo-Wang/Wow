@@ -73,6 +73,8 @@ export interface AnalysisFieldOption {
   distinctCount: boolean;
   percentile: boolean;
   any: boolean;
+  /** Whether it offers an opening and a closing value (FIRST / LAST). */
+  firstLast: boolean;
   /** Whether a dimension on it may keep records missing the value as a group of their own. */
   missingKey: boolean;
   /**
@@ -159,6 +161,12 @@ export interface AnalysisEditorController extends QuestionEditing {
    * the capability names none, which is every type.
    */
   havingMetrics: readonly string[] | null;
+  /**
+   * The field an opening or closing value (FIRST / LAST) at the root is
+   * ordered by when it names none (`firstLastOrderBy`, the model's event
+   * time); `null` where the capability does not say.
+   */
+  firstLastOrderBy: string | null;
   /** Whether the rows may be ordered by a metric (`metricSort`). */
   metricSortAllowed: boolean;
   /** Whether a date dimension may fill its empty buckets (`dense`). */
@@ -369,6 +377,7 @@ export function useAnalysisEditor(
         distinctCount: aggregation?.distinctCount === true,
         percentile: aggregation?.percentile === true,
         any: aggregation?.any === true,
+        firstLast: aggregation?.firstLast === true,
         missingKey:
           aggregation?.missingKey !== false &&
           isSingleStringField(field, runtime?.kinds.get(field.kind)),
@@ -512,6 +521,7 @@ export function useAnalysisEditor(
     havingAllowed: capability?.having === true,
     expressionsAllowed: capability?.expressions === true,
     havingMetrics: capability?.havingMetrics ?? null,
+    firstLastOrderBy: capability?.firstLastOrderBy ?? null,
     metricSortAllowed: capability?.metricSort !== false,
     denseAllowed: capability?.dense !== false,
     approximate: approximateMetrics(capability),

@@ -13,7 +13,13 @@
 
 import { useRef, useState } from 'react';
 import { PlusIcon, XIcon } from 'lucide-react';
-import type { AnalysisMetric, FieldOption } from '../../model/index.js';
+import {
+  isDateCell,
+  isValueMetric,
+  without,
+  type AnalysisMetric,
+  type FieldOption,
+} from '../../model/index.js';
 import type { AnalysisEditorController } from '../../react/index.js';
 import { Button } from '../components/button.js';
 import {
@@ -192,7 +198,7 @@ export function MetricSlot({
               </DropdownMenuItem>
               <DropdownMenuItem
                 disabled={
-                  !analysis.metrics.some(metric => metric.type !== 'ANY')
+                  !analysis.metrics.some(metric => !isValueMetric(metric))
                 }
                 onClick={() => analysis.addDerived()}
               >
@@ -268,6 +274,9 @@ function MetricCard({
   // the summary too, in the words the result column is headed with.
   const reference = metricReference(analysis, metric, messages);
   const choices = field ? summaryChoices(field) : [];
+  // What an opening or closing value can be ordered by: the times the
+  // counting unit holds (FIRST / LAST).
+  const times = analysis.fields.filter(entry => isDateCell(entry.cell));
   // A field measured by its lowest, highest and percentiles can be drawn as
   // a box, and the five are added in one go (D41); a date's are moments.
   const boxable =
@@ -277,6 +286,19 @@ function MetricCard({
     !analysis.moments?.has(metric.alias) &&
     (metric.type === 'PERCENTILE' ||
       (metric.type === 'NUMERIC' && metric.expression.type === 'FIELD'));
+  // A field with an opening and a closing value, a highest and a lowest can
+  // be drawn as a candle, and the four are added in one go (N1).
+  const candled =
+    choices.includes('FIRST') &&
+    choices.includes('LAST') &&
+    choices.includes('MIN') &&
+    choices.includes('MAX') &&
+    !analysis.moments?.has(metric.alias) &&
+    (metric.type === 'FIRST' ||
+      metric.type === 'LAST' ||
+      (metric.type === 'NUMERIC' &&
+        metric.expression.type === 'FIELD' &&
+        (metric.function === 'MIN' || metric.function === 'MAX')));
   const choice = summaryOf(metric);
   // The menu picks one of six, so «任一值» carries its caveat in the item
   // itself; a column header composes the bare word through `label.summary.of`
@@ -344,11 +366,47 @@ function MetricCard({
               onChange={next =>
                 analysis.replaceMetric(
                   index,
-                  metricOfSummary(field, next, metric.alias),
+                  withOrder(
+                    metricOfSummary(field, next, metric.alias),
+                    metric,
+                    times,
+                    analysis.elements.length > 0,
+                  ),
                 )
               }
             />
           )}
+        {(metric.type === 'FIRST' || metric.type === 'LAST') && (
+          <CompactSelect
+            label={messages.label('label.analysis.order-by-of', { name })}
+            items={[
+              ...(analysis.elements.length > 0
+                ? []
+                : [
+                    {
+                      value: EVENT_ORDER,
+                      label: messages.label('label.analysis.order-by-default'),
+                    },
+                  ]),
+              ...times.map(entry => ({
+                value: entry.field,
+                label: messages.label('label.analysis.order-by', {
+                  field: entry.label,
+                }),
+              })),
+            ]}
+            value={metric.orderBy ?? EVENT_ORDER}
+            disabled={disabled}
+            onChange={next =>
+              analysis.replaceMetric(
+                index,
+                next === EVENT_ORDER
+                  ? without(metric, 'orderBy')
+                  : { ...metric, orderBy: next },
+              )
+            }
+          />
+        )}
         {metric.type === 'PERCENTILE' && (
           <NumberInput
             label={messages.label('label.analysis.percentile')}
@@ -396,6 +454,11 @@ function MetricCard({
               {messages.label('label.analysis.five-numbers')}
             </DropdownMenuItem>
           )}
+          {candled && (
+            <DropdownMenuItem onClick={() => analysis.addOhlc(index)}>
+              {messages.label('label.analysis.ohlc')}
+            </DropdownMenuItem>
+          )}
           {metric.type !== 'DERIVED' && (
             <DropdownMenuItem onClick={onDuplicate}>
               {messages.label('label.analysis.copy-with-condition', {
@@ -428,6 +491,11 @@ function MetricCard({
           {messages.label('label.analysis.any-note')}
         </span>
       )}
+      {(metric.type === 'FIRST' || metric.type === 'LAST') && (
+        <span data-slot="metric-note" className="text-muted-foreground w-full">
+          {messages.label('label.analysis.first-last-note')}
+        </span>
+      )}
       {conditioning ? (
         <ConditionBlock
           analysis={analysis}
@@ -447,4 +515,30 @@ function MetricCard({
       )}
     </EditorCard>
   );
+}
+
+/**
+ * The value an opening or closing value's order select takes for the
+ * source's own default, the model's event time: no `orderBy` at all.
+ */
+const EVENT_ORDER = '(event-time)';
+
+/**
+ * A summary switched to an opening or closing value keeps the order the
+ * metric had, and inside expanded entries — which have no event time — starts
+ * ordered by their first time field (`analysis.first-last.order-by-required`).
+ */
+function withOrder(
+  next: AnalysisMetric,
+  previous: AnalysisMetric,
+  times: readonly { field: string }[],
+  expanded: boolean,
+): AnalysisMetric {
+  if (next.type !== 'FIRST' && next.type !== 'LAST') return next;
+  const kept =
+    previous.type === 'FIRST' || previous.type === 'LAST'
+      ? previous.orderBy
+      : undefined;
+  const orderBy = kept ?? (expanded ? times[0]?.field : undefined);
+  return orderBy === undefined ? next : { ...next, orderBy };
 }

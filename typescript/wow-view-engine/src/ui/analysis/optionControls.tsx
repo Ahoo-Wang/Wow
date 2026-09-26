@@ -13,6 +13,7 @@
 
 import { useId, type ReactNode } from 'react';
 import type { FiveNumbers } from '../../analysis/boxplot.js';
+import type { Ohlc } from '../../analysis/candlestick.js';
 import type { ChartData, DerivedGap } from '../../analysis/index.js';
 import type {
   ChartSpec,
@@ -65,6 +66,11 @@ export interface OptionsShape {
    * boxplot can draw.
    */
   fiveNumbers?: readonly FiveNumbers[];
+  /**
+   * Each field's four numbers of a candle the quantities hold (`ohlcSets`):
+   * what a candlestick can draw.
+   */
+  ohlc?: readonly Ohlc[];
   /** The dimensions that are date buckets by day: what a calendar lays out. */
   daily?: ReadonlySet<string>;
 }

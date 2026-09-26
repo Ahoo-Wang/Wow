@@ -298,6 +298,7 @@ describe('metricReference over a conditioned metric', () => {
     distinctCount: false,
     percentile: false,
     any: false,
+    firstLast: false,
     missingKey: false,
   };
   const naming = (...metrics: AnalysisMetric[]) => ({

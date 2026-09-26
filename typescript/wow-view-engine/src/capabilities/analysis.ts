@@ -97,6 +97,11 @@ export function narrowAnalysis(
   // What the source estimates is its to say, not the definition's: taken
   // as it is (#3489).
   next.approximate = metricTypes(offered.approximate);
+  // The field a root FIRST / LAST is ordered by when it names none: the
+  // model's event time, which only the descriptor knows (#3532).
+  if (offered.firstLastOrderBy !== undefined)
+    next.firstLastOrderBy = offered.firstLastOrderBy;
+  else delete next.firstLastOrderBy;
   next.limits = lowered(capability.limits, descriptor);
 
   if (!constructible(next)) {
@@ -113,6 +118,8 @@ const METRIC_TYPES: readonly AnalysisMetric['type'][] = [
   'ANY',
   'DISTINCT_COUNT',
   'PERCENTILE',
+  'FIRST',
+  'LAST',
   'DERIVED',
 ];
 
@@ -258,6 +265,10 @@ function narrowAggregation(
     aggregate.percentile,
     'PERCENTILE',
   );
+  // One flag offers both ends; the model lists each metric type on its own.
+  const firstLast =
+    flag(declared.firstLast, aggregate.firstLast, 'FIRST') &&
+    metrics.includes('LAST');
 
   const missingKey =
     declared.missingKey !== false &&
@@ -286,13 +297,15 @@ function narrowAggregation(
     ...(declared.any && !any ? ['ANY'] : []),
     ...(declared.distinctCount && !distinctCount ? ['DISTINCT_COUNT'] : []),
     ...(declared.percentile && !percentile ? ['PERCENTILE'] : []),
+    ...(declared.firstLast && !firstLast ? ['FIRST_LAST'] : []),
   ];
   if (
     groups.length === 0 &&
     functions.length === 0 &&
     !any &&
     !distinctCount &&
-    !percentile
+    !percentile &&
+    !firstLast
   )
     return { capability: null, dropped };
 
@@ -315,6 +328,7 @@ function narrowAggregation(
   if (declared.distinctCount !== undefined)
     capability.distinctCount = distinctCount;
   if (declared.percentile !== undefined) capability.percentile = percentile;
+  if (declared.firstLast !== undefined) capability.firstLast = firstLast;
   return { capability, dropped };
 }
 
@@ -346,6 +360,7 @@ function constructible(capability: AnalysisCapability): boolean {
       field.functions.length > 0 ||
       field.any === true ||
       field.distinctCount === true ||
-      field.percentile === true,
+      field.percentile === true ||
+      field.firstLast === true,
   );
 }

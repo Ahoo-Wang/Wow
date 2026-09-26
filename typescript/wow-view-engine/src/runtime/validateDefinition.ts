@@ -556,7 +556,8 @@ function hasConstructibleMetric(
       field.functions.length > 0 ||
       field.any === true ||
       field.distinctCount === true ||
-      field.percentile === true,
+      field.percentile === true ||
+      field.firstLast === true,
   );
 }
 

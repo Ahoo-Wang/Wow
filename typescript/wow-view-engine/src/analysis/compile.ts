@@ -392,6 +392,19 @@ function compileMetric(
         alias: metric.alias,
         ...predicate,
       };
+    case 'FIRST':
+    case 'LAST':
+      // Without `orderBy` the source orders by the model's event time, which
+      // is only there at the root; admission asks an element's to name one.
+      return {
+        type: AggregationMetricType[metric.type],
+        field: relativeName(metric.field, prefix),
+        ...(metric.orderBy === undefined
+          ? {}
+          : { orderBy: relativeName(metric.orderBy, prefix) }),
+        alias: metric.alias,
+        ...predicate,
+      };
     case 'DISTINCT_COUNT':
       return {
         type: AggregationMetricType.DISTINCT_COUNT,

@@ -904,6 +904,67 @@ describe('rowSource', () => {
     });
   });
 
+  describe('first and last', () => {
+    const rows = [
+      { eventTime: 3, placed: 30, price: 12, shop: 'a' },
+      { eventTime: 1, placed: 40, price: 10, shop: 'a' },
+      { eventTime: 2, placed: 10, price: 15, shop: 'a' },
+      { eventTime: 4, placed: 20, price: null, shop: 'a' },
+      { eventTime: null, placed: 5, price: 99, shop: 'b' },
+    ];
+    const edge = (
+      type: AggregationMetricType.FIRST | AggregationMetricType.LAST,
+      alias: string,
+      orderBy?: string,
+      filter?: FilterExpression,
+    ): AggregationMetric => ({
+      type,
+      field: 'price',
+      alias,
+      ...(orderBy ? { orderBy } : {}),
+      ...(filter ? { filter } : {}),
+    });
+
+    it('reads the value on the earliest and the latest record by event time', async () => {
+      const answer = await rowSource(rows).aggregate(
+        query(
+          [
+            edge(AggregationMetricType.FIRST, 'open'),
+            edge(AggregationMetricType.LAST, 'close'),
+          ],
+          {
+            groupBy: [terms('shop')],
+            sort: [{ field: 'shop', direction: SortDirection.ASC }],
+          },
+        ),
+      );
+      // The latest record has no price, so the one before it closes; the
+      // shop whose only record has no time has no first and no last.
+      expect(answer).toEqual([
+        { shop: 'a', open: 10, close: 12 },
+        { shop: 'b', open: null, close: null },
+      ]);
+    });
+
+    it('orders by the field it names, under its own condition', async () => {
+      const answer = await rowSource(rows).aggregate(
+        query(
+          [
+            edge(AggregationMetricType.FIRST, 'open', 'placed'),
+            edge(
+              AggregationMetricType.LAST,
+              'close',
+              'placed',
+              cmp(FilterOperator.LT, 'price', 14),
+            ),
+          ],
+          { groupBy: [terms('shop')], filter: eq('shop', 'a') },
+        ),
+      );
+      expect(answer).toEqual([{ shop: 'a', open: 15, close: 10 }]);
+    });
+  });
+
   describe('memory', () => {
     it('answers a repeated aggregation from memory, each time with its own copy', async () => {
       const rows: RecordData[] = [

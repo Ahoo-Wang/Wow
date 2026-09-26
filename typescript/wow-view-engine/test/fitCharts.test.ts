@@ -339,6 +339,7 @@ describe('chartPickerGroups', () => {
       'calendar',
       'scatter',
       'boxplot',
+      'candlestick',
       'radar',
       'parallel',
       'metric',
@@ -354,6 +355,6 @@ describe('chartPickerGroups', () => {
       }),
     );
     expect(none.suits).toEqual(['table']);
-    expect(none.others).toHaveLength(21);
+    expect(none.others).toHaveLength(22);
   });
 });

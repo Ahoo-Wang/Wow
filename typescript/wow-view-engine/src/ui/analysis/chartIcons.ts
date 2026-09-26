@@ -30,6 +30,7 @@ import {
   PentagonIcon,
   SlidersVerticalIcon,
   SquareSigmaIcon,
+  SquareSplitVerticalIcon,
   SunIcon,
   WavesIcon,
   WaypointsIcon,
@@ -68,8 +69,10 @@ export const CHART_ICON: Record<ChartType | 'table', LucideIcon> = {
   // A folded map: regions shaded by their numbers.
   map: MapIcon,
   scatter: ChartScatterIcon,
-  // Boxes on whiskers: a box's five numbers.
-  boxplot: ChartCandlestickIcon,
+  // A box split at its median: a box's five numbers.
+  boxplot: SquareSplitVerticalIcon,
+  // Bodies on wicks: a period's open, high, low and close.
+  candlestick: ChartCandlestickIcon,
   // A closed outline across axes that go round: a radar's shape.
   radar: PentagonIcon,
   // Upright axes side by side: parallel coordinates.

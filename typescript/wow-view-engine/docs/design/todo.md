@@ -161,12 +161,8 @@
 
 ## 需要后端的图型与分析
 
-D41 定下「除了需要后端支持的，全部都需要增加」；下面这些当时 Wow 聚合算不出，查询模块重构会话把它们记为 N1～N6（方案 documentation/designs/2026-09-24-query-target-architecture-design.md §11）。wow-client 已有 DATE_PART（#3524，N2）、元素里的 SEARCH（#3525，N4）、FIRST／LAST（#3532，N1）、DATE_DIFF 与 EXPRESSION 条件（#3539，N3）；本包按 N2 → N1 → N3 → N4 一项一个 PR 采用，采用一项删一行。按日期部件分组（N2）已采用：定义准入、描述收窄、托盘的周期选择、周期轴与热力图「星期 × 时段」、Storybook 零售数据按真实下单时间分组（见 [kernels.md](kernels.md)、test/datePart.test.ts）。
+D41 定下「除了需要后端支持的，全部都需要增加」；下面这些当时 Wow 聚合算不出，查询模块重构会话把它们记为 N1～N6（方案 documentation/designs/2026-09-24-query-target-architecture-design.md §11）。wow-client 已有 DATE_PART（#3524，N2）、元素里的 SEARCH（#3525，N4）、FIRST／LAST（#3532，N1）、DATE_DIFF 与 EXPRESSION 条件（#3539，N3）；本包按 N2 → N1 → N3 → N4 一项一个 PR 采用，采用一项删一行。按日期部件分组（N2）已采用；期初值、期末值与 K 线图（N1）已采用：指标卡的汇总方式与先后、「补齐 K 线的四个数」、涨跌配色、读屏表与摘要（见 test/firstLast.test.ts、test/candlestickUi.test.tsx）。N2 的落点：定义准入、描述收窄、托盘的周期选择、周期轴与热力图「星期 × 时段」、Storybook 零售数据按真实下单时间分组（见 [kernels.md](kernels.md)、test/datePart.test.ts）。
 
-- **K 线（开高低收）**——N1 每桶的首值、末值（FIRST/LAST）。
-  - 为什么：「任一值」不保证每次一样（D20），拿不出开盘与收盘；高低有 `MIN`/`MAX`。
-  - 判据：Wow 聚合有 FIRST/LAST 后，本包加 `candlestick` 家族（一个按时间的维度、同一字段的首末高低四个指标，内核认作一组，同箱线图的做法），适合规则、读屏表、故事与孪生齐全。
-  - 落点：`src/model/chart.ts`、`src/analysis/`、`src/ui/charts/`；[analysis-echarts.md](analysis-echarts.md) 第 6 节。
 - **两个时刻之差的指标**（付款到发货几小时）——N3 DATE_DIFF 表达式。
   - 为什么：今天只能由读模型预先算好一个字段（`payToShipHours`）；分析师不能自己问「签收到完成几天」。
   - 判据：表达式能写两个时刻之差后，托盘的公式卡能选它，箱线图、直方分组都能用它。

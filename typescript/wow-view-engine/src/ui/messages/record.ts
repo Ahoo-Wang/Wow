@@ -205,6 +205,10 @@ export const recordMessages = {
   // summary menu picks one choice out of six and is exactly where the caveat
   // belongs, so the item carries it and the card at rest spells it out
   // (`label.analysis.any-note`).
+  // The value on a group's earliest and latest record (FIRST / LAST): an
+  // opening and a closing value, as a period's are named.
+  'label.summary.fn.FIRST': 'Opening value',
+  'label.summary.fn.LAST': 'Closing value',
   'label.summary.fn.ANY': 'Any value',
   'label.summary.fn.ANY.item': 'Any value (not stable)',
   'label.summary.unavailable': '—',

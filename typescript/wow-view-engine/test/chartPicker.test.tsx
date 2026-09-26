@@ -221,6 +221,7 @@ describe('the visualization panel', () => {
       // No map registered on this page: nothing to draw one on (D41).
       'map',
       'boxplot',
+      'candlestick',
       'radar',
       'parallel',
       'funnel',
