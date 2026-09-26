@@ -399,7 +399,7 @@ import {
 
 #### 定制主题
 
-每个 token 都读一个宿主层变量，并以内置值兜底：在自己的 `:root` 上给亮色设 `--fve-<token>`、给暗色设 `--fve-dark-<token>` 即可，视图根与 Portal 到 `<body>` 的弹层都会读到——不必考虑选择器作用域，也不必考虑样式加载顺序。**`:root` 上的值赢过任何预设，钉在面上的预设也不例外**：宿主、预设与引擎各写自己前缀的变量——`--fve-*` 是宿主的，`--fvp-*` 是预设的，`--_fve-*` 是引擎自己的、谁也不该写——每个 token 先读宿主的：`var(--fve-x, var(--fvp-x, <内置值>))`。想让某一块面不受某个覆盖影响，就把覆盖写在比 `:root` 更窄的选择器上。
+每个 token 都读一个宿主层变量，并以内置值兜底：在自己的 `:root` 上给亮色设 `--fve-<token>`、给暗色设 `--fve-dark-<token>` 即可，视图根与 Portal 到 `<body>` 的弹层都会读到——不必考虑选择器作用域，也不必考虑样式加载顺序。**`:root` 上的值赢过任何预设，钉在面上的预设也不例外**：宿主、预设与引擎各写自己前缀的变量——`--fve-*` 是宿主的，`--fvp-*` 是预设的，`--_fve-*` 是引擎自己的、谁也不该写——每个 token 先读宿主的：`var(--fve-<token>, var(--fvp-<token>, <内置值>))`。想让某一块面不受某个覆盖影响，就把覆盖写在比 `:root` 更窄的选择器上。
 
 只给某一块面的值，用 `ViewSurface`、工作台或嵌入组件的 `tokens`——`tokens={{ '--fve-primary': '#0f766e' }}`，类型是 `FveToken`——而不是写在包裹层上：弹层 portal 到 `<body>`，不在包裹层下面，`tokens` 会写在面上，也写在它打开的每个弹层上。
 
@@ -636,6 +636,7 @@ import '@ahoo-wang/wow-view-engine/themes/porcelain.css';
 - **图表花纹**：`--fve-chart-patterns: on | off` 设在任一祖先上，钉开或钉关图表系列上的花纹（decal）；不设（或 `auto`）时跟随读者系统的「提高对比度」（`prefers-contrast: more`）。它不是颜色；只有 `contrast` 这一套预设设它（`--fvp-chart-patterns: on`），你在 `:root` 上写的 `off` 仍然赢。
 - **预设给什么**：只写它要改的。没写的就是内置值——绝不是外层预设的，因为挂了预设的元素上预设层先被清空——`neutral` 一个也不写。有两组各是一个整体、全给或全不给：两种明暗的图表八色、两种明暗的三档阴影。颜色与 `radius` 之外，预设还可以给一条系统字体栈（`--fvp-font-sans`）、图表花纹的钉（`--fvp-chart-patterns`）、推荐的密度（`--fvp-preset-density`，见[密度](#密度)），以及任何一个**角色**——见下面的[角色](#角色)。预设自带的色板与默认八色过同一套色觉与对比门（`test/paletteDistance.test.ts`）；色位是序数——「第三个系列」——不是色相，所以 `ChartSpec.colors` 里写 `var(--chart-3)` 的，换预设颜色会跟着变。要去掉一档阴影，写一个透明的阴影（`0 0 0 0 transparent`），不要写 `none`：工具类把阴影与描边拼成一个列表，`none` 放进列表里整条声明就失效，连弹层的描边也一起没了。
 - <a id="角色"></a>**角色**：上面 token 表里从 `canvas` 到 `chart-tooltip-shadow` 的那些行，是引擎自己的面，而不是颜色——分组底与行的底（`canvas`、`content`）、卡片的边与浮起、对话框背后的遮罩、表格的表头带（底、字、字重、列之间的分隔线）、合计带、选中行与隔行底、菜单的高亮项、视图列表里正在看的那一个、指针下或按下的控件、焦点（轮廓的宽度、偏移与样式，以及光晕）、控件的填色、边、按下的滑块与它的浮起、控件的两档高度、控件边的宽度、带色徽标的底与边、分部件的圆角（卡片、控件、弹层、徽标、复选框）、标题与强调的字重、提示框，以及图表的外观（见下）。每个角色与其他 token 一样，宿主写 `--fve-<角色>`、预设写 `--fvp-<角色>`；**不设时就是它落回的那个 token，或者这块面在有这个角色之前画出来的样子**——所以改 `--fve-muted` 仍会带着表头带、合计带与选中行一起变，一个角色都不设的主题与从前一模一样。要把某一块面与其余分开就设它的角色：`--fve-row-selected: oklch(0.96 0.03 250deg)` 只给选中行上色，表头带仍是 `muted`。控件高度守 24px 的地板（WCAG 2.5.8），承诺 AAA 的主题给 `--fve-focus-width` 至少 2px（WCAG 2.4.13）；每个作为底的角色与其余的底一样量对比度（`src/ui/theme/pairs.ts`）。
+- <a id="角色的链接"></a>**链接**：预设写的颜色在挂预设的元素上（通常是 `<html>`）就定下来了，所以预设说不出「菜单高亮就是主色」——那个主色要到视图上才从品牌色或宿主自己的 `--fve-primary` 解析出来。链接替它说：`<角色>-link`（上表里 `-link` 结尾的几行）是视图上解析出的那个 token 取多少来画这个角色，`100%` 就是它本身，少于它是把它半透明地铺在底上。`--fve-highlight-link: 100%` 加 `--fve-highlight-foreground-link: 100%`，菜单、选择框、组合框的高亮项就都用主色填充、主色的字——即你的品牌色，亮暗都对。链接一个数管两种明暗；你写的角色颜色赢过它，它赢过预设自己的颜色。`porcelain` 链了菜单高亮，`azure` 链了当前视图、已选项与描边按钮悬停时的边，所以两者都跟着品牌色。
 - <a id="图表角色"></a>**图表的角色**：图表库画的是自己的 SVG，样式表够不到，所以图表从自己的元素上把整个外观读回来——颜色读成颜色、长度读成像素、数字读成数字，都由浏览器算（`calc()`、`min()`、`oklch(from …)` 都算在内）——再用它来画：网格线与轴线（`chart-grid`、`chart-grid-width`）、图表里弱一级的字（`chart-axis`）、图表文字与数值标签的字号（`chart-text-size`、`chart-label-size`，跟随 `text-ui`）、线宽与面积的不透明度（`chart-line-width`、`chart-area-opacity`）、柱的圆角与柱宽的上下限（`chart-bar-radius`、`chart-bar-min-width`、`chart-bar-max-width`）、饼图扇区之间的缝（`chart-slice-border`）。不设时就是图表原来的样子；柱的圆角跟着 `radius` 走（取它的 0.6，最多 2px），所以方角风格的柱子自己就是方的，不必为柱子另说一句。图表的提示框是 HTML，像任何弹层一样读它的角色（`chart-tooltip`、`-foreground`、`-shadow`：弹层的底、字与浮起）。何时让图表重读，与它的颜色相同，见下。
 - **预设从不改的**：`pin-shadow`（由明暗决定）、`text-ui`（宿主的排版）与 `rise`／`fall`（宿主的[涨跌色约定](#涨跌色升与降)）。宿主自己设 `--fve-chart-*` 的，要替自己的色板补上上面那些测量。
 - **每套都只用这份合同。** 内置预设只写上面 token 表里记下的变量的预设层，没有私有选择器，也没有为哪一套预设开的代码路径（`test/themeFiles.test.ts` 核对每个变量都在主题登记表 `src/ui/theme/tokens.ts` 里，上面的 token 表就由它生成）。所以内置预设做得到的，你自己的预设也做得到。每套预设在两种明暗下，字、控件边、焦点的每一对都过 4.5:1／3:1（`test/presetContrast.test.ts`）。
@@ -667,7 +668,7 @@ import '@ahoo-wang/wow-view-engine/themes/porcelain.css';
 - **浏览器**：用的是相对颜色语法（Chrome 119、Safari 18、Firefox 128 起）。派生包在 `@supports` 里，旧浏览器看到的是预设自己的颜色，而不是失效的颜色。
 - **原来的 `brand` 预设**就是不挂预设（或 `neutral`）加 `--fve-brand`；原来的 `blue` 就是再给 `--fve-brand: oklch(0.488 0.243 264.376deg)`，要暗色也一模一样，再加 `--fve-dark-brand: oklch(0.707 0.165 254.624deg)`。
 
-**自己写一套**：照同样的写法定义自己的预设——`:where([data-fve-preset='acme']) { --fvp-primary: …; --fvp-dark-primary: …; }`，只写要改的，写在你自己的任何 `@layer` 之外（复位规则在 `styles.css` 最低的 `fve-reset` 层里，你的样式表若先声明了一个层、又把预设写进去，会输给复位）——用同一个属性或 prop 选中。写完怎样自查：打开 Storybook 的「主题/预设 → 对比度矩阵」，把自己的 `--fve-*` 声明粘进输入框，它们作为一套预设当场与内置预设一起量——对比度矩阵与图表八色的三道门都在那一页。Storybook 的「主题/宿主自定义主题」是一套完整的例子：包外的一份样式表，只用这份合同，过同样的门。
+**自己写一套**：照同样的写法定义自己的预设——`:where([data-fve-preset='acme']) { --fvp-table-header-weight: 600; --fvp-highlight-link: 100%; … }`，只写 `--fvp-*`、只写要改的，写在你自己的任何 `@layer` 之外（复位规则在 `styles.css` 最低的 `fve-reset` 层里，你的样式表若先声明了一个层、又把预设写进去，会输给复位）——用同一个属性或 prop 选中。品牌色写成旁边的 `--fve-brand`，不要把颜色抄进预设：品牌色的派生守着对比度线，抄进去的主色不守。写完怎样自查：打开 Storybook 的「主题/预设 → 对比度矩阵」，把自己的 `--fve-*` 或 `--fvp-*` 声明粘进输入框，它们作为一套预设当场与内置预设一起量——对比度矩阵与图表八色的三道门都在那一页。Storybook 的「主题/宿主自定义主题」是一套完整的例子，即 `stories/view-engine/host-theme/acme.css`：包外的一份样式表，一个品牌色、几个角色、链接到主色的菜单高亮、一套自己的图表八色，只用这份合同，过同样的门（浏览器里，以及 `test/themeGuide.test.ts`——它还把本 README 与主题指南里的每一段 CSS、HTML 示例对到登记表与对比度线上）。
 
 #### 涨跌色：升与降
 
@@ -721,20 +722,29 @@ import '@ahoo-wang/wow-view-engine/shadcn-bridge.css';
 - **宿主自己的 `--fve-*` 仍然优先**，用 `preset` 钉住预设的面穿那套预设：复位规则清空了桥接给它的值。
 - **桥接与预设二选一。** 桥接只在 `<html>` 没挂预设时生效：`<html>` 上写了 `data-fve-preset`，得到的就是预设，与两个文件谁后引入无关。
 - **文字颜色是宿主主题的。** 文字 token 原样桥接；宿主的 `--muted-foreground` 在它的 `--background` 上不到 4.5:1，视图里的弱字也就不到。
+- **只支持 Tailwind v4。** 桥接把宿主的 token 当颜色读，这是 Tailwind v4 的 shadcn 主题的写法（`--primary: oklch(0.205 0 0)`）。Tailwind v3 的主题写的是 HSL 通道（`--primary: 222.2 47.4% 11.2%`），单独拿出来不是颜色，桥接过来的每个值都会无效。v3 的宿主不要引这个文件，自己写同一条规则，把每个通道 token 包进 `hsl()`，桥接的每个 token 与它的暗色一半各一行：
+
+```css
+:where(:root:not([data-fve-preset])) {
+  --fvp-primary: hsl(var(--primary));
+  --fvp-dark-primary: hsl(var(--primary));
+  --fvp-radius: var(--radius);
+}
+```
 
 Storybook 的回归用例 `ShadcnBridge.test.stories.tsx` 把补偿控制台的主题连同桥接挂到一个工作台上，量出两种明暗下控件边与焦点都 ≥3:1。
 
 #### 覆盖变量要守的线
 
-每一套内置预设在两种明暗下都守住这些线，由 Storybook 的**对比度矩阵**（View Engine / 主题 / 预设 / 对比度矩阵）在真浏览器里逐对 token 量出；粘贴进去的变量也一起量：
+每一套内置预设在两种明暗下都守住这些线，面上画的每一对都量——那张表是 `src/ui/theme/pairs.ts`，每个作为底的角色都在上面——在 jsdom 里由 `test/presetContrast.test.ts`、在真浏览器里由 Storybook 的**对比度矩阵**（View Engine / 主题 / 预设 / 对比度矩阵）量出；粘贴进去的变量也一起量：
 
-| 线     | token                                                                                                                                                                                                                         |
-| ------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| ≥4.5:1 | 每个 `*-foreground` 在它的底上；`muted-foreground` 在 `background`、`card`、`popover` 上；`foreground` 在 `muted`、`row-hover` 上；`quiet-foreground`；`destructive`、`success`、`warning` 作为文字在 `background`、`card` 上 |
-| ≥3:1   | `input` 与 `ring` 在 `background`、`card`、`popover` 上（以及暗色控件自己的 `input/30` 底上）                                                                                                                                 |
-| 无     | `border` 与 `sidebar-border`（分隔线）、`radius`、`text-ui`                                                                                                                                                                   |
+| 线                       | 量什么                                                                                                                                                                               |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| ≥4.5:1（`contrast` 7:1） | 每个前景色在它的底上——页面、卡片、弹层、表头带与合计带、选中行、隔行与悬停行、高亮项与已选项、当前视图、提示框、图表里弱一级的字；状态色作为文字，以及作为徽标的字落在它自己的淡底上 |
+| ≥3:1（`contrast` 4.5:1） | `input` 与 `ring` 在控件所在的每一种底上（以及暗色控件自己的 `input/30` 底上）；`primary`、`rise`、`fall` 填充表示状态的标记时                                                       |
+| 无                       | `border` 与 `sidebar-border`（分隔线）、`radius`、`text-ui`                                                                                                                          |
 
-宿主设了其中哪一个，就欠自己的主题同一条线。图表八色另有自己的线：色位之间的色觉缺陷间距、每个标记上的字都读得清——自带色板的预设同样要过。完整的说明见[视图引擎的主题](https://wow.ahoo.me/zh/guide/typescript/view-engine-theming)。
+宿主设了一个颜色——token、角色、链接或品牌色的边界——它落到的每一种底上就欠同一条线；落在预设边界之内的品牌色什么都不欠。图表八色另有自己的线：色位之间的色觉缺陷间距、每个标记上的字都读得清——自带色板的预设同样要过。完整的说明见[视图引擎的主题](https://wow.ahoo.me/zh/guide/typescript/view-engine-theming)。
 
 #### 宿主自己的 chrome：`fve-tokens`
 

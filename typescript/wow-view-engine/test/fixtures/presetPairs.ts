@@ -33,6 +33,7 @@ import {
   type HostVariables,
   type Mode,
   over,
+  type Placement,
   resolveTokens,
   type Rgba,
   tokenVariable,
@@ -46,15 +47,26 @@ export interface Measured {
   ratio: number;
 }
 
-/** One preset in one mode, every pair measured against that preset's lines. */
+/**
+ * One preset in one mode, every pair measured against that preset's lines —
+ * a built-in one, or a host's own passed in `placement.extra`.
+ */
 export function measure(
   preset: string,
   mode: Mode,
   convention: Convention = 'semantic',
   host?: HostVariables,
   gamut?: Gamut,
+  placement?: Placement,
 ): Measured[] {
-  const tokens = resolveTokens(preset, mode, convention, host, gamut);
+  const tokens = resolveTokens(
+    preset,
+    mode,
+    convention,
+    host,
+    gamut,
+    placement,
+  );
   const paint = ({ token, alpha = 1 }: Layer): Rgba => {
     const color = tokens.get(tokenVariable(token));
     if (!color) throw new Error(`${tokenVariable(token)} did not resolve`);
