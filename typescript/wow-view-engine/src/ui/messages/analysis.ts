@@ -371,6 +371,19 @@ export const analysisMessages = {
   'label.chart.legend.right': 'Right',
   'label.chart.legend.none': 'None',
   'label.chart.labels': 'Value labels',
+  'label.chart.labels.auto': 'Auto',
+  'label.chart.labels.all': 'Every value',
+  'label.chart.labels.none': 'None',
+  'label.chart.labels.share': 'Share only',
+  'label.chart.labels.value-share': 'Value and share',
+  'label.chart.labels.auto.peaks':
+    '{count} bars: only the highest and the lowest are labelled',
+  'label.chart.labels.auto.peaks.lines':
+    '{count} bars: only the highest and the lowest are labelled; lines and areas are not',
+  'label.chart.labels.auto.bars':
+    'Under {from} bars, every bar is labelled; from {from} on, only the highest and the lowest',
+  'label.chart.labels.auto.bars.lines':
+    'Under {from} bars, every bar is labelled; from {from} on, only the highest and the lowest; lines and areas are not',
   'label.chart.stacked': 'Stacked',
   'label.chart.stacked-alone': 'Stacking needs two or more bar or area series',
   'label.chart.percent-stack': 'Stacked to 100%',

@@ -30,6 +30,7 @@ import {
   type AnalysisGroup,
   type AnalysisMetric,
   type AnalysisViewConfig,
+  type CartesianSpec,
   type ChartSpec,
   type RecordData,
   type ViewInstance,
@@ -436,5 +437,143 @@ describe('a ranking of long names lies on its side (audit)', () => {
           ?.getAttribute('data-orientation'),
       ).toBe('vertical'),
     );
+  });
+});
+
+describe('the value labels, as the chart draws them (review P1-6)', () => {
+  const choice = () =>
+    within(panel()).getByRole('group', { name: 'Value labels' });
+  const buttons = () => within(choice()).getAllByRole('button');
+  const pressed = () =>
+    buttons()
+      .filter(button => button.getAttribute('aria-pressed') === 'true')
+      .map(button => button.textContent);
+  const choices = () => buttons().map(button => button.textContent);
+  const press = (name: string) =>
+    fireEvent.click(within(choice()).getByRole('button', { name }));
+  /** The numbers the chart writes: a halo marks a value label. */
+  const written = () =>
+    [
+      ...document.querySelectorAll('[data-slot="chart-plot"] svg text[stroke]'),
+    ].map(text => text.textContent ?? '');
+  /** `count` warehouses, the fourth the highest and the eighth the lowest. */
+  const bars = (count: number) =>
+    Array.from({ length: count }, (_, index) => ({
+      warehouse: `W${String(index).padStart(2, '0')}`,
+      orders: index === 3 ? 40 : index === 7 ? 1 : 10 + (index % 5),
+    }));
+  const upright = (cartesian: Partial<CartesianSpec> = {}): ChartSpec => ({
+    type: 'bar',
+    cartesian: { x: 'warehouse', series: [{ metric: 'orders' }], ...cartesian },
+  });
+
+  it('offers 「auto」 on a long upright row, saying it marks only the peak and trough', async () => {
+    const { draft, queries } = await open(
+      upright(),
+      { metrics: [ORDERS] },
+      bars(14),
+    );
+    await displayPage('bar');
+    const ran = queries();
+    expect(choices()).toEqual(['Auto', 'Every value', 'None']);
+    expect(pressed()).toEqual(['Auto']);
+    expect(describedText(choice())).toBe(
+      '14 bars: only the highest and the lowest are labelled',
+    );
+    await waitFor(() => expect(written().sort()).toEqual(['High 40', 'Low 1']));
+
+    press('Every value');
+    await waitFor(() => expect(draft().chart.labels).toBe(true));
+    expect(pressed()).toEqual(['Every value']);
+    await waitFor(() => expect(written()).toHaveLength(14));
+
+    press('None');
+    await waitFor(() => expect(draft().chart.labels).toBe(false));
+    await waitFor(() => expect(written()).toHaveLength(0));
+
+    press('Auto');
+    await waitFor(() => expect(draft().chart).not.toHaveProperty('labels'));
+    expect(pressed()).toEqual(['Auto']);
+    await waitFor(() => expect(written()).toHaveLength(2));
+    expect(queries()).toBe(ran);
+  });
+
+  it('says what 「auto」 does on a short row, and on a combo’s line', async () => {
+    await open(upright(), { metrics: [ORDERS] }, bars(5));
+    await displayPage('bar');
+    expect(pressed()).toEqual(['Auto']);
+    expect(describedText(choice())).toBe(
+      'Under 12 bars, every bar is labelled; from 12 on, only the highest and the lowest',
+    );
+    await waitFor(() => expect(written()).toHaveLength(5));
+    cleanup();
+
+    await open(
+      {
+        type: 'combo',
+        cartesian: {
+          x: 'warehouse',
+          series: [
+            { metric: 'orders', type: 'bar' },
+            { metric: 'total', type: 'line' },
+          ],
+        },
+      },
+      {},
+    );
+    await displayPage('combo');
+    expect(describedText(choice())).toContain('lines and areas are not');
+  });
+
+  it('offers two choices where 「auto」 is one of them whatever the rows', async () => {
+    // Lying on its side, a row of bars writes a number on every row.
+    await open(
+      upright({ orientation: 'horizontal' }),
+      { metrics: [ORDERS] },
+      bars(14),
+    );
+    await displayPage('bar');
+    expect(choices()).toEqual(['Every value', 'None']);
+    expect(pressed()).toEqual(['Every value']);
+    cleanup();
+
+    // Stacked: every segment and every total.
+    await open(
+      upright({
+        splitBy: 'status',
+        series: [{ metric: 'orders', stack: 's' }],
+      }),
+      { groups: [WAREHOUSE, STATUS] },
+    );
+    await displayPage('bar');
+    expect(choices()).toEqual(['Every value', 'None']);
+    cleanup();
+
+    // A line writes none unasked; a press asks.
+    const { draft } = await open(
+      {
+        type: 'line',
+        cartesian: { x: 'warehouse', series: [{ metric: 'orders' }] },
+      },
+      {},
+    );
+    await displayPage('line');
+    expect(pressed()).toEqual(['None']);
+    press('Every value');
+    await waitFor(() => expect(draft().chart.labels).toBe(true));
+    expect(pressed()).toEqual(['Every value']);
+  });
+
+  it('asks a pie whether the value goes with the share', async () => {
+    const { draft } = await open(
+      { type: 'pie', pie: { category: 'warehouse', value: 'orders' } },
+      {},
+    );
+    await displayPage('pie');
+    expect(choices()).toEqual(['Share only', 'Value and share']);
+    expect(pressed()).toEqual(['Share only']);
+    press('Value and share');
+    await waitFor(() => expect(draft().chart.labels).toBe(true));
+    expect(pressed()).toEqual(['Value and share']);
   });
 });

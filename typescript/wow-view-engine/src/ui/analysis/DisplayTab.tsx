@@ -14,11 +14,14 @@
 import { GaugeDisplay } from './StatisticalOptions.js';
 import {
   CHART_FAMILIES,
+  PEAKS_ONLY_FROM,
+  chartMarks,
   isPercentStacked,
   isSmooth,
   isStacked,
   offersPercentStack,
   offersStacking,
+  peaksOnlyLabels,
   stacks,
   valueLabelsOn,
   withPercentStack,
@@ -75,14 +78,7 @@ export function DisplayTab(props: OptionsPageProps) {
           onChange={where => onChange({ ...chart, legend: where })}
         />
       )}
-      {labels && (
-        <CheckField
-          data-slot="chart-labels"
-          label={messages.label('label.chart.labels')}
-          checked={valueLabelsOn(chart)}
-          onChange={on => onChange({ ...chart, labels: on })}
-        />
-      )}
+      {labels && <ValueLabelsField {...props} />}
       {family === 'cartesian' && <CartesianDisplay {...props} />}
       {family === 'pie' && <PieDisplay {...props} />}
       {family === 'heatmap' && <HeatmapDisplay {...props} />}
@@ -91,6 +87,113 @@ export function DisplayTab(props: OptionsPageProps) {
       {family === 'waterfall' && <WaterfallDisplay {...props} />}
       {family === 'gauge' && <GaugeDisplay {...props} />}
     </>
+  );
+}
+
+/**
+ * The value labels, as the chart draws them (Storybook review P1-6
+ * follow-up). Where the automatic choice depends on the result — upright
+ * bars that stand on their own write every number up to `PEAKS_ONLY_FROM`
+ * of them and only the highest and the lowest past it — three choices:
+ * 「自动」 (`labels` unset, said under the choices for this chart), 「每个
+ * 都标」 (`true`) and 「不标」 (`false`). A tick box read ticked there
+ * while only two bars had a number, and every number took an untick and a
+ * tick.
+ *
+ * Anywhere else the automatic choice is one of the other two whatever the
+ * rows — a line, an area and a heatmap write none, a waterfall, bars lying
+ * on their side and stacked bars write every one — so a third button would
+ * repeat one of them: two choices, each written as the value it names. A
+ * pie always writes each slice's share, and the choice is whether its value
+ * goes with it (「只标占比」, 「数值与占比」).
+ */
+function ValueLabelsField({
+  chart,
+  shape,
+  rows,
+  label,
+  data,
+  onChange,
+}: OptionsPageProps) {
+  const messages = useViewMessages();
+  const on = valueLabelsOn(chart);
+  // Unset is 「自动」; `undefined` takes the member out (`updateChart`).
+  const set = (next: boolean | undefined) =>
+    onChange({ ...chart, labels: next });
+  if (CHART_FAMILY[chart.type] === 'pie')
+    return (
+      <ChoiceField
+        data-slot="chart-labels"
+        label={messages.label('label.chart.labels')}
+        items={[
+          { value: 'share', label: messages.label('label.chart.labels.share') },
+          {
+            value: 'value-share',
+            label: messages.label('label.chart.labels.value-share'),
+          },
+        ]}
+        value={on ? 'value-share' : 'share'}
+        onChange={choice => set(choice === 'value-share')}
+      />
+    );
+  const spec = chart.cartesian;
+  const marks = chartMarks(chart);
+  const stackable =
+    spec?.series.filter(series => stacks(chart.type, series)) ?? [];
+  // Whether the bars may write only their peak and trough: upright, and
+  // standing on their own rather than in a stack of more than one.
+  const peaks =
+    spec !== undefined &&
+    CHART_FAMILY[chart.type] === 'cartesian' &&
+    marks.includes('bar') &&
+    !drawsHorizontal(
+      chart,
+      rows.map(row => label(spec.x, row[spec.x])),
+      shape.dated?.has(spec.x) === true,
+    ) &&
+    !(
+      isStacked(spec, chart.type) &&
+      (stackable.length > 1 || spec.splitBy !== undefined)
+    );
+  if (!peaks)
+    return (
+      <ChoiceField
+        data-slot="chart-labels"
+        label={messages.label('label.chart.labels')}
+        items={(['all', 'none'] as const).map(choice => ({
+          value: choice,
+          label: messages.label(`label.chart.labels.${choice}`),
+        }))}
+        value={on ? 'all' : 'none'}
+        onChange={choice => set(choice === 'all')}
+      />
+    );
+  const choice =
+    chart.labels === undefined ? 'auto' : chart.labels ? 'all' : 'none';
+  // What 「自动」 does here: the bars on screen, and whether they are past
+  // the count — found by the kernel only where they are.
+  const count = data?.type === 'cartesian' ? data.points.length : rows.length;
+  const found =
+    data?.type !== 'cartesian' || Object.keys(data.extremes ?? {}).length > 0;
+  const lines = marks.some(mark => mark !== 'bar') ? '.lines' : '';
+  const hint =
+    peaksOnlyLabels({ ...chart, labels: undefined }, count) && found
+      ? messages.label(`label.chart.labels.auto.peaks${lines}`, { count })
+      : messages.label(`label.chart.labels.auto.bars${lines}`, {
+          from: PEAKS_ONLY_FROM,
+        });
+  return (
+    <ChoiceField
+      data-slot="chart-labels"
+      label={messages.label('label.chart.labels')}
+      hint={choice === 'auto' ? hint : undefined}
+      items={(['auto', 'all', 'none'] as const).map(value => ({
+        value,
+        label: messages.label(`label.chart.labels.${value}`),
+      }))}
+      value={choice}
+      onChange={next => set(next === 'auto' ? undefined : next === 'all')}
+    />
   );
 }
 

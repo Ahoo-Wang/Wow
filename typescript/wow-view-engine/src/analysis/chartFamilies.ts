@@ -508,8 +508,8 @@ export function chartMarks(chart: ChartSpec): SeriesMark[] {
  * mark; a family that cannot write them never does.
  *
  * Asked of the whole chart, it is whether any of its marks writes them: a
- * combo of bars and a line writes the bars' values by default, and the
- * options' checkbox reads as ticked because numbers are on the screen.
+ * combo of bars and a line writes the bars' values by default — and a
+ * long upright row of bars only its peak and trough (`peaksOnlyLabels`).
  */
 export function valueLabelsOn(
   chart: ChartSpec | undefined,
