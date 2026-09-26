@@ -78,7 +78,7 @@ export function offscreenHint(
 /**
  * The footer cell that carries the hint, as the summary rows lay it out.
  *
- * `at` is `select` for the selection column's cell, otherwise a field.
+ * `at` is {@link SELECT_HOST} for the selection column's cell, otherwise a field.
  * `withScope` — the hint shares the cell with the row's scope label, and so
  * carries the scope inside it. `pin` — what the cell holds against, where
  * the table itself would let it scroll: the hint has to stay at the left end
