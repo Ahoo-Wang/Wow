@@ -417,6 +417,9 @@ function card(
 /** 日报上售后退款的商品榜。 */
 export const REFUND_SKUS = '售后退款最多的 5 个商品（近 30 天）';
 
+/** 日报上近 30 天日 GMV 那块面板的标题（能框选）。 */
+export const DAILY_TREND = '近 30 天的日 GMV';
+
 /** 日报上八张卡的标题，左上到右下。 */
 export const DAILY_CARDS = [
   'GMV',
@@ -666,11 +669,54 @@ function opsDailyConfig(): DashboardViewConfig {
           },
         },
       ),
+      // 近 30 天的日 GMV（批 C）：日报只看一天，这一块给出这一个月的来龙去脉，
+      // 日均线与峰谷点标出不寻常的几天。横轴是日期，所以能框选：拖过几天弹出追问菜单，「查看这些记录」开出
+      // 那几天的单。它有自己的 30 天，不接「日期」——接上了，日报的「昨日」会
+      // 把它收成一根柱；所以框选的菜单里也没有「设为「日期」」。
+      owned(
+        'daily-gmv',
+        DAILY_TREND,
+        analysis({
+          // 截至昨日（今天还没过完），最近的 30 天：按日倒序取 30 组，图上照
+          // 时间先后画。
+          filter: and({
+            field: 'firstEventTime',
+            operator: 'LTE',
+            value: { type: 'preset', preset: 'yesterday' },
+          }),
+          groups: [byDay('firstEventTime')],
+          metrics: [sum('gmv', 'state.amounts.payableAmount', 'GMV')],
+          sort: [{ alias: 'day', direction: 'DESC' }],
+          limit: 30,
+          chart: {
+            type: 'bar',
+            cartesian: {
+              x: 'day',
+              series: [{ metric: 'gmv' }],
+              // 取的是最近 30 组，移动平均会缺开头几天（引擎不画）；日均线
+              // 与峰谷点就够读出哪几天不寻常。
+              referenceLines: [
+                {
+                  axis: 'left',
+                  statistic: 'average',
+                  metric: 'gmv',
+                  label: '日均',
+                },
+              ],
+              extremes: true,
+            },
+            legend: 'none',
+            labels: false,
+          },
+        }),
+        at(0, 15, 24, 4),
+        orderBindings(null),
+      ),
       {
         id: 'runbook',
         kind: 'links',
         title: '值班手册',
-        layout: at(0, 15, 24, 2),
+        layout: at(0, 19, 24, 2),
         items: [
           {
             label: '发货超时处理流程',

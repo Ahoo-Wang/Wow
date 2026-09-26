@@ -266,6 +266,50 @@ export function pressMark(mark: Element): void {
 }
 
 /**
+ * A drag along a chart's plot from one x to another, as a mouse makes it:
+ * pressed, moved in steps, let go — what brushes a stretch of a time axis
+ * (the same gesture 「能力/框选与追问/回归」 makes). Sent to the library's own
+ * surface, where it listens.
+ */
+export function brushAcross(plot: HTMLElement, from: number, to: number): void {
+  const surface = plot.querySelector('svg')!.parentElement!;
+  const box = plot.getBoundingClientRect();
+  const y = box.top + box.height * 0.6;
+  const fire = (type: string, x: number) =>
+    surface.dispatchEvent(
+      new MouseEvent(type, {
+        bubbles: true,
+        cancelable: true,
+        clientX: x,
+        clientY: y,
+        button: 0,
+        buttons: type === 'mouseup' ? 0 : 1,
+      }),
+    );
+  // The pointer first: a mouse going down on the plot takes the drag.
+  plot.firstElementChild!.dispatchEvent(
+    new PointerEvent('pointerdown', { bubbles: true, pointerType: 'mouse' }),
+  );
+  fire('mousemove', from);
+  fire('mousedown', from);
+  for (let step = 1; step <= 10; step += 1)
+    fire('mousemove', from + ((to - from) * step) / 10);
+  fire('mouseup', to);
+}
+
+/**
+ * The middle of each mark's column, left to right: the x a drag starts and
+ * ends at to brush from one bucket to another.
+ */
+export function markCentres(root: ParentNode): number[] {
+  const xs = drawnMarks(root).map(mark => {
+    const box = mark.getBoundingClientRect();
+    return Math.round(box.left + box.width / 2);
+  });
+  return [...new Set(xs)].sort((a, b) => a - b);
+}
+
+/**
  * The pointer moved over a mark's middle, as the library hears a pointer:
  * what raises the mark's tooltip.
  */
