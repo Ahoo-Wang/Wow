@@ -54,7 +54,10 @@ export class DefinitionRegistry {
     // every open. One that fails is kept but refused at the point of use:
     // that beats a blank registry, and beats a crash at application start.
     for (const definition of definitions) {
-      const found = validateDefinition(definition, kinds, { limits });
+      const found = validateDefinition(definition, kinds, {
+        limits,
+        definitions: id => this.definitions.get(id),
+      });
       this.findings.set(definition.id, found);
       for (const entry of found) report(entry);
     }

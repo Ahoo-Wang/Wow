@@ -2000,6 +2000,7 @@ export const zhCN: ViewMessages = {
   'definition.view.id-duplicate': '两个视图共用了 id {id}。',
   'definition.view.id-separator': '视图 id 不能带 {separator}。',
   'definition.view.kind-mismatch': '{kind} 视图不属于 {definition} 定义。',
+  'definition.view.owned-invalid': '面板 {panel} 自带的分析不完整或设置有误。',
 
   // 数据源的能力描述与定义对照的结果（capabilities.md）。与定义准入一样经
   // `onIssue` 报给研发，说的是部署没有兑现定义里的哪一项。

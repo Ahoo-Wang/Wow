@@ -26,6 +26,7 @@ import {
   validateDefinition,
   ViewEngine,
   type AnalysisCapability,
+  type DashboardPanel,
   type FieldDefinition,
   type Issue,
   type ViewDefinition,
@@ -33,6 +34,7 @@ import {
 import { isUsableDefinition } from '../src/runtime/validateDefinition.js';
 import {
   analysisConfig,
+  dashboardConfig,
   ordersDefinition,
   overviewDefinition,
   recordConfig,
@@ -658,6 +660,102 @@ describe('validateDefinition system views', () => {
         }),
       ),
     ).toEqual(['definition.view.kind-mismatch']);
+  });
+
+  /**
+   * A declared board owning an analysis: the dashboard kernel only checks
+   * that it says it is one, so the analysis kernel judges it here — or the
+   * board is admitted and the first reader of its chart throws.
+   */
+  describe('a board that owns an analysis', () => {
+    const board = (config: unknown) =>
+      overviewDefinition({
+        views: [
+          {
+            id: 'board',
+            title: 'Board',
+            config: dashboardConfig({
+              panels: [
+                {
+                  id: 'orders-by-warehouse',
+                  kind: 'view',
+                  owned: { definitionId: 'orders', config },
+                  bindings: [],
+                  layout: { x: 0, y: 0, w: 6, h: 4 },
+                } as unknown as DashboardPanel,
+              ],
+            }),
+          },
+        ],
+      });
+    const owned = ['views', 0, 'config', 'panels', 0, 'owned', 'config'];
+
+    it('refuses one that is nothing but its kind, judged by its shape', () => {
+      const found = validateDefinition(
+        board({ kind: 'analysis' }),
+        builtinFieldKinds,
+      );
+      expect(found[0]).toMatchObject({
+        code: 'definition.view.owned-invalid',
+        path: owned,
+        params: { panel: 'orders-by-warehouse' },
+        severity: 'error',
+      });
+      // And why, under the same path.
+      expect(
+        found
+          .slice(1)
+          .map(entry => [entry.code, entry.path[entry.path.length - 1]]),
+      ).toContainEqual(['analysis.config.malformed', 'chart']);
+      expect(isUsableDefinition(found)).toBe(false);
+    });
+
+    it('admits a whole one', () => {
+      expect(codes(board(analysisConfig()))).toEqual([]);
+    });
+
+    it('judges it against its own definition when that is registered beside it', () => {
+      const unknownField = analysisConfig({
+        groups: [{ alias: 'region', field: 'region', type: 'TERMS' }],
+      });
+      // By its shape alone it is whole.
+      expect(codes(board(unknownField))).toEqual([]);
+      // Against `orders`, `region` is not a field.
+      const engine = new ViewEngine({
+        definitions: [ordersDefinition(), board(unknownField)],
+        store: new MemoryViewStore(),
+        resolveSource: () => testSource(),
+        onIssue: () => {},
+      });
+      const found = engine.definitionIssues('overview');
+      expect(found[0]).toMatchObject({
+        code: 'definition.view.owned-invalid',
+        path: owned,
+      });
+      expect(found.length).toBeGreaterThan(1);
+      expect(
+        found
+          .slice(1)
+          .every(entry => entry.path.join('/').startsWith(owned.join('/'))),
+      ).toBe(true);
+    });
+
+    it('refuses to open the board rather than throwing while it syncs', async () => {
+      const engine = new ViewEngine({
+        definitions: [ordersDefinition(), board({ kind: 'analysis' })],
+        store: new MemoryViewStore(),
+        resolveSource: () => testSource(),
+        onIssue: () => {},
+      });
+      const refused = await engine.open('system:overview:board').then(
+        () => null,
+        (error: unknown) => error,
+      );
+      expect(isViewCommandError(refused)).toBe(true);
+      expect(isViewCommandError(refused) && refused.issue.code).toBe(
+        'view.definition.invalid',
+      );
+    });
   });
 
   it('runs the config through its own kernel, pointing at the view that holds it', () => {

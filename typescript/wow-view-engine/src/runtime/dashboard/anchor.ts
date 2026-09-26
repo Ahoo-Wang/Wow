@@ -14,6 +14,7 @@
 import {
   filterTypeOf,
   type AnalysisDateUnit,
+  type AnalysisViewConfig,
   type DashboardFilters,
   type DashboardViewConfig,
   type DataViewConfig,
@@ -169,14 +170,24 @@ function periodBefore(
   ).from;
 }
 
-/** A metric card's trend axis read as its last period: the field and the unit. */
+/**
+ * A metric card's trend axis read as its last period: the field and the unit.
+ *
+ * Total over whatever config it is handed: a panel's view is admitted before
+ * the board runs, but this is read while the board syncs, and a view with no
+ * chart or no groups has no axis rather than a `TypeError`.
+ */
 function trendAxis(
   config: DataViewConfig,
 ): { field: string; unit: AnalysisDateUnit } | null {
-  if (config.kind !== 'analysis' || config.chart.type !== 'metric') return null;
-  const trend = config.chart.metric?.trend;
+  if (config.kind !== 'analysis') return null;
+  const chart = config.chart as AnalysisViewConfig['chart'] | undefined;
+  if (chart?.type !== 'metric') return null;
+  const trend = chart.metric?.trend;
   if (!trend || trend.headline === 'whole') return null;
-  const group = config.groups.find(
+  const groups = config.groups as AnalysisViewConfig['groups'] | undefined;
+  if (!Array.isArray(groups)) return null;
+  const group = groups.find(
     entry => entry.alias === trend.x && entry.type === 'DATE_HISTOGRAM',
   );
   return group?.type === 'DATE_HISTOGRAM'
