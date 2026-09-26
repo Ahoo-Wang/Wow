@@ -54,7 +54,11 @@ export function registerChinaMap(): () => void {
     name: CHINA_MAP,
     label: '中国省级（DataV GeoAtlas）',
     load: async () => {
-      const response = await fetch(DATAV_CHINA_URL);
+      // DataV 按 Referer 防盗链：从发布的文档站打开时带着站点的 Referer
+      // 会被拒（403，`denied by Referer ACL`），不带 Referer 则放行。
+      const response = await fetch(DATAV_CHINA_URL, {
+        referrerPolicy: 'no-referrer',
+      });
       if (!response.ok)
         throw new Error(`DataV GeoAtlas answered ${response.status}.`);
       return (await response.json()) as ChartMapGeoJson;
