@@ -485,7 +485,9 @@ test("a due execution is prepared from the board's own panel", async ({
   test.skip(testInfo.project.name !== "desktop-chromium");
   const documents = overviewExecutions();
   await stub(page, documents);
-  const sent = await stubExecutionFailedCommands(page, documents);
+  const sent = await stubExecutionFailedCommands(page, documents, {
+    now: OVERVIEW_NOW,
+  });
   await page.goto("/");
 
   const attention = panel(page, "Needing attention — due for retry");
@@ -498,10 +500,12 @@ test("a due execution is prepared from the board's own panel", async ({
     command: "prepare_compensation",
     waitStage: "SNAPSHOT",
   });
-  // The panel reads again: the service's answer is what it shows.
+  // The panel reads again, and the service's answer is what it shows: a
+  // prepared execution that has not timed out is no longer due, so it leaves.
   await expect(
-    attention.getByRole("row", { name: new RegExp(id) }),
-  ).toContainText("Prepared");
+    // The whole ID: `EF-1` is also the start of `EF-13`.
+    attention.getByRole("row", { name: new RegExp(`\\b${id}\\b`) }),
+  ).toHaveCount(0);
 });
 
 test("the board opens in the dashboard workbench", async ({ page }) => {
@@ -554,7 +558,9 @@ test("a cluster's failures are prepared in four presses from the board", async (
   test.skip(testInfo.project.name !== "desktop-chromium");
   const documents = overviewExecutions();
   const queries = await stub(page, documents);
-  const sent = await stubExecutionFailedCommands(page, documents);
+  const sent = await stubExecutionFailedCommands(page, documents, {
+    now: OVERVIEW_NOW,
+  });
   await page.goto("/");
   let presses = 0;
 
