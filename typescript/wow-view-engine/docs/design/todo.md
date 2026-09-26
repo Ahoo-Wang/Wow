@@ -27,6 +27,17 @@
   - 视觉回归基线，Firefox／WebKit 跑一次。（连真服务端的端到端已落地，见下一节。）
   - 判据：每条要么合并、要么由用户拍板推迟到首发后并写进 [decisions.md](decisions.md)。落点：本页。
 
+## Storybook 审查（2026-09-26）的处置
+
+- **按道修 [review-2026-09-26.md](../../../storybook/docs/review-2026-09-26.md) 的 P0/P1**：
+  - 为什么：P0 是数字的口径标错，P1 是状态不反映结果、表格被裁、标签压盖与宿主学不到接入，都挡首发审查。
+  - 判据：报告里每条 P0/P1 的状态一栏写上合并的 PR 号，或由用户拍板推迟并写进 [decisions.md](decisions.md)。
+  - 落点：报告本身（逐条标了道）；P0 已由 #3606 修掉。看板筛选道还剩 P1-1、P1-10、P1-3 的面板高度；记录运行时道：P1-3 的合计行（没有汇总不画，D51 视野外写出汇总）；分析道 P1-5、P1-6；主题样式道 P1-4；仅故事 P1-2、P1-7、P1-8、P1-9。P2 在报告里，首发后排。
+- **对话框与弹层的函数式 `finalFocus`**：#3547 修了下拉菜单关闭时抢回已移走的焦点（Base UI 1.8.0 在 `finalFocus` 是函数时不看焦点是否已离开）；对话框、弹层若也传函数，可能是同一个竞态。
+  - 判据：逐个查过，同样处理或说明不受影响，并有一个回归故事。落点：`src/ui/popups.tsx`。
+- **ThemeRoles 截图偶发失败**（#3589 的 CI 上一次）：按 flaky 规则查根因；参照 #3575 查到的那类——故事的 play 在 `waitFor` 里改动 DOM 会永远重跑。
+  - 判据：找到根因并修掉，不靠重试。落点：`storybook/stories/view-engine/ThemeRoles.test.stories.tsx`。
+
 ## 连真 Wow 服务端的端到端（2026-09-25 落地后的余项）
 
 端到端在 Wow 仓 `typescript/integration-test/test/view-engine/`，由 `typescript-contract.yml` 的同源契约作业对着同一提交构建的示例服务端（MongoDB）运行；覆盖面与本地跑法见那里的 README「View engine against the server」。落地时发现、没在那个 PR 里修的：
