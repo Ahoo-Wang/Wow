@@ -31,7 +31,7 @@ Query rows describe targets with `QueryFilter.prepare`, `QueryPolicy.evaluate` a
 | Aggregation route exists but fails | generated path/body, fixed Gateway preparation/scope/policy, public input protection, `AdmittedQuery` passed to the routed Backend `aggregate` primitive, native compiler/mapping |
 | EventStream policy has no effect | actual Gateway Bean or manual constructor, EventStream Registrar's QueryPolicy injection, policy applicability and emitted filter, trusted Reactor Context, final Backend predicate |
 | EventStream aggregation fails | managed/raw path, same Gateway policy/admission stages, `EVENT_STREAM` Schema, relative `body` scope, routed Backend and actual HTTP/OpenAPI route |
-| Query startup fails after an upgrade | exact version and first exception, removed validation-mode property or stale constructor/SPI, sources and declaration conflicts; do not infer a fix from a property name alone |
+| Query startup fails after an upgrade | exact version and first exception, stale constructor/SPI, sources and declaration conflicts; do not infer a fix from a property name alone |
 | Configuration is ignored | property prefix/binding, capability/variant, condition, active profile, bean selection |
 | Runtime startup/shutdown fails | lifecycle owner, state transition, component slot, fatal cause, deadline |
 | Test fails unexpectedly | fixture, owner/tenant, event order, fork/ref checkpoint, assertion boundary |
@@ -47,7 +47,7 @@ Treat a cursor as opaque Backend input. Reproduce with the exact token and uncha
 
 At each boundary collect one positive or negative fact before moving downstream. If an earlier stage failed, do not patch a later stage to hide it.
 
-For a target with `QueryFilter.prepare`, `QueryPolicy.evaluate` and `QueryAdmission`, Schema is immutable fact data; Gateway owns orchestration, `QueryAdmission` validates, normalizes and resolves fields into the `AdmittedQuery`, and Backend owns native compilation/execution of the resolved fields. The removed `wow.query.schema.validation-mode` property fails startup even when set to `strict`; inspect older target behavior separately because negotiated modes are valid on historical versions. Keep a source/declaration conflict distinct from a removed-setting error.
+For a target with `QueryFilter.prepare`, `QueryPolicy.evaluate` and `QueryAdmission`, Schema is immutable fact data; Gateway owns orchestration, `QueryAdmission` validates, normalizes and resolves fields into the `AdmittedQuery`, and Backend owns native compilation/execution of the resolved fields. The `wow.query.schema.validation-mode` property no longer exists and has no effect; negotiated modes exist only on historical versions, so inspect their behavior separately.
 
 For a suspected policy bypass, compare the same caller identity and input on the managed JVM and HTTP paths. Trace scope extraction, the actual Gateway instance and Policy Beans, each policy's applicability/output, and the final Backend filter. Ordinary prepare can replace earlier request conditions; policy constraints belong after it. Empty/error policies must stop Backend invocation. A manual Gateway or raw Backend may omit governance supplied by Spring, but establish that from application source or a reproduction before calling it the root cause. Use a recording Backend to prove assembly and a real query against isolated data to prove returned-row isolation; one does not establish the other.
 

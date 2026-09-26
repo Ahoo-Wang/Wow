@@ -213,9 +213,20 @@ StateEvent 驱动快照处理。选择分布式实现时，应把该通道的积
 
 ## 查询准入
 
-当前查询不提供验证模式配置。Gateway 按同一 Schema 严格校验最终逻辑 Query；未知字段和缺失 capability 失败关闭。`wow.query.http.*` 预算限制入口为 `HTTP` 的查询成本，由 Gateway 在准入时检查，见[基础设施配置](./infrastructure.md#query)。
+配置类：`QueryProperties`；前缀：`wow.query`。Gateway 始终按捕获的 Schema 严格校验最终逻辑 Query；未知字段和缺失 capability 失败关闭，没有配置可以放宽。
 
-旧 `wow.query.schema.validation-mode` 配置的任何值（包括 `strict`）都会在启动时明确失败并要求删除；camelCase 写法同样拒绝，不会静默忽略。
+以下属性调整 Gateway 的准入：
+
+| 配置 | 控制 |
+| --- | --- |
+| `wow.query.require-explicit-entry` | 拒绝未声明入口（`HTTP` 或 `IN_PROCESS`）的 Gateway 查询 |
+| `wow.query.require-authenticated-scope` | 拒绝已认证 scope 未固定 `tenantId` 的 `HTTP` 查询 |
+| `wow.query.http.*` | 入口为 `HTTP` 的查询预算，在准入时检查：list 与 page 大小、分页窗口、过滤节点与取值数、高开销操作符、残余分组 |
+| `wow.query.abac.*` | 交给 `AbacQueryPolicy` 的收紧选项 |
+| `wow.query.sensitivity.display-comparable` | 过滤与分页排序能否比较 `DISPLAY` 敏感字段 |
+| `wow.query.schema.revalidate-interval` | 查询 Schema 从存储重新加载的间隔 |
+
+类型、默认值与细节见[基础设施配置](./infrastructure.md#query)。
 
 ## 环境特定配置
 

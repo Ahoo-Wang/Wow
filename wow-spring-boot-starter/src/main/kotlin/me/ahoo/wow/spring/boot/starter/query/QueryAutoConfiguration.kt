@@ -79,12 +79,12 @@ class QueryAutoConfiguration {
         return CompositeQueryObserver(listOf(QueryLogObserver(), QueryMetricsObserver(registry)))
     }
 
-    @Bean("noOpSnapshotQueryBackendFactory")
+    @Bean
     @ConditionalOnMissingBean(SnapshotQueryBackendFactory::class)
     fun unavailableSnapshotQueryBackendFactory(): SnapshotQueryBackendFactory =
         UnavailableSnapshotQueryBackendFactory
 
-    @Bean("noOpEventStreamQueryBackendFactory")
+    @Bean
     @ConditionalOnMissingBean(EventStreamQueryBackendFactory::class)
     fun unavailableEventStreamQueryBackendFactory(): EventStreamQueryBackendFactory =
         UnavailableEventStreamQueryBackendFactory

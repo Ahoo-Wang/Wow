@@ -78,10 +78,10 @@ Pin the exact V9 tag or commit first. When that target contains the V9 query spl
 | `ElasticsearchEventStreamQueryServiceFactory` | `ElasticsearchEventStreamQueryBackendFactory` |
 | `SnapshotQueryServiceFactoryBinding` | `QueryBackendProvider.snapshot(name, factory)` |
 | `EventStreamQueryServiceFactoryBinding` | `QueryBackendProvider.eventStream(name, factory)` |
-| `NoOpSnapshotQueryService<S>` | `NoOpSnapshotQueryBackend` |
-| `NoOpEventStreamQueryService` | `NoOpEventStreamQueryBackend` |
-| `NoOpSnapshotQueryServiceFactory` | `NoOpSnapshotQueryBackendFactory` |
-| `NoOpEventStreamQueryServiceFactory` | `NoOpEventStreamQueryBackendFactory` |
+| `NoOpSnapshotQueryService<S>` | Test double `me.ahoo.wow.tck.query.NoOpSnapshotQueryBackend` in `wow-tck` |
+| `NoOpEventStreamQueryService` | Test double `me.ahoo.wow.tck.query.NoOpEventStreamQueryBackend` in `wow-tck` |
+| `NoOpSnapshotQueryServiceFactory` | Test double `me.ahoo.wow.tck.query.NoOpSnapshotQueryBackendFactory` in `wow-tck`; no runtime fallback to reference |
+| `NoOpEventStreamQueryServiceFactory` | Test double `me.ahoo.wow.tck.query.NoOpEventStreamQueryBackendFactory` in `wow-tck`; no runtime fallback to reference |
 | `QueryServiceRegistrar` | `QueryGatewayRegistrar` |
 | `SnapshotQueryServiceRegistrar` | `SnapshotQueryGatewayRegistrar` |
 | `EventStreamQueryServiceRegistrar` | `EventStreamQueryGatewayRegistrar` |
@@ -127,7 +127,7 @@ Use this section when the inspected target provides `QueryFilter.prepare`, `Quer
 | Snapshot-only policy wiring | Both default Gateways/registrars consume QueryPolicy; a policy determines applicability from QueryContext and returns MatchAllFilter when not applicable. ABAC reads tags only for Snapshot |
 | Result/error filters | Fixed Gateway Mask and typed materialization; QueryObserver observes termination without owning execution or results |
 | ResolvedQuery Backend argument or Schema request resolver | Four Backend primitives receiving an `AdmittedQuery` from `QueryAdmission` (validated, normalized, fields resolved); Schema holds facts, Backend compiles the resolved fields and executes |
-| `validationMode` / `errorHandler` constructor parameters | Inspect the target's filter/policy/observer constructor. Remove the old `wow.query.schema.validation-mode` setting; even `strict` and camelCase forms fail startup |
+| `validationMode` / `errorHandler` constructor parameters | Inspect the target's filter/policy/observer constructor. Remove the old `wow.query.schema.validation-mode` setting; it no longer has any effect |
 | Flat Schema field metadata/constructors | Recursive logical value declarations and native bindings; the Schema GET route returns the capability descriptor (`QueryModelDescriptor`: `fields` by logical path with `sensitivity` and capabilities, `elements`, `dynamic`, `variants`, `constraints`) |
 
 The shared Gateway admits the entry and its `wow.query.http.*` budget, obtains one Schema version and identity per subscription, runs prepare, appends trusted scope and policy filters with AND, applies the model default scope, admits the query through `QueryAdmission`, calls a Backend primitive with the `AdmittedQuery`, then masks node results and optionally materializes typed results. Schema is an immutable fact model, not a request validator, policy selector or query compiler. Provider `refresh()` owns fact loading (driven by periodic revalidation and the `wowQuerySchema` actuator endpoint; there is no HTTP refresh route); revalidation publishes a new version locally, leaves running subscriptions on their own version (carried in their `AdmittedQuery`), and changes neither mappings nor stored data. Errors and empty policy completion stop Backend invocation; retry/repeat starts a fresh subscription.

@@ -74,10 +74,10 @@ internal class QueryBindingIndex(bindings: Map<QueryPathTemplate, QueryValueBind
 fun absoluteLogicalField(field: QueryField, parent: QueryField?): QueryField = parent?.append(field) ?: field
 
 /**
- * The physical field [field] is bound to for [capability], as schema inspection sees it. Backends never call this:
+ * The physical field [field] is bound to for [capability], for tests that inspect a schema. Backends never call this:
  * admission resolves every reference once and hands them [me.ahoo.wow.query.ResolvedField]s.
  */
-fun QueryModelSchema.physicalField(
+internal fun QueryModelSchema.physicalField(
     field: QueryField,
     capability: QueryCapability,
     logicalParent: QueryField? = null,

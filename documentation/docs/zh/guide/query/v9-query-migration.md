@@ -104,11 +104,9 @@ V8 传入 `DateTimeFormatter` 而不是 pattern string 时，直接构造对应 
 | validation-mode / QuerySchemaValidationMode | 已移除；最终逻辑请求严格校验 |
 | flat fields metadata / dynamicChildren | 能力描述 `QueryModelDescriptor`：按逻辑路径列出的 `fields`（元素内字段带 `scope`）、`elements`、`dynamic` 模式、`variants` 与 `constraints` |
 
-旧 `wow.query.schema.validation-mode` 配置的任何值（包括 `strict`）都会在启动时明确失败并要求删除；camelCase 写法同样拒绝，不会静默忽略。
-
 ## 自定义 QueryBackend 迁移
 
-Backend 实现四个原语。每个原语都接收 `AdmittedQuery`，其中带着逻辑 Query、Schema、查询入口与每个字段引用的解析结果（`admitted.field(reference)`）；可用 `val (query, schema) = admitted` 解构。例如：
+Backend 实现四个原语。每个原语都接收 `AdmittedQuery`，其中带着逻辑 Query、Schema、查询入口与每个字段引用的解析结果（`admitted.field(reference)`）。例如：
 
 ```kotlin
 val cursorPositions: CursorPositionCodec

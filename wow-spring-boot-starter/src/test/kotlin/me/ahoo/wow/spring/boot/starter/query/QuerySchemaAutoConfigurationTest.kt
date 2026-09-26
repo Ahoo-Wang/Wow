@@ -27,7 +27,6 @@ import me.ahoo.wow.query.schema.QuerySchemaSource
 import me.ahoo.wow.query.schema.QuerySensitivityPolicy
 import me.ahoo.wow.query.schema.WorkingDirectoryQuerySchemaSource
 import me.ahoo.wow.schema.query.JsonQueryModelSource
-import me.ahoo.wow.serialization.JsonSerializer
 import me.ahoo.wow.spring.boot.starter.enableWow
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import org.junit.jupiter.api.Test
@@ -92,35 +91,4 @@ class QuerySchemaAutoConfigurationTest {
                 context.getBean(QuerySensitivityPolicy::class.java).displayComparable.assert().isFalse()
             }
     }
-
-    @Test
-    fun `retired validation mode is absent from configuration metadata`() {
-        metadataProperties("META-INF/spring-configuration-metadata.json")
-            .filter { it.path("name").stringValue() == "wow.query.schema.validation-mode" }
-            .assert().isEmpty()
-    }
-
-    @Test
-    fun `retired validation mode fails startup with migration instruction`() {
-        listOf(
-            "wow.query.schema.validation-mode=compatible",
-            "wow.query.schema.validationMode=strict"
-        ).forEach { property ->
-            contextRunner.enableWow()
-                .withPropertyValues(property)
-                .withUserConfiguration(QuerySchemaAutoConfiguration::class.java)
-                .run { context ->
-                    context.assert().hasFailed()
-                    context.startupFailure!!.assert().hasRootCauseMessage(
-                        "Remove wow.query.schema.validation-mode: query validation is always strict.",
-                    )
-                }
-        }
-    }
-
-    private fun metadataProperties(resourceName: String) = JsonSerializer.readTree(
-        requireNotNull(javaClass.classLoader.getResourceAsStream(resourceName)) {
-            "Missing metadata resource [$resourceName]."
-        }.bufferedReader().use { it.readText() },
-    ).path("properties").asSequence().toList()
 }

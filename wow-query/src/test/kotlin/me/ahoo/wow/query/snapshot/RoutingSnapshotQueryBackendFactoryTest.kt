@@ -21,6 +21,7 @@ import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.query.QueryBackendBinding
 import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QueryModelSchemaProvider
+import me.ahoo.wow.tck.query.NoOpSnapshotQueryBackend
 import org.junit.jupiter.api.Test
 import reactor.core.publisher.Mono
 

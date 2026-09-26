@@ -19,14 +19,14 @@ import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.query.QueryBackendBinding
 import me.ahoo.wow.query.event.EventStreamQueryBackend
 import me.ahoo.wow.query.event.EventStreamQueryBackendFactory
-import me.ahoo.wow.query.event.NoOpEventStreamQueryBackend
 import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QueryModelSchemaProvider
 import me.ahoo.wow.query.schema.QuerySchemaCatalog
-import me.ahoo.wow.query.snapshot.NoOpSnapshotQueryBackend
 import me.ahoo.wow.query.snapshot.SnapshotQueryBackend
 import me.ahoo.wow.query.snapshot.SnapshotQueryBackendFactory
 import me.ahoo.wow.spring.boot.starter.enableWow
+import me.ahoo.wow.tck.query.NoOpEventStreamQueryBackend
+import me.ahoo.wow.tck.query.NoOpSnapshotQueryBackend
 import org.junit.jupiter.api.Test
 import org.springframework.boot.test.context.runner.ApplicationContextRunner
 import reactor.core.publisher.Mono
@@ -80,6 +80,16 @@ class QuerySchemaCatalogAutoConfigurationTest {
             refreshes.get().assert().isEqualTo(2)
             context.getBean(QuerySchemaRevalidation::class.java).isRunning.assert().isFalse()
         }
+    }
+
+    @Test
+    fun `aggregates without a query backend are left out of the catalog`() {
+        ApplicationContextRunner().enableWow()
+            .withUserConfiguration(QueryAutoConfiguration::class.java, QuerySchemaCatalogAutoConfiguration::class.java)
+            .withPropertyValues("wow.query.schema.revalidate-interval=0s")
+            .run { context ->
+                context.getBean(QuerySchemaCatalog::class.java).versions().collectList().block()!!.assert().isEmpty()
+            }
     }
 
     @Test

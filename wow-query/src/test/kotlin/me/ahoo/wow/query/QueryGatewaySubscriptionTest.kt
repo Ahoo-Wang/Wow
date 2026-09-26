@@ -809,7 +809,8 @@ class QueryGatewaySubscriptionTest {
         override val name: String = "subscription"
         override val cursorPositions: CursorPositionCodec = CursorPositionCodec.JSON
         override fun page(query: AdmittedQuery<Queryable<*>>, window: PageWindow): Mono<BackendPage> {
-            val (queryable, schema) = query
+            val queryable = query.query
+            val schema = query.schema
             if (queryable is ICursorQuery) {
                 return cursor(queryable).map { rows ->
                     BackendPage(rows, positions = rows.indices.map { CursorPosition(listOf("row-$it")) })
