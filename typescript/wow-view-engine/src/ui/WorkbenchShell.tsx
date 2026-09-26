@@ -750,6 +750,13 @@ export function WorkbenchShell({
                   warnings={warnings}
                   besideResult={besideResult}
                   nameIssue={nameIssue}
+                  conditionsHidden={
+                    editor == null || (folded && !editorIsOpen.open)
+                  }
+                  {...(editor != null &&
+                    folded && {
+                      onShowConditions: () => editorIsOpen.set(true),
+                    })}
                   errorAction={
                     typeof errorAction === 'function'
                       ? errorAction(

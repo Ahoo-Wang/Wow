@@ -32,6 +32,10 @@ export const viewMessages = {
   'label.view.unopenable': 'This view could not be opened',
   'label.view.open-default': 'Open the default view',
   'label.view.needs-fixing': 'This view needs fixing before it runs',
+  // Said while the pills that carry the findings are folded away.
+  'label.view.conditions-to-fix':
+    'Fix its conditions before this view runs ({count})',
+  'label.view.show-conditions': 'Show conditions',
   // What the source no longer offers (capabilities.md Q2): said once, with
   // the one press that takes it out.
   'label.view.unavailable':

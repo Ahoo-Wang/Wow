@@ -607,6 +607,8 @@ export const zhCN: ViewMessages = {
   'label.view.unopenable': '无法打开这个视图',
   'label.view.open-default': '回到默认视图',
   'label.view.needs-fixing': '这个视图要先修正才能运行',
+  'label.view.conditions-to-fix': '条件要先修正，视图才会查询（{count} 项）',
+  'label.view.show-conditions': '查看条件',
   'label.view.unavailable':
     '这个视图用到了数据源现在不支持的功能，移除之前不会查询',
   'label.view.remove-unavailable': '移除不可用的条件',

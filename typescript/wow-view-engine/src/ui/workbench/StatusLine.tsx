@@ -40,6 +40,13 @@ export interface StatusLineProps extends Pick<
   state: NonNullable<WorkbenchController['state']>;
   /** The kind on screen, which names the error strip's title. */
   kind: ViewKind | undefined;
+  /**
+   * Whether the condition editor is off screen — folded away, or not drawn
+   * at all — so no pill shows the findings marked on it.
+   */
+  conditionsHidden?: boolean;
+  /** Unfolds the condition editor; left out where there is none to show. */
+  onShowConditions?(): void;
 }
 
 /**
@@ -58,6 +65,8 @@ export function StatusLine({
   errorAction,
   besideResult,
   nameIssue: named = sayAsIs,
+  conditionsHidden = false,
+  onShowConditions,
 }: StatusLineProps) {
   const messages = useViewMessages();
   // Said of the thing open as its kind says it: on a board, 仪表盘 (Q34).
@@ -72,6 +81,20 @@ export function StatusLine({
   // (capabilities.md Q2); each finding is still said where it is, on its
   // pill or in the strip below.
   const unavailable = useUnavailable(workbench.runtime);
+  // What stops the query on a pill nobody can see: a view opened folded —
+  // a drilled one, a saved one — whose conditions will not run said
+  // nothing at all, and its page was a title over an empty body. A
+  // rejection is the service's answer and blocks nothing; the query strip
+  // says it.
+  const onHiddenPills = conditionsHidden
+    ? filter.issues.filter(
+        found =>
+          found.severity === 'error' &&
+          found.path[0] === 'children' &&
+          !found.code.startsWith('runtime.query.failed.') &&
+          !filter.unmarked.includes(found),
+      )
+    : [];
   return (
     <div
       data-slot="status-line"
@@ -90,6 +113,27 @@ export function StatusLine({
             >
               {messages.label('label.view.remove-unavailable')}
             </Button>
+          }
+        />
+      )}
+      {onHiddenPills.length > 0 && (
+        <StatusStrip
+          tone="error"
+          title={messages.label('label.view.conditions-to-fix', {
+            count: onHiddenPills.length,
+          })}
+          details={onHiddenPills.map(found => messages.issue(nameIssue(found)))}
+          action={
+            onShowConditions && (
+              <Button
+                data-slot="show-conditions"
+                variant="outline"
+                size="sm"
+                onClick={onShowConditions}
+              >
+                {messages.label('label.view.show-conditions')}
+              </Button>
+            )
           }
         />
       )}

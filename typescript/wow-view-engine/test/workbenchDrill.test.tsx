@@ -85,6 +85,35 @@ function setup(
 }
 
 describe('drilling from an analysis view', () => {
+  it('opens and runs the records of a group on the field the analysis is scoped by', async () => {
+    const { result } = setup();
+    await waitFor(() => expect(result.current.runtime?.kind).toBe('analysis'));
+    // The chart is scoped to one status; its bars are statuses too.
+    const status: FilterNode[] = [
+      { field: 'status', operator: 'EQ', value: 'PENDING' },
+    ];
+
+    act(() => {
+      result.current.drill(status, 'Orders · Pending');
+    });
+
+    // Admitted, so it runs — rather than an idle view with nothing on it.
+    expect(result.current.runtime?.kind).toBe('record');
+    expect(result.current.state?.issues).toEqual([]);
+    await waitFor(() =>
+      expect(result.current.state?.query.status).toBe('success'),
+    );
+    // Both hold, the row in an "all of" of its own, read in advanced mode.
+    expect(draftOf(result.current.state)?.filter).toEqual({
+      op: 'and',
+      children: [
+        { field: 'status', operator: 'EQ', value: 'PENDING' },
+        { op: 'and', children: status },
+      ],
+    });
+    expect(draftOf(result.current.state)?.filterMode).toBe('advanced');
+  });
+
   it('opens the records behind a row as a held record view, with its origin', async () => {
     const { result } = setup();
     await waitFor(() => expect(result.current.runtime?.kind).toBe('analysis'));
