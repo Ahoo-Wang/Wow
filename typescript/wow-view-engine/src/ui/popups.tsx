@@ -12,6 +12,7 @@
  */
 
 import type * as React from 'react';
+import { useRef } from 'react';
 import { Combobox as ComboboxPrimitive } from '@base-ui/react';
 import { AlertDialog as AlertDialogPrimitive } from '@base-ui/react/alert-dialog';
 import { Dialog as DialogPrimitive } from '@base-ui/react/dialog';
@@ -479,6 +480,7 @@ export function DropdownMenuContent({
   anchor,
   className,
   style,
+  finalFocus,
   ...props
 }: React.ComponentProps<typeof VendoredDropdownMenuContent> & {
   /**
@@ -487,6 +489,7 @@ export function DropdownMenuContent({
    */
   anchor?: MenuPrimitive.Positioner.Props['anchor'];
 }) {
+  const popup = useRef<HTMLDivElement>(null);
   return (
     <MenuPrimitive.Portal>
       <MenuPrimitive.Positioner
@@ -501,12 +504,43 @@ export function DropdownMenuContent({
         <MenuPrimitive.Popup
           data-slot="dropdown-menu-content"
           {...props}
+          ref={popup}
+          finalFocus={
+            typeof finalFocus === 'function'
+              ? closeType =>
+                  focusMovedOn(popup.current) ? false : finalFocus(closeType)
+              : finalFocus
+          }
           className={withClass(MENU_POPUP_CLASS, themedClass(className))}
           style={useSurfaceType(style)}
           {...useSurfaceAttributes()}
         />
       </MenuPrimitive.Positioner>
     </MenuPrimitive.Portal>
+  );
+}
+
+/**
+ * Whether the keyboard has already gone somewhere else while a menu closed:
+ * not left inside the menu or one of its submenus, and not dropped on
+ * `<body>` by the menu's own removal.
+ *
+ * Base UI keeps a focus that moved on where it went when a menu's
+ * `finalFocus` is `true`, but it takes a function's answer as explicit and
+ * sends the focus there regardless. A menu hands the focus back only once its
+ * exit animation ends, so a press on another control in that time — a select
+ * opened right after picking a dimension — had the focus pulled out from
+ * under it, and the select, still opening, closed. So a function's answer
+ * is asked only while the focus is still the menu's to give.
+ */
+function focusMovedOn(popup: HTMLElement | null): boolean {
+  const doc = popup?.ownerDocument ?? document;
+  const active = doc.activeElement;
+  return (
+    active instanceof HTMLElement &&
+    active !== doc.body &&
+    !popup?.contains(active) &&
+    !active.closest('[data-slot="dropdown-menu-sub-content"]')
   );
 }
 
