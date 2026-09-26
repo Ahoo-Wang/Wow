@@ -713,16 +713,16 @@ export const OnAPhone: Story = {
   play: async ({ canvasElement }) => {
     await expect(window.innerWidth).toBe(375);
     await waitFor(() => expect(valueOf('GMV')).toBe(DAILY_GOLDEN.cards.GMV));
-    const sheet = within(canvasElement).getByRole('button', {
+    const opener = within(canvasElement).getByRole('button', {
       name: label('label.filters.sheet-set', { count: '1' }),
     });
-    await expect(sheet).toBeVisible();
+    await expect(opener).toBeVisible();
     // 「铺满屏幕」 on the same row as that button, at its end — not a row of
     // its own above it.
     const expand = within(canvasElement)
       .getByRole('button', { name: zhCN['label.workbench.expand-view'] })
       .getBoundingClientRect();
-    const opens = sheet.getBoundingClientRect();
+    const opens = opener.getBoundingClientRect();
     await expect(Math.abs(expand.top - opens.top)).toBeLessThanOrEqual(4);
     await expect(expand.left).toBeGreaterThan(opens.right);
     await expect(expand.right).toBeLessThanOrEqual(window.innerWidth);
@@ -755,11 +755,7 @@ export const OnAPhone: Story = {
 
     // In the filter sheet: every filter stays inside it — a relative window
     // wraps its three controls rather than running under the reset (W11).
-    await userEvent.click(
-      within(canvasElement).getByRole('button', {
-        name: label('label.filters.sheet-set', { count: '1' }),
-      }),
-    );
+    await userEvent.click(opener);
     const sheet = await screen.findByRole('dialog', {
       name: zhCN['label.filters.bar'],
     });
