@@ -27,9 +27,11 @@ import {
 import {
   isFilterGroup,
   isFilterLeaf,
+  isDateTimeFilterValue,
   isSimpleTree,
   operatorsOf,
   readInstant,
+  resolveDateTimeRange,
   sameFilterTree,
   type FieldKind,
   type FieldKindRegistry,
@@ -565,14 +567,91 @@ function equal(
  * with the row's added, flattened into one "all of" group when the analysis
  * filter was one — so the record view opens in simple mode wherever the
  * analysis view was in it — and nested under it otherwise.
+ *
+ * A group of a simple tree holds one condition per field
+ * (`filter.field.duplicate-in-group`), and a row's range is on the field the
+ * analysis was often already scoped by — the day of a stretch of days, a
+ * status among the statuses asked about. Both still hold, so neither is
+ * dropped unless the other says all of it: a scope's absolute stretch that
+ * holds the row's whole stretch gives its place to the row's, which then
+ * says the same records in one condition. Otherwise the row's conditions on
+ * that field go into an "all of" of their own beside the scope's — the one
+ * way a tree asks two things of one field — which is exact, and read in the
+ * editor's advanced mode.
  */
 export function drillFilter(
   applied: FilterTree,
   conditions: readonly FilterNode[],
 ): FilterTree {
-  return isSimpleTree(applied)
-    ? { op: 'and', children: [...applied.children, ...conditions] }
-    : { op: 'and', children: [applied, ...conditions] };
+  if (!isSimpleTree(applied))
+    return { op: 'and', children: [applied, ...conditions] };
+  const children: FilterNode[] = [...applied.children];
+  const added: FilterNode[] = [];
+  const nested = new Map<string, FilterNode[]>();
+  for (const condition of conditions) {
+    const clash =
+      isFilterLeaf(condition) && condition.operator !== 'EXPRESSION'
+        ? children.findIndex(
+            child =>
+              isFilterLeaf(child) &&
+              child.operator !== 'EXPRESSION' &&
+              child.field === condition.field,
+          )
+        : -1;
+    if (clash < 0) {
+      added.push(condition);
+      continue;
+    }
+    const leaf = condition as FilterLeaf;
+    const own = nested.get(leaf.field);
+    if (own) own.push(leaf);
+    else if (holdsWhole(children[clash] as FilterLeaf, leaf))
+      children[clash] = leaf;
+    else {
+      const group: FilterNode[] = [leaf];
+      nested.set(leaf.field, group);
+      added.push({ op: 'and', children: group });
+    }
+  }
+  return { op: 'and', children: [...children, ...added] };
+}
+
+/**
+ * Whether `scope` holds every record `row` does, read without a clock: two
+ * absolute stretches of time, each pinned to a zone or an offset, the one
+ * inside the other. A relative or preset scope moves with the clock, and a
+ * stretch in no zone waits for the runtime's; both stay beside the row.
+ */
+function holdsWhole(scope: FilterLeaf, row: FilterLeaf): boolean {
+  if (scope.operator !== 'BETWEEN' || row.operator !== 'BETWEEN') return false;
+  const outer = pinnedStretch(scope.value);
+  const inner = pinnedStretch(row.value);
+  return (
+    outer !== null &&
+    inner !== null &&
+    outer.from <= inner.from &&
+    inner.to <= outer.to
+  );
+}
+
+const OFFSET = /(?:Z|[+-]\d{2}:?\d{2})$/i;
+
+function pinnedStretch(value: FilterValue): BucketRange | null {
+  if (!isDateTimeFilterValue(value) || value.type !== 'absolute') return null;
+  if (value.to === undefined) return null;
+  const pinned =
+    value.timeZone !== undefined ||
+    (OFFSET.test(value.from) && OFFSET.test(value.to));
+  if (!pinned) return null;
+  // The zone only reads a bound without an offset; a pinned one has either.
+  const range = resolveDateTimeRange(
+    value,
+    new Date(0),
+    value.timeZone ?? 'UTC',
+  );
+  const from = Date.parse(range.from);
+  const to = range.to === undefined ? NaN : Date.parse(range.to);
+  return Number.isFinite(from) && Number.isFinite(to) ? { from, to } : null;
 }
 
 /**
