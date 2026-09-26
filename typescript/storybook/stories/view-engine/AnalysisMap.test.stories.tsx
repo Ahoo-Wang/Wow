@@ -223,33 +223,16 @@ function squares(frame: HTMLElement): SVGPathElement[] {
 }
 
 /**
- * The six squares once the map holds still. `data-drawn` is set by the
- * first drawing, and the library can draw the map again right after — the
- * plot's areas were seen replaced some 150 ms later — and a press on an
- * area that is gone opens nothing. So the squares are read until two polls
- * in a row find them in the same place, each still on the page.
+ * The six squares of the drawn map. `data-drawn` is set by the first drawing
+ * and there is no second one: the page's preset is on `<html>` before the
+ * story renders (`preview.tsx`), so the chart reads its theme once.
  */
-async function settledSquares(frame: HTMLElement): Promise<SVGPathElement[]> {
-  let last = '';
-  return waitFor(
-    () => {
-      const found = squares(frame);
-      expect(found).toHaveLength(FIXTURE_PROVINCES.length);
-      expect(found.every(path => path.isConnected)).toBe(true);
-      const where = found
-        .map(path => {
-          const box = path.getBoundingClientRect();
-          return `${box.left},${box.top},${box.width},${box.height}`;
-        })
-        .join(';');
-      const still = where === last;
-      last = where;
-      expect(still).toBe(true);
-      return found;
-    },
-    { timeout: 5_000, interval: 100 },
-  );
-}
+const drawnSquares = (frame: HTMLElement): Promise<SVGPathElement[]> =>
+  waitFor(() => {
+    const found = squares(frame);
+    expect(found).toHaveLength(FIXTURE_PROVINCES.length);
+    return found;
+  });
 
 const rgbOf = (text: string | null) =>
   text && parse(text) ? formatRgb(parse(text)!) : '';
@@ -311,7 +294,7 @@ export const ChinaProvincesShaded: Story = {
     );
     await expect(rows.map(row => row[0])).not.toContain('台湾省');
 
-    const drawn = await settledSquares(frame);
+    const drawn = await drawnSquares(frame);
     const fills = drawn.map(path => rgbOf(path.getAttribute('fill')));
     const first = rgbOf(getComputedStyle(frame).getPropertyValue('--chart-1'));
     await expect(fills[0]).toBe(first);
@@ -349,7 +332,7 @@ export const ChinaProvinceRecords: Story = {
   beforeEach: registerFixtureChina,
   play: async ({ canvasElement }) => {
     const frame = await mapReady(canvasElement);
-    const [guangdong] = await settledSquares(frame);
+    const [guangdong] = await drawnSquares(frame);
     pressMark(guangdong!);
     const menu = await drillMenu();
     await expect(
@@ -397,7 +380,7 @@ export const ChinaProvinceSplit: Story = {
   beforeEach: registerFixtureChina,
   play: async ({ canvasElement }) => {
     const frame = await mapReady(canvasElement);
-    const [guangdong] = await settledSquares(frame);
+    const [guangdong] = await drawnSquares(frame);
     pressMark(guangdong!);
     const menu = await drillMenu();
     await userEvent.hover(

@@ -13,7 +13,7 @@
 
 import type { Decorator, Preview } from '@storybook/react-vite';
 import { DecoratorHelpers } from '@storybook/addon-themes';
-import { useEffect } from 'storybook/preview-api';
+import { useEffect, useMemo } from 'storybook/preview-api';
 import '@ahoo-wang/wow-view-engine/themes.css';
 import './preview.css';
 import { DocsPage } from './DocsPage.js';
@@ -37,22 +37,37 @@ const { initializeThemeState, pluckThemeFromContext } = DecoratorHelpers;
  * name, `theme`, so a story's `globals: { theme: 'dark' }` still pins it.
  */
 initializeThemeState([...MODES], 'light');
+
+/**
+ * Writes what a switch picked onto `<html>` while the story renders, not
+ * after it: a chart reads the theme when it mounts, and an attribute that
+ * arrived in an effect had every chart draw once in the engine's own look
+ * and again, about a frame later, in the one picked. A host writes these in
+ * its page before the engine renders; so does Storybook. `apply` runs again
+ * only when `value` changes, as the effect it replaces did.
+ */
+const useBeforeRender = (value: string, apply: () => void) =>
+  useMemo(apply, [value]);
+
 const withMode: Decorator = (storyFn, context) => {
   const { themeOverride } = (context.parameters.themes ?? {}) as {
     themeOverride?: string;
   };
   const mode = themeOverride || pluckThemeFromContext(context) || 'light';
+  const query = () => matchMedia('(prefers-color-scheme: dark)');
+  useBeforeRender(mode, () =>
+    document.documentElement.classList.toggle(
+      'dark',
+      mode === 'system' ? query().matches : mode === 'dark',
+    ),
+  );
   useEffect(() => {
-    const html = document.documentElement;
-    if (mode !== 'system') {
-      html.classList.toggle('dark', mode === 'dark');
-      return;
-    }
-    const query = matchMedia('(prefers-color-scheme: dark)');
-    const follow = () => html.classList.toggle('dark', query.matches);
-    follow();
-    query.addEventListener('change', follow);
-    return () => query.removeEventListener('change', follow);
+    if (mode !== 'system') return;
+    const system = query();
+    const follow = () =>
+      document.documentElement.classList.toggle('dark', system.matches);
+    system.addEventListener('change', follow);
+    return () => system.removeEventListener('change', follow);
   }, [mode]);
   return storyFn();
 };
@@ -68,11 +83,11 @@ const withMode: Decorator = (storyFn, context) => {
  */
 const withPreset: Decorator = (storyFn, context) => {
   const preset = String(context.globals.fvePreset ?? DEFAULT_PRESET);
-  useEffect(() => {
+  useBeforeRender(preset, () => {
     const html = document.documentElement;
     if (preset === ENGINE_PRESET) html.removeAttribute('data-fve-preset');
     else html.setAttribute('data-fve-preset', preset);
-  }, [preset]);
+  });
   return storyFn();
 };
 
@@ -84,11 +99,11 @@ const withPreset: Decorator = (storyFn, context) => {
  */
 const withDensity: Decorator = (storyFn, context) => {
   const density = String(context.globals.fveDensity ?? 'preset');
-  useEffect(() => {
+  useBeforeRender(density, () => {
     const html = document.documentElement;
     if (density === 'preset') html.removeAttribute('data-fve-density');
     else html.setAttribute('data-fve-density', density);
-  }, [density]);
+  });
   return storyFn();
 };
 
@@ -102,11 +117,17 @@ const withChangeColors: Decorator = (storyFn, context) => {
   // Only a picked convention is written, and taken back when it goes: with
   // the default the attribute is the story's own to set (a story that pins
   // `red-up` in its `beforeEach`).
+  useBeforeRender(convention, () => {
+    if (convention !== 'semantic')
+      document.documentElement.setAttribute(
+        'data-fve-change-colors',
+        convention,
+      );
+  });
   useEffect(() => {
     if (convention === 'semantic') return;
-    const html = document.documentElement;
-    html.setAttribute('data-fve-change-colors', convention);
-    return () => html.removeAttribute('data-fve-change-colors');
+    return () =>
+      document.documentElement.removeAttribute('data-fve-change-colors');
   }, [convention]);
   return storyFn();
 };
