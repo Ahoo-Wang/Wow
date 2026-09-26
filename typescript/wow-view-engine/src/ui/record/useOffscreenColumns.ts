@@ -106,7 +106,12 @@ export function useOffscreenColumns(
   useEffect(() => {
     const node = footer.current;
     if (!node || typeof IntersectionObserver === 'undefined') return;
-    const readings = node.querySelectorAll(`[${SUMMARY_READING}]`);
+    // A reading in a held cell is in view wherever the table is scrolled,
+    // and it lies inside the very inset the held columns take off the root,
+    // so it is not asked about at all.
+    const readings = [...node.querySelectorAll(`[${SUMMARY_READING}]`)].filter(
+      reading => !reading.closest('[data-pin]'),
+    );
     if (readings.length === 0) return;
     const root = scrollRootOf(node);
     const inset = heldInsets(node, root);

@@ -11,7 +11,13 @@
  * limitations under the License.
  */
 
-import { act, cleanup, fireEvent, render } from '@testing-library/react';
+import {
+  act,
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+} from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   pagedPaging,
@@ -234,6 +240,16 @@ describe('the hint in a record table', () => {
       paging: pagedPaging({ index: 1, size: 20, total: 42 }),
     });
 
+  /** What the button shows: its words less the part only a reader hears. */
+  const shown = (button: HTMLElement) => {
+    const words = button.querySelector('.truncate')!.cloneNode(true) as Element;
+    words.querySelector('.sr-only')?.remove();
+    return words.textContent;
+  };
+
+  /** The button a query by its whole accessible name finds. */
+  const named = (name: string) => screen.getByRole('button', { name });
+
   const buttons = (container: HTMLElement) => [
     ...container.querySelectorAll<HTMLButtonElement>(
       '[data-slot="summary-offscreen"]',
@@ -250,20 +266,49 @@ describe('the hint in a record table', () => {
     expect(observer.options?.rootMargin).toMatch(/^100000px .* 100000px /);
   });
 
+  /**
+   * A summary in a held column is in view however the table is scrolled,
+   * and it sits inside the inset the held columns take off the root — asked
+   * about, it would read as hidden in a table that does not even scroll.
+   */
+  it('does not ask about a summary in a held column', () => {
+    const base = twoColumnTable();
+    render(
+      <RecordTable
+        table={twoColumnTable({
+          columns: [base.columns[0], { ...base.columns[1], pinned: 'right' }],
+          summaries: {
+            scope: 'total',
+            cells: [
+              { field: 'amount', label: 'Amount', fn: 'SUM', value: 900 },
+              { field: 'warehouse', label: 'Warehouse', fn: 'COUNT', value: 2 },
+            ],
+          },
+        })}
+      />,
+    );
+    expect(
+      ObserverDouble.latest!.targets.map(target =>
+        target.getAttribute('data-summary-field'),
+      ),
+    ).toEqual(['amount']);
+  });
+
   it('names the hidden column in each row, and goes when it is in view', () => {
     const { container } = render(<RecordTable table={table()} />);
     expect(buttons(container)).toEqual([]);
 
     ObserverDouble.latest!.report({ amount: 'right' });
     const [page, total] = buttons(container);
-    // Each row its own number, the scope inside the narrow selection cell.
-    expect(page.getAttribute('aria-label')).toBe(
-      'This page: Sum of Amount CN¥10.00 is out of view. Scroll to Amount',
-    );
-    expect(total.getAttribute('aria-label')).toBe(
-      'All rows: Sum of Amount CN¥900.00 is out of view. Scroll to Amount',
-    );
-    expect(total.textContent).toBe('All rows · Amount Sum CN¥900.00');
+    // Each row its own number, the scope inside the narrow selection cell;
+    // the name starts with the words the button shows (WCAG 2.5.3).
+    expect(
+      named('This page · Amount Sum CN¥10.00, out of view. Scroll to Amount'),
+    ).toBe(page);
+    expect(
+      named('All rows · Amount Sum CN¥900.00, out of view. Scroll to Amount'),
+    ).toBe(total);
+    expect(shown(total)).toBe('All rows · Amount Sum CN¥900.00');
     expect(total.dataset.side).toBe('right');
     // Held against the left edge for the footer alone.
     expect(total.closest('td')?.dataset.pin).toBe('left');
@@ -311,10 +356,10 @@ describe('the hint in a record table', () => {
     );
     ObserverDouble.latest!.report({ amount: 'left', warehouse: 'right' });
     const [total] = buttons(container);
-    expect(total.textContent).toBe('全部 · Warehouse 计数 2 等 2 项');
-    expect(total.getAttribute('aria-label')).toBe(
-      '全部：Warehouse的计数 2等 2 项不在视野内，滚动到Warehouse',
-    );
+    expect(shown(total)).toBe('全部 · Warehouse 计数 2 等 2 项');
+    expect(
+      named('全部 · Warehouse 计数 2 等 2 项，不在视野内，滚动到Warehouse'),
+    ).toBe(total);
   });
 });
 

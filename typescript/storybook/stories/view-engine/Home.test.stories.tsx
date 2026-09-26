@@ -890,8 +890,12 @@ export const OffscreenTotalsInAPanel: Story = {
       },
       { timeout: 10_000 },
     );
-    await expect(hint.getAttribute('aria-label')).toMatch(
-      /^全部：实付的总和 ¥[\d,.]+不在视野内，滚动到实付$/,
+    // Named by the words it shows, then what they leave unsaid: the row,
+    // that it is out of view, and where the press goes (WCAG 2.5.3).
+    // (The hidden part is out of the flow, so a browser puts a space
+    // before it.)
+    await expect(hint).toHaveAccessibleName(
+      /^实付 总和 ¥[\d,.]+ ?，全部，不在视野内，滚动到实付$/,
     );
     const { body, cue } = panelParts(name);
     await waitFor(() => expect(cue).not.toBeNull());

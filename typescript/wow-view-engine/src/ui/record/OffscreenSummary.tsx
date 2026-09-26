@@ -41,8 +41,8 @@ export interface OffscreenSummaryProps {
  * It never widens its cell (`contain: inline-size`): the cell is a column
  * the rows share, the selection column at its narrowest, and a hint that
  * appears and disappears as the table scrolls must not move the columns
- * under it. What does not fit is cut, and the whole sentence stays the
- * button's name and its tooltip.
+ * under it. What does not fit is cut; the whole sentence is the button's
+ * name and its tooltip.
  */
 export function OffscreenSummary({
   hint,
@@ -56,17 +56,15 @@ export function OffscreenSummary({
   const value = summaryText(hint.cell, messages, display);
   const field = hint.column.label;
   const scopeWord = messages.label(`label.summary.scope.${scope}`);
-  const name = messages.label(
-    hint.count > 1
-      ? 'label.summary.offscreen.several'
-      : 'label.summary.offscreen.one',
-    {
-      scope: scopeWord,
-      summary: messages.label('label.summary.of', { fn, field }),
-      value,
-      field,
-      count: hint.count,
-    },
+  // What the words on the button leave unsaid, for a screen reader: the
+  // button's name starts with the words it shows (WCAG 2.5.3), and this
+  // follows them — the row's scope where the button does not show it, that
+  // it is out of view, and where the press goes.
+  const tail = messages.label(
+    withScope
+      ? 'label.summary.offscreen.go'
+      : 'label.summary.offscreen.go-in-scope',
+    { scope: scopeWord, field },
   );
   const Arrow = hint.side === 'left' ? ArrowLeftIcon : ArrowRightIcon;
   const shown = [
@@ -89,11 +87,13 @@ export function OffscreenSummary({
             size="xs"
             data-slot="summary-offscreen"
             data-side={hint.side}
-            aria-label={name}
             onClick={onReveal}
             // Layout only: as wide as the cell and never wider, flush with
-            // the cell's own padding, one line.
-            className="h-auto w-full min-w-0 justify-start px-0 [contain:inline-size]"
+            // the cell's own padding, one line. At least 24px tall, the
+            // floor for a target (WCAG 2.5.8), with the 4px it has over the
+            // line taken back by the margins, so the row is as tall with it
+            // as without it at every density.
+            className="-my-0.5 h-auto min-h-6 w-full min-w-0 justify-start px-0 [contain:inline-size]"
           />
         }
       >
@@ -112,10 +112,17 @@ export function OffscreenSummary({
             </>
           )}
           {shown}
+          {/* Inside the words it follows, so a reader hears one sentence;
+              out of the flow, so it never takes their room. */}
+          <span className="sr-only">{tail}</span>
         </span>
         {hint.side === 'right' && <Arrow data-icon="inline-end" />}
       </TooltipTrigger>
-      <TooltipContent>{name}</TooltipContent>
+      <TooltipContent>
+        {withScope ? `${scopeWord} · ` : ''}
+        {shown}
+        {tail}
+      </TooltipContent>
     </Tooltip>
   );
 }
