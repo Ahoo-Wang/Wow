@@ -514,6 +514,11 @@ class WowRuntime private constructor(
 
     private fun shutdownPipeline(owner: ShutdownOwner): Mono<Void> {
         return Mono.defer {
+            // Durable transports redeliver what is not pulled, so stop pulling first:
+            // otherwise sustained external traffic keeps the runtime from becoming idle.
+            componentGroup.suspendDurableIntake {
+                !owner.isCancelled
+            }
             val drained = runtimeContext.quiesce()
             runtimeContext.admissionClosed()
                 .publishOn(executionResources.shutdownScheduler)
