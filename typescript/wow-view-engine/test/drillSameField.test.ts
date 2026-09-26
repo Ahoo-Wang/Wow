@@ -39,6 +39,7 @@ import type {
   FilterLeaf,
   FilterNode,
   FilterTree,
+  RecordData,
 } from '../src/model/index.js';
 import { analysisConfig } from './fixtures.js';
 
@@ -99,7 +100,7 @@ function day(date: string): string {
   return new Date(`${date}T00:00:00+08:00`).toISOString();
 }
 
-function rowOf(filter: FilterTree, groups: AnalysisGroup[], row: object) {
+function rowOf(filter: FilterTree, groups: AnalysisGroup[], row: RecordData) {
   const conditions = drillConditions(
     analysisConfig({ filter, groups }),
     FIELDS,
@@ -111,7 +112,7 @@ function rowOf(filter: FilterTree, groups: AnalysisGroup[], row: object) {
   return conditions!;
 }
 
-function spanOf(filter: FilterTree, first: object, last: object) {
+function spanOf(filter: FilterTree, first: RecordData, last: RecordData) {
   const config = analysisConfig({ filter, groups: [DAYS] });
   const drilled = drillSpan(
     config,
