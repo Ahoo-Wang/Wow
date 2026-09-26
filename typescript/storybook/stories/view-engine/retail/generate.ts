@@ -345,6 +345,11 @@ export type RetailOrderLine = {
   qty: number;
   listPrice: number;
   salePrice: number;
+  /**
+   * 这一行随订单下单的时刻，读模型抄在行上：按行看的分析（一件商品每周的
+   * 成交单价）只能按行上的字段分组与排先后。
+   */
+  placedAt: number;
   /** 订单级优惠（满减、两种券、积分）分摊到这一行的金额。 */
   discountShare: number;
   payAmount: number;
@@ -1559,6 +1564,7 @@ export function generateRetail(
         qty: line.qty,
         listPrice: yuan(line.listPrice),
         salePrice: yuan(line.salePrice),
+        placedAt: input.placedAt,
         discountShare: yuan(line.discountShare),
         payAmount: yuan(line.pay),
         refundedQty: Math.min(line.qty, refundedQty[line.index]),

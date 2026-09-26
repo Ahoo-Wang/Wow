@@ -39,6 +39,7 @@ export type ScenePage =
   | 'ops-daily'
   | 'sales-review'
   | 'fulfilment'
+  | 'showcase'
   | 'retail-orders'
   | 'retail-after-sales'
   | 'retail-analysis'
@@ -121,6 +122,12 @@ const GROUPS: readonly { title?: string; items: readonly NavItem[] }[] = [
         page: 'fulfilment',
         title: '履约与售后',
         story: 'view-engine-业务场景-履约与售后--fulfilment-tab',
+        icon: LayoutDashboardIcon,
+      },
+      {
+        page: 'showcase',
+        title: '图型全景',
+        story: 'view-engine-业务场景-图型全景--trend',
         icon: LayoutDashboardIcon,
       },
       {

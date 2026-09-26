@@ -45,6 +45,7 @@ import {
   type ViewInstance,
 } from '@ahoo-wang/wow-view-engine';
 import { MEMBER_OPTIONS } from './source.js';
+import { SHOWCASE, SHOWCASE_VIEWS, showcaseConfig } from './showcase.js';
 import {
   AFTER_SALE_WORKBENCH_VIEWS,
   ANALYSIS_VIEWS,
@@ -1246,12 +1247,14 @@ function board(
   };
 }
 
-/** 运营组共享的四块板。 */
+/** 运营组共享的四块板，与一块图型全景。 */
 export const retailBoards: ViewInstance[] = [
   board(OPS_DAILY, '运营日报', opsDailyConfig()),
   board(SALES_REVIEW, '销售复盘（月度）', salesReviewConfig()),
   board(FULFILMENT, '履约与售后', fulfilmentConfig()),
   board(MEMBER_BOARD, '会员概览', memberBoardConfig()),
+  // 22 种图型各用一次，一张图一个它答得了的问题（`showcase.ts`）。
+  board(SHOWCASE, '图型全景', showcaseConfig()),
 ];
 
 /**
@@ -1264,5 +1267,6 @@ export const retailInstances: ViewInstance[] = [
   ...MEMBER_ANALYSIS_VIEWS,
   ...AFTER_SALE_WORKBENCH_VIEWS,
   orderLinesView,
+  ...SHOWCASE_VIEWS,
   ...retailBoards,
 ];
