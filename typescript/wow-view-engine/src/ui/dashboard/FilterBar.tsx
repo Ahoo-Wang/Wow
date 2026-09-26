@@ -108,6 +108,53 @@ export interface FilterBarProps {
    * change read beside it (D26 Q38, `FilterSheet`).
    */
   narrow?: boolean;
+  /**
+   * A control of the surface's own at the row's end, after 「清空」 — an
+   * embed's 「铺满屏幕」 when it has no first row to stand in (D10): beside
+   * the filters rather than a row of its own. It is not a filter, so it
+   * stands outside the bar's region, on the same row.
+   */
+  trailing?: ReactNode;
+}
+
+/**
+ * Whether the bar draws anything (`FilterBar`): a filter the page did not
+ * hide, the time grouping, 「添加筛选」 while the board is built, or the
+ * fixed scope. A host of `FilterBar.trailing` asks it first, since an empty
+ * bar is no row to stand in.
+ */
+export function drawsFilterBar({
+  dashboard,
+  modes,
+  fixed = NO_FIXED,
+  add,
+}: Pick<FilterBarProps, 'dashboard' | 'modes' | 'fixed' | 'add'>): boolean {
+  return (
+    shownFields(dashboard, modes).length > 0 ||
+    shownGrouping(dashboard, modes) !== null ||
+    Boolean(add) ||
+    fixed.length > 0
+  );
+}
+
+/** The filters on the bar: what the page hid is not. */
+function shownFields(
+  dashboard: DashboardController,
+  modes: BoardFilterModes | undefined,
+) {
+  return dashboard.filterFields.filter(
+    field => filterModeOf(modes, field.name) !== 'hidden',
+  );
+}
+
+/** The time grouping on the bar, unless the page hid it. */
+function shownGrouping(
+  dashboard: DashboardController,
+  modes: BoardFilterModes | undefined,
+) {
+  return (modes?.grouping ?? 'adjustable') === 'hidden'
+    ? null
+    : dashboard.timeGrouping;
 }
 
 /**
@@ -130,12 +177,11 @@ export function FilterBar({
   order,
   fixed = NO_FIXED,
   narrow = false,
+  trailing,
 }: FilterBarProps) {
   const messages = useViewMessages();
   // What the page hid is not on the bar; what it locked is, as a reading.
-  const fields = dashboard.filterFields.filter(
-    field => filterModeOf(modes, field.name) !== 'hidden',
-  );
+  const fields = shownFields(dashboard, modes);
   const sortable = useFilterOrder(fields, order);
   // A press that takes its own control away lands the keyboard on the next
   // sensible one (U-02); the board is read as the press happens, since the
@@ -143,9 +189,8 @@ export function FilterBar({
   const bar = useRef<HTMLDivElement>(null);
   const land = useLanding();
   const groupingMode = modes?.grouping ?? 'adjustable';
-  const grouping = groupingMode === 'hidden' ? null : dashboard.timeGrouping;
-  if (fields.length === 0 && grouping === null && !add && fixed.length === 0)
-    return null;
+  const grouping = shownGrouping(dashboard, modes);
+  if (!drawsFilterBar({ dashboard, modes, fixed, add })) return null;
 
   const onTab = dashboard.panels.filter(panel => panel.tab === dashboard.tab);
   const reaching = filtersOnTab(onTab, dashboard.tab);
@@ -261,45 +306,43 @@ export function FilterBar({
     </>
   );
 
-  if (narrow)
-    return (
-      <FilterSheet
-        listRef={bar}
-        count={
-          fields.filter(
+  const drawn = narrow ? (
+    <FilterSheet
+      listRef={bar}
+      count={
+        fields.filter(
+          field =>
+            filterModeOf(modes, field.name) === 'adjustable' &&
+            filters.values[field.name] !== undefined,
+        ).length
+      }
+      // Only for something to change: what the reader holds, or — while
+      // the board is built — every filter's settings.
+      opens={
+        clearable ||
+        Boolean(add) ||
+        (settings !== undefined && fields.length > 0)
+      }
+      held={
+        <>
+          {scope}
+          {fields.map(
             field =>
-              filterModeOf(modes, field.name) === 'adjustable' &&
-              filters.values[field.name] !== undefined,
-          ).length
-        }
-        // Only for something to change: what the reader holds, or — while
-        // the board is built — every filter's settings.
-        opens={
-          clearable ||
-          Boolean(add) ||
-          (settings !== undefined && fields.length > 0)
-        }
-        held={
-          <>
-            {scope}
-            {fields.map(
-              field =>
-                filterModeOf(modes, field.name) === 'locked' && (
-                  <LockedChip
-                    key={field.name}
-                    field={field}
-                    dashboard={dashboard}
-                    beside
-                  />
-                ),
-            )}
-          </>
-        }
-      >
-        {items}
-      </FilterSheet>
-    );
-  return (
+              filterModeOf(modes, field.name) === 'locked' && (
+                <LockedChip
+                  key={field.name}
+                  field={field}
+                  dashboard={dashboard}
+                  beside
+                />
+              ),
+          )}
+        </>
+      }
+    >
+      {items}
+    </FilterSheet>
+  ) : (
     <div
       ref={bar}
       data-slot="dashboard-filter-bar"
@@ -309,6 +352,26 @@ export function FilterBar({
     >
       {scope}
       {items}
+    </div>
+  );
+  if (!trailing) return drawn;
+  // The bar takes the row and wraps inside it; the control keeps the end
+  // of its first line, after 「清空」, at every width. Beside chips it stands
+  // in a chip's frame — its padding and a clear edge around a control of the
+  // same step — so it is centred on their line whatever the theme's heights;
+  // beside the one-column bar's button, a control of its own step, it needs
+  // none.
+  return (
+    <div data-slot="dashboard-filter-row" className="flex items-start gap-2">
+      <div className="min-w-0 flex-1">{drawn}</div>
+      <div
+        className={cn(
+          'flex shrink-0 items-center gap-2',
+          !narrow && 'border border-transparent py-0.5',
+        )}
+      >
+        {trailing}
+      </div>
     </div>
   );
 }

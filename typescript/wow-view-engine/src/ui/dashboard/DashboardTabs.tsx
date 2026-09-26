@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { PlusIcon } from 'lucide-react';
 import type { DashboardTab } from '../../model/index.js';
 import type { DashboardController } from '../../react/index.js';
@@ -34,6 +34,12 @@ export interface DashboardTabsProps {
   editing?: DashboardEditing | null;
   /** Told when the reader picks a tab — the workbench remembers it. */
   onShow?(tabId: string): void;
+  /**
+   * A control of the surface's own at the end of the tabs' row, read — an
+   * embed's 「铺满屏幕」 when neither a first row nor a filter bar is there
+   * to hold it (D10). It is not a tab, so it stands beside the `tablist`.
+   */
+  end?: ReactNode;
 }
 
 /**
@@ -58,6 +64,7 @@ export function DashboardTabs({
   dashboard,
   editing,
   onShow,
+  end,
 }: DashboardTabsProps) {
   const messages = useViewMessages();
   const { say, region } = useSurfaceAnnouncer('tabs-announcement');
@@ -197,6 +204,25 @@ export function DashboardTabs({
       </div>
     );
 
+  const list = (
+    <TabsList
+      variant="line"
+      aria-label={messages.label('label.tabs.name')}
+      className="max-w-full flex-wrap"
+    >
+      {tabs.map((tab, index) => (
+        <TabsTrigger
+          key={tab.id}
+          value={tab.id}
+          data-slot="dashboard-tab"
+          ref={triggerRef(tab.id)}
+          className="flex-none"
+        >
+          {titleOf(tab, index)}
+        </TabsTrigger>
+      ))}
+    </TabsList>
+  );
   return (
     <Tabs
       data-slot="dashboard-tabs"
@@ -206,23 +232,14 @@ export function DashboardTabs({
       }}
       className="gap-3"
     >
-      <TabsList
-        variant="line"
-        aria-label={messages.label('label.tabs.name')}
-        className="max-w-full flex-wrap"
-      >
-        {tabs.map((tab, index) => (
-          <TabsTrigger
-            key={tab.id}
-            value={tab.id}
-            data-slot="dashboard-tab"
-            ref={triggerRef(tab.id)}
-            className="flex-none"
-          >
-            {titleOf(tab, index)}
-          </TabsTrigger>
-        ))}
-      </TabsList>
+      {end ? (
+        <div className="flex items-center gap-2">
+          {list}
+          <div className="ml-auto flex shrink-0 items-center gap-2">{end}</div>
+        </div>
+      ) : (
+        list
+      )}
       {region}
     </Tabs>
   );

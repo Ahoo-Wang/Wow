@@ -74,8 +74,9 @@ export interface EditBarProps extends AddCommands {
  * the page, or a host's scrolling box — over the panels sliding beneath it,
  * which is why its fill is the muted wash made opaque (`bg-row-hover`, the
  * same shade the band has at rest) rather than the wash itself, and why it
- * carries a rem of the surface above it: the workbench scrolls a padded
- * box, and a sticky edge stops at the padding, not at the box's edge.
+ * carries a rem of the board's ground (the canvas) above it: the workbench
+ * scrolls a padded box, and a sticky edge stops at the padding, not at the
+ * box's edge.
  */
 export function EditBar({
   commands,
@@ -129,10 +130,13 @@ export function EditBar({
       aria-labelledby={labelId}
       className={cn(
         'bg-row-hover sticky top-0 z-10 mt-1 flex flex-wrap items-center gap-2',
-        // The rem above it is the surface too: stuck under a scroller's
-        // padding, the panels sliding up would show through there; at rest
-        // it is the gap over the bar, which is the surface already.
-        'before:bg-background before:absolute before:-inset-x-px before:bottom-full before:h-4',
+        // The rem above it is the board's ground too: stuck under a
+        // scroller's padding, the panels sliding up would show through
+        // there; at rest it is the gap over the bar, which is that ground
+        // already. The ground is the canvas a board stands on
+        // (`.fve-root[data-kind='dashboard']`), not `background`: a theme
+        // that greys the canvas would otherwise draw a white strip here.
+        'before:bg-canvas before:absolute before:-inset-x-px before:bottom-full before:h-4',
       )}
     >
       <p

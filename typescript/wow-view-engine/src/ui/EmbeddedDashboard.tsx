@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import { useCallback, useEffect, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef, type ReactNode } from 'react';
 import type { DashboardFilters, Issue, ViewKind } from '../model/index.js';
 import { admitFilters } from '../dashboard/index.js';
 import type { FilterSummaryItem } from '../filter/index.js';
@@ -34,6 +34,7 @@ import type { PanelHeadingLevel } from './DashboardPanel.js';
 import { SurfaceAnnouncer, useAnnouncer } from './Announcer.js';
 import { DashboardGrid, type DashboardGridProps } from './DashboardGrid.js';
 import { useBoardFilters } from './dashboard/BoardFilters.js';
+import { drawsFilterBar } from './dashboard/FilterBar.js';
 import { DashboardTabs } from './dashboard/DashboardTabs.js';
 import { boardFindingNamer } from './dashboard/findings.js';
 import {
@@ -46,7 +47,11 @@ import {
   type DashboardFilterMode,
 } from './dashboard/filterModes.js';
 import { EmbedFrame } from './embed/EmbedFrame.js';
-import { EmbedExpand, EmbedFreshness, EmbedHead } from './embed/EmbedHead.js';
+import {
+  EmbedFreshness,
+  EmbedHead,
+  useEmbedExpand,
+} from './embed/EmbedHead.js';
 import type { EmbedBaseProps, EmbedInteraction } from './embed/options.js';
 import { useKindIssue, useKindWord } from './kinds.js';
 import { useViewMessages } from './MessagesProvider.js';
@@ -232,6 +237,9 @@ function EmbeddedBoard({
   // embedded board draws no 「正在显示」 band, as the workbench does not.
   const { fixed } = useFilterEditor(runtime);
   const interactive = interaction === 'interactive';
+  // 「铺满屏幕」, held here so that the row it stands in (below) can change
+  // without ending the expansion.
+  const expand = useEmbedExpand(interactive && expandable);
   // The workbench's refresh, the menu left off. With the host's
   // `autoRefresh` off the timer never runs, so the button claims no cadence.
   const renewing = useAutoRefresh(runtime);
@@ -332,6 +340,12 @@ function EmbeddedBoard({
   const warnings = dashboard.issues.filter(found => found.severity !== 'error');
   const blocked = blocksBoard(errors);
 
+  // 「铺满屏幕」 joins a row the embed draws anyway, never one of its own
+  // (D10): the first row where the host asked for a title or the time (or
+  // the board is stopped, and draws nothing else); else a row of the
+  // board's own (`ReadBoard`).
+  const headed = withTitle || withRefresh || blocked;
+
   return (
     <>
       <EmbedHead
@@ -346,7 +360,7 @@ function EmbeddedBoard({
             busy={dashboard.resolving || dashboard.loading}
           />
         )}
-        {interactive && expandable && <EmbedExpand />}
+        {headed && expand}
       </EmbedHead>
       {refused.length > 0 && (
         <Alert variant="destructive">
@@ -364,6 +378,7 @@ function EmbeddedBoard({
           modes={barModes}
           refused={addressRefused}
           fixed={fixed}
+          trailing={headed ? null : expand}
           grid={{
             headingLevel: panelLevel,
             panelTitles: withPanelTitles,
@@ -392,12 +407,20 @@ function ReadBoard({
   modes,
   refused,
   fixed,
+  trailing,
   grid,
 }: {
   dashboard: DashboardController;
   modes: BoardFilterModes;
   refused: readonly Issue[];
   fixed: readonly FilterSummaryItem[];
+  /**
+   * The embed's own control when it has no first row to stand in: at the
+   * end of the filter bar, after 「清空」; else at the end of the tabs; and
+   * only on a board with neither — nothing else above its panels — in a row
+   * alone.
+   */
+  trailing: ReactNode;
   grid: Pick<
     DashboardGridProps,
     | 'headingLevel'
@@ -419,6 +442,13 @@ function ReadBoard({
     refused,
     fixed,
   });
+  const trailingAt = !trailing
+    ? null
+    : drawsFilterBar({ dashboard, modes, fixed })
+      ? 'filters'
+      : dashboard.tabs.length > 1
+        ? 'tabs'
+        : 'alone';
   return filters.wrap(
     <SurfaceAnnouncer say={say}>
       <DashboardGrid
@@ -430,8 +460,22 @@ function ReadBoard({
           <>
             {/* The filters over everything else: they are what the whole
               board is read under, every tab alike (D22 E, F). */}
-            {filters.bar(narrow)}
-            <DashboardTabs dashboard={dashboard} />
+            {trailingAt === 'alone' && (
+              <div
+                data-slot="dashboard-board-controls"
+                className="flex justify-end"
+              >
+                {trailing}
+              </div>
+            )}
+            {filters.bar(
+              narrow,
+              trailingAt === 'filters' ? trailing : undefined,
+            )}
+            <DashboardTabs
+              dashboard={dashboard}
+              end={trailingAt === 'tabs' ? trailing : undefined}
+            />
           </>
         )}
       />
