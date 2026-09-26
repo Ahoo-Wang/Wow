@@ -35,7 +35,6 @@ import type {
   NewFilter,
   NewPanel,
   NewPanelPlacement,
-  OrderStep,
 } from '../../dashboard/index.js';
 import type { EditStep } from './history.js';
 import type { DashboardRuntimeState, HeldFilters } from './contract.js';
@@ -367,8 +366,8 @@ export abstract class BoardCommands
   place(panelId: string, layout: PanelLayout): void {
     this.edits.place(panelId, layout);
   }
-  reorderPanel(panelId: string, step: OrderStep): void {
-    this.edits.reorderPanel(panelId, step);
+  reorderPanel(panelId: string, to: number): void {
+    this.edits.reorderPanel(panelId, to);
   }
   setWidth(width: DashboardWidth): void {
     this.edits.setWidth(width);

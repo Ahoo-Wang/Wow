@@ -19,6 +19,7 @@ import GridLayout, {
   type Layout,
   type ResizeHandleAxis,
 } from 'react-grid-layout';
+import { DragDropProvider } from '@dnd-kit/react';
 import { LayoutDashboardIcon } from 'lucide-react';
 import {
   arrangePanel,
@@ -27,7 +28,6 @@ import {
   STACKED_COLUMNS,
   stackedLayout,
   type ArrangeStep,
-  type OrderStep,
   type PlacedPanel,
 } from '../dashboard/index.js';
 import type {
@@ -38,6 +38,11 @@ import type { DashboardWidth } from '../model/index.js';
 import type { ViewNavigation } from '../runtime/index.js';
 import { useSurfaceAnnouncer } from './Announcer.js';
 import { PanelGridItem, PanelResizeHandle } from './DashboardArrange.js';
+import { moveTarget } from './DragHandle.js';
+import { dragAccessibility } from './dragAnnounce.js';
+import { dropped } from './dragDrop.js';
+import { sortableList } from './dragPlugins.js';
+import { dragWording, type DragWordingKeys } from './dragWording.js';
 import { gridBlocks } from './dashboard/gridBlocks.js';
 import {
   DashboardPanel,
@@ -281,15 +286,16 @@ export function DashboardGrid({
   };
 
   /**
-   * One step along the one-column reading (D22 J), written back onto the
-   * grid by the runtime (`reorderPanel`), and where the panel came to said:
-   * the column is the order, so its place in it is the whole answer.
+   * A panel carried to another place along the one-column reading (D22 J),
+   * written back onto the grid by the runtime (`reorderPanel`), and where
+   * the panel came to said: the column is the order, so its place in it is
+   * the whole answer.
    */
-  const reorder = (panelId: string, step: OrderStep) => {
+  const reorder = (panelId: string, to: number) => {
     const at = panels.findIndex(panel => panel.id === panelId);
-    const to = step === 'up' ? at - 1 : at + 1;
     if (!editable || !narrow || at < 0 || to < 0 || to >= panels.length) return;
-    dashboard.edit?.reorderPanel(panelId, step);
+    if (to === at) return;
+    dashboard.edit?.reorderPanel(panelId, to);
     say(
       messages.label('label.panel.reordered', {
         title: names.get(panelId) ?? '',
@@ -298,6 +304,37 @@ export function DashboardGrid({
       }),
     );
   };
+
+  /**
+   * The grid as a list to carry: in the one-column reading, while the board
+   * is built, each panel's handle (`PanelOrder`) is a sortable of this
+   * provider, and a drop on another panel's place is a move to it. Around
+   * the grid always, not only while there is something to carry: a
+   * provider that came and went with building would remount every panel —
+   * every chart drawn again, every element a reader or a test was holding
+   * gone — at the press of 「编辑」. With no sortable in it the library adds
+   * nothing to the page (its live region and instructions wait for one).
+   */
+  const column = (grid: ReactNode) => (
+    <DragDropProvider
+      {...sortableList(
+        dragAccessibility(
+          dragWording(messages, PANEL_DRAG_WORDING),
+          id => names.get(id) ?? id,
+        ),
+      )}
+      onDragEnd={({ operation, canceled }) => {
+        const drop = dropped(operation, canceled);
+        if (!drop) return;
+        reorder(
+          drop.source,
+          panels.findIndex(panel => panel.id === drop.target),
+        );
+      }}
+    >
+      {grid}
+    </DragDropProvider>
+  );
 
   // Below `md`, the kernel's one-column reading of the stored layout; the
   // stored layout itself everywhere else.
@@ -361,135 +398,147 @@ export function DashboardGrid({
             {emptyActions}
           </DashboardEmpty>
         ) : (
-          <GridLayout
-            // A new grid on either side of the breakpoint: the library holds the
-            // layout in state of its own and catches up with a new one an effect
-            // later, so for one frame it drew the wide layout's six-column panels
-            // in a one-column grid — six times the width of the screen.
-            key={narrow ? 'narrow' : 'wide'}
-            // The last width it could be drawn at: a container measured 0
-            // before it was ever drawn is laid out at the starting width.
-            width={drawnWidth}
-            layout={layout}
-            gridConfig={{
-              cols: narrow ? STACKED_COLUMNS : dashboard.columns,
-              rowHeight,
-            }}
-            // Dragging by the header alone leaves the panel body clickable.
-            dragConfig={{
-              enabled: arranging,
-              handle: '[data-slot="panel-grip"]',
-            }}
-            resizeConfig={{
-              enabled: arranging,
-              // The corner is a named, focusable control while the layout may
-              // be edited, and nothing at all while it may not — upstream's
-              // bare `span` has no name to give and no key to answer.
-              handleComponent: (
-                axis: ResizeHandleAxis,
-                ref: Ref<HTMLElement>,
-              ) =>
-                arranging ? (
-                  <PanelResizeHandle axis={axis} ref={ref} onStep={arrange} />
-                ) : (
-                  <span
-                    ref={ref}
-                    aria-hidden="true"
-                    className={`react-resizable-handle react-resizable-handle-${axis}`}
+          column(
+            <GridLayout
+              // A new grid on either side of the breakpoint: the library holds the
+              // layout in state of its own and catches up with a new one an effect
+              // later, so for one frame it drew the wide layout's six-column panels
+              // in a one-column grid — six times the width of the screen.
+              key={narrow ? 'narrow' : 'wide'}
+              // The last width it could be drawn at: a container measured 0
+              // before it was ever drawn is laid out at the starting width.
+              width={drawnWidth}
+              layout={layout}
+              gridConfig={{
+                cols: narrow ? STACKED_COLUMNS : dashboard.columns,
+                rowHeight,
+              }}
+              // Dragging by the header alone leaves the panel body clickable.
+              dragConfig={{
+                enabled: arranging,
+                handle: '[data-slot="panel-grip"]',
+              }}
+              resizeConfig={{
+                enabled: arranging,
+                // The corner is a named, focusable control while the layout may
+                // be edited, and nothing at all while it may not — upstream's
+                // bare `span` has no name to give and no key to answer.
+                handleComponent: (
+                  axis: ResizeHandleAxis,
+                  ref: Ref<HTMLElement>,
+                ) =>
+                  arranging ? (
+                    <PanelResizeHandle axis={axis} ref={ref} onStep={arrange} />
+                  ) : (
+                    <span
+                      ref={ref}
+                      aria-hidden="true"
+                      className={`react-resizable-handle react-resizable-handle-${axis}`}
+                    />
+                  ),
+              }}
+              compactor={placement.compactor}
+              // The gestures are off in the one-column reading, and so are the
+              // callbacks that would hand a placement to `place`: nothing drawn in
+              // that column is a layout the config could hold.
+              {...(arranging
+                ? {
+                    onDragStart: placement.onDragStart,
+                    onDragStop: placement.onDragStop,
+                    onResizeStart: placement.onResizeStart,
+                    onResizeStop: placement.onResizeStop,
+                  }
+                : {})}
+            >
+              {panels.map(panel => (
+                // The library appends the resize corner to this item, after the
+                // panel; the item says which panel it holds to whatever lands in
+                // it, so the corner is named after its own panel.
+                <PanelGridItem
+                  key={panel.id}
+                  panelId={panel.id}
+                  name={names.get(panel.id) ?? ''}
+                  say={say}
+                  className="min-h-0"
+                >
+                  <DashboardPanel
+                    panel={panel}
+                    name={names.get(panel.id)}
+                    headingLevel={headingLevel}
+                    titled={panelTitles}
+                    editable={arranging}
+                    onArrange={step => arrange(panel.id, step)}
+                    onArrangeCancel={cancelArrange}
+                    order={
+                      editable && narrow && panels.length > 1
+                        ? {
+                            index: panels.indexOf(panel),
+                            total: panels.length,
+                            onMove: move =>
+                              reorder(
+                                panel.id,
+                                moveTarget(
+                                  move,
+                                  panels.indexOf(panel),
+                                  panels.length,
+                                ),
+                              ),
+                          }
+                        : undefined
+                    }
+                    onRetry={
+                      readOnly
+                        ? undefined
+                        : () => dashboard.refreshPanel(panel.id)
+                    }
+                    readOnly={readOnly}
+                    press={
+                      readOnly
+                        ? undefined
+                        : panelPress(panel, dashboard, onNavigate, say)
+                    }
+                    pressesFilter={
+                      readOnly ? undefined : pressedFilter(panel, dashboard)
+                    }
+                    commands={
+                      readOnly
+                        ? readerCommands(panel, panelExport)
+                        : panelCommands({
+                            panel,
+                            name: names.get(panel.id) ?? '',
+                            dashboard,
+                            building,
+                            editing: editable,
+                            narrow,
+                            extensions,
+                            onNavigate: openInWorkbench
+                              ? onNavigate
+                              : undefined,
+                            exports: panelExport,
+                            messages,
+                          })
+                    }
+                    unreached={unreachedBy(panel, dashboard, filterModes)}
+                    record={boardWideHost(
+                      recordPanel?.(panel),
+                      dashboard.refresh,
+                    )}
+                    footer={
+                      wiring &&
+                      editable && (
+                        <PanelWiring
+                          panel={panel}
+                          name={names.get(panel.id) ?? ''}
+                          wiring={wiring}
+                        />
+                      )
+                    }
+                    onRenderFailure={onRenderFailure}
                   />
-                ),
-            }}
-            compactor={placement.compactor}
-            // The gestures are off in the one-column reading, and so are the
-            // callbacks that would hand a placement to `place`: nothing drawn in
-            // that column is a layout the config could hold.
-            {...(arranging
-              ? {
-                  onDragStart: placement.onDragStart,
-                  onDragStop: placement.onDragStop,
-                  onResizeStart: placement.onResizeStart,
-                  onResizeStop: placement.onResizeStop,
-                }
-              : {})}
-          >
-            {panels.map(panel => (
-              // The library appends the resize corner to this item, after the
-              // panel; the item says which panel it holds to whatever lands in
-              // it, so the corner is named after its own panel.
-              <PanelGridItem
-                key={panel.id}
-                panelId={panel.id}
-                name={names.get(panel.id) ?? ''}
-                say={say}
-                className="min-h-0"
-              >
-                <DashboardPanel
-                  panel={panel}
-                  name={names.get(panel.id)}
-                  headingLevel={headingLevel}
-                  titled={panelTitles}
-                  editable={arranging}
-                  onArrange={step => arrange(panel.id, step)}
-                  onArrangeCancel={cancelArrange}
-                  order={
-                    editable && narrow && panels.length > 1
-                      ? {
-                          index: panels.indexOf(panel),
-                          total: panels.length,
-                          onMove: step => reorder(panel.id, step),
-                        }
-                      : undefined
-                  }
-                  onRetry={
-                    readOnly
-                      ? undefined
-                      : () => dashboard.refreshPanel(panel.id)
-                  }
-                  readOnly={readOnly}
-                  press={
-                    readOnly
-                      ? undefined
-                      : panelPress(panel, dashboard, onNavigate, say)
-                  }
-                  pressesFilter={
-                    readOnly ? undefined : pressedFilter(panel, dashboard)
-                  }
-                  commands={
-                    readOnly
-                      ? readerCommands(panel, panelExport)
-                      : panelCommands({
-                          panel,
-                          name: names.get(panel.id) ?? '',
-                          dashboard,
-                          building,
-                          editing: editable,
-                          narrow,
-                          extensions,
-                          onNavigate: openInWorkbench ? onNavigate : undefined,
-                          exports: panelExport,
-                          messages,
-                        })
-                  }
-                  unreached={unreachedBy(panel, dashboard, filterModes)}
-                  record={boardWideHost(
-                    recordPanel?.(panel),
-                    dashboard.refresh,
-                  )}
-                  footer={
-                    wiring &&
-                    editable && (
-                      <PanelWiring
-                        panel={panel}
-                        name={names.get(panel.id) ?? ''}
-                        wiring={wiring}
-                      />
-                    )
-                  }
-                  onRenderFailure={onRenderFailure}
-                />
-              </PanelGridItem>
-            ))}
-          </GridLayout>
+                </PanelGridItem>
+              ))}
+            </GridLayout>,
+          )
         )}
       </div>
       {/* One region for the whole grid rather than one per panel: only one
@@ -643,3 +692,10 @@ function isMetricCard(panel: DashboardPanelView): boolean {
     config.chart?.type === 'metric'
   );
 }
+
+/** Where the one-column reading's drag sentences live in the catalogue. */
+const PANEL_DRAG_WORDING: DragWordingKeys = {
+  picked: 'label.panel.picked',
+  cancelled: 'label.panel.cancelled',
+  placeholder: 'title',
+};

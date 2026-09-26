@@ -49,9 +49,11 @@ import {
   SortableColumnRow,
 } from './columns/ColumnRow.js';
 import { columnDragAccessibility, columnDrop } from './columns/drag.js';
-import { announcedPlugins } from './dragPlugins.js';
+import { sortableList } from './dragPlugins.js';
+import { moveTarget, type HandleMove } from './DragHandle.js';
 import {
   columnSettingRows,
+  movableFields,
   movableIndex,
   regionOf,
   renderedCount,
@@ -337,9 +339,7 @@ export function ColumnSettings({
             </Empty>
           ) : (
             <DragDropProvider
-              plugins={announcedPlugins(
-                columnDragAccessibility(messages, nameOf),
-              )}
+              {...sortableList(columnDragAccessibility(messages, nameOf))}
               onDragEnd={({ operation, canceled }) => {
                 const drop = columnDrop(operation, canceled, field =>
                   regionOf(rows, field),
@@ -504,8 +504,19 @@ function Section({
             released: released.fields.has(row.field),
             onSummary: (fn: SummaryFunction | null) =>
               table.setSummary(row.field, fn),
-            onMove: (step: -1 | 1) =>
-              onMove(row.field, movableIndex(all, row.field) + step),
+            place: {
+              index: movableIndex(all, row.field),
+              total: movableFields(all, row.region).length,
+            },
+            onMove: (move: HandleMove) =>
+              onMove(
+                row.field,
+                moveTarget(
+                  move,
+                  movableIndex(all, row.field),
+                  movableFields(all, row.region).length,
+                ),
+              ),
           };
           return listed.movable ? (
             <SortableColumnRow

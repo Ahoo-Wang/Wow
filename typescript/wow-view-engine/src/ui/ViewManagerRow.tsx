@@ -22,7 +22,7 @@ import {
 import type { ViewInstance, ViewPreferences } from '../model/index.js';
 import type { WriteState } from '../runtime/index.js';
 import type { ViewListState, ViewManagerController } from '../react/index.js';
-import { DragHandle } from './DragHandle.js';
+import { DragHandle, type HandleMove } from './DragHandle.js';
 import { withoutOptimisticSorting } from './dragPlugins.js';
 import { IconButton } from './IconButton.js';
 import { ButtonGroup } from './components/button-group.js';
@@ -73,8 +73,13 @@ export interface ViewManagerRowProps {
    * to return to, and the manager hands down its own heading instead.
    */
   returnFocus?: RefObject<HTMLElement | null>;
-  /** Moves the row one place, from the arrow keys on its handle. */
-  onMove(step: -1 | 1): void;
+  /**
+   * Where the row stands in its own group, and how many the group holds,
+   * for the handle's menu.
+   */
+  place: { index: number; total: number };
+  /** Moves the row, from the arrow keys on its handle or from its menu. */
+  onMove(move: HandleMove): void;
   /** True while the library is carrying this row, so the arrows are its. */
   dragging?: boolean;
   elementRef?(element: HTMLElement | null): void;
@@ -96,6 +101,7 @@ export function ViewManagerRow({
   list,
   openDirtyId,
   returnFocus,
+  place,
   onMove,
   dragging,
   elementRef,
@@ -124,8 +130,9 @@ export function ViewManagerRow({
         // `SPACE.WITHIN` between the row and the line below it.
         className="gap-y-1"
       >
-        {/* The order is the user's, and it is made by carrying a row rather
-            than by clicking it up one step at a time. The handle leads the
+        {/* The order is the user's, and it is made by carrying a row
+            (「可排序的列表一律拖拽排序」); a click on the handle offers the
+            same places as a menu. The handle leads the
             row because that is where a reader looks for one, and because the
             action cells on the right are about what becomes of the view
             rather than about where it sits. It is a list-wide permission, so
@@ -138,6 +145,8 @@ export function ViewManagerRow({
               label={messages.label('label.manage.drag', {
                 title: item.title,
               })}
+              index={place.index}
+              total={place.total}
               dragging={dragging}
               // `icon-sm`, which is what the action cells at the other end
               // of the row are sized by.

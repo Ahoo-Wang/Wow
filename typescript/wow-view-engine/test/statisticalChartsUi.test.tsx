@@ -374,14 +374,20 @@ describe('the sunburst in the workbench (D41)', () => {
       'warehouse',
       'status',
     ]);
-    fireEvent.click(
-      within(panel()).getByRole('button', { name: 'Move Status up' }),
-    );
+    // Carried by the handle every ordered list is: ↑ on it, and its menu.
+    const handle = within(panel()).getByRole('button', {
+      name: 'Reorder Status',
+    });
+    fireEvent.keyDown(handle, { key: 'ArrowUp' });
     await waitFor(() =>
       expect(draft().chart.sunburst?.levels).toEqual(['status', 'warehouse']),
     );
+    expect(
+      document.querySelector('[data-slot="level-announcement"]')!.textContent,
+    ).toBe('Status moved to position 1 of 2');
+    fireEvent.click(handle);
     fireEvent.click(
-      within(panel()).getByRole('button', { name: 'Move Status down' }),
+      await screen.findByRole('menuitem', { name: 'Move to the end' }),
     );
     await waitFor(() =>
       expect(draft().chart.sunburst?.levels).toEqual(['warehouse', 'status']),

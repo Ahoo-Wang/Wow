@@ -27,12 +27,8 @@ export const buildingMessages = {
   'label.tabs.actions': 'Tab “{title}”',
   'label.tabs.rename': 'Rename',
   'label.tabs.rename-field': 'Name of tab “{title}”',
-  'label.tabs.move-left': 'Move left',
-  'label.tabs.move-right': 'Move right',
   'label.tabs.remove': 'Delete tab',
   'label.tabs.reorder': 'Reorder “{title}”',
-  'label.tabs.instructions':
-    'Press Space to pick the tab up, the arrow keys to move it, Space again to put it down, or Escape to leave it where it was.',
   'label.tabs.picked': 'Picked up the tab “{title}”.',
   'label.tabs.cancelled': 'The tab “{title}” stayed where it was.',
   'label.tabs.moved': '“{title}” is now tab {index} of {total}',

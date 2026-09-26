@@ -12,34 +12,67 @@
  */
 
 import type { ComponentProps } from 'react';
-import { Accessibility } from '@dnd-kit/dom';
+import {
+  Accessibility,
+  PointerActivationConstraints,
+  PointerSensor,
+} from '@dnd-kit/dom';
 import { OptimisticSortingPlugin } from '@dnd-kit/dom/sortable';
 import type { DragDropProvider } from '@dnd-kit/react';
 import type { dragAccessibility } from './dragAnnounce.js';
 
-/** The library's own plugins, as a provider's `plugins` callback gets them. */
-type Plugins = Parameters<
-  Extract<
-    NonNullable<ComponentProps<typeof DragDropProvider>['plugins']>,
-    (defaults: never) => unknown
-  >
+type ProviderProps = ComponentProps<typeof DragDropProvider>;
+
+/** The library's own defaults, as a provider's customising callback gets them. */
+type Defaults<K extends 'plugins' | 'sensors'> = Parameters<
+  Extract<NonNullable<ProviderProps[K]>, (defaults: never) => unknown>
 >[0];
 
 /**
- * The plugins one sortable list's `DragDropProvider` runs (Q-11): the
- * library's defaults, its `Accessibility` plugin worded by the list
- * (`dragAccessibility`, through each list's own `…DragAccessibility`)
- * rather than in the library's English built from ids.
+ * A press on a handle is not yet a drag: the pointer has to travel a few
+ * pixels first, or — on a touch screen — rest a moment, as the library
+ * already asks of a finger. Without it a mouse picked the row up on the
+ * press itself, and the click that followed was swallowed as the end of a
+ * drag, so the handle could never be *clicked* — and a click on it is the
+ * one-press way to move a row for a pointer that cannot drag (WCAG 2.5.7,
+ * the handle's menu in `DragHandle`).
  */
-export function announcedPlugins(
+const PRESS_OR_DRAG = PointerSensor.configure({
+  activationConstraints: (event: PointerEvent) =>
+    event.pointerType === 'touch'
+      ? [new PointerActivationConstraints.Delay({ value: 250, tolerance: 5 })]
+      : [new PointerActivationConstraints.Distance({ value: 4 })],
+});
+
+/**
+ * What every sortable list's `DragDropProvider` runs (Q-11), spread onto it
+ * whole so no list sets one half and forgets the other:
+ *
+ * - `plugins` — the library's defaults, its `Accessibility` plugin worded
+ *   by the list (`dragAccessibility`, through each list's own
+ *   `…DragAccessibility`) rather than in the library's English built from
+ *   ids;
+ * - `sensors` — the library's defaults, the pointer's waiting for a drag to
+ *   be one ({@link PRESS_OR_DRAG}) so the handle can still be clicked.
+ */
+export function sortableList(
   accessibility: ReturnType<typeof dragAccessibility>,
-): (defaults: Plugins) => Plugins {
-  return defaults =>
-    defaults.map(plugin =>
-      plugin === Accessibility
-        ? Accessibility.configure(accessibility)
-        : plugin,
-    );
+): {
+  plugins(defaults: Defaults<'plugins'>): Defaults<'plugins'>;
+  sensors(defaults: Defaults<'sensors'>): Defaults<'sensors'>;
+} {
+  return {
+    plugins: defaults =>
+      defaults.map(plugin =>
+        plugin === Accessibility
+          ? Accessibility.configure(accessibility)
+          : plugin,
+      ),
+    sensors: defaults =>
+      defaults.map(sensor =>
+        sensor === PointerSensor ? PRESS_OR_DRAG : sensor,
+      ),
+  };
 }
 
 /**

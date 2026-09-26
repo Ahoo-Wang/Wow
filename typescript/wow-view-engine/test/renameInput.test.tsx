@@ -15,14 +15,19 @@ import { createRef, type ComponentProps } from 'react';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { Accessibility } from '@dnd-kit/dom';
+import {
+  Accessibility,
+  KeyboardSensor,
+  PointerActivationConstraints,
+  PointerSensor,
+} from '@dnd-kit/dom';
 import { OptimisticSortingPlugin } from '@dnd-kit/dom/sortable';
 import { sameJson } from '../src/index.js';
 import { RenameInput } from '../src/ui/RenameInput.js';
 import { ViewSurface } from '../src/ui/ViewSurface.js';
 import { dragAccessibility } from '../src/ui/dragAnnounce.js';
 import {
-  announcedPlugins,
+  sortableList,
   withoutOptimisticSorting,
 } from '../src/ui/dragPlugins.js';
 
@@ -205,7 +210,7 @@ describe('RenameInput, one in-place rename', () => {
   });
 });
 
-/** The six sortable lists' plugin boilerplate, set once (Q-11). */
+/** Every sortable list's plugin and sensor boilerplate, set once (Q-11). */
 describe('the drag plugins', () => {
   const say = {
     instructions: 'Carry it',
@@ -216,9 +221,9 @@ describe('the drag plugins', () => {
   it('words the library’s Accessibility plugin and leaves the rest alone', () => {
     const other = { name: 'other' };
     const defaults = [other, Accessibility] as unknown as Parameters<
-      ReturnType<typeof announcedPlugins>
+      ReturnType<typeof sortableList>['plugins']
     >[0];
-    const plugins = announcedPlugins(dragAccessibility(say, id => id))(
+    const plugins = sortableList(dragAccessibility(say, id => id)).plugins(
       defaults,
     );
     expect(plugins).toHaveLength(2);
@@ -230,6 +235,36 @@ describe('the drag plugins', () => {
         screenReaderInstructions: { draggable: 'Carry it' },
       },
     });
+  });
+
+  /**
+   * A mouse used to pick a row up on the press itself, so the click that
+   * followed was swallowed as a drag's end and the handle's menu — the
+   * one-press way to move a row (WCAG 2.5.7) — never opened. A press is a
+   * drag only once the pointer has travelled, or a finger has rested.
+   */
+  it('waits for a press to travel before it is a drag, and leaves the keyboard alone', () => {
+    const sensors = sortableList(dragAccessibility(say, id => id)).sensors([
+      PointerSensor,
+      KeyboardSensor,
+    ] as unknown as Parameters<ReturnType<typeof sortableList>['sensors']>[0]);
+    expect(sensors).toHaveLength(2);
+    expect(sensors[1]).toBe(KeyboardSensor);
+    const pointer = sensors[0] as unknown as {
+      plugin: unknown;
+      options: {
+        activationConstraints(event: { pointerType: string }): unknown[];
+      };
+    };
+    expect(pointer.plugin).toBe(PointerSensor);
+    const [mouse] = pointer.options.activationConstraints({
+      pointerType: 'mouse',
+    });
+    expect(mouse).toBeInstanceOf(PointerActivationConstraints.Distance);
+    const [finger] = pointer.options.activationConstraints({
+      pointerType: 'touch',
+    });
+    expect(finger).toBeInstanceOf(PointerActivationConstraints.Delay);
   });
 
   it('takes the optimistic sorting out of a row’s plugins', () => {

@@ -142,6 +142,8 @@ export const SeriesOrder: Story = {
     );
 
     await waitFor(() => expect(seriesOrder()).toEqual(['orders', 'amount']));
+    // A drop is not a click: the handle's menu stays shut.
+    await expect(document.querySelector('[role="menu"]')).toBeNull();
     // Only the order moved: each series kept the axis it is measured on,
     // and the chart still draws both.
     await waitFor(() => expect(legendOrder()).toEqual([...drawn].reverse()));

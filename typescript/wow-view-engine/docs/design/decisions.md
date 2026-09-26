@@ -552,6 +552,17 @@
 - **读屏**：读屏表列为 阶段｜数值｜转化率（相对上一段）｜转化率（相对第一段）｜较上一段流失；一句话摘要「共 5 段，从 下单 20,375 到 交易完成 17,401，总转化 85.4%。流失最多在 下单 → 付款：−1,625（−8.0%）。」
 - **落点**：`src/analysis/funnel.ts`（`share`、`drop`、`largestDrop`）、`src/ui/charts/{funnelOption,funnelFit,Funnel,reading,sentence}.ts(x)`、`echartsStatistics.ts`、`EChart.tsx`（`plotHeight`）、`styles.css`、[ui/analysis.md](ui/analysis.md)。
 
+## D49 可排序的列表一律拖拽排序（2026-09-25）
+
+- **来由**：用户在「漏斗图选项 › 数据 › 阶段」看到阶段还是一对上移／下移箭头，而列设置、排序、视图管理、系列、标签栏、筛选条早已是拖拽。用户裁定：「排序统一使用拖拽排序，而不是上下箭头。」
+- **裁定**：
+  - **每一个能调顺序的列表都由同一枚抓手搬动**（`ui/DragHandle.tsx`），没有一处用上移／下移（左移／右移）按钮。清点后改过来的三处：漏斗的阶段（`DataTab.tsx` 的 `StageList`）、旭日图／树图／桑基的层级（`LevelOptions.tsx`，两者共用 `analysis/OrderedCards.tsx`），与窄屏一列里的面板（`DashboardArrange.tsx` 的 `PanelOrder`）；标签页菜单里的「左移」「右移」也拿掉，由抓手的菜单代替。
+  - **抓手一处定、处处一样**：同一枚 `GripVerticalIcon`，排在行（卡片、面板标题行）的最前面，至少 24px（`icon-xs`；视图管理与面板标题行跟着邻居用 28px 的 `icon-sm`，WCAG 2.5.8）；三种用法——**指针拖**；**键盘**在抓手上按方向键移一位（竖排 ↑／↓，横排 ←／→），空格拿起交给库的键盘拖动；**点一下**弹出「移到最前／往前移一位／往后移一位／移到最后」四项菜单，是拖不动的指针的一次点击替代（WCAG 2.5.7），到头的项在、但置灰，菜单关上键盘回到抓手。说明是一句共用的（`label.reorder.instructions`），落位由各列表自己的播报区说一次，拿起与放回由库的 `Accessibility` 插件说目录里的句子。
+  - **按一下不是拖**：鼠标按下不拿走焦点（和库在按下时就拿起那会儿一样，放下时列表挪动行的节点不会把焦点丢到 `<body>`）；指针要走过 4px（手指要停 250ms）才算拖（`dragPlugins.ts` 的 `sortableList` 给每个列表的 `DragDropProvider` 同一份插件与传感器），否则库在按下那一刻就拿起、吞掉随后的 click，抓手永远点不开菜单。
+  - **窄屏的面板**由抓手搬到任意一位：runtime 的 `reorderPanel(panelId, to)` 收一个目标位置（原来是 `'up' | 'down'`），内核 `reorderPanelIn` 一步一位地走过去，每一步仍是「读出来正好挪一位、其余动得最少」的布局，整次移动是撤销的一步。
+- **公开面**：`reorderPanelIn(config, id, to)` 与 `DashboardEditing.reorderPanel(panelId, to)` 收位置；`withMoved` 删去（`withMovedTo` 留下）；`PanelOrderProps` 多 `panelId`、`onMove` 收 `HandleMove`。
+- **落点**：`src/ui/DragHandle.tsx`、`src/ui/dragPlugins.ts`、`src/ui/dragWording.ts`、`src/ui/analysis/{OrderedCards,DataTab,LevelOptions,drag}.tsx`、`src/ui/DashboardArrange.tsx`、`src/ui/DashboardGrid.tsx`、`src/dashboard/layout.ts`、`src/ui/messages/reorder.ts`；[ui/README.md](ui/README.md)「一列行只有一个配方」。（见 test/dragHandle.test.tsx「every ordered list is carried by the one handle」「the handle’s menu, the one-press way to move a row」、test/renameInput.test.tsx「the drag plugins」；浏览器里「图型/回归」的 `FunnelStageOrder`、「仪表盘/搭建」的 `NarrowReorderByHandle`）
+
 ## 搁置待议
 
 尚无结论，不要当作规则执行。

@@ -143,7 +143,7 @@ describe('an edit is the building’s (Q-02)', () => {
     runtime.renamePanel('a', 'Renamed');
     // A placement too (R3b): a grid that is only read has no handles.
     runtime.place('a', { x: 12, y: 0, w: 6, h: 4 });
-    runtime.reorderPanel('a', 'down');
+    runtime.reorderPanel('a', 1);
     runtime.removePanel('a');
     runtime.setFilterDefault('region', ['EU']);
     runtime.removeFilter('region');

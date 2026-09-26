@@ -17,7 +17,6 @@ import {
   isStacked,
   offersStacking,
   stacks,
-  withMoved,
   withMovedTo,
   optionTabs,
   withSlot,
@@ -145,14 +144,6 @@ describe('chartOptions', () => {
     expect(
       withSmooth(smooth, false).series.every(series => !('smooth' in series)),
     ).toBe(true);
-  });
-
-  it('moves a list item one step and stays put at either end', () => {
-    expect(withMoved(['a', 'b', 'c'], 1, -1)).toEqual(['b', 'a', 'c']);
-    expect(withMoved(['a', 'b', 'c'], 1, 1)).toEqual(['a', 'c', 'b']);
-    expect(withMoved(['a', 'b', 'c'], 0, -1)).toEqual(['a', 'b', 'c']);
-    expect(withMoved(['a', 'b', 'c'], 2, 1)).toEqual(['a', 'b', 'c']);
-    expect(withMoved(['a', 'b', 'c'], 5, 1)).toEqual(['a', 'b', 'c']);
   });
 
   /**

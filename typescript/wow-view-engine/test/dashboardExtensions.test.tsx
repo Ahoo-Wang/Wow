@@ -276,18 +276,18 @@ describe('the tab bar', () => {
       ),
     );
 
-    // Moved by its menu…
-    await user.click(screen.getByRole('button', { name: 'Tab “Retries”' }));
+    // Moved by a click on its handle — the one-press way, its menu…
+    const handle = screen.getByRole('button', { name: 'Reorder “Retries”' });
+    await user.click(handle);
     await user.click(
-      await screen.findByRole('menuitem', { name: 'Move left' }),
+      await screen.findByRole('menuitem', { name: 'Move to the start' }),
     );
     expect(
       runtime()
         ?.getSnapshot()
         .draft.tabs.map(tab => tab.title),
     ).toEqual(['Retries', 'Overview']);
-    // …and by the arrows on its handle.
-    const handle = screen.getByRole('button', { name: 'Reorder “Retries”' });
+    // …and by the arrows on the same handle.
     handle.focus();
     await user.keyboard('{ArrowRight}');
     expect(

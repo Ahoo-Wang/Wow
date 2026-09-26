@@ -594,14 +594,44 @@ describe('reordering the one-column reading', () => {
       panels: [note('a', 'one', 0), note('b', 'one', 2), note('c', 'two', 0)],
     });
 
-    const moved = reorderPanelIn(config, 'b', 'up');
+    const moved = reorderPanelIn(config, 'b', 0);
 
     expect(moved.panels.map(panel => [panel.id, panel.layout.y])).toEqual([
       ['a', 2],
       ['b', 0],
       ['c', 0],
     ]);
-    expect(reorderPanelIn(config, 'c', 'up')).toBe(config);
-    expect(reorderPanelIn(config, 'ghost', 'down')).toBe(config);
+    // Already there, no such place on its tab, no such panel: as it was.
+    expect(reorderPanelIn(config, 'c', 0)).toBe(config);
+    expect(reorderPanelIn(config, 'b', 2)).toBe(config);
+    expect(reorderPanelIn(config, 'b', -1)).toBe(config);
+    expect(reorderPanelIn(config, 'b', 0.5)).toBe(config);
+    expect(reorderPanelIn(config, 'ghost', 1)).toBe(config);
+  });
+
+  /**
+   * A drop names any place in the column, and a menu either end: the panel
+   * gets there one place at a time, each step the layout that reads that
+   * way, so a move of several places is the steps it passes through.
+   */
+  it('carries a panel several places, one step at a time', () => {
+    const row = (id: string, y: number) =>
+      ({
+        id,
+        kind: 'markdown',
+        content: '',
+        layout: { x: 0, y, w: 24, h: 2 },
+      }) as DashboardPanel;
+    const config = dashboardConfig({
+      panels: [row('a', 0), row('b', 2), row('c', 4), row('d', 6)],
+    });
+    const order = (next: typeof config) =>
+      [...next.panels]
+        .sort((one, other) => one.layout.y - other.layout.y)
+        .map(panel => panel.id);
+
+    expect(order(reorderPanelIn(config, 'd', 0))).toEqual(['d', 'a', 'b', 'c']);
+    expect(order(reorderPanelIn(config, 'a', 3))).toEqual(['b', 'c', 'd', 'a']);
+    expect(order(reorderPanelIn(config, 'b', 2))).toEqual(['a', 'c', 'b', 'd']);
   });
 });

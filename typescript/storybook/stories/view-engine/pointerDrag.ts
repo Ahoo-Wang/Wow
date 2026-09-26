@@ -84,9 +84,10 @@ function mouseFor(pressed: HTMLElement, surface: HTMLElement): RealMouse {
  *   into place, and boxes read while it is still moving describe a layout
  *   that no longer exists a frame later: the drag then travels the wrong
  *   distance and lands a row short.
- * - **Press on the handle itself.** The default activation constraints let a
- *   mouse press that lands on the source's own handle start the drag at
- *   once; anywhere else it waits out a delay and 5px of travel first.
+ * - **Press on the handle itself, then travel.** A press is a drag only
+ *   once the pointer has moved a few pixels (`sortableList`'s sensors, so a
+ *   click on the handle stays a click and opens its menu), and only a
+ *   press on the source's own handle starts one at all.
  * - **Move straight down.** What is carried follows the pointer by the same
  *   delta, and the collision is answered for *it* rather than for the
  *   cursor — a sideways component would offer the carried box to the
@@ -113,6 +114,9 @@ export async function dragHandleOnto(
   const mouse = mouseFor(handle, handle.ownerDocument.body);
 
   await mouse.down(x, from);
+  // Past the few pixels that make a press a drag, towards the target.
+  await mouse.move(x, from + Math.sign(to - from) * 6);
+  await frame();
   await carrying(handle);
 
   for (let step = 1; step <= steps; step += 1) {
@@ -123,6 +127,22 @@ export async function dragHandleOnto(
   await mouse.up(x, to);
   await frame();
   await mouse.away();
+  await landed(handle);
+}
+
+/**
+ * Waits until nothing is carried any more: the library animates the drop
+ * home and keeps `pointer-events: none` on what it carried until then, so
+ * a press straight after a drag would be aimed at an element nobody can
+ * point at.
+ */
+async function landed(handle: HTMLElement): Promise<void> {
+  const document = handle.ownerDocument;
+  for (let tick = 0; tick < 60; tick += 1) {
+    if (!document.querySelector('[data-dragging]')) return;
+    await frame();
+  }
+  throw new Error('The drag never came to rest.');
 }
 
 /**

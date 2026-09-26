@@ -252,14 +252,14 @@ export const analysisMessages = {
   'label.chart.slot.series': 'Series',
   'label.chart.add-series': 'Add series',
   'label.chart.remove-series': 'Remove series {name}',
-  // Which series comes first is read off a stack from the bottom up and off
-  // a legend from the left, so the order is something to take hold of.
-  'label.chart.series-instructions':
-    'Press the arrow keys to move a series one place. Press space to pick it up, the arrow keys to move it, space again to drop it and escape to cancel.',
-  'label.chart.drag-series': 'Reorder {name}',
-  'label.chart.series-moved': '{name} moved to position {index} of {total}',
-  'label.chart.series-picked': '{name} picked up',
-  'label.chart.series-cancelled': 'Move cancelled; {name} stayed where it was',
+  // The panel's three lists in an order of their own — the series (read off
+  // a stack from the bottom up and off a legend from the left), a funnel's
+  // stages and a hierarchy's levels — carried by one handle each and said
+  // in one set of words; how the handle is worked is `label.reorder.*`.
+  'label.chart.reorder': 'Reorder {name}',
+  'label.chart.moved': '{name} moved to position {index} of {total}',
+  'label.chart.picked': '{name} picked up',
+  'label.chart.cancelled': 'Move cancelled; {name} stayed where it was',
   'label.chart.mark-of': 'Drawn as, for {name}',
   'label.chart.axis-of': 'Axis for {name}',
   'label.chart.mark.bar': 'Bars',
@@ -311,8 +311,6 @@ export const analysisMessages = {
   'label.chart.compare-with': 'Compared with',
   'label.chart.target-value': 'Target value',
   'label.chart.slot.stage-order': 'Stage order',
-  'label.chart.move-up': 'Move {name} up',
-  'label.chart.move-down': 'Move {name} down',
   'label.chart.remove-stage': 'Remove stage {name}',
   'label.chart.compare-mode': 'Comparison',
   'label.chart.compare.delta': 'Difference',

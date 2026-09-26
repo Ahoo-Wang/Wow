@@ -11,13 +11,10 @@
  * limitations under the License.
  */
 
-import { ArrowDownIcon, ArrowUpIcon } from 'lucide-react';
-import { withMoved } from '../../analysis/index.js';
+import { withMovedTo } from '../../analysis/index.js';
 import type { HierarchySpec } from '../../model/index.js';
-import { IconButton } from '../IconButton.js';
 import { useViewMessages } from '../MessagesProvider.js';
-import { EditorCard } from '../variants.js';
-import { useListFocus } from './listFocus.js';
+import { OrderedCards } from './OrderedCards.js';
 import {
   OptionsSection,
   SlotSelect,
@@ -27,81 +24,45 @@ import {
 /**
  * The data page of a sunburst, a tree or a sankey (D41): its levels, one
  * dimension each, in the order that is the chart's whole meaning — 品类
- * outside 子类, 渠道 before 支付方式 — moved up and down by hand as a
- * funnel's stages are; and the size, listing only the metrics that add up
- * (a part is a share of its parent, a band of what flows through).
+ * outside 子类, 渠道 before 支付方式 — carried into another order by the
+ * handle every ordered list here is (`OrderedCards`), as a funnel's stages
+ * are; and the size, listing only the metrics that add up (a part is a
+ * share of its parent, a band of what flows through).
  */
 export function LevelSlots({ chart, shape, onChange }: OptionsPageProps) {
   const messages = useViewMessages();
   const family = chart.type as 'sunburst' | 'tree' | 'sankey';
   const spec = chart[family];
-  // A level that moves keeps the keyboard on the button that moved it.
-  const focus = useListFocus({
-    list: '[data-slot="chart-options-levels"]',
-    item: '[data-slot="level-card"]',
-  });
   if (!spec) return null;
   const update = (next: HierarchySpec) =>
     onChange({ ...chart, [family]: next });
   const nameOf = (alias: string) =>
     shape.groups.find(group => group.value === alias)?.label ?? alias;
+  const title = messages.label(
+    family === 'sankey' ? 'label.chart.slot.flow' : 'label.chart.slot.levels',
+  );
   return (
     <>
-      <OptionsSection
-        name="levels"
-        title={messages.label(
-          family === 'sankey'
-            ? 'label.chart.slot.flow'
-            : 'label.chart.slot.levels',
-        )}
-      >
-        <ol className="flex flex-col gap-2">
-          {spec.levels.map((alias, index) => {
-            const name = nameOf(alias);
-            return (
-              <li key={alias}>
-                <EditorCard data-slot="level-card" data-level={alias}>
-                  <span className="truncate font-medium" title={name}>
-                    {name}
-                  </span>
-                  <IconButton
-                    label={messages.label('label.chart.move-up', { name })}
-                    variant="ghost"
-                    size="icon-xs"
-                    className="ml-auto"
-                    data-move="up"
-                    disabled={index === 0}
-                    onClick={event => {
-                      focus.moved(event, index - 1, 'up');
-                      update({
-                        ...spec,
-                        levels: withMoved(spec.levels, index, -1),
-                      });
-                    }}
-                  >
-                    <ArrowUpIcon />
-                  </IconButton>
-                  <IconButton
-                    label={messages.label('label.chart.move-down', { name })}
-                    variant="ghost"
-                    size="icon-xs"
-                    data-move="down"
-                    disabled={index === spec.levels.length - 1}
-                    onClick={event => {
-                      focus.moved(event, index + 1, 'down');
-                      update({
-                        ...spec,
-                        levels: withMoved(spec.levels, index, 1),
-                      });
-                    }}
-                  >
-                    <ArrowDownIcon />
-                  </IconButton>
-                </EditorCard>
-              </li>
-            );
-          })}
-        </ol>
+      <OptionsSection name="levels" title={title}>
+        <OrderedCards
+          slot="level-card"
+          mark="level"
+          voice="level-announcement"
+          label={title}
+          items={spec.levels.map(alias => ({
+            key: alias,
+            name: nameOf(alias),
+          }))}
+          onReorder={(from, to) =>
+            update({ ...spec, levels: withMovedTo(spec.levels, from, to) })
+          }
+        >
+          {level => (
+            <span className="truncate font-medium" title={level.name}>
+              {level.name}
+            </span>
+          )}
+        </OrderedCards>
       </OptionsSection>
       <SlotSelect
         label={messages.label('label.chart.slot.value')}

@@ -229,8 +229,6 @@ export const zhCN: ViewMessages = {
   'label.columns.title': '列设置',
   'label.columns.hint': '表格按这里列出的顺序绘制各列。',
   'label.columns.filtered': '清空搜索即可调整列的顺序。',
-  'label.columns.instructions':
-    '按方向键可将一列移动一位；按空格键拾起，方向键移动，再按空格键放下，按 Esc 取消。',
   'label.columns.drag': '调整 {field} 的顺序',
   'label.columns.moved': '{field} 已移到第 {index} 位，共 {total} 位',
   'label.columns.picked': '已拾起 {field}',
@@ -266,8 +264,6 @@ export const zhCN: ViewMessages = {
   'label.sort.groups.unsorted': '这些组没有指定顺序。',
   'label.sort.groups.add': '按维度或指标排序',
   'label.sort.groups.full': '最多按 {max} 个维度或指标排序。',
-  'label.sort.instructions':
-    '按方向键可将一个排序字段移动一位；按空格键拾起，方向键移动，再按空格键放下，按 Esc 取消。',
   'label.sort.drag': '调整 {field} 的排序优先级',
   'label.sort.moved': '{field} 已移到第 {index} 位，共 {total} 位',
   'label.sort.picked': '已拾起 {field}',
@@ -727,8 +723,6 @@ export const zhCN: ViewMessages = {
   'label.manage.set-default': '设为默认',
   'label.manage.unset-default': '取消默认',
   'label.manage.drag': '拖动排序：{title}',
-  'label.manage.instructions':
-    '按方向键将这个视图移动一位。按空格拿起，方向键移动，再按空格放下，按 Esc 取消。',
   'label.manage.moved': '{title} 已移到第 {index} 位，共 {total} 位',
   'label.manage.picked': '已拿起 {title}',
   'label.manage.cancelled': '移动已取消，{title} 留在原处',
@@ -881,12 +875,10 @@ export const zhCN: ViewMessages = {
   'label.chart.slot.series': '系列',
   'label.chart.add-series': '添加系列',
   'label.chart.remove-series': '移除系列 {name}',
-  'label.chart.series-instructions':
-    '按方向键可将一个系列移动一位；按空格键拾起，方向键移动，再按空格键放下，按 Esc 取消。',
-  'label.chart.drag-series': '调整 {name} 的次序',
-  'label.chart.series-moved': '{name} 已移到第 {index} 位，共 {total} 条',
-  'label.chart.series-picked': '已拾起 {name}',
-  'label.chart.series-cancelled': '移动已取消，{name} 保持原位',
+  'label.chart.reorder': '调整 {name} 的次序',
+  'label.chart.moved': '{name} 已移到第 {index} 位，共 {total} 位',
+  'label.chart.picked': '已拾起 {name}',
+  'label.chart.cancelled': '移动已取消，{name} 保持原位',
   'label.chart.mark-of': '{name} 的画法',
   'label.chart.axis-of': '{name} 的坐标轴',
   'label.chart.mark.bar': '柱',
@@ -928,8 +920,6 @@ export const zhCN: ViewMessages = {
   'label.chart.compare-with': '对比指标',
   'label.chart.target-value': '目标值',
   'label.chart.slot.stage-order': '阶段顺序',
-  'label.chart.move-up': '上移 {name}',
-  'label.chart.move-down': '下移 {name}',
   'label.chart.remove-stage': '移除阶段 {name}',
   'label.chart.compare-mode': '比较方式',
   'label.chart.compare.delta': '差值',
@@ -1367,8 +1357,6 @@ export const zhCN: ViewMessages = {
   'label.dashboard.refresh-on': '这个仪表盘每 {interval}自动刷新一次。',
   'label.dashboard.list': '仪表盘',
   'label.dashboard.manage-group': '处置这个仪表盘',
-  'label.dashboard.manage-instructions':
-    '按方向键将这个仪表盘移动一位。按空格拿起，方向键移动，再按空格放下，按 Esc 取消。',
   'label.dashboard.collapse-sidebar': '收起仪表盘列表',
   'label.dashboard.expand-sidebar': '展开仪表盘列表',
   'label.dashboard.switch': '切换仪表盘',
@@ -1543,8 +1531,6 @@ export const zhCN: ViewMessages = {
   'label.filters.toasts': '接线提示',
   'label.filters.refused': '链接里有的筛选没能用上',
   'label.filters.reorder': '调整「{filter}」的顺序',
-  'label.filters.instructions':
-    '按空格键拿起这个筛选，用方向键移动，再按空格键放下；按 Esc 放回原处。',
   'label.filters.picked': '已拿起筛选「{filter}」。',
   'label.filters.cancelled': '筛选「{filter}」留在原处。',
   'label.filters.moved': '「{filter}」现在是第 {index} 个筛选，共 {total} 个',
@@ -1555,12 +1541,8 @@ export const zhCN: ViewMessages = {
   'label.tabs.actions': '标签页「{title}」',
   'label.tabs.rename': '改名',
   'label.tabs.rename-field': '标签页「{title}」的名字',
-  'label.tabs.move-left': '左移',
-  'label.tabs.move-right': '右移',
   'label.tabs.remove': '删除标签页',
   'label.tabs.reorder': '调整「{title}」的顺序',
-  'label.tabs.instructions':
-    '按空格键拿起这个标签页，用方向键移动，再按空格键放下；按 Esc 放回原处。',
   'label.tabs.picked': '已拿起标签页「{title}」。',
   'label.tabs.cancelled': '标签页「{title}」留在原处。',
   'label.tabs.moved': '「{title}」现在是第 {index} 个标签页，共 {total} 个',
@@ -1688,8 +1670,9 @@ export const zhCN: ViewMessages = {
   'label.panel.move-to-tab': '移到标签页',
   'label.panel.save-as-view': '另存为视图…',
   'label.panel.remove': '从仪表盘移除',
-  'label.panel.order-up': '上移「{title}」',
-  'label.panel.order-down': '下移「{title}」',
+  'label.panel.reorder': '调整「{title}」的顺序',
+  'label.panel.picked': '已拿起面板「{title}」。',
+  'label.panel.cancelled': '面板「{title}」留在原处。',
   'label.panel.reordered': '「{title}」现在是第 {index} 个面板，共 {total} 个',
   'label.panel.title-input': '面板标题',
   'label.panel.heading-input': '标题文字',
@@ -1911,6 +1894,14 @@ export const zhCN: ViewMessages = {
   'capability.descriptor.unavailable':
     '读不到 {source} 的能力描述，它的视图只按定义运行。',
 
+  // 每个能调顺序的列表共用的话：抓手怎么用，以及点一下抓手弹出的四个位置
+  //（给拖不动的指针用的一次点击替代，WCAG 2.5.7）。
+  'label.reorder.instructions':
+    '按方向键移动一位；按空格键拿起，方向键移动，再按空格键放下，按 Esc 放回原处；也可以点一下抓手，选择移到哪里。',
+  'label.reorder.first': '移到最前',
+  'label.reorder.earlier': '往前移一位',
+  'label.reorder.later': '往后移一位',
+  'label.reorder.last': '移到最后',
   // 工作台骨架：侧栏的两种状态、侧栏收起后顶替它的切换器，以及视图铺满整屏
   // 的两种状态。「铺满屏幕」而不是「全屏」：全屏是浏览器自己那个（F11），连
   // 地址栏一起收走，这里只是视图占满它所在的这一页。

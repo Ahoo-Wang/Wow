@@ -31,12 +31,7 @@ export interface Press {
 export interface ListFocus {
   /** Said from the press: the item at this index is going. */
   removing(press: Press, at: number): void;
-  /** Said from the press: the item has landed here, going this way. */
-  moved(press: Press, at: number, way: Move): void;
 }
-
-/** Which way a move button carries its item; also its `data-move`. */
-export type Move = 'up' | 'down';
 
 /** Anything the Tab key would stop on, before `disabled` is read. */
 const FOCUSABLE =
@@ -50,18 +45,13 @@ const FOCUSABLE =
  * the keyboard removes the element the focus was on, and a focus with
  * nothing under it falls to `<body>` — the next Tab then starts the page
  * again, from the title bar, which for a user taking three dimensions out
- * means walking back down three times. The same happens to a move: the card
- * carries its own 「上移」, and moving it to the end disables the very button
- * being pressed.
+ * means walking back down three times. (A move needs none of this: every
+ * ordered list is carried by its handle, and a row keyed by what it holds
+ * takes the handle's node — and the keyboard on it — along with it.)
  *
  * **The rule.** A removal leaves the keyboard where the row was — the item
  * that took its place, the one before it if the list ended there, and the
- * list's own 「添加」 when nothing is left. A move keeps the keyboard on the
- * button that made it, at whichever index the item landed on, so the next
- * press moves it again; where that direction has run out, the other one
- * takes the focus rather than the page losing it. Neither is a button kept
- * enabled at the boundary: a control that says it can do something it
- * cannot is a worse answer than a focus that moves one step sideways.
+ * list's own 「添加」 when nothing is left.
  *
  * **Why an effect and not the press.** The item is still on the page while
  * the press is being handled — it is React's next render that takes it away
@@ -71,11 +61,7 @@ const FOCUSABLE =
  * from under whoever had taken it meanwhile.
  */
 export function useListFocus(shape: ListShape): ListFocus {
-  const pending = useRef<{
-    list: HTMLElement;
-    at: number;
-    way?: Move;
-  } | null>(null);
+  const pending = useRef<{ list: HTMLElement; at: number } | null>(null);
   // No dependency list: the render that follows the press is the one that
   // has taken the item away, and it is that render's effect that has a list
   // to look at. A press that changed nothing left nothing pending.
@@ -83,7 +69,7 @@ export function useListFocus(shape: ListShape): ListFocus {
     const next = pending.current;
     if (!next) return;
     pending.current = null;
-    place(next.list, next.at, shape, next.way);
+    place(next.list, next.at, shape);
   });
   const from = (press: Press) => press.currentTarget.closest(shape.list);
   return {
@@ -91,37 +77,13 @@ export function useListFocus(shape: ListShape): ListFocus {
       const list = from(press);
       if (list instanceof HTMLElement) pending.current = { list, at };
     },
-    moved(press, at, way) {
-      const list = from(press);
-      if (list instanceof HTMLElement) pending.current = { list, at, way };
-    },
   };
 }
 
 /** The list as it is now, and the one control the keyboard should be on. */
-function place(
-  list: HTMLElement,
-  at: number,
-  shape: ListShape,
-  way?: Move,
-): void {
+function place(list: HTMLElement, at: number, shape: ListShape): void {
   const items = [...list.querySelectorAll<HTMLElement>(shape.item)];
   const landed = items[at];
-  if (way) {
-    if (!landed) return;
-    const other: Move = way === 'up' ? 'down' : 'up';
-    for (const which of [way, other]) {
-      const button = landed.querySelector<HTMLElement>(
-        `[data-move="${which}"]`,
-      );
-      if (button && !barred(button)) {
-        button.focus();
-        return;
-      }
-    }
-    focusIn(landed);
-    return;
-  }
   // The index the removed item held is now the one after it; the end of the
   // list is the one before. Both are «where the row was», which is what a
   // keyboard means by staying put.

@@ -1288,7 +1288,7 @@ describe('what a drag says out loud', () => {
 
   it('carries the instructions a reader is given on the handle', () => {
     expect(accessibility.screenReaderInstructions.draggable).toBe(
-      defaultMessages['label.columns.instructions'],
+      defaultMessages['label.reorder.instructions'],
     );
   });
 });

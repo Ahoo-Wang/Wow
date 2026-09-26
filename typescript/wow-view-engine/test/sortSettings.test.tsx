@@ -593,7 +593,7 @@ describe('what a sort drag says out loud', () => {
 
   it('carries the instructions a reader is given on the handle', () => {
     expect(accessibility.screenReaderInstructions.draggable).toBe(
-      defaultMessages['label.sort.instructions'],
+      defaultMessages['label.reorder.instructions'],
     );
   });
 });

@@ -60,7 +60,6 @@ import {
   setPresentation,
   placePanelIn,
   reorderPanelIn,
-  type OrderStep,
   type NewContentPanel,
   type NewPanel,
   type NewPanelPlacement,
@@ -146,12 +145,13 @@ export interface DashboardEditing {
    */
   place(panelId: string, layout: PanelLayout): void;
   /**
-   * Moves a panel one place along its tab's reading order — the one-column
-   * reading's 「上移」／「下移」 (D22 J) — written back onto the grid as the
-   * layout that reads that way and disturbs the rest least
-   * (`reorderPanel`). Nothing at either end.
+   * Moves a panel to place `to` (from 0) along its tab's reading order —
+   * the one-column reading's handle (D22 J): a drop, an arrow key, its
+   * menu — written back onto the grid as the layout that reads that way and
+   * disturbs the rest least (`reorderPanelIn`). Nothing when it is already
+   * there or `to` is no place on the tab. One step of the history.
    */
-  reorderPanel(panelId: string, step: OrderStep): void;
+  reorderPanel(panelId: string, to: number): void;
   /**
    * Lays the board out at another width (D31, `setBoardWidth`): its 24
    * columns centred at the fixed width, or across whatever holds it.
@@ -404,9 +404,9 @@ export function boardEditing(host: EditingHost): BoardEdits {
       edit('removeTab', tabId, config => removeTab(config, tabId)),
     place: (panelId, layout) =>
       edit('place', panelId, config => placePanelIn(config, panelId, layout)),
-    reorderPanel: (panelId, step) =>
+    reorderPanel: (panelId, to) =>
       edit('reorderPanel', panelId, config =>
-        reorderPanelIn(config, panelId, step),
+        reorderPanelIn(config, panelId, to),
       ),
     setWidth: width =>
       edit('setWidth', null, config => setBoardWidth(config, width)),

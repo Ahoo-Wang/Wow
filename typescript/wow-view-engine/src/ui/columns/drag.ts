@@ -53,7 +53,6 @@ export function columnDrop(
 
 /** Where this list's drag sentences live in the catalogue. */
 export const COLUMN_DRAG_WORDING: DragWordingKeys = {
-  instructions: 'label.columns.instructions',
   picked: 'label.columns.picked',
   cancelled: 'label.columns.cancelled',
   placeholder: 'field',

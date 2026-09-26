@@ -30,7 +30,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from './components/dialog.js';
-import { announcedPlugins } from './dragPlugins.js';
+import { sortableList } from './dragPlugins.js';
+import { moveTarget, type HandleMove } from './DragHandle.js';
 import { manageDragAccessibility, managerDrop } from './manage/drag.js';
 import { useViewMessages } from './MessagesProvider.js';
 import { useAnnouncer } from './Announcer.js';
@@ -167,8 +168,16 @@ export function ViewManager({
               // has not landed is not on screen yet, and the second of two
               // quick presses would otherwise ask for the place the first
               // already gave the row.
-              onMove: (step: -1 | 1) =>
-                move(item.id, manager.placeOf(item.id) + step),
+              place: { index, total: group.items.length },
+              onMove: (step: HandleMove) =>
+                move(
+                  item.id,
+                  moveTarget(
+                    step,
+                    manager.placeOf(item.id),
+                    group.items.length,
+                  ),
+                ),
             };
             return manager.can.reorder ? (
               <SortableViewManagerRow
@@ -220,9 +229,7 @@ export function ViewManager({
         {manager.can.reorder ? (
           <>
             <DragDropProvider
-              plugins={announcedPlugins(
-                manageDragAccessibility(messages, titleOf, word),
-              )}
+              {...sortableList(manageDragAccessibility(messages, titleOf))}
               onDragEnd={({ operation, canceled }) => {
                 // The library holds a drag inside its own group; `managerDrop`
                 // says the same thing where the order is decided, so a drop
