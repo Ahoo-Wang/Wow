@@ -18,6 +18,8 @@ import {
   fitChartSlots,
   fitCharts,
   optionTabs,
+  PEAKS_ONLY_FROM,
+  peaksOnlyLabels,
   switchChartType,
   validateChart,
   valueLabelsOn,
@@ -321,6 +323,37 @@ describe('chartFamilies', () => {
         .map(([family]) => family),
     ).toEqual(['cartesian', 'pie', 'heatmap', 'waterfall']);
     expect(optionTabs('table')).toEqual(['display']);
+  });
+});
+
+describe('peaksOnlyLabels (review P1-6)', () => {
+  it('writes only the peak and trough of twelve bars or more, left to the default', () => {
+    expect(PEAKS_ONLY_FROM).toBe(12);
+    expect(peaksOnlyLabels({ type: 'bar' }, 12)).toBe(true);
+    expect(peaksOnlyLabels({ type: 'bar' }, 11)).toBe(false);
+    // A combo's bars too; a line writes no number unasked.
+    expect(
+      peaksOnlyLabels(
+        {
+          type: 'combo',
+          cartesian: {
+            x: 'day',
+            series: [
+              { metric: 'a', type: 'bar' },
+              { metric: 'b', type: 'line' },
+            ],
+          },
+        },
+        30,
+      ),
+    ).toBe(true);
+    expect(peaksOnlyLabels({ type: 'line' }, 30)).toBe(false);
+    // A choice either way stands: every number, or none.
+    expect(peaksOnlyLabels({ type: 'bar', labels: true }, 30)).toBe(false);
+    expect(peaksOnlyLabels({ type: 'bar', labels: false }, 30)).toBe(false);
+    // A waterfall's steps are a sum read step by step.
+    expect(peaksOnlyLabels({ type: 'waterfall' }, 30)).toBe(false);
+    expect(peaksOnlyLabels(undefined, 30)).toBe(false);
   });
 });
 

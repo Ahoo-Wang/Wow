@@ -17,7 +17,18 @@ import type {
   DerivedLine,
 } from '../../analysis/index.js';
 import type { MessageFormatters } from '../MessagesProvider.js';
-import type { MarkWords } from './cartesianPlan.js';
+
+/** The words the reference, derived and extreme marks are written with. */
+export interface MarkWords {
+  /** A derived line's name: 「7 期移动平均（算出的）」, and whose. */
+  derived(line: DerivedLine, series: string | undefined): string;
+  /** A statistic line's caption, its number already written. */
+  statistic(of: 'average' | 'median', value: string): string;
+  high: string;
+  low: string;
+  /** A split's folded rest (D33 Q56), as the pie's is called: 「其他」. */
+  other: string;
+}
 
 /**
  * A derived line's name as the legend, the tooltip and the reading table

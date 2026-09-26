@@ -1,4 +1,4 @@
-# @ahoo-wang/wow-view-engine — 824 names, from src/index.ts.
+# @ahoo-wang/wow-view-engine — 826 names, from src/index.ts.
 # Written by test/publicSurface.test.ts; a change here is a change to
 # the public surface (README「Entries」, docs/design/decisions.md D29).
 value ALWAYS_VISIBLE
@@ -293,6 +293,7 @@ type  OptionsTab
 type  OrderStep
 type  OwnedView
 value PANEL_PRESENTATION_MEMBERS
+value PEAKS_ONLY_FROM
 value PRESENCE_OPERATORS
 type  PagedPaging
 type  PagingMode
@@ -692,6 +693,7 @@ value panelFilterTree
 value panelTab
 value panelsOf
 value parseSystemInstanceId
+value peaksOnlyLabels
 value periodOf
 value periodRollover
 value placePanel

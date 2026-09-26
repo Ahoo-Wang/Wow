@@ -23,7 +23,9 @@ import {
   chartsDrawn,
   drawnMarks,
   legendNames,
+  overlaps,
   pressMark,
+  typeBox,
 } from './chartDom.js';
 import { findDataTable, readColumn, readHeaders } from './readTable.js';
 import { ANALYSIS_GOLDEN } from './retail/goldens.js';
@@ -539,6 +541,40 @@ const plotTexts = (frame: HTMLElement) =>
     (text.textContent ?? '').trim(),
   );
 
+/**
+ * The pairs of words on the plot that are drawn over each other — a
+ * reference line's name, a peak's word, a tick, a title — each as
+ * `「one」 on 「other」`: none, since the review found 「目标 ≤ 3%」 over
+ * 「最低 0%」 and the first week's name, and 「日均」 on 「中位数」 (P1-5).
+ * A pixel's touch is not a crossing.
+ */
+const crossings = (frame: HTMLElement) => {
+  const words = [
+    ...frame.querySelectorAll<SVGTextElement>(
+      '[data-slot="chart-plot"] svg text',
+    ),
+  ]
+    .filter(text => (text.textContent ?? '').trim() !== '')
+    .map(text => {
+      const box = typeBox(text);
+      return {
+        text: (text.textContent ?? '').trim(),
+        box: new DOMRect(
+          box.left + 1,
+          box.top + 1,
+          box.width - 2,
+          box.height - 2,
+        ),
+      };
+    });
+  return words.flatMap((one, index) =>
+    words
+      .slice(index + 1)
+      .filter(other => overlaps(one.box, other.box))
+      .map(other => `「${one.text}」 on 「${other.text}」`),
+  );
+};
+
 /** A money cell as a number: 「¥45,210.30」 → 45210.3. */
 const money = (text: string) => Number(text.replace(/[¥,]/g, ''));
 
@@ -562,6 +598,7 @@ export const ReferencesInTheScenes: Story = {
       expect(texts.some(text => /^日均/.test(text))).toBe(true);
       expect(texts).toContain('大促日目标');
     });
+    await expect(crossings(promotion)).toEqual([]);
     const days = await reading(canvasElement);
     const gmv = readColumn(days, 'GMV').map(money);
     const inBand = readColumn(days, '日期').filter(
@@ -578,6 +615,7 @@ export const ReferencesInTheScenes: Story = {
       expect(texts).toContain('目标 ≤ 3%');
       expect(texts.some(text => /^红线 5%/.test(text))).toBe(true);
     });
+    await expect(crossings(sla)).toEqual([]);
     const weeks = await reading(canvasElement);
     const average = readHeaders(weeks).find(header =>
       header.includes('移动平均'),

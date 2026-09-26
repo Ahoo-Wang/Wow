@@ -16,6 +16,7 @@ import { zhCN } from '@ahoo-wang/wow-view-engine/ui';
 import { converter, parse } from 'culori';
 import displayMeta, {
   BarChart as DisplayBarChart,
+  DailyNewestFirst as DisplayDailyNewestFirst,
   DailyQuietDays as DisplayDailyQuietDays,
   DailyTrendCard as DisplayDailyTrendCard,
   FailingAggregates as DisplayFailingAggregates,
@@ -380,6 +381,31 @@ export const ValueLabelsAllOrNoneNarrow: Story = {
     for (const [index, label] of labels.entries())
       for (const other of labels.slice(index + 1))
         await expect(overlaps(typeBox(label), typeBox(other))).toBe(false);
+  },
+};
+
+/**
+ * 柱多时只标峰谷：二十一天的柱没人说过写不写数，就不在每根柱上写一个竖排的数，
+ * 只在最高、最低的那两根上写「最高 4」「最低 1」（Storybook 审查 P1-6）；说了
+ * 「写数」的仍每根都写（`ValueLabelsAllOrNone`）。
+ */
+export const PeaksOnlyOverALongRow: Story = {
+  ...DisplayDailyNewestFirst,
+  play: async ({ canvasElement }) => {
+    await chartsDrawn(canvasElement);
+    await waitFor(() =>
+      expect(drawnMarks(canvasElement).length).toBeGreaterThanOrEqual(12),
+    );
+    const written = valueLabels(canvasElement)
+      .map(label => (label.textContent ?? '').trim())
+      .filter(text => text !== '');
+    await expect(written).toHaveLength(2);
+    await expect(written.filter(text => /^最高 \d+$/.test(text))).toHaveLength(
+      1,
+    );
+    await expect(written.filter(text => /^最低 \d+$/.test(text))).toHaveLength(
+      1,
+    );
   },
 };
 

@@ -40,6 +40,7 @@ import {
   type PlacedLine,
   type SeriesExtremes,
 } from './references.js';
+import { peaksOnlyLabels } from './chartFamilies.js';
 import { foldOther } from './splitOther.js';
 import { isAdditiveMetric } from './validateChart.js';
 
@@ -95,7 +96,11 @@ export interface CartesianData {
    * a trend, a moving average, a running total. Absent when none is drawn.
    */
   derived?: DerivedLine[];
-  /** Each series' highest and lowest measured point, when the spec asks. */
+  /**
+   * Each series' highest and lowest measured point, when the spec asks —
+   * or when its bars, left to their default, write only those two
+   * (`peaksOnlyLabels`).
+   */
   extremes?: SeriesExtremes;
   /**
    * What the spec asked for that the kernel did not draw, each with why —
@@ -276,7 +281,12 @@ function drawnOver(
   if (!spec) return {};
   const placed = placeLines(spec, data);
   const derived = deriveLines(config, data, cutShort);
-  const extremes = spec.extremes === true ? seriesExtremes(data) : {};
+  // Asked for, or what a long row of bars writes in place of a number
+  // over each (`peaksOnlyLabels`): the drawing decides which it draws.
+  const extremes =
+    spec.extremes === true || peaksOnlyLabels(config.chart, data.points.length)
+      ? seriesExtremes(data)
+      : {};
   const gaps = [...placed.gaps, ...derived.gaps];
   return {
     ...(placed.lines.length > 0 ? { references: placed.lines } : {}),

@@ -12,8 +12,10 @@
  */
 
 import type { EChartsCoreOption } from 'echarts/core';
+import { PEAKS_ONLY_FROM } from '../../analysis/index.js';
 import { categoryTick, measuredTitle, titleAtHead } from './axis.js';
 import type { CartesianPlan, DrawnSeries } from './cartesianPlan.js';
+import { referenceCaptions } from './cartesianMarks.js';
 import { CHART_FALLBACK, type ChartTheme } from './theme.js';
 import {
   SLIDER_ROOM,
@@ -247,7 +249,24 @@ export function cartesianFit(
     (measure(label) * text.labelSize) / text.size;
   /** The height of a line of value-label text, and so of a label on its end. */
   const LABEL_LINE = text.labelSize + LABEL_LEADING;
-  const widestOuter = Math.max(0, ...plan.outerTexts.map(labelWidth));
+  // A long row of bars writes its peak and trough as marks; zoomed to fewer
+  // bars than that, it writes every number on screen, as a short row does.
+  const everyBar = shown < PEAKS_ONLY_FROM;
+  const zoomedTexts = everyBar
+    ? series.filter(plan.peaksOnly).flatMap(entry => {
+        const texts: string[] = [];
+        for (let index = first; index < first + shown; index += 1) {
+          const value = plan.drawnAt(entry, index);
+          if (value !== null && !plan.filledAt(entry, index))
+            texts.push(plan.drawnText(entry, value));
+        }
+        return texts;
+      })
+    : [];
+  const widestOuter = Math.max(
+    0,
+    ...[...plan.outerTexts, ...zoomedTexts].map(labelWidth),
+  );
 
   // The plot, as near as the axes' text lets it be said before drawing: the
   // value ticks and titles beside it, the category names and title under.
@@ -258,11 +277,17 @@ export function cartesianFit(
       : ((category.xAxis as { nameGap?: number } | undefined)?.nameGap ??
           TITLE_GAP_UNDER) + LINE_HEIGHT) + (zooms(plan) ? SLIDER_ROOM : 0);
   const headRoom = 24;
+  const along = Math.max(0, height - underRoom - headRoom);
+  // The reference lines' and bands' names, beside the plot where it has
+  // room for them (`referenceCaptions`): the margin comes off the plot.
+  const captions = referenceCaptions(plan, width, along, measure, LINE_HEIGHT);
   const across = Math.max(
     0,
-    width - 20 - (horizontal ? Math.round(width * 0.3) + 8 : valueRoom),
+    width -
+      20 -
+      (horizontal ? Math.round(width * 0.3) + 8 : valueRoom) -
+      ((captions.right ?? 16) - 16),
   );
-  const along = Math.max(0, height - underRoom - headRoom);
   const plotLength = horizontal ? across : along;
   const band = (horizontal ? along : across) / points;
 
@@ -324,6 +349,8 @@ export function cartesianFit(
     ...series.map(entry => {
       if (!plan.labelled(entry)) return {};
       if (entry.kind !== 'bar') return { label: { show: lineFit(entry) } };
+      if (plan.peaksOnly(entry))
+        return { label: everyBar ? outerPatch : { show: false } };
       if (!plan.stacked(entry)) return { label: outerPatch };
       const fits = data.points.map((_point, index) => insideFits(entry, index));
       return {
@@ -334,8 +361,11 @@ export function cartesianFit(
       };
     }),
     ...plan.totals.map(() => ({ label: outerPatch })),
+    ...captions.series,
   ];
-  const wrote = outer !== 'none' && plan.outerTexts.some(text => text !== '');
+  const wrote =
+    outer !== 'none' &&
+    [...plan.outerTexts, ...zoomedTexts].some(text => text !== '');
 
   // An axis title stays within its side of the plot: along the axis when
   // it is turned, over half the plot when it is set flat at the head.
@@ -370,11 +400,16 @@ export function cartesianFit(
       : {
           yAxis: valueNames,
           grid: {
-            top: !wrote
-              ? 16
-              : outer === 'upright'
+            // A line of text over the tallest mark for a value label or the
+            // highest point's word, as the option keeps before the fit.
+            top:
+              wrote && outer === 'upright'
                 ? Math.ceil(widestOuter) + LABEL_DISTANCE + 8
-                : 24,
+                : wrote ||
+                    series.some(entry => plan.extremesOf(entry) !== undefined)
+                  ? 24
+                  : 16,
+            right: captions.right,
           },
         }),
     series: patches,
