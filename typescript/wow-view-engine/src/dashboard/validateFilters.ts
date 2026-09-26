@@ -14,6 +14,7 @@
 import {
   ANALYSIS_DATE_UNITS,
   MAX_DASHBOARD_FILTERS,
+  filterTypeOf,
   isFieldName,
   type AnalysisDateUnit,
   type DashboardField,
@@ -83,13 +84,19 @@ function validateName(
  */
 function validateMembers(field: DashboardField, path: IssuePath): Issue[] {
   const issues: Issue[] = [];
-  for (const flag of ['required', 'multiple'] as const)
+  for (const flag of ['required', 'multiple', 'oneDay'] as const)
     if (field[flag] !== undefined && field[flag] !== true)
       issues.push(
         issue('dashboard.shape.invalid', [...path, flag], {
           expected: 'true',
         }),
       );
+  if (field.oneDay === true && filterTypeOf(field.kind) !== 'date')
+    issues.push(
+      issue('dashboard.field.one-day-not-date', [...path, 'oneDay'], {
+        field: field.name,
+      }),
+    );
   const options: unknown = field.options;
   if (options !== undefined && !Array.isArray(options))
     issues.push(

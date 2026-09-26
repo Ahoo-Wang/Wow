@@ -56,6 +56,15 @@ export const SalesOverview: Story = {
   ...DisplayOverview,
   name: '销售复盘 · 概览',
   play: async ({ canvasElement }) => {
+    // No date set: the bar says each panel reads its own dates, not
+    // 「指定日期 · 选择日期 – 选择日期」 (2026-09-26 review, P1-10).
+    await waitFor(() =>
+      expect(
+        within(canvasElement).getByRole('combobox', {
+          name: label('label.date.shape-of', { field: '日期' }),
+        }),
+      ).toHaveTextContent(zhCN['label.filters.date-own']),
+    );
     await waitFor(
       () =>
         expect(

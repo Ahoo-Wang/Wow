@@ -84,6 +84,18 @@ export interface FilterValueEditorProps {
    * fields beside the condition's own, from the pill that holds it.
    */
   times?: readonly { value: string; label: string }[];
+  /**
+   * A date held to one day (`DashboardField.oneDay`): one calendar day, or
+   * one of the days by name that have come.
+   */
+  oneDay?: boolean;
+  /**
+   * The words for a date that holds nothing, offered as a choice of its
+   * own where the value may be blank — a board's optional date filter.
+   */
+  blank?: string;
+  /** Told whether a date control asks for a day its value does not hold. */
+  onAwaiting?: (awaiting: boolean) => void;
 }
 
 /**
@@ -119,6 +131,9 @@ export function FilterValueEditor({
   candidates,
   placeholder,
   times,
+  oneDay,
+  blank,
+  onAwaiting,
 }: FilterValueEditorProps) {
   switch (editor.input) {
     case 'none':
@@ -199,6 +214,9 @@ export function FilterValueEditor({
           range={editor.input === 'dateRange' || editor.range === true}
           withTime={editor.withTime === true}
           required={required}
+          oneDay={oneDay}
+          blank={blank}
+          onAwaiting={onAwaiting}
         />
       );
 

@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import { useCallback, useMemo, useSyncExternalStore } from 'react';
+import { useCallback, useMemo, useState, useSyncExternalStore } from 'react';
 import {
   DASHBOARD_GRID_COLUMNS,
   boardWidth,
@@ -165,6 +165,16 @@ export interface DashboardController {
   setGroupingUnit(unit: AnalysisDateUnit): void;
   /** 「清空」: every filter cleared, the required ones to their defaults. */
   clearFilters(): void;
+  /**
+   * The filters whose control asks for a value it does not hold yet — a
+   * date filter turned to 「指定日期」 with no day picked — by name. The
+   * value in force is not what the bar shows, so a panel wired to one says
+   * a date is to be picked rather than show the numbers of the value that
+   * was (2026-09-26 review, P1-1).
+   */
+  awaiting: readonly string[];
+  /** Says a filter's control is (or is no longer) awaiting a value. */
+  setAwaiting(name: string, awaiting: boolean): void;
   /** What a text filter offers to pick from (`DashboardRuntime.valueCandidates`). */
   filterCandidates(name: string): ValueCandidateSource | null;
   /**
@@ -232,6 +242,7 @@ export interface DashboardController {
 
 const EMPTY_PANELS: DashboardPanelState[] = [];
 const NO_FILTERS: DashboardFilters = { values: {} };
+const NO_NAMES: readonly string[] = [];
 const NO_ISSUES: Issue[] = [];
 const NO_FIELDS: readonly DashboardField[] = [];
 const NO_HISTORY: EditHistoryState = { undo: null, redo: null };
@@ -293,6 +304,16 @@ export function useDashboard(
   }, [panels, tabNow]);
   const readAt = useSyncExternalStore(watch, earliest, earliest);
   const filtersNow = state?.filters ?? null;
+  const [awaiting, setAwaitingNames] = useState<readonly string[]>(NO_NAMES);
+  const setAwaiting = useCallback((name: string, on: boolean) => {
+    setAwaitingNames(names =>
+      names.includes(name) === on
+        ? names
+        : on
+          ? [...names, name]
+          : names.filter(entry => entry !== name),
+    );
+  }, []);
   const appliedTabs = applied?.tabs;
   const issues = state?.issues;
 
@@ -339,6 +360,8 @@ export function useDashboard(
       [runtime],
     ),
     clearFilters: useCallback(() => runtime?.clearFilters(), [runtime]),
+    awaiting,
+    setAwaiting,
     filterCandidates: useCallback(
       (name: string) => runtime?.valueCandidates(name) ?? null,
       [runtime],

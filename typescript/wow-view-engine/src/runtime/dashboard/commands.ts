@@ -345,6 +345,9 @@ export abstract class BoardCommands
   setFilterMultiple(name: string, multiple: boolean): void {
     this.edits.setFilterMultiple(name, multiple);
   }
+  setFilterOneDay(name: string, oneDay: boolean): void {
+    this.edits.setFilterOneDay(name, oneDay);
+  }
   setFilterOptions(name: string, options: FieldOption[] | null): void {
     this.edits.setFilterOptions(name, options);
   }

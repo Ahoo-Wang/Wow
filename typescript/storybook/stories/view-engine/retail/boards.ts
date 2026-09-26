@@ -361,6 +361,8 @@ const DAILY_FIELDS: DashboardField[] = [
     kind: 'datetime',
     default: DAILY_DAY,
     required: true,
+    // 日报读的是一天：日历上的一天，或今天、昨天、前天。
+    oneDay: true,
   },
   enumFilter('channel', '渠道', 'state.channel'),
   enumFilter('shop', '店铺', 'state.shopId'),

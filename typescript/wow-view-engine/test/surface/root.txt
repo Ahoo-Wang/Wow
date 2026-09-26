@@ -1,4 +1,4 @@
-# @ahoo-wang/wow-view-engine — 820 names, from src/index.ts.
+# @ahoo-wang/wow-view-engine — 823 names, from src/index.ts.
 # Written by test/publicSurface.test.ts; a change here is a change to
 # the public surface (README「Entries」, docs/design/decisions.md D29).
 value ALWAYS_VISIBLE
@@ -285,6 +285,7 @@ type  NewViewPanel
 type  NumberFilterValue
 type  NumberFormat
 type  NumberRange
+value ONE_DAY_PRESETS
 value OPERATOR_SIGN
 type  OpenOptions
 type  OptionSource
@@ -616,6 +617,7 @@ value isNegation
 value isNonBlankString
 value isNonEmptyString
 value isNumberRange
+value isOneDayValue
 value isOrderedRange
 value isOwnedPanel
 value isPercentStacked
@@ -747,6 +749,7 @@ value seriesMark
 value setBoardWidth
 value setFilterDefault
 value setFilterMultiple
+value setFilterOneDay
 value setFilterOptions
 value setFilterRequired
 value setPanelClick

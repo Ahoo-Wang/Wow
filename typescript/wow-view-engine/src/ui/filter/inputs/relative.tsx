@@ -114,12 +114,15 @@ export function RelativeDate({
 /** A named period — today, this month — resolved against the engine's clock. */
 export function PresetDate({
   value,
+  presets = DATE_TIME_PRESETS,
   onChange,
   label,
   disabled,
   invalid,
 }: {
   value: PresetDateTimeValue;
+  /** The periods offered; every one there is when left out. */
+  presets?: readonly DateTimePreset[];
   onChange(value: FilterValue): void;
   label: string;
   disabled?: boolean;
@@ -135,7 +138,7 @@ export function PresetDate({
       value={value.preset}
       // A closed set too, and fifteen of them: `nextQuarter` is a key, not
       // a period anybody reads.
-      items={DATE_TIME_PRESETS.map(preset => ({
+      items={presets.map(preset => ({
         label: messages.label(`label.relative.preset.${preset}`),
         value: preset,
       }))}

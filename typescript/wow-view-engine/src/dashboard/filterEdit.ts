@@ -37,7 +37,7 @@ import {
   without,
 } from '../model/index.js';
 import { emptyFilter, isPlainObject } from '../filter/index.js';
-import { filtersOf as fieldsOf } from './filters.js';
+import { filtersOf as fieldsOf, isOneDayValue } from './filters.js';
 import { freshId, isViewPanel } from './panels.js';
 import { unbindPanels } from './wiring.js';
 
@@ -145,6 +145,29 @@ export function setFilterRequired(
   return mapFilter(config, name, field => {
     if (required === (field.required === true)) return field;
     return required ? { ...field, required: true } : without(field, 'required');
+  });
+}
+
+/**
+ * Whether a date filter holds one day and nothing else
+ * (`DashboardField.oneDay`). Turned on, a default that is no one day goes,
+ * so the filter is not left refusing its own start; a required one then
+ * asks for a default, as it does when it has none.
+ */
+export function setFilterOneDay(
+  config: DashboardViewConfig,
+  name: string,
+  oneDay: boolean,
+): DashboardViewConfig {
+  return mapFilter(config, name, field => {
+    if (oneDay === (field.oneDay === true)) return field;
+    if (!oneDay) return without(field, 'oneDay');
+    const start = field.default;
+    const kept =
+      start === undefined || isOneDayValue(start)
+        ? field
+        : without(field, 'default');
+    return { ...kept, oneDay: true };
   });
 }
 

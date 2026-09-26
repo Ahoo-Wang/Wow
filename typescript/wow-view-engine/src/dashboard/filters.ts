@@ -142,6 +142,38 @@ export function filtersOf(config: DashboardViewConfig): DashboardField[] {
  * cannot read, several values on a filter that takes one. Blank is not
  * refused — it is a filter holding nothing.
  */
+/**
+ * The named periods a one-day filter (`DashboardField.oneDay`) offers:
+ * the days that have come, by name. 「明天」 is one day too, but one with
+ * nothing in it yet.
+ */
+export const ONE_DAY_PRESETS = [
+  'today',
+  'yesterday',
+  'dayBeforeYesterday',
+] as const;
+
+/** A calendar day with no time: `2026-09-21`. */
+const DAY_ONLY = /^\d{4}-\d{2}-\d{2}$/;
+
+/**
+ * Whether a date value is one day, whatever the clock says: one of
+ * `ONE_DAY_PRESETS`, or a calendar day from its start to its end (`to`
+ * the same day, or left out). A window, a longer period or a moment is not.
+ */
+export function isOneDayValue(value: FilterValue): boolean {
+  if (!isPlainObject(value)) return false;
+  if (value.type === 'preset')
+    return (ONE_DAY_PRESETS as readonly unknown[]).includes(value.preset);
+  if (value.type !== 'absolute' || value.timeZone !== undefined) return false;
+  const { from, to } = value;
+  return (
+    typeof from === 'string' &&
+    DAY_ONLY.test(from) &&
+    (to === undefined || to === from)
+  );
+}
+
 export function filterValueIssues(
   field: DashboardField,
   value: FilterValue,
@@ -153,6 +185,8 @@ export function filterValueIssues(
   if (!leaf) return [];
   if (!field.multiple && countOf(value) > 1)
     return [issue('dashboard.field.not-multiple', path, { field: field.name })];
+  if (field.oneDay === true && !isOneDayValue(value))
+    return [issue('dashboard.field.not-one-day', path, { field: field.name })];
   const tree: FilterTree = { op: 'and', children: [leaf] };
   return validateFilter([field as FieldDefinition], tree, kinds, {
     limits,

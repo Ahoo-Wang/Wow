@@ -459,20 +459,38 @@ export const PicksASpecificDay: Story = {
   play: async ({ canvasElement }) => {
     await boardDrawn(canvasElement);
     const date = screen.getByRole('group', { name: /^日期/ });
+    // A day filter offers days: the three that have come by name, and no
+    // window (2026-09-26 review, P1-1).
+    await userEvent.click(
+      within(date).getByRole('combobox', {
+        name: label('label.date.period-of', { field: '日期' }),
+      }),
+    );
+    await expect(
+      (await screen.findAllByRole('option')).map(option => option.textContent),
+    ).toEqual(['今天', '昨天', '前天']);
+    await userEvent.keyboard('{Escape}');
     const kind = within(date).getByRole('combobox', {
       name: label('label.date.shape-of', { field: '日期' }),
     });
     await userEvent.click(kind);
+    await expect(
+      (await screen.findAllByRole('option')).map(option => option.textContent),
+    ).toEqual([zhCN['label.date.absolute'], zhCN['label.date.preset']]);
     await userEvent.click(
       await screen.findByRole('option', { name: zhCN['label.date.absolute'] }),
     );
     await expect(kind).toHaveTextContent(zhCN['label.date.absolute']);
     const calendar = within(date).getByRole('button', { name: '日期' });
     await expect(calendar).toHaveTextContent(zhCN['label.date.pick']);
-    // Nothing picked yet: the cards still read 9 月 21 日.
-    await expect(
-      panelOf('GMV').querySelector('[data-slot="metric-period"]'),
-    ).toHaveTextContent('2026年9月21日');
+    // Nothing picked yet: the value in force is not the one on the bar, so
+    // the panels wired to it ask for a day rather than show 9 月 21 日's
+    // numbers (2026-09-26 review, P1-1).
+    await waitFor(() =>
+      expect(
+        panelOf('GMV').querySelector('[data-slot="panel-awaiting-date"]'),
+      ).toHaveTextContent(zhCN['label.panel.awaiting-date']),
+    );
 
     await userEvent.click(calendar);
     const popup = await screen.findByRole('dialog', { name: '日期' });
@@ -753,8 +771,10 @@ export const OnAPhone: Story = {
       await expect(body.scrollWidth).toBeLessThanOrEqual(body.clientWidth);
     }
 
-    // In the filter sheet: every filter stays inside it — a relative window
-    // wraps its three controls rather than running under the reset (W11).
+    // In the filter sheet: every filter stays inside it — the date's kind
+    // and its calendar wrap rather than running under the reset (W11). The
+    // daily report's date is one day, so it has no relative window to
+    // offer (2026-09-26 review, P1-1).
     await userEvent.click(opener);
     const sheet = await screen.findByRole('dialog', {
       name: zhCN['label.filters.bar'],
@@ -765,12 +785,12 @@ export const OnAPhone: Story = {
       }),
     );
     await userEvent.click(
-      await screen.findByRole('option', { name: zhCN['label.date.relative'] }),
+      await screen.findByRole('option', { name: zhCN['label.date.absolute'] }),
     );
-    const relative = await within(sheet).findByLabelText(
-      label('label.date.amount-of', { field: '日期' }),
-    );
-    await expect(getComputedStyle(relative.closest('div.flex')!).flexWrap).toBe(
+    const calendar = await within(sheet).findByRole('button', {
+      name: '日期',
+    });
+    await expect(getComputedStyle(calendar.closest('div.flex')!).flexWrap).toBe(
       'wrap',
     );
     const inside = (chip: Element) => {

@@ -11,6 +11,14 @@
  * limitations under the License.
  */
 
+import { CalendarIcon } from 'lucide-react';
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from './components/empty.js';
 import { useRef, useState, type ReactNode, type RefObject } from 'react';
 import { cn } from 'cn';
 import { readingOrder, type ArrangeStep } from '../dashboard/index.js';
@@ -176,6 +184,12 @@ export interface DashboardPanelProps {
    * header, so nobody reads the panel as narrowed by them.
    */
   unreached?: readonly string[];
+  /**
+   * A filter wired to this panel whose control waits for a date, by its name
+   * on the bar: the body says to pick one rather than show the numbers of
+   * the value still in force (2026-09-26 review, P1-1).
+   */
+  awaiting?: string;
   /** Under the body: the wiring strip while a filter is wired (D22 G). */
   footer?: ReactNode;
   /**
@@ -223,6 +237,7 @@ export function DashboardPanel({
   readOnly = false,
   commands,
   unreached,
+  awaiting,
   footer,
   record,
   press,
@@ -331,15 +346,19 @@ export function DashboardPanel({
             <ChartImageTarget.Provider
               value={commands?.exportRows ? image.slot : null}
             >
-              <PanelBody
-                panel={panel}
-                onRetry={onRetry}
-                readOnly={readOnly}
-                wayOut={wayOut}
-                press={press}
-                headingLevel={headingLevel}
-                record={record}
-              />
+              {awaiting === undefined ? (
+                <PanelBody
+                  panel={panel}
+                  onRetry={onRetry}
+                  readOnly={readOnly}
+                  wayOut={wayOut}
+                  press={press}
+                  headingLevel={headingLevel}
+                  record={record}
+                />
+              ) : (
+                <AwaitingDate filter={awaiting} />
+              )}
             </ChartImageTarget.Provider>
           </RenderBoundary>
         </CardContent>
@@ -490,6 +509,24 @@ interface WayOut {
   replace?: () => void;
   editContent?: () => void;
   remove: () => void;
+}
+
+/** A panel whose date filter waits for a day: what to do, not old numbers. */
+function AwaitingDate({ filter }: { filter: string }) {
+  const messages = useViewMessages();
+  return (
+    <Empty data-slot="panel-awaiting-date" className="h-full p-4">
+      <EmptyHeader>
+        <EmptyMedia variant="icon">
+          <CalendarIcon />
+        </EmptyMedia>
+        <EmptyTitle>{messages.label('label.panel.awaiting-date')}</EmptyTitle>
+        <EmptyDescription>
+          {messages.label('label.panel.awaiting-date-hint', { filter })}
+        </EmptyDescription>
+      </EmptyHeader>
+    </Empty>
+  );
 }
 
 function PanelBody({

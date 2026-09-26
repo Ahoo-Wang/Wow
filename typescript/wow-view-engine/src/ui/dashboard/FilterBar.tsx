@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import { useRef, type ReactNode } from 'react';
+import { useCallback, useRef, type ReactNode } from 'react';
 import { InfoIcon, RotateCcwIcon, XIcon } from 'lucide-react';
 import {
   filterControlValue,
@@ -21,7 +21,6 @@ import {
 } from '../../dashboard/index.js';
 import type { FilterSummaryItem } from '../../filter/index.js';
 import type {
-  AnalysisDateUnit,
   DashboardField,
   DashboardFilters,
   FilterValue,
@@ -30,7 +29,6 @@ import { filterTypeOf, sameJson } from '../../model/index.js';
 import type { DashboardController } from '../../react/index.js';
 import { Badge } from '../components/badge.js';
 import { Button } from '../components/button.js';
-import { ToggleGroup, ToggleGroupItem } from '../components/toggle-group.js';
 import { FilterValueEditor } from '../FilterValueEditor.js';
 import { IconButton, IconTooltip } from '../IconButton.js';
 import { panelNames } from '../DashboardPanel.js';
@@ -57,6 +55,7 @@ import {
   LockedReading,
 } from './FilterReadings.js';
 import { FilterSheet } from './FilterSheet.js';
+import { GroupingControl } from './GroupingControl.js';
 import {
   addFilterOf,
   boardOf,
@@ -449,6 +448,12 @@ function FilterChip({
   const value = dashboard.filters.values[field.name];
   const set = value !== undefined;
   const atDefault = field.required === true && sameJson(value, field.default);
+  const { setAwaiting } = dashboard;
+  const name = field.name;
+  const onAwaiting = useCallback(
+    (awaiting: boolean) => setAwaiting(name, awaiting),
+    [setAwaiting, name],
+  );
   return (
     <ControlFrame
       ref={carry?.ref}
@@ -489,6 +494,9 @@ function FilterChip({
             label={field.label}
             value={filterControlValue(field, value)}
             required={field.required}
+            oneDay={field.oneDay === true}
+            blank={messages.label('label.filters.date-own')}
+            onAwaiting={onAwaiting}
             onChange={next =>
               dashboard.setFilterValue(
                 field.name,
@@ -546,73 +554,5 @@ function FilterChip({
       )}
       {settings}
     </ControlFrame>
-  );
-}
-
-/** The time grouping (整板 按日｜周｜月): one choice among the units offered. */
-function GroupingControl({
-  units,
-  unit,
-  idle,
-  onChange,
-  onRemove,
-}: {
-  units: readonly AnalysisDateUnit[];
-  unit: AnalysisDateUnit;
-  idle: boolean;
-  onChange(unit: AnalysisDateUnit): void;
-  onRemove?(): void;
-}) {
-  const messages = useViewMessages();
-  const name = messages.label('label.filters.grouping');
-  return (
-    <div
-      data-slot="dashboard-grouping"
-      data-idle={idle || undefined}
-      className="flex shrink-0 items-center gap-1"
-    >
-      <ToggleGroup
-        value={[unit]}
-        onValueChange={next => {
-          const picked = next[0] as AnalysisDateUnit | undefined;
-          if (picked && units.includes(picked)) onChange(picked);
-        }}
-        variant="outline"
-        size="sm"
-        spacing={0}
-        aria-label={name}
-      >
-        {units.map(entry => (
-          <ToggleGroupItem key={entry} value={entry}>
-            {messages.label(`label.date-unit.${entry}`)}
-          </ToggleGroupItem>
-        ))}
-      </ToggleGroup>
-      {idle && (
-        <IconTooltip
-          label={messages.label('label.filters.idle', { filter: name })}
-          render={
-            <Button
-              data-slot="dashboard-filter-idle"
-              variant="ghost"
-              size="icon-xs"
-            />
-          }
-        >
-          <InfoIcon />
-        </IconTooltip>
-      )}
-      {onRemove && (
-        <IconButton
-          data-slot="dashboard-grouping-remove"
-          label={messages.label('label.filters.grouping-remove')}
-          variant="ghost"
-          size="icon-xs"
-          onClick={onRemove}
-        >
-          <XIcon />
-        </IconButton>
-      )}
-    </div>
   );
 }
