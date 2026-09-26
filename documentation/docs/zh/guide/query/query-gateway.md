@@ -11,32 +11,37 @@ description: 聚合级请求准备、作用域、授权、校验和响应处理�
 
 每次订阅独立执行：
 
-1. 从 Provider 取得一个 Schema。
+0. 准入入口并检查预算：从 Reactor Context 读取一次查询入口，入口为 `HTTP` 的查询必须符合 `wow.query.http.*` 预算（`QueryEntryPolicy`）。这一步作用于提交的原始 Query，发生在任何 Schema 或存储操作之前。
+1. 从 Provider 取得一个 Schema；开启 `wow.query.require-authenticated-scope=true` 时，已认证 scope 未固定 `tenantId` 的 `HTTP` 查询在此被拒绝。
 2. 按顺序执行 `QueryFilter.prepare`，每个 Filter 只返回一个准备后的逻辑 Query。
-3. 追加 Reactor Context 中的请求 scope。
+3. 追加 Reactor Context 中的调用方 scope。
 4. Snapshot 与 EventStream Gateway 通过公共策略链追加已配置 `QueryPolicy` 的规则条件；普通 Filter 不能把它提前删除。
-5. Gateway 唯一负责模型默认条件：Snapshot 未明确覆盖时补充 `DELETION = ACTIVE`，EventStream 不补充删除条件；游标追加模型唯一排序字段。
-6. 公共校验最终 Query，再调用 `backend.operation(query, schema)`。
-7. 对查询节点按同一 Schema 脱敏，然后按需进行 typed 物化。
-8. `QueryObserver` 观察完成、错误或取消。
+5. 追加模型默认范围：Snapshot 在 Query 未声明删除范围时补充 `DELETION = ACTIVE`，EventStream 不补充删除条件。
+6. `QueryAdmission` 完成准入：把字段别名替换为规范字段，为游标查询追加模型唯一排序字段，按 Schema 校验 Query，规范化（相对时间、派生操作符、逻辑化简）并解析每个字段引用，得到 `AdmittedQuery`。
+7. 以 `AdmittedQuery` 调用一个 Backend 原语：`stream`、`page`、`count` 或 `aggregate`。single、list、paged、cursor 都建立在 `stream` 与 `page` 之上。
+8. 对返回记录按同一 Schema 脱敏。
+9. 按需进行 typed 物化。
+10. `QueryObserver` 观察完成、错误或取消。
 
 ```mermaid
 flowchart LR
+    Entry["入口 + 预算"] --> Provider["Schema"]
     Provider --> Prepare["QueryFilter.prepare"]
-    Prepare --> Scope["Request scope"]
+    Prepare --> Scope["调用方 scope"]
     Scope --> Policy["QueryPolicy.evaluate"]
-    Policy --> Validate["Defaults + public validation"]
-    Validate --> Backend["Backend query + schema"]
+    Policy --> Default["模型默认范围"]
+    Default --> Admission["QueryAdmission"]
+    Admission --> Backend["Backend 原语(AdmittedQuery)"]
     Backend --> Mask["Mask"]
     Mask --> Result["ObjectNode / typed result"]
     Result --> Observer["Terminal observer"]
 ```
 
-Filter、校验、Backend、Mask 始终使用该次订阅捕获的 Schema。Schema 获取失败或 prepare 空完成都是错误，Backend 不执行。retry/repeat 会重新订阅并重新取得 Schema。count 返回 Long，不执行结果 Mask；aggregation 在执行前拒绝受保护的分组/metric/expression，不依靠修改聚合结果掩盖泄漏。
+整个订阅只使用一个 Schema 版本：准备、准入与脱敏都用它，`AdmittedQuery` 把它带给 Backend，Backend 的编译器读取已解析的字段，不再重新查找 Schema。Schema 获取失败或 prepare 空完成都是错误，Backend 不执行。retry/repeat 会重新订阅并重新取得 Schema。count 返回 Long，不执行结果 Mask；aggregation 在执行前拒绝受保护的分组/metric/expression，不依靠修改聚合结果掩盖泄漏。
 
 ## 请求准备扩展
 
-`QueryContext<Q>` 只包含 `query`、`namedAggregate` 和 `schema`。Filter 没有 continuation、结果对象或结果处理权限。它只负责准备请求，不能包围或重复调用 Backend：
+`QueryContext<Q>` 只包含 `query`、`namedAggregate`、`schema`、`queryType` 与 `entry`。Filter 没有 continuation、结果对象或结果处理权限。它只负责准备请求，不能包围或重复调用 Backend：
 
 ```kotlin
 interface QueryFilter {
@@ -44,7 +49,7 @@ interface QueryFilter {
 }
 ```
 
-`SnapshotQueryFilter` 与 `EventStreamQueryFilter` 限定适用模型；普通 `QueryFilter` 可供两者使用。`@Order` 决定准备顺序。改写后的请求使用逻辑路径，仍须通过最终 Schema 校验。
+`SnapshotQueryFilter` 与 `EventStreamQueryFilter` 限定适用模型；普通 `QueryFilter` 可供两者使用。`@Order` 决定准备顺序。改写后的请求使用逻辑路径，仍须通过准入。
 
 ## 请求准备与强制约束
 
@@ -57,7 +62,7 @@ interface QueryFilter {
 
 ## 请求作用域与策略
 
-WebFlux Handler 用 `QueryRequestScope` 解析 tenant/owner/space，把结果放入 Reactor Context，再调用 Gateway。`HttpQueryGuard` 在 HTTP 边界执行成本及响应限制；它不是 Gateway Filter。
+WebFlux Handler 用 `QueryRequestScope` 解析 tenant/owner/space，把结果放入 Reactor Context，再调用 Gateway。路由把查询入口标为 `HTTP`，因此 Gateway 在准入第 0 步检查 `wow.query.http.*` 预算。`HttpQueryGuard` 只在 Gateway 之外保留 HTTP 适配器自己的职责：响应行数上限、`limit=0` 默认值、空闲超时与缓冲；它不是 Gateway Filter。
 
 JVM 调用可以显式提供受信 scope：
 

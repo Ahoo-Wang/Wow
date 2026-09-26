@@ -63,9 +63,9 @@ Default event indexes are `wow.${contextAlias}.${aggregateName}.es`; snapshot in
 
 ## Snapshot Query Field Resolution
 
-The query factory combines logical `QuerySchema` with target mappings to resolve physical paths for exact match, range, sorting, presence, and projection. Multi-fields, runtime fields, and disabled objects follow Elasticsearch mappings; do not guess `.keyword` in the HTTP layer.
+The query factory combines the logical `QueryModelSchema` with target mappings to bind physical paths for exact match, range, sorting, presence, and projection; admission resolves each field reference against those bindings, and the compilers consume the resulting `ResolvedField`s. Multi-fields, runtime fields, and disabled objects follow Elasticsearch mappings; do not guess `.keyword` in the HTTP layer.
 
-## Refresh the Runtime Query Schema
+## Revalidate the Runtime Query Schema
 
 After mappings change, the runtime schema must be resolved again. Each instance revalidates its query schemas every `wow.query.schema.revalidate-interval`; to pick up a change now, call the `wowQuerySchema` actuator endpoint on every instance. Revalidation updates the in-memory schema only; it does not backfill documents or change mappings.
 
@@ -145,19 +145,19 @@ Retain index/alias, resolved mapping, request, item-level response error, and ru
 
 #### 1. Query reports an unmapped, incompatible, or ambiguous multi-field
 
-Inspect the actual mapping and runtime schema. Do not hard-code `.keyword` for every field. Correct templates/mappings or the explicit public field contract, then refresh schema.
+Inspect the actual mapping and runtime schema. Do not hard-code `.keyword` for every field. Correct templates/mappings or the explicit public field contract, then revalidate the schema.
 
-#### 2. Refresh endpoint is unavailable or refresh fails
+#### 2. The revalidation endpoint is unavailable or revalidation fails
 
-Verify WebFlux/OpenAPI capabilities, route authorization, and query-factory wiring. Mapping-read failure must remain a failure rather than degrading to “all fields are queryable.”
+Verify that Spring Boot Actuator is on the classpath and exposes the `wowQuerySchema` endpoint on the management plane, and that the query factory is wired; its `wow.query.schema.refresh` metric reports each outcome. Mapping-read failure must remain a failure rather than degrading to “all fields are queryable.”
 
 #### 3. An alias or data stream cannot be resolved
 
 The current converter emits concrete index names. Introducing aliases or data streams requires a migration consistent across reads, writes, and mapping resolution.
 
-#### 4. Old data is still unqueryable after updating a template and refreshing
+#### 4. Old data is still unqueryable after updating a template and revalidating
 
-Templates do not rewrite historical mappings or data. Reindex or migrate explicitly; schema refresh only rereads current backend capability.
+Templates do not rewrite historical mappings or data. Reindex or migrate explicitly; schema revalidation only rereads current backend capability.
 
 #### 5. A runtime-field query is rejected
 

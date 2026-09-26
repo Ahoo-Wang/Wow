@@ -213,7 +213,7 @@ A purely in-memory application has no PrepareStorage implementation and must set
 
 ## Query admission
 
-There is no query validation-mode setting. The Gateway strictly validates the final logical Query against its captured Schema; unknown fields and missing capabilities fail closed. Independent `HttpQueryGuard` settings control HTTP costs; see [Infrastructure Configuration](./infrastructure.md#webflux).
+There is no query validation-mode setting. The Gateway strictly validates the final logical Query against its captured Schema; unknown fields and missing capabilities fail closed. The `wow.query.http.*` budget bounds the cost of `HTTP`-entry queries and is checked by the Gateway at admission; see [Infrastructure Configuration](./infrastructure.md#query).
 
 Any value of the old `wow.query.schema.validation-mode` property, including `strict`, fails startup with an instruction to remove it. CamelCase spellings are rejected too; the setting is not silently ignored.
 

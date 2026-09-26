@@ -213,7 +213,7 @@ StateEvent 驱动快照处理。选择分布式实现时，应把该通道的积
 
 ## 查询准入
 
-当前查询不提供验证模式配置。Gateway 按同一 Schema 严格校验最终逻辑 Query；未知字段和缺失 capability 失败关闭。HTTP 成本限制由独立 `HttpQueryGuard` 负责，见[基础设施配置](./infrastructure.md#webflux)。
+当前查询不提供验证模式配置。Gateway 按同一 Schema 严格校验最终逻辑 Query；未知字段和缺失 capability 失败关闭。`wow.query.http.*` 预算限制入口为 `HTTP` 的查询成本，由 Gateway 在准入时检查，见[基础设施配置](./infrastructure.md#query)。
 
 旧 `wow.query.schema.validation-mode` 配置的任何值（包括 `strict`）都会在启动时明确失败并要求删除；camelCase 写法同样拒绝，不会静默忽略。
 
