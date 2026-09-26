@@ -69,11 +69,12 @@ import {
 } from './components/table.js';
 
 /**
- * The room a selection checkbox stands in: a 1.5rem box, centred in a cell
- * padded 0.5rem on both sides, so the column's content is the 2.5rem the
- * pinned offsets assume (`SELECT_WIDTH`) and cannot shrink below it. The
- * registry drops a checkbox cell's right padding; {@link SELECT_CELL} puts
- * it back.
+ * The room a selection checkbox stands in: the box where it always stood, at
+ * the start of the cell (the cell's padding, in line with a board panel's
+ * title and the rest of the column's content), with its room on the side
+ * its neighbours are. A 1.75rem box and the cell's 0.5rem of right padding,
+ * which the registry drops for a checkbox cell and {@link SELECT_CELL} puts
+ * back, put the cell's right edge 1.25rem from the box's centre.
  *
  * Why (second review R1-P1-9, R3-P1-7): the box is 16px, the WCAG 2.2
  * minimum target is 24px, and the exception for a smaller target is room —
@@ -81,12 +82,15 @@ import {
  * the column out at its content, 28px, the header's first sort button began
  * 8px from the box's centre, inside that circle (axe `target-size`,
  * serious), and the registry's own larger hit area (its `::after`, 0.75rem
- * either side, 2.5rem across) lay over the button. Centred in 2.5rem the
- * nearest neighbour starts 1.25rem from the centre and the hit area ends at
- * the cell's edges. The rows keep their height: the room is across, not
- * down.
+ * past the box on either side, so 1.25rem from its centre) lay over the
+ * button. Now the nearest neighbour starts 1.25rem from the centre and the
+ * hit area ends at the cell's edge. The room goes on the right, not around
+ * the box: moved in from the cell's padding, the box would stand out of
+ * line with everything else at that edge (a board panel holds a table's
+ * first content at its title, `OpsDailyEdges`). The rows keep their height:
+ * the room is across, not down.
  */
-const SELECT_BOX = 'flex size-6 items-center justify-center';
+const SELECT_BOX = 'flex w-7 items-center';
 const SELECT_CELL = '[&:has([role=checkbox])]:pr-2';
 
 export interface RecordTableProps {
