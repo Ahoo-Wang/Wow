@@ -270,7 +270,7 @@ jobs:
     env:
       # Trusted publishing needs npm 11.5.1 or later.
       # renovate: datasource=npm depName=npm
-      NPM_VERSION: 11.19.1
+      NPM_VERSION: 11.20.0
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
