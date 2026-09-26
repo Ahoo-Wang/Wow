@@ -152,10 +152,11 @@
 ### 这个暂停点（2026-09-26 晚：切换账号前停下）
 
 **在飞（09-26 晚，三道并行，全机子代理 ≤ 3，道与道不改同一文件）**：接手的会话先读本节，再读 [todo.md](todo.md) 和 `typescript/RELEASING.md`「首发清单」。在飞的分支都从 origin/main 开出，子代理失效时从分支接着做：
-  - 主题样式道：暗色地图陆地底色，其后 P1-4 窄屏指标卡（各一个 PR）；
-  - 分析道：P1-5 标签压盖、P1-6 柱多只标峰谷，分支 `fix/view-engine-chart-label-overlap`；
-  - 仅故事道：P1-2、P1-7、P1-8、P1-9，分支 `fix/storybook-review-p1-stories`；
-  - 协调者：#3652 修看板 e2e（命令 stub 用真实时钟打时间戳、页面时钟固定，12:00 UTC 起每个 PR 的 Dashboard Test 都失败；不是产品缺陷）。
+
+- 主题样式道：暗色地图陆地底色，其后 P1-4 窄屏指标卡（各一个 PR）；
+- 分析道：P1-5 标签压盖、P1-6 柱多只标峰谷，分支 `fix/view-engine-chart-label-overlap`；
+- 仅故事道：P1-2、P1-7、P1-8、P1-9，分支 `fix/storybook-review-p1-stories`；
+- 协调者：#3652 修看板 e2e（命令 stub 用真实时钟打时间戳、页面时钟固定，12:00 UTC 起每个 PR 的 Dashboard Test 都失败；不是产品缺陷）。
 
 「查询模块架构重构」会话管后端，契约变更走交接协议（见下方规则）。
 
