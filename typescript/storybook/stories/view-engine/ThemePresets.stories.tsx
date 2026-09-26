@@ -38,8 +38,8 @@ const PRIMARY = {
     dark: 'oklch(0.7333 0.1438 249.651)',
   },
   contrast: {
-    light: 'oklch(0.42 0.23 264)',
-    dark: 'oklch(0.74 0.15 253)',
+    light: 'oklch(0.38 0.23 264)',
+    dark: 'oklch(0.84 0.1 250)',
   },
 } as const;
 
@@ -113,6 +113,20 @@ function computed(color: string, within: Element = document.body): string {
   return value;
 }
 
+/** Re-runs `check` every 50ms until it passes, failing after 3s. */
+async function poll(check: () => void): Promise<void> {
+  const deadline = Date.now() + 3000;
+  for (;;) {
+    try {
+      check();
+      return;
+    } catch (error) {
+      if (Date.now() > deadline) throw error;
+      await new Promise(resolve => setTimeout(resolve, 50));
+    }
+  }
+}
+
 /**
  * The surface wears the preset: the embed carries it, and `primary` — what
  * a link, a focus ring and the one primary button are drawn in — resolves
@@ -136,10 +150,12 @@ const presetStory = (preset: Preset): Story => ({
     );
     const mode =
       getComputedStyle(surface).colorScheme === 'dark' ? 'dark' : 'light';
-    await waitFor(() =>
-      expect(computed('var(--primary)', surface)).toBe(
-        computed(PRIMARY[preset][mode]),
-      ),
+    const expected = computed(PRIMARY[preset][mode]);
+    // Polled, not `waitFor`: the probe adds and removes a node, and
+    // `waitFor` re-runs on every mutation, so a mismatch would spin forever
+    // instead of failing.
+    await poll(() =>
+      expect(computed('var(--primary)', surface)).toBe(expected),
     );
   },
 });
