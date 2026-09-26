@@ -52,6 +52,22 @@ class SensitiveValueTypeTest {
     }
 
     @Test
+    fun `a sensitive value type is found through maps and nested collections`() {
+        val state = load(ContainerValueTypeState::class.java)
+        val phone = DeclarationValue.Set(MaskRule(SensitivityLevel.DISPLAY, Mask(keepPrefix = 3, keepSuffix = 2)))
+
+        state.property("phoneBook").additionalProperties.value().maskRule.assert().isEqualTo(phone)
+        state.property("phoneGroups").maskRule.assert().isEqualTo(phone)
+        state.property("listBook").additionalProperties.value().maskRule.assert().isEqualTo(phone)
+        val idBook = state.property("idBook")
+        val idValues = (
+            idBook.alternatives.value().singleOrNull { it.additionalProperties is DeclarationValue.Set }
+                ?: idBook
+            ).additionalProperties.value()
+        idValues.maskRule.assert().isEqualTo(DeclarationValue.Set(MaskRule(SensitivityLevel.CONFIDENTIAL)))
+    }
+
+    @Test
     fun `a property may tighten but never loosen its value type`() {
         load(ValueTypeState::class.java).property("tightened").maskRule.assert()
             .isEqualTo(DeclarationValue.Set(MaskRule(SensitivityLevel.CONFIDENTIAL)))
@@ -92,6 +108,8 @@ class SensitiveValueTypeTest {
 
     private fun QuerySchemaDeclaration.property(name: String): QueryFieldDeclaration =
         fields.getValue(QueryField("state")).properties.valueOr().getValue(name)
+
+    private fun <T : Any> DeclarationValue<T?>.value(): T = checkNotNull((this as DeclarationValue.Set).value)
 
     private fun <T> DeclarationValue<Map<String, T>>.valueOr(): Map<String, T> =
         (this as? DeclarationValue.Set)?.value.orEmpty()

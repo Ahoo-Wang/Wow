@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.schema.query
 
+import com.fasterxml.classmate.ResolvedType
 import com.fasterxml.jackson.annotation.JsonValue
 import com.github.victools.jsonschema.generator.CustomDefinition
 import com.github.victools.jsonschema.generator.CustomPropertyDefinition
@@ -42,6 +43,7 @@ import tools.jackson.databind.ser.std.StdContainerSerializer
 import tools.jackson.databind.util.Converter
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.reflect.KClass
+import kotlin.reflect.KType
 import kotlin.reflect.full.primaryConstructor
 import kotlin.reflect.jvm.kotlinFunction
 import kotlin.reflect.jvm.kotlinProperty
@@ -149,7 +151,8 @@ private class MemberAttributeOverride<M : MemberScope<*, *>>(
 
 /**
  * The class the member's values are declared with: the Kotlin classifier (a value class erases to its underlying type
- * on the JVM), or the element class of a collection or array.
+ * on the JVM), unwrapped through containers until a value remains: a map's value type, a collection's or an array's
+ * element type, at any depth (`Map<String, List<PhoneNumber>>` declares `PhoneNumber` values).
  */
 private fun MemberScope<*, *>.valueType(): Class<*> {
     val kotlinType = runCatching {
@@ -161,18 +164,34 @@ private fun MemberScope<*, *>.valueType(): Class<*> {
             else -> null
         }
     }.getOrNull()
-    if (kotlinType != null) {
-        val declared = kotlinType.classifier as? KClass<*>
-        val element = kotlinType.arguments.singleOrNull()?.type?.classifier as? KClass<*>
-        val container = declared?.let { Iterable::class.java.isAssignableFrom(it.java) || it.java.isArray } == true
-        (if (container) element else declared)?.let { return it.java }
+    kotlinType?.valueClass()?.let { return it }
+    return type.valueClass()
+}
+
+private fun KType.valueClass(): Class<*>? {
+    var current: KType = this
+    while (true) {
+        val declared = (current.classifier as? KClass<*>)?.java ?: return null
+        val contained = when {
+            Map::class.java.isAssignableFrom(declared) -> current.arguments.lastOrNull()?.type
+            Iterable::class.java.isAssignableFrom(declared) || declared.isArray ->
+                current.arguments.singleOrNull()?.type ?: return declared.componentType
+            else -> return declared
+        }
+        current = contained ?: return declared
     }
-    val resolved = type
-    return when {
-        resolved.isArray -> resolved.arrayElementType.erasedType
-        Iterable::class.java.isAssignableFrom(resolved.erasedType) ->
-            resolved.typeParameters.singleOrNull()?.erasedType ?: resolved.erasedType
-        else -> resolved.erasedType
+}
+
+private fun ResolvedType.valueClass(): Class<*> {
+    var current = this
+    while (true) {
+        current = when {
+            current.isArray -> current.arrayElementType
+            Map::class.java.isAssignableFrom(current.erasedType) -> current.typeParameters.lastOrNull() ?: return current.erasedType
+            Iterable::class.java.isAssignableFrom(current.erasedType) ->
+                current.typeParameters.singleOrNull() ?: return current.erasedType
+            else -> return current.erasedType
+        }
     }
 }
 

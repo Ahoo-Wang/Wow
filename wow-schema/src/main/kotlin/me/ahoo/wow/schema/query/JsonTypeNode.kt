@@ -69,6 +69,12 @@ internal data class JsonTypeNode(
         properties.orEmpty().values.flatMap { it.descendantMembers() } + items?.descendantMembers().orEmpty() +
         additionalProperties?.value?.descendantMembers().orEmpty() +
         alternatives.orEmpty().flatMap { it.descendantMembers() }
+
+    /** Every member fact at or below this node whose value structure the node still describes. */
+    fun describedMembers(): List<QueryMemberFact> = members +
+        properties.orEmpty().values.flatMap { it.describedMembers() } + items?.describedMembers().orEmpty() +
+        additionalProperties?.value?.describedMembers().orEmpty() +
+        alternatives.orEmpty().flatMap { it.describedMembers() }
 }
 
 /** One member reached through several composed nodes keeps every annotation any of them reported. */
@@ -131,9 +137,16 @@ internal fun JsonTypeNode.intersect(other: JsonTypeNode, field: String): JsonTyp
 internal fun List<JsonTypeNode>.union(field: String): JsonTypeNode {
     if (size == 1) return single()
     if (isEmpty()) throw QuerySchemaConflictException("Conflicting query schema declaration: [$field.kind].")
+    // A null-only branch holds no value, so a member it lost is not lost while a sibling branch still describes it
+    // (`anyOf: [null, $ref]` beside member-level `additionalProperties` intersects the null branch with the map).
+    val alternatives = map { branch ->
+        if (branch.kind != QueryValueKind.NULL || branch.omitted.isEmpty()) return@map branch
+        val described = (this - branch).flatMap { it.describedMembers() }.toSet()
+        branch.copy(omitted = branch.omitted.filterNot { it in described })
+    }
     return JsonTypeNode(
         kind = QueryValueKind.UNION,
-        alternatives = this,
+        alternatives = alternatives,
         nullable = any { it.nullable ?: true },
         required = all { it.required ?: false },
     )
