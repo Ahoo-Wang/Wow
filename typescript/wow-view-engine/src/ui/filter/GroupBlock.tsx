@@ -31,6 +31,7 @@ import { AddEntry } from './AddEntry.js';
 import { ChoiceValue } from './inputs/shared.js';
 import { GROUP_OPERATOR_LABEL } from './groupOperators.js';
 import { ConditionPill } from './ConditionPill.js';
+import { useConditionFocus } from './conditionFocus.js';
 import { PendingDot, PENDING_AT_CORNER } from '../PendingDot.js';
 
 /** One group as a framed block: its operator, its children, room to add. */
@@ -42,12 +43,15 @@ export function GroupBlock({
   optionsFor,
   scope,
   isPending,
+  pick,
 }: {
   filter: FilterTreeController;
   group: FilterGroup;
   path: FilterPath;
   disabled?: boolean;
   optionsFor?: (remote: string) => FieldOption[] | undefined;
+  /** Opens this group's field list when it changes (`FieldChecklist`). */
+  pick?: number;
   /**
    * Whether the node at a path has been edited since the last apply. Only
    * the editor bound to a view has an applied tree to compare against; a
@@ -65,6 +69,7 @@ export function GroupBlock({
   const nested = path.length > 0;
   const messages = useViewMessages();
   const pending = isPending?.(path) === true;
+  const focus = useConditionFocus();
 
   return (
     <div
@@ -110,7 +115,10 @@ export function GroupBlock({
             variant="ghost"
             size="icon-sm"
             disabled={disabled}
-            onClick={() => filter.remove(path)}
+            onClick={event => {
+              focus.removing(event.currentTarget);
+              filter.remove(path);
+            }}
           >
             <XIcon />
           </IconButton>
@@ -140,6 +148,7 @@ export function GroupBlock({
           disabled={disabled}
           groups
           label={messages.label('label.filter.add-condition')}
+          {...(pick === undefined ? {} : { pick })}
           {...(scope
             ? {
                 name: within(

@@ -11,6 +11,7 @@
  * limitations under the License.
  */
 
+import { useEffect, useRef } from 'react';
 import { cn } from 'cn';
 import { XIcon } from 'lucide-react';
 import { filterIndexes, type FilterSummaryItem } from '../filter/index.js';
@@ -19,8 +20,9 @@ import { summaryText } from './summary.js';
 import { IconButton } from './IconButton.js';
 import { useViewMessages } from './MessagesProvider.js';
 import { TEXT_UI } from './layout.js';
-import { WrappingBadge } from './variants.js';
+import { FOCUS_CARD, WrappingBadge } from './variants.js';
 import { useSurfaceDisplay } from './ViewSurface.js';
+import { fell } from './filter/conditionFocus.js';
 
 export interface AppliedBarProps {
   filter: FilterEditorController;
@@ -78,19 +80,49 @@ export function AppliedBar({
   // belong to the page rather than to the view. They read as `scoped` on the
   // controller precisely because no path here addresses them.
   const { applied, scoped, implied } = filter;
+  const bar = useRef<HTMLDivElement>(null);
+  // Where the keyboard goes once a ✕ it pressed has taken its badge away
+  // (review R1-P1-1). The badge leaves only when the query under the new
+  // conditions answers — this bar is the result's conditions, not the
+  // draft's — so the press says which badge is going, and every render
+  // after it asks whether it has gone yet. Then the keyboard stands where
+  // the badge was: the ✕ that took its place, the one before it, and the
+  // bar itself when no condition of the view's own is left to take out.
+  // Only a keyboard that really fell is moved.
+  const going = useRef<{ key: string; at: number } | null>(null);
+  useEffect(() => {
+    const next = going.current;
+    if (!next || applied.some(item => item.path.join('.') === next.key)) return;
+    going.current = null;
+    if (!fell() || !bar.current) return;
+    const removes = [
+      ...bar.current.querySelectorAll<HTMLElement>('[data-applied-unset]'),
+    ];
+    (removes[next.at] ?? removes[next.at - 1] ?? bar.current).focus();
+  });
   // Nothing has been asked, so there is nothing to say it was asked under.
   if (!asked) return null;
 
   return (
     <div
+      ref={bar}
       data-slot="applied-bar"
       role="region"
+      // Where the keyboard lands when the last ✕ has taken its condition
+      // out: the band still says what is in force (「全部记录」), and it is
+      // the nearest thing to where the keyboard was. Not a Tab stop.
+      tabIndex={-1}
       aria-label={
         title
           ? messages.label('label.applied.title-of', { view: title })
           : messages.label('label.applied.title')
       }
-      className={cn('flex flex-wrap items-center gap-1', TEXT_UI, className)}
+      className={cn(
+        'flex flex-wrap items-center gap-1 rounded-md',
+        FOCUS_CARD,
+        TEXT_UI,
+        className,
+      )}
     >
       <span className="text-muted-foreground shrink-0">
         {messages.label('label.applied.title')}
@@ -102,7 +134,7 @@ export function AppliedBar({
           {messages.label('label.applied.all')}
         </span>
       )}
-      {applied.map(item => (
+      {applied.map((item, index) => (
         // A group reads out as one badge, its conditions joined by its own
         // operator, so the bar keeps the logic the tree has. Its remove
         // takes the condition out of force — the value goes back to
@@ -130,6 +162,7 @@ export function AppliedBar({
             // pointer as well.
             <IconButton
               type="button"
+              data-applied-unset=""
               label={messages.label('label.filter.unset-of', {
                 condition: say(item),
               })}
@@ -142,6 +175,7 @@ export function AppliedBar({
               // pill does not grow a second box round the button.
               className="-mr-1.5 opacity-60 hover:opacity-100 focus-visible:opacity-100"
               onClick={() => {
+                going.current = { key: item.path.join('.'), at: index };
                 // A segment is two conditions said as one badge, so its ✕
                 // takes out the segment, not one edge of it.
                 for (const path of item.paths ?? [item.path])

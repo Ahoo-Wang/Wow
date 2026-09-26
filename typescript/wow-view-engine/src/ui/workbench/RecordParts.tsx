@@ -238,16 +238,29 @@ export function RecordParts({
     null,
   );
   const editorOpen = fold?.id === runtimeId ? fold.open : undefined;
+  // 「添加条件」 on an empty result with nothing asked is a request for a
+  // field: it opens the fold and the field list in it, rather than leaving
+  // the keyboard on a button that has just been taken off the screen.
+  const [pick, setPick] = useState<{ id: string | null; n: number } | null>(
+    null,
+  );
 
   // What the empty result offers, and the press that takes it (`wayOutOf`,
   // shared with the analysis's empty result).
   const shown = featuresOf(features);
+  const hasConditions = filter.applied.length > 0;
   const { wayOut, take: emptyAction } = wayOutOf({
     state,
-    hasConditions: filter.applied.length > 0,
+    hasConditions,
     filter,
     runtime: record,
-    openEditor: () => setFold({ id: runtimeId, open: true }),
+    openEditor: () => {
+      setFold({ id: runtimeId, open: true });
+      // Without conditions the editor is opened for `add`: the question
+      // to ask starts with a field.
+      if (!hasConditions)
+        setPick(last => ({ id: runtimeId, n: (last?.n ?? 0) + 1 }));
+    },
   });
   // The host's word over the workbench's: a function replaces the answer,
   // `null` takes the button away and leaves the sentence.
@@ -269,7 +282,12 @@ export function RecordParts({
       />
     ),
     editorOpen,
-    onEditorOpenChange: open => setFold({ id: runtimeId, open }),
+    onEditorOpenChange: open => {
+      setFold({ id: runtimeId, open });
+      // Spent: the list it opened is the fold's, and a fold opened again by
+      // hand is not a request for a field.
+      if (!open) setPick(null);
+    },
     search: shown.search && searchBox && <SearchBox search={searchBox} />,
     // The status line names every field, summary and operator a finding
     // names as the screen does, never by its path (`recordIssueNamer`).
@@ -280,7 +298,12 @@ export function RecordParts({
     /* Not frozen while a query runs: typing never re-queries, and a refresh
        that lands mid-edit must not take the input away. */
     editor: (
-      <FilterPanel filter={filter} optionsFor={optionsFor} modes={false} />
+      <FilterPanel
+        filter={filter}
+        optionsFor={optionsFor}
+        modes={false}
+        pick={pick?.id === runtimeId ? pick.n : 0}
+      />
     ),
     /* The way out of a config that will not run. It is the same panel the
        toolbar's button opens — and it is offered here because the state

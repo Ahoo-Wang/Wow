@@ -48,6 +48,7 @@ export function AddEntry({
   groups,
   label,
   name,
+  pick,
 }: {
   filter: FilterTreeController;
   parent: FilterPath;
@@ -58,6 +59,8 @@ export function AddEntry({
   label?: string;
   /** The accessible name, where it says more than the text (`FieldChecklist`). */
   name?: string;
+  /** Opens the field list when it changes (`FieldChecklist`'s `pick`). */
+  pick?: number;
 }) {
   const messages = useViewMessages();
   const text = label ?? messages.label('label.filter.add');
@@ -69,6 +72,7 @@ export function AddEntry({
       disabled={disabled}
       label={text}
       {...(name === undefined ? {} : { name })}
+      {...(pick === undefined ? {} : { pick })}
     />
   );
 

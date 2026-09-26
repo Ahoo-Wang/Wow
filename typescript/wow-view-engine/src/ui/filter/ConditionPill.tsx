@@ -53,6 +53,7 @@ import { PendingDot, PENDING_AT_CORNER } from '../PendingDot.js';
 import { PillSelectTrigger } from '../variants.js';
 import { UnsupportedValue } from './inputs/unsupported.js';
 import { GroupBlock } from './GroupBlock.js';
+import { useConditionFocus } from './conditionFocus.js';
 
 /**
  * The pill's own frame, shared by the editable condition and the read-only
@@ -106,6 +107,7 @@ export function ConditionPill({
   negated?: boolean;
 }) {
   const messages = useViewMessages();
+  const focus = useConditionFocus();
   const pending = isPending?.(path) === true;
   const field = filter.fields.find(entry => entry.name === leaf.field);
   const label = field?.label ?? leaf.field;
@@ -201,7 +203,10 @@ export function ConditionPill({
       variant="ghost"
       size="icon-sm"
       disabled={disabled}
-      onClick={() => filter.remove(path)}
+      onClick={event => {
+        focus.removing(event.currentTarget);
+        filter.remove(path);
+      }}
     >
       <XIcon />
     </IconButton>
@@ -259,6 +264,7 @@ export function ConditionPill({
     return (
       <div
         data-slot="filter-condition"
+        data-path={path.join('.')}
         data-unsupported=""
         role="group"
         aria-label={messages.label('label.filter.condition-of', {
@@ -299,6 +305,7 @@ export function ConditionPill({
     return (
       <div
         data-slot="filter-element"
+        data-path={path.join('.')}
         role="group"
         aria-label={messages.label('label.filter.condition-of', {
           field: label,
@@ -333,6 +340,7 @@ export function ConditionPill({
   return (
     <div
       data-slot="filter-condition"
+      data-path={path.join('.')}
       role="group"
       aria-label={messages.label('label.filter.condition-of', {
         field: label,

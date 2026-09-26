@@ -332,6 +332,8 @@ export const zhCN: ViewMessages = {
   'label.filter.not-set': '未设置',
   'label.filter.pending': '尚未应用',
   'label.filter.blocked': '{count} 项待修正',
+  'label.filter.needs-condition': '先添加一个条件才能查询',
+  'label.filter.needs-value': '给条件填上值才能查询',
   'label.filter.kind-unregistered': '这个字段的类型（{kind}）没有注册编辑器。',
   'label.filter.negate-of': '{field} 条件取反',
   'label.filter.negated': '不',

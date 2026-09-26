@@ -612,9 +612,10 @@ src/
       AddEntry.tsx            — The field picker a group is added to from
       ConditionPill.tsx       — One condition; the element-match block; `PendingDot`
       FieldChecklist.tsx      — The field picker: a grid of checkboxes by catalogue group, with a search (user ruling 2026-09-21)
-      FilterActions.tsx       — Clear and Apply, with the blocked count
+      FilterActions.tsx       — Clear and Apply, with the blocked count and why Apply waits for a condition
       FilterModes.tsx         — Simple / advanced, and whether the other mode is reachable
       GroupBlock.tsx          — One group as a framed block, and its strip of conditions
+      conditionFocus.ts       — Where the keyboard lands after a condition or group is removed
       enter.ts                — `isPlainEnter`: whether a press of Enter is the editor's to act on
       groupOperators.ts       — The group operators' wording, shared by select and menu
       inputs/                 — One file per `EditorDescriptor.input`, plus shared.tsx

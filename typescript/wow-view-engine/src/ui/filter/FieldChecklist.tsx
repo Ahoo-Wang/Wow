@@ -45,6 +45,7 @@ import {
 } from '../components/popover.js';
 import { useViewMessages } from '../MessagesProvider.js';
 import { PopoverContent } from '../popups.js';
+import { conditionAt, ownerOf } from './conditionFocus.js';
 
 /**
  * The fields of a group, as a grid of checkboxes to tick rather than a menu
@@ -85,6 +86,7 @@ export function FieldChecklist({
   disabled,
   label,
   name,
+  pick,
 }: {
   filter: FilterTreeController;
   parent: FilterPath;
@@ -98,12 +100,33 @@ export function FieldChecklist({
    * it, so what a reader hears is what a sighted user reads, plus whose.
    */
   name?: string;
+  /**
+   * Opens the list when it changes to a new number: a press elsewhere that
+   * means 「pick a field」 — the empty result's 「添加条件」 — lands here
+   * rather than one Tab short of it. `0`, the default, opens nothing.
+   */
+  pick?: number;
 }) {
   const messages = useViewMessages();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const search = useRef<HTMLInputElement>(null);
+  const trigger = useRef<HTMLButtonElement>(null);
+  // The fields ticked on this visit, in the order they were ticked: the
+  // first of them is where the keyboard goes when the list closes.
+  const added = useRef<string[]>([]);
   const ids = useId();
+
+  // A new `pick` opens the list — set while rendering, the way React has a
+  // prop's change adjust state, rather than one render later in an effect.
+  // A list drawn with a `pick` already standing opens too: the request is
+  // what put it on the screen (the fold the empty result's 「添加条件」
+  // opened). The caller takes the number back to 0 once it is spent.
+  const [picked, setPicked] = useState(0);
+  if ((pick ?? 0) !== picked) {
+    setPicked(pick ?? 0);
+    if ((pick ?? 0) > 0 && !disabled) setOpen(true);
+  }
 
   // Everything the group could hold, in catalogue order: what may still be
   // added, plus what is already there. `fieldsFor` answers only the first
@@ -136,8 +159,10 @@ export function FieldChecklist({
   const toggle = (field: FieldDefinition, ticked: boolean) => {
     if (ticked) {
       filter.addLeaf(field.name, parent);
+      added.current = [...added.current, field.name];
       return;
     }
+    added.current = added.current.filter(name => name !== field.name);
     const at = held.get(field.name);
     if (at) filter.remove(at);
   };
@@ -192,12 +217,15 @@ export function FieldChecklist({
         // What was typed belongs to the visit, not to the view: a picker
         // opened again starts on the whole catalogue.
         if (!next) setQuery('');
+        else added.current = [];
       }}
     >
       {/* The trigger is the "add" button the tray already had — an icon, a
           word, no chevron — so it is the primitive's trigger rendering a
           plain `Button` rather than a select-like field. */}
       <PopoverTrigger
+        ref={trigger}
+        data-filter-add=""
         disabled={disabled}
         render={<Button variant="outline" size="sm" disabled={disabled} />}
         aria-label={name}
@@ -212,6 +240,32 @@ export function FieldChecklist({
         // them, which is the whole point of having a search line.
         className="@container/checklist w-(--available-width) max-w-140 overflow-y-hidden"
         initialFocus={search}
+        // A field ticked here is a condition waiting for its value, so the
+        // keyboard goes on to that value rather than back to 「添加」, one
+        // Tab away from it at best — and at worst, when the list was opened
+        // by a press elsewhere (the empty result's 「添加条件」), a trigger
+        // the keyboard never came from. Nothing ticked: the trigger, as
+        // before. A keyboard something else took while the list closed
+        // stays where it went (the race `focusMovedOn` guards for menus).
+        finalFocus={() => {
+          const active = document.activeElement;
+          const popup = search.current?.closest(
+            '[data-slot="popover-content"]',
+          );
+          if (
+            active instanceof HTMLElement &&
+            active !== document.body &&
+            !popup?.contains(active)
+          )
+            return false;
+          const first = added.current.find(name => held.has(name));
+          added.current = [];
+          const path = first === undefined ? undefined : held.get(first);
+          const condition = path
+            ? conditionAt(ownerOf(trigger.current), path)
+            : null;
+          return valueOf(condition) ?? trigger.current ?? true;
+        }}
       >
         <PopoverHeader className="flex-row items-center gap-2">
           <PopoverTitle className="flex-1 truncate">
@@ -288,5 +342,35 @@ export function FieldChecklist({
         </div>
       </PopoverContent>
     </Popover>
+  );
+}
+
+/**
+ * The control a condition's value is written in, or the condition's first
+ * control when it has no value to write (an operator such as 「为空」, or
+ * an element match, whose conditions are further in).
+ */
+function valueOf(condition: HTMLElement | null): HTMLElement | null {
+  if (!condition) return null;
+  const value = condition.querySelector<HTMLElement>(
+    '[data-slot="filter-value"]',
+  );
+  return firstControl(value) ?? firstControl(condition);
+}
+
+function firstControl(within: HTMLElement | null): HTMLElement | null {
+  if (!within) return null;
+  // `focusIn` focuses as it finds; the popup focuses what it is handed, so
+  // this asks the same question without acting on the answer.
+  return (
+    [
+      ...within.querySelectorAll<HTMLElement>(
+        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
+      ),
+    ].find(
+      node =>
+        !node.hasAttribute('disabled') &&
+        node.getAttribute('aria-disabled') !== 'true',
+    ) ?? null
   );
 }
