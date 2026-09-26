@@ -80,19 +80,18 @@ export const WorldMapDrawn: Story = {
       zhCN['label.chart.map.unplaced'].replace('{count}', '1'),
     );
     // The deepest area is the largest market.
-    const fills = [
-      ...frame.querySelectorAll<SVGPathElement>(
-        '[data-slot="chart-plot"] svg path',
-      ),
-    ];
     const rgb = (text: string | null) =>
       text && parse(text) ? formatRgb(parse(text)!) : '';
     const first = rgb(getComputedStyle(frame).getPropertyValue('--chart-1'));
-    const deepest = fills.find(
-      path => rgb(path.getAttribute('fill')) === first,
-    );
-    await expect(deepest).toBeDefined();
-    pressMark(deepest!);
+    // Found again right before the press: the map can redraw meanwhile.
+    const deepest = () =>
+      [
+        ...frame.querySelectorAll<SVGPathElement>(
+          '[data-slot="chart-plot"] svg path',
+        ),
+      ].find(path => rgb(path.getAttribute('fill')) === first);
+    await expect(deepest()).toBeDefined();
+    pressMark(deepest()!);
     const menu = await waitFor(() => {
       const found = document.querySelector<HTMLElement>(
         '[data-slot="drill-menu"]',
@@ -223,9 +222,10 @@ function squares(frame: HTMLElement): SVGPathElement[] {
 }
 
 /**
- * The six squares of the drawn map. `data-drawn` is set by the first drawing
- * and there is no second one: the page's preset is on `<html>` before the
- * story renders (`preview.tsx`), so the chart reads its theme once.
+ * The six squares of the drawn map. The theme is read once — the page's
+ * preset is on `<html>` before the story renders (`preview.tsx`) — but a
+ * late layout can still resize the plot and redraw it, so a square is found
+ * again right before it is pressed.
  */
 const drawnSquares = (frame: HTMLElement): Promise<SVGPathElement[]> =>
   waitFor(() => {
@@ -332,8 +332,9 @@ export const ChinaProvinceRecords: Story = {
   beforeEach: registerFixtureChina,
   play: async ({ canvasElement }) => {
     const frame = await mapReady(canvasElement);
-    const [guangdong] = await drawnSquares(frame);
-    pressMark(guangdong!);
+    await drawnSquares(frame);
+    // Found again right before the press: the map can redraw meanwhile.
+    pressMark(squares(frame)[0]!);
     const menu = await drillMenu();
     await expect(
       menu.querySelector('[data-slot="drill-group"]'),
@@ -380,8 +381,9 @@ export const ChinaProvinceSplit: Story = {
   beforeEach: registerFixtureChina,
   play: async ({ canvasElement }) => {
     const frame = await mapReady(canvasElement);
-    const [guangdong] = await drawnSquares(frame);
-    pressMark(guangdong!);
+    await drawnSquares(frame);
+    // Found again right before the press: the map can redraw meanwhile.
+    pressMark(squares(frame)[0]!);
     const menu = await drillMenu();
     await userEvent.hover(
       within(menu).getByRole('menuitem', { name: zhCN['label.drill.split'] }),

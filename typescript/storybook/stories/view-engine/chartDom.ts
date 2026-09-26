@@ -263,6 +263,14 @@ export function axisTicks(
  * none it could place, and a press that lands on nothing opens nothing.
  */
 export function pressMark(mark: Element): void {
+  // A mark the library drew again after it was found is off the page: a
+  // press on it reaches nothing, and the test would only see the menu not
+  // open. The chart can redraw between an `await` and the press (a late
+  // layout resizes it), so a mark is found right before it is pressed.
+  if (!mark.isConnected)
+    throw new Error(
+      'pressMark: the mark was drawn again after it was found; find it right before the press',
+    );
   const box = mark.getBoundingClientRect();
   const at = {
     bubbles: true,
