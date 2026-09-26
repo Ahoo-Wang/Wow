@@ -66,7 +66,7 @@ import {
 import { MEMBER_OPTIONS, RETAIL_SOURCES } from './source.js';
 
 const { TERMS, HISTOGRAM, DATE_HISTOGRAM, DATE_PART } = AggregationGroupType;
-const { SUM, AVG, MIN, MAX } = AggregationFunction;
+const { SUM, AVG, MIN, MAX, STDDEV } = AggregationFunction;
 const { HOUR, DAY, WEEK, MONTH, QUARTER } = AggregationDateUnit;
 
 // ---------------------------------------------------------------- 读法
@@ -203,12 +203,12 @@ function terms(...fields: string[]): AggregationFieldCapability[] {
   return fields.map(field => ({ field, groups: [TERMS], functions: [] }));
 }
 
-/** 能汇总、能分区间、能取百分位的数值字段。 */
+/** 能汇总、能分区间、能取百分位与标准差（波动）的数值字段。 */
 function numeric(...fields: string[]): AggregationFieldCapability[] {
   return fields.map(field => ({
     field,
     groups: [HISTOGRAM],
-    functions: [SUM, AVG, MIN, MAX],
+    functions: [SUM, AVG, MIN, MAX, STDDEV],
     percentile: true,
     // 期初值、期末值（FIRST / LAST）：K 线的开与收。
     firstLast: true,

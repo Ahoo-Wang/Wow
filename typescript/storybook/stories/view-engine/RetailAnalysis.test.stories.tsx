@@ -94,6 +94,7 @@ const ORDER_VIEWS = [
   '新客与老客的 GMV',
   '成交单价分布（每 100 元一档）',
   '支付方式构成',
+  '季度 GMV 与单笔实付的波动',
 ];
 
 export const OrderAnalysis: Story = {
@@ -506,11 +507,12 @@ const money = (text: string) => Number(text.replace(/[¥,]/g, ''));
 /**
  * 批 B in the scenes: A-11 draws the median and the daily average and the
  * promotion-day target band, which only 2025-11-11 reaches; A-12 draws a
- * 4-week moving average and a target band under the 5% red line.
+ * 4-week moving average and a target band under the 5% red line; the
+ * quarterly review buckets by QUARTER and reads a STDDEV.
  */
 export const ReferencesInTheScenes: Story = {
   ...DisplayOrderAnalysis,
-  name: '参考线、目标区间与移动平均（A-11、A-12）',
+  name: '参考线、目标区间、移动平均与季度波动（A-11、A-12）',
   play: async ({ canvasElement }) => {
     const promotion = await openAnalysis(
       canvasElement,
@@ -548,6 +550,16 @@ export const ReferencesInTheScenes: Story = {
     const smoothed = parseFloat(readColumn(weeks, average!)[at]!);
     await expect(smoothed).toBeGreaterThan(5);
     await expect(smoothed).toBeLessThan(62.1);
+
+    // Quarters, dense, with the spread of one payment (STDDEV): widest in
+    // the quarter of the big promotion.
+    await openAnalysis(canvasElement, '季度 GMV 与单笔实付的波动');
+    const quarters = await reading(canvasElement);
+    await expect(readColumn(quarters, '季度')).toHaveLength(9);
+    const spread = readColumn(quarters, '单笔实付的标准差').map(money);
+    const widest = spread.indexOf(Math.max(...spread));
+    await expect(readColumn(quarters, '季度')[widest]).toBe('2025年 Q4');
+    await expect(spread[widest]).toBe(219.79);
   },
 };
 

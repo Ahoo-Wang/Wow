@@ -1199,6 +1199,49 @@ export const ANALYSIS_VIEWS: ViewInstance[] = [
       },
     }),
   ),
+  // A-12 旁的季度复盘：每季度的 GMV（柱）与单笔实付的标准差（线，右轴）——
+  // 大促所在的第四季度不只卖得多，单笔的高低也拉得最开。按季度分桶、补空
+  // 桶，季度从 1/4/7/10 月开始。
+  shared(
+    ANALYSTS,
+    'a12-quarterly-spread',
+    '季度 GMV 与单笔实付的波动',
+    analysis({
+      filter: and(PAID_ONLY),
+      groups: [
+        {
+          type: 'DATE_HISTOGRAM',
+          field: 'firstEventTime',
+          alias: 'quarter',
+          unit: 'QUARTER',
+          label: '季度',
+          dense: true,
+        },
+      ],
+      metrics: [
+        gmv(),
+        {
+          alias: 'spread',
+          type: 'NUMERIC',
+          function: 'STDDEV',
+          expression: { type: 'FIELD', field: PAID },
+          label: '单笔实付的标准差',
+        },
+      ],
+      sort: [{ alias: 'quarter', direction: 'ASC' }],
+      chart: {
+        type: 'combo',
+        cartesian: {
+          x: 'quarter',
+          series: [
+            { metric: 'gmv', type: 'bar' },
+            { metric: 'spread', type: 'line', axis: 'right' },
+          ],
+        },
+        legend: 'top',
+      },
+    }),
+  ),
 ];
 
 // ================================================================ 会员分析
