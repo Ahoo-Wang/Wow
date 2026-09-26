@@ -12,7 +12,8 @@
  */
 
 import { CalendarIcon } from 'lucide-react';
-import { useId } from 'react';
+import { useCallback, useId, useLayoutEffect, useMemo, useRef } from 'react';
+import type { DateRange } from 'react-day-picker';
 import { cn } from 'cn';
 import type { FilterValue } from '../../../model/index.js';
 import {
@@ -95,6 +96,36 @@ export function AbsoluteDate({
     );
   };
 
+  // The registry's calendar draws its parts as components made anew on each
+  // of its renders, so every render of it is a fresh calendar: the day under
+  // the pointer and the focus inside the grid gone. A board renders often —
+  // its panels answering, a refresh — so the calendar is held to its own
+  // inputs: the days picked, and a pick that reads the latest bounds.
+  const pickRange = (selected: DateRange | undefined) =>
+    put({
+      from: { ...from, day: dayOf(selected?.from) },
+      to: { ...to, day: dayOf(selected?.to) },
+    });
+  const pickDay = (selected: Date | undefined) =>
+    put({ from: { ...from, day: dayOf(selected) } });
+  const picks = useRef({ range: pickRange, day: pickDay });
+  useLayoutEffect(() => {
+    picks.current = { range: pickRange, day: pickDay };
+  });
+  const onRange = useCallback(
+    (selected: DateRange | undefined) => picks.current.range(selected),
+    [],
+  );
+  const onDay = useCallback(
+    (selected: Date | undefined) => picks.current.day(selected),
+    [],
+  );
+  const days = useMemo(
+    () => ({ from: parseDay(from.day), to: parseDay(to.day) }),
+    [from.day, to.day],
+  );
+  const day = useMemo(() => parseDay(from.day), [from.day]);
+
   return (
     <Popover>
       <PopoverTrigger
@@ -122,22 +153,15 @@ export function AbsoluteDate({
           <SurfaceCalendar
             mode="range"
             autoFocus
-            selected={{ from: parseDay(from.day), to: parseDay(to.day) }}
-            onSelect={selected =>
-              put({
-                from: { ...from, day: dayOf(selected?.from) },
-                to: { ...to, day: dayOf(selected?.to) },
-              })
-            }
+            selected={days}
+            onSelect={onRange}
           />
         ) : (
           <SurfaceCalendar
             mode="single"
             autoFocus
-            selected={parseDay(from.day)}
-            onSelect={selected =>
-              put({ from: { ...from, day: dayOf(selected) } })
-            }
+            selected={day}
+            onSelect={onDay}
           />
         )}
         {withTime && (

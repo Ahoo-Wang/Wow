@@ -837,6 +837,35 @@ describe('FilterValueEditor', () => {
       expect(screen.getByRole('button', { name: zhCN[key] })).toBeTruthy();
   });
 
+  /**
+   * The registry's calendar makes its parts anew on each of its renders, so
+   * a render of the calendar is a new calendar. A board renders whenever a
+   * panel answers; a render that reached the calendar mid-pick took the day
+   * under the pointer out of the document, and the pick went nowhere.
+   */
+  it('keeps the calendar it drew while its host renders again', async () => {
+    const day = editor({ input: 'dateRange', range: true, withTime: true }, {
+      type: 'absolute',
+      from: '2026-09-16',
+    } as unknown as FilterValue);
+
+    const user = userEvent.setup();
+    await user.click(screen.getByLabelText('amount'));
+    const twentieth = await screen.findByRole('button', {
+      name: /September 20/,
+    });
+    // The same value, held anew: the host rendered, nothing changed.
+    day.replace({ type: 'absolute', from: '2026-09-16' } as never);
+    expect(twentieth.isConnected).toBe(true);
+
+    await user.click(twentieth);
+    expect(last(day.changes)).toEqual({
+      type: 'absolute',
+      from: '2026-09-16',
+      to: '2026-09-20',
+    });
+  });
+
   it('stores both ends of a day range as days', async () => {
     const { changes } = editor(
       { input: 'dateRange', range: true, withTime: false },
