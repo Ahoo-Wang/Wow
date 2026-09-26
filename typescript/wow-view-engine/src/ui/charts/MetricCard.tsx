@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import { useCallback } from 'react';
+import { type CSSProperties, useCallback } from 'react';
 import { MinusIcon, TrendingDownIcon, TrendingUpIcon } from 'lucide-react';
 import { useChartMotion } from './motion.js';
 import type { MetricCardData, MetricPeriod } from '../../analysis/index.js';
@@ -108,10 +108,11 @@ const DIRECTION_ICON = {
  */
 /**
  * A change badge that wraps inside the card rather than running past its
- * edge: 「-¥1,382.92 · -18.6%」 is wider than a card half a phone wide (two
- * to a row in a board's narrow reading). Only on a card that narrow (the
- * same `@container/metric` the figure reads); anywhere wider it stays the
- * registry's one-line pill, exactly as it was.
+ * edge, should it still be wider than the card: on a card under 10rem — half
+ * a phone wide, two to a row in a board's narrow reading — the stylesheet
+ * shows the share alone (`data-share`, `styles.css`), which fits on one
+ * line; a change with no share keeps its amount, and this is what holds it
+ * in. Anywhere wider it stays the registry's one-line pill, as it was.
  */
 const CHANGE_WRAPS =
   'max-w-full @max-3xs/metric:h-auto @max-3xs/metric:min-h-5 @max-3xs/metric:py-0 @max-3xs/metric:whitespace-normal';
@@ -148,7 +149,7 @@ function PeriodChange({
     );
   const { direction, tone } = directionOf(change.delta, lowerIsBetter);
   const Icon = DIRECTION_ICON[direction];
-  const sign = change.delta > 0 ? '+' : '';
+  const amount = `${change.delta > 0 ? '+' : ''}${show(change.delta)}`;
   const ratio =
     change.ratio === null
       ? undefined
@@ -159,9 +160,20 @@ function PeriodChange({
       data-direction={direction}
       className="flex flex-wrap items-center gap-1.5 text-sm"
     >
-      <ChangeBadge direction={direction} tone={tone} className={CHANGE_WRAPS}>
+      <ChangeBadge
+        direction={direction}
+        tone={tone}
+        className={CHANGE_WRAPS}
+        // The share alone, which a card too narrow for the whole change
+        // shows in its place (styles.css), and the whole change for a
+        // pointer there; a screen reader reads the words themselves.
+        {...(ratio === undefined
+          ? {}
+          : { 'data-share': ratio, title: `${amount} · ${ratio}` })}
+      >
         <Icon data-icon="inline-start" />
-        {`${sign}${show(change.delta)}`}
+        {/* Two runs of text, as the badge has always drawn them. */}
+        {amount}
         {ratio !== undefined && ` · ${ratio}`}
       </ChangeBadge>
       <span className="text-muted-foreground">
@@ -297,6 +309,7 @@ export function MetricCard({
     : data.whole
       ? messages.label('label.chart.period.whole')
       : undefined;
+  const figure = data.value === null ? '—' : show(data.value);
   return (
     <div
       data-slot="metric-card"
@@ -315,9 +328,12 @@ export function MetricCard({
       )}
       <span
         data-slot="metric-value"
-        className="text-3xl font-semibold tabular-nums @max-3xs/metric:text-2xl"
+        className="text-3xl font-semibold tabular-nums"
+        // How many characters the figure is, which the stylesheet sizes it
+        // by so that it fits the card on one line (`styles.css`).
+        style={{ '--_fve-metric-chars': figure.length } as CSSProperties}
       >
-        {data.value === null ? '—' : show(data.value)}
+        {figure}
       </span>
       {period && !period.partial && (
         <PeriodChange

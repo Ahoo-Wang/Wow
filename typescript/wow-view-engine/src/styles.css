@@ -2993,8 +2993,61 @@
  * result to stand in and keeps its 3xl.
  */
 .fve-root [data-slot='dashboard-panel'] [data-slot='metric-value'] {
-  font-size: var(--text-2xl);
+  --_fve-metric-size: var(--text-2xl);
   line-height: 1;
+}
+
+/*
+ * A metric's figure fits its card on one line (review 2026-09-26 P1-4: at
+ * 390px wide 「¥175,324.65」 ran past a tile half the phone wide and was
+ * cut). Each place says the size the figure is set at — 3xl, 2xl on a card
+ * narrower than 16rem or on a dashboard tile, 5xl in a workbench — as
+ * `--_fve-metric-size`, and the figure takes that size or, where its
+ * characters (`--_fve-metric-chars`, which the card writes) would not fit
+ * the card's width at it, the size at which they do: a character of
+ * tabular digits is taken as 0.62 of the size, a little over what Geist and
+ * the system stacks draw, so the figure never wraps and never runs out. A
+ * short figure keeps its size; only a long one on a narrow card steps down.
+ */
+.fve-root [data-slot='metric-value'] {
+  --_fve-metric-size: var(--text-3xl);
+  font-size: min(
+    var(--_fve-metric-size),
+    100cqi / (var(--_fve-metric-chars, 1) * 0.62)
+  );
+  white-space: nowrap;
+}
+
+@container metric (width < 16rem) {
+  /* Weighs less than a tile's and a workbench's own rules, which win there. */
+  .fve-root [data-slot='metric-value'] {
+    --_fve-metric-size: var(--text-2xl);
+    line-height: var(--text-2xl--line-height);
+  }
+}
+
+/*
+ * On a card under 10rem — a tile half a phone wide — the change badge shows
+ * its share alone: 「-¥1,382.92 · -18.6%」 is wider than the card, and wrapped
+ * to two lines it pushed the trend under it out of the tile (P1-4). The
+ * words stay the badge's text, set at no size, for a screen reader, and the
+ * whole change is its title for a pointer; the share is drawn from the
+ * badge's `data-share`, with no text of its own for a screen reader to read
+ * twice. A change with
+ * no share keeps its amount on screen. A card of 10rem or more (a 190px
+ * tile at 1280px fits the whole change) is drawn as it always was.
+ */
+@container metric (width < 10rem) {
+  /* The words set at no size, still the badge's text; the share drawn. */
+  .fve-root [data-slot='badge'][data-share] {
+    font-size: 0;
+  }
+
+  .fve-root [data-slot='badge'][data-share]::after {
+    content: attr(data-share) / '';
+    font-size: var(--text-xs);
+    line-height: var(--text-xs--line-height);
+  }
 }
 
 /*
@@ -3190,7 +3243,7 @@
   [data-slot='analysis-result']
   > [data-slot='metric-card']
   [data-slot='metric-value'] {
-  font-size: var(--text-5xl);
+  --_fve-metric-size: var(--text-5xl);
   line-height: 1;
 }
 
