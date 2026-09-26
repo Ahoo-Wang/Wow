@@ -68,6 +68,27 @@ import {
   TableRow,
 } from './components/table.js';
 
+/**
+ * The room a selection checkbox stands in: a 1.5rem box, centred in a cell
+ * padded 0.5rem on both sides, so the column's content is the 2.5rem the
+ * pinned offsets assume (`SELECT_WIDTH`) and cannot shrink below it. The
+ * registry drops a checkbox cell's right padding; {@link SELECT_CELL} puts
+ * it back.
+ *
+ * Why (second review R1-P1-9, R3-P1-7): the box is 16px, the WCAG 2.2
+ * minimum target is 24px, and the exception for a smaller target is room —
+ * no other target within a 24px circle centred on it. Where a table laid
+ * the column out at its content, 28px, the header's first sort button began
+ * 8px from the box's centre, inside that circle (axe `target-size`,
+ * serious), and the registry's own larger hit area (its `::after`, 0.75rem
+ * either side, 2.5rem across) lay over the button. Centred in 2.5rem the
+ * nearest neighbour starts 1.25rem from the centre and the hit area ends at
+ * the cell's edges. The rows keep their height: the room is across, not
+ * down.
+ */
+const SELECT_BOX = 'flex size-6 items-center justify-center';
+const SELECT_CELL = '[&:has([role=checkbox])]:pr-2';
+
 export interface RecordTableProps {
   table: RecordTableController;
   /** Renders one cell; the default reads it as the column's `cell` says. */
@@ -323,19 +344,21 @@ export function RecordTable({
                 <TableHead
                   data-column={SELECT_COLUMN}
                   {...stickyHead(pins.select, {
-                    className: cn('w-10', HEAD_CELL),
+                    className: cn('w-10', HEAD_CELL, SELECT_CELL),
                   })}
                 >
-                  <Checkbox
-                    aria-label={messages.label('label.record.select-all')}
-                    checked={allSelected}
-                    indeterminate={
-                      table.selection.length > 0 && !allSelected
-                        ? true
-                        : undefined
-                    }
-                    onCheckedChange={table.toggleAll}
-                  />
+                  <span className={SELECT_BOX}>
+                    <Checkbox
+                      aria-label={messages.label('label.record.select-all')}
+                      checked={allSelected}
+                      indeterminate={
+                        table.selection.length > 0 && !allSelected
+                          ? true
+                          : undefined
+                      }
+                      onCheckedChange={table.toggleAll}
+                    />
+                  </span>
                 </TableHead>
               )}
               {/* The arrows say the order the rows on screen are in — the
@@ -396,8 +419,12 @@ export function RecordTable({
                 {...opening.row(row)}
               >
                 {selectable && (
-                  <TableCell {...stickyCell(pins.select)}>
-                    <RowCheckbox table={table} row={row} hintId={rangeId} />
+                  <TableCell
+                    {...stickyCell(pins.select, { className: SELECT_CELL })}
+                  >
+                    <span className={SELECT_BOX}>
+                      <RowCheckbox table={table} row={row} hintId={rangeId} />
+                    </span>
                   </TableCell>
                 )}
                 {columns.map(column => {
