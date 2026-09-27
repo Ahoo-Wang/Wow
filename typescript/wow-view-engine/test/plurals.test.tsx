@@ -179,8 +179,8 @@ describe('a relative window counts its unit', () => {
     );
 
   it('in the summary: 「last 1 day」, 「last 30 days」', () => {
-    expect(window(1, 'day')).toBe('Created between last 1 day');
-    expect(window(30, 'day')).toBe('Created between last 30 days');
+    expect(window(1, 'day')).toBe('Created in the last 1 day');
+    expect(window(30, 'day')).toBe('Created in the last 30 days');
     expect(window(1, 'hour', 'instant')).toBe('Created at most 1 hour ago');
   });
 

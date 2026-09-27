@@ -27,6 +27,7 @@ import {
   filterIndexes,
   isBlankLeafValue,
   writeValue,
+  type FieldKind,
   type FilterPath,
 } from '../../filter/index.js';
 import { holdsTime } from '../../filter/kinds/duration.js';
@@ -113,6 +114,7 @@ export function ConditionPill({
   const pending = isPending?.(path) === true;
   const field = filter.fields.find(entry => entry.name === leaf.field);
   const label = field?.label ?? leaf.field;
+  const kind = field && filter.kinds?.get(field.kind);
   // The operator the condition holds, among the ones offered or not: a
   // saved condition whose operator the source no longer supports showed the
   // protocol's word in the select, 「CONTAIN…」, because the select knew no
@@ -124,12 +126,11 @@ export function ConditionPill({
     ...offered,
     ...(refusedOperator ? [leaf.operator] : []),
   ].map(operator => ({
-    label: operatorLabel(messages, operator),
+    label: operatorLabel(messages, operator, kind),
     value: operator,
   }));
   const reasonId = useId();
   const editor = filter.editorFor(path);
-  const kind = field && filter.kinds?.get(field.kind);
   // A field the definition still declares, of a kind the registry does not
   // know. A field the definition has dropped is a different finding
   // (`filter.field.unknown`) with a different fix — this one names a kind
@@ -307,7 +308,7 @@ export function ConditionPill({
             select was the old answer, and it read as a choice the user had
             failed to make. */}
         <span className="w-24 shrink-0 truncate">
-          {operatorLabel(messages, leaf.operator)}
+          {operatorLabel(messages, leaf.operator, kind)}
         </span>
         <UnsupportedValue
           kind={field.kind}
@@ -550,7 +551,12 @@ function rebase(issues: readonly Issue[], path: FilterPath): Issue[] {
 function operatorLabel(
   messages: MessageFormatters,
   operator: FilterOperatorName,
+  kind?: FieldKind,
 ): string {
+  // The relation the kind says the operator means, in the word the applied
+  // bar says it in (`FieldKind.relations`).
+  const relation = kind?.relations?.[operator];
+  if (relation) return messages.label(`label.relation.${relation}` as const);
   return messages.label(
     `label.operator.${operator}`,
     undefined,

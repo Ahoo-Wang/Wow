@@ -116,6 +116,12 @@ export const filterMessages = {
   // a midnight — read as the period, printed as a date bucket of that unit
   // prints: what a group pressed on a date axis opens its records under. A
   // week's value is only the day it starts, so it says it is one.
+  // A span of time by its words: 「Created in the last 7 days」, and a
+  // named one as English says it, 「Created yesterday」.
+  'label.filter.within': '{field} in the {period}',
+  'label.filter.during': '{field} {period}',
+  // A yes-or-no field's answer: 「Late: Yes」 rather than 「Late is Yes」.
+  'label.filter.answer': '{field}: {value}',
   'label.filter.period': '{field} in {period}',
   'label.filter.period-week': '{field} in the week of {period}',
   // A field's `GTE` and `LT` side by side, read as the one segment they
@@ -176,8 +182,11 @@ export const filterMessages = {
   'label.deletion.active': 'Not deleted',
   'label.deletion.deleted': 'Deleted only',
   'label.deletion.all': 'Deleted included',
-  'label.boolean.true': 'True',
-  'label.boolean.false': 'False',
+  // The words the bar and the value display say (`label.value.yes`), and
+  // the check asks for (「Choose yes or no.」): one word per answer
+  // (second review R1-P1-6).
+  'label.boolean.true': 'Yes',
+  'label.boolean.false': 'No',
   'label.filter.too-large': 'This filter is too large to edit here.',
 
   // The conditions the result in front of you actually ran with, which is
