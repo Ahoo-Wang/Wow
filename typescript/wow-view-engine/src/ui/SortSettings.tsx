@@ -11,6 +11,7 @@
  * limitations under the License.
  */
 
+import type { ReactElement } from 'react';
 import { DragDropProvider } from '@dnd-kit/react';
 import { useSortable } from '@dnd-kit/react/sortable';
 import {
@@ -145,6 +146,12 @@ export interface SortSettingsProps {
    * title again, and the editor speaks of dimensions and metrics.
    */
   of?: 'records' | 'groups';
+  /**
+   * The control that opens it, where the toolbar's is not on screen: the
+   * error strip's worded button for a config that will not run (as
+   * `ColumnSettings`' `trigger`). Left out, the toolbar's own button.
+   */
+  trigger?: ReactElement<Record<string, unknown>>;
 }
 
 /** The words that differ between ordering rows and ordering groups. */
@@ -178,6 +185,7 @@ export function SortSettings({
   fields,
   fieldGroups,
   of = 'records',
+  trigger,
 }: SortSettingsProps) {
   const messages = useViewMessages();
   const words = WORDS[of];
@@ -242,26 +250,30 @@ export function SortSettings({
       {/* A toolbar item where a toolbar is around it, an ordinary button
           anywhere else: the bar owns the roving focus order and this is one
           of the stops in it. */}
-      <ToolbarItem
-        render={
-          <PopoverTrigger
-            data-control="sort"
-            // Bordered like every other function on the bar (D12 Ⅳ), and the
-            // one that keeps its words: what it says is the sort in force.
-            // Which is also why it needs a name once something is sorted —
-            // "Amount, descending" is a sort, and never says so.
-            aria-label={sortButtonName(table.sort, labelOf, messages)}
-            render={<Button variant="outline" size="sm" />}
+      {trigger ? (
+        <PopoverTrigger data-control="sort" render={trigger} />
+      ) : (
+        <ToolbarItem
+          render={
+            <PopoverTrigger
+              data-control="sort"
+              // Bordered like every other function on the bar (D12 Ⅳ), and the
+              // one that keeps its words: what it says is the sort in force.
+              // Which is also why it needs a name once something is sorted —
+              // "Amount, descending" is a sort, and never says so.
+              aria-label={sortButtonName(table.sort, labelOf, messages)}
+              render={<Button variant="outline" size="sm" />}
+            />
+          }
+        >
+          <SortSummary
+            sort={table.sort}
+            labelOf={labelOf}
+            messages={messages}
+            none={messages.label(words.none)}
           />
-        }
-      >
-        <SortSummary
-          sort={table.sort}
-          labelOf={labelOf}
-          messages={messages}
-          none={messages.label(words.none)}
-        />
-      </ToolbarItem>
+        </ToolbarItem>
+      )}
       <PopoverContent align="end" className="w-80">
         <PopoverHeader>
           <PopoverTitle>{messages.label('label.sort.title')}</PopoverTitle>
