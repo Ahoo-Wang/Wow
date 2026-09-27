@@ -674,6 +674,10 @@ export const analysisMessages = {
   'label.chart.sentence.up': 'rising overall',
   'label.chart.sentence.down': 'falling overall',
   'label.chart.sentence.flat': 'about level overall',
+  'label.chart.ongoing': '{period} (in progress)',
+  'label.chart.ongoing.band': 'In progress',
+  'label.chart.sentence.unfinished':
+    ' {period} is not over yet and is not counted.',
   'label.chart.sentence.trend-of': '{measure} {trend}',
   'label.chart.sentence.other-axis':
     ' On the other axis, {measures}: highest {high}, {highValue}; lowest {low}, {lowValue}.',

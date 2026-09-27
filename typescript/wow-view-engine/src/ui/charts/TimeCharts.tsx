@@ -64,6 +64,8 @@ export function TimeCharts({
         pickable,
         highlight,
         other,
+        ongoing: (period: string) =>
+          messages.label('label.chart.ongoing', { period }),
       };
       return data.type === 'calendar'
         ? calendarOption(data, context, theme)
@@ -80,6 +82,7 @@ export function TimeCharts({
       pickable,
       highlight,
       other,
+      messages,
     ],
   );
   const streams = useMemo(

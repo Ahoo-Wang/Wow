@@ -395,6 +395,31 @@ export function bucketSpan(
 }
 
 /**
+ * The period still under way at the end of a time axis: the last of `keys`
+ * that names a moment, when its bucket — as much of it as the applied
+ * conditions hold (`appliedWindow`) — had not ended at `now`. A chart draws
+ * it and marks it, and reads nothing from it (second review R2-P1-7): the
+ * nine days of a month so far are no month, and a line that ends in them
+ * reads as a fall. Nothing without `now`, or on an axis that is not time.
+ */
+export function unfinishedBucket(
+  config: AnalysisViewConfig,
+  alias: string | undefined,
+  keys: readonly unknown[],
+  timeZone: string,
+  now: Date | undefined,
+): { at: unknown } | undefined {
+  const group = timeGroup(config, alias);
+  if (!group || !now) return undefined;
+  const window = appliedWindow(config.filter, group.field, now, timeZone);
+  for (let index = keys.length - 1; index >= 0; index -= 1) {
+    const span = bucketSpan(group, keys[index], timeZone, now, window);
+    if (span) return span.ended ? undefined : { at: keys[index] };
+  }
+  return undefined;
+}
+
+/**
  * Whether the buckets `items` stand for — earliest first — run one after
  * another, each starting where the one before it ended (`bucketSpan`), so
  * the point before one is its previous period. Items naming no moment (the

@@ -28,6 +28,7 @@ import {
   derivedSeries,
   extremeIndexes,
   extremeMarks,
+  ongoingSeries,
   referenceSeries,
 } from './cartesianMarks.js';
 import { measureText } from './measure.js';
@@ -385,6 +386,7 @@ export function optionOf(
   // What is drawn over the marks: reference lines and target bands, and
   // the derived lines (`cartesianMarks`).
   const references = referenceSeries(plan, theme, axisIndex);
+  const ongoing = ongoingSeries(plan, theme, axisIndex);
   const derived = derivedSeries(plan, theme, axisIndex);
 
   // The widest value label past a mark's end is the room the value side
@@ -436,7 +438,7 @@ export function optionOf(
     tooltip: cartesianTooltip(plan, theme),
     ...(zoom ? { dataZoom: zoom } : {}),
     ...(brush ? { brush } : {}),
-    series: [...marks, ...totals, ...references, ...derived],
+    series: [...marks, ...totals, ...ongoing, ...references, ...derived],
   };
 }
 

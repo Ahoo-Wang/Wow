@@ -43,6 +43,7 @@ import {
   hostTimeZone,
   partGroup,
   timeGroup,
+  unfinishedBucket,
   withoutHoles,
 } from './timeAxis.js';
 import {
@@ -205,14 +206,26 @@ export function shapeChart(
     case 'combo':
       return (
         chart.cartesian &&
-        shapeCartesian(
-          chart.type,
-          chart.cartesian,
-          config,
-          rows,
-          timeZone,
-          context.cutShort,
-          context.splitWhole,
+        withUnfinished(
+          shapeCartesian(
+            chart.type,
+            chart.cartesian,
+            config,
+            rows,
+            timeZone,
+            context.cutShort,
+            context.splitWhole,
+          ),
+          data =>
+            data.timeline === true
+              ? unfinishedBucket(
+                  config,
+                  chart.cartesian?.x,
+                  data.points.map(point => point.x),
+                  timeZone,
+                  context.now,
+                )
+              : undefined,
         )
       );
     case 'pie':
@@ -265,16 +278,46 @@ export function shapeChart(
       return chart.sankey && shapeSankey(chart.sankey, config, rows);
     case 'calendar':
       return (
-        chart.calendar && shapeCalendar(chart.calendar, config, rows, timeZone)
+        chart.calendar &&
+        withUnfinished(
+          shapeCalendar(chart.calendar, config, rows, timeZone),
+          data =>
+            unfinishedBucket(
+              config,
+              chart.calendar?.date,
+              data.days.map(day => day.at),
+              timeZone,
+              context.now,
+            ),
+        )
       );
     case 'map':
       return chart.map && shapeMap(chart.map, rows);
     case 'themeRiver':
       return (
         chart.themeRiver &&
-        shapeThemeRiver(chart.themeRiver, config, rows, timeZone)
+        withUnfinished(
+          shapeThemeRiver(chart.themeRiver, config, rows, timeZone),
+          data =>
+            unfinishedBucket(
+              config,
+              chart.themeRiver?.x,
+              data.times,
+              timeZone,
+              context.now,
+            ),
+        )
       );
   }
+}
+
+/** The chart's data, with the period still under way named when there is one. */
+function withUnfinished<T extends { unfinished?: { at: unknown } }>(
+  data: T,
+  find: (data: T) => { at: unknown } | undefined,
+): T {
+  const unfinished = find(data);
+  return unfinished ? { ...data, unfinished } : data;
 }
 
 /**

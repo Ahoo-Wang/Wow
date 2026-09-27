@@ -652,6 +652,32 @@ export const SentenceComparesAlongOneAxis: Story = {
   },
 };
 
+/**
+ * 未结束的当期照画、做记号、不进读数（第二轮审查 R2-P1-7，用户 2026-09-26
+ * 定）：零售的「现在」是 9 月 22 日上午，「月 GMV 与客单价」的 9 月只有 22
+ * 天——它仍画着，背后一道写着「进行中」的底色；摘要句的走向与最高最低不算
+ * 它，句末说它未计入。
+ */
+export const UnfinishedMonthIsMarked: Story = {
+  ...DisplayOrderAnalysis,
+  name: '未结束的当期有记号、不进摘要句（R2-P1-7）',
+  play: async ({ canvasElement }) => {
+    const frame = await openAnalysis(canvasElement, '月 GMV 与客单价');
+    await waitFor(() =>
+      expect(plotTexts(frame)).toContain(zhCN['label.chart.ongoing.band']),
+    );
+    const sentence = await waitFor(() => {
+      const text =
+        canvasElement.querySelector('[data-slot="chart-sentence"]')
+          ?.textContent ?? '';
+      expect(text).toMatch(/9月还没结束，未计入。$/);
+      return text;
+    });
+    // 「从…到…」 ends at August, the last month that had ended.
+    await expect(sentence).toMatch(/到 2026年8月/);
+  },
+};
+
 export const MemberAnalysis: Story = {
   ...DisplayMemberAnalysis,
   play: async ({ canvasElement }) => {

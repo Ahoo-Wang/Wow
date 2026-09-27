@@ -28,6 +28,10 @@ export interface MarkWords {
   low: string;
   /** A split's folded rest (D33 Q56), as the pie's is called: 「其他」. */
   other: string;
+  /** Over the period still under way (R2-P1-7): 「进行中」. */
+  ongoing: string;
+  /** That period as the tooltip names it: 「2026年9月（进行中）」. */
+  ongoingPeriod(period: string): string;
 }
 
 /**
@@ -66,6 +70,8 @@ export function markWords(messages: MessageFormatters): MarkWords {
     high: messages.label('label.chart.extreme.high'),
     low: messages.label('label.chart.extreme.low'),
     other: messages.label('label.chart.other'),
+    ongoing: messages.label('label.chart.ongoing.band'),
+    ongoingPeriod: period => messages.label('label.chart.ongoing', { period }),
   };
 }
 
