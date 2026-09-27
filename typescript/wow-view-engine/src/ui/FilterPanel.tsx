@@ -131,7 +131,13 @@ export function FilterPanel({
         // Announced rather than only implemented: a keyboard shortcut nobody
         // can discover is a shortcut for whoever wrote it.
         aria-keyshortcuts={submit ? 'Enter' : undefined}
-        className="flex flex-col gap-3"
+        // A column that may shrink inside the editor band, so the band's cap
+        // falls on the conditions and not on the whole: the tree scrolls
+        // and the row that ends an edit stands under it, as the analysis
+        // tray's footer does (second review R1-P1-4: at 390 wide the band
+        // scrolled whole, cut a condition in half and put Apply below the
+        // fold with nothing to say it was there).
+        className="flex min-h-0 flex-col gap-3"
         // Auto-refresh holds while any control in here has focus. Focus events
         // bubble in React, so the root sees every input; a move from one
         // control to another inside the panel is not a leave and not an enter.
@@ -187,7 +193,7 @@ export function FilterPanel({
             // included, inside 424px and puts the toolbar at 640px.
             <div
               data-slot="filter-tree"
-              className="max-h-[40vh] overflow-y-auto"
+              className="max-h-[40vh] min-h-0 overflow-y-auto"
             >
               {tree}
             </div>
@@ -207,7 +213,7 @@ export function FilterPanel({
         {(!advanced || submit) && (
           <div
             data-slot="filter-actions"
-            className="flex flex-wrap items-center gap-2"
+            className="flex shrink-0 flex-wrap items-center gap-2"
           >
             {!advanced && (
               <AddEntry

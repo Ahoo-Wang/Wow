@@ -216,3 +216,56 @@ export const OffscreenTotals: Story = {
     await waitFor(() => expect(offscreenHint(table)).not.toBeNull());
   },
 };
+
+/**
+ * 390×844 的手机上打开「发货超时」的筛选（第二轮审查 R1-P1-4）：编辑带封顶约
+ * 三分之一，从前整条带在里面滚，首屏把一个条件片从中间切断，「应用」在视野
+ * 之外。现在条件在带里滚，「添加条件／清空／应用」这一行立在带底——与分析
+ * 托盘「窄屏底行不滚」同一个做法。
+ */
+export const FilterBandOnAPhone: Story = {
+  ...DisplayOrderWorkbench,
+  parameters: {
+    ...DisplayOrderWorkbench.parameters,
+    viewport: {
+      options: {
+        phone: {
+          name: '390×844',
+          styles: { width: '390px', height: '844px' },
+        },
+      },
+    },
+  },
+  globals: { viewport: { value: 'phone' } },
+  play: async ({ canvasElement }) => {
+    await expect(window.innerWidth).toBe(390);
+    const canvas = within(canvasElement);
+    await findDataTable(canvasElement);
+    await userEvent.click(
+      await canvas.findByRole('button', {
+        name: new RegExp(`^${zhCN['label.filter.panel']}`),
+      }),
+    );
+    const part = (slot: string) =>
+      canvasElement.querySelector<HTMLElement>(`[data-slot="${slot}"]`)!;
+    const band = await waitFor(() => {
+      const found = part('editor-band');
+      expect(found).not.toBeNull();
+      expect(part('filter-actions')).not.toBeNull();
+      return found;
+    });
+    const box = (element: HTMLElement) => element.getBoundingClientRect();
+    // The band itself does not scroll; the conditions do, inside it.
+    await waitFor(() =>
+      expect(band.scrollHeight).toBeLessThanOrEqual(band.clientHeight + 1),
+    );
+    const actions = part('filter-actions');
+    await expect(box(actions).bottom).toBeLessThanOrEqual(box(band).bottom + 1);
+    await expect(box(actions).top).toBeGreaterThanOrEqual(box(band).top);
+    await expect(
+      within(actions).getByRole('button', {
+        name: zhCN['label.filter.apply'],
+      }),
+    ).toBeVisible();
+  },
+};
