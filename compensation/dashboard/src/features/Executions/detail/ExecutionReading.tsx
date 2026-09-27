@@ -45,6 +45,7 @@ import {
   FunctionForm,
   RetrySpecForm,
 } from "./ExecutionForms.tsx";
+import { CopyValue } from "./CopyValue.tsx";
 import { StackTrace } from "./StackTrace.tsx";
 import { STORY_LIMIT, useMoments, type MomentsRead } from "./useMoments.ts";
 import { stateOf, type ExecutionState } from "./executionState.ts";
@@ -560,7 +561,9 @@ function EventCard({ state }: { state: ExecutionState }) {
         <Pair label={t("Aggregate")}>{aggregate?.aggregateName}</Pair>
         <Pair label={t("Aggregate ID")}>
           {aggregate?.aggregateId && (
-            <code className="text-xs">{aggregate.aggregateId}</code>
+            <code className="text-xs">
+              <CopyValue value={aggregate.aggregateId} />
+            </code>
           )}
         </Pair>
         <Pair label={t("Event version")}>{event?.version}</Pair>
@@ -630,10 +633,10 @@ function Identities({ row, state }: { row: RecordRow; state: ExecutionState }) {
       <Separator />
       <dl className="grid grid-cols-[repeat(auto-fit,minmax(15rem,1fr))] gap-x-6 gap-y-1 text-xs text-muted-foreground">
         <Identity label={t("Execution ID")} mono>
-          {String(row.key)}
+          <CopyValue value={String(row.key)} />
         </Identity>
         <Identity label={t("Event ID")} mono>
-          {state.eventId?.id ?? "—"}
+          {state.eventId?.id ? <CopyValue value={state.eventId.id} /> : "—"}
         </Identity>
         <Identity label={t("Last executed")}>
           {executed ? formatMoment(executed, locale) : "—"}
