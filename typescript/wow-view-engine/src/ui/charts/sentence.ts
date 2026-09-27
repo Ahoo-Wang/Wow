@@ -298,19 +298,47 @@ function cartesianSentence(
       : entry.value === undefined
         ? (ctx.column(entry.metric) ?? entry.label)
         : ctx.label(cartesian?.splitBy, entry.value);
-  const items = data.points.flatMap(point =>
-    data.series.map(entry => ({
-      name: several
-        ? `${ctx.label(cartesian?.x, point.x)} · ${seriesName(entry)}`
-        : ctx.label(cartesian?.x, point.x),
-      value: point.filled?.includes(entry.key)
-        ? null
-        : (point.values[entry.key] ?? null),
-      alias: entry.metric,
-    })),
-  );
-  const bounds = highLow(items);
+  // One value axis is one scale: the highest and the lowest are compared
+  // along it and never across the two, which measure different things —
+  // 「最高 GMV ¥250,275，最低 客单价 ¥194」 set a sum beside an average
+  // (second review R2-P1-6). The first series' axis leads; the other one,
+  // if any, is said in a clause of its own.
+  const sideOf = (metric: string) =>
+    cartesian?.series.find(one => one.metric === metric)?.axis === 'right'
+      ? 'right'
+      : 'left';
+  const lead = data.series[0] ? sideOf(data.series[0].metric) : 'left';
+  const onOther = (entry: (typeof data.series)[number]) =>
+    sideOf(entry.metric) !== lead;
+  const itemsOn = (other: boolean) =>
+    data.points.flatMap(point =>
+      data.series
+        .filter(entry => onOther(entry) === other)
+        .map(entry => ({
+          name: several
+            ? `${ctx.label(cartesian?.x, point.x)} · ${seriesName(entry)}`
+            : ctx.label(cartesian?.x, point.x),
+          value: point.filled?.includes(entry.key)
+            ? null
+            : (point.values[entry.key] ?? null),
+          alias: entry.metric,
+        })),
+    );
+  const bounds = highLow(itemsOn(false));
   if (!bounds) return undefined;
+  const other = highLow(itemsOn(true));
+  const otherClause = other
+    ? ctx.messages.label('label.chart.sentence.other-axis', {
+        measures: [
+          ...new Set(
+            data.series
+              .filter(onOther)
+              .map(entry => ctx.column(entry.metric) ?? entry.metric),
+          ),
+        ].join(ctx.messages.label('label.filter.join')),
+        ...said(ctx, other),
+      })
+    : '';
   // The periods are the dated buckets: the records with no date stand last
   // on the axis as 「（空）」, and are no period for 「从…到…」 to end at
   // (second review R2-P1-4: 「从 2024年 Q3 到 ，」).
@@ -320,32 +348,71 @@ function cartesianSentence(
       : data.points;
   const count = periods.length;
   if (data.timeline !== true || count < 2)
-    return ctx.messages.label('label.chart.sentence', {
-      count: data.points.length,
-      ...said(ctx, bounds),
-    });
+    return (
+      ctx.messages.label('label.chart.sentence', {
+        count: data.points.length,
+        ...said(ctx, bounds),
+      }) + otherClause
+    );
   const first = periods[0];
   const last = periods[count - 1];
-  return ctx.messages.label('label.chart.sentence.time', {
-    count,
-    first: ctx.label(cartesian?.x, first.x),
-    last: ctx.label(cartesian?.x, last.x),
-    trend: ctx.messages.label(
-      `label.chart.sentence.${direction(
-        standing(first.values, data.series),
-        standing(last.values, data.series),
-      )}`,
-    ),
-    ...said(ctx, bounds),
-  });
+  // The way the lead metric went, its parts added up (a split, a stack) —
+  // never two metrics added together, and read along every period rather
+  // than its first against its last: a day and a month of the same rows
+  // said 「总体下降」 and 「总体上升」, each from its own two ends.
+  const leadMetric = data.series[0]?.metric;
+  const leading = data.series.filter(entry => entry.metric === leadMetric);
+  const trend = ctx.messages.label(
+    `label.chart.sentence.${fittedDirection(
+      periods.map(point => standing(point.values, leading)),
+    )}`,
+  );
+  const metrics = new Set(data.series.map(entry => entry.metric));
+  return (
+    ctx.messages.label('label.chart.sentence.time', {
+      count,
+      first: ctx.label(cartesian?.x, first.x),
+      last: ctx.label(cartesian?.x, last.x),
+      trend:
+        metrics.size > 1 && leadMetric !== undefined
+          ? ctx.messages.label('label.chart.sentence.trend-of', {
+              measure: ctx.column(leadMetric) ?? leadMetric,
+              trend,
+            })
+          : trend,
+      ...said(ctx, bounds),
+    }) + otherClause
+  );
 }
 
-/** Where the chart stands at one point: its series added up. */
+/** Where the chart stands at one point: these series added up. */
 function standing(
   values: Readonly<Record<string, number | null>>,
   series: readonly { key: string }[],
 ): number {
   return series.reduce((sum, entry) => sum + (values[entry.key] ?? 0), 0);
+}
+
+/**
+ * Which way a run of values went, read along all of them: the least-squares
+ * line through them, from where it starts to where it ends (`direction`).
+ * One outlying first or last period no longer decides it.
+ */
+export function fittedDirection(
+  values: readonly number[],
+): 'up' | 'down' | 'flat' {
+  const n = values.length;
+  if (n < 2) return 'flat';
+  const meanX = (n - 1) / 2;
+  const meanY = values.reduce((sum, value) => sum + value, 0) / n;
+  let across = 0;
+  let spread = 0;
+  values.forEach((value, index) => {
+    across += (index - meanX) * (value - meanY);
+    spread += (index - meanX) ** 2;
+  });
+  const slope = spread === 0 ? 0 : across / spread;
+  return direction(meanY - slope * meanX, meanY + slope * meanX);
 }
 
 /**

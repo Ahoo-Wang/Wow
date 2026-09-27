@@ -628,6 +628,30 @@ export const FunnelOverCategories: Story = {
   },
 };
 
+/**
+ * 读屏摘要句只在一根轴上比最高、最低（第二轮审查 R2-P1-6）：「月 GMV 与客单价」
+ * 的第一句只说 GMV 的最高与最低，客单价在「另一根轴上」另起一句；趋势说的是
+ * GMV 的，不是 GMV 加客单价。
+ */
+export const SentenceComparesAlongOneAxis: Story = {
+  ...DisplayOrderAnalysis,
+  name: '摘要句不跨轴比较（R2-P1-6）',
+  play: async ({ canvasElement }) => {
+    await openAnalysis(canvasElement, '月 GMV 与客单价');
+    const sentence = await waitFor(() => {
+      const text =
+        canvasElement.querySelector('[data-slot="chart-sentence"]')
+          ?.textContent ?? '';
+      expect(text).toContain('另一根轴上的');
+      return text;
+    });
+    const [lead, other] = sentence.split('另一根轴上的');
+    await expect(lead).not.toContain('客单价');
+    await expect(lead).toMatch(/GMV 总体(上升|下降|持平)/);
+    await expect(other).toContain('客单价');
+  },
+};
+
 export const MemberAnalysis: Story = {
   ...DisplayMemberAnalysis,
   play: async ({ canvasElement }) => {
