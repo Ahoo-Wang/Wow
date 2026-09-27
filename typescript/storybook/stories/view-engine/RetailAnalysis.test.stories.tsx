@@ -589,6 +589,45 @@ export const SplitByADateNamesTheUndated: Story = {
   },
 };
 
+/**
+ * 漏斗只在维度是先后的步骤时才算「适合这个结果」（第二轮审查 R2-P1-5）：省份
+ * 是并列的类目，漏斗落在「其他图型」、仍可选、写着为什么；选了它，十五段共用
+ * 十段的高度，最后一段与它的流失都在视口之内，不被页脚压住。
+ */
+export const FunnelOverCategories: Story = {
+  ...DisplayOrderAnalysis,
+  name: '并列类目上的漏斗不算适合，十五段也看得全（R2-P1-5）',
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await openAnalysis(canvasElement, '省份 GMV 前 15');
+    await userEvent.click(
+      canvas.getByRole('button', { name: zhCN['label.analysis.visualize'] }),
+    );
+    const tile = await waitFor(() => {
+      const found = document.querySelector<HTMLElement>(
+        '[data-slot="chart-tile"][data-chart-type="funnel"]',
+      );
+      expect(found).not.toBeNull();
+      return found!;
+    });
+    await expect(
+      tile.closest('[data-slot="chart-group"]')?.querySelector('h3'),
+    ).toHaveTextContent(zhCN['label.chart.group.others']);
+    await expect(tile).toHaveTextContent(zhCN['chart.fit.not-steps']);
+    await expect(tile).not.toHaveAttribute('aria-disabled');
+    await userEvent.click(tile);
+    await chartsDrawn(canvasElement);
+    const plot = await waitFor(() => {
+      const found = canvasElement.querySelector<HTMLElement>(
+        '[data-slot="chart"][data-chart="funnel"] [data-slot="chart-plot"]',
+      );
+      expect(found).not.toBeNull();
+      return found!;
+    });
+    await expect(plot.getBoundingClientRect().height).toBeLessThan(600);
+  },
+};
+
 export const MemberAnalysis: Story = {
   ...DisplayMemberAnalysis,
   play: async ({ canvasElement }) => {

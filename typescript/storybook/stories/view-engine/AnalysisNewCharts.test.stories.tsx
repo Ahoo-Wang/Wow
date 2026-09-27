@@ -287,12 +287,23 @@ export const PickerGroupsByKeyboard: Story = {
     await expect(typesIn(suits)).toEqual(
       expect.arrayContaining(['waterfall', 'treemap']),
     );
+    // Each of the others is greyed with what it lacks, or — drawn but not
+    // offered as fitting (a funnel over categories, R2-P1-5) — pickable
+    // with why.
     for (const tile of others.querySelectorAll('[data-slot="chart-tile"]')) {
-      await expect(tile).toHaveAttribute('aria-disabled', 'true');
-      await expect(
-        tile.querySelector('[data-slot="chart-reason"]')?.textContent,
-      ).toBeTruthy();
+      const why = tile.hasAttribute('aria-disabled')
+        ? '[data-slot="chart-reason"]'
+        : '[data-slot="chart-hint"]';
+      await expect(tile.querySelector(why)?.textContent).toBeTruthy();
     }
+    // What the arrow keys walk: every tile that can be picked, the fitting
+    // ones first.
+    const pickable = [
+      ...suits.querySelectorAll('[data-slot="chart-tile"]'),
+      ...others.querySelectorAll(
+        '[data-slot="chart-tile"]:not([aria-disabled])',
+      ),
+    ].map(tile => tile.getAttribute('data-chart-type')!);
     // One radiogroup over both, the Tab stop on the chosen tile.
     await expect(
       within(panel).getByRole('radiogroup', {
@@ -301,7 +312,7 @@ export const PickerGroupsByKeyboard: Story = {
     ).toContainElement(others);
     chartTile(panel, 'bar').focus();
     const walked: string[] = [];
-    for (let step = 0; step < typesIn(suits).length; step += 1) {
+    for (let step = 0; step < pickable.length; step += 1) {
       await userEvent.keyboard('{ArrowRight}');
       walked.push(
         (document.activeElement as HTMLElement).getAttribute(
@@ -309,13 +320,13 @@ export const PickerGroupsByKeyboard: Story = {
         )!,
       );
     }
-    // Round the first group and back to where it started, never into the
-    // second.
+    // Round every pickable tile and back to where it started, never onto a
+    // greyed one.
     await expect(walked.at(-1)).toBe('bar');
-    for (const type of walked) await expect(typesIn(suits)).toContain(type);
-    // Back two, onto the treemap's neighbour, and Space picks it.
-    const target = typesIn(suits).indexOf('treemap');
-    for (let step = 0; step < typesIn(suits).length - target; step += 1)
+    for (const type of walked) await expect(pickable).toContain(type);
+    // Back onto the treemap, and Space picks it.
+    const target = pickable.indexOf('treemap');
+    for (let step = 0; step < pickable.length - target; step += 1)
       await userEvent.keyboard('{ArrowLeft}');
     await expect(document.activeElement).toBe(chartTile(panel, 'treemap'));
     await userEvent.keyboard(' ');

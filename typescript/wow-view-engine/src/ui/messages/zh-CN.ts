@@ -946,6 +946,7 @@ export const zhCN: ViewMessages = {
   'chart.fit.needs-quantity': '要数量指标，时间画不成图',
   'chart.fit.needs-category': '阶段要一个类别维度',
   'chart.fit.needs-two-stages': '要至少两组作阶段',
+  'chart.fit.not-steps': '这个维度的值是并列的类目，不是先后的步骤',
   'chart.fit.needs-additive': '要记录数或总和',
   'chart.fit.needs-share': '占比只对可加的指标成立',
   'chart.fit.needs-five-numbers': '要同一字段的最小值、三个百分位与最大值',

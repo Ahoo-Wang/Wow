@@ -42,6 +42,7 @@ import {
 import { foldsSplit } from '../analysis/splitOther.js';
 import { describeFilter, type FilterSummaryItem } from '../filter/index.js';
 import type {
+  AnalysisGroup,
   AnalysisViewConfig,
   ChartSpec,
   ChartType,
@@ -49,7 +50,10 @@ import type {
   RecordData,
 } from '../model/index.js';
 import { hasAsked, type ViewRuntime } from '../runtime/index.js';
-import type { AnalysisEditorController } from './useAnalysisEditor.js';
+import type {
+  AnalysisEditorController,
+  AnalysisFieldOption,
+} from './useAnalysisEditor.js';
 import type { WorkbenchController } from './useWorkbench.js';
 
 /** Stable identity for "nothing asked yet", so the memos below stay quiet. */
@@ -288,12 +292,14 @@ export function useAnalysisResult(
             groups: question.groups,
             metrics: question.metrics,
             moments,
+            steps: stepsOf(question.groups, analysis.fields),
             ...(view ? { rows: view.rows } : {}),
           })
         : fitCharts({
             groups: analysis.groups,
             metrics: analysis.metrics,
             moments: analysis.moments,
+            steps: stepsOf(analysis.groups, analysis.fields),
             chart: analysis.chart,
           }),
     [
@@ -304,6 +310,7 @@ export function useAnalysisResult(
       analysis.metrics,
       analysis.moments,
       analysis.chart,
+      analysis.fields,
     ],
   );
   // A chart the question's shape cannot draw — every metric a moment,
@@ -570,4 +577,23 @@ function split(
  */
 function shapeKey(groups: readonly string[], metrics: readonly string[]) {
   return `${groups.join('\u0000')}\u0001${metrics.join('\u0000')}`;
+}
+
+/**
+ * The dimensions, by alias, whose field the definition declares the steps of
+ * one process (`AggregationFieldCapability.steps`): a funnel is offered as
+ * fitting over these alone.
+ */
+function stepsOf(
+  groups: readonly AnalysisGroup[],
+  fields: readonly AnalysisFieldOption[],
+): ReadonlySet<string> {
+  const declared = new Set(
+    fields.filter(field => field.steps).map(field => field.field),
+  );
+  return new Set(
+    groups
+      .filter(group => declared.has(group.field ?? ''))
+      .map(group => group.alias),
+  );
 }

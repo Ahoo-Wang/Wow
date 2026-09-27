@@ -30,6 +30,12 @@ export interface ChartFit {
   available: boolean;
   /** Why not, when not. */
   reason?: ChartUnfit;
+  /**
+   * Why a type that can draw the result is not offered as fitting it: it
+   * is drawn, but listed among the other types with this said — a funnel
+   * over categories that are no steps (`AggregationFieldCapability.steps`).
+   */
+  aside?: ChartUnfit;
   /** The one the shape reads best as; at most one type carries it. */
   recommended?: true;
 }
@@ -58,6 +64,12 @@ export interface ChartShape {
    * stages are not judged.
    */
   chart?: ChartSpec;
+  /**
+   * The dimensions, by alias, whose values the definition declares the steps
+   * of one process (`AggregationFieldCapability.steps`). Left out, it is not
+   * judged: a funnel over any category is offered.
+   */
+  steps?: ReadonlySet<string>;
 }
 
 /**
@@ -80,6 +92,17 @@ export function fitCharts(shape: ChartShape): Record<ChartType, ChartFit> {
       ];
     }),
   ) as Record<ChartType, ChartFit>;
+  // A funnel reads its stages as one sequence, and each step's drop as a
+  // loss: over categories side by side — provinces — it drew 「总转化
+  // 15.5%（安徽省／江苏省）」 (second review R2-P1-5). It still draws them,
+  // among the other types, with why.
+  const only = shape.groups.length === 1 ? shape.groups[0] : undefined;
+  const unordered =
+    only !== undefined &&
+    shape.steps !== undefined &&
+    !shape.steps.has(only.alias);
+  if (fits.funnel.available && unordered)
+    fits.funnel = { available: true, aside: 'chart.fit.not-steps' };
   const best = recommend(facts);
   if (best) fits[best] = { ...fits[best], recommended: true };
   return fits;
@@ -188,7 +211,11 @@ function recommend({
 /** Every type, in the order the picker lays them out. */
 export const CHART_PICKER_ORDER: readonly ChartType[] = CHART_TYPES;
 
-/** The picker's two groups of tiles (D33 Q54). */
+/**
+ * The picker's two groups of tiles (D33 Q54): the types that fit, and the
+ * rest — greyed where they cannot draw, pickable where they draw but are not
+ * offered as fitting (`aside`).
+ */
 export interface ChartPickerGroups {
   /** 「适合这个结果」: every type that can draw it, then the table. */
   suits: (ChartType | 'table')[];
@@ -211,7 +238,10 @@ export function chartPickerGroups(
   const suits: (ChartType | 'table')[] = [];
   const others: ChartType[] = [];
   for (const type of CHART_PICKER_ORDER)
-    (fits[type]?.available === false ? others : suits).push(type);
+    (fits[type]?.available === false || fits[type]?.aside !== undefined
+      ? others
+      : suits
+    ).push(type);
   suits.push('table');
   return { suits, others };
 }

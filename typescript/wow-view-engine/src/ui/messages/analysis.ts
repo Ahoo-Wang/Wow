@@ -241,6 +241,8 @@ export const analysisMessages = {
   // A funnel's stages are steps: the values of a category, two at least.
   'chart.fit.needs-category': 'Stages need a category dimension',
   'chart.fit.needs-two-stages': 'Needs two groups or more as stages',
+  'chart.fit.not-steps':
+    'These groups are categories side by side, not the steps of one process',
   // A funnel counts what entered and what remained: a record count or a
   // sum, never an average, a distinct count or an extreme.
   'chart.fit.needs-additive': 'Needs a count or a sum',

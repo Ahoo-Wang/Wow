@@ -322,6 +322,16 @@ export interface AggregationFieldCapability {
   inMetricFilter?: boolean;
   /** Whether a formula may take it as an operand. Left out, it may. */
   expressionInput?: boolean;
+  /**
+   * Whether its values are the steps of one process, in order — an order's
+   * status from placed to completed — rather than categories side by side.
+   * A funnel over a dimension on it is offered as fitting the result; over
+   * any other category it is still drawn, but offered among the other types
+   * with why, since a funnel reads its stages as a sequence and a drop from
+   * one to the next as a loss (second review R2-P1-5: 「总转化 15.5%（安徽省
+   * ／江苏省）」). Left out, it is not.
+   */
+  steps?: boolean;
 }
 
 export interface AnalysisLimits {

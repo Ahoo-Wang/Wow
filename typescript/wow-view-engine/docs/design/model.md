@@ -148,6 +148,7 @@ export interface AggregationFieldCapability {
   distinctCount?: boolean;
   percentile?: boolean;
   missingKey?: boolean; // false：按值分组不带缺失值一组（不写时单值文本字段带）
+  steps?: boolean; // 它的值是一个过程的先后步骤（订单状态）：漏斗按它分组才算「适合这个结果」
   inMetricFilter?: boolean; // false：指标自己的条件不能用它
   expressionInput?: boolean; // false：不能做公式的操作数
 }

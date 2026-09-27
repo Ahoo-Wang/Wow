@@ -52,6 +52,7 @@ export type ChartUnfit =
   | 'chart.fit.needs-quantity'
   | 'chart.fit.needs-category'
   | 'chart.fit.needs-two-stages'
+  | 'chart.fit.not-steps'
   | 'chart.fit.needs-additive'
   | 'chart.fit.needs-share'
   | 'chart.fit.needs-five-numbers'
