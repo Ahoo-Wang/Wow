@@ -46,7 +46,7 @@ function renderAt(entry: { search?: string; state?: unknown }) {
   const router = createMemoryRouter(
     [
       {
-        path: "/executions/events",
+        path: "/events",
         element: (
           <EventsPage
             store={new MemoryViewStore()}
@@ -55,7 +55,7 @@ function renderAt(entry: { search?: string; state?: unknown }) {
         ),
       },
     ],
-    { initialEntries: [{ pathname: "/executions/events", ...entry }] },
+    { initialEntries: [{ pathname: "/events", ...entry }] },
   );
   render(
     <I18nProvider>

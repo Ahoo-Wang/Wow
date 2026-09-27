@@ -61,7 +61,7 @@ describe("destinationOf", () => {
     const to = handed("execution-history", "unsaved");
     expect(destinationOf(to)).toEqual({
       kind: "page",
-      to: "/executions/events",
+      to: "/events",
       state: { handOver: to },
     });
   });

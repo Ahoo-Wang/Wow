@@ -1,12 +1,18 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-fve-preset="porcelain">
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/logo.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Wow Compensation Dashboard</title>
+    <title>Wow Compensation Console</title>
   </head>
-  <body>
+  <!--
+    The engine's porcelain preset on the page, and its roles on the
+    console's own chrome (`fve-tokens`): one theme for the shell and the
+    engine's surfaces alike (console-redesign.md §6). On `<body>` so a
+    menu portalled there reads them too.
+  -->
+  <body class="fve-tokens">
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

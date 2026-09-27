@@ -1,49 +1,13 @@
 import { describe, it, expect } from "vitest";
-import {
-  DashboardNavItem,
-  ExecutionsNavItem,
-  NavItemPaths,
-  PrimaryNavItems,
-  QueueRoutes,
-  SecondaryPages,
-} from "../constants.tsx";
+import { NavItems } from "../constants.tsx";
 
 describe("routes/constants", () => {
-  it("has correct path values", () => {
-    expect(NavItemPaths).toEqual({
-      Dashboard: "/",
-      Analytics: "/analytics",
-      Boards: "/boards",
-      Executions: "/executions",
-      Events: "/executions/events",
-    });
-  });
-
-  it("keeps each old queue address, sent to its system view", () => {
-    expect(QueueRoutes.map(({ path, view }) => [path, view])).toEqual([
-      ["/active", "system:execution-failed:active"],
-      ["/to-retry", "system:execution-failed:to-retry"],
-      ["/executing", "system:execution-failed:executing"],
-      ["/next-retry", "system:execution-failed:next-retry"],
-      ["/non-retryable", "system:execution-failed:non-retryable"],
-      ["/succeeded", "system:execution-failed:succeeded"],
-      ["/unrecoverable", "system:execution-failed:unrecoverable"],
-    ]);
-  });
-
-  it("navigates to the overview and the failed executions, nothing else", () => {
-    expect(DashboardNavItem).toEqual({ label: "Overview", path: "/" });
-    expect(ExecutionsNavItem).toEqual({
-      label: "Failed executions",
-      path: "/executions",
-    });
-    expect(PrimaryNavItems).toEqual([DashboardNavItem, ExecutionsNavItem]);
-  });
-
-  it("puts each page reached from another under the item it belongs to", () => {
-    expect(SecondaryPages.map(({ path, parent }) => [path, parent])).toEqual([
-      ["/boards", "/"],
-      ["/executions/events", "/executions"],
+  it("lists the four places, in the top bar's order, and nothing else", () => {
+    expect(NavItems.map(({ label, path }) => [label, path])).toEqual([
+      ["Overview", "/"],
+      ["Failed executions", "/executions"],
+      ["Event stream", "/events"],
+      ["Boards", "/boards"],
     ]);
   });
 });

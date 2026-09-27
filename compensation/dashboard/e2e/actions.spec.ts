@@ -106,7 +106,7 @@ test("prepares twenty in bulk; the three the server refuses stay selected", asyn
     ),
   ).toBeLessThanOrEqual(0);
   // On a desktop the commands column is pinned, so a row's commands are in
-  // view beside the console's sidebar; a phone scrolls the table to them.
+  // view across the page; a phone scrolls the table to them.
   const width = page.viewportSize()?.width ?? 0;
   if (width >= 1024) {
     const right = await rowOf(page, "EF-01")

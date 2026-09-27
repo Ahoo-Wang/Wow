@@ -115,6 +115,8 @@ class TemplateEngineTest {
         val emptyHostNav = stateAggregate.state.toNavAsMarkdown("")
         emptyHostNav.assert().isEqualTo("`${executionFailedState.id}`")
         val hostNav = stateAggregate.state.toNavAsMarkdown(host)
-        hostNav.assert().isEqualTo("[${executionFailedState.id}]($host/to-retry?id=${executionFailedState.id})")
+        hostNav.assert().isEqualTo(
+            "[${executionFailedState.id}]($host/executions?view=system%3Aexecution-failed%3Ato-retry&id=${executionFailedState.id})"
+        )
     }
 }

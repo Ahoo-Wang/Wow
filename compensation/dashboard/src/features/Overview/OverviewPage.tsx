@@ -71,6 +71,9 @@ function LocalizedOverview({
   return (
     <div className="overview-page">
       <div className="overview-page-actions">
+        {/* The page's heading: the top bar names the place, not the page, and
+            the board has no workbench to title it (console-redesign.md §5.1). */}
+        <h1 className="overview-page-title">{t("Overview")}</h1>
         <Link
           to={workbench}
           state={{ filters: initialFilters ?? undefined }}

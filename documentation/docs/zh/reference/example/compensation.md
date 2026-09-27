@@ -85,11 +85,12 @@ pnpm --dir compensation/dashboard dev
 
 | 地址 | 页面 |
 | --- | --- |
-| `/` | 「概览」：系统板「补偿概览」，嵌入在首页，只读不存；`/dashboard`、`/analytics` 跳到这里 |
+| `/` | 「总览」：系统板「补偿概览」，嵌入在首页，只读不存 |
 | `/executions` | 「失败执行」：记录与分析的工作台，七个队列是它的系统视图 |
-| `/executions/events` | 补偿事件流的工作台（概览上事件流面板的「在工作台中打开」落在这里） |
-| `/boards` | 仪表盘工作台：另存、改排、搭自己的板 |
-| `/active`、`/to-retry`、`/executing`、`/next-retry`、`/non-retryable`、`/succeeded`、`/unrecoverable` | 旧队列地址，跳到对应的系统视图，参数原样带过去 |
+| `/events` | 「事件流」：补偿事件流的工作台（概览上事件流面板的「在工作台中打开」落在这里） |
+| `/boards` | 「看板」：仪表盘工作台，另存、改排、搭自己的板 |
+
+四个去处都在顶栏；旧的队列地址（`/to-retry` 等）与 `/dashboard`、`/analytics` 已随旧外壳去掉，打开会回到总览。通知里的链接指向 `/executions?view=…&id=…`。
 
 ### 如何读取概览
 

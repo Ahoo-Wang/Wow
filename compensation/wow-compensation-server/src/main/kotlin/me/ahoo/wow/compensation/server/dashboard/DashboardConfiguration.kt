@@ -24,17 +24,8 @@ import org.springframework.web.bind.annotation.GetMapping
 class DashboardConfiguration(private val webProperties: WebProperties, private val resourceLoader: ResourceLoader) {
     companion object {
         const val HOME_FILE = "index.html"
-        const val DASHBOARD_NAV = "/dashboard"
-        const val ANALYTICS_NAV = "/analytics"
-        const val ACTIVE_NAV = "/active"
-        const val TO_RETRY_NAV = "/to-retry"
-        const val EXECUTING_NAV = "/executing"
-        const val NEXT_RETRY_NAV = "/next-retry"
-        const val NON_RETRYABLE_NAV = "/non-retryable"
-        const val SUCCEEDED_NAV = "/succeeded"
-        const val UNRECOVERABLE_NAV = "/unrecoverable"
         const val EXECUTIONS_NAV = "/executions"
-        const val EVENTS_NAV = "/executions/events"
+        const val EVENTS_NAV = "/events"
         const val BOARDS_NAV = "/boards"
     }
 
@@ -47,23 +38,12 @@ class DashboardConfiguration(private val webProperties: WebProperties, private v
     }
 
     /**
-     * The console's own routes, answered with its entry point so a link or a refresh opens them: the failed
-     * executions' page, their event streams' page, the dashboard workbench, and the old addresses the console
-     * redirects — the dashboard's aliases and the seven old queues, which open their system views on the failed
-     * executions' page.
+     * The console's four places, answered with its entry point so a link or a refresh opens them: the overview,
+     * the failed executions, the event stream and the boards. The old console's addresses are gone with it.
      */
     @GetMapping(
         *[
             "/",
-            DASHBOARD_NAV,
-            ANALYTICS_NAV,
-            ACTIVE_NAV,
-            TO_RETRY_NAV,
-            EXECUTING_NAV,
-            NEXT_RETRY_NAV,
-            NON_RETRYABLE_NAV,
-            SUCCEEDED_NAV,
-            UNRECOVERABLE_NAV,
             EXECUTIONS_NAV,
             EVENTS_NAV,
             BOARDS_NAV,

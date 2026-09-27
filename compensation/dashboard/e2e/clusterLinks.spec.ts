@@ -12,22 +12,19 @@
  */
 
 import { expect, test, type Page } from "@playwright/test";
-import { FindCategory } from "./support/legacy/FindCategory.ts";
-import { RetryConditions } from "./support/legacy/RetryConditions.ts";
 import {
   executions,
-  matches,
   stubExecutionFailedService,
   type Snapshot,
   type SnapshotQueries,
 } from "./support/executionFailedService.ts";
 import { recordsInAll } from "./support/wording.ts";
 
-// The old queue addresses (rebuild proposal, batch 5; Q3): each still opens,
-// as a redirect to its system view on the failed executions' page, with what
-// it came with — the dashboard's execution window (`start`, `end`) and a
-// failure cluster (`cluster`) as the view's scope, the open execution (`id`)
-// as the detail.
+// A failure cluster link on the failed executions' page (`cluster`): the
+// view narrowed to the cluster until the narrowing is taken off. The old
+// queue addresses that carried it are gone with the old shell
+// (console-redesign.md §0, Q1); batch 2 moves the narrowing to the engine's
+// scope.
 
 /**
  * The 45 executions, with EF-11 out of retries, so every queue holds some
@@ -56,41 +53,6 @@ const WINDOW = {
   end: Date.parse("2026-09-19T00:00:00.000Z"),
 };
 
-const QUEUES = [
-  ["/active", "active", "Active", FindCategory.Active],
-  ["/to-retry", "to-retry", "To retry", FindCategory.ToRetry],
-  ["/executing", "executing", "Executing", FindCategory.Executing],
-  ["/next-retry", "next-retry", "Due for retry", FindCategory.NextRetry],
-  [
-    "/non-retryable",
-    "non-retryable",
-    "Non-retryable",
-    FindCategory.NonRetryable,
-  ],
-  ["/succeeded", "succeeded", "Succeeded", FindCategory.Succeeded],
-  [
-    "/unrecoverable",
-    "unrecoverable",
-    "Unrecoverable",
-    FindCategory.Unrecoverable,
-  ],
-] as const;
-
-type Condition = Parameters<typeof matches>[1];
-
-/** What the old queue selected within `WINDOW`, at the pinned moment. */
-function oldQueueInWindow(category: FindCategory): string[] {
-  const queue = RetryConditions.categoryToCondition(category, NOW) as Condition;
-  return DOCUMENTS.filter(
-    (document) =>
-      matches(document, queue, NOW) &&
-      (document.state.executeAt as number) >= WINDOW.start &&
-      (document.state.executeAt as number) < WINDOW.end,
-  )
-    .map(({ aggregateId }) => aggregateId)
-    .sort();
-}
-
 test.beforeEach(async ({ page }) => {
   await page.clock.setFixedTime(NOW);
   await page.addInitScript(() =>
@@ -109,43 +71,6 @@ function narrowing(page: Page) {
 function lastFilter(queries: SnapshotQueries): string {
   return JSON.stringify(queries.paged.at(-1)?.filter);
 }
-
-for (const [path, id, title, category] of QUEUES)
-  test(`the old ${path} address opens the ${title} view, its window kept`, async ({
-    page,
-  }) => {
-    const queries = await stubExecutionFailedService(page, DOCUMENTS, {
-      now: NOW,
-    });
-    const expected = oldQueueInWindow(category);
-    expect(expected.length).toBeGreaterThan(0);
-
-    await page.goto(`${path}?start=${WINDOW.start}&end=${WINDOW.end}`);
-
-    await expect(page).toHaveURL(
-      `/executions?view=${encodeURIComponent(`system:execution-failed:${id}`)}&start=${WINDOW.start}&end=${WINDOW.end}`,
-    );
-    const workbench = page.getByRole("region", { name: title });
-    await expect(workbench).toBeVisible();
-    await expect(narrowing(page)).toBeVisible();
-    // The window is the view's scope: on its applied bar, with no ✕.
-    await expect(
-      workbench.locator("[data-scoped]").filter({ hasText: "Executed at" }),
-    ).toBeVisible();
-    await expect(
-      workbench
-        .getByRole("navigation", { name: "Pagination" })
-        .getByText(recordsInAll(expected.length)),
-    ).toBeVisible();
-    expect([...(queries.matched.at(-1) ?? [])].sort()).toEqual(expected);
-    // Up to the millisecond before the exclusive end, as the queue read it.
-    expect(lastFilter(queries)).toContain(
-      `"op":"BETWEEN","field":"state.executeAt","lowerBound":${WINDOW.start},"upperBound":${WINDOW.end - 1}`,
-    );
-    // The address was replaced, not added to: back leaves the page.
-    await page.goBack();
-    await expect(page).not.toHaveURL(new RegExp(path));
-  });
 
 test("a cluster link opens its executions alone, until the narrowing goes", async ({
   page,
@@ -170,10 +95,10 @@ test("a cluster link opens its executions alone, until the narrowing goes", asyn
   ).length;
 
   await page.goto(
-    `/active?${new URLSearchParams({ cluster: JSON.stringify(cluster) })}`,
-  );
-  await expect(page).toHaveURL(
-    /\/executions\?view=system%3Aexecution-failed%3Aactive&cluster=/,
+    `/executions?${new URLSearchParams({
+      view: "system:execution-failed:active",
+      cluster: JSON.stringify(cluster),
+    })}`,
   );
   const workbench = page.getByRole("region", { name: "Active" });
   await expect(
@@ -217,7 +142,9 @@ test("a malformed cluster link is said, and queries nothing", async ({
   const queries = await stubExecutionFailedService(page, DOCUMENTS, {
     now: NOW,
   });
-  await page.goto("/active?cluster=%7Bbroken");
+  await page.goto(
+    "/executions?view=system%3Aexecution-failed%3Aactive&cluster=%7Bbroken",
+  );
   await expect(page.getByText("Invalid cluster filter.")).toBeVisible();
   expect(queries.paged).toHaveLength(0);
 
@@ -226,21 +153,4 @@ test("a malformed cluster link is said, and queries nothing", async ({
   await expect(page).toHaveURL(
     /\/executions\?view=system%3Aexecution-failed%3Aactive$/,
   );
-});
-
-test("an old address with an execution's id opens it in the detail", async ({
-  page,
-}) => {
-  await stubExecutionFailedService(page, DOCUMENTS, { now: NOW });
-  await page.goto("/unrecoverable?id=EF-03");
-  await expect(page).toHaveURL(
-    /\/executions\?view=system%3Aexecution-failed%3Aunrecoverable&id=EF-03$/,
-  );
-  const panel = page.getByRole("dialog", { name: /EF-03/ });
-  await expect(
-    panel.getByRole("heading", { name: "EF-03", level: 2 }),
-  ).toBeVisible();
-  await expect(
-    panel.getByRole("form", { name: "Apply retry specification" }),
-  ).toBeVisible();
 });

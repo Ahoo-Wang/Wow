@@ -89,23 +89,13 @@ const DOCUMENTS = BASE.map((document) => {
 });
 
 const QUEUES = [
-  ["/active", "active", "Active", FindCategory.Active],
-  ["/to-retry", "to-retry", "To retry", FindCategory.ToRetry],
-  ["/executing", "executing", "Executing", FindCategory.Executing],
-  ["/next-retry", "next-retry", "Due for retry", FindCategory.NextRetry],
-  [
-    "/non-retryable",
-    "non-retryable",
-    "Non-retryable",
-    FindCategory.NonRetryable,
-  ],
-  ["/succeeded", "succeeded", "Succeeded", FindCategory.Succeeded],
-  [
-    "/unrecoverable",
-    "unrecoverable",
-    "Unrecoverable",
-    FindCategory.Unrecoverable,
-  ],
+  ["active", "Active", FindCategory.Active],
+  ["to-retry", "To retry", FindCategory.ToRetry],
+  ["executing", "Executing", FindCategory.Executing],
+  ["next-retry", "Due for retry", FindCategory.NextRetry],
+  ["non-retryable", "Non-retryable", FindCategory.NonRetryable],
+  ["succeeded", "Succeeded", FindCategory.Succeeded],
+  ["unrecoverable", "Unrecoverable", FindCategory.Unrecoverable],
 ] as const;
 
 /** A system view's own address. */
@@ -158,20 +148,15 @@ async function systemView(
   return ids;
 }
 
-for (const [path, id, title, category] of QUEUES)
-  test(`the old ${path} address opens the ${title} system view, which matches its queue`, async ({
-    page,
-  }) => {
+for (const [id, title, category] of QUEUES)
+  test(`the ${title} system view matches its old queue`, async ({ page }) => {
     const queries = await stubExecutionFailedService(page, DOCUMENTS, {
       now: NOW,
     });
 
     const before = oldQueue(category);
-    const after = await systemView(page, queries, path, title);
+    const after = await systemView(page, queries, VIEW(id), title);
 
-    await expect(page).toHaveURL(
-      `/executions?view=${encodeURIComponent(`system:execution-failed:${id}`)}`,
-    );
     expect(before.length).toBeGreaterThan(1);
     expect(after).toEqual(before);
   });

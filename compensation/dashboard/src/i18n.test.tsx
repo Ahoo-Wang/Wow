@@ -25,7 +25,7 @@ function LanguageProbe() {
 
   return (
     <>
-      <output>{`${locale}:${t("Dashboard")}`}</output>
+      <output>{`${locale}:${t("Overview")}`}</output>
       <button type="button" onClick={() => setLocale("en")}>
         English
       </button>
@@ -64,13 +64,13 @@ describe("i18n", () => {
       </I18nProvider>,
     );
 
-    expect(screen.getByText("zh-CN:仪表盘")).toBeInTheDocument();
+    expect(screen.getByText("zh-CN:总览")).toBeInTheDocument();
     expect(document.documentElement.lang).toBe("zh-CN");
-    expect(document.title).toBe("Wow 补偿仪表盘");
+    expect(document.title).toBe("Wow 补偿控制台");
 
     fireEvent.click(screen.getByRole("button", { name: "English" }));
 
-    expect(screen.getByText("en:Dashboard")).toBeInTheDocument();
+    expect(screen.getByText("en:Overview")).toBeInTheDocument();
     expect(localStorage.getItem("wow-dashboard-locale")).toBe("en");
     expect(document.documentElement.lang).toBe("en");
   });
@@ -100,6 +100,6 @@ describe("i18n", () => {
     );
     fireEvent.click(screen.getByRole("button", { name: "中文" }));
 
-    expect(screen.getByText("zh-CN:仪表盘")).toBeInTheDocument();
+    expect(screen.getByText("zh-CN:总览")).toBeInTheDocument();
   });
 });

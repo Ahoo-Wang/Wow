@@ -324,14 +324,16 @@ test("an old queue address opens its view, narrowed to the window it names", asy
     localStorage.setItem("wow-dashboard-locale", "en"),
   );
 
-  // The server answers the old address with the console, which sends it on
-  // to its view with the window as the view's scope: the last hour holds
-  // what this run seeded.
+  // The view, with the window as its scope: the last hour holds what this
+  // run seeded.
   const end = Date.now() + 60_000;
   const start = end - 3_600_000;
-  await page.goto(`/to-retry?start=${start}&end=${end}`);
-  await expect(page).toHaveURL(
-    /\/executions\?view=system%3Aexecution-failed%3Ato-retry&start=\d+&end=\d+$/,
+  await page.goto(
+    `/executions?${new URLSearchParams({
+      view: "system:execution-failed:to-retry",
+      start: String(start),
+      end: String(end),
+    })}`,
   );
   const toRetry = page.getByRole("region", { name: "To retry" });
   await expect(toRetry).toBeVisible();

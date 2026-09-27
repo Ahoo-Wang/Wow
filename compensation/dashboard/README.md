@@ -16,7 +16,7 @@ VITE_API_BASE_URL=http://127.0.0.1:18083/ \
 pnpm --dir compensation/dashboard dev --host 127.0.0.1
 ```
 
-Wow 客户端与视图引擎来自同仓的工作区包 `@ahoo-wang/wow-client`、`@ahoo-wang/wow-react`、`@ahoo-wang/wow-view-engine`（`workspace:*`），它们通过 `dist` 被引用，所以第二行先构建 Dashboard 依赖的工作区包；修改 `typescript/` 下的 SDK 后重新执行这一行，SDK 与视图引擎的改动在同一个 PR 里由 Dashboard 的构建与测试验证。`src/main.tsx` 引入视图引擎的 `styles.css` 与 `shadcn-bridge.css`，引擎视图穿控制台自己的 shadcn 主题。其余 Fetcher 包来自 npm。
+Wow 客户端与视图引擎来自同仓的工作区包 `@ahoo-wang/wow-client`、`@ahoo-wang/wow-react`、`@ahoo-wang/wow-view-engine`（`workspace:*`），它们通过 `dist` 被引用，所以第二行先构建 Dashboard 依赖的工作区包；修改 `typescript/` 下的 SDK 后重新执行这一行，SDK 与视图引擎的改动在同一个 PR 里由 Dashboard 的构建与测试验证。`src/main.tsx` 引入视图引擎的 `styles.css` 与 porcelain 预设（`themes/porcelain.css`）；`index.html` 在 `<html>` 上写 `data-fve-preset="porcelain"`、在 `<body>` 上挂 `fve-tokens`，控制台自己的外壳与引擎的视图读同一组角色，明暗由 `<html class="dark">` 决定：缺省跟随系统，顶栏可钉亮或暗、记在本机（[重写方案](docs/design/console-redesign.md) §6）。其余 Fetcher 包来自 npm。
 
 `VITE_API_BASE_URL` 是所有 Fetcher 请求的基地址。`.env.development` 默认指向开发集群服务；连接本地服务时必须像上面一样显式覆盖。本地补偿服务的安全启动命令见[补偿参考案例](../../documentation/docs/zh/reference/example/compensation.md#本地服务启动、健康与路由验证)。
 
@@ -30,14 +30,14 @@ Wow 客户端与视图引擎来自同仓的工作区包 `@ahoo-wang/wow-client`�
 - **失败集中度**：前 5 个集群，面板只读七列（上下文、处理器、函数、错误码、活动失败、最早执行、最早下次重试；只省去由前三者决定的函数类型）；面板的「在工作台中打开」开系统视图「失败集中度」，五维身份与按状态拆开的全部十列；点一个集群进「失败执行」的「活动中」视图，带着这个集群与时间范围作为条件，「返回 补偿概览」回到板上。
 - **可恢复性构成**与**重试次数分布**（0、1–2、3–5、6 次及以上）。
 - **最需要处理的记录**：「已到重试时间」队列，按下次重试时刻升序，行上与勾选后的命令与「失败执行」一致（D39 的记录面板）；「在工作台中打开」进那张队列。
-- 右上角「在仪表盘工作台中打开」进 `/boards`：视图引擎的 `DashboardWorkbench`，可以另存、搭自己的板（存在本机）。事件流的面板「在工作台中打开」进 `/executions/events`：事件流的工作台，缺省打开「全部事件流」（按时间降序，每行带执行 ID），另有单条执行的「执行历史」。
-- 板与工作台都能「铺满屏幕」：`index.css` 把引擎的 `--fve-expanded-z-index` 设为 20，铺满的面盖住控制台固定的侧栏（`z-index: 10`），仍在引擎的弹层（50）之下。
+- 右上角「在仪表盘工作台中打开」进 `/boards`：视图引擎的 `DashboardWorkbench`，可以另存、搭自己的板（存在本机）。事件流的面板「在工作台中打开」进 `/events`：事件流的工作台，缺省打开「全部事件流」（按时间降序，每行带执行 ID），另有单条执行的「执行历史」。
+- 板与工作台都能「铺满屏幕」：`index.css` 把引擎的 `--fve-expanded-z-index` 设为 20，铺满的面盖住控制台吸顶的顶栏（`z-index: 10`），仍在引擎的弹层（50）之下。
 
 ## 失败执行
 
-`/executions` 是「失败执行」：`@ahoo-wang/wow-view-engine` 的 `DataWorkbench`（[重构方案](docs/design/view-engine-rebuild.md)批 1～5），定义在 [`src/views/`](src/views/)：`execution_failed` 快照的字段与分组、旧控制台七个队列对应的系统视图（活动中、待重试、执行中、已到重试时间、不可重试、不可恢复、已成功）加「全部」、四张分析（按状态分布、活动失败按处理器、每日新增失败、失败集中度）。宿主侧栏只有「概览」「失败执行」两项，队列与个人视图都在工作台自己的视图列表里（方案 Q3）。
+`/executions` 是「失败执行」：`@ahoo-wang/wow-view-engine` 的 `DataWorkbench`（[重构方案](docs/design/view-engine-rebuild.md)批 1～5），定义在 [`src/views/`](src/views/)：`execution_failed` 快照的字段与分组、旧控制台七个队列对应的系统视图（活动中、待重试、执行中、已到重试时间、不可重试、不可恢复、已成功）加「全部」、四张分析（按状态分布、活动失败按处理器、每日新增失败、失败集中度）。顶栏四个去处：总览、失败执行、事件流、看板；队列与个人视图都在工作台自己的视图列表里，控制台没有自己的侧栏（重写方案 §4）。
 
-- **旧地址都还在**（批 5）：`/active`、`/to-retry`、`/executing`、`/next-retry`、`/non-retryable`、`/succeeded`、`/unrecoverable` 跳到对应的系统视图（`/executions?view=system:execution-failed:<队列>`），带来的参数原样带过去，跳转替换历史记录。打包服务器对这些地址与 `/executions`、`/executions/events`、`/boards` 都返回控制台入口，直接打开或刷新都可以。
+- **只有新地址**（重写方案 Q1）：旧的队列地址（`/to-retry` 等）与 `/dashboard`、`/analytics` 已去掉，打开会回到总览；打包服务器对 `/`、`/executions`、`/events`、`/boards` 返回控制台入口，直接打开或刷新都可以。通知里的链接是 `/executions?view=system:execution-failed:<队列>&id=<执行>`。
 - **链接带来的范围**：`?cluster=`（仪表盘失败集群的完整函数身份、错误码与统计窗口）与 `?start&end`（仪表盘的执行时间窗口，`end` 不含）转成打开的那张视图的作用域条件：条件栏上带「由页面设定」、不能单独移除，工作台上方一行说明「此视图按打开它的链接限定了范围」并给「移除限定」；换到别的视图时范围随之放下、地址里的参数一并去掉。参数读不出来时只说「集群筛选无效／时间范围过滤条件无效」并给清除按钮，不退回无筛选查询。概览板上的点击不经过这两个参数：板把视图连同条件直接交给工作台（引擎的 `handOver`，随这条浏览记录保存）。
 - 「已到重试时间」（原 `/next-retry`）表示已经到达自动调度时间的候选。
 
@@ -67,7 +67,7 @@ Wow 客户端与视图引擎来自同仓的工作区包 `@ahoo-wang/wow-client`�
 
 `pnpm --dir compensation/dashboard test` 直接调用 `vitest`，在交互终端中可能进入 watch；CI 和一次性验证使用表中的 `vitest run`。Playwright 会在 `127.0.0.1:4174` 运行已构建的 preview，首次使用前需确保 Chromium 已安装。
 
-浏览器测试默认只跑打桩的一套（`e2e/*.spec.ts`，接口由 `page.route` 桩住）。其中 `e2e/accessibility.spec.ts` 用 `axe-core` 在两个视口检查每张系统视图、概览、详情抽屉（含嵌套的事件流详情）、事件流与仪表盘工作台，WCAG 2.0／2.1 A、AA 须 0 违规。设了 `WOW_COMPENSATION_URL` 时改为只跑 `e2e/real-server/`：不起 preview，直接打开那台服务端，它须从仓库根目录启动、提供上一步构建的 `dist/`（启动命令见 [RELEASING.md §C′](../../typescript/RELEASING.md) 第 3 步）。冒烟自己写入两条失败执行（处理器名带本次运行的标记），直接打开 `/executions`，断言真实的行渲染出来、按处理器加一个条件后只剩一行；再直接读服务端的快照能力描述，断言「搜索错误」只在描述里有全文检索时出现（MongoDB 未建文本索引时不出现、也不发检索）；再打开「待重试」与「已到重试时间」，断言服务端按自己的时钟接受 `BEFORE_NOW`／`AFTER_NOW`：新写入的两条在前者、不在后者（首次重试排在最小退避之后）；再按 `?id=` 打开第一条，断言抽屉画出它的处理器、重试规格表单、「没有堆栈」，且执行历史由服务端的事件流答出、第一条是「首次失败」；对第三条自己写入的记录按行上的「准备」，断言命令带 `Command-Wait-Stage: SNAPSHOT` 到达服务端、结局行报「1 项完成」、这一行读回「已准备」且准备按钮变为不可用；再打开旧地址 `/to-retry?start&end`（最近一小时），断言它跳到「待重试」、限定说明在、新写入的两条都在，刷新后服务端照样答出这个地址；在第二条的执行历史里打开「首次失败」那一行，断言读出的载荷里有写入时的错误信息；最后打开概览，断言「全部活动」等于服务端直接答的活动失败数、「范围内活动」与「新增失败」至少是本次写入的条数、净积压与重试成功率由服务端答出、「可立即处理」等于记录面板的总数；全程没有 4xx、5xx 与页面错误。它会写数据，只对测试环境跑；CI 不跑（要 JDK、Gradle 构建补偿服务端与 MongoDB，不适合放进 `dashboard-test.yml`）。
+浏览器测试默认只跑打桩的一套（`e2e/*.spec.ts`，接口由 `page.route` 桩住）。其中 `e2e/accessibility.spec.ts` 用 `axe-core` 在两个视口检查每张系统视图、概览、详情抽屉（含嵌套的事件流详情）、事件流与仪表盘工作台，WCAG 2.0／2.1 A、AA 须 0 违规。设了 `WOW_COMPENSATION_URL` 时改为只跑 `e2e/real-server/`：不起 preview，直接打开那台服务端，它须从仓库根目录启动、提供上一步构建的 `dist/`（启动命令见 [RELEASING.md §C′](../../typescript/RELEASING.md) 第 3 步）。冒烟自己写入两条失败执行（处理器名带本次运行的标记），直接打开 `/executions`，断言真实的行渲染出来、按处理器加一个条件后只剩一行；再直接读服务端的快照能力描述，断言「搜索错误」只在描述里有全文检索时出现（MongoDB 未建文本索引时不出现、也不发检索）；再打开「待重试」与「已到重试时间」，断言服务端按自己的时钟接受 `BEFORE_NOW`／`AFTER_NOW`：新写入的两条在前者、不在后者（首次重试排在最小退避之后）；再按 `?id=` 打开第一条，断言抽屉画出它的处理器、重试规格表单、「没有堆栈」，且执行历史由服务端的事件流答出、第一条是「首次失败」；对第三条自己写入的记录按行上的「准备」，断言命令带 `Command-Wait-Stage: SNAPSHOT` 到达服务端、结局行报「1 项完成」、这一行读回「已准备」且准备按钮变为不可用；再打开「待重试」并以 `start&end` 限定最近一小时，断言限定说明在、新写入的两条都在，刷新后服务端照样答出这个地址；在第二条的执行历史里打开「首次失败」那一行，断言读出的载荷里有写入时的错误信息；最后打开概览，断言「全部活动」等于服务端直接答的活动失败数、「范围内活动」与「新增失败」至少是本次写入的条数、净积压与重试成功率由服务端答出、「可立即处理」等于记录面板的总数；全程没有 4xx、5xx 与页面错误。它会写数据，只对测试环境跑；CI 不跑（要 JDK、Gradle 构建补偿服务端与 MongoDB，不适合放进 `dashboard-test.yml`）。
 
 ## 生成客户端边界
 
