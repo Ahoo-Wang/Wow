@@ -267,7 +267,10 @@ test("reads an execution's history from its event stream, the newest first", asy
   const panel = await openDetail(page, "EF-01");
   // The event streams themselves, one press under the attempts.
   await panel.getByRole("button", { name: /^All events/ }).click();
-  const history = panel.getByRole("region", { name: "Execution history" });
+  const history = panel.getByRole("region", {
+    name: "Execution history",
+    exact: true,
+  });
   await history.scrollIntoViewIfNeeded();
   const rows = history.getByRole("row");
   // A header, then the two streams, the newer first, each by its events.

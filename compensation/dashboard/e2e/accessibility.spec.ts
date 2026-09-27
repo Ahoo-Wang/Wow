@@ -125,7 +125,10 @@ test("the detail drawer, and an event stream opened from its history", async ({
   await expectNoAxeViolations(page, "the detail drawer");
 
   await drawer.getByRole("button", { name: /^All events/ }).click();
-  const history = drawer.getByRole("region", { name: "Execution history" });
+  const history = drawer.getByRole("region", {
+    name: "Execution history",
+    exact: true,
+  });
   await history.scrollIntoViewIfNeeded();
   await history.getByRole("row").nth(1).click();
   await expect(page.getByText("Stream ID", { exact: true })).toBeVisible();

@@ -243,7 +243,10 @@ test("loads lifecycle history through the paged EventStream REST API", async ({
   await page.goto("/executions?view=system%3Aexecution-failed%3Ato-retry");
   const panel = await openDetails(page);
   await panel.getByRole("button", { name: /^All events/ }).click();
-  const history = panel.getByRole("region", { name: "Execution history" });
+  const history = panel.getByRole("region", {
+    name: "Execution history",
+    exact: true,
+  });
   await history.scrollIntoViewIfNeeded();
   const stream = history.getByRole("row").nth(1);
   await expect(stream).toContainText("Retry failed");
