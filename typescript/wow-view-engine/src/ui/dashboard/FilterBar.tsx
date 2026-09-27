@@ -356,7 +356,20 @@ export function FilterBar({
       {items}
     </div>
   );
-  if (!trailing) return drawn;
+  // On a narrow board the bar is one button that opens the sheet; it stands
+  // in line with the panels as the bar does (`BOARD_INSET`) — it sat at the
+  // board's edge (2026-09-27 review).
+  if (!trailing)
+    return narrow ? (
+      <div
+        data-slot="dashboard-filter-row"
+        style={{ paddingInline: BOARD_INSET }}
+      >
+        {drawn}
+      </div>
+    ) : (
+      drawn
+    );
   // The bar takes the row and wraps inside it; the control keeps the end
   // of its first line, after 「清空」, at every width. Beside chips it stands
   // in a chip's frame — its padding and a clear edge around a control of the
