@@ -107,6 +107,7 @@ const BUILT_IN: Readonly<Record<string, string>> = {
   'control-height': '2rem',
   'control-height-sm': '1.75rem',
   'edge-width': '1px',
+  'table-sort-idle': '1',
   'badge-edge': '30%',
   'badge-fill': '10%',
   'radius-card': 'calc(var(--radius) * 1.4)',

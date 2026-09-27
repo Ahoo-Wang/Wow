@@ -364,6 +364,8 @@ export const TOKENS = [
   },
   { name: 'row-hover', ...role('table') },
   { name: 'row-stripe', ...role('table'), fallback: 'content' },
+  { name: 'row-divider', ...role('table'), fallback: 'border' },
+  { name: 'table-sort-idle', ...measure('table', 'number') },
   // What marks a state: a highlighted item, the view on screen, a control
   // under the pointer or pressed.
   { name: 'highlight', ...role('state'), fallback: 'accent' },

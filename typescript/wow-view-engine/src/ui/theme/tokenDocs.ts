@@ -278,6 +278,19 @@ export const TOKEN_DOCS: Readonly<Record<TokenName, TokenDoc>> = {
       zh: '隔行的底（关：行自己的底）',
     },
   },
+  'row-divider': {
+    role: {
+      en: 'The line between two body rows (`transparent`: none, where rows are striped)',
+      zh: '表体两行之间的分隔线（`transparent`：没有，隔行已有条纹时）',
+    },
+  },
+  'table-sort-idle': {
+    role: {
+      en: "How much a sortable column's idle mark shows where a pointer can hover (`0`: only under the pointer or focus)",
+      zh: '可排序列未排序时的标记在有指针的设备上显示多少（`0`：只在指针下或聚焦时出现）',
+    },
+  },
+
   ...STATE_DOCS,
   'focus-width': {
     role: {

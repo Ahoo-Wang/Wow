@@ -11,6 +11,7 @@
  * limitations under the License.
  */
 
+import { BOARD_INSET } from './dashboard/gridBlocks.js';
 import { useCallback, useEffect, useMemo, useRef, type ReactNode } from 'react';
 import type { DashboardFilters, Issue, ViewKind } from '../model/index.js';
 import { admitFilters } from '../dashboard/index.js';
@@ -351,6 +352,7 @@ function EmbeddedBoard({
       <EmbedHead
         title={withTitle ? title : undefined}
         headingLevel={headingLevel}
+        inset={BOARD_INSET}
       >
         {withRefresh && (
           <EmbedFreshness

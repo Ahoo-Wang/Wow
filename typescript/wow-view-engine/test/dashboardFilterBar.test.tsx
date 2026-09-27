@@ -21,6 +21,7 @@
  * toast that says how many panels auto-connect wired and unwires them again.
  */
 
+import { BOARD_INSET } from '../src/ui/dashboard/gridBlocks.js';
 import {
   AggregationDateUnit,
   AggregationGroupType,
@@ -610,6 +611,11 @@ describe('the filter bar below md (D26 Q38)', () => {
     const filters = await bar();
 
     expect(filters.hasAttribute('data-narrow')).toBe(true);
+    // In line with the panels, as the wide bar is (D59): it sat at the edge.
+    expect(
+      filters.closest<HTMLElement>('[data-slot="dashboard-filter-row"]')?.style
+        .paddingInline,
+    ).toBe(`${BOARD_INSET}px`);
     // Read beside the button: the fixed scope and the locked filter.
     expect(
       within(filters).getByRole('group', { name: 'Fixed scope' }),

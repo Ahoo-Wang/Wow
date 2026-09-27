@@ -26,6 +26,15 @@ import {
  */
 const [GAP_X, GAP_Y] = defaultGridConfig.margin;
 
+/**
+ * How far a board's rows outside the grid — its head, its filter bar —
+ * stand in from the board's edge: the grid's own padding, so they line up
+ * with the panels' edges. They stood at the edge while the panels stood
+ * 10px in, and on porcelain's grey ground the filter chip read as pinned to
+ * the frame (2026-09-27 review).
+ */
+export const BOARD_INSET = GAP_X;
+
 /** The corner of a block: small, so the blocks read as a ruler, not as cards. */
 const BLOCK_RADIUS = 3;
 
