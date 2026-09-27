@@ -38,7 +38,7 @@ import {
   scatterLogRefused,
   scatterOption,
 } from '../src/ui/charts/scatterOption.js';
-import { direction } from '../src/ui/charts/sentence.js';
+import { direction, fittedDirection } from '../src/ui/charts/sentence.js';
 import { CHART_FALLBACK, type ChartTheme } from '../src/ui/charts/theme.js';
 import { tooltipHtml } from '../src/ui/charts/tooltip.js';
 import { defaultMessages, formatMessage } from '../src/ui/messages.js';
@@ -329,6 +329,49 @@ describe('a chart in one sentence', () => {
     expect(direction(100, 102)).toBe('flat');
     expect(direction(100, 50)).toBe('down');
     expect(direction(0, 0)).toBe('flat');
+  });
+
+  /**
+   * Second review R2-P1-6: the highest and the lowest are read along one
+   * axis — never an amount beside an average — and the trend is the lead
+   * metric's, read along every period rather than its first against its
+   * last.
+   */
+  it('compares along one axis, and reads the trend of the lead metric along all its periods', () => {
+    const combo: CartesianData = {
+      type: 'cartesian',
+      chart: 'combo',
+      timeline: true,
+      points: [
+        { x: 'm1', values: { gmv: 100, aov: 9 } },
+        { x: 'm2', values: { gmv: 300, aov: 5 } },
+        { x: 'm3', values: { gmv: 400, aov: 7 } },
+        { x: 'm4', values: { gmv: 90, aov: 8 } },
+      ],
+      series: [
+        { key: 'gmv', label: 'gmv', metric: 'gmv' },
+        { key: 'aov', label: 'aov', metric: 'aov' },
+      ],
+    };
+    const spec: ChartSpec = {
+      type: 'combo',
+      cartesian: {
+        x: 'x',
+        series: [
+          { metric: 'gmv', type: 'bar' },
+          { metric: 'aov', type: 'line', axis: 'right' },
+        ],
+      },
+    };
+    // The lowest on the left axis is m4's amount, never the average's 5;
+    // the average has its own clause. First (100) against last (90) read
+    // "down"; along all four the amounts went up.
+    expect(read(combo, spec, zhCN)).toBe(
+      '共 4 期，从 m1 到 m4，gmv 总体上升；最高 m3 · gmv 400，最低 m4 · gmv 90。另一根轴上的 aov：最高 m1 · aov 9，最低 m2 · aov 5。',
+    );
+    expect(fittedDirection([100, 300, 400, 90])).toBe('up');
+    expect(fittedDirection([5, 5])).toBe('flat');
+    expect(fittedDirection([9])).toBe('flat');
   });
 
   it('names a filled-in 0 nowhere, and a scatter by its spans', () => {

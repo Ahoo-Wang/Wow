@@ -674,6 +674,9 @@ export const analysisMessages = {
   'label.chart.sentence.up': 'rising overall',
   'label.chart.sentence.down': 'falling overall',
   'label.chart.sentence.flat': 'about level overall',
+  'label.chart.sentence.trend-of': '{measure} {trend}',
+  'label.chart.sentence.other-axis':
+    ' On the other axis, {measures}: highest {high}, {highValue}; lowest {low}, {lowValue}.',
   'label.chart.sentence.scatter':
     '{count} points; {x} from {xLow} to {xHigh}, {y} from {yLow} to {yHigh}.',
   'label.chart.sentence.scatter-one':

@@ -1255,6 +1255,9 @@ export const zhCN: ViewMessages = {
   'label.chart.sentence.up': '总体上升',
   'label.chart.sentence.down': '总体下降',
   'label.chart.sentence.flat': '总体持平',
+  'label.chart.sentence.trend-of': '{measure} {trend}',
+  'label.chart.sentence.other-axis':
+    '另一根轴上的 {measures}：最高 {high} {highValue}，最低 {low} {lowValue}。',
   'label.chart.sentence.scatter':
     '共 {count} 个点，{x} 从 {xLow} 到 {xHigh}，{y} 从 {yLow} 到 {yHigh}。',
   'label.chart.sentence.scatter-one':
