@@ -96,6 +96,16 @@ export function EmbeddedRecord({
           refresh: table.refresh,
         })
     : undefined;
+  const hostRender = detailOptions?.render;
+  const render = hostRender
+    ? (row: RecordRow) =>
+        hostRender({
+          row,
+          complete: detail.complete,
+          runtime,
+          refresh: table.refresh,
+        })
+    : undefined;
   const exporter = useExportOffer({
     runtime,
     table,
@@ -207,6 +217,8 @@ export function EmbeddedRecord({
         <RecordDetail
           detail={detail}
           sections={sections}
+          render={render}
+          title={detailOptions.title}
           onRenderFailure={onRenderFailure}
         />
       )}

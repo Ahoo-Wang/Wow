@@ -97,27 +97,46 @@ const source: ViewSource = {
   aggregate: vi.fn(() => Promise.resolve([{ total: 1 }])),
 };
 
-const STREAM = {
-  id: "EF-1-v2",
-  aggregateId: "EF-1",
-  version: 2,
-  createTime: 1_790_000_180_000,
-  commandId: "EF-1-v2-command",
-  body: [
-    {
-      id: "EF-1-v2-event",
-      name: "execution_failed_applied",
-      revision: "0.0.1",
-      bodyType: "me.ahoo.wow.compensation.api.ExecutionFailedApplied",
-    },
-  ],
-};
+/** One stream of EF-1's, holding one event named `name`. */
+function stream(version: number, name: string, body: object = {}) {
+  return {
+    id: `EF-1-v${version}`,
+    aggregateId: "EF-1",
+    version,
+    createTime: 1_790_000_000_000 + version * 60_000,
+    commandId: `EF-1-v${version}-command`,
+    body: [
+      {
+        id: `EF-1-v${version}-event`,
+        name,
+        revision: "0.0.1",
+        // The class the service names it by: execution_failed_applied is
+        // ExecutionFailedApplied.
+        bodyType: `me.ahoo.wow.compensation.api.${name.replace(
+          /(^|_)(\w)/g,
+          (_, _gap: string, first: string) => first.toUpperCase(),
+        )}`,
+        body,
+      },
+    ],
+  };
+}
+
+const FAILED = { error: { errorCode: "BAD_REQUEST" } };
+
+/** EF-1's story: recorded, then retried twice, failing the same way. */
+const STREAMS = [
+  stream(1, "execution_failed_created", FAILED),
+  stream(2, "compensation_prepared"),
+  stream(3, "execution_failed_applied", FAILED),
+  stream(4, "compensation_prepared"),
+  stream(5, "execution_failed_applied", FAILED),
+];
+
+const STREAM = STREAMS[4]!;
 
 /** One stream read whole, as a payload's read asks for it. */
-const WHOLE = {
-  ...STREAM,
-  body: [{ ...STREAM.body[0], body: { error: { errorCode: "BAD_REQUEST" } } }],
-};
+const WHOLE = STREAM;
 
 let readStream: () => Promise<PagedList<RecordData>>;
 
@@ -125,7 +144,7 @@ const historySource: ViewSource = {
   paged: vi.fn((query: FilterPagedQuery) =>
     query.pagination?.size === 1
       ? readStream()
-      : Promise.resolve({ total: 1, list: [STREAM] }),
+      : Promise.resolve({ total: STREAMS.length, list: STREAMS }),
   ),
   cursor: vi.fn(() => Promise.reject(new Error("not paged by cursor"))),
   aggregate: vi.fn(() => Promise.resolve([])),
@@ -168,9 +187,27 @@ function renderAt(path: string, sent: ExecutionCommands = commands()) {
 
 async function openDetail() {
   const panel = await screen.findByRole("dialog");
-  // The whole record has come once its host sections have their forms.
-  await within(panel).findByRole("form", { name: "Change function" });
+  // The whole record has come once the reading offers its changes.
+  await within(panel).findByRole("button", { name: "Change function" });
   return panel;
+}
+
+/** The event streams themselves, one press under the attempts. */
+async function openHistory(panel: HTMLElement) {
+  fireEvent.click(
+    await within(panel).findByRole("button", { name: /^All events/ }),
+  );
+  return within(panel).findByRole("region", { name: "Execution history" });
+}
+
+/**
+ * A change folded under what it changes (2026-09-27 review): the form is
+ * one press away, not in the middle of the reading.
+ */
+async function openForm(panel: HTMLElement, name: string) {
+  expect(within(panel).queryByRole("form", { name })).not.toBeInTheDocument();
+  fireEvent.click(within(panel).getByRole("button", { name }));
+  return within(panel).findByRole("form", { name });
 }
 
 describe("the execution detail", () => {
@@ -191,41 +228,98 @@ describe("the execution detail", () => {
     Reflect.deleteProperty(navigator, "clipboard");
   });
 
-  it("opens the execution the address names, with the console's sections among the engine's", async () => {
+  it("opens the execution the address names, read the way it is asked about", async () => {
     renderAt(`/executions?${ID_PARAM}=EF-1`);
     const panel = await openDetail();
 
-    const headings = within(panel)
-      .getAllByRole("heading", { level: 3 })
-      .map((heading) => heading.textContent);
-    // Each of the console's sections stands after what it is about.
-    expect(headings.indexOf("Change function")).toBe(
-      headings.indexOf("Function") + 1,
-    );
-    expect(headings.indexOf("Stack trace")).toBe(headings.indexOf("Error") + 1);
-    expect(headings.indexOf("Apply retry specification")).toBe(
-      headings.indexOf("Retry") + 1,
-    );
-    expect(headings.at(-1)).toBe("Execution history");
+    // Named by its handler, its key above the name (D60).
+    expect(
+      within(panel).getByRole("heading", {
+        level: 2,
+        name: "OrderSaga.onOrderCreated",
+      }),
+    ).toBeInTheDocument();
+    expect(
+      panel.querySelector('[data-slot="record-detail-key"]'),
+    ).toHaveTextContent("EF-1");
+    // Where it stands, then why it failed, what happened, what it ran and
+    // on which event, and how it is retried (2026-09-27 redesign).
+    expect(within(panel).getByText("Failed")).toBeInTheDocument();
+    expect(
+      within(panel).getByText("Recoverability: Recoverable"),
+    ).toBeInTheDocument();
+    expect(within(panel).getByText("1 / 3")).toBeInTheDocument();
+    expect(
+      within(panel)
+        .getAllByRole("heading", { level: 3 })
+        .map((heading) => heading.textContent),
+    ).toEqual([
+      "Why it failed",
+      "Attempts",
+      "Handler",
+      "Triggering event",
+      "Retry specification",
+    ]);
 
-    // The stack trace is read once, the console's way, with its lines counted.
-    const trace = within(panel).getByRole("region", { name: "Stack trace" });
+    // The error's message and code, and its stack read once, lines counted.
+    const failure = within(panel).getByRole("region", {
+      name: "Why it failed",
+    });
+    expect(within(failure).getByText("Inventory refused")).toBeInTheDocument();
+    const trace = within(failure).getByRole("region", { name: "Stack trace" });
     expect(within(trace).getByText("2 lines")).toBeInTheDocument();
-    const error = within(panel).getByRole("region", { name: "Error" });
-    expect(within(error).getByText("Inventory refused")).toBeInTheDocument();
-    expect(error).not.toHaveTextContent("OrderSaga.kt:42");
+    // No form is open until it is asked for.
+    expect(within(panel).queryByRole("form")).not.toBeInTheDocument();
+  });
+
+  it("tells the attempts from the event streams, and when retrying will not help", async () => {
+    renderAt(`/executions?${ID_PARAM}=EF-1`);
+    const panel = await openDetail();
+    const attempts = within(panel).getByRole("region", { name: "Attempts" });
+    const items = await within(attempts).findAllByRole("listitem");
+    expect(items.map((item) => item.firstChild?.textContent)).toEqual([
+      "Attempt 2",
+      "Attempt 1",
+      "First failed",
+    ]);
+    expect(items[0]).toHaveTextContent("BAD_REQUEST");
+    // Read once, from its end; the streams stay unread below.
+    const query = vi.mocked(historySource.paged).mock.calls[0]![0];
+    expect(JSON.stringify(query.filter)).toContain('"value":"EF-1"');
+    expect(query.sort?.[0]).toEqual({ field: "version", direction: "DESC" });
+    expect(historySource.paged).toHaveBeenCalledTimes(1);
+    expect(
+      within(panel).getByRole("button", { name: "All events (5)" }),
+    ).toBeInTheDocument();
+
+    // The same error twice in a row: said where the error is.
+    const failure = within(panel).getByRole("region", {
+      name: "Why it failed",
+    });
+    expect(within(failure).getByRole("alert")).toHaveTextContent(
+      "The last 2 attempts failed with this same error",
+    );
+  });
+
+  it("says nothing about retrying when the attempts failed differently", async () => {
+    records["EF-1"] = execution("EF-1", {
+      error: { errorCode: "TIMEOUT", errorMsg: "Timed out", stackTrace: "" },
+    });
+    renderAt(`/executions?${ID_PARAM}=EF-1`);
+    const panel = await openDetail();
+    const attempts = within(panel).getByRole("region", { name: "Attempts" });
+    await within(attempts).findAllByRole("listitem");
+    expect(within(panel).queryByRole("alert")).not.toBeInTheDocument();
   });
 
   it("reads the execution's history, scoped to it and the newest first", async () => {
     renderAt(`/executions?${ID_PARAM}=EF-1`);
     const panel = await openDetail();
-    const history = within(panel).getByRole("region", {
-      name: "Execution history",
-    });
+    const history = await openHistory(panel);
     expect(
-      await within(history).findByText("Retry failed"),
-    ).toBeInTheDocument();
-    const query = vi.mocked(historySource.paged).mock.calls[0]![0];
+      (await within(history).findAllByText("Retry failed")).length,
+    ).toBeGreaterThan(0);
+    const query = vi.mocked(historySource.paged).mock.calls.at(-1)![0];
     expect(JSON.stringify(query.filter)).toContain('"value":"EF-1"');
     expect(query.sort?.[0]).toEqual({ field: "version", direction: "DESC" });
   });
@@ -233,12 +327,10 @@ describe("the execution detail", () => {
   it("opens a stream of the history over the execution, its payload read whole", async () => {
     renderAt(`/executions?${ID_PARAM}=EF-1`);
     const panel = await openDetail();
-    const history = within(panel).getByRole("region", {
-      name: "Execution history",
-    });
-    const row = (await within(history).findByText("Retry failed")).closest(
-      "tr",
-    )!;
+    const history = await openHistory(panel);
+    const row = (
+      await within(history).findAllByText("Retry failed")
+    )[0]!.closest("tr")!;
     fireEvent.keyDown(row, { key: "Enter" });
 
     // A second drawer over the first, the stream read by its key.
@@ -252,7 +344,10 @@ describe("the execution detail", () => {
       .mocked(historySource.paged)
       .mock.calls.map(([query]) => query)
       .find((query) => query.pagination?.size === 1)!;
-    expect(JSON.stringify(asked.filter)).toContain('"value":"EF-1-v2"');
+    // The stream of the row pressed, by its key.
+    expect(JSON.stringify(asked.filter)).toContain(
+      `"value":"${row.dataset.rowKey}"`,
+    );
   });
 
   it("follows a press on a row into the address, and a close out of it", async () => {
@@ -272,8 +367,14 @@ describe("the execution detail", () => {
     renderAt(`/executions?${ID_PARAM}=EF-9`);
     const panel = await openDetail();
     expect(
-      within(panel).getByRole("heading", { name: "EF-9", level: 2 }),
+      within(panel).getByRole("heading", {
+        name: "OrderSaga.onOrderCreated",
+        level: 2,
+      }),
     ).toBeInTheDocument();
+    expect(
+      panel.querySelector('[data-slot="record-detail-key"]'),
+    ).toHaveTextContent("EF-9");
     expect(source.paged).toHaveBeenCalledWith(
       expect.objectContaining({
         pagination: expect.objectContaining({ size: 1 }),
@@ -298,9 +399,7 @@ describe("the execution detail", () => {
     const sent = commands();
     renderAt(`/executions?${ID_PARAM}=EF-1`, sent);
     const panel = await openDetail();
-    const form = within(panel).getByRole("form", {
-      name: "Apply retry specification",
-    });
+    const form = await openForm(panel, "Apply retry specification");
     const apply = within(form).getByRole("button", {
       name: "Apply retry spec",
     });
@@ -330,6 +429,15 @@ describe("the execution detail", () => {
     await waitFor(() =>
       expect(vi.mocked(source.paged).mock.calls.length).toBeGreaterThan(reads),
     );
+    // Taken: the form folds away and the result is said beside its button.
+    await waitFor(() =>
+      expect(
+        within(panel).queryByRole("form", {
+          name: "Apply retry specification",
+        }),
+      ).not.toBeInTheDocument(),
+    );
+    expect(panel).toHaveTextContent("Retry specification updated");
   });
 
   it("changes the function, and keeps the service's refusal beside the form", async () => {
@@ -337,7 +445,7 @@ describe("the execution detail", () => {
     sent.changeFunction.mockRejectedValueOnce(new Error("Function not found."));
     renderAt(`/executions?${ID_PARAM}=EF-1`, sent);
     const panel = await openDetail();
-    const form = within(panel).getByRole("form", { name: "Change function" });
+    const form = await openForm(panel, "Change function");
     fireEvent.change(within(form).getByLabelText("Processor name"), {
       target: { value: " OrderSagaV2 " },
     });

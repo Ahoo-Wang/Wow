@@ -11,7 +11,13 @@
  * limitations under the License.
  */
 
-import { Check, Clipboard, WrapText } from "lucide-react";
+import {
+  Check,
+  ChevronDown,
+  ChevronUp,
+  Clipboard,
+  WrapText,
+} from "lucide-react";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { StackTraceEditor } from "./StackTraceEditor.tsx";
@@ -21,15 +27,24 @@ import { copyTextToClipboard } from "@/utils/clipboard.ts";
 type Copied = "copied" | "failed" | null;
 
 /**
+ * The lines a trace shows before it is asked for more: the exception and
+ * the frames that threw it, which is what tells one failure from another.
+ */
+export const TRACE_HEAD = 6;
+
+/**
  * A failure's stack trace, read the way an operator reads one: numbered
  * lines, Java highlighted, in a box of its own height so a trace of a
  * thousand lines scrolls inside it rather than stretching the detail, with
  * long lines wrapped or scrolled sideways, and the whole of it copied in one
- * press — over plain HTTP too, where the Clipboard API is not there.
+ * press — over plain HTTP too, where the Clipboard API is not there. It
+ * opens on its head (`TRACE_HEAD`): the rest of a trace of 168 lines is
+ * framework, read when someone asks for it.
  */
 export function StackTrace({ value }: { value: string }) {
   const { t } = useI18n();
   const [wrap, setWrap] = useState(true);
+  const [whole, setWhole] = useState(false);
   const [copied, setCopied] = useState<Copied>(null);
   useEffect(() => {
     if (copied === null) return;
@@ -48,9 +63,12 @@ export function StackTrace({ value }: { value: string }) {
       : copied === "failed"
         ? t("Unable to copy stack trace")
         : t("Copy stack trace");
-  const lines = value.split("\n").length;
+  const all = value.split("\n");
+  const lines = all.length;
+  const cut = !whole && lines > TRACE_HEAD;
+  const shown = cut ? all.slice(0, TRACE_HEAD).join("\n") : value;
   return (
-    <div className="grid gap-2">
+    <div className="flex flex-col gap-2">
       <div className="flex flex-wrap items-center gap-2">
         <span className="text-xs text-muted-foreground tabular-nums">
           {t(lines === 1 ? "{count} line" : "{count} lines", { count: lines })}
@@ -91,8 +109,27 @@ export function StackTrace({ value }: { value: string }) {
       </div>
       {/* The trace scrolls in its own region, which the keyboard reaches. */}
       <div className="overflow-hidden rounded-md border [&>[role=region]]:max-h-96">
-        <StackTraceEditor value={value} wrapLongLines={wrap} />
+        <StackTraceEditor value={shown} wrapLongLines={wrap} />
       </div>
+      {lines > TRACE_HEAD && (
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="self-start"
+          aria-expanded={whole}
+          onClick={() => setWhole((current) => !current)}
+        >
+          {whole ? (
+            <ChevronUp data-icon="inline-start" />
+          ) : (
+            <ChevronDown data-icon="inline-start" />
+          )}
+          {whole
+            ? t("Show the first lines only")
+            : t("Show all {count} lines", { count: lines })}
+        </Button>
+      )}
     </div>
   );
 }

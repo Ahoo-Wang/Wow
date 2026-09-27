@@ -58,6 +58,14 @@ export interface RecordDetailProps {
    * hand, and each drawn inside a boundary of its own.
    */
   sections?(row: RecordRow): readonly RecordDetailSection[];
+  /**
+   * The record read the host's way, in place of the field groups and the
+   * host's sections (`RecordDetailOptions.render`): drawn inside one
+   * boundary, as a section is, while a record is in hand.
+   */
+  render?(row: RecordRow): ReactNode;
+  /** The record's name in the header, in place of its key. */
+  title?(row: RecordRow): string | undefined;
   /** Told of a host section that threw, as the workbench's other parts are. */
   onRenderFailure?: RenderFailureHandler;
 }
@@ -98,6 +106,8 @@ export function RecordDetail({
   detail,
   actions,
   sections: hostSections,
+  render,
+  title: titleOf,
   onRenderFailure,
 }: RecordDetailProps) {
   const messages = useViewMessages();
@@ -127,6 +137,9 @@ export function RecordDetail({
   // where it goes.
   const layer = useContext(DetailLayerContext);
   const nested = layer !== null;
+  // A host's name for the record stands as the title, its key above it —
+  // where the words 「记录详情」 stood, which the name makes redundant.
+  const title = row ? titleOf?.(row) : undefined;
   return (
     <>
       <span ref={anchor} hidden data-slot="record-detail-anchor" />
@@ -143,7 +156,7 @@ export function RecordDetail({
           initialFocus={heading}
           finalFocus={() => rowOf(anchor.current, last.current) ?? true}
           showCloseButton={!nested}
-          className={cn(nested && 'sm:max-w-[33rem]')}
+          className={cn(nested ? 'sm:max-w-[39rem]' : 'sm:max-w-2xl')}
         >
           <SheetHeader className={cn('gap-2', !nested && 'pr-12')}>
             {layer ? (
@@ -167,6 +180,13 @@ export function RecordDetail({
                   {layer.section}
                 </SheetDescription>
               </div>
+            ) : title !== undefined ? (
+              <SheetDescription
+                data-slot="record-detail-key"
+                className="font-mono break-all"
+              >
+                {String(key)}
+              </SheetDescription>
             ) : (
               <SheetDescription>
                 {messages.label('label.record.detail')}
@@ -175,9 +195,13 @@ export function RecordDetail({
             <SheetTitle
               ref={heading}
               tabIndex={-1}
-              className="font-mono break-all"
+              className={cn(
+                'break-all',
+                title === undefined && 'font-mono',
+                title !== undefined && 'text-lg',
+              )}
             >
-              {key === null ? '' : String(key)}
+              {title ?? (key === null ? '' : String(key))}
             </SheetTitle>
             {row && actions && (
               <div data-slot="record-detail-actions" className="flex gap-2">
@@ -222,6 +246,14 @@ export function RecordDetail({
               >
                 {messages.label('label.record.detail.missing')}
               </p>
+            ) : row && render ? (
+              <DetailLayerContext.Provider
+                value={{ parent: row.key, section: title ?? String(row.key) }}
+              >
+                <RenderBoundary name="detail" onFailure={onRenderFailure}>
+                  <RenderSlot render={() => render(row)} />
+                </RenderBoundary>
+              </DetailLayerContext.Provider>
             ) : row ? (
               placeSections(detail.sections, hostSections?.(row) ?? []).map(
                 placed =>
