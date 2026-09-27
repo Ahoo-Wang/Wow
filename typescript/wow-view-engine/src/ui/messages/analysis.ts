@@ -699,6 +699,10 @@ export const analysisMessages = {
     '{count} periods, from {first} to {last}; opened at {open}, closed at {close}; highest {high}, lowest {low}.',
   'label.chart.sentence.gauge-target':
     '{value}, {share} of the target {target}.',
+  'label.chart.sentence.profile-metric':
+    '{metric}: highest {high}, {highValue}; lowest {low}, {lowValue}',
+  'label.chart.sentence.profile-join': '. ',
+  'label.chart.sentence.profile-readings': ' {readings}.',
   'label.chart.sentence.profiles': '{count} groups across {metrics} metrics.',
   'label.chart.sentence.sankey':
     '{count} flows; the largest {high}, {highValue}.',
