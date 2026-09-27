@@ -656,7 +656,7 @@
   4. **有条纹就不画行线**：新角色 `row-divider`（表体行线，缺省 `border`），porcelain 为透明；强制颜色下行线恢复。
   5. **只有在排序的列显示箭头**：新角色 `table-sort-idle`（未排序标记的不透明度，缺省 1），porcelain 为 0；只在有悬停的设备上隐去，指针或聚焦时出现，位置始终保留——满足了当初否掉「悬停才显示」的两条理由（触屏看不到、表头挪动）。
   6. **徽标无环线**（`badge-edge` 0%），修订 D46「徽标保留边」：淡色与文字已说出状态。
-  7. **以文字或图标自明的工具栏按钮填色**（下一批，D43 留给下一步的一项）。
+  7. **以文字或图标自明的工具栏按钮填色**（D43 留给下一步的一项；2026-09-27 落地）：`role="toolbar"` 里的描边按钮穿 `control`／`control-edge`，与看板筛选胶囊、分段控件同组；不设这一组的主题（neutral）仍是注册表的描边按钮，像素不变。按钮不在元素上写 variant，所以照「描边按钮悬停」的先例按 `.group/button` 与 `border-border` 找它，暗色另写一遍；悬停、按下、展开、焦点与无效态仍是注册表的（各多一个状态，权重高过它）。落点 `src/styles.css`；故事 `ToolbarButtonsFillInPorcelain`／`ToolbarButtonsOutlinedInNeutral`。
   8. **视野外合计的提示读作合计而不是链接**（D51 补充，所有预设）：正文色，列名与箭头灰，仍是按钮、悬停下划线。
 - **同批顺带**：看板上网格之外的行（页头、筛选条）与面板对齐，内缩网格的外边距（`BOARD_INSET`）；从前筛选条贴着看板边沿（用户指出）。
 - **落点**：`src/themes/porcelain.css`、`src/ui/theme/{tokens,tokenDocs}.ts`、`src/styles.css`、`src/ui/record/OffscreenSummary.tsx`、`src/ui/dashboard/{gridBlocks,FilterBar}.ts(x)`、`src/ui/embed/EmbedHead.tsx`；单套预设的体积上限 1.4 → 1.5 KB（porcelain 1 485 B）。
