@@ -59,6 +59,7 @@ View Engine 是 Wow 的数据视图引擎。业务系统里大多数页面是「
 3. [分析工作台](./?path=/story/view-engine-业务场景-分析工作台--order-analysis)：分析师存下的 {GUIDE_COUNTS.analysisQuestions} 个问题，每张打开就是答案。
 4. [销售复盘](./?path=/story/view-engine-业务场景-销售复盘--overview)：四个标签页的月度复盘，点「编辑」就地搭板。
 5. [订单详情页](./?path=/story/view-engine-业务场景-订单详情页--order-detail-page)：宿主的页面里嵌着一张视图，只看这一张单。
+6. [图型全景](./?path=/story/view-engine-业务场景-图型全景--trend)：一块看板把 {GUIDE_COUNTS.chartTypes} 种图型各用一次，每张图的标题就是它回答的问题；点地图、省份或支付方式整板联动。
 
 ## 示例数据：栖木生活
 
@@ -143,7 +144,7 @@ View Engine 是 Wow 的数据视图引擎。业务系统里大多数页面是「
 ### 分析
 
 - 分组与指标、派生指标、只保留与前 N 组、数组展开、空值分组、{GUIDE_COUNTS.chartTypes} 种图与表格：[分析工作台](./?path=/story/view-engine-业务场景-分析工作台--order-analysis)
-- 统计与结构图型（箱线、K 线、刻度盘、雷达、平行坐标、旭日、桑基、日历……），一种图一个真问题：[图型陈列](./?path=/story/view-engine-业务场景-图型陈列--boxplot)
+- 全部图型在一块板上，一种图一个问题：[图型全景](./?path=/story/view-engine-业务场景-图型全景--trend)；统计与结构图型各自怎样配置：[图型陈列](./?path=/story/view-engine-业务场景-图型陈列--boxplot)
 - 帕累托、按首单月的复购率：[分析工作台 · 会员](./?path=/story/view-engine-业务场景-分析工作台--member-analysis)
 - 对数轴、散点的轴、超过调色板的系列并成「其他」：[显示收口](./?path=/story/view-engine-能力-显示收口--log-scale)
 - 平均线、目标区间、趋势、移动平均、累计：[参考与算出的系列](./?path=/story/view-engine-能力-参考与算出的系列--average-and-target)
@@ -166,7 +167,7 @@ View Engine 是 Wow 的数据视图引擎。业务系统里大多数页面是「
 ## 目录怎么读
 
 - **接入导览**回答「我怎样把一个业务对象接进来」：定义、数据源、引擎与页面四个文件的真实代码，和它们跑起来的样子：[接入导览](./?path=/docs/view-engine-接入导览--docs)。
-- **业务场景**回答「引擎能替我的业务做什么」：栖木生活的三块仪表盘、五个工作台、两张嵌入页与一面图型陈列。
+- **业务场景**回答「引擎能替我的业务做什么」：栖木生活的四块仪表盘（其中一块是图型全景）、五个工作台、两张嵌入页与一面图型陈列。
 - **能力**回答「某一项功能长什么样」：一项能力一页，场景尽量小。
 - **组件状态**回答「空、加载、失败、冲突、窄屏时它是什么样」：[记录工作台](./?path=/docs/view-engine-组件状态-记录工作台--docs)、[分析工作台](./?path=/docs/view-engine-组件状态-分析工作台--docs)、[仪表盘](./?path=/docs/view-engine-组件状态-仪表盘--docs)、[EmbeddedView](./?path=/docs/view-engine-组件状态-embeddedview--docs)、[EmbeddedDashboard](./?path=/docs/view-engine-组件状态-embeddeddashboard--docs) 与 [筛选编辑器](./?path=/docs/view-engine-组件状态-筛选编辑器--docs)，用的是专为断言手挑的小夹具。
 - **真实后端**回答「连上真服务是什么样」：[客户](./?path=/docs/view-engine-真实后端-客户-快照控制台--docs)、交易订单与商品定价三个服务的快照控制台与事件流分析台（补偿服务的控制台就是产品本身，在 `compensation/dashboard`），要先把服务转发到本机（见仓库里 Storybook 的 README）；文档页不挂载示例，打开目录不会发请求。

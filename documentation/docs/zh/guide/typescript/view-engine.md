@@ -161,6 +161,8 @@ export function OrdersPage() {
 
 每种视图都在 [Storybook](/storybook/) 里用内存夹具运行，放在一个宿主应用外壳中。保存、改名和删除都写入每次打开时新建的内存存储。
 
+想先看引擎能画什么，打开[图型全景](/storybook/?path=/docs/view-engine-业务场景-图型全景--docs)：一块零售看板，22 种图型各用一次，每张图的标题就是它回答的分析问题，分走势、构成、分布与关系、地域与转化四个页签；点地图、省份或支付方式整板联动，文档页的「Show code」是这块板的全部配置。
+
 | 视图 | Storybook |
 |---|---|
 | 记录视图 | [记录视图工作台](/storybook/?path=/docs/view-engine-组件状态-记录工作台--docs)及其[筛选编辑器](/storybook/?path=/docs/view-engine-组件状态-筛选编辑器--docs) |

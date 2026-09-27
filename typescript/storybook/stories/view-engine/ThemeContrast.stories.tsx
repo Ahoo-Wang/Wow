@@ -51,7 +51,7 @@ function MatrixPage() {
           id="custom-variables"
           value={draft}
           placeholder={
-            '--fve-primary: oklch(0.55 0.21 265deg);\n--fve-dark-primary: oklch(0.75 0.15 265deg);'
+            '--fve-primary: oklch(0.4 0.21 265deg);\n--fve-dark-primary: oklch(0.75 0.15 265deg);'
           }
           onChange={event => setDraft(event.target.value)}
           onBlur={() => setApplied(draft)}
