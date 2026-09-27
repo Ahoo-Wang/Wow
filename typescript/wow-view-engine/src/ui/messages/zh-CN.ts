@@ -355,6 +355,8 @@ export const zhCN: ViewMessages = {
   'label.relation.has-any': '含有其中任一',
   'label.relation.has-none': '不含其中任何一个',
   'label.relation.has-all': '含有全部',
+  'label.relation.has-no-entries': '没有条目',
+  'label.relation.has-entries': '有条目',
   'label.filter.join': '、',
   'label.filter.any-entry': '有任意条目',
   'label.filter.range-from': '{field} 从',

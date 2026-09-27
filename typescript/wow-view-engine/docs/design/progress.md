@@ -157,7 +157,7 @@
 - **1. 分析道**：P1 全部完成。第 8 组的 K 线问题都在故事数据（缺省绿涨红跌是故事的涨跌约定设置；单笔实付的首末高低不是「价格」），归故事道。
 - **本机故事测试**：Playwright 浏览器已装在 `~/Library/Caches/ms-playwright-user`（默认目录属 root，写不进），跑故事时带 `PLAYWRIGHT_BROWSERS_PATH=$HOME/Library/Caches/ms-playwright-user`；推送前本地跑受影响的故事文件。`/private/tmp/wow-heavy/heavy.sh` 已不在，负载低时直接串行跑。
 - **2. 故事道**（分支 `feat/storybook-chart-showcase-board`，正式提交 a22cc9a06，已 rebase，未开 PR）：「图型全景」四页签 22 面板已画全并验证（每图 `data-drawn`、摘要有数、22 种各一次、联动、1440／390 无横滚）。接续：重跑 `pnpm build`（含 verify）→ 开 PR（正文列 22 面板表、数据改动 `placedAt`、引擎缺陷：雷达与平行坐标的摘要无读数（#3697 已修）、瀑布画不了指标桥接、看板级红涨让瀑布正向段变红、日历按整年画首尾空半年、刻度盘无目标值）→ 订单状态声明 `steps` → 合并后另开 PR 把「图型陈列」收成能力说明。`verify-storybook-browser.mjs` 本地静态站超时，未查清。
-- **3. 记录与筛选道**：第 4、5 组与 R1-P1-5 已合并（#3698、#3699、#3701）；第 6 组措辞统一（R1-P1-6／7／8）在做（分支 `fix/filter-wording`）。之后第 7 组（故事数据源 `IS_EMPTY`，R1-P1-11）。数组字段的五个「空」算子（R1-P1-7 后半）待用户定：是否对数组只留「没有条目／有条目」。
+- **3. 记录与筛选道**：第 4、5 组与 R1-P1-5 已合并（#3698、#3699、#3701）；第 6 组措辞统一（R1-P1-6／7／8）在做（分支 `fix/filter-wording`）。之后第 7 组（故事数据源 `IS_EMPTY`，R1-P1-11）。数组字段的五个「空」算子（R1-P1-7 后半）用户 2026-09-27 按推荐定：只留「没有条目／有条目」（D62）；第 7 组（R1-P1-11）已由 #3705 修掉。
 - **4. 之后**：控制台重写（console-redesign.md 第 9 节四批）→ CSP 道（引擎 nonce 入口）→ 质量审查（含查询后端 Kotlin）。
 - **协调者手上**：WCAG 2.2 护栏——Storybook 打开 axe `target-size`（分支 `ci/axe-wcag22`，一个 wip 提交），#3677 前摸底 47 个失败、集中在记录表格；#3677 合并后重跑那 9 个文件、清零后合进 CI；控制台 e2e 的 axe（`e2e/support/axe.ts`）也要含 `wcag22aa`，随控制台重写做。
 

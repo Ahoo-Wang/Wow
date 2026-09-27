@@ -102,6 +102,10 @@ export const filterMessages = {
   'label.relation.has-any': 'has any of',
   'label.relation.has-none': 'has none of',
   'label.relation.has-all': 'has all of',
+  // A list's two empties, the only two it offers (second review R1-P1-7):
+  // absent, null and `[]` are one answer to a reader — no entries.
+  'label.relation.has-no-entries': 'has no entries',
+  'label.relation.has-entries': 'has entries',
   'label.filter.join': ', ',
   // An element predicate that asks nothing of an entry still asks for one.
   'label.filter.any-entry': 'has any entry',

@@ -22,11 +22,11 @@ import {
   validateOptionValues,
 } from './options.js';
 import {
-  compilePresence,
-  describePresenceParts,
-  isPresenceOperator,
-  PRESENCE_OPERATORS,
-} from './presence.js';
+  compileEntries,
+  ENTRY_OPERATORS,
+  entryRelation,
+  isEntryOperator,
+} from './entries.js';
 
 /**
  * The English `text` has always read this way. The bar words the relation
@@ -37,6 +37,8 @@ const RELATION_TEXT: Record<FilterSummaryRelation, string> = {
   'has-all': 'has all of',
   'has-none': 'has none of',
   'has-any': 'has any of',
+  'has-no-entries': 'has no entries',
+  'has-entries': 'has entries',
 };
 
 /** What each list operator asks of the entries. */
@@ -44,6 +46,8 @@ const RELATIONS = {
   IN: 'has-any',
   NOT_IN: 'has-none',
   CONTAINS_ALL: 'has-all',
+  IS_EMPTY: 'has-no-entries',
+  IS_NOT_NULL: 'has-entries',
 } as const satisfies Partial<Record<FilterOperatorName, FilterSummaryRelation>>;
 
 /** What one entry of an array field may be. */
@@ -56,21 +60,19 @@ export type ArrayFilterValue = (string | number)[];
  * operators mean something else. On a scalar field `IN` asks whether the one
  * value is among those listed; on this one it asks whether the field's entries
  * include any of them, and that difference is the whole reason the kind
- * exists. `CONTAINS_ALL` asks for all of them, and `IS_EMPTY` asks whether
- * there are any entries at all — which `IS_NULL` cannot answer, because a
- * field can hold an empty list without being absent.
+ * exists. `CONTAINS_ALL` asks for all of them.
+ *
+ * Of emptiness it offers two questions, not five (second review R1-P1-7):
+ * 「没有条目」 and 「有条目」 (`entries.ts`). Absent, null and an empty list
+ * are three storage states and one answer to whoever reads the list.
  */
 export const arrayFieldKind: FieldKind = {
   id: 'array',
-  operators: [
-    'IN',
-    'NOT_IN',
-    'CONTAINS_ALL',
-    'IS_EMPTY',
-    ...PRESENCE_OPERATORS,
-  ],
+  operators: ['IN', 'NOT_IN', 'CONTAINS_ALL', ...ENTRY_OPERATORS],
   defaultOperator: 'IN',
   relations: RELATIONS,
+  compiledOperators: operator =>
+    isEntryOperator(operator) ? ['IS_EMPTY', 'IS_NULL'] : [operator],
   scalar: false,
 
   emptyValue() {
@@ -78,7 +80,7 @@ export const arrayFieldKind: FieldKind = {
   },
 
   validate({ value, operator, field, path }) {
-    if (isPresenceOperator(operator) || operator === 'IS_EMPTY') return [];
+    if (isEntryOperator(operator)) return [];
     // A declared candidate set is closed, exactly as it is for `enum`.
     return validateOptionValues(
       value,
@@ -89,11 +91,9 @@ export const arrayFieldKind: FieldKind = {
   },
 
   compile({ leaf, field }): FilterExpression {
-    const presence = compilePresence(field.name, leaf.operator);
-    if (presence) return presence;
-
     const name = field.name;
-    if (leaf.operator === 'IS_EMPTY') return filter.isEmpty(name);
+    const emptiness = compileEntries(name, leaf.operator);
+    if (emptiness) return emptiness;
 
     const entries = readValue<ArrayFilterValue>(leaf.value);
     switch (leaf.operator) {
@@ -107,8 +107,7 @@ export const arrayFieldKind: FieldKind = {
   },
 
   editor(operator, field) {
-    if (isPresenceOperator(operator) || operator === 'IS_EMPTY')
-      return { input: 'none' };
+    if (isEntryOperator(operator)) return { input: 'none' };
     // Entries are picked when the definition says what they can be, typed
     // when they are open-ended, and looked up when they live elsewhere.
     if (field.remote)
@@ -119,11 +118,11 @@ export const arrayFieldKind: FieldKind = {
   },
 
   describe({ leaf, field }) {
-    const presence = describePresenceParts(leaf.operator, field);
-    if (presence) return presence;
-    if (leaf.operator === 'IS_EMPTY')
+    const empty = entryRelation(leaf.operator);
+    if (empty)
       return {
-        text: `${field.label} has no entries`,
+        text: `${field.label} ${RELATION_TEXT[empty]}`,
+        relation: empty,
         value: { kind: 'none' },
       };
     // Entries this kind cannot read are no condition to report.

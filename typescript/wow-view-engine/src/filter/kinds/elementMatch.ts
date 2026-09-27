@@ -40,11 +40,7 @@ import {
 } from '../fieldKind.js';
 import { emptyFilter, isFilterGroup, walkFilter } from '../tree.js';
 import { isBlankFilter, validateFilter } from '../validate.js';
-import {
-  compilePresence,
-  describePresenceParts,
-  PRESENCE_OPERATORS,
-} from './presence.js';
+import { compileEntries, ENTRY_OPERATORS, entryRelation } from './entries.js';
 
 /**
  * The fields of one element, named as a condition names them.
@@ -117,11 +113,14 @@ export function variantGroups(field: FieldDefinition): FieldGroupDefinition[] {
 
 export const elementMatchFieldKind: FieldKind = {
   id: 'elementMatch',
-  // Its name is a real path, unlike a metadata kind's, so the presence
-  // questions apply to it as they do to any other field: an array can be
-  // absent as well as empty, and those are different answers.
-  operators: ['ELEMENT_MATCH', 'IS_EMPTY', ...PRESENCE_OPERATORS],
+  // A list's two questions of emptiness, as an array of values asks them
+  // (`entries.ts`, second review R1-P1-7): absent, null and empty are one
+  // answer to a reader — no entries.
+  operators: ['ELEMENT_MATCH', ...ENTRY_OPERATORS],
   defaultOperator: 'ELEMENT_MATCH',
+  relations: { IS_EMPTY: 'has-no-entries', IS_NOT_NULL: 'has-entries' },
+  compiledOperators: operator =>
+    operator === 'ELEMENT_MATCH' ? [operator] : ['IS_EMPTY', 'IS_NULL'],
   scalar: false,
 
   emptyValue() {
@@ -183,9 +182,8 @@ export const elementMatchFieldKind: FieldKind = {
   },
 
   compile({ leaf, field, kinds, now, timeZone }): FilterExpression {
-    const presence = compilePresence(field.name, leaf.operator);
-    if (presence) return presence;
-    if (leaf.operator === 'IS_EMPTY') return filter.isEmpty(field.name);
+    const emptiness = compileEntries(field.name, leaf.operator);
+    if (emptiness) return emptiness;
 
     // Wow reads a predicate's fields relative to the element — `quantity`,
     // not `items.quantity`, which it would look up as `items.items.quantity`
@@ -216,11 +214,11 @@ export const elementMatchFieldKind: FieldKind = {
   },
 
   describe({ leaf, field, kinds }) {
-    const presence = describePresenceParts(leaf.operator, field);
-    if (presence) return presence;
-    if (leaf.operator === 'IS_EMPTY')
+    const empty = entryRelation(leaf.operator);
+    if (empty)
       return {
-        text: `${field.label} has no entries`,
+        text: `${field.label} ${empty === 'has-entries' ? 'has entries' : 'has no entries'}`,
+        relation: empty,
         value: { kind: 'none' },
       };
 
