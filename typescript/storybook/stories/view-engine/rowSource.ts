@@ -1467,6 +1467,12 @@ function criteria(
           : '';
       return { [relative(filter.field)]: new RegExp(pattern, flags) };
     }
+    // An array with no entries, as wow-mongo asks it (`$size: 0`): a field
+    // never written, or holding null, has no size and is not empty — that
+    // is what the other three presence operators are for. It was missing
+    // here, and 「标记 没有条目」 failed in English (second review R1-P1-11).
+    case FilterOperator.IS_EMPTY:
+      return { [relative(filter.field)]: { $size: 0 } };
     case FilterOperator.IS_NULL:
       return { [relative(filter.field)]: { $eq: null } };
     case FilterOperator.IS_NOT_NULL:
