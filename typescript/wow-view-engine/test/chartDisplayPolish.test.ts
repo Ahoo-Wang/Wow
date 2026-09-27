@@ -374,6 +374,43 @@ describe('a chart in one sentence', () => {
     expect(fittedDirection([9])).toBe('flat');
   });
 
+  /**
+   * Second review R2-P2-8: a radar or parallel axes said only how many
+   * groups and metrics. Each axis is its own scale, so each says its own
+   * highest and lowest group; one group has no highest.
+   */
+  it('reads a radar and parallel axes axis by axis', () => {
+    const radar: ChartData = {
+      type: 'radar',
+      metrics: ['gmv', 'aov'],
+      profiles: [
+        { group: 'East', values: [520, 90] },
+        { group: 'West', values: [80, 120] },
+        { group: 'North', values: [300, 100] },
+      ],
+      omitted: 0,
+    };
+    const spec: ChartSpec = {
+      type: 'radar',
+      radar: { category: 'region', metrics: ['gmv', 'aov'] },
+    };
+    expect(read(radar, spec, zhCN)).toBe(
+      '共 3 组，2 个指标。gmv：最高 East 520，最低 West 80；aov：最高 West 120，最低 East 90。',
+    );
+    expect(
+      read(
+        { ...radar, type: 'parallel' },
+        { ...spec, type: 'parallel', parallel: spec.radar },
+        defaultMessages,
+      ),
+    ).toBe(
+      '3 groups across 2 metrics. gmv: highest East, 520; lowest West, 80. aov: highest West, 120; lowest East, 90.',
+    );
+    expect(
+      read({ ...radar, profiles: radar.profiles.slice(0, 1) }, spec, zhCN),
+    ).toBe('共 1 组，2 个指标。');
+  });
+
   it('names a filled-in 0 nowhere, and a scatter by its spans', () => {
     const data: CartesianData = {
       ...categories([4, 0]),

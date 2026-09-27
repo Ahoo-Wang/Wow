@@ -1278,6 +1278,10 @@ export const zhCN: ViewMessages = {
     '共 {count} 期，{first} 至 {last}：开 {open}，收 {close}；最高 {high}，最低 {low}。',
   'label.chart.sentence.gauge-target':
     '{value}，达成目标 {target} 的 {share}。',
+  'label.chart.sentence.profile-metric':
+    '{metric}：最高 {high} {highValue}，最低 {low} {lowValue}',
+  'label.chart.sentence.profile-join': '；',
+  'label.chart.sentence.profile-readings': '{readings}。',
   'label.chart.sentence.profiles': '共 {count} 组，{metrics} 个指标。',
   'label.chart.sentence.sankey': '共 {count} 条流向，最大 {high} {highValue}。',
   'label.chart.sentence.sankey-one': '共 1 条流向，最大 {high} {highValue}。',

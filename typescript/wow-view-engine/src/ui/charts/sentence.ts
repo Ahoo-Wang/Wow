@@ -157,7 +157,7 @@ export function chartSentence(
         : ctx.messages.label('label.chart.sentence.profiles', {
             count: data.profiles.length,
             metrics: data.metrics.length,
-          });
+          }) + profileReadings(data, spec?.[data.type]?.category, ctx);
     case 'sunburst':
     case 'tree': {
       const leaves = drawnParts(data, {
@@ -235,6 +235,45 @@ export function chartSentence(
     case 'metric':
       return undefined;
   }
+}
+
+/**
+ * Where the groups stand on each axis of a radar or parallel axes: every
+ * axis is its own scale, so each metric says its own highest and lowest
+ * group — 「GMV：最高 华东 ¥52万，最低 西南 ¥8万」 — and none is compared
+ * with another (second review R2-P2-8: the sentence said only how many).
+ * One group has no highest; it says nothing more.
+ */
+function profileReadings(
+  data: Extract<ChartData, { type: 'radar' | 'parallel' }>,
+  category: string | undefined,
+  ctx: ReadingContext,
+): string {
+  if (data.profiles.length < 2) return '';
+  const readings = data.metrics.flatMap((metric, index) => {
+    const bounds = highLow(
+      data.profiles.map(profile => ({
+        name: ctx.label(category, profile.group),
+        value: profile.values[index] ?? null,
+        alias: metric,
+      })),
+    );
+    return bounds
+      ? [
+          ctx.messages.label('label.chart.sentence.profile-metric', {
+            metric: ctx.column(metric) ?? metric,
+            ...said(ctx, bounds),
+          }),
+        ]
+      : [];
+  });
+  return readings.length === 0
+    ? ''
+    : ctx.messages.label('label.chart.sentence.profile-readings', {
+        readings: readings.join(
+          ctx.messages.label('label.chart.sentence.profile-join'),
+        ),
+      });
 }
 
 /** One measured number of the chart, and what it is called. */
