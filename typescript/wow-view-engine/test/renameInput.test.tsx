@@ -20,6 +20,7 @@ import {
   KeyboardSensor,
   PointerActivationConstraints,
   PointerSensor,
+  StyleInjector,
 } from '@dnd-kit/dom';
 import { OptimisticSortingPlugin } from '@dnd-kit/dom/sortable';
 import { sameJson } from '../src/index.js';
@@ -27,6 +28,7 @@ import { RenameInput } from '../src/ui/RenameInput.js';
 import { ViewSurface } from '../src/ui/ViewSurface.js';
 import { dragAccessibility } from '../src/ui/dragAnnounce.js';
 import {
+  cspNonce,
   sortableList,
   withoutOptimisticSorting,
 } from '../src/ui/dragPlugins.js';
@@ -235,6 +237,40 @@ describe('the drag plugins', () => {
         screenReaderInstructions: { draggable: 'Carry it' },
       },
     });
+  });
+
+  /**
+   * Under a strict CSP the `<style>` a drag adds to `<head>` is blocked
+   * unless it carries the page's nonce (R3-P1-3): the page says it the way
+   * Vite does, and the library's style injector is handed it.
+   */
+  it('hands the page’s CSP nonce to the library’s style injector', () => {
+    const defaults = [Accessibility] as unknown as Parameters<
+      ReturnType<typeof sortableList>['plugins']
+    >[0];
+    const plugins = () =>
+      sortableList(dragAccessibility(say, id => id)).plugins(defaults);
+    // No nonce on the page: nothing added.
+    expect(cspNonce()).toBeUndefined();
+    expect(plugins()).toHaveLength(1);
+
+    const meta = document.createElement('meta');
+    meta.setAttribute('property', 'csp-nonce');
+    meta.setAttribute('nonce', 'r4nd0m');
+    document.head.append(meta);
+    try {
+      expect(cspNonce()).toBe('r4nd0m');
+      expect(plugins().at(-1)).toMatchObject({
+        plugin: StyleInjector,
+        options: { nonce: 'r4nd0m' },
+      });
+      // Said in `content` instead, as some servers write it.
+      meta.removeAttribute('nonce');
+      meta.setAttribute('content', 'fr0m-c0ntent');
+      expect(cspNonce()).toBe('fr0m-c0ntent');
+    } finally {
+      meta.remove();
+    }
   });
 
   /**

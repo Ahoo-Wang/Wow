@@ -16,6 +16,7 @@ import {
   Accessibility,
   PointerActivationConstraints,
   PointerSensor,
+  StyleInjector,
 } from '@dnd-kit/dom';
 import { OptimisticSortingPlugin } from '@dnd-kit/dom/sortable';
 import type { DragDropProvider } from '@dnd-kit/react';
@@ -45,6 +46,23 @@ const PRESS_OR_DRAG = PointerSensor.configure({
 });
 
 /**
+ * The page's CSP nonce, as Vite and most servers publish it:
+ * `<meta property="csp-nonce" nonce="…">` (the `nonce` attribute, which a
+ * browser hides from `getAttribute` once the policy applies but keeps in the
+ * `nonce` property), or the `content` of the same tag. `undefined` on a page
+ * without one — and under no policy, nothing needs one.
+ */
+export function cspNonce(
+  root: Document | undefined = globalThis.document,
+): string | undefined {
+  const meta = root?.querySelector<HTMLMetaElement>(
+    'meta[property="csp-nonce"]',
+  );
+  const nonce = meta?.nonce || meta?.getAttribute('content') || '';
+  return nonce === '' ? undefined : nonce;
+}
+
+/**
  * What every sortable list's `DragDropProvider` runs (Q-11), spread onto it
  * whole so no list sets one half and forgets the other:
  *
@@ -53,7 +71,11 @@ const PRESS_OR_DRAG = PointerSensor.configure({
  *   `…DragAccessibility`) rather than in the library's English built from
  *   ids;
  * - `sensors` — the library's defaults, the pointer's waiting for a drag to
- *   be one ({@link PRESS_OR_DRAG}) so the handle can still be clicked.
+ *   be one ({@link PRESS_OR_DRAG}) so the handle can still be clicked;
+ * - under a strict CSP, the page's nonce ({@link cspNonce}) on the `<style>`
+ *   the library adds to `<head>` while a drag is on (the grabbing cursor, no
+ *   text selection), which `style-src 'self'` would otherwise block
+ *   (R3-P1-3).
  */
 export function sortableList(
   accessibility: ReturnType<typeof dragAccessibility>,
@@ -62,12 +84,15 @@ export function sortableList(
   sensors(defaults: Defaults<'sensors'>): Defaults<'sensors'>;
 } {
   return {
-    plugins: defaults =>
-      defaults.map(plugin =>
+    plugins: defaults => {
+      const plugins = defaults.map(plugin =>
         plugin === Accessibility
           ? Accessibility.configure(accessibility)
           : plugin,
-      ),
+      );
+      const nonce = cspNonce();
+      return nonce ? [...plugins, StyleInjector.configure({ nonce })] : plugins;
+    },
     sensors: defaults =>
       defaults.map(sensor =>
         sensor === PointerSensor ? PRESS_OR_DRAG : sensor,

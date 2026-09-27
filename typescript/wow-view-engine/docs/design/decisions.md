@@ -668,6 +668,13 @@
 - **没选**：在分组读法上继续加开关（`attached` 节、分组排序、字段隐藏——一条一条补，仍是字段清单）；宿主自己画抽屉（打开、读全、失败、焦点、叠放全要重做一遍，还和工作台的行打开脱节）。
 - **落点**：`src/ui/workbench/RecordParts.tsx`、`src/ui/embed/EmbeddedRecord.tsx`、`src/ui/record/RecordDetail.tsx`；[ui/record.md](ui/record.md)；补偿控制台 `features/Executions/detail/`。
 
+## D61 严格 CSP 下拖动的样式带上页面的 nonce（2026-09-27）
+
+- **来由**：第三轮审查 R3-P1-3：打包进来的 `@dnd-kit/dom` 在拖动进行中往 `<head>` 插 `<style>`（光标、禁止选中），`style-src 'self'` 会拦，README 却写着严格策略下可运行。协调者定：引擎给宿主一个显式的 nonce 入口，转交给 dnd-kit。
+- **裁定**：入口是页面上的 `<meta property="csp-nonce" nonce="…">`——Vite `html.cspNonce` 的约定，服务端按请求换 nonce 时也最常这样写（`content` 也认）。所有可排序列表共用的 `sortableList` 读到它，就把 `StyleInjector.configure({ nonce })` 加进插件（dnd-kit 的注册表按类去重，后配的选项落到它先注册的那一个上）。没有 meta 时什么都不加。
+- **没选**：每个组件加 `nonce` 属性（排序列表散在十几个面上，漏一个就是一次违规）；把 dnd-kit 的规则写进 `styles.css`（光标规则是 `*` 选择器、按拖动开关，静态写死会误伤，且随库升级漂移）；关掉这几个插件（拖动时的光标与禁止选中是可用性）。
+- **落点**：`src/ui/dragPlugins.ts`（`cspNonce`）；README「Content Security Policy」；补偿控制台 `e2e/csp.spec.ts` 作为门——严格策略下走遍四个去处并真拖一次，零违规；去掉 meta 时它会失败。
+
 ## 搁置待议
 
 尚无结论，不要当作规则执行。

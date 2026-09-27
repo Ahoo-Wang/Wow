@@ -1149,14 +1149,21 @@ store → model
 
 ## 内容安全策略（CSP）
 
-本包可以在严格的策略下运行——`script-src 'self'`、`style-src 'self'`，不开 `'unsafe-inline'` 与 `'unsafe-eval'`——要放行的只有两件事：
+本包可以在严格的策略下运行——`script-src 'self'`、`style-src 'self'`，不开 `'unsafe-inline'` 与 `'unsafe-eval'`——要放行的只有三件事：
 
 - **样式表**是文件（`styles.css`，用预设时还有 `themes.css`）：从允许的来源加载，不要内联。组件画出来的标记里没有 `style` 属性：内联样式都经 DOM 的 style 对象写入，策略不拦；图表提示框的色块是 SVG 的 `fill`（有单测守着提示框的 HTML 里没有 `style=`）。
+- **拖动排序时的一段样式**：列设置、排序、视图列表、看板的筛选与标签页可以拖动排序，拖动进行中，打包进来的拖放库会往 `<head>` 加一个 `<style>`（拖动时的光标、不选中文字）。`style-src` 只放行 `'self'` 时它会被拦，所以页面要把本次响应的 nonce 按 Vite 的约定写出来：`<meta property="csp-nonce" nonce="…">`（Vite 的 `html.cspNonce` 就是这样写的；写在 `content` 里也认），策略里加上 `'nonce-…'`。引擎读到它就给这段样式带上。不拖动时不加任何样式；没有这个 meta 时拖动照样能用，只是光标与选中文字的处理被拦掉（控制台里报一次违规）。
 - **把图导出为 PNG** 时，图的 SVG 从一个 `blob:` 地址作为图片载入、再画到画布上，所以 `img-src` 要包含 `blob:`。不放行时 PNG 做不出来，工具栏会说明；导出 SVG 不需要任何放行。两种导出都不执行代码、不写内联脚本。
 
 ```
-Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' blob:
+Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'nonce-<每次响应不同>'; img-src 'self' blob:
 ```
+
+```html
+<meta property="csp-nonce" nonce="<同一个 nonce>" />
+```
+
+补偿控制台按这条策略跑端到端（`compensation/dashboard/e2e/csp.spec.ts`）：走遍每个去处、真的拖动一次，一次违规都不许有。
 
 ## 开发
 
