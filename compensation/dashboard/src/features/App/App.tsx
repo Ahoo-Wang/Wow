@@ -18,16 +18,15 @@ import {
   Monitor,
   Moon,
   Sun,
-  X,
 } from "lucide-react";
-import { useId, useState } from "react";
-import { Link, NavLink, Outlet } from "react-router";
+import { Link, NavLink, Outlet, useLocation } from "react-router";
 import { ErrorBoundary } from "../../components/ErrorBoundary/ErrorBoundary.tsx";
 import type { NavItem } from "../../routes/constants.tsx";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuGroup,
+  DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
@@ -47,26 +46,62 @@ const buildCommitSha = import.meta.env.VITE_APP_COMMIT_SHA;
 const buildCommitShort = buildCommitSha.slice(0, 7);
 const buildCommitUrl = `https://github.com/Ahoo-Wang/Wow/commit/${buildCommitSha}`;
 
-/** The four places, as links; the top bar's and the phone menu's alike. */
-function Places({
-  navItems,
-  onPick,
-}: {
-  navItems: readonly NavItem[];
-  onPick?: () => void;
-}) {
+/**
+ * The four places, as links in the bar: the current one underlined in the
+ * primary colour, as the approved mockup draws it; the rest quiet until the
+ * pointer finds them.
+ */
+function Places({ navItems }: { navItems: readonly NavItem[] }) {
   const { t } = useI18n();
   return navItems.map((item) => (
     <NavLink
       key={item.path}
       to={item.path}
       end={item.path === HOME_PATH}
-      className="app-place"
-      onClick={onPick}
+      className="inline-flex h-full items-center border-b-2 border-transparent px-3 font-medium whitespace-nowrap text-muted-foreground outline-none hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 aria-[current=page]:border-primary aria-[current=page]:text-foreground"
     >
       {t(item.label)}
     </NavLink>
   ));
+}
+
+/** On a phone the places are a menu under one button, the current one checked. */
+function PlacesMenu({ navItems }: { navItems: readonly NavItem[] }) {
+  const { t } = useI18n();
+  const { pathname } = useLocation();
+  const current = navItems.find((item) =>
+    item.path === HOME_PATH ? pathname === HOME_PATH : pathname.startsWith(item.path),
+  );
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        render={
+          <Button
+            type="button"
+            variant="outline"
+            size="icon"
+            aria-label={t("Open navigation")}
+          />
+        }
+      >
+        <Menu />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start">
+        <DropdownMenuGroup>
+          {navItems.map((item) => (
+            <DropdownMenuItem
+              key={item.path}
+              aria-current={item === current ? "page" : undefined}
+              className="aria-[current=page]:font-medium aria-[current=page]:text-primary"
+              render={<Link to={item.path} />}
+            >
+              {t(item.label)}
+            </DropdownMenuItem>
+          ))}
+        </DropdownMenuGroup>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
 }
 
 function LanguageMenu() {
@@ -166,72 +201,79 @@ function BuildVersion() {
   const { t } = useI18n();
   const commit = t("GitHub commit {commit}", { commit: buildCommitSha });
   return (
-    <a
-      className="app-version"
-      href={buildCommitUrl}
-      target="_blank"
-      rel="noopener noreferrer"
+    <Button
+      variant="ghost"
+      size="sm"
+      className="font-normal text-muted-foreground tabular-nums"
       aria-label={`${t("Version {version}", { version: buildVersion })}, ${commit}`}
       title={commit}
+      render={
+        <a href={buildCommitUrl} target="_blank" rel="noopener noreferrer" />
+      }
     >
-      <span>v{buildVersion}</span>
-      <GitCommitHorizontal aria-hidden="true" />
+      v{buildVersion}
+      <GitCommitHorizontal data-icon="inline-start" />
       <code>{buildCommitShort}</code>
-    </a>
+    </Button>
   );
 }
 
 /**
- * The console's shell (console-redesign.md §4, §6): one top bar with the
- * product and its four places, then the language, the appearance and the
- * build. No sidebar of its own — the workbenches bring their view lists,
- * and a second column beside them was the old console's two rails (W15).
- * On a phone the places fold into a menu under the bar.
+ * The console's shell (console-redesign.md §4, §6): one bar with the product
+ * and its four places, then the language, the appearance and the build. The
+ * bar is the window's frame, in the sidebar's material, so it and a
+ * workbench's view list read as one frame round the content (D59). No
+ * sidebar of its own — the workbenches bring their view lists, and a second
+ * column beside them was the old console's two rails (W15). On a phone the
+ * places fold into a menu.
  */
 export default function App({ navItems }: AppProps) {
   const { t } = useI18n();
-  const [menuOpen, setMenuOpen] = useState(false);
-  const menuId = useId();
   const placesLabel = t("Primary navigation");
 
   return (
     <ErrorBoundary>
-      <a className="skip-link" href="#main-content">
+      <a
+        className="fixed top-2 left-2 z-50 -translate-y-[160%] rounded-md bg-popover px-3.5 py-2.5 text-sm font-semibold text-popover-foreground shadow-md focus:translate-y-0 focus:outline-2 focus:outline-offset-2 focus:outline-ring"
+        href="#main-content"
+      >
         {t("Skip to main content")}
       </a>
-      <div className="app-shell">
-        <header className="app-topbar">
-          <Button
-            type="button"
-            variant="outline"
-            size="icon"
-            className="app-menu-button"
-            aria-expanded={menuOpen}
-            aria-controls={menuId}
-            aria-label={menuOpen ? t("Close navigation") : t("Open navigation")}
-            onClick={() => setMenuOpen((open) => !open)}
+      <div className="flex min-h-svh flex-col">
+        {/* Inside the engine's `fve-tokens` boundary its own utilities win
+            over ours on one element, so what shows or hides by width sits
+            on a wrapper of its own, never beside a display utility. */}
+        <header className="sticky top-0 z-10 flex h-13 shrink-0 items-center gap-4 border-b border-sidebar-border bg-sidebar px-4 text-sidebar-foreground">
+          {/* A phone's way to the places: a button, whose menu is the
+              navigation; one landmark on the page, not two. */}
+          <div className="md:hidden">
+            <PlacesMenu navItems={navItems} />
+          </div>
+          <Link
+            to={HOME_PATH}
+            className="inline-flex items-center gap-2 font-semibold whitespace-nowrap outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
           >
-            {menuOpen ? <X /> : <Menu />}
-          </Button>
-          <Link to={HOME_PATH} className="app-brand">
-            <img src="/logo.svg" alt="" />
-            <span>{t("Compensation console")}</span>
+            <img src="/logo.svg" alt="" className="size-5.5" />
+            {t("Compensation console")}
           </Link>
-          <nav className="app-places" aria-label={placesLabel}>
-            <Places navItems={navItems} />
-          </nav>
-          <div className="app-topbar-actions">
+          <div className="h-full max-md:hidden">
+            <nav aria-label={placesLabel} className="flex h-full gap-1">
+              <Places navItems={navItems} />
+            </nav>
+          </div>
+          <div className="ml-auto flex min-w-0 items-center gap-1.5">
             <LanguageMenu />
             <ColorModeMenu />
-            <BuildVersion />
+            <div className="max-md:hidden">
+              <BuildVersion />
+            </div>
           </div>
         </header>
-        {menuOpen && (
-          <nav id={menuId} className="app-places-menu" aria-label={placesLabel}>
-            <Places navItems={navItems} onPick={() => setMenuOpen(false)} />
-          </nav>
-        )}
-        <main id="main-content" tabIndex={-1} className="app-content">
+        <main
+          id="main-content"
+          tabIndex={-1}
+          className="flex min-h-0 flex-1 flex-col outline-none"
+        >
           <Outlet />
         </main>
       </div>

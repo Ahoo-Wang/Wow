@@ -3,7 +3,6 @@ import {
   render,
   screen,
   waitFor,
-  within,
 } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -107,7 +106,7 @@ describe("App", () => {
     const places = screen.getByRole("navigation", {
       name: "Primary navigation",
     });
-    expect(places.closest(".app-topbar")).not.toBeNull();
+    expect(places.closest("header")).not.toBeNull();
     expect(
       [...places.querySelectorAll("a")].map((link) => link.textContent),
     ).toEqual(["Overview", "Failed executions", "Event stream", "Boards"]);
@@ -149,24 +148,27 @@ describe("App", () => {
     );
   });
 
-  it("folds the places into a menu the phone opens, and closes it on a pick", () => {
+  it("folds the places into a menu the phone opens, the current one marked", async () => {
     render(<App navItems={navItems} />);
 
-    const open = screen.getByRole("button", { name: "Open navigation" });
-    expect(open).toHaveAttribute("aria-expanded", "false");
-    expect(screen.getAllByRole("navigation")).toHaveLength(1);
-    fireEvent.click(open);
-
-    const close = screen.getByRole("button", { name: "Close navigation" });
-    expect(close).toHaveAttribute("aria-expanded", "true");
-    const menu = document.getElementById(
-      close.getAttribute("aria-controls") ?? "",
-    );
-    expect(menu).toHaveClass("app-places-menu");
-    fireEvent.click(within(menu!).getByRole("link", { name: "Boards" }));
+    // One navigation landmark: the phone's button opens a menu of the same
+    // places rather than a second landmark.
     expect(
+      screen.getAllByRole("navigation", { name: "Primary navigation" }),
+    ).toHaveLength(1);
+    fireEvent.mouseDown(
       screen.getByRole("button", { name: "Open navigation" }),
-    ).toHaveAttribute("aria-expanded", "false");
+      { button: 0, ctrlKey: false },
+    );
+    const items = await screen.findAllByRole("menuitem");
+    expect(items.map((item) => item.textContent)).toEqual([
+      "Overview",
+      "Failed executions",
+      "Event stream",
+      "Boards",
+    ]);
+    expect(items[1]).toHaveAttribute("aria-current", "page");
+    expect(items[1]).toHaveAttribute("href", "/executions");
   });
 
   it("switches the interface language from the top bar", async () => {

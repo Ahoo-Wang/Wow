@@ -16,7 +16,7 @@ import { Link } from "react-router";
 import { LayoutDashboard } from "lucide-react";
 import { useViewEngine } from "@ahoo-wang/wow-view-engine/react";
 import { EmbeddedDashboard } from "@ahoo-wang/wow-view-engine/ui";
-import { buttonVariants } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import { useI18n, type Locale } from "@/i18n.tsx";
 import { executionEngineOptions, localViewStore } from "@/views/engine.ts";
 import {
@@ -69,22 +69,31 @@ function LocalizedOverview({
   })}`;
 
   return (
-    <div className="overview-page">
-      <div className="overview-page-actions">
+    // The page stands on the board's own ground (`bg-canvas`), header and
+    // all: a white strip over a grey board read as two pages (D59). The
+    // header's edges line up with the panels': the page's 12px and the
+    // board's inset of 10px.
+    <div className="flex min-h-0 flex-1 flex-col gap-3 bg-canvas p-3">
+      <div className="flex flex-wrap items-center justify-between gap-2 px-2.5">
         {/* The page's heading: the top bar names the place, not the page, and
             the board has no workbench to title it (console-redesign.md §5.1). */}
-        <h1 className="overview-page-title">{t("Overview")}</h1>
-        <Link
-          to={workbench}
-          state={{ filters: initialFilters ?? undefined }}
-          className={buttonVariants({ variant: "outline", size: "sm" })}
+        <h1 className="text-xl font-semibold">{t("Overview")}</h1>
+        <Button
+          variant="outline"
+          size="sm"
+          render={
+            <Link
+              to={workbench}
+              state={{ filters: initialFilters ?? undefined }}
+            />
+          }
         >
-          <LayoutDashboard />
+          <LayoutDashboard data-icon="inline-start" />
           {t("Open in the dashboard workbench")}
-        </Link>
+        </Button>
       </div>
       <EmbeddedDashboard
-        className="overview-board"
+        className="min-h-0 flex-1"
         engine={engine}
         instanceId={OVERVIEW_BOARD}
         interaction="interactive"

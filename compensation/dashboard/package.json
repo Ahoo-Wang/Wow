@@ -25,7 +25,6 @@
     "@ahoo-wang/wow-react": "workspace:*",
     "@ahoo-wang/wow-view-engine": "workspace:*",
     "@base-ui/react": "catalog:",
-    "@fontsource-variable/geist": "catalog:",
     "class-variance-authority": "catalog:",
     "clsx": "catalog:",
     "dayjs": "catalog:",
