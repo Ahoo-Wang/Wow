@@ -138,6 +138,48 @@ export function referenceSeries(
   }));
 }
 
+/**
+ * The period still under way (second review R2-P1-7), shaded behind its
+ * marks across its whole category and named 「进行中」 at the top: it is
+ * drawn, as a card's sparkline draws it, but its days so far are no period,
+ * and a last bar or a line that ends low in them read as a fall. On a
+ * carrier of its own, as the target bands are, so it takes no slot.
+ */
+export function ongoingSeries(
+  plan: CartesianPlan,
+  theme: ChartTheme,
+  axisIndex: AxisIndex,
+): object[] {
+  const at = plan.data.unfinished?.at;
+  const index = plan.data.points.findIndex(point => point.x === at);
+  const name = plan.names[index];
+  if (at === undefined || name === undefined) return [];
+  const edge = plan.horizontal ? { yAxis: name } : { xAxis: name };
+  return [
+    {
+      type: 'line',
+      ...axisIndex('left'),
+      data: [],
+      silent: true,
+      tooltip: { show: false },
+      markArea: {
+        silent: true,
+        animation: false,
+        itemStyle: { color: theme.muted, opacity: 0.08 },
+        label: {
+          position: plan.horizontal ? 'insideRight' : 'insideTop',
+          color: theme.muted,
+          textBorderColor: theme.ground,
+          textBorderWidth: 2,
+        },
+        data: [
+          [{ ...edge, name: plan.context.words?.ongoing ?? '' }, { ...edge }],
+        ],
+      },
+    },
+  ];
+}
+
 /** The most of the chart's width the names beside the plot may take. */
 const CAPTION_SHARE = 0.25;
 

@@ -45,6 +45,12 @@ export interface CalendarData {
   /** The smallest and the largest measured number: the colour scale's ends. */
   low: number;
   high: number;
+  /**
+   * The period still under way at the axis's end (`unfinishedBucket`): drawn
+   * and marked, and left out of what the chart is read to say. Absent when
+   * every period had ended, or when the question carries no `now`.
+   */
+  unfinished?: { at: unknown };
 }
 
 /** `YYYY-MM-DD` of an instant in a zone. */
@@ -111,6 +117,12 @@ export interface ThemeRiverData {
    * A river cannot leave a hole, so the drawing says how many it guessed.
    */
   uncertain: number;
+  /**
+   * The period still under way at the axis's end (`unfinishedBucket`): drawn
+   * and marked, and left out of what the chart is read to say. Absent when
+   * every period had ended, or when the question carries no `now`.
+   */
+  unfinished?: { at: unknown };
 }
 
 /**

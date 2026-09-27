@@ -63,6 +63,8 @@ const context = (spec: ChartSpec): CartesianContext => ({
     high: 'high',
     low: 'low',
     other: 'other',
+    ongoing: 'ongoing',
+    ongoingPeriod: period => period,
   },
 });
 

@@ -34,6 +34,24 @@ export interface TimeContext {
   highlight?: (row: RecordData) => boolean;
   /** 「其他」, as the chart says the folded rest. */
   other: string;
+  /**
+   * A period still under way as the chart names it: 「2026年9月（进行中）」
+   * (second review R2-P1-7).
+   */
+  ongoing?: (period: string) => string;
+}
+
+/** A time as the chart names it, marked when it is the period under way. */
+function timeName(
+  context: Pick<TimeContext, 'label' | 'ongoing'>,
+  alias: string | undefined,
+  at: unknown,
+  unfinished: { at: unknown } | undefined,
+): string {
+  const name = context.label(alias, at);
+  return context.ongoing && unfinished !== undefined && unfinished.at === at
+    ? context.ongoing(name)
+    : name;
 }
 
 /** How strong the palest day is against the ground, as a heatmap's cell. */
@@ -81,17 +99,20 @@ export function calendarOption(
         const at = dayOf(datum);
         const day = at === undefined ? undefined : data.days[at];
         return day
-          ? tooltipHtml(label(calendar?.date, day.at), [
-              {
-                color: mixColor(
-                  palest,
-                  fill,
-                  (day.value - data.low) / (high - data.low),
-                ),
-                name: column(calendar?.value) ?? '',
-                value: label(calendar?.value, day.value),
-              },
-            ])
+          ? tooltipHtml(
+              timeName(context, calendar?.date, day.at, data.unfinished),
+              [
+                {
+                  color: mixColor(
+                    palest,
+                    fill,
+                    (day.value - data.low) / (high - data.low),
+                  ),
+                  name: column(calendar?.value) ?? '',
+                  value: label(calendar?.value, day.value),
+                },
+              ],
+            )
           : '';
       },
     },
@@ -158,9 +179,19 @@ export function calendarOption(
         .map(({ day, at }) => ({
           value: [day.date, day.value],
           id: `d${at}`,
+          // The day under way is outlined in dashes: its number so far
+          // is no day's (R2-P1-7).
           ...(anyLit && !highlight?.({ [calendar?.date ?? '']: day.at })
             ? { itemStyle: { opacity: FADED_OPACITY } }
-            : {}),
+            : data.unfinished?.at === day.at
+              ? {
+                  itemStyle: {
+                    borderType: 'dashed',
+                    borderColor: theme.foreground,
+                    borderWidth: 1.5,
+                  },
+                }
+              : {}),
         })),
     })),
   };
@@ -251,7 +282,7 @@ export function themeRiverOption(
         const at = params[0]?.value?.[0];
         if (at === undefined) return '';
         return tooltipHtml(
-          label(river?.x, data.times[at]),
+          timeName(context, river?.x, data.times[at], data.unfinished),
           streams.map((stream, index) => ({
             color: fills[index] ?? '',
             name: stream.name,
@@ -276,7 +307,9 @@ export function themeRiverOption(
         color: theme.axis.color,
         hideOverlap: true,
         formatter: (at: number) =>
-          Number.isInteger(at) ? label(river?.x, data.times[at]) : '',
+          Number.isInteger(at)
+            ? timeName(context, river?.x, data.times[at], data.unfinished)
+            : '',
       },
       axisPointer: { label: { show: false } },
     },

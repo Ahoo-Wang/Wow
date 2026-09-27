@@ -110,8 +110,11 @@ export function cartesianTooltip(
             : [];
         }),
       ];
+      const name = names[index] ?? '';
+      const ongoing =
+        data.unfinished !== undefined && data.unfinished.at === point.x;
       return tooltipHtml(
-        names[index] ?? '',
+        ongoing ? (context.words?.ongoingPeriod(name) ?? name) : name,
         rows,
         rows.some(row => row.note !== undefined) ? context.against : undefined,
       );

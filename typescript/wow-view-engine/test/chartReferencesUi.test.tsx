@@ -123,6 +123,8 @@ const WORDS: NonNullable<CartesianContext['words']> = {
   high: '最高',
   low: '最低',
   other: '其他',
+  ongoing: '进行中',
+  ongoingPeriod: period => period,
 };
 
 function optionOver(cfg: AnalysisViewConfig, cutShort = false): Loose {

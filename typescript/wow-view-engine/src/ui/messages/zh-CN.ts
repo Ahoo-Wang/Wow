@@ -1255,6 +1255,9 @@ export const zhCN: ViewMessages = {
   'label.chart.sentence.up': '总体上升',
   'label.chart.sentence.down': '总体下降',
   'label.chart.sentence.flat': '总体持平',
+  'label.chart.ongoing': '{period}（进行中）',
+  'label.chart.ongoing.band': '进行中',
+  'label.chart.sentence.unfinished': '{period}还没结束，未计入。',
   'label.chart.sentence.trend-of': '{measure} {trend}',
   'label.chart.sentence.other-axis':
     '另一根轴上的 {measures}：最高 {high} {highValue}，最低 {low} {lowValue}。',

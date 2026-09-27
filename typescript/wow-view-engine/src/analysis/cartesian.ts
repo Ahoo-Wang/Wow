@@ -86,6 +86,12 @@ export interface CartesianData {
    */
   timeline?: true;
   /**
+   * The period still under way at the axis's end (`unfinishedBucket`): drawn
+   * and marked, and left out of what the chart is read to say. Absent when
+   * every period had ended, or when the question carries no `now`.
+   */
+  unfinished?: { at: unknown };
+  /**
    * The spec's reference lines where the kernel placed them — a statistic
    * at the number it came to over the measured values (`placeLines`).
    * Absent when the spec has none.

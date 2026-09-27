@@ -188,31 +188,39 @@ export function chartSentence(
           })
         : undefined;
     }
-    case 'calendar':
-      return extremes(
+    case 'calendar': {
+      const days = data.days.filter(day => !ongoing(data, day.at));
+      const line = extremes(
         ctx,
-        data.days.length,
-        data.days.map(day => ({
+        days.length,
+        days.map(day => ({
           name: ctx.label(spec?.calendar?.date, day.at),
           value: day.value,
           alias: spec?.calendar?.value,
         })),
       );
+      return line && line + unfinishedClause(ctx, data, spec?.calendar?.date);
+    }
     case 'themeRiver': {
       const river = spec?.themeRiver;
-      const count = data.times.length;
+      const times = data.times.flatMap((at, index) =>
+        ongoing(data, at) ? [] : [{ at, index }],
+      );
+      const count = times.length;
       if (count < 2) return undefined;
-      const whole = (at: number) =>
-        (data.values[at] ?? []).reduce((sum, value) => sum + value, 0);
-      return ctx.messages.label('label.chart.sentence.themeRiver', {
-        count,
-        streams: data.streams.length,
-        first: ctx.label(river?.x, data.times[0]),
-        last: ctx.label(river?.x, data.times[count - 1]),
-        trend: ctx.messages.label(
-          `label.chart.sentence.${direction(whole(0), whole(count - 1))}`,
-        ),
-      });
+      const whole = ({ index }: { index: number }) =>
+        (data.values[index] ?? []).reduce((sum, value) => sum + value, 0);
+      return (
+        ctx.messages.label('label.chart.sentence.themeRiver', {
+          count,
+          streams: data.streams.length,
+          first: ctx.label(river?.x, times[0].at),
+          last: ctx.label(river?.x, times[count - 1].at),
+          trend: ctx.messages.label(
+            `label.chart.sentence.${fittedDirection(times.map(whole))}`,
+          ),
+        }) + unfinishedClause(ctx, data, river?.x)
+      );
     }
     case 'map':
       return extremes(
@@ -310,8 +318,12 @@ function cartesianSentence(
   const lead = data.series[0] ? sideOf(data.series[0].metric) : 'left';
   const onOther = (entry: (typeof data.series)[number]) =>
     sideOf(entry.metric) !== lead;
+  // The period still under way is drawn, and read for nothing: its days so
+  // far are no period, and the lowest or the way down they would make is no
+  // finding (second review R2-P1-7). The sentence says it left it out.
+  const read = data.points.filter(point => !ongoing(data, point.x));
   const itemsOn = (other: boolean) =>
-    data.points.flatMap(point =>
+    read.flatMap(point =>
       data.series
         .filter(entry => onOther(entry) === other)
         .map(entry => ({
@@ -327,6 +339,7 @@ function cartesianSentence(
   const bounds = highLow(itemsOn(false));
   if (!bounds) return undefined;
   const other = highLow(itemsOn(true));
+  const skipped = unfinishedClause(ctx, data, cartesian?.x);
   const otherClause = other
     ? ctx.messages.label('label.chart.sentence.other-axis', {
         measures: [
@@ -344,15 +357,17 @@ function cartesianSentence(
   // (second review R2-P1-4: 「从 2024年 Q3 到 ，」).
   const periods =
     data.timeline === true
-      ? data.points.filter(point => point.x !== null && point.x !== undefined)
-      : data.points;
+      ? read.filter(point => point.x !== null && point.x !== undefined)
+      : read;
   const count = periods.length;
   if (data.timeline !== true || count < 2)
     return (
       ctx.messages.label('label.chart.sentence', {
         count: data.points.length,
         ...said(ctx, bounds),
-      }) + otherClause
+      }) +
+      otherClause +
+      skipped
     );
   const first = periods[0];
   const last = periods[count - 1];
@@ -381,8 +396,28 @@ function cartesianSentence(
             })
           : trend,
       ...said(ctx, bounds),
-    }) + otherClause
+    }) +
+    otherClause +
+    skipped
   );
+}
+
+/** Whether `at` is the period still under way at the axis's end. */
+function ongoing(data: { unfinished?: { at: unknown } }, at: unknown): boolean {
+  return data.unfinished !== undefined && data.unfinished.at === at;
+}
+
+/** 「2026年9月还没结束，未计入。」, where the chart left a period out. */
+function unfinishedClause(
+  ctx: ReadingContext,
+  data: { unfinished?: { at: unknown } },
+  alias: string | undefined,
+): string {
+  return data.unfinished
+    ? ctx.messages.label('label.chart.sentence.unfinished', {
+        period: ctx.label(alias, data.unfinished.at),
+      })
+    : '';
 }
 
 /** Where the chart stands at one point: these series added up. */

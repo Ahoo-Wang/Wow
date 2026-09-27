@@ -189,6 +189,8 @@ describe('the share line as drawn', () => {
       high: 'high',
       low: 'low',
       other: 'Other',
+      ongoing: 'In progress',
+      ongoingPeriod: period => period,
     },
   };
 
