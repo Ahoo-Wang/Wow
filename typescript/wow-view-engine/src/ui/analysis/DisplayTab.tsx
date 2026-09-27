@@ -40,6 +40,7 @@ import {
   type MessageFormatters,
 } from '../MessagesProvider.js';
 import { drawsHorizontal } from '../charts/cartesianPlan.js';
+import { logScaleFits } from '../../analysis/logScale.js';
 import { Field, FieldDescription } from '../components/field.js';
 import { WaterfallDisplay } from './CompositionOptions.js';
 import { ReferenceOptions } from './ReferenceOptions.js';
@@ -101,8 +102,9 @@ export function DisplayTab(props: OptionsPageProps) {
  * tick.
  *
  * Anywhere else the automatic choice is one of the other two whatever the
- * rows — a line, an area and a heatmap write none, a waterfall, bars lying
- * on their side and stacked bars write every one — so a third button would
+ * rows — a line and an area write none; a heatmap (where its cells hold
+ * them), a waterfall, bars lying on their side and stacked bars write
+ * every one — so a third button would
  * repeat one of them: two choices, each written as the value it names. A
  * pie always writes each slice's share, and the choice is whether its value
  * goes with it (「只标占比」, 「数值与占比」).
@@ -361,18 +363,27 @@ function PieDisplay({ chart, shape, onChange }: OptionsPageProps) {
   );
 }
 
-function HeatmapDisplay({ chart, onChange }: OptionsPageProps) {
+function HeatmapDisplay({ chart, data, onChange }: OptionsPageProps) {
   const messages = useViewMessages();
   const spec = chart.heatmap;
   if (!spec) return null;
+  // A cell of 0 or less has no place on a log scale: the choice is greyed
+  // with why, and a saved one is drawn linear (`heatmapOption`).
+  const fits = data?.type !== 'heatmap' || logScaleFits(data.cells.flat());
+  const scale = spec.scale ?? 'linear';
   return (
     <ChoiceField
+      data-slot="heatmap-scale"
       label={messages.label('label.chart.scale')}
-      items={(['linear', 'log'] as const).map(scale => ({
-        value: scale,
-        label: messages.label(`label.chart.scale.${scale}`),
+      items={(['linear', 'log'] as const).map(value => ({
+        value,
+        label: messages.label(`label.chart.scale.${value}`),
+        disabled: value === 'log' && !fits && scale !== 'log',
       }))}
-      value={spec.scale ?? 'linear'}
+      {...(fits
+        ? {}
+        : { hint: messages.label('label.chart.scale.not-positive') })}
+      value={scale}
       onChange={scale => onChange({ ...chart, heatmap: { ...spec, scale } })}
     />
   );

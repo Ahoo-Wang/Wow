@@ -409,6 +409,50 @@ export const BlockSpacing: Story = {
  * an attribute, and whether an undeclared column is still exactly what it
  * always was.
  */
+/**
+ * The selection boxes have room (WCAG 2.2 2.5.8; second review R1-P1-9,
+ * R3-P1-7). A box is 16px, under the 24px a target should be, so it holds
+ * by the exception for room: nothing else a pointer can press lies within a
+ * 24px circle centred on it. Here the table lays the selection column out
+ * at its content, and the header's first sort button used to begin 8px
+ * from the box's centre (axe `target-size`, serious — a WCAG 2.2 rule the
+ * default axe run in these stories leaves out, so it is measured here).
+ */
+export const SelectionBoxesHaveRoom: Story = {
+  ...DisplayCellFamily,
+  play: async ({ canvasElement }) => {
+    const table = await within(canvasElement).findByRole('table');
+    await waitFor(() => expect(readColumn(table, '订单号')).toHaveLength(6));
+    const targets = [
+      ...table.querySelectorAll<HTMLElement>(
+        'button, a[href], [role="checkbox"], [role="separator"][tabindex]',
+      ),
+    ];
+    const boxes = [...table.querySelectorAll<HTMLElement>('[role="checkbox"]')];
+    await expect(boxes.length).toBe(7);
+    for (const box of boxes) {
+      const at = box.getBoundingClientRect();
+      const x = at.left + at.width / 2;
+      const y = at.top + at.height / 2;
+      for (const other of targets) {
+        if (other === box) continue;
+        const near = other.getBoundingClientRect();
+        const dx = Math.max(near.left - x, 0, x - near.right);
+        const dy = Math.max(near.top - y, 0, y - near.bottom);
+        await expect(
+          Math.hypot(dx, dy),
+          `${other.getAttribute('aria-label') ?? other.textContent} beside ${box.getAttribute('aria-label')}`,
+        ).toBeGreaterThanOrEqual(12);
+      }
+      // The column is the 2.5rem the pinned offsets assume, and the box's
+      // own larger hit area stays inside it.
+      await expect(
+        box.closest('td, th')!.getBoundingClientRect().width,
+      ).toBeGreaterThanOrEqual(40);
+    }
+  },
+};
+
 export const CellFamily: Story = {
   ...DisplayCellFamily,
   play: async ({ canvasElement }) => {

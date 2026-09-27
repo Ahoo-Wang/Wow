@@ -151,7 +151,15 @@
 
 ### 这个暂停点（2026-09-26 晚：切换账号前停下）
 
-**在飞（09-26 晚）**：接手的会话先读本节，再读 [todo.md](todo.md) 和 `typescript/RELEASING.md`「首发清单」。第二轮全面审查已做完，报告在 `typescript/storybook/docs/review2/`（P0 0、P1 26、P2 45）；P1 按道在修，每合并一条在报告的处置表写 PR 号：记录与筛选道（R1 全部、R3-P1-2、R3-P1-7）、分析道（R2 全部）、主题样式道（R3-P1-1、P1-5、P1-6）；CSP 道（R3-P1-3、P1-4）排队，等有空位再派，方案写在报告「就绪审计 P1 的处置」。P1 全部处置后，报告交用户**明确审查**。
+**暂停（09-26 深夜，5 小时额度将尽）**：没有在跑的子代理。恢复后**并行度 1**，按下面顺序一件做完再派下一件；第二轮审查的报告在 `typescript/storybook/docs/review2/`，每合并一条在处置表写 PR 号。
+
+- **自动合并中**：#3677（勾选框目标，R1-P1-9／R3-P1-7）、#3682（热力图对数，R2-P1-3）。合并后在 review2 处置表记上（#3678 已合并：R2-P1-2、R2-P1-8）。
+- **1. 分析道**（WIP 分支 `fix/view-engine-funnel-steps`，一个 `wip:` 提交）：第 4 组 R2-P1-5 漏斗——已写 `AggregationFieldCapability.steps`、`fitCharts` 的 `steps` 与 `ChartFit.aside`、文案 `chart.fit.not-steps`；未声明为步骤的维度，漏斗不进「适合这个结果」但仍可选并写原因。接续：单测 + 浏览器故事（「省份 GMV 前 15」的漏斗在「其他图型」）→ `funnelPlotHeight` 加上限 → ui/analysis.md 与模型文档 → 门禁 → PR。之后第 5～8 组（缺值组命名、摘要句、未结束的当期、K 线与平行坐标）。协调者已定：零售订单的「状态」声明为步骤（下单→付款→发货→签收→完成），由故事道在 `retail/definitions.ts` 加。
+- **2. 故事道**（分支 `feat/storybook-chart-showcase-board`，正式提交 a22cc9a06，已 rebase，未开 PR）：「图型全景」四页签 22 面板已画全并验证（每图 `data-drawn`、摘要有数、22 种各一次、联动、1440／390 无横滚）。接续：重跑 `pnpm build`（含 verify）→ 开 PR（正文列 22 面板表、数据改动 `placedAt`、引擎缺陷：雷达与平行坐标的摘要无读数、瀑布画不了指标桥接、看板级红涨让瀑布正向段变红、日历按整年画首尾空半年、刻度盘无目标值）→ 订单状态声明 `steps` → 合并后另开 PR 把「图型陈列」收成能力说明。`verify-storybook-browser.mjs` 本地静态站超时，未查清。
+- **3. 记录与筛选道**（分支 `fix/record-config-remedy`，一个 WIP 提交，单测绿、故事门禁未跑，协调者代推到远端）：第 4 组 R1-P1-3 配置补救按钮。之后第 5～7 组（390 宽筛选带、措辞统一、故事数据源 `IS_EMPTY`）。
+- **4. 之后**：控制台重写（console-redesign.md 第 9 节四批）→ CSP 道（引擎 nonce 入口）→ 质量审查（含查询后端 Kotlin）。
+- **协调者手上**：WCAG 2.2 护栏——Storybook 打开 axe `target-size`（分支 `ci/axe-wcag22`，一个 wip 提交），#3677 前摸底 47 个失败、集中在记录表格；#3677 合并后重跑那 9 个文件、清零后合进 CI；控制台 e2e 的 axe（`e2e/support/axe.ts`）也要含 `wcag22aa`，随控制台重写做。
+- **待记**：decisions D44 仍写「一页最多两百条」，D42 已把缺省上限降到 100，要统一。
 
 「查询模块架构重构」会话管后端，契约变更走交接协议（见下方规则）。
 

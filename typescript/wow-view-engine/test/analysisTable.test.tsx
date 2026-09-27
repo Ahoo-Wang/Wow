@@ -524,6 +524,10 @@ describe('an identifier dimension', () => {
 
     const ids = [...document.querySelectorAll('[data-slot="identifier"]')];
     expect(ids.map(node => node.textContent)).toEqual(['SO-1001']);
+    // A group with no value reads 「(empty)」, in the table's own face.
+    expect(
+      screen.getByText('(empty)').closest('[data-slot="identifier"]'),
+    ).toBeNull();
     // Surviving class assertion: the face is a declaration with no state
     // behind it — the record table's own `IDENTIFIER_FACE`, which the
     // browser story measures as a monospace family.

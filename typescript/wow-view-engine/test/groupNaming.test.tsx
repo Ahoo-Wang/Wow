@@ -44,7 +44,11 @@ import {
   type ViewMessages,
 } from '../src/ui/messages.js';
 import type { MessageFormatters } from '../src/ui/MessagesProvider.js';
-import { analysisConfig, ordersDefinition } from './fixtures.js';
+import {
+  analysisConfig,
+  namedOrdersDefinition,
+  ordersDefinition,
+} from './fixtures.js';
 
 afterEach(cleanup);
 
@@ -243,5 +247,78 @@ describe('a split by a yes/no field', () => {
       [...rows, { warehouse: 'W-1', isNew: true, orders: 1 }],
     );
     expect(legend()).toEqual(['W-0', 'W-1']);
+  });
+});
+
+/**
+ * A date dimension keeps no sentinel key, so its records with no date come
+ * back as a bucket with no key at all (second review R2-P1-4): it is named
+ * as the records with no value are, and it stands last wherever the rows
+ * run in time — in the table as on the time axis.
+ */
+describe('the records with no date', () => {
+  const month = Date.UTC(2026, 6, 1);
+  const byMonth = (sort: AnalysisViewConfig['sort'] = []) =>
+    analysisConfig({
+      groups: [
+        {
+          alias: 'month',
+          field: 'createdAt',
+          type: 'DATE_HISTOGRAM',
+          unit: 'MONTH',
+          timeZone: 'UTC',
+        },
+      ],
+      sort,
+      layout: 'chart',
+      chart: {
+        type: 'bar',
+        cartesian: { x: 'month', series: [{ metric: 'orders' }] },
+      },
+    });
+  const rows = [
+    { month, orders: 5 },
+    { month: null, orders: 9 },
+    { month: Date.UTC(2026, 7, 1), orders: 3 },
+  ];
+
+  it('stand last while the rows run in time, and where a metric orders them', () => {
+    const project = (config: AnalysisViewConfig) =>
+      projectAnalysis(namedOrdersDefinition(), config, rows).rows.map(
+        row => row.month,
+      );
+    expect(project(byMonth())).toEqual([month, Date.UTC(2026, 7, 1), null]);
+    expect(project(byMonth([{ alias: 'month', direction: 'DESC' }]))).toEqual([
+      month,
+      Date.UTC(2026, 7, 1),
+      null,
+    ]);
+    // Ordered by a metric, the bucket stands where its number puts it.
+    expect(project(byMonth([{ alias: 'orders', direction: 'DESC' }]))).toEqual([
+      month,
+      null,
+      Date.UTC(2026, 7, 1),
+    ]);
+  });
+
+  it('read as 「（空）」 on the axis, in the reading and in the sentence', () => {
+    const view = projectAnalysis(namedOrdersDefinition(), byMonth(), rows);
+    render(
+      <ViewSurface messages={zhCN}>
+        <AnalysisChart
+          data={view.chart!}
+          spec={byMonth().chart}
+          columns={view.columns}
+        />
+      </ViewSurface>,
+    );
+    expect(reading()).toContain('（空）');
+    const sentence = document.querySelector(
+      '[data-slot="chart-sentence"]',
+    )!.textContent!;
+    expect(sentence).toContain('（空）');
+    expect(sentence).not.toMatch(/到 ，/);
+    // Two periods, from July to August: the undated bucket ends nothing.
+    expect(sentence).toMatch(/共 2 期，从 July 2026 到 August 2026/);
   });
 });

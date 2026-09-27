@@ -68,6 +68,31 @@ import {
   TableRow,
 } from './components/table.js';
 
+/**
+ * The room a selection checkbox stands in: the box where it always stood, at
+ * the start of the cell (the cell's padding, in line with a board panel's
+ * title and the rest of the column's content), with its room on the side
+ * its neighbours are. A 1.75rem box and the cell's 0.5rem of right padding,
+ * which the registry drops for a checkbox cell and {@link SELECT_CELL} puts
+ * back, put the cell's right edge 1.25rem from the box's centre.
+ *
+ * Why (second review R1-P1-9, R3-P1-7): the box is 16px, the WCAG 2.2
+ * minimum target is 24px, and the exception for a smaller target is room —
+ * no other target within a 24px circle centred on it. Where a table laid
+ * the column out at its content, 28px, the header's first sort button began
+ * 8px from the box's centre, inside that circle (axe `target-size`,
+ * serious), and the registry's own larger hit area (its `::after`, 0.75rem
+ * past the box on either side, so 1.25rem from its centre) lay over the
+ * button. Now the nearest neighbour starts 1.25rem from the centre and the
+ * hit area ends at the cell's edge. The room goes on the right, not around
+ * the box: moved in from the cell's padding, the box would stand out of
+ * line with everything else at that edge (a board panel holds a table's
+ * first content at its title, `OpsDailyEdges`). The rows keep their height:
+ * the room is across, not down.
+ */
+const SELECT_BOX = 'flex w-7 items-center';
+const SELECT_CELL = '[&:has([role=checkbox])]:pr-2';
+
 export interface RecordTableProps {
   table: RecordTableController;
   /** Renders one cell; the default reads it as the column's `cell` says. */
@@ -323,19 +348,21 @@ export function RecordTable({
                 <TableHead
                   data-column={SELECT_COLUMN}
                   {...stickyHead(pins.select, {
-                    className: cn('w-10', HEAD_CELL),
+                    className: cn('w-10', HEAD_CELL, SELECT_CELL),
                   })}
                 >
-                  <Checkbox
-                    aria-label={messages.label('label.record.select-all')}
-                    checked={allSelected}
-                    indeterminate={
-                      table.selection.length > 0 && !allSelected
-                        ? true
-                        : undefined
-                    }
-                    onCheckedChange={table.toggleAll}
-                  />
+                  <span className={SELECT_BOX}>
+                    <Checkbox
+                      aria-label={messages.label('label.record.select-all')}
+                      checked={allSelected}
+                      indeterminate={
+                        table.selection.length > 0 && !allSelected
+                          ? true
+                          : undefined
+                      }
+                      onCheckedChange={table.toggleAll}
+                    />
+                  </span>
                 </TableHead>
               )}
               {/* The arrows say the order the rows on screen are in — the
@@ -396,8 +423,12 @@ export function RecordTable({
                 {...opening.row(row)}
               >
                 {selectable && (
-                  <TableCell {...stickyCell(pins.select)}>
-                    <RowCheckbox table={table} row={row} hintId={rangeId} />
+                  <TableCell
+                    {...stickyCell(pins.select, { className: SELECT_CELL })}
+                  >
+                    <span className={SELECT_BOX}>
+                      <RowCheckbox table={table} row={row} hintId={rangeId} />
+                    </span>
                   </TableCell>
                 )}
                 {columns.map(column => {

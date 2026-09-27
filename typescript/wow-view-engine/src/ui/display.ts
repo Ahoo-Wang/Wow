@@ -452,11 +452,15 @@ export function compactFormat(format: NumberFormat | undefined): NumberFormat {
  */
 export function missingText(
   value: unknown,
-  column: { missingKey?: string },
+  column: { missingKey?: string; role?: 'group' | 'metric' },
   messages: MessageFormatters,
 ): string | undefined {
-  return column.missingKey === DEFAULT_MISSING_KEY &&
-    value === DEFAULT_MISSING_KEY
+  // A group whose key is nothing at all is the records with no value too:
+  // a date dimension keeps no sentinel key, and its bucket of records with
+  // no date came back unnamed — a blank tick, a blank first cell,
+  // 「从 2024年 Q3 到 ，」 (second review R2-P1-4).
+  const none = column.role === 'group' && value == null;
+  return none || (value === DEFAULT_MISSING_KEY && column.missingKey === value)
     ? messages.label('label.analysis.missing-group')
     : undefined;
 }

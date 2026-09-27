@@ -132,10 +132,14 @@ export interface ChartFamilyTraits {
    * where the numbers are heading and how two series move together, and a
    * number on every point drowned a monthly line of 23 points (2026-09-23
    * audit P1-3; Metabase leaves its data-point values off until asked). A
-   * pie already writes its shares on its slices, and a heatmap's cells are
-   * too many for a number each, so neither has a mark here.
+   * pie already writes its shares on its slices, so it has no mark here.
+   * `'always'`: a family with no series whose marks write their values
+   * unasked — a heatmap's cells, whose shade is read off a colour scale only
+   * roughly: the numbers are written where every one of them fits a cell
+   * (`heatmapLabelsFit`), and a 6.3× difference two shades apart stayed
+   * unreadable otherwise (second review R2-P1-3).
    */
-  labelsByDefault: readonly SeriesMark[];
+  labelsByDefault: readonly SeriesMark[] | 'always';
   /** Why it cannot draw this shape, or `null` when it can. */
   unfit(shape: ShapeFacts): ChartUnfit | null;
 }
@@ -197,7 +201,7 @@ export const CHART_FAMILIES: Readonly<Record<ChartFamily, ChartFamilyTraits>> =
       tabs: ['data', 'display'],
       legend: false,
       labels: true,
-      labelsByDefault: [],
+      labelsByDefault: 'always',
       unfit: ({ groups, quantities }) =>
         groups === 2
           ? measured(quantities, 1)
@@ -520,8 +524,10 @@ export function valueLabelsOn(
   const family = familyOf(chart.type);
   if (!family.labels) return false;
   if (chart.labels !== undefined) return chart.labels;
+  const unasked = family.labelsByDefault;
+  if (unasked === 'always') return true;
   const marks = mark === undefined ? chartMarks(chart) : [mark];
-  return marks.some(one => family.labelsByDefault.includes(one));
+  return marks.some(one => unasked.includes(one));
 }
 
 /**

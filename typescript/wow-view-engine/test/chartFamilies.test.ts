@@ -358,13 +358,16 @@ describe('peaksOnlyLabels (review P1-6)', () => {
 });
 
 describe('valueLabelsOn', () => {
-  it('writes a bar’s values unasked, and no line’s, area’s or other family’s', () => {
+  it('writes a bar’s and a heatmap cell’s values unasked, and no line’s, area’s or other family’s', () => {
     expect(valueLabelsOn({ type: 'bar' })).toBe(true);
     // A number on every point drowned the line (audit P1-3).
     expect(valueLabelsOn({ type: 'line' })).toBe(false);
     expect(valueLabelsOn({ type: 'area' })).toBe(false);
     expect(valueLabelsOn({ type: 'pie' })).toBe(false);
-    expect(valueLabelsOn({ type: 'heatmap' })).toBe(false);
+    // A heatmap's shades are read off its scale only roughly: its cells
+    // write their numbers unasked where they fit (R2-P1-3).
+    expect(valueLabelsOn({ type: 'heatmap' })).toBe(true);
+    expect(valueLabelsOn({ type: 'heatmap', labels: false })).toBe(false);
     // A waterfall's steps are bars, and write their changes as bars do; a
     // treemap's tiles carry their names and numbers whatever it says.
     expect(valueLabelsOn({ type: 'waterfall' })).toBe(true);

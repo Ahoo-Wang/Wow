@@ -1126,6 +1126,8 @@ export const zhCN: ViewMessages = {
   'label.chart.scale': '色阶',
   'label.chart.scale.linear': '线性',
   'label.chart.scale.log': '对数',
+  'label.chart.scale.not-positive':
+    '对数色阶放不下 0 或负数，这张图的格子里有，按线性上色。',
   'label.chart.cumulative': '累计（至少到达这一段）',
   'label.chart.format': '数值格式',
   'label.chart.format.auto': '自动',

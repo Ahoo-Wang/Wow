@@ -482,6 +482,113 @@ async function funnelReadsAsAFunnel(canvasElement: HTMLElement) {
   ]);
 }
 
+/** WCAG luminance of a fill the chart wrote as `rgb(r, g, b)`. */
+function fillLuminance(fill: string): number {
+  const [r, g, b] = (fill.match(/[\d.]+/g) ?? []).map(Number).map(channel => {
+    const c = channel / 255;
+    return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+  });
+  return 0.2126 * r! + 0.7152 * g! + 0.0722 * b!;
+}
+
+/** The fill of the cell a number is written on. */
+function cellFill(frame: HTMLElement, number: string): string {
+  const text = [
+    ...frame.querySelectorAll('[data-slot="chart-plot"] svg text'),
+  ].find(one => one.textContent?.trim() === number)!;
+  const box = text.getBoundingClientRect();
+  const cell = document
+    .elementsFromPoint(box.left + box.width / 2, box.top + box.height / 2)
+    .find(hit => hit.tagName === 'path' && hit.getAttribute('fill'));
+  return cell!.getAttribute('fill')!;
+}
+
+/**
+ * 热力图的对数色阶是真的对数，格子里写着数（第二轮审查 R2-P1-3）：城市等级
+ * × 渠道里 405 与 2,548 差 6.3 倍，从前按 log1p(值 − 最小值) 上色，两格亮度
+ * 对比只有 1.39:1、格子里又没有数。现在每格写数，两格对比拉开。
+ */
+export const HeatmapLogReads: Story = {
+  ...DisplayOrderAnalysis,
+  name: '热力图的对数色阶读得出差异（R2-P1-3）',
+  play: async ({ canvasElement }) => {
+    const frame = await openAnalysis(canvasElement, '城市等级 × 渠道');
+    await waitFor(() => {
+      const texts = plotTexts(frame);
+      expect(texts).toContain('405');
+      expect(texts).toContain('2,548');
+    });
+    const [low, high] = [cellFill(frame, '405'), cellFill(frame, '2,548')].map(
+      fillLuminance,
+    );
+    await expect((low! + 0.05) / (high! + 0.05)).toBeGreaterThan(1.8);
+  },
+};
+
+/**
+ * 按日期字段细分时，没有这个日期的记录（未付款的单）那一组叫「（空）」，
+ * 排在最后——图上、读屏表里、表格里都一样；摘要句的「从…到…」不以它结尾
+ * （第二轮审查 R2-P1-4：横轴空白、表格首格空白、「从 2024年 Q3 到 ，」、
+ * 表格排第二而图上排最后）。
+ */
+export const SplitByADateNamesTheUndated: Story = {
+  ...DisplayOrderAnalysis,
+  name: '按日期细分时没有日期的一组叫（空）、排最后（R2-P1-4）',
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const frame = await openAnalysis(canvasElement, '省份 GMV 前 15');
+    const bars = await waitFor(() => {
+      const found = drawnMarks(frame);
+      expect(found.length).toBeGreaterThan(10);
+      return found;
+    });
+    pressMark(bars[1]!);
+    const menu = await drillMenu(zhCN['label.drill.menu']);
+    await userEvent.hover(
+      within(menu).getByRole('menuitem', { name: zhCN['label.drill.split'] }),
+    );
+    const split = await waitFor(() => {
+      const found = document.body.querySelector<HTMLElement>(
+        '[data-slot="dropdown-menu-sub-content"]',
+      );
+      expect(found).not.toBeNull();
+      return found!;
+    });
+    await userEvent.click(
+      within(split).getByRole('menuitem', { name: '付款时间' }),
+    );
+    await chartsDrawn(canvasElement);
+    const periods = await waitFor(() => {
+      const table = canvasElement.querySelector<HTMLElement>(
+        '[data-slot="chart-reading"] table',
+      );
+      const first = [...(table?.querySelectorAll('tbody tr') ?? [])].map(
+        row => row.querySelector('th, td')?.textContent?.trim() ?? '',
+      );
+      expect(first.at(-1)).toBe(zhCN['label.analysis.missing-group']);
+      return first;
+    });
+    await expect(periods).not.toContain('');
+    const sentence =
+      canvasElement.querySelector('[data-slot="chart-sentence"]')
+        ?.textContent ?? '';
+    await expect(sentence).not.toMatch(/到 ，/);
+
+    await userEvent.click(
+      canvas.getByRole('button', { name: zhCN['label.layout.table'] }),
+    );
+    await waitFor(() => {
+      const table = canvasElement.querySelector<HTMLElement>(
+        '[data-slot="analysis-table"] table',
+      );
+      const first = [...(table?.querySelectorAll('tbody tr') ?? [])].map(
+        row => row.querySelector('th, td')?.textContent?.trim() ?? '',
+      );
+      expect(first).toEqual(periods);
+    });
+  },
+};
+
 /**
  * 漏斗只在维度是先后的步骤时才算「适合这个结果」（第二轮审查 R2-P1-5）：省份
  * 是并列的类目，漏斗落在「其他图型」、仍可选、写着为什么；选了它，十五段共用
