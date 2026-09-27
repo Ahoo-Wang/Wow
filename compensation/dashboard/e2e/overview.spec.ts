@@ -730,3 +730,27 @@ test("two contexts sharing a processor and function stay separate clusters", asy
     await expect(cells.nth(4)).toHaveText(count(cluster.currentCount));
   }
 });
+
+// The shell on a phone (console-redesign.md §4): the four places fold into
+// the menu and nothing widens the page. Inside the engine's `fve-tokens`
+// boundary a width-dependent class of ours once lost to the engine's own
+// `flex`, the places stayed in the bar, and every page ran 539px wide.
+test("the shell fits a phone on every place", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "mobile-chromium");
+  await stub(page);
+  for (const path of ["/", "/executions", "/events", "/boards"]) {
+    await page.goto(path);
+    await expect(
+      page.getByRole("button", { name: "Open navigation" }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("navigation", { name: "Primary navigation" }),
+    ).toBeHidden();
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth - window.innerWidth,
+      ),
+      path,
+    ).toBeLessThanOrEqual(0);
+  }
+});

@@ -30,7 +30,7 @@ import {
 } from "@/views/navigation.ts";
 
 const routeFallback = (
-  <div className="h-full space-y-4 p-5">
+  <div className="flex flex-1 flex-col gap-4 p-5">
     <Skeleton className="h-12 w-full" />
     <Skeleton className="h-[70vh] w-full" />
   </div>

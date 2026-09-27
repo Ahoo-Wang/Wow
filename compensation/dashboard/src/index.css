@@ -1,13 +1,10 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
-@import "@fontsource-variable/geist";
 
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
-  --font-heading: var(--font-sans);
-  --font-sans: "Geist Variable", sans-serif;
   --color-chart-5: var(--chart-5);
   --color-chart-4: var(--chart-4);
   --color-chart-3: var(--chart-3);
@@ -47,6 +44,15 @@
  * light and dark alike (console-redesign.md §6). What the console does say
  * is the engine's host inputs: its brand, Wow's blue, and where a view that
  * fills the screen stands.
+ */
+/*
+ * One rule for the console's own utilities: `<body>` is the engine's
+ * `fve-tokens` boundary, and inside it the engine's utilities are scoped a
+ * step stronger than ours. On one element, a class of ours loses to the
+ * engine's class for the same property — `flex max-md:hidden` never hides,
+ * because the engine also has `flex`. So a width-dependent class (show,
+ * hide, a spacing that changes) goes on a wrapper that carries nothing
+ * else of that property; the same element never holds both.
  */
 :root {
   --fve-brand: oklch(0.546 0.245 262.881);
@@ -96,158 +102,6 @@ table.sr-only {
   }
 }
 
-.skip-link {
-  position: fixed;
-  top: 8px;
-  left: 8px;
-  z-index: 100;
-  transform: translateY(-160%);
-  border-radius: var(--radius);
-  background: var(--popover);
-  padding: 10px 14px;
-  color: var(--popover-foreground);
-  font-size: 14px;
-  font-weight: 600;
-  box-shadow: 0 4px 16px color-mix(in oklab, var(--foreground) 18%, transparent);
-}
-
-.skip-link:focus {
-  transform: translateY(0);
-  outline: 2px solid var(--ring);
-  outline-offset: 2px;
-}
-
-.app-shell {
-  display: flex;
-  min-height: 100svh;
-  flex-direction: column;
-}
-
-/*
- * One bar across the top (console-redesign.md §4): the product and its four
- * places on the left, the language, the appearance and the build on the
- * right. The current place is underlined in the brand's colour, as the
- * approved mockup draws it.
- */
-.app-topbar {
-  position: sticky;
-  top: 0;
-  z-index: 10;
-  display: flex;
-  height: 52px;
-  flex: 0 0 52px;
-  align-items: center;
-  gap: 20px;
-  border-bottom: 1px solid var(--border);
-  background: var(--card);
-  padding: 0 16px;
-}
-
-.app-brand {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  color: var(--foreground);
-  font-weight: 600;
-  text-decoration: none;
-  white-space: nowrap;
-}
-
-.app-brand img {
-  width: 22px;
-  height: 22px;
-}
-
-.app-brand:focus-visible,
-.app-place:focus-visible,
-.app-version:focus-visible {
-  outline: 2px solid var(--ring);
-  outline-offset: 2px;
-}
-
-.app-places {
-  display: flex;
-  height: 100%;
-  gap: 4px;
-}
-
-.app-places .app-place {
-  display: inline-flex;
-  align-items: center;
-  border-bottom: 2px solid transparent;
-  padding: 0 12px;
-  color: var(--muted-foreground);
-  font-weight: 500;
-  text-decoration: none;
-  white-space: nowrap;
-}
-
-.app-places .app-place:hover {
-  color: var(--foreground);
-}
-
-.app-places .app-place[aria-current="page"] {
-  border-bottom-color: var(--primary);
-  color: var(--foreground);
-}
-
-.app-topbar-actions {
-  display: flex;
-  min-width: 0;
-  margin-left: auto;
-  align-items: center;
-  gap: 6px;
-  color: var(--muted-foreground);
-}
-
-.app-version {
-  display: inline-flex;
-  min-height: 28px;
-  align-items: center;
-  gap: 4px;
-  border-radius: var(--radius-sm);
-  padding: 0 6px;
-  color: var(--muted-foreground);
-  font-size: 12px;
-  font-variant-numeric: tabular-nums;
-  text-decoration: none;
-  white-space: nowrap;
-}
-
-.app-version:hover {
-  background: var(--accent);
-  color: var(--accent-foreground);
-}
-
-.app-version svg {
-  width: 14px;
-  height: 14px;
-}
-
-.app-version code {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-}
-
-/* The phone's way to the places: a button in the bar, a list under it. */
-.app-menu-button {
-  display: none;
-}
-
-.app-places-menu {
-  display: none;
-}
-
-.app-content {
-  display: flex;
-  min-height: 0;
-  flex: 1;
-  flex-direction: column;
-}
-
-.app-content:focus {
-  outline: none;
-}
-
 /* The view engine's workbench fills the content area and scrolls inside. */
 .executions-page,
 .boards-page {
@@ -264,83 +118,9 @@ table.sr-only {
   min-height: 0;
 }
 
-/*
- * The home page is the overview board, filling the content area under one
- * line of the page's own: the way into the dashboard workbench.
- */
-.overview-page {
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  gap: 8px;
-  min-height: 0;
-  padding: 12px;
-}
-
-.overview-page-actions {
-  display: flex;
-  flex: none;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-.overview-page-title {
-  margin: 0;
-  font-size: 20px;
-  font-weight: 600;
-}
-
-.overview-board {
-  flex: 1;
-  min-height: 0;
-}
-
 /* A line about the page above the workbench: as tall as it reads. */
 .executions-page > .executions-page-note {
   flex: none;
   margin: 12px 12px 0;
   width: auto;
-}
-
-@media (max-width: 720px) {
-  .app-topbar {
-    gap: 10px;
-    padding: 0 12px;
-  }
-
-  .app-places,
-  .app-version {
-    display: none;
-  }
-
-  .app-menu-button {
-    display: inline-flex;
-  }
-
-  .app-places-menu {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    border-bottom: 1px solid var(--border);
-    background: var(--card);
-    padding: 6px 12px;
-  }
-
-  .app-places-menu .app-place {
-    display: flex;
-    min-height: 40px;
-    align-items: center;
-    border-radius: var(--radius);
-    padding: 0 8px;
-    color: var(--foreground);
-    text-decoration: none;
-  }
-
-  .app-places-menu .app-place[aria-current="page"] {
-    background: var(--accent);
-    color: var(--accent-foreground);
-    font-weight: 500;
-  }
 }

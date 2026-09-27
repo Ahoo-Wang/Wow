@@ -29,21 +29,21 @@ function ErrorFallback({ error, retry }: { error?: Error; retry: () => void }) {
   const { t } = useI18n();
 
   return (
-    <div role="alert" className="flex min-h-svh items-center justify-center bg-slate-50 p-6">
-      <div className="w-full max-w-md rounded-xl border border-red-200 bg-white p-6 text-center shadow-sm">
-        <CircleAlert aria-hidden="true" className="mx-auto size-8 text-red-600" />
-        <h2 className="mt-3 font-heading text-lg font-semibold text-slate-950">
+    <div role="alert" className="flex min-h-svh items-center justify-center bg-canvas p-6">
+      <div className="w-full max-w-md rounded-xl border border-destructive/30 bg-card p-6 text-center text-card-foreground shadow-sm">
+        <CircleAlert aria-hidden="true" className="mx-auto size-8 text-destructive" />
+        <h2 className="mt-3 text-lg font-semibold">
           {t("Something went wrong.")}
         </h2>
-        <p className="mt-1 text-sm text-slate-600">
+        <p className="mt-1 text-sm text-muted-foreground">
           {t("The dashboard could not render this view. Try again to recover from a temporary problem.")}
         </p>
         <Button type="button" className="mt-5" onClick={retry}>
           {t("Try again")}
         </Button>
-        <details className="mt-5 text-left text-xs text-slate-500">
+        <details className="mt-5 text-left text-xs text-muted-foreground">
           <summary className="cursor-pointer font-medium">{t("Technical details")}</summary>
-          <pre className="mt-2 overflow-auto whitespace-pre-wrap rounded-lg bg-slate-100 p-3">
+          <pre className="mt-2 overflow-auto whitespace-pre-wrap rounded-lg bg-muted p-3">
             {error?.toString()}
           </pre>
         </details>
