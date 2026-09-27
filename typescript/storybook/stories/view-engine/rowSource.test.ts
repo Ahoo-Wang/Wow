@@ -1125,6 +1125,17 @@ describe('rowSource', () => {
       ).resolves.toEqual(['TO-1']);
     });
 
+    // 「标记 没有条目」 failed with an English error here (second review
+    // R1-P1-11). An array with no entries, as wow-mongo asks it ($size: 0).
+    it('finds an array with no entries with IS_EMPTY, as $size: 0 does', async () => {
+      await expect(
+        ids({
+          op: FilterOperator.IS_EMPTY,
+          field: 'state.tags',
+        } as FilterExpression),
+      ).resolves.toEqual(['TO-3']);
+    });
+
     it('reads the aggregate id and the owner off the snapshot envelope', async () => {
       await expect(
         ids({ op: FilterOperator.OWNER_ID, value: 'M1' } as FilterExpression),
@@ -1269,12 +1280,12 @@ describe('rowSource', () => {
         source.aggregate(
           query([count()], {
             filter: {
-              op: 'IS_EMPTY',
-              field: 'tags',
+              op: 'SPACE_ID',
+              value: 'north',
             } as unknown as FilterExpression,
           }),
         ),
-      ).rejects.toThrow(/does not evaluate IS_EMPTY/);
+      ).rejects.toThrow(/does not evaluate SPACE_ID/);
       await expect(
         source.aggregate(
           query([count()], {
