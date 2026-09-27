@@ -63,6 +63,7 @@ import {
   DropdownMenuContent,
   PopoverContent,
   SelectContent,
+  SheetContent,
   TooltipContent,
 } from '../src/ui/popups.js';
 import { FilterPanel, ViewSurface } from '../src/ui/index.js';
@@ -297,6 +298,33 @@ describe('a dialog themes its backdrop as well as its surface', () => {
  * separate one from the plain dialog's — so it needs the root class in its own
  * right, or the confirmation opens over an undimmed page.
  */
+describe("a side panel's backdrop leaves with the panel (#3690)", () => {
+  const duration = (element: Element | null) =>
+    [...(element?.classList ?? [])].filter(name => /^duration-\d+$/.test(name));
+
+  it("takes the panel's length, holds its fade until the panel is gone, and does not blur", async () => {
+    render(
+      <ViewSurface theme="light">
+        <Dialog defaultOpen>
+          <SheetContent>
+            <DialogTitle>Record</DialogTitle>
+          </SheetContent>
+        </Dialog>
+      </ViewSurface>,
+    );
+    await screen.findByRole('dialog');
+    const backdrop = document.querySelector('[data-slot="dialog-overlay"]');
+    const panel = document.querySelector('[data-slot="sheet-content"]');
+    // Its fade ended 100ms before the panel's slide, and it snapped back.
+    expect(duration(backdrop)).toEqual(duration(panel));
+    expect(backdrop?.classList).toContain('fill-mode-forwards');
+    expect(backdrop?.className).toContain(
+      'supports-backdrop-filter:backdrop-blur-none',
+    );
+    expect(backdrop?.className).not.toContain('backdrop-blur-xs');
+  });
+});
+
 describe('an alert dialog themes its backdrop as well as its surface', () => {
   it('puts the root class, the theme and the layer on both', async () => {
     render(

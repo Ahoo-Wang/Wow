@@ -429,7 +429,7 @@ export function SheetContent({
   return (
     <DialogPortal>
       <DialogOverlay
-        className={cn('fve-root', overlayClassName)}
+        className={cn('fve-root', SHEET_OVERLAY_CLASS, overlayClassName)}
         style={POPUP_LAYER}
         {...surface}
       />
@@ -463,6 +463,19 @@ export function SheetContent({
     </DialogPortal>
   );
 }
+
+/**
+ * A side panel's backdrop leaves with the panel, not before it (#3690). The
+ * registry's backdrop fades out in 100ms, a dialog's own length; a panel
+ * slides out in 200ms, and the backdrop's keyframes ended first and let it
+ * snap back to full for the last 80ms — the dim flashed twice on every
+ * close. It takes the panel's length here, and its fade holds its last frame
+ * (`fill-mode-forwards`) until the panel is gone. It does not blur: a panel
+ * is read beside the rows it opened from, as a desktop's inspector is, and a
+ * frosted list hid which row that was.
+ */
+const SHEET_OVERLAY_CLASS =
+  'duration-200 fill-mode-forwards supports-backdrop-filter:backdrop-blur-none';
 
 /** The registry's sheet recipe for each edge it comes from. */
 const SHEET_POPUP_CLASS = {
