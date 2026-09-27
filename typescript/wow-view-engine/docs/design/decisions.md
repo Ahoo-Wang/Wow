@@ -495,7 +495,7 @@
   - **读屏**：虚拟时表格写 `aria-rowcount`（表头、各组、合计），表头第 1 行，每组 `aria-rowindex` 是它的序号加 1，合计是最后一行；整张画时不写，与从前一样。
   - **键盘**：行仍是一个 Tab 停靠点（A9），↑／↓／Home／End 按序号走，没画出来的那一行先滚到眼前（让开粘住的表头与合计）再拿焦点；拿着停靠点的那一行一直画着，滚轮把它滚走焦点也不丢回页面。
   - **导出与复制**读的是结果本身（`view.rows`），从来不是屏上的行，不受影响；**打印**时浏览器一说要打印（`beforeprint`）就同步画齐每一行，打印完再回到只画眼前的。
-  - **记录视图不虚拟**：一页最多两百条（`maxPageSize`），实测首次画完与排序都在 0.3～0.9 秒之内、滚动不掉帧。
+  - **记录视图不虚拟**：一页最多 `maxPageSize` 条（当时是两百，D42 把缺省降到一百；宿主调高后仍不过两百），两百条实测首次画完与排序都在 0.3～0.9 秒之内、滚动不掉帧。
 - **公开面**：没有变化（`VIRTUAL_ROWS_AFTER` 与 `useVirtualRows` 不出包）。新增运行时依赖 `@tanstack/react-virtual`，只到 `ui`（`test/architecture.test.ts` 的 UI-only 规则）。
 - **落点**：`src/ui/analysis/virtualRows.ts`（`useVirtualRows`、`bodySegments`）、`src/ui/AnalysisTable.tsx`；[ui/analysis.md](ui/analysis.md#长表多于一千组只画看得见的行d44)。（见 test/analysisVirtualRows.test.tsx 与浏览器故事「分析视图/长表/回归」：`TenThousandRowsDrawWhatIsInView` 守一万行表头排序 1000ms 的回归线与同时画出的行数，`KeyboardWalksTenThousandRows`、`PrintingDrawsEveryRow`、`BoardPanelDrawsWhatIsInView`、`OneThousandRowsDrawWhole`）
 
@@ -638,6 +638,13 @@
 - **来由**：第二轮审查 R3-P1-5：宿主把 `--fve-control-height`、`--fve-filter-height` 写成 16px，筛选片就真的只有 16px，`theme-check` 不报。
 - **裁定**（#3671，主题样式道提出、协调者认可）：登记表把 `control-height`、`control-height-sm`、`filter-height`、`sidebar-item-height` 标为点击目标，`TARGET_FLOOR = 24` 随 `theme-tokens.json` 发出；`wow-view-engine theme-check` 对宿主或预设解析低于 24px 的报错误（消息给出要写的值），算不出的 `calc()` 报警告；一个错误不再挡住后面的对比度检查。样式表**不**用 `max(1.5rem, …)` 夹值：与颜色同一份合同——宿主改颜色一样能破坏对比度，我们量出来、写进文档，不悄悄改宿主写的值；WCAG 2.5.8 还有间距例外，CSS 判断不了。
 - **落点**：`src/ui/theme/{tokens,pairs}.ts`、`theme-check/{check,registry}.ts`；主题指南与 README。
+
+## D58 图表上未结束的当期：照画、做记号、不进读数（2026-09-26）
+
+- **来由**：第二轮审查 R2-P1-7：河流图最后一周只有 1.4 天，整条河收成一点、摘要「总体下降」；月 GMV 的最后一根是只过了 22 天的 9 月；日历的「最低」是今天上午。指标卡早已把进行中的一期留在大数字之外（「还没结束，未计入」），图表没有。
+- **裁定**（用户 2026-09-26，按推荐；#3695）：与指标卡同一条规则。时间轴最后一期在提问时刻还没结束时仍画出，但做记号——笛卡尔图那一格背后一道淡底色写「进行中」、提示框写「（进行中）」，日历那一天虚线框，河流图轴上的名字写「（进行中）」；摘要句的「从…到…」、走向、最高与最低都不算它，句末说「〈这一期〉还没结束，未计入。」
+- **没选**：默认不画当期（看不到截至目前的数）；不画但加开关（多一个选项，改动最大）。
+- **落点**：`src/analysis/timeAxis.ts`（`unfinishedBucket`）、`src/analysis/chart.ts`、`src/ui/charts/{sentence,cartesianMarks,cartesianTooltip,timeOption}.ts`；[ui/analysis.md](ui/analysis.md)「未结束的当期」。
 
 ## 搁置待议
 
