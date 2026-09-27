@@ -194,7 +194,7 @@ describe('the period under way at the end of a time axis', () => {
     const series = option.series as Loose[];
     // One bar series, no totals: the band's carrier is next, the period last.
     expect(series[1]!.markArea.data[0][0].name).toBe('目标');
-    expect(series.at(-1)!.markArea.data[0][0].name).toBe('进行中');
+    expect(series[series.length - 1]!.markArea.data[0][0].name).toBe('进行中');
   });
 
   it('marks a calendar’s day under way and leaves it out of the lowest', () => {
