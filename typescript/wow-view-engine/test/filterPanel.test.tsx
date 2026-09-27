@@ -1594,7 +1594,7 @@ describe('a stored condition the editor cannot draw', () => {
     // (F-14): the well-formed condition beside it is fine.
     expect(strip.textContent).toContain('This condition could not be read.');
     expect(strip.textContent).not.toContain('needs fixing');
-    expect(within(strip).queryByRole('button', { name: '1 more' })).toBeNull();
+    expect(within(strip).queryByRole('button', { name: 'Show 1' })).toBeNull();
   });
 
   it('refuses to apply while it is there', async () => {

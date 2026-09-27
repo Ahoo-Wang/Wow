@@ -708,7 +708,7 @@ describe('EmbeddedView', () => {
     expect(screen.getByRole('alert').textContent).toContain(
       'Could not load the data: down · Showing the last successful result',
     );
-    expect(screen.queryByRole('button', { name: '1 more' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Show 1' })).toBeNull();
     expect(screen.getAllByRole('row')).toHaveLength(3);
   });
 });

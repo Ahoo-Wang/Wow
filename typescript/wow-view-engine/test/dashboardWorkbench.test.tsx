@@ -806,7 +806,7 @@ describe('DashboardWorkbench', () => {
         'not a field is not a usable field name.',
       ),
     );
-    expect(screen.queryByRole('button', { name: '1 more' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Show 1' })).toBeNull();
     // Nothing ran: an error blocks the apply that would have created panels.
     expect(source.paged).not.toHaveBeenCalled();
   });

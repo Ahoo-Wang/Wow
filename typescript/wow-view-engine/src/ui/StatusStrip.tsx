@@ -89,7 +89,7 @@ export function StatusStrip({
                 open state folds them away again, so it says so. */}
             {open
               ? messages.label('label.status.less')
-              : messages.label('label.status.more', { count: lines.length })}
+              : messages.label('label.status.show', { count: lines.length })}
           </CollapsibleTrigger>
           {/* A whole row of its own under the sentence, which is what the
               line's wrap is for. */}

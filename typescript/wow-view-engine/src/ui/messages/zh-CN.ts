@@ -1962,7 +1962,7 @@ export const zhCN: ViewMessages = {
     '这个仪表盘的宽度「{width}」无法识别，先按全宽显示；编辑时可以选固定宽度或全宽。',
 
   // 视图自己要说的话：哪里失败了，屏幕上留着的又是什么，此刻有没有东西在跑。
-  'label.status.more': '还有 {count} 项',
+  'label.status.show': '展开 {count} 项',
   'label.status.less': '收起',
   'label.status.loading': '加载中',
   'label.status.querying': '正在查询',

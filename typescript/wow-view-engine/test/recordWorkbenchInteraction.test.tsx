@@ -640,7 +640,7 @@ describe('the record workbench layout', () => {
     expect(strip.textContent).toContain(
       'gateway down · Showing the last successful result',
     );
-    expect(within(strip).queryByRole('button', { name: '1 more' })).toBeNull();
+    expect(within(strip).queryByRole('button', { name: 'Show 1' })).toBeNull();
 
     fail = false;
     fireEvent.click(within(strip).getByRole('button', { name: 'Try again' }));

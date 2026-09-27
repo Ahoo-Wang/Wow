@@ -11,6 +11,7 @@
  * limitations under the License.
  */
 
+import { useId } from 'react';
 import { EqualNotIcon, XIcon } from 'lucide-react';
 import { cn } from 'cn';
 import type {
@@ -54,6 +55,7 @@ import { PillSelectTrigger } from '../variants.js';
 import { UnsupportedValue } from './inputs/unsupported.js';
 import { GroupBlock } from './GroupBlock.js';
 import { useConditionFocus } from './conditionFocus.js';
+import { recordIssueNamer } from '../record/issueNames.js';
 
 /**
  * The pill's own frame, shared by the editable condition and the read-only
@@ -111,10 +113,21 @@ export function ConditionPill({
   const pending = isPending?.(path) === true;
   const field = filter.fields.find(entry => entry.name === leaf.field);
   const label = field?.label ?? leaf.field;
-  const operators = filter.operatorsFor(leaf.field).map(operator => ({
+  // The operator the condition holds, among the ones offered or not: a
+  // saved condition whose operator the source no longer supports showed the
+  // protocol's word in the select, 「CONTAIN…」, because the select knew no
+  // label for a value it did not list (second review R1-P1-5). It is listed
+  // now, in its own word and not to be chosen again.
+  const offered = filter.operatorsFor(leaf.field);
+  const refusedOperator = !offered.includes(leaf.operator);
+  const operators = [
+    ...offered,
+    ...(refusedOperator ? [leaf.operator] : []),
+  ].map(operator => ({
     label: operatorLabel(messages, operator),
     value: operator,
   }));
+  const reasonId = useId();
   const editor = filter.editorFor(path);
   const kind = field && filter.kinds?.get(field.kind);
   // A field the definition still declares, of a kind the registry does not
@@ -188,7 +201,11 @@ export function ConditionPill({
       <SelectContent>
         <SelectGroup>
           {operators.map(operator => (
-            <SelectItem key={operator.value} value={operator.value}>
+            <SelectItem
+              key={operator.value}
+              value={operator.value}
+              disabled={refusedOperator && operator.value === leaf.operator}
+            >
               {operator.label}
             </SelectItem>
           ))}
@@ -351,6 +368,7 @@ export function ConditionPill({
       data-wide={wide || undefined}
       data-pending={pending || undefined}
       data-negated={negated || undefined}
+      aria-describedby={errors.length > 0 ? reasonId : undefined}
       // `flex-wrap`: the value takes a line of its own where the strip is too
       // narrow to hold the whole sentence on one — see the floor on the value
       // below. Nothing wraps at a strip width the track was designed for.
@@ -424,6 +442,23 @@ export function ConditionPill({
       </div>
       {negate}
       {remove}
+      {/* Why the border is red, in words, on a line of its own under the
+          sentence: the border alone was the whole of it, and a reader had
+          to find the strip above to learn what was wrong here (second
+          review R1-P1-5). The group names it too, for a screen reader. */}
+      {errors.length > 0 && (
+        <p
+          id={reasonId}
+          data-slot="filter-condition-reason"
+          className="text-destructive basis-full pb-0.5 text-xs"
+        >
+          {errors
+            .map(found =>
+              messages.issue(recordIssueNamer(filter.fields, messages)(found)),
+            )
+            .join(' ')}
+        </p>
+      )}
     </div>
   );
 }
