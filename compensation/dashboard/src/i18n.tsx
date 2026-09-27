@@ -29,9 +29,15 @@ const zhCN = {
   "Execution is in progress; wait until it times out.":
     "执行尚未超时，请等待当前执行结果。",
   "Due for retry": "已到重试时间",
-  Overview: "概览",
-  Dashboards: "仪表盘",
-  "Execution events": "执行事件",
+  Overview: "总览",
+  "Event stream": "事件流",
+  Boards: "看板",
+  "Compensation console": "补偿控制台",
+  Appearance: "明暗",
+  "Appearance: {mode}": "明暗：{mode}",
+  "Follow system": "跟随系统",
+  Light: "亮",
+  Dark: "暗",
   "Open in the dashboard workbench": "在仪表盘工作台中打开",
   "The link's condition cannot be read, so no records are shown.":
     "链接里的条件读不出来，所以不显示任何记录。",
@@ -45,7 +51,6 @@ const zhCN = {
   "Wrap lines": "自动换行",
   "Clear cluster filter": "清除集群筛选",
   "Invalid cluster filter.": "集群筛选无效。",
-  Dashboard: "仪表盘",
   Executing: "执行中",
   "Next Retry": "下次重试",
   "Next retry": "下次重试",
@@ -60,27 +65,15 @@ const zhCN = {
   Chinese: "中文",
   "Current language: {language}": "当前语言：{language}",
   "Primary navigation": "主导航",
-  "Application sidebar": "应用侧栏",
-  Navigation: "导航",
-  "Compensation Control Plane": "补偿控制台",
-  "Wow compensation dashboard": "Wow 补偿仪表盘",
-  "Wow Compensation Dashboard": "Wow 补偿仪表盘",
-  Compensation: "补偿",
-  "Control Plane": "控制台",
+  "Wow Compensation Console": "Wow 补偿控制台",
   "Close navigation": "关闭导航",
   "Open navigation": "打开导航",
-  "Collapse navigation": "收起导航",
-  "Expand navigation": "展开导航",
-  Collapse: "收起",
-  Expand: "展开",
   Close: "关闭",
   Sidebar: "侧栏",
   "Displays the mobile sidebar.": "显示移动端侧栏。",
   "Toggle Sidebar": "切换侧栏",
   "Skip to main content": "跳到主要内容",
-  "Build information": "构建信息",
   "GitHub commit {commit}": "GitHub 提交 {commit}",
-  "Project repositories": "项目仓库",
   "Page {page}": "第 {page} 页",
   "Execution ID": "执行 ID",
   "Event ID": "事件 ID",
@@ -258,7 +251,7 @@ export function I18nProvider({ children }: PropsWithChildren) {
 
   useEffect(() => {
     document.documentElement.lang = locale;
-    document.title = translate(locale, "Wow Compensation Dashboard");
+    document.title = translate(locale, "Wow Compensation Console");
   }, [locale]);
 
   const value = useMemo<I18nContextValue>(

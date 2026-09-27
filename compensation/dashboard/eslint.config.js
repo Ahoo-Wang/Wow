@@ -44,7 +44,7 @@ export default tseslint.config([
           patterns: [
             {
               regex:
-                "^@ahoo-wang/wow-view-engine/(?!(react|ui|styles\\.css|themes\\.css|shadcn-bridge\\.css)$)",
+                "^@ahoo-wang/wow-view-engine/(?!(react|ui|styles\\.css|themes\\.css|themes/[a-z]+\\.css|shadcn-bridge\\.css)$)",
               message:
                 "Import the view engine from its public entries: the root, /react, /ui or a CSS entry.",
             },

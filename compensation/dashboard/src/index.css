@@ -8,14 +8,6 @@
 @theme inline {
   --font-heading: var(--font-sans);
   --font-sans: "Geist Variable", sans-serif;
-  --color-sidebar-ring: var(--sidebar-ring);
-  --color-sidebar-border: var(--sidebar-border);
-  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
-  --color-sidebar-accent: var(--sidebar-accent);
-  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
-  --color-sidebar-primary: var(--sidebar-primary);
-  --color-sidebar-foreground: var(--sidebar-foreground);
-  --color-sidebar: var(--sidebar);
   --color-chart-5: var(--chart-5);
   --color-chart-4: var(--chart-4);
   --color-chart-3: var(--chart-3);
@@ -48,78 +40,19 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
+/*
+ * The console paints nothing of its own: its chrome sits in the engine's
+ * `fve-tokens` boundary (on `<body>`, index.html), which declares the shadcn
+ * names — `--background`, `--primary`, `--muted` … — from the preset's roles,
+ * light and dark alike (console-redesign.md §6). What the console does say
+ * is the engine's host inputs: its brand, Wow's blue, and where a view that
+ * fills the screen stands.
+ */
 :root {
-  --background: oklch(0.985 0.004 247.858);
-  --foreground: oklch(0.208 0.042 265.755);
-  --card: oklch(1 0 0);
-  --card-foreground: var(--foreground);
-  --popover: oklch(1 0 0);
-  --popover-foreground: var(--foreground);
-  --primary: oklch(0.546 0.245 262.881);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.968 0.007 247.896);
-  --secondary-foreground: var(--foreground);
-  --muted: oklch(0.968 0.007 247.896);
-  /* Slate 500 is 4.46:1 on this tinted background, under AA's 4.5:1 for
-     the pagination, captions and field labels drawn in it; a step darker. */
-  --muted-foreground: oklch(0.52 0.046 257.417);
-  --accent: oklch(0.94 0.02 255);
-  --accent-foreground: oklch(0.32 0.09 260);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.929 0.013 255.508);
-  --input: var(--border);
-  --ring: var(--primary);
-  --chart-1: oklch(0.577 0.245 27.325);
-  --chart-2: oklch(0.546 0.245 262.881);
-  --chart-3: oklch(0.705 0.213 47.604);
-  --chart-4: oklch(0.627 0.194 149.214);
-  --chart-5: oklch(0.554 0.046 257.417);
-  --radius: 0.625rem;
-  --sidebar: oklch(0.205 0.042 265.755);
-  --sidebar-foreground: oklch(0.968 0.007 247.896);
-  --sidebar-primary: var(--primary);
-  --sidebar-primary-foreground: var(--primary-foreground);
-  --sidebar-accent: oklch(0.3 0.06 260);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 12%);
-  --sidebar-ring: oklch(0.707 0.165 254.624);
-  /* A view filling the screen (「铺满屏幕」) covers the shell's fixed sidebar
+  --fve-brand: oklch(0.546 0.245 262.881);
+  /* A view filling the screen (「铺满屏幕」) covers the sticky top bar
      (z-index 10), and stays under the engine's popups (50). */
   --fve-expanded-z-index: 20;
-}
-
-.dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.704 0.191 22.216);
-  --chart-2: oklch(0.707 0.165 254.624);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.723 0.219 149.579);
-  --chart-5: oklch(0.708 0.04 256.788);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
 }
 
 @layer base {
@@ -184,141 +117,135 @@ table.sr-only {
   outline-offset: 2px;
 }
 
-.app-topbar {
+.app-shell {
   display: flex;
-  height: 68px;
-  flex: 0 0 68px;
-  align-items: center;
-  justify-content: space-between;
-  border-bottom: 1px solid var(--border);
-  background: color-mix(in oklab, var(--background) 92%, transparent);
-  padding: 0 24px;
+  min-height: 100svh;
+  flex-direction: column;
 }
 
-.app-topbar h1 {
-  margin: 0;
+/*
+ * One bar across the top (console-redesign.md §4): the product and its four
+ * places on the left, the language, the appearance and the build on the
+ * right. The current place is underlined in the brand's colour, as the
+ * approved mockup draws it.
+ */
+.app-topbar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  height: 52px;
+  flex: 0 0 52px;
+  align-items: center;
+  gap: 20px;
+  border-bottom: 1px solid var(--border);
+  background: var(--card);
+  padding: 0 16px;
+}
+
+.app-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   color: var(--foreground);
-  font-size: 21px;
-  font-weight: 650;
-  letter-spacing: -0.025em;
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.app-brand img {
+  width: 22px;
+  height: 22px;
+}
+
+.app-brand:focus-visible,
+.app-place:focus-visible,
+.app-version:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+.app-places {
+  display: flex;
+  height: 100%;
+  gap: 4px;
+}
+
+.app-places .app-place {
+  display: inline-flex;
+  align-items: center;
+  border-bottom: 2px solid transparent;
+  padding: 0 12px;
+  color: var(--muted-foreground);
+  font-weight: 500;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.app-places .app-place:hover {
+  color: var(--foreground);
+}
+
+.app-places .app-place[aria-current="page"] {
+  border-bottom-color: var(--primary);
+  color: var(--foreground);
 }
 
 .app-topbar-actions {
   display: flex;
   min-width: 0;
-  align-items: center;
-  gap: 18px;
-}
-
-.app-build-info {
-  display: flex;
+  margin-left: auto;
   align-items: center;
   gap: 6px;
-  font-variant-numeric: tabular-nums;
+  color: var(--muted-foreground);
 }
 
-.app-build-info-item {
+.app-version {
   display: inline-flex;
-  height: 30px;
+  min-height: 28px;
   align-items: center;
-  gap: 6px;
-  border: 1px solid var(--border);
+  gap: 4px;
   border-radius: var(--radius-sm);
-  background: var(--background);
-  padding: 0 9px;
+  padding: 0 6px;
   color: var(--muted-foreground);
   font-size: 12px;
-  font-weight: 550;
-  line-height: 1;
-}
-
-.app-build-info-item svg {
-  width: 14px;
-  height: 14px;
-}
-
-.app-build-info-item code {
-  color: inherit;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  font-size: inherit;
-}
-
-.app-build-info-item.is-commit {
-  color: var(--foreground);
+  font-variant-numeric: tabular-nums;
   text-decoration: none;
-  transition:
-    border-color 120ms ease,
-    background-color 120ms ease,
-    color 120ms ease;
+  white-space: nowrap;
 }
 
-.app-build-info-item.is-commit:hover {
-  border-color: var(--ring);
+.app-version:hover {
   background: var(--accent);
   color: var(--accent-foreground);
 }
 
-.app-build-info-item.is-commit:focus-visible {
-  outline: 2px solid var(--ring);
-  outline-offset: 2px;
+.app-version svg {
+  width: 14px;
+  height: 14px;
 }
 
-.app-project-links {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  padding-left: 16px;
-  border-left: 1px solid var(--border);
+.app-version code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 }
 
-.app-language-trigger {
-  width: 34px;
-  height: 34px;
-  color: var(--muted-foreground);
+/* The phone's way to the places: a button in the bar, a list under it. */
+.app-menu-button {
+  display: none;
 }
 
-.app-project-link {
-  display: inline-flex;
-  width: 34px;
-  height: 34px;
-  align-items: center;
-  justify-content: center;
-  border: 1px solid transparent;
-  border-radius: 8px;
-  color: var(--muted-foreground);
-  transition:
-    border-color 120ms ease,
-    background-color 120ms ease,
-    color 120ms ease;
-}
-
-.app-project-link:hover {
-  border-color: var(--border);
-  background: var(--accent);
-}
-
-.app-project-link.is-github:hover {
-  color: #181717;
-}
-
-.app-project-link.is-gitee:hover {
-  color: #c71d23;
-}
-
-.app-project-link:focus-visible {
-  outline: 2px solid var(--ring);
-  outline-offset: 2px;
-}
-
-.app-project-link img {
-  width: 18px;
-  height: 18px;
+.app-places-menu {
+  display: none;
 }
 
 .app-content {
+  display: flex;
   min-height: 0;
   flex: 1;
-  overflow: hidden;
+  flex-direction: column;
+}
+
+.app-content:focus {
+  outline: none;
 }
 
 /* The view engine's workbench fills the content area and scrolls inside. */
@@ -326,7 +253,7 @@ table.sr-only {
 .boards-page {
   display: flex;
   flex-direction: column;
-  height: 100%;
+  flex: 1;
   min-height: 0;
   overflow: auto;
 }
@@ -343,9 +270,9 @@ table.sr-only {
  */
 .overview-page {
   display: flex;
+  flex: 1;
   flex-direction: column;
   gap: 8px;
-  height: 100%;
   min-height: 0;
   padding: 12px;
 }
@@ -353,7 +280,16 @@ table.sr-only {
 .overview-page-actions {
   display: flex;
   flex: none;
-  justify-content: flex-end;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.overview-page-title {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
 }
 
 .overview-board {
@@ -370,53 +306,41 @@ table.sr-only {
 
 @media (max-width: 720px) {
   .app-topbar {
-    height: 56px;
-    flex-basis: 56px;
-    justify-content: flex-start;
-    padding: 0 16px;
+    gap: 10px;
+    padding: 0 12px;
   }
 
-  .app-topbar h1 {
-    flex: 1;
-    min-width: 0;
-    overflow: hidden;
-    font-size: 18px;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .app-topbar-actions {
-    gap: 8px;
-  }
-
-  .app-topbar .app-build-info {
+  .app-places,
+  .app-version {
     display: none;
   }
 
-  .app-project-links {
-    gap: 2px;
-    padding-left: 0;
-    border-left: 0;
+  .app-menu-button {
+    display: inline-flex;
   }
 
-  .app-project-link {
-    width: 44px;
-    height: 44px;
+  .app-places-menu {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    border-bottom: 1px solid var(--border);
+    background: var(--card);
+    padding: 6px 12px;
   }
 
-  .app-language-trigger {
-    width: 44px;
-    height: 44px;
-  }
-}
-
-@media (max-width: 400px) {
-  .app-topbar {
-    gap: 8px;
-    padding: 0 8px 0 12px;
+  .app-places-menu .app-place {
+    display: flex;
+    min-height: 40px;
+    align-items: center;
+    border-radius: var(--radius);
+    padding: 0 8px;
+    color: var(--foreground);
+    text-decoration: none;
   }
 
-  .app-topbar-actions {
-    flex: 0 0 auto;
+  .app-places-menu .app-place[aria-current="page"] {
+    background: var(--accent);
+    color: var(--accent-foreground);
+    font-weight: 500;
   }
 }

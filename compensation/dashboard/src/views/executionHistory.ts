@@ -133,7 +133,7 @@ export const OUTCOME_ELEMENTS = { path: "body" } as const;
  * record is one stream — what one command appended — and its events sit in
  * `body`, each read by its type (`elementTitle`), so the page fetches the
  * types and not the payloads. A board's outcome panel opens on the event
- * streams' own workbench (`/executions/events`).
+ * streams' own workbench (`/events`).
  */
 export function executionHistoryDefinition(locale: Locale): DataViewDefinition {
   const t = TEXT[locale];

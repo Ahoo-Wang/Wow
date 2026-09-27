@@ -123,11 +123,11 @@ test("the detail drawer, and an event stream opened from its history", async ({
 });
 
 test("the event streams and the dashboard workbench", async ({ page }) => {
-  await page.goto("/executions/events");
+  await page.goto("/events");
   await expect(
     page.getByRole("region", { name: "All event streams" }).getByRole("table"),
   ).toBeVisible();
-  await expectNoAxeViolations(page, "/executions/events");
+  await expectNoAxeViolations(page, "/events");
 
   await page.goto("/boards");
   await expect(

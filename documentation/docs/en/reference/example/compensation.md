@@ -85,11 +85,12 @@ The console is built on the Wow view engine (`@ahoo-wang/wow-view-engine`): the 
 
 | Address | Page |
 | --- | --- |
-| `/` | Overview: the "Compensation overview" system board, embedded read-only; `/dashboard` and `/analytics` redirect here |
+| `/` | Overview: the "Compensation overview" system board, embedded read-only |
 | `/executions` | Failed executions: the records-and-analysis workbench whose system views are the seven queues |
-| `/executions/events` | The workbench over the compensation event streams (where an event-stream panel's "Open in the workbench" lands) |
-| `/boards` | The dashboard workbench: save as, rearrange, or build boards of your own |
-| `/active`, `/to-retry`, `/executing`, `/next-retry`, `/non-retryable`, `/succeeded`, `/unrecoverable` | Old queue addresses, redirected to their system views with their parameters |
+| `/events` | Event stream: the workbench over the compensation event streams (where an event-stream panel's "Open in the workbench" lands) |
+| `/boards` | Boards: the dashboard workbench, to save as, rearrange, or build boards of your own |
+
+The four places are in the top bar. The old queue addresses (`/to-retry` and the rest), `/dashboard` and `/analytics` are gone with the old shell and open the overview. Notification links point at `/executions?view=…&id=…`.
 
 ### Reading the Overview
 

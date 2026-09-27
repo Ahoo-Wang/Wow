@@ -129,10 +129,7 @@ test("loads the deterministic queue and responsive execution details", async ({
     snapshotOf(execution),
   ]);
 
-  await page.goto("/to-retry");
-  await expect(page).toHaveURL(
-    /\/executions\?view=system%3Aexecution-failed%3Ato-retry$/,
-  );
+  await page.goto("/executions?view=system%3Aexecution-failed%3Ato-retry");
   const workbench = page.getByRole("region", { name: "To retry" });
   await expect(
     workbench.getByRole("row", { name: new RegExp(execution.id) }),
@@ -168,7 +165,7 @@ test("copies identifiers when the Clipboard API is unavailable", async ({
   );
   await stubExecutionFailedService(page, [snapshotOf(execution)]);
 
-  await page.goto("/to-retry");
+  await page.goto("/executions?view=system%3Aexecution-failed%3Ato-retry");
   const panel = await openDetails(page);
   await page.evaluate(() => {
     const execCommand = document.execCommand.bind(document);
@@ -229,7 +226,7 @@ test("loads lifecycle history through the paged EventStream REST API", async ({
     await route.fulfill({ json: { total: 1, list: [executionHistory] } });
   });
 
-  await page.goto("/to-retry");
+  await page.goto("/executions?view=system%3Aexecution-failed%3Ato-retry");
   const panel = await openDetails(page);
   const history = panel.locator('[data-section="history"]');
   await history.scrollIntoViewIfNeeded();
@@ -285,7 +282,7 @@ test("enables prepared actions only after the execution timeout", async ({
   });
   await stubExecutionFailedService(page, [prepared], { now });
 
-  await page.goto("/executing");
+  await page.goto("/executions?view=system%3Aexecution-failed%3Aexecuting");
   await expect(page).toHaveURL(
     /\/executions\?view=system%3Aexecution-failed%3Aexecuting$/,
   );
@@ -330,7 +327,7 @@ test("preserves and freezes last-known-good data after refresh fails", async ({
     await route.fulfill({ status: 503, body: "refresh unavailable" });
   });
 
-  await page.goto("/to-retry");
+  await page.goto("/executions?view=system%3Aexecution-failed%3Ato-retry");
   const panel = await openDetails(page);
   failing = true;
   await panel.getByRole("button", { name: "Prepare", exact: true }).click();
@@ -359,87 +356,3 @@ test("preserves and freezes last-known-good data after refresh fails", async ({
   ).toBeVisible();
 });
 
-test("hides desktop navigation labels when collapsed", async ({
-  page,
-}, testInfo) => {
-  test.skip(testInfo.project.name !== "desktop-chromium");
-  await stubExecutionFailedService(page);
-  await page.route("**/execution_failed/event/aggregation", (route) =>
-    route.fulfill({ json: [] }),
-  );
-
-  await page.goto("/");
-
-  const labels = ["Overview", "Failed executions"].map((name) =>
-    page.getByRole("link", { name, exact: true }).locator("span"),
-  );
-  for (const label of labels) {
-    await expect(label).toBeVisible();
-  }
-  await page.getByRole("button", { name: "Collapse navigation" }).click();
-  for (const label of labels) {
-    await expect(label).toBeHidden();
-  }
-  await expect
-    .poll(() =>
-      page
-        .locator("[data-slot='sidebar-container']")
-        .evaluate((element) =>
-          Math.round(element.getBoundingClientRect().width),
-        ),
-    )
-    .toBe(56);
-  const alignment = await page.evaluate(() => {
-    const sidebar = document.querySelector<HTMLElement>(
-      "[data-slot='sidebar-container']",
-    );
-    const dashboard = document.querySelector<HTMLElement>(
-      "a[aria-label='Overview']",
-    );
-    const dashboardIcon = dashboard?.querySelector<SVGElement>("svg");
-    const activeExecutions = document.querySelector<HTMLElement>(
-      "a[aria-label='Failed executions']",
-    );
-    const footer = document.querySelector<HTMLElement>(
-      "button[aria-label='Expand navigation']",
-    );
-    const footerIcon = footer?.querySelector<SVGElement>("svg");
-    if (
-      !sidebar ||
-      !dashboard ||
-      !dashboardIcon ||
-      !activeExecutions ||
-      !footer ||
-      !footerIcon
-    ) {
-      throw new Error("Collapsed navigation alignment targets are missing");
-    }
-    const center = (element: Element) => {
-      const bounds = element.getBoundingClientRect();
-      return bounds.left + bounds.width / 2;
-    };
-    return {
-      dashboard: center(dashboard),
-      dashboardIcon: center(dashboardIcon),
-      dashboardIconSize: dashboardIcon.getBoundingClientRect().width,
-      menuGap:
-        activeExecutions.getBoundingClientRect().top -
-        dashboard.getBoundingClientRect().bottom,
-      footer: center(footer),
-      footerIcon: center(footerIcon),
-      footerIconSize: footerIcon.getBoundingClientRect().width,
-      sidebar: center(sidebar),
-    };
-  });
-  for (const center of [
-    alignment.dashboard,
-    alignment.dashboardIcon,
-    alignment.footer,
-    alignment.footerIcon,
-  ]) {
-    expect(Math.abs(center - alignment.sidebar)).toBeLessThanOrEqual(0.5);
-  }
-  expect(alignment.dashboardIconSize).toBe(20);
-  expect(alignment.footerIconSize).toBe(20);
-  expect(alignment.menuGap).toBe(4);
-});

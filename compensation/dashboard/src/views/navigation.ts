@@ -25,7 +25,7 @@ import { OVERVIEW_BOARD } from "./overview.ts";
 /** The console's pages the engine's ways off a board or a view lead to. */
 export const HOME_PATH = "/";
 export const EXECUTIONS_PATH = "/executions";
-export const EVENTS_PATH = "/executions/events";
+export const EVENTS_PATH = "/events";
 export const BOARDS_PATH = "/boards";
 
 /** The open view (or board) of a workbench page, in its address. */

@@ -16,37 +16,33 @@ package me.ahoo.wow.compensation.server.webhook
 import me.ahoo.wow.api.exception.RecoverableType
 import me.ahoo.wow.compensation.api.ExecutionFailedStatus
 import me.ahoo.wow.compensation.api.IExecutionFailedState
-import me.ahoo.wow.compensation.server.dashboard.DashboardConfiguration.Companion.NON_RETRYABLE_NAV
-import me.ahoo.wow.compensation.server.dashboard.DashboardConfiguration.Companion.SUCCEEDED_NAV
-import me.ahoo.wow.compensation.server.dashboard.DashboardConfiguration.Companion.TO_RETRY_NAV
-import me.ahoo.wow.compensation.server.dashboard.DashboardConfiguration.Companion.UNRECOVERABLE_NAV
+import me.ahoo.wow.compensation.server.dashboard.DashboardConfiguration.Companion.EXECUTIONS_NAV
+import java.net.URLEncoder
+import java.nio.charset.StandardCharsets
 
 object QuickNavigation {
 
+    private const val VIEW_PREFIX = "system:execution-failed:"
+
+    /**
+     * The execution in the console: the failed executions' page on the system view it belongs to, with it open
+     * in the detail.
+     */
     fun IExecutionFailedState.toIdNav(host: String): String {
         require(host.isNotBlank()) { "host can not be blank." }
-        if (this.recoverable == RecoverableType.UNRECOVERABLE) {
-            return buildNav(host, UNRECOVERABLE_NAV, this.id)
+        val view = when {
+            this.recoverable == RecoverableType.UNRECOVERABLE -> "unrecoverable"
+            this.status == ExecutionFailedStatus.SUCCEEDED -> "succeeded"
+            !this.isBelowRetryThreshold -> "non-retryable"
+            else -> "to-retry"
         }
-        if (this.status == ExecutionFailedStatus.SUCCEEDED) {
-            return buildNav(host, SUCCEEDED_NAV, this.id)
-        }
-        if (!this.isBelowRetryThreshold) {
-            return buildNav(host, NON_RETRYABLE_NAV, this.id)
-        }
-        return buildNav(host, TO_RETRY_NAV, this.id)
-    }
-
-    private fun buildNav(host: String, path: String, id: String): String {
         return buildString {
-            if (host.endsWith("/")) {
-                append(host.substring(0, host.length - 1))
-            } else {
-                append(host)
-            }
-            append(path)
-            append("?id=")
-            append(id)
+            append(host.removeSuffix("/"))
+            append(EXECUTIONS_NAV)
+            append("?view=")
+            append(URLEncoder.encode(VIEW_PREFIX + view, StandardCharsets.UTF_8))
+            append("&id=")
+            append(URLEncoder.encode(id, StandardCharsets.UTF_8))
         }
     }
 

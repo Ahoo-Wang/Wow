@@ -1,4 +1,10 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import App from "../App.tsx";
@@ -57,107 +63,113 @@ vi.mock("react-router", () => ({
 }));
 
 const navItems: readonly NavItem[] = [
-  {
-    label: "Overview",
-    path: "/",
-  },
-  {
-    label: "Failed executions",
-    path: "/executions",
-  },
+  { label: "Overview", path: "/" },
+  { label: "Failed executions", path: "/executions" },
+  { label: "Event stream", path: "/events" },
+  { label: "Boards", path: "/boards" },
 ];
+
+/** A system that prefers `dark`, and the listeners it hands its changes to. */
+function systemPrefers(dark: boolean) {
+  const listeners = new Set<() => void>();
+  const media = {
+    matches: dark,
+    media: "(prefers-color-scheme: dark)",
+    addEventListener: (_: string, listener: () => void) =>
+      listeners.add(listener),
+    removeEventListener: (_: string, listener: () => void) =>
+      listeners.delete(listener),
+  };
+  vi.mocked(window.matchMedia).mockImplementation(
+    () => media as unknown as MediaQueryList,
+  );
+  return {
+    change(next: boolean) {
+      media.matches = next;
+      for (const listener of listeners) listener();
+    },
+  };
+}
 
 describe("App", () => {
   beforeEach(() => {
     mocks.outletContext = undefined;
     mocks.pathname = "/executions";
     mocks.outletRender.mockClear();
+    localStorage.clear();
+    document.documentElement.classList.remove("dark");
+    systemPrefers(false);
   });
 
-  it("renders the current workspace title and navigation state", () => {
+  it("puts the product and its four places in one top bar, the current one marked", () => {
     render(<App navItems={navItems} />);
 
+    const places = screen.getByRole("navigation", {
+      name: "Primary navigation",
+    });
+    expect(places.closest(".app-topbar")).not.toBeNull();
     expect(
-      screen.getByRole("heading", { name: "Failed executions" }),
-    ).toBeInTheDocument();
+      [...places.querySelectorAll("a")].map((link) => link.textContent),
+    ).toEqual(["Overview", "Failed executions", "Event stream", "Boards"]);
     expect(
       screen.getByRole("link", { name: "Failed executions" }),
     ).toHaveAttribute("aria-current", "page");
-    expect(
-      screen.getByRole("link", { name: "Failed executions" }),
-    ).toHaveAttribute("aria-label", "Failed executions");
-    expect(
-      screen.getByRole("navigation", { name: "Primary navigation" }),
-    ).toContainElement(screen.getByRole("link", { name: "Failed executions" }));
-    const brandLink = screen.getByRole("link", {
-      name: "Wow compensation dashboard",
-    });
-    expect(brandLink).toHaveAttribute("href", "/");
-    expect(brandLink).toHaveTextContent("CompensationControl Plane");
-    expect(screen.getByText("Navigation")).toHaveAttribute(
-      "data-slot",
-      "sidebar-group-label",
-    );
-    expect(
-      screen.getByRole("link", { name: "Failed executions" }),
-    ).toHaveAttribute("data-size", "lg");
-    expect(screen.getByRole("link", { name: "Overview" })).not.toHaveAttribute(
-      "aria-current",
-    );
+    // The overview is `/` exactly, not every address.
     expect(screen.getByRole("link", { name: "Overview" })).toHaveAttribute(
       "data-end",
       "true",
     );
-    const projectLinks = screen.getByRole("navigation", {
-      name: "Project repositories",
-    });
-    const githubLink = screen.getByRole("link", { name: "GitHub" });
-    const giteeLink = screen.getByRole("link", { name: "Gitee" });
-    expect(projectLinks).toContainElement(githubLink);
-    expect(projectLinks).toContainElement(giteeLink);
-    expect(githubLink).toHaveAttribute(
-      "href",
-      "https://github.com/Ahoo-Wang/Wow",
-    );
-    expect(giteeLink).toHaveAttribute("href", "https://gitee.com/AhooWang/Wow");
-    expect(githubLink.querySelector("img")).toHaveAttribute(
-      "src",
-      "/github.svg",
-    );
-    expect(giteeLink.querySelector("img")).toHaveAttribute("src", "/gitee.svg");
+    // No sidebar of the console's own (W15).
+    expect(screen.queryByRole("complementary")).toBeNull();
+    expect(
+      screen.getByRole("link", { name: "Compensation console" }),
+    ).toHaveAttribute("href", "/");
+    // The page writes its own heading (the workbench's view list, the
+    // overview's header); the bar names the place, not the page.
+    expect(screen.queryByRole("heading")).toBeNull();
     expect(
       screen.getByRole("link", { name: "Skip to main content" }),
     ).toHaveAttribute("href", "#main-content");
-    expect(document.querySelector("#main-content")).toHaveAttribute(
-      "tabindex",
-      "-1",
-    );
+    expect(screen.getByRole("main")).toHaveAttribute("id", "main-content");
     expect(screen.getByText("Route content")).toBeInTheDocument();
   });
 
-  it("shows the build version and GitHub commit instead of a clock", () => {
+  it("links the build version to its commit", () => {
     render(<App navItems={navItems} />);
 
-    expect(
-      screen.queryByLabelText("Current local time"),
-    ).not.toBeInTheDocument();
-    const version = screen.getByText(/^v\d+\.\d+\.\d+$/);
-    expect(version).toBeInTheDocument();
-    const commitLink = screen.getByRole("link", {
-      name: /^GitHub commit [0-9a-f]{40}$/,
+    const version = screen.getByRole("link", {
+      name: /^Version \d+\.\d+\.\d+/,
     });
-    expect(commitLink).toHaveTextContent(/^[0-9a-f]{7}$/);
-    expect(commitLink).toHaveAttribute(
+    expect(version).toHaveTextContent(/^v\d+\.\d+\.\d+[0-9a-f]{7}$/);
+    expect(version).toHaveAttribute(
       "href",
       expect.stringMatching(
         /^https:\/\/github\.com\/Ahoo-Wang\/Wow\/commit\/[0-9a-f]{40}$/,
       ),
     );
-    expect(version.closest(".app-topbar")).not.toBeNull();
-    expect(version.closest("[data-slot='sidebar-footer']")).toBeNull();
   });
 
-  it("switches the interface language from the topbar", async () => {
+  it("folds the places into a menu the phone opens, and closes it on a pick", () => {
+    render(<App navItems={navItems} />);
+
+    const open = screen.getByRole("button", { name: "Open navigation" });
+    expect(open).toHaveAttribute("aria-expanded", "false");
+    expect(screen.getAllByRole("navigation")).toHaveLength(1);
+    fireEvent.click(open);
+
+    const close = screen.getByRole("button", { name: "Close navigation" });
+    expect(close).toHaveAttribute("aria-expanded", "true");
+    const menu = document.getElementById(
+      close.getAttribute("aria-controls") ?? "",
+    );
+    expect(menu).toHaveClass("app-places-menu");
+    fireEvent.click(within(menu!).getByRole("link", { name: "Boards" }));
+    expect(
+      screen.getByRole("button", { name: "Open navigation" }),
+    ).toHaveAttribute("aria-expanded", "false");
+  });
+
+  it("switches the interface language from the top bar", async () => {
     localStorage.setItem("wow-dashboard-locale", "en");
     render(
       <I18nProvider>
@@ -168,9 +180,6 @@ describe("App", () => {
     const languageButton = screen.getByRole("button", {
       name: "Current language: English",
     });
-    expect(languageButton.closest(".app-topbar")).not.toBeNull();
-    expect(languageButton.closest("[data-slot='sidebar-footer']")).toBeNull();
-
     fireEvent.mouseDown(languageButton, { button: 0, ctrlKey: false });
     expect(
       await screen.findByRole("menuitemradio", { name: "English" }),
@@ -178,121 +187,58 @@ describe("App", () => {
     fireEvent.click(screen.getByRole("menuitemradio", { name: "中文" }));
 
     expect(
-      screen.getByRole("heading", { name: "失败执行" }),
+      screen.getByRole("link", { name: "失败执行" }),
+    ).toHaveAttribute("aria-current", "page");
+    expect(
+      screen.getByRole("link", { name: "补偿控制台" }),
     ).toBeInTheDocument();
     expect(localStorage.getItem("wow-dashboard-locale")).toBe("zh-CN");
-    // The pick is the whole errand: the menu closes behind it.
     await waitFor(() =>
       expect(screen.queryByRole("menuitemradio", { name: "中文" })).toBeNull(),
     );
   });
 
-  it("collapses and expands the desktop navigation", () => {
+  /**
+   * console-redesign.md §6: the system's light or dark by default, pinned
+   * from the top bar and kept on this machine. The old console stayed light
+   * on a dark system (W14).
+   */
+  it("follows the system's light or dark, and pins one when picked", async () => {
+    const system = systemPrefers(true);
     render(<App navItems={navItems} />);
+    const root = document.documentElement;
+    expect(root).toHaveClass("dark");
+    system.change(false);
+    expect(root).not.toHaveClass("dark");
 
-    const sidebar = screen.getByRole("complementary", {
-      name: "Application sidebar",
-    });
-    const sidebarPanel = document.querySelector("[data-slot='sidebar']");
-    const sidebarWrapper = document.querySelector(
-      "[data-slot='sidebar-wrapper']",
-    ) as HTMLElement;
-    const collapse = screen.getByRole("button", {
-      name: "Collapse navigation",
-    });
-    expect(sidebar).toHaveAttribute("data-slot", "sidebar-container");
-    expect(sidebarPanel).toHaveAttribute("data-state", "expanded");
-    expect(sidebarWrapper.style.getPropertyValue("--sidebar-width")).toBe(
-      "11rem",
+    fireEvent.mouseDown(
+      screen.getByRole("button", { name: "Appearance: Follow system" }),
+      { button: 0, ctrlKey: false },
     );
-    expect(sidebarWrapper.style.getPropertyValue("--sidebar-width-icon")).toBe(
-      "3.5rem",
-    );
-    expect(collapse).toHaveAttribute("data-slot", "sidebar-menu-button");
-    expect(collapse).toHaveAttribute("aria-expanded", "true");
+    fireEvent.click(await screen.findByRole("menuitemradio", { name: "Dark" }));
+    expect(root).toHaveClass("dark");
+    expect(root.style.colorScheme).toBe("dark");
+    // Pinned: the system no longer moves it.
+    system.change(false);
+    expect(root).toHaveClass("dark");
     expect(
-      screen
-        .getByRole("link", { name: "Overview" })
-        .closest("[data-slot='sidebar-group-content']"),
-    ).not.toBeNull();
-
-    fireEvent.click(collapse);
-
-    expect(sidebarPanel).toHaveAttribute("data-state", "collapsed");
-    const expand = screen.getByRole("button", {
-      name: "Expand navigation",
-    });
-    expect(expand).toHaveAttribute("data-slot", "sidebar-menu-button");
-    expect(expand).toHaveAttribute("aria-expanded", "false");
-
-    fireEvent.click(expand);
-
-    expect(sidebarPanel).toHaveAttribute("data-state", "expanded");
-  });
-
-  it("uses Dashboard as the workspace and logo destination", () => {
-    mocks.pathname = "/";
-    render(<App navItems={navItems} />);
-
-    expect(
-      screen.getByRole("heading", { name: "Overview" }),
+      screen.getByRole("button", { name: "Appearance: Dark" }),
     ).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Overview" })).toHaveAttribute(
-      "href",
-      "/",
+    expect(localStorage.getItem("compensation-console.color-mode")).toBe(
+      "dark",
     );
-    expect(screen.getByRole("link", { name: "Overview" })).toHaveAttribute(
-      "aria-current",
-      "page",
+
+    fireEvent.mouseDown(
+      screen.getByRole("button", { name: "Appearance: Dark" }),
+      {
+        button: 0,
+        ctrlKey: false,
+      },
     );
-    expect(
-      screen.getByRole("link", { name: "Wow compensation dashboard" }),
-    ).toHaveAttribute("href", "/");
-  });
-
-  it.each([
-    ["/boards", "Dashboards", "Overview"],
-    ["/executions/events", "Execution events", "Failed executions"],
-  ])(
-    "titles %s and keeps the item it belongs to current",
-    (pathname, title, item) => {
-      mocks.pathname = pathname;
-      render(<App navItems={navItems} />);
-
-      expect(screen.getByRole("heading", { name: title })).toBeInTheDocument();
-      expect(screen.getByRole("link", { name: item })).toHaveAttribute(
-        "data-active",
-      );
-      for (const other of navItems.filter(({ label }) => label !== item))
-        expect(
-          screen.getByRole("link", { name: other.label }),
-        ).not.toHaveAttribute("data-active");
-    },
-  );
-
-  it("titles an address outside the navigation as the overview", () => {
-    mocks.pathname = "/somewhere";
-    render(<App navItems={navItems} />);
-
-    expect(
-      screen.getByRole("heading", { name: "Overview" }),
-    ).toBeInTheDocument();
-  });
-
-  it("keeps Dashboard range state and controls out of the App shell", () => {
-    mocks.pathname = "/";
-    render(<App navItems={navItems} />);
-
-    expect(screen.queryByText("Outcomes window")).not.toBeInTheDocument();
-    expect(
-      screen.queryByText("Applies to outcomes only"),
-    ).not.toBeInTheDocument();
-    expect(
-      screen.queryByRole("button", { name: "24h" }),
-    ).not.toBeInTheDocument();
-    expect(mocks.outletContext).toBeUndefined();
-    expect(document.querySelector(".app-topbar")).not.toHaveClass(
-      "has-dashboard-controls",
+    fireEvent.click(
+      await screen.findByRole("menuitemradio", { name: "Follow system" }),
     );
+    expect(root).not.toHaveClass("dark");
+    expect(localStorage.getItem("compensation-console.color-mode")).toBeNull();
   });
 });

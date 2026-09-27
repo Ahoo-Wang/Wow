@@ -73,13 +73,21 @@ test("opens the failed executions on the Active system view", async ({
   await stubExecutionFailedService(page, DOCUMENTS);
   const workbench = await openPage(page);
 
-  // The console's page title and the workbench's own heading.
-  await expect(
-    page.locator(".app-topbar").getByRole("heading", {
-      level: 1,
-      name: "Failed executions",
-    }),
-  ).toBeVisible();
+  // The workbench's own heading is the page's, and the top bar marks the
+  // place. On a phone both fold away: the view list and the places menu.
+  if ((page.viewportSize()?.width ?? 0) > 720) {
+    await expect(
+      page.getByRole("main").getByRole("heading", {
+        level: 1,
+        name: "Failed executions",
+      }),
+    ).toBeVisible();
+    await expect(
+      page
+        .getByRole("navigation", { name: "Primary navigation" })
+        .getByRole("link", { name: "Failed executions" }),
+    ).toHaveAttribute("aria-current", "page");
+  }
   await expect(
     workbench.getByRole("heading", { name: "Active" }),
   ).toBeVisible();

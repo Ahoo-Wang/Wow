@@ -484,9 +484,12 @@ test("every metric card fits its tile, the trend inside it and no cue over it", 
   await expect.poll(misfits).toEqual([]);
 });
 
-test("the old overview addresses open the board", async ({ page }) => {
+test("an address the console does not have lands on the overview", async ({
+  page,
+}) => {
   await stub(page);
-  for (const path of ["/dashboard", "/analytics", "/missing-dashboard-route"]) {
+  // The old shell's addresses are gone with it (console-redesign.md §0, Q1).
+  for (const path of ["/dashboard", "/to-retry", "/missing-dashboard-route"]) {
     await page.goto(path);
     await expect(page).toHaveURL(/\/$/);
     await expect(panel(page, "Actionable now")).toBeVisible();
@@ -560,29 +563,30 @@ test("the board opens in the dashboard workbench", async ({ page }) => {
     .click();
 
   await expect(page).toHaveURL(/\/boards\?view=system%3Aoverview%3Ahome$/);
-  await expect(
-    page.getByRole("heading", { name: "Dashboards", level: 1 }),
-  ).toBeVisible();
+  if ((page.viewportSize()?.width ?? 0) > 720)
+    await expect(
+      page
+        .getByRole("navigation", { name: "Primary navigation" })
+        .getByRole("link", { name: "Boards" }),
+    ).toHaveAttribute("aria-current", "page");
   await expect(panel(page, "Actionable now")).toBeVisible();
 });
 
-test("the board and the workbench fill the screen over the navigation", async ({
+test("the board and the workbench fill the screen over the top bar", async ({
   page,
-}, testInfo) => {
-  // The shell's sidebar is fixed beside the content on a desktop only.
-  test.skip(testInfo.project.name !== "desktop-chromium");
+}) => {
   await stub(page);
   for (const path of ["/", "/executions"]) {
     await page.goto(path);
     const fill = page.getByRole("button", { name: "Fill the screen" }).first();
     await fill.click();
-    // Where the navigation was, the expanded surface is now what is hit.
+    // Where the top bar was, the expanded surface is now what is hit.
     await expect
       .poll(() =>
         page.evaluate(() =>
           Boolean(
             document
-              .elementFromPoint(60, 400)
+              .elementFromPoint(innerWidth / 2, 20)
               ?.closest("[data-view-expanded='true']"),
           ),
         ),

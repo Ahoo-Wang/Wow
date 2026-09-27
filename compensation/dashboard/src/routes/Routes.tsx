@@ -14,15 +14,20 @@
 import { Suspense, type ComponentType } from "react";
 import { createBrowserRouter, Navigate } from "react-router";
 import App from "../features/App/App.tsx";
-import { NavItemPaths, PrimaryNavItems, QueueRoutes } from "./constants.tsx";
+import { NavItems } from "./constants.tsx";
 import {
   LazyBoardsPage,
   LazyEventsPage,
   LazyExecutionsPage,
   LazyOverviewPage,
 } from "./lazyPages.ts";
-import { QueueRedirect } from "./QueueRedirect.tsx";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  BOARDS_PATH,
+  EVENTS_PATH,
+  EXECUTIONS_PATH,
+  HOME_PATH,
+} from "@/views/navigation.ts";
 
 const routeFallback = (
   <div className="h-full space-y-4 p-5">
@@ -40,30 +45,19 @@ function page(Page: ComponentType) {
   );
 }
 
+/**
+ * The four places and nothing else (console-redesign.md §4): an address
+ * the console does not have lands on the overview.
+ */
 export const AppRouter = createBrowserRouter([
   {
-    element: <App navItems={PrimaryNavItems} />,
+    element: <App navItems={NavItems} />,
     children: [
       { index: true, element: page(LazyOverviewPage) },
-      { path: NavItemPaths.Boards, element: page(LazyBoardsPage) },
-      { path: NavItemPaths.Executions, element: page(LazyExecutionsPage) },
-      { path: NavItemPaths.Events, element: page(LazyEventsPage) },
-      ...QueueRoutes.map(({ path, view }) => ({
-        path,
-        element: <QueueRedirect view={view} />,
-      })),
-      {
-        path: "/dashboard",
-        element: <Navigate to={NavItemPaths.Dashboard} replace />,
-      },
-      {
-        path: NavItemPaths.Analytics,
-        element: <Navigate to={NavItemPaths.Dashboard} replace />,
-      },
-      {
-        path: "*",
-        element: <Navigate to={NavItemPaths.Dashboard} replace />,
-      },
+      { path: EXECUTIONS_PATH, element: page(LazyExecutionsPage) },
+      { path: EVENTS_PATH, element: page(LazyEventsPage) },
+      { path: BOARDS_PATH, element: page(LazyBoardsPage) },
+      { path: "*", element: <Navigate to={HOME_PATH} replace /> },
     ],
   },
 ]);
