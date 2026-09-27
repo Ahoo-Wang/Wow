@@ -150,6 +150,7 @@ abstract class MainDispatcher<T : Any>(
         val readiness: Mono<Void>,
         val openProcessing: () -> Unit,
         val closeProcessing: () -> Unit,
+        val suspendDurableIntake: () -> Unit,
     )
 
     private val aggregateDispatcherBindingsLazy = lazy {
@@ -168,6 +169,7 @@ abstract class MainDispatcher<T : Any>(
                     readiness = receiver.readiness,
                     openProcessing = receiver::openProcessing,
                     closeProcessing = receiver::closeProcessing,
+                    suspendDurableIntake = receiver::suspendDurableIntake,
                 )
             }
     }
@@ -272,6 +274,16 @@ abstract class MainDispatcher<T : Any>(
                 }
             }
         }
+    }
+
+    final override fun suspendDurableIntake() {
+        if (forceStopRequested.get() || !aggregateDispatcherBindingsLazy.isInitialized()) {
+            return
+        }
+        forceAllReporting(
+            aggregateDispatcherBindingsLazy.value.map { it.suspendDurableIntake },
+            ::reportRuntimeFailure,
+        )?.let { throw it }
     }
 
     @Suppress("TooGenericExceptionCaught")

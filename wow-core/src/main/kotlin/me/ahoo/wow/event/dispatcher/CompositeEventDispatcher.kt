@@ -203,6 +203,15 @@ open class CompositeEventDispatcher(
         )
     }
 
+    final override fun suspendDurableIntake() {
+        if (forceStopRequested.get()) {
+            return
+        }
+        eventComponentGroupSnapshot()?.suspendDurableIntake {
+            !forceStopRequested.get()
+        }
+    }
+
     final override fun quiesce() {
         if (forceStopRequested.get()) {
             return

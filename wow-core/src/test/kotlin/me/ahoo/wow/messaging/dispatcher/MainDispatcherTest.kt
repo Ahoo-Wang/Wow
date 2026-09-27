@@ -104,6 +104,19 @@ class MainDispatcherTest {
     }
 
     @Test
+    fun `runtime stop suspends every durable intake before closing processing`() {
+        val dispatcher = RecordingMainDispatcher()
+        val runtime = runtime(dispatcher)
+        runtime.start().block()
+
+        StepVerifier.create(runtime.stopGracefully())
+            .verifyComplete()
+
+        dispatcher.durableIntakeSuspendCount.get().assert().isEqualTo(2)
+        dispatcher.closedProcessingCountsObservedBySuspension.assert().containsExactly(0, 0)
+    }
+
+    @Test
     fun `runtime failure stops every child and remains terminal`() {
         val failure = IllegalStateException("runtime")
         val dispatcher = RecordingMainDispatcher()
@@ -224,6 +237,8 @@ class MainDispatcherTest {
         val childStartCount = AtomicInteger()
         val processingOpenCount = AtomicInteger()
         val processingCloseCount = AtomicInteger()
+        val durableIntakeSuspendCount = AtomicInteger()
+        val closedProcessingCountsObservedBySuspension = mutableListOf<Int>()
         val childStopCount = AtomicInteger()
         val managedStopCount = AtomicInteger()
         val childForceCalls = mutableListOf<String>()
@@ -252,6 +267,10 @@ class MainDispatcherTest {
                 messages = receiveMessage(subscription),
                 processingAdmission = processingOpenCount::incrementAndGet,
                 processingQuiescence = processingCloseCount::incrementAndGet,
+                durableIntakeSuspension = {
+                    closedProcessingCountsObservedBySuspension += processingCloseCount.get()
+                    durableIntakeSuspendCount.incrementAndGet()
+                },
             )
 
         override fun newAggregateDispatcher(

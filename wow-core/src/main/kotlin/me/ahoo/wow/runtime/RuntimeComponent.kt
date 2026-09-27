@@ -45,6 +45,18 @@ interface RuntimeComponent {
     fun start()
 
     /**
+     * Stops pulling new work from durable transports, which keep unacknowledged
+     * messages for redelivery, while runtime admission is still open.
+     *
+     * The runtime calls this first on shutdown so that sustained external
+     * traffic cannot keep the runtime from becoming idle; already received work
+     * and in-process work derived from it keep flowing until global quiescence.
+     * This method must be prompt, non-blocking, and idempotent. Components
+     * without a durable intake may implement it as a no-op.
+     */
+    fun suspendDurableIntake() = Unit
+
+    /**
      * Stops admitting new work after the runtime has atomically closed global
      * admission.
      *

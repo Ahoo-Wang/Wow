@@ -68,6 +68,21 @@ internal class RuntimeComponentGroup(
             .last(true)
 
     /**
+     * Stops durable intake in registration order before global quiescence.
+     */
+    fun suspendDurableIntake(
+        shouldSuspend: () -> Boolean = { true },
+    ): Boolean {
+        preparedSnapshot().forEach { slot ->
+            if (!shouldSuspend() || !beginLifecycleAction(slot)) {
+                return false
+            }
+            invokeLifecycleAction(slot, slot.component::suspendDurableIntake)
+        }
+        return true
+    }
+
+    /**
      * Closes component intake in registration order after global admission closes.
      */
     fun quiesce(

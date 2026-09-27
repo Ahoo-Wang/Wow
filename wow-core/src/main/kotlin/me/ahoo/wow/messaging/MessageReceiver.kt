@@ -26,13 +26,16 @@ import java.util.concurrent.atomic.AtomicBoolean
  * runtime component is ready, `openProcessing` explicitly opens transport
  * consumption. `closeProcessing` revokes that logical admission before
  * physical cancellation, without inferring lifecycle state from reactive
- * demand or subscription count.
+ * demand or subscription count. `suspendDurableIntake` stops pulling new
+ * messages from a durable, redeliverable source while already received
+ * messages keep flowing; receivers of non-durable sources ignore it.
  */
 class MessageReceiver<E : Any>(
     messages: Flux<E>,
     val readiness: Mono<Void> = Mono.empty(),
     private val processingAdmission: () -> Unit = {},
     private val processingQuiescence: () -> Unit = {},
+    private val durableIntakeSuspension: () -> Unit = {},
 ) {
     private val subscribed = AtomicBoolean()
     private val processingMonitor = Any()
@@ -80,11 +83,38 @@ class MessageReceiver<E : Any>(
         }
     }
 
+    /**
+     * Stops requesting new messages from a durable source without revoking
+     * processing admission. The callback must be prompt and idempotent.
+     */
+    fun suspendDurableIntake() {
+        durableIntakeSuspension()
+    }
+
     fun <R : Any> mapMessages(transform: (Flux<E>) -> Flux<R>): MessageReceiver<R> =
         MessageReceiver(
             messages = transform(messages),
             readiness = readiness,
             processingAdmission = ::openProcessing,
             processingQuiescence = ::closeProcessing,
+            durableIntakeSuspension = ::suspendDurableIntake,
         )
+}
+
+/**
+ * Marks this receiver's source as durable: [MessageReceiver.suspendDurableIntake]
+ * stops requesting new messages, which the transport keeps for redelivery.
+ */
+fun <E : Any> MessageReceiver<E>.durableIntake(): MessageReceiver<E> {
+    val suspendable = SuspendableDemandFlux(messages)
+    return MessageReceiver(
+        messages = suspendable,
+        readiness = readiness,
+        processingAdmission = ::openProcessing,
+        processingQuiescence = ::closeProcessing,
+        durableIntakeSuspension = {
+            suspendable.suspendDemand()
+            suspendDurableIntake()
+        },
+    )
 }

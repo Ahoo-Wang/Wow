@@ -22,6 +22,7 @@ import me.ahoo.wow.id.GlobalIdGenerator
 import me.ahoo.wow.messaging.DistributedMessageBus
 import me.ahoo.wow.messaging.MessageReceiver
 import me.ahoo.wow.messaging.MessageSubscription
+import me.ahoo.wow.messaging.durableIntake
 import me.ahoo.wow.messaging.handler.MessageExchange
 import me.ahoo.wow.serialization.toJsonString
 import me.ahoo.wow.serialization.toObject
@@ -100,7 +101,7 @@ abstract class AbstractRedisMessageBus<M, E>(
             processingAdmission = {
                 readAdmission.tryEmitEmpty()
             },
-        )
+        ).durableIntake()
     }
 
     private fun receive(

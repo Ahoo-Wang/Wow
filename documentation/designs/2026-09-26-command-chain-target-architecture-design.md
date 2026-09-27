@@ -325,7 +325,7 @@ wow-core 提供唯一的装配根 `CommandPipelineAssembly`：输入存储、传
 
 在此之上的改变：
 
-- **两级准入**。先关闭外部入口，即传输消费与 HTTP 入口；派生工作（Saga 发出的命令、事件处理）继续在静默期内被接纳，直到全局空闲。持续有外部流量时，停机不再必然等到超时。这需要 `RuntimeContext.tryAcquire` 区分来源。
+- **先停持久入口**。停机第一步暂停从持久传输拉取（`RuntimeComponent.suspendDurableIntake`）：持久传输会重投未确认的消息，不拉取不会丢；已经拉到手的消息和它派生的进程内工作继续在静默期内被接纳，直到全局空闲。只有进程内投递会丢消息，全局静默只为它存在。持续有外部流量时，停机不再必然等到超时。准入本身不区分来源，`RuntimeContext` 不变。（附录 A 第 0 步已实施）
 - **活动计数**。只在静默阶段维护活动版本号。计数按组件分段，只在静默时汇总判断是否归零，避免全局缓存行热点。
 - **生命周期所有者唯一**。运行时的状态迁移由一个串行的生命周期事件循环处理，包括 start、stop、failure、deadline、force。组件改用 `LifecycleSupport` 模板，只实现打开入口、关闭入口、排空三个钩子，不再各自维护状态机。
 - **组件拓扑由装配根产出**，取代 starter 里的整数顺序。
@@ -424,7 +424,7 @@ wow-webflux 只留 HTTP 适配器；wow-spring-boot-starter 只调用装配根�
 
 | 步 | 内容 | 覆盖 |
 |---|---|---|
-| 0 | **安全与正确性修复**（小 PR，不改架构）：`Command-Header-*` 保留键防护，操作人在 appender 之后确定；门面只接受已注册且启用的命令；追加结局未知时先按请求 ID 查明，不再盲目重跑；`@OnError` 移出重试循环，每次尝试使用新的上下文；等待键不入库，收窄传播，校验链式等待 ID；先校验再去重，发送失败释放预留；持续入流停机测试与两级准入 | B1–B8 |
+| 0 | **安全与正确性修复**（小 PR，不改架构）：`Command-Header-*` 保留键防护，操作人在 appender 之后确定；门面只接受已注册且启用的命令；追加结局未知时先按请求 ID 查明，不再盲目重跑；`@OnError` 移出重试循环，每次尝试使用新的上下文；等待键不入库，收窄传播，校验链式等待 ID；先校验再去重，发送失败释放预留；持续入流下先停持久入口 | B1–B8 |
 | 1 | **护栏**：JMH 改测生产链路；链路描述符与快照测试；为附录 B 中需要拍板的行为写特征测试 | — |
 | 2 | **模型编译**：`AggregateModel`、无状态 `CommandInvoker`、`ParamResolver`、`ResultAdapter`、共享的 `SourcingTable`；启动时失败 | B11, B15 |
 | 3 | **内核**：守卫管道、`Decision`、`CommitPort` 与 `AppendOutcome`、提交后应用、溯源原子性；删除 `CommandState`、`RetryableAggregateProcessor`、`AggregateProcessorFilter` | B9, B10, B13 |
