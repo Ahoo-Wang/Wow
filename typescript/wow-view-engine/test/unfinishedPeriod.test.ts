@@ -159,6 +159,44 @@ describe('the period under way at the end of a time axis', () => {
     );
   });
 
+  /**
+   * The fit hands its caption placements to the series by place — the
+   * marks, the totals, then the reference carriers (`cartesianFit`). The
+   * band stood before the target band's carrier and took its placement,
+   * and 「目标 ≤ 3%」 fell on 「最低 0%」 (CI on the first run of this).
+   */
+  it('stands after the reference carriers, whose places the fit writes by', () => {
+    const chart: AnalysisViewConfig['chart'] = {
+      type: 'bar',
+      cartesian: {
+        x: 'month',
+        series: [{ metric: 'orders' }],
+        referenceBands: [{ axis: 'left', from: 0, to: 100, label: '目标' }],
+      },
+    };
+    const data = shapeChart(monthly(chart), ROWS, undefined, {
+      timeZone: 'UTC',
+      now: NOW,
+    }) as CartesianData;
+    const option = cartesianOption(
+      data,
+      {
+        spec: monthly(chart).chart,
+        label: (_alias, value) => name(value),
+        column: alias => alias,
+        locale: 'zh-CN',
+        animate: false,
+        pickable: false,
+        words: markWords(catalogue(zhCN)),
+      },
+      THEME,
+    ) as Loose;
+    const series = option.series as Loose[];
+    // One bar series, no totals: the band's carrier is next, the period last.
+    expect(series[1]!.markArea.data[0][0].name).toBe('目标');
+    expect(series.at(-1)!.markArea.data[0][0].name).toBe('进行中');
+  });
+
   it('marks a calendar’s day under way and leaves it out of the lowest', () => {
     const data: CalendarData = {
       type: 'calendar',

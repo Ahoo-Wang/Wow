@@ -438,7 +438,10 @@ export function optionOf(
     tooltip: cartesianTooltip(plan, theme),
     ...(zoom ? { dataZoom: zoom } : {}),
     ...(brush ? { brush } : {}),
-    series: [...marks, ...totals, ...ongoing, ...references, ...derived],
+    // The fit's patches go by place — the marks, the totals, then the
+    // reference carriers (`cartesianFit`) — so the period under way comes
+    // last, where it shifts none of them.
+    series: [...marks, ...totals, ...references, ...derived, ...ongoing],
   };
 }
 
