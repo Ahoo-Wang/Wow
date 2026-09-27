@@ -366,6 +366,83 @@ describe('the host’s sections in a record’s detail (G2)', () => {
   });
 });
 
+describe('the host’s own reading of a record', () => {
+  it('stands in for the groups and the sections, under the host’s name for it', async () => {
+    const sections = vi.fn(() => [section('ignored')]);
+    const reading = vi.fn(({ row, complete }: RecordDetailSectionContext) => (
+      <p>
+        Read {String(row.data.note)} {complete ? 'whole' : 'from the row'}
+      </p>
+    ));
+    render(
+      <DataWorkbench
+        engine={engineOver()}
+        definitionId="orders"
+        instanceId="orders-1"
+        record={{
+          detail: {
+            sections,
+            render: reading,
+            title: row => `Order ${String(row.key)}`,
+          },
+        }}
+      />,
+    );
+    await rowsDrawn();
+    expect(reading).not.toHaveBeenCalled();
+
+    fireEvent.keyDown(dataRows()[0]!, { key: 'Enter' });
+    const panel = await screen.findByRole('dialog');
+    await within(panel).findByText('Read Note of o-1 whole');
+    // No group of the definition's, and no section: the reading is all.
+    expect(within(panel).queryAllByRole('heading', { level: 3 })).toEqual([]);
+    expect(sections).not.toHaveBeenCalled();
+    // The name is the title; the key stands above it, and names the dialog.
+    expect(
+      within(panel).getByRole('heading', { level: 2, name: 'Order o-1' }),
+    ).toBeTruthy();
+    expect(
+      panel.querySelector('[data-slot="record-detail-key"]')?.textContent,
+    ).toBe('o-1');
+    expect(panel.getAttribute('aria-labelledby')).toBeTruthy();
+  });
+
+  it('keeps a reading that throws to the panel, and tells the host', async () => {
+    const onRenderFailure = vi.fn();
+    render(
+      <DataWorkbench
+        engine={engineOver()}
+        definitionId="orders"
+        instanceId="orders-1"
+        onRenderFailure={onRenderFailure}
+        record={{
+          detail: {
+            render: () => {
+              throw new Error('host reading failed');
+            },
+          },
+        }}
+      />,
+    );
+    await rowsDrawn();
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    fireEvent.keyDown(dataRows()[0]!, { key: 'Enter' });
+    const panel = await screen.findByRole('dialog');
+    await waitFor(() =>
+      expect(
+        panel
+          .querySelector('[data-slot="render-failed"]')
+          ?.getAttribute('data-boundary'),
+      ).toBe('detail'),
+    );
+    // The header stands: the key, the way out.
+    expect(within(panel).getByRole('heading', { name: 'o-1' })).toBeTruthy();
+    expect(onRenderFailure).toHaveBeenCalledWith(
+      expect.objectContaining({ boundary: 'detail' }),
+    );
+  });
+});
+
 describe('a record opened by its key (G2)', () => {
   it('opens the record a host names, from the page’s row at once', async () => {
     render(<Host engine={engineOver()} initial="o-2" />);

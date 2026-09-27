@@ -34,7 +34,11 @@ import {
 import { Button } from "@/components/ui/button";
 import { useI18n, type Locale } from "@/i18n.tsx";
 import { EXECUTION_FAILED } from "@/views/executionFailed.ts";
-import { executionEngineOptions, localViewStore } from "@/views/engine.ts";
+import {
+  executionEngineOptions,
+  executionHistorySource,
+  localViewStore,
+} from "@/views/engine.ts";
 import { engineMessages } from "@/views/messages.ts";
 import { navigationState, useViewNavigation } from "@/views/navigation.ts";
 import { useExecutionDetail } from "./detail/useExecutionDetail.tsx";
@@ -92,13 +96,21 @@ function LocalizedWorkbench({
   searchParams,
   setSearchParams,
 }: LocalizedWorkbenchProps) {
+  // One history source for the engine's embed and the detail's story.
+  const [history] = useState(() => historySource ?? executionHistorySource());
   const engine = useViewEngine(
-    executionEngineOptions({ locale, store, source, historySource }),
+    executionEngineOptions({ locale, store, source, historySource: history }),
   );
   const { actions, bulk, dialog } = useExecutionActions(commands);
   const messages = engineMessages(locale);
   const onNavigate = useViewNavigation();
-  const detail = useExecutionDetail({ engine, commands, locale, messages });
+  const detail = useExecutionDetail({
+    engine,
+    history,
+    commands,
+    locale,
+    messages,
+  });
   const instanceId = searchParams.get(VIEW_PARAM);
 
   const onInstanceChange = useCallback(

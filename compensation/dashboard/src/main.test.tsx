@@ -33,9 +33,6 @@ vi.mock("@/components/ui/tooltip", () => ({
     <div>{children}</div>
   ),
 }));
-vi.mock("@/components/ui/sonner", () => ({
-  Toaster: () => <div data-testid="toaster" />,
-}));
 describe("main.tsx", () => {
   beforeEach(() => {
     vi.resetModules();

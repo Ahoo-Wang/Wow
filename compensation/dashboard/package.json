@@ -33,7 +33,6 @@
     "react-dom": "catalog:",
     "react-router": "catalog:",
     "react-syntax-highlighter": "catalog:",
-    "sonner": "catalog:",
     "tailwind-merge": "catalog:",
     "tw-animate-css": "catalog:"
   },

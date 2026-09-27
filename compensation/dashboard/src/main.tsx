@@ -7,7 +7,6 @@ import { RouterProvider } from "react-router";
 import { AppRouter } from "./routes/Routes.tsx";
 import "./services/compensationFetcher";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { Toaster } from "@/components/ui/sonner";
 import { I18nProvider } from "@/i18n.tsx";
 import { applyColorMode, readColorMode } from "@/features/App/colorMode.ts";
 
@@ -24,7 +23,6 @@ createRoot(rootElement).render(
     <I18nProvider>
       <TooltipProvider>
         <RouterProvider router={AppRouter} />
-        <Toaster position="bottom-right" richColors />
       </TooltipProvider>
     </I18nProvider>
   </StrictMode>,
