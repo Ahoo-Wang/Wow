@@ -661,6 +661,13 @@
 - **同批顺带**：看板上网格之外的行（页头、筛选条）与面板对齐，内缩网格的外边距（`BOARD_INSET`）；从前筛选条贴着看板边沿（用户指出）。
 - **落点**：`src/themes/porcelain.css`、`src/ui/theme/{tokens,tokenDocs}.ts`、`src/styles.css`、`src/ui/record/OffscreenSummary.tsx`、`src/ui/dashboard/{gridBlocks,FilterBar}.ts(x)`、`src/ui/embed/EmbedHead.tsx`；单套预设的体积上限 1.4 → 1.5 KB（porcelain 1 485 B）。
 
+## D60 宿主可以用自己的读法画整条记录（2026-09-27）
+
+- **来由**：用户 2026-09-27：「记录详情布局、UI、UX 都有问题」「基于第一性原理思考，详情页的整体布局需要重新设计」。补偿控制台的失败执行，打开详情只为回答三件事——它现在怎样、我能做什么；为什么失败、再试有没有用；排查时的上下文。按字段分组排（ID、状态、函数、事件、重试、错误…）再插宿主节，回答的是「这条记录有哪些字段」；六次同一错误这样的判断根本说不出来。
+- **裁定**（用户：「按你推荐，做成控制台自己的详情页」）：`RecordDetailOptions` 加 `render(context)`（整个正文，替掉分组与 `sections`）与 `title(row)`（标题用名字，键移到上方）。抽屉的外壳留在引擎：打开、读全、不在／被拒／读不到、行命令、焦点、叠放，都与分组读法一致。抽屉加宽 `xl` → `2xl`（576 → 672px），叠放的第二层随之 `39rem`。
+- **没选**：在分组读法上继续加开关（`attached` 节、分组排序、字段隐藏——一条一条补，仍是字段清单）；宿主自己画抽屉（打开、读全、失败、焦点、叠放全要重做一遍，还和工作台的行打开脱节）。
+- **落点**：`src/ui/workbench/RecordParts.tsx`、`src/ui/embed/EmbeddedRecord.tsx`、`src/ui/record/RecordDetail.tsx`；[ui/record.md](ui/record.md)；补偿控制台 `features/Executions/detail/`。
+
 ## D62 列表只问两个「空」：没有条目、有条目（2026-09-27）
 
 - **来由**：第二轮审查 R1-P1-7 后半：数组字段同时给「没有条目」和「为空／不为空／存在／不存在」，一共五个「空」，分析师分不清。

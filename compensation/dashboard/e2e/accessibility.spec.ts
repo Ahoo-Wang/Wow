@@ -109,13 +109,26 @@ test("the detail drawer, and an event stream opened from its history", async ({
 }) => {
   const id = overviewExecutions()[0].aggregateId;
   await page.goto(`/executions?id=${id}`);
-  const drawer = page.getByRole("dialog", { name: new RegExp(id) });
+  const drawer = page.getByRole("dialog").filter({
+    has: page.locator('[data-slot="record-detail-key"]', { hasText: id }),
+  });
   await expect(
-    drawer.getByRole("region", { name: "Apply retry specification" }),
+    drawer.getByRole("region", { name: "Retry specification" }),
+  ).toBeVisible();
+  // With a change's form open too.
+  await drawer
+    .getByRole("button", { name: "Apply retry specification" })
+    .click();
+  await expect(
+    drawer.getByRole("form", { name: "Apply retry specification" }),
   ).toBeVisible();
   await expectNoAxeViolations(page, "the detail drawer");
 
-  const history = drawer.locator('[data-section="history"]');
+  await drawer.getByRole("button", { name: /^All events/ }).click();
+  const history = drawer.getByRole("region", {
+    name: "Execution history",
+    exact: true,
+  });
   await history.scrollIntoViewIfNeeded();
   await history.getByRole("row").nth(1).click();
   await expect(page.getByText("Stream ID", { exact: true })).toBeVisible();

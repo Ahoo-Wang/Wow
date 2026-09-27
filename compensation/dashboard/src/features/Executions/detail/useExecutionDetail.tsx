@@ -11,72 +11,47 @@
  * limitations under the License.
  */
 
-import type { FunctionKind } from "@ahoo-wang/wow-client";
 import type {
   RecordKey,
-  RecordRow,
   ViewEngine,
+  ViewSource,
 } from "@ahoo-wang/wow-view-engine";
-import type {
-  RecordDetailSection,
-  RecordDetailSectionContext,
-} from "@ahoo-wang/wow-view-engine/react";
+import type { RecordDetailSectionContext } from "@ahoo-wang/wow-view-engine/react";
 import type {
   EmbeddedViewProps,
   RecordDetailOptions,
 } from "@ahoo-wang/wow-view-engine/ui";
 import { useCallback, useMemo } from "react";
 import { useSearchParams } from "react-router";
-import type { ApplyRetrySpec, ChangeFunction } from "@/generated";
-import { useI18n } from "@/i18n.tsx";
 import type { ExecutionCommands } from "../executionCommands.ts";
-import { ExecutionHistory } from "./ExecutionHistory.tsx";
-import { FunctionForm, RetrySpecForm } from "./ExecutionForms.tsx";
-import { StackTrace } from "./StackTrace.tsx";
+import { ExecutionReading } from "./ExecutionReading.tsx";
+import { executionTitle } from "./executionState.ts";
 
 /** The route parameter naming the execution open in the detail. */
 export const ID_PARAM = "id";
 
-/** The execution's state, as the whole record carries it. */
-interface ExecutionState {
-  retrySpec?: ApplyRetrySpec;
-  function?: {
-    contextName: string;
-    processorName: string;
-    name: string;
-    functionKind: FunctionKind;
-  };
-  error?: { stackTrace?: string };
-}
-
-function stateOf(row: RecordRow): ExecutionState {
-  const state = row.data.state;
-  return state && typeof state === "object" ? (state as ExecutionState) : {};
-}
-
 export interface ExecutionDetailOptions {
   engine: ViewEngine;
+  /** Where the execution's event streams are read. */
+  history: ViewSource;
   commands: ExecutionCommands;
   locale: string;
   messages: EmbeddedViewProps["messages"];
 }
 
 /**
- * The failed executions' record detail (rebuild proposal, batch 4): which
- * execution is open is the address's `id`, so a link opens it — on the
- * current page or not — and the console's own sections sit among the
- * engine's field groups, each beside what it is about: the function form
- * after the function, the stack trace after the error (read the console's
- * way, so the engine leaves that field out), the retry spec form after the
- * retry state, and the history last.
+ * The failed executions' record detail: which execution is open is the
+ * address's `id`, so a link opens it — on the current page or not — and the
+ * execution is read the console's way (`ExecutionReading`, D60) under the
+ * handler's name, in the engine's panel.
  */
 export function useExecutionDetail({
   engine,
+  history,
   commands,
   locale,
   messages,
 }: ExecutionDetailOptions): RecordDetailOptions {
-  const { t } = useI18n();
   const [searchParams, setSearchParams] = useSearchParams();
   const open = searchParams.get(ID_PARAM);
 
@@ -98,79 +73,24 @@ export function useExecutionDetail({
     [open, setSearchParams],
   );
 
-  const sections = useCallback(
-    ({
-      row,
-      complete,
-      refresh,
-    }: RecordDetailSectionContext): RecordDetailSection[] => {
-      const id = String(row.key);
-      const state = stateOf(row);
-      const target = state.function;
-      const spec = state.retrySpec;
-      const history: RecordDetailSection = {
-        id: "history",
-        title: t("Execution history"),
-        render: () => (
-          <ExecutionHistory
-            // Read again once the execution has changed.
-            key={String(row.data.eventTime)}
-            engine={engine}
-            id={id}
-            locale={locale}
-            messages={messages}
-          />
-        ),
-      };
-      // The forms start from the record's values and the trace is the
-      // record's, so they wait for the whole record; the page's row may not
-      // carry them. A record that cannot be read whole gets the history
-      // alone, beside the engine's reason.
-      if (!complete) return [history];
-      return [
-        {
-          id: "change-function",
-          title: t("Change function"),
-          placement: { after: "function" },
-          render: () =>
-            target && (
-              <FunctionForm
-                key={JSON.stringify(target)}
-                target={target satisfies ChangeFunction}
-                change={(next) => commands.changeFunction(id, next)}
-                onChanged={refresh}
-              />
-            ),
-        },
-        {
-          id: "stack-trace",
-          title: t("Stack trace"),
-          placement: { after: "error" },
-          fields: ["state.error.stackTrace"],
-          render: () => <StackTrace value={state.error?.stackTrace ?? ""} />,
-        },
-        {
-          id: "retry-spec",
-          title: t("Apply retry specification"),
-          placement: { after: "retry" },
-          render: () =>
-            spec && (
-              <RetrySpecForm
-                key={JSON.stringify(spec)}
-                spec={spec}
-                apply={(next) => commands.applyRetrySpec(id, next)}
-                onApplied={refresh}
-              />
-            ),
-        },
-        history,
-      ];
-    },
-    [commands, engine, locale, messages, t],
+  const render = useCallback(
+    ({ row, complete, refresh }: RecordDetailSectionContext) => (
+      <ExecutionReading
+        row={row}
+        complete={complete}
+        refresh={refresh}
+        engine={engine}
+        history={history}
+        commands={commands}
+        locale={locale}
+        messages={messages}
+      />
+    ),
+    [commands, engine, history, locale, messages],
   );
 
   return useMemo(
-    () => ({ open, onOpenChange, sections }),
-    [open, onOpenChange, sections],
+    () => ({ open, onOpenChange, render, title: executionTitle }),
+    [open, onOpenChange, render],
   );
 }

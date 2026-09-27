@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Locator, type Page } from "@playwright/test";
 import {
   executions,
   stubExecutionFailedCommands,
@@ -61,19 +61,27 @@ function withTrace(): Snapshot[] {
   );
 }
 
+/**
+ * The detail, named by its handler with the key above the name (D60): found
+ * by the key it shows, or by the message it says in the key's stead.
+ */
 function drawer(page: Page) {
-  return page.getByRole("dialog", { name: /EF-/ });
+  return page.getByRole("dialog").filter({ hasText: /EF-\d/ });
+}
+
+/** The key the detail's header shows above the execution's name. */
+function keyOf(panel: Locator) {
+  return panel.locator('[data-slot="record-detail-key"]');
 }
 
 /** Opens `/executions?id=<id>` and waits for the whole record. */
 async function openDetail(page: Page, id: string) {
   await page.goto(`/executions?id=${id}`);
   const panel = drawer(page);
+  await expect(keyOf(panel)).toHaveText(id);
+  // The whole record has come once its changes are offered.
   await expect(
-    panel.getByRole("heading", { name: id, level: 2 }),
-  ).toBeVisible();
-  await expect(
-    panel.getByRole("form", { name: "Change function" }),
+    panel.getByRole("button", { name: "Change function" }),
   ).toBeVisible();
   return panel;
 }
@@ -84,27 +92,29 @@ test("opens an execution from its link, on the page or not, and says when it can
   const queries = await stubExecutionFailedService(page, withTrace());
   const panel = await openDetail(page, "EF-01");
 
-  // The engine's field groups, and the console's sections beside what they
-  // are about.
+  // Read the way it is asked about (D60): why it failed, what happened to
+  // it, what it ran on which event, and how it is retried.
   for (const name of [
-    "Identity",
-    "Function",
-    "Change function",
-    "Error",
-    "Stack trace",
-    "Retry",
-    "Apply retry specification",
-    "Execution history",
+    "Why it failed",
+    "Attempts",
+    "Handler",
+    "Triggering event",
+    "Retry specification",
   ])
     await expect(
-      panel.getByRole("region", { name, exact: true }).first(),
+      panel.getByRole("region", { name, exact: true }),
     ).toBeVisible();
-  const error = panel.getByRole("region", { name: "Error", exact: true });
-  await expect(error).toContainText("Inventory refused the reservation.");
-  // The stack trace is read once, in its own scrolling region, not also as
-  // a field of the Error group.
-  await expect(error).not.toContainText("OrderSaga.kt:10");
+  const failure = panel.getByRole("region", {
+    name: "Why it failed",
+    exact: true,
+  });
+  await expect(failure).toContainText("Inventory refused the reservation.");
+  // The stack opens on its head, and whole when asked, in its own
+  // scrolling region.
   const trace = panel.getByRole("region", { name: "Stack trace content" });
+  await expect(trace).toContainText("OrderSaga.kt:10");
+  await expect(trace).not.toContainText("OrderSaga.kt:89");
+  await panel.getByRole("button", { name: "Show all 81 lines" }).click();
   await expect(trace).toContainText("OrderSaga.kt:89");
   const box = await trace.evaluate((element) => ({
     height: element.clientHeight,
@@ -145,6 +155,9 @@ test("opens an execution from its link, on the page or not, and says when it can
   await page.goto("/executions?id=EF-99");
   await expect(drawer(page)).toContainText("This record is no longer there");
   await expect(drawer(page).getByRole("form")).toHaveCount(0);
+  await expect(
+    drawer(page).getByRole("button", { name: "Change function" }),
+  ).toHaveCount(0);
 
   // Refused: the service's 403 is the reader's standing, with no retry.
   await page.route("**/execution_failed/snapshot/paged", async (route) => {
@@ -252,24 +265,39 @@ test("reads an execution's history from its event stream, the newest first", asy
     });
   });
   const panel = await openDetail(page, "EF-01");
-  // The console's section, which holds the embedded view.
-  const history = panel.locator('[data-section="history"]');
+  // The event streams themselves, one press under the attempts.
+  await panel.getByRole("button", { name: /^All events/ }).click();
+  const history = panel.getByRole("region", {
+    name: "Execution history",
+    exact: true,
+  });
   await history.scrollIntoViewIfNeeded();
   const rows = history.getByRole("row");
   // A header, then the two streams, the newer first, each by its events.
   await expect(rows.nth(1)).toContainText("Retry failed");
   await expect(rows.nth(2)).toContainText("First failed");
   await expect(rows.nth(1)).toContainText("EF-01-v2-command");
-  // The newest first; the stream id only breaks a tie, as a stable page needs.
+  // The attempts read the story once, from its end, a service page whole.
   expect(asked[0]).toMatchObject({
+    pagination: { index: 1, size: 100 },
+    sort: [{ field: "version", direction: "DESC" }],
+  });
+  // The embedded history: the newest first; the stream id only breaks a
+  // tie, as a stable page needs.
+  const page1 = asked.find(
+    (query) => (query.pagination as { size?: number } | undefined)?.size === 10,
+  )!;
+  expect(page1).toMatchObject({
     pagination: { index: 1, size: 10 },
     sort: [
       { field: "version", direction: "DESC" },
       { field: "id", direction: "ASC" },
     ],
   });
-  expect(JSON.stringify(asked[0].filter)).toContain('"value":"EF-01"');
-  expect(JSON.stringify(asked[0].filter)).toContain('"aggregateId"');
+  for (const query of [asked[0], page1]) {
+    expect(JSON.stringify(query.filter)).toContain('"value":"EF-01"');
+    expect(JSON.stringify(query.filter)).toContain('"aggregateId"');
+  }
 });
 
 test("an execution in progress cannot be prepared from its detail until it times out", async ({
@@ -330,6 +358,9 @@ test("keeps the last rows and the open execution when a refresh fails", async ({
 
   // A spec applied from the detail reaches the service, which answers once
   // the snapshot is written; then every read fails.
+  await panel
+    .getByRole("button", { name: "Apply retry specification" })
+    .click();
   const form = panel.getByRole("form", { name: "Apply retry specification" });
   await form.getByLabel("Max retries").fill("5");
   failing = true;
@@ -353,8 +384,8 @@ test("keeps the last rows and the open execution when a refresh fails", async ({
     workbench.getByRole("row", { name: /EF-45/, includeHidden: true }),
   ).toHaveCount(1);
   // The open execution stays open, its fields still there.
-  await expect(panel.getByRole("heading", { name: "EF-01" })).toBeVisible();
+  await expect(keyOf(panel)).toHaveText("EF-01");
   await expect(
-    panel.getByRole("region", { name: "Error", exact: true }),
+    panel.getByRole("region", { name: "Why it failed", exact: true }),
   ).toContainText("Inventory refused the reservation.");
 });

@@ -140,6 +140,19 @@ export interface RecordDetailOptions extends RecordDetailControl {
   sections?(
     context: RecordDetailSectionContext,
   ): readonly RecordDetailSection[];
+  /**
+   * The record read the host's way, in place of the definition's groups and
+   * of `sections`: a host whose records answer one question (why did this
+   * fail, and will trying again help) lays that answer out itself. The
+   * panel stays the engine's — opening, reading the whole record, saying it
+   * is gone or refused, the row's commands, focus and the way back.
+   */
+  render?(context: RecordDetailSectionContext): ReactNode;
+  /**
+   * The record's name in the header, in place of its key, which then stands
+   * above it. Asked with the row the detail holds; `undefined` keeps the key.
+   */
+  title?(row: RecordRow): string | undefined;
 }
 
 export type { ExportedFile } from '../record/exportOffer.js';
@@ -444,6 +457,13 @@ export function RecordParts({
             record,
             table.refresh,
           )}
+          render={bindSections(
+            detailOptions?.render,
+            detail,
+            record,
+            table.refresh,
+          )}
+          title={detailOptions?.title}
           onRenderFailure={onRenderFailure}
         />
 
@@ -478,13 +498,16 @@ function bindRow(
   return row ? item => row({ row: item, runtime, refresh }) : undefined;
 }
 
-/** The host's detail sections bound to the open view, or nothing at all. */
-function bindSections(
-  sections: RecordDetailOptions['sections'],
+/**
+ * The host's part of the detail (its sections, or its whole reading) bound
+ * to the open view, or nothing at all.
+ */
+function bindSections<T>(
+  sections: ((context: RecordDetailSectionContext) => T) | undefined,
   detail: RecordDetailController,
   runtime: RecordViewRuntime,
   refresh: () => void,
-): ((row: RecordRow) => readonly RecordDetailSection[]) | undefined {
+): ((row: RecordRow) => T) | undefined {
   return sections
     ? row => sections({ row, complete: detail.complete, runtime, refresh })
     : undefined;

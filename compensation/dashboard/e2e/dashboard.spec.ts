@@ -99,21 +99,32 @@ function snapshotOf(state: typeof execution): Snapshot {
   };
 }
 
+/**
+ * The execution's detail, named by its handler with the key above the name
+ * (D60): found by the key it shows.
+ */
 function detailDrawer(page: Page) {
-  return page.getByRole("dialog", { name: new RegExp(execution.id) });
+  return page.getByRole("dialog").filter({
+    has: page.locator('[data-slot="record-detail-key"]', {
+      hasText: execution.id,
+    }),
+  });
 }
 
 /** Opens the fixture's row, as a reader does, and waits for the whole record. */
 async function openDetails(page: Page) {
-  await page.getByRole("row", { name: new RegExp(execution.id) }).press("Enter");
+  await page
+    .getByRole("row", { name: new RegExp(execution.id) })
+    .press("Enter");
   const panel = detailDrawer(page);
+  await expect(panel).toBeVisible();
+  // The whole record has come once its changes are offered.
   await expect(
-    panel.getByRole("heading", { name: execution.id, level: 2 }),
+    panel.getByRole("button", { name: "Change function" }),
   ).toBeVisible();
-  await expect(
-    panel.getByRole("form", { name: "Change function" }),
-  ).toBeVisible();
-  const close = await panel.getByRole("button", { name: "Close" }).boundingBox();
+  const close = await panel
+    .getByRole("button", { name: "Close" })
+    .boundingBox();
   expect(close?.width).toBeGreaterThanOrEqual(24);
   expect(close?.height).toBeGreaterThanOrEqual(24);
   return panel;
@@ -136,13 +147,16 @@ test("loads the deterministic queue and responsive execution details", async ({
   ).toBeVisible();
   const panel = await openDetails(page);
 
-  // The failed event's version, and the retry spec as the form holds it.
+  // The failed event's version, and the retry spec as its form holds it.
   await expect(
-    panel.getByRole("region", { name: "Failed event", exact: true }),
+    panel.getByRole("region", { name: "Triggering event", exact: true }),
   ).toContainText("656");
+  await panel
+    .getByRole("button", { name: "Apply retry specification" })
+    .click();
   const spec = panel.getByRole("form", { name: "Apply retry specification" });
   await expect(spec.getByLabel("Min backoff")).toHaveValue("180");
-  for (const name of ["Execution history", "Stack trace"])
+  for (const name of ["Attempts", "Stack trace"])
     await expect(
       panel.getByRole("region", { name, exact: true }),
     ).toBeVisible();
@@ -228,20 +242,28 @@ test("loads lifecycle history through the paged EventStream REST API", async ({
 
   await page.goto("/executions?view=system%3Aexecution-failed%3Ato-retry");
   const panel = await openDetails(page);
-  const history = panel.locator('[data-section="history"]');
+  await panel.getByRole("button", { name: /^All events/ }).click();
+  const history = panel.getByRole("region", {
+    name: "Execution history",
+    exact: true,
+  });
   await history.scrollIntoViewIfNeeded();
   const stream = history.getByRole("row").nth(1);
   await expect(stream).toContainText("Retry failed");
   await expect(stream).toContainText("history-command-e2e-2");
-  // The newest first; the stream id only breaks a tie.
-  expect(historyQueries[0]).toMatchObject({
+  // The attempts read the story first; then the embed, the newest first,
+  // the stream id only breaking a tie.
+  const embedded = historyQueries.find(
+    (query) => (query.pagination as { size?: number } | undefined)?.size === 10,
+  )!;
+  expect(embedded).toMatchObject({
     sort: [
       { field: "version", direction: "DESC" },
       { field: "id", direction: "ASC" },
     ],
     pagination: { index: 1, size: 10 },
   });
-  expect(JSON.stringify(historyQueries[0].filter)).toContain(
+  expect(JSON.stringify(embedded.filter)).toContain(
     `"value":"${execution.id}"`,
   );
 
@@ -351,8 +373,7 @@ test("preserves and freezes last-known-good data after refresh fails", async ({
       includeHidden: true,
     }),
   ).toHaveCount(1);
-  await expect(
-    panel.getByRole("heading", { name: execution.id, level: 2 }),
-  ).toBeVisible();
+  await expect(panel.locator('[data-slot="record-detail-key"]')).toHaveText(
+    execution.id,
+  );
 });
-

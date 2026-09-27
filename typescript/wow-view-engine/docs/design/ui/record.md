@@ -127,6 +127,7 @@ Record 工作台的结果区组件。三种视图共用的骨架、状态条、�
 补偿控制台的详情里有引擎说不出的东西——执行上下文的表单、按宿主读法的错误堆栈、这一条的执行历史（一个 `EmbeddedView`）；告警里的链接带着 `?id=`，要直接打开那一条。两件事都由宿主经 `DataWorkbench` 的 `record.detail`（`RecordDetailOptions`，`/ui`）说：
 
 - **宿主节是渲染函数，与 `actions.row` 同一个形状**：`sections(context)` 按开着的记录返回 `RecordDetailSection[]`（`/react`：`id`、`title`、可选的 `placement`、`render()`）。上下文是 `{ row, complete, runtime, refresh }`——`row` 在整条读到之前是页上那一行、读到之后是整条（`complete`），`refresh` 重跑视图，详情随结果落定再读一次。理由：节里放的是宿主的代码（表单、命令、嵌入的视图），不是定义或存下的视图能说的东西，所以交函数而不是配置里的名字；
+- **整条换成宿主的读法**（D60）：`render(context)` 返回的就是抽屉的整个正文，定义的分组与 `sections` 都不画；`title(row)` 给这条一个名字作标题，键移到标题上方（`data-slot="record-detail-key"`，等宽）。面板——打开、读全、不在／被拒／读不到、行命令、焦点、叠放——仍是引擎的；正文包在一道 `'detail'` 渲染边界里，也提供叠放用的层上下文（节名即 `title`，没有就是键）（test/recordDetailHost.test.tsx「the host’s own reading of a record」）。
 - **位置是相对引擎的节说的**：`placement` 缺省 `'end'`（排在「其他」之后），`'start'` 在第一个分组之前，`{ after: '<分组 id>' }` 紧跟那个字段分组，定义里没有这个分组就当 `'end'`；落在同一处的宿主节按给的顺序。不给数字序号：数字要和引擎的分组数对齐，定义加一个分组就全错位（`ui/record/detailPlacement.ts` 的 `placeSections`）（test/recordDetailHost.test.tsx「placeSections」）；
 - **宿主自己读的字段只读一次**：宿主节可以在 `fields` 里点名它按自己读法画的定义字段（补偿控制台的堆栈：行号、复制、换行开关），引擎的分组就不再列它；被拿空的分组不画，`{ after }` 它的宿主节仍站在它原来的位置。理由：同一段堆栈在抽屉里读两遍是噪音，而字段不能从定义里删——搜索字段（`searchFields`）与列、导出都要它；「定义里声明、详情里不列」是宿主节的事，不是字段的属性（test/recordDetailHost.test.tsx「leaves out the fields a host section shows, and a group it empties」「reads a field the host shows itself only once, in the host’s section」）；
 - **内容是懒的，失败只拿走自己**：`sections` 与每节的 `render` 只在抽屉开着、手里有这条记录时才调用——节里的 `EmbeddedView` 在读者打开记录时才去读；还在按键读、已不在、被拒、读不到时不画宿主节（没有记录可做事）。每节一道渲染边界（`RenderBoundaryName` 的 `'detail'`），抛错时这一节换成可重试的失败块，记录与其他节照旧，宿主的 `onRenderFailure` 与 `environment.onError` 各得一次（test/recordDetailHost.test.tsx「the host’s sections in a record’s detail (G2)」）；
@@ -137,7 +138,7 @@ Record 工作台的结果区组件。三种视图共用的骨架、状态条、�
 - **嵌入视图也能打开**（G20）：`EmbeddedView` 的 `detail` 在可交互一档打开同一个详情，只读（头部没有行命令），抽屉里的嵌入打开的是叠在上面的第二层；见 [embed.md](embed.md)「记录详情（G20）」。
 - **第二层看得出是第二层**（G20 走查）：同宽、同一个「记录详情 / 键」的头，第二层会把第一层整个盖住，读者不知道自己进了一层、只有 Esc 能回去。所以叠放照 Base UI 嵌套对话框的做法，不另造控件：
   - **往回的路在头部**：第二层的头部第一行是「← 外层的键」（`SheetClose` 渲染成 ghost `Button`，`data-slot="record-detail-back"`，读屏名「返回 SO-1003」——可见文字就在名字里），后面 `›` 接它所在的宿主节标题（「同仓订单」，也是这一层的 `SheetDescription`），像一条两级的面包屑；下一行照旧是这一条的键。它替掉右上角的 ×：两者关的是同一层，× 在叠放里读起来像「全关」，而返回说清了去哪。Esc 与焦点不变：只关最里面一层，焦点回到嵌入里那一行；
-  - **叠放看得见**：宽屏上第二层比第一层窄 3rem（`sm:max-w-[33rem]`，第一层是 `sm:max-w-xl`），两层都靠右，第一层左边一条始终露着；第一层在被盖住时蒙一层与遮罩同色的 `black/10`（`styles.css` 里 `[data-slot='record-detail'][data-nested-dialog-open]::after`——Base UI 不给嵌套对话框画遮罩，所以由被盖住的一层自己变暗）。窄屏（< 640px）两层都是整宽，靠返回按钮与面包屑说清层级；
+  - **叠放看得见**：宽屏上第二层比第一层窄 3rem（`sm:max-w-[39rem]`，第一层是 `sm:max-w-2xl`，2026-09-27 由 `xl` 加宽：576px 把堆栈的每一帧都折了行，D60），两层都靠右，第一层左边一条始终露着；第一层在被盖住时蒙一层与遮罩同色的 `black/10`（`styles.css` 里 `[data-slot='record-detail'][data-nested-dialog-open]::after`——Base UI 不给嵌套对话框画遮罩，所以由被盖住的一层自己变暗）。窄屏（< 640px）两层都是整宽，靠返回按钮与面包屑说清层级；
   - **怎么知道自己是第二层**：宿主节经 React context（`DetailLayerContext`，不导出）把外层的键与节标题交给节里画出的一切；嵌入里的 `RecordDetail` 读到它就是第二层（`data-layer="nested"`）。引擎自己的字段分组里没有能打开详情的东西，所以只有宿主节提供；独立摆在页面上的嵌入、工作台的详情读不到它，头部与宽度一个像素也不变。
   - （test/embeddedDetail.test.tsx「opens nested in a workbench detail: Escape or the way back closes the innermost alone」；浏览器里 RecordDetail.test.stories.tsx「NestedEmbedDetail」断言返回按钮的名字、只关里层、焦点回到行，宽屏上里层左边缘在外层右侧，并过 axe。）
 
