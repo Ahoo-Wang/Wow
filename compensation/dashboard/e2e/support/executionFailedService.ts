@@ -41,8 +41,15 @@ type Group = {
   field: string;
   alias: string;
   unit?: string;
+  part?: string;
+  interval?: number;
   timeZone?: string;
 };
+
+/** A per-row number a metric reads: a field, or the time between two. */
+type Expression =
+  | { type: "FIELD"; field: string }
+  | { type: "DATE_DIFF"; from: string; to: string; unit: string };
 
 type Derived =
   | { type: "METRIC_REF"; metric: string }
@@ -53,7 +60,8 @@ type Metric = {
   alias: string;
   type: string;
   function?: string;
-  expression?: { type: string; field?: string } | Derived;
+  expression?: Expression | Derived;
+  percentile?: number;
   filter?: Filter;
 };
 
@@ -281,14 +289,25 @@ function metricOf(
     ? rows.filter((row) => matches(row, metric.filter!, now))
     : rows;
   if (metric.type === "COUNT") return counted.length;
-  const expression = metric.expression as { type: string; field?: string };
-  const field = expression?.type === "FIELD" ? expression.field : undefined;
-  if (metric.type !== "NUMERIC" || !field)
+  const expression = metric.expression as Expression | undefined;
+  if (!expression || !["FIELD", "DATE_DIFF"].includes(expression.type))
     throw new Error(`Unsupported metric ${JSON.stringify(metric)}`);
+  if (metric.type === "DISTINCT_COUNT")
+    return new Set(counted.map((row) => valueOf(row, expression))).size;
   const values = counted
-    .map((row) => read(row, field))
+    .map((row) => valueOf(row, expression))
     .filter((value): value is number => typeof value === "number");
   if (values.length === 0) return null;
+  if (metric.type === "PERCENTILE") {
+    // Linear between the closest ranks, as an exact percentile reads.
+    const ordered = [...values].sort((a, b) => a - b);
+    const rank = ((metric.percentile ?? 50) / 100) * (ordered.length - 1);
+    const low = Math.floor(rank);
+    const high = Math.ceil(rank);
+    return ordered[low]! + (ordered[high]! - ordered[low]!) * (rank - low);
+  }
+  if (metric.type !== "NUMERIC")
+    throw new Error(`Unsupported metric ${JSON.stringify(metric)}`);
   switch (metric.function) {
     case "SUM":
       return values.reduce((sum, each) => sum + each, 0);
@@ -334,15 +353,60 @@ function derivedOf(
 /** The zones a day bucket is cut in here: the tests pin the browser to UTC. */
 const UTC_ZONES = [undefined, "UTC", "Etc/UTC"];
 
+const DIFF_UNITS: Record<string, number> = {
+  SECOND: 1_000,
+  MINUTE: 60_000,
+  HOUR: 3_600_000,
+  DAY: DAY,
+};
+
+/** A metric's per-row value: a field's, or the signed time between two. */
+function valueOf(row: Document, expression: Expression): unknown {
+  if (expression.type === "FIELD") return read(row, expression.field);
+  const from = read(row, expression.from);
+  const to = read(row, expression.to);
+  const unit = DIFF_UNITS[expression.unit];
+  if (typeof from !== "number" || typeof to !== "number" || !unit) return null;
+  return (to - from) / unit;
+}
+
+/** The start of `time`'s bucket of `unit`, in UTC; a week starts on Monday. */
+function bucketOf(time: number, unit: string | undefined): number {
+  switch (unit) {
+    case "HOUR":
+      return Math.floor(time / 3_600_000) * 3_600_000;
+    case "DAY":
+      return Math.floor(time / DAY) * DAY;
+    case "WEEK": {
+      // The epoch fell on a Thursday: three days on, the weeks align.
+      const day = Math.floor(time / DAY);
+      return (Math.floor((day + 3) / 7) * 7 - 3) * DAY;
+    }
+    case "MONTH": {
+      const date = new Date(time);
+      return Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), 1);
+    }
+  }
+  throw new Error(`Unsupported date unit ${unit}`);
+}
+
 function keyOf(document: Document, group: Group): unknown {
   const value = read(document, group.field);
   if (group.type === "TERMS") return value;
-  if (
-    group.type === "DATE_HISTOGRAM" &&
-    group.unit === "DAY" &&
-    UTC_ZONES.includes(group.timeZone)
-  )
-    return Math.floor(Number(value) / DAY) * DAY;
+  if (group.type === "HISTOGRAM" && group.interval)
+    return typeof value === "number"
+      ? Math.floor(value / group.interval) * group.interval
+      : null;
+  if (!UTC_ZONES.includes(group.timeZone))
+    throw new Error(`Unsupported group ${JSON.stringify(group)}`);
+  if (group.type === "DATE_HISTOGRAM")
+    return bucketOf(Number(value), group.unit);
+  if (group.type === "DATE_PART") {
+    const date = new Date(Number(value));
+    // ISO weekdays, Monday 1 to Sunday 7, as Wow numbers them.
+    if (group.part === "DAY_OF_WEEK") return ((date.getUTCDay() + 6) % 7) + 1;
+    if (group.part === "HOUR_OF_DAY") return date.getUTCHours();
+  }
   throw new Error(`Unsupported group ${JSON.stringify(group)}`);
 }
 

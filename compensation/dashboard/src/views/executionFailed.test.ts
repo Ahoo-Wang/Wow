@@ -112,7 +112,7 @@ describe("executionFailedDefinition", () => {
     expect(en.title).toBe("Failed executions");
   });
 
-  it("offers the system views: seven queues, all, four analyses", () => {
+  it("offers the system views: seven queues, all, fourteen analyses", () => {
     const views = executionFailedDefinition("en").views ?? [];
     expect(views.map((view) => [view.id, view.config.kind])).toEqual([
       ["active", "record"],
@@ -127,6 +127,19 @@ describe("executionFailedDefinition", () => {
       ["by-processor", "analysis"],
       ["daily", "analysis"],
       ["clusters", "analysis"],
+      // What the test service's data asked (failureAnalyses.ts).
+      ...[
+        "fate",
+        "concentration",
+        "error-codes",
+        "sources",
+        "backlog-age",
+        "arrivals",
+        "calendar",
+        "retries",
+        "repair",
+        "recovery",
+      ].map((id) => [id, "analysis"]),
     ]);
   });
 

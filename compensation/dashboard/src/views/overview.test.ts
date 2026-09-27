@@ -13,6 +13,7 @@
 
 import {
   MemoryViewStore,
+  systemInstanceId,
   type DashboardViewConfig,
   type DashboardViewPanel,
   type ViewSource,
@@ -23,7 +24,10 @@ import {
   EXECUTION_FAILED,
   executionFailedDefinition,
 } from "./executionFailed.ts";
-import { EXECUTION_HISTORY } from "./executionHistory.ts";
+import {
+  EXECUTION_HISTORY,
+  executionHistoryDefinition,
+} from "./executionHistory.ts";
 import {
   ATTENTION_PANEL,
   OVERVIEW,
@@ -103,16 +107,45 @@ describe("overviewDefinition", () => {
     expect(board("en").fields.map(({ name }) => name)).toEqual([
       OVERVIEW_WINDOW,
     ]);
+    // Read whole: the pile, what of it waits on a decision, where it goes
+    // and where it is.
+    const whole = ["all-active", "exhausted", "fate", "concentration"];
     for (const panel of panels("en")) {
       const field =
         definitionOf(panel) === EXECUTION_HISTORY
           ? "createTime"
-          : "state.executeAt";
+          : panel.id === "repair"
+            ? // The failures of the window: when they first failed.
+              "firstEventTime"
+            : "state.executeAt";
       expect(panel.bindings, panel.id).toEqual(
-        panel.id === "all-active"
+        whole.includes(panel.id)
           ? []
           : [{ globalField: OVERVIEW_WINDOW, panelField: field }],
       );
+    }
+  });
+
+  it("lays the analyses out on boards of their own, each naming a view there is", () => {
+    const definition = overviewDefinition("en");
+    expect(definition.views?.map(({ id }) => id)).toEqual([
+      "home",
+      "failures",
+      "activity",
+    ]);
+    const offered = new Set(
+      [
+        executionFailedDefinition("en"),
+        executionHistoryDefinition("en"),
+      ].flatMap((each) =>
+        (each.views ?? []).map(({ id }) => systemInstanceId(each.id, id)),
+      ),
+    );
+    for (const view of definition.views ?? []) {
+      if (view.config.kind !== "dashboard") throw new Error(view.id);
+      for (const panel of view.config.panels)
+        if (panel.kind === "view" && panel.instanceId)
+          expect(offered.has(panel.instanceId), panel.instanceId).toBe(true);
     }
   });
 

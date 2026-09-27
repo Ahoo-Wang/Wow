@@ -21,6 +21,7 @@ import {
   type DataViewDefinition,
 } from "@ahoo-wang/wow-view-engine";
 import type { Locale } from "@/i18n.tsx";
+import { activityAnalyses } from "./activityAnalyses.ts";
 
 export const EXECUTION_HISTORY = "execution-history";
 
@@ -212,6 +213,13 @@ export function executionHistoryDefinition(locale: Locale): DataViewDefinition {
       // The net backlog and the retry success rate, out of the counts.
       expressions: true,
       fields: [
+        // How many executions a day's commands were about.
+        {
+          field: "aggregateId",
+          groups: [],
+          functions: [],
+          distinctCount: true,
+        },
         {
           field: "createTime",
           groups: [AggregationGroupType.DATE_HISTOGRAM],
@@ -230,6 +238,12 @@ export function executionHistoryDefinition(locale: Locale): DataViewDefinition {
           aggregations: [
             {
               field: "name",
+              groups: [AggregationGroupType.TERMS],
+              functions: [],
+            },
+            // The events' make-up, by type — the name an event is read by.
+            {
+              field: "bodyType",
               groups: [AggregationGroupType.TERMS],
               functions: [],
             },
@@ -287,6 +301,8 @@ export function executionHistoryDefinition(locale: Locale): DataViewDefinition {
           card: { title: "version", fields: ["body", "createTime"] },
         },
       },
+      // What the compensation did, and what people did to it.
+      ...activityAnalyses(locale),
     ],
   };
 }

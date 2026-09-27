@@ -119,6 +119,12 @@ export function executionEngineOptions({
     store,
     resolveSource: (key) =>
       key === EXECUTION_HISTORY_SOURCE ? historySource : source,
+    // The overview is nineteen panels, and an analysis panel may ask two or
+    // three queries (its split's 「其他」, a cut's probe): more than the
+    // default queue of 32 holds, which refused the last panels with
+    // 「同时查询太多」 (2026-09-27, against the test service). Four still run
+    // at once; the rest wait their turn instead of failing.
+    limits: { maxQueuedQueries: 64 },
     environment: browserRuntimeEnvironment({
       onError: ({ kind, error, context }) =>
         console.error(`[view-engine] ${kind} failed`, error, context),
