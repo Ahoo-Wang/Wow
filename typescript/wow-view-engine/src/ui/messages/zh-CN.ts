@@ -360,6 +360,9 @@ export const zhCN: ViewMessages = {
   'label.filter.range-from': '{field} 从',
   'label.filter.range-to': '{field} 到',
   'label.filter.range-join': '~',
+  'label.filter.within': '{field} 在 {period}',
+  'label.filter.during': '{field} 在 {period}',
+  'label.filter.answer': '{field}：{value}',
   'label.filter.period': '{field} 在 {period}',
   'label.filter.period-week': '{field} 在 {period} 起的一周',
   'label.filter.segment': '{field} 在 {segment}',
@@ -394,8 +397,8 @@ export const zhCN: ViewMessages = {
   'label.deletion.active': '仅未删除',
   'label.deletion.deleted': '仅已删除',
   'label.deletion.all': '含已删除',
-  'label.boolean.true': '真',
-  'label.boolean.false': '假',
+  'label.boolean.true': '是',
+  'label.boolean.false': '否',
   'label.filter.too-large': '条件过多，无法在这里编辑。',
   'label.applied.title': '正在显示',
   'label.applied.title-of': '正在显示：{view}',
@@ -432,8 +435,9 @@ export const zhCN: ViewMessages = {
   'label.date.calendar-selected': '{date}，已选中',
 
   // 同一个"距今多远"，`BETWEEN` 问的是这段区间，`GTE`／`LTE` 比的是那一头的
-  // 那一刻；把后者读成"最近 7 天"就是在描述一次没跑过的查询。
-  'label.relative.window.past': '最近 {amount} {unit}',
+  // 那一刻；把后者读成"过去 7 天"就是在描述一次没跑过的查询。窗口与编辑器
+  // 的「过去」同一个词（第二轮审查 R1-P1-8，从前条上写「最近」）。
+  'label.relative.window.past': '过去 {amount} {unit}',
   'label.relative.window.future': '未来 {amount} {unit}',
   'label.relative.instant.past': '{amount} {unit}前',
   'label.relative.instant.future': '{amount} {unit}后',

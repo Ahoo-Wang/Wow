@@ -24,7 +24,10 @@ import type {
   IssuePath,
   RuntimeLimits,
 } from '../model/index.js';
-import type { FieldKindDescription } from './describe.js';
+import type {
+  FieldKindDescription,
+  FilterSummaryRelation,
+} from './describe.js';
 
 /**
  * Everything the engine needs to know about one field type.
@@ -39,6 +42,15 @@ export interface FieldKind {
   /** Operators this kind supports, in the order an editor should offer them. */
   operators: FilterOperatorName[];
   defaultOperator: FilterOperatorName;
+  /**
+   * The relation an operator means on this kind, where it means something
+   * other than its name: on a list field `IN` asks whether the entries
+   * include any of those listed. The condition's editor and the applied bar
+   * both say the relation's word (`label.relation.*`), so one condition has
+   * one name — 「属于」 in the editor beside 「含有其中任一」 on the bar read
+   * as two (second review R1-P1-7).
+   */
+  relations?: Partial<Record<FilterOperatorName, FilterSummaryRelation>>;
   /**
    * The value a leaf starts from, which is normally "nothing yet". A picked
    * field is a question the user has not finished asking, so the starting

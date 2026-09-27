@@ -12,6 +12,7 @@
  */
 
 import { filter, type FilterExpression } from '@ahoo-wang/wow-client';
+import type { FilterOperatorName } from '../../model/index.js';
 import type { FilterSummaryRelation } from '../describe.js';
 import { readValue, type FieldKind } from '../fieldKind.js';
 import {
@@ -38,6 +39,13 @@ const RELATION_TEXT: Record<FilterSummaryRelation, string> = {
   'has-any': 'has any of',
 };
 
+/** What each list operator asks of the entries. */
+const RELATIONS = {
+  IN: 'has-any',
+  NOT_IN: 'has-none',
+  CONTAINS_ALL: 'has-all',
+} as const satisfies Partial<Record<FilterOperatorName, FilterSummaryRelation>>;
+
 /** What one entry of an array field may be. */
 export type ArrayFilterValue = (string | number)[];
 
@@ -62,6 +70,7 @@ export const arrayFieldKind: FieldKind = {
     ...PRESENCE_OPERATORS,
   ],
   defaultOperator: 'IN',
+  relations: RELATIONS,
   scalar: false,
 
   emptyValue() {
@@ -127,12 +136,10 @@ export const arrayFieldKind: FieldKind = {
     // and the bar prefers a label to the field's own formatting, which is
     // how a currency entry ended up a bare number beside a column of ¥.
     const labels = values.map(entry => optionLabelOf(field.options, entry));
-    const relation =
-      leaf.operator === 'CONTAINS_ALL'
-        ? 'has-all'
-        : leaf.operator === 'NOT_IN'
-          ? 'has-none'
-          : 'has-any';
+    const relation: FilterSummaryRelation =
+      leaf.operator === 'CONTAINS_ALL' || leaf.operator === 'NOT_IN'
+        ? RELATIONS[leaf.operator]
+        : RELATIONS.IN;
     return {
       text: `${field.label} ${RELATION_TEXT[relation]} ${shownEntries(values, labels)}`,
       relation,

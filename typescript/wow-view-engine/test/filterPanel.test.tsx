@@ -111,6 +111,26 @@ describe('FilterPanel tree editing', () => {
   }
 
   /**
+   * Second review R1-P1-7: a list field's `IN` asks whether its entries
+   * include any of those listed. The editor said 「is any of」 and the bar
+   * 「has any of」; both say the relation the kind declares now.
+   */
+  it('names a list field’s operators as the relation they ask', () => {
+    const base = ordersDefinition();
+    const { filter } = panel(false, {
+      ...base,
+      fields: [
+        ...base.fields,
+        { name: 'tags', label: 'Tags', kind: 'array' as const },
+      ],
+    });
+    act(() => filter().addLeaf('tags'));
+    const select = screen.getByRole('combobox', { name: 'Tags operator' });
+    expect(select.textContent).toContain('has any of');
+    expect(select.textContent).not.toContain('is any of');
+  });
+
+  /**
    * The field picker, opened. It is a popover (a dialog) that stays open
    * while several fields are ticked, so every field question below is asked
    * of the one dialog rather than of the page. Its trigger is an ordinary

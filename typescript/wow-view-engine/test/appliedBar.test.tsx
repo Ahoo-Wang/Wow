@@ -797,7 +797,7 @@ describe('the applied badge in another language', () => {
       }),
     ]);
 
-    expect(screen.getByText('创建时间 介于 最近 7 天')).toBeDefined();
+    expect(screen.getByText('创建时间 在 过去 7 天')).toBeDefined();
     expect(screen.getByText('创建时间 小于等于 7 天前')).toBeDefined();
     expect(screen.getByText('创建时间 大于等于 7 天后')).toBeDefined();
   });

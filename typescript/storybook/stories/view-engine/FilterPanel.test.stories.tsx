@@ -111,7 +111,10 @@ export const Advanced: Story = {
       // makes — which currency symbol ICU picks is not what this is about.
       `金额 ${zhCN['label.operator.BETWEEN']} ${yuan(100)} ~ ${yuan(5000)}`,
       // A period, not a range: the operator asks for the window it names.
-      `创建时间 ${zhCN['label.operator.BETWEEN']} ${zhCN['label.relative.preset.thisMonth']}`,
+      formatMessage(zhCN, 'label.filter.during', {
+        field: '创建时间',
+        period: zhCN['label.relative.preset.thisMonth'],
+      }),
       // A group says how its conditions combine before it lists them.
       `${zhCN['label.filter.any-of']} 仓库 ${zhCN['label.relation.is']} 华北` +
         `${JOIN}金额 ${zhCN['label.operator.GT']} ${yuan(20000)}`,

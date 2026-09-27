@@ -87,6 +87,23 @@ export function summaryText(
   // under, so the records opened from it and their applied bar read alike.
   if (value.kind === 'period')
     return periodText(value, item, messages, context);
+  // A span of time named by its words — 「过去 7 天」, 「昨天」 — is said as
+  // where the time falls, as one period is: 「下单时间 介于 最近 7 天」 put a
+  // relation that wants two ends before a phrase that is one span, and the
+  // editor beside it said 「过去」 (second review R1-P1-8). A bound compared
+  // against (「≥ 7 天前」) keeps its operator.
+  if (
+    (value.kind === 'relative' && value.bound === 'window') ||
+    (value.kind === 'preset' &&
+      (item.operator === undefined || item.operator === 'BETWEEN'))
+  )
+    return messages.label(
+      value.kind === 'preset' ? 'label.filter.during' : 'label.filter.within',
+      {
+        field: item.label ?? '',
+        period: summaryValue(value, item, messages, context),
+      },
+    );
   // A segment likewise: 「单价 在 ¥0～500」, the band a number histogram
   // printed, rather than two chips, 「≥ ¥0.00」 and 「< ¥500.00」.
   if (value.kind === 'segment')
@@ -99,6 +116,21 @@ export function summaryText(
   // 付款时间 > 48 小时」, the operator's word being the phrase itself.
   if (value.kind === 'duration')
     return durationText(value, item, messages, context);
+
+  // A yes-or-no field equal to one of them says the answer after the field:
+  // 「发货超时：是」. With the relation word in front it read 「发货超时 是
+  // 是」 (second review R1-P1-6). `NE` keeps its 「不是」: a record with no
+  // answer at all is not one either.
+  if (
+    item.kind === 'boolean' &&
+    item.operator === 'EQ' &&
+    value.kind === 'text' &&
+    typeof value.value === 'boolean'
+  )
+    return messages.label('label.filter.answer', {
+      field: item.label ?? '',
+      value: summaryValue(value, item, messages, context),
+    });
 
   pushWord(said, conditionWord(item, messages));
   const shown = summaryValue(value, item, messages, context);

@@ -231,12 +231,12 @@ describe('FilterValueEditor', () => {
     expect(trigger.className).not.toMatch(/(^|\s)min-w-(?!0)/);
   });
 
-  it('offers true and false for a boolean', async () => {
+  it('offers yes and no for a boolean', async () => {
     const user = userEvent.setup();
     const { changes } = editor({ input: 'boolean' }, true);
 
     await user.click(screen.getByLabelText('amount'));
-    await user.click(await screen.findByRole('option', { name: 'False' }));
+    await user.click(await screen.findByRole('option', { name: 'No' }));
 
     expect(changes).toEqual([false]);
   });
@@ -251,10 +251,10 @@ describe('FilterValueEditor', () => {
     const { changes } = editor({ input: 'boolean' }, null);
 
     const trigger = screen.getByLabelText('amount');
-    expect(trigger.textContent).not.toContain('False');
+    expect(trigger.textContent).not.toMatch(/\bNo\b/);
 
     await user.click(trigger);
-    await user.click(await screen.findByRole('option', { name: 'False' }));
+    await user.click(await screen.findByRole('option', { name: 'No' }));
 
     expect(changes).toEqual([false]);
   });

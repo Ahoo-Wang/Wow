@@ -1008,10 +1008,55 @@ describe('summaryText', () => {
         value: { kind: 'relative', amount: 7, unit: 'day', direction, bound },
       });
 
-    expect(relative('window', 'past')).toBe('Created between last 7 days');
-    expect(relative('window', 'future')).toBe('Created between next 7 days');
+    expect(relative('window', 'past')).toBe('Created in the last 7 days');
+    expect(relative('window', 'future')).toBe('Created in the next 7 days');
     expect(relative('instant', 'past')).toBe('Created at most 7 days ago');
     expect(relative('instant', 'future')).toBe('Created at most 7 days ahead');
+  });
+
+  /**
+   * Second review R1-P1-8 and R1-P1-6: a span named by its words is said as
+   * where the time falls, not 「between」 a phrase that has one end; a
+   * yes-or-no field says its answer after the field, not 「is Yes」.
+   */
+  it('says a named span as when, and a yes-or-no field as its answer', () => {
+    const item = (
+      overrides: Partial<FilterSummaryItem>,
+    ): FilterSummaryItem => ({
+      path: ['children', 0],
+      text: '',
+      unresolved: false,
+      field: 'createdAt',
+      label: 'Created',
+      kind: 'datetime',
+      operator: 'BETWEEN',
+      ...overrides,
+    });
+    expect(say(item({ value: { kind: 'preset', preset: 'yesterday' } }))).toBe(
+      'Created yesterday',
+    );
+    // A bound compared against keeps its operator.
+    expect(
+      say(
+        item({
+          operator: 'GTE',
+          value: { kind: 'preset', preset: 'yesterday' },
+        }),
+      ),
+    ).not.toBe('Created yesterday');
+    const late = (operator: 'EQ' | 'NE', value: boolean) =>
+      say(
+        item({
+          field: 'late',
+          label: 'Late',
+          kind: 'boolean',
+          operator,
+          value: { kind: 'text', value },
+        }),
+      );
+    expect(late('EQ', true)).toBe('Late: Yes');
+    expect(late('EQ', false)).toBe('Late: No');
+    expect(late('NE', true)).toBe('Late is not Yes');
   });
 
   it('uses the label a kind resolved rather than resolving it again', () => {
