@@ -207,6 +207,49 @@ describe('a saved view using what the source no longer admits (Q2)', () => {
   });
 });
 
+describe('what the workbench says of an unavailable condition (second review R1-P1-5)', () => {
+  it('says it once, with the way to the conditions, and on the pill in words', async () => {
+    const { engine } = harness([narrower()]);
+    render(
+      <DataWorkbench
+        engine={engine}
+        definitionId="orders"
+        instanceId="pending"
+      />,
+    );
+    await screen.findByRole('button', {
+      name: 'Remove unavailable conditions',
+    });
+    // One strip for what the source no longer offers: a second one over the
+    // same condition said 「（1 项）」 beside 「还有 1 项」, and the sort it
+    // cannot take was said a third time in the error strip.
+    const strips = document.querySelectorAll('[data-slot="status-strip"]');
+    expect(strips).toHaveLength(1);
+    const strip = strips[0] as HTMLElement;
+    fireEvent.click(within(strip).getByRole('button', { name: 'Show 2' }));
+    expect(strip.querySelectorAll('li')).toHaveLength(2);
+
+    fireEvent.click(
+      within(strip).getByRole('button', { name: 'Show conditions' }),
+    );
+    const pill = await waitFor(() => {
+      const found = document.querySelector<HTMLElement>(
+        '[data-slot="filter-condition"][data-invalid]',
+      );
+      expect(found).not.toBeNull();
+      return found!;
+    });
+    // The operator it holds, in its word rather than the protocol's.
+    expect(
+      within(pill).getByRole('combobox', { name: /operator/i }).textContent,
+    ).toMatch(/^is\b/);
+    // Why the border is red, in words, and named to a screen reader.
+    const reason = pill.querySelector('[data-slot="filter-condition-reason"]');
+    expect(reason?.textContent).not.toBe('');
+    expect(describedText(pill)).toBe(reason?.textContent);
+  });
+});
+
 describe('an open view when the descriptor changes version', () => {
   it('takes the new narrowing at once, and waits when its config no longer runs', async () => {
     const { engine, source, describe, clock } = harness([ordersDescriptor()]);

@@ -86,15 +86,35 @@ export function StatusLine({
   // nothing at all, and its page was a title over an empty body. A
   // rejection is the service's answer and blocks nothing; the query strip
   // says it.
+  //
+  // What the source no longer offers is said once, by the strip above that
+  // can take it out: a second strip over the same condition read as two
+  // problems, and its 「（1 项）」 beside 「还有 1 项」 as three (second
+  // review R1-P1-5).
+  const offered = (found: Issue) =>
+    !unavailable?.issues.some(
+      gone => messages.issue(gone) === messages.issue(found),
+    );
   const onHiddenPills = conditionsHidden
     ? filter.issues.filter(
         found =>
           found.severity === 'error' &&
           found.path[0] === 'children' &&
           !found.code.startsWith('runtime.query.failed.') &&
-          !filter.unmarked.includes(found),
+          !filter.unmarked.includes(found) &&
+          offered(found),
       )
     : [];
+  const showConditions = (
+    <Button
+      data-slot="show-conditions"
+      variant="outline"
+      size="sm"
+      onClick={onShowConditions}
+    >
+      {messages.label('label.view.show-conditions')}
+    </Button>
+  );
   return (
     <div
       data-slot="status-line"
@@ -104,15 +124,24 @@ export function StatusLine({
         <StatusStrip
           tone="error"
           title={messages.label('label.view.unavailable')}
+          // What it would take out, in words: the pills mark only the
+          // conditions, and only while the editor is open — a sort the
+          // source cannot take is said nowhere else on screen.
+          details={unavailable.issues.map(found =>
+            messages.issue(nameIssue(found)),
+          )}
           action={
-            <Button
-              data-slot="remove-unavailable"
-              variant="outline"
-              size="sm"
-              onClick={unavailable.remove}
-            >
-              {messages.label('label.view.remove-unavailable')}
-            </Button>
+            <>
+              <Button
+                data-slot="remove-unavailable"
+                variant="outline"
+                size="sm"
+                onClick={unavailable.remove}
+              >
+                {messages.label('label.view.remove-unavailable')}
+              </Button>
+              {conditionsHidden && onShowConditions && showConditions}
+            </>
           }
         />
       )}
@@ -123,18 +152,7 @@ export function StatusLine({
             count: onHiddenPills.length,
           })}
           details={onHiddenPills.map(found => messages.issue(nameIssue(found)))}
-          action={
-            onShowConditions && (
-              <Button
-                data-slot="show-conditions"
-                variant="outline"
-                size="sm"
-                onClick={onShowConditions}
-              >
-                {messages.label('label.view.show-conditions')}
-              </Button>
-            )
-          }
+          action={onShowConditions && showConditions}
         />
       )}
       <ErrorStrip
@@ -145,7 +163,10 @@ export function StatusLine({
         // empty state (Q3), not as something to fix.
         issues={[
           ...filter.unmarked
-            .filter(found => found.code !== 'record.filter.required')
+            .filter(
+              found =>
+                found.code !== 'record.filter.required' && offered(found),
+            )
             .map(nameIssue),
           ...workbench.definitionIssues.map(ownWord),
         ]}

@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 import type { StoryObj } from '@storybook/react-vite';
-import { expect, userEvent, within } from 'storybook/test';
+import { expect, userEvent, waitFor, within } from 'storybook/test';
 import { zhCN } from '@ahoo-wang/wow-view-engine/ui';
 import displayMeta, {
   NeedsACondition as DisplayNeedsACondition,
@@ -128,6 +128,36 @@ export const RemovesWhatTheSourceLacks: Story = {
     );
     const rows = readColumn(await findDataTable(canvasElement), '订单号');
     await expect(rows.length).toBeGreaterThan(0);
+  },
+};
+
+/**
+ * 数据源不再支持的条件只说一次，条件片上用字说（第二轮审查 R1-P1-5）：从前两条
+ * 红条说同一件事，一条写「（1 项）」、另一条又写「还有 1 项」；操作符框显示协议
+ * 名「CONTAIN…」；条件片只有红框，没有原因。
+ */
+export const UnavailableSaidOnce: Story = {
+  ...DisplaySavedOnMongoDb,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await canvas.findByText(zhCN['label.view.unavailable']);
+    await expect(
+      canvasElement.querySelectorAll('[data-slot="status-strip"]'),
+    ).toHaveLength(1);
+    await userEvent.click(
+      canvas.getByRole('button', { name: zhCN['label.view.show-conditions'] }),
+    );
+    const pill = await waitFor(() => {
+      const found = canvasElement.querySelector<HTMLElement>(
+        '[data-slot="filter-condition"][data-invalid]',
+      );
+      expect(found).not.toBeNull();
+      return found!;
+    });
+    await expect(
+      within(pill).getByRole('combobox', { name: /操作符/ }),
+    ).toHaveTextContent(zhCN['label.operator.CONTAINS']);
+    await expect(pill).toHaveAccessibleDescription('「备注」不支持「包含」。');
   },
 };
 

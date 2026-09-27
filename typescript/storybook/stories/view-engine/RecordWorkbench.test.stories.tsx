@@ -1875,7 +1875,7 @@ export const NeedsFixing: Story = {
     const canvas = within(canvasElement);
     const alert = await canvas.findByRole('alert');
     // One finding is the line itself (F-14): said outright, with no heading
-    // over it and no fold under it. "这个视图需要修复才能运行 · 还有 1 项"
+    // over it and no fold under it. "这个视图需要修复才能运行 · 展开 1 项"
     // was a heading with one thing beneath it, and the one thing it hid was
     // the only sentence that said what to fix.
     await expect(alert).toHaveTextContent('removedColumn');

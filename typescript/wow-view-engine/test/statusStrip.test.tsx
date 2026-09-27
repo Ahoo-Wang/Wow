@@ -89,7 +89,7 @@ describe('StatusStrip', () => {
     // pushes it off the screen.
     expect(screen.queryByText('No AVG here')).toBeNull();
 
-    fireEvent.click(screen.getByRole('button', { name: '2 more' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Show 2' }));
 
     expect(screen.getByText('No AVG here')).toBeDefined();
     expect(
@@ -112,7 +112,7 @@ describe('StatusStrip', () => {
     );
 
     const toggle = () => screen.getByRole('button');
-    expect(toggle().textContent).toBe('1 more');
+    expect(toggle().textContent).toBe('Show 1');
     expect(toggle().getAttribute('aria-expanded')).toBe('false');
 
     fireEvent.click(toggle());
@@ -122,7 +122,7 @@ describe('StatusStrip', () => {
 
     fireEvent.click(toggle());
 
-    expect(toggle().textContent).toBe('1 more');
+    expect(toggle().textContent).toBe('Show 1');
   });
 
   it('carries what to do about it at the end of the line', () => {
@@ -285,7 +285,7 @@ describe('WarningStrip', () => {
     expect(screen.getByRole('status').textContent).toContain(
       '3 things worth noting',
     );
-    fireEvent.click(screen.getByRole('button', { name: '3 more' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Show 3' }));
 
     const text = screen.getByRole('status').textContent ?? '';
     expect(text.match(/advanced editor/g)).toHaveLength(1);
@@ -340,7 +340,7 @@ describe('ErrorStrip', () => {
 
   /**
    * One finding is its own sentence (F-14). "This view needs fixing" over a
-   * fold reading "1 more" was a heading with one thing under it, and the one
+   * fold reading "Show 1" was a heading with one thing under it, and the one
    * thing it hid was the only sentence that said what to fix.
    */
   it('says a single error outright, with no fold over it', () => {
@@ -361,7 +361,7 @@ describe('ErrorStrip', () => {
       'The page size must be a positive number.',
     );
     expect(strip.textContent).not.toContain('needs fixing');
-    expect(within(strip).queryByRole('button', { name: '1 more' })).toBeNull();
+    expect(within(strip).queryByRole('button', { name: 'Show 1' })).toBeNull();
   });
 
   /** Two of them are a count over a fold; the line has room for one. */
@@ -386,7 +386,7 @@ describe('ErrorStrip', () => {
 
     const strip = screen.getByRole('alert');
     expect(strip.textContent).toContain('needs fixing');
-    fireEvent.click(within(strip).getByRole('button', { name: '2 more' }));
+    fireEvent.click(within(strip).getByRole('button', { name: 'Show 2' }));
     expect(strip.textContent).toContain(
       'The page size must be a positive number.',
     );
@@ -516,7 +516,7 @@ describe('QueryStrip', () => {
   /**
    * The rows on screen are not the answer to what was asked: that is the
    * sentence the reader needs most, so it is on the failure's own line, not
-   * behind a 「还有 1 项」 fold the rows would be read as current under.
+   * behind a 「展开 1 项」 fold the rows would be read as current under.
    */
   it('says on the failure line itself that the rows are the last answer', () => {
     render(

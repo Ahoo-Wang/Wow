@@ -16,9 +16,12 @@
  * whether something is running right now.
  */
 export const statusMessages = {
-  'label.status.more': '{count} more',
-  // Said once the findings are open: the button still folds them away, and
-  // "{count} more" beside what is already on screen promises more of it.
+  // A status strip's fold while its findings are folded: it opens all of
+  // them, none of which the title says, so it counts them rather than
+  // calling them "more" — 「条件要先修正（1 项）」 beside 「还有 1 项」 read as
+  // two findings where there was one (second review R1-P1-5).
+  'label.status.show': 'Show {count}',
+  // Said once the findings are open: the button still folds them away.
   'label.status.less': 'Show less',
   // The busy announcement. `components/spinner.tsx` is vendored and hardcodes
   // `aria-label="Loading"`, so every call site hands it this instead — the
