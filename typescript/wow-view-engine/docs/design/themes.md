@@ -479,7 +479,7 @@ T5 落地时的做法（与上面的偏差写在 T5 落地记录）：Vitest 浏
 ### 5.6 体积预算
 
 - 今天 `themes.css` 三套：去注释 6.6 KB，gzip 0.7 KB；`slate` 一套 2.7 KB，gzip 0.52 KB。
-- **每套 ≤1.2 KB gzip**（带全部可选组时约 4 KB 原始；S4 起 ≤1.4 KB：预设多了品牌色的边界，`porcelain` 1 232 B）；**`themes.css` 全部 ≤8 KB gzip**；机制给 `styles.css` 增加 ≤2 KB gzip。
+- **每套 ≤1.2 KB gzip**（带全部可选组时约 4 KB 原始；S4 起 ≤1.4 KB：预设多了品牌色的边界，`porcelain` 1 232 B；2026-09-27 起 ≤1.5 KB：`porcelain` 说出桌面列表与侧栏的四组角色，1 485 B）；**`themes.css` 全部 ≤8 KB gzip**；机制给 `styles.css` 增加 ≤2 KB gzip。
 - `verify-package` 读构建产物、算 gzip 大小并断言；每批 PR 写实测数。
 
 ## 6 迁移与兼容

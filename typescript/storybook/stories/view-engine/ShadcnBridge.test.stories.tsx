@@ -14,10 +14,10 @@ import type { Decorator, StoryObj } from '@storybook/react-vite';
 import { expect, userEvent, waitFor, within } from 'storybook/test';
 import { zhCN } from '@ahoo-wang/wow-view-engine/ui';
 // Both read as written: the bridge from the package's source, the host theme
-// from the compensation console's own stylesheet — the host the bridge is
-// accepted against (phase 5 plan, 5D).
+// from a stock shadcn host's (`host-theme/shadcn-host.css`) — the host the
+// bridge is accepted against (phase 5 plan, 5D).
 import bridge from '../../../wow-view-engine/src/shadcn-bridge.css?raw';
-import consoleTheme from '../../../../compensation/dashboard/src/index.css?raw';
+import hostTheme from './host-theme/shadcn-host.css?raw';
 import displayMeta, {
   WithData as DisplayWithData,
 } from './RecordWorkbench.stories.js';
@@ -25,14 +25,13 @@ import { colorsSettled, measureBorderContrast } from './contrast.js';
 import { ENGINE_PRESET } from './presets.js';
 
 /**
- * The compensation console's shadcn tokens: its `:root` block and its `.dark`
- * block, taken out of the stylesheet whole — the rest of it (Tailwind, its
- * base layer) is the console's page, not its theme.
+ * The shadcn host's tokens: its `:root` block and its `.dark` block, taken
+ * out of the stylesheet whole.
  */
 function blockOf(selector: string): string {
-  const at = consoleTheme.search(new RegExp(`^${selector} \\{`, 'm'));
-  if (at < 0) throw new Error(`The console's stylesheet has no ${selector}`);
-  return consoleTheme.slice(at, consoleTheme.indexOf('\n}', at) + 2);
+  const at = hostTheme.search(new RegExp(`^${selector} \\{`, 'm'));
+  if (at < 0) throw new Error(`The host theme has no ${selector}`);
+  return hostTheme.slice(at, hostTheme.indexOf('\n}', at) + 2);
 }
 const HOST_THEME = `${blockOf(':root')}\n${blockOf('\\.dark')}`;
 
@@ -54,9 +53,9 @@ const meta = {
   tags: ['!dev', '!autodocs', 'test'],
   parameters: {
     ...displayMeta.parameters,
-    // The words are in the host's colours now, and the console's own
+    // The words are in the host's colours now, and the host's own
     // `--muted-foreground` (0.554) on its `--background` (0.985) measures
-    // 4.46:1 — a shortfall of the console's theme, which the bridge carries
+    // 4.46:1 — a shortfall of the host's theme, which the bridge carries
     // across faithfully, as it carries every text token. Text on a bridged
     // theme is the host's to keep (Q46); what the bridge promises, and what
     // this story measures, is that the control edges and the focus mark it

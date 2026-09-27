@@ -114,8 +114,24 @@
  *   are lifted so a label inside reads 4.5:1 on the lighter dark card.
  *
  * Recommended density
- * (`--fvp-preset-density`, themes.md 2.4): comfortable, +1 — rows of 45px
- * and 16px round a panel; a host's `data-fve-density` still wins.
+ * (`--fvp-preset-density`, themes.md 2.4): compact, −1 — a desktop list's
+ * rows of 33px (the checkbox keeps its 24px target), a sidebar's 24px items
+ * and 8px round a panel. It was comfortable, +1: rows of 45px, twenty to a
+ * screen, which read as a web page's table (2026-09-27 review, user ruling
+ * on the recommendation); a host's `data-fve-density` still wins.
+ *
+ * A desktop list and its sidebar (2026-09-27 review):
+ *
+ * - **Rows are separated by the stripe alone** (`row-divider`
+ *   transparent): a list is striped or ruled, not both.
+ * - **An idle sort mark shows under the pointer** (`table-sort-idle` 0),
+ *   as a desktop list marks only the column it is sorted by; its room is
+ *   kept, and a touch screen shows it always.
+ * - **The sidebar's current item is a filled grey bar** (`nav-current`, a
+ *   step deeper than a hovered item, no edge and no shadow), not a raised
+ *   white card — that is a phone's segmented thumb.
+ * - **A badge is a wash with no ring** (`badge-edge` 0%): the tint and the
+ *   word already say the state.
  */
 :where([data-fve-preset='porcelain']) {
   --fvp-foreground: oklch(0.2316 0.0038 286.099deg);
@@ -196,7 +212,17 @@
   --fvp-font-sans:
     -apple-system, BlinkMacSystemFont, system-ui, 'PingFang SC',
     'Hiragino Sans GB', 'Microsoft YaHei', 'Segoe UI', sans-serif;
-  --fvp-preset-density: 1;
+  --fvp-preset-density: -1;
+  --fvp-row-divider: transparent;
+  --fvp-dark-row-divider: transparent;
+  --fvp-table-sort-idle: 0;
+  --fvp-nav-current: oklch(0.905 0.0068 286.27deg);
+  --fvp-dark-nav-current: oklch(0.4 0.0036 286.2deg);
+  --fvp-nav-current-edge: transparent;
+  --fvp-dark-nav-current-edge: transparent;
+  --fvp-nav-current-shadow: 0 0 #0000;
+  --fvp-dark-nav-current-shadow: 0 0 #0000;
+  --fvp-badge-edge: 0%;
   --fvp-canvas: oklch(0.95 0.0027 286.3deg);
   --fvp-dark-canvas: oklch(0.2273 0.0038 286.092deg);
   --fvp-card-edge: oklch(0 0 0deg / 0%);

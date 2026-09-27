@@ -153,7 +153,7 @@ export const HostLengthsOverDensity: Story = {
 
 /**
  * With no density anywhere, a surface sits where its preset recommends:
- * `porcelain` recommends comfortable.
+ * `porcelain` recommends compact, a desktop list's rows (D59).
  */
 export const PresetRecommends: Story = {
   ...DisplayWithData,
@@ -166,9 +166,7 @@ export const PresetRecommends: Story = {
     await expect(surface.hasAttribute('data-fve-density')).toBe(false);
     await waitFor(() => {
       const head = surface.querySelector('[data-slot="table-head"]')!;
-      expect(head.getBoundingClientRect().height).toBe(
-        EXPECTED.comfortable.head,
-      );
+      expect(head.getBoundingClientRect().height).toBe(EXPECTED.compact.head);
     });
   },
 };

@@ -11,6 +11,7 @@
  * limitations under the License.
  */
 
+import { BOARD_INSET } from './gridBlocks.js';
 import { useCallback, useRef, type ReactNode } from 'react';
 import { InfoIcon, RotateCcwIcon, XIcon } from 'lucide-react';
 import {
@@ -348,6 +349,8 @@ export function FilterBar({
       role="region"
       aria-label={messages.label('label.filters.bar')}
       className="flex flex-wrap items-center gap-2"
+      // In line with the panels when it is the row itself (`BOARD_INSET`).
+      style={trailing ? undefined : { paddingInline: BOARD_INSET }}
     >
       {scope}
       {items}
@@ -361,7 +364,12 @@ export function FilterBar({
   // beside the one-column bar's button, a control of its own step, it needs
   // none.
   return (
-    <div data-slot="dashboard-filter-row" className="flex items-start gap-2">
+    <div
+      data-slot="dashboard-filter-row"
+      className="flex items-start gap-2"
+      // In line with the panels (`BOARD_INSET`).
+      style={{ paddingInline: BOARD_INSET }}
+    >
       <div className="min-w-0 flex-1">{drawn}</div>
       <div
         className={cn(

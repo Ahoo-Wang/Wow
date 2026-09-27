@@ -1,0 +1,78 @@
+/*
+ * A stock shadcn host theme (:root and .dark), the one the compensation
+ * console wore until it read the engine's roles directly (console rewrite
+ * batch 1, #3706): the host the shadcn bridge is accepted against
+ * (phase 5 plan, 5D). Kept here, as the host it stands for, so the bridge's
+ * acceptance does not follow the console's own theme.
+ */
+
+:root {
+  --background: oklch(0.985 0.004 247.858);
+  --foreground: oklch(0.208 0.042 265.755);
+  --card: oklch(1 0 0);
+  --card-foreground: var(--foreground);
+  --popover: oklch(1 0 0);
+  --popover-foreground: var(--foreground);
+  --primary: oklch(0.546 0.245 262.881);
+  --primary-foreground: oklch(0.985 0 0);
+  --secondary: oklch(0.968 0.007 247.896);
+  --secondary-foreground: var(--foreground);
+  --muted: oklch(0.968 0.007 247.896);
+  /* Slate 500 is 4.46:1 on this tinted background, under AA's 4.5:1 for
+     the pagination, captions and field labels drawn in it; a step darker. */
+  --muted-foreground: oklch(0.52 0.046 257.417);
+  --accent: oklch(0.94 0.02 255);
+  --accent-foreground: oklch(0.32 0.09 260);
+  --destructive: oklch(0.577 0.245 27.325);
+  --border: oklch(0.929 0.013 255.508);
+  --input: var(--border);
+  --ring: var(--primary);
+  --chart-1: oklch(0.577 0.245 27.325);
+  --chart-2: oklch(0.546 0.245 262.881);
+  --chart-3: oklch(0.705 0.213 47.604);
+  --chart-4: oklch(0.627 0.194 149.214);
+  --chart-5: oklch(0.554 0.046 257.417);
+  --radius: 0.625rem;
+  --sidebar: oklch(0.205 0.042 265.755);
+  --sidebar-foreground: oklch(0.968 0.007 247.896);
+  --sidebar-primary: var(--primary);
+  --sidebar-primary-foreground: var(--primary-foreground);
+  --sidebar-accent: oklch(0.3 0.06 260);
+  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --sidebar-border: oklch(1 0 0 / 12%);
+  --sidebar-ring: oklch(0.707 0.165 254.624);
+}
+
+.dark {
+  --background: oklch(0.145 0 0);
+  --foreground: oklch(0.985 0 0);
+  --card: oklch(0.205 0 0);
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.205 0 0);
+  --popover-foreground: oklch(0.985 0 0);
+  --primary: oklch(0.922 0 0);
+  --primary-foreground: oklch(0.205 0 0);
+  --secondary: oklch(0.269 0 0);
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.269 0 0);
+  --muted-foreground: oklch(0.708 0 0);
+  --accent: oklch(0.269 0 0);
+  --accent-foreground: oklch(0.985 0 0);
+  --destructive: oklch(0.704 0.191 22.216);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.556 0 0);
+  --chart-1: oklch(0.704 0.191 22.216);
+  --chart-2: oklch(0.707 0.165 254.624);
+  --chart-3: oklch(0.769 0.188 70.08);
+  --chart-4: oklch(0.723 0.219 149.579);
+  --chart-5: oklch(0.708 0.04 256.788);
+  --sidebar: oklch(0.205 0 0);
+  --sidebar-foreground: oklch(0.985 0 0);
+  --sidebar-primary: oklch(0.488 0.243 264.376);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.269 0 0);
+  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-ring: oklch(0.556 0 0);
+}

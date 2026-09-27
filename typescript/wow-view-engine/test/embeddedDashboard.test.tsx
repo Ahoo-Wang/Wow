@@ -19,6 +19,7 @@
  * title, panel titles, export, filling the screen.
  */
 
+import { BOARD_INSET } from '../src/ui/dashboard/gridBlocks.js';
 import {
   cleanup,
   render,
@@ -257,6 +258,25 @@ describe('EmbeddedDashboard', () => {
     expect(
       screen.getByRole('heading', { level: 4, name: 'Hello' }),
     ).toBeDefined();
+  });
+
+  /**
+   * The rows outside the grid stand in line with the panels (2026-09-27
+   * review, D59): the grid pads its panels by its gap, and the head and the
+   * filter bar stood at the board's edge, the filter chip pinned to the frame.
+   */
+  it('stands its head and filter bar in line with the panels', async () => {
+    embed({ interaction: 'interactive', withTitle: true });
+    await screen.findByRole('heading', { name: 'Operations' });
+    const inset = `${BOARD_INSET}px`;
+    const head = document.querySelector<HTMLElement>(
+      '[data-slot="embed-head"]',
+    );
+    expect(head?.style.paddingInline).toBe(inset);
+    const bar = document.querySelector<HTMLElement>(
+      '[data-slot="dashboard-filter-row"], [data-slot="dashboard-filter-bar"]',
+    );
+    expect(bar?.style.paddingInline).toBe(inset);
   });
 
   it('keeps a panel’s title for a screen reader alone when the host turns titles off', async () => {

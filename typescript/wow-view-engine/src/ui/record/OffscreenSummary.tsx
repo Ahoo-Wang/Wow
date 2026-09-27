@@ -98,10 +98,14 @@ export function OffscreenSummary({
             data-slot="summary-offscreen"
             data-side={hint.side}
             onClick={onReveal}
-            // Layout only: as wide as the cell and never wider, flush with
-            // the cell's own padding, two lines stacked to the start. At
-            // least 24px tall, the floor for a target (WCAG 2.5.8).
-            className="-my-0.5 h-auto min-h-6 w-full min-w-0 flex-col items-start gap-0 px-0 py-0.5 [contain:inline-size]"
+            // As wide as the cell and never wider, flush with the cell's
+            // own padding, two lines stacked to the start. At least 24px
+            // tall, the floor for a target (WCAG 2.5.8). In the row's own
+            // ink rather than the link's: a total is read, not followed, and
+            // in the primary colour it was the loudest thing in the table
+            // (2026-09-27 review). The underline under the pointer still
+            // says it can be pressed.
+            className="text-foreground -my-0.5 h-auto min-h-6 w-full min-w-0 flex-col items-start gap-0 px-0 py-0.5 [contain:inline-size]"
           />
         }
       >
@@ -111,7 +115,7 @@ export function OffscreenSummary({
             it on one. */}
         <span
           data-slot="summary-offscreen-label"
-          className="line-clamp-2 w-full text-left break-words whitespace-normal"
+          className="text-quiet-foreground line-clamp-2 w-full text-left font-normal break-words whitespace-normal"
         >
           {withScope && (
             <>
@@ -131,7 +135,9 @@ export function OffscreenSummary({
             them together (「总和¥1,401.49」) without a space between; in a
             flex column the space takes no room on screen. */}{' '}
         <span className="flex w-full min-w-0 items-center gap-1">
-          {hint.side === 'left' && <Arrow data-icon="inline-start" />}
+          {hint.side === 'left' && (
+            <Arrow data-icon="inline-start" className="text-quiet-foreground" />
+          )}
           {/* The number keeps its room and 「等 N 项」 gives way first: a
               count of more columns is worth less than the number itself. */}
           <span
@@ -149,7 +155,9 @@ export function OffscreenSummary({
                 sentence; out of the flow, so it never takes their room. */}
             <span className="sr-only">{tail}</span>
           </span>
-          {hint.side === 'right' && <Arrow data-icon="inline-end" />}
+          {hint.side === 'right' && (
+            <Arrow data-icon="inline-end" className="text-quiet-foreground" />
+          )}
         </span>
       </TooltipTrigger>
       <TooltipContent>

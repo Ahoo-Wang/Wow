@@ -669,7 +669,7 @@ assert.deepEqual(
 );
 
 // 11. What the stylesheets weigh on the wire (themes.md 5.6). Every preset
-// together stays under 8 KB gzipped and each one alone under 1.4 KB — a
+// together stays under 8 KB gzipped and each one alone under 1.5 KB — a
 // regression guard, raised from 1.2 KB when the presets took the bounds a
 // brand colour is held to (S4: porcelain 1,232 B); the numbers are printed
 // so each theme batch can write them into its pull request.
@@ -692,8 +692,8 @@ assert.ok(
 for (const preset of presets.keys()) {
   const size = cssSizes[`themes/${preset}.css`];
   assert.ok(
-    size <= 1.4 * 1024,
-    `themes/${preset}.css is ${size} bytes gzipped, over the 1.4 KB budget`,
+    size <= 1.5 * 1024,
+    `themes/${preset}.css is ${size} bytes gzipped, over the 1.5 KB budget`,
   );
 }
 

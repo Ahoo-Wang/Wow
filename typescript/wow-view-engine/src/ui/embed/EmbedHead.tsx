@@ -35,11 +35,18 @@ import { useViewExpansion, ViewExpandToggle } from '../ViewExpansion.js';
 export function EmbedHead({
   title,
   headingLevel,
+  inset,
   children,
 }: {
   /** The title to draw; left out, none. */
   title?: string | undefined;
   headingLevel: PanelHeadingLevel;
+  /**
+   * How far it stands in from the edge, in pixels: a board's, in line with
+   * its panels (`BOARD_INSET`); none for a view, whose result runs to the
+   * edge.
+   */
+  inset?: number;
   /** The controls on the right. */
   children?: ReactNode;
 }) {
@@ -50,7 +57,11 @@ export function EmbedHead({
   if (title === undefined && !controls) return null;
   const Title: `h${PanelHeadingLevel}` = `h${headingLevel}`;
   return (
-    <div data-slot="embed-head" className="flex flex-wrap items-center gap-2">
+    <div
+      data-slot="embed-head"
+      className="flex flex-wrap items-center gap-2"
+      style={inset === undefined ? undefined : { paddingInline: inset }}
+    >
       {title !== undefined && (
         <Title
           data-slot="embed-title"

@@ -240,7 +240,11 @@ export function SortableHeader({
           // (D17-4) reading a fitting table as one that overflows. What the
           // padding buys is kept: the ghost hover fill reaches past the
           // label rather than hugging it.
-          '-mx-(--_fve-table-cell-padding-inline) max-w-full',
+          // And the button's own padding is the cell's, so the label stands
+          // where the values under it do at every density: at compact the
+          // cell gives 4px and the button kept its 8px, and a numeric
+          // header ended 4px short of its digits (2026-09-27, D59).
+          '-mx-(--_fve-table-cell-padding-inline) px-(--_fve-table-cell-padding-inline) max-w-full',
           // The label keeps the column's edge; the marks follow it inward.
           numeric && 'ml-auto flex-row-reverse',
         )}

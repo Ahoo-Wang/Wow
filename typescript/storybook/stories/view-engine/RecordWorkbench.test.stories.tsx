@@ -3382,18 +3382,18 @@ export const SidebarIsANavigationColumn: Story = {
       ),
     ).toBeLessThanOrEqual(1);
 
-    // The open view: a sheet of the work area's own ground lifted off the
-    // column — an edge all the way round and a small shadow, no bar (an
-    // inset bar bent round the corners into a "("). Neither is another step
-    // of the same grey.
+    // The open view has a ground of its own, set off the column's: the
+    // preset says which — a sheet of the work area's ground lifted off it
+    // with an edge and a shadow (the engine's own), or a filled bar a step
+    // deeper than a hovered item (porcelain, D59). Never a bar down one edge
+    // (an inset bar bent round the corners into a "("), and an edge, where
+    // there is one, goes all the way round.
     const current = listItem(canvasElement, '待出库订单');
     await expect(current.getAttribute('aria-current')).toBe('true');
-    await expect(paintOf(current)).toBe(paintOf(work));
+    await expect(paintOf(current)).not.toBe('rgba(0, 0, 0, 0)');
     await expect(paintOf(current)).not.toBe(ground);
     const sheet = getComputedStyle(current);
-    await expect(sheet.boxShadow).not.toBe('none');
     await expect(sheet.boxShadow).not.toContain('inset');
-    await expect(sheet.borderLeftColor).not.toBe('rgba(0, 0, 0, 0)');
     await expect(sheet.borderLeftColor).toBe(sheet.borderRightColor);
     await expect(getComputedStyle(current).fontWeight).toBe('500');
 
@@ -5622,8 +5622,19 @@ export const DarkHairlines: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     const table = await canvas.findByRole('table');
-    const row = table.querySelector<HTMLElement>('tbody tr')!;
-    const { ratio, colors } = measureBorderContrast(row, 'bottom');
+    const [row, next] = table.querySelectorAll<HTMLElement>('tbody tr');
+    const { ratio, colors } = measureBorderContrast(row!, 'bottom');
+    // A preset that stripes its rows may clear the line between them (D59:
+    // a desktop list is striped or ruled, not both); then the stripe is
+    // what tells two rows apart.
+    if (colors.border === colors.fill) {
+      const stripe = measureFillContrast(next!);
+      await expect(
+        stripe.ratio,
+        `stripe ${stripe.colors.fill} over ${stripe.colors.surface}`,
+      ).toBeGreaterThanOrEqual(1.05);
+      return;
+    }
     await expect(
       ratio,
       `${colors.border} on ${colors.fill} over ${colors.surface}`,
@@ -5650,13 +5661,34 @@ const badgesOnRows = (theme: 'light' | 'dark'): Story => ({
     await waitFor(() => expect(readColumn(table, '订单号')).toHaveLength(6));
     const rows = [...(table as HTMLTableElement).tBodies[0].rows];
 
-    /** Every badge of one row, against the ground that row is on. */
+    /**
+     * Every badge of one row, against the ground that row is on. A badge
+     * with a ring is told by its ring; one a preset draws with none (D59:
+     * a wash and a word) by its word on the wash over that ground, which is
+     * what must still read.
+     */
     const onRow = (row: HTMLTableRowElement, state: string) =>
       [...row.querySelectorAll<HTMLElement>('[data-slot="badge"]')].map(
-        badge => ({
-          name: `${state} ${badge.dataset.tone} "${badge.textContent}"`,
-          ...measureBorderContrast(badge),
-        }),
+        badge => {
+          const name = `${state} ${badge.dataset.tone} "${badge.textContent}"`;
+          const ring = measureBorderContrast(badge);
+          if (
+            !/(\/\s*0\)|,\s*0\))$/.test(getComputedStyle(badge).borderTopColor)
+          )
+            return {
+              name,
+              value: ring.onSurface,
+              floor: BADGE_ON_ROW_CONTRAST,
+              seen: `${ring.colors.border} over ${ring.colors.surface}`,
+            };
+          const word = measureTextContrast(badge);
+          return {
+            name,
+            value: word.ratio,
+            floor: 4.5,
+            seen: `${word.colors.text} on ${word.colors.background}`,
+          };
+        },
       );
 
     // Selected first: the row takes `--muted`, which is the untoned badge's
@@ -5681,16 +5713,14 @@ const badgesOnRows = (theme: 'light' | 'dark'): Story => ({
     // And at rest, so the two above are read against the one they moved from.
     measured.push(...onRow(rows[2], 'resting'));
 
-    const report = measured
-      .map(
-        ({ name, onSurface, colors }) =>
-          `${name} ${onSurface.toFixed(2)}:1 (${colors.border} over ${colors.surface})`,
-      )
-      .join('; ');
+    const short = measured.filter(({ value, floor }) => value < floor);
     await expect(
-      Math.min(...measured.map(({ onSurface }) => onSurface)),
-      `${theme} — ${report}`,
-    ).toBeGreaterThanOrEqual(BADGE_ON_ROW_CONTRAST);
+      short.map(
+        ({ name, value, floor, seen }) =>
+          `${name} ${value.toFixed(2)}:1 < ${floor} (${seen})`,
+      ),
+      theme,
+    ).toEqual([]);
   },
 });
 

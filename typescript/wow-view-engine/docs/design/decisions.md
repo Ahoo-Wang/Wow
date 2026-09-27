@@ -646,6 +646,21 @@
 - **没选**：默认不画当期（看不到截至目前的数）；不画但加开关（多一个选项，改动最大）。
 - **落点**：`src/analysis/timeAxis.ts`（`unfinishedBucket`）、`src/analysis/chart.ts`、`src/ui/charts/{sentence,cartesianMarks,cartesianTooltip,timeOption}.ts`；[ui/analysis.md](ui/analysis.md)「未结束的当期」。
 
+## D59 porcelain 的记录视图读作桌面列表（2026-09-27）
+
+- **来由**：用户 2026-09-27 走查补偿控制台：「整体视觉不一致」「记录视图是 Apple 风格吗？」。对照桌面上的列表类应用（访达列表、邮件、活动监视器）在真实数据上审查了失败执行的记录视图，大方向对（系统字体、表头是行本身的白、条纹、灰色侧栏），八处不像。
+- **裁定**（用户：「都按你推荐」）：
+  1. **porcelain 推荐紧凑密度**（`preset-density` +1 → −1）：行 45 → 33px，同屏约 20 → 30 行；复选框仍守 24px 的点击目标；宿主的 `data-fve-density` 仍优先。
+  2. **一条工具栏**：标题、筛选、搜索、布局、排序、导出在一行，已应用的条件在其下一条细带（下一批）。
+  3. **侧栏的当前项是一条填色的灰条**（`nav-current` 比悬停深一档，无边、无影），不是凸起的白卡片（那是手机的分段滑块）。
+  4. **有条纹就不画行线**：新角色 `row-divider`（表体行线，缺省 `border`），porcelain 为透明；强制颜色下行线恢复。
+  5. **只有在排序的列显示箭头**：新角色 `table-sort-idle`（未排序标记的不透明度，缺省 1），porcelain 为 0；只在有悬停的设备上隐去，指针或聚焦时出现，位置始终保留——满足了当初否掉「悬停才显示」的两条理由（触屏看不到、表头挪动）。
+  6. **徽标无环线**（`badge-edge` 0%），修订 D46「徽标保留边」：淡色与文字已说出状态。
+  7. **以文字或图标自明的工具栏按钮填色**（下一批，D43 留给下一步的一项）。
+  8. **视野外合计的提示读作合计而不是链接**（D51 补充，所有预设）：正文色，列名与箭头灰，仍是按钮、悬停下划线。
+- **同批顺带**：看板上网格之外的行（页头、筛选条）与面板对齐，内缩网格的外边距（`BOARD_INSET`）；从前筛选条贴着看板边沿（用户指出）。
+- **落点**：`src/themes/porcelain.css`、`src/ui/theme/{tokens,tokenDocs}.ts`、`src/styles.css`、`src/ui/record/OffscreenSummary.tsx`、`src/ui/dashboard/{gridBlocks,FilterBar}.ts(x)`、`src/ui/embed/EmbedHead.tsx`；单套预设的体积上限 1.4 → 1.5 KB（porcelain 1 485 B）。
+
 ## 搁置待议
 
 尚无结论，不要当作规则执行。

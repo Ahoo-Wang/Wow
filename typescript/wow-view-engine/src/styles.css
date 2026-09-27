@@ -861,6 +861,24 @@
     --fve-table-header-divider,
     var(--fvp-table-header-divider, transparent)
   );
+  /*
+   * The line between two body rows (`row-divider`), the border's by
+   * default. A preset whose rows are striped can clear it: a desktop list
+   * separates its rows by the stripe or by a line, not both.
+   */
+  --_fve-row-divider: var(
+    --fve-row-divider,
+    var(--fvp-row-divider, var(--border))
+  );
+  /*
+   * How much a sortable column's idle mark shows (`table-sort-idle`), 1 by
+   * default. Only where a pointer can hover: a preset may keep it for the
+   * pointer (0), and a touch screen, which has no hover, always shows it.
+   */
+  --_fve-table-sort-idle: var(
+    --fve-table-sort-idle,
+    var(--fvp-table-sort-idle, 1)
+  );
   --_fve-totals: var(--fve-totals, var(--fvp-totals, var(--muted)));
   --_fve-row-selected: var(
     --fve-row-selected,
@@ -1518,6 +1536,27 @@
     background-position: 100% 50%;
     background-repeat: no-repeat;
     background-size: 1px 1.6em;
+  }
+  /* The line between body rows, the preset's (`row-divider`). */
+  [data-slot='table-body'] > [data-slot='table-row'] {
+    border-bottom-color: var(--_fve-row-divider);
+  }
+
+  /*
+   * A sortable column's idle mark, where a pointer can hover: as much as the
+   * preset shows (`table-sort-idle`), and whole under the pointer or the
+   * keyboard, where it says the header can be pressed. Its room is always
+   * kept, so the header never shifts; a touch screen shows it always.
+   */
+  @media (hover: hover) {
+    [data-slot='sort-available'] {
+      opacity: var(--_fve-table-sort-idle);
+    }
+
+    [data-slot='table-head']:hover [data-slot='sort-available'],
+    [data-slot='table-head']:focus-within [data-slot='sort-available'] {
+      opacity: 1;
+    }
   }
 
   /* The totals band, in the strong weight (the registry's `font-medium`). */
@@ -2278,6 +2317,10 @@
       --fve-dark-table-header-divider,
       var(--fvp-dark-table-header-divider, transparent)
     );
+    --_fve-row-divider: var(
+      --fve-dark-row-divider,
+      var(--fvp-dark-row-divider, var(--border))
+    );
     --_fve-totals: var(--fve-dark-totals, var(--fvp-dark-totals, var(--muted)));
     --_fve-row-selected: var(
       --fve-dark-row-selected,
@@ -2558,6 +2601,9 @@
     --fvp-dark-row-hover: initial;
     --fvp-row-stripe: initial;
     --fvp-dark-row-stripe: initial;
+    --fvp-row-divider: initial;
+    --fvp-dark-row-divider: initial;
+    --fvp-table-sort-idle: initial;
     --fvp-highlight: initial;
     --fvp-dark-highlight: initial;
     --fvp-highlight-foreground: initial;
@@ -2813,6 +2859,15 @@
   .fve-tokens [data-slot='table-row'][data-state='selected'] {
     outline: 2px solid Highlight;
     outline-offset: -2px;
+  }
+
+  /*
+   * The stripes are gone under forced colours, so the line between rows
+   * comes back whatever the preset cleared.
+   */
+  .fve-root [data-slot='table-body'] > [data-slot='table-row'],
+  .fve-tokens [data-slot='table-body'] > [data-slot='table-row'] {
+    border-bottom-color: CanvasText;
   }
 
   /* Focus outranks selection on the one row both are on. */
