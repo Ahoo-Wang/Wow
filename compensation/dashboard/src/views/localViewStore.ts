@@ -13,9 +13,9 @@
 
 import {
   isSystemInstanceId,
+  localStorageSnapshot,
   MemoryViewStore,
   type MemorySnapshot,
-  type MemoryState,
   type ViewPermissions,
 } from "@ahoo-wang/wow-view-engine";
 
@@ -41,47 +41,17 @@ export function localViewPermissions(): ViewPermissions {
 }
 
 /**
- * The whole store as one JSON document in `localStorage`
- * (`MemoryViewStore`'s snapshot hook). A missing, blocked or unreadable entry
- * starts empty rather than breaking the page, and a write that storage
- * refuses (quota, private mode) leaves the views in memory for this visit.
+ * The view store of the console until stage 6: this browser, this user.
+ *
+ * The views are kept by the engine's `localStorageSnapshot` under
+ * `VIEW_STORE_KEY`, in the format this console has always written there. A
+ * write the browser refuses is a failed save rather than a view that is gone
+ * on the next load, and two tabs never overwrite each other: a write merges
+ * into what the other tab stored, or is a conflict when the other tab has
+ * already changed the same view.
  */
-export function localStorageSnapshot(
-  storage: () => Storage = () => window.localStorage,
-  key: string = VIEW_STORE_KEY,
-): MemorySnapshot {
-  return {
-    load() {
-      try {
-        const saved = storage().getItem(key);
-        if (!saved) return undefined;
-        const state = JSON.parse(saved) as Partial<MemoryState> | null;
-        if (
-          !state ||
-          !Array.isArray(state.instances) ||
-          typeof state.preferences !== "object" ||
-          state.preferences === null
-        )
-          return undefined;
-        return { instances: state.instances, preferences: state.preferences };
-      } catch {
-        return undefined;
-      }
-    },
-    save(state) {
-      try {
-        storage().setItem(key, JSON.stringify(state));
-      } catch {
-        // Kept in memory for this visit; nothing else to do in a browser
-        // that will not store it.
-      }
-    },
-  };
-}
-
-/** The view store of the console until stage 6: this browser, this user. */
 export function createLocalViewStore(
-  snapshot: MemorySnapshot = localStorageSnapshot(),
+  snapshot: MemorySnapshot = localStorageSnapshot(VIEW_STORE_KEY),
 ): MemoryViewStore {
   return new MemoryViewStore({
     snapshot,
