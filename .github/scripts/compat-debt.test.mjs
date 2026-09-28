@@ -11,8 +11,10 @@ import { test } from 'node:test';
 import {
   hasMarker,
   ledgerProblems,
+  kotlinSourceFiles,
   parseLedger,
   unscheduledDeprecations,
+  unscheduledKotlinDeprecations,
 } from './compat-debt.mjs';
 
 function repository(files) {
@@ -47,6 +49,8 @@ const deprecated =
   '/** @deprecated Use next instead. Removed in v10. */\nexport const old = 1;\n';
 const compat =
   '// compat(wow<9): servers before 8.11 need this.\nexport const legacy = 1;\n';
+const kotlinDeprecated =
+  '@Deprecated("Scheduled for removal in 10.0.0. Use next.")\nfun old() = Unit\n';
 
 test('the repository ledger matches its markers', () => {
   assert.deepEqual(ledgerProblems(), []);
@@ -56,6 +60,7 @@ test('markers are either a v10 removal note or a scoped compat comment', () => {
   assert.ok(hasMarker(deprecated));
   assert.ok(hasMarker(compat));
   assert.ok(hasMarker('# compat(fetcher): old bin name'));
+  assert.ok(hasMarker(kotlinDeprecated));
   assert.ok(!hasMarker('// compat(wow<9):'));
   assert.ok(!hasMarker('/** @deprecated Use next instead. */'));
   assert.ok(!hasMarker('const compatible = true;'));
@@ -74,6 +79,36 @@ test('every @deprecated comment must say it is removed in v10', () => {
     '/** @deprecated Use c instead. */',
   ].join('\n');
   assert.deepEqual(unscheduledDeprecations(text), [3, 9]);
+});
+
+test('every Kotlin @Deprecated must say it is scheduled for removal in 10.0.0', () => {
+  const text = [
+    '@Deprecated("Use next.")',
+    'fun a() = Unit',
+    '@Deprecated("Scheduled for removal in 10.0.0. Use next.")',
+    'fun b() = Unit',
+    '/** `@Deprecated` in prose is no annotation. */',
+    'val generated = "@Deprecated(\\"generated\\")"',
+    '@Deprecated(message = "Use \\"next\\".")',
+    'fun c() = Unit',
+  ].join('\n');
+  assert.deepEqual(unscheduledKotlinDeprecations(text), [1, 7]);
+});
+
+test('Kotlin sources are the main source sets, outside build output and dot-directories', () => {
+  const root = repository({
+    'wow-a/src/main/kotlin/me/A.kt': 'class A\n',
+    'test/wow-b/src/main/kotlin/me/B.kt': 'class B\n',
+    'wow-a/src/test/kotlin/me/ATest.kt': 'class ATest\n',
+    'wow-a/src/main/java/me/J.kt': 'class J\n',
+    'wow-a/build/src/main/kotlin/me/Gen.kt': 'class Gen\n',
+    '.claude/worktrees/x/wow-a/src/main/kotlin/me/A.kt': 'class A\n',
+    'node_modules/pkg/src/main/kotlin/me/N.kt': 'class N\n',
+  });
+  assert.deepEqual(kotlinSourceFiles(root), [
+    'test/wow-b/src/main/kotlin/me/B.kt',
+    'wow-a/src/main/kotlin/me/A.kt',
+  ]);
 });
 
 test('entries are ### headings under the ledger with their Markers files', () => {
@@ -98,6 +133,24 @@ test('a marked source file must be listed, and listed files must hold markers', 
     'typescript/other/package.json': '{}',
   });
   assert.deepEqual(ledgerProblems(clean), []);
+
+  const kotlin = repository({
+    'docs/compat-debt.md': ledger([
+      'Kotlin',
+      ['wow-a/src/main/kotlin/me/Old.kt', 'wow-a/src/main/kotlin/me/Wire.kt'],
+    ]),
+    'typescript/pkg/src/plain.ts': 'export const plain = 1;\n',
+    'wow-a/src/main/kotlin/me/Old.kt': kotlinDeprecated,
+    'wow-a/src/main/kotlin/me/Wire.kt':
+      '// compat(wow<9): legacy bodies.\nval legacy = 1\n',
+    'wow-a/src/main/kotlin/me/Unlisted.kt': kotlinDeprecated,
+    'wow-a/src/main/kotlin/me/Unscheduled.kt':
+      '\n@Deprecated("Use next.")\nfun old() = Unit\n',
+  });
+  assert.deepEqual(ledgerProblems(kotlin), [
+    'wow-a/src/main/kotlin/me/Unlisted.kt: has compatibility markers but no docs/compat-debt.md entry lists it',
+    'wow-a/src/main/kotlin/me/Unscheduled.kt:2: @Deprecated without "Scheduled for removal in 10.0.0."',
+  ]);
 
   const broken = repository({
     'docs/compat-debt.md': ledger(
