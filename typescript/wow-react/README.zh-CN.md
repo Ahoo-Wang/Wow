@@ -91,6 +91,11 @@ export function PaidOrders({
 effect 里调用 `client.aggregate`，并在清理函数里中止它，写法见
 [参考页](https://wow.ahoo.me/zh/reference/typescript/wow-react/#聚合查询)。
 
+游标查询也还没有 Hook。用 `useSingleQuery` 运行它，把一页当作结果：类型参数传
+`CursorPage<R>` 与 `CursorQuery<Fields>`，`execute` 传 `client.cursorState`（或
+`client.cursor`）；`nextCursor` 不为 `null` 时，用
+`setQuery({ ...query, cursor: result.nextCursor })` 翻到下一页。
+
 ## 配合端点 URL
 
 `useFetcher*Query` 这组 hook 则通过 Fetcher 把查询 POST 到一个 URL：

@@ -29,12 +29,20 @@ import { QUERY_STREAM_ENDPOINT } from '@ahoo-wang/wow-client';
 import type { ListStreamExecutor, QueryExecutor } from '../types.js';
 
 /**
- * Where a `useFetcher…` hook sends its query: the endpoint, resolved against
- * the Fetcher's `baseURL`, and the Fetcher or the name of a registered one,
- * the default Fetcher when omitted.
+ * Where a `useFetcher…` hook sends its query. Every `useFetcher…Options`
+ * extends it, so the two members are declared, and documented, once.
  */
 export interface Endpoint {
+  /**
+   * The query endpoint, resolved against the Fetcher's `baseURL`: for example
+   * `order/snapshot/list/state` for the states of an `order` aggregate, or
+   * `order/snapshot/count` for the count of its snapshots.
+   */
   url: string;
+  /**
+   * The Fetcher that sends the request, or the name of a registered one; the
+   * default Fetcher when omitted.
+   */
   fetcher?: string | Fetcher;
 }
 

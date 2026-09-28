@@ -14,9 +14,8 @@
 import type { FilterExpression } from '@ahoo-wang/wow-client';
 // compat(wow<9): the hook also takes the Condition-based queries of `@ahoo-wang/wow-client/legacy`, which Wow < 8.11 needs; drop that overload in v10.
 import type { Condition } from '@ahoo-wang/wow-client/legacy';
-import type { Fetcher } from '@ahoo-wang/fetcher';
-import { endpointIdentity, postQuery } from '../internal/endpoint.js';
-import { useQueryRunner } from '../internal/useQueryRunner.js';
+import type { Endpoint } from '../internal/endpoint.js';
+import { useEndpointRunner } from '../internal/useEndpointRunner.js';
 import type { QueryHookOptions, QueryHookReturn } from '../types.js';
 
 /**
@@ -32,18 +31,8 @@ export interface UseFetcherCountQueryOptions<
   E = Error,
   Q extends Condition<FIELDS> | FilterExpression<FIELDS> =
     FilterExpression<FIELDS>,
-> extends Omit<QueryHookOptions<Q, number, E>, 'execute'> {
-  /**
-   * The query endpoint, resolved against the Fetcher's `baseURL`: for example
-   * `order/snapshot/count` for the snapshots of an `order` aggregate.
-   */
-  url: string;
-  /**
-   * The Fetcher that sends the request, or the name of a registered one; the
-   * default Fetcher when omitted.
-   */
-  fetcher?: string | Fetcher;
-}
+>
+  extends Omit<QueryHookOptions<Q, number, E>, 'execute'>, Endpoint {}
 
 /**
  * What {@link useFetcherCountQuery} returns: the count as `result`.
@@ -119,9 +108,5 @@ export function useFetcherCountQuery<
 >(
   options: UseFetcherCountQueryOptions<FIELDS, E, Q>,
 ): UseFetcherCountQueryReturn<FIELDS, E, Q> {
-  const { url, fetcher, ...rest } = options;
-  return useQueryRunner<Q, number, E>(
-    { ...rest, execute: postQuery<Q, number>({ url, fetcher }) },
-    endpointIdentity({ url, fetcher }),
-  );
+  return useEndpointRunner<Q, number, E>(options);
 }
