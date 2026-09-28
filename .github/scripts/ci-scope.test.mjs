@@ -12,10 +12,13 @@ import { test } from 'node:test';
 import { scopes, unitPackages } from './ci-scope.mjs';
 
 const script = new URL('./ci-scope.mjs', import.meta.url).pathname;
-const all = paths => Object.values(scopes(paths)).every(Boolean);
-const none = paths => Object.values(scopes(paths)).every(value => !value);
+// The workflow scopes; `compatDebt` is derived from them and has its own test.
+const gates = paths =>
+  Object.entries(scopes(paths)).filter(([key]) => key !== 'compatDebt');
+const all = paths => gates(paths).every(([, value]) => value);
+const none = paths => gates(paths).every(([, value]) => !value);
 const on = paths =>
-  Object.entries(scopes(paths))
+  gates(paths)
     .filter(([, value]) => value)
     .map(([key]) => key);
 
@@ -363,6 +366,8 @@ test('the command reads the diff and runs everything without a base', () => {
       ]
         .map(key => `${key}=${value}\n`)
         .join('') +
+      // Everything runs quality, which checks the ledger itself.
+      'compatDebt=false\n' +
       `unitPackages=${value ? '["wow-client","wow-react","wow-generator"]' : '[]'}\n`;
     assert.equal(run({ BASE_SHA: base, HEAD_SHA: head }), output(false));
     assert.equal(
@@ -441,4 +446,19 @@ test('the unit matrix reruns a package and the packages built on it', () => {
     ['typescript/wow-view-engine/src/index.ts', 'eslint.config.js'],
   ])
     assert.equal(unitPackages(paths).length > 0, scopes(paths).sdk, paths);
+});
+
+test('a Kotlin main source runs the compat-debt ledger unless quality does', () => {
+  const kotlin = 'wow-api/src/main/kotlin/me/ahoo/wow/api/query/Condition.kt';
+  assert.ok(scopes([kotlin]).compatDebt);
+  assert.ok(!scopes([kotlin]).typescript);
+  // Quality checks the ledger already when TypeScript changed too.
+  assert.ok(!scopes([kotlin, 'typescript/wow-client/src/index.ts']).compatDebt);
+  // An unknown path runs everything, quality among it.
+  assert.ok(!scopes(['new-directory/index.ts']).compatDebt);
+  // Kotlin tests hold no removal marker the ledger pairs.
+  assert.ok(
+    !scopes(['wow-api/src/test/kotlin/me/ahoo/wow/api/query/ConditionTest.kt'])
+      .compatDebt,
+  );
 });
