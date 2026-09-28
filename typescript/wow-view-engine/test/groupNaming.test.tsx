@@ -171,9 +171,10 @@ describe('a split by a yes/no field', () => {
       },
     },
   });
+  // 是 the larger, so it heads a legend that lists a split by size.
   const rows = [
-    { warehouse: 'W-0', isNew: true, orders: 2 },
-    { warehouse: 'W-0', isNew: false, orders: 3 },
+    { warehouse: 'W-0', isNew: true, orders: 3 },
+    { warehouse: 'W-0', isNew: false, orders: 2 },
   ];
 
   it('names each series by its field too, in the legend and the reading', () => {

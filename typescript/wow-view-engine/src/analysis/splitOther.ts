@@ -41,24 +41,38 @@ import { isAdditiveMetric } from './validateChart.js';
  */
 
 /**
- * Whether a config's chart folds its split over these rows: a cartesian
- * chart split by a dimension, its one metric adding up, more split values
- * than colours, and no 「只保留」 — a having drops groups by their numbers,
- * so the axis's whole would count groups the split never had.
+ * Whether a config's chart may fold its split at all, whatever the rows: a
+ * cartesian chart split by a dimension, its one metric adding up — a rest
+ * of averages is no average of anything — and no 「只保留」, since a having
+ * drops groups by their numbers, so the axis's whole would count groups the
+ * split never had. The one rule both the runtime (`foldsSplit`, whether to
+ * ask for the whole) and the kernel (`shapeCartesian`, whether to fold a
+ * whole it was handed) read.
+ */
+export function splitFoldable(config: AnalysisViewConfig): boolean {
+  const spec = config.chart.cartesian;
+  if (CHART_FAMILY[config.chart.type] !== 'cartesian' || !spec) return false;
+  const metric = spec.series[0]?.metric;
+  if (
+    spec.splitBy === undefined ||
+    metric === undefined ||
+    spec.series.length !== 1
+  )
+    return false;
+  if (config.having !== undefined) return false;
+  return isAdditiveMetric(config.metrics.find(one => one.alias === metric));
+}
+
+/**
+ * Whether a config's chart folds its split over these rows: it may
+ * (`splitFoldable`), and the rows hold more split values than colours.
  */
 export function foldsSplit(
   config: AnalysisViewConfig,
   rows: readonly RecordData[],
 ): boolean {
-  const spec = config.chart.cartesian;
-  if (CHART_FAMILY[config.chart.type] !== 'cartesian' || !spec) return false;
-  const split = spec.splitBy;
-  const metric = spec.series[0]?.metric;
-  if (split === undefined || metric === undefined || spec.series.length !== 1)
-    return false;
-  if (config.having !== undefined) return false;
-  if (!isAdditiveMetric(config.metrics.find(one => one.alias === metric)))
-    return false;
+  const split = config.chart.cartesian?.splitBy;
+  if (split === undefined || !splitFoldable(config)) return false;
   const values = new Set(rows.map(row => seriesKey(row[split])));
   return values.size > CHART_COLOR_SLOTS;
 }
@@ -90,8 +104,63 @@ export function splitWholeConfig(
 }
 
 /**
- * `data` with its series past the palette folded: the seven whose measured
- * numbers add up to the most, in the order they were drawn, then 「其他」 —
+ * How big each of `data`'s series is (`data.series`' order), the one measure
+ * a split's series are ranked by — for the order a legend reads and a stack
+ * builds in (`bySize`), and for which seven a fold keeps (`foldOther`):
+ *
+ * - the series' own metric: a split draws exactly one
+ *   (`chart.splitBy.needs-one-series`), so every series of it measures the
+ *   same thing and the sizes compare;
+ * - the numbers it measured — a value the kernel filled in (`filled`) is a
+ *   known 0 or nothing, never a size — each by its absolute value: a bar
+ *   under the axis is as big as one over it, and a channel that lost ¥1M is
+ *   not smaller than one that broke even (a profit, a net change);
+ * - added up where the metric adds up (`additive`): a total is how much of
+ *   the whole the series holds; otherwise their mean, since a total of
+ *   averages grows with how many categories a series turns up in, not with
+ *   how big its numbers are.
+ *
+ * Computed from the drawn points, so the order is the engine's own and does
+ * not rest on the order a source answers groups in.
+ */
+export function seriesSizes(
+  data: Pick<CartesianData, 'points' | 'series'>,
+  additive: boolean,
+): number[] {
+  return data.series.map(entry => {
+    let total = 0;
+    let count = 0;
+    for (const point of data.points) {
+      const value = point.values[entry.key];
+      if (typeof value !== 'number' || point.filled?.includes(entry.key))
+        continue;
+      total += Math.abs(value);
+      count += 1;
+    }
+    return additive || count === 0 ? total : total / count;
+  });
+}
+
+/**
+ * A split's series, the largest first (`seriesSizes`): what a reader looks
+ * for first is the biggest, and a stack reads from the bottom up, so the
+ * biggest sits at its base and heads the legend — the palette's first
+ * colour goes to it. Series of one size keep the order they came in.
+ */
+export function bySize(
+  data: Pick<CartesianData, 'points' | 'series'>,
+  additive: boolean,
+): CartesianData['series'] {
+  const sizes = seriesSizes(data, additive);
+  return data.series
+    .map((entry, index) => ({ entry, index }))
+    .sort((a, b) => sizes[b.index] - sizes[a.index] || a.index - b.index)
+    .map(({ entry }) => entry);
+}
+
+/**
+ * `data` with its series past the palette folded: the seven largest
+ * (`seriesSizes`), in the order they were drawn, then 「其他」 —
  * at each category the axis's whole (`whole`, rows of `splitWholeConfig`)
  * less the seven. Where that cannot be known — a kept value not measured,
  * a category the whole did not answer — the rest is drawn as nothing,
@@ -111,16 +180,18 @@ export function foldOther(
     data.series.length <= CHART_COLOR_SLOTS
   )
     return data;
-  const sums = data.series.map(entry =>
-    data.points.reduce((sum, point) => {
-      const value = point.values[entry.key];
-      return sum + (typeof value === 'number' ? value : 0);
-    }, 0),
+  // By the measure the legend is ordered by (`bySize`), so the seven kept
+  // are the seven the order puts first. The kernel folds only a metric that
+  // adds up (`splitFoldable`); read from the metric all the same, so a
+  // caller of this alone never ranks averages by their sum.
+  const sizes = seriesSizes(
+    data,
+    isAdditiveMetric(config.metrics.find(one => one.alias === metric)),
   );
   const kept = new Set(
     data.series
       .map((_, index) => index)
-      .sort((a, b) => sums[b] - sums[a] || a - b)
+      .sort((a, b) => sizes[b] - sizes[a] || a - b)
       .slice(0, CHART_COLOR_SLOTS - 1),
   );
   const series = data.series.filter((_, index) => kept.has(index));

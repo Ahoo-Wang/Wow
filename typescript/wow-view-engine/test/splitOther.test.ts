@@ -159,15 +159,16 @@ describe('shapeChart: a split past the palette', () => {
     }) as CartesianData;
 
     expect(data.series).toHaveLength(8);
-    // s2 … s8 are the largest; drawn in the order they came.
+    // s2 … s8 are the largest, drawn largest first — not in the order
+    // they came, which was by key.
     expect(data.series.slice(0, 7).map(entry => entry.label)).toEqual([
-      's2',
-      's3',
-      's4',
-      's5',
-      's6',
-      's7',
       's8',
+      's7',
+      's6',
+      's5',
+      's4',
+      's3',
+      's2',
     ]);
     const other = data.series[7];
     expect(other).toMatchObject({ key: OTHER_SERIES_KEY, other: true });
