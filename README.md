@@ -17,7 +17,6 @@
   <a href="https://github.com/Ahoo-Wang/Wow/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-Apache%202-4EB1BA.svg" alt="License"/></a>
   <a href="https://github.com/Ahoo-Wang/Wow/releases"><img src="https://img.shields.io/github/release/Ahoo-Wang/Wow.svg" alt="GitHub release"/></a>
   <a href="https://central.sonatype.com/artifact/me.ahoo.wow/wow-core"><img src="https://img.shields.io/maven-central/v/me.ahoo.wow/wow-core" alt="Maven Central"/></a>
-  <a href="https://app.codacy.com/gh/Ahoo-Wang/Wow/dashboard"><img src="https://app.codacy.com/project/badge/Grade/cfc724df22db4f9387525258c8a59609" alt="Codacy"/></a>
   <a href="https://codecov.io/gh/Ahoo-Wang/Wow"><img src="https://codecov.io/gh/Ahoo-Wang/Wow/branch/main/graph/badge.svg?token=uloJrLoQir" alt="Codecov"/></a>
   <a href="https://github.com/Ahoo-Wang/Wow/actions/workflows/integration-test.yml"><img src="https://github.com/Ahoo-Wang/Wow/actions/workflows/integration-test.yml/badge.svg" alt="CI"/></a>
   <a href="https://kotlin.link/"><img src="https://kotlin.link/awesome-kotlin.svg" alt="Awesome Kotlin"/></a>
