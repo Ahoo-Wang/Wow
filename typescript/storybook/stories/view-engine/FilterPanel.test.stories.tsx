@@ -12,7 +12,11 @@
  */
 import type { StoryObj } from '@storybook/react-vite';
 import { expect, userEvent, waitFor, within } from 'storybook/test';
-import { formatMessage, zhCN } from '@ahoo-wang/wow-view-engine/ui';
+import {
+  BUILT_IN_PRESETS,
+  formatMessage,
+  zhCN,
+} from '@ahoo-wang/wow-view-engine/ui';
 import displayMeta, {
   Advanced as DisplayAdvanced,
   Negated as DisplayNegated,
@@ -23,6 +27,7 @@ import displayMeta, {
   UnknownEditor as DisplayUnknownEditor,
   WithTime as DisplayWithTime,
 } from './FilterPanel.stories.js';
+import { colorsSettled, measureTextContrast } from './contrast.js';
 import { amountOf, readColumn, readTotal } from './readTable.js';
 
 const meta = {
@@ -736,6 +741,184 @@ export const TheCalendarSpeaksTheSurfaceLanguage: Story = {
     }
   },
 };
+
+/** The calendar popover of the one date condition, open and settled. */
+async function openCalendar(canvasElement: HTMLElement): Promise<HTMLElement> {
+  const trigger = await within(canvasElement).findByLabelText(
+    formatMessage(zhCN, 'label.filter.value-of', { field: '创建时间' }),
+  );
+  await userEvent.click(trigger);
+  const popover = await waitFor(() => {
+    const found = document.body.querySelector<HTMLElement>(
+      '[data-slot="popover-content"]',
+    );
+    expect(found).not.toBeNull();
+    return found!;
+  });
+  // Fading and scaling in; see TheCalendarSpeaksTheSurfaceLanguage.
+  await waitFor(() => {
+    expect(popover).toBeVisible();
+    expect(popover.getAnimations({ subtree: true })).toHaveLength(0);
+  });
+  return popover;
+}
+
+/** The day button of one day of September 2026, by its number. */
+function dayButton(popover: HTMLElement, day: number): HTMLElement {
+  const found = [
+    ...popover.querySelectorAll<HTMLElement>('button[data-day]'),
+  ].find(
+    button =>
+      !button.closest('[data-outside]') &&
+      button.textContent?.trim() === `${day}`,
+  );
+  if (!found) throw new Error(`no day ${day} in the calendar`);
+  return found;
+}
+
+/** What one element paints: its fill and its ink, as computed. */
+function paintOf(element: HTMLElement): { fill: string; ink: string } {
+  const style = getComputedStyle(element);
+  return { fill: style.backgroundColor, ink: style.color };
+}
+
+/**
+ * One day button under the browser's own mouse — a built event puts no real
+ * `:hover` on it (`pointerDrag.ts`), and the defect lived in `:hover` — and
+ * what it paints there, once its colour transition has run.
+ */
+async function hovered(button: HTMLElement): Promise<{
+  fill: string;
+  ink: string;
+}> {
+  const mouse = globalThis.storybookRealMouse!;
+  const box = button.getBoundingClientRect();
+  await mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await waitFor(() => expect(button.matches(':hover')).toBe(true));
+  await colorsSettled();
+  return paintOf(button);
+}
+
+/**
+ * 日历里选中的日子在指针下不变色。registry 的日子是 `ghost` 按钮，它的
+ * `hover:bg-muted`（暗色 `dark:hover:bg-muted/50`）与 `dark:hover:text-foreground`
+ * 按源码顺序压过选中的 `bg-primary`／`text-primary-foreground`：选中的那天一悬停
+ * 就成了浅灰底上的白字。区间的两端同样；区间中间保持自己的 `muted` 底。
+ * 每套内置预设 × 明暗：悬停前后画的一样、字对底 ≥4.5:1；没选中的日子悬停照常变底
+ * ——也证明这里的悬停是真的 `:hover`。
+ */
+export const ASelectedDayKeepsItsColoursUnderThePointer: Story = {
+  ...DisplayWithTime,
+  play: async ({ canvasElement }) => {
+    // Storybook's own panel has no hold of the browser's mouse, and a built
+    // event would prove nothing here.
+    if (!globalThis.storybookRealMouse) return;
+    const canvas = within(canvasElement);
+    await userEvent.click(
+      await canvas.findByRole('button', {
+        name: new RegExp(`^${zhCN['label.filter.panel']}`),
+      }),
+    );
+    const popover = await openCalendar(canvasElement);
+    // 15–17 September: the stored range's two ends and its middle.
+    const start = dayButton(popover, 15);
+    const middle = dayButton(popover, 16);
+    const end = dayButton(popover, 17);
+    await expect(start).toHaveAttribute('data-range-start', 'true');
+    await expect(middle).toHaveAttribute('data-range-middle', 'true');
+    await expect(end).toHaveAttribute('data-range-end', 'true');
+
+    await keepsItsColours([
+      ['range start', start],
+      ['range middle', middle],
+      ['range end', end],
+    ]);
+    await closeCalendar();
+
+    // One day, as `大于等于` holds it: the day the range started on, drawn
+    // `data-selected-single` — the case found by hand in Storybook.
+    await userEvent.click(
+      canvas.getByLabelText(
+        formatMessage(zhCN, 'label.filter.operator-of', { field: '创建时间' }),
+      ),
+    );
+    await userEvent.click(
+      await within(document.body).findByRole('option', {
+        name: zhCN['label.operator.GTE'],
+      }),
+    );
+    let single = await openCalendar(canvasElement);
+    if (!single.querySelector('[data-selected-single="true"]')) {
+      await userEvent.click(dayButton(single, 16));
+      single = await openCalendar(canvasElement);
+    }
+    const selected = await waitFor(() => {
+      const found = single.querySelector<HTMLElement>(
+        '[data-selected-single="true"]',
+      );
+      expect(found).not.toBeNull();
+      return found!;
+    });
+    await keepsItsColours([['single', selected]]);
+    await closeCalendar();
+  },
+};
+
+/**
+ * Each preset in each mode: every selected day paints the same under the
+ * browser's own mouse as at rest, its words ≥4.5:1 on its fill; and a day
+ * nobody chose still hovers — the witness that the `:hover` is real.
+ */
+async function keepsItsColours(
+  days: readonly (readonly [string, HTMLElement])[],
+): Promise<void> {
+  const mouse = globalThis.storybookRealMouse!;
+  const popover = days[0]![1].closest<HTMLElement>(
+    '[data-slot="popover-content"]',
+  )!;
+  const unselected = dayButton(popover, 22);
+  const html = document.documentElement;
+  const preset = html.getAttribute('data-fve-preset');
+  const dark = html.classList.contains('dark');
+  try {
+    for (const name of BUILT_IN_PRESETS)
+      for (const mode of [false, true]) {
+        html.setAttribute('data-fve-preset', name);
+        html.classList.toggle('dark', mode);
+        const tag = `${name} ${mode ? 'dark' : 'light'}`;
+        await mouse.away();
+        await colorsSettled();
+        for (const [role, day] of days) {
+          const resting = paintOf(day);
+          await expect(await hovered(day), `${tag} ${role}`).toEqual(resting);
+          await expect(
+            measureTextContrast(day).ratio,
+            `${tag} ${role}`,
+          ).toBeGreaterThanOrEqual(4.5);
+        }
+        const resting = paintOf(unselected);
+        await expect(
+          (await hovered(unselected)).fill,
+          `${tag} unselected`,
+        ).not.toBe(resting.fill);
+      }
+  } finally {
+    await mouse.away();
+    if (preset === null) html.removeAttribute('data-fve-preset');
+    else html.setAttribute('data-fve-preset', preset);
+    html.classList.toggle('dark', dark);
+  }
+}
+
+/** Closed again, as every play that opens a popup leaves it. */
+async function closeCalendar(): Promise<void> {
+  await userEvent.keyboard('{Escape}');
+  await waitFor(() =>
+    expect(
+      document.body.querySelector('[data-slot="popover-content"]'),
+    ).toBeNull(),
+  );
+}
 
 /**
  * A condition on a field whose kind asks for an editor the engine does not
