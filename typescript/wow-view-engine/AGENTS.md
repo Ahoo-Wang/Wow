@@ -521,6 +521,7 @@ src/
       candlestickOption.ts    — `candlestickOption`: a candle per period from its open to its close, wicks to its extremes, rising and falling in the host's rise/fall colours (`--_fve-rise` / `--_fve-fall`), each number named by its column and the direction in words in the tooltip; `drawnCandles`
       Boxplot.tsx             — A boxplot through `boxplotOption`: a pressed box handed back as its group; over it that the quartiles and median are approximate and how many groups lack a number
       boxplotOption.ts        — `boxplotOption`: a box per group from the lower to the upper quartile, the median across, whiskers to the extremes, each number named by its column in the tooltip; `drawnBoxes`
+      categoryFrame.ts        — `categoryFrame`: the frame the waterfall, the candlestick and the boxplot share — grid, category axis along the bottom, value axis titled at its head (`sideTitle`), read against itself or from 0, and the item tooltip's frame
       Gauge.tsx               — A gauge through `gaugeOption`: one number on a scale, nothing pressed, a value off the scale said over it
       gaugeOption.ts          — `gaugeOption`: an open dial filled to the number, the number in its middle, the share of the target under it and the target a tick in the ink; `gaugeText`, `reachedShare`
       Profiles.tsx            — A radar or parallel axes through `radarOption` / `parallelOption`: a pressed shape or line handed back as its group, the legend while each group has a colour, what was left out said over it
