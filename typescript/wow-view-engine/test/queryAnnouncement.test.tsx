@@ -26,6 +26,7 @@ import { DataWorkbench } from '../src/ui/index.js';
 import { defaultMessages } from '../src/ui/messages.js';
 import { querySentence } from '../src/ui/record/queryAnnouncement.js';
 import {
+  analysisConfig,
   deferred,
   mine,
   ordersDefinition,
@@ -169,6 +170,37 @@ describe('what a record query says out loud', () => {
     expect(announced()).not.toContain('Nothing to show');
   });
 
+  it('empties the region on a failure, and says each retry again (#3603)', async () => {
+    const answers: ReturnType<typeof deferred<PagedList<RecordData>>>[] = [];
+    render(
+      <DataWorkbench
+        engine={engineWith(() => {
+          const answer = deferred<PagedList<RecordData>>();
+          answers.push(answer);
+          return answer.promise;
+        })}
+        definitionId="orders"
+        instanceId="orders-1"
+      />,
+    );
+
+    await waitFor(() => expect(announced()).toBe('Running the query'));
+    answers[0].reject(new Error('down'));
+    await screen.findByRole('alert');
+    // The query is over: 「running」 left behind in the region would be a
+    // reader told a query is still going when it failed.
+    expect(announced()).toBe('');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
+    await waitFor(() => expect(announced()).toBe('Running the query'));
+    answers[1].reject(new Error('down'));
+    await waitFor(() => expect(announced()).toBe(''));
+
+    // The second retry is a query of its own, and is said as one.
+    fireEvent.click(await screen.findByRole('button', { name: 'Try again' }));
+    await waitFor(() => expect(announced()).toBe('Running the query'));
+  });
+
   it('reads each query back, however alike two results are', async () => {
     render(
       <DataWorkbench
@@ -203,5 +235,55 @@ describe('what a record query says out loud', () => {
     );
 
     await waitFor(() => expect(announced()).toBe('共 2 条记录'));
+  });
+});
+
+describe('what an analysis query says out loud', () => {
+  it('empties the region on a failure, and says each retry again (#3603)', async () => {
+    const answers: ReturnType<typeof deferred<Record<string, unknown>[]>>[] =
+      [];
+    render(
+      <DataWorkbench
+        engine={
+          new ViewEngine({
+            definitions: [ordersDefinition()],
+            store: new MemoryViewStore({
+              instances: [
+                {
+                  ...mine,
+                  id: 'by-warehouse',
+                  config: analysisConfig(),
+                },
+              ],
+            }),
+            resolveSource: () =>
+              testSource({
+                aggregate: () => {
+                  const answer = deferred<Record<string, unknown>[]>();
+                  answers.push(answer);
+                  return answer.promise as never;
+                },
+              }),
+          })
+        }
+        definitionId="orders"
+        instanceId="by-warehouse"
+      />,
+    );
+    const region = () =>
+      document.querySelector('[data-slot="analysis-announcement"]')
+        ?.textContent;
+
+    await waitFor(() => expect(region()).toBe('Running the query'));
+    answers[0].reject(new Error('down'));
+    await waitFor(() => expect(region()).toBe(''));
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Try again' }));
+    await waitFor(() => expect(region()).toBe('Running the query'));
+    answers[1].reject(new Error('down'));
+    await waitFor(() => expect(region()).toBe(''));
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Try again' }));
+    await waitFor(() => expect(region()).toBe('Running the query'));
   });
 });

@@ -40,6 +40,7 @@ import {
   nextTask,
   ordersDefinition,
   recordConfig,
+  requireRecordConfig,
   testEnvironment,
   testSource,
 } from './fixtures.js';
@@ -204,6 +205,115 @@ describe('a saved view using what the source no longer admits (Q2)', () => {
     );
     const runtime = engine.openRuntimes()[0];
     expect(runtime.getSnapshot().draft).toMatchObject({ sort: [] });
+  });
+});
+
+describe('a search inside an element on a source that has none (#3608)', () => {
+  /** The orders with lines whose SKUs can be searched, where the source can. */
+  const withLines = ordersDefinition({
+    fields: [
+      ...ordersDefinition().fields,
+      {
+        name: 'lines',
+        label: 'Lines',
+        kind: 'elementMatch',
+        elements: [
+          { name: 'sku', label: 'SKU', kind: 'string' },
+          {
+            name: 'q',
+            label: 'Search lines',
+            kind: 'search',
+            searchFields: ['sku'],
+          },
+        ],
+      },
+    ],
+  });
+
+  /** A store that filters the lines one by one and searches none of them. */
+  const noElementSearch = ordersDescriptor({
+    version: 'sha256:orders-no-element-search',
+    fields: [
+      ...ordersDescriptor().fields,
+      describedField('lines'),
+      describedField('lines.sku', { scope: 'lines' }),
+    ],
+    elements: [{ path: 'lines', filter: true, aggregate: true }],
+  });
+
+  function saved(
+    ...inside: { field: string; operator: string; value: unknown }[]
+  ): ViewInstance {
+    return {
+      ...pending,
+      id: 'lines',
+      config: recordConfig({
+        filter: {
+          op: 'and',
+          children: [
+            { field: 'warehouse', operator: 'EQ', value: 'CN' },
+            {
+              field: 'lines',
+              operator: 'ELEMENT_MATCH',
+              value: { op: 'and', children: inside },
+            },
+          ],
+        } as never,
+      }),
+    };
+  }
+
+  const search = { field: 'lines.q', operator: 'SEARCH', value: 'tea' };
+
+  it('takes the element match out with its only condition', async () => {
+    const { engine } = harness([noElementSearch], {
+      definition: withLines,
+      instances: [saved(search)],
+    });
+    const runtime = await openData(engine, 'lines');
+    await nextTask();
+    expect(runtime.unavailable()).not.toEqual([]);
+
+    runtime.removeUnavailable();
+
+    expect(runtime.unavailable()).toEqual([]);
+    expect(runtime.getSnapshot().draft.filter).toEqual({
+      op: 'and',
+      children: [{ field: 'warehouse', operator: 'EQ', value: 'CN' }],
+    });
+  });
+
+  it('keeps the element match when another condition is left in it', async () => {
+    const sku = { field: 'lines.sku', operator: 'EQ', value: 'TEA-01' };
+    const { engine } = harness([noElementSearch], {
+      definition: withLines,
+      instances: [saved(sku, search)],
+    });
+    const runtime = await openData(engine, 'lines');
+    await nextTask();
+
+    runtime.removeUnavailable();
+
+    expect(runtime.unavailable()).toEqual([]);
+    expect(runtime.getSnapshot().draft.filter.children[1]).toEqual({
+      field: 'lines',
+      operator: 'ELEMENT_MATCH',
+      value: { op: 'and', children: [sku] },
+    });
+  });
+
+  it('answers nothing, rather than an unchanged config, when a finding points nowhere', () => {
+    const config = requireRecordConfig(saved(search).config);
+    expect(
+      withoutFirstUnavailable(config, [
+        {
+          code: 'x',
+          severity: 'error',
+          path: ['children', 5, 'children', 0],
+          params: {},
+        },
+      ]),
+    ).toBeNull();
   });
 });
 
@@ -670,6 +780,67 @@ describe('what 「移除不可用的条件」 takes out of an analysis', () => {
         children: [{ field: 'warehouse', operator: 'EQ', value: 'CN' }],
       },
     });
+  });
+
+  it('a metric loses a condition inside an element match, and the match with its last one (#3608)', () => {
+    const inLines = (...children: unknown[]) =>
+      analysisConfig({
+        metrics: [
+          {
+            alias: 'orders',
+            type: 'COUNT',
+            filter: {
+              op: 'and',
+              children: [
+                { field: 'status', operator: 'EQ', value: 'PENDING' },
+                {
+                  field: 'lines',
+                  operator: 'ELEMENT_MATCH',
+                  value: { op: 'and', children },
+                },
+              ],
+            } as never,
+          },
+        ],
+      });
+    const sku = { field: 'lines.sku', operator: 'EQ', value: 'TEA-01' };
+    const search = { field: 'lines.q', operator: 'SEARCH', value: 'tea' };
+    const at = unavailable([
+      'metrics',
+      0,
+      'filter',
+      'children',
+      1,
+      'children',
+      1,
+    ]);
+
+    expect(
+      withoutFirstUnavailable(inLines(sku, search), [at])?.metrics[0],
+    ).toMatchObject({
+      filter: {
+        children: [
+          { field: 'status' },
+          { field: 'lines', value: { op: 'and', children: [sku] } },
+        ],
+      },
+    });
+    const alone = unavailable([
+      'metrics',
+      0,
+      'filter',
+      'children',
+      1,
+      'children',
+      0,
+    ]);
+    expect(
+      withoutFirstUnavailable(inLines(search), [alone])?.metrics[0],
+    ).toMatchObject({
+      filter: { op: 'and', children: [{ field: 'status' }] },
+    });
+    // Pointing past the predicate takes nothing, and says so.
+    expect(withoutFirstUnavailable(inLines(search), [at])).toBeNull();
   });
 
   it('a metric or a dimension itself stays, for the reader to change', () => {

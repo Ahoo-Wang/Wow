@@ -31,8 +31,13 @@ import {
   type IssuePath,
 } from '../model/index.js';
 import {
+  isEmptyFilter,
+  isFilterGroup,
   isFilterLeaf,
+  nodeAt,
   removeConditionAt,
+  sameFilterTree,
+  updateAt,
   walkFilter,
   type FilterPath,
 } from '../filter/index.js';
@@ -75,10 +80,8 @@ export function withoutFirstUnavailable<C extends DataViewConfig>(
 function without1<C extends DataViewConfig>(config: C, found: Issue): C | null {
   const [head, index, member] = found.path;
   if (head === 'children') {
-    const at = treePath(found.path);
-    return at.length === 0
-      ? null
-      : { ...config, filter: removeConditionAt(config.filter, at) };
+    const filter = removedAt(config.filter, found.path);
+    return filter ? { ...config, filter } : null;
   }
   if (head === 'sort' && typeof index === 'number') {
     const sort = (config.sort as unknown[]).filter((_, i) => i !== index);
@@ -116,30 +119,81 @@ function without1<C extends DataViewConfig>(config: C, found: Issue): C | null {
  * into, or every condition on the field it names.
  */
 function trimmed(tree: FilterTree, found: Issue): FilterTree | null {
-  const at = treePath(found.path.slice(3));
-  if (at.length > 0) return removeConditionAt(tree, at);
+  const inner = found.path.slice(3);
+  if (inner[0] === 'children') return removedAt(tree, inner);
   const field = found.params?.field;
   if (typeof field !== 'string') return null;
   const paths: FilterPath[] = [];
   for (const visit of walkFilter(tree))
     if (isFilterLeaf(visit.node) && visit.node.field === field)
-      paths.push(treePath(visit.path));
+      paths.push(
+        visit.path.filter((step): step is number => typeof step === 'number'),
+      );
   if (paths.length === 0) return null;
   // The deepest and last first, so an earlier path still points where it did.
-  return paths
-    .reverse()
-    .reduce((next, path) => removeConditionAt(next, path), tree);
+  return changed(
+    tree,
+    paths.reverse().reduce((next, path) => removeConditionAt(next, path), tree),
+  );
 }
 
-/** The node an issue path points into: each index that follows `children`. */
-function treePath(path: IssuePath): FilterPath {
-  const at: FilterPath = [];
-  for (let i = 0; i + 1 < path.length && path[i] === 'children'; i += 2) {
+/**
+ * One tree an issue path passes through, and where in it: the filter
+ * itself, then the predicate of each element match the path goes on into.
+ */
+interface Level {
+  tree: FilterTree;
+  at: FilterPath;
+}
+
+/**
+ * The tree without the node an issue path points into, or `null` when the
+ * path points at nothing that can go — so a caller never takes an unchanged
+ * tree for progress. A path that goes on past a leaf goes into the leaf's
+ * predicate (an element match's, #3608): a kind that validates a nested
+ * tree reports its findings under the leaf's own path, and the step into
+ * `value` is not written out. An element match left with no condition asks
+ * nothing of its elements and goes with it.
+ */
+function removedAt(tree: FilterTree, path: IssuePath): FilterTree | null {
+  const levels = levelsOf(tree, path);
+  let next: FilterTree | null = null;
+  for (let i = levels.length - 1; i >= 0; i -= 1) {
+    const { tree: current, at } = levels[i];
+    if (next === null) {
+      if (at.length === 0) continue;
+      next = removeConditionAt(current, at);
+    } else if (isEmptyFilter(next)) {
+      next = removeConditionAt(current, at);
+    } else {
+      const value = next;
+      next = updateAt(current, at, leaf => ({ ...leaf, value }) as never);
+    }
+  }
+  return next && changed(tree, next);
+}
+
+/** The trees an issue path passes through, outermost first. */
+function levelsOf(tree: FilterTree, path: IssuePath): Level[] {
+  const levels: Level[] = [{ tree, at: [] }];
+  for (let i = 0; i + 1 < path.length && path[i] === 'children';) {
     const index = path[i + 1];
     if (typeof index !== 'number') break;
-    at.push(index);
+    const level = levels[levels.length - 1];
+    const node = nodeAt(level.tree, level.at);
+    if (isFilterGroup(node)) {
+      level.at = [...level.at, index];
+      i += 2;
+    } else if (isFilterLeaf(node) && isFilterGroup(node.value)) {
+      levels.push({ tree: node.value, at: [] });
+    } else break;
   }
-  return at;
+  return levels;
+}
+
+/** `after`, or `null` when it says what `before` did. */
+function changed(before: FilterTree, after: FilterTree): FilterTree | null {
+  return sameFilterTree(before, after) ? null : after;
 }
 
 function isError(found: Issue): boolean {
