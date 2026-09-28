@@ -14,8 +14,20 @@
 package me.ahoo.wow.mongo.query
 
 import com.mongodb.client.model.Filters
+import me.ahoo.wow.api.query.ComparisonOperator
 import me.ahoo.wow.mongo.Documents
 import org.bson.conversions.Bson
 
 // Unlike $expr:false, an empty indexed predicate avoids scans on MongoDB 6 and works inside $elemMatch.
 internal val MATCH_NONE_FILTER: Bson = Filters.`in`(Documents.ID_FIELD, emptyList<Any>())
+
+/** The MongoDB comparison operator of this comparison, for a match document or an aggregation expression. */
+internal val ComparisonOperator.mongoOperator: String
+    get() = when (this) {
+        ComparisonOperator.EQ -> "\$eq"
+        ComparisonOperator.NE -> "\$ne"
+        ComparisonOperator.GT -> "\$gt"
+        ComparisonOperator.GTE -> "\$gte"
+        ComparisonOperator.LT -> "\$lt"
+        ComparisonOperator.LTE -> "\$lte"
+    }

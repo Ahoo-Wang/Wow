@@ -25,7 +25,7 @@ import me.ahoo.wow.api.query.AggregationGroup
 import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.MatchAllFilter
-import me.ahoo.wow.mongo.query.AbstractMongoFilterCompiler
+import me.ahoo.wow.mongo.query.MongoFilterCompiler
 import me.ahoo.wow.query.AdmittedQuery
 import me.ahoo.wow.query.aggregation.DenseDateGrid
 import me.ahoo.wow.query.aggregation.denseGroup
@@ -33,18 +33,16 @@ import org.bson.Document
 import org.bson.conversions.Bson
 import java.time.ZoneId
 
-internal class MongoAggregationCompiler(
-    private val filterCompiler: AbstractMongoFilterCompiler,
-) {
+internal object MongoAggregationCompiler {
     /** Compiles [admitted] to a pipeline that ends with `$limit` [limit], or returns every group when it is `null`. */
     fun compile(admitted: AdmittedQuery<AggregationQuery>, limit: Int? = admitted.query.limit): List<Bson> = buildList {
         val query = admitted.query
-        add(Aggregates.match(filterCompiler.compile(query.filter, admitted)))
+        add(Aggregates.match(MongoFilterCompiler.compile(query.filter, admitted)))
 
         query.elements.forEach { element ->
-            add(Aggregates.unwind("\$${admitted.field(element.path).physicalField.path}"))
+            add(Aggregates.unwind("\$${admitted.physicalPath(element.path)}"))
             if (element.filter !== MatchAllFilter) {
-                add(Aggregates.match(filterCompiler.compileScoped(element.filter, admitted)))
+                add(Aggregates.match(MongoFilterCompiler.compileScoped(element.filter, admitted)))
             }
         }
 
@@ -98,7 +96,7 @@ internal class MongoAggregationCompiler(
                         },
                     )
                     is AggregationMetric.Any -> {
-                        val field = admitted.field(metric.field).physicalField.path
+                        val field = admitted.physicalPath(metric.field)
                         add(
                             if (guard == null) {
                                 Accumulators.max(metric.alias, "\$$field")
@@ -171,8 +169,8 @@ internal class MongoAggregationCompiler(
         val marks = query.metrics.withIndex().filter { it.value is AggregationMetric.Edge }.map { (index, metric) ->
             metric as AggregationMetric.Edge
             val conditions = buildList {
-                add(present(admitted.field(metric.field).physicalField.path))
-                add(present(admitted.field(checkNotNull(metric.orderBy)).physicalField.path))
+                add(present(admitted.physicalPath(metric.field)))
+                add(present(admitted.physicalPath(checkNotNull(metric.orderBy))))
                 metricFilter(metric, admitted)?.toGuardCondition()?.let(::add)
             }
             Field(edgeMark(index), Document("\$cond", listOf(Document("\$and", conditions), 1, 0)))
@@ -190,13 +188,13 @@ internal class MongoAggregationCompiler(
         admitted: AdmittedQuery<AggregationQuery>,
     ): BsonField {
         val mark = edgeMark(index)
-        val orderBy = admitted.field(checkNotNull(metric.orderBy)).physicalField.path
+        val orderBy = admitted.physicalPath(checkNotNull(metric.orderBy))
         val first = metric is AggregationMetric.First
         val output = Document(
             "\$cond",
             listOf(
                 Document("\$eq", listOf("\$$mark", 1)),
-                "\$${admitted.field(metric.field).physicalField.path}",
+                "\$${admitted.physicalPath(metric.field)}",
                 null,
             ),
         )
@@ -217,9 +215,9 @@ internal class MongoAggregationCompiler(
             return null
         }
         if (admitted.query.elements.isEmpty()) {
-            return filterCompiler.compile(filter, admitted)
+            return MongoFilterCompiler.compile(filter, admitted)
         }
-        return filterCompiler.compileScoped(filter, admitted)
+        return MongoFilterCompiler.compileScoped(filter, admitted)
     }
 
     /**

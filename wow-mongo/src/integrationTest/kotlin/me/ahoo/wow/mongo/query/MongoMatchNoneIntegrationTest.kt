@@ -29,9 +29,7 @@ import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.api.query.schema.QueryValueKind
 import me.ahoo.wow.api.query.schema.QueryValueType
 import me.ahoo.wow.mongo.query.aggregation.MongoAggregationCompiler
-import me.ahoo.wow.mongo.query.event.EventStreamFilterCompiler
 import me.ahoo.wow.mongo.query.schema.MongoQuerySchemaAdapter
-import me.ahoo.wow.mongo.query.snapshot.SnapshotFilterCompiler
 import me.ahoo.wow.query.QueryAdmission
 import me.ahoo.wow.query.dsl.filter
 import me.ahoo.wow.query.schema.LogicalQuerySchema
@@ -62,7 +60,7 @@ class MongoMatchNoneIntegrationTest {
     @MethodSource("models")
     fun `match none must return no rows without examining documents or index keys`(model: QueryModel) {
         val collection = collection()
-        val compiled = compiler(model).compile(QueryAdmission.Trusted.count(MatchNoneFilter, schema(model)))
+        val compiled = MongoFilterCompiler.compile(QueryAdmission.Trusted.count(MatchNoneFilter, schema(model)))
         val sort = if (model == QueryModel.SNAPSHOT) Document("_id", 1) else Document()
         assertNoScan(collection, compiled, sort)
     }
@@ -92,7 +90,7 @@ class MongoMatchNoneIntegrationTest {
     @MethodSource("models")
     fun `match none must preserve boolean and element match semantics`(model: QueryModel) {
         val collection = collection()
-        val compiler = compiler(model)
+        val compiler = MongoFilterCompiler
         val schema = schema(model)
         val one = filter { "rank" eq 1 }
         val emptyElements = ElementMatchFilter(QueryField("items"), MatchNoneFilter)
@@ -112,7 +110,7 @@ class MongoMatchNoneIntegrationTest {
     @MethodSource("models")
     fun `match none must remain empty at root and expanded aggregation scopes`(model: QueryModel) {
         val collection = collection()
-        val compiler = MongoAggregationCompiler(compiler(model))
+        val compiler = MongoAggregationCompiler
         val schema = schema(model)
         val metrics = listOf(AggregationMetric.Count("count"))
         listOf(
@@ -148,12 +146,6 @@ class MongoMatchNoneIntegrationTest {
         (stats["nReturned"] as Number).toLong().assert().isEqualTo(0L)
         (stats["totalDocsExamined"] as Number).toLong().assert().isEqualTo(0L)
         (stats["totalKeysExamined"] as Number).toLong().assert().isEqualTo(0L)
-    }
-
-    private fun compiler(model: QueryModel): AbstractMongoFilterCompiler = when (model) {
-        QueryModel.SNAPSHOT -> SnapshotFilterCompiler
-        QueryModel.EVENT_STREAM -> EventStreamFilterCompiler
-        else -> error("Unsupported test model: $model")
     }
 
     private fun schema(model: QueryModel): QueryModelSchema {

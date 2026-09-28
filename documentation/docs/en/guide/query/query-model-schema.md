@@ -151,7 +151,7 @@ A client reading a descriptor may see a semantic `type` its version does not kno
 
 `QueryPathTemplate` explicitly distinguishes Property, Item, and Key. `QueryValueBindings` stores per-capability `QueryFieldBindingTemplate(physicalPath, storageTypes)`, plus projectionPath and responsePath. A concrete `schema.field(QueryField(...))` returns the value, complete element ancestry, and concrete bindings. A fixed key's native constraints cannot be bypassed by a Map default.
 
-The MongoDB adapter reads indexes and optional validator facts, retaining array/items/additionalProperties and composed type evidence separately. Missing native facts may use trusted declarations and known codecs; known conflicts are rejected. Temporal.Date has no EQ/RANGE capability, and temporal aggregation also needs native date-type evidence. Elasticsearch uses mapping, nested, multi-field, doc values, alias, and runtime facts. Neither adapter guesses native paths from caller input.
+The MongoDB adapter reads indexes and optional validator facts, retaining array/items/additionalProperties and composed type evidence separately. Missing native facts may use trusted declarations and known codecs; known conflicts are rejected. A Temporal.Date field gains EQ/RANGE only where the validator declares it a BSON `date` (not a `timestamp`); its operands, ISO-8601 dates or date-times or epoch milliseconds, compile to BSON dates. Temporal aggregation also needs native date-type evidence. Elasticsearch uses mapping, nested, multi-field, doc values, alias, and runtime facts. Neither adapter guesses native paths from caller input.
 
 | Capability | Purpose |
 | --- | --- |

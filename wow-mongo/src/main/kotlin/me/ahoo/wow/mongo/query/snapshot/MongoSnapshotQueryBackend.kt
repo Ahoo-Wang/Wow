@@ -30,7 +30,6 @@ class MongoSnapshotQueryBackend(
     SnapshotQueryBackend {
     override val name: String
         get() = MongoSnapshotStore.NAME
-    override val filterCompiler = SnapshotFilterCompiler
     override fun toObjectNode(document: Document): ObjectNode =
         document.toQueryObjectNode(MessageRecords.AGGREGATE_ID)
 }

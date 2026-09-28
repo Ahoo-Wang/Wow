@@ -51,7 +51,7 @@ enum class QueryStorageFamily {
 data class QueryStorageFamilyRules(
     /**
      * Whether a [Temporal.Date] value supports the capabilities that compare operands to it (exact match, literal
-     * match, range, numeric aggregation). MongoDB declares `false` until its compilers convert date operands (F2).
+     * match, range, numeric aggregation); `false` for a storage whose compilers cannot send an operand as a date.
      */
     val dateOperands: Boolean = true,
     /**
