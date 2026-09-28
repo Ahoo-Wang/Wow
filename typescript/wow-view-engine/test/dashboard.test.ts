@@ -687,6 +687,112 @@ describe('validateDashboard malformed configs', () => {
   });
 });
 
+/**
+ * Where a finding is addressed is what it stops (todo A): one under
+ * `['panels', i]` is that panel's, and puts out that panel alone
+ * (`blocksBoard`, `isUsableDefinition`); anything else is the board's.
+ */
+describe("validateDashboard, what is the board's and what a panel's", () => {
+  const at = (found: Issue) =>
+    found.path[0] === 'panels' && typeof found.path[1] === 'number'
+      ? found.path[1]
+      : null;
+
+  it('addresses everything wrong with one panel to that panel', () => {
+    const enumOrders = panelReference(
+      {},
+      {
+        fields: [
+          { name: 'warehouse', label: 'Warehouse', kind: 'enum', options: [] },
+        ],
+      },
+    );
+    const found = validate(
+      dashboardConfig({
+        panels: [
+          viewPanel({ id: 'fine' }),
+          // A condition the field no longer takes, in the view it shows.
+          viewPanel({
+            id: 'refused',
+            instanceId: 'enum',
+            layout: { x: 6, y: 0, w: 6, h: 4 },
+          }),
+          // Off the grid, and a link it may not show.
+          {
+            id: 'links',
+            kind: 'links',
+            layout: { x: 20, y: 0, w: 6, h: 4 },
+            items: [{ label: 'Payroll', href: 'javascript:alert(1)' }],
+          } as DashboardPanel,
+          // An id another panel has.
+          viewPanel({ id: 'fine', layout: { x: 0, y: 4, w: 6, h: 4 } }),
+        ],
+      }),
+      'personal',
+      refs({
+        pending: panelReference(),
+        enum: {
+          ...enumOrders,
+          instance: {
+            ...enumOrders.instance,
+            id: 'enum',
+            config: recordConfig({
+              filter: {
+                op: 'and',
+                children: [{ field: 'warehouse', operator: 'EQ', value: 'CN' }],
+              },
+            }),
+          },
+        },
+      }),
+    );
+
+    expect(errors(found).map(at)).not.toContain(null);
+    expect(errors(found).filter(one => at(one) === 0)).toEqual([]);
+    expect(codes(found.filter(one => at(one) === 1))).toEqual([
+      'filter.operator.unsupported',
+    ]);
+    expect(codes(found.filter(one => at(one) === 2))).toEqual([
+      'dashboard.layout.out-of-grid',
+      'dashboard.url.unsupported-scheme',
+    ]);
+    expect(codes(found.filter(one => at(one) === 3))).toEqual([
+      'dashboard.panel.id-duplicate',
+    ]);
+  });
+
+  it("keeps what the board holds apart from its panels the board's", () => {
+    const found = validate(
+      dashboardConfig({
+        fixed: 'everything' as never,
+        fields: [{ name: 'region', label: 'Region', kind: 'nope' as never }],
+        panels: [viewPanel()],
+      }),
+    );
+    expect(errors(found).length).toBeGreaterThan(0);
+    expect(errors(found).map(at)).toEqual(errors(found).map(() => null));
+
+    const crowded = validate(
+      dashboardConfig({
+        panels: Array.from(
+          { length: DEFAULT_RUNTIME_LIMITS.maxDashboardPanels + 1 },
+          (_, index) =>
+            viewPanel({
+              id: `p${index}`,
+              layout: { x: 0, y: index * 4, w: 6, h: 4 },
+            }),
+        ),
+      }),
+    );
+    expect(crowded).toEqual([
+      expect.objectContaining({
+        code: 'dashboard.panels.too-many',
+        path: ['panels'],
+      }),
+    ]);
+  });
+});
+
 describe('validateDashboard content panels', () => {
   function content(panel: DashboardPanel): Issue[] {
     return validate(dashboardConfig({ panels: [panel] }));

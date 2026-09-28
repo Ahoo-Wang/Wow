@@ -25,6 +25,7 @@ import type {
   DashboardPanel,
   DashboardViewConfig,
   DataViewConfig,
+  FieldDefinition,
   Issue,
   PanelClick,
   ViewKind,
@@ -48,6 +49,13 @@ export interface DashboardPanelState {
   runtime: ViewRuntime<DataViewConfig> | null;
   /** Issues about this panel alone; the dashboard around it still works. */
   issues: Issue[];
+  /**
+   * The fields of the view a data panel shows, once it is known: what its
+   * findings are named by, a field by its label rather than its path —
+   * above all a panel that cannot run, which has no runtime to ask. Empty
+   * for a content panel and for one whose view is not known.
+   */
+  fields: readonly FieldDefinition[];
   /** The tab it is on (`panelTab`); `null` on a board without tabs. */
   tab: string | null;
   /**
@@ -271,6 +279,7 @@ export function samePanels(
         panel.tab === other.tab &&
         panel.waiting === other.waiting &&
         panel.grouping === other.grouping &&
+        dequal(panel.fields, other.fields) &&
         dequal(panel.reach, other.reach) &&
         dequal(panel.issues, other.issues) &&
         // A click set aside for a filter the host holds changes nothing

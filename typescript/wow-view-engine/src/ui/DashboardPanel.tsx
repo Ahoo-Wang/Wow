@@ -27,7 +27,11 @@ import {
   type RefObject,
 } from 'react';
 import { cn } from 'cn';
-import { readingOrder, type ArrangeStep } from '../dashboard/index.js';
+import {
+  isOwnedPanel,
+  readingOrder,
+  type ArrangeStep,
+} from '../dashboard/index.js';
 import type { Issue } from '../model/index.js';
 import type { DashboardPanelView } from '../react/index.js';
 import { useAnalysisEditor } from '../react/index.js';
@@ -61,7 +65,7 @@ import {
   type ChartImageOffer,
 } from './analysis/imageExport.js';
 import { ChartImageTarget } from './charts/image.js';
-import { PanelUnavailable } from './PanelUnavailable.js';
+import { outPanelNamer, PanelUnavailable } from './PanelUnavailable.js';
 import { RenderBoundary, type RenderFailureHandler } from './RenderBoundary.js';
 import { useViewMessages, type MessageFormatters } from './MessagesProvider.js';
 import type { MessageKey } from './messages.js';
@@ -288,11 +292,13 @@ export function DashboardPanel({
   });
   // A finding names its dimensions, metrics and fields as the panel's screen
   // does, never by a program's key (`analysisIssueNamer`); over a record
-  // panel or a content panel the editor is empty and names nothing.
-  const nameIssue = analysisIssueNamer(
-    useAnalysisEditor(panel.runtime),
-    messages,
-  );
+  // panel or a content panel the editor is empty and names nothing. A panel
+  // that cannot run has no editor, and names by its view's fields instead
+  // (`outPanelNamer`), so its body can say which field and why.
+  const editor = useAnalysisEditor(panel.runtime);
+  const nameIssue = panel.runtime
+    ? analysisIssueNamer(editor, messages)
+    : outPanelNamer(panel.fields, messages);
   const marks = panelMarks({
     panel,
     shown: bodyIssue(panel),
@@ -376,6 +382,7 @@ export function DashboardPanel({
                   onRetry={onRetry}
                   readOnly={readOnly}
                   wayOut={wayOut}
+                  nameIssue={nameIssue}
                   press={press}
                   headingLevel={headingLevel}
                   record={record}
@@ -559,6 +566,7 @@ function PanelBody({
   onRetry,
   readOnly,
   wayOut,
+  nameIssue,
   press,
   headingLevel,
   record,
@@ -567,6 +575,8 @@ function PanelBody({
   onRetry?: () => void;
   readOnly: boolean;
   wayOut?: WayOut | false;
+  /** How a finding is named in the panel's words; see `DashboardPanel`. */
+  nameIssue: (found: Issue) => Issue;
   press?: PanelPress;
   /** The panel title's level, which a note's own headings go under. */
   headingLevel: PanelHeadingLevel;
@@ -576,12 +586,17 @@ function PanelBody({
   // and leaves the rest alone. Content panels come through here too: a link
   // whose scheme was rejected must not reach the document because the rest of
   // the dashboard happened to be fine.
+  const out = {
+    ...(wayOut || {}),
+    name: nameIssue,
+    owned: isOwnedPanel(panel.panel),
+  };
   if (panel.broken)
-    return <PanelUnavailable issue={bodyIssue(panel)} {...(wayOut || {})} />;
+    return <PanelUnavailable issue={bodyIssue(panel)} {...out} />;
   if (panel.panel.kind !== 'view')
     return <ContentPanel panel={panel.panel} headingLevel={headingLevel} />;
   if (!panel.runtime)
-    return <PanelUnavailable issue={panel.issues[0]} {...(wayOut || {})} />;
+    return <PanelUnavailable issue={panel.issues[0]} {...out} />;
   return isRecordRuntime(panel.runtime) ? (
     <RecordPanel
       runtime={panel.runtime}

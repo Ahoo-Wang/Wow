@@ -99,6 +99,22 @@ export interface ValidateDashboardOptions {
  * loaded. A panel whose instance is missing from `refs` is reported as
  * unavailable and the remaining panels are still judged, because one deleted
  * view must not close the whole dashboard.
+ *
+ * **What a finding stops is where it is addressed.** One under
+ * `['panels', i]` is that panel's: its id (empty, or another panel's), its
+ * layout, its tab, where its view comes from and whether that view can be
+ * shown on a board, its bindings, its look, its click, the filter it runs
+ * under and — through the analysis kernel, which the runtime and the
+ * definition's admission add — the analysis it owns; a content panel's
+ * text, picture and links. It puts that panel out and nothing else: the
+ * runtime runs the rest (`blocksBoard`), a definition declaring the board
+ * stays usable (`isUsableDefinition`), and the board still saves
+ * (`stopsSave`). Everything else is the board's, and stops it whole: its
+ * skeleton (the grid, the `tabs`, `fields` and `panels` lists), the shared
+ * config members, its fixed scope, its filters and their defaults, its time
+ * grouping, its tabs, and a count of panels over the limit, said at
+ * `['panels']` — a board none of whose panels can be drawn in their place,
+ * or whose filters mean nothing, has nothing true to show in any of them.
  */
 export function validateDashboard(
   config: DashboardViewConfig,

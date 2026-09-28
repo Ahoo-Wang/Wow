@@ -33,12 +33,16 @@ import {
   type ViewScope,
   type ViewSource,
 } from '../src/index.js';
-import { DashboardViewRuntime } from '../src/runtime/dashboardRuntime.js';
+import {
+  blocksBoard,
+  DashboardViewRuntime,
+} from '../src/runtime/dashboardRuntime.js';
 import { dataViewRuntime } from '../src/runtime/recordRuntime.js';
 import { RequestRunner } from '../src/runtime/requestRunner.js';
 import {
   analysisConfig,
   dashboardConfig,
+  namedOrdersDefinition,
   nextTask,
   NOW,
   ordersDefinition,
@@ -1226,6 +1230,71 @@ describe('DashboardViewRuntime a panel in error', () => {
     await nextTask();
 
     expect(pagedQueries(board.source)).toHaveLength(2);
+  });
+
+  /**
+   * todo A: the board the console declared went blank whole when four of
+   * its owned analyses filtered an enum with `EQ`. Each analysis a board
+   * owns is judged by its own kernel as the board opens, and what it finds
+   * is that panel's: the panel is out, says which field and why, and the
+   * others run.
+   */
+  it('puts out an owned analysis its kernel refuses, and runs the rest', async () => {
+    const owned = (id: string, config: unknown, x: number) =>
+      ({
+        id,
+        kind: 'view',
+        owned: { definitionId: 'orders', config },
+        bindings: [],
+        layout: { x, y: 0, w: 6, h: 4 },
+      }) as unknown as DashboardPanel;
+    const board = await harness({
+      definitions: [namedOrdersDefinition(), overviewDefinition()],
+    });
+    const runtime = await board.open(
+      dashboardConfig({
+        panels: [
+          owned('whole', analysisConfig(), 0),
+          owned(
+            'refused',
+            analysisConfig({
+              filter: {
+                op: 'and',
+                children: [{ field: 'warehouse', operator: 'EQ', value: 'CN' }],
+              },
+            }),
+            6,
+          ),
+          owned('shapeless', { kind: 'analysis' }, 12),
+        ],
+      }),
+    );
+    const { issues, panels } = runtime.getSnapshot();
+
+    expect(blocksBoard(issues)).toBe(false);
+    const [whole, refused, shapeless] = panels;
+    expect(whole.runtime).not.toBeNull();
+    expect(whole.issues).toEqual([]);
+    expect(board.source.aggregate).toHaveBeenCalledTimes(1);
+    // Said once, where the kernel judged the filter the panel runs under,
+    // with the field and the operator it names.
+    expect(refused.runtime).toBeNull();
+    expect(refused.issues).toEqual([
+      expect.objectContaining({
+        code: 'filter.operator.unsupported',
+        path: ['panels', 1, 'filter', 'children', 0],
+        params: { field: 'warehouse', operator: 'EQ' },
+      }),
+    ]);
+    // And the fields its finding is named by, though it has no runtime.
+    expect(refused.fields.map(field => field.name)).toContain('warehouse');
+    expect(shapeless.runtime).toBeNull();
+    expect(codes(shapeless.issues)).toContain('analysis.config.malformed');
+    expect(
+      shapeless.issues.every(
+        found => found.path.slice(0, 4).join('/') === 'panels/2/owned/config',
+      ),
+    ).toBe(true);
   });
 
   it('re-applies what was saved on revert', async () => {

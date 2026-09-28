@@ -143,8 +143,7 @@ export const dashboardMessages = {
   'label.panel.out.private':
     'The view this panel shows is not open to everyone who reads this dashboard',
   'label.panel.out.filter': "The dashboard's filters do not fit this panel",
-  'label.panel.out.refused':
-    'The view this panel shows was saved with settings that no longer work',
+  'label.panel.out.config': 'This panel cannot be used',
   'label.panel.out.blocked': 'The dashboard itself needs fixing first',
   'label.panel.out.unknown-kind': 'This type of panel cannot be shown here',
   'label.panel.out.settings': "This panel's own settings cannot be used",
