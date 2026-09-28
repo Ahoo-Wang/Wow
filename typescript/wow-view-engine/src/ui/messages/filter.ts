@@ -403,6 +403,8 @@ export const filterMessages = {
   'filter.kind.unregistered': 'No editor is registered for the {kind} type.',
   'filter.kind.unknown-editor':
     'The {kind} type asks for a {input} editor, which this engine does not have.',
+  'filter.kind.failed':
+    'The {kind} type could not check this condition: {reason}',
   'filter.node.invalid': 'This condition could not be read.',
   'filter.operator.unsupported': '{field} does not support {operator}.',
   // The source reads a stored null or empty array as missing (#3515).
