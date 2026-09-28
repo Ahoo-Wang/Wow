@@ -28,7 +28,7 @@ import {
   type Issue,
 } from '../src/index.js';
 import { DataWorkbench } from '../src/ui/index.js';
-import { ordersDefinition, testSource } from './fixtures.js';
+import { ordersDefinition, testSource, resourcesOf } from './fixtures.js';
 import { mine } from './fixtures/ui.js';
 
 afterEach(cleanup);
@@ -36,9 +36,8 @@ afterEach(cleanup);
 function setup() {
   const store = new MemoryViewStore({ instances: [mine] });
   const engine = new ViewEngine({
-    definitions: [ordersDefinition()],
+    resources: resourcesOf([ordersDefinition()], () => testSource()),
     store,
-    resolveSource: () => testSource(),
   });
   return { engine, store };
 }

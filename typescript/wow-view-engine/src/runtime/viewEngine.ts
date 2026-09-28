@@ -72,24 +72,35 @@ import { TabMemory } from './tabMemory.js';
 import { RuntimeFactory, type RuntimeIdentity } from './runtimeFactory.js';
 import { readingStore } from './storedViews.js';
 import { SourceCapabilities } from './capabilities.js';
+import { EngineResources } from './resources.js';
 import { reportingStore } from './failures.js';
 
+/**
+ * One thing a host registers (host-integration.md 4): a definition, and
+ * where its data comes from. A board's definition has no source — it
+ * queries nothing of its own.
+ */
+export interface ViewResource {
+  definition: ViewDefinition;
+  /** Where a data definition's rows come from; a board has none. */
+  source?: ViewSource;
+}
+
 export interface ViewEngineOptions {
-  definitions: readonly ViewDefinition[];
+  /** What the host registers: each definition, with its data's source. */
+  resources: readonly ViewResource[];
   store: ViewStore;
-  /** Where a definition's data comes from, by `DataViewDefinition.source`. */
-  resolveSource(key: string): ViewSource;
   /** Remote candidates of `reference` fields, by the same key. */
   resolveOptions?(key: string): OptionSource;
   kinds?: FieldKindRegistry;
   /**
-   * How the definitions' keys (`text(key)`) are said: a host's catalogue in
-   * the language in force (host-integration.md 3.1). Every definition is
-   * read in these words once, as it is registered; a key with no words is
-   * said as the key, and admission warns of it (`definition.text.unknown`).
-   * Left out, only literal labels read as words. Transitional (D2): it
-   * fixes one engine to one language; H2 says the keys at render time,
-   * through the messages catalogue, and this goes.
+   * How the definitions' keys (`text(key)`) are said in the language the
+   * engine starts in, for a host with no Provider; a Provider says them in
+   * its own (`setText`). Keys stay in the definitions and in every
+   * runtime's state, and are read into words as the engine hands them out,
+   * so a change of language redraws what is open rather than rebuilding
+   * anything (host-integration.md 3.1, D2). Left out, a key reads as
+   * itself until a language is set.
    */
   text?(key: string): string | undefined;
   /**
@@ -109,6 +120,10 @@ export interface ViewEngineOptions {
    * definition's admission, a list entry that was dropped, a change
    * listener that threw. Failures — a query, a store call, an export, a
    * render — go to `environment.onError` instead (D40).
+   *
+   * Left out, a development build (`NODE_ENV` of `development`) writes them
+   * to the console, grouped by resource, each with how to fix it; any other
+   * build drops them.
    */
   onIssue?(issue: Issue): void;
 }
@@ -164,7 +179,7 @@ export interface CreateInput<C extends ViewConfig> {
  * cannot reach itself: how to read a referenced instance, and how to build a
  * child runtime for it.
  */
-export class ViewEngine {
+export class ViewEngine extends EngineResources {
   /**
    * The host's store as the engine reads it: every view it hands back is
    * read into the form this engine writes on its way in (`readingStore`,
@@ -172,7 +187,6 @@ export class ViewEngine {
    */
   readonly store: ViewStore;
   readonly environment: RuntimeEnvironment;
-  readonly definitions: ReadonlyMap<string, ViewDefinition>;
   readonly kinds: FieldKindRegistry;
   readonly limits: RuntimeLimits;
 
@@ -180,7 +194,7 @@ export class ViewEngine {
   private readonly runner: RequestRunner;
   /** What each source admits; see `capabilities.ts`. */
   private readonly capabilities: SourceCapabilities;
-  private readonly registry: DefinitionRegistry;
+  protected readonly registry: DefinitionRegistry;
   private readonly guard: PermissionGuard;
   private readonly preferenceCache: PreferenceCache;
   private readonly runtimes = new OpenRuntimes();
@@ -201,6 +215,7 @@ export class ViewEngine {
   });
 
   constructor(options: ViewEngineOptions) {
+    super(options);
     this.options = options;
     this.environment = options.environment ?? defaultRuntimeEnvironment();
     // Read in first, then watched: a store failure is told to the host's
@@ -222,12 +237,15 @@ export class ViewEngine {
     this.preferenceCache = new PreferenceCache(this.store);
     this.ledger = new WriteLedger(this.ledgerHost());
     this.registry = new DefinitionRegistry(
-      options,
+      {
+        definitions: options.resources.map(({ definition }) => definition),
+        hasSource: key => this.hasSource(key),
+        ...(options.text ? { text: (key: string) => options.text?.(key) } : {}),
+      },
       this.kinds,
       this.limits,
-      found => this.report(found),
+      (found, resource) => this.report(found, resource),
     );
-    this.definitions = this.registry.definitions;
     this.panelViews = new PanelViews({
       registry: this.registry,
       kinds: this.kinds,
@@ -249,25 +267,13 @@ export class ViewEngine {
         : {}),
       readInstance: id => this.readInstance(id),
       capabilities: this.capabilities,
+      text: this.text,
     });
   }
 
   /** What `validateDefinition` said about one definition, for a host to show. */
   definitionIssues(definitionId: string): Issue[] {
     return this.registry.issues(definitionId);
-  }
-
-  resolveSource(key: string): ViewSource {
-    return this.options.resolveSource(key);
-  }
-
-  resolveOptions(key: string): OptionSource {
-    const resolve = this.options.resolveOptions;
-    if (!resolve)
-      throw new ViewCommandError(
-        issue('runtime.options.unresolved', [], { source: key }),
-      );
-    return resolve(key);
   }
 
   permissions(definitionId: string): ViewPermissions {
@@ -300,12 +306,17 @@ export class ViewEngine {
     }
     const accepted = stored.filter(summary => {
       if (!isSystemInstanceId(summary.id)) return true;
-      this.report(issue('view.list.reserved-id', [], { id: summary.id }));
+      this.report(
+        issue('view.list.reserved-id', [], { id: summary.id }),
+        definitionId,
+      );
       return false;
     });
     const items = [...declared, ...accepted];
     this.summaries.noteAll(items);
-    return { items, failed };
+    // A declared view's title is a key where its definition wrote one: said
+    // in the words in force. A saved one is a reader's words, as it came.
+    return { items: [...this.say(declared), ...accepted], failed };
   }
 
   /**
@@ -414,7 +425,7 @@ export class ViewEngine {
       };
       this.guard.requireCreate(target.definition.id, state.scope);
       return (await this.ledger.dispatch(
-        { action: 'create', input, intent: 'first-save' },
+        { action: 'create', input, intent: 'first-save', draft: state.draft },
         target,
       )) as ViewInstance;
     }
@@ -426,6 +437,7 @@ export class ViewEngine {
       id: saved.id,
       revision: saved.revision,
       config: target.stored?.(state.draft) ?? state.draft,
+      draft: state.draft,
     };
     return (await this.ledger.dispatch(payload, target)) as ViewInstance;
   }
@@ -727,10 +739,6 @@ export class ViewEngine {
       definitionId: summary.definitionId,
       runtime,
     };
-  }
-
-  private report(found: Issue): void {
-    this.options.onIssue?.(found);
   }
 
   private requireTitle(title: string): void {

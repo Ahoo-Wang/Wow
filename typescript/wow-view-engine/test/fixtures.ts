@@ -27,7 +27,9 @@ import type {
   RecordViewConfig,
   RuntimeEnvironment,
   ViewConfig,
+  ViewDefinition,
   ViewInstance,
+  ViewResource,
   ViewSource,
 } from '../src/index.js';
 
@@ -419,3 +421,19 @@ export function nextTask(): Promise<void> {
 export const DRAWN = {
   ignore: 'script, style, [data-slot="chart-reading"] *',
 } as const;
+
+/**
+ * The resources an engine takes (`ViewEngineOptions.resources`), from the
+ * definitions and a way to find each one's source by its key: every data
+ * definition with its source, a board with none.
+ */
+export function resourcesOf(
+  definitions: readonly ViewDefinition[],
+  resolve: (key: string) => ViewSource | undefined,
+): ViewResource[] {
+  return definitions.map(definition => {
+    const source =
+      definition.kind === 'data' ? resolve(definition.source) : undefined;
+    return source ? { definition, source } : { definition };
+  });
+}

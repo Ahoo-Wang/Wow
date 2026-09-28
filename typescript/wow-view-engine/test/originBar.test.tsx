@@ -28,7 +28,12 @@ import {
 } from '../src/index.js';
 import { useWorkbench, type WorkbenchController } from '../src/react/index.js';
 import { WorkbenchShell } from '../src/ui/WorkbenchShell.js';
-import { analysisConfig, ordersDefinition, testSource } from './fixtures.js';
+import {
+  analysisConfig,
+  ordersDefinition,
+  testSource,
+  resourcesOf,
+} from './fixtures.js';
 import { mine } from './fixtures/ui.js';
 
 afterEach(cleanup);
@@ -44,9 +49,8 @@ const chart: ViewInstance = {
 
 function engineWith(): ViewEngine {
   return new ViewEngine({
-    definitions: [ordersDefinition()],
+    resources: resourcesOf([ordersDefinition()], () => testSource()),
     store: new MemoryViewStore({ instances: [mine, chart] }),
-    resolveSource: () => testSource(),
   });
 }
 

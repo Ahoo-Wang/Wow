@@ -16,7 +16,12 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { MemoryViewStore, ViewEngine } from '../src/index.js';
 import type { OptionSource } from '../src/index.js';
 import { useFilterEditor, useOpenView } from '../src/react/index.js';
-import { ordersDefinition, recordConfig, testSource } from './fixtures.js';
+import {
+  ordersDefinition,
+  recordConfig,
+  testSource,
+  resourcesOf,
+} from './fixtures.js';
 import { mine } from './fixtures/ui.js';
 
 afterEach(cleanup);
@@ -28,9 +33,8 @@ const customers: OptionSource = {
 
 function engineWith(resolveOptions?: () => OptionSource) {
   return new ViewEngine({
-    definitions: [ordersDefinition()],
+    resources: resourcesOf([ordersDefinition()], () => testSource()),
     store: new MemoryViewStore({ instances: [mine] }),
-    resolveSource: () => testSource(),
     ...(resolveOptions ? { resolveOptions } : {}),
   });
 }

@@ -51,6 +51,7 @@ import {
   ordersDefinition,
   overviewDefinition,
   testSource,
+  resourcesOf,
 } from './fixtures.js';
 import { panel, pending } from './fixtures/dashboard.js';
 import { landed, tracked } from './fixtures/writes.js';
@@ -122,9 +123,10 @@ function open({
     }),
   );
   const engine = new ViewEngine({
-    definitions: [ordersDefinition(), definition],
+    resources: resourcesOf([ordersDefinition(), definition], () =>
+      testSource(),
+    ),
     store,
-    resolveSource: () => testSource(),
   });
   const wrap = (node: ReactNode) =>
     extensions ? (
@@ -1021,7 +1023,9 @@ describe('a chart finding in a panel names columns', () => {
       }),
     };
     const engine = new ViewEngine({
-      definitions: [definition, overviewDefinition()],
+      resources: resourcesOf([definition, overviewDefinition()], () =>
+        testSource(),
+      ),
       store: new MemoryViewStore({
         instances: [
           chart,
@@ -1037,7 +1041,6 @@ describe('a chart finding in a panel names columns', () => {
           },
         ],
       }),
-      resolveSource: () => testSource(),
     });
     render(
       <DashboardWorkbench

@@ -36,7 +36,12 @@ import {
   type ViewSource,
 } from '../src/index.js';
 import { DataWorkbench, defaultMessages } from '../src/ui/index.js';
-import { analysisConfig, ordersDefinition, testSource } from './fixtures.js';
+import {
+  analysisConfig,
+  ordersDefinition,
+  testSource,
+  resourcesOf,
+} from './fixtures.js';
 import { openTray } from './fixtures/workbench.js';
 
 afterEach(cleanup);
@@ -171,11 +176,10 @@ function open({
   rows?: RecordData[];
 } = {}) {
   const engine = new ViewEngine({
-    definitions: [definition],
+    resources: resourcesOf([definition], () => spyingSource(rows)),
     store: new MemoryViewStore({
       instances: [{ ...analysisView, config: analysisConfig(config) }],
     }),
-    resolveSource: () => spyingSource(rows),
   });
   render(
     <DataWorkbench

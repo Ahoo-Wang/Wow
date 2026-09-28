@@ -50,6 +50,7 @@ import {
   ordersDefinition,
   overviewDefinition,
   testSource,
+  resourcesOf,
 } from './fixtures.js';
 import { pending } from './fixtures/dashboard.js';
 
@@ -98,9 +99,11 @@ async function openBoard(
     config,
   };
   const engine = new ViewEngine({
-    definitions: [ordersDefinition(), overviewDefinition()],
+    resources: resourcesOf(
+      [ordersDefinition(), overviewDefinition()],
+      () => source,
+    ),
     store: new MemoryViewStore({ instances: [pending, board] }),
-    resolveSource: () => source,
   });
   const runtime = (await engine.open('board')) as DashboardViewRuntime;
   // 「改这里的展示」 is on offer only while the board is built, and an edit

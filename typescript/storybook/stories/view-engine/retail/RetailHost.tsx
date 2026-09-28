@@ -28,13 +28,12 @@ import {
   type ViewSource,
   type ViewStore,
 } from '@ahoo-wang/wow-view-engine';
-import type {
-  DashboardPanelView,
-  RecordActionSlots,
-} from '@ahoo-wang/wow-view-engine/react';
+import type { RecordActionSlots } from '@ahoo-wang/wow-view-engine/react';
 import {
+  bind,
   DashboardWorkbench,
   DataWorkbench,
+  ViewEngineProvider,
 } from '@ahoo-wang/wow-view-engine/ui';
 import { ArrowLeftIcon, BellRingIcon, FileTextIcon } from 'lucide-react';
 import { Button, buttonVariants } from '@/ui/components/button';
@@ -52,6 +51,7 @@ import {
   memberOptions,
   retailData,
   retailEnvironment,
+  retailResources,
   retailSource,
   type RetailSourceKey,
 } from './source.js';
@@ -73,13 +73,13 @@ export function createBoardEngine(
   options: BoardEngineOptions = {},
 ): ViewEngine {
   return new ViewEngine({
-    definitions: RETAIL_BOARD_DEFINITIONS,
+    resources: retailResources(
+      RETAIL_BOARD_DEFINITIONS,
+      key => options.sources?.[key] ?? retailSource(key),
+    ),
     // 与真实的 Wow 服务一样，一页最多 100 行。
     limits: { ...DEFAULT_RUNTIME_LIMITS, maxPageSize: 100 },
     store: options.store ?? new MemoryViewStore({ instances: retailInstances }),
-    resolveSource: key =>
-      options.sources?.[key as RetailSourceKey] ??
-      retailSource(key as RetailSourceKey),
     resolveOptions: remote => {
       if (remote !== MEMBER_OPTIONS)
         throw new Error(`No retail options ${remote}.`);
@@ -269,12 +269,11 @@ export interface BoardReader {
 
 /**
  * 板上订单面板的宿主动作（D39）：与订单工作台同一组「催发货」「订单详情」，
- * 勾选几行时成批「催发货」。只给订单的记录面板；别的面板什么也不挂。
+ * 勾选几行时成批「催发货」。绑在订单这份定义上（`bind`，host-integration.md
+ * 4）：订单的记录面板都挂，别的面板什么也不挂。
  */
-export function orderPanels(nudges: Nudges) {
-  const actions = orderActions(nudges);
-  return (panel: DashboardPanelView) =>
-    panel.runtime?.definition.id === RETAIL_ORDERS ? { actions } : undefined;
+export function orderBindings(nudges: Nudges) {
+  return [bind(RETAIL_ORDERS, { actions: orderActions(nudges) })];
 }
 
 /**
@@ -401,35 +400,36 @@ export function RetailBoardScene({
   initialFilters?: DashboardFilters;
 }) {
   const nudges = useNudges();
-  const recordPanel = useMemo(() => orderPanels(nudges), [nudges]);
+  const bindings = useMemo(() => orderBindings(nudges), [nudges]);
   return (
     <StoryEngine create={() => createBoardEngine()}>
       {engine => (
-        <div className="fve-tokens flex h-full min-h-0 flex-col">
-          <NudgeStatus nudges={nudges} />
-          <RoutedBoard
-            engine={engine}
-            home={instanceId}
-            nudges={nudges}
-            board={reader => (
-              <DashboardWorkbench
-                engine={engine}
-                definitionId={RETAIL_BOARDS}
-                instanceId={instanceId}
-                initialFilters={reader.initialFilters ?? initialFilters}
-                onFiltersChange={reader.onFiltersChange}
-                initialTab={reader.initialTab ?? initialTab}
-                onTabChange={reader.onTabChange}
-                onNavigate={reader.onNavigate}
-                recordPanel={recordPanel}
-                // The board is what the page is about: the view list starts
-                // folded, so a 1280 screen lays the board out wide.
-                defaultSidebarOpen={false}
-                {...HOST_LANGUAGE}
-              />
-            )}
-          />
-        </div>
+        <ViewEngineProvider bindings={bindings}>
+          <div className="fve-tokens flex h-full min-h-0 flex-col">
+            <NudgeStatus nudges={nudges} />
+            <RoutedBoard
+              engine={engine}
+              home={instanceId}
+              nudges={nudges}
+              board={reader => (
+                <DashboardWorkbench
+                  engine={engine}
+                  definitionId={RETAIL_BOARDS}
+                  instanceId={instanceId}
+                  initialFilters={reader.initialFilters ?? initialFilters}
+                  onFiltersChange={reader.onFiltersChange}
+                  initialTab={reader.initialTab ?? initialTab}
+                  onTabChange={reader.onTabChange}
+                  onNavigate={reader.onNavigate}
+                  // The board is what the page is about: the view list starts
+                  // folded, so a 1280 screen lays the board out wide.
+                  defaultSidebarOpen={false}
+                  {...HOST_LANGUAGE}
+                />
+              )}
+            />
+          </div>
+        </ViewEngineProvider>
       )}
     </StoryEngine>
   );

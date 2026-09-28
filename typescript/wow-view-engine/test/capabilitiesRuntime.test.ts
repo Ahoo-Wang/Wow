@@ -35,6 +35,7 @@ import {
   recordConfig,
   testEnvironment,
   testSource,
+  resourcesOf,
 } from './fixtures.js';
 import { panel, pending } from './fixtures/dashboard.js';
 import {
@@ -90,12 +91,11 @@ function harness(
   const issues: Issue[] = [];
   const clock = testEnvironment();
   const engine = new ViewEngine({
-    definitions: [
-      ...(options.definitions ?? [ordersDefinition()]),
-      overviewDefinition(),
-    ],
+    resources: resourcesOf(
+      [...(options.definitions ?? [ordersDefinition()]), overviewDefinition()],
+      () => source,
+    ),
     store: new MemoryViewStore({ instances: options.instances ?? [] }),
-    resolveSource: () => source,
     environment: clock.environment,
     ...(options.limits ? { limits: options.limits } : {}),
     onIssue: found => issues.push(found),

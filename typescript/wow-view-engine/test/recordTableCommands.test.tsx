@@ -41,7 +41,12 @@ import {
 } from '../src/index.js';
 import { useOpenView, useRecordTable } from '../src/react/index.js';
 import { ResultToolbar } from '../src/ui/ResultToolbar.js';
-import { ordersDefinition, recordConfig, testSource } from './fixtures.js';
+import {
+  ordersDefinition,
+  recordConfig,
+  testSource,
+  resourcesOf,
+} from './fixtures.js';
 
 afterEach(cleanup);
 
@@ -85,11 +90,10 @@ async function openTable(
   source: ViewSource = testSource(),
 ) {
   const engine = new ViewEngine({
-    definitions: [{ ...definition(), ...overrides }],
+    resources: resourcesOf([{ ...definition(), ...overrides }], () => source),
     store: new MemoryViewStore({
       instances: [config ? { ...mine, config: recordConfig(config) } : mine],
     }),
-    resolveSource: () => source,
   });
   const { result } = renderHook(() => {
     const opened = useOpenView(engine, 'orders-1');

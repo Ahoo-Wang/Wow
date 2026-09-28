@@ -44,6 +44,7 @@ import {
   recordConfig,
   testEnvironment,
   testSource,
+  resourcesOf,
 } from './fixtures.js';
 
 afterEach(cleanup);
@@ -137,13 +138,12 @@ describe('the permission state in a view', () => {
     const events: ViewErrorEvent[] = [];
     const paged = vi.fn(() => Promise.reject(error));
     const engine = new ViewEngine({
-      definitions: [ordersDefinition()],
+      resources: resourcesOf([ordersDefinition()], () => testSource({ paged })),
       store: new MemoryViewStore({
         instances: [
           { ...mine, config: recordConfig({ refresh: { interval } }) },
         ],
       }),
-      resolveSource: () => testSource({ paged }),
       environment: {
         ...clock.environment,
         onError: event => events.push(event),
@@ -267,9 +267,10 @@ describe('the permission state on a board', () => {
     );
     const store = new MemoryViewStore({ instances: [pending] });
     const engine = new ViewEngine({
-      definitions: [ordersDefinition(), overviewDefinition()],
+      resources: resourcesOf([ordersDefinition(), overviewDefinition()], () =>
+        testSource({ paged }),
+      ),
       store,
-      resolveSource: () => testSource({ paged }),
       environment: clock.environment,
     });
     const config: DashboardViewConfig = dashboardConfig({

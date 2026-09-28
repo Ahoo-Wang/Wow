@@ -48,6 +48,7 @@ import {
   preCDashboardConfig,
   recordConfig,
   testSource,
+  resourcesOf,
 } from './fixtures.js';
 import { landed, tracked } from './fixtures/writes.js';
 import { panel, pending } from './fixtures/dashboard.js';
@@ -78,9 +79,11 @@ describe('DashboardWorkbench', () => {
       new MemoryViewStore({ instances: [pending, instance] }),
     );
     const engine = new ViewEngine({
-      definitions: [ordersDefinition(), overviewDefinition()],
+      resources: resourcesOf(
+        [ordersDefinition(), overviewDefinition()],
+        () => source,
+      ),
       store,
-      resolveSource: () => source,
     });
     return { engine, source, store };
   }
@@ -293,9 +296,10 @@ describe('DashboardWorkbench', () => {
       }),
     );
     const engine = new ViewEngine({
-      definitions: [ordersDefinition(), overviewDefinition()],
+      resources: resourcesOf([ordersDefinition(), overviewDefinition()], () =>
+        testSource(),
+      ),
       store,
-      resolveSource: () => testSource(),
     });
 
     render(
@@ -545,9 +549,10 @@ describe('DashboardWorkbench', () => {
         }),
       );
       const engine = new ViewEngine({
-        definitions: [ordersDefinition(), overviewDefinition()],
+        resources: resourcesOf([ordersDefinition(), overviewDefinition()], () =>
+          testSource(),
+        ),
         store,
-        resolveSource: () => testSource(),
       });
       render(
         <DashboardWorkbench
@@ -673,7 +678,17 @@ describe('DashboardWorkbench', () => {
   /** A dashboard whose one panel shows `config` over the named orders. */
   function named(config: ViewInstance['config']) {
     return new ViewEngine({
-      definitions: [namedOrdersDefinition(), overviewDefinition()],
+      resources: resourcesOf(
+        [namedOrdersDefinition(), overviewDefinition()],
+        () =>
+          testSource({
+            paged: () =>
+              Promise.resolve({
+                total: 1,
+                list: [{ id: 'o-1', createdAt: INSTANT }],
+              }),
+          }),
+      ),
       store: tracked(
         new MemoryViewStore({
           instances: [
@@ -687,14 +702,6 @@ describe('DashboardWorkbench', () => {
           ],
         }),
       ),
-      resolveSource: () =>
-        testSource({
-          paged: () =>
-            Promise.resolve({
-              total: 1,
-              list: [{ id: 'o-1', createdAt: INSTANT }],
-            }),
-        }),
       environment: defaultRuntimeEnvironment({ timeZone: ZONE }),
     });
   }
@@ -1038,16 +1045,19 @@ describe('DashboardWorkbench', () => {
     };
     const orders = ordersDefinition();
     const engine = new ViewEngine({
-      definitions: [
-        {
-          ...orders,
-          fields: [
-            ...orders.fields,
-            { name: 'mass', label: 'Mass', kind: 'rounded' },
-          ],
-        },
-        overviewDefinition(),
-      ],
+      resources: resourcesOf(
+        [
+          {
+            ...orders,
+            fields: [
+              ...orders.fields,
+              { name: 'mass', label: 'Mass', kind: 'rounded' },
+            ],
+          },
+          overviewDefinition(),
+        ],
+        () => testSource(),
+      ),
       store: tracked(
         new MemoryViewStore({
           instances: [
@@ -1067,7 +1077,6 @@ describe('DashboardWorkbench', () => {
           ],
         }),
       ),
-      resolveSource: () => testSource(),
       kinds: withFieldKinds(builtinFieldKinds, [rounded]),
     });
 

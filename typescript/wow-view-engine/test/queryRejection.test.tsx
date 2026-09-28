@@ -37,6 +37,7 @@ import {
   recordConfig,
   testEnvironment,
   testSource,
+  resourcesOf,
 } from './fixtures.js';
 
 afterEach(cleanup);
@@ -428,7 +429,7 @@ describe('a rejected query in the view', () => {
   function watched(source: ViewSource) {
     const events: ViewErrorEvent[] = [];
     const engine = new ViewEngine({
-      definitions: [withItems()],
+      resources: resourcesOf([withItems()], () => source),
       store: new MemoryViewStore({
         instances: [
           {
@@ -437,7 +438,6 @@ describe('a rejected query in the view', () => {
           },
         ],
       }),
-      resolveSource: () => source,
       environment: {
         ...testEnvironment().environment,
         onError: event => events.push(event),
@@ -490,7 +490,9 @@ describe('a rejected query in the view', () => {
     const error = rejected('PROTECTED_AGGREGATION', 'amount', 'Protected.');
     const events: ViewErrorEvent[] = [];
     const engine = new ViewEngine({
-      definitions: [withItems()],
+      resources: resourcesOf([withItems()], () =>
+        testSource({ aggregate: vi.fn(() => Promise.reject(error)) }),
+      ),
       store: new MemoryViewStore({
         instances: [
           {
@@ -501,8 +503,6 @@ describe('a rejected query in the view', () => {
           },
         ],
       }),
-      resolveSource: () =>
-        testSource({ aggregate: vi.fn(() => Promise.reject(error)) }),
       environment: {
         ...testEnvironment().environment,
         onError: event => events.push(event),

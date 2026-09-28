@@ -54,6 +54,7 @@ import {
   ordersDefinition,
   recordConfig,
   testSource,
+  resourcesOf,
 } from './fixtures.js';
 import { formattersFor } from './fixtures/columns.js';
 import { describedField, ordersDescriptor } from './fixtures/descriptor.js';
@@ -678,7 +679,7 @@ describe('the analysis workbench over mixed currencies', () => {
   it('says which groups have no total, and groups by currency on one press', async () => {
     const from = source();
     const engine = new ViewEngine({
-      definitions: [moneyDefinition()],
+      resources: resourcesOf([moneyDefinition()], () => from),
       store: new MemoryViewStore({
         instances: [
           {
@@ -691,7 +692,6 @@ describe('the analysis workbench over mixed currencies', () => {
           },
         ],
       }),
-      resolveSource: () => from,
     });
     render(
       <DataWorkbench

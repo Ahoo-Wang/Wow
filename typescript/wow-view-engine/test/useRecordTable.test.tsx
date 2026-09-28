@@ -34,6 +34,7 @@ import {
   recordConfig,
   ROWS,
   testSource,
+  resourcesOf,
 } from './fixtures.js';
 import { engineWith } from './fixtures/hooks.js';
 
@@ -104,9 +105,8 @@ describe('useRecordTable', () => {
    */
   it('offers only the page sizes the limits admit', async () => {
     const engine = new ViewEngine({
-      definitions: [ordersDefinition()],
+      resources: resourcesOf([ordersDefinition()], () => testSource()),
       store: new MemoryViewStore({ instances: [mine] }),
-      resolveSource: () => testSource(),
       limits: { ...DEFAULT_RUNTIME_LIMITS, maxPageSize: 50 },
     });
     const { result } = renderHook(() => {
@@ -121,9 +121,8 @@ describe('useRecordTable', () => {
   /** The ladder is the engine's: a product hands its own in with the budgets. */
   it('offers the page sizes the limits name', async () => {
     const engine = new ViewEngine({
-      definitions: [ordersDefinition()],
+      resources: resourcesOf([ordersDefinition()], () => testSource()),
       store: new MemoryViewStore({ instances: [mine] }),
-      resolveSource: () => testSource(),
       limits: { ...DEFAULT_RUNTIME_LIMITS, pageSizes: [15, 30, 60] },
     });
     const { result } = renderHook(() => {
@@ -139,11 +138,10 @@ describe('useRecordTable', () => {
   /** Whatever it is: a select whose value is not an item of it shows nothing. */
   it('folds the size in force into the ladder', async () => {
     const engine = new ViewEngine({
-      definitions: [ordersDefinition()],
+      resources: resourcesOf([ordersDefinition()], () => testSource()),
       store: new MemoryViewStore({
         instances: [{ ...mine, config: recordConfig({ pageSize: 25 }) }],
       }),
-      resolveSource: () => testSource(),
       limits: { ...DEFAULT_RUNTIME_LIMITS, maxPageSize: 50 },
     });
     const { result } = renderHook(() => {
@@ -416,9 +414,8 @@ describe('useRecordTable', () => {
       record: { rowKey: 'id', paging: 'cursor', layouts: ['table'] },
     });
     const cursorEngine = new ViewEngine({
-      definitions: [definition],
+      resources: resourcesOf([definition], () => testSource()),
       store: new MemoryViewStore({ instances: [mine] }),
-      resolveSource: () => testSource(),
     });
     void engine;
 
@@ -547,9 +544,8 @@ describe('useRecordTable', () => {
       cursor: vi.fn(() => Promise.resolve({ nextCursor: null, list: [] })),
     });
     const engine = new ViewEngine({
-      definitions: [definition],
+      resources: resourcesOf([definition], () => source),
       store: new MemoryViewStore({ instances: [mine] }),
-      resolveSource: () => source,
     });
     const { result } = renderHook(() => {
       const opened = useOpenView(engine, 'orders-1');

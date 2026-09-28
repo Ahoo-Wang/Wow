@@ -11,6 +11,7 @@
  * limitations under the License.
  */
 
+import { useMemo } from 'react';
 import type {
   AnalysisViewConfig,
   FieldOption,
@@ -23,6 +24,11 @@ import type {
 } from '../runtime/index.js';
 import { useWorkbench } from '../react/index.js';
 import { useViewMessages } from './MessagesProvider.js';
+import {
+  useBindings,
+  useEngine,
+  useRoutedNavigate,
+} from './ViewEngineProvider.js';
 import type { ViewMessages } from './messages.js';
 import { featuresOf, type WorkbenchFeatures } from './features.js';
 import { WorkbenchShell, type WorkbenchLandmark } from './WorkbenchShell.js';
@@ -37,7 +43,8 @@ import { RecordParts, type RecordViewProps } from './workbench/RecordParts.js';
 export type DataViewKind = 'record' | 'analysis';
 
 export interface DataWorkbenchProps {
-  engine: ViewEngine;
+  /** The engine; the `ViewEngineProvider`'s when left out. */
+  engine?: ViewEngine;
   definitionId: string;
   /**
    * Which kinds this workbench lists and draws, in the order the "new view"
@@ -78,7 +85,8 @@ export interface DataWorkbenchProps {
   /**
    * The host's route, for the way back to the board a view was handed from:
    * with it, the workbench draws 「返回〈仪表盘〉」 under the title bar and
-   * hands the board's own target here when it is pressed (D26 Q33).
+   * hands the board's own target here when it is pressed (D26 Q33). The
+   * `ViewEngineProvider`'s route when left out.
    */
   onNavigate?(to: ViewNavigation): void;
   /**
@@ -151,9 +159,32 @@ export interface DataWorkbenchProps {
    * They are one object because none of them means anything to an analysis
    * view (D20: an analysis view has no business actions), and a workbench of
    * both kinds would otherwise wear seven props that apply to half of what
-   * it draws.
+   * it draws. What the host bound to the definition (`bind`: its `actions`,
+   * `bulk` and `reading`) is the default of each; one given here wins.
    */
   record?: RecordViewProps;
+}
+
+/**
+ * What the host says about a definition's record views: its binding
+ * (`bind` — `actions`, `bulk`, `reading` as the detail), each overridden by
+ * the surface's own `record` where that says it.
+ */
+function useBoundRecord(
+  definitionId: string,
+  given: RecordViewProps | undefined,
+): RecordViewProps | undefined {
+  const binding = useBindings()(definitionId);
+  return useMemo(() => {
+    if (!binding) return given;
+    const { actions, bulk, reading } = binding;
+    return {
+      ...(actions ? { actions } : {}),
+      ...(bulk ? { bulk } : {}),
+      ...(reading ? { detail: reading } : {}),
+      ...given,
+    };
+  }, [binding, given]);
 }
 
 /** What the workbench draws when the host names no kinds. */
@@ -172,13 +203,13 @@ const DATA_KINDS: readonly DataViewKind[] = ['record', 'analysis'];
  * switch (`workbench/parts.ts`).
  */
 export function DataWorkbench({
-  engine,
+  engine: own,
   definitionId,
   kinds = DATA_KINDS,
   instanceId,
   onInstanceChange,
   handOver,
-  onNavigate,
+  onNavigate: route,
   templates,
   theme,
   preset,
@@ -193,8 +224,11 @@ export function DataWorkbench({
   landmark,
   features,
   onRenderFailure,
-  record,
+  record: given,
 }: DataWorkbenchProps) {
+  const engine = useEngine(own);
+  const onNavigate = useRoutedNavigate(route);
+  const record = useBoundRecord(definitionId, given);
   // The host's wording, resolved here rather than read off the provider:
   // `ViewSurface` is inside `WorkbenchShell`, so this component is above the
   // context and would otherwise name a new view in English on a translated

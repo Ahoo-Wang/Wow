@@ -38,6 +38,7 @@ import {
   recordConfig,
   testEnvironment,
   testSource,
+  resourcesOf,
 } from './fixtures.js';
 
 const views: ViewInstance[] = [
@@ -122,9 +123,11 @@ async function engineWith() {
   });
   const store = new MemoryViewStore({ instances: views });
   const engine = new ViewEngine({
-    definitions: [ordersDefinition(), overviewDefinition()],
+    resources: resourcesOf(
+      [ordersDefinition(), overviewDefinition()],
+      () => source,
+    ),
     store,
-    resolveSource: () => source,
     environment: clock.environment,
   });
   return { clock, source, store, engine };

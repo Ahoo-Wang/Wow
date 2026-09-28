@@ -41,6 +41,7 @@ import {
   overviewDefinition,
   recordConfig,
   testSource,
+  resourcesOf,
 } from './fixtures.js';
 
 describe('field groups', () => {
@@ -761,9 +762,10 @@ describe('validateDefinition system views', () => {
       expect(codes(board(unknownField))).toEqual([]);
       // Against `orders`, `region` is not a field.
       const engine = new ViewEngine({
-        definitions: [ordersDefinition(), board(unknownField)],
+        resources: resourcesOf([ordersDefinition(), board(unknownField)], () =>
+          testSource(),
+        ),
         store: new MemoryViewStore(),
-        resolveSource: () => testSource(),
         onIssue: () => {},
       });
       const found = engine.definitionIssues('overview');
@@ -786,25 +788,27 @@ describe('validateDefinition system views', () => {
      */
     it('opens the board with that panel out, rather than throwing while it syncs', async () => {
       const engine = new ViewEngine({
-        definitions: [
-          ordersDefinition(),
-          overviewDefinition({
-            views: [
-              {
-                id: 'board',
-                title: 'Board',
-                config: dashboardConfig({
-                  panels: [
-                    ownedPanel('broken', { kind: 'analysis' }, 0),
-                    ownedPanel('whole', analysisConfig(), 6),
-                  ],
-                }),
-              },
-            ],
-          }),
-        ],
+        resources: resourcesOf(
+          [
+            ordersDefinition(),
+            overviewDefinition({
+              views: [
+                {
+                  id: 'board',
+                  title: 'Board',
+                  config: dashboardConfig({
+                    panels: [
+                      ownedPanel('broken', { kind: 'analysis' }, 0),
+                      ownedPanel('whole', analysisConfig(), 6),
+                    ],
+                  }),
+                },
+              ],
+            }),
+          ],
+          () => testSource(),
+        ),
         store: new MemoryViewStore(),
-        resolveSource: () => testSource(),
         onIssue: () => {},
       });
       const board = await engine.open('system:overview:board');
@@ -830,37 +834,39 @@ describe('validateDefinition system views', () => {
   it('checks the views declared in code a declared board names, at registration', async () => {
     const reported: Issue[] = [];
     const engine = new ViewEngine({
-      definitions: [
-        ordersDefinition(),
-        overviewDefinition({
-          views: [
-            {
-              id: 'board',
-              title: 'Board',
-              config: dashboardConfig({
-                panels: [
-                  {
-                    id: 'all',
-                    kind: 'view',
-                    instanceId: 'system:orders:all',
-                    bindings: [],
-                    layout: { x: 0, y: 0, w: 6, h: 4 },
-                  },
-                  {
-                    id: 'gone',
-                    kind: 'view',
-                    instanceId: 'system:orders:gone',
-                    bindings: [],
-                    layout: { x: 6, y: 0, w: 6, h: 4 },
-                  },
-                ],
-              }),
-            },
-          ],
-        }),
-      ],
+      resources: resourcesOf(
+        [
+          ordersDefinition(),
+          overviewDefinition({
+            views: [
+              {
+                id: 'board',
+                title: 'Board',
+                config: dashboardConfig({
+                  panels: [
+                    {
+                      id: 'all',
+                      kind: 'view',
+                      instanceId: 'system:orders:all',
+                      bindings: [],
+                      layout: { x: 0, y: 0, w: 6, h: 4 },
+                    },
+                    {
+                      id: 'gone',
+                      kind: 'view',
+                      instanceId: 'system:orders:gone',
+                      bindings: [],
+                      layout: { x: 6, y: 0, w: 6, h: 4 },
+                    },
+                  ],
+                }),
+              },
+            ],
+          }),
+        ],
+        () => testSource(),
+      ),
       store: new MemoryViewStore(),
-      resolveSource: () => testSource(),
       onIssue: found => reported.push(found),
     });
     const said = {
@@ -942,9 +948,8 @@ describe('validateDefinition system views', () => {
 describe('ViewEngine and an unusable definition', () => {
   function engineWith(definition: ViewDefinition, issues: Issue[]) {
     return new ViewEngine({
-      definitions: [definition],
+      resources: resourcesOf([definition], () => testSource()),
       store: new MemoryViewStore({ instances: [] }),
-      resolveSource: () => testSource(),
       onIssue: found => issues.push(found),
     });
   }
@@ -1023,9 +1028,10 @@ describe('ViewEngine and an unusable definition', () => {
   it('says nothing about a definition that is fine', () => {
     const onIssue = vi.fn();
     new ViewEngine({
-      definitions: [ordersDefinition(), overviewDefinition()],
+      resources: resourcesOf([ordersDefinition(), overviewDefinition()], () =>
+        testSource(),
+      ),
       store: new MemoryViewStore({ instances: [] }),
-      resolveSource: () => testSource(),
       onIssue,
     });
 

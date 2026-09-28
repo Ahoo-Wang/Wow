@@ -17,16 +17,18 @@
  * one definition serves every language and a host's catalogue says them.
  *
  * A key travels as a string — every label slot of a definition, a system
- * view and a board is a `string`, and stays one — marked by a character no
- * wording uses (U+E000, private use). A literal string is still a label,
- * for a host of one language.
+ * view and a board is a `string`, and stays one — between two characters no
+ * wording uses (U+E000 and U+E001, private use). The closing one lets a key
+ * be read where code has put it inside a longer string — a condition's
+ * summary, 「{field} · {element}」 — so it is said there too. A literal
+ * string is still a label, for a host of one language.
  *
- * **Transitional** (D2, user 2026-09-28): for now the engine reads every
- * definition it is given in the words of its `text` once, when it is
- * registered (`ViewEngineOptions.text`, `withText`), so one engine speaks
- * one language. H2 moves this to render time, through the messages
- * catalogue its Provider supplies, so one engine serves every language;
- * the keys a definition writes do not change.
+ * A key is said at render time (D2, user 2026-09-28): the definitions, the
+ * stored configs and every runtime's own state keep their keys, and the
+ * engine reads what it hands out in the words in force — the ones its
+ * Provider's messages give (`ViewEngine.setText`), or the ones it was built
+ * with (`ViewEngineOptions.text`) — so one engine serves every language and
+ * a change of language only redraws.
  */
 
 /** A key standing where a label goes; a string, so it goes anywhere one does. */
@@ -35,16 +37,58 @@ export type Text = string & { readonly __text: unique symbol };
 /** How a host says a key in the language in force; `undefined` for none. */
 export type TextResolver = (key: string) => string | undefined;
 
-const MARK = '';
+const MARK = '\uE000';
+const END = '\uE001';
+/** Every key inside a string, wherever it sits. */
+const KEYS = /\uE000([^\uE000\uE001]*)\uE001/g;
+
+/** How deep a value is read for keys; see `withText`. */
+const MAX_DEPTH = 64;
 
 /** The key `key`, to stand where a label goes. */
 export function text(key: string): Text {
-  return `${MARK}${key}` as Text;
+  return `${MARK}${key}${END}` as Text;
 }
 
 /** The key a label stands for, or `null` for a label that is words already. */
 export function textKeyOf(value: string): string | null {
-  return value.startsWith(MARK) ? value.slice(MARK.length) : null;
+  const key = value.slice(MARK.length, -END.length);
+  return value === `${MARK}${key}${END}` && !/[\uE000\uE001]/.test(key)
+    ? key
+    : null;
+}
+
+/**
+ * `value` with every key in it said by `resolve` — the whole string, or
+ * keys code has put inside a longer one. A key `resolve` has no words for
+ * is said as the key itself, and reported to `missing`. With `known`, only
+ * the keys it knows are keys: anything else between the marks is left as
+ * it came (a reader's title, a row's cell).
+ */
+export function sayKeys(
+  value: string,
+  resolve: TextResolver,
+  missing: (key: string) => void = () => {},
+  known?: (key: string) => boolean,
+): string {
+  if (!value.includes(MARK)) return value;
+  return value.replace(KEYS, (whole, key: string) => {
+    if (known && !known(key)) return whole;
+    const said = resolve(key);
+    if (said !== undefined) return said;
+    missing(key);
+    return key;
+  });
+}
+
+/** Every key written anywhere in `value`: what a definition says in words. */
+export function textKeysIn(value: unknown): Set<string> {
+  const keys = new Set<string>();
+  withText(value, key => {
+    keys.add(key);
+    return undefined;
+  });
+  return keys;
 }
 
 /**
@@ -59,14 +103,11 @@ export function withText<T>(
   missing: (key: string, path: readonly (string | number)[]) => void = () => {},
 ): T {
   const walk = (node: unknown, path: (string | number)[]): unknown => {
-    if (typeof node === 'string') {
-      const key = textKeyOf(node);
-      if (key === null) return node;
-      const said = resolve(key);
-      if (said !== undefined) return said;
-      missing(key, path);
-      return key;
-    }
+    // A label sits a few levels in; a tree deeper than any budget admits
+    // (one refused for its depth) is left as it is rather than walked.
+    if (path.length > MAX_DEPTH) return node;
+    if (typeof node === 'string')
+      return sayKeys(node, resolve, key => missing(key, path));
     if (Array.isArray(node)) {
       let changed = false;
       const next = node.map((entry, index) => {

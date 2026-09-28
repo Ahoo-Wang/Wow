@@ -61,12 +61,10 @@ import { useGridPlacement } from './gridPlacement.js';
 import { FIXED_BOARD_WIDTH } from './layout.js';
 import type { RenderFailureHandler } from './RenderBoundary.js';
 import { useViewMessages } from './MessagesProvider.js';
+import { useBindings, useRoutedNavigate } from './ViewEngineProvider.js';
 import { PanelWiring, useFilterWiring } from './dashboard/FilterWiring.js';
 import { panelPress } from './dashboard/press.js';
-import {
-  boardWideHost,
-  type RecordPanelHost,
-} from './dashboard/PanelBodies.js';
+import { boardWideHost, recordHostOf } from './dashboard/PanelBodies.js';
 import {
   filterModeOf,
   type BoardFilterModes,
@@ -113,7 +111,8 @@ export interface DashboardGridProps {
   /**
    * The host's route (`ViewNavigation`): 在工作台中打开 in a panel's
    * menu, the follow-up menu on a group, a panel's custom destination. No
-   * route, none of them — a panel that cross-filters still does.
+   * route, none of them — a panel that cross-filters still does. The
+   * `ViewEngineProvider`'s route when left out.
    */
   onNavigate?(to: ViewNavigation): void;
   /**
@@ -146,15 +145,6 @@ export interface DashboardGridProps {
    * see).
    */
   filterModes?: BoardFilterModes;
-  /**
-   * The host's commands on each record panel (D39) — its row and bulk
-   * slots, as a record workbench takes them, and its bulk command — asked
-   * per panel, so a host puts 「催发货」 on the orders and nothing on the
-   * rest. The host's code runs them; the board writes nothing (D36). A
-   * context's `refresh` re-runs every panel on the tab shown, not the
-   * panel alone (`boardWideHost`): a command can move any number on it.
-   */
-  recordPanel?(panel: DashboardPanelView): RecordPanelHost | undefined;
   className?: string;
 }
 
@@ -185,14 +175,19 @@ export function DashboardGrid({
   headingLevel = 3,
   header,
   emptyActions,
-  onNavigate,
+  onNavigate: route,
   readOnly = false,
   openInWorkbench = true,
   panelExport = !readOnly,
   panelTitles = true,
   filterModes,
-  recordPanel,
 }: DashboardGridProps) {
+  const onNavigate = useRoutedNavigate(route);
+  // The host's commands on each record panel (D39), from what it bound to
+  // the definition the panel's view is over (`bind`'s `actions` and
+  // `bulk`): 「重试」 on the failed executions, nothing on the rest. The
+  // host's code runs them; the board writes nothing (D36).
+  const bindingOf = useBindings();
   // The grid needs a pixel width and the container only knows it once it is
   // on screen; `useGridWidth` measures it before the first paint.
   const { containerRef, width, measured } = useGridWidth(dashboard.width);
@@ -526,7 +521,7 @@ export function DashboardGrid({
                     unreached={unreachedBy(panel, dashboard, filterModes)}
                     awaiting={awaitedBy(panel, dashboard)}
                     record={boardWideHost(
-                      recordPanel?.(panel),
+                      recordHostOf(panel, bindingOf),
                       dashboard.refresh,
                     )}
                     footer={

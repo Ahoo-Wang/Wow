@@ -21,7 +21,7 @@ export const ordersDefinition: DataViewDefinition = {
   id: ORDERS,
   title: '订单',
   kind: 'data',
-  // The key `resolveSource` is asked for (step 2).
+  // The key the engine files this definition's source under (step 2).
   source: 'order',
   fields: [
     { name: 'aggregateId', label: '订单号', kind: 'string', sortable: true },

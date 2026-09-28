@@ -43,6 +43,7 @@ import {
   recordConfig,
   testEnvironment,
   testSource,
+  resourcesOf,
 } from './fixtures.js';
 
 const DAY_MS = 86_400_000;
@@ -161,9 +162,8 @@ async function harness(config: DashboardViewConfig = board()) {
   });
   const store = new MemoryViewStore({ instances: views });
   const engine = new ViewEngine({
-    definitions: [orders(), overviewDefinition()],
+    resources: resourcesOf([orders(), overviewDefinition()], () => source),
     store,
-    resolveSource: () => source,
     environment: clock.environment,
   });
   const saved = await store.create(

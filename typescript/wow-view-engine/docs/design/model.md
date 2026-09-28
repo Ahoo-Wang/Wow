@@ -14,7 +14,7 @@ export type ViewDefinition =
       title: string;
       recordNoun?: string; // 一条记录叫什么（「订单」「客户」），分析的计数单位说它；不写说「记录」，不拿 title 充数
       kind: 'data';
-      source: string; // resolveSource 的键
+      source: string; // 引擎按这个键登记资源（resources）里与定义配对的数据源
       fields: FieldDefinition[];
       fieldGroups?: { id: string; label: string; fields: string[] }[]; // 选择器的分组目录，按此顺序列出各组，组内按 fields 顺序
       record?: RecordCapability;

@@ -28,7 +28,12 @@ import { AppliedBar } from '../src/ui/AppliedBar.js';
 import { MessagesProvider } from '../src/ui/MessagesProvider.js';
 import { ViewSurface } from '../src/ui/ViewSurface.js';
 import { zhCN } from '../src/ui/messages/zh-CN.js';
-import { ordersDefinition, recordConfig, testSource } from './fixtures.js';
+import {
+  ordersDefinition,
+  recordConfig,
+  testSource,
+  resourcesOf,
+} from './fixtures.js';
 
 /**
  * One condition as the kernel hands it over: the parts, and the English line
@@ -84,9 +89,8 @@ function customer(): FilterSummaryItem {
 /** The bar over a live runtime, with the editor in reach. */
 function overRuntime(definition = ordersDefinition()) {
   const engine = new ViewEngine({
-    definitions: [definition],
+    resources: resourcesOf([definition], () => testSource()),
     store: new MemoryViewStore({ instances: [] }),
-    resolveSource: () => testSource(),
   });
   const runtime = engine.create('orders', {
     title: 'Scratch',

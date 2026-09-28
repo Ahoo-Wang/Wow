@@ -22,9 +22,9 @@ import type { ViewNavigation, ViewEngine } from '../runtime/index.js';
 import { useDashboard, useWorkbench } from '../react/index.js';
 import { SurfaceAnnouncer, useAnnouncer } from './Announcer.js';
 import { DashboardBoard } from './dashboard/Board.js';
-import type { DashboardGridProps } from './DashboardGrid.js';
 import { RefreshControl } from './RefreshControl.js';
 import { useViewMessages } from './MessagesProvider.js';
+import { useEngine, useRoutedNavigate } from './ViewEngineProvider.js';
 import type { ViewMessages } from './messages.js';
 import { featuresOf, type WorkbenchFeatures } from './features.js';
 import { WorkbenchShell, type WorkbenchLandmark } from './WorkbenchShell.js';
@@ -42,7 +42,8 @@ import {
 } from './dashboard/extensions.js';
 
 export interface DashboardWorkbenchProps {
-  engine: ViewEngine;
+  /** The engine; the `ViewEngineProvider`'s when left out. */
+  engine?: ViewEngine;
   definitionId: string;
   /**
    * Which view is open, as `value` is on an input: leaving it out lets the
@@ -158,13 +159,6 @@ export interface DashboardWorkbenchProps {
    * recoverable error state in place regardless; this is the host's copy.
    */
   onRenderFailure?: RenderFailureHandler;
-  /**
-   * The host's commands on each record panel (D39): a row's and a
-   * selection's, as `DataWorkbench`'s `record.actions` takes them, and the
-   * bulk command whose progress the panel says — asked per panel, the
-   * host's code running them. See `DashboardGrid.recordPanel`.
-   */
-  recordPanel?: DashboardGridProps['recordPanel'];
 }
 
 /**
@@ -179,11 +173,11 @@ export interface DashboardWorkbenchProps {
 const DASHBOARD = ['dashboard'] as const;
 
 export function DashboardWorkbench({
-  engine,
+  engine: given,
   definitionId,
   instanceId,
   onInstanceChange,
-  onNavigate,
+  onNavigate: route,
   theme,
   preset,
   density,
@@ -196,7 +190,6 @@ export function DashboardWorkbench({
   expandable,
   landmark,
   onRenderFailure,
-  recordPanel,
   template,
   features,
   initialTab,
@@ -204,6 +197,8 @@ export function DashboardWorkbench({
   initialFilters,
   onFiltersChange,
 }: DashboardWorkbenchProps) {
+  const engine = useEngine(given);
+  const onNavigate = useRoutedNavigate(route);
   const messages = useViewMessages(wording, locale);
   // The host's tab and filters, asked as a board opens: of the board its
   // `instanceId` names, or — left uncontrolled — of the first board opened.
@@ -391,7 +386,6 @@ export function DashboardWorkbench({
                 refusedFilters={board?.refusedFilters}
                 fixed={filter.fixed}
                 panelExport={featuresOf(features).export}
-                recordPanel={recordPanel}
               />
               {dialogs}
             </SurfaceAnnouncer>

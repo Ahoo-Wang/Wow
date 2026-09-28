@@ -54,12 +54,17 @@ export interface ViewSource {
   ```ts
   const snapshots = factory.createSnapshotQueryClient();
   const descriptors = factory.createQueryDescriptorClient();
-  resolveSource: () => ({
-    paged: snapshots.paged,
-    cursor: snapshots.cursor,
-    aggregate: snapshots.aggregate,
-    describe: descriptors.describeSnapshot,
-  });
+  resources: [
+    {
+      definition: orders,
+      source: {
+        paged: snapshots.paged,
+        cursor: snapshots.cursor,
+        aggregate: snapshots.aggregate,
+        describe: descriptors.describeSnapshot,
+      },
+    },
+  ];
   ```
 
   事件流的源传 `describeEventStream`。故事和测试可以传一个返回固定描述的函数，这样也能在 Storybook 里演示 G15（同一份定义配上「有全文」「无全文」两份描述）。

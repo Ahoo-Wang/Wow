@@ -18,7 +18,11 @@
 export interface RuntimeLimits {
   /** Data queries running at once across every runtime of one engine. */
   maxConcurrentQueries: number;
-  /** Queued data queries; beyond this a request is rejected, not buffered. */
+  /**
+   * Queued data queries; beyond this a request is rejected, not buffered.
+   * An open board holds room of its own on top of it, sized by its panels,
+   * so a board larger than this still opens whole (host-integration.md 4).
+   */
   maxQueuedQueries: number;
   /** Upper bound of `RecordViewConfig.pageSize`. */
   maxPageSize: number;

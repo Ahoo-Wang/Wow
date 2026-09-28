@@ -80,6 +80,7 @@ export const viewMessages = {
 
   // Runtime and commands.
   'runtime.kind.not-declared': '{definition} does not offer a {kind} view.',
+  'runtime.source.unresolved': 'No source is registered for {source}.',
   'runtime.options.unresolved':
     'No candidate source is configured for {source}.',
   // Said to whoever reads the screen, not to whoever wrote the source: what

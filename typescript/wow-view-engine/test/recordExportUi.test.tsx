@@ -31,7 +31,7 @@ import {
   type ViewSource,
 } from '../src/index.js';
 import { DataWorkbench } from '../src/ui/index.js';
-import { ordersDefinition, testSource } from './fixtures.js';
+import { ordersDefinition, testSource, resourcesOf } from './fixtures.js';
 import { mine, setup } from './fixtures/ui.js';
 
 afterEach(() => {
@@ -62,9 +62,8 @@ describe('DataWorkbench export', () => {
   /** One workbench over this source, with the ceiling a test needs. */
   function engineFor(source: ViewSource, limits?: Partial<RuntimeLimits>) {
     return new ViewEngine({
-      definitions: [ordersDefinition()],
+      resources: resourcesOf([ordersDefinition()], () => source),
       store: new MemoryViewStore({ instances: [mine] }),
-      resolveSource: () => source,
       ...(limits ? { limits: { ...DEFAULT_RUNTIME_LIMITS, ...limits } } : {}),
     });
   }

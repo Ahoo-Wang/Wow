@@ -56,6 +56,7 @@ import {
 import type { EmbedBaseProps, EmbedInteraction } from './embed/options.js';
 import { useKindIssue, useKindWord } from './kinds.js';
 import { useViewMessages } from './MessagesProvider.js';
+import { useEngine, useRoutedNavigate } from './ViewEngineProvider.js';
 import { ErrorStrip, WarningStrip } from './StatusStrip.js';
 
 export type {
@@ -126,14 +127,6 @@ export interface EmbeddedDashboardProps extends EmbedBaseProps {
   /** Told which tab is on screen whenever that changes, opening included. */
   onTabChange?(tabId: string | null): void;
   /**
-   * The host's commands on each record panel (D39), asked per panel: a
-   * row's in either tier, a selection's only where rows can be picked (the
-   * interactive tier). They are the host's own commands against its own
-   * service, as `EmbeddedView`'s `rowActions` are — the embed writes
-   * nothing (D36). See `DashboardGrid.recordPanel`.
-   */
-  recordPanel?: DashboardGridProps['recordPanel'];
-  /**
    * 「更新于 10:32」 in the first row — when the panels on screen were read,
    * the earliest of them — and, in the interactive tier, the refresh button
    * beside it (off by default: a row of chrome nobody asked for is what an
@@ -167,8 +160,11 @@ const DASHBOARD: readonly ViewKind[] = ['dashboard'];
  * 另存为, no preference — what the reader changes lives in this viewing
  * alone. Building a board is `DashboardWorkbench`'s.
  */
-export function EmbeddedDashboard(props: EmbeddedDashboardProps) {
-  const { engine, instanceId } = props;
+export function EmbeddedDashboard(given: EmbeddedDashboardProps) {
+  const engine = useEngine(given.engine);
+  const onNavigate = useRoutedNavigate(given.onNavigate);
+  const props = { ...given, engine, onNavigate };
+  const { instanceId } = props;
   // Where the board opens and what its filters hold as it does — the
   // page's held filters among them, so the first query is already under
   // them — read as it opens; what the page holds is followed below.
@@ -221,7 +217,6 @@ function EmbeddedBoard({
     expandable = false,
     onNavigate,
     onRenderFailure,
-    recordPanel,
     filterModes,
     groupingMode,
     pageValues,
@@ -391,7 +386,6 @@ function EmbeddedBoard({
             panelExport: interactive && withExport,
             onRenderFailure,
             onNavigate: interactive ? onNavigate : undefined,
-            recordPanel,
           }}
         />
       )}
@@ -432,7 +426,6 @@ function ReadBoard({
     | 'panelExport'
     | 'onRenderFailure'
     | 'onNavigate'
-    | 'recordPanel'
   >;
 }) {
   const { say, region } = useAnnouncer('dashboard-announcement');

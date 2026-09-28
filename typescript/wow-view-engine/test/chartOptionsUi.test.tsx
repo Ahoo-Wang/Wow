@@ -40,7 +40,7 @@ import {
 import { DataWorkbench } from '../src/ui/index.js';
 import { defaultMessages } from '../src/ui/messages.js';
 import { chartDragAccessibility, listDrop } from '../src/ui/analysis/drag.js';
-import { ordersDefinition, testSource } from './fixtures.js';
+import { ordersDefinition, testSource, resourcesOf } from './fixtures.js';
 import { formattersFor } from './fixtures/columns.js';
 import { describedText } from './fixtures/ui.js';
 
@@ -161,9 +161,8 @@ async function open(
     config: config({ chart, ...overrides }),
   };
   const engine = new ViewEngine({
-    definitions: [richDefinition()],
+    resources: resourcesOf([richDefinition()], () => source),
     store: new MemoryViewStore({ instances: [instance] }),
-    resolveSource: () => source,
   });
   render(
     <DataWorkbench

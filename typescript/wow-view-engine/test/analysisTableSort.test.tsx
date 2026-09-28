@@ -44,6 +44,7 @@ import {
   mine,
   ordersDefinition,
   testSource,
+  resourcesOf,
 } from './fixtures.js';
 import { analysisToggle, openTray } from './fixtures/workbench.js';
 
@@ -177,7 +178,7 @@ describe('sorting an analysis from its header', () => {
       ),
     });
     const engine = new ViewEngine({
-      definitions: [ordersDefinition()],
+      resources: resourcesOf([ordersDefinition()], () => source),
       store: new MemoryViewStore({
         instances: [
           {
@@ -190,7 +191,6 @@ describe('sorting an analysis from its header', () => {
           },
         ],
       }),
-      resolveSource: () => source,
     });
     render(
       <DataWorkbench
@@ -375,9 +375,8 @@ describe('sorting an analysis from its header', () => {
   it('writes nothing through a view that is not an analysis', async () => {
     const source = testSource();
     const engine = new ViewEngine({
-      definitions: [ordersDefinition()],
+      resources: resourcesOf([ordersDefinition()], () => source),
       store: new MemoryViewStore({ instances: [mine] }),
-      resolveSource: () => source,
     });
     const { result } = renderHook(() => {
       const opened = useOpenView(engine, mine.id);

@@ -62,6 +62,7 @@ import {
   overviewDefinition,
   recordConfig,
   testSource,
+  resourcesOf,
 } from './fixtures.js';
 
 afterEach(cleanup);
@@ -154,7 +155,9 @@ function board(field: DashboardField = DAY_FILTER): DashboardViewConfig {
 
 function setup(config: DashboardViewConfig = board()) {
   const engine = new ViewEngine({
-    definitions: [orders(), overviewDefinition()],
+    resources: resourcesOf([orders(), overviewDefinition()], () =>
+      testSource(),
+    ),
     store: new MemoryViewStore({
       instances: [
         ...views,
@@ -168,7 +171,6 @@ function setup(config: DashboardViewConfig = board()) {
         },
       ],
     }),
-    resolveSource: () => testSource(),
   });
   render(
     <DashboardWorkbench

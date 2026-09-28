@@ -51,6 +51,7 @@ import {
   dailyOrdersDefinition,
   mine,
   testSource,
+  resourcesOf,
 } from './fixtures.js';
 
 afterEach(cleanup);
@@ -519,9 +520,8 @@ describe('a span picked from the table with Shift', () => {
       ),
     });
     const engine = new ViewEngine({
-      definitions: [dailyOrdersDefinition()],
+      resources: resourcesOf([dailyOrdersDefinition()], () => source),
       store: new MemoryViewStore({ instances: [mine, daily] }),
-      resolveSource: () => source,
       environment: defaultRuntimeEnvironment({ timeZone: 'UTC' }),
     });
     render(

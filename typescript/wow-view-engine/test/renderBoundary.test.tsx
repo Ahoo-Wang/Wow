@@ -43,6 +43,7 @@ import {
   overviewDefinition,
   testEnvironment,
   testSource,
+  resourcesOf,
 } from './fixtures.js';
 import { setup } from './fixtures/ui.js';
 
@@ -286,9 +287,10 @@ describe('the dashboard panel boundaries', () => {
   async function openDashboard(config: DashboardViewConfig) {
     const store = new MemoryViewStore({ instances: [] });
     const engine = new ViewEngine({
-      definitions: [ordersDefinition(), overviewDefinition()],
+      resources: resourcesOf([ordersDefinition(), overviewDefinition()], () =>
+        testSource(),
+      ),
       store,
-      resolveSource: () => testSource(),
       environment: testEnvironment().environment,
     });
     const instance = await store.create(

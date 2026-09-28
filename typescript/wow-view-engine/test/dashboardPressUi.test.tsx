@@ -49,6 +49,7 @@ import {
   overviewDefinition,
   recordConfig,
   testSource,
+  resourcesOf,
 } from './fixtures.js';
 
 afterEach(cleanup);
@@ -143,9 +144,11 @@ function setup(
     ],
   });
   const engine = new ViewEngine({
-    definitions: [ordersDefinition(), overviewDefinition()],
+    resources: resourcesOf(
+      [ordersDefinition(), overviewDefinition()],
+      () => source,
+    ),
     store,
-    resolveSource: () => source,
   });
   const runtime = () =>
     engine
@@ -475,9 +478,8 @@ describe('a view nobody saved, opened in the workbench', () => {
   it('opens once per object handed to it', async () => {
     const store = new MemoryViewStore({ instances: views });
     const engine = new ViewEngine({
-      definitions: [ordersDefinition()],
+      resources: resourcesOf([ordersDefinition()], () => testSource()),
       store,
-      resolveSource: () => testSource(),
     });
     const unsaved: ViewNavigation = {
       kind: 'unsaved',
@@ -513,9 +515,8 @@ describe('a view nobody saved, opened in the workbench', () => {
 
   it('calls it by its subject once the group it was named by is taken off', async () => {
     const engine = new ViewEngine({
-      definitions: [ordersDefinition()],
+      resources: resourcesOf([ordersDefinition()], () => testSource()),
       store: new MemoryViewStore({ instances: views }),
-      resolveSource: () => testSource(),
     });
     const group: FilterNode[] = [
       { field: 'warehouse', operator: 'EQ', value: 'CN' },
@@ -548,9 +549,8 @@ describe('a view nobody saved, opened in the workbench', () => {
   it('opens an analysis handed to it folded too, and a new view unfolded', async () => {
     const store = new MemoryViewStore({ instances: views });
     const engine = new ViewEngine({
-      definitions: [ordersDefinition()],
+      resources: resourcesOf([ordersDefinition()], () => testSource()),
       store,
-      resolveSource: () => testSource(),
     });
     const { unmount } = render(
       <DataWorkbench

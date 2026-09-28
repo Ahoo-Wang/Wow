@@ -42,6 +42,7 @@ import {
   mine,
   ordersDefinition,
   testSource,
+  resourcesOf,
 } from './fixtures.js';
 
 afterEach(cleanup);
@@ -101,9 +102,8 @@ function definition() {
 
 function engineOver(source = detailSource(WHOLE)) {
   return new ViewEngine({
-    definitions: [definition()],
+    resources: resourcesOf([definition()], () => source),
     store: new MemoryViewStore({ instances: [mine] }),
-    resolveSource: () => source,
   });
 }
 

@@ -31,6 +31,7 @@ import { I18nProvider, useI18n } from "@/i18n.tsx";
 import { EXECUTION_FAILED } from "@/views/executionFailed.ts";
 import type { ExecutionCommands } from "./executionCommands.ts";
 import ExecutionsPage, { VIEW_PARAM } from "./ExecutionsPage.tsx";
+import { withViews } from "../App/withViews.tsx";
 
 const ROW = {
   aggregateId: "EF-1",
@@ -84,16 +85,18 @@ function renderPage(
   sent: ExecutionCommands = commands(),
 ) {
   const store = new MemoryViewStore();
+  const views = withViews(
+    <>
+      <LanguageSwitch />
+      <ExecutionsPage />
+    </>,
+    { store, source, commands: sent },
+  );
   const router = createMemoryRouter(
     [
       {
         path: "/executions",
-        element: (
-          <>
-            <LanguageSwitch />
-            <ExecutionsPage store={store} source={source} commands={sent} />
-          </>
-        ),
+        element: views.element,
       },
       { path: "/", element: <p>the overview</p> },
     ],
@@ -148,18 +151,27 @@ describe("ExecutionsPage", () => {
     );
   });
 
-  it("rebuilds the engine in the new language and disposes the old one", async () => {
+  it("says the open view in the new language on the same engine, reopening and querying nothing", async () => {
     renderPage();
     expect(
       await screen.findByRole("heading", { name: "Active" }),
     ).toBeInTheDocument();
+    await waitFor(() => expect(source.paged).toHaveBeenCalled());
+    const queries = vi.mocked(source.paged).mock.calls.length;
     const dispose = vi.spyOn(ViewEngine.prototype, "dispose");
+    const open = vi.spyOn(ViewEngine.prototype, "open");
+    const create = vi.spyOn(ViewEngine.prototype, "create");
 
     fireEvent.click(screen.getByRole("button", { name: "switch to Chinese" }));
     expect(
       await screen.findByRole("heading", { name: "活动中" }),
     ).toBeInTheDocument();
-    expect(dispose).toHaveBeenCalled();
+    // One engine for the application (host-integration.md 4): a change of
+    // language redraws what is open in the new words, and nothing else.
+    expect(dispose).not.toHaveBeenCalled();
+    expect(open).not.toHaveBeenCalled();
+    expect(create).not.toHaveBeenCalled();
+    expect(vi.mocked(source.paged).mock.calls.length).toBe(queries);
   });
 
   it("prepares an execution from its row and says what the service refused", async () => {

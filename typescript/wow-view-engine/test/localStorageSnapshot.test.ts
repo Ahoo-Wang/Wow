@@ -27,6 +27,7 @@ import {
   recordConfig,
   testEnvironment,
   testSource,
+  resourcesOf,
 } from './fixtures.js';
 
 const KEY = 'wow-compensation-dashboard:views';
@@ -137,9 +138,8 @@ describe('localStorageSnapshot: a write storage refuses', () => {
       }),
     });
     const engine = new ViewEngine({
-      definitions: [ordersDefinition()],
+      resources: resourcesOf([ordersDefinition()], () => testSource()),
       store,
-      resolveSource: () => testSource(),
       environment: {
         ...testEnvironment().environment,
         onError: event => void errors.push(event),

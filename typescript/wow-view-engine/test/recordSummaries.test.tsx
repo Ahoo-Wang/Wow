@@ -54,6 +54,7 @@ import {
   recordConfig,
   testEnvironment,
   testSource,
+  resourcesOf,
 } from './fixtures.js';
 import { panel, pending } from './fixtures/dashboard.js';
 import { mine, settle, twoColumnTable } from './fixtures/ui.js';
@@ -91,9 +92,8 @@ describe('the summary row', () => {
 
   function setupSummary(source: ViewSource = testSource(MORE_THAN_A_PAGE)) {
     const engine = new ViewEngine({
-      definitions: [ordersDefinition()],
+      resources: resourcesOf([ordersDefinition()], () => source),
       store: new MemoryViewStore({ instances: [withSummary] }),
-      resolveSource: () => source,
     });
     return render(
       <DataWorkbench
@@ -139,18 +139,20 @@ describe('the summary row', () => {
     // The shared fixture allows only SUM on `amount`; this view asks for two.
     const definition = ordersDefinition();
     const engine = new ViewEngine({
-      definitions: [
-        {
-          ...definition,
-          fields: definition.fields.map(field =>
-            field.name === 'amount'
-              ? { ...field, summary: ['SUM' as const, 'AVG' as const] }
-              : field,
-          ),
-        },
-      ],
+      resources: resourcesOf(
+        [
+          {
+            ...definition,
+            fields: definition.fields.map(field =>
+              field.name === 'amount'
+                ? { ...field, summary: ['SUM' as const, 'AVG' as const] }
+                : field,
+            ),
+          },
+        ],
+        () => testSource(),
+      ),
       store: new MemoryViewStore({ instances: [both] }),
-      resolveSource: () => testSource(),
     });
     const { container } = render(
       <DataWorkbench
@@ -479,9 +481,10 @@ describe('the summary rows on a single page', () => {
     };
     const store = new MemoryViewStore({ instances: [summarised] });
     const engine = new ViewEngine({
-      definitions: [ordersDefinition(), overviewDefinition()],
+      resources: resourcesOf([ordersDefinition(), overviewDefinition()], () =>
+        testSource(),
+      ),
       store,
-      resolveSource: () => testSource(),
       environment: testEnvironment().environment,
     });
     const board = await store.create(
@@ -596,9 +599,8 @@ describe('the summary band without a summarised column', () => {
   it('draws none in the workbench', async () => {
     const source = testSource(MORE_THAN_A_PAGE);
     const engine = new ViewEngine({
-      definitions: [ordersDefinition()],
+      resources: resourcesOf([ordersDefinition()], () => source),
       store: new MemoryViewStore({ instances: [hidden(mine)] }),
-      resolveSource: () => source,
     });
     const { container } = render(
       <DataWorkbench
@@ -613,9 +615,8 @@ describe('the summary band without a summarised column', () => {
   it('draws none in an embedded view', async () => {
     const source = testSource(MORE_THAN_A_PAGE);
     const engine = new ViewEngine({
-      definitions: [ordersDefinition()],
+      resources: resourcesOf([ordersDefinition()], () => source),
       store: new MemoryViewStore({ instances: [hidden(pending)] }),
-      resolveSource: () => source,
     });
     const { container } = render(
       <EmbeddedView engine={engine} instanceId="pending" />,
@@ -627,9 +628,11 @@ describe('the summary band without a summarised column', () => {
     const source = testSource();
     const store = new MemoryViewStore({ instances: [hidden(pending)] });
     const engine = new ViewEngine({
-      definitions: [ordersDefinition(), overviewDefinition()],
+      resources: resourcesOf(
+        [ordersDefinition(), overviewDefinition()],
+        () => source,
+      ),
       store,
-      resolveSource: () => source,
       environment: testEnvironment().environment,
     });
     const board = await store.create(

@@ -20,6 +20,7 @@ import {
   LazyEventsPage,
   LazyExecutionsPage,
   LazyOverviewPage,
+  LazyViewsLayout,
 } from "./lazyPages.ts";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -53,10 +54,17 @@ export const AppRouter = createBrowserRouter([
   {
     element: <App navItems={NavItems} />,
     children: [
-      { index: true, element: page(LazyOverviewPage) },
-      { path: EXECUTIONS_PATH, element: page(LazyExecutionsPage) },
-      { path: EVENTS_PATH, element: page(LazyEventsPage) },
-      { path: BOARDS_PATH, element: page(LazyBoardsPage) },
+      {
+        // One engine for the four places: they share it, and a change of
+        // language redraws it (host-integration.md 4).
+        element: page(LazyViewsLayout),
+        children: [
+          { index: true, element: page(LazyOverviewPage) },
+          { path: EXECUTIONS_PATH, element: page(LazyExecutionsPage) },
+          { path: EVENTS_PATH, element: page(LazyEventsPage) },
+          { path: BOARDS_PATH, element: page(LazyBoardsPage) },
+        ],
+      },
       { path: "*", element: <Navigate to={HOME_PATH} replace /> },
     ],
   },

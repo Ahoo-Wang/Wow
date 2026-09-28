@@ -120,6 +120,10 @@ export const definitionMessages = {
     'The time field {field} is not a field of the definition.',
   'definition.timeField.not-time': 'The time field {field} is not a moment.',
   'definition.text.unknown': 'No words are given for the key {key}.',
+  'definition.text.fallback':
+    'The words in force give none for the key {key}; the engine’s starting words say it instead.',
+  'definition.source.unregistered':
+    'No source is registered for {source}: register this definition with its source.',
   'definition.descriptor.missing':
     'No descriptor was given for the source {source}, so its capabilities go unchecked.',
 } as const satisfies Record<string, string>;

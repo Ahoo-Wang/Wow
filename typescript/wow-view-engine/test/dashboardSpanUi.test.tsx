@@ -52,6 +52,7 @@ import {
   overviewDefinition,
   recordConfig,
   testSource,
+  resourcesOf,
 } from './fixtures.js';
 
 afterEach(cleanup);
@@ -151,7 +152,7 @@ function setup(
     ),
   });
   const engine = new ViewEngine({
-    definitions: [orders(), overviewDefinition()],
+    resources: resourcesOf([orders(), overviewDefinition()], () => source),
     store: new MemoryViewStore({
       instances: [
         ...views,
@@ -165,7 +166,6 @@ function setup(
         },
       ],
     }),
-    resolveSource: () => source,
     environment: defaultRuntimeEnvironment({ timeZone: 'UTC' }),
   });
   const runtime = () =>

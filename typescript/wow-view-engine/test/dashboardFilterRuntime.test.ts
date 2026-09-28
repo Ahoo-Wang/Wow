@@ -51,6 +51,7 @@ import {
   recordConfig,
   testEnvironment,
   testSource,
+  resourcesOf,
 } from './fixtures.js';
 
 const LAST_WEEK = { type: 'relative', amount: 7, unit: 'day' };
@@ -248,9 +249,11 @@ async function harness(
   };
   const store = new MemoryViewStore({ instances: views });
   const engine = new ViewEngine({
-    definitions: [orders(), shipments(), overviewDefinition()],
+    resources: resourcesOf(
+      [orders(), shipments(), overviewDefinition()],
+      key => sources[key],
+    ),
     store,
-    resolveSource: key => sources[key],
     environment: clock.environment,
   });
   const saved = await store.create(

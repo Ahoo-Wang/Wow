@@ -44,6 +44,16 @@ const CATALOGUES: Readonly<Record<Locale, Readonly<Record<string, string>>>> = {
 };
 
 /**
+ * The definitions' words in `locale`, by key: what the Provider says their
+ * keys in (`engineMessages`), one object per language.
+ */
+export function definitionWords(
+  locale: Locale,
+): Readonly<Record<string, string>> {
+  return CATALOGUES[locale];
+}
+
+/**
  * How the definitions' keys are said in `locale` (`ViewEngineOptions.text`):
  * the definitions are the same in every language, and the engine reads
  * them in the one in force.

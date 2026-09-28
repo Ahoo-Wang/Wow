@@ -39,7 +39,12 @@ import {
   defaultMessages,
   formatMessage,
 } from '../src/ui/index.js';
-import { analysisConfig, ordersDefinition, testSource } from './fixtures.js';
+import {
+  analysisConfig,
+  ordersDefinition,
+  testSource,
+  resourcesOf,
+} from './fixtures.js';
 import { openTray } from './fixtures/workbench.js';
 
 afterEach(cleanup);
@@ -139,9 +144,8 @@ async function open(config: Partial<AnalysisViewConfig> = {}) {
     ],
   });
   const engine = new ViewEngine({
-    definitions: [conditionDefinition()],
+    resources: resourcesOf([conditionDefinition()], () => source),
     store,
-    resolveSource: () => source,
   });
   render(
     <DataWorkbench

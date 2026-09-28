@@ -290,7 +290,8 @@ src/
     queryFailure.ts           — `queryFailureIssue`: the Issue of a failed query — `runtime.query.failed`, `runtime.query.failed.<code>` for a rule a Wow service named, with the field's label and the condition on it, or `runtime.query.forbidden` for a source that refused the reader (403, `IllegalAccess*`); `isForbiddenQuery` (D40)
     refreshTimer.ts           — The one auto-refresh timer both runtimes arm; `refreshIntervalOf`, `refreshDelayOf`; `MomentTimer`, one refresh at a moment (a metric card's period ending)
     autoApply.ts              — 「改了就跑」: whether the draft is due to run on its own (`autoApplyDue`) and the delay that merges a burst of edits into one query
-    requestRunner.ts          — Scheduling; a newer request supersedes a key
+    requestRunner.ts          — Scheduling; a newer request supersedes a key, and an open board holds room in the queue for its panels (`reserve`)
+    issueReport.ts            — The development default of `onIssue`: findings grouped by resource on the console, each with how to fix it; silent in production and under a test runner
     recordRuntime.ts          — `RecordDataViewRuntime`: the page, the selection, the export and the record read whole — a Record view's alone; `dataViewRuntime` builds the one a config's kind runs on, `isRecordRuntime` tells them apart
     runtimeFactory.ts         — How one runtime is assembled, `open` and `create` alike
     runtimeStore.ts           — The store both runtimes are made of: the state, its listeners, the refresh timer's bookkeeping and the rollover's (`expiresAt`), dirty-against-saved; `hasError`
@@ -307,7 +308,9 @@ src/
     validateFields.ts         — The fields' part of definition admission: names, kinds, what each kind reads, what a search looks in (an element's search names the element's fields, N4)
     valueCandidates.ts        — `ValueCandidateSources`: one `ValueCandidateSource` per offered field, compiled through the analysis kernel under the injected scope, answers kept for the life of the view and narrowed in hand where the source has nothing to add
     viewChanges.ts            — The change notifications a list of views subscribes to (D15)
-    viewEngine.ts             — ViewEngine — the command surface: admission, then one dispatch
+    viewEngine.ts             — ViewEngine — the command surface: admission, then one dispatch over `resources` (host-integration.md 3.1)
+    resources.ts              — `EngineResources`: what the engine is given — each resource's source by its definition's key, the options, the words keys are said in; `definitions` said in the current words
+    text.ts                   — `EngineText`: the words `text(key)` keys are said in, swapped at render time (D2) — every read of a definition or a snapshot said once per words, a change of words told to every open view; keys stay in state and never reach the store
     viewRuntime.ts            — `DataViewRuntime`: one open data view over one `RuntimeStore` — admission, ask, run, land; what only a Record view has comes in through four hooks (`startOver`, `pageNow`, `settle`, `holds`)
     viewRuntimeTypes.ts       — The runtime contract: `ViewRuntime`, `RecordViewRuntime`, `ManagedViewRuntime`, the state and result shapes; `hasResult`, the one reading of "a result ever arrived", and `hasAsked`, of "a question was sent"
     write.ts                  — Write bodies, retry and overwrite replay
@@ -415,6 +418,8 @@ src/
     IconButton.tsx            — An icon-only control and the tooltip saying its name; the one place the two are paired — and `BadgeTooltip`, a badge whose note is a tooltip focus and a tap open too
     LeaveGuard.tsx            — `LeaveDialog`: draws the headless guard's question
     MessagesProvider.tsx      — `MessagesProvider`: the wording every default component reads, each provider merging over the one above it
+    ViewEngineProvider.tsx    — `ViewEngineProvider`: the application's one engine, its words at render time (`setText` from the merged messages), the host's `navigate` and the bindings, for every surface under it; nests, and a surface's own prop wins (host-integration.md 4)
+    bindings.ts               — `bind`: a definition's behaviour in the host — `route`, `reading` (D60), and until H3 its `actions` and `bulk` — and `resolveNavigation`, a `ViewNavigation` through the route of the definition it leads to
     OutcomeActions.tsx        — One outcome as a line and its buttons, shared by the two above and the manager
     PanelUnavailable.tsx      — A dashboard panel that cannot show anything: the finding mapped to why, in the reader's words, and who can bring it back — or, while the board is built, the buttons that do
     PendingDot.tsx            — The "changed, not applied" dot pinned to a pill or a group

@@ -35,10 +35,12 @@ import {
   type RecordViewConfig,
   type ViewSource,
 } from '../src/index.js';
-import type { DashboardPanelView } from '../src/react/index.js';
 import {
+  bind,
   EmbeddedDashboard,
+  ViewEngineProvider,
   type EmbeddedDashboardProps,
+  type ViewBindingOptions,
 } from '../src/ui/index.js';
 import {
   analysisConfig,
@@ -48,6 +50,7 @@ import {
   recordConfig,
   ROWS,
   testSource,
+  resourcesOf,
 } from './fixtures.js';
 
 afterEach(cleanup);
@@ -102,9 +105,11 @@ function engineOf(source: ViewSource, list: RecordViewConfig = recordConfig()) {
     ],
   });
   return new ViewEngine({
-    definitions: [ordersDefinition(), overviewDefinition()],
+    resources: resourcesOf(
+      [ordersDefinition(), overviewDefinition()],
+      () => source,
+    ),
     store,
-    resolveSource: () => source,
   });
 }
 
@@ -114,18 +119,27 @@ function orders(pages = 45) {
   });
 }
 
+/**
+ * The board embedded under a provider that binds `orders` — the host's
+ * commands on its records reach every record panel over it (`bind`).
+ */
 function open(
   source: ViewSource,
   props: Partial<EmbeddedDashboardProps> = {},
   list?: RecordViewConfig,
+  orders: ViewBindingOptions = {},
 ) {
   render(
-    <EmbeddedDashboard
+    <ViewEngineProvider
       engine={engineOf(source, list)}
-      instanceId="board"
-      interaction="interactive"
-      {...props}
-    />,
+      bindings={[bind('orders', orders)]}
+    >
+      <EmbeddedDashboard
+        instanceId="board"
+        interaction="interactive"
+        {...props}
+      />
+    </ViewEngineProvider>,
   );
   return screen.findByRole('group', { name: 'Orders' });
 }
@@ -170,28 +184,23 @@ describe('a record panel says how many rows there are (D39)', () => {
 });
 
 describe('the host’s commands on a record panel (D39)', () => {
-  it('puts a row’s command on each row, only on the panels the host names, and re-runs the board after it', async () => {
+  it('puts a row’s command on each row of a record panel over the definition the host bound, and re-runs the board after it', async () => {
     const source = orders(2);
     const asked: string[] = [];
-    await open(source, {
-      recordPanel: (panel: DashboardPanelView) =>
-        panel.id === 'orders'
-          ? {
-              actions: {
-                row: ({ row, refresh }) => (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      asked.push(String(row.key));
-                      refresh();
-                    }}
-                  >
-                    Nudge {String(row.key)}
-                  </button>
-                ),
-              },
-            }
-          : undefined,
+    await open(source, {}, undefined, {
+      actions: {
+        row: ({ row, refresh }) => (
+          <button
+            type="button"
+            onClick={() => {
+              asked.push(String(row.key));
+              refresh();
+            }}
+          >
+            Nudge {String(row.key)}
+          </button>
+        ),
+      },
     });
     const nudge = await screen.findByRole('button', { name: 'Nudge o-1' });
     expect(screen.getByRole('button', { name: 'Nudge o-2' })).toBeTruthy();
@@ -216,16 +225,15 @@ describe('the host’s commands on a record panel (D39)', () => {
 
   it('re-runs the board after a selection’s command, too', async () => {
     const source = orders(2);
-    const recordPanel = () => ({
+    const panel = await open(source, {}, undefined, {
       actions: {
-        bulk: ({ refresh }: { refresh(): void }) => (
+        bulk: ({ refresh }) => (
           <button type="button" onClick={refresh}>
             Nudge all
           </button>
         ),
       },
     });
-    const panel = await open(source, { recordPanel });
     const card = panel.closest<HTMLElement>('[data-slot="dashboard-panel"]')!;
     const boxes = await within(card).findAllByRole('checkbox');
     await waitFor(() => expect(source.aggregate).toHaveBeenCalled());
@@ -244,16 +252,15 @@ describe('the host’s commands on a record panel (D39)', () => {
 
   it('offers a selection’s command over picked rows, where the board has controls', async () => {
     const run = vi.fn();
-    const recordPanel = () => ({
+    const panel = await open(orders(2), {}, undefined, {
       actions: {
-        bulk: ({ keys }: { keys: readonly unknown[] }) => (
+        bulk: ({ keys }) => (
           <button type="button" onClick={() => run(keys)}>
             Nudge all
           </button>
         ),
       },
     });
-    const panel = await open(orders(2), { recordPanel });
     const card = panel.closest<HTMLElement>('[data-slot="dashboard-panel"]')!;
     const boxes = await within(card).findAllByRole('checkbox');
     // No bar until a row is picked.
@@ -270,14 +277,11 @@ describe('the host’s commands on a record panel (D39)', () => {
   });
 
   it('picks no rows on a board with no controls, and keeps the row’s command', async () => {
-    await open(orders(2), {
-      interaction: 'static',
-      recordPanel: () => ({
-        actions: {
-          row: ({ row }) => <span>Row {String(row.key)}</span>,
-          bulk: () => <button type="button">Nudge all</button>,
-        },
-      }),
+    await open(orders(2), { interaction: 'static' }, undefined, {
+      actions: {
+        row: ({ row }) => <span>Row {String(row.key)}</span>,
+        bulk: () => <button type="button">Nudge all</button>,
+      },
     });
     await screen.findByText('Row o-1');
     expect(screen.queryByRole('checkbox')).toBeNull();
@@ -295,8 +299,9 @@ describe('the host’s commands on a record panel (D39)', () => {
         stopping: false,
       },
     };
-    const panel = await open(orders(2), {
-      recordPanel: () => ({ actions: {}, bulk: command }),
+    const panel = await open(orders(2), {}, undefined, {
+      actions: {},
+      bulk: command,
     });
     const card = panel.closest<HTMLElement>('[data-slot="dashboard-panel"]')!;
     await waitFor(() =>

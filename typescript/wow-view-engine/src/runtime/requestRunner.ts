@@ -67,6 +67,8 @@ export class RequestRunner {
   private readonly byKey = new Map<string, Entry>();
   private readonly queue: Entry[] = [];
   private running = 0;
+  /** Room held beyond `maxQueuedQueries` for the boards open; see `reserve`. */
+  private reserved = 0;
 
   constructor(limits: RuntimeLimits = DEFAULT_RUNTIME_LIMITS) {
     this.maxConcurrent = limits.maxConcurrentQueries;
@@ -83,6 +85,28 @@ export class RequestRunner {
     return this.queue.length;
   }
 
+  /** How many requests may wait: the host's budget, and the room held. */
+  get capacity(): number {
+    return this.maxQueued + this.reserved;
+  }
+
+  /**
+   * Holds room in the queue for `slots` more requests until the returned
+   * release is called, once (host-integration.md 4): a board opening asks
+   * for its panels' queries all at once, and they wait their turn rather
+   * than being refused because the board is larger than the host's budget.
+   */
+  reserve(slots: number): () => void {
+    const held = Math.max(0, Math.floor(slots));
+    this.reserved += held;
+    let released = false;
+    return () => {
+      if (released) return;
+      released = true;
+      this.reserved -= held;
+    };
+  }
+
   /**
    * Runs `task` under `key`, superseding whatever that key was doing. The
    * returned promise rejects with `RequestSupersededError` in that case, and
@@ -97,8 +121,8 @@ export class RequestRunner {
     // A predecessor still waiting gives its own slot back, so it does not
     // count against the room the new request needs.
     const freed = previous && !previous.started ? 1 : 0;
-    if (this.queue.length - freed >= this.maxQueued)
-      return Promise.reject(new RequestQueueFullError(key, this.maxQueued));
+    if (this.queue.length - freed >= this.capacity)
+      return Promise.reject(new RequestQueueFullError(key, this.capacity));
     this.cancel(key);
 
     return new Promise<T>((resolve, reject) => {

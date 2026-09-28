@@ -742,10 +742,9 @@ export function createCustomerEngine(fetcher: Fetcher): ViewEngine {
     fetcher,
   });
   return new ViewEngine({
-    definitions: [customerDefinition],
+    resources: [{ definition: customerDefinition, source }],
     // The service pages at most 100 rows at a time.
     limits: { ...DEFAULT_RUNTIME_LIMITS, maxPageSize: 100 },
     store: new MemoryViewStore({ instances: [] }),
-    resolveSource: () => source,
   });
 }

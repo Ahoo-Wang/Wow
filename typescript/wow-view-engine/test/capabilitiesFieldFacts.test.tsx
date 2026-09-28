@@ -27,7 +27,12 @@ import {
 import { narrowDefinition } from '../src/capabilities/index.js';
 import { validateDataConfig } from '../src/runtime/execute.js';
 import { DataWorkbench } from '../src/ui/index.js';
-import { ordersDefinition, recordConfig, testSource } from './fixtures.js';
+import {
+  ordersDefinition,
+  recordConfig,
+  testSource,
+  resourcesOf,
+} from './fixtures.js';
 import {
   describedField,
   ordersDescriptor,
@@ -134,10 +139,10 @@ describe('a deprecated field (#3519)', () => {
     };
     const descriptor = deprecated();
     const engine = new ViewEngine({
-      definitions: [ordersDefinition()],
-      store: new MemoryViewStore({ instances: [saved] }),
-      resolveSource: () =>
+      resources: resourcesOf([ordersDefinition()], () =>
         testSource({ describe: () => Promise.resolve(read(descriptor)) }),
+      ),
+      store: new MemoryViewStore({ instances: [saved] }),
     });
     render(
       <DataWorkbench engine={engine} definitionId="orders" instanceId="mine" />,

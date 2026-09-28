@@ -28,7 +28,12 @@ import {
 import { useFilterEditor, useSearchBox } from '../src/react/index.js';
 import { treeController } from '../src/react/useFilterEditor.js';
 import { narrowDefinition } from '../src/capabilities/index.js';
-import { ordersDefinition, recordConfig, testSource } from './fixtures.js';
+import {
+  ordersDefinition,
+  recordConfig,
+  testSource,
+  resourcesOf,
+} from './fixtures.js';
 import {
   describedField,
   ordersDescriptor,
@@ -70,12 +75,12 @@ function mongoDescriptor(): QueryModelDescriptor {
 
 async function opened(descriptor: QueryModelDescriptor | null) {
   const engine = new ViewEngine({
-    definitions: [searchable],
-    store: new MemoryViewStore({ instances: [] }),
-    resolveSource: () =>
+    resources: resourcesOf([searchable], () =>
       testSource(
         descriptor ? { describe: () => Promise.resolve(read(descriptor)) } : {},
       ),
+    ),
+    store: new MemoryViewStore({ instances: [] }),
   });
   const runtime = await engine.open('system:orders:all');
   if (runtime.kind === 'dashboard') throw new Error('expected a data view');

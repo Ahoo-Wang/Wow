@@ -39,6 +39,7 @@ import {
   ordersDefinition,
   testEnvironment,
   testSource,
+  resourcesOf,
 } from './fixtures.js';
 import { settle } from './fixtures/ui.js';
 
@@ -81,9 +82,8 @@ function twoDimensions() {
 async function opened(canDrill = true) {
   const source = testSource();
   const engine = new ViewEngine({
-    definitions: [twoDimensions()],
+    resources: resourcesOf([twoDimensions()], () => source),
     store: new MemoryViewStore({ instances: [analysisView] }),
-    resolveSource: () => source,
   });
   const drill = vi.fn();
   const follow = vi.fn();
@@ -272,9 +272,8 @@ describe('useAnalysisResult', () => {
       }),
     };
     const engine = new ViewEngine({
-      definitions: [twoDimensions()],
+      resources: resourcesOf([twoDimensions()], () => source),
       store: new MemoryViewStore({ instances: [totals] }),
-      resolveSource: () => source,
     });
     const { result } = renderHook(() => {
       const open = useOpenView(engine, 'orders-totals');
@@ -323,9 +322,8 @@ describe('useAnalysisResult', () => {
     };
     const clock = testEnvironment();
     const engine = new ViewEngine({
-      definitions: [namedOrdersDefinition()],
+      resources: resourcesOf([namedOrdersDefinition()], () => source),
       store: new MemoryViewStore({ instances: [monthly] }),
-      resolveSource: () => source,
       environment: clock.environment,
     });
     // Nothing more is on its way: past the debounce an edit would run
@@ -422,29 +420,34 @@ describe('useAnalysisResult', () => {
     async function broken(config: AnalysisViewConfig) {
       const source = testSource();
       const engine = new ViewEngine({
-        definitions: [
-          ordersDefinition({
-            analysis: {
-              count: true,
-              fields: [
-                {
-                  field: 'warehouse',
-                  groups: [AggregationGroupType.TERMS],
-                  functions: [],
-                },
-                {
-                  field: 'amount',
-                  groups: [],
-                  functions: [AggregationFunction.SUM, AggregationFunction.AVG],
-                },
-              ],
-            },
-          }),
-        ],
+        resources: resourcesOf(
+          [
+            ordersDefinition({
+              analysis: {
+                count: true,
+                fields: [
+                  {
+                    field: 'warehouse',
+                    groups: [AggregationGroupType.TERMS],
+                    functions: [],
+                  },
+                  {
+                    field: 'amount',
+                    groups: [],
+                    functions: [
+                      AggregationFunction.SUM,
+                      AggregationFunction.AVG,
+                    ],
+                  },
+                ],
+              },
+            }),
+          ],
+          () => source,
+        ),
         store: new MemoryViewStore({
           instances: [{ ...analysisView, id: 'orders-broken', config }],
         }),
-        resolveSource: () => source,
       });
       const hook = renderHook(() => {
         const open = useOpenView(engine, 'orders-broken');
@@ -552,7 +555,7 @@ describe('a follow-up over a span of the time axis (D33 Q52)', () => {
   async function daily() {
     const source = testSource();
     const engine = new ViewEngine({
-      definitions: [dailyOrdersDefinition()],
+      resources: resourcesOf([dailyOrdersDefinition()], () => source),
       store: new MemoryViewStore({
         instances: [
           {
@@ -571,7 +574,6 @@ describe('a follow-up over a span of the time axis (D33 Q52)', () => {
           },
         ],
       }),
-      resolveSource: () => source,
       // Days cut at UTC midnights, whatever zone runs the suite.
       environment: defaultRuntimeEnvironment({ timeZone: 'UTC' }),
     });

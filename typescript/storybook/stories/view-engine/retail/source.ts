@@ -34,7 +34,9 @@ import {
   type OptionSource,
   type RecordData,
   type RuntimeLimits,
+  type ViewDefinition,
   type ViewInstance,
+  type ViewResource,
   type ViewSource,
 } from '@ahoo-wang/wow-view-engine';
 import { MEMBER_LEVELS } from './catalog.js';
@@ -180,6 +182,21 @@ export function retailEnvironment() {
 }
 
 /**
+ * 每个定义配上它的数据源：数据定义按它的 `source` 键从 `sourceOf` 取（缺省是
+ * 共享的 `retailSource`），仪表盘不查数据，不配数据源。
+ */
+export function retailResources(
+  definitions: readonly ViewDefinition[],
+  sourceOf: (key: RetailSourceKey) => ViewSource = retailSource,
+): ViewResource[] {
+  return definitions.map(definition =>
+    definition.kind === 'data'
+      ? { definition, source: sourceOf(definition.source as RetailSourceKey) }
+      : { definition },
+  );
+}
+
+/**
  * 一个新引擎、一个新存储：`definitions` 是这个场景的定义，`instances` 是
  * 存储里已有的共享与个人视图。每次挂载调用一次。`limits` 是宿主调高的预算
  * ——缺省是一台保持缺省配置的 Wow 服务端收的（D42）。
@@ -190,11 +207,10 @@ export function createRetailEngine(
   limits: Partial<RuntimeLimits> = {},
 ): ViewEngine {
   return new ViewEngine({
-    definitions,
+    resources: retailResources(definitions),
     // Wow 的查询服务一页最多 100 行；导出按运行时最大的页取，所以这里也是。
     limits: { ...DEFAULT_RUNTIME_LIMITS, maxPageSize: 100, ...limits },
     store: new MemoryViewStore({ instances }),
-    resolveSource: key => retailSource(key as RetailSourceKey),
     resolveOptions: remote => {
       if (remote !== MEMBER_OPTIONS)
         throw new Error(`No retail options ${remote}.`);

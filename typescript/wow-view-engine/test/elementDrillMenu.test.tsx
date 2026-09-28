@@ -35,6 +35,7 @@ import {
   mine,
   ordersDefinition,
   testSource,
+  resourcesOf,
 } from './fixtures.js';
 
 /**
@@ -139,9 +140,8 @@ function open(config: AnalysisViewConfig, row: Record<string, unknown>) {
     aggregate: () => Promise.resolve([{ ...row, orders: 3 }]),
   });
   const engine = new ViewEngine({
-    definitions: [lined()],
+    resources: resourcesOf([lined()], () => source),
     store: new MemoryViewStore({ instances: [mine, instance(config)] }),
-    resolveSource: () => source,
   });
   render(
     <DataWorkbench

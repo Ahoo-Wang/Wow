@@ -46,6 +46,7 @@ import {
   recordConfig,
   testEnvironment,
   testSource,
+  resourcesOf,
 } from './fixtures.js';
 import { mine, mixed, setup } from './fixtures/ui.js';
 
@@ -54,9 +55,7 @@ afterEach(cleanup);
 describe('EmbeddedView', () => {
   function embed(config: ViewInstance['config']) {
     return new ViewEngine({
-      definitions: [namedOrdersDefinition()],
-      store: new MemoryViewStore({ instances: [{ ...mine, config }] }),
-      resolveSource: () =>
+      resources: resourcesOf([namedOrdersDefinition()], () =>
         testSource({
           paged: () =>
             Promise.resolve({
@@ -64,6 +63,8 @@ describe('EmbeddedView', () => {
               list: [{ id: 'o-1', createdAt: INSTANT }],
             }),
         }),
+      ),
+      store: new MemoryViewStore({ instances: [{ ...mine, config }] }),
       environment: defaultRuntimeEnvironment({ timeZone: ZONE }),
     });
   }
@@ -83,9 +84,8 @@ describe('EmbeddedView', () => {
       }
     }
     const engine = new ViewEngine({
-      definitions: [namedOrdersDefinition()],
+      resources: resourcesOf([namedOrdersDefinition()], () => testSource()),
       store: new Slow({ instances: [{ ...mine, config: recordConfig() }] }),
-      resolveSource: () => testSource(),
       environment: defaultRuntimeEnvironment({ timeZone: ZONE }),
     });
 
@@ -122,7 +122,15 @@ describe('EmbeddedView', () => {
    */
   it('names its applied band after its view, so two on a page differ', async () => {
     const engine = new ViewEngine({
-      definitions: [namedOrdersDefinition()],
+      resources: resourcesOf([namedOrdersDefinition()], () =>
+        testSource({
+          paged: () =>
+            Promise.resolve({
+              total: 1,
+              list: [{ id: 'o-1', createdAt: INSTANT }],
+            }),
+        }),
+      ),
       store: new MemoryViewStore({
         instances: [
           { ...mine, title: 'Open orders', config: recordConfig() },
@@ -134,14 +142,6 @@ describe('EmbeddedView', () => {
           },
         ],
       }),
-      resolveSource: () =>
-        testSource({
-          paged: () =>
-            Promise.resolve({
-              total: 1,
-              list: [{ id: 'o-1', createdAt: INSTANT }],
-            }),
-        }),
       environment: defaultRuntimeEnvironment({ timeZone: ZONE }),
     });
     render(
@@ -289,9 +289,8 @@ describe('EmbeddedView', () => {
       config: analysisConfig({ layout: 'table' }),
     };
     const engine = new ViewEngine({
-      definitions: [ordersDefinition()],
+      resources: resourcesOf([ordersDefinition()], () => testSource()),
       store: new MemoryViewStore({ instances: [analysis] }),
-      resolveSource: () => testSource(),
     });
 
     render(<EmbeddedView engine={engine} instanceId="orders-1" />);
@@ -305,7 +304,9 @@ describe('EmbeddedView', () => {
 
   it('names a dashboard as a view it cannot show: that is EmbeddedDashboard', async () => {
     const engine = new ViewEngine({
-      definitions: [ordersDefinition(), overviewDefinition()],
+      resources: resourcesOf([ordersDefinition(), overviewDefinition()], () =>
+        testSource(),
+      ),
       store: new MemoryViewStore({
         instances: [
           {
@@ -318,7 +319,6 @@ describe('EmbeddedView', () => {
           },
         ],
       }),
-      resolveSource: () => testSource(),
     });
 
     render(<EmbeddedView engine={engine} instanceId="overview-1" />);
@@ -333,10 +333,10 @@ describe('EmbeddedView', () => {
 
   it('reports a failed query inside the embed', async () => {
     const engine = new ViewEngine({
-      definitions: [ordersDefinition()],
-      store: new MemoryViewStore({ instances: [mine] }),
-      resolveSource: () =>
+      resources: resourcesOf([ordersDefinition()], () =>
         testSource({ paged: () => Promise.reject(new Error('down')) }),
+      ),
+      store: new MemoryViewStore({ instances: [mine] }),
     });
 
     render(<EmbeddedView engine={engine} instanceId="orders-1" />);
@@ -467,12 +467,11 @@ describe('EmbeddedView', () => {
    */
   it('tells a view that must be fixed apart from a narrowing that was refused', async () => {
     const engine = new ViewEngine({
-      definitions: [ordersDefinition()],
+      resources: resourcesOf([ordersDefinition()], () => testSource()),
       // Blocks on its own: a page size must be positive.
       store: new MemoryViewStore({
         instances: [{ ...mine, config: recordConfig({ pageSize: 0 }) }],
       }),
-      resolveSource: () => testSource(),
     });
 
     render(
@@ -561,9 +560,8 @@ describe('EmbeddedView', () => {
    */
   it('shows a warning above the result rather than instead of it', async () => {
     const engine = new ViewEngine({
-      definitions: [ordersDefinition()],
+      resources: resourcesOf([ordersDefinition()], () => testSource()),
       store: new MemoryViewStore({ instances: [mixed] }),
-      resolveSource: () => testSource(),
     });
 
     render(<EmbeddedView engine={engine} instanceId="orders-1" />);
@@ -581,7 +579,7 @@ describe('EmbeddedView', () => {
    */
   it('keeps saying what is worth noting when an error takes the result place', async () => {
     const engine = new ViewEngine({
-      definitions: [ordersDefinition()],
+      resources: resourcesOf([ordersDefinition()], () => testSource()),
       store: new MemoryViewStore({
         instances: [
           {
@@ -598,7 +596,6 @@ describe('EmbeddedView', () => {
           },
         ],
       }),
-      resolveSource: () => testSource(),
     });
 
     render(<EmbeddedView engine={engine} instanceId="orders-1" />);
@@ -649,7 +646,7 @@ describe('EmbeddedView', () => {
    */
   it('offers no way to drop a saved condition from the summary', async () => {
     const engine = new ViewEngine({
-      definitions: [ordersDefinition()],
+      resources: resourcesOf([ordersDefinition()], () => testSource()),
       store: new MemoryViewStore({
         instances: [
           {
@@ -663,7 +660,6 @@ describe('EmbeddedView', () => {
           },
         ],
       }),
-      resolveSource: () => testSource(),
     });
 
     render(<EmbeddedView engine={engine} instanceId="orders-1" />);
@@ -723,18 +719,20 @@ describe('EmbeddedView tiers and switches', () => {
   function engineOf(config: ViewInstance['config'], fields = true) {
     const base = ordersDefinition();
     return new ViewEngine({
-      definitions: [
-        fields
-          ? ordersDefinition({
-              fields: [
-                ...base.fields,
-                { name: 'q', label: 'Search orders', kind: 'search' },
-              ],
-            })
-          : base,
-      ],
+      resources: resourcesOf(
+        [
+          fields
+            ? ordersDefinition({
+                fields: [
+                  ...base.fields,
+                  { name: 'q', label: 'Search orders', kind: 'search' },
+                ],
+              })
+            : base,
+        ],
+        () => testSource(),
+      ),
       store: new MemoryViewStore({ instances: [{ ...mine, config }] }),
-      resolveSource: () => testSource(),
     });
   }
 
@@ -1013,13 +1011,12 @@ describe('EmbeddedView tiers and switches', () => {
   it('fills its container when asked, and never refreshes itself when told not to', async () => {
     const clock = testEnvironment();
     const engine = new ViewEngine({
-      definitions: [ordersDefinition()],
+      resources: resourcesOf([ordersDefinition()], () => testSource()),
       store: new MemoryViewStore({
         instances: [
           { ...mine, config: recordConfig({ refresh: { interval: 30 } }) },
         ],
       }),
-      resolveSource: () => testSource(),
       environment: clock.environment,
     });
     const { rerender } = render(

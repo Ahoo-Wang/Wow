@@ -191,6 +191,32 @@ describe('useBulkCommand', () => {
     expect(picked.select).not.toHaveBeenCalled();
     expect(picked.refresh).not.toHaveBeenCalled();
   });
+
+  it('starts no record once the host that asked has gone, and lets those under way land', async () => {
+    const { result, unmount } = renderHook(() =>
+      useBulkCommand({ concurrency: 2 }),
+    );
+    const sent: RecordKey[] = [];
+    const landed: RecordKey[] = [];
+    const keys = Array.from({ length: 12 }, (_, at) => `EF-${at}`);
+    act(() =>
+      result.current.run(selection(keys), {
+        title: 'Retry',
+        each: async key => {
+          sent.push(key);
+          await nextTask();
+          landed.push(key);
+        },
+      }),
+    );
+    expect(sent).toEqual(['EF-0', 'EF-1']);
+    unmount();
+    for (let turn = 0; turn < 20; turn += 1) await nextTask();
+    // Nobody can see the run or stop it now: what was under way lands, and
+    // nothing more is sent (review of #3761).
+    expect(sent).toEqual(['EF-0', 'EF-1']);
+    expect(landed).toEqual(['EF-0', 'EF-1']);
+  });
 });
 
 describe('failureReasons', () => {

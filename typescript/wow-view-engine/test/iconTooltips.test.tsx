@@ -38,6 +38,7 @@ import {
   recordConfig,
   ROWS,
   testSource,
+  resourcesOf,
 } from './fixtures.js';
 import { openTray } from './fixtures/workbench.js';
 
@@ -192,9 +193,11 @@ function engineWith(
   source = testSource(),
 ): ViewEngine {
   return new ViewEngine({
-    definitions: [ordersDefinition(), overviewDefinition()],
+    resources: resourcesOf(
+      [ordersDefinition(), overviewDefinition()],
+      () => source,
+    ),
     store: new MemoryViewStore({ instances }),
-    resolveSource: () => source,
   });
 }
 

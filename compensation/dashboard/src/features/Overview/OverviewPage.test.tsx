@@ -19,15 +19,12 @@ import {
   waitFor,
   within,
 } from "@testing-library/react";
-import {
-  createMemoryRouter,
-  RouterProvider,
-  useLocation,
-} from "react-router";
+import { createMemoryRouter, RouterProvider, useLocation } from "react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { I18nProvider } from "@/i18n.tsx";
 import type { ExecutionCommands } from "../Executions/executionCommands.ts";
 import OverviewPage from "./OverviewPage.tsx";
+import { withViews } from "../App/withViews.tsx";
 
 const DUE = {
   aggregateId: "EF-1",
@@ -105,12 +102,13 @@ function renderAt(path: string, sent = commands()) {
     [
       {
         path: "/",
-        element: (
+        element: withViews(
           <>
-            <OverviewPage {...props} />
+            <OverviewPage />
             <RenderedState />
-          </>
-        ),
+          </>,
+          props,
+        ).element,
       },
       { path: "/boards", element: <p>the dashboard workbench</p> },
       { path: "/executions", element: <p>the workbench</p> },
@@ -206,7 +204,7 @@ describe("OverviewPage", () => {
     });
   });
 
-  it("builds the board again in the new language", async () => {
+  it("reads the board in the language in force", async () => {
     localStorage.setItem("wow-dashboard-locale", "zh-CN");
     renderAt("/");
     expect(

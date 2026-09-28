@@ -294,6 +294,19 @@ export { ViewList, type ViewListProps } from './ViewList.js';
 export { ViewSwitcher, type ViewSwitcherProps } from './ViewSwitcher.js';
 export { ViewManager, type ViewManagerProps } from './ViewManager.js';
 export {
+  ViewEngineProvider,
+  type ViewEngineProviderProps,
+} from './ViewEngineProvider.js';
+export {
+  bind,
+  type RoutedTarget,
+  type ViewBinding,
+  type ViewBindingOptions,
+  type ViewDestination,
+  type ViewRoute,
+  type ViewRouteState,
+} from './bindings.js';
+export {
   ViewSurface,
   type ViewSurfaceProps,
   type ViewTheme,

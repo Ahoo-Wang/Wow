@@ -108,6 +108,10 @@ export function useBulkCommand(options: BulkCommandOptions = {}): BulkCommand {
     alive.current = true;
     return () => {
       alive.current = false;
+      // The host that asked is gone, and with it the line that said how far
+      // the run had come and the way to stop it: nothing more is started.
+      // What is under way lands; the service has it already.
+      stopping.current = true;
     };
   }, []);
 
@@ -153,8 +157,8 @@ export function useBulkCommand(options: BulkCommandOptions = {}): BulkCommand {
       );
       void Promise.all(workers).then(() => {
         busy.current = false;
-        // The host may have navigated away while the command ran. The
-        // records still took it; the report simply has nobody to reach.
+        // The host may have gone while the command ran: the records under
+        // way took it, and the report simply has nobody to reach.
         if (!alive.current) return;
         const settled = new Set<RecordKey>([
           ...succeeded,
