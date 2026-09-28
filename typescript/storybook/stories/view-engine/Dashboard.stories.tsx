@@ -896,7 +896,15 @@ export const LegacyLayout: Story = {
 export const HeadingPanelAlone: Story = {
   name: '标题卡单独用',
   render: () => (
-    <div style={{ display: 'grid', gap: 16, padding: 24, maxWidth: 360 }}>
+    <div
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 16,
+        padding: 24,
+        maxWidth: 360,
+      }}
+    >
       <ViewSurface {...HOST_LANGUAGE}>
         <div className="rounded-lg border bg-card p-4">
           <HeadingPanel content="华南仓 · 本周出库" />
