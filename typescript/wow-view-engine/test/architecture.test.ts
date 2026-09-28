@@ -239,6 +239,43 @@ function parse(path: string): ts.SourceFile {
   );
 }
 
+/** The source file a relative module specifier names, `.js` read as `.ts`. */
+function sourceOf(from: string, specifier: string): string {
+  const base = resolve(dirname(from), specifier.replace(/\.js$/, ''));
+  const found = [`${base}.ts`, `${base}.tsx`, join(base, 'index.ts')].find(
+    existsSync,
+  );
+  if (!found) throw new Error(`${from}: cannot resolve ${specifier}`);
+  return found;
+}
+
+/** The names a file declares with `export`, not the ones it passes on. */
+function declaredExports(path: string): Set<string> {
+  const names = new Set<string>();
+  for (const statement of parse(path).statements) {
+    const exported =
+      ts.canHaveModifiers(statement) &&
+      ts
+        .getModifiers(statement)
+        ?.some(modifier => modifier.kind === ts.SyntaxKind.ExportKeyword);
+    if (!exported) continue;
+    if (ts.isVariableStatement(statement)) {
+      for (const declaration of statement.declarationList.declarations)
+        if (ts.isIdentifier(declaration.name)) names.add(declaration.name.text);
+    } else if (
+      (ts.isFunctionDeclaration(statement) ||
+        ts.isClassDeclaration(statement) ||
+        ts.isInterfaceDeclaration(statement) ||
+        ts.isTypeAliasDeclaration(statement) ||
+        ts.isEnumDeclaration(statement)) &&
+      statement.name
+    ) {
+      names.add(statement.name.text);
+    }
+  }
+  return names;
+}
+
 function locationOf(path: string): Location {
   const [first] = relative(src, path).split(sep);
   return (LAYERS as readonly string[]).includes(first)
@@ -500,6 +537,49 @@ describe('architecture', () => {
 
   it('has a root entry', () => {
     expect(existsSync(join(src, 'index.ts'))).toBe(true);
+  });
+
+  // An entry names every public export (D64). While the entries re-exported
+  // whole modules, every `export` a file wrote for its neighbours became a
+  // promise to every host — the first review found fifteen names nobody
+  // called, documented or tested. So no entry, and no index an entry
+  // re-exports through, may carry `export *` or `export * as`: a name reaches
+  // the public surface only by a line that writes it. A module an entry takes
+  // a name from that it does not declare itself — a barrel — is held to the
+  // same rule, since what it passes on is public too; one the entry only
+  // takes its own declarations from (`filter/kinds/index.ts` for the built-in
+  // registry) is an ordinary file.
+  it('names every export of an entry, with no export *', () => {
+    const entries = [
+      'index.ts',
+      join('ui', 'index.ts'),
+      join('react', 'index.ts'),
+    ];
+    const seen = new Set<string>();
+    const violations: string[] = [];
+    const read = (path: string) => {
+      if (seen.has(path)) return;
+      seen.add(path);
+      for (const statement of parse(path).statements) {
+        if (!ts.isExportDeclaration(statement)) continue;
+        const clause = statement.exportClause;
+        if (!clause || ts.isNamespaceExport(clause))
+          violations.push(`${relative(src, path)}: ${statement.getText()}`);
+        const specifier = statement.moduleSpecifier;
+        if (!clause || !specifier || !ts.isStringLiteral(specifier)) continue;
+        const target = sourceOf(path, specifier.text);
+        const own = declaredExports(target);
+        if (
+          ts.isNamedExports(clause) &&
+          clause.elements.some(
+            element => !own.has((element.propertyName ?? element.name).text),
+          )
+        )
+          read(target);
+      }
+    };
+    entries.forEach(entry => read(join(src, entry)));
+    expect(violations).toEqual([]);
   });
 
   it('places every source file in a known layer or at the root', () => {

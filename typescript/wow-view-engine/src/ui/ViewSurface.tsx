@@ -128,10 +128,6 @@ export function useSurfaceTheme(): 'light' | 'dark' | undefined {
  */
 const SurfacePresetContext = React.createContext<string | undefined>(undefined);
 
-export function useSurfacePreset(): string | undefined {
-  return React.useContext(SurfacePresetContext);
-}
-
 /**
  * The values of the tokens a chart reads, as the surface's root holds them —
  * one string, equal for two readings of the same theme.

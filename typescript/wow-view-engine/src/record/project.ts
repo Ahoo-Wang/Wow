@@ -134,7 +134,7 @@ export interface ElementTitleView {
  * when it declares none — admission has already refused a name its elements
  * do not declare, so a missing one here is a definition that chose to count.
  */
-export function elementTitleView(
+function elementTitleView(
   field: FieldDefinition,
 ): ElementTitleView | undefined {
   if (field.elementTitle === undefined) return undefined;

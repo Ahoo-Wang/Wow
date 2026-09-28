@@ -113,8 +113,14 @@ export default tseslint.config(
   {
     // 绊线：拆开的文件不许长回去。vendored 的 src/ui/components、src/ui/lib 已由顶部
     // ignores 排除；src/ui/messages/ 是纯文案目录，一份译文天然就长，不该被行数管。
+    // 三个入口是逐名写出的公开名单（D64），长度就是公开面，由 test/surface/ 逐名守着。
     files: ['src/**/*.{ts,tsx}'],
-    ignores: ['src/ui/messages/**'],
+    ignores: [
+      'src/ui/messages/**',
+      'src/index.ts',
+      'src/react/index.ts',
+      'src/ui/index.ts',
+    ],
     rules: {
       'max-lines': ['error', { max: 500, ...countCode }],
     },

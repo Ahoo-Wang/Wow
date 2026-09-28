@@ -48,7 +48,7 @@ export interface WorkbenchFeatures {
 }
 
 /** Every feature, as the answer when a host says nothing. */
-export const ALL_FEATURES: Readonly<Required<WorkbenchFeatures>> = {
+const ALL_FEATURES: Readonly<Required<WorkbenchFeatures>> = {
   export: true,
   layouts: true,
   columns: true,

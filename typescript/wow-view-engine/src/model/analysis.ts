@@ -348,7 +348,7 @@ export type FieldMetricType = (typeof FIELD_METRIC_TYPES)[number];
  * (`FIRST`) and the latest's (`LAST`). Wow lets neither a derived metric nor
  * 「只保留」 read them, and a totals row has no whole of 「任一值」.
  */
-export const VALUE_METRIC_TYPES = [
+const VALUE_METRIC_TYPES = [
   'ANY',
   'FIRST',
   'LAST',
