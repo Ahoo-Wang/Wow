@@ -139,3 +139,44 @@ export const OffersNoSearchOnMongoDb: Story = {
     ).toEqual([true, true, false]);
   },
 };
+
+/**
+ * #3608: 「明细里有茶」, saved on Elasticsearch, opened on MongoDB — the
+ * search sits inside the element match, where MongoDB cannot answer it. One
+ * press takes it out, and the element match with it, since nothing is left
+ * to ask of a line; before, the press changed nothing and the view stayed
+ * flagged.
+ */
+export const RemovesTheSearchOnMongoDb: Story = {
+  ...DisplayMongoDb,
+  args: { store: 'mongodb', savedOnElasticsearch: true },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await canvas.findByText(zhCN['label.view.unavailable']);
+    await expect(canvas.queryByRole('table')).toBeNull();
+
+    await userEvent.click(
+      canvas.getByRole('button', {
+        name: zhCN['label.view.remove-unavailable'],
+      }),
+    );
+    await waitFor(() =>
+      expect(canvas.queryByText(zhCN['label.view.unavailable'])).toBeNull(),
+    );
+    await expect(
+      canvas.queryByRole('button', {
+        name: zhCN['label.view.remove-unavailable'],
+      }),
+    ).toBeNull();
+
+    await openFilters(canvasElement);
+    await expect(
+      canvas.queryByRole('textbox', { name: '搜索货号 值' }),
+    ).toBeNull();
+    await userEvent.click(
+      await canvas.findByRole('button', { name: zhCN['label.filter.apply'] }),
+    );
+    const rows = readColumn(await findDataTable(canvasElement), '订单号');
+    await expect(rows.length).toBeGreaterThan(0);
+  },
+};

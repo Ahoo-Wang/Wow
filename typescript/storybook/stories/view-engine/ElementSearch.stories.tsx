@@ -216,10 +216,20 @@ const teaLines: ViewInstance = {
   }),
 };
 
-function ElementSearchDemo({ store }: { store: Store }) {
+function ElementSearchDemo({
+  store,
+  savedOnElasticsearch = store === 'elasticsearch',
+}: {
+  store: Store;
+  /**
+   * Opens 「明细里有茶」, saved where the lines could be searched — on
+   * MongoDB that is a view using what its source no longer offers.
+   */
+  savedOnElasticsearch?: boolean;
+}) {
   return (
     <StoryEngine
-      key={store}
+      key={`${store}-${savedOnElasticsearch}`}
       create={() =>
         createStoryEngine({
           definitions: [searchableLines, overviewDefinition],
@@ -232,9 +242,7 @@ function ElementSearchDemo({ store }: { store: Store }) {
         <DataWorkbench
           engine={engine}
           definitionId="orders"
-          instanceId={
-            store === 'elasticsearch' ? teaLines.id : savedViews[0].id
-          }
+          instanceId={savedOnElasticsearch ? teaLines.id : savedViews[0].id}
           {...HOST_LANGUAGE}
         />
       )}
@@ -268,7 +276,10 @@ const meta = {
     ),
   ],
   args: { store: 'elasticsearch' },
-  argTypes: { store: { table: { disable: true } } },
+  argTypes: {
+    store: { table: { disable: true } },
+    savedOnElasticsearch: { table: { disable: true } },
+  },
 } satisfies Meta<typeof ElementSearchDemo>;
 
 export default meta;
