@@ -41,24 +41,38 @@ import { isAdditiveMetric } from './validateChart.js';
  */
 
 /**
- * Whether a config's chart folds its split over these rows: a cartesian
- * chart split by a dimension, its one metric adding up, more split values
- * than colours, and no 「只保留」 — a having drops groups by their numbers,
- * so the axis's whole would count groups the split never had.
+ * Whether a config's chart may fold its split at all, whatever the rows: a
+ * cartesian chart split by a dimension, its one metric adding up — a rest
+ * of averages is no average of anything — and no 「只保留」, since a having
+ * drops groups by their numbers, so the axis's whole would count groups the
+ * split never had. The one rule both the runtime (`foldsSplit`, whether to
+ * ask for the whole) and the kernel (`shapeCartesian`, whether to fold a
+ * whole it was handed) read.
+ */
+export function splitFoldable(config: AnalysisViewConfig): boolean {
+  const spec = config.chart.cartesian;
+  if (CHART_FAMILY[config.chart.type] !== 'cartesian' || !spec) return false;
+  const metric = spec.series[0]?.metric;
+  if (
+    spec.splitBy === undefined ||
+    metric === undefined ||
+    spec.series.length !== 1
+  )
+    return false;
+  if (config.having !== undefined) return false;
+  return isAdditiveMetric(config.metrics.find(one => one.alias === metric));
+}
+
+/**
+ * Whether a config's chart folds its split over these rows: it may
+ * (`splitFoldable`), and the rows hold more split values than colours.
  */
 export function foldsSplit(
   config: AnalysisViewConfig,
   rows: readonly RecordData[],
 ): boolean {
-  const spec = config.chart.cartesian;
-  if (CHART_FAMILY[config.chart.type] !== 'cartesian' || !spec) return false;
-  const split = spec.splitBy;
-  const metric = spec.series[0]?.metric;
-  if (split === undefined || metric === undefined || spec.series.length !== 1)
-    return false;
-  if (config.having !== undefined) return false;
-  if (!isAdditiveMetric(config.metrics.find(one => one.alias === metric)))
-    return false;
+  const split = config.chart.cartesian?.splitBy;
+  if (split === undefined || !splitFoldable(config)) return false;
   const values = new Set(rows.map(row => seriesKey(row[split])));
   return values.size > CHART_COLOR_SLOTS;
 }
@@ -167,8 +181,9 @@ export function foldOther(
   )
     return data;
   // By the measure the legend is ordered by (`bySize`), so the seven kept
-  // are the seven the order puts first — a mean where the metric does not
-  // add up, however few categories a series turns up in.
+  // are the seven the order puts first. The kernel folds only a metric that
+  // adds up (`splitFoldable`); read from the metric all the same, so a
+  // caller of this alone never ranks averages by their sum.
   const sizes = seriesSizes(
     data,
     isAdditiveMetric(config.metrics.find(one => one.alias === metric)),

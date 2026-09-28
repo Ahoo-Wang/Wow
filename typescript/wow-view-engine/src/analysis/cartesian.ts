@@ -41,7 +41,7 @@ import {
   type SeriesExtremes,
 } from './references.js';
 import { peaksOnlyLabels } from './chartFamilies.js';
-import { bySize, foldOther } from './splitOther.js';
+import { bySize, foldOther, splitFoldable } from './splitOther.js';
 import { isAdditiveMetric } from './validateChart.js';
 
 export interface CartesianData {
@@ -253,10 +253,14 @@ export function shapeCartesian(
       : {}),
     series: splitOrder(config, spec, points, series),
   };
-  // Past the palette, a split that adds up folds its rest into 「其他」
-  // where the axis's whole is known (`foldOther`); anything else is drawn
-  // whole, and says its colours repeat.
-  const data = splitWhole ? foldOther(shaped, config, splitWhole) : shaped;
+  // Past the palette, a split that may fold (`splitFoldable`: it adds up,
+  // nothing kept by 「只保留」) folds its rest into 「其他」 where the axis's
+  // whole is known (`foldOther`); anything else is drawn whole, and says
+  // its colours repeat — a whole handed in for any other split included.
+  const data =
+    splitWhole && splitFoldable(config)
+      ? foldOther(shaped, config, splitWhole)
+      : shaped;
   const crowded = data.series.length > CHART_COLOR_SLOTS;
   return {
     ...data,

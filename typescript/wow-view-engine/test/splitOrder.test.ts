@@ -119,7 +119,7 @@ describe('a category split reads the largest first', () => {
     expect(labels(split(), averages)).toEqual(['often', 'rare']);
   });
 
-  it('folds a metric that does not add up by the same mean it orders by', () => {
+  it('never folds a metric that does not add up, even handed the whole', () => {
     const warehouses = ['CN', 'US', 'JP', 'DE'];
     const rows: RecordData[] = [
       // Seven high averages, each in one warehouse: a mean of 10 … 16, and
@@ -138,6 +138,9 @@ describe('a category split reads the largest first', () => {
     const data = shapeChart(split(undefined, AVG), rows, undefined, {
       splitWhole: warehouses.map(warehouse => ({ warehouse, amount: 5 })),
     }) as CartesianData;
+    // A rest of averages is no average: drawn whole, ordered by mean, and
+    // said to repeat its colours — the whole handed in is not read.
+    expect(data.series.some(entry => entry.other)).toBe(false);
     expect(data.series.map(entry => entry.label)).toEqual([
       'high6',
       'high5',
@@ -146,12 +149,11 @@ describe('a category split reads the largest first', () => {
       'high2',
       'high1',
       'high0',
-      '',
+      'low0',
+      'low1',
+      'low2',
     ]);
-    expect(data.series[data.series.length - 1]).toMatchObject({
-      key: OTHER_SERIES_KEY,
-      other: true,
-    });
+    expect(data.crowded).toBe(true);
   });
 
   it('keeps series of one size in the order they came', () => {
