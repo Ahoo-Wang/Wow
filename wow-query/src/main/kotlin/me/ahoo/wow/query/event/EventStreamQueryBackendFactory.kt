@@ -13,22 +13,11 @@
 
 package me.ahoo.wow.query.event
 
-import me.ahoo.wow.api.modeling.NamedAggregate
-import me.ahoo.wow.modeling.MaterializedNamedAggregate
-import me.ahoo.wow.modeling.materialize
-import me.ahoo.wow.query.QueryBackendBinding
-import java.util.concurrent.ConcurrentHashMap
+import me.ahoo.wow.query.AbstractQueryBackendFactory
+import me.ahoo.wow.query.QueryBackendFactory
 
-fun interface EventStreamQueryBackendFactory {
-    fun create(namedAggregate: NamedAggregate): QueryBackendBinding<EventStreamQueryBackend>
-}
+fun interface EventStreamQueryBackendFactory : QueryBackendFactory<EventStreamQueryBackend>
 
-abstract class AbstractEventStreamQueryBackendFactory : EventStreamQueryBackendFactory {
-    private val bindingCache =
-        ConcurrentHashMap<MaterializedNamedAggregate, QueryBackendBinding<EventStreamQueryBackend>>()
-
-    override fun create(namedAggregate: NamedAggregate): QueryBackendBinding<EventStreamQueryBackend> =
-        bindingCache.computeIfAbsent(namedAggregate.materialize(), ::createBinding)
-
-    protected abstract fun createBinding(namedAggregate: NamedAggregate): QueryBackendBinding<EventStreamQueryBackend>
-}
+abstract class AbstractEventStreamQueryBackendFactory :
+    AbstractQueryBackendFactory<EventStreamQueryBackend>(),
+    EventStreamQueryBackendFactory

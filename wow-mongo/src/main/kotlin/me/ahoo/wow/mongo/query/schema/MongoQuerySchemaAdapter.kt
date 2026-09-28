@@ -290,7 +290,8 @@ class MongoQuerySchemaAdapter(
             return capability != QueryCapability.CURSOR_SORT || supportsCursorSort(storage?.types, requirements)
         }
 
-        private fun QueryValueSchema.storageRequirements(capability: QueryCapability): List<Set<String>> {
+        /** The BSON types [capability] needs; the table wave 4 replaces with `storageFamilies` (F7). */
+        internal fun QueryValueSchema.storageRequirements(capability: QueryCapability): List<Set<String>> {
             if (semanticType == Temporal.Date && capability in DATE_OPERAND_CAPABILITIES) return emptyList()
             return when (capability) {
                 QueryCapability.EXACT_MATCH, QueryCapability.SORT, QueryCapability.CURSOR_SORT, QueryCapability.AGGREGATE_TERMS ->

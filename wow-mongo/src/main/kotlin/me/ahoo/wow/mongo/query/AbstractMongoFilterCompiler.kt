@@ -55,11 +55,14 @@ import me.ahoo.wow.api.query.SearchFilter
 import me.ahoo.wow.api.query.SearchMode
 import me.ahoo.wow.api.query.SpaceIdFilter
 import me.ahoo.wow.api.query.StartsWithFilter
-import me.ahoo.wow.api.query.StringComparison
 import me.ahoo.wow.api.query.TenantIdFilter
 import me.ahoo.wow.mongo.query.aggregation.toMongoExpression
 import me.ahoo.wow.query.AdmittedQuery
+import me.ahoo.wow.query.PojoOperands
 import me.ahoo.wow.query.QueryExecutionException
+import me.ahoo.wow.query.ignoreCase
+import me.ahoo.wow.query.operandValue
+import me.ahoo.wow.query.requiredOperandValue
 import me.ahoo.wow.query.schema.QueryViolation
 import org.bson.Document
 import org.bson.conversions.Bson
@@ -123,27 +126,27 @@ abstract class AbstractMongoFilterCompiler {
         is NorFilter -> Filters.nor(filter.operands.map { compile(it, admitted, relative) })
         is EqualFilter -> Filters.eq(
             filter.field.resolve(admitted, relative),
-            filter.value.nativeValue()
+            filter.value.operandValue(PojoOperands.NATIVE)
         )
         is NotEqualFilter -> Filters.ne(
             filter.field.resolve(admitted, relative),
-            filter.value.nativeValue()
+            filter.value.operandValue(PojoOperands.NATIVE)
         )
         is GreaterThanFilter -> Filters.gt(
             filter.field.resolve(admitted, relative),
-            filter.value.requiredNativeValue()
+            filter.value.requiredOperandValue(PojoOperands.NATIVE)
         )
         is GreaterThanOrEqualFilter -> Filters.gte(
             filter.field.resolve(admitted, relative),
-            filter.value.requiredNativeValue()
+            filter.value.requiredOperandValue(PojoOperands.NATIVE)
         )
         is LessThanFilter -> Filters.lt(
             filter.field.resolve(admitted, relative),
-            filter.value.requiredNativeValue()
+            filter.value.requiredOperandValue(PojoOperands.NATIVE)
         )
         is LessThanOrEqualFilter -> Filters.lte(
             filter.field.resolve(admitted, relative),
-            filter.value.requiredNativeValue()
+            filter.value.requiredOperandValue(PojoOperands.NATIVE)
         )
         is ContainsFilter -> regex(
             filter.field.resolve(admitted, relative),
@@ -162,25 +165,25 @@ abstract class AbstractMongoFilterCompiler {
         )
         is InFilter -> Filters.`in`(
             filter.field.resolve(admitted, relative),
-            filter.values.map { it.nativeValue() },
+            filter.values.map { it.operandValue(PojoOperands.NATIVE) },
         )
         is NotInFilter -> Filters.nin(
             filter.field.resolve(admitted, relative),
-            filter.values.map { it.nativeValue() },
+            filter.values.map { it.operandValue(PojoOperands.NATIVE) },
         )
         is BetweenFilter -> Filters.and(
             Filters.gte(
                 filter.field.resolve(admitted, relative),
-                filter.lowerBound.requiredNativeValue()
+                filter.lowerBound.requiredOperandValue(PojoOperands.NATIVE)
             ),
             Filters.lte(
                 filter.field.resolve(admitted, relative),
-                filter.upperBound.requiredNativeValue()
+                filter.upperBound.requiredOperandValue(PojoOperands.NATIVE)
             ),
         )
         is ContainsAllFilter -> Filters.all(
             filter.field.resolve(admitted, relative),
-            filter.values.map { it.nativeValue() }
+            filter.values.map { it.operandValue(PojoOperands.NATIVE) }
         )
         is IsEmptyFilter -> Filters.size(filter.field.resolve(admitted, relative), 0)
         is IsNullFilter -> Filters.eq(filter.field.resolve(admitted, relative), null)
@@ -236,26 +239,8 @@ abstract class AbstractMongoFilterCompiler {
         )
     }
 
-    private fun AdmittedQuery<*>.systemPath(filter: FilterExpression): String = systemField(filter).physicalField.path
-
     private fun QueryField.resolve(admitted: AdmittedQuery<*>, relative: Boolean): String =
         admitted.field(this).let { if (relative) it.relativePhysicalField else it.physicalField }.path
-
-    private val StringComparison.ignoreCase: Boolean
-        get() = this == StringComparison.CASE_INSENSITIVE
-
-    private fun tools.jackson.databind.JsonNode.nativeValue(): Any? = when {
-        isNull -> null
-        isString -> asString()
-        isNumber -> numberValue()
-        isBoolean -> booleanValue()
-        isPojo -> (this as tools.jackson.databind.node.POJONode).pojo
-        isArray -> asSequence().map { it.nativeValue() }.toList()
-        else -> throw QueryExecutionException("Filter value must be a scalar, scalar array, or runtime POJO.")
-    }
-
-    private fun tools.jackson.databind.JsonNode.requiredNativeValue(): Any =
-        requireNotNull(nativeValue()) { "Range filter value cannot be null." }
 
     private fun String.escapeRegex(): String {
         val sb = StringBuilder(length + 16)

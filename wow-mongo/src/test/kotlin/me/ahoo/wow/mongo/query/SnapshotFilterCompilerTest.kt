@@ -124,6 +124,26 @@ class SnapshotFilterCompilerTest {
         )
     }
 
+    /**
+     * The shared operand rule (wow-query `operandValue`): a bad operand is a client violation. MongoDB used to pass a
+     * non-finite number to the driver and to fail a non-scalar operand as a server fault (5xx); both are now the
+     * STORAGE_UNSUPPORTED rejection (400) Elasticsearch already answered with.
+     */
+    @Test
+    fun `a bad operand is a client violation`() {
+        listOf(Double.NaN, Double.NEGATIVE_INFINITY).forEach { value ->
+            val node = tools.jackson.databind.node.JsonNodeFactory.instance.numberNode(value)
+            listOf(
+                EqualFilter(QueryField("state.value"), node),
+                InFilter(QueryField("state.value"), listOf(node)),
+                GreaterThanFilter(QueryField("state.value"), node),
+            ).forEach { filter ->
+                assertThrows<QuerySchemaValidationException> { compile(filter) }.violation?.code.assert()
+                    .isEqualTo(QueryErrorCodes.STORAGE_UNSUPPORTED)
+            }
+        }
+    }
+
     @Suppress("DEPRECATION")
     @Test
     fun `legacy collection predicates should preserve ObjectId values`() {

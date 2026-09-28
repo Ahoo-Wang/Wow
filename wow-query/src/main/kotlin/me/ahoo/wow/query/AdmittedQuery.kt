@@ -45,6 +45,12 @@ class AdmittedQuery<out Q : Any> internal constructor(
     /** The resolution of the system field a system-field filter of [query] (ID, TENANT_ID, DELETION, ...) targets. */
     fun systemField(filter: FilterExpression): ResolvedField = resolved(filter)
 
+    /** The absolute physical path [reference] resolved to: where a backend reads the field. */
+    fun physicalPath(reference: QueryField): String = field(reference).physicalField.path
+
+    /** The physical path of the system field a system-field filter of [query] targets. */
+    fun systemPath(filter: FilterExpression): String = systemField(filter).physicalField.path
+
     /** A node admission did not resolve is a backend defect; the node carries caller values, so it is not named. */
     private fun resolved(node: Any): ResolvedField = fields[node]
         ?: throw QueryExecutionException("A [${node.javaClass.simpleName}] node is not a node of this admitted query.")

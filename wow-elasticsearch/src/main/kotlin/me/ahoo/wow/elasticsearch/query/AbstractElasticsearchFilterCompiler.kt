@@ -37,8 +37,8 @@ import me.ahoo.wow.api.query.*
 import me.ahoo.wow.elasticsearch.query.aggregation.RuntimeExpressionCompiler
 import me.ahoo.wow.query.AdmittedQuery
 import me.ahoo.wow.query.QueryExecutionException
-import me.ahoo.wow.query.schema.QueryViolation
-import me.ahoo.wow.serialization.JsonSerializer
+import me.ahoo.wow.query.ignoreCase
+import me.ahoo.wow.query.requiredOperandValue
 
 /**
  * Compiles admitted filters to Elasticsearch queries. Every field, system fields included, compiles at the physical
@@ -90,7 +90,7 @@ abstract class AbstractElasticsearchFilterCompiler {
         is EqualFilter -> {
             val field = filter.field.path(admitted)
             if (field.addressesDocumentId(nested)) {
-                ids { it.values(filter.value.requiredNativeValue().toString()) }
+                ids { it.values(filter.value.requiredOperandValue().toString()) }
             } else {
                 term { it.field(field).value(filter.value.fieldValue()) }
             }
@@ -101,25 +101,25 @@ abstract class AbstractElasticsearchFilterCompiler {
         is GreaterThanFilter -> range {
             it.untyped { range ->
                 range.field(filter.field.path(admitted))
-                    .gt(JsonData.of(filter.value.requiredNativeValue()))
+                    .gt(JsonData.of(filter.value.requiredOperandValue()))
             }
         }
         is GreaterThanOrEqualFilter -> range {
             it.untyped { range ->
                 range.field(filter.field.path(admitted))
-                    .gte(JsonData.of(filter.value.requiredNativeValue()))
+                    .gte(JsonData.of(filter.value.requiredOperandValue()))
             }
         }
         is LessThanFilter -> range {
             it.untyped { range ->
                 range.field(filter.field.path(admitted))
-                    .lt(JsonData.of(filter.value.requiredNativeValue()))
+                    .lt(JsonData.of(filter.value.requiredOperandValue()))
             }
         }
         is LessThanOrEqualFilter -> range {
             it.untyped { range ->
                 range.field(filter.field.path(admitted))
-                    .lte(JsonData.of(filter.value.requiredNativeValue()))
+                    .lte(JsonData.of(filter.value.requiredOperandValue()))
             }
         }
         is ContainsFilter -> wildcard {
@@ -139,7 +139,7 @@ abstract class AbstractElasticsearchFilterCompiler {
         is InFilter -> {
             val field = filter.field.path(admitted)
             if (field.addressesDocumentId(nested)) {
-                ids { it.values(filter.values.map { value -> value.requiredNativeValue().toString() }) }
+                ids { it.values(filter.values.map { value -> value.requiredOperandValue().toString() }) }
             } else {
                 terms {
                     it.field(field).terms { terms ->
@@ -154,8 +154,8 @@ abstract class AbstractElasticsearchFilterCompiler {
         is BetweenFilter -> range {
             it.untyped { range ->
                 range.field(filter.field.path(admitted))
-                    .gte(JsonData.of(filter.lowerBound.requiredNativeValue()))
-                    .lte(JsonData.of(filter.upperBound.requiredNativeValue()))
+                    .gte(JsonData.of(filter.lowerBound.requiredOperandValue()))
+                    .lte(JsonData.of(filter.upperBound.requiredOperandValue()))
             }
         }
         is ContainsAllFilter -> {
@@ -246,40 +246,8 @@ abstract class AbstractElasticsearchFilterCompiler {
         const val DOCUMENT_ID_FIELD = "_id"
     }
 
-    private val StringComparison.ignoreCase: Boolean
-        get() = this == StringComparison.CASE_INSENSITIVE
-
-    private fun tools.jackson.databind.JsonNode.nativeValue(): Any? = when {
-        isNull -> null
-        isString -> asString()
-        isNumber -> numberValue()
-        isBoolean -> booleanValue()
-        isPojo -> (this as tools.jackson.databind.node.POJONode).pojo
-        isArray -> asSequence().map { it.nativeValue() }.toList()
-        else -> throw QueryViolation.StorageUnsupported("non-scalar filter operands").rejection()
-    }
-
-    private fun tools.jackson.databind.JsonNode.requiredNativeValue(): Any {
-        if (isPojo) {
-            return JsonSerializer.valueToTree<tools.jackson.databind.JsonNode>(nativeValue()).requiredNativeValue()
-        }
-        val value = requireNotNull(nativeValue()) { "Filter value must be non-null." }
-        val finite = when (value) {
-            is Double -> value.isFinite()
-            is Float -> value.isFinite()
-            else -> true
-        }
-        if (!finite) {
-            throw QueryViolation.StorageUnsupported("non-finite numeric filter operands").rejection()
-        }
-        if (value !is String && value !is Number && value !is Boolean) {
-            throw QueryViolation.StorageUnsupported("non-scalar filter operands").rejection()
-        }
-        return value
-    }
-
     private fun tools.jackson.databind.JsonNode.fieldValue(): FieldValue {
-        val value = requiredNativeValue()
+        val value = requiredOperandValue()
         return when (value) {
             is String -> FieldValue.of(value)
             is Boolean -> FieldValue.of(value)

@@ -14,17 +14,9 @@
 package me.ahoo.wow.query.snapshot
 
 import me.ahoo.wow.api.modeling.NamedAggregate
-import me.ahoo.wow.modeling.MaterializedNamedAggregate
-import me.ahoo.wow.modeling.materialize
-import me.ahoo.wow.query.QueryBackendBinding
+import me.ahoo.wow.query.RoutingQueryBackendFactory
 
 class RoutingSnapshotQueryBackendFactory(
-    private val defaultFactory: SnapshotQueryBackendFactory,
+    defaultFactory: SnapshotQueryBackendFactory,
     routes: Map<NamedAggregate, SnapshotQueryBackendFactory>,
-) : SnapshotQueryBackendFactory {
-    private val routes: Map<MaterializedNamedAggregate, SnapshotQueryBackendFactory> =
-        routes.mapKeys { (namedAggregate, _) -> namedAggregate.materialize() }
-
-    override fun create(namedAggregate: NamedAggregate): QueryBackendBinding<SnapshotQueryBackend> =
-        (routes[namedAggregate.materialize()] ?: defaultFactory).create(namedAggregate)
-}
+) : RoutingQueryBackendFactory<SnapshotQueryBackend>(defaultFactory, routes), SnapshotQueryBackendFactory

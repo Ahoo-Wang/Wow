@@ -159,7 +159,14 @@ internal class QueryResolver(
 
     fun paged(query: IPagedQuery): IPagedQuery {
         val filter = filter(query.filter)
-        return PagedQuery(filter, projection(query.projection), sort(query.sort, cursor = false), query.pagination)
+        val paged = PagedQuery(filter, projection(query.projection), sort(query.sort, cursor = false), query.pagination)
+        schema.storage.paging.maxOffsetWindow?.let { max ->
+            val window = query.pagination.index.toLong() * query.pagination.size
+            requireValid(window <= max) {
+                QueryViolation.SizeOutOfRange("Storage", "page window", window, null, max.toLong(), PAGINATION)
+            }
+        }
+        return paged
     }
 
     /** A cursor query, its sort completed by [uniqueField] as the tie-breaker ([withUniqueSort]). */
@@ -618,5 +625,8 @@ internal class QueryResolver(
     private companion object {
         val ROOT = Scope(null, null, emptyList())
         val normalizer = FilterNormalizer()
+
+        /** The request part a storage's offset window bounds. */
+        const val PAGINATION = "pagination"
     }
 }

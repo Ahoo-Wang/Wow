@@ -101,6 +101,8 @@ class FieldResolverTest {
         elementPrice.physicalField.assert().isEqualTo(QueryField("native.orders.price"))
         elementPrice.relativePhysicalField.assert().isEqualTo(QueryField("price"))
         elementPrice.elementAncestors.assert().containsExactly(QueryField("orders"))
+        admitted.physicalPath(root.field).assert().isEqualTo("native.price")
+        admitted.physicalPath(predicate.field).assert().isEqualTo("native.orders.price")
     }
 
     @Test
@@ -117,6 +119,7 @@ class FieldResolverTest {
         val tenant = admitted.systemField(admitted.query)
         tenant.logicalField.assert().isEqualTo(QueryField("tenantId"))
         tenant.physicalField.assert().isEqualTo(QueryField("native.tenantId"))
+        admitted.systemPath(admitted.query).assert().isEqualTo("native.tenantId")
         // A node admission did not resolve is a server fault that does not echo the node's values.
         assertThrows<QueryExecutionException> { admitted.systemField(TenantIdFilter("tenant")) }
             .message.assert().isEqualTo("A [TenantIdFilter] node is not a node of this admitted query.")
