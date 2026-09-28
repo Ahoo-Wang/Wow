@@ -720,6 +720,7 @@ src/
       brandDocs.ts            — `BRAND_BOUND_DOCS`: the same words for the bounds a preset holds a brand colour to (`brand-*`), spread into `TOKEN_DOCS`
       densityDocs.ts          — `DENSITY_LENGTH_DOCS`: the same words for the density's five lengths, host variables of the layout whose default the step gives (`table-header-height` and the rest), spread into `TOKEN_DOCS`
       stateDocs.ts            — `STATE_DOCS`: the same words for the roles that mark a state and their links, spread into `TOKEN_DOCS`
+      surfaceDocs.ts          — `SURFACE_DOCS`: the same words for the roles of the grounds and the cards on them (`canvas` to `scrim`, `result-card` among them, D69), spread into `TOKEN_DOCS`
       pairs.ts                — `GROUNDS` and `contrastPairs`: every pair the surface paints and the line it owes (`LINES`, `PRESET_LINES`, `linesOf`) — the one list the jsdom arithmetic and Storybook's contrast matrix both expand; `PENDING` / `isPending`, a preset's known shortfalls owed by its retuning batch, excused only while still short
     workbench/                — The shell's private parts, and the parts each kind of view puts into it
       AnalysisParts.tsx       — What makes an analysis view an analysis view: its editor and its table or chart, handed to the shell as slots

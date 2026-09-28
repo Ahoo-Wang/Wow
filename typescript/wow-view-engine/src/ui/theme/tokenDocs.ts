@@ -14,6 +14,7 @@
 import { BRAND_BOUND_DOCS } from './brandDocs.js';
 import { DENSITY_LENGTH_DOCS } from './densityDocs.js';
 import { OWN_CONTROL, STATE_DOCS } from './stateDocs.js';
+import { SURFACE_DOCS } from './surfaceDocs.js';
 import type { TokenName } from './tokens.js';
 
 /** One phrase, in both of the READMEs' languages. */
@@ -204,37 +205,7 @@ export const TOKEN_DOCS: Readonly<Record<TokenName, TokenDoc>> = {
     en: 'The high lift: a dragged panel',
     zh: '高的一档浮起：拖动中的面板',
   }),
-  canvas: {
-    role: {
-      en: "The grouped ground a board and a host's card-laid page stand on (`bg-canvas`)",
-      zh: '分组底：看板与宿主按卡片排的页面站在它上面（`bg-canvas`）',
-    },
-  },
-  content: {
-    role: {
-      en: 'The ground rows and a result are written on',
-      zh: '行与结果写在上面的底',
-    },
-  },
-  'card-edge': {
-    role: {
-      en: 'The ring round a card: a board panel, a record card',
-      zh: '卡片的一圈边：看板面板、记录卡片',
-    },
-    light: { en: '`foreground` at 10%', zh: '`foreground` 的 10%' },
-  },
-  'card-shadow': {
-    role: {
-      en: "A card's lift off what it sits on",
-      zh: '卡片离开底的浮起',
-    },
-  },
-  scrim: {
-    role: {
-      en: 'What dims the page behind a dialog or a sheet',
-      zh: '对话框与抽屉背后压暗页面的遮罩',
-    },
-  },
+  ...SURFACE_DOCS,
   'table-header': {
     role: { en: "A table's header band", zh: '表格的表头带' },
   },

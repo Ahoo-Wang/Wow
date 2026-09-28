@@ -28,6 +28,7 @@ import displayMeta, {
   WithRecordDetail as DisplayWithRecordDetail,
 } from './EmbeddedView.stories.js';
 import { amountOf, readColumn, readPage, readTotal } from './readTable.js';
+import { cardsAround, rowGrounds } from './resultFrame.js';
 import { chartsDrawn, drawnMarks } from './chartDom.js';
 
 const meta = {
@@ -535,5 +536,31 @@ export const WithRecordDetail: Story = {
         within(again).getByRole('heading', { name: 'SO-1003' }),
       ),
     );
+  },
+};
+
+/**
+ * 嵌入的记录视图不画自己的卡片（D69）：porcelain 的卡片只属于把工作台当页面
+ * 的那一处，嵌进宿主页面（常常就在宿主自己的卡片里）的结果仍是贴边的，根也
+ * 不涂窗口灰。行仍不隔行着色。
+ */
+export const NoCardInPorcelain: Story = {
+  ...DisplayDefault,
+  globals: { fvePreset: 'porcelain' },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const table = await canvas.findByRole('table');
+    await waitFor(() =>
+      expect(readColumn(table, '订单号')).toEqual(PENDING_BY_AMOUNT),
+    );
+    const root = surfaceOf(canvasElement);
+    await expect(cardsAround(table, root)).toEqual([]);
+    const style = getComputedStyle(root);
+    await expect(style.boxShadow).toBe('none');
+    await expect(
+      canvasElement.querySelector('[data-slot="result-block"]'),
+    ).toBeNull();
+    const [first, second] = rowGrounds(table);
+    await expect(second).toBe(first);
   },
 };

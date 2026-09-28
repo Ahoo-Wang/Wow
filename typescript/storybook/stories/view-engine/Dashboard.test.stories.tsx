@@ -46,6 +46,7 @@ import {
 } from './contrast.js';
 import { legacyDashboardConfig, outage } from './fixtures.js';
 import { ENGINE_PRESET } from './presets.js';
+import { cardsAround, rowGrounds } from './resultFrame.js';
 
 const meta = {
   ...displayMeta,
@@ -931,5 +932,27 @@ export const HeadingPanelAlone: Story = {
     await expect(long.getBoundingClientRect().height).toBe(
       short.getBoundingClientRect().height,
     );
+  },
+};
+
+/**
+ * 看板面板里的记录视图不套第二张卡片（D69）：porcelain 让记录工作台的结果
+ * 成为灰底上的白卡片，而面板本身已是卡片，表格与面板之间没有哪一层再画圆角
+ * 或阴影；看板自己的结果也不框（`resultFramed={false}`）。行仍不隔行着色。
+ */
+export const RecordPanelIsNoCardInCardInPorcelain: Story = {
+  ...DisplayAllPanels,
+  globals: { fvePreset: 'porcelain' },
+  play: async ({ canvasElement }) => {
+    const table = await findDataTable(canvasElement);
+    await waitFor(() => expect(readColumn(table, '订单号')).toHaveLength(4));
+    const panel = table.closest<HTMLElement>('[data-slot="dashboard-panel"]')!;
+    await expect(panel).not.toBeNull();
+    await expect(cardsAround(table, panel)).toEqual([]);
+    await expect(
+      canvasElement.querySelector('[data-slot="result-block"][data-framed]'),
+    ).toBeNull();
+    const [first, second] = rowGrounds(table);
+    await expect(second).toBe(first);
   },
 };

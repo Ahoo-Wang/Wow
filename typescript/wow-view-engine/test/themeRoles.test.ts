@@ -82,6 +82,8 @@ const UNSET = new Set([
   'item-selected-weight',
   'outline-hover-edge',
   'filter-height',
+  // A record's result is the band unless a theme makes it a card (D69).
+  'result-card',
   // Links: unset, a role is not linked.
   ...(TOKENS as readonly TokenEntry[]).flatMap(entry =>
     entry.link ? [entry.name] : [],

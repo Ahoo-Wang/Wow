@@ -465,3 +465,36 @@ export const FocusOutline: Story = {
     );
   },
 };
+
+/**
+ * porcelain 的记录工作台按看板内容区的画法（D69，`result-card`）：工作列是
+ * 窗口灰底，结果是灰底上的一张白卡片，行间一道线、不隔行。亮暗各一张基线，
+ * 拍的是整个工作列——标题栏、已应用条件与卡片都在里面。故事写成字面对象：
+ * 截图项目按 `tags` 挑故事，而标签只从字面对象里读得到。
+ */
+async function resultCardPicture(
+  canvasElement: HTMLElement,
+  theme: 'light' | 'dark',
+): Promise<void> {
+  const { table } = await parts(canvasElement);
+  const column = table.closest<HTMLElement>('[data-slot="workbench-main"]')!;
+  const block = table.closest<HTMLElement>('[data-slot="result-block"]')!;
+  await expect(getComputedStyle(block).borderTopLeftRadius).toBe('12px');
+  await matchScreenshot(column, `role-result-card-${theme}`);
+}
+
+export const ResultCardInPorcelainLight: Story = {
+  ...DisplayWithData,
+  name: 'porcelain 的结果卡片，亮（截图）',
+  tags: ['visual'],
+  args: { ...DisplayWithData.args, theme: 'light', preset: 'porcelain' },
+  play: ({ canvasElement }) => resultCardPicture(canvasElement, 'light'),
+};
+
+export const ResultCardInPorcelainDark: Story = {
+  ...DisplayWithData,
+  name: 'porcelain 的结果卡片，暗（截图）',
+  tags: ['visual'],
+  args: { ...DisplayWithData.args, theme: 'dark', preset: 'porcelain' },
+  play: ({ canvasElement }) => resultCardPicture(canvasElement, 'dark'),
+};

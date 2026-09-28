@@ -49,11 +49,19 @@
  * - **Corners by part**: `radius` 6px, so a control, a chip and a sidebar
  *   item round like the desktop's 5–6px controls; a popup 8px; a card and
  *   a dialog keep 12px (`radius-card`).
+ * - **A record workbench reads as a board's content area** (D69): the work
+ *   column is the window's ground (`canvas`), the title, the filters and
+ *   the applied conditions written straight on it, and the result is one
+ *   white card on it in a panel's own ring, lift and 12px corners
+ *   (`result-card`: `card-edge`, `card-shadow`, `radius-card`); dark the
+ *   same, on the dark ground. A record view in a board's panel or embedded
+ *   in a host's page stays flush: no card inside a card.
  * - **Tables read as a desktop list**: the header is the rows' own white
  *   with no band, its names in the quiet grey at the regular weight, a
- *   hairline between its columns (`table-header*`); every other row is
- *   striped #F5F5F7 (dark #242426, `row-stripe`), a hovered row a step
- *   deeper than a stripe (#ECECEF, dark #2E2E30), and a selected row a
+ *   hairline between its columns (`table-header*`); rows are parted by the
+ *   stylesheet's 1px line and not striped (D69 took the stripe D59 gave
+ *   back out: a card of ruled rows is the board's table), a hovered row
+ *   #ECECEF (dark #2E2E30), and a selected row a
  *   tint of the accent (#E6F1FF, dark #28394F; `row-selected`), on which
  *   the primary link, the status badges and a checkbox's edge still
  *   clear their lines (the closest: a success badge 4.69, dark 4.73; the
@@ -221,6 +229,7 @@
     0 1px 2px 0 oklch(0 0 0deg / 16%), 0 0 0 0.5px oklch(0 0 0deg / 8%);
   --fvp-dark-control-thumb-shadow:
     0 1px 2px 0 oklch(0 0 0deg / 45%), 0 0 0 0.5px oklch(0 0 0deg / 30%);
+  --fvp-result-card: 1;
   --fvp-radius-card: 0.75rem;
   --fvp-radius-control: 0.375rem;
   --fvp-radius-popover: 0.5rem;
@@ -231,8 +240,6 @@
   --fvp-table-header-weight: 400;
   --fvp-table-header-divider: oklch(0.9233 0.0067 286.267deg);
   --fvp-dark-table-header-divider: oklch(1 0 0deg / 12%);
-  --fvp-row-stripe: oklch(0.9707 0.0027 286.35deg);
-  --fvp-dark-row-stripe: oklch(0.262 0.0035 286.2deg);
   --fvp-row-hover: oklch(0.945 0.004 286.3deg);
   --fvp-dark-row-hover: oklch(0.3 0.0036 286.2deg);
   --fvp-row-selected: oklch(0.955 0.024 255deg);

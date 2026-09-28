@@ -341,6 +341,9 @@ export const TOKENS = [
   { name: 'content', ...role('surface'), fallback: 'background' },
   { name: 'card-edge', ...role('surface') },
   { name: 'card-shadow', ...role('surface'), kind: 'shadow' },
+  // Whether a record workbench's result is a card on `canvas` (1) rather
+  // than the band it is unset (D69).
+  { name: 'result-card', ...measure('surface', 'number') },
   { name: 'scrim', ...role('surface') },
   // The tables: the header band, the totals band and the rows' states.
   { name: 'table-header', ...role('table'), fallback: 'muted' },

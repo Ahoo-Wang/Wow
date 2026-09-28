@@ -67,6 +67,13 @@ import {
 } from './contrast.js';
 import { ordersDefinition, tableSettingsStore } from './fixtures.js';
 import { outcomesStore } from './outcomesStore.js';
+import {
+  resolvedColor,
+  resolvedLength,
+  resultInset,
+  resolvedShadow,
+  rowGrounds,
+} from './resultFrame.js';
 import { dragEdgeBy, dragHandleOnto } from './pointerDrag.js';
 import {
   amountOf,
@@ -388,7 +395,13 @@ export const BlockSpacing: Story = {
     )!;
     await expect(result).toHaveAttribute('data-framed', 'true');
     await expect(getComputedStyle(result).rowGap).toBe('normal');
-    await expect(getComputedStyle(result).borderTopWidth).toBe('1px');
+    // Ruled off from the conditions above by a line: the band's rule on
+    // top, or the 1px ring of the card a theme makes it (D69).
+    const frame = getComputedStyle(result);
+    await expect(
+      frame.borderTopWidth === '1px' || /0px 0px 0px 1px/.test(frame.boxShadow),
+      `${frame.borderTopWidth} / ${frame.boxShadow}`,
+    ).toBe(true);
     const toolbar = canvasElement.querySelector<HTMLElement>(
       '[data-slot="result-toolbar"]',
     )!;
@@ -1029,10 +1042,14 @@ export const FooterStaysAtTheBottom: Story = {
     )!;
     const bottom = (element: Element) => element.getBoundingClientRect().bottom;
 
-    // The frame reaches the host's bottom: it is a band that bleeds through
-    // the work column's padding, so its bottom is the workbench's own.
+    // The frame reaches the host's bottom: a band bleeds through the work
+    // column's padding, so its bottom is the workbench's own; a card
+    // (`result-card`, D69) stands the padding's width above it.
+    const inset = resultInset(frame);
     await waitFor(() =>
-      expect(Math.abs(bottom(frame) - bottom(host))).toBeLessThanOrEqual(1),
+      expect(
+        Math.abs(bottom(frame) + inset - bottom(host)),
+      ).toBeLessThanOrEqual(1),
     );
     // The pagination is the frame's last row, at its bottom edge.
     await expect(
@@ -1136,9 +1153,13 @@ export const HeldAtItsFloor: Story = {
     await waitFor(() =>
       expect(port.scrollHeight).toBeGreaterThan(port.clientHeight + 1),
     );
-    // The footer is at the root's bottom: the pagination's edge is its edge,
-    // and both summary rows are inside it.
-    const bottom = root.getBoundingClientRect().bottom;
+    // The footer is at the root's bottom — the pagination's edge is its
+    // edge, or the column's padding above it where the result is a card
+    // (D69) — and both summary rows are inside it.
+    const frame = pagination.closest<HTMLElement>(
+      '[data-slot="result-block"]',
+    )!;
+    const bottom = root.getBoundingClientRect().bottom - resultInset(frame);
     await expect(
       Math.abs(pagination.getBoundingClientRect().bottom - bottom),
     ).toBeLessThanOrEqual(1);
@@ -6969,3 +6990,83 @@ export const ToolbarButtonsFillInPorcelain: Story =
   toolbarButtonsIn('porcelain');
 export const ToolbarButtonsOutlinedInNeutral: Story =
   toolbarButtonsIn('neutral');
+
+/**
+ * porcelain 的记录工作台按看板内容区的画法（D69）：工作列是窗口灰底
+ * （`canvas`），结果是灰底上的一张白卡片——看板面板同一套 `card-edge`、
+ * `card-shadow`、`radius-card`，在列的内边距里而不是贴边；行间是 1px 的
+ * `row-divider`，不隔行着色。neutral 不设 `result-card`，结果仍是贴到列边的
+ * 一条带：顶上一道线、方角、无影、列不涂底，像素不变。
+ */
+const resultFrameIn = (
+  preset: 'porcelain' | 'neutral',
+  theme: 'light' | 'dark' = 'light',
+): Story => ({
+  ...DisplayWithData,
+  args: { ...DisplayWithData.args, theme },
+  globals: { fvePreset: preset },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const table = await canvas.findByRole('table');
+    await waitFor(() =>
+      expect(readColumn(table, '订单号')).toEqual(PENDING_BY_AMOUNT),
+    );
+    const block = table.closest<HTMLElement>('[data-slot="result-block"]')!;
+    const column = block.parentElement!;
+    await expect(block).toHaveAttribute('data-framed');
+    await expect(column).toHaveAttribute('data-slot', 'workbench-main');
+    const style = getComputedStyle(block);
+    const ground = getComputedStyle(column).backgroundColor;
+
+    // Rows are parted by a line, never by a stripe, in either preset.
+    const [first, second] = rowGrounds(table);
+    await expect(second).toBe(first);
+    const row = table.querySelector<HTMLElement>('tbody tr')!;
+    await expect(getComputedStyle(row).borderBottomWidth).toBe('1px');
+    await expect(getComputedStyle(row).borderBottomColor).toBe(
+      resolvedColor(row, 'var(--_fve-row-divider)'),
+    );
+
+    if (preset === 'neutral') {
+      await expect({
+        margin: style.margin,
+        top: style.borderTopWidth,
+        radius: style.borderTopLeftRadius,
+        shadow: style.boxShadow,
+        ground,
+      }).toEqual({
+        margin: '0px -16px -16px',
+        top: '1px',
+        radius: '0px',
+        shadow: 'none',
+        ground: 'rgba(0, 0, 0, 0)',
+      });
+      return;
+    }
+
+    // The column is the window's grey, the card white on it.
+    await expect(ground).toBe(resolvedColor(column, 'var(--_fve-canvas)'));
+    await expect(style.backgroundColor).toBe(
+      resolvedColor(block, 'var(--_fve-content)'),
+    );
+    await expect(style.backgroundColor).not.toBe(ground);
+    // Inside the column's padding, ringed and lifted as a panel is.
+    await expect(style.margin).toBe('0px');
+    await expect(style.borderTopWidth).toBe('0px');
+    await expect(style.borderTopLeftRadius).toBe(
+      resolvedLength(block, 'var(--_fve-radius-card)'),
+    );
+    await expect(style.borderTopLeftRadius).toBe('12px');
+    const edge = resolvedColor(block, 'var(--_fve-card-edge)');
+    const lift = resolvedShadow(block, 'var(--_fve-card-shadow)');
+    await expect(lift).not.toBe('none');
+    await expect(style.boxShadow).toBe(`${edge} 0px 0px 0px 1px, ${lift}`);
+  },
+});
+
+export const ResultIsACardInPorcelain: Story = resultFrameIn('porcelain');
+export const ResultIsACardInPorcelainDark: Story = resultFrameIn(
+  'porcelain',
+  'dark',
+);
+export const ResultIsABandInNeutral: Story = resultFrameIn('neutral');

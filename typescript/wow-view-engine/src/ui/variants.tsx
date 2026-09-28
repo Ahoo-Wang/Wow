@@ -771,6 +771,13 @@ export function SidebarItem({
  * shell is meant to grow no `if` per kind, so those three moved out to
  * `RESULT_SLOTS` below and each kind now hands the frame the recipes its
  * own `result` slot needs (`ResultBlock.slots`).
+ *
+ * A theme may draw a record workbench's result as a card instead (D69,
+ * `result-card`): the column takes `canvas` and the frame stands inside its
+ * padding in a panel's ring, lift and corners. `styles.css` does that on
+ * the same element ("A record's result as a card"), each length the role
+ * times its card value, so the band's classes here stay what an unset
+ * theme draws.
  */
 export const resultFrameChrome =
   'bg-content border-border -mx-4 -mb-4 overflow-hidden border-t ' +

@@ -836,6 +836,14 @@
   );
   --_fve-card-shadow: var(--fve-card-shadow, var(--fvp-card-shadow, 0 0 #0000));
   --_fve-scrim: var(--fve-scrim, var(--fvp-scrim, oklch(0 0 0deg / 10%)));
+  /*
+   * Whether a record workbench's result is a card (`result-card`, D69): 1
+   * lays it on `canvas` in the card's own edge, lift and corners; unset it
+   * is the band that runs to the column's edges (`resultFrameChrome`). No
+   * built-in value: the rule that draws it reads it (below, "A record's
+   * result as a card").
+   */
+  --_fve-result-card: var(--fve-result-card, var(--fvp-result-card));
 
   /*
    * The tables. The header band and the totals band are one grey unless a
@@ -2611,6 +2619,7 @@
     --fvp-dark-card-edge: initial;
     --fvp-card-shadow: initial;
     --fvp-dark-card-shadow: initial;
+    --fvp-result-card: initial;
     --fvp-scrim: initial;
     --fvp-dark-scrim: initial;
     --fvp-table-header: initial;
@@ -2952,6 +2961,46 @@
 
 .fve-root > [data-slot='workbench-main'] > [data-slot='result-block'] {
   flex: 1 0 auto;
+}
+
+/*
+ * A record's result as a card (`result-card`, D69).
+ *
+ * Unset, the result is the band `resultFrameChrome` draws: a rule on top,
+ * its sides and bottom the work column's own edges. A theme that sets
+ * `result-card` to 1 reads the record workbench as a board's content area:
+ * the column stands on `canvas`, and the result — toolbar, rows and caption
+ * — is one card on it, in the edge, the lift and the corners a board's
+ * panel wears (`card-edge`, `card-shadow`, `radius-card`), inside the
+ * column's padding rather than bled through it.
+ *
+ * Every length is the role times its card value, so unset (read as 0) is
+ * exactly the band's: 16px bled on three sides, the 1px rule on top, square
+ * corners, and a ground the column does not paint. The lift is one
+ * declaration that is invalid without the role, so the band has none.
+ *
+ * Only the workbench's own column: a record view in a board's panel, or
+ * embedded in a host's page, has no work column and draws no card inside
+ * the card it already stands in. The analysis workbench keeps its band.
+ */
+.fve-root[data-kind='record'] > [data-slot='workbench-main'] {
+  background-color: color-mix(
+    in oklch,
+    var(--_fve-canvas) calc(var(--_fve-result-card) * 100%),
+    transparent
+  );
+}
+
+.fve-root[data-kind='record']
+  > [data-slot='workbench-main']
+  > [data-slot='result-block'][data-framed] {
+  margin-inline: calc((var(--_fve-result-card, 0) - 1) * 1rem);
+  margin-bottom: calc((var(--_fve-result-card, 0) - 1) * 1rem);
+  border-top-width: calc((1 - var(--_fve-result-card, 0)) * 1px);
+  border-radius: calc(var(--_fve-result-card, 0) * var(--_fve-radius-card));
+  box-shadow:
+    0 0 0 calc(var(--_fve-result-card) * 1px) var(--_fve-card-edge),
+    var(--_fve-card-shadow);
 }
 
 /*
