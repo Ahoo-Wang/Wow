@@ -71,34 +71,8 @@ internal fun AggregationExpression.toMongoExpression(admitted: AdmittedQuery<*>)
 
     is AggregationExpression.Constant -> value
     is AggregationExpression.DateDiff -> toMongoDateDiff(admitted)
-    is AggregationExpression.Binary -> {
-        val leftValue = left.toMongoExpression(admitted)
-        val rightValue = right.toMongoExpression(admitted)
-        val conditions = mutableListOf<Any>(
-            Document("\$ne", listOf("\$\$left", null)),
-            Document("\$ne", listOf("\$\$right", null)),
-        )
-        if (operator == AggregationExpressionOperator.DIVIDE) {
-            conditions += Document("\$ne", listOf("\$\$right", 0.0))
-        }
-        finiteDouble(
-            Document(
-                "\$let",
-                Document("vars", Document("left", leftValue).append("right", rightValue))
-                    .append(
-                        "in",
-                        Document(
-                            "\$cond",
-                            listOf(
-                                Document("\$and", conditions),
-                                Document(operator.mongoOperator, listOf("\$\$left", "\$\$right")),
-                                null,
-                            ),
-                        ),
-                    ),
-            ),
-        )
-    }
+    is AggregationExpression.Binary ->
+        nullSafeBinary(operator, left.toMongoExpression(admitted), right.toMongoExpression(admitted))
 }
 
 /**
@@ -131,6 +105,38 @@ private fun AggregationExpression.DateDiff.toMongoDateDiff(admitted: AdmittedQue
             ),
     ),
 )
+
+/**
+ * [operator] applied to [left] and [right] as a finite double: either operand `null`, or a zero divisor of
+ * [AggregationExpressionOperator.DIVIDE], yields `null`. Record-level [AggregationExpression] and post-group
+ * [me.ahoo.wow.api.query.DerivedExpression] arithmetic share this one guard.
+ */
+internal fun nullSafeBinary(operator: AggregationExpressionOperator, left: Any, right: Any): Document {
+    val conditions = mutableListOf<Any>(
+        Document("\$ne", listOf("\$\$left", null)),
+        Document("\$ne", listOf("\$\$right", null)),
+    )
+    if (operator == AggregationExpressionOperator.DIVIDE) {
+        conditions += Document("\$ne", listOf("\$\$right", 0.0))
+    }
+    return finiteDouble(
+        Document(
+            "\$let",
+            Document("vars", Document("left", left).append("right", right))
+                .append(
+                    "in",
+                    Document(
+                        "\$cond",
+                        listOf(
+                            Document("\$and", conditions),
+                            Document(operator.mongoOperator, listOf("\$\$left", "\$\$right")),
+                            null,
+                        ),
+                    ),
+                ),
+        ),
+    )
+}
 
 internal val AggregationExpressionOperator.mongoOperator: String
     get() = when (this) {

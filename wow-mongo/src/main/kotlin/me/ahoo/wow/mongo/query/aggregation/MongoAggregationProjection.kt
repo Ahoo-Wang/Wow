@@ -17,7 +17,6 @@ import com.mongodb.client.model.Aggregates
 import com.mongodb.client.model.Filters
 import com.mongodb.client.model.Projections
 import me.ahoo.wow.api.query.AggregationDateUnit
-import me.ahoo.wow.api.query.AggregationExpressionOperator
 import me.ahoo.wow.api.query.AggregationFunction
 import me.ahoo.wow.api.query.AggregationGroup
 import me.ahoo.wow.api.query.AggregationMetric
@@ -244,8 +243,8 @@ internal fun derivedProject(query: AggregationQuery, derived: AggregationMetric.
 }
 
 /**
- * Null propagation, divide-by-zero, and finiteness mirror the record-level [AggregationExpression]
- * guards: referenced metrics have already been projected to their guarded final values by
+ * Null propagation, divide-by-zero, and finiteness are the record-level [AggregationExpression] guards,
+ * shared through [nullSafeBinary]: referenced metrics have already been projected to their guarded final values by
  * [project] or an earlier [derivedProject] stage.
  */
 private fun DerivedExpression.toDerivedDocument(): Any = when (this) {
@@ -256,32 +255,5 @@ private fun DerivedExpression.toDerivedDocument(): Any = when (this) {
      * to evaluate as values in computed fields and `$let` variables.
      */
     is DerivedExpression.Constant -> Document("\$literal", value)
-    is DerivedExpression.Binary -> {
-        val leftValue = left.toDerivedDocument()
-        val rightValue = right.toDerivedDocument()
-        val conditions = mutableListOf<Any>(
-            Document("\$ne", listOf("\$\$left", null)),
-            Document("\$ne", listOf("\$\$right", null)),
-        )
-        if (operator == AggregationExpressionOperator.DIVIDE) {
-            conditions += Document("\$ne", listOf("\$\$right", 0.0))
-        }
-        finiteDouble(
-            Document(
-                "\$let",
-                Document("vars", Document("left", leftValue).append("right", rightValue))
-                    .append(
-                        "in",
-                        Document(
-                            "\$cond",
-                            listOf(
-                                Document("\$and", conditions),
-                                Document(operator.mongoOperator, listOf("\$\$left", "\$\$right")),
-                                null,
-                            ),
-                        ),
-                    ),
-            ),
-        )
-    }
+    is DerivedExpression.Binary -> nullSafeBinary(operator, left.toDerivedDocument(), right.toDerivedDocument())
 }
