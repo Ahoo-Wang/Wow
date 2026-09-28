@@ -13,8 +13,7 @@
 
 import { useCallback, useMemo } from 'react';
 import { valueLabelsOn, type PieData } from '../../analysis/index.js';
-import { pointAnchor } from '../analysis/DrillMenu.js';
-import { AnalysisEmpty } from '../analysis/EmptyResult.js';
+import { pointAnchor } from '../anchor.js';
 import { useViewMessages } from '../MessagesProvider.js';
 import { useSurfaceDisplay } from '../ViewSurface.js';
 import { formatShare } from './axis.js';
@@ -47,6 +46,9 @@ export const PIE_HUG = 1.3;
  * share either way. When the rows are the first groups of more
  * the lead also says the shares are of those groups: the remainder is not
  * on the pie, and a share read as of the whole would be wrong by exactly it.
+ *
+ * It is drawn only with a slice to draw: data of none is the empty state,
+ * which `AnalysisChart` draws instead (`family`).
  */
 export function PieSlices({
   data,
@@ -178,9 +180,6 @@ export function PieSlices({
       : { value: formatShare(slice.share, locale) }),
   }));
   const measure = column(measured);
-  // No slice is no pie: the library drew a grey ring, and the legend its
-  // lead alone. A result of no groups says so wherever the pie is drawn.
-  if (data.slices.length === 0) return <AnalysisEmpty />;
   return (
     <EChart
       name={name}

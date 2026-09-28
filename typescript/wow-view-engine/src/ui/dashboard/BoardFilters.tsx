@@ -33,15 +33,8 @@ import { FilterBar } from './FilterBar.js';
 import { filterNamer } from './findings.js';
 import type { BoardFilterModes } from './filterModes.js';
 import { AddFilterMenu, FilterSettings } from './FilterSettings.js';
-import {
-  addFilterOf,
-  boardOf,
-  chipOf,
-  chipsOf,
-  focusIn,
-  useLanding,
-  valueOf,
-} from './landing.js';
+import { addFilterOf, boardOf, chipOf, chipsOf, valueOf } from './landing.js';
+import { useLanding } from '../focus.js';
 import {
   BoardToasts,
   FilterWiringContext,
@@ -266,9 +259,7 @@ export function FiltersRefused({ issues }: { issues: readonly Issue[] }) {
             // The notice goes with its ✕: on to the bar it was about.
             const board = boardOf(event.currentTarget);
             land(() =>
-              focusIn(
-                board?.querySelector('[data-slot="dashboard-filter-bar"]'),
-              ),
+              board?.querySelector('[data-slot="dashboard-filter-bar"]'),
             );
             setDismissed(issues);
           }}

@@ -169,7 +169,7 @@ function anchoredOut(
  * that holds nothing. An anchored card hands its window over in place of
  * the date filter's condition, in the part that filter's value is in.
  */
-export function panelHandOver(
+function panelHandOver(
   panel: DashboardViewPanel,
   board: {
     applied: DashboardViewConfig;
@@ -354,7 +354,7 @@ function wiredOn(
  * panel to say (「不受此筛选影响」) and the bar to dim what reaches nothing
  * on the tab: see `filterReach` and `PanelGrouping`.
  */
-export function panelReach(
+function panelReach(
   applied: DashboardViewConfig,
   panel: DashboardPanel,
   view: PanelView | null,

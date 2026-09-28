@@ -107,6 +107,56 @@ const HEADLESS: readonly Location[] = [
   'store',
 ];
 
+/**
+ * The folders under `src/ui` and the other folders each may import, one way
+ * only (2026-09-27 quality review). The feature folders pointed at each
+ * other in circles, each circle a generic helper that lived in a feature
+ * folder: the charts took their menu anchor from `analysis/DrillMenu.tsx`
+ * and their empty state from `analysis/EmptyResult.tsx` while the analysis
+ * folder drew the charts, and the filter band took its focus helpers from
+ * `analysis/` and `dashboard/`. A helper two folders share belongs below
+ * both — at the ui root, or in the folder that owns it — never in the one
+ * that happens to have written it first.
+ *
+ * The direction is the order a screen is built in: the pieces a result is
+ * drawn with (`record`, `charts`, `columns`, `sort`, `manage`) at the
+ * bottom; the filter band over the record's words for an issue; the
+ * analysis result over its charts, its filters and the record view's
+ * states; the workbench's blocks over those; the dashboard over what a
+ * panel shows and the workbench blocks a panel reuses; the embeds on top.
+ * `components` and `lib` (vendored), `theme` and `messages` sit under every
+ * folder and import none. A folder added under `src/ui` has to be placed
+ * here before it can import another.
+ *
+ * The ui root is out of this rule, both ways: its eighty files mix the
+ * shared pieces every folder takes (buttons, popups, the toolbar, focus)
+ * with the shells that compose the folders, so the root and the folders
+ * import each other until the root is split into the two.
+ */
+const UI_FOLDERS: Record<string, readonly string[]> = {
+  components: [],
+  lib: [],
+  theme: [],
+  messages: [],
+  record: [],
+  charts: [],
+  columns: [],
+  sort: [],
+  manage: [],
+  filter: ['record'],
+  analysis: ['charts', 'filter', 'record'],
+  workbench: ['analysis', 'filter', 'record'],
+  dashboard: ['analysis', 'filter', 'record', 'workbench'],
+  embed: ['analysis', 'record', 'workbench'],
+};
+/** Under every folder: importing one of these is no direction at all. */
+const UI_BELOW_ALL: readonly string[] = [
+  'components',
+  'lib',
+  'theme',
+  'messages',
+];
+
 const WOW = '@ahoo-wang/wow-client';
 const src = resolve(dirname(fileURLToPath(import.meta.url)), '../src');
 const wowSrc = resolve(src, '../../wow-client/src');
@@ -477,6 +527,56 @@ describe('architecture', () => {
       expect(violations).toEqual([]);
     },
   );
+
+  describe('ui folders', () => {
+    /** The folder under `src/ui` a path is in; `null` at the ui root or outside `ui`. */
+    const folderOf = (path: string): string | null => {
+      const [layer, folder, ...rest] = path.split(sep);
+      return layer === 'ui' && rest.length > 0 ? folder : null;
+    };
+    const imports = at('ui').flatMap(file =>
+      file.imports.flatMap(({ specifier }) => {
+        const from = folderOf(describePath(file));
+        const target = targetOf(file, specifier);
+        const to = target === null ? null : folderOf(target);
+        return from !== null && to !== null && from !== to
+          ? [{ from, to, entry: `${describePath(file)} -> ${specifier}` }]
+          : [];
+      }),
+    );
+
+    it('places every folder under src/ui in the table', () => {
+      const folders = readdirSync(join(src, 'ui'), { withFileTypes: true })
+        .filter(entry => entry.isDirectory())
+        .map(entry => entry.name);
+      expect(folders.filter(folder => !(folder in UI_FOLDERS))).toEqual([]);
+    });
+
+    it('imports another folder only down the table', () => {
+      const violations = imports
+        .filter(
+          ({ from, to }) =>
+            !UI_BELOW_ALL.includes(to) && !UI_FOLDERS[from]?.includes(to),
+        )
+        .map(({ entry }) => entry);
+      expect(violations).toEqual([]);
+    });
+
+    // The table is what the two rules above read, so a cycle written into
+    // it would pass them both: the table itself is held to one direction.
+    it('has no cycle in the table', () => {
+      const cycles: string[] = [];
+      const visit = (folder: string, path: readonly string[]) => {
+        for (const next of UI_FOLDERS[folder] ?? []) {
+          if (path.includes(next))
+            cycles.push([...path.slice(path.indexOf(next)), next].join(' -> '));
+          else visit(next, [...path, next]);
+        }
+      };
+      for (const folder of Object.keys(UI_FOLDERS)) visit(folder, [folder]);
+      expect([...new Set(cycles)]).toEqual([]);
+    });
+  });
 
   it.each(
     Object.entries(PORTS).flatMap(([from, ports]) =>

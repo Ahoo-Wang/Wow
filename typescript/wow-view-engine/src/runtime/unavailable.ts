@@ -72,11 +72,6 @@ export function withoutFirstUnavailable<C extends DataViewConfig>(
   return null;
 }
 
-/** Whether `withoutFirstUnavailable` can take a finding out. */
-export function isRemovable(config: DataViewConfig, found: Issue): boolean {
-  return without1(config, found) !== null;
-}
-
 function without1<C extends DataViewConfig>(config: C, found: Issue): C | null {
   const [head, index, member] = found.path;
   if (head === 'children') {

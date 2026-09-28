@@ -346,7 +346,7 @@ export type QuestionEditing = ReturnType<typeof questionEditing>;
  * counting unit that it buckets by date and takes into arithmetic — which
  * is what Wow asks of each end of a `DATE_DIFF` (#3539).
  */
-export function durationEnds(scope: AnalysisScope | null): string[] {
+function durationEnds(scope: AnalysisScope | null): string[] {
   return [...(scope?.aggregations.values() ?? [])]
     .filter(
       entry =>

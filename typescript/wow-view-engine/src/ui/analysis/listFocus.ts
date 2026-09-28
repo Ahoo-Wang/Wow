@@ -12,6 +12,7 @@
  */
 
 import { useEffect, useRef } from 'react';
+import { focusIn, isBarred } from '../focus.js';
 
 /** Which list a press is in, as three selectors read from the press up. */
 export interface ListShape {
@@ -32,10 +33,6 @@ export interface ListFocus {
   /** Said from the press: the item at this index is going. */
   removing(press: Press, at: number): void;
 }
-
-/** Anything the Tab key would stop on, before `disabled` is read. */
-const FOCUSABLE =
-  'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
 
 /**
  * Where the keyboard stands after the control it was on leaves the page.
@@ -89,28 +86,5 @@ function place(list: HTMLElement, at: number, shape: ListShape): void {
   // keyboard means by staying put.
   if (focusIn(landed) || focusIn(items[at - 1])) return;
   const add = shape.add ? list.querySelector<HTMLElement>(shape.add) : null;
-  if (add && !barred(add)) add.focus();
-}
-
-/**
- * The first control of one item, which is the item as a keyboard sees it;
- * whether there was one to focus. Also where the keyboard goes into a band
- * that was opened by a press (`WorkbenchShell`).
- */
-export function focusIn(item: HTMLElement | null | undefined): boolean {
-  if (!item) return false;
-  const found = [item, ...item.querySelectorAll<HTMLElement>(FOCUSABLE)].find(
-    node => node.matches(FOCUSABLE) && !barred(node),
-  );
-  if (!found) return false;
-  found.focus();
-  return true;
-}
-
-/** Whether the control is one focus would slide off again. */
-function barred(node: HTMLElement): boolean {
-  return (
-    node.hasAttribute('disabled') ||
-    node.getAttribute('aria-disabled') === 'true'
-  );
+  if (add && !isBarred(add)) add.focus();
 }

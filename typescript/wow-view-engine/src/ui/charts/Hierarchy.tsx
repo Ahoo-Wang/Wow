@@ -13,7 +13,7 @@
 
 import { useCallback, useMemo } from 'react';
 import type { HierarchyData, SankeyData } from '../../analysis/index.js';
-import { pointAnchor } from '../analysis/DrillMenu.js';
+import { pointAnchor } from '../anchor.js';
 import { useViewMessages } from '../MessagesProvider.js';
 import { useSurfaceDisplay } from '../ViewSurface.js';
 import { chartNotes } from './ChartNotes.js';

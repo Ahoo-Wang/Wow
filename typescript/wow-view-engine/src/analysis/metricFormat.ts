@@ -105,7 +105,7 @@ export function metricFormat(
  * the number is written without one rather than in a guessed currency —
  * validation has already said so (`analysis.derived.currency-unknown`).
  */
-export function derivedNumberFormat(
+function derivedNumberFormat(
   format: DerivedFormat,
   operands?: NumberFormat,
 ): NumberFormat {

@@ -96,7 +96,7 @@ export function movingWindow(
 }
 
 /** A derived series' key: its kind, its metric and — averaged — its window. */
-export function derivedKey(
+function derivedKey(
   derived: Pick<DerivedSeries, 'kind' | 'metric'>,
   window?: number,
 ): string {

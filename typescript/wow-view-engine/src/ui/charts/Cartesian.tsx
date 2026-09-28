@@ -15,7 +15,7 @@ import { useCallback, useMemo, type ReactNode } from 'react';
 import { valueLabelsOn, type CartesianData } from '../../analysis/index.js';
 import { readInstant } from '../../filter/index.js';
 import type { ChartSpec, RecordData } from '../../model/index.js';
-import { pointAnchor } from '../analysis/DrillMenu.js';
+import { pointAnchor } from '../anchor.js';
 import { useViewMessages } from '../MessagesProvider.js';
 import { useSurfaceDisplay } from '../ViewSurface.js';
 import { brushedSpan, useCoarsePointer } from './cartesianBrush.js';

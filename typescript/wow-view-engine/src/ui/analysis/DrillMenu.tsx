@@ -30,6 +30,7 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from '../components/dropdown-menu.js';
+import type { PickAnchor } from '../anchor.js';
 import { useSurfaceAnnouncer } from '../Announcer.js';
 import type { DisplayContext } from '../display.js';
 import {
@@ -39,9 +40,6 @@ import {
 import { DropdownMenuContent, DropdownMenuSubContent } from '../popups.js';
 import { summaryText } from '../summary.js';
 import { useSurfaceDisplay } from '../ViewSurface.js';
-
-/** Where a menu is placed: the mark or row pressed, or the point it was pressed at. */
-export type PickAnchor = Element | { getBoundingClientRect(): DOMRect };
 
 /** One group of the result the user pressed, and where. */
 export interface Pick {
@@ -371,16 +369,4 @@ export function groupText(
   return entry.conditions
     .map(item => summaryText(item, messages, display))
     .join(' · ');
-}
-
-/** The point a pointer event happened at, as something a menu can anchor to. */
-export function pointAnchor(event: {
-  clientX: number;
-  clientY: number;
-}): PickAnchor {
-  const { clientX, clientY } = event;
-  return {
-    getBoundingClientRect: () =>
-      DOMRect.fromRect({ x: clientX, y: clientY, width: 0, height: 0 }),
-  };
 }

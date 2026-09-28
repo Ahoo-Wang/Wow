@@ -14,11 +14,11 @@
 import type { EChartsCoreOption } from 'echarts/core';
 import { valueLabelsOn, type WaterfallData } from '../../analysis/index.js';
 import type { ChartSpec } from '../../model/index.js';
-import { categoryTick, sideTitle } from './axis.js';
+import { categoryFrame } from './categoryFrame.js';
 import type { ColumnTitle, ValueLabel } from './family.js';
 import { color } from './palette.js';
-import { emphasized, type ChartTheme, chartText } from './theme.js';
-import { tooltipFrame, tooltipHtml } from './tooltip.js';
+import { emphasized, type ChartTheme } from './theme.js';
+import { tooltipHtml } from './tooltip.js';
 
 /** What a waterfall reads besides its steps. */
 export interface WaterfallContext {
@@ -122,52 +122,25 @@ export function waterfallOption(
   };
   const labelled = valueLabelsOn(spec);
   const alias = spec?.waterfall?.value;
-  const titleStyle = { color: theme.axis.color, fontWeight: 500 };
   const stacked = {
     type: 'bar',
     stack: 'waterfall',
     stackStrategy: 'all',
   };
+  const frame = categoryFrame({
+    theme,
+    animate,
+    categories: bars.map(bar => bar.name),
+    categoryTitle: column(spec?.waterfall?.x),
+    valueTitle: column(alias),
+    valueTick: value => label(alias, value, true),
+    scaled: false,
+    bottom: 8,
+  });
   return {
-    animation: animate,
-    animationDuration: 300,
-    textStyle: chartText(theme),
-    grid: {
-      left: 4,
-      right: 16,
-      top: 24,
-      bottom: 8,
-      outerBoundsMode: 'same',
-      outerBoundsContain: 'all',
-    },
-    xAxis: {
-      type: 'category',
-      data: bars.map(bar => bar.name),
-      name: column(spec?.waterfall?.x),
-      nameLocation: 'middle',
-      nameGap: 28,
-      nameMoveOverlap: true,
-      nameTextStyle: titleStyle,
-      axisTick: { show: false },
-      axisLine: { lineStyle: { ...theme.grid } },
-      axisLabel: {
-        color: theme.axis.color,
-        hideOverlap: true,
-        formatter: (name: string) => categoryTick(name),
-      },
-    },
-    yAxis: {
-      type: 'value',
-      ...sideTitle(column(alias), 'left', 'end', titleStyle, 16),
-      axisLabel: {
-        color: theme.axis.color,
-        formatter: (value: number) => label(alias, value, true),
-      },
-      splitLine: { lineStyle: { ...theme.grid } },
-    },
+    ...frame,
     tooltip: {
-      ...tooltipFrame(theme),
-      trigger: 'item',
+      ...frame.tooltip,
       formatter: ({ dataIndex }: { dataIndex: number }) => {
         const bar = bars[dataIndex];
         if (!bar) return '';

@@ -72,7 +72,8 @@ import { useViewMessages } from '../MessagesProvider.js';
 import { DropdownMenuContent, PopoverContent } from '../popups.js';
 import { ControlFrame } from '../variants.js';
 import { searchPlaceholder } from './FilterBar.js';
-import { boardOf, focusIn } from './landing.js';
+import { boardOf } from './landing.js';
+import { focusableIn } from '../focus.js';
 
 const TYPE_ICONS: Record<DashboardFilterType, LucideIcon> = {
   date: CalendarIcon,
@@ -128,7 +129,7 @@ export function AddFilterMenu({
         className="min-w-44"
         finalFocus={() =>
           grouped.current &&
-          (focusIn(
+          (focusableIn(
             boardOf(trigger.current)?.querySelector(
               '[data-slot="dashboard-grouping"]',
             ),
