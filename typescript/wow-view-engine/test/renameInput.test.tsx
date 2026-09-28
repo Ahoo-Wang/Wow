@@ -260,7 +260,8 @@ describe('the drag plugins', () => {
     document.head.append(meta);
     try {
       expect(cspNonce()).toBe('r4nd0m');
-      expect(plugins().at(-1)).toMatchObject({
+      const configured = plugins();
+      expect(configured[configured.length - 1]).toMatchObject({
         plugin: StyleInjector,
         options: { nonce: 'r4nd0m' },
       });
