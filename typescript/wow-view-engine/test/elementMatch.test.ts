@@ -140,18 +140,22 @@ describe('the elementMatch kind', () => {
     });
   });
 
-  it('asks whether there are entries at all', () => {
+  /**
+   * A list's two questions of emptiness (R1-P1-7), asked of the array's own
+   * path: absent, null and `[]` are all 「没有条目」.
+   */
+  it('asks whether there are entries at all, whichever way there are none', () => {
+    const none = [
+      { op: FilterOperator.IS_EMPTY, field: 'items' },
+      { op: FilterOperator.IS_NULL, field: 'items' },
+    ];
     expect(compile(outer('IS_EMPTY', null))).toEqual({
-      op: FilterOperator.IS_EMPTY,
-      field: 'items',
+      op: FilterOperator.OR,
+      operands: none,
     });
-  });
-
-  it('answers the presence questions, which name a real path', () => {
-    // Unlike a metadata kind, this field's name is the array's own path.
-    expect(compile(outer('IS_NULL', null))).toEqual({
-      op: FilterOperator.IS_NULL,
-      field: 'items',
+    expect(compile(outer('IS_NOT_NULL', null))).toEqual({
+      op: FilterOperator.NOR,
+      operands: none,
     });
   });
 
@@ -345,7 +349,7 @@ describe('the elementMatch kind', () => {
       input: 'predicate',
     });
     expect(kind.editor('IS_EMPTY', fields[1])).toEqual({ input: 'none' });
-    expect(kind.editor('IS_NULL', fields[1])).toEqual({ input: 'none' });
+    expect(kind.editor('IS_NOT_NULL', fields[1])).toEqual({ input: 'none' });
   });
 
   it("summarises a predicate with the predicate's own operator", () => {
@@ -419,7 +423,7 @@ describe('the elementMatch kind', () => {
       'Items has an entry where SKU EQ A',
     ],
     ['IS_EMPTY', null, 'Items has no entries'],
-    ['IS_NULL', null, 'Items is empty'],
+    ['IS_NOT_NULL', null, 'Items has entries'],
   ] as [FilterOperatorName, FilterValue, string][])(
     'summarises %s',
     (operator, value, want) => {

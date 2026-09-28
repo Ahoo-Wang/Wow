@@ -656,7 +656,7 @@
   4. **有条纹就不画行线**：新角色 `row-divider`（表体行线，缺省 `border`），porcelain 为透明；强制颜色下行线恢复。
   5. **只有在排序的列显示箭头**：新角色 `table-sort-idle`（未排序标记的不透明度，缺省 1），porcelain 为 0；只在有悬停的设备上隐去，指针或聚焦时出现，位置始终保留——满足了当初否掉「悬停才显示」的两条理由（触屏看不到、表头挪动）。
   6. **徽标无环线**（`badge-edge` 0%），修订 D46「徽标保留边」：淡色与文字已说出状态。
-  7. **以文字或图标自明的工具栏按钮填色**（下一批，D43 留给下一步的一项）。
+  7. **以文字或图标自明的工具栏按钮填色**（D43 留给下一步的一项；2026-09-27 落地）：`role="toolbar"` 里的描边按钮穿 `control`／`control-edge`，与看板筛选胶囊、分段控件同组；不设这一组的主题（neutral）仍是注册表的描边按钮，像素不变。按钮不在元素上写 variant，所以照「描边按钮悬停」的先例按 `.group/button` 与 `border-border` 找它，暗色另写一遍；悬停、按下、展开、焦点与无效态仍是注册表的（各多一个状态，权重高过它）。落点 `src/styles.css`；故事 `ToolbarButtonsFillInPorcelain`／`ToolbarButtonsOutlinedInNeutral`。
   8. **视野外合计的提示读作合计而不是链接**（D51 补充，所有预设）：正文色，列名与箭头灰，仍是按钮、悬停下划线。
 - **同批顺带**：看板上网格之外的行（页头、筛选条）与面板对齐，内缩网格的外边距（`BOARD_INSET`）；从前筛选条贴着看板边沿（用户指出）。
 - **落点**：`src/themes/porcelain.css`、`src/ui/theme/{tokens,tokenDocs}.ts`、`src/styles.css`、`src/ui/record/OffscreenSummary.tsx`、`src/ui/dashboard/{gridBlocks,FilterBar}.ts(x)`、`src/ui/embed/EmbedHead.tsx`；单套预设的体积上限 1.4 → 1.5 KB（porcelain 1 485 B）。
@@ -674,6 +674,13 @@
 - **裁定**：入口是页面上的 `<meta property="csp-nonce" nonce="…">`——Vite `html.cspNonce` 的约定，服务端按请求换 nonce 时也最常这样写（`content` 也认）。所有可排序列表共用的 `sortableList` 读到它，就把 `StyleInjector.configure({ nonce })` 加进插件（dnd-kit 的注册表按类去重，后配的选项落到它先注册的那一个上）。没有 meta 时什么都不加。
 - **没选**：每个组件加 `nonce` 属性（排序列表散在十几个面上，漏一个就是一次违规）；把 dnd-kit 的规则写进 `styles.css`（光标规则是 `*` 选择器、按拖动开关，静态写死会误伤，且随库升级漂移）；关掉这几个插件（拖动时的光标与禁止选中是可用性）。
 - **落点**：`src/ui/dragPlugins.ts`（`cspNonce`）；README「Content Security Policy」；补偿控制台 `e2e/csp.spec.ts` 作为门——严格策略下走遍四个去处并真拖一次，零违规；去掉 meta 时它会失败。
+
+## D62 列表只问两个「空」：没有条目、有条目（2026-09-27）
+
+- **来由**：第二轮审查 R1-P1-7 后半：数组字段同时给「没有条目」和「为空／不为空／存在／不存在」，一共五个「空」，分析师分不清。
+- **裁定**（用户：「按你推荐」）：`array` 与 `elementMatch` 只留两个——`IS_EMPTY` 读作「没有条目」，发成 `IS_EMPTY OR IS_NULL`（MongoDB 的 `$size: 0` 只认真正的空数组，漏掉缺失与 null）；`IS_NOT_NULL` 读作「有条目」，发成二者的 `NOR`。编辑器与条上都用 `relations` 说成这两句。首发前改，不留兼容层：存下的其他三个判空在列表上报算子不支持。
+- **没选**：五个都留、只改措辞（仍是五个要分辨的选项）；新造 `IS_NOT_EMPTY` 算子名（Wow 没有，存下的条件要能直接读成 Wow 的算子）。
+- **落点**：`src/filter/kinds/entries.ts`、`array.ts`、`elementMatch.ts`；`FieldKind.compiledOperators` 与 `capabilities/fields.ts` 的收窄（一个算子发成几个时，几个都要被准入）；[extension.md](extension.md)。
 
 ## 搁置待议
 

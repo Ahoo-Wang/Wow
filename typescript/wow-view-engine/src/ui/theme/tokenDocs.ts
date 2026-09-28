@@ -323,8 +323,8 @@ export const TOKEN_DOCS: Readonly<Record<TokenName, TokenDoc>> = {
   },
   control: {
     role: {
-      en: 'The rest fill of a control its words or icons name: a filter chip, a segmented control',
-      zh: '以文字或图标自明的控件的静止填色：筛选条、分段控件',
+      en: "The rest fill of a control its words or icons name: a filter chip, a segmented control, a toolbar's outline buttons",
+      zh: '以文字或图标自明的控件的静止填色：筛选条、分段控件、工具栏上的描边按钮',
     },
     light: OWN_CONTROL,
     dark: OWN_CONTROL,

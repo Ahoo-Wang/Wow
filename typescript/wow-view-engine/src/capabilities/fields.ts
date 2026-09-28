@@ -260,7 +260,13 @@ function narrowOperators(
   context: FieldContext,
 ): FieldDefinition {
   const offered = operatorsOf(field, kind);
-  const kept = offered.filter(operator => admitted.has(operator));
+  // An operator the kind sends as several (a list's 「没有条目」) stays only
+  // where every one of them is admitted.
+  const kept = offered.filter(operator =>
+    (kind.compiledOperators?.(operator) ?? [operator]).every(sent =>
+      admitted.has(sent),
+    ),
+  );
   if (kept.length === offered.length) return field;
   context.findings.push(dropped(field.name, offered, kept, at));
   return { ...field, operators: kept };

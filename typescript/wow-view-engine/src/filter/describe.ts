@@ -184,7 +184,8 @@ export interface FieldKindDescription {
  * would mislead. `/ui` words these through the catalogue, as it does
  * operators.
  */
-export type FilterSummaryRelation = 'has-any' | 'has-none' | 'has-all';
+export type FilterSummaryRelation =
+  'has-any' | 'has-none' | 'has-all' | 'has-no-entries' | 'has-entries';
 
 /** One applied condition, for the summary bar above a result. */
 export interface FilterSummaryItem {
