@@ -31,7 +31,11 @@ import { issue, type FieldKindRegistry } from '../filter/index.js';
 import { validateRecord } from '../record/index.js';
 import { analysisScope, validateAnalysis } from '../analysis/index.js';
 import { offerIssues } from '../analysis/validateOffers.js';
-import { validateDashboard } from '../dashboard/index.js';
+import {
+  validateDashboard,
+  type DefinitionLookup,
+} from '../dashboard/index.js';
+import { dequal } from 'dequal';
 import { validateFields } from './validateFields.js';
 import { ownedRefusals } from './dashboard/owned.js';
 
@@ -460,24 +464,31 @@ function validateSystemConfig(
     definition: definition.kind,
   });
 
-  if (definition.kind === 'dashboard')
-    return kind === 'dashboard'
-      ? [
-          // Panels reference instances this layer cannot load, so only the
-          // local structure is judged here; `ViewEngine` re-checks the rest
-          // with the references in hand when the view is opened. A reference
-          // is therefore never "unavailable" here: saying so would be a
-          // finding about nothing but this layer, and the workbench shows a
-          // definition's findings for as long as it lists the board.
-          ...under(
-            path,
-            validateDashboard(view.config, 'system', EMPTY_REFERENCES, kinds, {
-              limits,
-            }).filter(found => found.code !== 'dashboard.panel.unavailable'),
-          ),
-          ...validateOwnedAnalyses(view.config, path, kinds, limits, lookup),
-        ]
-      : [mismatch];
+  if (definition.kind === 'dashboard') {
+    if (kind !== 'dashboard') return [mismatch];
+    // Saved views this layer cannot load, so a store's id is never
+    // "unavailable" here: saying so would be a finding about nothing but
+    // this layer, and the workbench shows a definition's findings for as
+    // long as it lists the board; `ViewEngine` judges it when the board
+    // opens. A view declared in code is another matter: every registered
+    // definition is at hand (todo C), so one the board names that is not
+    // there is said now, at the panel, when the host registers it.
+    const board = validateDashboard(
+      view.config,
+      'system',
+      EMPTY_REFERENCES,
+      kinds,
+      { limits, definitions: lookup && panelDefinitions(lookup) },
+    ).filter(found => found.code !== 'dashboard.panel.unavailable');
+    return [
+      ...under(path, board),
+      ...validateOwnedAnalyses(view.config, path, board, {
+        kinds,
+        limits,
+        lookup,
+      }),
+    ];
+  }
 
   if (kind === 'record')
     return definition.record
@@ -507,24 +518,59 @@ const EMPTY_REFERENCES = new Map();
 function validateOwnedAnalyses(
   config: DashboardViewConfig,
   path: IssuePath,
-  kinds: FieldKindRegistry,
-  limits: RuntimeLimits,
-  lookup: ValidateDefinitionOptions['definitions'],
+  said: readonly Issue[],
+  {
+    kinds,
+    limits,
+    lookup,
+  }: {
+    kinds: FieldKindRegistry;
+    limits: RuntimeLimits;
+    lookup: ValidateDefinitionOptions['definitions'];
+  },
 ): Issue[] {
   const definitionOf = (id: string) => {
     const found = lookup?.(id);
     return found?.kind === 'data' ? found : undefined;
   };
-  return ownedRefusals(config, definitionOf, kinds, limits).flatMap(refused => [
-    issue(
-      'definition.view.owned-invalid',
-      [...path, 'config', ...refused.path],
-      {
-        panel: refused.panel,
-      },
-    ),
-    ...under(path, refused.errors),
-  ]);
+  return ownedRefusals(config, definitionOf, kinds, limits).flatMap(refused => {
+    // The board's own admission judged the filter it runs under, merged
+    // with the board's: what it already said of the panel is not said twice.
+    const errors = refused.errors.filter(
+      found =>
+        !said.some(
+          one =>
+            one.path[1] === refused.index &&
+            one.code === found.code &&
+            dequal(one.params, found.params),
+        ),
+    );
+    return errors.length === 0
+      ? []
+      : [
+          issue(
+            'definition.view.owned-invalid',
+            [...path, 'config', ...refused.path],
+            { panel: refused.panel },
+          ),
+          ...under(path, errors),
+        ];
+  });
+}
+
+/** The registered definitions as a board's admission reads them. */
+function panelDefinitions(
+  lookup: (definitionId: string) => ViewDefinition | undefined,
+): DefinitionLookup {
+  return id => {
+    const definition = lookup(id);
+    return definition
+      ? {
+          definition,
+          fields: definition.kind === 'data' ? definition.fields : [],
+        }
+      : null;
+  };
 }
 
 /** Re-paths a config's findings so they point at the view that holds it. */

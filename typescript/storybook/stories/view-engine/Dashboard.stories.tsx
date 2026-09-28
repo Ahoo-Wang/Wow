@@ -70,6 +70,7 @@ type Variant =
   | 'to-board-own'
   | 'handed'
   | 'bad-panel'
+  | 'bad-reference'
   | 'deleted';
 
 /** The variants whose host has a route off the board (D22 H, I). */
@@ -132,6 +133,45 @@ const misdeclaredOverview = {
 };
 
 /**
+ * The same board declared in code naming two views declared in code wrong
+ * (todo C): one 订单 does not declare, and 订单's 全部订单 wired to 仓库
+ * through a field it does not have. Both are found when the definitions are
+ * registered, and each panel alone is out, saying what is missing by what a
+ * reader can recognise; the others draw.
+ */
+const misreferencedOverview = {
+  ...overviewDefinition,
+  views: [
+    {
+      id: 'ops',
+      title: '出库概览（系统）',
+      config: {
+        ...dashboardConfig(),
+        panels: [
+          ...dashboardConfig().panels,
+          {
+            id: 'archived',
+            kind: 'view' as const,
+            title: '归档订单',
+            instanceId: 'system:orders:archived',
+            bindings: [],
+            layout: { x: 0, y: 8, w: 12, h: 4 },
+          },
+          {
+            id: 'misbound',
+            kind: 'view' as const,
+            title: '全部订单',
+            instanceId: 'system:orders:all',
+            bindings: [{ globalField: 'region', panelField: 'area' }],
+            layout: { x: 12, y: 8, w: 12, h: 4 },
+          },
+        ],
+      },
+    },
+  ],
+};
+
+/**
  * A dashboard composes saved views. The global filter reaches each panel as
  * an injected scope, mapped onto that panel's own field, so a referenced view
  * never becomes dirty and no dashboard condition is saved back into it.
@@ -162,7 +202,9 @@ function DashboardDemo({
               ? systemOverview
               : variant === 'bad-panel'
                 ? misdeclaredOverview
-                : overviewDefinition,
+                : variant === 'bad-reference'
+                  ? misreferencedOverview
+                  : overviewDefinition,
           ],
           instances: [
             trendView,
@@ -199,7 +241,9 @@ function DashboardDemo({
             engine={engine}
             definitionId="overview"
             instanceId={
-              variant === 'system' || variant === 'bad-panel'
+              variant === 'system' ||
+              variant === 'bad-panel' ||
+              variant === 'bad-reference'
                 ? 'system:overview:ops'
                 : // A board the store no longer holds.
                   variant === 'deleted'
@@ -831,6 +875,16 @@ export const PanelUnavailable: Story = { args: { variant: 'unavailable' } };
 export const OneBadPanel: Story = {
   name: '一个面板配错',
   args: { variant: 'bad-panel' },
+};
+
+/**
+ * 引用写错，只坏那一块：随定义声明的板子引用了「订单」没有的视图，又把「仓库」
+ * 接到「全部订单」没有的字段上。注册定义时就报出来；打开时这两块各自说缺的是
+ * 什么——按读者认得的名字，不写 id 或路径——其余面板照画。
+ */
+export const WrongReferences: Story = {
+  name: '引用写错',
+  args: { variant: 'bad-reference' },
 };
 
 /** Each panel loads on its own, so they arrive independently. */

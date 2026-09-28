@@ -611,7 +611,29 @@ describe('DashboardGrid', () => {
         }),
       );
       expect(said).toContain("The dashboard's filters do not fit this panel");
+      // Which filter, as the board shows it; never the field's path.
+      expect(said).toContain(
+        '“Region” is wired to a field the view this panel shows does not have.',
+      );
       expect(said).not.toContain('nowhere');
+    });
+
+    /**
+     * A view declared in code that no registered definition declares (todo
+     * C): said by the data it was meant to be over, never by its id.
+     */
+    it('a view declared in code that is not there', async () => {
+      const said = await outage(
+        dashboardConfig({
+          panels: [panel({ instanceId: 'system:orders:gone' })],
+        }),
+      );
+      expect(said).toContain(
+        '“Orders” has no view like the one this panel shows.',
+      );
+      expect(said).toContain('Ask whoever maintains this dashboard');
+      expect(said).not.toContain('system:');
+      expect(said).not.toContain('gone');
     });
 
     /**

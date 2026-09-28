@@ -316,7 +316,7 @@ export const dashboardMessages = {
   'dashboard.binding.missing':
     'This panel does not carry the {field} filter, so it cannot be filtered with the others.',
   'dashboard.binding.panel-unknown':
-    '{field} is not a field of the view this panel shows.',
+    '“{filter}” is wired to a field the view this panel shows does not have.',
   'dashboard.field.duplicate': 'The filter field {field} is declared twice.',
   'dashboard.field.name-empty': 'A filter field needs a name.',
   'dashboard.field.name-invalid': '{field} is not a usable field name.',
@@ -366,6 +366,16 @@ export const dashboardMessages = {
     'This panel does not show a saved view you have open, so there is nothing to copy.',
   'dashboard.panel.owned-invalid':
     'The analysis this panel holds is not in the expected shape.',
+  'dashboard.panel.view-unknown':
+    'The view this panel shows cannot be found in this application.',
+  'dashboard.panel.view-undeclared':
+    '“{definition}” has no view like the one this panel shows.',
+  'dashboard.panel.opens-unknown':
+    "The view this panel was set to open in the workbench cannot be found in this application, so it opens the panel's own view.",
+  'dashboard.panel.opens-undeclared':
+    "“{definition}” has no view like the one this panel was set to open in the workbench, so it opens the panel's own view.",
+  'dashboard.panel.opens-elsewhere':
+    "The view this panel was set to open in the workbench, “{view}”, is over “{definition}”, not this panel's data, so it opens the panel's own view.",
   'dashboard.panel.opens-invalid':
     "The view this panel was set to open in the workbench is not named properly, so it opens the panel's own view.",
   'dashboard.panel.presentation-dropped':

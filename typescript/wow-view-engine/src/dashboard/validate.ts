@@ -53,6 +53,7 @@ import {
 } from './validateFilters.js';
 import { isSafeContentUrl, isViewPanel } from './panels.js';
 import { validateOpens, validatePresentation } from './panelLook.js';
+import { declaredView, missingView } from './declared.js';
 import { validateTabs } from './tabs.js';
 
 /** The definition a panel's view is of, and what its bindings may name. */
@@ -81,11 +82,14 @@ export type PanelReferences = ReadonlyMap<string, PanelReference | null>;
 export interface ValidateDashboardOptions {
   limits?: RuntimeLimits;
   /**
-   * The definition a view the board owns is of (`OwnedView.definitionId`),
-   * `null` for one this release does not declare. Definitions are code, so
-   * this is a lookup rather than a load. Left out, an owned view is judged
-   * by its shape alone — what a definition's own declared dashboard gets,
-   * where nothing can be looked up yet.
+   * Every registered definition, by id, `null` for one this release does
+   * not declare. Definitions are code, so this is a lookup rather than a
+   * load. It answers two things: the definition a view the board owns is of
+   * (`OwnedView.definitionId`), and whether a view declared in code that the
+   * board names — the one a panel shows, the one it opens, the one or the
+   * board a press goes to — is there, and what it is (`declaredView`, todo
+   * C). Left out, an owned view is judged by its shape alone and a declared
+   * view is waited for like a saved one.
    */
   definitions?: (definitionId: string) => PanelDefinition | null;
 }
@@ -350,7 +354,17 @@ function panelView(
     };
   }
 
-  const reference = refs.get(panel.instanceId as string);
+  // A view declared in code is known without the store: one no registered
+  // definition declares is wrong, and the panel cannot run (todo C).
+  // Once the references hold it, theirs is read, under the paths its
+  // definition renames aliases to; declared, it is known before that.
+  const declared = declaredView(panel.instanceId, lookup);
+  if (declared && 'missing' in declared)
+    return {
+      view: null,
+      issues: [missingView(declared.missing, [...path, 'instanceId'])],
+    };
+  const reference = refs.get(panel.instanceId as string) ?? declared?.reference;
   // A warning, not an error: the referenced view may be deleted or out of
   // this user's reach, which is not something the dashboard's editor can fix
   // and must not stop the other panels from running or the layout from being
@@ -382,8 +396,8 @@ function validateViewPanel(
 ): Issue[] {
   const { view, issues } = panelView(panel, path, refs, lookup);
   issues.push(...validatePresentation(panel, path));
-  issues.push(...validateOpens(panel, path));
-  issues.push(...validatePanelClick(panel, path, config, view, refs));
+  issues.push(...validateOpens(panel, path, view, lookup));
+  issues.push(...validatePanelClick(panel, path, config, view, refs, lookup));
   if (!view) return issues;
 
   const { definition, fields } = view;
@@ -487,10 +501,13 @@ function validateBindings(
       );
     if (global) bound.add(binding.globalField);
 
+    // Said by the filter the reader sees on the board: the field it is wired
+    // to is not one they could find anywhere (todo C).
     if (!target)
       issues.push(
         issue('dashboard.binding.panel-unknown', [...at, 'panelField'], {
           field: binding.panelField,
+          filter: global?.label ?? binding.globalField,
         }),
       );
 

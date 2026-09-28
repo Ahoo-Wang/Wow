@@ -47,6 +47,7 @@ import {
   isViewPanel,
 } from './panels.js';
 import type { PanelReferences } from './validate.js';
+import { declaredView, type DefinitionLookup } from './declared.js';
 import { URL_PLACEHOLDER } from './placeholders.js';
 
 /** The names a URL template's `{{…}}` hold, in order, each once. */
@@ -161,6 +162,7 @@ export function validatePanelClick(
   config: DashboardViewConfig,
   view: { config: ViewConfig; fields?: readonly FieldDefinition[] } | null,
   refs: PanelReferences = new Map(),
+  lookup?: DefinitionLookup,
 ): Issue[] {
   const stored: unknown = panel.click;
   if (stored === undefined) return [];
@@ -218,14 +220,34 @@ export function validatePanelClick(
         ? []
         : [warn('dashboard.click.url-unknown-field', { field: unknown })];
     }
-    case 'view':
-      return [];
-    case 'dashboard':
+    case 'view': {
+      // A view declared in code is checked where it is registered (todo
+      // C); a saved one is the store's to answer, at the press.
+      const declared = declaredView(click.instanceId, lookup);
+      if (!declared) return [];
+      if ('missing' in declared)
+        return [
+          declared.missing.definition === null
+            ? warn('dashboard.click.view-unknown')
+            : warn('dashboard.click.view-undeclared', {
+                definition: declared.missing.definition,
+              }),
+        ];
+      return declared.reference.definition.kind === 'data'
+        ? []
+        : [warn('dashboard.click.view-not-a-view')];
+    }
+    case 'dashboard': {
+      const declared = declaredView(click.instanceId, lookup);
       return validateBoardClick(click, at, read?.groups ?? null, {
         fields: view?.fields ?? null,
         own: filtersOf(config),
-        target: refs.get(click.instanceId),
+        target:
+          declared && 'missing' in declared
+            ? null
+            : (refs.get(click.instanceId) ?? declared?.reference),
       });
+    }
   }
 }
 
