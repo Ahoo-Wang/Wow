@@ -14,7 +14,6 @@
 package me.ahoo.wow.query
 
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.CursorQuery
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.QueryErrorCodes
@@ -49,9 +48,9 @@ class CursorQueriesTest {
         )
         assertThrows<QueryRequestException> { admit("id", "id") }.code
             .assert().isEqualTo(QueryErrorCodes.CURSOR_SORT_DUPLICATE)
-        // The identity tie-breaker counts: MAX_SORT_FIELDS other fields overflow once it is appended.
+        // The identity tie-breaker counts: Sort.MAX_FIELDS other fields overflow once it is appended.
         assertThrows<QueryRequestException> {
-            admit(*Array(AggregationQuery.MAX_SORT_FIELDS) { "field$it" })
+            admit(*Array(Sort.MAX_FIELDS) { "field$it" })
         }.code.assert().isEqualTo(QueryErrorCodes.CURSOR_SORT_TOO_MANY)
     }
 }

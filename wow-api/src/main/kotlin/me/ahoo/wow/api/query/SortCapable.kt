@@ -14,6 +14,7 @@
 package me.ahoo.wow.api.query
 
 import com.fasterxml.jackson.annotation.JsonInclude
+import io.swagger.v3.oas.annotations.media.ArraySchema
 import io.swagger.v3.oas.annotations.media.Schema
 
 /**
@@ -26,8 +27,9 @@ interface SortCapable {
     /**
      * The list of sort criteria to apply to the query results.
      * Each sort criterion specifies a field and direction (ascending/descending).
-     * Sorts are applied in the order they appear in the list.
+     * Sorts are applied in the order they appear in the list, at most [Sort.MAX_FIELDS] of them.
      */
+    @get:ArraySchema(maxItems = Sort.MAX_FIELDS)
     @get:Schema(defaultValue = "[]")
     @get:JsonInclude(JsonInclude.Include.NON_EMPTY)
     val sort: List<Sort>

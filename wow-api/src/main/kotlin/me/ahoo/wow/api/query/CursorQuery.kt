@@ -15,7 +15,6 @@ package me.ahoo.wow.api.query
 
 import com.fasterxml.jackson.annotation.JsonIgnore
 import com.fasterxml.jackson.annotation.JsonInclude
-import io.swagger.v3.oas.annotations.media.ArraySchema
 import io.swagger.v3.oas.annotations.media.Schema
 
 @Schema(additionalProperties = Schema.AdditionalPropertiesValue.FALSE)
@@ -23,7 +22,6 @@ data class CursorQuery(
     @get:JsonIgnore(false)
     override val filter: FilterExpression,
     override val projection: Projection = Projection.ALL,
-    @get:ArraySchema(maxItems = AggregationQuery.MAX_SORT_FIELDS)
     override val sort: List<Sort> = emptyList(),
     @get:Schema(defaultValue = "10", minimum = "1", maximum = "2147483646")
     override val size: Int = DEFAULT_SIZE,
@@ -34,8 +32,8 @@ data class CursorQuery(
         require(size in 1 until Int.MAX_VALUE) {
             "size must be between 1 and ${Int.MAX_VALUE - 1}."
         }
-        require(sort.size <= AggregationQuery.MAX_SORT_FIELDS) {
-            "sort must contain at most ${AggregationQuery.MAX_SORT_FIELDS} fields."
+        require(sort.size <= Sort.MAX_FIELDS) {
+            "sort must contain at most ${Sort.MAX_FIELDS} fields."
         }
     }
 
