@@ -153,7 +153,7 @@ export class DashboardViewRuntime
   /** The board under the paths its panels rename aliases to. */
   private readonly canonical: BoardReading;
   /** What each panel's view says of time (`panelTime`). */
-  private readonly timeOf: PanelTime;
+  private readonly timeOf: PanelTime = panelTime(panel => this.viewOf(panel));
 
   constructor(options: DashboardRuntimeOptions) {
     super();
@@ -171,7 +171,6 @@ export class DashboardViewRuntime
     );
     // Read when the board is, so the references hold what has loaded.
     this.canonical = canonicalBoard(panel => this.viewOf(panel));
-    this.timeOf = panelTime(panel => this.viewOf(panel));
     this.children = new PanelChildren(options.createPanelRuntime, panelId => {
       this.store.retime();
       this.refreshPanelIssues(panelId);
@@ -185,6 +184,7 @@ export class DashboardViewRuntime
         const found = options.definitions(instance.definitionId);
         if (found) this.references.seed({ ...found, instance });
       },
+      timeOf: panel => this.timeOf(panel),
       fieldsOf: panel => {
         const view = this.viewOf(panel);
         return view
@@ -553,7 +553,7 @@ export class DashboardViewRuntime
 
   /** See `ManagedViewRuntime.stored`: the board without its derived time wires. */
   stored(config: DashboardViewConfig): DashboardViewConfig {
-    return storedTimeWires(config, this.timeOf);
+    return storedTimeWires(config);
   }
 
   adoptSaved(stored: ViewInstance): void {

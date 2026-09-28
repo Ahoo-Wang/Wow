@@ -20,12 +20,13 @@
  * (`DashboardViewPanel.ignoresTime`).
  *
  * **Derived, never stored** (D1, user 2026-09-28). The wires are read into
- * the board, marked as made (`auto: true`), where a board is read under its
- * panels' definitions (`canonicalBoard`) — so every part of the engine sees
- * one board — and taken out again when it is saved (`storedTimeWires`):
- * what persists is the wires written by hand and `ignoresTime`. A wire
- * derived from a view that no longer says so, or from a panel's previous
- * view, is never read back.
+ * the board, marked as derived (`derived: true`, with `auto`), where a board
+ * is read under its panels' definitions (`canonicalBoard`) — so every part
+ * of the engine sees one board — and taken out again when it is saved
+ * (`storedTimeWires`): what persists is the wires written by hand or
+ * auto-connected (D22 G) and `ignoresTime`. Only a derived wire is ever
+ * made again: one auto-connect made to a date filter is the author's, and
+ * keeps its field when the board is down to that one date filter.
  *
  * A board stored before this carries no marker (`DashboardViewConfig
  * .derivesTime`), and was read with every unwired panel unwired: its
@@ -80,10 +81,13 @@ export type PanelTime = (
 
 /**
  * The board with its time filter wired to every data panel it reaches on
- * its own through `timeOf`, and every wire made so before (`auto: true`)
- * that no longer holds taken off: one whose view says otherwise now, one on
- * a panel that reads whole. Without the storage marker; itself when nothing
- * changes.
+ * its own through `timeOf` (`auto` and `derived`), and every wire derived
+ * before that no longer follows taken off: one whose view says otherwise
+ * now or is not known, one on a panel that reads whole, and every one while
+ * the board has no single date filter. A wire auto-connect made is the
+ * author's and is never touched. Without the storage marker; itself when
+ * nothing changes — a panel whose wires come out as they were is the same
+ * panel.
  */
 export function withTimeBindings(
   config: DashboardViewConfig,
@@ -92,26 +96,30 @@ export function withTimeBindings(
   const filter = timeFilterOf(config);
   let changed = false;
   const panels = panelsOf(config).map(panel => {
-    if (!filter || !isViewPanel(panel)) return panel;
-    const time = timeOf(panel);
-    const ignores = panel.ignoresTime === true;
+    if (!isViewPanel(panel)) return panel;
     const stored = storedBindings(panel);
-    // Made from the view, so remade from it: kept only where nothing else
-    // says what the panel's time is.
-    const kept =
-      time === undefined && !ignores
-        ? stored
-        : stored.filter(entry => !madeFor(entry, filter.name));
-    const written = kept.some(
-      entry => isPlainObject(entry) && entry.globalField === filter.name,
-    );
+    const kept = stored.filter(entry => !isDerived(entry));
+    const time = filter && panel.ignoresTime !== true ? timeOf(panel) : null;
+    const written =
+      filter &&
+      kept.some(
+        entry => isPlainObject(entry) && entry.globalField === filter.name,
+      );
     const wire =
-      !ignores && !written && time && sameFilterType(filter.kind, time.kind)
-        ? [{ globalField: filter.name, panelField: time.name, auto: true }]
+      filter && time && !written && sameFilterType(filter.kind, time.kind)
+        ? [
+            {
+              globalField: filter.name,
+              panelField: time.name,
+              auto: true,
+              derived: true,
+            },
+          ]
         : [];
-    if (kept.length === stored.length && wire.length === 0) return panel;
+    const next = [...kept, ...wire];
+    if (sameWires(next, stored)) return panel;
     changed = true;
-    return { ...panel, bindings: [...kept, ...wire] as PanelBinding[] };
+    return { ...panel, bindings: next as PanelBinding[] };
   });
   const marked = 'derivesTime' in config;
   if (!changed && !marked) return config;
@@ -121,20 +129,16 @@ export function withTimeBindings(
 }
 
 /**
- * The board as it is stored: every wire made from a view (`auto: true`)
- * to its time filter taken off a panel whose time `timeOf` knows or that
- * reads whole — it is made again when read — and the marker that says so.
+ * The board as it is stored: every wire derived from a view taken off —
+ * it is made again when read — and the marker that says so.
  */
 export function storedTimeWires(
   config: DashboardViewConfig,
-  timeOf: PanelTime,
 ): DashboardViewConfig {
-  const filter = timeFilterOf(config);
   const panels = panelsOf(config).map(panel => {
-    if (!filter || !isViewPanel(panel)) return panel;
-    if (timeOf(panel) === undefined && panel.ignoresTime !== true) return panel;
+    if (!isViewPanel(panel)) return panel;
     const stored = storedBindings(panel);
-    const kept = stored.filter(entry => !madeFor(entry, filter.name));
+    const kept = stored.filter(entry => !isDerived(entry));
     return kept.length === stored.length
       ? panel
       : { ...panel, bindings: kept as PanelBinding[] };
@@ -146,10 +150,9 @@ export function storedTimeWires(
  * A board stored before its time wires were derived, read as it was then
  * (D1): unmarked, so each panel over data not wired to every one of its
  * date filters reads whole (`ignoresTime`) — nothing wires it on its own,
- * whichever of those filters is left the board's one — and each wire
- * auto-connect made (`auto: true`) to a date filter is kept as though
- * written, since it is not the view's to remake. Marked, so it happens once;
- * a marked board as it is.
+ * whichever of those filters is left the board's one. Its wires are the
+ * author's, auto-connected ones included, and stay. Marked, so it happens
+ * once; a marked board as it is.
  */
 export function withTimeIgnored(
   config: DashboardViewConfig,
@@ -160,17 +163,9 @@ export function withTimeIgnored(
   const panels = panelsOf(config).map((panel): DashboardPanel => {
     if (dated.length === 0 || !isViewPanel(panel)) return panel;
     const wired = new Set(bindingsOf(panel).map(entry => entry.globalField));
-    const bindings = storedBindings(panel).map(entry =>
-      isPlainObject(entry) &&
-      entry.auto === true &&
-      typeof entry.globalField === 'string' &&
-      dated.includes(entry.globalField)
-        ? { globalField: entry.globalField, panelField: entry.panelField }
-        : entry,
-    ) as PanelBinding[];
     return dated.every(name => wired.has(name))
-      ? { ...panel, bindings }
-      : { ...panel, bindings, ignoresTime: true };
+      ? panel
+      : { ...panel, ignoresTime: true };
   });
   return {
     ...config,
@@ -185,9 +180,22 @@ function storedBindings(panel: DashboardViewPanel): unknown[] {
   return Array.isArray(stored) ? stored : [];
 }
 
-/** Whether a stored wire is one made to the time filter. */
-function madeFor(entry: unknown, filter: string): boolean {
+/** Whether a wire is one derived from a view's time field. */
+function isDerived(entry: unknown): boolean {
+  return isPlainObject(entry) && entry.derived === true;
+}
+
+/** Whether two lists of wires say the same, entry by entry. */
+function sameWires(
+  one: readonly unknown[],
+  other: readonly unknown[],
+): boolean {
   return (
-    isPlainObject(entry) && entry.auto === true && entry.globalField === filter
+    one.length === other.length &&
+    one.every(
+      (entry, index) =>
+        entry === other[index] ||
+        JSON.stringify(entry) === JSON.stringify(other[index]),
+    )
   );
 }

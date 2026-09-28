@@ -176,6 +176,7 @@ describe("overviewDefinition", () => {
                     globalField: OVERVIEW_WINDOW,
                     panelField: field,
                     auto: true,
+                    derived: true,
                   },
                 ]
               : [],

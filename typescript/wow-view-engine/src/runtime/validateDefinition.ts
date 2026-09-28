@@ -526,13 +526,26 @@ function validateSystemConfig(
     return definition.record
       ? under(path, validateRecord(definition, view.config, kinds, { limits }))
       : [mismatch];
-  if (kind === 'analysis')
-    return definition.analysis
-      ? under(
-          path,
-          validateAnalysis(definition, view.config, kinds, { limits }),
-        )
+  if (kind === 'analysis') {
+    if (definition.analysis)
+      return under(
+        path,
+        validateAnalysis(definition, view.config, kinds, { limits }),
+      );
+    // A `defineView` definition whose snapshot offers no metric leaves its
+    // analyses to the source (#3744 review): a source that grants some
+    // opens the view, one that grants none cannot — said, never refused.
+    return definition.kind === 'data' && definition.described?.open?.analysis
+      ? [
+          issue(
+            'definition.view.analysis-open',
+            [...path, 'config'],
+            {},
+            'warning',
+          ),
+        ]
       : [mismatch];
+  }
   return [mismatch];
 }
 

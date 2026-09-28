@@ -357,8 +357,12 @@ export abstract class BoardCommands
   bindPanel(name: string, panelId: string, panelField: string): string[] {
     return this.edits.bindPanel(name, panelId, panelField);
   }
-  unbindPanels(name: string, panelIds: readonly string[]): void {
-    this.edits.unbindPanels(name, panelIds);
+  unbindPanels(
+    name: string,
+    panelIds: readonly string[],
+    options?: { byHand?: boolean },
+  ): void {
+    this.edits.unbindPanels(name, panelIds, options);
   }
   setTimeGrouping(grouping: DashboardTimeGrouping | null): void {
     this.edits.setTimeGrouping(grouping);

@@ -90,6 +90,8 @@ export const definitionMessages = {
   'definition.view.id-separator': 'A view id cannot contain {separator}.',
   'definition.view.kind-mismatch':
     'A {kind} view does not belong to a {definition} definition.',
+  'definition.view.analysis-open':
+    'The analyses this view needs come from its source: its snapshot offers none, so it opens only where the source grants some.',
   'definition.view.owned-invalid':
     'The analysis panel {panel} holds is incomplete or set up wrong.',
   // What building a definition from its descriptor found (`defineView`).

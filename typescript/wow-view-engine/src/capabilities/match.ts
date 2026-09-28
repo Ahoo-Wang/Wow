@@ -146,6 +146,8 @@ function variantField(
   });
   const first = found[0]?.field;
   if (!first) return null;
+  const masked = found.find(entry => entry.field.sensitivity)?.field
+    .sensitivity;
   return {
     ...(first.path === relative ? {} : { canonical: `${scope}.${first.path}` }),
     operators: new Set(found.flatMap(entry => entry.field.filter.operators)),
@@ -153,8 +155,9 @@ function variantField(
     project: first.project,
     ...(first.aggregate ? { aggregate: first.aggregate } : {}),
     ...(first.semantic ? { semantic: first.semantic } : {}),
-    ...(first.sensitivity
-      ? { comparable: first.sensitivity.comparable, sensitive: true as const }
+    // Masked in any variant is masked: a query cannot say which it reads.
+    ...(masked
+      ? { comparable: masked.comparable, sensitive: true as const }
       : {}),
     ...(first.enum ? { enum: first.enum } : {}),
     variants: found.map(entry => entry.value),

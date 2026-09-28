@@ -2067,6 +2067,8 @@ export const zhCN: ViewMessages = {
   'definition.view.id-duplicate': '两个视图共用了 id {id}。',
   'definition.view.id-separator': '视图 id 不能带 {separator}。',
   'definition.view.kind-mismatch': '{kind} 视图不属于 {definition} 定义。',
+  'definition.view.analysis-open':
+    '这张视图要的分析由数据源给：快照里没有，只在给出分析能力的数据源上打得开。',
   'definition.view.owned-invalid': '面板 {panel} 自带的分析不完整或设置有误。',
   'definition.field.undescribed': '数据源的描述里没有 {field} 这个路径。',
   'definition.field.kind-unknown':

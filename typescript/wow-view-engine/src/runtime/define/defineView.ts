@@ -24,7 +24,10 @@ import { analysisPlan, buildAnalysis } from './analysis.js';
 import { buildFields, type BuiltField } from './fields.js';
 import { narrowDefinition } from '../../capabilities/index.js';
 import { constructible } from '../../capabilities/analysis.js';
-import { builtinFieldKinds } from '../../filter/index.js';
+import {
+  builtinFieldKinds,
+  type FieldKindRegistry,
+} from '../../filter/index.js';
 import type { DefineViewSpec } from './spec.js';
 
 /**
@@ -56,6 +59,7 @@ import type { DefineViewSpec } from './spec.js';
 export function defineView(
   descriptor: QueryModelDescriptor,
   spec: DefineViewSpec,
+  options: DefineViewOptions = {},
 ): DataViewDefinition {
   const findings: Issue[] = [];
   const record = recordOf(spec, descriptor, findings);
@@ -92,8 +96,8 @@ export function defineView(
   const operators = openComparisons(fields);
   definition.fields = withSnapshotComparisons(
     definition.fields,
-    narrowDefinition(definition, descriptor, builtinFieldKinds).definition
-      .fields,
+    narrowDefinition(definition, descriptor, options.kinds ?? builtinFieldKinds)
+      .definition.fields,
     new Set(operators),
   );
   definition.described = {
@@ -158,6 +162,17 @@ function withSnapshotComparisons(
       };
     return next;
   });
+}
+
+/**
+ * What `defineView` needs beyond the snapshot and the host's choices: the
+ * field kinds the host registers (`ViewEngineOptions.kinds`) — the snapshot's
+ * comparisons are written on a field of a host's own kind only when its
+ * kind is known here, since it is built before any engine is. Left out,
+ * the built-in kinds.
+ */
+export interface DefineViewOptions {
+  kinds?: FieldKindRegistry;
 }
 
 /** The descriptor's paging modes, as a definition names them. */

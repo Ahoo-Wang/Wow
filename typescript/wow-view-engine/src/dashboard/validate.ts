@@ -516,6 +516,8 @@ function validateBindings(
 
     if (binding.auto !== undefined && binding.auto !== true)
       issues.push(shape([...at, 'auto'], 'true'));
+    if (binding.derived !== undefined && binding.derived !== true)
+      issues.push(shape([...at, 'derived'], 'true'));
 
     // A filter reaches any field of its type (D22 F): a date one a `date`
     // or a `datetime`, a text one a `string` or an `enum`.

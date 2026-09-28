@@ -386,6 +386,14 @@ export interface PanelBinding {
    * this panel. Left out for a binding the author chose.
    */
   auto?: true;
+  /**
+   * Made from the panel's view's time field when the board is read (D1,
+   * `withTimeBindings`), with `auto`: made again on every read, dropped the
+   * moment it no longer follows — another view, a second date filter, the
+   * panel reading whole — and never stored. A wire auto-connect made
+   * (`auto` alone) is the author's, and stays as it is.
+   */
+  derived?: true;
 }
 
 /**

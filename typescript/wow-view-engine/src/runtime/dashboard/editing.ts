@@ -31,6 +31,8 @@ import {
   filtersOf,
   addTab,
   autoBindings,
+  timeFilterOf,
+  type PanelTime,
   bindPanel,
   moveFilter,
   removeFilter,
@@ -199,8 +201,17 @@ export interface DashboardFilterEditing {
    * panels auto-connect wired (`bindPanel`).
    */
   bindPanel(name: string, panelId: string, panelField: string): string[];
-  /** Takes these panels' wires to a filter off — an undo of auto-connect too. */
-  unbindPanels(name: string, panelIds: readonly string[]): void;
+  /**
+   * Takes these panels' wires to a filter off. By hand, a date filter's
+   * leaves the panel reading whole (`ignoresTime`); an undo of auto-connect
+   * (「只接我选的」) says `byHand: false`, and puts the panels back as they
+   * were.
+   */
+  unbindPanels(
+    name: string,
+    panelIds: readonly string[],
+    options?: { byHand?: boolean },
+  ): void;
   /** Sets the board's time grouping, or takes it off with `null`. */
   setTimeGrouping(grouping: DashboardTimeGrouping | null): void;
   /**
@@ -228,6 +239,12 @@ export interface EditingHost {
    * auto-connect match a filter against.
    */
   fieldsOf: PanelFields;
+  /**
+   * What a panel's view says of time (`panelTime`): a panel over a view
+   * that says is wired to the board's time filter through it, when the
+   * board is read, never by a field's name (D1).
+   */
+  timeOf?: PanelTime;
   /** What is on screen, which every edit changes with the draft; `null` once disposed. */
   applied(): DashboardViewConfig | null;
   /**
@@ -325,13 +342,19 @@ export function boardEditing(host: EditingHost): BoardEdits {
       // A data panel comes onto the board wired to every filter it has a
       // field for, the way auto-connect wires the rest (D22 G).
       const fields = panel.kind === 'view' ? host.fieldsOf(panel) : null;
+      const timed =
+        panel.kind === 'view' && host.timeOf?.(panel as never) !== undefined
+          ? timeFilterOf(draft)?.name
+          : undefined;
       const wired =
         panel.kind === 'view' && fields
           ? {
               ...panel,
               bindings: [
                 ...(panel.bindings ?? []),
-                ...autoBindings(draft, fields, panel.bindings),
+                ...autoBindings(draft, fields, panel.bindings).filter(
+                  binding => binding.globalField !== timed,
+                ),
               ],
             }
           : panel;
@@ -485,9 +508,9 @@ export function boardEditing(host: EditingHost): BoardEdits {
       );
       return connected;
     },
-    unbindPanels: (name, panelIds) =>
+    unbindPanels: (name, panelIds, options) =>
       edit('unbindPanels', name, config =>
-        unbindPanels(config, name, panelIds),
+        unbindPanels(config, name, panelIds, options),
       ),
     setTimeGrouping: grouping =>
       edit('setTimeGrouping', null, config =>

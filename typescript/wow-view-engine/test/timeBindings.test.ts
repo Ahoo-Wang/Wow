@@ -75,7 +75,12 @@ describe('withTimeBindings', () => {
     const read = withTimeBindings(board([owned('a')]), timed);
     expect(read.panels[0]).toMatchObject({
       bindings: [
-        { globalField: 'window', panelField: 'createdAt', auto: true },
+        {
+          globalField: 'window',
+          panelField: 'createdAt',
+          auto: true,
+          derived: true,
+        },
       ],
     });
   });
@@ -174,11 +179,25 @@ describe('a board read by its runtime', () => {
     ).toEqual([
       [
         'owned',
-        [{ globalField: 'window', panelField: 'createdAt', auto: true }],
+        [
+          {
+            globalField: 'window',
+            panelField: 'createdAt',
+            auto: true,
+            derived: true,
+          },
+        ],
       ],
       [
         'saved',
-        [{ globalField: 'window', panelField: 'createdAt', auto: true }],
+        [
+          {
+            globalField: 'window',
+            panelField: 'createdAt',
+            auto: true,
+            derived: true,
+          },
+        ],
       ],
       ['whole', []],
       ['ignoring', []],
@@ -251,7 +270,12 @@ describe('time wires derived, never stored', () => {
     const before = board([
       owned('wired', {
         bindings: [
-          { globalField: 'window', panelField: 'createdAt', auto: true },
+          {
+            globalField: 'window',
+            panelField: 'createdAt',
+            auto: true,
+            derived: true,
+          },
         ],
       }),
       owned('unwired'),
@@ -273,7 +297,12 @@ describe('time wires derived, never stored', () => {
     });
     const before = runtime.getSnapshot() as DashboardRuntimeState;
     expect(bindingsOf(before.applied, 'a')).toEqual([
-      { globalField: 'window', panelField: 'createdAt', auto: true },
+      {
+        globalField: 'window',
+        panelField: 'createdAt',
+        auto: true,
+        derived: true,
+      },
     ]);
     runtime.setBuilding(true);
     runtime.renamePanel('a', 'Orders');
@@ -284,7 +313,12 @@ describe('time wires derived, never stored', () => {
     const after = runtime.getSnapshot() as DashboardRuntimeState;
     expect(after.dirty).toBe(false);
     expect(bindingsOf(after.draft, 'a')).toEqual([
-      { globalField: 'window', panelField: 'createdAt', auto: true },
+      {
+        globalField: 'window',
+        panelField: 'createdAt',
+        auto: true,
+        derived: true,
+      },
     ]);
     runtime.dispose();
   });
@@ -305,7 +339,12 @@ describe('time wires derived, never stored', () => {
     });
     const { draft } = runtime.getSnapshot() as DashboardRuntimeState;
     expect(bindingsOf(draft, added ?? '')).toEqual([
-      { globalField: 'window', panelField: 'createdAt', auto: true },
+      {
+        globalField: 'window',
+        panelField: 'createdAt',
+        auto: true,
+        derived: true,
+      },
     ]);
     runtime.dispose();
   });
@@ -322,6 +361,21 @@ describe('time wires derived, never stored', () => {
     await new Promise(settled => setTimeout(settled, 0));
     const { draft } = runtime.getSnapshot() as DashboardRuntimeState;
     expect(bindingsOf(draft, 'p')).toEqual([]);
+    runtime.dispose();
+  });
+
+  it('4 (second review): 「只接我选的」 puts the panels back, not reading whole', async () => {
+    const shipped: DashboardField = { ...WINDOW, name: 'shipped' };
+    const { runtime } = await stored({
+      ...board([owned('a'), owned('b')], [WINDOW, shipped]),
+      derivesTime: true,
+    });
+    runtime.setBuilding(true);
+    const connected = runtime.bindPanel('shipped', 'a', 'shippedAt');
+    expect(connected).toEqual(['b']);
+    runtime.unbindPanels('shipped', connected, { byHand: false });
+    const { draft } = runtime.getSnapshot() as DashboardRuntimeState;
+    expect(draft.panels[1]).not.toHaveProperty('ignoresTime');
     runtime.dispose();
   });
 

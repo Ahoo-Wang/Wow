@@ -22,7 +22,6 @@ import {
   DEFAULT_RUNTIME_LIMITS,
   type Issue,
   type RuntimeLimits,
-  type TextResolver,
   type ViewDefinition,
 } from '../model/index.js';
 import {
@@ -43,7 +42,7 @@ export type Admissible = ViewDefinition | { definition: ViewDefinition };
 
 export interface AdmitOptions {
   /** The words the definitions' keys are said in (`ViewEngineOptions.text`). */
-  text?: TextResolver;
+  text?(key: string): string | undefined;
   kinds?: FieldKindRegistry;
   limits?: Partial<RuntimeLimits>;
 }
@@ -70,11 +69,10 @@ export function admit(
 ): AdmitFinding[] {
   const kinds = options.kinds ?? builtinFieldKinds;
   const limits = { ...DEFAULT_RUNTIME_LIMITS, ...options.limits };
+  // Called on the host's object, as the engine's registry calls it.
+  const text = (key: string) => options.text?.(key);
   const said = definitions.map(entry =>
-    sayDefinition(
-      'definition' in entry ? entry.definition : entry,
-      options.text,
-    ),
+    sayDefinition('definition' in entry ? entry.definition : entry, text),
   );
   const findings = new Map<string, Issue[]>();
   const declared = new Map(

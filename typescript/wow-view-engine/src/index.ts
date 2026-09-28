@@ -892,7 +892,10 @@ export {
   type ValidateDefinitionOptions,
   validateDefinition,
 } from './runtime/validateDefinition.js';
-export { defineView } from './runtime/define/defineView.js';
+export {
+  type DefineViewOptions,
+  defineView,
+} from './runtime/define/defineView.js';
 export type { DefineViewSpec, FieldSpec } from './runtime/define/spec.js';
 export {
   type AnyViewRuntime,
