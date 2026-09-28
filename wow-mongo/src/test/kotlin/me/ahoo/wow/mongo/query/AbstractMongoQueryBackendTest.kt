@@ -72,7 +72,6 @@ class AbstractMongoQueryBackendTest {
     private val backend = object : AbstractMongoQueryBackend() {
         override val namedAggregate = MaterializedNamedAggregate("test", "aggregate")
         override val collection: MongoCollection<Document> = this@AbstractMongoQueryBackendTest.collection
-        override val filterCompiler = me.ahoo.wow.mongo.query.snapshot.SnapshotFilterCompiler
         override fun toObjectNode(document: Document): ObjectNode = document.toObjectNode()
     }
 
@@ -345,7 +344,6 @@ class AbstractMongoQueryBackendTest {
         val mappedBackend = object : AbstractMongoQueryBackend() {
             override val namedAggregate = MaterializedNamedAggregate("test", "aggregate")
             override val collection: MongoCollection<Document> = this@AbstractMongoQueryBackendTest.collection
-            override val filterCompiler = me.ahoo.wow.mongo.query.snapshot.SnapshotFilterCompiler
             override fun toObjectNode(document: Document): ObjectNode = document.toObjectNode()
         }
         val filter = slot<Bson>()

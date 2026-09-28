@@ -10,8 +10,8 @@ import me.ahoo.wow.api.query.schema.QueryCardinality
 import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.api.query.schema.QueryValueKind
 import me.ahoo.wow.api.query.schema.QueryValueType
+import me.ahoo.wow.api.query.schema.Temporal
 import me.ahoo.wow.mongo.Documents
-import me.ahoo.wow.mongo.query.snapshot.SnapshotFilterCompiler
 import me.ahoo.wow.query.QueryAdmission
 import me.ahoo.wow.query.dsl.filter
 import me.ahoo.wow.query.schema.QuerySchemaValidationException
@@ -27,6 +27,7 @@ import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.Arguments
 import org.junit.jupiter.params.provider.MethodSource
 import tools.jackson.databind.JsonNode
+import java.time.Instant
 import java.util.Date
 import java.util.stream.Stream
 
@@ -74,7 +75,7 @@ class SnapshotFilterCompilerTest {
             .isEqualTo(Filters.eq(Documents.ID_FIELD, "id-1").toBsonDocument())
     }
 
-    private fun compile(filter: FilterExpression): Bson = SnapshotFilterCompiler.compile(filter, schema)
+    private fun compile(filter: FilterExpression): Bson = MongoFilterCompiler.compile(filter, schema)
 
     private fun assertCompiled(actual: Bson, expected: Bson) {
         actual.toBsonDocument().assert().isEqualTo(expected.toBsonDocument())
@@ -142,6 +143,44 @@ class SnapshotFilterCompilerTest {
                     .isEqualTo(QueryErrorCodes.STORAGE_UNSUPPORTED)
             }
         }
+    }
+
+    /** A [Temporal.Date] field stores BSON dates (F2): its operands compile to dates, as Elasticsearch reads them. */
+    @Test
+    fun `date field operands compile to BSON dates`() {
+        val field = QueryField("state.createdOn")
+        val dateSchema = mongoTestSchema(
+            fields = mapOf(
+                field to MongoTestField(
+                    QueryValueSchema(QueryValueKind.SCALAR, valueTypes = setOf(QueryValueType.STRING), semanticType = Temporal.Date),
+                    setOf(QueryCapability.EXACT_MATCH, QueryCapability.RANGE),
+                    "state.createdOn",
+                ),
+            ),
+        )
+        fun compiled(filter: FilterExpression) = MongoFilterCompiler.compile(filter, dateSchema).toBsonDocument()
+        val instant = Instant.parse("2026-01-02T10:00:00Z")
+
+        compiled(EqualFilter(field, json("2026-01-02T10:00:00Z"))).assert()
+            .isEqualTo(Filters.eq("state.createdOn", Date.from(instant)).toBsonDocument())
+        compiled(EqualFilter(field, json("2026-01-02T18:00:00+08:00"))).assert()
+            .isEqualTo(Filters.eq("state.createdOn", Date.from(instant)).toBsonDocument())
+        // Without an offset a date-time is UTC, and a date is its UTC midnight.
+        compiled(GreaterThanOrEqualFilter(field, json("2026-01-02T10:00:00"))).assert()
+            .isEqualTo(Filters.gte("state.createdOn", Date.from(instant)).toBsonDocument())
+        compiled(BetweenFilter(field, json("2026-01-02"), json("2026-01-03"))).assert().isEqualTo(
+            Filters.and(
+                Filters.gte("state.createdOn", Date.from(Instant.parse("2026-01-02T00:00:00Z"))),
+                Filters.lte("state.createdOn", Date.from(Instant.parse("2026-01-03T00:00:00Z"))),
+            ).toBsonDocument(),
+        )
+        compiled(InFilter(field, listOf(json("2026-01-02T10:00:00Z")))).assert()
+            .isEqualTo(Filters.`in`("state.createdOn", Date.from(instant)).toBsonDocument())
+        // A relative-time filter lowers to epoch milliseconds, which compile to dates too.
+        compiled(BeforeNowFilter(field)).getDocument("state.createdOn")["\$lt"]!!.isDateTime.assert().isTrue()
+
+        assertThrows<QuerySchemaValidationException> { compiled(EqualFilter(field, json("yesterday"))) }
+            .violation?.code.assert().isEqualTo(QueryErrorCodes.STORAGE_UNSUPPORTED)
     }
 
     @Suppress("DEPRECATION")
@@ -242,7 +281,7 @@ class SnapshotFilterCompilerTest {
             ),
             schema,
         )
-        return SnapshotFilterCompiler.compileScoped(admitted.query.elements.last().filter, admitted)
+        return MongoFilterCompiler.compileScoped(admitted.query.elements.last().filter, admitted)
     }
 
     @Test
@@ -272,7 +311,7 @@ class SnapshotFilterCompilerTest {
             ),
         )
 
-        SnapshotFilterCompiler.compile(DeletionFilter(DeletionState.ACTIVE), mappedSchema).toBsonDocument().assert()
+        MongoFilterCompiler.compile(DeletionFilter(DeletionState.ACTIVE), mappedSchema).toBsonDocument().assert()
             .isEqualTo(Filters.eq("metadata.deleted", false).toBsonDocument())
     }
 
@@ -317,7 +356,7 @@ class SnapshotFilterCompilerTest {
         val resolved = EqualFilter(QueryField("state.name"), json("Wow"))
 
         assertCompiled(
-            SnapshotFilterCompiler.compile(resolved, mappedSchema),
+            MongoFilterCompiler.compile(resolved, mappedSchema),
             Filters.eq("storage.name", "Wow"),
         )
     }
@@ -363,7 +402,7 @@ class SnapshotFilterCompilerTest {
         )
 
         assertCompiled(
-            SnapshotFilterCompiler.compile(resolved, mappedSchema),
+            MongoFilterCompiler.compile(resolved, mappedSchema),
             Filters.elemMatch("storage.orders", Filters.eq("values.color", "blue")),
         )
     }
@@ -395,7 +434,7 @@ class SnapshotFilterCompilerTest {
         )
 
         assertCompiled(
-            SnapshotFilterCompiler.compile(resolved, mappedSchema),
+            MongoFilterCompiler.compile(resolved, mappedSchema),
             Filters.elemMatch("storage", Filters.eq("orders.price", 10)),
         )
     }
@@ -418,7 +457,7 @@ class SnapshotFilterCompilerTest {
             )
         )
         assertThrows<QuerySchemaValidationException> {
-            SnapshotFilterCompiler.compile(
+            MongoFilterCompiler.compile(
                 ElementMatchFilter(QueryField("orders"), EqualFilter(QueryField("name"), json("one"))),
                 schema
             )

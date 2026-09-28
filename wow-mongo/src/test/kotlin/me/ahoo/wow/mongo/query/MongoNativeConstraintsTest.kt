@@ -29,7 +29,6 @@ import me.ahoo.wow.api.query.schema.QueryValueKind
 import me.ahoo.wow.api.query.schema.QueryValueType
 import me.ahoo.wow.api.query.schema.Temporal
 import me.ahoo.wow.mongo.query.aggregation.MongoAggregationCompiler
-import me.ahoo.wow.mongo.query.event.EventStreamFilterCompiler
 import me.ahoo.wow.mongo.query.schema.MongoQuerySchemaAdapter
 import me.ahoo.wow.mongo.query.schema.bind
 import me.ahoo.wow.query.dsl.aggregation
@@ -49,7 +48,7 @@ class MongoNativeConstraintsTest {
         valueTypes = setOf(QueryValueType.INTEGER),
         semanticType = Temporal.Epoch(TimeUnit.MILLISECONDS),
     )
-    private val compiler = MongoAggregationCompiler(EventStreamFilterCompiler)
+    private val compiler = MongoAggregationCompiler
     private val temporalCapability = setOf(QueryCapability.AGGREGATE_TEMPORAL)
 
     @Test
@@ -149,7 +148,7 @@ class MongoNativeConstraintsTest {
             NorFilter(listOf(first)),
             NorFilter(listOf(AndFilter(listOf(first, filter { "name" eq "alpha" })))),
         ).forEach { filter ->
-            assertThrows<QuerySchemaValidationException> { EventStreamFilterCompiler.compile(filter, searchSchema()) }
+            assertThrows<QuerySchemaValidationException> { MongoFilterCompiler.compile(filter, searchSchema()) }
             assertThrows<QuerySchemaValidationException> {
                 compiler.compile(
                     aggregation {
@@ -165,7 +164,7 @@ class MongoNativeConstraintsTest {
     @Test
     fun `single text expression under indexed or preserves the native filter`() {
         val expression: FilterExpression = OrFilter(listOf(SearchFilter("alpha"), filter { "name" eq "alpha" }))
-        val native = EventStreamFilterCompiler.compile(expression, searchSchema()).toBsonDocument()
+        val native = MongoFilterCompiler.compile(expression, searchSchema()).toBsonDocument()
         native.getArray("\$or").assert().hasSize(2)
         compiler.compile(
             aggregation {

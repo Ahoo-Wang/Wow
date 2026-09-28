@@ -28,6 +28,7 @@ import me.ahoo.wow.api.query.schema.QueryCapability
 import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.api.query.schema.QueryValueKind
 import me.ahoo.wow.mongo.Documents
+import me.ahoo.wow.mongo.query.MongoFilterCompiler
 import me.ahoo.wow.mongo.query.MongoTestField
 import me.ahoo.wow.mongo.query.compile
 import me.ahoo.wow.mongo.query.mongoScalar
@@ -54,7 +55,7 @@ class EventStreamFilterCompilerTest {
     )
 
     private fun compile(filter: me.ahoo.wow.api.query.FilterExpression) =
-        EventStreamFilterCompiler.compile(filter, schema)
+        MongoFilterCompiler.compile(filter, schema)
 
     @Test
     fun `match all filter should include deleted event streams`() {

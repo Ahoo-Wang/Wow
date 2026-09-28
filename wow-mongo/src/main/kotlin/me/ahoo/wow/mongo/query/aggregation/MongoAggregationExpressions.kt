@@ -17,7 +17,6 @@ import com.mongodb.client.model.Sorts
 import me.ahoo.wow.api.query.AggregationExpression
 import me.ahoo.wow.api.query.AggregationExpressionOperator
 import me.ahoo.wow.api.query.AggregationMetric
-import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.query.AdmittedQuery
 import org.bson.Document
@@ -30,7 +29,7 @@ internal fun numericParticipation(
     admitted: AdmittedQuery<*>,
 ): Pair<Any, Any> {
     if (expression is AggregationExpression.Field) {
-        val value = numericInput("\$${expression.field.physicalPath(admitted)}")
+        val value = numericInput("\$${admitted.physicalPath(expression.field)}")
         val isNumber = Document("\$isNumber", value)
         val input = if (nullGuarded) Document("\$cond", listOf(isNumber, value, null)) else value
         return input to isNumber
@@ -41,7 +40,7 @@ internal fun numericParticipation(
 
 internal fun distinctCountInput(expression: AggregationExpression, admitted: AdmittedQuery<*>): Any =
     if (expression is AggregationExpression.Field) {
-        "\$${expression.field.physicalPath(admitted)}"
+        "\$${admitted.physicalPath(expression.field)}"
     } else {
         expression.toMongoExpression(admitted)
     }
@@ -49,7 +48,7 @@ internal fun distinctCountInput(expression: AggregationExpression, admitted: Adm
 /** This expression as a MongoDB aggregation expression: a finite double, or `null` when it has no value. */
 internal fun AggregationExpression.toMongoExpression(admitted: AdmittedQuery<*>): Any = when (this) {
     is AggregationExpression.Field -> {
-        val fieldReference = "\$${field.physicalPath(admitted)}"
+        val fieldReference = "\$${admitted.physicalPath(field)}"
         val value = numericInput(fieldReference)
         finiteDouble(
             Document(
@@ -264,9 +263,6 @@ internal fun convert(input: Any, type: String): Document = Document(
         .append("onError", null)
         .append("onNull", null),
 )
-
-/** The absolute physical path admission resolved for this reference; paths stay absolute after `$unwind`. */
-internal fun QueryField.physicalPath(admitted: AdmittedQuery<*>): String = admitted.field(this).physicalField.path
 
 internal fun List<Sort>.toBson(): Bson = Sorts.orderBy(
     map {

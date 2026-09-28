@@ -27,7 +27,6 @@ class MongoEventStreamQueryBackend(
     override val collection: MongoCollection<Document>,
 ) : AbstractMongoQueryBackend(),
     EventStreamQueryBackend {
-    override val filterCompiler = EventStreamFilterCompiler
     override fun toObjectNode(document: Document): ObjectNode =
         document.toQueryObjectNode(MessageRecords.ID)
 }

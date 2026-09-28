@@ -620,8 +620,8 @@ class MongoSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
     }
 
     @Test
-    fun `native BSON date and timestamp value filters should fail closed before MongoDB execution`() {
-        val now = Instant.now()
+    fun `native BSON date filters compare as dates while timestamp filters fail closed`() {
+        val now = Instant.now().truncatedTo(java.time.temporal.ChronoUnit.MILLIS)
         setStateValidator(
             Document("nativeDate", Document("bsonType", "date"))
                 .append("nativeTimestamp", Document("bsonType", "timestamp")),
@@ -635,21 +635,27 @@ class MongoSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
                         .append("state.nativeTimestamp", BsonTimestamp(now.epochSecond.toInt(), 1)),
                 ),
             ).toMono().test().expectNextCount(1).verifyComplete()
-        val filters: List<FilterExpression> = listOf(
-            filterExpression { "state.nativeDate" eq now.toEpochMilli() },
-            filterExpression {
-                "state.nativeTimestamp".between(now.minusSeconds(60).toEpochMilli(), now.plusSeconds(60).toEpochMilli())
-            },
-            TodayFilter(QueryField("state.nativeDate"), zoneId = "UTC"),
-        )
+        val service = MongoSnapshotQueryBackendFactory(
+            database = database,).target(MOCK_AGGREGATE_METADATA, querySchemaSources + nativeTemporalSource())
 
-        run {
-            val service = MongoSnapshotQueryBackendFactory(
-                database = database,).target(MOCK_AGGREGATE_METADATA, querySchemaSources + nativeTemporalSource())
-            filters.forEach { filter ->
-                assertThrows<QuerySchemaValidationException> {
-                    service.list(ListQuery(filter = filter, limit = 10))
-                }
+        // F2: a date operand is an ISO-8601 string the compiler sends as a BSON date.
+        listOf(
+            filterExpression { "state.nativeDate" eq now.toString() },
+            filterExpression { "state.nativeDate".between(now.minusSeconds(60).toString(), now.plusSeconds(60).toString()) },
+            TodayFilter(QueryField("state.nativeDate"), zoneId = "UTC"),
+        ).forEach { filter ->
+            service.list(ListQuery(filter = filter, limit = 10)).test().expectNextCount(1).verifyComplete()
+        }
+        // A date operand never equals or orders with a BSON timestamp.
+        listOf(
+            filterExpression { "state.nativeTimestamp" eq now.toString() },
+            filterExpression {
+                "state.nativeTimestamp".between(now.minusSeconds(60).toString(), now.plusSeconds(60).toString())
+            },
+            TodayFilter(QueryField("state.nativeTimestamp"), zoneId = "UTC"),
+        ).forEach { filter ->
+            assertThrows<QuerySchemaValidationException> {
+                service.list(ListQuery(filter = filter, limit = 10))
             }
         }
     }
@@ -839,7 +845,7 @@ class MongoSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
         }
         val service = MongoSnapshotQueryBackendFactory(
             database = database,).target(MOCK_AGGREGATE_METADATA, listOf(epochSource("state.epochMicros", TimeUnit.MICROSECONDS)))
-        val dateInput = MongoAggregationCompiler(SnapshotFilterCompiler)
+        val dateInput = MongoAggregationCompiler
             .compile(QueryAdmission.Trusted.aggregate(query, service.schemaProvider.schema().block()!!))
             .first { it.toBsonDocument().containsKey("\$group") }
             .toBsonDocument().getDocument("\$group")
