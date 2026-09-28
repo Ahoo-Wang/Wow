@@ -35,11 +35,9 @@ import io.mockk.verify
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.AggregationDateUnit
 import me.ahoo.wow.api.query.AggregationQuery
-import me.ahoo.wow.api.query.MaterializedSnapshot
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.schema.QueryCapability
 import me.ahoo.wow.api.query.schema.Temporal
-import me.ahoo.wow.elasticsearch.query.AbstractElasticsearchFilterCompiler
 import me.ahoo.wow.elasticsearch.query.AbstractElasticsearchQueryBackend
 import me.ahoo.wow.elasticsearch.query.DEFAULT_SEARCH_BATCH_SIZE
 import me.ahoo.wow.elasticsearch.query.aggregation.ElasticsearchAggregationCompiler
@@ -53,10 +51,6 @@ import me.ahoo.wow.query.QueryExecutionException
 import me.ahoo.wow.query.aggregate
 import me.ahoo.wow.query.dsl.aggregation
 import me.ahoo.wow.query.schema.QueryModelSchema
-import me.ahoo.wow.query.schema.QueryModelSchemaProvider
-import me.ahoo.wow.query.schema.QuerySchemaUnavailableException
-import me.ahoo.wow.query.snapshot.DefaultSnapshotQueryGateway
-import me.ahoo.wow.serialization.JsonSerializer
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -90,7 +84,7 @@ private val DENSE_SCHEMA = me.ahoo.wow.elasticsearch.query.nativeSchema(
 private class AggregationRun(val admitted: AdmittedQuery<AggregationQuery>) {
     /** The native plan of a query with no residual operator, for request assertions. */
     val plan: ElasticsearchAggregationPlan by lazy {
-        ElasticsearchAggregationCompiler(SnapshotFilterCompiler).compile(admitted)
+        ElasticsearchAggregationCompiler.compile(admitted)
     }
     val rootQuery get() = plan.rootQuery
     val runtimeMappings get() = plan.runtimeMappings
@@ -104,7 +98,6 @@ private class PagerBackend(
     override val queryBatchSize: Int,
 ) : AbstractElasticsearchQueryBackend() {
     override val namedAggregate = MOCK_AGGREGATE_METADATA
-    override val filterCompiler: AbstractElasticsearchFilterCompiler = SnapshotFilterCompiler
     override val indexName: String = "test-index"
 
     fun execute(run: AggregationRun): Flux<ObjectNode> = this.aggregate(run.admitted)
@@ -905,57 +898,6 @@ class ElasticsearchAggregationPagerTest {
                 days.zipWithNext().all { (left, right) -> left > right }.assert().isTrue()
             }
             .verifyComplete()
-    }
-
-    @Test
-    fun `snapshot service with custom compiler should fail aggregation before Elasticsearch access`() {
-        val compiler = mockk<AbstractElasticsearchFilterCompiler> {
-            every { compile(any(), any()) } returns
-                co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.matchAll { it }
-        }
-        val service = ElasticsearchSnapshotQueryBackend(
-            namedAggregate = MOCK_AGGREGATE_METADATA,
-            elasticsearchClient = client,
-            filterCompiler = compiler,
-        )
-
-        val gateway = DefaultSnapshotQueryGateway<Any>(
-            namedAggregate = MOCK_AGGREGATE_METADATA,
-            backend = service,
-            schemaProvider = object : QueryModelSchemaProvider {
-                override fun schema(): Mono<QueryModelSchema> = unavailable()
-
-                override fun refresh(): Mono<QueryModelSchema> = unavailable()
-
-                private fun unavailable(): Mono<QueryModelSchema> = Mono.error(
-                    QuerySchemaUnavailableException(
-                        "Elasticsearch query schema is unavailable for custom filter compilers.",
-                    ),
-                )
-            },
-
-            targetType = JsonSerializer.typeFactory.constructParametricType(
-                MaterializedSnapshot::class.java,
-                Any::class.java,
-            ),
-        )
-
-        gateway.aggregate(
-            aggregation {
-                count("count")
-                sum("physical.total", "total")
-            },
-        ).test()
-            .expectErrorSatisfies { error ->
-                error.assert().isInstanceOf(QuerySchemaUnavailableException::class.java)
-                error.message.assert().isEqualTo(
-                    "Elasticsearch query schema is unavailable for custom filter compilers.",
-                )
-            }
-            .verify()
-
-        verify(exactly = 0) { client.search(any<SearchRequest>(), Map::class.java) }
-        verify(exactly = 0) { client.indices() }
     }
 
     private fun pager(batchSize: Int = DEFAULT_SEARCH_BATCH_SIZE) = PagerBackend(client, batchSize)

@@ -21,29 +21,27 @@ import me.ahoo.wow.api.query.schema.QuerySemanticType
 import me.ahoo.wow.api.query.schema.QueryValueKind
 import me.ahoo.wow.api.query.schema.QueryValueType
 import me.ahoo.wow.api.query.schema.Temporal
-import me.ahoo.wow.query.schema.QueryStorageFamily
 import me.ahoo.wow.query.schema.QueryValueSchema
 import me.ahoo.wow.query.schema.storageFamilies
 import org.junit.jupiter.api.Test
 import java.util.concurrent.TimeUnit
 
 /**
- * The Catalog's strict capability table ([storageFamilies]) reproduces the adapter's own table for every semantic
- * type, declared value types and capability. Both read a requirement list with an empty alternative as unsupported,
- * like an empty list, so the comparison folds the two. Wave 4 moves [kinds] into the adapter and deletes its table.
+ * The adapter's capability table, the Catalog's strict table ([storageFamilies]) mapped to field kinds
+ * ([storageKinds]), reproduces the table the adapter kept before it moved to the Catalog ([legacyRequirements]), for
+ * every semantic type, declared value types and capability. Both read a requirement list with an empty alternative as
+ * unsupported, like an empty list, so the comparison folds the two.
  */
 class ElasticsearchStorageFamiliesTest {
     @Test
-    fun `the catalog table reproduces the adapter table`() {
+    fun `the catalog table reproduces the adapter's former table`() {
         SEMANTICS.forEach { semantic ->
             VALUE_TYPE_SETS.forEach { valueTypes ->
                 val value = QueryValueSchema(QueryValueKind.SCALAR, valueTypes = valueTypes, semanticType = semantic)
                 QueryCapability.entries.forEach { capability ->
-                    val table = value.storageFamilies(
-                        capability
-                    ).map { families -> families.flatMap { it.kinds() }.toSet() }
-                    table.supported().assert().describedAs("$semantic $valueTypes $capability")
-                        .isEqualTo(value.storageRequirements(capability).supported())
+                    value.storageKinds(capability).supported().assert()
+                        .describedAs("$semantic $valueTypes $capability")
+                        .isEqualTo(value.legacyRequirements(capability).supported())
                 }
             }
         }
@@ -51,16 +49,6 @@ class ElasticsearchStorageFamiliesTest {
 
     private fun List<Set<Property.Kind>>.supported(): List<Set<Property.Kind>> =
         takeUnless { requirements -> requirements.any { it.isEmpty() } }.orEmpty()
-
-    private fun QueryStorageFamily.kinds(): Set<Property.Kind> = when (this) {
-        QueryStorageFamily.STRING -> STRING_KINDS
-        QueryStorageFamily.EXACT_STRING -> KEYWORD_KINDS
-        QueryStorageFamily.INTEGRAL -> INTEGER_KINDS
-        QueryStorageFamily.SIGNED_INTEGRAL -> SIGNED_INTEGER_KINDS
-        QueryStorageFamily.NUMERIC -> NUMERIC_KINDS
-        QueryStorageFamily.BOOLEAN -> BOOLEAN_KINDS
-        QueryStorageFamily.DATE -> DATE_KINDS
-    }
 
     companion object {
         private val SEMANTICS: List<QuerySemanticType?> = listOf(
@@ -83,4 +71,67 @@ class ElasticsearchStorageFamiliesTest {
             TYPES.filterIndexed { index, _ -> mask and (1 shl index) != 0 }.toSet()
         }
     }
+}
+
+/** The adapter's own table before it adopted [storageFamilies], frozen here as the reference. */
+private fun QueryValueSchema.legacyRequirements(capability: QueryCapability): List<Set<Property.Kind>> =
+    when (capability) {
+        QueryCapability.EXACT_MATCH,
+        QueryCapability.SORT,
+        QueryCapability.CURSOR_SORT,
+        QueryCapability.AGGREGATE_TERMS,
+        -> legacyValueRequirements()
+        QueryCapability.LITERAL_MATCH,
+        QueryCapability.FULL_TEXT_TERMS,
+        QueryCapability.FULL_TEXT_PHRASE,
+        -> legacyStringRequirements()
+        QueryCapability.RANGE -> when (semanticType) {
+            is Temporal.Formatted -> if (valueTypes == setOf(QueryValueType.STRING)) {
+                listOf(
+                    KEYWORD_KINDS
+                )
+            } else {
+                emptyList()
+            }
+            else -> legacyTemporalRequirements().ifEmpty {
+                legacyNumericRequirements().ifEmpty { legacyStringRequirements() }
+            }
+        }
+        QueryCapability.AGGREGATE_NUMERIC -> legacyNumericRequirements()
+        QueryCapability.AGGREGATE_TEMPORAL -> legacyTemporalRequirements()
+        else -> emptyList()
+    }
+
+private fun QueryValueSchema.legacyValueRequirements(): List<Set<Property.Kind>> = when (semanticType) {
+    Temporal.Date, is Temporal.Epoch -> legacyTemporalRequirements()
+    else -> valueTypes.map {
+        when (it) {
+            QueryValueType.STRING -> STRING_KINDS
+            QueryValueType.INTEGER -> INTEGER_KINDS
+            QueryValueType.DECIMAL -> NUMERIC_KINDS
+            QueryValueType.BOOLEAN -> BOOLEAN_KINDS
+            else -> emptySet()
+        }
+    }
+}
+
+private fun QueryValueSchema.legacyStringRequirements(): List<Set<Property.Kind>> = when (semanticType) {
+    Temporal.Date, is Temporal.Epoch -> emptyList()
+    else -> if (valueTypes == setOf(QueryValueType.STRING)) listOf(STRING_KINDS) else emptyList()
+}
+
+private fun QueryValueSchema.legacyNumericRequirements(): List<Set<Property.Kind>> = when (semanticType) {
+    Temporal.Date -> emptyList()
+    is Temporal.Epoch -> legacyTemporalRequirements()
+    else -> if (valueTypes.all { it == QueryValueType.INTEGER || it == QueryValueType.DECIMAL }) {
+        valueTypes.map { if (it == QueryValueType.INTEGER) INTEGER_KINDS else NUMERIC_KINDS }
+    } else {
+        emptyList()
+    }
+}
+
+private fun QueryValueSchema.legacyTemporalRequirements(): List<Set<Property.Kind>> = when (semanticType) {
+    Temporal.Date -> if (valueTypes == setOf(QueryValueType.STRING)) listOf(DATE_KINDS) else emptyList()
+    is Temporal.Epoch -> if (valueTypes == setOf(QueryValueType.INTEGER)) listOf(SIGNED_INTEGER_KINDS) else emptyList()
+    else -> emptyList()
 }

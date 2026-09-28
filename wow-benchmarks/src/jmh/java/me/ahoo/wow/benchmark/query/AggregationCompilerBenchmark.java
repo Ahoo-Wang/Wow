@@ -72,8 +72,7 @@ public class AggregationCompilerBenchmark {
     private AdmittedQuery<AggregationQuery> query;
     private final MongoAggregationCompiler mongo = new MongoAggregationCompiler(
             me.ahoo.wow.mongo.query.snapshot.SnapshotFilterCompiler.INSTANCE);
-    private final ElasticsearchAggregationCompiler elasticsearch = new ElasticsearchAggregationCompiler(
-            me.ahoo.wow.elasticsearch.query.snapshot.SnapshotFilterCompiler.INSTANCE);
+    private final ElasticsearchAggregationCompiler elasticsearch = ElasticsearchAggregationCompiler.INSTANCE;
 
     @Setup
     public void setup() {

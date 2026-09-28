@@ -24,7 +24,7 @@ import co.elastic.clients.json.JsonData
 import co.elastic.clients.transport.rest5_client.low_level.ResponseException
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.elasticsearch.ReactiveElasticsearchClients
-import me.ahoo.wow.elasticsearch.query.snapshot.SnapshotFilterCompiler
+import me.ahoo.wow.elasticsearch.query.ElasticsearchFilterCompiler
 import me.ahoo.wow.query.GroupWindow
 import me.ahoo.wow.query.QueryAdmission
 import me.ahoo.wow.query.aggregate
@@ -245,7 +245,7 @@ class ElasticsearchSummaryExecutionIntegrationTest {
     }
 
     private fun summaryPlan(field: String): ElasticsearchAggregationPlan =
-        ElasticsearchAggregationCompiler(SnapshotFilterCompiler).compile(
+        ElasticsearchAggregationCompiler.compile(
             QueryAdmission.Trusted.aggregate(
                 aggregation {
                     count("count")

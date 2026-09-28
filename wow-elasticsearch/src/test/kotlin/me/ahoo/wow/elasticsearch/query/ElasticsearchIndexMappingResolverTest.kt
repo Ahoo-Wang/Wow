@@ -16,6 +16,7 @@ package me.ahoo.wow.elasticsearch.query
 import co.elastic.clients.elasticsearch._types.mapping.Property
 import co.elastic.clients.elasticsearch._types.mapping.RuntimeFieldType
 import co.elastic.clients.elasticsearch._types.mapping.TypeMapping
+import co.elastic.clients.elasticsearch.indices.GetIndicesSettingsRequest
 import co.elastic.clients.elasticsearch.indices.GetMappingRequest
 import co.elastic.clients.elasticsearch.indices.GetMappingResponse
 import co.elastic.clients.elasticsearch.indices.get_mapping.IndexMappingRecord
@@ -36,6 +37,7 @@ class ElasticsearchIndexMappingResolverTest {
 
     init {
         every { client.indices() } returns indicesClient
+        every { indicesClient.getSettings(any<GetIndicesSettingsRequest>()) } returns Mono.just(indexSettingsResponse())
     }
 
     @Test
@@ -103,6 +105,19 @@ class ElasticsearchIndexMappingResolverTest {
         resolver.refresh(INDEX).test().expectErrorMessage("unavailable").verify()
         resolver.currentOrLoad(INDEX).block()!!.fields.assert().containsKey("name")
         resolver.refresh(INDEX).block()!!.fields.assert().containsKey("code")
+    }
+
+    @Test
+    fun `the index's max_result_window is loaded with its mapping`() {
+        every { indicesClient.getMapping(any<GetMappingRequest>()) } returns Mono.just(mappingResponse(field = "name"))
+        val resolver = ElasticsearchIndexMappingResolver(client)
+
+        resolver.refresh(INDEX).block()!!.maxResultWindow.assert().isEqualTo(DEFAULT_MAX_RESULT_WINDOW)
+
+        every { indicesClient.getSettings(any<GetIndicesSettingsRequest>()) } returns Mono.just(
+            indexSettingsResponse(maxResultWindow = 20),
+        )
+        resolver.refresh(INDEX).block()!!.maxResultWindow.assert().isEqualTo(20)
     }
 
     @Test

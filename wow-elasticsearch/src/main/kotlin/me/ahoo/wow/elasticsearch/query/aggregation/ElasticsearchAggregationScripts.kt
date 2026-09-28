@@ -202,7 +202,7 @@ internal class RuntimeExpressionCompiler(private val admitted: AdmittedQuery<*>)
         val value = "v$id"
         val fieldVariable = "f$id"
         val parameter = "f$id"
-        params[parameter] = JsonData.of(resolved.physicalField.path)
+        params[parameter] = JsonData.of(admitted.physicalPath(field))
         source.append("def $value=null;")
         source.append("String $fieldVariable=params.$parameter;")
         source.append("if(doc.containsKey($fieldVariable)&&doc[$fieldVariable].size() == 1){")
@@ -234,7 +234,7 @@ internal class RuntimeExpressionCompiler(private val admitted: AdmittedQuery<*>)
         val raw = "r$id"
         val candidate = "c$id"
         val parameter = "f$id"
-        params[parameter] = JsonData.of(field.physicalPath(admitted))
+        params[parameter] = JsonData.of(admitted.physicalPath(field))
         source.append("def $value=null;")
         source.append("String $fieldVariable=params.$parameter;")
         source.append("if(doc.containsKey($fieldVariable)&&doc[$fieldVariable].size() == 1){")
@@ -291,6 +291,3 @@ private fun painlessBinary(left: String, operator: AggregationExpressionOperator
     }
     return "$left $symbol $right"
 }
-
-/** The absolute physical path admission resolved for this reference, which nested aggregations address. */
-internal fun QueryField.physicalPath(admitted: AdmittedQuery<*>): String = admitted.field(this).physicalField.path

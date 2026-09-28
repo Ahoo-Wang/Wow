@@ -68,7 +68,6 @@ class BackendHelperGuardrailTest {
         )
 
         const val MONGO = "wow-mongo/src/main/kotlin/me/ahoo/wow/mongo/query"
-        const val ELASTICSEARCH = "wow-elasticsearch/src/main/kotlin/me/ahoo/wow/elasticsearch/query"
 
         val ALLOWED: Map<Pair<String, String>, Int> = mapOf(
             "$MONGO/AbstractMongoQueryBackend.kt" to PHYSICAL_FIELD_PATH to 1,
@@ -76,11 +75,6 @@ class BackendHelperGuardrailTest {
             "$MONGO/aggregation/MongoAggregationExpressions.kt" to PHYSICAL_PATH to 1,
             "$MONGO/aggregation/MongoAggregationExpressions.kt" to PHYSICAL_FIELD_PATH to 1,
             "$MONGO/aggregation/MongoAggregationGroups.kt" to PHYSICAL_FIELD_PATH to 1,
-            "$ELASTICSEARCH/AbstractElasticsearchFilterCompiler.kt" to PHYSICAL_FIELD_PATH to 2,
-            "$ELASTICSEARCH/ElasticsearchProjectionCompiler.kt" to PHYSICAL_FIELD_PATH to 1,
-            "$ELASTICSEARCH/aggregation/ElasticsearchAggregationScripts.kt" to PHYSICAL_PATH to 1,
-            "$ELASTICSEARCH/aggregation/ElasticsearchAggregationScripts.kt" to PHYSICAL_FIELD_PATH to 2,
-            "$ELASTICSEARCH/aggregation/ElasticsearchAggregationSources.kt" to PHYSICAL_FIELD_PATH to 2,
         )
     }
 }

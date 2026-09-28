@@ -29,7 +29,6 @@ import io.mockk.slot
 import io.mockk.verify
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.elasticsearch.query.compile
-import me.ahoo.wow.elasticsearch.query.snapshot.SnapshotFilterCompiler
 import me.ahoo.wow.query.GroupWindow
 import me.ahoo.wow.query.dsl.aggregation
 import org.junit.jupiter.api.Test
@@ -212,7 +211,7 @@ class ElasticsearchSummaryExecutionTest {
     private fun plan() = compile(aggregation { count("count") })
 
     private fun compile(query: me.ahoo.wow.api.query.AggregationQuery) =
-        ElasticsearchAggregationCompiler(SnapshotFilterCompiler).compile(query, schema)
+        ElasticsearchAggregationCompiler.compile(query, schema)
 
     private fun response(count: Long, timedOut: Boolean = false): SearchResponse<Map<*, *>> = response(
         Aggregate.of { aggregate -> aggregate.filter { filter -> filter.docCount(count) } },

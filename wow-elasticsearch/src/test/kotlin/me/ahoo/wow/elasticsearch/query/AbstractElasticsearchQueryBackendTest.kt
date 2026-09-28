@@ -15,7 +15,6 @@ package me.ahoo.wow.elasticsearch.query
 
 import co.elastic.clients.elasticsearch._types.FieldValue
 import co.elastic.clients.elasticsearch._types.mapping.TypeMapping
-import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.matchAll
 import co.elastic.clients.elasticsearch.core.ClosePointInTimeRequest
 import co.elastic.clients.elasticsearch.core.ClosePointInTimeResponse
 import co.elastic.clients.elasticsearch.core.CountRequest
@@ -25,6 +24,7 @@ import co.elastic.clients.elasticsearch.core.OpenPointInTimeResponse
 import co.elastic.clients.elasticsearch.core.SearchRequest
 import co.elastic.clients.elasticsearch.core.SearchResponse
 import co.elastic.clients.elasticsearch.core.search.TotalHitsRelation
+import co.elastic.clients.elasticsearch.indices.GetIndicesSettingsRequest
 import co.elastic.clients.elasticsearch.indices.GetMappingRequest
 import co.elastic.clients.elasticsearch.indices.GetMappingResponse
 import co.elastic.clients.elasticsearch.indices.get_mapping.IndexMappingRecord
@@ -36,7 +36,6 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.query.CursorQuery
 import me.ahoo.wow.api.query.EqualFilter
-import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.PagedQuery
@@ -46,7 +45,6 @@ import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.api.query.schema.QueryCapability
 import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.elasticsearch.query.snapshot.ElasticsearchSnapshotQueryBackendFactory
-import me.ahoo.wow.elasticsearch.query.snapshot.SnapshotFilterCompiler
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.query.CursorPosition
 import me.ahoo.wow.query.PageWindow
@@ -75,12 +73,7 @@ import java.time.Duration
 @Suppress("LargeClass")
 class AbstractElasticsearchQueryBackendTest {
     private val elasticsearchClient = mockk<ReactiveElasticsearchClient>()
-    private val filterCompiler = mockk<AbstractElasticsearchFilterCompiler> {
-        every { compile(any<me.ahoo.wow.api.query.FilterExpression>(), any()) } returns matchAll { it }
-        every { compile(any<me.ahoo.wow.query.AdmittedQuery<me.ahoo.wow.api.query.FilterExpression>>()) } returns
-            matchAll { it }
-    }
-    private val queryBackend = TestElasticsearchQueryBackend(elasticsearchClient, filterCompiler)
+    private val queryBackend = TestElasticsearchQueryBackend(elasticsearchClient)
     private val schema = nativeSchema(
         model = QueryModel.SNAPSHOT,
         capabilities = emptySet(),
@@ -407,6 +400,7 @@ class AbstractElasticsearchQueryBackendTest {
         val searchRequest = slot<SearchRequest>()
         val indicesClient = mockk<ReactiveElasticsearchIndicesClient>()
         every { elasticsearchClient.indices() } returns indicesClient
+        every { indicesClient.getSettings(any<GetIndicesSettingsRequest>()) } returns Mono.just(indexSettingsResponse())
         every { indicesClient.getMapping(any<GetMappingRequest>()) } returns Mono.just(emptyMappingResponse())
         every { elasticsearchClient.openPointInTime(capture(openRequest)) } returns Mono.just(openPointInTimeResponse())
         every { elasticsearchClient.search(capture(searchRequest), ObjectNode::class.java) } returns Mono.just(
@@ -442,7 +436,7 @@ class AbstractElasticsearchQueryBackendTest {
             searchResponse(total = null),
         )
         val physicalSchema = physicalSchema()
-        val backend = TestElasticsearchQueryBackend(elasticsearchClient, SnapshotFilterCompiler)
+        val backend = TestElasticsearchQueryBackend(elasticsearchClient)
         val query = ListQuery(
             filter = EqualFilter(QueryField("state.name"), JsonNodeFactory.instance.stringNode("value")),
             sort = listOf(Sort(QueryField("state.rank"), Sort.Direction.ASC)),
@@ -636,7 +630,7 @@ class AbstractElasticsearchQueryBackendTest {
         )
 
         val physicalSchema = physicalSchema()
-        val backend = TestElasticsearchQueryBackend(elasticsearchClient, SnapshotFilterCompiler)
+        val backend = TestElasticsearchQueryBackend(elasticsearchClient)
         val filter = EqualFilter(QueryField("state.name"), JsonNodeFactory.instance.stringNode("value"))
         val result = backend.count(QueryAdmission.Trusted.count(filter, physicalSchema)).block()!!
 
@@ -789,7 +783,6 @@ class AbstractElasticsearchQueryBackendTest {
 
     private open class TestElasticsearchQueryBackend(
         override val elasticsearchClient: ReactiveElasticsearchClient,
-        override val filterCompiler: AbstractElasticsearchFilterCompiler,
     ) : AbstractElasticsearchQueryBackend() {
         override val namedAggregate: NamedAggregate = MaterializedNamedAggregate("test", "aggregate")
         override val indexName: String = "test-index"

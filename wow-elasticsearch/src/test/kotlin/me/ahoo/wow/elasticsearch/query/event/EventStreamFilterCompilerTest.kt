@@ -24,6 +24,7 @@ import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.schema.QueryCapability
 import me.ahoo.wow.api.query.schema.QueryModel
+import me.ahoo.wow.elasticsearch.query.ElasticsearchFilterCompiler
 import me.ahoo.wow.elasticsearch.query.compile
 import me.ahoo.wow.elasticsearch.query.nativeBindings
 import me.ahoo.wow.elasticsearch.query.nativeSchema
@@ -45,27 +46,27 @@ class EventStreamFilterCompilerTest {
         },
     )
 
-    private fun EventStreamFilterCompiler.compileAdmitted(filter: FilterExpression): Query = compile(filter, schema)
+    private fun ElasticsearchFilterCompiler.compileAdmitted(filter: FilterExpression): Query = compile(filter, schema)
 
     @Test
     fun `match all filter should include deleted event streams`() {
-        EventStreamFilterCompiler.compileAdmitted(MatchAllFilter)._kind().assert().isEqualTo(
+        ElasticsearchFilterCompiler.compileAdmitted(MatchAllFilter)._kind().assert().isEqualTo(
             Query.Kind.MatchAll,
         )
     }
 
     @Test
     fun `event metadata filters should use source metadata fields`() {
-        EventStreamFilterCompiler.compileAdmitted(IdFilter("id-1")).term().field().assert()
+        ElasticsearchFilterCompiler.compileAdmitted(IdFilter("id-1")).term().field().assert()
             .isEqualTo(MessageRecords.ID)
-        EventStreamFilterCompiler.compileAdmitted(AggregateIdFilter("aggregate-1")).term().field().assert()
+        ElasticsearchFilterCompiler.compileAdmitted(AggregateIdFilter("aggregate-1")).term().field().assert()
             .isEqualTo(MessageRecords.AGGREGATE_ID)
 
-        EventStreamFilterCompiler.compileAdmitted(IdsFilter(listOf("id-1", "id-2"))).terms().apply {
+        ElasticsearchFilterCompiler.compileAdmitted(IdsFilter(listOf("id-1", "id-2"))).terms().apply {
             field().assert().isEqualTo(MessageRecords.ID)
             terms().value().map { it.stringValue() }.assert().containsExactly("id-1", "id-2")
         }
-        EventStreamFilterCompiler.compileAdmitted(
+        ElasticsearchFilterCompiler.compileAdmitted(
             AggregateIdsFilter(listOf("aggregate-1", "aggregate-2")),
         ).terms().apply {
             field().assert().isEqualTo(MessageRecords.AGGREGATE_ID)
@@ -75,14 +76,14 @@ class EventStreamFilterCompilerTest {
 
     @Test
     fun `a field bound to the native document id compiles to an ids query`() {
-        val actual = EventStreamFilterCompiler.compileAdmitted(filter { "_id" eq "stream-id" })
+        val actual = ElasticsearchFilterCompiler.compileAdmitted(filter { "_id" eq "stream-id" })
 
         actual.ids().values().assert().containsExactly("stream-id")
     }
 
     @Test
     fun `should qualify relative element predicate fields`() {
-        val actual = EventStreamFilterCompiler.compileAdmitted(
+        val actual = ElasticsearchFilterCompiler.compileAdmitted(
             filter {
                 MessageRecords.BODY.elementMatch {
                     "name" eq "value"

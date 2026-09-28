@@ -30,7 +30,8 @@ class ElasticsearchSortCompilerTest {
         model = QueryModel.EVENT_STREAM,
         capabilities = emptySet(),
         fields = mapOf(
-            QueryField("name") to sortFieldSchema(QueryField("body.name")),
+            QueryField("name") to sortFieldSchema(QueryField("body.name"), scope = QueryField("body")),
+            QueryField("title") to sortFieldSchema(QueryField("body.title")),
             QueryField("id") to sortFieldSchema(QueryField("id")),
             QueryField("field1") to sortFieldSchema(QueryField("field1")),
             QueryField("field2") to sortFieldSchema(QueryField("field2")),
@@ -77,6 +78,15 @@ class ElasticsearchSortCompilerTest {
         actual.map { it.order() }.assert().containsExactly(SortOrder.Asc, SortOrder.Desc)
         actual.map { requireNotNull(it.missing()).stringValue() }.assert().containsExactly("_first", "_last")
         actual.forEach { requireNotNull(it.nested()).path().assert().isEqualTo("body") }
+    }
+
+    @Test
+    fun `a sort is nested only through the scope its binding declares`() {
+        // The nested path comes from the binding, not from the physical path's name.
+        val actual = ElasticsearchSortCompiler.compile(sort { "title".asc() }, schema).single().field()
+
+        actual.field().assert().isEqualTo("body.title")
+        actual.nested().assert().isNull()
     }
 
     @Test
@@ -169,10 +179,11 @@ class ElasticsearchSortCompilerTest {
         val IDENTITY = QueryField(MessageRecords.AGGREGATE_ID)
     }
 
-    private fun sortFieldSchema(physical: QueryField) = nativeBindings(
+    private fun sortFieldSchema(physical: QueryField, scope: QueryField? = null) = nativeBindings(
         physical,
         QueryCapability.SORT,
         QueryCapability.CURSOR_SORT,
+        scope = scope,
     )
 
     private fun fieldSchema(vararg bindings: Pair<QueryCapability, QueryField>) =
