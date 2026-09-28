@@ -29,9 +29,8 @@ export interface CategoryFrameInput {
   valueTick: (value: number) => string;
   /**
    * Whether the value axis is read against itself rather than from 0 — a
-   * spread, a price — and then keeps no line or ticks of its own and drops
-   * a tick label that would overlap. A waterfall's axis stands on 0, where
-   * its total does.
+   * spread, a price — and then keeps no line or ticks of its own. A
+   * waterfall's axis stands on 0, where its total does.
    */
   scaled: boolean;
   /** The room under the plot; a waterfall's writes a fall's value there. */
@@ -94,7 +93,10 @@ export function categoryFrame({
         : {}),
       axisLabel: {
         color: theme.axis.color,
-        ...(scaled ? { hideOverlap: true } : {}),
+        // A tick label that would overlap its neighbour is dropped, on
+        // every axis of the three: a waterfall's too (2026-09-27, it wrote
+        // them over each other on a short plot).
+        hideOverlap: true,
         formatter: valueTick,
       },
       splitLine: { lineStyle: { ...theme.grid } },

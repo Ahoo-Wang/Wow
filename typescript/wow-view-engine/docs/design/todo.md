@@ -31,21 +31,17 @@
 
 第一轮扫描（重复度、依赖方向、没人用的导出）的发现，用户 2026-09-27 按推荐定；同时只跑一个子代理，一件做完再派下一件。
 
-1. **ui 各功能目录之间不成环，焦点工具只有一份，图的框架只有一份**（在做，分支 `refactor/ui-cycles`）：
-   - 为什么：`ui/charts` 为 `pointAnchor` 反向依赖 `ui/analysis`，`ui/filter` 为 `focusIn`／`useLanding` 反向依赖 `ui/analysis` 与 `ui/dashboard`；`focusIn`、`FOCUSABLE` 存了两份；箱线图、K 线图、瀑布图的「类目 × 数值」框架逐字重复；`isRemovable` 等内部死代码与多余的 `export`。
-   - 判据：`test/architecture.test.ts` 有一条「ui 功能目录之间不成环」的规则并带允许方向表；三种图的 option 逐字节不变；引擎测试、构建与相关故事通过。落点：`src/ui/focus.ts`、`src/ui/charts/`、`test/architecture.test.ts`。
-2. **入口逐个点名导出，公开面是有意识的决定**：
+1. **入口逐个点名导出，公开面是有意识的决定**：
    - 为什么：`src/index.ts`、`src/ui/index.ts`、`src/react/index.ts` 是整模块 `export *`，文件里为内部复用写的 `export` 都成了公开 API；审查找到 15 个没有任何调用方、文档与测试的公开导出。首发后每一个都要背兼容。
    - 裁定（用户：「按你推荐」）：`HeadingPanel` 保留（README 点名，宿主单独渲染标题卡用），补一个单独渲染的故事；`useSurfacePreset` 删掉（#3648 把预设写到 `<html>` 后已无人调用）；其余收回不公开——`useMessages`、`refreshIntervalLabel`、`remainingLabel`、`ALL_FEATURES`、`sameLayout`、`elementTitleView`、`VALUE_METRIC_TYPES`、`DATE_AGGREGATION_FUNCTIONS`、`SINGLE_STRING_FIELD_KIND_IDS`、`RELATIVE_DATE_DIRECTIONS`、`DEFAULT_COMPARE_BUDGET`、`FIELD_NAME_PATTERN` 与 `documentIdFieldKind` 等五个元数据字段类型（已由 `builtinFieldKinds` 整体给出）。
    - 判据：三个入口里没有 `export *`，每个公开名在入口里明写一行（可用类型检查器按现有导出生成，再减去上面的名字）；`test/surface/*.txt` 只少这些名字、不多不少；加一条架构测试：入口不许 `export *`；README「Entries」与 D29 的说法照改。落点：三个入口、`test/publicSurface.test.ts`、`test/architecture.test.ts`。
-3. **内存版 Wow 查询求值器只留一份**（用户：「同意」）：
+2. **内存版 Wow 查询求值器只留一份**（用户：「同意」）：
    - 为什么：Storybook 的 `stories/view-engine/rowSource.ts`（约 1,500 行）与补偿控制台 e2e 的 `e2e/support/executionFailedService.ts` 各自实现一遍 Wow 的筛选与聚合语义，各自漏算子、互相漂移（R1-P1-11 故事源不认 `IS_EMPTY`；控制台桩不认 `DATE_PART` 与百分位，2026-09-27 补上）。
    - 判据：一份共用实现（放在不发 npm 的工作区包里，或视图引擎的测试夹具下由两处引用），两处都改用它；语义按 Kotlin 侧的 `FilterSemantics` 矩阵与 TCK 的用例核对（同一份用例在 TS 里跑一遍）；Storybook 与控制台 e2e 全部通过。落点：新共用位置、`rowSource.ts`、`executionFailedService.ts`。
-4. **其余发现**（同批顺带或各自一个小 PR）：
+3. **其余发现**（同批顺带或各自一个小 PR）：
    - wow-mongo 的「空值安全的二元运算」（`$let`＋`$cond`、除零保护）在 `MongoAggregationExpressions.kt` 与 `MongoAggregationProjection.kt` 各写一遍——抽成一个函数，两处共用，行为不变。
    - `RecordWorkbench.test.stories.tsx` 约 7,000 行、九十多个故事——按关注点拆成几个文件（筛选、表格、主题与密度、详情、批量）。
-   - 瀑布图的数值轴刻度没有 `hideOverlap`，箱线图与 K 线图有（用户 2026-09-27：「同意」改）：`src/ui/charts/categoryFrame.ts` 一个开关；交回做第 1 件的子代理。
-   - **ui 根目录拆成三层**（方案用户 2026-09-27 确认；交做第 1 件的子代理，在第 2 件合并之后、队列里没有别的改动时单独一个 PR）：
+   - **ui 根目录拆成三层**（方案用户 2026-09-27 确认；交做 ui 目录去环（#3717）的子代理，在第 1 件合并之后、队列里没有别的改动时单独一个 PR）：
      - 为什么：根目录约 80 个文件是三种东西——41 个共用基础件（子目录用它、它不依赖功能：IconButton、popups、variants、alerts、toolbar、roving、拖动四件、MessagesProvider、display、layout……）、5 个外壳（DataWorkbench、DashboardWorkbench、EmbeddedView、EmbeddedDashboard、ViewManager）、19 个放错地方的功能部件（既依赖功能目录又被依赖——根目录与子目录双向依赖的来源：RecordTable、ColumnSettings、FilterPanel、AnalysisTable、DashboardGrid、WorkbenchShell、ViewSurface……），另有 14 个只在根目录内互用的（看板编排与面板、保存／冲突／离开确认、导出步骤）。
      - 做法：`ui/kit/` 放共用基础件（连同 `focus.ts`、`anchor.ts`），只依赖 components／lib／theme／messages；功能部件归到各自的目录（表格、卡片、分页、行操作、结果工具栏、批量状态 → `record/`；列设置 → `columns/`；排序设置 → `sort/`；筛选面板、条件值编辑、已应用条 → `filter/`；分析表、图外框、字段菜单 → `analysis/`；看板网格、面板、编排 → `dashboard/`；视图列表、视图头、保存／另存／删除／冲突／离开、刷新、导出 → `workbench/`）；根目录只留外壳与入口。先处理 `ViewSurface`、`RenderBoundary` 对 `charts` 的依赖（它们属于底层）。
      - 判据：`test/architecture.test.ts` 的 ui 方向表把 `kit` 放在所有功能目录之下，并加一条「除入口与外壳外，无人依赖根目录」；公开面快照一个名字不变；引擎测试、构建、全部故事与控制台通过。
