@@ -651,7 +651,7 @@
 - **来由**：用户 2026-09-27 走查补偿控制台：「整体视觉不一致」「记录视图是 Apple 风格吗？」。对照桌面上的列表类应用（访达列表、邮件、活动监视器）在真实数据上审查了失败执行的记录视图，大方向对（系统字体、表头是行本身的白、条纹、灰色侧栏），八处不像。
 - **裁定**（用户：「都按你推荐」）：
   1. **porcelain 推荐紧凑密度**（`preset-density` +1 → −1）：行 45 → 33px，同屏约 20 → 30 行；复选框仍守 24px 的点击目标；宿主的 `data-fve-density` 仍优先。
-  2. **一条工具栏**：标题、筛选、搜索、布局、排序、导出在一行，已应用的条件在其下一条细带（下一批）。
+  2. **一条工具栏**：标题、筛选、搜索、布局、排序、导出在一行，已应用的条件在其下一条细带（下一批）。——**已否决**（D63：结果工具栏承载批量操作）。
   3. **侧栏的当前项是一条填色的灰条**（`nav-current` 比悬停深一档，无边、无影），不是凸起的白卡片（那是手机的分段滑块）。
   4. **有条纹就不画行线**：新角色 `row-divider`（表体行线，缺省 `border`），porcelain 为透明；强制颜色下行线恢复。
   5. **只有在排序的列显示箭头**：新角色 `table-sort-idle`（未排序标记的不透明度，缺省 1），porcelain 为 0；只在有悬停的设备上隐去，指针或聚焦时出现，位置始终保留——满足了当初否掉「悬停才显示」的两条理由（触屏看不到、表头挪动）。
@@ -681,6 +681,13 @@
 - **裁定**（用户：「按你推荐」）：`array` 与 `elementMatch` 只留两个——`IS_EMPTY` 读作「没有条目」，发成 `IS_EMPTY OR IS_NULL`（MongoDB 的 `$size: 0` 只认真正的空数组，漏掉缺失与 null）；`IS_NOT_NULL` 读作「有条目」，发成二者的 `NOR`。编辑器与条上都用 `relations` 说成这两句。首发前改，不留兼容层：存下的其他三个判空在列表上报算子不支持。
 - **没选**：五个都留、只改措辞（仍是五个要分辨的选项）；新造 `IS_NOT_EMPTY` 算子名（Wow 没有，存下的条件要能直接读成 Wow 的算子）。
 - **落点**：`src/filter/kinds/entries.ts`、`array.ts`、`elementMatch.ts`；`FieldKind.compiledOperators` 与 `capabilities/fields.ts` 的收窄（一个算子发成几个时，几个都要被准入）；[extension.md](extension.md)。
+
+## D63 记录视图靠结构撑住信息密度：porcelain 的边与高度还原（2026-09-27）
+
+- **来由**：用户 2026-09-27 看「一条工具栏」设计稿后否决，并指出：「边框不能去」「之前是不是还改了字体大小、高度，应该要还原，对于企业场景来说这太小了，太紧凑了，用户看得会很疲惫」「记录视图需要结构化去支撑复杂的信息密度，否则视觉上会很混乱」。
+- **裁定**（修订 D59 第 1、3、4、5、6 项与 D43 在 porcelain 上的无边做法）：porcelain 不再拿掉任何线与边——表体行线（`row-divider`）、卡片环线（`card-edge`，取边框灰）、以文字或图标自明的控件的边（`control-edge`：筛选胶囊、分段控件、工具栏描边按钮）、侧栏当前项的边与阴影、徽标的环都回到样式表的；未排序列的排序标记常显（`table-sort-idle` 回到 1）；不推荐密度（去掉 `preset-density` −1，行高回到默认 45px），控件高度回到样式表的 32px／28px。填色仍在（`control`、侧栏当前项的灰条），它与边并存。
+- **不做**：D59 第 2 项「一条工具栏」——结果工具栏承载选中后的批量操作，不能并进标题行（设计稿已否决）。
+- **落点**：`src/themes/porcelain.css`、`test/snapshots/resolvedTokens.json`；故事 `Density`「PresetRecommends」、`Home`「porcelain」、`DashboardFilters`「ChipsUnsetInPorcelain」、`RecordWorkbench`「ToolbarButtonsFillInPorcelain」。
 
 ## 搁置待议
 

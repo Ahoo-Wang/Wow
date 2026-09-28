@@ -6958,9 +6958,9 @@ const toolbarButtonsIn = (preset: 'porcelain' | 'neutral'): Story => ({
       }).toEqual(want);
     });
     if (preset === 'porcelain') {
-      // Filled, and no edge left to see.
+      // Filled, and its edge kept (D63).
       await expect(want.fill).not.toBe(token('var(--background)', '').fill);
-      await expect(want.edge).toMatch(/\/ 0\)$|, 0\)$/);
+      await expect(want.edge).not.toMatch(/\/ 0\)$|, 0\)$/);
     }
   },
 });

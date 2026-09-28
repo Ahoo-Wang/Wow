@@ -23,14 +23,15 @@
  *   as it.
  * - **Layers are opaque.** A board and the record cards stand on the
  *   window's ground (`canvas`, #EEEEF0; dark #1C1C1E), and a card is white on
- *   it, lifted by two soft 4% shadows and no ring (`card-edge`,
- *   `card-shadow`; D43); dark lifts by lightness — page #1E1E1E, card
+ *   it, lifted by two soft 4% shadows and ringed in the border's grey
+ *   (`card-edge`, `card-shadow`; D43, the ring kept by D63); dark lifts by lightness — page #1E1E1E, card
  *   #2C2C2E, popup #343436 — and a white 8% inner hairline. There is no
  *   translucency: for the quiet grey to hold 4.5:1 over the worst content
  *   behind it a popup needs 96% opacity, where the blur no longer shows.
  * - **Controls a word or an icon names are filled, not outlined**: a board
- *   filter's chip and a segmented control take #767680 at 12% with no edge
- *   (`control`, `control-edge`), the pressed segment a white thumb on it
+ *   filter's chip, a segmented control and a toolbar's outline buttons take
+ *   #767680 at 12% inside the border's grey edge (`control`, `control-edge`;
+ *   the edge kept by D63), the pressed segment a white thumb on it
  *   (`control-thumb`). Dark is the opaque #3A3A3C, thumb #636366: a
  *   translucent fill laid over the thumb's own ring would be a third grey
  *   rather than the track. A box one types into keeps its 3:1 `input` edge.
@@ -43,10 +44,8 @@
  * - **A pressed segment is a raised white thumb**: two soft shadows under
  *   it (`control-thumb-shadow`) so it reads as lifted off the grey track
  *   rather than cut out of it.
- * - **One control height, 28px** (`control-height` and `-sm`): a desktop
- *   toolbar's controls and a dialog's fields are the same compact step,
- *   and a board filter's chip is 34px whether it holds a select or a text
- *   box (it was 34 beside 38).
+ * - **Controls keep the stylesheet's heights**, 32px and 28px for the small
+ *   step (D63): the 28px-for-all it had read too small for a working day.
  * - **Corners by part**: `radius` 6px, so a control, a chip and a sidebar
  *   item round like the desktop's 5–6px controls; a popup 8px; a card and
  *   a dialog keep 12px (`radius-card`).
@@ -113,25 +112,15 @@
  *   and 21.6 / 10.6 / 16.6 / 18.4 in dark, where blue, pink, purple and red
  *   are lifted so a label inside reads 4.5:1 on the lighter dark card.
  *
- * Recommended density
- * (`--fvp-preset-density`, themes.md 2.4): compact, −1 — a desktop list's
- * rows of 33px (the checkbox keeps its 24px target), a sidebar's 24px items
- * and 8px round a panel. It was comfortable, +1: rows of 45px, twenty to a
- * screen, which read as a web page's table (2026-09-27 review, user ruling
- * on the recommendation); a host's `data-fve-density` still wins.
+ * No recommended density: the stylesheet's default rows (D63). The compact
+ * step D59 recommended — rows of 33px — read too small and too tight for
+ * a working day; a host that wants it still sets `data-fve-density`.
  *
- * A desktop list and its sidebar (2026-09-27 review):
+ * A desktop list and its sidebar (2026-09-27 review, D59 as D63 revised
+ * it — every line and edge kept):
  *
- * - **Rows are separated by the stripe alone** (`row-divider`
- *   transparent): a list is striped or ruled, not both.
- * - **An idle sort mark shows under the pointer** (`table-sort-idle` 0),
- *   as a desktop list marks only the column it is sorted by; its room is
- *   kept, and a touch screen shows it always.
  * - **The sidebar's current item is a filled grey bar** (`nav-current`, a
- *   step deeper than a hovered item, no edge and no shadow), not a raised
- *   white card — that is a phone's segmented thumb.
- * - **A badge is a wash with no ring** (`badge-edge` 0%): the tint and the
- *   word already say the state.
+ *   step deeper than a hovered item) with the stylesheet's edge.
  */
 :where([data-fve-preset='porcelain']) {
   --fvp-foreground: oklch(0.2316 0.0038 286.099deg);
@@ -212,37 +201,26 @@
   --fvp-font-sans:
     -apple-system, BlinkMacSystemFont, system-ui, 'PingFang SC',
     'Hiragino Sans GB', 'Microsoft YaHei', 'Segoe UI', sans-serif;
-  --fvp-preset-density: -1;
-  --fvp-row-divider: transparent;
-  --fvp-dark-row-divider: transparent;
-  --fvp-table-sort-idle: 0;
   --fvp-nav-current: oklch(0.905 0.0068 286.27deg);
   --fvp-dark-nav-current: oklch(0.4 0.0036 286.2deg);
-  --fvp-nav-current-edge: transparent;
-  --fvp-dark-nav-current-edge: transparent;
-  --fvp-nav-current-shadow: 0 0 #0000;
-  --fvp-dark-nav-current-shadow: 0 0 #0000;
-  --fvp-badge-edge: 0%;
   --fvp-canvas: oklch(0.95 0.0027 286.3deg);
   --fvp-dark-canvas: oklch(0.2273 0.0038 286.092deg);
-  --fvp-card-edge: oklch(0 0 0deg / 0%);
-  --fvp-dark-card-edge: oklch(0 0 0deg / 0%);
+  --fvp-card-edge: oklch(0.9233 0.0067 286.267deg);
+  --fvp-dark-card-edge: oklch(1 0 0deg / 10%);
   --fvp-card-shadow:
     0 1px 2px 0 oklch(0 0 0deg / 4%), 0 2px 8px 0 oklch(0 0 0deg / 4%);
   --fvp-dark-card-shadow:
     0 1px 2px 0 oklch(0 0 0deg / 30%), inset 0 0 0 0.5px oklch(1 0 0deg / 8%);
   --fvp-control: oklch(0.5692 0.0152 285.906deg / 12%);
   --fvp-dark-control: oklch(0.3492 0.0034 286.221deg);
-  --fvp-control-edge: oklch(0 0 0deg / 0%);
-  --fvp-dark-control-edge: oklch(0 0 0deg / 0%);
+  --fvp-control-edge: oklch(0.9233 0.0067 286.267deg);
+  --fvp-dark-control-edge: oklch(1 0 0deg / 15%);
   --fvp-control-thumb: oklch(1 0 0deg);
   --fvp-dark-control-thumb: oklch(0.5007 0.0047 286.229deg);
   --fvp-control-thumb-shadow:
     0 1px 2px 0 oklch(0 0 0deg / 16%), 0 0 0 0.5px oklch(0 0 0deg / 8%);
   --fvp-dark-control-thumb-shadow:
     0 1px 2px 0 oklch(0 0 0deg / 45%), 0 0 0 0.5px oklch(0 0 0deg / 30%);
-  --fvp-control-height: 1.75rem;
-  --fvp-control-height-sm: 1.75rem;
   --fvp-radius-card: 0.75rem;
   --fvp-radius-control: 0.375rem;
   --fvp-radius-popover: 0.5rem;

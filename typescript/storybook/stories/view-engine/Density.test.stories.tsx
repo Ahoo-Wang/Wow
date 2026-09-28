@@ -152,8 +152,9 @@ export const HostLengthsOverDensity: Story = {
 };
 
 /**
- * With no density anywhere, a surface sits where its preset recommends:
- * `porcelain` recommends compact, a desktop list's rows (D59).
+ * With no density anywhere, a surface sits where its preset recommends, and
+ * no built-in preset recommends one any more: `porcelain`'s compact rows
+ * (D59) read too small for a working day, so it has the default's (D63).
  */
 export const PresetRecommends: Story = {
   ...DisplayWithData,
@@ -166,7 +167,7 @@ export const PresetRecommends: Story = {
     await expect(surface.hasAttribute('data-fve-density')).toBe(false);
     await waitFor(() => {
       const head = surface.querySelector('[data-slot="table-head"]')!;
-      expect(head.getBoundingClientRect().height).toBe(EXPECTED.compact.head);
+      expect(head.getBoundingClientRect().height).toBe(EXPECTED.default.head);
     });
   },
 };
