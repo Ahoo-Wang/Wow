@@ -36,9 +36,26 @@ export interface MemoryViewStoreOptions {
   snapshot?: MemorySnapshot;
 }
 
+/**
+ * Where a `MemoryViewStore` keeps its state between page loads: the whole
+ * state, read and written as one document, synchronously.
+ *
+ * The store reads it when it is made, again before every write, and again
+ * whenever `subscribe` says another writer changed it, so every write is
+ * checked against what is stored now rather than what this store last saw
+ * (see `MemoryViewStore`). `load` answers `undefined` for nothing readable,
+ * and the store then keeps what it holds.
+ *
+ * `save` throws when the state could not be kept — storage full, blocked,
+ * refused. The store then undoes the write in memory and rejects it with a
+ * `ViewStoreError` (`UNAVAILABLE`), so nobody is told a view was saved that
+ * the next page load will not have.
+ */
 export interface MemorySnapshot {
   load(): MemoryState | undefined;
   save(state: MemoryState): void;
+  /** Tells the store that another writer changed the state; answers the unsubscribe. */
+  subscribe?(listener: () => void): () => void;
 }
 
 export interface MemoryState {
@@ -54,6 +71,18 @@ export interface MemoryState {
  * with a stale revision conflicts, and a replayed `requestId` returns the
  * first outcome instead of writing twice, so code written against it behaves
  * the same against a real backend.
+ *
+ * With a snapshot, several stores may share one stored state — two tabs over
+ * one `localStorage`. The rule between them is the backend's: **re-read, then
+ * compare revisions, one instance (or one definition's preferences) at a
+ * time.** Before every write the store reloads the stored state, so a write
+ * merges into what the other writer left — a board created in one tab
+ * survives a reorder in the other, and ids never collide — and a write whose
+ * `revision` the other writer has already moved past is refused as
+ * `CONFLICT`, carrying what is stored, as any stale write is. Nothing is ever
+ * overwritten because this store's copy was old. A write the snapshot could
+ * not keep is undone and rejected as `UNAVAILABLE`: it did not land, so a
+ * retry under the same `requestId` is safe.
  */
 export class MemoryViewStore implements ViewStore {
   private readonly instances = new Map<string, ViewInstance>();
@@ -73,12 +102,11 @@ export class MemoryViewStore implements ViewStore {
     this.snapshot = options.snapshot;
 
     const restored = options.snapshot?.load();
-    for (const instance of restored?.instances ?? options.instances ?? [])
-      this.instances.set(instance.id, copy(instance));
-    for (const [definitionId, preferences] of Object.entries(
-      restored?.preferences ?? options.preferences ?? {},
-    ))
-      this.preferences.set(definitionId, preferences);
+    this.restore({
+      instances: restored?.instances ?? options.instances ?? [],
+      preferences: restored?.preferences ?? options.preferences ?? {},
+    });
+    options.snapshot?.subscribe?.(() => this.reload());
   }
 
   list(definitionId: string): Promise<ViewInstanceSummary[]> {
@@ -105,6 +133,7 @@ export class MemoryViewStore implements ViewStore {
       return Promise.reject(
         new ViewStoreError('INVALID', 'System views are declared in code'),
       );
+    this.reload();
 
     // Seeded instances occupy ids too, so the counter walks past anything
     // already taken rather than overwriting it.
@@ -120,7 +149,7 @@ export class MemoryViewStore implements ViewStore {
 
     const instance: ViewInstance = { ...copy(input), id, revision: '1' };
     this.instances.set(id, instance);
-    return this.commit(context, instance);
+    return this.commit(context, instance, () => this.instances.delete(id));
   }
 
   save(
@@ -149,6 +178,7 @@ export class MemoryViewStore implements ViewStore {
 
   delete(id: string, revision: string, context: WriteContext): Promise<void> {
     if (this.outcomes.has(context.requestId)) return Promise.resolve();
+    this.reload();
     const current = this.instances.get(id);
     if (!current)
       return Promise.reject(
@@ -164,8 +194,9 @@ export class MemoryViewStore implements ViewStore {
     if (conflict) return Promise.reject(conflict);
 
     this.instances.delete(id);
+    const refused = this.persist(() => this.instances.set(id, current));
+    if (refused) return Promise.reject(refused);
     this.outcomes.set(context.requestId, null);
-    this.persist();
     return Promise.resolve();
   }
 
@@ -185,8 +216,10 @@ export class MemoryViewStore implements ViewStore {
     // write, and reporting a conflict for it would be a lie.
     const replayed = this.preferenceOutcomes.get(context.requestId);
     if (replayed) return Promise.resolve(replayed);
+    this.reload();
 
-    const current = this.preferences.get(definitionId) ?? emptyPreferences();
+    const held = this.preferences.get(definitionId);
+    const current = held ?? emptyPreferences();
     if (current.revision !== preferences.revision)
       return Promise.reject(
         new ViewStoreError(
@@ -201,8 +234,13 @@ export class MemoryViewStore implements ViewStore {
       revision: String(Number(current.revision) + 1),
     };
     this.preferences.set(definitionId, next);
+    const refused = this.persist(() =>
+      held
+        ? this.preferences.set(definitionId, held)
+        : this.preferences.delete(definitionId),
+    );
+    if (refused) return Promise.reject(refused);
     this.preferenceOutcomes.set(context.requestId, next);
-    this.persist();
     return Promise.resolve(next);
   }
 
@@ -214,6 +252,7 @@ export class MemoryViewStore implements ViewStore {
   ): Promise<ViewInstance> {
     const replayed = this.outcomes.get(context.requestId);
     if (replayed) return Promise.resolve(copy(replayed));
+    this.reload();
 
     const current = this.instances.get(id);
     if (!current)
@@ -232,7 +271,7 @@ export class MemoryViewStore implements ViewStore {
       revision: String(Number(current.revision) + 1),
     };
     this.instances.set(id, next);
-    return this.commit(context, next);
+    return this.commit(context, next, () => this.instances.set(id, current));
   }
 
   private expect(
@@ -251,18 +290,65 @@ export class MemoryViewStore implements ViewStore {
   private commit(
     context: WriteContext,
     instance: ViewInstance,
+    undo: () => void,
   ): Promise<ViewInstance> {
+    const refused = this.persist(undo);
+    if (refused) return Promise.reject(refused);
     this.outcomes.set(context.requestId, instance);
-    this.persist();
     return Promise.resolve(copy(instance));
   }
 
-  private persist(): void {
-    this.snapshot?.save({
-      instances: [...this.instances.values()].map(instance => copy(instance)),
-      preferences: Object.fromEntries(this.preferences),
-    });
+  /**
+   * Hands the state to the snapshot. When it could not be kept, the change
+   * just made is undone — memory goes back to what is stored — and the
+   * refusal is answered, so the write rejects rather than being reported as
+   * saved. No outcome is remembered for it, so a retry writes again.
+   */
+  private persist(undo: () => void): ViewStoreError | undefined {
+    if (!this.snapshot) return undefined;
+    try {
+      this.snapshot.save({
+        instances: [...this.instances.values()].map(instance => copy(instance)),
+        preferences: Object.fromEntries(this.preferences),
+      });
+      return undefined;
+    } catch (error) {
+      undo();
+      return new ViewStoreError(
+        'UNAVAILABLE',
+        `The view store could not keep this write: ${reasonOf(error)}`,
+      );
+    }
   }
+
+  /**
+   * Takes the stored state as it is now, when there is one to read: before a
+   * write, so the write is checked against it, and when another writer says
+   * it changed. Nothing readable leaves what the store holds as it is.
+   */
+  private reload(): void {
+    const stored = this.snapshot?.load();
+    if (stored) this.restore(stored);
+  }
+
+  private restore(state: MemoryState): void {
+    this.instances.clear();
+    this.preferences.clear();
+    for (const instance of state.instances)
+      this.instances.set(instance.id, copy(instance));
+    for (const [definitionId, preferences] of Object.entries(state.preferences))
+      this.preferences.set(definitionId, preferences);
+  }
+}
+
+/** What a refusal said — a `DOMException` is an `Error` only in some realms. */
+function reasonOf(error: unknown): string {
+  if (typeof error === 'object' && error !== null) {
+    const { name, message } = error as { name?: unknown; message?: unknown };
+    if (typeof message === 'string')
+      return typeof name === 'string' ? `${name}: ${message}` : message;
+  }
+  return String(error);
 }
 
 /**

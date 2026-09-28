@@ -1066,7 +1066,7 @@ Details in [docs/design/management.md](docs/design/management.md).
 
 | Entry                        | Exports                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
 | ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `@ahoo-wang/wow-view-engine` | Model types and constants; the four pure kernels (`validate*` / `compile*` / `project*` and the readings beside them); from the runtime, what a host holds and nothing it is built from — `ViewEngine`, `validateDefinition`, the runtime contracts `ViewRuntime`, `RecordViewRuntime`, `DashboardRuntime` and `AnyViewRuntime` with every type their signatures name, `hasResult`, `hasAsked`, `isRecordRuntime`, the write errors `ViewWriteError` and `ViewCommandError`, `ExportCancelled`, `RuntimeEnvironment`, `defaultRuntimeEnvironment`, `ViewSource`, `OptionSource`; the `ViewStore` port and `MemoryViewStore`                            |
+| `@ahoo-wang/wow-view-engine` | Model types and constants; the four pure kernels (`validate*` / `compile*` / `project*` and the readings beside them); from the runtime, what a host holds and nothing it is built from — `ViewEngine`, `validateDefinition`, the runtime contracts `ViewRuntime`, `RecordViewRuntime`, `DashboardRuntime` and `AnyViewRuntime` with every type their signatures name, `hasResult`, `hasAsked`, `isRecordRuntime`, the write errors `ViewWriteError` and `ViewCommandError`, `ExportCancelled`, `RuntimeEnvironment`, `defaultRuntimeEnvironment`, `ViewSource`, `OptionSource`; the `ViewStore` port, `MemoryViewStore` and `localStorageSnapshot`    |
 | `/react`                     | Hooks and headless controllers with the types they return: `useViewEngine`, `useOpenView`, `useViewRuntime`, `useViewList`, `useViewManager`, `useWorkbench`, `useLeaveGuard`, `useFilterEditor`, `useRecordTable`, `useAnalysisEditor`, `useAnalysisResult`, `useDashboard`, `useSaveCommands`, `RecordActionSlots`, and the write-outcome vocabulary the save commands and the manager share                                                                                                                                                                                                                                                         |
 | `/ui`                        | Default components, views and workbenches with their props: `DataWorkbench`, `DashboardWorkbench`, `DashboardEditExtensions`, `useDashboardExtensions`, `EmbeddedView`, `EmbeddedDashboard`, `ViewHeader`, `SaveActions`, `ViewManager`, `LeaveDialog`, `EditorBand`, `FilterPanel`, `StatusStrip`, `AppliedBar`, `ResultToolbar`, `RowActions`, `RecordTable`, `RecordCards`, `RecordPagination`, `AnalysisTable`, `AnalysisChart`, `DashboardGrid`, `HeadingPanel`, `MarkdownPanel`, `ImagePanel`, `LinksPanel`, `MessagesProvider`; the catalogues `defaultMessages` and `zhCN`; the reading of a value, `cellValue`, `cellText` and `displayValue` |
 | `/testing`                   | `memorySource` and `matches`: an in-memory `ViewSource` with Wow's query semantics, for a host's tests ([Testing a host](#testing-a-host-an-in-memory-source))                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
@@ -1126,6 +1126,25 @@ Two rules make it consistent:
 2. **Idempotent `requestId`.** Each logical write gets one `requestId` in `WriteContext`. Retries after a timeout reuse it; the server deduplicates.
 
 The package ships `MemoryViewStore` for tests, examples and query-only use. Business applications implement `ViewStore` against their own API with their own fetcher; mapping HTTP status codes to `ViewStoreError.code` belongs there. Authorization, visibility filtering and deduplication are server responsibilities; `permissions` only drives button availability.
+
+### Local storage, until a backend holds the views
+
+For development and single-user hosts, `localStorageSnapshot(key)` keeps a `MemoryViewStore` in the browser's `localStorage`, as one JSON document under `key`. It is one browser's views, not shared ones; the real home of saved views is a backend behind `ViewStore` (phase 6).
+
+```ts
+import {
+  localStorageSnapshot,
+  MemoryViewStore,
+} from '@ahoo-wang/wow-view-engine';
+
+const store = new MemoryViewStore({
+  snapshot: localStorageSnapshot('my-app:views'),
+});
+```
+
+- **A write storage refuses fails.** A full quota or blocked storage undoes the write and rejects it with `ViewStoreError` code `UNAVAILABLE`: the environment's `onError` hears it as a `store` failure, and the screen shows a save that did not land, with a retry.
+- **Tabs do not overwrite each other.** The store re-reads the document before every write and checks the write's `revision` against it, instance by instance and per definition's preferences. A write merges into what another tab stored — a board saved in one tab survives a reorder in another — and a write another tab has moved past is a `CONFLICT`, as a stale write always is. Another tab's change also reloads the store through the `storage` event.
+- A missing or unreadable document starts empty rather than breaking the page, and the next write replaces it.
 
 ### Wording and language
 

@@ -326,7 +326,8 @@ src/
       press.ts                — `PanelPresses`: a press on a panel's group worked out (D22 H, I), the click read off the panel state and never judged again (A-11) — the group's value in a board filter's shape set from the panel (`crossFilter`, a second press clears), a brushed span set into a date filter wired to the panel (`spanFilters`, `pressSpan`, D33 Q52), whether a group is one pressed (`pressed`, a bucket inside a brushed span included), and where a custom destination goes carrying it (`destination`: a filled URL, a saved view taking what the panel takes off the board (`handOver`) and the group's conditions, on the fields its data has too, or another board with its mapped filters set and the rest at their defaults — a click set aside, or a mapping the board read at the press finds stale, falls back to the follow-up menu); `board`, another board read only when asked
       references.ts           — PanelReferences: loading what panels point at
   store/                      — Persistence port — imports model only
-    MemoryViewStore.ts        — In-memory implementation for examples and tests
+    MemoryViewStore.ts        — In-memory implementation for examples and tests; with a snapshot it re-reads before every write and undoes a write the snapshot refused (`UNAVAILABLE`)
+    localStorageSnapshot.ts   — `localStorageSnapshot(key)`: its snapshot in `localStorage` for development and single-user hosts — a refused write fails, tabs merge by revision or conflict, a `storage` event reloads
     ViewStore.ts              — The only port a backend must satisfy
     index.ts                  — Persistence is one port with eight methods
   testing/                    — The `/testing` entry (D65): an in-memory `ViewSource` with Wow's query semantics, for a host's tests — imports `model` and the `runtime/source` type only

@@ -1,4 +1,4 @@
-# @ahoo-wang/wow-view-engine — 813 names, from src/index.ts.
+# @ahoo-wang/wow-view-engine — 815 names, from src/index.ts.
 # Written by test/publicSurface.test.ts; a change here is a change to
 # the public surface (README「Entries」, docs/design/decisions.md D29).
 value ALWAYS_VISIBLE
@@ -240,6 +240,7 @@ type  IssueSeverity
 type  JsonValue
 value LEGACY_GRID_COLUMNS
 type  LiteralEnums
+type  LocalStorageSnapshotOptions
 value MAX_CHART_LEVELS
 value MAX_DASHBOARD_FILTERS
 value MAX_DASHBOARD_TABS
@@ -638,6 +639,7 @@ value lastPageInWindow
 value leadMetric
 value levelLabel
 value limitBounds
+value localStorageSnapshot
 value mapGlobalFilter
 value mappedValues
 value maxSortFields

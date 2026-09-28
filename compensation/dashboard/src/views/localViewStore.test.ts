@@ -11,15 +11,17 @@
  * limitations under the License.
  */
 
-import { systemInstanceId } from "@ahoo-wang/wow-view-engine";
-import { beforeEach, describe, expect, it } from "vitest";
+import {
+  localStorageSnapshot,
+  systemInstanceId,
+} from "@ahoo-wang/wow-view-engine";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   executionFailedDefinition,
   EXECUTION_FAILED,
 } from "./executionFailed.ts";
 import {
   createLocalViewStore,
-  localStorageSnapshot,
   localViewPermissions,
   VIEW_STORE_KEY,
 } from "./localViewStore.ts";
@@ -28,6 +30,7 @@ const activeConfig = executionFailedDefinition("en").views![0].config;
 
 describe("localViewStore", () => {
   beforeEach(() => localStorage.clear());
+  afterEach(() => vi.restoreAllMocks());
 
   it("keeps a personal view across stores, as across page loads", async () => {
     const first = createLocalViewStore();
@@ -49,40 +52,112 @@ describe("localViewStore", () => {
     expect((await reloaded.get(created.id)).config).toEqual(activeConfig);
   });
 
-  it("starts empty from a missing, unreadable or malformed entry", () => {
-    const snapshot = localStorageSnapshot();
-    expect(snapshot.load()).toBeUndefined();
+  it("starts empty from a missing, unreadable or malformed entry", async () => {
+    expect(await createLocalViewStore().list(EXECUTION_FAILED)).toEqual([]);
 
-    localStorage.setItem(VIEW_STORE_KEY, "{not json");
-    expect(snapshot.load()).toBeUndefined();
-
-    localStorage.setItem(VIEW_STORE_KEY, JSON.stringify({ instances: {} }));
-    expect(snapshot.load()).toBeUndefined();
-
-    localStorage.setItem(VIEW_STORE_KEY, "null");
-    expect(snapshot.load()).toBeUndefined();
+    for (const corrupt of [
+      "{not json",
+      JSON.stringify({ instances: {} }),
+      "null",
+    ]) {
+      localStorage.setItem(VIEW_STORE_KEY, corrupt);
+      expect(await createLocalViewStore().list(EXECUTION_FAILED)).toEqual([]);
+    }
   });
 
-  it("works on in memory when the browser refuses storage", async () => {
-    const refusing = localStorageSnapshot(() => {
-      throw new Error("SecurityError");
+  it("reads the views this console stored before, as they are", async () => {
+    const saved = {
+      id: `${EXECUTION_FAILED}-1`,
+      definitionId: EXECUTION_FAILED,
+      title: "Stored earlier",
+      scope: "personal",
+      revision: "3",
+      config: activeConfig,
+    };
+    const preferences = {
+      [EXECUTION_FAILED]: {
+        order: [saved.id],
+        defaultInstanceId: saved.id,
+        revision: "1",
+      },
+    };
+    localStorage.setItem(
+      VIEW_STORE_KEY,
+      JSON.stringify({ instances: [saved], preferences }),
+    );
+
+    const store = createLocalViewStore();
+
+    expect(await store.get(saved.id)).toEqual(saved);
+    expect(await store.getPreferences(EXECUTION_FAILED)).toEqual(
+      preferences[EXECUTION_FAILED],
+    );
+  });
+
+  it("fails a save the browser refuses rather than keeping it for this visit only", async () => {
+    const refusing = localStorageSnapshot(VIEW_STORE_KEY, {
+      events: null,
+      storage: () => {
+        throw new DOMException("denied", "SecurityError");
+      },
     });
-    expect(refusing.load()).toBeUndefined();
-    expect(() =>
-      refusing.save({ instances: [], preferences: {} }),
-    ).not.toThrow();
 
     const store = createLocalViewStore(refusing);
-    await store.create(
+    await expect(
+      store.create(
+        {
+          definitionId: EXECUTION_FAILED,
+          title: "Nowhere to keep it",
+          scope: "personal",
+          config: activeConfig,
+        },
+        { requestId: "create-2" },
+      ),
+    ).rejects.toMatchObject({ code: "UNAVAILABLE" });
+    expect(await store.list(EXECUTION_FAILED)).toEqual([]);
+  });
+
+  it("fails a save past the quota", async () => {
+    vi.spyOn(localStorage, "setItem").mockImplementation(() => {
+      throw new DOMException("full", "QuotaExceededError");
+    });
+
+    await expect(
+      createLocalViewStore().create(
+        {
+          definitionId: EXECUTION_FAILED,
+          title: "Too much",
+          scope: "personal",
+          config: activeConfig,
+        },
+        { requestId: "create-3" },
+      ),
+    ).rejects.toMatchObject({ code: "UNAVAILABLE" });
+  });
+
+  it("keeps a board saved in one tab when another tab reorders", async () => {
+    const tabA = createLocalViewStore();
+    const tabB = createLocalViewStore();
+    const preferences = await tabB.getPreferences(EXECUTION_FAILED);
+
+    const board = await tabA.create(
       {
         definitionId: EXECUTION_FAILED,
-        title: "Only in memory",
+        title: "From tab A",
         scope: "personal",
         config: activeConfig,
       },
-      { requestId: "create-2" },
+      { requestId: "create-a" },
     );
-    expect(await store.list(EXECUTION_FAILED)).toHaveLength(1);
+    await tabB.setPreferences(
+      EXECUTION_FAILED,
+      { ...preferences, order: [] },
+      { requestId: "reorder-b" },
+    );
+
+    expect(
+      (await createLocalViewStore().list(EXECUTION_FAILED)).map(({ id }) => id),
+    ).toEqual([board.id]);
   });
 
   it("offers personal views only, and never writes a system view", () => {

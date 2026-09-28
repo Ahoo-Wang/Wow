@@ -173,7 +173,14 @@ export class ViewStoreError extends Error {
 
 `ViewStore` 签发的实例 id 不得以 `system:` 开头，该前缀保留给代码声明的系统视图；Engine 合并列表时丢弃此类条目并报告 Issue，`MemoryViewStore` 在 `create` 时直接拒绝。
 
-本包只提供一个实现：`MemoryViewStore`。它是同步 Map 加自增 revision，服务测试、示例、Storybook 与"只查询不持久化"的场景；可选的 `snapshot: { load(); save(all) }` 钩子让示例把整份数据放进 localStorage，约三十行，不是第二个实现。
+本包只提供一个实现：`MemoryViewStore`。它是同步 Map 加自增 revision，服务测试、示例、Storybook 与"只查询不持久化"的场景；可选的 `snapshot: { load(); save(all); subscribe? }` 钩子把整份数据放进别处，不是第二个实现。
+
+**本地存储快照 `localStorageSnapshot(key)`**（2026-09-28 定）：开发与单用户宿主在阶段 6 的后端之前用它，控制台即是。它把整份状态作为一个 JSON 文档放进 `localStorage`，格式就是控制台一直写在 `wow-compensation-dashboard:views` 下的 `{ instances, preferences }`，旧数据原样读入。两条规则：
+
+1. **写不进去就是写失败。** `save` 把 `setItem` 抛出的（配额满、存储被禁）照样抛出；`MemoryViewStore` 撤回内存里这次改动，以 `ViewStoreError('UNAVAILABLE')` 拒绝，不记结局，所以同一 `requestId` 的重试会再写一次。选 `UNAVAILABLE` 而非 `INVALID`：负载没有错，写入确定没落地，恢复办法正是重试；运行时把它记为结局未知、给出重试，`reportingStore` 同时把它作为一次 `store` 失败交给 `onError`。端口不用改。
+2. **标签页之间先重读、再按 revision 比。** 版本戳就是状态里本来就有的 revision——每个实例一个，每个定义的偏好一个。每次写入前 `MemoryViewStore` 同步重读快照（`load` 保持同步），写入于是逐实例合并进另一个标签页存下的内容（新 id 也不会撞上），而基于已被越过的 revision 的写入照常是 `CONFLICT`，带着存着的那份，走已有的冲突流程；从不因为自己那份旧而覆盖。`storage` 事件（本 key 或 `clear()`）让 store 重载，不必等下一次写。读不懂的文档读作"没有"：构造时从空开始，写入前则保留内存里的那份，下一次写入替换它。
+
+`localStorage` 没有跨标签页的原子读改写，重读与写在同一个同步任务里完成，窗口只剩浏览器自己的调度；对单用户足够，对多用户不够——那正是阶段 6 的事。
 
 不提供 IndexedDB 实现。Wow 业务应用总有后端，浏览器本地库不是保存视图的真实归宿；它需要事务内版本比较与浏览器测试矩阵，却没有一个消费者。
 
