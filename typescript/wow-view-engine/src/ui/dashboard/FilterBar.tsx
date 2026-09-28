@@ -63,9 +63,9 @@ import {
   chipOf,
   chipsOf,
   undoOf,
-  useLanding,
   valueOf,
 } from './landing.js';
+import { useLanding } from '../focus.js';
 
 export interface FilterBarProps {
   dashboard: DashboardController;

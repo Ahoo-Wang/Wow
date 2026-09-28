@@ -40,7 +40,11 @@
 3. **其余发现**（同批顺带或各自一个小 PR）：
    - wow-mongo 的「空值安全的二元运算」（`$let`＋`$cond`、除零保护）在 `MongoAggregationExpressions.kt` 与 `MongoAggregationProjection.kt` 各写一遍——抽成一个函数，两处共用，行为不变。
    - `RecordWorkbench.test.stories.tsx` 约 7,000 行、九十多个故事——按关注点拆成几个文件（筛选、表格、主题与密度、详情、批量）。
-   - `ui/` 根目录约 80 个文件把共用基础件（IconButton、variants、popups、toolbar、roving、alerts……）与拼装各功能的外壳（WorkbenchShell、DataWorkbench……）混在一处，与几乎每个子目录双向依赖——先出拆分方案（kit 与外壳分目录、依赖方向）给用户看，再动。
+   - 瀑布图的数值轴刻度没有 `hideOverlap`，箱线图与 K 线图有（用户 2026-09-27：「同意」改）：`src/ui/charts/categoryFrame.ts` 一个开关；交回做第 1 件的子代理。
+   - **ui 根目录拆成三层**（方案用户 2026-09-27 确认；交做第 1 件的子代理，在第 2 件合并之后、队列里没有别的改动时单独一个 PR）：
+     - 为什么：根目录约 80 个文件是三种东西——41 个共用基础件（子目录用它、它不依赖功能：IconButton、popups、variants、alerts、toolbar、roving、拖动四件、MessagesProvider、display、layout……）、5 个外壳（DataWorkbench、DashboardWorkbench、EmbeddedView、EmbeddedDashboard、ViewManager）、19 个放错地方的功能部件（既依赖功能目录又被依赖——根目录与子目录双向依赖的来源：RecordTable、ColumnSettings、FilterPanel、AnalysisTable、DashboardGrid、WorkbenchShell、ViewSurface……），另有 14 个只在根目录内互用的（看板编排与面板、保存／冲突／离开确认、导出步骤）。
+     - 做法：`ui/kit/` 放共用基础件（连同 `focus.ts`、`anchor.ts`），只依赖 components／lib／theme／messages；功能部件归到各自的目录（表格、卡片、分页、行操作、结果工具栏、批量状态 → `record/`；列设置 → `columns/`；排序设置 → `sort/`；筛选面板、条件值编辑、已应用条 → `filter/`；分析表、图外框、字段菜单 → `analysis/`；看板网格、面板、编排 → `dashboard/`；视图列表、视图头、保存／另存／删除／冲突／离开、刷新、导出 → `workbench/`）；根目录只留外壳与入口。先处理 `ViewSurface`、`RenderBoundary` 对 `charts` 的依赖（它们属于底层）。
+     - 判据：`test/architecture.test.ts` 的 ui 方向表把 `kit` 放在所有功能目录之下，并加一条「除入口与外壳外，无人依赖根目录」；公开面快照一个名字不变；引擎测试、构建、全部故事与控制台通过。
 
 ## Storybook 审查（2026-09-26）的处置
 

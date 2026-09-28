@@ -74,7 +74,7 @@ export function namedLabels(labels: readonly (string | undefined)[]): {
 }
 
 /** Whether a value is something `options` could list. */
-export function isOptionValue(value: unknown): value is string | number {
+function isOptionValue(value: unknown): value is string | number {
   return typeof value === 'string' || isFiniteNumber(value);
 }
 

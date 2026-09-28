@@ -34,7 +34,7 @@ import type { KeyboardEvent } from 'react';
 export type RovingAxis = 'row' | 'column';
 
 /** Whether this member is the one the group's Tab stop is on. */
-export function holdsStop(node: Element): boolean {
+function holdsStop(node: Element): boolean {
   return node.getAttribute('tabindex') === '0';
 }
 

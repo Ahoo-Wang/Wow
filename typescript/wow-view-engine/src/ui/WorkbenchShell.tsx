@@ -47,7 +47,7 @@ import { OriginBar } from './workbench/OriginBar.js';
 import { OpeningSkeleton } from './workbench/OpeningSkeleton.js';
 import { resultBlockShown, ShellResult } from './workbench/ResultBlock.js';
 import { FoldedSidebar, SidebarColumn } from './workbench/Sidebar.js';
-import { focusIn } from './analysis/listFocus.js';
+import { focusIn } from './focus.js';
 import { StatusLine } from './workbench/StatusLine.js';
 import { TitleBar } from './workbench/TitleBar.js';
 import { Unopenable } from './workbench/Unopenable.js';

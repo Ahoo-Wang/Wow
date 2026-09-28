@@ -14,12 +14,12 @@
 import type { EChartsCoreOption } from 'echarts/core';
 import type { BoxplotData } from '../../analysis/index.js';
 import type { ChartSpec, RecordData } from '../../model/index.js';
-import { categoryTick, sideTitle } from './axis.js';
+import { categoryFrame } from './categoryFrame.js';
 import type { ColumnTitle, ValueLabel } from './family.js';
 import { FADED_OPACITY } from './highlight.js';
 import { color } from './palette.js';
-import { emphasized, mixColor, type ChartTheme, chartText } from './theme.js';
-import { tooltipFrame, tooltipHtml } from './tooltip.js';
+import { emphasized, mixColor, type ChartTheme } from './theme.js';
+import { tooltipHtml } from './tooltip.js';
 
 /** What a boxplot reads besides its boxes. */
 export interface BoxplotContext {
@@ -49,13 +49,13 @@ export interface DrawnBox {
   name: string;
 }
 
-/** Every box, in the order drawn; its place is how a press is read back. */
 /**
  * The widest a box grows: a box is read by its ends and its median, and a
  * wide one on few groups was a slab. The box's geometry, not the theme's.
  */
 const BOX_MAX_WIDTH = 48;
 
+/** Every box, in the order drawn; its place is how a press is read back. */
 export function drawnBoxes(
   data: BoxplotData,
   { spec, label }: Pick<BoxplotContext, 'spec' | 'label'>,
@@ -85,52 +85,20 @@ export function boxplotOption(
   const edge = theme.resolve(color(0));
   const fill = mixColor(theme.ground, edge, BOX_FILL);
   const anyLit = highlight ? boxes.some(box => highlight(box.row)) : false;
-  const titleStyle = { color: theme.axis.color, fontWeight: 500 };
   const measured = boxplot?.median;
+  const frame = categoryFrame({
+    theme,
+    animate,
+    categories: boxes.map(box => box.name),
+    categoryTitle: column(boxplot?.category),
+    valueTitle: column(measured),
+    valueTick: value => label(measured, value, true),
+    scaled: true,
+  });
   return {
-    animation: animate,
-    animationDuration: 300,
-    textStyle: chartText(theme),
-    grid: {
-      left: 4,
-      right: 16,
-      top: 24,
-      bottom: 4,
-      outerBoundsMode: 'same',
-      outerBoundsContain: 'all',
-    },
-    xAxis: {
-      type: 'category',
-      data: boxes.map(box => box.name),
-      name: column(boxplot?.category),
-      nameLocation: 'middle',
-      nameGap: 28,
-      nameMoveOverlap: true,
-      nameTextStyle: titleStyle,
-      axisTick: { show: false },
-      axisLine: { lineStyle: { ...theme.grid } },
-      axisLabel: {
-        color: theme.axis.color,
-        hideOverlap: true,
-        formatter: (name: string) => categoryTick(name),
-      },
-    },
-    yAxis: {
-      type: 'value',
-      scale: true,
-      ...sideTitle(column(measured), 'left', 'end', titleStyle, 16),
-      axisLine: { show: false },
-      axisTick: { show: false },
-      axisLabel: {
-        color: theme.axis.color,
-        hideOverlap: true,
-        formatter: (value: number) => label(measured, value, true),
-      },
-      splitLine: { lineStyle: { ...theme.grid } },
-    },
+    ...frame,
     tooltip: {
-      ...tooltipFrame(theme),
-      trigger: 'item',
+      ...frame.tooltip,
       formatter: ({ dataIndex }: { dataIndex: number }) => {
         const box = data.boxes[dataIndex];
         if (!box || !boxplot) return '';

@@ -18,7 +18,7 @@ import { Button } from '../components/button.js';
 import { useViewMessages } from '../MessagesProvider.js';
 import { PendingDot } from '../PendingDot.js';
 import { TEXT_UI } from '../layout.js';
-import { useLanding } from '../dashboard/landing.js';
+import { useLanding } from '../focus.js';
 import { cn } from 'cn';
 
 /**

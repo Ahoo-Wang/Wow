@@ -14,11 +14,11 @@
 import type { EChartsCoreOption } from 'echarts/core';
 import type { CandlestickData } from '../../analysis/index.js';
 import type { ChartSpec, RecordData } from '../../model/index.js';
-import { categoryTick, sideTitle } from './axis.js';
+import { categoryFrame } from './categoryFrame.js';
 import type { ColumnTitle, ValueLabel } from './family.js';
 import { FADED_OPACITY } from './highlight.js';
-import { chartText, type ChartTheme } from './theme.js';
-import { tooltipFrame, tooltipHtml } from './tooltip.js';
+import type { ChartTheme } from './theme.js';
+import { tooltipHtml } from './tooltip.js';
 
 /** What a candlestick reads besides its candles. */
 export interface CandlestickContext {
@@ -79,52 +79,20 @@ export function candlestickOption(
   const anyLit = highlight
     ? candles.some(candle => highlight(candle.row))
     : false;
-  const titleStyle = { color: theme.axis.color, fontWeight: 500 };
   const measured = candlestick?.close;
+  const frame = categoryFrame({
+    theme,
+    animate,
+    categories: candles.map(candle => candle.name),
+    categoryTitle: column(candlestick?.x),
+    valueTitle: column(measured),
+    valueTick: value => label(measured, value, true),
+    scaled: true,
+  });
   return {
-    animation: animate,
-    animationDuration: 300,
-    textStyle: chartText(theme),
-    grid: {
-      left: 4,
-      right: 16,
-      top: 24,
-      bottom: 4,
-      outerBoundsMode: 'same',
-      outerBoundsContain: 'all',
-    },
-    xAxis: {
-      type: 'category',
-      data: candles.map(candle => candle.name),
-      name: column(candlestick?.x),
-      nameLocation: 'middle',
-      nameGap: 28,
-      nameMoveOverlap: true,
-      nameTextStyle: titleStyle,
-      axisTick: { show: false },
-      axisLine: { lineStyle: { ...theme.grid } },
-      axisLabel: {
-        color: theme.axis.color,
-        hideOverlap: true,
-        formatter: (name: string) => categoryTick(name),
-      },
-    },
-    yAxis: {
-      type: 'value',
-      scale: true,
-      ...sideTitle(column(measured), 'left', 'end', titleStyle, 16),
-      axisLine: { show: false },
-      axisTick: { show: false },
-      axisLabel: {
-        color: theme.axis.color,
-        hideOverlap: true,
-        formatter: (value: number) => label(measured, value, true),
-      },
-      splitLine: { lineStyle: { ...theme.grid } },
-    },
+    ...frame,
     tooltip: {
-      ...tooltipFrame(theme),
-      trigger: 'item',
+      ...frame.tooltip,
       formatter: ({ dataIndex }: { dataIndex: number }) => {
         const candle = data.candles[dataIndex];
         if (!candle || !candlestick) return '';

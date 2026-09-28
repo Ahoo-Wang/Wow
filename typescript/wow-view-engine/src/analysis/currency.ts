@@ -49,7 +49,7 @@ export interface CurrencyCompanion {
 }
 
 /** A companion's aliases, derived from the metric's own. */
-export function companionAliases(alias: string): {
+function companionAliases(alias: string): {
   code: string;
   count: string;
 } {
