@@ -189,6 +189,11 @@ describe('a waterfall', () => {
       theme,
     ) as Loose;
     expect(option.xAxis.data).toEqual(['期初', '销售', '退款', '调整', '合计']);
+    // The value axis stands on 0, where the total does, and drops a tick
+    // label that would overlap, as the boxplot's and the candlestick's do.
+    expect(option.yAxis).not.toHaveProperty('scale');
+    expect(option.yAxis.axisLabel.hideOverlap).toBe(true);
+    expect(option.yAxis.axisLabel.formatter(80)).toBe('~80');
     const [base, bars] = option.series;
     expect(base.data).toEqual([0, 100, 80, 80, 0]);
     expect(base.itemStyle.color).toBe('transparent');
