@@ -745,6 +745,20 @@
 - **没选**：两态都长高（拖得比内容矮会弹回，拖动像不生效）；两态都按保存尺寸（撤掉 D52，回到只露几行）；保持现状加虚线提示（切换仍跳）。
 - **落点**：看板布局项（定高标记与迁移：已存的板没有标记，一律按「没调过」读）、`src/ui/DashboardGrid.tsx` 的长高与编辑态尺寸、[ui/dashboard.md](ui/dashboard.md)；故事断言切换编辑前后面板高度不变、定高面板读板不长高。
 
+## D69 porcelain 的记录视图按看板内容区的画法：灰底上的白卡片（2026-09-28，修订 D63 的条纹）
+
+- **来由**：用户对齐「苹果风格」时，看了对比画布（[porcelain 结构画法对比](https://claude.ai/artifact/4D1wsPJHxmZoBPCQxXL6Qp)，A～E 五张）后说「Dashboard 的内容区风格我感觉就很好」，选 E：「E 就是这个感觉，行高回到 45px」。
+- **裁定**（只在 porcelain；其余预设不变）：
+  - **内容区是窗口灰底**（`canvas`），标题、工具栏、筛选直接落在灰底上；
+  - **结果是一张白卡片**：看板面板同一套 `card-edge`、`card-shadow`、`radius-card`（12px），不再是贴边的带；
+  - **表头白底灰字、常规字重、列间一根短发丝线**（porcelain 已有的 `table-header*`）；
+  - **行间 1px 浅线，不要条纹**（`row-stripe` 在 porcelain 上取消；D63 还原的行线保留）；
+  - **行高 45px**（默认密度，D63 不变），控件 32px；
+  - **不做卡中卡**：记录视图放在看板面板、或宿主自己的卡片里嵌入时（`resultFramed` 为假、嵌入视图），结果仍是贴边的，不再套一层卡片。
+- **没选**：发丝线加条纹（B）、磨砂侧栏与 32px（C）——对比稿上用户选了 E。
+- **判据**：Storybook 的记录工作台在 porcelain 亮与暗下与画布 E 一致；neutral、azure、contrast 的截图基线一张不变，porcelain 的基线有意更新并在 PR 里列出；对比度矩阵通过；看板面板与嵌入的记录视图没有卡中卡。
+- **落点**：`src/themes/porcelain.css`（新角色经登记表，[theme-architecture.md](theme-architecture.md) 的规则）、`src/styles.css`、`src/ui/WorkbenchShell.tsx`／`variants.tsx` 的 `resultFrameChrome`、[themes.md](themes.md) 3.4.1。
+
 ## 搁置待议
 
 尚无结论，不要当作规则执行。
