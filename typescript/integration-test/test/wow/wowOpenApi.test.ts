@@ -561,6 +561,8 @@ describe('Wow OpenAPI document', () => {
         TEMPORAL_FORMATTED: true,
         DECIMAL: true,
         MONEY: true,
+        DURATION: true,
+        REFERENCE: true,
       };
       expect(Object.keys(known).sort()).toEqual(
         mapped('QuerySemanticType').sort(),
@@ -582,6 +584,22 @@ describe('Wow OpenAPI document', () => {
       expect([...deref(epoch).enum].sort()).toEqual(
         Object.values(TimeUnit).sort(),
       );
+      // A duration always sends its unit; a reference one of two pairs of
+      // optional names.
+      const duration = query('TimeSpan');
+      expect([...duration.required].sort()).toEqual(['timeUnit', 'type']);
+      expect([...deref(duration.properties.timeUnit).enum].sort()).toEqual(
+        Object.values(TimeUnit).sort(),
+      );
+      const reference = query('Reference');
+      expect(Object.keys(reference.properties).sort()).toEqual([
+        'aggregateName',
+        'aggregateNameField',
+        'contextName',
+        'contextNameField',
+        'type',
+      ]);
+      expect([...reference.required]).toEqual(['type']);
     });
 
     // Kotlin writes `null` for an unlimited limit, and leaves a null out of
@@ -614,6 +632,12 @@ describe('Wow OpenAPI document', () => {
       expect(nullable('ConstraintDescriptor')).toEqual(['appended', 'fields']);
       expect(nullable('EnumValueDescriptor')).toEqual(['description']);
       expect(nullable('QueryDeprecation')).toEqual(['message']);
+      expect(nullable('Reference')).toEqual([
+        'aggregateName',
+        'aggregateNameField',
+        'contextName',
+        'contextNameField',
+      ]);
       expect(query('FieldDescriptor').properties.aliases.items.type).toBe(
         'string',
       );

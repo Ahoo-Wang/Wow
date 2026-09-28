@@ -466,6 +466,12 @@ export const DomainEventStreamMetadataFields: Readonly<{
 }>;
 
 // @public
+export interface DurationSemantic {
+    timeUnit: TimeUnit;
+    type: 'DURATION';
+}
+
+// @public
 export type DynamicDocument = Record<string, unknown>;
 
 // @public
@@ -1069,6 +1075,8 @@ export const QueryFieldRoles: Readonly<{
     readonly OWNER_ID: "OWNER_ID";
     readonly SPACE_ID: "SPACE_ID";
     readonly DELETED: "DELETED";
+    readonly EVENT_TIME: "EVENT_TIME";
+    readonly FIRST_EVENT_TIME: "FIRST_EVENT_TIME";
 }>;
 
 // @public
@@ -1099,7 +1107,7 @@ export const QueryModels: Readonly<{
 type QueryOptions<FIELDS extends string = string> = Partial<FilterQueryable<FIELDS>>;
 
 // @public
-export type QuerySemanticType = TemporalDate | TemporalEpoch | TemporalFormatted | NumericDecimal | NumericMoney;
+export type QuerySemanticType = TemporalDate | TemporalEpoch | TemporalFormatted | NumericDecimal | NumericMoney | DurationSemantic | ReferenceSemantic;
 
 // @public
 export enum QueryValueKind {
@@ -1131,6 +1139,21 @@ export interface RecordDescriptor {
     rootOperators: FilterOperator[];
     search?: SearchDescriptor;
 }
+
+// @public
+export type ReferenceSemantic = {
+    type: 'REFERENCE';
+} & ({
+    contextName: string;
+    aggregateName: string;
+    contextNameField?: undefined;
+    aggregateNameField?: undefined;
+} | {
+    contextName?: undefined;
+    aggregateName?: undefined;
+    contextNameField: string;
+    aggregateNameField: string;
+});
 
 // @public
 export interface RelativeTimeFilterOptions {

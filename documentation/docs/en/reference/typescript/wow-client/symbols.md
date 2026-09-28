@@ -99,6 +99,7 @@ description: 'Wow symbol index — @ahoo-wang/wow-client'
 | `DomainEventStream`                       | [Events and historical state](./events-and-history#api-DomainEventStream)                                    |
 | `DomainEventStreamHeader`                 | [Events and historical state](./events-and-history#api-DomainEventStreamHeader)                              |
 | `DomainEventStreamMetadataFields`         | [Events and historical state](./events-and-history#api-DomainEventStreamMetadataFields)                      |
+| `DurationSemantic`                        | [Query capability descriptors](./query-descriptors#api-FieldDescriptor) |
 | `DynamicDocument`                         | [Business errors and document utilities](./errors-and-utilities#api-DynamicDocument)                         |
 | `DynamicDocumentArray`                    | [Business errors and document utilities](./errors-and-utilities#api-DynamicDocumentArray)                    |
 | `DynamicFieldDescriptor`                  | [Query capability descriptors](./query-descriptors#api-FieldDescriptor) |
@@ -206,6 +207,7 @@ description: 'Wow symbol index — @ahoo-wang/wow-client'
 | `RecoverAggregate`                        | [Commands and wait results](./commands#api-RecoverAggregate)                                                 |
 | `RecoverAggregateCommand`                 | [Commands and wait results](./commands#api-RecoverAggregateCommand)                                          |
 | `RecoverableType`                         | [Business errors and document utilities](./errors-and-utilities#api-RecoverableType)                         |
+| `ReferenceSemantic`                       | [Query capability descriptors](./query-descriptors#api-FieldDescriptor) |
 | `RelativeTimeFilterOptions`               | [Filter expressions and legacy conditions](./filters#api-RelativeTimeFilterOptions)                          |
 | `RequestId`                               | [Commands and wait results](./commands#api-RequestId)                                                        |
 | `ResourceAttributionPathSpec`             | [Identity and resource attribution](./identity-and-attribution#api-ResourceAttributionPathSpec)              |
