@@ -891,7 +891,9 @@ export const LegacyLayout: Story = {
 /**
  * 标题卡单独用：宿主不开仪表盘，只在自己的页里画一段的标题，就像板上的标题卡
  * 那样——一行纯文字，放不下就截断而不折行。它是 `/ui` 公开的 `HeadingPanel`，
- * 画在宿主自己的卡片里，外面套一层 `ViewSurface` 取主题与措辞。
+ * 画在宿主自己的卡片里，外面套一层 `ViewSurface` 取主题与措辞。宿主拿它当区块
+ * 标题时给一个 `headingLevel`，它就是那一级的标题，读屏按标题跳得到；不给时只是
+ * 一行字。
  */
 export const HeadingPanelAlone: Story = {
   name: '标题卡单独用',
@@ -913,6 +915,11 @@ export const HeadingPanelAlone: Story = {
       <ViewSurface {...HOST_LANGUAGE}>
         <div className="rounded-lg border bg-card p-4">
           <HeadingPanel content="华南仓、华东仓与西南仓 · 本周出库、退货与异常处理的总览" />
+        </div>
+      </ViewSurface>
+      <ViewSurface {...HOST_LANGUAGE}>
+        <div className="rounded-lg border bg-card p-4">
+          <HeadingPanel content="华东仓 · 本月退货" headingLevel={2} />
         </div>
       </ViewSurface>
     </div>

@@ -25,6 +25,7 @@ import {
   EmptyMedia,
 } from './components/empty.js';
 import { ItemContent, ItemDescription, ItemTitle } from './components/item.js';
+import type { PanelHeadingLevel } from './DashboardPanel.js';
 import { RowItem } from './RowItem.js';
 import { cn } from 'cn';
 
@@ -75,6 +76,13 @@ export function ContentPanel({ panel, headingLevel }: ContentPanelProps) {
 
 export interface HeadingPanelProps {
   content: string;
+  /**
+   * The level of the heading the title is, for a host that uses it as a
+   * section's title: a reader moving by headings finds it in the outline.
+   * Without one it is a line of text, not a heading — the grid names a
+   * heading card by its panel title instead, so it passes none.
+   */
+  headingLevel?: PanelHeadingLevel;
 }
 
 /**
@@ -85,11 +93,16 @@ export interface HeadingPanelProps {
  * (`DashboardPanel`), at the level of every other panel title; this is the
  * same words for a host that renders a content panel by itself.
  */
-export function HeadingPanel({ content }: HeadingPanelProps) {
+export function HeadingPanel({ content, headingLevel }: HeadingPanelProps) {
+  const Title: 'p' | `h${PanelHeadingLevel}` =
+    headingLevel === undefined ? 'p' : `h${headingLevel}`;
   return (
-    <p data-slot="panel-heading" className="truncate text-base font-semibold">
+    <Title
+      data-slot="panel-heading"
+      className="truncate text-base font-semibold"
+    >
       {content}
-    </p>
+    </Title>
   );
 }
 

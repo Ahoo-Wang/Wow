@@ -803,7 +803,9 @@ export const NewAnalysisTitleFirstOnAPhone: Story = {
 /**
  * `HeadingPanel` by itself, as a host draws a section's title without a
  * board: the words it is given, as one line of plain text — a long title is
- * cut short, not wrapped, since a heading card is one row high.
+ * cut short, not wrapped, since a heading card is one row high. Given a
+ * `headingLevel` it is a heading of that level, one a reader moving by
+ * headings finds; without one it is a line of text and no heading at all.
  */
 export const HeadingPanelAlone: Story = {
   ...DisplayHeadingPanelAlone,
@@ -816,8 +818,18 @@ export const HeadingPanelAlone: Story = {
     await expect(headings.map(heading => heading.textContent)).toEqual([
       '华南仓 · 本周出库',
       '华南仓、华东仓与西南仓 · 本周出库、退货与异常处理的总览',
+      '华东仓 · 本月退货',
     ]);
-    const [short, long] = headings;
+    // Only the one given a level is in the outline, at that level.
+    const canvas = within(canvasElement);
+    await expect(canvas.getAllByRole('heading')).toEqual([
+      canvas.getByRole('heading', { level: 2, name: '华东仓 · 本月退货' }),
+    ]);
+    const [short, long, leveled] = headings;
+    // A heading looks as the line of text does: the level is for the outline.
+    await expect(leveled.getBoundingClientRect().height).toBe(
+      short.getBoundingClientRect().height,
+    );
     await expect(short).toBeVisible();
     // The short title whole; the long one cut to the same single line.
     await expect(short.scrollWidth).toBeLessThanOrEqual(short.clientWidth + 1);
