@@ -7501,7 +7501,9 @@
         "discriminator" : {
           "mapping" : {
             "DECIMAL" : "#/components/schemas/wow.api.query.NumericFormat.Decimal",
+            "DURATION" : "#/components/schemas/wow.api.query.TimeSpan",
             "MONEY" : "#/components/schemas/wow.api.query.NumericFormat.Money",
+            "REFERENCE" : "#/components/schemas/wow.api.query.Reference",
             "TEMPORAL_DATE" : "#/components/schemas/wow.api.query.Temporal.Date",
             "TEMPORAL_EPOCH" : "#/components/schemas/wow.api.query.Temporal.Epoch",
             "TEMPORAL_FORMATTED" : "#/components/schemas/wow.api.query.Temporal.Formatted"
@@ -7513,11 +7515,15 @@
         }, {
           "$ref" : "#/components/schemas/wow.api.query.NumericFormat.Money"
         }, {
+          "$ref" : "#/components/schemas/wow.api.query.Reference"
+        }, {
           "$ref" : "#/components/schemas/wow.api.query.Temporal.Date"
         }, {
           "$ref" : "#/components/schemas/wow.api.query.Temporal.Epoch"
         }, {
           "$ref" : "#/components/schemas/wow.api.query.Temporal.Formatted"
+        }, {
+          "$ref" : "#/components/schemas/wow.api.query.TimeSpan"
         } ]
       },
       "wow.api.query.QueryValueKind" : {
@@ -7560,6 +7566,43 @@
           }
         },
         "required" : [ "defaultScope", "identity", "paging", "rootOperators", "search" ],
+        "type" : "object"
+      },
+      "wow.api.query.Reference" : {
+        "properties" : {
+          "aggregateName" : {
+            "anyOf" : [ {
+              "type" : "null"
+            }, {
+              "type" : "string"
+            } ]
+          },
+          "aggregateNameField" : {
+            "anyOf" : [ {
+              "type" : "null"
+            }, {
+              "type" : "string"
+            } ]
+          },
+          "contextName" : {
+            "anyOf" : [ {
+              "type" : "null"
+            }, {
+              "type" : "string"
+            } ]
+          },
+          "contextNameField" : {
+            "anyOf" : [ {
+              "type" : "null"
+            }, {
+              "type" : "string"
+            } ]
+          },
+          "type" : {
+            "const" : "REFERENCE"
+          }
+        },
+        "required" : [ "type" ],
         "type" : "object"
       },
       "wow.api.query.SearchDescriptor" : {
@@ -7667,6 +7710,18 @@
           }
         },
         "required" : [ "pattern", "type" ],
+        "type" : "object"
+      },
+      "wow.api.query.TimeSpan" : {
+        "properties" : {
+          "timeUnit" : {
+            "$ref" : "#/components/schemas/example.TimeUnit"
+          },
+          "type" : {
+            "const" : "DURATION"
+          }
+        },
+        "required" : [ "timeUnit", "type" ],
         "type" : "object"
       },
       "wow.api.query.VariantDescriptor" : {

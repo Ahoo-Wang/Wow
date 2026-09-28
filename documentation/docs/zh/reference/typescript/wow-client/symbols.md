@@ -99,6 +99,7 @@ description: 'Wow 完整符号索引 — @ahoo-wang/wow-client'
 | `DomainEventStream`                       | [事件与历史状态](./events-and-history#api-DomainEventStream)                           |
 | `DomainEventStreamHeader`                 | [事件与历史状态](./events-and-history#api-DomainEventStreamHeader)                     |
 | `DomainEventStreamMetadataFields`         | [事件与历史状态](./events-and-history#api-DomainEventStreamMetadataFields)             |
+| `DurationSemantic`                        | [查询能力描述](./query-descriptors#api-FieldDescriptor) |
 | `DynamicDocument`                         | [业务错误与文档工具](./errors-and-utilities#api-DynamicDocument)                         |
 | `DynamicDocumentArray`                    | [业务错误与文档工具](./errors-and-utilities#api-DynamicDocumentArray)                    |
 | `DynamicFieldDescriptor`                  | [查询能力描述](./query-descriptors#api-FieldDescriptor) |
@@ -206,6 +207,7 @@ description: 'Wow 完整符号索引 — @ahoo-wang/wow-client'
 | `RecoverAggregate`                        | [命令与等待结果](./commands#api-RecoverAggregate)                                      |
 | `RecoverAggregateCommand`                 | [命令与等待结果](./commands#api-RecoverAggregateCommand)                               |
 | `RecoverableType`                         | [业务错误与文档工具](./errors-and-utilities#api-RecoverableType)                         |
+| `ReferenceSemantic`                       | [查询能力描述](./query-descriptors#api-FieldDescriptor) |
 | `RelativeTimeFilterOptions`               | [过滤表达式与旧条件](./filters#api-RelativeTimeFilterOptions)                            |
 | `RequestId`                               | [命令与等待结果](./commands#api-RequestId)                                             |
 | `ResourceAttributionPathSpec`             | [身份与资源归属](./identity-and-attribution#api-ResourceAttributionPathSpec)           |

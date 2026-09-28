@@ -44,6 +44,7 @@ import me.ahoo.wow.api.query.descriptor.SensitivityDescriptor
 import me.ahoo.wow.api.query.descriptor.VariantDescriptor
 import me.ahoo.wow.api.query.descriptor.VariantsDescriptor
 import me.ahoo.wow.api.query.schema.QueryCapability
+import me.ahoo.wow.api.query.schema.QuerySemanticType
 import me.ahoo.wow.api.query.schema.QueryValueKind
 import me.ahoo.wow.api.query.schema.QueryValueType
 import me.ahoo.wow.api.query.spec.MetricSpec
@@ -144,7 +145,7 @@ private class QueryModelDescription(private val schema: QueryModelSchema, privat
             types = value.typesInOrder(),
             kind = value.kind,
             nullable = value.nullable,
-            semantic = value.semanticType,
+            semantic = value.sharedSemantic(),
             enum = value.enumValues?.takeUnless { field.protected }
                 ?.map { EnumValueDescriptor(it, value.enumDescriptions[it]) },
             description = value.description,
@@ -317,6 +318,8 @@ private class QueryModelDescription(private val schema: QueryModelSchema, privat
     /** The system role of [path]: a metadata field's own, or the identity's for the model's identity field. */
     private fun role(path: String): String? = METADATA_FIELDS.firstOrNull { systemPath(it) == path }?.name
         ?: SystemField.IDENTITY.name.takeIf { path == identity }
+        ?: FieldDescriptor.EVENT_TIME.takeIf { path == schema.profile?.eventTimeField?.path }
+        ?: FieldDescriptor.FIRST_EVENT_TIME.takeIf { path == schema.profile?.firstEventTimeField?.path }
 
     private fun limits(defaultListSize: Int?): LimitsDescriptor {
         fun Int.limit(): Int? = takeIf { it > 0 }
@@ -414,6 +417,13 @@ private val PRESENCE_OPERATORS = setOf(
     FilterOperator.IS_NOT_NULL,
     FilterOperator.IS_EMPTY,
 )
+
+/**
+ * What the field's values mean, read like its types through array items and union alternatives: the one semantic
+ * type every non-null value shares, or `null` when they declare none or different ones.
+ */
+private fun QueryValueSchema.sharedSemantic(): QuerySemanticType? =
+    operationValues().filter { it.kind != QueryValueKind.NULL }.map { it.semanticType }.distinct().singleOrNull()
 
 private fun QueryValueSchema.typesInOrder(): Set<QueryValueType> =
     operationValues().flatMapTo(sortedSetOf(compareBy { it.value })) { it.valueTypes }

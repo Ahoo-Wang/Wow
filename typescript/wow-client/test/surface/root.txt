@@ -1,4 +1,4 @@
-# @ahoo-wang/wow-client — 266 names, from src/index.ts.
+# @ahoo-wang/wow-client — 268 names, from src/index.ts.
 # Written by test/publicSurface.test.ts; a change here is a change to
 # the public surface.
 value AGGREGATION_LIMITS
@@ -93,6 +93,7 @@ type  DomainEvent
 type  DomainEventStream
 type  DomainEventStreamHeader
 value DomainEventStreamMetadataFields
+type  DurationSemantic
 type  DynamicDocument
 type  DynamicDocumentArray
 type  DynamicFieldDescriptor
@@ -204,6 +205,7 @@ type  RecordDescriptor
 type  RecoverAggregate
 type  RecoverAggregateCommand
 value RecoverableType
+type  ReferenceSemantic
 type  RelativeTimeFilterOptions
 type  RequestId
 value ResourceAttributionPathSpec

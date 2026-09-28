@@ -247,6 +247,36 @@ class ElasticsearchQuerySchemaAdapterTest {
     }
 
     @Test
+    fun `a duration or a reference keeps the capabilities of its plain value`() {
+        val mapping = TypeMapping.of {
+            it.properties("timeout") { it.long_ { it } }.properties("memberId") { it.keyword { it } }
+        }
+        fun keys(timeout: QueryValueSchema, memberId: QueryValueSchema) =
+            bind(logical("timeout" to timeout, "memberId" to memberId), mapping).let { schema ->
+                schema.field(QueryField("timeout"))!!.bindings.keys to schema.field(QueryField("memberId"))!!.bindings.keys
+            }
+        val (span, reference) = keys(
+            QueryValueSchema(
+                QueryValueKind.SCALAR,
+                valueTypes = setOf(QueryValueType.INTEGER),
+                semanticType = me.ahoo.wow.api.query.schema.TimeSpan(TimeUnit.SECONDS),
+            ),
+            QueryValueSchema(
+                QueryValueKind.SCALAR,
+                valueTypes = setOf(QueryValueType.STRING),
+                semanticType = me.ahoo.wow.api.query.schema.Reference(
+                    contextName = "example",
+                    aggregateName = "member"
+                ),
+            ),
+        )
+        val (plainSpan, plainReference) = keys(scalar(QueryValueType.INTEGER), scalar(QueryValueType.STRING))
+        span.assert().isEqualTo(plainSpan).contains(QueryCapability.AGGREGATE_NUMERIC)
+            .doesNotContain(QueryCapability.AGGREGATE_TEMPORAL)
+        reference.assert().isEqualTo(plainReference).contains(QueryCapability.EXACT_MATCH)
+    }
+
+    @Test
     fun `temporal array binds items semantic without copying it to container`() {
         val items = QueryValueSchema(
             QueryValueKind.SCALAR,

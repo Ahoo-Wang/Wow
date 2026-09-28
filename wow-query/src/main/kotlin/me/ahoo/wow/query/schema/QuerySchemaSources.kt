@@ -219,7 +219,9 @@ private fun ObjectNode.enum(field: String): List<Pair<JsonNode, String?>>? {
 private fun ObjectNode.semantic(field: String): DeclarationValue<QuerySemanticType?> {
     val value = get(SEMANTIC) ?: return DeclarationValue.Unset
     require(value is ObjectNode) { "Query schema [$field.$SEMANTIC] must be an object." }
-    return DeclarationValue.Set(JsonSerializer.treeToValue(value, QuerySemanticType::class.java))
+    val semantic = JsonSerializer.treeToValue(value, QuerySemanticType::class.java)
+    require(semantic != QuerySemanticType.Unknown) { "Query schema [$field.$SEMANTIC] has an unknown type." }
+    return DeclarationValue.Set(semantic)
 }
 
 private fun ObjectNode.properties(field: String): DeclarationValue<Map<String, QueryFieldDeclaration>> {

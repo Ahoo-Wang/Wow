@@ -57,6 +57,9 @@ sealed class QueryModelProfile(val model: QueryModel) {
     /** When the record last changed: the default `orderBy` of FIRST and LAST metrics. */
     abstract val eventTimeField: QueryField
 
+    /** When the record's aggregate got its first event, or `null` when a record does not say. */
+    open val firstEventTimeField: QueryField? = null
+
     /**
      * The field an authenticated caller scope must pin when
      * [requireAuthenticatedScope][me.ahoo.wow.query.QueryEntryPolicy.requireAuthenticatedScope] is on: the tenant,
@@ -123,6 +126,7 @@ data object SnapshotQueryModelProfile : QueryModelProfile(QueryModel.SNAPSHOT) {
     override val identityField: QueryField = QueryField(MessageRecords.AGGREGATE_ID)
     override val payloadField: QueryField = QueryField(StateAggregateRecords.STATE)
     override val eventTimeField: QueryField = QueryField(StateAggregateRecords.EVENT_TIME)
+    override val firstEventTimeField: QueryField = QueryField(StateAggregateRecords.FIRST_EVENT_TIME)
     override val systemDeclaration: QuerySchemaDeclaration = QuerySchemaDeclaration(
         Collections.unmodifiableMap(
             linkedMapOf(

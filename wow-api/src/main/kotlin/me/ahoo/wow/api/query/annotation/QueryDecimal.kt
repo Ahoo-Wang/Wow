@@ -16,7 +16,8 @@ package me.ahoo.wow.api.query.annotation
 /**
  * Declares a numeric field a fixed-point decimal with [scale] fraction digits, so query consumers format and total it
  * at that precision: `@field:QueryDecimal(scale = 2)`. Never inferred: a `BigDecimal` does not tell its precision.
- * A field has one semantic type, so this cannot combine with [QueryTemporal] or [QueryMoney].
+ * A field has one semantic type, so this cannot combine with [QueryTemporal], [QueryMoney], [QueryDuration] or
+ * [QueryReference].
  */
 @Target(AnnotationTarget.FIELD, AnnotationTarget.PROPERTY_GETTER)
 @Retention(AnnotationRetention.RUNTIME)
@@ -30,7 +31,8 @@ annotation class QueryDecimal(val scale: Int)
  * - `@field:QueryMoney(currency = "CNY")`: [scale] defaults to the currency's standard fraction digits;
  * - `@field:QueryMoney(currencyField = "currency", scale = 2)`: [scale] is required.
  *
- * A field has one semantic type, so this cannot combine with [QueryTemporal] or [QueryDecimal].
+ * A field has one semantic type, so this cannot combine with [QueryTemporal], [QueryDecimal], [QueryDuration] or
+ * [QueryReference].
  */
 @Target(AnnotationTarget.FIELD, AnnotationTarget.PROPERTY_GETTER)
 @Retention(AnnotationRetention.RUNTIME)

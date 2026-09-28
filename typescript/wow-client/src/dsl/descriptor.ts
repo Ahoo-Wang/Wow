@@ -95,7 +95,8 @@ export enum PagingMode {
 }
 
 /**
- * The system roles Wow names in a field's `role`. The set is open, like
+ * The system roles Wow names in a field's `role`: the system fields a root
+ * operator targets, and the model's times. The set is open, like
  * {@link QueryModels}.
  */
 export const QueryFieldRoles = Object.freeze({
@@ -111,6 +112,17 @@ export const QueryFieldRoles = Object.freeze({
   SPACE_ID: 'SPACE_ID',
   /** Whether the aggregate is deleted. */
   DELETED: 'DELETED',
+  /**
+   * When the record's events happened: a snapshot's last event
+   * (`eventTime`), an event stream's events (`createTime`). `FIRST` and
+   * `LAST` order by it when they name no `orderBy`. Wow 9.2 and later.
+   */
+  EVENT_TIME: 'EVENT_TIME',
+  /**
+   * When a snapshot's aggregate got its first event, i.e. was created
+   * (`firstEventTime`). Wow 9.2 and later.
+   */
+  FIRST_EVENT_TIME: 'FIRST_EVENT_TIME',
 } as const);
 
 /** A system field's role: one of {@link QueryFieldRoles}, or one a server added. */
@@ -222,17 +234,67 @@ export type NumericMoney = {
 );
 
 /**
+ * A number field that is a length of time counted in `timeUnit`, such as a
+ * timeout in seconds: format it as a duration. Declared on the model
+ * (`@QueryDuration`), never inferred. Wow 9.2 and later.
+ */
+export interface DurationSemantic {
+  /** The discriminator. */
+  type: 'DURATION';
+  /** The unit the number counts; always sent. */
+  timeUnit: TimeUnit;
+}
+
+/**
+ * A field whose value is the id of an aggregate, to look it up and link to
+ * it: either a fixed aggregate, `contextName` and `aggregateName`, or per
+ * record the aggregate the sibling string fields `contextNameField` and
+ * `aggregateNameField` name (as in an `AggregateId`). The id is always the
+ * aggregate's own. Declared on the model (`@QueryReference`), or inferred
+ * for an `AggregateId`. Wow 9.2 and later.
+ */
+export type ReferenceSemantic = {
+  /** The discriminator. */
+  type: 'REFERENCE';
+} & (
+  | {
+      /** The referenced aggregate's bounded context. */
+      contextName: string;
+      /** The referenced aggregate's name. */
+      aggregateName: string;
+      contextNameField?: undefined;
+      aggregateNameField?: undefined;
+    }
+  | {
+      contextName?: undefined;
+      aggregateName?: undefined;
+      /** The sibling property that holds each value's bounded context. */
+      contextNameField: string;
+      /** The sibling property that holds each value's aggregate name. */
+      aggregateNameField: string;
+    }
+);
+
+/**
  * What a field's value means beyond its type, sent as its `semantic`: one
  * of the three temporal kinds, which the relative time filters (`TODAY`,
- * `RECENT_DAYS`, …) and date histograms need, or one of the two numeric
- * formats, which say how a number is read and displayed. A field has one.
+ * `RECENT_DAYS`, …) and date histograms need; one of the two numeric
+ * formats, which say how a number is read and displayed; a duration; or a
+ * reference to an aggregate. A field has one; an array field's is its
+ * items'.
+ *
+ * A server newer than this client may send a `type` not listed here. The
+ * descriptor is read as JSON, not parsed, so it arrives as it is: treat a
+ * `type` you do not know as no semantic at all.
  */
 export type QuerySemanticType =
   | TemporalDate
   | TemporalEpoch
   | TemporalFormatted
   | NumericDecimal
-  | NumericMoney;
+  | NumericMoney
+  | DurationSemantic
+  | ReferenceSemantic;
 
 /** One declared value of an enum field, with its description when it has one. */
 export interface EnumValueDescriptor {
