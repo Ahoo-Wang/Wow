@@ -142,12 +142,13 @@ src/
     values.ts                 — Value shapes of the built-in kinds
     index.ts                  — The filter kernel: pure functions over a stored tree, plus the `FieldKind` registry that makes field types the one axis an application extends
     kinds/                    — Built-in FieldKinds
-      array.ts                — A field holding many values: `CONTAINS_ALL` and `IS_EMPTY` beside `IN`, closed by `options` or searched through `remote`
+      array.ts                — A field holding many values: `CONTAINS_ALL` and the two entry questions beside `IN`, closed by `options` or searched through `remote`
       boolean.ts
       dateTime.ts             — The one instant a single-bound operator compares against, as a phrase, and every bound written the way the field stores time; `readInstant`, the kind's own reading of a value, shared by the cells and the record kernel
       duration.ts             — A time since another moment (N3, Wow's `EXPRESSION` over a `DATE_DIFF`) as a time field's `EXPRESSION` condition: its value's check against the fields beside it, compilation and parts; `holdsTime`, `isDurationOperator`
       deletion.ts             — The soft-delete dimension as a declared field kind (D17-2); `impliedDeletion`
       elementMatch.ts         — The fields of one element, named as a condition names them
+      entries.ts              — A list's two questions of emptiness, 「没有条目」 and 「有条目」, in place of five (R1-P1-7)
       enum.ts                 — A closed set of values declared by the definition
       metadata.ts             — The kinds backed by Wow's metadata filters
       number.ts

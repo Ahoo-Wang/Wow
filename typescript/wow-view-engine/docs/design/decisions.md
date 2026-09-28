@@ -668,6 +668,13 @@
 - **没选**：在分组读法上继续加开关（`attached` 节、分组排序、字段隐藏——一条一条补，仍是字段清单）；宿主自己画抽屉（打开、读全、失败、焦点、叠放全要重做一遍，还和工作台的行打开脱节）。
 - **落点**：`src/ui/workbench/RecordParts.tsx`、`src/ui/embed/EmbeddedRecord.tsx`、`src/ui/record/RecordDetail.tsx`；[ui/record.md](ui/record.md)；补偿控制台 `features/Executions/detail/`。
 
+## D62 列表只问两个「空」：没有条目、有条目（2026-09-27）
+
+- **来由**：第二轮审查 R1-P1-7 后半：数组字段同时给「没有条目」和「为空／不为空／存在／不存在」，一共五个「空」，分析师分不清。
+- **裁定**（用户：「按你推荐」）：`array` 与 `elementMatch` 只留两个——`IS_EMPTY` 读作「没有条目」，发成 `IS_EMPTY OR IS_NULL`（MongoDB 的 `$size: 0` 只认真正的空数组，漏掉缺失与 null）；`IS_NOT_NULL` 读作「有条目」，发成二者的 `NOR`。编辑器与条上都用 `relations` 说成这两句。首发前改，不留兼容层：存下的其他三个判空在列表上报算子不支持。
+- **没选**：五个都留、只改措辞（仍是五个要分辨的选项）；新造 `IS_NOT_EMPTY` 算子名（Wow 没有，存下的条件要能直接读成 Wow 的算子）。
+- **落点**：`src/filter/kinds/entries.ts`、`array.ts`、`elementMatch.ts`；`FieldKind.compiledOperators` 与 `capabilities/fields.ts` 的收窄（一个算子发成几个时，几个都要被准入）；[extension.md](extension.md)。
+
 ## 搁置待议
 
 尚无结论，不要当作规则执行。

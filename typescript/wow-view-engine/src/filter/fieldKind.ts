@@ -52,6 +52,16 @@ export interface FieldKind {
    */
   relations?: Partial<Record<FilterOperatorName, FilterSummaryRelation>>;
   /**
+   * The Wow operators `operator` is sent as, when that is not just itself —
+   * an array's 「没有条目」 is `IS_EMPTY` or `IS_NULL`, because MongoDB's
+   * `$size: 0` misses a list that is absent or null. The descriptor must
+   * admit every one of them for the operator to be offered
+   * (`capabilities/fields.ts`). Left out, the operator is sent as itself.
+   */
+  compiledOperators?(
+    operator: FilterOperatorName,
+  ): readonly FilterOperatorName[];
+  /**
    * The value a leaf starts from, which is normally "nothing yet". A picked
    * field is a question the user has not finished asking, so the starting
    * value must not narrow anything: seeding a number with `0` would silently

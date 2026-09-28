@@ -89,20 +89,42 @@ describe('the array kind', () => {
     },
   );
 
-  it('asks whether there are any entries at all', () => {
-    // `IS_NULL` cannot answer this: a field can hold an empty list without
-    // being absent, and they are different questions.
+  /**
+   * Two questions of emptiness, not five (second review R1-P1-7): absent,
+   * null and `[]` are one answer to whoever reads a list. MongoDB's
+   * `$size: 0` alone misses the absent and the null ones, so 「没有条目」
+   * asks for either.
+   */
+  it('asks whether there are any entries at all, whichever way there are none', () => {
+    const none = [
+      { op: FilterOperator.IS_EMPTY, field: 'tags' },
+      { op: FilterOperator.IS_NULL, field: 'tags' },
+    ];
     expect(compile('tags', 'IS_EMPTY', null)).toEqual({
-      op: FilterOperator.IS_EMPTY,
-      field: 'tags',
+      op: FilterOperator.OR,
+      operands: none,
+    });
+    expect(compile('tags', 'IS_NOT_NULL', null)).toEqual({
+      op: FilterOperator.NOR,
+      operands: none,
     });
   });
 
-  it('still answers the presence questions every kind answers', () => {
-    expect(compile('tags', 'IS_NULL', null)).toEqual({
-      op: FilterOperator.IS_NULL,
-      field: 'tags',
-    });
+  it('offers no other question of presence', () => {
+    const kind = builtinFieldKinds.get('array')!;
+    expect(kind.operators).toEqual([
+      'IN',
+      'NOT_IN',
+      'CONTAINS_ALL',
+      'IS_EMPTY',
+      'IS_NOT_NULL',
+    ]);
+    // Offered only where the service answers both of what it is sent as.
+    expect(kind.compiledOperators?.('IS_NOT_NULL')).toEqual([
+      'IS_EMPTY',
+      'IS_NULL',
+    ]);
+    expect(kind.compiledOperators?.('IN')).toEqual(['IN']);
   });
 
   it('takes numbers as well as text', () => {
@@ -194,8 +216,24 @@ describe('the array kind', () => {
     const kind = builtinFieldKinds.get('array')!;
 
     expect(kind.editor('IS_EMPTY', field)).toEqual({ input: 'none' });
-    expect(kind.editor('IS_NULL', field)).toEqual({ input: 'none' });
+    expect(kind.editor('IS_NOT_NULL', field)).toEqual({ input: 'none' });
   });
+
+  it.each([
+    ['IS_EMPTY', 'has-no-entries', 'Categories has no entries'],
+    ['IS_NOT_NULL', 'has-entries', 'Categories has entries'],
+  ] as [FilterOperatorName, string, string][])(
+    'says %s as a question of entries',
+    (operator, relation, want) => {
+      const [item] = describeFilter(
+        fields,
+        tree('categories', operator, null),
+        builtinFieldKinds,
+      );
+      expect(item.text).toBe(want);
+      expect(item.relation).toBe(relation);
+    },
+  );
 
   it.each([
     ['IN', 'Categories has any of Apparel'],

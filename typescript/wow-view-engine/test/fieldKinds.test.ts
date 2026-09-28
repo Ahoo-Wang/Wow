@@ -89,6 +89,9 @@ function codes(
     .map(i => i.code);
 }
 
+/** The kinds that hold a list, and ask about its entries. */
+const LIST_KINDS = ['array', 'elementMatch'];
+
 describe('presence operators', () => {
   it('compile and describe without reading a value', () => {
     for (const operator of [
@@ -106,6 +109,23 @@ describe('presence operators', () => {
     expect(describePresence('EQ')).toBeNull();
   });
 
+  /**
+   * A list asks 「没有条目」 and 「有条目」 instead (`entries.ts`, second
+   * review R1-P1-7): the four presence questions beside `IS_EMPTY` were five
+   * empties nobody could tell apart.
+   */
+  it('are asked of a list as questions of its entries', () => {
+    for (const id of LIST_KINDS) {
+      const kind = builtinFieldKinds.get(id)!;
+      expect(kind.operators, id).toEqual(
+        expect.arrayContaining(['IS_EMPTY', 'IS_NOT_NULL']),
+      );
+      for (const operator of ['IS_NULL', 'EXISTS', 'NOT_EXISTS'])
+        expect(kind.operators, id).not.toContain(operator);
+      expect(kind.relations?.IS_NOT_NULL, id).toBe('has-entries');
+    }
+  });
+
   it('are withheld by exactly the kinds that name no field', () => {
     // The rule is not "metadata": it is that `IS_NULL` carries a field name
     // and these kinds' names are handles for the editor. Search joined them
@@ -115,7 +135,9 @@ describe('presence operators', () => {
       .map(kind => kind.id)
       .sort();
 
-    expect(without).toEqual([...FIELDLESS_FIELD_KIND_IDS].sort());
+    expect(without).toEqual(
+      [...FIELDLESS_FIELD_KIND_IDS, ...LIST_KINDS].sort(),
+    );
   });
 
   it('say so on the kind, so a custom one can join them', () => {
@@ -138,6 +160,7 @@ describe('presence operators', () => {
       // carries a field name while their own `name` is a label, so one leaf
       // would mean two different things depending on its operator.
       if (FIELDLESS_FIELD_KIND_IDS.includes(kind.id)) continue;
+      if (LIST_KINDS.includes(kind.id)) continue;
       expect(kind.operators).toContain('IS_NULL');
       expect(
         kind.validate({

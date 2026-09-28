@@ -425,15 +425,39 @@ describe('4.2 conditions', () => {
         ),
       });
 
-      expect(field(definition, 'items')?.operators).toEqual([
-        'ELEMENT_MATCH',
-        'IS_EMPTY',
-        'IS_NULL',
-        'IS_NOT_NULL',
-      ]);
+      // Nothing taken away: the two questions of entries are each sent as
+      // `IS_EMPTY` or `IS_NULL`, both of which the array admits, so the kind's
+      // own three stand (the field names none of its own).
+      expect(field(definition, 'items')?.operators).toBeUndefined();
+      expect(
+        findings.filter(
+          found =>
+            found.code === 'capability.field.operators-narrowed' &&
+            found.params?.field === 'items',
+        ),
+      ).toEqual([]);
       expect(findings.map(found => found.code)).not.toContain(
         'capability.field.unfilterable',
       );
+    });
+
+    it('withholds a question of entries whose parts the array does not admit', () => {
+      // 「没有条目」 is sent as `IS_EMPTY` or `IS_NULL`: an array that admits
+      // only the first cannot answer it whole, so neither question is
+      // offered rather than one that misses the absent lists.
+      const base = described(true);
+      const { definition } = narrow(declared, {
+        ...base,
+        fields: base.fields.map(entry =>
+          entry.path === 'items'
+            ? describedField('items', {
+                kind: QueryValueKind.ARRAY,
+                filter: { operators: [FilterOperator.IS_EMPTY] },
+              })
+            : entry,
+        ),
+      });
+      expect(field(definition, 'items')?.operators).toEqual(['ELEMENT_MATCH']);
     });
 
     it('offers no element condition where the elements cannot be filtered', () => {
