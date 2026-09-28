@@ -119,6 +119,41 @@ describe('a category split reads the largest first', () => {
     expect(labels(split(), averages)).toEqual(['often', 'rare']);
   });
 
+  it('folds a metric that does not add up by the same mean it orders by', () => {
+    const warehouses = ['CN', 'US', 'JP', 'DE'];
+    const rows: RecordData[] = [
+      // Seven high averages, each in one warehouse: a mean of 10 … 16, and
+      // a sum no larger.
+      ...Array.from({ length: 7 }, (_, index) => ({
+        warehouse: warehouses[index % warehouses.length],
+        status: `high${index}`,
+        amount: 10 + index,
+      })),
+      // Three low averages in every warehouse: a mean of 5, a sum of 20 —
+      // the largest totals, which a fold by sum would have kept.
+      ...['low0', 'low1', 'low2'].flatMap(status =>
+        warehouses.map(warehouse => ({ warehouse, status, amount: 5 })),
+      ),
+    ];
+    const data = shapeChart(split(undefined, AVG), rows, undefined, {
+      splitWhole: warehouses.map(warehouse => ({ warehouse, amount: 5 })),
+    }) as CartesianData;
+    expect(data.series.map(entry => entry.label)).toEqual([
+      'high6',
+      'high5',
+      'high4',
+      'high3',
+      'high2',
+      'high1',
+      'high0',
+      '',
+    ]);
+    expect(data.series[data.series.length - 1]).toMatchObject({
+      key: OTHER_SERIES_KEY,
+      other: true,
+    });
+  });
+
   it('keeps series of one size in the order they came', () => {
     const even: RecordData[] = [
       { warehouse: 'CN', status: 'B', amount: 2 },

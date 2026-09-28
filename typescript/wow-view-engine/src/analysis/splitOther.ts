@@ -166,7 +166,13 @@ export function foldOther(
     data.series.length <= CHART_COLOR_SLOTS
   )
     return data;
-  const sizes = seriesSizes(data, true);
+  // By the measure the legend is ordered by (`bySize`), so the seven kept
+  // are the seven the order puts first — a mean where the metric does not
+  // add up, however few categories a series turns up in.
+  const sizes = seriesSizes(
+    data,
+    isAdditiveMetric(config.metrics.find(one => one.alias === metric)),
+  );
   const kept = new Set(
     data.series
       .map((_, index) => index)
