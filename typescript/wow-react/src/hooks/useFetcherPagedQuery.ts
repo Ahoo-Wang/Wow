@@ -17,9 +17,8 @@ import type {
   PagedQuery,
   PagedQueryRequest,
 } from '@ahoo-wang/wow-client/legacy';
-import type { Fetcher } from '@ahoo-wang/fetcher';
-import { endpointIdentity, postQuery } from '../internal/endpoint.js';
-import { useQueryRunner } from '../internal/useQueryRunner.js';
+import type { Endpoint } from '../internal/endpoint.js';
+import { useEndpointRunner } from '../internal/useEndpointRunner.js';
 import type { QueryHookOptions, QueryHookReturn } from '../types.js';
 
 /**
@@ -36,18 +35,8 @@ export interface UseFetcherPagedQueryOptions<
   FIELDS extends string = string,
   E = Error,
   Q extends PagedQueryRequest<FIELDS> = FilterPagedQuery<FIELDS>,
-> extends Omit<QueryHookOptions<Q, PagedList<R>, E>, 'execute'> {
-  /**
-   * The query endpoint, resolved against the Fetcher's `baseURL`: for example
-   * `order/snapshot/paged/state` for the states of an `order` aggregate.
-   */
-  url: string;
-  /**
-   * The Fetcher that sends the request, or the name of a registered one; the
-   * default Fetcher when omitted.
-   */
-  fetcher?: string | Fetcher;
-}
+>
+  extends Omit<QueryHookOptions<Q, PagedList<R>, E>, 'execute'>, Endpoint {}
 
 /**
  * What {@link useFetcherPagedQuery} returns: the page (`total` and `list`)
@@ -139,9 +128,5 @@ export function useFetcherPagedQuery<
 >(
   options: UseFetcherPagedQueryOptions<R, FIELDS, E, Q>,
 ): UseFetcherPagedQueryReturn<R, FIELDS, E, Q> {
-  const { url, fetcher, ...rest } = options;
-  return useQueryRunner<Q, PagedList<R>, E>(
-    { ...rest, execute: postQuery<Q, PagedList<R>>({ url, fetcher }) },
-    endpointIdentity({ url, fetcher }),
-  );
+  return useEndpointRunner<Q, PagedList<R>, E>(options);
 }

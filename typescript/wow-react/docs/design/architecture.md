@@ -93,4 +93,5 @@ Fetcher 的身份（`endpointIdentity`）：有名字的 Fetcher（字符串名�
 ## 6. 以后
 
 - **9.3：通用与聚合查询 Hook**（用户 2026-09-25 定，review 决定 4）。公开 `useQuery<Q, R, E>`（即现在的 `useQueryRunner`），新增 `useAggregateQuery`、`useAggregateStreamQuery`；都是新增，不破坏 9.2 的冻结面。9.2.0 的参考页写明「聚合暂时没有 Hook，在 effect 里直接调用 `client.aggregate` 并在清理时中止」，并给出示例。
+- **游标查询 Hook**：还没有。在此之前用 `useSingleQuery` 运行游标查询，把一页当作结果：`useSingleQuery<CursorPage<R>, Fields, Error, CursorQuery<Fields>>`，`execute: client.cursorState`（或 `client.cursor`），用 `setQuery` 带上一页的 `nextCursor` 翻页；README 写明这一做法，`filterQueryTypes.test.ts` 固定它的类型。
 - SSR 的 `initialResult`（R-8）、Suspense：都以新增 API 的方式加。

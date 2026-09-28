@@ -99,6 +99,12 @@ cleanup, as the
 [reference page](https://wow.ahoo.me/reference/typescript/wow-react/#aggregations)
 shows.
 
+Cursor queries have no hook yet either. Run one through `useSingleQuery`, with
+the page as the result: pass `CursorPage<R>` and `CursorQuery<Fields>` as the
+type arguments and `client.cursorState` (or `client.cursor`) as `execute`, and
+move to the next page with `setQuery({ ...query, cursor: result.nextCursor })`
+while `nextCursor` is not `null`.
+
 ## With an endpoint URL
 
 The `useFetcher*Query` hooks POST the query to a URL through a Fetcher instead:

@@ -12,25 +12,14 @@
  */
 
 import { useCallback, useState } from 'react';
+// compat(wow<9): the stream hooks also take the Condition-based list query of `@ahoo-wang/wow-client/legacy`; narrow to FilterListQuery in v10.
+import type { ListQueryRequest } from '@ahoo-wang/wow-client/legacy';
 import type {
-  ListStreamExecutor,
-  QueryHookOptions,
-  QueryHookReturn,
-} from '../types.js';
+  UseListStreamQueryOptions,
+  UseListStreamQueryReturn,
+} from '../hooks/useListStreamQuery.js';
 import { readStreamRows } from './readStreamRows.js';
 import { useQueryRunner } from './useQueryRunner.js';
-
-/** The options of a list-stream hook: `execute` opens the stream. */
-export type ListStreamOptions<Q, R, E> = Omit<
-  QueryHookOptions<Q, R[], E>,
-  'execute'
-> & { execute: ListStreamExecutor<R, Q> };
-
-/** What a list-stream hook returns: the rows in place of `result`. */
-export type ListStreamReturn<Q, R, E> = Omit<
-  QueryHookReturn<Q, R[], E>,
-  'result'
-> & { items: R[]; done: boolean };
 
 /**
  * The list-stream hooks on the request state machine: a run opens the
@@ -40,10 +29,15 @@ export type ListStreamReturn<Q, R, E> = Omit<
  * readStreamRows stops publishing then, so rows of a stale stream never
  * reach `items`.
  */
-export function useListStream<Q, R, E>(
-  options: ListStreamOptions<Q, R, E>,
+export function useListStream<
+  R,
+  FIELDS extends string,
+  E,
+  Q extends ListQueryRequest<FIELDS>,
+>(
+  options: UseListStreamQueryOptions<R, FIELDS, E, Q>,
   identity?: string,
-): ListStreamReturn<Q, R, E> {
+): UseListStreamQueryReturn<R, FIELDS, E, Q> {
   const [items, setItems] = useState<R[]>(() => []);
   const openStream = options.execute;
   const { status, loading, error, execute, abort, reset, getQuery, setQuery } =

@@ -14,9 +14,8 @@
 import type { FilterListQuery } from '@ahoo-wang/wow-client';
 // compat(wow<9): the hook also takes the Condition-based queries of `@ahoo-wang/wow-client/legacy`, which Wow < 8.11 needs; drop that overload in v10.
 import type { ListQuery, ListQueryRequest } from '@ahoo-wang/wow-client/legacy';
-import type { Fetcher } from '@ahoo-wang/fetcher';
-import { endpointIdentity, postQuery } from '../internal/endpoint.js';
-import { useQueryRunner } from '../internal/useQueryRunner.js';
+import type { Endpoint } from '../internal/endpoint.js';
+import { useEndpointRunner } from '../internal/useEndpointRunner.js';
 import type { QueryHookOptions, QueryHookReturn } from '../types.js';
 
 /**
@@ -33,18 +32,8 @@ export interface UseFetcherListQueryOptions<
   FIELDS extends string = string,
   E = Error,
   Q extends ListQueryRequest<FIELDS> = FilterListQuery<FIELDS>,
-> extends Omit<QueryHookOptions<Q, R[], E>, 'execute'> {
-  /**
-   * The query endpoint, resolved against the Fetcher's `baseURL`: for example
-   * `order/snapshot/list/state` for the states of an `order` aggregate.
-   */
-  url: string;
-  /**
-   * The Fetcher that sends the request, or the name of a registered one; the
-   * default Fetcher when omitted.
-   */
-  fetcher?: string | Fetcher;
-}
+>
+  extends Omit<QueryHookOptions<Q, R[], E>, 'execute'>, Endpoint {}
 
 /**
  * What {@link useFetcherListQuery} returns: the rows as `result`.
@@ -141,9 +130,5 @@ export function useFetcherListQuery<
 >(
   options: UseFetcherListQueryOptions<R, FIELDS, E, Q>,
 ): UseFetcherListQueryReturn<R, FIELDS, E, Q> {
-  const { url, fetcher, ...rest } = options;
-  return useQueryRunner<Q, R[], E>(
-    { ...rest, execute: postQuery<Q, R[]>({ url, fetcher }) },
-    endpointIdentity({ url, fetcher }),
-  );
+  return useEndpointRunner<Q, R[], E>(options);
 }

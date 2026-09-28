@@ -13,10 +13,13 @@
 
 import { expectTypeOf, it } from 'vitest';
 import type {
+  CursorPage,
+  CursorQuery,
   FilterExpression,
   FilterListQuery,
   FilterPagedQuery,
   FilterSingleQuery,
+  SnapshotQueryClient,
   WowError,
 } from '@ahoo-wang/wow-client';
 import type { FetcherError } from '@ahoo-wang/fetcher';
@@ -332,4 +335,22 @@ it('still accepts the legacy request subtypes in Fetcher hooks', () => {
   expectTypeOf((options: CountOptions) =>
     useFetcherCountQuery<Fields, Error>(options),
   ).toBeFunction();
+});
+
+it('runs a cursor query through useSingleQuery until a cursor hook exists', () => {
+  // The README's pattern: the page is the result, setQuery moves to the next.
+  const page = (
+    client: SnapshotQueryClient<Item, Fields>,
+    first: CursorQuery<Fields>,
+  ) =>
+    useSingleQuery<CursorPage<Item>, Fields, Error, CursorQuery<Fields>>({
+      initialQuery: first,
+      execute: client.cursorState,
+    });
+  expectTypeOf<ReturnType<typeof page>['result']>().toEqualTypeOf<
+    CursorPage<Item> | undefined
+  >();
+  expectTypeOf<ReturnType<typeof page>['setQuery']>()
+    .parameter(0)
+    .toEqualTypeOf<CursorQuery<Fields>>();
 });
