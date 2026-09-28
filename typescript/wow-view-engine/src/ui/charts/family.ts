@@ -19,6 +19,7 @@ import type {
   FunnelStages,
   RecordData,
 } from '../../model/index.js';
+import type { PickAnchor } from '../anchor.js';
 import { bandText } from '../band.js';
 import {
   columnTitle,
@@ -60,7 +61,7 @@ export type ValueLabel = (
  */
 export type OnPick = (
   row: RecordData,
-  anchor: Element | { getBoundingClientRect(): DOMRect },
+  anchor: PickAnchor,
   /**
    * Where the keyboard goes back to when the menu closes: the table row that
    * was pressed. A mark is not focusable and leaves nothing to return to,

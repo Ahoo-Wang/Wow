@@ -366,7 +366,7 @@ src/
       releaseDeleted.ts       — Lets a workbench's pinned id go once the view is deleted
       handOver.ts             — `useHandOver`: a view a host hands the workbench (D26 Q30) — a saved one opened by its id, one nobody saved held as `handed` so the shell opens it folded — once per object through the leave guard, under what the page holds as its scope; `useHandedConditions`, the reader's board values put onto a handed saved view's own conditions
   ui/                         — Default look; may import every layer
-    AnalysisChart.tsx         — Dispatches by chart family; nothing else but saying whether the follow-up menu is open over the chart (`ChartMenuOpen`)
+    AnalysisChart.tsx         — Dispatches by chart family, a pie of no slices to the empty state (`AnalysisEmpty`); nothing else but saying whether the follow-up menu is open over the chart (`ChartMenuOpen`)
     AnalysisTable.tsx         — The aggregation as a table: groups first, then metrics, with the totals row from its own ungrouped query rather than from summing what is on screen, and its scope said under 「合计」; read with the record table's recipes — numbers on the right, ids in monospace, `SortableHeader`, held widths and the filler; over a time dimension a second row picked with Shift is a span (the keyboard's brush, D33 Q52)
     Announcer.tsx             — `useAnnouncer`: one live region per surface, handed back rather than rendered by the caller, the same words twice said twice; `SurfaceAnnouncer`／`useSurfaceAnnouncer`: a surface's one voice handed to the parts drawn inside it (a board's grid, tabs, filters, building)
     AppliedBar.tsx            — The conditions the rows on screen were fetched under; a page's scope worn read-only. Record and analysis views only: a dashboard draws none (D27)
@@ -424,6 +424,7 @@ src/
     ViewSwitcher.tsx          — The view list as one control, for when the sidebar is folded away
     WorkbenchShell.tsx        — The frame the workbenches share, over one `useWorkbench`: composes its columns and blocks from `workbench/` and holds the state they share; resolves the refresh, the query strip and the warnings itself
     WriteOutcome.tsx          — The open view's last write, and the three ways out of a conflict
+    anchor.ts                 — `PickAnchor`, where a menu hangs from: the mark or row pressed, or the point (`pointAnchor`); every chart family hands one to the follow-up menu
     alerts.tsx                — `LineAlert`: one callout one line high, tone deciding colour, icon and role
     band.ts                   — `bandText`: a number histogram's key as the band it starts, 「¥0～500」, its bounds short when short is exact; `segmentText`, a `GTE`＋`LT` segment written the same way
     describeConfig.ts         — One config in a sentence, for a conflict's side-by-side

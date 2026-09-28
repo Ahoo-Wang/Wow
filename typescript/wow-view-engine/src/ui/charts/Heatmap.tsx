@@ -13,7 +13,7 @@
 
 import { useCallback, useMemo } from 'react';
 import { valueLabelsOn, type HeatmapData } from '../../analysis/index.js';
-import { pointAnchor } from '../analysis/DrillMenu.js';
+import { pointAnchor } from '../anchor.js';
 import { categoryFit } from './cartesianFit.js';
 import { EChart, type ChartClick } from './EChart.js';
 import { faded, type Lit } from './highlight.js';

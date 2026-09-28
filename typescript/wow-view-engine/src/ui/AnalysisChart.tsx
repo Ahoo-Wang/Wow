@@ -44,6 +44,7 @@ import { ScatterPoints } from './charts/ScatterPoints.js';
 import { TimeCharts } from './charts/TimeCharts.js';
 import { Treemap } from './charts/Treemap.js';
 import { Waterfall } from './charts/Waterfall.js';
+import { AnalysisEmpty } from './analysis/EmptyResult.js';
 import { useViewMessages } from './MessagesProvider.js';
 import { useSurfaceDisplay } from './ViewSurface.js';
 
@@ -218,7 +219,15 @@ function family(
     case 'cartesian':
       return <Cartesian data={data} {...props} />;
     case 'pie':
-      return <PieSlices data={data} {...props} />;
+      // No slice is no pie: the library drew a grey ring, and the legend
+      // its lead alone. A result of no groups says so wherever the pie is
+      // drawn. Said here rather than in the family, which would otherwise
+      // reach into the analysis folder that draws it.
+      return data.slices.length === 0 ? (
+        <AnalysisEmpty />
+      ) : (
+        <PieSlices data={data} {...props} />
+      );
     case 'heatmap':
       return <Heatmap data={data} {...props} />;
     case 'scatter':
