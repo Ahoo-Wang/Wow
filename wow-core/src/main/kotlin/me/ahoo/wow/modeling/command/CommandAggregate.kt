@@ -17,6 +17,7 @@ import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.api.modeling.NamedTypedAggregate
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.eventsourcing.EventStore
+import me.ahoo.wow.eventsourcing.appendResolvingOutcome
 import me.ahoo.wow.modeling.state.StateAggregate
 import me.ahoo.wow.reactor.checkpoint
 import reactor.core.publisher.Mono
@@ -74,7 +75,7 @@ enum class CommandState {
     },
     SOURCED {
         override fun onStore(eventStore: EventStore, eventStream: DomainEventStream): Mono<CommandState> {
-            return eventStore.append(eventStream)
+            return eventStore.appendResolvingOutcome(eventStream)
                 .checkpoint {
                     "Append DomainEventStream[${eventStream.id}] CommandId:[${eventStream.commandId}] [CommandState]"
                 }
