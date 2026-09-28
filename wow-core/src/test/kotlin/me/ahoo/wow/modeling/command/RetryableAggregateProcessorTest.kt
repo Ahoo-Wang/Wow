@@ -44,6 +44,11 @@ import java.time.Duration
 import java.util.concurrent.TimeoutException
 import java.util.concurrent.atomic.AtomicInteger
 
+/**
+ * After a recoverable append failure with the version slot still empty, the append rewrites the same
+ * stream once before the processor decides again (see `appendResolvingOutcome`). A processor attempt
+ * that fails therefore makes two appends.
+ */
 class RetryableAggregateProcessorTest {
 
     @Test
@@ -134,8 +139,24 @@ class RetryableAggregateProcessorTest {
     }
 
     @Test
+    fun `processor completes without deciding again when a failed append had committed`() {
+        val eventStore = RetryableEventStore(listOf(TimeoutException("timeout")), commitBeforeFailing = true)
+        val aggregateId = MOCK_AGGREGATE_METADATA.aggregateId("aggregate-1")
+        val processor = processor(aggregateId, eventStore)
+        val exchange = SimpleServerCommandExchange(MockCreateAggregate("aggregate-1", "created").toCommandMessage())
+            .setServiceProvider(SimpleServiceProvider())
+
+        StepVerifier.withVirtualTime { processor.process(exchange) }
+            .expectNextMatches { it.version == 1 && it.requestId == exchange.message.requestId }
+            .verifyComplete()
+
+        eventStore.attempts.get().assert().isEqualTo(1)
+        eventStore.load(aggregateId).count().block().assert().isEqualTo(1L)
+    }
+
+    @Test
     fun `processor backs off before the first retry`() {
-        val eventStore = RetryableEventStore(listOf(TimeoutException("timeout")))
+        val eventStore = RetryableEventStore(List(2) { TimeoutException("timeout") })
         val aggregateId = MOCK_AGGREGATE_METADATA.aggregateId("aggregate-1")
         val processor = processor(aggregateId, eventStore)
         val exchange = SimpleServerCommandExchange(MockCreateAggregate("aggregate-1", "created").toCommandMessage())
@@ -144,18 +165,18 @@ class RetryableAggregateProcessorTest {
         StepVerifier.withVirtualTime { processor.process(exchange) }
             .expectSubscription()
             .expectNoEvent(Duration.ofMillis(499))
-            .then { eventStore.attempts.get().assert().isEqualTo(1) }
+            .then { eventStore.attempts.get().assert().isEqualTo(2) }
             .thenAwait(Duration.ofSeconds(1))
             .expectNextCount(1)
             .verifyComplete()
 
-        eventStore.attempts.get().assert().isEqualTo(2)
+        eventStore.attempts.get().assert().isEqualTo(3)
     }
 
     @Test
     fun `processor preserves retry exhaustion and resets the budget for each subscription`() {
         val failure = TimeoutException("timeout")
-        val eventStore = RetryableEventStore(List(8) { failure })
+        val eventStore = RetryableEventStore(List(16) { failure })
         val aggregateId = MOCK_AGGREGATE_METADATA.aggregateId("aggregate-1")
         val processor = processor(aggregateId, eventStore)
         val exchange = SimpleServerCommandExchange(MockCreateAggregate("aggregate-1", "created").toCommandMessage())
@@ -168,7 +189,7 @@ class RetryableAggregateProcessorTest {
                 .expectErrorMatches { Exceptions.isRetryExhausted(it) && it.cause === failure }
                 .verify()
 
-            eventStore.attempts.get().assert().isEqualTo((subscription + 1) * 4)
+            eventStore.attempts.get().assert().isEqualTo((subscription + 1) * 8)
         }
     }
 
@@ -176,7 +197,7 @@ class RetryableAggregateProcessorTest {
     @ValueSource(ints = [0, 1])
     fun `processor stops at a non recoverable failure`(recoverableFailures: Int) {
         val failure = IllegalArgumentException("invalid command")
-        val eventStore = RetryableEventStore(List(recoverableFailures) { TimeoutException("timeout") } + failure)
+        val eventStore = RetryableEventStore(List(recoverableFailures * 2) { TimeoutException("timeout") } + failure)
         val aggregateId = MOCK_AGGREGATE_METADATA.aggregateId("aggregate-1")
         val processor = processor(aggregateId, eventStore)
         val exchange = SimpleServerCommandExchange(MockCreateAggregate("aggregate-1", "created").toCommandMessage())
@@ -187,7 +208,7 @@ class RetryableAggregateProcessorTest {
             .expectErrorMatches { it === failure }
             .verify()
 
-        eventStore.attempts.get().assert().isEqualTo(recoverableFailures + 1)
+        eventStore.attempts.get().assert().isEqualTo(recoverableFailures * 2 + 1)
     }
 
     @Test
@@ -207,7 +228,7 @@ class RetryableAggregateProcessorTest {
             .expectNext(0L)
             .verifyComplete()
 
-        eventStore.attempts.get().assert().isEqualTo(1)
+        eventStore.attempts.get().assert().isEqualTo(2)
     }
 
     private fun processor(
@@ -229,6 +250,7 @@ class RetryableAggregateProcessorTest {
 
     private class RetryableEventStore(
         private val failures: List<Throwable> = List(3) { TimeoutException("timeout") },
+        private val commitBeforeFailing: Boolean = false,
     ) : EventStore {
         private val delegate = InMemoryEventStore()
         val attempts = AtomicInteger()
@@ -236,6 +258,9 @@ class RetryableAggregateProcessorTest {
         override fun append(eventStream: DomainEventStream): Mono<Void> {
             val failure = failures.getOrNull(attempts.getAndIncrement())
             if (failure != null) {
+                if (commitBeforeFailing) {
+                    return delegate.append(eventStream).then(failure.toMono())
+                }
                 return failure.toMono()
             }
             return delegate.append(eventStream)
