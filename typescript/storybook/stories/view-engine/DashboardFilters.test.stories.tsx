@@ -483,7 +483,8 @@ async function chipHeights(canvasElement: HTMLElement): Promise<number[]> {
 /**
  * A chip's height is the theme's (`filter-height`, theme-architecture.md
  * 9.3): unset, its controls and its padding — 34px round a select, 38px
- * round a text box in neutral, 34px round porcelain's 28px controls; azure
+ * round a text box in neutral and in porcelain, whose controls are the
+ * stylesheet's own (D63); azure
  * sets 32px and the controls in it fill it.
  */
 const chipsIn = (
@@ -509,4 +510,4 @@ const chipsIn = (
 
 export const ChipsUnsetInNeutral: Story = chipsIn('neutral', [34, 38]);
 export const ChipsAt32InAzure: Story = chipsIn('azure', [32]);
-export const ChipsUnsetInPorcelain: Story = chipsIn('porcelain', [34]);
+export const ChipsUnsetInPorcelain: Story = chipsIn('porcelain', [34, 38]);
