@@ -639,7 +639,7 @@ P0（走查定）：弹层字体（缺陷 1，单独的 PR 已在做）、选中
 1. **预设的值不能指向引擎解析过的 token。** 4.6 说「填主色白字就是 `highlight: var(--primary)`」，但预设块挂在 `data-fve-preset` 所在的元素上（README 让宿主挂在 `<html>`），`var(--primary)` 在那里算，而那里还没有引擎的 `--primary`（有 shadcn 宿主时还会取到宿主自己的 `--primary`）。宿主写 `--fve-highlight: var(--primary)` 在 `:root` 上也是同一个问题。所以 porcelain 的菜单高亮只能写字面值，**宿主给了品牌色时菜单高亮不跟品牌**（选中行跟，因为 `row-selected` 在品牌派生里）。可选的修法：让角色的值接受一组关键字（例如 `primary` 表示「解析后的主色」），或把 `highlight` 加进品牌派生（像 `row-selected` 那样，预设给一个开关与明暗的边界）。归 S6／S7 之后另议。
 2. **看板筛选芯片里打字的框必有 `input` 边**（`ControlFrame` 的 `has-[[data-slot=input]]:border-input`）。走查要「搜索框与筛选芯片一致」：高度已由两档控件高度统一（34px），填色一致，边不一致——这是 1.4.11 的线（打字的框靠边界被认出），不是遗漏。要让它也无边，须先论证填色本身足以当边界，再给配方一个角色。
 
-**证据**：`resolveTokens` 快照只有 porcelain 的 16 个角色在每种明暗与约定下变了；截图基线变了 10 张，逐张看过：porcelain 的 6 张（主题一览）、默认在 porcelain 下渲染、不钉预设的 3 张关键屏（首页运营日报、工作台里的运营日报、分析工作台），以及角色的「提示框」一张——它钉的是 neutral，但截到的是故事外壳（宿主的顶栏按钮「通知」）的提示框，那一块在 `<html>` 的预设下渲染，所以跟着 porcelain 的圆角变了（外壳不在钉住的面里，这张截图并不是 neutral 的证据，应改截面内的触发器，另记）。neutral、azure、contrast 的截图与另外三张角色截图逐字节不变。交互故事里只有「表头带」两条（`RecordWorkbench.test.stories.tsx` 的 `headerBand`）因此变红：它量的是 neutral 的设计（表头与汇总同为 `muted`），却跟着 Storybook 的默认预设走，现在钉在 neutral 上。
+**证据**：`resolveTokens` 快照只有 porcelain 的 16 个角色在每种明暗与约定下变了；截图基线变了 10 张，逐张看过：porcelain 的 6 张（主题一览）、默认在 porcelain 下渲染、不钉预设的 3 张关键屏（首页运营日报、工作台里的运营日报、分析工作台），以及角色的「提示框」一张——它钉的是 neutral，但截到的是故事外壳（宿主的顶栏按钮「通知」）的提示框，那一块在 `<html>` 的预设下渲染，所以跟着 porcelain 的圆角变了（外壳不在钉住的面里，这张截图并不是 neutral 的证据，应改截面内的触发器，另记）。neutral、azure、contrast 的截图与另外三张角色截图逐字节不变。交互故事里只有「表头带」两条（`RecordWorkbenchTheme.test.stories.tsx` 的 `headerBand`）因此变红：它量的是 neutral 的设计（表头与汇总同为 `muted`），却跟着 Storybook 的默认预设走，现在钉在 neutral 上。
 
 ### 9.2 S8 落地记录（2026-09-25）
 

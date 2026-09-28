@@ -8,6 +8,7 @@ Storybook 是可运行的接入文档，也承载浏览器交互回归。目录�
 
 - `*.stories.tsx`：展示组件、初始参数、说明和可手动操作的场景。允许初始化读取和无副作用的渲染断言。
 - `*.test.stories.tsx`：导入展示故事，复用参数和演示实现，安装复杂 `play`。使用 `['!dev', '!autodocs', 'test']`，保留测试执行并隐藏默认导航与文档入口。
+- 孪生太大时按关注点拆成几个 `<名字><关注点>.test.stories.tsx`，**沿用同一个 `title`**，故事 id 因此不变；几份共用的读屏助手放在旁边一个不是故事的模块里，只给它们用。记录工作台就是这样拆的：`RecordWorkbench.test.stories.tsx`（各状态）与 `RecordWorkbench{Table,TableSettings,Layout,Actions,Views,Sidebar,Filters,Toolbar,Theme}.test.stories.tsx`，助手在 `recordWorkbenchTest.ts`。
 - `*.play.ts`：较长交互需要单独成文件时的具名实现，就近维护（目前没有这样的文件，`play` 都写在孪生故事里）。不要求为简单断言单独建文件。
 - `shared/`：只有真实复用的场景外壳（View Engine 全部场景的宿主应用外壳 `AppShell`，其余包的文档场景外壳 `ScenarioFrame`）和 Ant Design Provider。模块显式声明装饰器，不通过故事标题选择 Provider。
 

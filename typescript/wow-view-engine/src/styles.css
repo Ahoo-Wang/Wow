@@ -651,7 +651,7 @@
    * measures 3.64:1 on the card and 3.52:1 on the editor band's tint, and a
    * host overriding `--fve-input` owes its own theme the same. Held by
    * `ControlBordersInLightTheme` / `ControlBordersInDarkTheme` in
-   * `stories/view-engine/RecordWorkbench.test.stories.tsx`, which measure the
+   * `stories/view-engine/RecordWorkbenchTheme.test.stories.tsx`, which measure the
    * cascaded colour in a real browser. `border` (dividers) is a separate
    * question and keeps the registry's value.
    */

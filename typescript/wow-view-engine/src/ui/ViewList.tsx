@@ -144,7 +144,7 @@ export function ViewList({
           is therefore copied rather than guessed — `WorkbenchShell`'s `main`
           opens with `p-4`, and its `view-header-block` is a `min-h-10` row
           over `pb-3` and a border, so this is the same four numbers in the
-          same order. `RecordWorkbench.test.stories.tsx` measures the two
+          same order. `RecordWorkbenchSidebar.test.stories.tsx` measures the two
           bottoms against each other.
 
           The `+` is D12's third button, and it is here only with a command
