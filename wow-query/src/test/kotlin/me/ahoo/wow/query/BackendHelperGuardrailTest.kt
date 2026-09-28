@@ -23,9 +23,8 @@ import java.io.File
  * drift apart. This scans the MongoDB and Elasticsearch main sources for the private declarations the helpers
  * replace.
  *
- * [ALLOWED] lists the occurrences that remain until the backends move over (audit wave 4), by file and pattern, with
- * their count. The list can only shrink: a new occurrence fails, and so does an allowlisted one that has gone, so
- * the list is lowered with the code. Wave 4 empties it.
+ * [ALLOWED] lists tolerated occurrences by file and pattern, with their count. Audit wave 4 moved both backends over,
+ * so it is empty; it can only shrink: a new occurrence fails, and so does an allowlisted one that has gone.
  */
 class BackendHelperGuardrailTest {
     @Test
@@ -67,14 +66,6 @@ class BackendHelperGuardrailTest {
             PHYSICAL_FIELD_PATH to Regex("""\.physicalField\.path\b"""),
         )
 
-        const val ELASTICSEARCH = "wow-elasticsearch/src/main/kotlin/me/ahoo/wow/elasticsearch/query"
-
-        val ALLOWED: Map<Pair<String, String>, Int> = mapOf(
-            "$ELASTICSEARCH/AbstractElasticsearchFilterCompiler.kt" to PHYSICAL_FIELD_PATH to 2,
-            "$ELASTICSEARCH/ElasticsearchProjectionCompiler.kt" to PHYSICAL_FIELD_PATH to 1,
-            "$ELASTICSEARCH/aggregation/ElasticsearchAggregationScripts.kt" to PHYSICAL_PATH to 1,
-            "$ELASTICSEARCH/aggregation/ElasticsearchAggregationScripts.kt" to PHYSICAL_FIELD_PATH to 2,
-            "$ELASTICSEARCH/aggregation/ElasticsearchAggregationSources.kt" to PHYSICAL_FIELD_PATH to 2,
-        )
+        val ALLOWED: Map<Pair<String, String>, Int> = emptyMap()
     }
 }

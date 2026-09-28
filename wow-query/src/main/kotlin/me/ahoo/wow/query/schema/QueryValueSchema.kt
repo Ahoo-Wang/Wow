@@ -100,9 +100,11 @@ class QueryValueSchema(
     }
 }
 
+/** A native binding as a storage adapter reports it; [physicalScope] is [QueryFieldBinding.physicalScope]. */
 class QueryFieldBindingTemplate(
     val physicalPath: QueryPathTemplate,
     storageTypes: Set<QueryStorageType>?,
+    val physicalScope: QueryField? = null,
 ) {
     val storageTypes: Set<QueryStorageType>? = storageTypes?.let {
         java.util.Collections.unmodifiableSet(LinkedHashSet(it))
@@ -113,9 +115,11 @@ class QueryFieldBindingTemplate(
     }
 
     override fun equals(other: Any?): Boolean = other is QueryFieldBindingTemplate &&
-        physicalPath == other.physicalPath && storageTypes == other.storageTypes
+        physicalPath == other.physicalPath && storageTypes == other.storageTypes &&
+        physicalScope == other.physicalScope
 
-    override fun hashCode(): Int = 31 * physicalPath.hashCode() + (storageTypes?.hashCode() ?: 0)
+    override fun hashCode(): Int =
+        31 * (31 * physicalPath.hashCode() + (storageTypes?.hashCode() ?: 0)) + (physicalScope?.hashCode() ?: 0)
 }
 
 class QueryValueBindings(

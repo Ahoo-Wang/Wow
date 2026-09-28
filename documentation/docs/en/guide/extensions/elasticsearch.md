@@ -135,6 +135,8 @@ Batch options require `max-size>1`, positive `max-delay`, pending capacity no sm
 
 Full scans use PIT plus `search_after`, with configured batch size and keep-alive. Batch size also cannot exceed target `index.max_result_window`. Fix mappings and query shape before blindly increasing it.
 
+An offset page reads `from + size` records, which Elasticsearch caps at the index's `index.max_result_window` (10000 unless the index sets it). A paged query whose `page × size` passes it is rejected before the search as `SIZE_OUT_OF_RANGE` (HTTP 400) on `pagination`; read deeper with a cursor query.
+
 ## Troubleshooting
 
 Verified failures include template request/empty/unacknowledged responses, invalid query or batch bounds, bulk item errors, stale-snapshot guards, and mapping/schema conflicts.

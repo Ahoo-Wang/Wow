@@ -13,51 +13,44 @@
 
 package me.ahoo.wow.elasticsearch.query
 
-import co.elastic.clients.elasticsearch._types.FieldSort
 import co.elastic.clients.elasticsearch._types.SortOptions
 import co.elastic.clients.elasticsearch._types.SortOrder
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.query.AdmittedQuery
+import me.ahoo.wow.query.ResolvedField
 import me.ahoo.wow.query.schema.QueryViolation
-import me.ahoo.wow.serialization.MessageRecords
 
 object ElasticsearchSortCompiler {
-    fun compile(sort: List<Sort>, admitted: AdmittedQuery<*>): List<SortOptions> = compilePhysical(
-        sort.physical(admitted),
-    ) { physicalSort ->
-        if (physicalSort.field !in METADATA_SORT_FIELDS) {
-            missing(if (physicalSort.direction == Sort.Direction.ASC) "_first" else "_last")
-        }
-    }
+    /** Metadata sorts (`_score`, `_doc`, `_shard_doc`) keep Elasticsearch's own missing policy. */
+    fun compile(sort: List<Sort>, admitted: AdmittedQuery<*>): List<SortOptions> =
+        compilePhysical(sort, admitted, missingOnMetadata = false)
 
     internal fun compileCursor(sort: List<Sort>, admitted: AdmittedQuery<*>): List<SortOptions> {
-        val physicalSort = sort.physical(admitted)
         sort.firstOrNull { admitted.field(it.field).physicalField in METADATA_SORT_FIELDS }?.let {
             throw QueryViolation.CursorNotAllowed(admitted.field(it.field).logicalField).rejection()
         }
-        return compilePhysical(physicalSort) { logicalSort ->
-            missing(if (logicalSort.direction == Sort.Direction.ASC) "_first" else "_last")
-        }
+        return compilePhysical(sort, admitted, missingOnMetadata = true)
     }
 
-    private fun List<Sort>.physical(admitted: AdmittedQuery<*>): List<Sort> =
-        map { it.copy(field = admitted.field(it.field).physicalField) }
-
-    private inline fun compilePhysical(
+    /**
+     * Each sort at its admitted physical field, missing values first ascending and last descending, and through the
+     * nested mapping its binding lies in ([ResolvedField.physicalScope]).
+     */
+    private fun compilePhysical(
         sort: List<Sort>,
-        crossinline configure: FieldSort.Builder.(Sort) -> Unit,
-    ): List<SortOptions> {
-        return sort.map {
-            SortOptions.of { sortBuilder ->
-                sortBuilder.field { fieldBuilder ->
-                    fieldBuilder.field(it.field.path).order(it.direction.toSortOrder())
-                    fieldBuilder.configure(it)
-                    if (it.field.path.startsWith("${MessageRecords.BODY}.")) {
-                        fieldBuilder.nested { nested -> nested.path(MessageRecords.BODY) }
-                    }
-                    fieldBuilder
+        admitted: AdmittedQuery<*>,
+        missingOnMetadata: Boolean,
+    ): List<SortOptions> = sort.map {
+        val resolved = admitted.field(it.field)
+        SortOptions.of { sortBuilder ->
+            sortBuilder.field { fieldBuilder ->
+                fieldBuilder.field(admitted.physicalPath(it.field)).order(it.direction.toSortOrder())
+                if (missingOnMetadata || resolved.physicalField !in METADATA_SORT_FIELDS) {
+                    fieldBuilder.missing(if (it.direction == Sort.Direction.ASC) "_first" else "_last")
                 }
+                resolved.physicalScope?.let { scope -> fieldBuilder.nested { nested -> nested.path(scope.path) } }
+                fieldBuilder
             }
         }
     }

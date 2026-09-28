@@ -15,9 +15,9 @@ package me.ahoo.wow.elasticsearch.query.snapshot
 
 import co.elastic.clients.elasticsearch._types.mapping.DynamicMapping
 import co.elastic.clients.elasticsearch._types.mapping.TypeMapping
-import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.matchAll
 import co.elastic.clients.elasticsearch.core.SearchRequest
 import co.elastic.clients.elasticsearch.core.SearchResponse
+import co.elastic.clients.elasticsearch.indices.GetIndicesSettingsRequest
 import co.elastic.clients.elasticsearch.indices.GetMappingRequest
 import co.elastic.clients.elasticsearch.indices.GetMappingResponse
 import co.elastic.clients.elasticsearch.indices.get_mapping.IndexMappingRecord
@@ -29,13 +29,14 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.EqualFilter
 import me.ahoo.wow.api.query.ExistsFilter
-import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.IsEmptyFilter
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.MatchAllFilter
-import me.ahoo.wow.api.query.MatchNoneFilter
 import me.ahoo.wow.api.query.MaterializedSnapshot
+import me.ahoo.wow.api.query.PagedQuery
+import me.ahoo.wow.api.query.Pagination
 import me.ahoo.wow.api.query.Projection
+import me.ahoo.wow.api.query.QueryErrorCodes
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.api.query.schema.QueryModel
@@ -43,20 +44,21 @@ import me.ahoo.wow.api.query.schema.QueryValueType
 import me.ahoo.wow.elasticsearch.query.DEFAULT_PIT_KEEP_ALIVE
 import me.ahoo.wow.elasticsearch.query.DEFAULT_SEARCH_BATCH_SIZE
 import me.ahoo.wow.elasticsearch.query.ElasticsearchIndexMappingResolver
+import me.ahoo.wow.elasticsearch.query.indexSettingsResponse
 import me.ahoo.wow.modeling.materialize
-import me.ahoo.wow.query.QueryAdmission
+import me.ahoo.wow.query.QueryRequestException
 import me.ahoo.wow.query.dsl.filter
 import me.ahoo.wow.query.list
 import me.ahoo.wow.query.schema.BeanQuerySchemaSource
 import me.ahoo.wow.query.schema.DeclarationValue
 import me.ahoo.wow.query.schema.QueryFieldDeclaration
-import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QuerySchemaContext
 import me.ahoo.wow.query.schema.QuerySchemaDeclaration
 import me.ahoo.wow.query.schema.QuerySchemaRegistration
 import me.ahoo.wow.query.schema.QuerySchemaSource
 import me.ahoo.wow.query.schema.QuerySchemaUnavailableException
 import me.ahoo.wow.query.schema.QuerySchemaValidationException
+import me.ahoo.wow.query.schema.QueryViolation
 import me.ahoo.wow.query.single
 import me.ahoo.wow.query.snapshot.DefaultSnapshotQueryGateway
 import me.ahoo.wow.query.snapshot.SnapshotQueryBackend
@@ -78,6 +80,7 @@ class ElasticsearchSnapshotMappingQueryTest {
 
     init {
         every { client.indices() } returns indicesClient
+        every { indicesClient.getSettings(any<GetIndicesSettingsRequest>()) } returns Mono.just(indexSettingsResponse())
         every { client.search(capture(searchRequest), ObjectNode::class.java) } returns Mono.just(emptySearchResponse())
     }
 
@@ -95,6 +98,29 @@ class ElasticsearchSnapshotMappingQueryTest {
 
         service.list(ListQuery(filter = equal("state.unknown", "value"), limit = 10)).test()
             .expectError(QuerySchemaValidationException::class.java)
+            .verify()
+
+        verify(exactly = 0) { client.search(any<SearchRequest>(), ObjectNode::class.java) }
+    }
+
+    @Test
+    fun `a page beyond the index's max_result_window is rejected at admission before search`() {
+        every { indicesClient.getMapping(any<GetMappingRequest>()) } returns Mono.just(
+            mappingResponse(queryMapping()),
+        )
+        every { indicesClient.getSettings(any<GetIndicesSettingsRequest>()) } returns Mono.just(
+            indexSettingsResponse(maxResultWindow = 20),
+        )
+
+        // Elasticsearch refuses `from + size` beyond the window; admission now refuses the same page as a 400.
+        strictQueryGateway().paged(PagedQuery(MatchAllFilter, pagination = Pagination(3, 10))).test()
+            .expectErrorSatisfies { error ->
+                error.assert().isInstanceOf(QueryRequestException::class.java)
+                (error as QueryRequestException).violation.assert().isEqualTo(
+                    QueryViolation.SizeOutOfRange("Storage", "page window", 30, null, 20, "pagination"),
+                )
+                error.violation!!.code.assert().isEqualTo(QueryErrorCodes.SIZE_OUT_OF_RANGE)
+            }
             .verify()
 
         verify(exactly = 0) { client.search(any<SearchRequest>(), ObjectNode::class.java) }
@@ -454,37 +480,6 @@ class ElasticsearchSnapshotMappingQueryTest {
             .verify()
 
         verify(exactly = 1) { resolver.currentOrLoad("wow.tck.mock_aggregate.snapshot") }
-    }
-
-    @Test
-    fun `custom filter compiler receives the admitted logical filter unchanged`() {
-        val convertedFilter = slot<FilterExpression>()
-        val schema = QueryModelSchema(
-            QueryModel.SNAPSHOT,
-            emptySet(),
-            me.ahoo.wow.query.schema.LogicalQuerySchema(
-                me.ahoo.wow.query.schema.QueryValueSchema(me.ahoo.wow.api.query.schema.QueryValueKind.OBJECT)
-            ),
-            emptyMap()
-        )
-        val customCompiler = mockk<me.ahoo.wow.elasticsearch.query.AbstractElasticsearchFilterCompiler> {
-            every { compile(capture(convertedFilter), any<me.ahoo.wow.query.AdmittedQuery<*>>()) } returns matchAll { it }
-        }
-        // Admission validates fields against the schema; a filter that names none keeps this test about ownership.
-        val filter: FilterExpression = MatchNoneFilter
-        val service = ElasticsearchSnapshotQueryBackend(
-            namedAggregate = MOCK_AGGREGATE_METADATA,
-            elasticsearchClient = client,
-            filterCompiler = customCompiler,
-            queryBatchSize = DEFAULT_SEARCH_BATCH_SIZE,
-            queryKeepAlive = DEFAULT_PIT_KEEP_ALIVE,
-        )
-
-        val query = ListQuery(filter = filter, limit = 10)
-        service.list(QueryAdmission.Trusted.list(query, schema)).collectList().block()
-
-        convertedFilter.captured.assert().isSameAs(filter)
-        verify(exactly = 0) { client.indices() }
     }
 
     private fun queryBackend(

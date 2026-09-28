@@ -135,6 +135,8 @@ batch options 必须满足 `max-size>1`、正 `max-delay`、pending 不小于 ba
 
 全量查询使用 PIT + `search_after`，每批大小和 keep-alive 来自配置。`batch-size` 还不能高于目标索引 `index.max_result_window`；mapping 与查询模式优先于盲目增大批次。
 
+偏移分页要读 `from + size` 条记录，Elasticsearch 以索引的 `index.max_result_window`（索引未设置时为 10000）为上限。`page × size` 超过它的分页查询在检索前就被拒绝，报 `pagination` 上的 `SIZE_OUT_OF_RANGE`（HTTP 400）；更深的数据请用游标查询。
+
 ## 故障排查
 
 已验证失败包括 template 请求失败/空/未确认、非法 query/batch 参数、bulk item error、旧快照版本保护和 mapping/schema 冲突。

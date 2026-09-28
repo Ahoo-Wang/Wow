@@ -44,7 +44,7 @@ import me.ahoo.wow.query.requiredOperandValue
  * Compiles admitted filters to Elasticsearch queries. Every field, system fields included, compiles at the physical
  * path its admission resolved; a root exact match on `_id` becomes an `ids` query.
  */
-abstract class AbstractElasticsearchFilterCompiler {
+object ElasticsearchFilterCompiler {
     /** Compiles an admitted count filter. */
     fun compile(admitted: AdmittedQuery<FilterExpression>): Query = compile(admitted.query, admitted)
 
@@ -64,18 +64,18 @@ abstract class AbstractElasticsearchFilterCompiler {
     ): Query = when (filter) {
         MatchAllFilter -> matchAll { it }
         MatchNoneFilter -> matchNone { it }
-        is IdFilter -> exactEqual(filter.metadataPath(admitted), filter.value, nested)
-        is IdsFilter -> exactIn(filter.metadataPath(admitted), filter.values, nested)
-        is AggregateIdFilter -> exactEqual(filter.metadataPath(admitted), filter.value, nested)
-        is AggregateIdsFilter -> exactIn(filter.metadataPath(admitted), filter.values, nested)
+        is IdFilter -> exactEqual(admitted.systemPath(filter), filter.value, nested)
+        is IdsFilter -> exactIn(admitted.systemPath(filter), filter.values, nested)
+        is AggregateIdFilter -> exactEqual(admitted.systemPath(filter), filter.value, nested)
+        is AggregateIdsFilter -> exactIn(admitted.systemPath(filter), filter.values, nested)
         is TenantIdFilter -> term {
-            it.field(filter.metadataPath(admitted)).value(filter.value)
+            it.field(admitted.systemPath(filter)).value(filter.value)
         }
         is OwnerIdFilter -> term {
-            it.field(filter.metadataPath(admitted)).value(filter.value)
+            it.field(admitted.systemPath(filter)).value(filter.value)
         }
         is SpaceIdFilter -> term {
-            it.field(filter.metadataPath(admitted)).value(filter.value)
+            it.field(admitted.systemPath(filter)).value(filter.value)
         }
         is AndFilter -> bool {
             it.filter(filter.operands.map { operand -> compileNormalized(operand, admitted, nested) })
@@ -88,7 +88,7 @@ abstract class AbstractElasticsearchFilterCompiler {
             it.mustNot(filter.operands.map { operand -> compileNormalized(operand, admitted, nested) })
         }
         is EqualFilter -> {
-            val field = filter.field.path(admitted)
+            val field = admitted.physicalPath(filter.field)
             if (field.addressesDocumentId(nested)) {
                 ids { it.values(filter.value.requiredOperandValue().toString()) }
             } else {
@@ -100,44 +100,44 @@ abstract class AbstractElasticsearchFilterCompiler {
         }
         is GreaterThanFilter -> range {
             it.untyped { range ->
-                range.field(filter.field.path(admitted))
+                range.field(admitted.physicalPath(filter.field))
                     .gt(JsonData.of(filter.value.requiredOperandValue()))
             }
         }
         is GreaterThanOrEqualFilter -> range {
             it.untyped { range ->
-                range.field(filter.field.path(admitted))
+                range.field(admitted.physicalPath(filter.field))
                     .gte(JsonData.of(filter.value.requiredOperandValue()))
             }
         }
         is LessThanFilter -> range {
             it.untyped { range ->
-                range.field(filter.field.path(admitted))
+                range.field(admitted.physicalPath(filter.field))
                     .lt(JsonData.of(filter.value.requiredOperandValue()))
             }
         }
         is LessThanOrEqualFilter -> range {
             it.untyped { range ->
-                range.field(filter.field.path(admitted))
+                range.field(admitted.physicalPath(filter.field))
                     .lte(JsonData.of(filter.value.requiredOperandValue()))
             }
         }
         is ContainsFilter -> wildcard {
-            it.field(filter.field.path(admitted))
+            it.field(admitted.physicalPath(filter.field))
                 .value("*${filter.value.escapeWildcard()}*")
                 .caseInsensitive(filter.stringComparison.ignoreCase)
         }
         is StartsWithFilter -> prefix {
-            it.field(filter.field.path(admitted)).value(filter.value)
+            it.field(admitted.physicalPath(filter.field)).value(filter.value)
                 .caseInsensitive(filter.stringComparison.ignoreCase)
         }
         is EndsWithFilter -> wildcard {
-            it.field(filter.field.path(admitted))
+            it.field(admitted.physicalPath(filter.field))
                 .value("*${filter.value.escapeWildcard()}")
                 .caseInsensitive(filter.stringComparison.ignoreCase)
         }
         is InFilter -> {
-            val field = filter.field.path(admitted)
+            val field = admitted.physicalPath(filter.field)
             if (field.addressesDocumentId(nested)) {
                 ids { it.values(filter.values.map { value -> value.requiredOperandValue().toString() }) }
             } else {
@@ -153,7 +153,7 @@ abstract class AbstractElasticsearchFilterCompiler {
         }
         is BetweenFilter -> range {
             it.untyped { range ->
-                range.field(filter.field.path(admitted))
+                range.field(admitted.physicalPath(filter.field))
                     .gte(JsonData.of(filter.lowerBound.requiredOperandValue()))
                     .lte(JsonData.of(filter.upperBound.requiredOperandValue()))
             }
@@ -161,28 +161,28 @@ abstract class AbstractElasticsearchFilterCompiler {
         is ContainsAllFilter -> {
             val values = filter.values.map { it.fieldValue() }
             termsSet {
-                it.field(filter.field.path(admitted))
+                it.field(admitted.physicalPath(filter.field))
                     .terms(values).minimumShouldMatch(values.size.toString())
             }
         }
         is IsNullFilter -> bool {
             it.mustNot { query ->
                 query.exists { exists ->
-                    exists.field(filter.field.path(admitted))
+                    exists.field(admitted.physicalPath(filter.field))
                 }
             }
         }
-        is IsNotNullFilter -> exists { it.field(filter.field.path(admitted)) }
-        is ExistsFilter -> exists { it.field(filter.field.path(admitted)) }
+        is IsNotNullFilter -> exists { it.field(admitted.physicalPath(filter.field)) }
+        is ExistsFilter -> exists { it.field(admitted.physicalPath(filter.field)) }
         is NotExistsFilter -> bool {
             it.mustNot { query ->
                 query.exists { exists ->
-                    exists.field(filter.field.path(admitted))
+                    exists.field(admitted.physicalPath(filter.field))
                 }
             }
         }
         is ElementMatchFilter -> nested {
-            val nestedPath = filter.field.path(admitted)
+            val nestedPath = admitted.physicalPath(filter.field)
             it.path(nestedPath).query(compileNormalized(filter.predicate, admitted, nested = true))
         }
         is ExpressionFilter -> script { query ->
@@ -193,24 +193,24 @@ abstract class AbstractElasticsearchFilterCompiler {
             if (filter.fields.isEmpty()) {
                 it.lenient(true)
             } else {
-                it.fields(filter.fields.map { field -> field.path(admitted) })
+                it.fields(filter.fields.map(admitted::physicalPath))
             }
             if (filter.mode == SearchMode.PHRASE) it.type(TextQueryType.Phrase)
             it
         }
         is DeletionFilter -> when (filter.deletionState) {
             DeletionState.ACTIVE -> term {
-                it.field(filter.metadataPath(admitted)).value(false)
+                it.field(admitted.systemPath(filter)).value(false)
             }
             DeletionState.DELETED -> term {
-                it.field(filter.metadataPath(admitted)).value(true)
+                it.field(admitted.systemPath(filter)).value(true)
             }
             DeletionState.ALL -> matchAll { it }
         }
         is IsEmptyFilter -> bool {
             it.mustNot { query ->
                 query.exists { exists ->
-                    exists.field(filter.field.path(admitted))
+                    exists.field(admitted.physicalPath(filter.field))
                 }
             }
         }
@@ -218,12 +218,6 @@ abstract class AbstractElasticsearchFilterCompiler {
         is IsEmptyStringFilter, is IsNotEmptyStringFilter, is RelativeTimeFilter ->
             throw QueryExecutionException("Filter [${filter.operator}] must be normalized before compilation.")
     }
-
-    private fun QueryField.path(admitted: AdmittedQuery<*>): String = admitted.field(this).physicalField.path
-
-    /** The physical path of the system field [filter] targets. */
-    private fun FilterExpression.metadataPath(admitted: AdmittedQuery<*>): String =
-        admitted.systemField(this).physicalField.path
 
     /** Inside a nested query the document id is not addressable by `_id`. */
     private fun String.addressesDocumentId(nested: Boolean): Boolean = !nested && this == DOCUMENT_ID_FIELD
@@ -242,9 +236,7 @@ abstract class AbstractElasticsearchFilterCompiler {
             terms { it.field(path).terms { terms -> terms.value(values.map(FieldValue::of)) } }
         }
 
-    private companion object {
-        const val DOCUMENT_ID_FIELD = "_id"
-    }
+    private const val DOCUMENT_ID_FIELD = "_id"
 
     private fun tools.jackson.databind.JsonNode.fieldValue(): FieldValue {
         val value = requiredOperandValue()

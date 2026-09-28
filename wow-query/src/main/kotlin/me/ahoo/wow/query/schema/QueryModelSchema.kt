@@ -31,14 +31,25 @@ data class QueryStorageType(val value: String) {
     init { require(QUERY_STORAGE_TYPE_PATTERN.matches(value)) }
 }
 
-class QueryFieldBinding(val physicalField: QueryField, storageTypes: Set<QueryStorageType>?) {
+/**
+ * Where a logical field is stored for one capability. [physicalScope] is the physical container [physicalField] lies
+ * in whose elements storage indexes as separate documents, such as an Elasticsearch `nested` mapping, so a backend
+ * addresses the field through it; `null` when there is none.
+ */
+class QueryFieldBinding(
+    val physicalField: QueryField,
+    storageTypes: Set<QueryStorageType>?,
+    val physicalScope: QueryField? = null,
+) {
     val storageTypes: Set<QueryStorageType>? = storageTypes?.let { Collections.unmodifiableSet(LinkedHashSet(it)) }
 
     init { require(this.storageTypes == null || this.storageTypes.isNotEmpty()) }
 
     override fun equals(other: Any?): Boolean = other is QueryFieldBinding &&
-        physicalField == other.physicalField && storageTypes == other.storageTypes
-    override fun hashCode(): Int = 31 * physicalField.hashCode() + (storageTypes?.hashCode() ?: 0)
+        physicalField == other.physicalField && storageTypes == other.storageTypes &&
+        physicalScope == other.physicalScope
+    override fun hashCode(): Int =
+        31 * (31 * physicalField.hashCode() + (storageTypes?.hashCode() ?: 0)) + (physicalScope?.hashCode() ?: 0)
 }
 
 /** A logical definition is shared unchanged with every native binding snapshot. */
@@ -246,19 +257,21 @@ class QueryModelSchema(
         val fields = locations.map { located ->
             located?.let { (native, keys) ->
                 native.bindings.mapValues { (_, binding) ->
-                    QueryFieldBinding(binding.physicalPath.field(keys), binding.storageTypes)
+                    QueryFieldBinding(binding.physicalPath.field(keys), binding.storageTypes, binding.physicalScope)
                 }
             }.orEmpty()
         }
         val common = fields.firstOrNull().orEmpty().mapNotNull { (capability, first) ->
             val alternatives = fields.map { it[capability] ?: return@mapNotNull null }
-            if (alternatives.any { it.physicalField != first.physicalField }) return@mapNotNull null
+            if (alternatives.any { it.physicalField != first.physicalField || it.physicalScope != first.physicalScope }) {
+                return@mapNotNull null
+            }
             val types = if (alternatives.any { it.storageTypes == null }) {
                 null
             } else {
                 alternatives.flatMapTo(linkedSetOf()) { checkNotNull(it.storageTypes) }
             }
-            capability to QueryFieldBinding(first.physicalField, types)
+            capability to QueryFieldBinding(first.physicalField, types, first.physicalScope)
         }.toMap()
         val scopes = matches.map { it.elementAncestors.map { ancestor -> ancestor.field(emptyList()) } }.distinct()
         return QueryFieldSchema(
@@ -281,7 +294,9 @@ class QueryModelSchema(
         val keys = location?.second.orEmpty()
         val shared = HashMap<QueryFieldBindingTemplate, QueryFieldBinding>()
         val bindings = native?.bindings?.mapValues { (_, template) ->
-            shared.getOrPut(template) { QueryFieldBinding(template.physicalPath.field(keys), template.storageTypes) }
+            shared.getOrPut(template) {
+                QueryFieldBinding(template.physicalPath.field(keys), template.storageTypes, template.physicalScope)
+            }
         }.orEmpty()
         return QueryFieldSchema(
             this,

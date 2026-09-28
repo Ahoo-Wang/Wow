@@ -29,6 +29,7 @@ import me.ahoo.wow.api.query.fields
 import me.ahoo.wow.api.query.schema.QueryValueKind
 import me.ahoo.wow.api.query.schema.QueryValueType
 import me.ahoo.wow.api.query.schema.Temporal
+import me.ahoo.wow.elasticsearch.query.ElasticsearchFilterCompiler
 import me.ahoo.wow.elasticsearch.query.ElasticsearchIndexMapping
 import me.ahoo.wow.elasticsearch.query.aggregation.ElasticsearchAggregationCompiler
 import me.ahoo.wow.elasticsearch.query.aggregation.ElasticsearchAggregationMetric
@@ -48,7 +49,7 @@ import java.util.concurrent.TimeUnit
 
 @Suppress("LargeClass")
 class ElasticsearchAggregationCompilerTest {
-    private val compiler = ElasticsearchAggregationCompiler(SnapshotFilterCompiler)
+    private val compiler = ElasticsearchAggregationCompiler
     private val scalar = QueryValueSchema(QueryValueKind.SCALAR, valueTypes = setOf(QueryValueType.INTEGER))
     private val text = QueryValueSchema(QueryValueKind.SCALAR, valueTypes = setOf(QueryValueType.STRING))
     private val temporal = QueryValueSchema(
@@ -248,7 +249,7 @@ class ElasticsearchAggregationCompilerTest {
         (plan.metrics.single() as ElasticsearchAggregationMetric.Numeric).field.assert()
             .isEqualTo("__wow_expression_0")
 
-        val filter = SnapshotFilterCompiler.compile(
+        val filter = ElasticsearchFilterCompiler.compile(
             me.ahoo.wow.api.query.ExpressionFilter(sameScope, me.ahoo.wow.api.query.ComparisonOperator.GTE, 2.0),
             schema,
         )
@@ -339,7 +340,7 @@ class ElasticsearchAggregationCompilerTest {
 
     @Test
     fun `plan should map distinct count and percentile metrics`() {
-        val plan = ElasticsearchAggregationCompiler(SnapshotFilterCompiler).compile(
+        val plan = ElasticsearchAggregationCompiler.compile(
             aggregation {
                 distinctCount("customerId", "customers")
                 percentile("amount", 95.0, "p95")
@@ -359,7 +360,7 @@ class ElasticsearchAggregationCompilerTest {
 
     @Test
     fun `non-field distinct count and percentile expressions compile to runtime fields`() {
-        val plan = ElasticsearchAggregationCompiler(SnapshotFilterCompiler).compile(
+        val plan = ElasticsearchAggregationCompiler.compile(
             aggregation {
                 distinctCount(field("amount") + constant(0.0), "amounts")
                 percentile(field("amount") * constant(1.0), 95.0, "p95")

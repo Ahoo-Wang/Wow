@@ -44,13 +44,13 @@ internal fun AggregationGroup.toSource(
             if (declaredMissingKey == null) {
                 CompositeAggregationSource.of {
                     it.terms { terms ->
-                        terms.field(checkNotNull(field).physicalPath(admitted)).order(sort.direction.toSortOrder())
+                        terms.field(admitted.physicalPath(checkNotNull(field))).order(sort.direction.toSortOrder())
                     }
                 }
             } else {
                 val runtimeFieldName = "__wow_missing_terms_$index"
                 runtimeMappings[runtimeFieldName] = missingKeyRuntimeField(
-                    checkNotNull(field).physicalPath(admitted),
+                    admitted.physicalPath(checkNotNull(field)),
                     declaredMissingKey,
                 )
                 CompositeAggregationSource.of {
@@ -63,7 +63,7 @@ internal fun AggregationGroup.toSource(
 
         is AggregationGroup.Histogram -> CompositeAggregationSource.of {
             it.histogram { histogram ->
-                histogram.field(checkNotNull(field).physicalPath(admitted))
+                histogram.field(admitted.physicalPath(checkNotNull(field)))
                     .interval(interval)
                     .order(sort.direction.toSortOrder())
             }
@@ -117,7 +117,7 @@ private fun AggregationGroup.expressionSource(
 private fun AggregationGroup.DatePart.datePartRuntimeField(admitted: AdmittedQuery<*>): RuntimeField {
     val resolved = admitted.field(field)
     val params = mutableMapOf(
-        "field" to JsonData.of(resolved.physicalField.path),
+        "field" to JsonData.of(admitted.physicalPath(field)),
         "zone" to JsonData.of(timeZone),
         "part" to JsonData.of(part.name),
     )
@@ -164,7 +164,7 @@ private fun AggregationGroup.DateHistogram.dateField(
     runtimeMappings: MutableMap<String, RuntimeField>,
 ): String {
     val resolved = admitted.field(field)
-    val physicalPath = resolved.physicalField.path
+    val physicalPath = admitted.physicalPath(field)
     return when (val temporal = resolved.temporal) {
         Temporal.Date -> physicalPath
         is Temporal.Epoch -> "__wow_date_histogram_$index".also { runtimeFieldName ->
