@@ -61,6 +61,7 @@ import me.ahoo.wow.query.QueryAdmission
 import me.ahoo.wow.query.QueryBudget
 import me.ahoo.wow.query.aggregate
 import me.ahoo.wow.query.cursor
+import me.ahoo.wow.query.dsl.FilterDsl
 import me.ahoo.wow.query.dsl.aggregation
 import me.ahoo.wow.query.dsl.filterExpression
 import me.ahoo.wow.query.dsl.listQuery
@@ -815,6 +816,30 @@ abstract class SnapshotQueryBackendSpec {
                     mapOf("week" to 1_769_990_400_000L, "count" to 1L).toWireJsonNode(),
                 )
             }.verifyComplete()
+    }
+
+    /**
+     * `lines.createdAt` is a date field (an `Instant`, stored natively): an ISO-8601 operand compares with it as an
+     * instant in equality and ranges, and a relative-time window resolves against it, on every backend.
+     */
+    @Test
+    fun `date fields compare date operands in equality, ranges and relative time`() {
+        saveAggregationStates(*aggregationStates().toTypedArray())
+        fun count(lines: FilterDsl.() -> Unit): Long? = aggregation {
+            filter { deletion(DeletionState.ACTIVE) }
+            expand("state.orders")
+            expand("lines", lines)
+            count("count")
+        }.query(queryBackendBinding)
+            .map { it.path("count").longValue() }
+            .blockFirst()
+
+        // Lines at 2026-01-01T10Z, 01-02T10Z, 01-02T18Z, 01-03T10Z, 02-01T10Z and 02-02T10Z.
+        count { "createdAt" eq "2026-01-02T10:00:00Z" }.assert().isEqualTo(1L)
+        count { "createdAt".between("2026-01-02T00:00:00Z", "2026-01-03T10:00:00Z") }.assert().isEqualTo(3L)
+        count { "createdAt" gte "2026-02-01T10:00:00Z" }.assert().isEqualTo(2L)
+        count { "createdAt".beforeNow() }.assert().isEqualTo(6L)
+        count { "createdAt".afterNow() }.assert().isEqualTo(0L)
     }
 
     private fun datePartRows(

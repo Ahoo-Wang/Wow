@@ -19,7 +19,6 @@ import com.mongodb.reactivestreams.client.MongoDatabase
 import me.ahoo.wow.api.query.schema.QueryCapability
 import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.api.query.schema.QueryValueKind
-import me.ahoo.wow.api.query.schema.QueryValueType
 import me.ahoo.wow.api.query.schema.Temporal
 import me.ahoo.wow.mongo.Documents
 import me.ahoo.wow.query.schema.LogicalQuerySchema
@@ -30,11 +29,14 @@ import me.ahoo.wow.query.schema.QueryPathTemplate
 import me.ahoo.wow.query.schema.QuerySchemaUnavailableException
 import me.ahoo.wow.query.schema.QueryStorageAdapter
 import me.ahoo.wow.query.schema.QueryStorageFacts
+import me.ahoo.wow.query.schema.QueryStorageFamily
+import me.ahoo.wow.query.schema.QueryStorageFamilyRules
 import me.ahoo.wow.query.schema.QueryStorageType
 import me.ahoo.wow.query.schema.QueryValueBindings
 import me.ahoo.wow.query.schema.QueryValueSchema
 import me.ahoo.wow.query.schema.StorageSupport
 import me.ahoo.wow.query.schema.SupportMode
+import me.ahoo.wow.query.schema.storageFamilies
 import org.bson.Document
 import reactor.core.publisher.Mono
 import reactor.kotlin.core.publisher.toFlux
@@ -199,7 +201,8 @@ class MongoQuerySchemaAdapter(
             if (kind == QueryValueKind.ARRAY) return supportsArray(capability, path, native)
             if (kind != QueryValueKind.SCALAR) return false
             if (capability == QueryCapability.ELEMENT_SCOPE) return false
-            if (semanticType == Temporal.Date && capability == QueryCapability.AGGREGATE_TEMPORAL && storage?.types == null) return false
+            // A date field's storage must be declared: the default writer stores an instant as an ISO-8601 string.
+            if (semanticType == Temporal.Date && capability in DECLARED_DATE_CAPABILITIES && storage?.types == null) return false
             val requirements = storageRequirements(capability)
             if (requirements.isEmpty() || requirements.any { it.isEmpty() }) return false
             if (!storage?.types.proves(requirements)) return false
@@ -290,44 +293,28 @@ class MongoQuerySchemaAdapter(
             return capability != QueryCapability.CURSOR_SORT || supportsCursorSort(storage?.types, requirements)
         }
 
-        /** The BSON types [capability] needs; the table wave 4 replaces with `storageFamilies` (F7). */
-        internal fun QueryValueSchema.storageRequirements(capability: QueryCapability): List<Set<String>> {
-            if (semanticType == Temporal.Date && capability in DATE_OPERAND_CAPABILITIES) return emptyList()
-            return when (capability) {
-                QueryCapability.EXACT_MATCH, QueryCapability.SORT, QueryCapability.CURSOR_SORT, QueryCapability.AGGREGATE_TERMS ->
-                    temporalRequirements().ifEmpty { valueTypes.map { it.storageTypes() } }
-                QueryCapability.LITERAL_MATCH -> if (semanticType is Temporal.Epoch) {
-                    emptyList()
-                } else {
-                    valueTypes.map { if (it == QueryValueType.STRING) STRING_TYPES else emptySet() }
-                }
-                QueryCapability.RANGE -> temporalRequirements().ifEmpty {
-                    valueTypes.map { if (it == QueryValueType.STRING) STRING_TYPES else it.numericTypes() }
-                }
-                QueryCapability.AGGREGATE_NUMERIC -> valueTypes.map { it.numericTypes() }
-                QueryCapability.AGGREGATE_TEMPORAL -> temporalRequirements()
-                else -> emptyList()
+        /**
+         * MongoDB reads each declared value type on its own ([QueryStorageFamilyRules.strictValueTypes] off), and its
+         * compilers convert a [Temporal.Date] field's operands to BSON dates ([QueryStorageFamilyRules.dateOperands]).
+         */
+        internal val STORAGE_FAMILY_RULES = QueryStorageFamilyRules(dateOperands = true, strictValueTypes = false)
+
+        /** The BSON types [capability] needs: the Catalog's families ([storageFamilies]), each as its BSON types. */
+        internal fun QueryValueSchema.storageRequirements(capability: QueryCapability): List<Set<String>> =
+            storageFamilies(capability, STORAGE_FAMILY_RULES).map { families ->
+                families.flatMapTo(linkedSetOf()) { it.bsonTypes(capability) }
             }
-        }
 
-        private fun QueryValueType.numericTypes(): Set<String> = when (this) {
-            QueryValueType.INTEGER -> INTEGRAL_TYPES
-            QueryValueType.DECIMAL -> NUMERIC_TYPES
-            else -> emptySet()
-        }
-
-        private fun QueryValueSchema.temporalRequirements(): List<Set<String>> = when (semanticType) {
-            Temporal.Date -> listOf(DATE_TYPES)
-            is Temporal.Epoch -> listOf(INTEGRAL_TYPES)
-            else -> emptyList()
-        }
-
-        private fun QueryValueType.storageTypes(): Set<String> = when (this) {
-            QueryValueType.STRING -> STRING_TYPES
-            QueryValueType.BOOLEAN -> BOOLEAN_TYPES
-            QueryValueType.INTEGER -> INTEGRAL_TYPES
-            QueryValueType.DECIMAL -> NUMERIC_TYPES
-            else -> emptySet()
+        /**
+         * The BSON types of [family]. A date operand is a BSON date, which never equals or orders with a BSON
+         * timestamp, so a capability comparing operands to a [QueryStorageFamily.DATE] value needs `date` alone.
+         */
+        internal fun QueryStorageFamily.bsonTypes(capability: QueryCapability): Set<String> = when (this) {
+            QueryStorageFamily.STRING, QueryStorageFamily.EXACT_STRING -> STRING_TYPES
+            QueryStorageFamily.INTEGRAL, QueryStorageFamily.SIGNED_INTEGRAL -> INTEGRAL_TYPES
+            QueryStorageFamily.NUMERIC -> NUMERIC_TYPES
+            QueryStorageFamily.BOOLEAN -> BOOLEAN_TYPES
+            QueryStorageFamily.DATE -> if (capability in DATE_OPERAND_CAPABILITIES) BSON_DATE_TYPES else DATE_TYPES
         }
 
         private fun List<Document>.hasTextIndex(): Boolean = any { index ->
@@ -342,12 +329,13 @@ class MongoQuerySchemaAdapter(
                 requirements.all { expected -> any { physical -> physical.value in expected } }
         }
 
-        private val DATE_OPERAND_CAPABILITIES = setOf(
-            QueryCapability.EXACT_MATCH,
-            QueryCapability.LITERAL_MATCH,
-            QueryCapability.RANGE,
-            QueryCapability.AGGREGATE_NUMERIC,
-        )
+        /** The capabilities that compare an operand to a [Temporal.Date] value, which the compilers send as a date. */
+        private val DATE_OPERAND_CAPABILITIES = setOf(QueryCapability.EXACT_MATCH, QueryCapability.RANGE)
+
+        /** The capabilities a [Temporal.Date] value supports only where a validator declares its BSON types. */
+        private val DECLARED_DATE_CAPABILITIES = DATE_OPERAND_CAPABILITIES + QueryCapability.AGGREGATE_TEMPORAL
+
+        private val BSON_DATE_TYPES = setOf("date")
 
         private val FIELD_CAPABILITIES = setOf(
             QueryCapability.PRESENCE, QueryCapability.EXACT_MATCH, QueryCapability.LITERAL_MATCH,

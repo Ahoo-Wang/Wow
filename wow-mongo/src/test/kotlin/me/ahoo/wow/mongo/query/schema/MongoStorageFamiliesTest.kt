@@ -21,48 +21,85 @@ import me.ahoo.wow.api.query.schema.QueryValueKind
 import me.ahoo.wow.api.query.schema.QueryValueType
 import me.ahoo.wow.api.query.schema.Temporal
 import me.ahoo.wow.mongo.query.schema.MongoQuerySchemaAdapter.Companion.storageRequirements
-import me.ahoo.wow.query.schema.QueryStorageFamily
-import me.ahoo.wow.query.schema.QueryStorageFamilyRules
 import me.ahoo.wow.query.schema.QueryValueSchema
-import me.ahoo.wow.query.schema.storageFamilies
 import org.junit.jupiter.api.Test
 import java.util.concurrent.TimeUnit
 
 /**
- * The Catalog's capability table ([storageFamilies]) under MongoDB's rules reproduces the adapter's own table exactly,
- * for every semantic type, declared value types and capability MongoDB evaluates. Wave 4 moves [bsonTypes] into the
- * adapter and deletes its table.
+ * The adapter reads its capability table from the Catalog's (`storageFamilies`). This pins that table, for every
+ * semantic type, declared value types and capability MongoDB evaluates, against [legacyRequirements]: the adapter's
+ * own table before it moved (audit wave 4), frozen here. The only difference is F2: a [Temporal.Date] value compares
+ * date operands, so it gains exact match and range over a BSON `date`.
  */
 class MongoStorageFamiliesTest {
     @Test
-    fun `the catalog table reproduces the adapter table`() {
-        val rules = QueryStorageFamilyRules(dateOperands = false, strictValueTypes = false)
+    fun `the catalog table reproduces the former adapter table except for date operands`() {
         SEMANTICS.forEach { semantic ->
             VALUE_TYPE_SETS.forEach { valueTypes ->
                 val value = QueryValueSchema(QueryValueKind.SCALAR, valueTypes = valueTypes, semanticType = semantic)
                 CAPABILITIES.forEach { capability ->
-                    val table = value.storageFamilies(
-                        capability,
-                        rules
-                    ).map { families -> families.flatMap { it.bsonTypes() }.toSet() }
-                    table.assert().describedAs("$semantic $valueTypes $capability")
-                        .isEqualTo(value.storageRequirements(capability))
+                    val expected = if (semantic == Temporal.Date && capability in DATE_OPERAND_CAPABILITIES) {
+                        listOf(setOf("date"))
+                    } else {
+                        value.legacyRequirements(capability)
+                    }
+                    value.storageRequirements(capability).assert().describedAs("$semantic $valueTypes $capability")
+                        .isEqualTo(expected)
                 }
             }
         }
     }
 
-    private fun QueryStorageFamily.bsonTypes(): Set<String> = when (this) {
-        QueryStorageFamily.STRING, QueryStorageFamily.EXACT_STRING -> STRING_TYPES
-        QueryStorageFamily.INTEGRAL, QueryStorageFamily.SIGNED_INTEGRAL -> INTEGRAL_TYPES
-        QueryStorageFamily.NUMERIC -> NUMERIC_TYPES
-        QueryStorageFamily.BOOLEAN -> BOOLEAN_TYPES
-        QueryStorageFamily.DATE -> DATE_TYPES
+    /** The adapter's table before wave 4, which read no date operand (F2). */
+    private fun QueryValueSchema.legacyRequirements(capability: QueryCapability): List<Set<String>> {
+        if (semanticType == Temporal.Date && capability in LEGACY_DATE_OPERAND_CAPABILITIES) return emptyList()
+        return when (capability) {
+            QueryCapability.EXACT_MATCH, QueryCapability.SORT, QueryCapability.CURSOR_SORT, QueryCapability.AGGREGATE_TERMS ->
+                temporalRequirements().ifEmpty { valueTypes.map { it.storageTypes() } }
+            QueryCapability.LITERAL_MATCH -> if (semanticType is Temporal.Epoch) {
+                emptyList()
+            } else {
+                valueTypes.map { if (it == QueryValueType.STRING) STRING_TYPES else emptySet() }
+            }
+            QueryCapability.RANGE -> temporalRequirements().ifEmpty {
+                valueTypes.map { if (it == QueryValueType.STRING) STRING_TYPES else it.numericTypes() }
+            }
+            QueryCapability.AGGREGATE_NUMERIC -> valueTypes.map { it.numericTypes() }
+            QueryCapability.AGGREGATE_TEMPORAL -> temporalRequirements()
+            else -> emptyList()
+        }
+    }
+
+    private fun QueryValueType.numericTypes(): Set<String> = when (this) {
+        QueryValueType.INTEGER -> INTEGRAL_TYPES
+        QueryValueType.DECIMAL -> NUMERIC_TYPES
+        else -> emptySet()
+    }
+
+    private fun QueryValueSchema.temporalRequirements(): List<Set<String>> = when (semanticType) {
+        Temporal.Date -> listOf(DATE_TYPES)
+        is Temporal.Epoch -> listOf(INTEGRAL_TYPES)
+        else -> emptyList()
+    }
+
+    private fun QueryValueType.storageTypes(): Set<String> = when (this) {
+        QueryValueType.STRING -> STRING_TYPES
+        QueryValueType.BOOLEAN -> BOOLEAN_TYPES
+        QueryValueType.INTEGER -> INTEGRAL_TYPES
+        QueryValueType.DECIMAL -> NUMERIC_TYPES
+        else -> emptySet()
     }
 
     companion object {
         /** The capabilities MongoDB evaluates per field. */
         private val CAPABILITIES = QueryCapability.entries - setOf(QueryCapability.FULL_TEXT_TERMS, QueryCapability.FULL_TEXT_PHRASE)
+
+        private val DATE_OPERAND_CAPABILITIES = setOf(QueryCapability.EXACT_MATCH, QueryCapability.RANGE)
+
+        private val LEGACY_DATE_OPERAND_CAPABILITIES = DATE_OPERAND_CAPABILITIES + setOf(
+            QueryCapability.LITERAL_MATCH,
+            QueryCapability.AGGREGATE_NUMERIC,
+        )
 
         private val SEMANTICS: List<QuerySemanticType?> = listOf(
             null,

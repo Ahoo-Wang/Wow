@@ -18,14 +18,15 @@ import com.mongodb.reactivestreams.client.MongoCollection
 import me.ahoo.wow.api.query.Queryable
 import me.ahoo.wow.query.AdmittedQuery
 import org.bson.Document
+import org.bson.conversions.Bson
 
+/** The find of [admitted]'s projection and sort over [filter], which defaults to [admitted]'s compiled filter. */
 internal fun MongoCollection<Document>.findDocument(
-    filterCompiler: AbstractMongoFilterCompiler,
     admitted: AdmittedQuery<Queryable<*>>,
+    filter: Bson = MongoFilterCompiler.compile(admitted.query.filter, admitted),
 ): FindPublisher<Document> {
     val queryable = admitted.query
     val projectionBson = MongoProjectionCompiler.compile(queryable.projection, admitted)
-    val filter = filterCompiler.compile(queryable.filter, admitted)
     val sort = MongoSortCompiler.compile(queryable.sort, admitted)
     return find(filter)
         .projection(projectionBson)
