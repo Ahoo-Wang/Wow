@@ -37,4 +37,10 @@ object ExampleService {
     const val SERVICE_ALIAS = "example"
     const val ORDER_AGGREGATE_NAME = "order"
     const val CART_AGGREGATE_NAME = "cart"
+
+    /**
+     * The aggregate a cart or order item's `productId` refers to. The example has no product aggregate of its own:
+     * products come from the pricing and inventory services, and a query reference may point across services.
+     */
+    const val PRODUCT_AGGREGATE_NAME = "product"
 }

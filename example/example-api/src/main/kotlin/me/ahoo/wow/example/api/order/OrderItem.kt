@@ -14,6 +14,8 @@ package me.ahoo.wow.example.api.order
 
 import me.ahoo.wow.api.Identifier
 import me.ahoo.wow.api.annotation.EntityObject
+import me.ahoo.wow.api.query.annotation.QueryReference
+import me.ahoo.wow.example.api.ExampleService.PRODUCT_AGGREGATE_NAME
 import java.math.BigDecimal
 
 interface CreateOrderItem {
@@ -30,6 +32,7 @@ interface CreateOrderItem {
 @EntityObject
 data class OrderItem(
     override val id: String,
+    @field:QueryReference(PRODUCT_AGGREGATE_NAME)
     override val productId: String,
     override val price: BigDecimal,
     override val quantity: Int

@@ -148,11 +148,14 @@ class SemanticTypeSchemaTest {
                 "state" to objectFixture(
                     "timeout" to scalar(QueryValueType.INTEGER, seconds),
                     "memberId" to scalar(QueryValueType.STRING, member),
+                    "memberIds" to arrayFixture(scalar(QueryValueType.STRING, member)),
                 ),
             ),
         ).describe(QueryBudget.HTTP_DEFAULT, 100).fields.associateBy { it.path }
         snapshot.getValue("state.timeout").semantic.assert().isEqualTo(seconds)
         snapshot.getValue("state.memberId").semantic.assert().isEqualTo(member)
+        // Like its types, an array's semantic is its items'.
+        snapshot.getValue("state.memberIds").semantic.assert().isEqualTo(member)
         snapshot.getValue("eventTime").role.assert().isEqualTo(FieldDescriptor.EVENT_TIME)
         snapshot.getValue("firstEventTime").role.assert().isEqualTo(FieldDescriptor.FIRST_EVENT_TIME)
         snapshot.getValue("snapshotTime").role.assert().isNull()
