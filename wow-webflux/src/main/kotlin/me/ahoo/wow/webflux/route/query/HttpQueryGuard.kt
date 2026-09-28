@@ -37,6 +37,7 @@ import java.time.Duration
 class HttpQueryGuard(
     private val defaultListSize: Int = DEFAULT_LIST_SIZE,
     private val idleTimeout: Duration = Duration.ofSeconds(10),
+    // compat(wow<9): off by default so a legacy Condition count body still counts; see docs/compat-debt.md.
     val strictCountFilter: Boolean = false,
 ) {
     init {

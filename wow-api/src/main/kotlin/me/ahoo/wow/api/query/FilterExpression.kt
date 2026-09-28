@@ -268,6 +268,7 @@ private class FilterExpressionTypeDeserializer(
                     "Filter expression properties must use op.",
                 )
             }
+            // compat(wow<9): a filter without `op` is a legacy Condition; see docs/compat-debt.md.
             return node.toLegacyFilterExpression(ctxt)
         }
         node.requireCanonicalFilterPayload()
