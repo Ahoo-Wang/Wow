@@ -379,7 +379,8 @@ private fun QueryValueSchema.proves(capability: QueryCapability, kind: Property.
     }
 }
 
-private fun QueryValueSchema.storageRequirements(
+/** The field kinds [capability] needs; the table wave 4 replaces with `storageFamilies` (F7). */
+internal fun QueryValueSchema.storageRequirements(
     capability: QueryCapability,
 ): List<Set<Property.Kind>> = when (capability) {
     QueryCapability.EXACT_MATCH -> valueRequirements()
@@ -459,26 +460,26 @@ private fun ElasticsearchMappedField.supportsModelPhraseSearch(): Boolean {
     return indexed && kind in PHRASE_SEARCH_KINDS
 }
 
-private val SIGNED_INTEGER_KINDS = setOf(
+internal val SIGNED_INTEGER_KINDS = setOf(
     Property.Kind.Byte,
     Property.Kind.Short,
     Property.Kind.Integer,
     Property.Kind.Long,
 )
 
-private val INTEGER_KINDS = SIGNED_INTEGER_KINDS + setOf(
+internal val INTEGER_KINDS = SIGNED_INTEGER_KINDS + setOf(
     Property.Kind.TokenCount,
     Property.Kind.UnsignedLong,
 )
 
-private val NUMERIC_KINDS = INTEGER_KINDS + setOf(
+internal val NUMERIC_KINDS = INTEGER_KINDS + setOf(
     Property.Kind.HalfFloat,
     Property.Kind.Float,
     Property.Kind.Double,
     Property.Kind.ScaledFloat,
 )
 
-private val KEYWORD_KINDS = setOf(
+internal val KEYWORD_KINDS = setOf(
     Property.Kind.Keyword,
     Property.Kind.ConstantKeyword,
     Property.Kind.CountedKeyword,
@@ -487,9 +488,9 @@ private val KEYWORD_KINDS = setOf(
 
 private val TERM_KINDS = KEYWORD_KINDS + Property.Kind.Wildcard
 
-private val BOOLEAN_KINDS = setOf(Property.Kind.Boolean)
+internal val BOOLEAN_KINDS = setOf(Property.Kind.Boolean)
 
-private val DATE_KINDS = setOf(Property.Kind.Date, Property.Kind.DateNanos)
+internal val DATE_KINDS = setOf(Property.Kind.Date, Property.Kind.DateNanos)
 
 private val NESTED_KINDS = setOf(Property.Kind.Nested)
 
@@ -536,7 +537,7 @@ private val SEARCH_KINDS = setOf(
     Property.Kind.SemanticText,
 )
 
-private val STRING_KINDS = TERM_KINDS + SEARCH_KINDS + setOf(
+internal val STRING_KINDS = TERM_KINDS + SEARCH_KINDS + setOf(
     Property.Kind.Ip,
     Property.Kind.Version,
 )

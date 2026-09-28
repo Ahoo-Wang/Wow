@@ -14,17 +14,9 @@
 package me.ahoo.wow.query.event
 
 import me.ahoo.wow.api.modeling.NamedAggregate
-import me.ahoo.wow.modeling.MaterializedNamedAggregate
-import me.ahoo.wow.modeling.materialize
-import me.ahoo.wow.query.QueryBackendBinding
+import me.ahoo.wow.query.RoutingQueryBackendFactory
 
 class RoutingEventStreamQueryBackendFactory(
-    private val defaultFactory: EventStreamQueryBackendFactory,
+    defaultFactory: EventStreamQueryBackendFactory,
     routes: Map<NamedAggregate, EventStreamQueryBackendFactory>,
-) : EventStreamQueryBackendFactory {
-    private val routes: Map<MaterializedNamedAggregate, EventStreamQueryBackendFactory> =
-        routes.mapKeys { (namedAggregate, _) -> namedAggregate.materialize() }
-
-    override fun create(namedAggregate: NamedAggregate): QueryBackendBinding<EventStreamQueryBackend> =
-        (routes[namedAggregate.materialize()] ?: defaultFactory).create(namedAggregate)
-}
+) : RoutingQueryBackendFactory<EventStreamQueryBackend>(defaultFactory, routes), EventStreamQueryBackendFactory

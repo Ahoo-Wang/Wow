@@ -95,6 +95,34 @@ class BackendQueriesTest {
     }
 
     @Test
+    fun `paged beyond the storage offset window is rejected at admission naming the limit`() {
+        val windowed = schema.withStorage(StorageSupport(paging = PagingSupport(maxOffsetWindow = 20)))
+        val violation = checkNotNull(
+            assertThrows<QueryRequestException> {
+                QueryAdmission.Trusted.paged(PagedQuery(MatchAllFilter, pagination = Pagination(5, 5)), windowed)
+            }.violation
+        )
+        violation.assert().isEqualTo(
+            QueryViolation.SizeOutOfRange("Storage", "page window", 25, null, 20, "pagination")
+        )
+        violation.code.assert().isEqualTo(QueryErrorCodes.SIZE_OUT_OF_RANGE)
+        violation.message.assert().isEqualTo("Storage page window[25] must not exceed 20.")
+
+        val backend = RecordingBackend(pages = { BackendPage(emptyList(), 0) })
+        backend.paged(
+            QueryAdmission.Trusted.paged(PagedQuery(MatchAllFilter, pagination = Pagination(4, 5)), windowed)
+        ).test().expectNextCount(1).verifyComplete()
+        backend.windows.single().assert().isEqualTo(PageWindow.Offset(15, 5, withTotal = true))
+    }
+
+    @Test
+    fun `the offset window is unlimited by default`() {
+        PagingSupport().maxOffsetWindow.assert().isNull()
+        QueryAdmission.Trusted.paged(PagedQuery(MatchAllFilter, pagination = Pagination(100_000, 100)), schema)
+        assertThrows<IllegalArgumentException> { PagingSupport(maxOffsetWindow = 0) }
+    }
+
+    @Test
     fun `list without a limit is rejected at admission when the storage cannot stream to the end`() {
         val backend = RecordingBackend()
         val streaming = schema.withStorage(StorageSupport(paging = PagingSupport(unboundedStream = SupportMode.NONE)))

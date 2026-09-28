@@ -13,22 +13,11 @@
 
 package me.ahoo.wow.query.snapshot
 
-import me.ahoo.wow.api.modeling.NamedAggregate
-import me.ahoo.wow.modeling.MaterializedNamedAggregate
-import me.ahoo.wow.modeling.materialize
-import me.ahoo.wow.query.QueryBackendBinding
-import java.util.concurrent.ConcurrentHashMap
+import me.ahoo.wow.query.AbstractQueryBackendFactory
+import me.ahoo.wow.query.QueryBackendFactory
 
-interface SnapshotQueryBackendFactory {
-    fun create(namedAggregate: NamedAggregate): QueryBackendBinding<SnapshotQueryBackend>
-}
+interface SnapshotQueryBackendFactory : QueryBackendFactory<SnapshotQueryBackend>
 
-abstract class AbstractSnapshotQueryBackendFactory : SnapshotQueryBackendFactory {
-    private val bindingCache =
-        ConcurrentHashMap<MaterializedNamedAggregate, QueryBackendBinding<SnapshotQueryBackend>>()
-
-    override fun create(namedAggregate: NamedAggregate): QueryBackendBinding<SnapshotQueryBackend> =
-        bindingCache.computeIfAbsent(namedAggregate.materialize(), ::createBinding)
-
-    protected abstract fun createBinding(namedAggregate: NamedAggregate): QueryBackendBinding<SnapshotQueryBackend>
-}
+abstract class AbstractSnapshotQueryBackendFactory :
+    AbstractQueryBackendFactory<SnapshotQueryBackend>(),
+    SnapshotQueryBackendFactory
