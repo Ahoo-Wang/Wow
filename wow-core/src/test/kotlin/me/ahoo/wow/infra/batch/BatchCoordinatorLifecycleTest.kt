@@ -19,6 +19,7 @@ import org.junit.jupiter.api.assertThrows
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.core.publisher.Sinks
+import reactor.core.scheduler.Scheduler
 import reactor.kotlin.test.test
 import reactor.test.StepVerifier
 import java.time.Duration
@@ -199,6 +200,36 @@ class BatchCoordinatorLifecycleTest {
         writerResult.tryEmitValue(listOf(BatchItemResult.Success))
         observed.get(1, TimeUnit.SECONDS)
         item.get(1, TimeUnit.SECONDS)
+    }
+
+    @Test
+    fun `graceful close observer on the window thread should not see an interrupt`() {
+        val coordinator = coordinator { items -> Mono.just(items.map { BatchItemResult.Success }) }
+        batchSignals(coordinator, 1, 2).block(Duration.ofSeconds(1))
+        // Wait until both result tasks have fully returned, so the processor completion claims the drain.
+        val executor = resultExecutor(coordinator)
+        val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(1)
+        while (executor.completedTaskCount < 2 && System.nanoTime() < deadline) {
+            Thread.onSpinWait()
+        }
+        executor.completedTaskCount.assert().isEqualTo(2L)
+        val batchScheduler = BatchCoordinator::class.java.getDeclaredField("batchScheduler").let {
+            it.isAccessible = true
+            it.get(coordinator) as Scheduler
+        }
+        // Hold the window thread so the observer subscribes before the lane completion runs there.
+        val releaseWindow = CountDownLatch(1)
+        batchScheduler.schedule { releaseWindow.await() }
+        val observerThread = AtomicReference<String>()
+        val observerInterrupted = AtomicBoolean(true)
+        val observed = coordinator.stopGracefully().doOnSuccess {
+            observerThread.set(Thread.currentThread().name)
+            observerInterrupted.set(Thread.currentThread().isInterrupted)
+        }.toFuture()
+        releaseWindow.countDown()
+        observed.get(1, TimeUnit.SECONDS)
+        observerThread.get().assert().startsWith("test-batch-window")
+        observerInterrupted.get().assert().isFalse()
     }
 
     @Test
