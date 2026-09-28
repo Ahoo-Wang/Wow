@@ -729,6 +729,7 @@
   - **声明式操作**：宿主写命令、可用规则、拒绝理由、确认与输入；引擎负责位置、部分拒绝、批量、进度、刷新与播报；插槽留作逃生口。
   - **后端对齐事实、不对齐选择**：描述符补时长、引用、时间角色三项事实（比率不加；#3738 已合并）；受众的选择不进描述符。
   - **次序**：A → C → H1（并入 D）→ H2 → H3 → B。
+  - **主题接入先选一条路**（2026-09-28 追加，[host-integration.md](host-integration.md) 4.1）：Provider 上二选一——引擎跟宿主（**theme="host"**，即桥接）或宿主跟引擎（预设加品牌）；明暗由 Provider 管；README 主题压成快速上手，进阶挪到文档站；控制台改走推荐的路。随 H2 做。
   - **描述符的事实**（2026-09-28 追加，#3738 已合并）：只补三项——时长（`DURATION`）、引用（`REFERENCE`，含 `AggregateId` 的推断）、时间角色（`EVENT_TIME`／`FIRST_EVENT_TIME`）；比率不加（没有真实字段，零售的 `discountShare` 是金额）。
 - **没选**：生成器生成定义初稿（宿主代码与生成文件分叉，且大部分内容是判断）；缺省列出全部字段（描述符一加字段界面就悄悄多一列）；启动时先 `describe` 再生成定义（页面要等，测试不可复现）。
 - **落点**：[host-integration.md](host-integration.md)；`src/model/`、`src/runtime/viewEngine.ts`、`src/react/`、`src/testing/`；Skill `wow-view-definition` 与新增的 `wow-view-host`。
