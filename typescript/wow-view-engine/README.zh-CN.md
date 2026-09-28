@@ -1058,7 +1058,7 @@ const paid = matches(documents[0], {
 
 | 入口                         | 导出                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
 | ---------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `@ahoo-wang/wow-view-engine` | 模型类型与常量；四个纯内核（`validate*` / `compile*` / `project*` 及其旁边的读法）；运行时只导出宿主要握的，不导出它由什么搭成——`ViewEngine`、`validateDefinition`、运行时合同 `ViewRuntime`、`RecordViewRuntime`、`DashboardRuntime`、`AnyViewRuntime` 连同它们签名里出现的每一个类型、`hasResult`、`hasAsked`、`isRecordRuntime`、写入错误 `ViewWriteError` 与 `ViewCommandError`、`ExportCancelled`、`RuntimeEnvironment`、`defaultRuntimeEnvironment`、`ViewSource`、`OptionSource`；`ViewStore` 端口与 `MemoryViewStore`                                                                                   |
+| `@ahoo-wang/wow-view-engine` | 模型类型与常量；四个纯内核（`validate*` / `compile*` / `project*` 及其旁边的读法）；运行时只导出宿主要握的，不导出它由什么搭成——`ViewEngine`、`validateDefinition`、运行时合同 `ViewRuntime`、`RecordViewRuntime`、`DashboardRuntime`、`AnyViewRuntime` 连同它们签名里出现的每一个类型、`hasResult`、`hasAsked`、`isRecordRuntime`、写入错误 `ViewWriteError` 与 `ViewCommandError`、`ExportCancelled`、`RuntimeEnvironment`、`defaultRuntimeEnvironment`、`ViewSource`、`OptionSource`；`ViewStore` 端口、`MemoryViewStore` 与 `localStorageSnapshot`                                                          |
 | `/react`                     | 钩子与无样式控制器，连同它们交出的类型：`useViewEngine`、`useOpenView`、`useViewRuntime`、`useViewList`、`useViewManager`、`useWorkbench`、`useLeaveGuard`、`useFilterEditor`、`useRecordTable`、`useAnalysisEditor`、`useAnalysisResult`、`useDashboard`、`useSaveCommands`、`RecordActionSlots`，以及保存命令与管理器共用的写入结局词汇                                                                                                                                                                                                                                                                       |
 | `/ui`                        | 默认组件、视图与工作台，连同它们的 props：`DataWorkbench`、`DashboardWorkbench`、`DashboardEditExtensions`、`useDashboardExtensions`、`EmbeddedView`、`EmbeddedDashboard`、`ViewHeader`、`SaveActions`、`ViewManager`、`LeaveDialog`、`EditorBand`、`FilterPanel`、`StatusStrip`、`AppliedBar`、`ResultToolbar`、`RowActions`、`RecordTable`、`RecordCards`、`RecordPagination`、`AnalysisTable`、`AnalysisChart`、`DashboardGrid`、`HeadingPanel`、`MarkdownPanel`、`ImagePanel`、`LinksPanel`、`MessagesProvider`；措辞目录 `defaultMessages` 与 `zhCN`；一个值的读法 `cellValue`、`cellText`、`displayValue` |
 | `/testing`                   | `memorySource` 与 `matches`：带 Wow 查询语义的内存 `ViewSource`，供宿主测试使用（[测试宿主](#测试宿主内存数据源)）                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
@@ -1118,6 +1118,25 @@ interface ViewStore {
 2. **幂等 `requestId`。** 每个逻辑写入在 `WriteContext` 中携带一次 `requestId`，超时后的重试复用它，服务端去重。
 
 本包提供 `MemoryViewStore`，用于测试、示例与只查询不持久化的场景。业务应用用自己的 fetcher 针对自己的 API 实现 `ViewStore`，HTTP 状态码到 `ViewStoreError.code` 的映射在应用侧完成。授权、可见性过滤与去重是服务端职责，`permissions` 只决定按钮可用性。
+
+### 本地存储：在后端接手之前
+
+开发与单用户宿主可以用 `localStorageSnapshot(key)` 把 `MemoryViewStore` 存进浏览器的 `localStorage`，整份作为一个 JSON 文档放在 `key` 下。它只是这一个浏览器的视图，不是共享的；保存视图真正的归宿是 `ViewStore` 背后的后端（阶段 6）。
+
+```ts
+import {
+  localStorageSnapshot,
+  MemoryViewStore,
+} from '@ahoo-wang/wow-view-engine';
+
+const store = new MemoryViewStore({
+  snapshot: localStorageSnapshot('my-app:views'),
+});
+```
+
+- **存储拒收的写入就是失败。** 配额满或存储被禁用时，写入在内存中撤回，并以 code 为 `UNAVAILABLE` 的 `ViewStoreError` 拒绝：环境的 `onError` 收到一次 `store` 失败，界面显示这次保存没有落地并可重试。
+- **标签页之间不互相覆盖。** 每次写入前 store 重读文档，按实例、按每个定义的偏好核对这次写入的 `revision`：写入合并进另一个标签页存下的内容——一个标签页保存的看板，不会被另一个标签页的排序抹掉；另一个标签页已经越过的写入是 `CONFLICT`，与任何过期写入一样。另一个标签页的改动也会经 `storage` 事件让 store 重新载入。
+- 文档缺失或读不懂时从空开始，页面不会因此出错，下一次写入会替换它。
 
 ### 措辞与语言
 

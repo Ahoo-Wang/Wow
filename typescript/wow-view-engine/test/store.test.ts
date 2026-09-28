@@ -319,10 +319,11 @@ describe('MemoryViewStore', () => {
   it('restores from a snapshot and writes every change back to it', async () => {
     const saved: MemoryState[] = [];
     const snapshot = {
-      load: () => ({
-        instances: [instance()],
-        preferences: { orders: emptyPreferences() },
-      }),
+      load: (): MemoryState =>
+        saved[saved.length - 1] ?? {
+          instances: [instance()],
+          preferences: { orders: emptyPreferences() },
+        },
       save: vi.fn((state: MemoryState) => saved.push(state)),
     };
 
