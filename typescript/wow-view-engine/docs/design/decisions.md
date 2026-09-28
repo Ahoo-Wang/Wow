@@ -711,6 +711,14 @@
 - **没选**：私有工作区包（宿主拿不到，控制台之外的宿主还得再写一份）；放进根入口（生产代码从不需要它，还会把 `mingo` 带进每个宿主的包）。
 - **落点**：`src/testing/`；`test/surface/testing.txt`；`scripts/size-budget.json` 的 `./testing`；[README.md「Testing a host」](../../README.md#testing-a-host-an-in-memory-source)；`typescript/storybook/stories/view-engine/rowSource.ts`；`compensation/dashboard/e2e/support/executionFailedService.ts`。
 
+## D66 引擎的工具类带前缀 `fve:`，与宿主不再同名（2026-09-28）
+
+- **来由**：看板真实接入（补偿控制台，2026-09-27）的 B。引擎与宿主各生成一份同名的 Tailwind 工具类；G16 让引擎的每条规则多一个类的权重（`:is(边界…)`），在作用域里同名的一律引擎赢。代价：宿主写在引擎面里的断点类（`sm:grid-cols-4`）输给引擎的 `grid-cols-2`；控制台把 `fve-tokens` 挂在 `<body>` 上，整个宿主都在作用域里，它自己 shadcn 组件的断点类（`sm:max-w-sm`、`sm:flex-row`）只要引擎也用了同名的基础类就静悄悄失效。控制台已为此两处改写（`App.tsx` 外壳、`ExecutionReading.tsx`）。
+- **裁定**（用户：「按你推荐」）：引擎的工具类用 Tailwind v4 的 `prefix(fve)`，源码写 `fve:flex`、`fve:md:w-64`；shadcn 的 `components.json` 同设 `tailwind.prefix`，以后引入的组件照样带前缀。两边不再同名，宿主的类在引擎面里、引擎的类在宿主页上都按各自的层叠生效，引擎也不受导入先后影响（G16 的目标由不同名达成，不再靠权重）。作用域只管 preflight、base 与变量，不再给每条规则加一个类；`verify-package` 的护栏改守「引擎样式表里没有不带前缀的工具类」。
+- **没选**：作用域改零权重 `:where`（G16 回退：宿主后导入的 `.w-full` 又压过引擎的 `md:w-64`）；分区权重（`.fve-root` 里 +1、宿主插槽与 `.fve-tokens` 下零权重——要给每个宿主插槽打标记，选择器更复杂，引擎组件放进宿主外壳时仍看导入先后）。
+- **判据**：全部截图基线与主题故事不变；另加一个故事，宿主的断点类在引擎面里生效；控制台两处绕开的写法改回带断点的写法。体积上限若因类名变长越线，照「功能优先」在同一个 PR 里抬。
+- **落点**：`src/**/*.tsx` 的类名（codemod）、`components.json`、`src/styles.css`、`scripts/scope-utilities.mjs`、`scripts/verify-package.mjs`；[theme-architecture.md](theme-architecture.md) G16 一节随之改写。
+
 ## 搁置待议
 
 尚无结论，不要当作规则执行。
