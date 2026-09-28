@@ -11,6 +11,7 @@
  * limitations under the License.
  */
 
+import { Fragment } from 'react';
 import type { Decorator, Preview } from '@storybook/react-vite';
 import { DecoratorHelpers } from '@storybook/addon-themes';
 import { useEffect, useMemo } from 'storybook/preview-api';
@@ -131,6 +132,31 @@ const withChangeColors: Decorator = (storyFn, context) => {
   }, [convention]);
   return storyFn();
 };
+
+/**
+ * A story drawn again from scratch when a control changes its args (#3638).
+ * The View Engine stories build their engine once per mount
+ * (`StoryEngine`'s `useState(create)`), so an arg read at creation — a
+ * dashboard's `behaviour`, a workbench's saved view — changed the control and
+ * left the preview as it was until the story was reloaded. Keyed by the args,
+ * a change is a new mount: a new engine and store, as a reload gives.
+ *
+ * Only what the story renders is remounted; the switches above write to
+ * `<html>` before the render and are not React state. Functions (a spy
+ * passed as an arg) do not take part in the key, and args that cannot be
+ * written out keep one key, so such a story is never remounted by this.
+ */
+const withArgsKey: Decorator = (storyFn, context) => (
+  <Fragment key={argsKey(context.args)}>{storyFn()}</Fragment>
+);
+
+function argsKey(args: Record<string, unknown>): string {
+  try {
+    return JSON.stringify(args) ?? '';
+  } catch {
+    return '';
+  }
+}
 
 const preview: Preview = {
   parameters: {
@@ -273,7 +299,14 @@ const preview: Preview = {
   // View Engine's dark theme wakes up when `.dark` sits on an ancestor of
   // `.fve-root`, and a preset when `data-fve-preset` does; both go on
   // `<html>`, so the toolbar reaches every story the way a host would.
-  decorators: [withMode, withPreset, withDensity, withChangeColors],
+  // `withArgsKey` first, so it is the one closest to the story.
+  decorators: [
+    withArgsKey,
+    withMode,
+    withPreset,
+    withDensity,
+    withChangeColors,
+  ],
   tags: ['autodocs', 'test'],
 };
 

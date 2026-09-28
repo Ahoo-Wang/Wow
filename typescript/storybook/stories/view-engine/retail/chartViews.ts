@@ -50,6 +50,12 @@ const thisMonth = (field: string) =>
 const GMV = 'state.amounts.payableAmount';
 const REFUNDED = 'state.amounts.refundedAmount';
 const PAID = 'state.amounts.paidAmount';
+/** 已付款的单：没付款的单实付是 ¥0，算进来就是每周最低 ¥0（#3620）。 */
+const PAID_ORDERS = {
+  field: 'state.timing.paidAt',
+  operator: 'IS_NOT_NULL',
+  value: null,
+} as FilterLeaf;
 /**
  * 付款到发货几小时：两个时刻之差（DATE_DIFF，N3），查询时现算，不再靠读模型
  * 预先算好的字段。
@@ -220,13 +226,15 @@ export const CHART_VIEWS: ViewInstance[] = [
       },
     }),
   ),
-  // K 线：每周成交单价从首单开到末单收，中间最高、最低——一周里价格带怎样
-  // 移动。开与收是每周最早、最晚那一单的实付（FIRST / LAST，N1）。
+  // K 线：每周已付款的单每单实付多少，从首单开到末单收，中间最高、最低——
+  // 一周里单笔实付的范围怎样移动。开与收是每周最早、最晚那一单的实付
+  // （FIRST / LAST，N1）。是每单实付，不是单价：一单买几件都算一单；没付款的
+  // 单不算，否则每周最低都是 ¥0（#3620）。
   shared(
     CHART_VIEW_IDS.candlestick,
-    '每周成交单价 K 线（近 12 周）',
+    '每周每单实付 K 线（近 12 周已付款的单）',
     analysis({
-      filter: and(recent('firstEventTime', 84, 'day')),
+      filter: and(recent('firstEventTime', 84, 'day'), PAID_ORDERS),
       groups: [
         {
           type: 'DATE_HISTOGRAM',
