@@ -991,6 +991,52 @@ const page = await source.paged(query);
 const view = projectRecord(orders, config, page);
 ```
 
+## Testing a host: an in-memory source
+
+A host's own tests — a page that opens a view, a board, a demo without a backend — need a source that answers the queries the engine really sends. `@ahoo-wang/wow-view-engine/testing` has one: `memorySource(documents, options?)` is a `ViewSource` over JSON documents held in memory that filters, sorts, pages, projects and aggregates the way a Wow service over MongoDB does. Its answers are held to the server's own semantics — the `FilterSemantics` matrix in `wow-api` and the aggregation cases of the query TCK — by this package's suites, so a test sees the engine's query answered as production answers it, not a canned result that shows rows the filter excludes.
+
+<!-- typecheck-context
+import { orders } from './orders';
+-->
+
+```ts
+import { FilterOperator } from '@ahoo-wang/wow-client';
+import { MemoryViewStore, ViewEngine } from '@ahoo-wang/wow-view-engine';
+import { matches, memorySource } from '@ahoo-wang/wow-view-engine/testing';
+
+// Snapshots as the service returns them: the envelope, `state`, epoch-ms times.
+const documents = [
+  {
+    aggregateId: 'O-1',
+    eventTime: 1_790_000_000_000,
+    state: { status: 'PAID', total: 120 },
+  },
+  {
+    aggregateId: 'O-2',
+    eventTime: 1_790_000_060_000,
+    state: { status: 'CANCELLED', total: 80 },
+  },
+];
+const source = memorySource(documents, {
+  // The clock BEFORE_NOW / AFTER_NOW compare against: pin it with the page's.
+  now: () => Date.parse('2026-09-27T00:00:00Z'),
+});
+const engine = new ViewEngine({
+  definitions: [orders],
+  store: new MemoryViewStore(),
+  resolveSource: () => source,
+});
+
+// A test's own condition, asked of one document the same way.
+const paid = matches(documents[0], {
+  op: FilterOperator.EQ,
+  field: 'state.status',
+  value: 'PAID',
+});
+```
+
+What it promises: every filter operator the engine compiles, with MongoDB's treatment of a missing field, an explicit `null`, an empty string or array, array elements and case; `DELETION` over a `deleted` flag (a document with `deleted: true` is left out unless the filter asks); paging, cursor (an offset) and sort; projection; and aggregation — `elements` (paths and gate filters relative to the element), `TERMS`, `HISTOGRAM`, `DATE_HISTOGRAM` and `DATE_PART` in a zone (UTC by default), `dense`, every metric with its own filter, `DERIVED`, `having`, the order Wow gives groups (the sort, then each group alias ascending) and its default `limit` of 100. `PERCENTILE` is exact, where a server's is an estimate between the same two ranks. What it has no reading of — `ID`, `TENANT_ID`, `SPACE_ID`, the calendar filters the engine never sends — is refused with an error, so a query a test starts to send fails instead of getting a plausible wrong answer. `timeField` keeps a large set in the order of one epoch-ms column and cuts a range on it by binary search; `remember` answers a repeated aggregation from memory, for documents that never change. The entry is headless — no React, no DOM, no stylesheet — and loads `mingo`, MongoDB's query language in JavaScript, only when imported.
+
 ## Concepts
 
 | Type             | Role                                                                                                                                                                                                                                                                                                                                                                                                                                               | Lives in |
@@ -1023,12 +1069,13 @@ Details in [docs/design/management.md](docs/design/management.md).
 | `@ahoo-wang/wow-view-engine` | Model types and constants; the four pure kernels (`validate*` / `compile*` / `project*` and the readings beside them); from the runtime, what a host holds and nothing it is built from — `ViewEngine`, `validateDefinition`, the runtime contracts `ViewRuntime`, `RecordViewRuntime`, `DashboardRuntime` and `AnyViewRuntime` with every type their signatures name, `hasResult`, `hasAsked`, `isRecordRuntime`, the write errors `ViewWriteError` and `ViewCommandError`, `ExportCancelled`, `RuntimeEnvironment`, `defaultRuntimeEnvironment`, `ViewSource`, `OptionSource`; the `ViewStore` port and `MemoryViewStore`                            |
 | `/react`                     | Hooks and headless controllers with the types they return: `useViewEngine`, `useOpenView`, `useViewRuntime`, `useViewList`, `useViewManager`, `useWorkbench`, `useLeaveGuard`, `useFilterEditor`, `useRecordTable`, `useAnalysisEditor`, `useAnalysisResult`, `useDashboard`, `useSaveCommands`, `RecordActionSlots`, and the write-outcome vocabulary the save commands and the manager share                                                                                                                                                                                                                                                         |
 | `/ui`                        | Default components, views and workbenches with their props: `DataWorkbench`, `DashboardWorkbench`, `DashboardEditExtensions`, `useDashboardExtensions`, `EmbeddedView`, `EmbeddedDashboard`, `ViewHeader`, `SaveActions`, `ViewManager`, `LeaveDialog`, `EditorBand`, `FilterPanel`, `StatusStrip`, `AppliedBar`, `ResultToolbar`, `RowActions`, `RecordTable`, `RecordCards`, `RecordPagination`, `AnalysisTable`, `AnalysisChart`, `DashboardGrid`, `HeadingPanel`, `MarkdownPanel`, `ImagePanel`, `LinksPanel`, `MessagesProvider`; the catalogues `defaultMessages` and `zhCN`; the reading of a value, `cellValue`, `cellText` and `displayValue` |
+| `/testing`                   | `memorySource` and `matches`: an in-memory `ViewSource` with Wow's query semantics, for a host's tests ([Testing a host](#testing-a-host-an-in-memory-source))                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 | `/styles.css`                | The theme. Import it explicitly; no JavaScript entry imports CSS, and nothing in it paints outside the two style boundaries `.fve-root` and `.fve-tokens` (preflight and utilities are scoped at build time, each rule a class heavier than written, so your import order does not matter) — bar the preset reset, which only empties the `--fvp-*` layer where a preset is named — all checked by `scripts/verify-package.mjs` on every build.                                                                                                                                                                                                        |
 | `/themes.css`                | The presets, optional: only `--fvp-*` assignments keyed by `data-fve-preset` ([Presets](#presets)), checked by the same script.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
 | `/themes/<name>.css`         | One preset alone, for a host that wears one: the same block `themes.css` holds for it ([Presets](#presets)).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
 | `/shadcn-bridge.css`         | Optional: a host's shadcn tokens read into the `--fvp-*` variables, bar `input`, `ring`, the status and the chart colours and the shadows, and only while no preset is named ([the bridge](#a-host-with-a-shadcn-theme-shadcn-bridgecss)), checked by the same script.                                                                                                                                                                                                                                                                                                                                                                                 |
 
-That is the public surface, and it is kept name by name. Each entry writes every name it exports, grouped by the file that declares it; none re-exports a whole module (`test/architecture.test.ts`), so an `export` a file writes for its neighbours never becomes public by accident. Each code entry's complete list — every name, and whether it is a type or a value — is in `test/surface/` (`root.txt`, `react.txt`, `ui.txt`): `test/publicSurface.test.ts` fails when an entry exports a name its list does not hold or stops exporting one it does, and `scripts/verify-package.mjs` holds each built JavaScript entry to the same list. A name added to a list or taken off one is a change to the public surface and is reviewed as one. The command is surface too: `test/surface/bin.txt` lists the `bin` (`wow-view-engine`) and each subcommand it answers ([`theme-check`](#checking-a-theme-theme-check)).
+That is the public surface, and it is kept name by name. Each entry writes every name it exports, grouped by the file that declares it; none re-exports a whole module (`test/architecture.test.ts`), so an `export` a file writes for its neighbours never becomes public by accident. Each code entry's complete list — every name, and whether it is a type or a value — is in `test/surface/` (`root.txt`, `react.txt`, `ui.txt`, `testing.txt`): `test/publicSurface.test.ts` fails when an entry exports a name its list does not hold or stops exporting one it does, and `scripts/verify-package.mjs` holds each built JavaScript entry to the same list. A name added to a list or taken off one is a change to the public surface and is reviewed as one. The command is surface too: `test/surface/bin.txt` lists the `bin` (`wow-view-engine`) and each subcommand it answers ([`theme-check`](#checking-a-theme-theme-check)).
 
 The runtime's own parts are not exported: the request scheduler, the store both runtimes are built on, the refresh timers, the listener sets, the runtime classes and their constructors. A runtime is opened or created through `ViewEngine` and held by its contract, never built by hand; `/react` and `/ui` reach those parts from inside the package, not through an entry.
 

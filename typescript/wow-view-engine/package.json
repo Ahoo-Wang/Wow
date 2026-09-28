@@ -32,6 +32,10 @@
       "types": "./dist/ui/index.d.ts",
       "import": "./dist/ui.js"
     },
+    "./testing": {
+      "types": "./dist/testing/index.d.ts",
+      "import": "./dist/testing.js"
+    },
     "./styles.css": "./dist/styles.css",
     "./themes.css": "./dist/themes.css",
     "./themes/*.css": "./dist/themes/*.css",
@@ -74,6 +78,7 @@
     "dequal": "catalog:",
     "echarts": "catalog:",
     "lucide-react": "catalog:",
+    "mingo": "catalog:",
     "react-day-picker": "catalog:",
     "react-error-boundary": "catalog:",
     "react-grid-layout": "catalog:",

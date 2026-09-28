@@ -19,13 +19,14 @@ import ts from 'typescript';
 export const PACKAGE_ROOT = join(import.meta.dirname, '../..');
 
 /**
- * The three code entries, by the name a host imports them under, and the
+ * The four code entries, by the name a host imports them under, and the
  * source file each is built from (`package.json`'s `exports`).
  */
 export const ENTRIES = {
   '@ahoo-wang/wow-view-engine': 'src/index.ts',
   '@ahoo-wang/wow-view-engine/react': 'src/react/index.ts',
   '@ahoo-wang/wow-view-engine/ui': 'src/ui/index.ts',
+  '@ahoo-wang/wow-view-engine/testing': 'src/testing/index.ts',
 } as const;
 
 export type Entry = keyof typeof ENTRIES;
@@ -158,7 +159,7 @@ export function exportsOf(file: string): ReadonlyMap<string, ExportKind> {
   );
 }
 
-/** What one of the three entries exports, from its source. */
+/** What one of the four entries exports, from its source. */
 export function entryExports(entry: Entry): ReadonlyMap<string, ExportKind> {
   return exportsOf(join(PACKAGE_ROOT, ENTRIES[entry]));
 }

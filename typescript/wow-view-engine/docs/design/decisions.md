@@ -700,6 +700,16 @@
 - **没选**：入口经层的 `index.ts` 逐名转出（同一份名单写两遍）；层的 `index.ts` 也逐名写（它们只给包内用，写名单不守任何公开面）。
 - **落点**：三个入口；`test/architecture.test.ts`「names every export of an entry, with no export \*」；`test/surface/root.txt`、`ui.txt`；[README.md「Entries」](../../README.md#entries)。
 
+## D65 内存数据源是公开入口 `/testing`（2026-09-27）
+
+- **来由**：架构与代码质量审查（2026-09-27）的第 1 项：Wow 的查询语义（筛选、分页、聚合）在内存里有两份实现，而且互相漂移——Storybook 的 `rowSource.ts`（约 1500 行）不答 `IS_EMPTY`（第二轮审查 R1-P1-11，#3705 才补），补偿控制台 e2e 的桩 `executionFailedService.ts` 不答 `DATE_PART`、`HISTOGRAM`、`DISTINCT_COUNT`、`PERCENTILE`、`DATE_DIFF`（#3711 才补）。接入引擎的宿主（补偿控制台是第一个）为了测试还得自己再写一份。
+- **裁定**（用户：「按你推荐」）：一份实现，放进引擎的公开入口 `@ahoo-wang/wow-view-engine/testing`，Storybook 与控制台 e2e 都从它取，宿主也一样。理由：宿主应当对着引擎赖以构建的同一套 Wow 语义测试，而不是各写一份各自漂移。
+  - **公开面**：`memorySource(documents, options?)`——内存文档上的 `ViewSource`，筛选、排序、分页、游标（偏移量）、投影与聚合都按 MongoDB 上的 Wow 服务作答；`matches(document, filter, { now })`——测试拿自己的条件问一条文档；`MemorySourceOptions`（`now`、`timeField`、`remember`）。延迟与失败注入不进公开面：两边的注入各带自己的错误（故事的 `ViewStoreError`、控制台路由的 400），写在各自那一侧。
+  - **承诺**：筛选的每个算子都守 `wow-api` 的语义矩阵 `FilterSemantics`（38 个单元，以 MongoDB 为准：缺失字段、显式 `null`、空串与空数组、数组元素、大小写），聚合守查询 TCK（`SnapshotQueryBackendSpec`）的聚合用例：`elements`、四种分组（默认时区 UTC）、`dense`、每种指标与它自己的条件、`DERIVED`、`having`、分组次序（先排序、再按分组别名升序）、缺省 `limit` 100。测试是 `test/testingFilterSemantics.test.ts` 与 `test/testingAggregationTck.test.ts`，服务端改了语义，这里跟着改。`PERCENTILE` 是精确值（服务端是同两秩之间的估计）；没有读法的（`ID`、`TENANT_ID`、`SPACE_ID`、日历筛选）报错，不给看似合理的错答案。
+  - **无头**：不依赖 React、DOM 与样式表（`tsconfig.headless.json` 与 `test/architecture.test.ts` 的 `testing` 层：只能以纯类型引用 `runtime/source`，可用 `model`）。筛选交给 `mingo`（MongoDB 查询语言的 JavaScript 实现），列为依赖、构建时外置，只有导入 `/testing` 才加载。
+- **没选**：私有工作区包（宿主拿不到，控制台之外的宿主还得再写一份）；放进根入口（生产代码从不需要它，还会把 `mingo` 带进每个宿主的包）。
+- **落点**：`src/testing/`；`test/surface/testing.txt`；`scripts/size-budget.json` 的 `./testing`；[README.md「Testing a host」](../../README.md#testing-a-host-an-in-memory-source)；`typescript/storybook/stories/view-engine/rowSource.ts`；`compensation/dashboard/e2e/support/executionFailedService.ts`。
+
 ## 搁置待议
 
 尚无结论，不要当作规则执行。

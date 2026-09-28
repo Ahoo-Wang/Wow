@@ -18,8 +18,8 @@
 //
 // 1. Every declared entry resolves and imports, and a code entry exports at
 //    run time exactly the values its list under `test/surface/` names.
-// 2. The root entry's types need no DOM lib, so a Node or worker consumer can
-//    use the kernels and the runtime.
+// 2. The root and `/testing` entries' types need no DOM lib, so a Node or
+//    worker consumer can use the kernels, the runtime and the in-memory source.
 // 3. No JavaScript entry pulls in the stylesheet, so importing the package
 //    never puts CSS in a host page that did not ask for it.
 // 4. The stylesheet holds no rule outside the two style boundaries at all, so
@@ -41,7 +41,7 @@
 //    only while no preset is named.
 // 11. The stylesheets' gzipped sizes, the presets' under their budget,
 //    one by one (`/themes/<name>.css`) and together.
-// 12. No entry grows by accident: the three code entries, the chart chunk
+// 12. No entry grows by accident: the four code entries, the chart chunk
 //    (still loaded lazily) and the two stylesheets, gzipped, each under a
 //    regression ceiling in `scripts/size-budget.json` (not a size target).
 import assert from 'node:assert/strict';
@@ -805,7 +805,7 @@ function styleRules(css) {
   return rules;
 }
 
-// 2. The root entry's types compile without the DOM lib.
+// 2. The root and `/testing` entries' types compile without the DOM lib.
 const typeProbe = mkdtempSync(new URL('.package-types-', packageRoot));
 try {
   const file = `${typeProbe}/consumer.ts`;
@@ -817,7 +817,9 @@ try {
       `declare const engine: ViewEngine;`,
       `declare const store: ViewStore;`,
       `declare const config: RecordViewConfig;`,
+      `import { memorySource, matches } from '${name}/testing';`,
       `void [engine, store, config, MemoryViewStore, validateDashboard];`,
+      `void [memorySource([]), matches({}, { op: 'MATCH_ALL' } as never)];`,
       '',
     ].join('\n'),
   );
@@ -839,7 +841,7 @@ try {
   assert.equal(
     diagnostics.length,
     0,
-    `The root entry's types need the DOM lib:\n${ts.formatDiagnostics(
+    `The root or /testing entry's types need the DOM lib:\n${ts.formatDiagnostics(
       diagnostics,
       {
         getCanonicalFileName: path => path,
@@ -879,6 +881,7 @@ const SURFACE_LISTS = {
   [name]: 'test/surface/root.txt',
   [`${name}/react`]: 'test/surface/react.txt',
   [`${name}/ui`]: 'test/surface/ui.txt',
+  [`${name}/testing`]: 'test/surface/testing.txt',
 };
 for (const { specifier, resolved } of jsEntries) {
   const module = await import(resolved);
@@ -970,6 +973,7 @@ const sizes = checkSizes({
     '.': gzippedSize(entryFiles('.')),
     './react': gzippedSize(entryFiles('./react')),
     './ui': gzippedSize(uiFiles),
+    './testing': gzippedSize(entryFiles('./testing')),
     'echarts chunk': gzippedSize(staticClosure(chartChunk, new Set(uiFiles))),
     './styles.css': cssSizes['styles.css'],
     './themes.css': cssSizes['themes.css'],
@@ -1139,7 +1143,7 @@ for (const [css, found] of [
 rmSync(checkDir, { recursive: true, force: true });
 
 console.log(
-  `${targets.size} entries resolve and import, the code entries export at run time exactly the values their surface lists name, the root entry's types need no DOM lib, ${visited.size} runtime modules import no CSS, the chart chunk and each family chunk draw, the stylesheet holds no rule outside ${BOUNDARIES.join(' / ')} bar the preset reset (@layer ${RESET_LAYER}, the first layer, emptying ${reset.declarations.length} --fvp-* variables) and no :root selector at all, every one of its ${scopedRules.length} other rules carries the one-class scope naming both boundaries and none names only one, its dark: utilities turn on the same ${tokenSelectors.length} roots as its dark tokens, its ${lightTokens.tokens.length} light and ${darkTokens.tokens.length} dark tokens all read --fve-* host variables before the preset layer, themes.css holds ${presets.size} preset(s) (${[...presets.keys()].join(', ')}), each shipped alone too as themes/<name>.css, each assigning only --fvp-* variables it changes (${[
+  `${targets.size} entries resolve and import, the code entries export at run time exactly the values their surface lists name, the root and /testing entries' types need no DOM lib, ${visited.size} runtime modules import no CSS, the chart chunk and each family chunk draw, the stylesheet holds no rule outside ${BOUNDARIES.join(' / ')} bar the preset reset (@layer ${RESET_LAYER}, the first layer, emptying ${reset.declarations.length} --fvp-* variables) and no :root selector at all, every one of its ${scopedRules.length} other rules carries the one-class scope naming both boundaries and none names only one, its dark: utilities turn on the same ${tokenSelectors.length} roots as its dark tokens, its ${lightTokens.tokens.length} light and ${darkTokens.tokens.length} dark tokens all read --fve-* host variables before the preset layer, themes.css holds ${presets.size} preset(s) (${[...presets.keys()].join(', ')}), each shipped alone too as themes/<name>.css, each assigning only --fvp-* variables it changes (${[
     ...presets,
   ]
     .map(([preset, assigned]) => `${preset} ${assigned.size}`)

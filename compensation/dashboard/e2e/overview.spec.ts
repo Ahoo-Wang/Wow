@@ -11,14 +11,17 @@
  * limitations under the License.
  */
 
-import { AggregationDateUnit } from "@ahoo-wang/wow-client";
+import {
+  AggregationDateUnit,
+  type AggregationQuery,
+} from "@ahoo-wang/wow-client";
 import { expect, test, type Locator, type Page } from "@playwright/test";
 import {
   mongoDescriptors,
   stubDescriptors,
 } from "./support/descriptorService.ts";
 import {
-  aggregate,
+  serviceOver,
   stubExecutionFailedCommands,
   stubExecutionFailedService,
   type Snapshot,
@@ -77,42 +80,44 @@ function lastDays(days: number): TrendWindow {
 }
 
 /** Every figure the old overview showed, asked of the documents its way. */
-function oldOverview(
+async function oldOverview(
   documents: readonly Snapshot[],
   streams: readonly EventStream[],
   window: TrendWindow,
 ) {
-  const ask = <T>(query: unknown, over: readonly object[] = documents) =>
-    aggregate(
-      over as never,
-      OVERVIEW_NOW,
-      query as Parameters<typeof aggregate>[2],
-    ) as unknown as T[];
-  const [summary] = ask<SnapshotSummaryRow>(
+  const ask = async <T>(query: unknown, over: readonly object[] = documents) =>
+    (await serviceOver(over, OVERVIEW_NOW).aggregate(
+      query as AggregationQuery,
+    )) as unknown as T[];
+  const [summary] = await ask<SnapshotSummaryRow>(
     createSnapshotSummaryQuery(OVERVIEW_NOW, window),
   );
-  const clusters = ask<PressureClusterRow>(createPressureQuery(window));
+  const clusters = await ask<PressureClusterRow>(createPressureQuery(window));
   const pressure = mergePressureRows(
     clusters,
     clusters.length
-      ? ask<PressureStatusRow>(createPressureStatusQuery(clusters, window))
+      ? await ask<PressureStatusRow>(
+          createPressureStatusQuery(clusters, window),
+        )
       : [],
   );
   const recoverability = Object.fromEntries(
-    ask<{ recoverable: string; count: number }>(
-      createRecoverabilityQuery(window),
+    (
+      await ask<{ recoverable: string; count: number }>(
+        createRecoverabilityQuery(window),
+      )
     ).map(({ recoverable, count }) => [recoverable, count]),
   );
-  const [retries] = ask<RetryDistributionRow>(
+  const [retries] = await ask<RetryDistributionRow>(
     createRetryDistributionQuery(window),
   );
   const queries = createEventTrendQueries(window);
   const trend = summarizeTrend(
     mergeTrendRows(window, {
-      newFailures: ask<TrendRow>(queries.newFailures, streams),
-      prepared: ask<TrendRow>(queries.prepared, streams),
-      retriedFailed: ask<TrendRow>(queries.retriedFailed, streams),
-      succeeded: ask<TrendRow>(queries.succeeded, streams),
+      newFailures: await ask<TrendRow>(queries.newFailures, streams),
+      prepared: await ask<TrendRow>(queries.prepared, streams),
+      retriedFailed: await ask<TrendRow>(queries.retriedFailed, streams),
+      succeeded: await ask<TrendRow>(queries.succeeded, streams),
     }),
   );
   return {
@@ -176,7 +181,7 @@ for (const described of [false, true]) {
     test.skip(testInfo.project.name !== "desktop-chromium");
     const documents = overviewExecutions();
     const streams = overviewStreams(documents);
-    const old = oldOverview(documents, streams, lastDays(7));
+    const old = await oldOverview(documents, streams, lastDays(7));
     await stub(page, documents, streams, { described });
     await page.goto("/");
 
@@ -263,7 +268,7 @@ test("a wider window counts as the old overview's did", async ({
   test.skip(testInfo.project.name !== "desktop-chromium");
   const documents = overviewExecutions();
   const streams = overviewStreams(documents);
-  const old = oldOverview(documents, streams, lastDays(30));
+  const old = await oldOverview(documents, streams, lastDays(30));
   await stub(page, documents, streams);
   await page.goto("/");
   await expect(panel(page, "Active in range")).toBeVisible();
@@ -287,7 +292,8 @@ test("a wider window counts as the old overview's did", async ({
   );
   // The window did widen: the figures are not the default window's.
   expect(old.summary.selectedInRange).not.toBe(
-    oldOverview(documents, streams, lastDays(7)).summary.selectedInRange,
+    (await oldOverview(documents, streams, lastDays(7))).summary
+      .selectedInRange,
   );
 });
 
@@ -658,7 +664,7 @@ test("the cluster panel opens every column of the clusters in the workbench", as
   test.skip(testInfo.project.name !== "desktop-chromium");
   const documents = overviewExecutions();
   const streams = overviewStreams(documents);
-  const old = oldOverview(documents, streams, lastDays(7));
+  const old = await oldOverview(documents, streams, lastDays(7));
   const queries = await stub(page, documents, streams);
   await page.goto("/");
   await expect(
@@ -710,7 +716,7 @@ test("two contexts sharing a processor and function stay separate clusters", asy
     };
   });
   const streams = overviewStreams(documents);
-  const old = oldOverview(documents, streams, lastDays(7));
+  const old = await oldOverview(documents, streams, lastDays(7));
   const shared = old.pressure.filter(
     ({ processorName }) => processorName === "OrderSaga",
   );

@@ -189,10 +189,17 @@ export const SplitFoldsIntoOther: Story = {
       expect(names).toHaveLength(8);
       expect(names.at(-1)).toBe(zhCN['label.chart.other']);
     });
-    await expect(legendNames(canvasElement).slice(0, 3)).toEqual([
-      '上海',
+    // The seven largest, in the order the rows came: a Wow service answers
+    // groups in the order of their keys (the sort, then each group alias),
+    // so 北京 (BJ) before 成都 (CD) — not by sales.
+    await expect(legendNames(canvasElement).slice(0, 7)).toEqual([
       '北京',
+      '成都',
+      '广州',
+      '杭州',
+      '上海',
       '深圳',
+      '武汉',
     ]);
     const headers = [
       ...canvasElement.querySelectorAll('[data-slot="chart-reading"] thead th'),

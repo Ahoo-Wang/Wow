@@ -32,7 +32,6 @@
     "@faker-js/faker": "catalog:",
     "globals": "catalog:",
     "lucide-react": "catalog:",
-    "mingo": "catalog:",
     "playwright": "catalog:",
     "react": "catalog:",
     "react-dom": "catalog:",

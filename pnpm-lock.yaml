@@ -589,9 +589,6 @@ importers:
       lucide-react:
         specifier: 'catalog:'
         version: 1.48.0(react@19.3.0)
-      mingo:
-        specifier: 'catalog:'
-        version: 7.2.4
       playwright:
         specifier: 'catalog:'
         version: 1.63.0
@@ -858,6 +855,9 @@ importers:
       lucide-react:
         specifier: 'catalog:'
         version: 1.48.0(react@19.3.0)
+      mingo:
+        specifier: 'catalog:'
+        version: 7.2.4
       react-day-picker:
         specifier: 'catalog:'
         version: 10.0.1(@types/react@19.3.0)(react@19.3.0)

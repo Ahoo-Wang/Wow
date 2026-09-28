@@ -1,0 +1,6 @@
+# @ahoo-wang/wow-view-engine/testing — 3 names, from src/testing/index.ts.
+# Written by test/publicSurface.test.ts; a change here is a change to
+# the public surface (README「Entries」, docs/design/decisions.md D29).
+type  MemorySourceOptions
+value matches
+value memorySource

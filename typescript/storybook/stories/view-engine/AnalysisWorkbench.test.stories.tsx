@@ -1234,7 +1234,9 @@ export const FollowUpSplit: Story = {
 
     const after = await findDataTable(canvasElement);
     await waitFor(() =>
-      expect(readColumn(after, '状态')).toEqual(['已发运', '待出库']),
+      // In the order of the group's keys, as a Wow service answers a query
+      // with no sort of its own.
+      expect(readColumn(after, '状态')).toEqual(['待出库', '已发运']),
     );
     const line = await saysEachThingOnce(
       canvasElement,
