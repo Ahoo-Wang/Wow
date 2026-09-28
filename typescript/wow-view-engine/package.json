@@ -78,7 +78,6 @@
     "dequal": "catalog:",
     "echarts": "catalog:",
     "lucide-react": "catalog:",
-    "mingo": "catalog:",
     "react-day-picker": "catalog:",
     "react-error-boundary": "catalog:",
     "react-grid-layout": "catalog:",
@@ -86,10 +85,14 @@
   },
   "peerDependencies": {
     "@ahoo-wang/wow-client": "workspace:~",
+    "mingo": "catalog:peers",
     "react": "catalog:peers",
     "react-dom": "catalog:peers"
   },
   "peerDependenciesMeta": {
+    "mingo": {
+      "optional": true
+    },
     "react": {
       "optional": true
     },
@@ -119,6 +122,7 @@
     "eslint-plugin-react-hooks": "catalog:",
     "globals": "catalog:",
     "jsdom": "catalog:",
+    "mingo": "catalog:",
     "postcss": "catalog:",
     "postcss-prefix-selector": "catalog:",
     "prettier": "catalog:",

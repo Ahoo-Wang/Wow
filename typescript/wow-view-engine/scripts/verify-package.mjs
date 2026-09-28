@@ -44,6 +44,7 @@
 // 12. No entry grows by accident: the four code entries, the chart chunk
 //    (still loaded lazily) and the two stylesheets, gzipped, each under a
 //    regression ceiling in `scripts/size-budget.json` (not a size target).
+// 13. `mingo`, an optional peer, is imported by `/testing` and by no other entry.
 import assert from 'node:assert/strict';
 import {
   readdirSync,
@@ -966,6 +967,28 @@ assert.ok(
   !uiFiles.includes(chartChunk) && lazyChunks(uiFiles).includes(chartChunk),
   `the chart chunk ${chartChunks[0]} is no longer loaded lazily: /ui must reach it by import() alone`,
 );
+// 13. `mingo` is an optional peer of `/testing` alone (D65): that entry
+// imports it, and no module another entry loads — statically or on demand —
+// does, so a host that never imports `/testing` never needs it installed.
+const importsMingo = file =>
+  /\bfrom\s*["']mingo(?:\/[^"']*)?["']|import\(\s*["']mingo["']\)/.test(
+    readFileSync(file, 'utf8'),
+  );
+assert.ok(
+  entryFiles('./testing').some(importsMingo),
+  '/testing no longer imports mingo: drop the optional peer, or say why it stays',
+);
+for (const entry of ['.', './react', './ui']) {
+  const files = entryFiles(entry);
+  const reached = [...files, ...lazyChunks(files)];
+  const offending = reached.filter(importsMingo);
+  assert.deepEqual(
+    offending,
+    [],
+    `${entry} loads mingo, an optional peer only /testing may import: ${offending.join(', ')}`,
+  );
+}
+
 const sizes = checkSizes({
   packageName: name,
   budgetFile: fileURLToPath(new URL('scripts/size-budget.json', packageRoot)),

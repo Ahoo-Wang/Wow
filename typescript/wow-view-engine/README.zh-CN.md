@@ -1027,7 +1027,7 @@ const paid = matches(documents[0], {
 });
 ```
 
-它承诺的：引擎会编出的每个筛选算子，缺失字段、显式 `null`、空字符串或空数组、数组元素与大小写都按 MongoDB 的读法；`DELETION` 读 `deleted` 标记（`deleted: true` 的文档除非筛选问到，否则不答）；分页、游标（一个偏移量）与排序；投影；聚合——`elements`（路径与门槛条件都相对于元素）、`TERMS`、`HISTOGRAM`、按时区的 `DATE_HISTOGRAM` 与 `DATE_PART`（缺省 UTC）、`dense`、带自身条件的每种指标、`DERIVED`、`having`、Wow 给分组的次序（先按排序，再按每个分组别名升序）与缺省 `limit` 100。`PERCENTILE` 是精确值，服务端是落在同样两个秩之间的估计值。没有读法的——`ID`、`TENANT_ID`、`SPACE_ID`、引擎从不发出的日历筛选——直接报错，测试开始发出的新查询会失败，而不是得到一个看似合理的错误答案。`timeField` 让大数据集按一个纪元毫秒列排好、对它的范围二分切片；`remember` 让同一个聚合从记忆里作答，只用于从不改变的文档。这个入口是无头的——没有 React、DOM 与样式表——只在被导入时才加载 `mingo`（MongoDB 查询语言的 JavaScript 实现）。
+它承诺的：引擎会编出的每个筛选算子，缺失字段、显式 `null`、空字符串或空数组、数组元素与大小写都按 MongoDB 的读法；`DELETION` 读 `deleted` 标记（`deleted: true` 的文档除非筛选问到，否则不答）；分页、游标（一个偏移量）与排序；投影；聚合——`elements`（路径与门槛条件都相对于元素）、`TERMS`、`HISTOGRAM`、按时区的 `DATE_HISTOGRAM` 与 `DATE_PART`（缺省 UTC）、`dense`、带自身条件的每种指标、`DERIVED`、`having`、Wow 给分组的次序（先按排序，再按每个分组别名升序）与缺省 `limit` 100。`PERCENTILE` 是精确值，服务端是落在同样两个秩之间的估计值。没有读法的——`ID`、`TENANT_ID`、`SPACE_ID`、引擎从不发出的日历筛选——直接报错，测试开始发出的新查询会失败，而不是得到一个看似合理的错误答案。`timeField` 让大数据集按一个纪元毫秒列排好、对它的范围二分切片；`remember` 让同一个聚合从记忆里作答，只用于从不改变的文档。这个入口是无头的——没有 React、DOM 与样式表。它用 `mingo`（MongoDB 查询语言的 JavaScript 实现）求值筛选，`mingo` 是可选的对等依赖：安装本包不会带上它，导入 `/testing` 的宿主要自己把它加进开发依赖——`pnpm add -D mingo`（或 `npm install -D mingo`）。别的入口都不加载它。
 
 ## 概念
 

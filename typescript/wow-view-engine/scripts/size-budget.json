@@ -15,7 +15,7 @@
     },
     "./testing": {
       "gzip": 12000,
-      "reason": "Set 2026-09-27 with the in-memory source for a host's tests (D65), about 18% over the 10,154 B measured then. The entry loads the Wow filter and aggregation semantics and the calendar arithmetic; mingo itself is external, installed as a dependency."
+      "reason": "Set 2026-09-27 with the in-memory source for a host's tests (D65), about 18% over the 10,154 B measured then. The entry loads the Wow filter and aggregation semantics and the calendar arithmetic; mingo itself is external, an optional peer the host installs."
     },
     "echarts chunk": {
       "gzip": 620,
