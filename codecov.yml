@@ -1,3 +1,12 @@
+# The JVM reports aggregate JaCoCo data that Gradle's build cache restores for
+# every module a change leaves alone, so the report's first <sessioninfo> can
+# date from the last run that touched that module. Codecov rejects a JaCoCo
+# report whose first session is older than max_report_age (12h by default) as
+# an upload in `error`, and the flag falls back to carried-forward data. The
+# cache is keyed on the inputs, so a restored session is still this commit's
+# coverage: never expire it.
+codecov:
+  max_report_age: off
 coverage:
   range: 60..100
   round: down
