@@ -77,10 +77,11 @@ export function admit(
     ),
   );
   const findings = new Map<string, Issue[]>();
-  const effective = new Map<string, ViewDefinition>();
+  const declared = new Map(
+    said.map(({ definition }) => [definition.id, definition]),
+  );
   for (const { definition, findings: text } of said) {
     findings.set(definition.id, [...text]);
-    effective.set(definition.id, definition);
     if (definition.kind !== 'data') continue;
     const descriptor = descriptors[definition.source];
     if (!descriptor) {
@@ -96,16 +97,19 @@ export function admit(
         );
       continue;
     }
-    const narrowed = narrowDefinition(definition, descriptor, kinds);
-    findings.get(definition.id)?.push(...narrowed.findings);
-    effective.set(definition.id, narrowed.definition);
+    findings
+      .get(definition.id)
+      ?.push(...narrowDefinition(definition, descriptor, kinds).findings);
   }
   return said.flatMap(({ definition }) =>
     [
       ...(findings.get(definition.id) ?? []),
+      // Judged as the engine's registry judges it — against the definitions
+      // as declared — so a host's test says what the application's start
+      // says (`onIssue`). The narrowing's own findings are above.
       ...validateDefinition(definition, kinds, {
         limits,
-        definitions: id => effective.get(id),
+        definitions: id => declared.get(id),
       }),
     ].map(found => ({ ...found, definition: definition.id })),
   );

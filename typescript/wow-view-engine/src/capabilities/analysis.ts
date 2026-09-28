@@ -358,7 +358,7 @@ function lowered(
 }
 
 /** Whether an analysis can start from anything: the count, or one metric of one field. */
-function constructible(capability: AnalysisCapability): boolean {
+export function constructible(capability: AnalysisCapability): boolean {
   if (capability.count) return true;
   const offers = [
     ...capability.fields,

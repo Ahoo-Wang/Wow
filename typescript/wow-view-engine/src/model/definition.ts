@@ -108,6 +108,12 @@ export interface DefinitionDescribed {
 export interface OpenCapabilities {
   /** The root fields whose sort the host did not turn off. */
   sort: readonly string[];
+  /**
+   * The fields whose comparisons the host did not narrow, by path (an
+   * entry's as `array.field`): the snapshot's are written on them, for a
+   * source with no descriptor, and a source's descriptor says its own.
+   */
+  operators: readonly string[];
   /** The analyses, unless the host offers none. */
   analysis?: {
     spec: AnalysisSpec;

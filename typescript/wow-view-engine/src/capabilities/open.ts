@@ -30,7 +30,6 @@ import {
   AggregationDateUnit,
   AggregationFunction,
   AggregationGroupType,
-  type FieldDescriptor,
   type QueryModelDescriptor,
 } from '@ahoo-wang/wow-client';
 import {
@@ -46,6 +45,7 @@ import {
   type OpenCapabilities,
 } from '../model/index.js';
 import { describedField } from './match.js';
+import { constructible } from './analysis.js';
 
 const GROUPS: readonly string[] = Object.values(AggregationGroupType);
 const FUNCTIONS: readonly string[] = Object.values(AggregationFunction);
@@ -161,7 +161,8 @@ function aggregation(
   const path = scope === undefined ? name : `${scope}.${name}`;
   const described = describedField(descriptor, path, scope);
   const aggregate = described?.aggregate;
-  if (!aggregate || sensitiveAt(descriptor, path, scope)) return null;
+  // Masked whichever name it is listed by: an alias, a variant's field.
+  if (!aggregate || described.sensitive) return null;
   const pick = <T extends string>(
     wanted: readonly T[] | undefined,
     has: readonly string[],
@@ -198,7 +199,10 @@ function aggregation(
       narrowed.dateUnits,
       descriptor.analysis.dateUnits.filter(one => UNITS.includes(one)),
     );
-  if (groups.includes(AggregationGroupType.DATE_PART) && narrowed.dateParts)
+  // The parts written out, as the units are: a definition that states none
+  // offers every part there is, and on a source with no descriptor the
+  // snapshot's are what it has.
+  if (groups.includes(AggregationGroupType.DATE_PART))
     capability.dateParts = pick(
       narrowed.dateParts,
       descriptor.analysis.dateParts.filter(one => PARTS.includes(one)),
@@ -219,18 +223,6 @@ function aggregation(
   return metrics ? capability : null;
 }
 
-/** Whether a path's value is masked at the source (`sensitivity`). */
-export function sensitiveAt(
-  descriptor: QueryModelDescriptor,
-  path: string,
-  scope?: string,
-): boolean {
-  const own: FieldDescriptor | undefined = descriptor.fields.find(
-    entry => entry.path === path && entry.scope === scope,
-  );
-  return own?.sensitivity !== undefined;
-}
-
 /** Whether a root path sorts at the source, by the paging in force. */
 export function sortsAt(
   descriptor: QueryModelDescriptor,
@@ -244,9 +236,13 @@ export function sortsAt(
 
 /**
  * A `defineView` definition with what it leaves to its source read from
- * `descriptor` rather than the snapshot it was built from: each open sort
- * as that source sorts, the analyses as it aggregates within the host's
- * narrowing. Anything else — and a definition written by hand — as it is.
+ * `descriptor` rather than the snapshot it was built from, for the
+ * narrowing to cut as it cuts any definition: each open comparison back to
+ * its kind's, each open sort offered where this source sorts, the analyses
+ * this source grants within the host's plan added to the snapshot's. What
+ * this source lacks is then taken away by the narrowing, with the same
+ * findings a definition written by hand gets. Anything else — and a
+ * definition written by hand — as it is.
  */
 export function reopened(
   definition: DataViewDefinition,
@@ -256,14 +252,102 @@ export function reopened(
   if (!open) return definition;
   const paging = definition.record?.paging ?? 'paged';
   const sorted = new Set(open.sort);
-  const fields = definition.fields.map(field => {
-    if (!sorted.has(field.name)) return field;
-    return sortsAt(descriptor, field.name, paging)
-      ? { ...field, sortable: true }
-      : without(field, 'sortable');
-  });
+  const compared = new Set(open.operators);
+  const reopen = (field: FieldDefinition, scope?: string): FieldDefinition => {
+    const path = scope === undefined ? field.name : `${scope}.${field.name}`;
+    let next = compared.has(path) ? without(field, 'operators') : field;
+    if (
+      scope === undefined &&
+      sorted.has(field.name) &&
+      field.sortable !== true &&
+      sortsAt(descriptor, field.name, paging)
+    )
+      next = { ...next, sortable: true };
+    if (field.elements)
+      next = {
+        ...next,
+        elements: field.elements.map(entry => reopen(entry, path)),
+      };
+    return next;
+  };
+  const fields = definition.fields.map(field => reopen(field));
   const next: DataViewDefinition = { ...definition, fields };
-  if (open.analysis)
-    next.analysis = describedAnalysis(open.analysis, fields, descriptor);
+  if (open.analysis) {
+    const granted = describedAnalysis(open.analysis, fields, descriptor);
+    const analysis = definition.analysis
+      ? unionAnalysis(definition.analysis, granted)
+      : granted;
+    if (constructible(analysis)) next.analysis = analysis;
+  }
   return next;
+}
+
+/** Every offer of either capability: the snapshot's and a source's, for the narrowing to cut. */
+function unionAnalysis(
+  one: AnalysisCapability,
+  other: AnalysisCapability,
+): AnalysisCapability {
+  const merged: AnalysisCapability = {
+    ...one,
+    count: one.count || other.count,
+    fields: unionFields(one.fields, other.fields),
+  };
+  const elements = [...(one.elements ?? [])];
+  for (const element of other.elements ?? []) {
+    const at = elements.findIndex(entry => entry.path === element.path);
+    if (at < 0) elements.push(element);
+    else
+      elements[at] = {
+        ...elements[at],
+        aggregations: unionFields(
+          elements[at].aggregations,
+          element.aggregations,
+        ),
+      };
+  }
+  if (elements.length > 0) merged.elements = elements;
+  if (one.expressions || other.expressions) {
+    merged.expressions = true;
+    merged.dateDiffUnits = union(one.dateDiffUnits, other.dateDiffUnits);
+  }
+  if (one.having || other.having) merged.having = true;
+  return merged;
+}
+
+function unionFields(
+  one: readonly AggregationFieldCapability[],
+  other: readonly AggregationFieldCapability[],
+): AggregationFieldCapability[] {
+  const merged = one.map(entry => ({ ...entry }));
+  for (const entry of other) {
+    const at = merged.findIndex(field => field.field === entry.field);
+    if (at < 0) {
+      merged.push(entry);
+      continue;
+    }
+    const mine = merged[at];
+    const next: AggregationFieldCapability = {
+      ...mine,
+      groups: union(mine.groups, entry.groups) ?? [],
+      functions: union(mine.functions, entry.functions) ?? [],
+    };
+    const dateUnits = union(mine.dateUnits, entry.dateUnits);
+    if (dateUnits) next.dateUnits = dateUnits;
+    const dateParts = union(mine.dateParts, entry.dateParts);
+    if (dateParts) next.dateParts = dateParts;
+    for (const [flag, sense] of FLAGS) {
+      if (sense === 'optIn' && (mine[flag] || entry[flag])) next[flag] = true;
+      if (sense === 'optOut' && mine[flag] !== entry[flag]) delete next[flag];
+    }
+    merged[at] = next;
+  }
+  return merged;
+}
+
+function union<T>(
+  one: readonly T[] | undefined,
+  other: readonly T[] | undefined,
+): T[] | undefined {
+  if (!one && !other) return undefined;
+  return [...new Set([...(one ?? []), ...(other ?? [])])];
 }

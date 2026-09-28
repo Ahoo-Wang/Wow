@@ -43,10 +43,10 @@ export class DefinitionRegistry {
   private readonly findings = new Map<string, Issue[]>();
 
   constructor(
-    {
-      definitions: declared,
-      text,
-    }: { definitions: readonly ViewDefinition[]; text?: TextResolver },
+    host: {
+      definitions: readonly ViewDefinition[];
+      text?(key: string): string | undefined;
+    },
     kinds: FieldKindRegistry,
     limits: RuntimeLimits,
     report: (found: Issue) => void,
@@ -54,7 +54,13 @@ export class DefinitionRegistry {
     // Every definition in the words of the language in force: the kernels,
     // the controllers and the UI only ever read words (host-integration.md
     // 3.1). A key with no words is said as itself, and reported.
-    const said = declared.map(definition => sayDefinition(definition, text));
+    // Transitional (D2): H2 says keys at render time, through the messages
+    // catalogue, so one engine serves every language.
+    // Called on the host's object, which a catalogue's method may read.
+    const text: TextResolver = key => host.text?.(key);
+    const said = host.definitions.map(definition =>
+      sayDefinition(definition, text),
+    );
     const definitions = said.map(entry => entry.definition);
     this.definitions = new Map(
       definitions.map(definition => [definition.id, definition]),

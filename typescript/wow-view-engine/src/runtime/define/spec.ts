@@ -60,6 +60,9 @@ export interface DefineViewSpec {
   views?: SystemView[];
 }
 
+/** One value of a category: its words, or its words and tone; `false` hides it. */
+export type OptionSpec = string | Omit<FieldOption, 'value'> | false;
+
 /** One field: what the host says of it, over what its path is. */
 export interface FieldSpec {
   /**
@@ -84,11 +87,13 @@ export interface FieldSpec {
    * The category's values in the order listed, each with its words and
    * tone, `false` to hide one; a value not listed keeps its descriptor
    * description. On a path the descriptor gives no values for, the list is
-   * the host's own closed list.
+   * the host's own closed list. A record keeps its order unless its keys
+   * look like integers, which JavaScript puts first: a category of numbers
+   * is written as a list of `[value, words]`.
    */
-  options?: Readonly<
-    Record<string, string | Omit<FieldOption, 'value'> | false>
-  >;
+  options?:
+    | Readonly<Record<string, OptionSpec>>
+    | readonly (readonly [FieldOption['value'], OptionSpec])[];
   /** How it analyses, narrowed; `false` keeps it out of analyses. */
   analysis?: FieldAnalysisSpec | false;
   /** Why it is kept although the descriptor deprecates it. */

@@ -14,13 +14,17 @@
 import type { QueryModelDescriptor } from '@ahoo-wang/wow-client';
 import type {
   DataViewDefinition,
+  FieldDefinition,
   Issue,
   PagingMode,
   RecordCapability,
 } from '../../model/index.js';
 import { issue } from '../../filter/index.js';
 import { analysisPlan, buildAnalysis } from './analysis.js';
-import { buildFields } from './fields.js';
+import { buildFields, type BuiltField } from './fields.js';
+import { narrowDefinition } from '../../capabilities/index.js';
+import { constructible } from '../../capabilities/analysis.js';
+import { builtinFieldKinds } from '../../filter/index.js';
 import type { DefineViewSpec } from './spec.js';
 
 /**
@@ -72,21 +76,88 @@ export function defineView(
   if (record) definition.record = record;
   const plan = analysisPlan(spec.analysis, fields);
   const analysis = buildAnalysis(plan, fields, descriptor, findings);
-  if (analysis) definition.analysis = analysis;
+  // A snapshot with no metric at all offers no analyses; a source that
+  // grants some fills them in (`reopened`) rather than the definition
+  // being refused for one store's word.
+  if (analysis && constructible(analysis)) definition.analysis = analysis;
   if (spec.timeField !== undefined) definition.timeField = spec.timeField;
   if (spec.views) definition.views = spec.views;
-  // What sorts and aggregates is the store's: left to the source where the
-  // host did not narrow it, filled from its descriptor when it narrows
-  // (`reopened`), the snapshot's above for a source that has none.
+  // What compares, sorts and aggregates is the store's: left to the source
+  // where the host did not narrow it, filled from its descriptor when it
+  // narrows (`reopened`), the snapshot's written here for a source that
+  // has none.
   const sort = fields.flatMap(({ field, spec: given, described }) =>
     described && given.sortable !== false ? [field.name] : [],
+  );
+  const operators = openComparisons(fields);
+  definition.fields = withSnapshotComparisons(
+    definition.fields,
+    narrowDefinition(definition, descriptor, builtinFieldKinds).definition
+      .fields,
+    new Set(operators),
   );
   definition.described = {
     version: descriptor.version,
     findings,
-    open: { sort, ...(plan ? { analysis: plan } : {}) },
+    open: { sort, operators, ...(plan ? { analysis: plan } : {}) },
   };
   return definition;
+}
+
+/**
+ * The fields whose comparisons the host left open, by path: every field
+ * but one whose operators the host wrote, one that compares nothing (a
+ * confidential value), and a search box.
+ */
+function openComparisons(
+  fields: readonly BuiltField[],
+  scope?: string,
+): string[] {
+  return fields.flatMap(({ field, spec, children }) => {
+    const path = scope === undefined ? field.name : `${scope}.${field.name}`;
+    // A search box is the host's to ask for, as written operators are: on
+    // a source with no descriptor it is offered as declared, and a source
+    // that says whether it searches narrows it.
+    const own =
+      spec.operators === undefined &&
+      field.operators === undefined &&
+      field.kind !== 'search'
+        ? [path]
+        : [];
+    return [...own, ...openComparisons(children ?? [], path)];
+  });
+}
+
+/**
+ * The fields with the snapshot's comparisons written on each one left
+ * open: the operators the narrowing against it keeps on each path, so a
+ * source with no descriptor offers what the snapshot's store does, and no
+ * more.
+ */
+function withSnapshotComparisons(
+  fields: readonly FieldDefinition[],
+  narrowed: readonly FieldDefinition[],
+  open: ReadonlySet<string>,
+  scope?: string,
+): FieldDefinition[] {
+  return fields.map((field, index) => {
+    const path = scope === undefined ? field.name : `${scope}.${field.name}`;
+    const cut = narrowed[index];
+    let next = field;
+    if (open.has(path) && cut?.operators !== undefined)
+      next = { ...next, operators: cut.operators };
+    if (field.elements)
+      next = {
+        ...next,
+        elements: withSnapshotComparisons(
+          field.elements,
+          cut?.elements ?? [],
+          open,
+          path,
+        ),
+      };
+    return next;
+  });
 }
 
 /** The descriptor's paging modes, as a definition names them. */

@@ -86,11 +86,18 @@ function renamedDefinition(
         : {}),
     };
   if (definition.views)
-    next.views = definition.views.map(view =>
-      view.config.kind === 'dashboard'
-        ? view
-        : { ...view, config: withCanonicalNames(view.config, renamed) },
-    );
+    next.views = definition.views.map(view => {
+      if (view.config.kind === 'dashboard') return view;
+      const named = {
+        ...view,
+        config: withCanonicalNames(view.config, renamed),
+      };
+      return typeof view.timeField === 'string'
+        ? { ...named, timeField: name(view.timeField) }
+        : named;
+    });
+  if (definition.timeField !== undefined)
+    next.timeField = name(definition.timeField);
   return next;
 }
 

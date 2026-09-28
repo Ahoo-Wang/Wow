@@ -18,10 +18,15 @@
  *
  * A key travels as a string — every label slot of a definition, a system
  * view and a board is a `string`, and stays one — marked by a character no
- * wording uses (U+E000, private use). The engine reads every definition it
- * is given in the words of its `text` (`ViewEngineOptions.text`,
- * `withText`), so the kernels, the controllers and the UI only ever see
- * words. A literal string is still a label, for a host of one language.
+ * wording uses (U+E000, private use). A literal string is still a label,
+ * for a host of one language.
+ *
+ * **Transitional** (D2, user 2026-09-28): for now the engine reads every
+ * definition it is given in the words of its `text` once, when it is
+ * registered (`ViewEngineOptions.text`, `withText`), so one engine speaks
+ * one language. H2 moves this to render time, through the messages
+ * catalogue its Provider supplies, so one engine serves every language;
+ * the keys a definition writes do not change.
  */
 
 /** A key standing where a label goes; a string, so it goes anywhere one does. */

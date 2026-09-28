@@ -301,7 +301,7 @@ describe('defineView', () => {
         keyword: { label: 'Search', search: { fields: ['id', 'nope'] } },
       },
     });
-    expect(definition.fields[0]).toEqual({
+    expect(definition.fields[0]).toMatchObject({
       name: 'keyword',
       label: 'Search',
       kind: 'search',

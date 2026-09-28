@@ -23,12 +23,12 @@ import {
   parseSystemInstanceId,
   type AnalysisViewConfig,
   type DashboardViewConfig,
-  type FieldDefinition,
   type ViewInstance,
 } from '../../model/index.js';
 import {
   withTimeBindings,
   type DataPanelSource,
+  type PanelTime,
 } from '../../dashboard/index.js';
 import { withCanonicalPanelFields } from '../../dashboard/panelFieldNames.js';
 import { withCanonicalNames } from '../../capabilities/index.js';
@@ -41,12 +41,13 @@ export type BoardReading = (config: DashboardViewConfig) => DashboardViewConfig;
 /**
  * The reading of a board whose panels' views `viewOf` knows so far: under
  * the paths they rename aliases to, then with the board's time filter
- * wired to each panel it reaches on its own (`withTimeBindings`, todo D) —
- * a panel whose view is not known yet is wired once it is.
+ * wired to each panel it reaches on its own (`withTimeBindings`, todo D,
+ * D1) — a panel whose view is not known yet is wired once it is.
  */
 export function canonicalBoard(
   viewOf: (panel: DataPanelSource) => PanelView | null,
 ): BoardReading {
+  const timeOf = panelTime(viewOf);
   return config =>
     withTimeBindings(
       withCanonicalPanelFields(
@@ -54,27 +55,34 @@ export function canonicalBoard(
         panel => viewOf(panel)?.definition.narrowing?.renamed,
         canonicalOwned,
       ),
-      panel => timeFieldOf(viewOf(panel)),
+      timeOf,
     );
 }
 
 /**
- * The field a panel's view reads its records as happening at: the system
- * view's own where it names one (`null` for a view read whole), else the
- * definition's. A saved copy of a system view is timed as its definition
- * is.
+ * What a panel's view says of time (`PanelTime`): the system view's own
+ * field where it names one (`null` for a view read whole), else the
+ * definition's; `undefined` for a view not known yet or a definition that
+ * names none. A saved copy of a system view is timed as its definition is.
  */
-function timeFieldOf(view: PanelView | null): FieldDefinition | null {
-  if (!view) return null;
-  const { definition, instance } = view;
-  const declared = instance ? parseSystemInstanceId(instance.id) : null;
-  const own =
-    declared?.definitionId === definition.id
-      ? definition.views?.find(entry => entry.id === declared.viewId)?.timeField
-      : undefined;
-  const name = own === undefined ? definition.timeField : own;
-  if (name === undefined || name === null) return null;
-  return definition.fields.find(field => field.name === name) ?? null;
+export function panelTime(
+  viewOf: (panel: DataPanelSource) => PanelView | null,
+): PanelTime {
+  return panel => {
+    const view = viewOf(panel);
+    if (!view) return undefined;
+    const { definition, instance } = view;
+    const declared = instance ? parseSystemInstanceId(instance.id) : null;
+    const own =
+      declared?.definitionId === definition.id
+        ? definition.views?.find(entry => entry.id === declared.viewId)
+            ?.timeField
+        : undefined;
+    const name = own === undefined ? definition.timeField : own;
+    if (name === undefined) return undefined;
+    if (name === null) return null;
+    return definition.fields.find(field => field.name === name) ?? null;
+  };
 }
 
 /** A saved board read so; itself when nothing is renamed. */

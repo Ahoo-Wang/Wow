@@ -35,19 +35,18 @@ export default tseslint.config([
         },
       ],
       // The view engine through its public face only (rebuild proposal,
-      // criterion 7): the root, /react, /ui, /testing (the in-memory source
-      // and `admit`, for tests) and the CSS entries; never its internals,
-      // and never its class names — its look is reached through `--fve-*`
-      // variables alone.
+      // criterion 7): the root, /react, /ui and the CSS entries; never its
+      // internals, and never its class names — its look is reached through
+      // `--fve-*` variables alone. /testing is for tests (below).
       "no-restricted-imports": [
         "error",
         {
           patterns: [
             {
               regex:
-                "^@ahoo-wang/wow-view-engine/(?!(react|ui|testing|styles\\.css|themes\\.css|themes/[a-z]+\\.css|shadcn-bridge\\.css)$)",
+                "^@ahoo-wang/wow-view-engine/(?!(react|ui|styles\\.css|themes\\.css|themes/[a-z]+\\.css|shadcn-bridge\\.css)$)",
               message:
-                "Import the view engine from its public entries: the root, /react, /ui, /testing or a CSS entry.",
+                "Import the view engine from its public entries: the root, /react, /ui or a CSS entry.",
             },
           ],
         },
@@ -69,6 +68,25 @@ export default tseslint.config([
     languageOptions: {
       ecmaVersion: 2020,
       globals: globals.browser,
+    },
+  },
+  {
+    // A test may also take /testing: the in-memory source and `admit`.
+    files: ["src/**/*.test.{ts,tsx}"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              regex:
+                "^@ahoo-wang/wow-view-engine/(?!(react|ui|testing|styles\\.css|themes\\.css|themes/[a-z]+\\.css|shadcn-bridge\\.css)$)",
+              message:
+                "Import the view engine from its public entries: the root, /react, /ui, /testing or a CSS entry.",
+            },
+          ],
+        },
+      ],
     },
   },
   {

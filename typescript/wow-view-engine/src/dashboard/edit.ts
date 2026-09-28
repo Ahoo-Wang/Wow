@@ -23,6 +23,7 @@
  * that asked for it raced a change, and there is nothing to do.
  */
 
+import { timeFilterOf } from './timeBindings.js';
 import {
   DASHBOARD_GRID_COLUMNS,
   DASHBOARD_WIDTHS,
@@ -225,7 +226,21 @@ export function replacePanelView(
       without(without(panel, 'owned'), 'presentation'),
       'opens',
     );
-    return { ...rest, instanceId };
+    // And a time wire made from the old view (D1): the new one's, if it
+    // says when its records happen, is made when the board is read.
+    const time = timeFilterOf(config)?.name;
+    const stored: unknown = panel.bindings;
+    const bindings = Array.isArray(stored)
+      ? (stored as unknown[]).filter(
+          entry =>
+            !(
+              isPlainObject(entry) &&
+              entry.auto === true &&
+              entry.globalField === time
+            ),
+        )
+      : stored;
+    return { ...rest, instanceId, bindings } as DashboardViewPanel;
   });
 }
 

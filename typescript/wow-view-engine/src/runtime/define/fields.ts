@@ -36,7 +36,7 @@ import {
   describedField,
   type DescribedField,
 } from '../../capabilities/match.js';
-import type { FieldSpec } from './spec.js';
+import type { FieldSpec, OptionSpec } from './spec.js';
 
 /** What building the fields reads, and where it says what it found. */
 export interface FieldBuild {
@@ -173,7 +173,7 @@ function buildField(
     field,
     described,
     spec,
-    sensitive: raw?.sensitivity !== undefined,
+    sensitive: described.sensitive === true,
     ...(children ? { children } : {}),
   };
 }
@@ -210,14 +210,21 @@ function fieldDescriptor(
   path: string,
   scope: string | undefined,
 ): FieldDescriptor | undefined {
-  return (
-    descriptor.fields.find(
-      entry => entry.path === path && entry.scope === scope,
-    ) ??
-    descriptor.variants?.values
-      .flatMap(variant => variant.fields)
-      .find(entry => entry.path === path)
+  const own = descriptor.fields.find(
+    entry => entry.path === path && entry.scope === scope,
   );
+  if (own || scope === undefined) return own;
+  // A variant's fields are listed relative to the element, by path or alias,
+  // as `describedField` reads them.
+  const relative = path.slice(scope.length + 1);
+  const variants = descriptor.variants;
+  if (variants?.element !== scope) return undefined;
+  return variants.values
+    .flatMap(variant => variant.fields)
+    .find(
+      entry =>
+        entry.path === relative || (entry.aliases ?? []).includes(relative),
+    );
 }
 
 /** The kind the descriptor says a path is; `null` where it says none. */
@@ -290,28 +297,31 @@ function optionsOf(
   path: string,
   findings: Issue[],
 ): FieldOption[] | undefined {
-  const listed = spec.options ?? {};
+  const listed = listedOptions(spec.options);
   const values = described.enum;
   if (!values)
     return spec.options
-      ? Object.entries(listed).flatMap(([value, given]) =>
+      ? listed.flatMap(([value, given]) =>
           given === false ? [] : [option(value, given)],
         )
       : undefined;
   const known = new Map(values.map(entry => [String(entry.value), entry]));
+  const said = new Set<string>();
   const options: FieldOption[] = [];
-  for (const [value, given] of Object.entries(listed)) {
-    const entry = known.get(value);
+  for (const [value, given] of listed) {
+    const key = String(value);
+    const entry = known.get(key);
     if (!entry) {
       findings.push(
-        found('definition.option.undescribed', { field: path, value }),
+        found('definition.option.undescribed', { field: path, value: key }),
       );
       continue;
     }
+    said.add(key);
     if (given !== false) options.push(option(entry.value, given));
   }
   for (const entry of values)
-    if (!(String(entry.value) in listed))
+    if (!said.has(String(entry.value)))
       options.push({
         value: entry.value as FieldOption['value'],
         label: entry.description ?? String(entry.value),
@@ -319,9 +329,26 @@ function optionsOf(
   return options;
 }
 
+/**
+ * The host's values in the order written: a list as it is, a record in its
+ * own order — which JavaScript puts integer-like keys first in, so a
+ * category of numbers is written as a list.
+ */
+function listedOptions(
+  given: FieldSpec['options'],
+): (readonly [unknown, OptionSpec])[] {
+  if (!given) return [];
+  if (Array.isArray(given)) return given as (readonly [unknown, OptionSpec])[];
+  // Own keys only: a value named like a prototype member is a value.
+  return Object.keys(given).map(key => [
+    key,
+    (given as Readonly<Record<string, OptionSpec>>)[key],
+  ]);
+}
+
 function option(
   value: unknown,
-  given: string | Omit<FieldOption, 'value'>,
+  given: Exclude<OptionSpec, false>,
 ): FieldOption {
   return typeof given === 'string'
     ? { value: value as FieldOption['value'], label: given }

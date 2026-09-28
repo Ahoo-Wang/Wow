@@ -46,6 +46,11 @@ export interface DescribedField {
    * lists no operators and no paged sort (#3519, `PROTECTED_COMPARISON`).
    */
   comparable?: boolean;
+  /**
+   * Set when the value is sensitive (`sensitivity`): masked in every result,
+   * so never grouped or measured, whichever name it is asked by.
+   */
+  sensitive?: true;
   /** Set when the field is deprecated: still queryable, better avoided. */
   deprecated?: { message?: string };
   enum?: readonly EnumValueDescriptor[];
@@ -89,7 +94,7 @@ export function describedField(
       sort: field.sort,
       project: field.project,
       ...(field.sensitivity
-        ? { comparable: field.sensitivity.comparable }
+        ? { comparable: field.sensitivity.comparable, sensitive: true as const }
         : {}),
       ...(field.deprecated
         ? {
@@ -148,6 +153,10 @@ function variantField(
     project: first.project,
     ...(first.aggregate ? { aggregate: first.aggregate } : {}),
     ...(first.semantic ? { semantic: first.semantic } : {}),
+    ...(first.sensitivity
+      ? { comparable: first.sensitivity.comparable, sensitive: true as const }
+      : {}),
+    ...(first.enum ? { enum: first.enum } : {}),
     variants: found.map(entry => entry.value),
   };
 }
