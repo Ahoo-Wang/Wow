@@ -44,6 +44,7 @@ const LAYERS = [
   'store',
   'react',
   'ui',
+  'testing',
 ] as const;
 type Layer = (typeof LAYERS)[number];
 type Location = Layer | 'root';
@@ -75,6 +76,9 @@ const ALLOWED: Record<Location, readonly Layer[]> = {
     'store',
   ],
   ui: [...LAYERS],
+  // The in-memory source a host tests against (`/testing`, D65): it answers
+  // the contracts the engine reads, and nothing depends on it.
+  testing: ['model', 'runtime'],
   root: [
     'model',
     'filter',
@@ -92,6 +96,7 @@ const ALLOWED: Record<Location, readonly Layer[]> = {
  */
 const PORTS: Partial<Record<Location, Partial<Record<Layer, string>>>> = {
   runtime: { store: 'store/ViewStore' },
+  testing: { runtime: 'runtime/source' },
 };
 
 /** Layers (and the root entry) that must stay free of React. */
@@ -176,10 +181,13 @@ const HEADLESS_DEPENDENCIES: Record<string, readonly Location[]> = {
     'analysis',
     'capabilities',
     'runtime',
+    'testing',
   ],
   culori: ['analysis', 'ui'],
-  dayjs: ['filter', 'record', 'analysis', 'runtime', 'ui'],
+  dayjs: ['filter', 'record', 'analysis', 'runtime', 'ui', 'testing'],
   dequal: ['runtime'],
+  // MongoDB's query semantics, which the in-memory source answers with.
+  mingo: ['testing'],
 };
 
 const manifest = JSON.parse(
@@ -370,6 +378,7 @@ const SELF_ENTRIES: Record<string, string> = {
   '.': 'index.ts',
   './react': 'react',
   './ui': 'ui',
+  './testing': 'testing',
 };
 
 function targetOf(from: SourceFile, specifier: string): string | null {
@@ -554,6 +563,7 @@ describe('architecture', () => {
       'index.ts',
       join('ui', 'index.ts'),
       join('react', 'index.ts'),
+      join('testing', 'index.ts'),
     ];
     const seen = new Set<string>();
     const violations: string[] = [];

@@ -79,6 +79,10 @@ const config: StorybookConfig = {
             packagesRoot,
             'wow-view-engine/src/ui/index.ts',
           ),
+          '@ahoo-wang/wow-view-engine/testing': join(
+            packagesRoot,
+            'wow-view-engine/src/testing/index.ts',
+          ),
           ...workspaceAliases,
         },
       },

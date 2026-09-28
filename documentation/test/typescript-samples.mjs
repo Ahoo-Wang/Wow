@@ -72,7 +72,12 @@ const ENTRIES = {
     'wow-client': ['@ahoo-wang/wow-client', '@ahoo-wang/wow-client/legacy', '@ahoo-wang/wow-client/dsl'],
     'wow-react': ['@ahoo-wang/wow-react'],
     'wow-generator': ['@ahoo-wang/wow-generator'],
-    'wow-view-engine': ['@ahoo-wang/wow-view-engine', '@ahoo-wang/wow-view-engine/react', '@ahoo-wang/wow-view-engine/ui'],
+    'wow-view-engine': [
+        '@ahoo-wang/wow-view-engine',
+        '@ahoo-wang/wow-view-engine/react',
+        '@ahoo-wang/wow-view-engine/ui',
+        '@ahoo-wang/wow-view-engine/testing',
+    ],
     fetcher: [
         '@ahoo-wang/fetcher',
         '@ahoo-wang/fetcher-decorator',

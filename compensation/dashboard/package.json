@@ -60,6 +60,7 @@
     "eslint-plugin-react-refresh": "catalog:",
     "globals": "catalog:",
     "jsdom": "catalog:",
+    "mingo": "catalog:",
     "prettier": "catalog:",
     "shadcn": "catalog:",
     "tailwindcss": "catalog:",

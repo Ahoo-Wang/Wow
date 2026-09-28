@@ -76,6 +76,15 @@ export default defineConfig({
                 '../wow-view-engine/src/index.ts',
               ),
             },
+            // The stories' data source (`rowSource`) is the package's own
+            // in-memory source.
+            {
+              find: /^@ahoo-wang\/wow-view-engine\/testing$/,
+              replacement: path.join(
+                currentDirectory,
+                '../wow-view-engine/src/testing/index.ts',
+              ),
+            },
           ],
         },
         test: {

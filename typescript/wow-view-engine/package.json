@@ -32,6 +32,10 @@
       "types": "./dist/ui/index.d.ts",
       "import": "./dist/ui.js"
     },
+    "./testing": {
+      "types": "./dist/testing/index.d.ts",
+      "import": "./dist/testing.js"
+    },
     "./styles.css": "./dist/styles.css",
     "./themes.css": "./dist/themes.css",
     "./themes/*.css": "./dist/themes/*.css",
@@ -81,10 +85,14 @@
   },
   "peerDependencies": {
     "@ahoo-wang/wow-client": "workspace:~",
+    "mingo": "catalog:peers",
     "react": "catalog:peers",
     "react-dom": "catalog:peers"
   },
   "peerDependenciesMeta": {
+    "mingo": {
+      "optional": true
+    },
     "react": {
       "optional": true
     },
@@ -114,6 +122,7 @@
     "eslint-plugin-react-hooks": "catalog:",
     "globals": "catalog:",
     "jsdom": "catalog:",
+    "mingo": "catalog:",
     "postcss": "catalog:",
     "postcss-prefix-selector": "catalog:",
     "prettier": "catalog:",

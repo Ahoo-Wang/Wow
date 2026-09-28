@@ -14,9 +14,10 @@
 import { expect, test, type Page } from "@playwright/test";
 import { FindCategory } from "./support/legacy/FindCategory.ts";
 import { RetryConditions } from "./support/legacy/RetryConditions.ts";
+import type { FilterExpression } from "@ahoo-wang/wow-client";
+import { matches } from "@ahoo-wang/wow-view-engine/testing";
 import {
   executions,
-  matches,
   stubExecutionFailedService,
   type Snapshot,
   type SnapshotQueries,
@@ -121,7 +122,7 @@ function lastMatched(queries: SnapshotQueries): string[] {
 function oldQueue(category: FindCategory): string[] {
   const condition = RetryConditions.categoryToCondition(category, NOW);
   return DOCUMENTS.filter((document) =>
-    matches(document, condition as Parameters<typeof matches>[1], NOW),
+    matches(document, condition as FilterExpression, { now: () => NOW }),
   )
     .map(({ aggregateId }) => aggregateId)
     .sort();

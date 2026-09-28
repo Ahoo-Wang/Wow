@@ -13,8 +13,8 @@
 
 import type { Page } from "@playwright/test";
 import {
-  aggregate,
   executions,
+  serviceOver,
   type Snapshot,
 } from "./executionFailedService.ts";
 
@@ -133,7 +133,7 @@ export async function stubExecutionFailedEvents(
     try {
       await route.fulfill({
         contentType: "application/json",
-        body: JSON.stringify(aggregate(streams, now, query)),
+        body: JSON.stringify(await serviceOver(streams, now).aggregate(query)),
       });
     } catch (error) {
       await route.fulfill({

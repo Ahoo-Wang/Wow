@@ -983,6 +983,52 @@ const page = await source.paged(query);
 const view = projectRecord(orders, config, page);
 ```
 
+## 测试宿主：内存数据源
+
+宿主自己的测试——打开一个视图或一块板的页面、没有后端的演示——需要一个按引擎实际发出的查询作答的数据源。`@ahoo-wang/wow-view-engine/testing` 提供了它：`memorySource(documents, options?)` 是一个 `ViewSource`，对内存里的 JSON 文档像 MongoDB 上的 Wow 服务那样筛选、排序、分页、投影与聚合。它的答案由本包的测试对照服务端自己的语义——`wow-api` 的 `FilterSemantics` 语义矩阵与查询 TCK 的聚合用例——逐条守着，所以测试看到的是引擎的查询按生产环境的方式得到的回答，而不是一份把被筛掉的行也显示出来的罐头结果。
+
+<!-- typecheck-context
+import { orders } from './orders';
+-->
+
+```ts
+import { FilterOperator } from '@ahoo-wang/wow-client';
+import { MemoryViewStore, ViewEngine } from '@ahoo-wang/wow-view-engine';
+import { matches, memorySource } from '@ahoo-wang/wow-view-engine/testing';
+
+// 服务返回的快照：信封字段、`state`、以纪元毫秒存的时间。
+const documents = [
+  {
+    aggregateId: 'O-1',
+    eventTime: 1_790_000_000_000,
+    state: { status: 'PAID', total: 120 },
+  },
+  {
+    aggregateId: 'O-2',
+    eventTime: 1_790_000_060_000,
+    state: { status: 'CANCELLED', total: 80 },
+  },
+];
+const source = memorySource(documents, {
+  // BEFORE_NOW / AFTER_NOW 比较的钟：与页面的钟钉在同一时刻。
+  now: () => Date.parse('2026-09-27T00:00:00Z'),
+});
+const engine = new ViewEngine({
+  definitions: [orders],
+  store: new MemoryViewStore(),
+  resolveSource: () => source,
+});
+
+// 测试自己的条件，按同样的读法问一条文档。
+const paid = matches(documents[0], {
+  op: FilterOperator.EQ,
+  field: 'state.status',
+  value: 'PAID',
+});
+```
+
+它承诺的：引擎会编出的每个筛选算子，缺失字段、显式 `null`、空字符串或空数组、数组元素与大小写都按 MongoDB 的读法；`DELETION` 读 `deleted` 标记（`deleted: true` 的文档除非筛选问到，否则不答）；分页、游标（一个偏移量）与排序；投影；聚合——`elements`（路径与门槛条件都相对于元素）、`TERMS`、`HISTOGRAM`、按时区的 `DATE_HISTOGRAM` 与 `DATE_PART`（缺省 UTC）、`dense`、带自身条件的每种指标、`DERIVED`、`having`、Wow 给分组的次序（先按排序，再按每个分组别名升序）与缺省 `limit` 100。`PERCENTILE` 是精确值，服务端是落在同样两个秩之间的估计值。没有读法的——`ID`、`TENANT_ID`、`SPACE_ID`、引擎从不发出的日历筛选——直接报错，测试开始发出的新查询会失败，而不是得到一个看似合理的错误答案。`timeField` 让大数据集按一个纪元毫秒列排好、对它的范围二分切片；`remember` 让同一个聚合从记忆里作答，只用于从不改变的文档。这个入口是无头的——没有 React、DOM 与样式表。它用 `mingo`（MongoDB 查询语言的 JavaScript 实现）求值筛选，`mingo` 是可选的对等依赖：安装本包不会带上它，导入 `/testing` 的宿主要自己把它加进开发依赖——`pnpm add -D mingo`（或 `npm install -D mingo`）。别的入口都不加载它。
+
 ## 概念
 
 | 类型             | 职责                                                                                                                                                                                                                                                                                                                                         | 所在   |
@@ -1015,12 +1061,13 @@ const view = projectRecord(orders, config, page);
 | `@ahoo-wang/wow-view-engine` | 模型类型与常量；四个纯内核（`validate*` / `compile*` / `project*` 及其旁边的读法）；运行时只导出宿主要握的，不导出它由什么搭成——`ViewEngine`、`validateDefinition`、运行时合同 `ViewRuntime`、`RecordViewRuntime`、`DashboardRuntime`、`AnyViewRuntime` 连同它们签名里出现的每一个类型、`hasResult`、`hasAsked`、`isRecordRuntime`、写入错误 `ViewWriteError` 与 `ViewCommandError`、`ExportCancelled`、`RuntimeEnvironment`、`defaultRuntimeEnvironment`、`ViewSource`、`OptionSource`；`ViewStore` 端口与 `MemoryViewStore`                                                                                   |
 | `/react`                     | 钩子与无样式控制器，连同它们交出的类型：`useViewEngine`、`useOpenView`、`useViewRuntime`、`useViewList`、`useViewManager`、`useWorkbench`、`useLeaveGuard`、`useFilterEditor`、`useRecordTable`、`useAnalysisEditor`、`useAnalysisResult`、`useDashboard`、`useSaveCommands`、`RecordActionSlots`，以及保存命令与管理器共用的写入结局词汇                                                                                                                                                                                                                                                                       |
 | `/ui`                        | 默认组件、视图与工作台，连同它们的 props：`DataWorkbench`、`DashboardWorkbench`、`DashboardEditExtensions`、`useDashboardExtensions`、`EmbeddedView`、`EmbeddedDashboard`、`ViewHeader`、`SaveActions`、`ViewManager`、`LeaveDialog`、`EditorBand`、`FilterPanel`、`StatusStrip`、`AppliedBar`、`ResultToolbar`、`RowActions`、`RecordTable`、`RecordCards`、`RecordPagination`、`AnalysisTable`、`AnalysisChart`、`DashboardGrid`、`HeadingPanel`、`MarkdownPanel`、`ImagePanel`、`LinksPanel`、`MessagesProvider`；措辞目录 `defaultMessages` 与 `zhCN`；一个值的读法 `cellValue`、`cellText`、`displayValue` |
+| `/testing`                   | `memorySource` 与 `matches`：带 Wow 查询语义的内存 `ViewSource`，供宿主测试使用（[测试宿主](#测试宿主内存数据源)）                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
 | `/styles.css`                | 主题。显式导入；任何 JS 入口都不会引入 CSS，产物也不会在 `.fve-root`／`.fve-tokens` 两个样式边界之外绘制任何东西（preflight 与工具类在构建时收进边界内，每条规则比源码多一个类的权重，所以宿主的导入次序无关）——预设的复位规则除外，它只在挂了预设的元素上清空 `--fvp-*` 层——`scripts/verify-package.mjs` 在每次构建时逐条核对。                                                                                                                                                                                                                                                                                |
 | `/themes.css`                | 预设，可选：只有按 `data-fve-preset` 选中的 `--fvp-*` 赋值（[预设](#预设)），由同一个脚本核对。                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
 | `/themes/<名>.css`           | 单独一套预设，给只用一套的宿主：就是 `themes.css` 里它那一块（[预设](#预设)）。                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
 | `/shadcn-bridge.css`         | 可选：把宿主的 shadcn token 读进 `--fvp-*` 变量，`input`、`ring`、状态色、图表色与阴影除外，且只在没挂预设时生效（[桥接](#已有-shadcn-主题的宿主shadcn-bridgecss)），由同一个脚本核对。                                                                                                                                                                                                                                                                                                                                                                                                                         |
 
-这就是公开面，而且逐个名字守着。每个入口把它导出的名字逐个写出，按声明它的文件分组，不整模块转出（`test/architecture.test.ts`），所以文件为包内邻居写的 `export` 不会意外变成公开的。每个代码入口的完整清单——每一个名字，以及它是类型还是值——在 `test/surface/`（`root.txt`、`react.txt`、`ui.txt`）：入口多导出了清单上没有的名字、或不再导出清单上有的名字，`test/publicSurface.test.ts` 就失败；`scripts/verify-package.mjs` 再拿同一份清单核对构建出的每个 JS 入口。往清单里加一个名字或拿掉一个，就是改公开面，按改公开面来审。命令也是公开面：`test/surface/bin.txt` 列出 `bin`（`wow-view-engine`）与它认的每个子命令（[`theme-check`](#检查一套主题theme-check)）。
+这就是公开面，而且逐个名字守着。每个入口把它导出的名字逐个写出，按声明它的文件分组，不整模块转出（`test/architecture.test.ts`），所以文件为包内邻居写的 `export` 不会意外变成公开的。每个代码入口的完整清单——每一个名字，以及它是类型还是值——在 `test/surface/`（`root.txt`、`react.txt`、`ui.txt`、`testing.txt`）：入口多导出了清单上没有的名字、或不再导出清单上有的名字，`test/publicSurface.test.ts` 就失败；`scripts/verify-package.mjs` 再拿同一份清单核对构建出的每个 JS 入口。往清单里加一个名字或拿掉一个，就是改公开面，按改公开面来审。命令也是公开面：`test/surface/bin.txt` 列出 `bin`（`wow-view-engine`）与它认的每个子命令（[`theme-check`](#检查一套主题theme-check)）。
 
 运行时自己的部件不导出：请求调度器、两种运行时共用的那个 store、刷新计时器、监听者集合、运行时的类与它们的构造函数。运行时经 `ViewEngine` 打开或新建、按合同持有，从不手搭；`/react` 与 `/ui` 在包内直接取这些部件，不经入口。
 

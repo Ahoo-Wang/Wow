@@ -31,11 +31,11 @@ Storybook 是可运行的接入文档，也承载浏览器交互回归。目录�
 
 View Engine 的故事在 `view-engine/`，目录分五块：**导览**（`Intro.mdx`，一页文档，Storybook 打开时就在这一页；紧跟着的是给宿主研发的**接入导览**）；**业务场景**（零售数据集上的三块板、五个工作台与两张嵌入页）；**能力**（一项能力一页：显示收口、参考与算出的系列、长时间轴、框选与追问、板上的搜索、随部署收窄、主题与预设）；**组件状态**（记录工作台、分析工作台、仪表盘、EmbeddedView、EmbeddedDashboard、筛选编辑器，每个故事只呈现一种状态：有数据、空结果、加载中、查询失败、待修复、面板不可用）；**真实后端**。一个故事只进一处，次序由 `.storybook/preview.tsx` 的 `storySort` 定。组件状态的状态由 `fixtures.ts` 里的假数据源决定，引擎与存储每次挂载都新建，因此保存、改名与删除是真写入，也不会跨场景残留。
 
-假数据源按引擎实际发出的查询作答：`rowSource.ts` 把 Wow 查询翻译成 MongoDB 查询，交给 `mingo` 做筛选、排序、分页与聚合，所以表格、汇总行和图表就是这些条件选出的结果，不预聚合。按日期分桶（`DATE_HISTOGRAM`）在管道外按分组的时区算出桶起点（毫秒，与服务的答法相同），时区换算用平台的 `Intl.DateTimeFormat`（dayjs 的 timezone 插件按宿主机自己的时区规则换算，宿主机调表的那几天会差一小时）；周从周一开始、季度从 1/4/7/10 月开始，与 `wow-mongo` 的 `$dateTrunc` 相同。`dense` 按 Wow 的规则补空桶：只在它是唯一分组时，只补有数据的首末桶之间，空桶的计数为 0、其余为 null。`PERCENTILE` 是精确值（排序后在秩 `(n − 1) · p / 100` 处线性插值；服务是近似值，落在同样的两个相邻值之间），`STDDEV`/`VARIANCE` 是总体标准差与方差（与 `$stdDevPop` 相同），`ANY` 取最大的非空值（与 `wow-mongo` 的 `$max` 相同）；数组的 `CONTAINS_ALL` 是 `$all`，元数据的 `OWNER_ID`、`AGGREGATE_ID(S)` 读快照信封上的 `ownerId`、`aggregateId`；`EXISTS`/`NOT_EXISTS` 是 `$exists`（存着 null 的字段算存在），`IS_EMPTY_STRING`/`IS_NOT_EMPTY_STRING` 按 Wow 的改写读成与 `""` 相等或不等；`BEFORE_NOW`/`AFTER_NOW` 像 Wow 的 `FilterNormalizer` 那样，每个查询读一次数据源自己的钟（`rowSource(rows, { now })`，缺省 `Date.now`；零售与补偿首页的数据源钉在各自夹具的「现在」），加上 ISO-8601 的 `offset`，按 `timeUnit` 换算后降成严格的 `LT`/`GT`。翻译不了的算子直接报错，表现为查询失败，而不是给出一个看似合理的错误答案。每个界面的 `*.test.stories.tsx` 断言这些结果；`rowSource` 自己的语义由 `rowSource.test.ts`（vitest 的 `unit` 工程，node 里跑）守着。
+假数据源按引擎实际发出的查询作答：`rowSource.ts` 只是视图引擎公开入口 `@ahoo-wang/wow-view-engine/testing` 的 `memorySource`（D65）加上「同一个聚合只算一次」，补偿控制台的 e2e 桩用的也是它，宿主测试也用它——Wow 的查询语义在内存里只有这一份。它按 MongoDB 上的 Wow 服务作答：筛选翻译成 `wow-mongo` 编出的 MongoDB 谓词交给 `mingo`，排序、分页、投影同样；聚合按 Wow 的规则在 JS 里分组（`elements`、四种分组、`dense`、带自身条件的指标、`DERIVED`、`having`、先排序再按分组别名升序的次序、缺省 `limit` 100、日期分组缺省 UTC），所以表格、汇总行和图表就是这些条件选出的结果，不预聚合。语义由视图引擎的测试对着 `wow-api` 的 `FilterSemantics` 语义矩阵与查询 TCK 的聚合用例逐条守着（`typescript/wow-view-engine/test/testingFilterSemantics.test.ts`、`testingAggregationTck.test.ts`、`testingMemorySource.test.ts`），做法与承诺见视图引擎 README「Testing a host: an in-memory source」。`BEFORE_NOW`/`AFTER_NOW` 读数据源自己的钟（`rowSource(rows, { now })`，缺省 `Date.now`；零售与补偿首页的数据源钉在各自夹具的「现在」）。翻译不了的算子直接报错，表现为查询失败，而不是给出一个看似合理的错误答案。每个界面的 `*.test.stories.tsx` 断言这些结果；`rowSource.test.ts`（vitest 的 `unit` 工程）只守故事这一侧加的东西。
 
 ### 假数据源的速度
 
-零售数据集约 2 万张子订单（[docs/scenarios.md](docs/scenarios.md) 2.8）。`rowSource` 在 mingo 前面加了四样东西，都不改变答案：
+零售数据集约 2 万张子订单（[docs/scenarios.md](docs/scenarios.md) 2.8）。内存数据源在筛选前后加了四样东西，都不改变答案：
 
 1. **时间列存成纪元毫秒**，和 Wow 快照一样；分桶与切片直接读数字，不逐行解析文本。
 2. **日期桶按日历日缓存**：一天以上的桶都从本地零点开始，所以桶是那一天的属性。每个 (单位, 时区) 每个日历日只换算一次，之后查表；一天以内的桶从当天零点按宽度数（那天没有调表时），调表的那天逐行读墙上时钟。缓存按 (单位, 时区) 共享，与字段无关，因为桶只由日历决定。
@@ -53,7 +53,7 @@ View Engine 的故事在 `view-engine/`，目录分五块：**导览**（`Intro.
 
 ¹ 改前不能答 `dense`、`PERCENTILE`、`STDDEV`，这一格是去掉它们之后的 8 个面板（改后同样的查询 40 ms）。8 个面板是：昨日指标卡与前一日对比（各一条合计）、昨日逐时（`HOUR`，dense）、近 30 天逐日（`DAY`，dense）、近 30 天渠道构成、近 30 天省份前 10、全量状态分布、按月趋势（含中位数与标准差）。
 
-只有筛选加分组、不涉及时间的查询，速度与改前相同：瓶颈在 mingo 的 `$match` 与 `$group`，这正是不预聚合要付的代价，仍在方案估的 30～80 ms 以内。改前慢的是逐行做时区换算的日期分桶，一块带趋势的板要三秒多。这里只量数据源作答，不含图表绘制；整块板画完的时间由首页的孪生量（第 4 批）：从页面第一次渲染到 8 张卡、4 张图与明细都画完，本机 Chromium 约 560～870 ms（含冷启动时生成数据集），孪生只守 6 秒的回退护栏。
+只有筛选加分组、不涉及时间的查询，速度与改前相同：瓶颈在 mingo 的 `$match` 与分组（表是 2026-09-24 用 mingo 的 `$group` 量的；2026-09-27 起分组按 Wow 的规则在 JS 里做，同一台机器上 node 24 重测为 26 ms、23 ms 与 45 ms），这正是不预聚合要付的代价，仍在方案估的 30～80 ms 以内。改前慢的是逐行做时区换算的日期分桶，一块带趋势的板要三秒多。这里只量数据源作答，不含图表绘制；整块板画完的时间由首页的孪生量（第 4 批）：从页面第一次渲染到 8 张卡、4 张图与明细都画完，本机 Chromium 约 560～870 ms（含冷启动时生成数据集），孪生只守 6 秒的回退护栏。
 
 复现：`pnpm --filter wow-storybook exec vitest bench --run --project=unit`（node）。
 

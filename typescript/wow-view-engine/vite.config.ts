@@ -108,6 +108,7 @@ export default defineConfig({
         index: 'src/index.ts',
         react: 'src/react/index.ts',
         ui: 'src/ui/index.ts',
+        testing: 'src/testing/index.ts',
         styles: 'src/styles.ts',
       },
       formats: ['es'],
@@ -116,7 +117,7 @@ export default defineConfig({
     },
     rolldownOptions: {
       external:
-        /^(react|react-dom|react-grid-layout|react-markdown|react-day-picker|@base-ui\/react|@ahoo-wang\/wow-client|lucide-react|class-variance-authority|clsx|tailwind-merge|echarts|zrender)(\/|$)/,
+        /^(react|react-dom|react-grid-layout|react-markdown|react-day-picker|@base-ui\/react|@ahoo-wang\/wow-client|lucide-react|class-variance-authority|clsx|tailwind-merge|echarts|zrender|mingo)(\/|$)/,
     },
   },
 });

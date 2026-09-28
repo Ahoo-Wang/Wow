@@ -44,6 +44,7 @@ const LISTS: Record<Entry, string> = {
   '@ahoo-wang/wow-view-engine': 'surface/root.txt',
   '@ahoo-wang/wow-view-engine/react': 'surface/react.txt',
   '@ahoo-wang/wow-view-engine/ui': 'surface/ui.txt',
+  '@ahoo-wang/wow-view-engine/testing': 'surface/testing.txt',
 };
 
 /** One entry's list as the file holds it: a heading, then `kind name`. */

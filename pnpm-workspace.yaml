@@ -23,6 +23,8 @@ catalogs:
     '@ahoo-wang/fetcher': '^5.1.5'
     '@ahoo-wang/fetcher-decorator': '^5.1.5'
     '@ahoo-wang/fetcher-eventstream': '^5.1.5'
+    # Optional: only the view engine's /testing entry loads it (D65).
+    mingo: ^7.2.4
     react: ^19.3.0
     react-dom: ^19.3.0
 
