@@ -174,7 +174,7 @@ H2a 的 Provider 解决了「按资源注册」，但宿主周围的胶水还在
 
 - **唯一公开入口**：**ViewHost** 取代 H2a 的 **ViewEngineProvider**（降为内部），首发前改名，不留两种写法。
 - **适配器**：首发只带 react-router，放在单独入口 `/react-router`，react-router 作可选 peer；其余路由与 i18n 照端口写，文档给示例。
-- **明暗**：`colorMode` 缺省 `system`，由引擎管（写 `<html>` 的 `.dark` 与 `color-scheme`、跟随系统、可记住读者的选择）；宿主已在管（如 next-themes）时写 `host`，引擎只读 `.dark`。
+- **明暗**：**colorMode** 缺省 `system`，由引擎管（写 `<html>` 的 `.dark` 与 `color-scheme`、跟随系统、可记住读者的选择）；宿主已在管（如 next-themes）时写 `host`，引擎只读 `.dark`。
 - **边界**：不接管宿主的应用——路由库、i18n、主题系统仍是宿主的，端口只做桥。
 
 ### 4.3 导航数据，不做整页外壳（用户 2026-09-28 定）
