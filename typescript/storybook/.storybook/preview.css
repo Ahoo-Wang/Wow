@@ -226,9 +226,17 @@ html.dark .story-intro {
   --intro-accent-soft: #2f2a55;
 }
 
+/* The chain is one row or one column, never a row that wraps: a wrapped
+   row left an arrow at the end of one line and the node it points to at the
+   start of the next (#3640). The column is taken on the figure's own width,
+   not the window's, since the docs page's column is what the chain has. */
+.story-intro:has(> .story-intro-chain) {
+  container-type: inline-size;
+}
+
 .story-intro-chain {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
   gap: 8px;
   margin: 16px 0 0;
@@ -407,9 +415,12 @@ html.dark .story-intro {
   }
 }
 
-@media (width <= 560px) {
+/* Below this the boxes of the row are too narrow to read: at 1024 the docs
+   column is about 640px and the row still reads. */
+@container (width < 600px) {
   .story-intro-chain {
     flex-direction: column;
+    align-items: stretch;
   }
 
   .story-intro-node,
@@ -425,7 +436,9 @@ html.dark .story-intro {
   .story-intro-step svg {
     transform: rotate(90deg);
   }
+}
 
+@media (width <= 560px) {
   .story-intro-cards {
     grid-template-columns: 1fr;
   }
