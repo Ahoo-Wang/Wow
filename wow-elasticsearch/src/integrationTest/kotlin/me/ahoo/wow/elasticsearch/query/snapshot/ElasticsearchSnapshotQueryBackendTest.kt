@@ -217,6 +217,9 @@ class ElasticsearchSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
     // Text-mapped fields of nested objects run `match` inside the nested query.
     override val elementFullTextSearch: Boolean = true
 
+    // A `long` mapping coerces a fractional epoch to its integer part when it indexes it (`coerce` defaults to true).
+    override val truncatesFractionalEpochs: Boolean = true
+
     @Suppress("UNCHECKED_CAST")
     /**
      * Elasticsearch indexes no value for a JSON `null` or an empty array, so presence operators cannot tell them from

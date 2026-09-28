@@ -1104,6 +1104,98 @@ abstract class SnapshotQueryBackendSpec {
             }.verifyComplete()
     }
 
+    /**
+     * Whether the storage keeps only the integer part of a fractional value it indexes into an integer epoch field.
+     * Elasticsearch coerces it for a `long` mapping, so every temporal operation reads the truncated epoch; a storage
+     * that keeps the fraction (MongoDB) reads no instant from it, as for any value that is not a whole epoch.
+     */
+    protected open val truncatesFractionalEpochs: Boolean = false
+
+    /** `state.epochSeconds` and `state.epochNanos`: epoch fields no domain type writes, set per record by the case. */
+    private val epochEncodingSource = object : QuerySchemaSource {
+        override val priority: Int = me.ahoo.wow.query.schema.QuerySchemaSourcePriority.BEAN
+        override fun load(
+            context: me.ahoo.wow.query.schema.QuerySchemaContext
+        ): Flux<me.ahoo.wow.query.schema.QuerySchemaDeclaration> = Flux.just(
+            me.ahoo.wow.query.schema.QuerySchemaDeclaration(
+                mapOf(
+                    QueryField("state.epochSeconds") to epochDeclaration(TimeUnit.SECONDS),
+                    QueryField("state.epochNanos") to epochDeclaration(TimeUnit.NANOSECONDS),
+                ),
+            ),
+        )
+    }
+
+    private fun epochDeclaration(unit: TimeUnit) = me.ahoo.wow.query.schema.QueryFieldDeclaration(
+        valueTypes = me.ahoo.wow.query.schema.DeclarationValue.Set(setOf(QueryValueType.INTEGER)),
+        nullable = me.ahoo.wow.query.schema.DeclarationValue.Set(true),
+        required = me.ahoo.wow.query.schema.DeclarationValue.Set(false),
+        semanticType = me.ahoo.wow.query.schema.DeclarationValue.Set(Temporal.Epoch(unit)),
+    )
+
+    /**
+     * Three records whose `epochNanos` lies 1.5009 s after `epochSeconds`, one of them with a fractional
+     * `epochSeconds`, and one 0.5 ms before the epoch's origin.
+     */
+    private fun saveEpochEncodingSnapshots(): QueryTarget<SnapshotQueryBackend> {
+        val nodes = tools.jackson.databind.node.JsonNodeFactory.instance
+        val nanos = EPOCH_SECONDS * 1_000_000_000L + 1_500_900_000L
+        val records = listOf(
+            Triple("epoch-integral", nodes.numberNode(EPOCH_SECONDS), nodes.numberNode(nanos)),
+            Triple("epoch-fractional", nodes.numberNode(EPOCH_SECONDS + 0.5), nodes.numberNode(nanos)),
+            Triple("epoch-negative", nodes.numberNode(0L), nodes.numberNode(-500_000L)),
+        )
+        saveAggregationStates(*records.map { MockStateAggregate(id = it.first) }.toTypedArray())
+        records.forEach { (id, seconds, epochNanos) ->
+            writeStateValue(id, "epochSeconds", seconds)
+            writeStateValue(id, "epochNanos", epochNanos)
+        }
+        return snapshotQueryBackendFactory.target(MOCK_AGGREGATE_METADATA, schemaSources() + epochEncodingSource)
+    }
+
+    @Test
+    fun `aggregation DATE_DIFF should read epoch seconds and nanos as whole floored milliseconds`() {
+        val binding = saveEpochEncodingSnapshots()
+        val secondsToNanos = AggregationExpression.DateDiff(
+            QueryField("state.epochSeconds"),
+            QueryField("state.epochNanos"),
+            DateDiffUnit.SECOND,
+        )
+        fun elapsed(id: String): Double? = AggregationQuery(
+            filter = AggregateIdsFilter(listOf(id)),
+            metrics = listOf(AggregationMetric.Numeric(AggregationFunction.MAX, secondsToNanos, "elapsed")),
+        ).query(binding).single().block()!!.path("elapsed").takeUnless { it.isNull || it.isMissingNode }?.doubleValue()
+
+        // Nanos floor to the millisecond: 1.5009 s reads as 1.5 s, and −0.5 ms before the origin as −1 ms.
+        elapsed("epoch-integral").assert().isEqualTo(1.5)
+        elapsed("epoch-negative").assert().isEqualTo(-0.001)
+        // A fractional epoch is no instant, so there is no difference; a storage that truncates it reads a whole one.
+        elapsed("epoch-fractional").assert().isEqualTo(if (truncatesFractionalEpochs) 1.5 else null)
+    }
+
+    @Test
+    fun `aggregation date histograms should read epoch seconds and nanos as whole floored milliseconds`() {
+        val binding = saveEpochEncodingSnapshots()
+        val ids = listOf("epoch-integral", "epoch-fractional", "epoch-negative")
+        fun buckets(field: String, unit: AggregationDateUnit): List<Pair<Long, Long>> = AggregationQuery(
+            filter = AggregateIdsFilter(ids),
+            groupBy = listOf(AggregationGroup.DateHistogram(QueryField(field), "bucket", unit)),
+            metrics = listOf(AggregationMetric.Count("count")),
+        ).query(binding)
+            .map { it.path("bucket").longValue() to it.path("count").longValue() }
+            .collectList()
+            .block()!!
+
+        buckets("state.epochNanos", AggregationDateUnit.SECOND).assert().containsExactly(
+            -1_000L to 1L,
+            (EPOCH_SECONDS + 1) * 1_000L to 2L,
+        )
+        buckets("state.epochSeconds", AggregationDateUnit.DAY).assert().containsExactly(
+            0L to 1L,
+            Instant.parse("2026-01-02T00:00:00Z").toEpochMilli() to if (truncatesFractionalEpochs) 2L else 1L,
+        )
+    }
+
     @Test
     fun `aggregation should support second date histograms`() {
         saveAggregationStates(*aggregationStates().toTypedArray())
@@ -2413,6 +2505,9 @@ abstract class SnapshotQueryBackendSpec {
 
     private companion object {
         const val AGGREGATION_SNAPSHOT_TIME = 1_767_225_600_000L
+
+        /** 2026-01-02T10:00:00Z in epoch seconds. */
+        const val EPOCH_SECONDS = 1_767_348_000L
     }
 }
 

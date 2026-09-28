@@ -194,11 +194,18 @@ private fun epochDateRuntimeField(physicalPath: String, timeUnit: TimeUnit): Run
 }
 
 /**
- * Reads the single epoch value of `doc[field]` in `params.multiplier` / `params.divisor` units as epoch
- * milliseconds `epochMillis`, then runs [onMillis]; non-finite, fractional and overflowing values run nothing.
+ * Reads the single epoch value of `doc[field]` in `multiplier` / `divisor` units as epoch milliseconds
+ * `epochMillis`, floored, then runs [onMillis]; non-finite, fractional and overflowing values run nothing.
+ * [field], [multiplier] and [divisor] are Painless expressions; a script that reads several epochs names
+ * each one's own.
  */
-private fun epochMillisScript(onMillis: String): String = """
-            def raw = doc[field].value;
+internal fun epochMillisScript(
+    onMillis: String,
+    field: String = "field",
+    multiplier: String = "params.multiplier",
+    divisor: String = "params.divisor",
+): String = """
+            def raw = doc[$field].value;
             if (raw instanceof Number) {
                 boolean floating = raw instanceof Double || raw instanceof Float;
                 double numeric = ((Number) raw).doubleValue();
@@ -209,12 +216,12 @@ private fun epochMillisScript(onMillis: String): String = """
                 ) {
                     long epoch = ((Number) raw).longValue();
                     if (!floating || numeric == (double) epoch) {
-                        long divisor = ((Number) params.divisor).longValue();
+                        long divisor = ((Number) $divisor).longValue();
                         long millis = epoch / divisor;
                         if (epoch < 0L && epoch % divisor != 0L) {
                             millis -= 1L;
                         }
-                        long multiplier = ((Number) params.multiplier).longValue();
+                        long multiplier = ((Number) $multiplier).longValue();
                         if (
                             millis <= Long.MAX_VALUE / multiplier &&
                             millis >= Long.MIN_VALUE / multiplier
