@@ -467,6 +467,11 @@ export const PicksASpecificDay: Story = {
   name: '日期改为指定日期',
   play: async ({ canvasElement }) => {
     await boardDrawn(canvasElement);
+    // The host's subtitle names the day the board reads, and calls it
+    // 「昨日」 only while it is (#3689).
+    const report =
+      canvasElement.querySelector<HTMLElement>('[data-host-report]')!;
+    await expect(report).toHaveTextContent(/2026年9月21日\s*星期一（昨日）/);
     const date = screen.getByRole('group', { name: /^日期/ });
     // A day filter offers days: the three that have come by name, and no
     // window (2026-09-26 review, P1-1).
@@ -523,6 +528,12 @@ export const PicksASpecificDay: Story = {
       { timeout: 10_000 },
     );
     await expect(calendar).toHaveTextContent('2026年9月15日');
+    await waitFor(() =>
+      expect(
+        canvasElement.querySelector('[data-host-report-day]'),
+      ).toHaveTextContent(/^2026年9月15日/),
+    );
+    await expect(report).not.toHaveTextContent('昨日');
     await expect(
       panelOf('GMV').querySelector('[data-slot="metric-change"]'),
     ).toHaveTextContent(zhCN['label.chart.change.against.DAY']);
