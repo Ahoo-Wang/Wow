@@ -719,6 +719,19 @@
 - **判据**：全部截图基线与主题故事不变；另加一个故事，宿主的断点类在引擎面里生效；控制台两处绕开的写法改回带断点的写法。体积上限若因类名变长越线，照「功能优先」在同一个 PR 里抬。
 - **落点**：`src/**/*.tsx` 的类名（codemod）、`components.json`、`src/styles.css`、`scripts/scope-utilities.mjs`、`scripts/verify-package.mjs`；[theme-architecture.md](theme-architecture.md) G16 一节随之改写。
 
+## D67 宿主接入：事实归机器，选择归宿主（2026-09-28）
+
+- **来由**：补偿控制台接入时，宿主的行为是按外壳接的（数据源、路由、行操作都按 `definition.id` 分支），定义大半在抄描述符，操作的交互机制由宿主自己写。方案 [host-integration.md](host-integration.md)。
+- **裁定**（用户：「我看了没有问题」）：
+  - **三方分工**：wow-generator 只产出库（类型、枚举、命令与查询客户端），不生成定义与操作；引擎在运行时从描述符推出事实的缺省，并负责操作的交互机制；宿主（智能体按 skills 写）只写选择。
+  - **`defineView`**：描述符给上限，宿主在其内选、命名、收窄；没列出的字段不出现；描述符用提交的快照，运行时照 N5 再收窄；口径写键（`text(key)`），定义与引擎与语言无关。
+  - **按资源注册**：核心 `resources`（定义、数据源），React `ViewEngineProvider` 与 `bind`（路由、读法、操作）；一个应用一个引擎；替掉 `definitions`、`resolveSource`、`recordPanel`，不留兼容层。
+  - **声明式操作**：宿主写命令、可用规则、拒绝理由、确认与输入；引擎负责位置、部分拒绝、批量、进度、刷新与播报；插槽留作逃生口。
+  - **后端对齐事实、不对齐选择**：描述符补时长、比率、引用、时间角色四项事实，由查询模块会话按交接协议做；受众的选择不进描述符。
+  - **次序**：A → C → H1（并入 D）→ H2 → H3 → B。
+- **没选**：生成器生成定义初稿（宿主代码与生成文件分叉，且大部分内容是判断）；缺省列出全部字段（描述符一加字段界面就悄悄多一列）；启动时先 `describe` 再生成定义（页面要等，测试不可复现）。
+- **落点**：[host-integration.md](host-integration.md)；`src/model/`、`src/runtime/viewEngine.ts`、`src/react/`、`src/testing/`；Skill `wow-view-definition` 与新增的 `wow-view-host`。
+
 ## 搁置待议
 
 尚无结论，不要当作规则执行。
