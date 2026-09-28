@@ -1,6 +1,6 @@
 {
   "model": "SNAPSHOT",
-  "version": "sha256:06f56f41d8e97c0b9ee5a3057f1d8af2e8cc50546877ab9d42fc09003d54685a",
+  "version": "sha256:2c7e8fbe9e8d565c788220667dcff444018a67f59920c20ad25e6e439f28fddd",
   "timeZone": "America/Los_Angeles",
   "record": {
     "identity": "aggregateId",
@@ -277,6 +277,7 @@
     },
     {
       "path": "eventTime",
+      "role": "EVENT_TIME",
       "types": ["INTEGER"],
       "kind": "SCALAR",
       "nullable": false,
@@ -332,6 +333,7 @@
     },
     {
       "path": "firstEventTime",
+      "role": "FIRST_EVENT_TIME",
       "types": ["INTEGER"],
       "kind": "SCALAR",
       "nullable": false,
@@ -668,6 +670,13 @@
         { "value": "INVALID_REQUEST" },
         { "value": "CURSOR_SORT_DUPLICATE" },
         { "value": "CURSOR_SORT_TOO_MANY" },
+        { "value": "INVALID_CURSOR" },
+        { "value": "SIZE_OUT_OF_RANGE" },
+        { "value": "FILTER_TOO_LARGE" },
+        { "value": "EXPENSIVE_OPERATOR_DISABLED" },
+        { "value": "COUNT_REQUIRES_FILTER" },
+        { "value": "RESIDUAL_GROUPS_EXCEEDED" },
+        { "value": "EXPLICIT_ENTRY_REQUIRED" },
         { "value": "UNKNOWN_FIELD" },
         { "value": "UNSUPPORTED_CAPABILITY" },
         { "value": "ELEMENT_SCOPE_REQUIRED" },
@@ -691,7 +700,12 @@
         { "value": "PARALLEL_ARRAY_SORT" },
         { "value": "ARRAY_EQUALITY" },
         { "value": "FIRST_LAST_REQUIRES_SINGLE_VALUE" },
-        { "value": "FIRST_LAST_REQUIRES_ORDER_BY" }
+        { "value": "FIRST_LAST_REQUIRES_ORDER_BY" },
+        { "value": "TEMPORAL_AGGREGATION_UNSUPPORTED" },
+        { "value": "SORT_TOO_MANY" },
+        { "value": "SORT_FIELD_DUPLICATE" },
+        { "value": "IDENTITY_UNDEFINED" },
+        { "value": "STORAGE_UNSUPPORTED" }
       ],
       "description": "Stable code of the failed rule. Open: codes are added over time, never renamed.",
       "project": true,
@@ -1005,6 +1019,11 @@
       "types": ["STRING"],
       "kind": "SCALAR",
       "nullable": false,
+      "semantic": {
+        "type": "REFERENCE",
+        "contextNameField": "contextName",
+        "aggregateNameField": "aggregateName"
+      },
       "description": "aggregate id",
       "project": true,
       "filter": {
@@ -1663,6 +1682,7 @@
       "types": ["INTEGER"],
       "kind": "SCALAR",
       "nullable": false,
+      "semantic": { "type": "DURATION", "timeUnit": "SECONDS" },
       "project": true,
       "filter": {
         "operators": [
@@ -1737,6 +1757,7 @@
       "types": ["INTEGER"],
       "kind": "SCALAR",
       "nullable": false,
+      "semantic": { "type": "DURATION", "timeUnit": "SECONDS" },
       "project": true,
       "filter": {
         "operators": [
