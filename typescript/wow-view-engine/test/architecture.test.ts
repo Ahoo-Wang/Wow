@@ -99,6 +99,15 @@ const PORTS: Partial<Record<Location, Partial<Record<Layer, string>>>> = {
   testing: { runtime: 'runtime/source' },
 };
 
+/**
+ * The one module a port layer may import by value besides: `/testing`'s
+ * `admit` is the engine's own admission, run without an engine
+ * (host-integration.md 6), so it is the runtime's and imported whole.
+ */
+const VALUE_PORTS: Partial<Record<Location, Partial<Record<Layer, string>>>> = {
+  testing: { runtime: 'runtime/admission' },
+};
+
 /** Layers (and the root entry) that must stay free of React. */
 const HEADLESS: readonly Location[] = [
   'root',
@@ -682,7 +691,8 @@ describe('architecture', () => {
           .filter(
             ({ specifier, typeOnly }) =>
               targetLocation(file, specifier) === target &&
-              !(typeOnly && isPort(file, specifier, port)),
+              !(typeOnly && isPort(file, specifier, port)) &&
+              !isPort(file, specifier, VALUE_PORTS[from]?.[target] ?? ''),
           )
           .map(({ specifier }) => `${describePath(file)} -> ${specifier}`),
       );

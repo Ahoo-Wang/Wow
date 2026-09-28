@@ -395,6 +395,9 @@ function validateViewPanel(
   lookup: ValidateDashboardOptions['definitions'],
 ): Issue[] {
   const { view, issues } = panelView(panel, path, refs, lookup);
+  const ignoresTime: unknown = panel.ignoresTime;
+  if (ignoresTime !== undefined && ignoresTime !== true)
+    issues.push(shape([...path, 'ignoresTime'], 'true'));
   issues.push(...validatePresentation(panel, path));
   issues.push(...validateOpens(panel, path, view, lookup));
   issues.push(...validatePanelClick(panel, path, config, view, refs, lookup));

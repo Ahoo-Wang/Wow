@@ -293,6 +293,14 @@ interface DashboardViewPanelBase extends DashboardPanelBase {
    * cannot open is the workbench's to say, as for any view opened by id.
    */
   opens?: string;
+  /**
+   * The board's time filter does not reach this panel through its view's
+   * time field (`DataViewDefinition.timeField`): 「全部活动」 counts the
+   * pile whatever the range. Left out, a board with one date filter wires
+   * it to every panel whose view has a time field and that is not wired
+   * to it already; a wire written by hand always wins.
+   */
+  ignoresTime?: true;
 }
 
 /**

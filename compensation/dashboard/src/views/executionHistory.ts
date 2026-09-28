@@ -11,17 +11,11 @@
  * limitations under the License.
  */
 
-import {
-  AggregationDateUnit,
-  AggregationFunction,
-  AggregationGroupType,
-} from "@ahoo-wang/wow-client";
-import {
-  systemInstanceId,
-  type DataViewDefinition,
-} from "@ahoo-wang/wow-view-engine";
-import type { Locale } from "@/i18n.tsx";
-import { activityAnalyses } from "./activityAnalyses.ts";
+import { AggregationDateUnit } from "@ahoo-wang/wow-client";
+import { defineView, systemInstanceId } from "@ahoo-wang/wow-view-engine";
+import { ACTIVITY_ANALYSIS_VIEWS } from "./activityAnalyses.ts";
+import { EXECUTION_HISTORY_DESCRIPTOR } from "./descriptors.ts";
+import { textKeys, type Words } from "./textKeys.ts";
 
 export const EXECUTION_HISTORY = "execution-history";
 
@@ -66,7 +60,7 @@ const EVENTS = [
   ["FunctionChanged", "function"],
 ] as const;
 
-const TEXT = {
+export const EXECUTION_HISTORY_WORDS = {
   en: {
     title: "Execution history",
     streams: "All event streams",
@@ -115,7 +109,9 @@ const TEXT = {
     recoverable: "标记可恢复性",
     function: "处理函数变更",
   },
-} satisfies Record<Locale, Record<string, string>>;
+} satisfies Words;
+
+const t = textKeys("executionHistory", EXECUTION_HISTORY_WORDS.en);
 
 /**
  * The events of each stream, one row apiece: an outcome is counted by the
@@ -136,173 +132,122 @@ export const OUTCOME_ELEMENTS = { path: "body" } as const;
  * types and not the payloads. A board's outcome panel opens on the event
  * streams' own workbench (`/events`).
  */
-export function executionHistoryDefinition(locale: Locale): DataViewDefinition {
-  const t = TEXT[locale];
-  return {
-    id: EXECUTION_HISTORY,
-    title: t.title,
-    recordNoun: t.recordNoun,
-    kind: "data",
-    source: EXECUTION_HISTORY_SOURCE,
-    // How one stream reads in its detail: whose it is and when, then its
-    // events.
-    fieldGroups: [
-      {
-        id: "stream",
-        label: t.groupStream,
-        fields: ["id", "aggregateId", "version", "createTime", "commandId"],
-      },
-      // Not 「事件」 again: the one field in it is already called so.
-      { id: "events", label: t.groupAppended, fields: ["body"] },
-    ],
-    fields: [
-      // The row key: sortable, as a stable page order needs.
-      {
-        name: "id",
-        label: t.id,
-        kind: "string",
-        sortable: true,
-        cell: "copyable",
-      },
-      {
-        name: "aggregateId",
-        label: t.aggregateId,
-        kind: "string",
-        sortable: true,
-        cell: "copyable",
-      },
-      { name: "version", label: t.version, kind: "number", sortable: true },
-      {
-        name: "createTime",
-        label: t.createTime,
-        kind: "datetime",
-        sortable: true,
-      },
-      {
-        name: "commandId",
-        label: t.commandId,
-        kind: "string",
-        cell: "copyable",
-      },
-      {
-        name: "body",
-        label: t.body,
-        kind: "elementMatch",
-        operators: ["ELEMENT_MATCH"],
-        elementTitle: "bodyType",
-        elements: [
-          {
-            name: "bodyType",
-            label: t.bodyType,
-            kind: "enum",
-            options: EVENTS.map(([type, key]) => ({
-              value: `${API}.${type}`,
-              label: t[key],
-            })),
-          },
-          { name: "name", label: t.name, kind: "string" },
-          { name: "revision", label: t.revision, kind: "string" },
-          { name: "id", label: t.eventId, kind: "string" },
+export const executionHistory = defineView(EXECUTION_HISTORY_DESCRIPTOR, {
+  id: EXECUTION_HISTORY,
+  source: EXECUTION_HISTORY_SOURCE,
+  title: t.title,
+  recordNoun: t.recordNoun,
+  // When a stream was written: what the overview's window reads it by.
+  timeField: "createTime",
+  // How one stream reads in its detail: whose it is and when, then its
+  // events.
+  fieldGroups: [
+    {
+      id: "stream",
+      label: t.groupStream,
+      fields: ["id", "aggregateId", "version", "createTime", "commandId"],
+    },
+    // Not 「事件」 again: the one field in it is already called so.
+    { id: "events", label: t.groupAppended, fields: ["body"] },
+  ],
+  fields: {
+    // The row key: sortable, as a stable page order needs.
+    id: { label: t.id, cell: "copyable", analysis: false },
+    // How many executions a day's commands were about: counted, never a
+    // category.
+    aggregateId: {
+      label: t.aggregateId,
+      cell: "copyable",
+      analysis: { groups: [] },
+    },
+    version: { label: t.version, analysis: false },
+    createTime: {
+      label: t.createTime,
+      analysis: {
+        dateUnits: [
+          AggregationDateUnit.HOUR,
+          AggregationDateUnit.DAY,
+          AggregationDateUnit.WEEK,
+          AggregationDateUnit.MONTH,
         ],
       },
-    ],
-    record: { rowKey: "id", paging: "paged", layouts: ["table"] },
-    // What the overview asks of the streams: how many hold an event, by day.
-    analysis: {
-      count: true,
-      // The net backlog and the retry success rate, out of the counts.
-      expressions: true,
-      fields: [
-        // How many executions a day's commands were about.
-        {
-          field: "aggregateId",
-          groups: [],
-          functions: [],
-          distinctCount: true,
-        },
-        {
-          field: "createTime",
-          groups: [AggregationGroupType.DATE_HISTOGRAM],
-          functions: [AggregationFunction.MIN, AggregationFunction.MAX],
-          dateUnits: [
-            AggregationDateUnit.HOUR,
-            AggregationDateUnit.DAY,
-            AggregationDateUnit.WEEK,
-            AggregationDateUnit.MONTH,
-          ],
-        },
-      ],
-      elements: [
-        {
-          path: "body",
-          aggregations: [
-            {
-              field: "name",
-              groups: [AggregationGroupType.TERMS],
-              functions: [],
-            },
-            // The events' make-up, by type — the name an event is read by.
-            {
-              field: "bodyType",
-              groups: [AggregationGroupType.TERMS],
-              functions: [],
-            },
-          ],
-        },
-      ],
     },
-    views: [
-      // The streams' own workbench opens on this one: every execution's
-      // streams, the newest first, each saying whose it is.
-      {
-        id: "streams",
-        title: t.streams,
-        config: {
-          kind: "record",
-          filter: { op: "and", children: [] },
-          filterMode: "simple",
-          refresh: { interval: null },
-          sort: [{ field: "createTime", direction: "DESC" }],
-          pageSize: 20,
-          layout: "table",
-          summaries: [],
-          // The last column is the one a narrow table keeps pinned (D13):
-          // what happened, rather than the command's ID.
-          table: {
-            columns: [
-              "createTime",
-              "aggregateId",
-              "version",
-              "commandId",
-              "body",
-            ].map((field) => ({ field })),
-          },
-          card: { title: "aggregateId", fields: ["body", "createTime"] },
+    commandId: {
+      label: t.commandId,
+      cell: "copyable",
+      sortable: false,
+      analysis: false,
+    },
+    body: {
+      label: t.body,
+      operators: ["ELEMENT_MATCH"],
+      elementTitle: "bodyType",
+      elements: {
+        // The events' make-up, by type — the name an event is read by.
+        bodyType: {
+          label: t.bodyType,
+          options: Object.fromEntries(
+            EVENTS.map(([type, key]) => [`${API}.${type}`, t[key]]),
+          ),
         },
+        name: t.name,
+        revision: { label: t.revision, analysis: false },
+        id: { label: t.eventId, analysis: false },
       },
-      {
-        id: "history",
-        title: t.title,
-        config: {
-          kind: "record",
-          filter: { op: "and", children: [] },
-          filterMode: "simple",
-          refresh: { interval: null },
-          sort: [{ field: "version", direction: "DESC" }],
-          pageSize: 10,
-          layout: "table",
-          summaries: [],
-          table: {
-            columns: ["version", "body", "createTime", "commandId"].map(
-              (field) => ({ field }),
-            ),
-          },
-          // Only a table is offered here; a card would read the same.
-          card: { title: "version", fields: ["body", "createTime"] },
+    },
+  },
+  record: { layouts: ["table"] },
+  views: [
+    // The streams' own workbench opens on this one: every execution's
+    // streams, the newest first, each saying whose it is.
+    {
+      id: "streams",
+      title: t.streams,
+      config: {
+        kind: "record",
+        filter: { op: "and", children: [] },
+        filterMode: "simple",
+        refresh: { interval: null },
+        sort: [{ field: "createTime", direction: "DESC" }],
+        pageSize: 20,
+        layout: "table",
+        summaries: [],
+        // The last column is the one a narrow table keeps pinned (D13):
+        // what happened, rather than the command's ID.
+        table: {
+          columns: [
+            "createTime",
+            "aggregateId",
+            "version",
+            "commandId",
+            "body",
+          ].map((field) => ({ field })),
         },
+        card: { title: "aggregateId", fields: ["body", "createTime"] },
       },
-      // What the compensation did, and what people did to it.
-      ...activityAnalyses(locale),
-    ],
-  };
-}
+    },
+    {
+      id: "history",
+      title: t.title,
+      config: {
+        kind: "record",
+        filter: { op: "and", children: [] },
+        filterMode: "simple",
+        refresh: { interval: null },
+        sort: [{ field: "version", direction: "DESC" }],
+        pageSize: 10,
+        layout: "table",
+        summaries: [],
+        table: {
+          columns: ["version", "body", "createTime", "commandId"].map(
+            (field) => ({ field }),
+          ),
+        },
+        // Only a table is offered here; a card would read the same.
+        card: { title: "version", fields: ["body", "createTime"] },
+      },
+    },
+    // What the compensation did, and what people did to it.
+    ...ACTIVITY_ANALYSIS_VIEWS,
+  ],
+});

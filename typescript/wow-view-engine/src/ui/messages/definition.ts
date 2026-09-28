@@ -92,4 +92,32 @@ export const definitionMessages = {
     'A {kind} view does not belong to a {definition} definition.',
   'definition.view.owned-invalid':
     'The analysis panel {panel} holds is incomplete or set up wrong.',
+  // What building a definition from its descriptor found (`defineView`).
+  'definition.field.undescribed':
+    '{field} is not a path the source’s descriptor lists.',
+  'definition.field.kind-unknown':
+    'The descriptor does not say what kind of value {field} holds; give it a kind.',
+  'definition.field.unlabelled':
+    '{field} has no label of its own, so it is shown by its description or its path.',
+  'definition.field.deprecated':
+    '{field} is deprecated by its source ({message}); say why it is kept.',
+  'definition.field.not-elements':
+    '{field} is not an array whose entries the source lists.',
+  'definition.field.sort-wider': '{field} does not sort at its source.',
+  'definition.field.operator-wider':
+    '{field} does not take {operator} at its source.',
+  'definition.field.summary-wider':
+    '{field} cannot be summarised by {fn} at its source.',
+  'definition.field.analysis-wider':
+    '{field} does not offer {what} to analyses at its source.',
+  'definition.option.undescribed':
+    '{value} is not one of the values the source lists for {field}.',
+  'definition.analysis.wider': 'The source does not offer {what} to analyses.',
+  'definition.record.paging-wider': 'The source does not page by {paging}.',
+  'definition.timeField.unknown':
+    'The time field {field} is not a field of the definition.',
+  'definition.timeField.not-time': 'The time field {field} is not a moment.',
+  'definition.text.unknown': 'No words are given for the key {key}.',
+  'definition.descriptor.missing':
+    'No descriptor was given for the source {source}, so its capabilities go unchecked.',
 } as const satisfies Record<string, string>;

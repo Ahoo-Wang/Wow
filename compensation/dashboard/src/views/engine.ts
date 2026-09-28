@@ -26,16 +26,14 @@ import {
 } from "@ahoo-wang/wow-view-engine";
 import { browserRuntimeEnvironment } from "@ahoo-wang/wow-view-engine/react";
 import type { Locale } from "@/i18n.tsx";
-import {
-  EXECUTION_FAILED_SOURCE,
-  executionFailedDefinition,
-} from "./executionFailed.ts";
+import { EXECUTION_FAILED_SOURCE, executionFailed } from "./executionFailed.ts";
 import {
   EXECUTION_HISTORY_SOURCE,
-  executionHistoryDefinition,
+  executionHistory,
 } from "./executionHistory.ts";
 import { createLocalViewStore } from "./localViewStore.ts";
-import { overviewDefinition } from "./overview.ts";
+import { overview } from "./overview.ts";
+import { definitionText } from "./text.ts";
 
 /**
  * The compensation service's query capability descriptors
@@ -101,8 +99,11 @@ export interface ExecutionEngineOptions {
 /**
  * An engine over the compensation service in one language: the failed
  * executions, their event streams — an execution's history in its detail,
- * and the outcomes by day — and the overview board over both. A definition carries its labels in one language (G12), so a change
- * of language builds a new engine over the same store.
+ * and the outcomes by day — and the overview board over both. The
+ * definitions are the same in every language and the engine says their
+ * keys in `locale`'s words (`definitionText`); a change of language still
+ * builds a new engine over the same store until one engine serves the
+ * application (host-integration.md 4, H2).
  */
 export function executionEngineOptions({
   locale,
@@ -111,11 +112,8 @@ export function executionEngineOptions({
   historySource = executionHistorySource(),
 }: ExecutionEngineOptions): ViewEngineOptions {
   return {
-    definitions: [
-      executionFailedDefinition(locale),
-      executionHistoryDefinition(locale),
-      overviewDefinition(locale),
-    ],
+    definitions: [executionFailed, executionHistory, overview],
+    text: definitionText(locale),
     store,
     resolveSource: (key) =>
       key === EXECUTION_HISTORY_SOURCE ? historySource : source,

@@ -59,6 +59,24 @@ export interface DataViewDefinition {
   /** System views declared in code; they deploy with the definition. */
   views?: SystemView[];
   /**
+   * The moment a record is read as happening at, when something reads the
+   * records over a span of time: a board's time filter reaches a panel
+   * over this definition through it, unless the panel is wired to the
+   * filter already or says it reads whole (`DashboardViewPanel
+   * .ignoresTime`), and a system view may name another
+   * (`SystemView.timeField`). A date field of the definition's own; left
+   * out, nothing is timed by default.
+   */
+  timeField?: string;
+  /**
+   * What building the definition from its source's descriptor found
+   * (`defineView`), and against which snapshot: a field the descriptor
+   * does not list, a capability asked beyond what it offers. Admission
+   * says it with the rest (`validateDefinition`); a definition written in
+   * full by hand has none.
+   */
+  described?: DefinitionDescribed;
+  /**
    * What narrowing this definition to its source's capability descriptor
    * took away, and against which version (capabilities.md): written by the
    * engine on the definition a view runs on, never by a definition in code.
@@ -66,6 +84,69 @@ export interface DataViewDefinition {
    * search the source only matches as words says so in its placeholder.
    */
   narrowing?: DefinitionNarrowing;
+}
+
+/** What `defineView` found; see `DataViewDefinition.described`. */
+export interface DefinitionDescribed {
+  /** The version of the descriptor snapshot the definition was built from. */
+  version: string;
+  findings: readonly Issue[];
+  /**
+   * The capabilities the host left to the source (host-integration.md 3,
+   * D67): what a path sorts and aggregates by depends on the store, and the
+   * snapshot is one store's word. The definition carries the snapshot's —
+   * what a source with no descriptor of its own runs on — and narrowing
+   * against a source's descriptor (`narrowDefinition`, the one place that
+   * reads it) fills these from that descriptor instead: the host's
+   * narrowing within whatever that source grants. A definition written by
+   * hand has none, and only narrows.
+   */
+  open?: OpenCapabilities;
+}
+
+/** What a `defineView` definition leaves to its source; see `DefinitionDescribed.open`. */
+export interface OpenCapabilities {
+  /** The root fields whose sort the host did not turn off. */
+  sort: readonly string[];
+  /** The analyses, unless the host offers none. */
+  analysis?: {
+    spec: AnalysisSpec;
+    /** Each root field that analyses, with the host's narrowing of it. */
+    fields: Readonly<Record<string, FieldAnalysisSpec>>;
+    /** Each array's entries that analyse, by the array's path and the entry field. */
+    elements: Readonly<
+      Record<string, Readonly<Record<string, FieldAnalysisSpec>>>
+    >;
+  };
+}
+
+/**
+ * How one field analyses, as a host narrows it (`defineView`): each member
+ * given is a subset of what the path offers, each left out is whatever the
+ * source grants.
+ */
+export interface FieldAnalysisSpec {
+  groups?: AggregationGroupType[];
+  functions?: AggregationFunction[];
+  dateUnits?: AggregationDateUnit[];
+  dateParts?: AggregationDatePart[];
+  any?: boolean;
+  distinctCount?: boolean;
+  percentile?: boolean;
+  firstLast?: boolean;
+  expressionInput?: boolean;
+  missingKey?: boolean;
+  inMetricFilter?: boolean;
+  steps?: boolean;
+}
+
+/** The analyses a host offers, narrowed from what the model grants. */
+export interface AnalysisSpec {
+  count?: boolean;
+  expressions?: boolean;
+  having?: boolean;
+  dateDiffUnits?: AnalysisDateDiffUnit[];
+  limits?: AnalysisLimits;
 }
 
 /** What one narrowing found; see `DataViewDefinition.narrowing`. */
@@ -106,6 +187,14 @@ export interface SystemView {
   id: string;
   title: string;
   config: ViewConfig;
+  /**
+   * The moment this view reads its records as happening at, where it is
+   * not the definition's (`DataViewDefinition.timeField`): 「每日新增失败」
+   * counts failures by when they first failed. `null` for a view read
+   * whole — the pile as it stands — which a board's time filter does not
+   * reach.
+   */
+  timeField?: string | null;
 }
 
 /** Instance ids of code-declared system views start with this segment. */

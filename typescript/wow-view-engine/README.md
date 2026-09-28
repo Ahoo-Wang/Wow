@@ -131,6 +131,47 @@ export const orders: ViewDefinition = {
 };
 ```
 
+### Defining a view from the descriptor
+
+A definition written by hand repeats what the service's query descriptor already says: which paths there are, what each holds, what it sorts, filters and aggregates by. `defineView(descriptor, spec)` takes those facts from a descriptor snapshot you commit beside the definition, and leaves `spec` only the choices: which fields a reader sees, in what order and under what words, the categories' wording and tone, the cells, and whatever you narrow. Its result is an ordinary `DataViewDefinition`, so nothing else in the engine knows how it was written.
+
+<!-- typecheck-context
+import type { QueryModelDescriptor } from '@ahoo-wang/wow-client';
+declare const ordersDescriptor: QueryModelDescriptor;
+-->
+
+```ts
+import { defineView, text } from '@ahoo-wang/wow-view-engine';
+
+export const orders = defineView(ordersDescriptor, {
+  id: 'orders',
+  source: 'orders',
+  title: text('orders.title'),
+  // What a board's time filter reaches its panels through.
+  timeField: 'createdAt',
+  fields: {
+    id: { label: text('orders.id'), cell: 'copyable', analysis: false },
+    status: {
+      label: text('orders.status'),
+      cell: 'status',
+      options: {
+        PENDING: { label: text('orders.pending'), tone: 'warning' },
+        SHIPPED: { label: text('orders.shipped'), tone: 'success' },
+      },
+    },
+    amount: { label: text('orders.amount'), summary: ['SUM'] },
+    createdAt: text('orders.createdAt'),
+  },
+  record: { layouts: ['table', 'card'] },
+});
+```
+
+- **Facts from the snapshot, capabilities from the source.** A field you do not list does not appear. Its kind, its values, its sensitivity and an array's entries are the model's facts, read from the snapshot; a path or a value it lacks is an admission error (`validateDefinition`, `onIssue`) — the definition still loads, and says where. What a path sorts, filters and aggregates by is the store's: where you narrow nothing the definition takes whatever the source it runs on grants (a search inside an array's entries on Elasticsearch, none on MongoDB), and where you narrow — `operators`, `sortable: false`, `summary`, `analysis` or `analysis: false` — your subset of that. A narrowing beyond the snapshot is a warning, since another store may grant it. A deprecated path warns until you give its reason; a sensitive one is kept out of analyses, a confidential one out of every comparison; a moment groups by the calendar and has an earliest and a latest.
+- **The snapshot is committed.** The definition is built when the module loads, the same in a test. A source that answers a descriptor at run time fills what you left open from it and narrows the rest, as every definition is narrowed; one that answers none runs on the snapshot's capabilities.
+- **Words are keys.** `text(key)` stands where a label goes, so one definition serves every language; `ViewEngineOptions.text` says the keys in the language in force. A literal string is still a label.
+- **Time.** `timeField` — or a system view's own, `null` for one read whole — is what a board's one date filter reaches a panel through when the panel has no wire to it; a wire written by hand wins, and `ignoresTime: true` on a panel keeps the range off it.
+- `admit` from `/testing` checks all of it in a host's test ([Testing a host](#testing-a-host-an-in-memory-source)).
+
 ### 2. Create an engine
 
 <!-- typecheck-context
@@ -1037,6 +1078,26 @@ const paid = matches(documents[0], {
 
 What it promises: every filter operator the engine compiles, with MongoDB's treatment of a missing field, an explicit `null`, an empty string or array, array elements and case; `DELETION` over a `deleted` flag (a document with `deleted: true` is left out unless the filter asks); paging, cursor (an offset) and sort; projection; and aggregation — `elements` (paths and gate filters relative to the element), `TERMS`, `HISTOGRAM`, `DATE_HISTOGRAM` and `DATE_PART` in a zone (UTC by default), `dense`, every metric with its own filter, `DERIVED`, `having`, the order Wow gives groups (the sort, then each group alias ascending) and its default `limit` of 100. `PERCENTILE` is exact, where a server's is an estimate between the same two ranks. What it has no reading of — `ID`, `TENANT_ID`, `SPACE_ID`, the calendar filters the engine never sends — is refused with an error, so a query a test starts to send fails instead of getting a plausible wrong answer. `timeField` keeps a large set in the order of one epoch-ms column and cuts a range on it by binary search; `remember` answers a repeated aggregation from memory, for documents that never change. The entry is headless — no React, no DOM, no stylesheet. It evaluates filters with `mingo`, MongoDB's query language in JavaScript, which is an optional peer dependency: the package does not install it for you, so a host that imports `/testing` adds it to its own dev dependencies — `pnpm add -D mingo` (or `npm install -D mingo`). No other entry loads it.
 
+`admit(definitions, descriptors, { text })` admits everything a host declares as the engine would — each definition's keys said, its own rules, its boards against every other definition, and each data definition narrowed to its committed descriptor (by `source`) — and returns every finding with the definition it is about, `[]` when all of it holds. It takes definitions, or resources holding one (`{ definition }`), as they are registered:
+
+<!-- typecheck-context
+import type { QueryModelDescriptor } from '@ahoo-wang/wow-client';
+import type { DataViewDefinition, DashboardDefinition, TextResolver } from '@ahoo-wang/wow-view-engine';
+declare const orders: DataViewDefinition;
+declare const overview: DashboardDefinition;
+declare const ordersDescriptor: QueryModelDescriptor;
+declare const english: TextResolver;
+declare function expect(value: unknown): { toEqual(expected: unknown): void };
+-->
+
+```ts
+import { admit } from '@ahoo-wang/wow-view-engine/testing';
+
+expect(
+  admit([orders, overview], { orders: ordersDescriptor }, { text: english }),
+).toEqual([]);
+```
+
 ## Concepts
 
 | Type             | Role                                                                                                                                                                                                                                                                                                                                                                                                                                               | Lives in |
@@ -1069,7 +1130,7 @@ Details in [docs/design/management.md](docs/design/management.md).
 | `@ahoo-wang/wow-view-engine` | Model types and constants; the four pure kernels (`validate*` / `compile*` / `project*` and the readings beside them); from the runtime, what a host holds and nothing it is built from — `ViewEngine`, `validateDefinition`, the runtime contracts `ViewRuntime`, `RecordViewRuntime`, `DashboardRuntime` and `AnyViewRuntime` with every type their signatures name, `hasResult`, `hasAsked`, `isRecordRuntime`, the write errors `ViewWriteError` and `ViewCommandError`, `ExportCancelled`, `RuntimeEnvironment`, `defaultRuntimeEnvironment`, `ViewSource`, `OptionSource`; the `ViewStore` port and `MemoryViewStore`                            |
 | `/react`                     | Hooks and headless controllers with the types they return: `useViewEngine`, `useOpenView`, `useViewRuntime`, `useViewList`, `useViewManager`, `useWorkbench`, `useLeaveGuard`, `useFilterEditor`, `useRecordTable`, `useAnalysisEditor`, `useAnalysisResult`, `useDashboard`, `useSaveCommands`, `RecordActionSlots`, and the write-outcome vocabulary the save commands and the manager share                                                                                                                                                                                                                                                         |
 | `/ui`                        | Default components, views and workbenches with their props: `DataWorkbench`, `DashboardWorkbench`, `DashboardEditExtensions`, `useDashboardExtensions`, `EmbeddedView`, `EmbeddedDashboard`, `ViewHeader`, `SaveActions`, `ViewManager`, `LeaveDialog`, `EditorBand`, `FilterPanel`, `StatusStrip`, `AppliedBar`, `ResultToolbar`, `RowActions`, `RecordTable`, `RecordCards`, `RecordPagination`, `AnalysisTable`, `AnalysisChart`, `DashboardGrid`, `HeadingPanel`, `MarkdownPanel`, `ImagePanel`, `LinksPanel`, `MessagesProvider`; the catalogues `defaultMessages` and `zhCN`; the reading of a value, `cellValue`, `cellText` and `displayValue` |
-| `/testing`                   | `memorySource` and `matches`: an in-memory `ViewSource` with Wow's query semantics, for a host's tests ([Testing a host](#testing-a-host-an-in-memory-source))                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| `/testing`                   | `memorySource` and `matches`: an in-memory `ViewSource` with Wow's query semantics; `admit`: a host's declarations admitted over its committed descriptors — for a host's tests ([Testing a host](#testing-a-host-an-in-memory-source))                                                                                                                                                                                                                                                                                                                                                                                                                |
 | `/styles.css`                | The theme. Import it explicitly; no JavaScript entry imports CSS, and nothing in it paints outside the two style boundaries `.fve-root` and `.fve-tokens` (preflight and utilities are scoped at build time, each rule a class heavier than written, so your import order does not matter) — bar the preset reset, which only empties the `--fvp-*` layer where a preset is named — all checked by `scripts/verify-package.mjs` on every build.                                                                                                                                                                                                        |
 | `/themes.css`                | The presets, optional: only `--fvp-*` assignments keyed by `data-fve-preset` ([Presets](#presets)), checked by the same script.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
 | `/themes/<name>.css`         | One preset alone, for a host that wears one: the same block `themes.css` holds for it ([Presets](#presets)).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |

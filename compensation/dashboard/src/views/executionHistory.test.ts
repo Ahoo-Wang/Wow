@@ -12,13 +12,11 @@
  */
 
 import { MemoryViewStore, type ViewSource } from "@ahoo-wang/wow-view-engine";
+import { inLocale } from "./text.ts";
 import { describe, expect, it } from "vitest";
 import { createExecutionEngine, executionEngineOptions } from "./engine.ts";
 import { EXECUTION_FAILED } from "./executionFailed.ts";
-import {
-  EXECUTION_HISTORY,
-  executionHistoryDefinition,
-} from "./executionHistory.ts";
+import { EXECUTION_HISTORY, executionHistory } from "./executionHistory.ts";
 
 const LOCALES = ["en", "zh-CN"] as const;
 
@@ -64,7 +62,9 @@ describe("executionHistoryDefinition", () => {
   });
 
   it("names each event type in both languages", () => {
-    const [en, zh] = LOCALES.map(executionHistoryDefinition);
+    const [en, zh] = LOCALES.map((locale) =>
+      inLocale(executionHistory, locale),
+    );
     const typesOf = (definition: typeof en) =>
       definition.fields
         .find((field) => field.name === "body")
