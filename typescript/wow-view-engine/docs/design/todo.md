@@ -27,6 +27,25 @@
   - 视觉回归基线，Firefox／WebKit 跑一次。（连真服务端的端到端已落地，见下一节。）
   - 判据：每条要么合并、要么由用户拍板推迟到首发后并写进 [decisions.md](decisions.md)。落点：本页。
 
+## 架构与代码质量审查（2026-09-27）的处置——按序交子代理做
+
+第一轮扫描（重复度、依赖方向、没人用的导出）的发现，用户 2026-09-27 按推荐定；同时只跑一个子代理，一件做完再派下一件。
+
+1. **ui 各功能目录之间不成环，焦点工具只有一份，图的框架只有一份**（在做，分支 `refactor/ui-cycles`）：
+   - 为什么：`ui/charts` 为 `pointAnchor` 反向依赖 `ui/analysis`，`ui/filter` 为 `focusIn`／`useLanding` 反向依赖 `ui/analysis` 与 `ui/dashboard`；`focusIn`、`FOCUSABLE` 存了两份；箱线图、K 线图、瀑布图的「类目 × 数值」框架逐字重复；`isRemovable` 等内部死代码与多余的 `export`。
+   - 判据：`test/architecture.test.ts` 有一条「ui 功能目录之间不成环」的规则并带允许方向表；三种图的 option 逐字节不变；引擎测试、构建与相关故事通过。落点：`src/ui/focus.ts`、`src/ui/charts/`、`test/architecture.test.ts`。
+2. **入口逐个点名导出，公开面是有意识的决定**：
+   - 为什么：`src/index.ts`、`src/ui/index.ts`、`src/react/index.ts` 是整模块 `export *`，文件里为内部复用写的 `export` 都成了公开 API；审查找到 15 个没有任何调用方、文档与测试的公开导出。首发后每一个都要背兼容。
+   - 裁定（用户：「按你推荐」）：`HeadingPanel` 保留（README 点名，宿主单独渲染标题卡用），补一个单独渲染的故事；`useSurfacePreset` 删掉（#3648 把预设写到 `<html>` 后已无人调用）；其余收回不公开——`useMessages`、`refreshIntervalLabel`、`remainingLabel`、`ALL_FEATURES`、`sameLayout`、`elementTitleView`、`VALUE_METRIC_TYPES`、`DATE_AGGREGATION_FUNCTIONS`、`SINGLE_STRING_FIELD_KIND_IDS`、`RELATIVE_DATE_DIRECTIONS`、`DEFAULT_COMPARE_BUDGET`、`FIELD_NAME_PATTERN` 与 `documentIdFieldKind` 等五个元数据字段类型（已由 `builtinFieldKinds` 整体给出）。
+   - 判据：三个入口里没有 `export *`，每个公开名在入口里明写一行（可用类型检查器按现有导出生成，再减去上面的名字）；`test/surface/*.txt` 只少这些名字、不多不少；加一条架构测试：入口不许 `export *`；README「Entries」与 D29 的说法照改。落点：三个入口、`test/publicSurface.test.ts`、`test/architecture.test.ts`。
+3. **内存版 Wow 查询求值器只留一份**（用户：「同意」）：
+   - 为什么：Storybook 的 `stories/view-engine/rowSource.ts`（约 1,500 行）与补偿控制台 e2e 的 `e2e/support/executionFailedService.ts` 各自实现一遍 Wow 的筛选与聚合语义，各自漏算子、互相漂移（R1-P1-11 故事源不认 `IS_EMPTY`；控制台桩不认 `DATE_PART` 与百分位，2026-09-27 补上）。
+   - 判据：一份共用实现（放在不发 npm 的工作区包里，或视图引擎的测试夹具下由两处引用），两处都改用它；语义按 Kotlin 侧的 `FilterSemantics` 矩阵与 TCK 的用例核对（同一份用例在 TS 里跑一遍）；Storybook 与控制台 e2e 全部通过。落点：新共用位置、`rowSource.ts`、`executionFailedService.ts`。
+4. **其余发现**（同批顺带或各自一个小 PR）：
+   - wow-mongo 的「空值安全的二元运算」（`$let`＋`$cond`、除零保护）在 `MongoAggregationExpressions.kt` 与 `MongoAggregationProjection.kt` 各写一遍——抽成一个函数，两处共用，行为不变。
+   - `RecordWorkbench.test.stories.tsx` 约 7,000 行、九十多个故事——按关注点拆成几个文件（筛选、表格、主题与密度、详情、批量）。
+   - `ui/` 根目录约 80 个文件把共用基础件（IconButton、variants、popups、toolbar、roving、alerts……）与拼装各功能的外壳（WorkbenchShell、DataWorkbench……）混在一处，与几乎每个子目录双向依赖——先出拆分方案（kit 与外壳分目录、依赖方向）给用户看，再动。
+
 ## Storybook 审查（2026-09-26）的处置
 
 - **按道修 [review-2026-09-26.md](../../../storybook/docs/review-2026-09-26.md) 的 P0/P1**：
