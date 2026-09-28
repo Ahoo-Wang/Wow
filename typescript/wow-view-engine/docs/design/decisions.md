@@ -280,7 +280,7 @@
   - **每个代码入口的导出逐名记成清单**（`test/surface/root.txt`、`react.txt`、`ui.txt`，每行一个名字、注明类型还是值），`test/publicSurface.test.ts` 从源码入口读出来比对，`scripts/verify-package.mjs` 再拿它核对构建出的 JS 入口。改清单就是改公开面，在评审里单独看得见；用 `vitest -u` 有意更新。
   - **运行时逐名导出，只导出宿主要握的**：`ViewEngine` 与它的选项、运行时合同（`ViewRuntime`、`RecordViewRuntime`、`DashboardRuntime`、`AnyViewRuntime` 与它们签名里出现的每一个类型）、`hasResult`／`hasAsked`／`isRecordRuntime` 三个读法、写入错误与 `ExportCancelled`、`RuntimeEnvironment` 与 `ViewSource`／`OptionSource` 两个端口、`validateDefinition`。其余 60 个名字不出包：调度器（`RequestRunner` 一族）、`RuntimeStore`、计时器、`listenerSet`、运行时的类与 `dataViewRuntime`、`ManagedViewRuntime`／`ViewRuntimeOptions` 这类只给引擎的合同，以及 `/react`、`/ui` 共用的读法（`comparePending`、`boardFindings`、`sourceReason` 等）——这两层从各自的文件取，不经入口。
   - **运行时只经引擎打开或新建，不手搭**：`dataViewRuntime` 与 `RequestRunner` 一并收回，公开签名里原本写着类 `DataViewRuntime` 的地方（`DashboardRuntime.panelRuntime`、`DashboardPanelState.runtime`、`/react` 的 `DashboardPanelView.runtime`、`usePanelFollowUps`）改成合同 `ViewRuntime<DataViewConfig>`，`isRecordRuntime` 收窄到 `RecordViewRuntime`。条件编辑器对未注册类型的只读防护照旧由单元测试直接搭 runtime 验；故事改为引擎可达的那一条——注册了却要一个引擎没有的编辑器（`FilterPanel.stories.tsx`「UnknownEditor」）。
-  - 内核与模型仍整层导出：它们是纯函数与类型，「只用内核，不用 React」就是它们的用法；清单让它们的增减同样看得见。
+  - 内核与模型仍整层导出：它们是纯函数与类型，「只用内核，不用 React」就是它们的用法；清单让它们的增减同样看得见。（D64 修订：入口逐名写出每个公开名，十八个没人用的名字退出公开面。）
 - **落点**：`src/runtime/index.ts`、`test/publicSurface.test.ts`、`test/surface/`、`scripts/verify-package.mjs`、[README.md「Entries」](../../README.md#entries)、[README.md](README.md)「包入口」。
 
 ## D30 阶段 5 内置多主题的十条裁定（2026-09-24）
@@ -688,6 +688,17 @@
 - **裁定**（修订 D59 第 1、3、4、5、6 项与 D43 在 porcelain 上的无边做法）：porcelain 不再拿掉任何线与边——表体行线（`row-divider`）、卡片环线（`card-edge`，取边框灰）、以文字或图标自明的控件的边（`control-edge`：筛选胶囊、分段控件、工具栏描边按钮）、侧栏当前项的边与阴影、徽标的环都回到样式表的；未排序列的排序标记常显（`table-sort-idle` 回到 1）；不推荐密度（去掉 `preset-density` −1，行高回到默认 45px），控件高度回到样式表的 32px／28px。填色仍在（`control`、侧栏当前项的灰条），它与边并存。
 - **不做**：D59 第 2 项「一条工具栏」——结果工具栏承载选中后的批量操作，不能并进标题行（设计稿已否决）。
 - **落点**：`src/themes/porcelain.css`、`test/snapshots/resolvedTokens.json`；故事 `Density`「PresetRecommends」、`Home`「porcelain」、`DashboardFilters`「ChipsUnsetInPorcelain」、`RecordWorkbench`「ToolbarButtonsFillInPorcelain」。
+
+## D64 入口逐名写出每个公开导出（2026-09-27）
+
+- **来由**：架构与代码质量审查（2026-09-27）：三个入口 `src/index.ts`、`src/ui/index.ts`、`src/react/index.ts` 整模块 `export *`，文件为邻居写的 `export` 一律成了公开 API；D29 的清单让增减看得见，却不让「公开」成为一个决定。审查找到一批没有任何调用方、文档与测试的公开名，首发后每个都要背兼容。
+- **裁定**（用户：「按你推荐」）：
+  - **入口里没有 `export *`**：每个公开名在入口里明写，按声明它的文件分组，只是类型的带 `type`。清单由类型检查器从当时的入口导出生成（`getExportsOfModule`，沿别名找到声明文件），再减去下面收回的名字，其余一个不多一个不少。层的 `index.ts` 留作包内汇集处，不再是公开面的通道。`test/architecture.test.ts` 守着：入口、以及入口经它转出别人名字的模块，都不许 `export *`／`export * as`。
+  - **收回不公开**（声明留在原处，包内没人从别的文件用的连 `export` 一起去掉）：根入口的 `sameLayout`、`elementTitleView`、`VALUE_METRIC_TYPES`、`DATE_AGGREGATION_FUNCTIONS`、`SINGLE_STRING_FIELD_KIND_IDS`、`RELATIVE_DATE_DIRECTIONS`、`DEFAULT_COMPARE_BUDGET`、`FIELD_NAME_PATTERN` 与五个元数据字段类型 `documentIdFieldKind`、`aggregateIdFieldKind`、`tenantIdFieldKind`、`ownerIdFieldKind`、`spaceIdFieldKind`（已由 `builtinFieldKinds`／`METADATA_FIELD_KINDS` 整体给出）；`/ui` 的 `useMessages`、`refreshIntervalLabel`、`remainingLabel`、`ALL_FEATURES`。
+  - **删掉** `/ui` 的 `useSurfacePreset`：#3648 把预设写到 `<html>` 后没人调用它；它读的上下文仍由 `useSurfaceAttributes` 读，给弹层写 `data-fve-preset`，留着。
+  - **`HeadingPanel` 留着**：README 点名，宿主单独画一张标题卡用；补一个单独渲染的故事（`Dashboard`「HeadingPanelAlone」）。
+- **没选**：入口经层的 `index.ts` 逐名转出（同一份名单写两遍）；层的 `index.ts` 也逐名写（它们只给包内用，写名单不守任何公开面）。
+- **落点**：三个入口；`test/architecture.test.ts`「names every export of an entry, with no export \*」；`test/surface/root.txt`、`ui.txt`；[README.md「Entries」](../../README.md#entries)。
 
 ## 搁置待议
 

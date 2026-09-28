@@ -25,30 +25,83 @@
  */
 // The one callout recipe — the registry's `Alert`, one line high — so a
 // host drawing its own notice above a view can wear the same face.
-export * from './alerts.js';
-export * from './AnalysisChart.js';
+export {
+  type AlertTone,
+  LineAlert,
+  type LineAlertProps,
+  TONE_ICON,
+} from './alerts.js';
+export { AnalysisChart, type AnalysisChartProps } from './AnalysisChart.js';
 export {
   registerChartMap,
   type ChartMapGeoJson,
   type ChartMapSource,
 } from './charts/maps.js';
-export * from './AnalysisTable.js';
-export * from './AppliedBar.js';
-export * from './BulkStatus.js';
-export * from './ColumnSettings.js';
-export * from './DashboardArrange.js';
-export * from './DashboardGrid.js';
-export * from './DashboardPanel.js';
-export * from './DashboardPanels.js';
-export * from './dashboard/extensions.js';
-export * from './DashboardWorkbench.js';
+export { AnalysisTable, type AnalysisTableProps } from './AnalysisTable.js';
+export { AppliedBar, type AppliedBarProps } from './AppliedBar.js';
+export { BulkStatus, type BulkStatusProps } from './BulkStatus.js';
+export { ColumnSettings, type ColumnSettingsProps } from './ColumnSettings.js';
+export {
+  PanelGridItem,
+  type PanelGridItemProps,
+  PanelHandle,
+  type PanelHandleProps,
+  PanelOrder,
+  type PanelOrderProps,
+  PanelResizeHandle,
+  type PanelResizeHandleProps,
+} from './DashboardArrange.js';
+export { DashboardGrid, type DashboardGridProps } from './DashboardGrid.js';
+export {
+  DashboardPanel,
+  type DashboardPanelProps,
+  type PanelHeadingLevel,
+  panelName,
+  panelNames,
+} from './DashboardPanel.js';
+export {
+  ContentPanel,
+  type ContentPanelProps,
+  HeadingPanel,
+  type HeadingPanelProps,
+  ImagePanel,
+  type ImagePanelProps,
+  LinksPanel,
+  type LinksPanelProps,
+  MarkdownPanel,
+  type MarkdownPanelProps,
+} from './DashboardPanels.js';
+export {
+  type DashboardEditExtensions,
+  DashboardEditExtensionsContext,
+  type NewPanelSpot,
+  useDashboardEditExtensions,
+} from './dashboard/extensions.js';
+export {
+  DashboardWorkbench,
+  type DashboardWorkbenchProps,
+} from './DashboardWorkbench.js';
 // Building a board, batch B3 (D22 C–E): the tab bar, the commands a board's
 // menus call and the dialogs they open.
-export * from './dashboard/DashboardTabs.js';
-export * from './dashboard/building.js';
-export * from './dashboard/NewAnalysisDialog.js';
-export * from './dashboard/PresentationDialog.js';
-export * from './describeConfig.js';
+export {
+  DashboardTabs,
+  type DashboardTabsProps,
+  tabTitle,
+} from './dashboard/DashboardTabs.js';
+export {
+  type DashboardExtensionsOptions,
+  useDashboardExtensions,
+} from './dashboard/building.js';
+export {
+  type NewAnalysis,
+  NewAnalysisDialog,
+  type NewAnalysisDialogProps,
+} from './dashboard/NewAnalysisDialog.js';
+export {
+  PresentationDialog,
+  type PresentationDialogProps,
+} from './dashboard/PresentationDialog.js';
+export { describeConfig } from './describeConfig.js';
 /**
  * How this package reads one value, so a host that renders a cell itself can
  * fall back to it instead of reimplementing it.
@@ -81,51 +134,205 @@ export {
   type DisplayContext,
   type DisplayField,
 } from './display.js';
-export * from './download.js';
-export * from './EditorBand.js';
-export * from './EmbeddedDashboard.js';
-export * from './EmbeddedView.js';
-export * from './ExportDialog.js';
-export * from './FilterPanel.js';
-export * from './messages.js';
+export { type DownloadedFile, downloadFile, fileName } from './download.js';
+export {
+  EditorBand,
+  type EditorBandProps,
+  EditorBandToggle,
+  type EditorBandToggleProps,
+  EditorFold,
+  type EditorFoldProps,
+} from './EditorBand.js';
+export {
+  EmbeddedDashboard,
+  type EmbeddedDashboardProps,
+} from './EmbeddedDashboard.js';
+export type {
+  BoardFilterModes,
+  DashboardFilterMode,
+} from './dashboard/filterModes.js';
+export { EmbeddedView, type EmbeddedViewProps } from './EmbeddedView.js';
+export type {
+  EmbedBaseProps,
+  EmbedInteraction,
+  EmbedSize,
+} from './embed/options.js';
+export {
+  ExportButton,
+  ExportDialog,
+  type ExportDialogProps,
+  type ExportOffer,
+  type ExportWindowProps,
+} from './ExportDialog.js';
+export {
+  FilterPanel,
+  type FilterPanelProps,
+  crossesBoundary,
+  leavesEditor,
+} from './FilterPanel.js';
+export {
+  type MessageKey,
+  type ViewMessages,
+  defaultMessages,
+  formatIssue,
+  formatIssues,
+  formatMessage,
+} from './messages.js';
 // The catalogues ship beside the formatters so a host can compose one:
 // `{ ...zhCN, 'label.filter.apply': '确定' }`. `zh-CN` is a leaf module no
 // component imports, so a bundle that only pulls in components drops it.
-export * from './messages/en.js';
-export * from './messages/zh-CN.js';
-export * from './MessagesProvider.js';
-export * from './FilterValueEditor.js';
-export * from './kinds.js';
-export * from './LeaveGuard.js';
-export * from './RecordCards.js';
-export * from './RecordPagination.js';
-export * from './RecordTable.js';
-export * from './DataWorkbench.js';
-export * from './features.js';
-export * from './RenderBoundary.js';
-export * from './presets.js';
+export { en } from './messages/en.js';
+export { zhCN } from './messages/zh-CN.js';
+export {
+  type MessageFormatters,
+  MessagesProvider,
+  type MessagesProviderProps,
+  useViewMessages,
+} from './MessagesProvider.js';
+export {
+  FilterValueEditor,
+  type FilterValueEditorProps,
+} from './FilterValueEditor.js';
+export { NumberInput } from './filter/inputs/number.js';
+export {
+  AUDIENCE_ICON,
+  KIND_ICON,
+  SYSTEM_ICON,
+  SurfaceKind,
+  kindIssue,
+  kindWord,
+  useKindIssue,
+  useKindWord,
+} from './kinds.js';
+export { LeaveDialog, type LeaveDialogProps } from './LeaveGuard.js';
+export { RecordCards, type RecordCardsProps } from './RecordCards.js';
+export {
+  RecordPagination,
+  type RecordPaginationProps,
+} from './RecordPagination.js';
+export {
+  type RecordCell,
+  RecordTable,
+  type RecordTableProps,
+} from './RecordTable.js';
+export {
+  type DataViewKind,
+  DataWorkbench,
+  type DataWorkbenchProps,
+} from './DataWorkbench.js';
+export { type WorkbenchFeatures, featuresOf } from './features.js';
+export {
+  RenderBoundary,
+  type RenderBoundaryName,
+  type RenderBoundaryProps,
+  type RenderFailure,
+  type RenderFailureHandler,
+  RenderSlot,
+} from './RenderBoundary.js';
+export {
+  BUILT_IN_PRESETS,
+  type BuiltInPreset,
+  type ViewDensity,
+  type ViewPreset,
+} from './presets.js';
 // The theme's contract as a type: every `--fve-*` a host may set (the
 // registry itself is not public; its machine form is `theme-tokens.json`).
 export type { FveToken } from './theme/tokens.js';
-export * from './RefreshControl.js';
-export * from './ResultToolbar.js';
-export * from './RowActions.js';
-export * from './SaveActions.js';
-export * from './SaveAsDialog.js';
-export * from './SortSettings.js';
-export * from './StatusStrip.js';
+export { RefreshControl, type RefreshControlProps } from './RefreshControl.js';
+export {
+  LAYOUT_LABEL,
+  ResultToolbar,
+  type ResultToolbarProps,
+} from './ResultToolbar.js';
+export { RowActions, type RowActionsProps } from './RowActions.js';
+export {
+  SaveActions,
+  type SaveActionsProps,
+  SharedSaveConfirm,
+  UnsavedMark,
+} from './SaveActions.js';
+export {
+  type SaveAsCommands,
+  SaveAsDialog,
+  type SaveAsDialogProps,
+} from './SaveAsDialog.js';
+export {
+  type SortOwner,
+  SortSettings,
+  type SortSettingsProps,
+} from './SortSettings.js';
+export {
+  ErrorStrip,
+  type ErrorStripProps,
+  type IssueStripProps,
+  NoteStrip,
+  QueryStrip,
+  type QueryStripProps,
+  StatusStrip,
+  type StatusStripProps,
+  WarningStrip,
+  dedupeIssues,
+} from './StatusStrip.js';
 // The hook ships beside the toggle: an embed has no title bar to put a
 // button in, so a host that wants its embed to fill the screen owns the
 // control and points this at the surface it got a ref to.
-export * from './ViewExpansion.js';
-export * from './ViewHeader.js';
-export * from './ViewList.js';
-export * from './ViewSwitcher.js';
-export * from './ViewManager.js';
-export * from './ViewSurface.js';
-export * from './WorkbenchShell.js';
-export * from './workbench/parts.js';
-export * from './workbench/RecordParts.js';
-export * from './workbench/AnalysisParts.js';
-export * from './workbench/NewView.js';
-export * from './WriteOutcome.js';
+export {
+  ViewExpandExit,
+  ViewExpandToggle,
+  type ViewExpandToggleProps,
+  type ViewExpansion,
+  useViewExpansion,
+} from './ViewExpansion.js';
+export {
+  RevertDialog,
+  type RevertDialogProps,
+  ViewHeader,
+  type ViewHeaderProps,
+  type ViewHeaderState,
+} from './ViewHeader.js';
+export { ViewList, type ViewListProps } from './ViewList.js';
+export { ViewSwitcher, type ViewSwitcherProps } from './ViewSwitcher.js';
+export { ViewManager, type ViewManagerProps } from './ViewManager.js';
+export {
+  ViewSurface,
+  type ViewSurfaceProps,
+  type ViewTheme,
+  useSurfaceAttributes,
+  useSurfaceDisplay,
+  useSurfaceFont,
+  useSurfaceHostTokens,
+  useSurfaceTheme,
+  useSurfaceTokens,
+} from './ViewSurface.js';
+export {
+  type WorkbenchLandmark,
+  WorkbenchShell,
+  type WorkbenchShellProps,
+} from './WorkbenchShell.js';
+export {
+  NO_PARTS,
+  type RenderParts,
+  type WorkbenchParts,
+} from './workbench/parts.js';
+export {
+  type RecordDetailOptions,
+  RecordParts,
+  type RecordPartsProps,
+  type RecordViewProps,
+} from './workbench/RecordParts.js';
+export type { ExportedFile } from './record/exportOffer.js';
+export {
+  type AnalysisHost,
+  AnalysisParts,
+  type AnalysisPartsProps,
+} from './workbench/AnalysisParts.js';
+export {
+  type NewViewCommand,
+  NewViewControl,
+  NewViewItem,
+} from './workbench/NewView.js';
+export {
+  type ViewWriteCallbacks,
+  WriteOutcome,
+  type WriteOutcomeProps,
+} from './WriteOutcome.js';

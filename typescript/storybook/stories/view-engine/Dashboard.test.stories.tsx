@@ -22,6 +22,7 @@ import displayMeta, {
   EmptyDashboard as DisplayEmptyDashboard,
   Filters as DisplayFilters,
   GlobalFilter as DisplayGlobalFilter,
+  HeadingPanelAlone as DisplayHeadingPanelAlone,
   LegacyLayout as DisplayLegacyLayout,
   PanelUnavailable as DisplayPanelUnavailable,
   PersonalViewOnSharedBoard as DisplayPersonalViewOnSharedBoard,
@@ -796,5 +797,33 @@ export const NewAnalysisTitleFirstOnAPhone: Story = {
     );
     await userEvent.keyboard('{Escape}');
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+  },
+};
+
+/**
+ * `HeadingPanel` by itself, as a host draws a section's title without a
+ * board: the words it is given, as one line of plain text — a long title is
+ * cut short, not wrapped, since a heading card is one row high.
+ */
+export const HeadingPanelAlone: Story = {
+  ...DisplayHeadingPanelAlone,
+  play: async ({ canvasElement }) => {
+    const headings = [
+      ...canvasElement.querySelectorAll<HTMLElement>(
+        '[data-slot="panel-heading"]',
+      ),
+    ];
+    await expect(headings.map(heading => heading.textContent)).toEqual([
+      '华南仓 · 本周出库',
+      '华南仓、华东仓与西南仓 · 本周出库、退货与异常处理的总览',
+    ]);
+    const [short, long] = headings;
+    await expect(short).toBeVisible();
+    // The short title whole; the long one cut to the same single line.
+    await expect(short.scrollWidth).toBeLessThanOrEqual(short.clientWidth + 1);
+    await expect(long.scrollWidth).toBeGreaterThan(long.clientWidth);
+    await expect(long.getBoundingClientRect().height).toBe(
+      short.getBoundingClientRect().height,
+    );
   },
 };

@@ -454,7 +454,7 @@ export function reorderPanelIn(
 }
 
 /** Whether two layouts are the same four numbers. */
-export function sameLayout(a: PanelLayout, b: PanelLayout): boolean {
+function sameLayout(a: PanelLayout, b: PanelLayout): boolean {
   return a.x === b.x && a.y === b.y && a.w === b.w && a.h === b.h;
 }
 

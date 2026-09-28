@@ -81,7 +81,7 @@ export type RelativeDateDirection = 'past' | 'future';
  */
 export const MAX_RELATIVE_DATE_AMOUNT = 100_000;
 
-export const RELATIVE_DATE_DIRECTIONS: readonly RelativeDateDirection[] = [
+const RELATIVE_DATE_DIRECTIONS: readonly RelativeDateDirection[] = [
   'past',
   'future',
 ];

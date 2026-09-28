@@ -71,7 +71,7 @@ export function MessagesProvider({
   );
 }
 
-export function useMessages(): ViewMessages {
+function useMessages(): ViewMessages {
   return useContext(MessagesContext);
 }
 

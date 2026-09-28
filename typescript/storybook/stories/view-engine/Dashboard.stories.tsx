@@ -16,6 +16,8 @@ import {
   DashboardWorkbench,
   DataWorkbench,
   EmbeddedDashboard,
+  HeadingPanel,
+  ViewSurface,
 } from '@ahoo-wang/wow-view-engine/ui';
 import {
   AggregationDateUnit,
@@ -884,4 +886,27 @@ export const CannotOpen: Story = { args: { variant: 'deleted' } };
 export const LegacyLayout: Story = {
   name: '旧的 12 列布局',
   args: { variant: 'legacy' },
+};
+
+/**
+ * 标题卡单独用：宿主不开仪表盘，只在自己的页里画一段的标题，就像板上的标题卡
+ * 那样——一行纯文字，放不下就截断而不折行。它是 `/ui` 公开的 `HeadingPanel`，
+ * 画在宿主自己的卡片里，外面套一层 `ViewSurface` 取主题与措辞。
+ */
+export const HeadingPanelAlone: Story = {
+  name: '标题卡单独用',
+  render: () => (
+    <div style={{ display: 'grid', gap: 16, padding: 24, maxWidth: 360 }}>
+      <ViewSurface {...HOST_LANGUAGE}>
+        <div className="rounded-lg border bg-card p-4">
+          <HeadingPanel content="华南仓 · 本周出库" />
+        </div>
+      </ViewSurface>
+      <ViewSurface {...HOST_LANGUAGE}>
+        <div className="rounded-lg border bg-card p-4">
+          <HeadingPanel content="华南仓、华东仓与西南仓 · 本周出库、退货与异常处理的总览" />
+        </div>
+      </ViewSurface>
+    </div>
+  ),
 };

@@ -100,10 +100,7 @@ export function isFieldlessKind(
  * kind is at hand; a registered one answers for itself through
  * `FieldKind.singleString`, exactly as `isFieldlessKind` works.
  */
-export const SINGLE_STRING_FIELD_KIND_IDS: readonly FieldKindId[] = [
-  'string',
-  'enum',
-];
+const SINGLE_STRING_FIELD_KIND_IDS: readonly FieldKindId[] = ['string', 'enum'];
 
 /**
  * Whether one record holds at most one string in this field.
@@ -157,7 +154,7 @@ export const BUILTIN_FIELD_KIND_IDS: readonly BuiltinFieldKindId[] = [
  * A name outside it reaches the compiler as a `TypeError` rather than as an
  * Issue, so every layer that accepts a field name from data checks it first.
  */
-export const FIELD_NAME_PATTERN =
+const FIELD_NAME_PATTERN =
   /^@?[A-Za-z_][A-Za-z0-9_-]*(\.(?:@?[A-Za-z_][A-Za-z0-9_-]*|[0-9]+))*$/;
 
 export function isFieldName(name: string): boolean {
@@ -509,7 +506,7 @@ export function currencyPathOf(
  * an analysis spells as a metric of its own; the same reason leaves the sum,
  * the average, the deviation and the variance out.
  */
-export const DATE_AGGREGATION_FUNCTIONS = ['MIN', 'MAX'] as const;
+const DATE_AGGREGATION_FUNCTIONS = ['MIN', 'MAX'] as const;
 
 /**
  * The aggregate functions a field really offers an analysis: what its
