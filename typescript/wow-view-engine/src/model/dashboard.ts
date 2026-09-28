@@ -293,6 +293,16 @@ interface DashboardViewPanelBase extends DashboardPanelBase {
    * cannot open is the workbench's to say, as for any view opened by id.
    */
   opens?: string;
+  /**
+   * The board's time filter does not reach this panel through its view's
+   * time field (`DataViewDefinition.timeField`): 「全部活动」 counts the
+   * pile whatever the range. Left out, a board with one date filter wires
+   * it to every panel whose view has a time field and that is not wired
+   * to it already — derived each time the board is read, never stored
+   * (D1); a wire written by hand always wins. Taking a date filter's wire
+   * off a panel by hand sets it.
+   */
+  ignoresTime?: true;
 }
 
 /**
@@ -376,6 +386,14 @@ export interface PanelBinding {
    * this panel. Left out for a binding the author chose.
    */
   auto?: true;
+  /**
+   * Made from the panel's view's time field when the board is read (D1,
+   * `withTimeBindings`), with `auto`: made again on every read, dropped the
+   * moment it no longer follows — another view, a second date filter, the
+   * panel reading whole — and never stored. A wire auto-connect made
+   * (`auto` alone) is the author's, and stays as it is.
+   */
+  derived?: true;
 }
 
 /**
@@ -438,6 +456,15 @@ export interface DashboardViewConfig extends ViewConfigBase {
   /** The board's time grouping; a board without one leaves it out. */
   timeGrouping?: DashboardTimeGrouping;
   panels: DashboardPanel[];
+  /**
+   * The storage marker of a board whose time wires are derived (D1, user
+   * 2026-09-28): written on every board a save stores
+   * (`storedTimeWires`), which stores no wire made from a view. A stored
+   * board without it was saved before, when an unwired panel stayed
+   * unwired, and is migrated on read (`withTimeIgnored`). A board as the
+   * engine reads it never carries it (`withTimeBindings`).
+   */
+  derivesTime?: true;
 }
 
 /**

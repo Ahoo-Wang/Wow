@@ -281,5 +281,5 @@ function unwire(
   const ids = config.panels.flatMap(panel =>
     isViewPanel(panel) ? [panel.id] : [],
   );
-  return unbindPanels(config, name, ids);
+  return unbindPanels(config, name, ids, { byHand: false });
 }

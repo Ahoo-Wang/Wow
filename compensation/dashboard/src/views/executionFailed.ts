@@ -11,21 +11,17 @@
  * limitations under the License.
  */
 
+import { AggregationDateUnit } from "@ahoo-wang/wow-client";
 import {
-  AggregationDatePart,
-  AggregationDateUnit,
-  AggregationFunction,
-  AggregationGroupType,
-} from "@ahoo-wang/wow-client";
-import type {
-  AnalysisViewConfig,
-  DataViewDefinition,
-  FilterNode,
-  RecordViewConfig,
-  SystemView,
+  defineView,
+  type AnalysisViewConfig,
+  type FilterNode,
+  type RecordViewConfig,
+  type SystemView,
 } from "@ahoo-wang/wow-view-engine";
-import type { Locale } from "@/i18n.tsx";
-import { failureAnalyses } from "./failureAnalyses.ts";
+import { EXECUTION_FAILED_DESCRIPTOR } from "./descriptors.ts";
+import { FAILURE_ANALYSIS_VIEWS } from "./failureAnalyses.ts";
+import { textKeys, type Words } from "./textKeys.ts";
 
 /** The definition's id: what saved views and routes name it by. */
 export const EXECUTION_FAILED = "execution-failed";
@@ -45,16 +41,14 @@ export const ACTIVE_CONDITION: FilterNode = {
 /** What a retry may still recover (`RetryConditions`). */
 const RETRYABLE_RECOVERABILITY = ["RECOVERABLE", "UNKNOWN"];
 
-const { TERMS, HISTOGRAM, DATE_HISTOGRAM, DATE_PART } = AggregationGroupType;
-const { SUM, AVG, MIN, MAX } = AggregationFunction;
 const { HOUR, DAY, WEEK, MONTH } = AggregationDateUnit;
 
 /**
- * Every word the definition shows, per language. A definition carries one
- * language (`label: string`), so the console builds one per language and
- * rebuilds the engine when the language changes (rebuild proposal, G12).
+ * Every word the definition shows, per language. The definition writes
+ * their keys (`t`) and the engine says them in the language in force
+ * (`definitionText`), so one definition serves both.
  */
-const TEXT = {
+export const EXECUTION_FAILED_WORDS = {
   en: {
     title: "Failed executions",
     recordNoun: "failed execution",
@@ -191,7 +185,9 @@ const TEXT = {
     clusterOldest: "最早执行",
     clusterNextRetry: "最早下次重试",
   },
-} satisfies Record<Locale, Record<string, string>>;
+} satisfies Words;
+
+const t = textKeys("executionFailed", EXECUTION_FAILED_WORDS.en);
 
 const COLUMNS = [
   "state.id",
@@ -352,7 +348,7 @@ export const UNRECOVERABLE: FilterNode[] = [
  * (「在工作台中打开」). Five dimensions draw no chart (D20), so it reads as a
  * table.
  */
-function clustersAnalysis(t: (typeof TEXT)[Locale]): AnalysisViewConfig {
+function clustersAnalysis(): AnalysisViewConfig {
   const status = (value: string): FilterNode => ({
     field: "state.status",
     operator: "IN",
@@ -430,7 +426,7 @@ export function clusterTimes(
  * `AFTER_NOW`, which need a Wow 9.2.0 service or later, and take the
  * advanced filter mode for their nested groups.
  */
-function systemViews(t: (typeof TEXT)[Locale]): SystemView[] {
+function systemViews(): SystemView[] {
   return [
     {
       id: "active",
@@ -541,371 +537,206 @@ function systemViews(t: (typeof TEXT)[Locale]): SystemView[] {
     {
       id: "clusters",
       title: t.analysisClusters,
-      config: clustersAnalysis(t),
+      config: clustersAnalysis(),
     },
   ];
 }
 
+/** The time an analysis buckets by: an hour to a month (the rest are noise). */
+const DATE_UNITS = [HOUR, DAY, WEEK, MONTH];
+
 /**
  * The compensation service's `execution_failed` snapshot as the view engine
- * reads it, written from the service's own query schema
- * (`GET /execution_failed/snapshot/schema`): every field is one the schema
- * lists, with the operators, sorting and aggregation an operator is offered.
- * The engine narrows it to the descriptor the service answers at run time,
- * so what a storage cannot answer is not offered and the page and
- * aggregation limits are the service's: the definition chooses, it never
- * states the server's limits (C6). Left out on purpose: the derived duplicates the schema lists with no
- * capability, the snapshot's bookkeeping and the binding errors.
+ * reads it, built from the service's descriptor (`defineView`): which paths
+ * there are, what each holds, what it sorts and feeds are the descriptor's;
+ * what is listed here, in what words and order, and what is narrowed are the
+ * console's. Left out on purpose: the snapshot's bookkeeping, the binding
+ * errors, the ids no one reads by. The engine narrows it again to the
+ * descriptor the service answers at run time (C6).
  */
-export function executionFailedDefinition(locale: Locale): DataViewDefinition {
-  const t = TEXT[locale];
-  return {
-    id: EXECUTION_FAILED,
-    title: t.title,
-    recordNoun: t.recordNoun,
-    kind: "data",
-    source: EXECUTION_FAILED_SOURCE,
-    fieldGroups: [
-      { id: "search", label: t.groupSearch, fields: ["keyword"] },
-      {
-        id: "identity",
-        label: t.groupIdentity,
-        fields: ["state.id", "state.eventId.id"],
-      },
-      {
-        id: "status",
-        label: t.groupStatus,
-        fields: [
-          "state.status",
-          "state.recoverable",
-          "state.isRetryable",
-          "state.isBelowRetryThreshold",
-        ],
-      },
-      {
-        id: "function",
-        label: t.groupFunction,
-        fields: [
-          "state.function.contextName",
-          "state.function.processorName",
-          "state.function.name",
-          "state.function.functionKind",
-        ],
-      },
-      {
-        id: "event",
-        label: t.groupEvent,
-        fields: [
-          "state.eventId.aggregateId.contextName",
-          "state.eventId.aggregateId.aggregateName",
-          "state.eventId.aggregateId.aggregateId",
-          "state.eventId.version",
-        ],
-      },
-      {
-        id: "error",
-        label: t.groupError,
-        fields: [
-          "state.error.errorCode",
-          "state.error.errorMsg",
-          "state.error.stackTrace",
-        ],
-      },
-      {
-        id: "retry",
-        label: t.groupRetry,
-        fields: [
-          "state.retryState.retries",
-          "state.retrySpec.maxRetries",
-          "state.retrySpec.minBackoff",
-          "state.retrySpec.executionTimeout",
-          "state.retryState.retryAt",
-          "state.retryState.nextRetryAt",
-          "state.retryState.timeoutAt",
-        ],
-      },
-      {
-        id: "time",
-        label: t.groupTime,
-        fields: ["firstEventTime", "eventTime", "state.executeAt"],
-      },
-    ],
-    fields: [
-      // The full text an operator searches: what went wrong and where. A
-      // pasted piece of an error means those words together, hence a
-      // phrase. The storage decides whether it exists at all: Elasticsearch
-      // searches it, MongoDB only with a text index on the collection, and
-      // the service's descriptor says which (G15), so the search box is
-      // drawn only where the service answers it.
-      {
-        name: "keyword",
-        label: t.keyword,
-        kind: "search",
-        searchFields: ["state.error.errorMsg", "state.error.stackTrace"],
-        searchMode: "PHRASE",
-      },
-      {
-        name: "state.id",
-        label: t.id,
-        kind: "string",
-        sortable: true,
-        cell: "copyable",
-      },
-      {
-        name: "state.eventId.id",
-        label: t.eventId,
-        kind: "string",
-        sortable: true,
-        cell: "copyable",
-      },
-      {
-        name: "state.status",
-        label: t.status,
-        kind: "enum",
-        sortable: true,
-        cell: "status",
-        options: [
-          { value: "FAILED", label: t.statusFailed, tone: "danger" },
-          { value: "PREPARED", label: t.statusPrepared, tone: "warning" },
-          { value: "SUCCEEDED", label: t.statusSucceeded, tone: "success" },
-        ],
-      },
-      {
-        name: "state.recoverable",
-        label: t.recoverable,
-        kind: "enum",
-        sortable: true,
-        options: [
-          { value: "RECOVERABLE", label: t.recoverableYes },
-          { value: "UNRECOVERABLE", label: t.recoverableNo },
-          { value: "UNKNOWN", label: t.recoverableUnknown },
-        ],
-      },
-      {
-        name: "state.isRetryable",
-        label: t.isRetryable,
-        kind: "boolean",
-        sortable: true,
-      },
-      {
-        name: "state.isBelowRetryThreshold",
-        label: t.isBelowRetryThreshold,
-        kind: "boolean",
-        sortable: true,
-      },
-      {
-        name: "state.function.contextName",
-        label: t.functionContext,
-        kind: "string",
-        sortable: true,
-      },
-      {
-        name: "state.function.processorName",
-        label: t.processor,
-        kind: "string",
-        sortable: true,
-      },
-      {
-        name: "state.function.name",
-        label: t.functionName,
-        kind: "string",
-        sortable: true,
-      },
-      {
-        name: "state.function.functionKind",
-        label: t.functionKind,
-        kind: "enum",
-        sortable: true,
-        options: [
-          { value: "COMMAND", label: t.kindCommand },
-          { value: "SOURCING", label: t.kindSourcing },
-          { value: "EVENT", label: t.kindEvent },
-          { value: "STATE_EVENT", label: t.kindStateEvent },
-          { value: "ERROR", label: t.kindError },
-        ],
-      },
-      {
-        name: "state.eventId.aggregateId.contextName",
-        label: t.eventContext,
-        kind: "string",
-        sortable: true,
-      },
-      {
-        name: "state.eventId.aggregateId.aggregateName",
-        label: t.eventAggregate,
-        kind: "string",
-        sortable: true,
-      },
-      {
-        name: "state.eventId.aggregateId.aggregateId",
-        label: t.eventAggregateId,
-        kind: "string",
-        sortable: true,
-        cell: "copyable",
-      },
-      {
-        name: "state.eventId.version",
-        label: t.eventVersion,
-        kind: "number",
-        sortable: true,
-      },
-      {
-        name: "state.error.errorCode",
-        label: t.errorCode,
-        kind: "string",
-        sortable: true,
-      },
-      // Shown and searched (`keyword`). Which comparisons they take depends
-      // on the storage — full text alone on Elasticsearch, exact and literal
-      // matching on MongoDB — so the service's descriptor decides.
-      {
-        name: "state.error.errorMsg",
-        label: t.errorMsg,
-        kind: "string",
-        cell: "text",
-      },
-      {
-        name: "state.error.stackTrace",
-        label: t.stackTrace,
-        kind: "string",
-        cell: "text",
-      },
-      {
-        name: "state.retryState.retries",
-        label: t.retries,
-        kind: "number",
-        sortable: true,
-        summary: ["SUM", "AVG", "MAX"],
-      },
-      {
-        name: "state.retrySpec.maxRetries",
-        label: t.maxRetries,
-        kind: "number",
-        sortable: true,
-      },
-      {
-        name: "state.retrySpec.minBackoff",
-        label: t.minBackoff,
-        kind: "number",
-        sortable: true,
-      },
-      {
-        name: "state.retrySpec.executionTimeout",
-        label: t.executionTimeout,
-        kind: "number",
-        sortable: true,
-      },
-      {
-        name: "state.retryState.retryAt",
-        label: t.retryAt,
-        kind: "datetime",
-        sortable: true,
-      },
-      {
-        name: "state.retryState.nextRetryAt",
-        label: t.nextRetryAt,
-        kind: "datetime",
-        sortable: true,
-      },
-      {
-        name: "state.retryState.timeoutAt",
-        label: t.timeoutAt,
-        kind: "datetime",
-        sortable: true,
-      },
-      {
-        name: "firstEventTime",
-        label: t.firstEventTime,
-        kind: "datetime",
-        sortable: true,
-      },
-      {
-        name: "eventTime",
-        label: t.eventTime,
-        kind: "datetime",
-        sortable: true,
-      },
-      {
-        name: "state.executeAt",
-        label: t.executeAt,
-        kind: "datetime",
-        sortable: true,
-      },
-    ],
-    record: {
-      rowKey: "state.id",
-      paging: "paged",
-      layouts: ["table", "card"],
-      // What the row and bulk commands read to decide what an execution
-      // takes (`getCompensationCapabilities`) and which recoverability it
-      // already has, whichever columns the open view shows.
-      rowFields: [
-        "state.status",
-        "state.isBelowRetryThreshold",
-        "state.retryState.timeoutAt",
-        "state.recoverable",
-      ],
+export const executionFailed = defineView(EXECUTION_FAILED_DESCRIPTOR, {
+  id: EXECUTION_FAILED,
+  source: EXECUTION_FAILED_SOURCE,
+  title: t.title,
+  recordNoun: t.recordNoun,
+  // When an execution ran: what the overview's window reads it by.
+  timeField: "state.executeAt",
+  fieldGroups: [
+    { id: "search", label: t.groupSearch, fields: ["keyword"] },
+    {
+      id: "identity",
+      label: t.groupIdentity,
+      fields: ["state.id", "state.eventId.id"],
     },
-    // What the schema lets the service aggregate: terms by value, numeric
-    // bands and sums, date buckets — and a date's earliest and latest.
-    analysis: {
-      count: true,
-      having: true,
-      expressions: true,
-      dateDiffUnits: ["MINUTE", "HOUR", "DAY"],
+    {
+      id: "status",
+      label: t.groupStatus,
       fields: [
-        ...[
-          "state.status",
-          "state.recoverable",
-          "state.isRetryable",
-          "state.isBelowRetryThreshold",
-          "state.function.functionKind",
-          "state.function.contextName",
-          "state.function.processorName",
-          "state.function.name",
-          "state.eventId.aggregateId.contextName",
-          "state.eventId.aggregateId.aggregateName",
-          "state.error.errorCode",
-        ].map((field) => ({ field, groups: [TERMS], functions: [] })),
-        {
-          field: "state.eventId.aggregateId.aggregateId",
-          groups: [],
-          functions: [],
-          distinctCount: true,
-        },
-        {
-          field: "state.retryState.retries",
-          groups: [TERMS, HISTOGRAM],
-          functions: [SUM, AVG, MIN, MAX],
-          percentile: true,
-        },
-        {
-          field: "state.retrySpec.maxRetries",
-          groups: [TERMS],
-          functions: [AVG, MIN, MAX],
-        },
-        ...["state.executeAt", "state.retryState.nextRetryAt"].map((field) => ({
-          field,
-          groups: [DATE_HISTOGRAM],
-          functions: [MIN, MAX],
-          dateUnits: [HOUR, DAY, WEEK, MONTH],
-        })),
-        // When failures arrive (the weekday, the hour) and how long a
-        // recovery took (from the first failure to the last change).
-        ...["firstEventTime", "eventTime"].map((field) => ({
-          field,
-          groups: [DATE_HISTOGRAM, DATE_PART],
-          functions: [MIN, MAX],
-          dateUnits: [HOUR, DAY, WEEK, MONTH],
-          dateParts: [
-            AggregationDatePart.DAY_OF_WEEK,
-            AggregationDatePart.HOUR_OF_DAY,
-          ],
-          expressionInput: true,
-          percentile: true,
-        })),
+        "state.status",
+        "state.recoverable",
+        "state.isRetryable",
+        "state.isBelowRetryThreshold",
       ],
     },
-    views: [...systemViews(t), ...failureAnalyses(locale)],
-  };
-}
+    {
+      id: "function",
+      label: t.groupFunction,
+      fields: [
+        "state.function.contextName",
+        "state.function.processorName",
+        "state.function.name",
+        "state.function.functionKind",
+      ],
+    },
+    {
+      id: "event",
+      label: t.groupEvent,
+      fields: [
+        "state.eventId.aggregateId.contextName",
+        "state.eventId.aggregateId.aggregateName",
+        "state.eventId.aggregateId.aggregateId",
+        "state.eventId.version",
+      ],
+    },
+    {
+      id: "error",
+      label: t.groupError,
+      fields: [
+        "state.error.errorCode",
+        "state.error.errorMsg",
+        "state.error.stackTrace",
+      ],
+    },
+    {
+      id: "retry",
+      label: t.groupRetry,
+      fields: [
+        "state.retryState.retries",
+        "state.retrySpec.maxRetries",
+        "state.retrySpec.minBackoff",
+        "state.retrySpec.executionTimeout",
+        "state.retryState.retryAt",
+        "state.retryState.nextRetryAt",
+        "state.retryState.timeoutAt",
+      ],
+    },
+    {
+      id: "time",
+      label: t.groupTime,
+      fields: ["firstEventTime", "eventTime", "state.executeAt"],
+    },
+  ],
+  fields: {
+    // The full text an operator searches: what went wrong and where. A
+    // pasted piece of an error means those words together, hence a phrase.
+    // The storage decides whether it exists at all: Elasticsearch searches
+    // it, MongoDB only with a text index on the collection, and the
+    // service's descriptor says which (G15), so the search box is drawn
+    // only where the service answers it.
+    keyword: {
+      label: t.keyword,
+      search: {
+        fields: ["state.error.errorMsg", "state.error.stackTrace"],
+        mode: "PHRASE",
+      },
+    },
+    "state.id": { label: t.id, cell: "copyable", analysis: false },
+    "state.eventId.id": { label: t.eventId, cell: "copyable", analysis: false },
+    "state.status": {
+      label: t.status,
+      cell: "status",
+      options: {
+        FAILED: { label: t.statusFailed, tone: "danger" },
+        PREPARED: { label: t.statusPrepared, tone: "warning" },
+        SUCCEEDED: { label: t.statusSucceeded, tone: "success" },
+      },
+    },
+    "state.recoverable": {
+      label: t.recoverable,
+      options: {
+        RECOVERABLE: t.recoverableYes,
+        UNRECOVERABLE: t.recoverableNo,
+        UNKNOWN: t.recoverableUnknown,
+      },
+    },
+    "state.isRetryable": t.isRetryable,
+    "state.isBelowRetryThreshold": t.isBelowRetryThreshold,
+    "state.function.contextName": t.functionContext,
+    "state.function.processorName": t.processor,
+    "state.function.name": t.functionName,
+    "state.function.functionKind": {
+      label: t.functionKind,
+      options: {
+        COMMAND: t.kindCommand,
+        SOURCING: t.kindSourcing,
+        EVENT: t.kindEvent,
+        STATE_EVENT: t.kindStateEvent,
+        ERROR: t.kindError,
+      },
+    },
+    "state.eventId.aggregateId.contextName": t.eventContext,
+    "state.eventId.aggregateId.aggregateName": t.eventAggregate,
+    // How many executions a failure touched: counted, never a category.
+    "state.eventId.aggregateId.aggregateId": {
+      label: t.eventAggregateId,
+      cell: "copyable",
+      analysis: { groups: [] },
+    },
+    "state.eventId.version": { label: t.eventVersion, analysis: false },
+    "state.error.errorCode": t.errorCode,
+    // Shown and searched (`keyword`), never sorted or grouped by: a whole
+    // message is no category. Which comparisons they take depends on the
+    // storage, so the service's descriptor decides.
+    "state.error.errorMsg": {
+      label: t.errorMsg,
+      cell: "text",
+      sortable: false,
+      analysis: false,
+    },
+    "state.error.stackTrace": {
+      label: t.stackTrace,
+      cell: "text",
+      sortable: false,
+      analysis: false,
+    },
+    "state.retryState.retries": {
+      label: t.retries,
+      summary: ["SUM", "AVG", "MAX"],
+    },
+    "state.retrySpec.maxRetries": t.maxRetries,
+    "state.retrySpec.minBackoff": { label: t.minBackoff, analysis: false },
+    "state.retrySpec.executionTimeout": {
+      label: t.executionTimeout,
+      analysis: false,
+    },
+    "state.retryState.retryAt": { label: t.retryAt, analysis: false },
+    "state.retryState.nextRetryAt": {
+      label: t.nextRetryAt,
+      analysis: { dateUnits: DATE_UNITS },
+    },
+    "state.retryState.timeoutAt": { label: t.timeoutAt, analysis: false },
+    firstEventTime: {
+      label: t.firstEventTime,
+      analysis: { dateUnits: DATE_UNITS },
+    },
+    eventTime: { label: t.eventTime, analysis: { dateUnits: DATE_UNITS } },
+    "state.executeAt": {
+      label: t.executeAt,
+      analysis: { dateUnits: DATE_UNITS },
+    },
+  },
+  record: {
+    rowKey: "state.id",
+    layouts: ["table", "card"],
+    // What the row and bulk commands read to decide what an execution
+    // takes (`getCompensationCapabilities`) and which recoverability it
+    // already has, whichever columns the open view shows.
+    rowFields: [
+      "state.status",
+      "state.isBelowRetryThreshold",
+      "state.retryState.timeoutAt",
+      "state.recoverable",
+    ],
+  },
+  views: [...systemViews(), ...FAILURE_ANALYSIS_VIEWS],
+});

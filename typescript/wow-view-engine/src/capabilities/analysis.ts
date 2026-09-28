@@ -29,7 +29,7 @@ import {
 } from '../model/index.js';
 import { issue } from '../filter/index.js';
 import { warn } from './fields.js';
-import { describedField } from './match.js';
+import { describedField, type DescribedField } from './match.js';
 
 /**
  * The analysis capability as the descriptor admits it (capabilities.md
@@ -63,7 +63,7 @@ export function narrowAnalysis(
     fields: narrowAggregations(
       capability.fields,
       ['analysis', 'fields'],
-      path => describedField(descriptor, path)?.aggregate,
+      path => aggregateOf(describedField(descriptor, path)),
       undefined,
       context,
     ),
@@ -120,6 +120,18 @@ export function narrowAnalysis(
   return next;
 }
 
+/**
+ * What a path feeds an analysis: nothing where its value is sensitive — a
+ * masked value never groups and never feeds a metric, a metric's condition
+ * or a formula, whatever the definition declares (#3744 review), as the
+ * source refuses it.
+ */
+function aggregateOf(
+  described: DescribedField | null,
+): FieldAggregateDescriptor | undefined {
+  return described?.sensitive ? undefined : described?.aggregate;
+}
+
 /** Every metric type there is, as a capability names them. */
 const METRIC_TYPES: readonly AnalysisMetric['type'][] = [
   'COUNT',
@@ -173,8 +185,13 @@ function narrowElements(
         element.aggregations,
         [...at, 'aggregations'],
         field =>
-          describedField(descriptor, `${element.path}.${field}`, element.path)
-            ?.aggregate,
+          aggregateOf(
+            describedField(
+              descriptor,
+              `${element.path}.${field}`,
+              element.path,
+            ),
+          ),
         element.path,
         context,
       ),
@@ -358,7 +375,7 @@ function lowered(
 }
 
 /** Whether an analysis can start from anything: the count, or one metric of one field. */
-function constructible(capability: AnalysisCapability): boolean {
+export function constructible(capability: AnalysisCapability): boolean {
   if (capability.count) return true;
   const offers = [
     ...capability.fields,

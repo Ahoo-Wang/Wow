@@ -19,3 +19,9 @@
  */
 export { memorySource, type MemorySourceOptions } from './source.js';
 export { matches } from './filter.js';
+export {
+  admit,
+  type Admissible,
+  type AdmitFinding,
+  type AdmitOptions,
+} from '../runtime/admission.js';

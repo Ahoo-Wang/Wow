@@ -19,14 +19,12 @@ import {
   MemoryViewStore,
   type ViewSource,
 } from "@ahoo-wang/wow-view-engine";
+import { inLocale } from "./text.ts";
 import { describe, expect, it } from "vitest";
 import { FindCategory } from "../../e2e/support/legacy/FindCategory.ts";
 import { RetryConditions } from "../../e2e/support/legacy/RetryConditions.ts";
 import { createExecutionEngine } from "./engine.ts";
-import {
-  EXECUTION_FAILED,
-  executionFailedDefinition,
-} from "./executionFailed.ts";
+import { EXECUTION_FAILED, executionFailed } from "./executionFailed.ts";
 
 const LOCALES = ["en", "zh-CN"] as const;
 
@@ -99,7 +97,7 @@ describe("executionFailedDefinition", () => {
   });
 
   it("declares the same fields, groups and views in every language", () => {
-    const [en, zh] = LOCALES.map(executionFailedDefinition);
+    const [en, zh] = LOCALES.map((locale) => inLocale(executionFailed, locale));
     expect(zh.fields.map((field) => field.name)).toEqual(
       en.fields.map((field) => field.name),
     );
@@ -113,7 +111,7 @@ describe("executionFailedDefinition", () => {
   });
 
   it("offers the system views: seven queues, all, fourteen analyses", () => {
-    const views = executionFailedDefinition("en").views ?? [];
+    const views = inLocale(executionFailed, "en").views ?? [];
     expect(views.map((view) => [view.id, view.config.kind])).toEqual([
       ["active", "record"],
       ["to-retry", "record"],
@@ -152,7 +150,7 @@ describe("executionFailedDefinition", () => {
     ["unrecoverable", FindCategory.Unrecoverable],
     ["succeeded", FindCategory.Succeeded],
   ])("selects what the old %s queue selects", (viewId, category) => {
-    const definition = executionFailedDefinition("en");
+    const definition = inLocale(executionFailed, "en");
     const config = definition.views?.find(({ id }) => id === viewId)?.config;
     if (config?.kind !== "record") throw new Error(`No record view ${viewId}`);
     const compiled = compileFilter(

@@ -83,6 +83,16 @@ export interface ViewEngineOptions {
   resolveOptions?(key: string): OptionSource;
   kinds?: FieldKindRegistry;
   /**
+   * How the definitions' keys (`text(key)`) are said: a host's catalogue in
+   * the language in force (host-integration.md 3.1). Every definition is
+   * read in these words once, as it is registered; a key with no words is
+   * said as the key, and admission warns of it (`definition.text.unknown`).
+   * Left out, only literal labels read as words. Transitional (D2): it
+   * fixes one engine to one language; H2 says the keys at render time,
+   * through the messages catalogue, and this goes.
+   */
+  text?(key: string): string | undefined;
+  /**
    * The host's budgets over `DEFAULT_RUNTIME_LIMITS`: what is left out keeps
    * its default. The source budgets (`maxPageSize`, `maxPageWindow`,
    * `maxAnalysisRows`, `maxQueryFilterNodes`, `maxFilterValues`) are said by a source's descriptor
@@ -212,7 +222,7 @@ export class ViewEngine {
     this.preferenceCache = new PreferenceCache(this.store);
     this.ledger = new WriteLedger(this.ledgerHost());
     this.registry = new DefinitionRegistry(
-      options.definitions,
+      options,
       this.kinds,
       this.limits,
       found => this.report(found),
@@ -400,7 +410,7 @@ export class ViewEngine {
         definitionId: target.definition.id,
         title: state.title,
         scope: state.scope,
-        config: state.draft,
+        config: target.stored?.(state.draft) ?? state.draft,
       };
       this.guard.requireCreate(target.definition.id, state.scope);
       return (await this.ledger.dispatch(
@@ -415,7 +425,7 @@ export class ViewEngine {
       action: 'save',
       id: saved.id,
       revision: saved.revision,
-      config: state.draft,
+      config: target.stored?.(state.draft) ?? state.draft,
     };
     return (await this.ledger.dispatch(payload, target)) as ViewInstance;
   }
@@ -439,7 +449,7 @@ export class ViewEngine {
           definitionId: target.definition.id,
           title: input.title,
           scope: input.scope,
-          config: state.draft,
+          config: target.stored?.(state.draft) ?? state.draft,
         },
         intent: 'save-as',
       },

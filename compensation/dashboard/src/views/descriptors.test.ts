@@ -24,6 +24,7 @@ import {
   type Issue,
   type ViewSource,
 } from "@ahoo-wang/wow-view-engine";
+import { inLocale } from "./text.ts";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import mongoEvent from "../../e2e/support/descriptors/mongo-event.json";
 import mongoSnapshot from "../../e2e/support/descriptors/mongo-snapshot.json";
@@ -32,10 +33,7 @@ import {
   executionFailedSource,
   executionHistorySource,
 } from "./engine.ts";
-import {
-  EXECUTION_FAILED,
-  executionFailedDefinition,
-} from "./executionFailed.ts";
+import { EXECUTION_FAILED, executionFailed } from "./executionFailed.ts";
 import { EXECUTION_HISTORY } from "./executionHistory.ts";
 import { OVERVIEW_BOARD } from "./overview.ts";
 
@@ -123,7 +121,7 @@ describe("the definitions against a MongoDB server's descriptors", () => {
         MONGO_SNAPSHOT,
         locale,
       );
-      const views = executionFailedDefinition(locale).views ?? [];
+      const views = inLocale(executionFailed, locale).views ?? [];
       for (const view of views)
         await openData(engine, systemInstanceId(EXECUTION_FAILED, view.id));
       for (const view of ["streams", "history"])

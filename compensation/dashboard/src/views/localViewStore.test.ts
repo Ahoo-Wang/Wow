@@ -16,17 +16,15 @@ import {
   systemInstanceId,
 } from "@ahoo-wang/wow-view-engine";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import {
-  executionFailedDefinition,
-  EXECUTION_FAILED,
-} from "./executionFailed.ts";
+import { inLocale } from "./text.ts";
+import { executionFailed, EXECUTION_FAILED } from "./executionFailed.ts";
 import {
   createLocalViewStore,
   localViewPermissions,
   VIEW_STORE_KEY,
 } from "./localViewStore.ts";
 
-const activeConfig = executionFailedDefinition("en").views![0].config;
+const activeConfig = inLocale(executionFailed, "en").views![0].config;
 
 describe("localViewStore", () => {
   beforeEach(() => localStorage.clear());

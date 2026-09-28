@@ -127,7 +127,10 @@ export function useBoardFilters({
           timeout: 10_000,
           actionProps: {
             children: messages.label('label.filters.only-picked'),
-            onClick: () => edit?.unbindPanels(filter.name, connected),
+            // Declining auto-connect puts the panels back as they were: not
+            // a wire taken off by hand, so none of them reads whole for it.
+            onClick: () =>
+              edit?.unbindPanels(filter.name, connected, { byHand: false }),
           },
         });
       }),

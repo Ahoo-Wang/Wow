@@ -256,6 +256,12 @@ export interface ManagedViewRuntime<
   moveBaseline(instance: ViewInstance): void;
   /** Replaces the draft with the store's state, for "reload" on a conflict. */
   adoptSaved(instance: ViewInstance): void;
+  /**
+   * A config as it is written to the store, where that differs from how
+   * the view reads it: a board stores no time wire it derives (D1). Left
+   * out, as it is.
+   */
+  stored?(config: C): C;
   setWrite(write: WriteState | null): void;
 }
 

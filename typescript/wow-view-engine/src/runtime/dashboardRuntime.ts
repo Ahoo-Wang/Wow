@@ -29,13 +29,16 @@ import {
   admitFilters,
   filtersOf,
   referencedInstance,
+  storedTimeWires,
   type DataPanelSource,
+  type PanelTime,
 } from '../dashboard/index.js';
 import { boardFieldsOf } from '../dashboard/boardFields.js';
 import {
   canonicalBoard,
   canonicalSaved,
   canonicalState,
+  panelTime,
   type BoardReading,
 } from './dashboard/canonical.js';
 import { boardHandOver, boardPanels, panelRun } from './dashboard/panelRun.js';
@@ -149,6 +152,8 @@ export class DashboardViewRuntime
   private readonly anchors = new Map<string, PanelAnchor>();
   /** The board under the paths its panels rename aliases to. */
   private readonly canonical: BoardReading;
+  /** What each panel's view says of time (`panelTime`). */
+  private readonly timeOf: PanelTime = panelTime(panel => this.viewOf(panel));
 
   constructor(options: DashboardRuntimeOptions) {
     super();
@@ -164,14 +169,8 @@ export class DashboardViewRuntime
     this.references = new PanelReferences(options.resolve, () =>
       this.settled(),
     );
-    this.canonical = canonicalBoard(panel =>
-      panelView(
-        panel,
-        id => this.references.get(id),
-        options.definitions,
-        options.scope,
-      ),
-    );
+    // Read when the board is, so the references hold what has loaded.
+    this.canonical = canonicalBoard(panel => this.viewOf(panel));
     this.children = new PanelChildren(options.createPanelRuntime, panelId => {
       this.store.retime();
       this.refreshPanelIssues(panelId);
@@ -185,6 +184,7 @@ export class DashboardViewRuntime
         const found = options.definitions(instance.definitionId);
         if (found) this.references.seed({ ...found, instance });
       },
+      timeOf: panel => this.timeOf(panel),
       fieldsOf: panel => {
         const view = this.viewOf(panel);
         return view
@@ -536,14 +536,24 @@ export class DashboardViewRuntime
     this.store.setState({ write: null, history: this.edits.forget() });
   }
 
-  moveBaseline(instance: ViewInstance): void {
+  /**
+   * The baseline as this board is read (`canonicalBoard`): a board stores
+   * no time wire made from a view (D1), so what came back is read with them.
+   */
+  moveBaseline(stored: ViewInstance): void {
     if (this.disposed) return;
+    const instance = canonicalSaved(stored, this.canonical) ?? stored;
     this.store.setState({
       saved: instance,
       title: instance.title,
       scope: instance.scope,
       dirty: this.store.isDirty(this.state.draft, instance),
     });
+  }
+
+  /** See `ManagedViewRuntime.stored`: the board without its derived time wires. */
+  stored(config: DashboardViewConfig): DashboardViewConfig {
+    return storedTimeWires(config);
   }
 
   adoptSaved(stored: ViewInstance): void {
@@ -716,7 +726,9 @@ export class DashboardViewRuntime
       panel,
       id => this.references.get(id),
       this.options.definitions,
-      this.state.scope,
+      // The board is read once before its store is made, at its own scope.
+      (this.store as typeof this.store | undefined)?.getSnapshot().scope ??
+        this.options.scope,
     );
   }
 

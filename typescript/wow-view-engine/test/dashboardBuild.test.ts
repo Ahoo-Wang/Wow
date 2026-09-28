@@ -152,8 +152,10 @@ describe('the 24-column grid and the boards stored before it', () => {
   });
 
   it('leaves a board that says its grid alone, as the same object', () => {
+    // Stored in the current form: with its time wires derived (D1).
     const current = dashboardConfig({
       panels: [note('a', { x: 3, y: 0, w: 5, h: 1 })],
+      derivesTime: true,
     });
     const other = { ...current, columns: 12 } as unknown as DashboardViewConfig;
 
@@ -382,6 +384,7 @@ describe('the 24-column grid and the boards stored before it', () => {
       const board = dashboardConfig({
         fields: [region],
         fixed: { op: 'and', children: [cn] },
+        derivesTime: true,
       });
 
       expect(migrateDashboardConfig(board)).toBe(board);

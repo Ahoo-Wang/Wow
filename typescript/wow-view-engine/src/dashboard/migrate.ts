@@ -11,6 +11,7 @@
  * limitations under the License.
  */
 
+import { withTimeIgnored } from './timeBindings.js';
 import {
   DASHBOARD_GRID_COLUMNS,
   filterTypeOf,
@@ -35,9 +36,12 @@ const SCALE = DASHBOARD_GRID_COLUMNS / LEGACY_GRID_COLUMNS;
  * grid (D22 E), a pre-C board condition into its filters' defaults and the
  * board's fixed scope (D23 Q16, D26 Q31; `intoDefaults` below), and the
  * board's own condition, which a board no longer has, out of the config
- * (D27; `withoutOwnCondition` below). Each step is marked by the config
- * itself — `columns`, `fixed`, the `filter` member — so it happens once: a
- * second read, or a read after any edit, leaves the config alone.
+ * (D27; `withoutOwnCondition` below), and a board stored before its time
+ * wires were derived read with its unwired panels reading whole (D1;
+ * `withTimeIgnored`, `timeBindings.ts`). Each step is marked by the config
+ * itself — `columns`, `fixed`, the `filter` member, `derivesTime` — so it
+ * happens once: a second read, or a read after any edit, leaves the config
+ * alone.
  *
  * A config that does not say which grid it is in (`columns`) was written for
  * the twelve-column grid: every `x` and `w` is doubled and every `y` and `h`
@@ -60,7 +64,9 @@ const SCALE = DASHBOARD_GRID_COLUMNS / LEGACY_GRID_COLUMNS;
 export function migrateDashboardConfig(
   config: DashboardViewConfig,
 ): DashboardViewConfig {
-  return withoutOwnCondition(intoDefaults(onTheWideGrid(config)));
+  return withTimeIgnored(
+    withoutOwnCondition(intoDefaults(onTheWideGrid(config))),
+  );
 }
 
 function onTheWideGrid(config: DashboardViewConfig): DashboardViewConfig {

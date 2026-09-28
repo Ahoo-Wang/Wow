@@ -128,6 +128,47 @@ export const orders: ViewDefinition = {
 };
 ```
 
+### 从描述符定义视图
+
+手写的定义要把服务的查询描述符已经说过的再说一遍：有哪些路径、各存什么、能按什么排序、筛选与聚合。`defineView(descriptor, spec)` 从随定义一起提交的描述符快照里取这些事实，`spec` 只写选择：读者看到哪些字段、什么次序、叫什么，类别的措辞与语气色，单元格，以及收窄什么。结果仍是一份普通的 `DataViewDefinition`，引擎的其余部分不知道它是怎么写的。
+
+<!-- typecheck-context
+import type { QueryModelDescriptor } from '@ahoo-wang/wow-client';
+declare const ordersDescriptor: QueryModelDescriptor;
+-->
+
+```ts
+import { defineView, text } from '@ahoo-wang/wow-view-engine';
+
+export const orders = defineView(ordersDescriptor, {
+  id: 'orders',
+  source: 'orders',
+  title: text('orders.title'),
+  // 看板的时间筛选经它接到面板上。
+  timeField: 'createdAt',
+  fields: {
+    id: { label: text('orders.id'), cell: 'copyable', analysis: false },
+    status: {
+      label: text('orders.status'),
+      cell: 'status',
+      options: {
+        PENDING: { label: text('orders.pending'), tone: 'warning' },
+        SHIPPED: { label: text('orders.shipped'), tone: 'success' },
+      },
+    },
+    amount: { label: text('orders.amount'), summary: ['SUM'] },
+    createdAt: text('orders.createdAt'),
+  },
+  record: { layouts: ['table', 'card'] },
+});
+```
+
+- **事实取快照，能力取数据源。** 没列出的字段不出现。种类、枚举值、敏感级别与数组的条目是模型的事实，取自快照；快照没有的路径或值是准入错误（`validateDefinition`、`onIssue`）——定义照样加载，并说出错在哪。路径能怎么排序、筛选、聚合是存储的能力：你没收窄的，定义取它所运行的数据源给的一切（Elasticsearch 上有数组条目里的搜索，MongoDB 上没有）；你收窄的——`operators`、`sortable: false`、`summary`、`analysis` 或 `analysis: false`——取你的子集与之相交。收窄超出快照是警告，因为换一个存储可能就有。已弃用的路径在写明理由前一直警告；敏感字段退出分析，机密字段不做任何比较；时刻按日历分组，只有最早与最晚。
+- **快照随代码提交。** 定义在模块加载时就建好，测试里一样。运行时给出描述符的数据源，用它填上你留开的能力、收窄其余，与任何定义一样；不给描述符的数据源按快照的能力跑。
+- **措辞写键。** `text(key)` 占着标签的位置，一份定义服务所有语言；`ViewEngineOptions.text` 按当前语言说出这些键。字面字符串仍可当标签。这是过渡做法：眼下键在引擎注册定义时说成话，一个引擎只说一种语言；下一版改在渲染时经措辞目录说出，一个引擎服务所有语言，你写的键不变。
+- **时间。** `timeField`——或系统视图自己的，`null` 表示整体读——是看板唯一的日期筛选接到没有接线的面板上所经的字段；手写的接线优先，面板上的 `ignoresTime: true` 让时间范围不作用于它。
+- `/testing` 的 `admit` 在宿主的测试里把这些一并核对（[测试宿主](#测试宿主内存数据源)）。
+
 ### 2. 创建引擎
 
 <!-- typecheck-context
@@ -1029,6 +1070,26 @@ const paid = matches(documents[0], {
 
 它承诺的：引擎会编出的每个筛选算子，缺失字段、显式 `null`、空字符串或空数组、数组元素与大小写都按 MongoDB 的读法；`DELETION` 读 `deleted` 标记（`deleted: true` 的文档除非筛选问到，否则不答）；分页、游标（一个偏移量）与排序；投影；聚合——`elements`（路径与门槛条件都相对于元素）、`TERMS`、`HISTOGRAM`、按时区的 `DATE_HISTOGRAM` 与 `DATE_PART`（缺省 UTC）、`dense`、带自身条件的每种指标、`DERIVED`、`having`、Wow 给分组的次序（先按排序，再按每个分组别名升序）与缺省 `limit` 100。`PERCENTILE` 是精确值，服务端是落在同样两个秩之间的估计值。没有读法的——`ID`、`TENANT_ID`、`SPACE_ID`、引擎从不发出的日历筛选——直接报错，测试开始发出的新查询会失败，而不是得到一个看似合理的错误答案。`timeField` 让大数据集按一个纪元毫秒列排好、对它的范围二分切片；`remember` 让同一个聚合从记忆里作答，只用于从不改变的文档。这个入口是无头的——没有 React、DOM 与样式表。它用 `mingo`（MongoDB 查询语言的 JavaScript 实现）求值筛选，`mingo` 是可选的对等依赖：安装本包不会带上它，导入 `/testing` 的宿主要自己把它加进开发依赖——`pnpm add -D mingo`（或 `npm install -D mingo`）。别的入口都不加载它。
 
+`admit(definitions, descriptors, { text })` 按引擎的方式准入宿主声明的一切——说出每份定义的键、它自己的规则、它的看板对照其余定义、每份数据定义按提交的描述符（按 `source`）收窄——返回每条发现连同它所属的定义，全部成立时是 `[]`。它收定义，也收装着定义的资源（`{ definition }`），与注册时的写法一样：
+
+<!-- typecheck-context
+import type { QueryModelDescriptor } from '@ahoo-wang/wow-client';
+import type { DataViewDefinition, DashboardDefinition, TextResolver } from '@ahoo-wang/wow-view-engine';
+declare const orders: DataViewDefinition;
+declare const overview: DashboardDefinition;
+declare const ordersDescriptor: QueryModelDescriptor;
+declare const chinese: TextResolver;
+declare function expect(value: unknown): { toEqual(expected: unknown): void };
+-->
+
+```ts
+import { admit } from '@ahoo-wang/wow-view-engine/testing';
+
+expect(
+  admit([orders, overview], { orders: ordersDescriptor }, { text: chinese }),
+).toEqual([]);
+```
+
 ## 概念
 
 | 类型             | 职责                                                                                                                                                                                                                                                                                                                                         | 所在   |
@@ -1061,7 +1122,7 @@ const paid = matches(documents[0], {
 | `@ahoo-wang/wow-view-engine` | 模型类型与常量；四个纯内核（`validate*` / `compile*` / `project*` 及其旁边的读法）；运行时只导出宿主要握的，不导出它由什么搭成——`ViewEngine`、`validateDefinition`、运行时合同 `ViewRuntime`、`RecordViewRuntime`、`DashboardRuntime`、`AnyViewRuntime` 连同它们签名里出现的每一个类型、`hasResult`、`hasAsked`、`isRecordRuntime`、写入错误 `ViewWriteError` 与 `ViewCommandError`、`ExportCancelled`、`RuntimeEnvironment`、`defaultRuntimeEnvironment`、`ViewSource`、`OptionSource`；`ViewStore` 端口、`MemoryViewStore` 与 `localStorageSnapshot`                                                          |
 | `/react`                     | 钩子与无样式控制器，连同它们交出的类型：`useViewEngine`、`useOpenView`、`useViewRuntime`、`useViewList`、`useViewManager`、`useWorkbench`、`useLeaveGuard`、`useFilterEditor`、`useRecordTable`、`useAnalysisEditor`、`useAnalysisResult`、`useDashboard`、`useSaveCommands`、`RecordActionSlots`，以及保存命令与管理器共用的写入结局词汇                                                                                                                                                                                                                                                                       |
 | `/ui`                        | 默认组件、视图与工作台，连同它们的 props：`DataWorkbench`、`DashboardWorkbench`、`DashboardEditExtensions`、`useDashboardExtensions`、`EmbeddedView`、`EmbeddedDashboard`、`ViewHeader`、`SaveActions`、`ViewManager`、`LeaveDialog`、`EditorBand`、`FilterPanel`、`StatusStrip`、`AppliedBar`、`ResultToolbar`、`RowActions`、`RecordTable`、`RecordCards`、`RecordPagination`、`AnalysisTable`、`AnalysisChart`、`DashboardGrid`、`HeadingPanel`、`MarkdownPanel`、`ImagePanel`、`LinksPanel`、`MessagesProvider`；措辞目录 `defaultMessages` 与 `zhCN`；一个值的读法 `cellValue`、`cellText`、`displayValue` |
-| `/testing`                   | `memorySource` 与 `matches`：带 Wow 查询语义的内存 `ViewSource`，供宿主测试使用（[测试宿主](#测试宿主内存数据源)）                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| `/testing`                   | `memorySource` 与 `matches`：带 Wow 查询语义的内存 `ViewSource`；`admit`：按提交的描述符准入宿主的声明——供宿主测试使用（[测试宿主](#测试宿主内存数据源)）                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
 | `/styles.css`                | 主题。显式导入；任何 JS 入口都不会引入 CSS，产物也不会在 `.fve-root`／`.fve-tokens` 两个样式边界之外绘制任何东西（preflight 与工具类在构建时收进边界内，每条规则比源码多一个类的权重，所以宿主的导入次序无关）——预设的复位规则除外，它只在挂了预设的元素上清空 `--fvp-*` 层——`scripts/verify-package.mjs` 在每次构建时逐条核对。                                                                                                                                                                                                                                                                                |
 | `/themes.css`                | 预设，可选：只有按 `data-fve-preset` 选中的 `--fvp-*` 赋值（[预设](#预设)），由同一个脚本核对。                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
 | `/themes/<名>.css`           | 单独一套预设，给只用一套的宿主：就是 `themes.css` 里它那一块（[预设](#预设)）。                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |

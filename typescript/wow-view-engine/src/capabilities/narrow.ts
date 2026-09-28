@@ -21,6 +21,7 @@ import type { FieldKindRegistry } from '../filter/index.js';
 import { narrowAnalysis } from './analysis.js';
 import { narrowFields } from './fields.js';
 import { narrowRecord } from './record.js';
+import { reopened } from './open.js';
 import { withCanonicalDefaults, withCanonicalNames } from './aliases.js';
 
 /**
@@ -85,11 +86,18 @@ function renamedDefinition(
         : {}),
     };
   if (definition.views)
-    next.views = definition.views.map(view =>
-      view.config.kind === 'dashboard'
-        ? view
-        : { ...view, config: withCanonicalNames(view.config, renamed) },
-    );
+    next.views = definition.views.map(view => {
+      if (view.config.kind === 'dashboard') return view;
+      const named = {
+        ...view,
+        config: withCanonicalNames(view.config, renamed),
+      };
+      return typeof view.timeField === 'string'
+        ? { ...named, timeField: name(view.timeField) }
+        : named;
+    });
+  if (definition.timeField !== undefined)
+    next.timeField = name(definition.timeField);
   return next;
 }
 
@@ -127,10 +135,13 @@ export interface NarrowedDefinition {
  * descriptor exists. This is the one place that reads one.
  */
 export function narrowDefinition(
-  definition: DataViewDefinition,
+  given: DataViewDefinition,
   descriptor: QueryModelDescriptor,
   kinds: FieldKindRegistry,
 ): NarrowedDefinition {
+  // What a `defineView` definition leaves to its source is read from this
+  // source's descriptor first; everything else only narrows.
+  const definition = reopened(given, descriptor);
   const findings: Issue[] = [];
   const renamed: Record<string, string> = {};
   const fields = narrowFields(definition.fields, {

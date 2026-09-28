@@ -15,6 +15,7 @@ import { AGGREGATION_LIMITS } from '@ahoo-wang/wow-client';
 import {
   DEFAULT_RUNTIME_LIMITS,
   SYSTEM_INSTANCE_ID_SEPARATOR,
+  TEMPORAL_FIELD_KIND_IDS,
   isFieldlessKind,
   type AnalysisCapability,
   type DashboardViewConfig,
@@ -83,10 +84,14 @@ export function validateDefinition(
     );
 
   if (definition.kind === 'data') {
+    // What building it from its descriptor found (`defineView`): a path
+    // the descriptor lacks, a capability asked beyond what it offers.
+    issues.push(...(definition.described?.findings ?? []));
     issues.push(...validateFields(definition.fields, kinds, ['fields']));
     issues.push(...validateFieldGroups(definition));
     issues.push(...validateRecordCapability(definition));
     issues.push(...validateAnalysisCapability(definition));
+    issues.push(...validateTimeFields(definition));
   }
 
   issues.push(
@@ -126,6 +131,33 @@ function boardPanelFinding({ path }: Issue): boolean {
     path[3] === 'panels' &&
     typeof path[4] === 'number'
   );
+}
+
+/**
+ * The time fields (`DataViewDefinition.timeField`, `SystemView.timeField`):
+ * each names a date field of the definition's own, or a board's time
+ * filter would be wired to nothing it could narrow by.
+ */
+function validateTimeFields(definition: DataViewDefinition): Issue[] {
+  const judge = (field: unknown, at: IssuePath): Issue[] => {
+    if (field === undefined || field === null) return [];
+    const declared = definition.fields.find(entry => entry.name === field);
+    if (!declared)
+      return [
+        issue('definition.timeField.unknown', at, {
+          field: typeof field === 'string' ? field : '',
+        }),
+      ];
+    return TEMPORAL_FIELD_KIND_IDS.includes(declared.kind)
+      ? []
+      : [issue('definition.timeField.not-time', at, { field: declared.name })];
+  };
+  return [
+    ...judge(definition.timeField, ['timeField']),
+    ...(definition.views ?? []).flatMap((view, index) =>
+      judge(view.timeField, ['views', index, 'timeField']),
+    ),
+  ];
 }
 
 /**
@@ -494,13 +526,26 @@ function validateSystemConfig(
     return definition.record
       ? under(path, validateRecord(definition, view.config, kinds, { limits }))
       : [mismatch];
-  if (kind === 'analysis')
-    return definition.analysis
-      ? under(
-          path,
-          validateAnalysis(definition, view.config, kinds, { limits }),
-        )
+  if (kind === 'analysis') {
+    if (definition.analysis)
+      return under(
+        path,
+        validateAnalysis(definition, view.config, kinds, { limits }),
+      );
+    // A `defineView` definition whose snapshot offers no metric leaves its
+    // analyses to the source (#3744 review): a source that grants some
+    // opens the view, one that grants none cannot — said, never refused.
+    return definition.kind === 'data' && definition.described?.open?.analysis
+      ? [
+          issue(
+            'definition.view.analysis-open',
+            [...path, 'config'],
+            {},
+            'warning',
+          ),
+        ]
       : [mismatch];
+  }
   return [mismatch];
 }
 

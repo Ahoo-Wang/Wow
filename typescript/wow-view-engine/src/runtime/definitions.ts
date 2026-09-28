@@ -23,7 +23,9 @@
 import {
   CODE_REVISION,
   systemInstanceId,
+  withText,
   type Issue,
+  type TextResolver,
   type RuntimeLimits,
   type ViewDefinition,
   type ViewInstance,
@@ -41,11 +43,25 @@ export class DefinitionRegistry {
   private readonly findings = new Map<string, Issue[]>();
 
   constructor(
-    definitions: readonly ViewDefinition[],
+    host: {
+      definitions: readonly ViewDefinition[];
+      text?(key: string): string | undefined;
+    },
     kinds: FieldKindRegistry,
     limits: RuntimeLimits,
     report: (found: Issue) => void,
   ) {
+    // Every definition in the words of the language in force: the kernels,
+    // the controllers and the UI only ever read words (host-integration.md
+    // 3.1). A key with no words is said as itself, and reported.
+    // Transitional (D2): H2 says keys at render time, through the messages
+    // catalogue, so one engine serves every language.
+    // Called on the host's object, which a catalogue's method may read.
+    const text: TextResolver = key => host.text?.(key);
+    const said = host.definitions.map(definition =>
+      sayDefinition(definition, text),
+    );
+    const definitions = said.map(entry => entry.definition);
     this.definitions = new Map(
       definitions.map(definition => [definition.id, definition]),
     );
@@ -54,10 +70,14 @@ export class DefinitionRegistry {
     // every open. One that fails is kept but refused at the point of use:
     // that beats a blank registry, and beats a crash at application start.
     for (const definition of definitions) {
-      const found = validateDefinition(definition, kinds, {
-        limits,
-        definitions: id => this.definitions.get(id),
-      });
+      const found = [
+        ...(said.find(entry => entry.definition === definition)?.findings ??
+          []),
+        ...validateDefinition(definition, kinds, {
+          limits,
+          definitions: id => this.definitions.get(id),
+        }),
+      ];
       this.findings.set(definition.id, found);
       for (const entry of found) report(entry);
     }
@@ -104,6 +124,23 @@ export class DefinitionRegistry {
       config: view.config,
     };
   }
+}
+
+/**
+ * A definition in the words `text` says its keys in (`withText`), and a
+ * warning for each key it has no words for, where the key sits.
+ */
+export function sayDefinition(
+  definition: ViewDefinition,
+  text: TextResolver = () => undefined,
+): { definition: ViewDefinition; findings: Issue[] } {
+  const findings: Issue[] = [];
+  const said = withText(definition, text, (key, path) =>
+    findings.push(
+      issue('definition.text.unknown', [...path], { key }, 'warning'),
+    ),
+  );
+  return { definition: said, findings };
 }
 
 /** Instances a definition declares in code, in declaration order. */
