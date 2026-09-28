@@ -59,7 +59,7 @@ function entries(value: unknown): Record<string, unknown>[] {
  * names a field the user chose, and the direction is the part they can flip
  * once they can see it. `validateRecord` reports the value separately.
  */
-export function sortDirection(value: unknown): SortDirection {
+function sortDirection(value: unknown): SortDirection {
   return value === 'DESC' ? 'DESC' : 'ASC';
 }
 

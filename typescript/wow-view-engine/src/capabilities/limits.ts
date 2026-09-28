@@ -19,7 +19,7 @@ import { DEFAULT_RUNTIME_LIMITS, type RuntimeLimits } from '../model/index.js';
  * does (capabilities.md 4.5): a source with a descriptor says them, and the
  * host may only lower them.
  */
-export const SOURCE_LIMIT_NAMES = [
+const SOURCE_LIMIT_NAMES = [
   'maxPageSize',
   'maxPageWindow',
   'maxAnalysisRows',

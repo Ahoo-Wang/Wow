@@ -91,9 +91,7 @@ export class OpenRuntimes {
   }
 }
 
-export function isManagedRuntime(
-  runtime: ViewRuntime,
-): runtime is ManagedViewRuntime {
+function isManagedRuntime(runtime: ViewRuntime): runtime is ManagedViewRuntime {
   return (
     runtime instanceof DataViewRuntime ||
     runtime instanceof DashboardViewRuntime
