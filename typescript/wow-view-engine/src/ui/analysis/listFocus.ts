@@ -34,7 +34,6 @@ export interface ListFocus {
   removing(press: Press, at: number): void;
 }
 
-/** Anything the Tab key would stop on, before `disabled` is read. */
 /**
  * Where the keyboard stands after the control it was on leaves the page.
  *

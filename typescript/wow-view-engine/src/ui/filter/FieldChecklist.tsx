@@ -44,6 +44,7 @@ import {
   PopoverTrigger,
 } from '../components/popover.js';
 import { useViewMessages } from '../MessagesProvider.js';
+import { FOCUSABLE, isBarred } from '../focus.js';
 import { PopoverContent } from '../popups.js';
 import { conditionAt, ownerOf } from './conditionFocus.js';
 
@@ -361,16 +362,11 @@ function valueOf(condition: HTMLElement | null): HTMLElement | null {
 function firstControl(within: HTMLElement | null): HTMLElement | null {
   if (!within) return null;
   // `focusIn` focuses as it finds; the popup focuses what it is handed, so
-  // this asks the same question without acting on the answer.
+  // this asks the same question without acting on the answer — and of the
+  // controls inside only, never of `within` itself.
   return (
-    [
-      ...within.querySelectorAll<HTMLElement>(
-        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
-      ),
-    ].find(
-      node =>
-        !node.hasAttribute('disabled') &&
-        node.getAttribute('aria-disabled') !== 'true',
+    [...within.querySelectorAll<HTMLElement>(FOCUSABLE)].find(
+      node => !isBarred(node),
     ) ?? null
   );
 }
