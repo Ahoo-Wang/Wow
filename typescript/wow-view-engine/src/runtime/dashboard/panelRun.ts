@@ -263,6 +263,7 @@ export function boardPanels(host: BoardPanelsHost): DashboardPanelState[] {
       : shown
         ? host.run(data, index, own)
         : host.hold(data, index, own);
+    const view = data && host.viewOf(data);
     const { runtime, issues: reported } = outcome ?? {
       runtime: null,
       issues: own,
@@ -275,8 +276,9 @@ export function boardPanels(host: BoardPanelsHost): DashboardPanelState[] {
         issues: reported,
         tab: on,
         waiting: runs && !shown && runtime === null && !hasError(own),
+        fields: view?.definition.fields ?? [],
         ...clickInForce(panel, reported, host.held),
-        ...panelReach(applied, panel, data && host.viewOf(data), filters),
+        ...panelReach(applied, panel, view, filters),
       },
     ];
   });

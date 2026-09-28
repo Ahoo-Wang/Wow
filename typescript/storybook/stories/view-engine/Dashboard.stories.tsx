@@ -69,6 +69,7 @@ type Variant =
   | 'to-board-stale'
   | 'to-board-own'
   | 'handed'
+  | 'bad-panel'
   | 'deleted';
 
 /** The variants whose host has a route off the board (D22 H, I). */
@@ -88,6 +89,46 @@ const ROUTED: readonly Variant[] = [
 const systemOverview = {
   ...overviewDefinition,
   views: [{ id: 'ops', title: '出库概览（系统）', config: dashboardConfig() }],
+};
+
+/**
+ * The same board declared in code with one analysis of its own written
+ * wrong: 状态 is a category, which takes 属于 and never 等于 — what the
+ * compensation console's overview did to four of its cards (todo A). That
+ * panel is out and says which field and why; the others draw.
+ */
+const misdeclaredOverview = {
+  ...overviewDefinition,
+  views: [
+    {
+      id: 'ops',
+      title: '出库概览（系统）',
+      config: {
+        ...dashboardConfig(),
+        panels: [
+          ...dashboardConfig().panels,
+          {
+            id: 'cancelled',
+            kind: 'view' as const,
+            title: '已取消的订单数',
+            owned: {
+              definitionId: 'orders',
+              config: analysisConfig({
+                filter: {
+                  op: 'and',
+                  children: [
+                    { field: 'status', operator: 'EQ', value: 'CANCELLED' },
+                  ],
+                },
+              }),
+            },
+            bindings: [{ globalField: 'region', panelField: 'warehouse' }],
+            layout: { x: 0, y: 8, w: 24, h: 4 },
+          },
+        ],
+      },
+    },
+  ],
 };
 
 /**
@@ -117,7 +158,11 @@ function DashboardDemo({
             // Orders bucketed by time, so a trend can be grouped by the
             // board's 按日｜按月 (D22 F).
             timedOrdersDefinition,
-            variant === 'system' ? systemOverview : overviewDefinition,
+            variant === 'system'
+              ? systemOverview
+              : variant === 'bad-panel'
+                ? misdeclaredOverview
+                : overviewDefinition,
           ],
           instances: [
             trendView,
@@ -154,7 +199,7 @@ function DashboardDemo({
             engine={engine}
             definitionId="overview"
             instanceId={
-              variant === 'system'
+              variant === 'system' || variant === 'bad-panel'
                 ? 'system:overview:ops'
                 : // A board the store no longer holds.
                   variant === 'deleted'
@@ -776,6 +821,17 @@ export const SystemDashboard: Story = { args: { variant: 'system' } };
 
 /** A referenced view that was deleted: only that panel says so. */
 export const PanelUnavailable: Story = { args: { variant: 'unavailable' } };
+
+/**
+ * 一个面板配错，只坏它自己：板子随定义声明，其中一块自建分析给「状态」写了
+ * 「等于」——状态是分类，只收「属于」。那一格说「这个面板用不了」，写出是哪个
+ * 字段、为什么，请维护者修；其余面板照画。从前整块板只剩「定义有 N 个问题，
+ * 无法打开」。
+ */
+export const OneBadPanel: Story = {
+  name: '一个面板配错',
+  args: { variant: 'bad-panel' },
+};
 
 /** Each panel loads on its own, so they arrive independently. */
 export const Loading: Story = { args: { behaviour: 'slow' } };

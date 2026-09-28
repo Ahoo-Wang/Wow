@@ -17,9 +17,11 @@ import {
   Trash2Icon,
   UnplugIcon,
 } from 'lucide-react';
-import type { Issue } from '../model/index.js';
+import type { FieldDefinition, Issue } from '../model/index.js';
 import { useViewMessages, type MessageFormatters } from './MessagesProvider.js';
 import type { MessageKey } from './messages.js';
+import { analysisIssueNamer } from './analysis/issueNames.js';
+import { recordIssueNamer } from './record/issueNames.js';
 import { Button } from './components/button.js';
 import {
   Empty,
@@ -75,40 +77,75 @@ const OUTAGES: Readonly<Record<string, readonly [MessageKey, MessageKey]>> = {
   ],
 };
 
+/** Why a panel is out, said once, and what can be done about it. */
+interface Outage {
+  reason: string;
+  /** Which of its settings and why, when the reason alone does not say. */
+  detail?: string;
+  wayOut: string;
+}
+
 function outageOf(
   issue: Issue | undefined,
   messages: MessageFormatters,
-): readonly [string, string] {
+  name: (found: Issue) => Issue,
+  owned: boolean,
+): Outage {
+  const said = (reason: MessageKey, wayOut: MessageKey): Outage => ({
+    reason: messages.label(reason),
+    wayOut: messages.label(wayOut),
+  });
   // A panel held back with nothing of its own to say is waiting on the
   // dashboard, whose finding the workbench says above the grid.
   if (!issue)
-    return [
-      messages.label('label.panel.out.blocked'),
-      messages.label('label.panel.way-out.dashboard'),
-    ];
+    return said('label.panel.out.blocked', 'label.panel.way-out.dashboard');
   const mapped = OUTAGES[issue.code];
-  if (mapped) return [messages.label(mapped[0]), messages.label(mapped[1])];
+  if (mapped) return said(mapped[0], mapped[1]);
   // A binding names the fields on both ends; the reader needs to know only
   // that the dashboard's filters do not reach this panel.
   if (issue.code.startsWith('dashboard.binding.'))
-    return [
-      messages.label('label.panel.out.filter'),
-      messages.label('label.panel.way-out.maintainer'),
-    ];
+    return said('label.panel.out.filter', 'label.panel.way-out.maintainer');
   // The dashboard's other rules about one panel — where it stands, what a
   // note or a link holds — already read in a reader's words and name no id.
   if (issue.code.startsWith('dashboard.'))
-    return [
-      messages.issue(issue),
-      messages.label('label.panel.way-out.maintainer'),
-    ];
-  // Anything else is the view the panel shows refusing its own saved
-  // settings — its definition changed under it. Its detail names fields and
-  // is the view's owner's to read, in the view itself.
-  return [
-    messages.label('label.panel.out.refused'),
-    messages.label('label.panel.way-out.author'),
-  ];
+    return {
+      reason: messages.issue(issue),
+      wayOut: messages.label('label.panel.way-out.maintainer'),
+    };
+  // Anything else is the view the panel shows refusing its own settings:
+  // a condition its field no longer takes, a chart it can no longer draw.
+  // Which setting and why is said, in the words the screen uses (`name`) —
+  // no one reading the board can open the settings to find out, and
+  // 「the settings no longer work」 alone sent them to someone who could not
+  // tell either. A view the board owns is its maintainer's to fix; a saved
+  // one its owner's.
+  return {
+    reason: messages.label('label.panel.out.config'),
+    detail: messages.issue(name(issue)),
+    wayOut: messages.label(
+      owned ? 'label.panel.way-out.maintainer' : 'label.panel.way-out.author',
+    ),
+  };
+}
+
+/**
+ * A panel's finding in the words its screen uses: a field by its label, an
+ * operator, a summary or a unit as its control says it. A panel that runs
+ * names through its analysis (`analysisIssueNamer`); one that cannot run
+ * has no runtime to ask, and names by the fields of the view it shows
+ * (`DashboardPanelView.fields`) — a condition's field and operator, which
+ * is what a view refuses most.
+ */
+export function outPanelNamer(
+  fields: readonly FieldDefinition[],
+  messages: MessageFormatters,
+): (found: Issue) => Issue {
+  const byField = recordIssueNamer(fields, messages);
+  const byAnalysis = analysisIssueNamer(
+    { groups: [], metrics: [], fields: [], conditionFields: fields },
+    messages,
+  );
+  return found => byAnalysis(byField(found));
 }
 
 export interface PanelUnavailableProps {
@@ -123,6 +160,17 @@ export interface PanelUnavailableProps {
   replace?(): void;
   /** 改内容…, for a note, a picture or links the kernel refused. */
   editContent?(): void;
+  /**
+   * How a finding is named in the screen's words (`outPanelNamer`); left
+   * out, it is said as the kernel wrote it.
+   */
+  name?(found: Issue): Issue;
+  /** Whether the panel shows a view the board owns, whose way out is its maintainer. */
+  owned?: boolean;
+}
+
+function same(found: Issue): Issue {
+  return found;
 }
 
 /**
@@ -135,13 +183,15 @@ export function PanelUnavailable({
   remove,
   replace,
   editContent,
+  name = same,
+  owned = false,
 }: PanelUnavailableProps) {
   const messages = useViewMessages();
-  const [reason, readersWayOut] = outageOf(issue, messages);
+  const outage = outageOf(issue, messages, name, owned);
   // Whoever builds the board is the one the sentence would send a reader
   // to; they are given the way itself, and the sentence says what it does.
   const wayOut = !remove
-    ? readersWayOut
+    ? outage.wayOut
     : messages.label(
         replace
           ? 'label.panel.way-out.edit'
@@ -153,7 +203,12 @@ export function PanelUnavailable({
         <EmptyMedia variant="icon">
           <UnplugIcon />
         </EmptyMedia>
-        <EmptyTitle>{reason}</EmptyTitle>
+        <EmptyTitle>{outage.reason}</EmptyTitle>
+        {outage.detail !== undefined && (
+          <EmptyDescription data-slot="panel-unavailable-detail">
+            {outage.detail}
+          </EmptyDescription>
+        )}
         <EmptyDescription>{wayOut}</EmptyDescription>
       </EmptyHeader>
       {remove && (

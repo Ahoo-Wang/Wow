@@ -1611,7 +1611,7 @@ export const zhCN: ViewMessages = {
   'label.panel.out.kind': '这个面板指向的不是记录视图或分析视图',
   'label.panel.out.private': '这个面板显示的视图并不对这个仪表盘的所有读者开放',
   'label.panel.out.filter': '仪表盘的筛选接不到这个面板上',
-  'label.panel.out.refused': '这个面板显示的视图保存的设置已经用不了了',
+  'label.panel.out.config': '这个面板用不了',
   'label.panel.out.blocked': '仪表盘本身要先修正',
   'label.panel.out.unknown-kind': '这种面板在这里显示不了',
   'label.panel.out.settings': '这个面板自己的设置用不了',

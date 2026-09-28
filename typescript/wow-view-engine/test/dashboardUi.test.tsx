@@ -614,15 +614,72 @@ describe('DashboardGrid', () => {
       expect(said).not.toContain('nowhere');
     });
 
+    /**
+     * The view's own kernel refusing its saved settings: which setting and
+     * why is said — no one reading the board can open the view to find out
+     * (todo A) — and its owner is who can fix it.
+     */
     it('a view saved with settings its definition now refuses', async () => {
       const said = await outage(dashboardConfig({ panels: [panel()] }), [
         { ...pending, config: recordConfig({ pageSize: 0 }) },
       ]);
-      expect(said).toContain(
-        'The view this panel shows was saved with settings that no longer work',
-      );
+      expect(said).toContain('This panel cannot be used');
+      expect(said).toContain('The page size must be a positive number.');
       expect(said).toContain("Ask the view's owner to open it and fix it");
-      expect(said).not.toMatch(/page size/i);
+    });
+
+    /**
+     * A condition its field no longer takes, named as the screen names
+     * them — the field by its label, the operator as its select says it —
+     * never by the path a config holds.
+     */
+    it('a condition its field no longer takes, by the field and the operator', async () => {
+      const said = await outage(dashboardConfig({ panels: [panel()] }), [
+        {
+          ...pending,
+          config: recordConfig({
+            filter: {
+              op: 'and',
+              children: [
+                { field: 'amount', operator: 'CONTAINS', value: 'CN' },
+              ],
+            },
+          }),
+        },
+      ]);
+      expect(said).toContain('This panel cannot be used');
+      expect(said).toContain('Amount does not support contains.');
+    });
+
+    /** An analysis the board owns has no owner but the board's maintainer. */
+    it('an analysis the board owns, whose maintainer is who can fix it', async () => {
+      const said = await outage(
+        dashboardConfig({
+          panels: [
+            {
+              id: 'owned',
+              kind: 'view',
+              owned: {
+                definitionId: 'orders',
+                config: analysisConfig({
+                  filter: {
+                    op: 'and',
+                    children: [
+                      { field: 'amount', operator: 'CONTAINS', value: '1' },
+                    ],
+                  },
+                }),
+              },
+              bindings: [],
+              layout: { x: 0, y: 0, w: 6, h: 4 },
+            } as DashboardPanel,
+          ],
+        }),
+      );
+      expect(said).toContain('This panel cannot be used');
+      expect(said).toContain('Amount does not support contains.');
+      expect(said).toContain('Ask whoever maintains this dashboard');
+      expect(said).not.toContain("view's owner");
     });
 
     it('a panel pointing at another dashboard', async () => {
@@ -706,11 +763,7 @@ describe('DashboardGrid', () => {
 
     render(<DashboardGrid dashboard={controller()} />);
 
-    expect(
-      screen.getByText(
-        'The view this panel shows was saved with settings that no longer work',
-      ),
-    ).toBeTruthy();
+    expect(screen.getByText('This panel cannot be used')).toBeTruthy();
     expect(
       screen.getByRole('button', {
         name: 'These conditions need the advanced editor to be shown in full.',

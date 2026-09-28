@@ -27,11 +27,13 @@ import {
   ViewEngine,
   type AnalysisCapability,
   type DashboardPanel,
+  type DashboardRuntimeState,
   type FieldDefinition,
   type Issue,
   type ViewDefinition,
 } from '../src/index.js';
 import { isUsableDefinition } from '../src/runtime/validateDefinition.js';
+import { blocksBoard } from '../src/runtime/dashboard/panels.js';
 import {
   analysisConfig,
   dashboardConfig,
@@ -667,6 +669,16 @@ describe('validateDefinition system views', () => {
    * that it says it is one, so the analysis kernel judges it here — or the
    * board is admitted and the first reader of its chart throws.
    */
+  /** A panel showing an analysis the board owns, over `orders`. */
+  const ownedPanel = (id: string, config: unknown, x: number) =>
+    ({
+      id,
+      kind: 'view',
+      owned: { definitionId: 'orders', config },
+      bindings: [],
+      layout: { x, y: 0, w: 6, h: 4 },
+    }) as unknown as DashboardPanel;
+
   describe('a board that owns an analysis', () => {
     const board = (config: unknown) =>
       overviewDefinition({
@@ -707,6 +719,33 @@ describe('validateDefinition system views', () => {
           .slice(1)
           .map(entry => [entry.code, entry.path[entry.path.length - 1]]),
       ).toContainEqual(['analysis.config.malformed', 'chart']);
+      // A panel's finding: it puts that panel out when the board opens,
+      // not the definition and every other panel of its boards (todo A).
+      expect(isUsableDefinition(found)).toBe(true);
+    });
+
+    it('still refuses the definition for what the board holds apart from its panels', () => {
+      const found = validateDefinition(
+        overviewDefinition({
+          views: [
+            {
+              id: 'board',
+              title: 'Board',
+              config: dashboardConfig({
+                fixed: 'everything' as never,
+                panels: [ownedPanel('broken', { kind: 'analysis' }, 0)],
+              }),
+            },
+          ],
+        }),
+        builtinFieldKinds,
+      );
+      expect(found).toContainEqual(
+        expect.objectContaining({
+          code: 'config.filter.invalid',
+          path: ['views', 0, 'config', 'fixed'],
+        }),
+      );
       expect(isUsableDefinition(found)).toBe(false);
     });
 
@@ -740,21 +779,45 @@ describe('validateDefinition system views', () => {
       ).toBe(true);
     });
 
-    it('refuses to open the board rather than throwing while it syncs', async () => {
+    /**
+     * Where it used to refuse the whole definition: the board opens, the
+     * panel whose analysis cannot run is out and says why, and the panel
+     * beside it runs — nothing reads the broken chart on the way.
+     */
+    it('opens the board with that panel out, rather than throwing while it syncs', async () => {
       const engine = new ViewEngine({
-        definitions: [ordersDefinition(), board({ kind: 'analysis' })],
+        definitions: [
+          ordersDefinition(),
+          overviewDefinition({
+            views: [
+              {
+                id: 'board',
+                title: 'Board',
+                config: dashboardConfig({
+                  panels: [
+                    ownedPanel('broken', { kind: 'analysis' }, 0),
+                    ownedPanel('whole', analysisConfig(), 6),
+                  ],
+                }),
+              },
+            ],
+          }),
+        ],
         store: new MemoryViewStore(),
         resolveSource: () => testSource(),
         onIssue: () => {},
       });
-      const refused = await engine.open('system:overview:board').then(
-        () => null,
-        (error: unknown) => error,
+      const board = await engine.open('system:overview:board');
+      const { issues, panels } = board.getSnapshot() as DashboardRuntimeState;
+      expect(blocksBoard(issues)).toBe(false);
+      const [broken, whole] = panels;
+      expect(broken.runtime).toBeNull();
+      expect(broken.issues.map(found => found.code)).toContain(
+        'analysis.config.malformed',
       );
-      expect(isViewCommandError(refused)).toBe(true);
-      expect(isViewCommandError(refused) && refused.issue.code).toBe(
-        'view.definition.invalid',
-      );
+      expect(whole.runtime).not.toBeNull();
+      expect(whole.issues).toEqual([]);
+      board.dispose();
     });
   });
 

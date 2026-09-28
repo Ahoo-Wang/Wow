@@ -29,7 +29,6 @@ import {
   admitFilters,
   filtersOf,
   referencedInstance,
-  validateDashboard,
   type DataPanelSource,
 } from '../dashboard/index.js';
 import { boardFieldsOf } from '../dashboard/boardFields.js';
@@ -68,6 +67,7 @@ import {
   shownTab,
 } from './dashboard/panels.js';
 import { PanelReferences } from './dashboard/references.js';
+import { admitBoard } from './dashboard/owned.js';
 import type { WriteState } from './write.js';
 import type { DataViewRuntime } from './viewRuntime.js';
 import type { ManagedViewRuntime, ViewQueryState } from './viewRuntimeTypes.js';
@@ -585,9 +585,15 @@ export class DashboardViewRuntime
     return this.children.runtimeOf(panelId);
   }
 
-  /** Admission of a config at a scope, against the references known. */
+  /**
+   * Admission of a config at a scope, against the references known: the
+   * dashboard kernel's, then each analysis the board owns through the
+   * analysis kernel (`ownedRefusals`), which the dashboard kernel may not
+   * import. Only what `blocksBoard` reads — a finding no panel owns —
+   * stops the board; everything under `['panels', i]` is that panel's.
+   */
   private admit(config: DashboardViewConfig, scope: ViewScope): Issue[] {
-    return validateDashboard(config, scope, this.references.known, this.kinds, {
+    return admitBoard(config, scope, this.references.known, this.kinds, {
       limits: this.options.limits,
       definitions: this.options.definitions,
     });

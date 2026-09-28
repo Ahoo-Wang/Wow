@@ -23,6 +23,7 @@ import {
   type DashboardTab,
   type DashboardTimeGrouping,
   type DataViewConfig,
+  type FieldDefinition,
   type FieldOption,
   type FilterValue,
   type Issue,
@@ -59,6 +60,11 @@ export interface DashboardPanelView {
   /** The runtime of a data panel that can run; `null` otherwise. */
   runtime: ViewRuntime<DataViewConfig> | null;
   issues: Issue[];
+  /**
+   * The fields of the view a data panel shows, which its findings are
+   * named by (`DashboardPanelState.fields`); empty otherwise.
+   */
+  fields: readonly FieldDefinition[];
   /** True when this panel alone cannot show anything. */
   broken: boolean;
   /** The tab it is on; `null` on a board without tabs. */
@@ -437,6 +443,7 @@ function toView(panel: DashboardPanelState): DashboardPanelView {
     layout: panel.panel.layout,
     runtime: panel.runtime,
     issues: panel.issues,
+    fields: panel.fields,
     tab: panel.tab,
     reach: panel.reach,
     grouping: panel.grouping,

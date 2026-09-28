@@ -17,7 +17,6 @@ import {
   SYSTEM_INSTANCE_ID_SEPARATOR,
   isFieldlessKind,
   type AnalysisCapability,
-  type AnalysisViewConfig,
   type DashboardViewConfig,
   type DataViewDefinition,
   type FieldDefinition,
@@ -28,17 +27,13 @@ import {
   type SystemView,
   type ViewDefinition,
 } from '../model/index.js';
-import {
-  issue,
-  isPlainObject,
-  type FieldKindRegistry,
-} from '../filter/index.js';
+import { issue, type FieldKindRegistry } from '../filter/index.js';
 import { validateRecord } from '../record/index.js';
 import { analysisScope, validateAnalysis } from '../analysis/index.js';
 import { offerIssues } from '../analysis/validateOffers.js';
-import { validateShape } from '../analysis/validateShape.js';
 import { validateDashboard } from '../dashboard/index.js';
 import { validateFields } from './validateFields.js';
+import { ownedRefusals } from './dashboard/owned.js';
 
 export interface ValidateDefinitionOptions {
   limits?: RuntimeLimits;
@@ -96,9 +91,37 @@ export function validateDefinition(
   return issues;
 }
 
-/** Whether a definition may be opened at all. */
+/**
+ * Whether a definition may be opened at all: it has no error, bar one a
+ * declared board's panel owns (`boardPanelFinding`).
+ *
+ * A board is opened panel by panel, and its runtime judges each panel again
+ * with its references in hand and puts out only the one that cannot run
+ * (`blocksBoard`). A definition refused for one bad panel would take every
+ * good panel of every board it declares down with it, and say nothing of
+ * which panel or why, since nothing opens to say it. So what a board holds
+ * apart from its panels — its grid, its filters, its fixed scope, its tabs,
+ * how many panels it has — refuses the definition as before, and a panel's
+ * own error is said on that panel when the board opens.
+ */
 export function isUsableDefinition(issues: readonly Issue[]): boolean {
-  return !issues.some(found => found.severity === 'error');
+  return !issues.some(
+    found => found.severity === 'error' && !boardPanelFinding(found),
+  );
+}
+
+/**
+ * Whether a definition's finding is about one panel of a board it declares:
+ * under `['views', n, 'config', 'panels', m]`. Only a dashboard config has
+ * `panels`; a record or an analysis one never does.
+ */
+function boardPanelFinding({ path }: Issue): boolean {
+  return (
+    path[0] === 'views' &&
+    path[2] === 'config' &&
+    path[3] === 'panels' &&
+    typeof path[4] === 'number'
+  );
 }
 
 /**
@@ -473,18 +496,13 @@ function validateSystemConfig(
 const EMPTY_REFERENCES = new Map();
 
 /**
- * The analyses a declared board owns, each judged as the analysis it is.
- *
- * The dashboard kernel may not import the analysis one, so on its own it
- * checks only that an owned view says it is an analysis. A board in code
- * holding `{ kind: 'analysis' }` and nothing else would then be admitted,
- * and the first thing to read its chart — the board's period anchor, when
- * the board syncs — would throw a `TypeError` instead. So each owned
- * analysis is run through the analysis kernel here, against its own
- * definition when it is registered beside this one, by its shape alone
- * when it is not (the board's own admission says the definition is unknown
- * when it is opened). One that fails is one finding on the panel, and the
- * kernel's own findings under it say why.
+ * The analyses a declared board owns, each judged as the analysis it is
+ * (`ownedRefusals`): against its own definition when that is registered
+ * beside this one, by its shape alone when it is not (the board's own
+ * admission says the definition is unknown when it is opened). One that
+ * fails is one finding on the panel, and the kernel's own findings under it
+ * say why. A panel's finding, so it puts that panel out and leaves the
+ * definition usable (`isUsableDefinition`).
  */
 function validateOwnedAnalyses(
   config: DashboardViewConfig,
@@ -493,36 +511,20 @@ function validateOwnedAnalyses(
   limits: RuntimeLimits,
   lookup: ValidateDefinitionOptions['definitions'],
 ): Issue[] {
-  // The kernel above has already refused a board whose panels are not a
-  // list, and an owned view that is not an object naming an analysis.
-  if (!Array.isArray(config.panels)) return [];
-  return config.panels.flatMap((panel: unknown, index) => {
-    if (!isPlainObject(panel) || !isPlainObject(panel.owned)) return [];
-    const owned = panel.owned;
-    if (!isPlainObject(owned.config) || owned.config.kind !== 'analysis')
-      return [];
-    const at: IssuePath = [...path, 'config', 'panels', index, 'owned'];
-    const analysis = owned.config as unknown as AnalysisViewConfig;
-    const target =
-      typeof owned.definitionId === 'string'
-        ? lookup?.(owned.definitionId)
-        : undefined;
-    const found =
-      target?.kind === 'data' && target.analysis
-        ? validateAnalysis(target, analysis, kinds, { limits })
-        : validateShape(analysis);
-    const errors = found.filter(entry => entry.severity === 'error');
-    if (errors.length === 0) return [];
-    return [
-      issue('definition.view.owned-invalid', [...at, 'config'], {
-        panel: typeof panel.id === 'string' ? panel.id : String(index),
-      }),
-      ...errors.map(entry => ({
-        ...entry,
-        path: [...at, 'config', ...entry.path],
-      })),
-    ];
-  });
+  const definitionOf = (id: string) => {
+    const found = lookup?.(id);
+    return found?.kind === 'data' ? found : undefined;
+  };
+  return ownedRefusals(config, definitionOf, kinds, limits).flatMap(refused => [
+    issue(
+      'definition.view.owned-invalid',
+      [...path, 'config', ...refused.path],
+      {
+        panel: refused.panel,
+      },
+    ),
+    ...under(path, refused.errors),
+  ]);
 }
 
 /** Re-paths a config's findings so they point at the view that holds it. */

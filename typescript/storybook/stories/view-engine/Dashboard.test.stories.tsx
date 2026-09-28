@@ -24,6 +24,7 @@ import displayMeta, {
   GlobalFilter as DisplayGlobalFilter,
   HeadingPanelAlone as DisplayHeadingPanelAlone,
   LegacyLayout as DisplayLegacyLayout,
+  OneBadPanel as DisplayOneBadPanel,
   PanelUnavailable as DisplayPanelUnavailable,
   PersonalViewOnSharedBoard as DisplayPersonalViewOnSharedBoard,
   PreBatchCCondition as DisplayPreBatchCCondition,
@@ -166,6 +167,50 @@ export const PanelUnavailable: Story = {
     // The other data panel is not taken down with it.
     await chartsDrawn(canvasElement);
     await waitFor(() => expect(bars(canvasElement)).toHaveLength(4));
+  },
+};
+
+/**
+ * One panel of a board declared in code is written wrong — a condition its
+ * field does not take (todo A). The board opens: that panel says it cannot
+ * be used, and which field and why, in the words the screen uses, and whose
+ * to fix; the panels beside it draw.
+ */
+export const OneBadPanel: Story = {
+  ...DisplayOneBadPanel,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(
+      await canvas.findByText(zhCN['label.panel.out.config']),
+    ).toBeVisible();
+    const out = canvasElement.querySelector(
+      '[data-slot="panel-unavailable"]',
+    ) as HTMLElement;
+    await expect(
+      out.querySelector('[data-slot="panel-unavailable-detail"]'),
+    ).toHaveTextContent('「状态」不支持「等于」。');
+    await expect(out).toHaveTextContent(zhCN['label.panel.way-out.maintainer']);
+    // Never the path a config holds.
+    await expect(out.textContent).not.toContain('status');
+    await expect(
+      canvas.getByRole('heading', { level: 3, name: '已取消的订单数' }),
+    ).toBeVisible();
+    // The board is not refused whole, and the other panels draw.
+    await expect(canvas.queryByText(/无法打开/)).toBeNull();
+    const table = await findDataTable(canvasElement);
+    await waitFor(() =>
+      expect(readColumn(table, '订单号')).toEqual([
+        'SO-1003',
+        'SO-1005',
+        'SO-1001',
+        'SO-1006',
+      ]),
+    );
+    await chartsDrawn(canvasElement);
+    await waitFor(() => expect(bars(canvasElement)).toHaveLength(4));
+    await expect(
+      canvas.getByRole('link', { name: /^出库异常处理/ }),
+    ).toBeVisible();
   },
 };
 
