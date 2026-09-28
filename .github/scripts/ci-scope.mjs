@@ -30,6 +30,12 @@ const CONTRACT = 'contract';
 const LEGACY_CONTRACT = 'legacyContract';
 // typescript.yml: actionlint over every workflow, the release workflow included.
 const WORKFLOWS = 'workflows';
+// typescript.yml: the compat-debt ledger alone, for a change to Kotlin main
+// sources that turns on no TypeScript check: the ledger pairs their removal
+// markers too (#3755), and quality, which runs it otherwise, is off then.
+const COMPAT_DEBT = 'compatDebt';
+// A Kotlin source a removal marker may sit in.
+const KOTLIN_MAIN = /(?:^|\/)src\/main\/kotlin\/.+\.kt$/;
 
 // A light scope stands in for a full one when only Markdown changed, so it
 // turns off again once any path turns the full scope on.
@@ -193,6 +199,7 @@ export function scopes(paths) {
     CONTRACT,
     LEGACY_CONTRACT,
     WORKFLOWS,
+    COMPAT_DEBT,
   ];
   const result = Object.fromEntries(keys.map(key => [key, false]));
   // Light scopes a path asks for alongside their full scope (the workflow
@@ -200,7 +207,9 @@ export function scopes(paths) {
   const kept = new Set();
   for (const path of paths) {
     const rule = RULES.find(([pattern]) => pattern.test(path));
-    if (!rule) return Object.fromEntries(keys.map(key => [key, true]));
+    // Every scope, quality among them, so the ledger alone would repeat it.
+    if (!rule)
+      return Object.fromEntries(keys.map(key => [key, key !== COMPAT_DEBT]));
     for (const key of rule[1]) {
       result[key] = true;
       if (key in FULL && rule[1].includes(FULL[key])) kept.add(key);
@@ -208,6 +217,10 @@ export function scopes(paths) {
   }
   for (const [light, full] of Object.entries(FULL))
     if (result[full] && !kept.has(light)) result[light] = false;
+  // Decided apart from RULES, whose first match wins: a Kotlin path keeps the
+  // scopes it has and adds this one, unless quality already checks the ledger.
+  result[COMPAT_DEBT] =
+    !result[TYPESCRIPT] && paths.some(path => KOTLIN_MAIN.test(path));
   return result;
 }
 

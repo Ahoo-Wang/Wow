@@ -44,6 +44,7 @@ jobs:
       package-docs: ${{ steps.scope.outputs.packageDocs }}
       view-engine-docs: ${{ steps.scope.outputs.viewEngineDocs }}
       workflows: ${{ steps.scope.outputs.workflows }}
+      compat-debt: ${{ steps.scope.outputs.compatDebt }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -54,6 +55,23 @@ jobs:
           BASE_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
           HEAD_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
         run: node .github/scripts/ci-scope.mjs
+
+  # The ledger alone, for a Kotlin-only change: quality runs it otherwise.
+  compat-debt:
+    name: Compat-debt ledger
+    needs: scope
+    if: needs.scope.outputs.compat-debt == 'true'
+    timeout-minutes: 5
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24.21.0
+      - name: Check compatibility-debt ledger
+        run: node .github/scripts/compat-debt.mjs
 
   quality:
     name: Quality
@@ -394,6 +412,7 @@ jobs:
         package-docs,
         docs,
         workflow-lint,
+        compat-debt,
       ]
     if: always()
     timeout-minutes: 5
