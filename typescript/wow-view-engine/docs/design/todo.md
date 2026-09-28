@@ -39,6 +39,24 @@
      - 做法：`ui/kit/` 放共用基础件（连同 `focus.ts`、`anchor.ts`），只依赖 components／lib／theme／messages；功能部件归到各自的目录（表格、卡片、分页、行操作、结果工具栏、批量状态 → `record/`；列设置 → `columns/`；排序设置 → `sort/`；筛选面板、条件值编辑、已应用条 → `filter/`；分析表、图外框、字段菜单 → `analysis/`；看板网格、面板、编排 → `dashboard/`；视图列表、视图头、保存／另存／删除／冲突／离开、刷新、导出 → `workbench/`）；根目录只留外壳与入口。先处理 `ViewSurface`、`RenderBoundary` 对 `charts` 的依赖（它们属于底层）。
      - 判据：`test/architecture.test.ts` 的 ui 方向表把 `kit` 放在所有功能目录之下，并加一条「除入口与外壳外，无人依赖根目录」；公开面快照一个名字不变；引擎测试、构建、全部故事与控制台通过。
 
+## 看板真实接入（补偿控制台，2026-09-27）暴露的问题——首发前做，按序交子代理
+
+控制台是引擎第一个真实宿主。从宿主的四件事看（声明要快、配错能马上知道且只坏那一块、融得进宿主的样式、能在自己的测试里跑），用户 2026-09-27 按推荐定：A、C、D 首发前做，B 先出方案，F 随求值器那件做；E、G、H 见「首发后再议」。顺序接在上一节之后：求值器（含 F）→ `HeadingPanel` → A → C → D → B 的方案。
+
+1. **`HeadingPanel` 带标题层级**：它今天画的是 `<p data-slot="panel-heading">`，宿主拿它当区块标题时读屏的标题大纲里没有它。像 `MarkdownPanel` 一样收一个 `headingLevel`，缺省照旧。判据：故事 `HeadingPanelAlone` 断言给了层级时是那一级的标题。落点：`src/ui/DashboardPanels.tsx`。
+2. **A：一个面板配错，只坏它自己**：
+   - 为什么：控制台把事件流的 `body.name` 从字符串改成枚举，枚举不收 `EQ`，引用它的四张结局卡的自有配置失效，整块总览只剩「overview 定义有 23 个问题，无法打开」，其余十五个好面板也不画；错在哪个字段、哪个算子，页面上看不到，要跑单测才知道。运行时查询失败早已只坏一个面板（[D18](decisions.md)），配置错误不该更重。
+   - 判据：看板准入把面板级的问题留在面板上——那一格画「这个面板用不了」并写出字段与原因，其余照画；看板级的问题（全局筛选、布局本身）才拦整块板。故事一块板里放一个坏面板断言其余面板画出。落点：`src/dashboard/validate.ts`、`src/runtime/dashboardRuntime.ts`、`src/ui/dashboard/PanelBodies.tsx`。
+3. **C：跨定义的引用在准入时就核对**：
+   - 为什么：面板用 `instanceId` 引用另一个定义的系统视图（控制台的总览引用失败执行与事件流的分析）时，看板准入只看自己的定义，写错的 id 要到打开才发现；控制台为此手写了一条测试兜底（`overview.test.ts`「each naming a view there is」）。
+   - 判据：引擎准入看板时按已注册的全部定义核对 `instanceId`、`opens`、点击去向与绑定字段（字段要在被引用视图的定义里），错的按 A 只坏那个面板。落点：`src/dashboard/validate.ts`、`src/runtime/viewEngine.ts`。
+4. **D：时间窗口自动绑定**：
+   - 为什么：三块板每个面板都手写 `bindings`，还得记住那个视图该绑 `state.executeAt`、`firstEventTime`、`eventTime` 还是 `createTime`；绑错不报错，只悄悄算错的数。
+   - 判据：定义声明按时间看时的缺省字段（如 `timeField`，可按视图覆盖）；看板的时间筛选对没写绑定的面板自动绑到它，面板可声明不受时间范围影响；已写的绑定照旧优先。控制台三块板删去手写的时间绑定后数字不变。落点：`src/model/definition.ts`、`src/dashboard/`、控制台 `src/views/overview.ts`。
+5. **B：宿主的响应式样式在引擎的面里失效——先出方案**：
+   - 为什么：引擎的工具类带作用域（`:is(.fve-root *, .fve-tokens *)`），比宿主同名的 Tailwind 工具类重一个类，宿主写在引擎面里的 `sm:grid-cols-4` 被引擎的 `grid-cols-2` 压过（控制台外壳与失败执行详情各撞一次，只能改写成不带断点的写法）。shadcn／Tailwind 宿主是主要用户，他们的断点在引擎面里静悄悄失效。
+   - 判据：方案（倾向引擎工具类改零权重的 `:where` 作用域，让同名宿主类按顺序生效）先交用户讨论定；落地时全部截图基线与主题故事不变，另加一个宿主断点类在引擎面里生效的故事。落点：`scripts/scope-utilities.mjs`、`src/styles.css`。
+
 ## Storybook 审查（2026-09-26）的处置
 
 - **按道修 [review-2026-09-26.md](../../../storybook/docs/review-2026-09-26.md) 的 P0/P1**：
@@ -56,8 +74,10 @@
 
 ## 首发后再议（用户 2026-09-26 要求记下，不要遗漏）
 
-- **补偿控制台的「四种结局」趋势与 N7**：控制台重写后总览的趋势先用两条线（每日新增失败、每日恢复成功，`compensation/dashboard/docs/design/console-redesign.md` Q2）。首发后与用户再议：值班是否需要看新增失败、准备重试、重试失败、重试成功的此消彼长；需要就先做查询 N7（指标条件里的元素匹配，查询设计 §11，§14 也记了），再在视图引擎采用、控制台改图。
-  - 判据：用户给出结论并写进 decisions；要做就开后端道。落点：查询设计 §11／§14、本包 `analysis/`、控制台总览板。
+- **H：补偿控制台「每天各种结局」画成一张多序列图——定为后端支持**（用户 2026-09-27 按推荐定；引擎不做「多个查询拼一张图」）：今天四张结局卡各自带逐日走势，因为 Wow 在展开元素的聚合里够不到根字段 `createTime`。由「查询模块架构重构」会话在后端加「元素作用域里按上层（根）字段分组」：准入放宽为字段属于当前或上层作用域并定下指明根字段的写法；MongoDB 的 `$unwind` 本就带着根字段，几乎不用改；Elasticsearch 要把根字段的分组放到 `nested` 外（或 `reverse_nested`）并与分页器的 composite 相容，是主要成本；TCK 两个后端都加用例。约一周。契约走交接协议；之后 TS 镜像（描述符能力开关、DSL、本包放开 `analysis.field.outside-scope`）、控制台把四张卡合成一张图。
+  - 判据：一次查询出「按天 × 事件名」，MongoDB 与 ES 的 TCK 都过；控制台「补偿活动」板的结局是一张四条线的图。落点：`wow-query` 的 `QueryResolver`、`wow-mongo`／`wow-elasticsearch` 的聚合编译、本包 `analysis/`、控制台 `src/views/overview.ts`。
+- **E：看板布局不用手算坐标**：面板位置今天是手写的 `x/y/w/h`，给总览插三个面板要把后面面板的 `y` 全部重算。加一个按行排布的辅助（给宽度、自动排位置），或 `y` 省略时自动接在上一行后。判据：控制台的三块板改用它后布局不变。落点：`src/dashboard/layout.ts`。
+- **G：枚举字段宽容 `EQ`**：把字段从字符串改成枚举时，已有的 `EQ` 条件全部失效（A 的起因）。读的时候已经把只有一个值的 `IN` 说成「是」，写的时候对枚举上的 `EQ` 同样宽容（按一个值的 `IN` 读）。判据：枚举字段上存下的 `EQ` 条件照常准入与编译。落点：`src/filter/kinds/enum.ts`。
 
 ## 连真 Wow 服务端的端到端（2026-09-25 落地后的余项）
 
@@ -122,7 +142,7 @@
 
 补偿控制台按方案八批重构完（Wow 仓 [compensation/dashboard/docs/design/view-engine-rebuild.md](../../../../compensation/dashboard/docs/design/view-engine-rebuild.md)「批 7 的记录」与验证报告）；走查里的引擎缺口已合并的不再列，余下这几条：
 
-- **四种结局画成一张四条线的走势图**（已并入上面「首发后再议」，控制台重写后先用两条线）：要么 Wow 查询允许对数组元素写指标条件（今天拒绝：`METRIC_FILTER_ELEMENT_MATCH`、`METRIC_FILTER_ARRAY_FIELD`），要么展开元素时允许按根字段（事件流的 `createTime`）分组（今天报 `analysis.field.outside-scope`）。N1～N3 都没有改变这两点。
+- **四种结局画成一张四条线的走势图**（2026-09-27 定为后端支持，见「首发后再议」H）：要么 Wow 查询允许对数组元素写指标条件（今天拒绝：`METRIC_FILTER_ELEMENT_MATCH`、`METRIC_FILTER_ARRAY_FIELD`），要么展开元素时允许按根字段（事件流的 `createTime`）分组（今天报 `analysis.field.outside-scope`）。N1～N3 都没有改变这两点。
   - 为什么：控制台只能画四张各带走势的指标卡，看不出结局之间的相对走势。判据：补偿概览的「流入与结局」写成一张按事件名拆开的日直方图，对真服务答得出。落点：Wow 查询目标架构；本包 `analysis/`。
 - **看板打开时查询队列按看板的规模留位**（2026-09-27，补偿概览扩到十九个面板时撞到）：默认 `maxQueuedQueries` 32，而一个分析面板可能一次问两三条（拆分的「其他」、截断的探测），概览的最后几个面板被拒成「同时查询太多，过一会儿再试」。控制台先把队列提到 64（`compensation/dashboard/src/views/engine.ts`）。
   - 为什么：看板上的面板是同一次打开，拒掉其中几个不是「太忙」，是队列没为这块板留位；宿主不该为此猜一个数。判据：一块板打开时，它的全部面板都能排进队列（按面板数给队列留位，或板的查询不计入普通上限），三十个面板的故事里没有面板报 `runtime.query.queue-full`，控制台去掉自己的 64 仍通过。落点：`src/runtime/requestRunner.ts`、`src/model/limits.ts`、`ui/dashboard/`。
