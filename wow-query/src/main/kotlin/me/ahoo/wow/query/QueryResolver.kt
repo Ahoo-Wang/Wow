@@ -434,13 +434,13 @@ internal class QueryResolver(
     }
 
     /**
-     * Every sort: at most [AggregationQuery.MAX_SORT_FIELDS] fields, each sortable by its caller, no two independent
+     * Every sort: at most [Sort.MAX_FIELDS] fields, each sortable by its caller, no two independent
      * arrays when the storage cannot sort by both, and no two fields bound to one physical field. A cursor's sort
      * passed [requireCursorSort] first.
      */
     private fun sort(sort: List<Sort>, cursor: Boolean): List<Sort> {
-        requireValid(sort.size <= AggregationQuery.MAX_SORT_FIELDS) {
-            QueryViolation.SortTooMany(AggregationQuery.MAX_SORT_FIELDS)
+        requireValid(sort.size <= Sort.MAX_FIELDS) {
+            QueryViolation.SortTooMany(Sort.MAX_FIELDS)
         }
         val capability = if (cursor) QueryCapability.CURSOR_SORT else QueryCapability.SORT
         val resolved = sort.map {
@@ -464,13 +464,13 @@ internal class QueryResolver(
 
     /**
      * A cursor's effective sort (its tie-breaker appended) names no field twice and fits
-     * [AggregationQuery.MAX_SORT_FIELDS], checked before anything is resolved and rejected with the cursor's own codes.
+     * [Sort.MAX_FIELDS], checked before anything is resolved and rejected with the cursor's own codes.
      */
     private fun requireCursorSort(sort: List<Sort>) {
         sort.groupingBy { canonical(it.field, ROOT) }.eachCount().entries.firstOrNull { it.value > 1 }
             ?.let { (duplicate) -> throw QueryViolation.CursorSortDuplicate(duplicate).rejection() }
-        requireValid(sort.size <= AggregationQuery.MAX_SORT_FIELDS) {
-            QueryViolation.CursorSortTooMany(AggregationQuery.MAX_SORT_FIELDS)
+        requireValid(sort.size <= Sort.MAX_FIELDS) {
+            QueryViolation.CursorSortTooMany(Sort.MAX_FIELDS)
         }
     }
 

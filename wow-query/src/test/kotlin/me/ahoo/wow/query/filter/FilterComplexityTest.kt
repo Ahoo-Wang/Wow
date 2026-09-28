@@ -130,16 +130,6 @@ class FilterComplexityTest {
     }
 
     @Test
-    fun `childFilters should expose logical operands and element predicates`() {
-        val leaf = EqualFilter(field, value)
-        AndFilter(listOf(leaf, MatchAllFilter)).childFilters().assert().containsExactly(leaf, MatchAllFilter)
-        OrFilter(listOf(leaf)).childFilters().assert().containsExactly(leaf)
-        NorFilter(listOf(leaf)).childFilters().assert().containsExactly(leaf)
-        ElementMatchFilter(field, leaf).childFilters().assert().containsExactly(leaf)
-        leaf.childFilters().assert().isEmpty()
-    }
-
-    @Test
     fun `walkFilterNodes should visit every node last-in-first-out`() {
         val first = EqualFilter(field, value)
         val second = IdFilter("id")

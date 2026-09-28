@@ -13,64 +13,16 @@
 
 package me.ahoo.wow.query.filter
 
-import me.ahoo.wow.api.query.AfterNowFilter
-import me.ahoo.wow.api.query.AggregateIdFilter
-import me.ahoo.wow.api.query.AggregateIdsFilter
 import me.ahoo.wow.api.query.AggregationExpression
 import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.AndFilter
-import me.ahoo.wow.api.query.BeforeNowFilter
-import me.ahoo.wow.api.query.BeforeTodayFilter
-import me.ahoo.wow.api.query.BetweenFilter
-import me.ahoo.wow.api.query.ContainsAllFilter
-import me.ahoo.wow.api.query.ContainsFilter
 import me.ahoo.wow.api.query.DeletionFilter
 import me.ahoo.wow.api.query.DeletionState
-import me.ahoo.wow.api.query.EarlierDaysFilter
-import me.ahoo.wow.api.query.ElementMatchFilter
-import me.ahoo.wow.api.query.EndsWithFilter
-import me.ahoo.wow.api.query.EqualFilter
-import me.ahoo.wow.api.query.ExistsFilter
-import me.ahoo.wow.api.query.ExpressionFilter
 import me.ahoo.wow.api.query.FilterExpression
-import me.ahoo.wow.api.query.GreaterThanFilter
-import me.ahoo.wow.api.query.GreaterThanOrEqualFilter
 import me.ahoo.wow.api.query.HavingExpression
-import me.ahoo.wow.api.query.IdFilter
-import me.ahoo.wow.api.query.IdsFilter
-import me.ahoo.wow.api.query.InFilter
-import me.ahoo.wow.api.query.IsEmptyFilter
-import me.ahoo.wow.api.query.IsEmptyStringFilter
-import me.ahoo.wow.api.query.IsNotEmptyStringFilter
-import me.ahoo.wow.api.query.IsNotNullFilter
-import me.ahoo.wow.api.query.IsNullFilter
-import me.ahoo.wow.api.query.LastMonthFilter
-import me.ahoo.wow.api.query.LastWeekFilter
-import me.ahoo.wow.api.query.LastYearFilter
-import me.ahoo.wow.api.query.LessThanFilter
-import me.ahoo.wow.api.query.LessThanOrEqualFilter
 import me.ahoo.wow.api.query.MatchAllFilter
-import me.ahoo.wow.api.query.MatchNoneFilter
-import me.ahoo.wow.api.query.NextMonthFilter
-import me.ahoo.wow.api.query.NextWeekFilter
-import me.ahoo.wow.api.query.NextYearFilter
-import me.ahoo.wow.api.query.NorFilter
-import me.ahoo.wow.api.query.NotEqualFilter
-import me.ahoo.wow.api.query.NotExistsFilter
-import me.ahoo.wow.api.query.NotInFilter
 import me.ahoo.wow.api.query.OrFilter
-import me.ahoo.wow.api.query.OwnerIdFilter
-import me.ahoo.wow.api.query.RecentDaysFilter
-import me.ahoo.wow.api.query.SearchFilter
-import me.ahoo.wow.api.query.SpaceIdFilter
-import me.ahoo.wow.api.query.StartsWithFilter
-import me.ahoo.wow.api.query.TenantIdFilter
-import me.ahoo.wow.api.query.ThisMonthFilter
-import me.ahoo.wow.api.query.ThisWeekFilter
-import me.ahoo.wow.api.query.ThisYearFilter
-import me.ahoo.wow.api.query.TodayFilter
-import me.ahoo.wow.api.query.TomorrowFilter
-import me.ahoo.wow.api.query.YesterdayFilter
+import me.ahoo.wow.api.query.childFilters
 import me.ahoo.wow.api.query.spec.OperatorCost
 import me.ahoo.wow.api.query.spec.ValueArity
 import me.ahoo.wow.api.query.spec.spec
@@ -103,67 +55,6 @@ fun FilterExpression.isMatchAll(): Boolean = spec.matchesAll(this)
  * for nodes that do not carry a value list.
  */
 fun FilterExpression.valueCount(): Int? = if (spec.arity.values == ValueArity.LIST) spec.valueCount(this) else null
-
-/**
- * The direct child filters of this node: the operands of `AND` / `OR` / `NOR` and the predicate of
- * `ELEMENT_MATCH`. Leaf nodes return an empty list.
- */
-internal fun FilterExpression.childFilters(): List<FilterExpression> = when (this) {
-    is AndFilter -> operands
-    is OrFilter -> operands
-    is NorFilter -> operands
-    is ElementMatchFilter -> listOf(predicate)
-    MatchAllFilter,
-    MatchNoneFilter,
-    is DeletionFilter,
-    is SearchFilter,
-    is ExpressionFilter,
-    is IdFilter,
-    is IdsFilter,
-    is AggregateIdFilter,
-    is AggregateIdsFilter,
-    is TenantIdFilter,
-    is OwnerIdFilter,
-    is SpaceIdFilter,
-    is EqualFilter,
-    is NotEqualFilter,
-    is GreaterThanFilter,
-    is GreaterThanOrEqualFilter,
-    is LessThanFilter,
-    is LessThanOrEqualFilter,
-    is ContainsFilter,
-    is StartsWithFilter,
-    is EndsWithFilter,
-    is InFilter,
-    is NotInFilter,
-    is BetweenFilter,
-    is ContainsAllFilter,
-    is IsEmptyFilter,
-    is IsEmptyStringFilter,
-    is IsNotEmptyStringFilter,
-    is IsNullFilter,
-    is IsNotNullFilter,
-    is ExistsFilter,
-    is NotExistsFilter,
-    is TodayFilter,
-    is BeforeTodayFilter,
-    is TomorrowFilter,
-    is ThisWeekFilter,
-    is NextWeekFilter,
-    is LastWeekFilter,
-    is ThisMonthFilter,
-    is LastMonthFilter,
-    is RecentDaysFilter,
-    is EarlierDaysFilter,
-    is YesterdayFilter,
-    is NextMonthFilter,
-    is LastYearFilter,
-    is ThisYearFilter,
-    is NextYearFilter,
-    is BeforeNowFilter,
-    is AfterNowFilter,
-    -> emptyList()
-}
 
 /**
  * Lazily walks every node of these filter trees (roots included) depth-first without recursion, so arbitrarily

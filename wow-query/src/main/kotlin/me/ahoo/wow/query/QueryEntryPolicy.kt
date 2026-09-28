@@ -16,10 +16,8 @@ package me.ahoo.wow.query
 import me.ahoo.wow.api.query.AndFilter
 import me.ahoo.wow.api.query.EqualFilter
 import me.ahoo.wow.api.query.FilterExpression
-import me.ahoo.wow.api.query.OwnerIdFilter
 import me.ahoo.wow.api.query.QueryField
-import me.ahoo.wow.api.query.SpaceIdFilter
-import me.ahoo.wow.api.query.TenantIdFilter
+import me.ahoo.wow.api.query.spec.ValueArity
 import me.ahoo.wow.api.query.spec.spec
 import me.ahoo.wow.query.schema.QueryModelProfile
 import me.ahoo.wow.query.schema.QueryViolation
@@ -64,7 +62,7 @@ data class QueryEntryPolicy(
             return
         }
         val required = profile.requiredScope
-        if (!authenticated.pins(required)) {
+        if (!authenticated.pins(required, profile)) {
             throw QueryScopeRequiredException(profile.model, required)
         }
     }
@@ -74,11 +72,12 @@ data class QueryEntryPolicy(
     }
 }
 
-/** Whether this scope restricts [field] to one value: at the top level, the field's metadata filter or an equality. */
-private fun FilterExpression.pins(field: QueryField): Boolean = when (this) {
-    is AndFilter -> operands.any { it.pins(field) }
-    is TenantIdFilter, is OwnerIdFilter, is SpaceIdFilter ->
-        field == QueryModelProfile.metadataField(checkNotNull(spec.systemField))
+/**
+ * Whether this scope restricts [field] to one value: at the top level, a single-valued filter on the system field
+ * [profile] maps to [field], or an equality.
+ */
+private fun FilterExpression.pins(field: QueryField, profile: QueryModelProfile): Boolean = when (this) {
+    is AndFilter -> operands.any { it.pins(field, profile) }
     is EqualFilter -> this.field == field && !value.isNull
-    else -> false
+    else -> spec.arity.values == ValueArity.ONE && spec.systemField?.let(profile::systemField) == field
 }

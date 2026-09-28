@@ -75,8 +75,7 @@ private class ParsedCache<V : Any> {
     }
 }
 
-sealed interface RelativeTimeFilter : FilterExpression {
-    val field: QueryField
+sealed interface RelativeTimeFilter : FieldPredicate {
     val zoneId: String?
     val datePattern: String?
 
@@ -107,6 +106,8 @@ data class TodayFilter(
 ) : RelativeTimeFilter {
     override val operator: FilterOperator = FilterOperator.TODAY
 
+    override fun withField(field: QueryField): TodayFilter = copy(field = field)
+
     init {
         validateConfiguration()
     }
@@ -122,6 +123,8 @@ data class BeforeTodayFilter(
     override val timeUnit: TimeUnit = TimeUnit.MILLISECONDS,
 ) : RelativeTimeFilter {
     override val operator: FilterOperator = FilterOperator.BEFORE_TODAY
+
+    override fun withField(field: QueryField): BeforeTodayFilter = copy(field = field)
 
     init {
         try {
@@ -143,6 +146,8 @@ data class TomorrowFilter(
 ) : RelativeTimeFilter {
     override val operator: FilterOperator = FilterOperator.TOMORROW
 
+    override fun withField(field: QueryField): TomorrowFilter = copy(field = field)
+
     init {
         validateConfiguration()
     }
@@ -157,6 +162,8 @@ data class ThisWeekFilter(
     override val timeUnit: TimeUnit = TimeUnit.MILLISECONDS,
 ) : RelativeTimeFilter {
     override val operator: FilterOperator = FilterOperator.THIS_WEEK
+
+    override fun withField(field: QueryField): ThisWeekFilter = copy(field = field)
 
     init {
         validateConfiguration()
@@ -173,6 +180,8 @@ data class NextWeekFilter(
 ) : RelativeTimeFilter {
     override val operator: FilterOperator = FilterOperator.NEXT_WEEK
 
+    override fun withField(field: QueryField): NextWeekFilter = copy(field = field)
+
     init {
         validateConfiguration()
     }
@@ -187,6 +196,8 @@ data class LastWeekFilter(
     override val timeUnit: TimeUnit = TimeUnit.MILLISECONDS,
 ) : RelativeTimeFilter {
     override val operator: FilterOperator = FilterOperator.LAST_WEEK
+
+    override fun withField(field: QueryField): LastWeekFilter = copy(field = field)
 
     init {
         validateConfiguration()
@@ -203,6 +214,8 @@ data class ThisMonthFilter(
 ) : RelativeTimeFilter {
     override val operator: FilterOperator = FilterOperator.THIS_MONTH
 
+    override fun withField(field: QueryField): ThisMonthFilter = copy(field = field)
+
     init {
         validateConfiguration()
     }
@@ -217,6 +230,8 @@ data class LastMonthFilter(
     override val timeUnit: TimeUnit = TimeUnit.MILLISECONDS,
 ) : RelativeTimeFilter {
     override val operator: FilterOperator = FilterOperator.LAST_MONTH
+
+    override fun withField(field: QueryField): LastMonthFilter = copy(field = field)
 
     init {
         validateConfiguration()
@@ -233,6 +248,8 @@ data class RecentDaysFilter(
     override val timeUnit: TimeUnit = TimeUnit.MILLISECONDS,
 ) : RelativeTimeFilter {
     override val operator: FilterOperator = FilterOperator.RECENT_DAYS
+
+    override fun withField(field: QueryField): RecentDaysFilter = copy(field = field)
 
     init {
         require(days >= 1) { "RECENT_DAYS days must be greater than zero." }
@@ -251,6 +268,8 @@ data class EarlierDaysFilter(
 ) : RelativeTimeFilter {
     override val operator: FilterOperator = FilterOperator.EARLIER_DAYS
 
+    override fun withField(field: QueryField): EarlierDaysFilter = copy(field = field)
+
     init {
         require(days >= 1) { "EARLIER_DAYS days must be greater than zero." }
         validateConfiguration()
@@ -267,6 +286,8 @@ data class YesterdayFilter(
 ) : RelativeTimeFilter {
     override val operator: FilterOperator = FilterOperator.YESTERDAY
 
+    override fun withField(field: QueryField): YesterdayFilter = copy(field = field)
+
     init { validateConfiguration() }
 }
 
@@ -279,6 +300,8 @@ data class NextMonthFilter(
     override val timeUnit: TimeUnit = TimeUnit.MILLISECONDS,
 ) : RelativeTimeFilter {
     override val operator: FilterOperator = FilterOperator.NEXT_MONTH
+
+    override fun withField(field: QueryField): NextMonthFilter = copy(field = field)
 
     init { validateConfiguration() }
 }
@@ -293,6 +316,8 @@ data class LastYearFilter(
 ) : RelativeTimeFilter {
     override val operator: FilterOperator = FilterOperator.LAST_YEAR
 
+    override fun withField(field: QueryField): LastYearFilter = copy(field = field)
+
     init { validateConfiguration() }
 }
 
@@ -306,6 +331,8 @@ data class ThisYearFilter(
 ) : RelativeTimeFilter {
     override val operator: FilterOperator = FilterOperator.THIS_YEAR
 
+    override fun withField(field: QueryField): ThisYearFilter = copy(field = field)
+
     init { validateConfiguration() }
 }
 
@@ -318,6 +345,8 @@ data class NextYearFilter(
     override val timeUnit: TimeUnit = TimeUnit.MILLISECONDS,
 ) : RelativeTimeFilter {
     override val operator: FilterOperator = FilterOperator.NEXT_YEAR
+
+    override fun withField(field: QueryField): NextYearFilter = copy(field = field)
 
     init { validateConfiguration() }
 }
@@ -343,6 +372,8 @@ data class BeforeNowFilter(
 ) : RelativeTimeFilter {
     override val operator: FilterOperator = FilterOperator.BEFORE_NOW
 
+    override fun withField(field: QueryField): BeforeNowFilter = copy(field = field)
+
     @get:JsonIgnore
     val offsetDuration: Duration = offset.requireOffset(operator)
 
@@ -362,6 +393,8 @@ data class AfterNowFilter(
     override val timeUnit: TimeUnit = TimeUnit.MILLISECONDS,
 ) : RelativeTimeFilter {
     override val operator: FilterOperator = FilterOperator.AFTER_NOW
+
+    override fun withField(field: QueryField): AfterNowFilter = copy(field = field)
 
     @get:JsonIgnore
     val offsetDuration: Duration = offset.requireOffset(operator)

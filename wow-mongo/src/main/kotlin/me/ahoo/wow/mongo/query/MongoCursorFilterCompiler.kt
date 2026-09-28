@@ -14,15 +14,14 @@
 package me.ahoo.wow.mongo.query
 
 import com.mongodb.client.model.Filters
-import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.Sort
 import org.bson.conversions.Bson
 
 internal object MongoCursorFilterCompiler {
     fun compile(sort: List<Sort>, values: List<Any?>): Bson {
         require(sort.size == values.size) { "Cursor values must match effective sort fields." }
-        require(sort.size <= AggregationQuery.MAX_SORT_FIELDS) {
-            "Cursor sort must contain at most ${AggregationQuery.MAX_SORT_FIELDS} fields."
+        require(sort.size <= Sort.MAX_FIELDS) {
+            "Cursor sort must contain at most ${Sort.MAX_FIELDS} fields."
         }
         require(values.all(Any?::isMongoCursorScalar)) { "Cursor values must be BSON scalar values." }
         return Filters.or(

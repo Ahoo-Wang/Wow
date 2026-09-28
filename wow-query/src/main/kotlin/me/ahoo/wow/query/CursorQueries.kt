@@ -18,7 +18,7 @@ import me.ahoo.wow.api.query.Sort
 
 /**
  * A cursor's effective sort: this sort with [uniqueField] appended as the ascending tie-breaker, unless it already
- * names it. The sort rules (at most [me.ahoo.wow.api.query.AggregationQuery.MAX_SORT_FIELDS] fields, no field twice)
+ * names it. The sort rules (at most [me.ahoo.wow.api.query.Sort.MAX_FIELDS] fields, no field twice)
  * are [QueryResolver]'s, which checks the effective sort.
  */
 internal fun List<Sort>.withUniqueSort(uniqueField: QueryField): List<Sort> =

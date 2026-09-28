@@ -20,6 +20,7 @@ import me.ahoo.wow.api.query.AndFilter
 import me.ahoo.wow.api.query.CursorQuery
 import me.ahoo.wow.api.query.DeletionFilter
 import me.ahoo.wow.api.query.DeletionState
+import me.ahoo.wow.api.query.ElementMatchFilter
 import me.ahoo.wow.api.query.EqualFilter
 import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.ICursorQuery
@@ -160,6 +161,13 @@ class QueryGatewaySubscriptionTest {
         count.rows.assert().isEqualTo(1)
         count.maskedFields.assert().isEmpty()
         count.entry.assert().isEqualTo(QueryEntry.UNSPECIFIED)
+
+        // Scope fields come from each system filter's spec and each field predicate, not from its element predicate.
+        val ids = OrFilter(listOf(IdsFilter(listOf("a")), EqualFilter(QueryField("state.region"), NullNode.instance)))
+        val items = ElementMatchFilter(QueryField("state.items"), EqualFilter(QueryField("sku"), NullNode.instance))
+        gateway.count(MatchAllFilter).contextWrite { it.withQueryScope(AndFilter(listOf(ids, items))) }
+            .test().expectError().verify()
+        audits.last().scopeFields.assert().containsExactly("aggregateId", "state.region", "state.items")
     }
 
     @Test

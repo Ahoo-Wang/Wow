@@ -13,9 +13,9 @@
 
 package me.ahoo.wow.mongo.query
 
-import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.Projection
 import me.ahoo.wow.api.query.QueryField
+import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.query.CursorPosition
 import me.ahoo.wow.query.CursorPositionCodec
 import org.bson.BsonTimestamp
@@ -32,7 +32,7 @@ internal object MongoCursorCodec : CursorPositionCodec {
 
     override fun encode(position: CursorPosition): ByteArray {
         val values = position.values
-        require(values.size <= AggregationQuery.MAX_SORT_FIELDS && values.all(Any?::isMongoCursorScalar)) {
+        require(values.size <= Sort.MAX_FIELDS && values.all(Any?::isMongoCursorScalar)) {
             "Cursor values must be BSON scalar values."
         }
         val raw = RawBsonDocument(Document(VALUES, values), documentCodec)
@@ -40,7 +40,7 @@ internal object MongoCursorCodec : CursorPositionCodec {
     }
 
     override fun decode(payload: ByteArray, size: Int): CursorPosition {
-        require(size in 1..AggregationQuery.MAX_SORT_FIELDS)
+        require(size in 1..Sort.MAX_FIELDS)
         val document = RawBsonDocument(payload).decode(documentCodec)
         require(document.keys == setOf(VALUES))
         val values = document[VALUES] as? List<*> ?: throw IllegalArgumentException()

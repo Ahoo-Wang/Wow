@@ -18,6 +18,7 @@ import io.swagger.v3.core.util.ObjectMapperFactory
 import io.swagger.v3.oas.models.OpenAPI
 import io.swagger.v3.oas.models.parameters.Parameter
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.naming.MaterializedNamedBoundedContext
 import me.ahoo.wow.openapi.RouterSpecs
 import me.ahoo.wow.openapi.contract.HttpParameter
@@ -93,6 +94,27 @@ internal class OpenApiCompatibilitySnapshotTest {
         unsupportedTypeStrategy.path("type").asText().assert().isEqualTo("string")
         unsupportedTypeStrategy.path("enum").map { it.asText() }.assert()
             .containsExactly("FAIL", "RAW_JSON")
+    }
+
+    @Test
+    fun `every published sort list should state the sort bound`() {
+        val openAPI = OpenAPI()
+        RouterSpecs(currentContext).build().mergeOpenAPIFromCatalog(openAPI)
+
+        val schemas = mapper.valueToTree<JsonNode>(openAPI).path("components").path("schemas")
+        val sortLists = schemas.properties()
+            .map { (name, schema) -> name to schema.path("properties").path("sort") }
+            .filter { (_, sort) -> sort.path("type").asText() == "array" }
+        sortLists.map { it.first }.assert().contains(
+            "wow.api.query.SingleQuery",
+            "wow.api.query.ListQuery",
+            "wow.api.query.PagedQuery",
+            "wow.api.query.CursorQuery",
+            "wow.api.query.AggregationQuery",
+        )
+        sortLists.forEach { (name, sort) ->
+            sort.path("maxItems").asInt().assert().`as`(name).isEqualTo(Sort.MAX_FIELDS)
+        }
     }
 
     @Test

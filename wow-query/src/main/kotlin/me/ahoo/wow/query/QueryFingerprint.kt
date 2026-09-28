@@ -37,8 +37,8 @@ import me.ahoo.wow.api.query.RelativeTimeFilter
 import me.ahoo.wow.api.query.SearchFilter
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.api.query.StartsWithFilter
+import me.ahoo.wow.api.query.childFilters
 import me.ahoo.wow.query.filter.QueryType
-import me.ahoo.wow.query.filter.childFilters
 import me.ahoo.wow.query.filter.predicateField
 import me.ahoo.wow.query.filter.valueCount
 import tools.jackson.databind.JsonNode

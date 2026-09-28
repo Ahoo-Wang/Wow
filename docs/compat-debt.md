@@ -65,6 +65,13 @@ When you add compatibility code, add its marker and list the file under an entry
 - **Replacement**: `filterExpression { }` and `FilterDsl`, the `filter(...)` builders, `FilterExpression.count(...)` and `count(FilterExpression)`.
 - **Removal in v10**: with the server-side Condition above, delete `ConditionDsl.kt`, the `condition` builders and every `Condition.count`/`count(Condition)` overload, and their tests. Code that still calls them stops compiling; the migration guide points to `filterExpression { }`.
 
+### The Sort Bound On `AggregationQuery`
+
+- **Kept compatible**: `AggregationQuery.MAX_SORT_FIELDS`, released in 9.1.5. The bound applies to every query's `sort`, not only an aggregation's, so it moved to `Sort`; the old name is a deprecated `const` alias of the same value.
+- **Markers**: `wow-api/src/main/kotlin/me/ahoo/wow/api/query/AggregationQuery.kt`
+- **Replacement**: `Sort.MAX_FIELDS`.
+- **Removal in v10**: delete `AggregationQuery.MAX_SORT_FIELDS`. Code that still reads it stops compiling; `ReplaceWith` points to `Sort.MAX_FIELDS`.
+
 ### Generated Code Uses The Condition API
 
 - **Kept compatible**: `wow-generator` maps the Condition-only server schemas `wow.api.query.Condition`, `ConditionOptions` and `Operator`, and the `ListQuery` and `PagedQuery` schemas of servers before 8.11 (which have no `filter` property), to the `wow-client` types of the same names, imported from `@ahoo-wang/wow-client/legacy` (`WOW_LEGACY_TYPES`, `IMPORT_WOW_LEGACY_PATH`). A `ListQuery` or `PagedQuery` schema that carries `filter` maps to `FilterListQuery` or `FilterPagedQuery` from the root entry.

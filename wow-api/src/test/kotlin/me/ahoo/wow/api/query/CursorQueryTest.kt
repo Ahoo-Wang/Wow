@@ -35,7 +35,7 @@ class CursorQueryTest {
         assertThrows<IllegalArgumentException> {
             CursorQuery(
                 MatchAllFilter,
-                sort = List(AggregationQuery.MAX_SORT_FIELDS + 1) { Sort(QueryField("field$it"), Sort.Direction.ASC) },
+                sort = List(Sort.MAX_FIELDS + 1) { Sort(QueryField("field$it"), Sort.Direction.ASC) },
             )
         }
     }

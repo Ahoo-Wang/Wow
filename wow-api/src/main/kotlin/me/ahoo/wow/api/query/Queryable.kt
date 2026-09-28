@@ -48,6 +48,14 @@ data class Sort(
          */
         DESC
     }
+
+    companion object {
+        /**
+         * The most fields one sort may name, the tie-breakers a cursor query appends included. Every query's `sort`
+         * is bounded by it, and the published contract states it as `maxItems`.
+         */
+        const val MAX_FIELDS: Int = 32
+    }
 }
 
 /**
