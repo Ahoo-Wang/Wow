@@ -15,6 +15,7 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
 import {
   ContentPanel,
+  HeadingPanel,
   ImagePanel,
   LinksPanel,
   MarkdownPanel,
@@ -55,6 +56,19 @@ describe('content panels', () => {
     // Plain text: nothing in it is read as markdown or markup.
     expect(heading?.textContent).toBe('**Stock** <b>now</b>');
     expect(container.querySelector('b, strong')).toBeNull();
+    // The grid names a heading card by its panel title, so the card's own
+    // words are no second heading in the outline.
+    expect(screen.queryByRole('heading')).toBeNull();
+  });
+
+  it('draws a heading panel as a heading of the level a host gives it', () => {
+    render(<HeadingPanel content="South · this week" headingLevel={2} />);
+
+    const heading = screen.getByRole('heading', {
+      level: 2,
+      name: 'South · this week',
+    });
+    expect(heading.dataset.slot).toBe('panel-heading');
   });
 
   /**
