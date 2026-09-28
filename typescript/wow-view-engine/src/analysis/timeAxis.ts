@@ -102,8 +102,13 @@ export function alongPart<T>(
   return [...run, ...outside];
 }
 
-/** `items` in a calendar part's order, without filling its domain. */
-export function inPartOrder<T>(
+/**
+ * `items` by the number each one's key reads as, without filling a domain:
+ * a calendar part's order (Monday to Sunday, 0 to 23 o'clock), or a band's
+ * — a `HISTOGRAM` key is its band's lower bound. A key that reads as no
+ * number, a missing-value sentinel, comes last, in the order it came.
+ */
+export function inNumberOrder<T>(
   items: readonly T[],
   at: (item: T) => unknown,
 ): T[] {

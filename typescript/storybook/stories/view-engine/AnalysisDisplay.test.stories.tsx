@@ -177,8 +177,8 @@ export const ScatterCrosshair: Story = {
 };
 
 /**
- * 十二个城市的拆分：画销售额最大的七个与一条「其他」（Q56）；读屏表也有
- * 「其他」这一列。
+ * 十二个城市的拆分：画销售额最大的七个与一条「其他」（Q56），大的在前、
+ * 「其他」在末；读屏表也有「其他」这一列。
  */
 export const SplitFoldsIntoOther: Story = {
   ...DisplaySplitOther,
@@ -189,16 +189,16 @@ export const SplitFoldsIntoOther: Story = {
       expect(names).toHaveLength(8);
       expect(names.at(-1)).toBe(zhCN['label.chart.other']);
     });
-    // The seven largest, in the order the rows came: a Wow service answers
-    // groups in the order of their keys (the sort, then each group alias),
-    // so 北京 (BJ) before 成都 (CD) — not by sales.
+    // The seven largest, the largest first. The rows come by key, as a Wow
+    // service answers groups (the sort, then each group alias: BJ, CD, GZ
+    // …), so this is the engine's own order, not the source's.
     await expect(legendNames(canvasElement).slice(0, 7)).toEqual([
+      '上海',
       '北京',
-      '成都',
+      '深圳',
       '广州',
       '杭州',
-      '上海',
-      '深圳',
+      '成都',
       '武汉',
     ]);
     const headers = [

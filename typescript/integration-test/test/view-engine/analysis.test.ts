@@ -393,12 +393,11 @@ describe('analysis against the example server', () => {
     const chart = split.chart;
     if (chart?.type !== 'cartesian') throw new Error('expected a bar chart');
 
+    // Largest first, 「其他」 last: the engine's order, not the server's,
+    // which answers the groups by key.
     expect(
-      chart.series
-        .filter(series => !series.other)
-        .map(series => series.value)
-        .sort(),
-    ).toEqual([...kept].sort());
+      chart.series.map(series => (series.other ? 'other' : series.value)),
+    ).toEqual([...cities.slice(0, 7).map(([city]) => city), 'other']);
     const other = chart.series.find(series => series.other);
     expect(other).toBeDefined();
     expect(

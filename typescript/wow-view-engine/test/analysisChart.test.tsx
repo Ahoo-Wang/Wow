@@ -652,8 +652,8 @@ describe('AnalysisChart', () => {
         chart: spec,
       }),
       [
-        { month: '2026-08', warehouse: 1, orders: 2 },
-        { month: '2026-08', warehouse: 2, orders: 3 },
+        { month: '2026-08', warehouse: 1, orders: 3 },
+        { month: '2026-08', warehouse: 2, orders: 2 },
       ],
     ) as ChartData;
 
@@ -701,7 +701,9 @@ describe('AnalysisChart', () => {
     const rows = categories.map((warehouse, index) => ({
       month: '2026-08',
       warehouse,
-      orders: index + 1,
+      // Largest first, so the split's legend (by size) and the pie's (the
+      // rows' order) list the categories alike.
+      orders: categories.length - index,
     }));
     const drawn = (spec: ChartSpec) => {
       const data = shapeChart(

@@ -90,8 +90,63 @@ export function splitWholeConfig(
 }
 
 /**
- * `data` with its series past the palette folded: the seven whose measured
- * numbers add up to the most, in the order they were drawn, then 「其他」 —
+ * How big each of `data`'s series is (`data.series`' order), the one measure
+ * a split's series are ranked by — for the order a legend reads and a stack
+ * builds in (`bySize`), and for which seven a fold keeps (`foldOther`):
+ *
+ * - the series' own metric: a split draws exactly one
+ *   (`chart.splitBy.needs-one-series`), so every series of it measures the
+ *   same thing and the sizes compare;
+ * - the numbers it measured — a value the kernel filled in (`filled`) is a
+ *   known 0 or nothing, never a size — each by its absolute value: a bar
+ *   under the axis is as big as one over it, and a channel that lost ¥1M is
+ *   not smaller than one that broke even (a profit, a net change);
+ * - added up where the metric adds up (`additive`): a total is how much of
+ *   the whole the series holds; otherwise their mean, since a total of
+ *   averages grows with how many categories a series turns up in, not with
+ *   how big its numbers are.
+ *
+ * Computed from the drawn points, so the order is the engine's own and does
+ * not rest on the order a source answers groups in.
+ */
+export function seriesSizes(
+  data: Pick<CartesianData, 'points' | 'series'>,
+  additive: boolean,
+): number[] {
+  return data.series.map(entry => {
+    let total = 0;
+    let count = 0;
+    for (const point of data.points) {
+      const value = point.values[entry.key];
+      if (typeof value !== 'number' || point.filled?.includes(entry.key))
+        continue;
+      total += Math.abs(value);
+      count += 1;
+    }
+    return additive || count === 0 ? total : total / count;
+  });
+}
+
+/**
+ * A split's series, the largest first (`seriesSizes`): what a reader looks
+ * for first is the biggest, and a stack reads from the bottom up, so the
+ * biggest sits at its base and heads the legend — the palette's first
+ * colour goes to it. Series of one size keep the order they came in.
+ */
+export function bySize(
+  data: Pick<CartesianData, 'points' | 'series'>,
+  additive: boolean,
+): CartesianData['series'] {
+  const sizes = seriesSizes(data, additive);
+  return data.series
+    .map((entry, index) => ({ entry, index }))
+    .sort((a, b) => sizes[b.index] - sizes[a.index] || a.index - b.index)
+    .map(({ entry }) => entry);
+}
+
+/**
+ * `data` with its series past the palette folded: the seven largest
+ * (`seriesSizes`), in the order they were drawn, then 「其他」 —
  * at each category the axis's whole (`whole`, rows of `splitWholeConfig`)
  * less the seven. Where that cannot be known — a kept value not measured,
  * a category the whole did not answer — the rest is drawn as nothing,
@@ -111,16 +166,11 @@ export function foldOther(
     data.series.length <= CHART_COLOR_SLOTS
   )
     return data;
-  const sums = data.series.map(entry =>
-    data.points.reduce((sum, point) => {
-      const value = point.values[entry.key];
-      return sum + (typeof value === 'number' ? value : 0);
-    }, 0),
-  );
+  const sizes = seriesSizes(data, true);
   const kept = new Set(
     data.series
       .map((_, index) => index)
-      .sort((a, b) => sums[b] - sums[a] || a - b)
+      .sort((a, b) => sizes[b] - sizes[a] || a - b)
       .slice(0, CHART_COLOR_SLOTS - 1),
   );
   const series = data.series.filter((_, index) => kept.has(index));

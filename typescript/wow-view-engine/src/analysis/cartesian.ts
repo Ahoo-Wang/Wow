@@ -28,7 +28,7 @@ import {
   alongPart,
   consecutive,
   forwardInTime,
-  inPartOrder,
+  inNumberOrder,
   partGroup,
   timeGroup,
   withoutHoles,
@@ -41,7 +41,7 @@ import {
   type SeriesExtremes,
 } from './references.js';
 import { peaksOnlyLabels } from './chartFamilies.js';
-import { foldOther } from './splitOther.js';
+import { bySize, foldOther } from './splitOther.js';
 import { isAdditiveMetric } from './validateChart.js';
 
 export interface CartesianData {
@@ -244,10 +244,6 @@ export function shapeCartesian(
       timeZone,
       x => pointAt(x, {}),
     );
-  // When time is the split rather than the axis, it is the legend that reads
-  // as a sequence — and the palette hands its slots out in that order, so
-  // the first day is always the first colour. The axis is then a category
-  // and keeps the rows' order, as any category does.
   const shaped: CartesianData = {
     type: 'cartesian',
     chart: type,
@@ -255,11 +251,7 @@ export function shapeCartesian(
     ...(axis && consecutive(points, point => point.x, axis, timeZone)
       ? { timeline: true as const }
       : {}),
-    series: timeGroup(config, spec.splitBy)
-      ? forwardInTime(series, entry => entry.value)
-      : partGroup(config, spec.splitBy)
-        ? inPartOrder(series, entry => entry.value)
-        : series,
+    series: splitOrder(config, spec, points, series),
   };
   // Past the palette, a split that adds up folds its rest into 「其他」
   // where the axis's whole is known (`foldOther`); anything else is drawn
@@ -271,6 +263,44 @@ export function shapeCartesian(
     ...drawnOver(config, data, cutShort),
     ...(crowded ? { crowded: true as const } : {}),
   };
+}
+
+/**
+ * The order a chart's series read in — the legend from its first entry, a
+ * stack from the bottom up — and so the order the palette hands its slots
+ * out in. Unsplit, the series are the spec's, in the order the analyst
+ * dragged them to (`SeriesList`). Split, it is the engine's, never the
+ * order a source answered the rows in (Wow answers groups in the query's
+ * sort and then by each group alias, which is by key):
+ *
+ * - a split along a scale keeps the scale's order: time forward
+ *   (`DATE_HISTOGRAM`, so the first day is always the first colour), a
+ *   calendar part along its cycle (`DATE_PART`), bands low to high
+ *   (`HISTOGRAM`) — a size order would scramble a sequence;
+ * - any other split, a category, is ordered by size, the largest first
+ *   (`bySize`, `seriesSizes`); a fold past the palette puts 「其他」 last.
+ *
+ * The axis is untouched either way — a category axis keeps the rows' order,
+ * as does the table, which is the view's (`config.sort`).
+ */
+function splitOrder(
+  config: AnalysisViewConfig,
+  spec: NonNullable<AnalysisViewConfig['chart']['cartesian']>,
+  points: CartesianData['points'],
+  series: CartesianData['series'],
+): CartesianData['series'] {
+  const split = spec.splitBy;
+  if (split === undefined) return series;
+  if (timeGroup(config, split))
+    return forwardInTime(series, entry => entry.value);
+  const group = config.groups.find(one => one.alias === split);
+  if (group?.type === 'DATE_PART' || group?.type === 'HISTOGRAM')
+    return inNumberOrder(series, entry => entry.value);
+  const metric = series[0]?.metric;
+  return bySize(
+    { points, series },
+    metric !== undefined && adds(config, metric),
+  );
 }
 
 /**

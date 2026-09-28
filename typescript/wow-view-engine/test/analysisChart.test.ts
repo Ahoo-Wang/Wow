@@ -699,10 +699,10 @@ describe('shapeChart', () => {
 
   it('names a pivot series apart for split values that print alike', () => {
     const odd: RecordData[] = [
-      { wh: null, month: '2026-08', orders: 1 },
-      { wh: '', month: '2026-08', orders: 2 },
-      { wh: 7, month: '2026-08', orders: 3 },
-      { wh: '7', month: '2026-08', orders: 4 },
+      { wh: null, month: '2026-08', orders: 4 },
+      { wh: '', month: '2026-08', orders: 3 },
+      { wh: 7, month: '2026-08', orders: 2 },
+      { wh: '7', month: '2026-08', orders: 1 },
     ];
     const data = shapeChart(
       config(
@@ -726,17 +726,17 @@ describe('shapeChart', () => {
       '7',
     ]);
     expect(data.points[0].values).toEqual({
-      '\u0001n': 1,
-      '': 2,
-      '\u0001d7': 3,
-      '7': 4,
+      '\u0001n': 4,
+      '': 3,
+      '\u0001d7': 2,
+      '7': 1,
     });
   });
 
   it('tells apart split values of every other shape', () => {
     const odd: RecordData[] = [
-      { wh: true, month: '2026-08', orders: 1 },
-      { wh: { id: 1 }, month: '2026-08', orders: 2 },
+      { wh: true, month: '2026-08', orders: 5 },
+      { wh: { id: 1 }, month: '2026-08', orders: 4 },
       // A string that holds the tag character doubles it, so it can never be
       // read as the tagged key of some other type.
       { wh: '\u0001b', month: '2026-08', orders: 3 },
