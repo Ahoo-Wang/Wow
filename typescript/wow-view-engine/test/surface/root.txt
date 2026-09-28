@@ -1,4 +1,4 @@
-# @ahoo-wang/wow-view-engine — 826 names, from src/index.ts.
+# @ahoo-wang/wow-view-engine — 813 names, from src/index.ts.
 # Written by test/publicSurface.test.ts; a change here is a change to
 # the public surface (README「Entries」, docs/design/decisions.md D29).
 value ALWAYS_VISIBLE
@@ -101,12 +101,10 @@ value DASHBOARD_FILTER_TYPES
 value DASHBOARD_GRID_COLUMNS
 value DASHBOARD_PRESENTATION_MEMBERS
 value DASHBOARD_WIDTHS
-value DATE_AGGREGATION_FUNCTIONS
 value DATE_PART_DOMAINS
 value DATE_SUMMARY_FUNCTIONS
 value DATE_TIME_PRESETS
 value DEFAULT_APPROXIMATE_METRICS
-value DEFAULT_COMPARE_BUDGET
 value DEFAULT_MISSING_KEY
 value DEFAULT_PERCENTILE
 value DEFAULT_RUNTIME_LIMITS
@@ -179,7 +177,6 @@ type  ExportedRows
 value FIELDLESS_FIELD_KIND_IDS
 value FIELD_CELL_IDS
 value FIELD_METRIC_TYPES
-value FIELD_NAME_PATTERN
 value FIELD_TONES
 value FILTER_GROUP_OPERATORS
 value FILTER_TYPE_OPERATOR
@@ -324,7 +321,6 @@ type  ProjectedView
 type  QueryStatus
 value RECORD_PRESENTATION_MEMBERS
 value REFERENCE_STATISTICS
-value RELATIVE_DATE_DIRECTIONS
 value RELATIVE_DATE_UNITS
 type  RadarData
 type  RadarSpec
@@ -362,7 +358,6 @@ type  RuntimeEnvironment
 type  RuntimeFor
 type  RuntimeLimits
 value SEARCH_MODES
-value SINGLE_STRING_FIELD_KIND_IDS
 value STACKED_COLUMNS
 value STRING_COMPARISONS
 value SUMMARY_FUNCTIONS
@@ -400,7 +395,6 @@ type  TreemapTile
 type  UnsavedViewTarget
 value VALUE_CANDIDATE_LIMIT
 value VALUE_CANDIDATE_OPERATORS
-value VALUE_METRIC_TYPES
 value VIEW_AUDIENCES
 value VIEW_KINDS
 value VIEW_SCOPES
@@ -460,7 +454,6 @@ value addFilter
 value addPanel
 value addTab
 value admitFilters
-value aggregateIdFieldKind
 value aggregationFunctionsOf
 value aliasOf
 value analysisProbeLimit
@@ -530,7 +523,6 @@ value describeFilter
 value describePresence
 value describePresenceParts
 value detailSections
-value documentIdFieldKind
 value draftedClick
 value drillConditions
 value drillFilter
@@ -542,7 +534,6 @@ value editContent
 value elementFields
 value elementFilterFields
 value elementMatchFieldKind
-value elementTitleView
 value emptyDashboardConfig
 value emptyFilter
 value emptyPreferences
@@ -684,7 +675,6 @@ value optionTabs
 value outOfScopeNames
 value overlaid
 value overlaps
-value ownerIdFieldKind
 value pageAfterShrink
 value pageSummaries
 value pageWindow
@@ -743,7 +733,6 @@ value sameFilterNode
 value sameFilterTree
 value sameFilterType
 value sameJson
-value sameLayout
 value scopePrefix
 value searchFieldKind
 value searchFieldOf
@@ -759,7 +748,6 @@ value setPanelClick
 value setPresentation
 value setTimeGrouping
 value shapeChart
-value spaceIdFieldKind
 value splitBy
 value stackedLayout
 value stacks
@@ -774,7 +762,6 @@ value systemInstanceId
 value tabsOf
 value takesGroup
 value temporalOf
-value tenantIdFieldKind
 value toSummary
 value unbindPanels
 value unknownOrOutside

@@ -401,7 +401,7 @@ export function* walkFilter(tree: FilterTree): Generator<TreeVisit> {
  * because a comparison that gave up early would report an edit that is not
  * there. A draft past this point is one the panel refuses to render anyway.
  */
-export const DEFAULT_COMPARE_BUDGET = 100_000;
+const DEFAULT_COMPARE_BUDGET = 100_000;
 
 /**
  * Whether two nodes say the same thing *at their own level*: a leaf by its

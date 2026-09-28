@@ -227,7 +227,7 @@ function createIdMetadataKind(
 }
 
 /** The record's own id: `ID` for one, `IDS` for several. */
-export const documentIdFieldKind: FieldKind = createIdMetadataKind(
+const documentIdFieldKind: FieldKind = createIdMetadataKind(
   'documentId',
   'ID',
   'IDS',
@@ -236,7 +236,7 @@ export const documentIdFieldKind: FieldKind = createIdMetadataKind(
 );
 
 /** The aggregate the record belongs to, which is not always its own id. */
-export const aggregateIdFieldKind: FieldKind = createIdMetadataKind(
+const aggregateIdFieldKind: FieldKind = createIdMetadataKind(
   'aggregateId',
   'AGGREGATE_ID',
   'AGGREGATE_IDS',
@@ -245,21 +245,21 @@ export const aggregateIdFieldKind: FieldKind = createIdMetadataKind(
 );
 
 /** The tenant a record belongs to; a platform view narrows by it. */
-export const tenantIdFieldKind: FieldKind = createSingleMetadataKind(
+const tenantIdFieldKind: FieldKind = createSingleMetadataKind(
   'tenantId',
   'TENANT_ID',
   value => filter.tenantId(value),
 );
 
 /** Who owns the record, which is how "mine" is expressed. */
-export const ownerIdFieldKind: FieldKind = createSingleMetadataKind(
+const ownerIdFieldKind: FieldKind = createSingleMetadataKind(
   'ownerId',
   'OWNER_ID',
   value => filter.ownerId(value),
 );
 
 /** The workspace a record sits in. */
-export const spaceIdFieldKind: FieldKind = createSingleMetadataKind(
+const spaceIdFieldKind: FieldKind = createSingleMetadataKind(
   'spaceId',
   'SPACE_ID',
   value => filter.spaceId(value),

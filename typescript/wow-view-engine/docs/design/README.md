@@ -93,7 +93,7 @@ src/
 | `/ui`                        | 默认组件、默认视图、工作台                                                                                                       |
 | `/styles.css`                | 主题；宿主通过 `:root` 上的 `--fve-*`／`--fve-dark-*` 变量定制                                                                   |
 
-每个代码入口导出什么逐名记在 `test/surface/`，由 `test/publicSurface.test.ts` 守着（[D29](decisions.md#d29-公开面逐名守着运行时只导出宿主要握的2026-09-24)）：层的 `index.ts` 照旧 `export *` 自己的文件，唯独 `runtime/index.ts` 逐名导出——调度器、运行时共用的 store、计时器、监听者集合、运行时的类都不出包，`react`、`ui` 从各自的文件里取。
+每个代码入口导出什么逐名记在 `test/surface/`，由 `test/publicSurface.test.ts` 守着（[D29](decisions.md#d29-公开面逐名守着运行时只导出宿主要握的2026-09-24)）：三个入口逐名写出每一个公开名、按声明它的文件分组，不经任何 `export *`（[D64](decisions.md#d64-入口逐名写出每个公开导出2026-09-27)，`test/architecture.test.ts` 守着）。层的 `index.ts` 是包内的汇集处，照旧 `export *` 自己的文件，不再是公开面的通道；`runtime/index.ts` 逐名导出——调度器、运行时共用的 store、计时器、监听者集合、运行时的类都不出包，`react`、`ui` 从各自的文件里取。
 
 ## 质量守护
 

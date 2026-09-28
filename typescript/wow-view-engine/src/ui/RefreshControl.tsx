@@ -291,7 +291,7 @@ export function RefreshControl({
  * because a language that writes "1 分钟" where English writes "1 min" is
  * not translating a word but the whole phrase.
  */
-export function refreshIntervalLabel(
+function refreshIntervalLabel(
   seconds: number,
   messages: MessageFormatters,
 ): string {
@@ -314,10 +314,7 @@ export function refreshIntervalLabel(
  * reason this number is on screen is to say roughly how long until the
  * numbers under it move.
  */
-export function remainingLabel(
-  seconds: number,
-  messages: MessageFormatters,
-): string {
+function remainingLabel(seconds: number, messages: MessageFormatters): string {
   if (seconds >= 3600)
     return messages.label('label.refresh.hours', {
       count: Math.floor(seconds / 3600),

@@ -31,14 +31,10 @@
 
 第一轮扫描（重复度、依赖方向、没人用的导出）的发现，用户 2026-09-27 按推荐定；同时只跑一个子代理，一件做完再派下一件。
 
-1. **入口逐个点名导出，公开面是有意识的决定**：
-   - 为什么：`src/index.ts`、`src/ui/index.ts`、`src/react/index.ts` 是整模块 `export *`，文件里为内部复用写的 `export` 都成了公开 API；审查找到 15 个没有任何调用方、文档与测试的公开导出。首发后每一个都要背兼容。
-   - 裁定（用户：「按你推荐」）：`HeadingPanel` 保留（README 点名，宿主单独渲染标题卡用），补一个单独渲染的故事；`useSurfacePreset` 删掉（#3648 把预设写到 `<html>` 后已无人调用）；其余收回不公开——`useMessages`、`refreshIntervalLabel`、`remainingLabel`、`ALL_FEATURES`、`sameLayout`、`elementTitleView`、`VALUE_METRIC_TYPES`、`DATE_AGGREGATION_FUNCTIONS`、`SINGLE_STRING_FIELD_KIND_IDS`、`RELATIVE_DATE_DIRECTIONS`、`DEFAULT_COMPARE_BUDGET`、`FIELD_NAME_PATTERN` 与 `documentIdFieldKind` 等五个元数据字段类型（已由 `builtinFieldKinds` 整体给出）。
-   - 判据：三个入口里没有 `export *`，每个公开名在入口里明写一行（可用类型检查器按现有导出生成，再减去上面的名字）；`test/surface/*.txt` 只少这些名字、不多不少；加一条架构测试：入口不许 `export *`；README「Entries」与 D29 的说法照改。落点：三个入口、`test/publicSurface.test.ts`、`test/architecture.test.ts`。
-2. **内存版 Wow 查询求值器只留一份**（用户：「同意」）：
+1. **内存版 Wow 查询求值器只留一份**（用户：「同意」）：
    - 为什么：Storybook 的 `stories/view-engine/rowSource.ts`（约 1,500 行）与补偿控制台 e2e 的 `e2e/support/executionFailedService.ts` 各自实现一遍 Wow 的筛选与聚合语义，各自漏算子、互相漂移（R1-P1-11 故事源不认 `IS_EMPTY`；控制台桩不认 `DATE_PART` 与百分位，2026-09-27 补上）。
    - 判据：一份共用实现（放在不发 npm 的工作区包里，或视图引擎的测试夹具下由两处引用），两处都改用它；语义按 Kotlin 侧的 `FilterSemantics` 矩阵与 TCK 的用例核对（同一份用例在 TS 里跑一遍）；Storybook 与控制台 e2e 全部通过。落点：新共用位置、`rowSource.ts`、`executionFailedService.ts`。
-3. **其余发现**（同批顺带或各自一个小 PR）：
+2. **其余发现**（同批顺带或各自一个小 PR）：
    - wow-mongo 的「空值安全的二元运算」（`$let`＋`$cond`、除零保护）在 `MongoAggregationExpressions.kt` 与 `MongoAggregationProjection.kt` 各写一遍——抽成一个函数，两处共用，行为不变。
    - `RecordWorkbench.test.stories.tsx` 约 7,000 行、九十多个故事——按关注点拆成几个文件（筛选、表格、主题与密度、详情、批量）。
    - **ui 根目录拆成三层**（方案用户 2026-09-27 确认；交做 ui 目录去环（#3717）的子代理，在第 1 件合并之后、队列里没有别的改动时单独一个 PR）：

@@ -14,7 +14,7 @@
 /**
  * The public surface, name by name (A-16, D29).
  *
- * Every layer index re-exports its files, and the root entry re-exports the
+ * Every layer index re-exported its files, and the root entry re-exported the
  * layers, so a helper written for `/react` or `/ui` became a promise to every
  * host the moment its file had an `export` — the runtime's scheduler, its
  * store and its listener sets among them. Once the package is published each
