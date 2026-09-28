@@ -35,7 +35,7 @@
 
 ### 1.4 焦点与控件边
 
-- `--ring` 与 `--input` 都是中性灰 0.62（暗色分别是 0.66 和 40% 白），专门调到 ≥3:1（`styles.css:279`、`:289`、`:525`、`:531`），由 RecordWorkbench.test.stories.tsx「FocusIndicatorsInLightTheme」「FocusIndicatorsInDarkTheme」「ControlBordersInLightTheme」「ControlBordersInDarkTheme」在真浏览器里量。**shadcn 常见的品牌主题会把 `--ring` 设成主色、把 `--input` 设成 `--border`**，补偿控制台就是这样（`compensation/dashboard/src/index.css:72-73`）。照搬过来，这两条 3:1 的保证就没了。
+- `--ring` 与 `--input` 都是中性灰 0.62（暗色分别是 0.66 和 40% 白），专门调到 ≥3:1（`styles.css:279`、`:289`、`:525`、`:531`），由 RecordWorkbenchTheme.test.stories.tsx「FocusIndicatorsInLightTheme」「FocusIndicatorsInDarkTheme」「ControlBordersInLightTheme」「ControlBordersInDarkTheme」在真浏览器里量。**shadcn 常见的品牌主题会把 `--ring` 设成主色、把 `--input` 设成 `--border`**，补偿控制台就是这样（`compensation/dashboard/src/index.css:72-73`）。照搬过来，这两条 3:1 的保证就没了。
 - **待量**：`FOCUS_ROW`／`FOCUS_CARD`（`variants.tsx:449-462`）只画 3px、强度 50% 的光晕，没有 `FOCUS_INSET` 和 `Button` 那条全强度 1px 边。50% 的中性灰叠在白底上，推算下来远不到 3:1，但**还没有 story 量过**，应当在本阶段补量，不达标就修。
 - 拖放占位用 `bg-primary`，缩放角用 `--muted-foreground`／`--ring`（`styles.css:1044-1061`），都走 token，没有问题。
 
