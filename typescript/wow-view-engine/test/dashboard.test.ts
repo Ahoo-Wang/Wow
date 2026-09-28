@@ -31,9 +31,11 @@ import {
   validateDashboard,
   type DashboardPanel,
   type DashboardViewConfig,
+  type DashboardViewPanel,
   type FilterTree,
   type Issue,
   type PanelReference,
+  type ViewDefinition,
   type ViewScope,
 } from '../src/index.js';
 import {
@@ -790,6 +792,170 @@ describe("validateDashboard, what is the board's and what a panel's", () => {
         path: ['panels'],
       }),
     ]);
+  });
+});
+
+/**
+ * todo C: a view declared in code is known to every registered definition,
+ * so a board naming one is checked when it is admitted — at registration
+ * and as it opens — not first when a reader opens it. A wrong one is
+ * said at the panel, by what a reader can recognise, never by its id.
+ */
+describe('validateDashboard views declared in code', () => {
+  const orders = ordersDefinition();
+  const registered = new Map<string, ViewDefinition>([
+    ['orders', orders],
+    [
+      'overview',
+      {
+        id: 'overview',
+        title: 'Overview',
+        kind: 'dashboard',
+        views: [{ id: 'ops', title: 'Ops', config: dashboardConfig() }],
+      },
+    ],
+  ]);
+  const definitions = (id: string) => {
+    const definition = registered.get(id);
+    return definition
+      ? {
+          definition,
+          fields: definition.kind === 'data' ? definition.fields : [],
+        }
+      : null;
+  };
+  const admit = (...panels: DashboardPanel[]) =>
+    validateDashboard(
+      dashboardConfig({
+        fields: [{ name: 'region', label: 'Region', kind: 'string' }],
+        panels,
+      }),
+      'system',
+      new Map(),
+      kinds,
+      { definitions },
+    );
+
+  it('reads one that is declared as a saved view would be, bindings and all', () => {
+    expect(
+      admit(
+        viewPanel({
+          instanceId: 'system:orders:all',
+          bindings: [{ globalField: 'region', panelField: 'warehouse' }],
+        }),
+      ),
+    ).toEqual([]);
+    expect(
+      admit(
+        viewPanel({
+          instanceId: 'system:orders:all',
+          bindings: [{ globalField: 'region', panelField: 'nowhere' }],
+        }),
+      ),
+    ).toEqual([
+      expect.objectContaining({
+        code: 'dashboard.binding.panel-unknown',
+        path: ['panels', 0, 'bindings', 0, 'panelField'],
+        // The filter as the board shows it, not only the path.
+        params: { field: 'nowhere', filter: 'Region' },
+      }),
+    ]);
+  });
+
+  it('puts out a panel showing one no registered definition declares', () => {
+    expect(admit(viewPanel({ instanceId: 'system:orders:gone' }))).toEqual([
+      expect.objectContaining({
+        code: 'dashboard.panel.view-undeclared',
+        path: ['panels', 0, 'instanceId'],
+        params: { definition: 'Orders' },
+        severity: 'error',
+      }),
+    ]);
+    expect(codes(admit(viewPanel({ instanceId: 'system:ghost:all' })))).toEqual(
+      ['dashboard.panel.view-unknown'],
+    );
+    // A store's id is the store's to answer, when the board opens.
+    expect(admit(viewPanel({ instanceId: 'orders-1' }))).toEqual([
+      expect.objectContaining({
+        code: 'dashboard.panel.unavailable',
+        severity: 'warning',
+      }),
+    ]);
+  });
+
+  it('warns of a view to open in the workbench that is not there, or of other data', () => {
+    const opening = (opens: string) =>
+      admit(viewPanel({ instanceId: 'system:orders:all', opens }));
+    expect(opening('system:orders:all')).toEqual([]);
+    expect(opening('system:orders:gone')).toEqual([
+      expect.objectContaining({
+        code: 'dashboard.panel.opens-undeclared',
+        path: ['panels', 0, 'opens'],
+        params: { definition: 'Orders' },
+        severity: 'warning',
+      }),
+    ]);
+    expect(codes(opening('system:ghost:all'))).toEqual([
+      'dashboard.panel.opens-unknown',
+    ]);
+    expect(opening('system:overview:ops')).toEqual([
+      expect.objectContaining({
+        code: 'dashboard.panel.opens-elsewhere',
+        params: { view: 'Ops', definition: 'Overview' },
+      }),
+    ]);
+  });
+
+  it('sets aside a click whose view or board is not there', () => {
+    const pressing = (click: DashboardViewPanel['click']) =>
+      admit(
+        viewPanel({
+          instanceId: 'system:orders:all',
+          click,
+        }),
+      );
+    // The panel shows records, which have no groups to press: judged on an
+    // analysis instead.
+    registered.set('orders', {
+      ...orders,
+      views: [{ id: 'all', title: 'All', config: analysisConfig() }],
+    });
+    try {
+      expect(
+        pressing({ kind: 'view', instanceId: 'system:orders:all' }),
+      ).toEqual([]);
+      expect(
+        pressing({ kind: 'view', instanceId: 'system:orders:gone' }),
+      ).toEqual([
+        expect.objectContaining({
+          code: 'dashboard.click.view-undeclared',
+          path: ['panels', 0, 'click'],
+          params: { definition: 'Orders' },
+          severity: 'warning',
+        }),
+      ]);
+      expect(
+        codes(pressing({ kind: 'view', instanceId: 'system:overview:ops' })),
+      ).toEqual(['dashboard.click.view-not-a-view']);
+      expect(
+        codes(
+          pressing({
+            kind: 'dashboard',
+            instanceId: 'system:overview:gone',
+            values: {},
+          }),
+        ),
+      ).toEqual(['dashboard.click.board-gone']);
+      expect(
+        pressing({
+          kind: 'dashboard',
+          instanceId: 'system:overview:ops',
+          values: {},
+        }),
+      ).toEqual([]);
+    } finally {
+      registered.set('orders', orders);
+    }
   });
 });
 

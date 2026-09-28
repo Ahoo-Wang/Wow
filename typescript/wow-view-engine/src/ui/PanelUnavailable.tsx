@@ -101,10 +101,17 @@ function outageOf(
     return said('label.panel.out.blocked', 'label.panel.way-out.dashboard');
   const mapped = OUTAGES[issue.code];
   if (mapped) return said(mapped[0], mapped[1]);
-  // A binding names the fields on both ends; the reader needs to know only
-  // that the dashboard's filters do not reach this panel.
+  // A binding names the fields on both ends; the reader needs to know that
+  // the dashboard's filters do not reach this panel — and, when the field a
+  // filter is wired to is not in the view at all, which filter, by the
+  // label they see on the board (todo C).
   if (issue.code.startsWith('dashboard.binding.'))
-    return said('label.panel.out.filter', 'label.panel.way-out.maintainer');
+    return {
+      ...said('label.panel.out.filter', 'label.panel.way-out.maintainer'),
+      ...(issue.code === 'dashboard.binding.panel-unknown'
+        ? { detail: messages.issue(issue) }
+        : {}),
+    };
   // The dashboard's other rules about one panel — where it stands, what a
   // note or a link holds — already read in a reader's words and name no id.
   if (issue.code.startsWith('dashboard.'))

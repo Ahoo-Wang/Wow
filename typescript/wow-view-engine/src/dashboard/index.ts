@@ -22,6 +22,7 @@
  */
 export * from './click.js';
 export * from './clickDraft.js';
+export * from './declared.js';
 export * from './defaults.js';
 export * from './edit.js';
 export * from './filterEdit.js';

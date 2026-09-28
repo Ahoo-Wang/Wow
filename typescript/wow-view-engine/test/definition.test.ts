@@ -821,6 +821,72 @@ describe('validateDefinition system views', () => {
     });
   });
 
+  /**
+   * todo C: a declared board naming a view declared in code is checked
+   * against every registered definition as they are registered — reported
+   * through `onIssue` at start-up — and the wrong panel alone is out when
+   * the board opens. A panel's error (A), so the definition stays usable.
+   */
+  it('checks the views declared in code a declared board names, at registration', async () => {
+    const reported: Issue[] = [];
+    const engine = new ViewEngine({
+      definitions: [
+        ordersDefinition(),
+        overviewDefinition({
+          views: [
+            {
+              id: 'board',
+              title: 'Board',
+              config: dashboardConfig({
+                panels: [
+                  {
+                    id: 'all',
+                    kind: 'view',
+                    instanceId: 'system:orders:all',
+                    bindings: [],
+                    layout: { x: 0, y: 0, w: 6, h: 4 },
+                  },
+                  {
+                    id: 'gone',
+                    kind: 'view',
+                    instanceId: 'system:orders:gone',
+                    bindings: [],
+                    layout: { x: 6, y: 0, w: 6, h: 4 },
+                  },
+                ],
+              }),
+            },
+          ],
+        }),
+      ],
+      store: new MemoryViewStore(),
+      resolveSource: () => testSource(),
+      onIssue: found => reported.push(found),
+    });
+    const said = {
+      code: 'dashboard.panel.view-undeclared',
+      path: ['views', 0, 'config', 'panels', 1, 'instanceId'],
+      params: { definition: 'Orders' },
+      severity: 'error',
+    };
+    expect(reported).toEqual([expect.objectContaining(said)]);
+    expect(engine.definitionIssues('overview')).toEqual([
+      expect.objectContaining(said),
+    ]);
+
+    const board = await engine.open('system:overview:board');
+    await Promise.resolve();
+    const { issues, panels } = board.getSnapshot() as DashboardRuntimeState;
+    expect(blocksBoard(issues)).toBe(false);
+    expect(panels[0].runtime).not.toBeNull();
+    expect(panels[1].runtime).toBeNull();
+    expect(panels[1].issues[0]).toMatchObject({
+      code: 'dashboard.panel.view-undeclared',
+      params: { definition: 'Orders' },
+    });
+    board.dispose();
+  });
+
   it('runs the config through its own kernel, pointing at the view that holds it', () => {
     const found = validateDefinition(
       ordersDefinition({

@@ -112,6 +112,12 @@ export const clicksMessages = {
     'The view a press goes to was deleted, or you may not open it.',
   'dashboard.click.destination-unsupported':
     'A view destination is a record or an analysis view; for a dashboard, choose “Dashboard”.',
+  'dashboard.click.view-unknown':
+    'The view a press goes to cannot be found in this application; pressing it opens the follow-up menu.',
+  'dashboard.click.view-undeclared':
+    '“{definition}” has no view like the one a press goes to; pressing it opens the follow-up menu.',
+  'dashboard.click.view-not-a-view':
+    'What a press goes to is not a record or an analysis view; pressing it opens the follow-up menu.',
   'dashboard.click.board-dimension-unknown':
     'The click carries {field} to another dashboard, which this panel no longer groups by; pressing it opens the follow-up menu.',
   'dashboard.click.board-gone':

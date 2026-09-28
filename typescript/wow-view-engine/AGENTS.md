@@ -232,6 +232,7 @@ src/
     validateSort.ts           — Sort and table columns, over known aliases
     index.ts                  — The analysis kernel
   dashboard/                  — Dashboard kernel — imports model and filter
+    declared.ts               — `declaredView`: what a view id a board names is among the views registered definitions declare in code — the one a panel shows, opens or a press goes to — read through the one `definitions` lookup admission is handed, so a wrong one is said at registration and at open (todo C); `missingView`
     defaults.ts               — emptyDashboardConfig
     boardFields.ts            — `boardFieldsOf`: the fields of a panel's view a board filter can be wired to — a search box on a record view only; imported by path, not re-exported by `index.ts` (not on the root entry)
     edit.ts                   — Building a board as pure edits (D22 A–E): `addPanel` (at `freeSpot`, sized by `defaultPanelSize`), remove, duplicate, rename, replace the view, `referToSaved`, `setPresentation`, `editContent`, `movePanelToTab`, `compactTab`, `setBoardWidth`

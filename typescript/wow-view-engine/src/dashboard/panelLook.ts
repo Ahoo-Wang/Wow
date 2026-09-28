@@ -11,12 +11,19 @@
  * limitations under the License.
  */
 
-import type { DashboardViewPanel, Issue, IssuePath } from '../model/index.js';
+import type {
+  DashboardViewPanel,
+  Issue,
+  IssuePath,
+  ViewDefinition,
+} from '../model/index.js';
 import { isPlainObject, issue } from '../filter/index.js';
 import { isPresentationMember } from './panels.js';
+import { declaredView, type DefinitionLookup } from './declared.js';
 
 // How a data panel looks at its view and which view it opens, as admission
-// judges them: the shape only (validate.ts keeps the rest of the panel).
+// judges them: the shape, and a view declared in code against the registered
+// definitions (validate.ts keeps the rest of the panel).
 
 /**
  * An override of how the panel looks (D22 D). Only its shape is this
@@ -53,16 +60,39 @@ export function validatePresentation(
 export function validateOpens(
   panel: DashboardViewPanel,
   path: IssuePath,
+  view: { definition: ViewDefinition } | null = null,
+  lookup?: DefinitionLookup,
 ): Issue[] {
   const opens: unknown = panel.opens;
-  return opens === undefined || (typeof opens === 'string' && opens !== '')
-    ? []
-    : [
+  const at: IssuePath = [...path, 'opens'];
+  if (opens === undefined) return [];
+  if (typeof opens !== 'string' || opens === '')
+    return [issue('dashboard.panel.opens-invalid', at, {}, 'warning')];
+  // A view declared in code is checked where it is registered (todo C): one
+  // not there, or of another definition than the panel's own, is not what
+  // 「在工作台中打开」 can open, and the panel opens its own instead.
+  const declared = declaredView(opens, lookup);
+  if (!declared) return [];
+  if ('missing' in declared)
+    return [
+      declared.missing.definition === null
+        ? issue('dashboard.panel.opens-unknown', at, {}, 'warning')
+        : issue(
+            'dashboard.panel.opens-undeclared',
+            at,
+            { definition: declared.missing.definition },
+            'warning',
+          ),
+    ];
+  const other = declared.reference.definition;
+  return view && other.id !== view.definition.id
+    ? [
         issue(
-          'dashboard.panel.opens-invalid',
-          [...path, 'opens'],
-          {},
+          'dashboard.panel.opens-elsewhere',
+          at,
+          { view: declared.reference.instance.title, definition: other.title },
           'warning',
         ),
-      ];
+      ]
+    : [];
 }

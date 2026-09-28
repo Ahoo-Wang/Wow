@@ -1901,7 +1901,8 @@ export const zhCN: ViewMessages = {
   'dashboard.binding.kind-mismatch': '{global} 字段无法筛选 {panel} 字段。',
   'dashboard.binding.missing':
     '这个面板没有带 {field} 筛选，所以不能和其他面板一起筛选。',
-  'dashboard.binding.panel-unknown': '{field} 不是这个面板所显示视图的字段。',
+  'dashboard.binding.panel-unknown':
+    '「{filter}」接的字段，这个面板显示的视图里没有。',
   'dashboard.field.duplicate': '筛选字段 {field} 声明了两次。',
   'dashboard.field.name-empty': '筛选字段需要一个名称。',
   'dashboard.field.name-invalid': '{field} 不是可用的字段名。',
@@ -1943,6 +1944,15 @@ export const zhCN: ViewMessages = {
   'dashboard.panel.not-referenced':
     '这个面板显示的不是你打开着的已保存视图，没有可复制的东西。',
   'dashboard.panel.owned-invalid': '这个面板里的分析不是预期的结构。',
+  'dashboard.panel.view-unknown': '这个面板要显示的视图在这个应用里找不到。',
+  'dashboard.panel.view-undeclared':
+    '「{definition}」里没有这个面板要显示的视图。',
+  'dashboard.panel.opens-unknown':
+    '这个面板设定在工作台中打开的视图在这个应用里找不到，改为打开面板自己的视图。',
+  'dashboard.panel.opens-undeclared':
+    '「{definition}」里没有这个面板设定在工作台中打开的视图，改为打开面板自己的视图。',
+  'dashboard.panel.opens-elsewhere':
+    '这个面板设定在工作台中打开的「{view}」看的是「{definition}」，不是这个面板的数据，改为打开面板自己的视图。',
   'dashboard.panel.opens-invalid':
     '这个面板设定在工作台中打开的视图写得不对，改为打开面板自己的视图。',
   'dashboard.panel.presentation-dropped':
@@ -2228,6 +2238,12 @@ export const zhCN: ViewMessages = {
     '点击时要去的视图已被删除，或你没有权限打开它。',
   'dashboard.click.destination-unsupported':
     '去视图时只能选记录视图或分析视图；要去仪表盘，选「仪表盘」。',
+  'dashboard.click.view-unknown':
+    '点击时要去的视图在这个应用里找不到，点一组会打开追问菜单。',
+  'dashboard.click.view-undeclared':
+    '「{definition}」里没有点击时要去的视图，点一组会打开追问菜单。',
+  'dashboard.click.view-not-a-view':
+    '点击时要去的不是记录视图或分析视图，点一组会打开追问菜单。',
   'dashboard.click.board-dimension-unknown':
     '点击要把 {field} 带到另一块仪表盘，这个面板已不按它分组，点一组会打开追问菜单。',
   'dashboard.click.board-gone':

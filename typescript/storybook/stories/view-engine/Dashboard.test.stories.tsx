@@ -25,6 +25,7 @@ import displayMeta, {
   HeadingPanelAlone as DisplayHeadingPanelAlone,
   LegacyLayout as DisplayLegacyLayout,
   OneBadPanel as DisplayOneBadPanel,
+  WrongReferences as DisplayWrongReferences,
   PanelUnavailable as DisplayPanelUnavailable,
   PersonalViewOnSharedBoard as DisplayPersonalViewOnSharedBoard,
   PreBatchCCondition as DisplayPreBatchCCondition,
@@ -211,6 +212,54 @@ export const OneBadPanel: Story = {
     await expect(
       canvas.getByRole('link', { name: /^出库异常处理/ }),
     ).toBeVisible();
+  },
+};
+
+/**
+ * A board declared in code names a view no definition declares, and wires a
+ * filter to a field a declared view does not have (todo C). Each of those
+ * panels is out, saying what is missing by the names a reader sees — the
+ * data, the filter — never an id or a path; the panels beside them draw.
+ */
+export const WrongReferences: Story = {
+  ...DisplayWrongReferences,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const card = async (title: string) => {
+      const heading = await canvas.findByRole('heading', {
+        level: 3,
+        name: title,
+      });
+      return heading.closest('[data-slot="dashboard-panel"]') as HTMLElement;
+    };
+    const archived = await card('归档订单');
+    await waitFor(() =>
+      expect(
+        archived.querySelector('[data-slot="panel-unavailable"]'),
+      ).toHaveTextContent('「订单」里没有这个面板要显示的视图。'),
+    );
+    await expect(archived.textContent).not.toContain('system:');
+    await expect(archived.textContent).not.toContain('archived');
+    const misbound = await card('全部订单');
+    await waitFor(() =>
+      expect(
+        misbound.querySelector('[data-slot="panel-unavailable-detail"]'),
+      ).toHaveTextContent('「仓库」接的字段，这个面板显示的视图里没有。'),
+    );
+    await expect(misbound.textContent).not.toContain('area');
+    // The board opens, and the others draw.
+    await expect(canvas.queryByText(/无法打开/)).toBeNull();
+    const table = await findDataTable(canvasElement);
+    await waitFor(() =>
+      expect(readColumn(table, '订单号')).toEqual([
+        'SO-1003',
+        'SO-1005',
+        'SO-1001',
+        'SO-1006',
+      ]),
+    );
+    await chartsDrawn(canvasElement);
+    await waitFor(() => expect(bars(canvasElement)).toHaveLength(4));
   },
 };
 
