@@ -11,9 +11,9 @@
  * limitations under the License.
  */
 
-import { useEffect, useRef } from 'react';
 import type { RecordTableController } from '../../react/index.js';
 import type { MessageFormatters } from '../MessagesProvider.js';
+import { useSentence, type OwnAnnouncer } from '../Announcer.js';
 
 /**
  * What a query says about itself, or nothing at all.
@@ -27,7 +27,9 @@ import type { MessageFormatters } from '../MessagesProvider.js';
  *
  * A failure says nothing here. `QueryStrip` draws it as an `error` status
  * strip, which is `role="alert"` and interrupts on its own; saying it twice
- * is the reader hearing the same failure from two directions.
+ * is the reader hearing the same failure from two directions. Nothing is
+ * not silence kept over the last sentence, though: the region is emptied,
+ * so 「running」 does not outlive the query (#3603).
  */
 export function querySentence(
   table: RecordTableController,
@@ -65,15 +67,9 @@ export function querySentence(
 export function useQueryAnnouncement(
   table: RecordTableController,
   messages: MessageFormatters,
-  say: (message: string) => void,
+  voice: Pick<OwnAnnouncer, 'say' | 'clear'>,
   /** What the empty result is titled on screen, when the host titles it. */
   emptyTitle?: string,
 ): void {
-  const sentence = querySentence(table, messages, emptyTitle);
-  const said = useRef<string | null>(null);
-  useEffect(() => {
-    if (sentence === null || sentence === said.current) return;
-    said.current = sentence;
-    say(sentence);
-  }, [say, sentence]);
+  useSentence(querySentence(table, messages, emptyTitle), voice);
 }

@@ -233,10 +233,10 @@ export function RecordParts({
   // the column settings and the sort editor each carry one of their own, but
   // only while their popover is open, and neither is on screen at the same
   // time as a drag of the other.
-  const { say: announce, region: announcement } = useAnnouncer(
+  const { region: announcement, ...voice } = useAnnouncer(
     'record-announcement',
   );
-  useQueryAnnouncement(table, messages, announce, emptyTitle);
+  useQueryAnnouncement(table, messages, voice, emptyTitle);
 
   const fields = record?.fields ?? [];
   const row = actions?.row;

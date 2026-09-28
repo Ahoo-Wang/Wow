@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import { useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 import type {
   AnalysisSort,
   AnalysisViewConfig,
@@ -52,7 +52,7 @@ import {
   CaptionSkeleton,
 } from '../analysis/SkeletonResult.js';
 import { wayOutOf } from '../record/emptyWayOut.js';
-import { useAnnouncer } from '../Announcer.js';
+import { useAnnouncer, useSentence } from '../Announcer.js';
 import { NoteStrip, WarningStrip } from '../StatusStrip.js';
 import { featuresOf, type WorkbenchFeatures } from '../features.js';
 import type { ViewMessages } from '../messages.js';
@@ -186,7 +186,9 @@ export function AnalysisParts({
   // The one live region of this surface: a query that lands is a change of
   // the numbers on screen, and a reader who cannot see them has to be told
   // — as the record view's rows are (`record/queryAnnouncement.ts`).
-  const { say, region: announcement } = useAnnouncer('analysis-announcement');
+  const { region: announcement, ...voice } = useAnnouncer(
+    'analysis-announcement',
+  );
   const querying = state?.query.status === 'loading';
   // Without a dimension the answer is one row that is the whole range: no
   // groups to count, so neither the footer nor the announcement counts
@@ -199,12 +201,7 @@ export function AnalysisParts({
         ? messages.label('label.analysis.answered')
         : messages.label('label.status.groups', { count: view.rows.length })
       : null;
-  const said = useRef<string | null>(null);
-  useEffect(() => {
-    if (sentence === null || sentence === said.current) return;
-    said.current = sentence;
-    say(sentence);
-  }, [say, sentence]);
+  useSentence(sentence, voice);
 
   // The tray's fold, held here only so a config that will not run can open
   // it from the status line (F11). Tagged with the runtime it was set for

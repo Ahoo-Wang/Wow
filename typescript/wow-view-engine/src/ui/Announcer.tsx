@@ -15,6 +15,8 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
+  useRef,
   useState,
   type ReactNode,
 } from 'react';
@@ -32,6 +34,16 @@ export interface Announcer {
    * `useSurfaceAnnouncer` where the region is the surface's.
    */
   region: ReactNode;
+}
+
+/** A surface's own region, which can also be emptied. */
+export interface OwnAnnouncer extends Announcer {
+  /**
+   * Empty the region: what it last said is no longer so. A query that was
+   * 「running」 and failed is not still running, and a reader who reaches
+   * the region afterwards must not find that there (#3603).
+   */
+  clear(): void;
 }
 
 /**
@@ -60,14 +72,22 @@ export interface Announcer {
  * The `slot` is the region's `data-slot`, so a suite can still read back
  * what a particular surface said.
  */
-export function useAnnouncer(slot: string): Announcer {
+export function useAnnouncer(slot: string): OwnAnnouncer {
   const [said, setSaid] = useState({ message: '', count: 0 });
   const say = useCallback(
     (message: string) => setSaid(last => ({ message, count: last.count + 1 })),
     [],
   );
+  const clear = useCallback(
+    () =>
+      setSaid(last =>
+        last.message === '' ? last : { message: '', count: last.count },
+      ),
+    [],
+  );
   return {
     say,
+    clear,
     region: (
       <div
         data-slot={slot}
@@ -79,6 +99,25 @@ export function useAnnouncer(slot: string): Announcer {
       </div>
     ),
   };
+}
+
+/**
+ * Says a sentence derived from state once, when it changes, and empties the
+ * region when it turns to nothing — so the next sentence, even the one said
+ * last time, is said again rather than taken for one already heard (#3603).
+ * A re-render on any other account repeats nothing.
+ */
+export function useSentence(
+  sentence: string | null,
+  { say, clear }: Pick<OwnAnnouncer, 'say' | 'clear'>,
+): void {
+  const said = useRef<string | null>(null);
+  useEffect(() => {
+    if (sentence === said.current) return;
+    said.current = sentence;
+    if (sentence === null) clear();
+    else say(sentence);
+  }, [say, clear, sentence]);
 }
 
 /** The voice of the surface a part is drawn inside. */
