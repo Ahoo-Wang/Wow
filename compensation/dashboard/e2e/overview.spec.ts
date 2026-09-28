@@ -754,3 +754,54 @@ test("the shell fits a phone on every place", async ({ page }, testInfo) => {
     ).toBeLessThanOrEqual(0);
   }
 });
+
+test("the analysis boards draw every panel over the service's aggregation", async ({
+  page,
+}) => {
+  await stub(page);
+  const boards = {
+    // The overview's own additions: what waits on a decision, where the
+    // pile goes and is, and what compensation repairs.
+    home: [
+      "Retries spent — awaiting a decision",
+      "Where active failures go",
+      "Where active failures are",
+      "What compensation repairs",
+    ],
+    failures: [
+      "Where active failures go",
+      "Where active failures are",
+      "Active failures by error",
+      "Active failures by source aggregate",
+      "Active failures by month first failed",
+      "When failures arrive",
+      "Retries spent by active failures",
+      "What compensation repairs",
+      "Time to recover",
+      "New failures by calendar day",
+    ],
+    activity: [
+      "New failures",
+      "Prepared",
+      "Retry failed",
+      "Retry succeeded",
+      "Compensation activity per day",
+      "Events by type",
+      "Operator interventions",
+    ],
+  };
+  for (const [board, titles] of Object.entries(boards)) {
+    await page.goto(`/boards?view=system%3Aoverview%3A${board}`);
+    for (const title of titles) {
+      const body = panel(page, title);
+      // Drawn: a chart or a figure, and nothing said to have failed.
+      await expect(
+        body.locator("[data-slot='metric-value'], [role='img']").first(),
+        `${board}: ${title}`,
+      ).toBeVisible();
+      // A panel whose query the service refused says so in its body.
+      await expect(body.locator("[data-slot='panel-failed']")).toHaveCount(0);
+      await expect(body.getByText(/Could not load the data/)).toHaveCount(0);
+    }
+  }
+});

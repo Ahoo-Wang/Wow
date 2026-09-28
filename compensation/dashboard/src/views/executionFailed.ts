@@ -12,6 +12,7 @@
  */
 
 import {
+  AggregationDatePart,
   AggregationDateUnit,
   AggregationFunction,
   AggregationGroupType,
@@ -21,8 +22,10 @@ import type {
   DataViewDefinition,
   FilterNode,
   RecordViewConfig,
+  SystemView,
 } from "@ahoo-wang/wow-view-engine";
 import type { Locale } from "@/i18n.tsx";
+import { failureAnalyses } from "./failureAnalyses.ts";
 
 /** The definition's id: what saved views and routes name it by. */
 export const EXECUTION_FAILED = "execution-failed";
@@ -42,7 +45,7 @@ export const ACTIVE_CONDITION: FilterNode = {
 /** What a retry may still recover (`RetryConditions`). */
 const RETRYABLE_RECOVERABILITY = ["RECOVERABLE", "UNKNOWN"];
 
-const { TERMS, HISTOGRAM, DATE_HISTOGRAM } = AggregationGroupType;
+const { TERMS, HISTOGRAM, DATE_HISTOGRAM, DATE_PART } = AggregationGroupType;
 const { SUM, AVG, MIN, MAX } = AggregationFunction;
 const { HOUR, DAY, WEEK, MONTH } = AggregationDateUnit;
 
@@ -317,6 +320,21 @@ export const DUE_FOR_RETRY: FilterNode[] = [
 ];
 
 /** Still waiting on someone, and no retry will recover it. */
+/**
+ * Retries spent, and no rule has closed it: the scheduler will not take it
+ * again (`isBelowRetryThreshold` false) while its recoverability still
+ * says a retry might help — a person's to decide.
+ */
+export const EXHAUSTED: FilterNode[] = [
+  {
+    field: "state.recoverable",
+    operator: "IN",
+    value: RETRYABLE_RECOVERABILITY,
+  },
+  { field: "state.status", operator: "IN", value: ACTIVE },
+  { field: "state.isBelowRetryThreshold", operator: "EQ", value: false },
+];
+
 export const UNRECOVERABLE: FilterNode[] = [
   {
     field: "state.recoverable",
@@ -412,7 +430,7 @@ export function clusterTimes(
  * `AFTER_NOW`, which need a Wow 9.2.0 service or later, and take the
  * advanced filter mode for their nested groups.
  */
-function systemViews(t: (typeof TEXT)[Locale]): DataViewDefinition["views"] {
+function systemViews(t: (typeof TEXT)[Locale]): SystemView[] {
   return [
     {
       id: "active",
@@ -455,15 +473,7 @@ function systemViews(t: (typeof TEXT)[Locale]): DataViewDefinition["views"] {
     {
       id: "non-retryable",
       title: t.viewNonRetryable,
-      config: recordView([
-        {
-          field: "state.recoverable",
-          operator: "IN",
-          value: RETRYABLE_RECOVERABILITY,
-        },
-        { field: "state.status", operator: "IN", value: ACTIVE },
-        { field: "state.isBelowRetryThreshold", operator: "EQ", value: false },
-      ]),
+      config: recordView(EXHAUSTED),
     },
     {
       id: "unrecoverable",
@@ -842,6 +852,7 @@ export function executionFailedDefinition(locale: Locale): DataViewDefinition {
       count: true,
       having: true,
       expressions: true,
+      dateDiffUnits: ["MINUTE", "HOUR", "DAY"],
       fields: [
         ...[
           "state.status",
@@ -873,19 +884,28 @@ export function executionFailedDefinition(locale: Locale): DataViewDefinition {
           groups: [TERMS],
           functions: [AVG, MIN, MAX],
         },
-        ...[
-          "firstEventTime",
-          "eventTime",
-          "state.executeAt",
-          "state.retryState.nextRetryAt",
-        ].map((field) => ({
+        ...["state.executeAt", "state.retryState.nextRetryAt"].map((field) => ({
           field,
           groups: [DATE_HISTOGRAM],
           functions: [MIN, MAX],
           dateUnits: [HOUR, DAY, WEEK, MONTH],
         })),
+        // When failures arrive (the weekday, the hour) and how long a
+        // recovery took (from the first failure to the last change).
+        ...["firstEventTime", "eventTime"].map((field) => ({
+          field,
+          groups: [DATE_HISTOGRAM, DATE_PART],
+          functions: [MIN, MAX],
+          dateUnits: [HOUR, DAY, WEEK, MONTH],
+          dateParts: [
+            AggregationDatePart.DAY_OF_WEEK,
+            AggregationDatePart.HOUR_OF_DAY,
+          ],
+          expressionInput: true,
+          percentile: true,
+        })),
       ],
     },
-    views: systemViews(t),
+    views: [...systemViews(t), ...failureAnalyses(locale)],
   };
 }
