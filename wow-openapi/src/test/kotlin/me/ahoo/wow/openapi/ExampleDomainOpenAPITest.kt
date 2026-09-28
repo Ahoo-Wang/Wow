@@ -382,6 +382,16 @@ internal class ExampleDomainOpenAPITest {
                     "MONEY",
                     "wow.api.query.NumericFormat.Money",
                 ),
+                Triple<QuerySemanticType, String, String>(
+                    me.ahoo.wow.api.query.schema.TimeSpan(TimeUnit.SECONDS),
+                    "DURATION",
+                    "wow.api.query.TimeSpan",
+                ),
+                Triple<QuerySemanticType, String, String>(
+                    me.ahoo.wow.api.query.schema.Reference(contextName = "example", aggregateName = "order"),
+                    "REFERENCE",
+                    "wow.api.query.Reference",
+                ),
             )
             temporalTypes.forEach { (semanticType, expectedType, _) ->
                 mapper.readTree(mapper.writeValueAsString(semanticType))["type"].stringValue()
@@ -421,6 +431,18 @@ internal class ExampleDomainOpenAPITest {
             val formattedSchema = openAPI.components.schemas.getValue("wow.api.query.Temporal.Formatted")
             formattedSchema.properties.keys.assert().containsExactlyInAnyOrder("type", "pattern")
             formattedSchema.required.assert().containsExactlyInAnyOrder("type", "pattern")
+            val spanSchema = openAPI.components.schemas.getValue("wow.api.query.TimeSpan")
+            spanSchema.properties.keys.assert().containsExactlyInAnyOrder("type", "timeUnit")
+            spanSchema.required.assert().containsExactlyInAnyOrder("type", "timeUnit")
+            val referenceSchema = openAPI.components.schemas.getValue("wow.api.query.Reference")
+            referenceSchema.properties.keys.assert().containsExactlyInAnyOrder(
+                "type",
+                "contextName",
+                "aggregateName",
+                "contextNameField",
+                "aggregateNameField",
+            )
+            referenceSchema.required.assert().containsExactly("type")
         }
 
         @Test

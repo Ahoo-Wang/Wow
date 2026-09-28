@@ -317,6 +317,8 @@ private class QueryModelDescription(private val schema: QueryModelSchema, privat
     /** The system role of [path]: a metadata field's own, or the identity's for the model's identity field. */
     private fun role(path: String): String? = METADATA_FIELDS.firstOrNull { systemPath(it) == path }?.name
         ?: SystemField.IDENTITY.name.takeIf { path == identity }
+        ?: FieldDescriptor.EVENT_TIME.takeIf { path == schema.profile?.eventTimeField?.path }
+        ?: FieldDescriptor.FIRST_EVENT_TIME.takeIf { path == schema.profile?.firstEventTimeField?.path }
 
     private fun limits(defaultListSize: Int?): LimitsDescriptor {
         fun Int.limit(): Int? = takeIf { it > 0 }

@@ -157,7 +157,10 @@ data class AnalysisSortDescriptor(val groups: Boolean, val metrics: Boolean)
 @JsonInclude(JsonInclude.Include.NON_NULL)
 data class FieldDescriptor(
     val path: String,
-    /** The system role of a system field, e.g. `TENANT_ID`; `null` for ordinary fields. */
+    /**
+     * The system role of a system field: a system-field filter target (`SystemField`, e.g. `TENANT_ID`), or one of the
+     * model's times ([EVENT_TIME], [FIRST_EVENT_TIME]); `null` for ordinary fields.
+     */
     val role: String?,
     val types: Set<QueryValueType>,
     val kind: QueryValueKind,
@@ -178,7 +181,18 @@ data class FieldDescriptor(
     val deprecated: QueryDeprecation? = null,
     /** Other paths a query may use for this field; admission replaces them with [path]. */
     val aliases: List<String> = emptyList(),
-)
+) {
+    companion object {
+        /**
+         * When the record's events happened: a snapshot's last event (`eventTime`), an event stream's events
+         * (`createTime`). FIRST and LAST order by it when they name no `orderBy`.
+         */
+        const val EVENT_TIME = "EVENT_TIME"
+
+        /** When a snapshot's aggregate got its first event, i.e. was created (`firstEventTime`). */
+        const val FIRST_EVENT_TIME = "FIRST_EVENT_TIME"
+    }
+}
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
 data class EnumValueDescriptor(val value: JsonNode, val description: String? = null)

@@ -28,7 +28,9 @@ import me.ahoo.wow.api.query.schema.QueryDeprecation
 import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.api.query.schema.QueryValueKind
 import me.ahoo.wow.api.query.schema.QueryValueType
+import me.ahoo.wow.api.query.schema.Reference
 import me.ahoo.wow.api.query.schema.Temporal
+import me.ahoo.wow.api.query.schema.TimeSpan
 import me.ahoo.wow.example.api.cart.CartItemAdded
 import me.ahoo.wow.example.api.cart.CartItemRemoved
 import me.ahoo.wow.example.api.cart.CartQuantityChanged
@@ -972,6 +974,35 @@ class JsonQueryModelSourceTest {
                 me.ahoo.wow.api.query.schema.NumericFormat.Money(currencyField = "currency", scale = 2),
             ),
         )
+    }
+
+    @Test
+    fun `duration and reference annotations, and an AggregateId member, declare their semantics`() {
+        val declaration = load(DurationReferenceState::class.java)
+
+        // Declared on an interface getter the state implements.
+        declaration.field("state.timeout").semanticType.assert()
+            .isEqualTo(DeclarationValue.Set(TimeSpan(TimeUnit.SECONDS)))
+        declaration.field("state.memberId").semanticType.assert()
+            .isEqualTo(DeclarationValue.Set(Reference(contextName = "test-context", aggregateName = "member")))
+        declaration.nodes("state.orderIds").mapNotNull { it.items.or(null) }.single().semanticType.assert()
+            .isEqualTo(DeclarationValue.Set(Reference(contextName = "sales", aggregateName = "order")))
+        declaration.field("state.source.aggregateId").semanticType.assert().isEqualTo(
+            DeclarationValue.Set(Reference(contextNameField = "contextName", aggregateNameField = "aggregateName")),
+        )
+    }
+
+    @Test
+    fun `a reference into the model's own context gives each context its own declaration`() {
+        val source = inferred(typeResolver = { DurationReferenceState::class.java })
+        val other = source.load(
+            context.copy(namedAggregate = MaterializedNamedAggregate("other-context", "other-aggregate")),
+        ).single().block()!!
+
+        other.field("state.memberId").semanticType.assert()
+            .isEqualTo(DeclarationValue.Set(Reference(contextName = "other-context", aggregateName = "member")))
+        source.load(context).single().block()!!.field("state.memberId").semanticType.assert()
+            .isEqualTo(DeclarationValue.Set(Reference(contextName = "test-context", aggregateName = "member")))
     }
 
     @Test

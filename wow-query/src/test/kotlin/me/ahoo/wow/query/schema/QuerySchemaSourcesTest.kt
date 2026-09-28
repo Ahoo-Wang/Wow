@@ -18,7 +18,9 @@ import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.api.query.schema.QueryValueKind
 import me.ahoo.wow.api.query.schema.QueryValueType
+import me.ahoo.wow.api.query.schema.Reference
 import me.ahoo.wow.api.query.schema.Temporal
+import me.ahoo.wow.api.query.schema.TimeSpan
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -85,6 +87,19 @@ class QuerySchemaSourcesTest {
             .isEqualTo(
                 DeclarationValue.Set(me.ahoo.wow.api.query.schema.NumericFormat.Money(currency = "CNY", scale = 2))
             )
+    }
+
+    @Test
+    fun `declarations name duration and reference semantics`() {
+        writeWorkingFile(
+            """{"fields":{"state.timeout":{"semantic":{"type":"DURATION","timeUnit":"SECONDS"}},""" +
+                """"state.memberId":{"semantic":{"type":"REFERENCE","contextName":"example","aggregateName":"member"}}}}""",
+        )
+        val fields = WorkingDirectoryQuerySchemaSource(basePath = tempDir).load(ORDER_CONTEXT).single().block()!!.fields
+        fields.getValue(QueryField("state.timeout")).semanticType.assert()
+            .isEqualTo(DeclarationValue.Set(TimeSpan(TimeUnit.SECONDS)))
+        fields.getValue(QueryField("state.memberId")).semanticType.assert()
+            .isEqualTo(DeclarationValue.Set(Reference(contextName = "example", aggregateName = "member")))
     }
 
     @Test
@@ -184,6 +199,10 @@ class QuerySchemaSourcesTest {
             """{"fields":{"state.value":{"semantic":{"type":"MONEY","currency":"CNY","currencyField":"c"}}}}""",
             """{"fields":{"state.value":{"semantic":{"type":"MONEY","currencyField":"currency"}}}}""",
             """{"fields":{"state.value":{"semantic":{"type":"DECIMAL"}}}}""",
+            // A type this version does not know is a mistake in a declaration, not a newer server's fact.
+            """{"fields":{"state.value":{"semantic":{"type":"RATIO"}}}}""",
+            """{"fields":{"state.value":{"semantic":{"type":"DURATION"}}}}""",
+            """{"fields":{"state.value":{"semantic":{"type":"REFERENCE","aggregateName":"member"}}}}""",
         ).forEach { json ->
             writeWorkingFile(json)
             StepVerifier.create(WorkingDirectoryQuerySchemaSource(basePath = tempDir).load(ORDER_CONTEXT))
