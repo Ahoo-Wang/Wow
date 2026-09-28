@@ -13,23 +13,30 @@
 
 package me.ahoo.wow.query.schema
 
+import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.annotation.QueryAlias
 import me.ahoo.wow.api.query.annotation.QueryDecimal
+import me.ahoo.wow.api.query.annotation.QueryDuration
 import me.ahoo.wow.api.query.annotation.QueryMoney
+import me.ahoo.wow.api.query.annotation.QueryReference
 import me.ahoo.wow.api.query.annotation.QueryTemporal
 import me.ahoo.wow.api.query.annotation.Sensitive
 import me.ahoo.wow.api.query.schema.NumericFormat
 import me.ahoo.wow.api.query.schema.QueryDeprecation
 import me.ahoo.wow.api.query.schema.QueryModel
+import me.ahoo.wow.api.query.schema.QuerySemanticType
 import me.ahoo.wow.api.query.schema.QueryValueKind
 import me.ahoo.wow.api.query.schema.QueryValueType
+import me.ahoo.wow.api.query.schema.Reference
 import me.ahoo.wow.api.query.schema.Temporal
+import me.ahoo.wow.api.query.schema.TimeSpan
 import me.ahoo.wow.configuration.MetadataSearcher
 import me.ahoo.wow.configuration.requiredAggregateType
 import me.ahoo.wow.infra.TypeNameMapper.toType
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
 import me.ahoo.wow.serialization.JsonSerializer
+import me.ahoo.wow.serialization.MessageRecords
 import reactor.core.publisher.Flux
 import reactor.core.scheduler.Schedulers
 import tools.jackson.databind.JsonNode
@@ -41,7 +48,8 @@ import java.util.concurrent.ConcurrentHashMap
  * The model decides which types to describe: a Snapshot's payload is the aggregate state; an EventStream's payload
  * (`body.body`) is one variant per domain event type, each tagged with its `bodyType`, and `body.bodyType` lists the
  * event types. Field annotations get their query meaning here: [Sensitive] becomes a [MaskRule], [QueryTemporal] and
- * standard date formats become [Temporal] encodings. Declarations are cached per model and type.
+ * standard date formats become [Temporal] encodings, [QueryReference] and `AggregateId` members become [Reference]s.
+ * Declarations are cached per model, type and bounded context.
  *
  * @param modelSource the type inference that describes each domain type.
  * @param typeResolver the type that owns a model's payload: the state type of a Snapshot, the aggregate type of an
@@ -51,14 +59,25 @@ class InferredQuerySchemaSource(
     private val modelSource: QueryModelSource,
     private val typeResolver: (QuerySchemaContext) -> Class<*> = ::payloadOwnerType,
 ) : QuerySchemaSource {
-    private val declarations = ConcurrentHashMap<Pair<QueryModel, Class<*>>, QuerySchemaDeclaration>()
+    private val facts = ConcurrentHashMap<Pair<QueryModel, Class<*>>, InferredFacts>()
+    private val declarations = ConcurrentHashMap<Triple<QueryModel, Class<*>, String?>, QuerySchemaDeclaration>()
 
     override val priority: Int = QuerySchemaSourcePriority.INFERRED
 
+    /**
+     * Types are described once per model; their declaration is shared by every context unless a [QueryReference]
+     * refers into the model's own bounded context, which then has one per context.
+     */
     override fun load(context: QuerySchemaContext): Flux<QuerySchemaDeclaration> = Flux.defer {
         val profile = QueryModelProfile.of(context.model) ?: return@defer Flux.empty()
         val type = typeResolver(context)
-        Flux.just(declarations.computeIfAbsent(context.model to type) { infer(profile, type) })
+        val inferred = facts.computeIfAbsent(context.model to type) { describe(profile, type) }
+        val contextName = context.namedAggregate.contextName.takeIf { inferred.refersIntoOwnContext }
+        Flux.just(
+            declarations.computeIfAbsent(Triple(context.model, type, contextName)) {
+                inferred.declaration(profile, contextName)
+            }
+        )
     }.subscribeOn(Schedulers.boundedElastic()).onErrorMap { error ->
         when (error) {
             is QuerySchemaException -> error
@@ -70,37 +89,50 @@ class InferredQuerySchemaSource(
         }
     }
 
-    private fun infer(profile: QueryModelProfile, type: Class<*>): QuerySchemaDeclaration = when (profile) {
-        is SnapshotQueryModelProfile -> QuerySchemaDeclaration(
-            mapOf(profile.payloadField to modelSource.describe(type).toDeclaration(profile.payloadField).asPayload()),
-        )
-        is EventStreamQueryModelProfile -> eventStream(profile, type, type.aggregateEventTypes())
+    private fun describe(profile: QueryModelProfile, type: Class<*>): InferredFacts = when (profile) {
+        is SnapshotQueryModelProfile -> InferredFacts(mapOf(type to modelSource.describe(type)))
+        is EventStreamQueryModelProfile -> {
+            val events = type.aggregateEventTypes()
+            InferredFacts(events.associateWith { modelSource.describe(it) })
+                .also { if (events.isNotEmpty()) warnInconsistentSensitivity(type, it.types) }
+        }
     }
 
-    private fun eventStream(
-        profile: EventStreamQueryModelProfile,
-        aggregateType: Class<*>,
-        events: List<Class<*>>,
-    ): QuerySchemaDeclaration {
-        if (events.isEmpty()) return QuerySchemaDeclaration(emptyMap())
-        val field = profile.payloadField
-        val facts = events.associateWith { modelSource.describe(it) }
-        warnInconsistentSensitivity(aggregateType, facts)
-        val variants = facts.map { (event, fact) ->
-            fact.toDeclaration(field).copy(variant = DeclarationValue.Set(event.name))
-        }
-        val payload = variants.singleOrNull() ?: QueryFieldDeclaration(
-            kind = DeclarationValue.Set(QueryValueKind.UNION),
-            alternatives = DeclarationValue.Set(variants.also { requireConsistentMaskRules(it, field) }),
-        )
-        return QuerySchemaDeclaration(
-            mapOf(
-                field to payload.asPayload(),
-                profile.payloadTypeField to QueryFieldDeclaration(
-                    enumValues = DeclarationValue.Set(events.map { JsonSerializer.valueToTree<JsonNode>(it.name) }),
+    /** The described [types]: a snapshot's state type, or an event stream's event types in name order. */
+    private class InferredFacts(val types: Map<Class<*>, QueryTypeFact>) {
+        val refersIntoOwnContext: Boolean = types.values.any { it.refersIntoOwnContext() }
+
+        fun declaration(profile: QueryModelProfile, contextName: String?): QuerySchemaDeclaration = when (profile) {
+            is SnapshotQueryModelProfile -> QuerySchemaDeclaration(
+                mapOf(
+                    profile.payloadField to types.values.single()
+                        .toDeclaration(profile.payloadField, contextName).asPayload(),
                 ),
-            ),
-        )
+            )
+            is EventStreamQueryModelProfile -> eventStream(profile, contextName)
+        }
+
+        private fun eventStream(profile: EventStreamQueryModelProfile, contextName: String?): QuerySchemaDeclaration {
+            if (types.isEmpty()) return QuerySchemaDeclaration(emptyMap())
+            val field = profile.payloadField
+            val variants = types.map { (event, fact) ->
+                fact.toDeclaration(field, contextName).copy(variant = DeclarationValue.Set(event.name))
+            }
+            val payload = variants.singleOrNull() ?: QueryFieldDeclaration(
+                kind = DeclarationValue.Set(QueryValueKind.UNION),
+                alternatives = DeclarationValue.Set(variants.also { requireConsistentMaskRules(it, field) }),
+            )
+            return QuerySchemaDeclaration(
+                mapOf(
+                    field to payload.asPayload(),
+                    profile.payloadTypeField to QueryFieldDeclaration(
+                        enumValues = DeclarationValue.Set(
+                            types.keys.map { JsonSerializer.valueToTree<JsonNode>(it.name) },
+                        ),
+                    ),
+                ),
+            )
+        }
     }
 
     /** Best effort: a state type that cannot be described only skips the warning (design §5.8 heuristic). */
@@ -149,14 +181,17 @@ class InferredQuerySchemaSource(
  * The query meaning of a [QueryTypeFact] at [field]: its structure as a declaration, with properties that are not
  * valid query path segments left out, standard date formats as [Temporal.Date], and member annotations applied.
  *
+ * @param field the logical field the value sits at.
+ * @param contextName the bounded context of the model the type belongs to: the one a [QueryReference] that names no
+ * context refers into; `null` when there is none, and such a reference is then a conflict.
  * @throws QuerySchemaConflictException when an annotation cannot apply to the value, or a sensitive member would be
  * lost (behind an invalid property name, or among members the source did not expand).
  */
-fun QueryTypeFact.toDeclaration(field: QueryField): QueryFieldDeclaration {
+fun QueryTypeFact.toDeclaration(field: QueryField, contextName: String? = null): QueryFieldDeclaration {
     if (omitted.any { it.sensitive() != null }) {
         throw QuerySchemaConflictException("Query schema field cannot hide masked descendants: [$field].")
     }
-    val branches = alternatives.map { it.toDeclaration(field) }
+    val branches = alternatives.map { it.toDeclaration(field, contextName) }
     if (kind == QueryValueKind.UNION) requireConsistentMaskRules(branches, field)
     val declaration = QueryFieldDeclaration(
         title = DeclarationValue.Set(title),
@@ -166,22 +201,29 @@ fun QueryTypeFact.toDeclaration(field: QueryField): QueryFieldDeclaration {
         nullable = nullable.known(),
         required = required.known(),
         kind = DeclarationValue.Set(kind),
-        properties = queryProperties(field).takeIf { kind == QueryValueKind.OBJECT }.known(),
-        items = items?.toDeclaration(QueryField("${field.path}.__items")).known(),
-        additionalProperties = additionalProperties?.toDeclaration(QueryField("${field.path}.__key")).known(),
+        properties = queryProperties(field, contextName).takeIf { kind == QueryValueKind.OBJECT }.known(),
+        items = items?.toDeclaration(QueryField("${field.path}.__items"), contextName).known(),
+        additionalProperties = additionalProperties?.toDeclaration(QueryField("${field.path}.__key"), contextName)
+            .known(),
         alternatives = if (kind == QueryValueKind.UNION) DeclarationValue.Set(branches) else DeclarationValue.Unset,
         semanticType = DeclarationValue.Set(Temporal.Date.takeIf { formats.any(DATE_FORMATS::contains) }),
     )
-    return member?.let { declaration.withMember(it, field) } ?: declaration
+    return member?.let { declaration.withMember(it, field, contextName) } ?: declaration
 }
+
+/** Whether a member of this value names a [QueryReference] without a context: one into its model's own. */
+private fun QueryTypeFact.refersIntoOwnContext(): Boolean =
+    member?.annotations?.any { it is QueryReference && it.contextName.isEmpty() } == true ||
+        properties.values.any { it.refersIntoOwnContext() } || items?.refersIntoOwnContext() == true ||
+        additionalProperties?.refersIntoOwnContext() == true || alternatives.any { it.refersIntoOwnContext() }
 
 private fun <T : Any> T?.known(): DeclarationValue<T> = this?.let { DeclarationValue.Set(it) } ?: DeclarationValue.Unset
 
 /** Properties that can be queried; one that cannot must not carry a sensitive member, or its protection is lost. */
-private fun QueryTypeFact.queryProperties(field: QueryField): Map<String, QueryFieldDeclaration> =
+private fun QueryTypeFact.queryProperties(field: QueryField, contextName: String?): Map<String, QueryFieldDeclaration> =
     properties.mapNotNull { (name, child) ->
         when {
-            name.isQueryPathSegment() -> name to child.toDeclaration(QueryField("${field.path}.$name"))
+            name.isQueryPathSegment() -> name to child.toDeclaration(QueryField("${field.path}.$name"), contextName)
             child.hasSensitiveMembers() -> throw QuerySchemaConflictException(
                 "Masked query schema property is not a valid QueryField: [$field[\"$name\"]]."
             )
@@ -200,16 +242,22 @@ private fun QueryTypeFact.hasSensitiveMembers(): Boolean =
         properties.values.any { it.hasSensitiveMembers() } || items?.hasSensitiveMembers() == true ||
         additionalProperties?.hasSensitiveMembers() == true || alternatives.any { it.hasSensitiveMembers() }
 
-private fun QueryFieldDeclaration.withMember(member: QueryMemberFact, field: QueryField): QueryFieldDeclaration {
+private fun QueryFieldDeclaration.withMember(
+    member: QueryMemberFact,
+    field: QueryField,
+    contextName: String?,
+): QueryFieldDeclaration {
     val temporal = member.annotations.filterIsInstance<QueryTemporal>().distinct()
     if (temporal.size > 1) {
         throw QuerySchemaConflictException("Multiple @QueryTemporal annotations are not allowed.")
     }
-    val numeric = member.numericFormat()
-    if (numeric != null && temporal.isNotEmpty()) {
-        throw QuerySchemaConflictException("A field has one semantic type: [$field] cannot be temporal and numeric.")
+    val declared = listOfNotNull(member.numericFormat(), member.timeSpan(), member.reference(field, contextName))
+    if (declared.size + temporal.size > 1) {
+        throw QuerySchemaConflictException("A field has one semantic type: [$field] declares several.")
     }
-    val typed = temporal.singleOrNull()?.let { withTemporal(it) } ?: numeric?.let { withNumericFormat(it, field) } ?: this
+    val typed = temporal.singleOrNull()?.let { withTemporal(it) }
+        ?: declared.singleOrNull()?.let { withScalarSemantic(it, field) }
+        ?: withAggregateIdReference(member)
     val named = typed.withNames(member, field)
     return member.sensitive()?.let { named.withSensitive(it, member, field) } ?: named
 }
@@ -235,32 +283,95 @@ private fun QueryMemberFact.numericFormat(): NumericFormat? {
     return formats.singleOrNull()
 }
 
-private fun Annotation.toFormat(format: () -> NumericFormat): NumericFormat = try {
+/** The member's `@QueryDuration`, of which it may carry at most one. */
+private fun QueryMemberFact.timeSpan(): TimeSpan? {
+    val spans = annotations.filterIsInstance<QueryDuration>().map { TimeSpan(it.unit) }.distinct()
+    if (spans.size > 1) {
+        throw QuerySchemaConflictException("A field has one semantic type: [$name] declares several durations.")
+    }
+    return spans.singleOrNull()
+}
+
+/** The member's `@QueryReference`, its context defaulting to [contextName], the declaring model's. */
+private fun QueryMemberFact.reference(field: QueryField, contextName: String?): Reference? {
+    val references = annotations.filterIsInstance<QueryReference>().map { annotation ->
+        val context = annotation.contextName.ifEmpty { null } ?: contextName ?: throw QuerySchemaConflictException(
+            "@QueryReference on [$field] names no contextName, and its model has no bounded context.",
+        )
+        annotation.toFormat { Reference(contextName = context, aggregateName = annotation.aggregateName) }
+    }.distinct()
+    if (references.size > 1) {
+        throw QuerySchemaConflictException("A field has one semantic type: [$name] declares several references.")
+    }
+    return references.singleOrNull()
+}
+
+private fun <T : QuerySemanticType> Annotation.toFormat(format: () -> T): T = try {
     format()
 } catch (error: IllegalArgumentException) {
     throw QuerySchemaConflictException("Invalid @${annotationClass.simpleName}: ${error.message}", error)
 }
 
-/** Applies a numeric format to every non-null leaf, which must be numeric; the schema checks its currency field. */
-private fun QueryFieldDeclaration.withNumericFormat(format: NumericFormat, field: QueryField): QueryFieldDeclaration =
-    when (inferredKind()) {
-        QueryValueKind.ARRAY -> copy(
-            items = DeclarationValue.Set(checkNotNull(items.valueOr(null)).withNumericFormat(format, field)),
-        )
+/**
+ * Applies a numeric format, a duration or a reference to every non-null leaf, which must be a scalar; the schema
+ * checks the leaf's type and any sibling field the semantic type names.
+ */
+private fun QueryFieldDeclaration.withScalarSemantic(
+    semantic: QuerySemanticType,
+    field: QueryField,
+): QueryFieldDeclaration = when (inferredKind()) {
+    QueryValueKind.ARRAY -> copy(
+        items = DeclarationValue.Set(checkNotNull(items.valueOr(null)).withScalarSemantic(semantic, field)),
+    )
+    QueryValueKind.UNION -> copy(
+        alternatives = DeclarationValue.Set(
+            alternatives.valueOr(emptyList()).map { branch ->
+                if (branch.inferredKind() == QueryValueKind.NULL) branch else branch.withScalarSemantic(semantic, field)
+            },
+        ),
+    )
+    QueryValueKind.SCALAR -> copy(semanticType = DeclarationValue.Set(semantic))
+    else -> throw QuerySchemaConflictException(
+        "${semantic.typeName()} requires a scalar field, but [$field] is not.",
+    )
+}
+
+private fun QuerySemanticType.typeName(): String = when (this) {
+    is NumericFormat -> "A numeric format"
+    is TimeSpan -> "@QueryDuration"
+    else -> "@QueryReference"
+}
+
+/**
+ * An `AggregateId` member: its `aggregateId` refers to the aggregate that its sibling `contextName` and
+ * `aggregateName` name, in each object the member holds (through arrays and nullability).
+ */
+private fun QueryFieldDeclaration.withAggregateIdReference(member: QueryMemberFact): QueryFieldDeclaration {
+    if (!AggregateId::class.java.isAssignableFrom(member.valueType)) return this
+    return when (inferredKind()) {
+        QueryValueKind.ARRAY -> items.valueOr(null)
+            ?.let { copy(items = DeclarationValue.Set(it.withAggregateIdReference(member))) } ?: this
         QueryValueKind.UNION -> copy(
             alternatives = DeclarationValue.Set(
-                alternatives.valueOr(emptyList()).map { branch ->
-                    if (branch.inferredKind() == QueryValueKind.NULL) {
-                        branch
-                    } else {
-                        branch.withNumericFormat(format, field)
-                    }
-                },
+                alternatives.valueOr(emptyList()).map { it.withAggregateIdReference(member) },
             ),
         )
-        QueryValueKind.SCALAR -> copy(semanticType = DeclarationValue.Set(format))
-        else -> throw QuerySchemaConflictException("A numeric format requires a numeric field, but [$field] is not.")
+        QueryValueKind.OBJECT -> {
+            val properties = properties.valueOr(emptyMap())
+            val id = properties[MessageRecords.AGGREGATE_ID]
+            val named = MessageRecords.CONTEXT_NAME in properties && MessageRecords.AGGREGATE_NAME in properties
+            if (id == null || !named) return this
+            val reference = id.copy(semanticType = DeclarationValue.Set(AGGREGATE_ID_REFERENCE))
+            copy(properties = DeclarationValue.Set(properties + (MessageRecords.AGGREGATE_ID to reference)))
+        }
+        else -> this
     }
+}
+
+private val AGGREGATE_ID_REFERENCE = Reference(
+    contextNameField = MessageRecords.CONTEXT_NAME,
+    aggregateNameField = MessageRecords.AGGREGATE_NAME,
+)
 
 /** `@QueryAlias` paths and Kotlin's (or Java's) `@Deprecated` of the member. */
 private fun QueryFieldDeclaration.withNames(member: QueryMemberFact, field: QueryField): QueryFieldDeclaration {

@@ -292,15 +292,28 @@ export function RoutedBoard({
   home,
   board,
   nudges,
+  onFiltersChange,
 }: {
   engine: ViewEngine;
   /** 这一页的那块板。 */
   home: string;
   board(reader: BoardReader): ReactNode;
   nudges: Nudges;
+  /**
+   * 板上的筛选值变了：读者改的，或者从别处带回来的。宿主页面自己的文字要跟着
+   * 它走（首页副标题读的那一天，#3689）。
+   */
+  onFiltersChange?(filters: DashboardFilters | undefined): void;
 }) {
   const [away, setAway] = useState<ViewNavigation | null>(null);
-  const [filters, setFilters] = useState<DashboardFilters | undefined>();
+  const [filters, keepFilters] = useState<DashboardFilters | undefined>();
+  const setFilters = useCallback(
+    (next: DashboardFilters | undefined) => {
+      keepFilters(next);
+      onFiltersChange?.(next);
+    },
+    [onFiltersChange],
+  );
   const [tab, setTab] = useState<string | null | undefined>();
   const route = useCallback(
     (to: ViewNavigation) => {
@@ -310,7 +323,7 @@ export function RoutedBoard({
         setAway(null);
       } else setAway(to);
     },
-    [home],
+    [home, setFilters],
   );
   const actions = useMemo(() => orderActions(nudges), [nudges]);
   if (away === null)

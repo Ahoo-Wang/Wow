@@ -15,6 +15,9 @@ import type { Meta, StoryObj } from '@storybook/react-vite';
 import {
   MemoryViewStore,
   ViewStoreError,
+  isDateTimeFilterValue,
+  resolveDateTimeRange,
+  type DashboardFilters,
   type ViewInstance,
   type ViewSource,
 } from '@ahoo-wang/wow-view-engine';
@@ -25,7 +28,7 @@ import { Button } from '@/ui/components/button';
 import { AppShell } from '../shared/AppShell.js';
 import { HOST_LANGUAGE } from './fixtures.js';
 import { StoryEngine } from './StoryEngine.js';
-import { OPS_DAILY, retailInstances } from './retail/boards.js';
+import { DAILY_DAY, OPS_DAILY, retailInstances } from './retail/boards.js';
 import { rowSource } from './rowSource.js';
 import {
   NudgeStatus,
@@ -128,6 +131,16 @@ const formatMoment = new Intl.DateTimeFormat(HOST_LANGUAGE.locale, {
   timeZone: RETAIL_ZONE,
 });
 
+/**
+ * The day the board reads, as the host writes it: the reader's 「日期」, or
+ * the board's default (yesterday) until they change it.
+ */
+function reportDay(filters: DashboardFilters | undefined, now: Date): Date {
+  const value = filters?.values.date;
+  const day = isDateTimeFilterValue(value) ? value : DAILY_DAY;
+  return new Date(resolveDateTimeRange(day, now, RETAIL_ZONE).from);
+}
+
 function HomePage({ state }: { state: HomeState }) {
   // When the page began, so the regression twin can time the whole board —
   // the data set generated, the engine built, every panel drawn.
@@ -137,7 +150,11 @@ function HomePage({ state }: { state: HomeState }) {
   // command, run by the host; the board writes nothing (D36).
   const recordPanel = useMemo(() => orderPanels(nudges), [nudges]);
   const now = retailEnvironment().now();
-  const yesterday = new Date(now.getTime() - 86_400_000);
+  // The subtitle follows the board's 「日期」 (#3689): it said 「昨日」
+  // whatever day the reader had picked.
+  const [filters, setFilters] = useState<DashboardFilters | undefined>();
+  const day = formatDay.format(reportDay(filters, now));
+  const yesterday = formatDay.format(new Date(now.getTime() - 86_400_000));
   // The host's own order service, which the overdue list on the board reads
   // too: the count on its action is the host's, not a number off the board.
   const overdue = state === 'empty' ? [] : overdueOrders();
@@ -153,10 +170,11 @@ function HomePage({ state }: { state: HomeState }) {
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div className="flex min-w-0 flex-col gap-1">
           <h1 className="text-xl font-semibold">运营日报</h1>
-          <p className="text-muted-foreground text-sm">
+          <p className="text-muted-foreground text-sm" data-host-report>
             栖木生活全渠道 · 指标卡读
-            <span data-host-report-day>{formatDay.format(yesterday)}</span>
-            （昨日），较前一日 · 数据截至 {formatMoment.format(now)}
+            <span data-host-report-day>{day}</span>
+            {day === yesterday && '（昨日）'}，较前一日 · 数据截至{' '}
+            {formatMoment.format(now)}
           </p>
         </div>
         <Button
@@ -177,6 +195,7 @@ function HomePage({ state }: { state: HomeState }) {
             engine={engine}
             home={OPS_DAILY}
             nudges={nudges}
+            onFiltersChange={setFilters}
             board={reader => (
               <EmbeddedDashboard
                 className="host-home"

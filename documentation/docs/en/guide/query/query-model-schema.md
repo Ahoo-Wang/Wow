@@ -71,7 +71,7 @@ flowchart LR
 ```
 
 - `System` supplies model-specific fields for Snapshot and EventStream. Extensions must remain under the Snapshot `state` root or the EventStream `body.body` root; a field leaf already set by System cannot be overwritten.
-- `InferredQuerySchemaSource (100)` infers Snapshot fields from the aggregate state's JSON shape and EventStream `body.body.*` fields from domain-event payloads, one variant per event type tagged with its `bodyType`. Type inference is a `QueryModelSource` bean: the default `JsonQueryModelSource` (wow-schema) reports only raw facts of the serialized JSON (paths, types, nullability, enums, format hints, member annotations); what they mean for queries is decided in wow-query. Standard time types are temporal automatically; `@QueryTemporal(unit = TimeUnit.SECONDS)` declares an integer epoch timestamp and `@QueryTemporal(pattern = "yyyy-MM-dd")` a formatted string time; `@QueryDecimal` and `@QueryMoney` declare [decimal and money precision](#decimal-money) (all from `me.ahoo.wow.api.query.annotation`). `@Sensitive` is described in [Field Masking](./masking.md).
+- `InferredQuerySchemaSource (100)` infers Snapshot fields from the aggregate state's JSON shape and EventStream `body.body.*` fields from domain-event payloads, one variant per event type tagged with its `bodyType`. Type inference is a `QueryModelSource` bean: the default `JsonQueryModelSource` (wow-schema) reports only raw facts of the serialized JSON (paths, types, nullability, enums, format hints, member annotations); what they mean for queries is decided in wow-query. Standard time types are temporal automatically; `@QueryTemporal(unit = TimeUnit.SECONDS)` declares an integer epoch timestamp and `@QueryTemporal(pattern = "yyyy-MM-dd")` a formatted string time; `@QueryDecimal` and `@QueryMoney` declare [decimal and money precision](#decimal-money), `@QueryDuration` and `@QueryReference` [durations and references](#duration-reference) (all from `me.ahoo.wow.api.query.annotation`); a property of type `AggregateId` is a reference without an annotation. `@Sensitive` is described in [Field Masking](./masking.md).
 - `ClasspathQuerySchemaSource (200)` reads `META-INF/wow/query-schema/{context}.{aggregate}.{model}.json`; `WorkingDirectoryQuerySchemaSource (400)` reads `config/wow/query-schema/{context}.{aggregate}.{model}.json`. The model segment is lowercase: `snapshot` or `event_stream`; the dot is the reserved Wow named-aggregate delimiter. The former `wow-query-schema/{context}/{aggregate}/{model}.json` location is no longer read.
 - `BeanQuerySchemaSource (300)` merges `QuerySchemaRegistration` entries for the current context.
 
@@ -95,7 +95,7 @@ A declaration only supplements what inference cannot know — mostly values behi
 | `types` | Scalar types: `STRING`, `INTEGER`, `DECIMAL`, `BOOLEAN` |
 | `nullable` | Whether JSON `null` occurs |
 | `enum` | The declared values, each `{ "value": …, "description"?: … }`; descriptions reach the descriptor's `enum` |
-| `semantic` | One semantic type: a time encoding, `TEMPORAL_EPOCH` (`timeUnit`), `TEMPORAL_DATE`, `TEMPORAL_FORMATTED` (`pattern`); or a numeric format, `DECIMAL` (`scale`), `MONEY` (`currency` or `currencyField`, `scale`), see [below](#decimal-money) |
+| `semantic` | One semantic type: a time encoding, `TEMPORAL_EPOCH` (`timeUnit`), `TEMPORAL_DATE`, `TEMPORAL_FORMATTED` (`pattern`); or a numeric format, `DECIMAL` (`scale`), `MONEY` (`currency` or `currencyField`, `scale`), see [below](#decimal-money); or `DURATION` (`timeUnit`), `REFERENCE` (`contextName` and `aggregateName`, or `contextNameField` and `aggregateNameField`), see [below](#duration-reference) |
 | `description` | What the field means |
 | `properties`, `items`, `values` | Named properties of an object, the element of an array, the value of every key of a map |
 
@@ -123,6 +123,29 @@ data class OrderState(
 In a declaration file: `"semantic": { "type": "DECIMAL", "scale": 2 }` or `"semantic": { "type": "MONEY", "currency": "CNY" }`. Precision is never inferred: a `BigDecimal` does not tell it, and a wrong guess is worse than none.
 
 Building the Schema rejects a wrong declaration as a Schema conflict instead of ignoring it: the field must be numeric; `currencyField` must be a single-valued string property of the same object (for a field inside an element, the same element); exactly one of `currency` and `currencyField` is given; and a field has one semantic type, so it cannot also be temporal. The descriptor publishes the format in the field's `semantic`, with the resolved `scale`, e.g. `{ "type": "MONEY", "currency": "CNY", "scale": 2 }`.
+
+### Durations and references {#duration-reference}
+
+Two more facts a field can state, again for reading only: they change no query and add no capability, on MongoDB or Elasticsearch.
+
+- `DURATION(timeUnit)`: a number that is a length of time in `timeUnit`, such as a timeout in seconds, so the view engine formats it as a duration instead of writing the unit into a label. Declared with `@QueryDuration(unit)`; the unit is required, since an `Int` does not tell it.
+- `REFERENCE`: a value that is the id of an aggregate, for looking it up and linking to it. Either a fixed aggregate, `contextName` and `aggregateName`, declared with `@QueryReference(aggregateName, contextName)`, where an omitted `contextName` is the declaring model's own bounded context; or, per record, the aggregate named by the sibling string properties `contextNameField` and `aggregateNameField`. The second form is inferred for every property of type `AggregateId`: its `aggregateId` refers to the aggregate its own `contextName` and `aggregateName` name. A reference points at the aggregate's id, never another key. The records' own `aggregateId` carries no reference: its role, `AGGREGATE_ID`, and the endpoint already say which aggregate it is.
+
+```kotlin
+interface IRetrySpec {
+    @get:QueryDuration(TimeUnit.SECONDS) val minBackoff: Int
+}
+
+data class OrderState(
+    @field:QueryReference("member") val memberId: String,
+    @field:QueryReference("product", contextName = "catalog") val productIds: List<String>,
+    val source: AggregateId,
+)
+```
+
+In a declaration file: `"semantic": { "type": "DURATION", "timeUnit": "SECONDS" }` or `"semantic": { "type": "REFERENCE", "contextName": "example", "aggregateName": "member" }`. Building the Schema rejects a duration on a field that is not numeric, a reference on one that is not a string or an integer (an array of them is fine), sibling name fields that are not single-valued strings of the same object, and a second semantic type on the field. The referenced aggregate is checked by name syntax only, since it may live in another service.
+
+A client reading a descriptor may see a semantic `type` its version does not know yet, from a newer server: the Kotlin `QuerySemanticType` reads it as `QuerySemanticType.Unknown`, which a client treats as no semantic type. A declaration file or registration that names an unknown `type` is still rejected.
 
 ## Native bindings and capabilities
 
@@ -153,7 +176,7 @@ Each Gateway subscription uses one Schema version: preparation, admission and re
 
 `GET snapshot/schema` and `GET event/schema` return the model's capability descriptor for the HTTP entry: how this model can be queried over HTTP. Storage facts (indexes, mappings, validators) change outside deployments, so each instance reloads every query schema every `wow.query.schema.revalidate-interval` (default `5m`, `0s` disables); a schema that fails to compile keeps its previous version and the failure is logged. With Spring Boot Actuator, the `wowQuerySchema` endpoint lists this instance's schema versions (read) and revalidates now, optionally for one `aggregate` (write). There is no HTTP refresh route. The descriptor publishes conclusions, not storage facts:
 
-- `fields`: one entry per logical path (element fields use their full path and name their element in `scope`), with its `types`, `kind`, `semantic`, `enum`, `sensitivity`, `deprecated`, `aliases`, the `filter.operators` it admits, `sort` (`paged`, `cursor`) and `aggregate` (groups, functions, `distinctCount`, `percentile`, `any`, `inMetricFilter`, …);
+- `fields`: one entry per logical path (element fields use their full path and name their element in `scope`), with its `role` (on a system field: a system-field filter target such as `AGGREGATE_ID` or `TENANT_ID`, or one of the model's times, `EVENT_TIME` on a Snapshot's `eventTime` and an EventStream's `createTime`, `FIRST_EVENT_TIME` on a Snapshot's `firstEventTime`), `types`, `kind`, `semantic`, `enum`, `sensitivity`, `deprecated`, `aliases`, the `filter.operators` it admits, `sort` (`paged`, `cursor`) and `aggregate` (groups, functions, `distinctCount`, `percentile`, `any`, `inMetricFilter`, …);
 - `record`: identity, paging modes, default deletion scope, root operators and full-text search (`search.modes` for a model-wide `SEARCH`, `search.fields` for record-level fields);
 - `limits`: effective limits of the HTTP entry (budget and protocol limits, whichever is smaller; `null` is unlimited) and `defaultListSize`;
 - `analysis`: the metric types, `approximate` (those this backend estimates: `PERCENTILE` on MongoDB; `DISTINCT_COUNT` and `PERCENTILE` on Elasticsearch), `dateUnits` for `DATE_HISTOGRAM`, `dateParts` for `DATE_PART`, `dateDiffUnits` for `DATE_DIFF` (empty when expressions are not allowed), having, sort and dense support;

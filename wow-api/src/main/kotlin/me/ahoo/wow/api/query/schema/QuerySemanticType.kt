@@ -14,6 +14,7 @@
 package me.ahoo.wow.api.query.schema
 
 import com.fasterxml.jackson.annotation.JsonCreator
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 import com.fasterxml.jackson.annotation.JsonInclude
 import com.fasterxml.jackson.annotation.JsonProperty
 import com.fasterxml.jackson.annotation.JsonSubTypes
@@ -24,13 +25,23 @@ import me.ahoo.wow.api.query.QueryProtocol
 import java.time.format.DateTimeFormatter
 import java.util.concurrent.TimeUnit
 
-@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = QueryProtocol.Polymorphic.TYPE)
+/**
+ * What a field's value means beyond its type; a field has at most one. A `type` this version does not know reads as
+ * [Unknown], so a client on an older `wow-api` can still read a newer server's descriptor.
+ */
+@JsonTypeInfo(
+    use = JsonTypeInfo.Id.NAME,
+    property = QueryProtocol.Polymorphic.TYPE,
+    defaultImpl = QuerySemanticType.Unknown::class,
+)
 @JsonSubTypes(
     JsonSubTypes.Type(Temporal.Date::class, name = "TEMPORAL_DATE"),
     JsonSubTypes.Type(Temporal.Epoch::class, name = "TEMPORAL_EPOCH"),
     JsonSubTypes.Type(Temporal.Formatted::class, name = "TEMPORAL_FORMATTED"),
     JsonSubTypes.Type(NumericFormat.Decimal::class, name = "DECIMAL"),
     JsonSubTypes.Type(NumericFormat.Money::class, name = "MONEY"),
+    JsonSubTypes.Type(TimeSpan::class, name = "DURATION"),
+    JsonSubTypes.Type(Reference::class, name = "REFERENCE"),
 )
 @Schema(
     oneOf = [
@@ -39,10 +50,19 @@ import java.util.concurrent.TimeUnit
         Temporal.Formatted::class,
         NumericFormat.Decimal::class,
         NumericFormat.Money::class,
+        TimeSpan::class,
+        Reference::class,
     ],
     discriminatorProperty = QueryProtocol.Polymorphic.TYPE,
 )
-interface QuerySemanticType
+interface QuerySemanticType {
+    /**
+     * A semantic type whose `type` this version does not know, read from a newer server: treat the field as having
+     * no semantic type. Only ever read, never declared: a schema that declares it is rejected when it is built.
+     */
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    data object Unknown : QuerySemanticType
+}
 
 sealed interface Temporal : QuerySemanticType {
     @JsonTypeName("TEMPORAL_DATE")
@@ -143,6 +163,57 @@ sealed interface NumericFormat : QuerySemanticType {
         private fun requireScale(scale: Int) {
             require(scale in 0..MAX_SCALE) { "Numeric scale must be within [0, $MAX_SCALE], but was [$scale]." }
         }
+    }
+}
+
+/**
+ * A number that is a length of time counted in [timeUnit], such as a timeout in seconds, so query consumers format it
+ * as a duration. Declared on the model (`@QueryDuration`), never inferred: an `Int` does not tell its unit. It does
+ * not change how the field is queried.
+ */
+@JsonTypeName("DURATION")
+data class TimeSpan(val timeUnit: TimeUnit) : QuerySemanticType
+
+/**
+ * A value that is the id of an aggregate: the one named by [contextName] and [aggregateName], or, per record, the one
+ * named by the sibling string fields [contextNameField] and [aggregateNameField] (as a serialized `AggregateId` holds
+ * them). Exactly one of the two pairs is given. Query consumers use it to look up and link to the aggregate; it does
+ * not change how the field is queried.
+ */
+@JsonTypeName("REFERENCE")
+@JsonInclude(JsonInclude.Include.NON_NULL)
+data class Reference(
+    val contextName: String? = null,
+    val aggregateName: String? = null,
+    val contextNameField: String? = null,
+    val aggregateNameField: String? = null,
+) : QuerySemanticType {
+    init {
+        val named = contextName != null || aggregateName != null
+        val byFields = contextNameField != null || aggregateNameField != null
+        require(named != byFields) {
+            "REFERENCE names exactly one of contextName and aggregateName, or contextNameField and aggregateNameField."
+        }
+        if (named) {
+            require(contextName != null && aggregateName != null) {
+                "REFERENCE names both contextName and aggregateName."
+            }
+            listOf(contextName, aggregateName).forEach {
+                require(it.matches(AGGREGATE_NAME)) { "REFERENCE name [$it] is invalid." }
+            }
+        } else {
+            require(contextNameField != null && aggregateNameField != null) {
+                "REFERENCE names both contextNameField and aggregateNameField."
+            }
+            listOf(contextNameField, aggregateNameField).forEach {
+                require(it.matches(PROPERTY_NAME)) { "REFERENCE field [$it] must name a sibling property." }
+            }
+        }
+    }
+
+    private companion object {
+        val AGGREGATE_NAME = Regex("^[A-Za-z0-9_][A-Za-z0-9_.-]*$")
+        val PROPERTY_NAME = Regex("^@?[A-Za-z_][A-Za-z0-9_-]*$")
     }
 }
 

@@ -616,3 +616,17 @@ internal data class NumericFormatState(
     val amount: java.math.BigDecimal,
     val currency: String,
 )
+
+internal interface RetrySpecFixture {
+    @get:me.ahoo.wow.api.query.annotation.QueryDuration(TimeUnit.SECONDS)
+    val timeout: Int
+}
+
+internal data class DurationReferenceState(
+    override val timeout: Int,
+    @field:me.ahoo.wow.api.query.annotation.QueryReference("member")
+    val memberId: String,
+    @field:me.ahoo.wow.api.query.annotation.QueryReference("order", contextName = "sales")
+    val orderIds: List<String>,
+    val source: me.ahoo.wow.api.modeling.AggregateId,
+) : RetrySpecFixture

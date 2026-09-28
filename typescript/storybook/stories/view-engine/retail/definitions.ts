@@ -297,7 +297,10 @@ const ORDER_FIELDS: FieldDefinition[] = [
     elementTitle: 'title',
     elements: [
       { name: 'title', label: '商品', kind: 'string' },
+      // 行上的每个键都声明：没有声明的键，详情抽屉按原始键名画出来（#3691）。
+      { name: 'lineId', label: '行号', kind: 'string' },
       { name: 'skuId', label: 'SKU', kind: 'string' },
+      { name: 'spuId', label: 'SPU', kind: 'string' },
       {
         name: 'category1',
         label: '一级类目',
@@ -314,8 +317,21 @@ const ORDER_FIELDS: FieldDefinition[] = [
       },
       { name: 'qty', label: '件数', kind: 'number' },
       {
+        name: 'listPrice',
+        label: '标价',
+        kind: 'number',
+        numberFormat: YUAN,
+      },
+      {
         name: 'salePrice',
         label: '成交单价',
+        kind: 'number',
+        numberFormat: YUAN,
+      },
+      {
+        // 订单级优惠（满减、两种券、积分）分摊到这一行的金额。
+        name: 'discountShare',
+        label: '分摊优惠',
         kind: 'number',
         numberFormat: YUAN,
       },

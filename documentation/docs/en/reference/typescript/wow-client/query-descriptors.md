@@ -23,7 +23,7 @@ What the descriptor holds:
 | Part          | Contract                                                                                                                                                  |
 | ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `record`      | `identity` (the row key), `paging` (`PagingMode`: LIST, PAGED, CURSOR), `defaultScope` (the deletion scope a query without one gets), `rootOperators` (operators that name no field of their own; `EXPRESSION` among them only where expensive operators are allowed) and `search` (modes and fields; absent when the model offers no full-text search). |
-| `fields`      | Every queryable field by logical path, element fields included. Per field: `types`, `kind`, `nullable`, `semantic` (the temporal kinds, or the numeric formats `DECIMAL` and `MONEY`, each with a `scale` and a money field with exactly one of a fixed ISO 4217 `currency` or a sibling `currencyField`), `enum`, `sensitivity` (`level`, `DISPLAY` or `CONFIDENTIAL`, and `comparable`: a field that is not comparable lists no operators, has `sort.paged` false and is left out of `record.search`), `project`, `filter.operators`, `sort.paged` / `sort.cursor`, `aggregate` (absent when it cannot be aggregated), `role` for system fields, `scope`, the element it lives in, `aliases` (other paths a query may name it by; the server replaces them with `path`, so results and errors use `path`) and `deprecated` (`{ message? }`, set when new queries should avoid it). |
+| `fields`      | Every queryable field by logical path, element fields included. Per field: `types`, `kind`, `nullable`, `semantic` (the temporal kinds; the numeric formats `DECIMAL` and `MONEY`, each with a `scale` and a money field with exactly one of a fixed ISO 4217 `currency` or a sibling `currencyField`; `DURATION` with its `timeUnit`; or `REFERENCE` to an aggregate, a fixed `contextName` and `aggregateName` or the sibling `contextNameField` and `aggregateNameField`; an array field's is its items'. A newer server may send a `type` this version does not list: the descriptor is plain JSON, so treat an unknown `type` as no semantic), `enum`, `sensitivity` (`level`, `DISPLAY` or `CONFIDENTIAL`, and `comparable`: a field that is not comparable lists no operators, has `sort.paged` false and is left out of `record.search`), `project`, `filter.operators`, `sort.paged` / `sort.cursor`, `aggregate` (absent when it cannot be aggregated), `role` for system fields (a root operator's system field, or the model's times: `EVENT_TIME`, `FIRST_EVENT_TIME`), `scope`, the element it lives in, `aliases` (other paths a query may name it by; the server replaces them with `path`, so results and errors use `path`) and `deprecated` (`{ message? }`, set when new queries should avoid it). |
 | `elements`    | Array fields whose elements `ELEMENT_MATCH` can filter or an aggregation can run over, and `search` (Elasticsearch only; absent on MongoDB): the element fields a `SEARCH` inside `ELEMENT_MATCH` may name, with its modes. `record.search.fields` never lists a field inside an element.                                                                     |
 | `dynamic`     | Fields under map keys, one entry per pattern with `{key}`, resolved as the server resolves a concrete key (a map of arrays is one `ARRAY` entry); `excludedKeys` lists the keys declared as fields of their own, which take that field's entry instead. |
 | `limits`      | The entry's effective limits: the protocol's and the HTTP budget, whichever is smaller. `null` is unlimited.                                             |
@@ -246,7 +246,7 @@ export interface DynamicFieldDescriptor {
     filter: FieldFilterDescriptor;
     excludedKeys?: string[];
 }
-export type QuerySemanticType = TemporalDate | TemporalEpoch | TemporalFormatted | NumericDecimal | NumericMoney;
+export type QuerySemanticType = TemporalDate | TemporalEpoch | TemporalFormatted | NumericDecimal | NumericMoney | DurationSemantic | ReferenceSemantic;
 export interface TemporalDate {
     type: 'TEMPORAL_DATE';
 }
@@ -271,6 +271,23 @@ export type NumericMoney = {
 } | {
     currency?: undefined;
     currencyField: string;
+});
+export interface DurationSemantic {
+    type: 'DURATION';
+    timeUnit: TimeUnit;
+}
+export type ReferenceSemantic = {
+    type: 'REFERENCE';
+} & ({
+    contextName: string;
+    aggregateName: string;
+    contextNameField?: undefined;
+    aggregateNameField?: undefined;
+} | {
+    contextName?: undefined;
+    aggregateName?: undefined;
+    contextNameField: string;
+    aggregateNameField: string;
 });
 ```
 
@@ -299,6 +316,8 @@ export declare const QueryFieldRoles: Readonly<{
     readonly OWNER_ID: 'OWNER_ID';
     readonly SPACE_ID: 'SPACE_ID';
     readonly DELETED: 'DELETED';
+    readonly EVENT_TIME: 'EVENT_TIME';
+    readonly FIRST_EVENT_TIME: 'FIRST_EVENT_TIME';
 }>;
 export type QueryFieldRole = (typeof QueryFieldRoles)[keyof typeof QueryFieldRoles] | (string & {});
 export declare const QueryConstraintTypes: Readonly<{

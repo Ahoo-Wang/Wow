@@ -50,7 +50,7 @@
    - 为什么：面板用 `instanceId` 引用另一个定义的系统视图（控制台的总览引用失败执行与事件流的分析）时，看板准入只看自己的定义，写错的 id 要到打开才发现；控制台为此手写了一条测试兜底（`overview.test.ts`「each naming a view there is」）。
    - 判据：引擎准入看板时按已注册的全部定义核对 `instanceId`、`opens`、点击去向与绑定字段（字段要在被引用视图的定义里），错的按 A 只坏那个面板。落点：`src/dashboard/validate.ts`、`src/runtime/viewEngine.ts`。
 3. **宿主接入 H1～H3**（[host-integration.md](host-integration.md) 第 8 节，[D67](decisions.md#d67-宿主接入事实归机器选择归宿主2026-09-28)）：H1 `defineView` 与 `admit`（吸收 D：时间窗口自动绑定，控制台三块板删去手写时间绑定后数字不变）→ H2 按资源注册、Provider、一个应用一个引擎 → H3 声明式操作与两个 skill。每批的判据以方案为准。
-   - 描述符要补的四项事实（时长、比率、引用、时间角色）经交接协议交查询模块会话，不挡 H1。
+   - 描述符的三项事实（时长、引用、时间角色）已由 #3738 补上；控制台的描述符快照另行刷新。
 4. **B：引擎的工具类带前缀 `fve:`**（[D66](decisions.md#d66-引擎的工具类带前缀-fve与宿主不再同名2026-09-28)，用户 2026-09-28 按推荐定）：
    - 为什么：引擎与宿主的工具类同名，G16 的额外权重让宿主写在引擎面里（控制台是整个 `<body>`）的断点类静悄悄失效。
    - 判据：见 D66——全部截图基线与主题故事不变；新故事断言宿主断点类在引擎面里生效；控制台两处绕开的写法改回断点写法；护栏守「无不带前缀的工具类」。改动遍及 `src/ui`，与别的道必然冲突，**单独做，那时不并行别的 TS 改动**。落点：`src/**/*.tsx`、`components.json`、`src/styles.css`、`scripts/scope-utilities.mjs`、`scripts/verify-package.mjs`、控制台 `App.tsx`／`ExecutionReading.tsx`。

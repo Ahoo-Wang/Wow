@@ -71,7 +71,7 @@ flowchart LR
 ```
 
 - `System` 为 Snapshot 和 EventStream 提供各自的系统字段。扩展只能位于 Snapshot 的 `state` 或 EventStream 的 `body.body` 根下；已经由系统设置的字段叶不能被覆盖。
-- `InferredQuerySchemaSource (100)` 从聚合状态的 JSON 形状推断 Snapshot 字段，并从领域事件 payload 推断 EventStream 的 `body.body.*` 字段：每种事件一个变体，并以 `bodyType` 标记。类型推断是一个 `QueryModelSource` Bean：默认的 `JsonQueryModelSource`（wow-schema）只报告序列化 JSON 的原始事实（路径、类型、可空、枚举、格式提示、成员注解），这些事实对查询的含义由 wow-query 决定。标准时间类型自动识别为时间；`@QueryTemporal(unit = TimeUnit.SECONDS)` 声明整数时间戳，`@QueryTemporal(pattern = "yyyy-MM-dd")` 声明格式化的字符串时间；`@QueryDecimal` 与 `@QueryMoney` 声明[小数与金额精度](#decimal-money)（都在 `me.ahoo.wow.api.query.annotation`）。`@Sensitive` 见[字段脱敏](./masking.md)。
+- `InferredQuerySchemaSource (100)` 从聚合状态的 JSON 形状推断 Snapshot 字段，并从领域事件 payload 推断 EventStream 的 `body.body.*` 字段：每种事件一个变体，并以 `bodyType` 标记。类型推断是一个 `QueryModelSource` Bean：默认的 `JsonQueryModelSource`（wow-schema）只报告序列化 JSON 的原始事实（路径、类型、可空、枚举、格式提示、成员注解），这些事实对查询的含义由 wow-query 决定。标准时间类型自动识别为时间；`@QueryTemporal(unit = TimeUnit.SECONDS)` 声明整数时间戳，`@QueryTemporal(pattern = "yyyy-MM-dd")` 声明格式化的字符串时间；`@QueryDecimal` 与 `@QueryMoney` 声明[小数与金额精度](#decimal-money)，`@QueryDuration` 与 `@QueryReference` 声明[时长与引用](#duration-reference)（都在 `me.ahoo.wow.api.query.annotation`）；类型为 `AggregateId` 的属性无需注解即是引用。`@Sensitive` 见[字段脱敏](./masking.md)。
 - `ClasspathQuerySchemaSource (200)` 读取 `META-INF/wow/query-schema/{context}.{aggregate}.{model}.json`；`WorkingDirectoryQuerySchemaSource (400)` 读取 `config/wow/query-schema/{context}.{aggregate}.{model}.json`。模型段为小写的 `snapshot` 或 `event_stream`；点号是 Wow 命名聚合保留的分隔符。旧位置 `wow-query-schema/{context}/{aggregate}/{model}.json` 不再读取。
 - `BeanQuerySchemaSource (300)` 合并当前上下文注册的 `QuerySchemaRegistration`。
 
@@ -95,7 +95,7 @@ flowchart LR
 | `types` | 标量类型：`STRING`、`INTEGER`、`DECIMAL`、`BOOLEAN` |
 | `nullable` | 是否会出现 JSON `null` |
 | `enum` | 声明的取值，每项为 `{ "value": …, "description"?: … }`；说明会进入能力描述的 `enum` |
-| `semantic` | 一种语义类型：时间编码 `TEMPORAL_EPOCH`（`timeUnit`）、`TEMPORAL_DATE`、`TEMPORAL_FORMATTED`（`pattern`）；或数值格式 `DECIMAL`（`scale`）、`MONEY`（`currency` 或 `currencyField`、`scale`），见[下文](#decimal-money) |
+| `semantic` | 一种语义类型：时间编码 `TEMPORAL_EPOCH`（`timeUnit`）、`TEMPORAL_DATE`、`TEMPORAL_FORMATTED`（`pattern`）；或数值格式 `DECIMAL`（`scale`）、`MONEY`（`currency` 或 `currencyField`、`scale`），见[下文](#decimal-money)；或 `DURATION`（`timeUnit`）、`REFERENCE`（`contextName` 与 `aggregateName`，或 `contextNameField` 与 `aggregateNameField`），见[下文](#duration-reference) |
 | `description` | 字段的含义 |
 | `properties`、`items`、`values` | 对象的具名属性、数组的元素、Map 中每个键的取值 |
 
@@ -123,6 +123,29 @@ data class OrderState(
 声明文件中写作 `"semantic": { "type": "DECIMAL", "scale": 2 }` 或 `"semantic": { "type": "MONEY", "currency": "CNY" }`。精度不会自动推断：`BigDecimal` 看不出精度，猜错比不声明更糟。
 
 构建 Schema 时，错误的声明作为 Schema 冲突拒绝，而不会被忽略：字段必须是数值；`currencyField` 必须是同一对象（元素内的字段则为同一元素）中的单值字符串属性；`currency` 与 `currencyField` 恰好给出一个；一个字段只有一种语义类型，因此不能同时是时间。能力描述在字段的 `semantic` 中输出该格式，并给出解析后的 `scale`，例如 `{ "type": "MONEY", "currency": "CNY", "scale": 2 }`。
+
+### 时长与引用 {#duration-reference}
+
+字段还能声明两项事实，同样只供读取：不改变任何查询，也不在 MongoDB 或 Elasticsearch 上增加任何能力。
+
+- `DURATION(timeUnit)`：以 `timeUnit` 计的一段时长，如以秒计的超时，视图引擎据此按时长格式化，而不必把单位写进口径。用 `@QueryDuration(unit)` 声明；单位必填，`Int` 看不出单位。
+- `REFERENCE`：值是某个聚合的 id，用于查找与跳转。要么是固定的聚合 `contextName` 与 `aggregateName`，用 `@QueryReference(aggregateName, contextName)` 声明，省略 `contextName` 即声明字段的模型自己的限界上下文；要么逐条记录由同级字符串属性 `contextNameField` 与 `aggregateNameField` 给出。后一种对每个 `AggregateId` 类型的属性自动推断：它的 `aggregateId` 指向它自己的 `contextName` 与 `aggregateName` 所指的聚合。引用总是指向聚合的 id，不指向别的键。记录自身的 `aggregateId` 不带引用：它的角色 `AGGREGATE_ID` 与所在端点已经说明是哪个聚合。
+
+```kotlin
+interface IRetrySpec {
+    @get:QueryDuration(TimeUnit.SECONDS) val minBackoff: Int
+}
+
+data class OrderState(
+    @field:QueryReference("member") val memberId: String,
+    @field:QueryReference("product", contextName = "catalog") val productIds: List<String>,
+    val source: AggregateId,
+)
+```
+
+声明文件中写作 `"semantic": { "type": "DURATION", "timeUnit": "SECONDS" }` 或 `"semantic": { "type": "REFERENCE", "contextName": "example", "aggregateName": "member" }`。构建 Schema 时拒绝：非数值字段上的时长、既非字符串也非整数的字段上的引用（由它们组成的数组可以）、不是同一对象中单值字符串的同级名称字段，以及同一字段上的第二种语义类型。被引用的聚合只校验名称语法，因为它可能在另一个服务里。
+
+读取能力描述的客户端可能遇到自己版本还不认识的语义 `type`（来自更新的服务端）：Kotlin 的 `QuerySemanticType` 把它读作 `QuerySemanticType.Unknown`，客户端视同没有语义类型。声明文件或代码注册中写了未知的 `type` 仍会被拒绝。
 
 ## 原生绑定与能力
 
@@ -153,7 +176,7 @@ MongoDB adapter 读取索引与可选 validator；数组/items/additionalPropert
 
 `GET snapshot/schema` 与 `GET event/schema` 返回模型在 HTTP 入口上的能力描述：这个模型经 HTTP 能被怎样查询。存储事实（索引、mapping、validator）会在部署之外变化，所以每个实例按 `wow.query.schema.revalidate-interval`（默认 `5m`，`0s` 关闭）定期重新加载全部查询 schema；编译失败时保留上一个版本并记录日志。引入 Spring Boot Actuator 后，`wowQuerySchema` 端点可以查看本实例各 schema 的版本（读操作），也可以立即重新校验，可只针对一个 `aggregate`（写操作）。不再提供 HTTP 刷新路由。描述只发布结论，不发布存储事实：
 
-- `fields`：每个逻辑路径一条（元素内字段写完整路径，并在 `scope` 中给出所在元素），包含 `types`、`kind`、`semantic`、`enum`、`sensitivity`、`deprecated`、`aliases`、允许的 `filter.operators`、`sort`（`paged`、`cursor`）与 `aggregate`（分组、函数、`distinctCount`、`percentile`、`any`、`inMetricFilter` 等）；
+- `fields`：每个逻辑路径一条（元素内字段写完整路径，并在 `scope` 中给出所在元素），包含 `role`（系统字段才有：系统字段过滤的目标，如 `AGGREGATE_ID`、`TENANT_ID`，或模型的时间：Snapshot 的 `eventTime` 与 EventStream 的 `createTime` 为 `EVENT_TIME`，Snapshot 的 `firstEventTime` 为 `FIRST_EVENT_TIME`）、`types`、`kind`、`semantic`、`enum`、`sensitivity`、`deprecated`、`aliases`、允许的 `filter.operators`、`sort`（`paged`、`cursor`）与 `aggregate`（分组、函数、`distinctCount`、`percentile`、`any`、`inMetricFilter` 等）；
 - `record`：身份字段、分页方式、默认删除范围、根运算符与全文检索（`search.modes` 为模型级 `SEARCH` 可用的方式，`search.fields` 为记录级字段）；
 - `limits`：HTTP 入口的有效限额（预算与协议限额取较小者，`null` 为不限）与 `defaultListSize`；
 - `analysis`：指标类型、`approximate`（本后端估算的指标：MongoDB 为 `PERCENTILE`，Elasticsearch 为 `DISTINCT_COUNT` 与 `PERCENTILE`）、`DATE_HISTOGRAM` 可用的 `dateUnits`、`DATE_PART` 可用的 `dateParts`、`DATE_DIFF` 可用的 `dateDiffUnits`（不允许表达式时为空），以及 having、排序与 dense 支持；

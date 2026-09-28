@@ -14,7 +14,9 @@
 package me.ahoo.wow.compensation.domain
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.query.annotation.QueryDuration
 import me.ahoo.wow.api.query.annotation.QueryTemporal
+import me.ahoo.wow.compensation.api.IRetrySpec
 import me.ahoo.wow.compensation.api.RetryState
 import org.junit.jupiter.api.Test
 import java.util.concurrent.TimeUnit
@@ -31,6 +33,14 @@ class ExecutionFailedTemporalTest {
         timestampFields.forEach { field ->
             field.getAnnotation(QueryTemporal::class.java)?.unit
                 .assert().isEqualTo(TimeUnit.MILLISECONDS)
+        }
+    }
+
+    @Test
+    fun `retry spec backoff and timeout declare second durations`() {
+        listOf("getMinBackoff", "getExecutionTimeout").forEach { getter ->
+            IRetrySpec::class.java.getMethod(getter).getAnnotation(QueryDuration::class.java)?.unit
+                .assert().isEqualTo(TimeUnit.SECONDS)
         }
     }
 }

@@ -370,6 +370,36 @@ class MongoQuerySchemaAdapterTest {
     }
 
     @Test
+    fun `a duration or a reference keeps the capabilities of its plain value`() {
+        val span = bind(
+            "timeout",
+            QueryValueSchema(
+                QueryValueKind.SCALAR,
+                valueTypes = setOf(QueryValueType.INTEGER),
+                semanticType = me.ahoo.wow.api.query.schema.TimeSpan(TimeUnit.SECONDS),
+            ),
+        ).field(QueryField("timeout"))!!.bindings.keys
+        span.assert().isEqualTo(
+            bind("timeout", scalar(QueryValueType.INTEGER)).field(QueryField("timeout"))!!.bindings.keys
+        )
+            .contains(QueryCapability.AGGREGATE_NUMERIC, QueryCapability.RANGE)
+            .doesNotContain(QueryCapability.AGGREGATE_TEMPORAL)
+        val reference = bind(
+            "memberId",
+            QueryValueSchema(
+                QueryValueKind.SCALAR,
+                valueTypes = setOf(QueryValueType.STRING),
+                semanticType = me.ahoo.wow.api.query.schema.Reference(
+                    contextName = "example",
+                    aggregateName = "member"
+                ),
+            ),
+        ).field(QueryField("memberId"))!!.bindings.keys
+        reference.assert().isEqualTo(bind("memberId", scalar()).field(QueryField("memberId"))!!.bindings.keys)
+            .contains(QueryCapability.EXACT_MATCH)
+    }
+
+    @Test
     fun `epoch and formatted semantics live on array items`() {
         val epoch = Temporal.Epoch(TimeUnit.SECONDS)
         val schema = bind(

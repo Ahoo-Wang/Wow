@@ -12,7 +12,7 @@
  */
 
 import type { StoryObj } from '@storybook/react-vite';
-import { expect, userEvent, waitFor, within } from 'storybook/test';
+import { expect, screen, userEvent, waitFor, within } from 'storybook/test';
 import { zhCN } from '@ahoo-wang/wow-view-engine/ui';
 import displayMeta, {
   OrderWorkbenchScene as DisplayOrderWorkbench,
@@ -128,6 +128,35 @@ export const OrderWorkbenchScene: Story = {
       for (const item of items)
         expect(item).toContain('竹纤维浴巾 70×140 · 米白');
     });
+  },
+};
+
+/**
+ * #3691: the detail's lines say every field in words. Each line carried four
+ * keys the definition never declared, and the drawer drew them by their raw
+ * names — lineId, spuId, listPrice, discountShare — among the Chinese ones.
+ */
+export const DetailNamesEveryLineField: Story = {
+  ...DisplayOrderWorkbench,
+  play: async ({ canvasElement }) => {
+    await within(canvasElement).findByRole('table');
+    const row = await waitFor(() => {
+      const found = canvasElement.querySelector<HTMLElement>(
+        'tr[data-row-key="TO2026091700021"]',
+      );
+      if (!found) throw new Error('no row TO2026091700021');
+      return found;
+    });
+    row.focus();
+    await userEvent.keyboard('{Enter}');
+    const panel = await screen.findByRole('dialog');
+    await waitFor(() => expect(panel.textContent).toContain('分摊优惠'), {
+      timeout: 5_000,
+    });
+    for (const label of ['行号', 'SPU', '标价'])
+      await expect(panel.textContent).toContain(label);
+    for (const key of ['lineId', 'spuId', 'listPrice', 'discountShare'])
+      await expect(panel.textContent).not.toContain(key);
   },
 };
 

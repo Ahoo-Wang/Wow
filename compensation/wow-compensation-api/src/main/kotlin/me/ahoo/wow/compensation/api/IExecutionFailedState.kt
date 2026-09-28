@@ -24,7 +24,9 @@ import me.ahoo.wow.api.messaging.function.FunctionInfoData
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.api.modeling.AggregateIdCapable
 import me.ahoo.wow.api.naming.Materialized
+import me.ahoo.wow.api.query.annotation.QueryDuration
 import me.ahoo.wow.api.query.annotation.QueryTemporal
+import java.util.concurrent.TimeUnit
 
 data class ErrorDetails(
     override val errorCode: String,
@@ -77,6 +79,7 @@ interface IRetrySpec {
      *
      * @see java.time.temporal.ChronoUnit.SECONDS
      */
+    @get:QueryDuration(TimeUnit.SECONDS)
     val minBackoff: Int
 
     /**
@@ -84,6 +87,7 @@ interface IRetrySpec {
      *
      * @see java.time.temporal.ChronoUnit.SECONDS
      */
+    @get:QueryDuration(TimeUnit.SECONDS)
     val executionTimeout: Int
 }
 

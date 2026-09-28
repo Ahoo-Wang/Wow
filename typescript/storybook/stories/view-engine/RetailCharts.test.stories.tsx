@@ -141,12 +141,12 @@ export const DurationBandsDrawn: Story = {
 
 /**
  * K 线图：每周一根，开高低收四个数由 FIRST、MAX、MIN、LAST 算出；开与收都在
- * 高低之间，涨跌在读屏表里用文字写出。可视化面板里 K 线在「适合这个结果」，
+ * 高低之间，涨跌在读屏表里用文字写出；只算已付款的单，没有一周的最低是 ¥0。可视化面板里 K 线在「适合这个结果」，
  * 箱线图写着它为什么不行（没有五个数）。
  */
 export const CandlestickDrawn: Story = {
   ...DisplayCandlestick,
-  name: 'K 线图：每周成交单价',
+  name: 'K 线图：每周每单实付',
   play: async ({ canvasElement }) => {
     const frame = await chartOf(canvasElement, 'candlestick');
     const rows = readingOf(canvasElement);
@@ -161,6 +161,9 @@ export const CandlestickDrawn: Story = {
       const [open, high, low, close] = row
         .slice(1, 5)
         .map(cell => Number.parseFloat(cell.replace(/[^\d.-]/g, '')));
+      // Only paid orders count: an unpaid one pays ¥0, and a week's low
+      // at ¥0 was an order nobody paid for (#3620).
+      await expect(low).toBeGreaterThan(0);
       await expect(low).toBeLessThanOrEqual(Math.min(open!, close!));
       await expect(high).toBeGreaterThanOrEqual(Math.max(open!, close!));
       const said =
