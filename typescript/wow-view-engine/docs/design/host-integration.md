@@ -84,11 +84,16 @@ export const executionFailed = defineView(executionFailedDescriptor, {
 - **没列出的字段不出现**（Q1）：描述符多了字段，界面不会悄悄多一列；与 N5「描述有、定义没写的，不自动加」一致。
 - **元素字段写嵌套**：`fields` 的键是根路径；数组字段写 `{ elements: { … } }`，键相对元素。点号只用于路径，不兼作层级。
 - **结果仍是一份 `DataViewDefinition`**：内核、控制器与 `/ui` 不知道 **defineView** 的存在，与 N5「交集的结果仍是一份定义」同理。手写完整定义仍然可以，**defineView** 是推荐的写法，不是唯一的入口。
+- **时刻只按日历分组**：描述符对时间戳报的是数的能力（TERMS、HISTOGRAM、SUM…），**defineView** 对时刻只给日历分组（`DATE_HISTOGRAM`／`DATE_PART`）与最早／最晚（`MIN`／`MAX`），日历分组也只给时刻。
+- **看板的时间筛选**是它唯一的日期筛选；有两个日期筛选的板不自动接。定义声明 `timeField`，系统视图可覆盖（`null` 即读全量），面板可声明 **ignoresTime**。
+- **自动接的时间线只推导、不存**（用户 2026-09-28，#3744 审查）：每次读板按 `timeField` 现算（`auto: true`），保存时剥掉；只存手写的绑定与 **ignoresTime**，所以视图的 `timeField` 改了，已存的板跟着变。手接时间筛选不连带 **ignoresTime** 与读全量的面板；加面板、换视图时时间线按视图重算。此前存下的板，没接日期筛选的视图面板读作 **ignoresTime**，数字不变。
 - **字段路径没有编译期检查**。这是不生成代码的代价，由三道补上：准入（C 起连跨定义引用一并核对）、A（坏一块只坏那一块）、`/testing` 的 `admit`（第 6 节），在宿主的 CI 里就拦下。
 
 ### 3.1 口径是键，不是某种语言的字符串
 
 今天控制台按语言各建一份定义（`executionFailedDefinition(locale)`），语言一换，页面重建引擎。**defineView** 的口径写 `text(key)`，宿主在 Provider 上给措辞表，定义与引擎因此与语言无关：一个应用一个引擎，换语言只重画。字面字符串仍可写，适合单语的宿主。
+
+**键在渲染时翻**（用户 2026-09-28，#3744 审查）：定义里留着键，界面经措辞目录在渲染时译成文字，Provider 换语言只重画。H1 先落的是过渡形态——键是带标记的字符串、注册定义时一次译完（`ViewEngineOptions.text`），换语言仍要换引擎；H2 把翻译挪到渲染时，定义与键不变。
 
 ## 4. 资源注册：数据在核心，行为在 React
 
@@ -204,7 +209,7 @@ const executionActions = actions<ExecutionRow>([
 
 ## 6. 测试与 skills
 
-- `/testing` 加 `admit(resources, descriptors)`：用提交的快照把全部定义与看板过一遍准入，返回问题列表；宿主一行单测。控制台 `overview.test.ts` 的「each naming a view there is」这类兜底测试随之删去。
+- `/testing` 加 `admit(resources, descriptors)`：用提交的快照把全部定义与看板过一遍准入，返回问题列表；宿主一行单测。控制台 `overview.test.ts` 的「each naming a view there is」只删一半：它还拦存储里的视图 id 与钉看板 id，准入判断不了。`admit` 连带运行时，`/testing` 的体积约与根入口相当（上限 111,000 B，只用 **memorySource** 的包摇掉它）。
 - 操作的单测：`/testing` 给一个无头的 `actionHarness(actions, rows)`，断言某行可用与否、拒绝理由、确认与表单的形状，不渲染界面。
 - **`wow-view-definition` 改写**：从「对着描述符抄路径、别编字段」改为只讲判断——受众、列哪些、口径、默认、系统视图与看板；自检就是 `admit`。
 - **新增 `wow-view-host`**：接入一个宿主——`resources`、Provider、`bind`、路由，以及「从命令到操作」：哪些命令上界面、可用规则从聚合状态怎么读、拒绝理由用业务话、破坏性一律确认、批量是否允许、`run` 等到哪个阶段。与定义分开，是因为写定义的人与接宿主的人常常不是同一个，两者的自检也不同。

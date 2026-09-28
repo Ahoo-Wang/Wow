@@ -420,7 +420,7 @@ while (true) {
     when (val outcome = commit.append(request)) {
         is Committed -> return evolveAndPublish(outcome)
         is AlreadyCommitted -> return alreadyCommitted(outcome)
-        is Unknown -> return resolve(outcome)            // 先按 requestId 查明
+        is Unknown -> return resolve(outcome)            // 先查版本槽
         is Conflict -> {
             cache.evict(aggregateId)
             delay(retry.nextBackoff() ?: return exhausted(outcome))
@@ -432,7 +432,13 @@ while (true) {
 
 - `EventStore` SPI 不变。适配器把现有的领域异常翻译成值：版本冲突 → `Conflict`；`DuplicateAggregateIdException` → 拒绝；`DuplicateRequestIdException` → 查明后得到 `AlreadyCommitted`；超时、网络错误、写关注错误等其余错误 → `Unknown`。不再依赖异常类判断可恢复性，也不再按错误文本里的索引名猜测。
 - **Conflict**：驱逐缓存，重载，重新决定；有次数上限，退避只推迟本邮箱。
-- **Unknown**：先用 SPI 上已有的 `existsRequestId` 按 `requestId` 查明。已提交就按 `AlreadyCommitted` 继续，未提交才重新执行。Mongo 与 Redis 的实现走现有索引；自定义存储沿用接口的默认实现（扫描该聚合的事件流），不需要改动。查明本身失败时不确认传输消息，等待方得到“结局未知”。
+- **Unknown**：先查版本槽，用 SPI 上已有的 `load(aggregateId, version, version)` 读取该流的版本槽。`(aggregateId, version)` 在所有存储里都唯一，占住这个槽的流就是最终结果，不会再变：
+  - 占住它的是本流：已提交，按 `AlreadyCommitted` 继续；
+  - 占住它的是别的流：本流永远不会提交，可以重新执行决定；
+  - 槽为空，且失败可恢复：用同一个流重写一次。重写与仍在途中的原写入之间由唯一键裁决，之后再读一次槽；
+  - 槽仍为空、失败不可恢复，或者存储读不到：结局未知。查明失败时不确认传输消息，等待方得到“结局未知”。
+
+  它用的是 `(aggregateId, version)` 唯一键，不是 `requestId`：同一个请求可能已经在另一个版本上提交过（例如重投后基于更新的状态重新决定），那不能说明本流已经提交。第 0 步已在 `EventStore.appendResolvingOutcome` 中实现。
 - **AlreadyCommitted**：只在“同一请求的上一次尝试其实已经提交”时出现。它把命令报告为成功，并发布已提交的事件流。它与准入时的重复请求 ID 不是一回事，后者的对外响应不变（§7.1）。
 - 重复聚合 ID（创建命令撞到已存在的聚合）是被拒绝，不是冲突。
 - 存储的唯一键与索引不变。Redis 的错误改用 `Mono.error` 返回，属于内部修复。
@@ -600,7 +606,7 @@ me.ahoo.wow.command.assembly    CommandPipelineAssembly
 
 | 步 | 内容 | 覆盖 |
 |---|---|---|
-| 0 | **安全与正确性修复**（小 PR，不改架构）：`Command-Header-*` 保留键防护，操作人在 appender 之后确定；门面只接受已注册且启用的命令；追加结局未知时先按请求 ID 查明，不再盲目重跑；`@OnError` 移出重试循环，每次尝试使用新的上下文；等待键按 V1 处理，收窄传播，校验链式等待 ID；先校验再去重，发送失败释放预留；持续入流停机测试与两级准入 | B1–B8 |
+| 0 | **安全与正确性修复**（小 PR，不改架构）：`Command-Header-*` 保留键防护，操作人在 appender 之后确定；门面只接受已注册且启用的命令；追加失败后先查版本槽，确认是否其实已经提交，不再盲目重跑（已完成：`appendResolvingOutcome`）；`@OnError` 移出重试循环，每次尝试使用新的上下文；等待键按 V1 处理，收窄传播，校验链式等待 ID；先校验再去重，发送失败释放预留；持续入流停机测试与两级准入 | B1–B8 |
 | 1 | **护栏**：§12 的黄金样本与混部集成测试，先于其他所有步骤合并；协程内核的 spike（§6.7），结论出来之后才开始第 2 步；JMH 改测生产链路；链路描述符与快照测试；为现有可观察语义写特征测试 | — |
 | 2 | **模型编译**：`AggregateModel`、无状态 `CommandInvoker`、`ParamResolver`、`ResultAdapter`、共享的 `SourcingTable`；严格度按 V7 | B11, B15 |
 | 3 | **内核**：守卫管道、`Decision`、`EventStoreCommitPort` 与 `AppendOutcome`、提交后应用、溯源原子性；删除 `CommandState`、`RetryableAggregateProcessor`、`AggregateProcessorFilter` | B9, B10, B13 |

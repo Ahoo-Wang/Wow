@@ -979,7 +979,11 @@ export type {
   ProjectedView,
   ViewSource,
 } from './runtime/source.js';
-// store — the `ViewStore` port and the in-memory one.
+// store — the `ViewStore` port, the in-memory one and its local snapshot.
+export {
+  type LocalStorageSnapshotOptions,
+  localStorageSnapshot,
+} from './store/localStorageSnapshot.js';
 export {
   type MemorySnapshot,
   type MemoryState,

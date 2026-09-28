@@ -14,7 +14,9 @@
 /**
  * Persistence is one port with eight methods. A business application
  * implements it against its own API; this package ships only the in-memory
- * one, because a view store belongs next to the data it describes.
+ * one, because a view store belongs next to the data it describes, and a
+ * `localStorage` snapshot for it, for development and single-user hosts.
  */
+export * from './localStorageSnapshot.js';
 export * from './MemoryViewStore.js';
 export * from './ViewStore.js';
