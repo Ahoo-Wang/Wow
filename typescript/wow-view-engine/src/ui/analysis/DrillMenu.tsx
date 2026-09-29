@@ -166,6 +166,12 @@ export function DrillMenu({
   // A span is chosen by a drag nobody hears (D33 Q52): what it came to is
   // said once the menu over it opens, in the surface's one voice.
   const spanned = pick?.through !== undefined && followUp !== null;
+  // A row of a time dimension can be one end of a span, and Shift is the
+  // way to the other (D33 Q52) — a key that was only in a reader's
+  // description, so nobody looking at the table knew it. The menu a single
+  // row opens says it where it is seen, under the group picked.
+  const spanHint =
+    !spanned && pick?.origin?.dataset.spans !== undefined && followUp !== null;
   const { say, region } = useSurfaceAnnouncer('drill-announcement');
   useEffect(() => {
     if (spanned) say(messages.label('label.drill.spanned', { group }));
@@ -219,6 +225,19 @@ export function DrillMenu({
                 </span>
               )}
             </DropdownMenuLabel>
+            {/* Beside the group's name, not in it: the name is what the
+                group is called, and a reader heard this sentence already
+                from the row it pressed (`aria-describedby`), so it is drawn
+                for the eye alone. */}
+            {spanHint && (
+              <p
+                data-slot="drill-span-hint"
+                aria-hidden="true"
+                className="fve:text-muted-foreground fve:px-1.5 fve:pb-1 fve:text-xs"
+              >
+                {messages.label('label.drill.span-hint')}
+              </p>
+            )}
             {followUp?.actions.map(action => {
               // Every follow-up is run, then the menu goes: it is about a
               // group of a result that the action is about to replace.

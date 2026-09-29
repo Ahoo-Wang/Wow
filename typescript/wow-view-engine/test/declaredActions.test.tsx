@@ -413,6 +413,25 @@ describe('a selection’s declared actions', () => {
     );
   });
 
+  it('asks outside the bar it was pressed in, every button its own tab stop', async () => {
+    // The question a bulk action asks is drawn beside the surface, not
+    // under the result toolbar, so the bar's roving focus never reaches
+    // its buttons (the export's window is detached for the same reason).
+    await open(actions([ship(vi.fn(() => Promise.resolve())), cancel()]));
+    fireEvent.click(screen.getByLabelText('Select all rows'));
+    const pressed = await screen.findByRole('button', { name: 'Ship 2' });
+    expect(pressed.closest('[role="toolbar"]')).not.toBeNull();
+    await userEvent.click(pressed);
+    const dialog = await screen.findByRole('alertdialog');
+    expect(dialog.closest('[role="toolbar"]')).toBeNull();
+    const buttons = within(dialog)
+      .getAllByRole('button')
+      .filter(button => !(button as HTMLButtonElement).disabled);
+    expect(buttons.length).toBeGreaterThanOrEqual(2);
+    for (const button of buttons)
+      expect(button.getAttribute('tabindex')).toBe('0');
+  });
+
   it('sends the able ones and reports the refused, left selected, when all are confirmed', async () => {
     const run = vi.fn(() => Promise.resolve());
     await open(actions([ship(run)]));

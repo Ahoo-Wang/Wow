@@ -19,6 +19,7 @@ import {
   projectRecord,
   projectSummaries,
   validateRecord,
+  type RecordView,
   type SummaryRow,
 } from '../record/index.js';
 import {
@@ -216,6 +217,50 @@ async function executeRecord(
   const index = 'index' in target ? target.index : 1;
   const view = projectRecord(definition, config, result, index, context.limits);
   const summaries = summaryRow(context, config, result.list, rows);
+  return {
+    kind: 'record',
+    view,
+    summaries,
+    issues: summaries?.scope === 'page' ? [summaryDowngraded()] : [],
+  };
+}
+
+/**
+ * The summary row again, over rows already on screen.
+ *
+ * A record view whose summaries changed and nothing else (`restyledOnly`)
+ * asks the source for the aggregation alone: the page it would fetch with it
+ * is the page it has, so fetching it again would only say 「正在查询」 over
+ * rows that do not change. `view` is those rows, already drawn under the
+ * new config; the aggregation failing falls back to adding them up, as it
+ * does beside a page.
+ */
+export async function executeSummaries(
+  context: KernelContext,
+  config: RecordViewConfig,
+  view: RecordView,
+  controller: AbortController,
+): Promise<ProjectedView> {
+  const filterContext: FilterCompileContext = {
+    now: context.environment.now(),
+    timeZone: context.environment.timeZone,
+  };
+  const { definition, kinds, source } = context;
+  const totals = compileSummaries(definition, config, kinds, filterContext);
+  const rows = totals
+    ? await attempt(
+        context,
+        'summaries',
+        controller,
+        source.aggregate(totals, undefined, controller),
+      )
+    : null;
+  const summaries = summaryRow(
+    context,
+    config,
+    view.rows.map(row => row.data),
+    rows,
+  );
   return {
     kind: 'record',
     view,

@@ -181,6 +181,54 @@ describe('placing a panel', () => {
     ).toBeTruthy();
   });
 
+  /**
+   * WCAG 2.5.7: the drag's steps for a pointer that cannot drag, one click
+   * each, from the panel's 「⋯」 — the same placement a key step makes, said
+   * the same way, and the submenu stays open for the next click.
+   */
+  it('moves and sizes a panel one step at a time from its menu', async () => {
+    const user = userEvent.setup({ pointerEventsCheck: 0 });
+    const { runtime } = await openBuilding(column);
+    render(<LiveGrid runtime={runtime} />);
+    /** The step named, in the open submenu, pressed as its item is. */
+    const choose = async (name: string) => {
+      const item = await screen.findByRole('menuitem', { name });
+      await act(async () => {
+        fireEvent.click(item);
+        await Promise.resolve();
+      });
+    };
+
+    await user.click(
+      screen.getByRole('button', { name: 'Actions for “Below”' }),
+    );
+    await user.click(
+      await screen.findByRole('menuitem', { name: 'Move or resize' }),
+    );
+    await choose('Move up');
+
+    expect(layouts(runtime)).toEqual({
+      top: { x: 0, y: 4, w: 6, h: 4 },
+      below: { x: 0, y: 0, w: 6, h: 4 },
+    });
+    expect(
+      screen.getByText('Below is at column 1, row 1, 6 columns by 4 rows'),
+    ).toBeTruthy();
+
+    // The submenu stays open for the next step.
+    await choose('Wider');
+    expect(layouts(runtime).below).toEqual({
+      x: 0,
+      y: 0,
+      w: 7,
+      h: 4,
+      fixedHeight: true,
+    });
+    // Against the edge: said, and nothing moves.
+    await choose('Move up');
+    expect(screen.getByText('“Below” cannot go that way')).toBeTruthy();
+  });
+
   it('pushes a neighbour out of the way of a keyboard resize', async () => {
     const { runtime } = await openBuilding(column);
     render(<LiveGrid runtime={runtime} />);

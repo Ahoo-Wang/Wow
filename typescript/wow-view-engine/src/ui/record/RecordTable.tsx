@@ -23,6 +23,7 @@ import { RowActions } from './RowActions.js';
 import { Checkbox } from '../components/checkbox.js';
 import { RangeHint, RowCheckbox } from './RowCheckbox.js';
 import { useViewMessages } from '../kit/MessagesProvider.js';
+import { useSurfaceAnnouncer } from '../kit/Announcer.js';
 import { useSurfaceDisplay } from '../kit/ViewSurface.js';
 import {
   ACTION_CELL,
@@ -182,6 +183,13 @@ export interface RecordTableProps {
    * and nothing on it reorders or reshapes them.
    */
   readOnly?: boolean;
+  /**
+   * What the table is called, for a reader moving by tables: the view's
+   * title in a workbench or an embed, the panel's on a board, where several
+   * record panels stand side by side and a table named by nothing is one of
+   * several nobody can tell apart. A key is said (`text(key)`).
+   */
+  name?: string;
 }
 
 export interface RecordCell {
@@ -212,8 +220,14 @@ export function RecordTable({
   onEmptyAction,
   onReleasedPins,
   readOnly = false,
+  name,
 }: RecordTableProps) {
   const messages = useViewMessages();
+  // A width set from the keyboard is said, step by step: the handle's value
+  // moves, but a reader on the header hears nothing of it otherwise — and
+  // the rows are not fetched again for it (`restyle`), so there is no query
+  // sentence to stand in for it either.
+  const { say, region } = useSurfaceAnnouncer('column-width-announcement');
   const display = useSurfaceDisplay();
   const renderOne =
     renderCell ??
@@ -338,7 +352,14 @@ export function RecordTable({
       {...stickyPort(scrolls)}
       data-overflowing={overflowing ? '' : undefined}
     >
-      <Table ref={element} className={TABLE_CELLS}>
+      {/* Its own region only where widths can change and nobody lent it a
+          voice (an interactive embed); a workbench and a board lend theirs. */}
+      {!readOnly && region}
+      <Table
+        ref={element}
+        className={TABLE_CELLS}
+        {...(name ? { 'aria-label': messages.say(name) } : {})}
+      >
         {/* A band rather than a row: it stays while the rows move under it,
             and it is the same grey as the summary band at the other end, so
             the two of them bracket the data (`stickyBand`, P-21). The 2px
@@ -387,7 +408,23 @@ export function RecordTable({
                   sort={table.ranSort}
                   drafted={table.sort}
                   onToggle={table.toggleSort}
-                  {...(readOnly ? {} : { onResize: table.setColumnWidth })}
+                  {...(readOnly
+                    ? {}
+                    : {
+                        onResize: (field: string, width: number | null) => {
+                          table.setColumnWidth(field, width);
+                          say(
+                            width === null
+                              ? messages.label('label.columns.resized-auto', {
+                                  field: column.label,
+                                })
+                              : messages.label('label.columns.resized', {
+                                  field: column.label,
+                                  width,
+                                }),
+                          );
+                        },
+                      })}
                   pin={pins.columns.get(column.field)}
                   additiveId={additiveId}
                 />

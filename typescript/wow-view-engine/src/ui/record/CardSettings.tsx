@@ -51,7 +51,7 @@ import {
   TooltipContent,
 } from '../kit/popups.js';
 import { useViewMessages } from '../kit/MessagesProvider.js';
-import { ToolbarItem } from '../kit/toolbar.js';
+import { ToolbarItem, type DetachedPopover } from '../kit/toolbar.js';
 
 export interface CardSettingsProps {
   table: RecordTableController;
@@ -63,6 +63,8 @@ export interface CardSettingsProps {
    * `ColumnSettings`' `trigger`). Left out, the toolbar's own button.
    */
   trigger?: ReactElement<Record<string, unknown>>;
+  /** One half of it, as `ColumnSettings`' `detached`. */
+  detached?: DetachedPopover;
 }
 
 /** The value the image select carries for "none": no field is named this. */
@@ -84,7 +86,12 @@ const PER_ROW: readonly (1 | 2 | 3 | 4)[] = [1, 2, 3, 4];
  * to bottom, and the definition's order is the order most hosts want; a
  * reorder is the one thing left to the phase after this.
  */
-export function CardSettings({ table, fields, trigger }: CardSettingsProps) {
+export function CardSettings({
+  table,
+  fields,
+  trigger,
+  detached,
+}: CardSettingsProps) {
   const messages = useViewMessages();
   const ids = useId();
   const spec = table.cardSpec;
@@ -104,10 +111,15 @@ export function CardSettings({ table, fields, trigger }: CardSettingsProps) {
         : spec.fields.filter(field => field !== name),
     });
 
-  return (
-    <Popover>
+  const handle = detached?.handle;
+  const opener = (
+    <>
       {trigger ? (
-        <PopoverTrigger data-control="columns" render={trigger} />
+        <PopoverTrigger
+          handle={handle}
+          data-control="columns"
+          render={trigger}
+        />
       ) : (
         <Tooltip>
           <TooltipTrigger
@@ -115,6 +127,7 @@ export function CardSettings({ table, fields, trigger }: CardSettingsProps) {
               <ToolbarItem
                 render={
                   <PopoverTrigger
+                    handle={handle}
                     // The same handle the column settings wear, so a host
                     // or a test that reaches for "the arrangement control"
                     // finds it under either layout.
@@ -133,6 +146,13 @@ export function CardSettings({ table, fields, trigger }: CardSettingsProps) {
           </TooltipContent>
         </Tooltip>
       )}
+    </>
+  );
+  if (detached?.part === 'trigger') return opener;
+
+  return (
+    <Popover handle={handle}>
+      {detached ? null : opener}
       <PopoverContent align="end" className="fve:w-80">
         <PopoverHeader>
           <PopoverTitle>{messages.label('label.card.title')}</PopoverTitle>
@@ -192,9 +212,6 @@ export function CardSettings({ table, fields, trigger }: CardSettingsProps) {
                       <Checkbox
                         id={id}
                         checked={on}
-                        // A stop of its own inside the toolbar's popup: see
-                        // the column settings' checkbox (`ColumnRow`).
-                        tabIndex={0}
                         onCheckedChange={checked => toggle(field.name, checked)}
                       />
                       <FieldContent>

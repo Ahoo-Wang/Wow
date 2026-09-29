@@ -35,6 +35,7 @@ import type { BoardFilterModes } from './filterModes.js';
 import { AddFilterMenu, FilterSettings } from './FilterSettings.js';
 import { addFilterOf, boardOf, chipOf, chipsOf, valueOf } from './landing.js';
 import { useLanding } from '../kit/focus.js';
+import { useFilterOutcome } from './filterOutcome.js';
 import {
   BoardToasts,
   FilterWiringContext,
@@ -86,6 +87,8 @@ export function useBoardFilters({
   fixed?: readonly FilterSummaryItem[] | undefined;
 }): BoardFilterParts {
   const messages = useViewMessages();
+  // What a change of the filters came to, said once its panels settle.
+  useFilterOutcome(dashboard, say);
   const [settingsOf, setSettingsOf] = useState<string | null>(null);
   const [wiringOf, setWiringOf] = useState<string | null>(null);
   const [toasts] = useState(() => createToastManager());

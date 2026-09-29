@@ -36,36 +36,7 @@ npm 首发（`9.2.0-rc.0`）之前按下面的顺序做，同时只做一件。�
 
 #### 可访问性
 
-走查记录与逐条符合性表在文档站「视图引擎的可访问性」（`documentation/docs/{zh,en}/guide/typescript/view-engine-accessibility.md`）。每条对应声明里一处「部分支持」或一条已知缺口，做完一条就改声明里那一格。真人读屏走查已推迟到首发后（[D73](decisions.md#d73-真人读屏走查与多浏览器视觉回归放到首发之后2026-09-29)）：首发前由用户用 VoiceOver 抽查记录工作台与分析编辑区的撤销提示，声明写明读屏软件实测待做。
-
-- **工具栏的漫游焦点漏进它打开的弹层**：Base UI 1.8 的 `Toolbar` 把 composite 上下文交给整棵子树，弹层里用 `useButton` 的控件自认是工具栏的一项、不给自己 `tabindex`；列设置与卡片设置的复选框靠明写的 `tabIndex` 止血，Safari 默认设置下列设置的「固定」、汇总下拉仍被跳过。
-  - 为什么：止血要逐个控件记着补，下一个放进工具栏弹层的控件还会再掉一次。
-  - 判据：弹层内容不在工具栏的 React 子树里（`Popover.createHandle` 分离触发器，或上游修复后升级），删掉两处明写的 `tabIndex`；一条 WebKit 故事从列设置的搜索框一路 Tab，每行的复选框、固定钮与汇总下拉都停得到。
-  - 落点：`src/ui/workbench/ResultToolbar.tsx`、`src/ui/columns/ColumnSettings.tsx`、`src/ui/record/CardSettings.tsx`、`src/ui/sort/SortSettings.tsx`；[ui/README.md](ui/README.md)。
-- **面板的移动与缩放、列宽要有单指针的替代**（WCAG 2.2 2.5.7）：可排序的列表已有「移到…」菜单（[D49](decisions.md#d49-可排序的列表一律拖拽排序2026-09-25)），宽栅格的面板与表头的列宽指针只能拖。
-  - 判据：面板「⋯」里有左移、右移、加宽、变窄一类，列设置里能填宽度，各有一条只用点击的故事；2.5.7 改为「支持」。
-  - 落点：[ui/record.md](ui/record.md)、[ui/dashboard.md](ui/dashboard.md)。
-- **列宽的把手只有 8px 宽**（WCAG 2.2 2.5.8）：紧挨排序按钮，既不够 24px、也不满足间距例外。
-  - 判据：拖动区在不压住排序按钮的前提下达到 24px，或上一条的点击替代落地后按「等价控件」例外成立；声明改为「支持」。
-  - 落点：`src/ui/record/ColumnResizer.tsx`、[ui/record.md](ui/record.md)。
-- **只改外观的编辑也重跑查询，播报也跟着念**：列宽、列顺序、固定、汇总都走 `editAndApply`，Alt+←／→ 每一步重发查询、念「正在查询」「共 N 条记录」，新的列宽一次也没说。
-  - 判据：只动呈现的编辑不重发查询（汇总变了才发聚合）；每一步说一次「〈列〉宽 N 像素」一类；故事断言按三下只有三句宽度播报、没有查询。
-  - 落点：`src/react/useRecordTable.ts`、`src/ui/record/ColumnResizer.tsx`、[ui/record.md](ui/record.md)。
-- **仪表盘改筛选与面板失败不出声**（WCAG 4.1.3）：面板各自重跑，板子的播报区什么也不说。
-  - 判据：筛选落定后在板子的播报区说一次（「已按〈筛选〉筛选，N 个面板已更新」，有失败时带上「M 个面板没能加载」），措辞走目录、双语；故事断言播报文字。
-  - 落点：`src/ui/dashboard/`、[ui/dashboard.md](ui/dashboard.md)。
-- **表格与小图的名字**：记录表没有可及名字（一块板上几个记录面板分不开）；指标卡的走势小图没有摘要句，数据表首列表头是「类别」而不是维度名。
-  - 判据：记录表以视图名或面板标题命名；小图有同一套摘要句，首列用维度的显示名；各有测试。
-  - 落点：`src/ui/record/RecordTable.tsx`、`src/ui/charts/`、[ui/analysis.md](ui/analysis.md#图表怎么被读出来)。
-- **窄列里溢出的单元格盖住焦点**（WCAG 2.2 2.4.11）：列宽比内容窄时，「复制」按钮溢出到右边一格，被那格的底色盖住。
-  - 判据：单元格不向相邻格溢出，聚焦的控件四角都在自己格里；一条窄宽度故事逐个聚焦「复制」并量它正中那一点是它自己。
-  - 落点：`src/ui/record/cells.tsx`、`src/ui/kit/CopyButton.tsx`、[ui/record.md](ui/record.md)。
-- **视图的面不声明自己的语言**（WCAG 2.2 3.1.2）：措辞目录与宿主语言不同时，`.fve-root` 上没有 `lang`，读屏按宿主的语言念。
-  - 判据：面按措辞目录写 `lang`（宿主可覆盖），弹层随之带上；测试断言中英两种目录下的 `lang`。
-  - 落点：`src/ui/kit/ViewSurface.tsx`、`src/ui/kit/popups.tsx`、[ui/README.md](ui/README.md#措辞与-messagesprovider)。
-- **看得见的快捷键提示**：Alt+←／→ 调列宽只在 `aria-keyshortcuts` 里，分析表的 Shift+Enter 选一段只在读屏描述里。
-  - 判据：表头聚焦时的提示框（或表格设置里的一行）写出列宽键；分析表「按住 Shift 选一段」看得见；双语。
-  - 落点：`src/ui/record/SortableHeader.tsx`、`src/ui/analysis/AnalysisTable.tsx`。
+走查记录与逐条符合性表在文档站「视图引擎的可访问性」（`documentation/docs/{zh,en}/guide/typescript/view-engine-accessibility.md`）。真人读屏走查已推迟到首发后（[D73](decisions.md#d73-真人读屏走查与多浏览器视觉回归放到首发之后2026-09-29)）：首发前由用户用 VoiceOver 抽查记录工作台与分析编辑区的撤销提示，声明写明读屏软件实测待做。
 
 #### 界面与图表
 

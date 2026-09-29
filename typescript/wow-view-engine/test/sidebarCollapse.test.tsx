@@ -189,8 +189,8 @@ describe('collapsing the sidebar', () => {
     // And it has no box of its own: the switcher is the identity group's
     // spring directly, so with a short name the audience word and Save
     // stand against it rather than at the far end of a box that grew on.
-    expect(collapsed.className).toContain('contents');
-    expect(collapsed.className).not.toContain('grow');
+    expect(collapsed.classList.contains('fve:contents')).toBe(true);
+    expect(collapsed.classList.contains('fve:grow')).toBe(false);
   });
 
   /**
@@ -206,7 +206,7 @@ describe('collapsing the sidebar', () => {
     const definition = document.querySelector<HTMLElement>(
       '[data-slot="definition-title"]',
     )!;
-    expect(definition.className).toContain('hidden');
+    expect(definition.classList.contains('fve:hidden')).toBe(true);
     expect(definition.className).toContain('fve:@md/header:block');
     expect(definition.className).not.toContain('fve:sm:inline');
     // The page's name, at the level it has in the sidebar, and joined to

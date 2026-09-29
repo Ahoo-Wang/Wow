@@ -305,9 +305,28 @@ export class DataViewRuntime<
   apply(): void {
     if (this.disposed || hasError(this.state.issues)) return;
     this.appliedAdmitted = true;
-    this.store.setState({ applied: this.state.draft, ...this.startOver() });
     this.autoTimer.stop();
+    // A draft that asks the source what the rows on screen already answer
+    // lands without the page being fetched again (`restyle`).
+    const restyle = this.restyle(this.state.draft);
+    if (restyle) {
+      this.store.setState({ applied: this.state.draft });
+      restyle();
+      return;
+    }
+    this.store.setState({ applied: this.state.draft, ...this.startOver() });
     this.execute({ keepSelection: false });
+  }
+
+  /**
+   * How `draft` lands when it changes only how the rows on screen are drawn,
+   * or `null` when it is a new question and runs whole. A Record view
+   * answers for its columns and its summary row (`restyledOnly`); an
+   * analysis has nothing of the kind.
+   */
+  protected restyle(draft: C): (() => void) | null {
+    void draft;
+    return null;
   }
 
   /** Discards the edits and re-runs what was saved; see `RuntimeStore.revert`. */
@@ -574,6 +593,18 @@ export class DataViewRuntime<
     keepSelection: boolean;
     /** When the question was first asked, for a page asked again. */
     askedAt?: number;
+    /**
+     * What is fetched, when it is less than the whole config: the summary
+     * row alone over the rows on screen (`restyle`). The whole query when
+     * left out.
+     */
+    fetch?: (config: C, controller: AbortController) => Promise<ProjectedView>;
+    /**
+     * Asked without the query turning `loading`: the rows on screen stay the
+     * answer while the rest arrives, so nothing says 「正在查询」 over them
+     * or draws the table as waiting (the summary row alone, `restyle`).
+     */
+    quiet?: boolean;
   }): void {
     const askedAt = options.askedAt ?? this.environment.now().getTime();
     // Both halves travel with the request: what ran, and the view's own
@@ -582,11 +613,14 @@ export class DataViewRuntime<
     const own = this.state.applied;
     const config = withScopeFilter(own, this.injectedScope);
     const requestId = `${this.id}:${(this.requestSeq += 1)}`;
-    this.store.setState({ query: { status: 'loading', requestId } });
+    const status = options.quiet ? 'success' : 'loading';
+    this.store.setState({ query: { status, requestId } });
 
     this.runner
       .run(this.id, controller =>
-        executeDataConfig(this.context, config, this.pageNow(), controller),
+        options.fetch
+          ? options.fetch(config, controller)
+          : executeDataConfig(this.context, config, this.pageNow(), controller),
       )
       .then(
         data =>

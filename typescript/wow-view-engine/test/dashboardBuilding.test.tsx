@@ -688,6 +688,7 @@ describe("a panel's menu (D22 D)", () => {
       'Rename',
       'Replace view…',
       'Duplicate',
+      'Move or resize',
       'Remove from dashboard',
     ]);
   });

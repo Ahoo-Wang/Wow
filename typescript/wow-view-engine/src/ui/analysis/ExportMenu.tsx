@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import { useRef, useState } from 'react';
+import { useState } from 'react';
 import {
   DownloadIcon,
   FileImageIcon,
@@ -34,7 +34,7 @@ import {
 } from '../kit/HandOffMenu.js';
 import { IconButton, IconTooltip } from '../kit/IconButton.js';
 import { useViewMessages } from '../kit/MessagesProvider.js';
-import { ToolbarItem } from '../kit/toolbar.js';
+import { ToolbarItem, type DetachedDialog } from '../kit/toolbar.js';
 import type { ChartImageOffer, ImageFormat } from './imageExport.js';
 
 /** Each picture's item, by its full catalogue key. */
@@ -97,59 +97,65 @@ export function ImageFailed({ offer }: { offer: ChartImageOffer }) {
  * Q58): one menu — 「导出数据…」, which opens the export window over the
  * groups, and the chart as a PNG or an SVG. Over a table there is no
  * picture, and the toolbar keeps the plain button that opens the window.
+ *
+ * Drawn in two halves (`DetachedDialog`): the menu, whose button is one of
+ * the bar's stops, and the window its 「导出数据…」 opens through the
+ * handle, drawn outside the bar so its controls keep their own tab stops.
  */
 export function ExportMenu({
   data,
   image,
+  detached,
 }: {
   data: ExportWindowProps | null;
   image: ChartImageOffer;
+  detached: DetachedDialog;
 }) {
   const messages = useViewMessages();
   const [open, setOpen] = useState(false);
-  const trigger = useRef<HTMLButtonElement>(null);
+  const { handle, opener } = detached;
+  if (detached.part === 'popup')
+    return data ? (
+      <ExportDialog
+        {...data}
+        handle={handle}
+        open={open}
+        onOpenChange={setOpen}
+        finalFocus={() => opener.current ?? true}
+      />
+    ) : null;
   return (
-    <>
-      <HandOffMenu>
-        <IconTooltip
-          label={messages.label('label.export.title')}
-          render={
-            <ToolbarItem
-              render={
-                <DropdownMenuTrigger
-                  ref={trigger}
-                  data-control="export"
-                  render={<Button variant="outline" size="icon-sm" />}
-                />
-              }
-            />
-          }
-        >
-          <DownloadIcon />
-        </IconTooltip>
-        <HandOffMenuContent align="end" className="fve:min-w-48">
-          <DropdownMenuGroup>
-            {data && (
-              <DialogMenuItem
-                data-slot="export-data"
-                onClick={() => setOpen(true)}
-              >
-                <FileSpreadsheetIcon />
-                {messages.label('label.export.data')}
-              </DialogMenuItem>
-            )}
-            <ImageMenuItems offer={image} />
-          </DropdownMenuGroup>
-        </HandOffMenuContent>
-      </HandOffMenu>
-      {data && (
-        <ExportDialog
-          {...data}
-          open={open}
-          onOpenChange={setOpen}
-          finalFocus={() => trigger.current ?? true}
-        />
-      )}
-    </>
+    <HandOffMenu>
+      <IconTooltip
+        label={messages.label('label.export.title')}
+        render={
+          <ToolbarItem
+            render={
+              <DropdownMenuTrigger
+                ref={opener}
+                data-control="export"
+                render={<Button variant="outline" size="icon-sm" />}
+              />
+            }
+          />
+        }
+      >
+        <DownloadIcon />
+      </IconTooltip>
+      <HandOffMenuContent align="end" className="fve:min-w-48">
+        <DropdownMenuGroup>
+          {data && (
+            <DialogMenuItem
+              data-slot="export-data"
+              onClick={() => handle.open(null)}
+            >
+              <FileSpreadsheetIcon />
+              {messages.label('label.export.data')}
+            </DialogMenuItem>
+          )}
+          <ImageMenuItems offer={image} />
+        </DropdownMenuGroup>
+      </HandOffMenuContent>
+    </HandOffMenu>
   );
 }

@@ -198,6 +198,11 @@ interface PanelItemIdentity {
 
 const PanelItemContext = createContext<PanelItemIdentity | null>(null);
 
+/** The board's voice, as the grid item a panel sits in hands it down. */
+export function usePanelVoice(): ((message: string) => void) | undefined {
+  return useContext(PanelItemContext)?.say;
+}
+
 export interface PanelGridItemProps extends React.ComponentProps<'div'> {
   panelId: string;
   /** What the panel is called on screen, which its corner is named after. */

@@ -84,6 +84,7 @@ Record 工作台的结果区组件。三种视图共用的骨架、状态条、�
 
 ## RecordTable 与 RecordCards
 
+- **表有名字**（`RecordTable` 的 `name`）：工作台与嵌入用视图标题，仪表盘的记录面板用面板名（`panelName`）——按表格跳读时，一块板上几个记录面板分得开；键也照说（test/tableNames.test.tsx，故事「记录工作台/回归」的 `TableNamedByItsView`）；
 - **没有结果、也没在跑时表不画**：列来自结果，画出来是空表头加一个选不中任何东西却 Tab 可达的「选择全部行」。`RecordTable` 在 `hasResult` 为假且非 `loading` 时返回 `null`。刷新失败留住的行照画、状态转 `error`（test/recordWorkbenchInteraction.test.tsx「keeps the rows a failed refresh could not replace」），首次 `loading` 画骨架行。`hasResult` 是控制器上独立的成员（`state.result != null`），不拿 `rows.length` 或 `status` 猜（test/recordTable.test.tsx「a record view with no result」）；
 - **两种"没有行"是两句话**：查询失败由 `QueryStrip` 说、配置跑不起来由 `ErrorStrip` 说，都在表之上，表不再说（与 `AnalysisWorkbench` 以 `view &&` 把关同一条）；**跑完没匹配上**才是表自己的 `label.record.empty`「没有可显示的内容」；
 - **空结果给一个出口，只一个**，由问的是什么决定（`record/emptyWayOut.ts` 的 `emptyWayOut`；`RecordParts` 传 `emptyWayOut` 与 `onEmptyAction`）：
@@ -269,11 +270,13 @@ Record 工作台的结果区组件。三种视图共用的骨架、状态条、�
 
 - **手柄是 `separator`**：`role="separator"`、`aria-orientation="vertical"`、`aria-valuenow`／`aria-valuemin`，名字「调整 {列} 宽度」（`label.columns.resize`）。**静息就画 1px `--border` 发丝线**，悬停或聚焦 2px `--ring`——用过才出现的可供性不是可供性；
 - **拖动写 DOM，不写 state**：每次 `pointermove` 一次 `setState` 会重渲整份结果。手势把宽度写到本列每个格子（表头、数据行、汇总行、骨架行），格子由 `<th>` 的 `cellIndex` 找；**松手**才落 `table.setColumnWidth(field, px)`（一次 `edit` 加一次 `apply`，[react.md#userecordtable](../react.md#userecordtable)）；
-- **键盘**：←／→ 8px，Shift 32px，**每一下都提交**；Enter 与双击恢复自适应（`setColumnWidth(field, null)`，删键）。每步从**当前**宽度算——提交的宽度要等下一份结果才进投影；
+- **只改外观不查询**（可访问性审查）：列宽、列顺序、固定只动画法，`apply` 看出查询不变（`runtime/restyle.ts` 的 `restyledOnly`：显示哪几列、条件、排序、页大小都没动），就把屏幕上的行按新配置重新投影（`restyleRecord`），不发查询、不说「正在查询」，页码与勾选都留着；汇总变了只发那一次聚合（`executeSummaries`），页不重取，也不进等待态。草稿与跑出结果的配置完全一样时照常整份重跑（「应用」、搜索框的 Enter、宿主的 `apply()` 是再查一次）。从前 Alt+→ 每一步都重跑一页。（test/restyle.test.tsx）
+- **键盘**：←／→ 8px，Shift 32px，**每一下都提交**；Enter 与双击恢复自适应（`setColumnWidth(field, null)`，删键）。每步从**当前**宽度算。**每一步说一次新宽度**：这个面的那一个声音（工作台里是结果块的 `record-announcement`，经 `SurfaceAnnouncer` 借给表格；仪表盘上是板子的；只有交互嵌入里表格用自己的 `column-width-announcement`）说「〈列〉宽 N 像素」「〈列〉宽度随内容」（`label.columns.resized`／`resized-auto`），拖动松手同样说（test/headerRoving.test.tsx「says the width each step lands on」，故事「记录工作台/回归」的 `WidthStepsSayTheWidth`：三下三句宽度、一句查询也没有）；
+- **不用拖也能定宽**（WCAG 2.2 2.5.7）：列设置每一行有一个宽度框（`ui/columns/WidthInput.tsx`，靠在固定钮旁边、列表上下对齐），空着是自动；Enter 或离开才读，低于 48px 按 48 算、高于 2000px 按 2000 算（`MAX_COLUMN_WIDTH`）；不是整数（或长到读成 Infinity）就留在框里、标 `aria-invalid`，行下一行写出「请输入整数像素；留空则随内容。」（`label.columns.width-invalid`，框由它描述），改对了才消失——从前悄悄退回原值，打错的字看着像已生效；定了就说一句同样的宽度。列设置顶上一行写出表头的宽度键（`label.columns.resize-keys`：Alt+←／→、Shift、Alt+Enter）——从前只在 `aria-keyshortcuts` 里，看得见屏幕的键盘用户找不到。宽度框也是 2.5.8 的「等价控件」：拖动区仍是紧挨排序按钮的 8px 细条，不为 24px 压住排序按钮。（test/columnWidthInput.test.tsx，故事 `ColumnWidthByTyping`）
 - **整行表头一个 Tab 站**：`ui/record/headerRoving.ts` 的 `useRovingHeader` 给表头行 roving tabindex，←／→ 在列间走、Home／End 到两端；把手 `tabIndex=-1`，宽度改由 **Alt+←／→** 在焦点列上调（Shift 长步、Alt+Enter 恢复），以 `aria-keyshortcuts` 说出——否则每列两个站，宽表要按几十下 Tab（test/headerRoving.test.tsx）；
 - **下限 48px**：列的边是找回它的唯一入口。这是手柄的规矩，住在 `ColumnResizer` 而不是 `validateRecord`（手写配置只要正数）；
 - **宽度三个属性一起写**：`width` 单给只是建议，`min-width` 与 `max-width` 同值才没得商量；`<col>` 管不到格子；
-- **有宽度的格子裁字并带 `title`**（`truncate`）；拖动中裁切临时写在格子上；
+- **有宽度的格子裁字并带 `title`**（`CLIPPED_CELL`，`fve:truncate`——前缀掉了时编译成空，窄列的值连同复制按钮溢到右边一格，聚焦时被那格的底盖住，WCAG 2.4.11）；拖动中裁切临时写在格子上。**可复制的一格是不超过格宽的 inline-flex**：窄了让字截断，按钮整颗留在自己格里（故事 `CopyStaysInANarrowCell`：48px 宽下逐个聚焦「复制」，四角都在格内、正中那一点是它自己）；
 - 冻结列的偏移自己跟上：`usePinnedOffsets` 的 `ResizeObserver` 盯的正是表头格。
 
 ## RecordPagination

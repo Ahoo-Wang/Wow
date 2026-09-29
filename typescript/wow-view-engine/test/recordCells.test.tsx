@@ -277,7 +277,7 @@ describe('a text cell', () => {
     // kept is a declaration with no state behind it, and jsdom lays out no
     // text to count. What it comes to on screen — every row of the wide
     // table the same height — is measured in `WideTable`.
-    expect(cell.className).toContain('truncate');
+    expect(cell.classList.contains('fve:truncate')).toBe(true);
     expect(cell.className).not.toContain('fve:line-clamp-3');
     // Cut on screen, whole on hover: nothing is lost, only folded.
     expect(cell.getAttribute('title')).toBe(NOTE);
@@ -754,7 +754,7 @@ describe('an array of objects', () => {
     // The count is for the eye; a reader hears what it stands for, and the
     // whole list is one hover away.
     expect(more?.getAttribute('aria-hidden')).toBe('true');
-    expect(container.querySelector('.fve\\:sr-only')?.textContent).toBe(
+    expect(container.querySelector('tbody .fve\\:sr-only')?.textContent).toBe(
       '准备重试, 执行成功',
     );
     expect(

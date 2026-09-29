@@ -236,6 +236,17 @@ export const recordMessages = {
   // that this list *is* the table's column order.
   'label.columns.title': 'Column settings',
   'label.columns.hint': 'The table draws its columns in the order listed here.',
+  // The header's width keys, written where they can be read: they were in
+  // `aria-keyshortcuts` alone, which only a screen reader says.
+  'label.columns.resize-keys':
+    'On a column header, Alt+← and Alt+→ change its width (Shift for bigger steps); Alt+Enter fits it to its content.',
+  // The width box on each row, and what it says while the column sizes
+  // itself.
+  'label.columns.width': 'Width of {field}, in pixels',
+  'label.columns.width-auto': 'Auto',
+  // Under a width box holding what is not a width.
+  'label.columns.width-invalid':
+    'Type a whole number of pixels, or leave it empty to fit the content.',
   'label.columns.filtered': 'Clear the search to reorder columns.',
   'label.columns.drag': 'Reorder {field}',
   'label.columns.moved': '{field} moved to position {index} of {total}',
@@ -264,6 +275,10 @@ export const recordMessages = {
   // named by the column it sizes, because that is the only thing about it a
   // reader who cannot see where the pointer is could use.
   'label.columns.resize': 'Resize {field}',
+  // Said after each step of a column's width, from the keyboard or a drag:
+  // the new width, since that is what the step changed.
+  'label.columns.resized': '{field} is {width} px wide',
+  'label.columns.resized-auto': '{field} fits its content',
   // The pin toggle's name — what it holds, not whether it is on, which is
   // `aria-pressed` now that there are two states rather than three (D19).
   'label.columns.pin': 'Pin {field}',

@@ -19,6 +19,7 @@ import {
   MessagesProvider,
   StartingWords,
   useInheritedLocale,
+  useMergedMessages,
   useSay,
 } from './MessagesProvider.js';
 import type { ViewMessages } from './messages.js';
@@ -221,6 +222,16 @@ export function useSurfaceFont(): string | undefined {
 }
 
 /**
+ * The language a surface's words are in, for what renders outside it: a
+ * popup portalled to the body sits under the host's `<html lang>`, and its
+ * words are the surface's (WCAG 3.1.2). `popups.tsx` writes it as the
+ * popup's own `lang`, as it writes the mode.
+ */
+const SurfaceLanguageContext = React.createContext<string | undefined>(
+  undefined,
+);
+
+/**
  * The host variables a surface was handed (`tokens`), for its popups to
  * carry: a value the host gave this surface alone is not on any ancestor of
  * the portal, so `popups.tsx` writes it onto each popup itself, as it writes
@@ -242,6 +253,7 @@ export function useSurfaceHostTokens():
  * the brand. Spread onto every element a popup portals out.
  */
 export function useSurfaceAttributes(): {
+  lang: string | undefined;
   'data-theme': 'light' | 'dark' | undefined;
   'data-fve-preset': string | undefined;
   'data-fve-change-colors': string | undefined;
@@ -249,6 +261,7 @@ export function useSurfaceAttributes(): {
   'data-fve-brand-chart': string | undefined;
 } {
   return {
+    lang: React.useContext(SurfaceLanguageContext),
     'data-theme': React.useContext(SurfaceThemeContext),
     'data-fve-preset': React.useContext(SurfacePresetContext),
     'data-fve-change-colors': React.useContext(SurfaceChangeColorsContext),
@@ -412,6 +425,7 @@ function Surface({
   children,
   style,
   ref,
+  lang,
   ...props
 }: Omit<ViewSurfaceProps, 'engine'>) {
   const rootRef = React.useRef<HTMLDivElement>(null);
@@ -423,6 +437,12 @@ function Surface({
   const language = locale ?? inherited;
   // The definition's words as this surface's wording says them.
   const say = useSay(messages);
+  // The language those words are in: the catalogue says which it is
+  // (`label.language`), so a Chinese catalogue inside an English page is read
+  // as Chinese (WCAG 3.1.2). A host that knows better — a translation that
+  // did not set the key — passes `lang` itself, and that wins.
+  const catalogue = useMergedMessages(messages);
+  const wordsIn = lang ?? catalogue['label.language'];
   const display = React.useMemo(
     () => ({ locale: language, timeZone, say }),
     [language, timeZone, say],
@@ -455,6 +475,7 @@ function Surface({
   return (
     <div
       data-slot="view-surface"
+      lang={wordsIn}
       data-theme={pinned}
       data-fve-preset={preset}
       data-fve-density={density}
@@ -468,38 +489,40 @@ function Surface({
       {...props}
       ref={attach}
     >
-      <SurfaceThemeContext.Provider value={pinned ?? resolved?.mode}>
-        <SurfacePresetContext.Provider value={preset ?? resolved?.preset}>
-          <SurfaceChangeColorsContext.Provider value={resolved?.changeColors}>
-            <SurfaceBrandChartContext.Provider value={resolved?.brandChart}>
-              <SurfaceDensityContext.Provider
-                value={density ?? resolved?.density}
-              >
-                <SurfaceTokensContext.Provider value={resolved?.tokens}>
-                  <SurfaceFontContext.Provider value={resolved?.font}>
-                    <SurfaceHostTokensContext.Provider value={tokens}>
-                      <SurfaceDisplayContext.Provider value={display}>
-                        <MessagesProvider messages={messages} locale={locale}>
-                          <TooltipProvider>
-                            {/* Hidden until `useViewExpansion` finds that this surface
+      <SurfaceLanguageContext.Provider value={wordsIn}>
+        <SurfaceThemeContext.Provider value={pinned ?? resolved?.mode}>
+          <SurfacePresetContext.Provider value={preset ?? resolved?.preset}>
+            <SurfaceChangeColorsContext.Provider value={resolved?.changeColors}>
+              <SurfaceBrandChartContext.Provider value={resolved?.brandChart}>
+                <SurfaceDensityContext.Provider
+                  value={density ?? resolved?.density}
+                >
+                  <SurfaceTokensContext.Provider value={resolved?.tokens}>
+                    <SurfaceFontContext.Provider value={resolved?.font}>
+                      <SurfaceHostTokensContext.Provider value={tokens}>
+                        <SurfaceDisplayContext.Provider value={display}>
+                          <MessagesProvider messages={messages} locale={locale}>
+                            <TooltipProvider>
+                              {/* Hidden until `useViewExpansion` finds that this surface
                     fills the screen with its control left underneath it; see
                     `ViewExpandExit`. It is a direct child of the root because
                     the stylesheet places it as one of the root's flex items,
                     and it stays out of the page — and out of the a11y tree —
                     the rest of the time. */}
-                            <ViewExpandExit />
-                            {children}
-                          </TooltipProvider>
-                        </MessagesProvider>
-                      </SurfaceDisplayContext.Provider>
-                    </SurfaceHostTokensContext.Provider>
-                  </SurfaceFontContext.Provider>
-                </SurfaceTokensContext.Provider>
-              </SurfaceDensityContext.Provider>
-            </SurfaceBrandChartContext.Provider>
-          </SurfaceChangeColorsContext.Provider>
-        </SurfacePresetContext.Provider>
-      </SurfaceThemeContext.Provider>
+                              <ViewExpandExit />
+                              {children}
+                            </TooltipProvider>
+                          </MessagesProvider>
+                        </SurfaceDisplayContext.Provider>
+                      </SurfaceHostTokensContext.Provider>
+                    </SurfaceFontContext.Provider>
+                  </SurfaceTokensContext.Provider>
+                </SurfaceDensityContext.Provider>
+              </SurfaceBrandChartContext.Provider>
+            </SurfaceChangeColorsContext.Provider>
+          </SurfacePresetContext.Provider>
+        </SurfaceThemeContext.Provider>
+      </SurfaceLanguageContext.Provider>
     </div>
   );
 }

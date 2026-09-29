@@ -362,7 +362,9 @@ describe('ResultToolbar grouping and weight', () => {
  * UI's toolbar hands its composite context to everything under it, the
  * popup included, and a checkbox that took itself for a toolbar item
  * rendered with no `tabindex` at all: no column could be shown or hidden
- * from the keyboard (the 2026-09-25 keyboard walkthrough).
+ * from the keyboard (the 2026-09-25 keyboard walkthrough). The popups are
+ * now drawn outside the bar (`DetachedPopover`), with nothing said by hand
+ * on any control in them.
  */
 describe('ResultToolbar popups keep their own tab stops', () => {
   it('lets the keyboard reach the column checkboxes', async () => {
@@ -391,6 +393,98 @@ describe('ResultToolbar popups keep their own tab stops', () => {
     for (let i = 0; i < 10 && document.activeElement !== enabled; i++)
       await user.tab();
     expect(document.activeElement).toBe(enabled);
+  });
+
+  /**
+   * What Safari's default Tab needs, said on the DOM: it stops on a text
+   * field and on whatever carries a `tabindex`, and nothing else — so a
+   * pin toggle or a summary select left to the bar's roving order was
+   * skipped there even once the checkboxes had been patched. Every enabled
+   * control of both popups writes its own `tabindex="0"` now, because none
+   * of them is under the bar (the WebKit story the review asked for, proven
+   * on the structure Chromium and jsdom share).
+   */
+  it('gives every control of every popup a tab stop of its own', async () => {
+    const user = userEvent.setup();
+    render(
+      <ResultToolbar
+        table={tableController({
+          columnFields: ['amount', 'warehouse'],
+          summaryFields: [],
+        })}
+        fields={[
+          { ...FIELDS[0]!, summary: ['SUM'], sortable: true },
+          { ...FIELDS[1]!, sortable: true },
+        ]}
+        runtime={runtime}
+        exporter={exportOffer()}
+      />,
+    );
+    const stops = (dialog: HTMLElement) =>
+      [
+        ...dialog.querySelectorAll<HTMLElement>(
+          'button, [role="checkbox"], [role="combobox"]',
+        ),
+      ].filter(
+        control =>
+          !control.hasAttribute('disabled') &&
+          !control.hasAttribute('data-disabled') &&
+          control.getAttribute('aria-disabled') !== 'true',
+      );
+
+    await user.click(screen.getByRole('button', { name: 'Columns' }));
+    const columns = await screen.findByRole('dialog', {
+      name: 'Column settings',
+    });
+    const inColumns = stops(columns);
+    expect(
+      inColumns.some(control => control.getAttribute('aria-pressed') !== null),
+    ).toBe(true);
+    expect(
+      inColumns.some(control => control.getAttribute('role') === 'combobox'),
+    ).toBe(true);
+    for (const control of inColumns)
+      expect(control.getAttribute('tabindex')).toBe('0');
+    await user.keyboard('{Escape}');
+
+    await user.click(screen.getByRole('button', { name: /Sort/ }));
+    const sort = await screen.findByRole('dialog', { name: 'Sort' });
+    const inSort = stops(sort);
+    expect(inSort.length).toBeGreaterThan(0);
+    for (const control of inSort)
+      expect(control.getAttribute('tabindex')).toBe('0');
+    await user.keyboard('{Escape}');
+
+    // The export window: its Close, Cancel and Export.
+    await user.click(screen.getByRole('button', { name: 'Export' }));
+    const exporting = await screen.findByRole('dialog', { name: 'Export' });
+    expect(exporting.closest('[role="toolbar"]')).toBeNull();
+    const inExport = stops(exporting);
+    expect(inExport.length).toBeGreaterThanOrEqual(3);
+    for (const control of inExport)
+      expect(control.getAttribute('tabindex')).toBe('0');
+  });
+
+  it('renders the popups outside the bar, joined to its buttons', async () => {
+    const user = userEvent.setup();
+    render(
+      <ResultToolbar
+        table={tableController({ columnFields: ['amount', 'warehouse'] })}
+        fields={FIELDS}
+        runtime={runtime}
+      />,
+    );
+    const button = screen.getByRole('button', { name: 'Columns' });
+    expect(button.closest('[role="toolbar"]')).not.toBeNull();
+    await user.click(button);
+    const dialog = await screen.findByRole('dialog', {
+      name: 'Column settings',
+    });
+    expect(dialog.closest('[role="toolbar"]')).toBeNull();
+    expect(button.getAttribute('aria-expanded')).toBe('true');
+    await user.keyboard('{Escape}');
+    // Closing gives the keyboard back to the button in the bar.
+    expect(document.activeElement).toBe(button);
   });
 });
 

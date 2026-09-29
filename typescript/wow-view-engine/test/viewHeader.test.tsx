@@ -223,7 +223,7 @@ describe('ViewHeader', () => {
     // direction, and jsdom lays nothing out. The pixels are the browser
     // stories’.
     expect(title().className).toContain('fve:w-0');
-    expect(title().className).toContain('grow');
+    expect(title().classList.contains('fve:grow')).toBe(true);
     expect(title().className).toContain('fve:min-w-[6em]');
   });
 

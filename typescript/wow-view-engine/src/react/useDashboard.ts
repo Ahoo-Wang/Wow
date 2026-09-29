@@ -167,6 +167,11 @@ export interface DashboardController {
   /** What the filters hold now: the reader's, never the config's. */
   filters: DashboardFilters;
   /**
+   * The step at which the filters' values last went out to the panels
+   * (`DashboardRuntimeState.filtersRun`): what a change of them ran.
+   */
+  filtersRun: number;
+  /**
    * Sets what one filter holds, `null` clearing it; the panels run on it a
    * moment later (`DashboardRuntime.setFilterValue`). Answers why a value
    * was refused.
@@ -364,6 +369,7 @@ export function useDashboard(
     filterFields: useMemo(() => (applied ? filtersOf(applied) : []), [applied]),
     timeGrouping: applied?.timeGrouping ?? null,
     filters: state?.filters ?? NO_FILTERS,
+    filtersRun: state?.filtersRun ?? 0,
     setFilterValue: useCallback(
       (name: string, value: FilterValue | null) =>
         runtime?.setFilterValue(name, value) ?? [],

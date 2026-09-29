@@ -262,7 +262,15 @@ export const KeyboardPicksAStretch: Story = {
     );
     rows[2]!.focus();
     await userEvent.keyboard('{Enter}');
-    await drillMenu(zhCN['label.drill.menu']);
+    const single = await drillMenu(zhCN['label.drill.menu']);
+    // And written where it is seen: the menu one row opens says how to make
+    // it a stretch, under the group picked — Shift was only in the rows'
+    // description, which a screen reader says and nothing on screen did.
+    const shown = single.querySelector<HTMLElement>(
+      '[data-slot="drill-span-hint"]',
+    );
+    await expect(shown).toHaveTextContent(zhCN['label.drill.span-hint']);
+    await expect(shown).toBeVisible();
     await userEvent.keyboard('{Escape}');
     await noMenu();
     await waitFor(() => expect(rows[2]).toHaveFocus());
@@ -274,6 +282,10 @@ export const KeyboardPicksAStretch: Story = {
       menu.querySelector('[data-slot="drill-group"]')?.textContent ?? '',
     );
     await expect(last - first).toBe(2 * DAY_MS);
+    // A stretch is already one: the hint is not repeated over it.
+    await expect(
+      menu.querySelector('[data-slot="drill-span-hint"]'),
+    ).toBeNull();
     await waitFor(() =>
       expect(
         document.body.querySelector('[data-slot="drill-announcement"]'),

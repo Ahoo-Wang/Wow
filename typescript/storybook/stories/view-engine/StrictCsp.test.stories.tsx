@@ -304,6 +304,15 @@ export const RecordWorkbench: Story = {
     await expectNoViolations('a summary picked');
     await userEvent.keyboard('{Escape}');
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    // Left with nothing on its way out, for the accessibility check: the
+    // Escape hands the keyboard back to 「列设置」, whose tooltip opens on
+    // that focus and would be read while it is still fading in.
+    (document.activeElement as HTMLElement | null)?.blur();
+    await waitFor(() =>
+      expect(
+        document.querySelector('[data-slot="tooltip-content"]'),
+      ).toBeNull(),
+    );
   },
 };
 

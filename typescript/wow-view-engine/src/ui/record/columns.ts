@@ -229,8 +229,14 @@ export const IDENTIFIER_FACE = 'fve:font-mono fve:text-[0.9em]';
  * auto-laid-out table grows a column to its widest cell whatever the header
  * asked for, so a column dragged narrower would spring back on the next
  * render.
+ *
+ * With the prefix every class in `src` wears (D66): written bare, it
+ * compiled to nothing, and a column narrower than its values spilled them
+ * over the next column — a copy button included, which then stood under
+ * the neighbour's ground when focused (WCAG 2.4.11, the accessibility
+ * review).
  */
-export const CLIPPED_CELL = 'truncate';
+export const CLIPPED_CELL = 'fve:truncate';
 
 /**
  * The width one column asks for, as every cell of it has to carry it.

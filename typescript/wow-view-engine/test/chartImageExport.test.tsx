@@ -200,6 +200,45 @@ describe('the chart as a picture', () => {
   });
 });
 
+/**
+ * The export window is drawn outside the toolbar it is opened from, so
+ * none of its controls takes itself for one of the bar's roving items:
+ * each writes its own `tabindex="0"`, and closing it gives the keyboard
+ * back to 「导出」 in the bar (`DetachedDialog`).
+ */
+describe('the export window opened from the bar', () => {
+  async function ownStops(user: ReturnType<typeof userEvent.setup>) {
+    const dialog = await screen.findByRole('dialog', { name: 'Export' });
+    expect(dialog.closest('[role="toolbar"]')).toBeNull();
+    const controls = [...dialog.querySelectorAll('button')].filter(
+      button => !button.disabled,
+    );
+    expect(controls.length).toBeGreaterThanOrEqual(3);
+    for (const control of controls)
+      expect(control.getAttribute('tabindex')).toBe('0');
+    await user.keyboard('{Escape}');
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    expect(document.activeElement).toBe(
+      screen.getByRole('button', { name: 'Export' }),
+    );
+  }
+
+  it('over a table, from the plain button', async () => {
+    const { user } = show(analysisConfig());
+    await user.click(await screen.findByRole('button', { name: 'Export' }));
+    await ownStops(user);
+  });
+
+  it('over a chart, from the menu’s 「导出数据…」', async () => {
+    const { user } = show();
+    await exportMenu(user);
+    await user.click(
+      await screen.findByRole('menuitem', { name: 'Export data…' }),
+    );
+    await ownStops(user);
+  });
+});
+
 describe('what a screen reader hears of a chart', () => {
   it('its name, then one sentence: the groups, the highest and the lowest', async () => {
     show();

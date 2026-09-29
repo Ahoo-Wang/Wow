@@ -51,7 +51,8 @@ export interface ChartReading {
   /**
    * The drawing in one sentence, said after its name (`chartSentence`):
    * how many groups, the highest and the lowest. Absent where there is no
-   * number to say, and on a metric card, whose face says it in words.
+   * number to say; a metric card's is its sparkline's, since its face says
+   * the headline in words.
    */
   sentence?: string;
   /** The readable table's column headers. */
@@ -445,7 +446,10 @@ function readMetric(
   return {
     name: nameOf(ctx, 'metric', [ctx.column(card?.metric)]),
     header: [
-      ctx.messages.label('label.chart.column.category'),
+      // The rows are the sparkline's periods, so the column is named by the
+      // dimension they are periods of — 「创建时间」, not 「类别」.
+      (data.trend?.length ? ctx.column(card?.trend?.x) : undefined) ??
+        ctx.messages.label('label.chart.column.category'),
       ctx.column(card?.metric) ??
         ctx.messages.label('label.chart.column.value'),
     ],

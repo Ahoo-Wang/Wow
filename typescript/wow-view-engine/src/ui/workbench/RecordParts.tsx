@@ -27,7 +27,7 @@ import {
   type RecordDetailSectionContext,
   type WorkbenchController,
 } from '../../react/index.js';
-import { useAnnouncer } from '../kit/Announcer.js';
+import { SurfaceAnnouncer, useAnnouncer } from '../kit/Announcer.js';
 import { Button } from '../components/button.js';
 import { CardSettings } from '../record/CardSettings.js';
 import { ColumnSettings } from '../columns/ColumnSettings.js';
@@ -437,8 +437,10 @@ export function RecordParts({
         {...(onExported ? { onExported } : {})}
       />
     ),
+    // The table's own sentences — a column's width, step by step — are
+    // said in this surface's one voice rather than a second region.
     result: (
-      <>
+      <SurfaceAnnouncer say={voice.say}>
         {surface.status}
         {table.layout === 'card' ? (
           <RecordCards
@@ -464,6 +466,7 @@ export function RecordParts({
             emptyWayOut={wayOut}
             onEmptyAction={onEmptyAction}
             onReleasedPins={setReleased}
+            {...(state?.title ? { name: state.title } : {})}
           />
         )}
 
@@ -493,7 +496,7 @@ export function RecordParts({
         {/* Last in the block, where nothing about it can be reached by a
             pointer or a tab: it draws nothing and is read, not seen. */}
         {announcement}
-      </>
+      </SurfaceAnnouncer>
     ),
     resultSlots: RESULT_SLOTS,
     resultWithoutQuery: table.filterRequired === true,

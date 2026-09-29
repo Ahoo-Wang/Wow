@@ -236,6 +236,11 @@ describe('a stretch of a panel’s time axis on a board (D33 Q52)', () => {
       }),
     );
     expect(onNavigate).not.toHaveBeenCalled();
+    // What the press did, said in the board's voice at once — before the
+    // panels run on it, whose outcome is said after it in the same voice.
+    await waitFor(() =>
+      expect(document.body.textContent).toContain('“Created” now filters by'),
+    );
     expect(runtime().getSnapshot().filters).toEqual({
       values: {
         created: {
@@ -253,9 +258,12 @@ describe('a stretch of a panel’s time axis on a board (D33 Q52)', () => {
         (await days()).map(row => row.hasAttribute('data-pressed')),
       ).toEqual([false, true, true, true]),
     );
-    // What the press did, said in the board's voice.
+    // Then what it came to: the list re-ran; the trend it was pressed on
+    // keeps its days and runs nothing, so it is not counted.
     await waitFor(() =>
-      expect(document.body.textContent).toContain('“Created” now filters by'),
+      expect(document.body.textContent).toContain(
+        'Filtered by Created; 1 panel updated.',
+      ),
     );
   });
 

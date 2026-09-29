@@ -131,7 +131,9 @@ describe('the result block', () => {
     // frame round frames.
     const grid = block('result-block')!;
     expect(grid.dataset.framed).toBeUndefined();
-    expect(grid.className).not.toContain('border');
+    expect(
+      [...grid.classList].some(name => /^fve:(.+:)?border/.test(name)),
+    ).toBe(false);
   });
 });
 

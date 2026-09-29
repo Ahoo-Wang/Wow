@@ -14,6 +14,7 @@
 import type { RefObject } from 'react';
 import {
   ArrowRightLeftIcon,
+  MoveIcon,
   CopyIcon,
   DownloadIcon,
   ExternalLinkIcon,
@@ -50,7 +51,21 @@ import { DropdownMenuSubContent } from '../kit/popups.js';
 import { RenameInput } from '../kit/RenameInput.js';
 import { ImageMenuItems } from '../analysis/ExportMenu.js';
 import type { ChartImageOffer } from '../analysis/imageExport.js';
+import type { ArrangeStep } from '../../dashboard/index.js';
 import type { PanelCommands } from './commands.js';
+import { usePanelVoice } from './DashboardArrange.js';
+
+/** The steps the arrange menu offers, in the order a reader looks for them. */
+const STEPS: readonly ArrangeStep[] = [
+  'left',
+  'right',
+  'up',
+  'down',
+  'wider',
+  'narrower',
+  'taller',
+  'shorter',
+];
 
 /** Whether a panel has anything to put in its menu at all. */
 export function hasMenu(commands: PanelCommands): boolean {
@@ -78,6 +93,12 @@ export interface PanelMenuProps {
    * Q28, D33 Q58); `null` while it draws none.
    */
   picture?: ChartImageOffer | null;
+  /**
+   * One step of the panel's place or size, while the board is built: the
+   * handle's arrow keys as menu items, for a pointer that cannot drag
+   * (WCAG 2.5.7). Answers whether the panel moved.
+   */
+  arrange?: (step: ArrangeStep) => boolean;
 }
 
 /**
@@ -93,11 +114,13 @@ export function PanelMenu({
   triggerRef,
   onExport,
   picture,
+  arrange,
 }: PanelMenuProps) {
   const messages = useViewMessages();
+  const say = usePanelVoice();
   const exports = commands.exportRows && onExport;
   const looks = commands.open || commands.refresh || exports;
-  const changes = commands.rename || commands.remove;
+  const changes = commands.rename || commands.remove || arrange;
   return (
     // An item that opens a dialog, or the title's box, or takes the panel
     // away (the keyboard lands on 「撤销」) is a `DialogMenuItem`: the menu
@@ -223,6 +246,39 @@ export function PanelMenu({
                 <CopyIcon />
                 {messages.label('label.panel.duplicate')}
               </DropdownMenuItem>
+            )}
+            {arrange && (
+              // The drag's and the arrow keys' steps as items, one step a
+              // click (D49's 「移到…」, for a grid): the submenu stays open
+              // so a panel is walked several steps by as many clicks, and
+              // each is said in the board's voice as a key step is.
+              <DropdownMenuSub>
+                <DropdownMenuSubTrigger data-slot="panel-arrange">
+                  <MoveIcon />
+                  {messages.label('label.panel.arrange-menu')}
+                </DropdownMenuSubTrigger>
+                <DropdownMenuSubContent>
+                  <DropdownMenuGroup>
+                    {STEPS.map(step => (
+                      <DropdownMenuItem
+                        key={step}
+                        data-step={step}
+                        closeOnClick={false}
+                        onClick={() => {
+                          if (!arrange(step))
+                            say?.(
+                              messages.label('label.panel.arrange-stuck', {
+                                title: name,
+                              }),
+                            );
+                        }}
+                      >
+                        {messages.label(`label.panel.step.${step}`)}
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuGroup>
+                </DropdownMenuSubContent>
+              </DropdownMenuSub>
             )}
             {commands.moveTo && (
               <DropdownMenuSub>

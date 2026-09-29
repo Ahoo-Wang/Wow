@@ -13,13 +13,13 @@ This page is the conformance statement of the View Engine's interface (`@ahoo-wa
 
 | Supports | Partially supports | Does not support | Not applicable |
 |---:|---:|---:|---:|
-| 36 | 5 | 0 | 14 |
+| 41 | 0 | 0 | 14 |
 
-The five partial criteria are 2.4.11 Focus Not Obscured, 2.5.7 Dragging Movements, 2.5.8 Target Size, 3.1.2 Language of Parts and 4.1.3 Status Messages; the reasons and the plan are under [Known gaps](#known-gaps). No criterion is "does not support", but this statement is **not** a third-party audit and **no** screen-reader software was driven — see the limits under [How it was evaluated](#how-it-was-evaluated).
+The five criteria this statement first gave as partial — 2.4.11 Focus Not Obscured, 2.5.7 Dragging Movements, 2.5.8 Target Size, 3.1.2 Language of Parts and 4.1.3 Status Messages — are supported since the [follow-up fixes](#fixed-since). No criterion is "does not support", but this statement is **not** a third-party audit and **no** screen-reader software was driven — see the limits under [How it was evaluated](#how-it-was-evaluated) and the one remaining gap under [Known gaps](#known-gaps).
 
 ## Scope
 
-- **What was evaluated**: the Wow repository's `main` (`b17f36a3c`) plus the fixes this page ships with, the `/ui` entry of `typescript/wow-view-engine`. The headless root entry and `/react` draw nothing and are out of scope.
+- **What was evaluated**: the Wow repository's `main` (`b17f36a3c`) plus the fixes this page ships with, and the known items fixed since (below), the `/ui` entry of `typescript/wow-view-engine`. The headless root entry and `/react` draw nothing and are out of scope.
 - **What the host owns**: the View Engine always sits in a host's page. The page title (2.4.2), the page language (3.1.1), a skip-to-content link, site-wide navigation, sign-in (3.3.8) and any help mechanism (3.2.6) are the host's, and a host that overrides the `--fve-*` colour variables owns their contrast (see [Theming the View Engine](./view-engine-theming.md#contrast-is-the-overrider-s-responsibility)). Most "not applicable" rows below are for this reason.
 - **Data**: the walkthrough ran in [Storybook](/storybook/)'s host shell, on the repository's retail data set and regression fixtures.
 
@@ -39,7 +39,7 @@ The five partial criteria are 2.4.11 Focus Not Obscured, 2.5.7 Dragging Movement
 
 ## Walkthrough results
 
-"Keyboard": whether the task can be done with the keyboard alone, the focus order, visible focus, traps, bypasses and whether shortcuts can be found. "Screen reader": names, roles, states, announcements and structure. ✅ can be done, ⚠️ can be done with a recorded gap, 🔧 found during the walk and fixed with this page.
+"Keyboard": whether the task can be done with the keyboard alone, the focus order, visible focus, traps, bypasses and whether shortcuts can be found. "Screen reader": names, roles, states, announcements and structure. ✅ can be done, ⚠️ can be done with a recorded gap, 🔧 found by the walk or listed as a known gap, and since fixed (with this page, or [since](#fixed-since)).
 
 ### Record workbench
 
@@ -48,9 +48,9 @@ The five partial criteria are 2.4.11 Focus Not Obscured, 2.5.7 Dragging Movement
 | Open a view | ✅ One Tab stop per view in the sidebar list, Enter opens it, focus stays on the list | ✅ "Opening the view", "N records in all" |
 | Filter | 🔧 Add → the field search box → tick → Esc back to Add; the new condition sits before Add, so Shift+Tab goes back to fill it in. **Discard edits and Clear dropped focus to the top of the page**; fixed: it lands on Apply | ✅ Every control of a condition is named after its field ("Warehouse value", "Negate the Warehouse condition"); after Apply, "Running the query" and "N records in all" |
 | Sort | ✅ The header row is one Tab stop, ←/→ walk the columns, Enter sorts, Shift+Enter adds a key | ✅ `aria-sort` on the headers; the button's name says what a press will do ("Sort by Order, descending") |
-| Resize a column | ⚠️ Alt+←/→ on a header (Shift for large steps), Enter back to automatic; written only in `aria-keyshortcuts`, not on screen | ⚠️ Every step re-runs the query and says "Running the query", "N records in all"; the new width is never said |
+| Resize a column | 🔧 Alt+←/→ on a header (Shift for large steps), Alt+Enter back to automatic; **written only in `aria-keyshortcuts`**, fixed: column settings write the keys out, and each row there has a width box | 🔧 **Every step re-ran the query and said "Running the query", "N records in all", never the width**; fixed: a width fetches nothing, and each step says "〈column〉 is N px wide" |
 | Page | 🔧 Next, Previous and the page box are all reachable; **reaching the last page (or back to the first) disabled the step just pressed and dropped focus to the top of the page**; fixed: it moves to the other step | ✅ Paging is a named `navigation`; the total is said after a page |
-| Column settings | 🔧 Search box → each row's handle, pin and summary; **the "Show 〈column〉" checkboxes could not be reached by Tab at all** (the toolbar's roving-focus context leaked into the popup); fixed. Esc takes two presses (the first closes the tooltip keyboard focus opened) | ✅ Moving a row says "Warehouse moved to position 3 of 4"; pinning says "Status is now pinned left" |
+| Column settings | 🔧 Search box → each row's handle, checkbox, summary, width and pin; **the "Show 〈column〉" checkboxes could not be reached by Tab at all** (the toolbar's roving-focus context leaked into the popup); fixed, at the root: the popup is drawn outside the toolbar. Esc takes two presses (the first closes the tooltip keyboard focus opened) | ✅ Moving a row says "Warehouse moved to position 3 of 4"; pinning says "Status is now pinned left" |
 | Export | ✅ A modal dialog: focus stays inside, Esc or Cancel returns to Export | ✅ The dialog is named; its content reads the count, the conditions, the columns and the file name |
 | Save as | ✅ More view actions menu → dialog; after creating, focus lands on the new view's name | ✅ "Opening the view" |
 
@@ -60,10 +60,10 @@ The five partial criteria are 2.4.11 Focus Not Obscured, 2.5.7 Dragging Movement
 |---|---|---|
 | Build a question in the tray | 🔧 Analysis opens the tray and moves focus into it; adding a dimension or a metric is a menu. **Adding the last groupable field disabled Add dimension and dropped focus to the top of the page**; fixed: it lands on the new dimension card | ✅ The tray is four named regions (range, dimensions, metrics, result); each change says "Running the query" and the number of groups |
 | Switch chart type | 🔧 Visualize opens the panel with focus on its heading; Tab reaches the chart types (a radiogroup: one Tab stop, the arrows choose). **The result toolbar's arrow keys skipped Visualize** (it was a second Tab stop inside the toolbar); fixed | ✅ Chart types are `radio`s; the disabled ones say why ("Needs two dimensions") |
-| Select a range | ✅ In the table layout the rows are one Tab stop, ↑/↓ walk them, Enter is this group and Shift+Enter the stretch between two rows. Chart marks are pointer-only (ECharts has no keyboard navigation); the table layout is the keyboard's way | ✅ "Selected Created between … . Follow-up menu open."; the rows' description explains Shift |
+| Select a range | 🔧 In the table layout the rows are one Tab stop, ↑/↓ walk them, Enter is this group and Shift+Enter the stretch between two rows. **Shift was said only in the rows' description**; fixed: the menu a single row opens writes it under the group. Chart marks are pointer-only (ECharts has no keyboard navigation); the table layout is the keyboard's way | ✅ "Selected Created between … . Follow-up menu open."; the rows' description explains Shift |
 | Follow up | 🔧 The follow-up menu: arrows choose, Enter runs. **"See these records" replaces the whole view and dropped focus to the top of the page; so did the origin bar's Back**; fixed: both land on the new view's name | ✅ The menu is named after the chosen group |
 | Export an image | ✅ PNG/SVG in the Export menu, Enter downloads, focus returns to Export | ✅ The browser announces the download |
-| Read a chart | — | ✅ A named `role=img` with a one-sentence summary on `aria-describedby` ("30 periods from … to …, rising overall; highest …, lowest …") beside a screen-reader-only data table with a `caption`; ⚠️ the metric card's sparkline has no summary sentence |
+| Read a chart | — | ✅ A named `role=img` with a one-sentence summary on `aria-describedby` ("30 periods from … to …, rising overall; highest …, lowest …") beside a screen-reader-only data table with a `caption`; 🔧 **the metric card's sparkline had no summary sentence**, fixed: it has the time axis's sentence, and its table's first column is named by the dimension |
 
 ### Dashboard
 
@@ -71,8 +71,8 @@ The five partial criteria are 2.4.11 Focus Not Obscured, 2.5.7 Dragging Movement
 |---|---|---|
 | Enter build mode | ✅ Edit → focus lands on the edit bar's "Editing"; after Save it returns to Edit | ✅ The edit bar is a named region; "Dashboard saved" |
 | Add a panel | ✅ Add menu → dialog (search, a kind filter, grouped list), Esc returns to Add | ✅ Grouped as system, shared and my views; views already on the board say so |
-| Move or resize a panel | ✅ Enter on the grip picks it up, the arrows move it, Shift+arrows resize, Enter drops, Esc puts it back: a complete keyboard equivalent of dragging | ✅ "Arranging …", "… is at column 2, row 3, 14 by 4", "… stays where it is", "… is back where it was" |
-| Filters | ✅ Every control on the filter bar is reachable; after Clear, focus lands on the first value | ⚠️ The board says nothing after a value changes; a panel's failure is not announced either |
+| Move or resize a panel | ✅ Enter on the grip picks it up, the arrows move it, Shift+arrows resize, Enter drops, Esc puts it back: a complete keyboard equivalent of dragging. 🔧 **A pointer that cannot drag had no way**; fixed: the panel's ⋯ has Move or resize, one click a step | ✅ "Arranging …", "… is at column 2, row 3, 14 by 4", "… stays where it is", "… is back where it was" |
+| Filters | ✅ Every control on the filter bar is reachable; after Clear, focus lands on the first value | 🔧 **The board said nothing after a value changed, nor of a panel's failure**; fixed: once its panels settle it says "Filtered by 〈filter〉; N panels updated.", with "M panels could not load." when some did not |
 | Cross-filter | ✅ Chart marks are pointer-only; the keyboard equivalent is the same filter on the filter bar, and rows of a table-layout panel can be pressed. The "Click filters “Warehouse”" badge in a panel's header is an explanatory button: focus shows the note, a press does nothing | ✅ The note is read as its description |
 
 ### Embeds
@@ -85,10 +85,11 @@ The five partial criteria are 2.4.11 Focus Not Obscured, 2.5.7 Dragging Movement
 ### Across the board
 
 - **Visible focus**: one indicator (1px `--ring` plus a 3px halo), drawn inside the cells for rows and cards; ≥3:1 in both themes, held by tests. Every control in the walk drew it.
-- **Obscured focus**: 🔧 in a dashboard panel, the copy buttons of the last rows of a list were wholly hidden under the sticky "All" row when focused; fixed (`scroll-padding`). ⚠️ When a column is narrower than its content, the overflowing cell covers most of a focused button in the cell to its right.
+- **Obscured focus**: 🔧 in a dashboard panel, the copy buttons of the last rows of a list were wholly hidden under the sticky "All" row when focused; fixed (`scroll-padding`). 🔧 When a column was narrower than its content, the overflowing cell covered most of a focused button in the cell to its right; fixed: a cell with a width clips its content, and a copy button stays whole in its own cell.
 - **Traps**: none. Modal dialogs keep focus by design, and Esc closes them and hands focus back to what opened them; popups and menus close when Tab leaves them.
 - **Bypassing blocks**: the engine gives named landmarks (`main` named after the view, the view list a `navigation`, the filters, the edit bar and the applied bar `region`s) and two heading levels; where the host's page has a `main` of its own, a workbench given `landmark="region"` draws its column as a `region` of the same name, so the page keeps one `main` (Q64, decided 2026-09-25); the toolbar, the header row and the result rows are one Tab stop each. Each row's checkbox and copy button are a Tab stop each, so a long list takes many presses — headings and landmarks are the faster way through. A skip-to-content link is the host's.
-- **Finding shortcuts**: the grips, the rows and the column-settings handles say their keys in their name or description; Alt+←/→ for column width and Shift for ranges are only in the screen reader's description, so a sighted keyboard user cannot find them. There are no single-character shortcuts.
+- **Finding shortcuts**: the grips, the rows and the column-settings handles say their keys in their name or description; Alt+←/→ for column width is written out in column settings, and Shift for a range in the follow-up menu a row opens. There are no single-character shortcuts.
+- **Language**: the surface writes its wording's language as `lang` (and so does every popup it opens), so Chinese wording inside an English page is read as Chinese.
 
 ## Fixed with this page
 
@@ -101,21 +102,30 @@ All in the same pull request, each with a regression test (a jsdom unit test or 
 | Adding the last groupable field disabled Add dimension and dropped focus to `body` | The menu hands focus to the new dimension card | `test/analysisFocus.test.tsx` |
 | "See these records" and the origin bar's Back replace the view and dropped focus to `body` | A view drawn in place of another takes focus on its name when focus fell | story `KeyboardFollowUpKeepsTheKeyboard` |
 | The result toolbar's arrows skipped Visualize | Visualize joins the toolbar's roving order | `test/analysisFocus.test.tsx` |
-| The column-settings and card-settings checkboxes could not be reached by Tab | An explicit `tabIndex` (root cause is a to-do) | `test/resultToolbar.test.tsx`, `test/cardSettings.test.tsx` |
+| The column-settings and card-settings checkboxes could not be reached by Tab | An explicit `tabIndex` at first; since, the root cause is fixed (see below) | `test/resultToolbar.test.tsx`, `test/cardSettings.test.tsx` |
 | Focus hidden under a sticky summary row (2.4.11) | The table's scroll port carries `scroll-padding-block` | story `FocusClearsTheStickyBands` |
+
+## Fixed since {#fixed-since}
+
+The known items this statement listed as gaps, fixed in one later pull request, each with a regression test:
+
+| Problem | Fix | Test |
+|---|---|---|
+| The toolbar's roving focus leaked into its popups: Safari's default Tab skipped the pin buttons and summary selects, and checkboxes needed a hand-written `tabIndex` | The popups of the column, card and sort settings are drawn outside the toolbar, joined to its buttons by `Popover.createHandle`, and so is the export window the record and analysis result toolbars open (`Dialog.createHandle`); the hand-written `tabIndex`es are gone and every control writes its own `tabindex="0"` | `test/resultToolbar.test.tsx`, `test/chartImageExport.test.tsx`; story `ToolbarPopupsKeepTheirTabStops` |
+| Panel move and resize, and column width, only by dragging (2.5.7) | A panel's ⋯ has Move or resize (move left, right, up, down; wider, narrower, taller, shorter), one click a step; column settings have a width box on every row | `test/dashboardPlacement.test.tsx`, `test/columnWidthInput.test.tsx`; stories `PanelArrangedByClicks`, `ColumnWidthByTyping` |
+| The 8px column-width drag area (2.5.8) | The width box is the equivalent control the spacing exception allows; the strip keeps clear of the sort button | as above |
+| Column width, order, pin and summaries re-ran the query and said so (4.1.3) | An edit that only changes how the rows are drawn runs nothing; a summary change asks for the aggregation alone; each width step says the width | `test/restyle.test.tsx`, `test/headerRoving.test.tsx`; story `WidthStepsSayTheWidth` |
+| A dashboard's filter change and panel failures were silent (4.1.3) | Said once the panels settle: which filters, how many panels, how many failed | `test/dashboardFilterOutcome.test.tsx`; story `FilterChangeIsSaid` |
+| Record tables had no name; the sparkline no summary, its table's first header "Category" | Tables are named by the view or the panel; the sparkline has the time axis's sentence, the header is the dimension's name | `test/tableNames.test.tsx`; story `TableNamedByItsView` |
+| An overflowing cell covered a focused copy button (2.4.11) | The width clip had lost its class prefix and did nothing; restored, and the copy cell lets its text give way | story `CopyStaysInANarrowCell` |
+| The surface declared no language (3.1.2) | `lang` from the wording catalogue on the surface and its popups; a host may override it | `test/surfaceLanguage.test.tsx` |
+| Alt+←/→ and Shift+Enter were only in the screen reader's words | Written in column settings and in the follow-up menu | `test/columnWidthInput.test.tsx`; story `KeyboardPicksAStretch` |
 
 ## Known gaps
 
-Each is in the "可访问性" section of the package's [todo.md](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/docs/design/todo.md) with its reason, done criteria and landing; when one is done, its row in the table below changes.
+The package's [todo.md](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/docs/design/todo.md) holds what is still open with its reason, done criteria and landing; when one is done, its row in the table below changes.
 
 - **A human screen-reader pass**: VoiceOver with Safari and NVDA with Firefox or Chrome have not been run. A 30-minute step-by-step checklist for it (the keys and the expected announcements per task, a results table and severity guidance, in Chinese) is the [screen-reader walkthrough](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/docs/design/screen-reader-walkthrough.md).
-- **2.5.7 Dragging Movements**: every ordered list (column order, sort priority, view order, series, funnel stages, levels, tabs, filter order, the panel order on a narrow screen) is carried by one handle, and a click on it opens “Move to the start / one place earlier / one place later / to the end”, so no drag is needed; on the wide grid, panel move and resize, and column width can still only be dragged with a pointer — each has a keyboard equivalent, but a pointer user who cannot drag has none.
-- **2.5.8 Target Size**: the column-width drag area is 8px wide.
-- **2.4.11 Focus Not Obscured**: an overflowing cell in a narrow column covers a focused button.
-- **3.1.2 Language of Parts**: the surface does not declare its language, so where its wording differs from the host page's language a screen reader reads it in the host's.
-- **4.1.3 Status Messages**: a dashboard's filter change and a panel's failure are not announced; resizing a column announces the query rather than the width.
-- **The toolbar popup's roving focus**: the root cause remains, and under Safari's default settings Tab skips the pin buttons and the summary selects in column settings.
-- **Other**: record tables have no accessible name; the metric card's sparkline has no summary sentence.
 
 ## Criterion by criterion
 
@@ -163,20 +173,20 @@ Each is in the "可访问性" section of the package's [todo.md](https://github.
 | 2.4.5 Multiple Ways | AA | Not applicable | The View Engine is not a set of pages; site navigation is the host's |
 | 2.4.6 Headings and Labels | AA | Supports | View, panel and region names say what they are |
 | 2.4.7 Focus Visible | AA | Supports | One focus indicator, ≥3:1 in both themes |
-| 2.4.11 Focus Not Obscured (Minimum) | AA | Partially supports | Sticky table headers and footers no longer hide focus (fixed in this pass); when a column is narrower than its content, an overflowing cell covers most of a focused button in the cell to its right |
+| 2.4.11 Focus Not Obscured (Minimum) | AA | Supports | Sticky table headers and footers do not hide focus; a column narrower than its content clips it, and a copy button stays whole inside its own cell |
 | 2.5.1 Pointer Gestures | A | Supports | No multipoint or path gesture is the only way: a range can be picked with two taps or the keyboard |
 | 2.5.2 Pointer Cancellation | A | Supports | Buttons act on release; dropping a drag where it started cancels it |
 | 2.5.3 Label in Name | A | Supports | Accessible names contain the visible words ("Order" → "Sort by Order, ascending") |
 | 2.5.4 Motion Actuation | A | Not applicable | Nothing is triggered by device motion |
-| 2.5.7 Dragging Movements | AA | Partially supports | Every ordered list's handle opens a menu of places on a click; panel move and resize on the wide grid and column width can only be dragged |
-| 2.5.8 Target Size (Minimum) | AA | Partially supports | The column-width drag area is 8px wide; other controls are ≥24px or meet the spacing exception |
+| 2.5.7 Dragging Movements | AA | Supports | Every ordered list's handle opens a menu of places on a click; a panel's ⋯ moves and resizes it one click a step; a column's width is typed in column settings |
+| 2.5.8 Target Size (Minimum) | AA | Supports | Controls are ≥24px or meet the spacing exception; the 8px column-width drag area meets the equivalent exception — the width box in column settings does the same |
 
 ### 3 Understandable
 
 | Criterion | Level | Result | Notes |
 |---|---|---|---|
 | 3.1.1 Language of Page | A | Not applicable | The page's `lang` is the host's |
-| 3.1.2 Language of Parts | AA | Partially supports | The surface writes no `lang`, so where its wording differs from the host's language a screen reader reads it in the host's |
+| 3.1.2 Language of Parts | AA | Supports | The surface and its popups write the wording catalogue's language as `lang` (a host may set its own) |
 | 3.2.1 On Focus | A | Supports | Focus only opens tooltips |
 | 3.2.2 On Input | A | Supports | A record view's filter waits for Apply; the analysis tray's auto run is a visible switch; changing a value updates the result without changing context |
 | 3.2.3 Consistent Navigation | AA | Supports | The three workbenches share one frame |
@@ -194,7 +204,7 @@ Each is in the "可访问性" section of the package's [todo.md](https://github.
 | Criterion | Level | Result | Notes |
 |---|---|---|---|
 | 4.1.2 Name, Role, Value | A | Supports | Chromium's accessibility tree has no unnamed interactive control; states are exposed with `aria-pressed`, `aria-expanded`, `aria-sort`, `aria-checked` and the like |
-| 4.1.3 Status Messages | AA | Partially supports | Results, errors, range selection, arranging and moving are announced; a dashboard's filter change and panel failures are not; resizing a column announces the query rather than the width |
+| 4.1.3 Status Messages | AA | Supports | Results, errors, range selection, arranging, moving and column widths are announced; a dashboard says what a filter change came to, failed panels included |
 
 ## Where to read more
 

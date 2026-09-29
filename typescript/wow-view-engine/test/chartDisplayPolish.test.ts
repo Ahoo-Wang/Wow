@@ -38,7 +38,7 @@ import {
   scatterLogRefused,
   scatterOption,
 } from '../src/ui/charts/scatterOption.js';
-import { direction, fittedDirection } from '../src/ui/charts/sentence.js';
+import { direction, fittedDirection } from '../src/ui/charts/sentenceParts.js';
 import { CHART_FALLBACK, type ChartTheme } from '../src/ui/charts/theme.js';
 import { tooltipHtml } from '../src/ui/charts/tooltip.js';
 import { defaultMessages, formatMessage } from '../src/ui/kit/messages.js';

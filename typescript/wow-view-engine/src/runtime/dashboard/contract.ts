@@ -96,6 +96,15 @@ export interface DashboardRuntimeState extends ViewRuntimeState<DashboardViewCon
    * the board dirty. Building the board lets it go.
    */
   readerRefresh: RefreshConfig | null;
+  /**
+   * How many times the filters' values have gone out to the panels: one
+   * more for each sync that carries values other than the last one's, and
+   * for each run of a change of them (`FilterValues`, a moment after it)
+   * even when that comes to the values already out — so a change undone
+   * within the moment is seen to have run nothing. What a panel runs at
+   * that step is what the change asked of it (`useFilterOutcome`).
+   */
+  filtersRun: number;
 }
 
 /**

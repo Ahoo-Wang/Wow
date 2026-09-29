@@ -17,6 +17,7 @@ import { drawnStages, dropText } from './funnelOption.js';
 import { gaugeText, reachedShare } from './gaugeOption.js';
 import { drawnFlow, drawnParts } from './hierarchyOption.js';
 import type { ReadingContext } from './reading.js';
+import { fittedDirection, highLow, said, type Named } from './sentenceParts.js';
 
 /**
  * A chart in one sentence, said after its name (analysis-echarts.md 2.3):
@@ -29,7 +30,8 @@ import type { ReadingContext } from './reading.js';
  * Built from `ChartData`, as the table is, so it says what is drawn: a
  * filled-in 0 is no measured group and is not the lowest, and 「其他」 is
  * named as the chart names it. A metric card says its number in words on
- * its own face, and has no sentence; neither has a chart of no number.
+ * its own face, and its sentence is its sparkline's; a chart of no number
+ * has none.
  */
 export function chartSentence(
   data: ChartData,
@@ -233,8 +235,47 @@ export function chartSentence(
         })),
       );
     case 'metric':
-      return undefined;
+      return trendSentence(data, spec, ctx);
   }
+}
+
+/**
+ * A metric card's sparkline, in the sentence a time axis has: from its first
+ * period to its last, which way it went, its highest and its lowest. The
+ * card says its headline number in words on its own face; the line under it
+ * was a picture nobody could read, named and nothing more. No trend, or one
+ * of a single period, says nothing — the face already has.
+ */
+function trendSentence(
+  data: Extract<ChartData, { type: 'metric' }>,
+  spec: ChartSpec | undefined,
+  ctx: ReadingContext,
+): string | undefined {
+  const card = spec?.metric;
+  const points = data.trend ?? [];
+  if (points.length < 2) return undefined;
+  const bounds = highLow(
+    points.map(point => ({
+      name: ctx.label(card?.trend?.x, point.x),
+      // A period the card filled in had no records; it is no lowest.
+      value: point.filled === true ? null : point.value,
+      alias: card?.metric,
+    })),
+  );
+  if (!bounds) return undefined;
+  const first = points[0];
+  const last = points[points.length - 1];
+  return ctx.messages.label('label.chart.sentence.time', {
+    count: points.length,
+    first: ctx.label(card?.trend?.x, first?.x),
+    last: ctx.label(card?.trend?.x, last?.x),
+    trend: ctx.messages.label(
+      `label.chart.sentence.${fittedDirection(
+        points.map(point => point.value ?? 0),
+      )}`,
+    ),
+    ...said(ctx, bounds),
+  });
 }
 
 /**
@@ -276,14 +317,6 @@ function profileReadings(
       });
 }
 
-/** One measured number of the chart, and what it is called. */
-interface Named {
-  name: string;
-  value: number | null;
-  /** The column it prints as. */
-  alias?: string;
-}
-
 /** 「共 N 组，最高 … ，最低 …」 over the measured numbers; none without one. */
 function extremes(
   ctx: ReadingContext,
@@ -296,34 +329,6 @@ function extremes(
     count,
     ...said(ctx, bounds),
   });
-}
-
-function highLow(
-  items: readonly Named[],
-):
-  | { high: Named & { value: number }; low: Named & { value: number } }
-  | undefined {
-  let high: (Named & { value: number }) | undefined;
-  let low: (Named & { value: number }) | undefined;
-  for (const item of items) {
-    if (typeof item.value !== 'number') continue;
-    const measured = { ...item, value: item.value };
-    if (!high || measured.value > high.value) high = measured;
-    if (!low || measured.value < low.value) low = measured;
-  }
-  return high && low ? { high, low } : undefined;
-}
-
-function said(
-  ctx: ReadingContext,
-  { high, low }: NonNullable<ReturnType<typeof highLow>>,
-) {
-  return {
-    high: high.name,
-    highValue: ctx.label(high.alias, high.value),
-    low: low.name,
-    lowValue: ctx.label(low.alias, low.value),
-  };
 }
 
 /**
@@ -465,39 +470,6 @@ function standing(
   series: readonly { key: string }[],
 ): number {
   return series.reduce((sum, entry) => sum + (values[entry.key] ?? 0), 0);
-}
-
-/**
- * Which way a run of values went, read along all of them: the least-squares
- * line through them, from where it starts to where it ends (`direction`).
- * One outlying first or last period no longer decides it.
- */
-export function fittedDirection(
-  values: readonly number[],
-): 'up' | 'down' | 'flat' {
-  const n = values.length;
-  if (n < 2) return 'flat';
-  const meanX = (n - 1) / 2;
-  const meanY = values.reduce((sum, value) => sum + value, 0) / n;
-  let across = 0;
-  let spread = 0;
-  values.forEach((value, index) => {
-    across += (index - meanX) * (value - meanY);
-    spread += (index - meanX) ** 2;
-  });
-  const slope = spread === 0 ? 0 : across / spread;
-  return direction(meanY - slope * meanX, meanY + slope * meanX);
-}
-
-/**
- * Which way a line went from its first point to its last: up or down past a
- * twentieth of where it started, level otherwise.
- */
-export function direction(from: number, to: number): 'up' | 'down' | 'flat' {
-  const change = to - from;
-  const scale = Math.abs(from) || Math.abs(to);
-  if (scale === 0 || Math.abs(change) <= scale * 0.05) return 'flat';
-  return change > 0 ? 'up' : 'down';
 }
 
 /** A scatter: how many points, and the span each axis's metric runs over. */

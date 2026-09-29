@@ -12,6 +12,7 @@
  */
 
 import { QueryErrorCodes } from '@ahoo-wang/wow-client';
+import { dequal } from 'dequal';
 import type {
   DataViewConfig,
   RecordData,
@@ -19,8 +20,8 @@ import type {
   RecordPageTarget,
   RecordViewConfig,
 } from '../model/index.js';
-import { pageAfterShrink } from '../record/index.js';
-import { firstPageOf } from './execute.js';
+import { pageAfterShrink, restyleRecord } from '../record/index.js';
+import { executeSummaries, firstPageOf } from './execute.js';
 import {
   fetchExportRows,
   isExportCancelled,
@@ -29,6 +30,7 @@ import {
 } from './exportRows.js';
 import { fetchRecord } from './fetchRecord.js';
 import { isCalledOff } from './failures.js';
+import { restyledOnly } from './restyle.js';
 import { withScopeFilter } from './scope.js';
 import type { SourceFailure } from './sourceReason.js';
 import type { ProjectedView } from './source.js';
@@ -124,6 +126,49 @@ export class RecordDataViewRuntime
         void this.context.queryFailed('record', error);
       throw error;
     });
+  }
+
+  /**
+   * A draft that changes only how the rows on screen are drawn keeps them:
+   * the page, its selection and the reader's place stay, and only the
+   * columns are projected again (`restyleRecord`). One whose summaries
+   * changed too asks the source for the summary row alone, quietly: the
+   * query stays `success` and the rows stay drawn while it is out. Either
+   * way the page is not fetched, and nothing says 「正在查询」 or draws the
+   * table as waiting over rows that stay.
+   *
+   * Only over a result that landed and is current: while a query is out (a
+   * quiet one included), or after one failed, the rows on screen are not the answer to the config
+   * that ran, and the whole query runs as before. And only for a draft that
+   * differs from what ran: an apply that changes nothing — Apply with
+   * nothing pending, Enter in the search box, a host's `apply()` — is a
+   * request to ask again, and runs whole from the first page.
+   */
+  protected override restyle(draft: RecordViewConfig): (() => void) | null {
+    const result = this.state.result;
+    // Settled, and on what is applied: a quiet request (the summary row)
+    // leaves the status `success` while `applied` is ahead of the rows.
+    const { query, applied } = this.state;
+    if (!result || query.status !== 'success' || result.own !== applied)
+      return null;
+    const data = result.data;
+    if (data.kind !== 'record' || dequal(result.own, draft)) return null;
+    const change = restyledOnly(result.own, draft);
+    if (change === null) return null;
+    const view = restyleRecord(this.context.definition, draft, data.view);
+    if (change === 'summaries')
+      return () =>
+        this.execute({
+          keepSelection: true,
+          quiet: true,
+          fetch: (config, controller) =>
+            executeSummaries(this.context, config, view, controller),
+        });
+    const config = withScopeFilter(draft, this.scopeFilter);
+    return () =>
+      this.store.setState({
+        result: { ...result, config, own: draft, data: { ...data, view } },
+      });
   }
 
   /** A new question starts on the first page, with nothing picked. */

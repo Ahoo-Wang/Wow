@@ -371,17 +371,16 @@ function isCursorPage(
 }
 
 /**
- * Turns a page of rows into what a table or a card list renders. Both paging
- * modes arrive here, and the mode stays visible in the result so the UI knows
- * whether it has a page number or a cursor to move on with.
+ * The part of a record view that is drawn from the config alone — the
+ * columns and the card — and not from the rows.
+ *
+ * `projectRecord` builds a view from both; `restyleRecord` builds only this
+ * part again, over rows that are already on screen.
  */
-export function projectRecord(
+function drawnParts(
   definition: DataViewDefinition,
   config: RecordViewConfig,
-  page: PagedList<RecordData> | CursorPage<RecordData>,
-  pageIndex = 1,
-  limits: Pick<RuntimeLimits, 'maxPageWindow'> = DEFAULT_RUNTIME_LIMITS,
-): RecordView {
+): Pick<RecordView, 'columns' | 'card'> & { rowKey: string } {
   const rowKey = definition.record?.rowKey;
   if (!rowKey)
     throw new Error(
@@ -434,6 +433,38 @@ export function projectRecord(
     }),
   );
 
+  return { columns, card: cardView(config.card, byName), rowKey };
+}
+
+/**
+ * The same rows drawn under another config that asks the source the same
+ * question: a column wider, moved or pinned (`restyledOnly` in the runtime
+ * decides that it is only that). The rows and the paging stay the ones that
+ * landed; the columns and the card are projected again, so a presentation
+ * edit is on screen without a round trip to the source.
+ */
+export function restyleRecord(
+  definition: DataViewDefinition,
+  config: RecordViewConfig,
+  view: RecordView,
+): RecordView {
+  const { columns, card } = drawnParts(definition, config);
+  return { ...view, columns, card };
+}
+
+/**
+ * Turns a page of rows into what a table or a card list renders. Both paging
+ * modes arrive here, and the mode stays visible in the result so the UI knows
+ * whether it has a page number or a cursor to move on with.
+ */
+export function projectRecord(
+  definition: DataViewDefinition,
+  config: RecordViewConfig,
+  page: PagedList<RecordData> | CursorPage<RecordData>,
+  pageIndex = 1,
+  limits: Pick<RuntimeLimits, 'maxPageWindow'> = DEFAULT_RUNTIME_LIMITS,
+): RecordView {
+  const { columns, card, rowKey } = drawnParts(definition, config);
   const rows = page.list.map(data => ({
     key: readPath(data, rowKey) as RecordKey,
     data,
@@ -441,7 +472,7 @@ export function projectRecord(
 
   return {
     columns,
-    card: cardView(config.card, byName),
+    card,
     rows,
     // The size is the one this config ran at: the pager divides by it, and
     // the draft's may already be another one on its way.
