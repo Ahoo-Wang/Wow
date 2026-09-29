@@ -36,8 +36,13 @@ for (const file of storyFiles) {
   ))
     targets.add(decodeURIComponent(match[1]));
   // The host shell builds its links as `./?path=/story/${story}` from the
-  // `story` of each navigation item, so those literals are the targets.
-  if (source.includes('./?path=/story/${story}'))
+  // `story` of each navigation item — `storyHref(story)`, beside the retail
+  // host's route table (`shared/sceneNavigation.ts`) — so those literals are
+  // the targets.
+  if (
+    source.includes('./?path=/story/${story}') ||
+    source.includes('storyHref(')
+  )
     for (const match of source.matchAll(/\bstory:\s*'([^']+)'/g)) {
       targets.add(match[1]);
       hostTargets++;

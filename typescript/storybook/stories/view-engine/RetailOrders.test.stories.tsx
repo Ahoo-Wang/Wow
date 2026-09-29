@@ -298,3 +298,29 @@ export const FilterBandOnAPhone: Story = {
     ).toBeVisible();
   },
 };
+
+/**
+ * The host's navigation as the engine gives it (host-integration.md 4.3):
+ * the retail workbenches in the shell's column are resources of the retail
+ * host, their links where its route table puts them and the one on screen
+ * marked by the address, all read off `useViewNavigation`
+ * (`shared/sceneNavigation.ts`) — the shell only names them.
+ */
+export const HostNavigation: Story = {
+  ...DisplayOrderWorkbench,
+  play: async () => {
+    const places = within(
+      await screen.findByRole('navigation', { name: '应用导航' }),
+    );
+    const here = places.getByRole('link', { name: '订单工作台' });
+    await expect(here).toHaveAttribute('aria-current', 'page');
+    await expect(here.getAttribute('href')).toBe(
+      './?path=/story/view-engine-业务场景-订单工作台--order-workbench-scene',
+    );
+    const elsewhere = places.getByRole('link', { name: '售后工作台' });
+    await expect(elsewhere).not.toHaveAttribute('aria-current');
+    await expect(elsewhere.getAttribute('href')).toBe(
+      './?path=/story/view-engine-业务场景-售后工作台--after-sale-workbench',
+    );
+  },
+};

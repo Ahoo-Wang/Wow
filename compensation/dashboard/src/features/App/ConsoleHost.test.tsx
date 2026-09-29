@@ -11,14 +11,10 @@
  * limitations under the License.
  */
 
-import type { ViewNavigation, ViewSource } from "@ahoo-wang/wow-view-engine";
-import { resolveNavigation } from "@ahoo-wang/wow-view-engine/testing";
+import type { ViewSource } from "@ahoo-wang/wow-view-engine";
 import type * as Ui from "@ahoo-wang/wow-view-engine/ui";
 import { EmbeddedView } from "@ahoo-wang/wow-view-engine/ui";
-import type {
-  ViewBinding,
-  ViewEngineProviderProps,
-} from "@ahoo-wang/wow-view-engine/ui";
+import type { ViewBinding, ViewHostProps } from "@ahoo-wang/wow-view-engine/ui";
 import {
   act,
   fireEvent,
@@ -31,8 +27,6 @@ import { createMemoryRouter, Outlet, RouterProvider } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { I18nProvider } from "@/i18n.tsx";
 import { EXECUTION_FAILED } from "@/views/executionFailed.ts";
-import { EXECUTION_HISTORY } from "@/views/executionHistory.ts";
-import { OVERVIEW, OVERVIEW_BOARD } from "@/views/overview.ts";
 import ExecutionsPage from "../Executions/ExecutionsPage.tsx";
 import type { ExecutionCommands } from "../Executions/executionCommands.ts";
 import { withViews } from "./withViews.tsx";
@@ -72,41 +66,32 @@ function commands(): ExecutionCommands {
 }
 
 /**
- * What the host hands its providers: the outer one the engine, the words,
- * the route and where each resource lives; the page's own the failed
+ * What the console hands its hosts: the outer one the engine, the router,
+ * the words, the theme and the route table; the page's own the failed
  * executions' reading and commands. Captured as they are rendered.
  */
 const seen = vi.hoisted(() => ({
-  outer: undefined as ViewEngineProviderProps | undefined,
-  inner: undefined as ViewEngineProviderProps | undefined,
+  outer: undefined as ViewHostProps | undefined,
+  inner: undefined as ViewHostProps | undefined,
 }));
 
 vi.mock("@ahoo-wang/wow-view-engine/ui", async (actual) => {
   const ui = await actual<typeof Ui>();
   return {
     ...ui,
-    ViewEngineProvider: (props: ViewEngineProviderProps) => {
+    ViewHost: (props: ViewHostProps) => {
       if (props.engine) seen.outer = props;
       else seen.inner = props;
-      return <ui.ViewEngineProvider {...props} />;
+      return <ui.ViewHost {...props} />;
     },
   };
 });
 
-/** What the page's provider, else the host's, binds to `definitionId`. */
+/** What the page's host, else the console's, binds to `definitionId`. */
 function bindingOf(definitionId: string): ViewBinding | undefined {
-  const find = (props: ViewEngineProviderProps | undefined) =>
+  const find = (props: ViewHostProps | undefined) =>
     props?.bindings?.find((entry) => entry.definitionId === definitionId);
   return find(seen.inner) ?? find(seen.outer);
-}
-
-/**
- * A way off, as the engine hands it to the host's route: the engine's own
- * resolution (`/testing`'s `resolveNavigation`) over the console's own
- * bindings, handed to the console's own `navigate`.
- */
-function go(to: ViewNavigation): void {
-  seen.outer?.navigate?.(resolveNavigation(to, bindingOf));
 }
 
 function mount(path: string, sent: ExecutionCommands = commands()) {
@@ -149,7 +134,7 @@ function RoutedOutlet() {
   return <Outlet />;
 }
 
-describe("ViewsHost", () => {
+describe("ConsoleHost", () => {
   beforeEach(() => {
     localStorage.setItem("wow-dashboard-locale", "en");
     seen.outer = undefined;
@@ -158,92 +143,23 @@ describe("ViewsHost", () => {
   });
   afterEach(() => vi.restoreAllMocks());
 
-  describe("routes each way off through the console's bindings (review of #3761, 2)", () => {
-    const view = (definitionId: string): ViewNavigation => ({
-      kind: "view",
-      definitionId,
-      instanceId: `system:${definitionId}:all`,
-      scopeFilter: null,
-      filter: null,
+  it("hosts the engine on the router, in the porcelain preset and the reader's mode", () => {
+    mount("/other");
+    expect(seen.outer?.router?.location.pathname).toBe("/other");
+    expect(seen.outer).toMatchObject({
+      preset: "porcelain",
+      rememberColorMode: "compensation-console.color-mode",
     });
-
-    it("opens a failed executions' view on its workbench, handed over", () => {
-      const router = mount("/other");
-      const to = view(EXECUTION_FAILED);
-      act(() => go(to));
-      expect(router.state.location.pathname).toBe("/executions");
-      expect(router.state.location.search).toBe(
-        "?view=system%3Aexecution-failed%3Aall",
-      );
-      expect(router.state.location.state).toEqual({ handOver: to });
-    });
-
-    it("opens a history view nobody saved on the event stream's default", () => {
-      const router = mount("/other");
-      const to: ViewNavigation = {
-        kind: "unsaved",
-        definitionId: EXECUTION_HISTORY,
-        title: "These events",
-        config: {} as never,
-        scopeFilter: null,
-      };
-      act(() => go(to));
-      expect(router.state.location.pathname).toBe("/events");
-      expect(router.state.location.search).toBe("");
-      expect(router.state.location.state).toEqual({ handOver: to });
-    });
-
-    it("goes back to the overview at home, and to another board on the workbench, under its filters", () => {
-      const router = mount("/other");
-      const filters = { values: {} };
-      act(() =>
-        go({
-          kind: "dashboard",
-          definitionId: OVERVIEW,
-          instanceId: OVERVIEW_BOARD,
-          filters,
-        }),
-      );
-      expect(router.state.location.pathname).toBe("/");
-      expect(router.state.location.state).toEqual({ filters });
-      act(() => void router.navigate("/other"));
-      act(() =>
-        go({
-          kind: "dashboard",
-          definitionId: OVERVIEW,
-          instanceId: "mine",
-          filters,
-        }),
-      );
-      expect(router.state.location.pathname).toBe("/boards");
-      expect(router.state.location.search).toBe("?view=mine");
-      act(() => void router.navigate("/other"));
-      act(() =>
-        go({
-          kind: "dashboard",
-          definitionId: OVERVIEW,
-          instanceId: "mine",
-          filters,
-          tab: "week",
-        }),
-      );
-      // The tab a board opens on rides along, as the engine's route says.
-      expect(router.state.location.state).toEqual({ filters, tab: "week" });
-    });
-
-    it("opens another site apart, and a page of the console in place", () => {
-      const router = mount("/other");
-      const open = vi.spyOn(window, "open").mockReturnValue(null);
-      act(() => go({ kind: "url", url: "//example.com/a" }));
-      expect(open).toHaveBeenCalledWith(
-        "//example.com/a",
-        "_blank",
-        "noopener,noreferrer",
-      );
-      expect(router.state.location.pathname).toBe("/other");
-      act(() => go({ kind: "url", url: "/events" }));
-      expect(router.state.location.pathname).toBe("/events");
-    });
+    expect(seen.outer?.colorMode).toBeUndefined();
+    expect(document.documentElement).toHaveAttribute(
+      "data-fve-preset",
+      "porcelain",
+    );
+    // Where each resource lives is the route table, and nothing else.
+    expect(
+      seen.outer?.bindings?.map(({ definitionId }) => definitionId),
+    ).toEqual(["execution-failed", "execution-history", "overview"]);
+    expect(seen.outer?.navigate).toBeUndefined();
   });
 
   it("follows a real surface's way off to the failed executions' workbench (third review of #3761, 5)", async () => {
@@ -333,15 +249,15 @@ describe("ViewsHost", () => {
   });
 
   describe("keeps the bindings still while the address moves (review of #3761, 4)", () => {
-    it("rebinds the failed executions only when the record open changes", async () => {
+    it("binds the failed executions once per page: the record open is the engine's to keep", async () => {
       const router = mount("/other");
       const first = bindingOf(EXECUTION_FAILED);
       expect(first?.reading).toBeDefined();
+      expect(first?.reading?.open).toBeUndefined();
       await act(() => router.navigate("/other?view=mine"));
       expect(bindingOf(EXECUTION_FAILED)).toBe(first);
       await act(() => router.navigate("/other?view=mine&id=EF-1"));
-      expect(bindingOf(EXECUTION_FAILED)).not.toBe(first);
-      expect(bindingOf(EXECUTION_FAILED)?.reading?.open).toBe("EF-1");
+      expect(bindingOf(EXECUTION_FAILED)).toBe(first);
     });
   });
 });

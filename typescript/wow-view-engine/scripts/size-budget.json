@@ -17,6 +17,10 @@
       "gzip": 111000,
       "reason": "Raised 2026-09-28 with admit (host-integration.md 6, H1), about 17% over the 94,485 B measured then: admit is the engine's own admission — every kernel, the descriptor narrowing and the board checks — run in a host's test, so the entry now weighs about what the root does. It is a test entry; a bundle that takes memorySource alone drops admit. mingo is still external, an optional peer the host installs."
     },
+    "./react-router": {
+      "gzip": 500,
+      "reason": "Set 2026-09-28 with the router port's adapter (host-integration.md 4.2, H2b), about 19% over the 419 B measured then: one hook over React Router, which stays external, an optional peer the host installs."
+    },
     "echarts chunk": {
       "gzip": 620,
       "reason": "Set 2026-09-25, about 17% over the 528 B measured then. The chunk /ui loads by import() on a chart's first use; echarts itself is external, bundled by the host."

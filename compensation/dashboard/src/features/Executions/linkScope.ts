@@ -17,9 +17,9 @@ import {
   type FilterTree,
 } from "@ahoo-wang/wow-view-engine";
 import { EXECUTION_FAILED } from "@/views/executionFailed.ts";
-import { EXECUTIONS_PATH, VIEW_PARAM } from "@/views/navigation.ts";
+import { EXECUTIONS_PATH, VIEW_PARAM } from "@/views/routes.ts";
 
-export { EXECUTIONS_PATH, VIEW_PARAM } from "@/views/navigation.ts";
+export { EXECUTIONS_PATH, VIEW_PARAM } from "@/views/routes.ts";
 
 /**
  * The failed executions' page, and the route parameters it reads: the open

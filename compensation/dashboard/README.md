@@ -16,7 +16,7 @@ VITE_API_BASE_URL=http://127.0.0.1:18083/ \
 pnpm --dir compensation/dashboard dev --host 127.0.0.1
 ```
 
-Wow 客户端与视图引擎来自同仓的工作区包 `@ahoo-wang/wow-client`、`@ahoo-wang/wow-react`、`@ahoo-wang/wow-view-engine`（`workspace:*`），它们通过 `dist` 被引用，所以第二行先构建 Dashboard 依赖的工作区包；修改 `typescript/` 下的 SDK 后重新执行这一行，SDK 与视图引擎的改动在同一个 PR 里由 Dashboard 的构建与测试验证。`src/main.tsx` 引入视图引擎的 `styles.css` 与 porcelain 预设（`themes/porcelain.css`）；`index.html` 在 `<html>` 上写 `data-fve-preset="porcelain"`、在 `<body>` 上挂 `fve-tokens`，控制台自己的外壳与引擎的视图读同一组角色，明暗由 `<html class="dark">` 决定：缺省跟随系统，顶栏可钉亮或暗、记在本机（[重写方案](docs/design/console-redesign.md) §6）。其余 Fetcher 包来自 npm。
+Wow 客户端与视图引擎来自同仓的工作区包 `@ahoo-wang/wow-client`、`@ahoo-wang/wow-react`、`@ahoo-wang/wow-view-engine`（`workspace:*`），它们通过 `dist` 被引用，所以第二行先构建 Dashboard 依赖的工作区包；修改 `typescript/` 下的 SDK 后重新执行这一行，SDK 与视图引擎的改动在同一个 PR 里由 Dashboard 的构建与测试验证。`src/main.tsx` 引入视图引擎的 `styles.css` 与 porcelain 预设（`themes/porcelain.css`）；控制台是视图引擎的宿主（`src/features/App/ConsoleHost.tsx` 的 `ViewHost`：引擎、React Router、语言、路由表 `src/views/routes.ts`，以及 porcelain 与品牌色），它把预设与明暗写在 `<html>` 上——缺省跟随系统，顶栏可钉亮或暗、记在本机；控制台自己的外壳与弹层挂 `fve-tokens`，与引擎的视图读同一组角色（[重写方案](docs/design/console-redesign.md) §6）。其余 Fetcher 包来自 npm。
 
 `VITE_API_BASE_URL` 是所有 Fetcher 请求的基地址。`.env.development` 默认指向开发集群服务；连接本地服务时必须像上面一样显式覆盖。本地补偿服务的安全启动命令见[补偿参考案例](../../documentation/docs/zh/reference/example/compensation.md#本地服务启动、健康与路由验证)。
 

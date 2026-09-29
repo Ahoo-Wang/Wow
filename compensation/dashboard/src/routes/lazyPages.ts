@@ -13,12 +13,12 @@
 import { lazy } from "react";
 
 /**
- * The pages' one host: the console's view engine and what each resource
- * does here (`ViewsHost`), in a chunk of its own beside the pages, so the
- * shell draws before the engine arrives.
+ * The console's commands on the failed executions, bound for every page
+ * (`PageCommands`): in a chunk of their own beside the pages, with the
+ * reading of an execution they bring.
  */
-export const LazyViewsLayout = lazy(
-  () => import("../features/App/ViewsHost.tsx"),
+export const LazyPageLayout = lazy(
+  () => import("../features/App/PageCommands.tsx"),
 );
 
 /** Each page in its own chunk: the engine's workbenches and board are large. */

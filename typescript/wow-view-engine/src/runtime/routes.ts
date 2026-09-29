@@ -60,11 +60,47 @@ export interface ViewRoute {
  */
 export type ViewDestination = ViewRoute | ViewNavigation;
 
-/** Where a view or a board of a definition lives in the host's address. */
+/**
+ * Where a view or a board of a definition lives in the host's address.
+ * `target` is the way off it was asked for; it is absent where the engine
+ * asks for a link rather than a way off — a resource's or a system view's
+ * place in the host's navigation (`useViewNavigation`).
+ */
 export type ViewRouteOf = (
   instanceId: string | null,
-  target: RoutedTarget,
+  target?: RoutedTarget,
 ) => string;
+
+/**
+ * Where the host's router is (host-integration.md 4.2): what the engine
+ * reads the open view (`?view=`), the open record (`?id=`) and what a page
+ * was handed (`ViewRouteState`, the history entry's state) from.
+ */
+export interface ViewLocation {
+  /** The path, without its search: `/orders`. */
+  pathname: string;
+  /** The search, with its `?`, or empty. */
+  search: string;
+  /** The state of the history entry, as the router keeps it. */
+  state: unknown;
+}
+
+/**
+ * The router port (host-integration.md 4.2): the host's router as the
+ * engine reads and moves it — the one bridge to it, whichever library it
+ * is. `/react-router`'s `useReactRouter` is one; a host on another router
+ * writes these two members over it.
+ */
+export interface ViewRouter {
+  /** Where the router is now; a new object as it moves. */
+  readonly location: ViewLocation;
+  /**
+   * Goes to `path` — the host's path, its search included — handing the
+   * page there `state` as the history entry's; `replace` replaces the
+   * entry rather than adding one.
+   */
+  go(path: string, options?: { state?: unknown; replace?: boolean }): void;
+}
 
 /**
  * `to` through the route of the definition it leads to, where it has one

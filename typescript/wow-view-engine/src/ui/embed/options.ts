@@ -52,7 +52,7 @@ export type EmbedSize = 'content' | 'fill';
 
 /** What both embeds take, the view or the board they show aside. */
 export interface EmbedBaseProps {
-  /** The engine; the `ViewEngineProvider`'s when left out. */
+  /** The engine; the `ViewHost`'s when left out. */
   engine?: ViewEngine;
   /** The saved view or board to show; a code-declared system one works too. */
   instanceId: string;
@@ -84,9 +84,9 @@ export interface EmbedBaseProps {
   openInWorkbench?: boolean;
   /**
    * The host's route: 在工作台中打开, the follow-up menu on a group and a
-   * panel's destination go through it (`ViewNavigation`). The package
-   * never touches the address; without it — here or on the
-   * `ViewEngineProvider` — none of them exist.
+   * panel's destination go through it (`ViewNavigation`). Without it —
+   * here, or the `ViewHost`'s `router` or `navigate` — none of them
+   * exist.
    */
   onNavigate?(to: ViewNavigation): void;
   /** The mode, as `ViewSurface` takes it: follows the host when left out. */

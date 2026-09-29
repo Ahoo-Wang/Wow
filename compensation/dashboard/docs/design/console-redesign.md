@@ -133,8 +133,8 @@ flowchart LR
 
 ## 6 外壳与主题
 
-- **预设**：`porcelain`（原生桌面感：系统字体、12px 圆角、柔和阴影；用户 2026-09-26 定），经 `<html data-fve-preset="porcelain">`；品牌色走 `--fve-brand`（Wow 的品牌蓝）。
-- **明暗**：`<html class="dark">` 由控制台写：缺省跟随系统（`prefers-color-scheme`），顶栏可钉亮或暗，记在本机。
+- **预设**：`porcelain`（原生桌面感：系统字体、12px 圆角、柔和阴影；用户 2026-09-26 定），品牌色是 Wow 的品牌蓝；两者都写在视图宿主上（`ConsoleHost` 的 `preset`、`brand`，H2b），由它点名在 `<html>` 上。控制台自己的外壳（`App`）与自己的弹层（菜单、提示、确认框的 portal）挂 `fve-tokens`，不再挂在 `<body>` 上。
+- **明暗**：`<html class="dark">` 由视图宿主写（`colorMode` 缺省 `system`，H2b）：缺省跟随系统（`prefers-color-scheme`），顶栏经 `useColorMode` 钉亮或暗，记在本机（`rememberColorMode`，沿用原来的键）。控制台不再自写明暗。
 - **外壳组件**：shadcn 的按钮、菜单等照用，但它们的变量指向引擎的角色（控制台自己写一小段映射），不再经 `shadcn-bridge.css` 反向读 shadcn——真相源只有一个。
 - **提示**：不用 sonner。命令结果就地说：行与成批用引擎的 `BulkStatus`，详情表单在表单下方写结果；没有飘出来的 toast。严格 CSP 下干净。
 - **错误与权限**：数据源的 `FORBIDDEN` 由引擎按服务端原因说；外壳只管登录态。

@@ -19,7 +19,7 @@ import ts from 'typescript';
 export const PACKAGE_ROOT = join(import.meta.dirname, '../..');
 
 /**
- * The four code entries, by the name a host imports them under, and the
+ * The five code entries, by the name a host imports them under, and the
  * source file each is built from (`package.json`'s `exports`).
  */
 export const ENTRIES = {
@@ -27,6 +27,7 @@ export const ENTRIES = {
   '@ahoo-wang/wow-view-engine/react': 'src/react/index.ts',
   '@ahoo-wang/wow-view-engine/ui': 'src/ui/index.ts',
   '@ahoo-wang/wow-view-engine/testing': 'src/testing/index.ts',
+  '@ahoo-wang/wow-view-engine/react-router': 'src/react-router/index.ts',
 } as const;
 
 export type Entry = keyof typeof ENTRIES;

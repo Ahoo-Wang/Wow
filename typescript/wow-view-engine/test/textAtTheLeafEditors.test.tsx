@@ -43,7 +43,7 @@ import {
   DashboardWorkbench,
   DataWorkbench,
   MessagesProvider,
-  ViewEngineProvider,
+  ViewHost,
   ViewSurface,
   keptKey,
   useSaidText,
@@ -72,9 +72,9 @@ const KEY = /^/;
 
 function board(engine: ViewEngine, words: Record<string, string>) {
   return (
-    <ViewEngineProvider engine={engine} messages={words}>
+    <ViewHost engine={engine} messages={words}>
       <DashboardWorkbench definitionId="overview" instanceId="mine" />
-    </ViewEngineProvider>
+    </ViewHost>
   );
 }
 
@@ -263,15 +263,12 @@ describe('the board’s editors give keys back (D2)', () => {
 describe('the analysis editors give keys back (D2)', () => {
   function page(engine: ViewEngine, instance: string, words: object) {
     return (
-      <ViewEngineProvider
-        engine={engine}
-        messages={words as Record<string, string>}
-      >
+      <ViewHost engine={engine} messages={words as Record<string, string>}>
         <DataWorkbench
           definitionId="orders"
           instanceId={systemInstanceId('orders', instance)}
         />
-      </ViewEngineProvider>
+      </ViewHost>
     );
   }
 

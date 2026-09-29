@@ -8,15 +8,11 @@ import { AppRouter } from "./routes/Routes.tsx";
 import "./services/compensationFetcher";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { I18nProvider } from "@/i18n.tsx";
-import { applyColorMode, readColorMode } from "@/features/App/colorMode.ts";
 
 const rootElement = document.getElementById("root");
 if (!rootElement) {
   throw new Error("Dashboard root element #root was not found");
 }
-
-// Painted before the first render, so a dark system never flashes light.
-applyColorMode(readColorMode());
 
 createRoot(rootElement).render(
   <StrictMode>

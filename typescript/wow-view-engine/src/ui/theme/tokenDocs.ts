@@ -182,8 +182,8 @@ export const TOKEN_DOCS: Readonly<Record<TokenName, TokenDoc>> = {
   rise: {
     role: { en: 'A rise, by its direction', zh: '上升，按方向' },
     light: {
-      en: '`success` (see [change colours](#change-colours-rising-and-falling))',
-      zh: '`success`（见[涨跌色](#涨跌色升与降)）',
+      en: '`success` (see [change colours](#rising-and-falling))',
+      zh: '`success`（见[涨跌色](#涨跌色)）',
     },
     dark: same('`success`'),
   },

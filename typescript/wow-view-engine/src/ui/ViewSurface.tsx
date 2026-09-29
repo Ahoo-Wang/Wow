@@ -77,7 +77,7 @@ export interface ViewSurfaceProps extends React.ComponentProps<'div'> {
   /**
    * The engine the views inside were opened from, whose starting words
    * (`ViewEngineOptions.text`) say a definition's key where `messages` —
-   * and every provider's above — lack it. A `ViewEngineProvider`, a
+   * and every provider's above — lack it. A `ViewHost`, a
    * workbench and an embed hand them down already; a host that draws
    * parts inside a surface of its own, with no Provider around it, passes
    * its engine here, or those keys show as keys (D2).
@@ -415,7 +415,7 @@ function Surface({
   const resolved = useResolvedTheme(rootRef);
   const pinned = usePinnedMode(theme);
   // A surface given no language shows values in the one a provider above
-  // it set (`ViewEngineProvider`'s `locale`), as its wording follows it.
+  // it set (`ViewHost`'s `locale`), as its wording follows it.
   const inherited = useInheritedLocale();
   const language = locale ?? inherited;
   // The definition's words as this surface's wording says them.

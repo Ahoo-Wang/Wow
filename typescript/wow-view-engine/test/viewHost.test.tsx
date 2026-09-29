@@ -12,7 +12,7 @@
  */
 
 /**
- * `ViewEngineProvider` and `bind` (host-integration.md 4): one engine for
+ * `ViewHost` and `bind` (host-integration.md 4): one engine for
  * the application, its words at render time, each definition's route and
  * reading bound once, surfaces taking only what differs where they stand.
  */
@@ -31,7 +31,7 @@ import {
   bind,
   DataWorkbench,
   EmbeddedView,
-  ViewEngineProvider,
+  ViewHost,
   type ViewBinding,
   type ViewDestination,
 } from '../src/ui/index.js';
@@ -74,9 +74,9 @@ describe('one engine, every language', () => {
     const { engine, source } = keyedEngine();
     const open = vi.spyOn(engine, 'open');
     const page = (messages: Record<string, string>, locale: string) => (
-      <ViewEngineProvider engine={engine} messages={messages} locale={locale}>
+      <ViewHost engine={engine} messages={messages} locale={locale}>
         <DataWorkbench definitionId="orders" />
-      </ViewEngineProvider>
+      </ViewHost>
     );
     const { rerender } = render(page(EN, 'en'));
     expect(
@@ -106,12 +106,12 @@ describe('an engine from the provider, or the surface’s own', () => {
     const inner = keyedEngine().engine;
     const own = keyedEngine().engine;
     render(
-      <ViewEngineProvider engine={outer} messages={EN}>
+      <ViewHost engine={outer} messages={EN}>
         <EmbeddedView
           instanceId={systemInstanceId('orders', 'all')}
           withTitle
         />
-        <ViewEngineProvider engine={inner} messages={ZH}>
+        <ViewHost engine={inner} messages={ZH}>
           <EmbeddedView
             instanceId={systemInstanceId('orders', 'all')}
             withTitle
@@ -121,8 +121,8 @@ describe('an engine from the provider, or the surface’s own', () => {
             instanceId={systemInstanceId('orders', 'all')}
             withTitle
           />
-        </ViewEngineProvider>
-      </ViewEngineProvider>,
+        </ViewHost>
+      </ViewHost>,
     );
     expect(await screen.findByText('All orders')).toBeTruthy();
     // The inner provider's words, for its engine and a surface's own alike.
@@ -137,7 +137,7 @@ describe('an engine from the provider, or the surface’s own', () => {
   it('says so when there is no engine at all', () => {
     vi.spyOn(console, 'error').mockImplementation(() => {});
     expect(() => render(<DataWorkbench definitionId="orders" />)).toThrow(
-      /ViewEngineProvider/,
+      /ViewHost/,
     );
   });
 });
@@ -207,7 +207,7 @@ describe('routes (host-integration.md 4)', () => {
     const navigate = vi.fn<(to: ViewDestination) => void>();
     const own = vi.fn<(to: ViewNavigation) => void>();
     render(
-      <ViewEngineProvider
+      <ViewHost
         engine={engine}
         messages={EN}
         navigate={navigate}
@@ -217,18 +217,18 @@ describe('routes (host-integration.md 4)', () => {
           instanceId={systemInstanceId('orders', 'all')}
           interaction="interactive"
         />
-        <ViewEngineProvider bindings={[bind('orders')]}>
+        <ViewHost bindings={[bind('orders')]}>
           <EmbeddedView
             instanceId={systemInstanceId('orders', 'all')}
             interaction="interactive"
           />
-        </ViewEngineProvider>
+        </ViewHost>
         <EmbeddedView
           instanceId={systemInstanceId('orders', 'all')}
           interaction="interactive"
           onNavigate={own}
         />
-      </ViewEngineProvider>,
+      </ViewHost>,
     );
     const [routed, unrouted, overridden] = await screen.findAllByRole(
       'button',
@@ -257,7 +257,7 @@ describe('reading (D60)', () => {
   it('reads a record the way the host bound, wherever the detail opens', async () => {
     const { engine } = keyedEngine();
     render(
-      <ViewEngineProvider
+      <ViewHost
         engine={engine}
         messages={EN}
         bindings={[
@@ -274,7 +274,7 @@ describe('reading (D60)', () => {
           interaction="interactive"
           detail
         />
-      </ViewEngineProvider>,
+      </ViewHost>,
     );
     const rows = await screen.findAllByRole('row');
     await userEvent.click(rows[1]);
@@ -287,20 +287,20 @@ describe('nested providers and one engine’s words (review of #3761, 3)', () =>
   it('say the definitions in the words of the provider nearest them, as they say the engine’s own', async () => {
     const { engine } = keyedEngine();
     const page = (inner: Record<string, string>) => (
-      <ViewEngineProvider engine={engine} messages={EN}>
-        <ViewEngineProvider engine={engine} messages={inner}>
+      <ViewHost engine={engine} messages={EN}>
+        <ViewHost engine={engine} messages={inner}>
           <EmbeddedView
             instanceId={systemInstanceId('orders', 'all')}
             withTitle
           />
-        </ViewEngineProvider>
-        <ViewEngineProvider messages={inner}>
+        </ViewHost>
+        <ViewHost messages={inner}>
           <EmbeddedView
             instanceId={systemInstanceId('orders', 'all')}
             withTitle
           />
-        </ViewEngineProvider>
-      </ViewEngineProvider>
+        </ViewHost>
+      </ViewHost>
     );
     const { rerender } = render(page(ZH));
     expect(await screen.findAllByText('全部订单')).toHaveLength(2);
@@ -331,14 +331,14 @@ describe('nested providers and one engine’s words (review of #3761, 3)', () =>
         issues.push(`${found.code}:${String(found.params?.key)}`),
     });
     render(
-      <ViewEngineProvider engine={engine} messages={{ 'orders.title': 'O' }}>
-        <ViewEngineProvider engine={engine} messages={EN}>
+      <ViewHost engine={engine} messages={{ 'orders.title': 'O' }}>
+        <ViewHost engine={engine} messages={EN}>
           <EmbeddedView
             instanceId={systemInstanceId('orders', 'all')}
             withTitle
           />
-        </ViewEngineProvider>
-      </ViewEngineProvider>,
+        </ViewHost>
+      </ViewHost>,
     );
     expect(await screen.findByText('All orders')).toBeTruthy();
     expect(issues).toEqual(['definition.text.unknown:orders.all']);
@@ -350,7 +350,7 @@ describe('an embed’s bound reading (review of #3761, 5)', () => {
     const { engine } = keyedEngine();
     const onOpenChange = vi.fn();
     render(
-      <ViewEngineProvider
+      <ViewHost
         engine={engine}
         messages={EN}
         bindings={[
@@ -373,7 +373,7 @@ describe('an embed’s bound reading (review of #3761, 5)', () => {
           interaction="interactive"
           detail
         />
-      </ViewEngineProvider>,
+      </ViewHost>,
     );
     await waitFor(() => expect(screen.getAllByRole('row')).toHaveLength(6));
     await userEvent.click(screen.getAllByRole('row')[1]);
@@ -401,12 +401,12 @@ describe('the words the engine started with (review of #3761, 12)', () => {
       onIssue: () => {},
     });
     render(
-      <ViewEngineProvider engine={engine}>
+      <ViewHost engine={engine}>
         <EmbeddedView
           instanceId={systemInstanceId('orders', 'all')}
           withTitle
         />
-      </ViewEngineProvider>,
+      </ViewHost>,
     );
     expect(await screen.findByText('全部订单')).toBeTruthy();
   });
@@ -417,16 +417,16 @@ describe('an engine named again under another engine (second review of #3761)', 
     const { engine } = keyedEngine();
     const other = keyedEngine().engine;
     const page = (inner: Record<string, string>) => (
-      <ViewEngineProvider engine={engine} messages={EN}>
-        <ViewEngineProvider engine={other} messages={ZH}>
-          <ViewEngineProvider engine={engine} messages={inner}>
+      <ViewHost engine={engine} messages={EN}>
+        <ViewHost engine={other} messages={ZH}>
+          <ViewHost engine={engine} messages={inner}>
             <EmbeddedView
               instanceId={systemInstanceId('orders', 'all')}
               withTitle
             />
-          </ViewEngineProvider>
-        </ViewEngineProvider>
-      </ViewEngineProvider>
+          </ViewHost>
+        </ViewHost>
+      </ViewHost>
     );
     const { rerender } = render(page(ZH));
     expect(await screen.findByText('全部订单')).toBeTruthy();
@@ -456,7 +456,7 @@ describe('a host whose definitions speak through ViewEngineOptions.text (third r
       onIssue: found => issues.push(found.code),
     });
     render(
-      <ViewEngineProvider
+      <ViewHost
         engine={engine}
         locale="en"
         messages={{ 'label.filter.apply': 'Apply' }}
@@ -465,7 +465,7 @@ describe('a host whose definitions speak through ViewEngineOptions.text (third r
           instanceId={systemInstanceId('orders', 'all')}
           withTitle
         />
-      </ViewEngineProvider>,
+      </ViewHost>,
     );
     expect(await screen.findByText('All orders')).toBeTruthy();
     expect(issues.filter(code => code.startsWith('definition.text.'))).toEqual(

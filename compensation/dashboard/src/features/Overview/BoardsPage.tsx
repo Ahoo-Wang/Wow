@@ -11,47 +11,21 @@
  * limitations under the License.
  */
 
-import { useCallback } from "react";
-import { useSearchParams } from "react-router";
 import { DashboardWorkbench } from "@ahoo-wang/wow-view-engine/ui";
-import { VIEW_PARAM, useBoardFilters } from "@/views/navigation.ts";
 import { OVERVIEW } from "@/views/overview.ts";
 
 /**
  * The dashboard workbench: the overview board and the reader's own boards
  * beside it, built and saved here — in this browser until the Wow storage
  * backend (stage 6). The home page's 「在工作台中打开」 opens the overview
- * here; the board to open is the `view` parameter.
+ * here; the board to open, and the filters it was left under, are the
+ * address's, as the engine keeps it.
  */
 export default function BoardsPage() {
-  const [searchParams, setSearchParams] = useSearchParams();
-  const instanceId = searchParams.get(VIEW_PARAM);
-  const { initialFilters, onFiltersChange } = useBoardFilters();
-
-  const onInstanceChange = useCallback(
-    (id: string | null) => {
-      if (id === instanceId) return;
-      setSearchParams((current) => {
-        const next = new URLSearchParams(current);
-        if (id === null) next.delete(VIEW_PARAM);
-        else next.set(VIEW_PARAM, id);
-        return next;
-      });
-    },
-    [instanceId, setSearchParams],
-  );
-
   return (
     <div className="boards-page">
-      <DashboardWorkbench
-        definitionId={OVERVIEW}
-        instanceId={instanceId}
-        onInstanceChange={onInstanceChange}
-        initialFilters={initialFilters}
-        onFiltersChange={onFiltersChange}
-        // The console's shell already has the page's `main`.
-        landmark="region"
-      />
+      {/* The console's shell already has the page's `main`. */}
+      <DashboardWorkbench definitionId={OVERVIEW} landmark="region" />
     </div>
   );
 }

@@ -36,6 +36,10 @@
       "types": "./dist/testing/index.d.ts",
       "import": "./dist/testing.js"
     },
+    "./react-router": {
+      "types": "./dist/react-router/index.d.ts",
+      "import": "./dist/react-router.js"
+    },
     "./styles.css": "./dist/styles.css",
     "./themes.css": "./dist/themes.css",
     "./themes/*.css": "./dist/themes/*.css",
@@ -87,7 +91,8 @@
     "@ahoo-wang/wow-client": "workspace:~",
     "mingo": "catalog:peers",
     "react": "catalog:peers",
-    "react-dom": "catalog:peers"
+    "react-dom": "catalog:peers",
+    "react-router": "catalog:peers"
   },
   "peerDependenciesMeta": {
     "mingo": {
@@ -97,6 +102,9 @@
       "optional": true
     },
     "react-dom": {
+      "optional": true
+    },
+    "react-router": {
       "optional": true
     }
   },
@@ -128,6 +136,7 @@
     "prettier": "catalog:",
     "react": "catalog:",
     "react-dom": "catalog:",
+    "react-router": "catalog:",
     "shadcn": "catalog:",
     "tailwindcss": "catalog:",
     "tw-animate-css": "catalog:",

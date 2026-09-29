@@ -11,6 +11,7 @@
  * limitations under the License.
  */
 import { useId, useState, type ReactNode } from 'react';
+import { useViewNavigation, ViewHost } from '@ahoo-wang/wow-view-engine/ui';
 import {
   ActivityIcon,
   BellIcon,
@@ -31,6 +32,20 @@ import {
 } from 'lucide-react';
 import { IconButton } from '@/ui/IconButton';
 import { ToneBadge } from '@/ui/variants';
+import {
+  RETAIL_AFTER_SALES,
+  RETAIL_ORDER_ANALYSIS,
+  RETAIL_ORDER_EVENTS,
+  RETAIL_ORDERS,
+  RETAIL_WAYBILLS,
+} from '../view-engine/retail/views.js';
+import {
+  RETAIL_WORKBENCHES,
+  SCENE_ROUTES,
+  sceneEngine,
+  sceneRouter,
+  storyHref,
+} from './sceneNavigation.js';
 
 /** The pages of this host, one per View Engine scene. */
 export type ScenePage =
@@ -70,12 +85,28 @@ export type ScenePage =
   | 'pricing-snapshots'
   | 'pricing-event-streams';
 
-interface NavItem {
+type NavItem = {
   page: ScenePage;
   title: string;
-  /** The scene's first story, which is where its link lands. */
-  story: string;
   icon: typeof ActivityIcon;
+} & (
+  | {
+      /** The scene's first story, which is where its link lands. */
+      story: string;
+    }
+  | {
+      /**
+       * A resource of the retail host: its link is where the host's route
+       * table puts it, read off the engine's navigation
+       * (`useViewNavigation`, `sceneNavigation.ts`).
+       */
+      resource: string;
+    }
+);
+
+/** The story a page's link lands on. */
+function storyOf(item: NavItem): string {
+  return 'story' in item ? item.story : RETAIL_WORKBENCHES[item.resource];
 }
 
 /**
@@ -133,31 +164,31 @@ const GROUPS: readonly { title?: string; items: readonly NavItem[] }[] = [
       {
         page: 'retail-orders',
         title: '订单工作台',
-        story: 'view-engine-业务场景-订单工作台--order-workbench-scene',
+        resource: RETAIL_ORDERS,
         icon: InboxIcon,
       },
       {
         page: 'retail-after-sales',
         title: '售后工作台',
-        story: 'view-engine-业务场景-售后工作台--after-sale-workbench',
+        resource: RETAIL_AFTER_SALES,
         icon: InboxIcon,
       },
       {
         page: 'retail-analysis',
         title: '分析工作台',
-        story: 'view-engine-业务场景-分析工作台--order-analysis',
+        resource: RETAIL_ORDER_ANALYSIS,
         icon: SigmaIcon,
       },
       {
         page: 'retail-waybills',
         title: '运单宽表',
-        story: 'view-engine-业务场景-运单宽表--waybill-wide-table',
+        resource: RETAIL_WAYBILLS,
         icon: InboxIcon,
       },
       {
         page: 'retail-order-events',
         title: '订单事件流',
-        story: 'view-engine-业务场景-订单事件流--order-event-stream',
+        resource: RETAIL_ORDER_EVENTS,
         icon: ActivityIcon,
       },
       {
@@ -322,6 +353,61 @@ const GROUPS: readonly { title?: string; items: readonly NavItem[] }[] = [
   },
 ];
 
+/** The story the page `current` opens on, where it is one of the catalogue's. */
+function currentStory(current: ScenePage | undefined): string | undefined {
+  const item = GROUPS.flatMap(group => group.items).find(
+    ({ page }) => page === current,
+  );
+  return item && storyOf(item);
+}
+
+/**
+ * The navigation's groups. A resource's link and whether it is the one on
+ * screen are the engine's navigation data; the title and the icon are the
+ * host's own words and marks for it.
+ */
+function Places({
+  current,
+  folded,
+}: {
+  current: ScenePage | undefined;
+  folded: boolean;
+}) {
+  const navigation = useViewNavigation();
+  const linkOf = (item: NavItem) => {
+    if ('story' in item)
+      return { href: storyHref(item.story), here: item.page === current };
+    const place = navigation.find(({ id }) => id === item.resource);
+    return place
+      ? { href: place.path, here: place.current }
+      : { href: storyHref(storyOf(item)), here: false };
+  };
+  return GROUPS.map(group => (
+    <div key={group.title ?? ''} className="story-app-section">
+      {group.title && <p className="story-app-group">{group.title}</p>}
+      {group.items.map(item => {
+        const { page, title, icon: Icon } = item;
+        const { href, here } = linkOf(item);
+        return (
+          <a
+            key={page}
+            className="story-app-item"
+            // The whole Storybook moves to the other scene, as a host's
+            // navigation moves the whole page (`storyHref`).
+            href={href}
+            target="_top"
+            aria-current={here ? 'page' : undefined}
+            title={folded ? title : undefined}
+          >
+            <Icon aria-hidden />
+            <span className="story-app-label">{title}</span>
+          </a>
+        );
+      })}
+    </div>
+  ));
+}
+
 /**
  * What a scene talks to: a real service at a host, or the fixture the scene
  * answers from in memory. The shell says which, and says it plainly.
@@ -414,30 +500,16 @@ export function AppShell({
       </header>
 
       <nav id={navId} className="story-app-nav" aria-label="应用导航">
-        {GROUPS.map(group => (
-          <div key={group.title ?? ''} className="story-app-section">
-            {group.title && <p className="story-app-group">{group.title}</p>}
-            {group.items.map(({ page, title, story, icon: Icon }) => (
-              <a
-                key={page}
-                className="story-app-item"
-                // The whole Storybook moves to the other scene, as a host's
-                // navigation moves the whole page. Relative to the page, not
-                // the site root: this anchor lives in `iframe.html`, whose
-                // directory is the Storybook root wherever it is served — `/`
-                // locally, `/storybook/` on GitHub Pages — where `/?path=`
-                // would leave the published Storybook for the site's root.
-                href={`./?path=/story/${story}`}
-                target="_top"
-                aria-current={page === current ? 'page' : undefined}
-                title={folded ? title : undefined}
-              >
-                <Icon aria-hidden />
-                <span className="story-app-label">{title}</span>
-              </a>
-            ))}
-          </div>
-        ))}
+        {/* The places, the retail host's resources among them from the
+            engine's navigation data; only this column is under that host. */}
+        <ViewHost
+          engine={sceneEngine()}
+          router={sceneRouter(currentStory(current))}
+          bindings={SCENE_ROUTES}
+          colorMode="host"
+        >
+          <Places current={current} folded={folded} />
+        </ViewHost>
 
         <div className="story-app-section">
           <p className="story-app-group">服务</p>

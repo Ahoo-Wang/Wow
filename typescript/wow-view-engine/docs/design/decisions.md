@@ -733,6 +733,7 @@
   - **ViewHost 与导航数据**（2026-09-28 追加，[host-integration.md](host-integration.md) 4.2、4.3）：**ViewHost** 是宿主唯一入口，由路由、主题、语言、数据、命令几个端口组成，首发只带 react-router 适配器（可选 peer），明暗缺省 `system`、宿主自管写 `host`；H2a 的 Provider 降为内部，H2a 合并后由 H2b 改名并扩成 ViewHost。不做整页外壳，只给导航数据 **useViewNavigation**，宿主用自己的组件画。
   - **主题接入先选一条路**（2026-09-28 追加，[host-integration.md](host-integration.md) 4.1）：Provider 上二选一——引擎跟宿主（**theme="host"**，即桥接）或宿主跟引擎（预设加品牌）；明暗由 Provider 管；README 主题压成快速上手，进阶挪到文档站；控制台改走推荐的路。随 H2 做。
   - **描述符的事实**（2026-09-28 追加，#3738 已合并）：只补三项——时长（`DURATION`）、引用（`REFERENCE`，含 `AggregateId` 的推断）、时间角色（`EVENT_TIME`／`FIRST_EVENT_TIME`）；比率不加（没有真实字段，零售的 `discountShare` 是金额）。
+  - **H2b 的落地裁定**（2026-09-28，[host-integration.md](host-integration.md) 4.1–4.3）：**ViewEngineProvider** 不留别名（未发布，仓库里的调用处同一个 PR 改完）；路由端口是两个成员的 **ViewRouter**（`location`、`go`），地址的参数名固定为 `view` 与 `id`（引擎读不回宿主 `route` 拼的路径）；`route` 的 `target` 可缺——为导航要链接时不给；**useViewNavigation** 只列绑了 `route` 的资源与它们的系统视图，存储里的共享视图不列；暗色不收「`.dark` 下重写 `--fve-*`」的写法（与钉模式冲突），仍写 `--fve-dark-*`；宿主自己的弹层挂 `fve-tokens`（控制台的 lint 放行这一个类名）。
 - **没选**：生成器生成定义初稿（宿主代码与生成文件分叉，且大部分内容是判断）；缺省列出全部字段（描述符一加字段界面就悄悄多一列）；启动时先 `describe` 再生成定义（页面要等，测试不可复现）。
 - **落点**：[host-integration.md](host-integration.md)；`src/model/`、`src/runtime/viewEngine.ts`、`src/react/`、`src/testing/`；Skill `wow-view-definition` 与新增的 `wow-view-host`。
 

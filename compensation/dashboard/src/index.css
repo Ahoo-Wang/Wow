@@ -39,14 +39,15 @@
 
 /*
  * The console paints nothing of its own: its chrome sits in the engine's
- * `fve-tokens` boundary (on `<body>`, index.html), which declares the shadcn
- * names — `--background`, `--primary`, `--muted` … — from the preset's roles,
- * light and dark alike (console-redesign.md §6). What the console does say
- * is the engine's host inputs: its brand, Wow's blue, and where a view that
- * fills the screen stands.
+ * `fve-tokens` boundary (the shell, `App`, and the console's own popups),
+ * which declares the shadcn names — `--background`, `--primary`, `--muted`
+ * … — from the preset's roles, light and dark alike (console-redesign.md
+ * §6). The preset, the brand and the mode are the view host's
+ * (`ConsoleHost`); what the console says here is where a view that fills
+ * the screen stands.
  */
 /*
- * One rule for the console's own utilities: `<body>` is the engine's
+ * One rule for the console's own utilities: the shell is the engine's
  * `fve-tokens` boundary, and inside it the engine's utilities are scoped a
  * step stronger than ours. On one element, a class of ours loses to the
  * engine's class for the same property — `flex max-md:hidden` never hides,
@@ -55,7 +56,6 @@
  * else of that property; the same element never holds both.
  */
 :root {
-  --fve-brand: oklch(0.546 0.245 262.881);
   /* A view filling the screen (「铺满屏幕」) covers the sticky top bar
      (z-index 10), and stays under the engine's popups (50). */
   --fve-expanded-z-index: 20;
@@ -66,7 +66,7 @@
     @apply border-border outline-ring/50;
   }
   body {
-    @apply bg-background text-foreground antialiased;
+    @apply antialiased;
     position: relative;
     margin: 0;
     min-width: 320px;
