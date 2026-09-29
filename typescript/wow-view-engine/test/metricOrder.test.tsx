@@ -32,7 +32,7 @@ import {
   type AnalysisViewConfig,
   type DataViewDefinition,
 } from '../src/index.js';
-import { moveMetric } from '../src/analysis/index.js';
+import { columnsAfterMove, moveMetric } from '../src/analysis/index.js';
 import { useAnalysisEditor, useOpenView } from '../src/react/index.js';
 import {
   DataWorkbench,
@@ -143,6 +143,51 @@ describe('moveMetric', () => {
   });
 });
 
+describe('columnsAfterMove', () => {
+  const columns = (...names: string[]) => names.map(alias => ({ alias }));
+  const names = (list: readonly { alias: string }[]) =>
+    list.map(column => column.alias);
+
+  it('puts a moved metric’s column after the one of the metric before it', () => {
+    // Metrics now cost, orders, amount; the group's column keeps its place.
+    const moved = moveMetric([count, amount, cost], 2, 0).metrics;
+    expect(
+      names(
+        columnsAfterMove(
+          columns('warehouse', 'orders', 'amount', 'cost'),
+          moved,
+          'cost',
+        ),
+      ),
+    ).toEqual(['warehouse', 'cost', 'orders', 'amount']);
+    expect(
+      names(
+        columnsAfterMove(
+          columns('orders', 'warehouse', 'cost'),
+          moveMetric([count, amount, cost], 0, 2).metrics,
+          'orders',
+        ),
+      ),
+    ).toEqual(['warehouse', 'cost', 'orders']);
+  });
+
+  it('leaves the columns alone where the moved metric has none', () => {
+    const list = columns('warehouse', 'amount');
+    expect(
+      names(
+        columnsAfterMove(
+          list,
+          moveMetric([count, amount], 0, 1).metrics,
+          'orders',
+        ),
+      ),
+    ).toEqual(['warehouse', 'amount']);
+    expect(
+      names(columnsAfterMove(columns('cost'), [count, cost], 'cost')),
+    ).toEqual(['cost']);
+  });
+});
+
 function definition(): DataViewDefinition {
   return ordersDefinition({
     fields: [
@@ -167,7 +212,10 @@ function definition(): DataViewDefinition {
   });
 }
 
-function engineOver(metrics: AnalysisMetric[]) {
+function engineOver(
+  metrics: AnalysisMetric[],
+  overrides: Partial<AnalysisViewConfig> = {},
+) {
   const store = new MemoryViewStore({
     instances: [
       {
@@ -178,6 +226,7 @@ function engineOver(metrics: AnalysisMetric[]) {
         revision: '1',
         config: analysisConfig({
           metrics: metrics as AnalysisViewConfig['metrics'],
+          ...overrides,
         }),
       },
     ],
@@ -188,8 +237,11 @@ function engineOver(metrics: AnalysisMetric[]) {
   });
 }
 
-async function editor(metrics: AnalysisMetric[]) {
-  const engine = engineOver(metrics);
+async function editor(
+  metrics: AnalysisMetric[],
+  overrides: Partial<AnalysisViewConfig> = {},
+) {
+  const engine = engineOver(metrics, overrides);
   const { result } = renderHook(() => {
     const opened = useOpenView(engine, 'orders-1');
     return { opened, analysis: useAnalysisEditor(opened.runtime) };
@@ -226,6 +278,31 @@ describe('the editor’s metric order and removal', () => {
         'perOrder',
       ]),
     );
+  });
+
+  /** 结果的列跟着走: a declared column order moves the column too. */
+  it('moves the metric’s column where the table declares its columns', async () => {
+    const { analysis, draft } = await editor([count, amount, cost], {
+      table: {
+        columns: [
+          { alias: 'warehouse' },
+          { alias: 'orders' },
+          { alias: 'amount', width: 120 },
+          { alias: 'cost' },
+        ],
+      },
+    });
+
+    analysis().moveMetric(2, 0);
+    await waitFor(() =>
+      expect(aliases(draft().metrics)).toEqual(['cost', 'orders', 'amount']),
+    );
+    expect(draft().table.columns).toEqual([
+      { alias: 'warehouse' },
+      { alias: 'cost' },
+      { alias: 'orders' },
+      { alias: 'amount', width: 120 },
+    ]);
   });
 
   /**
@@ -333,6 +410,30 @@ describe('the metrics row', () => {
         'orders',
         'perOrder',
       ]),
+    );
+    expect(note()).toBeNull();
+  });
+
+  /** The reason is about an order; an edit that changes it ends it. */
+  it('lets the reason go with a metric it names', async () => {
+    await open([count, amount, derived('perOrder', 'amount', 'orders')]);
+    const sum = formatMessage(defaultMessages, 'label.summary.of', {
+      field: 'Amount',
+      fn: defaultMessages['label.summary.fn.SUM'],
+    });
+    fireEvent.keyDown(handle('Per order'), { key: 'ArrowLeft' });
+    await waitFor(() => expect(note()).not.toBeNull());
+
+    // Taking out the metric the reason names takes its reader along.
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: label('label.analysis.remove-metric', { name: sum }),
+      }),
+    );
+    await waitFor(() =>
+      expect(
+        document.querySelector('[data-slot="dropped-notice"]'),
+      ).not.toBeNull(),
     );
     expect(note()).toBeNull();
   });

@@ -80,6 +80,11 @@ export interface AnalysisEditorController extends QuestionEditing {
   dropped: DropNotice | null;
   /** Puts the question back as it was before the edit `dropped` reports. */
   undoDrop(): void;
+  /**
+   * Whether the draft is still the one `undoDrop` put back — what lets
+   * 「已撤销」 stay said until the next edit, not a render later.
+   */
+  undone: boolean;
   /** Takes the notice away and keeps the edit. */
   dismissDrop(): void;
   /** Whether the metric at `index` may be removed, and if not, why. */
@@ -314,9 +319,8 @@ export function useAnalysisEditor(
     [runtime],
   );
 
-  const { reshape, dropped, undoDrop, dismissDrop, metricRemoval } = useReshape(
-    { runtime, draft: state?.draft, config, change, fitTo },
-  );
+  const { reshape, dropped, undone, undoDrop, dismissDrop, metricRemoval } =
+    useReshape({ runtime, draft: state?.draft, config, change, fitTo });
 
   const fields = useMemo<AnalysisFieldOption[]>(
     () => (scope ? fieldOptions(scope, runtime?.kinds) : []),
@@ -398,6 +402,7 @@ export function useAnalysisEditor(
   return {
     dropped,
     undoDrop,
+    undone,
     dismissDrop,
     metricRemoval,
     elements,

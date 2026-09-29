@@ -303,13 +303,21 @@ function actsOnEnter(target: EventTarget | null): boolean {
  * closes, focus returns to the trigger and a later blur is judged afresh.
  * A tooltip is not one: it takes no focus, it is open only because its
  * trigger has focus — the very focus that is leaving — and counting it held
- * the editor "editing" after a blur from an icon button or an ⓘ.
+ * the editor "editing" after a blur from an icon button or an ⓘ. But one
+ * button can be both, a menu's trigger that also carries a tooltip
+ * (「添加分组」, a tray card's ⋮): while its menu is open it says so with
+ * `aria-expanded`, and focus in that menu is still focus in the editor.
  */
 export function leavesEditor(event: FocusEvent<HTMLElement>): boolean {
   if (!crossesBoundary(event)) return false;
+  const open = event.currentTarget.querySelectorAll('[data-popup-open]');
+  return ![...open].some(holdsFocus);
+}
+
+/** Whether an open trigger's popup is one focus can be in. */
+function holdsFocus(trigger: Element): boolean {
   return (
-    event.currentTarget.querySelector(
-      '[data-popup-open]:not([data-base-ui-tooltip-trigger])',
-    ) === null
+    !trigger.hasAttribute('data-base-ui-tooltip-trigger') ||
+    trigger.getAttribute('aria-expanded') === 'true'
   );
 }

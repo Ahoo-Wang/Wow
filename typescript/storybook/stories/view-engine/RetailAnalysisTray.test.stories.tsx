@@ -274,6 +274,16 @@ export const ExpansionUndo: Story = {
       tray.querySelectorAll('[data-slot="element-card"]'),
     ).toHaveLength(0);
     await expect(tray.querySelector('[data-slot="dropped-notice"]')).toBeNull();
+    // Said to a reader, and still there after the notice's own render has
+    // gone: the region is not emptied in the same breath (review round 1).
+    const voice = tray.querySelector('[data-slot="dropped-voice"]');
+    await waitFor(() =>
+      expect(voice).toHaveTextContent(zhCN['label.analysis.dropped.undone']),
+    );
+    await answered(canvasElement);
+    await expect(voice).toHaveTextContent(
+      zhCN['label.analysis.dropped.undone'],
+    );
   },
 };
 

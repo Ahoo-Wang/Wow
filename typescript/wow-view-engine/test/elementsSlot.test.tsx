@@ -44,6 +44,7 @@ import {
   testSource,
   resourcesOf,
 } from './fixtures.js';
+import { settle } from './fixtures/ui.js';
 import { openTray } from './fixtures/workbench.js';
 
 afterEach(cleanup);
@@ -558,6 +559,12 @@ describe('what an expansion takes away (D71)', () => {
     expect(after.chart).toEqual(before.chart);
     expect(after.sort).toEqual(before.sort);
     expect(notice()).toBeNull();
+    // Said, and still said once the notice has gone: the render that takes
+    // the notice away does not empty the region in the same breath.
+    const undone = defaultMessages['label.analysis.dropped.undone'];
+    await waitFor(() => expect(voice()?.textContent).toBe(undone));
+    await settle();
+    expect(voice()?.textContent).toBe(undone);
   });
 
   /** The notice is about the edit that made the draft; the next edit ends it. */

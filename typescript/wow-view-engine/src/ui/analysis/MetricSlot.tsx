@@ -86,8 +86,10 @@ export function MetricSlot({
   const messages = useViewMessages();
   const title = messages.label('label.analysis.slot.metrics');
   const { say, region } = useAnnouncer('metric-order-voice');
-  // Why the last move stopped short, until the next move.
-  const [stopped, setStopped] = useState<string | null>(null);
+  // Why the last move stopped short, and the order that move left: said
+  // while the metrics stand in that order, so an edit that adds, removes
+  // or moves one — a metric it names taken out, above all — ends it.
+  const [stop, setStop] = useState<{ why: string; order: string } | null>(null);
   // A metric taken out leaves the keyboard on this slot (`listFocus.ts`);
   // held here because the card pressed is the one that goes.
   const focus = useListFocus({
@@ -97,6 +99,7 @@ export function MetricSlot({
   });
   const { metrics } = analysis;
   const keys = metrics.map(metric => metric.alias);
+  const stopped = stop?.order === keys.join('\n') ? stop.why : null;
   const nameOf = (alias: string) => {
     const metric = metrics.find(entry => entry.alias === alias);
     return metric ? metricReference(analysis, metric, messages) : alias;
@@ -119,7 +122,9 @@ export function MetricSlot({
           other: nameOf(moved.stop.at),
         })
       : null;
-    setStopped(why);
+    const order = keys.filter(key => key !== carried.alias);
+    order.splice(moved.to, 0, carried.alias);
+    setStop(why ? { why, order: order.join('\n') } : null);
     const landed =
       moved.to === from
         ? null

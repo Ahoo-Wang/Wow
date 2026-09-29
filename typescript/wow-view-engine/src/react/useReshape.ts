@@ -102,12 +102,13 @@ export function useReshape({
    * asked, and admission says so.
    */
   // What the last edit took out, the question it started from and the
-  // draft it made: the notice lasts while that draft is the draft.
-  const [drop, setDrop] = useState<{
-    notice: DropNotice;
-    before: AnalysisViewConfig;
-    after: unknown;
-  } | null>(null);
+  // draft it made: the notice lasts while that draft is the draft. After
+  // an undo, the draft it put back, so 「已撤销」 lasts as long.
+  const [drop, setDrop] = useState<
+    | { notice: DropNotice; before: AnalysisViewConfig; after: unknown }
+    | { notice: null; after: unknown }
+    | null
+  >(null);
   const factsOf = useCallback(
     (of: AnalysisViewConfig): Parameters<typeof withoutDangling>[1] =>
       definition && capability
@@ -131,7 +132,7 @@ export function useReshape({
       change(current => {
         const proposal = update(current);
         if (!proposal) return {};
-        const { dropped: stepped, ...proposed } = proposal;
+        const { dropped: stepped, columns: listed, ...proposed } = proposal;
         const shape = { ...current, ...proposed };
         const followed = withoutDangling(shape, factsOf(shape), {
           shape: current,
@@ -187,7 +188,7 @@ export function useReshape({
               : current.sort.filter(entry => aliases.has(entry.alias)),
           table: {
             ...current.table,
-            columns: current.table.columns.filter(column =>
+            columns: (listed ?? current.table.columns).filter(column =>
               aliases.has(column.alias),
             ),
           },
@@ -205,8 +206,10 @@ export function useReshape({
   return {
     reshape,
     dropped: live?.notice ?? null,
+    /** Whether the draft is the one the last undo put back. */
+    undone: live !== null && live.notice === null,
     undoDrop: useCallback(() => {
-      if (!runtime || !live) return;
+      if (!runtime || !live?.notice) return;
       const { before } = live;
       runtime.edit({
         elements: before.elements,
@@ -217,7 +220,7 @@ export function useReshape({
         sort: before.sort,
         table: before.table,
       });
-      setDrop(null);
+      setDrop({ notice: null, after: runtime.getSnapshot().draft });
     }, [runtime, live]),
     dismissDrop: useCallback(() => setDrop(null), []),
     metricRemoval: useCallback(

@@ -51,7 +51,16 @@ export function DroppedNotice({
   const voice = useAnnouncer('dropped-voice');
   const notice = analysis.dropped;
   const sentence = notice ? droppedSentence(notice, messages) : null;
-  useSentence(sentence, voice);
+  // After 撤销 the region says so for as long as the question is the one
+  // it put back: said from state, not by the click, or the render that
+  // takes the notice away would empty the region in the same breath.
+  useSentence(
+    sentence ??
+      (analysis.undone
+        ? messages.label('label.analysis.dropped.undone')
+        : null),
+    voice,
+  );
   const text = useId();
   const box = useRef<HTMLDivElement>(null);
   const land = useLanding();
@@ -79,7 +88,6 @@ export function DroppedNotice({
             onClick={() => {
               leave();
               analysis.undoDrop();
-              voice.say(messages.label('label.analysis.dropped.undone'));
             }}
           >
             <Undo2Icon data-icon="inline-start" />

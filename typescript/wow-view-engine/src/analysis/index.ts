@@ -48,6 +48,7 @@ export * from './granularity.js';
 export * from './having.js';
 export * from './metricCondition.js';
 export {
+  columnsAfterMove,
   moveMetric,
   type MetricMove,
   type MetricMoveStop,

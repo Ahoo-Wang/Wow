@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import type { AnalysisMetric } from '../model/index.js';
+import type { AnalysisColumn, AnalysisMetric } from '../model/index.js';
 import { derivedRefs } from './dangling.js';
 
 /**
@@ -95,4 +95,40 @@ export function moveMetric(
   const next = [...others];
   next.splice(landed, 0, moving);
   return { metrics: next, to: landed, ...(stop ? { stop } : {}) };
+}
+
+/**
+ * The table's declared columns after the metric `alias` moved to where it
+ * stands in `metrics`: its column goes just after the column of the
+ * nearest metric before it that has one, or else just before the column of
+ * the nearest after it — so a moved metric's column follows it (D71) and
+ * every other column keeps its place. A metric with no declared column, or
+ * none around it with one, leaves the columns as they are: undeclared
+ * columns already follow the config's order.
+ */
+export function columnsAfterMove(
+  columns: readonly AnalysisColumn[],
+  metrics: readonly AnalysisMetric[],
+  alias: string,
+): AnalysisColumn[] {
+  const own = columns.find(column => column.alias === alias);
+  const at = metrics.findIndex(metric => metric.alias === alias);
+  if (!own || at < 0) return [...columns];
+  const rest = columns.filter(column => column !== own);
+  const place = (neighbour: AnalysisMetric) =>
+    rest.findIndex(column => column.alias === neighbour.alias);
+  const earlier = metrics
+    .slice(0, at)
+    .reverse()
+    .map(place)
+    .find(i => i >= 0);
+  const later = metrics
+    .slice(at + 1)
+    .map(place)
+    .find(i => i >= 0);
+  const index =
+    earlier !== undefined ? earlier + 1 : later !== undefined ? later : -1;
+  if (index < 0) return [...columns];
+  rest.splice(index, 0, own);
+  return rest;
 }

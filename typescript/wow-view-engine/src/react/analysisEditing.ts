@@ -22,6 +22,7 @@ import {
   isDuration,
   metricWithCondition,
   momentMetrics,
+  columnsAfterMove,
   moveMetric,
   type AnalysisScope,
   type Dropped,
@@ -31,6 +32,7 @@ import {
   isDateCell,
   isValueMetric,
   without,
+  type AnalysisColumn,
   type AnalysisDateDiffUnit,
   type AnalysisGroup,
   type AnalysisHavingExpression,
@@ -45,7 +47,11 @@ import {
  * asked to (`withElements`' `dropped`), for the editor to say.
  */
 export type ReshapeProposal = Pick<AnalysisViewConfig, 'groups' | 'metrics'> &
-  Partial<Pick<AnalysisViewConfig, 'elements'>> & { dropped?: Dropped };
+  Partial<Pick<AnalysisViewConfig, 'elements'>> & {
+    dropped?: Dropped;
+    /** The table's declared columns, where the change moves one. */
+    columns?: AnalysisColumn[];
+  };
 
 /** The edit a drop is said after: a step of the chain, or any other. */
 export type DropCause =
@@ -251,9 +257,15 @@ export function questionEditing({
       reshape(current => {
         moved = moveMetric(current.metrics, from, to);
         if (moved.to === from) return undefined;
+        // 结果的列跟着走: a declared column order moves the column too.
         return {
           groups: current.groups,
           metrics: moved.metrics as AnalysisViewConfig['metrics'],
+          columns: columnsAfterMove(
+            current.table.columns,
+            moved.metrics,
+            current.metrics[from].alias,
+          ),
         };
       });
       return moved;
