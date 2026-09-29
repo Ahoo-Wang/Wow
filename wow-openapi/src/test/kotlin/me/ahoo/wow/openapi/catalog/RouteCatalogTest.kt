@@ -75,7 +75,76 @@ internal class RouteCatalogTest {
                     HttpRouteContract(routeId = "second", method = "GET", path = "/same", handlerKey = "second")
                 )
             )
-        }
+        }.hasMessage("Duplicate route [GET /same]: first, second.")
+    }
+
+    @Test
+    fun `should try a contained template before the template containing it`() {
+        val command = commandRoute(
+            routeId = "cart.count_items",
+            path = "/owner/{ownerId}/cart/{id}/count",
+            pathVariables = listOf("ownerId", "id")
+        )
+        val snapshotCount = query(routeId = "cart.snapshot.count", path = "/owner/{ownerId}/cart/snapshot/count")
+        val eventCount = query(routeId = "cart.event.count", path = "/owner/{ownerId}/cart/event/count")
+
+        val catalog = RouteCatalog(listOf(command, snapshotCount, eventCount))
+
+        catalog.routes.map { it.routeId }.assert()
+            .isEqualTo(listOf("cart.count_items", "cart.event.count", "cart.snapshot.count"))
+        catalog.dispatchRoutes.map { it.routeId }.assert()
+            .isEqualTo(listOf("cart.event.count", "cart.snapshot.count", "cart.count_items"))
+    }
+
+    @Test
+    fun `should keep the catalog order of crossing templates`() {
+        // `POST /cart/state/items/5` matches both; neither template contains the other, so the command listed
+        // first keeps it (id = state), as before.
+        val command = commandRoute(
+            routeId = "cart.remove_item",
+            path = "/cart/{id}/items/{itemId}",
+            pathVariables = listOf("id", "itemId")
+        )
+        val resend = query(routeId = "cart.state.resend", path = "/cart/state/{afterId}/{limit}")
+        val regenerate = query(routeId = "cart.snapshot.batch_regenerate", path = "/cart/snapshot/{afterId}/{limit}")
+            .copy(method = "PUT")
+        val compensate = query(routeId = "cart.compensate", path = "/cart/{id}/{version}/compensate")
+            .copy(method = "PUT")
+
+        val catalog = RouteCatalog(listOf(resend, compensate, regenerate, command))
+
+        catalog.dispatchRoutes.assert().isEqualTo(catalog.routes)
+        catalog.dispatchRoutes.map { it.routeId }.assert().isEqualTo(
+            listOf("cart.remove_item", "cart.snapshot.batch_regenerate", "cart.state.resend", "cart.compensate")
+        )
+    }
+
+    @Test
+    fun `should reject templates that differ only in variable names`() {
+        val command = commandRoute(
+            routeId = "cart.count_items",
+            path = "/owner/{ownerId}/cart/{id}/count",
+            pathVariables = listOf("ownerId", "id")
+        )
+        val other = query(routeId = "cart.other.count", path = "/owner/{ownerId}/cart/{cartId}/count")
+
+        assertThrownBy<IllegalArgumentException> {
+            RouteCatalog(listOf(other, command))
+        }.hasMessage(
+            "Ambiguous routes [POST /owner/{}/cart/{}/count]: " +
+                "[cart.count_items POST /owner/{ownerId}/cart/{id}/count " +
+                "(aggregate mock_aggregate, command me.ahoo.wow.tck.mock.MockCreateAggregate)], " +
+                "[cart.other.count POST /owner/{ownerId}/cart/{cartId}/count] match the same paths, " +
+                "so only the first could ever be dispatched. Give one of them a distinct path."
+        )
+    }
+
+    @Test
+    fun `should accept templates of the same shape under different methods`() {
+        val put = query(routeId = "put", path = "/cart/{id}/count").copy(method = "PUT")
+        val post = query(routeId = "post", path = "/cart/{cartId}/count")
+
+        RouteCatalog(listOf(put, post)).routes.assert().hasSize(2)
     }
 
     @Test
@@ -135,13 +204,29 @@ internal class RouteCatalogTest {
         }
     }
 
-    private fun commandRoute(routeId: String, path: String): HttpRouteContract {
+    private fun query(routeId: String, path: String): HttpRouteContract {
+        return HttpRouteContract(
+            routeId = routeId,
+            method = "POST",
+            path = path,
+            handlerKey = routeId,
+            parameters = Regex("\\{([^}]+)}").findAll(path)
+                .map { HttpParameter(it.groupValues[1], HttpParameterLocation.PATH) }
+                .toList()
+        )
+    }
+
+    private fun commandRoute(
+        routeId: String,
+        path: String,
+        pathVariables: List<String> = listOf("ownerId")
+    ): HttpRouteContract {
         return HttpRouteContract(
             routeId = routeId,
             method = "POST",
             path = path,
             handlerKey = "command",
-            parameters = listOf(HttpParameter("ownerId", HttpParameterLocation.PATH)),
+            parameters = pathVariables.map { HttpParameter(it, HttpParameterLocation.PATH) },
             handlerMetadata = HttpRouteHandlerMetadata.Command(
                 aggregateRouteMetadata = MOCK_AGGREGATE_METADATA.command.aggregateType.aggregateRouteMetadata(),
                 commandRouteMetadata = MockCreateAggregate::class.java.commandRouteMetadata()

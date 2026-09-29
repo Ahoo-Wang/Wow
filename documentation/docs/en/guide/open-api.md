@@ -19,6 +19,8 @@ Wow annotations
 
 The shared `RouteCatalog` is the important boundary: runtime WebFlux handlers and the OpenAPI renderer consume the same route contracts. KSP does not generate a running HTTP server, and OpenAPI does not prove that a backend, query capability, authentication policy, or client deployment works.
 
+Generated templates can overlap without being equal: a command whose path ends in `count` generates `POST …/{resource}/{id}/count`, which also matches the query path `POST …/{resource}/snapshot/count`. In catalog order the command came first, so the query could never be reached. The WebFlux router therefore tries routes in the catalog's dispatch order (`RouteCatalog.dispatchRoutes`): where every path one template matches is also matched by another, the narrower template is tried first; every other pair keeps the catalog order, so no request that reached a route before goes elsewhere. Two templates of the same method that differ only in their variable names match exactly the same paths; the catalog rejects them at startup and names both routes.
+
 ## Installation
 
 `wow-openapi` supplies route contracts and schema components:
