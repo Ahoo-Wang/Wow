@@ -15,11 +15,11 @@ package me.ahoo.wow.mongo.query.snapshot
 
 import com.mongodb.reactivestreams.client.MongoCollection
 import me.ahoo.wow.api.modeling.NamedAggregate
+import me.ahoo.wow.mongo.Documents.replacePrimaryKeyToAggregateId
 import me.ahoo.wow.mongo.MongoSnapshotStore
 import me.ahoo.wow.mongo.query.AbstractMongoQueryBackend
 import me.ahoo.wow.mongo.query.toQueryObjectNode
 import me.ahoo.wow.query.snapshot.SnapshotQueryBackend
-import me.ahoo.wow.serialization.MessageRecords
 import org.bson.Document
 import tools.jackson.databind.node.ObjectNode
 
@@ -31,5 +31,5 @@ class MongoSnapshotQueryBackend(
     override val name: String
         get() = MongoSnapshotStore.NAME
     override fun toObjectNode(document: Document): ObjectNode =
-        document.toQueryObjectNode(MessageRecords.AGGREGATE_ID)
+        document.toQueryObjectNode { replacePrimaryKeyToAggregateId() }
 }

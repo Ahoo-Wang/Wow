@@ -19,6 +19,7 @@ import me.ahoo.wow.api.query.schema.QueryCapability
 import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.api.query.schema.QueryValueKind
 import me.ahoo.wow.api.query.schema.QueryValueType
+import me.ahoo.wow.elasticsearch.eventsourcing.SNAPSHOT_DOCUMENT_ID_SOURCE
 import me.ahoo.wow.elasticsearch.query.ElasticsearchIndexMapping
 import me.ahoo.wow.elasticsearch.query.ElasticsearchIndexMappingResolver
 import me.ahoo.wow.elasticsearch.query.ElasticsearchMappedField
@@ -43,7 +44,6 @@ import me.ahoo.wow.query.schema.hasArrayBranch
 import me.ahoo.wow.query.schema.isElementScope
 import me.ahoo.wow.query.schema.operationValues
 import me.ahoo.wow.query.schema.storageFamilies
-import me.ahoo.wow.serialization.MessageRecords
 import reactor.core.publisher.Mono
 
 class ElasticsearchQuerySchemaAdapter(
@@ -276,7 +276,7 @@ class ElasticsearchQuerySchemaAdapter(
          * The field each built-in store writes as the document `_id`: the snapshot store indexes a snapshot under its
          * aggregate id. An event stream document's `_id` is `aggregateId-version`, which no queryable field holds.
          */
-        private val DOCUMENT_ID_SOURCES = mapOf(QueryModel.SNAPSHOT to MessageRecords.AGGREGATE_ID)
+        private val DOCUMENT_ID_SOURCES = mapOf(QueryModel.SNAPSHOT to SNAPSHOT_DOCUMENT_ID_SOURCE)
 
         /**
          * Whether the physical field a cursor sorts by holds one value per document: not inside an array or a nested
