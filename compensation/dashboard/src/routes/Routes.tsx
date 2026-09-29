@@ -21,7 +21,6 @@ import {
   LazyEventsPage,
   LazyExecutionsPage,
   LazyOverviewPage,
-  LazyPageLayout,
 } from "./lazyPages.ts";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -62,15 +61,10 @@ export const AppRouter = createBrowserRouter([
       </ConsoleHost>
     ),
     children: [
-      {
-        element: page(LazyPageLayout),
-        children: [
-          { index: true, element: page(LazyOverviewPage) },
-          { path: EXECUTIONS_PATH, element: page(LazyExecutionsPage) },
-          { path: EVENTS_PATH, element: page(LazyEventsPage) },
-          { path: BOARDS_PATH, element: page(LazyBoardsPage) },
-        ],
-      },
+      { index: true, element: page(LazyOverviewPage) },
+      { path: EXECUTIONS_PATH, element: page(LazyExecutionsPage) },
+      { path: EVENTS_PATH, element: page(LazyEventsPage) },
+      { path: BOARDS_PATH, element: page(LazyBoardsPage) },
       { path: "*", element: <Navigate to={HOME_PATH} replace /> },
     ],
   },

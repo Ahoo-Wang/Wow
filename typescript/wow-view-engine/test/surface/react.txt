@@ -1,16 +1,17 @@
-# @ahoo-wang/wow-view-engine/react — 121 names, from src/react/index.ts.
+# @ahoo-wang/wow-view-engine/react — 127 names, from src/react/index.ts.
 # Written by test/publicSurface.test.ts; a change here is a change to
 # the public surface (README「Entries」, docs/design/decisions.md D29).
+type  ActionRunner
 type  AnalysisEditorController
 type  AnalysisFieldOption
 type  AnalysisResultController
 type  Blank
-type  BulkCommand
-type  BulkCommandOptions
+type  BulkActionView
 type  BulkFailure
 type  BulkOutcome
 type  BulkProgress
 type  BulkRun
+type  BulkRunning
 type  BulkSelection
 type  DashboardController
 type  DashboardOpening
@@ -34,7 +35,11 @@ type  MetricRemoval
 type  NewViewOptions
 type  OpenViewState
 value PREFERENCES_KEY
+type  PendingAction
 type  RecordActionSlots
+type  RecordActionTable
+type  RecordActionsController
+type  RecordActionsOptions
 type  RecordBulkActionContext
 type  RecordDetailControl
 type  RecordDetailController
@@ -52,6 +57,7 @@ type  RecordRowActionContext
 type  RecordTableController
 type  RecoveredWrite
 type  RefreshController
+type  RowActionView
 type  SaveAbilities
 type  SaveCommandState
 type  SaveCommands
@@ -98,7 +104,6 @@ value unsettled
 value useAnalysisEditor
 value useAnalysisResult
 value useAutoRefresh
-value useBulkCommand
 value useDashboard
 value useFilterEditor
 value useHandOver
@@ -108,6 +113,7 @@ value useInstanceSync
 value useLeaveGuard
 value useOpenView
 value usePanelFollowUps
+value useRecordActions
 value useRecordDetail
 value useRecordExport
 value useRecordTable

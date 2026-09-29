@@ -2211,6 +2211,25 @@ export const zhCN: ViewMessages = {
   'label.bulk.stopping': '正在停止…',
   'label.bulk.dismiss': '知道了',
 
+  // 宿主声明的操作（host-integration.md 5）：引擎在命令周围说的话。命令本身
+  // 的名字与拒绝理由是宿主的（`text(key)`）。
+  'label.action.more': '{record} 的操作',
+  'label.action.bulk': '{action} {count} 条',
+  'label.action.confirm': '对 {count} 条记录执行「{action}」？',
+  'label.action.confirm-one': '对 {count} 条记录执行「{action}」？',
+  'label.action.left': '被拒绝的记录仍保持勾选，并写明原因。',
+  'label.action.able': '{count} 条里 {able} 条能{action}。',
+  'label.action.none-able': '{count} 条里没有一条现在能{action}。',
+  'label.action.refused': '以下不会发送，仍保持勾选：',
+  'label.action.refused-keys-more': '{keys} 等另外 {count} 条',
+  'label.action.only-able': '只选能做的 {count} 条',
+  'label.action.only-able-one': '只选能做的 1 条',
+  'label.action.cancel': '取消',
+  'label.action.required': '必填',
+  'label.action.unseen': '不在当前这一页上',
+  'label.action.not-offered': '这条记录不提供此操作',
+  'label.action.unavailable': '现在不可用',
+
   // 点一个面板（批 D，D22 H、I）：追问菜单上的仪表盘筛选、交叉筛选、「点击时…」，
   // 以及内核与运行时关于它的发现。独立站在屏幕上的名字用「」。
   'label.drill.board': '仪表盘筛选：{conditions}',

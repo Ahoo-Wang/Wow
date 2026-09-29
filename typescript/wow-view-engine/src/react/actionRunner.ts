@@ -13,23 +13,33 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { RecordKey } from '../model/index.js';
+import { ActionRefused } from '../runtime/actions.js';
 import { sourceReason } from '../runtime/sourceReason.js';
-import type { RecordBulkActionContext } from './actions.js';
 
 /**
- * One business command over records, as a host hands it to `run`: what it
+ * One command over records, as the surface's runner takes it — a declared
+ * action's, or a host's own from a slot (`run` on a slot's context): what it
  * is called, and what it does to one record. `each` resolves when the record
  * took the command and throws when it did not; what it throws is read for
  * the source's own reason (`sourceReason`), so a host passes the error on
- * rather than wording it.
+ * rather than wording it — and an action's own refusal keeps its reason as
+ * written, a key said where it is shown.
  */
 export interface BulkRun {
-  /** Said before the counts: a host with several commands names which ran. */
+  /**
+   * Said before the counts: a host with several commands names which ran.
+   * A key or words, said where it is shown.
+   */
   title: string;
+  /** Words said into `title`'s `{name}`s, each itself said first. */
+  values?: Readonly<Record<string, string>>;
   each(key: RecordKey): Promise<unknown>;
 }
 
-/** One record the command did not take, and the source's reason why. */
+/**
+ * One record the command did not take, and the reason why: the source's
+ * words, or the action's own refusal as written (a key stays a key).
+ */
 export interface BulkFailure {
   key: RecordKey;
   reason: string;
@@ -46,6 +56,7 @@ export interface BulkProgress {
 /** What one command came to, once every record it started has settled. */
 export interface BulkOutcome {
   title: string;
+  values?: Readonly<Record<string, string>>;
   succeeded: readonly RecordKey[];
   failed: readonly BulkFailure[];
   /** Never started, because the command was stopped. */
@@ -53,25 +64,36 @@ export interface BulkOutcome {
 }
 
 /**
- * The selection a command runs over, and what a command does to it
- * afterwards: the rows it failed on stay selected, the rest are let go.
+ * The records a command runs over, and what a command does to them
+ * afterwards: the ones it failed on stay selected (`select`; a record's own
+ * command selects nothing), the rest are let go, and the view is read again.
  */
-export type BulkSelection = Pick<
-  RecordBulkActionContext,
-  'keys' | 'select' | 'refresh'
->;
+export interface BulkSelection {
+  keys: readonly RecordKey[];
+  select(keys: readonly RecordKey[]): void;
+  refresh(): void;
+}
 
-export interface BulkCommand {
+/** The command in flight on a surface. */
+export interface BulkRunning {
+  title: string;
+  values?: Readonly<Record<string, string>>;
+  progress: BulkProgress;
+  stopping: boolean;
+}
+
+/** A surface's one runner: its command in flight, and what the last came to. */
+export interface ActionRunner {
   run(selection: BulkSelection, command: BulkRun): void;
   /** Starts nothing more; what is already in flight settles. */
   stop(): void;
   /** The command in flight, or `null`. */
-  running: { title: string; progress: BulkProgress; stopping: boolean } | null;
+  running: BulkRunning | null;
   outcome: BulkOutcome | null;
   dismiss(): void;
 }
 
-export interface BulkCommandOptions {
+export interface ActionRunnerOptions {
   /**
    * How many records are in flight at once. A command writes, and a
    * selection of a hundred sent in one burst is a hundred writes landing on
@@ -91,13 +113,21 @@ const CONCURRENCY = 4;
  *
  * One command at a time: commands write, so a second press over the same
  * rows is not a newer read that can supersede the first but a second write.
+ *
+ * It is the engine's, one per record surface (a workbench's record view, a
+ * board's record panel): the declared actions run through it
+ * (`useRecordActions`), and so does a host's own command from a slot
+ * (`run` on the slot's context), so every command on a surface reports on
+ * its one line.
  */
-export function useBulkCommand(options: BulkCommandOptions = {}): BulkCommand {
+export function useActionRunner(
+  options: ActionRunnerOptions = {},
+): ActionRunner {
   const concurrency = Math.max(
     1,
     Math.floor(options.concurrency ?? CONCURRENCY),
   );
-  const [running, setRunning] = useState<BulkCommand['running']>(null);
+  const [running, setRunning] = useState<BulkRunning | null>(null);
   const [outcome, setOutcome] = useState<BulkOutcome | null>(null);
   // Refs as well as state: two presses in one frame both see the old state,
   // and the workers read the stop between records, not between renders.
@@ -131,6 +161,7 @@ export function useBulkCommand(options: BulkCommandOptions = {}): BulkCommand {
         if (!alive.current) return;
         setRunning({
           title: command.title,
+          ...(command.values ? { values: command.values } : {}),
           progress: {
             total: keys.length,
             done: succeeded.length + failed.length,
@@ -147,7 +178,13 @@ export function useBulkCommand(options: BulkCommandOptions = {}): BulkCommand {
             await command.each(key);
             succeeded.push(key);
           } catch (error) {
-            failed.push({ key, reason: await sourceReason(error) });
+            failed.push({
+              key,
+              reason:
+                error instanceof ActionRefused
+                  ? error.reason
+                  : await sourceReason(error),
+            });
           }
           report();
         }
@@ -169,7 +206,13 @@ export function useBulkCommand(options: BulkCommandOptions = {}): BulkCommand {
         ]);
         const skipped = keys.filter(key => !settled.has(key));
         setRunning(null);
-        setOutcome({ title: command.title, succeeded, failed, skipped });
+        setOutcome({
+          title: command.title,
+          ...(command.values ? { values: command.values } : {}),
+          succeeded,
+          failed,
+          skipped,
+        });
         // What is left to deal with stays picked: the refused and the never
         // started, in the order they were picked.
         const left = new Set<RecordKey>([

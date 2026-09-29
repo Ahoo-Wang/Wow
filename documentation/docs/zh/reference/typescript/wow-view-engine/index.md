@@ -16,7 +16,7 @@ description: '尚未发布的 @ahoo-wang/wow-view-engine 包的入口、概念�
 | 入口 | 导出 |
 |---|---|
 | `@ahoo-wang/wow-view-engine` | 模型类型、纯内核（`validate*`、`compile*`、`project*`）、运行时、`ViewStore` 端口、`MemoryViewStore` |
-| `/react` | `useViewEngine`、`useOpenView`、`useViewRuntime`、`useViewList`、`useViewManager`、`useWorkbench`、`useLeaveGuard`、`useFilterEditor`、`useRecordTable`、`useAnalysisEditor`、`useAnalysisResult`、`useDashboard`、`useSaveCommands`、`RecordActionSlots` |
+| `/react` | `useViewEngine`、`useOpenView`、`useViewRuntime`、`useViewList`、`useViewManager`、`useWorkbench`、`useLeaveGuard`、`useFilterEditor`、`useRecordTable`、`useAnalysisEditor`、`useAnalysisResult`、`useDashboard`、`useSaveCommands`、`useRecordActions`、`RecordActionSlots` |
 | `/ui` | 工作台（`DataWorkbench`、`DashboardWorkbench`）、嵌入（`EmbeddedView`、`EmbeddedDashboard`）、视图管理（`ViewHeader`、`SaveActions`、`ViewManager`、`LeaveDialog`）、编辑与结果（`FilterPanel`、`RecordTable`、`RecordCards`、`RecordPagination`、`AnalysisTable`、`AnalysisChart`、`DashboardGrid`）、内容面板以及 `MessagesProvider` |
 | `/styles.css` | 主题。需要显式导入；任何 JavaScript 入口都不导入 CSS |
 | `/themes.css` | 可选的预设，由 `data-fve-preset` 选中 |
@@ -90,7 +90,7 @@ flowchart LR
 | 字段类型 | 注册一个 `FieldKind`：操作符、校验、`compile` 到 `FilterExpression`，以及指定某个内置取值输入的编辑器描述 |
 | 数据源 | `resources` 的每一项把一份定义与它的数据源（一个 `wow-client` 查询客户端）配成对 |
 | 持久化 | 实现 `ViewStore` |
-| 操作 | 向工作台传入 `global`、`bulk`、`row` 三类操作的渲染函数；它们是代码，从不保存 |
+| 操作 | 用 `actions()` 声明并绑到定义上（`bind(id, { actions })`）：放在哪、确认、执行与汇报由引擎负责；`slots`（`global`、`bulk`、`row` 三个渲染函数）是逃生口。它们是代码，从不保存 |
 | 外观 | CSS 变量、预设与 shadcn 桥接（见[视图引擎的主题](../../../guide/typescript/view-engine-theming.md)）；通过组合 `/react` Hook 替换组件 |
 | 文案 | `defaultMessages`（英文）与 `zhCN` 两套文案，通过 `messages` 属性或 `MessagesProvider` 合并 |
 

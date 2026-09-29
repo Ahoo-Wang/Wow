@@ -12,6 +12,12 @@
  */
 
 import { bind } from "@ahoo-wang/wow-view-engine/ui";
+import { executionDetail } from "@/features/Executions/detail/executionDetail.tsx";
+import {
+  executionCommands,
+  type ExecutionCommands,
+} from "@/features/Executions/executionCommands.ts";
+import { executionActions } from "./executionActions.ts";
 import { EXECUTION_FAILED } from "./executionFailed.ts";
 import { EXECUTION_HISTORY } from "./executionHistory.ts";
 import { OVERVIEW, OVERVIEW_BOARD } from "./overview.ts";
@@ -49,13 +55,28 @@ export function executionsPath(view: string | null): string {
 }
 
 /**
- * The console's route table (host-integration.md 4.2): where each
- * resource's views live, one line each. The engine takes every way off a
- * board or a view there through the router, and draws the top bar's
- * places from it (`useViewNavigation`).
+ * The console's resources as it binds them (host-integration.md 4.2, 5):
+ * where each one's views live, one line each — the engine takes every way
+ * off a board or a view there through the router, and draws the top bar's
+ * places from it (`useViewNavigation`) — and, on the failed executions,
+ * how one is read (D60) and the compensation commands, declared: the
+ * engine places them on every record view over them, the workbench's and
+ * a board's record panel alike (D39), asks, runs and reports them. A test
+ * binds its own commands.
  */
-export const ROUTES = [
-  bind(EXECUTION_FAILED, { route: executionsPath }),
-  bind(EXECUTION_HISTORY, { route: (view) => withView(EVENTS_PATH, view) }),
-  bind(OVERVIEW, { route: boardPath }),
-];
+export function consoleBindings(
+  commands: ExecutionCommands = executionCommands(),
+) {
+  return [
+    bind(EXECUTION_FAILED, {
+      route: executionsPath,
+      reading: executionDetail(commands),
+      actions: executionActions(commands),
+    }),
+    bind(EXECUTION_HISTORY, { route: (view) => withView(EVENTS_PATH, view) }),
+    bind(OVERVIEW, { route: boardPath }),
+  ];
+}
+
+/** The console's bindings, over the service's commands. */
+export const ROUTES = consoleBindings();

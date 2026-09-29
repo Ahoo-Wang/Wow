@@ -18,7 +18,12 @@ import {
   useState,
   type ReactNode,
 } from 'react';
-import { say, type Issue, type TextResolver } from '../model/index.js';
+import {
+  say,
+  textKeyOf,
+  type Issue,
+  type TextResolver,
+} from '../model/index.js';
 import {
   defaultMessages,
   formatIssue,
@@ -277,6 +282,44 @@ export interface MessageFormatters {
    * the keys their parameters carry already.
    */
   say: Say;
+}
+
+/** The plural forms a catalogue may word apart from the general one. */
+const PLURAL_FORMS = ['zero', 'one', 'two', 'few', 'many'] as const;
+
+/** A host's words with numbers and words put into them; see `useSayWith`. */
+export type SayWith = (value: string, params?: Issue['params']) => string;
+
+/**
+ * How a host's words with numbers and words in them are said here — a
+ * declared action's question, 「准备 {count} 条执行记录？」: `value` is a key
+ * (`text(key)`) or words, said in the wording in force, with `{name}`s
+ * filled from `params` (a parameter that is a key is said too), and a key's
+ * count said apart where its catalogue words it so (`key-one`), as the
+ * package's own sentences are.
+ */
+export function useSayWith(): SayWith {
+  const merged = useMessages();
+  const language = useContext(LocaleContext);
+  const start = useContext(StartingWordsContext);
+  return useMemo(() => {
+    const said = sayIn(merged, start);
+    return (value, params) => {
+      const key = textKeyOf(value);
+      if (key === null)
+        return said(formatMessage({ value }, 'value', params, language));
+      const lookup = (name: string): string | undefined =>
+        (Object.prototype.hasOwnProperty.call(merged, name)
+          ? merged[name]
+          : undefined) ?? start?.(name);
+      const catalogue: Record<string, string> = { [key]: said(value) };
+      for (const form of PLURAL_FORMS) {
+        const found = lookup(`${key}-${form}`);
+        if (found !== undefined) catalogue[`${key}-${form}`] = found;
+      }
+      return said(formatMessage(catalogue, key, params, language));
+    };
+  }, [merged, language, start]);
 }
 
 /**

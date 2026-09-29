@@ -214,8 +214,9 @@
 
 ## 动作槽位
 
-- 三层业务动作走 render 槽位（`RecordActionSlots`）：`global` 在标题栏，`bulk` 在有选择时的结果工具栏，`row` 在表格最后一列（sticky）与卡片页脚，统一裹在 `RowActions` 里且只裹一层：包装由表格与卡片加，工作台只绑定（`bindRow`）。**槽位里的按钮不用 primary**（同屏唯一的 primary 是 Apply，见[版式](#版式三块一套间距一种选项控件)），用 `outline`／`secondary`；样板是 `RecordWorkbench.stories.tsx` 的 `WithActions`。动作是代码，由宿主交出，不按字符串注册也不进配置：存下来的是看法，能对记录做什么属于挂载它的应用。（见 test/rowActions.test.tsx「RowActions」）
-- **批量命令有标准状态条**（`ui/BulkStatus.tsx` 的 `BulkStatus`）：宿主把 `useBulkCommand` 交给 `record.bulk`，工作台画在工具栏与行之间，进度、结局、原因、语气与出口都不用宿主写（[react.md#usebulkcommand](../react.md#usebulkcommand)）。它是 `LineAlert` 用在宿主的命令上。跑时 `info`（进度加「停止」）；落定后全做完 `info`、部分 `warning`、全失败 `error`，没有 success 档；落定句说出最常见两种原因各几条、其余几种与「未完成的仍选中」。它属于结果区而不属于 bulk 槽位：结局比选择活得久。（见 test/bulkCommand.test.tsx「BulkStatus」）
+- **声明式操作**（`ui/actions/`，[host-integration.md](../host-integration.md) 5.1）：宿主的命令写成声明，由 `useActionSurface` 放到每个记录面上——行（与卡片）上 `primary` 的是 `outline` 的 `xs` 按钮，其余在「{record} 的操作」菜单里（`ghost` 图标按钮，`IconTooltip`；打开对话框的项用 `DialogMenuItem`，菜单关时不把键盘抢回触发器）；不可用的置灰，理由是按钮的提示（包在 `span` 里：置灰的按钮不接指针）与无障碍描述（`sr-only` 的 `aria-describedby`），并去重后列在菜单顶端；危险项是菜单的 `destructive` 变体加 `TriangleAlertIcon`。选择（一个带选项字段的表单）在行菜单里是字段名下的一组选项，在多选条上是一个下拉；多选条上 `primary` 的是缺省填色的 `sm` 按钮写「{action} {count} 条」，其余 `outline`。确认与表单是一个 `AlertDialog`（`ActionDialog`）：标题、后果、多选时「被拒绝的仍保持勾选」，表单字段是 `FieldGroup`／`Field` 里的 `FilterValueEditor`，被拒的按理由分组列出，「只选能做的」是 `outline` 按钮，危险的回答用 `DestructiveAction`。执行器的那一行（`BulkStatus`）画在结果区顶上，开始与结局经面的播报区说出。（见 test/declaredActions.test.tsx、test/recordPanelHost.test.tsx「declared actions on a record panel」）
+- 宿主自己的 render 槽位（`RecordActionSlots`，经 `slots`）是逃生口，画在声明的操作之后：`global` 在标题栏，`bulk` 在有选择时的结果工具栏，`row` 在表格最后一列（sticky）与卡片页脚，统一裹在 `RowActions` 里且只裹一层：包装由表格与卡片加。**槽位里的按钮不用 primary**（同屏唯一的 primary 是 Apply，见[版式](#版式三块一套间距一种选项控件)），用 `outline`／`secondary`；样板是 `RecordWorkbench.stories.tsx` 的 `WithActions`。动作是代码，由宿主交出，不按字符串注册也不进配置：存下来的是看法，能对记录做什么属于挂载它的应用。（见 test/rowActions.test.tsx「RowActions」）
+- **批量命令有标准状态条**（`ui/actions/BulkStatus.tsx` 的 `BulkStatus`，不再公开）：每个记录面自己的执行器（[react.md#userecordactions](../react.md#userecordactions)）的那一行，工作台画在工具栏与行之间，进度、结局、原因、语气与出口都不用宿主写。它是 `LineAlert` 用在宿主的命令上。跑时 `info`（进度加「停止」）；落定后全做完 `info`、部分 `warning`、全失败 `error`，没有 success 档；落定句说出最常见两种原因各几条、其余几种与「未完成的仍选中」。它属于结果区而不属于 bulk 槽位：结局比选择活得久。（见 test/actionRunner.test.tsx「BulkStatus」）
 
 ## 渲染边界
 

@@ -18,10 +18,11 @@ import {
   type ViewSource,
   type ViewStore,
 } from "@ahoo-wang/wow-view-engine";
+import { ViewHost } from "@ahoo-wang/wow-view-engine/ui";
 import { createExecutionEngine } from "@/views/engine.ts";
+import { consoleBindings } from "@/views/routes.ts";
 import type { ExecutionCommands } from "../Executions/executionCommands.ts";
 import { ConsoleHost } from "./ConsoleHost.tsx";
-import { PageCommands } from "./PageCommands.tsx";
 
 /** What a test puts the console's views over instead of the service. */
 export interface TestViews {
@@ -32,9 +33,9 @@ export interface TestViews {
 }
 
 /**
- * `page` under the console's host (`ConsoleHost`) and its commands
- * (`PageCommands`), on an engine of its own over what the test gives — as
- * the app's route puts every page under them.
+ * `page` under the console's host (`ConsoleHost`), on an engine of its own
+ * over what the test gives, the failed executions' commands the test's
+ * (`consoleBindings`) — as the app's route puts every page under it.
  * Returns the engine too, for a test that asks it.
  */
 export function withViews(
@@ -50,9 +51,7 @@ export function withViews(
     engine,
     element: (
       <ConsoleHost engine={engine}>
-        <PageCommands engine={engine} commands={commands}>
-          {page}
-        </PageCommands>
+        <ViewHost bindings={consoleBindings(commands)}>{page}</ViewHost>
       </ConsoleHost>
     ),
   };

@@ -126,7 +126,7 @@ Record 工作台的结果区组件。三种视图共用的骨架、状态条、�
 
 补偿控制台的详情里有引擎说不出的东西——执行上下文的表单、按宿主读法的错误堆栈、这一条的执行历史（一个 `EmbeddedView`）；告警里的链接带着 `?id=`，要直接打开那一条。两件事都由宿主经 `DataWorkbench` 的 `record.detail`（`RecordDetailOptions`，`/ui`）说：
 
-- **宿主节是渲染函数，与 `actions.row` 同一个形状**：`sections(context)` 按开着的记录返回 `RecordDetailSection[]`（`/react`：`id`、`title`、可选的 `placement`、`render()`）。上下文是 `{ row, complete, runtime, refresh }`——`row` 在整条读到之前是页上那一行、读到之后是整条（`complete`），`refresh` 重跑视图，详情随结果落定再读一次。理由：节里放的是宿主的代码（表单、命令、嵌入的视图），不是定义或存下的视图能说的东西，所以交函数而不是配置里的名字；
+- **宿主节是渲染函数，与 `slots.row` 同一个形状**：`sections(context)` 按开着的记录返回 `RecordDetailSection[]`（`/react`：`id`、`title`、可选的 `placement`、`render()`）。上下文是 `{ row, complete, runtime, refresh }`——`row` 在整条读到之前是页上那一行、读到之后是整条（`complete`），`refresh` 重跑视图，详情随结果落定再读一次。理由：节里放的是宿主的代码（表单、命令、嵌入的视图），不是定义或存下的视图能说的东西，所以交函数而不是配置里的名字；
 - **整条换成宿主的读法**（D60）：`render(context)` 返回的就是抽屉的整个正文，定义的分组与 `sections` 都不画；`title(row)` 给这条一个名字作标题，键移到标题上方（`data-slot="record-detail-key"`，等宽）。面板——打开、读全、不在／被拒／读不到、行命令、焦点、叠放——仍是引擎的；正文包在一道 `'detail'` 渲染边界里，也提供叠放用的层上下文（节名即 `title`，没有就是键）（test/recordDetailHost.test.tsx「the host’s own reading of a record」）。
 - **位置是相对引擎的节说的**：`placement` 缺省 `'end'`（排在「其他」之后），`'start'` 在第一个分组之前，`{ after: '<分组 id>' }` 紧跟那个字段分组，定义里没有这个分组就当 `'end'`；落在同一处的宿主节按给的顺序。不给数字序号：数字要和引擎的分组数对齐，定义加一个分组就全错位（`ui/record/detailPlacement.ts` 的 `placeSections`）（test/recordDetailHost.test.tsx「placeSections」）；
 - **宿主自己读的字段只读一次**：宿主节可以在 `fields` 里点名它按自己读法画的定义字段（补偿控制台的堆栈：行号、复制、换行开关），引擎的分组就不再列它；被拿空的分组不画，`{ after }` 它的宿主节仍站在它原来的位置。理由：同一段堆栈在抽屉里读两遍是噪音，而字段不能从定义里删——搜索字段（`searchFields`）与列、导出都要它；「定义里声明、详情里不列」是宿主节的事，不是字段的属性（test/recordDetailHost.test.tsx「leaves out the fields a host section shows, and a group it empties」「reads a field the host shows itself only once, in the host’s section」）；

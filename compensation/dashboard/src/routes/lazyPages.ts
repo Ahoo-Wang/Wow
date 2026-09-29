@@ -12,15 +12,6 @@
  */
 import { lazy } from "react";
 
-/**
- * The console's commands on the failed executions, bound for every page
- * (`PageCommands`): in a chunk of their own beside the pages, with the
- * reading of an execution they bring.
- */
-export const LazyPageLayout = lazy(
-  () => import("../features/App/PageCommands.tsx"),
-);
-
 /** Each page in its own chunk: the engine's workbenches and board are large. */
 export const LazyOverviewPage = lazy(
   () => import("../features/Overview/OverviewPage.tsx"),

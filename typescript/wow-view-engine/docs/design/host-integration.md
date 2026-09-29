@@ -123,7 +123,6 @@ const engine = new ViewEngine({
     bind(EXECUTION_FAILED, {
       route: view => withView('/executions', view),
       actions: executionActions,
-      bulk,
       reading: { render, title },
     }),
     bind(EXECUTION_HISTORY, { route: view => withView('/events', view) }),
@@ -138,7 +137,7 @@ const engine = new ViewEngine({
 
 - `resources` 替掉 `definitions` 与 `resolveSource`；没有 `source` 的资源（看板）不查数据。
 - `route(instanceId | null, target?)` 替掉宿主按定义分派的路由：`instanceId` 是要打开的视图或看板，`null` 是没人存过的视图（追问、看板自己的分析），落在页面的缺省上、整份交接；`target` 是这次的去处，引擎为导航要链接时（4.3）不给。引擎按目标资源的 `route` 把 `ViewNavigation` 解析成 `ViewDestination`——`{ kind: 'route', path, state, target }`，`state` 是 `ViewRouteState`（`handOver`、`filters`、`tab`）——交给路由端口（4.2）；网址与没有 `route` 的目标原样交出。宿主要自己接每一条去处时写 `navigate(to: ViewDestination)`，它优先于路由端口。同一套解析在 `/testing` 的 `resolveNavigation` 里，宿主的路由单测跑的就是引擎自己的。
-- `actions`（今天是 `RecordActionSlots` 插槽，H3 改为声明，第 5 节）、`bulk`（`useBulkCommand` 的那一行）与 `reading`（[D60](decisions.md)）替掉 `recordPanel`：失败执行出现在工作台、详情抽屉、看板的记录面板、嵌入视图与追问的结果里，都自动带上；外壳自己的 prop 仍优先。
+- `actions`（声明式操作，第 5 节；H3 落地）、`slots`（插槽 `row()`／`bulk()`／`global()`，逃生口）与 `reading`（[D60](decisions.md)）替掉 `recordPanel`：失败执行出现在工作台、详情抽屉、看板的记录面板、嵌入视图与追问的结果里，都自动带上；外壳自己的 prop 仍优先。
 - 外壳只要 id：`<DataWorkbench definitionId={EXECUTION_FAILED} />`。props 只留「这一处与别处不同」的：嵌入的交互档位、标题开关、这一处独有的操作。
 - **ViewHost** 可以嵌套，内层的 `bindings` 按 id 覆盖外层，也可以在外壳上显式传 `engine`：一页两个引擎的宿主照样写得出。只有最外层画 `<html>`（明暗、预设、品牌）。
 - **一个应用一个引擎**：注册在应用启动时做一次；页面之间共享查询缓存、偏好与描述符。
@@ -182,6 +181,7 @@ H2a 的 Provider 解决了「按资源注册」，但宿主周围的胶水还在
 - **明暗**：**colorMode** 缺省 `system`，由引擎管——在第一次绘制前写 `<html>` 的 `.dark` 与 `color-scheme`，跟随系统变化；`light`／`dark` 从钉住开始；**rememberColorMode** 给一个 `localStorage` 键，读者经 **useColorMode**（`{ mode, setMode }`）选的就记在这台机器上，选回宿主的起始模式即忘掉；宿主已在管（如 next-themes）时写 `host`，引擎不碰 `<html>`，面照旧跟 `.dark`。只有最外层的 **ViewHost** 画；它卸下时把 `<html>` 还原。
 - **主题**：`preset` 与 `brand` 由最外层写到 `<html>` 的 `data-fve-preset` 与 `--fve-brand`；`theme="host"` 什么也不写（桥接只在 `<html>` 不点名预设时生效）。样式表仍由宿主导入（`styles.css`，加 `themes/<name>.css` 或 `shadcn-bridge.css`）：打包器的事，端口替不了。
 - **边界**：不接管宿主的应用——路由库、i18n、主题系统仍是宿主的，端口只做桥。
+- **落地（H3）**：`PageCommands.tsx` 删去——命令成了声明（`views/executionActions.ts`），读法成了一个不用钩子的对象（`executionDetail(commands)`，它读引擎经 **useEngine**），两者与路由一起写在 `views/routes.ts` 的 `consoleBindings()` 里；控制台的接线剩 `ConsoleHost.tsx`、`views/routes.ts`、`views/engine.ts` 三个文件，共 145 行代码（H2b 是 193 行）。
 - **落地（H2b）**：控制台的接线剩三处——`features/App/ConsoleHost.tsx`（引擎、路由、语言、主题）、`views/routes.ts`（路由表）、`features/App/PageCommands.tsx`（失败执行的读法与命令，H3 前仍是插槽）——加上资源与数据源 `views/engine.ts`；`views/navigation.ts`、`colorMode.ts`、`?id=` 的同步与 `<body>` 上的 `fve-tokens` 都删了，控制台自己的外壳与弹层各自挂 `fve-tokens`。
 
 ### 4.3 导航数据，不做整页外壳（用户 2026-09-28 定）
@@ -192,37 +192,51 @@ H2a 的 Provider 解决了「按资源注册」，但宿主周围的胶水还在
 
 ## 5. 声明式操作：宿主声明做什么，引擎负责怎样做
 
-今天的操作是插槽：`row()`、`bulk()`、`global()` 各返回一段 React，交互机制全在宿主。改为声明：
+H3 之前的操作是插槽：`row()`、`bulk()`、`global()` 各返回一段 React，交互机制全在宿主。改为声明（控制台的 `views/executionActions.ts`，摘录）：
 
 ```ts
-const executionActions = actions<ExecutionRow>([
-  {
-    id: 'prepare',
-    label: text('retry'),
-    primary: true,
-    on: ['row', 'bulk', 'detail'],
-    available: row => refusalOf('prepare', row, now()) ?? true,
-    changesAt: row => capabilitiesChangeAt(row, now()),
-    run: row => commands.prepare(row.key),
-  },
-  {
-    id: 'forcePrepare',
-    label: text('forceRetry'),
-    tone: 'danger',
-    on: ['row', 'bulk', 'detail'],
-    confirm: { title: text('forceRetryTitle'), body: text('forceRetryBody') },
-    run: row => commands.forcePrepare(row.key),
-  },
-  {
-    id: 'markRecoverable',
-    label: text('markRecoverable'),
-    on: ['row', 'bulk', 'detail'],
-    form: {
-      recoverable: { label: text('recoverable'), options: RECOVERABILITY },
+const executionActions = (commands: ExecutionCommands) =>
+  actions([
+    {
+      id: 'prepare',
+      label: t.prepare,
+      primary: true,
+      available: (row, { now }) => allowed(row, now, 'canPrepare'),
+      changesAt,
+      confirm: { title: t.prepareConfirm, body: t.prepareBody, ask: 'bulk' },
+      run: row => commands.prepare(String(row.key)),
     },
-    run: (row, input) => commands.markRecoverable(row.key, input.recoverable),
-  },
-]);
+    {
+      id: 'forcePrepare',
+      label: t.forcePrepare,
+      tone: 'danger',
+      available: (row, { now }) => allowed(row, now, 'canForcePrepare'),
+      changesAt,
+      confirm: { title: t.forcePrepareConfirm, body: t.forcePrepareBody },
+      run: row => commands.forcePrepare(String(row.key)),
+    },
+    {
+      id: 'markRecoverable',
+      label: t.markRecoverability,
+      form: { recoverable: { label: t.markAs, options: RECOVERABILITY } },
+      available: (row, { input }) =>
+        input?.recoverable === stateOf(row).recoverable
+          ? t.alreadyMarked
+          : true,
+      confirm: ({ recoverable }) => ({
+        title: t.markConfirm,
+        action: t.markAsValue,
+        ...(recoverable === 'UNRECOVERABLE'
+          ? { body: t.markUnrecoverableBody, tone: 'danger' }
+          : { body: t.markBody }),
+      }),
+      run: (row, { recoverable }) =>
+        commands.markRecoverable(
+          String(row.key),
+          recoverable as RecoverableType,
+        ),
+    },
+  ]);
 ```
 
 | 宿主写（业务）                                                                                                  | 引擎做（机制）                                                                        |
@@ -231,7 +245,7 @@ const executionActions = actions<ExecutionRow>([
 | 何时可用、不可用时怎么说（`available` 返回 `true` 或理由）                                                      | 多选里部分不可用：「5 条里 3 条能重试」，确认框列出被拒的记录与理由，可一键只选能做的 |
 | 可用性何时自己翻转（**changesAt**）                                                                             | 到点重算，不必宿主开定时器                                                            |
 | 口径、危险程度、要不要确认、要什么输入（`form`）                                                                | 确认框、输入表单（复用条件值编辑器）、键盘、读屏播报                                  |
-| 命令何时算完成：`run` 的 Promise 在读模型反映之后才 resolve（控制台今天用 `waitStrategy({ stage: SNAPSHOT })`） | 批量：并发、进度、停止、部分失败的汇总（`useBulkCommand` 收进来），完成后刷新         |
+| 命令何时算完成：`run` 的 Promise 在读模型反映之后才 resolve（控制台今天用 `waitStrategy({ stage: SNAPSHOT })`） | 批量：并发、进度、停止、部分失败的汇总（**useBulkCommand** 收进来，5.1），完成后刷新  |
 
 - `run` 只写一条记录；批量由引擎按并发调度。命令有批量版本时再加 **runMany**，不先做。
 - **刷新的前提写进契约**：`run` 必须等读模型反映了命令再 resolve，否则紧接着的刷新读到旧状态。skill 与 README 写明 Wow 命令用 `CommandStage.SNAPSHOT`（或宿主投影所需的阶段）。
@@ -239,10 +253,23 @@ const executionActions = actions<ExecutionRow>([
 - `form` 今天由宿主声明字段；命令链路的方案定下后，再由命令的 schema 推出缺省（与第 3 节同一原则），届时另议。
 - 权限：`available` 就是宿主表达「这个人不能做」的地方；不可见与不可用的区别用 `hidden: row => …`。
 
+### 5.1 落地（H3，2026-09-28）
+
+- **声明**在根入口：`actions([...])` 检查 id 唯一、有 `run`，冻结后交回 `RecordActions`；每项 `RecordAction` 是 `id`、`label`、`primary`、`tone`（`default`／`danger`）、`on`（`row`／`bulk`／`detail`，缺省三处都有）、`hidden(row, ctx)`、`available(row, ctx)`（`true` 或理由）、`changesAt(row, ctx)`、`confirm`、`form`、`run(row, input)`。规则都带第二个参数 `{ now, input? }`：时间由引擎给（`/testing` 里由测试给），不让宿主读钟；`input` 在已知时给——选择的某一项、填好的表单——所以「已经是这个值」可以只拒这一项。读法本身（`actionState`、`splitFor`、`nextChange`、`runOne`…）在 `runtime/actions.ts`，界面与 **actionHarness** 读的是同一份。
+- **选择**：只有一个带 `options` 的字段的 `form` 是一个选择——菜单里直接列出选项（行菜单里一组、多选条上一个下拉），选中的就是输入，不再弹表单。控制台的「标记可恢复性」因此与 H3 之前一样是菜单里的三项，e2e 不变。其余的 `form` 在确认框里画表单，字段复用条件编辑器的值控件（`FilterValueEditor`：选项、数字、是否、文字），缺省必填。
+- **确认**：多选一律先问（多少条、哪些不会发、为什么），这是引擎的规矩；单条只在声明了 `confirm` 时问，`confirm.ask: 'bulk'` 表示「一条直接做，多选才问」（控制台的「准备」）。`confirm` 可以是输入的函数：标成「不可恢复」时换一句后果、换成危险色。确认框是 `AlertDialog`（外点不关、焦点困在框内）；标题与正文按 `{count}`／`{value}` 填，键另写 `-one` 形式时按语言的复数规则挑（**useSayWith**）。宿主没写 `confirm` 的多选用引擎的一句「对 {count} 条记录执行「{action}」？」。
+- **部分可用**：框里说「{count} 条里 {able} 条能{action}」，按理由分组列出被拒的记录（理由、条数、前三个键与「等另外 N 条」），「只选能做的 N 条」一键把选中收窄到能做的；照样确认时，被拒的不发送、作失败报告并留在选中里（与 H3 之前控制台的行为相同）。一条都不能做时确认键置灰。
+- **执行器**：**useBulkCommand** 收进引擎，成为每个记录面（工作台的记录视图、看板的记录面板）自己的一个执行器（`/react` 内部的 `useActionRunner`，并发 4、进度、停止、逐条原因、失败与未执行的留在选中、跑完刷新）；行、多选与详情里的命令都走它，所以一行字说它们全部。动作自己拒绝的（`ActionRefused`）理由按宿主写的原样保留（键还是键），在状态条上才说出。`bind` 不再有 `bulk`，`/ui` 不再导出 `BulkStatus`，`/react` 不再导出 **useBulkCommand**。
+- **插槽**改名 `slots`（`bind` 与 `record` 上），画在声明的操作之后；插槽上下文多了 `run(command)` 与 `busy`，逃生口里仍要发的命令走同一个执行器、报在同一行。
+- **位置**：行（与卡片）上 `primary` 的是按钮，其余在「{record} 的操作」菜单里；不可用的置灰，理由是按钮的提示与无障碍描述，并去重后列在菜单顶端（键盘够得到）。详情抽屉的头部画同一套（`on` 含 `detail` 的）。多选条上 `primary` 的写「{action} {count} 条」，其余按名字，选择是一个下拉。看板的记录面板照工作台，命令后整块板重读（`boardWideHost`）；静态档不给多选。
+- **到点重算**：面上取所有看得见的记录（页上的行与详情里那条）的最早 `changesAt`，只开一个定时器，到点把引擎的钟拨到现在；时钟落后只会让规则「早问」、拒绝并报出翻转时刻，于是立即更正。
+- **播报**：命令开始与结局在面的播报区各说一次（`useSurfaceAnnouncer`／工作台的记录播报区），状态条本身是 `role=status`（全失败是 `alert`）。
+- **没做**：**runMany**（命令有批量版本时再加）、嵌入视图（`EmbeddedView`）上的声明式操作（它今天是只读的，行命令只有宿主自己的 `rowActions`）、从命令 schema 推出 `form`（等命令链路的方案）。
+
 ## 6. 测试与 skills
 
 - `/testing` 加 `admit(resources, descriptors)`：用提交的快照把全部定义与看板过一遍准入，返回问题列表；宿主一行单测。控制台 `overview.test.ts` 的「each naming a view there is」只删一半：它还拦存储里的视图 id 与钉看板 id，准入判断不了。`admit` 连带运行时，`/testing` 的体积约与根入口相当（上限 111,000 B，只用 **memorySource** 的包摇掉它）。
-- 操作的单测：`/testing` 给一个无头的 `actionHarness(actions, rows)`，断言某行可用与否、拒绝理由、确认与表单的形状，不渲染界面。
+- 操作的单测：`/testing` 给一个无头的 `actionHarness(actions, rows, { now })`，断言某行可用与否、拒绝理由、确认与表单的形状，不渲染界面。**落地（H3）**：`at(place)`、`state(id, key, input?)`、`bulk(id, keys?, input?)`（能做的、被拒的、按理由分组）、`asks(id, place, input?)`、`form`、`choice`、`missing`、`changesAt(key?)`、`run(id, key, input?)`（照引擎发送：不接的记录带理由拒绝，`ActionRefused`）；读的是 `runtime/actions.ts`，与界面同一份规则。控制台的 `views/executionActions.test.ts` 用它。
 - **`wow-view-definition` 改写**：从「对着描述符抄路径、别编字段」改为只讲判断——受众、列哪些、口径、默认、系统视图与看板；自检就是 `admit`。
 - **新增 `wow-view-host`**：接入一个宿主——`resources`、**ViewHost**、`bind`、路由，以及「从命令到操作」：哪些命令上界面、可用规则从聚合状态怎么读、拒绝理由用业务话、破坏性一律确认、批量是否允许、`run` 等到哪个阶段。与定义分开，是因为写定义的人与接宿主的人常常不是同一个，两者的自检也不同。
 
@@ -272,7 +299,7 @@ const executionActions = actions<ExecutionRow>([
 | H1  | **defineView**（含 `text(key)` 与 `timeField`，吸收 D 的时间窗口自动绑定）；`/testing` 的 `admit`    | 控制台三份定义改用它：准入结果、全部故事与截图不变；三块板删去手写的时间绑定后数字不变；`views/` 的行数写进 PR                                                                                                      |
 | H2a | `resources`、Provider、`bind`、一个应用一个引擎、键在渲染时译、队列自动留位、`onIssue` 缺省（#3761） | 控制台里没有按 `definition.id` 写的分支，没有 `maxQueuedQueries`；三个页面共用一个引擎；换语言不重建引擎                                                                                                            |
 | H2b | **ViewHost**（4.2）：改名、路由端口与 react-router 适配器、主题两条路与明暗（4.1）；导航数据（4.3）  | 控制台接入胶水 ≤150 行（资源、路由表、命令之外没有接线）；控制台不再自写明暗、`fve-tokens` 不在 `<body>` 上；Storybook 与控制台的导航都由 **useViewNavigation** 推出；截图与对比度矩阵不变；README 主题一节约 30 行 |
-| H3  | 声明式操作、**actionHarness**；两个 skill；README「Integrating a host」                              | 控制台的操作改为声明，插槽不再使用，行为与 e2e 不变；智能体按 skill 从零给零售场景写一份定义与操作，一次通过 `admit`                                                                                                |
+| H3  | 声明式操作、**actionHarness**；两个 skill；README「Integrating a host」                              | 控制台的操作改为声明，插槽不再使用，行为与 e2e 不变；智能体按 skill 从零给零售场景写一份定义与操作，一次通过 `admit`（H3 已落地，5.1；两个 skill 按用户的意思等引擎定稿后再写）                                     |
 
 - 公开面上的破坏性改动（`definitions`、`resolveSource`、`recordPanel` 与插槽为主路）趁首发前一次改到位，不留兼容层；控制台与 Storybook 在同一个 PR 里跟上。
 - 体积：H3 把确认框与表单收进 `./ui`，它已贴近上限；按「功能优先」在 PR 里抬上限并写明。

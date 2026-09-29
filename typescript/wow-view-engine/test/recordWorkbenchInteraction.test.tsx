@@ -652,7 +652,7 @@ describe('the record workbench layout', () => {
   it("offers the host's bulk action only while rows are picked", async () => {
     workbench([mine], {
       record: {
-        actions: {
+        slots: {
           bulk: ({ rows }) => (
             <button type="button">Export {rows.length} selected</button>
           ),
@@ -675,7 +675,7 @@ describe('the record workbench layout', () => {
   it("puts the host's row action in the pinned column, and in the card", async () => {
     workbench([mine], {
       record: {
-        actions: {
+        slots: {
           global: () => <button type="button">New order</button>,
           row: ({ row }) => (
             <button type="button">Open {String(row.key)}</button>

@@ -220,7 +220,8 @@ describe("ConsoleHost", () => {
       await waitFor(() => expect(sent.prepare).toHaveBeenCalledTimes(4));
 
       await act(() => router.navigate("/other"));
-      expect(bindingOf(EXECUTION_FAILED)?.bulk?.running).toBeNull();
+      // The run's line went with the page's workbench.
+      expect(document.querySelector('[data-slot="bulk-status"]')).toBeNull();
       await act(async () => {
         for (const release of releases.splice(0)) release();
       });

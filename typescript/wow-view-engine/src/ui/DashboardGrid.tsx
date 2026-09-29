@@ -193,7 +193,7 @@ export function DashboardGrid({
   const onNavigate = useRoutedNavigate(route);
   // The host's commands on each record panel (D39), from what it bound to
   // the definition the panel's view is over (`bind`'s `actions` and
-  // `bulk`): 「重试」 on the failed executions, nothing on the rest. The
+  // `slots`): 「重试」 on the failed executions, nothing on the rest. The
   // host's code runs them; the board writes nothing (D36).
   const bindingOf = useBindings();
   // The grid needs a pixel width and the container only knows it once it is

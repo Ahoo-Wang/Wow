@@ -11,14 +11,13 @@
  * limitations under the License.
  */
 
-import type {
-  RecordRow,
-  ViewEngine,
-  ViewSource,
-} from "@ahoo-wang/wow-view-engine";
-import type { EmbeddedViewProps } from "@ahoo-wang/wow-view-engine/ui";
+import type { RecordRow, ViewEngine } from "@ahoo-wang/wow-view-engine";
+import {
+  useEngine,
+  type EmbeddedViewProps,
+} from "@ahoo-wang/wow-view-engine/ui";
 import { ChevronDown, TriangleAlert } from "lucide-react";
-import { useId, useState, type ReactNode } from "react";
+import { useId, useMemo, useState, type ReactNode } from "react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -34,10 +33,11 @@ import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { ChangeFunction } from "@/generated";
 import { useI18n, type Message, type Translate } from "@/i18n.tsx";
+import { EXECUTION_HISTORY_SOURCE } from "@/views/executionHistory.ts";
+import { engineMessages } from "@/views/messages.ts";
 import { formatSeconds } from "@/utils/durations.ts";
 import { formatClock, formatMoment, formatRelative } from "@/utils/time.ts";
 import type { ExecutionCommands } from "../executionCommands.ts";
-import { recoverabilityLabel } from "../operability.ts";
 import { repeatedFailures, type Moment } from "./attempts.ts";
 import { ExecutionHistory } from "./ExecutionHistory.tsx";
 import {
@@ -48,7 +48,11 @@ import {
 import { CopyValue } from "./CopyValue.tsx";
 import { StackTrace } from "./StackTrace.tsx";
 import { STORY_LIMIT, useMoments, type MomentsRead } from "./useMoments.ts";
-import { stateOf, type ExecutionState } from "./executionState.ts";
+import {
+  recoverabilityLabel,
+  stateOf,
+  type ExecutionState,
+} from "./executionState.ts";
 import { useNow } from "@/utils/useNow.ts";
 
 const STATUS: Record<NonNullable<ExecutionState["status"]>, Message> = {
@@ -62,12 +66,7 @@ export interface ExecutionReadingProps {
   /** Whether `row` is the whole record: the forms wait for it. */
   complete: boolean;
   refresh(): void;
-  engine: ViewEngine;
-  /** Where the execution's event streams are read: its story. */
-  history: ViewSource;
   commands: ExecutionCommands;
-  locale: string;
-  messages: EmbeddedViewProps["messages"];
 }
 
 /**
@@ -76,17 +75,23 @@ export interface ExecutionReadingProps {
  * as it is can help — the same error attempt after attempt says it cannot;
  * what happened to it, attempt by attempt; then what it ran and on which
  * event, each changeable where it is read; the ids last.
+ *
+ * The story is read off the host's one engine (`useEngine`): the event
+ * streams' source, and the embedded history over them.
  */
 export function ExecutionReading({
   row,
   complete,
   refresh,
-  engine,
-  history,
   commands,
-  locale,
-  messages,
 }: ExecutionReadingProps) {
+  const engine = useEngine();
+  const { locale } = useI18n();
+  const messages = engineMessages(locale);
+  const history = useMemo(
+    () => engine.resolveSource(EXECUTION_HISTORY_SOURCE),
+    [engine],
+  );
   const id = String(row.key);
   const state = stateOf(row);
   const revision = String(row.data.eventTime ?? "");

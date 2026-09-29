@@ -14,6 +14,7 @@
 import { withText, type TextResolver } from "@ahoo-wang/wow-view-engine";
 import type { Locale } from "@/i18n.tsx";
 import { ACTIVITY_ANALYSES_WORDS } from "./activityAnalyses.ts";
+import { EXECUTION_ACTION_WORDS } from "./executionActions.ts";
 import { EXECUTION_FAILED_WORDS } from "./executionFailed.ts";
 import { EXECUTION_HISTORY_WORDS } from "./executionHistory.ts";
 import { FAILURE_ANALYSES_WORDS } from "./failureAnalyses.ts";
@@ -23,6 +24,7 @@ import { scoped, type Words } from "./textKeys.ts";
 /** Each file's words, under the scope its keys are written in. */
 const WORDS: Readonly<Record<string, Words>> = {
   executionFailed: EXECUTION_FAILED_WORDS,
+  executionActions: EXECUTION_ACTION_WORDS,
   failureAnalyses: FAILURE_ANALYSES_WORDS,
   executionHistory: EXECUTION_HISTORY_WORDS,
   activityAnalyses: ACTIVITY_ANALYSES_WORDS,

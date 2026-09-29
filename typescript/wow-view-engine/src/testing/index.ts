@@ -26,3 +26,12 @@ export {
   type AdmitOptions,
 } from '../runtime/admission.js';
 export { resolveNavigation } from '../runtime/routes.js';
+export {
+  actionHarness,
+  type ActionHarness,
+  type ActionHarnessOptions,
+  type HarnessBulk,
+  type HarnessField,
+  type HarnessState,
+} from './actions.js';
+export { ActionRefused } from '../runtime/actions.js';

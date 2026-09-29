@@ -294,10 +294,34 @@ WorkbenchController {
 RecordActionSlots { global?; bulk?; row? }
 ```
 
-- 三层业务动作的 render 槽位（react/actions.ts），由宿主传给工作台；
+- 宿主标记的 render 槽位（react/actions.ts），是声明式操作旁边的逃生口（[host-integration.md](host-integration.md) 第 5 节），经 `bind` 或 `record` 的 `slots` 交给工作台，画在声明的操作之后；
 - 动作是代码，不进配置也不进 ViewInstance。
-- 动作拿到的行（`row.data`、`rows[].data`）**只有这一页要回来的字段**：行键、可见列、卡片字段、排序与汇总字段（[kernels.md#一页要哪些字段](kernels.md#一页要哪些字段)）。动作要读别的——补偿控制台的行菜单读 `state.status`、`state.isRetryable`、`state.isBelowRetryThreshold`、`state.recoverable`——就在定义的 `record.rowFields` 里写出来。
+- 行与多选的上下文带 `run(command)` 与 `busy`：插槽里仍要发的命令走这个面自己的执行器（`useActionRunner`），报在同一行上。
+- 动作拿到的行（`row.data`、`rows[].data`）**只有这一页要回来的字段**：行键、可见列、卡片字段、排序与汇总字段（[kernels.md#一页要哪些字段](kernels.md#一页要哪些字段)）。动作要读别的——补偿控制台的规则读 `state.status`、`state.isRetryable`、`state.isBelowRetryThreshold`、`state.recoverable`——就在定义的 `record.rowFields` 里写出来；声明式操作的规则同样只看到这些字段。
 - 槽位里抛错由 `/ui` 的渲染边界接住（[ui/README.md#渲染边界](ui/README.md#渲染边界)）：只毁掉它所在的那一块，并经 `onRenderFailure` 交还宿主。
+
+## useRecordActions
+
+```ts
+useRecordActions({ actions?, table, refresh?, also?, concurrency? }): RecordActionsController
+RecordActionsController {
+  now; busy;
+  forRow(row, 'row' | 'detail'): RowActionView[];      // { action, available, reason, choices }
+  forSelection(): BulkActionView[];                     // { action, count, choices }
+  start(id, place, row?, input?);                       // 要问的进 pending，否则直接跑
+  pending: PendingAction | null;                        // { action, place, keys, input, confirm, form, able, refused, missing, value }
+  setInput(name, value); onlyAble(); confirm(); cancel();
+  runCommand(selection, { title, values?, each(key) }); // 插槽的 run
+  running; outcome; stop(); dismiss();
+}
+```
+
+一个记录面（工作台的记录视图、看板的记录面板）上宿主声明的操作（[host-integration.md](host-integration.md) 5.1）：每条记录与选中的能做什么、按下之后要问的确认或要填的表单、以及这个面唯一的执行器。规则读的都是 `runtime/actions.ts`，与 `/testing` 的 **actionHarness** 同一份。
+
+- **钟**：`now` 是引擎的钟；页上的行与 `also`（详情里那条）里最早的 `changesAt` 开一个定时器，到点拨到现在。时钟落后只会让规则早问、拒绝并报出翻转时刻，于是立即更正；按下时钟先拨到现在。
+- **按下**（`start`）：选择的选项作为 `input` 进来；`asksFirst`——多选、要填的表单、单条且声明了 `confirm`（`ask` 不是 `bulk`）——进 `pending`，否则直接跑。
+- **`pending`** 每次渲染按当前的行与钟重算 `able`／`refused`（按理由分组）与缺的必填项；`onlyAble` 把目标（多选时连同表格的选择）收窄到能做的；`confirm` 在缺项或一条都不能做时什么也不做，否则跑全部目标——被拒的在跑的时候再问一次（`runOne`），作失败报告，不发送。
+- **执行器**（`react/actionRunner.ts` 的 `useActionRunner`，原 **useBulkCommand**）：几条几条地跑（缺省 4）、进度、可停止（没开始的记在 `skipped`）、逐条原因（`ActionRefused` 保留宿主写的理由——键还是键——其余交给 `sourceReason` 读出数据源自己的话）、没做完的留在选中（单条的命令不动选择）、跑完刷新；一次只跑一趟；面卸下后不再开始新的。结局不自行消失，`dismiss()` 是它唯一的出口。`title` 与 `values` 是键或文字，在状态条上才说出（`useSayWith`）。（见 test/actionRunner.test.tsx「useActionRunner」「BulkStatus」、test/declaredActions.test.tsx）
 
 ## useSearchBox
 
@@ -307,23 +331,3 @@ SearchBoxController { field; value; applied; set(text); submit(); clear() }
 ```
 
 视图的搜索常驻在手边，而不是藏在条件编辑器里。定义声明了 `kind: 'search'` 的字段（有几个取第一个，`searchFieldOf`）时，它就是那个框：读写的是**草稿根上的那一条搜索条件**（`filter/search.ts` 的 `rootSearch`／`withRootSearch`）——编辑器里那枚 pill、已应用条读出的那一句，都是同一条条件，不是第二份状态。`set` 只改草稿（空白就把这条拿掉，而不是留一枚空 pill），`submit` 即 `apply`，`clear` 拿掉并应用。只认**根上**的那一条：嵌在某个组里的搜索是用户在编辑器里组合出来的，框子既不当它是自己的，也不覆盖它；根是 `or` 的高级树被整个包进一个新的 `and`、再与搜索并列，于是搜索是收窄它而不是成为它的又一个「或」。（见 test/searchBox.test.tsx「the root search」「the search box」）
-
-## useBulkCommand
-
-```ts
-useBulkCommand(options?: { concurrency?: number }): BulkCommand;   // 默认 4
-BulkCommand { run(selection, { title, each(key) }); stop(); running; outcome; dismiss() }
-running  { title; progress: { total; done; failed }; stopping } | null
-BulkOutcome { title; succeeded: RecordKey[]; failed: { key; reason }[]; skipped: RecordKey[] }
-```
-
-批量命令里**不属于宿主的那一半**全在这里：宿主只写「对**一条**记录做什么」（`each(key)`：做成就 resolve，被拒就抛错）与那颗按钮。此前宿主要自己把整份选择一次 `Promise.all` 发出去、自己拼结局、自己挑一句原因代表所有失败，补偿控制台为此还得用 ref 记住按的是哪条命令；三件事做得各不相同，也都做得不对。
-
-- **几条几条地跑**（`concurrency`，默认 4）：命令是写入，一百条选择一次发出去就是一百个写同时砸在一个服务上；一条落定，下一条才开始。
-- **进度**：跑的时候 `running.progress` 说做完几条、失败几条、一共几条。
-- **可停止**：`stop()` 之后不再开始新的，已经发出去的照常落地（写出去的不收回）；没开始的记在 `skipped`。
-- **逐条原因**：`each` 抛出的东西交给 `sourceReason` 读出数据源自己的话（Wow 的错误体），宿主把错误原样抛出即可，不必自己措辞；`failureReasons` 按条数从多到少归并同一句原因。
-- **没做完的留着选中**：落定后选择**恰好**是被拒的与没开始的（按原选择顺序），全做成就放开——这些行正是下一步要处理的。随后刷新，刷新留在当前页（[runtime.md](runtime.md)）。
-- **一次只跑一趟**：在途时第二次 `run` 直接不受理；空选择什么也不跑；宿主已卸载时照常跑完（记录已经收到命令），只是不再汇报。
-- **选择的接口**：`run` 收 `BulkSelection`（`keys`、`select`、`refresh`，都来自 bulk 槽位的 `RecordBulkActionContext`）；行上的命令传 `select() {}`，不动选择。
-- 结局不自行消失，`dismiss()` 是它唯一的出口；下一趟 `run` 一开始也把它换掉。**状态条由工作台画**：宿主把钩子交给 `record.bulk`，`/ui` 的 `BulkStatus` 在工具栏与行之间（查询失败条所在的地方）说出进度与结局——结局比它作用的那份选择活得久，而 bulk 槽位随选择一起卸掉，所以它属于结果区而不属于槽位；宿主不再需要在工作台外面自己套一层 `ViewSurface` 来画它。（见 test/bulkCommand.test.tsx「useBulkCommand」「BulkStatus」）

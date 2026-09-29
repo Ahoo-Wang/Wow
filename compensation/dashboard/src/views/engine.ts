@@ -21,7 +21,6 @@ import {
   ViewEngine,
   type ViewEngineOptions,
   type ViewSource,
-  type ViewStore,
 } from "@ahoo-wang/wow-view-engine";
 import { browserRuntimeEnvironment } from "@ahoo-wang/wow-view-engine/react";
 import type { Locale } from "@/i18n.tsx";
@@ -64,8 +63,10 @@ export function executionHistorySource(): ViewSource {
   );
 }
 
-export interface ExecutionEngineOptions {
-  store: ViewStore;
+export interface ExecutionEngineOptions extends Omit<
+  ViewEngineOptions,
+  "resources"
+> {
   source?: ViewSource;
   historySource?: ViewSource;
   /** Starting words, for a test that draws with no host above. */
@@ -73,34 +74,29 @@ export interface ExecutionEngineOptions {
 }
 
 /**
- * The console's resources (host-integration.md 4): the failed executions,
- * their event streams, and the overview board over both.
+ * An engine over the console's resources (host-integration.md 4): the
+ * failed executions, their event streams, and the overview board over
+ * both; a test gives its own sources and store.
  */
-export function executionEngineOptions({
-  store,
+export function createExecutionEngine({
   source = executionFailedSource(),
   historySource = executionHistorySource(),
   locale,
-}: ExecutionEngineOptions): ViewEngineOptions {
-  return {
+  ...options
+}: ExecutionEngineOptions): ViewEngine {
+  return new ViewEngine({
     resources: [
       { definition: executionFailed, source },
       { definition: executionHistory, source: historySource },
       { definition: overview },
     ],
-    store,
     ...(locale ? { text: definitionText(locale) } : {}),
     environment: browserRuntimeEnvironment({
       onError: ({ kind, error, context }) =>
         console.error(`[view-engine] ${kind} failed`, error, context),
     }),
-  };
-}
-
-export function createExecutionEngine(
-  options: ExecutionEngineOptions,
-): ViewEngine {
-  return new ViewEngine(executionEngineOptions(options));
+    ...options,
+  });
 }
 
 let shared: ViewEngine | undefined;

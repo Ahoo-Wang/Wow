@@ -54,16 +54,24 @@ export {
   useRefreshCountdown,
 } from './useAutoRefresh.js';
 export {
-  type BulkCommand,
-  type BulkCommandOptions,
+  type ActionRunner,
   type BulkFailure,
   type BulkOutcome,
   type BulkProgress,
   type BulkRun,
+  type BulkRunning,
   type BulkSelection,
   failureReasons,
-  useBulkCommand,
-} from './useBulkCommand.js';
+} from './actionRunner.js';
+export {
+  type BulkActionView,
+  type PendingAction,
+  type RecordActionTable,
+  type RecordActionsController,
+  type RecordActionsOptions,
+  type RowActionView,
+  useRecordActions,
+} from './useRecordActions.js';
 export { type SearchBoxController, useSearchBox } from './useSearchBox.js';
 export {
   type UnavailableController,

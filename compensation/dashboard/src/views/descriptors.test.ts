@@ -18,10 +18,10 @@ import {
 } from "@ahoo-wang/wow-client";
 import {
   MemoryViewStore,
-  ViewEngine,
   searchFieldOf,
   systemInstanceId,
   type Issue,
+  type ViewEngine,
   type ViewSource,
 } from "@ahoo-wang/wow-view-engine";
 import { inLocale } from "./text.ts";
@@ -29,7 +29,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import mongoEvent from "../../e2e/support/descriptors/mongo-event.json";
 import mongoSnapshot from "../../e2e/support/descriptors/mongo-snapshot.json";
 import {
-  executionEngineOptions,
+  createExecutionEngine,
   executionFailedSource,
   executionHistorySource,
 } from "./engine.ts";
@@ -83,13 +83,11 @@ function engineOver(
   const issues: Issue[] = [];
   const source = described(snapshot);
   const historySource = described(snapshot ? MONGO_EVENT : null);
-  const engine = new ViewEngine({
-    ...executionEngineOptions({
-      locale,
-      store: new MemoryViewStore(),
-      source,
-      historySource,
-    }),
+  const engine = createExecutionEngine({
+    locale,
+    store: new MemoryViewStore(),
+    source,
+    historySource,
     onIssue: (found) => issues.push(found),
   });
   engines.push(engine);

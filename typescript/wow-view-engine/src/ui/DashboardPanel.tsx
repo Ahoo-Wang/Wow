@@ -207,8 +207,8 @@ export interface DashboardPanelProps {
   /** Under the body: the wiring strip while a filter is wired (D22 G). */
   footer?: ReactNode;
   /**
-   * The host's commands on a record panel (D39): a row's, a selection's
-   * and the bulk command's line. Nothing on another kind of panel.
+   * The host's commands on a record panel (D39): its declared actions and
+   * slots, a row's and a selection's. Nothing on another kind of panel.
    */
   record?: RecordPanelHost;
   /**

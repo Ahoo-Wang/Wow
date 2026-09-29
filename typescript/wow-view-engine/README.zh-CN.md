@@ -269,7 +269,7 @@ import type { ReactNode } from 'react';
 declare const engine: ViewEngine;
 declare const locale: string;
 declare const ordersWords: Record<string, string>;
-declare const orderActions: import('@ahoo-wang/wow-view-engine/react').RecordActionSlots;
+declare const orderActions: import('@ahoo-wang/wow-view-engine').RecordActions;
 -->
 
 ```tsx
@@ -306,15 +306,15 @@ export function Host({ children }: { children: ReactNode }) {
 }
 ```
 
-| 属性                             | 端口 | 做什么                                                                                                                                                                                                                                                                                                                                                                 |
-| -------------------------------- | ---- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `engine`                         | 数据 | 应用的引擎，建一次。写了它的那层用自己的 `messages` 说出引擎定义里的键                                                                                                                                                                                                                                                                                                 |
-| `router`                         | 路由 | 宿主的路由：`/react-router` 的 `useReactRouter()`（React Router 是可选 peer，只有这个入口加载它），或在别的路由库上写 `ViewRouter` 的两个成员                                                                                                                                                                                                                          |
-| `locale`、`messages`             | 语言 | 值按哪种语言显示，以及合并在已生效措辞之上的措辞——引擎自己的（`zhCN`、宿主的改写）与定义的键一样放在这里；一换，所有打开的视图就地重画，还是那些运行时，不重发查询                                                                                                                                                                                                     |
-| `bindings`                       | 命令 | `bind(definitionId, { route, reading, actions, bulk })`：`route(instanceId, target?)` 是打开它的页面路径（没人保存的视图 `instanceId` 为 `null`；引擎要一条链接而不是一条去处时——`useViewNavigation`——不给 `target`）；`reading` 是记录详情的选项（`render`、`title`、`sections`）；`actions` 与 `bulk` 是宿主对它的记录的命令——它的工作台与所有看板上它的记录面板都挂 |
-| `theme`、`preset`、`brand`       | 主题 | [两条路](#主题先选一条路)选其一                                                                                                                                                                                                                                                                                                                                        |
-| `colorMode`、`rememberColorMode` | 主题 | `<html>` 上的明暗：缺省 `system`，跟随系统；`light`／`dark` 从钉住开始；宿主自己画明暗时写 `host`。`useColorMode()` 给宿主的开关 `{ mode, setMode }`，读者的选择按给的 `localStorage` 键记住                                                                                                                                                                           |
-| `navigate`                       | 路由 | 每一条去处由宿主自己接，不走路由端口：按目标的 `route` 解析好交来——`{ kind: 'route', path, state }`——网址与没有 `route` 的资源原样交来                                                                                                                                                                                                                                 |
+| 属性                             | 端口 | 做什么                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| -------------------------------- | ---- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `engine`                         | 数据 | 应用的引擎，建一次。写了它的那层用自己的 `messages` 说出引擎定义里的键                                                                                                                                                                                                                                                                                                                                                                             |
+| `router`                         | 路由 | 宿主的路由：`/react-router` 的 `useReactRouter()`（React Router 是可选 peer，只有这个入口加载它），或在别的路由库上写 `ViewRouter` 的两个成员                                                                                                                                                                                                                                                                                                      |
+| `locale`、`messages`             | 语言 | 值按哪种语言显示，以及合并在已生效措辞之上的措辞——引擎自己的（`zhCN`、宿主的改写）与定义的键一样放在这里；一换，所有打开的视图就地重画，还是那些运行时，不重发查询                                                                                                                                                                                                                                                                                 |
+| `bindings`                       | 命令 | `bind(definitionId, { route, reading, actions, slots })`：`route(instanceId, target?)` 是打开它的页面路径（没人保存的视图 `instanceId` 为 `null`；引擎要一条链接而不是一条去处时——`useViewNavigation`——不给 `target`）；`reading` 是记录详情的选项（`render`、`title`、`sections`）；`actions` 是宿主对它的记录的命令，写成声明（[接入宿主](#接入宿主声明式操作)），`slots` 是旁边宿主自己的标记——它的工作台、记录详情与所有看板上它的记录面板都挂 |
+| `theme`、`preset`、`brand`       | 主题 | [两条路](#主题先选一条路)选其一                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| `colorMode`、`rememberColorMode` | 主题 | `<html>` 上的明暗：缺省 `system`，跟随系统；`light`／`dark` 从钉住开始；宿主自己画明暗时写 `host`。`useColorMode()` 给宿主的开关 `{ mode, setMode }`，读者的选择按给的 `localStorage` 键记住                                                                                                                                                                                                                                                       |
+| `navigate`                       | 路由 | 每一条去处由宿主自己接，不走路由端口：按目标的 `route` 解析好交来——`{ kind: 'route', path, state }`——网址与没有 `route` 的资源原样交来                                                                                                                                                                                                                                                                                                             |
 
 **有了路由端口，地址由引擎管。** 离开看板或视图的每一条路——「在工作台中打开」、一组上的追问、面板的去处、回到看板——都去目标资源的 `route`，页面要打开的东西作为这条历史的 state（`ViewRouteState`：交接来的视图、看板的 `filters` 与 `tab`）；宿主自己的路径也经路由，别的站点另开。没传 `instanceId` 的 `DataWorkbench`、`DashboardWorkbench` 打开地址的 `?view=`，读者换视图就写回去，每换一个一条历史；没传 `handOver` 的，打开这条历史里交接的视图；没传筛选那一对（`initialFilters`、`onFiltersChange`）或标签页那一对的看板——工作台的，或 `EmbeddedDashboard`——从这条历史读，读者一改就记回去。绑定了的资源，记录详情跟着 `?id=`，除非它的 `reading` 自己握着 `open`。宿主自己的 props 仍然优先，每一对各算各的。别的路由库只要两个成员：
 
@@ -360,6 +360,87 @@ function AppSidebar() {
 ```
 
 它下面的外壳只写这一处与别处不同的：`<DataWorkbench definitionId="orders" />`、`<EmbeddedDashboard instanceId="…" />`。外壳自己的 `engine`、`messages`、`locale`、`onNavigate`、`record` 仍然优先；**ViewHost** 可以嵌套，内层的绑定按 id 覆盖外层——一页两个引擎照样写得出。引擎的定义说的是写了这个引擎的最外层 `ViewHost` 的 `messages`——一个引擎同时只说一种语言——所以内层换一种语言的 `ViewHost`——无论隔几层再写一次这个引擎，还是不写——只改写它之下引擎自己的措辞，不改定义的键；两个并列的 `ViewHost` 写同一个引擎时，须给它同样的措辞。`EmbeddedView` 的 `detail` 按绑定的读法读记录（`render`、`title`、`sections`），但开着哪一条是它自己的：同一定义的两个嵌入不会打开同一条，也不写绑定的 `open`。
+
+#### 接入宿主：声明式操作
+
+记录上的命令写成声明，不画出来。宿主说**做什么**——记录接哪些命令、什么时候能做、不能做时怎么说、要不要先确认、要什么输入；引擎负责**放在哪、怎样做**：
+
+| 宿主声明                                                                | 引擎做                                                                                                    |
+| ----------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| 有哪些命令，每条的 `run` 调生成的命令客户端                             | 放在哪：主操作是行内（与卡片上）的按钮，其余在这条记录的「⋯」菜单里，全部都在多选条与详情里               |
+| 何时可用（`available` 返回 `true` 或理由），何时自己翻转（`changesAt`） | 不可用时置灰并写明理由（提示、按钮的描述、菜单顶端）；到点重算，宿主不开定时器                            |
+| 口径、语气（`tone`）、要不要先确认（`confirm`）、要什么输入（`form`）   | 确认框与表单（条件编辑器的值控件），焦点留在框内，键盘可达，开始与结局都播报                              |
+| 命令何时算完成：`run` 在读模型反映之后才 resolve                        | 多选时：「5 条里 3 条能做」，列出被拒的记录与理由，一键只选能做的；几条一起跑、进度、停止、结局、跑完刷新 |
+
+<!-- typecheck-context
+declare const commands: {
+  ship(id: string): Promise<void>;
+  cancel(id: string): Promise<void>;
+  prioritize(id: string, priority: string): Promise<void>;
+};
+declare function holdOf(row: import('@ahoo-wang/wow-view-engine').RecordRow): number;
+-->
+
+```ts
+import { actions, text } from '@ahoo-wang/wow-view-engine';
+
+export const orderActions = actions([
+  {
+    id: 'ship',
+    label: text('orders.ship'),
+    primary: true,
+    // `true`，或者为什么不行——一个键，按读者的语言说。
+    available: (row, { now }) =>
+      holdOf(row) > now ? text('orders.onHold') : true,
+    // 什么时候自己翻转；到点引擎再问一次。
+    changesAt: (row, { now }) => (holdOf(row) > now ? holdOf(row) + 1 : null),
+    // 一张单按了就发；多选时先数清楚。
+    confirm: { title: text('orders.shipTitle'), ask: 'bulk' },
+    run: row => commands.ship(String(row.key)),
+  },
+  {
+    id: 'cancel',
+    label: text('orders.cancel'),
+    tone: 'danger',
+    // `{count}` 是多少条；语言把「一条」说得不同时另写 `-one` 键。
+    confirm: {
+      title: text('orders.cancelTitle'),
+      body: text('orders.cancelBody'),
+    },
+    run: row => commands.cancel(String(row.key)),
+  },
+  {
+    id: 'priority',
+    label: text('orders.priority'),
+    // 只有一个带选项的字段就是选择：选项直接是菜单项。
+    form: {
+      priority: {
+        label: text('orders.priorityField'),
+        options: [
+          { value: 'HIGH', label: text('orders.high') },
+          { value: 'NORMAL', label: text('orders.normal') },
+        ],
+      },
+    },
+    // 带着选项问：订单已经是的那一项不再提供。
+    available: (row, { input }) =>
+      input?.priority === row.data.priority
+        ? text('orders.samePriority')
+        : true,
+    run: (row, { priority }) =>
+      commands.prioritize(String(row.key), String(priority)),
+  },
+]);
+```
+
+- **`run` 要等读模型反映了命令再 resolve。** 引擎紧接着重读视图，跑在命令前头的刷新读到的是旧状态。Wow 命令等 `CommandStage.SNAPSHOT`（请求头写 `waitStrategy({ stage: CommandStage.SNAPSHOT })`），或宿主投影需要的阶段。它抛出的错误按服务端自己的原因读。
+- `run` 只写一条记录；多选由引擎几条一起跑，停止在两条之间生效。命令有批量版本之前不加 **runMany**。
+- `on: ['row', 'bulk', 'detail']` 收窄出现的位置（缺省处处都有）；`hidden: row => …` 让读者不能做的记录干脆不出现这项，`available` 则是出现但置灰并说明。
+- 多个字段（或一个不带选项的字段）的 `form` 在确认框里给出表单：文字、数字或是否，每个字段缺省必填（`required: false` 例外），`initial` 是打开时的值；`run` 按字段名拿到输入。
+- 每个字都是键或文字，在显示处说出（`text(key)`，[措辞与语言](#措辞与语言)）。
+- **插槽是逃生口**，画在声明的操作之后：`slots: { row, bulk, global }` 渲染宿主自己的标记——一条链出去的链接、声明说不了的控件。插槽里仍要发命令的，调上下文里的 `run`，结局就报在这个面的那一行上：`row: ({ row, run, busy }) => …`，`run({ title, each: key => … })`。
+
+宿主的测试按引擎的读法读这些声明，不画界面——`/testing` 的 `actionHarness`（[测试宿主](#测试宿主内存数据源)）。
 
 ### 3a. 渲染默认工作台
 
@@ -541,7 +622,7 @@ import {
 
 **仪表盘的筛选逐个三态**（`filterModes` 按筛选名，时间粒度用 `groupingMode`）：`adjustable`——在筛选条上、归读者，这一次看时可调，与工作台一样，也是缺省；`locked`——在筛选条上读作它的值，带一把锁、没有控件；`hidden`——不在筛选条上，照样收窄接上的面板。锁定与隐藏由 runtime 持有，读者做什么——改值、「清空」、点一组交叉筛选——都改不了它们。它们的值是页面自己的 `pageValues`（没写就是默认值）：从第一次查询起就在，并**跟着这个属性变**——客户页换到下一位客户，板子跟着换。读者的筛选是宿主地址里的那一份：`initialFilters` 与 `onFiltersChange`，读法、报法与 `DashboardWorkbench` 相同。**锁定与隐藏的值从不走地址**：`initialFilters` 里写到它们的条目不算，`onFiltersChange` 只报读者能设的筛选——否则读者改一下地址就换了客户，与「锁定」正相反。板子不收条件树（`EmbeddedDashboard` 没有 `scopeFilter`）：要收窄它，在板上声明那个筛选，再锁定或隐藏它。
 
-**记录面板上的宿主命令**来自宿主给面板视图所在定义的绑定（`ViewHost` 上的 `bind(definitionId, { actions, bulk })`，`EmbeddedDashboard` 与 `DashboardWorkbench` 都一样）：记录工作台同一套 `actions`——行动作两档都画，成批命令只在能勾选的一档（`interactive`）——以及 `useBulkCommand`，面板在行上方说它的进度；每个上下文的 `refresh` 重跑整块板。它们是宿主对自己服务的命令，嵌入照旧什么也不写。记录面板也说一共多少条，`interactive` 一档能翻页。
+**记录面板上的宿主命令**来自宿主给面板视图所在定义的绑定（`ViewHost` 上的 `bind(definitionId, { actions, slots })`，`EmbeddedDashboard` 与 `DashboardWorkbench` 都一样）：记录工作台同一套声明的 `actions`——一条记录的两档都画，选中的只在能勾选的一档（`interactive`）——面板在行上方说执行的进度与结局；命令之后整块板重读。它们是宿主对自己服务的命令，嵌入照旧什么也不写。记录面板也说一共多少条，`interactive` 一档能翻页。
 
 **锁定不是安全边界。** 页面锁定的条件是在浏览器里拼进查询的，只保证读者在界面上改不了、在这里看不到别的。改一下页面脚本、直接调接口，就能问到别的客户。租户、归属与权限必须由 Wow 后端强制——对外的页面尤其如此。本包是宿主进程里的库，不照搬 Metabase 的 iframe、签名令牌或 SSO：身份与权限属于宿主与后端。
 
@@ -809,6 +890,27 @@ expect(
 ).toEqual([]);
 ```
 
+`actionHarness(actions, rows, { now })` 按引擎自己的规则读宿主声明的操作，不渲染：每项出现在哪（`at`）、某条记录能不能做、为什么不能（`state`）、一组选中怎么分（`bulk`）、按下会问什么（`asks`）、它的表单或选择（`form`、`choice`、`missing`）、记录什么时候自己翻转（`changesAt`），以及照引擎那样发出的 `run`——记录不接时带着理由拒绝（`ActionRefused`）：
+
+<!-- typecheck-context
+import { text } from '@ahoo-wang/wow-view-engine';
+import type { RecordActions, RecordRow } from '@ahoo-wang/wow-view-engine';
+declare const orderActions: RecordActions;
+declare const rows: RecordRow[];
+declare function expect(value: unknown): { toEqual(expected: unknown): void; toBe(expected: unknown): void };
+-->
+
+```ts
+import { actionHarness } from '@ahoo-wang/wow-view-engine/testing';
+
+const orders = actionHarness(orderActions, rows, {
+  now: Date.parse('2026-09-28'),
+});
+expect(orders.state('ship', 'O-2').reason).toBe(text('orders.onHold'));
+expect(orders.bulk('ship').able).toEqual(['O-1']);
+expect(orders.asks('cancel', 'row').asks).toBe(true);
+```
+
 ## 概念
 
 | 类型             | 职责                                                                                                                                                                                                                                                                                                                                         | 所在   |
@@ -836,17 +938,17 @@ expect(
 
 ## 入口
 
-| 入口                         | 导出                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
-| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `@ahoo-wang/wow-view-engine` | 模型类型与常量；四个纯内核（`validate*` / `compile*` / `project*` 及其旁边的读法）；运行时只导出宿主要握的，不导出它由什么搭成——`ViewEngine`、`validateDefinition`、运行时合同 `ViewRuntime`、`RecordViewRuntime`、`DashboardRuntime`、`AnyViewRuntime` 连同它们签名里出现的每一个类型、`hasResult`、`hasAsked`、`isRecordRuntime`、写入错误 `ViewWriteError` 与 `ViewCommandError`、`ExportCancelled`、`RuntimeEnvironment`、`defaultRuntimeEnvironment`、`ViewSource`、`OptionSource`；`ViewStore` 端口、`MemoryViewStore` 与 `localStorageSnapshot`                                                                                                                   |
-| `/react`                     | 钩子与无样式控制器，连同它们交出的类型：`useViewEngine`、`useOpenView`、`useViewRuntime`、`useViewList`、`useViewManager`、`useWorkbench`、`useLeaveGuard`、`useFilterEditor`、`useRecordTable`、`useAnalysisEditor`、`useAnalysisResult`、`useDashboard`、`useSaveCommands`、`RecordActionSlots`，以及保存命令与管理器共用的写入结局词汇                                                                                                                                                                                                                                                                                                                                |
-| `/ui`                        | 默认组件、视图与工作台，连同它们的 props：`DataWorkbench`、`DashboardWorkbench`、`DashboardEditExtensions`、`useDashboardExtensions`、`EmbeddedView`、`EmbeddedDashboard`、`ViewHost`、`bind`、`useViewNavigation`、`useColorMode`、`ViewHeader`、`SaveActions`、`ViewManager`、`LeaveDialog`、`EditorBand`、`FilterPanel`、`StatusStrip`、`AppliedBar`、`ResultToolbar`、`RowActions`、`RecordTable`、`RecordCards`、`RecordPagination`、`AnalysisTable`、`AnalysisChart`、`DashboardGrid`、`HeadingPanel`、`MarkdownPanel`、`ImagePanel`、`LinksPanel`、`MessagesProvider`；措辞目录 `defaultMessages` 与 `zhCN`；一个值的读法 `cellValue`、`cellText`、`displayValue` |
-| `/testing`                   | `memorySource` 与 `matches`：带 Wow 查询语义的内存 `ViewSource`；`resolveNavigation`：引擎自己按宿主绑定解析离开的路，供宿主测路由；`admit`：按提交的描述符准入宿主的声明——供宿主测试使用（[测试宿主](#测试宿主内存数据源)）                                                                                                                                                                                                                                                                                                                                                                                                                                             |
-| `/react-router`              | `useReactRouter`：把 React Router 接成视图宿主的路由端口。React Router 是可选 peer，只有这个入口加载它                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
-| `/styles.css`                | 主题。显式导入；任何 JS 入口都不会引入 CSS，产物也不会在 `.fve-root`／`.fve-tokens` 两个样式边界之外绘制任何东西（preflight 与工具类在构建时收进边界内，每条规则比源码多一个类的权重，所以宿主的导入次序无关）——预设的复位规则除外，它只在挂了预设的元素上清空 `--fvp-*` 层——`scripts/verify-package.mjs` 在每次构建时逐条核对。                                                                                                                                                                                                                                                                                                                                         |
-| `/themes.css`                | 预设，可选：只有按 `data-fve-preset` 选中的 `--fvp-*` 赋值（[预设](https://wow.ahoo.me/zh/guide/typescript/view-engine-theming#预设)），由同一个脚本核对。                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
-| `/themes/<名>.css`           | 单独一套预设，给只用一套的宿主：就是 `themes.css` 里它那一块（[预设](https://wow.ahoo.me/zh/guide/typescript/view-engine-theming#预设)）。                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
-| `/shadcn-bridge.css`         | 可选：把宿主的 shadcn token 读进 `--fvp-*` 变量，`input`、`ring`、状态色、图表色与阴影除外，且只在没挂预设时生效（[桥接](https://wow.ahoo.me/zh/guide/typescript/view-engine-theming#shadcn-桥接)），由同一个脚本核对。                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| 入口                         | 导出                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `@ahoo-wang/wow-view-engine` | 模型类型与常量；四个纯内核（`validate*` / `compile*` / `project*` 及其旁边的读法）；运行时只导出宿主要握的，不导出它由什么搭成——`ViewEngine`、`validateDefinition`、运行时合同 `ViewRuntime`、`RecordViewRuntime`、`DashboardRuntime`、`AnyViewRuntime` 连同它们签名里出现的每一个类型、`hasResult`、`hasAsked`、`isRecordRuntime`、`actions` 连同声明式操作的类型、写入错误 `ViewWriteError` 与 `ViewCommandError`、`ExportCancelled`、`RuntimeEnvironment`、`defaultRuntimeEnvironment`、`ViewSource`、`OptionSource`；`ViewStore` 端口、`MemoryViewStore` 与 `localStorageSnapshot`                                                                                                |
+| `/react`                     | 钩子与无样式控制器，连同它们交出的类型：`useViewEngine`、`useOpenView`、`useViewRuntime`、`useViewList`、`useViewManager`、`useWorkbench`、`useLeaveGuard`、`useFilterEditor`、`useRecordTable`、`useAnalysisEditor`、`useAnalysisResult`、`useDashboard`、`useSaveCommands`、`useRecordActions`（一个记录面上的声明式操作：每条记录与选中的能做什么、等读者回答的确认或表单、唯一的执行器）、`RecordActionSlots`，以及保存命令与管理器共用的写入结局词汇                                                                                                                                                                                                                             |
+| `/ui`                        | 默认组件、视图与工作台，连同它们的 props：`DataWorkbench`、`DashboardWorkbench`、`DashboardEditExtensions`、`useDashboardExtensions`、`EmbeddedView`、`EmbeddedDashboard`、`ViewHost`、`bind`、`useEngine`、`useViewNavigation`、`useColorMode`、`ViewHeader`、`SaveActions`、`ViewManager`、`LeaveDialog`、`EditorBand`、`FilterPanel`、`StatusStrip`、`AppliedBar`、`ResultToolbar`、`RowActions`、`RecordTable`、`RecordCards`、`RecordPagination`、`AnalysisTable`、`AnalysisChart`、`DashboardGrid`、`HeadingPanel`、`MarkdownPanel`、`ImagePanel`、`LinksPanel`、`MessagesProvider`；措辞目录 `defaultMessages` 与 `zhCN`；一个值的读法 `cellValue`、`cellText`、`displayValue` |
+| `/testing`                   | `memorySource` 与 `matches`：带 Wow 查询语义的内存 `ViewSource`；`resolveNavigation`：引擎自己按宿主绑定解析离开的路，供宿主测路由；`admit`：按提交的描述符准入宿主的声明；`actionHarness`：按引擎的规则读宿主声明的操作，不画界面——供宿主测试使用（[测试宿主](#测试宿主内存数据源)）                                                                                                                                                                                                                                                                                                                                                                                                 |
+| `/react-router`              | `useReactRouter`：把 React Router 接成视图宿主的路由端口。React Router 是可选 peer，只有这个入口加载它                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| `/styles.css`                | 主题。显式导入；任何 JS 入口都不会引入 CSS，产物也不会在 `.fve-root`／`.fve-tokens` 两个样式边界之外绘制任何东西（preflight 与工具类在构建时收进边界内，每条规则比源码多一个类的权重，所以宿主的导入次序无关）——预设的复位规则除外，它只在挂了预设的元素上清空 `--fvp-*` 层——`scripts/verify-package.mjs` 在每次构建时逐条核对。                                                                                                                                                                                                                                                                                                                                                      |
+| `/themes.css`                | 预设，可选：只有按 `data-fve-preset` 选中的 `--fvp-*` 赋值（[预设](https://wow.ahoo.me/zh/guide/typescript/view-engine-theming#预设)），由同一个脚本核对。                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| `/themes/<名>.css`           | 单独一套预设，给只用一套的宿主：就是 `themes.css` 里它那一块（[预设](https://wow.ahoo.me/zh/guide/typescript/view-engine-theming#预设)）。                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| `/shadcn-bridge.css`         | 可选：把宿主的 shadcn token 读进 `--fvp-*` 变量，`input`、`ring`、状态色、图表色与阴影除外，且只在没挂预设时生效（[桥接](https://wow.ahoo.me/zh/guide/typescript/view-engine-theming#shadcn-桥接)），由同一个脚本核对。                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
 
 这就是公开面，而且逐个名字守着。每个入口把它导出的名字逐个写出，按声明它的文件分组，不整模块转出（`test/architecture.test.ts`），所以文件为包内邻居写的 `export` 不会意外变成公开的。每个代码入口的完整清单——每一个名字，以及它是类型还是值——在 `test/surface/`（`root.txt`、`react.txt`、`ui.txt`、`testing.txt`、`react-router.txt`）：入口多导出了清单上没有的名字、或不再导出清单上有的名字，`test/publicSurface.test.ts` 就失败；`scripts/verify-package.mjs` 再拿同一份清单核对构建出的每个 JS 入口。往清单里加一个名字或拿掉一个，就是改公开面，按改公开面来审。命令也是公开面：`test/surface/bin.txt` 列出 `bin`（`wow-view-engine`）与它认的每个子命令（[`theme-check`](https://wow.ahoo.me/zh/guide/typescript/view-engine-theming#检查一套主题)）。
 
@@ -947,14 +1049,14 @@ import { DataWorkbench, zhCN } from '@ahoo-wang/wow-view-engine/ui';
 
 ## 扩展点
 
-| 变化轴   | 机制                                                                                                                                                                                    |
-| -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 字段类型 | 注册 `FieldKind`（操作符、校验、编译到 `FilterExpression`、编辑器描述）。编辑器从 `/ui` 已有的值控件里选一种（`EDITOR_INPUTS`）：没有渲染器注册表，要别的控件的类型会被拒绝而不是猜着画 |
-| 数据来源 | `resources` 的每一项把一份定义与它的数据源（Wow 查询客户端）配成对                                                                                                                      |
-| 持久化   | 实现 `ViewStore`                                                                                                                                                                        |
-| 动作     | 向工作台传 `actions`：`global`、`bulk`、`row` 三个渲染函数。动作是代码，由宿主交出来，不进配置、不入库。一页只取视图显示的字段，动作要读的其他字段写在定义的 `record.rowFields` 里      |
-| 外观     | CSS 变量与主题文件；通过组合 `/react` 钩子替换组件                                                                                                                                      |
-| 地图     | `/ui` 的 `registerChartMap` 给地图图型提供地理数据，见[地图](#地图)                                                                                                                     |
+| 变化轴   | 机制                                                                                                                                                                                                                                                                                 |
+| -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 字段类型 | 注册 `FieldKind`（操作符、校验、编译到 `FilterExpression`、编辑器描述）。编辑器从 `/ui` 已有的值控件里选一种（`EDITOR_INPUTS`）：没有渲染器注册表，要别的控件的类型会被拒绝而不是猜着画                                                                                              |
+| 数据来源 | `resources` 的每一项把一份定义与它的数据源（Wow 查询客户端）配成对                                                                                                                                                                                                                   |
+| 持久化   | 实现 `ViewStore`                                                                                                                                                                                                                                                                     |
+| 动作     | 写成声明（`actions()`）并绑到定义上（`bind(id, { actions })`），或向工作台传 `record.actions`；`slots`——`global`、`bulk`、`row` 三个渲染函数——是旁边的逃生口。动作是代码，由宿主交出来，不进配置、不入库。一页只取视图显示的字段，动作要读的其他字段写在定义的 `record.rowFields` 里 |
+| 外观     | CSS 变量与主题文件；通过组合 `/react` 钩子替换组件                                                                                                                                                                                                                                   |
+| 地图     | `/ui` 的 `registerChartMap` 给地图图型提供地理数据，见[地图](#地图)                                                                                                                                                                                                                  |
 
 内置字段类型：`string`、`number`、`boolean`、`date`、`datetime`、`enum`、`reference`、`array`、`elementMatch`、`search`，以及由 Wow 元数据筛选支撑的 `documentId`、`aggregateId`、`tenantId`、`ownerId`、`spaceId`、`deletion`。
 

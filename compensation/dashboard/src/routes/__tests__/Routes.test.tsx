@@ -31,7 +31,6 @@ vi.mock("../../features/App/ConsoleHost.tsx", () => ({
 }));
 
 vi.mock("../lazyPages.ts", () => ({
-  LazyPageLayout: () => null,
   LazyOverviewPage: () => {
     throw new Promise(() => undefined);
   },
@@ -50,11 +49,10 @@ describe("AppRouter", () => {
     // The shell under the console's host of views: its places are the
     // engine's navigation.
     expect(root?.element?.props.children).toBeDefined();
-    const [views, other] = root?.children ?? [];
-    expect(views?.path).toBeUndefined();
-    expect(views?.element?.props.children).toBeDefined();
+    const places = root?.children ?? [];
+    const other = places.at(-1);
     expect(
-      views?.children?.map(({ index, path }) => ({ index, path })),
+      places.slice(0, -1).map(({ index, path }) => ({ index, path })),
     ).toEqual([
       { index: true, path: undefined },
       { index: undefined, path: "/executions" },
@@ -62,8 +60,8 @@ describe("AppRouter", () => {
       { index: undefined, path: "/boards" },
     ]);
 
-    expect(views?.children?.[0].element?.props).not.toHaveProperty("replace");
-    expect(views?.children?.[0].element?.props.children).toBeDefined();
+    expect(places[0].element?.props).not.toHaveProperty("replace");
+    expect(places[0].element?.props.children).toBeDefined();
     expect(other?.path).toBe("*");
     expect(other?.element?.props).toMatchObject({
       replace: true,
@@ -72,7 +70,7 @@ describe("AppRouter", () => {
   });
 
   it("shows the page's skeleton while its chunk is pending", () => {
-    const home = mocks.routerConfig?.[0].children?.[0].children?.[0];
+    const home = mocks.routerConfig?.[0].children?.[0];
 
     render(home?.element);
 

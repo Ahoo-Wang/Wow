@@ -14,15 +14,16 @@
 /**
  * What a host binds to a resource (host-integration.md 4, D67): the
  * behaviour the headless core cannot hold — where a view of it lives in the
- * host's address, how one of its records is read, and, until H3's
- * declarative actions, the host's commands on its records. Registered once
+ * host's address, how one of its records is read, and the commands its
+ * records take (host-integration.md 5). Registered once
  * on `ViewHost`, by the definition's id, and found by every
  * surface that draws that definition: its workbench, a board's record
  * panel, an embed. The host writes no `definition.id ===` branch.
  */
 
 import type { RoutedTarget } from '../runtime/routes.js';
-import type { BulkCommand, RecordActionSlots } from '../react/index.js';
+import type { RecordActions } from '../runtime/actions.js';
+import type { RecordActionSlots } from '../react/index.js';
 import type { RecordDetailOptions } from './workbench/RecordParts.js';
 
 export interface ViewBindingOptions {
@@ -45,14 +46,19 @@ export interface ViewBindingOptions {
    */
   reading?: RecordDetailOptions;
   /**
-   * The host's commands on its records — a row's, a selection's, the
-   * view's — wherever its records are drawn: the workbench, and every
-   * record panel of a board over it (D39). Today's slots; H3 declares them
-   * instead (host-integration.md 5), and a surface's own prop wins.
+   * The commands its records take, declared (`actions()`,
+   * host-integration.md 5): the engine places them wherever its records are
+   * drawn — the workbench's rows, selection and detail, and every record
+   * panel of a board over it (D39) — asks first, runs them a few at a time
+   * and says how it went. A surface's own prop wins.
    */
-  actions?: RecordActionSlots;
-  /** The bulk command whose line the record views over it say (`useBulkCommand`). */
-  bulk?: BulkCommand;
+  actions?: RecordActions;
+  /**
+   * The host's own markup beside them — a row's, a selection's, the
+   * view's — the escape hatch for what a declaration cannot say, drawn
+   * after the declared actions. A surface's own prop wins.
+   */
+  slots?: RecordActionSlots;
 }
 
 /** One definition's binding, as `ViewHost` takes it. */

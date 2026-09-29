@@ -79,26 +79,26 @@ Beyond the six:
 
 - `model` through `store` contain no React, DOM, `window` or `document`, and neither does `testing`
 - `runtime` reaches `store` only as a **type-only import of `store/ViewStore`** — the port, never an implementation
-- `testing` (the `/testing` entry, D65) imports `model`, and `runtime` only as a **type-only import of `runtime/source`** (the `ViewSource` it answers) and by value `runtime/admission` (`admit`) and `runtime/routes` (`resolveNavigation`), the engine's own run without an engine (`VALUE_PORTS` in `test/architecture.test.ts`); nothing imports `testing`. Its semantics are held to Wow's `FilterSemantics` matrix and the query TCK's aggregation cases (`test/testingFilterSemantics.test.ts`, `test/testingAggregationTck.test.ts`): a change there on the server is copied here
+- `testing` (the `/testing` entry, D65) imports `model`, and `runtime` only as a **type-only import of `runtime/source`** (the `ViewSource` it answers) and by value `runtime/admission` (`admit`), `runtime/routes` (`resolveNavigation`) and `runtime/actions` (what `actionHarness` reads), the engine's own run without an engine (`VALUE_PORTS` in `test/architecture.test.ts`); nothing imports `testing`. Its semantics are held to Wow's `FilterSemantics` matrix and the query TCK's aggregation cases (`test/testingFilterSemantics.test.ts`, `test/testingAggregationTck.test.ts`): a change there on the server is copied here
 - `react-router` (the `/react-router` entry, host-integration.md 4.2) imports `runtime` only as a **type-only import of `runtime/routes`** (the `ViewRouter` it returns), and `react` and `react-router` alone; nothing imports it, `ui` included, so `react-router` stays an optional peer only that entry loads (`scripts/verify-package.mjs` checks the built entries)
-- The folders under `src/ui` import each other **one way only**, down the table `UI_FOLDERS` in `test/architecture.test.ts` (`record`, `charts`, `columns`, `sort`, `manage` at the bottom; `filter` over `record`; `analysis` over `charts`, `filter`, `record`; `workbench` over those; `dashboard` and `embed` on top; `components`, `lib`, `theme`, `messages` under all). A helper two folders share lives below both — at the ui root or in the folder that owns it — never in a feature folder the other one draws. The ui root is outside the rule both ways until it is split into shared pieces and shells
+- The folders under `src/ui` import each other **one way only**, down the table `UI_FOLDERS` in `test/architecture.test.ts` (`record`, `charts`, `columns`, `sort`, `manage` at the bottom; `actions` over `record`; `filter` over `record`; `analysis` over `charts`, `filter`, `record`; `workbench` over those; `dashboard` and `embed` on top; `components`, `lib`, `theme`, `messages` under all). A helper two folders share lives below both — at the ui root or in the folder that owns it — never in a feature folder the other one draws. The ui root is outside the rule both ways until it is split into shared pieces and shells
 - Third-party landing spots are fixed by `HEADLESS_DEPENDENCIES` in `test/architecture.test.ts`, and a dependency the manifest carries but that list does not name is **UI-only**: `@ahoo-wang/wow-client` only at the root entry and in `model`, `filter`, `record`, `analysis`, `capabilities`, `runtime`, `testing` (not `dashboard`, not `store`); `dayjs` in `filter`, `record`, `analysis`, `runtime`, `ui`, `testing`; `dequal` in `runtime` alone; `culori` in `analysis` and `ui`; `mingo` in `testing` alone, as an optional peer (`peerDependenciesMeta`), in `devDependencies` for the package's own tests and build (D65). UI-only is therefore all the rest — `@base-ui/react`, `@dnd-kit/dom`, `@dnd-kit/react`, `@tanstack/react-virtual`, `class-variance-authority`, `cn`, `lucide-react`, `react-day-picker`, `react-error-boundary`, `react-grid-layout`, `react-markdown`, `echarts` — while `react` / `react-dom` are optional peers and reach `react` and `ui`. There is no table library: D16-1 declined `@tanstack/react-table`; TanStack Virtual draws a long analysis result's rows (D44). A new React dependency cannot reach a headless layer without being listed explicitly in the test
 - **Deprecated Wow APIs are banned.** The test derives the deprecated export set from the wow sources themselves and fails on any import of it. Use `FilterExpression` and the `Filter*Query` family — never `Condition`, `PagedQuery`, `ListQuery` or `SingleQuery`
 - Wow must be imported from its root entry, by name, so every binding can be checked
 
 Package entries:
 
-| Entry                        | Contents                                                                                    |
-| ---------------------------- | ------------------------------------------------------------------------------------------- |
-| `@ahoo-wang/wow-view-engine` | `model`, the four kernels, `runtime`'s public face, the `ViewStore` port, `MemoryViewStore` |
-| `/react`                     | Hooks and headless controllers                                                              |
-| `/ui`                        | Default components, views and workbenches                                                   |
-| `/testing`                   | `memorySource` and `matches`: an in-memory `ViewSource` with Wow's query semantics (D65)    |
-| `/react-router`              | `useReactRouter`: React Router as `ViewHost`'s router port; React Router an optional peer   |
-| `/styles.css`                | Theme, imported explicitly, customised through `--fve-*` / `--fve-dark-*` on the host       |
-| `/themes.css`                | Presets, optional: only `--fve-*` assignments on `:where([data-fve-preset='…'])`            |
-| `/themes/<name>.css`         | One preset alone, the same block `themes.css` holds for it                                  |
-| `/shadcn-bridge.css`         | Optional: a host's shadcn tokens read into `--fve-*` while no preset is named               |
+| Entry                        | Contents                                                                                       |
+| ---------------------------- | ---------------------------------------------------------------------------------------------- |
+| `@ahoo-wang/wow-view-engine` | `model`, the four kernels, `runtime`'s public face, the `ViewStore` port, `MemoryViewStore`    |
+| `/react`                     | Hooks and headless controllers                                                                 |
+| `/ui`                        | Default components, views and workbenches                                                      |
+| `/testing`                   | `memorySource`, `matches`, `admit`, `resolveNavigation`, `actionHarness`: a host's tests (D65) |
+| `/react-router`              | `useReactRouter`: React Router as `ViewHost`'s router port; React Router an optional peer      |
+| `/styles.css`                | Theme, imported explicitly, customised through `--fve-*` / `--fve-dark-*` on the host          |
+| `/themes.css`                | Presets, optional: only `--fve-*` assignments on `:where([data-fve-preset='…'])`               |
+| `/themes/<name>.css`         | One preset alone, the same block `themes.css` holds for it                                     |
+| `/shadcn-bridge.css`         | Optional: a host's shadcn tokens read into `--fve-*` while no preset is named                  |
 
 ## Project Structure
 
@@ -307,6 +307,7 @@ src/
     storedViews.ts            — The one read boundary for stored views: `readingStore` wraps the host's store so every view it hands back, a conflict's included, passes `readStored` (a dashboard through `migrateDashboardConfig`) once on its way in
     tabMemory.ts              — `TabMemory`: where each reader last read each dashboard (`ViewPreferences.lastTabs`), the tab a board opens on, and a burst of switches written as its last, never rejecting
     summaries.ts              — The instance-summary cache: noted on listing and on a confirmed write, dropped on delete, read before the store
+    actions.ts                — Declared actions (host-integration.md 5, D67): `actions()` and `RecordAction` — what a host says of a command — and the pure reading the UI and `/testing`'s `actionHarness` share: `actionState`, `choiceOf`, `asksFirst`, `splitFor`, `refusalsByReason`, `nextChange`, `runOne` and `ActionRefused`; the other runtime module `/testing` imports by value
     admission.ts              — `admit`, `/testing`'s: every definition a host declares admitted as the engine admits it — its keys said, its own rules, its boards against the rest, each narrowed to its committed descriptor — each finding with its definition (host-integration.md 6); the one runtime module `/testing` imports by value
     define/                   — `defineView` (host-integration.md 3, D67): a data definition built from its descriptor snapshot, the host's `DefineViewSpec` picking, naming and narrowing — `spec.ts` the spec, `fields.ts` the fields (kind, values, sort from the descriptor), `analysis.ts` the host's analysis plan and its reading over the snapshot (`capabilities/open.ts`), `defineView.ts` the record capability and the rest; what it found rides on `described`
     validateDefinition.ts     — Definition admission; needs all three kernels. A declared board's panel's error leaves the definition usable (`isUsableDefinition`): it puts that panel out when the board opens
@@ -343,8 +344,9 @@ src/
     localStorageSnapshot.ts   — `localStorageSnapshot(key)`: its snapshot in `localStorage` for development and single-user hosts — a refused write fails, tabs merge by revision or conflict, a `storage` event reloads
     ViewStore.ts              — The only port a backend must satisfy
     index.ts                  — Persistence is one port with eight methods
-  testing/                    — The `/testing` entry (D65): an in-memory `ViewSource` with Wow's query semantics, `admit` (host-integration.md 6) and `resolveNavigation` (host-integration.md 4), for a host's tests — imports `model`, the `runtime/source` type, `runtime/admission` and `runtime/routes`
+  testing/                    — The `/testing` entry (D65): an in-memory `ViewSource` with Wow's query semantics, `admit` (host-integration.md 6), `resolveNavigation` (host-integration.md 4) and `actionHarness` (host-integration.md 6), for a host's tests — imports `model`, the `runtime/source` type, `runtime/admission`, `runtime/routes` and `runtime/actions`
     index.ts                  — Entry — `memorySource`, `matches`, `MemorySourceOptions`, each named
+    actions.ts                — `actionHarness`: a host's declared actions read by the engine's own rules without a screen — where each is offered, a record's state and reason, a selection's split, what a press asks, the form, when a record flips, and `run` as the engine sends it
     source.ts                 — `memorySource`: the documents (kept in a time column's order when asked), paging, cursor, projection, a remembered aggregation, and the time slice a range cuts by binary search
     filter.ts                 — A `FilterExpression` as the MongoDB predicate `wow-mongo` compiles, for `mingo`; the deletion default; `BEFORE_NOW` / `AFTER_NOW` lowered on the source's clock; `matches`
     aggregate.ts              — An `AggregationQuery` over the matched documents: elements, keys, metrics with their own filters, dense fill, derived, having, Wow's order and default limit
@@ -354,7 +356,8 @@ src/
   react-router/                — The `/react-router` entry (host-integration.md 4.2): the router port's adapter; React Router an optional peer only it loads
     index.ts                  — Entry — `useReactRouter`, React Router's location and `navigate` as a `ViewRouter`
   react/                      — Headless hooks and controllers; never imports ui
-    actions.ts                — The three action slots a host fills: global, bulk, row
+    actions.ts                — The three slots a host fills beside its declared actions — global, bulk, row — the escape hatch; a row's and a selection's context carry the surface's `run` and `busy`
+    actionRunner.ts           — `useActionRunner`: a record surface's one runner — a command over some records a few at a time, progress, stop, each refusal's reason (an action's own kept as written), the unfinished left selected, a refresh after
     environment.ts            — `documentVisibility` / `browserRuntimeEnvironment`: page visibility, so a hidden tab stops polling
     issues.ts                 — Turns a thrown command into one Issue
     recordColumns.ts          — `recordColumn`, the one builder of a stored column, and what the column commands write with it: `repinned`, `resized`, `shown`, `withColumnsShown`, `reordered`
@@ -367,7 +370,7 @@ src/
     useAnalysisResult.ts      — The analysis result as a host draws it: the rows that ran, the question before any have (`question`, its `columns`), the chart over them, the picker's fits, and the follow-ups on a pressed group — the group by dimension, and what each follow-up opens
     analysisEditing.ts        — The edits to the question as plain functions over the draft (`questionEditing`): dimensions, metrics and their order (`moveMetric`), conditions, copies, formulas, derived metrics, durations and their bands (`addDuration`, `groupByDuration`, `durationEnds`), having
     useAutoRefresh.ts         — `RefreshController`: refresh now, the cadence ladder cut to the limits, the countdown
-    useBulkCommand.ts         — A host's command for one record run over a selection: a few at a time, progress, stop, each refusal's reason, the unfinished rows left selected
+    useRecordActions.ts       — `useRecordActions`: the declared actions of one record surface — what a record and the selection are offered, the clock their `changesAt` moves, the press that asks first or runs, the question or form pending (able, refused by reason, what is missing), only-the-able, and the runner
     useSearchBox.ts           — The view's search kept on hand: the definition's search field, the draft's and the applied text, set / submit / clear; whether the source searches it by words (`byWords`)
     useUnavailable.ts         — What the open view uses that its source no longer admits, and 「移除不可用的条件」 (`UnavailableController`)
     useDashboard.ts           — Dashboard panels, geometry and state; the board's edit commands, its tabs, `preload` for a view about to be added, and a press on a panel's group (`crossFilter`, `pressed`, `destination`, `destinationBoard`)
@@ -401,7 +404,6 @@ src/
     AnalysisTable.tsx         — The aggregation as a table: groups first, then metrics, with the totals row from its own ungrouped query rather than from summing what is on screen, and its scope said under 「合计」; read with the record table's recipes — numbers on the right, ids in monospace, `SortableHeader`, held widths and the filler; over a time dimension a second row picked with Shift is a span (the keyboard's brush, D33 Q52)
     Announcer.tsx             — `useAnnouncer`: one live region per surface, handed back rather than rendered by the caller, the same words twice said twice; `SurfaceAnnouncer`／`useSurfaceAnnouncer`: a surface's one voice handed to the parts drawn inside it (a board's grid, tabs, filters, building)
     AppliedBar.tsx            — The conditions the rows on screen were fetched under; a page's scope worn read-only. Record and analysis views only: a dashboard draws none (D27)
-    BulkStatus.tsx            — `BulkStatus`: a host's bulk command as one line above the rows — how far it has come with a Stop, then what it came to and why
     CardSettings.tsx          — The card layout's settings behind the column settings' button (D18 VI)
     ColumnSettings.tsx        — Which columns show, in which order, pinned or not, summarised how — one sortable group per area (D19)
     ConflictConfirm.tsx       — The same choice, put once more with both configs on the table
@@ -432,7 +434,7 @@ src/
     address.ts                — The address a router port keeps: `?view=` for a workbench, `?id=` for a bound detail, the history entry's `ViewRouteState` (a view handed over, a board's filters and tab), and the router's handling of a way off
     colorMode.tsx             — `ColorModeHost` and `useColorMode`: light or dark painted on `<html>` — the system's followed live, a reader's pick kept under a key — or left to the host (`host`)
     viewNavigation.ts         — `useViewNavigation`: the host's navigation as data — each routed resource and its system views, titles said, where the address is (4.3)
-    bindings.ts               — `bind`: a definition's behaviour in the host — `route`, `reading` (D60), and until H3 its `actions` and `bulk`
+    bindings.ts               — `bind`: a definition's behaviour in the host — `route`, `reading` (D60), its declared `actions` and its `slots`
     OutcomeActions.tsx        — One outcome as a line and its buttons, shared by the two above and the manager
     PanelUnavailable.tsx      — A dashboard panel that cannot show anything: the finding mapped to why, in the reader's words, and who can bring it back — or, while the board is built, the buttons that do
     PendingDot.tsx            — The "changed, not applied" dot pinned to a pill or a group
@@ -487,6 +489,11 @@ src/
     toolbar.tsx               — Base UI's toolbar primitive: one tab stop with the arrow keys inside
     variants.tsx              — The colours, edges and shapes a vendored component does not ship, in one place (D16-8); `ChangeBadge`, a change in the colour the host's change convention picks (`styles.css`); `TableDataRow` holds a record row's three states; the dashboard's `PanelCard` (the warning edge on the card's ring), `ControlFrame` (the `--input` edge a filter chip's controls share), `ModeBar` and `FOCUS_INSET`
     index.ts                  — The `/ui` entry: the default look, built on shadcn/ui with Base UI primitives
+    actions/                  — Declared actions drawn (host-integration.md 5.1); under `record` alone
+      ActionSurface.tsx       — `useActionSurface`: a record surface's actions — the row's, the detail's and the selection's renderers (declared, then the host's slots with `run`), the runner's line, the dialog, the start and outcome said
+      ActionButtons.tsx       — A record's buttons and 「⋯」 menu (primary inline, reasons on the button and atop the menu, a choice's options), and the selection bar's buttons
+      ActionDialog.tsx        — The question and the form in one `AlertDialog`: the host's words or the engine's, the fields as the condition editor's controls, the refused by reason with 「只选能做的」
+      BulkStatus.tsx          — The runner's line above the rows — how far it has come with a Stop, then what it came to and why — and its sentences, said aloud
     analysis/                 — What the analysis view is made of
       AnalysisToolbar.tsx     — The result's first row: the reading (dimensions · metrics) and how the result is looked at — table or chart as two icon segments, the chart one drawing the chart type in force, the visualization panel, and 「导出」 over the groups on screen (D25 Q28)
       chartIcons.ts           — `CHART_ICON`, one glyph per chart type and the table, shared by the picker's tiles and the toolbar's chart segment; `glyphType` falls back to the generic chart (the bar) for a type this package does not draw
@@ -688,6 +695,7 @@ src/
       analysis.ts             — the analysis editor and its charts, with the two kernels behind them
       building.ts             — building a board, batch B3: tabs, a new analysis in a dashboard, saving it as a view, a panel's own look
       capabilities.ts         — a source's capability descriptor read against a definition (`capability.*`), worded for whoever wrote the release
+      actions.ts              — declared actions: the row's menu, the selection's count, the default question, the refused and 「只选能做的」, the engine's own reasons
       bulk.ts                 — bulk outcome wording
       clicks.ts               — a press on a dashboard panel, batch D: the follow-up menu's board line, cross-filtering, 「点击时…」, and the click findings
       config.ts               — shared config — the part every view kind stores, so every kind reports it
