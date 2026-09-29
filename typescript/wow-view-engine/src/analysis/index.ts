@@ -47,6 +47,12 @@ export * from './expand.js';
 export * from './granularity.js';
 export * from './having.js';
 export * from './metricCondition.js';
+export {
+  columnsAfterMove,
+  moveMetric,
+  type MetricMove,
+  type MetricMoveStop,
+} from './metricOrder.js';
 // By name: how a derived metric's format is worked out (D38) and which
 // metrics read off sums are the kernel's own, read from their files.
 export {

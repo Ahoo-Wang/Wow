@@ -22,6 +22,7 @@ import {
 } from '../../filter/index.js';
 import type { FilterTreeController } from '../../react/index.js';
 import { Button } from '../components/button.js';
+import { AddButton } from '../variants.js';
 import { Badge } from '../components/badge.js';
 import { Checkbox } from '../components/checkbox.js';
 import { Empty, EmptyDescription, EmptyHeader } from '../components/empty.js';
@@ -232,7 +233,7 @@ export function FieldChecklist({
         ref={trigger}
         data-filter-add=""
         disabled={disabled}
-        render={<Button variant="outline" size="sm" disabled={disabled} />}
+        render={<AddButton disabled={disabled} />}
         aria-label={name}
       >
         <PlusIcon data-icon="inline-start" />

@@ -15,6 +15,7 @@ import {
   groupFieldsOf,
   type AnalysisCapability,
   type AnalysisElement,
+  type AnalysisGroup,
   type AnalysisMetric,
   type AnalysisViewConfig,
   type DataViewDefinition,
@@ -44,14 +45,16 @@ import { momentMetrics } from './metricFormat.js';
  * stays for admission to point at. The chart, the sort, the table columns
  * and the having follow the survivors the way they follow any change of
  * groups and metrics (`useAnalysisEditor`'s reshape), so this answers only
- * what is grouped and measured.
+ * what is grouped and measured — and, in `dropped`, what the step took
+ * away, so the editor can say so and offer it back (D71: no confirmation,
+ * an undo).
  */
 export function withElements(
   config: AnalysisViewConfig,
   elements: AnalysisElement[],
   definition: DataViewDefinition,
   capability: AnalysisCapability,
-): Pick<AnalysisViewConfig, 'elements' | 'groups' | 'metrics'> {
+): Rescoped {
   const scope = analysisScope(definition, capability, { elements });
   const inScope = (field: string) => scope.fields.has(field);
   const groups = config.groups.filter(group =>
@@ -83,14 +86,34 @@ export function withElements(
       },
     },
   );
+  const next: AnalysisViewConfig['metrics'] =
+    derivable.length > 0
+      ? derivable
+      : [firstMetric(capability.count, [...scope.aggregations.values()])];
+  const stays = new Set(next.map(metric => metric.alias));
   return {
     elements: elements.length === 0 ? [] : elements,
     groups,
-    metrics:
-      derivable.length > 0
-        ? derivable
-        : [firstMetric(capability.count, [...scope.aggregations.values()])],
+    metrics: next,
+    dropped: {
+      groups: config.groups.filter(group => !groups.includes(group)),
+      metrics: config.metrics.filter(metric => !stays.has(metric.alias)),
+    },
   };
+}
+
+/** What a step of the chain took out of the question. */
+export interface Dropped {
+  groups: AnalysisGroup[];
+  metrics: AnalysisMetric[];
+}
+
+/** The config re-scoped to a chain, and what the step took away. */
+export interface Rescoped extends Pick<
+  AnalysisViewConfig,
+  'elements' | 'groups' | 'metrics'
+> {
+  dropped: Dropped;
 }
 
 /** The chain one level deeper: the declared next step, with no gate yet. */

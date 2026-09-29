@@ -18,7 +18,7 @@ import {
 } from '../../model/index.js';
 import type { FilterPath } from '../../filter/index.js';
 import type { FilterTreeController } from '../../react/index.js';
-import { Button } from '../components/button.js';
+import { AddButton } from '../variants.js';
 import { IconTooltip } from '../IconButton.js';
 import { ButtonGroup } from '../components/button-group.js';
 import {
@@ -85,11 +85,7 @@ export function AddEntry({
         <IconTooltip
           label={messages.label('label.filter.add-group')}
           render={
-            <DropdownMenuTrigger
-              render={
-                <Button variant="outline" size="sm" disabled={disabled} />
-              }
-            />
+            <DropdownMenuTrigger render={<AddButton disabled={disabled} />} />
           }
         >
           <ChevronDownIcon />

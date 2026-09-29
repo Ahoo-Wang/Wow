@@ -24,7 +24,8 @@
  * rather than a colour. Seven cases live here: a badge that has to read as a
  * status (and one that says a change, in the colour the host's convention
  * gives it), a badge that has to hold a sentence, the answer that carries out a
- * destructive command, the one divider that has to be seen, the controls
+ * destructive command, the dashed edge of a button that adds what is
+ * not there yet, the one divider that has to be seen, the controls
  * inside a condition pill, which draw no chrome of their own, one row of
  * records in its three states, and the open view in the sidebar — and the
  * dashboard's three: a panel's frame with its warning edge, the edge a
@@ -308,6 +309,41 @@ export function DestructiveAction({
       variant="destructive"
       data-tone="danger"
       className={cn(destructiveActionVariants(), className)}
+      {...props}
+    />
+  );
+}
+
+/**
+ * An edge that says "not chosen yet": the dashed outline of an add button
+ * (user, review of #3781 — 「+ 商品」 drawn as a borderless ghost read as a
+ * value already picked). The registry's outline edge in its own colours
+ * (`border-border`, `dark:border-input`), only dashed; hover fills as the
+ * outline button does and the edge stays dashed. Size, hit area and focus
+ * ring are the registry's.
+ */
+const addButtonVariants = cva('border-dashed');
+
+/**
+ * A button that adds something not there yet — 「+ 添加」 on the tray's
+ * metrics, dimensions and range, 「+ 商品」 into the chain, 「+ 只保留」.
+ * What was added (a level card, a metric pill, a dimension chip, a
+ * condition) keeps its solid edge, so the two never read alike.
+ *
+ * `data-affordance="add"` says so on the element, for a suite to ask
+ * instead of naming the edge; the edge itself is asserted once, in
+ * `test/variants.test.tsx`. It renders as a trigger's `render` element too.
+ */
+export function AddButton({
+  className,
+  ...props
+}: Omit<React.ComponentProps<typeof Button>, 'variant'>) {
+  return (
+    <Button
+      variant="outline"
+      size="sm"
+      data-affordance="add"
+      className={cn(addButtonVariants(), className)}
       {...props}
     />
   );
@@ -812,24 +848,32 @@ export function resultSlots(...slots: readonly ResultSlot[]): string {
 }
 
 /**
- * One slot of the analysis tray (D20): a named `section` with a small
- * heading — the slot's name, a plain-words hint of the question it answers,
- * and room at the end for a control that belongs to the heading. The cards
- * inside stack; the slot never draws a box of its own, because the tray is
- * the one surface and a box in a box is a frame around a frame.
+ * One row of the analysis tray (D71): a named `section` whose head is the
+ * analyst's term — 展开, 指标, 维度, 结果, 范围 — with the ⓘ that explains it
+ * (`tip`) at its top-right, then what the row holds, then, at the row's
+ * end, what belongs to the row as a whole (`end`: the counting unit, the
+ * conditions' grammar). From `md` up the head is a column of its own — the
+ * row is a subgrid of the tray's two columns, the first as wide as the
+ * widest term — so the terms line up down the tray, the rows read as a
+ * form, and no row gives up more width than its longest term needs;
+ * narrower, the head sits over the row. The row never draws a box of its own,
+ * because the tray is the one surface and a box in a box is a frame around
+ * a frame.
  */
 export function EditorSlot({
   name,
   title,
-  hint,
-  aside,
+  tip,
+  end,
   className,
   children,
 }: {
   name: string;
   title: string;
-  hint?: string;
-  aside?: React.ReactNode;
+  /** The ⓘ beside the term, a control of its own (`TermTip`). */
+  tip?: React.ReactNode;
+  /** What stands at the row's end. */
+  end?: React.ReactNode;
   className?: string;
   children?: React.ReactNode;
 }) {
@@ -837,28 +881,45 @@ export function EditorSlot({
     <section
       data-slot={`analysis-slot-${name}`}
       aria-label={title}
-      className={cn('flex min-w-0 flex-col', SPACE.GROUPS, className)}
+      className={cn(
+        'grid min-w-0 grid-cols-1 items-start md:col-span-2 md:grid-cols-subgrid',
+        SPACE.WITHIN,
+        className,
+      )}
     >
-      {/* `h3`, under the view's own `h2`: the slot names a section of the
+      {/* `h3`, under the view's own `h2`: the row names a section of the
           page, and a reader jumping by heading must not find a level
-          skipped (axe `heading-order`). It is small because it is a label,
-          not because it is deep.
-
-          The `aside` is a **control**, so it sits in the row beside the
-          heading rather than inside it: a heading is the name of what
-          follows, and a menu trigger inside one is read as part of that
-          name — 「范围 条件：简单」 — and is reached by a reader jumping
-          from heading to heading, where nothing is meant to be pressed. */}
+          skipped (axe `heading-order`). The ⓘ is a **control**, so it sits
+          beside the heading rather than inside it: a heading is the name of
+          what follows, and a button inside one is read as part of that
+          name and reached by a reader jumping from heading to heading,
+          where nothing is meant to be pressed. */}
       <div
-        className={cn('text-muted-foreground flex items-center gap-2', TEXT_UI)}
+        data-slot="analysis-slot-head"
+        className={cn('flex min-h-7 items-center gap-0.5', TEXT_UI)}
       >
-        <h3 className="flex min-w-0 items-center gap-2 font-semibold">
-          <span className="text-foreground">{title}</span>
-          {hint && <span className="font-normal">· {hint}</span>}
-        </h3>
-        {aside && <span className="ml-auto">{aside}</span>}
+        <h3 className="text-foreground font-semibold">{title}</h3>
+        {tip}
       </div>
-      {children}
+      <div className="flex min-w-0 flex-wrap items-start gap-x-3 gap-y-2">
+        <div
+          data-slot="analysis-slot-body"
+          className={cn('flex min-w-0 flex-1 basis-64 flex-col', SPACE.GROUPS)}
+        >
+          {children}
+        </div>
+        {end && (
+          <div
+            data-slot="analysis-slot-end"
+            className={cn(
+              'ml-auto flex min-h-7 shrink-0 items-center',
+              TEXT_UI,
+            )}
+          >
+            {end}
+          </div>
+        )}
+      </div>
     </section>
   );
 }

@@ -46,10 +46,18 @@ export function focusableIn(
   if (element.matches(FOCUSABLE) && !isBarred(element)) return element;
   return (
     [...element.querySelectorAll<HTMLElement>(FOCUSABLE)].find(
-      found => !isBarred(found),
+      found => !isBarred(found) && !found.hasAttribute(PASSED_OVER),
     ) ?? null
   );
 }
+
+/**
+ * Marks a control a landing passes over though Tab stops on it: an ⓘ
+ * beside a term (`TermTip`), which says what the term means on focus. A
+ * press that opens the analysis tray landed on the first one and opened
+ * its tooltip over the row, answering a question nobody had asked.
+ */
+export const PASSED_OVER = 'data-landing-skip';
 
 /**
  * Focuses the first control of `item` — the item as a keyboard sees it —

@@ -25,11 +25,13 @@ import { FilterActions } from '../filter/FilterActions.js';
 import { SPACE } from '../layout.js';
 import { useViewMessages } from '../MessagesProvider.js';
 import { DimensionSlot } from './DimensionCard.js';
+import { DroppedNotice } from './DroppedNotice.js';
 import { ElementsSlot } from './ElementsSlot.js';
-import { MetricSlot } from './MetricCard.js';
+import { MetricSlot } from './MetricSlot.js';
 import { isEmptyTree } from './MetricCondition.js';
 import { RangeSlot } from './RangeSlot.js';
 import { ResultSlot } from './ResultSlot.js';
+import { TermTip } from './TermTip.js';
 
 export interface TrayProps {
   filter: FilterEditorController;
@@ -41,24 +43,34 @@ export interface TrayProps {
 }
 
 /**
- * The analysis view's editor: the question itself, in the analyst's order
- * (D20) — the range, then the dimensions beside the metrics, then what the
- * result keeps of the groups. Each slot is a named `section`; the range
- * takes the first row because it is the record view's own condition panel,
- * applied as it is there, and the two after it share the row below. Narrow,
- * the slots stack.
+ * The analysis view's editor: the question itself, one row a step, in the
+ * order each step depends on the one before (D71, revising D20) —
+ *
+ * 1. **展开** (only where the capability declares a chain): what one
+ *    counted thing is, which decides the fields every row after it names;
+ * 2. **指标**: the numbers, which a derived metric reads in order;
+ * 3. **维度**: what they are compared by;
+ * 4. **结果** (only with a dimension): which groups are kept, in what
+ *    order, how many — it names the metrics and dimensions above it;
+ * 5. **范围**: the records it runs over, last because it depends on nothing
+ *    above it — it narrows the outermost records whatever is expanded.
+ *
+ * Each row is a named `section` headed by the analyst's term with an ⓘ
+ * that says it in a sentence (`EditorSlot`, `TermTip`).
  *
  * One footer runs the whole draft: the range's conditions and the question
  * are one config, and `runtime.apply` runs it once, so the one primary on
- * the screen is Apply (D17-3). How the result is looked at — table or
- * chart, and which chart — is not in here: it is the result's, on its
- * toolbar and in the visualization panel (D20).
+ * the screen is Apply (D17-3), at the footer's end, resting quiet while
+ * nothing waits for it. How the result is looked at — table or chart, and
+ * which chart — is not in here: it is the result's, on its toolbar and in
+ * the visualization panel (D20).
  *
- * The slots scroll and the footer does not. The band the tray folds into is
+ * The rows scroll and the footer does not. The band the tray folds into is
  * capped at half the work column (`styles.css`, "The editor takes at most
  * half"), and what scrolls inside that cap is the question: Apply is how a
  * draft gets run, and a footer scrolled out of sight under a long range is
- * a button the analyst has to go looking for.
+ * a button the analyst has to go looking for. The notice of what an edit
+ * took out stands just above it for the same reason (`DroppedNotice`).
  */
 export function Tray({
   filter,
@@ -70,6 +82,7 @@ export function Tray({
   const messages = useViewMessages();
   const autoRunId = useId();
   const autoRunHintId = useId();
+  const heldId = useId();
   // Which metric card has its conditions open (`MetricSlot`), held here so
   // Apply can see a condition the analyst opened and left empty.
   const [conditioning, setConditioning] = useState<string | null>(null);
@@ -121,18 +134,15 @@ export function Tray({
         data-slot="analysis-tray-slots"
         // The gutter is room for a focus ring: a scroll port clips what
         // stands past its edge, and the cards run to it.
+        // From `md` up, a grid of two columns every row is a subgrid of
+        // (`EditorSlot`): the terms, as wide as the widest, and the rows.
         className={cn(
           '-mx-1 flex min-h-0 flex-col overflow-y-auto px-1 py-0.5',
+          'md:grid md:grid-cols-[max-content_minmax(0,1fr)] md:content-start md:gap-x-3',
           SPACE.ROWS,
         )}
       >
-        <RangeSlot
-          filter={filter}
-          optionsFor={optionsFor}
-          disabled={disabled}
-        />
-        {/* Between the range and the question, because it changes what the
-            question is about (D20 屏 G); absent where nothing can be
+        {/* What one counted thing is; absent where nothing can be
             expanded. */}
         {analysis.expansible && (
           <ElementsSlot
@@ -141,75 +151,78 @@ export function Tray({
             optionsFor={optionsFor}
           />
         )}
-        <div className={cn('grid grid-cols-1 md:grid-cols-2', SPACE.BLOCKS)}>
-          <DimensionSlot analysis={analysis} disabled={disabled} />
-          <MetricSlot
-            analysis={analysis}
-            disabled={disabled}
-            optionsFor={optionsFor}
-            conditioning={conditioning}
-            setConditioning={setConditioning}
-          />
-        </div>
-        {/* After the question, because it is about the answer's groups:
-            which are kept, in what order, how many (2026-09-23 audit). */}
+        <MetricSlot
+          analysis={analysis}
+          disabled={disabled}
+          optionsFor={optionsFor}
+          conditioning={conditioning}
+          setConditioning={setConditioning}
+        />
+        <DimensionSlot analysis={analysis} disabled={disabled} />
+        {/* About the answer's groups, so after what names them: which are
+            kept, in what order, how many (2026-09-23 audit). */}
         <ResultSlot analysis={analysis} disabled={disabled} />
+        <RangeSlot
+          filter={filter}
+          optionsFor={optionsFor}
+          disabled={disabled}
+        />
       </div>
-      {/* The pair that runs the query, once for everything above: Clear
-          empties the range, Apply runs the whole draft, and the dot says
-          the draft holds something the last run did not — whichever slot
-          it is in.
+      <DroppedNotice analysis={analysis} />
+      {/* The footer, once for everything above: auto-run's switch at its
+          start, Apply at its end, and between them what holds the run.
 
-          Auto-run's switch shares their row, and the sentence under it takes
-          a row of its own only where the two do not fit beside each other:
-          on a phone the switch, its sentence and the buttons were three
-          stacked rows, 103px of a tray capped at half the screen. So the
-          sentence is a sibling rather than the switch's child, ordered after
-          the buttons when the row wraps (`order-last basis-full`) and between
-          the switch and the buttons where there is room (`md:`). */}
+          At rest the switch says what it does in its ⓘ, and the row is the
+          switch and a quiet Apply. **While the range holds conditions not
+          applied** (`held`) nothing runs on its own, however the question
+          changes — so the sentence saying so, 「放弃范围修改」, 「清空范围」
+          and an emphasised Apply stand in the row itself, never only in a
+          tip (the 2026-09 review fixed a run that paused without a word;
+          D71 keeps it said). The sentence takes a row of its own where the
+          row wraps (`order-last basis-full`). */}
       <div
         data-slot="analysis-tray-actions"
         className="flex shrink-0 flex-wrap items-center justify-end gap-x-3 gap-y-1"
       >
         {/* Auto-run (D20): the question runs on its own a moment after it
-            changes; the range still waits for Apply, which the description
-            says, because the label alone promises more than the switch
-            does. A preference of the user's, not of the view, so it is not
-            in the config. */}
+            changes; the range still waits for Apply, which the ⓘ says,
+            because the label alone promises more than the switch does. A
+            preference of the user's, not of the view, so it is not in the
+            config. */}
         {autoRun && (
           <Field
             orientation="horizontal"
-            className="w-auto"
+            className="mr-auto w-auto items-center gap-1.5"
             data-slot="auto-run"
           >
             <Checkbox
               id={autoRunId}
               checked={autoRun.on}
               disabled={disabled}
-              aria-describedby={autoRunHintId}
+              aria-describedby={held ? heldId : autoRunHintId}
               onCheckedChange={checked => autoRun.set(checked === true)}
             />
             <FieldLabel htmlFor={autoRunId}>
               {messages.label('label.analysis.auto-run')}
             </FieldLabel>
+            <TermTip
+              label={messages.label('label.analysis.tip-of', {
+                term: messages.label('label.analysis.auto-run'),
+              })}
+              tip={messages.label('label.analysis.auto-run-hint')}
+              describedBy={autoRunHintId}
+              slot="auto-run-tip"
+            />
           </Field>
         )}
-        {autoRun && (
-          // While the range holds an unfinished condition the switch is on
-          // and nothing runs: the sentence says why instead of what the
-          // switch does in general, since that is the one thing the reader
-          // needs to know right now.
+        {held && (
           <FieldDescription
-            id={autoRunHintId}
+            id={heldId}
             data-slot="auto-run-hint"
-            data-held={held || undefined}
+            data-held
             className="order-last basis-full md:order-none md:flex-1 md:basis-auto"
           >
-            {messages.label(
-              held
-                ? 'label.analysis.auto-run-held'
-                : 'label.analysis.auto-run-hint',
-            )}
+            {messages.label('label.analysis.auto-run-held')}
           </FieldDescription>
         )}
         <FilterActions

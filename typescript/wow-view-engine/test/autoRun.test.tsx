@@ -201,11 +201,12 @@ describe('改了就跑: the tray’s switch', () => {
 
   /**
    * The label is the analyst's word for the setting (「自动运行」, 2026-09-23
-   * audit, rather than the colloquial 「改了就跑」), and the line under it
-   * says what the word alone overpromises: the range is not part of it. On
-   * the screen and to a reader both — it is the box's description.
+   * audit, rather than the colloquial 「改了就跑」), and the sentence saying
+   * what the word alone overpromises — the range is not part of it — is in
+   * its ⓘ at rest (D71): the ⓘ's tooltip and description, and the box's
+   * description too, so a reader on the box still hears it.
    */
-  it('says under its name what it runs and what it leaves to Apply', async () => {
+  it('says in its ⓘ what it runs and what it leaves to Apply', async () => {
     await openAnalysis();
 
     const hint = defaultMessages['label.analysis.auto-run-hint'];
@@ -213,9 +214,14 @@ describe('改了就跑: the tray’s switch', () => {
       autoRunSwitch().getAttribute('aria-describedby')!,
     );
     expect(described?.textContent).toBe(hint);
+    const tip = screen.getByRole('button', {
+      name: 'About Run automatically',
+    });
+    expect(tip.getAttribute('aria-describedby')).toBe(described?.id);
+    // Not a line on the footer while nothing holds the run.
     expect(
       document.querySelector<HTMLElement>('[data-slot="auto-run-hint"]'),
-    ).toBe(described);
+    ).toBeNull();
   });
 
   /**
@@ -474,9 +480,7 @@ describe('改了就跑: an analysis runs as it is edited', () => {
     const { clock, runs } = await openAnalysis();
     const hint = () =>
       document.querySelector<HTMLElement>('[data-slot="auto-run-hint"]')!;
-    expect(hint().textContent).toBe(
-      defaultMessages['label.analysis.auto-run-hint'],
-    );
+    expect(hint()).toBeNull();
 
     await addConditions(['Warehouse']);
     await addDimension('Status');
@@ -487,8 +491,20 @@ describe('改了就跑: an analysis runs as it is edited', () => {
       defaultMessages['label.analysis.auto-run-held'],
     );
     expect(hint().hasAttribute('data-held')).toBe(true);
-    // Still the switch's description, so a reader on the switch hears it.
+    // The switch's description, so a reader on the switch hears it.
     expect(autoRunSwitch().getAttribute('aria-describedby')).toBe(hint().id);
+    // In the row itself, beside the ways out of it (D71): never only a tip.
+    const actions = document.querySelector<HTMLElement>(
+      '[data-slot="analysis-tray-actions"]',
+    )!;
+    expect(actions.contains(hint())).toBe(true);
+    for (const name of ['Discard range edits', 'Clear range'])
+      expect(within(actions).getByRole('button', { name })).toBeDefined();
+    expect(
+      within(actions)
+        .getByRole('button', { name: defaultMessages['label.filter.apply'] })
+        .getAttribute('data-emphasis'),
+    ).toBe('primary');
   });
 
   /**

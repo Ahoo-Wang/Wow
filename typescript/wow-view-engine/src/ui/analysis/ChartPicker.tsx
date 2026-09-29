@@ -12,7 +12,7 @@
  */
 
 import { useId, useRef, type RefObject } from 'react';
-import { ArrowLeftIcon, ChevronRightIcon, Settings2Icon } from 'lucide-react';
+import { ArrowLeftIcon, SlidersHorizontalIcon } from 'lucide-react';
 import {
   chartPickerGroups,
   optionTabs,
@@ -21,7 +21,6 @@ import {
 } from '../../analysis/index.js';
 import type { ChartType } from '../../model/index.js';
 import { cn } from 'cn';
-import { Button } from '../components/button.js';
 import { IconButton } from '../IconButton.js';
 import { LANDING_HEADING, TEXT_UI } from '../layout.js';
 import { useViewMessages } from '../MessagesProvider.js';
@@ -56,8 +55,8 @@ export interface ChartPickerProps {
    */
   headingRef?: RefObject<HTMLHeadingElement | null>;
   /**
-   * The options button, which is where the keyboard is put when the options
-   * page is left: the press that went there came from it.
+   * The chosen tile's options icon, which is where the keyboard is put when
+   * the options page is left: the press that went there came from it.
    */
   optionsRef?: RefObject<HTMLButtonElement | null>;
 }
@@ -94,14 +93,23 @@ export interface ChartPickerProps {
  * at the badge and the reason where each exists: the reader hears 「柱状图,
  * 推荐」 and 「热力图, 需要两个维度」, which is what the tile says on screen.
  *
- * **The tiles only pick.** The way on to the chosen type's options (D20
- * 屏 J) is one button under the grid, as wide as the panel and named by what
- * it opens — 「柱状图选项」, 「表格选项」 — with a chevron, because it leads to
- * the panel's next page. It used to be a 24px gear hanging off the chosen
- * tile's corner: it covered nothing, and nobody saw it or could tell what it
- * was for (2026-09-23 review). A named control in the Tab order after the
- * group says both, and leaves each tile one button with nothing inside or
- * across it.
+ * **The tiles only pick; the chosen one's corner opens its options** (D72).
+ * The way on to the chosen type's options (D20 屏 J) is a sliders icon at
+ * the chosen tile's top-right, named — and tooltipped — by what it opens,
+ * 「柱状图选项」, 「表格选项」; the other tiles carry none, because the
+ * options are only ever the chosen type's. It used to be a row under the
+ * grid, as wide as the panel, which put it after twenty-odd tiles — out of
+ * sight until the list was scrolled to its end (2026-09-28 review); before
+ * that a bare gear on the corner nobody could tell the use of (2026-09-23),
+ * which the sliders glyph and the name now answer.
+ *
+ * The icon is **not inside the tile**: the tile is a `radio`, and a button
+ * in a radio is an interactive element in another, which a reader cannot
+ * reach apart from it (axe `nested-interactive`). It is the tile's sibling
+ * in the same cell, laid over the corner — clear of the 「推荐」 mark at the
+ * bottom and of the icon and the name in the middle — and next after the
+ * chosen tile in the Tab order, which is the radiogroup's one stop. A press
+ * on the tile still picks; a press on the icon opens the options.
  */
 export function ChartPicker({
   fits: fitted,
@@ -242,62 +250,83 @@ export function ChartPicker({
                       .filter(Boolean)
                       .join(' ') || undefined;
                   return (
-                    <ChartTile
+                    <div
                       key={value}
-                      ref={node => {
-                        if (node) refs.current.set(value, node);
-                        else refs.current.delete(value);
-                      }}
-                      role="radio"
-                      aria-checked={picked === value}
-                      aria-disabled={!fit.available || undefined}
-                      // The word on the tile, and nothing else: without this the
-                      // name is taken from the whole of the content, badge and
-                      // reason included, and the description would only say them
-                      // twice.
-                      aria-labelledby={nameId}
-                      aria-describedby={describedBy}
-                      data-chart-type={value}
-                      data-recommended={fit.recommended || undefined}
-                      tabIndex={picked === value ? 0 : -1}
-                      onClick={() => {
-                        if (fit.available) onPick(value);
-                      }}
-                      onKeyDown={event => {
-                        if (
-                          event.key === 'ArrowRight' ||
-                          event.key === 'ArrowDown'
-                        )
-                          move(index, 1);
-                        else if (
-                          event.key === 'ArrowLeft' ||
-                          event.key === 'ArrowUp'
-                        )
-                          move(index, -1);
-                        else if (event.key === ' ' || event.key === 'Enter') {
-                          event.preventDefault();
-                          if (fit.available) onPick(value);
-                        }
-                      }}
+                      data-slot="chart-cell"
+                      className="relative"
                     >
-                      <Icon aria-hidden className="size-5" />
-                      <span id={nameId}>{name}</span>
-                      {fit.recommended && (
-                        <span id={badgeId} data-slot="chart-recommended">
-                          {messages.label('label.chart.recommended')}
-                        </span>
+                      <ChartTile
+                        ref={node => {
+                          if (node) refs.current.set(value, node);
+                          else refs.current.delete(value);
+                        }}
+                        role="radio"
+                        aria-checked={picked === value}
+                        aria-disabled={!fit.available || undefined}
+                        // The word on the tile, and nothing else: without this the
+                        // name is taken from the whole of the content, badge and
+                        // reason included, and the description would only say them
+                        // twice.
+                        aria-labelledby={nameId}
+                        aria-describedby={describedBy}
+                        data-chart-type={value}
+                        className="h-full"
+                        data-recommended={fit.recommended || undefined}
+                        tabIndex={picked === value ? 0 : -1}
+                        onClick={() => {
+                          if (fit.available) onPick(value);
+                        }}
+                        onKeyDown={event => {
+                          if (
+                            event.key === 'ArrowRight' ||
+                            event.key === 'ArrowDown'
+                          )
+                            move(index, 1);
+                          else if (
+                            event.key === 'ArrowLeft' ||
+                            event.key === 'ArrowUp'
+                          )
+                            move(index, -1);
+                          else if (event.key === ' ' || event.key === 'Enter') {
+                            event.preventDefault();
+                            if (fit.available) onPick(value);
+                          }
+                        }}
+                      >
+                        <Icon aria-hidden className="size-5" />
+                        <span id={nameId}>{name}</span>
+                        {fit.recommended && (
+                          <span id={badgeId} data-slot="chart-recommended">
+                            {messages.label('label.chart.recommended')}
+                          </span>
+                        )}
+                        {hint && (
+                          <span id={hintId} data-slot="chart-hint">
+                            {hint}
+                          </span>
+                        )}
+                        {reason && (
+                          <span id={reasonId} data-slot="chart-reason">
+                            {reason}
+                          </span>
+                        )}
+                      </ChartTile>
+                      {picked === value && options && (
+                        <IconButton
+                          ref={optionsRef}
+                          label={messages.label('label.chart.options', {
+                            name,
+                          })}
+                          variant="ghost"
+                          size="icon-xs"
+                          data-slot="chart-options-open"
+                          className="absolute top-0.5 right-0.5"
+                          onClick={onOptions}
+                        >
+                          <SlidersHorizontalIcon />
+                        </IconButton>
                       )}
-                      {hint && (
-                        <span id={hintId} data-slot="chart-hint">
-                          {hint}
-                        </span>
-                      )}
-                      {reason && (
-                        <span id={reasonId} data-slot="chart-reason">
-                          {reason}
-                        </span>
-                      )}
-                    </ChartTile>
+                    </div>
                   );
                 })}
               </div>
@@ -305,24 +334,6 @@ export function ChartPicker({
           ),
         )}
       </div>
-      {options && (
-        <Button
-          ref={optionsRef}
-          variant="outline"
-          // The panel's width, the words at its start and the chevron at its
-          // end: a row that leads on, as a settings list's rows do.
-          className="w-full justify-start"
-          data-slot="chart-options-open"
-          onClick={onOptions}
-        >
-          <Settings2Icon data-icon="inline-start" />
-          <span className="min-w-0 flex-1 truncate text-left">
-            {/* The very words the page it opens is headed with. */}
-            {messages.label('label.chart.options', { name: nameOf(picked) })}
-          </span>
-          <ChevronRightIcon data-icon="inline-end" />
-        </Button>
-      )}
     </div>
   );
 }

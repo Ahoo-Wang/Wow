@@ -11,31 +11,32 @@
  * limitations under the License.
  */
 
-import { useRef, useState } from 'react';
-import { PlusIcon, XIcon } from 'lucide-react';
+import {
+  useId,
+  useRef,
+  useState,
+  type MouseEvent,
+  type ReactNode,
+} from 'react';
+import { XIcon } from 'lucide-react';
 import {
   isDateCell,
-  isValueMetric,
   without,
   type AnalysisMetric,
   type FieldOption,
 } from '../../model/index.js';
-import type { AnalysisEditorController } from '../../react/index.js';
+import type {
+  AnalysisEditorController,
+  MetricRemoval,
+} from '../../react/index.js';
 import { Button } from '../components/button.js';
-import {
-  DropdownMenu,
-  DropdownMenuGroup,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '../components/dropdown-menu.js';
-import { GroupedMenu } from '../FieldMenu.js';
+import { DropdownMenuItem } from '../components/dropdown-menu.js';
+import { Tooltip, TooltipTrigger } from '../components/tooltip.js';
 import { NumberInput } from '../FilterValueEditor.js';
-import { IconButton } from '../IconButton.js';
 import { useViewMessages } from '../MessagesProvider.js';
-import { DropdownMenuContent } from '../popups.js';
+import { TooltipContent } from '../popups.js';
 import { summaryFunctionKey } from '../display.js';
-import { EditorCard, EditorSlot } from '../variants.js';
+import { EditorCard } from '../variants.js';
 import {
   isDuration,
   isFormula,
@@ -49,10 +50,9 @@ import { CompactSelect } from './CompactSelect.js';
 import {
   DerivedControls,
   DurationControls,
-  durationFields,
   FormulaControls,
 } from './FormulaCard.js';
-import { useListFocus, type ListFocus } from './listFocus.js';
+import type { ListFocus } from './listFocus.js';
 import {
   ConditionBlock,
   ConditionButton,
@@ -60,173 +60,10 @@ import {
 } from './MetricCondition.js';
 import {
   conditionOf,
-  usedAliases,
-  defaultMetric,
   fieldOfMetric,
-  freeAlias,
   metricFallbackName,
   metricReference,
 } from './editing.js';
-
-/**
- * The metrics slot: one card per metric and the way to add one. What the
- * result keeps of the groups — 「只保留」, the sort, 「前 N 组」 — is the
- * result slot's (`ResultSlot.tsx`): none of it is a metric.
- */
-export function MetricSlot({
-  analysis,
-  disabled,
-  optionsFor,
-  conditioning,
-  setConditioning,
-}: {
-  analysis: AnalysisEditorController;
-  disabled?: boolean;
-  optionsFor?(remote: string): FieldOption[] | undefined;
-  /**
-   * Which card has its conditions open, by the alias that names it. Held
-   * above the cards, because the one gesture that opens a card's conditions
-   * from *another* card is the copy — 「复制并加条件」 makes the copy and
-   * opens it, which is the condition it promised — and above the slot,
-   * because Apply, in the tray's footer, has to know whether it is running
-   * past a condition the analyst opened and left empty (`Tray`).
-   */
-  conditioning: string | null;
-  setConditioning(alias: string | null): void;
-}) {
-  const messages = useViewMessages();
-  const measurable = analysis.fields.filter(
-    field => summaryChoices(field).length > 0,
-  );
-  // A second plain record count is the first one again: one column twice,
-  // under two aliases (the 2026-09-23 audit, P2-6). A count over some of
-  // the records is another metric, and 「复制并加条件」 on the card is the
-  // way to it — so the menu offers the count only while there is none.
-  const counted = analysis.metrics.some(
-    metric =>
-      metric.type === 'COUNT' &&
-      (metric.filter === undefined || metric.filter.children.length === 0),
-  );
-  // A metric taken out leaves the keyboard on this slot (`listFocus.ts`);
-  // held here because the card pressed is the one that goes.
-  const focus = useListFocus({
-    list: '[data-slot="analysis-slot-metrics"]',
-    item: '[data-slot="metric-card"]',
-    add: '[data-slot="add-metric"]',
-  });
-  return (
-    <EditorSlot
-      name="metrics"
-      title={messages.label('label.analysis.slot.metrics')}
-      hint={messages.label('label.analysis.hint.metrics')}
-    >
-      {analysis.metrics.map((metric, index) => (
-        <MetricCard
-          key={metric.alias}
-          analysis={analysis}
-          metric={metric}
-          index={index}
-          focus={focus}
-          disabled={disabled}
-          optionsFor={optionsFor}
-          conditioning={conditioning === metric.alias}
-          onConditioning={open => setConditioning(open ? metric.alias : null)}
-          onDuplicate={() =>
-            setConditioning(analysis.duplicateMetric(index) ?? null)
-          }
-        />
-      ))}
-      <DropdownMenu>
-        <DropdownMenuTrigger
-          render={
-            <Button
-              variant="ghost"
-              size="sm"
-              disabled={
-                disabled || (measurable.length === 0 && !analysis.countable)
-              }
-              data-slot="add-metric"
-              className="self-start"
-            />
-          }
-        >
-          <PlusIcon data-icon="inline-start" />
-          {messages.label('label.analysis.add-metric')}
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="start">
-          {analysis.countable && (
-            <DropdownMenuGroup>
-              <DropdownMenuItem
-                disabled={counted}
-                onClick={() =>
-                  analysis.addMetric({
-                    type: 'COUNT',
-                    alias: freeAlias('count', usedAliases(analysis)),
-                  })
-                }
-              >
-                {messages.label('label.analysis.row-count')}
-              </DropdownMenuItem>
-            </DropdownMenuGroup>
-          )}
-          {/* Three kinds of thing to add, set apart as the menu's groups:
-              the count, a field, and a metric written rather than picked. */}
-          {analysis.countable && measurable.length > 0 && (
-            <DropdownMenuSeparator />
-          )}
-          <GroupedMenu
-            items={measurable}
-            groups={analysis.fieldGroups}
-            itemKey={field => field.field}
-            render={field => (
-              <DropdownMenuItem
-                key={field.field}
-                onClick={() =>
-                  analysis.addMetric(
-                    defaultMetric(field, usedAliases(analysis)),
-                  )
-                }
-              >
-                {messages.say(field.label)}
-              </DropdownMenuItem>
-            )}
-          />
-          {/* The two metrics written rather than picked, where the
-              capability declares expressions (D20 屏 B). */}
-          {analysis.expressionsAllowed && <DropdownMenuSeparator />}
-          {analysis.expressionsAllowed && (
-            <DropdownMenuGroup>
-              <DropdownMenuItem
-                disabled={measurable.length === 0}
-                onClick={() => analysis.addFormula()}
-              >
-                {messages.label('label.analysis.add-formula')}
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                disabled={
-                  !analysis.metrics.some(metric => !isValueMetric(metric))
-                }
-                onClick={() => analysis.addDerived()}
-              >
-                {messages.label('label.analysis.add-derived')}
-              </DropdownMenuItem>
-              {analysis.dateDiffUnits.length > 0 && (
-                <DropdownMenuItem
-                  disabled={durationFields(analysis).length < 2}
-                  onClick={() =>
-                    analysis.addDuration(analysis.dateDiffUnits[0])
-                  }
-                >
-                  {messages.label('label.analysis.add-duration')}
-                </DropdownMenuItem>
-              )}
-            </DropdownMenuGroup>
-          )}
-        </DropdownMenuContent>
-      </DropdownMenu>
-    </EditorSlot>
-  );
-}
 
 /**
  * One metric: the field and how it is summarised, in the one list Wow's
@@ -234,10 +71,11 @@ export function MetricSlot({
  * grows a third control. The record count is the first card and names no
  * field. A change of summary swaps the whole metric (`replaceMetric`).
  */
-function MetricCard({
+export function MetricCard({
   analysis,
   metric,
   index,
+  handle,
   focus,
   disabled,
   optionsFor,
@@ -248,6 +86,8 @@ function MetricCard({
   analysis: AnalysisEditorController;
   metric: AnalysisMetric;
   index: number;
+  /** The drag handle the card is carried by, first on it (D71). */
+  handle?: ReactNode;
   /** Where the keyboard goes when this card is the one removed. */
   focus: ListFocus;
   disabled?: boolean;
@@ -332,6 +172,7 @@ function MetricCard({
         );
   return (
     <EditorCard data-slot="metric-card" data-metric={metric.type}>
+      {handle}
       {/* The controls wrap among themselves and the card's own actions keep
           the first line's end: a formula's four selects used to push the
           menu and ✕ onto a line of their own at 1440 (the 2026-09-23 audit,
@@ -498,32 +339,35 @@ function MetricCard({
             </DropdownMenuItem>
           )}
         </CardMenu>
-        <IconButton
+        <RemoveMetric
           label={messages.label('label.analysis.remove-metric', {
             name: reference,
           })}
-          variant="ghost"
-          size="icon-xs"
-          disabled={disabled || analysis.metrics.length <= 1}
-          onClick={event => {
+          removal={analysis.metricRemoval(index)}
+          disabled={disabled}
+          onRemove={event => {
             focus.removing(event, index);
             analysis.removeMetric(index);
           }}
-        >
-          <XIcon />
-        </IconButton>
+        />
       </div>
       {/* The caveat in full, under the summary, at rest: the parenthesis on
           the menu item is only read while the menu is open, and by then the
           choice is already being made. `w-full` breaks the card's flex row,
           so the note is a line of its own rather than a third control. */}
       {metric.type === 'ANY' && (
-        <span data-slot="metric-note" className="text-muted-foreground w-full">
+        <span
+          data-slot="metric-note"
+          className="text-muted-foreground contain-inline-size w-full"
+        >
           {messages.label('label.analysis.any-note')}
         </span>
       )}
       {(metric.type === 'FIRST' || metric.type === 'LAST') && (
-        <span data-slot="metric-note" className="text-muted-foreground w-full">
+        <span
+          data-slot="metric-note"
+          className="text-muted-foreground contain-inline-size w-full"
+        >
           {messages.label('label.analysis.first-last-note')}
         </span>
       )}
@@ -572,4 +416,70 @@ function withOrder(
       : undefined;
   const orderBy = kept ?? (expanded ? times[0]?.field : undefined);
   return orderBy === undefined ? next : { ...next, orderBy };
+}
+
+/**
+ * A metric's ✕, and why it is off when it is (D71). Taking out the only
+ * metric, or the one every other metric is calculated from — whose cascade
+ * would leave none, the edit the tray used to make as asked and admission
+ * then refused — asks nothing Wow can answer, so the ✕ says so rather than
+ * letting the press through.
+ *
+ * Off is `aria-disabled`, not `disabled`: a disabled button takes no
+ * pointer and no focus, and the reason it is off would then be said to
+ * nobody. So it stays reachable, the reason is its description and its
+ * tooltip, and a press does nothing. Otherwise it is an icon button over
+ * one name, said to a reader and shown to a pointer (`IconButton`).
+ */
+function RemoveMetric({
+  label,
+  removal,
+  disabled,
+  onRemove,
+}: {
+  label: string;
+  removal: MetricRemoval;
+  disabled?: boolean;
+  onRemove(event: MouseEvent<HTMLButtonElement>): void;
+}) {
+  const messages = useViewMessages();
+  const described = useId();
+  const reason =
+    removal === 'ok'
+      ? null
+      : messages.label(
+          removal === 'last'
+            ? 'label.analysis.remove-last'
+            : 'label.analysis.remove-cascade',
+        );
+  return (
+    <Tooltip>
+      <TooltipTrigger
+        aria-label={label}
+        aria-describedby={reason ? described : undefined}
+        aria-disabled={reason ? true : undefined}
+        render={
+          <Button
+            variant="ghost"
+            size="icon-xs"
+            data-slot="remove-metric"
+            data-blocked={reason ? removal : undefined}
+            disabled={disabled}
+            className="aria-disabled:cursor-not-allowed aria-disabled:opacity-50"
+            onClick={(event: MouseEvent<HTMLButtonElement>) => {
+              if (!reason) onRemove(event);
+            }}
+          />
+        }
+      >
+        <XIcon />
+      </TooltipTrigger>
+      <TooltipContent>{reason ?? label}</TooltipContent>
+      {reason && (
+        <span id={described} hidden>
+          {reason}
+        </span>
+      )}
+    </Tooltip>
+  );
 }

@@ -35,9 +35,11 @@ export { kindMismatch } from './issues.js';
 export { toIssue } from '../runtime/issues.js';
 export {
   type AnalysisEditorController,
-  type AnalysisFieldOption,
   useAnalysisEditor,
 } from './useAnalysisEditor.js';
+export type { AnalysisFieldOption } from './analysisFields.js';
+export type { DropCause } from './analysisEditing.js';
+export type { DropNotice, MetricRemoval } from './useReshape.js';
 export {
   type AnalysisResultController,
   type FollowUp,

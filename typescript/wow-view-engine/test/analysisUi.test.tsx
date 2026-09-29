@@ -633,6 +633,29 @@ describe('DataWorkbench', () => {
     expect(runtime.getSnapshot().editing).toBe(false);
   });
 
+  /**
+   * A card's ⋮ is a menu's trigger rendering a tooltipped icon button
+   * (`DropdownMenuTrigger render={<IconButton/>}`): one button, both marks.
+   * Focus going into its portalled menu is still focus in the tray.
+   */
+  it('keeps holding while a card’s menu is open', async () => {
+    const user = userEvent.setup();
+    const { engine } = await open();
+    await openTray();
+    const runtime = engine.openRuntimes()[0];
+    const more = screen.getAllByRole('button', {
+      name: /^More settings for /,
+    })[0];
+
+    fireEvent.focus(more, { relatedTarget: null });
+    await user.click(more);
+    const item = (await screen.findAllByRole('menuitem'))[0];
+    expect(more.hasAttribute('data-base-ui-tooltip-trigger')).toBe(true);
+    expect(more.hasAttribute('data-popup-open')).toBe(true);
+    fireEvent.blur(more, { relatedTarget: item });
+    expect(runtime.getSnapshot().editing).toBe(true);
+  });
+
   it('keeps the editor usable while an aggregation is still running', async () => {
     const waiting = deferred<Record<string, unknown>[]>();
     const { engine } = setup(testSource({ aggregate: () => waiting.promise }));

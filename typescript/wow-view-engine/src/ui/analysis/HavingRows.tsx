@@ -27,7 +27,7 @@ import { NumberInput } from '../FilterValueEditor.js';
 import { IconButton } from '../IconButton.js';
 import { TEXT_UI } from '../layout.js';
 import { useViewMessages } from '../MessagesProvider.js';
-import { EditorCard } from '../variants.js';
+import { AddButton, EditorCard } from '../variants.js';
 import { CompactSelect } from './CompactSelect.js';
 import { metricReference } from './editing.js';
 import { useListFocus } from './listFocus.js';
@@ -134,16 +134,10 @@ export function AddHaving({
   const messages = useViewMessages();
   if (!having.allowed || !having.add || having.rows.length > 0) return null;
   return (
-    <Button
-      variant="ghost"
-      size="sm"
-      data-slot="add-having"
-      disabled={disabled}
-      onClick={having.add}
-    >
+    <AddButton data-slot="add-having" disabled={disabled} onClick={having.add}>
       <PlusIcon data-icon="inline-start" />
       {messages.label('label.analysis.having-first')}
-    </Button>
+    </AddButton>
   );
 }
 
@@ -263,9 +257,7 @@ export function HavingRows({
         ))
       )}
       {having.add && (
-        <Button
-          variant="ghost"
-          size="sm"
+        <AddButton
           className="self-start"
           data-slot="add-having"
           disabled={disabled}
@@ -273,7 +265,7 @@ export function HavingRows({
         >
           <PlusIcon data-icon="inline-start" />
           {messages.label('label.analysis.having')}
-        </Button>
+        </AddButton>
       )}
       {rows.length > 0 && (
         <span data-slot="having-note" className="text-muted-foreground">

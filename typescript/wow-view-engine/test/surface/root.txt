@@ -1,4 +1,4 @@
-# @ahoo-wang/wow-view-engine — 831 names, from src/index.ts.
+# @ahoo-wang/wow-view-engine — 833 names, from src/index.ts.
 # Written by test/publicSurface.test.ts; a change here is a change to
 # the public surface (README「Entries」, docs/design/decisions.md D29).
 value ALWAYS_VISIBLE
@@ -159,6 +159,7 @@ type  DestinationBoard
 type  DetailSection
 type  DrillContext
 type  DrilledGroup
+type  Dropped
 type  DurationComparison
 type  DurationFilterValue
 value EDITOR_INPUTS
@@ -360,6 +361,7 @@ type  RefreshConfig
 type  RelativeDateDirection
 type  RelativeDateTimeValue
 type  RelativeDateUnit
+type  Rescoped
 type  RiverStream
 type  RowMoneyNumeric
 type  RuntimeEnvironment

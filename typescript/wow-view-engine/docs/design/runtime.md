@@ -175,7 +175,7 @@ export class ViewWriteError extends Error {
 `applied.refresh.interval` 非空时由该 runtime 持有唯一计时器，到期调用 `refresh()`。五种情况暂停：
 
 - `issues` 含 error；
-- `editing` 为 true——`useFilterEditor` 与 `useAnalysisEditor` 提供 `focus`／`blur`，默认 `FilterPanel` 与分析托盘 `Tray` 在焦点进入或离开其根元素时调用，内部焦点移动不触发；控件的弹层经 Portal 渲染在根元素之外，焦点进入弹层时根元素内仍有带 `data-popup-open` 的触发器，算作未离开；查询进行中不冻结编辑器；
+- `editing` 为 true——`useFilterEditor` 与 `useAnalysisEditor` 提供 `focus`／`blur`，默认 `FilterPanel` 与分析托盘 `Tray` 在焦点进入或离开其根元素时调用，内部焦点移动不触发；控件的弹层经 Portal 渲染在根元素之外，焦点进入弹层时根元素内仍有带 `data-popup-open` 的触发器，算作未离开——提示框的触发器除外（提示框不接焦点，它开着只因为正在离开的焦点在触发器上），但同一颗按钮既是提示框又是菜单的触发器（「添加分组」的箭头、托盘卡片的 ⋮）、菜单开着（`aria-expanded="true"`）时照样算未离开（`leavesEditor`）；查询进行中不冻结编辑器；
 - 宿主报告页面不可见；
 - 上一次请求仍在途；
 - **有选中的行**（记录视图）：选中的行是有人正要动手的行，一次刷新可能把它们挪到别页或移出结果；放开选择，钟再走。（见 test/runtime.test.ts「holds the timer while rows are selected」）

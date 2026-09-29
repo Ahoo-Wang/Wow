@@ -260,25 +260,34 @@ describe('the analysis tray', () => {
   });
 
   /**
-   * The analyst's order (D20): the range first, because it is what the
-   * numbers are over, then what they are cut by beside what is measured.
-   * The tray holds the question and nothing about how it is looked at — the
-   * layout and the chart type are the result's, on its toolbar.
+   * The order each row depends on the one before (D71, revising D20): the
+   * numbers, what they are compared by, which groups are kept, then the
+   * records it all runs over. Each row is a region named by the analyst's
+   * term. The tray holds the question and nothing about how it is looked
+   * at — the layout and the chart type are the result's, on its toolbar.
    */
-  it('lays the slots out as range, then dimensions beside metrics, then the result', async () => {
+  it('lays the rows out as metrics, dimensions, result, then range', async () => {
     await open();
     const slots = tray()!.querySelectorAll('[data-slot^="analysis-slot-"]');
 
-    expect([...slots].map(slot => slot.getAttribute('data-slot'))).toEqual([
-      'analysis-slot-range',
-      'analysis-slot-dimensions',
+    expect(
+      [...slots]
+        .map(slot => slot.getAttribute('data-slot'))
+        .filter(slot => !/-(head|body|end)$/.test(slot!)),
+    ).toEqual([
       'analysis-slot-metrics',
+      'analysis-slot-dimensions',
       'analysis-slot-result',
+      'analysis-slot-range',
     ]);
-    // Each is a named region, in the analyst's words.
-    for (const name of ['Range', 'Dimensions', 'Metrics', 'Result'])
-      expect(screen.getByRole('region', { name })).toBeDefined();
-    // The range slot is the record view's condition panel, unchanged.
+    // Each is a named region, headed by its term.
+    for (const name of ['Metrics', 'Dimensions', 'Result', 'Range']) {
+      const region = screen.getByRole('region', { name });
+      expect(
+        within(region).getByRole('heading', { level: 3 }).textContent,
+      ).toBe(name);
+    }
+    // The range row is the record view's condition panel, unchanged.
     expect(
       within(screen.getByRole('region', { name: 'Range' })).getByRole(
         'region',
@@ -302,12 +311,95 @@ describe('the analysis tray', () => {
         .getByRole('region', { name: 'Metrics' })
         .querySelector('[data-slot="analysis-sort"]'),
     ).toBeNull();
+    // The add buttons say 「+ 添加」 and are named by what they add.
+    const addMetric = screen.getByRole('button', { name: 'Add metric' });
+    expect(addMetric.textContent).toBe(defaultMessages['label.analysis.add']);
+    expect(
+      screen.getByRole('button', { name: 'Add dimension' }).textContent,
+    ).toBe(defaultMessages['label.analysis.add']);
+    // Not chosen yet, and drawn so (review of #3781): every row's add
+    // button — the range's too — is the dashed add button; what was added
+    // is not.
+    for (const name of ['Metrics', 'Dimensions', 'Range']) {
+      const region = screen.getByRole('region', { name });
+      expect(
+        region.querySelectorAll('[data-affordance="add"]').length,
+      ).toBeGreaterThan(0);
+    }
+    expect(addMetric.getAttribute('data-affordance')).toBe('add');
+    expect(
+      tray()!.querySelector(
+        '[data-slot="metric-card"] [data-affordance="add"]',
+      ),
+    ).toBeNull();
     // Nothing about how the result is looked at is in here.
     expect(
       within(tray()!).queryByRole('button', {
         name: defaultMessages['label.layout.chart'],
       }),
     ).toBeNull();
+  });
+
+  /** Without a dimension there are no groups to keep, order or cut. */
+  it('draws the result row only while there is a dimension', async () => {
+    await open({ config: { groups: [], sort: [] } });
+
+    expect(screen.queryByRole('region', { name: 'Result' })).toBeNull();
+    expect(screen.getByRole('region', { name: 'Metrics' })).toBeDefined();
+    expect(screen.getByRole('region', { name: 'Range' })).toBeDefined();
+  });
+
+  /**
+   * Each term carries an ⓘ (D71): a button of its own beside the heading —
+   * never inside it — reached by Tab, named by the term it explains and
+   * described by the sentence its tooltip shows, which focus opens.
+   */
+  it('explains each term from an ⓘ the keyboard reaches', async () => {
+    const user = userEvent.setup();
+    await open();
+    // The press that opened the tray took the keyboard in, past the ⓘ
+    // buttons: landing on one would open its tooltip unasked.
+    await waitFor(() =>
+      expect(tray()!.contains(document.activeElement)).toBe(true),
+    );
+    expect(document.activeElement?.hasAttribute('data-landing-skip')).toBe(
+      false,
+    );
+    const tips = [
+      ['Metrics', 'label.analysis.tip.metrics'],
+      ['Dimensions', 'label.analysis.tip.dimensions'],
+      ['Result', 'label.analysis.tip.result'],
+      ['Range', 'label.analysis.tip.range'],
+    ] as const;
+    for (const [term, key] of tips) {
+      const region = screen.getByRole('region', { name: term });
+      const tip = within(region).getByRole('button', {
+        name: `About ${term}`,
+      });
+      // Beside the heading, not in it.
+      expect(tip.closest('h3')).toBeNull();
+      expect(tip.tabIndex).toBe(0);
+      expect(
+        document.getElementById(tip.getAttribute('aria-describedby')!)
+          ?.textContent,
+      ).toBe(defaultMessages[key]);
+    }
+    // A pointer sees the same sentence (focus opens it too: the story
+    // `TrayTerms` presses Tab in a browser, where focus-visible is real).
+    await user.hover(
+      within(screen.getByRole('region', { name: 'Metrics' })).getByRole(
+        'button',
+        { name: 'About Metrics' },
+      ),
+    );
+    const content = await waitFor(() => {
+      const found = document.querySelector('[data-slot="tooltip-content"]');
+      expect(found).not.toBeNull();
+      return found!;
+    });
+    expect(content.textContent).toBe(
+      defaultMessages['label.analysis.tip.metrics'],
+    );
   });
 
   /**
@@ -323,13 +415,13 @@ describe('the analysis tray', () => {
     await open();
 
     expect(tray()!.classList.contains(SPACE.ROWS)).toBe(true);
-    // The two columns are two blocks of the tray, not two of its rows.
-    const grid = tray()!.querySelector<HTMLElement>('.grid')!;
-    expect(grid.classList.contains(SPACE.BLOCKS)).toBe(true);
+    // Inside a row, the cards stand a group apart.
     for (const name of ['range', 'dimensions', 'metrics'])
       expect(
         tray()!
-          .querySelector(`[data-slot="analysis-slot-${name}"]`)!
+          .querySelector(
+            `[data-slot="analysis-slot-${name}"] [data-slot="analysis-slot-body"]`,
+          )!
           .classList.contains(SPACE.GROUPS),
       ).toBe(true);
   });
@@ -355,7 +447,7 @@ describe('the analysis tray', () => {
 
     expect(primary.map(button => button.textContent?.trim())).toEqual([APPLY]);
     expect(applyButton().getAttribute('data-emphasis')).toBe('primary');
-    expect(within(tray()!).queryByRole('button', { name: /Run/ })).toBeNull();
+    expect(within(tray()!).queryByRole('button', { name: /^Run$/ })).toBeNull();
   });
 
   /**
@@ -966,16 +1058,25 @@ describe('the tray’s metric cards', () => {
     await waitFor(() => expect(screen.queryByText(/is used twice/)).toBeNull());
   });
 
-  it('refuses to remove the only metric', async () => {
-    await open();
+  /**
+   * Off, and saying why (D71): `aria-disabled` rather than `disabled`, so
+   * the ✕ stays reachable and its reason is its description.
+   */
+  it('refuses to remove the only metric, and says why', async () => {
+    const { engine } = await open();
+    const remove = screen.getByRole('button', {
+      name: 'Remove metric Record count',
+    });
 
+    expect(remove.getAttribute('aria-disabled')).toBe('true');
+    expect(remove.getAttribute('data-blocked')).toBe('last');
     expect(
-      (
-        screen.getByRole('button', {
-          name: 'Remove metric Record count',
-        }) as HTMLButtonElement
-      ).disabled,
-    ).toBe(true);
+      document.getElementById(remove.getAttribute('aria-describedby')!)
+        ?.textContent,
+    ).toBe(defaultMessages['label.analysis.remove-last']);
+
+    fireEvent.click(remove);
+    expect(draft(engine).metrics).toHaveLength(1);
   });
 
   /** A percentile grows a third control, and Wow's interval is open. */
