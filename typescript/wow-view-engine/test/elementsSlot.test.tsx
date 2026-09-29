@@ -251,8 +251,8 @@ describe('the expansion slot', () => {
    * The chain is the capability's, so a dataset that declares none has no
    * slot at all — an empty 「展开」 heading over a dataset with nothing to
    * expand is a promise the definition never made. Where there is a chain,
-   * the slot sits between the range and the two columns, because it changes
-   * what the question is about rather than answering it.
+   * it is the tray's first row (D71), because it decides which fields every
+   * row after it may name.
    */
   it('exists only where the capability declares a chain', async () => {
     await open({ definition: flatDefinition() });
@@ -263,15 +263,15 @@ describe('the expansion slot', () => {
 
     expect(slot()).not.toBeNull();
     expect(
-      [...document.querySelectorAll('[data-slot^="analysis-slot-"]')].map(
-        found => found.getAttribute('data-slot'),
-      ),
+      [
+        ...document.querySelectorAll('section[data-slot^="analysis-slot-"]'),
+      ].map(found => found.getAttribute('data-slot')),
     ).toEqual([
-      'analysis-slot-range',
       'analysis-slot-elements',
-      'analysis-slot-dimensions',
       'analysis-slot-metrics',
+      'analysis-slot-dimensions',
       'analysis-slot-result',
+      'analysis-slot-range',
     ]);
     expect(
       screen.getByRole('region', {
@@ -284,7 +284,15 @@ describe('the expansion slot', () => {
     // By the definition's record noun, not its title (2026-09-23 audit: a
     // console titled 「事件流分析台」 was counting consoles).
     expect(unit()).toBe(label('label.analysis.unit', { name: 'Orders' }));
-    expect(expandInto()?.textContent).toContain(
+    expect(
+      document
+        .querySelector('[data-slot="counting-unit"]')
+        ?.hasAttribute('data-emphasis'),
+    ).toBe(false);
+    // The add button shows the array's name, 「+ 商品」, and is named by the
+    // step it takes.
+    expect(expandInto()?.textContent).toBe('Items');
+    expect(expandInto()?.getAttribute('aria-label')).toBe(
       label('label.analysis.expand-into', { name: 'Items' }),
     );
   });
@@ -310,11 +318,15 @@ describe('the expansion slot', () => {
       document.querySelectorAll('[data-slot="dimension-card"]'),
     ).toHaveLength(0);
     expect(unit()).toBe(label('label.analysis.unit', { name: 'Items' }));
+    // Said louder once something is expanded: it is no longer the record.
+    expect(
+      document
+        .querySelector('[data-slot="counting-unit"]')
+        ?.getAttribute('data-emphasis'),
+    ).toBe('strong');
     // One line, one step at a time: the next thing to expand is the next
     // thing the capability declares, and nothing else.
-    expect(expandInto()?.textContent).toContain(
-      label('label.analysis.expand-into', { name: 'Batches' }),
-    );
+    expect(expandInto()?.textContent).toBe('Batches');
 
     await expand('Batches');
 
@@ -459,11 +471,109 @@ describe('the expansion slot', () => {
     await waitFor(() => expect(levels()).toEqual([]));
     expect(draft(engine).elements).toEqual([]);
     expect(unit()).toBe(label('label.analysis.unit', { name: 'Orders' }));
-    expect(expandInto()?.textContent).toContain(
-      label('label.analysis.expand-into', { name: 'Items' }),
-    );
+    expect(expandInto()?.textContent).toBe('Items');
     // Nothing is left to measure the order by, so the metrics start again
     // from the first thing the unit can count.
     expect(draft(engine).metrics).toMatchObject([{ type: 'COUNT' }]);
+  });
+});
+
+describe('what an expansion takes away (D71)', () => {
+  const notice = () =>
+    document.querySelector<HTMLElement>('[data-slot="dropped-notice"]');
+  const voice = () =>
+    document.querySelector<HTMLElement>('[data-slot="dropped-voice"]');
+
+  /**
+   * A step into the chain takes every dimension and metric outside the new
+   * unit with it (D20: they follow rather than fail); nothing asks first,
+   * so the tray says what went — counted and named as their columns were
+   * headed — and says it to a reader too.
+   */
+  it('says what went, by name, on screen and aloud', async () => {
+    await open({
+      config: {
+        metrics: [
+          { type: 'COUNT', alias: 'n' },
+          {
+            type: 'NUMERIC',
+            alias: 'gmv',
+            label: 'GMV',
+            function: AggregationFunction.SUM,
+            expression: { type: 'FIELD', field: 'amount' },
+          },
+          {
+            type: 'NUMERIC',
+            alias: 'total',
+            function: AggregationFunction.SUM,
+            expression: { type: 'FIELD', field: 'amount' },
+          },
+        ],
+      },
+    });
+    expect(notice()).toBeNull();
+
+    await expand('Items');
+
+    const sentence = label('label.analysis.dropped.expand', {
+      name: 'Items',
+      what: label('label.analysis.dropped.both', {
+        first: label('label.analysis.dropped.dimension', {
+          names: 'Warehouse',
+        }),
+        second: label('label.analysis.dropped.metrics', {
+          count: '2',
+          names: `GMV, ${label('label.summary.of', {
+            field: 'Amount',
+            fn: defaultMessages['label.summary.fn.SUM'],
+          })}`,
+        }),
+      }),
+    });
+    expect(notice()?.textContent).toContain(sentence);
+    await waitFor(() => expect(voice()?.textContent).toBe(sentence));
+    // No confirmation: the step is made.
+    expect(levels()).toEqual(['items']);
+  });
+
+  /** 撤销 puts the question back as it was before the step. */
+  it('undoes the step, and the config is back as it was', async () => {
+    const { engine } = await open();
+    const before = draft(engine);
+
+    await expand('Items');
+    expect(draft(engine).groups).toEqual([]);
+
+    fireEvent.click(
+      within(notice()!).getByRole('button', {
+        name: defaultMessages['label.analysis.dropped.undo'],
+      }),
+    );
+
+    await waitFor(() => expect(levels()).toEqual([]));
+    const after = draft(engine);
+    expect(after.groups).toEqual(before.groups);
+    expect(after.metrics).toEqual(before.metrics);
+    expect(after.elements ?? []).toEqual(before.elements ?? []);
+    expect(after.chart).toEqual(before.chart);
+    expect(after.sort).toEqual(before.sort);
+    expect(notice()).toBeNull();
+  });
+
+  /** The notice is about the edit that made the draft; the next edit ends it. */
+  it('goes with the next edit, and says nothing when nothing went', async () => {
+    await open({ config: { groups: [] } });
+
+    await expand('Items');
+    // Only a count, which an item has too: nothing went.
+    expect(notice()).toBeNull();
+
+    cleanup();
+    await open();
+    await expand('Items');
+    expect(notice()).not.toBeNull();
+
+    await expand('Batches');
+    await waitFor(() => expect(notice()).toBeNull());
   });
 });

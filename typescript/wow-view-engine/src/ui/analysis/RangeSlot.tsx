@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import { ChevronDownIcon } from 'lucide-react';
+import { ChevronDownIcon, LockIcon } from 'lucide-react';
 import type { FieldOption } from '../../model/index.js';
 import type { FilterEditorController } from '../../react/index.js';
 import { Button } from '../components/button.js';
@@ -23,14 +23,28 @@ import { FilterModes, filterModeLabel } from '../filter/FilterModes.js';
 import { FilterPanel } from '../FilterPanel.js';
 import { useViewMessages } from '../MessagesProvider.js';
 import { DropdownMenuContent } from '../popups.js';
-import { EditorSlot } from '../variants.js';
+import { summaryText } from '../summary.js';
+import { EditorSlot, WrappingBadge } from '../variants.js';
+import { useSurfaceDisplay } from '../ViewSurface.js';
+import { TermTip } from './TermTip.js';
 
 /**
- * The first slot of the tray: the range the analysis runs over. It is the
- * record view's condition panel, unchanged, under a heading that also holds
- * the one simple/advanced switch there is — the grammar of the condition
- * tree, which governs the range and every metric's own conditions alike
- * (D20: no simple/advanced tray, only the tree's `filterMode`).
+ * The last row of the tray (D71): the range the analysis runs over. It is
+ * the record view's condition panel, unchanged, with the one simple/advanced
+ * switch there is at the row's end — the grammar of the condition tree,
+ * which governs the range and every metric's own conditions alike (D20: no
+ * simple/advanced tray, only the tree's `filterMode`).
+ *
+ * It comes last because it depends on nothing above it: it narrows the
+ * outermost records, whatever is expanded, and the question is read top to
+ * bottom as what is counted, then over which records.
+ *
+ * **What the page set is drawn as it is**: the host's own conditions
+ * (`scoped`) and the readings the source applies unasked (`implied`) stand
+ * before the panel as locked badges saying whose they are — 「由页面设定」,
+ * 「缺省口径」 — with no way to take them out, because they are nobody's
+ * here to take out. Without them the row said the analysis ran over all
+ * records while the page had narrowed it.
  */
 export function RangeSlot({
   filter,
@@ -42,12 +56,34 @@ export function RangeSlot({
   disabled?: boolean;
 }) {
   const messages = useViewMessages();
+  const display = useSurfaceDisplay();
   const mode = filterModeLabel(filter, messages);
+  const title = messages.label('label.analysis.slot.range');
+  const locked = [
+    ...filter.scoped.map(item => ({
+      key: `scoped:${item.path.join('.')}`,
+      text: summaryText(item, messages, display),
+      whose: messages.label('label.applied.scoped'),
+      mark: 'scoped',
+    })),
+    ...filter.implied.map(item => ({
+      key: `implied:${item.field ?? ''}`,
+      text: summaryText(item, messages, display),
+      whose: messages.label('label.applied.implied'),
+      mark: 'implied',
+    })),
+  ];
   return (
     <EditorSlot
       name="range"
-      title={messages.label('label.analysis.slot.range')}
-      aside={
+      title={title}
+      tip={
+        <TermTip
+          label={messages.label('label.analysis.tip-of', { term: title })}
+          tip={messages.label('label.analysis.tip.range')}
+        />
+      }
+      end={
         <DropdownMenu>
           <DropdownMenuTrigger
             render={
@@ -68,6 +104,19 @@ export function RangeSlot({
         </DropdownMenu>
       }
     >
+      {locked.length > 0 && (
+        <ul data-slot="range-locked" className="flex flex-wrap gap-1">
+          {locked.map(item => (
+            <li key={item.key}>
+              <WrappingBadge variant="outline" data-locked={item.mark}>
+                <LockIcon data-icon="inline-start" aria-hidden />
+                {item.text}
+                <span className="text-muted-foreground">· {item.whose}</span>
+              </WrappingBadge>
+            </li>
+          ))}
+        </ul>
+      )}
       <FilterPanel
         filter={filter}
         optionsFor={optionsFor}

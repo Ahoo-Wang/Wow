@@ -2065,7 +2065,8 @@ async function openTray(canvasElement: HTMLElement): Promise<HTMLElement> {
 /**
  * The tray folds where the record view's filter panel folds (D20, Q2
  * settled): a saved view opens folded, the title bar's 「分析」 opens it, and
- * what is inside is the question — range, dimensions, metrics — under one
+ * what is inside is the question — metrics, dimensions, the result, the
+ * range, in the order each depends on the one before (D71) — under one
  * Apply. Nothing about *how* the result is looked at is in there.
  */
 export const TrayFolds: Story = {
@@ -2083,20 +2084,20 @@ export const TrayFolds: Story = {
     const opened = await openTray(canvasElement);
 
     await expect(
-      [...opened.querySelectorAll('[data-slot^="analysis-slot-"]')].map(slot =>
-        slot.getAttribute('data-slot'),
+      [...opened.querySelectorAll('section[data-slot^="analysis-slot-"]')].map(
+        slot => slot.getAttribute('data-slot'),
       ),
     ).toEqual([
-      'analysis-slot-range',
-      'analysis-slot-dimensions',
       'analysis-slot-metrics',
+      'analysis-slot-dimensions',
       'analysis-slot-result',
+      'analysis-slot-range',
     ]);
     for (const name of [
-      zhCN['label.analysis.slot.range'],
-      zhCN['label.analysis.slot.dimensions'],
       zhCN['label.analysis.slot.metrics'],
+      zhCN['label.analysis.slot.dimensions'],
       zhCN['label.analysis.slot.result'],
+      zhCN['label.analysis.slot.range'],
     ])
       await expect(canvas.getByRole('region', { name })).toBeVisible();
 
@@ -2372,8 +2373,9 @@ export const ReachesAdvancedMode: Story = {
  *
  * jsdom applies no stylesheet and so can only pin the class the call site
  * passes (`test/analysisTray.test.tsx`); the pixels are this project's to
- * read. The ruler (`ui/README.md`): a slot's cards stand 8px apart, the
- * slots 12px, and the two columns are two blocks at 16px.
+ * read. The ruler (`ui/README.md`): a row's cards stand 8px apart, the rows
+ * 12px; and from `md` up the terms stand in a column of their own (D71), so
+ * every row's content starts at the same left edge.
  */
 export const EditorRowSpacing: Story = {
   ...DisplayTableWithTotals,
@@ -2384,15 +2386,27 @@ export const EditorRowSpacing: Story = {
 
     await expect(getComputedStyle(opened).rowGap).toBe('12px');
     await expect(
-      getComputedStyle(opened.querySelector<HTMLElement>('.grid')!).columnGap,
-    ).toBe('16px');
-    await expect(
       getComputedStyle(
         opened.querySelector<HTMLElement>(
-          '[data-slot="analysis-slot-metrics"]',
+          '[data-slot="analysis-slot-metrics"] [data-slot="analysis-slot-body"]',
         )!,
       ).rowGap,
     ).toBe('8px');
+    const bodies = [
+      ...opened.querySelectorAll<HTMLElement>(
+        '[data-slot="analysis-slot-body"]',
+      ),
+    ].map(body => Math.round(body.getBoundingClientRect().left));
+    await expect(new Set(bodies).size).toBe(1);
+    const heads = [
+      ...opened.querySelectorAll<HTMLElement>(
+        '[data-slot="analysis-slot-head"]',
+      ),
+    ];
+    for (const head of heads)
+      await expect(head.getBoundingClientRect().right).toBeLessThanOrEqual(
+        bodies[0]! + 0.5,
+      );
   },
 };
 
@@ -2404,8 +2418,8 @@ export const EditorRowSpacing: Story = {
  * 行（名字在控件左边，不再各占一行）；加了一条「只保留」，它的块在那一行上面。
  * 没有排序时，前 N 组旁边说「未排序时由数据源决定取哪几组」。
  * 二、「自动运行」开着、没有东西等应用时，应用是描边按钮，不是全屏最实的那一
- * 颗；范围里加了条件（它要等应用）才回到实心。开关旁边那句说它管什么——范围里
- * 有没应用的条件时，改说为什么现在不自动运行。
+ * 颗；范围里加了条件（它要等应用）才回到实心。开关管什么收在它的 ⓘ 里（D71）；
+ * 范围里有没应用的条件时，底行直接说为什么现在不自动运行。
  * 三、托盘封顶工作列的一半，槽在里面滚，底行（自动运行／清空／应用）不滚、总看
  * 得见；结果不再被挤到它的下限。
  */
@@ -2494,11 +2508,14 @@ export const TrayReadsClearly: Story = {
     const apply = applyButton(canvasElement);
     await expect(apply).toHaveAttribute('data-emphasis', 'quiet');
     await expect(getComputedStyle(apply).backgroundColor).not.toBe(primary);
-    const hint = canvasElement.querySelector<HTMLElement>(
-      '[data-slot="auto-run-hint"]',
-    )!;
-    await expect(hint).toBeVisible();
-    await expect(hint).toHaveTextContent(zhCN['label.analysis.auto-run-hint']);
+    // At rest what auto-run does is in its ⓘ, not a line on the footer
+    // (D71).
+    await expect(
+      canvasElement.querySelector('[data-slot="auto-run-hint"]'),
+    ).toBeNull();
+    await expect(
+      canvasElement.querySelector('[data-slot="auto-run-tip"]'),
+    ).toHaveAccessibleDescription(zhCN['label.analysis.auto-run-hint']);
 
     // A condition in the range waits for Apply, so Apply fills again.
     const range = canvas.getByRole('region', {
@@ -2523,7 +2540,15 @@ export const TrayReadsClearly: Story = {
       expect(apply).toHaveAttribute('data-emphasis', 'primary'),
     );
     await expect(getComputedStyle(apply).backgroundColor).toBe(primary);
-    // And the sentence by the switch says why nothing runs on its own now.
+    // And the footer says why nothing runs on its own now, in the row
+    // itself (D71: never only in a tip).
+    const hint = await waitFor(() => {
+      const found = canvasElement.querySelector<HTMLElement>(
+        '[data-slot="auto-run-hint"]',
+      );
+      expect(found).toBeVisible();
+      return found!;
+    });
     await expect(hint).toHaveTextContent(zhCN['label.analysis.auto-run-held']);
     await expect(hint).toHaveAttribute('data-held');
 
@@ -2698,9 +2723,11 @@ const meet = (a: DOMRect, b: DOMRect) =>
  * the 「推荐」 mark over neither the tile's icon nor its name nor another tile
  * (`inside` asks it to keep within its own tile's width too, which 「推荐」
  * does; "Recommended" is wider than a third of the sidebar and runs into the
- * gap between the columns, the room it hangs across the edge for); and under
- * the last row one labelled button, visible, inside the panel, the panel's
- * width, over no tile, named after the chosen type.
+ * gap between the columns, the room it hangs across the edge for); and on
+ * the chosen tile's top-right corner — and no other tile's — the options
+ * icon (D72): visible, a 24px target, the tile's sibling rather than its
+ * child, over neither the tile's name nor its icon nor its mark nor another
+ * tile, named after the chosen type.
  */
 async function expectPickerLayout(
   panel: HTMLElement,
@@ -2769,19 +2796,36 @@ async function expectPickerLayout(
           : zhCN[`label.chart.type.${type}` as keyof typeof zhCN],
     }),
   );
+  // In the chosen tile's cell, beside the tile rather than in it.
+  await expect(button.closest('[data-slot="chart-cell"]')).toBe(
+    tile.closest('[data-slot="chart-cell"]'),
+  );
+  await expect(tile.contains(button)).toBe(false);
   const box = button.getBoundingClientRect();
+  const own = tile.getBoundingClientRect();
+  await expect(box.width).toBeGreaterThanOrEqual(24);
+  await expect(box.height).toBeGreaterThanOrEqual(24);
+  // On the tile's top-right corner.
+  await expect(box.right).toBeLessThanOrEqual(own.right + 0.5);
+  await expect(own.right - box.right).toBeLessThan(6);
+  await expect(box.top).toBeGreaterThanOrEqual(own.top - 0.5);
+  await expect(box.top - own.top).toBeLessThan(6);
+  const name = document
+    .getElementById(tile.getAttribute('aria-labelledby')!)!
+    .getBoundingClientRect();
+  const icon = tile.querySelector('svg')!.getBoundingClientRect();
+  await expect(meet(box, name)).toBe(false);
+  await expect(meet(box, icon)).toBe(false);
+  for (const each of tiles.filter(other => other !== tile))
+    await expect(meet(box, each.getBoundingClientRect())).toBe(false);
+  if (mark) await expect(meet(box, mark.getBoundingClientRect())).toBe(false);
+  // No row under the list any more (D72).
   const grid = panel
     .querySelector('[role="radiogroup"]')!
     .getBoundingClientRect();
-  const own = panel.getBoundingClientRect();
-  await expect(box.height).toBeGreaterThanOrEqual(28);
-  await expect(box.left).toBeGreaterThanOrEqual(own.left);
-  await expect(box.right).toBeLessThanOrEqual(own.right);
-  await expect(Math.abs(box.width - grid.width)).toBeLessThan(1);
-  await expect(box.top).toBeGreaterThanOrEqual(grid.bottom);
-  for (const each of tiles)
-    await expect(meet(box, each.getBoundingClientRect())).toBe(false);
-  if (mark) await expect(meet(box, mark.getBoundingClientRect())).toBe(false);
+  for (const each of panel.querySelectorAll('button'))
+    if (!each.closest('[role="radiogroup"]'))
+      await expect(each.getBoundingClientRect().top).toBeLessThan(grid.top);
 }
 
 /** One tile of the picker, addressed by the chart type it stands for. */
@@ -2878,9 +2922,9 @@ export const VisualizePanel: Story = {
       zhCN['chart.fit.needs-two-dimensions'],
     );
 
-    // The tiles only pick; the way on to the chosen type's options is one
-    // labelled button under them (2026-09-23 review: a 24px gear hanging off
-    // the tile's corner was seen by nobody). A row is one height, no tile half empty.
+    // The tiles only pick; the way on to the chosen type's options is the
+    // named icon on the chosen tile's corner (D72), not a row under twenty
+    // tiles. A row is one height, no tile half empty.
     await expectPickerLayout(panel, 'bar');
     // And the mark keeps clear in English too, the widest word it has: the
     // same tile with "Recommended" written in it, put back afterwards.
@@ -2891,7 +2935,7 @@ export const VisualizePanel: Story = {
     await expectPickerLayout(panel, 'bar', false);
     mark.textContent = zhCN['label.chart.recommended'];
 
-    // Tab after the group lands on the button; the arrows stay the group's.
+    // Tab from the chosen tile lands on its icon; the arrows stay the group's.
     chartTile(panel, 'bar').focus();
     await userEvent.tab();
     await expect(
@@ -2927,8 +2971,8 @@ export const VisualizePanel: Story = {
       'aria-checked',
       'true',
     );
-    // The button follows the choice: named after the pie now. A pick opens
-    // nothing by itself.
+    // The icon follows the choice: on the pie now, named after it. A pick
+    // opens nothing by itself.
     await expectPickerLayout(panel, 'pie');
     await expect(
       document.querySelector('[data-slot="chart-options"]'),
@@ -2947,7 +2991,7 @@ export const VisualizePanel: Story = {
     await expect(aggregateCalls.current).toBe(before);
 
     // The table's options are its totals row: 「表格选项」 opens that page, and
-    // back from it lands on the button the user left by.
+    // back from it lands on the icon the user left by.
     await expectPickerLayout(panel, 'table');
     const options = panel.querySelector<HTMLElement>(
       '[data-slot="chart-options-open"]',
@@ -3028,7 +3072,9 @@ export const TrayCardMenu: Story = {
     await userEvent.type(box, '门店{Enter}');
     await waitFor(() =>
       expect(
-        canvasElement.querySelector('[data-slot="card-name"]'),
+        canvasElement.querySelector(
+          '[data-slot="dimension-card"] [data-slot="card-name"]',
+        ),
       ).toHaveTextContent('门店'),
     );
 
@@ -3212,8 +3258,8 @@ export const MetricCondition: Story = {
  * 展开（D20 屏 G）：一条链，计数单位跟着最内层走。
  *
  * 展开改的是「数的是什么」：展开到明细项，一行就是一个明细项，而仓库是订单
- * 的字段——在明细项里它什么也不指，所以那个维度跟着这一步离开。「展开：…」只
- * 给声明出来的下一步，收起一层连里面的一起带走。故事的数据源不求值
+ * 的字段——在明细项里它什么也不指，所以那个维度跟着这一步离开，托盘说一声
+ * 并给撤销（D71）。「+ 明细项」只给声明出来的下一步，收起一层连里面的一起带走。故事的数据源不求值
  * `elements`（`rowSource.ts` 明着拒绝），所以这一趟到托盘为止，不按「应用」；
  * 查询里带出去的是什么，由 test/elementsSlot.test.tsx 与
  * test/analysisCompile.test.ts 钉着。
@@ -3229,17 +3275,17 @@ export const TrayExpansion: Story = {
     const unit = () =>
       canvasElement.querySelector('[data-slot="counting-unit"]')?.textContent;
 
-    // 展开夹在范围与那两列之间：它改的是问题问的是什么，不是问题的答案。
+    // 展开是第一行：它决定后面每一行能用哪一层的字段（D71）。
     await expect(
-      [...opened.querySelectorAll('[data-slot^="analysis-slot-"]')].map(slot =>
-        slot.getAttribute('data-slot'),
+      [...opened.querySelectorAll('section[data-slot^="analysis-slot-"]')].map(
+        slot => slot.getAttribute('data-slot'),
       ),
     ).toEqual([
-      'analysis-slot-range',
       'analysis-slot-elements',
-      'analysis-slot-dimensions',
       'analysis-slot-metrics',
+      'analysis-slot-dimensions',
       'analysis-slot-result',
+      'analysis-slot-range',
     ]);
     await expect(unit()).toBe(
       formatMessage(zhCN, 'label.analysis.unit', { name: '订单' }),
@@ -3259,6 +3305,17 @@ export const TrayExpansion: Story = {
     await expect(
       canvasElement.querySelectorAll('[data-slot="dimension-card"]'),
     ).toHaveLength(0);
+    // 仓库跟着走了，托盘说一声，不弹确认框（D71）。
+    await expect(
+      canvasElement.querySelector('[data-slot="dropped-notice"]'),
+    ).toHaveTextContent(
+      formatMessage(zhCN, 'label.analysis.dropped.expand', {
+        name: '明细项',
+        what: formatMessage(zhCN, 'label.analysis.dropped.dimension', {
+          names: '仓库',
+        }),
+      }),
+    );
 
     // 一条线，一次一步：能再展开的只有能力声明的下一层。
     await userEvent.click(

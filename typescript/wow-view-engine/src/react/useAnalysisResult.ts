@@ -50,10 +50,8 @@ import type {
   RecordData,
 } from '../model/index.js';
 import { hasAsked, type ViewRuntime } from '../runtime/index.js';
-import type {
-  AnalysisEditorController,
-  AnalysisFieldOption,
-} from './useAnalysisEditor.js';
+import type { AnalysisFieldOption } from './analysisFields.js';
+import type { AnalysisEditorController } from './useAnalysisEditor.js';
 import type { WorkbenchController } from './useWorkbench.js';
 
 /** Stable identity for "nothing asked yet", so the memos below stay quiet. */

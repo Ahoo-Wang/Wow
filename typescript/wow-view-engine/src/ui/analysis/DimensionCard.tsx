@@ -40,6 +40,7 @@ import { CardMenu, CardName } from './CardMenu.js';
 import { CompactSelect } from './CompactSelect.js';
 import { defaultGroup, usedAliases } from './editing.js';
 import { useListFocus, type ListFocus } from './listFocus.js';
+import { TermTip } from './TermTip.js';
 
 /**
  * The dimensions slot: one card per group, in the order they cut the
@@ -84,62 +85,74 @@ export function DimensionSlot({
       ) ?? true
     );
   }, []);
+  const title = messages.label('label.analysis.slot.dimensions');
   return (
     <EditorSlot
       name="dimensions"
-      title={messages.label('label.analysis.slot.dimensions')}
-      hint={messages.label('label.analysis.hint.dimensions')}
-    >
-      {analysis.groups.map((group, index) => (
-        <DimensionCard
-          key={group.alias}
-          analysis={analysis}
-          group={group}
-          index={index}
-          focus={focus}
-          disabled={disabled}
+      title={title}
+      tip={
+        <TermTip
+          label={messages.label('label.analysis.tip-of', { term: title })}
+          tip={messages.label('label.analysis.tip.dimensions')}
         />
-      ))}
-      <DropdownMenu>
-        <DropdownMenuTrigger
-          render={
-            <Button
-              ref={trigger}
-              variant="ghost"
-              size="sm"
-              disabled={disabled || groupable.length === 0}
-              data-slot="add-group"
-              className="self-start"
-            />
-          }
-        >
-          <PlusIcon data-icon="inline-start" />
-          {messages.label('label.analysis.add-group')}
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="start" finalFocus={handBack}>
-          <GroupedMenu
-            items={groupable}
-            groups={analysis.fieldGroups}
-            itemKey={field => field.field}
-            render={field => (
-              <DropdownMenuItem
-                key={field.field}
-                onClick={() =>
-                  analysis.addGroup(
-                    defaultGroup(
-                      field,
-                      usedAliases(analysis),
-                      analysis.dateUnitFor(field),
-                    ),
-                  )
-                }
-              >
-                {messages.say(field.label)}
-              </DropdownMenuItem>
-            )}
+      }
+    >
+      {/* The cards run along the row and wrap (D71), each as wide as what
+          it holds, with 「+ 添加」 after the last. */}
+      <div className="flex flex-wrap items-start gap-2">
+        {analysis.groups.map((group, index) => (
+          <DimensionCard
+            key={group.alias}
+            analysis={analysis}
+            group={group}
+            index={index}
+            focus={focus}
+            disabled={disabled}
           />
-        </DropdownMenuContent>
-      </DropdownMenu>
+        ))}
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            render={
+              <Button
+                ref={trigger}
+                variant="ghost"
+                size="sm"
+                disabled={disabled || groupable.length === 0}
+                data-slot="add-group"
+                // The row's term says what is added; the name says it too,
+                // for a reader who arrives at the button alone.
+                aria-label={messages.label('label.analysis.add-group')}
+              />
+            }
+          >
+            <PlusIcon data-icon="inline-start" />
+            {messages.label('label.analysis.add')}
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" finalFocus={handBack}>
+            <GroupedMenu
+              items={groupable}
+              groups={analysis.fieldGroups}
+              itemKey={field => field.field}
+              render={field => (
+                <DropdownMenuItem
+                  key={field.field}
+                  onClick={() =>
+                    analysis.addGroup(
+                      defaultGroup(
+                        field,
+                        usedAliases(analysis),
+                        analysis.dateUnitFor(field),
+                      ),
+                    )
+                  }
+                >
+                  {messages.say(field.label)}
+                </DropdownMenuItem>
+              )}
+            />
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
     </EditorSlot>
   );
 }

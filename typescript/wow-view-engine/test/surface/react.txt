@@ -1,4 +1,4 @@
-# @ahoo-wang/wow-view-engine/react — 118 names, from src/react/index.ts.
+# @ahoo-wang/wow-view-engine/react — 121 names, from src/react/index.ts.
 # Written by test/publicSurface.test.ts; a change here is a change to
 # the public surface (README「Entries」, docs/design/decisions.md D29).
 type  AnalysisEditorController
@@ -16,6 +16,8 @@ type  DashboardController
 type  DashboardOpening
 type  DashboardPanelView
 type  DrillTarget
+type  DropCause
+type  DropNotice
 type  FilterEditorController
 type  FilterTreeController
 type  FollowUp
@@ -28,6 +30,7 @@ type  LeaveGuard
 type  LeaveGuardOptions
 type  LeaveGuardState
 type  ManagedInstanceAbilities
+type  MetricRemoval
 type  NewViewOptions
 type  OpenViewState
 value PREFERENCES_KEY

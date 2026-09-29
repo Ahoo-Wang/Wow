@@ -26,7 +26,10 @@ export type VisualizationLevel = 'picker' | 'options';
 export interface VisualizationFocus {
   /** The heading of the level on screen. */
   heading: RefObject<HTMLHeadingElement | null>;
-  /** The picker's options button: where the options page is left back to. */
+  /**
+   * The chosen tile's options icon (D72): where the options page is left
+   * back to.
+   */
   optionsButton: RefObject<HTMLButtonElement | null>;
   /** The control that opened the panel: where closing it hands back to. */
   visualizeRef: RefObject<HTMLButtonElement | null>;
@@ -37,12 +40,12 @@ export interface VisualizationFocus {
  *
  * The panel replaces its own contents as the level changes, so every one of
  * those changes would leave the focus on an element that is no longer on the
- * page — the press that opened it, the options button, the way back — and a
+ * page — the press that opened it, the options icon, the way back — and a
  * focus with nothing under it falls to `<body>`. Each level therefore takes
  * the keyboard to its own heading, except coming back from the options,
- * which lands on the options button the user left by; closing the panel
- * (`null`, where a host can close it) hands it back to the button that
- * opened it. Both are where the user was.
+ * which lands on the chosen tile's options icon the user left by (D72);
+ * closing the panel (`null`, where a host can close it) hands it back to
+ * the button that opened it. Both are where the user was.
  *
  * It is an effect keyed on the level rather than anything done inside the
  * press: the heading does not exist until React has drawn the level, and a

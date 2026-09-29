@@ -29,6 +29,7 @@ import { EditorSlot } from '../variants.js';
 import { useSurfaceDisplay } from '../ViewSurface.js';
 import { groupReference, metricReference } from './editing.js';
 import { AddHaving, HavingRows, useHaving } from './HavingRows.js';
+import { TermTip } from './TermTip.js';
 
 /**
  * 「结果」: the step after the question (2026-09-23 audit) — which groups
@@ -65,11 +66,17 @@ export function ResultSlot({
   const messages = useViewMessages();
   const having = useHaving(analysis);
   if (analysis.groups.length === 0) return null;
+  const title = messages.label('label.analysis.slot.result');
   return (
     <EditorSlot
       name="result"
-      title={messages.label('label.analysis.slot.result')}
-      hint={messages.label('label.analysis.hint.result')}
+      title={title}
+      tip={
+        <TermTip
+          label={messages.label('label.analysis.tip-of', { term: title })}
+          tip={messages.label('label.analysis.tip.result')}
+        />
+      }
     >
       <HavingRows having={having} disabled={disabled} />
       <div

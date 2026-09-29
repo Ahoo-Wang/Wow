@@ -26,6 +26,7 @@ import {
   MemoryViewStore,
   ViewEngine,
   type DataViewDefinition,
+  type AnalysisViewConfig,
   type ViewInstance,
 } from '../src/index.js';
 import {
@@ -965,6 +966,42 @@ describe('the analysis view’s open states pass axe', () => {
     // The tray is the thing under test: range, dimensions and metrics, each
     // with a card of its own.
     expect(slot('[data-slot="analysis-slot-metrics"]')).toBeDefined();
+    expect(await violations(document.body)).toEqual([]);
+  });
+
+  /**
+   * D71: two metrics, so each card is led by its drag handle inside a
+   * sortable list item, and every row's ⓘ stands beside its term. Axe sees
+   * the handles, the ⓘ buttons and the list.
+   */
+  it('the tray with metrics in an order, each term with its ⓘ', async () => {
+    await analysis(
+      {
+        ...warehouseTotals,
+        config: analysisConfig({
+          layout: 'table',
+          table: { columns: [], totals: true },
+          metrics: [
+            { alias: 'orders', type: 'COUNT' },
+            {
+              alias: 'amount',
+              type: 'NUMERIC',
+              function: 'SUM',
+              expression: { type: 'FIELD', field: 'amount' },
+            },
+          ] as AnalysisViewConfig['metrics'],
+        }),
+      },
+      'table',
+    );
+    await openTray();
+
+    expect(
+      document.querySelectorAll(
+        '[data-slot="metric-card"] [data-slot="drag-handle"]',
+      ),
+    ).toHaveLength(2);
+    expect(document.querySelectorAll('[data-slot="term-tip"]').length).toBe(4);
     expect(await violations(document.body)).toEqual([]);
   });
 

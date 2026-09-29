@@ -33,22 +33,56 @@ export const analysisMessages = {
   'label.analysis.answered': 'Result updated',
 
   'label.analysis.editor': 'Analysis',
-  // The tray's slots, in the analyst's order (D20): the range, the array
-  // fields to expand, the dimensions and the metrics — each named, each
-  // with a plain-words hint of the question it answers.
+  // The tray's rows, in the order each depends on the one before (D71):
+  // what one counted thing is, the numbers, what they are compared by, which
+  // groups the result keeps, and the records it all runs over. Each head is
+  // the analyst's term, with an ⓘ beside it that says the term in a
+  // sentence — the button's name, then the sentence.
   'label.analysis.slot.range': 'Range',
   'label.analysis.slot.dimensions': 'Dimensions',
   'label.analysis.slot.metrics': 'Metrics',
-  'label.analysis.hint.dimensions': 'compare by what',
-  'label.analysis.hint.metrics': 'which numbers',
-  // The step after the question (2026-09-23 audit): which groups the result
-  // keeps, in which order, and how many — Wow's having, sort and limit, in
-  // the order it applies them.
   'label.analysis.slot.result': 'Result',
-  'label.analysis.hint.result': 'which groups, in what order',
-  // The expansion slot (D20 屏 G): the chain of arrays counted inside.
   'label.analysis.slot.elements': 'Expand',
-  'label.analysis.hint.elements': 'count what',
+  'label.analysis.tip-of': 'About {term}',
+  'label.analysis.tip.elements':
+    'Counts the entries of an array in each record: once {name} is expanded, each {name} counts as one, and the metrics and dimensions are chosen from its fields. You can go one level further in.',
+  'label.analysis.tip.metrics':
+    'The numbers to work out: a record count, a sum or an average of a field, each optionally over only the records that match. Drag to reorder; a metric calculated from others stays after the ones it reads.',
+  'label.analysis.tip.dimensions':
+    'What to compare by: each dimension cuts the result into groups, and several cut it in turn.',
+  'label.analysis.tip.result':
+    'Which groups to keep and in what order: keep only the groups that match, order them by a dimension or a metric, and take the top N.',
+  'label.analysis.tip.range':
+    'Which records are counted. It narrows the outermost records, and expanding does not change it.',
+  // The visible word of each row's add button; the button's name says what
+  // it adds (`label.analysis.add-group`, `label.analysis.add-metric`).
+  'label.analysis.add': 'Add',
+  // What the last edit took out of the question beyond what it was asked
+  // to — an expansion leaves the dimensions and metrics outside it behind —
+  // said with an undo rather than asked first (D71).
+  'label.analysis.dropped.expand': 'Expanding {name} took out {what}',
+  'label.analysis.dropped.collapse': 'Collapsing {name} took out {what}',
+  'label.analysis.dropped.edit': 'This change also took out {what}',
+  'label.analysis.dropped.metric': '1 metric: {names}',
+  'label.analysis.dropped.metrics': '{count} metrics: {names}',
+  'label.analysis.dropped.dimension': '1 dimension: {names}',
+  'label.analysis.dropped.dimensions': '{count} dimensions: {names}',
+  'label.analysis.dropped.both': '{first}; {second}',
+  'label.analysis.dropped.undo': 'Undo',
+  'label.analysis.dropped.dismiss': 'Dismiss',
+  'label.analysis.dropped.undone': 'Undone; the question is back as it was',
+  // A metric dragged past what the order allows stops short (D71): a
+  // metric calculated from others stays after them, and before any that
+  // is calculated from it.
+  'label.analysis.move-stop.after':
+    '{name} is calculated from {other}, so it stays after it.',
+  'label.analysis.move-stop.before':
+    '{other} is calculated from {name}, so {name} stays before it.',
+  // Why a metric's ✕ is off.
+  'label.analysis.remove-last': 'An analysis needs at least one metric.',
+  'label.analysis.remove-cascade':
+    'Every other metric is calculated from this one; removing it would leave none.',
+  // The expansion row (D20 屏 G, D71): the chain of arrays counted inside.
   'label.analysis.expand-into': 'Expand into {name}',
   'label.analysis.collapse': 'Stop expanding {name}',
   'label.analysis.unit': 'Counting: {name}',
@@ -56,6 +90,9 @@ export const analysisMessages = {
   'label.analysis.records': 'records',
   'label.analysis.element-condition-of': 'Conditions on the entries of {name}',
   'label.analysis.element-condition-title': 'Only entries where',
+  // The gate's button on a level's card, while the level has no gate: its
+  // name (`element-condition-of`) begins with these words.
+  'label.analysis.element-condition': 'Conditions on the entries',
   'label.analysis.conditions-mode': 'Conditions: {mode}',
   'label.analysis.granularity': 'Granularity',
   // A date dimension's granularity, as Wow names the units.

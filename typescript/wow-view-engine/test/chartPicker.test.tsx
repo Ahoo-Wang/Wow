@@ -384,13 +384,15 @@ describe('the visualization panel', () => {
   });
 
   /**
-   * The tiles only pick; the way on to the chosen type's options is one
-   * labelled button under them (2026-09-23 review). It used to be a 24px
-   * gear hanging off the chosen tile's corner, which covered nothing and
-   * which nobody saw or understood. Its pixels are measured in a browser
+   * The tiles only pick; the chosen one's top-right corner opens its options
+   * (D72). A sliders icon, named — and tooltipped — by what it opens, on the
+   * chosen tile alone; the tile's sibling rather than its child, because a
+   * button inside a radio is an interactive element inside another; next
+   * after the chosen tile in the Tab order. The row under the list that used
+   * to lead there is gone. Its pixels are measured in a browser
    * (`VisualizePanel`); this pins what it is and where the keyboard goes.
    */
-  it('opens the chosen type’s options from one labelled button under the tiles', async () => {
+  it('opens the chosen type’s options from an icon on the chosen tile’s corner', async () => {
     await open(viewOf({ layout: 'chart' }));
     visualize();
     const named = (type: string) =>
@@ -401,34 +403,52 @@ describe('the visualization panel', () => {
       ),
     ];
 
-    // One, named by the type it opens, in the words the page is headed with;
-    // after the tile group, inside no tile.
+    // One, on the chosen tile's cell, named by the type it opens in the
+    // words the page is headed with.
     expect(buttons()).toHaveLength(1);
     const button = buttons()[0]!;
-    expect(button.textContent).toBe(named(label('label.chart.type.bar')));
-    expect(screen.getByRole('button', { name: named('bar') })).toBe(button);
+    expect(button.getAttribute('aria-label')).toBe(
+      named(label('label.chart.type.bar')),
+    );
+    expect(button.textContent).toBe('');
+    expect(button.closest('[data-slot="chart-cell"]')).toBe(
+      tile('bar').closest('[data-slot="chart-cell"]'),
+    );
+    // Beside the tile, inside no tile: each tile holds no control.
     const group = screen.getByRole('radiogroup');
-    expect(group.contains(button)).toBe(false);
-    expect(
-      group.compareDocumentPosition(button) & Node.DOCUMENT_POSITION_FOLLOWING,
-    ).toBeTruthy();
-    // Each tile is one button, with nothing inside it but its words.
     for (const each of group.querySelectorAll('[data-slot="chart-tile"]'))
       expect(each.querySelector('button')).toBeNull();
-    // In the Tab order, where the group's one stop is not.
+    // Next after the chosen tile, which is the group's one Tab stop.
     expect(button.tabIndex).toBe(0);
+    expect(
+      tile('bar').compareDocumentPosition(button) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    // No row under the list any more.
+    expect(
+      [...panel()!.querySelectorAll('button')].filter(found =>
+        found.textContent?.includes(named(label('label.chart.type.bar'))),
+      ),
+    ).toEqual([]);
 
-    // A pick moves the choice and renames the button; it opens nothing.
+    // A pick moves the icon to the tile picked; it opens nothing.
     fireEvent.click(tile('pie'));
     expect(buttons()).toHaveLength(1);
-    expect(buttons()[0]!.textContent).toBe(named('pie'));
+    expect(buttons()[0]!.getAttribute('aria-label')).toBe(
+      named(label('label.chart.type.pie')),
+    );
+    expect(buttons()[0]!.closest('[data-slot="chart-cell"]')).toBe(
+      tile('pie').closest('[data-slot="chart-cell"]'),
+    );
     expect(document.querySelector('[data-slot="chart-options"]')).toBeNull();
 
-    // The table's options are its totals row, and the button says so.
+    // The table's options are its totals row, and the icon says so.
     fireEvent.click(tile('table'));
-    expect(buttons()[0]!.textContent).toBe(named(label('label.layout.table')));
+    expect(buttons()[0]!.getAttribute('aria-label')).toBe(
+      named(label('label.layout.table')),
+    );
 
-    // The press opens the options; back comes back to the button.
+    // The press opens the options; back comes back to the icon.
     fireEvent.click(buttons()[0]!);
     await waitFor(() =>
       expect(

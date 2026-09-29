@@ -12,7 +12,7 @@
  */
 
 import { useState } from 'react';
-import { ChevronRightIcon, PlusIcon, XIcon } from 'lucide-react';
+import { ChevronRightIcon, FunnelIcon, PlusIcon, XIcon } from 'lucide-react';
 import { describeFilter } from '../../filter/index.js';
 import type { AnalysisElement, FieldOption } from '../../model/index.js';
 import type { AnalysisEditorController } from '../../react/index.js';
@@ -23,20 +23,22 @@ import { TEXT_UI } from '../layout.js';
 import { useViewMessages } from '../MessagesProvider.js';
 import { EditorCard, EditorSlot } from '../variants.js';
 import { useListFocus, type ListFocus } from './listFocus.js';
-import {
-  ConditionButton,
-  ConditionLine,
-  ConditionsBlock,
-} from './MetricCondition.js';
+import { TermTip } from './TermTip.js';
+import { ConditionLine, ConditionsBlock } from './MetricCondition.js';
 
 /**
- * The expansion slot (D20 屏 G): the chain of arrays the analysis counts
- * inside, outermost first — 订单 → 明细项 → 批次 — one card a level, each
- * with its own gate on the entries it lets through. The chain is the one
- * the capability declares, so 「展开：…」 offers the next step and nothing
- * else; a level taken out takes every level inside it. The footer says
- * what is being counted, because after an expansion it is no longer the
- * record. The slot exists only where the capability declares a chain.
+ * The expansion row (D20 屏 G, D71): the chain of arrays the analysis
+ * counts inside, outermost first — 订单 → 明细项 → 批次 — one card a level,
+ * each with its own gate on the entries it lets through. It is the tray's
+ * first row, because it decides which fields every row after it may name.
+ *
+ * The chain is the one the capability declares, so the add button offers
+ * the next step and nothing else, and says it by the array's name —
+ * 「+ 商品」, a chevron leading to it — rather than a label for the idea; a
+ * level taken out takes every level inside it. The row's end says what is
+ * being counted, and says it louder once something is expanded, because
+ * then it is no longer the record. The row exists only where the capability
+ * declares a chain.
  */
 export function ElementsSlot({
   analysis,
@@ -57,11 +59,33 @@ export function ElementsSlot({
     item: '[data-slot="element-card"]',
     add: '[data-slot="expand-into"]',
   });
+  const title = messages.label('label.analysis.slot.elements');
+  const expanded = analysis.elements.length > 0;
+  const unit = analysis.unit ?? messages.label('label.analysis.records');
   return (
     <EditorSlot
       name="elements"
-      title={messages.label('label.analysis.slot.elements')}
-      hint={messages.label('label.analysis.hint.elements')}
+      title={title}
+      tip={
+        <TermTip
+          label={messages.label('label.analysis.tip-of', { term: title })}
+          tip={messages.label('label.analysis.tip.elements', {
+            name: messages.say(expanded || !next ? unit : next.label),
+          })}
+        />
+      }
+      end={
+        <span
+          data-slot="counting-unit"
+          data-emphasis={expanded ? 'strong' : undefined}
+          className={cn(
+            expanded ? 'text-foreground font-medium' : 'text-muted-foreground',
+            TEXT_UI,
+          )}
+        >
+          {messages.label('label.analysis.unit', { name: messages.say(unit) })}
+        </span>
+      }
     >
       <div className="flex flex-wrap items-center gap-2">
         {analysis.elements.map((element, index) => (
@@ -75,27 +99,30 @@ export function ElementsSlot({
             optionsFor={optionsFor}
           />
         ))}
+        {next && expanded && (
+          <ChevronRightIcon
+            aria-hidden
+            className="text-muted-foreground size-4"
+          />
+        )}
         {next && (
+          // Named by what it does — 「展开 商品」 — and showing the array's
+          // name alone: the row's term already says 展开.
           <Button
             variant="ghost"
             size="sm"
             data-slot="expand-into"
             disabled={disabled}
+            aria-label={messages.label('label.analysis.expand-into', {
+              name: messages.say(next.label),
+            })}
             onClick={() => analysis.expand(next.path)}
           >
             <PlusIcon data-icon="inline-start" />
-            {messages.label('label.analysis.expand-into', { name: next.label })}
+            {messages.say(next.label)}
           </Button>
         )}
       </div>
-      <span
-        data-slot="counting-unit"
-        className={cn('text-muted-foreground', TEXT_UI)}
-      >
-        {messages.label('label.analysis.unit', {
-          name: analysis.unit ?? messages.label('label.analysis.records'),
-        })}
-      </span>
     </EditorSlot>
   );
 }
@@ -129,6 +156,11 @@ function ElementCard({
     element.filter && analysis.kinds
       ? describeFilter(fields, element.filter, analysis.kinds)
       : [];
+  const toggle = () => {
+    if (!conditioning && !held)
+      analysis.setElementFilter(index, { op: 'and', children: [] });
+    setConditioning(!conditioning);
+  };
   return (
     <>
       {index > 0 && (
@@ -141,19 +173,26 @@ function ElementCard({
         <span data-slot="card-name" className="truncate font-medium">
           {name}
         </span>
-        <ConditionButton
-          label={messages.label('label.analysis.element-condition-of', {
+        {/* The gate says what it is for in words (D71), 「只算满足条件的
+            明细项」, where a metric's is a bare funnel: a level's card holds
+            nothing else to read, and the words are what the analyst looks
+            for. Its name begins with them. One element whether a gate is
+            held or not, so a press that writes one keeps the keyboard. */}
+        <Button
+          variant={held ? 'secondary' : 'ghost'}
+          size="xs"
+          data-slot="metric-condition-toggle"
+          data-held={held || undefined}
+          aria-label={messages.label('label.analysis.element-condition-of', {
             name,
           })}
-          open={conditioning}
-          held={held}
+          aria-pressed={conditioning}
           disabled={disabled}
-          onToggle={() => {
-            if (!conditioning && !held)
-              analysis.setElementFilter(index, { op: 'and', children: [] });
-            setConditioning(!conditioning);
-          }}
-        />
+          onClick={toggle}
+        >
+          <FunnelIcon data-icon="inline-start" />
+          {messages.label('label.analysis.element-condition')}
+        </Button>
         <IconButton
           label={messages.label('label.analysis.collapse', { name })}
           variant="ghost"

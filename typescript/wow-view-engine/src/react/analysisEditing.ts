@@ -22,7 +22,10 @@ import {
   isDuration,
   metricWithCondition,
   momentMetrics,
+  moveMetric,
   type AnalysisScope,
+  type Dropped,
+  type MetricMove,
 } from '../analysis/index.js';
 import {
   isDateCell,
@@ -36,14 +39,22 @@ import {
   type FilterTree,
 } from '../model/index.js';
 
+/**
+ * What a change to the question proposes: the groups and metrics, the chain
+ * where it moves, and what the change itself took out beyond what it was
+ * asked to (`withElements`' `dropped`), for the editor to say.
+ */
+export type ReshapeProposal = Pick<AnalysisViewConfig, 'groups' | 'metrics'> &
+  Partial<Pick<AnalysisViewConfig, 'elements'>> & { dropped?: Dropped };
+
+/** The edit a drop is said after: a step of the chain, or any other. */
+export type DropCause =
+  { kind: 'expand'; name: string } | { kind: 'collapse'; name: string };
+
 /** A change to what is grouped or measured; see `useAnalysisEditor`'s reshape. */
 export type Reshape = (
-  update: (
-    current: AnalysisViewConfig,
-  ) =>
-    | (Pick<AnalysisViewConfig, 'groups' | 'metrics'> &
-        Partial<Pick<AnalysisViewConfig, 'elements'>>)
-    | undefined,
+  update: (current: AnalysisViewConfig) => ReshapeProposal | undefined,
+  cause?: DropCause,
 ) => void;
 
 export interface QuestionEditingInput {
@@ -229,6 +240,24 @@ export function questionEditing({
           metrics: metrics as AnalysisViewConfig['metrics'],
         };
       }),
+    /**
+     * The metric at `from` put at `to`, as far as the order allows (D71): a
+     * derived metric stays after what it reads, and a metric before what
+     * reads it (`moveMetric`). Answers where it landed and, when it landed
+     * short, which metric stopped it.
+     */
+    moveMetric: (from: number, to: number): MetricMove | undefined => {
+      let moved: MetricMove | undefined;
+      reshape(current => {
+        moved = moveMetric(current.metrics, from, to);
+        if (moved.to === from) return undefined;
+        return {
+          groups: current.groups,
+          metrics: moved.metrics as AnalysisViewConfig['metrics'],
+        };
+      });
+      return moved;
+    },
     removeMetric: (index: number) =>
       reshape(current =>
         // An aggregation query without a metric has nothing to return.

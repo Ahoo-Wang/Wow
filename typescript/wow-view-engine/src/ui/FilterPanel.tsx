@@ -301,8 +301,15 @@ function actsOnEnter(target: EventTarget | null): boolean {
  * focus in there is still focus in the editor. Base UI marks the trigger of
  * an open popup, so the editor can tell one of its own is open; when it
  * closes, focus returns to the trigger and a later blur is judged afresh.
+ * A tooltip is not one: it takes no focus, it is open only because its
+ * trigger has focus — the very focus that is leaving — and counting it held
+ * the editor "editing" after a blur from an icon button or an ⓘ.
  */
 export function leavesEditor(event: FocusEvent<HTMLElement>): boolean {
   if (!crossesBoundary(event)) return false;
-  return event.currentTarget.querySelector('[data-popup-open]') === null;
+  return (
+    event.currentTarget.querySelector(
+      '[data-popup-open]:not([data-base-ui-tooltip-trigger])',
+    ) === null
+  );
 }

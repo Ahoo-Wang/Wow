@@ -106,7 +106,11 @@ export function ConditionLine({
       data-slot="metric-condition-line"
       className={cn(
         'text-muted-foreground min-w-0 truncate',
-        !onName && 'basis-full',
+        // No say in how wide the card is (D71): the cards run along a row,
+        // each as wide as its controls, and the sentence under them takes
+        // that width — it used to count as if it stood beside them, and
+        // every card with a condition doubled in width.
+        !onName && 'contain-inline-size basis-full',
         TEXT_UI,
       )}
     >
@@ -115,7 +119,7 @@ export function ConditionLine({
   );
   if (!onName) return line;
   return (
-    <div className="flex min-w-0 basis-full items-center gap-2">
+    <div className="contain-inline-size flex min-w-0 basis-full items-center gap-2">
       {line}
       <Button
         variant="link"

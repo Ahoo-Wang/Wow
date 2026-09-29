@@ -675,6 +675,8 @@ export {
   wordReferences,
 } from './analysis/formula.js';
 export {
+  type Dropped,
+  type Rescoped,
   levelLabel,
   nextExpansion,
   nextLevel,

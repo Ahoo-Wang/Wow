@@ -15,19 +15,15 @@ import { useCallback, useMemo } from 'react';
 import {
   approximateMetrics,
   dateDiffUnitsOf,
-  datePartsOf,
   overlaid,
 } from '../model/index.js';
 import type {
   FieldGroupDefinition,
   FilterTree,
   AnalysisDateDiffUnit,
-  AnalysisDatePart,
   AnalysisDateUnit,
   AnalysisElement,
-  AnalysisFunction,
   AnalysisGroup,
-  AnalysisGroupType,
   AnalysisHavingExpression,
   AnalysisMetric,
   AnalysisSort,
@@ -57,49 +53,37 @@ import {
   type AnalysisLimitBounds,
   type AnalysisScope,
 } from '../analysis/index.js';
-import { isFieldlessKind, isSingleStringField } from '../model/index.js';
-import { withoutDangling } from '../analysis/dangling.js';
-import { questionEditing, type QuestionEditing } from './analysisEditing.js';
+import { isFieldlessKind } from '../model/index.js';
+import {
+  questionEditing,
+  type DropCause,
+  type QuestionEditing,
+} from './analysisEditing.js';
+import { fieldOptions, type AnalysisFieldOption } from './analysisFields.js';
+import {
+  useReshape,
+  type DropNotice,
+  type MetricRemoval,
+} from './useReshape.js';
 import type { FieldKindRegistry } from '../filter/index.js';
 import type { OptionSource, ViewRuntime } from '../runtime/index.js';
 import { answeringAnew, autoApplyDue } from '../runtime/autoApply.js';
 import { comparePending, pendingBesides } from '../runtime/pending.js';
 import { useViewRuntime } from './useViewEngine.js';
 
-/** One field and what the definition allows doing with it. */
-export interface AnalysisFieldOption {
-  field: string;
-  label: string;
-  /** Group types this field offers; empty when it cannot be grouped. */
-  groups: AnalysisGroupType[];
-  /** Aggregation functions it offers; empty when it cannot be measured. */
-  functions: AnalysisFunction[];
-  dateUnits: AnalysisDateUnit[];
-  /** The calendar parts a `DATE_PART` dimension on it may take (`datePartsOf`). */
-  dateParts: AnalysisDatePart[];
-  distinctCount: boolean;
-  percentile: boolean;
-  any: boolean;
-  /** Whether it offers an opening and a closing value (FIRST / LAST). */
-  firstLast: boolean;
-  /** Whether a dimension on it may keep records missing the value as a group of their own. */
-  missingKey: boolean;
-  /** Whether its values are the steps of one process (`steps`): a funnel's. */
-  steps?: boolean;
-  /**
-   * `false` where a formula may not take it as an operand
-   * (`expressionInput`); absent or `true` where it may.
-   */
-  expressionInput?: boolean;
-  /**
-   * How its values read (`cell ?? kind`): the earliest of a `datetime` is
-   * worded 「最早」 where a number's smallest is 「最小」, and a date is no
-   * operand of a formula. Absent when not known.
-   */
-  cell?: string;
-}
-
 export interface AnalysisEditorController extends QuestionEditing {
+  /**
+   * What the latest edit took out beyond what it was asked to, while the
+   * draft is still the one that edit made; `null` otherwise. Said with an
+   * undo rather than asked before (D71: no confirmation dialog).
+   */
+  dropped: DropNotice | null;
+  /** Puts the question back as it was before the edit `dropped` reports. */
+  undoDrop(): void;
+  /** Takes the notice away and keeps the edit. */
+  dismissDrop(): void;
+  /** Whether the metric at `index` may be removed, and if not, why. */
+  metricRemoval(index: number): MetricRemoval;
   /**
    * The expansion chain in force, outermost first (D20 屏 G): the arrays
    * the analysis counts inside. Empty when it counts records.
@@ -330,112 +314,14 @@ export function useAnalysisEditor(
     [runtime],
   );
 
-  /**
-   * A change to what is grouped or measured, with everything that names an
-   * alias brought along.
-   *
-   * Groups and metrics are what the rest of the config points at: the chart
-   * addresses its slots by alias, the sort orders by one, the table lists
-   * them. Editing the lists alone left those three naming aliases that were
-   * gone — the chart reported `chart.group.unconsumed` and vanished, and the
-   * sort reported `analysis.sort.unknown-alias` — so the one edit carries all
-   * four. A slot, an ordering or a column the user chose is kept wherever it
-   * still names something; nothing else survives the alias it referred to.
-   * The metrics themselves follow the same way (`withoutDangling`): a
-   * derived metric that read one gone goes with it, and so does a having
-   * rule on it — else the next run stopped at `analysis.derived.unknown-metric`
-   * or `analysis.having.unknown-metric`. Only what this edit broke goes: a
-   * reference that read nothing before it stays for admission to point at.
-   * Where following would leave nothing to measure, the edit is made as
-   * asked, and admission says so.
-   */
-  const reshape = useCallback(
-    (
-      update: (
-        current: AnalysisViewConfig,
-      ) =>
-        | (Pick<AnalysisViewConfig, 'groups' | 'metrics'> &
-            Partial<Pick<AnalysisViewConfig, 'elements'>>)
-        | undefined,
-    ) =>
-      change(current => {
-        const proposed = update(current);
-        if (!proposed) return {};
-        const shape = { ...current, ...proposed };
-        const factsOf = (
-          of: AnalysisViewConfig,
-        ): Parameters<typeof withoutDangling>[1] =>
-          definition && capability
-            ? {
-                moments: momentMetrics(
-                  of.metrics,
-                  analysisScope(definition, capability, of).fields,
-                ),
-                havingMetrics: capability.havingMetrics,
-              }
-            : {};
-        const followed = withoutDangling(shape, factsOf(shape), {
-          shape: current,
-          facts: factsOf(current),
-        });
-        // Where following the edit would leave nothing to measure, the edit
-        // is made as asked and admission says what it lacks.
-        const next =
-          followed.metrics.length === 0
-            ? proposed
-            : { ...proposed, metrics: followed.metrics };
-        // The having follows either way: only the derived metric's finding
-        // is left for admission, not rules on a metric that left.
-        const { having } = followed;
-        const aliases = new Set([
-          ...next.groups.map(group => group.alias),
-          ...next.metrics.map(metric => metric.alias),
-        ]);
-        return {
-          ...next,
-          ...(having === current.having ? {} : { having }),
-          chart: fitTo(current.chart, { ...current, ...next }),
-          // Wow refuses a sort over an ungrouped aggregation, and it has one
-          // row anyway, so losing the last group empties the ordering too.
-          sort:
-            next.groups.length === 0
-              ? []
-              : current.sort.filter(entry => aliases.has(entry.alias)),
-          table: {
-            ...current.table,
-            columns: current.table.columns.filter(column =>
-              aliases.has(column.alias),
-            ),
-          },
-        };
-      }),
-    [change, fitTo, definition, capability],
+  const { reshape, dropped, undoDrop, dismissDrop, metricRemoval } = useReshape(
+    { runtime, draft: state?.draft, config, change, fitTo },
   );
 
-  const fields = useMemo<AnalysisFieldOption[]>(() => {
-    if (!scope) return [];
-    return [...scope.fields.values()].map((field: FieldDefinition) => {
-      const aggregation = scope.aggregations.get(field.name);
-      return {
-        field: field.name,
-        label: field.label,
-        groups: aggregation?.groups ?? [],
-        functions: aggregation?.functions ?? [],
-        dateUnits: aggregation?.dateUnits ?? [],
-        dateParts: datePartsOf(aggregation),
-        distinctCount: aggregation?.distinctCount === true,
-        percentile: aggregation?.percentile === true,
-        any: aggregation?.any === true,
-        firstLast: aggregation?.firstLast === true,
-        missingKey:
-          aggregation?.missingKey !== false &&
-          isSingleStringField(field, runtime?.kinds.get(field.kind)),
-        expressionInput: aggregation?.expressionInput !== false,
-        steps: aggregation?.steps === true,
-        cell: field.cell ?? field.kind,
-      };
-    });
-  }, [scope, runtime]);
+  const fields = useMemo<AnalysisFieldOption[]>(
+    () => (scope ? fieldOptions(scope, runtime?.kinds) : []),
+    [scope, runtime],
+  );
 
   const dateUnitFor = useCallback(
     (field: AnalysisFieldOption): AnalysisDateUnit => {
@@ -480,11 +366,13 @@ export function useAnalysisEditor(
     [scope, definition, elements],
   );
   const rescope = useCallback(
-    (next: AnalysisElement[]) =>
-      reshape(current =>
-        definition && capability
-          ? withElements(current, next, definition, capability)
-          : undefined,
+    (next: AnalysisElement[], cause: DropCause) =>
+      reshape(
+        current =>
+          definition && capability
+            ? withElements(current, next, definition, capability)
+            : undefined,
+        cause,
       ),
     [reshape, definition, capability],
   );
@@ -508,6 +396,10 @@ export function useAnalysisEditor(
   );
 
   return {
+    dropped,
+    undoDrop,
+    dismissDrop,
+    metricRemoval,
     elements,
     expandable,
     expansible: (scope?.declaredChain.length ?? 0) > 0,
@@ -528,12 +420,23 @@ export function useAnalysisEditor(
       [scope],
     ),
     expand: useCallback(
-      (path: string) => rescope(withLevel(elements, path)),
-      [rescope, elements],
+      (path: string) =>
+        rescope(withLevel(elements, path), {
+          kind: 'expand',
+          name:
+            expandable?.path === path
+              ? expandable.label
+              : elementLabel(elements.length),
+        }),
+      [rescope, elements, expandable, elementLabel],
     ),
     collapse: useCallback(
-      (index: number) => rescope(withoutLevelsFrom(elements, index)),
-      [rescope, elements],
+      (index: number) =>
+        rescope(withoutLevelsFrom(elements, index), {
+          kind: 'collapse',
+          name: elementLabel(index),
+        }),
+      [rescope, elements, elementLabel],
     ),
     setElementFilter: useCallback(
       (index: number, filter: FilterTree | undefined) =>
