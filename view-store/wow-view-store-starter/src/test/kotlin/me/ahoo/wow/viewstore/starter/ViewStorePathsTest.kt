@@ -47,4 +47,19 @@ class ViewStorePathsTest {
         hosted.viewTarget("/view-store/tenant/t1/owner/alice/view/v1").assert().isEqualTo(ViewTarget("t1", "v1"))
         hosted.viewTarget("/view-store/tenant/t1/owner/alice/view").assert().isNull()
     }
+
+    @Test
+    fun `sees a path as Spring routes it, decoded and without parameters`() {
+        listOf(
+            "/view-store;x=1/tenant/t1/owner/alice/view/v1/rename",
+            "/view%2Dstore/tenant/t1/owner/alice/view/v1/rename",
+            "/view-store/tenant/t1/%6Fwner/alice/view/v1/rename",
+            "/view-store/tenant;a=b/t1/owner/alice/view;v=2/v1/rename",
+        ).forEach { path ->
+            hosted.isViewStorePath(path).assert().isTrue()
+            hosted.viewTarget(path).assert().isEqualTo(ViewTarget("t1", "v1"))
+        }
+        hosted.viewTarget("/view-store/tenant/t%31/owner/alice/view/v%31;x/rename").assert()
+            .isEqualTo(ViewTarget("t1", "v1"))
+    }
 }

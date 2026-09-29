@@ -25,6 +25,7 @@ import me.ahoo.wow.viewstore.starter.system.SystemViewProvider
 import me.ahoo.wow.webflux.exception.ErrorHttpStatusMapping.toHttpStatus
 import org.springframework.http.HttpMethod
 import org.springframework.http.MediaType
+import org.springframework.http.server.PathContainer
 import org.springframework.web.server.ServerWebExchange
 import org.springframework.web.server.WebFilter
 import org.springframework.web.server.WebFilterChain
@@ -55,9 +56,11 @@ class ViewStoreWebFilter(
 
     override fun filter(exchange: ServerWebExchange, chain: WebFilterChain): Mono<Void> {
         val request = exchange.request
-        val path = request.path.pathWithinApplication().value()
+        val path = request.path.pathWithinApplication()
         if (routeGuard.isClosed(request.method, path)) {
-            return exchange.writeError(NotFoundResourceException("Route [${request.method} $path] is not found."))
+            return exchange.writeError(
+                NotFoundResourceException("Route [${request.method} ${path.value()}] is not found.")
+            )
         }
         if (routeGuard.isViewStoreFacadeCommand(request.method, path, request.headers)) {
             return exchange.writeError(
@@ -70,7 +73,7 @@ class ViewStoreWebFilter(
         return filterViewStore(exchange.withoutClientHeaders(), path, chain)
     }
 
-    private fun filterViewStore(filtered: ServerWebExchange, path: String, chain: WebFilterChain): Mono<Void> {
+    private fun filterViewStore(filtered: ServerWebExchange, path: PathContainer, chain: WebFilterChain): Mono<Void> {
         val request = filtered.request
         val target = paths.viewTarget(path)
         val appId = request.headers.getFirst(ViewStoreService.APP_ID_HEADER)

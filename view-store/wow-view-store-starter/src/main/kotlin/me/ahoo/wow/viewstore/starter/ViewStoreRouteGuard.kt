@@ -35,7 +35,6 @@ import org.springframework.http.HttpHeaders
 import org.springframework.http.HttpMethod
 import org.springframework.http.server.PathContainer
 import org.springframework.web.util.pattern.PathPattern
-import org.springframework.web.util.pattern.PathPatternParser
 
 /**
  * Wow routes every aggregate with its built-in state, snapshot, event and maintenance routes, and has no switch to
@@ -86,27 +85,28 @@ class ViewStoreRouteGuard(
             Route(HttpMethod.PUT, paths.claim.toPattern()),
         )
     private val closedRoutes: List<Route> = closedContracts.map { it.toRoute() }
-    private val commandFacade = PathContainer.parsePath(BuiltInHttpRoutePaths.Global.COMMAND_SEND)
+    private val commandFacade: PathPattern = BuiltInHttpRoutePaths.Global.COMMAND_SEND.toPattern()
 
     /**
      * Whether [path] is a closed route of the view store's aggregates. The starter's own routes win over Wow's, so a
      * path that one of them serves is open whatever Wow route it also matches.
      */
-    fun isClosed(method: HttpMethod, path: String): Boolean {
-        val container = PathContainer.parsePath(path)
-        if (openRoutes.any { it.matches(method, container) }) {
+    fun isClosed(method: HttpMethod, path: PathContainer): Boolean {
+        if (openRoutes.any { it.matches(method, path) }) {
             return false
         }
-        return closedRoutes.any { it.matches(method, container) }
+        return closedRoutes.any { it.matches(method, path) }
     }
+
+    fun isClosed(method: HttpMethod, path: String): Boolean = isClosed(method, PathContainer.parsePath(path))
 
     /**
      * Whether a command facade request sends a command to the view store, found as Wow finds it (the
      * `Command-Aggregate-Context` and `Command-Aggregate-Name` headers, else the aggregate of the `Command-Type`), or
      * by any of those naming the view store on its own.
      */
-    fun isViewStoreFacadeCommand(method: HttpMethod, path: String, headers: HttpHeaders): Boolean {
-        if (method != HttpMethod.POST || PathContainer.parsePath(path).value() != commandFacade.value()) {
+    fun isViewStoreFacadeCommand(method: HttpMethod, path: PathContainer, headers: HttpHeaders): Boolean {
+        if (method != HttpMethod.POST || !commandFacade.matches(path)) {
             return false
         }
         val context = headers.getFirst(CommandComponent.Header.COMMAND_AGGREGATE_CONTEXT)?.trim()
@@ -140,8 +140,6 @@ class ViewStoreRouteGuard(
         contextName == ViewStoreService.SERVICE_NAME || namedAggregates.any { it.isSameAggregateName(this) }
 
     private fun HttpRouteContract.toRoute(): Route = Route(HttpMethod.valueOf(method), path.toPattern())
-
-    private fun String.toPattern(): PathPattern = PathPatternParser.defaultInstance.parse(this)
 
     private fun HttpRouteContract.commandType(): Class<*>? =
         (handlerMetadata as? HttpRouteHandlerMetadata.Command)?.commandRouteMetadata?.commandMetadata?.commandType

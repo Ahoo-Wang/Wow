@@ -16,6 +16,9 @@ package me.ahoo.wow.viewstore.starter
 import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.viewstore.ViewStoreService
+import org.springframework.http.server.PathContainer
+import org.springframework.web.util.pattern.PathPattern
+import org.springframework.web.util.pattern.PathPatternParser
 
 /**
  * Where the view store's routes live. Wow prefixes an aggregate's routes with its context's alias when the host's
@@ -52,19 +55,28 @@ class ViewStorePaths(currentContext: NamedBoundedContext) {
     /** The view store's route of `ClaimView` (see [ViewAudienceHandlers.claim]). */
     val claim: String = "$scope/${ViewStoreService.VIEW_AGGREGATE_NAME}/{$ID}/claim"
 
-    private val scopePattern = Regex("^${Regex.escape(prefix)}/tenant/([^/]+)/owner/([^/]+)(/.*)?$")
-    private val viewPattern = Regex(
-        "^${Regex.escape(prefix)}/tenant/([^/]+)/owner/([^/]+)/${ViewStoreService.VIEW_AGGREGATE_NAME}/([^/]+)(/.*)?$"
-    )
+    /*
+     * Every decision on a request's path is made the way Spring routes it: with a PathPattern on the path's segments,
+     * decoded and without `;` parameters. A regex or string comparison on the raw path would let `/view-store;x`,
+     * `/view%2Dstore` or `/%6Fwner` reach the view store's routes while skipping these checks.
+     */
+    private val scopePattern: PathPattern = "$scope/**".toPattern()
+    private val viewPattern: PathPattern = "$scope/${ViewStoreService.VIEW_AGGREGATE_NAME}/{$ID}/**".toPattern()
 
     /** Whether [path] is one of the view store's tenant-and-owner routes. */
-    fun isViewStorePath(path: String): Boolean = scopePattern.matches(path)
+    fun isViewStorePath(path: PathContainer): Boolean = scopePattern.matches(path)
 
-    /** The tenant and id [path] addresses a view by, or `null` when it addresses none. */
-    fun viewTarget(path: String): ViewTarget? {
-        val match = viewPattern.matchEntire(path) ?: return null
-        return ViewTarget(tenantId = match.groupValues[1], viewId = match.groupValues[3])
+    fun isViewStorePath(path: String): Boolean = isViewStorePath(PathContainer.parsePath(path))
+
+    /** The tenant and id [path] addresses a view by, decoded, or `null` when it addresses none. */
+    fun viewTarget(path: PathContainer): ViewTarget? {
+        val variables = viewPattern.matchAndExtract(path)?.uriVariables ?: return null
+        return ViewTarget(tenantId = variables.getValue(TENANT_ID), viewId = variables.getValue(ID))
     }
+
+    fun viewTarget(path: String): ViewTarget? = viewTarget(PathContainer.parsePath(path))
 }
+
+internal fun String.toPattern(): PathPattern = PathPatternParser.defaultInstance.parse(this)
 
 data class ViewTarget(val tenantId: String, val viewId: String)

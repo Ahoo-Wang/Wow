@@ -252,7 +252,7 @@ class ViewSpec : AggregateSpec<View, ViewState>({
                     }
                 }
             }
-            listOf("", " ", SHARED_OWNER_ID, "(0)").forEach { owner ->
+            listOf("", " ", SHARED_OWNER_ID, "(0)", "alice ", "al ice", "alice\t", "alice\u0000").forEach { owner ->
                 fork("claim for the reserved or blank owner [$owner]") {
                     whenCommand(ClaimView(owner), appHeader(), SHARED_OWNER_ID) {
                         expectError<ViewStoreException> {

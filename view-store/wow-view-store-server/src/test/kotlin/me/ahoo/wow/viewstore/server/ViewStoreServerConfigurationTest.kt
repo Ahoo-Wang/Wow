@@ -42,6 +42,7 @@ class ViewStoreServerConfigurationTest {
         properties.getProperty("spring.mongodb.uri").assert().isNotNull()
         properties.getProperty("spring.data.redis.url").assert().isNotNull()
         properties.getProperty("wow.kafka.bootstrap-servers").assert().isNotNull()
+        properties.getProperty("wow.kafka.topic-prefix").assert().isEqualTo("wow.view-store-server.")
         properties.getProperty("cosid.machine.distributor.type").assert().isEqualTo("redis")
         listOf(
             "wow.command.bus.type",

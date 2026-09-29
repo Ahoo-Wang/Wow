@@ -36,6 +36,7 @@ import org.springframework.test.context.DynamicPropertySource
 import org.springframework.test.web.reactive.server.WebTestClient
 import reactor.kotlin.core.publisher.toFlux
 import tools.jackson.databind.JsonNode
+import java.net.URI
 import java.util.UUID
 
 /**
@@ -90,14 +91,27 @@ class ViewStoreMongoTest {
     @Autowired
     private lateinit var applicationContext: ApplicationContext
 
+    private val port: String by lazy { applicationContext.environment.getRequiredProperty("local.server.port") }
+
     private val client: WebTestClient by lazy {
-        val port = applicationContext.environment.getRequiredProperty("local.server.port")
         WebTestClient.bindToServer().baseUrl("http://localhost:$port").build()
     }
+
+    /** [path] sent exactly as written, `;` parameters and `%xx` escapes included. */
+    private fun raw(path: String): URI = URI.create("http://localhost:$port$path")
 
     private fun write(
         method: String,
         uri: String,
+        body: String?,
+        appId: String? = APP,
+        version: Int? = null,
+        requestId: String = UUID.randomUUID().toString(),
+    ): WebTestClient.ResponseSpec = write(method, raw(uri), body, appId, version, requestId)
+
+    private fun write(
+        method: String,
+        uri: URI,
         body: String?,
         appId: String? = APP,
         version: Int? = null,
@@ -183,8 +197,13 @@ class ViewStoreMongoTest {
         }
     }
 
-    private fun facade(commandType: String, body: String, headers: Map<String, String> = emptyMap()): WebTestClient.ResponseSpec {
-        val spec = client.post().uri("/wow/command/send")
+    private fun facade(
+        commandType: String,
+        body: String,
+        headers: Map<String, String> = emptyMap(),
+        path: String = "/wow/command/send",
+    ): WebTestClient.ResponseSpec {
+        val spec = client.post().uri(raw(path))
             .header(CommandComponent.Header.COMMAND_TYPE, commandType)
             .header(CommandComponent.Header.WAIT_STAGE, "SNAPSHOT")
             .header(ViewStoreService.APP_ID_HEADER, APP)
@@ -221,6 +240,98 @@ class ViewStoreMongoTest {
             ),
         ).expectStatus().isNotFound
         single("alice", id).expectStatus().isOk.expectBody().jsonPath("$.version").isEqualTo(1)
+    }
+
+    /**
+     * Spring routes on decoded path segments without `;` parameters, so every check of the starter must see the path
+     * the same way: none of these forms may reach a view store route while skipping one.
+     */
+    private val scopeForms = listOf(
+        "/view-store;x=1/tenant/t1/owner",
+        "/view%2Dstore/tenant/t1/owner",
+        "/view-store/tenant/t1/%6Fwner",
+        "/view-store/tenant;a=b/t1/owner",
+        "/view-store/tenant/t1/owner;o=1",
+    )
+
+    @Test
+    fun `the facade is refused on every form of its path`() {
+        val id = create("alice")
+        listOf("/wow;x/command/send", "/wow/command;x/send", "/wow/command/send;x", "/wow/command/%73end").forEach { path ->
+            facade(
+                "me.ahoo.wow.viewstore.api.view.RenameView",
+                """{"title":"Taken"}""",
+                mapOf(CommandComponent.Header.AGGREGATE_ID to id, CommandComponent.Header.OWNER_ID to "alice"),
+                path,
+            ).expectStatus().isNotFound
+            facade(
+                "me.ahoo.wow.viewstore.api.view.CreateView",
+                """{"definitionId":"orders","title":"Squat","config":{"kind":"record"}}""",
+                mapOf(CommandComponent.Header.AGGREGATE_ID to "orders-open", CommandComponent.Header.OWNER_ID to SHARED),
+                path,
+            ).expectStatus().isNotFound
+        }
+        single("alice", id).expectStatus().isOk.expectBody().jsonPath("$.version").isEqualTo(1)
+        single(SHARED, "orders-open").expectStatus().isNotFound
+    }
+
+    @Test
+    fun `every form of a view store path gets the id and the application rules`() {
+        scopeForms.forEach { scope ->
+            val chosen = "chosen-" + UUID.randomUUID()
+            val result = client.post().uri(raw("$scope/alice/view"))
+                .header(ViewStoreService.APP_ID_HEADER, APP)
+                .header(CommandComponent.Header.WAIT_STAGE, "SNAPSHOT")
+                .header(CommandComponent.Header.AGGREGATE_ID, chosen)
+                .header(CommandComponent.Header.COMMAND_HEADER_X_PREFIX + ViewStoreService.APP_ID_MESSAGE_HEADER, OTHER_APP)
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue("""{"definitionId":"orders","title":"View","config":{"kind":"record"}}""")
+                .exchange().expectStatus().isOk
+                .expectBody(JsonNode::class.java).returnResult().responseBody!!
+            val id = result.get("aggregateId").stringValue()
+            id.assert().isNotEqualTo(chosen)
+            single("alice", id).expectStatus().isOk.expectBody().jsonPath("$.state.appId").isEqualTo(APP)
+            // Without CoSec-App-Id there is no application, whatever the command header says.
+            client.post().uri(raw("$scope/alice/view"))
+                .header(CommandComponent.Header.WAIT_STAGE, "SNAPSHOT")
+                .header(CommandComponent.Header.COMMAND_HEADER_X_PREFIX + ViewStoreService.APP_ID_MESSAGE_HEADER, APP)
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue("""{"definitionId":"orders","title":"View","config":{"kind":"record"}}""")
+                .exchange().expectStatus().isBadRequest
+                .expectBody().jsonPath("$.errorCode").isEqualTo(ViewStoreErrorCodes.VIEW_APP_REQUIRED)
+            // Another application's caller cannot rename it by naming the view's application in a command header.
+            client.put().uri(raw("$scope/alice/view/$id/rename"))
+                .header(ViewStoreService.APP_ID_HEADER, OTHER_APP)
+                .header(CommandComponent.Header.COMMAND_HEADER_X_PREFIX + ViewStoreService.APP_ID_MESSAGE_HEADER, APP)
+                .header(CommandComponent.Header.WAIT_STAGE, "SNAPSHOT")
+                .header(CommandComponent.Header.AGGREGATE_VERSION, "1")
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue("""{"title":"Taken"}""")
+                .exchange().expectStatus().isNotFound
+            // A system view stays read-only, and Wow's closed routes stay closed.
+            write("PUT", "$scope/$SHARED/view/orders-open/rename", """{"title":"Mine"}""", version = 1)
+                .expectStatus().isForbidden
+                .expectBody().jsonPath("$.errorCode").isEqualTo(ViewStoreErrorCodes.SYSTEM_VIEW_READ_ONLY)
+            client.get().uri(raw("$scope/alice/view/$id/state")).header(ViewStoreService.APP_ID_HEADER, APP)
+                .exchange().expectStatus().isNotFound
+        }
+        write("PUT", "$SCOPE/$SHARED/view/orders%2Dopen/rename", """{"title":"Mine"}""", version = 1)
+            .expectStatus().isForbidden
+        write("PUT", "$SCOPE/$SHARED/view/orders-open;v=1/rename", """{"title":"Mine"}""", version = 1)
+            .expectStatus().isForbidden
+    }
+
+    @Test
+    fun `a claim is replayed on the claiming owner's path, not on the shared one`() {
+        val id = create(SHARED)
+        val requestId = UUID.randomUUID().toString()
+        write("PUT", "$SCOPE/alice/view/$id/claim", null, version = 1, requestId = requestId).expectStatus().isOk
+        replay("alice", requestId).expectStatus().isOk
+            .expectBody().jsonPath("$.ownerId").isEqualTo("alice").jsonPath("$.version").isEqualTo(2)
+        replay(SHARED, requestId).expectStatus().isNotFound
+        replay("bob", requestId).expectStatus().isNotFound
+        // A claim for an owner with a blank in it is refused.
+        write("PUT", "$SCOPE/alice%20/view/${create(SHARED)}/claim", null, version = 1).expectStatus().isBadRequest
     }
 
     @Test
@@ -441,7 +552,7 @@ class ViewStoreMongoTest {
     }
 
     private fun replay(owner: String, requestId: String, appId: String = APP): WebTestClient.ResponseSpec =
-        client.get().uri("$SCOPE/$owner/view/requests/$requestId")
+        client.get().uri(raw("$SCOPE/$owner/view/requests/$requestId"))
             .header(ViewStoreService.APP_ID_HEADER, appId)
             .exchange()
 

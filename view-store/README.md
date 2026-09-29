@@ -44,8 +44,18 @@ answers what a request id's write left.
 
 **Identity is the path.** The server does not authenticate: the `{ownerId}` of a path is the user (or `(shared)`).
 The CoSec gateway must let a caller use `owner/{ownerId}` only when it is their own id (the token's `sub`), and decide
-by role or permission who may use `owner/(shared)`. Claiming is sent to the caller's own path, so the gateway rules
-for personal paths are what let a user take a shared view personal.
+by role or permission who may use `owner/(shared)`. Claiming changes a shared view but is sent to the caller's own
+path, so it needs both: `PUT …/tenant/{tenantId}/owner/{ownerId}/view/{id}/claim` requires `sub == {ownerId}` **and**
+the role that may write `owner/(shared)`. A host gives `permissions.instance(id).changeAudience` by the same role.
+
+**The shared-board check reads snapshots.** Claiming a view is refused while a shared dashboard references it; the
+check queries the dashboards' snapshots, so a board saved a moment before may not be seen yet (eventual consistency).
+
+**One deployment per Kafka topic namespace.** Wow names the Kafka topics by context and aggregate
+(`wow.view-store.view.command`, …), so two deployments of the view store on one Kafka cluster (the standalone server
+and a host embedding the starter, or two hosts) would consume each other's commands and events. Give each deployment
+its own `wow.kafka.topic-prefix` (the standalone server uses `wow.view-store-server.`), or run one view store per
+Kafka cluster. The prefix applies to every aggregate of the deployment.
 
 ## The standalone server
 
@@ -55,7 +65,7 @@ instances:
 | Middleware | Used for | Setting |
 | --- | --- | --- |
 | MongoDB | event streams and snapshots (Wow's default storage) | `spring.mongodb.uri` |
-| Kafka | the command, event and state-event buses (Wow's default buses) | `wow.kafka.bootstrap-servers` |
+| Kafka | the command, event and state-event buses (Wow's default buses) | `wow.kafka.bootstrap-servers`, `wow.kafka.topic-prefix` |
 | Redis | CosId machine ids shared by the instances | `spring.data.redis.url`, `cosid.machine.distributor.type: redis` |
 
 **Run it only behind the CoSec gateway**: the server trusts the tenant and owner of every path, so it must never be

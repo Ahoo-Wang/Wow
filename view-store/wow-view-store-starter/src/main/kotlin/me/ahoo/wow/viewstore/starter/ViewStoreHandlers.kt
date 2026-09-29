@@ -17,6 +17,7 @@ import me.ahoo.wow.api.Version
 import me.ahoo.wow.api.event.AggregateDeleted
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.api.query.MaterializedSnapshot
+import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.eventsourcing.snapshot.SimpleSnapshot
 import me.ahoo.wow.eventsourcing.snapshot.materialize
 import me.ahoo.wow.exception.ErrorCodes
@@ -27,13 +28,15 @@ import me.ahoo.wow.modeling.metadata.StateAggregateMetadata
 import me.ahoo.wow.modeling.state.StateAggregateRepository
 import me.ahoo.wow.openapi.aggregate.command.CommandComponent
 import me.ahoo.wow.openapi.metadata.aggregateRouteMetadata
-import me.ahoo.wow.query.dsl.singleQuery
+import me.ahoo.wow.query.dsl.listQuery
 import me.ahoo.wow.query.event.EventStreamQueryGateway
 import me.ahoo.wow.query.event.query
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.viewstore.ViewStoreService
+import me.ahoo.wow.viewstore.api.ViewAudience
 import me.ahoo.wow.viewstore.api.preferences.ViewPreferencesInput
 import me.ahoo.wow.viewstore.api.preferences.ViewPreferencesView
+import me.ahoo.wow.viewstore.api.view.ViewAudienceChanged
 import me.ahoo.wow.viewstore.domain.ViewStoreException
 import me.ahoo.wow.viewstore.domain.preferences.ViewPreferences
 import me.ahoo.wow.viewstore.domain.preferences.ViewPreferencesIds
@@ -53,6 +56,8 @@ import reactor.kotlin.core.publisher.switchIfEmpty
 /**
  * The view store's own routes, beside the ones Wow generates from the aggregates.
  */
+private const val MAX_REPLAY_CANDIDATES = 20
+
 class ViewStoreHandlers(
     private val systemViewProvider: SystemViewProvider,
     private val stateAggregateRepository: StateAggregateRepository,
@@ -166,19 +171,28 @@ class ViewStoreHandlers(
      * `GET …/view/requests/{requestId}`: the view as the write with this request id left it, found only among this
      * path's tenant and owner and the request's application; `204` when that write deleted it (a view of another
      * application answers not found in both cases).
+     *
+     * A claim is dispatched with the owner `(shared)` but is the claiming owner's write, so it is replayed on the path
+     * of the owner it moved the view to, and not on `(shared)`.
      */
     fun replay(request: ServerRequest): Mono<ServerResponse> {
         val requestId = request.pathVariable(ViewStorePaths.REQUEST_ID)
         val tenantId = request.pathVariable(ViewStorePaths.TENANT_ID)
         val ownerId = request.pathVariable(ViewStorePaths.OWNER_ID)
         return Mono.fromCallable { request.requiredAppId() }.flatMap { appId ->
-            singleQuery {
+            listQuery {
+                limit(MAX_REPLAY_CANDIDATES)
                 filter {
                     tenantId(tenantId)
-                    ownerId(ownerId)
                     MessageRecords.REQUEST_ID eq requestId
+                    or {
+                        ownerId(ownerId)
+                        ownerId(ViewStoreService.SHARED_OWNER_ID)
+                    }
                 }
             }.query(viewEventStreamQueryGateway())
+                .filter { it.writtenBy() == ownerId }
+                .next()
                 .switchIfEmpty { Mono.error(NotFoundResourceException("Request [$requestId] is not found.")) }
                 .flatMap { eventStream ->
                     val deleted = eventStream.body.any { it.body is AggregateDeleted }
@@ -194,6 +208,13 @@ class ViewStoreHandlers(
                     }
                 }
         }.onErrorResume { exceptionHandler.handle(request, it) }
+    }
+
+    /** The owner whose write this is: the claiming owner for a claim, the stream's owner otherwise. */
+    private fun DomainEventStream.writtenBy(): String {
+        val claimedBy = body.map { it.body }.filterIsInstance<ViewAudienceChanged>()
+            .firstOrNull { it.audience == ViewAudience.PERSONAL }?.toOwnerId
+        return if (ownerId == ViewStoreService.SHARED_OWNER_ID && claimedBy != null) claimedBy else ownerId
     }
 
     private fun loadView(aggregateId: AggregateId, version: Int): Mono<MaterializedSnapshot<ViewState>> =

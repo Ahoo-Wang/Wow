@@ -49,6 +49,8 @@ cosid:
 wow:
   kafka:
     bootstrap-servers: PLAINTEXT://localhost:9092
+    # Its own topics: another deployment of the view store on the same Kafka must not share them.
+    topic-prefix: wow.view-store-server.
 #  view-store:
 #    system-views:
 #      - definition-id: orders

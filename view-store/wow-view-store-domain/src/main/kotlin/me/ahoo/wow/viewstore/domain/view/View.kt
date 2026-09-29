@@ -128,11 +128,12 @@ class View(private val state: ViewState) {
     }
 
     /**
-     * A view is claimed by a user, never by a reserved owner; and a view already personal only by the owner it has
+     * A view is claimed by a user, never by a reserved owner or an id with blanks or control characters in it; and a
+     * view already personal only by the owner it has
      * (which records the change to the same owner).
      */
     private fun requireClaimable(toOwnerId: String, currentOwnerId: String) {
-        if (toOwnerId.isBlank() || toOwnerId.isReservedId()) {
+        if (!toOwnerId.isUserId()) {
             throw ViewStoreException.invalid("A view is claimed by a user, not by the owner [$toOwnerId].")
         }
         if (state.audience == ViewAudience.PERSONAL && toOwnerId != currentOwnerId) {
@@ -144,7 +145,11 @@ class View(private val state: ViewState) {
         /** The binding error code naming a shared dashboard that keeps a view shared. */
         const val REFERENCED_BY_SHARED_DASHBOARD = "referenced-by-shared-dashboard"
 
-        /** An owner id in parentheses is a reserved value such as `(shared)`, never a user. */
-        private fun String.isReservedId(): Boolean = startsWith("(") && endsWith(")")
+        /**
+         * Whether this can be a user's id: not blank, without blanks or control characters, and not in parentheses,
+         * which mark a reserved owner such as `(shared)`.
+         */
+        private fun String.isUserId(): Boolean =
+            isNotEmpty() && none { it.isWhitespace() || it.isISOControl() } && !(startsWith("(") && endsWith(")"))
     }
 }

@@ -28,7 +28,7 @@ import org.springframework.web.reactive.function.server.ServerRequest
  */
 class ViewStoreAppIdHeaderAppender(private val paths: ViewStorePaths) : CommandRequestHeaderAppender {
     override fun append(request: ServerRequest, header: Header) {
-        if (!paths.isViewStorePath(request.path())) {
+        if (!paths.isViewStorePath(request.requestPath().pathWithinApplication())) {
             return
         }
         header.remove(ViewStoreService.APP_ID_MESSAGE_HEADER)
