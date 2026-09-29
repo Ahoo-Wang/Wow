@@ -27,7 +27,6 @@ import {
 } from '../model/index.js';
 import { issue, type FieldKindRegistry } from '../filter/index.js';
 import {
-  admitFilters,
   filtersOf,
   referencedInstance,
   type DataPanelSource,
@@ -48,11 +47,7 @@ import { FilterValues } from './dashboard/filterValues.js';
 import { PanelPresses } from './dashboard/press.js';
 import { boardEditing, type BoardEdits } from './dashboard/editing.js';
 import { BoardCommands, BoardRules } from './dashboard/commands.js';
-import {
-  NO_HISTORY,
-  outsideHistory,
-  type EditHistoryState,
-} from './dashboard/history.js';
+import { outsideHistory, type EditHistoryState } from './dashboard/history.js';
 import type { ValueCandidateSource } from './valueCandidates.js';
 import type { RuntimeEnvironment } from './environment.js';
 import { hasError, RuntimeStore } from './runtimeStore.js';
@@ -70,10 +65,11 @@ import {
   shownTab,
 } from './dashboard/panels.js';
 import { PanelReferences } from './dashboard/references.js';
+import { openingState } from './dashboard/opening.js';
 import { admitBoard } from './dashboard/owned.js';
 import type { WriteState } from './write.js';
 import type { DataViewRuntime } from './viewRuntime.js';
-import type { ManagedViewRuntime, ViewQueryState } from './viewRuntimeTypes.js';
+import type { ManagedViewRuntime } from './viewRuntimeTypes.js';
 import type { HandOver } from './navigation.js';
 
 export type { PanelResolver } from './dashboard/references.js';
@@ -100,8 +96,6 @@ import type {
   DashboardRuntimeOptions,
   DashboardRuntimeState,
 } from './dashboard/contract.js';
-
-const IDLE: ViewQueryState = { status: 'idle' };
 
 /**
  * The runtime of a dashboard: N child runtimes and the board's filters.
@@ -246,30 +240,14 @@ export class DashboardViewRuntime
     const saved = canonicalSaved(options.saved ?? null, this.canonical);
     const config = this.canonical(options.config);
     this.store = new RuntimeStore<DashboardRuntimeState>({
-      state: {
+      state: openingState({
         saved,
         title: options.title,
         scope: options.scope,
-        draft: config,
-        applied: config,
+        config,
         issues: this.admit(config, options.scope),
-        dirty: saved === null,
-        query: IDLE,
-        result: null,
-        selection: [],
-        write: null,
-        editing: false,
-        autoApply: false,
-        nextRefreshAt: null,
-        panels: [],
-        resolving: false,
-        tab: shownTab(config, null),
-        filters: admitFilters(config, null, options.kinds).filters,
-        history: NO_HISTORY,
-        building: false,
-        readerRefresh: null,
-        filtersRun: 0,
-      },
+        kinds: options.kinds,
+      }),
       environment: options.environment,
       admit: draft => this.admit(draft, this.state.scope),
       // A panel's own error stops that panel, not the board's timer.
@@ -545,7 +523,16 @@ export class DashboardViewRuntime
   moveBaseline(stored: ViewInstance): void {
     if (this.disposed) return;
     const instance = canonicalSaved(stored, this.canonical) ?? stored;
-    this.store.setState(this.store.baseline(instance));
+    // A board moved to the other audience (设为共享／设为个人) is judged at
+    // the audience it is in now: whether a panel's view is visible where
+    // the board is depends on it (`coversScope`).
+    const moved = instance.scope !== this.state.scope;
+    this.store.setState({
+      ...this.store.baseline(instance),
+      ...(moved
+        ? { issues: this.admit(this.state.draft, instance.scope) }
+        : {}),
+    });
   }
 
   adoptSaved(stored: ViewInstance): void {

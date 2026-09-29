@@ -18,6 +18,7 @@ const WRITES = [
   'create',
   'save',
   'rename',
+  'changeAudience',
   'delete',
   'setPreferences',
 ] as const;
@@ -44,7 +45,11 @@ export function tracked<T extends ViewStore>(store: T): T {
   const log: WriteLog = { landed: 0, listeners: new Set() };
   LOGS.set(store, log);
   for (const name of WRITES) {
-    const original = store[name] as (...args: unknown[]) => Promise<unknown>;
+    const original = store[name] as
+      ((...args: unknown[]) => Promise<unknown>) | undefined;
+    // An optional method the store leaves out stays left out: its absence is
+    // what the engine reads.
+    if (original === undefined) continue;
     const wrapped = (...args: unknown[]): Promise<unknown> => {
       return original
         .apply(store, args)
@@ -86,4 +91,24 @@ export function landed(store: ViewStore, timeout = 4000): Promise<void> {
     log.listeners.add(check);
     check();
   });
+}
+
+/**
+ * The port over `store` without its optional `changeAudience`: a store that
+ * never had it, which is what the engine and the manager read its absence as.
+ */
+export function withoutAudience(store: ViewStore): ViewStore {
+  return {
+    list: definitionId => store.list(definitionId),
+    get: id => store.get(id),
+    create: (input, context) => store.create(input, context),
+    save: (id, config, revision, context) =>
+      store.save(id, config, revision, context),
+    rename: (id, title, revision, context) =>
+      store.rename(id, title, revision, context),
+    delete: (id, revision, context) => store.delete(id, revision, context),
+    getPreferences: definitionId => store.getPreferences(definitionId),
+    setPreferences: (definitionId, preferences, context) =>
+      store.setPreferences(definitionId, preferences, context),
+  };
 }

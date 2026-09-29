@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import { useRef } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { DragDropProvider } from '@dnd-kit/react';
 import {
   audienceOf,
@@ -63,8 +63,8 @@ export interface ViewManagerProps {
  * other group is not a drop target at all. Both lists draw personal views
  * above shared ones whatever order is stored, so carrying one across that
  * line would store a new order, spend a revision and move nothing anybody can
- * see — a view joins the other group by being saved into it, not by being
- * dragged there.
+ * see — a view joins the other group by being saved into it, or moved there
+ * with its row's 设为共享／设为个人, not by being dragged there.
  */
 const GROUP_ID: Record<ViewAudience, string> = {
   personal: 'views-personal',
@@ -106,6 +106,13 @@ export function ViewManager({
   // dialog still open around it. The heading is the one thing in here that
   // outlives every row, and it is where a reader would start again anyway.
   const heading = useRef<HTMLHeadingElement>(null);
+  // The row a move of audience has just sent to the other group, until it
+  // has taken focus there; see `ViewManagerRowProps.arrived`.
+  const [arriving, setArriving] = useState<{
+    id: string;
+    audience: ViewAudience;
+  } | null>(null);
+  const arrivedFocus = useCallback(() => setArriving(null), []);
 
   const groups: RowGroup[] = VIEW_AUDIENCES.map(audience => ({
     audience,
@@ -144,6 +151,27 @@ export function ViewManager({
     });
   };
 
+  /**
+   * Moves a view to the other audience and says so once the store has taken
+   * it — with the other manager actions, not before: a refused move leaves
+   * the row where it was, with its outcome under it.
+   */
+  const changeAudience = (id: string, audience: ViewAudience) => {
+    const title = titleOf(id);
+    void manager.changeAudience(id, audience).then(landed => {
+      if (!landed) return;
+      announce(
+        messages.label(
+          audience === 'shared'
+            ? 'label.manage.shared'
+            : 'label.manage.made-personal',
+          { title },
+        ),
+      );
+      setArriving({ id, audience });
+    });
+  };
+
   const rows = (
     <div data-slot="view-manager" className="fve:flex fve:flex-col fve:gap-3">
       {groups.map(group => (
@@ -169,6 +197,12 @@ export function ViewManager({
               // quick presses would otherwise ask for the place the first
               // already gave the row.
               place: { index, total: group.items.length },
+              onChangeAudience: (audience: ViewAudience) =>
+                changeAudience(item.id, audience),
+              arrived:
+                arriving?.id === item.id &&
+                audienceOf(item.scope) === arriving.audience,
+              onFocused: arrivedFocus,
               onMove: (step: HandleMove) =>
                 move(
                   item.id,
@@ -227,34 +261,33 @@ export function ViewManager({
         )}
 
         {manager.can.reorder ? (
-          <>
-            <DragDropProvider
-              {...sortableList(manageDragAccessibility(messages, titleOf))}
-              onDragEnd={({ operation, canceled }) => {
-                // The library holds a drag inside its own group; `managerDrop`
-                // says the same thing where the order is decided, so a drop
-                // the sensor let through cannot store one audience among the
-                // other's rows.
-                const drop = managerDrop(
-                  operation,
-                  canceled,
-                  id => groupOf(id)?.audience,
-                );
-                // The place of the row it was dropped on, asked for now for
-                // the same reason the arrow keys ask for it now.
-                if (drop) move(drop.source, manager.placeOf(drop.target));
-              }}
-            >
-              {rows}
-            </DragDropProvider>
-
-            {/* One voice for a move the user asked for with the arrow keys;
-                the library announces its own pick-up and cancel. */}
-            {announcement}
-          </>
+          <DragDropProvider
+            {...sortableList(manageDragAccessibility(messages, titleOf))}
+            onDragEnd={({ operation, canceled }) => {
+              // The library holds a drag inside its own group; `managerDrop`
+              // says the same thing where the order is decided, so a drop
+              // the sensor let through cannot store one audience among the
+              // other's rows.
+              const drop = managerDrop(
+                operation,
+                canceled,
+                id => groupOf(id)?.audience,
+              );
+              // The place of the row it was dropped on, asked for now for
+              // the same reason the arrow keys ask for it now.
+              if (drop) move(drop.source, manager.placeOf(drop.target));
+            }}
+          >
+            {rows}
+          </DragDropProvider>
         ) : (
           rows
         )}
+
+        {/* One voice for what landed: a move asked for with the arrow keys
+            (the library announces its own pick-up and cancel) and a move to
+            the other audience. */}
+        {announcement}
       </DialogContent>
     </Dialog>
   );

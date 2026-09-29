@@ -133,6 +133,13 @@ export type WritePayload =
     }
   | { action: 'save'; id: string; revision: string; config: ViewConfig }
   | { action: 'rename'; id: string; revision: string; title: string }
+  // 设为共享／设为个人（D18 第 10 条）：只在 store 有 changeAudience 时派发
+  | {
+      action: 'changeAudience';
+      id: string;
+      revision: string;
+      audience: ViewAudience;
+    }
   | { action: 'delete'; id: string; revision: string };
 
 export type WriteAction = WritePayload['action'];
@@ -348,7 +355,7 @@ export interface ViewEngine {
 
 写入账本单独住在 `runtime/writeLedger.ts` 的 `WriteLedger` 里，`ViewEngine` 构造一个并转发：引擎这一侧只剩注册表与命令准入——定义是否可用、许可、标题、草稿有没有 error——准入过了就把一份 `WritePayload` 交给账本，公开面上的 `pendingWrites` / `retryWrite` / `abandonWrite` / `resolveConflict` 都只是转发，语义不变。账本掌管 `requestId` 的生成、按 `requestId` 索引的未结清结局、同一目标同时只放行一个在途写入，以及「上一个 unknown 没处理完之前不放行新意图」这条拦截；重试沿用原 `requestId` 与原正文重放，覆盖写则带上冲突报回的 revision 以新 `requestId` 重发，`reload` 只对 `save` 换掉草稿。账本够不到的东西——摘要缓存、偏好缓存、同一实例的其他已打开 runtime——由引擎通过 `WriteLedgerHost` 的几个回调借给它；确认之后落到 runtime 上的 `markSaved` / `moveBaseline` / `adoptSaved` / `setWrite` 仍由账本驱动。（见 test/writeLedger.test.ts）
 
-**列表变化由引擎通知（D15）。** `subscribe(listener)` 与 runtime 的 `subscribe` 同形：登记一个监听者，返回退订。任何一次落地的写入只要改变了某个定义下的列表，就通知一条 `ViewChange = { definitionId, kind, id }`——`kind` 是**那次写入**（`create` | `save` | `rename` | `delete`），不是视图的种类；账本里的重试与覆盖走的是同一处 `applyEffect`，因此照样通知。偏好写入（排序、默认视图）不在其列：它改的是顺序与默认，而发起它的那一方本来就握着结果。删除的正文里带上 `definitionId`（`WritePayload`），因为除此之外没有一处说得出它属于哪张列表，而重放要说得出同一句话。通知在效果落定之后发出，一个监听者抛出不会波及其余监听者，也不会把一次已经落地的写入记成待重试的结局——它被就地拦下，作为 `view.change.notify-failed` 交给 `onIssue`。`dispose()` 清空监听者。宿主因此不必在每个调用点后面记得刷新列表；`useViewList` 订阅的就是这一面（[react.md#useviewlist](react.md#useviewlist)）。（见 test/engine.test.ts「ViewEngine change notifications」）
+**列表变化由引擎通知（D15）。** `subscribe(listener)` 与 runtime 的 `subscribe` 同形：登记一个监听者，返回退订。任何一次落地的写入只要改变了某个定义下的列表，就通知一条 `ViewChange = { definitionId, kind, id }`——`kind` 是**那次写入**（`create` | `save` | `rename` | `changeAudience` | `delete`），不是视图的种类；账本里的重试与覆盖走的是同一处 `applyEffect`，因此照样通知。偏好写入（排序、默认视图）不在其列：它改的是顺序与默认，而发起它的那一方本来就握着结果。删除的正文里带上 `definitionId`（`WritePayload`），因为除此之外没有一处说得出它属于哪张列表，而重放要说得出同一句话。通知在效果落定之后发出，一个监听者抛出不会波及其余监听者，也不会把一次已经落地的写入记成待重试的结局——它被就地拦下，作为 `view.change.notify-failed` 交给 `onIssue`。`dispose()` 清空监听者。宿主因此不必在每个调用点后面记得刷新列表；`useViewList` 订阅的就是这一面（[react.md#useviewlist](react.md#useviewlist)）。（见 test/engine.test.ts「ViewEngine change notifications」）
 
 **记录视图的运行时是数据视图运行时的子类**（`runtime/recordRuntime.ts` 的 `RecordDataViewRuntime`，由 `dataViewRuntime` 按配置种类选）：页、选择、导出、读一条整条只属于记录视图，都在子类里；共享的「提问—执行—落定」在 `DataViewRuntime`（`runtime/viewRuntime.ts`），记录视图经四个钩子接进去——新问题从哪开始（`startOver`：回第一页、放开选择）、这次查询要哪一页（`pageNow`）、答案落定还要改什么或是否要重问（`settle`：结果缩了退到末页、刷新保留幸存的选择）、自己的暂停计时器理由（`holds`：有选择）。分析视图的运行时因此没有一个只能拒绝的 `exportRows`，仪表盘面板用 `isRecordRuntime` 区分而不是强转。契约类型在 `runtime/viewRuntimeTypes.ts`。（见 test/exportRows.test.ts「gives a view with no rows of its own no export at all」）
 

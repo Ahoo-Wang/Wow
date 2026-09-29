@@ -67,6 +67,16 @@ export function readingStore(store: ViewStore): ViewStore {
       store.getPreferences(definitionId, signal),
     setPreferences: (definitionId, preferences, context) =>
       store.setPreferences(definitionId, preferences, context),
+    // Optional on the port, so present here exactly when the store has it:
+    // its absence is what the engine and the manager read (D18 item 10).
+    ...(store.changeAudience
+      ? {
+          changeAudience: (id, audience, revision, context) =>
+            written(() =>
+              store.changeAudience!(id, audience, revision, context),
+            ),
+        }
+      : {}),
     ...(store.permissions
       ? { permissions: definitionId => store.permissions!(definitionId) }
       : {}),

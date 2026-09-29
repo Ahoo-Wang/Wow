@@ -757,3 +757,69 @@ export const DefaultViewWearsTheStar: Story = {
     await expect(starred.textContent).toContain(zhCN['label.manage.default']);
   },
 };
+
+/**
+ * 设为共享／设为个人 (D18 item 10): the view moves to the other audience in
+ * place — the same id, so a board that shows it goes on showing it. The row's
+ * button says where it sends the view, the row lands under the other heading
+ * of the dialog and of the sidebar, the move is said once it has landed, and
+ * focus follows the row to its new place, on the button that says the way
+ * back.
+ */
+export const ShareViewInPlace: Story = {
+  ...DisplayManageViews,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await canvas.findByRole('table');
+    const group = (title: string) =>
+      listItem(canvasElement, title)
+        .closest('[data-slot="view-group"]')
+        ?.querySelector('[data-slot="view-group-heading"]')?.textContent;
+    await expect(group('我盯的大额单')).toBe(
+      zhCN['label.scope.group.personal'],
+    );
+
+    const row = await openManager(canvas, '我盯的大额单');
+    const share = within(row).getByRole('button', {
+      name: zhCN['label.manage.share'],
+    });
+    // In the same cell of every row as the way back is on a shared one:
+    // one column of icons, one action per column.
+    const back = within(managerRow('待出库订单')).getByRole('button', {
+      name: zhCN['label.manage.make-personal'],
+    });
+    await expect(Math.round(share.getBoundingClientRect().x)).toBe(
+      Math.round(back.getBoundingClientRect().x),
+    );
+    await userEvent.click(share);
+
+    const moved = () =>
+      document.querySelector<HTMLElement>(
+        '[data-slot="view-manager-group"][data-audience="shared"]',
+      )?.textContent ?? '';
+    await waitFor(() => expect(moved()).toContain('我盯的大额单'));
+    await waitFor(() =>
+      expect(
+        document.querySelector('[data-slot="view-manager-announcement"]')
+          ?.textContent,
+      ).toBe(say('label.manage.shared', { title: '我盯的大额单' })),
+    );
+    await waitFor(() =>
+      expect(document.activeElement).toBe(
+        within(managerRow('我盯的大额单')).getByRole('button', {
+          name: zhCN['label.manage.make-personal'],
+        }),
+      ),
+    );
+
+    // Focus on an icon button opens its name as a tooltip, and the first
+    // Escape closes that; the second closes the dialog.
+    await userEvent.keyboard('{Escape}');
+    if (document.body.querySelector('[role="dialog"]'))
+      await userEvent.keyboard('{Escape}');
+    await waitFor(() =>
+      expect(document.body.querySelector('[role="dialog"]')).toBeNull(),
+    );
+    await expect(group('我盯的大额单')).toBe(zhCN['label.scope.group.shared']);
+  },
+};

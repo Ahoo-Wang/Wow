@@ -16,6 +16,7 @@ import {
   ViewStoreError,
   type MemoryViewStoreOptions,
   type RecordViewConfig,
+  type ViewAudience,
   type ViewConfig,
   type ViewInstance,
   type ViewInstanceSummary,
@@ -151,6 +152,18 @@ export class OutcomeViewStore implements ViewStore {
     return this.through(
       () => this.race(id),
       () => this.inner.rename(id, title, revision, context),
+    );
+  }
+
+  changeAudience(
+    id: string,
+    audience: ViewAudience,
+    revision: string,
+    context: WriteContext,
+  ): Promise<ViewInstance> {
+    return this.through(
+      () => this.race(id),
+      () => this.inner.changeAudience(id, audience, revision, context),
     );
   }
 

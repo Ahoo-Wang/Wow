@@ -12,8 +12,8 @@
  */
 
 import {
+  audienceOf,
   type FilterTree,
-  isSystemInstanceId,
   parseSystemInstanceId,
   toSummary,
   type Issue,
@@ -24,6 +24,7 @@ import {
   type ViewAudience,
   type ViewInstanceSummary,
   type ViewPreferences,
+  type ViewScope,
 } from '../model/index.js';
 import {
   builtinFieldKinds,
@@ -48,7 +49,7 @@ import type {
   RuntimeFor,
   ViewRuntime,
 } from './viewRuntimeTypes.js';
-import { DashboardViewRuntime, stopsSave } from './dashboardRuntime.js';
+import { DashboardViewRuntime } from './dashboardRuntime.js';
 import { PanelViews } from './panelViews.js';
 import {
   ViewCommandError,
@@ -63,17 +64,17 @@ import {
 } from './writeLedger.js';
 import { ViewChanges, type ViewChangeListener } from './viewChanges.js';
 import { DefinitionRegistry, systemInstances } from './definitions.js';
-import { toIssue } from './issues.js';
 import { PermissionGuard } from './permissions.js';
 import { PreferenceCache, resolveDefault } from './preferences.js';
 import { OpenRuntimes } from './openRuntimes.js';
-import { SummaryCache } from './summaries.js';
+import { storedSummaries, SummaryCache } from './summaries.js';
 import { TabMemory } from './tabMemory.js';
 import { RuntimeFactory, type RuntimeIdentity } from './runtimeFactory.js';
 import { readingStore } from './storedViews.js';
 import { SourceCapabilities } from './capabilities.js';
 import { EngineResources } from './resources.js';
 import { reportingStore } from './failures.js';
+import { requireSavable, requireTitle } from './commandChecks.js';
 
 /**
  * One thing a host registers (host-integration.md 4): a definition, and
@@ -296,22 +297,13 @@ export class ViewEngine extends EngineResources {
     // The failure is the host's to hear of through `onError`, which the
     // store's own door already told (`reportingStore`); `onIssue` is for
     // findings with nothing thrown behind them (D40).
-    let stored: ViewInstanceSummary[] = [];
-    let failed: Issue | null = null;
-    try {
-      stored = await this.store.list(definitionId);
-    } catch (error) {
-      failed = toIssue(error, 'view.list.failed');
-    }
-    const accepted = stored.filter(summary => {
-      if (!isSystemInstanceId(summary.id)) return true;
-      this.report(
-        issue('view.list.reserved-id', [], { id: summary.id }),
-        definitionId,
-      );
-      return false;
-    });
-    const items = [...declared, ...accepted];
+    const { stored, failed } = await storedSummaries(
+      this.store,
+      definitionId,
+      id =>
+        this.report(issue('view.list.reserved-id', [], { id }), definitionId),
+    );
+    const items = [...declared, ...stored];
     this.summaries.noteAll(items);
     // Titles as they are, keys and all: whatever shows a list says them.
     return { items, failed };
@@ -390,7 +382,7 @@ export class ViewEngine extends EngineResources {
     input: CreateInput<C>,
   ): RuntimeFor<C> {
     const definition = this.registry.require(definitionId);
-    this.requireTitle(input.title);
+    requireTitle(input.title);
     // Made at once, so it runs on the descriptor held; one not read yet is
     // read now, for the next view over the source.
     this.capabilities.warm(definition);
@@ -415,7 +407,7 @@ export class ViewEngine extends EngineResources {
   async save(runtime: ViewRuntime): Promise<ViewInstance> {
     const target = this.runtimes.require(runtime);
     const state = target.getSnapshot();
-    this.requireSavable(target, target.issuesAt(state.scope));
+    requireSavable(target, target.issuesAt(state.scope));
 
     if (!state.saved) {
       const input = {
@@ -450,8 +442,8 @@ export class ViewEngine extends EngineResources {
     const target = this.runtimes.require(runtime);
     const state = target.getSnapshot();
     // Judged at the scope it is going to, not the one it came from.
-    this.requireSavable(target, target.issuesAt(input.scope));
-    this.requireTitle(input.title);
+    requireSavable(target, target.issuesAt(input.scope));
+    requireTitle(input.title);
     this.guard.requireCreate(target.definition.id, input.scope);
 
     return (await this.ledger.dispatch(
@@ -510,9 +502,49 @@ export class ViewEngine extends EngineResources {
 
   /** Renaming carries no config, so a draft with errors does not block it. */
   async rename(id: string, title: string): Promise<ViewInstance> {
-    this.requireTitle(title);
+    requireTitle(title);
     const { revision, runtime } = await this.locate(id, 'rename');
     const payload: WritePayload = { action: 'rename', id, revision, title };
+    return (await this.ledger.dispatch(payload, runtime)) as ViewInstance;
+  }
+
+  /**
+   * 设为共享／设为个人 (D18 item 10): the saved view moves to `audience` in
+   * place, id kept, through the store's optional `changeAudience` — a store
+   * without it is refused here (`view.changeAudience.unsupported`), and the
+   * manager offers no such button. Like a rename it carries no config, so a
+   * draft with errors does not block it, and every open view of the
+   * instance moves to the new baseline.
+   *
+   * Asked before anything is sent: the instance permission and the create
+   * permission of the audience it goes to (`instanceAbilities`). Asked for
+   * the audience it already has, it answers the view as it is and writes
+   * nothing.
+   *
+   * A board shared over a personal view is not refused, as a shared board's
+   * save is not (`validateDashboard`, D22 B): the panel is blank for other
+   * readers and says so (`dashboard.panel.scope-too-narrow`, a warning the
+   * open board takes up as it moves). The one refusal between the two is the
+   * store's: a view a shared board shows is not made personal (`INVALID`).
+   */
+  async changeAudience(
+    id: string,
+    audience: ViewAudience,
+  ): Promise<ViewInstance> {
+    if (!this.store.changeAudience)
+      throw new ViewCommandError(issue('view.changeAudience.unsupported', []));
+    const { revision, scope, runtime } = await this.locate(
+      id,
+      'changeAudience',
+    );
+    if (audienceOf(scope) === audience)
+      return runtime?.getSnapshot().saved ?? this.store.get(id);
+    const payload: WritePayload = {
+      action: 'changeAudience',
+      id,
+      revision,
+      audience,
+    };
     return (await this.ledger.dispatch(payload, runtime)) as ViewInstance;
   }
 
@@ -722,6 +754,7 @@ export class ViewEngine extends EngineResources {
   ): Promise<{
     revision: string;
     definitionId: string;
+    scope: ViewScope;
     runtime: ManagedViewRuntime | undefined;
   }> {
     // A code-declared view is not in any store, and no store write can reach it.
@@ -737,26 +770,8 @@ export class ViewEngine extends EngineResources {
     return {
       revision: summary.revision,
       definitionId: summary.definitionId,
+      scope: summary.scope,
       runtime,
     };
-  }
-
-  private requireTitle(title: string): void {
-    if (title.trim().length === 0)
-      throw new ViewCommandError(issue('view.title.empty', ['title']));
-  }
-
-  private requireValid(issues: readonly Issue[]): void {
-    if (issues.some(entry => entry.severity === 'error'))
-      throw new ViewCommandError(issue('view.config.invalid', []));
-  }
-
-  /** What stops a save of this runtime's kind (`stopsSave`). */
-  private requireSavable(
-    runtime: ManagedViewRuntime,
-    issues: readonly Issue[],
-  ): void {
-    if (stopsSave(runtime.kind, issues))
-      throw new ViewCommandError(issue('view.config.invalid', []));
   }
 }

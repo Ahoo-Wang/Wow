@@ -186,10 +186,49 @@ describe('manager/abilities', () => {
 
   it('never writes a system view, however freely the store permits it', () => {
     const can = abilitiesOf([summary('sys', 'system')], permitting());
-    expect(can.instance('sys')).toEqual({ rename: false, delete: false });
+    expect(can.instance('sys')).toEqual({
+      rename: false,
+      delete: false,
+      changeAudience: false,
+    });
     // A row the list does not hold is the store's to answer for.
-    expect(can.instance('gone')).toEqual({ rename: true, delete: true });
+    expect(can.instance('gone')).toEqual({
+      rename: true,
+      delete: true,
+      changeAudience: true,
+    });
     expect(can.anything).toBe(false);
+  });
+
+  it('moves a row to the other audience only where that audience may be created in', () => {
+    const rows = [summary('p1', 'personal'), summary('s1', 'shared')];
+    const both = abilitiesOf(rows, permitting());
+    expect(both.instance('p1').changeAudience).toBe(true);
+    expect(both.instance('s1').changeAudience).toBe(true);
+
+    // Sharing puts a view in front of everyone, which is `createShared`'s to
+    // allow; taking one back is `createPersonal`'s.
+    const noSharing = abilitiesOf(rows, permitting({ createShared: false }));
+    expect(noSharing.instance('p1').changeAudience).toBe(false);
+    expect(noSharing.instance('s1').changeAudience).toBe(true);
+    const noPersonal = abilitiesOf(rows, permitting({ createPersonal: false }));
+    expect(noPersonal.instance('p1').changeAudience).toBe(true);
+    expect(noPersonal.instance('s1').changeAudience).toBe(false);
+
+    // The store's own answer for the instance, when it says no.
+    const refused = abilitiesOf(
+      rows,
+      permitting({
+        instance: () => ({
+          save: true,
+          rename: false,
+          delete: false,
+          changeAudience: false,
+        }),
+      }),
+    );
+    expect(refused.instance('p1').changeAudience).toBe(false);
+    expect(refused.anything).toBe(false);
   });
 
   it('offers the way in only when something can be managed', () => {
@@ -200,6 +239,20 @@ describe('manager/abilities', () => {
         rows,
         permitting({
           instance: () => ({ save: true, rename: false, delete: false }),
+        }),
+      ).anything,
+      // Silence on the audience is not a refusal: the row may still move.
+    ).toBe(true);
+    expect(
+      abilitiesOf(
+        rows,
+        permitting({
+          instance: () => ({
+            save: true,
+            rename: false,
+            delete: false,
+            changeAudience: false,
+          }),
         }),
       ).anything,
     ).toBe(false);

@@ -200,6 +200,16 @@ export function reportingStore(
         'setPreferences',
         { definitionId, requestId: context.requestId },
       ),
+    ...(store.changeAudience
+      ? {
+          changeAudience: (id, audience, revision, context) =>
+            watched(
+              () => store.changeAudience!(id, audience, revision, context),
+              'changeAudience',
+              { instanceId: id, requestId: context.requestId },
+            ),
+        }
+      : {}),
     ...(store.permissions
       ? { permissions: definitionId => store.permissions!(definitionId) }
       : {}),

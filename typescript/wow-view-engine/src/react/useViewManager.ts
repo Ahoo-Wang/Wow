@@ -46,6 +46,11 @@ export type {
 
 export interface ViewManagerController {
   rename(id: string, title: string): Promise<boolean>;
+  /**
+   * Moves a view to `audience` in place (设为共享／设为个人, D18 item 10);
+   * the list reloads and draws it under that group.
+   */
+  changeAudience(id: string, audience: ViewAudience): Promise<boolean>;
   delete(id: string): Promise<boolean>;
   setDefault(id: string | null): Promise<boolean>;
   /**
@@ -104,7 +109,7 @@ type PendingOrder = OptimisticOrder & ManagerTag;
 
 /**
  * Managing the views a list shows, rather than the one that is open: rename,
- * delete, reorder and choose a default, with the recovery actions for writes
+ * move to the other audience, delete, reorder and choose a default, with the recovery actions for writes
  * that no runtime owns.
  *
  * Every command resolves rather than rejects, as `useSaveCommands` does: what
@@ -178,6 +183,17 @@ export function useViewManager(
         { action: 'rename', id, revision: UNSENT, title },
         'view.rename.failed',
         () => engine.rename(id, title),
+      ),
+    [engine, run],
+  );
+
+  const changeAudience = useCallback(
+    (id: string, audience: ViewAudience) =>
+      run(
+        id,
+        { action: 'changeAudience', id, revision: UNSENT, audience },
+        'view.changeAudience.failed',
+        () => engine.changeAudience(id, audience),
       ),
     [engine, run],
   );
@@ -368,6 +384,7 @@ export function useViewManager(
 
   return {
     rename,
+    changeAudience,
     delete: remove,
     setDefault,
     moveTo,

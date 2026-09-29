@@ -44,6 +44,13 @@ export const manageMessages = {
   'label.manage.rename-confirm': 'Save the title',
   'label.manage.rename-cancel': 'Keep the title',
   'label.manage.delete': 'Delete',
+  // Moving a view to the other audience in place (D18 item 10): the button
+  // says the audience it goes to, and the line read out once it has landed
+  // says where it is now — it is also drawn under the other group.
+  'label.manage.share': 'Make shared',
+  'label.manage.make-personal': 'Make personal',
+  'label.manage.shared': '{title} is now shared',
+  'label.manage.made-personal': '{title} is now personal',
   // A preference conflict that was reloaded keeps what the user meant and
   // puts it to them once more (design/management.md), so the button offers the write
   // again rather than a recovery of the one that lost.

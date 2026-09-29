@@ -23,6 +23,7 @@ import {
   ViewStoreError,
   type ConflictingState,
   type InstancePermissions,
+  type ViewAudience,
   type ViewConfig,
   type ViewInstance,
   type ViewInstanceSummary,
@@ -117,6 +118,26 @@ export class FetcherViewStore implements ViewStore {
   ): Promise<ViewInstance> {
     return this.send<ViewInstance>('PUT', `${this.view(id)}/title`, {
       body: { title },
+      headers: { ...idempotency(context.requestId), 'If-Match': revision },
+      signal: context.signal,
+    });
+  }
+
+  /**
+   * 设为共享／设为个人: the same view under the other audience, id kept. The
+   * server decides who the new owner is (the caller, for a personal view),
+   * answers a request for the audience the view already has with the view
+   * unchanged, and refuses making personal a view a shared board shows — a
+   * 422 naming those boards, read below as `INVALID`.
+   */
+  async changeAudience(
+    id: string,
+    audience: ViewAudience,
+    revision: string,
+    context: WriteContext,
+  ): Promise<ViewInstance> {
+    return this.send<ViewInstance>('PUT', `${this.view(id)}/audience`, {
+      body: { audience },
       headers: { ...idempotency(context.requestId), 'If-Match': revision },
       signal: context.signal,
     });
@@ -274,6 +295,7 @@ const ALLOWED_INSTANCE: InstancePermissions = {
   save: true,
   rename: true,
   delete: true,
+  changeAudience: true,
 };
 
 /** Everything, which is what an unloaded definition and a silent server get. */

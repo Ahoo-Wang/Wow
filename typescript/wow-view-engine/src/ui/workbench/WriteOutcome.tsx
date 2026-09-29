@@ -159,6 +159,10 @@ export function WriteOutcome({
         if (instance) onRenamed?.(instance);
         onRecovered?.(action);
         return;
+      // Neither saves the draft nor opens anything: the baseline moved.
+      case 'changeAudience':
+        onRecovered?.(action);
+        return;
       default:
         if (instance) onSaved?.(instance);
         onRecovered?.(action);

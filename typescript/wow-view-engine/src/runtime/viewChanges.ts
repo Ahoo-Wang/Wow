@@ -18,12 +18,14 @@ import { listenerSet } from './listeners.js';
 /**
  * The write that changed a list — **not** the kind of the view it changed.
  *
- * These four are what a list of views can see: one appeared, one was saved
- * under a title or an audience it did not have, one was renamed, one is gone.
+ * These five are what a list of views can see: one appeared, one was saved,
+ * one was renamed, one moved to the other audience (and so to the other
+ * group), one is gone.
  * A preference write is not among them: it changes the order and the default,
  * which the caller that wrote them already holds.
  */
-export type ViewChangeKind = 'create' | 'save' | 'rename' | 'delete';
+export type ViewChangeKind =
+  'create' | 'save' | 'rename' | 'changeAudience' | 'delete';
 
 /** What a confirmed write changed about one definition's list of views. */
 export interface ViewChange {

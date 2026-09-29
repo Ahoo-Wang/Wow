@@ -227,12 +227,12 @@ export class WowViewStore implements ViewStore {
 | --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------- |
 | V0  | 框架：`spaced` 成为聚合元数据；没开 `spaced` 的聚合，任何来源的命令都不写入 spaceId、查询不按它过滤——**已合并（#3791）**                                                             | 框架测试两种头、两种聚合、saga 都覆盖；发布说明写明行为变化与滚动升级 |
 | V1  | 后端：api、domain、**wow-view-store-starter**、**wow-view-store-server** 四个模块、两个聚合、系统视图接口、偏好与系统视图的自定义路由、重放端点、全局 `requestId` 唯一约束；领域测试 | 领域测试覆盖第 5 节每条规则；视图服务能起，OpenAPI 可生成             |
-| V2  | 端口：**changeAudience** 与管理器入口；端口一致性测试套件（先让 `MemoryViewStore` 过）                                                                                               | 公开面快照更新；一致性套件在内存实现上全绿                            |
+| V2  | 端口：**changeAudience** 与管理器入口；端口一致性测试套件（先让 `MemoryViewStore` 过）——**已实现**                                                                                   | 公开面快照更新；一致性套件在内存实现上全绿                            |
 | V3  | TS：**@ahoo-wang/wow-view-store**；示例服务端与补偿服务引入 starter；补偿控制台迁移（自己的拦截器注入缺省租户、所有者、应用）；端到端与隔离测试                                      | 一致性套件在 Wow 实现上全绿；端到端、隔离测试、引擎端到端在 CI 里过   |
 
 V0 已完成；V1、V2 文件不交叉，可以并行；V3 在两者之后。
 
 ## 9. 另外定下的两点
 
-- **一致性测试套件**放在 `wow-view-engine` 的测试目录里，由 `integration-test` 按工作区路径引用；不放进公开的 `/testing` 入口（会把测试框架带进发布的入口）。
+- **一致性测试套件**放在 `wow-view-engine` 的测试目录里，由 `integration-test` 按工作区路径引用；不放进公开的 `/testing` 入口（会把测试框架带进发布的入口）。落点是 `test/conformance/viewStoreConformance.ts` 的 `describeViewStoreConformance`，接口见 [management.md](management.md)「持久化端口与一致性」；V3 从 `typescript/integration-test/test/` 以 `../../wow-view-engine/test/conformance/viewStoreConformance.js` 引入，传 **WowViewStore** 的工厂与能力声明（`integration-test` 的 `tsconfig.test.json` 要把 `rootDir` 放宽到 `..`，否则 TS6059）；拒绝改成个人时 `INVALID` 的消息按**标题**点出看板，服务端给的是 id，客户端据此拼出标题。**`create` 的重放**由能力 `idempotentCreate` 决定考不考：Wow 存储暂不对 `create` 去重（全局 `requestId` 索引无法只作用于视图聚合，用户 2026-09-29 接受），声明 `false`；其余写入（保存、改名、删除、改受众、偏好）的重放照考。
 - **删除一个被共享看板引用的视图**保持允许，与今天的引擎一致（那块面板按 A 只坏自己）；只拒绝「改成个人」。

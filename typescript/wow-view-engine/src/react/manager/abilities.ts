@@ -24,6 +24,12 @@ import { instanceAbilities } from '../../runtime/permissions.js';
 export interface ManagedInstanceAbilities {
   rename: boolean;
   delete: boolean;
+  /**
+   * Whether the row may move to the other audience (设为共享／设为个人):
+   * the store has `changeAudience`, allows it for this view, and allows
+   * creating in the audience it would go to.
+   */
+  changeAudience: boolean;
 }
 
 export interface ViewManagerAbilities {
@@ -53,7 +59,11 @@ export function abilitiesOf(
       { id, scope: items.find(item => item.id === id)?.scope },
       permissions,
     );
-    return { rename: granted.rename, delete: granted.delete };
+    return {
+      rename: granted.rename,
+      delete: granted.delete,
+      changeAudience: granted.changeAudience,
+    };
   };
   return {
     reorder: permissions.reorder,
@@ -67,7 +77,7 @@ export function abilitiesOf(
       permissions.setDefault ||
       items.some(item => {
         const granted = instance(item.id);
-        return granted.rename || granted.delete;
+        return granted.rename || granted.delete || granted.changeAudience;
       }),
   };
 }

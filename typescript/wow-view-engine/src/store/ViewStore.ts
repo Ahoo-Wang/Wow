@@ -12,6 +12,7 @@
  */
 
 import type {
+  ViewAudience,
   ViewConfig,
   ViewInstance,
   ViewInstanceSummary,
@@ -22,9 +23,9 @@ import type {
  * The only port a backend must satisfy. Its failure type is `ViewStoreError`
  * from `model`, so both sides of the port speak it.
  *
- * Eight methods, two consistency rules: a write carries the revision it
- * expects, and a retry reuses its `requestId` so the server can recognise the
- * same intent.
+ * Eight methods, and one a store may leave out (`changeAudience`); two
+ * consistency rules: a write carries the revision it expects, and a retry
+ * reuses its `requestId` so the server can recognise the same intent.
  *
  * Authorization, visibility filtering and deduplication belong to the server.
  * `permissions` only drives which buttons a UI enables.
@@ -61,6 +62,35 @@ export interface ViewStore {
     preferences: ViewPreferences,
     context: WriteContext,
   ): Promise<ViewPreferences>;
+  /**
+   * Moves a view to the other audience in place (设为共享／设为个人, D18
+   * item 10): the id stays, so a board that shows it keeps showing it.
+   *
+   * Optional: a store without it has no such entry in the manager, and the
+   * engine refuses the command before anything is sent
+   * (`view.changeAudience.unsupported`). One that has it keeps the rules of
+   * every other instance write — the expected `revision` (`CONFLICT`
+   * carrying `instance`), a replayed `requestId` answering the first
+   * outcome, a system view refused (`FORBIDDEN`), a missing one
+   * `NOT_FOUND` — and two of its own:
+   *
+   * - **No change is no write.** Asked for the audience the view already
+   *   has, it answers the view as it is, revision unmoved (after the
+   *   revision check, so a stale one still conflicts).
+   * - **A view a shared board shows stays shared.** Made personal, it would
+   *   be blank on that board for every other reader, so the store refuses
+   *   it as `INVALID`, and **the error's `message` names those boards by
+   *   title** — it is what the reader is shown (`view.changeAudience.invalid`
+   *   quotes it), so an adapter whose server answers with ids builds the
+   *   message from the titles. Only the store sees every board.
+   *   Deleting such a view stays allowed (the panel alone breaks).
+   */
+  changeAudience?(
+    id: string,
+    audience: ViewAudience,
+    revision: string,
+    context: WriteContext,
+  ): Promise<ViewInstance>;
   /** Synchronous, because the application fetched it before creating the engine. */
   permissions?(definitionId: string): ViewPermissions;
 }
@@ -87,6 +117,13 @@ export interface InstancePermissions {
   save: boolean;
   rename: boolean;
   delete: boolean;
+  /**
+   * Whether the view may be moved to the other audience. Absent reads as
+   * allowed — silence is not a refusal, as with the rest — and moving it
+   * also asks the create permission of the audience it goes to
+   * (`createShared` to share it, `createPersonal` to take it back).
+   */
+  changeAudience?: boolean;
 }
 
 /** An empty preference record, which is what an untouched definition has. */

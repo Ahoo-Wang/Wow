@@ -215,6 +215,16 @@ export const viewMessages = {
   'view.definition.invalid':
     'The {id} definition has {issues} problem(s) and cannot be opened.',
   'view.definition.not-found': 'No definition named {id}.',
+  // 设为共享／设为个人 (D18 item 10): a move that did not land, one refused
+  // before sending, a store that has no such move, and a store that refused
+  // it — with its reason, which names the shared boards showing the view.
+  'view.changeAudience.failed': 'Who this view is for could not be changed.',
+  'view.changeAudience.forbidden':
+    'You may not change who this view is for; save a copy of your own instead.',
+  'view.changeAudience.unsupported':
+    'This view store cannot move a view between personal and shared.',
+  'view.changeAudience.invalid':
+    'Who this view is for could not be changed: {reason}',
   'view.delete.failed': 'This view could not be deleted.',
   // One per action the permission guard refuses (`view.<action>.forbidden`,
   // `runtime/permissions.ts`). They used to have no entry at all, so the

@@ -524,7 +524,12 @@ describe('ViewManager rows', () => {
         .map(button => button.getAttribute('aria-label'));
 
     expect(handle('Mine')).toBeDefined();
-    expect(names('Mine')).toEqual(['Open this one first', 'Rename', 'Delete']);
+    expect(names('Mine')).toEqual([
+      'Open this one first',
+      'Rename',
+      'Make shared',
+      'Delete',
+    ]);
 
     // A system view ships with the definition, so the only thing to be done
     // with it is to choose whether it opens first — and it is ordered like

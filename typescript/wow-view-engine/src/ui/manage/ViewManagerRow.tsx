@@ -11,12 +11,14 @@
  * limitations under the License.
  */
 
-import { useState, type RefObject } from 'react';
+import { useEffect, useRef, useState, type RefObject } from 'react';
 import { useSortable } from '@dnd-kit/react/sortable';
 import { PencilIcon, StarIcon, TrashIcon } from 'lucide-react';
 import {
+  audienceOf,
   isSystemScope,
   toSummary,
+  type ViewAudience,
   type ViewInstanceSummary,
 } from '../../model/index.js';
 import type { ViewInstance, ViewPreferences } from '../../model/index.js';
@@ -38,7 +40,7 @@ import {
 } from '../components/item.js';
 import { RowItem } from '../kit/RowItem.js';
 import { DeleteDialog } from './DeleteDialog.js';
-import { KIND_ICON, useKindWord } from '../kit/kinds.js';
+import { AUDIENCE_ICON, KIND_ICON, useKindWord } from '../kit/kinds.js';
 import { SystemMark } from '../kit/SystemMark.js';
 import { keptKey, useViewMessages } from '../kit/MessagesProvider.js';
 import { OutcomeActions } from '../kit/OutcomeActions.js';
@@ -55,7 +57,8 @@ import { RenameInput } from '../kit/RenameInput.js';
  * about what it does.
  *
  * So the cluster is a grid of one cell per action this row *could* carry —
- * the default, the rename and the delete — with what the row does carry
+ * the default, the rename, the move to the other audience and the delete —
+ * with what the row does carry
  * packed into the leading cells. The width comes out of the buttons that
  * are there rather than out of a rem figure measured by hand: a fourth
  * action changes this one number, and nothing else. The absent actions are
@@ -63,7 +66,12 @@ import { RenameInput } from '../kit/RenameInput.js';
  * is what the store will take (decisions.md D4), and a greyed-out Delete on
  * a view that can never be deleted is an offer that was never on the table.
  */
-const ACTION_CELLS = 'fve:grid fve:grid-cols-3';
+const ACTION_CELLS = 'fve:grid fve:grid-cols-4';
+
+/** The audience a row's move button sends it to: the one it is not in. */
+function otherAudience(item: ViewInstanceSummary): ViewAudience {
+  return audienceOf(item.scope) === 'personal' ? 'shared' : 'personal';
+}
 
 export interface ViewManagerRowProps {
   item: ViewInstanceSummary;
@@ -83,6 +91,17 @@ export interface ViewManagerRowProps {
   place: { index: number; total: number };
   /** Moves the row, from the arrow keys on its handle or from its menu. */
   onMove(move: HandleMove): void;
+  /** Moves the view to the other audience (设为共享／设为个人). */
+  onChangeAudience(audience: ViewAudience): void;
+  /**
+   * True once this row has just arrived in its group by a move of audience.
+   * The button that sent it here was on a row that is gone — the row is
+   * drawn anew under the other group — so focus is put on this row's
+   * button, which now says the way back, or on `returnFocus` when there is
+   * none; `onFocused` says it has been.
+   */
+  arrived?: boolean;
+  onFocused?(): void;
   /** True while the library is carrying this row, so the arrows are its. */
   dragging?: boolean;
   elementRef?(element: HTMLElement | null): void;
@@ -106,6 +125,9 @@ export function ViewManagerRow({
   returnFocus,
   place,
   onMove,
+  onChangeAudience,
+  arrived = false,
+  onFocused,
   dragging,
   elementRef,
   handleRef,
@@ -119,6 +141,15 @@ export function ViewManagerRow({
   const outcome = manager.outcomes.get(item.id);
   const busy = manager.pending !== null;
   const isDefault = list.preferences?.defaultInstanceId === item.id;
+  const target = otherAudience(item);
+  const Audience = AUDIENCE_ICON[target];
+  const audienceButton = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    if (!arrived) return;
+    (audienceButton.current ?? returnFocus?.current)?.focus();
+    onFocused?.();
+  }, [arrived, onFocused, returnFocus]);
 
   return (
     <>
@@ -231,7 +262,10 @@ export function ViewManagerRow({
             the field and are drawn inside it. */}
         {!renaming && (
           <ItemActions data-slot="view-manager-actions">
-            {(manager.can.setDefault || can.rename || can.delete) && (
+            {(manager.can.setDefault ||
+              can.rename ||
+              can.changeAudience ||
+              can.delete) && (
               <ButtonGroup
                 className={ACTION_CELLS}
                 aria-label={messages.label(word('label.manage.view-group'))}
@@ -274,6 +308,27 @@ export function ViewManagerRow({
                     onClick={() => setRenaming(true)}
                   >
                     <PencilIcon />
+                  </IconButton>
+                )}
+                {/* Named after where it sends the view, and drawn with that
+                    audience's icon — the one the sidebar and the title bar
+                    wear for it — so the button says the destination rather
+                    than the state the row is already in. */}
+                {can.changeAudience && (
+                  <IconButton
+                    ref={audienceButton}
+                    label={messages.label(
+                      target === 'shared'
+                        ? 'label.manage.share'
+                        : 'label.manage.make-personal',
+                    )}
+                    variant="ghost"
+                    size="icon-sm"
+                    data-audience-target={target}
+                    disabled={busy}
+                    onClick={() => onChangeAudience(target)}
+                  >
+                    <Audience />
                   </IconButton>
                 )}
                 {can.delete && (
