@@ -84,3 +84,13 @@ project(":example-transfer-domain").projectDir = file("example/transfer/example-
 include("example-transfer-server")
 project(":example-transfer-server").projectDir = file("example/transfer/example-transfer-server")
 //endregion
+//region view-store
+include(":wow-view-store-api")
+project(":wow-view-store-api").projectDir = file("view-store/wow-view-store-api")
+include(":wow-view-store-domain")
+project(":wow-view-store-domain").projectDir = file("view-store/wow-view-store-domain")
+include(":wow-view-store-starter")
+project(":wow-view-store-starter").projectDir = file("view-store/wow-view-store-starter")
+include(":wow-view-store-server")
+project(":wow-view-store-server").projectDir = file("view-store/wow-view-store-server")
+//endregion

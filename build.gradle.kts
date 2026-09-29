@@ -44,14 +44,20 @@ val exampleLibraries = setOf(
     project(":example-transfer-api"),
     project(":example-transfer-domain")
 )
+val viewStoreServerProject = project(":wow-view-store-server")
 val exampleProjects =
-    exampleLibraries + project(":example-server") + project(":example-transfer-server") + project(":wow-compensation-server")
+    exampleLibraries + project(":example-server") + project(":example-transfer-server") + project(":wow-compensation-server") +
+        viewStoreServerProject
 
 val testProject = project(":wow-test")
 val codeCoverageReportProject = project(":code-coverage-report")
 val benchmarksProject = project(":wow-benchmarks")
 // Libraries that build and test like the others but are not published until stable (view-store/* in phase 6).
-val incubatingProjects = emptySet<Project>()
+val incubatingProjects = setOf(
+    project(":wow-view-store-api"),
+    project(":wow-view-store-domain"),
+    project(":wow-view-store-starter"),
+)
 val publishProjects =
     subprojects - exampleProjects - codeCoverageReportProject - benchmarksProject - incubatingProjects
 val libraryProjects = publishProjects - bomProjects + exampleLibraries + benchmarksProject + incubatingProjects
@@ -76,7 +82,7 @@ enum class WowTestLayer(
 }
 
 val localTestProjects = libraryProjects - benchmarksProject
-val localTestTaskProjects = localTestProjects + project(":wow-compensation-server")
+val localTestTaskProjects = localTestProjects + project(":wow-compensation-server") + viewStoreServerProject
 val localContractTestProjects = setOf(
     project(":wow-core"),
     project(":wow-opentelemetry"),
@@ -89,6 +95,7 @@ val integrationTestProjects = setOf(
     project(":wow-kafka"),
     project(":wow-elasticsearch"),
     project(":wow-it"),
+    project(":wow-view-store-starter"),
 )
 
 ext.set("localTestProjects", localTestProjects)

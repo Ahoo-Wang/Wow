@@ -1,0 +1,100 @@
+/*
+ * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package me.ahoo.wow.viewstore.starter
+
+import io.swagger.v3.oas.models.OpenAPI
+import me.ahoo.test.asserts.assert
+import me.ahoo.wow.naming.MaterializedNamedBoundedContext
+import me.ahoo.wow.openapi.RouterSpecs
+import me.ahoo.wow.openapi.metadata.aggregateRouteMetadata
+import me.ahoo.wow.viewstore.domain.preferences.ViewPreferences
+import me.ahoo.wow.viewstore.domain.view.View
+import org.junit.jupiter.api.Test
+
+/**
+ * The routes Wow generates for the view store's aggregates in a host of another context, and the ones the starter
+ * adds beside them.
+ */
+class ViewStoreRouteSpecsTest {
+    private val hostContext = MaterializedNamedBoundedContext("example-service")
+    private val routerSpecs = RouterSpecs(hostContext).build()
+    private val paths = ViewStorePaths(hostContext)
+    private val scope = "/view-store/tenant/{tenantId}/owner/{ownerId}"
+    private val namedAggregates = setOf(
+        View::class.java.aggregateRouteMetadata().aggregateMetadata.namedAggregate,
+        ViewPreferences::class.java.aggregateRouteMetadata().aggregateMetadata.namedAggregate,
+    )
+
+    @Test
+    fun `Wow routes the view commands under the tenant and the owner`() {
+        val routes = routerSpecs.toRouteCatalog().routes.map { "${it.method} ${it.path}" }
+        routes.assert().contains(
+            "POST $scope/view",
+            "PUT $scope/view/{id}/save",
+            "PUT $scope/view/{id}/rename",
+            "PUT $scope/view/{id}/audience",
+            "DELETE $scope/view/{id}",
+        )
+        // Every command route of the view store: no preferences command, no recover, no tags.
+        val queryOrOperation = listOf("/snapshot", "/event", "/state", "/compensate")
+        routes.filter { route -> route.contains("/view-store/") && queryOrOperation.none { route.contains(it) } }
+            .assert().containsExactlyInAnyOrder(
+                "POST $scope/view",
+                "PUT $scope/view/{id}/save",
+                "PUT $scope/view/{id}/rename",
+                "PUT $scope/view/{id}/audience",
+                "DELETE $scope/view/{id}",
+            )
+        routes.assert().contains("POST /owner/{ownerId}/cart/add_cart_item")
+    }
+
+    @Test
+    fun `the starter adds the snapshot queries under the tenant and the owner`() {
+        val queryRoutes = ViewStoreQueryRoutes(paths, routerSpecs, namedAggregates)
+        val routes = queryRoutes.contracts.map { "${it.method} ${it.path}" }
+        routes.assert().contains(
+            "POST $scope/view/snapshot/list",
+            "POST $scope/view/snapshot/single",
+            "POST $scope/view/snapshot/paged",
+            "POST $scope/view_preferences/snapshot/single",
+        )
+        routes.none { it.contains("/event/") || it.contains("cart") }.assert().isTrue()
+        queryRoutes.contracts.forEach { contract ->
+            contract.parameters.map { it.name }.assert().contains("tenantId", "ownerId")
+        }
+    }
+
+    @Test
+    fun `OpenAPI shows the custom and the scoped routes`() {
+        val openApi = OpenAPI()
+        routerSpecs.mergeOpenAPIFromCatalog(openApi)
+        ViewStoreQueryRoutes(paths, routerSpecs, namedAggregates).merge(openApi, routerSpecs)
+        ViewStoreOpenApi(paths).merge(openApi)
+        openApi.paths.keys.assert().contains(
+            "$scope/view/snapshot/list",
+            "$scope/system-views",
+            "$scope/system-views/{id}",
+            "$scope/definitions/{definitionId}/preferences",
+            "$scope/view/requests/{requestId}",
+        )
+        val preferences = openApi.paths["$scope/definitions/{definitionId}/preferences"]!!
+        preferences.get.operationId.assert().isEqualTo("view-store.getPreferences")
+        preferences.put.parameters.map { it.name }.assert().contains("Command-Request-Id", "Command-Aggregate-Version")
+        openApi.paths["$scope/view/requests/{requestId}"]!!.get.responses.keys.assert().contains("200", "204")
+        openApi.components.schemas.keys.any { it.endsWith("SystemView") }.assert().isTrue()
+        openApi.tags.count { it.name == ViewStoreOpenApi.TAG }.assert().isEqualTo(1)
+        ViewStoreOpenApi(paths).merge(openApi)
+        openApi.tags.count { it.name == ViewStoreOpenApi.TAG }.assert().isEqualTo(1)
+    }
+}

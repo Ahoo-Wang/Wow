@@ -32,6 +32,7 @@ on:
       - 'compensation/wow-compensation-core/**'
       - 'compensation/wow-compensation-domain/**'
       - 'compensation/wow-compensation-server/**'
+      - 'view-store/**'
   pull_request:
     paths:
       - '.github/workflows/local-test.yml'
@@ -49,6 +50,7 @@ on:
       - 'compensation/wow-compensation-core/**'
       - 'compensation/wow-compensation-domain/**'
       - 'compensation/wow-compensation-server/**'
+      - 'view-store/**'
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true

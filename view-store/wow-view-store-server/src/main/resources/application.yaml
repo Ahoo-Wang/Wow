@@ -1,0 +1,59 @@
+server:
+  http2:
+    enabled: true
+  compression:
+    enabled: true
+management:
+  endpoint:
+    health:
+      show-details: always
+      probes:
+        enabled: true
+  endpoints:
+    web:
+      exposure:
+        include:
+          - health
+springdoc:
+  api-docs:
+    version: openapi-3-1
+spring:
+  application:
+    # Not `view-store`: a host of another context serves the view store under `/view-store`, and so does this one.
+    name: view-store-server
+  mongodb:
+    uri: mongodb://root:root@localhost:27017/wow_view_store_db?authSource=admin&maxIdleTimeMS=60000
+cosid:
+  machine:
+    enabled: true
+    distributor:
+      # One instance. Running several needs a shared distributor (for example `mongo` with cosid-mongo).
+      type: manual
+      manual:
+        machine-id: 1
+  generator:
+    enabled: true
+wow:
+  command:
+    bus:
+      type: in_memory
+  event:
+    bus:
+      type: in_memory
+  kafka:
+    enabled: false
+  eventsourcing:
+    store:
+      storage: mongo
+    snapshot:
+      storage: mongo
+    state:
+      bus:
+        type: in_memory
+#  view-store:
+#    system-views:
+#      - definition-id: orders
+#        id: orders-open
+#        title: Open orders
+#        config: |
+#          {"kind": "record", "columns": []}

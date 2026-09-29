@@ -127,6 +127,7 @@ wow-models/                 Shared model helpers
 wow-bom/, wow-dependencies/ BOM and centralized dependency versions
 test/                       wow-test DSL, TCK, mocks, integration tests, coverage report
 compensation/               Compensation domain, API, core, server, and React dashboard
+view-store/                 View engine storage backend: API, domain, Spring Boot starter, standalone server
 typescript/                 TypeScript client packages moving in from fetcher; see typescript/AGENTS.md
 example/                    Kotlin order/cart sample and Java transfer sample
 documentation/              VitePress documentation site

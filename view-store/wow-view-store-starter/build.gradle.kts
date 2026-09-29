@@ -1,0 +1,25 @@
+plugins {
+    alias(libs.plugins.kotlin.spring)
+    kotlin("kapt")
+}
+dependencies {
+    kapt(platform(project(":wow-dependencies")))
+    api(project(":wow-view-store-domain"))
+    api(project(":wow-spring-boot-starter"))
+    api(project(":wow-webflux"))
+    api(project(":wow-query"))
+    compileOnly("org.springdoc:springdoc-openapi-starter-common")
+    kapt("org.springframework.boot:spring-boot-configuration-processor")
+    kapt("org.springframework.boot:spring-boot-autoconfigure-processor")
+    testImplementation(project(":wow-test"))
+    testImplementation(project(":wow-tck"))
+    testImplementation(project(":wow-mongo"))
+    testImplementation(project(":example-domain"))
+    testImplementation("me.ahoo.cosid:cosid-spring-boot-starter")
+    testImplementation("org.springframework.boot:spring-boot-starter-actuator")
+    testImplementation("org.springframework.boot:spring-boot-starter-data-mongodb-reactive")
+    testImplementation("org.springframework.boot:spring-boot-starter-test")
+    testImplementation("org.springframework.boot:spring-boot-starter-webflux")
+    testImplementation("org.springdoc:springdoc-openapi-starter-webflux-ui")
+    testImplementation("io.projectreactor:reactor-test")
+}

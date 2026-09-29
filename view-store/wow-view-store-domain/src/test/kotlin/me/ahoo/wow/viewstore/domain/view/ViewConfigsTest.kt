@@ -1,0 +1,61 @@
+/*
+ * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package me.ahoo.wow.viewstore.domain.view
+
+import me.ahoo.test.asserts.assert
+import me.ahoo.test.asserts.assertThrownBy
+import me.ahoo.wow.serialization.JsonSerializer
+import me.ahoo.wow.viewstore.api.ViewKind
+import me.ahoo.wow.viewstore.domain.ViewFixtures.dashboardConfig
+import me.ahoo.wow.viewstore.domain.ViewStoreException
+import org.junit.jupiter.api.Test
+
+class ViewConfigsTest {
+    @Test
+    fun `a config must be an object`() {
+        assertThrownBy<ViewStoreException> { ViewConfigs.requireValid(null) }
+        assertThrownBy<ViewStoreException> { ViewConfigs.requireValid(JsonSerializer.createArrayNode()) }
+    }
+
+    @Test
+    fun `a config names one of the three kinds`() {
+        ViewKind.entries.forEach { kind ->
+            ViewConfigs.requireValid(JsonSerializer.createObjectNode().put("kind", kind.value)).assert().isEqualTo(kind)
+        }
+        assertThrownBy<ViewStoreException> { ViewConfigs.requireValid(JsonSerializer.createObjectNode()) }
+        assertThrownBy<ViewStoreException> {
+            ViewConfigs.requireValid(JsonSerializer.createObjectNode().put("kind", 1))
+        }
+    }
+
+    @Test
+    fun `a config of exactly the limit passes`() {
+        val config = JsonSerializer.createObjectNode().put("kind", "record")
+        val overhead = config.put("n", "").toString().toByteArray().size
+        config.put("n", "x".repeat(ViewConfigs.MAX_CONFIG_BYTES - overhead))
+        ViewConfigs.requireValid(config).assert().isEqualTo(ViewKind.RECORD)
+        config.put("n", "x".repeat(ViewConfigs.MAX_CONFIG_BYTES - overhead + 1))
+        assertThrownBy<ViewStoreException> { ViewConfigs.requireValid(config) }
+    }
+
+    @Test
+    fun `only a dashboard's panels reference views`() {
+        ViewConfigs.references(ViewKind.DASHBOARD, dashboardConfig("a", "b")).assert().containsExactly("a", "b")
+        ViewConfigs.references(ViewKind.RECORD, dashboardConfig("a")).assert().isEmpty()
+        ViewConfigs.references(ViewKind.DASHBOARD, JsonSerializer.createObjectNode()).assert().isEmpty()
+        val odd = JsonSerializer.createObjectNode()
+        odd.putArray("panels").addObject().put("instanceId", 7)
+        ViewConfigs.references(ViewKind.DASHBOARD, odd).assert().isEmpty()
+    }
+}
