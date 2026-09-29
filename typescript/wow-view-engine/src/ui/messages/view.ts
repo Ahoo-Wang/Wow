@@ -230,6 +230,8 @@ export const viewMessages = {
   'view.open.not-found': 'No view named {id}.',
   'view.open.wrong-kind':
     'This view is of another kind ({kind}), so this page cannot show it.',
+  'view.open.other-definition':
+    'This view belongs to another page, so this page cannot show it.',
   'view.preferences.default-forbidden': 'You may not set the default view.',
   'view.preferences.failed': 'Your view preferences could not be saved.',
   // Loading them is the other half, and a different sentence: the list is

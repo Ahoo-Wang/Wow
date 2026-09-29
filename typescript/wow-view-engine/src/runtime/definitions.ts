@@ -117,6 +117,22 @@ export class DefinitionRegistry {
     return definition;
   }
 
+  /**
+   * `instance`, where the caller draws views of `definitionId` — or of any
+   * definition, left out — and otherwise a refusal
+   * (`OpenOptions.definitionId`).
+   */
+  ofDefinition(
+    instance: ViewInstance,
+    definitionId: string | undefined,
+  ): ViewInstance {
+    if (definitionId === undefined || instance.definitionId === definitionId)
+      return instance;
+    throw new ViewCommandError(
+      issue('view.open.other-definition', [], { id: instance.id }),
+    );
+  }
+
   /** One instance a definition declares in code, by its declared id. */
   systemInstance(definitionId: string, viewId: string): ViewInstance {
     const definition = this.require(definitionId);

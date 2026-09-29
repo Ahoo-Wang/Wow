@@ -42,9 +42,11 @@ import {
   resourcesOf,
   testSource,
 } from './fixtures.js';
+import { settle } from './fixtures/ui.js';
 import { useViewMessages } from '../src/ui/MessagesProvider.js';
 import {
   boardErrorTitle,
+  ofAnotherBoard,
   panelsToFix,
   saidByBoard,
 } from '../src/ui/panelsToFix.js';
@@ -140,6 +142,18 @@ describe('the error line over a board', () => {
     );
   });
 
+  it('leaves what is about another declared board to that board', () => {
+    const sibling = error(['views', 0, 'config', 'panels', 3, 'view']);
+    expect(ofAnotherBoard(sibling, 1)).toBe(true);
+    expect(ofAnotherBoard(sibling, 0)).toBe(false);
+    // A board the definition does not declare has every declared one as
+    // another.
+    expect(ofAnotherBoard(sibling, null)).toBe(true);
+    // Neither the board's own findings nor the definition's own are.
+    expect(ofAnotherBoard(error(['panels', 3]), 1)).toBe(false);
+    expect(ofAnotherBoard(error(['fields', 0]), 1)).toBe(false);
+  });
+
   it('heads the line with the panels, or with the board, in both catalogues', () => {
     const en = renderHook(() => useViewMessages()).result.current;
     const zh = renderHook(() => useViewMessages(), {
@@ -216,6 +230,7 @@ function brokenBoards(): ViewEngine {
           ],
         }),
       },
+      { id: 'healthy', title: 'Healthy board', config: dashboardConfig() },
     ],
   });
   // 状态 is an enum, which takes 属于 and never 等于.
@@ -276,14 +291,37 @@ describe('the error line over a declared board, drawn', () => {
     expect(title).toBe('2 panels need fixing before they can show');
     // One entry per finding, and the fold says as many: the two panels
     // here, each once, by its name and its field's and operator's names —
-    // never the config's `status` and `EQ` — and the sibling board's,
-    // which only the definition says.
+    // never the config's `status` and `EQ`. The sibling board's is that
+    // board's to say, when it is open.
     expect(items).toEqual([
       'Panel one: Status does not support is.',
       'Panel two: Status does not support is.',
-      'warehouse does not support EQ.',
     ]);
     expect(shown).toBe(items.length);
+  });
+
+  it('says nothing over a board that runs, however broken its siblings are', async () => {
+    // Both other boards of the definition are broken, three findings in
+    // all; none is about this one, so none heads — or joins — a line over
+    // it, and 「这个仪表盘要先修正才能运行」 is never said of a board that
+    // runs (#3779 re-review). Each is said on its own board.
+    render(
+      <ViewSurface>
+        <DashboardWorkbench
+          engine={brokenBoards()}
+          definitionId="overview"
+          instanceId={systemInstanceId('overview', 'healthy')}
+        />
+      </ViewSurface>,
+    );
+    await screen.findByRole('heading', { name: 'Healthy board' });
+    await settle();
+    expect(
+      document.querySelector('[data-slot="status-strip"][data-tone="error"]'),
+    ).toBeNull();
+    expect(
+      screen.queryByText('This dashboard needs fixing before it runs'),
+    ).toBeNull();
   });
 
   it('keeps an embedded board’s panel findings in their frames, said once', async () => {

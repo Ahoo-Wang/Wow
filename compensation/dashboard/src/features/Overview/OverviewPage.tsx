@@ -36,8 +36,11 @@ import { BOARDS_PATH, withView } from "@/views/routes.ts";
 export default function OverviewPage() {
   const { t } = useI18n();
   // The filters the reader left the board under, which the engine keeps in
-  // the history entry: the workbench opens the board under them too.
-  const { filters } = (useLocation().state ?? {}) as ViewRouteState;
+  // the history entry under the board (`boards`), or — before the board
+  // wrote any — what the page was handed: the workbench opens the board
+  // under them too.
+  const state = (useLocation().state ?? {}) as ViewRouteState;
+  const filters = state.boards?.[OVERVIEW_BOARD]?.filters ?? state.filters;
 
   return (
     // The page stands on the board's own ground (`bg-canvas`), header and

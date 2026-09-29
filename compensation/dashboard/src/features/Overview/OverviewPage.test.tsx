@@ -23,6 +23,7 @@ import { createMemoryRouter, RouterProvider, useLocation } from "react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { I18nProvider } from "@/i18n.tsx";
 import type { ExecutionCommands } from "../Executions/executionCommands.ts";
+import { OVERVIEW_BOARD } from "@/views/overview.ts";
 import OverviewPage from "./OverviewPage.tsx";
 import { withViews } from "../App/withViews.tsx";
 
@@ -184,7 +185,9 @@ describe("OverviewPage", () => {
       expect(
         JSON.parse(screen.getByTestId("rendered-state").textContent!),
       ).toMatchObject({
-        filters: { values: { window: { amount: 7 } } },
+        boards: {
+          [OVERVIEW_BOARD]: { filters: { values: { window: { amount: 7 } } } },
+        },
       }),
     );
     fireEvent.click(

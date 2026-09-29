@@ -829,6 +829,23 @@ describe('grownLayout', () => {
     });
   });
 
+  it('keeps a panel’s rows under the lowest panel above it, not under each (D68)', () => {
+    // a  b      a is short and grows a lot; b beside it is tall. c under
+    // a  b      both sat on b's bottom. Grown a now ends lower than b: c
+    //    b      rests right under it, as it rested right under b — not six
+    // c c c     rows under a, which is the gap it had to a far panel.
+    const stored = [
+      box('a', 0, 0, 12, 2),
+      box('b', 12, 0, 12, 8),
+      box('c', 0, 8, 24, 2),
+    ];
+    expect(byId(grownLayout(stored, new Map([['a', 10]])))).toEqual({
+      a: { x: 0, y: 0, w: 12, h: 10 },
+      b: { x: 12, y: 0, w: 12, h: 8 },
+      c: { x: 0, y: 10, w: 24, h: 2 },
+    });
+  });
+
   it('never shrinks a panel, and leaves a board nothing grows on alone', () => {
     const stored = [box('a', 0, 0, 12, 5), box('b', 0, 5, 12, 4)];
     expect(grownLayout(stored, new Map([['a', 3]]))).toEqual(stored);

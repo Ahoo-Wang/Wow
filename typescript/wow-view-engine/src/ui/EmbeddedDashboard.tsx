@@ -57,7 +57,7 @@ import type { EmbedBaseProps, EmbedInteraction } from './embed/options.js';
 import { useKindIssue, useKindWord } from './kinds.js';
 import { StartingWords, useViewMessages } from './MessagesProvider.js';
 import { useEngine, useRoutedNavigate } from './ViewEngineProvider.js';
-import { useAddressedBoard } from './address.js';
+import { boardKey, useAddressedBoard } from './address.js';
 import { ErrorStrip, WarningStrip } from './StatusStrip.js';
 import { boardErrorTitle } from './panelsToFix.js';
 
@@ -175,7 +175,11 @@ const DASHBOARD: readonly ViewKind[] = ['dashboard'];
 export function EmbeddedDashboard(given: EmbeddedDashboardProps) {
   const engine = useEngine(given.engine);
   const onNavigate = useRoutedNavigate(given.onNavigate);
-  const props = { ...useAddressedBoard(given), engine, onNavigate };
+  const props = {
+    ...useAddressedBoard(given, boardKey(given.instanceId)),
+    engine,
+    onNavigate,
+  };
   const { instanceId } = props;
   // Where the board opens and what its filters hold as it does — the
   // page's held filters among them, so the first query is already under

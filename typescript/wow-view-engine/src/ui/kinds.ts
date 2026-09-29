@@ -119,6 +119,7 @@ const DASHBOARD_WORDS: Partial<Record<MessageKey, MessageKey>> = {
   'view.open.failed': 'label.dashboard.open-failed',
   'view.open.not-found': 'label.dashboard.not-found',
   'view.open.wrong-kind': 'label.dashboard.wrong-kind',
+  'view.open.other-definition': 'label.dashboard.other-definition',
   'view.open.failed.not_found': 'label.dashboard.gone',
   'view.open.failed.forbidden': 'label.dashboard.open-forbidden',
   'view.open.failed.unavailable': 'label.dashboard.open-unavailable',

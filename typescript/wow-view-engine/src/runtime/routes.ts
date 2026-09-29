@@ -39,6 +39,13 @@ export interface ViewRouteState {
   filters?: DashboardFilters;
   /** The tab a board opens on (`initialTab`); absent, where it was last read. */
   tab?: string | null;
+  /**
+   * What each board on the page left its filters and tab at, by the board
+   * (`/ui`'s `ViewHost` writes it as the reader changes them): several
+   * boards on one page each find their own again. A board that wrote
+   * nothing here yet reads `filters` and `tab` above.
+   */
+  boards?: Record<string, { filters?: DashboardFilters; tab?: string | null }>;
 }
 
 /**
@@ -90,9 +97,19 @@ export interface ViewLocation {
  * engine reads and moves it — the one bridge to it, whichever library it
  * is. `/react-router`'s `useReactRouter` is one; a host on another router
  * writes these two members over it.
+ *
+ * The contract is the object's identity: **a new `ViewRouter` object
+ * whenever `location` changes, and the same object while it does not.**
+ * `ViewHost` hands it down through context, and everything that reads the
+ * address — the open view, the open record, a board's filters and tab —
+ * re-reads it when, and only when, the object is new. A router mutated in
+ * place is never seen to move; one rebuilt on every render reads the
+ * address anew on every render. Build it with `useMemo` over the
+ * location's parts, as `useReactRouter` does. `go` is read at the moment
+ * it is called, so it may be a new function each time.
  */
 export interface ViewRouter {
-  /** Where the router is now; a new object as it moves. */
+  /** Where the router is now: a new object, in a new router, as it moves. */
   readonly location: ViewLocation;
   /**
    * Goes to `path` — the host's path, its search included — handing the

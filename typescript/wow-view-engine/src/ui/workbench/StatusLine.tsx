@@ -20,7 +20,11 @@ import { resultIssues } from '../../runtime/source.js';
 import { useKindIssue } from '../kinds.js';
 import { SPACE } from '../layout.js';
 import { useViewMessages } from '../MessagesProvider.js';
-import { boardErrorTitle, saidByBoard } from '../panelsToFix.js';
+import {
+  boardErrorTitle,
+  ofAnotherBoard,
+  saidByBoard,
+} from '../panelsToFix.js';
 import {
   ErrorStrip,
   NoteStrip,
@@ -115,14 +119,25 @@ export function StatusLine({
   // found its panels' errors too, at `['views', n, 'config', 'panels', m]`,
   // and the board reports each at `['panels', m]` by the names a reader
   // sees (「状态」, 「等于」) — said twice, once in the config's own keys.
+  //
+  // And what is about another board the definition declares: its panels,
+  // its filters and its grid are that board's to say when it is open, and
+  // over this one they named no trouble of it — worse, they headed a board
+  // that runs 「这个仪表盘要先修正才能运行」 (#3779 re-review).
   const board = kind === 'dashboard' ? workbench.declaredAt : null;
+  const definitionIssues =
+    kind === 'dashboard'
+      ? workbench.definitionIssues.filter(
+          found => !ofAnotherBoard(found, board),
+        )
+      : workbench.definitionIssues;
   const errors = [
     ...filter.unmarked
       .filter(
         found => found.code !== 'record.filter.required' && offered(found),
       )
       .map(nameIssue),
-    ...workbench.definitionIssues
+    ...definitionIssues
       .filter(found => !saidByBoard(found, board))
       .map(ownWord),
   ];
@@ -194,7 +209,7 @@ export function StatusLine({
       <WarningStrip
         issues={[
           ...(warnings ?? [...state.issues, ...said]).map(nameIssue),
-          ...workbench.definitionIssues.map(ownWord),
+          ...definitionIssues.map(ownWord),
           ...(list.preferencesError
             ? [
                 {

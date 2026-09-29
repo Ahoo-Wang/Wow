@@ -36,7 +36,7 @@ export function panelsToFix(
   const panels = new Set<number>();
   for (const found of issues) {
     if (found.severity !== 'error') continue;
-    if (found.path[0] === 'views' && found.path[1] !== view) continue;
+    if (ofAnotherBoard(found, view)) continue;
     const panel =
       found.path[0] === 'panels' && typeof found.path[1] === 'number'
         ? found.path[1]
@@ -55,6 +55,18 @@ export function panelsToFix(
  */
 export function saidByBoard(found: Issue, view: number | null): boolean {
   return found.severity === 'error' && declaredPanel(found.path, view) !== null;
+}
+
+/**
+ * Whether a definition's finding is about another view it declares than
+ * the board open at `view` (`['views', n, …]`, `n` not `view`; any of them
+ * when the board open is not one it declares). On a board it is left to
+ * the board it is about, which says it when it is open — its panels by
+ * their names, its own the definition's way — so it never heads, nor
+ * joins, the line over a board it says nothing of.
+ */
+export function ofAnotherBoard(found: Issue, view: number | null): boolean {
+  return found.path[0] === 'views' && found.path[1] !== view;
 }
 
 /**

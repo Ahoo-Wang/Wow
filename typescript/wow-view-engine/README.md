@@ -319,7 +319,7 @@ export function Host({ children }: { children: ReactNode }) {
 | `colorMode`, `rememberColorMode` | theme    | Light or dark on `<html>`: `system` by default, followed live; `light` or `dark` to start pinned; `host` where you paint it yourself. `useColorMode()` gives your switch `{ mode, setMode }`, kept under the `localStorage` key you name                                                                                                                                                                                                                                                                                                                                                   |
 | `navigate`                       | router   | Every way off in your own hands rather than the router's: handed resolved through the target's `route` — `{ kind: 'route', path, state }` — or, for a URL and a resource with no route, as it came                                                                                                                                                                                                                                                                                                                                                                                         |
 
-**With a router, the engine keeps the address.** Every way off a board or a view — **Open in the workbench**, a follow-up on a group, a panel's destination, the way back to a board — goes to the route of the resource it leads to, with what the page opens with as the history entry's state (`ViewRouteState`: the view handed over, a board's `filters` and `tab`); a path of yours goes through the router too, and another site opens apart. A `DataWorkbench` or `DashboardWorkbench` given no `instanceId` opens the address's `?view=` and writes the reader's pick back, a new entry per view; one given no `handOver` opens the view the entry holds; a board — a workbench's or an `EmbeddedDashboard` — given neither half of its filters' pair (`initialFilters`, `onFiltersChange`) or of its tab's reads them from the entry and keeps them there as the reader changes them. A bound resource's record detail follows `?id=`, unless its `reading` holds `open` itself. Your own props still win, each pair on its own. Another router is two members:
+**With a router, the engine keeps the address.** Every way off a board or a view — **Open in the workbench**, a follow-up on a group, a panel's destination, the way back to a board — goes to the route of the resource it leads to, with what the page opens with as the history entry's state (`ViewRouteState`: the view handed over, a board's `filters` and `tab`); a path of yours goes through the router too, and another site opens apart. A `DataWorkbench` or `DashboardWorkbench` given no `instanceId` opens the address's `?view=` — a view of its own definition, so two on one page leave each other's alone — and writes the reader's pick back, a new entry per view; one given no `handOver` opens the view the entry holds; a board — a workbench's or an `EmbeddedDashboard` — given neither half of its filters' pair (`initialFilters`, `onFiltersChange`) or of its tab's reads them from the entry and keeps them there as the reader changes them, each board under its own, so several on one page each find theirs again. A bound resource's record detail follows `?id=`, unless its `reading` holds `open` itself. Your own props still win, each pair on its own. Another router is two members:
 
 <!-- typecheck-context
 type ViewRouter = import('@ahoo-wang/wow-view-engine/ui').ViewRouter;
@@ -335,6 +335,8 @@ const router: ViewRouter = {
   go: (path, options) => push(path, options?.state, options?.replace ?? false),
 };
 ```
+
+Make it a new object whenever the location moves, and the same one while it does not — `useMemo` over the location's parts, as `useReactRouter` does: everything that reads the address reads it again when, and only when, the router object is new.
 
 **Your navigation is data.** The engine draws views and leaves the page to you, so there is no page shell; `useViewNavigation()` gives your shell its places instead — each resource you bound a `route` to, in the order you registered them: `{ id, kind, title, path, current, views }`, `views` being its system views (a dashboard definition's system boards), each `{ id, title, path, current }`. The titles are said in the words in force, and `current` reads the router's address. Draw it with your own components — a shadcn `Sidebar`, a top bar — under whatever names you give your places:
 
@@ -633,6 +635,8 @@ Filling the screen: with `expandable` on, an interactive embed draws the control
 
 #### Theme: pick one of two paths
 
+> **Already switching light and dark yourself** (next-themes, a `.dark` toggle of your own)? Write **`colorMode="host"`** on `ViewHost`. Left at its default, the engine paints `<html>`'s `.dark` too, and the two fight over it.
+
 Import `styles.css`, then make one choice on `ViewHost`:
 
 | Path                   | For                                                 | Write                                                                              | The engine                                                                                                         |
@@ -648,7 +652,7 @@ import '@ahoo-wang/wow-view-engine/shadcn-bridge.css';
 // import '@ahoo-wang/wow-view-engine/themes/porcelain.css';
 ```
 
-**Light and dark are `ViewHost`'s.** `colorMode="system"`, the default, paints `<html>`'s `.dark` and `color-scheme` before the first paint and follows the system; `light` or `dark` start pinned; `rememberColorMode` keeps the reader's pick, made through `useColorMode()`. A host that already paints its mode (next-themes, a switch of its own) says `colorMode="host"`, and the views follow its `.dark`. `theme="light"`, `"dark"` or `"system"` on a surface still pins that one view. Dark values of your own are `--fve-dark-*`, not `--fve-*` under `.dark`: a view pinned light on a dark page would inherit those.
+**Light and dark are `ViewHost`'s.** `colorMode="system"`, the default, paints `<html>`'s `.dark` and `color-scheme` before the first paint and follows the system; `light` or `dark` start pinned; `rememberColorMode` keeps the reader's pick, made through `useColorMode()`; `host`, as above, follows yours. `theme="light"`, `"dark"` or `"system"` on a surface still pins that one view. Dark values of your own are `--fve-dark-*`, not `--fve-*` under `.dark`: a view pinned light on a dark page would inherit those.
 
 **Your own chrome** wears the theme with `className="fve-tokens"` on the shell that uses it — not on `<body>`: the boundary brings a preflight — and on the portal of each popup of your own, which leaves the shell for `<body>` (`<Menu.Portal className="fve-tokens">`).
 

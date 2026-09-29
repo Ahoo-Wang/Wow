@@ -81,6 +81,8 @@ export const dashboardMessages = {
   // not is the one thing the reader of this page needs to know.
   'label.dashboard.wrong-kind':
     'This is not a dashboard ({kind}), so this page cannot show it.',
+  'label.dashboard.other-definition':
+    'This dashboard belongs to another page, so this page cannot show it.',
   'label.dashboard.gone': 'This dashboard no longer exists.',
   'label.dashboard.open-forbidden': 'You may not open this dashboard.',
   'label.dashboard.open-unavailable':

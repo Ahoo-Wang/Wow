@@ -244,7 +244,12 @@ function DataWorkbenchSurface({
   const record = useBoundRecord(definitionId, given);
   // Under a `ViewHost`'s router, the address's view and what the page was
   // handed, where the host passes neither (host-integration.md 4.2).
-  const addressed = useAddressedInstance(instanceId, onInstanceChange);
+  const addressed = useAddressedInstance(
+    engine,
+    definitionId,
+    instanceId,
+    onInstanceChange,
+  );
   const handed = useAddressedHandOver(handOver);
   // The host's wording, resolved here rather than read off the provider:
   // `ViewSurface` is inside `WorkbenchShell`, so this component is above the
