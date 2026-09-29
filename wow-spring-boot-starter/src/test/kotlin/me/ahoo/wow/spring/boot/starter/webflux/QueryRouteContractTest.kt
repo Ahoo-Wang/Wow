@@ -22,6 +22,7 @@ import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.AndFilter
 import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.IListQuery
+import me.ahoo.wow.api.query.OwnerIdFilter
 import me.ahoo.wow.api.query.Queryable
 import me.ahoo.wow.api.query.TenantIdFilter
 import me.ahoo.wow.api.query.schema.QueryCapability
@@ -172,6 +173,11 @@ class QueryRouteContractTest {
         val tenant = route.requestTenant()
         call.filter.leaves().assert().describedAs("${route.routeId} backend filter").contains(tenant)
         call.context.queryScope().leaves().assert().describedAs("${route.routeId} query scope").contains(tenant)
+        if ("{$OWNER_ID_VARIABLE}" in route.path) {
+            // An owner route (alone or with the tenant) narrows to its owner as well.
+            call.context.queryScope().leaves().assert().describedAs("${route.routeId} query scope")
+                .contains(OwnerIdFilter(PATH_VALUES.getValue(OWNER_ID_VARIABLE)))
+        }
         call.context.queryEntry().assert().describedAs("${route.routeId} query entry").isEqualTo(QueryEntry.HTTP)
     }
 
@@ -317,13 +323,14 @@ class QueryRouteContractTest {
 
         val ORDER: NamedAggregate = Order::class.java.aggregateRouteMetadata().aggregateMetadata.namedAggregate
         const val TENANT_ID_VARIABLE = "tenantId"
+        const val OWNER_ID_VARIABLE = "ownerId"
         const val HEADER_TENANT = "header-tenant"
         const val PATH_TENANT = "path-tenant"
 
         val PATH_VARIABLE = Regex("\\{([^}]+)}")
         val PATH_VALUES = mapOf(
             TENANT_ID_VARIABLE to PATH_TENANT,
-            "ownerId" to "request-owner",
+            OWNER_ID_VARIABLE to "request-owner",
             "spaceId" to "request-space",
             "id" to "order-1",
             "headVersion" to "1",

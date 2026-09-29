@@ -112,9 +112,10 @@ The same single, single/state, list, list/state, paged, paged/state, cursor, cur
 ```text
 POST /tenant/{tenantId}/sales-order/snapshot/{operation}
 POST /owner/{ownerId}/sales-order/snapshot/{operation}
+POST /tenant/{tenantId}/owner/{ownerId}/sales-order/snapshot/{operation}
 ```
 
-Here, `{operation}` is one of the nine operations above. List can negotiate JSON or SSE; single, paged, and cursor return JSON. Aggregation and [Query Model Schema](./query-model-schema.md) routes are separate contracts. Generated [OpenAPI](../open-api.md) from the running application is the source of truth for exact paths. An HTTP guard can still limit a DTO that is otherwise valid.
+The tenant + owner variant exists when the aggregate has both a dynamic tenant (no `@StaticTenantId`) and an owner (`owner` other than `NEVER`), and narrows the query to both, in the segment order of the command routes; a gateway that secures by path can confine a caller to its own owner within its own tenant. A TypeScript query client targets it with `resourceAttribution: ResourceAttributionPathSpec.TENANT_OWNER`, the `{tenantId}` and `{ownerId}` being filled like those of the other variants. Here, `{operation}` is one of the nine operations above. List can negotiate JSON or SSE; single, paged, and cursor return JSON. Aggregation and [Query Model Schema](./query-model-schema.md) routes are separate contracts. Generated [OpenAPI](../open-api.md) from the running application is the source of truth for exact paths. An HTTP guard can still limit a DTO that is otherwise valid.
 
 ## Complete Snapshot, State-only, and Dynamic Results
 

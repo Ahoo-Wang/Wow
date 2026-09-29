@@ -13,7 +13,7 @@ description: 用七个业务场景说明事件流根文档与展开事件的 JVM
 
 - **JVM Gateway**：`EventStreamQueryGateway.aggregate(namedAggregate, query)` 通过策略链执行聚合。
 - **JVM Gateway**：聚合级 `EventStreamQueryGateway` 可通过 `query.query(queryGateway)` 执行；Spring 管理的 Gateway 进入完整策略链，直接 Backend Factory 的绕过边界见[查询后端](./query-backend.md)。
-- **WebFlux HTTP/OpenAPI**：当前 `sales-order` OpenAPI 已证明 `POST /sales-order/event/aggregation`、`POST /tenant/{tenantId}/sales-order/event/aggregation` 与 `POST /owner/{ownerId}/sales-order/event/aggregation`。基础路由不包含 tenant/owner 路径作用域；tenant/owner 变体通过路径参数提供相应作用域。
+- **WebFlux HTTP/OpenAPI**：当前 `sales-order` OpenAPI 已证明 `POST /sales-order/event/aggregation`、`POST /tenant/{tenantId}/sales-order/event/aggregation`、`POST /owner/{ownerId}/sales-order/event/aggregation` 与 `POST /tenant/{tenantId}/owner/{ownerId}/sales-order/event/aggregation`。基础路由不包含 tenant/owner 路径作用域；tenant/owner 变体通过路径参数提供相应作用域。
 - **Schema HTTP**：`GET /sales-order/event/schema` 是独立的模型级路由，没有 tenant/owner 变体。
 - **公共合同**：Elements、group、metric、alias、排序与限制见[聚合查询](./aggregation-query.md)，根过滤的 Kotlin DSL 见[过滤条件](./filter-expression.md)，字段能力以 [Query Model Schema](./query-model-schema.md)为准。
 

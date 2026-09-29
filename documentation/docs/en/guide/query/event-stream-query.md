@@ -80,6 +80,7 @@ The same list, paged, cursor, and count operations are also published with tenan
 ```text
 POST /tenant/{tenantId}/sales-order/event/{list|paged|cursor|count}
 POST /owner/{ownerId}/sales-order/event/{list|paged|cursor|count}
+POST /tenant/{tenantId}/owner/{ownerId}/sales-order/event/{list|paged|cursor|count}
 ```
 
 Aggregation and Schema are contracts separate from the data-query shapes above:
@@ -88,6 +89,7 @@ Aggregation and Schema are contracts separate from the data-query shapes above:
 POST /sales-order/event/aggregation
 POST /tenant/{tenantId}/sales-order/event/aggregation
 POST /owner/{ownerId}/sales-order/event/aggregation
+POST /tenant/{tenantId}/owner/{ownerId}/sales-order/event/aggregation
 GET /sales-order/event/schema
 ```
 

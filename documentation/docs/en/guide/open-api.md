@@ -89,7 +89,7 @@ Spaced routes declare the `Wow-Space-Id` request header. Space does not add a pa
 
 ### Owner Resources
 
-`AggregateRoute.Owner.ALWAYS` adds `owner/{ownerId}` and keeps the resource ID on default owned routes; snapshot queries publish both base and owner-scoped variants:
+`AggregateRoute.Owner.ALWAYS` adds `owner/{ownerId}` and keeps the resource ID on default owned routes; snapshot and event-stream queries publish both base and owner-scoped variants, and, when the aggregate also has a dynamic tenant, a `tenant/{tenantId}/owner/{ownerId}` variant that narrows to both:
 
 ```kotlin
 @AggregateRoot

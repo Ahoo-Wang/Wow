@@ -16418,6 +16418,573 @@
         "tags" : [ "example.order" ]
       }
     },
+    "/tenant/{tenantId}/owner/{ownerId}/sales-order/event/aggregation" : {
+      "post" : {
+        "operationId" : "example.order.tenant.owner.event.aggregation",
+        "parameters" : [ {
+          "$ref" : "#/components/parameters/wow.Wow-Space-Id"
+        }, {
+          "$ref" : "#/components/parameters/wow.ownerId"
+        }, {
+          "$ref" : "#/components/parameters/wow.tenantId"
+        } ],
+        "requestBody" : {
+          "$ref" : "#/components/requestBodies/wow.AggregationQuery"
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "items" : {
+                    "additionalProperties" : { },
+                    "type" : "object"
+                  },
+                  "type" : "array"
+                }
+              },
+              "text/event-stream" : {
+                "schema" : {
+                  "items" : {
+                    "properties" : {
+                      "data" : {
+                        "additionalProperties" : { },
+                        "type" : "object"
+                      },
+                      "event" : {
+                        "type" : "string"
+                      },
+                      "id" : {
+                        "type" : "string"
+                      },
+                      "retry" : {
+                        "format" : "int32",
+                        "type" : "integer"
+                      }
+                    },
+                    "required" : [ "data" ],
+                    "type" : "object"
+                  },
+                  "type" : "array"
+                }
+              }
+            },
+            "headers" : {
+              "Wow-Error-Code" : {
+                "$ref" : "#/components/headers/wow.Wow-Error-Code"
+              }
+            }
+          }
+        },
+        "tags" : [ "example.order" ]
+      }
+    },
+    "/tenant/{tenantId}/owner/{ownerId}/sales-order/event/count" : {
+      "post" : {
+        "operationId" : "example.order.tenant.owner.event.count",
+        "parameters" : [ {
+          "$ref" : "#/components/parameters/wow.Wow-Space-Id"
+        }, {
+          "$ref" : "#/components/parameters/wow.ownerId"
+        }, {
+          "$ref" : "#/components/parameters/wow.tenantId"
+        } ],
+        "requestBody" : {
+          "$ref" : "#/components/requestBodies/wow.CountQuery"
+        },
+        "responses" : {
+          "200" : {
+            "$ref" : "#/components/responses/wow.CountQuery"
+          }
+        },
+        "tags" : [ "example.order" ]
+      }
+    },
+    "/tenant/{tenantId}/owner/{ownerId}/sales-order/event/cursor" : {
+      "post" : {
+        "operationId" : "example.order.tenant.owner.event.cursor_query",
+        "parameters" : [ {
+          "$ref" : "#/components/parameters/wow.Wow-Space-Id"
+        }, {
+          "$ref" : "#/components/parameters/wow.ownerId"
+        }, {
+          "$ref" : "#/components/parameters/wow.tenantId"
+        } ],
+        "requestBody" : {
+          "$ref" : "#/components/requestBodies/wow.CursorQuery"
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/example.order.OrderAggregatedDomainEventStreamCursorPage"
+                }
+              }
+            },
+            "headers" : {
+              "Wow-Error-Code" : {
+                "$ref" : "#/components/headers/wow.Wow-Error-Code"
+              }
+            }
+          }
+        },
+        "tags" : [ "example.order" ]
+      }
+    },
+    "/tenant/{tenantId}/owner/{ownerId}/sales-order/event/list" : {
+      "post" : {
+        "operationId" : "example.order.tenant.owner.event.list_query",
+        "parameters" : [ {
+          "$ref" : "#/components/parameters/wow.Wow-Space-Id"
+        }, {
+          "$ref" : "#/components/parameters/wow.ownerId"
+        }, {
+          "$ref" : "#/components/parameters/wow.tenantId"
+        } ],
+        "requestBody" : {
+          "$ref" : "#/components/requestBodies/wow.ListQuery"
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/example.order.OrderAggregatedDomainEventStream"
+                  },
+                  "type" : "array"
+                }
+              },
+              "text/event-stream" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/example.order.OrderAggregatedDomainEventStreamServerSentEventNonNullData"
+                  },
+                  "type" : "array"
+                }
+              }
+            },
+            "headers" : {
+              "Wow-Error-Code" : {
+                "$ref" : "#/components/headers/wow.Wow-Error-Code"
+              }
+            }
+          }
+        },
+        "tags" : [ "example.order" ]
+      }
+    },
+    "/tenant/{tenantId}/owner/{ownerId}/sales-order/event/paged" : {
+      "post" : {
+        "operationId" : "example.order.tenant.owner.event.paged_query",
+        "parameters" : [ {
+          "$ref" : "#/components/parameters/wow.Wow-Space-Id"
+        }, {
+          "$ref" : "#/components/parameters/wow.ownerId"
+        }, {
+          "$ref" : "#/components/parameters/wow.tenantId"
+        } ],
+        "requestBody" : {
+          "$ref" : "#/components/requestBodies/wow.PagedQuery"
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/example.order.OrderAggregatedDomainEventStreamPagedList"
+                }
+              }
+            },
+            "headers" : {
+              "Wow-Error-Code" : {
+                "$ref" : "#/components/headers/wow.Wow-Error-Code"
+              }
+            }
+          }
+        },
+        "tags" : [ "example.order" ]
+      }
+    },
+    "/tenant/{tenantId}/owner/{ownerId}/sales-order/snapshot/aggregation" : {
+      "post" : {
+        "operationId" : "example.order.tenant.owner.snapshot.aggregation",
+        "parameters" : [ {
+          "$ref" : "#/components/parameters/wow.Wow-Space-Id"
+        }, {
+          "$ref" : "#/components/parameters/wow.ownerId"
+        }, {
+          "$ref" : "#/components/parameters/wow.tenantId"
+        } ],
+        "requestBody" : {
+          "$ref" : "#/components/requestBodies/example.order.AggregationQuery"
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "items" : {
+                    "additionalProperties" : { },
+                    "type" : "object"
+                  },
+                  "type" : "array"
+                }
+              },
+              "text/event-stream" : {
+                "schema" : {
+                  "items" : {
+                    "properties" : {
+                      "data" : {
+                        "additionalProperties" : { },
+                        "type" : "object"
+                      },
+                      "event" : {
+                        "type" : "string"
+                      },
+                      "id" : {
+                        "type" : "string"
+                      },
+                      "retry" : {
+                        "format" : "int32",
+                        "type" : "integer"
+                      }
+                    },
+                    "required" : [ "data" ],
+                    "type" : "object"
+                  },
+                  "type" : "array"
+                }
+              }
+            },
+            "headers" : {
+              "Wow-Error-Code" : {
+                "$ref" : "#/components/headers/wow.Wow-Error-Code"
+              }
+            }
+          },
+          "408" : {
+            "$ref" : "#/components/responses/wow.RequestTimeout"
+          },
+          "429" : {
+            "$ref" : "#/components/responses/wow.TooManyRequests"
+          }
+        },
+        "tags" : [ "example.order" ]
+      }
+    },
+    "/tenant/{tenantId}/owner/{ownerId}/sales-order/snapshot/count" : {
+      "post" : {
+        "operationId" : "example.order.tenant.owner.snapshot.count",
+        "parameters" : [ {
+          "$ref" : "#/components/parameters/wow.Wow-Space-Id"
+        }, {
+          "$ref" : "#/components/parameters/wow.ownerId"
+        }, {
+          "$ref" : "#/components/parameters/wow.tenantId"
+        } ],
+        "requestBody" : {
+          "$ref" : "#/components/requestBodies/example.order.CountQuery"
+        },
+        "responses" : {
+          "200" : {
+            "$ref" : "#/components/responses/wow.CountQuery"
+          },
+          "408" : {
+            "$ref" : "#/components/responses/wow.RequestTimeout"
+          },
+          "429" : {
+            "$ref" : "#/components/responses/wow.TooManyRequests"
+          }
+        },
+        "tags" : [ "example.order" ]
+      }
+    },
+    "/tenant/{tenantId}/owner/{ownerId}/sales-order/snapshot/cursor" : {
+      "post" : {
+        "operationId" : "example.order.tenant.owner.snapshot.cursor_query",
+        "parameters" : [ {
+          "$ref" : "#/components/parameters/wow.Wow-Space-Id"
+        }, {
+          "$ref" : "#/components/parameters/wow.ownerId"
+        }, {
+          "$ref" : "#/components/parameters/wow.tenantId"
+        } ],
+        "requestBody" : {
+          "$ref" : "#/components/requestBodies/example.order.CursorQuery"
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/example.order.WowExampleOrderStateMaterializedSnapshotCursorPage"
+                }
+              }
+            },
+            "headers" : {
+              "Wow-Error-Code" : {
+                "$ref" : "#/components/headers/wow.Wow-Error-Code"
+              }
+            }
+          }
+        },
+        "tags" : [ "example.order" ]
+      }
+    },
+    "/tenant/{tenantId}/owner/{ownerId}/sales-order/snapshot/cursor/state" : {
+      "post" : {
+        "operationId" : "example.order.tenant.owner.snapshot_state.cursor_query",
+        "parameters" : [ {
+          "$ref" : "#/components/parameters/wow.Wow-Space-Id"
+        }, {
+          "$ref" : "#/components/parameters/wow.ownerId"
+        }, {
+          "$ref" : "#/components/parameters/wow.tenantId"
+        } ],
+        "requestBody" : {
+          "$ref" : "#/components/requestBodies/example.order.CursorQuery"
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/example.order.WowExampleOrderStateCursorPage"
+                }
+              }
+            },
+            "headers" : {
+              "Wow-Error-Code" : {
+                "$ref" : "#/components/headers/wow.Wow-Error-Code"
+              }
+            }
+          }
+        },
+        "tags" : [ "example.order" ]
+      }
+    },
+    "/tenant/{tenantId}/owner/{ownerId}/sales-order/snapshot/list" : {
+      "post" : {
+        "operationId" : "example.order.tenant.owner.snapshot.list_query",
+        "parameters" : [ {
+          "$ref" : "#/components/parameters/wow.Wow-Space-Id"
+        }, {
+          "$ref" : "#/components/parameters/wow.ownerId"
+        }, {
+          "$ref" : "#/components/parameters/wow.tenantId"
+        } ],
+        "requestBody" : {
+          "$ref" : "#/components/requestBodies/example.order.ListQuery"
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/example.order.WowExampleOrderStateMaterializedSnapshot"
+                  },
+                  "type" : "array"
+                }
+              },
+              "text/event-stream" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/example.order.WowExampleOrderStateMaterializedSnapshotServerSentEventNonNullData"
+                  },
+                  "type" : "array"
+                }
+              }
+            },
+            "headers" : {
+              "Wow-Error-Code" : {
+                "$ref" : "#/components/headers/wow.Wow-Error-Code"
+              }
+            }
+          }
+        },
+        "tags" : [ "example.order" ]
+      }
+    },
+    "/tenant/{tenantId}/owner/{ownerId}/sales-order/snapshot/list/state" : {
+      "post" : {
+        "operationId" : "example.order.tenant.owner.snapshot_state.list_query",
+        "parameters" : [ {
+          "$ref" : "#/components/parameters/wow.Wow-Space-Id"
+        }, {
+          "$ref" : "#/components/parameters/wow.ownerId"
+        }, {
+          "$ref" : "#/components/parameters/wow.tenantId"
+        } ],
+        "requestBody" : {
+          "$ref" : "#/components/requestBodies/example.order.ListQuery"
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/example.order.WowExampleOrderState"
+                  },
+                  "type" : "array"
+                }
+              },
+              "text/event-stream" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/example.order.WowExampleOrderStateServerSentEventNonNullData"
+                  },
+                  "type" : "array"
+                }
+              }
+            },
+            "headers" : {
+              "Wow-Error-Code" : {
+                "$ref" : "#/components/headers/wow.Wow-Error-Code"
+              }
+            }
+          }
+        },
+        "tags" : [ "example.order" ]
+      }
+    },
+    "/tenant/{tenantId}/owner/{ownerId}/sales-order/snapshot/paged" : {
+      "post" : {
+        "operationId" : "example.order.tenant.owner.snapshot.paged_query",
+        "parameters" : [ {
+          "$ref" : "#/components/parameters/wow.Wow-Space-Id"
+        }, {
+          "$ref" : "#/components/parameters/wow.ownerId"
+        }, {
+          "$ref" : "#/components/parameters/wow.tenantId"
+        } ],
+        "requestBody" : {
+          "$ref" : "#/components/requestBodies/example.order.PagedQuery"
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/example.order.WowExampleOrderStateMaterializedSnapshotPagedList"
+                }
+              }
+            },
+            "headers" : {
+              "Wow-Error-Code" : {
+                "$ref" : "#/components/headers/wow.Wow-Error-Code"
+              }
+            }
+          }
+        },
+        "tags" : [ "example.order" ]
+      }
+    },
+    "/tenant/{tenantId}/owner/{ownerId}/sales-order/snapshot/paged/state" : {
+      "post" : {
+        "operationId" : "example.order.tenant.owner.snapshot_state.paged_query",
+        "parameters" : [ {
+          "$ref" : "#/components/parameters/wow.Wow-Space-Id"
+        }, {
+          "$ref" : "#/components/parameters/wow.ownerId"
+        }, {
+          "$ref" : "#/components/parameters/wow.tenantId"
+        } ],
+        "requestBody" : {
+          "$ref" : "#/components/requestBodies/example.order.PagedQuery"
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/example.order.WowExampleOrderStatePagedList"
+                }
+              }
+            },
+            "headers" : {
+              "Wow-Error-Code" : {
+                "$ref" : "#/components/headers/wow.Wow-Error-Code"
+              }
+            }
+          }
+        },
+        "tags" : [ "example.order" ]
+      }
+    },
+    "/tenant/{tenantId}/owner/{ownerId}/sales-order/snapshot/single" : {
+      "post" : {
+        "operationId" : "example.order.tenant.owner.snapshot.single",
+        "parameters" : [ {
+          "$ref" : "#/components/parameters/wow.Wow-Space-Id"
+        }, {
+          "$ref" : "#/components/parameters/wow.ownerId"
+        }, {
+          "$ref" : "#/components/parameters/wow.tenantId"
+        } ],
+        "requestBody" : {
+          "$ref" : "#/components/requestBodies/example.order.SingleQuery"
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/example.order.WowExampleOrderStateMaterializedSnapshot"
+                }
+              }
+            },
+            "headers" : {
+              "Wow-Error-Code" : {
+                "$ref" : "#/components/headers/wow.Wow-Error-Code"
+              }
+            }
+          },
+          "404" : {
+            "$ref" : "#/components/responses/wow.NotFound"
+          }
+        },
+        "tags" : [ "example.order" ]
+      }
+    },
+    "/tenant/{tenantId}/owner/{ownerId}/sales-order/snapshot/single/state" : {
+      "post" : {
+        "operationId" : "example.order.tenant.owner.snapshot_state.single",
+        "parameters" : [ {
+          "$ref" : "#/components/parameters/wow.Wow-Space-Id"
+        }, {
+          "$ref" : "#/components/parameters/wow.ownerId"
+        }, {
+          "$ref" : "#/components/parameters/wow.tenantId"
+        } ],
+        "requestBody" : {
+          "$ref" : "#/components/requestBodies/example.order.SingleQuery"
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/example.order.WowExampleOrderState"
+                }
+              }
+            },
+            "headers" : {
+              "Wow-Error-Code" : {
+                "$ref" : "#/components/headers/wow.Wow-Error-Code"
+              }
+            }
+          },
+          "404" : {
+            "$ref" : "#/components/responses/wow.NotFound"
+          }
+        },
+        "tags" : [ "example.order" ]
+      }
+    },
     "/tenant/{tenantId}/owner/{ownerId}/sales-order/{id}" : {
       "delete" : {
         "operationId" : "example.order.default_delete_aggregate",

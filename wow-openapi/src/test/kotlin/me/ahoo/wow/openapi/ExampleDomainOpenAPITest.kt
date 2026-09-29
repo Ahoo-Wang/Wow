@@ -498,6 +498,57 @@ internal class ExampleDomainOpenAPITest {
         }
 
         @Test
+        fun `should publish tenant and owner query variants for an owned aggregate without a static tenant`() {
+            val tenantOwnerRoutes = catalogRoutes().filter { it.routeId.startsWith("example.order.tenant.owner.") }
+            tenantOwnerRoutes.associate { it.routeId to it.path }.assert().isEqualTo(
+                mapOf(
+                    "example.order.tenant.owner.snapshot.count" to "snapshot/count",
+                    "example.order.tenant.owner.snapshot.aggregation" to "snapshot/aggregation",
+                    "example.order.tenant.owner.snapshot.list_query" to "snapshot/list",
+                    "example.order.tenant.owner.snapshot_state.list_query" to "snapshot/list/state",
+                    "example.order.tenant.owner.snapshot.paged_query" to "snapshot/paged",
+                    "example.order.tenant.owner.snapshot_state.paged_query" to "snapshot/paged/state",
+                    "example.order.tenant.owner.snapshot.cursor_query" to "snapshot/cursor",
+                    "example.order.tenant.owner.snapshot_state.cursor_query" to "snapshot/cursor/state",
+                    "example.order.tenant.owner.snapshot.single" to "snapshot/single",
+                    "example.order.tenant.owner.snapshot_state.single" to "snapshot/single/state",
+                    // The snapshot load already carried both segments; it is not a query variant.
+                    "example.order.tenant.owner.snapshot.load" to "{id}/snapshot",
+                    "example.order.tenant.owner.event.aggregation" to "event/aggregation",
+                    "example.order.tenant.owner.event.count" to "event/count",
+                    "example.order.tenant.owner.event.list_query" to "event/list",
+                    "example.order.tenant.owner.event.paged_query" to "event/paged",
+                    "example.order.tenant.owner.event.cursor_query" to "event/cursor",
+                ).mapValues { (_, suffix) -> "/tenant/{tenantId}/owner/{ownerId}/sales-order/$suffix" }
+            )
+            tenantOwnerRoutes.filter { it.routeId != "example.order.tenant.owner.snapshot.load" }.forEach { route ->
+                route.method.assert().isEqualTo(Https.Method.POST)
+                route.parameters.map { it.name }.assert().containsExactly("tenantId", "ownerId", "Wow-Space-Id")
+                route.summary.assert().endsWith(" Within Tenant Owner")
+                val withinOwner = catalogRoutes().single {
+                    it.routeId == route.routeId.replace(".tenant.owner.", ".owner.")
+                }
+                route.handlerKey.assert().isEqualTo(withinOwner.handlerKey)
+                route.summary.assert().isEqualTo(withinOwner.summary.replace(" Within Owner", " Within Tenant Owner"))
+                val operation = requireNotNull(openAPI.paths[route.path]?.post)
+                operation.operationId.assert().isEqualTo(route.routeId)
+                operation.summary.assert().isEqualTo(route.summary)
+            }
+        }
+
+        @Test
+        fun `should not publish tenant and owner query variants for an aggregate with a static tenant`() {
+            catalogRoutes().filter { it.path.contains("/cart/snapshot") || it.path.contains("/cart/event") }
+                .forEach { it.path.assert().doesNotStartWith("/tenant/") }
+        }
+
+        @Test
+        fun `should keep operation ids unique`() {
+            val operationIds = openAPI.paths.values.flatMap { it.readOperations() }.map { it.operationId }
+            operationIds.assert().doesNotHaveDuplicates()
+        }
+
+        @Test
         fun `should set correct tags for cart`() {
             val cartRoutes = catalogRoutes().filter {
                 it.path.contains("/cart")

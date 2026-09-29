@@ -189,10 +189,85 @@
   "path" : "/example/tenant/{tenantId}/sales-order/{id}/event/{headVersion}/{tailVersion}",
   "handlerKey" : "wow.openapi.aggregate.event.load"
 }, {
+  "routeId" : "example.order.tenant.owner.event.aggregation",
+  "method" : "POST",
+  "path" : "/example/tenant/{tenantId}/owner/{ownerId}/sales-order/event/aggregation",
+  "handlerKey" : "wow.openapi.aggregate.event.aggregation"
+}, {
+  "routeId" : "example.order.tenant.owner.event.count",
+  "method" : "POST",
+  "path" : "/example/tenant/{tenantId}/owner/{ownerId}/sales-order/event/count",
+  "handlerKey" : "wow.openapi.aggregate.event.count"
+}, {
+  "routeId" : "example.order.tenant.owner.event.cursor_query",
+  "method" : "POST",
+  "path" : "/example/tenant/{tenantId}/owner/{ownerId}/sales-order/event/cursor",
+  "handlerKey" : "wow.openapi.aggregate.event.cursor-query"
+}, {
+  "routeId" : "example.order.tenant.owner.event.list_query",
+  "method" : "POST",
+  "path" : "/example/tenant/{tenantId}/owner/{ownerId}/sales-order/event/list",
+  "handlerKey" : "wow.openapi.aggregate.event.list-query"
+}, {
+  "routeId" : "example.order.tenant.owner.event.paged_query",
+  "method" : "POST",
+  "path" : "/example/tenant/{tenantId}/owner/{ownerId}/sales-order/event/paged",
+  "handlerKey" : "wow.openapi.aggregate.event.paged-query"
+}, {
+  "routeId" : "example.order.tenant.owner.snapshot.aggregation",
+  "method" : "POST",
+  "path" : "/example/tenant/{tenantId}/owner/{ownerId}/sales-order/snapshot/aggregation",
+  "handlerKey" : "wow.openapi.aggregate.snapshot.aggregation"
+}, {
+  "routeId" : "example.order.tenant.owner.snapshot.count",
+  "method" : "POST",
+  "path" : "/example/tenant/{tenantId}/owner/{ownerId}/sales-order/snapshot/count",
+  "handlerKey" : "wow.openapi.aggregate.snapshot.count"
+}, {
+  "routeId" : "example.order.tenant.owner.snapshot.cursor_query",
+  "method" : "POST",
+  "path" : "/example/tenant/{tenantId}/owner/{ownerId}/sales-order/snapshot/cursor",
+  "handlerKey" : "wow.openapi.aggregate.snapshot.cursor-query"
+}, {
+  "routeId" : "example.order.tenant.owner.snapshot.list_query",
+  "method" : "POST",
+  "path" : "/example/tenant/{tenantId}/owner/{ownerId}/sales-order/snapshot/list",
+  "handlerKey" : "wow.openapi.aggregate.snapshot.list-query"
+}, {
   "routeId" : "example.order.tenant.owner.snapshot.load",
   "method" : "GET",
   "path" : "/example/tenant/{tenantId}/owner/{ownerId}/sales-order/{id}/snapshot",
   "handlerKey" : "wow.openapi.aggregate.snapshot.load"
+}, {
+  "routeId" : "example.order.tenant.owner.snapshot.paged_query",
+  "method" : "POST",
+  "path" : "/example/tenant/{tenantId}/owner/{ownerId}/sales-order/snapshot/paged",
+  "handlerKey" : "wow.openapi.aggregate.snapshot.paged-query"
+}, {
+  "routeId" : "example.order.tenant.owner.snapshot.single",
+  "method" : "POST",
+  "path" : "/example/tenant/{tenantId}/owner/{ownerId}/sales-order/snapshot/single",
+  "handlerKey" : "wow.openapi.aggregate.snapshot.single"
+}, {
+  "routeId" : "example.order.tenant.owner.snapshot_state.cursor_query",
+  "method" : "POST",
+  "path" : "/example/tenant/{tenantId}/owner/{ownerId}/sales-order/snapshot/cursor/state",
+  "handlerKey" : "wow.openapi.aggregate.snapshot.cursor-query-state"
+}, {
+  "routeId" : "example.order.tenant.owner.snapshot_state.list_query",
+  "method" : "POST",
+  "path" : "/example/tenant/{tenantId}/owner/{ownerId}/sales-order/snapshot/list/state",
+  "handlerKey" : "wow.openapi.aggregate.snapshot.list-query-state"
+}, {
+  "routeId" : "example.order.tenant.owner.snapshot_state.paged_query",
+  "method" : "POST",
+  "path" : "/example/tenant/{tenantId}/owner/{ownerId}/sales-order/snapshot/paged/state",
+  "handlerKey" : "wow.openapi.aggregate.snapshot.paged-query-state"
+}, {
+  "routeId" : "example.order.tenant.owner.snapshot_state.single",
+  "method" : "POST",
+  "path" : "/example/tenant/{tenantId}/owner/{ownerId}/sales-order/snapshot/single/state",
+  "handlerKey" : "wow.openapi.aggregate.snapshot.single-state"
 }, {
   "routeId" : "example.order.tenant.snapshot.aggregation",
   "method" : "POST",

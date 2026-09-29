@@ -13,7 +13,7 @@ Numeric `FIELD` inputs and arithmetic leaves follow [numeric contributions and p
 
 - **JVM Gateway**: `EventStreamQueryGateway.aggregate(namedAggregate, query)` executes aggregation through the policy chain.
 - **JVM Gateway**: an aggregate-specific `EventStreamQueryGateway` executes `query.query(queryGateway)`. A Spring-managed Gateway enters the complete policy chain; see [Query Backends](./query-backend.md) for the direct Backend Factory bypass boundary.
-- **WebFlux HTTP/OpenAPI**: current `sales-order` OpenAPI proves `POST /sales-order/event/aggregation`, `POST /tenant/{tenantId}/sales-order/event/aggregation`, and `POST /owner/{ownerId}/sales-order/event/aggregation`. The base route contains no tenant/owner path scope; tenant/owner variants provide the corresponding scope through path parameters.
+- **WebFlux HTTP/OpenAPI**: current `sales-order` OpenAPI proves `POST /sales-order/event/aggregation`, `POST /tenant/{tenantId}/sales-order/event/aggregation`, `POST /owner/{ownerId}/sales-order/event/aggregation`, and `POST /tenant/{tenantId}/owner/{ownerId}/sales-order/event/aggregation`. The base route contains no tenant/owner path scope; tenant/owner variants provide the corresponding scope through path parameters.
 - **Schema HTTP**: `GET /sales-order/event/schema` is a separate model-level route without tenant/owner variants.
 - **Shared contract**: see [Aggregation Queries](./aggregation-query.md) for Elements, groups, metrics, aliases, sorting, and limits; see [Filter Expressions](./filter-expression.md) for the root-filter Kotlin DSL; field capabilities come from [Query Model Schema](./query-model-schema.md).
 

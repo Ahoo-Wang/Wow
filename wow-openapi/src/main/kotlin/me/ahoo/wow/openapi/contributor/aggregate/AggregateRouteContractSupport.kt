@@ -48,6 +48,60 @@ internal fun AggregateRouteMetadata<*>.defaultAppendOwnerPath(): Boolean {
     return owner != AggregateRoute.Owner.NEVER
 }
 
+/**
+ * The tenant/owner scope of one variant of an aggregate's query routes.
+ */
+internal data class TenantOwnerVariant(
+    val appendTenantPath: Boolean,
+    val appendOwnerPath: Boolean
+)
+
+/**
+ * The scopes an aggregate's query routes are published under: always the unscoped route; a tenant variant when the
+ * aggregate has no static tenant; an owner variant when it has an owner; and, when both apply, a tenant + owner
+ * variant (`tenant/{tenantId}/owner/{ownerId}/…`, the order of the command routes), so a gateway that secures by
+ * path can confine a caller to its own owner within its own tenant. The order is the order of publication: a new
+ * variant goes last.
+ */
+internal fun AggregateRouteMetadata<*>.tenantOwnerVariants(): List<TenantOwnerVariant> {
+    val appendTenantPath = defaultAppendTenantPath()
+    val appendOwnerPath = defaultAppendOwnerPath()
+    return buildList {
+        add(TenantOwnerVariant(appendTenantPath = false, appendOwnerPath = false))
+        if (appendTenantPath) {
+            add(TenantOwnerVariant(appendTenantPath = true, appendOwnerPath = false))
+        }
+        if (appendOwnerPath) {
+            add(TenantOwnerVariant(appendTenantPath = false, appendOwnerPath = true))
+        }
+        if (appendTenantPath && appendOwnerPath) {
+            add(TenantOwnerVariant(appendTenantPath = true, appendOwnerPath = true))
+        }
+    }
+}
+
+/**
+ * `Count Snapshot`, `Count Snapshot Within Tenant`, `… Within Owner`, `… Within Tenant Owner`.
+ */
+internal fun tenantOwnerSummary(
+    operationSummary: String,
+    appendTenantPath: Boolean,
+    appendOwnerPath: Boolean
+): String {
+    return buildString {
+        append(operationSummary)
+        if (appendTenantPath || appendOwnerPath) {
+            append(" Within")
+            if (appendTenantPath) {
+                append(" Tenant")
+            }
+            if (appendOwnerPath) {
+                append(" Owner")
+            }
+        }
+    }
+}
+
 internal fun aggregatePath(
     currentContext: NamedBoundedContext,
     aggregateRouteMetadata: AggregateRouteMetadata<*>,
