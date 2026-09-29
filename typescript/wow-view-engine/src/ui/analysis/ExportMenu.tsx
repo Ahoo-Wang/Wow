@@ -18,7 +18,7 @@ import {
   FileSpreadsheetIcon,
   XIcon,
 } from 'lucide-react';
-import { LineAlert } from '../alerts.js';
+import { LineAlert } from '../kit/alerts.js';
 import { AlertAction, AlertTitle } from '../components/alert.js';
 import { Button } from '../components/button.js';
 import {
@@ -26,15 +26,15 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '../components/dropdown-menu.js';
-import { ExportDialog, type ExportWindowProps } from '../ExportDialog.js';
+import { ExportDialog, type ExportWindowProps } from '../kit/ExportDialog.js';
 import {
   DialogMenuItem,
   HandOffMenu,
   HandOffMenuContent,
-} from '../HandOffMenu.js';
-import { IconButton, IconTooltip } from '../IconButton.js';
-import { useViewMessages } from '../MessagesProvider.js';
-import { ToolbarItem } from '../toolbar.js';
+} from '../kit/HandOffMenu.js';
+import { IconButton, IconTooltip } from '../kit/IconButton.js';
+import { useViewMessages } from '../kit/MessagesProvider.js';
+import { ToolbarItem } from '../kit/toolbar.js';
 import type { ChartImageOffer, ImageFormat } from './imageExport.js';
 
 /** Each picture's item, by its full catalogue key. */

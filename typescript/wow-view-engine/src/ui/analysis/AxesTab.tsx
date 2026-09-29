@@ -19,7 +19,7 @@ import type {
   ScatterSpec,
 } from '../../model/index.js';
 import { measuredTitle } from '../charts/axis.js';
-import { useViewMessages } from '../MessagesProvider.js';
+import { useViewMessages } from '../kit/MessagesProvider.js';
 import { formatChoices } from './DisplayTab.js';
 import {
   ChoiceField,

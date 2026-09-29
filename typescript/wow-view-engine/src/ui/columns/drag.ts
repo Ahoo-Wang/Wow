@@ -21,10 +21,10 @@
  * every box there is 0×0 at the origin.
  */
 
-import { dragAccessibility } from '../dragAnnounce.js';
-import { dragWording, type DragWordingKeys } from '../dragWording.js';
-import { dropped, type Drop, type DropOperation } from '../dragDrop.js';
-import type { MessageFormatters } from '../MessagesProvider.js';
+import { dragAccessibility } from '../kit/dragAnnounce.js';
+import { dragWording, type DragWordingKeys } from '../kit/dragWording.js';
+import { dropped, type Drop, type DropOperation } from '../kit/dragDrop.js';
+import type { MessageFormatters } from '../kit/MessagesProvider.js';
 import type { ColumnRegion } from './rows.js';
 
 /**

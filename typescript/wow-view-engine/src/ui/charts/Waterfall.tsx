@@ -13,8 +13,8 @@
 
 import { useCallback, useMemo } from 'react';
 import type { WaterfallData } from '../../analysis/index.js';
-import { pointAnchor } from '../anchor.js';
-import { useViewMessages } from '../MessagesProvider.js';
+import { pointAnchor } from '../kit/anchor.js';
+import { useViewMessages } from '../kit/MessagesProvider.js';
 import { categoryFit } from './cartesianFit.js';
 import { EChart, type ChartClick } from './EChart.js';
 import type { FamilyProps } from './family.js';

@@ -17,7 +17,7 @@ import {
   FieldLegend,
   FieldSet,
 } from '../components/field.js';
-import { useViewMessages } from '../MessagesProvider.js';
+import { useViewMessages } from '../kit/MessagesProvider.js';
 import {
   CheckField,
   ChoiceField,

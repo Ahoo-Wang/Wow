@@ -54,9 +54,9 @@ import {
 import { Input } from '../components/input.js';
 import { RadioGroup, RadioGroupItem } from '../components/radio-group.js';
 import { ToggleGroup, ToggleGroupItem } from '../components/toggle-group.js';
-import { useViewMessages } from '../MessagesProvider.js';
-import { DialogContent } from '../popups.js';
-import type { FinalFocus } from './commands.js';
+import { useViewMessages } from '../kit/MessagesProvider.js';
+import { DialogContent } from '../kit/popups.js';
+import type { FinalFocus } from '../kit/focus.js';
 import {
   BoardDestination,
   useDestinationBoard,

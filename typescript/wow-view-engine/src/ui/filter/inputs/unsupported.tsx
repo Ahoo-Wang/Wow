@@ -13,7 +13,7 @@
 
 import { cn } from 'cn';
 import type { FieldKindId } from '../../../model/index.js';
-import { useViewMessages } from '../../MessagesProvider.js';
+import { useViewMessages } from '../../kit/MessagesProvider.js';
 
 /**
  * A value no control can hold: what the config stores, and why nothing here

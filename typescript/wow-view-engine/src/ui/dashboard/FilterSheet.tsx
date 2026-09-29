@@ -20,8 +20,8 @@ import {
   SheetTitle,
   SheetTrigger,
 } from '../components/sheet.js';
-import { useViewMessages } from '../MessagesProvider.js';
-import { SheetContent } from '../popups.js';
+import { useViewMessages } from '../kit/MessagesProvider.js';
+import { SheetContent } from '../kit/popups.js';
 
 /**
  * The filter bar in the one-column reading (D26 Q38): one button,

@@ -21,12 +21,12 @@ import {
   FieldLabel,
   FieldTitle,
 } from '../components/field.js';
-import { formatNumber } from '../display.js';
-import { NumberInput } from '../FilterValueEditor.js';
-import { useViewMessages } from '../MessagesProvider.js';
-import { SortSettings } from '../SortSettings.js';
-import { EditorSlot } from '../variants.js';
-import { useSurfaceDisplay } from '../ViewSurface.js';
+import { formatNumber } from '../kit/display.js';
+import { NumberInput } from '../filter/FilterValueEditor.js';
+import { useViewMessages } from '../kit/MessagesProvider.js';
+import { SortSettings } from '../sort/SortSettings.js';
+import { EditorSlot } from '../kit/variants.js';
+import { useSurfaceDisplay } from '../kit/ViewSurface.js';
 import { groupReference, metricReference } from './editing.js';
 import { AddHaving, HavingRows, useHaving } from './HavingRows.js';
 import { TermTip } from './TermTip.js';

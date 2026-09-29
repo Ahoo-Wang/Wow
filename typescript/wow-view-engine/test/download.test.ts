@@ -12,7 +12,7 @@
  */
 
 import { describe, expect, it, vi } from 'vitest';
-import { downloadFile, fileName } from '../src/ui/download.js';
+import { downloadFile, fileName } from '../src/ui/kit/download.js';
 
 describe('fileName', () => {
   it("is the view and the day, in the user's own words", () => {

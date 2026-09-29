@@ -14,8 +14,8 @@
 import type * as React from 'react';
 import { useId, useLayoutEffect } from 'react';
 import type { RecordRow } from '../../record/index.js';
-import type { RovingAxis } from '../roving.js';
-import { moveStop, settleStop, takeStop } from '../roving.js';
+import type { RovingAxis } from '../kit/roving.js';
+import { moveStop, settleStop, takeStop } from '../kit/roving.js';
 
 /**
  * Rows a reader opens: a press on the row's own ground, or Enter/Space on

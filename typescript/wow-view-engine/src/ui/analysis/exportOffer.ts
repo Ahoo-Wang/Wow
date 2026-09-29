@@ -32,16 +32,16 @@ import {
   type RecordExportController,
   type RecordExportOutcome,
 } from '../../react/index.js';
-import { columnTitle, isoDay, type DisplayContext } from '../display.js';
-import { currencyCsvText } from '../currency.js';
-import { downloadFile, fileName } from '../download.js';
-import type { ExportWindowProps } from '../ExportDialog.js';
+import { columnTitle, isoDay, type DisplayContext } from '../kit/display.js';
+import { currencyCsvText } from '../kit/currency.js';
+import { downloadFile, fileName } from '../kit/download.js';
+import type { ExportWindowProps } from '../kit/ExportDialog.js';
 import {
   useViewMessages,
   type MessageFormatters,
-} from '../MessagesProvider.js';
+} from '../kit/MessagesProvider.js';
 import { CSV_TYPE, neutralizesFormulas } from '../record/exportOffer.js';
-import { useSurfaceDisplay } from '../ViewSurface.js';
+import { useSurfaceDisplay } from '../kit/ViewSurface.js';
 import { analysisCellText } from './tableColumns.js';
 
 /** An analysis result as the file that takes it away holds it. */

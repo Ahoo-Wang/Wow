@@ -43,7 +43,7 @@ import { DataWorkbench, RenderBoundary, ViewSurface } from '../src/ui/index.js';
 import type { RenderFailure } from '../src/ui/index.js';
 import { EChart } from '../src/ui/charts/EChart.js';
 import { watchSize } from '../src/ui/charts/sizes.js';
-import { FailureSink } from '../src/ui/failureSink.js';
+import { FailureSink } from '../src/ui/kit/failureSink.js';
 import {
   deferred,
   mine,

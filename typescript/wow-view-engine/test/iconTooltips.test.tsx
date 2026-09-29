@@ -44,7 +44,7 @@ import { openTray } from './fixtures/workbench.js';
 
 /**
  * D12: a function is an icon button, and an icon button says its name on
- * hover. `src/ui/IconButton.tsx` is the one place that pairs the two, so
+ * hover. `src/ui/kit/IconButton.tsx` is the one place that pairs the two, so
  * this suite asks the only question a call site can get wrong — did this
  * button go through it? — rather than listing the buttons that did. A
  * control added next month is held to the rule without anyone remembering
@@ -80,7 +80,7 @@ function speaks(element: Element): boolean {
  * lands.
  *
  * The list is empty. The export dialog's trigger goes through the wrapper
- * like everything else, and the buttons in `src/ui/RecordTable.tsx` and
+ * like everything else, and the buttons in `src/ui/record/RecordTable.tsx` and
  * `src/ui/record/SortableHeader.tsx` — which the column-resize PR is
  * rewriting — all carry text, so nothing on screen is silent and nothing is
  * excused. If that PR lands a silent icon button, this is where it is

@@ -14,12 +14,12 @@
 import type { ReactNode, RefObject } from 'react';
 import type { ViewKind } from '../../model/index.js';
 import type { WorkbenchController } from '../../react/index.js';
-import { EditorBandToggle } from '../EditorBand.js';
-import { RefreshControl } from '../RefreshControl.js';
-import { RenderBoundary } from '../RenderBoundary.js';
-import { ViewExpandToggle, type ViewExpansion } from '../ViewExpansion.js';
-import { ViewHeader, type ViewHeaderState } from '../ViewHeader.js';
-import type { WorkbenchShellProps } from '../WorkbenchShell.js';
+import { EditorBandToggle } from './EditorBand.js';
+import { RefreshControl } from './RefreshControl.js';
+import { RenderBoundary } from '../kit/RenderBoundary.js';
+import { ViewExpandToggle, type ViewExpansion } from '../kit/ViewExpansion.js';
+import { ViewHeader, type ViewHeaderState } from './ViewHeader.js';
+import type { WorkbenchShellProps } from './WorkbenchShell.js';
 
 export interface TitleBarProps extends Pick<
   WorkbenchShellProps,

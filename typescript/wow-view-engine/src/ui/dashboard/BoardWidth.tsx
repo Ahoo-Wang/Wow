@@ -16,9 +16,9 @@ import { DASHBOARD_WIDTHS, type DashboardWidth } from '../../model/index.js';
 import type { DashboardController } from '../../react/index.js';
 import { ToggleGroup, ToggleGroupItem } from '../components/toggle-group.js';
 import { Tooltip, TooltipTrigger } from '../components/tooltip.js';
-import type { MessageKey } from '../messages.js';
-import { useViewMessages } from '../MessagesProvider.js';
-import { TooltipContent } from '../popups.js';
+import type { MessageKey } from '../kit/messages.js';
+import { useViewMessages } from '../kit/MessagesProvider.js';
+import { TooltipContent } from '../kit/popups.js';
 
 const LABELS = {
   fixed: 'label.dashboard.width-fixed',

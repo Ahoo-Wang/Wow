@@ -20,10 +20,10 @@ import type {
 import { cn } from 'cn';
 import { Checkbox } from '../components/checkbox.js';
 import { Field, FieldDescription, FieldLabel } from '../components/field.js';
-import { crossesBoundary, leavesEditor } from '../FilterPanel.js';
+import { crossesBoundary, leavesEditor } from '../filter/FilterPanel.js';
 import { FilterActions } from '../filter/FilterActions.js';
-import { SPACE } from '../layout.js';
-import { useViewMessages } from '../MessagesProvider.js';
+import { SPACE } from '../kit/layout.js';
+import { useViewMessages } from '../kit/MessagesProvider.js';
 import { DimensionSlot } from './DimensionCard.js';
 import { DroppedNotice } from './DroppedNotice.js';
 import { ElementsSlot } from './ElementsSlot.js';

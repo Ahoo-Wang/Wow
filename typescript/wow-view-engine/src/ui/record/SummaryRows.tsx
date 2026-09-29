@@ -18,11 +18,11 @@ import type {
   SummaryCell,
   SummaryRow,
 } from '../../record/index.js';
-import { summaryFunctionKey } from '../display.js';
-import { useViewMessages } from '../MessagesProvider.js';
+import { summaryFunctionKey } from '../kit/display.js';
+import { useViewMessages } from '../kit/MessagesProvider.js';
 import { Tooltip, TooltipTrigger } from '../components/tooltip.js';
-import { TooltipContent } from '../popups.js';
-import { useSurfaceDisplay } from '../ViewSurface.js';
+import { TooltipContent } from '../kit/popups.js';
+import { useSurfaceDisplay } from '../kit/ViewSurface.js';
 import { TableCell, TableFooter, TableRow } from '../components/table.js';
 import {
   ACTION_CELL,
@@ -32,7 +32,7 @@ import {
 } from './columns.js';
 import { BAND_ROW, stickyBand, stickyCell } from './sticky.js';
 import { FillerCell } from './Filler.js';
-import { TEXT_UI } from '../layout.js';
+import { TEXT_UI } from '../kit/layout.js';
 import { summaryText } from './summaryText.js';
 import {
   hintHost,

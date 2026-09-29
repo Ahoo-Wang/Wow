@@ -30,8 +30,8 @@ import {
   SigmaIcon,
   UserIcon,
 } from 'lucide-react';
-import { IconButton } from '@/ui/IconButton';
-import { ToneBadge } from '@/ui/variants';
+import { IconButton } from '@/ui/kit/IconButton';
+import { ToneBadge } from '@/ui/kit/variants';
 import {
   RETAIL_AFTER_SALES,
   RETAIL_ORDER_ANALYSIS,
@@ -113,7 +113,7 @@ function storyOf(item: NavItem): string {
  * The navigation, grouped the way the catalog is (docs/scenarios.md 5.1):
  * the business scenes, one page per capability, the components' states,
  * then the real services. The kinds wear the icons the workbench gives them
- * (`ui/kinds.ts`), so a Record page in this column and a Record view in the
+ * (`ui/kit/kinds.ts`), so a Record page in this column and a Record view in the
  * workbench's own list read as one thing.
  *
  * The home page comes first and on its own, as a host's does: it is where

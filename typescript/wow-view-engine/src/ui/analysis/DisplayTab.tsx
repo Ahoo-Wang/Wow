@@ -38,7 +38,7 @@ import { without } from '../../model/index.js';
 import {
   useViewMessages,
   type MessageFormatters,
-} from '../MessagesProvider.js';
+} from '../kit/MessagesProvider.js';
 import { drawsHorizontal } from '../charts/cartesianPlan.js';
 import { logScaleFits } from '../../analysis/logScale.js';
 import { Field, FieldDescription } from '../components/field.js';

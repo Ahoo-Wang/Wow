@@ -16,11 +16,11 @@ import { PlusIcon } from 'lucide-react';
 import type { DashboardTab } from '../../model/index.js';
 import type { DashboardController } from '../../react/index.js';
 import type { DashboardEditing } from '../../runtime/index.js';
-import { useSurfaceAnnouncer } from '../Announcer.js';
+import { useSurfaceAnnouncer } from '../kit/Announcer.js';
 import {
   useViewMessages,
   type MessageFormatters,
-} from '../MessagesProvider.js';
+} from '../kit/MessagesProvider.js';
 import { Button } from '../components/button.js';
 import { Tabs, TabsList, TabsTrigger } from '../components/tabs.js';
 import { EditableTabBar, TabRemovalDialog } from './EditableTabs.js';

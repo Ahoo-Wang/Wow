@@ -26,8 +26,8 @@ import {
   formatIssue,
   formatMessage,
   type ViewMessages,
-} from '../src/ui/messages.js';
-import type { MessageFormatters } from '../src/ui/MessagesProvider.js';
+} from '../src/ui/kit/messages.js';
+import type { MessageFormatters } from '../src/ui/kit/MessagesProvider.js';
 
 function formatters(catalogue: ViewMessages): MessageFormatters {
   return {

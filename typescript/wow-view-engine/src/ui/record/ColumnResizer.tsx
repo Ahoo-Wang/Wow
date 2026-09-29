@@ -14,7 +14,7 @@
 import type * as React from 'react';
 import { useEffect, useLayoutEffect, useRef } from 'react';
 import type { RecordColumnView } from '../../record/index.js';
-import { useViewMessages } from '../MessagesProvider.js';
+import { useViewMessages } from '../kit/MessagesProvider.js';
 
 /**
  * The narrowest a column may be dragged.

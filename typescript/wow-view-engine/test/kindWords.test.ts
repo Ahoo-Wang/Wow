@@ -12,7 +12,7 @@
  */
 
 /**
- * What a surface calls the thing it has open (D26 Q34, `ui/kinds.ts`): a
+ * What a surface calls the thing it has open (D26 Q34, `ui/kit/kinds.ts`): a
  * dashboard's chrome says 仪表盘 where another view's says 视图 — its
  * labels (`kindWord`) and what the engine reports about it (`kindIssue`).
  * The sweep reads the catalogues themselves, so a sentence added to either

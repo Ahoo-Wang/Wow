@@ -31,9 +31,12 @@ import {
   useViewRuntime,
 } from '../react/index.js';
 import { Alert, AlertDescription, AlertTitle } from './components/alert.js';
-import type { PanelHeadingLevel } from './DashboardPanel.js';
-import { SurfaceAnnouncer, useAnnouncer } from './Announcer.js';
-import { DashboardGrid, type DashboardGridProps } from './DashboardGrid.js';
+import type { PanelHeadingLevel } from './dashboard/DashboardPanel.js';
+import { SurfaceAnnouncer, useAnnouncer } from './kit/Announcer.js';
+import {
+  DashboardGrid,
+  type DashboardGridProps,
+} from './dashboard/DashboardGrid.js';
 import { useBoardFilters } from './dashboard/BoardFilters.js';
 import { drawsFilterBar } from './dashboard/FilterBar.js';
 import { DashboardTabs } from './dashboard/DashboardTabs.js';
@@ -54,12 +57,15 @@ import {
   useEmbedExpand,
 } from './embed/EmbedHead.js';
 import type { EmbedBaseProps, EmbedInteraction } from './embed/options.js';
-import { useKindIssue, useKindWord } from './kinds.js';
-import { StartingWords, useViewMessages } from './MessagesProvider.js';
-import { useEngine, useRoutedNavigate } from './ViewEngineProvider.js';
-import { boardKey, useAddressedBoard } from './address.js';
-import { ErrorStrip, WarningStrip } from './StatusStrip.js';
-import { boardErrorTitle } from './panelsToFix.js';
+import { useKindIssue, useKindWord } from './kit/kinds.js';
+import { StartingWords, useViewMessages } from './kit/MessagesProvider.js';
+import {
+  useEngine,
+  useRoutedNavigate,
+} from './workbench/ViewEngineProvider.js';
+import { boardKey, useAddressedBoard } from './workbench/address.js';
+import { ErrorStrip, WarningStrip } from './kit/StatusStrip.js';
+import { boardErrorTitle } from './workbench/panelsToFix.js';
 
 export type {
   BoardFilterModes,

@@ -31,11 +31,7 @@
 
 第一轮扫描（重复度、依赖方向、没人用的导出）的发现，用户 2026-09-27 按推荐定；同时只跑一个子代理，一件做完再派下一件。
 
-1. **其余发现**（mongo 空值安全运算合一 #3729、拆 `RecordWorkbench.test.stories.tsx` #3758 已做）：
-   - **ui 根目录拆成三层**（方案用户 2026-09-27 确认；交做 ui 目录去环（#3717）的子代理，在内存求值器合并（D65）之后、队列里没有别的改动时单独一个 PR）：
-     - 为什么：根目录约 80 个文件是三种东西——41 个共用基础件（子目录用它、它不依赖功能：IconButton、popups、variants、alerts、toolbar、roving、拖动四件、MessagesProvider、display、layout……）、5 个外壳（DataWorkbench、DashboardWorkbench、EmbeddedView、EmbeddedDashboard、ViewManager）、19 个放错地方的功能部件（既依赖功能目录又被依赖——根目录与子目录双向依赖的来源：RecordTable、ColumnSettings、FilterPanel、AnalysisTable、DashboardGrid、WorkbenchShell、ViewSurface……），另有 14 个只在根目录内互用的（看板编排与面板、保存／冲突／离开确认、导出步骤）。
-     - 做法：`ui/kit/` 放共用基础件（连同 `focus.ts`、`anchor.ts`），只依赖 components／lib／theme／messages；功能部件归到各自的目录（表格、卡片、分页、行操作、结果工具栏、批量状态 → `record/`；列设置 → `columns/`；排序设置 → `sort/`；筛选面板、条件值编辑、已应用条 → `filter/`；分析表、图外框、字段菜单 → `analysis/`；看板网格、面板、编排 → `dashboard/`；视图列表、视图头、保存／另存／删除／冲突／离开、刷新、导出 → `workbench/`）；根目录只留外壳与入口。先处理 `ViewSurface`、`RenderBoundary` 对 `charts` 的依赖（它们属于底层）。
-     - 判据：`test/architecture.test.ts` 的 ui 方向表把 `kit` 放在所有功能目录之下，并加一条「除入口与外壳外，无人依赖根目录」；公开面快照一个名字不变；引擎测试、构建、全部故事与控制台通过。
+1. ~~**其余发现**~~：mongo 空值安全运算合一 #3729、拆 `RecordWorkbench.test.stories.tsx` #3758、ui 根目录拆成三层（分支 `refactor/ui-three-tiers`，在审；移动表、方向表的改法与判据见 PR 描述）。
 
 2. **补审 wow-react 与查询后端（2026-09-28）**：17 条中后端与 wow-react 的全部落地——#3754、#3755、#3757、#3760、#3764、#3765（含 F2：MongoDB 的日期字段按日期比较）、#3766、#3768（护栏：事件流导入限制、无抽象成员的抽象类由反射测试守）；#3759 让只改 Kotlin 的 PR 也跑兼容债账本。余下一条：
    - **F9（控制台）**：`useMoments.ts` 自写的分页 hook 有迟到结果覆盖的竞态，改用 wow-react `usePagedQuery`（H2a 合并后，控制台不再冲突）。
@@ -61,7 +57,7 @@
   - 判据：报告里每条 P0/P1 的状态一栏写上合并的 PR 号，或由用户拍板推迟并写进 [decisions.md](decisions.md)。
   - 落点：报告本身（逐条标了道）；P0 由 #3606、P1-1 与 P1-10 由 #3619、P1-3 由 #3615（空合计带）与 #3630（面板按行长高、滚动提示）修掉。D51（视野外写出汇总）由 #3634、P1-5 与 P1-6 由 #3654 与 #3657（D53）、P1-2／P1-7／P1-8／P1-9 由 #3656（D55）修掉。P1-4 由 #3661（D56）与 #3663 修掉。P2 在报告里，首发后排。
 - **对话框与弹层的函数式 `finalFocus`**：#3547 修了下拉菜单关闭时抢回已移走的焦点（Base UI 1.8.0 在 `finalFocus` 是函数时不看焦点是否已离开）；对话框、弹层若也传函数，可能是同一个竞态。
-  - 判据：逐个查过，同样处理或说明不受影响，并有一个回归故事。落点：`src/ui/popups.tsx`。
+  - 判据：逐个查过，同样处理或说明不受影响，并有一个回归故事。落点：`src/ui/kit/popups.tsx`。
 - **图上的字：还没做的两处**（D53 落地时记下）：长柱上「最低 …」比柱子宽时压到两旁柱身（有底色描边，读得清，如「近 30 天」「双 11」）；多段堆叠柱多时栈顶合计仍每根都写，要不要也只标峰谷。
   - 判据：各自定下做法并落地，或写进 decisions 不做。落点：`src/ui/charts/cartesianMarks.ts`、`src/analysis/chartFamilies.ts`。
 - **查询失败时仍显示上一次的结果**（故事道 P1-2 时提出）：条件改了而新查询失败，表格留着旧条件的行（`useRecordTable` 的「失败的刷新保留旧行」）。刷新失败时保留是对的；条件变了时要让人看出眼前是旧条件的结果。
@@ -99,7 +95,7 @@
 - **工具栏的漫游焦点漏进它打开的弹层**：Base UI 1.8 的 `Toolbar` 把 composite 上下文交给整棵子树，弹层也在其中；弹层里用 `useButton` 的控件自认是工具栏的一项，不再给自己 `tabindex`。复选框（`span`）因此整个 Tab 不到——这次在列设置与卡片设置的复选框上各补了一个明写的 `tabIndex` 止血；原生按钮与下拉框的触发钮在 Chromium 里照样可达，但在 Safari 默认设置（Tab 只停在带 `tabindex` 的控件与输入框）下被跳过，列设置的「固定」、汇总下拉都是。
   - 为什么：止血是逐个控件记着补，下一个放进工具栏弹层的复选框或开关还会再掉一次。
   - 判据：工具栏里的弹层内容不再在工具栏的 React 子树里（Base UI 的分离触发器 `Popover.createHandle`，或上游修复后升级），删掉两处明写的 `tabIndex`；一条故事在 WebKit 里从列设置的搜索框一路 Tab，每一行的复选框、固定钮与汇总下拉都停得到。
-  - 落点：`src/ui/ResultToolbar.tsx`、`ColumnSettings.tsx`、`CardSettings.tsx`、`SortSettings.tsx`；[ui/README.md](ui/README.md)。
+  - 落点：`src/ui/workbench/ResultToolbar.tsx`、`ColumnSettings.tsx`、`CardSettings.tsx`、`SortSettings.tsx`；[ui/README.md](ui/README.md)。
 - **仪表盘面板的移动与缩放、列宽要有单指针的替代**（WCAG 2.2 2.5.7）：可排序的列表已经有了——抓手点一下弹出「移到…」菜单（[D49](decisions.md#d49-可排序的列表一律拖拽排序2026-09-25)）；剩下宽栅格里面板的移动与缩放、表头的列宽，今天指针只能拖，键盘各有等价物（抓手上的 Enter、Alt+←／→），只有指针、不能拖的人（头控、单开关、手抖）用不了。
   - 为什么：声明里 2.5.7 是「部分支持」，剩下的原因就是这两处。
   - 判据：面板「⋯」里有「左移、右移、加宽、变窄」一类，列设置里能填宽度，各有一条故事只用点击完成；2.5.7 改为「支持」。
@@ -117,16 +113,16 @@
   - 落点：`src/ui/dashboard/`（等 PR3 合并后再动）、[ui/dashboard.md](ui/dashboard.md)。
 - **表格与小图的名字**：记录表没有可及名字（读屏的表格列表里是一串「表格」，一块板上有几个记录面板时分不开）；指标卡的走势小图没有摘要句（别的图都有），它的数据表首列表头是「类别」而不是维度名。
   - 判据：记录表以视图名（工作台）或面板标题（仪表盘）命名；指标卡小图有与其他图同一套的摘要句，数据表首列用维度的显示名；各有测试。
-  - 落点：`src/ui/RecordTable.tsx`、`src/ui/charts/`、[ui/analysis.md](ui/analysis.md#图表怎么被读出来)。
+  - 落点：`src/ui/record/RecordTable.tsx`、`src/ui/charts/`、[ui/analysis.md](ui/analysis.md#图表怎么被读出来)。
 - **窄列里溢出的单元格盖住焦点**（WCAG 2.2 2.4.11）：列宽比内容窄时（存下来的列宽，或窄屏），订单号那一格的文字加「复制」按钮溢出到右边一格，右边那格的底色把聚焦的「复制」盖得只剩一条边（运单宽表，900px 宽）。溢出再多一点就整颗看不见。
   - 判据：单元格不向相邻格溢出（截断加省略号、提示框给全文，或行内按钮留在格内），聚焦的控件四角都在自己格里；一条故事在窄宽度下把每一颗「复制」聚焦一遍，量它正中那一点是它自己。
-  - 落点：`src/ui/record/cells.tsx`、`src/ui/CopyButton.tsx`、[ui/record.md](ui/record.md)。
+  - 落点：`src/ui/record/cells.tsx`、`src/ui/kit/CopyButton.tsx`、[ui/record.md](ui/record.md)。
 - **视图的面不声明自己的语言**（WCAG 2.2 3.1.2）：措辞目录是中文、宿主页面是英文（或反过来）时，`.fve-root` 上没有 `lang`，读屏按宿主的语言念中文。
   - 判据：面按它用的措辞目录写 `lang`（宿主可覆盖），弹层随之带上；测试断言中英两种目录下的 `lang`。
-  - 落点：`src/ui/ViewSurface.tsx`、`src/ui/popups.tsx`、[ui/README.md](ui/README.md#措辞与-messagesprovider)。
+  - 落点：`src/ui/kit/ViewSurface.tsx`、`src/ui/kit/popups.tsx`、[ui/README.md](ui/README.md#措辞与-messagesprovider)。
 - **看得见的快捷键提示**：Alt+←／→ 调列宽只写在 `aria-keyshortcuts` 里，Shift+Enter 选一段只在读屏的描述里；看得见屏幕、只用键盘的人无从得知。
   - 判据：表头聚焦时的提示框（或表格设置里的一行）写出列宽键；分析表的「按住 Shift 选一段」在表格布局下看得见；措辞双语。
-  - 落点：`src/ui/record/SortableHeader.tsx`、`src/ui/AnalysisTable.tsx`。
+  - 落点：`src/ui/record/SortableHeader.tsx`、`src/ui/analysis/AnalysisTable.tsx`。
 
 ## Storybook：真实交易订单场景
 
@@ -189,7 +185,7 @@
 - **只读的仪表盘不再给每块面板挂非 passive 的 `touchstart`**：
   - 为什么：react-grid-layout 在拖动与缩放都关着时仍把每个格子包进 `DraggableCore`、给缩放角包一个，每块面板两个非 passive 的 `touchstart`（T5 的 Linux WebKit 剖析里看到，[themes.md](themes.md) T5 落地记录）。触屏上从面板开始的滚动要等主线程答完它，图表正在画时就是卡顿；桌面浏览器不受影响。
   - 判据：读的时候（非搭建）面板上没有 `touchstart`／`touchmove` 监听，摆放与今天逐像素相同（`calcGridItemPosition` 同一套算法），进入与退出搭建不重挂面板（图表不重建）；截图基线不变。
-  - 落点：`src/ui/DashboardGrid.tsx`、[ui/dashboard.md](ui/dashboard.md)。
+  - 落点：`src/ui/dashboard/DashboardGrid.tsx`、[ui/dashboard.md](ui/dashboard.md)。
 
 ## 分析视图：释放 ECharts
 

@@ -15,7 +15,7 @@ import type * as React from 'react';
 import type { RecordRow } from '../../record/index.js';
 import type { RecordTableController } from '../../react/index.js';
 import { Checkbox } from '../components/checkbox.js';
-import { useViewMessages } from '../MessagesProvider.js';
+import { useViewMessages } from '../kit/MessagesProvider.js';
 
 export interface RowCheckboxProps {
   table: RecordTableController;

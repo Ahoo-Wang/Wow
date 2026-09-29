@@ -21,8 +21,8 @@ import {
   InputGroupInput,
 } from '../components/input-group.js';
 import { isPlainEnter } from '../filter/enter.js';
-import { IconTooltip } from '../IconButton.js';
-import { useViewMessages } from '../MessagesProvider.js';
+import { IconTooltip } from '../kit/IconButton.js';
+import { useViewMessages } from '../kit/MessagesProvider.js';
 
 /**
  * The view's search, at the end of the applied band — beside the conditions

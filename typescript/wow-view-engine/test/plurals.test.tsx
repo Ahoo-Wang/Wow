@@ -16,10 +16,10 @@ import { afterEach, describe, expect, it } from 'vitest';
 import type { FilterSummaryItem, FilterValue } from '../src/index.js';
 import { FilterValueEditor, ViewSurface } from '../src/ui/index.js';
 import type { MessageFormatters } from '../src/ui/index.js';
-import { summaryText } from '../src/ui/summary.js';
+import { summaryText } from '../src/ui/kit/summary.js';
 import { en } from '../src/ui/messages/en.js';
 import { zhCN } from '../src/ui/messages/zh-CN.js';
-import { formatMessage, type MessageKey } from '../src/ui/messages.js';
+import { formatMessage, type MessageKey } from '../src/ui/kit/messages.js';
 
 afterEach(cleanup);
 

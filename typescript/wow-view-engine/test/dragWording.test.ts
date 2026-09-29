@@ -14,9 +14,9 @@
 import { describe, expect, it } from 'vitest';
 import { CHART_DRAG_WORDING } from '../src/ui/analysis/drag.js';
 import { COLUMN_DRAG_WORDING } from '../src/ui/columns/drag.js';
-import { dragWording } from '../src/ui/dragWording.js';
+import { dragWording } from '../src/ui/kit/dragWording.js';
 import { MANAGE_DRAG_WORDING } from '../src/ui/manage/drag.js';
-import { defaultMessages } from '../src/ui/messages.js';
+import { defaultMessages } from '../src/ui/kit/messages.js';
 import { zhCN } from '../src/ui/messages/zh-CN.js';
 import { SORT_DRAG_WORDING } from '../src/ui/sort/drag.js';
 import { formattersFor } from './fixtures/columns.js';

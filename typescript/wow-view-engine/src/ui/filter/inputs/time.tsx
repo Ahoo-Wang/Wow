@@ -28,10 +28,10 @@ import {
   InputGroupInput,
   InputGroupText,
 } from '../../components/input-group.js';
-import { IconButton } from '../../IconButton.js';
-import { useSurfaceAnnouncer } from '../../Announcer.js';
-import { SPACE } from '../../layout.js';
-import { useViewMessages } from '../../MessagesProvider.js';
+import { IconButton } from '../../kit/IconButton.js';
+import { useSurfaceAnnouncer } from '../../kit/Announcer.js';
+import { SPACE } from '../../kit/layout.js';
+import { useViewMessages } from '../../kit/MessagesProvider.js';
 import {
   clampSegment,
   hourIsComplete,

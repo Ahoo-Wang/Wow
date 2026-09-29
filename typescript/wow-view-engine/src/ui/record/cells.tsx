@@ -14,8 +14,8 @@
 import type * as React from 'react';
 import { cn } from 'cn';
 import { isSafeContentUrl } from '../../dashboard/index.js';
-import { CopyButton } from '../CopyButton.js';
-import { badgeEntries, type BadgeEntry } from '../badges.js';
+import { CopyButton } from '../kit/CopyButton.js';
+import { badgeEntries, type BadgeEntry } from '../kit/badges.js';
 import {
   cellText,
   displayValue,
@@ -24,9 +24,9 @@ import {
   labelsOf,
   type DisplayContext,
   type DisplayField,
-} from '../display.js';
-import type { MessageFormatters } from '../MessagesProvider.js';
-import { ToneBadge } from '../variants.js';
+} from '../kit/display.js';
+import type { MessageFormatters } from '../kit/MessagesProvider.js';
+import { ToneBadge } from '../kit/variants.js';
 import { IDENTIFIER_FACE } from './columns.js';
 import {
   DetailStructure,

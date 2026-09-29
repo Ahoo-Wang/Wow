@@ -17,8 +17,8 @@ import { Calendar } from '../../components/calendar.js';
 import {
   useViewMessages,
   type MessageFormatters,
-} from '../../MessagesProvider.js';
-import { useSurfaceDisplay } from '../../ViewSurface.js';
+} from '../../kit/MessagesProvider.js';
+import { useSurfaceDisplay } from '../../kit/ViewSurface.js';
 
 /**
  * The registry's calendar, speaking the surface's language.
@@ -36,7 +36,7 @@ import { useSurfaceDisplay } from '../../ViewSurface.js';
  * library takes `formatters` and `labels` per string it draws, and every one
  * of them is a date formatted in a language — which is the one thing
  * `Intl.DateTimeFormat` does. The rest of this package already formats its
- * dates that way (`ui/display.ts`), so the picker and the cell beside it now
+ * dates that way (`ui/kit/display.ts`), so the picker and the cell beside it now
  * name the same month in the same words.
  *
  * What is **not** covered: the month and year dropdowns' own names, which

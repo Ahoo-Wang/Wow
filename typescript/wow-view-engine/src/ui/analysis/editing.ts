@@ -24,8 +24,8 @@ import {
   summaryChoices,
   type MetricCondition,
 } from '../../analysis/index.js';
-import { columnTitle } from '../display.js';
-import type { MessageFormatters } from '../MessagesProvider.js';
+import { columnTitle } from '../kit/display.js';
+import type { MessageFormatters } from '../kit/MessagesProvider.js';
 
 export { freeAlias };
 import {

@@ -47,7 +47,7 @@ import {
 } from '../src/ui/index.js';
 import type { DataViewKind } from '../src/ui/index.js';
 import { groupText } from '../src/ui/analysis/DrillMenu.js';
-import { useViewMessages } from '../src/ui/MessagesProvider.js';
+import { useViewMessages } from '../src/ui/kit/MessagesProvider.js';
 import {
   analysisConfig,
   mine,

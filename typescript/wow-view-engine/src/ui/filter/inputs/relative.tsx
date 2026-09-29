@@ -22,7 +22,7 @@ import {
   type RelativeDateTimeValue,
   type RelativeDateUnit,
 } from '../../../filter/index.js';
-import { useViewMessages } from '../../MessagesProvider.js';
+import { useViewMessages } from '../../kit/MessagesProvider.js';
 import { ChoiceValue } from './shared.js';
 import { NumberInput } from './number.js';
 

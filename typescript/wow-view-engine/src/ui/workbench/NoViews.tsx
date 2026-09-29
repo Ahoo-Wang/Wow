@@ -22,8 +22,8 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from '../components/empty.js';
-import { useViewMessages } from '../MessagesProvider.js';
-import { useKindWord } from '../kinds.js';
+import { useViewMessages } from '../kit/MessagesProvider.js';
+import { useKindWord } from '../kit/kinds.js';
 
 /**
  * The work area when the definition has no view of this kind to open.

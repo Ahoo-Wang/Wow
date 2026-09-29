@@ -27,14 +27,14 @@ import {
   AlertTitle,
 } from '../components/alert.js';
 import { createToastManager, ToastProvider } from '../components/toast.js';
-import { IconButton } from '../IconButton.js';
-import { useViewMessages } from '../MessagesProvider.js';
+import { IconButton } from '../kit/IconButton.js';
+import { useViewMessages } from '../kit/MessagesProvider.js';
 import { FilterBar } from './FilterBar.js';
 import { filterNamer } from './findings.js';
 import type { BoardFilterModes } from './filterModes.js';
 import { AddFilterMenu, FilterSettings } from './FilterSettings.js';
 import { addFilterOf, boardOf, chipOf, chipsOf, valueOf } from './landing.js';
-import { useLanding } from '../focus.js';
+import { useLanding } from '../kit/focus.js';
 import {
   BoardToasts,
   FilterWiringContext,

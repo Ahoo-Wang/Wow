@@ -13,7 +13,7 @@
 
 import { withMovedTo } from '../../analysis/index.js';
 import type { HierarchySpec } from '../../model/index.js';
-import { useViewMessages } from '../MessagesProvider.js';
+import { useViewMessages } from '../kit/MessagesProvider.js';
 import { OrderedCards } from './OrderedCards.js';
 import {
   OptionsSection,

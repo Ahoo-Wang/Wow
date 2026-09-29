@@ -17,13 +17,13 @@ import { cn } from 'cn';
 import type { RefreshController } from '../../react/index.js';
 import type { ViewNavigation } from '../../runtime/index.js';
 import { Button } from '../components/button.js';
-import { readingTime } from '../display.js';
-import { TEXT_UI } from '../layout.js';
-import { RefreshControl } from '../RefreshControl.js';
-import { useSurfaceDisplay } from '../ViewSurface.js';
-import type { PanelHeadingLevel } from '../DashboardPanel.js';
-import { useSay, useViewMessages } from '../MessagesProvider.js';
-import { useViewExpansion, ViewExpandToggle } from '../ViewExpansion.js';
+import { readingTime } from '../kit/display.js';
+import { TEXT_UI } from '../kit/layout.js';
+import { RefreshControl } from '../workbench/RefreshControl.js';
+import { useSurfaceDisplay } from '../kit/ViewSurface.js';
+import type { PanelHeadingLevel } from '../dashboard/DashboardPanel.js';
+import { useSay, useViewMessages } from '../kit/MessagesProvider.js';
+import { useViewExpansion, ViewExpandToggle } from '../kit/ViewExpansion.js';
 
 /**
  * An embed's first row, when it has one: its title as a heading at the

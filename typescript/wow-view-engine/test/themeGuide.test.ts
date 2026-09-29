@@ -43,7 +43,7 @@ import { readFileSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import postcss from 'postcss';
 import { describe, expect, it } from 'vitest';
-import { BUILT_IN_PRESETS } from '../src/ui/presets';
+import { BUILT_IN_PRESETS } from '../src/ui/kit/presets';
 import {
   hostVariables,
   presetVariables,

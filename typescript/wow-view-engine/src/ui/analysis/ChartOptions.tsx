@@ -37,9 +37,9 @@ import {
   TabsTrigger,
 } from '../components/tabs.js';
 import { useColumnTitle, useValueLabel } from '../charts/family.js';
-import { IconButton } from '../IconButton.js';
-import { LANDING_HEADING, TEXT_UI } from '../layout.js';
-import { useViewMessages } from '../MessagesProvider.js';
+import { IconButton } from '../kit/IconButton.js';
+import { LANDING_HEADING, TEXT_UI } from '../kit/layout.js';
+import { useViewMessages } from '../kit/MessagesProvider.js';
 import { AxesTab } from './AxesTab.js';
 import { DataTab } from './DataTab.js';
 import { DisplayTab, TableDisplay } from './DisplayTab.js';

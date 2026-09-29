@@ -15,7 +15,7 @@ import { cleanup, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { MessagesProvider, ViewSurface, zhCN } from '../src/ui/index.js';
-import { RecordPagination } from '../src/ui/RecordPagination.js';
+import { RecordPagination } from '../src/ui/record/RecordPagination.js';
 import { recordTableController as tableController } from './fixtures/ui.js';
 import { cursorPaging, pagedPaging } from '../src/record/index.js';
 

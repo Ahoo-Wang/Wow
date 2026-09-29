@@ -19,9 +19,12 @@ import {
   SelectItem,
   SelectValue,
 } from '../../components/select.js';
-import { SelectContent } from '../../popups.js';
-import { useSay, useViewMessages } from '../../MessagesProvider.js';
-import { PillSelectTrigger, type ControlChromeProps } from '../../variants.js';
+import { SelectContent } from '../../kit/popups.js';
+import { useSay, useViewMessages } from '../../kit/MessagesProvider.js';
+import {
+  PillSelectTrigger,
+  type ControlChromeProps,
+} from '../../kit/variants.js';
 
 /** What every value control is given: the value in force, and where to put it. */
 export interface ValueProps {

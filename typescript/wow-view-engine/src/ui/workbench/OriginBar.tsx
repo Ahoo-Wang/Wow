@@ -13,8 +13,8 @@
 
 import { ArrowLeftIcon } from 'lucide-react';
 import { Button } from '../components/button.js';
-import { TEXT_UI } from '../layout.js';
-import { useViewMessages } from '../MessagesProvider.js';
+import { TEXT_UI } from '../kit/layout.js';
+import { useViewMessages } from '../kit/MessagesProvider.js';
 
 /**
  * The line under the title bar of a view opened from another (D20): the way

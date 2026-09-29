@@ -32,9 +32,9 @@ import {
   type ViewListState,
   type ViewManagerController,
 } from '../../src/react/index.js';
-import { ViewList } from '../../src/ui/ViewList.js';
-import { ViewManager } from '../../src/ui/ViewManager.js';
-import { ViewSurface } from '../../src/ui/ViewSurface.js';
+import { ViewList } from '../../src/ui/workbench/ViewList.js';
+import { ViewManager } from '../../src/ui/manage/ViewManager.js';
+import { ViewSurface } from '../../src/ui/kit/ViewSurface.js';
 import {
   ordersDefinition,
   recordConfig,

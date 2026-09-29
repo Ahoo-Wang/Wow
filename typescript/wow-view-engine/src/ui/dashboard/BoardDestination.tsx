@@ -48,9 +48,9 @@ import {
   SelectValue,
 } from '../components/select.js';
 import { Skeleton } from '../components/skeleton.js';
-import { LineAlert } from '../alerts.js';
-import { useViewMessages } from '../MessagesProvider.js';
-import { SelectContent } from '../popups.js';
+import { LineAlert } from '../kit/alerts.js';
+import { useViewMessages } from '../kit/MessagesProvider.js';
+import { SelectContent } from '../kit/popups.js';
 
 /** The board a click opens, as 「点击时…」 has read it. */
 export type BoardRead =

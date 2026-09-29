@@ -29,9 +29,9 @@ import type {
   ViewRuntime,
 } from '../../runtime/index.js';
 import { describeFilter } from '../../filter/index.js';
-import type { DisplayContext } from '../display.js';
-import type { MessageFormatters } from '../MessagesProvider.js';
-import { summaryText } from '../summary.js';
+import type { DisplayContext } from '../kit/display.js';
+import type { MessageFormatters } from '../kit/MessagesProvider.js';
+import { summaryText } from '../kit/summary.js';
 
 /**
  * What a press on one group of a panel can do, as the grid hands it to the

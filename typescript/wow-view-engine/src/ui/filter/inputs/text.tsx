@@ -11,8 +11,8 @@
  * limitations under the License.
  */
 
-import { useViewMessages } from '../../MessagesProvider.js';
-import { PillInput } from '../../variants.js';
+import { useViewMessages } from '../../kit/MessagesProvider.js';
+import { PillInput } from '../../kit/variants.js';
 import { ValueChips } from './chips.js';
 import { scalarText, type ValueProps } from './shared.js';
 

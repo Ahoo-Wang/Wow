@@ -34,13 +34,13 @@ import { EmbeddedAnalysis } from './embed/EmbeddedAnalysis.js';
 import { EmbeddedRecord } from './embed/EmbeddedRecord.js';
 import type { EmbedBaseProps, EmbedInteraction } from './embed/options.js';
 import type { RecordDetailOptions } from './workbench/RecordParts.js';
-import { StartingWords, useViewMessages } from './MessagesProvider.js';
+import { StartingWords, useViewMessages } from './kit/MessagesProvider.js';
 import {
   useBindings,
   useEngine,
   useRoutedNavigate,
-} from './ViewEngineProvider.js';
-import { ErrorStrip, StatusStrip, WarningStrip } from './StatusStrip.js';
+} from './workbench/ViewEngineProvider.js';
+import { ErrorStrip, StatusStrip, WarningStrip } from './kit/StatusStrip.js';
 
 export type {
   EmbedBaseProps,

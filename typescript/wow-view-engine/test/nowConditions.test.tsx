@@ -23,8 +23,8 @@ import {
 } from '../src/index.js';
 import { useFilterEditor } from '../src/react/index.js';
 import type { ViewRuntime } from '../src/index.js';
-import { AppliedBar } from '../src/ui/AppliedBar.js';
-import { MessagesProvider } from '../src/ui/MessagesProvider.js';
+import { AppliedBar } from '../src/ui/filter/AppliedBar.js';
+import { MessagesProvider } from '../src/ui/kit/MessagesProvider.js';
 import { zhCN } from '../src/ui/messages/zh-CN.js';
 import {
   ordersDefinition,

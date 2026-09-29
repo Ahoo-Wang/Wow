@@ -38,7 +38,7 @@ import {
 } from '../src/ui/dashboard/panelFit.js';
 import { ScrollCue } from '../src/ui/dashboard/ScrollCue.js';
 import { stackedLayout } from '../src/index.js';
-import { MessagesProvider } from '../src/ui/MessagesProvider.js';
+import { MessagesProvider } from '../src/ui/kit/MessagesProvider.js';
 import { zhCN } from '../src/ui/messages/zh-CN.js';
 
 afterEach(cleanup);

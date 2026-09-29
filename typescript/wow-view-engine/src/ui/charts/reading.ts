@@ -13,7 +13,7 @@
 
 import type { ChartData } from '../../analysis/index.js';
 import type { ChartSpec, ChartType, ValueFormat } from '../../model/index.js';
-import type { MessageFormatters } from '../MessagesProvider.js';
+import type { MessageFormatters } from '../kit/MessagesProvider.js';
 import { formatShare, formatValue } from './axis.js';
 import { stackPlan } from './cartesianPlan.js';
 import { type FilledNote, type SeriesName, type ValueLabel } from './family.js';

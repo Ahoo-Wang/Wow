@@ -27,7 +27,7 @@ import {
   type RecordActionsController,
 } from '../../react/index.js';
 import type { SelectionContext } from '../record/SelectionBar.js';
-import { useSayWith, useViewMessages } from '../MessagesProvider.js';
+import { useSayWith, useViewMessages } from '../kit/MessagesProvider.js';
 import { ActionDialog } from './ActionDialog.js';
 import { BulkActionButtons, RowActionButtons } from './ActionButtons.js';
 import { BulkStatus, outcomeSentence, runningSentence } from './BulkStatus.js';

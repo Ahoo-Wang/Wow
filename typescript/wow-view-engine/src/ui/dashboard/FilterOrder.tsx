@@ -15,12 +15,12 @@ import { useEffect, useRef, type ReactNode } from 'react';
 import { DragDropProvider } from '@dnd-kit/react';
 import { useSortable } from '@dnd-kit/react/sortable';
 import type { DashboardField } from '../../model/index.js';
-import { DragHandle, moveTarget, type HandleMove } from '../DragHandle.js';
-import { dragAccessibility } from '../dragAnnounce.js';
-import { dropped } from '../dragDrop.js';
-import { sortableList, withoutOptimisticSorting } from '../dragPlugins.js';
-import { dragWording } from '../dragWording.js';
-import { useViewMessages } from '../MessagesProvider.js';
+import { DragHandle, moveTarget, type HandleMove } from '../kit/DragHandle.js';
+import { dragAccessibility } from '../kit/dragAnnounce.js';
+import { dropped } from '../kit/dragDrop.js';
+import { sortableList, withoutOptimisticSorting } from '../kit/dragPlugins.js';
+import { dragWording } from '../kit/dragWording.js';
+import { useViewMessages } from '../kit/MessagesProvider.js';
 
 /**
  * Putting the bar's filters in another order while the board is built: the

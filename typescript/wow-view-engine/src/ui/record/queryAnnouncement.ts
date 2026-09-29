@@ -12,8 +12,8 @@
  */
 
 import type { RecordTableController } from '../../react/index.js';
-import type { MessageFormatters } from '../MessagesProvider.js';
-import { useSentence, type OwnAnnouncer } from '../Announcer.js';
+import type { MessageFormatters } from '../kit/MessagesProvider.js';
+import { useSentence, type OwnAnnouncer } from '../kit/Announcer.js';
 
 /**
  * What a query says about itself, or nothing at all.

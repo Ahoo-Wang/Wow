@@ -12,8 +12,8 @@
  */
 
 import { useLayoutEffect, useRef, useState, type RefObject } from 'react';
-import type { ViewExpansion } from '../ViewExpansion.js';
-import { useViewExpansion } from '../ViewExpansion.js';
+import type { ViewExpansion } from '../kit/ViewExpansion.js';
+import { useViewExpansion } from '../kit/ViewExpansion.js';
 import { useSidebarFold } from './useSidebarFold.js';
 
 export interface WorkbenchFoldsOptions {

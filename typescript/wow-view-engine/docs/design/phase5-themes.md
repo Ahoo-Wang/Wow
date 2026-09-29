@@ -10,14 +10,14 @@
 
 ### 1.1 主题与明暗怎样工作
 
-| 环节                 | 现状                                                                                                                                                                                           | 证据                                                                  |
-| -------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------- |
-| token                | shadcn `base-nova`、`baseColor: neutral` 生成后收进边界。每个 token 都写成 `var(--fve-<token>, 内置值)`，亮色 42 个宿主变量，暗色 33 个 `--fve-dark-*`（`radius`、`text-ui` 这类长度不分明暗） | `components.json`；`src/styles.css:139-354`（亮）、`:453-540`（暗）   |
-| 明暗判定             | 只有一套选择器：`.fve-root[data-theme='dark']`、`.dark .fve-root:not([data-theme='light'])`、`.dark .fve-tokens`。`dark:` 变体和暗色 token 块用的是同一组选择器，`verify-package` 断言两处一致 | `src/styles.css:77`、`:453-455`；`scripts/verify-package.mjs:166-201` |
-| 跟随与钉住           | 宿主在祖先上挂 `.dark`，视图就跟着变；`theme` 属性只接受 `'light' \| 'dark'`，钉住后写成 `data-theme`。**没有「跟随系统」**：全包不读 `prefers-color-scheme`                                   | `src/ui/ViewSurface.tsx:24`、`:172`；`src/ui/embed/options.ts:93`     |
-| 解析结果怎么送到弹层 | `useResolvedTheme` 读根节点的 `colorScheme`，并在每一层祖先上观察 `class`／`data-theme` 的变化。`SurfaceThemeContext` 只携带 `'light' \| 'dark'`，portal 出去的弹层据此写上自己的 `data-theme` | `src/ui/ViewSurface.tsx:91-118`、`:177`；`src/ui/popups.tsx:235-260`  |
-| 宿主定制             | 在 `:root` 上给 `--fve-*`／`--fve-dark-*` 赋值；[extension.md](extension.md) 已经写了「预设主题即一份这些变量的赋值文件」，但包里一份预设都没有                                                | `README.md` 的 token 表；[extension.md](extension.md) 外观一行        |
-| Storybook            | `.storybook/preview.tsx:68-73` 用 addon-themes 的 class 装饰器，工具栏只有 light／dark 两档，切换方式是在 `<html>` 上挂 `.dark`                                                                | 同左                                                                  |
+| 环节                 | 现状                                                                                                                                                                                           | 证据                                                                         |
+| -------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| token                | shadcn `base-nova`、`baseColor: neutral` 生成后收进边界。每个 token 都写成 `var(--fve-<token>, 内置值)`，亮色 42 个宿主变量，暗色 33 个 `--fve-dark-*`（`radius`、`text-ui` 这类长度不分明暗） | `components.json`；`src/styles.css:139-354`（亮）、`:453-540`（暗）          |
+| 明暗判定             | 只有一套选择器：`.fve-root[data-theme='dark']`、`.dark .fve-root:not([data-theme='light'])`、`.dark .fve-tokens`。`dark:` 变体和暗色 token 块用的是同一组选择器，`verify-package` 断言两处一致 | `src/styles.css:77`、`:453-455`；`scripts/verify-package.mjs:166-201`        |
+| 跟随与钉住           | 宿主在祖先上挂 `.dark`，视图就跟着变；`theme` 属性只接受 `'light' \| 'dark'`，钉住后写成 `data-theme`。**没有「跟随系统」**：全包不读 `prefers-color-scheme`                                   | `src/ui/kit/ViewSurface.tsx:24`、`:172`；`src/ui/embed/options.ts:93`        |
+| 解析结果怎么送到弹层 | `useResolvedTheme` 读根节点的 `colorScheme`，并在每一层祖先上观察 `class`／`data-theme` 的变化。`SurfaceThemeContext` 只携带 `'light' \| 'dark'`，portal 出去的弹层据此写上自己的 `data-theme` | `src/ui/kit/ViewSurface.tsx:91-118`、`:177`；`src/ui/kit/popups.tsx:235-260` |
+| 宿主定制             | 在 `:root` 上给 `--fve-*`／`--fve-dark-*` 赋值；[extension.md](extension.md) 已经写了「预设主题即一份这些变量的赋值文件」，但包里一份预设都没有                                                | `README.md` 的 token 表；[extension.md](extension.md) 外观一行               |
+| Storybook            | `.storybook/preview.tsx:68-73` 用 addon-themes 的 class 装饰器，工具栏只有 light／dark 两档，切换方式是在 `<html>` 上挂 `.dark`                                                                | 同左                                                                         |
 
 ### 1.2 图表的颜色从哪来
 
@@ -30,8 +30,8 @@
 ### 1.3 状态色
 
 - `--success`／`--warning`／`--destructive` 亮色取 Tailwind 的 800／700 档，暗色取 400 档（`styles.css:213-215`、`:492-499`）。亮色刻意留了余量（P-21）。**暗色饱和度是 D18 第 12 条留给本阶段的问题**：400 档的 chroma 在 0.19～0.21 之间，软徽章里的字发亮、发艳。
-- **死 token**：`--info` 声明了、也注册成了 utility（`styles.css:103`、`:215`、`:499`），但全包没有一处读它。info 语气的 callout 用的是 `text-muted-foreground`（`src/ui/alerts.tsx:95`）。这违反了文件里自己写下的那条规则：「一个没人读的 token，是一份没人守的合同」。
-- 为明暗单独打的补丁有三处，都用 `dark:` 写死：danger 徽章暗色下的字色是 `color-mix(… --destructive 80%, --foreground)`（`src/ui/variants.tsx:133`）；callout 里按钮的暗色底被拿掉（`alerts.tsx:86`）；`DestructiveAction` 的暗色填充写了两遍（`variants.tsx:227-228`）。它们是按**中性灰暗色**量出来的；换成别的预设后，对比度要重新量。
+- **死 token**：`--info` 声明了、也注册成了 utility（`styles.css:103`、`:215`、`:499`），但全包没有一处读它。info 语气的 callout 用的是 `text-muted-foreground`（`src/ui/kit/alerts.tsx:95`）。这违反了文件里自己写下的那条规则：「一个没人读的 token，是一份没人守的合同」。
+- 为明暗单独打的补丁有三处，都用 `dark:` 写死：danger 徽章暗色下的字色是 `color-mix(… --destructive 80%, --foreground)`（`src/ui/kit/variants.tsx:133`）；callout 里按钮的暗色底被拿掉（`alerts.tsx:86`）；`DestructiveAction` 的暗色填充写了两遍（`variants.tsx:227-228`）。它们是按**中性灰暗色**量出来的；换成别的预设后，对比度要重新量。
 
 ### 1.4 焦点与控件边
 
@@ -43,13 +43,13 @@
 
 `src/**/*.ts(x)` 里没有 Tailwind 调色板类，也没有 hex。剩下的只有这几处：
 
-| 位置                                                            | 内容                                                                         | 判断                                                                       |
-| --------------------------------------------------------------- | ---------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
-| `src/ui/charts/theme.ts:77-93`                                  | `FALLBACK` 的 12 个 `rgb()`                                                  | 与样式表重复，需要测试对齐或删掉                                           |
-| `src/ui/popups.tsx:143`                                         | 破坏性对话框的遮罩 `bg-black/50`                                             | 有意为之（注释 `:125-141`），遮罩不算主题色，保留                          |
-| `src/styles.css:242`、`:504-507`                                | `--quiet-foreground` 写死 `oklch(0.145 … / 70%)`，没有从 `--foreground` 推导 | 宿主改了 `--fve-foreground`，汇总行的弱字不会跟着变；改成 `color-mix` 推导 |
-| `src/styles.css:266`、`:510`                                    | `--pin-shadow` 亮色是黑、暗色是白                                            | 由明暗决定，与预设无关，保留                                               |
-| `src/ui/DashboardGrid.tsx:159`、`src/ui/dashboard/Board.tsx:44` | 行高 80px 写死                                                               | 不是颜色，属于密度问题（见 3.6）                                           |
+| 位置                                                                      | 内容                                                                         | 判断                                                                       |
+| ------------------------------------------------------------------------- | ---------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
+| `src/ui/charts/theme.ts:77-93`                                            | `FALLBACK` 的 12 个 `rgb()`                                                  | 与样式表重复，需要测试对齐或删掉                                           |
+| `src/ui/kit/popups.tsx:143`                                               | 破坏性对话框的遮罩 `bg-black/50`                                             | 有意为之（注释 `:125-141`），遮罩不算主题色，保留                          |
+| `src/styles.css:242`、`:504-507`                                          | `--quiet-foreground` 写死 `oklch(0.145 … / 70%)`，没有从 `--foreground` 推导 | 宿主改了 `--fve-foreground`，汇总行的弱字不会跟着变；改成 `color-mix` 推导 |
+| `src/styles.css:266`、`:510`                                              | `--pin-shadow` 亮色是黑、暗色是白                                            | 由明暗决定，与预设无关，保留                                               |
+| `src/ui/dashboard/DashboardGrid.tsx:159`、`src/ui/dashboard/Board.tsx:44` | 行高 80px 写死                                                               | 不是颜色，属于密度问题（见 3.6）                                           |
 
 ### 1.6 可达性守护已经有什么
 

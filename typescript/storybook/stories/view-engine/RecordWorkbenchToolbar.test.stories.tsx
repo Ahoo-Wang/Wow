@@ -287,7 +287,7 @@ const cadenceOf = (seconds: number): string =>
 /**
  * D12 puts every function into an icon button, so hovering one is how a
  * pointer learns what it is. The name the reader hears and the label the
- * pointer sees are one string (`src/ui/IconButton.tsx`), and this asks the
+ * pointer sees are one string (`src/ui/kit/IconButton.tsx`), and this asks the
  * question a jsdom suite cannot: is it actually on screen, and does it say
  * what the button says *now* rather than what it said before it was pressed?
  */

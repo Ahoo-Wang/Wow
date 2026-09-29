@@ -23,10 +23,10 @@ export type SelectionContext = Omit<RecordBulkActionContext, 'run' | 'busy'>;
 import type { RecordViewRuntime } from '../../runtime/index.js';
 import { Badge } from '../components/badge.js';
 import { Button } from '../components/button.js';
-import { IconTooltip } from '../IconButton.js';
-import { SPACE } from '../layout.js';
-import { Toolbar, ToolbarItem } from '../toolbar.js';
-import { useViewMessages } from '../MessagesProvider.js';
+import { IconTooltip } from '../kit/IconButton.js';
+import { SPACE } from '../kit/layout.js';
+import { Toolbar, ToolbarItem } from '../kit/toolbar.js';
+import { useViewMessages } from '../kit/MessagesProvider.js';
 
 /** What the selection shows: its count, the way to drop it, its actions. */
 interface SelectionProps {

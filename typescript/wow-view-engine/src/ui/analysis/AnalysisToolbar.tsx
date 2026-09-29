@@ -19,16 +19,16 @@ import type { AnalysisEditorController } from '../../react/index.js';
 import type { ViewRuntime } from '../../runtime/index.js';
 import { Button } from '../components/button.js';
 import { ToggleGroup, ToggleGroupItem } from '../components/toggle-group.js';
-import { columnTitle, valueText } from '../display.js';
-import { ExportButton } from '../ExportDialog.js';
-import { IconTooltip } from '../IconButton.js';
-import { SPACE, TEXT_UI } from '../layout.js';
+import { columnTitle, valueText } from '../kit/display.js';
+import { ExportButton } from '../kit/ExportDialog.js';
+import { IconTooltip } from '../kit/IconButton.js';
+import { SPACE, TEXT_UI } from '../kit/layout.js';
 import {
   useViewMessages,
   type MessageFormatters,
-} from '../MessagesProvider.js';
-import { Toolbar, ToolbarItem } from '../toolbar.js';
-import { useSurfaceDisplay } from '../ViewSurface.js';
+} from '../kit/MessagesProvider.js';
+import { Toolbar, ToolbarItem } from '../kit/toolbar.js';
+import { useSurfaceDisplay } from '../kit/ViewSurface.js';
 import { CHART_ICON, glyphType } from './chartIcons.js';
 import type { CaptureChart } from '../charts/image.js';
 import { ExportMenu, ImageFailed } from './ExportMenu.js';

@@ -22,10 +22,10 @@
  */
 
 import type { RecordSort } from '../../model/index.js';
-import { dragAccessibility } from '../dragAnnounce.js';
-import { dragWording, type DragWordingKeys } from '../dragWording.js';
-import { dropped, type DropOperation } from '../dragDrop.js';
-import type { MessageFormatters } from '../MessagesProvider.js';
+import { dragAccessibility } from '../kit/dragAnnounce.js';
+import { dragWording, type DragWordingKeys } from '../kit/dragWording.js';
+import { dropped, type DropOperation } from '../kit/dragDrop.js';
+import type { MessageFormatters } from '../kit/MessagesProvider.js';
 
 /** The two places one drop is between, as positions in the sort. */
 export interface SortDrop {

@@ -33,10 +33,10 @@ import {
   ToastViewport,
   useToastManager,
 } from '../components/toast.js';
-import { BadgeTooltip } from '../IconButton.js';
-import { TEXT_UI } from '../layout.js';
-import { useViewMessages } from '../MessagesProvider.js';
-import { ModeBar } from '../variants.js';
+import { BadgeTooltip } from '../kit/IconButton.js';
+import { TEXT_UI } from '../kit/layout.js';
+import { useViewMessages } from '../kit/MessagesProvider.js';
+import { ModeBar } from '../kit/variants.js';
 
 /**
  * The filter being wired (D22 G), and what a panel's strip does to it: wire

@@ -14,12 +14,12 @@
 import { useRef, type ReactNode, type RefObject } from 'react';
 import { PanelLeftOpenIcon } from 'lucide-react';
 import { Sheet, SheetTitle } from '../components/sheet.js';
-import { IconButton } from '../IconButton.js';
-import { SheetContent } from '../popups.js';
-import { useViewMessages } from '../MessagesProvider.js';
-import { ViewList, type ViewListProps } from '../ViewList.js';
-import { ViewSwitcher, type ViewSwitcherProps } from '../ViewSwitcher.js';
-import { useKindWord } from '../kinds.js';
+import { IconButton } from '../kit/IconButton.js';
+import { SheetContent } from '../kit/popups.js';
+import { useViewMessages } from '../kit/MessagesProvider.js';
+import { ViewList, type ViewListProps } from './ViewList.js';
+import { ViewSwitcher, type ViewSwitcherProps } from './ViewSwitcher.js';
+import { useKindWord } from '../kit/kinds.js';
 
 export interface SidebarColumnProps extends Omit<ViewListProps, 'onRetry'> {
   /**

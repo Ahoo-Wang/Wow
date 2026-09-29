@@ -21,12 +21,12 @@ import {
 } from '../../analysis/index.js';
 import type { ChartType } from '../../model/index.js';
 import { cn } from 'cn';
-import { IconButton } from '../IconButton.js';
-import { LANDING_HEADING, TEXT_UI } from '../layout.js';
-import { useViewMessages } from '../MessagesProvider.js';
+import { IconButton } from '../kit/IconButton.js';
+import { LANDING_HEADING, TEXT_UI } from '../kit/layout.js';
+import { useViewMessages } from '../kit/MessagesProvider.js';
 import { useChartMaps } from '../charts/maps.js';
 import { CHART_ICON } from './chartIcons.js';
-import { ChartTile } from '../variants.js';
+import { ChartTile } from '../kit/variants.js';
 
 export type { Picked };
 

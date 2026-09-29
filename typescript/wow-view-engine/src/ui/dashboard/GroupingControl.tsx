@@ -15,8 +15,8 @@ import { InfoIcon, XIcon } from 'lucide-react';
 import type { AnalysisDateUnit } from '../../model/index.js';
 import { Button } from '../components/button.js';
 import { ToggleGroup, ToggleGroupItem } from '../components/toggle-group.js';
-import { IconButton, IconTooltip } from '../IconButton.js';
-import { useViewMessages } from '../MessagesProvider.js';
+import { IconButton, IconTooltip } from '../kit/IconButton.js';
+import { useViewMessages } from '../kit/MessagesProvider.js';
 
 /** The time grouping (整板 按日｜周｜月): one choice among the units offered. */
 export function GroupingControl({

@@ -85,7 +85,7 @@ export interface DateInstant {
  * none.
  *
  * This is the kind's own reading of a value, and the one reading in the
- * package: a cell shows a date through it (`ui/display.ts`), and the record
+ * package: a cell shows a date through it (`ui/kit/display.ts`), and the record
  * kernel orders a column's values by it to find its earliest and its latest
  * (`record/project.ts`). `Date.parse` alone would not do — Wow keeps a time
  * as epoch milliseconds, which arrives as a number or as a string of digits,

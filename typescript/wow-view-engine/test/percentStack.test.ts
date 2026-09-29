@@ -33,7 +33,7 @@ import {
 } from '../src/ui/charts/cartesianOption.js';
 import { readChart } from '../src/ui/charts/reading.js';
 import { CHART_FALLBACK, type ChartTheme } from '../src/ui/charts/theme.js';
-import { defaultMessages, formatMessage } from '../src/ui/messages.js';
+import { defaultMessages, formatMessage } from '../src/ui/kit/messages.js';
 import { analysisKernelConfig } from './fixtures/analysis.js';
 
 /**

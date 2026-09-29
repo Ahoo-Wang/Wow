@@ -16,7 +16,7 @@ import { PencilIcon } from 'lucide-react';
 import type { DashboardFilters } from '../../model/index.js';
 import type { DashboardController } from '../../react/index.js';
 import { Button } from '../components/button.js';
-import type { MessageFormatters } from '../MessagesProvider.js';
+import type { MessageFormatters } from '../kit/MessagesProvider.js';
 
 export interface BuildShellOptions {
   dashboard: DashboardController;

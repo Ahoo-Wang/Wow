@@ -43,7 +43,7 @@ import {
   type DataViewDefinition,
 } from '../src/index.js';
 import { narrowDefinition } from '../src/capabilities/index.js';
-import { columnTitle, displayValue } from '../src/ui/display.js';
+import { columnTitle, displayValue } from '../src/ui/kit/display.js';
 import { en as enMessages } from '../src/ui/messages/en.js';
 import { zhCN as zhCNMessages } from '../src/ui/messages/zh-CN.js';
 import {

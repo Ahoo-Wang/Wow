@@ -21,8 +21,8 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from '../components/empty.js';
-import { useViewMessages } from '../MessagesProvider.js';
-import type { MessageKey } from '../messages.js';
+import { useViewMessages } from '../kit/MessagesProvider.js';
+import type { MessageKey } from '../kit/messages.js';
 import type { FilterEditorController } from '../../react/index.js';
 import type { EmptyWayOut } from './emptyWayOut.js';
 

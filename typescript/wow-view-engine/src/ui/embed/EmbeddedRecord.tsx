@@ -22,18 +22,18 @@ import {
   useViewRuntime,
   type RecordDetailSection,
 } from '../../react/index.js';
-import { AppliedBar } from '../AppliedBar.js';
+import { AppliedBar } from '../filter/AppliedBar.js';
 import { Skeleton } from '../components/skeleton.js';
-import { ExportButton } from '../ExportDialog.js';
-import { RecordCards } from '../RecordCards.js';
-import { RecordPagination } from '../RecordPagination.js';
-import { RecordTable } from '../RecordTable.js';
+import { ExportButton } from '../kit/ExportDialog.js';
+import { RecordCards } from '../record/RecordCards.js';
+import { RecordPagination } from '../record/RecordPagination.js';
+import { RecordTable } from '../record/RecordTable.js';
 import { useExportOffer } from '../record/exportOffer.js';
 import { emptyHintOf } from '../record/EmptyResult.js';
-import { useViewMessages } from '../MessagesProvider.js';
+import { useViewMessages } from '../kit/MessagesProvider.js';
 import { RecordDetail } from '../record/RecordDetail.js';
-import type { RenderFailureHandler } from '../RenderBoundary.js';
-import { QueryStrip } from '../StatusStrip.js';
+import type { RenderFailureHandler } from '../kit/RenderBoundary.js';
+import { QueryStrip } from '../kit/StatusStrip.js';
 import { SearchBox } from '../workbench/SearchBox.js';
 import type { RecordDetailOptions } from '../workbench/RecordParts.js';
 

@@ -21,10 +21,10 @@ import type {
   RecordTableController,
 } from '../src/react/index.js';
 import type { RecordViewRuntime } from '../src/runtime/index.js';
-import type { ExportWindowProps } from '../src/ui/ExportDialog.js';
+import type { ExportWindowProps } from '../src/ui/kit/ExportDialog.js';
 import { exportPlan } from '../src/runtime/exportRows.js';
-import { MessagesProvider } from '../src/ui/MessagesProvider.js';
-import { ResultToolbar } from '../src/ui/ResultToolbar.js';
+import { MessagesProvider } from '../src/ui/kit/MessagesProvider.js';
+import { ResultToolbar } from '../src/ui/workbench/ResultToolbar.js';
 import { recordTableController } from './fixtures/ui.js';
 import { pagedPaging } from '../src/record/index.js';
 
@@ -150,7 +150,7 @@ describe('ResultToolbar selection side', () => {
     )!;
     // **Surviving class assertions**: where this group sits and how it
     // wraps is layout at a call site, which is what `className` is for
-    // (`ui/variants.tsx` says so), and jsdom lays nothing out — there is no
+    // (`ui/kit/variants.tsx` says so), and jsdom lays nothing out — there is no
     // state here for an element to carry.
     expect(right.className).toContain('fve:ml-auto');
     expect(right.className).toContain('fve:flex-wrap');

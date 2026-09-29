@@ -142,40 +142,53 @@ const HEADLESS: readonly Location[] = [
  * and their empty state from `analysis/EmptyResult.tsx` while the analysis
  * folder drew the charts, and the filter band took its focus helpers from
  * `analysis/` and `dashboard/`. A helper two folders share belongs below
- * both — at the ui root, or in the folder that owns it — never in the one
- * that happens to have written it first.
+ * both — in `kit`, or in the folder that owns it — never in the one that
+ * happens to have written it first.
  *
- * The direction is the order a screen is built in: the pieces a result is
- * drawn with (`record`, `charts`, `columns`, `sort`, `manage`) at the
- * bottom; the filter band over the record's words for an issue; the
- * analysis result over its charts, its filters and the record view's
- * states; the workbench's blocks over those; the dashboard over what a
- * panel shows and the workbench blocks a panel reuses; the embeds on top.
+ * Three tiers (todo.md 「ui 根目录拆成三层」, 2026-09-27): `kit` holds the
+ * building blocks every feature folder takes (the buttons, popups, the
+ * toolbar, focus, the drag vocabulary, the words and the surface) and
+ * depends on no feature; the feature folders sit over it; the ui root keeps
+ * the entry and the shells (`UI_ROOT`), which compose the folders and which
+ * no folder imports.
+ *
+ * The direction among the features is the order a screen is built in: the
+ * pieces a result is drawn with (`record`, `charts`, `sort`, `manage`) at
+ * the bottom; the column settings over the table's pins; the filter band
+ * over the record's words for an issue, a record action over both; the
+ * analysis result over its charts, its filters, its sort and the record
+ * view's states; the workbench's blocks over those; the dashboard over what
+ * a panel shows and the workbench blocks a panel reuses; the embeds on top.
  * `components` and `lib` (vendored), `theme` and `messages` sit under every
- * folder and import none. A folder added under `src/ui` has to be placed
- * here before it can import another.
- *
- * The ui root is out of this rule, both ways: its eighty files mix the
- * shared pieces every folder takes (buttons, popups, the toolbar, focus)
- * with the shells that compose the folders, so the root and the folders
- * import each other until the root is split into the two.
+ * folder and import none; `kit` sits over them and under every feature. A
+ * folder added under `src/ui` has to be placed here before it can import
+ * another.
  */
 const UI_FOLDERS: Record<string, readonly string[]> = {
   components: [],
   lib: [],
   theme: [],
   messages: [],
+  kit: [],
   record: [],
   charts: [],
-  columns: [],
   sort: [],
   manage: [],
-  actions: ['record'],
+  columns: ['record'],
   filter: ['record'],
-  analysis: ['charts', 'filter', 'record'],
-  workbench: ['actions', 'analysis', 'filter', 'record'],
-  dashboard: ['actions', 'analysis', 'filter', 'record', 'workbench'],
-  embed: ['analysis', 'record', 'workbench'],
+  actions: ['filter', 'record'],
+  analysis: ['charts', 'filter', 'record', 'sort'],
+  workbench: [
+    'actions',
+    'analysis',
+    'columns',
+    'filter',
+    'manage',
+    'record',
+    'sort',
+  ],
+  dashboard: ['actions', 'analysis', 'charts', 'filter', 'record', 'workbench'],
+  embed: ['analysis', 'dashboard', 'filter', 'record', 'workbench'],
 };
 /** Under every folder: importing one of these is no direction at all. */
 const UI_BELOW_ALL: readonly string[] = [
@@ -183,6 +196,24 @@ const UI_BELOW_ALL: readonly string[] = [
   'lib',
   'theme',
   'messages',
+];
+/** Over `UI_BELOW_ALL`, under every feature folder. */
+const UI_KIT = 'kit';
+/**
+ * What the ui root keeps: the `/ui` entry, the four shells that compose the
+ * feature folders into a page, and the host's own pieces beside the entry
+ * (`ViewHost`, its colour mode, the navigation it lists). Nothing under a
+ * folder imports one of them.
+ */
+const UI_ROOT: readonly string[] = [
+  'DashboardWorkbench.tsx',
+  'DataWorkbench.tsx',
+  'EmbeddedDashboard.tsx',
+  'EmbeddedView.tsx',
+  'ViewHost.tsx',
+  'colorMode.tsx',
+  'index.ts',
+  'viewNavigation.ts',
 ];
 
 const WOW = '@ahoo-wang/wow-client';
@@ -490,13 +521,13 @@ const LOCATIONS: readonly Location[] = ['root', ...LAYERS];
 
 describe('architecture', () => {
   // Registry popups portal to document.body, out of the surface that holds
-  // the theme tokens; ui/popups.tsx carries the theme out with them. A file
+  // the theme tokens; ui/kit/popups.tsx carries the theme out with them. A file
   // that reaches a popup module another way renders its contents with no
   // theme, a transparent menu over the table, and nothing else notices. So
   // the rule is read off the import records rather than the source text: a
   // namespace import, `export *`, a re-export, a dynamic import and a `.ts`
   // file all count. Only a type-only import, which renders nothing, is free.
-  it('takes every popup content from ui/popups.tsx, not from the registry', () => {
+  it('takes every popup content from ui/kit/popups.tsx, not from the registry', () => {
     const modules = [
       'alert-dialog',
       'combobox',
@@ -517,7 +548,7 @@ describe('architecture', () => {
     ]);
     const exempt = (file: SourceFile) =>
       /^ui\/(components|lib)\//.test(describePath(file)) ||
-      describePath(file) === join('ui', 'popups.tsx');
+      describePath(file) === join('ui', 'kit', 'popups.tsx');
     const violations = files
       .filter(file => !exempt(file))
       .flatMap(file =>
@@ -652,6 +683,10 @@ describe('architecture', () => {
       const [layer, folder, ...rest] = path.split(sep);
       return layer === 'ui' && rest.length > 0 ? folder : null;
     };
+    const atUiRoot = (path: string): boolean => {
+      const [layer, ...rest] = path.split(sep);
+      return layer === 'ui' && rest.length === 1;
+    };
     const imports = at('ui').flatMap(file =>
       file.imports.flatMap(({ specifier }) => {
         const from = folderOf(describePath(file));
@@ -674,9 +709,83 @@ describe('architecture', () => {
       const violations = imports
         .filter(
           ({ from, to }) =>
-            !UI_BELOW_ALL.includes(to) && !UI_FOLDERS[from]?.includes(to),
+            !UI_BELOW_ALL.includes(to) &&
+            !(to === UI_KIT && !UI_BELOW_ALL.includes(from)) &&
+            !UI_FOLDERS[from]?.includes(to),
         )
         .map(({ entry }) => entry);
+      expect(violations).toEqual([]);
+    });
+
+    it('keeps only the entry and the shells at the ui root', () => {
+      const found = readdirSync(join(src, 'ui'), { withFileTypes: true })
+        .filter(entry => entry.isFile())
+        .map(entry => entry.name)
+        .sort();
+      expect(found).toEqual([...UI_ROOT].sort());
+    });
+
+    // The root composes the folders; a folder that imported it back would
+    // be the two-way dependency the three tiers took apart.
+    it('lets nobody but the entry and the shells import the ui root', () => {
+      const violations = at('ui')
+        .filter(file => folderOf(describePath(file)) !== null)
+        .flatMap(file =>
+          file.imports
+            .filter(({ specifier }) => {
+              const target = targetOf(file, specifier);
+              return target !== null && atUiRoot(target);
+            })
+            .map(({ specifier }) => `${describePath(file)} -> ${specifier}`),
+        );
+      expect(violations).toEqual([]);
+    });
+
+    it('places every folder under src/ui in the table', () => {
+      const folders = readdirSync(join(src, 'ui'), { withFileTypes: true })
+        .filter(entry => entry.isDirectory())
+        .map(entry => entry.name);
+      expect(folders.filter(folder => !(folder in UI_FOLDERS))).toEqual([]);
+    });
+
+    it('imports another folder only down the table', () => {
+      const violations = imports
+        .filter(
+          ({ from, to }) =>
+            !UI_BELOW_ALL.includes(to) &&
+            !(to === UI_KIT && !UI_BELOW_ALL.includes(from)) &&
+            !UI_FOLDERS[from]?.includes(to),
+        )
+        .map(({ entry }) => entry);
+      expect(violations).toEqual([]);
+    });
+
+    it('keeps only the entry and the shells at the ui root', () => {
+      const found = readdirSync(join(src, 'ui'), { withFileTypes: true })
+        .filter(entry => entry.isFile())
+        .map(entry => entry.name)
+        .sort();
+      expect(found).toEqual([...UI_ROOT].sort());
+    });
+
+    // The root composes the folders; a folder that imported it back would
+    // be the two-way dependency the three tiers took apart.
+    it('lets nobody but the entry and the shells import the ui root', () => {
+      const violations = LAYERS.filter(layer => layer !== 'ui')
+        .flatMap(layer => at(layer))
+        .concat(at('ui').filter(file => folderOf(describePath(file)) !== null))
+        .flatMap(file =>
+          file.imports
+            .filter(({ specifier }) => {
+              const target = targetOf(file, specifier);
+              return (
+                target !== null &&
+                atUiRoot(target) &&
+                !target.startsWith(join('ui', 'index'))
+              );
+            })
+            .map(({ specifier }) => `${describePath(file)} -> ${specifier}`),
+        );
       expect(violations).toEqual([]);
     });
 

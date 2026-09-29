@@ -25,14 +25,14 @@ import {
   type FilterPath,
 } from '../../filter/index.js';
 import type { FilterTreeController } from '../../react/index.js';
-import { IconButton } from '../IconButton.js';
-import { useViewMessages } from '../MessagesProvider.js';
+import { IconButton } from '../kit/IconButton.js';
+import { useViewMessages } from '../kit/MessagesProvider.js';
 import { AddEntry } from './AddEntry.js';
 import { ChoiceValue } from './inputs/shared.js';
 import { GROUP_OPERATOR_LABEL } from './groupOperators.js';
 import { ConditionPill } from './ConditionPill.js';
 import { useConditionFocus } from './conditionFocus.js';
-import { PendingDot, PENDING_AT_CORNER } from '../PendingDot.js';
+import { PendingDot, PENDING_AT_CORNER } from '../kit/PendingDot.js';
 
 /** One group as a framed block: its operator, its children, room to add. */
 export function GroupBlock({

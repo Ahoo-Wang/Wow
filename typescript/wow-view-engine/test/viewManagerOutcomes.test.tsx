@@ -26,8 +26,8 @@ import type {
   ViewListState,
   ViewManagerController,
 } from '../src/react/index.js';
-import { ViewManager } from '../src/ui/ViewManager.js';
-import { ViewSurface } from '../src/ui/ViewSurface.js';
+import { ViewManager } from '../src/ui/manage/ViewManager.js';
+import { ViewSurface } from '../src/ui/kit/ViewSurface.js';
 import { deferred, recordConfig } from './fixtures.js';
 import {
   Standalone,

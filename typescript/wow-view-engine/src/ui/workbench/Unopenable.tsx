@@ -22,8 +22,8 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from '../components/empty.js';
-import { useViewMessages } from '../MessagesProvider.js';
-import { useKindIssue, useKindWord } from '../kinds.js';
+import { useViewMessages } from '../kit/MessagesProvider.js';
+import { useKindIssue, useKindWord } from '../kit/kinds.js';
 
 /** The main column when the chosen view cannot be opened: the reason, and the way to the default. */
 export function Unopenable({

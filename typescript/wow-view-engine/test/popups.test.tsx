@@ -55,7 +55,10 @@ import {
   Tooltip,
   TooltipContent as VendoredTooltipContent,
 } from '../src/ui/components/tooltip.js';
-import { EditorBandToggle, EditorFold } from '../src/ui/EditorBand.js';
+import {
+  EditorBandToggle,
+  EditorFold,
+} from '../src/ui/workbench/EditorBand.js';
 import {
   AlertDialogContent,
   ComboboxContent,
@@ -65,7 +68,7 @@ import {
   SelectContent,
   SheetContent,
   TooltipContent,
-} from '../src/ui/popups.js';
+} from '../src/ui/kit/popups.js';
 import { FilterPanel, ViewSurface } from '../src/ui/index.js';
 import {
   ordersDefinition,

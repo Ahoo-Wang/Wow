@@ -13,10 +13,10 @@
 
 import type { ReactNode } from 'react';
 import { cn } from 'cn';
-import { EditorBand } from '../EditorBand.js';
-import { SPACE, TRAY } from '../layout.js';
-import { RenderBoundary } from '../RenderBoundary.js';
-import type { WorkbenchShellProps } from '../WorkbenchShell.js';
+import { EditorBand } from './EditorBand.js';
+import { SPACE, TRAY } from '../kit/layout.js';
+import { RenderBoundary } from '../kit/RenderBoundary.js';
+import type { WorkbenchShellProps } from './WorkbenchShell.js';
 
 export interface ConditionBlockProps extends Pick<
   WorkbenchShellProps,

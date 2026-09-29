@@ -13,7 +13,7 @@
 
 import { useLayoutEffect, type CSSProperties, type RefObject } from 'react';
 import type { RecordColumnView } from '../../record/index.js';
-import { TEXT_UI } from '../layout.js';
+import { TEXT_UI } from '../kit/layout.js';
 import { NO_RELEASE, type PinnedSlot, type ReleasedPins } from './pinCap.js';
 import {
   pinVar,
@@ -183,7 +183,7 @@ const HEAD_BUTTON =
  * hover measured **1.00:1**, an affordance that stopped existing the moment
  * the header stopped being white. So the step is taken in the other
  * direction: the hovered cell lifts to the ground the rows are drawn on,
- * which is the same mark the sidebar's open view wears (`ui/variants.tsx`).
+ * which is the same mark the sidebar's open view wears (`ui/kit/variants.tsx`).
  * The step is exactly the one it always was, mirrored with the band —
  * `--accent` over `--background` measured 1.09:1 light and 1.31:1 dark, and
  * `--background` over `--muted` is those same two numbers — `--accent` and

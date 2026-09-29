@@ -13,8 +13,8 @@
 
 import { cn } from 'cn';
 import type { SummaryRow } from '../../record/index.js';
-import { TEXT_UI } from '../layout.js';
-import { useViewMessages } from '../MessagesProvider.js';
+import { TEXT_UI } from '../kit/layout.js';
+import { useViewMessages } from '../kit/MessagesProvider.js';
 import { SummaryValue } from './SummaryRows.js';
 
 /**

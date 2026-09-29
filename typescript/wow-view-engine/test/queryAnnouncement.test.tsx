@@ -23,7 +23,7 @@ import type { PagedList } from '@ahoo-wang/wow-client';
 import { MemoryViewStore, ViewEngine } from '../src/index.js';
 import type { RecordData } from '../src/index.js';
 import { DataWorkbench } from '../src/ui/index.js';
-import { defaultMessages } from '../src/ui/messages.js';
+import { defaultMessages } from '../src/ui/kit/messages.js';
 import { querySentence } from '../src/ui/record/queryAnnouncement.js';
 import {
   analysisConfig,
@@ -76,7 +76,7 @@ describe('what a record query says out loud', () => {
     await waitFor(() => expect(announced()).toBe('2 records in all'));
 
     // Polite, and the only announcer on this surface: two of them are two
-    // voices answering the same key (`ui/Announcer.tsx`). The transient
+    // voices answering the same key (`ui/kit/Announcer.tsx`). The transient
     // `role="status"` a landed save inserts is not one — it has no
     // `aria-live` and is read because it appears, not because it changed.
     const regions = document.querySelectorAll(

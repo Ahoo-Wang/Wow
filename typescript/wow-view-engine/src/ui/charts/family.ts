@@ -19,8 +19,8 @@ import type {
   FunnelStages,
   RecordData,
 } from '../../model/index.js';
-import type { PickAnchor } from '../anchor.js';
-import { bandText } from '../band.js';
+import type { PickAnchor } from '../kit/anchor.js';
+import { bandText } from '../kit/band.js';
 import {
   columnTitle,
   compactFormat,
@@ -28,9 +28,9 @@ import {
   formatNumber,
   missingText,
   valueText,
-} from '../display.js';
-import { useViewMessages } from '../MessagesProvider.js';
-import { useSurfaceDisplay } from '../ViewSurface.js';
+} from '../kit/display.js';
+import { useViewMessages } from '../kit/MessagesProvider.js';
+import { useSurfaceDisplay } from '../kit/ViewSurface.js';
 import type { DateTicks } from './dateTicks.js';
 
 /**

@@ -17,21 +17,17 @@ import type { Issue, ViewKind } from '../../model/index.js';
 import { useUnavailable, type WorkbenchController } from '../../react/index.js';
 import { Button } from '../components/button.js';
 import { resultIssues } from '../../runtime/source.js';
-import { useKindIssue } from '../kinds.js';
-import { SPACE } from '../layout.js';
-import { useViewMessages } from '../MessagesProvider.js';
-import {
-  boardErrorTitle,
-  ofAnotherBoard,
-  saidByBoard,
-} from '../panelsToFix.js';
+import { useKindIssue } from '../kit/kinds.js';
+import { SPACE } from '../kit/layout.js';
+import { useViewMessages } from '../kit/MessagesProvider.js';
+import { boardErrorTitle, ofAnotherBoard, saidByBoard } from './panelsToFix.js';
 import {
   ErrorStrip,
   NoteStrip,
   StatusStrip,
   WarningStrip,
-} from '../StatusStrip.js';
-import type { WorkbenchShellProps } from '../WorkbenchShell.js';
+} from '../kit/StatusStrip.js';
+import type { WorkbenchShellProps } from './WorkbenchShell.js';
 
 export interface StatusLineProps extends Pick<
   WorkbenchShellProps,

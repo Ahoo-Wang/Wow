@@ -43,13 +43,13 @@ import {
   testSource,
 } from './fixtures.js';
 import { settle } from './fixtures/ui.js';
-import { useViewMessages } from '../src/ui/MessagesProvider.js';
+import { useViewMessages } from '../src/ui/kit/MessagesProvider.js';
 import {
   boardErrorTitle,
   ofAnotherBoard,
   panelsToFix,
   saidByBoard,
-} from '../src/ui/panelsToFix.js';
+} from '../src/ui/workbench/panelsToFix.js';
 
 afterEach(cleanup);
 

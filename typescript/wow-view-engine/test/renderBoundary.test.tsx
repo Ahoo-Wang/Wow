@@ -36,7 +36,7 @@ import {
   zhCN,
 } from '../src/ui/index.js';
 import type { RenderFailure } from '../src/ui/index.js';
-import type * as Panels from '../src/ui/DashboardPanels.js';
+import type * as Panels from '../src/ui/dashboard/DashboardPanels.js';
 import {
   dashboardConfig,
   ordersDefinition,
@@ -51,7 +51,7 @@ import { setup } from './fixtures/ui.js';
  * One content panel made to throw on demand, so a dashboard can be shown a
  * body that fails to draw. Everything else in the module is the real thing.
  */
-vi.mock('../src/ui/DashboardPanels.js', async importOriginal => {
+vi.mock('../src/ui/dashboard/DashboardPanels.js', async importOriginal => {
   const original = await importOriginal<typeof Panels>();
   return {
     ...original,
@@ -161,7 +161,7 @@ describe('RenderBoundary', () => {
       </ViewSurface>,
     );
     const alert = screen.getByRole('alert');
-    // It is the package's one callout (`ui/alerts.tsx`), which is the
+    // It is the package's one callout (`ui/kit/alerts.tsx`), which is the
     // registry's `Alert` and therefore a div; what keeps it on the line is
     // the frame it wears — no border, no block, and only as wide as what it
     // says, so the controls beside it stay where they were.

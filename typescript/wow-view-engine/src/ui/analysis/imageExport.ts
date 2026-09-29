@@ -22,11 +22,11 @@ import {
   type CaptureChart,
   type ChartImageSlot,
 } from '../charts/image.js';
-import { isoDay } from '../display.js';
-import { downloadFile, fileName } from '../download.js';
-import { useViewMessages } from '../MessagesProvider.js';
-import { conditionsText } from '../summary.js';
-import { useSurfaceDisplay } from '../ViewSurface.js';
+import { isoDay } from '../kit/display.js';
+import { downloadFile, fileName } from '../kit/download.js';
+import { useViewMessages } from '../kit/MessagesProvider.js';
+import { conditionsText } from '../kit/summary.js';
+import { useSurfaceDisplay } from '../kit/ViewSurface.js';
 
 /** The two pictures a chart is taken away as (D33 Q58). */
 export type ImageFormat = 'png' | 'svg';

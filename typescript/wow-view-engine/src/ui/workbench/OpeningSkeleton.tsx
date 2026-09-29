@@ -13,10 +13,10 @@
 
 import { cn } from 'cn';
 import { Skeleton } from '../components/skeleton.js';
-import { SPACE } from '../layout.js';
-import { useViewMessages } from '../MessagesProvider.js';
+import { SPACE } from '../kit/layout.js';
+import { useViewMessages } from '../kit/MessagesProvider.js';
 import { ResultBlock } from './ResultBlock.js';
-import { useKindWord } from '../kinds.js';
+import { useKindWord } from '../kit/kinds.js';
 
 /** How many rows the block is drawn as; the same three a query is. */
 const ROWS = 3;

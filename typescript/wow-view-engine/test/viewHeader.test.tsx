@@ -35,8 +35,8 @@ import {
   useViewRuntime,
   type SaveCommands,
 } from '../src/react/index.js';
-import { ViewHeader } from '../src/ui/ViewHeader.js';
-import { ViewSurface } from '../src/ui/ViewSurface.js';
+import { ViewHeader } from '../src/ui/workbench/ViewHeader.js';
+import { ViewSurface } from '../src/ui/kit/ViewSurface.js';
 import {
   ordersDefinition,
   recordConfig,

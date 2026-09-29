@@ -13,11 +13,11 @@
 
 import type { Ref } from 'react';
 import type { ViewNavigation, ViewEngine } from '../../runtime/index.js';
-import type { PanelHeadingLevel } from '../DashboardPanel.js';
-import type { ViewMessages } from '../messages.js';
-import type { RenderFailureHandler } from '../RenderBoundary.js';
-import type { ViewDensity, ViewPreset } from '../presets.js';
-import type { ViewSurfaceProps, ViewTheme } from '../ViewSurface.js';
+import type { PanelHeadingLevel } from '../dashboard/DashboardPanel.js';
+import type { ViewMessages } from '../kit/messages.js';
+import type { RenderFailureHandler } from '../kit/RenderBoundary.js';
+import type { ViewDensity, ViewPreset } from '../kit/presets.js';
+import type { ViewSurfaceProps, ViewTheme } from '../kit/ViewSurface.js';
 
 /**
  * How far a reader may go with an embed (D22, D36). Either way nothing is

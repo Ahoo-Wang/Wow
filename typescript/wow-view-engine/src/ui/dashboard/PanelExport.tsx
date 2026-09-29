@@ -20,7 +20,7 @@ import {
 } from '../../runtime/index.js';
 import { useFilterEditor, useRecordTable } from '../../react/index.js';
 import { useAnalysisExportOffer } from '../analysis/exportOffer.js';
-import { ExportDialog, type ExportWindowProps } from '../ExportDialog.js';
+import { ExportDialog, type ExportWindowProps } from '../kit/ExportDialog.js';
 import { useExportOffer } from '../record/exportOffer.js';
 
 /** What the window over a panel is told beyond the offer itself. */

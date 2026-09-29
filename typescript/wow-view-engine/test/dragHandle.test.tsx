@@ -33,8 +33,8 @@ import {
   waitFor,
 } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { DragHandle, moveTarget } from '../src/ui/DragHandle.js';
-import { dropped } from '../src/ui/dragDrop.js';
+import { DragHandle, moveTarget } from '../src/ui/kit/DragHandle.js';
+import { dropped } from '../src/ui/kit/dragDrop.js';
 
 afterEach(cleanup);
 

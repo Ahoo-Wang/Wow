@@ -39,10 +39,10 @@ import {
 import type { AnalysisFieldOption } from '../src/react/index.js';
 import type { MessageFormatters, ViewMessages } from '../src/ui/index.js';
 import { metricReference } from '../src/ui/analysis/editing.js';
-import { columnTitle } from '../src/ui/display.js';
+import { columnTitle } from '../src/ui/kit/display.js';
 import { en } from '../src/ui/messages/en.js';
 import { zhCN } from '../src/ui/messages/zh-CN.js';
-import { formatMessage } from '../src/ui/messages.js';
+import { formatMessage } from '../src/ui/kit/messages.js';
 import {
   analysisDefinition,
   analysisKernelConfig as config,

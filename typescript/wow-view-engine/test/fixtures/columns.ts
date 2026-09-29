@@ -20,13 +20,13 @@
 
 import { vi } from 'vitest';
 import type { RecordTableController } from '../../src/react/index.js';
-import type { MessageFormatters } from '../../src/ui/MessagesProvider.js';
+import type { MessageFormatters } from '../../src/ui/kit/MessagesProvider.js';
 import {
   formatIssue,
   formatIssues,
   formatMessage,
   type ViewMessages,
-} from '../../src/ui/messages.js';
+} from '../../src/ui/kit/messages.js';
 import { recordTableController } from './ui.js';
 
 export function tableController(

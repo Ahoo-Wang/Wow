@@ -23,10 +23,10 @@ import { Button } from '../../components/button.js';
 import { SurfaceCalendar } from './calendar.js';
 import { TimeOfDay } from './time.js';
 import { Popover, PopoverTrigger } from '../../components/popover.js';
-import { PopoverContent } from '../../popups.js';
-import { useViewMessages } from '../../MessagesProvider.js';
-import { displayValue, type DisplayContext } from '../../display.js';
-import { useSurfaceDisplay } from '../../ViewSurface.js';
+import { PopoverContent } from '../../kit/popups.js';
+import { useViewMessages } from '../../kit/MessagesProvider.js';
+import { displayValue, type DisplayContext } from '../../kit/display.js';
+import { useSurfaceDisplay } from '../../kit/ViewSurface.js';
 
 /**
  * A day, or the two ends of a span of them, off a calendar — with the time

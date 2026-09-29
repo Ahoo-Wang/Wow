@@ -15,14 +15,14 @@ import type * as React from 'react';
 import { cn } from 'cn';
 import type { RecordData } from '../../model/index.js';
 import { recordValue } from '../../record/index.js';
-import { CopyButton } from '../CopyButton.js';
+import { CopyButton } from '../kit/CopyButton.js';
 import {
   heldReading,
   type DisplayContext,
   type DisplayField,
-} from '../display.js';
-import type { MessageFormatters } from '../MessagesProvider.js';
-import { LongText, ToneBadge } from '../variants.js';
+} from '../kit/display.js';
+import type { MessageFormatters } from '../kit/MessagesProvider.js';
+import { LongText, ToneBadge } from '../kit/variants.js';
 
 /** One value read the way the detail reads a declared field. */
 export type ReadField = (

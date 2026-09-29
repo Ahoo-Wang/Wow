@@ -29,8 +29,8 @@ import {
   usePanelFollowUps,
   useViewRuntime,
 } from '../../react/index.js';
-import { AnalysisChart } from '../AnalysisChart.js';
-import { AnalysisTable } from '../AnalysisTable.js';
+import { AnalysisChart } from '../analysis/AnalysisChart.js';
+import { AnalysisTable } from '../analysis/AnalysisTable.js';
 import { AnalysisToolbar } from '../analysis/AnalysisToolbar.js';
 import {
   DrillMenu,
@@ -39,9 +39,9 @@ import {
 } from '../analysis/DrillMenu.js';
 import { AnalysisEmpty } from '../analysis/EmptyResult.js';
 import { useHeaderSort } from '../analysis/headerSort.js';
-import { AppliedBar } from '../AppliedBar.js';
+import { AppliedBar } from '../filter/AppliedBar.js';
 import { Skeleton } from '../components/skeleton.js';
-import { QueryStrip } from '../StatusStrip.js';
+import { QueryStrip } from '../kit/StatusStrip.js';
 
 const NO_SORT: readonly AnalysisSort[] = [];
 

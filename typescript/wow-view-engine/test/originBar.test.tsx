@@ -27,7 +27,7 @@ import {
   type ViewInstance,
 } from '../src/index.js';
 import { useWorkbench, type WorkbenchController } from '../src/react/index.js';
-import { WorkbenchShell } from '../src/ui/WorkbenchShell.js';
+import { WorkbenchShell } from '../src/ui/workbench/WorkbenchShell.js';
 import {
   analysisConfig,
   ordersDefinition,

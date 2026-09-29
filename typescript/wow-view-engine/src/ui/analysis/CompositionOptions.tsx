@@ -12,7 +12,7 @@
  */
 
 import { withSlot } from '../../analysis/index.js';
-import { useViewMessages } from '../MessagesProvider.js';
+import { useViewMessages } from '../kit/MessagesProvider.js';
 import {
   CheckField,
   SlotSelect,

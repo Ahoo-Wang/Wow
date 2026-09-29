@@ -18,7 +18,7 @@ import {
   readInstant,
   type FieldDefinition,
 } from '../src/index.js';
-import { displayValue } from '../src/ui/display.js';
+import { displayValue } from '../src/ui/kit/display.js';
 import { ordersDefinition, recordConfig } from './fixtures.js';
 
 const MOMENT_S = 1_790_115_665;

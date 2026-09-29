@@ -30,15 +30,15 @@ import { filterTypeOf, sameJson } from '../../model/index.js';
 import type { DashboardController } from '../../react/index.js';
 import { Badge } from '../components/badge.js';
 import { Button } from '../components/button.js';
-import { FilterValueEditor } from '../FilterValueEditor.js';
-import { IconButton, IconTooltip } from '../IconButton.js';
-import { panelNames } from '../DashboardPanel.js';
+import { FilterValueEditor } from '../filter/FilterValueEditor.js';
+import { IconButton, IconTooltip } from '../kit/IconButton.js';
+import { panelNames } from './DashboardPanel.js';
 import { cn } from '../lib/utils.js';
 import {
   useViewMessages,
   type MessageFormatters,
-} from '../MessagesProvider.js';
-import { ControlFrame } from '../variants.js';
+} from '../kit/MessagesProvider.js';
+import { ControlFrame } from '../kit/variants.js';
 import {
   filterModeOf,
   holdsGrouping,
@@ -65,7 +65,7 @@ import {
   undoOf,
   valueOf,
 } from './landing.js';
-import { useLanding } from '../focus.js';
+import { useLanding } from '../kit/focus.js';
 
 export interface FilterBarProps {
   dashboard: DashboardController;

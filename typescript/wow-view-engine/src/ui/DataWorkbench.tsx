@@ -23,20 +23,26 @@ import type {
   ViewNavigation,
 } from '../runtime/index.js';
 import { useWorkbench } from '../react/index.js';
-import { StartingWords, useViewMessages } from './MessagesProvider.js';
-import { useAddressedHandOver, useAddressedInstance } from './address.js';
+import { StartingWords, useViewMessages } from './kit/MessagesProvider.js';
+import {
+  useAddressedHandOver,
+  useAddressedInstance,
+} from './workbench/address.js';
 import {
   useBindings,
   useEngine,
   useRoutedNavigate,
-} from './ViewEngineProvider.js';
-import type { ViewMessages } from './messages.js';
-import { featuresOf, type WorkbenchFeatures } from './features.js';
-import { WorkbenchShell, type WorkbenchLandmark } from './WorkbenchShell.js';
-import type { RenderFailureHandler } from './RenderBoundary.js';
-import { FailureSink } from './failureSink.js';
-import type { ViewDensity, ViewPreset } from './presets.js';
-import type { ViewSurfaceProps, ViewTheme } from './ViewSurface.js';
+} from './workbench/ViewEngineProvider.js';
+import type { ViewMessages } from './kit/messages.js';
+import { featuresOf, type WorkbenchFeatures } from './kit/features.js';
+import {
+  WorkbenchShell,
+  type WorkbenchLandmark,
+} from './workbench/WorkbenchShell.js';
+import type { RenderFailureHandler } from './kit/RenderBoundary.js';
+import { FailureSink } from './kit/failureSink.js';
+import type { ViewDensity, ViewPreset } from './kit/presets.js';
+import type { ViewSurfaceProps, ViewTheme } from './kit/ViewSurface.js';
 import { AnalysisParts } from './workbench/AnalysisParts.js';
 import { RecordParts, type RecordViewProps } from './workbench/RecordParts.js';
 

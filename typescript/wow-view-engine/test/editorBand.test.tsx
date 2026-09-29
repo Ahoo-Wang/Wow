@@ -19,10 +19,10 @@ import {
   EditorBand,
   EditorBandToggle,
   EditorFold,
-} from '../src/ui/EditorBand.js';
+} from '../src/ui/workbench/EditorBand.js';
 import { DropdownMenuItem } from '../src/ui/components/dropdown-menu.js';
-import { MessagesProvider } from '../src/ui/MessagesProvider.js';
-import { ViewSurface } from '../src/ui/ViewSurface.js';
+import { MessagesProvider } from '../src/ui/kit/MessagesProvider.js';
+import { ViewSurface } from '../src/ui/kit/ViewSurface.js';
 
 afterEach(cleanup);
 

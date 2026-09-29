@@ -31,14 +31,14 @@ import {
   DropdownMenuTrigger,
 } from '../components/dropdown-menu.js';
 import { Tooltip, TooltipTrigger } from '../components/tooltip.js';
-import { TooltipContent } from '../popups.js';
+import { TooltipContent } from '../kit/popups.js';
 import {
   DialogMenuItem,
   HandOffMenu,
   HandOffMenuContent,
-} from '../HandOffMenu.js';
-import { IconTooltip } from '../IconButton.js';
-import { useViewMessages } from '../MessagesProvider.js';
+} from '../kit/HandOffMenu.js';
+import { IconTooltip } from '../kit/IconButton.js';
+import { useViewMessages } from '../kit/MessagesProvider.js';
 
 /** Presses an action, where a choice's option is the input. */
 type Start = (action: RecordAction, input?: ActionInput) => void;

@@ -13,12 +13,12 @@
 
 import { ArrowLeftIcon, ArrowRightIcon } from 'lucide-react';
 import type { SummaryRow } from '../../record/index.js';
-import { summaryFunctionKey } from '../display.js';
-import { useViewMessages } from '../MessagesProvider.js';
-import { useSurfaceDisplay } from '../ViewSurface.js';
+import { summaryFunctionKey } from '../kit/display.js';
+import { useViewMessages } from '../kit/MessagesProvider.js';
+import { useSurfaceDisplay } from '../kit/ViewSurface.js';
 import { Button } from '../components/button.js';
 import { Tooltip, TooltipTrigger } from '../components/tooltip.js';
-import { TooltipContent } from '../popups.js';
+import { TooltipContent } from '../kit/popups.js';
 import type { OffscreenHint } from './offscreenSummaries.js';
 import { summaryText } from './summaryText.js';
 

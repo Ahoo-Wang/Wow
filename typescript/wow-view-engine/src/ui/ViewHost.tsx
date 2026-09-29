@@ -18,12 +18,15 @@ import {
   routerNavigate,
   useAddressedDetail,
   useLatestRouter,
-} from './address.js';
-import type { ViewBinding } from './bindings.js';
+} from './workbench/address.js';
+import type { ViewBinding } from './workbench/bindings.js';
 import { ColorModeHost, type HostColorMode } from './colorMode.js';
-import type { ViewMessages } from './messages.js';
-import type { ViewPreset } from './presets.js';
-import { useHosted, ViewEngineProvider } from './ViewEngineProvider.js';
+import type { ViewMessages } from './kit/messages.js';
+import type { ViewPreset } from './kit/presets.js';
+import {
+  useHosted,
+  ViewEngineProvider,
+} from './workbench/ViewEngineProvider.js';
 
 export interface ViewHostProps {
   /**

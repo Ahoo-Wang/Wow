@@ -18,8 +18,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '../components/select.js';
-import { SelectContent } from '../popups.js';
-import { useSay } from '../MessagesProvider.js';
+import { SelectContent } from '../kit/popups.js';
+import { useSay } from '../kit/MessagesProvider.js';
 import { useMemo } from 'react';
 
 /**

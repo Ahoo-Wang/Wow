@@ -15,11 +15,11 @@ import { useId } from 'react';
 import { useSortable } from '@dnd-kit/react/sortable';
 import { CircleSlashIcon, PinIcon } from 'lucide-react';
 import type { SummaryFunction } from '../../model/index.js';
-import { summaryFunctionKey } from '../display.js';
-import { DragHandle, type HandleMove } from '../DragHandle.js';
-import { withoutOptimisticSorting } from '../dragPlugins.js';
-import { IconButton } from '../IconButton.js';
-import type { MessageFormatters } from '../MessagesProvider.js';
+import { summaryFunctionKey } from '../kit/display.js';
+import { DragHandle, type HandleMove } from '../kit/DragHandle.js';
+import { withoutOptimisticSorting } from '../kit/dragPlugins.js';
+import { IconButton } from '../kit/IconButton.js';
+import type { MessageFormatters } from '../kit/MessagesProvider.js';
 import { Checkbox } from '../components/checkbox.js';
 import { FieldDescription } from '../components/field.js';
 import {
@@ -28,7 +28,7 @@ import {
   ItemMedia,
   ItemTitle,
 } from '../components/item.js';
-import { RowItem } from '../RowItem.js';
+import { RowItem } from '../kit/RowItem.js';
 import {
   Select,
   SelectGroup,
@@ -36,10 +36,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from '../components/select.js';
-import { SelectContent } from '../popups.js';
-import { useViewMessages } from '../MessagesProvider.js';
+import { SelectContent } from '../kit/popups.js';
+import { useViewMessages } from '../kit/MessagesProvider.js';
 import type { ColumnSettingRow } from './rows.js';
-import { TEXT_UI } from '../layout.js';
+import { TEXT_UI } from '../kit/layout.js';
 import { cn } from 'cn';
 
 /** The value the summary select carries for "summarise nothing". */

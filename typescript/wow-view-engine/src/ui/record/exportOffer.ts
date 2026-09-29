@@ -27,15 +27,15 @@ import {
   type RecordExportScope,
   type RecordTableController,
 } from '../../react/index.js';
-import { csvCellText, isoDay } from '../display.js';
-import { currencyCsvText } from '../currency.js';
-import { downloadFile, fileName } from '../download.js';
-import type { ExportWindowProps } from '../ExportDialog.js';
+import { csvCellText, isoDay } from '../kit/display.js';
+import { currencyCsvText } from '../kit/currency.js';
+import { downloadFile, fileName } from '../kit/download.js';
+import type { ExportWindowProps } from '../kit/ExportDialog.js';
 import {
   useViewMessages,
   type MessageFormatters,
-} from '../MessagesProvider.js';
-import { useSurfaceDisplay } from '../ViewSurface.js';
+} from '../kit/MessagesProvider.js';
+import { useSurfaceDisplay } from '../kit/ViewSurface.js';
 
 /** The media type every export is handed over as: a UTF-8 CSV. */
 export const CSV_TYPE = 'text/csv;charset=utf-8';

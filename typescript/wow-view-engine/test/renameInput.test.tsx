@@ -24,14 +24,14 @@ import {
 } from '@dnd-kit/dom';
 import { OptimisticSortingPlugin } from '@dnd-kit/dom/sortable';
 import { sameJson } from '../src/index.js';
-import { RenameInput } from '../src/ui/RenameInput.js';
-import { ViewSurface } from '../src/ui/ViewSurface.js';
-import { dragAccessibility } from '../src/ui/dragAnnounce.js';
+import { RenameInput } from '../src/ui/kit/RenameInput.js';
+import { ViewSurface } from '../src/ui/kit/ViewSurface.js';
+import { dragAccessibility } from '../src/ui/kit/dragAnnounce.js';
 import {
   cspNonce,
   sortableList,
   withoutOptimisticSorting,
-} from '../src/ui/dragPlugins.js';
+} from '../src/ui/kit/dragPlugins.js';
 
 afterEach(cleanup);
 

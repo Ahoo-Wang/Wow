@@ -20,7 +20,7 @@ import {
   type DateTimePreset,
 } from '../../../filter/index.js';
 import { ONE_DAY_PRESETS } from '../../../dashboard/index.js';
-import { useViewMessages } from '../../MessagesProvider.js';
+import { useViewMessages } from '../../kit/MessagesProvider.js';
 import { AbsoluteDate } from './daterange.js';
 import { PresetDate, RelativeDate } from './relative.js';
 import { ChoiceValue, type ValueProps } from './shared.js';

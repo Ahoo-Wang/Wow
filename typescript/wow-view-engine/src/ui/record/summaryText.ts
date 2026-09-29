@@ -13,8 +13,8 @@
 
 import type { SummaryCell } from '../../record/index.js';
 import { inCurrency } from '../../model/currency.js';
-import { cellText, type DisplayContext } from '../display.js';
-import type { MessageFormatters } from '../MessagesProvider.js';
+import { cellText, type DisplayContext } from '../kit/display.js';
+import type { MessageFormatters } from '../kit/MessagesProvider.js';
 
 /**
  * How one summary reads: under its column, in a card, and named by the

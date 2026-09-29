@@ -33,14 +33,14 @@ import {
 import { useSaveCommands, useViewRuntime } from '../src/react/index.js';
 import { MessagesProvider, zhCN } from '../src/ui/index.js';
 import { DataWorkbench } from '../src/ui/DataWorkbench.js';
-import type { SaveActionsProps } from '../src/ui/SaveActions.js';
-import { ViewHeader } from '../src/ui/ViewHeader.js';
-import { ViewSurface } from '../src/ui/ViewSurface.js';
+import type { SaveActionsProps } from '../src/ui/workbench/SaveActions.js';
+import { ViewHeader } from '../src/ui/workbench/ViewHeader.js';
+import { ViewSurface } from '../src/ui/kit/ViewSurface.js';
 import {
   WriteOutcome,
   type ViewWriteCallbacks,
   type WriteOutcomeProps,
-} from '../src/ui/WriteOutcome.js';
+} from '../src/ui/workbench/WriteOutcome.js';
 import {
   deferred,
   ordersDefinition,

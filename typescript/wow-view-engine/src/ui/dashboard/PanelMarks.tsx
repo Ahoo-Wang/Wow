@@ -20,12 +20,12 @@ import type { Issue } from '../../model/index.js';
 import type { DashboardPanelView } from '../../react/index.js';
 import { Badge } from '../components/badge.js';
 import { Button } from '../components/button.js';
-import { BadgeTooltip, IconTooltip } from '../IconButton.js';
+import { BadgeTooltip, IconTooltip } from '../kit/IconButton.js';
 import {
   useViewMessages,
   type MessageFormatters,
-} from '../MessagesProvider.js';
-import { ToneBadge } from '../variants.js';
+} from '../kit/MessagesProvider.js';
+import { ToneBadge } from '../kit/variants.js';
 import { presentationMark } from './PanelBodies.js';
 
 /**
