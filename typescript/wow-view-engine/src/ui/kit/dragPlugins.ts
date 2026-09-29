@@ -20,6 +20,7 @@ import {
 } from '@dnd-kit/dom';
 import { OptimisticSortingPlugin } from '@dnd-kit/dom/sortable';
 import type { DragDropProvider } from '@dnd-kit/react';
+import { cspNonce } from './cspNonce.js';
 import type { dragAccessibility } from './dragAnnounce.js';
 
 type ProviderProps = ComponentProps<typeof DragDropProvider>;
@@ -44,23 +45,6 @@ const PRESS_OR_DRAG = PointerSensor.configure({
       ? [new PointerActivationConstraints.Delay({ value: 250, tolerance: 5 })]
       : [new PointerActivationConstraints.Distance({ value: 4 })],
 });
-
-/**
- * The page's CSP nonce, as Vite and most servers publish it:
- * `<meta property="csp-nonce" nonce="…">` (the `nonce` attribute, which a
- * browser hides from `getAttribute` once the policy applies but keeps in the
- * `nonce` property), or the `content` of the same tag. `undefined` on a page
- * without one — and under no policy, nothing needs one.
- */
-export function cspNonce(
-  root: Document | undefined = globalThis.document,
-): string | undefined {
-  const meta = root?.querySelector<HTMLMetaElement>(
-    'meta[property="csp-nonce"]',
-  );
-  const nonce = meta?.nonce || meta?.getAttribute('content') || '';
-  return nonce === '' ? undefined : nonce;
-}
 
 /**
  * What every sortable list's `DragDropProvider` runs (Q-11), spread onto it

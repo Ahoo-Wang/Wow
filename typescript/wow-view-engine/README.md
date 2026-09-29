@@ -1112,8 +1112,8 @@ View-kind plugins, a definition CRUD backend, write-receipt reconciliation or re
 
 The package runs under a strict policy — `script-src 'self'` and `style-src 'self'` with no `'unsafe-inline'` and no `'unsafe-eval'` — with three things to allow:
 
-- **The stylesheet** is a file (`styles.css`, and `themes.css` where used): serve it from an allowed origin rather than inlining it. Nothing the components draw carries a `style` attribute in markup: inline styles go through the DOM's style object, which no policy blocks, and a chart tooltip's colour swatch is an SVG `fill` (a test holds the tooltip's HTML to having no `style=`).
-- **The style a drag adds**: the column settings, the sort, the view list and a board's filters and tabs are reordered by dragging, and while a drag is on, the bundled drag-and-drop library adds a `<style>` to `<head>` (the grabbing cursor, no text selection). Under `style-src 'self'` alone it is blocked, so publish the response's nonce the way Vite does — `<meta property="csp-nonce" nonce="…">` (what Vite's `html.cspNonce` writes; a `content` attribute is read too) — and allow `'nonce-…'` in the policy. The engine puts it on that style. Nothing is added while nothing is dragged; without the meta a drag still works, only its cursor and selection rules are refused (one violation reported).
+- **The stylesheet** is a file (`styles.css`, and `themes.css` where used): serve it from an allowed origin rather than inlining it. Nothing the components draw carries a `style` attribute in markup: inline styles go through the DOM's style object, which no policy blocks, and a chart tooltip's colour swatch is an SVG `fill` (a test holds the tooltip's HTML to having no `style=`). Nothing loads a `data:` image either: the cells a board shows while it is built are drawn in the page.
+- **The styles the bundled libraries add** while they work, each a `<style>` in `<head>`: the drag-and-drop library while a list is dragged (the column settings, the sort, the view list, a board's filters and tabs — a grabbing cursor, no text selection), the grid's drag library while a board's panel is moved or resized (no text selection), and Base UI while a select's list is open (its scrollbar hidden behind the scroll arrows). Under `style-src 'self'` alone they are blocked, so publish the response's nonce the way Vite does — `<meta property="csp-nonce" nonce="…">` (what Vite's `html.cspNonce` writes; a `content` attribute is read too) — and allow `'nonce-…'` in the policy. The engine hands it to all three. Without the meta everything still works; those few rules are refused, and each reports a violation.
 - **Exporting a chart as a PNG** draws the chart's SVG onto a canvas by loading it as an image from a `blob:` URL, so `img-src` must include `blob:`. Without it the PNG is not made and the toolbar says so; the SVG export needs nothing. Neither export evaluates code or writes an inline script.
 
 ```
@@ -1124,7 +1124,7 @@ Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self'
 <meta property="csp-nonce" nonce="<the same nonce>" />
 ```
 
-The compensation console runs its end-to-end tests under this policy (`compensation/dashboard/e2e/csp.spec.ts`): every place walked and a drag made, and not one violation allowed.
+Two runs hold the package to this policy, and neither allows one violation. Storybook walks the engine itself under it (`typescript/storybook/stories/view-engine/StrictCsp.test.stories.tsx`, in CI): the record workbench with a column dragged, a summary picked from a select, a column widened and a record's detail opened; every chart type with its tooltip; the SVG, PNG and CSV exports; and a board read, filtered from a chart, then built — a panel moved and resized, a tab dragged, an analysis added — and saved. The compensation console runs its end-to-end tests under it (`compensation/dashboard/e2e/csp.spec.ts`): every place walked and a drag made.
 
 ## Development
 

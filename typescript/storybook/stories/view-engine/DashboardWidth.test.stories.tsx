@@ -183,40 +183,28 @@ export const SwitchWhileBuilding: Story = {
 };
 
 /**
- * The blocks the board draws, as the layer is masked with them: one row of
- * rectangles (the SVG in `--grid-blocks`), how tall a repeat of that row is,
- * and where the first repeat starts.
+ * The blocks the board draws, as the layer repeats them: one row of
+ * rectangles (the SVG pattern's), how tall a repeat of that row is, and
+ * where the first repeat starts.
  */
-function blocksOf(layer: HTMLElement) {
-  const style = getComputedStyle(layer);
-  const url = style.getPropertyValue('--grid-blocks').trim();
-  const svg = decodeURIComponent(
-    /^url\("data:image\/svg\+xml,(.*)"\)$/.exec(url)![1],
-  );
-  const rects = [...svg.matchAll(/<rect ([^>]*)\/>/g)].map(([, attributes]) => {
-    const read = (name: string) =>
-      Number(new RegExp(`${name}='([^']*)'`).exec(attributes)![1]);
-    return {
-      x: read('x'),
-      y: read('y'),
-      width: read('width'),
-      height: read('height'),
-    };
-  });
-  const [, pitch] = style
-    .getPropertyValue('--grid-blocks-size')
-    .trim()
-    .split(' ')
-    .map(Number.parseFloat);
-  const top = Number.parseFloat(style.getPropertyValue('--grid-blocks-top'));
-  return { rects, pitch, top };
+function blocksOf(layer: Element) {
+  const pattern = layer.querySelector('pattern')!;
+  const read = (element: Element, name: string) =>
+    Number(element.getAttribute(name));
+  const rects = [...pattern.querySelectorAll('rect')].map(rect => ({
+    x: read(rect, 'x'),
+    y: read(rect, 'y'),
+    width: read(rect, 'width'),
+    height: read(rect, 'height'),
+  }));
+  return { rects, pitch: read(pattern, 'height'), top: read(pattern, 'y') };
 }
 
 /**
  * The blocks of one column of one row: as wide as the column, and as many
  * down the 80px row as come nearest a square (D34) — one, two or three.
  */
-function blockSize(layer: HTMLElement) {
+function blockSize(layer: Element) {
   const { rects } = blocksOf(layer);
   const column = rects.filter(rect => rect.x === rects[0].x);
   expect(rects.length).toBe(24 * column.length);
@@ -241,7 +229,7 @@ function offEdge(at: number, edges: number[], pitch: number) {
 }
 
 /** Every panel's four edges on the edges of the blocks the board draws. */
-function panelsOnTheBlocks(grid: HTMLElement, layer: HTMLElement) {
+function panelsOnTheBlocks(grid: HTMLElement, layer: Element) {
   const box = layer.getBoundingClientRect();
   const { rects, pitch, top } = blocksOf(layer);
   const across = rects.flatMap(rect => [rect.x, rect.x + rect.width]);
@@ -277,7 +265,7 @@ export const GridBlocksWhileBuilding: Story = {
     const canvas = within(canvasElement);
     const grid = await drawn(canvasElement);
     const layer = () =>
-      grid.querySelector<HTMLElement>('[data-slot="dashboard-grid-blocks"]');
+      grid.querySelector<SVGSVGElement>('[data-slot="dashboard-grid-blocks"]');
     await expect(layer()).toBeNull();
     const heights = () =>
       [...grid.querySelectorAll('.react-grid-item')].map(
@@ -294,10 +282,17 @@ export const GridBlocksWhileBuilding: Story = {
     await waitFor(() => expect(layer()).not.toBeNull());
     const blocks = layer()!;
     await expect(blocks).toHaveAttribute('aria-hidden', 'true');
-    const style = getComputedStyle(blocks);
-    await expect(style.pointerEvents).toBe('none');
-    await expect(style.maskImage).toContain('url(');
-    await expect(style.backgroundColor).not.toBe('rgba(0, 0, 0, 0)');
+    await expect(getComputedStyle(blocks).pointerEvents).toBe('none');
+    // Painted in the theme's wash, and as big as the grid under it.
+    await expect(
+      getComputedStyle(blocks.querySelector('pattern rect')!).fill,
+    ).not.toBe('rgba(0, 0, 0, 0)');
+    const drawing = blocks.getBoundingClientRect();
+    const under = blocks.parentElement!.getBoundingClientRect();
+    await expect([drawing.width, drawing.height]).toEqual([
+      under.width,
+      under.height,
+    ]);
     await expect(heights()).toEqual(read);
     // 1200px: a 40px column, two 35px blocks down each 80px row.
     await expect(blockSize(blocks)).toEqual({

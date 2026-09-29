@@ -1104,8 +1104,8 @@ store → model
 
 本包可以在严格的策略下运行——`script-src 'self'`、`style-src 'self'`，不开 `'unsafe-inline'` 与 `'unsafe-eval'`——要放行的只有三件事：
 
-- **样式表**是文件（`styles.css`，用预设时还有 `themes.css`）：从允许的来源加载，不要内联。组件画出来的标记里没有 `style` 属性：内联样式都经 DOM 的 style 对象写入，策略不拦；图表提示框的色块是 SVG 的 `fill`（有单测守着提示框的 HTML 里没有 `style=`）。
-- **拖动排序时的一段样式**：列设置、排序、视图列表、看板的筛选与标签页可以拖动排序，拖动进行中，打包进来的拖放库会往 `<head>` 加一个 `<style>`（拖动时的光标、不选中文字）。`style-src` 只放行 `'self'` 时它会被拦，所以页面要把本次响应的 nonce 按 Vite 的约定写出来：`<meta property="csp-nonce" nonce="…">`（Vite 的 `html.cspNonce` 就是这样写的；写在 `content` 里也认），策略里加上 `'nonce-…'`。引擎读到它就给这段样式带上。不拖动时不加任何样式；没有这个 meta 时拖动照样能用，只是光标与选中文字的处理被拦掉（控制台里报一次违规）。
+- **样式表**是文件（`styles.css`，用预设时还有 `themes.css`）：从允许的来源加载，不要内联。组件画出来的标记里没有 `style` 属性：内联样式都经 DOM 的 style 对象写入，策略不拦；图表提示框的色块是 SVG 的 `fill`（有单测守着提示框的 HTML 里没有 `style=`）。也不载入 `data:` 图片：搭看板时显示的格子画在页面里。
+- **打包进来的库干活时加的样式**，都是 `<head>` 里的一个 `<style>`：拖放库在拖动排序时加（列设置、排序、视图列表、看板的筛选与标签页——拖动时的光标、不选中文字），栅格的拖动库在移动或缩放看板面板时加（不选中文字），Base UI 在下拉选择的列表打开时加（出现滚动箭头时藏起滚动条）。`style-src` 只放行 `'self'` 时它们会被拦，所以页面要把本次响应的 nonce 按 Vite 的约定写出来：`<meta property="csp-nonce" nonce="…">`（Vite 的 `html.cspNonce` 就是这样写的；写在 `content` 里也认），策略里加上 `'nonce-…'`。引擎把它交给这三个库。没有这个 meta 时一切照样能用，只是这几条规则被拦掉，各报一次违规。
 - **把图导出为 PNG** 时，图的 SVG 从一个 `blob:` 地址作为图片载入、再画到画布上，所以 `img-src` 要包含 `blob:`。不放行时 PNG 做不出来，工具栏会说明；导出 SVG 不需要任何放行。两种导出都不执行代码、不写内联脚本。
 
 ```
@@ -1116,7 +1116,7 @@ Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self'
 <meta property="csp-nonce" nonce="<同一个 nonce>" />
 ```
 
-补偿控制台按这条策略跑端到端（`compensation/dashboard/e2e/csp.spec.ts`）：走遍每个去处、真的拖动一次，一次违规都不许有。
+有两处在这条策略下跑，都一次违规也不许有。Storybook 在这条策略下走一遍引擎本身（`typescript/storybook/stories/view-engine/StrictCsp.test.stories.tsx`，进 CI）：记录工作台里拖一列、从下拉选一个汇总、拉宽一列、打开一条记录的详情；每种图型连同它的提示框；SVG、PNG 与 CSV 三种导出；一块看板先读、从图上筛选，再搭——移动与缩放面板、拖动标签页、加一个分析——然后保存。补偿控制台按它跑端到端（`compensation/dashboard/e2e/csp.spec.ts`）：走遍每个去处、真的拖动一次。
 
 ## 开发
 

@@ -27,8 +27,8 @@ import { sameJson } from '../src/index.js';
 import { RenameInput } from '../src/ui/kit/RenameInput.js';
 import { ViewSurface } from '../src/ui/kit/ViewSurface.js';
 import { dragAccessibility } from '../src/ui/kit/dragAnnounce.js';
+import { cspNonce } from '../src/ui/kit/cspNonce.js';
 import {
-  cspNonce,
   sortableList,
   withoutOptimisticSorting,
 } from '../src/ui/kit/dragPlugins.js';

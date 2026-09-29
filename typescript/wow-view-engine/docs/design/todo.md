@@ -11,14 +11,7 @@
 
 npm 首发（`9.2.0-rc.0`）之前按下面的顺序做，同时只做一件。审查里「现在做还是以后做」默认现在做：公开面（[D29](decisions.md) 快照）上的破坏性改动趁首发前一次改到位，不为发布前的形态留兼容层（用户 2026-09-24）。
 
-### 1. 严格 CSP
-
-- **严格 CSP 下整个引擎零违规**（就绪审计 P1）：已有的——提示框色块是 SVG 的 `fill`、不写 `style=`（#3434）；拖动的样式带页面 nonce（[D61](decisions.md)）；README「Content Security Policy」写了要放行的三件事；补偿控制台的 e2e 在严格策略下走遍四个去处（`compensation/dashboard/e2e/csp.spec.ts`）。
-  - 为什么：控制台只用到引擎的一部分；控制台之外的图型、导出与看板搭建在严格策略下还没人走过，README 的「可运行」只有这一处证据。
-  - 判据：一条 Storybook 故事在严格 CSP（与 README 同一条策略）下走过记录、每种图型、导出、看板的读与搭，零违规，并进 CI；文档站的视图引擎指南（中英）有同样的 CSP 一节。
-  - 落点：`typescript/storybook/`、README「Content Security Policy」、`documentation/docs/{zh,en}/guide/typescript/`。
-
-### 2. 第二轮全面审查，由用户明确通过
+### 1. 第二轮全面审查，由用户明确通过
 
 - **审查过门**（用户 2026-09-24）：架构质量（职责清晰、高内聚、低耦合、扩展性、可维护性）、企业级产品体验（UI 视觉、UX 交互）、功能的可用性、可访问性与易用性。
   - 为什么：这是一次重大发布；公开面一旦上 npm 就要背兼容性。
@@ -104,9 +97,9 @@ npm 首发（`9.2.0-rc.0`）之前按下面的顺序做，同时只做一件。�
   - 判据：每条落地或写进 decisions 不做；每套 × 每种明暗过对比度矩阵与色板门，neutral 在默认密度、默认约定下像素不变。
   - 落点：[theme-architecture.md](theme-architecture.md)、`src/themes/`、`src/ui/theme/`。
 
-### 3. 两个 skill（最后做）
+### 2. 两个 skill（最后做）
 
-- **视图定义与宿主接入两个 skill**（用户 2026-09-29）：在引擎定稿之后写，即上面两步都做完、审查通过之后。
+- **视图定义与宿主接入两个 skill**（用户 2026-09-29）：在引擎定稿之后写，即上面的审查做完、由用户通过之后。
   - 为什么：skill 教的是最终的公开面；引擎还在改时写，写完就过时。
   - 判据：按 [host-integration.md](host-integration.md) 第 6 节——改写 `wow-view-definition`（只讲判断，自检就是 `admit`），新增 `wow-view-host`（资源、**ViewHost**、`bind`、路由与「从命令到操作」）；智能体按 skill 从零给零售场景写一份定义与操作，一次通过 `admit`。
   - 落点：仓库 `skills/`；[host-integration.md](host-integration.md) 第 6 节。

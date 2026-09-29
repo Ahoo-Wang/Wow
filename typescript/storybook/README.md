@@ -127,6 +127,12 @@ View Engine 的每个场景都放在宿主应用里评判：`shared/AppShell.tsx
 
 这些是引擎的夹具，不是产品：定义只保留这些故事断言到的部分，与控制台的定义**有意漂移**——产品改视图不该动引擎的回归，引擎的回归也不等产品。每个文件的注释都写明这一点。
 
+## 严格 CSP
+
+`view-engine/StrictCsp.test.stories.tsx`（目录里是「能力/严格 CSP/回归」，不进导航）在视图引擎 README「Content Security Policy」那条策略下走一遍引擎，出现一次违规就失败（view-engine D74）。策略由 `strictCsp.ts` 在每个故事开头以 `<meta http-equiv="Content-Security-Policy">` 装到页上，nonce 照 Vite 的约定写成 `<meta property="csp-nonce">`；装上先放一段不带 nonce 的 `<style>`，确认它被拦，证明策略生效，再监听 `securitypolicyviolation`。策略装上就收不回，所以只装在这一个文件的页上：测试运行器一个文件一个框架，别的故事不受影响。装之前页上已有的东西（测试框架的脚本、预览导入的样式表）不判；唯一放过的是 a11y 插件视觉模拟器插进 `<body>` 的带 `style` 的标记，按报告它的文件点名。
+
+十个故事，每个只走一段，都远在单个故事 15 秒的上限之内（CI 上一个故事走完 22 种图型曾超时）：记录工作台分两个（拖一列、下拉选汇总；拉宽一列、改每页条数、看详情、导出 CSV）；图型全景的四个页签各一个，每张图浮出提示框，四页合起来正好 22 种图型；从柱上点省份筛整板；分析工作台的 SVG、PNG、CSV 三种导出；搭板分两个，都开在最轻的「地域与转化」页签（真指针移动与缩放面板并保存；拖动标签页、新建分析并保存）。在 1440×900 下跑，窄于 `md` 的看板是一列，没有可拖的面板。
+
 ## 本地门禁
 
 合并前在本机跑齐下面每一条，**每条单独看退出码**（`命令 > 日志 2>&1; echo "名字 exit $?"`），全部为 0 才算过——view-engine 的 `pnpm test` 末尾还有一段 `test:type`，只 grep 测试摘要会漏掉它的失败。View Engine 包自己的约定见 [`typescript/wow-view-engine/docs/design/README.md`](../wow-view-engine/docs/design/README.md#本地门禁)。命令都在仓库根运行。

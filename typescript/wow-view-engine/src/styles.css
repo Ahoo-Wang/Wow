@@ -3211,29 +3211,30 @@
  *
  * A soft block, filled and a little rounded, in each column of each row: the
  * 80px row cut into the number of blocks that comes nearest a square, so a
- * panel's edges always land on a block's (`blockHeight`). The shape is the grid's own, measured and written onto the element as
- * variables (`gridBlocks`, `ui/dashboard/gridBlocks.ts`): one row of blocks
- * as an SVG mask, repeated down from the grid's padding. The colour is here,
- * a token, so it follows the mode and the preset (an SVG in a data URI
- * cannot read a CSS variable, so the SVG is only the mask). One layer under
- * the grid (`dashboard-grid-blocks`, `aria-hidden`) rather than the tab
- * panel's own background, since a mask on the panel would cut the panels
- * too: it takes no pointer and is not in the accessibility tree. There only
- * while the board is built, and not in the one-column reading.
+ * panel's edges always land on a block's (`blockHeight`). The shape is the
+ * grid's own, measured and drawn in the page (`gridBlocks`,
+ * `ui/dashboard/GridBlocksLayer.tsx`): one row of blocks as an SVG pattern,
+ * repeated down from the grid's padding — in the page, not a `data:` image,
+ * which a strict policy's `img-src` refuses (D74). The colour is here, a
+ * token, so it follows the mode and the preset. One layer under the grid
+ * (`dashboard-grid-blocks`, `aria-hidden`): it takes no pointer and is not
+ * in the accessibility tree. There only while the board is built, and not
+ * in the one-column reading.
  */
 .fve-root [data-slot='dashboard-grid-blocks'] {
   position: absolute;
   inset: 0;
+  width: 100%;
+  height: 100%;
   z-index: -1;
   pointer-events: none;
-  /* The divider's grey, thinned to a wash: in the light modes about the
-     muted surface, in the dark about a card — a ruler under the panels,
-     never a second set of cards competing with them. */
-  background-color: color-mix(in oklab, var(--border) 45%, transparent);
-  mask-image: var(--grid-blocks);
-  mask-size: var(--grid-blocks-size);
-  mask-position: 0 var(--grid-blocks-top);
-  mask-repeat: repeat-y;
+}
+
+/* The divider's grey, thinned to a wash: in the light modes about the muted
+   surface, in the dark about a card — a ruler under the panels, never a
+   second set of cards competing with them. */
+.fve-root [data-slot='dashboard-grid-blocks'] pattern rect {
+  fill: color-mix(in oklab, var(--border) 45%, transparent);
 }
 
 /*
