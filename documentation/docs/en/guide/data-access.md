@@ -128,7 +128,9 @@ Space is a string namespace stored with messages and snapshots. It is independen
 class Order(private val state: OrderState)
 ```
 
-WebFlux reads `Wow-Space-Id` and appends a `SPACE_ID` filter to query routes. The header does not become a URL segment and does not authenticate access to the space.
+For a spaced aggregate, WebFlux reads `Wow-Space-Id`: commands are written into that space, and query routes (snapshot, event stream, state and tracing reads) get a `SPACE_ID` filter. The header does not become a URL segment and does not authenticate access to the space.
+
+An aggregate without `spaced = true` ignores the header on every route: its commands carry the default space (`""`) and its queries get no space filter, whatever the client sends. Clients such as fetcher-cosec send a space header on every request, so a deployment that relied on the header to isolate a non-spaced aggregate must declare `spaced = true` on it.
 
 ### Space Transfer
 

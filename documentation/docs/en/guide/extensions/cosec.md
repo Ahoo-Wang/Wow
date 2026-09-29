@@ -40,13 +40,13 @@ Minimum runtime setup is the capability plus the application's authentication/au
 | `CoSec-App-Id` | command header `app_id` |
 | `CoSec-Device-Id` | command header `device_id` |
 | `CoSec-Request-Id` | `CommandBuilder.requestIdIfAbsent` |
-| `CoSec-Space-Id` | `CommandBuilder.spaceIdIfAbsent` and query-space fallback |
+| `CoSec-Space-Id` | `CommandBuilder.spaceIdIfAbsent` and query-space fallback, for a spaced aggregate only |
 
 Existing standard Wow request/space values win through `IfAbsent` and rewrite precedence; CoSec headers only supplement them. Missing headers produce no context and do not fail by themselves.
 
 ### How the Context Flows
 
-App/device values propagate in Wow message headers to downstream commands and events. Request ID and space ID enter command identity/scope. Query rewriting reads Wow space first, then falls back to `CoSec-Space-Id`. Treat propagated values as audit data or inputs to a verified policy, never as authorization merely because they came from headers.
+App/device values propagate in Wow message headers to downstream commands and events. Request ID and space ID enter command identity/scope. Query rewriting reads Wow space first, then falls back to `CoSec-Space-Id`. Both space headers apply only to an aggregate declared `@AggregateRoute(spaced = true)`; any other aggregate ignores them, so its commands carry the default space and its queries get no space filter. Treat propagated values as audit data or inputs to a verified policy, never as authorization merely because they came from headers.
 
 Verified failures and boundaries: missing headers yield empty context; existing request/space values are not overwritten; query space creates only a `SpaceIdFilter`, not principal authorization; forged headers are faithfully propagated, so a missing security chain is a deployment failure rather than an input validator this module can add.
 

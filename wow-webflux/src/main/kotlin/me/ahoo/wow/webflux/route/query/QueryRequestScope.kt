@@ -19,6 +19,7 @@ import me.ahoo.wow.api.query.OwnerIdFilter
 import me.ahoo.wow.api.query.SpaceIdFilter
 import me.ahoo.wow.api.query.TenantIdFilter
 import me.ahoo.wow.modeling.metadata.AggregateMetadata
+import me.ahoo.wow.openapi.metadata.aggregateRouteMetadata
 import me.ahoo.wow.query.QueryScope
 import me.ahoo.wow.query.QueryScopeProvenance
 import me.ahoo.wow.webflux.route.command.getOwnerId
@@ -40,6 +41,10 @@ fun interface QueryRequestScope {
  * are [declared][QueryScopeProvenance.DECLARED]; an aggregate's static tenant is a server fact and
  * [authenticated][QueryScopeProvenance.AUTHENTICATED]. Override the `*Provenance` functions when a trusted
  * component (an authenticating gateway that owns these headers, say) vouches for them.
+ *
+ * The space is part of the scope only for an aggregate whose route is
+ * [spaced][me.ahoo.wow.openapi.metadata.AggregateRouteMetadata.spaced]; for any other aggregate [resolveSpaceId] is
+ * not consulted and no space filter is added, whatever the request sends.
  */
 abstract class AbstractQueryRequestScope : QueryRequestScope {
     protected open fun ServerRequest.resolveTenantId(aggregateMetadata: AggregateMetadata<*, *>): String? {
@@ -84,7 +89,7 @@ abstract class AbstractQueryRequestScope : QueryRequestScope {
             request.resolveOwnerId(aggregateMetadata).nonBlank()?.let {
                 request.ownerIdProvenance(aggregateMetadata, it) to OwnerIdFilter(it)
             },
-            request.resolveSpaceId(aggregateMetadata).nonBlank()?.let {
+            request.resolveSpaceIdIfSpaced(aggregateMetadata).nonBlank()?.let {
                 request.spaceIdProvenance(aggregateMetadata, it) to SpaceIdFilter(it)
             },
         )
@@ -93,6 +98,9 @@ abstract class AbstractQueryRequestScope : QueryRequestScope {
             declared = parts.scopeOf(QueryScopeProvenance.DECLARED),
         )
     }
+
+    private fun ServerRequest.resolveSpaceIdIfSpaced(aggregateMetadata: AggregateMetadata<*, *>): String? =
+        if (aggregateMetadata.aggregateRouteMetadata().spaced) resolveSpaceId(aggregateMetadata) else null
 
     private fun String?.nonBlank(): String? = takeUnless { it.isNullOrBlank() }
 

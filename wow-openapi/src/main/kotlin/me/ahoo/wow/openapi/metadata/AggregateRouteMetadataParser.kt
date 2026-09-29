@@ -20,6 +20,7 @@ import me.ahoo.wow.infra.reflection.ClassVisitor
 import me.ahoo.wow.metadata.CacheableMetadataParser
 import me.ahoo.wow.metadata.Metadata
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
+import me.ahoo.wow.modeling.metadata.AggregateMetadata
 
 object AggregateRouteMetadataParser : CacheableMetadataParser() {
     override fun <TYPE : Any, M : Metadata> parseToMetadata(type: Class<TYPE>): M {
@@ -55,6 +56,14 @@ internal class AggregateRouteMetadataVisitor<C : Any>(private val aggregateType:
 
 fun <C : Any> Class<out C>.aggregateRouteMetadata(): AggregateRouteMetadata<C> {
     return AggregateRouteMetadataParser.parse(this)
+}
+
+/**
+ * The route metadata of this aggregate, parsed from its command aggregate type's [AggregateRoute] and cached, for a
+ * runtime that holds only the [AggregateMetadata] (a query route's request scope, say).
+ */
+fun <C : Any> AggregateMetadata<C, *>.aggregateRouteMetadata(): AggregateRouteMetadata<C> {
+    return command.aggregateType.aggregateRouteMetadata()
 }
 
 inline fun <reified C : Any> aggregateRouteMetadata(): AggregateRouteMetadata<C> {

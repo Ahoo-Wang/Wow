@@ -128,7 +128,9 @@ Space 是随消息和快照存储的字符串命名空间，与 tenant、owner �
 class Order(private val state: OrderState)
 ```
 
-WebFlux 读取 `Wow-Space-Id`，并在查询路由中追加 `SPACE_ID` 过滤器。请求头不会变成 URL 段，也不会认证调用方是否有权访问该 space。
+对启用 spaced 的聚合，WebFlux 读取 `Wow-Space-Id`：命令写入该 space，查询路由（快照、事件流、状态与溯源读取）追加 `SPACE_ID` 过滤器。请求头不会变成 URL 段，也不会认证调用方是否有权访问该 space。
+
+未声明 `spaced = true` 的聚合在所有路由上忽略该请求头：无论客户端发送什么，其命令都使用默认 space（`""`），其查询也不追加 space 过滤器。fetcher-cosec 等客户端会在每个请求上发送 space 请求头，因此依赖该请求头隔离非 spaced 聚合的部署必须为该聚合声明 `spaced = true`。
 
 ### 命名空间转移
 

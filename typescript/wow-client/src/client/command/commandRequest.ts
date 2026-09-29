@@ -85,7 +85,10 @@ export interface CommandHeaderOptions {
   tenantId?: string;
   /** The owner, `Command-Owner-Id`; for a route without an owner segment. */
   ownerId?: string;
-  /** The space, `Wow-Space-Id`; the tenant's default space when absent. */
+  /**
+   * The space, `Wow-Space-Id`; the tenant's default space when absent. Only a
+   * spaced aggregate reads it.
+   */
   spaceId?: string;
   /**
    * The target aggregate, `Command-Aggregate-Id`; for a route without an id

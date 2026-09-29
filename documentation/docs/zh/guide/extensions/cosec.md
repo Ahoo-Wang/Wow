@@ -40,13 +40,13 @@ implementation("me.ahoo.wow:wow-spring-boot-starter") {
 | `CoSec-App-Id` | 命令 header `app_id` |
 | `CoSec-Device-Id` | 命令 header `device_id` |
 | `CoSec-Request-Id` | `CommandBuilder.requestIdIfAbsent` |
-| `CoSec-Space-Id` | `CommandBuilder.spaceIdIfAbsent` 与查询 space fallback |
+| `CoSec-Space-Id` | `CommandBuilder.spaceIdIfAbsent` 与查询 space fallback，仅对 spaced 聚合生效 |
 
 标准 Wow request/space 值已存在时，`IfAbsent`/rewrite 优先保留 Wow 值；CoSec header 只补充。缺失 header 不产生上下文，也不会自行失败。
 
 ### 上下文如何流转
 
-app/device 随 Wow message header 传播到下游命令/事件；request ID 与 space ID 进入命令 identity/scope。查询 filter 先读取 Wow space，再回退 `CoSec-Space-Id`。传播值仅可用于审计或已验证策略，不能因“来自 header”就视为授权事实。
+app/device 随 Wow message header 传播到下游命令/事件；request ID 与 space ID 进入命令 identity/scope。查询 filter 先读取 Wow space，再回退 `CoSec-Space-Id`。两个 space 请求头只对声明了 `@AggregateRoute(spaced = true)` 的聚合生效；其他聚合忽略它们，命令使用默认 space，查询不追加 space 过滤器。传播值仅可用于审计或已验证策略，不能因“来自 header”就视为授权事实。
 
 已验证失败/边界：缺失 header 得到空上下文；已有 request/space 不被 CoSec 覆盖；查询 space 只形成 `SpaceIdFilter`，不执行主体授权；伪造 header 会被忠实传播，因此安全链缺失是部署失败而非模块可修复的输入校验问题。
 

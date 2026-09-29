@@ -47,7 +47,10 @@ import java.lang.annotation.Inherited
  *                    class name (lowercased) will be used. This affects URL generation.
  * @param enabled Whether routing is enabled for this aggregate. When false, no routes
  *               will be generated. Defaults to true.
- * @param spaced Whether routes include a space identifier path segment.
+ * @param spaced Whether the aggregate's routes take a space from the request's `Wow-Space-Id` header (it adds
+ *               no path segment). Only a spaced aggregate has that space written to its commands and its queries
+ *               scoped by it; for any other aggregate the HTTP adapter ignores the header, so its commands carry
+ *               the default space. Defaults to false.
  * @param owner Ownership policy determining tenant isolation. Controls whether operations
  *             require owner context and how ownership is determined.
  *

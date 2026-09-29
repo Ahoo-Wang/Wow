@@ -25,6 +25,7 @@ import me.ahoo.wow.infra.ifNotBlank
 import me.ahoo.wow.modeling.metadata.AggregateMetadata
 import me.ahoo.wow.openapi.CommonComponent
 import me.ahoo.wow.openapi.aggregate.command.CommandComponent
+import me.ahoo.wow.openapi.metadata.AggregateRouteMetadata
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.webflux.route.acceptsEventStream
 import org.springframework.web.reactive.function.server.ServerRequest
@@ -59,6 +60,17 @@ fun ServerRequest.getSpaceId(): SpaceId? {
         return it
     }
     return null
+}
+
+/**
+ * The space this request states for the aggregate of [aggregateRouteMetadata]: the `Wow-Space-Id` header when the
+ * aggregate is [spaced][AggregateRouteMetadata.spaced], otherwise `null` whatever the request sends.
+ */
+fun ServerRequest.getSpaceId(aggregateRouteMetadata: AggregateRouteMetadata<*>): SpaceId? {
+    if (!aggregateRouteMetadata.spaced) {
+        return null
+    }
+    return getSpaceId()
 }
 
 fun ServerRequest.getTenantIdOrDefault(aggregateMetadata: AggregateMetadata<*, *>): String {

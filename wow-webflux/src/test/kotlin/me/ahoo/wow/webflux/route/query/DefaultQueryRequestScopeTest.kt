@@ -17,6 +17,9 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.OwnerIdFilter
 import me.ahoo.wow.api.query.SpaceIdFilter
 import me.ahoo.wow.api.query.TenantIdFilter
+import me.ahoo.wow.example.domain.order.Order
+import me.ahoo.wow.example.domain.order.OrderState
+import me.ahoo.wow.modeling.annotation.aggregateMetadata
 import me.ahoo.wow.modeling.metadata.AggregateMetadata
 import me.ahoo.wow.openapi.CommonComponent
 import me.ahoo.wow.openapi.aggregate.command.CommandComponent
@@ -29,6 +32,8 @@ import org.springframework.mock.web.reactive.function.server.MockServerRequest
 import org.springframework.web.reactive.function.server.ServerRequest
 
 class DefaultQueryRequestScopeTest {
+    /** `@AggregateRoute(spaced = true)`; the mock aggregate is not spaced. */
+    private val spacedMetadata = aggregateMetadata<Order, OrderState>()
 
     @Test
     fun `should resolve match all when no scope is present`() {
@@ -60,14 +65,24 @@ class DefaultQueryRequestScopeTest {
     }
 
     @Test
-    fun `should resolve space scope from header`() {
+    fun `should resolve space scope from header for a spaced aggregate`() {
         val spaceId = "space-123"
         val request = MockServerRequest.builder()
             .header(CommonComponent.Header.SPACE_ID, spaceId)
             .build()
 
-        DefaultQueryRequestScope.resolve(MOCK_AGGREGATE_METADATA, request)
+        DefaultQueryRequestScope.resolve(spacedMetadata, request)
             .assert().isEqualTo(QueryScope(declared = SpaceIdFilter(spaceId)))
+    }
+
+    @Test
+    fun `should ignore the space header for a non-spaced aggregate`() {
+        val request = MockServerRequest.builder()
+            .header(CommonComponent.Header.SPACE_ID, "space-123")
+            .build()
+
+        DefaultQueryRequestScope.resolve(MOCK_AGGREGATE_METADATA, request)
+            .assert().isEqualTo(QueryScope.NONE)
     }
 
     @Test
@@ -95,7 +110,7 @@ class DefaultQueryRequestScopeTest {
             .header(CommonComponent.Header.SPACE_ID, "space-123")
             .build()
 
-        trustedTenantHeader.resolve(MOCK_AGGREGATE_METADATA, request).assert().isEqualTo(
+        trustedTenantHeader.resolve(spacedMetadata, request).assert().isEqualTo(
             QueryScope(authenticated = TenantIdFilter("tenant-123"), declared = SpaceIdFilter("space-123"))
         )
     }
