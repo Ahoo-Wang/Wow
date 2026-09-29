@@ -762,6 +762,16 @@
 - **判据**：Storybook 的记录工作台在 porcelain 亮与暗下与画布 E 一致；neutral、azure、contrast 的截图基线一张不变，porcelain 的基线有意更新并在 PR 里列出；对比度矩阵通过；看板面板与嵌入的记录视图没有卡中卡。
 - **落点**：`src/themes/porcelain.css`（新角色经登记表，[theme-architecture.md](theme-architecture.md) 的规则）、`src/styles.css`、`src/ui/WorkbenchShell.tsx`／`variants.tsx` 的 `resultFrameChrome`、[themes.md](themes.md) 3.4.1。
 
+## D70 铺满屏幕时保留标题与口径说明（2026-09-28）
+
+- **来由**：用户在 Storybook「运营日报」上审查：开「铺满屏幕」后，宿主画在嵌入看板外面的标题「运营日报」与口径说明「指标卡读 2026年9月21日（昨日），较前一日」被盖住，只剩筛选与面板——铺满多是投大屏、挂墙看，最先要答的正是「这是哪块板、读的是哪一天」。
+- **裁定**（用户：按推荐）：
+  - **铺满时引擎总画一行标题**：宿主常态下没让引擎画标题（`title` 关）时，铺满用看板自己的标题补上；开着则照旧。
+  - **可选的口径说明 caption**：嵌入看板收一个可选的说明（`ReactNode`），常态下不画（宿主自己画），铺满时画在标题下；随筛选变的说明（如「读哪一天」）因此一起进铺满。
+  - **宿主页头的动作不跟进铺满**（如「催发货 · 超时 N 单」）：那是宿主页面的功能，铺满只留读板要的上下文。
+- **判据**：故事「运营日报」开铺满后标题与口径说明可见、宿主动作不在；常态下不重复画标题；可达性（标题层级、读屏）不回退。
+- **落点**：`src/ui/EmbeddedDashboard.tsx`（与 `embed/EmbedHead.tsx`）、[ui/embed.md](ui/embed.md)、Storybook `Home.stories.tsx`。
+
 ## 搁置待议
 
 尚无结论，不要当作规则执行。
