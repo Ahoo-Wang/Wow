@@ -17,24 +17,20 @@ import me.ahoo.wow.api.annotation.AggregateRoot
 import me.ahoo.wow.api.annotation.AggregateRoute
 import me.ahoo.wow.api.annotation.OnCommand
 import me.ahoo.wow.api.command.CommandMessage
+import me.ahoo.wow.api.command.DefaultDeleteAggregate
+import me.ahoo.wow.api.event.DefaultAggregateDeleted
 import me.ahoo.wow.api.exception.BindingError
-import me.ahoo.wow.command.CommandOperator.operator
 import me.ahoo.wow.viewstore.ViewStoreService.SHARED_OWNER_ID
 import me.ahoo.wow.viewstore.api.ViewAudience
-import me.ahoo.wow.viewstore.api.view.ApplyViewTags
-import me.ahoo.wow.viewstore.api.view.ChangeViewAudience
+import me.ahoo.wow.viewstore.api.view.ClaimView
 import me.ahoo.wow.viewstore.api.view.CreateView
-import me.ahoo.wow.viewstore.api.view.DeleteView
-import me.ahoo.wow.viewstore.api.view.RecoverView
 import me.ahoo.wow.viewstore.api.view.RenameView
 import me.ahoo.wow.viewstore.api.view.SaveView
+import me.ahoo.wow.viewstore.api.view.ShareView
 import me.ahoo.wow.viewstore.api.view.ViewAudienceChanged
 import me.ahoo.wow.viewstore.api.view.ViewCreated
-import me.ahoo.wow.viewstore.api.view.ViewDeleted
-import me.ahoo.wow.viewstore.api.view.ViewRecovered
 import me.ahoo.wow.viewstore.api.view.ViewRenamed
 import me.ahoo.wow.viewstore.api.view.ViewSaved
-import me.ahoo.wow.viewstore.api.view.ViewTagsApplied
 import me.ahoo.wow.viewstore.domain.ViewApps.requireSameApp
 import me.ahoo.wow.viewstore.domain.ViewApps.requiredAppId
 import me.ahoo.wow.viewstore.domain.ViewStoreException
@@ -77,26 +73,32 @@ class View(private val state: ViewState) {
     }
 
     /**
-     * The server picks the new owner: `(shared)` for shared, the operator for personal. A view some shared dashboard
-     * references stays shared. An audience that does not change still records the change, since every Wow command
-     * records an event: the owner and the state stay as they were.
+     * Moves a personal view to the owner `(shared)`. Wow has already checked that the command comes from the view's
+     * owner path. A view already shared records the change to the same owner, since every Wow command records an
+     * event; the view store's route answers that case without a command.
      */
     @OnCommand
-    fun onChangeAudience(
-        command: CommandMessage<ChangeViewAudience>,
+    fun onShare(command: CommandMessage<ShareView>): ViewAudienceChanged {
+        command.requireSameApp(state.appId)
+        return ViewAudienceChanged(audience = ViewAudience.SHARED, toOwnerId = SHARED_OWNER_ID)
+    }
+
+    /**
+     * Moves a shared view to the owner named by [ClaimView.toOwnerId], the caller's own path. It is dispatched to
+     * the view's current owner, so Wow's owner check passes only for a view that is shared (or, in process, for a
+     * personal view claimed by the owner it already has, which records the change to the same owner). A view some
+     * shared dashboard references stays shared.
+     */
+    @OnCommand
+    fun onClaim(
+        command: CommandMessage<ClaimView>,
         sharedBoardReferences: SharedBoardReferences,
     ): Mono<ViewAudienceChanged> {
         command.requireSameApp(state.appId)
-        val audience = command.body.audience
-        if (audience == state.audience) {
-            return Mono.just(ViewAudienceChanged(audience = audience, toOwnerId = command.ownerId))
-        }
-        if (audience == ViewAudience.SHARED) {
-            return Mono.just(ViewAudienceChanged(audience = audience, toOwnerId = SHARED_OWNER_ID))
-        }
-        val operator = command.header.operator
-        if (operator.isNullOrBlank() || operator.isReservedId()) {
-            throw ViewStoreException.operatorRequired()
+        val toOwnerId = command.body.toOwnerId
+        requireClaimable(toOwnerId, command.ownerId)
+        if (state.audience == ViewAudience.PERSONAL) {
+            return Mono.just(ViewAudienceChanged(audience = ViewAudience.PERSONAL, toOwnerId = toOwnerId))
         }
         return sharedBoardReferences.referencingBoards(command.aggregateId.tenantId, state.appId, state.id)
             .filter { it.id != state.id }
@@ -110,36 +112,39 @@ class View(private val state: ViewState) {
                         },
                     )
                 }
-                ViewAudienceChanged(audience = audience, toOwnerId = operator)
+                ViewAudienceChanged(audience = ViewAudience.PERSONAL, toOwnerId = toOwnerId)
             }
     }
 
+    /**
+     * Wow's own delete command (`DELETE …/view/{id}`), handled here only to add the application rule: a view of
+     * another application reads as not found. Wow's recover and resource-tags commands are left to Wow; their routes
+     * are closed for the view store, so they are in-process only.
+     */
     @OnCommand
-    fun onDelete(command: CommandMessage<DeleteView>): ViewDeleted {
+    fun onDelete(command: CommandMessage<DefaultDeleteAggregate>): DefaultAggregateDeleted {
         command.requireSameApp(state.appId)
-        return ViewDeleted()
+        return DefaultAggregateDeleted
     }
 
-    @OnCommand
-    fun onRecover(command: CommandMessage<RecoverView>): ViewRecovered {
-        command.requireSameApp(state.appId)
-        return ViewRecovered()
-    }
-
-    @OnCommand
-    fun onApplyTags(command: CommandMessage<ApplyViewTags>): ViewTagsApplied {
-        command.requireSameApp(state.appId)
-        return ViewTagsApplied(command.body.tags)
+    /**
+     * A view is claimed by a user, never by a reserved owner; and a view already personal only by the owner it has
+     * (which records the change to the same owner).
+     */
+    private fun requireClaimable(toOwnerId: String, currentOwnerId: String) {
+        if (toOwnerId.isBlank() || toOwnerId.isReservedId()) {
+            throw ViewStoreException.invalid("A view is claimed by a user, not by the owner [$toOwnerId].")
+        }
+        if (state.audience == ViewAudience.PERSONAL && toOwnerId != currentOwnerId) {
+            throw ViewStoreException.invalid("Only a shared view can be claimed.")
+        }
     }
 
     companion object {
         /** The binding error code naming a shared dashboard that keeps a view shared. */
         const val REFERENCED_BY_SHARED_DASHBOARD = "referenced-by-shared-dashboard"
 
-        /**
-         * An id in parentheses is a reserved value, never a user: `(shared)`, or CoSec's anonymous principal `(0)`,
-         * which a service behind CoSec sees as the operator of a request without a token.
-         */
-        private fun String.isReservedId(): Boolean = this == SHARED_OWNER_ID || (startsWith("(") && endsWith(")"))
+        /** An owner id in parentheses is a reserved value such as `(shared)`, never a user. */
+        private fun String.isReservedId(): Boolean = startsWith("(") && endsWith(")")
     }
 }

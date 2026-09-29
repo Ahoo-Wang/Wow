@@ -13,7 +13,6 @@
 
 package me.ahoo.wow.viewstore.api.view
 
-import me.ahoo.wow.api.Identifier
 import me.ahoo.wow.api.annotation.CommandRoute
 import me.ahoo.wow.api.annotation.Order
 import me.ahoo.wow.api.annotation.Summary
@@ -23,9 +22,7 @@ import me.ahoo.wow.api.annotation.Summary
 @Summary("Rename a view")
 @CommandRoute(action = "rename", method = CommandRoute.Method.PUT, appendIdPath = CommandRoute.AppendPath.ALWAYS)
 data class RenameView(
-    @field:CommandRoute.PathVariable
-    override val id: String,
     val title: String,
-) : Identifier
+)
 
 data class ViewRenamed(val title: String)

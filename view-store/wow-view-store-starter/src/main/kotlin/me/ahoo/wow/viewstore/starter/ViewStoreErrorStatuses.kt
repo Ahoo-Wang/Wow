@@ -23,7 +23,6 @@ object ViewStoreErrorStatuses {
         ViewStoreErrorCodes.VIEW_INVALID to HttpStatus.BAD_REQUEST,
         ViewStoreErrorCodes.VIEW_APP_REQUIRED to HttpStatus.BAD_REQUEST,
         ViewStoreErrorCodes.VIEW_SCOPE_REQUIRED to HttpStatus.BAD_REQUEST,
-        ViewStoreErrorCodes.VIEW_OPERATOR_REQUIRED to HttpStatus.UNAUTHORIZED,
         ViewStoreErrorCodes.SYSTEM_VIEW_READ_ONLY to HttpStatus.FORBIDDEN,
         ViewStoreErrorCodes.VIEW_EVENT_STREAM_CLOSED to HttpStatus.FORBIDDEN,
     )

@@ -13,7 +13,6 @@
 
 package me.ahoo.wow.viewstore.starter
 
-import org.springframework.web.reactive.function.server.HandlerFunction
 import org.springframework.web.reactive.function.server.RouterFunction
 import org.springframework.web.reactive.function.server.RouterFunctions
 import org.springframework.web.reactive.function.server.ServerResponse
@@ -23,7 +22,7 @@ object ViewStoreRoutes {
     fun routerFunction(
         paths: ViewStorePaths,
         handlers: ViewStoreHandlers,
-        audienceHandler: HandlerFunction<ServerResponse>,
+        audienceHandlers: ViewAudienceHandlers,
     ): RouterFunction<ServerResponse> =
         RouterFunctions.route()
             .GET(paths.systemViews, handlers::systemViews)
@@ -31,6 +30,7 @@ object ViewStoreRoutes {
             .GET(paths.preferences, handlers::getPreferences)
             .PUT(paths.preferences, handlers::setPreferences)
             .GET(paths.replay, handlers::replay)
-            .PUT(paths.audience, audienceHandler)
+            .PUT(paths.share, audienceHandlers::share)
+            .PUT(paths.claim, audienceHandlers::claim)
             .build()
 }

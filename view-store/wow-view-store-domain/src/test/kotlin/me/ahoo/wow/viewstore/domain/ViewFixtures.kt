@@ -14,7 +14,6 @@
 package me.ahoo.wow.viewstore.domain
 
 import me.ahoo.wow.api.messaging.Header
-import me.ahoo.wow.command.CommandOperator.withOperator
 import me.ahoo.wow.messaging.DefaultHeader
 import me.ahoo.wow.serialization.JsonSerializer
 import me.ahoo.wow.viewstore.ViewStoreService
@@ -26,10 +25,10 @@ object ViewFixtures {
     const val ALICE = "alice"
     const val BOB = "bob"
 
-    fun appHeader(appId: String = APP, operator: String? = null): Header {
-        val header = DefaultHeader.empty().with(ViewStoreService.APP_ID_MESSAGE_HEADER, appId)
-        return if (operator == null) header else header.withOperator(operator)
-    }
+    fun appHeader(appId: String = APP): Header = DefaultHeader.empty().with(
+        ViewStoreService.APP_ID_MESSAGE_HEADER,
+        appId
+    )
 
     fun recordConfig(): ObjectNode = JsonSerializer.createObjectNode().put("kind", "record").put("pageSize", 20)
 

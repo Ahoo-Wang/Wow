@@ -13,7 +13,6 @@
 
 package me.ahoo.wow.viewstore.api.view
 
-import me.ahoo.wow.api.Identifier
 import me.ahoo.wow.api.annotation.CommandRoute
 import me.ahoo.wow.api.annotation.Order
 import me.ahoo.wow.api.annotation.Summary
@@ -24,10 +23,8 @@ import tools.jackson.databind.node.ObjectNode
 @Summary("Save a view's config")
 @CommandRoute(action = "save", method = CommandRoute.Method.PUT, appendIdPath = CommandRoute.AppendPath.ALWAYS)
 data class SaveView(
-    @field:CommandRoute.PathVariable
-    override val id: String,
     val config: ObjectNode,
-) : Identifier
+)
 
 data class ViewSaved(
     val config: ObjectNode,

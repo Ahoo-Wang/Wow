@@ -102,7 +102,6 @@ class ViewStoreMongoTest {
         appId: String? = APP,
         version: Int? = null,
         requestId: String = UUID.randomUUID().toString(),
-        operator: String? = null,
     ): WebTestClient.ResponseSpec {
         val spec = client.method(org.springframework.http.HttpMethod.valueOf(method)).uri(uri)
             .header(CommandComponent.Header.WAIT_STAGE, "SNAPSHOT")
@@ -110,7 +109,6 @@ class ViewStoreMongoTest {
             .contentType(MediaType.APPLICATION_JSON)
         appId?.let { spec.header(ViewStoreService.APP_ID_HEADER, it) }
         version?.let { spec.header(CommandComponent.Header.AGGREGATE_VERSION, it.toString()) }
-        operator?.let { spec.header(ViewStoreHostApplication.USER_HEADER, it) }
         return (body?.let { spec.bodyValue(it) } ?: spec).exchange()
     }
 
@@ -277,39 +275,84 @@ class ViewStoreMongoTest {
         result.get("aggregateId").stringValue().assert().isNotEqualTo("chosen-id")
     }
 
+    private fun share(owner: String, id: String, version: Int? = 1, appId: String = APP): WebTestClient.ResponseSpec =
+        write("PUT", "$SCOPE/$owner/view/$id/share", "{}", appId = appId, version = version)
+
+    private fun claim(owner: String, id: String, version: Int? = 1, appId: String = APP): WebTestClient.ResponseSpec =
+        write("PUT", "$SCOPE/$owner/view/$id/claim", null, appId = appId, version = version)
+
+    private fun listed(owner: String, id: String): Boolean {
+        val body = query("$SCOPE/$owner/view/snapshot/list", listQuery { filter { id(id) } }.toJsonString())
+            .expectStatus().isOk
+            .expectBody(JsonNode::class.java).returnResult().responseBody!!
+        return body.size() == 1
+    }
+
     @Test
     fun `sharing moves the view to the shared owner and keeps its id`() {
         val id = create("alice")
-        write("PUT", "$SCOPE/alice/view/$id/audience", """{"audience":"shared"}""", version = 1)
-            .expectStatus().isOk
+        share("alice", id).expectStatus().isOk
         single(SHARED, id).expectStatus().isOk
             .expectBody().jsonPath("$.state.audience").isEqualTo("shared").jsonPath("$.ownerId").isEqualTo(SHARED)
         single("alice", id).expectStatus().isNotFound
+    }
 
+    /**
+     * Claiming is sent to the claiming user's own path. That bob cannot claim through alice's path is the gateway's
+     * to enforce (it lets a caller use only `owner/{their sub}`); the server trusts the path.
+     */
+    @Test
+    fun `claiming moves a shared view to the owner of the claiming path`() {
+        val id = create(SHARED)
+        listed(SHARED, id).assert().isTrue()
+        claim("alice", id).expectStatus().isOk
+        listed(SHARED, id).assert().isFalse()
+        listed("alice", id).assert().isTrue()
+        single("alice", id).expectStatus().isOk
+            .expectBody()
+            .jsonPath("$.state.audience").isEqualTo("personal")
+            .jsonPath("$.ownerId").isEqualTo("alice")
+            .jsonPath("$.version").isEqualTo(2)
+        // It is alice's now: bob claiming it through his own path is refused, as is sharing it from his path.
+        claim("bob", id, version = 2).expectStatus().isForbidden
+        share("bob", id, version = 2).expectStatus().isForbidden
+        // Shared again from alice's path, bob can claim it through his.
+        share("alice", id, version = 2).expectStatus().isOk
+        claim("bob", id, version = 3).expectStatus().isOk
+        listed("bob", id).assert().isTrue()
+        listed("alice", id).assert().isFalse()
+    }
+
+    @Test
+    fun `a claim for a reserved owner or another application is refused`() {
+        val id = create(SHARED)
+        claim(SHARED, id).expectStatus().isBadRequest
+            .expectBody().jsonPath("$.errorCode").isEqualTo(ViewStoreErrorCodes.VIEW_INVALID)
+        claim("(0)", id).expectStatus().isBadRequest
+        claim("alice", id, appId = OTHER_APP).expectStatus().isNotFound
+        claim("alice", id, version = 3).expectStatus().isEqualTo(HttpStatus.CONFLICT)
+        single(SHARED, id).expectStatus().isOk.expectBody().jsonPath("$.version").isEqualTo(1)
     }
 
     @Test
     fun `an audience the view already has is answered without a change`() {
-        val id = create(SHARED)
-        write("PUT", "$SCOPE/$SHARED/view/$id/audience", """{"audience":"shared"}""", version = 1)
-            .expectStatus().isOk
+        val shared = create(SHARED)
+        share(SHARED, shared).expectStatus().isOk
             .expectBody()
             .jsonPath("$.errorCode").isEqualTo(ErrorCodes.SUCCEEDED)
-            .jsonPath("$.aggregateId").isEqualTo(id)
+            .jsonPath("$.aggregateId").isEqualTo(shared)
             .jsonPath("$.aggregateVersion").isEqualTo(1)
-        write("PUT", "$SCOPE/$SHARED/view/$id/audience", """{"audience":"shared"}""")
-            .expectStatus().isOk
-        single(SHARED, id).expectStatus().isOk.expectBody().jsonPath("$.version").isEqualTo(1)
+        share(SHARED, shared, version = null).expectStatus().isOk
+        single(SHARED, shared).expectStatus().isOk.expectBody().jsonPath("$.version").isEqualTo(1)
+        val personal = create("alice")
+        claim("alice", personal).expectStatus().isOk
+            .expectBody().jsonPath("$.aggregateVersion").isEqualTo(1)
+        single("alice", personal).expectStatus().isOk.expectBody().jsonPath("$.version").isEqualTo(1)
         // Anything but a request that would succeed goes to the command and gets its answer.
-        write("PUT", "$SCOPE/$SHARED/view/$id/audience", """{"audience":"shared"}""", version = 3)
-            .expectStatus().isEqualTo(HttpStatus.CONFLICT)
-        write("PUT", "$SCOPE/$SHARED/view/$id/audience", """{"audience":"shared"}""", appId = OTHER_APP, version = 1)
-            .expectStatus().isNotFound
-        write("PUT", "$SCOPE/alice/view/$id/audience", """{"audience":"shared"}""", version = 1)
-            .expectStatus().isForbidden
-        write("PUT", "$SCOPE/$SHARED/view/$id/audience", """{"audience":"personal"}""", version = 1, operator = "bob")
-            .expectStatus().isOk
-        single("bob", id).expectStatus().isOk.expectBody().jsonPath("$.version").isEqualTo(2)
+        share(SHARED, shared, version = 3).expectStatus().isEqualTo(HttpStatus.CONFLICT)
+        share(SHARED, shared, appId = OTHER_APP).expectStatus().isNotFound
+        share("alice", shared).expectStatus().isForbidden
+        claim("bob", personal).expectStatus().isForbidden
     }
 
     @Test
@@ -351,7 +394,7 @@ class ViewStoreMongoTest {
         (0 until boardCount).forEach { index ->
             val view = create(SHARED)
             val board = create(SHARED, boardReferencing(view)[index])
-            write("PUT", "$SCOPE/$SHARED/view/$view/audience", """{"audience":"personal"}""", version = 1, operator = "bob")
+            claim("bob", view)
                 .expectStatus().isBadRequest
                 .expectBody()
                 .jsonPath("$.errorCode").isEqualTo(ViewStoreErrorCodes.VIEW_INVALID)
@@ -359,26 +402,19 @@ class ViewStoreMongoTest {
             // A record view of the same shape is no board, so it does not count.
             val elsewhere = create(SHARED)
             create(SHARED, boardReferencing(elsewhere)[index].replace("\"dashboard\",\"tabs\"", "\"record\",\"tabs\""))
-            write("PUT", "$SCOPE/$SHARED/view/$elsewhere/audience", """{"audience":"personal"}""", version = 1, operator = "bob")
-                .expectStatus().isOk
+            claim("bob", elsewhere).expectStatus().isOk
         }
         val view = create(SHARED)
         val board = create(SHARED, boardReferencing(view)[0])
-        write("PUT", "$SCOPE/$SHARED/view/$board/audience", """{"audience":"personal"}""", version = 1)
-            .expectStatus().isUnauthorized
-            .expectBody().jsonPath("$.errorCode").isEqualTo(ViewStoreErrorCodes.VIEW_OPERATOR_REQUIRED)
-        write("PUT", "$SCOPE/$SHARED/view/$board/audience", """{"audience":"personal"}""", version = 1, operator = "bob")
-            .expectStatus().isOk
+        claim("bob", board).expectStatus().isOk
         single("bob", board).expectStatus().isOk
         // The board went personal, so it no longer keeps the view shared.
-        write("PUT", "$SCOPE/$SHARED/view/$view/audience", """{"audience":"personal"}""", version = 1, operator = "bob")
-            .expectStatus().isOk
+        claim("bob", view).expectStatus().isOk
         // A board of another application does not keep it shared either.
         val other = create(SHARED)
         write("POST", "$SCOPE/$SHARED/view", """{"definitionId":"orders","title":"B","config":${boardReferencing(other)[0]}}""", appId = OTHER_APP)
             .expectStatus().isOk
-        write("PUT", "$SCOPE/$SHARED/view/$other/audience", """{"audience":"personal"}""", version = 1, operator = "bob")
-            .expectStatus().isOk
+        claim("bob", other).expectStatus().isOk
     }
 
     @Test
@@ -391,7 +427,7 @@ class ViewStoreMongoTest {
         write("PUT", "$SCOPE/alice/view/$id/rename", """{"title":"Second"}""", version = 2, requestId = renameRequest)
             .expectBody().jsonPath("$.errorCode").isEqualTo(ErrorCodes.DUPLICATE_REQUEST_ID)
         val deleteRequest = UUID.randomUUID().toString()
-        write("DELETE", "$SCOPE/alice/view/$id", null, version = 2, requestId = deleteRequest).expectStatus().isOk
+        write("DELETE", "$SCOPE/alice/view/$id", "{}", version = 2, requestId = deleteRequest).expectStatus().isOk
 
         replay("alice", createRequest).expectStatus().isOk
             .expectBody().jsonPath("$.version").isEqualTo(1).jsonPath("$.state.title").isEqualTo("View")

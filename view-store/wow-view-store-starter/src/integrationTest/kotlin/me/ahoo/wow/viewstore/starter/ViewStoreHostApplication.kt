@@ -14,29 +14,10 @@
 package me.ahoo.wow.viewstore.starter
 
 import org.springframework.boot.autoconfigure.SpringBootApplication
-import org.springframework.context.annotation.Bean
-import org.springframework.web.server.WebFilter
-import reactor.core.publisher.Mono
-import java.security.Principal
 
 /**
  * A host service of another context (the example's) with the view store starter embedded, as a business service
  * would add it.
  */
 @SpringBootApplication
-class ViewStoreHostApplication {
-    companion object {
-        /** Stands in for the authentication a gateway performs: names the request's principal. */
-        const val USER_HEADER = "X-Test-User"
-    }
-
-    @Bean
-    fun testPrincipalFilter(): WebFilter = WebFilter { exchange, chain ->
-        val user = exchange.request.headers.getFirst(USER_HEADER)
-        if (user == null) {
-            chain.filter(exchange)
-        } else {
-            chain.filter(exchange.mutate().principal(Mono.just(Principal { user })).build())
-        }
-    }
-}
+class ViewStoreHostApplication

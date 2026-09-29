@@ -31,10 +31,5 @@ class ViewStoreException(
 
         fun appRequired(): ViewStoreException =
             ViewStoreException(ViewStoreErrorCodes.VIEW_APP_REQUIRED, "The request carries no CoSec-App-Id.")
-
-        fun operatorRequired(): ViewStoreException = ViewStoreException(
-            ViewStoreErrorCodes.VIEW_OPERATOR_REQUIRED,
-            "Making a view personal needs an authenticated operator to own it."
-        )
     }
 }

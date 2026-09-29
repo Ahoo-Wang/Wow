@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.viewstore.starter
 
+import me.ahoo.wow.api.command.DefaultDeleteAggregate
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.configuration.requiredAggregateType
 import me.ahoo.wow.configuration.requiredNamedAggregate
@@ -25,6 +26,11 @@ import me.ahoo.wow.openapi.contract.BuiltInHttpRoutePaths
 import me.ahoo.wow.openapi.contract.HttpRouteContract
 import me.ahoo.wow.openapi.contract.HttpRouteHandlerMetadata
 import me.ahoo.wow.viewstore.ViewStoreService
+import me.ahoo.wow.viewstore.ViewStoreService.VIEW_AGGREGATE_NAME
+import me.ahoo.wow.viewstore.api.view.CreateView
+import me.ahoo.wow.viewstore.api.view.RenameView
+import me.ahoo.wow.viewstore.api.view.SaveView
+import me.ahoo.wow.viewstore.api.view.ShareView
 import org.springframework.http.HttpHeaders
 import org.springframework.http.HttpMethod
 import org.springframework.http.server.PathContainer
@@ -35,9 +41,9 @@ import org.springframework.web.util.pattern.PathPatternParser
  * Wow routes every aggregate with its built-in state, snapshot, event and maintenance routes, and has no switch to
  * leave them out for one aggregate. Most of them read or rewrite a view without the application check, some without
  * the owner, so for the view store's aggregates only these stay open:
- * - the five command routes Wow generates (create, save, rename, audience, delete), and its snapshot queries under
+ * - five of the command routes Wow generates (create, save, rename, share, delete), and its snapshot queries under
  *   `tenant/{tenantId}/owner/{ownerId}`;
- * - the routes the starter adds: system views, preferences and replay.
+ * - the routes the starter adds: claim, system views, preferences and replay.
  *
  * Every other route Wow generates for them is closed, and so is the command facade (`POST /wow/command/send`) for
  * their commands: it takes the aggregate id, the owner and the headers from the caller and passes none of the
@@ -63,7 +69,7 @@ class ViewStoreRouteGuard(
      * snapshot queries under the tenant and the owner (the query policy then keeps them in the request's application).
      */
     val openContracts: List<HttpRouteContract> = viewStoreContracts.filter {
-        it.handlerKey == BuiltInHttpRouteHandlerKeys.Command.COMMAND ||
+        (it.commandType() in OPEN_VIEW_COMMANDS && it.namedAggregate()?.aggregateName == VIEW_AGGREGATE_NAME) ||
             (it.handlerKey in SNAPSHOT_QUERY_KEYS && it.path.startsWith(scopedPrefix))
     }
 
@@ -77,6 +83,7 @@ class ViewStoreRouteGuard(
             Route(HttpMethod.GET, paths.preferences.toPattern()),
             Route(HttpMethod.PUT, paths.preferences.toPattern()),
             Route(HttpMethod.GET, paths.replay.toPattern()),
+            Route(HttpMethod.PUT, paths.claim.toPattern()),
         )
     private val closedRoutes: List<Route> = closedContracts.map { it.toRoute() }
     private val commandFacade = PathContainer.parsePath(BuiltInHttpRoutePaths.Global.COMMAND_SEND)
@@ -136,6 +143,9 @@ class ViewStoreRouteGuard(
 
     private fun String.toPattern(): PathPattern = PathPatternParser.defaultInstance.parse(this)
 
+    private fun HttpRouteContract.commandType(): Class<*>? =
+        (handlerMetadata as? HttpRouteHandlerMetadata.Command)?.commandRouteMetadata?.commandMetadata?.commandType
+
     private fun HttpRouteContract.namedAggregate(): NamedAggregate? = when (val metadata = handlerMetadata) {
         is HttpRouteHandlerMetadata.Aggregate -> metadata.aggregateRouteMetadata.aggregateMetadata.namedAggregate
         is HttpRouteHandlerMetadata.Command -> metadata.aggregateRouteMetadata.aggregateMetadata.namedAggregate
@@ -143,6 +153,19 @@ class ViewStoreRouteGuard(
     }
 
     private companion object {
+        /**
+         * The commands of `view` with an open route. Wow's recover and resource-tags commands (routed by default for
+         * every aggregate), and every command of `view_preferences` (whose one route is the starter's), are not among
+         * them, so they are in-process only.
+         */
+        val OPEN_VIEW_COMMANDS: Set<Class<*>> = setOf(
+            CreateView::class.java,
+            SaveView::class.java,
+            RenameView::class.java,
+            ShareView::class.java,
+            DefaultDeleteAggregate::class.java,
+        )
+
         /** Wow's snapshot query routes: the only query routes of the view store that are open. */
         val SNAPSHOT_QUERY_KEYS = setOf(
             BuiltInHttpRouteHandlerKeys.Snapshot.AGGREGATION,

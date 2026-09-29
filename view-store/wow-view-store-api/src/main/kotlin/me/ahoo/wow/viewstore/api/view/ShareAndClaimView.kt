@@ -13,7 +13,6 @@
 
 package me.ahoo.wow.viewstore.api.view
 
-import me.ahoo.wow.api.Identifier
 import me.ahoo.wow.api.annotation.CommandRoute
 import me.ahoo.wow.api.annotation.Order
 import me.ahoo.wow.api.annotation.Summary
@@ -21,17 +20,25 @@ import me.ahoo.wow.api.event.OwnerTransferred
 import me.ahoo.wow.viewstore.api.ViewAudience
 
 /**
- * Makes a view shared or personal, in place: it is sent to the view's current owner path and transfers the owner.
- * The server picks the new owner: `(shared)` for shared, the command's operator for personal. The id stays.
+ * Makes a personal view shared, in place: sent to the view's current personal path
+ * (`…/owner/{ownerId}/view/{id}/share`), it moves the view to the owner `(shared)`. The id stays.
  */
 @Order(4)
-@Summary("Make a view shared or personal")
-@CommandRoute(action = "audience", method = CommandRoute.Method.PUT, appendIdPath = CommandRoute.AppendPath.ALWAYS)
-data class ChangeViewAudience(
-    @field:CommandRoute.PathVariable
-    override val id: String,
-    val audience: ViewAudience,
-) : Identifier
+@Summary("Make a view shared")
+@CommandRoute(action = "share", method = CommandRoute.Method.PUT, appendIdPath = CommandRoute.AppendPath.ALWAYS)
+object ShareView
+
+/**
+ * Makes a shared view personal to [toOwnerId], in place. It has no generated route: the view store's route
+ * `PUT …/owner/{ownerId}/view/{id}/claim` is sent to the caller's own personal path, takes [toOwnerId] from that
+ * path, and dispatches this command to the view's current owner, `(shared)`, since Wow checks a command's owner
+ * against the view's. The id stays.
+ */
+@Summary("Make a shared view personal")
+@CommandRoute(enabled = false)
+data class ClaimView(
+    val toOwnerId: String,
+)
 
 data class ViewAudienceChanged(
     val audience: ViewAudience,

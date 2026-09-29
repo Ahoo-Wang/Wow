@@ -72,6 +72,7 @@ class ViewStoreOpenApi(private val paths: ViewStorePaths) {
                 .get(getPreferences(context, errorInfo))
                 .put(setPreferences(context, errorInfo)),
             paths.replay to PathItem().get(replay(context, errorInfo)),
+            paths.claim to PathItem().put(claim(context, errorInfo)),
         )
         context.finish()
         if (openApi.paths == null) {
@@ -128,6 +129,16 @@ class ViewStoreOpenApi(private val paths: ViewStorePaths) {
                 Content().addMediaType(JSON, MediaType().schema(context.schema(ViewPreferencesInput::class.java)))
             )
         )
+
+    private fun claim(context: OpenAPIComponentContext, errorInfo: Schema<*>): Operation = operation(
+        "view-store.claimView",
+        "Make a shared view personal to the path's owner (the caller's own path)",
+        errorInfo,
+        ok(context.schema(CommandResult::class.java)),
+    ).addParametersItem(pathParameter(ViewStorePaths.ID))
+        .addParametersItem(header(CommandComponent.Header.REQUEST_ID, false))
+        .addParametersItem(header(CommandComponent.Header.AGGREGATE_VERSION, false, IntegerSchema()))
+        .addParametersItem(header(CommandComponent.Header.WAIT_STAGE, false))
 
     private fun replay(context: OpenAPIComponentContext, errorInfo: Schema<*>): Operation = operation(
         "view-store.replay",

@@ -45,38 +45,45 @@ class ViewStoreRouteSpecsTest {
             "POST $scope/view",
             "PUT $scope/view/{id}/save",
             "PUT $scope/view/{id}/rename",
-            "PUT $scope/view/{id}/audience",
+            "PUT $scope/view/{id}/share",
             "DELETE $scope/view/{id}",
         )
         routes.assert().contains("POST /owner/{ownerId}/cart/add_cart_item")
     }
 
+    private val guard = ViewStoreRouteGuard(paths, routerSpecs, namedAggregates)
+    private val snapshotQueries = listOf(
+        "aggregation", "count", "cursor", "cursor/state", "list", "list/state", "paged", "paged/state", "single",
+        "single/state",
+    )
+
+    /** The open routes, whoever serves them: Wow's that the guard keeps open, and the starter's own. */
+    private val exposed = guard.openContracts.map { "${it.method} ${it.path}" } +
+        listOf(
+            "GET ${paths.systemViews}",
+            "GET ${paths.systemView}",
+            "GET ${paths.preferences}",
+            "PUT ${paths.preferences}",
+            "GET ${paths.replay}",
+            "PUT ${paths.claim}",
+        )
+
+    private fun String.concrete(): String = replace(Regex("\\{[^}]+}"), "x")
+
     /**
-     * Every route of the view store's aggregates that is open, whoever serves it: a route Wow adds for them in a later
-     * version is closed until it is listed here.
+     * Every route of the view store's aggregates that is open: a route Wow adds for them in a later version is
+     * closed until it is listed here.
      */
     @Test
     fun `the open routes of the view store are exactly these`() {
-        val guard = ViewStoreRouteGuard(paths, routerSpecs, namedAggregates)
-        val snapshotQueries = listOf(
-            "aggregation", "count", "cursor", "cursor/state", "list", "list/state", "paged", "paged/state", "single",
-            "single/state",
-        )
-        val exposed = guard.openContracts.map { "${it.method} ${it.path}" } +
-            listOf(
-                "GET ${paths.systemViews}",
-                "GET ${paths.systemView}",
-                "GET ${paths.preferences}",
-                "PUT ${paths.preferences}",
-                "GET ${paths.replay}",
-            )
         exposed.assert().containsExactlyInAnyOrder(
             *(
                 listOf(
                     "POST $scope/view",
                     "PUT $scope/view/{id}/save",
                     "PUT $scope/view/{id}/rename",
-                    "PUT $scope/view/{id}/audience",
+                    "PUT $scope/view/{id}/share",
+                    "PUT $scope/view/{id}/claim",
                     "DELETE $scope/view/{id}",
                     "GET $scope/system-views",
                     "GET $scope/system-views/{id}",
@@ -88,11 +95,20 @@ class ViewStoreRouteSpecsTest {
                     snapshotQueries.map { "POST $scope/view_preferences/snapshot/$it" }
                 ).toTypedArray()
         )
-        // Everything else Wow generates for them is closed: state and tracing reads, snapshot and event loads,
-        // snapshot regeneration, state resend, compensation, schemas, the tenant-only or owner-only queries, and every
-        // event-stream query (under the tenant and the owner too).
-        val closedKeys = guard.closedContracts.map { it.handlerKey }.toSet()
-        closedKeys.assert().contains(
+        exposed.forEach { route ->
+            val (method, path) = route.split(" ", limit = 2)
+            guard.isClosed(HttpMethod.valueOf(method), path.concrete()).assert().isFalse()
+        }
+    }
+
+    /**
+     * Everything else Wow generates for them is closed: state and tracing reads, snapshot and event loads, snapshot
+     * regeneration, state resend, compensation, schemas, the tenant-only or owner-only queries, every event-stream
+     * query (under the tenant and the owner too), and Wow's default recover and resource-tags commands.
+     */
+    @Test
+    fun `every other route Wow generates for the view store is closed`() {
+        guard.closedContracts.map { it.handlerKey }.toSet().assert().contains(
             BuiltInHttpRouteHandlerKeys.State.LOAD_AGGREGATE,
             BuiltInHttpRouteHandlerKeys.State.LOAD_VERSIONED_AGGREGATE,
             BuiltInHttpRouteHandlerKeys.State.LOAD_TIME_BASED_AGGREGATE,
@@ -105,17 +121,18 @@ class ViewStoreRouteSpecsTest {
             BuiltInHttpRouteHandlerKeys.Event.RESEND_STATE,
             BuiltInHttpRouteHandlerKeys.Event.LIST_QUERY,
             BuiltInHttpRouteHandlerKeys.Snapshot.LIST_QUERY,
+            BuiltInHttpRouteHandlerKeys.Command.COMMAND,
         )
-        closedKeys.assert().doesNotContain(BuiltInHttpRouteHandlerKeys.Command.COMMAND)
+        val closedCommands = guard.closedContracts
+            .filter { it.handlerKey == BuiltInHttpRouteHandlerKeys.Command.COMMAND }
+            .map { "${it.method} ${it.path}" }
+        // Wow's recover and resource tags, for both aggregates, and preferences' delete: in-process only.
+        closedCommands.assert().hasSize(5)
+        closedCommands.assert().contains("DELETE $scope/view_preferences/{id}")
         guard.closedContracts.map { "${it.method} ${it.path}" }.assert()
             .contains("POST $scope/view/event/list", "POST $scope/view_preferences/event/count")
         guard.closedContracts.forEach { contract ->
-            val concrete = contract.path.replace(Regex("\\{[^}]+}"), "x")
-            guard.isClosed(HttpMethod.valueOf(contract.method), concrete).assert().isTrue()
-        }
-        exposed.forEach { route ->
-            val (method, path) = route.split(" ", limit = 2)
-            guard.isClosed(HttpMethod.valueOf(method), path.replace(Regex("\\{[^}]+}"), "x")).assert().isFalse()
+            guard.isClosed(HttpMethod.valueOf(contract.method), contract.path.concrete()).assert().isTrue()
         }
     }
 
@@ -123,7 +140,6 @@ class ViewStoreRouteSpecsTest {
     fun `OpenAPI shows the custom and the scoped routes`() {
         val openApi = OpenAPI()
         routerSpecs.mergeOpenAPIFromCatalog(openApi)
-        val guard = ViewStoreRouteGuard(paths, routerSpecs, namedAggregates)
         ViewStoreOpenApi(paths).withoutClosedRoutes(openApi, guard.closedContracts)
         ViewStoreOpenApi(paths).merge(openApi)
         openApi.paths.keys.assert().doesNotContain(
@@ -133,6 +149,13 @@ class ViewStoreRouteSpecsTest {
             "$scope/view/event/list",
         )
         openApi.paths["$scope/view/{id}"]!!.readOperations().map { it.operationId }.assert().hasSize(1)
+        // The commands carry no id: Wow takes it from the `{id}` path parameter.
+        listOf("save", "rename", "share").forEach { action ->
+            val operation = openApi.paths["$scope/view/{id}/$action"]!!.put
+            operation.parameters.map { it.name ?: it.`$ref` }.any { it.endsWith("id") }.assert().isTrue()
+        }
+        openApi.paths["$scope/view/{id}"]!!.delete.parameters.map { it.name ?: it.`$ref` }
+            .any { it.endsWith("id") }.assert().isTrue()
         openApi.paths.keys.assert().contains(
             "$scope/view/snapshot/list",
             "$scope/system-views",

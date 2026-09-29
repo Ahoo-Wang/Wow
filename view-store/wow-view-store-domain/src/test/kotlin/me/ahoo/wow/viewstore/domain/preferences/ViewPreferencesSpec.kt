@@ -14,18 +14,18 @@
 package me.ahoo.wow.viewstore.domain.preferences
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.abac.DefaultApplyResourceTags
+import me.ahoo.wow.api.abac.ResourceTagsApplied
+import me.ahoo.wow.api.command.DefaultDeleteAggregate
+import me.ahoo.wow.api.command.DefaultRecoverAggregate
+import me.ahoo.wow.api.event.DefaultAggregateDeleted
+import me.ahoo.wow.api.event.DefaultAggregateRecovered
 import me.ahoo.wow.exception.NotFoundResourceException
 import me.ahoo.wow.messaging.DefaultHeader
 import me.ahoo.wow.test.AggregateSpec
 import me.ahoo.wow.viewstore.api.ViewStoreErrorCodes
-import me.ahoo.wow.viewstore.api.preferences.ApplyViewPreferencesTags
-import me.ahoo.wow.viewstore.api.preferences.DeleteViewPreferences
-import me.ahoo.wow.viewstore.api.preferences.RecoverViewPreferences
 import me.ahoo.wow.viewstore.api.preferences.SetViewPreferences
-import me.ahoo.wow.viewstore.api.preferences.ViewPreferencesDeleted
-import me.ahoo.wow.viewstore.api.preferences.ViewPreferencesRecovered
 import me.ahoo.wow.viewstore.api.preferences.ViewPreferencesSet
-import me.ahoo.wow.viewstore.api.preferences.ViewPreferencesTagsApplied
 import me.ahoo.wow.viewstore.domain.ViewFixtures.ALICE
 import me.ahoo.wow.viewstore.domain.ViewFixtures.APP
 import me.ahoo.wow.viewstore.domain.ViewFixtures.OTHER_APP
@@ -74,41 +74,22 @@ class ViewPreferencesSpec : AggregateSpec<ViewPreferences, ViewPreferencesState>
                     }
                 }
             }
-            fork("delete and recover in process") {
-                whenCommand(DeleteViewPreferences(stateRoot.id), appHeader(), ALICE) {
+            fork("Wow's delete and recover, in process") {
+                whenCommand(DefaultDeleteAggregate, appHeader(), ALICE) {
                     expectNoError()
-                    expectEventType(ViewPreferencesDeleted::class)
+                    expectEventType(DefaultAggregateDeleted::class)
                     fork("recover") {
-                        whenCommand(RecoverViewPreferences(stateRoot.id), appHeader(), ALICE) {
+                        whenCommand(DefaultRecoverAggregate, appHeader(), ALICE) {
                             expectNoError()
-                            expectEventType(ViewPreferencesRecovered::class)
-                        }
-                    }
-                    fork("recover from another application") {
-                        whenCommand(RecoverViewPreferences(stateRoot.id), appHeader(OTHER_APP), ALICE) {
-                            expectErrorType(NotFoundResourceException::class)
+                            expectEventType(DefaultAggregateRecovered::class)
                         }
                     }
                 }
             }
-            fork("delete from another application") {
-                whenCommand(DeleteViewPreferences(stateRoot.id), appHeader(OTHER_APP), ALICE) {
-                    expectErrorType(NotFoundResourceException::class)
-                }
-            }
-            fork("apply tags in process") {
-                whenCommand(ApplyViewPreferencesTags(stateRoot.id, mapOf("team" to listOf("a"))), appHeader(), ALICE) {
+            fork("Wow's resource tags, in process") {
+                whenCommand(DefaultApplyResourceTags(mapOf("team" to listOf("a"))), appHeader(), ALICE) {
                     expectNoError()
-                    expectEventType(ViewPreferencesTagsApplied::class)
-                }
-            }
-            fork("apply tags from another application") {
-                whenCommand(
-                    ApplyViewPreferencesTags(stateRoot.id, mapOf("team" to listOf("a"))),
-                    appHeader(OTHER_APP),
-                    ALICE
-                ) {
-                    expectErrorType(NotFoundResourceException::class)
+                    expectEventType(ResourceTagsApplied::class)
                 }
             }
             fork("another application reads as not found") {

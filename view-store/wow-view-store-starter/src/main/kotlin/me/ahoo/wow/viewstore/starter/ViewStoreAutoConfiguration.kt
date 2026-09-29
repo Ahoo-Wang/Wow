@@ -134,28 +134,40 @@ class ViewStoreAutoConfiguration {
         exceptionHandler = exceptionHandler,
     )
 
-    @Bean(ROUTER_FUNCTION_BEAN_NAME)
-    @Order(0)
+    @Bean
     @Suppress("LongParameterList")
-    fun viewStoreRouterFunction(
+    fun viewStoreAudienceHandlers(
         viewStorePaths: ViewStorePaths,
-        viewStoreHandlers: ViewStoreHandlers,
         viewStoreRouteGuard: ViewStoreRouteGuard,
         routeHandlerFunctionRegistrar: RouteHandlerFunctionRegistrar,
         stateAggregateRepository: StateAggregateRepository,
+        commandGateway: CommandGateway,
+        commandMessageExtractor: CommandMessageExtractor,
+        commandWaitPolicy: CommandWaitPolicy,
         exceptionHandler: RequestExceptionHandler,
-    ): RouterFunction<ServerResponse> {
-        val audienceContract = viewStoreRouteGuard.openContracts.single {
-            it.method == HttpMethod.PUT.name() && it.path == viewStorePaths.audience
+    ): ViewAudienceHandlers {
+        val shareContract = viewStoreRouteGuard.openContracts.single {
+            it.method == HttpMethod.PUT.name() && it.path == viewStorePaths.share
         }
-        val audienceDispatch = requireNotNull(
-            routeHandlerFunctionRegistrar.getHttpFactory(audienceContract.handlerKey)
-        ) {
-            "No handler for [${audienceContract.handlerKey}] of route [${audienceContract.path}]."
-        }.create(audienceContract)
-        val audienceHandler = ViewAudienceHandler(stateAggregateRepository, audienceDispatch, exceptionHandler)
-        return ViewStoreRoutes.routerFunction(viewStorePaths, viewStoreHandlers, audienceHandler)
+        val shareDispatch = requireNotNull(routeHandlerFunctionRegistrar.getHttpFactory(shareContract.handlerKey)) {
+            "No handler for [${shareContract.handlerKey}] of route [${shareContract.path}]."
+        }.create(shareContract)
+        return ViewAudienceHandlers(
+            stateAggregateRepository = stateAggregateRepository,
+            shareDispatch = shareDispatch,
+            commandHandler = CommandHandler(commandGateway, commandMessageExtractor, commandWaitPolicy),
+            exceptionHandler = exceptionHandler,
+        )
     }
+
+    @Bean(ROUTER_FUNCTION_BEAN_NAME)
+    @Order(0)
+    fun viewStoreRouterFunction(
+        viewStorePaths: ViewStorePaths,
+        viewStoreHandlers: ViewStoreHandlers,
+        viewStoreAudienceHandlers: ViewAudienceHandlers,
+    ): RouterFunction<ServerResponse> =
+        ViewStoreRoutes.routerFunction(viewStorePaths, viewStoreHandlers, viewStoreAudienceHandlers)
 
     @Bean
     fun viewStoreRouteGuard(

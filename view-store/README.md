@@ -15,14 +15,18 @@ preferences as two Wow aggregates. Design: [view-store-backend.md](../typescript
 Add `wow-view-store-starter` to a Wow WebFlux service. The routes are served under
 `/view-store/tenant/{tenantId}/owner/{ownerId}/…`:
 
-- `POST /view` (create), `PUT /view/{id}/save`, `/rename` and `/audience`, and `DELETE /view/{id}`;
+- `POST /view` (create), `PUT /view/{id}/save` and `/rename`, and `DELETE /view/{id}` (Wow's own delete);
+- `PUT /view/{id}/share` on the view's personal path moves it to `owner/(shared)`, and `PUT /view/{id}/claim` on the
+  caller's own personal path moves a shared view to that owner. A change to the audience the view already has is
+  answered at the current version without a write;
 - `POST /view/snapshot/{list,single,paged,…}` and the same for `/view_preferences/`, which the query policy keeps
   in the request's application;
 - `GET /system-views`, `GET` / `PUT /definitions/{definitionId}/preferences` and `GET /view/requests/{requestId}`
   (replay).
 
 Every other route Wow generates for the two aggregates (state, tracing, event streams, snapshot maintenance,
-compensation), and the command facade for their commands, answers 404. The application comes from `CoSec-App-Id`
+compensation, recover and resource tags), and the command facade for their commands, answers 404. Commands carry no
+id (Wow takes it from `{id}`); a command without fields (`share`, `delete`) is sent with the body `{}`. The application comes from `CoSec-App-Id`
 only. Set `wow.view-store.enabled=false` to turn the starter off, and replace the default `SystemViewProvider` bean
 to serve system views from somewhere other than `wow.view-store.system-views`.
 
@@ -38,12 +42,16 @@ aggregate would share those collections: do not embed the starter in it, or rena
 renames, audience changes, deletes and preferences are idempotent by `Command-Request-Id`, and the replay route
 answers what a request id's write left.
 
+**Identity is the path.** The server does not authenticate: the `{ownerId}` of a path is the user (or `(shared)`).
+The CoSec gateway must let a caller use `owner/{ownerId}` only when it is their own id (the token's `sub`), and decide
+by role or permission who may use `owner/(shared)`. Claiming is sent to the caller's own path, so the gateway rules
+for personal paths are what let a user take a shared view personal.
+
 ## The standalone server
 
 `wow-view-store-server` runs the starter with MongoDB and in-memory buses, as a single instance (see
-`src/dist/config/application.yaml`). **Run it only behind the CoSec gateway.** The gateway authenticates and
-authorizes by path; the server only reads the user from the token the gateway forwards (`cosec.inject.enabled=true`)
-and does not verify that token again. The user is the owner of a view made personal.
+`src/dist/config/application.yaml`). **Run it only behind the CoSec gateway**: the server trusts the tenant and owner
+of every path, so it must never be reachable without the gateway's path rules in front of it.
 
 ```bash
 service_dir=view-store/wow-view-store-server

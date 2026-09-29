@@ -24,49 +24,75 @@ import me.ahoo.wow.modeling.metadata.StateAggregateMetadata
 import me.ahoo.wow.modeling.state.StateAggregateRepository
 import me.ahoo.wow.openapi.aggregate.command.CommandComponent
 import me.ahoo.wow.openapi.metadata.aggregateRouteMetadata
-import me.ahoo.wow.serialization.toObject
 import me.ahoo.wow.viewstore.ViewStoreService
+import me.ahoo.wow.viewstore.ViewStoreService.SHARED_OWNER_ID
 import me.ahoo.wow.viewstore.api.ViewAudience
+import me.ahoo.wow.viewstore.api.view.ClaimView
 import me.ahoo.wow.viewstore.domain.view.View
 import me.ahoo.wow.viewstore.domain.view.ViewState
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
+import me.ahoo.wow.webflux.route.command.CommandHandler
 import me.ahoo.wow.webflux.route.command.toCommandResponse
 import org.springframework.web.reactive.function.server.HandlerFunction
+import org.springframework.web.reactive.function.server.RouterFunctions
 import org.springframework.web.reactive.function.server.ServerRequest
 import org.springframework.web.reactive.function.server.ServerResponse
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 
 /**
- * `PUT …/view/{id}/audience` before Wow's own route: a change to the audience the view already has is answered with
- * the view as it is, without a command. Wow records an event for every command, so sending it would move the
- * revision and turn other holders' next write into a conflict for a change that changed nothing.
+ * The two audience routes, both secured by their path (the gateway lets a caller use `owner/{ownerId}` only as
+ * itself, and the server trusts the path):
+ * - [share], `PUT …/owner/{ownerId}/view/{id}/share`, sent to the view's personal path: before Wow's generated route
+ *   of `ShareView`, which moves the view to `(shared)`;
+ * - [claim], `PUT …/owner/{ownerId}/view/{id}/claim`, sent to the caller's own personal path: the view store's route,
+ *   which moves a shared view to that `{ownerId}`.
  *
- * Only a request that would succeed is answered here: the view exists in this tenant, owner and application, is not
- * deleted, is at the expected version (when one is sent) and already has the audience. Every other request, and every
- * real change, goes to [dispatch] (Wow's handler of the route) with the same body, so its rules and errors are Wow's.
+ * Wow checks a command's owner against the view's, so a claim cannot be dispatched with the claiming owner as the
+ * command's owner. [claim] dispatches `ClaimView(toOwnerId = {ownerId})` with the owner `(shared)` instead: only a
+ * shared view passes Wow's owner check, and a personal view of anyone else is refused by Wow
+ * (`IllegalAccessOwnerAggregate`) without the domain having to tell the two apart.
+ *
+ * Both answer a change to the audience the view already has with the view as it is, without a command: Wow records
+ * an event for every command, so sending it would move the revision and turn other holders' next write into a
+ * conflict for a change that changed nothing. Only a request that would succeed is answered that way: the view
+ * exists in this tenant, owner and application, is not deleted, is at the expected version (when one is sent) and
+ * already has the audience. Every other request goes to the command, so its rules and errors are Wow's and the
+ * domain's.
  */
-class ViewAudienceHandler(
+class ViewAudienceHandlers(
     private val stateAggregateRepository: StateAggregateRepository,
-    private val dispatch: HandlerFunction<ServerResponse>,
+    private val shareDispatch: HandlerFunction<ServerResponse>,
+    private val commandHandler: CommandHandler,
     private val exceptionHandler: RequestExceptionHandler,
-) : HandlerFunction<ServerResponse> {
-    private val viewMetadata = View::class.java.aggregateRouteMetadata().aggregateMetadata
+) {
+    private val viewRouteMetadata = View::class.java.aggregateRouteMetadata()
+    private val viewMetadata = viewRouteMetadata.aggregateMetadata
 
     @Suppress("UNCHECKED_CAST")
     private val viewStateMetadata = viewMetadata.state as StateAggregateMetadata<ViewState>
 
-    override fun handle(request: ServerRequest): Mono<ServerResponse> =
-        request.bodyToMono(String::class.java)
-            .defaultIfEmpty("")
-            .flatMap { body ->
-                unchanged(request, body)
-                    .flatMap { Flux.just(it).toCommandResponse(request, exceptionHandler) }
-                    .switchIfEmpty(Mono.defer { dispatch.handle(ServerRequest.from(request).body(body).build()) })
-            }
+    fun share(request: ServerRequest): Mono<ServerResponse> =
+        unchanged(request, ViewAudience.SHARED)
+            .flatMap { Flux.just(it).toCommandResponse(request, exceptionHandler) }
+            .switchIfEmpty(Mono.defer { shareDispatch.handle(request) })
 
-    private fun unchanged(request: ServerRequest, body: String): Mono<CommandResult> {
-        val audience = body.requestedAudience() ?: return Mono.empty()
+    fun claim(request: ServerRequest): Mono<ServerResponse> =
+        unchanged(request, ViewAudience.PERSONAL)
+            .flatMap { Flux.just(it).toCommandResponse(request, exceptionHandler) }
+            .switchIfEmpty(Mono.defer { dispatchClaim(request) })
+
+    private fun dispatchClaim(request: ServerRequest): Mono<ServerResponse> {
+        val command = ClaimView(toOwnerId = request.pathVariable(ViewStorePaths.OWNER_ID))
+        val sharedPathVariables = request.pathVariables() + (ViewStorePaths.OWNER_ID to SHARED_OWNER_ID)
+        val sharedRequest = ServerRequest.from(request)
+            .attribute(RouterFunctions.URI_TEMPLATE_VARIABLES_ATTRIBUTE, sharedPathVariables)
+            .build()
+        return commandHandler.handle(sharedRequest, command, viewRouteMetadata)
+            .toCommandResponse(request, exceptionHandler)
+    }
+
+    private fun unchanged(request: ServerRequest, audience: ViewAudience): Mono<CommandResult> {
         val appId = request.headers().firstHeader(ViewStoreService.APP_ID_HEADER)
         if (appId.isNullOrBlank()) {
             return Mono.empty()
@@ -106,11 +132,6 @@ class ViewAudienceHandler(
             }
     }
 
-    private fun String.requestedAudience(): ViewAudience? =
-        runCatching { toObject(AudienceBody::class.java).audience }.getOrNull()
-
-    internal data class AudienceBody(val audience: ViewAudience? = null)
-
     private fun ServerRequest.waitStage(): CommandStage =
         headers().firstHeader(CommandComponent.Header.WAIT_STAGE)
             ?.let { stage -> runCatching { CommandStage.valueOf(stage.uppercase()) }.getOrNull() }
@@ -120,7 +141,7 @@ class ViewAudienceHandler(
         val FUNCTION = FunctionInfoData(
             functionKind = FunctionKind.COMMAND,
             contextName = ViewStoreService.SERVICE_NAME,
-            processorName = ViewAudienceHandler::class.java.simpleName,
+            processorName = ViewAudienceHandlers::class.java.simpleName,
             name = "unchangedAudience",
         )
     }

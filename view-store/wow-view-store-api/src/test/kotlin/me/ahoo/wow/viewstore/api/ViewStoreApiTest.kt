@@ -17,7 +17,7 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.viewstore.ViewStoreService
 import me.ahoo.wow.viewstore.api.preferences.SetViewPreferences
 import me.ahoo.wow.viewstore.api.preferences.ViewPreferencesInput
-import me.ahoo.wow.viewstore.api.view.ChangeViewAudience
+import me.ahoo.wow.viewstore.api.view.ViewAudienceChanged
 import org.junit.jupiter.api.Test
 import tools.jackson.module.kotlin.jacksonObjectMapper
 import tools.jackson.module.kotlin.readValue
@@ -28,7 +28,7 @@ class ViewStoreApiTest {
     @Test
     fun `kinds and audiences are written as the engine names them`() {
         mapper.writeValueAsString(ViewKind.DASHBOARD).assert().isEqualTo("\"dashboard\"")
-        mapper.readValue<ChangeViewAudience>("""{"id":"v1","audience":"shared"}""").audience
+        mapper.readValue<ViewAudienceChanged>("""{"audience":"shared","toOwnerId":"(shared)"}""").audience
             .assert().isEqualTo(ViewAudience.SHARED)
         ViewKind.of("analysis").assert().isEqualTo(ViewKind.ANALYSIS)
         ViewKind.of("chart").assert().isNull()

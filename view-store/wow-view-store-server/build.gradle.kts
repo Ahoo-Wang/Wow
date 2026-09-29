@@ -54,11 +54,6 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-actuator")
     implementation("org.springdoc:springdoc-openapi-starter-webflux-ui")
     implementation("me.ahoo.cosid:cosid-spring-boot-starter")
-    // Behind the CoSec gateway: the gateway authenticates and authorizes, and this service reads the principal of
-    // the token it forwards (`cosec.inject`), so a command's operator is the user.
-    implementation(platform(libs.cosec.bom))
-    implementation("me.ahoo.cosec:cosec-spring-boot-starter")
-    implementation("me.ahoo.cosec:cosec-webflux")
     testImplementation(project(":wow-test"))
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testImplementation("me.ahoo.test:fluent-assert-core")

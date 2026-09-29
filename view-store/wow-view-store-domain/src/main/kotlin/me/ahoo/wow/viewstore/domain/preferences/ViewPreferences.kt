@@ -17,14 +17,8 @@ import me.ahoo.wow.api.annotation.AggregateRoot
 import me.ahoo.wow.api.annotation.AggregateRoute
 import me.ahoo.wow.api.annotation.OnCommand
 import me.ahoo.wow.api.command.CommandMessage
-import me.ahoo.wow.viewstore.api.preferences.ApplyViewPreferencesTags
-import me.ahoo.wow.viewstore.api.preferences.DeleteViewPreferences
-import me.ahoo.wow.viewstore.api.preferences.RecoverViewPreferences
 import me.ahoo.wow.viewstore.api.preferences.SetViewPreferences
-import me.ahoo.wow.viewstore.api.preferences.ViewPreferencesDeleted
-import me.ahoo.wow.viewstore.api.preferences.ViewPreferencesRecovered
 import me.ahoo.wow.viewstore.api.preferences.ViewPreferencesSet
-import me.ahoo.wow.viewstore.api.preferences.ViewPreferencesTagsApplied
 import me.ahoo.wow.viewstore.domain.ViewApps.requireSameApp
 import me.ahoo.wow.viewstore.domain.ViewApps.requiredAppId
 import me.ahoo.wow.viewstore.domain.ViewStoreException
@@ -60,23 +54,5 @@ class ViewPreferences(private val state: ViewPreferencesState) {
             autoRun = body.autoRun,
             lastTabs = body.lastTabs,
         )
-    }
-
-    @OnCommand
-    fun onDelete(command: CommandMessage<DeleteViewPreferences>): ViewPreferencesDeleted {
-        command.requireSameApp(state.appId)
-        return ViewPreferencesDeleted()
-    }
-
-    @OnCommand
-    fun onRecover(command: CommandMessage<RecoverViewPreferences>): ViewPreferencesRecovered {
-        command.requireSameApp(state.appId)
-        return ViewPreferencesRecovered()
-    }
-
-    @OnCommand
-    fun onApplyTags(command: CommandMessage<ApplyViewPreferencesTags>): ViewPreferencesTagsApplied {
-        command.requireSameApp(state.appId)
-        return ViewPreferencesTagsApplied(command.body.tags)
     }
 }

@@ -23,9 +23,6 @@ object ViewStoreErrorCodes {
     /** The request carries no `CoSec-App-Id`. HTTP 400. */
     const val VIEW_APP_REQUIRED = "ViewAppRequired"
 
-    /** Making a view personal needs an authenticated operator to own it. HTTP 401. */
-    const val VIEW_OPERATOR_REQUIRED = "ViewOperatorRequired"
-
     /** A system view is read-only: every write to one is refused. HTTP 403. */
     const val SYSTEM_VIEW_READ_ONLY = "SystemViewReadOnly"
 
