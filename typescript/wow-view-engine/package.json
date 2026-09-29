@@ -115,6 +115,7 @@
     "@ahoo-wang/wow-client": "workspace:~",
     "@eslint/js": "catalog:",
     "@rolldown/plugin-babel": "catalog:",
+    "@tailwindcss/node": "catalog:",
     "@tailwindcss/vite": "catalog:",
     "@testing-library/react": "catalog:",
     "@testing-library/user-event": "catalog:",
