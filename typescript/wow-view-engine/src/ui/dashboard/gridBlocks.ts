@@ -11,7 +11,6 @@
  * limitations under the License.
  */
 
-import type { CSSProperties } from 'react';
 import {
   calcGridColWidth,
   calcGridItemPosition,
@@ -84,29 +83,40 @@ export interface GridBlocksInput {
   rowHeight: number;
 }
 
+/** One block of the row, in the grid's own pixels. */
+export interface GridBlock {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
 /**
- * The board's cells while it is built, as the CSS variables the stylesheet's
- * `dashboard-grid-blocks` layer is painted through (`styles.css`): a soft
- * block, as near a square as the row allows (`blockHeight`), in each column
- * of each row.
+ * The board's cells while it is built, as the one row of blocks the
+ * `dashboard-grid-blocks` layer repeats down the grid (`GridBlocksLayer`): a
+ * soft block, as near a square as the row allows (`blockHeight`), in each
+ * column of each row.
  *
- * `--grid-blocks` is the shape of one row — one SVG, as wide as the grid,
- * the row's blocks down each column — used as a mask and repeated down from
- * the grid's padding; the colour is the stylesheet's, so it follows the
- * theme. Each column's left edge and width are the library's own sums
+ * `blocks` is the shape of one row — as wide as the grid, the row's blocks
+ * down each column — `pitch` how tall a repeat of it is (a row and a gap),
+ * and `top` where the first repeat starts (the grid's padding). Each
+ * column's left edge and width are the library's own sums
  * (`calcGridItemPosition`, rounded as it rounds a panel's), and the row is
  * the one the grid is laid out with, so a block's edge and a panel's edge
- * are one computation and never two that agree today. One drawing, not one
- * element a cell: nothing to walk past, nothing to press.
+ * are one computation and never two that agree today.
  *
  * `undefined` for a grid not measured yet — no blocks are better than blocks
  * at a width the panels are not at.
  */
-export function gridBlocks({
-  width,
-  cols,
-  rowHeight,
-}: GridBlocksInput): CSSProperties | undefined {
+export function gridBlocks({ width, cols, rowHeight }: GridBlocksInput):
+  | {
+      width: number;
+      pitch: number;
+      top: number;
+      radius: number;
+      blocks: GridBlock[];
+    }
+  | undefined {
   if (width <= 0 || cols <= 0) return undefined;
   const params = positionParams(width, cols, rowHeight);
   const side = blockHeight(rowHeight, calcGridColWidth(params));
@@ -115,19 +125,9 @@ export function gridBlocks({
     { length: Math.round(pitch / (side + GAP_Y)) },
     (_, at) => at * (side + GAP_Y),
   );
-  const rects = Array.from({ length: cols }, (_, x) => {
+  const blocks = Array.from({ length: cols }, (_, x) => {
     const { left, width: w } = calcGridItemPosition(params, x, 0, 1, 1);
-    return down
-      .map(
-        y =>
-          `<rect x='${left}' y='${y}' width='${w}' height='${side}' rx='${BLOCK_RADIUS}'/>`,
-      )
-      .join('');
-  }).join('');
-  const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='${width}' height='${pitch}'>${rects}</svg>`;
-  return {
-    '--grid-blocks': `url("data:image/svg+xml,${encodeURIComponent(svg)}")`,
-    '--grid-blocks-size': `${width}px ${pitch}px`,
-    '--grid-blocks-top': `${GAP_Y}px`,
-  } as CSSProperties;
+    return down.map(y => ({ x: left, y, width: w, height: side }));
+  }).flat();
+  return { width, pitch, top: GAP_Y, radius: BLOCK_RADIUS, blocks };
 }

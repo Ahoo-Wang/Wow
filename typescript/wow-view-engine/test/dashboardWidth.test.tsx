@@ -376,30 +376,20 @@ describe('the first frame (measured before the first paint)', () => {
  */
 describe('the grid blocks while a board is built (D34)', () => {
   const layer = () => slot('dashboard-grid-blocks');
-  /** The one row of blocks the layer is masked with, as SVG rectangles. */
-  const blocksOf = (element: HTMLElement) => {
-    const url = element.style.getPropertyValue('--grid-blocks');
-    const svg = decodeURIComponent(
-      /^url\("data:image\/svg\+xml,(.*)"\)$/.exec(url)![1],
-    );
-    return [...svg.matchAll(/<rect ([^>]*)\/>/g)].map(
-      ([, attributes]) =>
+  /** The one row of blocks the layer repeats, as its SVG rectangles. */
+  const blocksOf = (element: Element) =>
+    [...element.querySelectorAll('pattern rect')].map(
+      rect =>
         Object.fromEntries(
-          [...attributes.matchAll(/(\w+)='([^']*)'/g)].map(([, k, v]) => [
-            k,
-            Number(v),
+          ['x', 'y', 'width', 'height', 'rx'].map(name => [
+            name,
+            Number(rect.getAttribute(name)),
           ]),
         ) as Record<'x' | 'y' | 'width' | 'height' | 'rx', number>,
     );
-  };
   /** The row of blocks drawn for a grid `width` wide, 24 columns, 80px rows. */
-  const drawn = (width: number) => {
-    const holder = document.createElement('div');
-    const style = gridBlocks({ width, cols: 24, rowHeight: 80 })!;
-    for (const [name, value] of Object.entries(style))
-      holder.style.setProperty(name, String(value));
-    return blocksOf(holder);
-  };
+  const drawn = (width: number) =>
+    gridBlocks({ width, cols: 24, rowHeight: 80 })!.blocks;
   /** A column's width at `width`: the padding and 23 gaps taken off. */
   const column = (width: number) => (width - 250) / 24;
 
@@ -451,10 +441,18 @@ describe('the grid blocks while a board is built (D34)', () => {
     expect(rects[1]).toMatchObject({ x: 10, y: 45, height: 35 });
     expect(rects[2].x).toBe(Math.round(10 + column(1200) + 10));
     for (const rect of rects) expect(rect.rx).toBeGreaterThan(0);
-    expect(blocks.style.getPropertyValue('--grid-blocks-size')).toBe(
-      '1200px 90px',
+    // Drawn in the page, not loaded as an image (D74): a strict policy's
+    // `img-src` refuses a `data:` one.
+    expect(blocks.tagName.toLowerCase()).toBe('svg');
+    const pattern = blocks.querySelector('pattern')!;
+    expect(
+      ['width', 'height', 'y'].map(name => pattern.getAttribute(name)),
+    ).toEqual(['1200', '90', '10']);
+    expect(pattern.getAttribute('patternUnits')).toBe('userSpaceOnUse');
+    // The whole layer painted with it.
+    expect(blocks.querySelector(':scope > rect')?.getAttribute('fill')).toBe(
+      `url(#${pattern.id})`,
     );
-    expect(blocks.style.getPropertyValue('--grid-blocks-top')).toBe('10px');
   });
 
   it('follows the width the grid is drawn at, and draws none in one column', async () => {

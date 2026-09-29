@@ -11,7 +11,13 @@
  * limitations under the License.
  */
 
-import { useLayoutEffect, useState, type ReactNode, type Ref } from 'react';
+import {
+  useEffect,
+  useLayoutEffect,
+  useState,
+  type ReactNode,
+  type Ref,
+} from 'react';
 import { cn } from 'cn';
 import GridLayout, {
   getBreakpointFromWidth,
@@ -45,9 +51,11 @@ import { PanelGridItem, PanelResizeHandle } from './DashboardArrange.js';
 import { moveTarget } from '../kit/DragHandle.js';
 import { dragAccessibility } from '../kit/dragAnnounce.js';
 import { dropped } from '../kit/dragDrop.js';
+import { draggableStyle } from '../kit/cspNonce.js';
 import { sortableList } from '../kit/dragPlugins.js';
 import { dragWording, type DragWordingKeys } from '../kit/dragWording.js';
 import { gridBlocks } from './gridBlocks.js';
+import { GridBlocksLayer } from './GridBlocksLayer.js';
 import { fittedLayout, grownRows, usePanelWholes } from './panelFit.js';
 import {
   DashboardPanel,
@@ -213,6 +221,12 @@ export function DashboardGrid({
   // it could be written back, so neither the gestures nor the keyboard
   // commands are on offer there.
   const arranging = editable && !narrow;
+  // The grid's drag library adds a `<style>` of its own as a panel is moved
+  // or sized; under a strict policy the engine adds it first, with the
+  // page's nonce (`draggableStyle`, D74).
+  useEffect(() => {
+    if (arranging) draggableStyle();
+  }, [arranging]);
   const building = useBoardBuilding();
   const extensions = useDashboardEditExtensions();
   const wiring = useFilterWiring();
@@ -398,13 +412,8 @@ export function DashboardGrid({
           : { role: 'tabpanel', 'aria-label': shownTab })}
       >
         {blocks && (
-          // One drawing of every cell (`styles.css`,
-          // `dashboard-grid-blocks`): never pressed, never read out.
-          <div
-            data-slot="dashboard-grid-blocks"
-            aria-hidden="true"
-            style={blocks}
-          />
+          // One drawing of every cell: never pressed, never read out.
+          <GridBlocksLayer row={blocks} />
         )}
         {!measured ? null : panels.length === 0 ? (
           // A tab with nothing on it, on a board with panels elsewhere, says

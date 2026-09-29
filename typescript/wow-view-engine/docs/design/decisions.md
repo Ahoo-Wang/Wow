@@ -355,12 +355,12 @@
     | 776px（1280 屏上工作台）        | 22px | 3        | 22×20          |
     | 窄于 768px                      | —    | —        | 一列读法，不画 |
 
-  - **块是实心的，不是 Metabase 的描边**：用户要的是「方块」。实心、3px 小圆角、`--border` 调到 45%（亮色约是 `--muted` 那一层浅灰，暗色约是卡片色），读作垫在面板下的一把尺，不是第二套卡片。画法照 Metabase 的「一整行一张 SVG、纵向重复」，但 SVG 只当遮罩（`mask-image`），颜色在样式表里、是 token，所以跟着亮暗与预设走。它是栅格里单独一个图层：`aria-hidden`、`pointer-events: none`，不是一格一个节点。
+  - **块是实心的，不是 Metabase 的描边**：用户要的是「方块」。实心、3px 小圆角、`--border` 调到 45%（亮色约是 `--muted` 那一层浅灰，暗色约是卡片色），读作垫在面板下的一把尺，不是第二套卡片。画法照 Metabase 的「一整行一张 SVG、纵向重复」，颜色在样式表里、是 token，所以跟着亮暗与预设走。（起初 SVG 放在 `data:` 地址里当遮罩；[D74](#d74-严格-csp-的门是一组-storybook-故事库加的样式一律带页面-nonce引擎不载-data-图片2026-09-29) 改成页面里的一张内联 SVG，一行是一个 `<pattern>`——严格策略不放行 `data:` 图片。）它是栅格里单独一个图层：`aria-hidden`、`pointer-events: none`，不是一格一个节点。
 - **放弃的做法**：
   - **行高由栏宽推出（Metabase 的做法）**：格子能真正正方，但行高随宽度变，已存的板子全都变高——一行 = 两块正方形时，1200px 固定宽度一行 90px（原 80px，+12.5%，一块 4 行的面板 350→390px），全宽 1920px 一行 150px（+88%，4 行的面板 350→670px，接近翻倍）；宽屏上一屏看得到的东西少了近一半。只为网格好看，不值；也违背 D31「不让存下的布局悄悄变样」的精神。（#3327 第一版就是这样做的，已改掉。）
   - **一行一块正方形并把存下的 `h`、`y` 乘 2 迁移**：行高 = 栏宽，1200px 时一行 40px，不迁移则每块面板矮一半多（4 行 350→190px）；迁移则面板随宽度变高（×2 后 1200px 时 8 行 390px、1920px 时 630px），问题同上，还要多一次存储数据迁移（AGENTS.md 只列用户批过的几种），键盘一步、「N 行」的播报、`defaultPanelSize` 全要跟着改。
 - **代价**：块不是严格的正方形（1200px 时 40×35，1920px 时 70×80）；竖向拖动、缩放、方向键的一步仍是一行，也就是一到三块。
-- **落点**：`src/ui/dashboard/gridBlocks.ts`（`blockHeight`、`gridBlocks`）、`src/ui/dashboard/DashboardGrid.tsx`（图层 `dashboard-grid-blocks`）、`src/styles.css`、[ui/dashboard.md](ui/dashboard.md)。
+- **落点**：`src/ui/dashboard/gridBlocks.ts`（`blockHeight`、`gridBlocks`）、`src/ui/dashboard/GridBlocksLayer.tsx`（图层 `dashboard-grid-blocks`）、`src/styles.css`、[ui/dashboard.md](ui/dashboard.md)。
 
 ## D35 内置主题目录与三条轴的四条裁定（2026-09-24）
 
@@ -673,7 +673,7 @@
 - **来由**：第三轮审查 R3-P1-3：打包进来的 `@dnd-kit/dom` 在拖动进行中往 `<head>` 插 `<style>`（光标、禁止选中），`style-src 'self'` 会拦，README 却写着严格策略下可运行。协调者定：引擎给宿主一个显式的 nonce 入口，转交给 dnd-kit。
 - **裁定**：入口是页面上的 `<meta property="csp-nonce" nonce="…">`——Vite `html.cspNonce` 的约定，服务端按请求换 nonce 时也最常这样写（`content` 也认）。所有可排序列表共用的 `sortableList` 读到它，就把 `StyleInjector.configure({ nonce })` 加进插件（dnd-kit 的注册表按类去重，后配的选项落到它先注册的那一个上）。没有 meta 时什么都不加。
 - **没选**：每个组件加 `nonce` 属性（排序列表散在十几个面上，漏一个就是一次违规）；把 dnd-kit 的规则写进 `styles.css`（光标规则是 `*` 选择器、按拖动开关，静态写死会误伤，且随库升级漂移）；关掉这几个插件（拖动时的光标与禁止选中是可用性）。
-- **落点**：`src/ui/kit/dragPlugins.ts`（`cspNonce`）；README「Content Security Policy」；补偿控制台 `e2e/csp.spec.ts` 作为门——严格策略下走遍四个去处并真拖一次，零违规；去掉 meta 时它会失败。
+- **落点**：`src/ui/kit/cspNonce.ts`（`cspNonce`，D74 起也交给 Base UI 与栅格的拖动库）、`src/ui/kit/dragPlugins.ts`；README「Content Security Policy」；补偿控制台 `e2e/csp.spec.ts` 作为门——严格策略下走遍四个去处并真拖一次，零违规；去掉 meta 时它会失败。
 
 ## D62 列表只问两个「空」：没有条目、有条目（2026-09-27）
 
@@ -809,6 +809,16 @@
   - **Firefox／WebKit 的视觉回归推迟到首发之后**，首发前不下载这两种浏览器。
   - **严格 CSP 仍在首发前做**。
 - **落点**：[todo.md](todo.md)「首发后再议」；[screen-reader-walkthrough.md](screen-reader-walkthrough.md)；文档站「视图引擎的可访问性」的「评估方法」。
+
+## D74 严格 CSP 的门是一组 Storybook 故事；库加的样式一律带页面 nonce，引擎不载 `data:` 图片（2026-09-29）
+
+- **来由**：就绪审计 P1「严格 CSP 下整个引擎零违规」。README 写着严格策略下可运行，证据只有补偿控制台的 e2e（D61），控制台之外的图型、导出与看板搭建没人在这条策略下走过。
+- **裁定**：
+  - **门是一组 Storybook 故事**（`typescript/storybook/stories/view-engine/StrictCsp.test.stories.tsx`，标签 `test`，随故事的四片进 CI）。每个故事开头把 README 那条策略原样作为 `<meta http-equiv>` 装到自己的页上（`strictCsp.ts`，nonce 照 Vite 的约定发布），先放一段不带 nonce 的 `<style>` 证明策略生效，再监听 `securitypolicyviolation`：走过记录工作台（拖一列、下拉选汇总、拉宽一列、看详情、导出 CSV）、图型全景四个页签的 22 种图型与各自的提示框、从图上筛整板、分析工作台的 SVG／PNG／CSV 三种导出、搭看板（真指针移动与缩放面板、拖动标签页、新建分析、保存），每一步断言零违规。策略装上就收不回，所以只装在这组故事自己的页上（测试运行器一个文件一个框架），别的故事不受影响。装之前已在页上的东西（测试框架的脚本、预览导入的样式表——宿主那边是文件）不判；引擎画、加、载的一切都判。唯一放过的是 a11y 插件的视觉模拟器往 `<body>` 插的带 `style` 的标记，按报告它的文件点名，引擎与它的库藏不进去。
+  - **打包进来的库往 `<head>` 加的 `<style>` 一律带页面 nonce**（D61 的延伸，同一个 `<meta property="csp-nonce">`，`ui/kit/cspNonce.ts`）：拖放库照旧；Base UI 的下拉列表（出现滚动箭头时藏滚动条的规则）经 `CSPProvider` 交给它（`SelectContent`）；栅格的拖动库 `react-draggable` 在移动、缩放面板时加的那段（拖动时不选中文字）——栅格不转交 nonce，它只认打包器的全局变量——由引擎在进入搭建时按它的 id 先放好一段同样规则、带 nonce 的样式（`draggableStyle`），库找到就不再加。没有 meta 时什么都不加，行为照旧，只是这几条规则被拦、各报一次违规。
+  - **搭看板时的格子画在页面里**（修订 D34 的画法）：从前是 `data:` SVG 当 `mask-image`，严格策略的 `img-src 'self' blob:` 会拦，格子在正要它的页面上消失。现在是图层里的一张内联 SVG：一行格子是一个 `<pattern>`，整层一个矩形用它填，颜色仍是样式表里的 token（`fill`），几何照旧是库的算法。
+- **没选**：往策略里加 `img-src data:`、`'unsafe-inline'`（改策略去迁就引擎，宿主就得跟着放宽）；Base UI 用 `disableStyleElements` 再在样式表里写同一条规则（规则得出 `.fve-root` 或用库的类名，`verify-package` 的边界要破例，而 nonce 已经是宿主为拖动发布过的）；在构建好的 Storybook 上用响应头下策略（预览页本身有内联脚本，要么放宽 `script-src`、要么给框架的脚本算 hash，测的就不是 README 那条策略了）。
+- **落点**：`src/ui/kit/cspNonce.ts`、`src/ui/kit/popups.tsx`、`src/ui/dashboard/DashboardGrid.tsx`、`src/ui/dashboard/GridBlocksLayer.tsx`、`src/ui/dashboard/gridBlocks.ts`、`src/styles.css`；README「Content Security Policy」；文档站视图引擎指南「内容安全策略（CSP）」；Storybook `StrictCsp.test.stories.tsx`；单测 `test/cspNonce.test.tsx`、`test/dashboardWidth.test.tsx`。
 
 ## 搁置待议
 

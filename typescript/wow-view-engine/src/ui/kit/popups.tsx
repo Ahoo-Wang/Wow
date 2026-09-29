@@ -15,6 +15,7 @@ import type * as React from 'react';
 import { useRef } from 'react';
 import { Combobox as ComboboxPrimitive } from '@base-ui/react';
 import { AlertDialog as AlertDialogPrimitive } from '@base-ui/react/alert-dialog';
+import { CSPProvider } from '@base-ui/react/csp-provider';
 import { Dialog as DialogPrimitive } from '@base-ui/react/dialog';
 import { Menu as MenuPrimitive } from '@base-ui/react/menu';
 import { Popover as PopoverPrimitive } from '@base-ui/react/popover';
@@ -43,6 +44,7 @@ import {
   type SelectContent as VendoredSelectContent,
 } from '../components/select.js';
 import { type TooltipContent as VendoredTooltipContent } from '../components/tooltip.js';
+import { cspNonce } from './cspNonce.js';
 import { useViewMessages } from './MessagesProvider.js';
 import {
   useSurfaceAttributes,
@@ -624,31 +626,36 @@ export function SelectContent({
   style,
   ...props
 }: React.ComponentProps<typeof VendoredSelectContent>) {
+  // The popup adds a `<style>` of its own (the list's scrollbar hidden
+  // while its scroll arrows show); under a strict policy it carries the
+  // page's nonce (`cspNonce`, D74).
   return (
-    <SelectPrimitive.Portal>
-      <SelectPrimitive.Positioner
-        side={side}
-        sideOffset={sideOffset}
-        align={align}
-        alignOffset={alignOffset}
-        alignItemWithTrigger={alignItemWithTrigger}
-        className={POSITIONER_CLASS}
-        style={POPUP_LAYER}
-      >
-        <SelectPrimitive.Popup
-          data-slot="select-content"
-          data-align-trigger={alignItemWithTrigger}
-          {...props}
-          className={withClass(SELECT_POPUP_CLASS, themedClass(className))}
-          style={useSurfaceType(style)}
-          {...useSurfaceAttributes()}
+    <CSPProvider nonce={cspNonce()}>
+      <SelectPrimitive.Portal>
+        <SelectPrimitive.Positioner
+          side={side}
+          sideOffset={sideOffset}
+          align={align}
+          alignOffset={alignOffset}
+          alignItemWithTrigger={alignItemWithTrigger}
+          className={POSITIONER_CLASS}
+          style={POPUP_LAYER}
         >
-          <SelectScrollUpButton />
-          <SelectPrimitive.List>{children}</SelectPrimitive.List>
-          <SelectScrollDownButton />
-        </SelectPrimitive.Popup>
-      </SelectPrimitive.Positioner>
-    </SelectPrimitive.Portal>
+          <SelectPrimitive.Popup
+            data-slot="select-content"
+            data-align-trigger={alignItemWithTrigger}
+            {...props}
+            className={withClass(SELECT_POPUP_CLASS, themedClass(className))}
+            style={useSurfaceType(style)}
+            {...useSurfaceAttributes()}
+          >
+            <SelectScrollUpButton />
+            <SelectPrimitive.List>{children}</SelectPrimitive.List>
+            <SelectScrollDownButton />
+          </SelectPrimitive.Popup>
+        </SelectPrimitive.Positioner>
+      </SelectPrimitive.Portal>
+    </CSPProvider>
   );
 }
 
