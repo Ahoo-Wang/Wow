@@ -101,7 +101,7 @@ describe('the width box', () => {
     expect(announced()).toBe('Amount fits its content');
   });
 
-  it('puts back what it had for what is no width', async () => {
+  it('says what is no width, and keeps it to be fixed', async () => {
     const { user, setColumnWidth } = await open();
     const box = screen.getByRole('textbox', {
       name: 'Width of Amount, in pixels',
@@ -109,7 +109,44 @@ describe('the width box', () => {
     await user.clear(box);
     await user.type(box, 'wide{Enter}');
     expect(setColumnWidth).not.toHaveBeenCalled();
-    expect(box.value).toBe('120');
+    expect(box.value).toBe('wide');
+    expect(box.getAttribute('aria-invalid')).toBe('true');
+    const error = document.querySelector('[data-slot="column-width-error"]');
+    expect(error?.textContent).toBe(
+      'Type a whole number of pixels, or leave it empty to fit the content.',
+    );
+    expect(box.getAttribute('aria-describedby')).toContain(error!.id);
+
+    await user.clear(box);
+    await user.type(box, '150{Enter}');
+    expect(setColumnWidth).toHaveBeenLastCalledWith('amount', 150);
+    expect(box.hasAttribute('aria-invalid')).toBe(false);
+    expect(
+      document.querySelector('[data-slot="column-width-error"]'),
+    ).toBeNull();
+  });
+
+  it('lowers a width past the ceiling to it', async () => {
+    const { user, setColumnWidth } = await open();
+    const box = screen.getByRole('textbox', {
+      name: 'Width of Amount, in pixels',
+    }) as HTMLInputElement;
+    await user.clear(box);
+    await user.type(box, '5000{Enter}');
+    expect(setColumnWidth).toHaveBeenLastCalledWith('amount', 2000);
+    expect(box.value).toBe('2000');
+  });
+
+  it('refuses digits too many to be a number at all', async () => {
+    const { user, setColumnWidth } = await open();
+    const box = screen.getByRole('textbox', {
+      name: 'Width of Amount, in pixels',
+    }) as HTMLInputElement;
+    await user.clear(box);
+    // Past `Number.MAX_VALUE`, which reads as Infinity.
+    await user.type(box, `${'9'.repeat(400)}{Enter}`);
+    expect(setColumnWidth).not.toHaveBeenCalled();
+    expect(box.getAttribute('aria-invalid')).toBe('true');
   });
 });
 

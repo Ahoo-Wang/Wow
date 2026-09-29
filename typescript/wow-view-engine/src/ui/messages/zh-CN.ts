@@ -246,6 +246,7 @@ export const zhCN: Readonly<Record<string, string>> = {
     '在表头上按 Alt+← 或 Alt+→ 调整列宽（加 Shift 一次多调），Alt+Enter 恢复随内容。',
   'label.columns.width': '{field} 的宽度（像素）',
   'label.columns.width-auto': '自动',
+  'label.columns.width-invalid': '请输入整数像素；留空则随内容。',
   'label.columns.filtered': '清空搜索即可调整列的顺序。',
   'label.columns.drag': '调整 {field} 的顺序',
   'label.columns.moved': '{field} 已移到第 {index} 位，共 {total} 位',

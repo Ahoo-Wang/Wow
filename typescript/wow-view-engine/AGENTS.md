@@ -592,7 +592,7 @@ src/
       rows.ts                 — The column settings' model: rows, the two areas (D19), order
       sections.ts             — Rows of one area by catalogue group; the search over them
       ColumnSettings.tsx      — Which columns show, in which order, pinned or not, summarised how — one sortable group per area (D19)
-      WidthInput.tsx          — A column's width typed on its settings row: the no-drag way to it (WCAG 2.5.7), read on Enter or leaving
+      WidthInput.tsx          — A column's width typed on its settings row: the no-drag way to it (WCAG 2.5.7), read on Enter or leaving, held to 48–2000px, what is not a width marked and said
     components/               — 34 shadcn/ui primitives — vendored, see below
     filter/                   — What the panel is made of
       AddEntry.tsx            — The field picker a group is added to from
@@ -629,7 +629,7 @@ src/
       CopyButton.tsx          — A value's own copy button: the clipboard, the tick, and the two words a press comes back with
       copyText.ts             — `copyText`: the Clipboard API, or the document's `copy` command where there is none (plain HTTP) or it was refused
       DragHandle.tsx          — The one handle every ordered list is carried by (「可排序的列表一律拖拽排序」): a pointer drags it, ↑／↓ (←／→ on a bar) move a place, Space picks up, a click opens the menu of four places (WCAG 2.5.7); `HandleMove`, `moveTarget`
-      ExportDialog.tsx        — The export window: scope, name, progress and outcome in one journey (D14), controlled so a panel's menu can open it, what the file holds said in the surface's own unit where its rows are an analysis's groups (`holds`, D25 Q28); `ExportButton`, the toolbar's own trigger for it
+      ExportDialog.tsx        — The export window: scope, name, progress and outcome in one journey (D14), controlled so a panel's menu can open it, what the file holds said in the surface's own unit where its rows are an analysis's groups (`holds`, D25 Q28); `ExportButton`, the toolbar's own trigger for it, drawn in two halves in a toolbar (`DetachedDialog`)
       ExportSteps.tsx         — The export window's steps, one per phase (`phaseOf`, `said`): scope and what the file will hold, progress, the outcome, and the buttons each phase ends in
       FieldMenu.tsx           — A picker's entries by catalogue group; shared by the field pickers
       HandOffMenu.tsx         — A menu whose items may open a dialog: `HandOffMenu`, `HandOffMenuContent`, and `DialogMenuItem`, which keeps the menu closing after it from taking the keyboard back to its trigger
@@ -667,7 +667,7 @@ src/
       popups.tsx              — The popups this package renders, themed and on a layer of their own
       roving.ts               — A group of peers as one Tab stop: who holds it, how it moves, where an arrow lands; the record header and the analysis result's rows share it
       summary.ts              — The applied-conditions bar in words: one `FilterSummaryItem` as a sentence
-      toolbar.tsx             — Base UI's toolbar primitive: one tab stop with the arrow keys inside; `DetachedPopover`, a popover whose button is in the bar and whose popup is drawn beside it
+      toolbar.tsx             — Base UI's toolbar primitive: one tab stop with the arrow keys inside; `DetachedPopover` and `DetachedDialog`, a popover or a window whose button is in the bar and whose popup is drawn beside it
       variants.tsx            — The colours, edges and shapes a vendored component does not ship, in one place (D16-8); `ChangeBadge`, a change in the colour the host's change convention picks (`styles.css`); `TableDataRow` holds a record row's three states; the dashboard's `PanelCard` (the warning edge on the card's ring), `ControlFrame` (the `--input` edge a filter chip's controls share), `ModeBar` and `FOCUS_INSET`
       chartFailure.ts         — `ChartFailure`: a chart whose library did not arrive or threw drawing, thrown in render for the boundary to tell the host as a `chart` failure (D40)
     lib/utils.ts              — shadcn cn() helper — vendored

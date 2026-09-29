@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import { useId } from 'react';
+import { useId, useState } from 'react';
 import { useSortable } from '@dnd-kit/react/sortable';
 import { CircleSlashIcon, PinIcon } from 'lucide-react';
 import type { SummaryFunction } from '../../model/index.js';
@@ -21,7 +21,7 @@ import { withoutOptimisticSorting } from '../kit/dragPlugins.js';
 import { IconButton } from '../kit/IconButton.js';
 import type { MessageFormatters } from '../kit/MessagesProvider.js';
 import { Checkbox } from '../components/checkbox.js';
-import { FieldDescription } from '../components/field.js';
+import { FieldDescription, FieldError } from '../components/field.js';
 import {
   ItemActions,
   ItemContent,
@@ -164,6 +164,8 @@ export function ColumnRow({
 }: ColumnRowProps) {
   const messages = useViewMessages();
   const noteId = useId();
+  const widthErrorId = useId();
+  const [widthInvalid, setWidthInvalid] = useState(false);
   const label = row.label;
   // On a summary-only row the checkbox does not show or hide a column —
   // there is no column — so it is named after the one thing it holds.
@@ -310,6 +312,9 @@ export function ColumnRow({
             width={width}
             disabled={!row.visible || row.broken}
             describedBy={refused ? noteId : undefined}
+            errorId={widthErrorId}
+            invalid={widthInvalid}
+            onInvalid={setWidthInvalid}
             onWidth={onWidth}
           />
         )}
@@ -392,6 +397,17 @@ export function ColumnRow({
           )}
           {messages.label(NOTES[note].key)}
         </FieldDescription>
+      )}
+      {widthInvalid && (
+        // On a line of its own, as the note is: what the width box holds
+        // is not a width, and what one is.
+        <FieldError
+          id={widthErrorId}
+          data-slot="column-width-error"
+          className={cn('fve:basis-full fve:pl-8', TEXT_UI)}
+        >
+          {messages.label('label.columns.width-invalid')}
+        </FieldError>
       )}
     </RowItem>
   );

@@ -599,6 +599,12 @@ export class DataViewRuntime<
      * left out.
      */
     fetch?: (config: C, controller: AbortController) => Promise<ProjectedView>;
+    /**
+     * Asked without the query turning `loading`: the rows on screen stay the
+     * answer while the rest arrives, so nothing says 「正在查询」 over them
+     * or draws the table as waiting (the summary row alone, `restyle`).
+     */
+    quiet?: boolean;
   }): void {
     const askedAt = options.askedAt ?? this.environment.now().getTime();
     // Both halves travel with the request: what ran, and the view's own
@@ -607,7 +613,8 @@ export class DataViewRuntime<
     const own = this.state.applied;
     const config = withScopeFilter(own, this.injectedScope);
     const requestId = `${this.id}:${(this.requestSeq += 1)}`;
-    this.store.setState({ query: { status: 'loading', requestId } });
+    const status = options.quiet ? 'success' : 'loading';
+    this.store.setState({ query: { status, requestId } });
 
     this.runner
       .run(this.id, controller =>

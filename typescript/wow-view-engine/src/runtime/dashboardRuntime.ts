@@ -11,6 +11,7 @@
  * limitations under the License.
  */
 
+import { dequal } from 'dequal';
 import {
   overlaid,
   type DashboardDefinition,
@@ -147,6 +148,8 @@ export class DashboardViewRuntime
   private requestedTab: string | null = null;
   /** Whether the panels were brought in line once: until then a tab is only noted. */
   private synced = false;
+  /** The filters the last sync sent the panels; see `filtersRun`. */
+  private filtersOut: DashboardFilters | null = null;
   /** The window each anchored trend card ran under at the last sync (D39). */
   private readonly anchors = new Map<string, PanelAnchor>();
   /** The board under the paths its panels rename aliases to. */
@@ -200,7 +203,7 @@ export class DashboardViewRuntime
       current: () => this.state.filters,
       commit: filters => this.store.setState({ filters }),
       started: () => this.synced,
-      run: () => this.sync(),
+      run: () => this.sync({ filtersRun: this.state.filtersRun + 1 }),
       viewOf: panel => this.viewOf(panel),
     });
     this.presses = new PanelPresses({
@@ -265,6 +268,7 @@ export class DashboardViewRuntime
         history: NO_HISTORY,
         building: false,
         readerRefresh: null,
+        filtersRun: 0,
       },
       environment: options.environment,
       admit: draft => this.admit(draft, this.state.scope),
@@ -651,10 +655,17 @@ export class DashboardViewRuntime
 
     // A re-sync that changes nothing keeps the previous array, so a grid
     // bound with `useSyncExternalStore` does not re-render on every apply.
+    // After the panels: what a filter change started is running by the
+    // time the step is seen. A change's own run is a step whatever it sent.
+    const filtersRun =
+      patch.filtersRun ??
+      this.state.filtersRun + (dequal(filters, this.filtersOut) ? 0 : 1);
+    this.filtersOut = filters;
     this.store.setState({
       ...patch,
       tab,
       filters,
+      filtersRun,
       panels: samePanels(this.state.panels, panels)
         ? this.state.panels
         : panels,

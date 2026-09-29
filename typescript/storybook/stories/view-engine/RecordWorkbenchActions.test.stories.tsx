@@ -87,10 +87,12 @@ export const WithActions: Story = {
       PENDING_BY_AMOUNT.length,
     );
     await expect(
-      canvas.getByRole('columnheader', {
-        name: zhCN['label.toolbar.actions'],
-      }).className,
-    ).toContain('sticky');
+      canvas
+        .getByRole('columnheader', {
+          name: zhCN['label.toolbar.actions'],
+        })
+        .classList.contains('fve:sticky'),
+    ).toBe(true);
 
     await userEvent.click(
       canvas.getByLabelText(zhCN['label.record.select-all']),

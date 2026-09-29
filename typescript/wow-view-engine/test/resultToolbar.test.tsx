@@ -404,7 +404,7 @@ describe('ResultToolbar popups keep their own tab stops', () => {
    * of them is under the bar (the WebKit story the review asked for, proven
    * on the structure Chromium and jsdom share).
    */
-  it('gives every control of both popups a tab stop of its own', async () => {
+  it('gives every control of every popup a tab stop of its own', async () => {
     const user = userEvent.setup();
     render(
       <ResultToolbar
@@ -417,6 +417,7 @@ describe('ResultToolbar popups keep their own tab stops', () => {
           { ...FIELDS[1]!, sortable: true },
         ]}
         runtime={runtime}
+        exporter={exportOffer()}
       />,
     );
     const stops = (dialog: HTMLElement) =>
@@ -451,6 +452,16 @@ describe('ResultToolbar popups keep their own tab stops', () => {
     const inSort = stops(sort);
     expect(inSort.length).toBeGreaterThan(0);
     for (const control of inSort)
+      expect(control.getAttribute('tabindex')).toBe('0');
+    await user.keyboard('{Escape}');
+
+    // The export window: its Close, Cancel and Export.
+    await user.click(screen.getByRole('button', { name: 'Export' }));
+    const exporting = await screen.findByRole('dialog', { name: 'Export' });
+    expect(exporting.closest('[role="toolbar"]')).toBeNull();
+    const inExport = stops(exporting);
+    expect(inExport.length).toBeGreaterThanOrEqual(3);
+    for (const control of inExport)
       expect(control.getAttribute('tabindex')).toBe('0');
   });
 

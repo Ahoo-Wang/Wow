@@ -111,7 +111,7 @@ description: 尚未发布的 wow-view-engine 对 WCAG 2.2 AA 的符合性声明�
 
 | 问题 | 修法 | 测试 |
 |---|---|---|
-| 工具栏的漫游焦点漏进弹层：Safari 默认设置下固定钮与汇总下拉被 Tab 跳过，复选框靠明写 `tabIndex` 止血 | 列设置、卡片设置与排序的弹层画在工具栏外面，以 `Popover.createHandle` 连着工具栏里的按钮；明写的 `tabIndex` 删掉，每个控件自己写着 `tabindex="0"` | `test/resultToolbar.test.tsx`；故事 `ToolbarPopupsKeepTheirTabStops` |
+| 工具栏的漫游焦点漏进弹层：Safari 默认设置下固定钮与汇总下拉被 Tab 跳过，复选框靠明写 `tabIndex` 止血 | 列设置、卡片设置与排序的弹层画在工具栏外面，以 `Popover.createHandle` 连着工具栏里的按钮；记录与分析结果工具栏打开的导出窗口同样画在外面（`Dialog.createHandle`）；明写的 `tabIndex` 删掉，每个控件自己写着 `tabindex="0"` | `test/resultToolbar.test.tsx`、`test/chartImageExport.test.tsx`；故事 `ToolbarPopupsKeepTheirTabStops` |
 | 面板的移动与缩放、列宽只能拖（2.5.7） | 面板「⋯」里「移动或调整大小」（左移、右移、上移、下移、加宽、变窄、加高、变矮），一次点击一步；列设置每行一个宽度框 | `test/dashboardPlacement.test.tsx`、`test/columnWidthInput.test.tsx`；故事 `PanelArrangedByClicks`、`ColumnWidthByTyping` |
 | 列宽拖动区只有 8px（2.5.8） | 宽度框就是间距例外允许的等价控件；细条不压住排序按钮 | 同上 |
 | 列宽、列序、固定、汇总都重跑查询并跟着念（4.1.3） | 只改画法的编辑不查询，汇总变了只发聚合；每一步说新宽度 | `test/restyle.test.tsx`、`test/headerRoving.test.tsx`；故事 `WidthStepsSayTheWidth` |

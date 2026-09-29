@@ -12,6 +12,7 @@
  */
 
 import { QueryErrorCodes } from '@ahoo-wang/wow-client';
+import { dequal } from 'dequal';
 import type {
   DataViewConfig,
   RecordData,
@@ -131,18 +132,27 @@ export class RecordDataViewRuntime
    * A draft that changes only how the rows on screen are drawn keeps them:
    * the page, its selection and the reader's place stay, and only the
    * columns are projected again (`restyleRecord`). One whose summaries
-   * changed too asks the source for the summary row alone. Either way the
-   * page is not fetched, so nothing says 「正在查询」 over rows that stay.
+   * changed too asks the source for the summary row alone, quietly: the
+   * query stays `success` and the rows stay drawn while it is out. Either
+   * way the page is not fetched, and nothing says 「正在查询」 or draws the
+   * table as waiting over rows that stay.
    *
-   * Only over a result that landed and is current: while a query is out, or
-   * after one failed, the rows on screen are not the answer to the config
-   * that ran, and the whole query runs as before.
+   * Only over a result that landed and is current: while a query is out (a
+   * quiet one included), or after one failed, the rows on screen are not the answer to the config
+   * that ran, and the whole query runs as before. And only for a draft that
+   * differs from what ran: an apply that changes nothing — Apply with
+   * nothing pending, Enter in the search box, a host's `apply()` — is a
+   * request to ask again, and runs whole from the first page.
    */
   protected override restyle(draft: RecordViewConfig): (() => void) | null {
     const result = this.state.result;
-    if (!result || this.state.query.status !== 'success') return null;
+    // Settled, and on what is applied: a quiet request (the summary row)
+    // leaves the status `success` while `applied` is ahead of the rows.
+    const { query, applied } = this.state;
+    if (!result || query.status !== 'success' || result.own !== applied)
+      return null;
     const data = result.data;
-    if (data.kind !== 'record') return null;
+    if (data.kind !== 'record' || dequal(result.own, draft)) return null;
     const change = restyledOnly(result.own, draft);
     if (change === null) return null;
     const view = restyleRecord(this.context.definition, draft, data.view);
@@ -150,6 +160,7 @@ export class RecordDataViewRuntime
       return () =>
         this.execute({
           keepSelection: true,
+          quiet: true,
           fetch: (config, controller) =>
             executeSummaries(this.context, config, view, controller),
         });

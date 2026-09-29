@@ -172,6 +172,65 @@ describe('a change of the board’s filters', () => {
     );
   });
 
+  it('says a list emptied as cleared', async () => {
+    const { runtime } = setup();
+    await opened(runtime);
+
+    act(() => void runtime().setFilterValue('region', ['CN']));
+    await waitFor(() =>
+      expect(said()).toBe('Filtered by Region; 2 panels updated.'),
+    );
+    act(() => void runtime().setFilterValue('region', []));
+    await waitFor(() =>
+      expect(said()).toBe('Cleared Region; 2 panels updated.'),
+    );
+  });
+
+  it('says nothing of a change undone before it ran, then or later', async () => {
+    const { runtime } = setup();
+    await opened(runtime);
+
+    act(() => void runtime().setFilterValue('region', ['CN']));
+    act(() => void runtime().setFilterValue('region', null));
+    // The board's moment passes and sends out what it had: nothing new.
+    await act(() => new Promise(resolve => setTimeout(resolve, 400)));
+    // An unrelated query later is not the change's.
+    act(() => runtime().getSnapshot().panels[0]!.runtime!.refresh());
+    await opened(runtime);
+
+    expect(said()).toBe('');
+  });
+
+  it('waits for the queries the change asked, not one already out', async () => {
+    let release: () => void = () => {};
+    let slow = false;
+    const paged = vi.fn(() =>
+      slow
+        ? new Promise<{ total: number; list: [] }>(resolve => {
+            release = () => resolve({ total: 2, list: [] });
+          })
+        : Promise.resolve({ total: 2, list: [] as [] }),
+    );
+    const { runtime } = setup(testSource({ paged }));
+    await opened(runtime);
+
+    // A refresh is out when the filter changes, and lands before the
+    // board runs the change.
+    slow = true;
+    act(() => runtime().getSnapshot().panels[0]!.runtime!.refresh());
+    slow = false;
+    act(() => void runtime().setFilterValue('region', ['CN']));
+    await act(async () => release());
+
+    await waitFor(() =>
+      expect(said()).toBe('Filtered by Region; 2 panels updated.'),
+    );
+    const filtered = paged.mock.calls.filter(call =>
+      JSON.stringify(call).includes('CN'),
+    );
+    expect(filtered.length).toBeGreaterThanOrEqual(2);
+  });
+
   it('says it in the board’s language', async () => {
     const { runtime } = setup(testSource(), zhCN);
     await opened(runtime);

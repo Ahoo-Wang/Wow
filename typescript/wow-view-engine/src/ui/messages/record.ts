@@ -244,6 +244,9 @@ export const recordMessages = {
   // itself.
   'label.columns.width': 'Width of {field}, in pixels',
   'label.columns.width-auto': 'Auto',
+  // Under a width box holding what is not a width.
+  'label.columns.width-invalid':
+    'Type a whole number of pixels, or leave it empty to fit the content.',
   'label.columns.filtered': 'Clear the search to reorder columns.',
   'label.columns.drag': 'Reorder {field}',
   'label.columns.moved': '{field} moved to position {index} of {total}',

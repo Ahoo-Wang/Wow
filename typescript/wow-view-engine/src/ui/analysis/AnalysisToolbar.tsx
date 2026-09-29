@@ -27,7 +27,7 @@ import {
   useViewMessages,
   type MessageFormatters,
 } from '../kit/MessagesProvider.js';
-import { Toolbar, ToolbarItem } from '../kit/toolbar.js';
+import { Toolbar, ToolbarItem, useDialogHandle } from '../kit/toolbar.js';
 import { useSurfaceDisplay } from '../kit/ViewSurface.js';
 import { CHART_ICON, glyphType } from './chartIcons.js';
 import type { CaptureChart } from '../charts/image.js';
@@ -112,36 +112,41 @@ export function AnalysisToolbar({
     locale,
   );
   const ChartIcon = CHART_ICON[glyphType(analysis.chart.type)];
+  // The export's window is drawn beside the bar, not inside it; see
+  // `DetachedDialog`.
+  const exportWindow = useDialogHandle();
   return (
-    <Toolbar
-      data-slot="result-toolbar"
-      aria-label={messages.label('label.toolbar.title')}
-      className={`fve:flex fve:flex-wrap fve:items-center ${SPACE.GROUPS}`}
-    >
-      {/* Wraps rather than truncates: the having comes last, and it is
+    <>
+      <Toolbar
+        data-slot="result-toolbar"
+        aria-label={messages.label('label.toolbar.title')}
+        className={`fve:flex fve:flex-wrap fve:items-center ${SPACE.GROUPS}`}
+      >
+        {/* Wraps rather than truncates: the having comes last, and it is
           the part that explains groups missing from the table — a line cut
           at its tail would cut exactly that. */}
-      <span
-        data-slot="analysis-reading"
-        className={`fve:text-muted-foreground fve:min-w-0 ${TEXT_UI}`}
-      >
-        {reading}
-      </span>
-      <div
-        className={`fve:ml-auto fve:flex fve:flex-wrap fve:items-center ${SPACE.GROUPS}`}
-      >
-        <ToggleGroup
-          value={[analysis.layout]}
-          onValueChange={value => {
-            const next = value[0];
-            if (next === 'table' || next === 'chart') analysis.setLayout(next);
-          }}
-          variant="outline"
-          size="sm"
-          spacing={0}
-          aria-label={messages.label('label.analysis.layout')}
+        <span
+          data-slot="analysis-reading"
+          className={`fve:text-muted-foreground fve:min-w-0 ${TEXT_UI}`}
         >
-          {/* Icons, named for a reader and on hover (`IconTooltip`), as the
+          {reading}
+        </span>
+        <div
+          className={`fve:ml-auto fve:flex fve:flex-wrap fve:items-center ${SPACE.GROUPS}`}
+        >
+          <ToggleGroup
+            value={[analysis.layout]}
+            onValueChange={value => {
+              const next = value[0];
+              if (next === 'table' || next === 'chart')
+                analysis.setLayout(next);
+            }}
+            variant="outline"
+            size="sm"
+            spacing={0}
+            aria-label={messages.label('label.analysis.layout')}
+          >
+            {/* Icons, named for a reader and on hover (`IconTooltip`), as the
               record view's layout switch is: which segment is pressed says
               which layout is on, so the word adds nothing a glance does not
               have, and the bar keeps its width for the reading on the left.
@@ -149,54 +154,80 @@ export function AnalysisToolbar({
               the visualization panel's glyph for it (`CHART_ICON`) — so the
               switch says what pressing it gets, as Metabase's does; its name
               stays 「图表」, the layout, which is what the press changes. */}
-          <IconTooltip
-            label={messages.label('label.layout.table')}
-            render={<ToggleGroupItem value="table" />}
-          >
-            <TableIcon />
-          </IconTooltip>
-          <IconTooltip
-            label={messages.label('label.layout.chart')}
-            render={<ToggleGroupItem value="chart" />}
-          >
-            <ChartIcon />
-          </IconTooltip>
-        </ToggleGroup>
-        {onVisualize && (
-          // A stop of the bar's roving order like every other control on it:
-          // a plain button here was a second Tab stop the arrow keys skipped
-          // (表格 → 图表 → 导出 → 表格; the 2026-09-25 keyboard walkthrough).
-          <ToolbarItem
-            ref={visualizeRef}
-            aria-pressed={visualizing === true}
-            data-slot="visualize"
-            disabled={disabled}
-            onClick={() => onVisualize(visualizing !== true)}
-            render={<Button variant="outline" size="sm" />}
-          >
-            {/* The panel's options glyph, not a chart: the chart segment
+            <IconTooltip
+              label={messages.label('label.layout.table')}
+              render={<ToggleGroupItem value="table" />}
+            >
+              <TableIcon />
+            </IconTooltip>
+            <IconTooltip
+              label={messages.label('label.layout.chart')}
+              render={<ToggleGroupItem value="chart" />}
+            >
+              <ChartIcon />
+            </IconTooltip>
+          </ToggleGroup>
+          {onVisualize && (
+            // A stop of the bar's roving order like every other control on it:
+            // a plain button here was a second Tab stop the arrow keys skipped
+            // (表格 → 图表 → 导出 → 表格; the 2026-09-25 keyboard walkthrough).
+            <ToolbarItem
+              ref={visualizeRef}
+              aria-pressed={visualizing === true}
+              data-slot="visualize"
+              disabled={disabled}
+              onClick={() => onVisualize(visualizing !== true)}
+              render={<Button variant="outline" size="sm" />}
+            >
+              {/* The panel's options glyph, not a chart: the chart segment
                 beside it already draws the chart, and two identical bars
                 side by side read as one control twice. */}
-            <Settings2Icon data-icon="inline-start" />
-            {messages.label('label.analysis.visualize')}
-          </ToolbarItem>
-        )}
-        {/* No totals switch here. It was a checkbox that only the table
+              <Settings2Icon data-icon="inline-start" />
+              {messages.label('label.analysis.visualize')}
+            </ToolbarItem>
+          )}
+          {/* No totals switch here. It was a checkbox that only the table
             layout drew, so switching 表格／图表 moved everything beside it
             (the user's 2026-09-23 review); the totals row is a setting of
             the table, and it is set where the table's other settings are —
             the visualization panel's table options (`ChartOptions`). */}
-        {/* Last, at the right end, as on the record view's toolbar: the same
+          {/* Last, at the right end, as on the record view's toolbar: the same
             bordered icon button opening the same window (D14, D25 Q28). The
             file is the table's reading whichever layout is showing. */}
-        {picture ? (
-          <ExportMenu data={offer} image={picture} />
-        ) : (
-          offer && <ExportButton {...offer} />
-        )}
-      </div>
-      {picture && <ImageFailed offer={picture} />}
-    </Toolbar>
+          {picture ? (
+            <ExportMenu
+              data={offer}
+              image={picture}
+              detached={{ ...exportWindow, part: 'trigger' }}
+            />
+          ) : (
+            offer && (
+              <ExportButton
+                {...offer}
+                detached={{ ...exportWindow, part: 'trigger' }}
+              />
+            )
+          )}
+        </div>
+        {picture && <ImageFailed offer={picture} />}
+      </Toolbar>
+      {/* Outside the bar's React subtree, so its roving focus does not
+          reach the window's controls (`DetachedDialog`). */}
+      {picture ? (
+        <ExportMenu
+          data={offer}
+          image={picture}
+          detached={{ ...exportWindow, part: 'popup' }}
+        />
+      ) : (
+        offer && (
+          <ExportButton
+            {...offer}
+            detached={{ ...exportWindow, part: 'popup' }}
+          />
+        )
+      )}
+    </>
   );
 }
 

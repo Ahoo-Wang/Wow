@@ -156,6 +156,87 @@ describe('a presentation edit on a record view', () => {
     expect(vi.mocked(source.aggregate).mock.calls).toHaveLength(aggregates + 1);
   });
 
+  it('runs the query again for an apply that changes nothing', async () => {
+    // Apply with nothing pending, Enter in the search box, a host's
+    // `runtime.apply()`: each asks again, and starts over from page one.
+    const source = testSource({
+      paged: vi.fn(() =>
+        Promise.resolve({
+          total: 200,
+          list: [
+            { id: 'o-1', amount: 10 },
+            { id: 'o-2', amount: 20 },
+          ],
+        }),
+      ),
+    });
+    const result = await openTable(source);
+    act(() => result.current.table.next());
+    await waitFor(() =>
+      expect(result.current.table.paging).toMatchObject({ index: 2 }),
+    );
+    act(() => result.current.table.toggle('o-1'));
+    const asked = vi.mocked(source.paged).mock.calls.length;
+
+    act(() => result.current.runtime!.apply());
+    await waitFor(() => expect(result.current.table.status).toBe('success'));
+
+    expect(vi.mocked(source.paged).mock.calls).toHaveLength(asked + 1);
+    expect(result.current.table.paging).toMatchObject({ index: 1 });
+    expect(result.current.table.selection).toEqual([]);
+  });
+
+  it('asks again after a width landed and nothing else changed', async () => {
+    const source = testSource();
+    const result = await openTable(source);
+    act(() => result.current.table.setColumnWidth('amount', 180));
+    const asked = vi.mocked(source.paged).mock.calls.length;
+
+    act(() => result.current.runtime!.apply());
+    await waitFor(() => expect(result.current.table.status).toBe('success'));
+
+    expect(vi.mocked(source.paged).mock.calls).toHaveLength(asked + 1);
+  });
+
+  it('keeps the table settled while the summary row alone is asked', async () => {
+    let answer: (rows: Record<string, unknown>[]) => void = () => {};
+    const source = testSource();
+    const result = await openTable(source);
+    vi.mocked(source.aggregate).mockImplementationOnce(
+      () => new Promise(resolve => (answer = resolve)),
+    );
+
+    act(() => result.current.table.setSummary('amount', 'SUM'));
+
+    expect(result.current.table.status).toBe('success');
+    expect(result.current.runtime?.getSnapshot().query.status).toBe('success');
+    await act(async () => answer([{ amount: 30 }]));
+    await waitFor(() =>
+      expect(result.current.table.summaries?.cells).toHaveLength(1),
+    );
+  });
+
+  it('runs whole a width set while the summary row is still out', async () => {
+    let answer: (rows: Record<string, unknown>[]) => void = () => {};
+    const source = testSource();
+    const result = await openTable(source);
+    vi.mocked(source.aggregate).mockImplementationOnce(
+      () => new Promise(resolve => (answer = resolve)),
+    );
+    act(() => result.current.table.setSummary('amount', 'SUM'));
+    const asked = vi.mocked(source.paged).mock.calls.length;
+
+    act(() => result.current.table.setColumnWidth('amount', 180));
+    await act(async () => answer([{ amount: 30 }]));
+    await waitFor(() => expect(result.current.table.status).toBe('success'));
+
+    expect(vi.mocked(source.paged).mock.calls).toHaveLength(asked + 1);
+    expect(result.current.table.summaries?.cells).toHaveLength(1);
+    expect(
+      result.current.table.columns.find(column => column.field === 'amount'),
+    ).toEqual(expect.objectContaining({ width: 180 }));
+  });
+
   it('still runs the page for a column switched on', async () => {
     const source = testSource();
     const result = await openTable(source);

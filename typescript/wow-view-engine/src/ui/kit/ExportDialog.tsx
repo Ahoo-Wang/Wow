@@ -35,7 +35,7 @@ import {
 import { DialogContent } from './popups.js';
 import { IconTooltip } from './IconButton.js';
 import { useViewMessages } from './MessagesProvider.js';
-import { ToolbarItem } from './toolbar.js';
+import { ToolbarItem, type DetachedDialog } from './toolbar.js';
 import type { FinalFocus } from './focus.js';
 import {
   ChooseStep,
@@ -111,6 +111,11 @@ export interface ExportDialogProps extends ExportWindowProps {
   finalFocus?: FinalFocus;
   /** The control that opens it, where the window has one of its own. */
   trigger?: ReactNode;
+  /**
+   * What joins it to a trigger drawn elsewhere — a toolbar's, outside
+   * whose subtree the window is drawn (`DetachedDialog`).
+   */
+  handle?: DetachedDialog['handle'];
 }
 
 /**
@@ -119,34 +124,49 @@ export interface ExportDialogProps extends ExportWindowProps {
  * display facility like the columns and the sort — it changes nothing about
  * the view and nothing about the records. It opens `ExportDialog`.
  */
-export function ExportButton(props: ExportWindowProps) {
+export function ExportButton({
+  detached,
+  ...props
+}: ExportWindowProps & {
+  /**
+   * Draws one half of it, joined to the other by a handle: the button
+   * inside a toolbar, the window beside it (`DetachedDialog`). Left out,
+   * both halves are drawn here together.
+   */
+  detached?: DetachedDialog;
+}) {
   const messages = useViewMessages();
   const [open, setOpen] = useState(false);
+  const handle = detached?.handle;
+  const trigger = (
+    <IconTooltip
+      label={messages.label('label.export.title')}
+      render={
+        // A toolbar item where a toolbar is around it, an ordinary button
+        // anywhere else: the bar owns the roving focus order and this is
+        // one of the stops in it.
+        <ToolbarItem
+          render={
+            <DialogTrigger
+              handle={handle}
+              data-control="export"
+              render={<Button variant="outline" size="icon-sm" />}
+            />
+          }
+        />
+      }
+    >
+      <DownloadIcon />
+    </IconTooltip>
+  );
+  if (detached?.part === 'trigger') return trigger;
   return (
     <ExportDialog
       {...props}
+      {...(handle ? { handle } : {})}
       open={open}
       onOpenChange={setOpen}
-      trigger={
-        <IconTooltip
-          label={messages.label('label.export.title')}
-          render={
-            // A toolbar item where a toolbar is around it, an ordinary button
-            // anywhere else: the bar owns the roving focus order and this is
-            // one of the stops in it.
-            <ToolbarItem
-              render={
-                <DialogTrigger
-                  data-control="export"
-                  render={<Button variant="outline" size="icon-sm" />}
-                />
-              }
-            />
-          }
-        >
-          <DownloadIcon />
-        </IconTooltip>
-      }
+      trigger={detached ? null : trigger}
     />
   );
 }
@@ -173,6 +193,7 @@ export function ExportDialog({
   onOpenChange,
   finalFocus,
   trigger,
+  handle,
   ...props
 }: ExportDialogProps) {
   const { control } = props;
@@ -194,6 +215,7 @@ export function ExportDialog({
 
   return (
     <Dialog
+      handle={handle}
       open={open}
       onOpenChange={next => {
         // Escape, the backdrop and Cancel are one answer while the pages are

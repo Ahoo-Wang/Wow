@@ -26,6 +26,13 @@ import { useViewMessages } from '../kit/MessagesProvider.js';
  */
 export const MIN_COLUMN_WIDTH = 48;
 
+/**
+ * The widest a column's width box sets it: a number typed there is a width
+ * a reader meant, and a digit held down is not — a column wider than any
+ * screen is one whose neighbours are gone.
+ */
+export const MAX_COLUMN_WIDTH = 2000;
+
 /** One arrow press, and one arrow press with shift held. */
 const STEP = 8;
 const LEAP = 32;

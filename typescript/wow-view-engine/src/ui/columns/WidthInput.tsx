@@ -14,7 +14,7 @@
 import { useEffect, useRef } from 'react';
 import { Input } from '../components/input.js';
 import { useViewMessages } from '../kit/MessagesProvider.js';
-import { MIN_COLUMN_WIDTH } from '../record/ColumnResizer.js';
+import { MAX_COLUMN_WIDTH, MIN_COLUMN_WIDTH } from '../record/ColumnResizer.js';
 
 export interface WidthInputProps {
   /** The column's name, as the row shows it. */
@@ -23,6 +23,15 @@ export interface WidthInputProps {
   width: number | undefined;
   disabled?: boolean;
   describedBy?: string;
+  /**
+   * The line that says what was wrong with what was typed (`invalid`),
+   * which the row draws; the box is described by it while it is shown.
+   */
+  errorId: string;
+  /** Whether what is typed is no width, and the row says so. */
+  invalid: boolean;
+  /** Tells the row what was typed is no width, or is one again. */
+  onInvalid(invalid: boolean): void;
   /** A width in pixels, or `null` for back to its content's. */
   onWidth(width: number | null): void;
 }
@@ -40,13 +49,19 @@ export interface WidthInputProps {
  * The draft is the browser's, as the page box's is (`RecordPagination`):
  * read on Enter and on leaving, never per keystroke, so typing 1, 12, 120
  * is one width and not three. Empty is automatic, and a width under the
- * edge's own floor is raised to it — the same rule a drag keeps.
+ * edge's own floor is raised to it — the same rule a drag keeps — as one
+ * past `MAX_COLUMN_WIDTH` is lowered to that. What is not a whole number
+ * stays in the box, marked invalid, with the row's line saying what a
+ * width is: put back silently, a typo looked like a width that took.
  */
 export function WidthInput({
   label,
   width,
   disabled,
   describedBy,
+  errorId,
+  invalid,
+  onInvalid,
   onWidth,
 }: WidthInputProps) {
   const messages = useViewMessages();
@@ -64,15 +79,17 @@ export function WidthInput({
     const node = box.current;
     if (!node) return;
     const typed = node.value.trim();
+    const number = Number(typed);
+    if (typed !== '' && (!/^\d+$/.test(typed) || !Number.isFinite(number))) {
+      onInvalid(true);
+      return;
+    }
+    onInvalid(false);
     if (typed === '') {
       if (width !== undefined) onWidth(null);
       return;
     }
-    if (!/^\d+$/.test(typed)) {
-      node.value = shown;
-      return;
-    }
-    const next = Math.max(MIN_COLUMN_WIDTH, Number(typed));
+    const next = Math.min(MAX_COLUMN_WIDTH, Math.max(MIN_COLUMN_WIDTH, number));
     node.value = String(next);
     if (next !== width) onWidth(next);
   };
@@ -82,7 +99,12 @@ export function WidthInput({
       ref={box}
       data-slot="column-width"
       aria-label={messages.label('label.columns.width', { field: label })}
-      aria-describedby={describedBy}
+      aria-describedby={
+        [describedBy, invalid ? errorId : undefined]
+          .filter(Boolean)
+          .join(' ') || undefined
+      }
+      aria-invalid={invalid || undefined}
       placeholder={messages.label('label.columns.width-auto')}
       inputMode="numeric"
       disabled={disabled}

@@ -12,6 +12,7 @@
  */
 
 import * as React from 'react';
+import { Dialog as DialogPrimitive } from '@base-ui/react/dialog';
 import { Popover as PopoverPrimitive } from '@base-ui/react/popover';
 import { Toolbar as ToolbarPrimitive } from '@base-ui/react/toolbar';
 import { useRender } from '@base-ui/react/use-render';
@@ -131,4 +132,41 @@ function createPopoverHandle(): PopoverHandle {
 export function usePopoverHandle(): PopoverHandle {
   const [handle] = React.useState(createPopoverHandle);
   return handle;
+}
+
+/**
+ * A window opened from a toolbar, whose content is drawn outside it: the
+ * export's (`ExportButton`, `ExportMenu`). The same split as
+ * `DetachedPopover`, for the same reason — the Close, Cancel and Export of
+ * a window drawn under the bar each took itself for one of its items and
+ * wrote no `tabindex` — joined by `Dialog.createHandle`.
+ */
+export interface DetachedDialog {
+  handle: DialogHandle;
+  /**
+   * What the keyboard goes back to as the window closes, where the window
+   * is opened by something that is not its own trigger — a menu's item,
+   * gone with the menu, so the menu's button in the bar.
+   */
+  opener: React.RefObject<HTMLButtonElement | null>;
+  /** Which half this rendering is: the bar's button, or the window. */
+  part: 'trigger' | 'popup';
+}
+
+/** The handle `DetachedDialog` joins its two halves by. */
+export type DialogHandle = DialogPrimitive.Handle<unknown>;
+
+/** A new handle, as `useState` takes an initialiser. */
+function createDialogHandle(): DialogHandle {
+  return DialogPrimitive.createHandle<unknown>();
+}
+
+/**
+ * One handle and one opener for the life of the component, for one
+ * detached window; the caller adds which half it draws.
+ */
+export function useDialogHandle(): Omit<DetachedDialog, 'part'> {
+  const [handle] = React.useState(createDialogHandle);
+  const opener = React.useRef<HTMLButtonElement>(null);
+  return { handle, opener };
 }

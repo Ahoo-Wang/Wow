@@ -31,7 +31,7 @@ import { ExportButton, type ExportWindowProps } from '../kit/ExportDialog.js';
 import { SortSettings } from '../sort/SortSettings.js';
 import { featuresOf, type WorkbenchFeatures } from '../kit/features.js';
 import { SPACE } from '../kit/layout.js';
-import { Toolbar, usePopoverHandle } from '../kit/toolbar.js';
+import { Toolbar, useDialogHandle, usePopoverHandle } from '../kit/toolbar.js';
 import { LAYOUT_LABEL } from '../record/issueNames.js';
 import { useViewMessages } from '../kit/MessagesProvider.js';
 import {
@@ -158,11 +158,13 @@ export function ResultToolbar({
   const messages = useViewMessages();
   const selected = table.selection.length > 0;
   const shown = featuresOf(features);
-  // The settings' popups are drawn beside the bar, not inside it; see
-  // `DetachedPopover`. One handle each, joining the button in the bar to
-  // its popup out here.
+  // The settings' popups and the export's window are drawn beside the bar,
+  // not inside it; see `DetachedPopover`. One handle each, joining the
+  // button in the bar to what it opens out here.
   const arrange = usePopoverHandle();
   const order = usePopoverHandle();
+  const exportWindow = useDialogHandle();
+  const exports = exporter && table.hasResult ? exporter : null;
   const columns = {
     table,
     fields,
@@ -307,13 +309,18 @@ export function ResultToolbar({
             disabled (P-17, user 2026-09-22); once a result has landed it
             stays, because a refresh that failed keeps the rows it could
             not replace and those rows are still exportable. */}
-          {exporter && table.hasResult && <ExportButton {...exporter} />}
+          {exports && (
+            <ExportButton
+              {...exports}
+              detached={{ ...exportWindow, part: 'trigger' }}
+            />
+          )}
         </div>
       </Toolbar>
-      {/* The popups of the two settings buttons, outside the bar's React
-        subtree so its roving focus does not reach the controls in them
-        (`DetachedPopover`). A popup renders nothing here until it opens,
-        and then into a portal. */}
+      {/* The popups of the two settings buttons and the export's window,
+        outside the bar's React subtree so its roving focus does not reach
+        the controls in them (`DetachedPopover`, `DetachedDialog`). A popup
+        renders nothing here until it opens, and then into a portal. */}
       {shown.columns &&
         (table.layout === 'card' ? (
           <CardSettings
@@ -331,6 +338,12 @@ export function ResultToolbar({
         <SortSettings
           {...sorting}
           detached={{ handle: order, part: 'popup' }}
+        />
+      )}
+      {exports && (
+        <ExportButton
+          {...exports}
+          detached={{ ...exportWindow, part: 'popup' }}
         />
       )}
     </>
