@@ -11,13 +11,24 @@
  * limitations under the License.
  */
 
+import { useMemo, useState } from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { expect, waitFor, within } from 'storybook/test';
-import { rowSource } from './rowSource.js';
+import { expect, userEvent, waitFor, within } from 'storybook/test';
+import { memorySource } from '@ahoo-wang/wow-view-engine/testing';
+import { zhCN } from '@ahoo-wang/wow-view-engine/ui';
+import { StoryEngine } from './StoryEngine.js';
+import { createOrdersEngine } from './integration/ordersEngine.js';
+import { OrdersHost } from './integration/OrdersHost.js';
 import { OrdersPage } from './integration/OrdersPage.js';
+import { useMemoryRouter } from './integration/memoryRouter.js';
+import {
+  SAMPLE_ORDERS,
+  SAMPLE_TO_SHIP,
+  sampleCommands,
+  sampleOrders,
+} from './integration/sampleOrders.js';
 import ordersPageSource from './integration/OrdersPage.tsx?raw';
 import { readable } from './hostSource.js';
-import { SAMPLE_ORDERS, SAMPLE_TO_SHIP } from './integration/sampleOrders.js';
 
 const idOf = (order: (typeof SAMPLE_ORDERS)[number]) =>
   String(order.aggregateId);
@@ -27,30 +38,62 @@ const statusOf = (order: (typeof SAMPLE_ORDERS)[number]) =>
 /*
  * The integration walkthrough's example (`Integration.mdx`): the code the
  * page quotes is the code that runs here, file for file, so it compiles and
- * works or the build says so.
+ * works or the build says so. Only the service is swapped: the rows are
+ * twelve orders in memory (`memorySource`, the package's own in-memory Wow
+ * source) and the commands change them there; the address is a router in
+ * memory, since the example lives inside Storybook's frame.
  */
+function OrdersExample() {
+  const [orders] = useState(sampleOrders);
+  const commands = useMemo(() => sampleCommands(orders), [orders]);
+  const router = useMemoryRouter('/orders');
+  return (
+    <StoryEngine create={() => createOrdersEngine(memorySource(orders))}>
+      {engine => (
+        <OrdersHost
+          engine={engine}
+          router={router}
+          commands={commands}
+          // Storybook's toolbar paints light and dark on `<html>`.
+          colorMode="host"
+        >
+          <OrdersPage go={router.go} />
+        </OrdersHost>
+      )}
+    </StoryEngine>
+  );
+}
 
 const meta = {
   title: 'View Engine/接入导览',
+  component: OrdersExample,
   // The page is `Integration.mdx`, attached to this file.
   tags: ['!autodocs'],
   parameters: {
     layout: 'fullscreen',
     docs: { source: { code: readable(ordersPageSource), language: 'tsx' } },
   },
-} satisfies Meta;
+} satisfies Meta<typeof OrdersExample>;
 
 export default meta;
 
 type Story = StoryObj<typeof meta>;
 
+/** The row of an order, by its checkbox. */
+function rowOf(canvas: ReturnType<typeof within>, id: string) {
+  return within(
+    canvas
+      .getByLabelText(zhCN['label.record.select'].replace('{key}', id))
+      .closest('tr')!,
+  );
+}
+
 /**
- * 接到示例数据的订单页：`OrdersPage` 原样挂上，数据源换成内存里的十二张单
- * （宿主接的是 `wowOrderSource`）。打开是系统视图「待发货」。
+ * 接到示例数据的订单页：`OrdersHost` 与 `OrdersPage` 原样挂上，数据源换成
+ * 内存里的十二张单，命令改的也是它们。打开是系统视图「待发货」。
  */
 export const Example: Story = {
   name: '订单页',
-  render: () => <OrdersPage source={rowSource(SAMPLE_ORDERS)} />,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     const paid = SAMPLE_ORDERS.filter(order => statusOf(order) === 'PAID');
@@ -61,5 +104,32 @@ export const Example: Story = {
       if (statusOf(order) === 'PAID')
         await expect(canvas.getByText(idOf(order))).toBeInTheDocument();
       else await expect(canvas.queryByText(idOf(order))).toBeNull();
+
+    // The navigation is the engine's data: the resource and its system
+    // views, in the definition's words.
+    const nav = within(canvas.getByRole('navigation', { name: '应用导航' }));
+    await expect(nav.getByRole('link', { name: '订单' })).toHaveAttribute(
+      'aria-current',
+      'page',
+    );
+
+    // The declared action: 「发货」 in the row sends at once (a selection
+    // would be asked first), and the order leaves 「待发货」.
+    const first = idOf(paid[0]!);
+    await userEvent.click(
+      rowOf(canvas, first).getByRole('button', { name: '发货' }),
+    );
+    await waitFor(() => expect(canvas.queryByText(first)).toBeNull());
+
+    // Through the router: 「全部订单」 opens in `?view=`, and is current.
+    const all = nav.getByRole('link', { name: '全部订单' });
+    await userEvent.click(all);
+    await waitFor(() => expect(all).toHaveAttribute('aria-current', 'page'));
+    await waitFor(() =>
+      expect(canvas.getByText(idOf(SAMPLE_ORDERS[1]!))).toBeVisible(),
+    );
+    for (const order of SAMPLE_ORDERS)
+      await expect(canvas.getByText(idOf(order))).toBeInTheDocument();
+    await expect(rowOf(canvas, first).getByText('已发货')).toBeVisible();
   },
 };

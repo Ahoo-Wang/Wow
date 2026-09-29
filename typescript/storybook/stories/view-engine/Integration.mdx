@@ -3,6 +3,10 @@ import * as IntegrationStories from './Integration.stories';
 import ordersDefinition from './integration/ordersDefinition.ts?raw';
 import wowSource from './integration/wowSource.ts?raw';
 import ordersEngine from './integration/ordersEngine.ts?raw';
+import ordersHost from './integration/OrdersHost.tsx?raw';
+import memoryRouter from './integration/memoryRouter.ts?raw';
+import orderActions from './integration/orderActions.ts?raw';
+import wowCommands from './integration/wowCommands.ts?raw';
 import ordersPage from './integration/OrdersPage.tsx?raw';
 import { readable } from './hostSource';
 
@@ -10,53 +14,97 @@ import { readable } from './hostSource';
 
 # 接入导览
 
-宿主研发把一个业务对象接进 View Engine，要写的就是下面四个文件。它们不是示意：这一页引用的是 `stories/view-engine/integration/` 里的源文件本身，Storybook 的类型检查与构建都编译它们，最下面的示例就是它们跑起来的样子。
+宿主研发把一个业务对象接进 View Engine，推荐的写法是下面五步。这一页引用的是 `stories/view-engine/integration/` 里的源文件本身，不是示意：Storybook 的类型检查与构建都编译它们，`integration.test.ts` 用 `/testing` 的 `admit` 与 `actionHarness` 核对它们，最下面的示例就是它们跑起来的样子。
 
-四步是：**声明能怎样观察**（定义）→ **接上数据**（Wow 的查询路由）→ **建一个引擎** → **在页面上渲染**。接好之后，筛选、列、排序、汇总、保存视图都是用户自己的事，不用再写代码。
+五步是：**声明定义**（`defineView` 与文字键）→ **注册资源、接上数据** → **ViewHost**（路由、主题、明暗）→ **声明操作** → **渲染页面**（导航与工作台）。接好之后，筛选、列、排序、汇总、保存视图都是读者自己的事，不用再写代码。
 
-## 0. 安装与样式
+## 0. 安装
 
 ```bash
 pnpm add @ahoo-wang/wow-view-engine @ahoo-wang/wow-client @ahoo-wang/fetcher @ahoo-wang/fetcher-decorator @ahoo-wang/fetcher-eventstream
 ```
 
-`@ahoo-wang/wow-view-engine` 还没有首次发布到公共仓库，发布之前从这个工作区取（`"@ahoo-wang/wow-view-engine": "workspace:^"`）或用本地 `pnpm pack` 的包。三个 `fetcher` 包是 wow-client 的对等依赖；`react`、`react-dom` 是 `/react` 与 `/ui` 入口的对等依赖。样式在第 3 步的页面里引入：`styles.css` 是引擎自己的，`themes.css` 是预设。预设挂在 `<html>` 上，和明暗的 `.dark` 一样由宿主在渲染之前决定：
+`@ahoo-wang/wow-view-engine` 还没有首次发布到公共仓库，发布之前从这个工作区取（`"@ahoo-wang/wow-view-engine": "workspace:^"`）或用本地 `pnpm pack` 的包。三个 `fetcher` 包是 wow-client 的对等依赖；`react`、`react-dom` 是 `/react` 与 `/ui` 入口的对等依赖，`react-router` 只有 `/react-router` 入口要（可选）。
 
-```ts
-document.documentElement.dataset.fvePreset = 'porcelain';
-```
+## 1. 声明定义：`defineView` 与文字键
 
-## 1. 声明能怎样观察：定义
+服务的查询描述（`GET /order/snapshot/schema`）提交在定义旁边（`ordersDescriptor.json`）。字段是什么——路径、类型、枚举值——从它读；定义只写选择：列出哪些字段、按什么次序、叫什么、状态用什么语气、收窄什么，以及随定义发布的系统视图。没列出的字段不出现；列了描述里没有的路径或值，准入会指出来。
 
-定义是代码，随应用部署：字段、每个字段能怎样筛选与汇总，以及随定义发布的系统视图。用户保存的视图每次打开都会按它重新校验。
+口径写 `text(key)`，不是某种语言的字符串：同一份定义服务每种语言，措辞表由第 3 步的 `ViewHost` 给，换语言只重画。
 
 <Source code={readable(ordersDefinition)} language="ts" />
 
-## 2. 接上数据，建一个引擎
+## 2. 注册资源，接上数据
 
-引擎只发 Wow 的查询（分页、游标、聚合），所以 wow-client 的快照查询客户端原样就是数据源；再给它一个 `describe`，引擎在第一次查询前读服务端的能力描述，只提供服务端接得住的操作符、分组与指标。
+引擎只发 Wow 的查询（分页、游标、聚合），所以 wow-client 的快照查询客户端原样就是数据源；再给它一个 `describe`，引擎在第一次查询前读服务端当下的能力描述，只提供这个部署接得住的算子、排序、分组与指标——同一份定义部署到 MongoDB 与 Elasticsearch，各得各的能力。
 
 <Source code={readable(wowSource)} language="ts" />
 
-一个页面一个引擎：它握着定义、视图存在哪里（`ViewStore`），以及每个定义的数据从哪里来。
+**一个应用一个引擎**，在启动时建一次：每个**资源**把一份定义和它的数据源配成一对，所有页面共用查询缓存、偏好与描述。看板定义没有数据源，写成 `{ definition }`。
 
 <Source code={readable(ordersEngine)} language="ts" />
 
-## 3. 在页面上渲染
+## 3. `ViewHost`：路由、主题与明暗
 
-`DataWorkbench` 是整张列表：左侧的视图列表、筛选、表格、汇总、保存与另存。宿主只渲染这一个组件。
+`ViewHost` 是宿主包在页面外面的唯一一层，由几个端口组成：数据（引擎）、路由、语言（`locale` 与措辞表）、主题，以及每个资源在这个宿主里做什么（`bind`：去哪个路由、带哪些操作、详情怎么读）。路由库、i18n 与主题系统仍是宿主的，端口只做桥。
+
+<Source code={readable(ordersHost)} language="tsx" />
+
+- **路由**：用 React Router 的宿主写 `router={useReactRouter()}`（从 `@ahoo-wang/wow-view-engine/react-router` 导入）。有了路由，引擎自己管地址：工作台打开的视图写在 `?view=`，记录详情跟着 `?id=`，看板的筛选与标签页、交接来的视图放在 history 的 state 里；每条离开看板或视图的路（「在工作台中打开」、追问、面板的去处）都经目标资源的 `route`。别的路由库照端口的两个成员写——下面这个是示例用的内存路由，换成你的路由，`location` 是它的当前地址，`go` 是它的跳转：
+
+<Source code={readable(memoryRouter)} language="ts" />
+
+- **主题，两条路选一条**：没有主题、或愿意用引擎主题的宿主写 `preset="porcelain"`（导入 `themes/porcelain.css`，或全部预设的 `themes.css`），可加 `brand` 品牌色；宿主自己的外壳挂 `fve-tokens`，拿到同一套 shadcn 名（`--background`、`--primary`…）。已有 shadcn 主题（Tailwind v4）的宿主写 `theme="host"`，导入 `shadcn-bridge.css`，引擎读宿主的变量。
+- **明暗归 `ViewHost`**：`colorMode` 缺省 `system`，在第一次绘制前给 `<html>` 挂 `.dark` 与 `color-scheme` 并跟随系统；`rememberColorMode` 把读者经 `useColorMode()` 选的记在这台机器上；宿主已经自己管明暗（如 next-themes）时写 `colorMode="host"`，否则两边会抢 `<html>` 的 `.dark`。下面的示例就写了 `host`：Storybook 工具栏在管明暗。
+- **宿主的类名不会和引擎的撞**：引擎的工具类都带前缀 `fve:`（`fve:flex`、`fve:md:w-64`），样式表的其余部分收在边界里，导入次序不影响；宿主写在视图里的 `sm:grid-cols-3` 只和宿主自己的规则比。
+
+## 4. 声明操作
+
+记录上的命令是声明，不是画出来的：宿主说**做什么**——有哪些命令、何时可用、不可用时怎么说、要不要先问；引擎负责**怎样做**——主操作是行里的按钮，其余在行的「⋯」菜单、多选条与详情抽屉里；多选时「4 条里 3 条能发货」并列出被拒的与理由，一键只选能做的；确认框、进度、停止、逐条的结果与播报，跑完刷新。
+
+<Source code={readable(orderActions)} language="ts" />
+
+`run` 要等读模型反映了命令再 resolve：引擎紧接着重读视图，早了读到的还是旧状态。Wow 的命令用 `CommandStage.SNAPSHOT`：
+
+<Source code={readable(wowCommands)} language="ts" />
+
+声明说不了的——一条链去宿主自己的页面、宿主自己要说的一句话——走 `bind` 的 `slots`（`row`／`bulk`／`global`），画在声明的操作之后，是逃生口，不是主路。
+
+## 5. 渲染：导航与工作台
+
+外壳只要定义的 id：`<DataWorkbench definitionId={ORDERS} />` 就是整张列表——视图列表、筛选、表格、汇总、操作、保存与另存。引擎不画整页外壳，给的是导航**数据**：`useViewNavigation()` 列出每个绑了 `route` 的资源和它的系统视图，各带去处（`path`）与「在不在这里」（`current`），标题按当下的措辞说出，宿主用自己的组件画（shadcn 的 `Sidebar`、顶栏都行）。
 
 <Source code={readable(ordersPage)} language="tsx" />
 
+应用入口把这几样放在一起。和下面的示例相比，只有路由与数据换成了真的：
+
+```tsx
+import { useReactRouter } from '@ahoo-wang/wow-view-engine/react-router';
+
+// 应用启动时各建一次。
+const engine = createOrdersEngine(wowOrderSource(fetcher));
+const commands = wowOrderCommands(fetcher);
+
+export function App() {
+  const router = useReactRouter();
+  return (
+    <OrdersHost engine={engine} router={router} commands={commands}>
+      <OrdersPage go={path => router.go(path)} />
+    </OrdersHost>
+  );
+}
+```
+
 ## 跑起来的样子
 
-下面就是 `OrdersPage` 本身，只把第 2 步的 `wowOrderSource(fetcher)` 换成了内存里的十二张示例单。打开是系统视图「待发货」：改一个筛选，标题会提醒你还没保存；「另存为」会存成你自己的视图。也可以[在独立画布里打开](./?path=/story/view-engine-接入导览--example)。
+下面就是 `OrdersHost` 与 `OrdersPage` 本身，只把数据源换成了内存里的十二张示例单（`/testing` 的 `memorySource`，按 Wow 服务的规则作答），命令改的也是它们，路由是第 3 步的内存路由。打开是系统视图「待发货」：按一行的「发货」，那张单离开这个视图；勾几张再按「发货 N 条」，引擎先问；左边点「全部订单」，工作台照地址打开那张视图。改一个筛选，标题会提醒你还没保存；「另存为」会存成你自己的视图。也可以[在独立画布里打开](./?path=/story/view-engine-接入导览--example)。
 
 <Canvas of={IntegrationStories.Example} />
 
 ## 接下来
 
-- 一块仪表盘、嵌进宿主自己的页面、宿主挂在行上的命令：看[导览](./?path=/docs/view-engine-导览--docs)里的业务场景，每个场景文档页的「Show code」是那个场景的宿主代码。
-- 主题、预设、品牌色与密度：[主题与预设](./?path=/docs/view-engine-能力-主题与预设--docs)。
+- 一块仪表盘、嵌进宿主自己的页面、看板上的记录面板带宿主的操作：看[导览](./?path=/docs/view-engine-导览--docs)里的业务场景，每个场景文档页的「Show code」是那个场景的宿主代码。
+- 声明式操作的每一种样子——主操作与溢出菜单、部分可用、表单、危险确认、到点翻转、进度与停止、详情抽屉：[声明式操作](./?path=/story/view-engine-组件状态-声明式操作--row-primary-and-overflow)。
+- 主题、预设、品牌色与密度：[主题与预设](./?path=/docs/view-engine-能力-主题与预设--docs)；已有 shadcn 主题的宿主：[宿主自定义主题](./?path=/story/view-engine-能力-主题与预设-宿主自定义主题--host-authored)。
 - 服务端收窄能力之后引擎怎样跟着收：[随部署收窄](./?path=/docs/view-engine-能力-随部署收窄--docs)。
-- 完整的 API 与每个选项：`@ahoo-wang/wow-view-engine` 的 README。
+- 完整的 API 与每个选项：`@ahoo-wang/wow-view-engine` 的 README（「Put the engine above your pages: `ViewHost`」「Integrating a host: declared actions」「Testing a host」）。

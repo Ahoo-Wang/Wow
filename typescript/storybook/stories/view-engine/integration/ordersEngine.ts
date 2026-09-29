@@ -20,8 +20,9 @@ import {
 import { browserRuntimeEnvironment } from '@ahoo-wang/wow-view-engine/react';
 import { ordersDefinition } from './ordersDefinition.js';
 
-// Step 2b: one engine for the page. It holds each definition with the
-// source its rows come from, and where views are saved.
+// Step 2b: one engine for the application, built once at its start. Each
+// resource pairs a definition with the source its rows come from; every
+// page shares its queries, preferences and descriptors.
 export function createOrdersEngine(
   source: ViewSource,
   // Saved views live here. `MemoryViewStore` forgets them on reload; a host

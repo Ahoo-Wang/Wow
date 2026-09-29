@@ -10,6 +10,9 @@
     "emitDecoratorMetadata": true,
     "module": "ESNext",
     "moduleResolution": "bundler",
+    // A service's committed query descriptor is a JSON file (the
+    // integration walkthrough's `ordersDescriptor.json`).
+    "resolveJsonModule": true,
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "jsx": "react-jsx",
     "strict": true,
