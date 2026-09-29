@@ -89,7 +89,7 @@ Swagger UI 是 Springdoc 应用特性，不属于路由合同本身。匹配的 
 
 ### 拥有者资源
 
-`AggregateRoute.Owner.ALWAYS` 会在默认 owned 路由添加 `owner/{ownerId}` 并保留 resource ID；快照查询同时发布基础和 owner 作用域变体：
+`AggregateRoute.Owner.ALWAYS` 会在默认 owned 路由添加 `owner/{ownerId}` 并保留 resource ID；快照与事件流查询同时发布基础和 owner 作用域变体；若聚合还具有动态 tenant，另发布同时收窄到二者的 `tenant/{tenantId}/owner/{ownerId}` 变体：
 
 ```kotlin
 @AggregateRoot

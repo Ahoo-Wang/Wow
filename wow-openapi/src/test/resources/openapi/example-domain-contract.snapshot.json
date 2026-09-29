@@ -2016,6 +2016,141 @@
   "tagNames" : [ "example.order" ]
 }, {
   "accept" : [ "application/json", "text/event-stream" ],
+  "id" : "example.order.tenant.owner.event.aggregation",
+  "method" : "POST",
+  "parameterNames" : [ "ref:#/components/parameters/wow.tenantId", "ref:#/components/parameters/wow.ownerId", "ref:#/components/parameters/wow.Wow-Space-Id" ],
+  "path" : "/tenant/{tenantId}/owner/{ownerId}/sales-order/event/aggregation",
+  "requestBody" : true,
+  "responseCodes" : [ "200" ],
+  "tagNames" : [ "example.order" ]
+}, {
+  "accept" : [ "application/json" ],
+  "id" : "example.order.tenant.owner.event.count",
+  "method" : "POST",
+  "parameterNames" : [ "ref:#/components/parameters/wow.tenantId", "ref:#/components/parameters/wow.ownerId", "ref:#/components/parameters/wow.Wow-Space-Id" ],
+  "path" : "/tenant/{tenantId}/owner/{ownerId}/sales-order/event/count",
+  "requestBody" : true,
+  "responseCodes" : [ "200" ],
+  "tagNames" : [ "example.order" ]
+}, {
+  "accept" : [ "application/json" ],
+  "id" : "example.order.tenant.owner.event.cursor_query",
+  "method" : "POST",
+  "parameterNames" : [ "ref:#/components/parameters/wow.tenantId", "ref:#/components/parameters/wow.ownerId", "ref:#/components/parameters/wow.Wow-Space-Id" ],
+  "path" : "/tenant/{tenantId}/owner/{ownerId}/sales-order/event/cursor",
+  "requestBody" : true,
+  "responseCodes" : [ "200" ],
+  "tagNames" : [ "example.order" ]
+}, {
+  "accept" : [ "application/json", "text/event-stream" ],
+  "id" : "example.order.tenant.owner.event.list_query",
+  "method" : "POST",
+  "parameterNames" : [ "ref:#/components/parameters/wow.tenantId", "ref:#/components/parameters/wow.ownerId", "ref:#/components/parameters/wow.Wow-Space-Id" ],
+  "path" : "/tenant/{tenantId}/owner/{ownerId}/sales-order/event/list",
+  "requestBody" : true,
+  "responseCodes" : [ "200" ],
+  "tagNames" : [ "example.order" ]
+}, {
+  "accept" : [ "application/json" ],
+  "id" : "example.order.tenant.owner.event.paged_query",
+  "method" : "POST",
+  "parameterNames" : [ "ref:#/components/parameters/wow.tenantId", "ref:#/components/parameters/wow.ownerId", "ref:#/components/parameters/wow.Wow-Space-Id" ],
+  "path" : "/tenant/{tenantId}/owner/{ownerId}/sales-order/event/paged",
+  "requestBody" : true,
+  "responseCodes" : [ "200" ],
+  "tagNames" : [ "example.order" ]
+}, {
+  "accept" : [ "application/json", "text/event-stream" ],
+  "id" : "example.order.tenant.owner.snapshot.aggregation",
+  "method" : "POST",
+  "parameterNames" : [ "ref:#/components/parameters/wow.tenantId", "ref:#/components/parameters/wow.ownerId", "ref:#/components/parameters/wow.Wow-Space-Id" ],
+  "path" : "/tenant/{tenantId}/owner/{ownerId}/sales-order/snapshot/aggregation",
+  "requestBody" : true,
+  "responseCodes" : [ "200", "408", "429" ],
+  "tagNames" : [ "example.order" ]
+}, {
+  "accept" : [ "application/json" ],
+  "id" : "example.order.tenant.owner.snapshot.count",
+  "method" : "POST",
+  "parameterNames" : [ "ref:#/components/parameters/wow.tenantId", "ref:#/components/parameters/wow.ownerId", "ref:#/components/parameters/wow.Wow-Space-Id" ],
+  "path" : "/tenant/{tenantId}/owner/{ownerId}/sales-order/snapshot/count",
+  "requestBody" : true,
+  "responseCodes" : [ "200", "408", "429" ],
+  "tagNames" : [ "example.order" ]
+}, {
+  "accept" : [ "application/json" ],
+  "id" : "example.order.tenant.owner.snapshot.cursor_query",
+  "method" : "POST",
+  "parameterNames" : [ "ref:#/components/parameters/wow.tenantId", "ref:#/components/parameters/wow.ownerId", "ref:#/components/parameters/wow.Wow-Space-Id" ],
+  "path" : "/tenant/{tenantId}/owner/{ownerId}/sales-order/snapshot/cursor",
+  "requestBody" : true,
+  "responseCodes" : [ "200" ],
+  "tagNames" : [ "example.order" ]
+}, {
+  "accept" : [ "application/json" ],
+  "id" : "example.order.tenant.owner.snapshot_state.cursor_query",
+  "method" : "POST",
+  "parameterNames" : [ "ref:#/components/parameters/wow.tenantId", "ref:#/components/parameters/wow.ownerId", "ref:#/components/parameters/wow.Wow-Space-Id" ],
+  "path" : "/tenant/{tenantId}/owner/{ownerId}/sales-order/snapshot/cursor/state",
+  "requestBody" : true,
+  "responseCodes" : [ "200" ],
+  "tagNames" : [ "example.order" ]
+}, {
+  "accept" : [ "application/json", "text/event-stream" ],
+  "id" : "example.order.tenant.owner.snapshot.list_query",
+  "method" : "POST",
+  "parameterNames" : [ "ref:#/components/parameters/wow.tenantId", "ref:#/components/parameters/wow.ownerId", "ref:#/components/parameters/wow.Wow-Space-Id" ],
+  "path" : "/tenant/{tenantId}/owner/{ownerId}/sales-order/snapshot/list",
+  "requestBody" : true,
+  "responseCodes" : [ "200" ],
+  "tagNames" : [ "example.order" ]
+}, {
+  "accept" : [ "application/json", "text/event-stream" ],
+  "id" : "example.order.tenant.owner.snapshot_state.list_query",
+  "method" : "POST",
+  "parameterNames" : [ "ref:#/components/parameters/wow.tenantId", "ref:#/components/parameters/wow.ownerId", "ref:#/components/parameters/wow.Wow-Space-Id" ],
+  "path" : "/tenant/{tenantId}/owner/{ownerId}/sales-order/snapshot/list/state",
+  "requestBody" : true,
+  "responseCodes" : [ "200" ],
+  "tagNames" : [ "example.order" ]
+}, {
+  "accept" : [ "application/json" ],
+  "id" : "example.order.tenant.owner.snapshot.paged_query",
+  "method" : "POST",
+  "parameterNames" : [ "ref:#/components/parameters/wow.tenantId", "ref:#/components/parameters/wow.ownerId", "ref:#/components/parameters/wow.Wow-Space-Id" ],
+  "path" : "/tenant/{tenantId}/owner/{ownerId}/sales-order/snapshot/paged",
+  "requestBody" : true,
+  "responseCodes" : [ "200" ],
+  "tagNames" : [ "example.order" ]
+}, {
+  "accept" : [ "application/json" ],
+  "id" : "example.order.tenant.owner.snapshot_state.paged_query",
+  "method" : "POST",
+  "parameterNames" : [ "ref:#/components/parameters/wow.tenantId", "ref:#/components/parameters/wow.ownerId", "ref:#/components/parameters/wow.Wow-Space-Id" ],
+  "path" : "/tenant/{tenantId}/owner/{ownerId}/sales-order/snapshot/paged/state",
+  "requestBody" : true,
+  "responseCodes" : [ "200" ],
+  "tagNames" : [ "example.order" ]
+}, {
+  "accept" : [ "application/json" ],
+  "id" : "example.order.tenant.owner.snapshot.single",
+  "method" : "POST",
+  "parameterNames" : [ "ref:#/components/parameters/wow.tenantId", "ref:#/components/parameters/wow.ownerId", "ref:#/components/parameters/wow.Wow-Space-Id" ],
+  "path" : "/tenant/{tenantId}/owner/{ownerId}/sales-order/snapshot/single",
+  "requestBody" : true,
+  "responseCodes" : [ "200", "404" ],
+  "tagNames" : [ "example.order" ]
+}, {
+  "accept" : [ "application/json" ],
+  "id" : "example.order.tenant.owner.snapshot_state.single",
+  "method" : "POST",
+  "parameterNames" : [ "ref:#/components/parameters/wow.tenantId", "ref:#/components/parameters/wow.ownerId", "ref:#/components/parameters/wow.Wow-Space-Id" ],
+  "path" : "/tenant/{tenantId}/owner/{ownerId}/sales-order/snapshot/single/state",
+  "requestBody" : true,
+  "responseCodes" : [ "200", "404" ],
+  "tagNames" : [ "example.order" ]
+}, {
+  "accept" : [ "application/json", "text/event-stream" ],
   "id" : "example.order.default_delete_aggregate",
   "method" : "DELETE",
   "parameterNames" : [ "ref:#/components/parameters/wow.tenantId", "ref:#/components/parameters/wow.ownerId", "ref:#/components/parameters/wow.id", "ref:#/components/parameters/wow.Wow-Space-Id", "ref:#/components/parameters/wow.Command-Wait-Stage", "ref:#/components/parameters/wow.Command-Wait-Context", "ref:#/components/parameters/wow.Command-Wait-Processor", "ref:#/components/parameters/wow.Command-Wait-Function", "ref:#/components/parameters/wow.Command-Wait-Timeout", "ref:#/components/parameters/wow.Command-Wait-Tail-Stage", "ref:#/components/parameters/wow.Command-Wait-Tail-Context", "ref:#/components/parameters/wow.Command-Wait-Tail-Processor", "ref:#/components/parameters/wow.Command-Wait-Tail-Function", "ref:#/components/parameters/wow.Command-Aggregate-Id", "ref:#/components/parameters/wow.Command-Aggregate-Version", "ref:#/components/parameters/wow.Command-Request-Id", "ref:#/components/parameters/wow.Command-Local-First", "ref:#/components/parameters/wow.Accept" ],

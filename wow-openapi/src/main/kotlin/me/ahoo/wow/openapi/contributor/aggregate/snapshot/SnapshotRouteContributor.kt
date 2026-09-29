@@ -31,11 +31,14 @@ import me.ahoo.wow.openapi.contract.HttpResponse
 import me.ahoo.wow.openapi.contract.HttpRouteContract
 import me.ahoo.wow.openapi.contract.HttpRouteHandlerMetadata
 import me.ahoo.wow.openapi.contract.HttpSchema
+import me.ahoo.wow.openapi.contributor.aggregate.TenantOwnerVariant
 import me.ahoo.wow.openapi.contributor.aggregate.aggregateParameters
 import me.ahoo.wow.openapi.contributor.aggregate.aggregatePath
 import me.ahoo.wow.openapi.contributor.aggregate.aggregateTags
 import me.ahoo.wow.openapi.contributor.aggregate.defaultAppendOwnerPath
 import me.ahoo.wow.openapi.contributor.aggregate.defaultAppendTenantPath
+import me.ahoo.wow.openapi.contributor.aggregate.tenantOwnerSummary
+import me.ahoo.wow.openapi.contributor.aggregate.tenantOwnerVariants
 import me.ahoo.wow.openapi.contributor.aggregatedAggregationQueryRequestBodyRef
 import me.ahoo.wow.openapi.contributor.aggregatedCountQueryRequestBodyRef
 import me.ahoo.wow.openapi.contributor.aggregatedCursorQueryRequestBodyRef
@@ -75,7 +78,7 @@ object SnapshotRouteContributor : RouteContributor {
     ): List<HttpRouteContract> {
         return buildList {
             add(snapshotSchemaRoute(currentContext, aggregateRouteMetadata, componentContext))
-            tenantOwnerVariants(aggregateRouteMetadata).forEach { variant ->
+            aggregateRouteMetadata.tenantOwnerVariants().forEach { variant ->
                 addAll(queryRoutes(currentContext, aggregateRouteMetadata, componentContext, variant))
             }
             add(loadSnapshotRoute(currentContext, aggregateRouteMetadata, componentContext))
@@ -524,44 +527,6 @@ object SnapshotRouteContributor : RouteContributor {
             componentContext.notFoundResponseRef()
         )
     }
-
-    private fun tenantOwnerVariants(
-        aggregateRouteMetadata: AggregateRouteMetadata<*>
-    ): List<TenantOwnerVariant> {
-        return buildList {
-            add(TenantOwnerVariant(appendTenantPath = false, appendOwnerPath = false))
-            if (aggregateRouteMetadata.defaultAppendTenantPath()) {
-                add(TenantOwnerVariant(appendTenantPath = true, appendOwnerPath = false))
-            }
-            if (aggregateRouteMetadata.defaultAppendOwnerPath()) {
-                add(TenantOwnerVariant(appendTenantPath = false, appendOwnerPath = true))
-            }
-        }
-    }
-
-    private fun tenantOwnerSummary(
-        operationSummary: String,
-        appendTenantPath: Boolean,
-        appendOwnerPath: Boolean
-    ): String {
-        return buildString {
-            append(operationSummary)
-            if (appendTenantPath || appendOwnerPath) {
-                append(" Within")
-                if (appendTenantPath) {
-                    append(" Tenant")
-                }
-                if (appendOwnerPath) {
-                    append(" Owner")
-                }
-            }
-        }
-    }
-
-    private data class TenantOwnerVariant(
-        val appendTenantPath: Boolean,
-        val appendOwnerPath: Boolean
-    )
 
     private const val SNAPSHOT = "snapshot"
     private const val SNAPSHOT_STATE = "snapshot_state"

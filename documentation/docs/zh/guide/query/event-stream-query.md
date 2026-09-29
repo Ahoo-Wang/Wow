@@ -80,6 +80,7 @@ POST /sales-order/event/count
 ```text
 POST /tenant/{tenantId}/sales-order/event/{list|paged|cursor|count}
 POST /owner/{ownerId}/sales-order/event/{list|paged|cursor|count}
+POST /tenant/{tenantId}/owner/{ownerId}/sales-order/event/{list|paged|cursor|count}
 ```
 
 聚合与 Schema 是独立于上述数据查询形态的合同：
@@ -88,6 +89,7 @@ POST /owner/{ownerId}/sales-order/event/{list|paged|cursor|count}
 POST /sales-order/event/aggregation
 POST /tenant/{tenantId}/sales-order/event/aggregation
 POST /owner/{ownerId}/sales-order/event/aggregation
+POST /tenant/{tenantId}/owner/{ownerId}/sales-order/event/aggregation
 GET /sales-order/event/schema
 ```
 
