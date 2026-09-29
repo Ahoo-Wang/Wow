@@ -16,6 +16,7 @@ package me.ahoo.wow.viewstore.starter
 import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.viewstore.ViewStoreService
+import me.ahoo.wow.viewstore.api.ScopeIds
 import org.springframework.http.server.PathContainer
 import org.springframework.web.util.pattern.PathPattern
 import org.springframework.web.util.pattern.PathPatternParser
@@ -69,8 +70,8 @@ class ViewStorePaths(currentContext: NamedBoundedContext) {
     fun isViewStorePath(path: String): Boolean = isViewStorePath(PathContainer.parsePath(path))
 
     /**
-     * Whether the decoded tenant and owner of [path] (one of the view store's paths) name one: not empty, and without
-     * whitespace or control characters anywhere. Wow reads a blank tenant or owner path variable as missing and falls
+     * Whether the decoded tenant and owner of [path] (one of the view store's paths) name one ([ScopeIds]): not
+     * empty, and nothing invisible in them. Wow reads a blank tenant or owner path variable as missing and falls
      * back to the `Command-Tenant-Id` / `Command-Owner-Id` headers (or to no owner at all, which skips its owner
      * check), so `/tenant/t1/owner/%20/…` would otherwise escape the path's scope.
      */
@@ -90,9 +91,17 @@ class ViewStorePaths(currentContext: NamedBoundedContext) {
     fun viewTarget(path: String): ViewTarget? = viewTarget(PathContainer.parsePath(path))
 }
 
-private fun String?.isScopeId(): Boolean =
-    !isNullOrEmpty() && none { it.isWhitespace() || it.isISOControl() }
+private fun String?.isScopeId(): Boolean = ScopeIds.isValid(this)
 
-internal fun String.toPattern(): PathPattern = PathPatternParser.defaultInstance.parse(this)
+/**
+ * The parser of every path decision of the starter. It matches case-insensitively: a host may configure its WebFlux
+ * path matching so (`PathMatchConfigurer.setUseCaseSensitiveMatch(false)`), and Spring then routes Wow's routes
+ * case-insensitively too. The decisions that refuse (closed routes, the facade, the scope rule) must match at least
+ * what Spring routes, and matching more is safe: on a case-sensitive host a path whose case differs from a route's
+ * reaches none of the view store's routes, so what the starter decides for it has no effect.
+ */
+private val PATH_PARSER = PathPatternParser().apply { isCaseSensitive = false }
+
+internal fun String.toPattern(): PathPattern = PATH_PARSER.parse(this)
 
 data class ViewTarget(val tenantId: String, val viewId: String)

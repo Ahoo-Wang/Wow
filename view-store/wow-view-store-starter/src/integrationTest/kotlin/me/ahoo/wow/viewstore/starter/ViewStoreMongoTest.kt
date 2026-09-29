@@ -396,6 +396,57 @@ class ViewStoreMongoTest {
         getPreferences("$SCOPE/alice/definitions/orders/preferences").expectBody().jsonPath("$.version").isEqualTo(0)
     }
 
+    /**
+     * Characters that display as nothing: `owner/alice%E2%80%8B` would be an owner that reads as `alice`. Zero-width
+     * space, byte order mark, soft hyphen, word joiner, Mongolian vowel separator, a private-use character.
+     */
+    private val invisibleSegments = listOf(
+        "alice%E2%80%8B", "%EF%BB%BFalice", "al%C2%ADice", "alice%E2%81%A0", "alice%E1%A0%8E", "alice%EE%80%80",
+    )
+
+    @Test
+    fun `a tenant or owner with an invisible character is refused`() {
+        val personal = create("alice")
+        invisibleSegments.forEach { segment ->
+            val shared = create(SHARED)
+            listOf(
+                scoped("PUT", "/view-store/tenant/t1/owner/$segment/view/$shared/claim", null, emptyMap(), version = 1),
+                scoped("PUT", "/view-store/tenant/t1/owner/$segment/view/$personal/rename", """{"title":"X"}""", emptyMap(), version = 1),
+                scoped("PUT", "/view-store/tenant/t1$segment/owner/alice/view/$personal/rename", """{"title":"X"}""", emptyMap(), version = 1),
+                scoped("POST", "/view-store/tenant/t1/owner/$segment/view/snapshot/list", listQuery { }.toJsonString(), emptyMap()),
+            ).forEach { response ->
+                response.expectStatus().isBadRequest
+                    .expectBody().jsonPath("$.errorCode").isEqualTo(ViewStoreErrorCodes.VIEW_SCOPE_REQUIRED)
+            }
+            single(SHARED, shared).expectStatus().isOk.expectBody().jsonPath("$.version").isEqualTo(1)
+        }
+        single("alice", personal).expectStatus().isOk.expectBody().jsonPath("$.version").isEqualTo(1)
+    }
+
+    @Test
+    fun `a caller's command headers never reach the command`() {
+        val prefix = CommandComponent.Header.COMMAND_HEADER_X_PREFIX
+        val result = scoped(
+            "POST",
+            "$SCOPE/alice/view",
+            """{"definitionId":"orders","title":"View","config":{"kind":"record"}}""",
+            mapOf(
+                prefix + "command_operator" to "bob",
+                prefix.lowercase() + "app_id" to OTHER_APP,
+                prefix.uppercase() + "TENANT_ID" to "t9",
+                prefix + "owner_id" to "bob",
+            ),
+        ).expectStatus().isOk.expectBody(JsonNode::class.java).returnResult().responseBody!!
+        val id = result.get("aggregateId").stringValue()
+        val snapshot = single("alice", id).expectStatus().isOk
+            .expectBody(JsonNode::class.java).returnResult().responseBody!!
+        snapshot.get("operator").stringValue().assert().isNotEqualTo("bob")
+        snapshot.get("firstOperator").stringValue().assert().isNotEqualTo("bob")
+        snapshot.get("state").get("appId").stringValue().assert().isEqualTo(APP)
+        snapshot.get("tenantId").stringValue().assert().isEqualTo("t1")
+        snapshot.get("ownerId").stringValue().assert().isEqualTo("alice")
+    }
+
     @Test
     fun `a caller's tenant and owner headers never replace the path's`() {
         val id = create("alice")

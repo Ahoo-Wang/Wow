@@ -68,11 +68,28 @@ class ViewStorePathsTest {
         hosted.hasValidScope("/view-store/tenant/t1/owner/alice/view/v1/rename").assert().isTrue()
         hosted.hasValidScope("/view-store/tenant/t1/owner/(shared)/view").assert().isTrue()
         hosted.hasValidScope("/view-store/tenant/(0)/owner/alice%2Dx/view").assert().isTrue()
-        listOf("%20", "%09", "%E3%80%80", "%C2%A0", "%00", "%0A", "%20%20", "%20;x=alice", "alice%20", "%20alice", "al%20ice")
+        listOf(
+            "%20", "%09", "%E3%80%80", "%C2%A0", "%00", "%0A", "%20%20", "%20;x=alice", "alice%20", "%20alice", "al%20ice",
+            "alice%E2%80%8B", "%EF%BB%BFalice", "al%C2%ADice", "alice%E2%81%A0", "alice%E1%A0%8E", "%E2%80%A8",
+        )
             .forEach { blank ->
                 hosted.hasValidScope("/view-store/tenant/t1/owner/$blank/view/v1/rename").assert().isFalse()
                 hosted.hasValidScope("/view-store/tenant/$blank/owner/alice/view").assert().isFalse()
             }
         hosted.hasValidScope("/cart/c1").assert().isFalse()
+    }
+
+    @Test
+    fun `matches the view store's paths in any case, as a case-insensitive host routes them`() {
+        listOf(
+            "/VIEW-STORE/tenant/t1/owner/alice/view/v1/rename",
+            "/view-store/TENANT/t1/Owner/alice/VIEW/v1/rename",
+        ).forEach { path ->
+            hosted.isViewStorePath(path).assert().isTrue()
+            hosted.viewTarget(path).assert().isEqualTo(ViewTarget("t1", "v1"))
+        }
+        hosted.hasValidScope("/view-store/tenant/t1/OWNER/%20/view").assert().isFalse()
+        // The variables keep their case.
+        hosted.viewTarget("/view-store/tenant/T1/owner/alice/view/V1").assert().isEqualTo(ViewTarget("T1", "V1"))
     }
 }

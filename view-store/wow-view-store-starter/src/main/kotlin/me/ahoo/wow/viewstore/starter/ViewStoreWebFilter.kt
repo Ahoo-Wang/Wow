@@ -36,7 +36,8 @@ import reactor.core.publisher.Mono
  * - only the view store's own routes are open: the rest of what Wow generates for its aggregates, and the command
  *   facade for its commands, answer not found ([ViewStoreRouteGuard]);
  * - the server generates every aggregate id, so a `Command-Aggregate-Id` a caller sends is dropped;
- * - the application comes from `CoSec-App-Id` only, so a `Command-Header-app_id` a caller sends is dropped;
+ * - the command header is the server's: every `Command-Header-*` a caller sends is dropped (the application comes
+ *   from `CoSec-App-Id` only, through [ViewStoreAppIdHeaderAppender]);
  * - the tenant and owner come from the path only: a path whose tenant or owner is empty or holds whitespace or
  *   control characters is refused with [ViewStoreErrorCodes.VIEW_SCOPE_REQUIRED] (Wow would read a blank one as
  *   missing and fall back to the headers), and a `Command-Tenant-Id` or `Command-Owner-Id` a caller sends is dropped;
@@ -53,16 +54,16 @@ class ViewStoreWebFilter(
     companion object {
         private val WRITE_METHODS = setOf(HttpMethod.POST, HttpMethod.PUT, HttpMethod.PATCH, HttpMethod.DELETE)
 
-        /** The request header Wow's extend appender turns into the command header `app_id`. */
-        val APP_ID_COMMAND_HEADER = CommandComponent.Header.COMMAND_HEADER_X_PREFIX + ViewStoreService.APP_ID_MESSAGE_HEADER
-
-        /** The request headers a caller may not set on the view store's paths. */
+        /** The request headers a caller may not set on the view store's paths, beside every `Command-Header-*`. */
         private val CLIENT_HEADERS = listOf(
             CommandComponent.Header.AGGREGATE_ID,
             CommandComponent.Header.TENANT_ID,
             CommandComponent.Header.OWNER_ID,
-            APP_ID_COMMAND_HEADER,
         )
+
+        private fun isClientHeader(name: String): Boolean =
+            CLIENT_HEADERS.any { it.equals(name, ignoreCase = true) } ||
+                name.startsWith(CommandComponent.Header.COMMAND_HEADER_X_PREFIX, ignoreCase = true)
     }
 
     override fun filter(exchange: ServerWebExchange, chain: WebFilterChain): Mono<Void> {
@@ -108,12 +109,11 @@ class ViewStoreWebFilter(
 
     /**
      * Drops the headers a caller may not set: the aggregate id, the tenant and owner (the path's are the only ones),
-     * and the application of the command header.
+     * and every `Command-Header-*`, which Wow's extend appender copies into the command's header as it is (the
+     * application `app_id`, but also `command_operator` and any other key the domain or Wow reads).
      */
     private fun ServerWebExchange.withoutClientHeaders(): ServerWebExchange {
-        val names = request.headers.headerNames().filter { name ->
-            CLIENT_HEADERS.any { it.equals(name, ignoreCase = true) }
-        }
+        val names = request.headers.headerNames().filter(::isClientHeader)
         if (names.isEmpty()) {
             return this
         }

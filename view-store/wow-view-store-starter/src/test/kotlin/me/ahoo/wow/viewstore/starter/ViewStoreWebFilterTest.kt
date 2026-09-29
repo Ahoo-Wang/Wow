@@ -129,7 +129,7 @@ class ViewStoreWebFilterTest {
                 .build()
         ).second.exchange!!.request.headers
         passed.headerNames().none { it.equals(header, ignoreCase = true) }.assert().isTrue()
-        passed.getFirst(CommandComponent.Header.COMMAND_HEADER_X_PREFIX + "other").assert().isEqualTo("kept")
+        passed.getFirst(CommandComponent.Header.COMMAND_HEADER_X_PREFIX + "other").assert().isNull()
         run(MockServerHttpRequest.post("/cart").header(header, "portal").build())
             .second.exchange!!.request.headers.getFirst(header).assert().isEqualTo("portal")
     }
@@ -224,6 +224,46 @@ class ViewStoreWebFilterTest {
         }.assert().isTrue()
         run(MockServerHttpRequest.post("/cart").header(CommandComponent.Header.OWNER_ID, "bob").build())
             .second.exchange!!.request.headers.getFirst(CommandComponent.Header.OWNER_ID).assert().isEqualTo("bob")
+    }
+
+    @Test
+    fun `drops every command header a caller sends, on view store paths only`() {
+        val prefix = CommandComponent.Header.COMMAND_HEADER_X_PREFIX
+        val passed = run(
+            MockServerHttpRequest.post("/view-store/tenant/t1/OWNER/alice/view")
+                .header(prefix + "command_operator", "bob")
+                .header(prefix.lowercase() + "app_id", "portal")
+                .header(prefix.uppercase() + "ANY", "x")
+                .header(CommandComponent.Header.AGGREGATE_ID, "chosen")
+                .header(CommandComponent.Header.REQUEST_ID, "r1")
+                .build()
+        ).second.exchange!!.request.headers
+        passed.headerNames().none { it.startsWith(prefix, ignoreCase = true) }.assert().isTrue()
+        passed.getFirst(CommandComponent.Header.AGGREGATE_ID).assert().isNull()
+        passed.getFirst(CommandComponent.Header.REQUEST_ID).assert().isEqualTo("r1")
+        run(MockServerHttpRequest.post("/cart").header(prefix + "command_operator", "bob").build())
+            .second.exchange!!.request.headers.getFirst(prefix + "command_operator").assert().isEqualTo("bob")
+    }
+
+    @Test
+    fun `refuses in any case what a case-insensitive host would route`() {
+        listOf(
+            raw(HttpMethod.GET, "/view-store/tenant/t1/owner/alice/VIEW/v1/state"),
+            raw(HttpMethod.GET, "/VIEW-STORE/tenant/t1/OWNER/alice/view/v1/snapshot"),
+            raw(HttpMethod.POST, "/WOW/command/SEND")
+                .header(CommandComponent.Header.COMMAND_TYPE, CreateView::class.java.name),
+        ).forEach { request ->
+            val (exchange, chain) = run(request.header(ViewStoreService.APP_ID_HEADER, "console").build())
+            chain.exchange.assert().isNull()
+            exchange.response.statusCode.assert().isEqualTo(HttpStatus.NOT_FOUND)
+        }
+        val (exchange, chain) = run(raw(HttpMethod.PUT, "/view-store/tenant/t1/OWNER/%E2%80%8B/view/v1/rename").build())
+        chain.exchange.assert().isNull()
+        exchange.response.statusCode.assert().isEqualTo(HttpStatus.BAD_REQUEST)
+        run(
+            raw(HttpMethod.PUT, "/view-store/tenant/t1/OWNER/(shared)/VIEW/open/rename")
+                .header(ViewStoreService.APP_ID_HEADER, "console").build()
+        ).first.response.statusCode.assert().isEqualTo(HttpStatus.FORBIDDEN)
     }
 
     /** [path] exactly as written: `%xx` escapes are not encoded again. */

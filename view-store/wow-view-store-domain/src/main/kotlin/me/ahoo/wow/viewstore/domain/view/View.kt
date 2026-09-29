@@ -21,6 +21,7 @@ import me.ahoo.wow.api.command.DefaultDeleteAggregate
 import me.ahoo.wow.api.event.DefaultAggregateDeleted
 import me.ahoo.wow.api.exception.BindingError
 import me.ahoo.wow.viewstore.ViewStoreService.SHARED_OWNER_ID
+import me.ahoo.wow.viewstore.api.ScopeIds
 import me.ahoo.wow.viewstore.api.ViewAudience
 import me.ahoo.wow.viewstore.api.view.ClaimView
 import me.ahoo.wow.viewstore.api.view.CreateView
@@ -128,7 +129,7 @@ class View(private val state: ViewState) {
     }
 
     /**
-     * A view is claimed by a user, never by a reserved owner or an id with blanks or control characters in it; and a
+     * A view is claimed by a user, never by a reserved owner or an id with anything invisible in it; and a
      * view already personal only by the owner it has
      * (which records the change to the same owner).
      */
@@ -146,10 +147,9 @@ class View(private val state: ViewState) {
         const val REFERENCED_BY_SHARED_DASHBOARD = "referenced-by-shared-dashboard"
 
         /**
-         * Whether this can be a user's id: not blank, without blanks or control characters, and not in parentheses,
-         * which mark a reserved owner such as `(shared)`.
+         * Whether this can be a user's id: a valid owner of a path ([ScopeIds], so nothing invisible in it), and not
+         * in parentheses, which mark a reserved owner such as `(shared)`.
          */
-        private fun String.isUserId(): Boolean =
-            isNotEmpty() && none { it.isWhitespace() || it.isISOControl() } && !(startsWith("(") && endsWith(")"))
+        private fun String.isUserId(): Boolean = ScopeIds.isValid(this) && !(startsWith("(") && endsWith(")"))
     }
 }

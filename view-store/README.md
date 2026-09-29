@@ -27,7 +27,10 @@ Add `wow-view-store-starter` to a Wow WebFlux service. The routes are served und
 Every other route Wow generates for the two aggregates (state, tracing, event streams, snapshot maintenance,
 compensation, recover and resource tags), and the command facade for their commands, answers 404. Commands carry no
 id (Wow takes it from `{id}`); a command without fields (`share`, `delete`) is sent with the body `{}`. The application comes from `CoSec-App-Id`
-only. Set `wow.view-store.enabled=false` to turn the starter off, and replace the default `SystemViewProvider` bean
+only, and every `Command-Header-*` a caller sends to a view store path is dropped (Wow would copy it into the command's
+header as it is, `command_operator` included). The starter matches paths case-insensitively for all of these rules, so
+a host that sets `PathMatchConfigurer.setUseCaseSensitiveMatch(false)` is covered; a host that replaces Spring's
+`RouterFunctionMapping` with a parser of other options must not embed the starter. Set `wow.view-store.enabled=false` to turn the starter off, and replace the default `SystemViewProvider` bean
 to serve system views from somewhere other than `wow.view-store.system-views`.
 
 The starter creates no MongoDB indexes of its own. Wow has no hook for a module to add snapshot indexes, so for
@@ -48,8 +51,11 @@ by role or permission who may use `owner/(shared)`. Claiming changes a shared vi
 path, so it needs both: `PUT …/tenant/{tenantId}/owner/{ownerId}/view/{id}/claim` requires `sub == {ownerId}` **and**
 the role that may write `owner/(shared)`. A host gives `permissions.instance(id).changeAudience` by the same role.
 The tenant and owner come from the path only: `Command-Tenant-Id` and `Command-Owner-Id` are dropped, and a path
-whose decoded tenant or owner is empty or holds whitespace or control characters (`owner/%20`, `tenant/%E3%80%80`)
-answers 400 `ViewScopeRequired`, because Wow reads a blank path value as missing and falls back to those headers.
+whose decoded tenant or owner is empty or holds a character that shows as nothing or a blank (whitespace, control and
+format characters such as U+200B, surrogates, private-use and unassigned code points: `owner/%20`,
+`tenant/%E3%80%80`, `owner/alice%E2%80%8B`) answers 400 `ViewScopeRequired`: Wow reads a blank path value as missing
+and falls back to those headers, and an invisible character makes an owner that reads as another. A claimed owner
+follows the same rule.
 
 **The shared-board check reads snapshots.** Claiming a view is refused while a shared dashboard references it; the
 check queries the dashboards' snapshots, so a board saved a moment before may not be seen yet (eventual consistency).

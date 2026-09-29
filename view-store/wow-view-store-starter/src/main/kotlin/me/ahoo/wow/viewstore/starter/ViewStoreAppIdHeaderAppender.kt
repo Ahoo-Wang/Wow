@@ -24,7 +24,7 @@ import org.springframework.web.reactive.function.server.ServerRequest
  * without `CoSec-App-Id` carries no application. It is the header key CoSec's own appender writes, so a host with
  * CoSec gets the same value twice; other commands of the host are left alone.
  *
- * Appenders run in no fixed order, so [ViewStoreWebFilter] also drops `Command-Header-app_id` from the request.
+ * Appenders run in no fixed order, so [ViewStoreWebFilter] also drops every `Command-Header-*` from the request.
  */
 class ViewStoreAppIdHeaderAppender(private val paths: ViewStorePaths) : CommandRequestHeaderAppender {
     override fun append(request: ServerRequest, header: Header) {
