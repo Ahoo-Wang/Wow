@@ -21,13 +21,14 @@ import {
   type ReactNode,
 } from 'react';
 import type { ViewEngine, ViewNavigation } from '../runtime/index.js';
-import { MessagesProvider, useMergedMessages } from './MessagesProvider.js';
-import type { ViewMessages } from './messages.js';
 import {
-  resolveNavigation,
-  type ViewBinding,
-  type ViewDestination,
-} from './bindings.js';
+  MessagesProvider,
+  useInheritedLocale,
+  useMergedMessages,
+} from './MessagesProvider.js';
+import type { ViewMessages } from './messages.js';
+import type { ViewBinding } from './bindings.js';
+import { resolveNavigation, type ViewDestination } from '../runtime/routes.js';
 
 /** What a surface finds above it; see `ViewEngineProvider`. */
 interface EngineContext {
@@ -115,6 +116,7 @@ export function ViewEngineProvider({
   const outer = useContext(Context);
   const engine = own ?? outer.engine;
   const wording = useMergedMessages(messages);
+  const inherited = useInheritedLocale();
   // The words of an engine are the outermost provider's that names it: one
   // engine speaks one language at a time (`setText` is the engine's, not a
   // subtree's), so an inner provider naming it again, or naming none,
@@ -123,6 +125,7 @@ export function ViewEngineProvider({
   const words = useEngineWords(
     own && !outer.worded.has(own) ? own : undefined,
     wording,
+    locale ?? inherited ?? '',
   );
 
   const bound = useMemo(() => {
@@ -170,6 +173,7 @@ export function ViewEngineProvider({
 function useEngineWords(
   engine: ViewEngine | undefined,
   wording: ViewMessages,
+  language: string,
 ): number {
   const resolver = useMemo(
     () =>
@@ -179,10 +183,10 @@ function useEngineWords(
   );
   // Before the first draw, so nothing is drawn in keys: an engine is given
   // to its provider before anything of it is open.
-  useState(() => engine?.setText(resolver));
+  useState(() => engine?.setText(resolver, language));
   useLayoutEffect(() => {
-    engine?.setText(resolver);
-  }, [engine, resolver]);
+    engine?.setText(resolver, language);
+  }, [engine, resolver, language]);
   const [words, setWords] = useState(0);
   useEffect(
     () => engine?.subscribeText(() => setWords(count => count + 1)),

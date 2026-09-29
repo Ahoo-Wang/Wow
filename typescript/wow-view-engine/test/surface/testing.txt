@@ -1,4 +1,4 @@
-# @ahoo-wang/wow-view-engine/testing — 7 names, from src/testing/index.ts.
+# @ahoo-wang/wow-view-engine/testing — 8 names, from src/testing/index.ts.
 # Written by test/publicSurface.test.ts; a change here is a change to
 # the public surface (README「Entries」, docs/design/decisions.md D29).
 type  Admissible
@@ -8,3 +8,4 @@ type  MemorySourceOptions
 value admit
 value matches
 value memorySource
+value resolveNavigation

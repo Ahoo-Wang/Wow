@@ -117,6 +117,9 @@ export function useBulkCommand(options: BulkCommandOptions = {}): BulkCommand {
 
   const run = useCallback(
     (selection: BulkSelection, command: BulkRun) => {
+      // A run asked for once the host has gone — a handler that outlived
+      // it — would have nobody to show it or stop it: nothing is started.
+      if (!alive.current) return;
       if (busy.current || selection.keys.length === 0) return;
       const keys = [...selection.keys];
       const succeeded: RecordKey[] = [];

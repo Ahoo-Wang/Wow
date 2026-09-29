@@ -12,7 +12,9 @@
  */
 
 import type { ViewNavigation, ViewSource } from "@ahoo-wang/wow-view-engine";
+import { resolveNavigation } from "@ahoo-wang/wow-view-engine/testing";
 import type * as Ui from "@ahoo-wang/wow-view-engine/ui";
+import { EmbeddedView } from "@ahoo-wang/wow-view-engine/ui";
 import type {
   ViewBinding,
   ViewEngineProviderProps,
@@ -99,28 +101,12 @@ function bindingOf(definitionId: string): ViewBinding | undefined {
 }
 
 /**
- * A way off, as the engine hands it to the host's route: through the route
- * of the definition it leads to, the target itself where there is none.
+ * A way off, as the engine hands it to the host's route: the engine's own
+ * resolution (`/testing`'s `resolveNavigation`) over the console's own
+ * bindings, handed to the console's own `navigate`.
  */
 function go(to: ViewNavigation): void {
-  const route =
-    to.kind === "url" ? undefined : bindingOf(to.definitionId)?.route;
-  if (to.kind === "url" || !route) return seen.outer?.navigate?.(to);
-  seen.outer?.navigate?.(
-    to.kind === "dashboard"
-      ? {
-          kind: "route",
-          path: route(to.instanceId, to),
-          state: { filters: to.filters },
-          target: to,
-        }
-      : {
-          kind: "route",
-          path: route(to.kind === "view" ? to.instanceId : null, to),
-          state: { handOver: to },
-          target: to,
-        },
-  );
+  seen.outer?.navigate?.(resolveNavigation(to, bindingOf));
 }
 
 function mount(path: string, sent: ExecutionCommands = commands()) {
@@ -133,6 +119,15 @@ function mount(path: string, sent: ExecutionCommands = commands()) {
         children: [
           { path: "/executions", element: <ExecutionsPage /> },
           { path: "/other", element: <p>another page</p> },
+          {
+            path: "/embedded",
+            element: (
+              <EmbeddedView
+                instanceId="system:execution-failed:active"
+                interaction="interactive"
+              />
+            ),
+          },
           { path: "/", element: <p>home</p> },
           { path: "/events", element: <p>events</p> },
           { path: "/boards", element: <p>boards</p> },
@@ -222,6 +217,18 @@ describe("ViewsHost", () => {
       );
       expect(router.state.location.pathname).toBe("/boards");
       expect(router.state.location.search).toBe("?view=mine");
+      act(() => void router.navigate("/other"));
+      act(() =>
+        go({
+          kind: "dashboard",
+          definitionId: OVERVIEW,
+          instanceId: "mine",
+          filters,
+          tab: "week",
+        }),
+      );
+      // The tab a board opens on rides along, as the engine's route says.
+      expect(router.state.location.state).toEqual({ filters, tab: "week" });
     });
 
     it("opens another site apart, and a page of the console in place", () => {
@@ -236,6 +243,26 @@ describe("ViewsHost", () => {
       expect(router.state.location.pathname).toBe("/other");
       act(() => go({ kind: "url", url: "/events" }));
       expect(router.state.location.pathname).toBe("/events");
+    });
+  });
+
+  it("follows a real surface's way off to the failed executions' workbench (third review of #3761, 5)", async () => {
+    const router = mount("/embedded");
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Open in the workbench" }),
+    );
+    await waitFor(() =>
+      expect(router.state.location.pathname).toBe("/executions"),
+    );
+    expect(router.state.location.search).toBe(
+      "?view=system%3Aexecution-failed%3Aactive",
+    );
+    expect(router.state.location.state).toMatchObject({
+      handOver: {
+        kind: "view",
+        definitionId: EXECUTION_FAILED,
+        instanceId: "system:execution-failed:active",
+      },
     });
   });
 

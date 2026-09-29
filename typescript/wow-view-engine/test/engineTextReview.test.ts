@@ -263,17 +263,43 @@ describe('the words set, checked on their own (second review of #3761, 4)', () =
     ).toEqual([['definition.text.fallback', 'orders.all', 'warning']]);
   });
 
-  it('says a key once, however often the language changes', () => {
+  it('says a key once per language, however often the language changes', () => {
     const { engine, issues } = engineOf();
-    engine.setText(lacking('zh'));
-    engine.setText(say('en'));
-    engine.setText(lacking('zh'));
-    engine.setText(lacking('en'));
+    engine.setText(lacking('zh'), 'zh-CN');
+    engine.setText(say('en'), 'en');
+    engine.setText(lacking('zh'), 'zh-CN');
+    engine.setText(lacking('en'), 'en');
     expect(
       issues
         .filter(found => found.code.startsWith('definition.text.'))
         .map(found => found.params?.key),
-    ).toEqual(['orders.all']);
+    ).toEqual(['orders.all', 'orders.all']);
+  });
+
+  it('says it again once a language that had the words lacks them again, and for a new language (third review of #3761, 4)', () => {
+    const { engine, issues } = engineOf();
+    const told = () =>
+      issues
+        .filter(found => found.code.startsWith('definition.text.'))
+        .map(found => found.params?.key);
+    engine.setText(lacking('zh'), 'zh-CN');
+    expect(told()).toEqual(['orders.all']);
+    engine.setText(say('zh'), 'zh-CN');
+    engine.setText(lacking('zh'), 'zh-CN');
+    expect(told()).toEqual(['orders.all', 'orders.all']);
+    engine.setText(lacking('en'), 'fr');
+    expect(told()).toEqual(['orders.all', 'orders.all', 'orders.all']);
+  });
+
+  it('says nothing of a fallback when the words set give no definition’s key at all (third review of #3761, 3)', () => {
+    const issues: Issue[] = [];
+    const { engine } = engineOf({ text: say('en'), issues });
+    issues.length = 0;
+    // What a Provider with no words of its own for the definitions says
+    // them in: the engine's own catalogue, which holds none of their keys.
+    engine.setText(key => (key === 'label.filter.apply' ? 'Apply' : undefined));
+    expect(issues).toEqual([]);
+    expect(engine.definitions.get('orders')?.title).toBe('Orders');
   });
 });
 

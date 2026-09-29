@@ -297,15 +297,14 @@ export {
   ViewEngineProvider,
   type ViewEngineProviderProps,
 } from './ViewEngineProvider.js';
-export {
-  bind,
-  type RoutedTarget,
-  type ViewBinding,
-  type ViewBindingOptions,
-  type ViewDestination,
-  type ViewRoute,
-  type ViewRouteState,
-} from './bindings.js';
+export { bind, type ViewBinding, type ViewBindingOptions } from './bindings.js';
+export type {
+  RoutedTarget,
+  ViewDestination,
+  ViewRoute,
+  ViewRouteOf,
+  ViewRouteState,
+} from '../runtime/routes.js';
 export {
   ViewSurface,
   type ViewSurfaceProps,

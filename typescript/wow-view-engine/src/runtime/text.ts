@@ -86,6 +86,14 @@ export class EngineText {
     return this.read(value, 0) as T;
   }
 
+  /** Whether `resolver` has words for any key the definitions write. */
+  saysAny(resolver: TextResolver): boolean {
+    this.knownKeys ??= this.known();
+    for (const key of this.knownKeys)
+      if (resolver(key) !== undefined) return true;
+    return false;
+  }
+
   /** Told whenever the words change. */
   subscribe(listener: () => void): () => void {
     return this.listeners.subscribe(listener);

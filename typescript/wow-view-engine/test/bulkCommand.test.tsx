@@ -192,6 +192,16 @@ describe('useBulkCommand', () => {
     expect(picked.refresh).not.toHaveBeenCalled();
   });
 
+  it('starts nothing from a run asked for after its host has gone', () => {
+    const { result, unmount } = renderHook(() => useBulkCommand());
+    // Held by a handler that outlives the page: a late click, a timer.
+    const run = result.current.run;
+    unmount();
+    const each = vi.fn(() => Promise.resolve());
+    run(selection(['EF-0', 'EF-1']), { title: 'Retry', each });
+    expect(each).not.toHaveBeenCalled();
+  });
+
   it('starts no record once the host that asked has gone, and lets those under way land', async () => {
     const { result, unmount } = renderHook(() =>
       useBulkCommand({ concurrency: 2 }),

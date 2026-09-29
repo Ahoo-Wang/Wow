@@ -35,7 +35,7 @@ import {
   type ViewBinding,
   type ViewDestination,
 } from '../src/ui/index.js';
-import { resolveNavigation } from '../src/ui/bindings.js';
+import { resolveNavigation } from '../src/testing/index.js';
 import {
   ordersDefinition,
   overviewDefinition,
@@ -400,5 +400,42 @@ describe('an engine named again under another engine (second review of #3761)', 
     await waitFor(() => expect(screen.getByText('All orders')).toBeTruthy());
     expect(engine.definitions.get('orders')?.title).toBe('Orders');
     expect(other.definitions.get('orders')?.title).toBe('订单');
+  });
+});
+
+describe('a host whose definitions speak through ViewEngineOptions.text (third review of #3761, 3)', () => {
+  it('hears of no fallback under a provider with words of its own for none of them', async () => {
+    const issues: string[] = [];
+    const engine = new ViewEngine({
+      resources: [
+        {
+          definition: ordersDefinition({
+            views: [
+              { id: 'all', title: text('orders.all'), config: recordConfig() },
+            ],
+          }),
+          source: testSource(),
+        },
+      ],
+      store: new MemoryViewStore(),
+      text: key => (EN as Record<string, string>)[key],
+      onIssue: found => issues.push(found.code),
+    });
+    render(
+      <ViewEngineProvider
+        engine={engine}
+        locale="en"
+        messages={{ 'label.filter.apply': 'Apply' }}
+      >
+        <EmbeddedView
+          instanceId={systemInstanceId('orders', 'all')}
+          withTitle
+        />
+      </ViewEngineProvider>,
+    );
+    expect(await screen.findByText('All orders')).toBeTruthy();
+    expect(issues.filter(code => code.startsWith('definition.text.'))).toEqual(
+      [],
+    );
   });
 });

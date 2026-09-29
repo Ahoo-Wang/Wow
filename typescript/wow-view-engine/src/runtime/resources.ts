@@ -47,7 +47,7 @@ export abstract class EngineResources {
   /** The words the definitions' keys are said in; see `EngineText`. */
   protected readonly text: EngineText;
   private readonly sources = new Map<string, ViewSource>();
-  /** The keys already told to lack words; see `setText`. */
+  /** What was told to lack words, by language, code and key; see `setText`. */
   private readonly lacking = new Set<string>();
   /** Where findings go: the host's `onIssue`, or the development default. */
   private readonly reporter: IssueReporter | undefined;
@@ -81,26 +81,46 @@ export abstract class EngineResources {
   /**
    * Says the definitions' keys in another language from now on: every open
    * view redraws in it, and nothing is rebuilt (host-integration.md 3.1,
-   * D2). The Provider calls this as its locale or messages change.
+   * D2). The Provider calls this as its locale or messages change, naming
+   * the `language` they are in.
+   *
+   * The words set are checked on their own: a key they lack reads as
+   * itself (`definition.text.unknown`), or in the words the engine started
+   * with (`definition.text.fallback`) — a Chinese page showing an English
+   * label is a gap too. A fallback is told only of words that say any of
+   * the definitions' keys at all: words that say none (a Provider with no
+   * catalogue of the definitions') leave them to the starting words, as
+   * the host meant. Each key is told once per language, and again once
+   * that language had it and lacks it again.
    */
-  setText(text: TextResolver | undefined): void {
+  setText(text: TextResolver | undefined, language = ''): void {
     if (!this.text.set(text) || !text) return;
-    // The words set are checked on their own: a key they lack reads as
-    // itself (`definition.text.unknown`), or in the words the engine
-    // started with (`definition.text.fallback`) — a Chinese page showing an
-    // English label is a gap too. Each key is told once, however often the
-    // language changes.
-    for (const definition of this.registry.definitions.values())
-      for (const found of sayDefinition(definition, text).findings) {
-        const key = String(found.params?.key);
-        const filled = this.text.resolve(key) !== undefined;
-        const code = filled
-          ? 'definition.text.fallback'
-          : 'definition.text.unknown';
-        if (this.lacking.has(`${code}:${key}`)) continue;
-        this.lacking.add(`${code}:${key}`);
-        this.report({ ...found, code }, definition.id);
-      }
+    const findings = [...this.registry.definitions.values()].flatMap(
+      definition =>
+        sayDefinition(definition, text).findings.map(found => ({
+          found,
+          definition: definition.id,
+          key: String(found.params?.key),
+        })),
+    );
+    const says = this.text.saysAny(text);
+    const lacking = new Set<string>();
+    for (const { found, definition, key } of findings) {
+      const filled = this.text.resolve(key) !== undefined;
+      if (filled && !says) continue;
+      const code = filled
+        ? 'definition.text.fallback'
+        : 'definition.text.unknown';
+      const told = `${language}\u0000${code}\u0000${key}`;
+      lacking.add(told);
+      if (this.lacking.has(told)) continue;
+      this.lacking.add(told);
+      this.report({ ...found, code }, definition);
+    }
+    // What this language now has is forgotten, so lacking it again is told.
+    for (const told of this.lacking)
+      if (told.startsWith(`${language}\u0000`) && !lacking.has(told))
+        this.lacking.delete(told);
   }
 
   /** `value` in the words in force: a definition, a list, a title. */
