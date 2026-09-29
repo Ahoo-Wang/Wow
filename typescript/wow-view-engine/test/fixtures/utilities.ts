@@ -70,11 +70,4 @@ export const KNOWN_MISSES: readonly {
   file: string;
   token: string;
   reason: string;
-}[] = [
-  {
-    file: 'ui/record/columns.ts',
-    token: 'truncate',
-    reason:
-      '2026-09-29: `CLIPPED_CELL` is written without the prefix, so a clipped cell is not clipped. #3792 fixes it; delete this entry when it lands.',
-  },
-];
+}[] = [];
