@@ -141,7 +141,7 @@ function Scene({
 const meta = {
   title: 'View Engine/组件状态/声明式操作',
   component: Scene,
-  tags: ['!autodocs', 'test'],
+  tags: ['!dev', '!autodocs', 'test'],
   parameters: { layout: 'fullscreen' },
   decorators: [
     Story => (
