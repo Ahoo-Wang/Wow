@@ -12,7 +12,7 @@
  */
 
 /**
- * The three layers (theme-architecture.md 3, S2), as the shipped stylesheets
+ * The three layers (ui/theme.md「三层变量」, S2), as the shipped stylesheets
  * resolve them: the host's `--fve-*` read first, a preset's `--fvp-*` next,
  * the built-in value last; and a preset named on an element replacing the
  * one around it whole, because the reset rule empties the preset layer there

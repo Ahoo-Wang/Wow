@@ -14,7 +14,7 @@
 /*
  * `azure` — the Chinese enterprise admin look: a clear blue, 6px corners,
  * white cards on a light grey page, soft layered shadows and a type stack
- * that puts the Chinese system faces first (themes.md 3.4.2). Inspired by
+ * that puts the Chinese system faces first (ui/theme.md「内置预设」). Inspired by
  * the open-source enterprise component libraries common in Chinese back
  * offices, and unrelated to any of them: the values are ours, tuned to the
  * package's lines.
@@ -30,7 +30,9 @@
  * - Focus is blue, as there, but a mark rather than a glow alone (which is
  *   under 3:1): `ring` is the primary, drawn as a 2px outline over the
  *   control's own 1px edge (`focus-offset` -1px) with a faint primary halo
- *   outside it; 4.63:1 or more on every ground it lands on. Given a brand
+ *   outside it; 4.63:1 or more on every ground it lands on. The table's
+ *   focused row, a card and a board panel's body read the same width and
+ *   halo (D76). Given a brand
  *   colour, it follows the brand within the primary's bounds.
  * - The status colours are the same families a step deeper than the one
  *   that reads 4.5:1 on white: a toned badge sits on the grey page too,
@@ -46,7 +48,7 @@
  *   blue, which marks what is chosen: a select's or a menu's chosen item is
  *   the pale blue in the semibold weight. The pale blue and the primary are
  *   links to the surface's own `row-selected` and `primary`
- *   (theme-architecture.md 9.3), so given a brand colour the open view and
+ *   (ui/theme.md「链接：角色跟着面上解析出的 token」), so given a brand colour the open view and
  *   the chosen item take it too.
  * - An outline button under the pointer turns its edge the primary (a link
  *   again) over the black 6% hover fill below. Its words stay the
@@ -74,7 +76,7 @@
  * 15.7 in dark.
  *
  * Recommended beside it, never set by it: `data-fve-change-colors="red-up"`
- * on boards read by mainland-China markets or business (themes.md 2.6).
+ * on boards read by mainland-China markets or business (ui/theme.md「涨跌色约定」).
  */
 :where([data-fve-preset='azure']) {
   --fvp-background: oklch(0.9702 0 0deg);

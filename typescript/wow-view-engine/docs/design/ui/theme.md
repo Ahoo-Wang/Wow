@@ -64,26 +64,27 @@
 
 shadcn 的语义名描述「颜色的用途类别」，一个名字身兼数职（`muted` 同时是表头带、合计带、选中行与按下态），一套预设想要「表头无底、选中行是品牌淡色」就说不出来。**角色**是引擎自己画的某一块面的某一个属性，宿主写 `--fve-<角色>`、预设写 `--fvp-<角色>`，引擎在边界上解析成 `--_fve-<角色>`；**不设时落回一个语义 token 或加角色之前画出来的值**，所以什么都不设的宿主与只改了 `muted` 的宿主都照旧。
 
-| 区域（`area`） | 角色（举例）                                                                                                                                                                                                            |
-| -------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `surface`      | `canvas`（分组的底：仪表盘与宿主按卡片排的页面）、`content`（记录与分析的行、结果块）、`card-edge`／`card-shadow`、`scrim`                                                                                              |
-| `table`        | `table-header`（及 `-foreground`、`-weight`、`-divider`）、`totals`、`row-selected`（及 `-foreground`）、`row-hover`、`row-stripe`（默认关：它与悬停、选中争同一档亮度差，默认开会改 neutral 的样子、也让每套多量一对） |
-| `state`        | `highlight`（菜单高亮）、`nav-current`（侧栏当前项，及 `-edge`、`-shadow`）、`item-selected`（菜单与选择框里已选的项）、`control-hover`／`control-pressed`、`outline-hover-edge`／`-foreground`                         |
-| `focus`        | `focus-width`、`focus-offset`、`focus-style`、`focus-halo`                                                                                                                                                              |
-| `control`      | `control`、`control-edge`、`control-thumb`、`control-thumb-shadow`、`control-height`／`-sm`、`filter-height`、`edge-width`、`badge-edge`／`badge-fill`（百分比）                                                        |
-| `shape`        | `radius-card`、`radius-control`、`radius-popover`、`radius-badge`、`radius-checkbox`                                                                                                                                    |
-| `type`         | `title-weight`、`strong-weight`                                                                                                                                                                                         |
-| `float`        | `tooltip`、`tooltip-foreground`                                                                                                                                                                                         |
-| `chart`        | 见[图表从主题读外观](#图表从主题读外观)                                                                                                                                                                                 |
+| 区域（`area`） | 角色（举例）                                                                                                                                                                                                                                                               |
+| -------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `surface`      | `canvas`（分组的底：仪表盘与宿主按卡片排的页面）、`content`（记录与分析的行、结果块）、`card-edge`／`card-shadow`、`scrim`                                                                                                                                                 |
+| `table`        | `table-header`（及 `-foreground`、`-weight`、`-divider`）、`totals`、`row-selected`（及 `-foreground`）、`row-selected-mark`（选中行左边的色条，不设没有）、`row-hover`、`row-stripe`（默认关：它与悬停、选中争同一档亮度差，默认开会改 neutral 的样子、也让每套多量一对） |
+| `state`        | `highlight`（菜单高亮）、`nav-current`（侧栏当前项，及 `-edge`、`-shadow`）、`item-selected`（菜单与选择框里已选的项）、`control-hover`／`control-pressed`、`outline-hover-edge`／`-foreground`                                                                            |
+| `focus`        | `focus-width`、`focus-offset`、`focus-style`、`focus-halo`                                                                                                                                                                                                                 |
+| `control`      | `control`、`control-edge`、`control-thumb`、`control-thumb-shadow`、`control-height`／`-sm`、`filter-height`、`edge-width`、`badge-edge`／`badge-fill`（百分比）                                                                                                           |
+| `shape`        | `radius-card`、`radius-control`、`radius-popover`、`radius-badge`、`radius-checkbox`                                                                                                                                                                                       |
+| `type`         | `title-weight`、`strong-weight`                                                                                                                                                                                                                                            |
+| `float`        | `tooltip`、`tooltip-foreground`                                                                                                                                                                                                                                            |
+| `chart`        | 见[图表从主题读外观](#图表从主题读外观)                                                                                                                                                                                                                                    |
 
 完整的表、每个角色的后备与措辞在登记表与主题指南里。
 
-- **施加不改 vendored 组件**：角色由 `styles.css` 里 `utilities` 层的规则按 `data-slot`、`data-state`、`data-variant` 施加，排在 registry 自己的类之后、与它替换的那条类同权重，靠次序赢；`data-slot` 会被调用处的 `render` 换掉的地方（按钮做了提示框的触发器）认 registry 自己的组类（`fve:group/button`、`fve:group/toggle`、`fve:group/badge`，样式表里写作 `.fve\:group\/button`）。要留住调用处选择的属性（高度、圆角、边宽），规则再用 `:where(.fve\:h-8)` 一类点名它替换的那个 registry 类，描边按钮按它的 `fve:border-border` 认——这是 D16「不按类名选」的有意例外，随 registry 改名暴露，`shadcn add --diff` 时要看。我们自己的配方（`variants.tsx`、`record/sticky.ts`）直接读角色的工具类。
-- **没有内置值的角色**（`control`、`control-edge`、`control-thumb`、`control-hover`、`control-pressed`、`focus-width`、`filter-height`）：施加规则各自带着控件原来的值作后备，不设就是原样。`focus-width` 与 `filter-height` 靠计算期无效：不设时 `outline` 整条无效、回到 registry 的 `outline-none`；筛选芯片的高度与里面控件的上下限回到 `auto`／`0`／`none`，芯片仍由控件撑开。
+- **施加不改 vendored 组件**：角色由 `styles.css` 里 `utilities` 层的规则按 `data-slot`、`data-state`、`data-variant` 施加，排在 registry 自己的类之后、与它替换的那条类同权重，靠次序赢；`data-slot` 会被调用处的 `render` 换掉的地方（按钮做了提示框的触发器）认 registry 自己的组类（`fve:group/button`、`fve:group/toggle`、`fve:group/badge`，样式表里写作 `.fve\:group\/button`）。要留住调用处选择的属性（高度、圆角、边宽），规则再用 `:where(.fve\:h-8)` 一类点名它替换的那个 registry 类，描边按钮按它的 `fve:border-border` 认（registry 的 `Button` 不在元素上写 variant；自己包一层只标得到我们的调用处，registry 自己组件里的描边按钮仍认不出，D76）——这是 D16「不按类名选」的有意例外，随 registry 改名暴露，`shadcn add --diff` 时要看。我们自己的配方（`variants.tsx`、`record/sticky.ts`）直接读角色的工具类。
+- **没有内置值的角色**（`control`、`control-edge`、`control-thumb`、`control-hover`、`control-pressed`、`focus-width`、`filter-height`、`row-selected-mark`）：施加规则各自带着控件原来的值作后备，不设就是原样。`focus-width` 与 `filter-height` 靠计算期无效：不设时 `outline` 整条无效、回到 registry 的 `outline-none`；筛选芯片的高度与里面控件的上下限回到 `auto`／`0`／`none`，芯片仍由控件撑开；`row-selected-mark` 不设时渐变无效，`background-image` 是 `none`，什么都不画。
 - **徽标的边默认保留**（D46）：`badge-edge`／`badge-fill` 是取徽标自己色调的多少（默认 30%／10%）；去掉边，淡色徽标在选中行上只剩约 1.2:1，低于「在行上仍是一个徽标」的 1.5:1，所以预设改用填色须在自己的 `row-selected` 上仍过 1.5:1，门守着。
-- **打字的框仍有 3:1 的边**：WCAG 1.4.11 不要求以文字或图标自明的控件有边界（选择框有字和箭头），要求输入框有；所以 `ControlFrame` 装着输入框的筛选芯片不管主题怎么说都保留 `input` 边。
+- **打字的框仍有 3:1 的边**：WCAG 1.4.11 不要求以文字或图标自明的控件有边界（选择框有字和箭头），要求输入框有；所以 `ControlFrame` 装着输入框的筛选芯片不管主题怎么说都保留 `input` 边。要让它无边，得先有一套预设的芯片填色对底 ≥3:1——量过（D76）每套最高 1.50:1，所以不给配方加角色。
 - **neutral 的选中、悬停、焦点保持原样**（D46）：neutral 的焦点在 AA 上成立，「机制的改动 neutral 逐像素不变」是硬约束；更强的默认值由各预设设；neutral 要不要变强是另一次视觉决定。
-- **焦点**：不设 `focus-width` 时是 vendored 的 1px `border-ring` 加 `focus-halo`（`ring` 的 50%）的光晕，AA 成立；设了时控件画一道 `outline`，宽度与偏移读角色，光晕只改「本来就是 `ring` 的 50%」的那些（危险按钮与无效控件的红光晕不受影响）。引擎自己的三个焦点配方（`FOCUS_ROW`、`FOCUS_CARD`、`FOCUS_INSET`）今天不读 `focus-width`，是一条全强度 1px `ring` 加光晕（[todo.md](../todo.md)「主题机制的余项」）。
+- **焦点**：不设 `focus-width` 时是 vendored 的 1px `border-ring` 加 `focus-halo`（`ring` 的 50%）的光晕，AA 成立；设了时控件画一道 `outline`，宽度与偏移读角色，光晕只改「本来就是 `ring` 的 50%」的那些（危险按钮与无效控件的红光晕不受影响）。引擎自己的三个焦点配方也读它（D76）：`FOCUS_ROW` 的内描边 `focus-width` 宽、光晕在它外 2px；`FOCUS_CARD` 的轮廓 `focus-width` 宽、离边 `focus-offset`（不设时压在自己的边上）；`FOCUS_INSET` 画在边内、`focus-offset` 作边内的间隔；三个的光晕都读 `focus-halo`。不设时读 1px，逐像素是原来的 1px `ring` 加光晕。
+- **选中不只靠颜色**（WCAG 1.4.1，D76）：`row-selected-mark` 是选中的记录行、按下的分析分组第一格左边一道 3px 的色条（引擎只有从左到右的排版；背景图，不压字，获焦时行的内描边盖住它靠里的 `focus-width`），不设就没有；对比度矩阵在设了时量它在选中行上 ≥3:1。contrast 链到主色。
 
 ### 链接：角色跟着面上解析出的 token
 
@@ -91,7 +92,8 @@ shadcn 的语义名描述「颜色的用途类别」，一个名字身兼数职�
 
 - **所以链接写一个数**：`--fvp-<角色>-link: 100%`（宿主写 `--fve-<角色>-link`）。面上一条规则把它解析成 `color-mix(in oklab, var(<目标>) <数>, transparent)`，角色在宿主层与预设层之间读它：`var(--fve-x, var(--_fve-link-x, var(--fvp-x, …)))`。链到哪个 token 由登记表定（`link`），值只是「取多少」：`100%` 就是目标本身，少于它是把目标半透明地铺在底上（一个随品牌的淡色）。一个数管两种明暗，目标在每种明暗下各自解析。
 - 链接随品牌色、宿主自己的 `--fve-primary`、`tokens` 与明暗走；不设时无效，角色读预设的字面量。宿主写了角色本身的颜色仍然最先赢。
-- 今天的链接：`highlight` → `primary`、`highlight-foreground` → `primary-foreground`、`nav-current` → `row-selected`、`nav-current-foreground` → `primary`、`item-selected` → `row-selected`、`outline-hover-edge` → `primary`、`outline-hover-foreground` → `primary`。以后再有角色要跟面上的 token，就在登记表加一个链接，不开新机制。
+- 今天的链接：`highlight` → `primary-fill`、`highlight-foreground` → `primary-fill-foreground`、`row-selected-mark` → `primary`、`nav-current` → `row-selected`、`nav-current-foreground` → `primary`、`item-selected` → `row-selected`、`outline-hover-edge` → `primary`、`outline-hover-foreground` → `primary`。以后再有角色要跟面上的 token，就在登记表加一个链接，不开新机制。
+- **`primary-fill`**（D76）：主色作为承载文字的填色，不设就是 `primary`／`primary-foreground`。暗色的主色浅到能在暗底上当字，也就托不住白字；预设可给更深一档（porcelain 暗色 `#0058D0` 配白字），给了品牌色时按预设的 `brand-primary-fill-l-min`／`-max` 取品牌色相（与焦点环同一种「给了边界才派生」）。这一档是字面量：宿主在这样的预设上写自己的 `--fve-dark-primary` 时也写 `--fve-dark-primary-fill`。
 - 没选的：关键字（`--fvp-highlight: primary`）要按值分支，靠 `@container style()` 或 `if()`，Firefox 都还没有；把这些角色也放进品牌派生只跟品牌色、不跟宿主的 `--fve-primary`，每个角色还要一组与主色重复的边界；让 JS 把外层的预设名抄到面上是第二个真相源。（见 test/themeLinks.test.ts，浏览器故事 `ThemeMechanism.test.stories.tsx`「PorcelainMenuFollowsTheBrandInDark」「AzureMarksFollowTheBrandInLight」）
 
 ## 品牌色是输入，不是预设
@@ -169,7 +171,7 @@ ECharts 画在级联够不到的地方，所以 `readChartTheme`（`ui/charts/th
 ## 打印与强制颜色
 
 - **打印**：暗色的变体与暗色 token 块包在 `@media not print` 里，纸上读当前预设的亮色一半，每套预设天然有一份打印样子，不需要打印预设；`@media print` 把三级阴影、卡片的浮起、钉住列的边影与行悬停色设成透明，把 `--fve-chart-patterns` 设成 `on`（黑白打印时系列只能靠花纹区分；这是 `styles.css` 唯一有意写公开前缀的地方），图表、徽章与变化徽标 `print-color-adjust: exact`。
-- **强制颜色**（`forced-colors: active`）：vendored 控件的焦点（叠在 `outline-none` 上的阴影）与获焦行的光晕会被丢掉、选中行的底被重画成页底。`@media (forced-colors: active)` 给 `:focus-visible` 画 2px `CanvasText` 的轮廓，选中行画 2px `Highlight` 的内框（系统色，浏览器不重画；不用 `Highlight` 填满——那要让格子退出重画，里面的复选框与徽章就留着为主题挑的颜色），获焦行的轮廓压过选中框。
+- **强制颜色**（`forced-colors: active`）：vendored 控件的焦点（叠在 `outline-none` 上的阴影）与获焦行的光晕会被丢掉、选中行的底被重画成页底。`@media (forced-colors: active)` 给 `:focus-visible` 画 2px `CanvasText` 的轮廓，选中行与按下的分析分组画 2px `Highlight` 的内框（系统色，浏览器不重画；不用 `Highlight` 填满——那要让格子退出重画，里面的复选框与徽章就留着为主题挑的颜色），获焦行的轮廓压过选中框。
 - （见浏览器故事 `PaperAndContrast.test.stories.tsx`「ForcedColors」「Print」）
 
 ## 质量门

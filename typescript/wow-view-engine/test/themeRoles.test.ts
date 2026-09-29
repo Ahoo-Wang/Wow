@@ -12,7 +12,7 @@
  */
 
 /**
- * The role tier (theme-architecture.md 4, S3): one surface of the engine's
+ * The role tier (ui/theme.md「角色：引擎自己的面」, S3): one surface of the engine's
  * own per role, which a host writes as `--fve-<role>`, a preset as
  * `--fvp-<role>`, and the engine reads as `--_fve-<role>`.
  *
@@ -59,7 +59,7 @@ const ROLES = (TOKENS as readonly TokenEntry[]).filter(
 
 const MODES: readonly Mode[] = ['light', 'dark'];
 
-/** The links (theme-architecture.md 9.3). */
+/** The links (ui/theme.md「链接：角色跟着面上解析出的 token」). */
 const LINKS = (TOKENS as readonly TokenEntry[]).filter(entry => entry.link);
 
 /**
@@ -78,10 +78,13 @@ const UNSET = new Set([
   // No lower bound on a bar's width: as narrow as the plot makes it.
   'chart-bar-min-width',
   // The item's own weight, the registry's edge of each mode, and a chip as
-  // tall as its controls (theme-architecture.md 9.3).
+  // tall as its controls (ui/theme.md「角色：引擎自己的面」).
   'item-selected-weight',
   'outline-hover-edge',
   'filter-height',
+  // No mark on a selected row but its colour, unless a theme draws one
+  // (D76).
+  'row-selected-mark',
   // Links: unset, a role is not linked.
   ...(TOKENS as readonly TokenEntry[]).flatMap(entry =>
     entry.link ? [entry.name] : [],

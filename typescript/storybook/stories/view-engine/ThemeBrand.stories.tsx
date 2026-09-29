@@ -24,6 +24,7 @@ import {
   PAIRS,
   passes,
   readMatrix,
+  unmeasured,
 } from './themeContrast.js';
 import '@ahoo-wang/wow-view-engine/styles.css';
 import '@ahoo-wang/wow-view-engine/themes.css';
@@ -214,7 +215,11 @@ export const OnEveryPreset: Story = {
       return found;
     });
     const measured = readMatrix(matrix);
-    await expect(measured.length).toBe(
+    // A pair a preset does not paint (it leaves the token it requires
+    // unset) is left unmeasured, as the arithmetic leaves it out.
+    const skipped = unmeasured(matrix);
+    await expect(skipped.filter(({ requires }) => !requires)).toEqual([]);
+    await expect(measured.length + skipped.length).toBe(
       SHOWN.length *
         MEASURED_MODES.reduce((n, mode) => n + PAIRS[mode].length, 0),
     );

@@ -25,7 +25,7 @@ import { Badge } from '@/ui/components/badge';
 import { MEASURED_MODES, type MeasuredMode } from './themeContrast.js';
 
 /**
- * The chart palette's gates (themes.md 5.2), measured in a real browser on
+ * The chart palette's gates (ui/theme.md「质量门」), measured in a real browser on
  * the colours the cascade gives a pinned surface — the same gates
  * `test/paletteDistance.test.ts` and `test/paletteInk.test.ts` hold the
  * built-in presets to, so a host can hold its own palette to them on this

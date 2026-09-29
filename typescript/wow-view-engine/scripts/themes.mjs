@@ -17,7 +17,7 @@ import postcss from 'postcss';
 
 /**
  * The built-in presets' sources and what the build makes of them
- * (themes.md 4.1, 5.6).
+ * (ui/theme.md「内置预设」).
  *
  * Each preset is one source file, `src/themes/<name>.css`, holding its one
  * `:where([data-fve-preset='<name>'])` block and the notes on why each value

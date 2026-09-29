@@ -12,8 +12,8 @@
  */
 
 /**
- * The brand colour is an input beside any preset (theme-architecture.md 2,
- * S4): a host gives one `--fve-brand`, and `styles.css` derives the primary,
+ * The brand colour is an input beside any preset (
+ * ui/theme.md「品牌色是输入，不是预设」, S4): a host gives one `--fve-brand`, and `styles.css` derives the primary,
  * three tints and — where the preset bounds it — the focus ring, held to the
  * bounds each preset gives on its own grounds. What that promises cannot be
  * measured value by value: it is measured colour by colour, across the
@@ -98,14 +98,22 @@ function moved(
 /** A preset that bounds its focus ring, so the ring follows the brand. */
 const RING = new Set(['azure', 'porcelain', 'contrast']);
 
+/**
+ * A preset and a mode that bound the primary fill, so it follows the brand
+ * (D76): porcelain's dark, where the fill is a step deeper than the primary.
+ */
+const FILL = new Set(['porcelain dark']);
+
 /** `data-fve-brand-chart` on the surface or an ancestor. */
 const CHARTED: Placement = { brandChart: true };
 
 /** The tokens a brand colour derives on one preset, the chart's slot off. */
-const derivedOn = (preset: string) =>
+const derivedOn = (preset: string, mode: Mode) =>
   DERIVED.filter(
     variable =>
-      variable !== '--chart-1' && (variable !== '--ring' || RING.has(preset)),
+      variable !== '--chart-1' &&
+      (variable !== '--ring' || RING.has(preset)) &&
+      (variable !== '--_fve-primary-fill' || FILL.has(`${preset} ${mode}`)),
   );
 
 describe('any brand colour holds every line of the preset it is worn on', () => {
@@ -167,7 +175,7 @@ describe('what a brand colour derives', () => {
   it.each(PRESET_NAMES.flatMap(preset => MODES.map(m => [preset, m] as const)))(
     'is what the registry says, on %s, %s',
     (preset, mode) => {
-      const expected = derivedOn(preset);
+      const expected = derivedOn(preset, mode);
       expect(moved(preset, mode, brandOf(VIOLET))).toEqual(
         [...expected].sort(),
       );
@@ -195,7 +203,7 @@ describe('what a brand colour derives', () => {
           'chroma',
           CHARTED,
         );
-        for (const variable of [...derivedOn(preset), '--chart-1']) {
+        for (const variable of [...derivedOn(preset, mode), '--chart-1']) {
           const color = tokens.get(variable)!;
           expect(
             toOklch({ mode: 'rgb', ...color }).h,

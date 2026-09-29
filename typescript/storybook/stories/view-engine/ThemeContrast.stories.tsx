@@ -23,6 +23,7 @@ import {
   PAIRS,
   passes,
   readMatrix,
+  unmeasured,
 } from './themeContrast.js';
 import { PaletteGates, clears, readPalettes } from './paletteGates.js';
 import '@ahoo-wang/wow-view-engine/styles.css';
@@ -122,7 +123,11 @@ export const Contrast: Story = {
     });
     const measured = readMatrix(matrix);
     // Every preset, both modes, every pair — and nothing measured twice.
-    await expect(measured.length).toBe(
+    // A pair a preset does not paint (it leaves the token it requires
+    // unset) is left unmeasured, as the arithmetic leaves it out.
+    const skipped = unmeasured(matrix);
+    await expect(skipped.filter(({ requires }) => !requires)).toEqual([]);
+    await expect(measured.length + skipped.length).toBe(
       PRESETS.length *
         MEASURED_MODES.reduce((n, mode) => n + PAIRS[mode].length, 0),
     );

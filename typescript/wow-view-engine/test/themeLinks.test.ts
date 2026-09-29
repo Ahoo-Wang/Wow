@@ -12,7 +12,7 @@
  */
 
 /**
- * The links (theme-architecture.md 9.3): a role drawn in another token of
+ * The links (ui/theme.md「链接：角色跟着面上解析出的 token」): a role drawn in another token of
  * the surface — the menu's highlight in the primary, the view on screen in
  * a selected row's tint — which a preset cannot write as `var(--primary)`,
  * because its block is worked out above the surface. It gives a share
@@ -72,15 +72,41 @@ function expectSame(actual: Rgba, expected: Rgba) {
 }
 
 describe.each(MODES)('a link, in %s', mode => {
-  it('draws porcelain’s highlight in the brand’s primary and its ink', () => {
+  it('draws porcelain’s highlight in the brand’s primary fill and its ink', () => {
     const host = { '--fve-brand': VIOLET };
-    const primary = token('porcelain', mode, 'primary', host);
-    expectSame(token('porcelain', mode, 'highlight', host), primary);
-    expectHue(primary, VIOLET_HUE);
+    const fill = token('porcelain', mode, 'primary-fill', host);
+    expectSame(token('porcelain', mode, 'highlight', host), fill);
+    expectHue(fill, VIOLET_HUE);
     expectSame(
       token('porcelain', mode, 'highlight-foreground', host),
-      token('porcelain', mode, 'primary-foreground', host),
+      token('porcelain', mode, 'primary-fill-foreground', host),
     );
+    // The fill is the primary in light; in dark a step deeper than it,
+    // held to porcelain's band, so white words read on it (D76).
+    if (mode === 'light')
+      expectSame(fill, token('porcelain', mode, 'primary', host));
+    else {
+      const { l } = toOklch({ mode: 'rgb', ...fill });
+      expect(l).toBeGreaterThanOrEqual(0.455);
+      expect(l).toBeLessThanOrEqual(0.525);
+      expect(
+        toOklch({ mode: 'rgb', ...token('porcelain', mode, 'primary', host) })
+          .l,
+      ).toBeGreaterThan(0.7);
+    }
+  });
+
+  it('draws contrast’s highlight and selected row’s bar in the brand’s primary', () => {
+    // contrast's fill is its primary in both modes (D76).
+    const host = { '--fve-brand': VIOLET };
+    const primary = token('contrast', mode, 'primary', host);
+    expectHue(primary, VIOLET_HUE);
+    expectSame(token('contrast', mode, 'highlight', host), primary);
+    expectSame(
+      token('contrast', mode, 'highlight-foreground', host),
+      token('contrast', mode, 'primary-foreground', host),
+    );
+    expectSame(token('contrast', mode, 'row-selected-mark', host), primary);
   });
 
   it('draws azure’s open view in the brand’s tint and primary', () => {
@@ -99,7 +125,11 @@ describe.each(MODES)('a link, in %s', mode => {
     // literal each preset wrote before it linked them.
     expectSame(
       token('porcelain', mode, 'highlight'),
-      token('porcelain', mode, 'primary'),
+      token('porcelain', mode, mode === 'light' ? 'primary' : 'primary-fill'),
+    );
+    expectSame(
+      token('contrast', mode, 'highlight'),
+      token('contrast', mode, 'primary'),
     );
     expectSame(
       token('azure', mode, 'nav-current'),
@@ -108,15 +138,23 @@ describe.each(MODES)('a link, in %s', mode => {
   });
 
   it('follows a primary the host writes itself', () => {
+    // Where the preset gives the fill a deeper step of its own (porcelain's
+    // dark), a host that writes its own primary writes that step too.
     const host = {
       '--fve-primary': 'oklch(0.45 0.2 145deg)',
       '--fve-dark-primary': 'oklch(0.8 0.15 145deg)',
+      '--fve-dark-primary-fill': 'oklch(0.48 0.15 145deg)',
     };
     expectSame(
       token('porcelain', mode, 'highlight', host),
-      token('porcelain', mode, 'primary', host),
+      token('porcelain', mode, 'primary-fill', host),
     );
     expectHue(token('porcelain', mode, 'highlight', host), 145);
+    expectSame(
+      token('contrast', mode, 'highlight', host),
+      token('contrast', mode, 'primary-fill', host),
+    );
+    expectHue(token('contrast', mode, 'highlight', host), 145);
   });
 
   it('gives way to the host’s own colour for the role', () => {

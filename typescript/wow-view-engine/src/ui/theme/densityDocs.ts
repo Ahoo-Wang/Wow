@@ -14,8 +14,8 @@
 import type { TokenDoc, Words } from './tokenDocs.js';
 
 /**
- * The README's words for the density's lengths (themes.md 2.4,
- * theme-architecture.md 7), beside `tokenDocs.ts` so that catalogue stays
+ * The README's words for the density's lengths (ui/theme.md「密度」),
+ * beside `tokenDocs.ts` so that catalogue stays
  * one screenful of files. Each is a host variable of the layout whose
  * default the density step gives, so the default is said as the three
  * steps draw it — compact, default, comfortable — rather than read off

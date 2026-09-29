@@ -13,7 +13,7 @@
 
 /**
  * What every preset resolves to, in each mode and change convention, kept
- * as a file (theme-architecture.md 3.5, 5.5): the theme restructure moves
+ * as a file (ui/theme.md「质量门」): the theme restructure moves
  * the mechanism — the layers (S2), the roles (S3), the brand as an input
  * (S4), the chart's roles (S5) — and none of it may move a value. Saved at
  * S1, before any of it; a batch that changes this file on purpose says so

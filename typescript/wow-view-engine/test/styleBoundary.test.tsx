@@ -184,6 +184,10 @@ describe('the theme has two boundaries and only one of them is a surface', () =>
     expect(outline(/\[data-state='selected'\]/)).toContain(
       'outline: 2px solid Highlight',
     );
+    // A pressed analysis group is selected too (D76, WCAG 1.4.1).
+    expect(outline(/\[data-pressed\]/)).toContain(
+      'outline: 2px solid Highlight',
+    );
   });
 
   it('prints in the light half: the dark tokens and utilities hold off paper only (T5)', () => {

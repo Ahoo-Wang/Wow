@@ -12,7 +12,7 @@
  */
 
 /**
- * The chart's roles (theme-architecture.md 6, S5), measured on the drawing.
+ * The chart's roles (ui/theme.md「图表从主题读外观」, S5), measured on the drawing.
  *
  * The library draws its own SVG, which no cascade reaches, so a chart reads
  * its whole look back off its element — colours, lengths and numbers the

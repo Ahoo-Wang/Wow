@@ -12,7 +12,7 @@
  */
 
 /**
- * The theme's roles (theme-architecture.md 4, S3), measured in a browser.
+ * The theme's roles (ui/theme.md「角色：引擎自己的面」, S3), measured in a browser.
  *
  * - Unset, every role draws what the registry drew: the header and the
  *   totals bands and a selected row are `muted`, the header is set at 500,
@@ -168,7 +168,7 @@ function buttonHeights(root: HTMLElement, step: 'h-8' | 'h-7'): number[] {
 }
 
 /**
- * 什么都不设的角色就是 registry 原来画的样子（theme-architecture.md 4.5）。
+ * 什么都不设的角色就是 registry 原来画的样子（ui/theme.md「角色：引擎自己的面」）。
  *
  * neutral 下：表头带、合计带与选中行都是 `muted`，表头字重 500，聚焦的按钮没有
  * 自己的轮廓（仍是 registry 的边与光晕），控件高 32px 与 28px。截图基线逐像素
@@ -244,7 +244,7 @@ function hueOffBrand(painted: string, theme: 'light' | 'dark'): number {
 }
 
 /**
- * 宿主主题设的角色，各自只动它那一块面（theme-architecture.md 4.2）。
+ * 宿主主题设的角色，各自只动它那一块面（ui/theme.md「角色：引擎自己的面」）。
  *
  * acme 给了品牌色（`--fve-brand`），设了表头带（底、600 的字重、列分隔线）、
  * 2px 的焦点轮廓离控件 2px 并去掉光晕、高一档的控件（36px 与 30px），菜单高亮
@@ -374,7 +374,7 @@ async function openPopup(slot: string): Promise<HTMLElement> {
 }
 
 /**
- * 截图里原来没有的三块面，各留一张基线（theme-architecture.md 4.5）：
+ * 截图里原来没有的三块面，各留一张基线（ui/theme.md「角色：引擎自己的面」）：
  * 菜单的高亮项、提示框、对话框背后的遮罩——neutral，什么角色都不设，
  * 以后的重调批改它们时才有「改前」可比。
  */
@@ -409,12 +409,17 @@ export const TooltipChip: Story = {
   tags: ['visual'],
   args: { ...DisplayWithData.args, theme: 'light', preset: 'neutral' },
   play: async ({ canvasElement }) => {
-    await parts(canvasElement);
+    // A trigger on the surface, which the story pins to neutral — not the
+    // story shell's top bar, which wears the preset on `<html>` (the shell
+    // is not the surface this picture is the evidence of; D76).
+    const { surface } = await parts(canvasElement);
     const trigger = [
-      ...canvasElement.querySelectorAll<HTMLElement>(
-        '[data-slot="tooltip-trigger"]',
-      ),
+      ...surface.querySelectorAll<HTMLElement>('[data-slot="tooltip-trigger"]'),
     ].find(candidate => getComputedStyle(candidate).pointerEvents !== 'none')!;
+    await expect(trigger.closest('.fve-root')).toHaveAttribute(
+      'data-fve-preset',
+      'neutral',
+    );
     await userEvent.hover(trigger);
     const tooltip = await openPopup('tooltip-content');
     await matchScreenshot(tooltip, 'role-tooltip');
