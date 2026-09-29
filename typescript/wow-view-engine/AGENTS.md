@@ -478,6 +478,7 @@ src/
     layout.ts                 — `TEXT_UI`, `SPACE`: the one small type size and the spacing ruler; `FIXED_BOARD_WIDTH`, what a fixed-width dashboard is held to (D31)
     messages.ts               — Wording, by key
     popups.tsx                — The popups this package renders, themed and on a layer of their own
+    panelsToFix.ts            — `boardErrorTitle`: a board's red line said of its panels when only panels are broken (「有 N 个面板要先修正才能显示」), of the board otherwise
     roving.ts                 — A group of peers as one Tab stop: who holds it, how it moves, where an arrow lands; the record header and the analysis result's rows share it
     summary.ts                — The applied-conditions bar in words: one `FilterSummaryItem` as a sentence
     toolbar.tsx               — Base UI's toolbar primitive: one tab stop with the arrow keys inside

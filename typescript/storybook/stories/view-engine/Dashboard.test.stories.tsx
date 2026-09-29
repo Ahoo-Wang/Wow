@@ -84,6 +84,41 @@ async function onTheGrid(canvasElement: HTMLElement): Promise<void> {
   );
 }
 
+/**
+ * The red line over a board whose only trouble is its panels (todo 5,
+ * 2026-09-28): it talks about the panels — they are out, the rest draws —
+ * and still lists what is wrong when it is opened.
+ */
+async function expectPanelsToFix(
+  canvasElement: HTMLElement,
+  panels: number,
+  findings: readonly string[],
+) {
+  const strip = await waitFor(() => {
+    const found = canvasElement.querySelector<HTMLElement>(
+      '[data-slot="status-strip"][data-tone="error"]',
+    );
+    expect(found).not.toBeNull();
+    return found!;
+  });
+  const title = strip.querySelector('[data-slot="alert-title"]')!;
+  await expect(title).toHaveTextContent(`有 ${panels} 个面板要先修正才能显示`);
+  await expect(strip.textContent).not.toContain(
+    zhCN['label.dashboard.needs-fixing'],
+  );
+  // The fold names how many findings it holds, not how many panels.
+  await userEvent.click(
+    within(strip).getByRole('button', {
+      name: new RegExp(
+        `^${zhCN['label.status.show'].replace('{count}', '\\d+')}$`,
+      ),
+    }),
+  );
+  const items = [...strip.querySelectorAll('li')].map(item => item.textContent);
+  for (const finding of findings)
+    await expect(items.some(item => item?.includes(finding))).toBe(true);
+}
+
 /** 「编辑」: nothing on a board moves until it is being built (D22 A). */
 async function startBuilding(canvasElement: HTMLElement): Promise<void> {
   await userEvent.click(
@@ -212,6 +247,7 @@ export const OneBadPanel: Story = {
     await expect(
       canvas.getByRole('link', { name: /^出库异常处理/ }),
     ).toBeVisible();
+    await expectPanelsToFix(canvasElement, 1, ['「已取消的订单数」：']);
   },
 };
 
@@ -260,6 +296,10 @@ export const WrongReferences: Story = {
     );
     await chartsDrawn(canvasElement);
     await waitFor(() => expect(bars(canvasElement)).toHaveLength(4));
+    await expectPanelsToFix(canvasElement, 2, [
+      '「归档订单」：「订单」里没有这个面板要显示的视图。',
+      '「全部订单」：「仓库」接的字段，这个面板显示的视图里没有。',
+    ]);
   },
 };
 

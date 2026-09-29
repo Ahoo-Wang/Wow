@@ -667,6 +667,25 @@ describe('tabs', () => {
     expect(movePanelToTab(two, 'a', 'ghost')).toBe(two);
     expect(movePanelToTab(two, 'ghost', 'tab-2')).toBe(two);
   });
+
+  it('keep a panel sized by hand sized by hand when it moves there (D68)', () => {
+    const sized = {
+      ...two,
+      panels: two.panels.map(panel =>
+        panel.id === 'a'
+          ? { ...panel, layout: { ...panel.layout, fixedHeight: true } }
+          : panel,
+      ),
+    };
+    const moved = movePanelToTab(sized, 'a', 'tab-2');
+    expect(moved.panels.find(panel => panel.id === 'a')?.layout).toEqual({
+      x: 0,
+      y: 2,
+      w: 12,
+      h: 2,
+      fixedHeight: true,
+    });
+  });
 });
 
 describe('panels the board owns', () => {
@@ -960,6 +979,27 @@ describe('building a board', () => {
     });
     expect(duplicatePanel(board, 'ghost')).toBeNull();
     expect(duplicatePanel(board, 'a', 2)).toBeNull();
+  });
+
+  it('copies a panel sized by hand as sized by hand (D68)', () => {
+    const sized = {
+      ...board,
+      panels: board.panels.map(panel =>
+        panel.id === 'a'
+          ? { ...panel, layout: { ...panel.layout, fixedHeight: true } }
+          : panel,
+      ),
+    };
+    expect(duplicatePanel(sized, 'a')?.config.panels[2].layout).toEqual({
+      x: 12,
+      y: 0,
+      w: 12,
+      h: 4,
+      fixedHeight: true,
+    });
+    expect(
+      duplicatePanel(board, 'a')?.config.panels[2].layout,
+    ).not.toHaveProperty('fixedHeight');
   });
 
   it('copies an owned view with the panel', () => {

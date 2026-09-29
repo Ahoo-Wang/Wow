@@ -1531,6 +1531,8 @@ export const zhCN: ViewMessages = {
 
   // 仪表盘网格、面板，以及它们背后的内核。
   'label.dashboard.needs-fixing': '这个仪表盘要先修正才能运行',
+  'label.dashboard.panels-need-fixing': '有 {count} 个面板要先修正才能显示',
+  'label.dashboard.panels-need-fixing-one': '有 1 个面板要先修正才能显示',
   'label.dashboard.new': '新建仪表盘',
   'label.dashboard.new-title': '新仪表盘',
   'label.dashboard.none': '还没有仪表盘',

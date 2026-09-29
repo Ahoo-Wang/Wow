@@ -33,6 +33,7 @@ import {
 } from '../src/index.js';
 import { useDashboard } from '../src/react/index.js';
 import { DashboardGrid } from '../src/ui/index.js';
+import { useGridPlacement } from '../src/ui/gridPlacement.js';
 import {
   analysisConfig,
   dashboardConfig,
@@ -189,10 +190,55 @@ describe('placing a panel', () => {
 
     await press(corner, 'ArrowDown');
 
+    // Sized by hand (D68): a board read draws it at this size, never grown.
     expect(layouts(runtime)).toEqual({
-      top: { x: 0, y: 0, w: 6, h: 5 },
+      top: { x: 0, y: 0, w: 6, h: 5, fixedHeight: true },
       below: { x: 0, y: 5, w: 6, h: 4 },
     });
+    expect(
+      document
+        .querySelector('.react-grid-item[data-panel-id="top"]')
+        ?.getAttribute('data-fixed-height'),
+    ).toBe('true');
+    // A move by keyboard sizes nothing, and the mark stays with the panel.
+    await step(screen.getByLabelText('Move or resize “Below”'), 'ArrowUp');
+    expect(layouts(runtime)).toEqual({
+      top: { x: 0, y: 4, w: 6, h: 5, fixedHeight: true },
+      below: { x: 0, y: 0, w: 6, h: 4 },
+    });
+  });
+
+  /**
+   * A corner dragged to another size marks the panel sized by hand (D68);
+   * a corner let go where it started, and every drag, says nothing.
+   */
+  it('marks a panel sized by hand when a pointer resizes it', () => {
+    const place = vi.fn();
+    const { result } = renderHook(() => useGridPlacement(place));
+    const item = (h: number) => ({ i: 'top', x: 0, y: 0, w: 6, h });
+    const stop = (
+      callback: 'onResizeStop' | 'onDragStop',
+      from: number,
+      to: number,
+    ) =>
+      result.current[callback](
+        [item(to)],
+        item(from),
+        item(to),
+        null,
+        new Event('mouseup'),
+        null,
+      );
+
+    stop('onResizeStop', 4, 2);
+    stop('onResizeStop', 4, 4);
+    stop('onDragStop', 4, 4);
+
+    expect(place.mock.calls).toEqual([
+      ['top', { x: 0, y: 0, w: 6, h: 2, fixedHeight: true }],
+      ['top', { x: 0, y: 0, w: 6, h: 4 }],
+      ['top', { x: 0, y: 0, w: 6, h: 4 }],
+    ]);
   });
 
   /**

@@ -31,6 +31,7 @@
 
 import {
   DASHBOARD_GRID_COLUMNS,
+  hasFixedHeight,
   type DashboardPanel,
   type DashboardViewConfig,
   type PanelLayout,
@@ -192,16 +193,34 @@ export function freeSpot(
  * untrusted thing a stored config is: an entry that is no panel, or a panel
  * whose layout admission would refuse, takes no part — it is not moved and
  * moves nothing — and is handed back untouched.
+ *
+ * `grown` is the rows each panel is drawn tall where the screen grew it
+ * past what is saved (`grownLayout`, D52): a hand places against the board
+ * it sees, so the tab is grown first and the placement lands on that, and
+ * every panel of the tab is written back as it was drawn (D68: what the
+ * author saw is what is saved). A `layout` that says `fixedHeight` marks
+ * the panel sized by hand; one that does not say keeps what the panel had,
+ * as every other panel does.
  */
 export function placePanelIn(
   config: DashboardViewConfig,
   id: string,
   layout: PanelLayout,
   columns: number = DASHBOARD_GRID_COLUMNS,
+  grown?: ReadonlyMap<string, number>,
 ): DashboardViewConfig {
   const boxes = tabBoxes(config, id, columns);
-  const placed = boxes && placePanel(boxes, id, layout, columns);
-  return placed ? withLayouts(config, placed) : config;
+  const shown = boxes && grown ? grownLayout(boxes, grown) : boxes;
+  const placed = shown && placePanel(shown, id, layout, columns);
+  if (!placed) return config;
+  return withLayouts(
+    config,
+    layout.fixedHeight === undefined
+      ? placed
+      : placed.map(box =>
+          box.id === id ? { ...box, fixedHeight: layout.fixedHeight } : box,
+        ),
+  );
 }
 
 /**
@@ -233,7 +252,8 @@ function tabBoxes(
 /**
  * A config with these boxes written into the panels they name, or the same
  * config when none of them moves. A panel no box names, or whose stored
- * layout is not one the grid admits, is left as it is.
+ * layout is not one the grid admits, is left as it is. A box that says
+ * `fixedHeight` sets it; one that does not keeps the panel's own (D68).
  */
 export function withLayouts(
   config: DashboardViewConfig,
@@ -247,10 +267,15 @@ export function withLayouts(
     if (!isPlainObject(panel) || typeof panel.id !== 'string') return panel;
     const box = moved.get(panel.id);
     const current = panel.layout;
-    if (!box || !fitsGrid(current, columns) || sameLayout(current, box))
+    if (!box || !fitsGrid(current, columns)) return panel;
+    const fixed = hasFixedHeight(box.fixedHeight === undefined ? current : box);
+    const layout = fixed
+      ? { ...geometry(box), fixedHeight: true }
+      : geometry(box);
+    if (sameLayout(current, layout) && hasFixedHeight(current) === fixed)
       return panel;
     changed = true;
-    return { ...panel, layout: geometry(box) };
+    return { ...panel, layout };
   });
   return changed ? { ...config, panels: next as DashboardPanel[] } : config;
 }

@@ -392,6 +392,68 @@ describe('placePanelIn', () => {
     expect(placed.panels[0].layout.y).toBe(4);
   });
 
+  it('places against the board as drawn, and writes the tab back as drawn (D68)', () => {
+    const config = dashboardConfig({ panels });
+    // `a` is drawn 6 rows tall, so `b` is drawn under it at row 6.
+    const grown = new Map([['a', 6]]);
+    const placed = placePanelIn(
+      config,
+      'b',
+      { x: 12, y: 0, w: 12, h: 4 },
+      undefined,
+      grown,
+    );
+
+    expect(placed.panels.map(entry => entry.layout)).toEqual([
+      { x: 0, y: 0, w: 12, h: 6 },
+      { x: 12, y: 0, w: 12, h: 4 },
+    ]);
+  });
+
+  it('marks a panel sized by hand, and keeps the mark through later moves (D68)', () => {
+    const config = dashboardConfig({ panels });
+    const sized = placePanelIn(config, 'a', {
+      x: 0,
+      y: 0,
+      w: 12,
+      h: 3,
+      fixedHeight: true,
+    });
+    expect(sized.panels[0].layout).toEqual({
+      x: 0,
+      y: 0,
+      w: 12,
+      h: 3,
+      fixedHeight: true,
+    });
+    // `b` floated up under it and says nothing of its own.
+    expect(sized.panels[1].layout).toEqual({ x: 0, y: 3, w: 12, h: 4 });
+
+    // A drag says nothing, and the panel keeps what it had.
+    const moved = placePanelIn(sized, 'a', { x: 12, y: 0, w: 12, h: 3 });
+    expect(moved.panels[0].layout).toEqual({
+      x: 12,
+      y: 0,
+      w: 12,
+      h: 3,
+      fixedHeight: true,
+    });
+    // The same size marked again changes nothing.
+    expect(
+      placePanelIn(moved, 'a', {
+        ...moved.panels[0].layout,
+        fixedHeight: true,
+      }),
+    ).toBe(moved);
+  });
+
+  it('reads a board saved before the mark as untouched (D68)', () => {
+    const config = dashboardConfig({ panels });
+    const placed = placePanelIn(config, 'b', { x: 12, y: 0, w: 12, h: 4 });
+    for (const entry of placed.panels)
+      expect(entry.layout).not.toHaveProperty('fixedHeight');
+  });
+
   it('reads a config whose panels are not a list as having none', () => {
     const config = dashboardConfig({ panels: 'nope' as never });
 

@@ -158,6 +158,15 @@ function HomePage({ state }: { state: HomeState }) {
   // The host's own order service, which the overdue list on the board reads
   // too: the count on its action is the host's, not a number off the board.
   const overdue = state === 'empty' ? [] : overdueOrders();
+  // What the numbers are read as: under the page's title, and handed to the
+  // board, which draws it under its own while it fills the screen (D70).
+  const reads = (
+    <>
+      栖木生活全渠道 · 指标卡读{day}
+      {day === yesterday && '（昨日）'}，较前一日 · 数据截至{' '}
+      {formatMoment.format(now)}
+    </>
+  );
   return (
     <div
       data-host-page
@@ -204,6 +213,7 @@ function HomePage({ state }: { state: HomeState }) {
                   instanceId={OPS_DAILY}
                   interaction="interactive"
                   expandable
+                  caption={reads}
                   {...reader}
                   {...HOST_LANGUAGE}
                 />

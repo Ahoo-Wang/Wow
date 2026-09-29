@@ -20,6 +20,7 @@ import { resultIssues } from '../../runtime/source.js';
 import { useKindIssue } from '../kinds.js';
 import { SPACE } from '../layout.js';
 import { useViewMessages } from '../MessagesProvider.js';
+import { boardErrorTitle } from '../panelsToFix.js';
 import {
   ErrorStrip,
   NoteStrip,
@@ -105,6 +106,18 @@ export function StatusLine({
           offered(found),
       )
     : [];
+  // The definition's own findings beside the view's: an error in the
+  // definition was reported to `onIssue` and to nobody on screen (F-05). A
+  // view with no condition on a source that wants one is not broken: the
+  // table says so as its own empty state (Q3), not as something to fix.
+  const errors = [
+    ...filter.unmarked
+      .filter(
+        found => found.code !== 'record.filter.required' && offered(found),
+      )
+      .map(nameIssue),
+    ...workbench.definitionIssues.map(ownWord),
+  ];
   const showConditions = (
     <Button
       data-slot="show-conditions"
@@ -156,24 +169,11 @@ export function StatusLine({
         />
       )}
       <ErrorStrip
-        // The definition's own findings beside the view's: an
-        // error in the definition was reported to `onIssue` and to
-        // nobody on screen (F-05). A view with no condition on a source
-        // that wants one is not broken: the table says so as its own
-        // empty state (Q3), not as something to fix.
-        issues={[
-          ...filter.unmarked
-            .filter(
-              found =>
-                found.code !== 'record.filter.required' && offered(found),
-            )
-            .map(nameIssue),
-          ...workbench.definitionIssues.map(ownWord),
-        ]}
+        issues={errors}
+        // On a board whose only trouble is its panels, the line says so of
+        // the panels: they are out, and the rest of the board draws.
         title={
-          kind === 'dashboard'
-            ? messages.label('label.dashboard.needs-fixing')
-            : undefined
+          kind === 'dashboard' ? boardErrorTitle(errors, messages) : undefined
         }
         action={errorAction}
       />

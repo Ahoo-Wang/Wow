@@ -909,7 +909,14 @@ describe('DashboardGrid', () => {
         fireEvent.keyDown(handle, { key: 'ArrowRight', shiftKey: true });
         await Promise.resolve();
       });
-      expect(controller().panels[0].layout).toEqual({ x: 1, y: 0, w: 7, h: 4 });
+      // Sized by hand (D68).
+      expect(controller().panels[0].layout).toEqual({
+        x: 1,
+        y: 0,
+        w: 7,
+        h: 4,
+        fixedHeight: true,
+      });
 
       // Enter again keeps it there.
       await enter(handle);
@@ -924,9 +931,21 @@ describe('DashboardGrid', () => {
         fireEvent.keyDown(handle, { key: 'ArrowDown', shiftKey: true });
         await Promise.resolve();
       });
-      expect(controller().panels[0].layout).toEqual({ x: 2, y: 0, w: 7, h: 5 });
+      expect(controller().panels[0].layout).toEqual({
+        x: 2,
+        y: 0,
+        w: 7,
+        h: 5,
+        fixedHeight: true,
+      });
       await press(handle, 'Escape');
-      expect(controller().panels[0].layout).toEqual({ x: 1, y: 0, w: 7, h: 4 });
+      expect(controller().panels[0].layout).toEqual({
+        x: 1,
+        y: 0,
+        w: 7,
+        h: 4,
+        fixedHeight: true,
+      });
       expect(handle.getAttribute('aria-pressed')).toBe('false');
       expect(said()).toBe('“Pending orders” is back where it was');
     });
@@ -945,7 +964,14 @@ describe('DashboardGrid', () => {
       await press(corner, 'ArrowDown');
       await press(corner, 'ArrowUp');
 
-      expect(controller().panels[0].layout).toEqual({ x: 0, y: 0, w: 7, h: 4 });
+      // Sized by hand (D68): a board read draws it at this size.
+      expect(controller().panels[0].layout).toEqual({
+        x: 0,
+        y: 0,
+        w: 7,
+        h: 4,
+        fixedHeight: true,
+      });
       expect(runtime.getSnapshot().dirty).toBe(true);
     });
 

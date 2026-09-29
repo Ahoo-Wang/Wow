@@ -314,6 +314,27 @@ describe('validateDashboard panels', () => {
     ]);
   });
 
+  it('takes a panel sized by hand, and refuses a mark that is not yes or no (D68)', () => {
+    const marked = (fixedHeight: unknown) =>
+      dashboardConfig({
+        panels: [
+          viewPanel({
+            layout: { x: 0, y: 0, w: 6, h: 4, fixedHeight } as never,
+          }),
+        ],
+      });
+
+    expect(codes(validate(marked(true)))).toEqual([]);
+    expect(codes(validate(marked(false)))).toEqual([]);
+    expect(codes(validate(marked(undefined)))).toEqual([]);
+    expect(validate(marked('yes'))).toEqual([
+      expect.objectContaining({
+        code: 'dashboard.layout.invalid',
+        path: ['panels', 0, 'layout', 'fixedHeight'],
+      }),
+    ]);
+  });
+
   it('places panels on the 24 columns the config says it is written in', () => {
     const inside = dashboardConfig({
       panels: [viewPanel({ layout: { x: 12, y: 0, w: 12, h: 4 } })],

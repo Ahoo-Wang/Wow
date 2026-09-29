@@ -376,8 +376,12 @@ export abstract class BoardCommands
   removeFixedScope(): void {
     this.edits.removeFixedScope();
   }
-  place(panelId: string, layout: PanelLayout): void {
-    this.edits.place(panelId, layout);
+  place(
+    panelId: string,
+    layout: PanelLayout,
+    grown?: ReadonlyMap<string, number>,
+  ): void {
+    this.edits.place(panelId, layout, grown);
   }
   reorderPanel(panelId: string, to: number): void {
     this.edits.reorderPanel(panelId, to);

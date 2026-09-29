@@ -287,6 +287,12 @@ export function validateLayout(
   for (const size of ['w', 'h'] as const)
     if (!isPositiveInteger(layout[size]))
       issues.push(issue('dashboard.layout.invalid', [...path, size]));
+  // Left out on every board saved before a panel could say (D68).
+  if (
+    layout.fixedHeight !== undefined &&
+    typeof layout.fixedHeight !== 'boolean'
+  )
+    issues.push(issue('dashboard.layout.invalid', [...path, 'fixedHeight']));
 
   // A panel reaching past the last column wraps or disappears in the adapter.
   if (issues.length === 0 && layout.x + layout.w > columns)
