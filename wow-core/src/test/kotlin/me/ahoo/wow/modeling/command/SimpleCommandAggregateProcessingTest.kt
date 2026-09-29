@@ -215,6 +215,29 @@ class SimpleCommandAggregateProcessingTest {
     }
 
     @Test
+    fun `a non-spaced aggregate keeps its stored space whatever space a command carries`() {
+        val metadata = aggregateMetadata<MockCommandAggregate, MockCommandAggregate>()
+        val stateRoot = MockCommandAggregate("aggregate-1")
+        // A state already in space-x: written before this fix, or moved there by a SpaceTransferred event.
+        val aggregate = SimpleCommandAggregate(
+            state = metadata.toStateAggregate(stateRoot, version = 1, spaceId = "space-x"),
+            commandRoot = stateRoot,
+            eventStore = InMemoryEventStore(),
+            metadata = metadata.command,
+        )
+        val change = ChangeState("aggregate-1", "changed").toCommandMessage() as SimpleCommandMessage<ChangeState>
+
+        StepVerifier.create(aggregate.process(SimpleServerCommandExchange(change.copy(spaceId = "space-y"))))
+            .assertNext { eventStream ->
+                eventStream.spaceId.assert().isEqualTo("space-x")
+                eventStream.first().spaceId.assert().isEqualTo("space-x")
+            }
+            .verifyComplete()
+        aggregate.state.spaceId.assert().isEqualTo("space-x")
+        aggregate.commandRoot.state().assert().isEqualTo("changed")
+    }
+
+    @Test
     fun `process rejects normal commands while state is deleted and allows recovery command`() {
         val aggregate = commandAggregate()
         StepVerifier.create(
