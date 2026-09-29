@@ -11,7 +11,21 @@
 
 npm 首发（`9.2.0-rc.0`）之前按下面的顺序做，同时只做一件。审查里「现在做还是以后做」默认现在做：公开面（[D29](decisions.md) 快照）上的破坏性改动趁首发前一次改到位，不为发布前的形态留兼容层（用户 2026-09-24）。
 
-### 1. 第二轮全面审查，由用户明确通过
+### 1. Wow 存储后端（阶段 6）
+
+- **用真服务端验证 `ViewStore`**（[D75](decisions.md#d75-首发前做-wow-存储后端用真服务端验证-viewstore2026-09-29)）：框架前置修复（没有开启 `spaced` 不写入 spaceId）、视图与偏好的 Wow 聚合、就地改受众、随后端发布的 TS 客户端。
+  - 为什么：端口随首发公开；今天的两种实现都是单用户，端口没被多用户、鉴权与真实冲突验过。
+  - 判据：端口一致性测试在内存实现与 Wow 实现上都全绿；`integration-test` 连示例服务端的端到端（个人与共享、租户与应用隔离、冲突、重试去重）在 CI 里过；补偿控制台换成 Wow 存储后的端到端照常通过。
+  - 落点：[view-store-backend.md](view-store-backend.md) 第 8 节（V0～V3）。
+
+### 2. 两个 skill（存储后端之后）
+
+- **视图定义与宿主接入两个 skill**（用户 2026-09-29）：在 Wow 存储后端合并之后写（用户 2026-09-29：「Wow 存储后端 -> skills」）——那时引擎的公开面（含 `ViewStore` 的改受众）已定；第二轮审查若再改公开面，skill 随之修订。
+  - 为什么：skill 教的是最终的公开面；引擎还在改时写，写完就过时。
+  - 判据：按 [host-integration.md](host-integration.md) 第 6 节——改写 `wow-view-definition`（只讲判断，自检就是 `admit`），新增 `wow-view-host`（资源、**ViewHost**、`bind`、路由与「从命令到操作」）；智能体按 skill 从零给零售场景写一份定义与操作，一次通过 `admit`。
+  - 落点：仓库 `skills/`；[host-integration.md](host-integration.md) 第 6 节。
+
+### 3. 第二轮全面审查，由用户明确通过
 
 - **审查过门**（用户 2026-09-24）：架构质量（职责清晰、高内聚、低耦合、扩展性、可维护性）、企业级产品体验（UI 视觉、UX 交互）、功能的可用性、可访问性与易用性。
   - 为什么：这是一次重大发布；公开面一旦上 npm 就要背兼容性。
@@ -97,20 +111,6 @@ npm 首发（`9.2.0-rc.0`）之前按下面的顺序做，同时只做一件。�
   - 判据：每条落地或写进 decisions 不做；每套 × 每种明暗过对比度矩阵与色板门，neutral 在默认密度、默认约定下像素不变。
   - 落点：[theme-architecture.md](theme-architecture.md)、`src/themes/`、`src/ui/theme/`。
 
-### 2. Wow 存储后端（阶段 6）
-
-- **用真服务端验证 `ViewStore`**（[D75](decisions.md#d75-首发前做-wow-存储后端用真服务端验证-viewstore2026-09-29)）：框架前置修复（没有开启 `spaced` 不写入 spaceId）、视图与偏好的 Wow 聚合、就地改受众、随后端发布的 TS 客户端。
-  - 为什么：端口随首发公开；今天的两种实现都是单用户，端口没被多用户、鉴权与真实冲突验过。
-  - 判据：端口一致性测试在内存实现与 Wow 实现上都全绿；`integration-test` 连示例服务端的端到端（个人与共享、租户与应用隔离、冲突、重试去重）在 CI 里过；补偿控制台换成 Wow 存储后的端到端照常通过。
-  - 落点：[view-store-backend.md](view-store-backend.md) 第 8 节（V0～V3）。
-
-### 3. 两个 skill（最后做）
-
-- **视图定义与宿主接入两个 skill**（用户 2026-09-29）：在引擎定稿之后写，即上面的审查做完、由用户通过之后。
-  - 为什么：skill 教的是最终的公开面；引擎还在改时写，写完就过时。
-  - 判据：按 [host-integration.md](host-integration.md) 第 6 节——改写 `wow-view-definition`（只讲判断，自检就是 `admit`），新增 `wow-view-host`（资源、**ViewHost**、`bind`、路由与「从命令到操作」）；智能体按 skill 从零给零售场景写一份定义与操作，一次通过 `admit`。
-  - 落点：仓库 `skills/`；[host-integration.md](host-integration.md) 第 6 节。
-
 ## 首发后再议
 
 用户已定推迟到首发之后；排进某个版本时各自成为带判据的条目。
@@ -123,6 +123,7 @@ npm 首发（`9.2.0-rc.0`）之前按下面的顺序做，同时只做一件。�
 - **与上一期整段、去年同期对比（Q59）与注释**：要第二条查询与运行时路径；注释要存储，随阶段 6。D71 里「对比上一期一步生成两个指标」一并在此。落点：[analysis-echarts.md](analysis-echarts.md) 第 3 节末。
 - **Storybook 审查（2026-09-26）的 P2**：P0、P1 已全部处置。落点：`typescript/storybook/docs/review-2026-09-26.md`。
 - **搜索在真服务端上命中**：示例服务端的快照在 MongoDB 上，没有全文能力，端到端只验证了 `SEARCH` 被拒且如实报出。判据：契约作业有了 Elasticsearch 快照后，搜索用例改为断言命中。落点：Wow 仓端到端的 `view-engine/recordView` 用例（`typescript/integration-test/`）。
+- **阶段 7：文档站**（用户 2026-09-29：首发后再维护）：视图引擎在文档站（`documentation/docs/{zh,en}`）只有「视图引擎」指南与可访问性声明两页。补齐面向使用者的一套：入门（从零接入一个业务对象）、概念（定义、视图、看板、系统视图与用户视图、存储）、指南（宿主接入、声明式操作、Wow 存储后端与 CoSec 路径规则、主题、CSP、可访问性）、API 参考，中英两版。
 
 ## 线索
 
