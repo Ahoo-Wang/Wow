@@ -248,10 +248,18 @@ describe("ViewsHost", () => {
       }));
       const sent = commands();
       const landed: string[] = [];
-      vi.mocked(sent.prepare).mockImplementation(async (id: string) => {
-        await new Promise((resolve) => setTimeout(resolve, 20));
-        landed.push(id);
-      });
+      // Each command waits for the test to let it land: nothing lands on its
+      // own, so exactly the first handful are under way when the page goes.
+      const releases: (() => void)[] = [];
+      vi.mocked(sent.prepare).mockImplementation(
+        (id: string) =>
+          new Promise<void>((resolve) => {
+            releases.push(() => {
+              landed.push(id);
+              resolve();
+            });
+          }),
+      );
       const router = mount("/executions", sent);
       fireEvent.click(
         await screen.findByRole("checkbox", { name: "Select all rows" }),
@@ -265,17 +273,19 @@ describe("ViewsHost", () => {
         .filter((button) => button.textContent !== "Cancel")
         .reverse();
       fireEvent.click(confirm);
-      await waitFor(() => expect(sent.prepare).toHaveBeenCalled());
-      const started = vi.mocked(sent.prepare).mock.calls.length;
-      expect(started).toBeLessThan(8);
+      // The bulk command runs four at a time (its concurrency).
+      await waitFor(() => expect(sent.prepare).toHaveBeenCalledTimes(4));
 
       await act(() => router.navigate("/other"));
       expect(bindingOf(EXECUTION_FAILED)?.bulk?.running).toBeNull();
-      await act(() => new Promise((resolve) => setTimeout(resolve, 120)));
-      // What was under way landed; nothing more was sent with nobody to
-      // see the run or stop it.
-      expect(sent.prepare).toHaveBeenCalledTimes(started);
-      expect(landed).toHaveLength(started);
+      await act(async () => {
+        for (const release of releases.splice(0)) release();
+      });
+      // What was under way landed; nothing more was sent with nobody to see
+      // the run or stop it.
+      expect(landed).toEqual(["EF-0", "EF-1", "EF-2", "EF-3"]);
+      expect(sent.prepare).toHaveBeenCalledTimes(4);
+      expect(releases).toEqual([]);
     });
 
     it("closes a confirmation when its page is left", async () => {

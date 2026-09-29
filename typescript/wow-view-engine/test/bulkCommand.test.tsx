@@ -198,24 +198,32 @@ describe('useBulkCommand', () => {
     );
     const sent: RecordKey[] = [];
     const landed: RecordKey[] = [];
+    // Each record waits for the test to let it land.
+    const releases: (() => void)[] = [];
     const keys = Array.from({ length: 12 }, (_, at) => `EF-${at}`);
     act(() =>
       result.current.run(selection(keys), {
         title: 'Retry',
-        each: async key => {
+        each: key => {
           sent.push(key);
-          await nextTask();
-          landed.push(key);
+          return new Promise<void>(resolve =>
+            releases.push(() => {
+              landed.push(key);
+              resolve();
+            }),
+          );
         },
       }),
     );
     expect(sent).toEqual(['EF-0', 'EF-1']);
     unmount();
-    for (let turn = 0; turn < 20; turn += 1) await nextTask();
+    for (const release of releases.splice(0)) release();
+    for (let turn = 0; turn < 5; turn += 1) await nextTask();
     // Nobody can see the run or stop it now: what was under way lands, and
     // nothing more is sent (review of #3761).
-    expect(sent).toEqual(['EF-0', 'EF-1']);
     expect(landed).toEqual(['EF-0', 'EF-1']);
+    expect(sent).toEqual(['EF-0', 'EF-1']);
+    expect(releases).toEqual([]);
   });
 });
 
