@@ -27,6 +27,7 @@ import {
   isKnownEditorInput,
   issue,
   operatorsOf,
+  type FieldKind,
   type FieldKindRegistry,
 } from './fieldKind.js';
 import { isPresenceOperator } from './kinds/presence.js';
@@ -136,44 +137,73 @@ export function validateFilter(
         ),
       );
 
-    // A registered kind that asks for an input nobody wrote is the same
-    // thing one step further in: `EditorDescriptor.input` is a closed union
-    // and the surface has one control per member, so an input outside it has
-    // no editor either. Refusing it here is what keeps the fallback honest —
-    // the alternative was a text box that quietly rewrote a value shape the
-    // kind invented. It is judged before blankness, because "still empty" is
-    // itself read off the descriptor.
-    const input = kind.editor(node.operator, field, node.value).input;
-    if (!isKnownEditorInput(input)) {
+    // A host's kind is host code running inside the kernel, and a kernel
+    // answers with Issues, not throws: one that throws judging this leaf
+    // leaves it unjudged, which is said of the leaf, so the view or the one
+    // dashboard panel standing on it stays out and nothing else does.
+    try {
+      issues.push(...judgeLeaf(node, field, kind, fields, kinds, path, limits));
+    } catch (error) {
       issues.push(
-        issue('filter.kind.unknown-editor', path, {
+        // The sentence names the field by its label; the kind's id and the
+        // host's own message are for a developer, never interpolated.
+        issue('filter.kind.failed', path, {
+          field: field.name,
+          label: field.label,
           kind: field.kind,
-          input: String(input),
+          reason: error instanceof Error ? error.message : String(error),
         }),
       );
-      continue;
     }
-
-    // A condition the user has not finished writing is not a mistake, so it
-    // is left alone here and dropped at compile time. Without this, picking a
-    // field would report an error before the user could say anything.
-    if (isBlankLeafValue(node.value, node.operator, field, kind, kinds))
-      continue;
-
-    issues.push(
-      ...kind.validate({
-        value: node.value,
-        operator: node.operator,
-        field,
-        fields,
-        kinds,
-        path,
-        limits,
-      }),
-    );
   }
 
   return issues;
+}
+
+/**
+ * What a registered kind says of one leaf whose operator it offers: the
+ * editor it asks for, then — unless the leaf is still blank — its own rules.
+ */
+function judgeLeaf(
+  node: FilterLeaf,
+  field: FieldDefinition,
+  kind: FieldKind,
+  fields: readonly FieldDefinition[],
+  kinds: FieldKindRegistry,
+  path: IssuePath,
+  limits: Pick<RuntimeLimits, 'maxFilterDepth' | 'maxFilterNodes'>,
+): Issue[] {
+  // A registered kind that asks for an input nobody wrote is the same
+  // thing one step further in: `EditorDescriptor.input` is a closed union
+  // and the surface has one control per member, so an input outside it has
+  // no editor either. Refusing it here is what keeps the fallback honest —
+  // the alternative was a text box that quietly rewrote a value shape the
+  // kind invented. It is judged before blankness, because "still empty" is
+  // itself read off the descriptor.
+  const input = kind.editor(node.operator, field, node.value).input;
+  if (!isKnownEditorInput(input))
+    return [
+      issue('filter.kind.unknown-editor', path, {
+        kind: field.kind,
+        input: String(input),
+      }),
+    ];
+
+  // A condition the user has not finished writing is not a mistake, so it
+  // is left alone here and dropped at compile time. Without this, picking a
+  // field would report an error before the user could say anything.
+  if (isBlankLeafValue(node.value, node.operator, field, kind, kinds))
+    return [];
+
+  return kind.validate({
+    value: node.value,
+    operator: node.operator,
+    field,
+    fields,
+    kinds,
+    path,
+    limits,
+  });
 }
 
 /**

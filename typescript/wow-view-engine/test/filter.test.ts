@@ -189,6 +189,37 @@ describe('validateFilter', () => {
     expect(errors(issues)).toEqual(['filter.kind.unregistered']);
   });
 
+  it('reports a kind that throws on the leaf it could not judge', () => {
+    const custom: FieldDefinition[] = [
+      { name: 'grade', label: 'Grade', kind: 'brittle' },
+    ];
+    const brittle: FieldKind = {
+      ...builtinFieldKinds.get('string')!,
+      id: 'brittle',
+      validate: () => {
+        throw new Error('brittle is broken');
+      },
+    };
+    const issues = validateFilter(
+      custom,
+      tree({ field: 'grade', operator: 'EQ', value: 'A' }),
+      withFieldKinds(builtinFieldKinds, [brittle]),
+    );
+    expect(issues).toEqual([
+      {
+        code: 'filter.kind.failed',
+        severity: 'error',
+        path: ['children', 0],
+        params: {
+          field: 'grade',
+          label: 'Grade',
+          kind: 'brittle',
+          reason: 'brittle is broken',
+        },
+      },
+    ]);
+  });
+
   it('narrows the operator set with the field declaration', () => {
     const narrowed: FieldDefinition[] = [
       { name: 'id', label: 'Order', kind: 'string', operators: ['EQ'] },

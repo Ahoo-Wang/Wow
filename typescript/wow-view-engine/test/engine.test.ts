@@ -11,20 +11,16 @@
  * limitations under the License.
  */
 
-import { FilterOperator } from '@ahoo-wang/wow-client';
 import { describe, expect, it, vi } from 'vitest';
 import type { ViewWriteError } from '../src/index.js';
 import {
   emptyDashboardConfig,
-  builtinFieldKinds,
   isViewCommandError,
-  withFieldKinds,
   isViewWriteError,
   MemoryViewStore,
   toSummary,
   ViewEngine,
   ViewStoreError,
-  type FieldKind,
   type Issue,
   type ViewChange,
   type ViewDefinition,
@@ -32,6 +28,7 @@ import {
   type ViewPermissions,
   type ViewPreferences,
 } from '../src/index.js';
+import { DashboardViewRuntime } from '../src/runtime/dashboardRuntime.js';
 import { orderSummaries } from '../src/runtime/preferences.js';
 import { systemInstances } from '../src/runtime/definitions.js';
 import {
@@ -291,40 +288,15 @@ describe('ViewEngine opening', () => {
   });
 
   it('keeps no runtime for a dashboard that failed to open', async () => {
-    // A host's field kind that throws as a panel's view is admitted: the
-    // panel cannot be put to work, and the board's opening is refused.
-    const exploding: FieldKind = {
-      id: 'exploding',
-      operators: ['EQ'],
-      defaultOperator: 'EQ',
-      emptyValue: () => null,
-      validate: () => {
-        throw new Error('the host kind failed');
-      },
-      compile: ({ leaf, field }) => ({
-        op: FilterOperator.EQ,
-        field: field.name,
-        value: leaf.value as number,
-      }),
-      editor: () => ({ input: 'text' }),
-      describe: ({ field }) => ({
-        text: field.label,
-        value: { kind: 'none' },
-      }),
-    };
-    const orders = ordersDefinition();
+    // Whatever its references throw while the board waits for them — a
+    // host's field kind that throws no longer does (`filter.kind.failed`
+    // on the leaf, test/throwingKind.test.ts), so the wait itself fails.
+    vi.spyOn(DashboardViewRuntime.prototype, 'ready').mockRejectedValue(
+      new Error('the board failed to open'),
+    );
     const store = new MemoryViewStore({
       instances: [
-        {
-          ...mine,
-          id: 'orders-1',
-          config: recordConfig({
-            filter: {
-              op: 'and',
-              children: [{ field: 'weight', operator: 'EQ', value: 1 }],
-            },
-          }),
-        },
+        { ...mine, id: 'orders-1' },
         {
           ...mine,
           id: 'overview-1',
@@ -345,26 +317,15 @@ describe('ViewEngine opening', () => {
       ],
     });
     const engine = new ViewEngine({
-      resources: resourcesOf(
-        [
-          {
-            ...orders,
-            fields: [
-              ...orders.fields,
-              { name: 'weight', label: 'Weight', kind: 'exploding' },
-            ],
-          },
-          overviewDefinition(),
-        ],
-        () => testSource(),
+      resources: resourcesOf([ordersDefinition(), overviewDefinition()], () =>
+        testSource(),
       ),
-      kinds: withFieldKinds(builtinFieldKinds, [exploding]),
       store,
       environment: testEnvironment().environment,
     });
 
     await expect(engine.open('overview-1')).rejects.toThrow(
-      'the host kind failed',
+      'the board failed to open',
     );
     // The caller never received it, so nobody could close it.
     expect(engine.openRuntimes()).toEqual([]);

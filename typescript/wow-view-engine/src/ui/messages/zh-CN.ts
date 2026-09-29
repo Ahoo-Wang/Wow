@@ -550,6 +550,7 @@ export const zhCN: ViewMessages = {
   'filter.group.unknown-operator': '条件分组只能是 AND 或 OR。',
   'filter.kind.unregistered': '{kind} 类型没有注册编辑器。',
   'filter.kind.unknown-editor': '{kind} 类型要的 {input} 编辑器，引擎没有。',
+  'filter.kind.failed': '「{label}」这个条件没能检查，请联系维护这个视图的人。',
   'filter.node.invalid': '这个条件无法读取。',
   'filter.operator.unsupported': '「{field}」不支持「{operator}」。',
   'filter.presence.empty-is-missing':
