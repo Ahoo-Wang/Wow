@@ -23,7 +23,6 @@ import type {
   AnalysisEditorController,
   AnalysisFieldOption,
 } from '../../react/index.js';
-import { Button } from '../components/button.js';
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
@@ -35,7 +34,7 @@ import { NumberInput } from '../FilterValueEditor.js';
 import { IconButton } from '../IconButton.js';
 import { useViewMessages } from '../MessagesProvider.js';
 import { DropdownMenuContent } from '../popups.js';
-import { EditorCard, EditorSlot } from '../variants.js';
+import { AddButton, EditorCard, EditorSlot } from '../variants.js';
 import { CardMenu, CardName } from './CardMenu.js';
 import { CompactSelect } from './CompactSelect.js';
 import { defaultGroup, usedAliases } from './editing.js';
@@ -113,10 +112,8 @@ export function DimensionSlot({
         <DropdownMenu>
           <DropdownMenuTrigger
             render={
-              <Button
+              <AddButton
                 ref={trigger}
-                variant="ghost"
-                size="sm"
                 disabled={disabled || groupable.length === 0}
                 data-slot="add-group"
                 // The row's term says what is added; the name says it too,

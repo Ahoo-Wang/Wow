@@ -36,6 +36,7 @@
 import { cleanup, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
 import {
+  AddButton,
   PillInput,
   PillSelectTrigger,
   SidebarItem,
@@ -107,6 +108,27 @@ describe('ToneBadge', () => {
     const badge = document.querySelector<HTMLElement>('[data-slot="badge"]')!;
     expect(badge.className).toContain('text-success');
     expect(badge.className).toContain('before:hidden');
+  });
+});
+
+describe('AddButton', () => {
+  /**
+   * Not chosen yet (review of #3781): the registry's outline edge, dashed,
+   * in the registry's own edge colours; hover and focus are the registry's.
+   */
+  it('draws the outline edge dashed, and says it adds', () => {
+    render(
+      <ViewSurface>
+        <AddButton>Add</AddButton>
+      </ViewSurface>,
+    );
+    const button = screen.getByRole('button', { name: 'Add' });
+    expect(button.getAttribute('data-affordance')).toBe('add');
+    expect(button.className).toContain('border-dashed');
+    expect(button.className).toContain('border-border');
+    expect(button.className).toContain('dark:border-input');
+    expect(button.className).toContain('hover:bg-muted');
+    expect(button.className).toContain('focus-visible:ring-ring/50');
   });
 });
 

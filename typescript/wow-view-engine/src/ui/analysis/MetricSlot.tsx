@@ -19,7 +19,6 @@ import { isValueMetric, type FieldOption } from '../../model/index.js';
 import { summaryChoices } from '../../analysis/index.js';
 import type { AnalysisEditorController } from '../../react/index.js';
 import { useAnnouncer } from '../Announcer.js';
-import { Button } from '../components/button.js';
 import {
   DropdownMenu,
   DropdownMenuGroup,
@@ -32,7 +31,7 @@ import { sortableList, withoutOptimisticSorting } from '../dragPlugins.js';
 import { GroupedMenu } from '../FieldMenu.js';
 import { useViewMessages } from '../MessagesProvider.js';
 import { DropdownMenuContent } from '../popups.js';
-import { EditorSlot } from '../variants.js';
+import { AddButton, EditorSlot } from '../variants.js';
 import { chartDragAccessibility, listDrop } from './drag.js';
 import {
   defaultMetric,
@@ -301,9 +300,7 @@ function AddMetric({
     <DropdownMenu>
       <DropdownMenuTrigger
         render={
-          <Button
-            variant="ghost"
-            size="sm"
+          <AddButton
             disabled={
               disabled || (measurable.length === 0 && !analysis.countable)
             }

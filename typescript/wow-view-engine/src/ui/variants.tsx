@@ -24,7 +24,8 @@
  * rather than a colour. Seven cases live here: a badge that has to read as a
  * status (and one that says a change, in the colour the host's convention
  * gives it), a badge that has to hold a sentence, the answer that carries out a
- * destructive command, the one divider that has to be seen, the controls
+ * destructive command, the dashed edge of a button that adds what is
+ * not there yet, the one divider that has to be seen, the controls
  * inside a condition pill, which draw no chrome of their own, one row of
  * records in its three states, and the open view in the sidebar — and the
  * dashboard's three: a panel's frame with its warning edge, the edge a
@@ -308,6 +309,41 @@ export function DestructiveAction({
       variant="destructive"
       data-tone="danger"
       className={cn(destructiveActionVariants(), className)}
+      {...props}
+    />
+  );
+}
+
+/**
+ * An edge that says "not chosen yet": the dashed outline of an add button
+ * (user, review of #3781 — 「+ 商品」 drawn as a borderless ghost read as a
+ * value already picked). The registry's outline edge in its own colours
+ * (`border-border`, `dark:border-input`), only dashed; hover fills as the
+ * outline button does and the edge stays dashed. Size, hit area and focus
+ * ring are the registry's.
+ */
+const addButtonVariants = cva('border-dashed');
+
+/**
+ * A button that adds something not there yet — 「+ 添加」 on the tray's
+ * metrics, dimensions and range, 「+ 商品」 into the chain, 「+ 只保留」.
+ * What was added (a level card, a metric pill, a dimension chip, a
+ * condition) keeps its solid edge, so the two never read alike.
+ *
+ * `data-affordance="add"` says so on the element, for a suite to ask
+ * instead of naming the edge; the edge itself is asserted once, in
+ * `test/variants.test.tsx`. It renders as a trigger's `render` element too.
+ */
+export function AddButton({
+  className,
+  ...props
+}: Omit<React.ComponentProps<typeof Button>, 'variant'>) {
+  return (
+    <Button
+      variant="outline"
+      size="sm"
+      data-affordance="add"
+      className={cn(addButtonVariants(), className)}
       {...props}
     />
   );

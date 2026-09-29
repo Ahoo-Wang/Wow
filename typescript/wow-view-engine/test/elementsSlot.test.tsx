@@ -293,6 +293,8 @@ describe('the expansion slot', () => {
     // The add button shows the array's name, 「+ 商品」, and is named by the
     // step it takes.
     expect(expandInto()?.textContent).toBe('Items');
+    // Not chosen yet, so dashed (review of #3781); a level card is not.
+    expect(expandInto()?.getAttribute('data-affordance')).toBe('add');
     expect(expandInto()?.getAttribute('aria-label')).toBe(
       label('label.analysis.expand-into', { name: 'Items' }),
     );

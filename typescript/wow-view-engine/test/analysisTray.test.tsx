@@ -317,6 +317,21 @@ describe('the analysis tray', () => {
     expect(
       screen.getByRole('button', { name: 'Add dimension' }).textContent,
     ).toBe(defaultMessages['label.analysis.add']);
+    // Not chosen yet, and drawn so (review of #3781): every row's add
+    // button — the range's too — is the dashed add button; what was added
+    // is not.
+    for (const name of ['Metrics', 'Dimensions', 'Range']) {
+      const region = screen.getByRole('region', { name });
+      expect(
+        region.querySelectorAll('[data-affordance="add"]').length,
+      ).toBeGreaterThan(0);
+    }
+    expect(addMetric.getAttribute('data-affordance')).toBe('add');
+    expect(
+      tray()!.querySelector(
+        '[data-slot="metric-card"] [data-affordance="add"]',
+      ),
+    ).toBeNull();
     // Nothing about how the result is looked at is in here.
     expect(
       within(tray()!).queryByRole('button', {

@@ -21,7 +21,7 @@ import { Button } from '../components/button.js';
 import { IconButton } from '../IconButton.js';
 import { TEXT_UI } from '../layout.js';
 import { useViewMessages } from '../MessagesProvider.js';
-import { EditorCard, EditorSlot } from '../variants.js';
+import { AddButton, EditorCard, EditorSlot } from '../variants.js';
 import { useListFocus, type ListFocus } from './listFocus.js';
 import { TermTip } from './TermTip.js';
 import { ConditionLine, ConditionsBlock } from './MetricCondition.js';
@@ -108,9 +108,7 @@ export function ElementsSlot({
         {next && (
           // Named by what it does — 「展开 商品」 — and showing the array's
           // name alone: the row's term already says 展开.
-          <Button
-            variant="ghost"
-            size="sm"
+          <AddButton
             data-slot="expand-into"
             disabled={disabled}
             aria-label={messages.label('label.analysis.expand-into', {
@@ -120,7 +118,7 @@ export function ElementsSlot({
           >
             <PlusIcon data-icon="inline-start" />
             {messages.say(next.label)}
-          </Button>
+          </AddButton>
         )}
       </div>
     </EditorSlot>
