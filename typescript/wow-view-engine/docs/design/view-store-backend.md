@@ -178,8 +178,6 @@ export interface WowViewStoreOptions {
    * 应用、space、认证也由它带上。
    */
   fetcher: Fetcher;
-  /** 不登录的宿主没有令牌，拦截器填不了租户，由这里给。 */
-  tenantId?: string;
   /** 按钮是否可用。服务端不鉴权，宿主按自己在 CoSec 里的角色给；缺省全部允许。 */
   permissions?: (definitionId: string) => ViewPermissions;
 }
@@ -190,7 +188,7 @@ export class WowViewStore implements ViewStore {
 }
 ```
 
-- **路径参数**：个人视图的 `{ownerId}` 留空，由 fetcher-cosec 按令牌的 `sub` 自动填成当前用户；共享视图显式填 `(shared)`（拦截器只填没给的参数）。没有令牌的宿主只用共享视图。
+- **路径参数**：`{tenantId}` 与个人视图的 `{ownerId}` 留空，由 fetcher 的拦截器填——fetcher-cosec 按令牌的 `tenantId` 与 `sub`；不登录的宿主（如补偿控制台）插入自己的拦截器注入缺省值。共享视图显式填 `(shared)`（拦截器只填没给的参数）。**WowViewStore** 不收租户、用户这类选项。
 - **列表**：个人与共享各查一次，再合并系统视图。
 - **按 id 读写要知道是个人还是共享**：端口只给 id。客户端记住列表、读取、创建时得到的「id → 受众」；没见过的 id 先按个人、再按共享各试一次。系统视图的 id 由系统视图接口给出，客户端认得。
 - 写入：显式带 `Command-Request-Id` 与期望版本，等到 `SNAPSHOT`，成功后按 id 读回实例作答。
