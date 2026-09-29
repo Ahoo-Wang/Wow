@@ -374,7 +374,7 @@ function moveToTab(
           {
             id: tab.id,
             name:
-              tab.title.trim() ||
+              messages.say(tab.title).trim() ||
               messages.label('label.dashboard.tab.untitled', {
                 index: index + 1,
               }),

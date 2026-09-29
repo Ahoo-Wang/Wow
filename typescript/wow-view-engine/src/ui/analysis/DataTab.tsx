@@ -392,7 +392,8 @@ function StageList({
         // analyst is concerned.
         items={stages.map(stage => ({
           ...stage,
-          name: stage.given ?? stage.name,
+          name:
+            stage.given === undefined ? stage.name : messages.say(stage.given),
           fallback: stage.name,
         }))}
         onReorder={onReorder}

@@ -297,6 +297,8 @@ export {
 export {
   type Text,
   type TextResolver,
+  type TextWords,
+  say,
   text,
   textKeyOf,
   withText,

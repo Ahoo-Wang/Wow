@@ -45,7 +45,7 @@ import { Textarea } from '../components/textarea.js';
 import { ToggleGroup, ToggleGroupItem } from '../components/toggle-group.js';
 import { IconButton } from '../IconButton.js';
 import type { MessageKey } from '../messages.js';
-import { useViewMessages } from '../MessagesProvider.js';
+import { keptKey, useViewMessages } from '../MessagesProvider.js';
 import { DialogContent } from '../popups.js';
 
 /** The content panels a form edits; a heading is named in place instead. */
@@ -136,30 +136,66 @@ interface LinkDraft {
   label: string;
   href: string;
   description: string;
+  /**
+   * The link this row opened on, keys and all, and the words it was shown
+   * in: carried with the row, so a row still gives back its own keys after
+   * a row above it is removed.
+   */
+  was?: { label: Opened; description: Opened };
+}
+
+/** A label as the form opened on it: the key, and the words it showed. */
+interface Opened {
+  key: string;
+  shown: string;
+}
+
+function opened(key: string, say: (value: string) => string): Opened {
+  return { key, shown: say(key) };
 }
 
 /**
  * A form's starting values: the panel's own, or a new one's — empty, so what
  * the author types is all there is. The hint for a new note is the box's
  * placeholder, never text to delete first (the keyboard starts in the box).
+ * The words are shown as `say` says them: the author's keys in words.
  */
-function draftOf(target: ContentTarget) {
+function draftOf(target: ContentTarget, say: (value: string) => string) {
   const panel = target.mode === 'edit' ? target.panel : undefined;
+  const links: LinkDraft[] =
+    panel?.kind === 'links'
+      ? panel.items.map(item => ({
+          label: say(item.label),
+          href: item.href,
+          description: say(item.description ?? ''),
+          was: {
+            label: opened(item.label, say),
+            description: opened(item.description ?? '', say),
+          },
+        }))
+      : [{ label: '', href: '', description: '' }];
   return {
-    title: panel?.title ?? '',
-    content: panel?.kind === 'markdown' ? panel.content : '',
+    title: say(panel?.title ?? ''),
+    content: say(panel?.kind === 'markdown' ? panel.content : ''),
     src: panel?.kind === 'image' ? panel.src : '',
-    alt: panel?.kind === 'image' ? (panel.alt ?? '') : '',
+    alt: say(panel?.kind === 'image' ? (panel.alt ?? '') : ''),
     href: panel?.kind === 'image' ? (panel.href ?? '') : '',
     fit: panel?.kind === 'image' ? (panel.fit ?? 'contain') : 'contain',
-    links:
-      panel?.kind === 'links'
-        ? panel.items.map(item => ({
-            label: item.label,
-            href: item.href,
-            description: item.description ?? '',
-          }))
-        : [{ label: '', href: '', description: '' }],
+    links,
+  };
+}
+
+/**
+ * What the panel held, keys and all, with the words the form opened on
+ * them: what a box left as it opened gives back (`keptKey`) — the key,
+ * even where the language changed while the form was open.
+ */
+function heldOf(target: ContentTarget, say: (value: string) => string) {
+  const panel = target.mode === 'edit' ? target.panel : undefined;
+  return {
+    title: opened(panel?.title ?? '', say),
+    content: opened(panel?.kind === 'markdown' ? panel.content : '', say),
+    alt: opened(panel?.kind === 'image' ? (panel.alt ?? '') : '', say),
   };
 }
 
@@ -177,7 +213,12 @@ function ContentForm({
   const messages = useViewMessages();
   const ids = useId();
   const kind = target.mode === 'add' ? target.kind : target.panel.kind;
-  const [draft, setDraft] = useState(() => draftOf(target));
+  const [draft, setDraft] = useState(() => draftOf(target, messages.say));
+  // What the panel held, keys and all: words left as they were shown go
+  // back as the keys they were said from (`keptKey`).
+  const [held] = useState(() => heldOf(target, messages.say));
+  const back = (typed: string, was: Opened | undefined) =>
+    was ? keptKey(typed, was.key, messages.say, was.shown) : typed;
   // Nothing is marked before the first try: an empty box a moment after it
   // appeared is not a mistake yet.
   const [tried, setTried] = useState(false);
@@ -209,14 +250,15 @@ function ContentForm({
   const submit = () => {
     setTried(true);
     if (wrong) return;
-    const title = optional(draft.title);
-    if (kind === 'markdown') onSubmit({ kind, title, content: draft.content });
+    const title = optional(back(draft.title, held.title));
+    if (kind === 'markdown')
+      onSubmit({ kind, title, content: back(draft.content, held.content) });
     else if (kind === 'image')
       onSubmit({
         kind,
         title,
         src: draft.src.trim(),
-        alt: optional(draft.alt),
+        alt: optional(back(draft.alt, held.alt)),
         href: optional(draft.href),
         fit: draft.fit,
       });
@@ -225,9 +267,9 @@ function ContentForm({
         kind,
         title,
         items: draft.links.map(link => ({
-          label: link.label.trim(),
+          label: back(link.label.trim(), link.was?.label),
           href: link.href.trim(),
-          description: optional(link.description),
+          description: optional(back(link.description, link.was?.description)),
         })),
       });
   };

@@ -431,6 +431,7 @@ describe('a part key on screen', () => {
         catalogue[key]!.replace(/\{(\w+)\}/g, (_, name: string) =>
           String(params?.[name]),
         ),
+      say: (value: string) => value,
     });
     expect(
       columnTitle(

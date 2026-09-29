@@ -11,7 +11,6 @@
  * limitations under the License.
  */
 
-import type { EngineText } from './text.js';
 import { dequal } from 'dequal';
 import {
   type DataViewConfig,
@@ -102,8 +101,6 @@ export class DataViewRuntime<
   readonly environment: RuntimeEnvironment;
 
   protected readonly store: RuntimeStore<ViewRuntimeState<C>>;
-  /** The words the definition's keys are said in; see `EngineText`. */
-  private readonly text: EngineText | undefined;
   protected readonly context: KernelContext;
   private readonly runner: RequestRunner;
   private readonly resolveOptions: ((key: string) => OptionSource) | undefined;
@@ -174,9 +171,7 @@ export class DataViewRuntime<
     this.injectedScope = refused ? null : wanted;
     const issues = refused ? own : merged;
     this.appliedAdmitted = !hasError(issues);
-    this.text = options.text;
     this.store = new RuntimeStore<ViewRuntimeState<C>>({
-      text: options.text,
       state: {
         saved,
         title: options.title,
@@ -245,10 +240,7 @@ export class DataViewRuntime<
   get definition(): DefinitionFor<C> {
     // `C extends DataViewConfig` makes `DefinitionFor<C>` a data definition,
     // which the compiler cannot prove while `C` is still a parameter.
-    const definition = this.context.definition;
-    return (
-      this.text ? this.text.say(definition) : definition
-    ) as DefinitionFor<C>;
+    return this.context.definition as DefinitionFor<C>;
   }
 
   /** The budgets in force: the host's, and the source's where it says them. */
@@ -271,7 +263,7 @@ export class DataViewRuntime<
   }
 
   get fields(): readonly FieldDefinition[] {
-    return this.definition.fields;
+    return this.context.definition.fields;
   }
 
   /** The injected condition in force; see `ViewRuntime.scopeFilter`. */
@@ -413,15 +405,15 @@ export class DataViewRuntime<
   }
 
   /** Called by `ViewEngine` once a write has been confirmed by the store. */
-  markSaved(instance: ViewInstance, sent?: C): void {
+  markSaved(instance: ViewInstance): void {
     if (this.disposed) return;
-    this.moveBaseline(instance, sent);
+    this.moveBaseline(instance);
     this.store.setState({ write: null });
   }
 
-  moveBaseline(stored: ViewInstance, sent?: C): void {
+  moveBaseline(stored: ViewInstance): void {
     if (this.disposed) return;
-    this.store.setState(this.store.baseline(stored, sent));
+    this.store.setState(this.store.baseline(stored));
   }
 
   /** Replaces the draft with the store's state, used by "reload" on a conflict. */

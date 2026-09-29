@@ -23,7 +23,7 @@ import type {
   ViewNavigation,
 } from '../runtime/index.js';
 import { useWorkbench } from '../react/index.js';
-import { useViewMessages } from './MessagesProvider.js';
+import { StartingWords, useViewMessages } from './MessagesProvider.js';
 import {
   useBindings,
   useEngine,
@@ -202,7 +202,19 @@ const DATA_KINDS: readonly DataViewKind[] = ['record', 'analysis'];
  * drawn at one place in the tree and keeps the screen's posture across a
  * switch (`workbench/parts.ts`).
  */
-export function DataWorkbench({
+/**
+ * The words the engine was built with, under the surface, where its own
+ * engine names them (`useSay`).
+ */
+export function DataWorkbench(props: DataWorkbenchProps) {
+  return (
+    <StartingWords engine={useEngine(props.engine)}>
+      <DataWorkbenchSurface {...props} />
+    </StartingWords>
+  );
+}
+
+function DataWorkbenchSurface({
   engine: own,
   definitionId,
   kinds = DATA_KINDS,

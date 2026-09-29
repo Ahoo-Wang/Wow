@@ -57,9 +57,9 @@ export function SearchBox({ search }: { search: SearchBoxController }) {
         placeholder={
           search.byWords
             ? messages.label('label.search.by-words', { field: field.label })
-            : field.label
+            : messages.say(field.label)
         }
-        aria-label={field.label}
+        aria-label={messages.say(field.label)}
         aria-describedby={hint}
         onChange={event => search.set(event.target.value)}
         onKeyDown={event => {

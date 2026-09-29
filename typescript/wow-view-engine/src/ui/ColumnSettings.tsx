@@ -64,7 +64,7 @@ import {
   type ColumnSettingRow,
 } from './columns/rows.js';
 import { columnSections, matchingRows } from './columns/sections.js';
-import { useViewMessages } from './MessagesProvider.js';
+import { useSay, useViewMessages } from './MessagesProvider.js';
 import { ToolbarItem } from './toolbar.js';
 import { useAnnouncer } from './Announcer.js';
 
@@ -154,10 +154,15 @@ export function ColumnSettings({
   // same way.
   const [query, setQuery] = useState('');
 
+  // Each row named in the surface's words: the list is shown and searched,
+  // and gives back field names.
   const rows = useMemo(
     () =>
       columnSettingRows({
-        fields,
+        fields: fields.map(field => ({
+          ...field,
+          label: messages.say(field.label),
+        })),
         columns: table.columnFields,
         ...(rowKey === undefined ? {} : { rowKey }),
         summaryFields: table.summaryFields,
@@ -167,6 +172,7 @@ export function ColumnSettings({
       }),
     [
       fields,
+      messages,
       rowKey,
       table.columnFields,
       table.hiddenOf,
@@ -459,6 +465,7 @@ function Section({
   group: FieldGroupDefinition | undefined;
   regionHeadingId: string;
 }) {
+  const say = useSay();
   const labelId = useId();
   // Counted inside the block, because that is the list the library is
   // sorting; what the move *commits* is counted over the area instead.
@@ -475,7 +482,7 @@ function Section({
           data-slot="column-group-heading"
           className="text-muted-foreground px-2 pt-1.5 pb-0.5 pl-3 text-xs"
         >
-          {group.label}
+          {say(group.label)}
         </h4>
       )}
       <ul

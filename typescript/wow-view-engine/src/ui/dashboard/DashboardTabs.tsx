@@ -252,6 +252,6 @@ export function tabTitle(
   messages: MessageFormatters,
 ): string {
   return tab.title.trim()
-    ? tab.title
+    ? messages.say(tab.title)
     : messages.label('label.dashboard.tab.untitled', { index: index + 1 });
 }

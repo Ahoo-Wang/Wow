@@ -59,6 +59,16 @@ export function summaryText(
   messages: MessageFormatters,
   context: DisplayContext,
 ): string {
+  // The field's name and an option's label are a definition's words: the
+  // line is said whole, where it is shown (D2).
+  return messages.say(summaryWords(item, messages, context));
+}
+
+function summaryWords(
+  item: FilterSummaryItem,
+  messages: MessageFormatters,
+  context: DisplayContext,
+): string {
   if (isGroupItem(item))
     return groupText(item.group ?? 'and', item.items ?? [], messages, context);
 

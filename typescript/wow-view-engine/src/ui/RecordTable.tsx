@@ -95,7 +95,13 @@ const SELECT_CELL = '[&:has([role=checkbox])]:pr-2';
 
 export interface RecordTableProps {
   table: RecordTableController;
-  /** Renders one cell; the default reads it as the column's `cell` says. */
+  /**
+   * Renders one cell; the default reads it as the column's `cell` says.
+   * It is handed the raw value and the column as the runtime holds them —
+   * a keyed definition's labels as keys: what it shows, it says (`useSay`,
+   * or `cellValue` given the surface's `useSurfaceDisplay()`, whose `say`
+   * says an option's label).
+   */
   renderCell?(cell: RecordCell): React.ReactNode;
   /**
    * Whether rows can be picked. On by default; a surface that offers nothing

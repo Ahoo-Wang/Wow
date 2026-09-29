@@ -121,7 +121,9 @@ export function metricName(
   metric: AnalysisMetric,
   messages: MessageFormatters,
 ): string {
-  return metric.label ?? metricFallbackName(analysis, metric, messages);
+  return metric.label === undefined
+    ? metricFallbackName(analysis, metric, messages)
+    : messages.say(metric.label);
 }
 
 /**
@@ -211,8 +213,11 @@ export function metricFallbackName(
   messages: MessageFormatters,
   composed = false,
 ): string {
+  // Shown, so in the surface's words (D2).
   const fieldLabel = (field: string) =>
-    analysis.fields.find(entry => entry.field === field)?.label ?? field;
+    messages.say(
+      analysis.fields.find(entry => entry.field === field)?.label ?? field,
+    );
   if (metric.type === 'COUNT')
     return messages.label('label.analysis.row-count');
   if (isFormula(metric) || isDuration(metric))

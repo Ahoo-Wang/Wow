@@ -15,7 +15,12 @@ import * as React from 'react';
 import { cn } from 'cn';
 import { TooltipProvider } from './components/tooltip.js';
 import type { DisplayContext } from './display.js';
-import { MessagesProvider, useInheritedLocale } from './MessagesProvider.js';
+import {
+  MessagesProvider,
+  StartingWords,
+  useInheritedLocale,
+  useSay,
+} from './MessagesProvider.js';
 import type { ViewMessages } from './messages.js';
 import { ViewExpandExit } from './ViewExpansion.js';
 import { CHART_TOKENS, THEME_ATTRIBUTES } from './charts/theme.js';
@@ -69,6 +74,15 @@ export interface ViewSurfaceProps extends React.ComponentProps<'div'> {
   messages?: ViewMessages;
   /** The language dates and times show in; the runtime's when left out. */
   locale?: string;
+  /**
+   * The engine the views inside were opened from, whose starting words
+   * (`ViewEngineOptions.text`) say a definition's key where `messages` —
+   * and every provider's above — lack it. A `ViewEngineProvider`, a
+   * workbench and an embed hand them down already; a host that draws
+   * parts inside a surface of its own, with no Provider around it, passes
+   * its engine here, or those keys show as keys (D2).
+   */
+  engine?: { startingWord(key: string): string | undefined };
   /**
    * The zone times show in. A workbench passes its engine's, the zone a
    * relative filter is evaluated in, so a row's time reads on the same clock
@@ -375,7 +389,15 @@ export function useSurfaceDisplay(): DisplayContext {
   return React.useContext(SurfaceDisplayContext);
 }
 
-export function ViewSurface({
+export function ViewSurface({ engine, ...props }: ViewSurfaceProps) {
+  return (
+    <StartingWords engine={engine}>
+      <Surface {...props} />
+    </StartingWords>
+  );
+}
+
+function Surface({
   className,
   theme,
   preset,
@@ -388,7 +410,7 @@ export function ViewSurface({
   style,
   ref,
   ...props
-}: ViewSurfaceProps) {
+}: Omit<ViewSurfaceProps, 'engine'>) {
   const rootRef = React.useRef<HTMLDivElement>(null);
   const resolved = useResolvedTheme(rootRef);
   const pinned = usePinnedMode(theme);
@@ -396,9 +418,11 @@ export function ViewSurface({
   // it set (`ViewEngineProvider`'s `locale`), as its wording follows it.
   const inherited = useInheritedLocale();
   const language = locale ?? inherited;
+  // The definition's words as this surface's wording says them.
+  const say = useSay(messages);
   const display = React.useMemo(
-    () => ({ locale: language, timeZone }),
-    [language, timeZone],
+    () => ({ locale: language, timeZone, say }),
+    [language, timeZone, say],
   );
   // The surface keeps its own handle on the root — the resolved theme is read
   // off it — and hands the caller the same element. A caller's ref cannot

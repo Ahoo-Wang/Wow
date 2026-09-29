@@ -57,7 +57,7 @@ export function BulkStatus({ command }: BulkStatusProps) {
     return (
       <LineAlert tone="info" data-slot="bulk-status" data-state="running">
         <AlertTitle className="tabular-nums">
-          {`${running.title} · `}
+          {`${messages.say(running.title)} · `}
           {messages.label(
             failed > 0 ? 'label.bulk.running-failed' : 'label.bulk.running',
             { done, total, failed },
@@ -82,7 +82,7 @@ export function BulkStatus({ command }: BulkStatusProps) {
   const [tone, sentence] = reading(outcome, messages);
   return (
     <LineAlert tone={tone} data-slot="bulk-status" data-state="settled">
-      <AlertTitle>{`${outcome.title} · ${sentence}`}</AlertTitle>
+      <AlertTitle>{`${messages.say(outcome.title)} · ${sentence}`}</AlertTitle>
       <AlertAction>
         <Button variant="outline" size="sm" onClick={command.dismiss}>
           {messages.label('label.bulk.dismiss')}

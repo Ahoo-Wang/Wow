@@ -38,13 +38,13 @@ export interface ResourceHost {
 /**
  * The half of the engine that is what the host registered
  * (host-integration.md 4): each definition's source, by the key its
- * definitions name it by, and the words its keys are said in
+ * definitions name it by, and the words its keys are checked against
  * (`EngineText`, D2).
  */
 export abstract class EngineResources {
   /** The definitions as registered, keys and all. */
   protected abstract readonly registry: DefinitionRegistry;
-  /** The words the definitions' keys are said in; see `EngineText`. */
+  /** The words the definitions' keys are checked against; see `EngineText`. */
   protected readonly text: EngineText;
   private readonly sources = new Map<string, ViewSource>();
   /** What was told to lack words, by language, code and key; see `setText`. */
@@ -71,18 +71,27 @@ export abstract class EngineResources {
   }
 
   /**
-   * Every registered definition, by id, in the words in force: its keys
-   * (`text(key)`) said as `setText` last said them.
+   * Every registered definition, by id, as it was declared: its keys
+   * (`text(key)`) are said where they are shown (`useSay`, `say`).
    */
   get definitions(): ReadonlyMap<string, ViewDefinition> {
-    return this.text.say(this.registry.definitions);
+    return this.registry.definitions;
   }
 
   /**
-   * Says the definitions' keys in another language from now on: every open
-   * view redraws in it, and nothing is rebuilt (host-integration.md 3.1,
-   * D2). The Provider calls this as its locale or messages change, naming
-   * the `language` they are in.
+   * The words the engine was built with for `key` (`ViewEngineOptions.text`),
+   * or `undefined`: what a surface says a key in where its Provider's words
+   * lack it.
+   */
+  startingWord(key: string): string | undefined {
+    return this.text.start?.(key);
+  }
+
+  /**
+   * Checks the words a Provider says the definitions' keys in: its
+   * `messages`, in its `language` (host-integration.md 3.1, D2). The
+   * Provider calls this as they change; nothing is redrawn or rebuilt by
+   * it — the keys are said where they are shown.
    *
    * The words set are checked on their own: a key they lack reads as
    * itself (`definition.text.unknown`), or in the words the engine started
@@ -121,16 +130,6 @@ export abstract class EngineResources {
     for (const told of this.lacking)
       if (told.startsWith(`${language}\u0000`) && !lacking.has(told))
         this.lacking.delete(told);
-  }
-
-  /** `value` in the words in force: a definition, a list, a title. */
-  say<T>(value: T): T {
-    return this.text.say(value);
-  }
-
-  /** Told whenever `setText` changes the words. */
-  subscribeText(listener: () => void): () => void {
-    return this.text.subscribe(listener);
   }
 
   /**

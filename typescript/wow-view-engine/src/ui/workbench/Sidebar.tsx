@@ -218,7 +218,7 @@ export function FoldedSidebar({
             data-slot="definition-title"
             className="hidden min-w-0 truncate text-base font-semibold @md/header:block"
           >
-            {title}
+            {messages.say(title)}
           </h1>
           <span
             aria-hidden

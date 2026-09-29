@@ -61,7 +61,7 @@ export function CardSummaries({ rows }: { rows: readonly SummaryRow[] }) {
               <span
                 className={cn('text-quiet-foreground font-normal', TEXT_UI)}
               >
-                {cell.label}
+                {messages.say(cell.label)}
               </span>
               <SummaryValue cell={cell} />
             </span>

@@ -41,7 +41,7 @@ import { RadioGroup, RadioGroupItem } from './components/radio-group.js';
 import { Spinner } from './components/spinner.js';
 import { useKindIssue, useKindWord } from './kinds.js';
 import type { MessageKey } from './messages.js';
-import { useViewMessages } from './MessagesProvider.js';
+import { keptKey, useViewMessages } from './MessagesProvider.js';
 import { DialogContent } from './popups.js';
 import type { FinalFocus } from './dashboard/commands.js';
 
@@ -216,9 +216,14 @@ function SaveAsForm({
   const refusal = (found: Issue) =>
     intent === 'copy' || intent === 'first' ? ownWord(found) : found;
   const words = WORDS[intent];
-  const [next, setNext] = useState(() =>
-    first ? title : messages.label('label.save-as.copy-title', { title }),
+  // Shown in words; left as shown, a first save keeps the key it came as —
+  // as it was shown when the dialog opened, whatever the language since.
+  const [shown] = useState(() =>
+    first
+      ? messages.say(title)
+      : messages.label('label.save-as.copy-title', { title }),
   );
+  const [next, setNext] = useState(shown);
 
   const named = next.trim();
   const offered = allows(can, scope);
@@ -231,7 +236,10 @@ function SaveAsForm({
   // flight, no title, or a scope this user may not create in.
   const stopped = state.pending || named.length === 0 || !offered;
   const submit = () => {
-    void commands.saveAs({ title: named, scope }).then(saved => {
+    const kept = first
+      ? keptKey(named, title, messages.say, shown.trim())
+      : named;
+    void commands.saveAs({ title: kept, scope }).then(saved => {
       if (!saved) return;
       onSaved?.(saved);
       onOpenChange(false);

@@ -310,9 +310,9 @@ export function ViewHeader({
                 />
               }
             >
-              {state.title}
+              {messages.say(state.title)}
             </TooltipTrigger>
-            <TooltipContent>{state.title}</TooltipContent>
+            <TooltipContent>{messages.say(state.title)}</TooltipContent>
           </Tooltip>
 
           {/* Who the view is for, said as a word after the name rather than

@@ -17,7 +17,6 @@
  * class behind it.
  */
 
-import type { EngineText } from '../text.js';
 import type { EditHistoryState } from './history.js';
 import type {
   AnalysisDateUnit,
@@ -270,8 +269,6 @@ export interface HeldFilters {
 }
 
 export interface DashboardRuntimeOptions {
-  /** The words the engine says its definitions' keys in; see `EngineText`. */
-  text?: EngineText;
   id: string;
   definition: DashboardDefinition;
   config: DashboardViewConfig;

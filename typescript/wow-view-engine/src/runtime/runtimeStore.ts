@@ -15,7 +15,6 @@ import { dequal } from 'dequal';
 import type { Issue, ViewConfig, ViewInstance } from '../model/index.js';
 import type { RuntimeEnvironment } from './environment.js';
 import { listenerSet } from './listeners.js';
-import { rekeyed, type EngineText } from './text.js';
 import { NO_REFUSAL, sameRefusal } from './scope.js';
 import {
   MomentTimer,
@@ -110,12 +109,6 @@ export interface RuntimeStoreOptions<
    * than being asked for.
    */
   refusedScope?: Issue[];
-  /**
-   * The words the engine says its definitions' keys in (`EngineText`): the
-   * snapshot is handed out read in them, and read again when they change.
-   * Left out, as it is.
-   */
-  text?: EngineText;
 }
 
 /**
@@ -146,14 +139,6 @@ export class RuntimeStore<S extends ViewRuntimeState<ViewConfig>> {
   private readonly unwatchVisibility: () => void;
 
   private current: S;
-  private readonly text: EngineText | undefined;
-  /** The last snapshot handed out, of which state, in which words. */
-  private read!: S;
-  private readOf: S | undefined;
-  /** Each draft handed out, said, to the draft it was said from. */
-  private readonly handed = new WeakMap<object, S['draft']>();
-  private readAt = -1;
-  private readonly unwatchText: (() => void) | undefined;
   private refusal: Issue[];
   private stopped = false;
 
@@ -171,9 +156,6 @@ export class RuntimeStore<S extends ViewRuntimeState<ViewConfig>> {
     this.unwatchVisibility = options.environment.visibility.subscribe(() =>
       this.retime(),
     );
-    this.text = options.text;
-    // Another language is the same state in other words: told as a change.
-    this.unwatchText = options.text?.subscribe(() => this.notify());
   }
 
   /** The snapshot as it stands, for the runtime's own commands to read. */
@@ -182,75 +164,22 @@ export class RuntimeStore<S extends ViewRuntimeState<ViewConfig>> {
   }
 
   /**
-   * See `ViewRuntime.getSnapshot`; the runtime hands this one out, in the
-   * words in force (`EngineText`). Its own commands read `state`, which
-   * keeps the keys.
+   * See `ViewRuntime.getSnapshot`: the state as it is, keys and all
+   * (`text(key)`) — whatever shows it says them (D2).
    */
   getSnapshot(): S {
-    const text = this.text;
-    if (!text) return this.current;
-    if (this.readOf !== this.current || this.readAt !== text.version) {
-      const said = text.say(this.current);
-      // A stored view's title is its reader's words, markers and all; a
-      // system view's, or one nobody saved yet — a board's own panel, a
-      // view made from a definition — is its definition's.
-      const saved = this.current.saved;
-      const own = saved !== null && saved.scope !== 'system';
-      this.read =
-        own && said.title !== this.current.title
-          ? { ...said, title: this.current.title }
-          : said;
-      this.readOf = this.current;
-      this.readAt = text.version;
-      // What was handed out, for a save of it to find its keys again.
-      this.handed.set(this.read.draft, this.current.draft);
-    }
-    return this.read;
+    return this.current;
   }
 
-  /** `value` in the words in force (`EngineText`), for a reading the runtime derives. */
-  say<T>(value: T): T {
-    return this.text ? this.text.say(value) : value;
-  }
-
-  /**
-   * The members a new baseline moves: `stored`, with the keys found again
-   * where it holds what the reader saw of them (`keyed`). `sent` is the
-   * draft the save sent, as it was handed out then: a save lands after the
-   * draft has moved on, or after the words have changed, and is keyed
-   * against what it sent, not against what is on screen when it lands.
-   */
-  baseline(stored: ViewInstance, sent?: ViewConfig): Partial<S> {
-    const saved = this.keyed(stored, sent);
-    const dirty = this.isDirty(this.current.draft, saved);
+  /** The members a new baseline moves: `stored`, as the store holds it. */
+  baseline(stored: ViewInstance): Partial<S> {
     // Members every snapshot has; see `revert`.
     return {
-      saved,
-      title: saved.title,
-      scope: saved.scope,
-      dirty,
+      saved: stored,
+      title: stored.title,
+      scope: stored.scope,
+      dirty: this.isDirty(this.current.draft, stored),
     } as Partial<S>;
-  }
-
-  /**
-   * `saved` with its config's words put back as the keys they were said
-   * from (`rekeyed`), so dirty and revert hold in every language after:
-   * keys never reach the store, but the baseline keeps them. Against the
-   * draft that was sent where it is known, else the draft on hand in the
-   * words in force.
-   */
-  keyed(saved: ViewInstance, sent?: ViewConfig): ViewInstance {
-    if (!this.text) return saved;
-    const raw = sent && this.handed.get(sent);
-    const config =
-      sent && raw
-        ? rekeyed(saved.config, sent, raw)
-        : rekeyed(
-            saved.config,
-            this.text.say(this.current.draft),
-            this.current.draft,
-          );
-    return config === saved.config ? saved : { ...saved, config };
   }
 
   /** True once disposed: every command of the runtime is a no-op from then on. */
@@ -282,9 +211,8 @@ export class RuntimeStore<S extends ViewRuntimeState<ViewConfig>> {
    * Whether the draft says something other than what was saved.
    *
    * A view that was never saved has nothing to compare against, and closing
-   * it would lose everything, so it counts as dirty from the start.
-   * A baseline saved from a draft that holds keys keeps them (`keyed`), so
-   * the two are compared as they are, in no language.
+   * it would lose everything, so it counts as dirty from the start. Both
+   * hold keys where a definition wrote them, so they compare in no language.
    */
   isDirty(draft: S['draft'], saved: ViewInstance | null): boolean {
     return saved === null || !dequal(draft, saved.config);
@@ -358,7 +286,6 @@ export class RuntimeStore<S extends ViewRuntimeState<ViewConfig>> {
     this.stopped = true;
     this.stopTimer();
     this.unwatchVisibility();
-    this.unwatchText?.();
     this.host.release();
     // The last notification: a subscriber that reads `disposed` sees it now
     // rather than on some later render it happens to get.

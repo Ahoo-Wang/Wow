@@ -17,7 +17,7 @@ import Markdown from 'react-markdown';
 import { ExternalLinkIcon, ImageOffIcon } from 'lucide-react';
 import type { DashboardContentPanel } from '../model/index.js';
 import { isSafeContentUrl } from '../dashboard/index.js';
-import { useViewMessages } from './MessagesProvider.js';
+import { useSay, useViewMessages } from './MessagesProvider.js';
 import {
   Empty,
   EmptyDescription,
@@ -94,6 +94,7 @@ export interface HeadingPanelProps {
  * same words for a host that renders a content panel by itself.
  */
 export function HeadingPanel({ content, headingLevel }: HeadingPanelProps) {
+  const say = useSay();
   const Title: 'p' | `h${PanelHeadingLevel}` =
     headingLevel === undefined ? 'p' : `h${headingLevel}`;
   return (
@@ -101,7 +102,7 @@ export function HeadingPanel({ content, headingLevel }: HeadingPanelProps) {
       data-slot="panel-heading"
       className="truncate text-base font-semibold"
     >
-      {content}
+      {say(content)}
     </Title>
   );
 }
@@ -221,6 +222,7 @@ export function MarkdownPanel({
   content,
   headingLevel = 3,
 }: MarkdownPanelProps) {
+  const say = useSay();
   const components = useMemo(
     () => ({ ...MARKDOWN_COMPONENTS, ...shiftedHeadings(headingLevel) }),
     [headingLevel],
@@ -230,7 +232,7 @@ export function MarkdownPanel({
       data-slot="markdown-panel"
       className={cn('flex h-full flex-col gap-2 overflow-auto', MARKDOWN_PROSE)}
     >
-      <Markdown components={components}>{content}</Markdown>
+      <Markdown components={components}>{say(content)}</Markdown>
     </div>
   );
 }
@@ -249,13 +251,16 @@ export interface ImagePanelProps {
 
 export function ImagePanel({
   src,
-  alt,
+  alt: givenAlt,
   fit = 'contain',
   href,
-  title,
+  title: givenTitle,
 }: ImagePanelProps) {
   const [failed, setFailed] = useState(false);
   const messages = useViewMessages();
+  // The author's words, keys said.
+  const alt = givenAlt === undefined ? undefined : messages.say(givenAlt);
+  const title = givenTitle === undefined ? undefined : messages.say(givenTitle);
 
   // The same shape every other panel says nothing with: a picture that did
   // not arrive is an empty state, and `Empty` is what this package draws one
@@ -339,6 +344,7 @@ export interface LinksPanelProps {
  * over `div`s, and a list of links is a real list.
  */
 export function LinksPanel({ items }: LinksPanelProps) {
+  const say = useSay();
   return (
     <ul data-slot="links-panel" className="flex flex-col overflow-auto">
       {items.map(item => (
@@ -353,7 +359,7 @@ export function LinksPanel({ items }: LinksPanelProps) {
                     rel="noopener noreferrer"
                     className="flex min-w-0 items-center gap-1 underline-offset-4 hover:underline"
                   >
-                    <span className="truncate">{item.label}</span>
+                    <span className="truncate">{say(item.label)}</span>
                     <ExternalLinkIcon className="size-3" aria-hidden />
                     <NewTabNote />
                   </a>
@@ -361,12 +367,12 @@ export function LinksPanel({ items }: LinksPanelProps) {
                   // A destination this package refuses costs the link, not
                   // the words: what is left is a line of quiet text.
                   <span className="text-muted-foreground truncate">
-                    {item.label}
+                    {say(item.label)}
                   </span>
                 )}
               </ItemTitle>
               {item.description && (
-                <ItemDescription>{item.description}</ItemDescription>
+                <ItemDescription>{say(item.description)}</ItemDescription>
               )}
             </ItemContent>
           </RowItem>

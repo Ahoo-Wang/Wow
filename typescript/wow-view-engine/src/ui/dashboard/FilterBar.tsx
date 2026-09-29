@@ -465,6 +465,7 @@ function FilterChip({
   carry?: FilterCarry;
 }) {
   const messages = useViewMessages();
+  const label = messages.say(field.label);
   const kinds = dashboard.kinds;
   const value = dashboard.filters.values[field.name];
   const set = value !== undefined;
@@ -487,8 +488,8 @@ function FilterChip({
       // The star is drawn, and said as a word: 「创建时间（必填）」.
       aria-label={
         field.required
-          ? `${field.label} ${messages.label('label.filters.required')}`
-          : field.label
+          ? `${label} ${messages.label('label.filters.required')}`
+          : label
       }
       // Quieter, not fainter (`ControlFrame`): a dashed edge on the page's
       // ground, the words at their own contrast.
@@ -499,7 +500,7 @@ function FilterChip({
         aria-hidden="true"
         className="text-muted-foreground shrink-0 whitespace-nowrap"
       >
-        {field.label}
+        {label}
         {field.required && <span className="text-destructive">*</span>}
       </span>
       {kinds && (
@@ -512,7 +513,7 @@ function FilterChip({
               dashboard.filterChoices(field.name),
             )}
             kind={field.kind}
-            label={field.label}
+            label={label}
             value={filterControlValue(field, value)}
             required={field.required}
             oneDay={field.oneDay === true}

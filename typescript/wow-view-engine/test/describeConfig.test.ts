@@ -32,6 +32,7 @@ function wording(overrides: ViewMessages = {}): MessageFormatters {
       const found = formatMessage(merged, key, params);
       return found === key && fallback !== undefined ? fallback : found;
     },
+    say: value => value,
     issue: found => formatIssue(merged, found),
     issues: found => formatIssues(merged, found),
   };

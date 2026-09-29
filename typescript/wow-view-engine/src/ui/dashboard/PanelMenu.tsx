@@ -45,7 +45,7 @@ import {
   HandOffMenuContent,
 } from '../HandOffMenu.js';
 import { IconTooltip } from '../IconButton.js';
-import { useViewMessages } from '../MessagesProvider.js';
+import { keptKey, useViewMessages } from '../MessagesProvider.js';
 import { DropdownMenuSubContent } from '../popups.js';
 import { RenameInput } from '../RenameInput.js';
 import { ImageMenuItems } from '../analysis/ExportMenu.js';
@@ -270,8 +270,14 @@ export function PanelMenu({
 }
 
 export interface PanelTitleInputProps {
-  /** What the title says now — a heading's words, or the panel's name. */
-  initial: string;
+  /**
+   * The title as the board holds it, keys and all — a heading's words, or
+   * the panel's own title; `undefined` for a panel without one, which the
+   * box opens on the name the board calls it by (`name`).
+   */
+  initial: string | undefined;
+  /** What the panel is called on screen. */
+  name: string;
   /** A heading's words are its content; another panel's, its title. */
   heading: boolean;
   renaming: NonNullable<PanelCommands['renaming']>;
@@ -286,6 +292,7 @@ export interface PanelTitleInputProps {
  */
 export function PanelTitleInput({
   initial,
+  name,
   heading,
   renaming,
   returnTo,
@@ -294,11 +301,17 @@ export function PanelTitleInput({
   return (
     <RenameInput
       data-slot="panel-title-input"
-      initial={initial}
+      // A key is shown in words, and comes back a key where it was left so.
+      initial={initial === undefined ? name : messages.say(initial)}
       label={messages.label(
         heading ? 'label.panel.heading-input' : 'label.panel.title-input',
       )}
-      onCommit={renaming.commit}
+      onCommit={typed => {
+        // An untitled panel keeps going by the name the board makes up:
+        // that name, typed back, is no title of its own (D2).
+        if (initial === undefined && typed === name) renaming.cancel();
+        else renaming.commit(keptKey(typed, initial ?? '', messages.say));
+      }}
       onCancel={renaming.cancel}
       returnTo={returnTo}
       className="h-7 min-w-0 flex-1"

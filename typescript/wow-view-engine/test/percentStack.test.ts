@@ -289,6 +289,7 @@ describe('cartesianOption: a 100% stack', () => {
     const messages = {
       label: (key: string, params?: Record<string, string | number>) =>
         formatMessage(defaultMessages, key as never, params),
+      say: (value: string) => value,
       issue: () => '',
       issues: () => '',
     };

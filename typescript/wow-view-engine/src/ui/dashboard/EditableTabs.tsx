@@ -28,7 +28,7 @@ import { dragAccessibility } from '../dragAnnounce.js';
 import { dropped } from '../dragDrop.js';
 import { sortableList, withoutOptimisticSorting } from '../dragPlugins.js';
 import { dragWording } from '../dragWording.js';
-import { useViewMessages } from '../MessagesProvider.js';
+import { keptKey, useViewMessages } from '../MessagesProvider.js';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -241,10 +241,10 @@ function EditableTab({
         // A tab is never left without a name to be called by.
         <RenameInput
           data-slot="dashboard-tab-name"
-          initial={tab.title}
+          initial={messages.say(tab.title)}
           label={messages.label('label.tabs.rename-field', { title })}
           required
-          onCommit={onRenamed}
+          onCommit={typed => onRenamed(keptKey(typed, tab.title, messages.say))}
           onCancel={onRenameCancel}
           className="h-7 w-36"
         />

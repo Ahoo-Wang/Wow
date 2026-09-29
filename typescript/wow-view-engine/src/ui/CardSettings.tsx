@@ -86,7 +86,10 @@ export function CardSettings({ table, fields, trigger }: CardSettingsProps) {
   const spec = table.cardSpec;
   // A field-less kind's name is a handle for the editor, not a path into a
   // row, so it names nothing a card could show.
-  const offered = fields.filter(field => !isFieldlessKind(field.kind));
+  // Named in the surface's words: this list is shown, and gives back names.
+  const offered = fields
+    .filter(field => !isFieldlessKind(field.kind))
+    .map(field => ({ ...field, label: messages.say(field.label) }));
   const labelOf = (name: string) =>
     offered.find(field => field.name === name)?.label ?? name;
   const patch = (next: Partial<RecordCardSpec>) => table.setCard(next);

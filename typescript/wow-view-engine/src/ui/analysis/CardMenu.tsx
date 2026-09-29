@@ -20,7 +20,7 @@ import {
   DropdownMenuTrigger,
 } from '../components/dropdown-menu.js';
 import { IconButton } from '../IconButton.js';
-import { useViewMessages } from '../MessagesProvider.js';
+import { keptKey, useSay, useViewMessages } from '../MessagesProvider.js';
 import { DropdownMenuContent } from '../popups.js';
 import { PillInput } from '../variants.js';
 
@@ -41,6 +41,8 @@ export function CardName({
   onRename,
   onDone,
 }: CardNameProps & { renaming: boolean }) {
+  const say = useSay();
+  const shown = say(given ?? name);
   if (!renaming)
     return (
       // `truncate` cuts the name off at the card's width, and the whole of
@@ -50,9 +52,9 @@ export function CardName({
       <span
         data-slot="card-name"
         className="truncate font-medium"
-        title={given ?? name}
+        title={shown}
       >
-        {given ?? name}
+        {shown}
       </span>
     );
   // Mounted only while it is open, so every edit starts from the name that
@@ -80,7 +82,13 @@ interface CardNameProps {
 }
 
 function NameBox({ name, given, label, onRename, onDone }: CardNameProps) {
-  const [text, setText] = useState(given ?? '');
+  // A key is shown in its words, and comes back a key where it was left so:
+  // the name keeps following the language (D2).
+  const say = useSay();
+  // The words it opened on: left as they were, the name is unchanged even
+  // where the language changed while the box was open.
+  const [shown] = useState(() => say(given ?? ''));
+  const [text, setText] = useState(shown);
   /**
    * Leaving the box is what hands focus back to the menu, and a focus move
    * is a blur — so a box that committed on blur committed the very text
@@ -93,7 +101,11 @@ function NameBox({ name, given, label, onRename, onDone }: CardNameProps) {
     settled.current = true;
     if (keep) {
       const trimmed = text.trim();
-      onRename(trimmed === '' ? undefined : trimmed);
+      onRename(
+        trimmed === ''
+          ? undefined
+          : keptKey(trimmed, given ?? '', say, shown.trim()),
+      );
     }
     onDone();
   };

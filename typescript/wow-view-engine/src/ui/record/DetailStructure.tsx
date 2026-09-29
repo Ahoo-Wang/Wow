@@ -167,7 +167,7 @@ function Element({
         return (
           <div key={one.field} className="contents">
             <dt className={cn('text-muted-foreground', block && 'col-span-2')}>
-              {one.label}
+              {messages.say(one.label)}
             </dt>
             <dd
               className={cn(VALUE, block)}

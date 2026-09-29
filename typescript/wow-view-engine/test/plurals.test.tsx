@@ -153,6 +153,7 @@ describe('a count picks its form', () => {
 describe('a relative window counts its unit', () => {
   const words: MessageFormatters = {
     label: (key, params) => formatMessage(en, key, params, 'en'),
+    say: value => value,
     issue: () => '',
     issues: () => '',
   };

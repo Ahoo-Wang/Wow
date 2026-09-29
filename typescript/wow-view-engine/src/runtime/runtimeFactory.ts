@@ -23,7 +23,6 @@
  * runtime for either — so this is also where those are built.
  */
 
-import type { EngineText } from './text.js';
 import { queryFailureReporter } from './failures.js';
 import { panelsOf, type PanelDefinition } from '../dashboard/index.js';
 import type {
@@ -84,8 +83,6 @@ export interface RuntimeFactoryHost {
    * where the descriptor contradicts the definition).
    */
   readonly capabilities: SourceCapabilities;
-  /** The words every runtime says its definition's keys in. */
-  readonly text: EngineText;
 }
 
 /** The queries one panel may ask at once; see `RuntimeFactory.holdRoom`. */
@@ -132,7 +129,6 @@ export class RuntimeFactory {
     // A view saved under a field's alias is read under its path (#3519).
     const renamed = effective.definition.narrowing?.renamed ?? {};
     return dataViewRuntime({
-      text: this.host.text,
       id: this.newRuntimeId(),
       definition: effective.definition,
       config: withCanonicalNames(config, renamed),
@@ -166,7 +162,6 @@ export class RuntimeFactory {
       );
 
     const board = new DashboardViewRuntime({
-      text: this.host.text,
       id: this.newRuntimeId(),
       definition,
       config,
@@ -298,7 +293,6 @@ export class RuntimeFactory {
     const renamed =
       (definition.kind === 'data' && definition.narrowing?.renamed) || {};
     return dataViewRuntime({
-      text: this.host.text,
       id: this.newRuntimeId(),
       definition,
       config: withCanonicalNames(view.config, renamed),

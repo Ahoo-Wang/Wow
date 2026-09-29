@@ -316,6 +316,30 @@ describe('useWorkbench', () => {
       expect(fresh?.disposed).toBe(true);
     });
 
+    it('lets one untouched, or shaped and shaped back, go without asking across a change of words (review of #3761)', async () => {
+      const engine = engineWith([mine]);
+      const { result } = open(engine, 'orders-1', NEW_VIEW);
+      await waitFor(() => expect(result.current.state?.title).toBe('Mine'));
+      act(() => {
+        result.current.create('record');
+      });
+      // Another language is nothing the view holds: no reading is new.
+      const drawn = result.current.state;
+      act(() => engine.setText(key => `said:${key}`, 'fr'));
+      expect(result.current.state).toBe(drawn);
+      act(() => {
+        result.current.runtime?.edit({ pageSize: 50 });
+      });
+      act(() => {
+        result.current.runtime?.edit({ pageSize: 20 });
+      });
+      act(() => {
+        result.current.choose('orders-1');
+      });
+      expect(result.current.leave.asking).toBe(false);
+      await waitFor(() => expect(result.current.state?.title).toBe('Mine'));
+    });
+
     it('asks before one the user shaped is lost', async () => {
       const { result } = open(engineWith([mine]), 'orders-1', NEW_VIEW);
       await waitFor(() => expect(result.current.state?.title).toBe('Mine'));

@@ -114,7 +114,7 @@ export function PanelWiring({
               },
               ...fields.map(field => ({
                 value: field.name,
-                label: field.label,
+                label: messages.say(field.label),
               })),
             ]}
             value={wired ? wired.field : UNWIRED}

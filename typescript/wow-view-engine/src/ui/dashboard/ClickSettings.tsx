@@ -371,7 +371,7 @@ function GoFields({
         <Field data-invalid={gaps.view || undefined}>
           {view && (
             <span data-slot="click-view" className="text-sm">
-              {viewTitle ?? view}
+              {viewTitle === undefined ? view : messages.say(viewTitle)}
             </span>
           )}
           <Button

@@ -113,7 +113,7 @@ export function ConditionPill({
   const focus = useConditionFocus();
   const pending = isPending?.(path) === true;
   const field = filter.fields.find(entry => entry.name === leaf.field);
-  const label = field?.label ?? leaf.field;
+  const label = messages.say(field?.label ?? leaf.field);
   const kind = field && filter.kinds?.get(field.kind);
   // The operator the condition holds, among the ones offered or not: a
   // saved condition whose operator the source no longer supports showed the
@@ -434,7 +434,10 @@ export function ConditionPill({
                     .filter(
                       entry => entry.name !== field.name && holdsTime(entry),
                     )
-                    .map(entry => ({ value: entry.name, label: entry.label }))
+                    .map(entry => ({
+                      value: entry.name,
+                      label: messages.say(entry.label),
+                    }))
                 : undefined
             }
             onChange={value => filter.updateLeaf(path, { value })}
@@ -487,6 +490,7 @@ function NestedPredicate({
   disabled?: boolean;
   optionsFor?: (remote: string) => FieldOption[] | undefined;
 }) {
+  const messages = useViewMessages();
   const field = filter.fields.find(entry => entry.name === leaf.field);
   // Built on every render rather than memoised: `filter` and `path` are fresh
   // each time, so a memo keyed on them memoised nothing and only hid that a
@@ -513,7 +517,7 @@ function NestedPredicate({
         path={[]}
         disabled={disabled}
         optionsFor={optionsFor}
-        scope={field?.label ?? leaf.field}
+        scope={messages.say(field?.label ?? leaf.field)}
       />
     </div>
   );

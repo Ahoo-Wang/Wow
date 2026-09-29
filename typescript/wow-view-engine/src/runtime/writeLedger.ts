@@ -200,8 +200,7 @@ export class WriteLedger {
       case 'create': {
         const instance = result as ViewInstance;
         this.host.noteInstance(instance);
-        if (payload.intent === 'first-save')
-          runtime?.markSaved(instance, payload.draft);
+        if (payload.intent === 'first-save') runtime?.markSaved(instance);
         this.announce('create', instance);
         return;
       }
@@ -214,10 +213,7 @@ export class WriteLedger {
         // would otherwise keep a revision nobody can write against. Only the
         // view this write belongs to has its outcome settled; another's
         // unsettled write is still its own to retry or abandon.
-        runtime?.markSaved(
-          instance,
-          payload.action === 'save' ? payload.draft : undefined,
-        );
+        runtime?.markSaved(instance);
         for (const holder of this.host.holders(instance.id))
           if (holder !== runtime) holder.moveBaseline(instance);
         this.announce(payload.action, instance);

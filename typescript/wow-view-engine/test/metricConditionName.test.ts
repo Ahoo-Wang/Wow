@@ -54,6 +54,7 @@ function words(catalogue: ViewMessages): MessageFormatters {
       const found = formatMessage(catalogue, key, params);
       return found === key && fallback !== undefined ? fallback : found;
     },
+    say: value => value,
     issue: () => '',
     issues: () => '',
   };

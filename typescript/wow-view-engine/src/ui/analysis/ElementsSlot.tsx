@@ -122,7 +122,7 @@ function ElementCard({
 }) {
   const messages = useViewMessages();
   const [conditioning, setConditioning] = useState(false);
-  const name = analysis.elementLabel(index);
+  const name = messages.say(analysis.elementLabel(index));
   const held = element.filter !== undefined;
   const fields = analysis.elementFields(index);
   const items =

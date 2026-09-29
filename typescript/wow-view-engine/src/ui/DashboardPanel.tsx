@@ -100,11 +100,12 @@ export function panelName(
   index: number,
   messages: MessageFormatters,
 ): string {
-  if (panel.title) return panel.title;
+  // The board's own words and the view's, said where they are shown.
+  if (panel.title) return messages.say(panel.title);
   const shown = panel.runtime?.getSnapshot()?.title;
-  if (shown) return shown;
+  if (shown) return messages.say(shown);
   if (panel.panel.kind === 'heading' && panel.panel.content.trim())
-    return panel.panel.content.trim();
+    return messages.say(panel.panel.content).trim();
   const kind = CONTENT_NAMES[panel.panel.kind];
   return kind
     ? messages.label(kind)
@@ -127,10 +128,12 @@ export function panelNames(
   panels: readonly DashboardPanelView[],
   messages: MessageFormatters,
 ): Map<string, string> {
-  const used = new Set(panels.flatMap(panel => panel.title || []));
+  const used = new Set(
+    panels.flatMap(panel => (panel.title ? messages.say(panel.title) : [])),
+  );
   return new Map(
     readingOrder(panels).map((panel, index) => {
-      if (panel.title) return [panel.id, panel.title];
+      if (panel.title) return [panel.id, messages.say(panel.title)];
       const name = panelName(panel, index, messages);
       let numbered = name;
       for (let n = 2; used.has(numbered); n += 1)
@@ -502,8 +505,9 @@ function PanelHeader({
             initial={
               panel.panel.kind === 'heading'
                 ? panel.panel.content
-                : (panel.title ?? name)
+                : panel.title || undefined
             }
+            name={name}
             heading={heading}
             renaming={commands.renaming}
             returnTo={menuTrigger}

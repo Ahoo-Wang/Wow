@@ -130,16 +130,15 @@ export function SortableHeader({
   // opens for a mouse and for nothing else. The trigger renders the same span
   // — nothing is wrapped around it — so the cell's layout and the order of
   // its slots are untouched.
+  const said = messages.say(column.label);
   const label = (
     <Tooltip>
       <TooltipTrigger
         render={<span data-slot="column-label" className="truncate" />}
       >
-        {column.label}
+        {said}
       </TooltipTrigger>
-      <TooltipContent>
-        {note ? `${column.label} · ${note.text}` : column.label}
-      </TooltipContent>
+      <TooltipContent>{note ? `${said} · ${note.text}` : said}</TooltipContent>
     </Tooltip>
   );
   // A numeric column reads from the right, header included, or the label

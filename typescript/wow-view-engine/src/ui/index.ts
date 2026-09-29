@@ -184,9 +184,13 @@ export {
 export { en } from './messages/en.js';
 export { zhCN } from './messages/zh-CN.js';
 export {
+  keptKey,
   type MessageFormatters,
   MessagesProvider,
   type MessagesProviderProps,
+  type Say,
+  useSaidText,
+  useSay,
   useViewMessages,
 } from './MessagesProvider.js';
 export {

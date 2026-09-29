@@ -45,7 +45,7 @@ import { TimeCharts } from './charts/TimeCharts.js';
 import { Treemap } from './charts/Treemap.js';
 import { Waterfall } from './charts/Waterfall.js';
 import { AnalysisEmpty } from './analysis/EmptyResult.js';
-import { useViewMessages } from './MessagesProvider.js';
+import { sayAll, useViewMessages } from './MessagesProvider.js';
 import { useSurfaceDisplay } from './ViewSurface.js';
 
 export interface AnalysisChartProps {
@@ -109,8 +109,8 @@ export interface AnalysisChartProps {
  * row projection beside it — is what keeps the two from disagreeing.
  */
 export function AnalysisChart({
-  data,
-  spec,
+  data: given,
+  spec: specified,
   className,
   columns,
   onPick,
@@ -121,6 +121,13 @@ export function AnalysisChart({
   image,
 }: AnalysisChartProps) {
   const messages = useViewMessages();
+  // What is drawn is said as it comes in (D2): a series, a line, a stage,
+  // an axis the view names — every option built from here reads words.
+  const data = useMemo(() => sayAll(given, messages.say), [given, messages]);
+  const spec = useMemo(
+    () => specified && sayAll(specified, messages.say),
+    [specified, messages],
+  );
   const label = useValueLabel(columns);
   const column = useColumnTitle(columns);
   const seriesName = useSeriesName(columns, label);

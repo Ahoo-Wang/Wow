@@ -19,6 +19,8 @@ import {
   SelectValue,
 } from '../components/select.js';
 import { SelectContent } from '../popups.js';
+import { useSay } from '../MessagesProvider.js';
+import { useMemo } from 'react';
 
 /**
  * The one select a tray card carries: a named choice among a few words —
@@ -54,9 +56,15 @@ export function CompactSelect<V extends string>({
   disabled?: boolean;
   onChange(value: V): void;
 }) {
+  // Its choices may be a definition's words: said where they are shown.
+  const say = useSay();
+  const shown = useMemo(
+    () => items.map(item => ({ ...item, label: say(item.label) })),
+    [items, say],
+  );
   return (
     <Select
-      items={items}
+      items={shown}
       value={value}
       disabled={disabled}
       onValueChange={next => {
@@ -68,7 +76,7 @@ export function CompactSelect<V extends string>({
       </SelectTrigger>
       <SelectContent>
         <SelectGroup>
-          {items.map(item => (
+          {shown.map(item => (
             <SelectItem key={item.value} value={item.value}>
               {item.label}
             </SelectItem>

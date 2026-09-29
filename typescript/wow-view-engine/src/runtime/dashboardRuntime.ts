@@ -123,6 +123,7 @@ export class DashboardViewRuntime
 {
   readonly id: string;
   readonly kind = 'dashboard' as const;
+  readonly definition: DashboardDefinition;
   readonly kinds: FieldKindRegistry;
   readonly limits: RuntimeLimits;
   readonly environment: RuntimeEnvironment;
@@ -157,6 +158,7 @@ export class DashboardViewRuntime
     super();
     this.options = options;
     this.id = options.id;
+    this.definition = options.definition;
     this.kinds = options.kinds;
     this.limits = options.limits;
     this.environment = options.environment;
@@ -241,7 +243,6 @@ export class DashboardViewRuntime
     const saved = canonicalSaved(options.saved ?? null, this.canonical);
     const config = this.canonical(options.config);
     this.store = new RuntimeStore<DashboardRuntimeState>({
-      text: options.text,
       state: {
         saved,
         title: options.title,
@@ -291,13 +292,6 @@ export class DashboardViewRuntime
     this.load(config, true);
   }
 
-  /** The board's definition, in the words in force (`EngineText`). */
-  get definition(): DashboardDefinition {
-    return (
-      this.options.text?.say(this.options.definition) ?? this.options.definition
-    );
-  }
-
   get disposed(): boolean {
     return this.store.disposed;
   }
@@ -319,7 +313,7 @@ export class DashboardViewRuntime
    * name must not be the second place to find out.
    */
   get fields(): readonly FieldDefinition[] {
-    return this.store.say(filtersOf(this.state.draft));
+    return filtersOf(this.state.draft);
   }
 
   /**
@@ -511,7 +505,7 @@ export class DashboardViewRuntime
   /** See `DashboardRuntime.handOver`. */
   handOver(panelId: string): HandOver | null {
     if (this.disposed) return null;
-    return boardHandOver(panelId, this.getSnapshot(), {
+    return boardHandOver(panelId, this.state, {
       definitionId: this.definition.id,
       held: name => this.values.holds(name),
       kinds: this.kinds,
@@ -534,9 +528,9 @@ export class DashboardViewRuntime
    * A save is where the history starts again: the board is left as saved
    * (「完成」), and the next building begins from it.
    */
-  markSaved(instance: ViewInstance, sent?: DashboardViewConfig): void {
+  markSaved(instance: ViewInstance): void {
     if (this.disposed) return;
-    this.moveBaseline(instance, sent);
+    this.moveBaseline(instance);
     this.store.setState({ write: null, history: this.edits.forget() });
   }
 
@@ -544,10 +538,10 @@ export class DashboardViewRuntime
    * The baseline as this board is read (`canonicalBoard`): a board stores
    * no time wire made from a view (D1), so what came back is read with them.
    */
-  moveBaseline(stored: ViewInstance, sent?: DashboardViewConfig): void {
+  moveBaseline(stored: ViewInstance): void {
     if (this.disposed) return;
     const instance = canonicalSaved(stored, this.canonical) ?? stored;
-    this.store.setState(this.store.baseline(instance, sent));
+    this.store.setState(this.store.baseline(instance));
   }
 
   adoptSaved(stored: ViewInstance): void {

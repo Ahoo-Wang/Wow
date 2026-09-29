@@ -19,7 +19,6 @@ import {
   type FieldNumeric,
   type RecordData,
   type FieldOption,
-  type FieldTone,
   type NumberFormat,
   type SummaryFunction,
   type EpochTimeUnit,
@@ -35,6 +34,7 @@ import { recordValue } from '../record/index.js';
 import { datePartValue } from './datePart.js';
 import type { MessageKey } from './messages.js';
 import type { MessageFormatters } from './MessagesProvider.js';
+import { badgeEntries, optionLabel, type BadgeEntry } from './badges.js';
 
 /** Where a value is shown: the language, and the zone its times read in. */
 export interface DisplayContext {
@@ -42,6 +42,15 @@ export interface DisplayContext {
   locale?: string;
   /** An IANA zone; the runtime's own when left out. */
   timeZone?: string;
+  /**
+   * How a definition's words are shown here (`useSay`): an option's label
+   * is said in them. Left out, a label reads as it is written — a keyed
+   * definition's (`text(key)`) as its key, marker and all — so a host that
+   * calls `cellText` or `displayValue` itself for such a definition passes
+   * `useSay()` here (a surface's own context, `useSurfaceDisplay`, carries
+   * it already).
+   */
+  say?: (value: string) => string;
 }
 
 /** What a column knows about the field behind it. */
@@ -122,7 +131,7 @@ export function displayValue(
 ): string | undefined {
   if (value === null || value === undefined) return undefined;
   if (field.options && field.options.length > 0) {
-    const label = optionLabel(value, field.options);
+    const label = optionLabel(value, field.options, context.say);
     if (label !== undefined) return label;
   }
   if (field.datePart !== undefined)
@@ -273,11 +282,14 @@ export function columnTitle(
   // A name the analyst gave is the whole title (D20 显示名). A derived
   // metric's text marks each metric it refers to (`metricReferenceText`);
   // each is worded as that metric's own column is, condition included.
-  const label = wordReferences(column.label, (fn, referenced, condition) =>
-    columnTitle(
-      { label: referenced, fn, ...(condition ? { condition } : {}) },
-      messages,
-      estimated,
+  // A key in it is said here, where the title is shown (D2).
+  const label = messages.say(
+    wordReferences(column.label, (fn, referenced, condition) =>
+      columnTitle(
+        { label: referenced, fn, ...(condition ? { condition } : {}) },
+        messages,
+        estimated,
+      ),
     ),
   );
   if (column.named) return label;
@@ -497,6 +509,9 @@ export function valueText(
  * Several badges, several elements or several plain values read as one list
  * joined by the catalogue's separator, the way the cell reads out loud; an
  * array of objects or an object reads as `heldReading` says.
+ *
+ * An option's label is said through `context.say`: give it (`useSay()`)
+ * for a definition written in keys, or the text carries the keys (D2).
  */
 export function cellText(
   value: unknown,
@@ -508,7 +523,7 @@ export function cellText(
   const held = heldReading(value, field, messages, context);
   if (held)
     return 'text' in held ? held.text : labelsOf(held.elements, messages);
-  const badges = badgeEntries(value, field);
+  const badges = badgeEntries(value, field, context.say);
   if (badges) return labelsOf(badges, messages);
   // A list of plain values, one reading each: an enum's labels, a list of
   // dates each in the surface's zone — never `["a","b"]`.
@@ -600,7 +615,7 @@ function elementEntry(
   const label =
     cellText(value, title, messages, context) ||
     messages.label('label.value.untitled');
-  const badges = badgeEntries(value, title);
+  const badges = badgeEntries(value, title, context.say);
   const tone = badges?.length === 1 ? badges[0].tone : undefined;
   return { value, label, ...(tone ? { tone } : {}) };
 }
@@ -642,94 +657,6 @@ export function csvCellText(
   if (typeof value === 'number' && !(field.numberFormat && !field.numeric))
     return Number.isFinite(value) ? String(value) : '';
   return cellText(value, field, messages, context);
-}
-
-/** One badge: the value the record holds, the label and tone it wears. */
-export interface BadgeEntry {
-  value: unknown;
-  label: string;
-  /** The matching option's tone; absent when no option names this value. */
-  tone?: FieldTone;
-}
-
-/**
- * The badges a cell wears, or `undefined` when it wears none.
- *
- * Three readings land here and they differ in what they require, not in what
- * they produce. `enum` is inferred: the renderer is the kind's own, so a
- * badge is only justified when the definition declares the choices *and*
- * names at least one of the values — a pill around a code nobody named only
- * makes the code look deliberate. `status` and `tags` were asked for by name,
- * so the definition has already answered that question and a value no option
- * names still wears its pill, showing the code it came as.
- *
- * An array gets one badge per entry whichever reading it is: joined into a
- * single pill they would read as one status with a comma in its name.
- *
- * Each entry carries the raw value beside its label, because labels are not
- * identities: `FieldOption.label` is free text a definition may repeat, and a
- * list of values may repeat too, so the caller needs something better than
- * the label to tell two badges apart. The tone rides along from the matching
- * option, since the caller holding a label no longer has the option it came
- * from.
- */
-export function badgeEntries(
-  value: unknown,
-  field: DisplayField,
-): BadgeEntry[] | undefined {
-  const cell = field.cell ?? field.kind;
-  if (cell !== 'enum' && cell !== 'status' && cell !== 'tags') return undefined;
-  if (value === null || value === undefined) return undefined;
-  const options = field.options ?? [];
-  const items = Array.isArray(value) ? value : [value];
-  if (cell === 'enum') {
-    if (options.length === 0) return undefined;
-    const labels = optionLabels(items, options);
-    return labels?.map((label, index) => badge(items[index], label, options));
-  }
-  return items.map(item =>
-    badge(item, optionOf(item, options)?.label ?? String(item), options),
-  );
-}
-
-function badge(
-  value: unknown,
-  label: string,
-  options: readonly FieldOption[],
-): BadgeEntry {
-  const tone = optionOf(value, options)?.tone;
-  return { value, label, ...(tone ? { tone } : {}) };
-}
-
-function optionOf(
-  value: unknown,
-  options: readonly FieldOption[],
-): FieldOption | undefined {
-  return options.find(option => option.value === value);
-}
-
-/** The label of each value an enum holds; `undefined` when none is known. */
-function optionLabel(
-  value: unknown,
-  options: readonly FieldOption[],
-): string | undefined {
-  return optionLabels(value, options)?.join(', ');
-}
-
-/**
- * One label per value, in order, or `undefined` when the options name none of
- * them — a code the definition no longer lists is shown as it came, but a
- * value nothing at all is known about is left to the caller's own rendering.
- */
-function optionLabels(
-  value: unknown,
-  options: readonly FieldOption[],
-): string[] | undefined {
-  const labelOf = (item: unknown) => optionOf(item, options)?.label;
-  const items = Array.isArray(value) ? value : [value];
-  return items.some(item => labelOf(item) !== undefined)
-    ? items.map(item => labelOf(item) ?? String(item))
-    : undefined;
 }
 
 /**

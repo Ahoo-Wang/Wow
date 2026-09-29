@@ -94,8 +94,9 @@ describe('one engine, every language', () => {
     expect(open).toHaveBeenCalledTimes(1);
     expect(engine.openRuntimes()).toEqual([runtime]);
     expect(vi.mocked(source.paged).mock.calls.length).toBe(queries);
-    // The definition kept its keys; only what is handed out is said.
-    expect(engine.definitions.get('orders')?.title).toBe('订单');
+    // The definition and the state keep their keys; only the screen says them.
+    expect(engine.definitions.get('orders')?.title).toBe(text('orders.title'));
+    expect(runtime.getSnapshot().title).toBe(text('orders.all'));
   });
 });
 
@@ -124,7 +125,8 @@ describe('an engine from the provider, or the surface’s own', () => {
       </ViewEngineProvider>,
     );
     expect(await screen.findByText('All orders')).toBeTruthy();
-    expect(await screen.findByText('全部订单')).toBeTruthy();
+    // The inner provider's words, for its engine and a surface's own alike.
+    expect(await screen.findAllByText('全部订单')).toHaveLength(2);
     await waitFor(() => {
       expect(outer.openRuntimes()).toHaveLength(1);
       expect(inner.openRuntimes()).toHaveLength(1);
@@ -282,7 +284,7 @@ describe('reading (D60)', () => {
 });
 
 describe('nested providers and one engine’s words (review of #3761, 3)', () => {
-  it('speak the outermost provider’s words, whatever the inner one says or later changes to', async () => {
+  it('say the definitions in the words of the provider nearest them, as they say the engine’s own', async () => {
     const { engine } = keyedEngine();
     const page = (inner: Record<string, string>) => (
       <ViewEngineProvider engine={engine} messages={EN}>
@@ -301,13 +303,45 @@ describe('nested providers and one engine’s words (review of #3761, 3)', () =>
       </ViewEngineProvider>
     );
     const { rerender } = render(page(ZH));
-    expect(await screen.findAllByText('All orders')).toHaveLength(2);
+    expect(await screen.findAllByText('全部订单')).toHaveLength(2);
     rerender(page({ ...ZH, 'orders.all': '所有订单' }));
     await waitFor(() =>
-      expect(screen.getAllByText('All orders')).toHaveLength(2),
+      expect(screen.getAllByText('所有订单')).toHaveLength(2),
     );
-    expect(screen.queryByText('所有订单')).toBeNull();
-    expect(engine.definitions.get('orders')?.title).toBe('Orders');
+    expect(screen.queryByText('All orders')).toBeNull();
+    expect(engine.definitions.get('orders')?.title).toBe(text('orders.title'));
+  });
+
+  it('check the words of the outermost provider that names the engine for the keys they lack', async () => {
+    const issues: string[] = [];
+    const engine = new ViewEngine({
+      resources: [
+        {
+          definition: ordersDefinition({
+            title: text('orders.title'),
+            views: [
+              { id: 'all', title: text('orders.all'), config: recordConfig() },
+            ],
+          }),
+          source: testSource(),
+        },
+      ],
+      store: new MemoryViewStore(),
+      onIssue: found =>
+        issues.push(`${found.code}:${String(found.params?.key)}`),
+    });
+    render(
+      <ViewEngineProvider engine={engine} messages={{ 'orders.title': 'O' }}>
+        <ViewEngineProvider engine={engine} messages={EN}>
+          <EmbeddedView
+            instanceId={systemInstanceId('orders', 'all')}
+            withTitle
+          />
+        </ViewEngineProvider>
+      </ViewEngineProvider>,
+    );
+    expect(await screen.findByText('All orders')).toBeTruthy();
+    expect(issues).toEqual(['definition.text.unknown:orders.all']);
   });
 });
 
@@ -379,7 +413,7 @@ describe('the words the engine started with (review of #3761, 12)', () => {
 });
 
 describe('an engine named again under another engine (second review of #3761)', () => {
-  it('keeps the outermost provider’s words through A > B > A', async () => {
+  it('says it in the nearest provider’s words through A > B > A', async () => {
     const { engine } = keyedEngine();
     const other = keyedEngine().engine;
     const page = (inner: Record<string, string>) => (
@@ -395,11 +429,11 @@ describe('an engine named again under another engine (second review of #3761)', 
       </ViewEngineProvider>
     );
     const { rerender } = render(page(ZH));
-    expect(await screen.findByText('All orders')).toBeTruthy();
+    expect(await screen.findByText('全部订单')).toBeTruthy();
     rerender(page({ ...ZH, 'orders.all': '所有订单' }));
-    await waitFor(() => expect(screen.getByText('All orders')).toBeTruthy());
-    expect(engine.definitions.get('orders')?.title).toBe('Orders');
-    expect(other.definitions.get('orders')?.title).toBe('订单');
+    await waitFor(() => expect(screen.getByText('所有订单')).toBeTruthy());
+    expect(engine.definitions.get('orders')?.title).toBe(text('orders.title'));
+    expect(other.definitions.get('orders')?.title).toBe(text('orders.title'));
   });
 });
 

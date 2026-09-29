@@ -267,7 +267,6 @@ export class ViewEngine extends EngineResources {
         : {}),
       readInstance: id => this.readInstance(id),
       capabilities: this.capabilities,
-      text: this.text,
     });
   }
 
@@ -314,9 +313,8 @@ export class ViewEngine extends EngineResources {
     });
     const items = [...declared, ...accepted];
     this.summaries.noteAll(items);
-    // A declared view's title is a key where its definition wrote one: said
-    // in the words in force. A saved one is a reader's words, as it came.
-    return { items: [...this.say(declared), ...accepted], failed };
+    // Titles as they are, keys and all: whatever shows a list says them.
+    return { items, failed };
   }
 
   /**
@@ -425,7 +423,7 @@ export class ViewEngine extends EngineResources {
       };
       this.guard.requireCreate(target.definition.id, state.scope);
       return (await this.ledger.dispatch(
-        { action: 'create', input, intent: 'first-save', draft: state.draft },
+        { action: 'create', input, intent: 'first-save' },
         target,
       )) as ViewInstance;
     }
@@ -437,7 +435,6 @@ export class ViewEngine extends EngineResources {
       id: saved.id,
       revision: saved.revision,
       config: target.stored?.(state.draft) ?? state.draft,
-      draft: state.draft,
     };
     return (await this.ledger.dispatch(payload, target)) as ViewInstance;
   }

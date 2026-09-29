@@ -242,7 +242,7 @@ export function RecordCards({
                   >
                     <ItemContent className="min-w-0 flex-row items-baseline gap-2">
                       <ItemDescription className="shrink-0">
-                        {field.label}
+                        {messages.say(field.label)}
                       </ItemDescription>
                       {/* An identifier has no space to wrap at — a
                           function name like onInvoiceRegistrationCreated —

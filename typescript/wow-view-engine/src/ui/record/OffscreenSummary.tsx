@@ -65,7 +65,7 @@ export function OffscreenSummary({
   const display = useSurfaceDisplay();
   const fn = messages.label(summaryFunctionKey(hint.cell.fn, hint.cell.cell));
   const value = summaryText(hint.cell, messages, display);
-  const field = hint.column.label;
+  const field = messages.say(hint.column.label);
   const scopeWord = messages.label(`label.summary.scope.${scope}`);
   // What the words on the button leave unsaid, for a screen reader: the
   // button's name starts with the words it shows (WCAG 2.5.3), and this

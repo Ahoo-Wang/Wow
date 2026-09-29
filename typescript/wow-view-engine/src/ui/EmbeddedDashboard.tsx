@@ -55,7 +55,7 @@ import {
 } from './embed/EmbedHead.js';
 import type { EmbedBaseProps, EmbedInteraction } from './embed/options.js';
 import { useKindIssue, useKindWord } from './kinds.js';
-import { useViewMessages } from './MessagesProvider.js';
+import { StartingWords, useViewMessages } from './MessagesProvider.js';
 import { useEngine, useRoutedNavigate } from './ViewEngineProvider.js';
 import { ErrorStrip, WarningStrip } from './StatusStrip.js';
 
@@ -194,9 +194,16 @@ export function EmbeddedDashboard(given: EmbeddedDashboardProps) {
   }, []);
   const opened = useOpenView(engine, instanceId, null, opening);
   return (
-    <EmbedFrame engine={engine} opened={opened} kinds={DASHBOARD} props={props}>
-      {runtime => <EmbeddedBoard runtime={runtime} props={props} />}
-    </EmbedFrame>
+    <StartingWords engine={engine}>
+      <EmbedFrame
+        engine={engine}
+        opened={opened}
+        kinds={DASHBOARD}
+        props={props}
+      >
+        {runtime => <EmbeddedBoard runtime={runtime} props={props} />}
+      </EmbedFrame>
+    </StartingWords>
   );
 }
 

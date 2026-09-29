@@ -282,7 +282,7 @@ export function DrillMenu({
                               action.run(option.field, titled(action.subject)),
                             )}
                           >
-                            {option.label}
+                            {messages.say(option.label)}
                             {away && <Away />}
                           </DropdownMenuItem>
                         ))}

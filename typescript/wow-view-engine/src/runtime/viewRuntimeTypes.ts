@@ -11,7 +11,6 @@
  * limitations under the License.
  */
 
-import type { EngineText } from './text.js';
 import type {
   DataViewConfig,
   AnalysisViewConfig,
@@ -248,8 +247,7 @@ export interface ManagedViewRuntime<
    */
   issuesAt(scope: ViewScope): Issue[];
   /** Advances the saved baseline once the store has confirmed this view's write. */
-  /** `sent`: the draft the save sent, as it was handed out (`RuntimeStore.baseline`). */
-  markSaved(instance: ViewInstance, sent?: C): void;
+  markSaved(instance: ViewInstance): void;
   /**
    * Advances the baseline because a write elsewhere moved it: the same
    * instance open in another view, or renamed from the list. Whatever write
@@ -397,12 +395,6 @@ export function hasAsked(
 }
 
 export interface ViewRuntimeOptions<C extends DataViewConfig> {
-  /**
-   * The words the engine says its definitions' keys in: the snapshot and the
-   * definition are handed out read in them (`EngineText`). Left out, as
-   * they are.
-   */
-  text?: EngineText;
   id: string;
   definition: DataViewDefinition;
   config: C;

@@ -239,6 +239,7 @@ const CASES: {
 function formatters(catalogue: ViewMessages): MessageFormatters {
   return {
     label: (key, params) => formatMessage(catalogue, key, params),
+    say: value => value,
     issue: found => formatIssue(catalogue, found),
     issues: found => found.map(each => formatIssue(catalogue, each)).join(' '),
   };

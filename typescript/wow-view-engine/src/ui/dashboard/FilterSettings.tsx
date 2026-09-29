@@ -68,7 +68,7 @@ import {
 import { ValueChips } from '../filter/inputs/chips.js';
 import { FilterValueEditor } from '../FilterValueEditor.js';
 import { IconTooltip } from '../IconButton.js';
-import { useViewMessages } from '../MessagesProvider.js';
+import { useSaidText, useViewMessages } from '../MessagesProvider.js';
 import { DropdownMenuContent, PopoverContent } from '../popups.js';
 import { ControlFrame } from '../variants.js';
 import { searchPlaceholder } from './FilterBar.js';
@@ -383,10 +383,15 @@ function NameField({
 }) {
   const messages = useViewMessages();
   const id = useId();
+  // A key is shown in its words, and a name typed back to them is the key
+  // again (`useSaidText`): the filter keeps following the language (D2).
+  const said = useSaidText(field.label);
+  // What is in the box over the name it gave the filter: typed as it was,
+  // spaces and all, and a blank one the filter does not take.
   const [typed, setTyped] = useState<{ over: string; text: string } | null>(
     null,
   );
-  const text = typed?.over === field.label ? typed.text : field.label;
+  const text = typed?.over === field.label ? typed.text : said.shown;
   return (
     <Field>
       <FieldLabel htmlFor={id}>
@@ -399,8 +404,9 @@ function NameField({
         onChange={event => {
           const next = event.target.value;
           if (next.trim().length > 0) {
-            setTyped({ over: next.trim(), text: next });
-            onRename(field.name, next);
+            const label = said.back(next.trim());
+            setTyped({ over: label, text: next });
+            onRename(field.name, label);
           } else setTyped({ over: field.label, text: next });
         }}
       />

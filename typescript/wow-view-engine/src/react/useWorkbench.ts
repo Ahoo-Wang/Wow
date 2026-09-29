@@ -12,14 +12,15 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type {
-  FilterNode,
-  FilterTree,
-  Issue,
-  RecordViewConfig,
-  ViewConfig,
-  ViewInstance,
-  ViewKind,
+import {
+  sameJson,
+  type FilterNode,
+  type FilterTree,
+  type Issue,
+  type RecordViewConfig,
+  type ViewConfig,
+  type ViewInstance,
+  type ViewKind,
 } from '../model/index.js';
 import { drillFilter, narrowsTo } from '../analysis/index.js';
 import { defaultRecordConfig } from '../record/index.js';
@@ -504,9 +505,10 @@ export function useWorkbench(
           // a question: the draft is the config it opened with.
           // A saved view handed over is the same: what the board added is
           // its only change until the reader makes another, and the way
-          // back puts that on the board again (D26 Q33).
+          // back puts that on the board again (D26 Q33). Compared as it
+          // is, keys and all: shaped and shaped back is untouched.
           dirty: held
-            ? state.draft !== held.draft
+            ? !sameJson(state.draft, held.draft)
             : state.dirty && !untouchedSince(state.draft, handedDraft),
           write: state.write,
         }

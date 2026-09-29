@@ -152,6 +152,7 @@ describe('what the reading table says of a filled-in 0', () => {
   const messages = {
     label: (key: string, params?: Record<string, string | number>) =>
       formatMessage(defaultMessages, key as never, params),
+    say: (value: string) => value,
     issue: () => '',
     issues: () => '',
   };

@@ -98,51 +98,34 @@ function keyedEngine(store = new MemoryViewStore()) {
   return { engine, store, source };
 }
 
-describe('one engine, every language (host-integration.md 3.1)', () => {
-  it('keeps the keys and says them in the words set last', async () => {
+describe('one engine, every language (host-integration.md 3.1, D2)', () => {
+  it('hands out its keys everywhere, and a change of words tells no runtime', async () => {
     const { engine } = keyedEngine();
-    expect(engine.definitions.get('orders')?.title).toBe('orders.title');
-
     engine.setText(say('en'));
-    expect(engine.definitions.get('orders')?.title).toBe('Orders');
+    expect(engine.definitions.get('orders')?.title).toBe(text('orders.title'));
     const runtime = await engine.open(systemInstanceId('orders', 'all'));
-    expect(runtime.getSnapshot().title).toBe('All orders');
-    expect(runtime.definition.title).toBe('Orders');
+    expect(runtime.getSnapshot().title).toBe(text('orders.all'));
+    expect(runtime.definition.title).toBe(text('orders.title'));
 
     const told = vi.fn();
     runtime.subscribe(told);
+    const before = runtime.getSnapshot();
     engine.setText(say('zh'));
-    // The same runtime, told once, now in the other words: nothing reopened.
-    expect(told).toHaveBeenCalled();
+    // Nothing the engine holds is in any language: the words are the UI's.
+    expect(told).not.toHaveBeenCalled();
+    expect(runtime.getSnapshot()).toBe(before);
     expect(engine.openRuntimes()).toContain(runtime);
-    expect(runtime.getSnapshot().title).toBe('全部订单');
-    expect(runtime.definition.title).toBe('订单');
-    expect(engine.definitions.get('overview')?.title).toBe('概览');
+    expect(engine.definitions.get('overview')?.title).toBe(text('board.title'));
   });
 
-  it('reads a snapshot once per language, so a store of it stays still', async () => {
-    const { engine } = keyedEngine();
-    engine.setText(say('en'));
-    const runtime = await engine.open(systemInstanceId('orders', 'all'));
-    const first = runtime.getSnapshot();
-    expect(runtime.getSnapshot()).toBe(first);
-    // What holds no key is itself: the rows are not copied.
-    expect(first.result).toBe(
-      (runtime as unknown as { store: { state: typeof first } }).store.state
-        .result,
-    );
-    engine.setText(say('zh'));
-    expect(runtime.getSnapshot()).not.toBe(first);
-  });
-
-  it('lists the declared views in the words in force', async () => {
+  it('lists the declared views as declared, keys and all', async () => {
     const { engine } = keyedEngine();
     engine.setText(say('zh'));
     const listing = await engine.list('orders');
-    expect(listing.items.map(item => item.title)).toEqual(['全部订单']);
+    expect(listing.items.map(item => item.title)).toEqual([text('orders.all')]);
   });
 
-  it('never lets a key reach the store: a copy is saved in the words the reader saw', async () => {
+  it('saves a draft as it is: a copy keeps the keys it was made from', async () => {
     const { engine, store } = keyedEngine();
     engine.setText(say('zh'));
     const create = vi.spyOn(store, 'create');
@@ -155,10 +138,9 @@ describe('one engine, every language (host-integration.md 3.1)', () => {
     });
 
     const saved = create.mock.calls.map(call => call[0]);
-    expect(JSON.stringify(saved)).not.toContain('');
     const config = saved[0].config as DashboardViewConfig;
-    expect(config.panels[0]).toMatchObject({ content: '今天' });
-    expect(saved[1].title).toBe('全部订单');
+    expect(config.panels[0]).toMatchObject({ content: text('board.heading') });
+    expect(saved[1].title).toBe(text('orders.all'));
   });
 
   it('checks the words it starts with, and a key they lack is warned of', () => {

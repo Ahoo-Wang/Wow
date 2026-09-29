@@ -20,7 +20,7 @@ import {
   SelectValue,
 } from '../../components/select.js';
 import { SelectContent } from '../../popups.js';
-import { useViewMessages } from '../../MessagesProvider.js';
+import { useSay, useViewMessages } from '../../MessagesProvider.js';
 import { PillSelectTrigger, type ControlChromeProps } from '../../variants.js';
 
 /** What every value control is given: the value in force, and where to put it. */
@@ -68,15 +68,18 @@ export function ChoiceValue({
   placeholder?: string;
   onChange(value: string): void;
 }) {
+  // A choice may be a definition's words: said where it is shown.
+  const say = useSay();
+  const shown = items.map(item => ({ ...item, label: say(item.label) }));
   return (
     <Select
-      items={items}
+      items={shown}
       value={value}
       disabled={disabled}
       onValueChange={next => onChange(String(next))}
     >
       <PillSelectTrigger
-        aria-label={label}
+        aria-label={say(label)}
         aria-invalid={invalid}
         size="sm"
         chrome={chrome}
@@ -85,7 +88,7 @@ export function ChoiceValue({
       </PillSelectTrigger>
       <SelectContent>
         <SelectGroup>
-          {items.map(item => (
+          {shown.map(item => (
             <SelectItem key={item.value} value={item.value}>
               {item.label}
             </SelectItem>
