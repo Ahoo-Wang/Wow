@@ -23,7 +23,12 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { MemoryViewStore, ViewEngine } from '../src/index.js';
 import type { ViewInstance } from '../src/index.js';
 import { EmbeddedView } from '../src/ui/index.js';
-import { ordersDefinition, recordConfig, testSource } from './fixtures.js';
+import {
+  ordersDefinition,
+  recordConfig,
+  testSource,
+  resourcesOf,
+} from './fixtures.js';
 import { mine } from './fixtures/ui.js';
 
 afterEach(cleanup);
@@ -41,9 +46,8 @@ function stubObjectUrls() {
 function engine(): ViewEngine {
   const instance: ViewInstance = { ...mine, config: recordConfig() };
   return new ViewEngine({
-    definitions: [ordersDefinition()],
+    resources: resourcesOf([ordersDefinition()], () => testSource()),
     store: new MemoryViewStore({ instances: [instance] }),
-    resolveSource: () => testSource(),
   });
 }
 
@@ -109,9 +113,8 @@ describe('an embed with the export on', () => {
       <EmbeddedView
         engine={
           new ViewEngine({
-            definitions: [ordersDefinition()],
+            resources: resourcesOf([ordersDefinition()], () => testSource()),
             store: new MemoryViewStore({ instances: [instance] }),
-            resolveSource: () => testSource(),
           })
         }
         instanceId="orders-1"

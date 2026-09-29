@@ -38,6 +38,7 @@ import {
   recordConfig,
   testEnvironment,
   testSource,
+  resourcesOf,
 } from './fixtures.js';
 
 const REGION_FIELD = { name: 'region', label: 'Region', kind: 'string' };
@@ -82,9 +83,11 @@ function harness() {
     ],
   });
   const engine = new ViewEngine({
-    definitions: [ordersDefinition(), overviewDefinition()],
+    resources: resourcesOf(
+      [ordersDefinition(), overviewDefinition()],
+      () => source,
+    ),
     store,
-    resolveSource: () => source,
     environment: clock.environment,
   });
   return {

@@ -47,6 +47,7 @@ import {
   recordConfig,
   testEnvironment,
   testSource,
+  resourcesOf,
 } from './fixtures.js';
 
 function codes(issues: readonly Issue[]): string[] {
@@ -106,9 +107,11 @@ function harness(scope: ViewScope = 'personal') {
   const source = testSource();
   const store = new MemoryViewStore({ instances: [pending, byWarehouse] });
   const engine = new ViewEngine({
-    definitions: [ordersDefinition(), overviewDefinition()],
+    resources: resourcesOf(
+      [ordersDefinition(), overviewDefinition()],
+      () => source,
+    ),
     store,
-    resolveSource: () => source,
     environment: testEnvironment().environment,
   });
   return {
@@ -238,9 +241,11 @@ describe('a pre-C board read once, through save and reopen', () => {
 
     // A new page over the same store: the board is read as it was saved.
     const reopened = await new ViewEngine({
-      definitions: [ordersDefinition(), overviewDefinition()],
+      resources: resourcesOf(
+        [ordersDefinition(), overviewDefinition()],
+        () => board.source,
+      ),
       store: board.store,
-      resolveSource: () => board.source,
       environment: testEnvironment().environment,
     }).open(written.id);
     await nextTask();
@@ -304,9 +309,11 @@ describe('a pre-C board read once, through save and reopen', () => {
     });
 
     const reopened = await new ViewEngine({
-      definitions: [ordersDefinition(), overviewDefinition()],
+      resources: resourcesOf(
+        [ordersDefinition(), overviewDefinition()],
+        () => board.source,
+      ),
       store: board.store,
-      resolveSource: () => board.source,
       environment: testEnvironment().environment,
     }).open(written.id);
     await nextTask();

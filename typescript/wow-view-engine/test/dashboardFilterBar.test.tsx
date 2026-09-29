@@ -54,6 +54,7 @@ import {
   overviewDefinition,
   recordConfig,
   testSource,
+  resourcesOf,
 } from './fixtures.js';
 
 afterEach(cleanup);
@@ -204,9 +205,8 @@ function setup(
     ],
   });
   const engine = new ViewEngine({
-    definitions: [orders(), overviewDefinition()],
+    resources: resourcesOf([orders(), overviewDefinition()], () => source),
     store,
-    resolveSource: () => source,
   });
   const runtime = () =>
     engine

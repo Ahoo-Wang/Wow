@@ -75,6 +75,20 @@ function useMessages(): ViewMessages {
   return useContext(MessagesContext);
 }
 
+/**
+ * The wording in force here with `messages` merged over it, as a
+ * `MessagesProvider` given them would hand its children: what
+ * `ViewEngineProvider` says a definition's keys in.
+ */
+export function useMergedMessages(messages?: ViewMessages): ViewMessages {
+  return useMerged(useMessages(), messages);
+}
+
+/** The language set by the nearest provider that set one. */
+export function useInheritedLocale(): string | undefined {
+  return useContext(LocaleContext);
+}
+
 /** `messages` over `inherited`; the same object when there is nothing to add. */
 function useMerged(
   inherited: ViewMessages,

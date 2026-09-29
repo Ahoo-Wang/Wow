@@ -26,7 +26,12 @@ import { MemoryViewStore, ViewEngine } from '../src/index.js';
 import { useFilterEditor } from '../src/react/index.js';
 import { FilterPanel, MessagesProvider } from '../src/ui/index.js';
 import type { FilterPanelProps } from '../src/ui/index.js';
-import { ordersDefinition, recordConfig, testSource } from './fixtures.js';
+import {
+  ordersDefinition,
+  recordConfig,
+  testSource,
+  resourcesOf,
+} from './fixtures.js';
 import { mine } from './fixtures/ui.js';
 
 afterEach(cleanup);
@@ -39,9 +44,8 @@ afterEach(cleanup);
 describe('FilterPanel and the keyboard', () => {
   function panel(props: Partial<FilterPanelProps> = {}) {
     const engine = new ViewEngine({
-      definitions: [ordersDefinition()],
+      resources: resourcesOf([ordersDefinition()], () => testSource()),
       store: new MemoryViewStore({ instances: [mine] }),
-      resolveSource: () => testSource(),
     });
     const runtime = engine.create('orders', {
       title: 'Scratch',

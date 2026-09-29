@@ -33,7 +33,12 @@ import {
 } from '../src/index.js';
 import { useAnalysisEditor, useOpenView } from '../src/react/index.js';
 import { DataWorkbench, defaultMessages } from '../src/ui/index.js';
-import { analysisConfig, ordersDefinition, testSource } from './fixtures.js';
+import {
+  analysisConfig,
+  ordersDefinition,
+  testSource,
+  resourcesOf,
+} from './fixtures.js';
 import { describedText } from './fixtures/ui.js';
 
 afterEach(cleanup);
@@ -70,9 +75,8 @@ function setup(
   source: ViewSource = testSource(),
 ) {
   const engine = new ViewEngine({
-    definitions: [definition],
+    resources: resourcesOf([definition], () => source),
     store: new MemoryViewStore({ instances: [instance] }),
-    resolveSource: () => source,
   });
   return { engine, source };
 }

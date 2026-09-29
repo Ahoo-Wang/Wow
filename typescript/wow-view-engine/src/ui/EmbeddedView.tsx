@@ -35,6 +35,11 @@ import { EmbeddedRecord } from './embed/EmbeddedRecord.js';
 import type { EmbedBaseProps, EmbedInteraction } from './embed/options.js';
 import type { RecordDetailOptions } from './workbench/RecordParts.js';
 import { useViewMessages } from './MessagesProvider.js';
+import {
+  useBindings,
+  useEngine,
+  useRoutedNavigate,
+} from './ViewEngineProvider.js';
 import { ErrorStrip, StatusStrip, WarningStrip } from './StatusStrip.js';
 
 export type {
@@ -82,11 +87,32 @@ export interface EmbeddedViewProps extends EmbedBaseProps {
    * the ceiling). Read-only: the row's commands (`rowActions`) are not in
    * its header, and nothing it does is written.
    *
-   * `true` is the detail as it comes; `RecordDetailOptions` — what
-   * `DataWorkbench` takes as `record.detail` — lets the host hold which
-   * record is open (`open`/`onOpenChange`) and add its own sections.
+   * `true` is the detail as the host reads the definition's records
+   * (`bind`'s `reading`: its `render`, `title` and `sections`), or as it
+   * comes where it bound none — its open record this embed's own, never the
+   * binding's `open`/`onOpenChange`, so two embeds of one definition on a
+   * page each open their own and write nothing to the host's address;
+   * `RecordDetailOptions` — what `DataWorkbench` takes as `record.detail` —
+   * lets the host hold which record is open (`open`/`onOpenChange`) and add
+   * its own sections.
    */
   detail?: boolean | RecordDetailOptions;
+}
+
+/**
+ * How an embed reads a record the host bound a reading for: the reading,
+ * and the open record its own (`EmbeddedViewProps.detail`).
+ */
+function readingAlone(
+  reading: RecordDetailOptions | undefined,
+): RecordDetailOptions {
+  if (!reading) return {};
+  const { render, title, sections } = reading;
+  return {
+    ...(render ? { render } : {}),
+    ...(title ? { title } : {}),
+    ...(sections ? { sections } : {}),
+  };
 }
 
 /** The kinds this entry draws; a dashboard is `EmbeddedDashboard`'s. */
@@ -110,8 +136,11 @@ const DATA_KINDS: readonly ViewKind[] = ['record', 'analysis'];
  * request budget are the runtime's, identical to the workbench's, because
  * both are compositions over the same controllers.
  */
-export function EmbeddedView(props: EmbeddedViewProps) {
-  const { engine, instanceId, scopeFilter = null } = props;
+export function EmbeddedView(given: EmbeddedViewProps) {
+  const engine = useEngine(given.engine);
+  const onNavigate = useRoutedNavigate(given.onNavigate);
+  const props = { ...given, engine, onNavigate };
+  const { instanceId, scopeFilter = null } = props;
   // The condition goes in with the config, not after it: `useOpenView` hands
   // it to `engine.open`, so the opening query is already scoped rather than
   // going out wide and being narrowed a moment later. One the definition
@@ -158,6 +187,7 @@ function EmbeddedData({
   const data = runtime as ViewRuntime<DataViewConfig>;
   const state = useViewRuntime(data);
   const messages = useViewMessages();
+  const reading = useBindings()(data.definition.id)?.reading;
   const interactive = interaction === 'interactive';
   // A finding names its dimensions, metrics and fields as the screen does —
   // columns as they are headed (`analysisIssueNamer`); over a record view
@@ -267,7 +297,13 @@ function EmbeddedData({
       withSearch={withSearch}
       withExport={withExport}
       rowActions={rowActions}
-      detail={interactive && detail ? (detail === true ? {} : detail) : null}
+      detail={
+        interactive && detail
+          ? detail === true
+            ? readingAlone(reading)
+            : detail
+          : null
+      }
       onRenderFailure={onRenderFailure}
       head={head}
       notices={notices}

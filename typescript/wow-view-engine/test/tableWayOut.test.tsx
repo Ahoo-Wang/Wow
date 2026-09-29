@@ -37,7 +37,12 @@ import {
   useOpenView,
   useViewRuntime,
 } from '../src/react/index.js';
-import { analysisConfig, ordersDefinition, testSource } from './fixtures.js';
+import {
+  analysisConfig,
+  ordersDefinition,
+  testSource,
+  resourcesOf,
+} from './fixtures.js';
 
 /** The orders fixture with three dimensions to group by. */
 function threeDimensions(): DataViewDefinition {
@@ -161,7 +166,7 @@ async function open(config: AnalysisViewConfig) {
     aggregate: vi.fn(() => Promise.resolve([...ROWS])),
   });
   const engine = new ViewEngine({
-    definitions: [threeDimensions()],
+    resources: resourcesOf([threeDimensions()], () => source),
     store: new MemoryViewStore({
       instances: [
         {
@@ -174,7 +179,6 @@ async function open(config: AnalysisViewConfig) {
         },
       ],
     }),
-    resolveSource: () => source,
   });
   const hook = renderHook(() => {
     const opened = useOpenView(engine, 'three-way');

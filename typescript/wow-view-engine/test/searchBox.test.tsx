@@ -30,7 +30,13 @@ import {
   type FilterTree,
 } from '../src/index.js';
 import { DataWorkbench, type WorkbenchFeatures } from '../src/ui/index.js';
-import { ROWS, mine, ordersDefinition, testSource } from './fixtures.js';
+import {
+  ROWS,
+  mine,
+  ordersDefinition,
+  testSource,
+  resourcesOf,
+} from './fixtures.js';
 
 afterEach(cleanup);
 
@@ -87,9 +93,8 @@ describe('the search box', () => {
       Promise.resolve({ total: ROWS.length, list: [...ROWS] }),
     );
     const engine = new ViewEngine({
-      definitions: [definition],
+      resources: resourcesOf([definition], () => testSource({ paged })),
       store: new MemoryViewStore({ instances: [mine] }),
-      resolveSource: () => testSource({ paged }),
     });
     render(
       <DataWorkbench

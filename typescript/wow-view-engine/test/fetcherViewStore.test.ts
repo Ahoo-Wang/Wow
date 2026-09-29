@@ -28,6 +28,7 @@ import {
   recordConfig,
   testEnvironment,
   testSource,
+  resourcesOf,
 } from './fixtures.js';
 
 const instance: ViewInstance = {
@@ -409,9 +410,8 @@ describe('FetcherViewStore permissions', () => {
 describe('FetcherViewStore as the engine sees it', () => {
   it('opens a view through the engine and saves an edit back', async () => {
     const engine = new ViewEngine({
-      definitions: [ordersDefinition()],
+      resources: resourcesOf([ordersDefinition()], () => testSource()),
       store: store(),
-      resolveSource: () => testSource(),
       environment: testEnvironment().environment,
       newId: () => 'req-open',
     });

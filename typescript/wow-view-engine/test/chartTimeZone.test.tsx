@@ -36,6 +36,7 @@ import {
   analysisConfig,
   dailyOrdersDefinition,
   testSource,
+  resourcesOf,
 } from './fixtures.js';
 
 /**
@@ -177,10 +178,10 @@ describe('the chart in the engine’s zone', () => {
     // Asked at noon, engine time, on the last day: that day is under way.
     const asked = new Date(midnights[3]! + 12 * 3_600_000);
     const engine = new ViewEngine({
-      definitions: [dailyOrdersDefinition()],
-      store: new MemoryViewStore({ instances: [view] }),
-      resolveSource: () =>
+      resources: resourcesOf([dailyOrdersDefinition()], () =>
         testSource({ aggregate: vi.fn(() => Promise.resolve([...ROWS])) }),
+      ),
+      store: new MemoryViewStore({ instances: [view] }),
       environment: defaultRuntimeEnvironment({
         timeZone: ENGINE.zone,
         now: () => asked,

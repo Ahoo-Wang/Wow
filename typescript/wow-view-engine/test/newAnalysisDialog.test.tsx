@@ -40,7 +40,7 @@ import {
   type ViewSource,
 } from '../src/index.js';
 import { NewAnalysisDialog, type NewAnalysis } from '../src/ui/index.js';
-import { ordersDefinition, testSource } from './fixtures.js';
+import { ordersDefinition, testSource, resourcesOf } from './fixtures.js';
 
 afterEach(cleanup);
 
@@ -67,9 +67,8 @@ function engineOf(
   source: ViewSource = testSource(),
 ) {
   return new ViewEngine({
-    definitions,
+    resources: resourcesOf(definitions, () => source),
     store: new MemoryViewStore(),
-    resolveSource: () => source,
   });
 }
 

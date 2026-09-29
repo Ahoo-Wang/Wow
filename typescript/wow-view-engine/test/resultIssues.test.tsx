@@ -49,6 +49,7 @@ import {
   ordersDefinition,
   recordConfig,
   testSource,
+  resourcesOf,
 } from './fixtures.js';
 
 afterEach(cleanup);
@@ -102,9 +103,8 @@ function engineOver(config: DataViewConfig, source: ViewSource): ViewEngine {
     config,
   };
   return new ViewEngine({
-    definitions: [ordersDefinition()],
+    resources: resourcesOf([ordersDefinition()], () => source),
     store: new MemoryViewStore({ instances: [instance] }),
-    resolveSource: () => source,
   });
 }
 
@@ -254,14 +254,17 @@ describe('the findings a result carries', () => {
    */
   it('still says "may" where the limit sits on the ceiling', async () => {
     const engine = new ViewEngine({
-      definitions: [
-        ordersDefinition({
-          analysis: {
-            ...ordersDefinition().analysis!,
-            limits: { maxLimit: 2 },
-          },
-        }),
-      ],
+      resources: resourcesOf(
+        [
+          ordersDefinition({
+            analysis: {
+              ...ordersDefinition().analysis!,
+              limits: { maxLimit: 2 },
+            },
+          }),
+        ],
+        () => grouped(4),
+      ),
       store: new MemoryViewStore({
         instances: [
           {
@@ -274,7 +277,6 @@ describe('the findings a result carries', () => {
           },
         ],
       }),
-      resolveSource: () => grouped(4),
     });
     const runtime = await engine.open('orders-1');
     await waitFor(() =>

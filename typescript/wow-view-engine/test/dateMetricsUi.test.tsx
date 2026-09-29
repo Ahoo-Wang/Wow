@@ -47,6 +47,7 @@ import {
   ordersDefinition,
   testEnvironment,
   testSource,
+  resourcesOf,
 } from './fixtures.js';
 import { openTray } from './fixtures/workbench.js';
 
@@ -216,14 +217,14 @@ async function open(config: Partial<AnalysisViewConfig>) {
     ],
   });
   const engine = new ViewEngine({
-    definitions: [dated()],
-    store,
-    environment: testEnvironment().environment,
-    resolveSource: () =>
+    resources: resourcesOf([dated()], () =>
       testSource({
         aggregate: () =>
           Promise.resolve([{ warehouse: 'CN', orders: 2, latest: INSTANT }]),
       }),
+    ),
+    store,
+    environment: testEnvironment().environment,
   });
   render(
     <DataWorkbench

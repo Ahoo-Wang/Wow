@@ -34,7 +34,12 @@ import type {
 import { admittedPageSize } from '../src/react/recordEdits.js';
 import { DataWorkbench } from '../src/ui/index.js';
 import { configRemedy } from '../src/ui/workbench/configRemedy.js';
-import { ordersDefinition, recordConfig, testSource } from './fixtures.js';
+import {
+  ordersDefinition,
+  recordConfig,
+  testSource,
+  resourcesOf,
+} from './fixtures.js';
 import { mine } from './fixtures/ui.js';
 
 afterEach(cleanup);
@@ -98,9 +103,8 @@ describe('the way out of a config that will not run', () => {
       config: recordConfig(config),
     };
     const engine = new ViewEngine({
-      definitions: [definition],
+      resources: resourcesOf([definition], () => testSource()),
       store: new MemoryViewStore({ instances: [instance] }),
-      resolveSource: () => testSource(),
     });
     render(
       <DataWorkbench

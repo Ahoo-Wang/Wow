@@ -12,11 +12,7 @@
  */
 
 import type { FilterPagedQuery, PagedList } from "@ahoo-wang/wow-client";
-import {
-  MemoryViewStore,
-  type RecordData,
-  type ViewSource,
-} from "@ahoo-wang/wow-view-engine";
+import type { RecordData, ViewSource } from "@ahoo-wang/wow-view-engine";
 import {
   fireEvent,
   render,
@@ -29,6 +25,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { I18nProvider } from "@/i18n.tsx";
 import type { ExecutionCommands } from "../executionCommands.ts";
 import ExecutionsPage from "../ExecutionsPage.tsx";
+import { withViews } from "../../App/withViews.tsx";
 import { ID_PARAM } from "./useExecutionDetail.tsx";
 
 const TRACE = [
@@ -165,14 +162,11 @@ function renderAt(path: string, sent: ExecutionCommands = commands()) {
     [
       {
         path: "/executions",
-        element: (
-          <ExecutionsPage
-            store={new MemoryViewStore()}
-            source={source}
-            historySource={historySource}
-            commands={sent}
-          />
-        ),
+        element: withViews(<ExecutionsPage />, {
+          source,
+          historySource,
+          commands: sent,
+        }).element,
       },
     ],
     { initialEntries: [path] },

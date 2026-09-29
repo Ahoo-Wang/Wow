@@ -11,12 +11,13 @@
  * limitations under the License.
  */
 
-import { MemoryViewStore, type ViewSource } from "@ahoo-wang/wow-view-engine";
+import type { ViewSource } from "@ahoo-wang/wow-view-engine";
 import { render, screen, waitFor } from "@testing-library/react";
 import { createMemoryRouter, RouterProvider } from "react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { I18nProvider } from "@/i18n.tsx";
 import EventsPage from "./EventsPage.tsx";
+import { withViews } from "../App/withViews.tsx";
 
 const historySource: ViewSource = {
   paged: vi.fn(() =>
@@ -47,12 +48,7 @@ function renderAt(entry: { search?: string; state?: unknown }) {
     [
       {
         path: "/events",
-        element: (
-          <EventsPage
-            store={new MemoryViewStore()}
-            historySource={historySource}
-          />
-        ),
+        element: withViews(<EventsPage />, { historySource }).element,
       },
     ],
     { initialEntries: [{ pathname: "/events", ...entry }] },

@@ -67,7 +67,12 @@ import {
   TooltipContent,
 } from '../src/ui/popups.js';
 import { FilterPanel, ViewSurface } from '../src/ui/index.js';
-import { ordersDefinition, recordConfig, testSource } from './fixtures.js';
+import {
+  ordersDefinition,
+  recordConfig,
+  testSource,
+  resourcesOf,
+} from './fixtures.js';
 
 afterEach(cleanup);
 
@@ -84,9 +89,8 @@ async function findFieldPicker(): Promise<Element | null> {
 describe('popups carry the theme out of the root', () => {
   it('puts the root class and the surface theme on a popup', async () => {
     const engine = new ViewEngine({
-      definitions: [ordersDefinition()],
+      resources: resourcesOf([ordersDefinition()], () => testSource()),
       store: new MemoryViewStore(),
-      resolveSource: () => testSource(),
     });
     const runtime = engine.create('orders', {
       title: 'T',
@@ -164,9 +168,8 @@ describe('popups carry the theme out of the root', () => {
 
   async function openAddPopup(theme?: 'light' | 'dark') {
     const engine = new ViewEngine({
-      definitions: [ordersDefinition()],
+      resources: resourcesOf([ordersDefinition()], () => testSource()),
       store: new MemoryViewStore(),
-      resolveSource: () => testSource(),
     });
     const runtime = engine.create('orders', {
       title: 'T',

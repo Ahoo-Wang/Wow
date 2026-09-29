@@ -42,6 +42,7 @@ import {
   namedOrdersDefinition,
   ordersDefinition,
   testSource,
+  resourcesOf,
 } from './fixtures.js';
 import { openTray } from './fixtures/workbench.js';
 import { landed, tracked } from './fixtures/writes.js';
@@ -63,9 +64,8 @@ function setup(
 ) {
   const store = tracked(new MemoryViewStore({ instances: [analysisView] }));
   const engine = new ViewEngine({
-    definitions: [definition],
+    resources: resourcesOf([definition], () => source),
     store,
-    resolveSource: () => source,
   });
   return { engine, store, source };
 }
@@ -343,9 +343,10 @@ describe('DataWorkbench', () => {
   it('says that no group matched, chart layout included', async () => {
     const store = tracked(new MemoryViewStore({ instances: [analysisView] }));
     const engine = new ViewEngine({
-      definitions: [ordersDefinition()],
+      resources: resourcesOf([ordersDefinition()], () =>
+        testSource({ aggregate: vi.fn(async () => []) }),
+      ),
       store,
-      resolveSource: () => testSource({ aggregate: vi.fn(async () => []) }),
     });
     render(
       <DataWorkbench
@@ -374,9 +375,8 @@ describe('DataWorkbench', () => {
     });
     const store = tracked(new MemoryViewStore({ instances: [analysisView] }));
     const engine = new ViewEngine({
-      definitions: [ordersDefinition()],
+      resources: resourcesOf([ordersDefinition()], () => source),
       store,
-      resolveSource: () => source,
     });
     render(
       <DataWorkbench
@@ -490,7 +490,7 @@ describe('DataWorkbench', () => {
       aggregate: vi.fn(() => Promise.resolve([{ month: october, orders: 2 }])),
     });
     const engine = new ViewEngine({
-      definitions: [namedOrdersDefinition()],
+      resources: resourcesOf([namedOrdersDefinition()], () => source),
       store: tracked(
         new MemoryViewStore({
           instances: [
@@ -514,7 +514,6 @@ describe('DataWorkbench', () => {
           ],
         }),
       ),
-      resolveSource: () => source,
       environment: defaultRuntimeEnvironment({ timeZone: ZONE }),
     });
 
@@ -544,7 +543,7 @@ describe('DataWorkbench', () => {
   // categories are named through that config's columns, not the draft's.
   it('names chart categories by the config that ran while the question is edited', async () => {
     const engine = new ViewEngine({
-      definitions: [namedOrdersDefinition()],
+      resources: resourcesOf([namedOrdersDefinition()], () => testSource()),
       store: tracked(
         new MemoryViewStore({
           instances: [
@@ -552,7 +551,6 @@ describe('DataWorkbench', () => {
           ],
         }),
       ),
-      resolveSource: () => testSource(),
     });
     const { container } = render(
       <DataWorkbench
@@ -588,7 +586,7 @@ describe('DataWorkbench', () => {
     // warehouse, and names its bars through the schema, in the question's
     // order, rather than through the table's columns.
     const engine = new ViewEngine({
-      definitions: [namedOrdersDefinition()],
+      resources: resourcesOf([namedOrdersDefinition()], () => testSource()),
       store: tracked(
         new MemoryViewStore({
           instances: [
@@ -602,7 +600,6 @@ describe('DataWorkbench', () => {
           ],
         }),
       ),
-      resolveSource: () => testSource(),
     });
 
     // Queries look inside the workbench rendered here.
@@ -762,9 +759,8 @@ describe('deleting the open analysis', () => {
       new MemoryViewStore({ instances: [analysisView, other] }),
     );
     const engine = new ViewEngine({
-      definitions: [ordersDefinition()],
+      resources: resourcesOf([ordersDefinition()], () => testSource()),
       store,
-      resolveSource: () => testSource(),
     });
     render(
       <DataWorkbench

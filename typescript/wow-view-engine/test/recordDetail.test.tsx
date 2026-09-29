@@ -24,7 +24,13 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { detailSections } from '../src/record/index.js';
 import { DataWorkbench } from '../src/ui/index.js';
 import { MemoryViewStore, ViewEngine, type RecordData } from '../src/index.js';
-import { ROWS, mine, ordersDefinition, testSource } from './fixtures.js';
+import {
+  ROWS,
+  mine,
+  ordersDefinition,
+  testSource,
+  resourcesOf,
+} from './fixtures.js';
 
 afterEach(cleanup);
 
@@ -65,9 +71,8 @@ function withNote() {
 
 async function open(source = wholeSource()) {
   const engine = new ViewEngine({
-    definitions: [withNote()],
+    resources: resourcesOf([withNote()], () => source),
     store: new MemoryViewStore({ instances: [mine] }),
-    resolveSource: () => source,
   });
   render(
     <DataWorkbench

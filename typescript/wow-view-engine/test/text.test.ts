@@ -19,7 +19,7 @@ import {
   textKeyOf,
   withText,
 } from '../src/index.js';
-import { ordersDefinition, testSource } from './fixtures.js';
+import { ordersDefinition, testSource, resourcesOf } from './fixtures.js';
 
 /** host-integration.md 3.1: a definition written in keys, said in words. */
 describe('text', () => {
@@ -51,27 +51,48 @@ describe('text', () => {
     expect(missing).toEqual([['gone', ['views', 0, 'title']]]);
   });
 
-  it('is said by the engine as definitions are registered, a key with no words warned of', () => {
+  it('says a key where code has put it inside a longer string', () => {
+    const words: Record<string, string> = { field: '状态', element: '原因' };
+    const joined = `${text('field')} · ${text('element')}`;
+    expect(textKeyOf(joined)).toBeNull();
+    expect(withText({ label: joined }, key => words[key])).toEqual({
+      label: '状态 · 原因',
+    });
+    const missing: string[] = [];
+    expect(
+      withText(
+        `${text('gone')} is empty`,
+        () => undefined,
+        key => missing.push(key),
+      ),
+    ).toBe('gone is empty');
+    expect(missing).toEqual(['gone']);
+  });
+
+  it('checks the words given at registration, keeping the keys, a key with no words warned of', () => {
     const reported: string[] = [];
     const base = ordersDefinition();
     const engine = new ViewEngine({
-      definitions: [
-        {
-          ...base,
-          title: text('orders.title'),
-          fields: base.fields.map(field =>
-            field.name === 'id'
-              ? { ...field, label: text('orders.id') }
-              : field,
-          ),
-        },
-      ],
+      resources: resourcesOf(
+        [
+          {
+            ...base,
+            title: text('orders.title'),
+            fields: base.fields.map(field =>
+              field.name === 'id'
+                ? { ...field, label: text('orders.id') }
+                : field,
+            ),
+          },
+        ],
+        () => testSource(),
+      ),
       text: key => (key === 'orders.title' ? '订单' : undefined),
       store: new MemoryViewStore(),
-      resolveSource: () => testSource(),
       onIssue: found => reported.push(found.code),
     });
     const definition = engine.definitions.get('orders');
+    // Said as the engine hands it out, in the words it started with.
     expect(definition?.title).toBe('订单');
     expect(
       definition?.kind === 'data' ? definition.fields[0].label : null,

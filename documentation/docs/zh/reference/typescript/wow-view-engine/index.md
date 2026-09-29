@@ -88,7 +88,7 @@ flowchart LR
 | 方向 | 机制 |
 |---|---|
 | 字段类型 | 注册一个 `FieldKind`：操作符、校验、`compile` 到 `FilterExpression`，以及指定某个内置取值输入的编辑器描述 |
-| 数据源 | `resolveSource(key)` 返回一个 `wow-client` 查询客户端 |
+| 数据源 | `resources` 的每一项把一份定义与它的数据源（一个 `wow-client` 查询客户端）配成对 |
 | 持久化 | 实现 `ViewStore` |
 | 操作 | 向工作台传入 `global`、`bulk`、`row` 三类操作的渲染函数；它们是代码，从不保存 |
 | 外观 | CSS 变量、预设与 shadcn 桥接（见[视图引擎的主题](../../../guide/typescript/view-engine-theming.md)）；通过组合 `/react` Hook 替换组件 |

@@ -11,59 +11,32 @@
  * limitations under the License.
  */
 
-import { useState } from "react";
 import { Link } from "react-router";
 import { LayoutDashboard } from "lucide-react";
-import { useViewEngine } from "@ahoo-wang/wow-view-engine/react";
 import { EmbeddedDashboard } from "@ahoo-wang/wow-view-engine/ui";
 import { Button } from "@/components/ui/button";
-import { useI18n, type Locale } from "@/i18n.tsx";
-import { executionEngineOptions, localViewStore } from "@/views/engine.ts";
+import { useI18n } from "@/i18n.tsx";
 import {
   BOARDS_PATH,
   VIEW_PARAM,
   useBoardFilters,
-  useViewNavigation,
 } from "@/views/navigation.ts";
 import { OVERVIEW_BOARD } from "@/views/overview.ts";
-import { executionCommands } from "../Executions/executionCommands.ts";
-import { useExecutionActions } from "../Executions/useExecutionActions.tsx";
-import {
-  engineMessages,
-  useRecordPanels,
-  type BoardPageProps,
-} from "./boardHost.ts";
-
-interface LocalizedOverviewProps extends BoardPageProps {
-  locale: Locale;
-}
 
 /**
- * The board in one language: the definitions carry one language (G12), so a
- * change of language builds a new engine, as the failed executions' page
- * does.
+ * 「概览」, the console's home page: the overview's system board, embedded in
+ * the interactive tier (rebuild proposal, batch 6) — the reader narrows the
+ * window, presses into a panel, fills the screen with it, and reads when the
+ * numbers were read with a refresh beside it (`withRefresh`, as the old
+ * home page's header had), and nothing is saved (D36). The due-for-retry
+ * panel carries the same row and bulk commands as the failed executions'
+ * workbench (D39): they are bound to the definition (`ViewsHost`).
+ * Rearranging the board, or saving one of their own, is the dashboard
+ * workbench's.
  */
-function LocalizedOverview({
-  locale,
-  store,
-  source,
-  historySource,
-  commands,
-}: LocalizedOverviewProps) {
+export default function OverviewPage() {
   const { t } = useI18n();
-  const engine = useViewEngine(
-    executionEngineOptions({
-      locale,
-      store: store ?? localViewStore(),
-      source,
-      historySource,
-    }),
-  );
-  const [sent] = useState(() => commands ?? executionCommands());
-  const { actions, bulk, dialog } = useExecutionActions(sent);
-  const recordPanel = useRecordPanels(actions, bulk);
   const { initialFilters, onFiltersChange } = useBoardFilters();
-  const onNavigate = useViewNavigation();
   const workbench = `${BOARDS_PATH}?${new URLSearchParams({
     [VIEW_PARAM]: OVERVIEW_BOARD,
   })}`;
@@ -94,34 +67,14 @@ function LocalizedOverview({
       </div>
       <EmbeddedDashboard
         className="min-h-0 flex-1"
-        engine={engine}
         instanceId={OVERVIEW_BOARD}
         interaction="interactive"
         size="fill"
         expandable
         withRefresh
-        locale={locale}
-        messages={engineMessages(locale)}
         initialFilters={initialFilters}
         onFiltersChange={onFiltersChange}
-        onNavigate={onNavigate}
-        recordPanel={recordPanel}
       />
-      {dialog}
     </div>
   );
-}
-
-/**
- * 「概览」, the console's home page: the overview's system board, embedded in
- * the interactive tier (rebuild proposal, batch 6) — the reader narrows the
- * window, presses into a panel, fills the screen with it, and reads when the
- * numbers were read with a refresh beside it (`withRefresh`, as the old
- * home page's header had), and nothing is saved (D36). The due-for-retry panel carries the same row and bulk
- * commands as the failed executions' workbench (D39). Rearranging the board,
- * or saving one of their own, is the dashboard workbench's.
- */
-export default function OverviewPage(props: BoardPageProps) {
-  const { locale } = useI18n();
-  return <LocalizedOverview key={locale} locale={locale} {...props} />;
 }

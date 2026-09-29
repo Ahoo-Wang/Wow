@@ -38,6 +38,7 @@ import {
   overviewDefinition,
   testEnvironment,
   testSource,
+  resourcesOf,
 } from './fixtures.js';
 
 /**
@@ -229,9 +230,11 @@ describe('a dashboard’s cards asked again when their period ends', () => {
       ],
     });
     const engine = new ViewEngine({
-      definitions: [dailyOrdersDefinition(), overviewDefinition()],
+      resources: resourcesOf(
+        [dailyOrdersDefinition(), overviewDefinition()],
+        () => source,
+      ),
       store,
-      resolveSource: () => source,
       environment: clock.environment,
       limits: DEFAULT_RUNTIME_LIMITS,
     });

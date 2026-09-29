@@ -40,6 +40,7 @@ import {
   analysisConfig,
   dailyOrdersDefinition,
   testSource,
+  resourcesOf,
 } from './fixtures.js';
 
 afterEach(cleanup);
@@ -281,9 +282,8 @@ describe('the trend card’s options', () => {
       config,
     };
     const engine = new ViewEngine({
-      definitions: [dailyOrdersDefinition()],
+      resources: resourcesOf([dailyOrdersDefinition()], () => source),
       store: new MemoryViewStore({ instances: [instance] }),
-      resolveSource: () => source,
     });
     render(
       <DataWorkbench

@@ -29,7 +29,7 @@ import {
   ordersDescriptor,
   read,
 } from './fixtures/descriptor.js';
-import { recordConfig, testSource } from './fixtures.js';
+import { recordConfig, testSource, resourcesOf } from './fixtures.js';
 
 /**
  * D67, revised: a descriptor's facts are the model's, its capabilities the
@@ -168,25 +168,27 @@ describe('a definition built from one store’s snapshot', () => {
   it('is what an engine runs a view on, over each source’s descriptor', async () => {
     const open = async (descriptor: QueryModelDescriptor) => {
       const engine = new ViewEngine({
-        definitions: [
-          {
-            ...orders,
-            views: [
-              {
-                id: 'all',
-                title: 'All',
-                config: recordConfig({
-                  sort: [],
-                  table: { columns: [{ field: 'id' }] },
-                  card: { title: 'id', fields: [] },
-                }),
-              },
-            ],
-          },
-        ],
+        resources: resourcesOf(
+          [
+            {
+              ...orders,
+              views: [
+                {
+                  id: 'all',
+                  title: 'All',
+                  config: recordConfig({
+                    sort: [],
+                    table: { columns: [{ field: 'id' }] },
+                    card: { title: 'id', fields: [] },
+                  }),
+                },
+              ],
+            },
+          ],
+          () =>
+            testSource({ describe: () => Promise.resolve(read(descriptor)) }),
+        ),
         store: new MemoryViewStore(),
-        resolveSource: () =>
-          testSource({ describe: () => Promise.resolve(read(descriptor)) }),
       });
       const runtime = await engine.open('system:orders:all');
       const sortable = field(

@@ -37,7 +37,7 @@ import {
   type ViewSource,
 } from '../src/index.js';
 import { useOpenView, useRecordTable } from '../src/react/index.js';
-import { NOW, recordConfig, testSource } from './fixtures.js';
+import { NOW, recordConfig, testSource, resourcesOf } from './fixtures.js';
 
 afterEach(cleanup);
 
@@ -323,7 +323,7 @@ describe('RecordCapability.rowFields admission', () => {
 describe('the query a view runs', () => {
   function open(source: ViewSource) {
     const engine = new ViewEngine({
-      definitions: [definition()],
+      resources: resourcesOf([definition()], () => source),
       store: new MemoryViewStore({
         instances: [
           {
@@ -346,7 +346,6 @@ describe('the query a view runs', () => {
           },
         ],
       }),
-      resolveSource: () => source,
     });
     return renderHook(() => {
       const opened = useOpenView(engine, 'mine');
@@ -443,7 +442,7 @@ describe('an array of objects on a card', () => {
       },
     };
     const engine = new ViewEngine({
-      definitions: [events],
+      resources: resourcesOf([events], () => testSource()),
       store: new MemoryViewStore({
         instances: [
           {
@@ -459,7 +458,6 @@ describe('an array of objects on a card', () => {
           },
         ],
       }),
-      resolveSource: () => testSource(),
     });
     const { result } = renderHook(() => {
       const opened = useOpenView(engine, 'stream');

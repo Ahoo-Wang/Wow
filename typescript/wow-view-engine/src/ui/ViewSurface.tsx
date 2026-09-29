@@ -15,7 +15,7 @@ import * as React from 'react';
 import { cn } from 'cn';
 import { TooltipProvider } from './components/tooltip.js';
 import type { DisplayContext } from './display.js';
-import { MessagesProvider } from './MessagesProvider.js';
+import { MessagesProvider, useInheritedLocale } from './MessagesProvider.js';
 import type { ViewMessages } from './messages.js';
 import { ViewExpandExit } from './ViewExpansion.js';
 import { CHART_TOKENS, THEME_ATTRIBUTES } from './charts/theme.js';
@@ -392,9 +392,13 @@ export function ViewSurface({
   const rootRef = React.useRef<HTMLDivElement>(null);
   const resolved = useResolvedTheme(rootRef);
   const pinned = usePinnedMode(theme);
+  // A surface given no language shows values in the one a provider above
+  // it set (`ViewEngineProvider`'s `locale`), as its wording follows it.
+  const inherited = useInheritedLocale();
+  const language = locale ?? inherited;
   const display = React.useMemo(
-    () => ({ locale, timeZone }),
-    [locale, timeZone],
+    () => ({ locale: language, timeZone }),
+    [language, timeZone],
   );
   // The surface keeps its own handle on the root — the resolved theme is read
   // off it — and hands the caller the same element. A caller's ref cannot

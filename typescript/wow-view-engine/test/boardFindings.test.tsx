@@ -42,6 +42,7 @@ import {
   overviewDefinition,
   testEnvironment,
   testSource,
+  resourcesOf,
 } from './fixtures.js';
 import { panel, pending } from './fixtures/dashboard.js';
 
@@ -80,18 +81,20 @@ async function openBoard(
   const orders = ordersDefinition();
   const store = new MemoryViewStore({ instances: [pending] });
   const engine = new ViewEngine({
-    definitions: [
-      {
-        ...orders,
-        fields: [
-          ...orders.fields,
-          { name: 'mass', label: 'Mass', kind: 'rounded' },
-        ],
-      },
-      overviewDefinition(),
-    ],
+    resources: resourcesOf(
+      [
+        {
+          ...orders,
+          fields: [
+            ...orders.fields,
+            { name: 'mass', label: 'Mass', kind: 'rounded' },
+          ],
+        },
+        overviewDefinition(),
+      ],
+      () => testSource(),
+    ),
     store,
-    resolveSource: () => testSource(),
     environment: testEnvironment().environment,
     kinds: withFieldKinds(builtinFieldKinds, [rounded]),
     limits: { ...DEFAULT_RUNTIME_LIMITS, ...limits },

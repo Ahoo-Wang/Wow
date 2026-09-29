@@ -32,7 +32,12 @@ import {
   type ViewInstance,
   type ViewSource,
 } from '../src/index.js';
-import { ordersDefinition, recordConfig, testSource } from './fixtures.js';
+import {
+  ordersDefinition,
+  recordConfig,
+  testSource,
+  resourcesOf,
+} from './fixtures.js';
 
 afterEach(cleanup);
 
@@ -57,9 +62,8 @@ function setup() {
   };
 
   const engine = new ViewEngine({
-    definitions: [ordersDefinition()],
+    resources: resourcesOf([ordersDefinition()], () => source),
     store,
-    resolveSource: () => source,
   });
 
   return {
@@ -241,9 +245,8 @@ describe('closed loop two', () => {
   it('opens what the link named, and puts the next choice back in the link', async () => {
     window.location.hash = '#/orders/orders-2';
     const engine = new ViewEngine({
-      definitions: [ordersDefinition()],
+      resources: resourcesOf([ordersDefinition()], () => testSource()),
       store: new MemoryViewStore({ instances: [mine, theirs] }),
-      resolveSource: () => testSource(),
     });
     render(<HashRoutedRecordWorkbench engine={engine} definitionId="orders" />);
 

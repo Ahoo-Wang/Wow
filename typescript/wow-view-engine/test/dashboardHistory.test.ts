@@ -41,6 +41,7 @@ import {
   recordConfig,
   testEnvironment,
   testSource,
+  resourcesOf,
 } from './fixtures.js';
 
 const pending: ViewInstance = {
@@ -69,9 +70,10 @@ function note(id: string, layout = { x: 0, y: 0, w: 24, h: 2 }) {
 function harness(scope: 'personal' | 'shared' = 'personal') {
   const store = new MemoryViewStore({ instances: [pending] });
   const engine = new ViewEngine({
-    definitions: [ordersDefinition(), overviewDefinition()],
+    resources: resourcesOf([ordersDefinition(), overviewDefinition()], () =>
+      testSource(),
+    ),
     store,
-    resolveSource: () => testSource(),
     environment: testEnvironment().environment,
   });
   return {

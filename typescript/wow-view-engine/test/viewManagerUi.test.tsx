@@ -31,7 +31,12 @@ import { defaultMessages } from '../src/ui/messages.js';
 import { manageDragAccessibility, managerDrop } from '../src/ui/manage/drag.js';
 import { DataWorkbench } from '../src/ui/DataWorkbench.js';
 import { formattersFor } from './fixtures/columns.js';
-import { ordersDefinition, recordConfig, testSource } from './fixtures.js';
+import {
+  ordersDefinition,
+  recordConfig,
+  testSource,
+  resourcesOf,
+} from './fixtures.js';
 import {
   dataColumnHeaders,
   mine,
@@ -774,9 +779,8 @@ describe('managing views from the workbench', () => {
       }),
     );
     const engine = new ViewEngine({
-      definitions: [ordersDefinition()],
+      resources: resourcesOf([ordersDefinition()], () => testSource()),
       store,
-      resolveSource: () => testSource(),
     });
     render(<DataWorkbench engine={engine} definitionId="orders" />);
     // A regex, because this one *is* the default: its row carries the star,
@@ -809,9 +813,8 @@ describe('managing views from the workbench', () => {
     const other: ViewInstance = { ...mine, id: 'orders-2', title: 'Other' };
     const store = tracked(new MemoryViewStore({ instances: [mine, other] }));
     const engine = new ViewEngine({
-      definitions: [ordersDefinition()],
+      resources: resourcesOf([ordersDefinition()], () => testSource()),
       store,
-      resolveSource: () => testSource(),
     });
     render(
       <DataWorkbench
@@ -844,9 +847,10 @@ describe('managing views from the workbench', () => {
   it('shows the empty state once the last view is deleted', async () => {
     const store = tracked(new MemoryViewStore({ instances: [mine] }));
     const engine = new ViewEngine({
-      definitions: [ordersDefinition({ views: [] })],
+      resources: resourcesOf([ordersDefinition({ views: [] })], () =>
+        testSource(),
+      ),
       store,
-      resolveSource: () => testSource(),
     });
     render(<DataWorkbench engine={engine} definitionId="orders" />);
     await waitFor(() => expect(screen.getAllByRole('row')).toHaveLength(3));
@@ -903,9 +907,8 @@ describe('managing views from the workbench', () => {
     const other: ViewInstance = { ...mine, id: 'other-1', title: 'Other' };
     const store = tracked(new MemoryViewStore({ instances: [other, mine] }));
     const engine = new ViewEngine({
-      definitions: [ordersDefinition()],
+      resources: resourcesOf([ordersDefinition()], () => testSource()),
       store,
-      resolveSource: () => testSource(),
     });
     render(
       <DataWorkbench
@@ -958,9 +961,8 @@ describe('managing views from the workbench', () => {
       }),
     );
     const engine = new ViewEngine({
-      definitions: [ordersDefinition()],
+      resources: resourcesOf([ordersDefinition()], () => testSource()),
       store,
-      resolveSource: () => testSource(),
     });
     // No explicit instance: the workbench rides on the default view, so
     // nothing is pinned and a list reload must not close the runtime.

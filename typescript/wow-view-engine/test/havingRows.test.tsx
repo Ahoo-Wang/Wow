@@ -40,7 +40,12 @@ import {
   zhCN,
   type ViewMessages,
 } from '../src/ui/index.js';
-import { analysisConfig, ordersDefinition, testSource } from './fixtures.js';
+import {
+  analysisConfig,
+  ordersDefinition,
+  testSource,
+  resourcesOf,
+} from './fixtures.js';
 import { openTray } from './fixtures/workbench.js';
 
 afterEach(cleanup);
@@ -140,9 +145,8 @@ async function open(
   });
   const source = testSource();
   const engine = new ViewEngine({
-    definitions: [definition],
+    resources: resourcesOf([definition], () => source),
     store,
-    resolveSource: () => source,
   });
   render(
     <DataWorkbench
@@ -531,9 +535,8 @@ describe("the result's reading says which groups were kept", () => {
     });
     const source = testSource();
     const engine = new ViewEngine({
-      definitions: [keepingDefinition()],
+      resources: resourcesOf([keepingDefinition()], () => source),
       store,
-      resolveSource: () => source,
     });
     render(
       <DataWorkbench

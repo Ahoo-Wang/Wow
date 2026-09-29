@@ -191,6 +191,50 @@ describe('useBulkCommand', () => {
     expect(picked.select).not.toHaveBeenCalled();
     expect(picked.refresh).not.toHaveBeenCalled();
   });
+
+  it('starts nothing from a run asked for after its host has gone', () => {
+    const { result, unmount } = renderHook(() => useBulkCommand());
+    // Held by a handler that outlives the page: a late click, a timer.
+    const run = result.current.run;
+    unmount();
+    const each = vi.fn(() => Promise.resolve());
+    run(selection(['EF-0', 'EF-1']), { title: 'Retry', each });
+    expect(each).not.toHaveBeenCalled();
+  });
+
+  it('starts no record once the host that asked has gone, and lets those under way land', async () => {
+    const { result, unmount } = renderHook(() =>
+      useBulkCommand({ concurrency: 2 }),
+    );
+    const sent: RecordKey[] = [];
+    const landed: RecordKey[] = [];
+    // Each record waits for the test to let it land.
+    const releases: (() => void)[] = [];
+    const keys = Array.from({ length: 12 }, (_, at) => `EF-${at}`);
+    act(() =>
+      result.current.run(selection(keys), {
+        title: 'Retry',
+        each: key => {
+          sent.push(key);
+          return new Promise<void>(resolve =>
+            releases.push(() => {
+              landed.push(key);
+              resolve();
+            }),
+          );
+        },
+      }),
+    );
+    expect(sent).toEqual(['EF-0', 'EF-1']);
+    unmount();
+    for (const release of releases.splice(0)) release();
+    for (let turn = 0; turn < 5; turn += 1) await nextTask();
+    // Nobody can see the run or stop it now: what was under way lands, and
+    // nothing more is sent (review of #3761).
+    expect(landed).toEqual(['EF-0', 'EF-1']);
+    expect(sent).toEqual(['EF-0', 'EF-1']);
+    expect(releases).toEqual([]);
+  });
 });
 
 describe('failureReasons', () => {

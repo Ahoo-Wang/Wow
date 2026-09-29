@@ -40,6 +40,7 @@ import {
   overviewDefinition,
   testEnvironment,
   testSource,
+  resourcesOf,
 } from './fixtures.js';
 import { panel, pending } from './fixtures/dashboard.js';
 
@@ -74,9 +75,11 @@ describe('a chart of no groups', () => {
     const source = testSource({ aggregate: vi.fn(() => Promise.resolve([])) });
     const store = new MemoryViewStore({ instances: [{ ...pending, config }] });
     const engine = new ViewEngine({
-      definitions: [ordersDefinition(), overviewDefinition()],
+      resources: resourcesOf(
+        [ordersDefinition(), overviewDefinition()],
+        () => source,
+      ),
       store,
-      resolveSource: () => source,
       environment: testEnvironment().environment,
     });
     const instance = await store.create(

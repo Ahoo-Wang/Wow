@@ -26,7 +26,7 @@ import {
   type ViewPermissions,
 } from '../src/index.js';
 import { DataWorkbench } from '../src/ui/index.js';
-import { ordersDefinition, testSource } from './fixtures.js';
+import { ordersDefinition, testSource, resourcesOf } from './fixtures.js';
 
 afterEach(cleanup);
 
@@ -40,9 +40,10 @@ afterEach(cleanup);
 function setup(permissions?: () => ViewPermissions) {
   const store = new MemoryViewStore({ instances: [], permissions });
   const engine = new ViewEngine({
-    definitions: [ordersDefinition({ views: [] })],
+    resources: resourcesOf([ordersDefinition({ views: [] })], () =>
+      testSource(),
+    ),
     store,
-    resolveSource: () => testSource(),
   });
   return { engine, store };
 }

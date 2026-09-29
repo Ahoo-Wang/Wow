@@ -46,22 +46,22 @@ export class DefinitionRegistry {
     host: {
       definitions: readonly ViewDefinition[];
       text?(key: string): string | undefined;
+      /** Whether a source is registered under `key` (`resources`). */
+      hasSource?(key: string): boolean;
     },
     kinds: FieldKindRegistry,
     limits: RuntimeLimits,
-    report: (found: Issue) => void,
+    report: (found: Issue, resource: string) => void,
   ) {
-    // Every definition in the words of the language in force: the kernels,
-    // the controllers and the UI only ever read words (host-integration.md
-    // 3.1). A key with no words is said as itself, and reported.
-    // Transitional (D2): H2 says keys at render time, through the messages
-    // catalogue, so one engine serves every language.
+    // Kept as declared, keys and all: the engine says them as it hands a
+    // definition out (`EngineText`), in whatever language is in force then,
+    // so one engine serves every language (host-integration.md 3.1). The
+    // words the host starts with (`ViewEngineOptions.text`) are only checked
+    // here: a key they have no words for is warned of where it sits.
     // Called on the host's object, which a catalogue's method may read.
-    const text: TextResolver = key => host.text?.(key);
-    const said = host.definitions.map(definition =>
-      sayDefinition(definition, text),
-    );
-    const definitions = said.map(entry => entry.definition);
+    const text: TextResolver | undefined =
+      host.text && (key => host.text?.(key));
+    const definitions = host.definitions;
     this.definitions = new Map(
       definitions.map(definition => [definition.id, definition]),
     );
@@ -71,15 +71,25 @@ export class DefinitionRegistry {
     // that beats a blank registry, and beats a crash at application start.
     for (const definition of definitions) {
       const found = [
-        ...(said.find(entry => entry.definition === definition)?.findings ??
-          []),
+        ...(text ? sayDefinition(definition, text).findings : []),
+        // A data definition whose rows come from nowhere is refused where
+        // it is used — its own views, and only the board panels over it.
+        ...(definition.kind === 'data' &&
+        host.hasSource &&
+        !host.hasSource(definition.source)
+          ? [
+              issue('definition.source.unregistered', ['source'], {
+                source: definition.source,
+              }),
+            ]
+          : []),
         ...validateDefinition(definition, kinds, {
           limits,
           definitions: id => this.definitions.get(id),
         }),
       ];
       this.findings.set(definition.id, found);
-      for (const entry of found) report(entry);
+      for (const entry of found) report(entry, definition.id);
     }
   }
 

@@ -46,8 +46,8 @@ import {
   retailData,
   retailEnvironment,
   retailNow,
+  retailResources,
   retailSource,
-  type RetailSourceKey,
 } from './source.js';
 import { rowSource } from '../rowSource.js';
 import {
@@ -312,15 +312,13 @@ function galleryOrderSource(): ViewSource {
  */
 export function createGalleryEngine(): ViewEngine {
   return new ViewEngine({
-    definitions: RETAIL_BOARD_DEFINITIONS,
+    resources: retailResources(RETAIL_BOARD_DEFINITIONS, key =>
+      key === RETAIL_SOURCES.orders ? galleryOrderSource() : retailSource(key),
+    ),
     limits: { ...DEFAULT_RUNTIME_LIMITS, maxPageSize: 100 },
     store: new MemoryViewStore({
       instances: [galleryOrders, galleryChannels, galleryBoard],
     }),
-    resolveSource: key =>
-      key === RETAIL_SOURCES.orders
-        ? galleryOrderSource()
-        : retailSource(key as RetailSourceKey),
     environment: retailEnvironment(),
   });
 }

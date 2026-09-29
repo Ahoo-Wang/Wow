@@ -33,6 +33,7 @@ import {
   recordConfig,
   testEnvironment,
   testSource,
+  resourcesOf,
 } from './fixtures.js';
 
 /** An analysis runtime on the test clock, with auto-apply switched on. */
@@ -184,9 +185,10 @@ describe('改了就跑: the analysis runs again on its own', () => {
   it('is a preference a dashboard keeps too, and arms nothing with', async () => {
     const store = new MemoryViewStore({ instances: [] });
     const engine = new ViewEngine({
-      definitions: [ordersDefinition(), overviewDefinition()],
+      resources: resourcesOf([ordersDefinition(), overviewDefinition()], () =>
+        testSource(),
+      ),
       store,
-      resolveSource: () => testSource(),
     });
     const instance = await store.create(
       {
@@ -250,9 +252,8 @@ describe('the auto-run preference', () => {
   it('is the user’s per definition, kept beside the order and the default', async () => {
     const store = new MemoryViewStore({ instances: [] });
     const engine = new ViewEngine({
-      definitions: [ordersDefinition()],
+      resources: resourcesOf([ordersDefinition()], () => testSource()),
       store,
-      resolveSource: () => testSource(),
     });
     expect((await engine.preferences('orders')).autoRun).toBeUndefined();
 

@@ -37,6 +37,7 @@ import {
   overviewDefinition,
   testEnvironment,
   testSource,
+  resourcesOf,
 } from './fixtures.js';
 
 const byWarehouse: ViewInstance = {
@@ -75,9 +76,11 @@ const tabbed = dashboardConfig({
 function harness(store = new MemoryViewStore({ instances: [byWarehouse] })) {
   const source = testSource();
   const engine = new ViewEngine({
-    definitions: [ordersDefinition(), overviewDefinition()],
+    resources: resourcesOf(
+      [ordersDefinition(), overviewDefinition()],
+      () => source,
+    ),
     store,
-    resolveSource: () => source,
     environment: testEnvironment().environment,
   });
   let board: ViewInstance | null = null;

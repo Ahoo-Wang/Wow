@@ -35,7 +35,12 @@ import {
   defaultMessages,
   formatMessage,
 } from '../src/ui/index.js';
-import { analysisConfig, ordersDefinition, testSource } from './fixtures.js';
+import {
+  analysisConfig,
+  ordersDefinition,
+  testSource,
+  resourcesOf,
+} from './fixtures.js';
 import { analysisToggle, openTray } from './fixtures/workbench.js';
 
 afterEach(cleanup);
@@ -55,13 +60,12 @@ async function open(
 ): Promise<{ engine: ViewEngine; source: ViewSource }> {
   const source = testSource();
   const engine = new ViewEngine({
-    definitions: [definition],
+    resources: resourcesOf([definition], () => source),
     store: new MemoryViewStore({
       instances: [
         { ...view, config: analysisConfig({ layout: 'table', ...config }) },
       ],
     }),
-    resolveSource: () => source,
   });
   render(
     <DataWorkbench

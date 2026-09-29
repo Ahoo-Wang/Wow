@@ -51,6 +51,7 @@ import {
   recordConfig,
   testEnvironment,
   testSource,
+  resourcesOf,
 } from './fixtures.js';
 import { mine } from './fixtures/ui.js';
 
@@ -131,10 +132,7 @@ function engineOf(
     ],
   });
   const engine = new ViewEngine({
-    definitions: [ordersDefinition(), overviewDefinition()],
-    store,
-    ...(environment ? { environment } : {}),
-    resolveSource: () =>
+    resources: resourcesOf([ordersDefinition(), overviewDefinition()], () =>
       testSource({
         aggregate: vi.fn(() =>
           Promise.resolve([
@@ -143,6 +141,9 @@ function engineOf(
           ]),
         ),
       }),
+    ),
+    store,
+    ...(environment ? { environment } : {}),
   });
   return engine;
 }
@@ -818,21 +819,24 @@ describe('EmbeddedDashboard', () => {
     const orders = ordersDefinition();
     const source = testSource();
     const engine = new ViewEngine({
-      definitions: [
-        {
-          ...orders,
-          fields: [
-            ...orders.fields,
-            {
-              name: 'q',
-              label: 'Search',
-              kind: 'search',
-              searchFields: ['id', 'status'],
-            },
-          ],
-        },
-        overviewDefinition(),
-      ],
+      resources: resourcesOf(
+        [
+          {
+            ...orders,
+            fields: [
+              ...orders.fields,
+              {
+                name: 'q',
+                label: 'Search',
+                kind: 'search',
+                searchFields: ['id', 'status'],
+              },
+            ],
+          },
+          overviewDefinition(),
+        ],
+        () => source,
+      ),
       store: new MemoryViewStore({
         instances: [
           ...views,
@@ -853,7 +857,6 @@ describe('EmbeddedDashboard', () => {
           },
         ],
       }),
-      resolveSource: () => source,
     });
     embed({ engine, interaction: 'interactive' });
 

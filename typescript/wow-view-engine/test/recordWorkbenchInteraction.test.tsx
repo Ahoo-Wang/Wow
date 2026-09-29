@@ -41,6 +41,7 @@ import {
   ordersDefinition,
   recordConfig,
   testSource,
+  resourcesOf,
 } from './fixtures.js';
 import { addConditions, editorToggle } from './fixtures/workbench.js';
 import { dataColumnHeaders, mine, setup } from './fixtures/ui.js';
@@ -515,9 +516,8 @@ describe('the record workbench layout', () => {
   ) {
     const store = new MemoryViewStore({ instances });
     const engine = new ViewEngine({
-      definitions: [ordersDefinition()],
+      resources: resourcesOf([ordersDefinition()], () => source),
       store,
-      resolveSource: () => source,
     });
     render(
       <DataWorkbench

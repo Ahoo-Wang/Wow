@@ -885,6 +885,7 @@ export {
   type CreateInput,
   ViewEngine,
   type ViewEngineOptions,
+  type ViewResource,
   type ViewListing,
 } from './runtime/viewEngine.js';
 export type { ConflictChoice, WriteTarget } from './runtime/writeLedger.js';

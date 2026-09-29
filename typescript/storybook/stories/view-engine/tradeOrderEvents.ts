@@ -468,9 +468,8 @@ export function createTradeOrderEventsEngine(fetcher: Fetcher): ViewEngine {
     fetcher,
   });
   return new ViewEngine({
-    definitions: [tradeOrderEventsDefinition],
+    resources: [{ definition: tradeOrderEventsDefinition, source }],
     store: new MemoryViewStore({ instances: [] }),
-    resolveSource: () => source,
     limits: { ...DEFAULT_RUNTIME_LIMITS, maxPageSize: 100 },
   });
 }

@@ -37,7 +37,7 @@ import {
   type ViewSource,
 } from '../src/index.js';
 import { DataWorkbench } from '../src/ui/index.js';
-import { ordersDefinition, testSource } from './fixtures.js';
+import { ordersDefinition, testSource, resourcesOf } from './fixtures.js';
 import { describedText } from './fixtures/ui.js';
 
 afterEach(cleanup);
@@ -154,9 +154,8 @@ async function open(
     },
   });
   const engine = new ViewEngine({
-    definitions: [definition],
+    resources: resourcesOf([definition], () => source),
     store: new MemoryViewStore({ instances: [instance] }),
-    resolveSource: () => source,
   });
   render(
     <DataWorkbench

@@ -46,6 +46,7 @@ import {
   ordersDefinition,
   overviewDefinition,
   testSource,
+  resourcesOf,
 } from './fixtures.js';
 import { panel, pending } from './fixtures/dashboard.js';
 import { tracked } from './fixtures/writes.js';
@@ -115,9 +116,11 @@ function open({
   );
   adjust?.(store);
   const engine = new ViewEngine({
-    definitions: [ordersDefinition(), overviewDefinition()],
+    resources: resourcesOf(
+      [ordersDefinition(), overviewDefinition()],
+      () => source,
+    ),
     store,
-    resolveSource: () => source,
   });
   render(
     <DashboardWorkbench

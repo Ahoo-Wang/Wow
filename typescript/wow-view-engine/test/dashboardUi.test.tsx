@@ -47,6 +47,7 @@ import {
   recordConfig,
   testEnvironment,
   testSource,
+  resourcesOf,
 } from './fixtures.js';
 import { tracked } from './fixtures/writes.js';
 import { panel, pending } from './fixtures/dashboard.js';
@@ -83,9 +84,11 @@ async function openDashboard(
 }> {
   const store = tracked(new MemoryViewStore({ instances }));
   const engine = new ViewEngine({
-    definitions: [ordersDefinition(), overviewDefinition()],
+    resources: resourcesOf(
+      [ordersDefinition(), overviewDefinition()],
+      () => source,
+    ),
     store,
-    resolveSource: () => source,
     environment: testEnvironment().environment,
   });
   const instance = await store.create(

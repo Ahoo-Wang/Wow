@@ -29,7 +29,12 @@ import {
   type ViewInstance,
 } from '../src/index.js';
 import { DataWorkbench } from '../src/ui/index.js';
-import { ordersDefinition, recordConfig, testSource } from './fixtures.js';
+import {
+  ordersDefinition,
+  recordConfig,
+  testSource,
+  resourcesOf,
+} from './fixtures.js';
 
 afterEach(cleanup);
 
@@ -75,9 +80,8 @@ interface Entry {
 
 function setup({ clone = true }: { clone?: boolean } = {}) {
   const engine = new ViewEngine({
-    definitions: [ordersDefinition()],
+    resources: resourcesOf([ordersDefinition()], () => testSource()),
     store: new MemoryViewStore({ instances: views }),
-    resolveSource: () => testSource(),
   });
   // A host whose address is a history: a switch in the workbench pushes an
   // entry with no state, as a router's `setSearchParams` does.

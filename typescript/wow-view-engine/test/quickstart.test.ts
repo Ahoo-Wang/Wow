@@ -21,7 +21,7 @@ import {
   validateDefinition,
   ViewEngine,
 } from '../src/index.js';
-import { testEnvironment, testSource } from './fixtures.js';
+import { testEnvironment, testSource, resourcesOf } from './fixtures.js';
 
 /**
  * The README's quick start, executed.
@@ -42,9 +42,8 @@ describe('the quick start definition', () => {
   it('opens its system view and runs', async () => {
     const environment = testEnvironment();
     const engine = new ViewEngine({
-      definitions: [orders],
+      resources: resourcesOf([orders], () => testSource()),
       store: new MemoryViewStore(),
-      resolveSource: () => testSource(),
       environment: environment.environment,
     });
 

@@ -21,7 +21,10 @@ import {
   type ViewInstance,
   type ViewSource,
 } from '@ahoo-wang/wow-view-engine';
-import { EmbeddedDashboard } from '@ahoo-wang/wow-view-engine/ui';
+import {
+  EmbeddedDashboard,
+  ViewEngineProvider,
+} from '@ahoo-wang/wow-view-engine/ui';
 import { BellRingIcon } from 'lucide-react';
 import { Badge } from '@/ui/components/badge';
 import { Button } from '@/ui/components/button';
@@ -34,7 +37,7 @@ import {
   NudgeStatus,
   RoutedBoard,
   createBoardEngine,
-  orderPanels,
+  orderBindings,
   overdueOrders,
   useNudges,
 } from './retail/RetailHost.js';
@@ -148,7 +151,7 @@ function HomePage({ state }: { state: HomeState }) {
   const nudges = useNudges();
   // 「催发货」 on the overdue list's rows, one or several (D39): the host's
   // command, run by the host; the board writes nothing (D36).
-  const recordPanel = useMemo(() => orderPanels(nudges), [nudges]);
+  const bindings = useMemo(() => orderBindings(nudges), [nudges]);
   const now = retailEnvironment().now();
   // The subtitle follows the board's 「日期」 (#3689): it said 「昨日」
   // whatever day the reader had picked.
@@ -197,16 +200,17 @@ function HomePage({ state }: { state: HomeState }) {
             nudges={nudges}
             onFiltersChange={setFilters}
             board={reader => (
-              <EmbeddedDashboard
-                className="host-home"
-                engine={engine}
-                instanceId={OPS_DAILY}
-                interaction="interactive"
-                expandable
-                recordPanel={recordPanel}
-                {...reader}
-                {...HOST_LANGUAGE}
-              />
+              <ViewEngineProvider bindings={bindings}>
+                <EmbeddedDashboard
+                  className="host-home"
+                  engine={engine}
+                  instanceId={OPS_DAILY}
+                  interaction="interactive"
+                  expandable
+                  {...reader}
+                  {...HOST_LANGUAGE}
+                />
+              </ViewEngineProvider>
             )}
           />
         )}

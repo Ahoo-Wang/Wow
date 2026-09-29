@@ -30,7 +30,7 @@ import {
 } from '../src/index.js';
 import { narrowDefinition } from '../src/capabilities/index.js';
 import { describedField, ordersDescriptor } from './fixtures/descriptor.js';
-import { testSource } from './fixtures.js';
+import { testSource, resourcesOf } from './fixtures.js';
 
 /**
  * The review of #3744: each finding, held by the test that failed before
@@ -310,16 +310,14 @@ describe('defineView, as reviewed', () => {
       },
     };
     const engine = new ViewEngine({
-      definitions: [base],
+      resources: resourcesOf([base], () => testSource()),
       store: new MemoryViewStore(),
-      resolveSource: () => testSource(),
       text: host.text.bind(host),
     });
     expect(engine.definitions.get('orders')?.title).toBe('Orders');
     const unbound = {
-      definitions: [base],
+      resources: resourcesOf([base], () => testSource()),
       store: new MemoryViewStore(),
-      resolveSource: () => testSource(),
       words: host.words,
       text(key: string) {
         return (this as unknown as typeof host).words[key];

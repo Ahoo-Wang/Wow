@@ -26,7 +26,12 @@ import type { ViewRuntime } from '../src/index.js';
 import { AppliedBar } from '../src/ui/AppliedBar.js';
 import { MessagesProvider } from '../src/ui/MessagesProvider.js';
 import { zhCN } from '../src/ui/messages/zh-CN.js';
-import { ordersDefinition, recordConfig, testSource } from './fixtures.js';
+import {
+  ordersDefinition,
+  recordConfig,
+  testSource,
+  resourcesOf,
+} from './fixtures.js';
 
 afterEach(cleanup);
 
@@ -70,9 +75,8 @@ function definition(): DataViewDefinition {
 
 function engineOver(store: MemoryViewStore, source: ViewSource) {
   return new ViewEngine({
-    definitions: [definition()],
+    resources: resourcesOf([definition()], () => source),
     store,
-    resolveSource: () => source,
   });
 }
 

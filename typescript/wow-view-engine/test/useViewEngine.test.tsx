@@ -43,6 +43,7 @@ import {
   recordConfig,
   requireRecordConfig,
   testSource,
+  resourcesOf,
 } from './fixtures.js';
 import { engineWith } from './fixtures/hooks.js';
 
@@ -53,9 +54,8 @@ describe('useViewEngine', () => {
     const store = new MemoryViewStore();
     const { result, rerender, unmount } = renderHook(() =>
       useViewEngine({
-        definitions: [ordersDefinition()],
+        resources: resourcesOf([ordersDefinition()], () => testSource()),
         store,
-        resolveSource: () => testSource(),
       }),
     );
     const engine = result.current;
@@ -91,9 +91,8 @@ describe('useViewEngine', () => {
       .mockReturnValue('hidden');
     const { result } = renderHook(() =>
       useViewEngine({
-        definitions: [],
+        resources: resourcesOf([], () => testSource()),
         store,
-        resolveSource: () => testSource(),
         environment: undefined,
       }),
     );
@@ -109,9 +108,8 @@ describe('useViewEngine', () => {
     });
     const { result } = renderHook(() =>
       useViewEngine({
-        definitions: [],
+        resources: resourcesOf([], () => testSource()),
         store,
-        resolveSource: () => testSource(),
         environment,
       }),
     );

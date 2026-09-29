@@ -35,7 +35,12 @@ import {
 import { ViewList } from '../../src/ui/ViewList.js';
 import { ViewManager } from '../../src/ui/ViewManager.js';
 import { ViewSurface } from '../../src/ui/ViewSurface.js';
-import { ordersDefinition, recordConfig, testSource } from '../fixtures.js';
+import {
+  ordersDefinition,
+  recordConfig,
+  testSource,
+  resourcesOf,
+} from '../fixtures.js';
 import { tracked } from './writes.js';
 
 /** Two personal views, alongside the system view the definition declares. */
@@ -86,9 +91,8 @@ export function setup(permissions = permitting()) {
     new MemoryViewStore({ instances: instances(), permissions }),
   );
   const engine = new ViewEngine({
-    definitions: [ordersDefinition()],
+    resources: resourcesOf([ordersDefinition()], () => testSource()),
     store,
-    resolveSource: () => testSource(),
   });
   return { engine, store };
 }

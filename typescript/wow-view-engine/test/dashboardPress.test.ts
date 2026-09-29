@@ -45,6 +45,7 @@ import {
   recordConfig,
   testEnvironment,
   testSource,
+  resourcesOf,
 } from './fixtures.js';
 
 const DAY = Date.UTC(2026, 8, 22);
@@ -211,9 +212,8 @@ async function harness(config: DashboardViewConfig = board()) {
   });
   const store = new MemoryViewStore({ instances: views });
   const engine = new ViewEngine({
-    definitions: [orders(), overviewDefinition()],
+    resources: resourcesOf([orders(), overviewDefinition()], () => source),
     store,
-    resolveSource: () => source,
     environment: clock.environment,
   });
   const saved = await store.create(
@@ -566,9 +566,10 @@ describe('a press that opens another board (D23 Q17)', () => {
     const store = new MemoryViewStore({ instances: views });
     const get = vi.spyOn(store, 'get');
     const engine = new ViewEngine({
-      definitions: [orders(), overviewDefinition()],
+      resources: resourcesOf([orders(), overviewDefinition()], () =>
+        testSource(),
+      ),
       store,
-      resolveSource: () => testSource(),
     });
     const saved = await store.create(
       {

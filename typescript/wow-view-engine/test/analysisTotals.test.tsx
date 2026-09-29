@@ -40,7 +40,12 @@ import {
   defaultMessages,
   formatMessage,
 } from '../src/ui/index.js';
-import { analysisConfig, ordersDefinition, testSource } from './fixtures.js';
+import {
+  analysisConfig,
+  ordersDefinition,
+  testSource,
+  resourcesOf,
+} from './fixtures.js';
 
 afterEach(cleanup);
 
@@ -69,11 +74,14 @@ function show(
   fields = ordersDefinition().analysis!.fields,
 ) {
   const engine = new ViewEngine({
-    definitions: [
-      ordersDefinition({
-        analysis: { ...ordersDefinition().analysis!, having: true, fields },
-      }),
-    ],
+    resources: resourcesOf(
+      [
+        ordersDefinition({
+          analysis: { ...ordersDefinition().analysis!, having: true, fields },
+        }),
+      ],
+      () => from,
+    ),
     store: new MemoryViewStore({
       instances: [
         {
@@ -89,7 +97,6 @@ function show(
         },
       ],
     }),
-    resolveSource: () => from,
     // A clock that stands still, so every answer takes 0 ms and the footer's
     // 「<0.01 s」 is what the code decides rather than how busy the machine
     // was: under load the fake source took 10 ms and the caption read

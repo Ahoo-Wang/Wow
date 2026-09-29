@@ -23,7 +23,12 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { MemoryViewStore, ViewEngine } from '../src/index.js';
 import type { ViewInstance, ViewPermissions } from '../src/index.js';
 import { defaultMessages, DataWorkbench } from '../src/ui/index.js';
-import { ordersDefinition, recordConfig, testSource } from './fixtures.js';
+import {
+  ordersDefinition,
+  recordConfig,
+  testSource,
+  resourcesOf,
+} from './fixtures.js';
 
 afterEach(cleanup);
 
@@ -78,9 +83,8 @@ function engineWith(
   source = testSource(),
 ): ViewEngine {
   return new ViewEngine({
-    definitions: [ordersDefinition()],
+    resources: resourcesOf([ordersDefinition()], () => source),
     store: new MemoryViewStore({ instances: saved, permissions }),
-    resolveSource: () => source,
   });
 }
 

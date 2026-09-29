@@ -30,6 +30,7 @@ import {
   ordersDefinition,
   recordConfig,
   testSource,
+  resourcesOf,
 } from './fixtures.js';
 import { describedText, mine, twoColumnTable } from './fixtures/ui.js';
 
@@ -901,9 +902,8 @@ describe('a record view with no result', () => {
     source: ViewSource = testSource(),
   ) {
     const engine = new ViewEngine({
-      definitions: [ordersDefinition()],
+      resources: resourcesOf([ordersDefinition()], () => source),
       store: new MemoryViewStore({ instances: [instance] }),
-      resolveSource: () => source,
     });
     return render(
       <DataWorkbench

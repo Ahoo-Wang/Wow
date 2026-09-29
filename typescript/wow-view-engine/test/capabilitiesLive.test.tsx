@@ -43,6 +43,7 @@ import {
   requireRecordConfig,
   testEnvironment,
   testSource,
+  resourcesOf,
 } from './fixtures.js';
 import { describedText, recordTableController } from './fixtures/ui.js';
 import {
@@ -106,9 +107,11 @@ function harness(
   const clock = testEnvironment();
   const onError = vi.fn();
   const engine = new ViewEngine({
-    definitions: [options.definition ?? ordersDefinition()],
+    resources: resourcesOf(
+      [options.definition ?? ordersDefinition()],
+      () => source,
+    ),
     store: new MemoryViewStore({ instances: options.instances ?? [pending] }),
-    resolveSource: () => source,
     environment: { ...clock.environment, onError },
   });
   return { engine, source, describe, clock, onError };
@@ -588,9 +591,8 @@ describe('a cursor-paged view (#3502)', () => {
   function cursorHarness(cursor: ViewSource['cursor']) {
     const onError = vi.fn();
     const engine = new ViewEngine({
-      definitions: [cursorOrders],
+      resources: resourcesOf([cursorOrders], () => testSource({ cursor })),
       store: new MemoryViewStore({ instances: [] }),
-      resolveSource: () => testSource({ cursor }),
       environment: { ...testEnvironment().environment, onError },
     });
     return { engine, onError };

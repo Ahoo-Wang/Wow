@@ -20,8 +20,8 @@ import {
 import { browserRuntimeEnvironment } from '@ahoo-wang/wow-view-engine/react';
 import { ordersDefinition } from './ordersDefinition.js';
 
-// Step 2b: one engine for the page. It holds the definitions, where views
-// are saved, and where each definition's rows come from.
+// Step 2b: one engine for the page. It holds each definition with the
+// source its rows come from, and where views are saved.
 export function createOrdersEngine(
   source: ViewSource,
   // Saved views live here. `MemoryViewStore` forgets them on reload; a host
@@ -29,12 +29,8 @@ export function createOrdersEngine(
   store: ViewStore = new MemoryViewStore(),
 ): ViewEngine {
   return new ViewEngine({
-    definitions: [ordersDefinition],
+    resources: [{ definition: ordersDefinition, source }],
     store,
-    resolveSource: key => {
-      if (key !== ordersDefinition.source) throw new Error(`No source ${key}.`);
-      return source;
-    },
     // A failed query or save is shown where it happens; this is for your
     // logs as well.
     environment: browserRuntimeEnvironment({

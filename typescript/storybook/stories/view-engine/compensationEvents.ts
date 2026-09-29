@@ -461,9 +461,8 @@ export const executionFailedEventsDefinition: DataViewDefinition = {
 export function createCompensationEventsEngine(fetcher: Fetcher): ViewEngine {
   const source = new EventStreamQueryClient({ basePath: AGGREGATE, fetcher });
   return new ViewEngine({
-    definitions: [executionFailedEventsDefinition],
+    resources: [{ definition: executionFailedEventsDefinition, source }],
     store: new MemoryViewStore({ instances: [] }),
-    resolveSource: () => source,
     limits: { ...DEFAULT_RUNTIME_LIMITS, maxPageSize: 100 },
   });
 }

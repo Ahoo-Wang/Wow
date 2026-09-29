@@ -32,6 +32,7 @@ import {
   ordersDefinition,
   ROWS,
   testSource,
+  resourcesOf,
 } from './fixtures.js';
 import { formattersFor } from './fixtures/columns.js';
 import { recordTableController } from './fixtures/ui.js';
@@ -50,9 +51,8 @@ function announced(): string {
 
 function engineWith(paged: () => Promise<PagedList<RecordData>>): ViewEngine {
   return new ViewEngine({
-    definitions: [ordersDefinition()],
+    resources: resourcesOf([ordersDefinition()], () => testSource({ paged })),
     store: new MemoryViewStore({ instances: [mine] }),
-    resolveSource: () => testSource({ paged }),
   });
 }
 
@@ -246,7 +246,15 @@ describe('what an analysis query says out loud', () => {
       <DataWorkbench
         engine={
           new ViewEngine({
-            definitions: [ordersDefinition()],
+            resources: resourcesOf([ordersDefinition()], () =>
+              testSource({
+                aggregate: () => {
+                  const answer = deferred<Record<string, unknown>[]>();
+                  answers.push(answer);
+                  return answer.promise as never;
+                },
+              }),
+            ),
             store: new MemoryViewStore({
               instances: [
                 {
@@ -256,14 +264,6 @@ describe('what an analysis query says out loud', () => {
                 },
               ],
             }),
-            resolveSource: () =>
-              testSource({
-                aggregate: () => {
-                  const answer = deferred<Record<string, unknown>[]>();
-                  answers.push(answer);
-                  return answer.promise as never;
-                },
-              }),
           })
         }
         definitionId="orders"

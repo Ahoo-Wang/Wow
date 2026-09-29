@@ -47,6 +47,7 @@ import {
   recordConfig,
   ROWS,
   testSource,
+  resourcesOf,
 } from './fixtures.js';
 import { recordTableController } from './fixtures/ui.js';
 import { openTray } from './fixtures/workbench.js';
@@ -199,9 +200,10 @@ function engineWith(
   definition: DataViewDefinition = ordersDefinition(),
 ): ViewEngine {
   return new ViewEngine({
-    definitions: [definition, overviewDefinition()],
+    resources: resourcesOf([definition, overviewDefinition()], () =>
+      testSource(),
+    ),
     store: new MemoryViewStore({ instances }),
-    resolveSource: () => testSource(),
   });
 }
 
@@ -528,21 +530,21 @@ describe('the default workbenches pass axe', () => {
     // directions; the shared definition sorts on `amount` alone.
     const definition = ordersDefinition();
     const engine = new ViewEngine({
-      definitions: [
-        {
-          ...definition,
-          fields: definition.fields.map(field =>
-            field.name === 'id' ? { ...field, sortable: true } : field,
-          ),
-        },
-      ],
+      resources: resourcesOf(
+        [
+          {
+            ...definition,
+            fields: definition.fields.map(field =>
+              field.name === 'id' ? { ...field, sortable: true } : field,
+            ),
+          },
+        ],
+        () =>
+          testSource({
+            paged: () => Promise.resolve({ total: 42, list: [...ROWS] }),
+          }),
+      ),
       store: new MemoryViewStore({ instances: [sortedOrders] }),
-      // More rows than a page, so the page is not the whole result and both
-      // scopes are drawn (D26 Q40 leaves one row on a single page).
-      resolveSource: () =>
-        testSource({
-          paged: () => Promise.resolve({ total: 42, list: [...ROWS] }),
-        }),
     });
     const { container } = render(
       <ViewSurface>
@@ -796,12 +798,16 @@ describe('the default workbenches pass axe', () => {
         <DashboardWorkbench
           engine={
             new ViewEngine({
-              definitions: [ordersDefinition(), overviewDefinition()],
+              resources: resourcesOf(
+                [ordersDefinition(), overviewDefinition()],
+                () =>
+                  testSource({
+                    paged: () => Promise.reject(new Error('down')),
+                  }),
+              ),
               store: new MemoryViewStore({
                 instances: [pendingOrders, board],
               }),
-              resolveSource: () =>
-                testSource({ paged: () => Promise.reject(new Error('down')) }),
             })
           }
           definitionId="overview"

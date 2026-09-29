@@ -53,6 +53,7 @@ import {
   ordersDefinition,
   overviewDefinition,
   testSource,
+  resourcesOf,
 } from './fixtures.js';
 import { pending } from './fixtures/dashboard.js';
 
@@ -108,9 +109,11 @@ function setup(config: DashboardViewConfig = tabbed) {
     instances: [pending, byWarehouse, board],
   });
   const engine = new ViewEngine({
-    definitions: [ordersDefinition(), overviewDefinition()],
+    resources: resourcesOf(
+      [ordersDefinition(), overviewDefinition()],
+      () => source,
+    ),
     store,
-    resolveSource: () => source,
   });
   const asked = () => vi.mocked(source.aggregate).mock.calls.length;
   const runtime = () =>

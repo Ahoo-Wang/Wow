@@ -36,6 +36,7 @@ import {
   namedOrdersDefinition,
   overviewDefinition,
   testSource,
+  resourcesOf,
 } from './fixtures.js';
 
 const WINDOW: DashboardField = {
@@ -140,14 +141,16 @@ describe('a board read by its runtime', () => {
 
   async function open(panels: DashboardPanel[]) {
     const engine = new ViewEngine({
-      definitions: [
-        orders,
-        overviewDefinition({
-          views: [{ id: 'board', title: 'Board', config: board(panels) }],
-        }),
-      ],
+      resources: resourcesOf(
+        [
+          orders,
+          overviewDefinition({
+            views: [{ id: 'board', title: 'Board', config: board(panels) }],
+          }),
+        ],
+        () => testSource(),
+      ),
       store: new MemoryViewStore(),
-      resolveSource: () => testSource(),
     });
     const runtime = await engine.open('system:overview:board');
     await new Promise(settled => setTimeout(settled, 0));
@@ -242,9 +245,10 @@ describe('time wires derived, never stored', () => {
   async function stored(config: DashboardViewConfig) {
     const store = new MemoryViewStore();
     const engine = new ViewEngine({
-      definitions: [orders, overviewDefinition()],
+      resources: resourcesOf([orders, overviewDefinition()], () =>
+        testSource(),
+      ),
       store,
-      resolveSource: () => testSource(),
     });
     const instance = await store.create(
       { definitionId: 'overview', title: 'Board', scope: 'personal', config },

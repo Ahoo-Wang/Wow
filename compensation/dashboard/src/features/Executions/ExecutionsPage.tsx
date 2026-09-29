@@ -17,12 +17,7 @@ import {
   useSearchParams,
   type SetURLSearchParams,
 } from "react-router";
-import type {
-  ViewHandOver,
-  ViewSource,
-  ViewStore,
-} from "@ahoo-wang/wow-view-engine";
-import { useViewEngine } from "@ahoo-wang/wow-view-engine/react";
+import type { ViewHandOver } from "@ahoo-wang/wow-view-engine";
 import { DataWorkbench } from "@ahoo-wang/wow-view-engine/ui";
 import { CircleAlert, ListFilter } from "lucide-react";
 import {
@@ -32,21 +27,9 @@ import {
   AlertTitle,
 } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { useI18n, type Locale } from "@/i18n.tsx";
+import { useI18n } from "@/i18n.tsx";
 import { EXECUTION_FAILED } from "@/views/executionFailed.ts";
-import {
-  executionEngineOptions,
-  executionHistorySource,
-  localViewStore,
-} from "@/views/engine.ts";
-import { engineMessages } from "@/views/messages.ts";
-import { navigationState, useViewNavigation } from "@/views/navigation.ts";
-import { useExecutionDetail } from "./detail/useExecutionDetail.tsx";
-import { useExecutionActions } from "./useExecutionActions.tsx";
-import {
-  executionCommands,
-  type ExecutionCommands,
-} from "./executionCommands.ts";
+import { navigationState } from "@/views/navigation.ts";
 import {
   CLUSTER_PARAM,
   END_PARAM,
@@ -60,57 +43,22 @@ import {
 
 export { VIEW_PARAM } from "./linkScope.ts";
 
-export interface ExecutionsPageProps {
-  /** For tests: the store the engines read and write. */
-  store?: ViewStore;
-  /** For tests: where the rows come from instead of the service. */
-  source?: ViewSource;
-  /** For tests: where an execution's history comes from instead. */
-  historySource?: ViewSource;
-  /** For tests: what the row and bulk commands send instead. */
-  commands?: ExecutionCommands;
-}
-
-interface LocalizedWorkbenchProps extends ExecutionsPageProps {
-  locale: Locale;
-  store: ViewStore;
-  commands: ExecutionCommands;
+interface WorkbenchProps {
   handOver: ViewHandOver | null;
   searchParams: URLSearchParams;
   setSearchParams: SetURLSearchParams;
 }
 
 /**
- * One engine in one language, for as long as the language holds: the
- * definition's labels are in one language (G12), so the page keys this by
- * language and a change of language builds a new engine over the same store,
- * disposing the old one on unmount.
+ * The failed executions' workbench on the console's one engine: what an
+ * execution offers — its commands, how it is read — is bound once to the
+ * definition (`ViewsHost`), so the page says only which view is open.
  */
-function LocalizedWorkbench({
-  locale,
-  store,
-  source,
-  historySource,
-  commands,
+function Workbench({
   handOver,
   searchParams,
   setSearchParams,
-}: LocalizedWorkbenchProps) {
-  // One history source for the engine's embed and the detail's story.
-  const [history] = useState(() => historySource ?? executionHistorySource());
-  const engine = useViewEngine(
-    executionEngineOptions({ locale, store, source, historySource: history }),
-  );
-  const { actions, bulk, dialog } = useExecutionActions(commands);
-  const messages = engineMessages(locale);
-  const onNavigate = useViewNavigation();
-  const detail = useExecutionDetail({
-    engine,
-    history,
-    commands,
-    locale,
-    messages,
-  });
+}: WorkbenchProps) {
   const instanceId = searchParams.get(VIEW_PARAM);
 
   const onInstanceChange = useCallback(
@@ -133,22 +81,14 @@ function LocalizedWorkbench({
   );
 
   return (
-    <>
-      <DataWorkbench
-        engine={engine}
-        definitionId={EXECUTION_FAILED}
-        instanceId={instanceId}
-        onInstanceChange={onInstanceChange}
-        handOver={handOver}
-        onNavigate={onNavigate}
-        // The console's shell already has the page's `main`.
-        landmark="region"
-        locale={locale}
-        messages={messages}
-        record={{ actions, bulk, detail }}
-      />
-      {dialog}
-    </>
+    <DataWorkbench
+      definitionId={EXECUTION_FAILED}
+      instanceId={instanceId}
+      onInstanceChange={onInstanceChange}
+      handOver={handOver}
+      // The console's shell already has the page's `main`.
+      landmark="region"
+    />
   );
 }
 
@@ -211,14 +151,8 @@ function without(
  * A link's `cluster` or `start`/`end` narrows the view it opens, as its
  * scope; a malformed one is said rather than widened to every record.
  */
-export default function ExecutionsPage({
-  store,
-  source,
-  historySource,
-  commands,
-}: ExecutionsPageProps) {
-  const { locale, t } = useI18n();
-  const [issued] = useState(() => commands ?? executionCommands());
+export default function ExecutionsPage() {
+  const { t } = useI18n();
   const [searchParams, setSearchParams] = useSearchParams();
   // A view a board sent here (「在工作台中打开」, a press on a group), with the
   // history entry it was opened on; a link's narrowing is in the address.
@@ -294,13 +228,7 @@ export default function ExecutionsPage({
           </AlertAction>
         </Alert>
       ) : null}
-      <LocalizedWorkbench
-        key={locale}
-        locale={locale}
-        store={store ?? localViewStore()}
-        source={source}
-        historySource={historySource}
-        commands={issued}
+      <Workbench
         handOver={(handed.key === key ? handed.handOver : null) ?? sent}
         searchParams={searchParams}
         setSearchParams={setSearchParams}

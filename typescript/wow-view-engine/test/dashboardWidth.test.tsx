@@ -59,6 +59,7 @@ import {
   panelReference,
   testEnvironment,
   testSource,
+  resourcesOf,
 } from './fixtures.js';
 import { panel, pending } from './fixtures/dashboard.js';
 import { blockHeight, gridBlocks } from '../src/ui/dashboard/gridBlocks.js';
@@ -152,9 +153,10 @@ describe('the width a board is laid out at (D31)', () => {
 function engineWith(board: ViewInstance) {
   const store = new MemoryViewStore({ instances: [pending, board] });
   return new ViewEngine({
-    definitions: [ordersDefinition(), overviewDefinition()],
+    resources: resourcesOf([ordersDefinition(), overviewDefinition()], () =>
+      testSource(),
+    ),
     store,
-    resolveSource: () => testSource(),
     environment: testEnvironment().environment,
   });
 }

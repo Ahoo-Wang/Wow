@@ -30,6 +30,7 @@ import {
   ordersDefinition,
   recordConfig,
   testSource,
+  resourcesOf,
 } from './fixtures.js';
 import { ordersDescriptor, read } from './fixtures/descriptor.js';
 
@@ -175,7 +176,7 @@ describe('admission weighs the compiled query (C3)', () => {
       describe: () => Promise.resolve(read(descriptor)),
     });
     const engine = new ViewEngine({
-      definitions: [ordersDefinition()],
+      resources: resourcesOf([ordersDefinition()], () => source),
       store: new MemoryViewStore({
         instances: [
           {
@@ -191,7 +192,6 @@ describe('admission weighs the compiled query (C3)', () => {
           },
         ],
       }),
-      resolveSource: () => source,
     });
 
     const runtime = await engine.open('heavy');

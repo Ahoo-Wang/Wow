@@ -46,6 +46,7 @@ import {
   ordersDefinition,
   recordConfig,
   testSource,
+  resourcesOf,
 } from './fixtures.js';
 import {
   dataColumnHeaders,
@@ -74,9 +75,8 @@ function setup(permissions = permitting()) {
     new MemoryViewStore({ instances: [mine], permissions }),
   );
   const engine = new ViewEngine({
-    definitions: [ordersDefinition()],
+    resources: resourcesOf([ordersDefinition()], () => testSource()),
     store,
-    resolveSource: () => testSource(),
   });
   return { engine, store };
 }
@@ -231,9 +231,8 @@ describe('SaveActions, the split button group', () => {
       }),
     );
     const engine = new ViewEngine({
-      definitions: [ordersDefinition()],
+      resources: resourcesOf([ordersDefinition()], () => testSource()),
       store,
-      resolveSource: () => testSource(),
     });
     const runtime = await engine.open('orders-9');
     render(<Harness engine={engine} runtime={runtime} />);
@@ -1179,9 +1178,8 @@ describe('save actions', () => {
       }),
     );
     const engine = new ViewEngine({
-      definitions: [ordersDefinition()],
+      resources: resourcesOf([ordersDefinition()], () => testSource()),
       store,
-      resolveSource: () => testSource(),
     });
     render(
       <DataWorkbench

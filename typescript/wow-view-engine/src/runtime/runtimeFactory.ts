@@ -23,8 +23,9 @@
  * runtime for either — so this is also where those are built.
  */
 
+import type { EngineText } from './text.js';
 import { queryFailureReporter } from './failures.js';
-import type { PanelDefinition } from '../dashboard/index.js';
+import { panelsOf, type PanelDefinition } from '../dashboard/index.js';
 import type {
   DataViewConfig,
   DashboardViewConfig,
@@ -83,7 +84,12 @@ export interface RuntimeFactoryHost {
    * where the descriptor contradicts the definition).
    */
   readonly capabilities: SourceCapabilities;
+  /** The words every runtime says its definition's keys in. */
+  readonly text: EngineText;
 }
+
+/** The queries one panel may ask at once; see `RuntimeFactory.holdRoom`. */
+const QUERIES_PER_PANEL = 3;
 
 export class RuntimeFactory {
   private readonly host: RuntimeFactoryHost;
@@ -126,6 +132,7 @@ export class RuntimeFactory {
     // A view saved under a field's alias is read under its path (#3519).
     const renamed = effective.definition.narrowing?.renamed ?? {};
     return dataViewRuntime({
+      text: this.host.text,
       id: this.newRuntimeId(),
       definition: effective.definition,
       config: withCanonicalNames(config, renamed),
@@ -158,7 +165,8 @@ export class RuntimeFactory {
         }),
       );
 
-    return new DashboardViewRuntime({
+    const board = new DashboardViewRuntime({
+      text: this.host.text,
       id: this.newRuntimeId(),
       definition,
       config,
@@ -188,6 +196,45 @@ export class RuntimeFactory {
           scope,
         ),
     });
+    // Built, it holds subscriptions of its own (the words, the page's
+    // visibility, its references): one that cannot be finished is let go
+    // here, since nobody else was handed it to close.
+    try {
+      return this.holdRoom(board);
+    } catch (error) {
+      board.dispose();
+      throw error;
+    }
+  }
+
+  /**
+   * Holds room in the query queue for a board's panels while it is open
+   * (`RequestRunner.reserve`): each may ask up to `QUERIES_PER_PANEL` at
+   * once — its own, a split's 「其他」, a cut's probe — so a board of any
+   * size opens whole rather than having its last panels refused. The room
+   * follows the board as panels are added or taken away, and is given back
+   * when it closes.
+   */
+  private holdRoom(board: DashboardViewRuntime): DashboardViewRuntime {
+    const roomFor = () =>
+      // A stored board is read as it came: one whose panels are not a list
+      // is refused by its admission (`dashboard.shape.invalid`), not here.
+      panelsOf(board.getSnapshot().draft).length * QUERIES_PER_PANEL;
+    let held = roomFor();
+    let release = this.host.runner.reserve(held);
+    const stop = board.subscribe(() => {
+      if (board.disposed) {
+        release();
+        stop();
+        return;
+      }
+      const room = roomFor();
+      if (room === held) return;
+      release();
+      held = room;
+      release = this.host.runner.reserve(held);
+    });
+    return board;
   }
 
   /** What a panel references: the instance and the definition behind it. */
@@ -251,6 +298,7 @@ export class RuntimeFactory {
     const renamed =
       (definition.kind === 'data' && definition.narrowing?.renamed) || {};
     return dataViewRuntime({
+      text: this.host.text,
       id: this.newRuntimeId(),
       definition,
       config: withCanonicalNames(view.config, renamed),

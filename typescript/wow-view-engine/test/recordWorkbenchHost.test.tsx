@@ -37,6 +37,7 @@ import {
   ordersDefinition,
   recordConfig,
   testSource,
+  resourcesOf,
 } from './fixtures.js';
 import { mine } from './fixtures/ui.js';
 
@@ -53,9 +54,8 @@ describe('a DataWorkbench a host routes', () => {
 
   function routed(props: Partial<DataWorkbenchProps> = {}) {
     const engine = new ViewEngine({
-      definitions: [ordersDefinition()],
+      resources: resourcesOf([ordersDefinition()], () => testSource()),
       store: new MemoryViewStore({ instances: [mine, other] }),
-      resolveSource: () => testSource(),
     });
     const draw = (overrides: Partial<DataWorkbenchProps>) => (
       <DataWorkbench
@@ -155,9 +155,8 @@ describe('a DataWorkbench a host draws cells in', () => {
     source: ViewSource = testSource(),
   ) {
     const engine = new ViewEngine({
-      definitions: [ordersDefinition()],
+      resources: resourcesOf([ordersDefinition()], () => source),
       store: new MemoryViewStore({ instances: [mine] }),
-      resolveSource: () => source,
     });
     render(
       <DataWorkbench
@@ -196,9 +195,8 @@ describe('a DataWorkbench a host draws cells in', () => {
       config: recordConfig({ layout: 'card' }),
     };
     const engine = new ViewEngine({
-      definitions: [ordersDefinition()],
+      resources: resourcesOf([ordersDefinition()], () => testSource()),
       store: new MemoryViewStore({ instances: [cards] }),
-      resolveSource: () => testSource(),
     });
     render(
       <DataWorkbench

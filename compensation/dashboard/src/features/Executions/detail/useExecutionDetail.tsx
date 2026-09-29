@@ -21,7 +21,7 @@ import type {
   EmbeddedViewProps,
   RecordDetailOptions,
 } from "@ahoo-wang/wow-view-engine/ui";
-import { useCallback, useMemo } from "react";
+import { useCallback, useLayoutEffect, useMemo, useRef } from "react";
 import { useSearchParams } from "react-router";
 import type { ExecutionCommands } from "../executionCommands.ts";
 import { ExecutionReading } from "./ExecutionReading.tsx";
@@ -55,23 +55,27 @@ export function useExecutionDetail({
   const [searchParams, setSearchParams] = useSearchParams();
   const open = searchParams.get(ID_PARAM);
 
-  const onOpenChange = useCallback(
-    (key: RecordKey | null) => {
-      const next = key === null ? null : String(key);
-      if (next === open) return;
-      setSearchParams(
-        (current) => {
-          const params = new URLSearchParams(current);
-          if (next === null) params.delete(ID_PARAM);
-          else params.set(ID_PARAM, next);
-          return params;
-        },
-        // Opening one execution after another is reading, not navigating.
-        { replace: true },
-      );
-    },
-    [open, setSearchParams],
-  );
+  // Held by a ref, so the reading changes only with the record open: the
+  // rest of the address moving (another view, a link's narrowing) leaves
+  // it — and every surface bound to it — as it was.
+  const latest = useRef({ open, setSearchParams });
+  useLayoutEffect(() => {
+    latest.current = { open, setSearchParams };
+  });
+  const onOpenChange = useCallback((key: RecordKey | null) => {
+    const next = key === null ? null : String(key);
+    if (next === latest.current.open) return;
+    latest.current.setSearchParams(
+      (current) => {
+        const params = new URLSearchParams(current);
+        if (next === null) params.delete(ID_PARAM);
+        else params.set(ID_PARAM, next);
+        return params;
+      },
+      // Opening one execution after another is reading, not navigating.
+      { replace: true },
+    );
+  }, []);
 
   const render = useCallback(
     ({ row, complete, refresh }: RecordDetailSectionContext) => (

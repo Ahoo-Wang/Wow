@@ -31,6 +31,7 @@ import {
   overviewDefinition,
   recordConfig,
   testSource,
+  resourcesOf,
 } from './fixtures.js';
 import { mine, settle } from './fixtures/ui.js';
 
@@ -154,9 +155,10 @@ describe('useValueCandidates', () => {
 describe('the filter editor offers value candidates', () => {
   function engine() {
     return new ViewEngine({
-      definitions: [ordersDefinition(), overviewDefinition()],
+      resources: resourcesOf([ordersDefinition(), overviewDefinition()], () =>
+        testSource(),
+      ),
       store: new MemoryViewStore({ instances: [mine] }),
-      resolveSource: () => testSource(),
     });
   }
 
