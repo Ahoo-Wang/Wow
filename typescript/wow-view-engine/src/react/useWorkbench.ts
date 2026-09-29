@@ -13,6 +13,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  parseSystemInstanceId,
   sameJson,
   type FilterNode,
   type FilterTree,
@@ -337,6 +338,14 @@ export interface WorkbenchController {
    * screen said nothing.
    */
   definitionIssues: Issue[];
+  /**
+   * Where the open view sits in the definition's `views`, when it is one
+   * the definition declares in code, else `null`. A definition finding under
+   * `['views', n, …]` with this `n` is about the view on screen — which, for
+   * a board, reports its own panels' findings by name as well (`panels`),
+   * so the status line says each once.
+   */
+  declaredAt: number | null;
   commands: SaveCommands;
   /**
    * How the open view renews its own answer: one refresh now, and the
@@ -746,6 +755,7 @@ export function useWorkbench(
     state,
     unopenable: opened.error ?? wrongKind,
     definitionIssues: engine.definitionIssues(definitionId),
+    declaredAt: declaredAt(definition, state?.saved?.id),
     commands,
     filter,
     refresh,
@@ -782,4 +792,17 @@ function namedState(
   )
     return state;
   return { ...state, title: named.subject };
+}
+
+/** Where the view `id` names sits in the definition's `views`, or `null`. */
+function declaredAt(
+  definition: { id: string; views?: readonly { id: string }[] } | undefined,
+  id: string | undefined,
+): number | null {
+  const declared = id ? parseSystemInstanceId(id) : null;
+  if (!definition || declared?.definitionId !== definition.id) return null;
+  const at = (definition.views ?? []).findIndex(
+    view => view.id === declared.viewId,
+  );
+  return at < 0 ? null : at;
 }

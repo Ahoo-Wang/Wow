@@ -210,7 +210,8 @@ describe('placing a panel', () => {
 
   /**
    * A corner dragged to another size marks the panel sized by hand (D68);
-   * a corner let go where it started, and every drag, says nothing.
+   * a corner let go where it started places nothing — no mark, no edit, so
+   * the board is not left with changes to save — and a drag says nothing.
    */
   it('marks a panel sized by hand when a pointer resizes it', () => {
     const place = vi.fn();
@@ -236,7 +237,6 @@ describe('placing a panel', () => {
 
     expect(place.mock.calls).toEqual([
       ['top', { x: 0, y: 0, w: 6, h: 2, fixedHeight: true }],
-      ['top', { x: 0, y: 0, w: 6, h: 4 }],
       ['top', { x: 0, y: 0, w: 6, h: 4 }],
     ]);
   });

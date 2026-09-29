@@ -478,7 +478,7 @@ src/
     layout.ts                 — `TEXT_UI`, `SPACE`: the one small type size and the spacing ruler; `FIXED_BOARD_WIDTH`, what a fixed-width dashboard is held to (D31)
     messages.ts               — Wording, by key
     popups.tsx                — The popups this package renders, themed and on a layer of their own
-    panelsToFix.ts            — `boardErrorTitle`: a board's red line said of its panels when only panels are broken (「有 N 个面板要先修正才能显示」), of the board otherwise
+    panelsToFix.ts            — `boardErrorTitle`: a board's red line said of its panels when only the open board's panels are broken (「有 N 个面板要先修正才能显示」), of the board otherwise; `saidByBoard`: a definition finding the open declared board already says by name
     roving.ts                 — A group of peers as one Tab stop: who holds it, how it moves, where an arrow lands; the record header and the analysis result's rows share it
     summary.ts                — The applied-conditions bar in words: one `FilterSummaryItem` as a sentence
     toolbar.tsx               — Base UI's toolbar primitive: one tab stop with the arrow keys inside
@@ -623,7 +623,7 @@ src/
       GroupingControl.tsx     — The time grouping on the bar (整板 按日｜周｜月): one choice among the units offered, quieter where no panel on the tab takes it, and its ✕ while the board is built
       FilterReadings.tsx      — What the bar holds that the reader reads and does not change: the board's fixed scope (`FixedScope`, 「固定范围」, its author's ✕ while built), a filter the page locked (`LockedChip`, `LockedReading`), and the chip's own layout (`CHIP`)
       FilterSheet.tsx         — The filter bar below `md` (D26 Q38): one button, 「筛选（已设 n 个）」, opening every filter in a sheet from the bottom edge; the fixed scope and the locked filters read beside it
-      findings.ts             — `filterNamer`: a kernel finding about one of the board's filters said by its name on the bar, never its key (X-03); `boardFindingNamer`: what the board says above its panels as the workbench and an embed say it — a panel after its name, a filter after its (Q-01)
+      findings.ts             — `filterNamer`: a kernel finding about one of the board's filters said by its name on the bar, never its key (X-03); `boardFindingNamer`: what the board says above its panels as the workbench and an embed say it — a panel after its name, the fields in it as its frame names them, a filter after its (Q-01)
       FilterOrder.tsx         — `useFilterOrder`: the bar's filters put in another order while the board is built — a `DragHandle` on each chip, ←/→ or a drag, the landing said in the board's voice, every move `moveFilter`; the places are the bar's, a hidden filter kept in order (`barMove`), the time grouping after them all
       FilterSettings.tsx      — 「添加筛选」 (`AddFilterMenu`) and one filter's settings popover: type, name, default, several values, required, where its values come from, 接线 and 移除
       FilterWiring.tsx        — Wiring a filter (D22 G): the context the grid reads, each panel's strip (same-type fields, 「没有可接的字段」, 「手动」), the wiring bar, the toasts in the board's own root

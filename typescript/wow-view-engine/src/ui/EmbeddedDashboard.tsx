@@ -339,12 +339,14 @@ function EmbeddedBoard({
 
   // Filling the screen, the board is titled whatever the host asked (D70):
   // the host's own title is under it. Its panels go a level down with it,
-  // as under a title the host asked for.
-  const titled = withTitle || expanded;
+  // as under a title the host asked for. A board with no title — none of
+  // its own, or not opened yet — draws no heading at all: an empty one is a
+  // landmark that names nothing, and its panels stay where they were.
+  const title = state?.title || undefined;
+  const titled = (withTitle || expanded) && title !== undefined;
   const panelLevel = (
     titled ? Math.min(headingLevel + 1, 6) : headingLevel
   ) as PanelHeadingLevel;
-  const title = state?.title ?? '';
 
   // What the board says above its panels, the one reading the workbench
   // shares (`DashboardController.issues`): a panel's own findings stay in

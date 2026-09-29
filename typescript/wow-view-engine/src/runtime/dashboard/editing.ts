@@ -148,7 +148,9 @@ export interface DashboardEditing {
    *
    * `grown` is the rows each panel is drawn tall where the screen grew it
    * past what is saved (D52): the placement lands on the board as drawn,
-   * and the tab is written back as drawn (D68, `placePanelIn`). A layout
+   * and only what moved is written back (D68, `placePanelIn`) — no
+   * untouched panel saves a grown height, and a placement that moves
+   * nothing leaves the draft as it was. A layout
    * that says `fixedHeight` marks the panel sized by hand.
    */
   place(

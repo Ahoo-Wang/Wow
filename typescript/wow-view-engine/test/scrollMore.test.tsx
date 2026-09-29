@@ -37,6 +37,7 @@ import {
   usePanelWholes,
 } from '../src/ui/dashboard/panelFit.js';
 import { ScrollCue } from '../src/ui/dashboard/ScrollCue.js';
+import { stackedLayout } from '../src/index.js';
 import { MessagesProvider } from '../src/ui/MessagesProvider.js';
 import { zhCN } from '../src/ui/messages/zh-CN.js';
 
@@ -352,6 +353,33 @@ describe('fittedLayout', () => {
     // Marked anything but `true`, it is untouched, as a stored board is.
     const unmarked = [{ ...boxes[0], fixedHeight: false }, ...boxes.slice(1)];
     expect(fitted(unmarked, new Map([['table', 620]]))[0].h).toBe(7);
+  });
+
+  it('keeps a panel sized by hand at its height on a narrow screen too (D68)', () => {
+    const sized = [
+      { ...boxes[0], h: 3, fixedHeight: true },
+      { ...boxes[1], fixedHeight: true },
+      ...boxes.slice(2),
+    ];
+    // The one-column reading, the chart and the table a pair of cards.
+    const stacked = stackedLayout(sized, id => id !== 'under');
+    expect(stacked.map(box => box.fixedHeight)).toEqual([
+      true,
+      true,
+      undefined,
+    ]);
+    expect(grownRows(stacked, new Map([['table', 5000]]), 80).size).toBe(0);
+    expect(fitted(stacked, new Map([['table', 5000]]))[0].h).toBe(5);
+    // Down one column on its own row, it keeps the height it was set.
+    const alone = stackedLayout(sized);
+    expect(fitted(alone, new Map([['table', 5000]]))[0]).toEqual({
+      id: 'table',
+      x: 0,
+      y: 0,
+      w: 2,
+      h: 3,
+      fixedHeight: true,
+    });
   });
 });
 

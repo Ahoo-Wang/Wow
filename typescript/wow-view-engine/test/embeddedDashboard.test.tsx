@@ -117,6 +117,7 @@ function board(): DashboardViewConfig {
 function engineOf(
   config: DashboardViewConfig = board(),
   environment?: ReturnType<typeof testEnvironment>['environment'],
+  title = 'Operations',
 ) {
   const store = new MemoryViewStore({
     instances: [
@@ -124,7 +125,7 @@ function engineOf(
       {
         id: 'board',
         definitionId: 'overview',
-        title: 'Operations',
+        title,
         scope: 'shared',
         revision: 'r1',
         config,
@@ -758,6 +759,35 @@ describe('EmbeddedDashboard', () => {
     await userEvent.keyboard('{Escape}');
     expect(document.querySelector('[data-slot="embed-head"]')).toBeNull();
     expect(screen.queryByText('Read for yesterday')).toBeNull();
+  });
+
+  /**
+   * A board with no title of its own draws no heading while it fills the
+   * screen — an empty heading names nothing — and its panels keep their
+   * level; the caption goes under a title, so with none it has no place.
+   * Nor while it opens: no title yet.
+   */
+  it('draws no empty heading for a board with no title', async () => {
+    embed({
+      engine: engineOf(board(), undefined, ''),
+      interaction: 'interactive',
+      expandable: true,
+      withTitle: true,
+      caption: 'Read for yesterday',
+    });
+    expect(document.querySelector('[data-slot="embed-title"]')).toBeNull();
+    await chartRow('CN');
+    await userEvent.click(
+      screen.getByRole('button', { name: 'Fill the screen' }),
+    );
+    expect(document.querySelector('[data-slot="embed-title"]')).toBeNull();
+    for (const heading of screen.getAllByRole('heading'))
+      expect(heading.textContent).not.toBe('');
+    expect(
+      screen.getByRole('heading', { level: 2, name: 'By warehouse' }),
+    ).toBeDefined();
+    expect(document.querySelector('[data-slot="embed-caption"]')).toBeNull();
+    await userEvent.keyboard('{Escape}');
   });
 
   /** A host that titles the board keeps its title, and still no caption on the page. */

@@ -20,6 +20,7 @@ import type {
 import type { DashboardController } from '../../react/index.js';
 import { panelName, panelNames } from '../DashboardPanel.js';
 import type { MessageFormatters } from '../MessagesProvider.js';
+import { outPanelNamer } from '../PanelUnavailable.js';
 
 /**
  * The kernel's findings about a board's filters that name one in their
@@ -65,7 +66,9 @@ export function filterNamer(
  * is said there — the one reading the workbench's status line and an
  * embed's strips share (Q-01). A filter by its name on the bar
  * (`filterNamer`). A panel by its name: the kernel's sentence says
- * 「这个面板」, plain in a panel's own frame and naming nothing up here. It
+ * 「这个面板」, plain in a panel's own frame and naming nothing up here;
+ * and the fields in it by the names that frame gives them (「状态」不支持
+ * 「等于」, `outPanelNamer`), never the keys the config holds. It
  * is the draft the finding was raised against, so the draft's panel is the
  * one named — by the name the grid gives it, or, for a panel only the draft
  * holds, by its own title or kind, counted where the draft has it.
@@ -86,6 +89,10 @@ export function boardFindingNamer(
     const at = found.path[0] === 'panels' ? found.path[1] : undefined;
     const panel = typeof at === 'number' ? drafted[at] : undefined;
     if (typeof at !== 'number' || !isPlainPanel(panel)) return found;
+    // Its sentence names the fields as the panel's own frame does — 「状态」
+    // 不支持「等于」, never the keys its config holds (`outPanelNamer`).
+    const fields =
+      dashboard.panels.find(entry => entry.id === panel.id)?.fields ?? [];
     return {
       ...found,
       code: 'label.panel.finding',
@@ -93,7 +100,7 @@ export function boardFindingNamer(
         panel:
           shown.get(panel.id) ??
           panelName({ title: panel.title, panel, runtime: null }, at, messages),
-        finding: messages.issue(found),
+        finding: messages.issue(outPanelNamer(fields, messages)(found)),
       },
     };
   };
