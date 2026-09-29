@@ -13,18 +13,24 @@
 
 package me.ahoo.wow.viewstore.starter
 
+import org.springframework.web.reactive.function.server.HandlerFunction
 import org.springframework.web.reactive.function.server.RouterFunction
 import org.springframework.web.reactive.function.server.RouterFunctions
 import org.springframework.web.reactive.function.server.ServerResponse
 
 /** The view store's own routes; Wow generates the aggregates' command and query routes beside them. */
 object ViewStoreRoutes {
-    fun routerFunction(paths: ViewStorePaths, handlers: ViewStoreHandlers): RouterFunction<ServerResponse> =
+    fun routerFunction(
+        paths: ViewStorePaths,
+        handlers: ViewStoreHandlers,
+        audienceHandler: HandlerFunction<ServerResponse>,
+    ): RouterFunction<ServerResponse> =
         RouterFunctions.route()
             .GET(paths.systemViews, handlers::systemViews)
             .GET(paths.systemView, handlers::systemView)
             .GET(paths.preferences, handlers::getPreferences)
             .PUT(paths.preferences, handlers::setPreferences)
             .GET(paths.replay, handlers::replay)
+            .PUT(paths.audience, audienceHandler)
             .build()
 }

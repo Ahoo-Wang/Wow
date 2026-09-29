@@ -24,10 +24,12 @@ import java.net.URI
 class ViewStoreAppIdHeaderAppenderTest {
     private val appender = ViewStoreAppIdHeaderAppender(ViewStorePaths(MaterializedNamedBoundedContext("host")))
 
-    private fun append(path: String, appId: String?): String? {
+    private fun append(path: String, appId: String?, clientAppId: String? = null): String? {
         val builder = MockServerRequest.builder().uri(URI.create("http://localhost$path"))
         appId?.let { builder.header(ViewStoreService.APP_ID_HEADER, it) }
         val header = DefaultHeader.empty()
+        // What Wow's extend appender took from a caller's `Command-Header-app_id`.
+        clientAppId?.let { header.with(ViewStoreService.APP_ID_MESSAGE_HEADER, it) }
         appender.append(builder.build(), header)
         return header[ViewStoreService.APP_ID_MESSAGE_HEADER]
     }
@@ -42,5 +44,11 @@ class ViewStoreAppIdHeaderAppenderTest {
         append("/execution_failed/1/prepare", "console").assert().isNull()
         append("/view-store/tenant/t1/owner/alice/view", null).assert().isNull()
         append("/view-store/tenant/t1/owner/alice/view", " ").assert().isNull()
+    }
+
+    @Test
+    fun `the application comes from CoSec-App-Id only`() {
+        append("/view-store/tenant/t1/owner/alice/view", null, clientAppId = "portal").assert().isNull()
+        append("/view-store/tenant/t1/owner/alice/view", "console", clientAppId = "portal").assert().isEqualTo("console")
     }
 }

@@ -164,7 +164,8 @@ class ViewStoreHandlers(
 
     /**
      * `GET …/view/requests/{requestId}`: the view as the write with this request id left it, found only among this
-     * path's tenant and owner and the request's application; `204` when that write deleted it.
+     * path's tenant and owner and the request's application; `204` when that write deleted it (a view of another
+     * application answers not found in both cases).
      */
     fun replay(request: ServerRequest): Mono<ServerResponse> {
         val requestId = request.pathVariable(ViewStorePaths.REQUEST_ID)
@@ -180,13 +181,17 @@ class ViewStoreHandlers(
             }.query(viewEventStreamQueryGateway())
                 .switchIfEmpty { Mono.error(NotFoundResourceException("Request [$requestId] is not found.")) }
                 .flatMap { eventStream ->
-                    if (eventStream.body.any { it.body is AggregateDeleted }) {
-                        return@flatMap ServerResponse.noContent().build()
-                    }
-                    loadView(eventStream.aggregateId, eventStream.version)
+                    val deleted = eventStream.body.any { it.body is AggregateDeleted }
+                    // A delete leaves no state to answer with, so its application is the one before it.
+                    val version = if (deleted) eventStream.version - 1 else eventStream.version
+                    val view = loadView(eventStream.aggregateId, version)
                         .filter { it.state.appId == appId }
                         .switchIfEmpty { Mono.error(NotFoundResourceException("Request [$requestId] is not found.")) }
-                        .toServerResponse(request, exceptionHandler)
+                    if (deleted) {
+                        view.flatMap { ServerResponse.noContent().build() }
+                    } else {
+                        view.toServerResponse(request, exceptionHandler)
+                    }
                 }
         }.onErrorResume { exceptionHandler.handle(request, it) }
     }

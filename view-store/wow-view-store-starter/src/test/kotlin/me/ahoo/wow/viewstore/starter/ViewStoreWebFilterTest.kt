@@ -14,11 +14,16 @@
 package me.ahoo.wow.viewstore.starter
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.example.api.cart.AddCartItem
 import me.ahoo.wow.naming.MaterializedNamedBoundedContext
+import me.ahoo.wow.openapi.RouterSpecs
+import me.ahoo.wow.openapi.contract.BuiltInHttpRoutePaths
 import me.ahoo.wow.openapi.aggregate.command.CommandComponent
 import me.ahoo.wow.serialization.JsonSerializer
 import me.ahoo.wow.viewstore.ViewStoreService
 import me.ahoo.wow.viewstore.api.ViewStoreErrorCodes
+import me.ahoo.wow.viewstore.api.preferences.SetViewPreferences
+import me.ahoo.wow.viewstore.api.view.CreateView
 import me.ahoo.wow.viewstore.starter.system.SystemViewProvider
 import me.ahoo.wow.viewstore.starter.system.SystemViews
 import org.junit.jupiter.api.BeforeAll
@@ -48,7 +53,16 @@ class ViewStoreWebFilterTest {
             Flux.empty()
         }
     }
-    private val filter = ViewStoreWebFilter(ViewStorePaths(MaterializedNamedBoundedContext("host")), provider)
+    private val hostContext = MaterializedNamedBoundedContext("host")
+    private val paths = ViewStorePaths(hostContext)
+    private val routerSpecs = RouterSpecs(hostContext).build()
+    private val guard = ViewStoreRouteGuard(
+        paths,
+        routerSpecs,
+        ViewStoreQueryRoutes(paths, routerSpecs, ViewStoreTestAggregates.namedAggregates),
+        ViewStoreTestAggregates.namedAggregates,
+    )
+    private val filter = ViewStoreWebFilter(paths, provider, guard)
 
     private class RecordingChain : WebFilterChain {
         var exchange: ServerWebExchange? = null
@@ -79,7 +93,7 @@ class ViewStoreWebFilterTest {
     @Test
     fun `passes reads, other tenants' views and other paths`() {
         run(
-            MockServerHttpRequest.get("/view-store/tenant/t1/owner/(shared)/view/open/state")
+            MockServerHttpRequest.get("/view-store/tenant/t1/owner/(shared)/system-views")
                 .header(ViewStoreService.APP_ID_HEADER, "console").build()
         ).second.exchange.assert().isNotNull()
         run(
@@ -101,5 +115,66 @@ class ViewStoreWebFilterTest {
         run(
             MockServerHttpRequest.post("/cart").header(CommandComponent.Header.AGGREGATE_ID, "chosen").build()
         ).second.exchange!!.request.headers.getFirst(CommandComponent.Header.AGGREGATE_ID).assert().isEqualTo("chosen")
+    }
+
+    @Test
+    fun `drops an application a caller sends as a command header, on view store paths only`() {
+        val header = CommandComponent.Header.COMMAND_HEADER_X_PREFIX + ViewStoreService.APP_ID_MESSAGE_HEADER
+        val passed = run(
+            MockServerHttpRequest.post("/view-store/tenant/t1/owner/alice/view")
+                .header(header, "portal")
+                .header(header.uppercase(), "portal")
+                .header(CommandComponent.Header.COMMAND_HEADER_X_PREFIX + "other", "kept")
+                .build()
+        ).second.exchange!!.request.headers
+        passed.headerNames().none { it.equals(header, ignoreCase = true) }.assert().isTrue()
+        passed.getFirst(CommandComponent.Header.COMMAND_HEADER_X_PREFIX + "other").assert().isEqualTo("kept")
+        run(MockServerHttpRequest.post("/cart").header(header, "portal").build())
+            .second.exchange!!.request.headers.getFirst(header).assert().isEqualTo("portal")
+    }
+
+    @Test
+    fun `closes the routes Wow generates for the view store beside its commands`() {
+        listOf(
+            MockServerHttpRequest.get("/view-store/tenant/t1/owner/alice/view/v1/state"),
+            MockServerHttpRequest.get("/view-store/tenant/t1/owner/alice/view/v1/state/3"),
+            MockServerHttpRequest.get("/view-store/tenant/t1/owner/alice/view/v1/state/time/1700000000000"),
+            MockServerHttpRequest.get("/view-store/tenant/t1/owner/alice/view/v1/snapshot"),
+            MockServerHttpRequest.get("/view-store/tenant/t1/view/v1/state/tracing"),
+            MockServerHttpRequest.get("/view-store/tenant/t1/view/v1/event/1/9"),
+            MockServerHttpRequest.put("/view-store/tenant/t1/view/v1/snapshot"),
+            MockServerHttpRequest.put("/view-store/view/snapshot/0/100"),
+            MockServerHttpRequest.post("/view-store/view/state/0/100"),
+            MockServerHttpRequest.put("/view-store/tenant/t1/view/v1/2/compensate"),
+            MockServerHttpRequest.get("/view-store/tenant/t1/owner/alice/view_preferences/p1/state"),
+            MockServerHttpRequest.post("/view-store/owner/alice/view/snapshot/list"),
+            MockServerHttpRequest.post("/view-store/tenant/t1/view/event/list"),
+        ).forEach { request ->
+            val (exchange, chain) = run(request.header(ViewStoreService.APP_ID_HEADER, "console").build())
+            chain.exchange.assert().isNull()
+            exchange.response.statusCode.assert().isEqualTo(HttpStatus.NOT_FOUND)
+        }
+    }
+
+    @Test
+    fun `refuses the view store's commands on the command facade`() {
+        val facade = BuiltInHttpRoutePaths.Global.COMMAND_SEND
+        listOf(
+            MockServerHttpRequest.post(facade).header(CommandComponent.Header.COMMAND_TYPE, CreateView::class.java.name),
+            MockServerHttpRequest.post(facade)
+                .header(CommandComponent.Header.COMMAND_TYPE, "me.ahoo.wow.viewstore.api.view.Unknown"),
+            MockServerHttpRequest.post(facade)
+                .header(CommandComponent.Header.COMMAND_TYPE, SetViewPreferences::class.java.name),
+            MockServerHttpRequest.post(facade)
+                .header(CommandComponent.Header.COMMAND_TYPE, "any")
+                .header(CommandComponent.Header.COMMAND_AGGREGATE_CONTEXT, ViewStoreService.SERVICE_NAME)
+                .header(CommandComponent.Header.COMMAND_AGGREGATE_NAME, ViewStoreService.VIEW_AGGREGATE_NAME),
+        ).forEach { request ->
+            val (exchange, chain) = run(request.build())
+            chain.exchange.assert().isNull()
+            exchange.response.statusCode.assert().isEqualTo(HttpStatus.NOT_FOUND)
+        }
+        run(MockServerHttpRequest.post(facade).header(CommandComponent.Header.COMMAND_TYPE, AddCartItem::class.java.name).build())
+            .second.exchange.assert().isNotNull()
     }
 }

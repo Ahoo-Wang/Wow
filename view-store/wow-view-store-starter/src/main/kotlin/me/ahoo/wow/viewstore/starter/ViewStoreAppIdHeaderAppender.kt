@@ -19,15 +19,19 @@ import me.ahoo.wow.webflux.route.command.appender.CommandRequestHeaderAppender
 import org.springframework.web.reactive.function.server.ServerRequest
 
 /**
- * Carries a view store command's `CoSec-App-Id` into its header, where the aggregates read it. It is the header
- * key CoSec's own appender writes, so a host with CoSec gets the same value twice; other commands of the host are
- * left alone.
+ * Carries a view store command's `CoSec-App-Id` into its header, where the aggregates read it, and only that: an
+ * `app_id` another appender took from the caller (Wow's `Command-Header-app_id`) is removed first, so a command
+ * without `CoSec-App-Id` carries no application. It is the header key CoSec's own appender writes, so a host with
+ * CoSec gets the same value twice; other commands of the host are left alone.
+ *
+ * Appenders run in no fixed order, so [ViewStoreWebFilter] also drops `Command-Header-app_id` from the request.
  */
 class ViewStoreAppIdHeaderAppender(private val paths: ViewStorePaths) : CommandRequestHeaderAppender {
     override fun append(request: ServerRequest, header: Header) {
         if (!paths.isViewStorePath(request.path())) {
             return
         }
+        header.remove(ViewStoreService.APP_ID_MESSAGE_HEADER)
         request.headers().firstHeader(ViewStoreService.APP_ID_HEADER)?.takeIf { it.isNotBlank() }?.let {
             header.with(ViewStoreService.APP_ID_MESSAGE_HEADER, it)
         }

@@ -17,10 +17,12 @@ import io.swagger.v3.oas.models.OpenAPI
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.naming.MaterializedNamedBoundedContext
 import me.ahoo.wow.openapi.RouterSpecs
+import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
 import me.ahoo.wow.openapi.metadata.aggregateRouteMetadata
 import me.ahoo.wow.viewstore.domain.preferences.ViewPreferences
 import me.ahoo.wow.viewstore.domain.view.View
 import org.junit.jupiter.api.Test
+import org.springframework.http.HttpMethod
 
 /**
  * The routes Wow generates for the view store's aggregates in a host of another context, and the ones the starter
@@ -46,17 +48,74 @@ class ViewStoreRouteSpecsTest {
             "PUT $scope/view/{id}/audience",
             "DELETE $scope/view/{id}",
         )
-        // Every command route of the view store: no preferences command, no recover, no tags.
-        val queryOrOperation = listOf("/snapshot", "/event", "/state", "/compensate")
-        routes.filter { route -> route.contains("/view-store/") && queryOrOperation.none { route.contains(it) } }
-            .assert().containsExactlyInAnyOrder(
-                "POST $scope/view",
-                "PUT $scope/view/{id}/save",
-                "PUT $scope/view/{id}/rename",
-                "PUT $scope/view/{id}/audience",
-                "DELETE $scope/view/{id}",
-            )
         routes.assert().contains("POST /owner/{ownerId}/cart/add_cart_item")
+    }
+
+    /**
+     * Every route of the view store's aggregates that is open, whoever serves it: a route Wow adds for them in a later
+     * version is closed until it is listed here.
+     */
+    @Test
+    fun `the open routes of the view store are exactly these`() {
+        val queryRoutes = ViewStoreQueryRoutes(paths, routerSpecs, namedAggregates)
+        val guard = ViewStoreRouteGuard(paths, routerSpecs, queryRoutes, namedAggregates)
+        val snapshotQueries = listOf(
+            "aggregation", "count", "cursor", "cursor/state", "list", "list/state", "paged", "paged/state", "single",
+            "single/state",
+        )
+        val exposed = guard.openContracts.map { "${it.method} ${it.path}" } +
+            queryRoutes.contracts.map { "${it.method} ${it.path}" } +
+            listOf(
+                "GET ${paths.systemViews}",
+                "GET ${paths.systemView}",
+                "GET ${paths.preferences}",
+                "PUT ${paths.preferences}",
+                "GET ${paths.replay}",
+            )
+        exposed.assert().containsExactlyInAnyOrder(
+            *(
+                listOf(
+                    "POST $scope/view",
+                    "PUT $scope/view/{id}/save",
+                    "PUT $scope/view/{id}/rename",
+                    "PUT $scope/view/{id}/audience",
+                    "DELETE $scope/view/{id}",
+                    "GET $scope/system-views",
+                    "GET $scope/system-views/{id}",
+                    "GET $scope/definitions/{definitionId}/preferences",
+                    "PUT $scope/definitions/{definitionId}/preferences",
+                    "GET $scope/view/requests/{requestId}",
+                ) +
+                    snapshotQueries.map { "POST $scope/view/snapshot/$it" } +
+                    snapshotQueries.map { "POST $scope/view_preferences/snapshot/$it" }
+                ).toTypedArray()
+        )
+        // Everything else Wow generates for them is closed: state and tracing reads, snapshot and event loads,
+        // snapshot regeneration, state resend, compensation, schemas and the tenant-only or owner-only queries.
+        val closedKeys = guard.closedContracts.map { it.handlerKey }.toSet()
+        closedKeys.assert().contains(
+            BuiltInHttpRouteHandlerKeys.State.LOAD_AGGREGATE,
+            BuiltInHttpRouteHandlerKeys.State.LOAD_VERSIONED_AGGREGATE,
+            BuiltInHttpRouteHandlerKeys.State.LOAD_TIME_BASED_AGGREGATE,
+            BuiltInHttpRouteHandlerKeys.State.AGGREGATE_TRACING,
+            BuiltInHttpRouteHandlerKeys.Snapshot.LOAD,
+            BuiltInHttpRouteHandlerKeys.Snapshot.REGENERATE,
+            BuiltInHttpRouteHandlerKeys.Snapshot.BATCH_REGENERATE,
+            BuiltInHttpRouteHandlerKeys.Event.LOAD,
+            BuiltInHttpRouteHandlerKeys.Event.COMPENSATE,
+            BuiltInHttpRouteHandlerKeys.Event.RESEND_STATE,
+            BuiltInHttpRouteHandlerKeys.Event.LIST_QUERY,
+            BuiltInHttpRouteHandlerKeys.Snapshot.LIST_QUERY,
+        )
+        closedKeys.assert().doesNotContain(BuiltInHttpRouteHandlerKeys.Command.COMMAND)
+        guard.closedContracts.forEach { contract ->
+            val concrete = contract.path.replace(Regex("\\{[^}]+}"), "x")
+            guard.isClosed(HttpMethod.valueOf(contract.method), concrete).assert().isTrue()
+        }
+        exposed.forEach { route ->
+            val (method, path) = route.split(" ", limit = 2)
+            guard.isClosed(HttpMethod.valueOf(method), path.replace(Regex("\\{[^}]+}"), "x")).assert().isFalse()
+        }
     }
 
     @Test

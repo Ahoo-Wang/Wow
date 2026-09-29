@@ -49,6 +49,7 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.core.annotation.Order
+import org.springframework.http.HttpMethod
 import org.springframework.web.reactive.function.server.RouterFunction
 import org.springframework.web.reactive.function.server.ServerResponse
 
@@ -134,21 +135,45 @@ class ViewStoreAutoConfiguration {
 
     @Bean(ROUTER_FUNCTION_BEAN_NAME)
     @Order(0)
+    @Suppress("LongParameterList")
     fun viewStoreRouterFunction(
         viewStorePaths: ViewStorePaths,
         viewStoreHandlers: ViewStoreHandlers,
         viewStoreQueryRoutes: ViewStoreQueryRoutes,
+        viewStoreRouteGuard: ViewStoreRouteGuard,
         routeHandlerFunctionRegistrar: RouteHandlerFunctionRegistrar,
+        stateAggregateRepository: StateAggregateRepository,
+        exceptionHandler: RequestExceptionHandler,
     ): RouterFunction<ServerResponse> {
-        val routes = ViewStoreRoutes.routerFunction(viewStorePaths, viewStoreHandlers)
+        val audienceContract = viewStoreRouteGuard.openContracts.single {
+            it.method == HttpMethod.PUT.name() && it.path == viewStorePaths.audience
+        }
+        val audienceDispatch = requireNotNull(routeHandlerFunctionRegistrar.getHttpFactory(audienceContract.handlerKey)) {
+            "No handler for [${audienceContract.handlerKey}] of route [${audienceContract.path}]."
+        }.create(audienceContract)
+        val audienceHandler = ViewAudienceHandler(stateAggregateRepository, audienceDispatch, exceptionHandler)
+        val routes = ViewStoreRoutes.routerFunction(viewStorePaths, viewStoreHandlers, audienceHandler)
         return viewStoreQueryRoutes.routerFunction(routeHandlerFunctionRegistrar)?.let { routes.and(it) } ?: routes
     }
+
+    @Bean
+    fun viewStoreRouteGuard(
+        viewStorePaths: ViewStorePaths,
+        routerSpecs: RouterSpecs,
+        viewStoreQueryRoutes: ViewStoreQueryRoutes,
+    ): ViewStoreRouteGuard = ViewStoreRouteGuard(
+        viewStorePaths,
+        routerSpecs,
+        viewStoreQueryRoutes,
+        setOf(viewNamedAggregate, preferencesNamedAggregate)
+    )
 
     @Bean
     fun viewStoreWebFilter(
         viewStorePaths: ViewStorePaths,
         systemViewProvider: SystemViewProvider,
-    ): ViewStoreWebFilter = ViewStoreWebFilter(viewStorePaths, systemViewProvider)
+        viewStoreRouteGuard: ViewStoreRouteGuard,
+    ): ViewStoreWebFilter = ViewStoreWebFilter(viewStorePaths, systemViewProvider, viewStoreRouteGuard)
 
     @Configuration(proxyBeanMethods = false)
     @ConditionalOnClass(name = ["org.springdoc.core.customizers.OpenApiCustomizer"])

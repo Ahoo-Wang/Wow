@@ -97,7 +97,7 @@ class View(private val state: ViewState) {
             return Mono.just(ViewAudienceChanged(audience = audience, toOwnerId = SHARED_OWNER_ID))
         }
         val operator = command.header.operator
-        if (operator.isNullOrBlank() || operator == SHARED_OWNER_ID) {
+        if (operator.isNullOrBlank() || operator.isReservedId()) {
             throw ViewStoreException.operatorRequired()
         }
         return sharedBoardReferences.referencingBoards(command.aggregateId.tenantId, state.appId, state.id)
@@ -137,5 +137,11 @@ class View(private val state: ViewState) {
     companion object {
         /** The binding error code naming a shared dashboard that keeps a view shared. */
         const val REFERENCED_BY_SHARED_DASHBOARD = "referenced-by-shared-dashboard"
+
+        /**
+         * An id in parentheses is a reserved value, never a user: `(shared)`, or CoSec's anonymous principal `(0)`,
+         * which a service behind CoSec sees as the operator of a request without a token.
+         */
+        private fun String.isReservedId(): Boolean = this == SHARED_OWNER_ID || (startsWith("(") && endsWith(")"))
     }
 }

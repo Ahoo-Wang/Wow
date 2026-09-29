@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.viewstore.starter
 
+import me.ahoo.wow.exception.NotFoundResourceException
 import me.ahoo.wow.exception.toErrorInfo
 import me.ahoo.wow.openapi.CommonComponent.Header.ERROR_CODE
 import me.ahoo.wow.openapi.aggregate.command.CommandComponent
@@ -30,27 +31,46 @@ import org.springframework.web.server.WebFilterChain
 import reactor.core.publisher.Mono
 
 /**
- * Two rules of the view store's routes that sit before Wow's command routes:
+ * The rules of the view store's routes that sit before Wow's routes:
+ * - only the view store's own routes are open: the rest of what Wow generates for its aggregates, and the command
+ *   facade for its commands, answer not found ([ViewStoreRouteGuard]);
  * - the server generates every aggregate id, so a `Command-Aggregate-Id` a caller sends is dropped;
+ * - the application comes from `CoSec-App-Id` only, so a `Command-Header-app_id` a caller sends is dropped;
  * - a system view is read-only, so a write addressed to one is refused with [ViewStoreErrorCodes.SYSTEM_VIEW_READ_ONLY]
  *   instead of reading as a view that does not exist.
  *
- * Requests outside the view store's paths pass untouched.
+ * Other requests pass untouched.
  */
 class ViewStoreWebFilter(
     private val paths: ViewStorePaths,
     private val systemViewProvider: SystemViewProvider,
+    private val routeGuard: ViewStoreRouteGuard,
 ) : WebFilter {
     companion object {
         private val WRITE_METHODS = setOf(HttpMethod.POST, HttpMethod.PUT, HttpMethod.PATCH, HttpMethod.DELETE)
+
+        /** The request header Wow's extend appender turns into the command header `app_id`. */
+        val APP_ID_COMMAND_HEADER = CommandComponent.Header.COMMAND_HEADER_X_PREFIX + ViewStoreService.APP_ID_MESSAGE_HEADER
     }
 
     override fun filter(exchange: ServerWebExchange, chain: WebFilterChain): Mono<Void> {
-        val path = exchange.request.path.pathWithinApplication().value()
+        val request = exchange.request
+        val path = request.path.pathWithinApplication().value()
+        if (routeGuard.isClosed(request.method, path)) {
+            return exchange.writeError(NotFoundResourceException("Route [${request.method} $path] is not found."))
+        }
+        if (routeGuard.isViewStoreFacadeCommand(request.method, path, request.headers)) {
+            return exchange.writeError(
+                NotFoundResourceException("The view store's commands are not served by the command facade.")
+            )
+        }
         if (!paths.isViewStorePath(path)) {
             return chain.filter(exchange)
         }
-        val filtered = exchange.withoutAggregateId()
+        return filterViewStore(exchange.withoutClientHeaders(), path, chain)
+    }
+
+    private fun filterViewStore(filtered: ServerWebExchange, path: String, chain: WebFilterChain): Mono<Void> {
         val request = filtered.request
         val target = paths.viewTarget(path)
         val appId = request.headers.getFirst(ViewStoreService.APP_ID_HEADER)
@@ -64,20 +84,26 @@ class ViewStoreWebFilter(
             }
     }
 
-    private fun ServerWebExchange.withoutAggregateId(): ServerWebExchange {
-        if (!request.headers.containsHeader(CommandComponent.Header.AGGREGATE_ID)) {
+    /** Drops the headers a caller may not set: the aggregate id, and the application of the command header. */
+    private fun ServerWebExchange.withoutClientHeaders(): ServerWebExchange {
+        val names = request.headers.headerNames().filter {
+            it.equals(CommandComponent.Header.AGGREGATE_ID, ignoreCase = true) ||
+                it.equals(APP_ID_COMMAND_HEADER, ignoreCase = true)
+        }
+        if (names.isEmpty()) {
             return this
         }
         return mutate().request { builder ->
-            builder.headers { it.remove(CommandComponent.Header.AGGREGATE_ID) }
+            builder.headers { headers -> names.forEach { headers.remove(it) } }
         }.build()
     }
 
-    private fun ServerWebExchange.readOnly(viewId: String): Mono<Void> {
-        val errorInfo = ViewStoreException(
-            ViewStoreErrorCodes.SYSTEM_VIEW_READ_ONLY,
-            "System view [$viewId] is read-only."
-        ).toErrorInfo()
+    private fun ServerWebExchange.readOnly(viewId: String): Mono<Void> = writeError(
+        ViewStoreException(ViewStoreErrorCodes.SYSTEM_VIEW_READ_ONLY, "System view [$viewId] is read-only.")
+    )
+
+    private fun ServerWebExchange.writeError(error: Throwable): Mono<Void> {
+        val errorInfo = error.toErrorInfo()
         response.statusCode = errorInfo.toHttpStatus()
         response.headers.contentType = MediaType.APPLICATION_JSON
         response.headers.set(ERROR_CODE, errorInfo.errorCode)

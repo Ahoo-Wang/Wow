@@ -272,6 +272,17 @@ class ViewSpec : AggregateSpec<View, ViewState>({
                     }
                 }
             }
+            fork("make it personal with CoSec's anonymous operator") {
+                whenCommand(
+                    ChangeViewAudience(stateRoot.id, ViewAudience.PERSONAL),
+                    appHeader(operator = "(0)"),
+                    SHARED_OWNER_ID
+                ) {
+                    expectError<ViewStoreException> {
+                        errorCode.assert().isEqualTo(ViewStoreErrorCodes.VIEW_OPERATOR_REQUIRED)
+                    }
+                }
+            }
             fork("share again keeps the owner") {
                 whenCommand(ChangeViewAudience(stateRoot.id, ViewAudience.SHARED), appHeader(), SHARED_OWNER_ID) {
                     expectNoError()

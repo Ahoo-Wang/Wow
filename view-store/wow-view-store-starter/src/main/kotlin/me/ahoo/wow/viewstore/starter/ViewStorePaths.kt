@@ -46,6 +46,9 @@ class ViewStorePaths(currentContext: NamedBoundedContext) {
     val preferences: String = "$scope/definitions/{$DEFINITION_ID}/preferences"
     val replay: String = "$scope/${ViewStoreService.VIEW_AGGREGATE_NAME}/requests/{$REQUEST_ID}"
 
+    /** Wow's route of `ChangeViewAudience`, which the starter answers first (see [ViewAudienceHandler]). */
+    val audience: String = "$scope/${ViewStoreService.VIEW_AGGREGATE_NAME}/{$ID}/audience"
+
     private val scopePattern = Regex("^${Regex.escape(prefix)}/tenant/([^/]+)/owner/([^/]+)(/.*)?$")
     private val viewPattern = Regex(
         "^${Regex.escape(prefix)}/tenant/([^/]+)/owner/([^/]+)/${ViewStoreService.VIEW_AGGREGATE_NAME}/([^/]+)(/.*)?$"

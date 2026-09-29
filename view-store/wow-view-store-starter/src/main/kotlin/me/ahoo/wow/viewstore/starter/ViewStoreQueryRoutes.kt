@@ -43,7 +43,8 @@ class ViewStoreQueryRoutes(
     namedAggregates: Set<NamedAggregate>,
 ) {
     companion object {
-        private val SNAPSHOT_QUERY_KEYS = setOf(
+        /** Wow's snapshot query routes: the only query routes of the view store that are open. */
+        val SNAPSHOT_QUERY_KEYS = setOf(
             BuiltInHttpRouteHandlerKeys.Snapshot.AGGREGATION,
             BuiltInHttpRouteHandlerKeys.Snapshot.COUNT,
             BuiltInHttpRouteHandlerKeys.Snapshot.LIST_QUERY,
