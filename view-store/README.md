@@ -49,9 +49,18 @@ for personal paths are what let a user take a shared view personal.
 
 ## The standalone server
 
-`wow-view-store-server` runs the starter with MongoDB and in-memory buses, as a single instance (see
-`src/dist/config/application.yaml`). **Run it only behind the CoSec gateway**: the server trusts the tenant and owner
-of every path, so it must never be reachable without the gateway's path rules in front of it.
+`wow-view-store-server` runs the starter on the same middleware as the compensation service, and can run as several
+instances:
+
+| Middleware | Used for | Setting |
+| --- | --- | --- |
+| MongoDB | event streams and snapshots (Wow's default storage) | `spring.mongodb.uri` |
+| Kafka | the command, event and state-event buses (Wow's default buses) | `wow.kafka.bootstrap-servers` |
+| Redis | CosId machine ids shared by the instances | `spring.data.redis.url`, `cosid.machine.distributor.type: redis` |
+
+**Run it only behind the CoSec gateway**: the server trusts the tenant and owner of every path, so it must never be
+reachable without the gateway's path rules in front of it. `src/dist/config/application.yaml` is the template for
+`config/application.yaml`; the `Dockerfile` packages `installDist` like the compensation server's.
 
 ```bash
 service_dir=view-store/wow-view-store-server

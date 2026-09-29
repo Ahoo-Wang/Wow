@@ -29,8 +29,9 @@ import reactor.core.publisher.Flux
 import tools.jackson.databind.JsonNode
 
 /**
- * The server boots with its own configuration, on in-memory stores so the test needs no MongoDB, and serves the
- * view store under `/view-store`.
+ * The server boots with its own configuration and serves the view store under `/view-store`. The middleware it runs
+ * on (MongoDB, Kafka, Redis) is swapped for in-memory stores and buses and a fixed machine id, so the test needs none
+ * of it; [ViewStoreServerConfigurationTest] pins the middleware of the configurations themselves.
  */
 @SpringBootTest(
     webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
@@ -38,6 +39,12 @@ import tools.jackson.databind.JsonNode
         "wow.eventsourcing.store.storage=in_memory",
         "wow.eventsourcing.snapshot.storage=in_memory",
         "wow.mongo.enabled=false",
+        "wow.kafka.enabled=false",
+        "wow.command.bus.type=in_memory",
+        "wow.event.bus.type=in_memory",
+        "wow.eventsourcing.state.bus.type=in_memory",
+        "cosid.machine.distributor.type=manual",
+        "cosid.machine.distributor.manual.machine-id=1",
         "wow.view-store.system-views[0].definition-id=orders",
         "wow.view-store.system-views[0].id=orders-open",
         "wow.view-store.system-views[0].title=Open orders",
