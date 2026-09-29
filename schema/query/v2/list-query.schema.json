@@ -6,7 +6,12 @@
   "properties": {
     "filter": { "$ref": "filter-expression.schema.json" },
     "projection": { "$ref": "../definitions.schema.json#/definitions/projection" },
-    "sort": { "type": "array", "items": { "$ref": "../definitions.schema.json#/definitions/sort" }, "default": [] },
+    "sort": {
+      "type": "array",
+      "items": { "$ref": "../definitions.schema.json#/definitions/sort" },
+      "maxItems": 32,
+      "default": []
+    },
     "limit": { "type": "integer", "minimum": 0, "default": 0 }
   },
   "required": ["filter"],

@@ -146,5 +146,5 @@ export function useListStreamQuery<
 >(
   options: UseListStreamQueryOptions<R, FIELDS, E, Q>,
 ): UseListStreamQueryReturn<R, FIELDS, E, Q> {
-  return useListStream<Q, R, E>(options);
+  return useListStream<R, FIELDS, E, Q>(options);
 }

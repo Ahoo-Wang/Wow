@@ -159,6 +159,19 @@ class ElasticsearchQuerySchemaAdapterTest {
     }
 
     @Test
+    fun `the index's max_result_window bounds offset pages`() {
+        val logical = logical("name" to scalar(QueryValueType.STRING))
+        val mapping = TypeMapping.of { it.properties("name") { it.keyword { it } } }
+
+        ElasticsearchQuerySchemaAdapter.facts(logical, ElasticsearchIndexMapping.from("test", mapping))
+            .storage.paging.maxOffsetWindow.assert().isEqualTo(10_000)
+        ElasticsearchQuerySchemaAdapter.facts(
+            logical,
+            ElasticsearchIndexMapping.from("test", mapping, maxResultWindow = 20),
+        ).storage.paging.maxOffsetWindow.assert().isEqualTo(20)
+    }
+
+    @Test
     fun `nested descendants keep their element scope`() {
         val schema = bind(
             logical("orders" to array(objectValue(mapOf("price" to scalar(QueryValueType.INTEGER))))),
@@ -175,6 +188,9 @@ class ElasticsearchQuerySchemaAdapterTest {
         price.elementAncestors.assert().isEqualTo(listOf(QueryField("orders")))
         price.binding(QueryCapability.RANGE)!!.physicalField.assert().isEqualTo(QueryField("orders.price"))
         price.bindings.assert().doesNotContainKey(QueryCapability.CURSOR_SORT)
+        // A nested child is addressed through its nested mapping; the nested field itself lies in none.
+        price.binding(QueryCapability.SORT)!!.physicalScope.assert().isEqualTo(QueryField("orders"))
+        schema.field(QueryField("orders"))!!.binding(QueryCapability.ELEMENT_SCOPE)!!.physicalScope.assert().isNull()
         val pricePath = me.ahoo.wow.query.schema.QueryPathTemplate(
             listOf(
                 me.ahoo.wow.query.schema.QueryPathSegment.Property("orders"),
@@ -353,7 +369,7 @@ class ElasticsearchQuerySchemaAdapterTest {
                     }
                 }
             )
-        val compiler = object : me.ahoo.wow.elasticsearch.query.AbstractElasticsearchFilterCompiler() {}
+        val compiler = me.ahoo.wow.elasticsearch.query.ElasticsearchFilterCompiler
         val search = me.ahoo.wow.api.query.ElementMatchFilter(
             QueryField("items"),
             me.ahoo.wow.api.query.SearchFilter("widget", setOf(QueryField("name"))),
@@ -403,7 +419,7 @@ class ElasticsearchQuerySchemaAdapterTest {
         snapshot.path("aggregateId", QueryCapability.SORT).assert().isEqualTo("aggregateId")
         snapshot.path("aggregateId", QueryCapability.AGGREGATE_TERMS).assert().isEqualTo("aggregateId")
         snapshot.path("aggregateId", QueryCapability.PRESENCE).assert().isEqualTo("aggregateId")
-        val compiler = object : me.ahoo.wow.elasticsearch.query.AbstractElasticsearchFilterCompiler() {}
+        val compiler = me.ahoo.wow.elasticsearch.query.ElasticsearchFilterCompiler
         listOf(
             IdFilter("a") to Query.of { q -> q.ids { it.values("a") } },
             AggregateIdFilter("a") to Query.of { q -> q.ids { it.values("a") } },
@@ -461,7 +477,7 @@ class ElasticsearchQuerySchemaAdapterTest {
                 it.properties("scores") { it.long_ { it } }
             }
         )
-        val compiler = object : me.ahoo.wow.elasticsearch.query.AbstractElasticsearchFilterCompiler() {}
+        val compiler = me.ahoo.wow.elasticsearch.query.ElasticsearchFilterCompiler
         val filter = me.ahoo.wow.api.query.EqualFilter(
             QueryField("scores"),
             tools.jackson.databind.node.IntNode.valueOf(3)

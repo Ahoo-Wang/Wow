@@ -239,6 +239,10 @@ export function useViewList(
     [engine, definitionId, reload],
   );
 
+  // Another language is a new reading of the same list: the declared
+  // views' titles are said in the words in force (`engine.setText`).
+  useEffect(() => engine.subscribeText(() => reload()), [engine, reload]);
+
   // A reload refreshes; it does not blank. What is on hand for *this*
   // definition stays on screen until the new answer lands, because a list
   // that empties mid-reload has no default view for a moment — and a

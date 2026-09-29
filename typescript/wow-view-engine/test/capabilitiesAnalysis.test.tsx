@@ -50,7 +50,12 @@ import {
   analysisKernelConfig,
   errorCodes,
 } from './fixtures/analysis.js';
-import { ordersDefinition, recordConfig, testSource } from './fixtures.js';
+import {
+  ordersDefinition,
+  recordConfig,
+  testSource,
+  resourcesOf,
+} from './fixtures.js';
 import {
   describedField,
   ordersDescriptor,
@@ -505,10 +510,10 @@ describe('the controls on a narrowed analysis', () => {
       ],
     });
     const engine = new ViewEngine({
-      definitions: [analysisDefinition()],
-      store: new MemoryViewStore({ instances: [saved] }),
-      resolveSource: () =>
+      resources: resourcesOf([analysisDefinition()], () =>
         testSource({ describe: () => Promise.resolve(read(descriptor)) }),
+      ),
+      store: new MemoryViewStore({ instances: [saved] }),
     });
     const { result } = renderHook(() => {
       const opened = useOpenView(engine, 'by-warehouse');
@@ -533,9 +538,8 @@ describe('the controls on a narrowed analysis', () => {
 
   it('offer everything the definition declares without a descriptor', async () => {
     const engine = new ViewEngine({
-      definitions: [analysisDefinition()],
+      resources: resourcesOf([analysisDefinition()], () => testSource()),
       store: new MemoryViewStore({ instances: [saved] }),
-      resolveSource: () => testSource(),
     });
     const { result } = renderHook(() => {
       const opened = useOpenView(engine, 'by-warehouse');
@@ -575,10 +579,10 @@ describe('a phrase search the source matches only as words', () => {
         record: { ...base.record, search: { modes, fields: [] } },
       } as QueryModelDescriptor;
       const engine = new ViewEngine({
-        definitions: [searchable],
-        store: new MemoryViewStore({ instances: [] }),
-        resolveSource: () =>
+        resources: resourcesOf([searchable], () =>
           testSource({ describe: () => Promise.resolve(read(descriptor)) }),
+        ),
+        store: new MemoryViewStore({ instances: [] }),
       });
       const runtime = await engine.open('system:orders:all');
       if (runtime.kind === 'dashboard') throw new Error('a data view');

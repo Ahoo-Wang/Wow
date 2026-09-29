@@ -34,7 +34,7 @@ object ElasticsearchProjectionCompiler {
 
     private fun List<QueryField>.toSourceFields(admitted: AdmittedQuery<*>): List<String> =
         flatMap { field ->
-            val path = admitted.field(field).physicalField.path
+            val path = admitted.physicalPath(field)
             listOf(path, "$path.*")
         }.distinct()
 }

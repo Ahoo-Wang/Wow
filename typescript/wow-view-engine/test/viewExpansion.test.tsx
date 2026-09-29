@@ -40,6 +40,7 @@ import {
   recordConfig,
   testSource,
   ROWS,
+  resourcesOf,
 } from './fixtures.js';
 
 /**
@@ -128,9 +129,8 @@ const byWarehouse: ViewInstance = {
 
 function engineWith(source: ViewSource = testSource()): ViewEngine {
   return new ViewEngine({
-    definitions: [ordersDefinition()],
+    resources: resourcesOf([ordersDefinition()], () => source),
     store: new MemoryViewStore({ instances: [mine, ours, byWarehouse] }),
-    resolveSource: () => source,
   });
 }
 
@@ -916,9 +916,8 @@ describe('the states a view can be expanded in', () => {
       }
     }
     const engine = new ViewEngine({
-      definitions: [ordersDefinition()],
+      resources: resourcesOf([ordersDefinition()], () => testSource()),
       store: new Refusing({ instances: [mine, ours, byWarehouse] }),
-      resolveSource: () => testSource(),
     });
     const user = await expanded(engine);
 

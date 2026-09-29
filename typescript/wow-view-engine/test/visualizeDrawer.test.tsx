@@ -26,7 +26,12 @@ import {
   type ViewInstance,
 } from '../src/index.js';
 import { DataWorkbench } from '../src/ui/index.js';
-import { analysisConfig, ordersDefinition, testSource } from './fixtures.js';
+import {
+  analysisConfig,
+  ordersDefinition,
+  testSource,
+  resourcesOf,
+} from './fixtures.js';
 
 afterEach(cleanup);
 
@@ -55,9 +60,8 @@ async function open() {
     config: analysisConfig({ layout: 'chart' }),
   };
   const engine = new ViewEngine({
-    definitions: [ordersDefinition()],
+    resources: resourcesOf([ordersDefinition()], () => testSource()),
     store: new MemoryViewStore({ instances: [instance] }),
-    resolveSource: () => testSource(),
   });
   render(
     <DataWorkbench

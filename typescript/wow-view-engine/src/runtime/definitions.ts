@@ -23,7 +23,9 @@
 import {
   CODE_REVISION,
   systemInstanceId,
+  withText,
   type Issue,
+  type TextResolver,
   type RuntimeLimits,
   type ViewDefinition,
   type ViewInstance,
@@ -41,11 +43,25 @@ export class DefinitionRegistry {
   private readonly findings = new Map<string, Issue[]>();
 
   constructor(
-    definitions: readonly ViewDefinition[],
+    host: {
+      definitions: readonly ViewDefinition[];
+      text?(key: string): string | undefined;
+      /** Whether a source is registered under `key` (`resources`). */
+      hasSource?(key: string): boolean;
+    },
     kinds: FieldKindRegistry,
     limits: RuntimeLimits,
-    report: (found: Issue) => void,
+    report: (found: Issue, resource: string) => void,
   ) {
+    // Kept as declared, keys and all: the engine says them as it hands a
+    // definition out (`EngineText`), in whatever language is in force then,
+    // so one engine serves every language (host-integration.md 3.1). The
+    // words the host starts with (`ViewEngineOptions.text`) are only checked
+    // here: a key they have no words for is warned of where it sits.
+    // Called on the host's object, which a catalogue's method may read.
+    const text: TextResolver | undefined =
+      host.text && (key => host.text?.(key));
+    const definitions = host.definitions;
     this.definitions = new Map(
       definitions.map(definition => [definition.id, definition]),
     );
@@ -54,12 +70,26 @@ export class DefinitionRegistry {
     // every open. One that fails is kept but refused at the point of use:
     // that beats a blank registry, and beats a crash at application start.
     for (const definition of definitions) {
-      const found = validateDefinition(definition, kinds, {
-        limits,
-        definitions: id => this.definitions.get(id),
-      });
+      const found = [
+        ...(text ? sayDefinition(definition, text).findings : []),
+        // A data definition whose rows come from nowhere is refused where
+        // it is used — its own views, and only the board panels over it.
+        ...(definition.kind === 'data' &&
+        host.hasSource &&
+        !host.hasSource(definition.source)
+          ? [
+              issue('definition.source.unregistered', ['source'], {
+                source: definition.source,
+              }),
+            ]
+          : []),
+        ...validateDefinition(definition, kinds, {
+          limits,
+          definitions: id => this.definitions.get(id),
+        }),
+      ];
       this.findings.set(definition.id, found);
-      for (const entry of found) report(entry);
+      for (const entry of found) report(entry, definition.id);
     }
   }
 
@@ -104,6 +134,23 @@ export class DefinitionRegistry {
       config: view.config,
     };
   }
+}
+
+/**
+ * A definition in the words `text` says its keys in (`withText`), and a
+ * warning for each key it has no words for, where the key sits.
+ */
+export function sayDefinition(
+  definition: ViewDefinition,
+  text: TextResolver = () => undefined,
+): { definition: ViewDefinition; findings: Issue[] } {
+  const findings: Issue[] = [];
+  const said = withText(definition, text, (key, path) =>
+    findings.push(
+      issue('definition.text.unknown', [...path], { key }, 'warning'),
+    ),
+  );
+  return { definition: said, findings };
 }
 
 /** Instances a definition declares in code, in declaration order. */

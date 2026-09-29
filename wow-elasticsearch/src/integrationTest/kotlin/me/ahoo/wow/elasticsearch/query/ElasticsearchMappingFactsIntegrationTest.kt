@@ -166,7 +166,6 @@ class ElasticsearchMappingFactsIntegrationTest {
                 override val elasticsearchClient: ReactiveElasticsearchClient = client
                 override val indexName: String = name
                 override val namedAggregate = me.ahoo.wow.modeling.MaterializedNamedAggregate("test", "mapping-facts")
-                override val filterCompiler = object : AbstractElasticsearchFilterCompiler() {}
             }
             verify(backend, schema)
         } finally {

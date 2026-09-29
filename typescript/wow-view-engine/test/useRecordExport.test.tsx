@@ -35,6 +35,7 @@ import {
   recordConfig,
   ROWS,
   testSource,
+  resourcesOf,
 } from './fixtures.js';
 
 afterEach(cleanup);
@@ -105,19 +106,21 @@ async function openExport(
     // The definition's own system view is admitted under the same limits, so
     // it pages small too — a `maxPageSize` below its size would refuse the
     // whole definition and nothing would open at all.
-    definitions: [
-      ordersDefinition({
-        views: [
-          {
-            id: 'all',
-            title: 'All orders',
-            config: recordConfig({ pageSize: 2 }),
-          },
-        ],
-      }),
-    ],
+    resources: resourcesOf(
+      [
+        ordersDefinition({
+          views: [
+            {
+              id: 'all',
+              title: 'All orders',
+              config: recordConfig({ pageSize: 2 }),
+            },
+          ],
+        }),
+      ],
+      () => options.source ?? testSource(),
+    ),
     store: new MemoryViewStore({ instances: [mine] }),
-    resolveSource: () => options.source ?? testSource(),
     ...(options.limits
       ? { limits: { ...DEFAULT_RUNTIME_LIMITS, ...options.limits } }
       : {}),

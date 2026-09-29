@@ -51,6 +51,7 @@ import {
   recordConfig,
   testEnvironment,
   testSource,
+  resourcesOf,
 } from './fixtures.js';
 
 const LAST_WEEK = { type: 'relative', amount: 7, unit: 'day' };
@@ -185,8 +186,13 @@ function view(
  * orders wired to both, of shipments to the time alone, the order list to
  * the text alone; and a time grouping by the day, the week or the month.
  */
+/**
+ * A board stored in the current form (D1): its wires are what they say,
+ * with no migration of a board stored before time wires were derived.
+ */
 function board(): DashboardViewConfig {
   return dashboardConfig({
+    derivesTime: true,
     fields: [
       {
         name: 'created',
@@ -243,9 +249,11 @@ async function harness(
   };
   const store = new MemoryViewStore({ instances: views });
   const engine = new ViewEngine({
-    definitions: [orders(), shipments(), overviewDefinition()],
+    resources: resourcesOf(
+      [orders(), shipments(), overviewDefinition()],
+      key => sources[key],
+    ),
     store,
-    resolveSource: key => sources[key],
     environment: clock.environment,
   });
   const saved = await store.create(
@@ -496,6 +504,7 @@ describe('setting the filters up', () => {
   it('wires by hand and auto-connects through the draft, and undoes it', async () => {
     const { runtime, panel } = await harness(
       dashboardConfig({
+        derivesTime: true,
         fields: [{ name: 'when', label: 'When', kind: 'date' }],
         panels: [
           view('a', 'orders-trend'),

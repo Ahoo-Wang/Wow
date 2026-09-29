@@ -14,12 +14,14 @@ export type ViewDefinition =
       title: string;
       recordNoun?: string; // 一条记录叫什么（「订单」「客户」），分析的计数单位说它；不写说「记录」，不拿 title 充数
       kind: 'data';
-      source: string; // resolveSource 的键
+      source: string; // 引擎按这个键登记资源（resources）里与定义配对的数据源
       fields: FieldDefinition[];
       fieldGroups?: { id: string; label: string; fields: string[] }[]; // 选择器的分组目录，按此顺序列出各组，组内按 fields 顺序
       record?: RecordCapability;
       analysis?: AnalysisCapability;
       views?: SystemView[]; // 代码声明的系统视图，随定义部署
+      timeField?: string; // 记录按哪个时刻算发生：看板的时间筛选经它接到没接线的面板上（todo D）；必须是自己的日期字段
+      described?: { version: string; findings: Issue[] }; // defineView 从描述符快照建定义时的发现，准入照报
     }
   | { id: string; title: string; kind: 'dashboard'; views?: SystemView[] }; // Dashboard 实例的归属目录
 
@@ -27,6 +29,7 @@ export interface SystemView {
   id: string; // 在定义内唯一且不含 ':'；Engine 以 `system:${definitionId}:${id}` 作为实例 id
   title: string;
   config: ViewConfig;
+  timeField?: string | null; // 这张视图自己的时刻，覆盖定义的；null = 整体读，时间筛选不作用于它
 }
 
 export interface FieldDefinition {
@@ -176,6 +179,22 @@ Wow 的源对没有说明的查询只回未删除的记录；一份把已删除�
 - **缺省口径是「仅未删除」**：视图自己的条件与宿主的作用域都没答这一维时（旧配置、新配置、留空的 pill 都算），`impliedDeletion` 给已应用条一枚不可删的 badge 说出来（[ui/README.md#三态各有一处凭据](ui/README.md#三态各有一处凭据)）——一个在生效却没人写下的口径仍然在生效。「仅已删除」「含已删除」是显式选择。
 
 （见 test/deletionKind.test.ts）
+
+### 从描述符定义：`defineView`（H1，D67）
+
+`defineView(descriptor, spec)`（`src/runtime/define/`）从随定义提交的描述符快照建一份普通的 `DataViewDefinition`，按 [host-integration.md](host-integration.md) 第 3 节的合并表：描述符给上限，宿主在其内选、命名、收窄。H1 定下方案没写到的几处：
+
+- **种类从值类型与语义读**：有枚举或宿主写了 `options` 是 `enum`，`TEMPORAL_EPOCH`／`TEMPORAL_FORMATTED` 是 `datetime`，`TEMPORAL_DATE` 是 `date`，布尔、整数／小数、字符串各归其类；写了 `elements` 是 `elementMatch`；说不出的（对象、联合类型）要宿主写 `kind`，否则 `definition.field.kind-unknown`。
+- **事实取快照，能力不烤进去**（D67 修订，用户 2026-09-28）：描述符里路径、种类、枚举值、语义、敏感级别、元素结构是模型的事实，取自提交的快照，写错是准入错误；算子、排序、聚合、搜索、上限是存储的能力——同一个模型在 MongoDB 与 Elasticsearch 上不同（元素里的搜索只有 ES 有）。所以宿主没收窄的能力**留给数据源**：定义带着快照的能力（没有描述符的源——9.2 以前的服务、非 Wow 源、不带 `describe` 的测试替身——照它跑，与今天一样），同时在 `described.open` 记下哪些是留给源的（`OpenCapabilities`：没关排序的字段；分析的计划——哪些字段参与、宿主各收窄了什么）；按源的描述符收窄时（`narrowDefinition`，唯一读描述符的地方）先 `reopened`（`src/capabilities/open.ts`）：开着的排序按该源能否排序重填，分析按计划在该源的描述符上重算（宿主写了的是子集、没写的取该源给的），然后照常收窄。于是 N5「描述有、定义没写的，不自动加」只对 `defineView` 定义留给源的那几项放宽；手写的定义没有 `open`，语义一字不变；内核与 `/ui` 不知道描述符。宿主的收窄超出快照是 **warning** 不是 error（`definition.field.operator-wider`／`sort-wider`／`summary-wider`／`analysis-wider`、`definition.analysis.wider`、`definition.record.paging-wider`）——换一个存储可能就有；实际生效的是它与运行时描述符的交集。（见 test/defineViewOpen.test.ts：同一份按 Mongo 快照建的定义，在带元素搜索的 ES 式源上给出搜索、多出的排序与分组，在 Mongo 式源上没有）
+- **算子不抄**：宿主不写 `operators` 就用种类的缺省，运行时照 N5 按当下的描述符切；写了就是子集。排序缺省按描述符（按分页方式看 `paged` 或 `cursor`），`sortable: false` 关掉；条目字段不缺省排序——它不是记录的次序。汇总只按宿主写的（选择），须在路径的函数里。
+- **类别的值**：宿主列出的在前、按它的次序与措辞，`false` 隐藏，其余按描述的 `description`（再退回值本身）排在后；宿主写了描述没有的值是错误。描述符没有枚举而宿主写了 `options`，那就是宿主自己的闭合列表。
+- **分析能力**：每个路径的 `aggregate` 为上限，宿主的 `analysis` 各项是子集（没写的项取上限）；**时刻只按日历分组（`DATE_HISTOGRAM`／`DATE_PART`）、只有最早与最晚（`MIN`／`MAX`）**——它以数存，描述给的是数的能力，意思却是时刻；别的字段不按日历分组。`any`／`distinctCount`／`percentile`／`firstLast` 按描述开，`expressionInput`／`missingKey`／`inMetricFilter` 描述说不行时写 `false`。敏感字段退出分析，机密字段 `operators: []`、不排序。部署当下才说得出的（按指标排序、补空桶、估算）仍交运行时的收窄。
+- **记录能力**：`rowKey` 缺省是描述的 `identity`，分页缺省按页（描述有 `PAGED` 时），布局缺省表格；快照不给的分页方式是 warning。
+- **没有描述符时按快照**（评审 #3744）：宿主没收窄的算子写上按快照收窄后的那一份（`open.operators` 记下哪些是留给源的，有描述符的源先还原为种类的缺省再收窄）；时刻的日历部分写上快照的；快照一个指标都没有时不写 `analysis`（不让定义因一个存储的话被拒），源有指标时补上；这样的定义里的分析系统视图不报 `definition.view.kind-mismatch`（error），改报 warning `definition.view.analysis-open`：给出分析能力的源上打得开，不给的源上打不开，定义照样可用。宿主自己注册的种类要把同一个注册表传给 `defineView(…, { kinds })`，快照的算子才写得上（定义先于引擎建好）。**搜索框是宿主要的**，与写了 `operators` 一样：没有描述符时照声明提供，有描述符的源说了不搜就收掉——控制台对 9.2 之前的服务照旧有错误搜索（e2e「filters, pages, switches to cards and exports」）。重开（`reopened`）只加不减：快照给过、这个源不给的，交给随后的收窄拿掉并照手写定义一样报 `capability.*`；敏感字段按别名与变体都认得（`DescribedField.sensitive`）。
+- **发现不抛**：一律记在 `described.findings`，`validateDefinition` 照报（`onIssue`、`definitionIssues`）；定义照样加载，按 A 能坏的只坏那一处。
+- **措辞是键**（第 3.1 节）：`text(key)` 是一个带私用区标记（U+E000）的字符串，放得进任何标签位；`ViewEngineOptions.text`（`TextResolver`）在注册时把每份定义的键说成当下语言的话（`withText`），没有措辞的键按键本身显示并报 `definition.text.unknown`。内核、控制器与界面只见话。H2 的 Provider 接手的就是这个解析函数：定义与键都不用改。
+
+（见 test/defineView.test.ts、test/defineViewOpen.test.ts、test/text.test.ts）
 
 ## 配置
 
@@ -516,6 +535,7 @@ export type DashboardContentPanel = DashboardPanelBase &
 - **板内分析视图**（D22 C）：数据面板要么 `instanceId`（已保存视图），要么 `owned: { definitionId, config }`（只属于这块板：随板保存、删除、受众，从不出现在工作台的列表里），两者恰有其一，否则 `dashboard.panel.source-invalid`。首版只收分析（`config.kind === 'analysis'`，否则 `dashboard.panel.owned-invalid`）。它的配置与已保存分析**一样判**：内核判绑定与合并后的全局筛选（定义由调用方按 id 查：`ValidateDashboardOptions.definitions`；查不到报 `dashboard.panel.definition-unknown`，没给查法时只判形状），分析本身由分析内核判——看板内核不能引用它，由定义准入与看板 runtime 的准入（`admitBoard`）替它判，判出的 error 只让那块面板不跑（见 [runtime.md#dashboard](runtime.md#dashboard)）。「另存为视图」把它提成普通视图、面板改为 `instanceId` 引用它（`referToSaved`，展示覆盖保留）。拒绝的写法：新加一种面板 `kind: 'analysis'`——它和引用视图的面板在接线、覆盖、点击、刷新上一模一样，分成两种每条规则都要写两遍；把板内分析存成一个隐藏的普通实例——那就要在列表、权限、删除上处处过滤它，还会在板子被删后留下孤儿。
 - **在工作台中打开的是哪一张**（`opens`，2026-09-25，补偿控制台 W13）：数据面板可以点名一张同一定义的已保存视图，「在工作台中打开」开它而不是面板自己的视图——面板只放得下一个短问题（几列），工作台里开完整的那一张；带着面板从板上拿走的条件交过去，与开面板自己的视图同一读法（D26 Q30）。不是非空字符串 → warning `dashboard.panel.opens-invalid`，照开面板自己的视图；点名的是一张随定义声明的视图时，准入按已注册的定义核对（下一条）：没有这张 → warning `dashboard.panel.opens-unknown`／`-undeclared`，是别的定义的 → `dashboard.panel.opens-elsewhere`（说出那张视图与它看的数据），都照开面板自己的视图；一张已保存视图打不开由工作台照常说。替换视图时它随覆盖一起作废。
 - **随定义声明的视图，准入时就核对**（todo C）：板子点名一张视图的地方有四处——面板显示的（`instanceId`）、在工作台中打开的（`opens`）、点一组去的视图或另一块板（`click`）——再加上接线的字段要在被引用视图的定义里。点名的是随定义声明的视图（`system:定义:视图`，`systemInstanceId`）时，不必等存储：准入拿到的同一个查法 `ValidateDashboardOptions.definitions`（已注册的全部定义，板内分析也经它查）就答得出它在不在、是什么（`declaredView`，`src/dashboard/declared.ts`），于是注册定义时（`validateDefinition`）与板子打开、引用还没读到时（`admitBoard`）都判得到，读到后以读到的那份为准（它按别名改过名）。**写错的只坏那一块**（A）：面板显示的视图不在 → 面板 error `dashboard.panel.view-undeclared`（参数是那个定义的标题：「「订单」里没有这个面板要显示的视图」）或 `dashboard.panel.view-unknown`（定义也没注册：「在这个应用里找不到」），从不出现 id；接线的字段不在 → `dashboard.binding.panel-unknown`，句子按读者在筛选条上看到的筛选名说（参数 `filter`），不写字段路径；`opens` 与点击去向写错 → warning，面板照画，`opens` 开面板自己的视图、点击退回追问菜单（`dashboard.click.view-unknown`／`-undeclared`／`-not-a-view`，另一块板不在是原有的 `dashboard.click.board-gone`）。在定义准入这一层它们照样是 error／warning、经 `onIssue` 在启动时报出，但按 A 不让定义用不了。已保存视图的 id 是存储的，只在读到时才知道，照旧（`dashboard.panel.unavailable`）。只经那一个查法、不问定义怎么注册的——宿主接入 H2 换掉注册方式时它不动。（见 test/dashboard.test.ts「validateDashboard views declared in code」、test/definition.test.ts「checks the views declared in code a declared board names, at registration」、stories/view-engine/Dashboard.test.stories.tsx「WrongReferences」）
+- **时间窗口自动接线**（todo D，并入 H1，D67）：定义写 `timeField`（记录按哪个时刻算发生），系统视图可写自己的（`SystemView.timeField`，`null` = 整体读，比如「活动失败的去向」）。**看板唯一的日期筛选**就是它的时间筛选：没接到它的数据面板，经面板视图的时刻自动接上（`auto: true`）；手写的接线永远优先；面板写 `ignoresTime: true` 表示整体读（「全部活动」）。有两个日期筛选的板子（下单时间与发货时间）没有一个范围读得了所有面板，就都不自动接。接线**读进板子**而不是在别处另算：runtime 按面板定义读板子的同一处（`canonicalBoard`，与别名改名同一处、草稿／已应用／基线一起读，所以不变脏），此后筛选作用到谁、点击设什么、搭板子的人看到接了什么都是同一块板（`withTimeBindings`，`src/dashboard/timeBindings.ts`）。**推导、从不存储**（D1，用户 2026-09-28）：推导出的接线带 `derived: true`（与 `auto` 一起），只有它会被重算：读的时候先拿掉全部推导接线，再在板子只有一个日期筛选时按视图重接，所以换了视图、加了面板、板子多出第二个日期筛选，旧的推导接线都不会留下（`replacePanelView` 不论几个日期筛选都拿掉它）；自动连接（D22 G，只有 `auto`）做的日期接线是作者的，板子少到只剩那个日期筛选时也不改字段（评审 #3744 第二轮）；加面板时，视图说得出时刻的，自动连接不按字段名接时间筛选，由读的时候按时刻接；「只接我选的」撤回自动连接时不写 `ignoresTime`（`byHand: false`）；保存时拿掉（`storedTimeWires`，经 `ManagedViewRuntime.stored` 在 `save`／`saveAs` 写入之前）并写上存储标记 `derivesTime: true`；存的只有手写的接线与 `ignoresTime`。视图没声明时刻（定义没写 `timeField`）的面板，存下的 `auto` 接线照旧是自动连接（D22 G）做的、照存。**迁移**：没有标记的存储板子是 D1 之前存的，读时（`migrateDashboardConfig` 的 `withTimeIgnored`）没接满全部日期筛选的数据面板写上 `ignoresTime`，原有接线（自动连接做的也一样）原样保留，于是数字与从前一样；写上标记只迁一次，runtime 读板子时去掉标记。已保存的系统视图副本按定义的时刻算。搭板子时手动拆掉任一日期筛选的接线，面板随之写上 `ignoresTime`（否则此刻或板子只剩这一个日期筛选时又会接回去），手动接上日期筛选则拿掉它（`unbindPanels`、`bindPanel`）；改筛选类型（`retypeFilter`）不算手动拆（`byHand: false`）；自动连接（`bindPanel` 顺带的）不接整体读的面板。准入：`ignoresTime` 只能是 `true`；`timeField` 与系统视图的必须是定义自己的日期字段（`definition.timeField.unknown`／`-not-time`）。时间角色（后端补的 `EVENT_TIME` 等，host-integration.md 第 7 节）以后给 `timeField` 缺省。（见 test/timeBindings.test.ts、控制台 `overview.test.ts`「narrows every panel of … by the window」）
 - **展示覆盖**（D22 D）：`presentation` 只收 `PANEL_PRESENTATION_MEMBERS`（`layout`、`chart`、`table`）——视图里画结果而不是问结果的那几个成员（D20），表格合计行一并算作「怎么看」；维度、指标、条件、排序永远是视图的。内核只判形状（不是对象、带了别的成员 → warning `dashboard.panel.presentation-dropped`）；合不合身由 runtime 用视图自己的内核判，不合身整份丢掉并注明同一条 warning，不是 error（见 [runtime.md#dashboard](runtime.md#dashboard)）。`setPresentation(…, null)` 就是「恢复为视图的样子」。替换视图时覆盖作废（它说的是怎么看原来那个视图）。
 - **标题卡片**：`{ kind: 'heading', content }`，一行纯文本、不解析 markdown，最长 `MAX_HEADING_LENGTH`（200，超出 `dashboard.heading.too-long`）；空文本允许（界面在编辑中显示占位）。它的字就是面板的名字（`panelName`），画在面板自己的标题元素里，正文不再重复。
 - **筛选**（D22 F、G，批 C1）：一个筛选就是筛选条上的一枚，经每个面板的一个字段去筛它。**六种类型对齐字段种类**（`DASHBOARD_FILTER_KINDS`）：日期（`datetime`／`date`，含相对与区间）、文本或类别（`string`／`enum`）、ID（`reference`）、数字、是否、搜索（`search`：记录视图的搜索框，一行文本，按接上的那个搜索字段的 `searchFields`／`searchMode` 编译；只接记录视图，`boardFieldsOf`，自动连接按搜索框而不按名字，见 [ui/dashboard.md](ui/dashboard.md#筛选d22-fg批-c)「板上的搜索」）；「同类型」说的是同一类（`sameFilterType`），所以日期筛选接得上 `date` 也接得上 `datetime`，文本筛选接得上 `enum`。六类之外的种类（宿主自己注册的、数组……）照样能当筛选，自成一类：只接同一种类的字段、按那个种类的缺省操作符问——扩展点不因筛选而关上。**一个值就是一条条件**（`filterCondition`，`src/dashboard/filters.ts`）：操作符只由类型定（`filterOperatorOf`）——日期 `BETWEEN`（相对窗口、区间、某天、命名时段都是它）、是否 `EQ`、搜索 `SEARCH`、其余 `IN`；**单值也存成一项的列表**，于是同一条条件原样接得上 `string`、`enum`、`reference` 字段，映射时不必翻译操作符（`enum` 本来就只有 `IN`）。空值不筛任何东西。**值是读者的，从不进配置**（用户拍板「筛选值写进地址，不写进配置」）：配置只说它从哪开始（`default`）与怎么设（`required`、`multiple`、`options`）；此刻的值 `DashboardFilters` 在 runtime 里（[runtime.md#dashboard](runtime.md#dashboard)）。准入（`src/dashboard/validateFilters.ts`）：名字照旧（非空、合 Wow 字段语法、不重名）；`required`／`multiple` 只能是 `true` 或不写；`options` 是数组，空数组是 warning（`dashboard.field.options-empty`：作者可能正在列）；默认值按这个筛选自己的值来判（种类的值形状、单值筛选给了多个是 `dashboard.field.not-multiple`）；**`oneDay` 的筛选只收一天**（2026-09-26 审查 P1-1，`isOneDayValue`）：`ONE_DAY_PRESETS`（今天、昨天、前天——明天也是一天，但还没有数），或日历上的一天（`from` 是一天、`to` 同一天或不写）；别的值是 `dashboard.field.not-one-day`，非日期筛选带这个开关是 `dashboard.field.one-day-not-date`；打开开关时不是一天的默认值被拿掉（`setFilterOneDay`）。**必填却没有默认值是 error**（`dashboard.field.required-no-default`：必填永远有值，没有默认值就没有起点）；最多 `MAX_DASHBOARD_FILTERS`（20）个。默认值还要经每个接上的面板的字段再判一次（与固定范围一起并进 `['panels', i, 'filter']` 那棵合并树）：一个面板的 `enum` 字段收不下的默认值，搭板子时就在那个面板上说，而不是等跑起来。（见 test/dashboardFilters.test.ts「the six filter types」「the condition a filter stands for」「admission of the filters」）

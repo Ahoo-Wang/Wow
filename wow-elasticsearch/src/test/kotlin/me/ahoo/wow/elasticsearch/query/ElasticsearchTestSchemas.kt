@@ -88,8 +88,9 @@ internal fun nativeBindings(
     vararg capabilities: QueryCapability,
     projection: QueryField? = physical,
     response: QueryField? = projection,
+    scope: QueryField? = null,
 ): QueryValueBindings = QueryValueBindings(
-    capabilities.associateWith { QueryFieldBindingTemplate(physical.path.testPath(), null) },
+    capabilities.associateWith { QueryFieldBindingTemplate(physical.path.testPath(), null, scope) },
     projection?.path?.testPath(),
     response?.path?.testPath(),
 )

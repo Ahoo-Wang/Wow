@@ -18,24 +18,69 @@ import {
   type DashboardViewPanel,
   type ViewSource,
 } from "@ahoo-wang/wow-view-engine";
+import { inLocale } from "./text.ts";
 import { describe, expect, it } from "vitest";
 import { createExecutionEngine } from "./engine.ts";
-import {
-  EXECUTION_FAILED,
-  executionFailedDefinition,
-} from "./executionFailed.ts";
-import {
-  EXECUTION_HISTORY,
-  executionHistoryDefinition,
-} from "./executionHistory.ts";
+import { executionFailed } from "./executionFailed.ts";
+import { EXECUTION_HISTORY, executionHistory } from "./executionHistory.ts";
 import {
   ATTENTION_PANEL,
   OVERVIEW,
   OVERVIEW_WINDOW,
-  overviewDefinition,
+  overview,
 } from "./overview.ts";
 
 const LOCALES = ["en", "zh-CN"] as const;
+
+/**
+ * The field each board's window narrows each panel by, as the wires once
+ * written by hand said: the failed executions by when they ran, the event
+ * streams by when they were written, the failures of the window by when
+ * they first failed, a recovery by when it last changed. A panel not named
+ * is read whole.
+ */
+const EXECUTED = "state.executeAt";
+const WRITTEN = "createTime";
+const WINDOWED: Record<string, Record<string, string>> = {
+  home: {
+    "in-window": EXECUTED,
+    actionable: EXECUTED,
+    "timed-out": EXECUTED,
+    unrecoverable: EXECUTED,
+    "new-failures": WRITTEN,
+    prepared: WRITTEN,
+    "retry-failed": WRITTEN,
+    "retry-succeeded": WRITTEN,
+    "net-backlog": WRITTEN,
+    "retry-success": WRITTEN,
+    clusters: EXECUTED,
+    repair: "firstEventTime",
+    recoverability: EXECUTED,
+    retries: EXECUTED,
+    [ATTENTION_PANEL]: EXECUTED,
+  },
+  failures: {
+    arrivals: "firstEventTime",
+    repair: "firstEventTime",
+    recovery: "eventTime",
+  },
+  activity: {
+    newFailures: WRITTEN,
+    prepared: WRITTEN,
+    retryFailed: WRITTEN,
+    retrySucceeded: WRITTEN,
+    activity: WRITTEN,
+    "event-mix": WRITTEN,
+    interventions: WRITTEN,
+  },
+};
+
+/** A service with nothing in it: the board runs, and every count is zero. */
+const emptySource: ViewSource = {
+  paged: () => Promise.resolve({ total: 0, list: [] }),
+  cursor: () => Promise.resolve({ nextCursor: null, list: [] }),
+  aggregate: () => Promise.resolve([]),
+};
 
 const unusedSource: ViewSource = {
   paged: () => Promise.reject(new Error("not queried")),
@@ -44,7 +89,7 @@ const unusedSource: ViewSource = {
 };
 
 function board(locale: (typeof LOCALES)[number]): DashboardViewConfig {
-  const config = overviewDefinition(locale).views?.[0]?.config;
+  const config = inLocale(overview, locale).views?.[0]?.config;
   if (config?.kind !== "dashboard") throw new Error("No overview board");
   return config;
 }
@@ -53,11 +98,6 @@ function panels(locale: (typeof LOCALES)[number]): DashboardViewPanel[] {
   return board(locale).panels.filter(
     (panel): panel is DashboardViewPanel => panel.kind === "view",
   );
-}
-
-/** Which definition a panel reads, whether it owns its view or not. */
-function definitionOf(panel: DashboardViewPanel): string {
-  return panel.owned?.definitionId ?? EXECUTION_FAILED;
 }
 
 describe("overviewDefinition", () => {
@@ -87,8 +127,8 @@ describe("overviewDefinition", () => {
     expect(zh.panels.map(({ id, layout }) => [id, layout])).toEqual(
       en.panels.map(({ id, layout }) => [id, layout]),
     );
-    expect(overviewDefinition("zh-CN").title).toBe("概览");
-    expect(overviewDefinition("en").title).toBe("Overview");
+    expect(inLocale(overview, "zh-CN").title).toBe("概览");
+    expect(inLocale(overview, "en").title).toBe("Overview");
   });
 
   it("stays inside the 24 columns, one panel to a cell", () => {
@@ -103,31 +143,54 @@ describe("overviewDefinition", () => {
     }
   });
 
-  it("narrows every panel by the window but the whole backlog", () => {
-    expect(board("en").fields.map(({ name }) => name)).toEqual([
-      OVERVIEW_WINDOW,
-    ]);
-    // Read whole: the pile, what of it waits on a decision, where it goes
-    // and where it is.
-    const whole = ["all-active", "exhausted", "fate", "concentration"];
-    for (const panel of panels("en")) {
-      const field =
-        definitionOf(panel) === EXECUTION_HISTORY
-          ? "createTime"
-          : panel.id === "repair"
-            ? // The failures of the window: when they first failed.
-              "firstEventTime"
-            : "state.executeAt";
-      expect(panel.bindings, panel.id).toEqual(
-        whole.includes(panel.id)
-          ? []
-          : [{ globalField: OVERVIEW_WINDOW, panelField: field }],
-      );
-    }
-  });
+  /**
+   * The board writes no time wires: the window reaches each panel through
+   * its data's time field (`timeField`), or its view's own, as the engine
+   * reads the board. What each panel runs under is the same as
+   * when the wires were written by hand — so are the numbers.
+   */
+  it.each(["home", "failures", "activity"])(
+    "narrows every panel of %s by the window but the whole backlog",
+    async (view) => {
+      const engine = createExecutionEngine({
+        locale: "en",
+        store: new MemoryViewStore(),
+        source: emptySource,
+        historySource: emptySource,
+      });
+      try {
+        const runtime = await engine.open(systemInstanceId(OVERVIEW, view));
+        await new Promise((settled) => setTimeout(settled, 0));
+        const { applied } = runtime.getSnapshot();
+        if (applied.kind !== "dashboard") throw new Error(view);
+        expect(applied.fields.map(({ name }) => name)).toEqual([
+          OVERVIEW_WINDOW,
+        ]);
+        for (const panel of applied.panels) {
+          if (panel.kind !== "view") continue;
+          const field = WINDOWED[view]?.[panel.id];
+          expect(panel.bindings, panel.id).toEqual(
+            field
+              ? [
+                  {
+                    globalField: OVERVIEW_WINDOW,
+                    panelField: field,
+                    auto: true,
+                    derived: true,
+                  },
+                ]
+              : [],
+          );
+        }
+        runtime.dispose();
+      } finally {
+        engine.dispose();
+      }
+    },
+  );
 
   it("lays the analyses out on boards of their own, each naming a view there is", () => {
-    const definition = overviewDefinition("en");
+    const definition = inLocale(overview, "en");
     expect(definition.views?.map(({ id }) => id)).toEqual([
       "home",
       "failures",
@@ -135,8 +198,8 @@ describe("overviewDefinition", () => {
     ]);
     const offered = new Set(
       [
-        executionFailedDefinition("en"),
-        executionHistoryDefinition("en"),
+        inLocale(executionFailed, "en"),
+        inLocale(executionHistory, "en"),
       ].flatMap((each) =>
         (each.views ?? []).map(({ id }) => systemInstanceId(each.id, id)),
       ),
@@ -154,7 +217,7 @@ describe("overviewDefinition", () => {
     (locale) => {
       const clusters = panels(locale).find(({ id }) => id === "clusters");
       const short = clusters?.owned?.config;
-      const whole = executionFailedDefinition(locale).views?.find(
+      const whole = inLocale(executionFailed, locale).views?.find(
         ({ id }) => id === "clusters",
       )?.config;
       if (short?.kind !== "analysis" || whole?.kind !== "analysis")

@@ -88,7 +88,7 @@ Architecture tests enforce the dependency rules: `model` imports nothing; `filte
 | Axis | Mechanism |
 |---|---|
 | Field type | Register a `FieldKind`: operators, validation, `compile` to `FilterExpression`, and an editor descriptor that names one of the built-in value inputs |
-| Data source | `resolveSource(key)` returns a `wow-client` query client |
+| Data source | Each entry of `resources` pairs a definition with its source, a `wow-client` query client |
 | Persistence | Implement `ViewStore` |
 | Actions | Pass `global`, `bulk`, and `row` action render functions to a workbench; they are code and are never saved |
 | Appearance | CSS variables, presets and the shadcn bridge (see [Theming the View Engine](../../../guide/typescript/view-engine-theming.md)); replace components by composing the `/react` hooks |

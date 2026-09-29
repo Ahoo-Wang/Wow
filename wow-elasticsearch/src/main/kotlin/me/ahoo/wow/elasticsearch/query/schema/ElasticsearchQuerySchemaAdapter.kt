@@ -14,23 +14,26 @@
 package me.ahoo.wow.elasticsearch.query.schema
 
 import co.elastic.clients.elasticsearch._types.mapping.Property
+import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.schema.QueryCapability
 import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.api.query.schema.QueryValueKind
 import me.ahoo.wow.api.query.schema.QueryValueType
-import me.ahoo.wow.api.query.schema.Temporal
+import me.ahoo.wow.elasticsearch.eventsourcing.SNAPSHOT_DOCUMENT_ID_SOURCE
 import me.ahoo.wow.elasticsearch.query.ElasticsearchIndexMapping
 import me.ahoo.wow.elasticsearch.query.ElasticsearchIndexMappingResolver
 import me.ahoo.wow.elasticsearch.query.ElasticsearchMappedField
 import me.ahoo.wow.query.schema.AbsentValues
 import me.ahoo.wow.query.schema.AggregationSupport
 import me.ahoo.wow.query.schema.LogicalQuerySchema
+import me.ahoo.wow.query.schema.PagingSupport
 import me.ahoo.wow.query.schema.QueryFieldBindingTemplate
 import me.ahoo.wow.query.schema.QueryPathSegment
 import me.ahoo.wow.query.schema.QueryPathTemplate
 import me.ahoo.wow.query.schema.QuerySchemaUnavailableException
 import me.ahoo.wow.query.schema.QueryStorageAdapter
 import me.ahoo.wow.query.schema.QueryStorageFacts
+import me.ahoo.wow.query.schema.QueryStorageFamily
 import me.ahoo.wow.query.schema.QueryStorageType
 import me.ahoo.wow.query.schema.QueryValueBindings
 import me.ahoo.wow.query.schema.QueryValueSchema
@@ -40,7 +43,7 @@ import me.ahoo.wow.query.schema.alternativesOrSelf
 import me.ahoo.wow.query.schema.hasArrayBranch
 import me.ahoo.wow.query.schema.isElementScope
 import me.ahoo.wow.query.schema.operationValues
-import me.ahoo.wow.serialization.MessageRecords
+import me.ahoo.wow.query.schema.storageFamilies
 import reactor.core.publisher.Mono
 
 class ElasticsearchQuerySchemaAdapter(
@@ -112,7 +115,8 @@ class ElasticsearchQuerySchemaAdapter(
                 fullProjectionAvailable = mapping.fullProjectionAvailable,
                 // `cardinality` (HyperLogLog++) and `percentiles` (TDigest) are estimates.
                 approximateMetrics = setOf("DISTINCT_COUNT", "PERCENTILE"),
-                storage = STORAGE_SUPPORT,
+                // A search whose `from + size` passes the index's window fails; admission rejects the page instead.
+                storage = STORAGE_SUPPORT.copy(paging = PagingSupport(maxOffsetWindow = mapping.maxResultWindow)),
                 capabilities = buildSet {
                     if (rootSearchFields.any(ElasticsearchMappedField::supportsModelFullText)) {
                         add(QueryCapability.FULL_TEXT_TERMS)
@@ -231,6 +235,9 @@ class ElasticsearchQuerySchemaAdapter(
             return QueryFieldBindingTemplate(
                 physicalPath = selected.first.template(),
                 storageTypes = setOf(QueryStorageType(selected.second.kind.jsonValue())),
+                // The innermost nested mapping the field lies in: a sort addresses the field through it.
+                physicalScope = nestedPaths.filter { selected.first.startsWith("$it.") }.maxByOrNull { it.length }
+                    ?.let(::QueryField),
             )
         }
 
@@ -269,7 +276,7 @@ class ElasticsearchQuerySchemaAdapter(
          * The field each built-in store writes as the document `_id`: the snapshot store indexes a snapshot under its
          * aggregate id. An event stream document's `_id` is `aggregateId-version`, which no queryable field holds.
          */
-        private val DOCUMENT_ID_SOURCES = mapOf(QueryModel.SNAPSHOT to MessageRecords.AGGREGATE_ID)
+        private val DOCUMENT_ID_SOURCES = mapOf(QueryModel.SNAPSHOT to SNAPSHOT_DOCUMENT_ID_SOURCE)
 
         /**
          * Whether the physical field a cursor sorts by holds one value per document: not inside an array or a nested
@@ -373,78 +380,27 @@ private fun QueryValueSchema.proves(capability: QueryCapability, kind: Property.
         if (it.kind == QueryValueKind.ARRAY) checkNotNull(it.items).alternativesOrSelf() else listOf(it)
     }.filter { it.kind != QueryValueKind.NULL }
     return values.isNotEmpty() && values.all { value ->
-        value.kind == QueryValueKind.SCALAR && value.storageRequirements(capability).let { requirements ->
+        value.kind == QueryValueKind.SCALAR && value.storageKinds(capability).let { requirements ->
             requirements.isNotEmpty() && requirements.all { kind in it }
         }
     }
 }
 
-private fun QueryValueSchema.storageRequirements(
-    capability: QueryCapability,
-): List<Set<Property.Kind>> = when (capability) {
-    QueryCapability.EXACT_MATCH -> valueRequirements()
-    QueryCapability.LITERAL_MATCH,
-    QueryCapability.FULL_TEXT_TERMS,
-    QueryCapability.FULL_TEXT_PHRASE,
-    -> stringRequirements()
-    QueryCapability.RANGE -> rangeRequirements()
-    QueryCapability.SORT,
-    QueryCapability.CURSOR_SORT,
-    QueryCapability.AGGREGATE_TERMS,
-    -> valueRequirements()
-    QueryCapability.AGGREGATE_NUMERIC -> numericRequirements()
-    QueryCapability.AGGREGATE_TEMPORAL -> temporalRequirements()
-    else -> emptyList()
-}
+/** The field kinds [capability] needs: the Catalog's strict table ([storageFamilies]) in Elasticsearch kinds. */
+internal fun QueryValueSchema.storageKinds(capability: QueryCapability): List<Set<Property.Kind>> =
+    storageFamilies(capability).map { families -> families.flatMapTo(linkedSetOf()) { it.kinds } }
 
-private fun QueryValueSchema.valueRequirements(): List<Set<Property.Kind>> = when (semanticType) {
-    Temporal.Date,
-    is Temporal.Epoch,
-    -> temporalRequirements()
-    else -> valueTypes.map(QueryValueType::storageKinds)
-}
-
-private fun QueryValueSchema.stringRequirements(): List<Set<Property.Kind>> = when (semanticType) {
-    Temporal.Date,
-    is Temporal.Epoch,
-    -> emptyList()
-    else -> if (valueTypes == setOf(QueryValueType.STRING)) listOf(STRING_KINDS) else emptyList()
-}
-
-private fun QueryValueSchema.numericRequirements(): List<Set<Property.Kind>> = when (semanticType) {
-    Temporal.Date -> emptyList()
-    is Temporal.Epoch -> temporalRequirements()
-    else -> if (valueTypes.all { it == QueryValueType.INTEGER || it == QueryValueType.DECIMAL }) {
-        valueTypes.map { if (it == QueryValueType.INTEGER) INTEGER_KINDS else NUMERIC_KINDS }
-    } else {
-        emptyList()
+/** The Elasticsearch field kinds that store each storage family. */
+internal val QueryStorageFamily.kinds: Set<Property.Kind>
+    get() = when (this) {
+        QueryStorageFamily.STRING -> STRING_KINDS
+        QueryStorageFamily.EXACT_STRING -> KEYWORD_KINDS
+        QueryStorageFamily.INTEGRAL -> INTEGER_KINDS
+        QueryStorageFamily.SIGNED_INTEGRAL -> SIGNED_INTEGER_KINDS
+        QueryStorageFamily.NUMERIC -> NUMERIC_KINDS
+        QueryStorageFamily.BOOLEAN -> BOOLEAN_KINDS
+        QueryStorageFamily.DATE -> DATE_KINDS
     }
-}
-
-private fun QueryValueSchema.rangeRequirements(): List<Set<Property.Kind>> = when (semanticType) {
-    is Temporal.Formatted -> if (valueTypes == setOf(QueryValueType.STRING)) listOf(KEYWORD_KINDS) else emptyList()
-    else -> temporalRequirements().ifEmpty { numericRequirements().ifEmpty { stringRequirements() } }
-}
-
-private fun QueryValueSchema.temporalRequirements(): List<Set<Property.Kind>> = when (semanticType) {
-    Temporal.Date -> if (valueTypes == setOf(QueryValueType.STRING)) listOf(DATE_KINDS) else emptyList()
-    is Temporal.Epoch -> if (
-        valueTypes == setOf(QueryValueType.INTEGER)
-    ) {
-        listOf(SIGNED_INTEGER_KINDS)
-    } else {
-        emptyList()
-    }
-    else -> emptyList()
-}
-
-private fun QueryValueType.storageKinds(): Set<Property.Kind> = when (this) {
-    QueryValueType.STRING -> STRING_KINDS
-    QueryValueType.INTEGER -> INTEGER_KINDS
-    QueryValueType.DECIMAL -> NUMERIC_KINDS
-    QueryValueType.BOOLEAN -> BOOLEAN_KINDS
-    else -> emptySet()
-}
 
 private val ElasticsearchMappedField.queryable: Boolean
     get() = indexed || (sortable && kind in DOC_VALUE_QUERY_KINDS)
@@ -459,26 +415,26 @@ private fun ElasticsearchMappedField.supportsModelPhraseSearch(): Boolean {
     return indexed && kind in PHRASE_SEARCH_KINDS
 }
 
-private val SIGNED_INTEGER_KINDS = setOf(
+internal val SIGNED_INTEGER_KINDS = setOf(
     Property.Kind.Byte,
     Property.Kind.Short,
     Property.Kind.Integer,
     Property.Kind.Long,
 )
 
-private val INTEGER_KINDS = SIGNED_INTEGER_KINDS + setOf(
+internal val INTEGER_KINDS = SIGNED_INTEGER_KINDS + setOf(
     Property.Kind.TokenCount,
     Property.Kind.UnsignedLong,
 )
 
-private val NUMERIC_KINDS = INTEGER_KINDS + setOf(
+internal val NUMERIC_KINDS = INTEGER_KINDS + setOf(
     Property.Kind.HalfFloat,
     Property.Kind.Float,
     Property.Kind.Double,
     Property.Kind.ScaledFloat,
 )
 
-private val KEYWORD_KINDS = setOf(
+internal val KEYWORD_KINDS = setOf(
     Property.Kind.Keyword,
     Property.Kind.ConstantKeyword,
     Property.Kind.CountedKeyword,
@@ -487,9 +443,9 @@ private val KEYWORD_KINDS = setOf(
 
 private val TERM_KINDS = KEYWORD_KINDS + Property.Kind.Wildcard
 
-private val BOOLEAN_KINDS = setOf(Property.Kind.Boolean)
+internal val BOOLEAN_KINDS = setOf(Property.Kind.Boolean)
 
-private val DATE_KINDS = setOf(Property.Kind.Date, Property.Kind.DateNanos)
+internal val DATE_KINDS = setOf(Property.Kind.Date, Property.Kind.DateNanos)
 
 private val NESTED_KINDS = setOf(Property.Kind.Nested)
 
@@ -536,7 +492,7 @@ private val SEARCH_KINDS = setOf(
     Property.Kind.SemanticText,
 )
 
-private val STRING_KINDS = TERM_KINDS + SEARCH_KINDS + setOf(
+internal val STRING_KINDS = TERM_KINDS + SEARCH_KINDS + setOf(
     Property.Kind.Ip,
     Property.Kind.Version,
 )

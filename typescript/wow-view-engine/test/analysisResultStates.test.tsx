@@ -36,6 +36,7 @@ import {
   deferred,
   ordersDefinition,
   testSource,
+  resourcesOf,
 } from './fixtures.js';
 
 afterEach(cleanup);
@@ -58,9 +59,8 @@ function open(
     config: analysisConfig(config),
   };
   const engine = new ViewEngine({
-    definitions: [ordersDefinition()],
+    resources: resourcesOf([ordersDefinition()], () => source),
     store: new MemoryViewStore({ instances: [view] }),
-    resolveSource: () => source,
   });
   render(
     <DataWorkbench

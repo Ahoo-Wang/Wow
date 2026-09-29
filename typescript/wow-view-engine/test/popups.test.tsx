@@ -67,7 +67,12 @@ import {
   TooltipContent,
 } from '../src/ui/popups.js';
 import { FilterPanel, ViewSurface } from '../src/ui/index.js';
-import { ordersDefinition, recordConfig, testSource } from './fixtures.js';
+import {
+  ordersDefinition,
+  recordConfig,
+  testSource,
+  resourcesOf,
+} from './fixtures.js';
 
 afterEach(cleanup);
 
@@ -84,9 +89,8 @@ async function findFieldPicker(): Promise<Element | null> {
 describe('popups carry the theme out of the root', () => {
   it('puts the root class and the surface theme on a popup', async () => {
     const engine = new ViewEngine({
-      definitions: [ordersDefinition()],
+      resources: resourcesOf([ordersDefinition()], () => testSource()),
       store: new MemoryViewStore(),
-      resolveSource: () => testSource(),
     });
     const runtime = engine.create('orders', {
       title: 'T',
@@ -164,9 +168,8 @@ describe('popups carry the theme out of the root', () => {
 
   async function openAddPopup(theme?: 'light' | 'dark') {
     const engine = new ViewEngine({
-      definitions: [ordersDefinition()],
+      resources: resourcesOf([ordersDefinition()], () => testSource()),
       store: new MemoryViewStore(),
-      resolveSource: () => testSource(),
     });
     const runtime = engine.create('orders', {
       title: 'T',
@@ -579,7 +582,7 @@ function popupOf(slot: string): HTMLElement {
  * `z-index: auto` and the popup paints at level 0, in front of the page only
  * because its portal is last in the body. That is what buries a popup under
  * anything a host raises. `PopupsOverRaisedHostLayer` in
- * `stories/view-engine/RecordWorkbench.test.stories.tsx` is the same claim
+ * `stories/view-engine/RecordWorkbenchTheme.test.stories.tsx` is the same claim
  * measured in a browser, where the layers actually exist.
  */
 describe('every popup opens on the popup layer', () => {

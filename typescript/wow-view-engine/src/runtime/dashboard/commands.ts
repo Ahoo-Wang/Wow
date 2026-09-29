@@ -30,11 +30,12 @@ import type {
   ViewInstance,
 } from '../../model/index.js';
 import { refreshIntervalOf } from '../refreshTimer.js';
-import type {
-  NewContentPanel,
-  NewFilter,
-  NewPanel,
-  NewPanelPlacement,
+import {
+  storedTimeWires,
+  type NewContentPanel,
+  type NewFilter,
+  type NewPanel,
+  type NewPanelPlacement,
 } from '../../dashboard/index.js';
 import type { EditStep } from './history.js';
 import type { DashboardRuntimeState, HeldFilters } from './contract.js';
@@ -227,6 +228,11 @@ export class BoardRules {
 export abstract class BoardCommands
   implements DashboardEditing, DashboardFilterEditing
 {
+  /** See `ManagedViewRuntime.stored`: the board without its derived time wires (D1). */
+  stored(config: DashboardViewConfig): DashboardViewConfig {
+    return storedTimeWires(config);
+  }
+
   protected abstract readonly edits: BoardEdits;
   protected abstract readonly values: FilterValues;
   protected abstract readonly presses: PanelPresses;
@@ -357,8 +363,12 @@ export abstract class BoardCommands
   bindPanel(name: string, panelId: string, panelField: string): string[] {
     return this.edits.bindPanel(name, panelId, panelField);
   }
-  unbindPanels(name: string, panelIds: readonly string[]): void {
-    this.edits.unbindPanels(name, panelIds);
+  unbindPanels(
+    name: string,
+    panelIds: readonly string[],
+    options?: { byHand?: boolean },
+  ): void {
+    this.edits.unbindPanels(name, panelIds, options);
   }
   setTimeGrouping(grouping: DashboardTimeGrouping | null): void {
     this.edits.setTimeGrouping(grouping);

@@ -29,6 +29,7 @@ import {
   overviewDefinition,
   recordConfig,
   testSource,
+  resourcesOf,
 } from './fixtures.js';
 
 /**
@@ -59,9 +60,10 @@ const board: ViewInstance = {
 
 function engine(): ViewEngine {
   return new ViewEngine({
-    definitions: [ordersDefinition(), overviewDefinition()],
+    resources: resourcesOf([ordersDefinition(), overviewDefinition()], () =>
+      testSource(),
+    ),
     store: new MemoryViewStore({ instances: [pending, board] }),
-    resolveSource: () => testSource(),
   });
 }
 

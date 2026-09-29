@@ -131,6 +131,47 @@ export const orders: ViewDefinition = {
 };
 ```
 
+### Defining a view from the descriptor
+
+A definition written by hand repeats what the service's query descriptor already says: which paths there are, what each holds, what it sorts, filters and aggregates by. `defineView(descriptor, spec)` takes those facts from a descriptor snapshot you commit beside the definition, and leaves `spec` only the choices: which fields a reader sees, in what order and under what words, the categories' wording and tone, the cells, and whatever you narrow. Its result is an ordinary `DataViewDefinition`, so nothing else in the engine knows how it was written.
+
+<!-- typecheck-context
+import type { QueryModelDescriptor } from '@ahoo-wang/wow-client';
+declare const ordersDescriptor: QueryModelDescriptor;
+-->
+
+```ts
+import { defineView, text } from '@ahoo-wang/wow-view-engine';
+
+export const orders = defineView(ordersDescriptor, {
+  id: 'orders',
+  source: 'orders',
+  title: text('orders.title'),
+  // What a board's time filter reaches its panels through.
+  timeField: 'createdAt',
+  fields: {
+    id: { label: text('orders.id'), cell: 'copyable', analysis: false },
+    status: {
+      label: text('orders.status'),
+      cell: 'status',
+      options: {
+        PENDING: { label: text('orders.pending'), tone: 'warning' },
+        SHIPPED: { label: text('orders.shipped'), tone: 'success' },
+      },
+    },
+    amount: { label: text('orders.amount'), summary: ['SUM'] },
+    createdAt: text('orders.createdAt'),
+  },
+  record: { layouts: ['table', 'card'] },
+});
+```
+
+- **Facts from the snapshot, capabilities from the source.** A field you do not list does not appear. Its kind, its values, its sensitivity and an array's entries are the model's facts, read from the snapshot; a path or a value it lacks is an admission error (`validateDefinition`, `onIssue`) — the definition still loads, and says where. What a path sorts, filters and aggregates by is the store's: where you narrow nothing the definition takes whatever the source it runs on grants (a search inside an array's entries on Elasticsearch, none on MongoDB), and where you narrow — `operators`, `sortable: false`, `summary`, `analysis` or `analysis: false` — your subset of that. A narrowing beyond the snapshot is a warning, since another store may grant it. A deprecated path warns until you give its reason; a sensitive one is kept out of analyses, a confidential one out of every comparison; a moment groups by the calendar and has an earliest and a latest.
+- **The snapshot is committed.** The definition is built when the module loads, the same in a test. A source that answers a descriptor at run time fills what you left open from it and narrows the rest, as every definition is narrowed; one that answers none runs on the snapshot's capabilities.
+- **Words are keys.** `text(key)` stands where a label goes, so one definition serves every language. The keys stay in the definition and in every view's state; the engine says them as it hands them out, in the words its `ViewEngineProvider`'s `messages` give (or `ViewEngineOptions.text`, for a host without a Provider), so switching the language redraws what is open and rebuilds nothing. A key never reaches the store: a view saved from a system view is saved in the words the reader saw, and its baseline keeps the keys, so it stays clean — and reverts — in whatever language comes next. Only the keys your definitions write are ever said: a reader's title or a row's cell that happens to hold the marks is left as it came. A key the words in force lack reads as itself and is reported (`definition.text.unknown`); the words set later fall back on `ViewEngineOptions.text`. A literal string is still a label.
+- **Time.** `timeField` — or a system view's own, `null` for one read whole — is what a board's one date filter reaches a panel through when the panel has no wire to it; a wire written by hand wins, and `ignoresTime: true` on a panel keeps the range off it.
+- `admit` from `/testing` checks all of it in a host's test ([Testing a host](#testing-a-host-an-in-memory-source)).
+
 ### 2. Create an engine
 
 <!-- typecheck-context
@@ -143,12 +184,15 @@ declare const queryClients: Record<string, Pick<QueryApi<any>, 'paged' | 'cursor
 import { MemoryViewStore, ViewEngine } from '@ahoo-wang/wow-view-engine';
 
 const engine = new ViewEngine({
-  definitions: [orders],
   store: new MemoryViewStore(),
   // Pick<QueryApi, 'paged' | 'cursor' | 'aggregate'> from @ahoo-wang/wow-client
-  resolveSource: key => queryClients[key],
+  resources: [{ definition: orders, source: queryClients.orders }],
 });
 ```
+
+Each **resource** pairs a definition with where its rows come from. A board's definition has no source — it queries nothing of its own. Sources are found by the key a data definition names (`definition.source`), so two definitions over one query model share it; a data definition registered with no source anywhere is refused at registration (`definition.source.unregistered`), so its workbench says so and only the board panels over it are put out. Register every resource once, at the application's start: **one engine for the application**, whose pages share its queries, preferences and descriptors. The query queue makes room for a board by itself — an open board holds room for its panels on top of `maxQueuedQueries` — so a large board opens whole without raising the limit.
+
+Findings with nothing thrown behind them — a definition's admission, what a descriptor took away — go to `onIssue`. Left out, a development build (`NODE_ENV` of `development`) prints them to the console, one collapsed group per resource, each with how to fix it; production and test runs stay silent.
 
 **What the server admits: `describe`.** A definition is code and cannot know which store it is deployed on: a phrase search that works on Elasticsearch is refused by MongoDB without a text index, and a server whose query guard was raised admits more than the engine's defaults. Give the source a `describe` — wow-client's `describeSnapshot` (or `describeEventStream`) fits as it is — and the engine reads the server's capability descriptor before the first view over that source runs, narrows every definition to what the descriptor admits (an operator, a sort, a search, a group or a metric it does not list is not offered: hidden, not greyed out) and takes the source budgets (`maxPageSize`, `maxPageWindow`, `maxAnalysisRows`, `maxQueryFilterNodes`, `maxFilterValues`) from it; a query over the last two, counted on the compiled query as the server's guard counts it, is refused before it is sent. It checks the descriptor again, with the version it holds, on a refresh and when the page comes back, at most every five minutes. What narrowing took away is told to `onIssue`, once per descriptor version; where the descriptor contradicts the definition — a paging mode the source lacks, a row key it cannot sort, a time kept in another unit — the definition is refused as one failing admission is. Without `describe`, a view runs on the definition and the default limits as before.
 
@@ -165,14 +209,18 @@ import { MemoryViewStore, ViewEngine } from '@ahoo-wang/wow-view-engine';
 // factory.createSnapshotQueryClient() and factory.createQueryDescriptorClient():
 // the schema route has no tenant or owner segment, so they are two clients.
 const engine = new ViewEngine({
-  definitions: [orders],
   store: new MemoryViewStore(),
-  resolveSource: () => ({
-    paged: snapshots.paged,
-    cursor: snapshots.cursor,
-    aggregate: snapshots.aggregate,
-    describe: descriptors.describeSnapshot,
-  }),
+  resources: [
+    {
+      definition: orders,
+      source: {
+        paged: snapshots.paged,
+        cursor: snapshots.cursor,
+        aggregate: snapshots.aggregate,
+        describe: descriptors.describeSnapshot,
+      },
+    },
+  ],
 });
 ```
 
@@ -194,9 +242,8 @@ import { MemoryViewStore, ViewEngine } from '@ahoo-wang/wow-view-engine';
 import { browserRuntimeEnvironment } from '@ahoo-wang/wow-view-engine/react';
 
 const engine = new ViewEngine({
-  definitions: [orders],
   store: new MemoryViewStore(),
-  resolveSource: key => queryClients[key],
+  resources: [{ definition: orders, source: queryClients.orders }],
   // `defaultRuntimeEnvironment({ onError })` without React.
   environment: browserRuntimeEnvironment({
     onError: ({ kind, error, context }) =>
@@ -214,6 +261,57 @@ const engine = new ViewEngine({
 | `chart`  | The chart library did not load, or threw drawing                                                    | `load`, `draw`                                                  |
 
 `context` also names the view where it is known — `definitionId`, `instanceId`, `runtimeId` — and, for `render` and `chart`, the `boundary`, the `panelId` and React's `componentStack`. A request called off (superseded by the next one, or cancelled) is not a failure and is not told. `onRenderFailure` on a workbench, a grid or an embed stays: it is that surface's own callback and receives the same `error`; `onError` is the whole engine's. `onIssue` on the engine is for findings with nothing thrown behind them, such as a definition's admission.
+
+### 3. Put the engine above your pages: `ViewEngineProvider`
+
+The engine is headless; what a resource does in your host — where its views live in your address, how one of its records is read, your commands on its records — is bound once, in React, by the definition's id:
+
+<!-- typecheck-context
+import { ViewEngine } from '@ahoo-wang/wow-view-engine';
+import type { ReactNode } from 'react';
+declare const engine: ViewEngine;
+declare const locale: string;
+declare const ordersWords: Record<string, string>;
+declare const orderActions: import('@ahoo-wang/wow-view-engine/react').RecordActionSlots;
+declare function go(path: string, state: unknown): void;
+declare function openElsewhere(to: object): void;
+declare const children: ReactNode;
+-->
+
+```tsx
+import { bind, ViewEngineProvider } from '@ahoo-wang/wow-view-engine/ui';
+
+const bindings = [
+  bind('orders', {
+    route: view => (view ? `/orders?view=${view}` : '/orders'),
+    reading: { title: row => `Order ${String(row.key)}` },
+    actions: orderActions,
+  }),
+  bind('overview', { route: board => `/boards/${board}` }),
+];
+
+<ViewEngineProvider
+  engine={engine}
+  locale={locale}
+  messages={ordersWords}
+  navigate={to =>
+    to.kind === 'route' ? go(to.path, to.state) : openElsewhere(to)
+  }
+  bindings={bindings}
+>
+  {children}
+</ViewEngineProvider>;
+```
+
+| Prop       | What it does                                                                                                                                                                                                                                                                                                                                                                                     |
+| ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `engine`   | The application's engine. The Provider that names it says its definitions' keys in its `messages`                                                                                                                                                                                                                                                                                                |
+| `locale`   | The language values show in; with `messages`, a change of it redraws every open view in place — the same runtimes, no query run again                                                                                                                                                                                                                                                            |
+| `messages` | Wording merged over what is in force: the engine's own (`zhCN`, your rewording) and your definitions' keys alike                                                                                                                                                                                                                                                                                 |
+| `navigate` | Your route. A way off a board or a view — **Open in the workbench**, a follow-up on a group, a panel's destination, the way back to a board — comes resolved through the target definition's `route`: `{ kind: 'route', path, state }`, `state` holding the view to open (`handOver`) or the board's `filters` and `tab`. A URL, and a definition with no `route`, come as they were             |
+| `bindings` | `bind(definitionId, { route, reading, actions, bulk })`: `route(instanceId, target)` is the path of the page that opens it (`instanceId` is `null` for a view nobody saved); `reading` is the record detail's options (`render`, `title`, `sections`, `open`/`onOpenChange`); `actions` and `bulk` are your commands on its records — on its workbench and on every board's record panel over it |
+
+A surface under it takes only what differs where it stands — `<DataWorkbench definitionId="orders" />`, `<EmbeddedDashboard instanceId="…" />`. Its own `engine`, `messages`, `locale`, `onNavigate` or `record` still win, and Providers nest, the inner one's bindings winning by id: a page with two engines is written as before. An engine's definitions speak the `messages` of the outermost Provider that names it — one engine speaks one language at a time — so an inner Provider in another language — naming the engine again at any depth, or naming none — rewords the engine's own messages under it, not the definitions' keys; two sibling Providers naming one engine must give it the same words. `EmbeddedView`'s `detail` reads records the bound way (`render`, `title`, `sections`) but holds its own open record: two embeds of one definition never open the same one, and never write the binding's `open`.
 
 ### 3a. Render the default workbench
 
@@ -377,24 +475,24 @@ Every way off the embed goes through your one route, `onNavigate(to)` — the sa
 
 **The switches** — each absent, not greyed, when off. The tier is the ceiling and a switch opts in within it: search, export, a record's detail and fill-the-screen are reader controls, so they have no effect in the static tier:
 
-| Prop                          | Default   | What it does                                                                                                                                                                                                                                                                                                     |
-| ----------------------------- | --------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `withTitle`                   | off       | Draws the view's or board's title                                                                                                                                                                                                                                                                                |
-| `headingLevel`                | `2`       | The heading level the embed titles at: its own title, and a board's panels one level under it (or at it, with no title). Your page owns its `h1`                                                                                                                                                                 |
-| `withPanelTitles` (dashboard) | on        | Off, each panel's title is kept for screen readers only                                                                                                                                                                                                                                                          |
-| `withSearch` (record)         | off       | The view's search box, where its definition declares a search field; interactive tier only                                                                                                                                                                                                                       |
-| `withExport` (record)         | off       | The export button and window, rows picked with it; interactive tier only                                                                                                                                                                                                                                         |
-| `detail` (record)             | off       | A row opens the record's detail, read whole and read-only — no row commands, nothing written; `true`, or the workbench's `record.detail` options (`open`/`onOpenChange`, your `sections`). Inside a drawer it opens as a nested sheet: Escape closes it alone, focus goes back to the row. Interactive tier only |
-| `withExport` (dashboard)      | off       | **Export data…** in a panel's "⋯" menu, the same export window; interactive tier only                                                                                                                                                                                                                            |
-| `autoRefresh`                 | on        | Refreshes on the interval its author saved; off, never on its own                                                                                                                                                                                                                                                |
-| `withRefresh` (dashboard)     | off       | **Updated 10:32** in the first row — when the panels on screen were read, the earliest of them — and, in the interactive tier, the refresh button beside it (no interval menu); refreshing writes nothing                                                                                                        |
-| `openInWorkbench`             | on        | Whether **Open in the workbench** is offered in the interactive tier                                                                                                                                                                                                                                             |
-| `expandable`                  | off       | **Fill the screen** at the end of the embed's first row, in the interactive tier: the surface fills the screen in place, as a workbench's does; Escape puts it back                                                                                                                                              |
-| `size`                        | `content` | `content` sizes to what it shows, with a cap (a record or analysis table scrolls inside `--fve-record-table-max-h`); `fill` fills its container — a whole-page embed, a wall screen                                                                                                                              |
+| Prop                          | Default   | What it does                                                                                                                                                                                                                                                                                                                                                                             |
+| ----------------------------- | --------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `withTitle`                   | off       | Draws the view's or board's title                                                                                                                                                                                                                                                                                                                                                        |
+| `headingLevel`                | `2`       | The heading level the embed titles at: its own title, and a board's panels one level under it (or at it, with no title). Your page owns its `h1`                                                                                                                                                                                                                                         |
+| `withPanelTitles` (dashboard) | on        | Off, each panel's title is kept for screen readers only                                                                                                                                                                                                                                                                                                                                  |
+| `withSearch` (record)         | off       | The view's search box, where its definition declares a search field; interactive tier only                                                                                                                                                                                                                                                                                               |
+| `withExport` (record)         | off       | The export button and window, rows picked with it; interactive tier only                                                                                                                                                                                                                                                                                                                 |
+| `detail` (record)             | off       | A row opens the record's detail, read whole and read-only — no row commands, nothing written; `true` (read as the definition's binding's `reading` says, where there is one), or the workbench's `record.detail` options (`open`/`onOpenChange`, your `sections`). Inside a drawer it opens as a nested sheet: Escape closes it alone, focus goes back to the row. Interactive tier only |
+| `withExport` (dashboard)      | off       | **Export data…** in a panel's "⋯" menu, the same export window; interactive tier only                                                                                                                                                                                                                                                                                                    |
+| `autoRefresh`                 | on        | Refreshes on the interval its author saved; off, never on its own                                                                                                                                                                                                                                                                                                                        |
+| `withRefresh` (dashboard)     | off       | **Updated 10:32** in the first row — when the panels on screen were read, the earliest of them — and, in the interactive tier, the refresh button beside it (no interval menu); refreshing writes nothing                                                                                                                                                                                |
+| `openInWorkbench`             | on        | Whether **Open in the workbench** is offered in the interactive tier                                                                                                                                                                                                                                                                                                                     |
+| `expandable`                  | off       | **Fill the screen** at the end of the embed's first row, in the interactive tier: the surface fills the screen in place, as a workbench's does; Escape puts it back                                                                                                                                                                                                                      |
+| `size`                        | `content` | `content` sizes to what it shows, with a cap (a record or analysis table scrolls inside `--fve-record-table-max-h`); `fill` fills its container — a whole-page embed, a wall screen                                                                                                                                                                                                      |
 
 **A board's filters, each in one of three modes** (`filterModes`, by filter name; `groupingMode` for the time grouping): `adjustable` — on the bar, the reader's to adjust for this viewing, as in the workbench, and the default; `locked` — on the bar as what it holds, with a lock and no control; `hidden` — not on the bar, still narrowing the panels wired to it. Locked and hidden filters are held by the runtime, so nothing the reader does — a value, **Clear**, a press that cross-filters — changes them. Their values are the page's own, `pageValues` (their default where it names none): in force from the first query, and followed as the prop changes — a customer page moving to the next customer takes the board with it. The reader's filters are your address's, `initialFilters` and `onFiltersChange`, read and reported exactly as `DashboardWorkbench` does. **A locked or hidden value never travels through the address**: an entry for one in `initialFilters` is ignored, and `onFiltersChange` reports only the filters the reader can set — otherwise a reader who edits the address changes the customer, the opposite of locking it. A board takes no condition tree (`EmbeddedDashboard` has no `scopeFilter`): to narrow it, declare the filter on the board and lock or hide it.
 
-**Your commands on a board's record panels** (`recordPanel(panel)`, on `EmbeddedDashboard` and `DashboardWorkbench` alike): return the same `actions` a record workbench takes — a row's slot, drawn in both tiers, and a selection's, drawn only where rows can be picked (the interactive tier) — and your `useBulkCommand`, whose progress the panel shows above its rows; each context's `refresh` re-runs that panel. They are your commands against your service: the embed still writes nothing. A record panel also says how many rows its query matched, with the pages in the interactive tier.
+**Your commands on a board's record panels** come from what you bound to the definition the panel's view is over (`bind(definitionId, { actions, bulk })` on the `ViewEngineProvider`), on `EmbeddedDashboard` and `DashboardWorkbench` alike: the same `actions` a record workbench takes — a row's slot, drawn in both tiers, and a selection's, drawn only where rows can be picked (the interactive tier) — and your `useBulkCommand`, whose progress the panel shows above its rows; each context's `refresh` re-runs the board. They are your commands against your service: the embed still writes nothing. A record panel also says how many rows its query matched, with the pages in the interactive tier.
 
 **Locking is not a security boundary.** The condition a page locks is put together in the browser and sent with the query; it only keeps the reader from changing it on screen, or seeing anything else there. Anyone who edits the page's script or calls the API directly can ask for another customer. Tenancy, ownership and permission must be enforced by the Wow backend — above all on a page outside your organisation. This package is a library in your host's process: it does not do what Metabase does with iframes, signed tokens or SSO, because identity and permission belong to your host and your backend.
 
@@ -1022,9 +1120,8 @@ const source = memorySource(documents, {
   now: () => Date.parse('2026-09-27T00:00:00Z'),
 });
 const engine = new ViewEngine({
-  definitions: [orders],
+  resources: [{ definition: orders, source }],
   store: new MemoryViewStore(),
-  resolveSource: () => source,
 });
 
 // A test's own condition, asked of one document the same way.
@@ -1036,6 +1133,26 @@ const paid = matches(documents[0], {
 ```
 
 What it promises: every filter operator the engine compiles, with MongoDB's treatment of a missing field, an explicit `null`, an empty string or array, array elements and case; `DELETION` over a `deleted` flag (a document with `deleted: true` is left out unless the filter asks); paging, cursor (an offset) and sort; projection; and aggregation — `elements` (paths and gate filters relative to the element), `TERMS`, `HISTOGRAM`, `DATE_HISTOGRAM` and `DATE_PART` in a zone (UTC by default), `dense`, every metric with its own filter, `DERIVED`, `having`, the order Wow gives groups (the sort, then each group alias ascending) and its default `limit` of 100. `PERCENTILE` is exact, where a server's is an estimate between the same two ranks. What it has no reading of — `ID`, `TENANT_ID`, `SPACE_ID`, the calendar filters the engine never sends — is refused with an error, so a query a test starts to send fails instead of getting a plausible wrong answer. `timeField` keeps a large set in the order of one epoch-ms column and cuts a range on it by binary search; `remember` answers a repeated aggregation from memory, for documents that never change. The entry is headless — no React, no DOM, no stylesheet. It evaluates filters with `mingo`, MongoDB's query language in JavaScript, which is an optional peer dependency: the package does not install it for you, so a host that imports `/testing` adds it to its own dev dependencies — `pnpm add -D mingo` (or `npm install -D mingo`). No other entry loads it.
+
+`admit(definitions, descriptors, { text })` admits everything a host declares as the engine would — each definition's keys said, its own rules, its boards against every other definition, and each data definition narrowed to its committed descriptor (by `source`) — and returns every finding with the definition it is about, `[]` when all of it holds. It takes definitions, or resources holding one (`{ definition }`), as they are registered:
+
+<!-- typecheck-context
+import type { QueryModelDescriptor } from '@ahoo-wang/wow-client';
+import type { DataViewDefinition, DashboardDefinition, TextResolver } from '@ahoo-wang/wow-view-engine';
+declare const orders: DataViewDefinition;
+declare const overview: DashboardDefinition;
+declare const ordersDescriptor: QueryModelDescriptor;
+declare const english: TextResolver;
+declare function expect(value: unknown): { toEqual(expected: unknown): void };
+-->
+
+```ts
+import { admit } from '@ahoo-wang/wow-view-engine/testing';
+
+expect(
+  admit([orders, overview], { orders: ordersDescriptor }, { text: english }),
+).toEqual([]);
+```
 
 ## Concepts
 
@@ -1064,16 +1181,16 @@ Details in [docs/design/management.md](docs/design/management.md).
 
 ## Entries
 
-| Entry                        | Exports                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
-| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `@ahoo-wang/wow-view-engine` | Model types and constants; the four pure kernels (`validate*` / `compile*` / `project*` and the readings beside them); from the runtime, what a host holds and nothing it is built from — `ViewEngine`, `validateDefinition`, the runtime contracts `ViewRuntime`, `RecordViewRuntime`, `DashboardRuntime` and `AnyViewRuntime` with every type their signatures name, `hasResult`, `hasAsked`, `isRecordRuntime`, the write errors `ViewWriteError` and `ViewCommandError`, `ExportCancelled`, `RuntimeEnvironment`, `defaultRuntimeEnvironment`, `ViewSource`, `OptionSource`; the `ViewStore` port, `MemoryViewStore` and `localStorageSnapshot`    |
-| `/react`                     | Hooks and headless controllers with the types they return: `useViewEngine`, `useOpenView`, `useViewRuntime`, `useViewList`, `useViewManager`, `useWorkbench`, `useLeaveGuard`, `useFilterEditor`, `useRecordTable`, `useAnalysisEditor`, `useAnalysisResult`, `useDashboard`, `useSaveCommands`, `RecordActionSlots`, and the write-outcome vocabulary the save commands and the manager share                                                                                                                                                                                                                                                         |
-| `/ui`                        | Default components, views and workbenches with their props: `DataWorkbench`, `DashboardWorkbench`, `DashboardEditExtensions`, `useDashboardExtensions`, `EmbeddedView`, `EmbeddedDashboard`, `ViewHeader`, `SaveActions`, `ViewManager`, `LeaveDialog`, `EditorBand`, `FilterPanel`, `StatusStrip`, `AppliedBar`, `ResultToolbar`, `RowActions`, `RecordTable`, `RecordCards`, `RecordPagination`, `AnalysisTable`, `AnalysisChart`, `DashboardGrid`, `HeadingPanel`, `MarkdownPanel`, `ImagePanel`, `LinksPanel`, `MessagesProvider`; the catalogues `defaultMessages` and `zhCN`; the reading of a value, `cellValue`, `cellText` and `displayValue` |
-| `/testing`                   | `memorySource` and `matches`: an in-memory `ViewSource` with Wow's query semantics, for a host's tests ([Testing a host](#testing-a-host-an-in-memory-source))                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
-| `/styles.css`                | The theme. Import it explicitly; no JavaScript entry imports CSS, and nothing in it paints outside the two style boundaries `.fve-root` and `.fve-tokens` (preflight and utilities are scoped at build time, each rule a class heavier than written, so your import order does not matter) — bar the preset reset, which only empties the `--fvp-*` layer where a preset is named — all checked by `scripts/verify-package.mjs` on every build.                                                                                                                                                                                                        |
-| `/themes.css`                | The presets, optional: only `--fvp-*` assignments keyed by `data-fve-preset` ([Presets](#presets)), checked by the same script.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
-| `/themes/<name>.css`         | One preset alone, for a host that wears one: the same block `themes.css` holds for it ([Presets](#presets)).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
-| `/shadcn-bridge.css`         | Optional: a host's shadcn tokens read into the `--fvp-*` variables, bar `input`, `ring`, the status and the chart colours and the shadows, and only while no preset is named ([the bridge](#a-host-with-a-shadcn-theme-shadcn-bridgecss)), checked by the same script.                                                                                                                                                                                                                                                                                                                                                                                 |
+| Entry                        | Exports                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `@ahoo-wang/wow-view-engine` | Model types and constants; the four pure kernels (`validate*` / `compile*` / `project*` and the readings beside them); from the runtime, what a host holds and nothing it is built from — `ViewEngine`, `validateDefinition`, the runtime contracts `ViewRuntime`, `RecordViewRuntime`, `DashboardRuntime` and `AnyViewRuntime` with every type their signatures name, `hasResult`, `hasAsked`, `isRecordRuntime`, the write errors `ViewWriteError` and `ViewCommandError`, `ExportCancelled`, `RuntimeEnvironment`, `defaultRuntimeEnvironment`, `ViewSource`, `OptionSource`; the `ViewStore` port, `MemoryViewStore` and `localStorageSnapshot`                                  |
+| `/react`                     | Hooks and headless controllers with the types they return: `useViewEngine`, `useOpenView`, `useViewRuntime`, `useViewList`, `useViewManager`, `useWorkbench`, `useLeaveGuard`, `useFilterEditor`, `useRecordTable`, `useAnalysisEditor`, `useAnalysisResult`, `useDashboard`, `useSaveCommands`, `RecordActionSlots`, and the write-outcome vocabulary the save commands and the manager share                                                                                                                                                                                                                                                                                       |
+| `/ui`                        | Default components, views and workbenches with their props: `DataWorkbench`, `DashboardWorkbench`, `DashboardEditExtensions`, `useDashboardExtensions`, `EmbeddedView`, `EmbeddedDashboard`, `ViewEngineProvider`, `bind`, `ViewHeader`, `SaveActions`, `ViewManager`, `LeaveDialog`, `EditorBand`, `FilterPanel`, `StatusStrip`, `AppliedBar`, `ResultToolbar`, `RowActions`, `RecordTable`, `RecordCards`, `RecordPagination`, `AnalysisTable`, `AnalysisChart`, `DashboardGrid`, `HeadingPanel`, `MarkdownPanel`, `ImagePanel`, `LinksPanel`, `MessagesProvider`; the catalogues `defaultMessages` and `zhCN`; the reading of a value, `cellValue`, `cellText` and `displayValue` |
+| `/testing`                   | `memorySource` and `matches`: an in-memory `ViewSource` with Wow's query semantics; `resolveNavigation`: the engine's own routing of a way off through your bindings, for your routing tests; `admit`: a host's declarations admitted over its committed descriptors — for a host's tests ([Testing a host](#testing-a-host-an-in-memory-source))                                                                                                                                                                                                                                                                                                                                    |
+| `/styles.css`                | The theme. Import it explicitly; no JavaScript entry imports CSS, and nothing in it paints outside the two style boundaries `.fve-root` and `.fve-tokens` (preflight and utilities are scoped at build time, each rule a class heavier than written, so your import order does not matter) — bar the preset reset, which only empties the `--fvp-*` layer where a preset is named — all checked by `scripts/verify-package.mjs` on every build.                                                                                                                                                                                                                                      |
+| `/themes.css`                | The presets, optional: only `--fvp-*` assignments keyed by `data-fve-preset` ([Presets](#presets)), checked by the same script.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| `/themes/<name>.css`         | One preset alone, for a host that wears one: the same block `themes.css` holds for it ([Presets](#presets)).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| `/shadcn-bridge.css`         | Optional: a host's shadcn tokens read into the `--fvp-*` variables, bar `input`, `ring`, the status and the chart colours and the shadows, and only while no preset is named ([the bridge](#a-host-with-a-shadcn-theme-shadcn-bridgecss)), checked by the same script.                                                                                                                                                                                                                                                                                                                                                                                                               |
 
 That is the public surface, and it is kept name by name. Each entry writes every name it exports, grouped by the file that declares it; none re-exports a whole module (`test/architecture.test.ts`), so an `export` a file writes for its neighbours never becomes public by accident. Each code entry's complete list — every name, and whether it is a type or a value — is in `test/surface/` (`root.txt`, `react.txt`, `ui.txt`, `testing.txt`): `test/publicSurface.test.ts` fails when an entry exports a name its list does not hold or stops exporting one it does, and `scripts/verify-package.mjs` holds each built JavaScript entry to the same list. A name added to a list or taken off one is a change to the public surface and is reviewed as one. The command is surface too: `test/surface/bin.txt` lists the `bin` (`wow-view-engine`) and each subcommand it answers ([`theme-check`](#checking-a-theme-theme-check)).
 
@@ -1148,7 +1265,7 @@ const store = new MemoryViewStore({
 
 ### Wording and language
 
-The model carries `code` and `params` and no copy, so `/ui` owns the words. `defaultMessages` (`en`) gives every issue an English sentence, and `messages` — on `ViewSurface` and on every workbench — is merged over the wording already in force, the same seam for rewording and translation. A `MessagesProvider` around the application sets it once for every view inside. `zhCN` is a second catalogue, key for key: hand it over whole, or spread it and change what you like (`{ ...zhCN, 'label.filter.apply': '确定' }`).
+The model carries `code` and `params` and no copy, so `/ui` owns the words. `defaultMessages` (`en`) gives every issue an English sentence, and `messages` — on `ViewSurface` and on every workbench — is merged over the wording already in force, the same seam for rewording and translation. A `ViewEngineProvider` (or a bare `MessagesProvider`) around the application sets it once for every view inside, with the language values show in (`locale`). `zhCN` is a second catalogue, key for key: hand it over whole, or spread it and change what you like (`{ ...zhCN, 'label.filter.apply': '确定' }`).
 
 Values show as their fields say: an enum by its option's label, a `datetime` or a `date` through `Intl.DateTimeFormat`, a date-histogram key as the year, quarter, month or day it starts. `locale` is the language they show in, the runtime's when left out; it is the same choice as `messages`, made for values rather than words:
 
@@ -1177,7 +1294,7 @@ An unknown key falls back along the dots and then to the key itself, so a gap sh
 | Axis        | Mechanism                                                                                                                                                                                                                                                                                                                     |
 | ----------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Field type  | Register a `FieldKind` (operators, validation, `compile` to `FilterExpression`, editor descriptor). Its editor is one of the value controls `/ui` already has (`EDITOR_INPUTS`): there is no renderer registry, and a kind asking for another input is refused rather than guessed at                                         |
-| Data source | `resolveSource(key)` returns a Wow query client                                                                                                                                                                                                                                                                               |
+| Data source | Each entry of `resources` pairs a definition with its source, a Wow query client                                                                                                                                                                                                                                              |
 | Persistence | Implement `ViewStore`                                                                                                                                                                                                                                                                                                         |
 | Actions     | Pass `actions` to a workbench — `global`, `bulk` and `row` render functions. They are code, so they are handed over rather than named in a config, and nothing about them is saved. A page fetches only the fields its view shows, so a field an action reads beyond those is declared in the definition's `record.rowFields` |
 | Appearance  | CSS variables and theme files; replace components by composing `/react` hooks                                                                                                                                                                                                                                                 |

@@ -62,6 +62,7 @@ import { BulkStatus } from '../BulkStatus.js';
 import { SelectionBar } from '../record/SelectionBar.js';
 import { emptyHintOf } from '../record/EmptyResult.js';
 import type { RecordViewProps } from '../workbench/RecordParts.js';
+import type { ViewBinding } from '../bindings.js';
 import { QueryStrip } from '../StatusStrip.js';
 import { isForbiddenQuery } from '../../runtime/queryFailure.js';
 import {
@@ -88,6 +89,25 @@ import { Skeleton } from '../components/skeleton.js';
  * on a panel: the page around the board is the host's.
  */
 export type RecordPanelHost = Pick<RecordViewProps, 'actions' | 'bulk'>;
+
+/**
+ * What the host bound to the definition a record panel's view is over
+ * (`bind`): its commands and its bulk command, or nothing for a panel of
+ * another kind, or over a definition it bound none to.
+ */
+export function recordHostOf(
+  panel: DashboardPanelView,
+  bindingOf: (definitionId: string) => ViewBinding | undefined,
+): RecordPanelHost | undefined {
+  const runtime = panel.runtime;
+  if (!runtime || runtime.kind !== 'record') return undefined;
+  const binding = bindingOf(runtime.definition.id);
+  if (!binding?.actions && !binding?.bulk) return undefined;
+  return {
+    ...(binding.actions ? { actions: binding.actions } : {}),
+    ...(binding.bulk ? { bulk: binding.bulk } : {}),
+  };
+}
 
 /**
  * The host's commands on a panel of a board, their `refresh` re-running the

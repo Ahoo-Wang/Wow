@@ -42,6 +42,7 @@ import {
   overviewDefinition,
   testEnvironment,
   testSource,
+  resourcesOf,
 } from './fixtures.js';
 
 const DAY = 24 * 60 * 60 * 1000;
@@ -119,9 +120,8 @@ async function harness(
   const source = testSource({ aggregate: vi.fn(() => Promise.resolve([])) });
   const store = new MemoryViewStore();
   const engine = new ViewEngine({
-    definitions: [orders(), overviewDefinition()],
+    resources: resourcesOf([orders(), overviewDefinition()], () => source),
     store,
-    resolveSource: () => source,
     environment: clock.environment,
   });
   const config = dashboardConfig({
@@ -329,9 +329,8 @@ describe('a ratio of sums on a board card (D38 on a board)', () => {
     const source = testSource({ aggregate: vi.fn(() => Promise.resolve([])) });
     const store = new MemoryViewStore();
     const engine = new ViewEngine({
-      definitions: [orders(), overviewDefinition()],
+      resources: resourcesOf([orders(), overviewDefinition()], () => source),
       store,
-      resolveSource: () => source,
       environment: clock.environment,
     });
     // 客单价 = GMV ÷ 订单数, read as money.

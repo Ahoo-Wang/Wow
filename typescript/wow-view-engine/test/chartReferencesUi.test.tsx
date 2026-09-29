@@ -45,7 +45,7 @@ import { cartesianOption } from '../src/ui/charts/cartesianOption.js';
 import type { CartesianContext } from '../src/ui/charts/cartesianPlan.js';
 import { CHART_FALLBACK, type ChartTheme } from '../src/ui/charts/theme.js';
 import { DataWorkbench, ViewSurface, zhCN } from '../src/ui/index.js';
-import { ordersDefinition, testSource } from './fixtures.js';
+import { ordersDefinition, testSource, resourcesOf } from './fixtures.js';
 import { describedText } from './fixtures/ui.js';
 
 afterEach(cleanup);
@@ -476,9 +476,8 @@ describe('the display page', () => {
       },
     });
     const engine = new ViewEngine({
-      definitions: [definition],
+      resources: resourcesOf([definition], () => source),
       store: new MemoryViewStore({ instances: [instance] }),
-      resolveSource: () => source,
     });
     render(
       <DataWorkbench

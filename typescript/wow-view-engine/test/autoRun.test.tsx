@@ -43,6 +43,7 @@ import {
   testEnvironment,
   testSource,
   type TestEnvironment,
+  resourcesOf,
 } from './fixtures.js';
 import { addConditions, editorToggle, openTray } from './fixtures/workbench.js';
 
@@ -131,9 +132,8 @@ async function openAnalysis(
   const source = testSource();
   const clock = testEnvironment();
   const engine = new ViewEngine({
-    definitions: [twoDimensionDefinition()],
+    resources: resourcesOf([twoDimensionDefinition()], () => source),
     store,
-    resolveSource: () => source,
     environment: clock.environment,
   });
   render(
@@ -340,9 +340,8 @@ describe('改了就跑: the tray’s switch', () => {
   it('is not on a record view', async () => {
     const store = new MemoryViewStore({ instances: [mine] });
     const engine = new ViewEngine({
-      definitions: [twoDimensionDefinition()],
+      resources: resourcesOf([twoDimensionDefinition()], () => testSource()),
       store,
-      resolveSource: () => testSource(),
       environment: testEnvironment().environment,
     });
     render(

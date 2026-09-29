@@ -29,7 +29,7 @@ import org.bson.conversions.Bson
  * exactly as the gateway and the backends do.
  */
 
-internal fun AbstractMongoFilterCompiler.compile(filter: FilterExpression, schema: QueryModelSchema): Bson =
+internal fun MongoFilterCompiler.compile(filter: FilterExpression, schema: QueryModelSchema): Bson =
     compile(QueryAdmission.Trusted.count(filter, schema))
 
 internal fun MongoAggregationCompiler.compile(query: AggregationQuery, schema: QueryModelSchema): List<Bson> =

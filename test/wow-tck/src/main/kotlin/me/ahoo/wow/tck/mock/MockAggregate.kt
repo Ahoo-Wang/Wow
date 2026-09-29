@@ -48,6 +48,8 @@ data class MockAggregateChanged(val data: String)
 data class MockVoidCommand(val data: String)
 
 @AggregateRoot(commands = [MockVoidCommand::class])
+// Wow finds and invokes the private command and sourcing handlers by reflection.
+@Suppress("UnusedPrivateMember")
 class MockCommandAggregate(val state: MockStateAggregate) {
 
     @OnCommand
@@ -81,6 +83,8 @@ data class MockLine(
 
 data class MockDiscount(val type: String, val amount: Double)
 
+// Wow finds and invokes the private command and sourcing handlers by reflection.
+@Suppress("UnusedPrivateMember")
 data class MockStateAggregate(
     val id: String,
     val orders: List<MockOrder> = emptyList(),

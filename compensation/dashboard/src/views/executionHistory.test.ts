@@ -12,13 +12,11 @@
  */
 
 import { MemoryViewStore, type ViewSource } from "@ahoo-wang/wow-view-engine";
+import { inLocale } from "./text.ts";
 import { describe, expect, it } from "vitest";
-import { createExecutionEngine, executionEngineOptions } from "./engine.ts";
+import { createExecutionEngine } from "./engine.ts";
 import { EXECUTION_FAILED } from "./executionFailed.ts";
-import {
-  EXECUTION_HISTORY,
-  executionHistoryDefinition,
-} from "./executionHistory.ts";
+import { EXECUTION_HISTORY, executionHistory } from "./executionHistory.ts";
 
 const LOCALES = ["en", "zh-CN"] as const;
 
@@ -48,23 +46,24 @@ describe("executionHistoryDefinition", () => {
   it("reads the streams from the event source, not the snapshot's", () => {
     const snapshot = source("snapshot");
     const events = source("events");
-    const options = executionEngineOptions({
-      locale: "en",
+    const engine = createExecutionEngine({
       store: new MemoryViewStore(),
       source: snapshot,
       historySource: events,
     });
     const sourceOf = (id: string) => {
-      const definition = options.definitions?.find((each) => each.id === id);
+      const definition = engine.definitions.get(id);
       if (definition?.kind !== "data") throw new Error(`no ${id}`);
-      return options.resolveSource(definition.source);
+      return engine.resolveSource(definition.source);
     };
     expect(sourceOf(EXECUTION_HISTORY)).toBe(events);
     expect(sourceOf(EXECUTION_FAILED)).toBe(snapshot);
   });
 
   it("names each event type in both languages", () => {
-    const [en, zh] = LOCALES.map(executionHistoryDefinition);
+    const [en, zh] = LOCALES.map((locale) =>
+      inLocale(executionHistory, locale),
+    );
     const typesOf = (definition: typeof en) =>
       definition.fields
         .find((field) => field.name === "body")

@@ -11,8 +11,14 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.mongo.query.snapshot
+package me.ahoo.wow.mongo.query
 
-import me.ahoo.wow.mongo.query.AbstractMongoFilterCompiler
+import me.ahoo.wow.tck.query.UnnecessaryAbstractClassGuardrail
+import org.junit.jupiter.api.Test
 
-object SnapshotFilterCompiler : AbstractMongoFilterCompiler()
+class UnnecessaryAbstractClassGuardrailTest {
+    @Test
+    fun `no abstract class without an abstract member`() {
+        UnnecessaryAbstractClassGuardrail(AbstractMongoQueryBackend::class, "me.ahoo.wow.mongo.query").assertNone()
+    }
+}

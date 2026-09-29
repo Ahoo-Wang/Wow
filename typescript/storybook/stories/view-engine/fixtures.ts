@@ -816,12 +816,19 @@ export interface StoryEngineOptions {
 export function createStoryEngine(
   options: StoryEngineOptions = {},
 ): ViewEngine {
+  const source = options.source ?? storySource(options.behaviour);
+  const definitions = options.definitions ?? [
+    ordersDefinition,
+    overviewDefinition,
+  ];
   return new ViewEngine({
-    definitions: options.definitions ?? [ordersDefinition, overviewDefinition],
+    // Every data definition reads the story's one source; a board reads none.
+    resources: definitions.map(definition =>
+      definition.kind === 'data' ? { definition, source } : { definition },
+    ),
     store:
       options.store ??
       new MemoryViewStore({ instances: options.instances ?? savedViews }),
-    resolveSource: () => options.source ?? storySource(options.behaviour),
     resolveOptions: () => customerSource(),
     ...(options.limits
       ? { limits: { ...DEFAULT_RUNTIME_LIMITS, ...options.limits } }

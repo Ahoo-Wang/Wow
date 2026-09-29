@@ -595,10 +595,9 @@ export function productPricingSource(fetcher: Fetcher): ViewSource {
 export function createProductPricingEngine(fetcher: Fetcher): ViewEngine {
   const source = productPricingSource(fetcher);
   return new ViewEngine({
-    definitions: [productPricingDefinition],
+    resources: [{ definition: productPricingDefinition, source }],
     // The service pages at most 100 rows at a time.
     limits: { ...DEFAULT_RUNTIME_LIMITS, maxPageSize: 100 },
     store: new MemoryViewStore({ instances: [] }),
-    resolveSource: () => source,
   });
 }

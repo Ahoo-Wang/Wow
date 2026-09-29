@@ -27,6 +27,7 @@ import me.ahoo.wow.api.query.schema.QueryValueKind
 import me.ahoo.wow.api.query.schema.QueryValueType
 import me.ahoo.wow.api.query.schema.Temporal
 import me.ahoo.wow.api.query.spec.SystemField
+import me.ahoo.wow.api.query.spec.spec
 import me.ahoo.wow.query.QueryExecutionException
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.serialization.event.DomainEventRecords
@@ -168,11 +169,8 @@ data object SnapshotQueryModelProfile : QueryModelProfile(QueryModel.SNAPSHOT) {
     override fun defaultScope(filter: FilterExpression): FilterExpression =
         if (filter.hasDeletionScope()) MatchAllFilter else DeletionFilter(DeletionState.ACTIVE)
 
-    private fun FilterExpression.hasDeletionScope(): Boolean = when (this) {
-        is DeletionFilter -> true
-        is AndFilter -> operands.any { it.hasDeletionScope() }
-        else -> false
-    }
+    private fun FilterExpression.hasDeletionScope(): Boolean =
+        spec.systemField == SystemField.DELETED || (this is AndFilter && operands.any { it.hasDeletionScope() })
 }
 
 /** Aggregated domain event streams: one record per command, typed event payloads under `body[].body`. */

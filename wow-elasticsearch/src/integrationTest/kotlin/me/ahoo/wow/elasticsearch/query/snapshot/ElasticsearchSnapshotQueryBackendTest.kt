@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.elasticsearch.query.snapshot
 
+import co.elastic.clients.elasticsearch._types.ElasticsearchException
 import co.elastic.clients.elasticsearch._types.Refresh
 import co.elastic.clients.elasticsearch._types.ScriptLanguage
 import co.elastic.clients.elasticsearch._types.mapping.DynamicMapping
@@ -27,6 +28,9 @@ import me.ahoo.wow.api.query.CursorQuery
 import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.MatchAllFilter
+import me.ahoo.wow.api.query.QueryErrorCodes
+import me.ahoo.wow.api.query.Pagination
+import me.ahoo.wow.api.query.PagedQuery
 import me.ahoo.wow.api.query.Projection
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.SearchFilter
@@ -43,6 +47,7 @@ import me.ahoo.wow.elasticsearch.TemplateInitializer.initSnapshotTemplate
 import me.ahoo.wow.elasticsearch.eventsourcing.ElasticsearchSnapshotStore
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotStore
 import me.ahoo.wow.query.QueryAdmission
+import me.ahoo.wow.query.QueryRequestException
 import me.ahoo.wow.query.aggregate
 import me.ahoo.wow.query.cursor
 import me.ahoo.wow.query.dsl.aggregation
@@ -65,6 +70,7 @@ import me.ahoo.wow.query.schema.QuerySchemaValidationException
 import me.ahoo.wow.query.schema.QueryStorageType
 import me.ahoo.wow.query.schema.QueryValueBindings
 import me.ahoo.wow.query.schema.QueryValueSchema
+import me.ahoo.wow.query.schema.QueryViolation
 import me.ahoo.wow.query.single
 import me.ahoo.wow.query.snapshot.SnapshotQueryBackend
 import me.ahoo.wow.query.snapshot.SnapshotQueryBackendFactory
@@ -216,6 +222,9 @@ class ElasticsearchSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
 
     // Text-mapped fields of nested objects run `match` inside the nested query.
     override val elementFullTextSearch: Boolean = true
+
+    // A `long` mapping coerces a fractional epoch to its integer part when it indexes it (`coerce` defaults to true).
+    override val truncatesFractionalEpochs: Boolean = true
 
     @Suppress("UNCHECKED_CAST")
     /**
@@ -857,6 +866,38 @@ class ElasticsearchSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
             .test()
             .expectError(QuerySchemaValidationException::class.java)
             .verify()
+    }
+
+    @Test
+    fun `a page beyond the index's max_result_window is a 400 at admission where Elasticsearch refused it`() {
+        val indexName = MOCK_AGGREGATE_METADATA.toSnapshotIndexName()
+        elasticsearchClient.indices().putSettings { request ->
+            request.index(indexName).settings { it.index { index -> index.maxResultWindow(20) } }
+        }.block()
+
+        // Elasticsearch itself refuses the window: this query failed before, as a storage fault.
+        elasticsearchClient.search({ it.index(indexName).from(15).size(10) }, ObjectNode::class.java).test()
+            .expectErrorSatisfies { error ->
+                val causes = (error as ElasticsearchException).response().error().rootCause()
+                causes.any { it.reason().orEmpty().contains("max_result_window") }.assert().isTrue()
+            }
+            .verify()
+
+        val binding = strictService()
+        val schema = binding.schemaProvider.schema().block()!!
+        schema.storage.paging.maxOffsetWindow.assert().isEqualTo(20)
+        val violation = assertThrows<QueryRequestException> {
+            QueryAdmission.Trusted.paged(PagedQuery(MatchAllFilter, pagination = Pagination(3, 10)), schema)
+        }.violation
+        violation.assert().isEqualTo(
+            QueryViolation.SizeOutOfRange("Storage", "page window", 30, null, 20, "pagination"),
+        )
+        violation!!.code.assert().isEqualTo(QueryErrorCodes.SIZE_OUT_OF_RANGE)
+
+        // A page that ends at the window is still served.
+        binding.backend.paged(
+            QueryAdmission.Trusted.paged(PagedQuery(MatchAllFilter, pagination = Pagination(2, 10)), schema),
+        ).test().expectNextCount(1).verifyComplete()
     }
 
     @Test

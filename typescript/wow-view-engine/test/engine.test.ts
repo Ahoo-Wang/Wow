@@ -11,16 +11,20 @@
  * limitations under the License.
  */
 
+import { FilterOperator } from '@ahoo-wang/wow-client';
 import { describe, expect, it, vi } from 'vitest';
 import type { ViewWriteError } from '../src/index.js';
 import {
   emptyDashboardConfig,
+  builtinFieldKinds,
   isViewCommandError,
+  withFieldKinds,
   isViewWriteError,
   MemoryViewStore,
   toSummary,
   ViewEngine,
   ViewStoreError,
+  type FieldKind,
   type Issue,
   type ViewChange,
   type ViewDefinition,
@@ -39,6 +43,7 @@ import {
   requireRecordConfig,
   testEnvironment,
   testSource,
+  resourcesOf,
 } from './fixtures.js';
 
 const mine: ViewInstance = {
@@ -70,9 +75,10 @@ function harness(
   const issues: Issue[] = [];
   let sequence = 0;
   const engine = new ViewEngine({
-    definitions: options.definitions ?? [ordersDefinition()],
+    resources: resourcesOf(options.definitions ?? [ordersDefinition()], () =>
+      testSource(),
+    ),
     store,
-    resolveSource: () => testSource(),
     environment: testEnvironment().environment,
     newId: () => `req-${(sequence += 1)}`,
     onIssue: found => issues.push(found),
@@ -285,9 +291,40 @@ describe('ViewEngine opening', () => {
   });
 
   it('keeps no runtime for a dashboard that failed to open', async () => {
+    // A host's field kind that throws as a panel's view is admitted: the
+    // panel cannot be put to work, and the board's opening is refused.
+    const exploding: FieldKind = {
+      id: 'exploding',
+      operators: ['EQ'],
+      defaultOperator: 'EQ',
+      emptyValue: () => null,
+      validate: () => {
+        throw new Error('the host kind failed');
+      },
+      compile: ({ leaf, field }) => ({
+        op: FilterOperator.EQ,
+        field: field.name,
+        value: leaf.value as number,
+      }),
+      editor: () => ({ input: 'text' }),
+      describe: ({ field }) => ({
+        text: field.label,
+        value: { kind: 'none' },
+      }),
+    };
+    const orders = ordersDefinition();
     const store = new MemoryViewStore({
       instances: [
-        mine,
+        {
+          ...mine,
+          id: 'orders-1',
+          config: recordConfig({
+            filter: {
+              op: 'and',
+              children: [{ field: 'weight', operator: 'EQ', value: 1 }],
+            },
+          }),
+        },
         {
           ...mine,
           id: 'overview-1',
@@ -308,15 +345,27 @@ describe('ViewEngine opening', () => {
       ],
     });
     const engine = new ViewEngine({
-      definitions: [ordersDefinition(), overviewDefinition()],
+      resources: resourcesOf(
+        [
+          {
+            ...orders,
+            fields: [
+              ...orders.fields,
+              { name: 'weight', label: 'Weight', kind: 'exploding' },
+            ],
+          },
+          overviewDefinition(),
+        ],
+        () => testSource(),
+      ),
+      kinds: withFieldKinds(builtinFieldKinds, [exploding]),
       store,
-      resolveSource: key => {
-        throw new Error(`no source: ${key}`);
-      },
       environment: testEnvironment().environment,
     });
 
-    await expect(engine.open('overview-1')).rejects.toThrow('no source');
+    await expect(engine.open('overview-1')).rejects.toThrow(
+      'the host kind failed',
+    );
     // The caller never received it, so nobody could close it.
     expect(engine.openRuntimes()).toEqual([]);
   });
@@ -1276,9 +1325,8 @@ describe('ViewEngine wiring', () => {
     );
 
     const withOptions = new ViewEngine({
-      definitions: [ordersDefinition()],
+      resources: resourcesOf([ordersDefinition()], () => testSource()),
       store: new MemoryViewStore(),
-      resolveSource: () => testSource(),
       resolveOptions: () => ({
         search: () => Promise.resolve({ items: [], nextCursor: null }),
         resolve: () => Promise.resolve([]),
@@ -1329,9 +1377,8 @@ describe('ViewEngine wiring', () => {
 
   it('mints an idempotency key of its own by default', () => {
     const engine = new ViewEngine({
-      definitions: [ordersDefinition()],
+      resources: resourcesOf([ordersDefinition()], () => testSource()),
       store: new MemoryViewStore(),
-      resolveSource: () => testSource(),
     });
     expect(engine.limits.maxPageSize).toBeGreaterThan(0);
     expect(engine.kinds.size).toBeGreaterThan(0);

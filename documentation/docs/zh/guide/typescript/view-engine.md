@@ -109,10 +109,9 @@ declare const queryClients: Record<string, ViewSource>;
 import { MemoryViewStore, ViewEngine } from '@ahoo-wang/wow-view-engine';
 
 const engine = new ViewEngine({
-  definitions: [orders],
   store: new MemoryViewStore(),
   // 来自 @ahoo-wang/wow-client 的 Pick<QueryApi, 'paged' | 'cursor' | 'aggregate'>
-  resolveSource: key => queryClients[key],
+  resources: [{ definition: orders, source: queryClients.orders }],
 });
 ```
 

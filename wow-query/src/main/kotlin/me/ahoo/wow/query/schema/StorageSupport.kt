@@ -33,11 +33,17 @@ data class PagingSupport(
     val keyset: SupportMode = SupportMode.NATIVE,
     /** A list without a limit, streamed to the end. */
     val unboundedStream: SupportMode = SupportMode.NATIVE,
+    /**
+     * The furthest record an offset page may reach (`offset + limit`), such as Elasticsearch's
+     * `index.max_result_window`; `null` is unlimited. Admission rejects a paged query whose window ends beyond it.
+     */
+    val maxOffsetWindow: Int? = null,
 ) {
     init {
         require(keyset != SupportMode.RESIDUAL && unboundedStream != SupportMode.RESIDUAL) {
             "Paging has no residual implementation."
         }
+        require(maxOffsetWindow == null || maxOffsetWindow >= 1) { "maxOffsetWindow must be greater than 0." }
     }
 }
 

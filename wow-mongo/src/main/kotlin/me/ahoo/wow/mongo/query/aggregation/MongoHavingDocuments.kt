@@ -14,8 +14,8 @@
 package me.ahoo.wow.mongo.query.aggregation
 
 import com.mongodb.client.model.Filters
-import me.ahoo.wow.api.query.ComparisonOperator
 import me.ahoo.wow.api.query.HavingExpression
+import me.ahoo.wow.mongo.query.mongoOperator
 import org.bson.Document
 import org.bson.conversions.Bson
 
@@ -41,7 +41,7 @@ internal fun HavingExpression.toHavingDocument(): Bson = when (this) {
         Document(metric, null)
     }
     is HavingExpression.Condition -> numericHavingMatch(metric) {
-        Document(operator.matchOperator, listOf(it, value))
+        Document(operator.mongoOperator, listOf(it, value))
     }
     is HavingExpression.Between -> numericHavingMatch(metric) {
         Filters.and(
@@ -61,13 +61,3 @@ private fun numericHavingMatch(metric: String, condition: (toDouble: Document) -
         condition(Document("\$toDouble", "\$$metric")),
     ),
 )
-
-private val ComparisonOperator.matchOperator: String
-    get() = when (this) {
-        ComparisonOperator.EQ -> "\$eq"
-        ComparisonOperator.NE -> "\$ne"
-        ComparisonOperator.GT -> "\$gt"
-        ComparisonOperator.GTE -> "\$gte"
-        ComparisonOperator.LT -> "\$lt"
-        ComparisonOperator.LTE -> "\$lte"
-    }

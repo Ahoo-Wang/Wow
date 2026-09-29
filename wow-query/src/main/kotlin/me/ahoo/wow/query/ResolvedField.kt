@@ -58,6 +58,14 @@ class ResolvedField internal constructor(
     val temporal: Temporal?
         get() = definition.effective.temporal
 
+    /**
+     * The physical container storage indexes [physicalField]'s elements in as separate documents, from the binding
+     * admitted for [capability] ([me.ahoo.wow.query.schema.QueryFieldBinding.physicalScope]); `null` when there is
+     * none or the field is projected.
+     */
+    val physicalScope: QueryField?
+        get() = capability?.let(definition::binding)?.physicalScope
+
     /** [physicalField] relative to [physicalParent]; the physical field itself at the root. */
     val relativePhysicalField: QueryField
         get() = physicalParent?.let(physicalField::relativeTo) ?: physicalField

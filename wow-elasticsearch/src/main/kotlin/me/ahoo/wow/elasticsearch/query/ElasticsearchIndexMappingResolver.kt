@@ -33,6 +33,8 @@ import co.elastic.clients.elasticsearch._types.mapping.SearchAsYouTypeProperty
 import co.elastic.clients.elasticsearch._types.mapping.TextProperty
 import co.elastic.clients.elasticsearch._types.mapping.TokenCountProperty
 import co.elastic.clients.elasticsearch._types.mapping.TypeMapping
+import co.elastic.clients.elasticsearch.indices.GetIndicesSettingsRequest
+import co.elastic.clients.elasticsearch.indices.GetIndicesSettingsResponse
 import co.elastic.clients.elasticsearch.indices.GetMappingRequest
 import co.elastic.clients.json.JsonData
 import me.ahoo.wow.query.forInProcessQuery
@@ -52,14 +54,20 @@ class ElasticsearchIndexMappingResolver(
 
     fun refresh(indexName: String): Mono<ElasticsearchIndexMapping> = refreshes.computeIfAbsent(indexName) {
         lateinit var candidate: Mono<ElasticsearchIndexMapping>
-        candidate = Mono.defer {
-            elasticsearchClient.indices().getMapping(GetMappingRequest.of { it.index(indexName) })
-        }.map { response ->
+        candidate = Mono.zip(
+            Mono.defer { elasticsearchClient.indices().getMapping(GetMappingRequest.of { it.index(indexName) }) },
+            Mono.defer { elasticsearchClient.indices().getSettings(maxResultWindowRequest(indexName)) },
+        ).map { responses ->
+            val response = responses.t1
             require(response.mappings().size == 1) {
                 "Elasticsearch index [$indexName] must resolve to exactly one physical index, " +
                     "but resolved to ${response.mappings().keys}."
             }
-            ElasticsearchIndexMapping.from(indexName, response.mappings().values.single().mappings())
+            ElasticsearchIndexMapping.from(
+                indexName,
+                response.mappings().values.single().mappings(),
+                maxResultWindow = responses.t2.maxResultWindow(),
+            )
         }.doOnSuccess { mapping ->
             mapping?.let { mappings[indexName] = it }
             refreshes.remove(indexName, candidate)
@@ -73,6 +81,19 @@ class ElasticsearchIndexMappingResolver(
     }
 }
 
+/** Elasticsearch's default `index.max_result_window`: the furthest record `from + size` may reach. */
+internal const val DEFAULT_MAX_RESULT_WINDOW = 10_000
+
+private const val MAX_RESULT_WINDOW_SETTING = "index.max_result_window"
+
+private fun maxResultWindowRequest(indexName: String): GetIndicesSettingsRequest =
+    GetIndicesSettingsRequest.of { it.index(indexName).name(MAX_RESULT_WINDOW_SETTING) }
+
+/** The window the index declares, or the default when it declares none; the narrowest over several indices. */
+private fun GetIndicesSettingsResponse.maxResultWindow(): Int = settings().values.minOfOrNull { state ->
+    state.settings()?.let { it.index()?.maxResultWindow() ?: it.maxResultWindow() } ?: DEFAULT_MAX_RESULT_WINDOW
+} ?: DEFAULT_MAX_RESULT_WINDOW
+
 @ConsistentCopyVisibility
 data class ElasticsearchIndexMapping private constructor(
     val indexName: String,
@@ -80,6 +101,8 @@ data class ElasticsearchIndexMapping private constructor(
     internal val sourceEnabled: Boolean,
     internal val sourceIncludes: List<String>,
     internal val sourceExcludes: List<String>,
+    /** The index's `index.max_result_window`: an offset page may not reach beyond it. */
+    val maxResultWindow: Int,
 ) {
     val fieldCount: Int
         get() = fields.size
@@ -122,7 +145,11 @@ data class ElasticsearchIndexMapping private constructor(
         @Suppress(
             "CyclomaticComplexMethod"
         ) // One mapping walk carries ancestor facts into properties, multifields and aliases.
-        fun from(indexName: String, typeMapping: TypeMapping): ElasticsearchIndexMapping {
+        fun from(
+            indexName: String,
+            typeMapping: TypeMapping,
+            maxResultWindow: Int = DEFAULT_MAX_RESULT_WINDOW,
+        ): ElasticsearchIndexMapping {
             val fields = linkedMapOf<String, ElasticsearchMappedField>()
             val aliases = linkedMapOf<String, String>()
 
@@ -181,6 +208,7 @@ data class ElasticsearchIndexMapping private constructor(
                 sourceEnabled = typeMapping.source()?.enabled() != false,
                 sourceIncludes = java.util.List.copyOf(typeMapping.source()?.includes().orEmpty()),
                 sourceExcludes = java.util.List.copyOf(typeMapping.source()?.excludes().orEmpty()),
+                maxResultWindow = maxResultWindow,
             )
         }
     }

@@ -128,6 +128,47 @@ export const orders: ViewDefinition = {
 };
 ```
 
+### 从描述符定义视图
+
+手写的定义要把服务的查询描述符已经说过的再说一遍：有哪些路径、各存什么、能按什么排序、筛选与聚合。`defineView(descriptor, spec)` 从随定义一起提交的描述符快照里取这些事实，`spec` 只写选择：读者看到哪些字段、什么次序、叫什么，类别的措辞与语气色，单元格，以及收窄什么。结果仍是一份普通的 `DataViewDefinition`，引擎的其余部分不知道它是怎么写的。
+
+<!-- typecheck-context
+import type { QueryModelDescriptor } from '@ahoo-wang/wow-client';
+declare const ordersDescriptor: QueryModelDescriptor;
+-->
+
+```ts
+import { defineView, text } from '@ahoo-wang/wow-view-engine';
+
+export const orders = defineView(ordersDescriptor, {
+  id: 'orders',
+  source: 'orders',
+  title: text('orders.title'),
+  // 看板的时间筛选经它接到面板上。
+  timeField: 'createdAt',
+  fields: {
+    id: { label: text('orders.id'), cell: 'copyable', analysis: false },
+    status: {
+      label: text('orders.status'),
+      cell: 'status',
+      options: {
+        PENDING: { label: text('orders.pending'), tone: 'warning' },
+        SHIPPED: { label: text('orders.shipped'), tone: 'success' },
+      },
+    },
+    amount: { label: text('orders.amount'), summary: ['SUM'] },
+    createdAt: text('orders.createdAt'),
+  },
+  record: { layouts: ['table', 'card'] },
+});
+```
+
+- **事实取快照，能力取数据源。** 没列出的字段不出现。种类、枚举值、敏感级别与数组的条目是模型的事实，取自快照；快照没有的路径或值是准入错误（`validateDefinition`、`onIssue`）——定义照样加载，并说出错在哪。路径能怎么排序、筛选、聚合是存储的能力：你没收窄的，定义取它所运行的数据源给的一切（Elasticsearch 上有数组条目里的搜索，MongoDB 上没有）；你收窄的——`operators`、`sortable: false`、`summary`、`analysis` 或 `analysis: false`——取你的子集与之相交。收窄超出快照是警告，因为换一个存储可能就有。已弃用的路径在写明理由前一直警告；敏感字段退出分析，机密字段不做任何比较；时刻按日历分组，只有最早与最晚。
+- **快照随代码提交。** 定义在模块加载时就建好，测试里一样。运行时给出描述符的数据源，用它填上你留开的能力、收窄其余，与任何定义一样；不给描述符的数据源按快照的能力跑。
+- **措辞写键。** `text(key)` 占着标签的位置，一份定义服务所有语言。键留在定义与每个视图的状态里，引擎交出去时才说成话——按 `ViewEngineProvider` 的 `messages`（没有 Provider 的宿主用 `ViewEngineOptions.text`）——所以换语言只重画已打开的视图，什么也不重建。键不进存储：从系统视图另存的视图，存的是读者看到的那句话；它的基线留着键，所以换到哪种语言都仍是未修改、还原也对。只有定义写的键才会被说出：读者的标题、一行里的值碰巧带着标记，原样保留。当下措辞缺的键按键本身显示并报出（`definition.text.unknown`）；后来设的措辞缺的键退回 `ViewEngineOptions.text`。字面字符串仍可当标签。
+- **时间。** `timeField`——或系统视图自己的，`null` 表示整体读——是看板唯一的日期筛选接到没有接线的面板上所经的字段；手写的接线优先，面板上的 `ignoresTime: true` 让时间范围不作用于它。
+- `/testing` 的 `admit` 在宿主的测试里把这些一并核对（[测试宿主](#测试宿主内存数据源)）。
+
 ### 2. 创建引擎
 
 <!-- typecheck-context
@@ -140,12 +181,15 @@ declare const queryClients: Record<string, Pick<QueryApi<any>, 'paged' | 'cursor
 import { MemoryViewStore, ViewEngine } from '@ahoo-wang/wow-view-engine';
 
 const engine = new ViewEngine({
-  definitions: [orders],
   store: new MemoryViewStore(),
   // 来自 @ahoo-wang/wow-client 的 Pick<QueryApi, 'paged' | 'cursor' | 'aggregate'>
-  resolveSource: key => queryClients[key],
+  resources: [{ definition: orders, source: queryClients.orders }],
 });
 ```
+
+每项**资源**把一份定义与它的数据从哪来配成一对。看板的定义没有数据源——它自己不查数据。数据源按数据定义写的键（`definition.source`）找，所以同一查询模型上的两份定义共用一个；哪里都没有登记数据源的数据定义在注册时就被拒绝（`definition.source.unregistered`）：它的工作台说明原因，看板上只有用它的面板熄掉。资源在应用启动时注册一次：**一个应用一个引擎**，各页面共享它的查询、偏好与描述。查询队列按看板规模自己留位——打开的看板在 `maxQueuedQueries` 之外为它的面板留出位置——所以大看板不用调高上限也能整块打开。
+
+没有抛出物的发现——定义的准入、描述收窄去掉了什么——交给 `onIssue`。不传时，开发构建（`NODE_ENV` 为 `development`）按资源分组、折叠打印到控制台，每条带改法；生产与测试运行不出声。
 
 **服务端收什么：`describe`。** 定义是代码，写的时候不知道部署在哪种存储上：在 Elasticsearch 上能用的短语检索，在没有文本索引的 MongoDB 上会被拒绝；调高了查询守卫的服务端，收的也比引擎的缺省多。给数据源一个 `describe`——wow-client 的 `describeSnapshot`（或 `describeEventStream`）可以直接充当——引擎就在这个源上的第一个视图运行之前读服务端的能力描述，把每份定义收窄到描述允许的范围（描述没有列出的算子、排序、检索、分组或指标不再提供：隐藏，不置灰），并从它读源预算（`maxPageSize`、`maxPageWindow`、`maxAnalysisRows`、`maxQueryFilterNodes`、`maxFilterValues`）；超出后两项的查询——按服务端守卫的口径在编译后的查询上数——在发出之前就被拒绝。刷新时、页面切回来时，引擎带着持有的版本重新验证描述，至多每五分钟一次。收窄去掉了什么，按描述版本经 `onIssue` 报一次；描述与定义冲突时——源没有这种分页方式、行键不可排序、时间按另一种单位保存——这份定义像准入不过一样被拒绝。不给 `describe`，视图照旧按定义与缺省上限运行。
 
@@ -162,14 +206,18 @@ import { MemoryViewStore, ViewEngine } from '@ahoo-wang/wow-view-engine';
 // factory.createSnapshotQueryClient() 与 factory.createQueryDescriptorClient()：
 // schema 路由没有租户、所有者段，所以是两个客户端。
 const engine = new ViewEngine({
-  definitions: [orders],
   store: new MemoryViewStore(),
-  resolveSource: () => ({
-    paged: snapshots.paged,
-    cursor: snapshots.cursor,
-    aggregate: snapshots.aggregate,
-    describe: descriptors.describeSnapshot,
-  }),
+  resources: [
+    {
+      definition: orders,
+      source: {
+        paged: snapshots.paged,
+        cursor: snapshots.cursor,
+        aggregate: snapshots.aggregate,
+        describe: descriptors.describeSnapshot,
+      },
+    },
+  ],
 });
 ```
 
@@ -191,9 +239,8 @@ import { MemoryViewStore, ViewEngine } from '@ahoo-wang/wow-view-engine';
 import { browserRuntimeEnvironment } from '@ahoo-wang/wow-view-engine/react';
 
 const engine = new ViewEngine({
-  definitions: [orders],
   store: new MemoryViewStore(),
-  resolveSource: key => queryClients[key],
+  resources: [{ definition: orders, source: queryClients.orders }],
   // 不用 React 时写 `defaultRuntimeEnvironment({ onError })`。
   environment: browserRuntimeEnvironment({
     onError: ({ kind, error, context }) =>
@@ -211,6 +258,57 @@ const engine = new ViewEngine({
 | `chart`  | 图表库没加载到，或绘制时抛错                                                      | `load`、`draw`                                                  |
 
 `context` 在知道时还写明是哪个视图——`definitionId`、`instanceId`、`runtimeId`——`render` 与 `chart` 另有 `boundary`、`panelId` 与 React 的 `componentStack`。被叫停的请求（被下一个顶掉、被取消）不算失败，不告知。工作台、网格与嵌入上的 `onRenderFailure` 照旧：它是那一块界面自己的回调，拿到的是同一个 `error`；`onError` 是整个引擎的。引擎的 `onIssue` 只管没有抛出物的发现，比如定义准入。
+
+### 3. 把引擎放在页面之上：`ViewEngineProvider`
+
+引擎是无头的；一项资源在宿主里怎么表现——它的视图在地址里的哪里、一条记录怎么读、宿主对它的记录有哪些命令——在 React 里按定义的 id 绑一次：
+
+<!-- typecheck-context
+import { ViewEngine } from '@ahoo-wang/wow-view-engine';
+import type { ReactNode } from 'react';
+declare const engine: ViewEngine;
+declare const locale: string;
+declare const ordersWords: Record<string, string>;
+declare const orderActions: import('@ahoo-wang/wow-view-engine/react').RecordActionSlots;
+declare function go(path: string, state: unknown): void;
+declare function openElsewhere(to: object): void;
+declare const children: ReactNode;
+-->
+
+```tsx
+import { bind, ViewEngineProvider } from '@ahoo-wang/wow-view-engine/ui';
+
+const bindings = [
+  bind('orders', {
+    route: view => (view ? `/orders?view=${view}` : '/orders'),
+    reading: { title: row => `订单 ${String(row.key)}` },
+    actions: orderActions,
+  }),
+  bind('overview', { route: board => `/boards/${board}` }),
+];
+
+<ViewEngineProvider
+  engine={engine}
+  locale={locale}
+  messages={ordersWords}
+  navigate={to =>
+    to.kind === 'route' ? go(to.path, to.state) : openElsewhere(to)
+  }
+  bindings={bindings}
+>
+  {children}
+</ViewEngineProvider>;
+```
+
+| 属性       | 做什么                                                                                                                                                                                                                                                                                                                    |
+| ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `engine`   | 应用的引擎。写了它的那层 Provider 用自己的 `messages` 说出引擎定义里的键                                                                                                                                                                                                                                                  |
+| `locale`   | 值按哪种语言显示；它与 `messages` 一换，所有打开的视图就地重画——还是那些运行时，不重发查询                                                                                                                                                                                                                                |
+| `messages` | 合并在已生效措辞之上的措辞：引擎自己的（`zhCN`、宿主的改写）与定义的键一样放在这里                                                                                                                                                                                                                                        |
+| `navigate` | 宿主的路由。离开看板或视图的路——「在工作台中打开」、一组上的追问、面板的去处、回到看板——按目标定义的 `route` 解析好再交来：`{ kind: 'route', path, state }`，`state` 里是要打开的视图（`handOver`）或看板的 `filters` 与 `tab`。网址与没有 `route` 的定义原样交来                                                         |
+| `bindings` | `bind(definitionId, { route, reading, actions, bulk })`：`route(instanceId, target)` 是打开它的页面路径（没人保存的视图 `instanceId` 为 `null`）；`reading` 是记录详情的选项（`render`、`title`、`sections`、`open`／`onOpenChange`）；`actions` 与 `bulk` 是宿主对它的记录的命令——它的工作台与所有看板上它的记录面板都挂 |
+
+它下面的外壳只写这一处与别处不同的：`<DataWorkbench definitionId="orders" />`、`<EmbeddedDashboard instanceId="…" />`。外壳自己的 `engine`、`messages`、`locale`、`onNavigate`、`record` 仍然优先；Provider 可以嵌套，内层的绑定按 id 覆盖外层——一页两个引擎照样写得出。引擎的定义说的是写了这个引擎的最外层 Provider 的 `messages`——一个引擎同时只说一种语言——所以内层换一种语言的 Provider——无论隔几层再写一次这个引擎，还是不写——只改写它之下引擎自己的措辞，不改定义的键；两个并列的 Provider 写同一个引擎时，须给它同样的措辞。`EmbeddedView` 的 `detail` 按绑定的读法读记录（`render`、`title`、`sections`），但开着哪一条是它自己的：同一定义的两个嵌入不会打开同一条，也不写绑定的 `open`。
 
 ### 3a. 渲染默认工作台
 
@@ -374,24 +472,24 @@ import {
 
 **开关**——关掉就是不存在，不是置灰。档位是上限，开关在档位之内：搜索、导出、记录详情、铺满屏幕是读者的控件，`static` 一档里开了也不起作用：
 
-| 属性                        | 缺省      | 做什么                                                                                                                                                                                                                                          |
-| --------------------------- | --------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `withTitle`                 | 关        | 画出视图或仪表盘的标题                                                                                                                                                                                                                          |
-| `headingLevel`              | `2`       | 嵌入所标的标题级别：自己的标题在这一级，仪表盘的面板在它下一级（没有标题时就在这一级）。`h1` 归宿主页面                                                                                                                                         |
-| `withPanelTitles`（仪表盘） | 开        | 关掉时面板标题只留给读屏                                                                                                                                                                                                                        |
-| `withSearch`（记录）        | 关        | 视图的搜索框，定义声明了搜索字段才有；只在 `interactive` 一档                                                                                                                                                                                   |
-| `withExport`（记录）        | 关        | 导出按钮与窗口，行可以勾选；只在 `interactive` 一档                                                                                                                                                                                             |
-| `detail`（记录）            | 关        | 按一行打开这条记录的详情，读全、只读——没有行命令、什么也不写；`true`，或与工作台 `record.detail` 同一份选项（`open`／`onOpenChange`、宿主的 `sections`）。在抽屉里打开时是叠在上面的第二层，Esc 只关它，焦点回到那一行。只在 `interactive` 一档 |
-| `withExport`（仪表盘）      | 关        | 面板「⋯」里的「导出数据…」，同一个导出窗口；只在 `interactive` 一档                                                                                                                                                                             |
-| `autoRefresh`               | 开        | 按作者存的间隔自己刷新；关掉就从不自己刷新                                                                                                                                                                                                      |
-| `withRefresh`（仪表盘）     | 关        | 首行的「更新于 10:32」——屏幕上的面板何时读的，取最早的那块——`interactive` 一档旁边还有刷新按钮（不带间隔菜单）；刷新什么也不写                                                                                                                  |
-| `openInWorkbench`           | 开        | `interactive` 一档里给不给「在工作台中打开」                                                                                                                                                                                                    |
-| `expandable`                | 关        | `interactive` 一档首行最后的「铺满屏幕」：与工作台一样就地铺开，Esc 收起                                                                                                                                                                        |
-| `size`                      | `content` | `content` 按内容定高、有上限（记录表格与分析表格在 `--fve-record-table-max-h` 里滚）；`fill` 填满容器——整页嵌入、大屏                                                                                                                           |
+| 属性                        | 缺省      | 做什么                                                                                                                                                                                                                                                                               |
+| --------------------------- | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `withTitle`                 | 关        | 画出视图或仪表盘的标题                                                                                                                                                                                                                                                               |
+| `headingLevel`              | `2`       | 嵌入所标的标题级别：自己的标题在这一级，仪表盘的面板在它下一级（没有标题时就在这一级）。`h1` 归宿主页面                                                                                                                                                                              |
+| `withPanelTitles`（仪表盘） | 开        | 关掉时面板标题只留给读屏                                                                                                                                                                                                                                                             |
+| `withSearch`（记录）        | 关        | 视图的搜索框，定义声明了搜索字段才有；只在 `interactive` 一档                                                                                                                                                                                                                        |
+| `withExport`（记录）        | 关        | 导出按钮与窗口，行可以勾选；只在 `interactive` 一档                                                                                                                                                                                                                                  |
+| `detail`（记录）            | 关        | 按一行打开这条记录的详情，读全、只读——没有行命令、什么也不写；`true`（有定义的绑定时按它的 `reading` 读），或与工作台 `record.detail` 同一份选项（`open`／`onOpenChange`、宿主的 `sections`）。在抽屉里打开时是叠在上面的第二层，Esc 只关它，焦点回到那一行。只在 `interactive` 一档 |
+| `withExport`（仪表盘）      | 关        | 面板「⋯」里的「导出数据…」，同一个导出窗口；只在 `interactive` 一档                                                                                                                                                                                                                  |
+| `autoRefresh`               | 开        | 按作者存的间隔自己刷新；关掉就从不自己刷新                                                                                                                                                                                                                                           |
+| `withRefresh`（仪表盘）     | 关        | 首行的「更新于 10:32」——屏幕上的面板何时读的，取最早的那块——`interactive` 一档旁边还有刷新按钮（不带间隔菜单）；刷新什么也不写                                                                                                                                                       |
+| `openInWorkbench`           | 开        | `interactive` 一档里给不给「在工作台中打开」                                                                                                                                                                                                                                         |
+| `expandable`                | 关        | `interactive` 一档首行最后的「铺满屏幕」：与工作台一样就地铺开，Esc 收起                                                                                                                                                                                                             |
+| `size`                      | `content` | `content` 按内容定高、有上限（记录表格与分析表格在 `--fve-record-table-max-h` 里滚）；`fill` 填满容器——整页嵌入、大屏                                                                                                                                                                |
 
 **仪表盘的筛选逐个三态**（`filterModes` 按筛选名，时间粒度用 `groupingMode`）：`adjustable`——在筛选条上、归读者，这一次看时可调，与工作台一样，也是缺省；`locked`——在筛选条上读作它的值，带一把锁、没有控件；`hidden`——不在筛选条上，照样收窄接上的面板。锁定与隐藏由 runtime 持有，读者做什么——改值、「清空」、点一组交叉筛选——都改不了它们。它们的值是页面自己的 `pageValues`（没写就是默认值）：从第一次查询起就在，并**跟着这个属性变**——客户页换到下一位客户，板子跟着换。读者的筛选是宿主地址里的那一份：`initialFilters` 与 `onFiltersChange`，读法、报法与 `DashboardWorkbench` 相同。**锁定与隐藏的值从不走地址**：`initialFilters` 里写到它们的条目不算，`onFiltersChange` 只报读者能设的筛选——否则读者改一下地址就换了客户，与「锁定」正相反。板子不收条件树（`EmbeddedDashboard` 没有 `scopeFilter`）：要收窄它，在板上声明那个筛选，再锁定或隐藏它。
 
-**记录面板上的宿主命令**（`recordPanel(panel)`，`EmbeddedDashboard` 与 `DashboardWorkbench` 都有）：按面板返回记录工作台同一套 `actions`——行动作两档都画，成批命令只在能勾选的一档（`interactive`）——以及 `useBulkCommand`，面板在行上方说它的进度；每个上下文的 `refresh` 只重跑那块面板。它们是宿主对自己服务的命令，嵌入照旧什么也不写。记录面板也说一共多少条，`interactive` 一档能翻页。
+**记录面板上的宿主命令**来自宿主给面板视图所在定义的绑定（`ViewEngineProvider` 上的 `bind(definitionId, { actions, bulk })`，`EmbeddedDashboard` 与 `DashboardWorkbench` 都一样）：记录工作台同一套 `actions`——行动作两档都画，成批命令只在能勾选的一档（`interactive`）——以及 `useBulkCommand`，面板在行上方说它的进度；每个上下文的 `refresh` 重跑整块板。它们是宿主对自己服务的命令，嵌入照旧什么也不写。记录面板也说一共多少条，`interactive` 一档能翻页。
 
 **锁定不是安全边界。** 页面锁定的条件是在浏览器里拼进查询的，只保证读者在界面上改不了、在这里看不到别的。改一下页面脚本、直接调接口，就能问到别的客户。租户、归属与权限必须由 Wow 后端强制——对外的页面尤其如此。本包是宿主进程里的库，不照搬 Metabase 的 iframe、签名令牌或 SSO：身份与权限属于宿主与后端。
 
@@ -1014,9 +1112,8 @@ const source = memorySource(documents, {
   now: () => Date.parse('2026-09-27T00:00:00Z'),
 });
 const engine = new ViewEngine({
-  definitions: [orders],
+  resources: [{ definition: orders, source }],
   store: new MemoryViewStore(),
-  resolveSource: () => source,
 });
 
 // 测试自己的条件，按同样的读法问一条文档。
@@ -1028,6 +1125,26 @@ const paid = matches(documents[0], {
 ```
 
 它承诺的：引擎会编出的每个筛选算子，缺失字段、显式 `null`、空字符串或空数组、数组元素与大小写都按 MongoDB 的读法；`DELETION` 读 `deleted` 标记（`deleted: true` 的文档除非筛选问到，否则不答）；分页、游标（一个偏移量）与排序；投影；聚合——`elements`（路径与门槛条件都相对于元素）、`TERMS`、`HISTOGRAM`、按时区的 `DATE_HISTOGRAM` 与 `DATE_PART`（缺省 UTC）、`dense`、带自身条件的每种指标、`DERIVED`、`having`、Wow 给分组的次序（先按排序，再按每个分组别名升序）与缺省 `limit` 100。`PERCENTILE` 是精确值，服务端是落在同样两个秩之间的估计值。没有读法的——`ID`、`TENANT_ID`、`SPACE_ID`、引擎从不发出的日历筛选——直接报错，测试开始发出的新查询会失败，而不是得到一个看似合理的错误答案。`timeField` 让大数据集按一个纪元毫秒列排好、对它的范围二分切片；`remember` 让同一个聚合从记忆里作答，只用于从不改变的文档。这个入口是无头的——没有 React、DOM 与样式表。它用 `mingo`（MongoDB 查询语言的 JavaScript 实现）求值筛选，`mingo` 是可选的对等依赖：安装本包不会带上它，导入 `/testing` 的宿主要自己把它加进开发依赖——`pnpm add -D mingo`（或 `npm install -D mingo`）。别的入口都不加载它。
+
+`admit(definitions, descriptors, { text })` 按引擎的方式准入宿主声明的一切——说出每份定义的键、它自己的规则、它的看板对照其余定义、每份数据定义按提交的描述符（按 `source`）收窄——返回每条发现连同它所属的定义，全部成立时是 `[]`。它收定义，也收装着定义的资源（`{ definition }`），与注册时的写法一样：
+
+<!-- typecheck-context
+import type { QueryModelDescriptor } from '@ahoo-wang/wow-client';
+import type { DataViewDefinition, DashboardDefinition, TextResolver } from '@ahoo-wang/wow-view-engine';
+declare const orders: DataViewDefinition;
+declare const overview: DashboardDefinition;
+declare const ordersDescriptor: QueryModelDescriptor;
+declare const chinese: TextResolver;
+declare function expect(value: unknown): { toEqual(expected: unknown): void };
+-->
+
+```ts
+import { admit } from '@ahoo-wang/wow-view-engine/testing';
+
+expect(
+  admit([orders, overview], { orders: ordersDescriptor }, { text: chinese }),
+).toEqual([]);
+```
 
 ## 概念
 
@@ -1056,16 +1173,16 @@ const paid = matches(documents[0], {
 
 ## 入口
 
-| 入口                         | 导出                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
-| ---------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `@ahoo-wang/wow-view-engine` | 模型类型与常量；四个纯内核（`validate*` / `compile*` / `project*` 及其旁边的读法）；运行时只导出宿主要握的，不导出它由什么搭成——`ViewEngine`、`validateDefinition`、运行时合同 `ViewRuntime`、`RecordViewRuntime`、`DashboardRuntime`、`AnyViewRuntime` 连同它们签名里出现的每一个类型、`hasResult`、`hasAsked`、`isRecordRuntime`、写入错误 `ViewWriteError` 与 `ViewCommandError`、`ExportCancelled`、`RuntimeEnvironment`、`defaultRuntimeEnvironment`、`ViewSource`、`OptionSource`；`ViewStore` 端口、`MemoryViewStore` 与 `localStorageSnapshot`                                                          |
-| `/react`                     | 钩子与无样式控制器，连同它们交出的类型：`useViewEngine`、`useOpenView`、`useViewRuntime`、`useViewList`、`useViewManager`、`useWorkbench`、`useLeaveGuard`、`useFilterEditor`、`useRecordTable`、`useAnalysisEditor`、`useAnalysisResult`、`useDashboard`、`useSaveCommands`、`RecordActionSlots`，以及保存命令与管理器共用的写入结局词汇                                                                                                                                                                                                                                                                       |
-| `/ui`                        | 默认组件、视图与工作台，连同它们的 props：`DataWorkbench`、`DashboardWorkbench`、`DashboardEditExtensions`、`useDashboardExtensions`、`EmbeddedView`、`EmbeddedDashboard`、`ViewHeader`、`SaveActions`、`ViewManager`、`LeaveDialog`、`EditorBand`、`FilterPanel`、`StatusStrip`、`AppliedBar`、`ResultToolbar`、`RowActions`、`RecordTable`、`RecordCards`、`RecordPagination`、`AnalysisTable`、`AnalysisChart`、`DashboardGrid`、`HeadingPanel`、`MarkdownPanel`、`ImagePanel`、`LinksPanel`、`MessagesProvider`；措辞目录 `defaultMessages` 与 `zhCN`；一个值的读法 `cellValue`、`cellText`、`displayValue` |
-| `/testing`                   | `memorySource` 与 `matches`：带 Wow 查询语义的内存 `ViewSource`，供宿主测试使用（[测试宿主](#测试宿主内存数据源)）                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
-| `/styles.css`                | 主题。显式导入；任何 JS 入口都不会引入 CSS，产物也不会在 `.fve-root`／`.fve-tokens` 两个样式边界之外绘制任何东西（preflight 与工具类在构建时收进边界内，每条规则比源码多一个类的权重，所以宿主的导入次序无关）——预设的复位规则除外，它只在挂了预设的元素上清空 `--fvp-*` 层——`scripts/verify-package.mjs` 在每次构建时逐条核对。                                                                                                                                                                                                                                                                                |
-| `/themes.css`                | 预设，可选：只有按 `data-fve-preset` 选中的 `--fvp-*` 赋值（[预设](#预设)），由同一个脚本核对。                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
-| `/themes/<名>.css`           | 单独一套预设，给只用一套的宿主：就是 `themes.css` 里它那一块（[预设](#预设)）。                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
-| `/shadcn-bridge.css`         | 可选：把宿主的 shadcn token 读进 `--fvp-*` 变量，`input`、`ring`、状态色、图表色与阴影除外，且只在没挂预设时生效（[桥接](#已有-shadcn-主题的宿主shadcn-bridgecss)），由同一个脚本核对。                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| 入口                         | 导出                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| ---------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `@ahoo-wang/wow-view-engine` | 模型类型与常量；四个纯内核（`validate*` / `compile*` / `project*` 及其旁边的读法）；运行时只导出宿主要握的，不导出它由什么搭成——`ViewEngine`、`validateDefinition`、运行时合同 `ViewRuntime`、`RecordViewRuntime`、`DashboardRuntime`、`AnyViewRuntime` 连同它们签名里出现的每一个类型、`hasResult`、`hasAsked`、`isRecordRuntime`、写入错误 `ViewWriteError` 与 `ViewCommandError`、`ExportCancelled`、`RuntimeEnvironment`、`defaultRuntimeEnvironment`、`ViewSource`、`OptionSource`；`ViewStore` 端口、`MemoryViewStore` 与 `localStorageSnapshot`                                                                                        |
+| `/react`                     | 钩子与无样式控制器，连同它们交出的类型：`useViewEngine`、`useOpenView`、`useViewRuntime`、`useViewList`、`useViewManager`、`useWorkbench`、`useLeaveGuard`、`useFilterEditor`、`useRecordTable`、`useAnalysisEditor`、`useAnalysisResult`、`useDashboard`、`useSaveCommands`、`RecordActionSlots`，以及保存命令与管理器共用的写入结局词汇                                                                                                                                                                                                                                                                                                     |
+| `/ui`                        | 默认组件、视图与工作台，连同它们的 props：`DataWorkbench`、`DashboardWorkbench`、`DashboardEditExtensions`、`useDashboardExtensions`、`EmbeddedView`、`EmbeddedDashboard`、`ViewEngineProvider`、`bind`、`ViewHeader`、`SaveActions`、`ViewManager`、`LeaveDialog`、`EditorBand`、`FilterPanel`、`StatusStrip`、`AppliedBar`、`ResultToolbar`、`RowActions`、`RecordTable`、`RecordCards`、`RecordPagination`、`AnalysisTable`、`AnalysisChart`、`DashboardGrid`、`HeadingPanel`、`MarkdownPanel`、`ImagePanel`、`LinksPanel`、`MessagesProvider`；措辞目录 `defaultMessages` 与 `zhCN`；一个值的读法 `cellValue`、`cellText`、`displayValue` |
+| `/testing`                   | `memorySource` 与 `matches`：带 Wow 查询语义的内存 `ViewSource`；`resolveNavigation`：引擎自己按宿主绑定解析离开的路，供宿主测路由；`admit`：按提交的描述符准入宿主的声明——供宿主测试使用（[测试宿主](#测试宿主内存数据源)）                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| `/styles.css`                | 主题。显式导入；任何 JS 入口都不会引入 CSS，产物也不会在 `.fve-root`／`.fve-tokens` 两个样式边界之外绘制任何东西（preflight 与工具类在构建时收进边界内，每条规则比源码多一个类的权重，所以宿主的导入次序无关）——预设的复位规则除外，它只在挂了预设的元素上清空 `--fvp-*` 层——`scripts/verify-package.mjs` 在每次构建时逐条核对。                                                                                                                                                                                                                                                                                                              |
+| `/themes.css`                | 预设，可选：只有按 `data-fve-preset` 选中的 `--fvp-*` 赋值（[预设](#预设)），由同一个脚本核对。                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| `/themes/<名>.css`           | 单独一套预设，给只用一套的宿主：就是 `themes.css` 里它那一块（[预设](#预设)）。                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| `/shadcn-bridge.css`         | 可选：把宿主的 shadcn token 读进 `--fvp-*` 变量，`input`、`ring`、状态色、图表色与阴影除外，且只在没挂预设时生效（[桥接](#已有-shadcn-主题的宿主shadcn-bridgecss)），由同一个脚本核对。                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
 
 这就是公开面，而且逐个名字守着。每个入口把它导出的名字逐个写出，按声明它的文件分组，不整模块转出（`test/architecture.test.ts`），所以文件为包内邻居写的 `export` 不会意外变成公开的。每个代码入口的完整清单——每一个名字，以及它是类型还是值——在 `test/surface/`（`root.txt`、`react.txt`、`ui.txt`、`testing.txt`）：入口多导出了清单上没有的名字、或不再导出清单上有的名字，`test/publicSurface.test.ts` 就失败；`scripts/verify-package.mjs` 再拿同一份清单核对构建出的每个 JS 入口。往清单里加一个名字或拿掉一个，就是改公开面，按改公开面来审。命令也是公开面：`test/surface/bin.txt` 列出 `bin`（`wow-view-engine`）与它认的每个子命令（[`theme-check`](#检查一套主题theme-check)）。
 
@@ -1140,7 +1257,7 @@ const store = new MemoryViewStore({
 
 ### 措辞与语言
 
-模型只带 `code` 与 `params`，措辞归 `/ui`。`defaultMessages`（即 `en`）给每个 issue 一句英文，`ViewSurface` 与每个工作台的 `messages` 按 key 合并在已生效的措辞之上——改写与本地化是同一个入口；在应用外层放一个 `MessagesProvider`，就能对其中所有视图一次设定。包里另带一份逐键对应的简体中文 `zhCN`：整份交给 `messages` 即可，要改其中几句就铺开再覆盖（`{ ...zhCN, 'label.filter.apply': '确定' }`）。
+模型只带 `code` 与 `params`，措辞归 `/ui`。`defaultMessages`（即 `en`）给每个 issue 一句英文，`ViewSurface` 与每个工作台的 `messages` 按 key 合并在已生效的措辞之上——改写与本地化是同一个入口；在应用外层放一个 `ViewEngineProvider`（或单独的 `MessagesProvider`），就能对其中所有视图一次设定，连同值显示的语言（`locale`）。包里另带一份逐键对应的简体中文 `zhCN`：整份交给 `messages` 即可，要改其中几句就铺开再覆盖（`{ ...zhCN, 'label.filter.apply': '确定' }`）。
 
 值按字段显示：枚举显示选项的标签，`datetime`／`date` 经 `Intl.DateTimeFormat` 格式化，日期直方图的键显示为它起始的年、季度、月或日。`locale` 决定这些值用什么语言显示，缺省为运行环境的语言；它和 `messages` 是同一个选择，一个管文字，一个管值：
 
@@ -1169,7 +1286,7 @@ import { DataWorkbench, zhCN } from '@ahoo-wang/wow-view-engine/ui';
 | 变化轴   | 机制                                                                                                                                                                                    |
 | -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 字段类型 | 注册 `FieldKind`（操作符、校验、编译到 `FilterExpression`、编辑器描述）。编辑器从 `/ui` 已有的值控件里选一种（`EDITOR_INPUTS`）：没有渲染器注册表，要别的控件的类型会被拒绝而不是猜着画 |
-| 数据来源 | `resolveSource(key)` 返回 Wow 查询客户端                                                                                                                                                |
+| 数据来源 | `resources` 的每一项把一份定义与它的数据源（Wow 查询客户端）配成对                                                                                                                      |
 | 持久化   | 实现 `ViewStore`                                                                                                                                                                        |
 | 动作     | 向工作台传 `actions`：`global`、`bulk`、`row` 三个渲染函数。动作是代码，由宿主交出来，不进配置、不入库。一页只取视图显示的字段，动作要读的其他字段写在定义的 `record.rowFields` 里      |
 | 外观     | CSS 变量与主题文件；通过组合 `/react` 钩子替换组件                                                                                                                                      |

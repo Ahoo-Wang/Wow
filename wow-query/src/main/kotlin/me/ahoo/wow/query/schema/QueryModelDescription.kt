@@ -23,6 +23,7 @@ import me.ahoo.wow.api.query.FilterOperator
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.SearchMode
+import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.api.query.descriptor.AggregationLimitsDescriptor
 import me.ahoo.wow.api.query.descriptor.AnalysisDescriptor
 import me.ahoo.wow.api.query.descriptor.AnalysisSortDescriptor
@@ -331,7 +332,7 @@ private class QueryModelDescription(private val schema: QueryModelSchema, privat
             maxPageWindow = budget?.maxPageWindow?.takeIf { it > 0 },
             maxFilterNodes = budget?.maxFilterNodes?.limit(),
             maxFilterValues = budget?.maxFilterValues?.limit(),
-            maxSortFields = AggregationQuery.MAX_SORT_FIELDS,
+            maxSortFields = Sort.MAX_FIELDS,
             aggregation = AggregationLimitsDescriptor(
                 maxGroups = AggregationQuery.MAX_GROUPS,
                 maxMetrics = AggregationQuery.MAX_METRICS,

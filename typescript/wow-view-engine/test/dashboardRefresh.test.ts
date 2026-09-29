@@ -37,6 +37,7 @@ import {
   recordConfig,
   testEnvironment,
   testSource,
+  resourcesOf,
 } from './fixtures.js';
 
 const pending: ViewInstance = {
@@ -61,9 +62,11 @@ async function openBoard(interval: number | null = 60) {
   const source = testSource();
   const store = new MemoryViewStore({ instances: [pending] });
   const engine = new ViewEngine({
-    definitions: [ordersDefinition(), overviewDefinition()],
+    resources: resourcesOf(
+      [ordersDefinition(), overviewDefinition()],
+      () => source,
+    ),
     store,
-    resolveSource: () => source,
     environment: clock.environment,
   });
   const config: DashboardViewConfig = dashboardConfig({

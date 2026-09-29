@@ -19,8 +19,9 @@ src/
   types.ts                               — the public types every hook shares: QueryStatus, QueryExecutor, ListStreamExecutor, QueryHookOptions, QueryHookReturn
   hooks/use{Single,List,Paged,Count}Query.ts — the request hooks on useQueryRunner; `execute` is typically a query client method
   hooks/useListStreamQuery.ts            — reads the stream itself and keeps `items` / `done`
-  hooks/useFetcher*Query.ts              — the same runner with an endpoint executor as `execute`, and the endpoint as part of the request's identity
-  internal/endpoint.ts                   — the Wow query endpoint protocol: postQuery, postQueryStream (QUERY_STREAM_ENDPOINT)
+  hooks/useFetcher*Query.ts              — the same runner with an endpoint executor as `execute`, and the endpoint as part of the request's identity; their options extend `Endpoint`
+  internal/endpoint.ts                   — the Wow query endpoint protocol: `Endpoint` (url, fetcher), postQuery, postQueryStream (QUERY_STREAM_ENDPOINT)
+  internal/useEndpointRunner.ts          — the request `useFetcher…` hooks' one body: useQueryRunner with postQuery and the endpoint's identity
   internal/useQueryRunner.ts             — the one request state machine: latest wins, aborts, StrictMode, first frame
   internal/queryTransitions.ts           — its state transitions as pure functions (section 3.3 of the design doc)
   internal/useListStream.ts              — the runner plus readStreamRows, for both list-stream hooks

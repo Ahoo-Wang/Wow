@@ -1,4 +1,4 @@
-# @ahoo-wang/wow-view-engine/ui — 213 names, from src/ui/index.ts.
+# @ahoo-wang/wow-view-engine/ui — 223 names, from src/ui/index.ts.
 # Written by test/publicSurface.test.ts; a change here is a change to
 # the public surface (README「Entries」, docs/design/decisions.md D29).
 value AUDIENCE_ICON
@@ -135,6 +135,7 @@ value ResultToolbar
 type  ResultToolbarProps
 value RevertDialog
 type  RevertDialogProps
+type  RoutedTarget
 value RowActions
 type  RowActionsProps
 value SYSTEM_ICON
@@ -152,7 +153,12 @@ type  StatusStripProps
 value SurfaceKind
 value TONE_ICON
 value UnsavedMark
+type  ViewBinding
+type  ViewBindingOptions
 type  ViewDensity
+type  ViewDestination
+value ViewEngineProvider
+type  ViewEngineProviderProps
 value ViewExpandExit
 value ViewExpandToggle
 type  ViewExpandToggleProps
@@ -166,6 +172,9 @@ value ViewManager
 type  ViewManagerProps
 type  ViewMessages
 type  ViewPreset
+type  ViewRoute
+type  ViewRouteOf
+type  ViewRouteState
 value ViewSurface
 type  ViewSurfaceProps
 value ViewSwitcher
@@ -180,6 +189,7 @@ value WorkbenchShell
 type  WorkbenchShellProps
 value WriteOutcome
 type  WriteOutcomeProps
+value bind
 value cellText
 value cellValue
 value crossesBoundary

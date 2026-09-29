@@ -61,7 +61,12 @@ import { AppliedBar } from '../src/ui/AppliedBar.js';
 import { FilterPanel } from '../src/ui/index.js';
 import { MessagesProvider } from '../src/ui/MessagesProvider.js';
 import { zhCN } from '../src/ui/messages/zh-CN.js';
-import { ordersDefinition, recordConfig, testSource } from './fixtures.js';
+import {
+  ordersDefinition,
+  recordConfig,
+  testSource,
+  resourcesOf,
+} from './fixtures.js';
 import { describedField, ordersDescriptor } from './fixtures/descriptor.js';
 
 afterEach(cleanup);
@@ -287,23 +292,25 @@ describe('a time since another moment, in the condition editor', () => {
   async function open(fields: FieldDefinition[], filter?: FilterTree) {
     const source: ViewSource = testSource();
     const engine = new ViewEngine({
-      definitions: [
-        ordersDefinition({
-          fields: [...ordersDefinition().fields, ...fields],
-          views: [
-            {
-              id: 'late',
-              title: 'Late',
-              config: recordConfig({
-                filter: filter ?? tree(),
-                filterMode: 'advanced',
-              }),
-            },
-          ],
-        }),
-      ],
+      resources: resourcesOf(
+        [
+          ordersDefinition({
+            fields: [...ordersDefinition().fields, ...fields],
+            views: [
+              {
+                id: 'late',
+                title: 'Late',
+                config: recordConfig({
+                  filter: filter ?? tree(),
+                  filterMode: 'advanced',
+                }),
+              },
+            ],
+          }),
+        ],
+        () => source,
+      ),
       store: new MemoryViewStore({ instances: [] }),
-      resolveSource: () => source,
     });
     const runtime = await engine.open('system:orders:late');
     return { engine, runtime, source };

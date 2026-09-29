@@ -292,11 +292,13 @@ export function createHomeEngine(
   environment?: RuntimeEnvironment,
 ): ViewEngine {
   return new ViewEngine({
-    definitions: [executionFailedDefinition, homeDefinition],
+    resources: [
+      { definition: executionFailedDefinition, source },
+      { definition: homeDefinition },
+    ],
     // As the consoles: the service pages at most 100 rows at a time.
     limits: { ...DEFAULT_RUNTIME_LIMITS, maxPageSize: 100 },
     store: new MemoryViewStore({ instances: homeViews }),
-    resolveSource: () => source,
     ...(environment ? { environment } : {}),
   });
 }

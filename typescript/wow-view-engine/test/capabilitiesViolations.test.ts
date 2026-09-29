@@ -28,6 +28,7 @@ import {
   recordConfig,
   testEnvironment,
   testSource,
+  resourcesOf,
 } from './fixtures.js';
 import {
   describedField,
@@ -140,9 +141,8 @@ function harness(refusal: () => Promise<never>) {
   const issues: Issue[] = [];
   const source = testSource({ describe, paged });
   const engine = new ViewEngine({
-    definitions: [ordersDefinition()],
+    resources: resourcesOf([ordersDefinition()], () => source),
     store: new MemoryViewStore({ instances: [byStatus] }),
-    resolveSource: () => source,
     environment: testEnvironment().environment,
     onIssue: found => issues.push(found),
   });

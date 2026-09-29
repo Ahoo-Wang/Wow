@@ -7316,6 +7316,7 @@
             "items" : {
               "$ref" : "#/components/schemas/wow.api.query.Sort"
             },
+            "maxItems" : 32,
             "type" : "array"
           }
         },
@@ -7379,6 +7380,7 @@
             "items" : {
               "$ref" : "#/components/schemas/wow.api.query.Sort"
             },
+            "maxItems" : 32,
             "type" : "array"
           }
         },
@@ -7657,6 +7659,7 @@
             "items" : {
               "$ref" : "#/components/schemas/wow.api.query.Sort"
             },
+            "maxItems" : 32,
             "type" : "array"
           }
         },

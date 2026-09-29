@@ -39,7 +39,6 @@ import me.ahoo.wow.api.query.schema.Temporal
 import me.ahoo.wow.mongo.query.MongoTestField
 import me.ahoo.wow.mongo.query.aggregation.MongoAggregationCompiler
 import me.ahoo.wow.mongo.query.compile
-import me.ahoo.wow.mongo.query.event.EventStreamFilterCompiler
 import me.ahoo.wow.mongo.query.mongoTestSchema
 import me.ahoo.wow.query.QueryAdmission
 import me.ahoo.wow.query.aggregation.DenseDateGrid
@@ -101,7 +100,7 @@ class MongoAggregationCompilerInputTest {
             expand("lines") { "elementTime".today(utc) }
             count("count")
         }
-        val compiler = MongoAggregationCompiler(SnapshotFilterCompiler)
+        val compiler = MongoAggregationCompiler
         val matches = compiler.compile(QueryAdmission.Trusted.aggregate(query, input, now = instant).query, input).map {
             it.toBsonDocument()
         }.filter { it.containsKey("\$match") }
@@ -128,7 +127,7 @@ class MongoAggregationCompilerInputTest {
             observed,
         )
         clearMocks(observed, answers = false)
-        val pipeline = MongoAggregationCompiler(SnapshotFilterCompiler).compile(admitted).map { it.toBsonDocument() }
+        val pipeline = MongoAggregationCompiler.compile(admitted).map { it.toBsonDocument() }
 
         pipeline[1].toJson().assert().contains("storage.status")
         pipeline[2].getDocument("\$group").getDocument("_id").getString("status").value.assert()
@@ -156,7 +155,7 @@ class MongoAggregationCompilerInputTest {
             observed,
         )
         clearMocks(observed, answers = false)
-        val pipeline = MongoAggregationCompiler(SnapshotFilterCompiler).compile(admitted).map { it.toBsonDocument() }
+        val pipeline = MongoAggregationCompiler.compile(admitted).map { it.toBsonDocument() }
 
         val matchInput = pipeline[1].getDocument("\$match").getArray("\$and")[0].asDocument()
             .getDocument("\$expr").getDocument("\$isNumber")
@@ -187,7 +186,7 @@ class MongoAggregationCompilerInputTest {
             observed,
         )
         clearMocks(observed, answers = false)
-        val pipeline = MongoAggregationCompiler(SnapshotFilterCompiler).compile(admitted).map { it.toBsonDocument() }
+        val pipeline = MongoAggregationCompiler.compile(admitted).map { it.toBsonDocument() }
 
         val matchInput = pipeline[1].getDocument("\$match").getArray("\$and")[0].asDocument()
             .getDocument("\$expr").getArray("\$ne")[0].asDocument()
@@ -205,7 +204,7 @@ class MongoAggregationCompilerInputTest {
         )
 
         assertThrows<QuerySchemaValidationException> {
-            MongoAggregationCompiler(SnapshotFilterCompiler).compile(
+            MongoAggregationCompiler.compile(
                 aggregation {
                     dateHistogram("state.first", AggregationDateUnit.DAY, "first")
                     terms("state.second", "second")
@@ -218,7 +217,7 @@ class MongoAggregationCompilerInputTest {
 
     @Test
     fun `summary group should use a null id`() {
-        val pipeline = MongoAggregationCompiler(SnapshotFilterCompiler).compile(
+        val pipeline = MongoAggregationCompiler.compile(
             aggregation { count("count") },
             schema(),
         ).map { it.toBsonDocument() }
@@ -228,7 +227,7 @@ class MongoAggregationCompilerInputTest {
 
     @Test
     fun `consecutive compilations should produce the same native pipeline`() {
-        val compiler = MongoAggregationCompiler(SnapshotFilterCompiler)
+        val compiler = MongoAggregationCompiler
         val query = aggregation {
             terms("state.status", "status")
             histogram("state.amount", 10.0, "range")
@@ -282,9 +281,7 @@ class MongoAggregationCompilerTest {
             },
         ).forEach { query ->
             assertThrows<QuerySchemaValidationException> {
-                MongoAggregationCompiler(
-                    SnapshotFilterCompiler
-                ).compile(query, schema)
+                MongoAggregationCompiler.compile(query, schema)
             }
         }
     }
@@ -298,7 +295,7 @@ class MongoAggregationCompilerTest {
                 "document.productName",
             ),
         )
-        val pipeline = MongoAggregationCompiler(SnapshotFilterCompiler).compile(
+        val pipeline = MongoAggregationCompiler.compile(
             aggregation {
                 any("state.productName", "productName")
                 count("count")
@@ -330,7 +327,7 @@ class MongoAggregationCompilerTest {
             sum("amount", "total")
         }
 
-        val json = MongoAggregationCompiler(SnapshotFilterCompiler).compile(query, schema)
+        val json = MongoAggregationCompiler.compile(query, schema)
             .joinToString { it.toBsonDocument().toJson() }
 
         json.assert()
@@ -363,7 +360,7 @@ class MongoAggregationCompilerTest {
             count("count")
         }
 
-        MongoAggregationCompiler(SnapshotFilterCompiler).compile(resolved, schema)
+        MongoAggregationCompiler.compile(resolved, schema)
             .joinToString { it.toBsonDocument().toJson() }.assert()
             .contains("storage.orders.status")
             .doesNotContain("state.orders.status.keyword")
@@ -377,7 +374,7 @@ class MongoAggregationCompilerTest {
             field("body.body.data", QueryCapability.AGGREGATE_TERMS, "events.payload.data"),
         )
 
-        val group = MongoAggregationCompiler(SnapshotFilterCompiler).compile(
+        val group = MongoAggregationCompiler.compile(
             aggregation {
                 expand("body")
                 terms("body.data", "data")
@@ -400,7 +397,7 @@ class MongoAggregationCompilerTest {
         }
 
         assertThrows<QuerySchemaValidationException> {
-            MongoAggregationCompiler(SnapshotFilterCompiler).compile(query, schema)
+            MongoAggregationCompiler.compile(query, schema)
         }
     }
 
@@ -419,7 +416,7 @@ class MongoAggregationCompilerTest {
             count("count")
         }
 
-        val group = MongoAggregationCompiler(SnapshotFilterCompiler).compile(query, schema)
+        val group = MongoAggregationCompiler.compile(query, schema)
             .first { it.toBsonDocument().containsKey("\$group") }
             .toBsonDocument().toJson()
 
@@ -449,7 +446,7 @@ class MongoAggregationCompilerTest {
         }
 
         assertThrows<QuerySchemaValidationException> {
-            MongoAggregationCompiler(SnapshotFilterCompiler).compile(query, schema)
+            MongoAggregationCompiler.compile(query, schema)
         }
     }
 
@@ -468,7 +465,7 @@ class MongoAggregationCompilerTest {
             count("count")
         }
 
-        MongoAggregationCompiler(SnapshotFilterCompiler).compile(query, schema)
+        MongoAggregationCompiler.compile(query, schema)
             .first { it.toBsonDocument().containsKey("\$group") }
             .toBsonDocument().toJson().assert()
             .contains("\$floor")
@@ -484,7 +481,7 @@ class MongoAggregationCompilerTest {
             count("count")
         }
 
-        val pipeline = MongoAggregationCompiler(SnapshotFilterCompiler).compile(query, schema())
+        val pipeline = MongoAggregationCompiler.compile(query, schema())
         pipeline.map { it.toBsonDocument().keys.first() }.assert().containsExactly(
             "\$match",
             "\$unwind",
@@ -518,7 +515,7 @@ class MongoAggregationCompilerTest {
             limit(7)
         }
 
-        val pipeline = MongoAggregationCompiler(SnapshotFilterCompiler).compile(query, schema())
+        val pipeline = MongoAggregationCompiler.compile(query, schema())
         val stages = pipeline.associateBy { it.toBsonDocument().keys.first() }
         stages.getValue("\$group").toBsonDocument().toJson().assert()
             .contains("\$floor")
@@ -543,7 +540,7 @@ class MongoAggregationCompilerTest {
             count("count")
         }
 
-        MongoAggregationCompiler(SnapshotFilterCompiler).compile(query, schema())
+        MongoAggregationCompiler.compile(query, schema())
             .first { it.toBsonDocument().containsKey("\$group") }
             .toBsonDocument().toJson().assert()
             .contains("\"unit\": \"week\"")
@@ -563,7 +560,7 @@ class MongoAggregationCompilerTest {
                 datePart("state.createdAt", part, "part", ZoneId.of("Asia/Shanghai"))
                 count("count")
             }
-            val stages = MongoAggregationCompiler(SnapshotFilterCompiler).compile(query, schema())
+            val stages = MongoAggregationCompiler.compile(query, schema())
                 .map { it.toBsonDocument().toJson() }
             val group = stages.first { it.contains("\"\$group\"") }
             group.assert()
@@ -585,7 +582,7 @@ class MongoAggregationCompilerTest {
                 additionalCapabilities = setOf(QueryCapability.RANGE),
             ),
         )
-        val stages = MongoAggregationCompiler(SnapshotFilterCompiler).compile(
+        val stages = MongoAggregationCompiler.compile(
             aggregation {
                 terms("state.status", "status")
                 first("state.productId", "open", "state.at")
@@ -623,7 +620,7 @@ class MongoAggregationCompilerTest {
             groupBy = listOf(AggregationGroup.Histogram(alias = "bucket", interval = 24.0, expression = hours)),
             metrics = listOf(AggregationMetric.Numeric(AggregationFunction.AVG, hours, "avgHours")),
         )
-        val stages = MongoAggregationCompiler(SnapshotFilterCompiler).compile(query, schema)
+        val stages = MongoAggregationCompiler.compile(query, schema)
             .map { it.toBsonDocument().toJson() }
 
         stages.first().assert().contains("\"\$expr\"", "\"\$gt\"", "\"\$subtract\"", "3600000.0")
@@ -645,14 +642,14 @@ class MongoAggregationCompilerTest {
             count("count")
         }
 
-        MongoAggregationCompiler(SnapshotFilterCompiler).compile(query, schema())
+        MongoAggregationCompiler.compile(query, schema())
             .first { it.toBsonDocument().containsKey("\$group") }
             .toBsonDocument().toJson().assert().contains("\"timezone\": \"UTC\"")
     }
 
     @Test
     fun `dense date histogram groups by bucket index and densifies numerically`() {
-        val pipeline = MongoAggregationCompiler(SnapshotFilterCompiler).compile(
+        val pipeline = MongoAggregationCompiler.compile(
             aggregation {
                 dateHistogram("state.createdAt", AggregationDateUnit.DAY, "day", dense = true)
                 count("count")
@@ -716,7 +713,7 @@ class MongoAggregationCompilerTest {
 
     @Test
     fun `plain hour histogram truncates onto the local wall clock`() {
-        val pipeline = MongoAggregationCompiler(SnapshotFilterCompiler).compile(
+        val pipeline = MongoAggregationCompiler.compile(
             aggregation {
                 dateHistogram("state.createdAt", AggregationDateUnit.HOUR, "hour", ZoneId.of("Australia/Lord_Howe"))
                 count("count")
@@ -745,7 +742,7 @@ class MongoAggregationCompilerTest {
     @Test
     fun `dense hour histogram indexes and inverts wall clock hours`() {
         val zone = ZoneId.of("Australia/Lord_Howe")
-        val pipeline = MongoAggregationCompiler(SnapshotFilterCompiler).compile(
+        val pipeline = MongoAggregationCompiler.compile(
             aggregation {
                 dateHistogram("state.createdAt", AggregationDateUnit.HOUR, "hour", zone, dense = true)
                 count("count")
@@ -809,7 +806,7 @@ class MongoAggregationCompilerTest {
     fun `dense week histogram keeps the elapsed unit index and dateAdd inversion`() {
         // Non-hour dense units stay on `$dateDiff`/`$dateAdd` elapsed-unit arithmetic —
         // the wall-clock rekeying is HOUR-only (DAY is locked by the sibling test above).
-        val pipeline = MongoAggregationCompiler(SnapshotFilterCompiler).compile(
+        val pipeline = MongoAggregationCompiler.compile(
             aggregation {
                 dateHistogram(
                     "state.createdAt",
@@ -838,7 +835,7 @@ class MongoAggregationCompilerTest {
 
     @Test
     fun `non dense date histogram keeps the toLong truncation key`() {
-        val pipeline = MongoAggregationCompiler(SnapshotFilterCompiler).compile(
+        val pipeline = MongoAggregationCompiler.compile(
             aggregation {
                 dateHistogram("state.createdAt", AggregationDateUnit.DAY, "day")
                 count("count")
@@ -855,7 +852,7 @@ class MongoAggregationCompilerTest {
     fun `summary compiler should retain contribution counts`() {
         val query = aggregation { sum("state.amount", "total") }
 
-        MongoAggregationCompiler(SnapshotFilterCompiler).compile(query, schema())
+        MongoAggregationCompiler.compile(query, schema())
             .joinToString { it.toBsonDocument().toJson() }
             .assert().contains("__wow_value_count_total")
     }
@@ -870,7 +867,7 @@ class MongoAggregationCompilerTest {
             )
         }
 
-        val groupJson = MongoAggregationCompiler(SnapshotFilterCompiler).compile(query, schema())
+        val groupJson = MongoAggregationCompiler.compile(query, schema())
             .first { it.toBsonDocument().containsKey("\$group") }
             .toBsonDocument()
             .toJson()
@@ -888,7 +885,7 @@ class MongoAggregationCompilerTest {
 
     @Test
     fun `derived metrics compile into a second project stage`() {
-        val pipeline = MongoAggregationCompiler(SnapshotFilterCompiler).compile(
+        val pipeline = MongoAggregationCompiler.compile(
             aggregation {
                 terms("state.status", "status")
                 count("paid")
@@ -918,7 +915,7 @@ class MongoAggregationCompilerTest {
 
     @Test
     fun `derived without derived metrics keeps a single project stage`() {
-        val pipeline = MongoAggregationCompiler(SnapshotFilterCompiler).compile(
+        val pipeline = MongoAggregationCompiler.compile(
             aggregation {
                 terms("state.status", "status")
                 count("total")
@@ -935,7 +932,7 @@ class MongoAggregationCompilerTest {
 
     @Test
     fun `terms missingKey drops the group guard and buckets by an ifNull sentinel key`() {
-        val pipeline = MongoAggregationCompiler(SnapshotFilterCompiler).compile(
+        val pipeline = MongoAggregationCompiler.compile(
             aggregation {
                 terms("state.status", "status", missingKey = "UNKNOWN")
                 count("count")
@@ -955,7 +952,7 @@ class MongoAggregationCompilerTest {
 
     @Test
     fun `terms without missingKey keeps the exists null guard`() {
-        val pipeline = MongoAggregationCompiler(SnapshotFilterCompiler).compile(
+        val pipeline = MongoAggregationCompiler.compile(
             aggregation {
                 terms("state.status", "status")
                 count("count")
@@ -974,7 +971,7 @@ class MongoAggregationCompilerTest {
 
     @Test
     fun `a missingKey terms group keeps the guards of its sibling groups`() {
-        val pipeline = MongoAggregationCompiler(SnapshotFilterCompiler).compile(
+        val pipeline = MongoAggregationCompiler.compile(
             aggregation {
                 terms("state.status", "status", missingKey = "UNKNOWN")
                 histogram("state.amount", 10.0, "range")
@@ -991,7 +988,7 @@ class MongoAggregationCompilerTest {
 
     @Test
     fun `derived constants and chains compile leaves in order`() {
-        val pipeline = MongoAggregationCompiler(SnapshotFilterCompiler).compile(
+        val pipeline = MongoAggregationCompiler.compile(
             aggregation {
                 count("total")
                 derived("target") { constant(120.0) }
@@ -1023,7 +1020,7 @@ class MongoAggregationCompilerTest {
 
     @Test
     fun `metrics declared after a derived metric survive derived project stages`() {
-        val pipeline = MongoAggregationCompiler(SnapshotFilterCompiler).compile(
+        val pipeline = MongoAggregationCompiler.compile(
             aggregation {
                 count("total")
                 derived("half") { ref("total") / constant(2.0) }
@@ -1048,7 +1045,7 @@ class MongoAggregationCompilerTest {
 
     @Test
     fun `having compiles into a post-derivation match with null guards`() {
-        val pipeline = MongoAggregationCompiler(SnapshotFilterCompiler).compile(
+        val pipeline = MongoAggregationCompiler.compile(
             aggregation {
                 terms("state.status", "status")
                 count("lines")
@@ -1077,7 +1074,7 @@ class MongoAggregationCompilerTest {
 
     @Test
     fun `having null checks and in-lists compile without numeric guards`() {
-        val pipeline = MongoAggregationCompiler(SnapshotFilterCompiler).compile(
+        val pipeline = MongoAggregationCompiler.compile(
             aggregation {
                 terms("state.status", "status")
                 count("lines")
@@ -1094,7 +1091,7 @@ class MongoAggregationCompilerTest {
 
     @Test
     fun `having ne conditions keep the comparison value beside the null guard`() {
-        val pipeline = MongoAggregationCompiler(SnapshotFilterCompiler).compile(
+        val pipeline = MongoAggregationCompiler.compile(
             aggregation {
                 terms("state.status", "status")
                 count("lines")
@@ -1110,7 +1107,7 @@ class MongoAggregationCompilerTest {
 
     @Test
     fun `queries without having keep their pipeline shape`() {
-        val pipeline = MongoAggregationCompiler(SnapshotFilterCompiler).compile(
+        val pipeline = MongoAggregationCompiler.compile(
             aggregation { count("count") },
             schema(),
         )
@@ -1121,7 +1118,7 @@ class MongoAggregationCompilerTest {
 
     @Test
     fun `plain field metric should normalize scalar or singleton values without conversion`() {
-        val groupJson = MongoAggregationCompiler(SnapshotFilterCompiler).compile(
+        val groupJson = MongoAggregationCompiler.compile(
             aggregation { sum("state.amount", "total") },
             schema(),
         )[1].toBsonDocument().toJson()
@@ -1141,7 +1138,7 @@ class MongoAggregationCompilerTest {
             count("count")
         }
 
-        val pipeline = MongoAggregationCompiler(SnapshotFilterCompiler).compile(query, schema())
+        val pipeline = MongoAggregationCompiler.compile(query, schema())
         pipeline[0].toBsonDocument().toJson().assert().contains("\"deleted\": true")
         pipeline[2].toBsonDocument().toJson().assert().doesNotContain("deleted")
     }
@@ -1153,7 +1150,7 @@ class MongoAggregationCompilerTest {
             count("count")
         }
 
-        val pipeline = MongoAggregationCompiler(SnapshotFilterCompiler).compile(query, schema())
+        val pipeline = MongoAggregationCompiler.compile(query, schema())
         pipeline[1].toBsonDocument().toJson().assert()
             .contains("\"_id\"")
             .doesNotContain(MessageRecords.AGGREGATE_ID)
@@ -1162,7 +1159,7 @@ class MongoAggregationCompilerTest {
 
     @Test
     fun `snapshot identity aggregation should use its schema physical path`() {
-        val pipeline = MongoAggregationCompiler(SnapshotFilterCompiler).compile(
+        val pipeline = MongoAggregationCompiler.compile(
             aggregation {
                 terms(MessageRecords.AGGREGATE_ID, "aggregate")
                 count("count")
@@ -1188,7 +1185,7 @@ class MongoAggregationCompilerTest {
 
     @Test
     fun `event stream identity aggregation should use its schema physical path`() {
-        val pipeline = MongoAggregationCompiler(EventStreamFilterCompiler).compile(
+        val pipeline = MongoAggregationCompiler.compile(
             aggregation {
                 terms(MessageRecords.ID, "event")
                 count("count")
@@ -1215,7 +1212,7 @@ class MongoAggregationCompilerTest {
     fun `numeric contribution count should accept only Mongo numeric values`() {
         val query = aggregation { sum("state.amount", "total") }
 
-        val group = MongoAggregationCompiler(SnapshotFilterCompiler).compile(query, schema())[1]
+        val group = MongoAggregationCompiler.compile(query, schema())[1]
         group.toBsonDocument().toJson().assert()
             .contains("\$isNumber")
             .contains("\$filter")
@@ -1228,7 +1225,7 @@ class MongoAggregationCompilerTest {
             max("state.amount", "maximum")
         }
 
-        val group = MongoAggregationCompiler(SnapshotFilterCompiler).compile(query, schema())[1]
+        val group = MongoAggregationCompiler.compile(query, schema())[1]
             .toBsonDocument().getDocument("\$group")
         listOf("minimum", "maximum").forEach { alias ->
             group.getDocument(alias).toJson().assert()
@@ -1239,7 +1236,7 @@ class MongoAggregationCompilerTest {
 
     @Test
     fun `stddev and variance accumulate population statistics`() {
-        val pipeline = MongoAggregationCompiler(SnapshotFilterCompiler).compile(
+        val pipeline = MongoAggregationCompiler.compile(
             aggregation {
                 stddev("state.amount", "stddev")
                 variance("state.amount", "variance")
@@ -1265,7 +1262,7 @@ class MongoAggregationCompilerTest {
 
     @Test
     fun `percentile accumulates approximate t-digest input with contribution guard`() {
-        val pipeline = MongoAggregationCompiler(SnapshotFilterCompiler).compile(
+        val pipeline = MongoAggregationCompiler.compile(
             aggregation {
                 percentile("state.amount", 95.0, "p95")
             },
@@ -1289,7 +1286,7 @@ class MongoAggregationCompilerTest {
 
     @Test
     fun `distinct count accumulates a set during grouping and projects set size`() {
-        val pipeline = MongoAggregationCompiler(SnapshotFilterCompiler).compile(
+        val pipeline = MongoAggregationCompiler.compile(
             aggregation {
                 distinctCount("state.productId", "products")
             },
@@ -1312,7 +1309,7 @@ class MongoAggregationCompilerTest {
 
     @Test
     fun `filtered count accumulates conditional ones`() {
-        val pipeline = MongoAggregationCompiler(SnapshotFilterCompiler).compile(
+        val pipeline = MongoAggregationCompiler.compile(
             aggregation { count("paid") { "state.status" eq "PAID" } },
             statusFilterSchema,
         ).map { it.toBsonDocument() }
@@ -1326,7 +1323,7 @@ class MongoAggregationCompilerTest {
 
     @Test
     fun `filtered numeric metrics guard contributions with the filter`() {
-        val pipeline = MongoAggregationCompiler(SnapshotFilterCompiler).compile(
+        val pipeline = MongoAggregationCompiler.compile(
             aggregation {
                 sum("state.amount", "paidAmount") { "state.status" eq "PAID" }
                 percentile("state.amount", 50.0, "paidP50") { "state.status" eq "PAID" }
@@ -1347,7 +1344,7 @@ class MongoAggregationCompilerTest {
 
     @Test
     fun `filtered distinct count and any null non matching records`() {
-        val pipeline = MongoAggregationCompiler(SnapshotFilterCompiler).compile(
+        val pipeline = MongoAggregationCompiler.compile(
             aggregation {
                 distinctCount("state.productId", "paidProducts") { "state.status" eq "PAID" }
                 any("state.status", "anyStatus") { "deleted" eq false }
@@ -1368,7 +1365,7 @@ class MongoAggregationCompilerTest {
 
     @Test
     fun `unfiltered metrics keep their unwrapped accumulators`() {
-        val pipeline = MongoAggregationCompiler(SnapshotFilterCompiler).compile(
+        val pipeline = MongoAggregationCompiler.compile(
             aggregation {
                 count("count")
                 sum("state.amount", "total")
@@ -1387,7 +1384,7 @@ class MongoAggregationCompilerTest {
 
     @Test
     fun `metric filters should guard null equality and inequality with type conditions`() {
-        val pipeline = MongoAggregationCompiler(SnapshotFilterCompiler).compile(
+        val pipeline = MongoAggregationCompiler.compile(
             aggregation {
                 count("notAlpha") { "state.productName" ne "Alpha" }
                 count("nullName") { "state.productName" eq null }
@@ -1444,7 +1441,7 @@ class MongoAggregationCompilerTest {
 
     @Test
     fun `metric filters should translate nin and nor into not guards`() {
-        val pipeline = MongoAggregationCompiler(SnapshotFilterCompiler).compile(
+        val pipeline = MongoAggregationCompiler.compile(
             aggregation {
                 count("notInList") { "state.productName" notIn listOf("Alpha", "Beta") }
                 count("neither") {
@@ -1504,7 +1501,7 @@ class MongoAggregationCompilerTest {
 
     @Test
     fun `metric filters should translate exists checks into type guards`() {
-        val pipeline = MongoAggregationCompiler(SnapshotFilterCompiler).compile(
+        val pipeline = MongoAggregationCompiler.compile(
             aggregation {
                 count("present") { "state.productName".exists() }
                 count("absent") { "state.productName".notExists() }
@@ -1529,7 +1526,7 @@ class MongoAggregationCompilerTest {
 
     @Test
     fun `metric filters should translate in-lists into expression in guards`() {
-        val pipeline = MongoAggregationCompiler(SnapshotFilterCompiler).compile(
+        val pipeline = MongoAggregationCompiler.compile(
             aggregation {
                 count("inList") { "state.productName" isIn listOf("Alpha", "Beta") }
             },
@@ -1552,7 +1549,7 @@ class MongoAggregationCompilerTest {
 
     @Test
     fun `metric filters should translate literal match regex leaves into regexMatch guards`() {
-        val pipeline = MongoAggregationCompiler(SnapshotFilterCompiler).compile(
+        val pipeline = MongoAggregationCompiler.compile(
             aggregation {
                 count("contains") { "state.productName".containsText("Alpha") }
                 count("startsWith") { "state.productName".startsWithText("Alpha") }
@@ -1588,7 +1585,7 @@ class MongoAggregationCompilerTest {
                 additionalCapabilities = setOf(QueryCapability.EXACT_MATCH),
             ),
         )
-        val pipeline = MongoAggregationCompiler(SnapshotFilterCompiler).compile(
+        val pipeline = MongoAggregationCompiler.compile(
             aggregation {
                 count("pending") { "state.productName" eq "\$pending" }
                 count("notPending") { "state.productName" ne "\$pending" }
@@ -1642,7 +1639,7 @@ class MongoAggregationCompilerTest {
 
     @Test
     fun `dollar prefixed literal match values stay escaped regex patterns`() {
-        val pipeline = MongoAggregationCompiler(SnapshotFilterCompiler).compile(
+        val pipeline = MongoAggregationCompiler.compile(
             aggregation { count("startsWith") { "state.productName".startsWithText("\$pending") } },
             guardFilterSchema,
         ).map { it.toBsonDocument() }
@@ -1655,7 +1652,7 @@ class MongoAggregationCompilerTest {
 
     @Test
     fun `element scoped metric filters compile guards relative to their element`() {
-        val pipeline = MongoAggregationCompiler(SnapshotFilterCompiler).compile(
+        val pipeline = MongoAggregationCompiler.compile(
             aggregation {
                 expand("state.orders")
                 count("paid") { "status" eq "PAID" }
@@ -1680,7 +1677,7 @@ class MongoAggregationCompilerTest {
                 additionalCapabilities = setOf(QueryCapability.AGGREGATE_NUMERIC),
             ),
         )
-        val pipeline = MongoAggregationCompiler(SnapshotFilterCompiler).compile(
+        val pipeline = MongoAggregationCompiler.compile(
             aggregation {
                 count("above") { "state.amount" gt 10.0 }
                 count("within") { "state.amount".between(1.0, 5.0) }
@@ -1722,7 +1719,7 @@ class MongoAggregationCompilerTest {
             temporalSchema,
             now = java.time.Instant.parse("1970-01-02T12:00:00Z"),
         ).query
-        val pipeline = MongoAggregationCompiler(SnapshotFilterCompiler).compile(query, temporalSchema)
+        val pipeline = MongoAggregationCompiler.compile(query, temporalSchema)
             .map { it.toBsonDocument() }
 
         val guard = pipeline.single { it.containsKey("\$group") }.getDocument("\$group")
@@ -1737,7 +1734,7 @@ class MongoAggregationCompilerTest {
 
     @Test
     fun `match none metric filters guard with an empty in list`() {
-        val pipeline = MongoAggregationCompiler(SnapshotFilterCompiler).compile(
+        val pipeline = MongoAggregationCompiler.compile(
             aggregation { count("none") { matchNone() } },
             schema(),
         ).map { it.toBsonDocument() }
@@ -1750,7 +1747,7 @@ class MongoAggregationCompilerTest {
 
     @Test
     fun `all state deletion metric filters guard with literal true`() {
-        val pipeline = MongoAggregationCompiler(SnapshotFilterCompiler).compile(
+        val pipeline = MongoAggregationCompiler.compile(
             aggregation { count("every") { deletion(DeletionState.ALL) } },
             schema(),
         ).map { it.toBsonDocument() }
@@ -1762,7 +1759,7 @@ class MongoAggregationCompilerTest {
 
     @Test
     fun `or metric filters translate into or guards`() {
-        val pipeline = MongoAggregationCompiler(SnapshotFilterCompiler).compile(
+        val pipeline = MongoAggregationCompiler.compile(
             aggregation {
                 count("either") {
                     or {
@@ -1790,7 +1787,7 @@ class MongoAggregationCompilerTest {
 
     @Test
     fun `and metric filters translate into and guards`() {
-        val pipeline = MongoAggregationCompiler(SnapshotFilterCompiler).compile(
+        val pipeline = MongoAggregationCompiler.compile(
             aggregation {
                 count("both") {
                     and {
@@ -1842,7 +1839,7 @@ class MongoAggregationCompilerTest {
 
     @Test
     fun `map keyed scalar metric filter fields keep equality guards`() {
-        val pipeline = MongoAggregationCompiler(SnapshotFilterCompiler).compile(
+        val pipeline = MongoAggregationCompiler.compile(
             aggregation { count("prod") { "state.env.stage" eq "prod" } },
             mapCollectionSchema,
         ).map { it.toBsonDocument() }
@@ -1903,7 +1900,7 @@ class MongoAggregationCompilerTest {
     @Test
     fun `metric filters cannot use text search`() {
         assertThrows<QuerySchemaValidationException> {
-            MongoAggregationCompiler(SnapshotFilterCompiler).compile(
+            MongoAggregationCompiler.compile(
                 aggregation { count("found") { "state.status" search "PAID" } },
                 statusFilterSchema,
             )
@@ -1913,7 +1910,7 @@ class MongoAggregationCompilerTest {
     @Test
     fun `metric filters cannot use element match`() {
         assertThrows<QuerySchemaValidationException> {
-            MongoAggregationCompiler(SnapshotFilterCompiler).compile(
+            MongoAggregationCompiler.compile(
                 aggregation { count("orders") { "state.orders".elementMatch { "status" eq "PAID" } } },
                 schema(),
             )
@@ -1923,7 +1920,7 @@ class MongoAggregationCompilerTest {
     @Test
     fun `metric filters cannot use contains all`() {
         assertThrows<QuerySchemaValidationException> {
-            MongoAggregationCompiler(SnapshotFilterCompiler).compile(
+            MongoAggregationCompiler.compile(
                 aggregation { count("tagged") { "state.status" containsAll listOf("A", "B") } },
                 statusFilterSchema,
             )
@@ -1961,7 +1958,7 @@ class MongoAggregationCompilerTest {
             count("count")
         }
 
-        val pipeline = MongoAggregationCompiler(SnapshotFilterCompiler).compile(
+        val pipeline = MongoAggregationCompiler.compile(
             query,
             schema(
                 field("state.status", QueryCapability.EXACT_MATCH, "physical.state.status"),
@@ -1983,7 +1980,7 @@ class MongoAggregationCompilerTest {
     /** Metric filter shape rules are enforced by query validation before any backend compiles the query. */
     private fun compileValidated(query: AggregationQuery, schema: QueryModelSchema) =
         QueryAdmission.Trusted.aggregate(query, schema).let {
-            MongoAggregationCompiler(SnapshotFilterCompiler).compile(query, schema)
+            MongoAggregationCompiler.compile(query, schema)
         }
 }
 

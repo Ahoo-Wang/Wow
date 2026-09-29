@@ -55,6 +55,7 @@ import {
   nextTask,
   ordersDefinition,
   testSource,
+  resourcesOf,
 } from './fixtures.js';
 import {
   analysisToggle,
@@ -113,10 +114,12 @@ function open(
   const instance = options.instance ?? chart;
   const engine = new ViewEngine({
     ...(options.environment ? { environment: options.environment } : {}),
-    definitions: [options.definition ?? ordersDefinition()],
+    resources: resourcesOf(
+      [options.definition ?? ordersDefinition()],
+      () => source,
+    ),
     // A record view beside the analysis one, so the list holds both kinds.
     store: new MemoryViewStore({ instances: [mine, instance] }),
-    resolveSource: () => source,
   });
   render(
     <DataWorkbench

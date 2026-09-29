@@ -74,7 +74,8 @@ private val LEGACY_PROJECTION_PROPERTIES = setOf(
 private val LEGACY_SORT_PROPERTIES = setOf(QueryProtocol.Sort.FIELD, QueryProtocol.Sort.DIRECTION)
 private val LEGACY_PAGINATION_PROPERTIES = setOf(QueryProtocol.Pagination.INDEX, QueryProtocol.Pagination.SIZE)
 
-// The legacy WebFlux path ignored unknown properties across the entire query body.
+// compat(wow<9): a body with `condition` is read as the WebFlux path before 8.11 read it, which ignored unknown
+// properties across the entire query body; see docs/compat-debt.md.
 private fun ObjectNode.removeUnknownLegacyQueryProperties(inputType: Class<*>) {
     val queryProperties = when (inputType) {
         ListQueryJson::class.java -> setOf(

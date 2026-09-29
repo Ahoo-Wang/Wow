@@ -44,6 +44,7 @@ import {
   overviewDefinition,
   recordConfig,
   testSource,
+  resourcesOf,
 } from './fixtures.js';
 
 afterEach(cleanup);
@@ -100,7 +101,7 @@ function panel(id: string, instanceId: string, y: number): DashboardPanel {
 function setup() {
   const source = testSource();
   const engine = new ViewEngine({
-    definitions: [orders(), overviewDefinition()],
+    resources: resourcesOf([orders(), overviewDefinition()], () => source),
     store: new MemoryViewStore({
       instances: [
         ...views,
@@ -120,7 +121,6 @@ function setup() {
         },
       ],
     }),
-    resolveSource: () => source,
   });
   const runtime = () =>
     engine

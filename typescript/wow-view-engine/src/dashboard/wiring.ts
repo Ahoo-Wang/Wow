@@ -36,6 +36,7 @@ import {
 import { searchFieldOf } from '../filter/index.js';
 import { filtersOf } from './filters.js';
 import { bindingsOf, clicksFilter, isViewPanel } from './panels.js';
+import { isDateFilter } from './timeBindings.js';
 
 /**
  * What of a data panel says which view it shows: the saved one it points
@@ -158,9 +159,19 @@ export function bindPanel(
   if (!sameFilterType(filter.kind, target.kind)) return same;
 
   const connected: string[] = [];
+  const dated = isDateFilter(filter);
   const panels = config.panels.map(entry => {
-    if (entry === panel) return wire(entry, name, panelField, false);
+    // Wired to a date filter by hand, a panel that read whole is timed again.
+    if (entry === panel)
+      return wire(
+        dated ? (without(entry, 'ignoresTime') as DashboardViewPanel) : entry,
+        name,
+        panelField,
+        false,
+      );
     if (!isViewPanel(entry) || wiredTo(entry, name)) return entry;
+    // A panel that reads whole is not wired to a date on its own.
+    if (dated && entry.ignoresTime === true) return entry;
     const match = autoField(filter, fieldsOf(entry) ?? [], [panelField]);
     if (!match) return entry;
     connected.push(entry.id);
@@ -185,13 +196,24 @@ export function bindPanel(
   };
 }
 
-/** The board with these panels no longer wired to a filter. */
+/**
+ * The board with these panels no longer wired to a filter. Taken off a date
+ * filter by hand, a panel reads whole from then on (`ignoresTime`): the
+ * board's time filter would otherwise wire it again on its own — now, or
+ * once the board is down to that one date filter (D1). A change the author
+ * did not make by hand — a filter retyped (`retypeFilter`) — says `byHand:
+ * false`, and leaves that alone.
+ */
 export function unbindPanels(
   config: DashboardViewConfig,
   name: string,
   panelIds: readonly string[],
+  { byHand = true }: { byHand?: boolean } = {},
 ): DashboardViewConfig {
   let changed = false;
+  const time =
+    byHand &&
+    isDateFilter(filtersOf(config).find(field => field.name === name));
   const panels = config.panels.map(panel => {
     if (!isViewPanel(panel) || !panelIds.includes(panel.id)) return panel;
     if (!wiredTo(panel, name)) return panel;
@@ -204,6 +226,7 @@ export function unbindPanels(
     return {
       ...rest,
       bindings: bindingsOf(panel).filter(entry => entry.globalField !== name),
+      ...(time ? { ignoresTime: true as const } : {}),
     };
   });
   return changed ? { ...config, panels } : config;

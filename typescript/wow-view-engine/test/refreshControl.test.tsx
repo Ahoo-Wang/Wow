@@ -58,6 +58,7 @@ import {
   recordConfig,
   testEnvironment,
   testSource,
+  resourcesOf,
 } from './fixtures.js';
 import { describedText, refreshController } from './fixtures/ui.js';
 
@@ -156,9 +157,11 @@ function engineWith(options: {
   environment?: ViewEngineEnvironment;
 }): ViewEngine {
   return new ViewEngine({
-    definitions: [ordersDefinition(), overviewDefinition()],
+    resources: resourcesOf(
+      [ordersDefinition(), overviewDefinition()],
+      () => options.source ?? testSource(),
+    ),
     store: new MemoryViewStore({ instances: options.instances ?? [orders] }),
-    resolveSource: () => options.source ?? testSource(),
     limits: { ...DEFAULT_RUNTIME_LIMITS, ...options.limits },
     ...(options.environment ? { environment: options.environment } : {}),
   });

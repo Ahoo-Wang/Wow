@@ -418,7 +418,7 @@ describe('WriteLedger effects', () => {
 
     await ledger.dispatch(savePayload(), runtime);
     const saved = { ...mine, revision: '2' };
-    expect(runtime.markSaved).toHaveBeenCalledWith(saved);
+    expect(runtime.markSaved).toHaveBeenCalledWith(saved, undefined);
     expect(other.moveBaseline).toHaveBeenCalledWith(saved);
     expect(noted).toEqual([saved]);
   });
@@ -476,7 +476,7 @@ describe('WriteLedger effects', () => {
       { action: 'create', input, intent: 'first-save' },
       runtime,
     );
-    expect(runtime.markSaved).toHaveBeenCalledWith(mine);
+    expect(runtime.markSaved).toHaveBeenCalledWith(mine, undefined);
     expect(ledger.pendingWrites().size).toBe(0);
   });
 });

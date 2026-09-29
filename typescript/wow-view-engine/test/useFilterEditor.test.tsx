@@ -40,6 +40,7 @@ import {
   ordersDefinition,
   recordConfig,
   testSource,
+  resourcesOf,
 } from './fixtures.js';
 import { engineWith } from './fixtures/hooks.js';
 
@@ -354,7 +355,7 @@ describe('useFilterEditor', () => {
       views: [],
     });
     const engine = new ViewEngine({
-      definitions: [definition],
+      resources: resourcesOf([definition], () => testSource()),
       store: new MemoryViewStore({
         instances: [
           {
@@ -363,7 +364,6 @@ describe('useFilterEditor', () => {
           },
         ],
       }),
-      resolveSource: () => testSource(),
     });
     const { result } = renderHook(() => {
       const opened = useOpenView(engine, 'orders-1');

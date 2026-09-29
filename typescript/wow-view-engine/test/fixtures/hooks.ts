@@ -25,7 +25,12 @@ import {
   type ViewInstance,
   type ViewSource,
 } from '../../src/index.js';
-import { mine, ordersDefinition, testSource } from '../fixtures.js';
+import {
+  mine,
+  ordersDefinition,
+  testSource,
+  resourcesOf,
+} from '../fixtures.js';
 
 export function engineWith(
   options: {
@@ -39,9 +44,11 @@ export function engineWith(
     options.store ??
     new MemoryViewStore({ instances: options.instances ?? [mine] });
   const engine = new ViewEngine({
-    definitions: options.definitions ?? [ordersDefinition()],
+    resources: resourcesOf(
+      options.definitions ?? [ordersDefinition()],
+      () => options.source ?? testSource(),
+    ),
     store,
-    resolveSource: () => options.source ?? testSource(),
   });
   return { engine, store };
 }

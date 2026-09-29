@@ -36,6 +36,7 @@ import {
   ordersDefinition,
   recordConfig,
   testSource,
+  resourcesOf,
 } from './fixtures.js';
 
 afterEach(cleanup);
@@ -83,9 +84,8 @@ function engineWith(
     permissions: options.permissions,
   });
   const engine = new ViewEngine({
-    definitions: [ordersDefinition()],
+    resources: resourcesOf([ordersDefinition()], () => testSource()),
     store,
-    resolveSource: () => testSource(),
   });
   return { engine, store };
 }
@@ -486,9 +486,8 @@ describe('useViewManager', () => {
       ],
     });
     const engine = new ViewEngine({
-      definitions: [ordersDefinition()],
+      resources: resourcesOf([ordersDefinition()], () => testSource()),
       store,
-      resolveSource: () => testSource(),
     });
     const rendered = renderHook<Managed, unknown>(() => {
       const list = useViewList(engine, 'orders', { kinds: ['record'] });
@@ -548,9 +547,8 @@ describe('useViewManager', () => {
         ],
       });
       const engine = new ViewEngine({
-        definitions: [ordersDefinition()],
+        resources: resourcesOf([ordersDefinition()], () => testSource()),
         store,
-        resolveSource: () => testSource(),
       });
       const rendered = await managed(engine);
       const items = rendered.result.current.list.items;
@@ -993,12 +991,14 @@ describe('useViewManager', () => {
       ],
     });
     const engine = new ViewEngine({
-      definitions: [
-        ordersDefinition(),
-        ordersDefinition({ id: 'returns', title: 'Returns', views: [] }),
-      ],
+      resources: resourcesOf(
+        [
+          ordersDefinition(),
+          ordersDefinition({ id: 'returns', title: 'Returns', views: [] }),
+        ],
+        () => testSource(),
+      ),
       store,
-      resolveSource: () => testSource(),
     });
     const hangs = deferred<ViewInstance>();
     const rename = vi.spyOn(store, 'rename').mockReturnValueOnce(hangs.promise);
@@ -1074,9 +1074,8 @@ describe('useViewManager', () => {
       ],
     });
     const engine = new ViewEngine({
-      definitions: [ordersDefinition()],
+      resources: resourcesOf([ordersDefinition()], () => testSource()),
       store,
-      resolveSource: () => testSource(),
     });
     const { result } = await managed(engine);
     // The system view leads the list and is shared; the personal rows follow.

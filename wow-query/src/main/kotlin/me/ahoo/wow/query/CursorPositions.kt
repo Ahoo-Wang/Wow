@@ -14,7 +14,6 @@
 package me.ahoo.wow.query
 
 import me.ahoo.wow.api.modeling.NamedAggregate
-import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QueryViolation
@@ -125,7 +124,7 @@ internal object CursorTokens {
         sort: List<Sort>,
         codec: CursorPositionCodec,
     ): CursorPosition = try {
-        require(sort.size in 1..AggregationQuery.MAX_SORT_FIELDS)
+        require(sort.size in 1..Sort.MAX_FIELDS)
         val bytes = decoder.decode(token)
         require(bytes.size > 1 + FINGERPRINT_BYTES && bytes[0] == VERSION)
         require(

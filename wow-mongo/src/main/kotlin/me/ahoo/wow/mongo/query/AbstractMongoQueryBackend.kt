@@ -22,7 +22,6 @@ import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.Queryable
 import me.ahoo.wow.mongo.Documents
-import me.ahoo.wow.mongo.Documents.replacePrimaryKeyTo
 import me.ahoo.wow.mongo.query.aggregation.MongoAggregationCompiler
 import me.ahoo.wow.mongo.toObjectNode
 import me.ahoo.wow.query.AdmittedQuery
@@ -40,22 +39,25 @@ import reactor.kotlin.core.publisher.toFlux
 import reactor.kotlin.core.publisher.toMono
 import tools.jackson.databind.node.ObjectNode
 
-internal fun Document.toQueryObjectNode(idField: String): ObjectNode {
+/**
+ * Serializes a stored document as a query row, first undoing the store's own primary-key mapping so the row carries
+ * the field the store moved into `_id`. The store owns that mapping; the query backend does not name the field.
+ */
+internal fun Document.toQueryObjectNode(restorePrimaryKey: Document.() -> Document): ObjectNode {
     if (containsKey(Documents.ID_FIELD)) {
-        replacePrimaryKeyTo(idField)
+        restorePrimaryKey()
     }
     return toObjectNode()
 }
 
 abstract class AbstractMongoQueryBackend : QueryBackend {
     abstract val collection: MongoCollection<Document>
-    abstract val filterCompiler: AbstractMongoFilterCompiler
     protected abstract fun toObjectNode(document: Document): ObjectNode
 
     override val cursorPositions: CursorPositionCodec = MongoCursorCodec
 
     internal fun findDocument(admitted: AdmittedQuery<Queryable<*>>): FindPublisher<Document> {
-        return collection.findDocument(filterCompiler, admitted)
+        return collection.findDocument(admitted)
     }
 
     override fun stream(query: AdmittedQuery<IListQuery>): Flux<ObjectNode> {
@@ -74,13 +76,8 @@ abstract class AbstractMongoQueryBackend : QueryBackend {
 
     /** One offset window; the total, when asked for, is counted in parallel with the find. */
     private fun offsetPage(query: AdmittedQuery<Queryable<*>>, window: PageWindow.Offset): Mono<BackendPage> {
-        val queryable = query.query
-        val projection = MongoProjectionCompiler.compile(queryable.projection, query)
-        val filter = filterCompiler.compile(queryable.filter, query)
-        val sort = MongoSortCompiler.compile(queryable.sort, query)
-        val rows = collection.find(filter)
-            .projection(projection)
-            .sort(sort)
+        val filter = MongoFilterCompiler.compile(query.query.filter, query)
+        val rows = collection.findDocument(query, filter)
             .skip(window.offset)
             .limit(window.limit)
             .batchSize(window.limit)
@@ -101,18 +98,16 @@ abstract class AbstractMongoQueryBackend : QueryBackend {
         val queryable = query.query
         val resolvedSort = queryable.sort.map { query.field(it.field) }
         val physicalSort = queryable.sort.zip(resolvedSort) { sort, field -> sort.copy(field = field.physicalField) }
+        val match = MongoFilterCompiler.compile(queryable.filter, query)
         val filter = window.after?.let {
-            Filters.and(
-                filterCompiler.compile(queryable.filter, query),
-                MongoCursorFilterCompiler.compile(physicalSort, it.values),
-            )
-        } ?: filterCompiler.compile(queryable.filter, query)
+            Filters.and(match, MongoCursorFilterCompiler.compile(physicalSort, it.values))
+        } ?: match
         val sortFields = physicalSort.map { it.field.path }
         val projection = MongoProjectionCompiler.cursorProjection(queryable.projection, sortFields, query)
         val deferredInternalFields = setOf(Documents.ID_FIELD).intersect(projection.internalFields)
-        val deferredResponseFields = resolvedSort
-            .filter { it.physicalField.path in deferredInternalFields }
-            .map { it.responseField?.path ?: it.logicalField.path }
+        val deferredResponseFields = resolvedSort.zip(sortFields)
+            .filter { (_, path) -> path in deferredInternalFields }
+            .map { (field, _) -> field.responseField?.path ?: field.logicalField.path }
         return collection.find(filter)
             .projection(MongoProjectionCompiler.compile(projection))
             .sort(MongoSortCompiler.compilePhysical(physicalSort))
@@ -131,14 +126,14 @@ abstract class AbstractMongoQueryBackend : QueryBackend {
     }
 
     override fun count(query: AdmittedQuery<FilterExpression>): Mono<Long> {
-        return collection.countDocuments(filterCompiler.compile(query)).toMono()
+        return collection.countDocuments(MongoFilterCompiler.compile(query)).toMono()
     }
 
     override fun aggregate(query: AdmittedQuery<AggregationQuery>, window: GroupWindow): Flux<ObjectNode> {
         val aggregation = query.query
         val limit = (window as? GroupWindow.First)?.limit
         // Without groups, `$group` with a null id emits nothing over no documents: the core emits the empty summary.
-        return collection.aggregate(MongoAggregationCompiler(filterCompiler).compile(query, limit))
+        return collection.aggregate(MongoAggregationCompiler.compile(query, limit))
             .toFlux()
             .map { it.toAggregationResult(aggregation).toObjectNode() }
     }

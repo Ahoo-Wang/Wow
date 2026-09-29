@@ -307,9 +307,8 @@ function unknownEditorView(): {
     ],
   };
   const engine = new ViewEngine({
-    definitions: [definition],
+    resources: [{ definition, source: storySource() }],
     store: new MemoryViewStore(),
-    resolveSource: () => storySource(),
     kinds: withFieldKinds(builtinFieldKinds, [swatch]),
   });
   const runtime = engine.create(definition.id, {

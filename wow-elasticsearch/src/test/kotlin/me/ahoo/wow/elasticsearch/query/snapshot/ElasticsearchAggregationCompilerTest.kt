@@ -29,6 +29,7 @@ import me.ahoo.wow.api.query.fields
 import me.ahoo.wow.api.query.schema.QueryValueKind
 import me.ahoo.wow.api.query.schema.QueryValueType
 import me.ahoo.wow.api.query.schema.Temporal
+import me.ahoo.wow.elasticsearch.query.ElasticsearchFilterCompiler
 import me.ahoo.wow.elasticsearch.query.ElasticsearchIndexMapping
 import me.ahoo.wow.elasticsearch.query.aggregation.ElasticsearchAggregationCompiler
 import me.ahoo.wow.elasticsearch.query.aggregation.ElasticsearchAggregationMetric
@@ -48,7 +49,7 @@ import java.util.concurrent.TimeUnit
 
 @Suppress("LargeClass")
 class ElasticsearchAggregationCompilerTest {
-    private val compiler = ElasticsearchAggregationCompiler(SnapshotFilterCompiler)
+    private val compiler = ElasticsearchAggregationCompiler
     private val scalar = QueryValueSchema(QueryValueKind.SCALAR, valueTypes = setOf(QueryValueType.INTEGER))
     private val text = QueryValueSchema(QueryValueKind.SCALAR, valueTypes = setOf(QueryValueType.STRING))
     private val temporal = QueryValueSchema(
@@ -239,12 +240,16 @@ class ElasticsearchAggregationCompilerTest {
         val group = requireNotNull(plan.runtimeMappings.getValue("__wow_group_expression_0").script())
         requireNotNull(
             group.source()
-        ).scriptString().assert().contains("doc.containsKey", "size() == 1", "1.0 / 1000.0")
-        group.params().values.map { it.to(Any::class.java) }.assert().contains("createdAt", 86_400_000L)
+        ).scriptString().assert()
+            // epoch micros decode as the date groups decode them: floored to whole milliseconds, never fractional
+            .contains("doc.containsKey", "size() == 1", "numeric == (double) epoch", "Long.MAX_VALUE")
+            .contains("((Number) params.d0).longValue()", "((Number) params.m0).longValue()")
+            .doesNotContain("doubleValue() * ")
+        group.params().values.map { it.to(Any::class.java) }.assert().contains("createdAt", 1L, 1_000L, 86_400_000L)
         (plan.metrics.single() as ElasticsearchAggregationMetric.Numeric).field.assert()
             .isEqualTo("__wow_expression_0")
 
-        val filter = SnapshotFilterCompiler.compile(
+        val filter = ElasticsearchFilterCompiler.compile(
             me.ahoo.wow.api.query.ExpressionFilter(sameScope, me.ahoo.wow.api.query.ComparisonOperator.GTE, 2.0),
             schema,
         )
@@ -335,7 +340,7 @@ class ElasticsearchAggregationCompilerTest {
 
     @Test
     fun `plan should map distinct count and percentile metrics`() {
-        val plan = ElasticsearchAggregationCompiler(SnapshotFilterCompiler).compile(
+        val plan = ElasticsearchAggregationCompiler.compile(
             aggregation {
                 distinctCount("customerId", "customers")
                 percentile("amount", 95.0, "p95")
@@ -355,7 +360,7 @@ class ElasticsearchAggregationCompilerTest {
 
     @Test
     fun `non-field distinct count and percentile expressions compile to runtime fields`() {
-        val plan = ElasticsearchAggregationCompiler(SnapshotFilterCompiler).compile(
+        val plan = ElasticsearchAggregationCompiler.compile(
             aggregation {
                 distinctCount(field("amount") + constant(0.0), "amounts")
                 percentile(field("amount") * constant(1.0), 95.0, "p95")
@@ -787,6 +792,64 @@ class ElasticsearchAggregationCompilerTest {
         script.params().values.map { it.to(Any::class.java) }.assert().contains("amount", 2.0)
         script.source()!!.scriptString().assert().contains("Double.isFinite").contains("!= 0.0")
             .contains("size() == 1").doesNotContain("doc['amount']")
+    }
+
+    @Test
+    fun `derived arithmetic keeps its NaN sentinel script for every operator`() {
+        val plan = compiler.compile(
+            aggregation {
+                count("total")
+                sum("amount", "paid")
+                derived("mixed") { (ref("paid") + constant(1.0)) * ref("total") - constant(3.0) / ref("paid") }
+            },
+            schema,
+        )
+        val mixed = plan.metrics.filterIsInstance<ElasticsearchAggregationMetric.Derived>().single()
+        requireNotNull(mixed.script.source()).scriptString().assert().isEqualTo(
+            "def value = ((((((double) params.c0) == 0.0 ? Double.NaN : ((double) params.v0)) + 1.0) * " +
+                "((double) params.v1)) - (3.0 / (((double) params.c0) == 0.0 ? Double.NaN : ((double) params.v0)))); " +
+                "value == null || !Double.isFinite(value) ? null : value",
+        )
+    }
+
+    @Test
+    fun `runtime arithmetic keeps its null guarded script for every operator`() {
+        val amount = AggregationExpression.Field(QueryField("amount"))
+        val two = AggregationExpression.Constant(2.0)
+        fun binary(operator: AggregationExpressionOperator, left: AggregationExpression, right: AggregationExpression) =
+            AggregationExpression.Binary(operator, left, right)
+        val expression = binary(
+            AggregationExpressionOperator.SUBTRACT,
+            binary(
+                AggregationExpressionOperator.MULTIPLY,
+                binary(AggregationExpressionOperator.ADD, amount, two),
+                amount
+            ),
+            binary(AggregationExpressionOperator.DIVIDE, two, amount),
+        )
+        val plan = compiler.compile(aggregation { sum(expression, "total") }, schema)
+        plan.runtimeMappings.values.single().script()!!.source()!!.scriptString().assert().isEqualTo(
+            "def v0=null;String f0=params.f0;if(doc.containsKey(f0)&&doc[f0].size() == 1){" +
+                "def r0=doc[f0].value;if (r0 instanceof Number) {double c0=((Number)r0).doubleValue();" +
+                "if(Double.isFinite(c0)){v0=c0;}}}" +
+                "def v1=((Number)params.n1).doubleValue();" +
+                "def v2=null;if (v0 != null && v1 != null) {" +
+                "double c2=v0.doubleValue() + v1.doubleValue();if(Double.isFinite(c2)){v2=c2;}}" +
+                "def v3=null;String f3=params.f3;if(doc.containsKey(f3)&&doc[f3].size() == 1){" +
+                "def r3=doc[f3].value;if (r3 instanceof Number) {double c3=((Number)r3).doubleValue();" +
+                "if(Double.isFinite(c3)){v3=c3;}}}" +
+                "def v4=null;if (v2 != null && v3 != null) {" +
+                "double c4=v2.doubleValue() * v3.doubleValue();if(Double.isFinite(c4)){v4=c4;}}" +
+                "def v5=((Number)params.n5).doubleValue();" +
+                "def v6=null;String f6=params.f6;if(doc.containsKey(f6)&&doc[f6].size() == 1){" +
+                "def r6=doc[f6].value;if (r6 instanceof Number) {double c6=((Number)r6).doubleValue();" +
+                "if(Double.isFinite(c6)){v6=c6;}}}" +
+                "def v7=null;if (v5 != null && v6 != null && v6.doubleValue() != 0.0) {" +
+                "double c7=v5.doubleValue() / v6.doubleValue();if(Double.isFinite(c7)){v7=c7;}}" +
+                "def v8=null;if (v4 != null && v7 != null) {" +
+                "double c8=v4.doubleValue() - v7.doubleValue();if(Double.isFinite(c8)){v8=c8;}}" +
+                "if (v8 != null) { emit(v8.doubleValue()); }",
+        )
     }
 
     @Test

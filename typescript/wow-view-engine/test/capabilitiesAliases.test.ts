@@ -47,6 +47,7 @@ import {
   recordConfig,
   testEnvironment,
   testSource,
+  resourcesOf,
 } from './fixtures.js';
 import {
   describedField,
@@ -203,13 +204,13 @@ describe('a field the definition names by an alias', () => {
     const descriptor = renamedDescriptor();
     const paged = vi.fn(() => Promise.resolve({ total: 0, list: [] }));
     const engine = new ViewEngine({
-      definitions: [ordersDefinition()],
-      store: new MemoryViewStore({ instances: [saved] }),
-      resolveSource: () =>
+      resources: resourcesOf([ordersDefinition()], () =>
         testSource({
           paged,
           describe: () => Promise.resolve(read(descriptor)),
         }),
+      ),
+      store: new MemoryViewStore({ instances: [saved] }),
     });
 
     const runtime = await engine.open('by-amount');
@@ -247,9 +248,10 @@ describe('a field the definition names by an alias', () => {
       );
     const clock = testEnvironment();
     const engine = new ViewEngine({
-      definitions: [ordersDefinition()],
+      resources: resourcesOf([ordersDefinition()], () =>
+        testSource({ describe }),
+      ),
       store: new MemoryViewStore({ instances: [saved] }),
-      resolveSource: () => testSource({ describe }),
       environment: clock.environment,
     });
     const runtime = await engine.open('by-amount');
@@ -423,10 +425,10 @@ describe('a board that names a panel field by an alias', () => {
     const descriptor = renamedDescriptor();
     const store = new MemoryViewStore({ instances: [list] });
     const engine = new ViewEngine({
-      definitions: [ordersDefinition(), overviewDefinition()],
-      store,
-      resolveSource: () =>
+      resources: resourcesOf([ordersDefinition(), overviewDefinition()], () =>
         testSource({ describe: () => Promise.resolve(read(descriptor)) }),
+      ),
+      store,
     });
     const saved = await store.create(
       {

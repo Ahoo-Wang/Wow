@@ -42,6 +42,7 @@ import {
   overviewDefinition,
   recordConfig,
   testSource,
+  resourcesOf,
 } from './fixtures.js';
 
 afterEach(cleanup);
@@ -137,35 +138,37 @@ function setUp() {
   });
   const writes = WRITES.map(name => vi.spyOn(store, name));
   const engine = new ViewEngine({
-    definitions: [
-      {
-        ...orders,
-        fields: [
-          ...orders.fields,
-          { name: 'q', label: 'Search orders', kind: 'search' },
-        ],
-      },
-      overviewDefinition(),
-    ],
+    resources: resourcesOf(
+      [
+        {
+          ...orders,
+          fields: [
+            ...orders.fields,
+            { name: 'q', label: 'Search orders', kind: 'search' },
+          ],
+        },
+        overviewDefinition(),
+      ],
+      () =>
+        testSource({
+          paged: vi.fn(() =>
+            Promise.resolve({
+              total: 60,
+              list: [
+                { id: 'o-1', warehouse: 'CN', status: 'PENDING', amount: 10 },
+                { id: 'o-2', warehouse: 'EU', status: 'SHIPPED', amount: 20 },
+              ],
+            }),
+          ),
+          aggregate: vi.fn(() =>
+            Promise.resolve([
+              { warehouse: 'CN', orders: 2 },
+              { warehouse: 'EU', orders: 1 },
+            ]),
+          ),
+        }),
+    ),
     store,
-    resolveSource: () =>
-      testSource({
-        paged: vi.fn(() =>
-          Promise.resolve({
-            total: 60,
-            list: [
-              { id: 'o-1', warehouse: 'CN', status: 'PENDING', amount: 10 },
-              { id: 'o-2', warehouse: 'EU', status: 'SHIPPED', amount: 20 },
-            ],
-          }),
-        ),
-        aggregate: vi.fn(() =>
-          Promise.resolve([
-            { warehouse: 'CN', orders: 2 },
-            { warehouse: 'EU', orders: 1 },
-          ]),
-        ),
-      }),
   });
   const written = () =>
     writes.flatMap((spy, index) => spy.mock.calls.map(() => WRITES[index]));

@@ -19,7 +19,7 @@ import type {
   FilterNode,
   SystemView,
 } from "@ahoo-wang/wow-view-engine";
-import type { Locale } from "@/i18n.tsx";
+import { textKeys, type Words } from "./textKeys.ts";
 
 /**
  * The failed executions' analyses (2026-09-27, from the test service's
@@ -51,7 +51,7 @@ export const FAILURE_ANALYSES = {
   recovery: "recovery",
 } as const;
 
-const TEXT = {
+export const FAILURE_ANALYSES_WORDS = {
   en: {
     fate: "Where active failures go",
     concentration: "Where active failures are",
@@ -90,9 +90,11 @@ const TEXT = {
     median: "中位耗时（分钟）",
     slowest: "90 分位耗时（分钟）",
   },
-} satisfies Record<Locale, Record<string, string>>;
+} satisfies Words;
 
-type Text = (typeof TEXT)[Locale];
+const keys = textKeys("failureAnalyses", FAILURE_ANALYSES_WORDS.en);
+
+type Text = typeof keys;
 
 /** Still waiting on someone: failed, or prepared for a retry. */
 const ACTIVE: FilterNode = {
@@ -403,20 +405,38 @@ function recovery(t: Text): AnalysisViewConfig {
   });
 }
 
-/** The analyses as the definition's system views, in one language. */
-export function failureAnalyses(locale: Locale): SystemView[] {
-  const t = TEXT[locale];
+/**
+ * The analyses as the definition's system views. The pile's make-up is read
+ * whole wherever it is laid out (`timeField: null`); when failures arrive
+ * and what came of them are read by when they first failed, and how long a
+ * recovery took by when it last changed — what a board's time range
+ * narrows each by.
+ */
+export const FAILURE_ANALYSIS_VIEWS: SystemView[] = (() => {
+  const t = keys;
   const A = FAILURE_ANALYSES;
+  const whole = { timeField: null };
+  const firstFailed = { timeField: "firstEventTime" };
   return [
-    { id: A.fate, title: t.fate, config: fate(t) },
-    { id: A.concentration, title: t.concentration, config: concentration(t) },
-    { id: A.errorCodes, title: t.errorCodes, config: errorCodes(t) },
-    { id: A.sources, title: t.sources, config: sources(t) },
-    { id: A.backlogAge, title: t.backlogAge, config: backlogAge(t) },
-    { id: A.arrivals, title: t.arrivals, config: arrivals(t) },
-    { id: A.calendar, title: t.calendar, config: calendar(t) },
-    { id: A.retries, title: t.retries, config: retries(t) },
-    { id: A.repair, title: t.repair, config: repair(t) },
-    { id: A.recovery, title: t.recovery, config: recovery(t) },
+    { id: A.fate, title: t.fate, config: fate(t), ...whole },
+    {
+      id: A.concentration,
+      title: t.concentration,
+      config: concentration(t),
+      ...whole,
+    },
+    { id: A.errorCodes, title: t.errorCodes, config: errorCodes(t), ...whole },
+    { id: A.sources, title: t.sources, config: sources(t), ...whole },
+    { id: A.backlogAge, title: t.backlogAge, config: backlogAge(t), ...whole },
+    { id: A.arrivals, title: t.arrivals, config: arrivals(t), ...firstFailed },
+    { id: A.calendar, title: t.calendar, config: calendar(t), ...whole },
+    { id: A.retries, title: t.retries, config: retries(t), ...whole },
+    { id: A.repair, title: t.repair, config: repair(t), ...firstFailed },
+    {
+      id: A.recovery,
+      title: t.recovery,
+      config: recovery(t),
+      timeField: "eventTime",
+    },
   ];
-}
+})();

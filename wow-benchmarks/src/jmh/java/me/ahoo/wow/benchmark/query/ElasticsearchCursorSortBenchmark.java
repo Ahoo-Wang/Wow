@@ -32,11 +32,8 @@ import me.ahoo.wow.api.query.Sort;
 import me.ahoo.wow.api.query.schema.QueryCapability;
 import me.ahoo.wow.api.query.schema.QueryCardinality;
 import me.ahoo.wow.api.query.schema.QueryModel;
-import me.ahoo.wow.elasticsearch.query.AbstractElasticsearchFilterCompiler;
 import me.ahoo.wow.elasticsearch.query.AbstractElasticsearchQueryBackend;
 import me.ahoo.wow.elasticsearch.query.ElasticsearchSortCompiler;
-import me.ahoo.wow.elasticsearch.query.event.EventStreamFilterCompiler;
-import me.ahoo.wow.elasticsearch.query.snapshot.SnapshotFilterCompiler;
 import me.ahoo.wow.modeling.MaterializedNamedAggregate;
 import me.ahoo.wow.query.schema.QueryValueSchema;
 import me.ahoo.wow.api.query.schema.QueryValueType;
@@ -107,7 +104,7 @@ public class ElasticsearchCursorSortBenchmark {
         // Admitted once: the benchmark measures the backend's request assembly, not admission.
         query = QueryAdmission.Trusted.cursor(new CursorQuery(
                 MatchAllFilter.INSTANCE, Projection.Companion.getALL(), cursorSorts, 10, null), schema);
-        backend = new CursorBackend(SnapshotFilterCompiler.INSTANCE);
+        backend = new CursorBackend();
 
         List<SortOptions> ordinary = ordinarySort();
         if (ordinary.size() != width) throw new IllegalStateException("wrong sort count");
@@ -136,20 +133,10 @@ public class ElasticsearchCursorSortBenchmark {
 
     private static final class CursorBackend extends AbstractElasticsearchQueryBackend {
         private final NamedAggregate namedAggregate = new MaterializedNamedAggregate("benchmark", "cursor");
-        private final AbstractElasticsearchFilterCompiler filterCompiler;
-
-        private CursorBackend(AbstractElasticsearchFilterCompiler filterCompiler) {
-            this.filterCompiler = filterCompiler;
-        }
 
         @Override
         public NamedAggregate getNamedAggregate() {
             return namedAggregate;
-        }
-
-        @Override
-        public AbstractElasticsearchFilterCompiler getFilterCompiler() {
-            return filterCompiler;
         }
 
         @Override

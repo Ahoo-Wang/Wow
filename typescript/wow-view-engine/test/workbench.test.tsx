@@ -48,6 +48,7 @@ import {
   ordersDefinition,
   recordConfig,
   testSource,
+  resourcesOf,
 } from './fixtures.js';
 import { mine } from './fixtures/ui.js';
 
@@ -82,9 +83,8 @@ function engineWith(
   permissions?: () => ViewPermissions,
 ): ViewEngine {
   return new ViewEngine({
-    definitions: [ordersDefinition()],
+    resources: resourcesOf([ordersDefinition()], () => testSource()),
     store: new MemoryViewStore({ instances, permissions }),
-    resolveSource: () => testSource(),
   });
 }
 
@@ -199,9 +199,8 @@ describe('useWorkbench', () => {
   it('reads the list again when a write is recovered, and opens nothing', async () => {
     const store = new MemoryViewStore({ instances: [mine] });
     const engine = new ViewEngine({
-      definitions: [ordersDefinition()],
+      resources: resourcesOf([ordersDefinition()], () => testSource()),
       store,
-      resolveSource: () => testSource(),
     });
     const { result } = open(engine, 'orders-1');
     await waitFor(() => expect(result.current.state?.title).toBe('Mine'));
@@ -482,9 +481,8 @@ describe('useWorkbench', () => {
         new ViewStoreError('UNAVAILABLE', 'timeout'),
       );
       const engine = new ViewEngine({
-        definitions: [ordersDefinition()],
+        resources: resourcesOf([ordersDefinition()], () => testSource()),
         store,
-        resolveSource: () => testSource(),
       });
       const { result } = open(engine, 'orders-1');
       await waitFor(() => expect(result.current.state?.title).toBe('Mine'));
@@ -616,9 +614,8 @@ describe('a workbench a host routes', () => {
   it('reports null when the open view is gone from the store', async () => {
     const store = new MemoryViewStore({ instances: [mine, second] });
     const engine = new ViewEngine({
-      definitions: [ordersDefinition()],
+      resources: resourcesOf([ordersDefinition()], () => testSource()),
       store,
-      resolveSource: () => testSource(),
     });
     const told = vi.fn();
     const { result } = routed(engine, 'orders-1', told);

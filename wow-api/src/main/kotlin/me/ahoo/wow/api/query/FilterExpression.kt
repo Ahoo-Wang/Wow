@@ -19,6 +19,7 @@ import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonTypeInfo
 import com.fasterxml.jackson.annotation.JsonTypeName
 import com.fasterxml.jackson.annotation.JsonValue
+import me.ahoo.wow.api.query.spec.spec
 import tools.jackson.core.JsonParser
 import tools.jackson.databind.BeanProperty
 import tools.jackson.databind.DeserializationContext
@@ -235,6 +236,18 @@ sealed interface FilterExpression : RewritableFilter<FilterExpression> {
         if (this === MatchAllFilter) append else AndFilter(listOf(this, append))
 }
 
+/**
+ * A filter on one [field] the request names: the comparison, string, membership, presence and relative-time
+ * predicates, and `ELEMENT_MATCH`, whose field is the collection its predicate applies to. System-field, logical,
+ * search and expression filters name no single field and are not field predicates.
+ */
+sealed interface FieldPredicate : FilterExpression {
+    val field: QueryField
+
+    /** This predicate naming [field] instead; everything else it carries is kept. */
+    fun withField(field: QueryField): FilterExpression
+}
+
 internal class FilterExpressionTypeResolverBuilder : StdTypeResolverBuilder() {
     override fun buildTypeDeserializer(
         ctxt: DeserializationContext,
@@ -268,6 +281,7 @@ private class FilterExpressionTypeDeserializer(
                     "Filter expression properties must use op.",
                 )
             }
+            // compat(wow<9): a filter without `op` is a legacy Condition; see docs/compat-debt.md.
             return node.toLegacyFilterExpression(ctxt)
         }
         node.requireCanonicalFilterPayload()
@@ -351,10 +365,12 @@ data class DeletionFilter(
 
 @JsonTypeName(QueryProtocol.FilterExpression.Operator.ELEMENT_MATCH)
 data class ElementMatchFilter(
-    val field: QueryField,
+    override val field: QueryField,
     val predicate: FilterExpression,
-) : FilterExpression {
+) : FieldPredicate {
     override val operator: FilterOperator = FilterOperator.ELEMENT_MATCH
+
+    override fun withField(field: QueryField): ElementMatchFilter = copy(field = field)
 
     init {
         require(predicate.containsElementUnsupportedFilter().not()) {
@@ -382,13 +398,18 @@ enum class SearchMode {
 }
 
 /**
- * Whether this filter holds a node that cannot apply to one element: a system-field or deletion filter, or a
- * model-wide `SEARCH`. A `SEARCH` naming fields is an element predicate when [fieldSearch] allows it; whether each
- * field can be searched is a capability of the model, checked at admission.
+ * The direct child filters of this node: the operands of `AND` / `OR` / `NOR` and the predicate of `ELEMENT_MATCH`.
+ * Every other node is a leaf and returns an empty list. The one walker of a filter tree: consumers that visit the
+ * tree read the children from here instead of matching the logical nodes themselves.
  */
-internal fun FilterExpression.containsElementUnsupportedFilter(fieldSearch: Boolean = true): Boolean = when (this) {
-    is SearchFilter -> !fieldSearch || fields.isEmpty()
-    is DeletionFilter,
+fun FilterExpression.childFilters(): List<FilterExpression> = when (this) {
+    is AndFilter -> operands
+    is OrFilter -> operands
+    is NorFilter -> operands
+    is ElementMatchFilter -> listOf(predicate)
+    is FieldPredicate,
+    MatchAllFilter,
+    MatchNoneFilter,
     is IdFilter,
     is IdsFilter,
     is AggregateIdFilter,
@@ -396,12 +417,21 @@ internal fun FilterExpression.containsElementUnsupportedFilter(fieldSearch: Bool
     is TenantIdFilter,
     is OwnerIdFilter,
     is SpaceIdFilter,
-    -> true
-    is AndFilter -> operands.any { it.containsElementUnsupportedFilter(fieldSearch) }
-    is OrFilter -> operands.any { it.containsElementUnsupportedFilter(fieldSearch) }
-    is NorFilter -> operands.any { it.containsElementUnsupportedFilter(fieldSearch) }
-    is ElementMatchFilter -> predicate.containsElementUnsupportedFilter(fieldSearch)
+    is DeletionFilter,
+    is SearchFilter,
+    is ExpressionFilter,
+    -> emptyList()
+}
+
+/**
+ * Whether this filter holds a node that cannot apply to one element: a filter on a system field (its operator's
+ * [systemField][me.ahoo.wow.api.query.spec.FilterOperatorSpec.systemField], deletion included), or a model-wide
+ * `SEARCH`. A `SEARCH` naming fields is an element predicate when [fieldSearch] allows it; whether each field can be
+ * searched is a capability of the model, checked at admission.
+ */
+internal fun FilterExpression.containsElementUnsupportedFilter(fieldSearch: Boolean = true): Boolean = when (this) {
+    is SearchFilter -> !fieldSearch || fields.isEmpty()
     // A computed comparison cannot run inside ELEMENT_MATCH on every storage; aggregation elements accept it.
     is ExpressionFilter -> fieldSearch
-    else -> false
+    else -> spec.systemField != null || childFilters().any { it.containsElementUnsupportedFilter(fieldSearch) }
 }

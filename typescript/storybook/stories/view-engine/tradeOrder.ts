@@ -691,12 +691,11 @@ export function createTradeOrderEngine(fetcher: Fetcher): ViewEngine {
     fetcher,
   });
   return new ViewEngine({
-    definitions: [tradeOrderDefinition],
+    resources: [{ definition: tradeOrderDefinition, source }],
     // The service pages at most 100 rows at a time; an export pages at the
     // runtime's largest size, so that is the largest this source takes.
     limits: { ...DEFAULT_RUNTIME_LIMITS, maxPageSize: 100 },
     store: new MemoryViewStore({ instances: [] }),
-    resolveSource: () => source,
   });
 }
 

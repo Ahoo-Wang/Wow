@@ -33,7 +33,7 @@ import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.api.query.schema.QueryValueKind
 import me.ahoo.wow.api.query.schema.QueryValueType
 import me.ahoo.wow.api.query.schema.Temporal
-import me.ahoo.wow.mongo.query.AbstractMongoFilterCompiler
+import me.ahoo.wow.mongo.query.MongoFilterCompiler
 import me.ahoo.wow.mongo.query.compile
 import me.ahoo.wow.mongo.query.mongoLogicalSchema
 import me.ahoo.wow.query.QueryAdmission
@@ -53,7 +53,7 @@ import tools.jackson.databind.node.StringNode
 import java.util.concurrent.TimeUnit
 
 class MongoQuerySchemaAdapterTest {
-    private val compiler = object : AbstractMongoFilterCompiler() {}
+    private val compiler = MongoFilterCompiler
 
     @Test
     fun `bindings reuse the logical definition and retain masked raw capabilities`() {
@@ -344,17 +344,27 @@ class MongoQuerySchemaAdapterTest {
     }
 
     @Test
-    fun `native date operands stay unsupported while date aggregation and cursor families remain available`() {
-        listOf("date", "timestamp").forEach { native ->
-            val schema = bind("created", scalar(semantic = Temporal.Date), Document("bsonType", listOf(native, "null")))
-            schema.field(QueryField("created"))!!.bindings.keys.assert()
-                .contains(QueryCapability.AGGREGATE_TEMPORAL, QueryCapability.CURSOR_SORT)
-                .doesNotContain(QueryCapability.EXACT_MATCH, QueryCapability.RANGE)
-        }
+    fun `a declared BSON date compares date operands while a timestamp only groups and orders`() {
+        bind("created", scalar(semantic = Temporal.Date), Document("bsonType", listOf("date", "null")))
+            .field(QueryField("created"))!!.bindings.keys.assert()
+            .contains(
+                QueryCapability.EXACT_MATCH,
+                QueryCapability.RANGE,
+                QueryCapability.AGGREGATE_TEMPORAL,
+                QueryCapability.CURSOR_SORT,
+            )
+            .doesNotContain(QueryCapability.LITERAL_MATCH, QueryCapability.AGGREGATE_NUMERIC)
+        // A date operand never equals or orders with a BSON timestamp.
+        bind("created", scalar(semantic = Temporal.Date), Document("bsonType", listOf("timestamp", "null")))
+            .field(QueryField("created"))!!.bindings.keys.assert()
+            .contains(QueryCapability.AGGREGATE_TEMPORAL, QueryCapability.CURSOR_SORT)
+            .doesNotContain(QueryCapability.EXACT_MATCH, QueryCapability.RANGE)
+        // Undeclared, the default writer's ISO-8601 string may be what is stored: nothing compares it as a date.
         bind("created", scalar(semantic = Temporal.Date)).field(QueryField("created"))!!.bindings.keys.assert()
             .doesNotContain(QueryCapability.EXACT_MATCH, QueryCapability.RANGE, QueryCapability.AGGREGATE_TEMPORAL)
         bind("created", scalar(semantic = Temporal.Date), Document("bsonType", listOf("date", "timestamp")))
-            .field(QueryField("created"))!!.bindings.keys.assert().doesNotContain(QueryCapability.CURSOR_SORT)
+            .field(QueryField("created"))!!.bindings.keys.assert()
+            .doesNotContain(QueryCapability.CURSOR_SORT, QueryCapability.EXACT_MATCH, QueryCapability.RANGE)
     }
 
     @Test

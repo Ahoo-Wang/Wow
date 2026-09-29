@@ -31,7 +31,6 @@ data class AggregationQuery(
     val groupBy: List<AggregationGroup> = emptyList(),
     @get:ArraySchema(minItems = 1, maxItems = MAX_METRICS, schema = Schema(implementation = AggregationMetric::class))
     val metrics: List<AggregationMetric>,
-    @get:ArraySchema(maxItems = MAX_SORT_FIELDS)
     @get:JsonInclude(JsonInclude.Include.NON_EMPTY)
     override val sort: List<Sort> = emptyList(),
     @get:Schema(defaultValue = DEFAULT_LIMIT_TEXT, minimum = "1", maximum = MAX_LIMIT_TEXT)
@@ -44,7 +43,7 @@ data class AggregationQuery(
         require(groupBy.size <= MAX_GROUPS) { "groupBy must contain at most $MAX_GROUPS dimensions." }
         require(metrics.isNotEmpty()) { "metrics must not be empty." }
         require(metrics.size <= MAX_METRICS) { "metrics must contain at most $MAX_METRICS entries." }
-        require(sort.size <= MAX_SORT_FIELDS) { "sort must contain at most $MAX_SORT_FIELDS fields." }
+        require(sort.size <= Sort.MAX_FIELDS) { "sort must contain at most ${Sort.MAX_FIELDS} fields." }
         require(limit in 1..MAX_LIMIT) { "limit must be between 1 and $MAX_LIMIT." }
         require(groupBy.isNotEmpty() || sort.isEmpty()) { "sort requires at least one groupBy." }
         metrics.requireValidExpressions()
@@ -64,8 +63,8 @@ data class AggregationQuery(
         val sortFields = sort.map { it.field.path }
         require(sortFields.distinct().size == sortFields.size) { "sort fields must be unique." }
         require(sortFields.all(aliases::contains)) { "sort fields must reference aggregation aliases." }
-        require(effectiveSort().size <= MAX_SORT_FIELDS) {
-            "effective sort must contain at most $MAX_SORT_FIELDS fields."
+        require(effectiveSort().size <= Sort.MAX_FIELDS) {
+            "effective sort must contain at most ${Sort.MAX_FIELDS} fields."
         }
     }
 
@@ -85,7 +84,10 @@ data class AggregationQuery(
         const val MAX_ELEMENTS: Int = 5
         const val MAX_GROUPS: Int = 32
         const val MAX_METRICS: Int = 64
-        const val MAX_SORT_FIELDS: Int = 32
+
+        @Deprecated("Scheduled for removal in 10.0.0. Use Sort.MAX_FIELDS.", ReplaceWith("Sort.MAX_FIELDS"))
+        const val MAX_SORT_FIELDS: Int = Sort.MAX_FIELDS
+
         const val MAX_EXPRESSION_DEPTH: Int = 8
         const val MAX_EXPRESSION_NODES: Int = 256
         private const val DEFAULT_LIMIT_TEXT = "100"

@@ -78,31 +78,11 @@ private fun DerivedExpression.toScript(
 
     is DerivedExpression.Constant -> value.toString()
 
-    is DerivedExpression.Binary -> when (operator) {
-        AggregationExpressionOperator.ADD ->
-            "(${left.toScript(
-                prior,
-                derivedRefIndexes,
-                bucketsPath
-            )} + ${right.toScript(prior, derivedRefIndexes, bucketsPath)})"
-        AggregationExpressionOperator.SUBTRACT ->
-            "(${left.toScript(
-                prior,
-                derivedRefIndexes,
-                bucketsPath
-            )} - ${right.toScript(prior, derivedRefIndexes, bucketsPath)})"
-        AggregationExpressionOperator.MULTIPLY ->
-            "(${left.toScript(
-                prior,
-                derivedRefIndexes,
-                bucketsPath
-            )} * ${right.toScript(prior, derivedRefIndexes, bucketsPath)})"
-        AggregationExpressionOperator.DIVIDE -> {
-            val leftScript = left.toScript(prior, derivedRefIndexes, bucketsPath)
-            val rightScript = right.toScript(prior, derivedRefIndexes, bucketsPath)
-            // all-double operands follow IEEE: x / 0.0 -> ±Infinity, unified to null by the final wrap
-            "($leftScript / $rightScript)"
-        }
+    is DerivedExpression.Binary -> {
+        val leftScript = left.toScript(prior, derivedRefIndexes, bucketsPath)
+        val rightScript = right.toScript(prior, derivedRefIndexes, bucketsPath)
+        // all-double operands follow IEEE: x / 0.0 -> ±Infinity, unified to null by the final wrap
+        "(${painlessBinary(leftScript, operator, rightScript)})"
     }
 }
 
@@ -211,27 +191,35 @@ internal class RuntimeExpressionCompiler(private val admitted: AdmittedQuery<*>)
         return value
     }
 
-    /** The epoch milliseconds of [field]'s single value, or `null`. */
+    /**
+     * The epoch milliseconds of [field]'s single value, or `null`. An epoch decodes as the date groups decode it
+     * ([epochMillisScript]), and as MongoDB does: floored to whole milliseconds, and `null` when it is fractional
+     * or overflows.
+     */
     private fun appendInstant(field: QueryField): String {
         val resolved = admitted.field(field)
         val id = nextId++
         val value = "v$id"
         val fieldVariable = "f$id"
-        val raw = "r$id"
         val parameter = "f$id"
-        params[parameter] = JsonData.of(resolved.physicalField.path)
+        params[parameter] = JsonData.of(admitted.physicalPath(field))
         source.append("def $value=null;")
         source.append("String $fieldVariable=params.$parameter;")
         source.append("if(doc.containsKey($fieldVariable)&&doc[$fieldVariable].size() == 1){")
-        source.append("def $raw=doc[$fieldVariable].value;")
         when (val temporal = resolved.temporal) {
-            Temporal.Date -> source.append("$value=(double)$raw.toInstant().toEpochMilli();")
+            Temporal.Date -> source.append("$value=(double)doc[$fieldVariable].value.toInstant().toEpochMilli();")
             is Temporal.Epoch -> {
                 val (multiplier, divisor) = temporal.timeUnit.epochFactors
-                source.append("if ($raw instanceof Number) {")
-                source.append("double c$id=((Number)$raw).doubleValue() * $multiplier.0 / $divisor.0;")
-                source.append("if(Double.isFinite(c$id)){$value=c$id;}")
-                source.append("}")
+                params["m$id"] = JsonData.of(multiplier)
+                params["d$id"] = JsonData.of(divisor)
+                source.append(
+                    epochMillisScript(
+                        onMillis = "$value=(double)epochMillis;",
+                        field = fieldVariable,
+                        multiplier = "params.m$id",
+                        divisor = "params.d$id",
+                    ),
+                )
             }
             is Temporal.Formatted, null -> resolved.noInstantEncoding()
         }
@@ -246,7 +234,7 @@ internal class RuntimeExpressionCompiler(private val admitted: AdmittedQuery<*>)
         val raw = "r$id"
         val candidate = "c$id"
         val parameter = "f$id"
-        params[parameter] = JsonData.of(field.physicalPath(admitted))
+        params[parameter] = JsonData.of(admitted.physicalPath(field))
         source.append("def $value=null;")
         source.append("String $fieldVariable=params.$parameter;")
         source.append("if(doc.containsKey($fieldVariable)&&doc[$fieldVariable].size() == 1){")
@@ -282,8 +270,7 @@ internal class RuntimeExpressionCompiler(private val admitted: AdmittedQuery<*>)
         source.append("def $value=null;")
         source.append("if ($left != null && $right != null$divisionGuard) {")
         source.append(
-            "double $candidate=$left.doubleValue() ${binary.operator.painlessOperator} " +
-                "$right.doubleValue();",
+            "double $candidate=${painlessBinary("$left.doubleValue()", binary.operator, "$right.doubleValue()")};",
         )
         source.append("if(Double.isFinite($candidate)){$value=$candidate;}")
         source.append("}")
@@ -291,13 +278,16 @@ internal class RuntimeExpressionCompiler(private val admitted: AdmittedQuery<*>)
     }
 }
 
-private val AggregationExpressionOperator.painlessOperator: String
-    get() = when (this) {
+/**
+ * `left operator right` over two double operands, the one arithmetic both script forms share: a derived
+ * bucket_script carries a missing operand as the NaN sentinel, a runtime script guards `null` before it.
+ */
+private fun painlessBinary(left: String, operator: AggregationExpressionOperator, right: String): String {
+    val symbol = when (operator) {
         AggregationExpressionOperator.ADD -> "+"
         AggregationExpressionOperator.SUBTRACT -> "-"
         AggregationExpressionOperator.MULTIPLY -> "*"
         AggregationExpressionOperator.DIVIDE -> "/"
     }
-
-/** The absolute physical path admission resolved for this reference, which nested aggregations address. */
-internal fun QueryField.physicalPath(admitted: AdmittedQuery<*>): String = admitted.field(this).physicalField.path
+    return "$left $symbol $right"
+}

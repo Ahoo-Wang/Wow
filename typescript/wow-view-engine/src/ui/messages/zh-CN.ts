@@ -647,6 +647,7 @@ export const zhCN: ViewMessages = {
   'label.drill.tap-again': '再点一下追问',
   'label.drill.titled': '{subject} · {group}',
   'runtime.kind.not-declared': '{definition} 不提供 {kind} 视图。',
+  'runtime.source.unresolved': '{source} 没有注册数据源。',
   'runtime.options.unresolved': '{source} 没有配置候选来源。',
   'runtime.query.failed': '没能加载数据：{reason}',
   'runtime.query.forbidden': '无权限查看这些数据。',
@@ -2068,7 +2069,33 @@ export const zhCN: ViewMessages = {
   'definition.view.id-duplicate': '两个视图共用了 id {id}。',
   'definition.view.id-separator': '视图 id 不能带 {separator}。',
   'definition.view.kind-mismatch': '{kind} 视图不属于 {definition} 定义。',
+  'definition.view.analysis-open':
+    '这张视图要的分析由数据源给：快照里没有，只在给出分析能力的数据源上打得开。',
   'definition.view.owned-invalid': '面板 {panel} 自带的分析不完整或设置有误。',
+  'definition.field.undescribed': '数据源的描述里没有 {field} 这个路径。',
+  'definition.field.kind-unknown':
+    '描述没有说 {field} 存的是哪种值，请给它写 kind。',
+  'definition.field.unlabelled': '{field} 没有写名字，只能按描述或路径显示。',
+  'definition.field.deprecated':
+    '{field} 已被数据源弃用（{message}），保留它请写明理由。',
+  'definition.field.not-elements': '{field} 不是数据源列出条目的数组。',
+  'definition.field.sort-wider': '{field} 在数据源上不能排序。',
+  'definition.field.operator-wider': '{field} 在数据源上不收 {operator}。',
+  'definition.field.summary-wider': '{field} 在数据源上不能按 {fn} 汇总。',
+  'definition.field.analysis-wider':
+    '{field} 在数据源上不能用于分析的 {what}。',
+  'definition.option.undescribed': '{value} 不是数据源为 {field} 列出的值。',
+  'definition.analysis.wider': '数据源的分析不提供 {what}。',
+  'definition.record.paging-wider': '数据源不按 {paging} 分页。',
+  'definition.timeField.unknown': '时间字段 {field} 不是这个定义的字段。',
+  'definition.timeField.not-time': '时间字段 {field} 存的不是时刻。',
+  'definition.text.unknown': '键 {key} 没有给出措辞。',
+  'definition.text.fallback':
+    '当下的措辞没有给出键 {key}，改用引擎起始的措辞说出。',
+  'definition.source.unregistered':
+    '没有为 {source} 登记数据源：注册这份定义时带上它的数据源。',
+  'definition.descriptor.missing':
+    '没有给数据源 {source} 的描述，它的能力没有核对。',
 
   // 数据源的能力描述与定义对照的结果（capabilities.md）。与定义准入一样经
   // `onIssue` 报给研发，说的是部署没有兑现定义里的哪一项。

@@ -161,11 +161,15 @@ export {
   type AnalysisCapability,
   type AnalysisElementCapability,
   type AnalysisLimits,
+  type AnalysisSpec,
   DEFAULT_APPROXIMATE_METRICS,
   type DashboardDefinition,
   type DataViewDefinition,
+  type DefinitionDescribed,
   type DefinitionNarrowing,
+  type FieldAnalysisSpec,
   type FieldGroupDefinition,
+  type OpenCapabilities,
   type RecordCapability,
   SYSTEM_INSTANCE_ID_PREFIX,
   SYSTEM_INSTANCE_ID_SEPARATOR,
@@ -290,6 +294,13 @@ export {
   type ViewStoreErrorCode,
   isViewStoreError,
 } from './model/storeError.js';
+export {
+  type Text,
+  type TextResolver,
+  text,
+  textKeyOf,
+  withText,
+} from './model/text.js';
 // filter — the filter kernel and the `FieldKind` registry.
 export { type FilterCompileContext, compileFilter } from './filter/compile.js';
 export {
@@ -874,6 +885,7 @@ export {
   type CreateInput,
   ViewEngine,
   type ViewEngineOptions,
+  type ViewResource,
   type ViewListing,
 } from './runtime/viewEngine.js';
 export type { ConflictChoice, WriteTarget } from './runtime/writeLedger.js';
@@ -881,6 +893,11 @@ export {
   type ValidateDefinitionOptions,
   validateDefinition,
 } from './runtime/validateDefinition.js';
+export {
+  type DefineViewOptions,
+  defineView,
+} from './runtime/define/defineView.js';
+export type { DefineViewSpec, FieldSpec } from './runtime/define/spec.js';
 export {
   type AnyViewRuntime,
   type DefinitionFor,

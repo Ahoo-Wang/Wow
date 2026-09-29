@@ -21,7 +21,12 @@ import {
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { MemoryViewStore, ViewEngine } from '../src/index.js';
 import { DataWorkbench, type WorkbenchFeatures } from '../src/ui/index.js';
-import { analysisConfig, ordersDefinition, testSource } from './fixtures.js';
+import {
+  analysisConfig,
+  ordersDefinition,
+  testSource,
+  resourcesOf,
+} from './fixtures.js';
 import { mine } from './fixtures/ui.js';
 
 afterEach(cleanup);
@@ -29,7 +34,7 @@ afterEach(cleanup);
 /** The same definition with one saved analysis view open on a chart. */
 function analysisEngine() {
   return new ViewEngine({
-    definitions: [ordersDefinition()],
+    resources: resourcesOf([ordersDefinition()], () => testSource()),
     store: new MemoryViewStore({
       instances: [
         {
@@ -42,20 +47,19 @@ function analysisEngine() {
         },
       ],
     }),
-    resolveSource: () => testSource(),
   });
 }
 
 function engineWith(rows = true) {
   return new ViewEngine({
-    definitions: [ordersDefinition()],
-    store: new MemoryViewStore({ instances: [mine] }),
-    resolveSource: () =>
+    resources: resourcesOf([ordersDefinition()], () =>
       rows
         ? testSource()
         : testSource({
             paged: vi.fn(() => Promise.resolve({ total: 0, list: [] })),
           }),
+    ),
+    store: new MemoryViewStore({ instances: [mine] }),
   });
 }
 

@@ -51,6 +51,7 @@ import {
   overviewDefinition,
   recordConfig,
   testSource,
+  resourcesOf,
 } from './fixtures.js';
 
 afterEach(cleanup);
@@ -195,7 +196,16 @@ function Host({
 
 function setup() {
   const engine = new ViewEngine({
-    definitions: [ordersDefinition(), overviewDefinition()],
+    resources: resourcesOf([ordersDefinition(), overviewDefinition()], () =>
+      testSource({
+        aggregate: vi.fn(() =>
+          Promise.resolve([
+            { warehouse: 'CN', orders: 2 },
+            { warehouse: 'EU', orders: 1 },
+          ]),
+        ),
+      }),
+    ),
     store: new MemoryViewStore({
       instances: [
         ...views,
@@ -209,15 +219,6 @@ function setup() {
         },
       ],
     }),
-    resolveSource: () =>
-      testSource({
-        aggregate: vi.fn(() =>
-          Promise.resolve([
-            { warehouse: 'CN', orders: 2 },
-            { warehouse: 'EU', orders: 1 },
-          ]),
-        ),
-      }),
   });
   const routed = vi.fn<(to: ViewNavigation) => void>();
   render(<Host engine={engine} routed={routed} />);
@@ -592,9 +593,8 @@ describe('the way back to the board (D26 Q33)', () => {
 
   it('draws no way back without a route', async () => {
     const engine = new ViewEngine({
-      definitions: [ordersDefinition()],
+      resources: resourcesOf([ordersDefinition()], () => testSource()),
       store: new MemoryViewStore({ instances: views }),
-      resolveSource: () => testSource(),
     });
     render(
       <DataWorkbench

@@ -51,7 +51,12 @@ import {
 import type { ViewMessages } from '../src/ui/index.js';
 import { glyphType } from '../src/ui/analysis/chartIcons.js';
 import { SPACE } from '../src/ui/layout.js';
-import { analysisConfig, ordersDefinition, testSource } from './fixtures.js';
+import {
+  analysisConfig,
+  ordersDefinition,
+  testSource,
+  resourcesOf,
+} from './fixtures.js';
 import {
   addConditions,
   analysisToggle,
@@ -188,9 +193,8 @@ async function open({
     }),
   );
   const engine = new ViewEngine({
-    definitions: [definition],
+    resources: resourcesOf([definition], () => source),
     store,
-    resolveSource: () => source,
   });
   render(
     <DataWorkbench

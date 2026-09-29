@@ -31,25 +31,22 @@
 
 第一轮扫描（重复度、依赖方向、没人用的导出）的发现，用户 2026-09-27 按推荐定；同时只跑一个子代理，一件做完再派下一件。
 
-1. **其余发现**（同批顺带或各自一个小 PR）：
-   - wow-mongo 的「空值安全的二元运算」（`$let`＋`$cond`、除零保护）在 `MongoAggregationExpressions.kt` 与 `MongoAggregationProjection.kt` 各写一遍——抽成一个函数，两处共用，行为不变。
-   - `RecordWorkbench.test.stories.tsx` 约 7,000 行、九十多个故事——按关注点拆成几个文件（筛选、表格、主题与密度、详情、批量）。
+1. **其余发现**（mongo 空值安全运算合一 #3729、拆 `RecordWorkbench.test.stories.tsx` #3758 已做）：
    - **ui 根目录拆成三层**（方案用户 2026-09-27 确认；交做 ui 目录去环（#3717）的子代理，在内存求值器合并（D65）之后、队列里没有别的改动时单独一个 PR）：
      - 为什么：根目录约 80 个文件是三种东西——41 个共用基础件（子目录用它、它不依赖功能：IconButton、popups、variants、alerts、toolbar、roving、拖动四件、MessagesProvider、display、layout……）、5 个外壳（DataWorkbench、DashboardWorkbench、EmbeddedView、EmbeddedDashboard、ViewManager）、19 个放错地方的功能部件（既依赖功能目录又被依赖——根目录与子目录双向依赖的来源：RecordTable、ColumnSettings、FilterPanel、AnalysisTable、DashboardGrid、WorkbenchShell、ViewSurface……），另有 14 个只在根目录内互用的（看板编排与面板、保存／冲突／离开确认、导出步骤）。
      - 做法：`ui/kit/` 放共用基础件（连同 `focus.ts`、`anchor.ts`），只依赖 components／lib／theme／messages；功能部件归到各自的目录（表格、卡片、分页、行操作、结果工具栏、批量状态 → `record/`；列设置 → `columns/`；排序设置 → `sort/`；筛选面板、条件值编辑、已应用条 → `filter/`；分析表、图外框、字段菜单 → `analysis/`；看板网格、面板、编排 → `dashboard/`；视图列表、视图头、保存／另存／删除／冲突／离开、刷新、导出 → `workbench/`）；根目录只留外壳与入口。先处理 `ViewSurface`、`RenderBoundary` 对 `charts` 的依赖（它们属于底层）。
      - 判据：`test/architecture.test.ts` 的 ui 方向表把 `kit` 放在所有功能目录之下，并加一条「除入口与外壳外，无人依赖根目录」；公开面快照一个名字不变；引擎测试、构建、全部故事与控制台通过。
 
+2. **补审 wow-react 与查询后端（2026-09-28）**：17 条中后端与 wow-react 的全部落地——#3754、#3755、#3757、#3760、#3764、#3765（含 F2：MongoDB 的日期字段按日期比较）、#3766、#3768（护栏：事件流导入限制、无抽象成员的抽象类由反射测试守）；#3759 让只改 Kotlin 的 PR 也跑兼容债账本。余下一条：
+   - **F9（控制台）**：`useMoments.ts` 自写的分页 hook 有迟到结果覆盖的竞态，改用 wow-react `usePagedQuery`（H2a 合并后，控制台不再冲突）。
+
 ## 看板真实接入（补偿控制台，2026-09-27）暴露的问题——首发前做，按序交子代理
 
 控制台是引擎第一个真实宿主。从宿主的四件事看（声明要快、配错能马上知道且只坏那一块、融得进宿主的样式、能在自己的测试里跑），用户 2026-09-27 按推荐定：A、C、D 首发前做，B 先出方案；F（宿主测试用的内存数据源）已随求值器合一做成公开入口 `/testing`（[D65](decisions.md)）；E、G、H 见「首发后再议」。顺序：~~`HeadingPanel`~~（#3728）→ A → C → 宿主接入 H1～H3（[host-integration.md](host-integration.md)，D67；D 并入 H1）→ B（D66，单独做）。
 
-1. **A：一个面板配错，只坏它自己**：
-   - 为什么：控制台把事件流的 `body.name` 从字符串改成枚举，枚举不收 `EQ`，引用它的四张结局卡的自有配置失效，整块总览只剩「overview 定义有 23 个问题，无法打开」，其余十五个好面板也不画；错在哪个字段、哪个算子，页面上看不到，要跑单测才知道。运行时查询失败早已只坏一个面板（[D18](decisions.md)），配置错误不该更重。
-   - 判据：看板准入把面板级的问题留在面板上——那一格画「这个面板用不了」并写出字段与原因，其余照画；看板级的问题（全局筛选、布局本身）才拦整块板。故事一块板里放一个坏面板断言其余面板画出。落点：`src/dashboard/validate.ts`、`src/runtime/dashboardRuntime.ts`、`src/ui/dashboard/PanelBodies.tsx`。
-2. **C：跨定义的引用在准入时就核对**：
-   - 为什么：面板用 `instanceId` 引用另一个定义的系统视图（控制台的总览引用失败执行与事件流的分析）时，看板准入只看自己的定义，写错的 id 要到打开才发现；控制台为此手写了一条测试兜底（`overview.test.ts`「each naming a view there is」）。
-   - 判据：引擎准入看板时按已注册的全部定义核对 `instanceId`、`opens`、点击去向与绑定字段（字段要在被引用视图的定义里），错的按 A 只坏那个面板。落点：`src/dashboard/validate.ts`、`src/runtime/viewEngine.ts`。
-3. **宿主接入 H1～H3**（[host-integration.md](host-integration.md) 第 8 节，[D67](decisions.md#d67-宿主接入事实归机器选择归宿主2026-09-28)）：H1 `defineView` 与 `admit`（吸收 D：时间窗口自动绑定，控制台三块板删去手写时间绑定后数字不变）→ H2 按资源注册、Provider、一个应用一个引擎 → H3 声明式操作与两个 skill。每批的判据以方案为准。
+~~A~~（#3732）与 ~~C~~（#3734）已合并。
+
+3. **宿主接入 H1～H3**（[host-integration.md](host-integration.md) 第 8 节，[D67](decisions.md#d67-宿主接入事实归机器选择归宿主2026-09-28)）：~~H1~~（#3744）→ **H2a 在审（#3761，见 progress.md 暂停点）** → H2b **ViewHost**（4.2：改名、路由端口与 react-router 适配器、主题两条路与明暗；4.3 导航数据）→ H3 声明式操作与两个 skill。每批的判据以方案为准。
    - 描述符的三项事实（时长、引用、时间角色）已由 #3738 补上；控制台的描述符快照另行刷新。
 4. **B：引擎的工具类带前缀 `fve:`**（[D66](decisions.md#d66-引擎的工具类带前缀-fve与宿主不再同名2026-09-28)，用户 2026-09-28 按推荐定）：
    - 为什么：引擎与宿主的工具类同名，G16 的额外权重让宿主写在引擎面里（控制台是整个 `<body>`）的断点类静悄悄失效。
@@ -58,6 +55,9 @@
 5. **只有面板坏了时，看板顶上的红条别说整块板不能运行**（用户 2026-09-28 在 Storybook「一个面板配错」上同意）：A 之后坏的只是那一块，其余照画，红条却写「这个仪表盘要先修正才能运行 · 展开 N 项」。
    - 判据：问题只在面板上时，红条说面板（如「有 N 个面板要先修正才能显示」），展开仍列出各项；看板级问题（筛选、布局）仍用今天的句子。故事「一个面板配错」「引用写错」断言新句子。
    - 落点：`label.dashboard.needs-fixing` 所在的措辞目录（`src/ui/messages/`）与看板头的问题条。
+
+6. **面板手调过高度就照手调**（[D68](decisions.md#d68-面板手调过高度就照手调两态所见即所得2026-09-28修订-d52)，修订 D52）：进编辑从读板高度起步；手调过的面板读板严格定高；没调过的照旧按内容长高。
+   - 判据：故事里切换编辑前后面板高度不变；拖小一块表格面板后读板不再长高、显示「下面还有 N 行」；已存的板读作「没调过」。H1（#3744）合并后做（布局模型相邻）。落点：见 D68。
 
 ## Storybook 审查（2026-09-26）的处置
 

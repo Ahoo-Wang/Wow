@@ -266,9 +266,8 @@ function MoneyDemo({ scene }: { scene: Scene }) {
       key={scene}
       create={() =>
         new ViewEngine({
-          definitions: [crossBorderOrders],
+          resources: [{ definition: crossBorderOrders, source: moneySource() }],
           store: new MemoryViewStore({ instances: [orders, byMarket] }),
-          resolveSource: moneySource,
           limits: DEFAULT_RUNTIME_LIMITS,
         })
       }

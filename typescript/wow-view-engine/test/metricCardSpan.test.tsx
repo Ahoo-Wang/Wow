@@ -29,7 +29,7 @@ import {
 import { AnalysisChart, ViewSurface, zhCN } from '../src/ui/index.js';
 import { metricReach } from '../src/analysis/metricWindow.js';
 import { regrouped } from '../src/runtime/dashboard/grouping.js';
-import { dailyOrdersDefinition, testSource } from './fixtures.js';
+import { dailyOrdersDefinition, testSource, resourcesOf } from './fixtures.js';
 
 afterEach(cleanup);
 
@@ -318,7 +318,7 @@ describe('the note a result carries for a metric out of its dates', () => {
       },
     );
     const engine = new ViewEngine({
-      definitions: [dailyOrdersDefinition()],
+      resources: resourcesOf([dailyOrdersDefinition()], () => testSource()),
       store: new MemoryViewStore({
         instances: [
           {
@@ -331,7 +331,6 @@ describe('the note a result carries for a metric out of its dates', () => {
           },
         ],
       }),
-      resolveSource: () => testSource(),
     });
     const runtime = await engine.open('cards');
     await waitFor(() =>

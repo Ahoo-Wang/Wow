@@ -75,7 +75,7 @@
 ## D11 弹层有自己的一层，写在 positioner 上
 
 - **日期**：2026-09-20
-- **决定**：本包每个弹层（Select 列表、菜单、Popover、Tooltip、Dialog、Combobox）都由 `ui/popups.tsx` **照着 registry 的结构自己组装** Portal／positioner／popup，而不是再包一层 vendored 组件；层级以 style 写在 **positioner** 上：`z-index: var(--fve-popup-z-index, 50)`（对话框没有 positioner，写在遮罩与面板这两个 portal 出去的元素上）。宿主自己的 chrome 比 50 还高时，在 `:root` 上改这一个变量，所有弹层一起动。vendored 的 `ui/components/**` 仍原样不动、仍用 `shadcn add --diff` 更新，抄来的那份由 `test/popups.test.tsx` 两边各渲染一次逐字比对守住；层级本身由 `stories/view-engine/RecordWorkbench.test.stories.tsx` 的 `PopupsOverRaisedHostLayer` 在真浏览器里用 `document.elementFromPoint` 逐种弹层验。
+- **决定**：本包每个弹层（Select 列表、菜单、Popover、Tooltip、Dialog、Combobox）都由 `ui/popups.tsx` **照着 registry 的结构自己组装** Portal／positioner／popup，而不是再包一层 vendored 组件；层级以 style 写在 **positioner** 上：`z-index: var(--fve-popup-z-index, 50)`（对话框没有 positioner，写在遮罩与面板这两个 portal 出去的元素上）。宿主自己的 chrome 比 50 还高时，在 `:root` 上改这一个变量，所有弹层一起动。vendored 的 `ui/components/**` 仍原样不动、仍用 `shadcn add --diff` 更新，抄来的那份由 `test/popups.test.tsx` 两边各渲染一次逐字比对守住；层级本身由 `stories/view-engine/RecordWorkbenchTheme.test.stories.tsx` 的 `PopupsOverRaisedHostLayer` 在真浏览器里用 `document.elementFromPoint` 逐种弹层验。
 - **依据**：弹层的 positioner 被布局引擎写上 `transform: translate(...)`，它因此自成一个 stacking context——弹层**内容**上的 `z-50` 出不去，层级只能写在 positioner 自己身上。而 positioner 不带 `fve-root`，构建又把样式表每条规则都钉在 `:where(.fve-root, .fve-root *)` 里，registry 给它的那句 `isolate z-50` 于是谁也没匹配上，停在 `z-index: auto`：所有弹层都画在第 0 层，只靠 portal 排在 `<body>` 末尾才浮在上面——宿主随便抬起一点东西（实测 `z-index: 1` 即可）就把它们整片盖住，#1556 就撞上了这个。包一层够不着 positioner，所以照抄结构；写成 style 而不是 class，是因为样式表在不在、弹层被 portal 到哪儿，这一句都成立——这也正是 class 那条路失败的原因。让样式表留几条不进根的规则是另一条路，但 `scripts/verify-package.mjs` 断言"没有任何规则在 `.fve-root` 之外"，那是对宿主的承诺，不为一个 `z-index` 改。
 - **落点**：[ui/README.md#主题弹层与明暗](ui/README.md#主题弹层与明暗)、`src/ui/popups.tsx`
 
@@ -730,10 +730,37 @@
   - **后端对齐事实、不对齐选择**：描述符补时长、引用、时间角色三项事实（比率不加；#3738 已合并）；受众的选择不进描述符。
   - **次序**：A → C → H1（并入 D）→ H2 → H3 → B。
   - **#3744 审查的两条**（2026-09-28）：自动接的时间线只推导、不存（保存时剥掉，旧板没接的面板读作不受时间影响）；口径的键在渲染时翻（H2 做，H1 的注册时翻译是过渡）。
+  - **ViewHost 与导航数据**（2026-09-28 追加，[host-integration.md](host-integration.md) 4.2、4.3）：**ViewHost** 是宿主唯一入口，由路由、主题、语言、数据、命令几个端口组成，首发只带 react-router 适配器（可选 peer），明暗缺省 `system`、宿主自管写 `host`；H2a 的 Provider 降为内部，H2a 合并后由 H2b 改名并扩成 ViewHost。不做整页外壳，只给导航数据 **useViewNavigation**，宿主用自己的组件画。
   - **主题接入先选一条路**（2026-09-28 追加，[host-integration.md](host-integration.md) 4.1）：Provider 上二选一——引擎跟宿主（**theme="host"**，即桥接）或宿主跟引擎（预设加品牌）；明暗由 Provider 管；README 主题压成快速上手，进阶挪到文档站；控制台改走推荐的路。随 H2 做。
   - **描述符的事实**（2026-09-28 追加，#3738 已合并）：只补三项——时长（`DURATION`）、引用（`REFERENCE`，含 `AggregateId` 的推断）、时间角色（`EVENT_TIME`／`FIRST_EVENT_TIME`）；比率不加（没有真实字段，零售的 `discountShare` 是金额）。
 - **没选**：生成器生成定义初稿（宿主代码与生成文件分叉，且大部分内容是判断）；缺省列出全部字段（描述符一加字段界面就悄悄多一列）；启动时先 `describe` 再生成定义（页面要等，测试不可复现）。
 - **落点**：[host-integration.md](host-integration.md)；`src/model/`、`src/runtime/viewEngine.ts`、`src/react/`、`src/testing/`；Skill `wow-view-definition` 与新增的 `wow-view-host`。
+
+## D68 面板手调过高度就照手调，两态所见即所得（2026-09-28，修订 D52）
+
+- **来由**：用户在 Storybook 审查时指出，同一块表格面板读板时按内容长到 530px，进编辑变回保存的 440px 并出现「下面还有 2 行」——一进编辑整块板重排，作者拖出的高度也不是读者看到的。这是 D52「读板按内容长高、搭板按保存尺寸」的代价。
+- **裁定**（用户：选推荐项）：
+  - **进编辑从读板的高度起步**：长过高的面板进编辑时就是读板时那么高，切换不跳；
+  - **手调过的面板是「定高」**：作者拖过大小（或键盘调过）的面板记下定高，读板时严格照它画，装不下仍写「下面还有 N 行」；
+  - **没调过的照 D52**：按内容长高，最多 8 行、只长不缩。
+- **没选**：两态都长高（拖得比内容矮会弹回，拖动像不生效）；两态都按保存尺寸（撤掉 D52，回到只露几行）；保持现状加虚线提示（切换仍跳）。
+- **落点**：看板布局项（定高标记与迁移：已存的板没有标记，一律按「没调过」读）、`src/ui/DashboardGrid.tsx` 的长高与编辑态尺寸、[ui/dashboard.md](ui/dashboard.md)；故事断言切换编辑前后面板高度不变、定高面板读板不长高。
+
+## D69 porcelain 的记录视图按看板内容区的画法：灰底上的白卡片（2026-09-28，修订 D63 的条纹）
+
+- **已撤回**（用户 2026-09-28 在 Storybook 审过实现 #3752 后：「放弃 D69，保持现状」）：porcelain 的记录视图仍是贴边的带、带条纹，D63 不变；#3752 已关闭。以下为当时的裁定，留作记录。
+
+- **来由**：用户对齐「苹果风格」时，看了对比画布（[porcelain 结构画法对比](https://claude.ai/artifact/4D1wsPJHxmZoBPCQxXL6Qp)，A～E 五张）后说「Dashboard 的内容区风格我感觉就很好」，选 E：「E 就是这个感觉，行高回到 45px」。
+- **裁定**（只在 porcelain；其余预设不变）：
+  - **内容区是窗口灰底**（`canvas`），标题、工具栏、筛选直接落在灰底上；
+  - **结果是一张白卡片**：看板面板同一套 `card-edge`、`card-shadow`、`radius-card`（12px），不再是贴边的带；
+  - **表头白底灰字、常规字重、列间一根短发丝线**（porcelain 已有的 `table-header*`）；
+  - **行间 1px 浅线，不要条纹**（`row-stripe` 在 porcelain 上取消；D63 还原的行线保留）；
+  - **行高 45px**（默认密度，D63 不变），控件 32px；
+  - **不做卡中卡**：记录视图放在看板面板、或宿主自己的卡片里嵌入时（`resultFramed` 为假、嵌入视图），结果仍是贴边的，不再套一层卡片。
+- **没选**：发丝线加条纹（B）、磨砂侧栏与 32px（C）——对比稿上用户选了 E。
+- **判据**：Storybook 的记录工作台在 porcelain 亮与暗下与画布 E 一致；neutral、azure、contrast 的截图基线一张不变，porcelain 的基线有意更新并在 PR 里列出；对比度矩阵通过；看板面板与嵌入的记录视图没有卡中卡。
+- **落点**：`src/themes/porcelain.css`（新角色经登记表，[theme-architecture.md](theme-architecture.md) 的规则）、`src/styles.css`、`src/ui/WorkbenchShell.tsx`／`variants.tsx` 的 `resultFrameChrome`、[themes.md](themes.md) 3.4.1。
 
 ## 搁置待议
 

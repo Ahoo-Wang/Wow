@@ -37,7 +37,12 @@ import {
 } from '../src/react/index.js';
 import { ViewHeader } from '../src/ui/ViewHeader.js';
 import { ViewSurface } from '../src/ui/ViewSurface.js';
-import { ordersDefinition, recordConfig, testSource } from './fixtures.js';
+import {
+  ordersDefinition,
+  recordConfig,
+  testSource,
+  resourcesOf,
+} from './fixtures.js';
 
 afterEach(cleanup);
 
@@ -60,9 +65,8 @@ const ours: ViewInstance = {
 function setup() {
   const store = new MemoryViewStore({ instances: [mine, ours] });
   const engine = new ViewEngine({
-    definitions: [ordersDefinition()],
+    resources: resourcesOf([ordersDefinition()], () => testSource()),
     store,
-    resolveSource: () => testSource(),
   });
   return { engine, store };
 }
@@ -188,9 +192,8 @@ describe('ViewHeader', () => {
       instances: [{ ...mine, title: long }],
     });
     const engine = new ViewEngine({
-      definitions: [ordersDefinition()],
+      resources: resourcesOf([ordersDefinition()], () => testSource()),
       store,
-      resolveSource: () => testSource(),
     });
     const runtime = await engine.open('orders-1');
     render(<Harness engine={engine} runtime={runtime} />);

@@ -11,52 +11,22 @@
  * limitations under the License.
  */
 
-import { useCallback, useState } from "react";
+import { useCallback } from "react";
 import { useSearchParams } from "react-router";
-import { useViewEngine } from "@ahoo-wang/wow-view-engine/react";
 import { DashboardWorkbench } from "@ahoo-wang/wow-view-engine/ui";
-import { useI18n, type Locale } from "@/i18n.tsx";
-import { executionEngineOptions, localViewStore } from "@/views/engine.ts";
-import {
-  VIEW_PARAM,
-  useBoardFilters,
-  useViewNavigation,
-} from "@/views/navigation.ts";
+import { VIEW_PARAM, useBoardFilters } from "@/views/navigation.ts";
 import { OVERVIEW } from "@/views/overview.ts";
-import { executionCommands } from "../Executions/executionCommands.ts";
-import { useExecutionActions } from "../Executions/useExecutionActions.tsx";
-import {
-  engineMessages,
-  useRecordPanels,
-  type BoardPageProps,
-} from "./boardHost.ts";
 
-interface LocalizedBoardsProps extends BoardPageProps {
-  locale: Locale;
-}
-
-function LocalizedBoards({
-  locale,
-  store,
-  source,
-  historySource,
-  commands,
-}: LocalizedBoardsProps) {
-  const engine = useViewEngine(
-    executionEngineOptions({
-      locale,
-      store: store ?? localViewStore(),
-      source,
-      historySource,
-    }),
-  );
-  const [sent] = useState(() => commands ?? executionCommands());
-  const { actions, bulk, dialog } = useExecutionActions(sent);
-  const recordPanel = useRecordPanels(actions, bulk);
+/**
+ * The dashboard workbench: the overview board and the reader's own boards
+ * beside it, built and saved here — in this browser until the Wow storage
+ * backend (stage 6). The home page's 「在工作台中打开」 opens the overview
+ * here; the board to open is the `view` parameter.
+ */
+export default function BoardsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const instanceId = searchParams.get(VIEW_PARAM);
   const { initialFilters, onFiltersChange } = useBoardFilters();
-  const onNavigate = useViewNavigation();
 
   const onInstanceChange = useCallback(
     (id: string | null) => {
@@ -72,37 +42,16 @@ function LocalizedBoards({
   );
 
   return (
-    <>
+    <div className="boards-page">
       <DashboardWorkbench
-        engine={engine}
         definitionId={OVERVIEW}
         instanceId={instanceId}
         onInstanceChange={onInstanceChange}
         initialFilters={initialFilters}
         onFiltersChange={onFiltersChange}
-        onNavigate={onNavigate}
-        recordPanel={recordPanel}
         // The console's shell already has the page's `main`.
         landmark="region"
-        locale={locale}
-        messages={engineMessages(locale)}
       />
-      {dialog}
-    </>
-  );
-}
-
-/**
- * The dashboard workbench: the overview board and the reader's own boards
- * beside it, built and saved here — in this browser until the Wow storage
- * backend (stage 6). The home page's 「在工作台中打开」 opens the overview
- * here; the board to open is the `view` parameter.
- */
-export default function BoardsPage(props: BoardPageProps) {
-  const { locale } = useI18n();
-  return (
-    <div className="boards-page">
-      <LocalizedBoards key={locale} locale={locale} {...props} />
     </div>
   );
 }

@@ -16,7 +16,7 @@ import type {
   FilterNode,
   SystemView,
 } from "@ahoo-wang/wow-view-engine";
-import type { Locale } from "@/i18n.tsx";
+import { textKeys, type Words } from "./textKeys.ts";
 
 /**
  * The compensation's activity, out of the `execution_failed` event streams
@@ -51,7 +51,7 @@ export const INTERVENTION_EVENTS = [
   "RecoverableMarked",
 ].map((type) => `${API}.${type}`);
 
-const TEXT = {
+export const ACTIVITY_ANALYSES_WORDS = {
   en: {
     activity: "Compensation activity per day",
     eventMix: "Events by type",
@@ -68,9 +68,11 @@ const TEXT = {
     executions: "涉及的执行",
     events: "事件数",
   },
-} satisfies Record<Locale, Record<string, string>>;
+} satisfies Words;
 
-type Text = (typeof TEXT)[Locale];
+const keys = textKeys("activityAnalyses", ACTIVITY_ANALYSES_WORDS.en);
+
+type Text = typeof keys;
 
 function analysis(
   config: Partial<AnalysisViewConfig> &
@@ -152,9 +154,12 @@ function eventMix(t: Text, only?: FilterNode): AnalysisViewConfig {
   });
 }
 
-/** The analyses as the definition's system views, in one language. */
-export function activityAnalyses(locale: Locale): SystemView[] {
-  const t = TEXT[locale];
+/**
+ * The analyses as the definition's system views, each timed as the event
+ * streams are: by when they were written.
+ */
+export const ACTIVITY_ANALYSIS_VIEWS: SystemView[] = (() => {
+  const t = keys;
   const A = ACTIVITY_ANALYSES;
   return [
     { id: A.activity, title: t.activity, config: activity(t) },
@@ -169,4 +174,4 @@ export function activityAnalyses(locale: Locale): SystemView[] {
       }),
     },
   ];
-}
+})();

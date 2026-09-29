@@ -31,7 +31,12 @@ import {
 import { narrowDefinition } from '../src/capabilities/index.js';
 import { variantGroups, writeValue } from '../src/filter/index.js';
 import { DataWorkbench } from '../src/ui/index.js';
-import { ordersDefinition, recordConfig, testSource } from './fixtures.js';
+import {
+  ordersDefinition,
+  recordConfig,
+  testSource,
+  resourcesOf,
+} from './fixtures.js';
 import {
   describedField,
   ordersDescriptor,
@@ -214,10 +219,10 @@ describe('an element whose fields differ by variant (#3519)', () => {
     };
     const descriptor = streamDescriptor();
     const engine = new ViewEngine({
-      definitions: [stream],
-      store: new MemoryViewStore({ instances: [saved] }),
-      resolveSource: () =>
+      resources: resourcesOf([stream], () =>
         testSource({ describe: () => Promise.resolve(read(descriptor)) }),
+      ),
+      store: new MemoryViewStore({ instances: [saved] }),
     });
     render(
       <DataWorkbench

@@ -79,6 +79,8 @@ class SimpleFunctionAccessorTest {
     }
 }
 
+// The accessor under test reaches these private functions by reflection.
+@Suppress("UnusedPrivateMember")
 private class FunctionAccessorFixture(private val prefix: String) {
     private fun greet(name: String): String = "$prefix $name"
 

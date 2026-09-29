@@ -422,9 +422,8 @@ export function createProductPricingEventsEngine(fetcher: Fetcher): ViewEngine {
     fetcher,
   });
   return new ViewEngine({
-    definitions: [productPricingEventsDefinition],
+    resources: [{ definition: productPricingEventsDefinition, source }],
     store: new MemoryViewStore({ instances: [] }),
-    resolveSource: () => source,
     // The service pages at most 100 streams at a time.
     limits: { ...DEFAULT_RUNTIME_LIMITS, maxPageSize: 100 },
   });

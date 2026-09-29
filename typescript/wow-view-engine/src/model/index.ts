@@ -31,3 +31,4 @@ export * from './json.js';
 export * from './limits.js';
 export * from './record.js';
 export * from './storeError.js';
+export * from './text.js';

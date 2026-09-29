@@ -34,8 +34,17 @@ export type WritePayload =
       input: Omit<ViewInstance, 'id' | 'revision'>;
       /** `first-save` binds the source runtime to the new instance; `save-as` leaves it alone. */
       intent: 'first-save' | 'save-as';
+      /** The draft as it was handed out, never sent: see `RuntimeStore.baseline`. */
+      draft?: ViewConfig;
     }
-  | { action: 'save'; id: string; revision: string; config: ViewConfig }
+  | {
+      action: 'save';
+      id: string;
+      revision: string;
+      config: ViewConfig;
+      /** The draft as it was handed out, never sent: see `RuntimeStore.baseline`. */
+      draft?: ViewConfig;
+    }
   | { action: 'rename'; id: string; revision: string; title: string }
   // The definition travels with a delete because nothing else in the body
   // names it, and the list that loses this row has to be told which one it is

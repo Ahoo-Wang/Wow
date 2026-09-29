@@ -15,11 +15,13 @@ import type { ViewNavigation } from "@ahoo-wang/wow-view-engine";
 import { act, render } from "@testing-library/react";
 import { createMemoryRouter, RouterProvider } from "react-router";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import type { ViewRoute } from "@ahoo-wang/wow-view-engine/ui";
 import {
-  destinationOf,
+  boardPath,
   navigationState,
   useBoardFilters,
   useViewNavigation,
+  withView,
 } from "./navigation.ts";
 import { OVERVIEW_BOARD } from "./overview.ts";
 
@@ -47,56 +49,17 @@ const handed = (
         scopeFilter: null,
       };
 
-describe("destinationOf", () => {
-  it("opens a view of the failed executions on their workbench", () => {
-    const to = handed("execution-failed");
-    expect(destinationOf(to)).toEqual({
-      kind: "page",
-      to: "/executions?view=system%3Aexecution-failed%3Aall",
-      state: { handOver: to },
-    });
-  });
-
-  it("opens a view nobody saved on the workbench's default view", () => {
-    const to = handed("execution-history", "unsaved");
-    expect(destinationOf(to)).toEqual({
-      kind: "page",
-      to: "/events",
-      state: { handOver: to },
-    });
-  });
-
-  it("goes nowhere for a definition no page of the console holds", () => {
-    expect(destinationOf(handed("elsewhere"))).toEqual({ kind: "none" });
+describe("the console's routes", () => {
+  it("puts a view in its workbench's address, and a view nobody saved on the default", () => {
+    expect(withView("/executions", "system:execution-failed:all")).toBe(
+      "/executions?view=system%3Aexecution-failed%3Aall",
+    );
+    expect(withView("/events", null)).toBe("/events");
   });
 
   it("goes back to the overview on the home page, and to others' pages", () => {
-    const back = (instanceId: string): ViewNavigation => ({
-      kind: "dashboard",
-      definitionId: "overview",
-      instanceId,
-      filters: FILTERS,
-    });
-    expect(destinationOf(back(OVERVIEW_BOARD))).toEqual({
-      kind: "page",
-      to: "/",
-      state: { filters: FILTERS },
-    });
-    expect(destinationOf(back("mine"))).toMatchObject({
-      to: "/boards?view=mine",
-    });
-  });
-
-  it("keeps a panel's own page inside the console, and the rest outside", () => {
-    expect(destinationOf({ kind: "url", url: "/executions" })).toEqual({
-      kind: "page",
-      to: "/executions",
-    });
-    for (const url of ["https://example.com/a", "//example.com/a"])
-      expect(destinationOf({ kind: "url", url })).toEqual({
-        kind: "external",
-        url,
-      });
+    expect(boardPath(OVERVIEW_BOARD)).toBe("/");
+    expect(boardPath("mine")).toBe("/boards?view=mine");
   });
 });
 
@@ -128,15 +91,24 @@ describe("the console's route", () => {
     return router;
   }
 
-  it("follows a way off the board, and opens another site apart", () => {
-    let go: (to: ViewNavigation) => void = () => undefined;
+  it("follows a way off the board as its route says, keeps a panel's own page inside, and opens another site apart", () => {
+    let go: ReturnType<typeof useViewNavigation> = () => undefined;
     const router = mount(() => {
       go = useViewNavigation();
     });
     const to = handed("execution-failed");
-    act(() => go(to));
+    const routed: ViewRoute = {
+      kind: "route",
+      path: "/executions?view=all",
+      state: { handOver: to as never },
+      target: to as never,
+    };
+    act(() => go(routed));
     expect(router.state.location.pathname).toBe("/executions");
     expect(router.state.location.state).toEqual({ handOver: to });
+
+    act(() => go({ kind: "url", url: "/events" }));
+    expect(router.state.location.pathname).toBe("/events");
 
     const open = vi.spyOn(window, "open").mockReturnValue(null);
     act(() => go({ kind: "url", url: "https://example.com" }));
@@ -145,8 +117,10 @@ describe("the console's route", () => {
       "_blank",
       "noopener,noreferrer",
     );
+    // A definition no page of the console holds is bound no route: it
+    // arrives as it came, and goes nowhere.
     act(() => go(handed("elsewhere")));
-    expect(router.state.location.pathname).toBe("/executions");
+    expect(router.state.location.pathname).toBe("/events");
   });
 
   it("keeps a board's filters in its entry, written once per change", () => {

@@ -36,6 +36,7 @@ import {
   recordConfig,
   testEnvironment,
   testSource,
+  resourcesOf,
 } from './fixtures.js';
 
 function view(id: string, title: string): ViewInstance {
@@ -78,9 +79,10 @@ async function open(config: DashboardViewConfig) {
     instances: [view('pending', 'Pending'), view('late', 'Late')],
   });
   const engine = new ViewEngine({
-    definitions: [ordersDefinition(), overviewDefinition()],
+    resources: resourcesOf([ordersDefinition(), overviewDefinition()], () =>
+      testSource(),
+    ),
     store,
-    resolveSource: () => testSource(),
     environment: testEnvironment().environment,
   });
   const instance = await store.create(

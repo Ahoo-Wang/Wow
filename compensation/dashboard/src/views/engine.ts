@@ -19,23 +19,17 @@ import {
 } from "@ahoo-wang/wow-client";
 import {
   ViewEngine,
-  type Issue,
   type ViewEngineOptions,
   type ViewSource,
   type ViewStore,
 } from "@ahoo-wang/wow-view-engine";
 import { browserRuntimeEnvironment } from "@ahoo-wang/wow-view-engine/react";
 import type { Locale } from "@/i18n.tsx";
-import {
-  EXECUTION_FAILED_SOURCE,
-  executionFailedDefinition,
-} from "./executionFailed.ts";
-import {
-  EXECUTION_HISTORY_SOURCE,
-  executionHistoryDefinition,
-} from "./executionHistory.ts";
+import { EXECUTION_FAILED_SOURCE, executionFailed } from "./executionFailed.ts";
+import { executionHistory } from "./executionHistory.ts";
 import { createLocalViewStore } from "./localViewStore.ts";
-import { overviewDefinition } from "./overview.ts";
+import { overview } from "./overview.ts";
+import { definitionText } from "./text.ts";
 
 /**
  * The compensation service's query capability descriptors
@@ -91,53 +85,44 @@ export function executionHistorySource(): ViewSource {
 }
 
 export interface ExecutionEngineOptions {
-  locale: Locale;
   store: ViewStore;
   source?: ViewSource;
-  /** Where an execution's history comes from; the event stream by default. */
+  /** Where the event streams come from; the service's by default. */
   historySource?: ViewSource;
+  /**
+   * The language the definitions' keys are said in until a Provider says
+   * them (`ViewEngine.setText`): for a test that reads the engine alone.
+   * The console's engine takes none — its Provider says them in the
+   * language in force, and a change of language rebuilds nothing.
+   */
+  locale?: Locale;
 }
 
 /**
- * An engine over the compensation service in one language: the failed
- * executions, their event streams — an execution's history in its detail,
- * and the outcomes by day — and the overview board over both. A definition carries its labels in one language (G12), so a change
- * of language builds a new engine over the same store.
+ * The console's engine (host-integration.md 4): the failed executions over
+ * their snapshots, their event streams — an execution's history in its
+ * detail, and the outcomes by day — and the overview board over both, each
+ * definition registered with its source. The board queries nothing of its
+ * own; the query queue makes room for its panels by itself.
  */
 export function executionEngineOptions({
-  locale,
   store,
   source = executionFailedSource(),
   historySource = executionHistorySource(),
+  locale,
 }: ExecutionEngineOptions): ViewEngineOptions {
   return {
-    definitions: [
-      executionFailedDefinition(locale),
-      executionHistoryDefinition(locale),
-      overviewDefinition(locale),
+    resources: [
+      { definition: executionFailed, source },
+      { definition: executionHistory, source: historySource },
+      { definition: overview },
     ],
     store,
-    resolveSource: (key) =>
-      key === EXECUTION_HISTORY_SOURCE ? historySource : source,
-    // The overview is nineteen panels, and an analysis panel may ask two or
-    // three queries (its split's 「其他」, a cut's probe): more than the
-    // default queue of 32 holds, which refused the last panels with
-    // 「同时查询太多」 (2026-09-27, against the test service). Four still run
-    // at once; the rest wait their turn instead of failing.
-    limits: { maxQueuedQueries: 64 },
+    ...(locale ? { text: definitionText(locale) } : {}),
     environment: browserRuntimeEnvironment({
       onError: ({ kind, error, context }) =>
         console.error(`[view-engine] ${kind} failed`, error, context),
     }),
-    // What the engine found about the definitions — a capability this
-    // deployment lacks (the error search on MongoDB), a descriptor it could
-    // not read — is for whoever works on the console, not its operators.
-    ...(import.meta.env.DEV
-      ? {
-          onIssue: (issue: Issue) =>
-            console.debug(`[view-engine] ${issue.code}`, issue),
-        }
-      : {}),
   };
 }
 
@@ -149,8 +134,20 @@ export function createExecutionEngine(
 
 let sharedStore: ViewStore | undefined;
 
-/** The one store of this page load, shared by the engines of each language. */
+/** The one store of this page load. */
 export function localViewStore(): ViewStore {
   sharedStore ??= createLocalViewStore();
   return sharedStore;
+}
+
+let sharedEngine: ViewEngine | undefined;
+
+/**
+ * The console's one engine, over the service and this browser's store:
+ * the three pages share it — its queries, its preferences, the descriptors
+ * it has read — and a change of language only redraws it.
+ */
+export function consoleEngine(): ViewEngine {
+  sharedEngine ??= createExecutionEngine({ store: localViewStore() });
+  return sharedEngine;
 }

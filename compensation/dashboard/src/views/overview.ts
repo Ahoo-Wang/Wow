@@ -20,10 +20,8 @@ import {
   type DashboardPanel,
   type DashboardViewConfig,
   type FilterNode,
-  type PanelBinding,
   type PanelLayout,
 } from "@ahoo-wang/wow-view-engine";
-import type { Locale } from "@/i18n.tsx";
 import { ACTIVITY_ANALYSES } from "./activityAnalyses.ts";
 import {
   ACTIVE_CONDITION,
@@ -42,6 +40,7 @@ import {
   OUTCOME_EVENTS,
   type OutcomeMetric,
 } from "./executionHistory.ts";
+import { textKeys, type Words } from "./textKeys.ts";
 
 /** The overview's definition: a board owns no data, only its system board. */
 export const OVERVIEW = "overview";
@@ -55,7 +54,7 @@ export const OVERVIEW_WINDOW = "window";
 /** The record panel the console puts its commands on. */
 export const ATTENTION_PANEL = "attention";
 
-const TEXT = {
+export const OVERVIEW_WORDS = {
   en: {
     title: "Overview",
     board: "Compensation overview",
@@ -116,9 +115,11 @@ const TEXT = {
     failuresBoard: "失败分析",
     activityBoard: "补偿活动",
   },
-} satisfies Record<Locale, Record<string, string>>;
+} satisfies Words;
 
-type Text = (typeof TEXT)[Locale];
+const keys = textKeys("overview", OVERVIEW_WORDS.en);
+
+type Text = typeof keys;
 
 /** An analysis the board owns, under `conditions`; counted unless it says. */
 function analysis(
@@ -320,19 +321,19 @@ const at = (x: number, y: number, w: number, h: number): PanelLayout => ({
 /**
  * A panel showing one of the analyses the definitions offer as system views
  * (`failureAnalyses`, `activityAnalyses`): the same view the workbench
- * opens, titled as it is there, narrowed by the board's window only where
- * `bindings` say — the pile's make-up is read whole.
+ * opens, titled as it is there. The board's window reaches it through the
+ * view's own time field — none for the pile's make-up, which is read whole
+ * (`SystemView.timeField`).
  */
 function analysisPanel(
   view: string,
   layout: PanelLayout,
-  bindings: PanelBinding[] = [],
   definitionId: string = EXECUTION_FAILED,
 ): DashboardPanel {
   return {
     id: view,
     kind: "view",
-    bindings,
+    bindings: [],
     layout,
     instanceId: systemInstanceId(definitionId, view),
   };
@@ -352,9 +353,10 @@ function owned(
  *
  * - Its one filter is the window, 「近 7 天」 until the reader picks another —
  *   today and the six whole days before it, as the old overview's default.
- *   It narrows the failed executions by when they ran (`state.executeAt`)
- *   and the event streams by when they were written (`createTime`), as the
- *   old overview did. 「全部活动」 is the one panel it leaves alone: the old
+ *   It reaches each panel through its data's time field — the failed
+ *   executions by when they ran (`state.executeAt`), the event streams by
+ *   when they were written (`createTime`) — as the old overview did.
+ *   「全部活动」 is the one panel it leaves alone (`ignoresTime`): the old
  *   overview's older and newer backlog are said as the two numbers, in range
  *   and all (G9).
  * - The backlog row counts what the queues hold: 「可立即处理」 is exactly
@@ -364,17 +366,7 @@ function owned(
  *   hold its event; the net backlog and the retry success rate are worked
  *   out by the service from those counts.
  */
-function homeBoard(locale: Locale): DashboardViewConfig {
-  const t = TEXT[locale];
-  const executeAt = [
-    { globalField: OVERVIEW_WINDOW, panelField: "state.executeAt" },
-  ];
-  const createTime = [
-    { globalField: OVERVIEW_WINDOW, panelField: "createTime" },
-  ];
-  const firstFailed = [
-    { globalField: OVERVIEW_WINDOW, panelField: "firstEventTime" },
-  ];
+function homeBoard(t: Text): DashboardViewConfig {
   const card = (
     id: string,
     title: string,
@@ -387,7 +379,8 @@ function homeBoard(locale: Locale): DashboardViewConfig {
     id,
     kind: "view",
     title,
-    bindings: windowed ? executeAt : [],
+    bindings: [],
+    ...(windowed ? {} : { ignoresTime: true as const }),
     layout,
     ...owned(EXECUTION_FAILED, countCard(filter)),
     ...(opens ? { opens } : {}),
@@ -431,7 +424,7 @@ function homeBoard(locale: Locale): DashboardViewConfig {
     id,
     kind: "view",
     title,
-    bindings: createTime,
+    bindings: [],
     layout,
     ...owned(EXECUTION_HISTORY, config),
   });
@@ -519,7 +512,7 @@ function homeBoard(locale: Locale): DashboardViewConfig {
         id: "clusters",
         kind: "view",
         title: t.clusters,
-        bindings: executeAt,
+        bindings: [],
         layout: at(0, 4, 24, 4),
         // The old overview's cluster link: the cluster's active failures.
         click: {
@@ -535,12 +528,12 @@ function homeBoard(locale: Locale): DashboardViewConfig {
       analysisPanel(FAILURE_ANALYSES.fate, at(0, 8, 24, 6)),
       analysisPanel(FAILURE_ANALYSES.concentration, at(0, 14, 12, 5)),
       // Of the failures of the window, how many compensation brought back.
-      analysisPanel(FAILURE_ANALYSES.repair, at(12, 14, 12, 5), firstFailed),
+      analysisPanel(FAILURE_ANALYSES.repair, at(12, 14, 12, 5)),
       {
         id: "recoverability",
         kind: "view",
         title: t.recoverability,
-        bindings: executeAt,
+        bindings: [],
         layout: at(0, 19, 12, 4),
         ...owned(EXECUTION_FAILED, recoverabilityPie()),
       },
@@ -548,7 +541,7 @@ function homeBoard(locale: Locale): DashboardViewConfig {
         id: "retries",
         kind: "view",
         title: t.retries,
-        bindings: executeAt,
+        bindings: [],
         layout: at(12, 19, 12, 4),
         ...owned(EXECUTION_FAILED, retriesTable(t)),
       },
@@ -556,7 +549,7 @@ function homeBoard(locale: Locale): DashboardViewConfig {
         id: ATTENTION_PANEL,
         kind: "view",
         title: t.attention,
-        bindings: executeAt,
+        bindings: [],
         layout: at(0, 23, 24, 7),
         instanceId: systemInstanceId(EXECUTION_FAILED, "next-retry"),
       },
@@ -574,10 +567,6 @@ function windowField(t: Text): DashboardViewConfig["fields"][number] {
     required: true,
   };
 }
-
-const bound = (panelField: string): PanelBinding[] => [
-  { globalField: OVERVIEW_WINDOW, panelField },
-];
 
 /**
  * 「失败分析」: for whoever owns a processor or the compensation's health —
@@ -598,10 +587,10 @@ function failuresBoard(t: Text): DashboardViewConfig {
       analysisPanel(A.errorCodes, at(12, 6, 12, 5)),
       analysisPanel(A.sources, at(0, 11, 12, 5)),
       analysisPanel(A.backlogAge, at(12, 11, 12, 5)),
-      analysisPanel(A.arrivals, at(0, 16, 12, 5), bound("firstEventTime")),
+      analysisPanel(A.arrivals, at(0, 16, 12, 5)),
       analysisPanel(A.retries, at(12, 16, 12, 5)),
-      analysisPanel(A.repair, at(0, 21, 12, 5), bound("firstEventTime")),
-      analysisPanel(A.recovery, at(12, 21, 12, 5), bound("eventTime")),
+      analysisPanel(A.repair, at(0, 21, 12, 5)),
+      analysisPanel(A.recovery, at(12, 21, 12, 5)),
       analysisPanel(A.calendar, at(0, 26, 24, 5)),
     ],
   };
@@ -614,7 +603,6 @@ function failuresBoard(t: Text): DashboardViewConfig {
  */
 function activityBoard(t: Text): DashboardViewConfig {
   const A = ACTIVITY_ANALYSES;
-  const createTime = bound("createTime");
   const outcome = (
     id: OutcomeMetric,
     title: string,
@@ -623,7 +611,7 @@ function activityBoard(t: Text): DashboardViewConfig {
     id,
     kind: "view",
     title,
-    bindings: createTime,
+    bindings: [],
     layout,
     ...owned(EXECUTION_HISTORY, outcomeTrendCard(id)),
   });
@@ -636,29 +624,21 @@ function activityBoard(t: Text): DashboardViewConfig {
       outcome("prepared", t.prepared, at(6, 0, 6, 2)),
       outcome("retryFailed", t.retryFailed, at(12, 0, 6, 2)),
       outcome("retrySucceeded", t.retrySucceeded, at(18, 0, 6, 2)),
-      analysisPanel(A.activity, at(0, 2, 24, 6), createTime, EXECUTION_HISTORY),
-      analysisPanel(A.eventMix, at(0, 8, 12, 5), createTime, EXECUTION_HISTORY),
-      analysisPanel(
-        A.interventions,
-        at(12, 8, 12, 5),
-        createTime,
-        EXECUTION_HISTORY,
-      ),
+      analysisPanel(A.activity, at(0, 2, 24, 6), EXECUTION_HISTORY),
+      analysisPanel(A.eventMix, at(0, 8, 12, 5), EXECUTION_HISTORY),
+      analysisPanel(A.interventions, at(12, 8, 12, 5), EXECUTION_HISTORY),
     ],
   };
 }
 
-/** The overview's definition in one language, with its one system board. */
-export function overviewDefinition(locale: Locale): DashboardDefinition {
-  const t = TEXT[locale];
-  return {
-    id: OVERVIEW,
-    title: t.title,
-    kind: "dashboard",
-    views: [
-      { id: "home", title: t.board, config: homeBoard(locale) },
-      { id: "failures", title: t.failuresBoard, config: failuresBoard(t) },
-      { id: "activity", title: t.activityBoard, config: activityBoard(t) },
-    ],
-  };
-}
+/** The overview's definition, with its three system boards. */
+export const overview: DashboardDefinition = {
+  id: OVERVIEW,
+  title: keys.title,
+  kind: "dashboard",
+  views: [
+    { id: "home", title: keys.board, config: homeBoard(keys) },
+    { id: "failures", title: keys.failuresBoard, config: failuresBoard(keys) },
+    { id: "activity", title: keys.activityBoard, config: activityBoard(keys) },
+  ],
+};

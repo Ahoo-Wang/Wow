@@ -14,8 +14,11 @@
 import type { FilterListQuery } from '@ahoo-wang/wow-client';
 // compat(wow<9): the hook also takes the Condition-based queries of `@ahoo-wang/wow-client/legacy`, which Wow < 8.11 needs; drop that overload in v10.
 import type { ListQuery, ListQueryRequest } from '@ahoo-wang/wow-client/legacy';
-import type { Fetcher } from '@ahoo-wang/fetcher';
-import { endpointIdentity, postQueryStream } from '../internal/endpoint.js';
+import {
+  type Endpoint,
+  endpointIdentity,
+  postQueryStream,
+} from '../internal/endpoint.js';
 import { useListStream } from '../internal/useListStream.js';
 import {
   type UseListStreamQueryOptions,
@@ -38,18 +41,10 @@ export interface UseFetcherListStreamQueryOptions<
   FIELDS extends string = string,
   E = Error,
   Q extends ListQueryRequest<FIELDS> = FilterListQuery<FIELDS>,
-> extends Omit<UseListStreamQueryOptions<R, FIELDS, E, Q>, 'execute'> {
-  /**
-   * The list endpoint, resolved against the Fetcher's `baseURL`: for example
-   * `order/snapshot/list/state` for the states of an `order` aggregate.
-   */
-  url: string;
-  /**
-   * The Fetcher that sends the request, or the name of a registered one; the
-   * default Fetcher when omitted.
-   */
-  fetcher?: string | Fetcher;
-}
+>
+  extends
+    Omit<UseListStreamQueryOptions<R, FIELDS, E, Q>, 'execute'>,
+    Endpoint {}
 
 /**
  * What {@link useFetcherListStreamQuery} returns; see
@@ -135,7 +130,7 @@ export function useFetcherListStreamQuery<
   options: UseFetcherListStreamQueryOptions<R, FIELDS, E, Q>,
 ): UseFetcherListStreamQueryReturn<R, FIELDS, E, Q> {
   const { url, fetcher, ...rest } = options;
-  return useListStream<Q, R, E>(
+  return useListStream<R, FIELDS, E, Q>(
     { ...rest, execute: postQueryStream<R, Q>({ url, fetcher }) },
     endpointIdentity({ url, fetcher }),
   );

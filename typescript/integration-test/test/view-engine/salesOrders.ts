@@ -404,11 +404,13 @@ export function ordersEngine(
   const source = orderSource(tenant);
   const store = new MemoryViewStore({ instances: [] });
   const engine = new ViewEngine({
-    definitions: [ordersDefinition, boardDefinition],
+    resources: [
+      { definition: ordersDefinition, source },
+      { definition: boardDefinition },
+    ],
     store,
     limits,
     environment: defaultRuntimeEnvironment({ timeZone: 'UTC', ...overrides }),
-    resolveSource: () => source,
   });
   return { engine, store };
 }

@@ -52,6 +52,7 @@ import {
   ROWS,
   testEnvironment,
   testSource,
+  resourcesOf,
 } from './fixtures.js';
 
 afterEach(cleanup);
@@ -71,9 +72,11 @@ function watched(
   const issues: Issue[] = [];
   const store = options.store ?? new MemoryViewStore({ instances: [mine] });
   const engine = new ViewEngine({
-    definitions: [ordersDefinition()],
+    resources: resourcesOf(
+      [ordersDefinition()],
+      () => options.source ?? testSource(),
+    ),
     store,
-    resolveSource: () => options.source ?? testSource(),
     environment: {
       ...(options.environment ?? testEnvironment().environment),
       onError: event => events.push(event),
@@ -174,10 +177,10 @@ describe('query failures reach onError', () => {
       vi.spyOn(console, 'log'),
     ];
     const engine = new ViewEngine({
-      definitions: [ordersDefinition()],
-      store: new MemoryViewStore({ instances: [mine] }),
-      resolveSource: () =>
+      resources: resourcesOf([ordersDefinition()], () =>
         testSource({ paged: vi.fn(() => Promise.reject(new Error('down'))) }),
+      ),
+      store: new MemoryViewStore({ instances: [mine] }),
       environment: {
         ...testEnvironment().environment,
         onError: () => {
@@ -198,10 +201,10 @@ describe('query failures reach onError', () => {
   it('leaves no rejection behind when the host’s hook is async and fails', async () => {
     const told = vi.fn(() => Promise.reject(new Error('monitor offline')));
     const engine = new ViewEngine({
-      definitions: [ordersDefinition()],
-      store: new MemoryViewStore({ instances: [mine] }),
-      resolveSource: () =>
+      resources: resourcesOf([ordersDefinition()], () =>
         testSource({ paged: vi.fn(() => Promise.reject(new Error('down'))) }),
+      ),
+      store: new MemoryViewStore({ instances: [mine] }),
       environment: { ...testEnvironment().environment, onError: told },
     });
 
@@ -220,10 +223,10 @@ describe('query failures reach onError', () => {
       vi.spyOn(console, 'log'),
     ];
     const engine = new ViewEngine({
-      definitions: [ordersDefinition()],
-      store: new MemoryViewStore({ instances: [mine] }),
-      resolveSource: () =>
+      resources: resourcesOf([ordersDefinition()], () =>
         testSource({ paged: vi.fn(() => Promise.reject(new Error('down'))) }),
+      ),
+      store: new MemoryViewStore({ instances: [mine] }),
       environment: testEnvironment().environment,
     });
 

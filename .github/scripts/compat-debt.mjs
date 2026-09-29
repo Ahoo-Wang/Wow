@@ -7,19 +7,28 @@ import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
-// Keeps docs/compat-debt.md and the compatibility markers in the TypeScript
-// sources in step: every marked file is listed by an entry, every entry points
-// at files that still hold a marker, and every @deprecated says when it goes.
+// Keeps docs/compat-debt.md and the compatibility markers in step, in the
+// TypeScript sources (typescript/*/src) and the Kotlin main sources
+// (*/src/main/kotlin): every marked file is listed by an entry, every entry
+// points at files that still hold a marker, and every deprecation says when it
+// goes.
 
 const ROOT = fileURLToPath(new URL('../..', import.meta.url));
 export const LEDGER = 'docs/compat-debt.md';
 const REMOVED = 'Removed in v10.';
+export const KOTLIN_REMOVED = 'Scheduled for removal in 10.0.0.';
 const COMPAT = /\bcompat\([^)]+\):\s*\S/;
 const SOURCE = /\.(?:[cm]?[jt]sx?)$/;
+const KOTLIN_MAIN = /(?:^|\/)src\/main\/kotlin\/.+\.kt$/;
+// Directories the Kotlin walk never enters: build output, dependencies, and
+// dot-directories (.git, .gradle, and the worktrees under .claude).
+const SKIPPED = new Set(['node_modules', 'build', 'dist', 'out']);
 
-/** True when the text holds a compatibility marker of either kind. */
+/** True when the text holds a compatibility marker of any kind. */
 export function hasMarker(text) {
-  return text.includes(REMOVED) || COMPAT.test(text);
+  return (
+    text.includes(REMOVED) || text.includes(KOTLIN_REMOVED) || COMPAT.test(text)
+  );
 }
 
 /** Every @deprecated doc comment that does not say `Removed in v10.`. */
@@ -30,6 +39,18 @@ export function unscheduledDeprecations(text) {
       continue;
     const at = match.index + match[0].indexOf('@deprecated');
     found.push(text.slice(0, at).split('\n').length);
+  }
+  return found;
+}
+
+/** Every Kotlin `@Deprecated("…")` whose message does not say `Scheduled for removal in 10.0.0.`. */
+export function unscheduledKotlinDeprecations(text) {
+  const found = [];
+  for (const match of text.matchAll(
+    /@Deprecated\(\s*(?:message\s*=\s*)?"((?:[^"\\]|\\.)*)"/g,
+  )) {
+    if (match[1].includes(KOTLIN_REMOVED)) continue;
+    found.push(text.slice(0, match.index).split('\n').length);
   }
   return found;
 }
@@ -74,20 +95,44 @@ export function sourceFiles(root = ROOT) {
   return files.sort();
 }
 
+/** Kotlin main sources (`<module>/src/main/kotlin/**.kt`) anywhere in the repository, relative to root. */
+export function kotlinSourceFiles(root = ROOT) {
+  const files = [];
+  const walk = dir => {
+    for (const entry of readdirSync(join(root, dir), { withFileTypes: true })) {
+      const path = dir ? `${dir}/${entry.name}` : entry.name;
+      if (entry.isDirectory()) {
+        if (!entry.name.startsWith('.') && !SKIPPED.has(entry.name)) walk(path);
+      } else if (KOTLIN_MAIN.test(path)) files.push(path);
+    }
+  };
+  walk('');
+  return files.sort();
+}
+
 /** Every way the ledger and the markers disagree. */
 export function ledgerProblems(root = ROOT) {
   const problems = [];
   const read = path => readFileSync(join(root, path), 'utf8');
   const entries = parseLedger(read(LEDGER));
   const listed = new Set(entries.flatMap(entry => entry.files));
-  for (const file of sourceFiles(root)) {
-    const text = read(file);
-    for (const line of unscheduledDeprecations(text))
-      problems.push(`${file}:${line}: @deprecated without "${REMOVED}"`);
+  const unlisted = (file, text) => {
     if (hasMarker(text) && !listed.has(file))
       problems.push(
         `${file}: has compatibility markers but no ${LEDGER} entry lists it`,
       );
+  };
+  for (const file of sourceFiles(root)) {
+    const text = read(file);
+    for (const line of unscheduledDeprecations(text))
+      problems.push(`${file}:${line}: @deprecated without "${REMOVED}"`);
+    unlisted(file, text);
+  }
+  for (const file of kotlinSourceFiles(root)) {
+    const text = read(file);
+    for (const line of unscheduledKotlinDeprecations(text))
+      problems.push(`${file}:${line}: @Deprecated without "${KOTLIN_REMOVED}"`);
+    unlisted(file, text);
   }
   if (entries.length === 0) problems.push(`${LEDGER}: no ### entries`);
   for (const entry of entries) {

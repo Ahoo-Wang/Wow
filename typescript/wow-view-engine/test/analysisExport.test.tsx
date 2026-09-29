@@ -51,7 +51,12 @@ import {
   type ViewMessages,
 } from '../src/ui/messages.js';
 import type { MessageFormatters } from '../src/ui/MessagesProvider.js';
-import { analysisConfig, ordersDefinition, testSource } from './fixtures.js';
+import {
+  analysisConfig,
+  ordersDefinition,
+  testSource,
+  resourcesOf,
+} from './fixtures.js';
 
 afterEach(cleanup);
 
@@ -244,7 +249,7 @@ function show({
   features,
 }: { from?: ViewSource; features?: WorkbenchFeatures } = {}) {
   const engine = new ViewEngine({
-    definitions: [definition()],
+    resources: resourcesOf([definition()], () => from),
     store: new MemoryViewStore({
       instances: [
         {
@@ -257,7 +262,6 @@ function show({
         },
       ],
     }),
-    resolveSource: () => from,
   });
   render(
     <DataWorkbench

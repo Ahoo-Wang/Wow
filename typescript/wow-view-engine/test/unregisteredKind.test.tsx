@@ -54,6 +54,7 @@ import {
   recordConfig,
   testEnvironment,
   testSource,
+  resourcesOf,
 } from './fixtures.js';
 
 afterEach(cleanup);
@@ -294,9 +295,10 @@ describe('the editor bound to a runtime', () => {
   it('offers only fields it can build a condition on', async () => {
     const store = new MemoryViewStore({ instances: [] });
     const engine = new ViewEngine({
-      definitions: [ordersDefinition(), overviewDefinition()],
+      resources: resourcesOf([ordersDefinition(), overviewDefinition()], () =>
+        testSource(),
+      ),
       store,
-      resolveSource: () => testSource(),
     });
     const instance = await store.create(
       {

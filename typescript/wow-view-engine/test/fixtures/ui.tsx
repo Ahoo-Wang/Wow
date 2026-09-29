@@ -31,6 +31,7 @@ import {
   ordersDefinition,
   recordConfig,
   testSource,
+  resourcesOf,
 } from '../fixtures.js';
 import { tracked } from './writes.js';
 import { pagedPaging } from '../../src/record/index.js';
@@ -269,9 +270,8 @@ export function refreshController(
 export function setup(source: ViewSource = testSource()) {
   const store = tracked(new MemoryViewStore({ instances: [mine] }));
   const engine = new ViewEngine({
-    definitions: [ordersDefinition()],
+    resources: resourcesOf([ordersDefinition()], () => source),
     store,
-    resolveSource: () => source,
   });
   return { engine, store, source };
 }

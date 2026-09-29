@@ -39,6 +39,7 @@ import {
   recordConfig,
   testEnvironment,
   testSource,
+  resourcesOf,
 } from './fixtures.js';
 
 const kinds = builtinFieldKinds;
@@ -268,9 +269,8 @@ function answering(rows: (query: AggregationQuery) => RecordData[]) {
 
 function openOn(source: ViewSource, definition = ordersDefinition()) {
   const engine = new ViewEngine({
-    definitions: [definition],
+    resources: resourcesOf([definition], () => source),
     store: new MemoryViewStore({ instances: [] }),
-    resolveSource: () => source,
     environment: testEnvironment().environment,
   });
   return engine.create('orders', {
@@ -418,9 +418,8 @@ describe('a view runtime offers value candidates', () => {
     runtime.dispose();
 
     const engine = new ViewEngine({
-      definitions: [ordersDefinition()],
+      resources: resourcesOf([ordersDefinition()], () => testSource()),
       store: new MemoryViewStore({ instances: [] }),
-      resolveSource: () => testSource(),
       limits: { ...DEFAULT_RUNTIME_LIMITS, maxAnalysisRows: 0 },
     });
     const starved = engine.create('orders', {

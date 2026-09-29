@@ -14,7 +14,7 @@
 package me.ahoo.wow.elasticsearch.query
 
 import co.elastic.clients.elasticsearch._types.FieldValue
-import me.ahoo.wow.api.query.AggregationQuery
+import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.query.CursorPosition
 import me.ahoo.wow.query.CursorPositionCodec
 import me.ahoo.wow.serialization.JsonSerializer
@@ -23,12 +23,12 @@ import tools.jackson.databind.JsonNode
 /** Cursor positions as the JSON array of a hit's `sort()` values, decoded back to [FieldValue]s for `search_after`. */
 internal object ElasticsearchCursorCodec : CursorPositionCodec {
     override fun encode(position: CursorPosition): ByteArray {
-        require(position.values.size <= AggregationQuery.MAX_SORT_FIELDS)
+        require(position.values.size <= Sort.MAX_FIELDS)
         return JsonSerializer.writeValueAsBytes(position.values.map { (it as FieldValue).toCursorValue() })
     }
 
     override fun decode(payload: ByteArray, size: Int): CursorPosition {
-        require(size in 1..AggregationQuery.MAX_SORT_FIELDS)
+        require(size in 1..Sort.MAX_FIELDS)
         val values = JsonSerializer.readTree(payload)
         require(values.isArray && values.size() == size)
         return CursorPosition(values.asSequence().map(JsonNode::toFieldValue).toList())

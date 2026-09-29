@@ -14,7 +14,6 @@
 package me.ahoo.wow.query
 
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.ElementMatchFilter
 import me.ahoo.wow.api.query.EqualFilter
 import me.ahoo.wow.api.query.FilterExpression
@@ -76,10 +75,10 @@ class QueryResolverTest {
 
     @Test
     fun `every sort is limited to the storage-wide field count`() {
-        val many = (0..AggregationQuery.MAX_SORT_FIELDS).map { "state.name$it" }
+        val many = (0..Sort.MAX_FIELDS).map { "state.name$it" }
         val tooMany = ListQuery(MatchAllFilter, sort = many.map { Sort(QueryField(it), Sort.Direction.ASC) })
         rejection { QueryAdmission.Trusted.list(tooMany, schema) }.apply {
-            assert().isEqualTo(QueryViolation.SortTooMany(AggregationQuery.MAX_SORT_FIELDS))
+            assert().isEqualTo(QueryViolation.SortTooMany(Sort.MAX_FIELDS))
             code.assert().isEqualTo(QueryErrorCodes.SORT_TOO_MANY)
         }
     }

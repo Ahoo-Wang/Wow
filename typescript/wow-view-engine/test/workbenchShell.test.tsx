@@ -27,7 +27,12 @@ import type { ViewInstance } from '../src/index.js';
 import { useWorkbench } from '../src/react/index.js';
 import { defaultMessages, WorkbenchShell } from '../src/ui/index.js';
 import type { WorkbenchShellProps } from '../src/ui/index.js';
-import { ordersDefinition, recordConfig, testSource } from './fixtures.js';
+import {
+  ordersDefinition,
+  recordConfig,
+  testSource,
+  resourcesOf,
+} from './fixtures.js';
 
 afterEach(cleanup);
 
@@ -45,9 +50,8 @@ const saved: ViewInstance = {
 
 function engineWith(): ViewEngine {
   return new ViewEngine({
-    definitions: [ordersDefinition()],
+    resources: resourcesOf([ordersDefinition()], () => testSource()),
     store: new MemoryViewStore({ instances: [saved] }),
-    resolveSource: () => testSource(),
   });
 }
 
@@ -211,9 +215,8 @@ describe('opening a view', () => {
     const store = new MemoryViewStore({ instances: [saved] });
     store.get = () => new Promise<ViewInstance>(() => {});
     return new ViewEngine({
-      definitions: [ordersDefinition()],
+      resources: resourcesOf([ordersDefinition()], () => testSource()),
       store,
-      resolveSource: () => testSource(),
     });
   }
 

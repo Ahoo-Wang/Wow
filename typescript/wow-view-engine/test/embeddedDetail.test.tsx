@@ -42,7 +42,7 @@ import {
   type EmbedInteraction,
   type RecordDetailOptions,
 } from '../src/ui/index.js';
-import { mine, ordersDefinition, testSource } from './fixtures.js';
+import { mine, ordersDefinition, testSource, resourcesOf } from './fixtures.js';
 
 afterEach(cleanup);
 
@@ -79,24 +79,26 @@ function setUp() {
   const store = new MemoryViewStore({ instances: [mine] });
   const writes = WRITES.map(name => vi.spyOn(store, name));
   const engine = new ViewEngine({
-    definitions: [
-      ordersDefinition({
-        fields: [
-          ...ordersDefinition().fields,
-          { name: 'payload', label: 'Payload', kind: 'string' },
-        ],
-      }),
-    ],
-    store,
-    resolveSource: () =>
-      testSource({
-        paged: vi.fn(async (query: FilterPagedQuery) => {
-          if (query.pagination?.size !== 1)
-            return { total: 2, list: [...PAGE] };
-          const found = whole(keyOf(query));
-          return { total: found ? 1 : 0, list: found ? [found] : [] };
+    resources: resourcesOf(
+      [
+        ordersDefinition({
+          fields: [
+            ...ordersDefinition().fields,
+            { name: 'payload', label: 'Payload', kind: 'string' },
+          ],
         }),
-      }),
+      ],
+      () =>
+        testSource({
+          paged: vi.fn(async (query: FilterPagedQuery) => {
+            if (query.pagination?.size !== 1)
+              return { total: 2, list: [...PAGE] };
+            const found = whole(keyOf(query));
+            return { total: found ? 1 : 0, list: found ? [found] : [] };
+          }),
+        }),
+    ),
+    store,
   });
   return { engine, writes };
 }

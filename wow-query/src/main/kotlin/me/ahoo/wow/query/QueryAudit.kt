@@ -15,22 +15,19 @@ package me.ahoo.wow.query
 
 import me.ahoo.wow.api.exception.ErrorInfo
 import me.ahoo.wow.api.modeling.NamedAggregate
-import me.ahoo.wow.api.query.AndFilter
+import me.ahoo.wow.api.query.FieldPredicate
 import me.ahoo.wow.api.query.FilterExpression
-import me.ahoo.wow.api.query.NorFilter
-import me.ahoo.wow.api.query.OrFilter
-import me.ahoo.wow.api.query.OwnerIdFilter
 import me.ahoo.wow.api.query.Projection
 import me.ahoo.wow.api.query.ProjectionCapable
 import me.ahoo.wow.api.query.QueryField
-import me.ahoo.wow.api.query.SpaceIdFilter
-import me.ahoo.wow.api.query.TenantIdFilter
+import me.ahoo.wow.api.query.childFilters
 import me.ahoo.wow.api.query.schema.QueryModel
+import me.ahoo.wow.api.query.spec.SystemField
 import me.ahoo.wow.api.query.spec.spec
 import me.ahoo.wow.query.filter.QueryType
-import me.ahoo.wow.query.filter.predicateField
 import me.ahoo.wow.query.schema.QueryModelProfile
 import me.ahoo.wow.query.schema.QueryModelSchema
+import me.ahoo.wow.query.schema.profile
 import reactor.util.context.ContextView
 import java.time.Duration
 
@@ -141,7 +138,7 @@ internal class QueryAuditTrail(
             model = schema?.model,
             modelVersion = schema?.version,
             fingerprinter = { fingerprintOf(queryType, query) },
-            scopeFields = scopeFieldsOf(context.queryScope()),
+            scopeFields = scopeFieldsOf(context.queryScope(), schema?.profile),
             policies = synchronized(policies) { policies.toList() },
             rows = rows,
             maskedFields = schema?.let(::maskedFieldsOf).orEmpty(),
@@ -182,21 +179,27 @@ internal class QueryAuditTrail(
     }
 }
 
-private fun scopeFieldsOf(scope: FilterExpression): List<String> {
+/**
+ * The fields [scope] restricts: the field of each field predicate and the logical field of each system-field filter,
+ * the model's own identity when [profile] names it. An `ELEMENT_MATCH` restricts its collection, not the fields of its
+ * element predicate.
+ */
+private fun scopeFieldsOf(scope: FilterExpression, profile: QueryModelProfile?): List<String> {
     val fields = linkedSetOf<String>()
     fun visit(filter: FilterExpression) {
-        when (filter) {
-            is AndFilter -> filter.operands.forEach(::visit)
-            is OrFilter -> filter.operands.forEach(::visit)
-            is NorFilter -> filter.operands.forEach(::visit)
-            is TenantIdFilter, is OwnerIdFilter, is SpaceIdFilter ->
-                fields += QueryModelProfile.metadataField(checkNotNull(filter.spec.systemField)).path
-            else -> filter.predicateField()?.let { fields += it.path }
+        if (filter is FieldPredicate) {
+            fields += filter.field.path
+            return
         }
+        filter.spec.systemField?.let { it.scopeField(profile)?.let { field -> fields += field.path } }
+        filter.childFilters().forEach(::visit)
     }
     visit(scope)
     return fields.toList()
 }
+
+private fun SystemField.scopeField(profile: QueryModelProfile?): QueryField? =
+    profile?.systemField(this) ?: takeIf { it != SystemField.IDENTITY }?.let(QueryModelProfile::metadataField)
 
 private fun errorCodeOf(error: Throwable): String {
     val info = error as? ErrorInfo ?: return error.javaClass.simpleName

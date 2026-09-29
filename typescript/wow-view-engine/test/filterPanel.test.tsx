@@ -44,7 +44,12 @@ import {
   zhCN,
 } from '../src/ui/index.js';
 import type { FilterPanelProps, ViewMessages } from '../src/ui/index.js';
-import { ordersDefinition, recordConfig, testSource } from './fixtures.js';
+import {
+  ordersDefinition,
+  recordConfig,
+  testSource,
+  resourcesOf,
+} from './fixtures.js';
 import { describedText, mine, mixed, setup } from './fixtures/ui.js';
 
 afterEach(cleanup);
@@ -84,9 +89,8 @@ describe('FilterPanel tree editing', () => {
     resolveOptions?: () => OptionSource,
   ): PanelHarness {
     const engine = new ViewEngine({
-      definitions: [definition],
+      resources: resourcesOf([definition], () => testSource()),
       store: new MemoryViewStore({ instances: [mine] }),
-      resolveSource: () => testSource(),
       ...(resolveOptions ? { resolveOptions } : {}),
     });
     const runtime = engine.create('orders', {
@@ -339,9 +343,8 @@ describe('FilterPanel tree editing', () => {
 
   it('keeps the fields to add with when it has no way out of its own', () => {
     const engine = new ViewEngine({
-      definitions: [ordersDefinition()],
+      resources: resourcesOf([ordersDefinition()], () => testSource()),
       store: new MemoryViewStore({ instances: [mine] }),
-      resolveSource: () => testSource(),
     });
     const runtime = engine.create('orders', {
       title: 'Scratch',
@@ -1225,17 +1228,19 @@ describe('FilterPanel tree editing', () => {
     };
     const base = ordersDefinition();
     const engine = new ViewEngine({
-      definitions: [
-        {
-          ...base,
-          fields: [
-            ...base.fields,
-            { name: 'weight', label: 'Weight', kind: 'rounded' },
-          ],
-        },
-      ],
+      resources: resourcesOf(
+        [
+          {
+            ...base,
+            fields: [
+              ...base.fields,
+              { name: 'weight', label: 'Weight', kind: 'rounded' },
+            ],
+          },
+        ],
+        () => testSource(),
+      ),
       store: new MemoryViewStore({ instances: [mine] }),
-      resolveSource: () => testSource(),
       kinds: withFieldKinds(builtinFieldKinds, [rounded]),
     });
     const runtime = engine.create('orders', {
@@ -1407,9 +1412,8 @@ describe('FilterPanel tree editing', () => {
 describe('the mode the condition editor is in', () => {
   function openMixed(instance: ViewInstance) {
     const engine = new ViewEngine({
-      definitions: [ordersDefinition()],
+      resources: resourcesOf([ordersDefinition()], () => testSource()),
       store: new MemoryViewStore({ instances: [instance] }),
-      resolveSource: () => testSource(),
     });
     render(
       <DataWorkbench
@@ -1474,9 +1478,8 @@ describe('FilterPanel and auto refresh', () => {
   /** The panel over a fresh runtime, with the runtime in reach. */
   function panelWithRuntime() {
     const engine = new ViewEngine({
-      definitions: [ordersDefinition()],
+      resources: resourcesOf([ordersDefinition()], () => testSource()),
       store: new MemoryViewStore({ instances: [mine] }),
-      resolveSource: () => testSource(),
     });
     const runtime = engine.create('orders', {
       title: 'Scratch',
@@ -1592,9 +1595,8 @@ describe('a stored condition the editor cannot draw', () => {
 
   async function openBroken() {
     const engine = new ViewEngine({
-      definitions: [ordersDefinition()],
+      resources: resourcesOf([ordersDefinition()], () => testSource()),
       store: new MemoryViewStore({ instances: [broken] }),
-      resolveSource: () => testSource(),
     });
     render(
       <DataWorkbench

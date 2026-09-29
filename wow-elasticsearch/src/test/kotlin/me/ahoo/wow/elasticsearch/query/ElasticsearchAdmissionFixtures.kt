@@ -16,6 +16,7 @@ package me.ahoo.wow.elasticsearch.query
 import co.elastic.clients.elasticsearch._types.SortOptions
 import co.elastic.clients.elasticsearch._types.query_dsl.Query
 import co.elastic.clients.elasticsearch.core.search.SourceFilter
+import co.elastic.clients.elasticsearch.indices.GetIndicesSettingsResponse
 import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.CursorQuery
 import me.ahoo.wow.api.query.FilterExpression
@@ -33,7 +34,7 @@ import me.ahoo.wow.query.schema.QueryModelSchema
  * exactly as the gateway and the backends do.
  */
 
-internal fun AbstractElasticsearchFilterCompiler.compile(filter: FilterExpression, schema: QueryModelSchema): Query =
+internal fun ElasticsearchFilterCompiler.compile(filter: FilterExpression, schema: QueryModelSchema): Query =
     compile(QueryAdmission.Trusted.count(filter, schema))
 
 internal fun ElasticsearchAggregationCompiler.compile(
@@ -53,3 +54,14 @@ internal fun ElasticsearchSortCompiler.compileCursor(sort: List<Sort>, schema: Q
 
 internal fun ElasticsearchProjectionCompiler.compile(projection: Projection, schema: QueryModelSchema): SourceFilter =
     QueryAdmission.Trusted.list(ListQuery(MatchAllFilter, projection), schema).let { compile(it.query.projection, it) }
+
+/** The settings of one index, declaring [maxResultWindow] as `index.max_result_window` unless it is `null`. */
+internal fun indexSettingsResponse(maxResultWindow: Int? = null): GetIndicesSettingsResponse =
+    GetIndicesSettingsResponse.of { response ->
+        response.settings("index") { state ->
+            state.settings { settings ->
+                maxResultWindow?.let { window -> settings.index { index -> index.maxResultWindow(window) } }
+                settings
+            }
+        }
+    }

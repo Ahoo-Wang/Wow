@@ -40,7 +40,12 @@ import {
   type RecordData,
 } from '../src/index.js';
 import { DataWorkbench } from '../src/ui/index.js';
-import { analysisConfig, ordersDefinition, testSource } from './fixtures.js';
+import {
+  analysisConfig,
+  ordersDefinition,
+  testSource,
+  resourcesOf,
+} from './fixtures.js';
 
 afterEach(() => {
   cleanup();
@@ -59,30 +64,33 @@ function show(
   rows: readonly RecordData[] = ROWS,
 ) {
   const engine = new ViewEngine({
-    definitions: [
-      ordersDefinition({
-        analysis: {
-          count: true,
-          fields: [
-            {
-              field: 'warehouse',
-              groups: [AggregationGroupType.TERMS],
-              functions: [],
-            },
-            {
-              field: 'status',
-              groups: [AggregationGroupType.TERMS],
-              functions: [],
-            },
-            {
-              field: 'amount',
-              groups: [],
-              functions: [AggregationFunction.SUM, AggregationFunction.AVG],
-            },
-          ],
-        },
-      }),
-    ],
+    resources: resourcesOf(
+      [
+        ordersDefinition({
+          analysis: {
+            count: true,
+            fields: [
+              {
+                field: 'warehouse',
+                groups: [AggregationGroupType.TERMS],
+                functions: [],
+              },
+              {
+                field: 'status',
+                groups: [AggregationGroupType.TERMS],
+                functions: [],
+              },
+              {
+                field: 'amount',
+                groups: [],
+                functions: [AggregationFunction.SUM, AggregationFunction.AVG],
+              },
+            ],
+          },
+        }),
+      ],
+      () => testSource({ aggregate: vi.fn(() => Promise.resolve([...rows])) }),
+    ),
     store: new MemoryViewStore({
       instances: [
         {
@@ -95,8 +103,6 @@ function show(
         },
       ],
     }),
-    resolveSource: () =>
-      testSource({ aggregate: vi.fn(() => Promise.resolve([...rows])) }),
   });
   render(
     <DataWorkbench

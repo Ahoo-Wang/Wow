@@ -48,7 +48,7 @@ private fun AggregationGroup.compileGroup(
     expressionKey: (AggregationExpression) -> Pair<Bson?, Any>,
 ): Pair<Bson?, Any> = when (this) {
     is AggregationGroup.Terms -> expression?.let { expressionKey(it) } ?: run {
-        val path = checkNotNull(field).physicalPath(admitted)
+        val path = admitted.physicalPath(checkNotNull(field))
         if (missingKey == null) {
             Filters.and(Filters.exists(path), Filters.ne(path, null)) to "\$$path"
         } else {
@@ -57,7 +57,7 @@ private fun AggregationGroup.compileGroup(
     }
     is AggregationGroup.Histogram -> {
         val computed = expression?.let { numericParticipation(it, nullGuarded = true, admitted).first }
-        val input = computed ?: scalarOrSingleton("\$${checkNotNull(field).physicalPath(admitted)}")
+        val input = computed ?: scalarOrSingleton("\$${admitted.physicalPath(checkNotNull(field))}")
         Filters.expr(Document("\$isNumber", input)) to Document(
             "\$multiply",
             listOf(
@@ -206,7 +206,7 @@ private fun AggregationGroup.dateInput(admitted: AdmittedQuery<*>): Any = checkN
  */
 internal fun QueryField.dateInput(admitted: AdmittedQuery<*>): Any {
     val resolved = admitted.field(this)
-    val physicalPath = resolved.physicalField.path
+    val physicalPath = admitted.physicalPath(this)
     return when (val temporal = resolved.temporal) {
         Temporal.Date -> convert(scalarOrSingleton("\$$physicalPath"), "date")
         is Temporal.Epoch -> epochDate(physicalPath, temporal.timeUnit)

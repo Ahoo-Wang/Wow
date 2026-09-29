@@ -38,7 +38,12 @@ import {
   type ViewMessages,
 } from '../src/ui/messages.js';
 import type { MessageFormatters } from '../src/ui/MessagesProvider.js';
-import { ordersDefinition, recordConfig, testSource } from './fixtures.js';
+import {
+  ordersDefinition,
+  recordConfig,
+  testSource,
+  resourcesOf,
+} from './fixtures.js';
 
 /** Only tables: a saved card layout is one the definition no longer offers. */
 const definition = ordersDefinition({
@@ -134,7 +139,7 @@ describe('a record finding says what the screen shows', () => {
 describe('the record workbench’s status line', () => {
   it('names the field a refused sort orders by by its label', async () => {
     const engine = new ViewEngine({
-      definitions: [definition],
+      resources: resourcesOf([definition], () => testSource()),
       store: new MemoryViewStore({
         instances: [
           {
@@ -149,7 +154,6 @@ describe('the record workbench’s status line', () => {
           },
         ],
       }),
-      resolveSource: () => testSource(),
     });
     render(
       <DataWorkbench

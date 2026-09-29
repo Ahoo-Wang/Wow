@@ -225,7 +225,16 @@ export function replacePanelView(
       without(without(panel, 'owned'), 'presentation'),
       'opens',
     );
-    return { ...rest, instanceId };
+    // And a time wire made from the old view (D1), whatever the board's
+    // filters: the new one's, if it says when its records happen, is made
+    // when the board is read.
+    const stored: unknown = panel.bindings;
+    const bindings = Array.isArray(stored)
+      ? (stored as unknown[]).filter(
+          entry => !(isPlainObject(entry) && entry.derived === true),
+        )
+      : stored;
+    return { ...rest, instanceId, bindings } as DashboardViewPanel;
   });
 }
 

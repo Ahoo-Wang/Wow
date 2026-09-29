@@ -51,6 +51,7 @@ import {
   testEnvironment,
   testSource,
   type TestEnvironment,
+  resourcesOf,
 } from './fixtures.js';
 
 const REGION_FIELD = { name: 'region', label: 'Region', kind: 'string' };
@@ -119,7 +120,7 @@ function harness(
     definitions?: ViewDefinition[];
     scope?: ViewScope;
     source?: ViewSource;
-    resolveSource?: (key: string) => ViewSource;
+    resolveSource?: (key: string) => ViewSource | undefined;
     limits?: Partial<RuntimeLimits>;
     kinds?: FieldKindRegistry;
   } = {},
@@ -130,12 +131,11 @@ function harness(
     instances: options.instances ?? [pending()],
   });
   const engine = new ViewEngine({
-    definitions: options.definitions ?? [
-      ordersDefinition(),
-      overviewDefinition(),
-    ],
+    resources: resourcesOf(
+      options.definitions ?? [ordersDefinition(), overviewDefinition()],
+      options.resolveSource ?? (() => source),
+    ),
     store,
-    resolveSource: options.resolveSource ?? (() => source),
     environment: clock.environment,
     limits: { ...DEFAULT_RUNTIME_LIMITS, ...options.limits },
     kinds: options.kinds,
@@ -459,26 +459,50 @@ describe('DashboardViewRuntime unavailable references', () => {
   });
 
   it('reports a panel added by an edit that cannot be put to work', async () => {
+    // The board's own contract, whatever the reason: a child its panel
+    // factory cannot build. (Through the engine every source is checked at
+    // registration, so this is the runtime met on its own.)
+    const clock = testEnvironment();
     const source = testSource();
-    const board = await harness({
-      definitions: [
-        ordersDefinition(),
-        ordersDefinition({ id: 'broken', source: 'missing' }),
-        overviewDefinition(),
-      ],
-      instances: [
-        pending(),
-        pending({ id: 'broken-1', definitionId: 'broken' }),
-      ],
-      // The host resolves the definition's source key, and this one is not a
-      // key it knows.
-      resolveSource: key => {
-        if (key === 'missing') throw new Error(`no source: ${key}`);
-        return source;
-      },
-      source,
+    const reference = (id: string): PanelReference => ({
+      instance: pending({ id }),
+      definition: ordersDefinition(),
+      fields: ordersDefinition().fields,
     });
-    const runtime = await board.open(dashboardConfig({ panels: [panel()] }));
+    const runtime = new DashboardViewRuntime({
+      id: 'dashboard-1',
+      definition: overviewDefinition(),
+      config: dashboardConfig({ panels: [panel()] }),
+      title: 'Overview',
+      scope: 'personal',
+      kinds: builtinFieldKinds,
+      limits: DEFAULT_RUNTIME_LIMITS,
+      environment: clock.environment,
+      resolve: id => Promise.resolve(reference(id)),
+      definitions: () => null,
+      createPanelRuntime: (found, scopeFilter) => {
+        if (found.instance?.id === 'broken-1')
+          throw new Error('this panel cannot be put to work');
+        return dataViewRuntime({
+          id: 'child',
+          definition: ordersDefinition(),
+          config: found.config as never,
+          title: found.title,
+          scope: found.scope,
+          saved: found.instance,
+          kinds: builtinFieldKinds,
+          limits: DEFAULT_RUNTIME_LIMITS,
+          environment: clock.environment,
+          source,
+          runner: new RequestRunner(),
+          scopeFilter,
+          autoRefresh: false,
+        });
+      },
+    });
+    await runtime.ready();
+    runtime.apply();
+    await nextTask();
 
     runtime.setBuilding(true);
     runtime.addPanel({ kind: 'view', instanceId: 'broken-1' });
@@ -489,7 +513,7 @@ describe('DashboardViewRuntime unavailable references', () => {
     // rather than escaping as an unhandled rejection.
     expect(codes(state.panels[1].issues)).toEqual(['dashboard.panel.failed']);
     expect(state.panels[1].issues[0].params).toMatchObject({
-      reason: 'no source: missing',
+      instance: 'broken-1',
     });
     expect(state.panels[1].runtime).toBeNull();
     expect(state.panels[0].runtime?.getSnapshot().query.status).toBe('success');

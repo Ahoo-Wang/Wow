@@ -48,7 +48,12 @@ import {
   type ViewMessages,
 } from '../src/ui/messages.js';
 import type { MessageFormatters } from '../src/ui/MessagesProvider.js';
-import { analysisConfig, ordersDefinition, testSource } from './fixtures.js';
+import {
+  analysisConfig,
+  ordersDefinition,
+  testSource,
+  resourcesOf,
+} from './fixtures.js';
 
 const { TERMS, DATE_HISTOGRAM } = AggregationGroupType;
 const { SUM, AVG, MIN, MAX } = AggregationFunction;
@@ -241,7 +246,7 @@ function formatters(catalogue: ViewMessages): MessageFormatters {
 
 function engineOver(config: AnalysisViewConfig) {
   return new ViewEngine({
-    definitions: [definition()],
+    resources: resourcesOf([definition()], () => testSource()),
     store: new MemoryViewStore({
       instances: [
         {
@@ -254,7 +259,6 @@ function engineOver(config: AnalysisViewConfig) {
         },
       ],
     }),
-    resolveSource: () => testSource(),
   });
 }
 

@@ -1,4 +1,4 @@
-# @ahoo-wang/wow-view-engine — 815 names, from src/index.ts.
+# @ahoo-wang/wow-view-engine — 829 names, from src/index.ts.
 # Written by test/publicSurface.test.ts; a change here is a change to
 # the public surface (README「Entries」, docs/design/decisions.md D29).
 value ALWAYS_VISIBLE
@@ -32,6 +32,7 @@ type  AnalysisNamed
 type  AnalysisScope
 type  AnalysisScopeElement
 type  AnalysisSort
+type  AnalysisSpec
 type  AnalysisTableSpec
 type  AnalysisView
 type  AnalysisViewConfig
@@ -144,6 +145,9 @@ type  DateTemporal
 type  DateTimeFilterValue
 type  DateTimePreset
 type  DecimalNumeric
+type  DefineViewOptions
+type  DefineViewSpec
+type  DefinitionDescribed
 type  DefinitionFor
 type  DefinitionNarrowing
 type  DerivedFormat
@@ -181,6 +185,7 @@ value FIELD_TONES
 value FILTER_GROUP_OPERATORS
 value FILTER_TYPE_OPERATOR
 value FIRST_PAGE
+type  FieldAnalysisSpec
 type  FieldCellId
 type  FieldDefinition
 type  FieldGroup
@@ -196,6 +201,7 @@ type  FieldKindValidateContext
 type  FieldMetricType
 type  FieldNumeric
 type  FieldOption
+type  FieldSpec
 type  FieldTemporal
 type  FieldTone
 type  FilterCompileContext
@@ -285,6 +291,7 @@ type  NumberFormat
 type  NumberRange
 value ONE_DAY_PRESETS
 value OPERATOR_SIGN
+type  OpenCapabilities
 type  OpenOptions
 type  OptionSource
 type  OptionsTab
@@ -387,6 +394,8 @@ type  SummarySource
 type  SystemView
 value TEMPORAL_FIELD_KIND_IDS
 value TEMPORAL_TYPES
+type  Text
+type  TextResolver
 type  ThemeRiverData
 type  ThemeRiverSpec
 type  TreeVisit
@@ -432,6 +441,7 @@ type  ViewNavigation
 type  ViewPermissions
 type  ViewPreferences
 type  ViewQueryState
+type  ViewResource
 type  ViewResult
 type  ViewRuntime
 type  ViewRuntimeState
@@ -517,6 +527,7 @@ value defaultFilters
 value defaultPanelSize
 value defaultRecordConfig
 value defaultRuntimeEnvironment
+value defineView
 value deletionFieldKind
 value derivedMetric
 value derivedText
@@ -764,6 +775,8 @@ value systemInstanceId
 value tabsOf
 value takesGroup
 value temporalOf
+value text
+value textKeyOf
 value toSummary
 value unbindPanels
 value unknownOrOutside
@@ -812,6 +825,7 @@ value withSmooth
 value withStacked
 value withStageOrder
 value withStagesFrom
+value withText
 value without
 value withoutLevelsFrom
 value wordReferences

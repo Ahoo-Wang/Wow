@@ -52,6 +52,7 @@ import {
   overviewDefinition,
   recordConfig,
   testSource,
+  resourcesOf,
 } from './fixtures.js';
 import { editorToggle } from './fixtures/workbench.js';
 import { mine, mixed, setup } from './fixtures/ui.js';
@@ -64,12 +65,11 @@ describe('DataWorkbench', () => {
 
   function withTwo(permissions?: () => ViewPermissions): ViewEngine {
     return new ViewEngine({
-      definitions: [ordersDefinition()],
+      resources: resourcesOf([ordersDefinition()], () => testSource()),
       store: new MemoryViewStore({
         instances: [mine, yours],
         permissions,
       }),
-      resolveSource: () => testSource(),
     });
   }
 
@@ -257,7 +257,7 @@ describe('DataWorkbench', () => {
    *
    * What a class is worth in pixels is a stylesheet's answer and jsdom has
    * none, so the 16px itself is measured in the browser project
-   * (`stories/view-engine/RecordWorkbench.test.stories.tsx`, `BlockSpacing`).
+   * (`stories/view-engine/RecordWorkbenchLayout.test.stories.tsx`, `BlockSpacing`).
    * What is pinned here is the class that decides it.
    */
   it('leaves the block spacing to the shell', async () => {
@@ -284,9 +284,8 @@ describe('DataWorkbench', () => {
    */
   it('says what is worth noting without stopping the view', async () => {
     const engine = new ViewEngine({
-      definitions: [ordersDefinition()],
+      resources: resourcesOf([ordersDefinition()], () => testSource()),
       store: new MemoryViewStore({ instances: [mixed] }),
-      resolveSource: () => testSource(),
     });
 
     render(
@@ -327,9 +326,8 @@ describe('DataWorkbench', () => {
       }),
     };
     const engine = new ViewEngine({
-      definitions: [ordersDefinition()],
+      resources: resourcesOf([ordersDefinition()], () => testSource()),
       store: new MemoryViewStore({ instances: [blocked] }),
-      resolveSource: () => testSource(),
     });
 
     render(
@@ -391,7 +389,18 @@ describe('DataWorkbench', () => {
    */
   it("shows times on the clock of the engine's zone, in the language given", async () => {
     const engine = new ViewEngine({
-      definitions: [namedOrdersDefinition()],
+      resources: resourcesOf([namedOrdersDefinition()], () =>
+        testSource({
+          paged: () =>
+            Promise.resolve({
+              // More than a page, so both scopes are drawn (D26 Q40).
+              total: 42,
+              list: [{ id: 'o-1', createdAt: INSTANT }],
+            }),
+          // Wow answers MIN on a date with the instant it keeps.
+          aggregate: () => Promise.resolve([{ createdAt_min: INSTANT }]),
+        }),
+      ),
       store: new MemoryViewStore({
         instances: [
           {
@@ -403,17 +412,6 @@ describe('DataWorkbench', () => {
           },
         ],
       }),
-      resolveSource: () =>
-        testSource({
-          paged: () =>
-            Promise.resolve({
-              // More than a page, so both scopes are drawn (D26 Q40).
-              total: 42,
-              list: [{ id: 'o-1', createdAt: INSTANT }],
-            }),
-          // Wow answers MIN on a date with the instant it keeps.
-          aggregate: () => Promise.resolve([{ createdAt_min: INSTANT }]),
-        }),
       environment: defaultRuntimeEnvironment({ timeZone: ZONE }),
     });
 
@@ -463,9 +461,8 @@ describe('DataWorkbench', () => {
 
     function withBoth(): ViewEngine {
       return new ViewEngine({
-        definitions: [ordersDefinition()],
+        resources: resourcesOf([ordersDefinition()], () => testSource()),
         store: new MemoryViewStore({ instances: [mine, chart] }),
-        resolveSource: () => testSource(),
       });
     }
 
@@ -568,9 +565,8 @@ describe('DataWorkbench', () => {
       config: analysisConfig({ layout: 'table' }),
     };
     const engine = new ViewEngine({
-      definitions: [ordersDefinition()],
+      resources: resourcesOf([ordersDefinition()], () => testSource()),
       store: new MemoryViewStore({ instances: [analysis] }),
-      resolveSource: () => testSource(),
     });
 
     render(<EmbeddedView engine={engine} instanceId="orders-1" />);
@@ -602,9 +598,10 @@ describe('DataWorkbench', () => {
       }),
     };
     const engine = new ViewEngine({
-      definitions: [ordersDefinition(), overviewDefinition()],
+      resources: resourcesOf([ordersDefinition(), overviewDefinition()], () =>
+        testSource(),
+      ),
       store: new MemoryViewStore({ instances: [panelled] }),
-      resolveSource: () => testSource(),
     });
 
     render(<EmbeddedDashboard engine={engine} instanceId="overview-1" />);
@@ -618,10 +615,10 @@ describe('DataWorkbench', () => {
 
   it('reports a failed query inside the embed', async () => {
     const engine = new ViewEngine({
-      definitions: [ordersDefinition()],
-      store: new MemoryViewStore({ instances: [mine] }),
-      resolveSource: () =>
+      resources: resourcesOf([ordersDefinition()], () =>
         testSource({ paged: () => Promise.reject(new Error('down')) }),
+      ),
+      store: new MemoryViewStore({ instances: [mine] }),
     });
 
     render(<EmbeddedView engine={engine} instanceId="orders-1" />);
@@ -663,11 +660,10 @@ describe('DataWorkbench', () => {
 
   it('reports a saved config the definition no longer admits', async () => {
     const engine = new ViewEngine({
-      definitions: [ordersDefinition()],
+      resources: resourcesOf([ordersDefinition()], () => testSource()),
       store: new MemoryViewStore({
         instances: [{ ...mine, config: recordConfig({ pageSize: 0 }) }],
       }),
-      resolveSource: () => testSource(),
     });
 
     render(<EmbeddedView engine={engine} instanceId="orders-1" />);
@@ -686,9 +682,8 @@ describe('DataWorkbench', () => {
       config: recordConfig({ layout: 'card' }),
     };
     const engine = new ViewEngine({
-      definitions: [ordersDefinition()],
+      resources: resourcesOf([ordersDefinition()], () => testSource()),
       store: new MemoryViewStore({ instances: [cards] }),
-      resolveSource: () => testSource(),
     });
 
     const { container } = render(
@@ -719,31 +714,33 @@ describe('DataWorkbench', () => {
         }),
       };
       const engine = new ViewEngine({
-        definitions: [
-          ordersDefinition({
-            fields: [
-              ...ordersDefinition().fields,
-              { name: 'customer.name', label: 'Customer', kind: 'string' },
-              { name: 'customer.city', label: 'City', kind: 'string' },
-            ],
-          }),
-        ],
+        resources: resourcesOf(
+          [
+            ordersDefinition({
+              fields: [
+                ...ordersDefinition().fields,
+                { name: 'customer.name', label: 'Customer', kind: 'string' },
+                { name: 'customer.city', label: 'City', kind: 'string' },
+              ],
+            }),
+          ],
+          () =>
+            testSource({
+              paged: vi.fn(() =>
+                Promise.resolve({
+                  total: 1,
+                  list: [
+                    {
+                      id: 'o-1',
+                      amount: 10,
+                      customer: { name: 'Acme', city: 'Hangzhou' },
+                    },
+                  ],
+                }),
+              ),
+            }),
+        ),
         store: new MemoryViewStore({ instances: [nested] }),
-        resolveSource: () =>
-          testSource({
-            paged: vi.fn(() =>
-              Promise.resolve({
-                total: 1,
-                list: [
-                  {
-                    id: 'o-1',
-                    amount: 10,
-                    customer: { name: 'Acme', city: 'Hangzhou' },
-                  },
-                ],
-              }),
-            ),
-          }),
       });
 
       render(<EmbeddedView engine={engine} instanceId="orders-1" />);
@@ -760,9 +757,10 @@ describe('DataWorkbench', () => {
   it('shows a placeholder while the first rows are still coming', async () => {
     const pending = deferred<PagedList<RecordData>>();
     const engine = new ViewEngine({
-      definitions: [ordersDefinition()],
+      resources: resourcesOf([ordersDefinition()], () =>
+        testSource({ paged: () => pending.promise }),
+      ),
       store: new MemoryViewStore({ instances: [mine] }),
-      resolveSource: () => testSource({ paged: () => pending.promise }),
     });
 
     const { container } = render(
@@ -783,9 +781,8 @@ describe('DataWorkbench', () => {
       config: analysisConfig({ layout: 'chart' }),
     };
     const engine = new ViewEngine({
-      definitions: [ordersDefinition()],
+      resources: resourcesOf([ordersDefinition()], () => testSource()),
       store: new MemoryViewStore({ instances: [charted] }),
-      resolveSource: () => testSource(),
     });
 
     const { container } = render(
@@ -800,10 +797,10 @@ describe('DataWorkbench', () => {
   it('reports a failed analysis query', async () => {
     const charted: ViewInstance = { ...mine, config: analysisConfig() };
     const engine = new ViewEngine({
-      definitions: [ordersDefinition()],
-      store: new MemoryViewStore({ instances: [charted] }),
-      resolveSource: () =>
+      resources: resourcesOf([ordersDefinition()], () =>
         testSource({ aggregate: () => Promise.reject(new Error('down')) }),
+      ),
+      store: new MemoryViewStore({ instances: [charted] }),
     });
 
     render(<EmbeddedView engine={engine} instanceId="orders-1" />);

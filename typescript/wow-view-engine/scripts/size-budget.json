@@ -14,8 +14,8 @@
       "reason": "Raised 2026-09-26 after a board's date filter showing what the board reads (#3619) took ./ui to 616,466 B, 466 B over the old ceiling; about 17% over that measurement. The growth is the intended feature, not a bundling accident."
     },
     "./testing": {
-      "gzip": 12000,
-      "reason": "Set 2026-09-27 with the in-memory source for a host's tests (D65), about 18% over the 10,154 B measured then. The entry loads the Wow filter and aggregation semantics and the calendar arithmetic; mingo itself is external, an optional peer the host installs."
+      "gzip": 111000,
+      "reason": "Raised 2026-09-28 with admit (host-integration.md 6, H1), about 17% over the 94,485 B measured then: admit is the engine's own admission — every kernel, the descriptor narrowing and the board checks — run in a host's test, so the entry now weighs about what the root does. It is a test entry; a bundle that takes memorySource alone drops admit. mingo is still external, an optional peer the host installs."
     },
     "echarts chunk": {
       "gzip": 620,

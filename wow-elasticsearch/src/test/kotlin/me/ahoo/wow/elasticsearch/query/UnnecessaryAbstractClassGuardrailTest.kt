@@ -11,8 +11,17 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.elasticsearch.query.snapshot
+package me.ahoo.wow.elasticsearch.query
 
-import me.ahoo.wow.elasticsearch.query.AbstractElasticsearchFilterCompiler
+import me.ahoo.wow.tck.query.UnnecessaryAbstractClassGuardrail
+import org.junit.jupiter.api.Test
 
-object SnapshotFilterCompiler : AbstractElasticsearchFilterCompiler()
+class UnnecessaryAbstractClassGuardrailTest {
+    @Test
+    fun `no abstract class without an abstract member`() {
+        UnnecessaryAbstractClassGuardrail(
+            AbstractElasticsearchQueryBackend::class,
+            "me.ahoo.wow.elasticsearch.query"
+        ).assertNone()
+    }
+}

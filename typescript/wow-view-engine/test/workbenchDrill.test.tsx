@@ -24,7 +24,12 @@ import {
   type ViewPermissions,
 } from '../src/index.js';
 import { useWorkbench, type WorkbenchOptions } from '../src/react/index.js';
-import { analysisConfig, ordersDefinition, testSource } from './fixtures.js';
+import {
+  analysisConfig,
+  ordersDefinition,
+  testSource,
+  resourcesOf,
+} from './fixtures.js';
 import { mine } from './fixtures/ui.js';
 
 afterEach(cleanup);
@@ -69,9 +74,8 @@ function setup(
   // One source for the whole engine, so its calls count across views.
   const source = testSource();
   const engine = new ViewEngine({
-    definitions: [ordersDefinition()],
+    resources: resourcesOf([ordersDefinition()], () => source),
     store: new MemoryViewStore({ instances: [mine, chart], permissions }),
-    resolveSource: () => source,
   });
   const rendered = renderHook(() =>
     useWorkbench(engine, 'orders', {

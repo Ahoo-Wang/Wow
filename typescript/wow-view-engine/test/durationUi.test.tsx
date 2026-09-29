@@ -39,7 +39,7 @@ import {
   type ViewInstance,
 } from '../src/index.js';
 import { DataWorkbench } from '../src/ui/index.js';
-import { ordersDefinition, testSource } from './fixtures.js';
+import { ordersDefinition, testSource, resourcesOf } from './fixtures.js';
 import { openTray } from './fixtures/workbench.js';
 
 afterEach(cleanup);
@@ -98,9 +98,8 @@ async function open(analysis: Partial<AnalysisCapability> = {}) {
     },
   });
   const engine = new ViewEngine({
-    definitions: [definition],
+    resources: resourcesOf([definition], () => testSource()),
     store: new MemoryViewStore({ instances: [instance] }),
-    resolveSource: () => testSource(),
   });
   render(
     <DataWorkbench
