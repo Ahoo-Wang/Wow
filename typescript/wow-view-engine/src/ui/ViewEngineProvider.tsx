@@ -223,6 +223,10 @@ function useCheckedWords(
 /**
  * The engine a surface draws: its own, else its provider's. A surface with
  * neither is a host's mistake, said as one.
+ *
+ * A host's own component under a `ViewHost` reads the one engine here too —
+ * a record's reading that asks a resource's source of its own
+ * (`engine.resolveSource`), say — rather than having it threaded down.
  */
 export function useEngine(own?: ViewEngine): ViewEngine {
   const { engine } = useContext(Context);

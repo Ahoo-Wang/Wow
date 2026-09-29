@@ -15,15 +15,20 @@ import type { ReactNode } from 'react';
 import type { RecordKey } from '../model/index.js';
 import type { RecordRow } from '../record/index.js';
 import type { RecordViewRuntime } from '../runtime/index.js';
+import type { BulkRun } from './actionRunner.js';
 
 /**
- * Where a host hangs its own business actions on a record workbench.
+ * Where a host hangs markup of its own on a record surface — the escape
+ * hatch beside the declared actions (`actions()`, host-integration.md 5),
+ * drawn after them: a link out, a control the declarations cannot say.
+ * A command belongs in a declaration, where the engine places it, asks
+ * first, runs it over a selection and reports it; a slot that sends one
+ * anyway runs it through the surface's own runner (`run`), so it reports
+ * on the same line.
  *
- * A business action is code — it opens a form, posts a command, navigates —
- * so it is passed in as a render function rather than named by a key in a
- * definition or a config. Nothing here is persisted: a saved view is a way
- * of looking at records, and what may be done to them belongs to the
- * application that mounted the workbench, not to the view the user saved.
+ * Nothing here is persisted: a saved view is a way of looking at records,
+ * and what may be done to them belongs to the application that mounted the
+ * workbench, not to the view the user saved.
  *
  * Every context carries `refresh`, because an action that changes records
  * has to be able to show the change.
@@ -52,12 +57,24 @@ export interface RecordBulkActionContext {
   /** Picks exactly these rows — what a command leaves for the reader. */
   select(keys: readonly RecordKey[]): void;
   refresh(): void;
+  /**
+   * Runs a command over the selection on the surface's runner: a few at a
+   * time, its progress and outcome on the surface's line, the ones it
+   * failed on left selected, the view read again after.
+   */
+  run(command: BulkRun): void;
+  /** A command is running on this surface: nothing else starts until it settles. */
+  busy: boolean;
 }
 
 export interface RecordRowActionContext {
   row: RecordRow;
   runtime: RecordViewRuntime;
   refresh(): void;
+  /** Runs a command on this record on the surface's runner. */
+  run(command: BulkRun): void;
+  /** A command is running on this surface. */
+  busy: boolean;
 }
 
 /**

@@ -918,6 +918,20 @@ export {
 } from './runtime/viewRuntimeTypes.js';
 export { isRecordRuntime } from './runtime/recordRuntime.js';
 export {
+  type ActionConfirm,
+  type ActionContext,
+  type ActionForm,
+  type ActionFormField,
+  type ActionInput,
+  type ActionPlace,
+  type ActionTone,
+  type Availability,
+  type RecordAction,
+  type RecordActions,
+  type RefusalGroup,
+  actions,
+} from './runtime/actions.js';
+export {
   ExportCancelled,
   type ExportRowsOptions,
   type ExportedRows,

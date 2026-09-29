@@ -93,10 +93,12 @@ describe("BoardsPage", () => {
       "locale",
     ])
       expect(seen.props).not.toHaveProperty(prop);
-    // The board's record panels over the failed executions take their row
-    // and bulk commands, and the bulk command's line, from the binding.
-    expect(seen.binding?.actions?.row).toBeTypeOf("function");
-    expect(seen.binding?.actions?.bulk).toBeTypeOf("function");
-    expect(seen.binding?.bulk?.run).toBeTypeOf("function");
+    // The board's record panels over the failed executions take their
+    // declared commands from the binding; the engine places and runs them.
+    expect(seen.binding?.actions?.map(({ id }) => id)).toEqual([
+      "prepare",
+      "forcePrepare",
+      "markRecoverable",
+    ]);
   });
 });

@@ -17,10 +17,7 @@ import type {
   FieldGroupDefinition,
   RecordLayout,
 } from '../model/index.js';
-import type {
-  RecordBulkActionContext,
-  RecordTableController,
-} from '../react/index.js';
+import type { RecordTableController } from '../react/index.js';
 import type { RecordViewRuntime } from '../runtime/index.js';
 import { ButtonGroup } from './components/button-group.js';
 import { LayoutGridIcon, Rows3Icon } from 'lucide-react';
@@ -37,7 +34,10 @@ import { SPACE } from './layout.js';
 import { Toolbar } from './toolbar.js';
 import type { MessageKey } from './messages.js';
 import { useViewMessages } from './MessagesProvider.js';
-import { SelectionGroup } from './record/SelectionBar.js';
+import {
+  SelectionGroup,
+  type SelectionContext,
+} from './record/SelectionBar.js';
 
 export interface ResultToolbarProps {
   table: RecordTableController;
@@ -59,11 +59,12 @@ export interface ResultToolbarProps {
   /** Pins the table's cap is not drawing right now (D17-4). */
   released?: ReleasedPins;
   /**
-   * What the host offers for the rows that are selected. It is a render
-   * function rather than a node, because it acts on the selection and the
-   * toolbar is what knows the selection.
+   * What is offered for the rows that are selected: the declared actions
+   * over a selection, then the host's bulk slot. It is a render function
+   * rather than a node, because it acts on the selection and the toolbar
+   * is what knows the selection.
    */
-  bulkActions?(context: RecordBulkActionContext): React.ReactNode;
+  bulkActions?(context: SelectionContext): React.ReactNode;
   /**
    * Taking the result away, when the surface offers it (`useExportOffer`):
    * the controller, the columns and the ceiling, plus the two things only the

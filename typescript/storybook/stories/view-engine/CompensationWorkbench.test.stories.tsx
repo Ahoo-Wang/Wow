@@ -11,40 +11,20 @@
  * limitations under the License.
  */
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { EllipsisVerticalIcon } from 'lucide-react';
 import { useState } from 'react';
 import { expect, userEvent, waitFor, within } from 'storybook/test';
 import { RecoverableType } from '@ahoo-wang/wow-client';
-import type {
-  RecordKey,
-  RecordRow,
-  ViewEngine,
-} from '@ahoo-wang/wow-view-engine';
 import {
-  useBulkCommand,
-  type BulkCommand,
-  type BulkRun,
-  type BulkSelection,
-  type RecordActionSlots,
-} from '@ahoo-wang/wow-view-engine/react';
+  actions,
+  type RecordActions,
+  type RecordRow,
+  type ViewEngine,
+} from '@ahoo-wang/wow-view-engine';
 import {
   DataWorkbench,
   formatMessage,
   zhCN,
 } from '@ahoo-wang/wow-view-engine/ui';
-// View Engine's own primitives, so the added commands look like its own.
-import { Button } from '@/ui/components/button';
-import {
-  DropdownMenu,
-  DropdownMenuGroup,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/ui/components/dropdown-menu';
-import { IconButton } from '@/ui/IconButton';
-// Popup contents come themed from popups.tsx, as View Engine's own do.
-import { DropdownMenuContent } from '@/ui/popups';
 import { AppShell } from '../shared/AppShell.js';
 import {
   EXECUTION_FAILED,
@@ -66,9 +46,9 @@ import '@ahoo-wang/wow-view-engine/styles.css';
 
 /**
  * Engine regression fixture on the compensation domain: a record workbench
- * whose host hangs its own commands on a row and on a selection
- * (`record.actions`, `useBulkCommand`), over a recorded compensation service
- * whose commands change the recorded executions the way the service does.
+ * whose host declares its commands (`record.actions`, `actions()`,
+ * host-integration.md 5), over a recorded compensation service whose
+ * commands change the recorded executions the way the service does.
  *
  * What it guards is the engine's: a definition whose row commands read
  * fields no column shows (`rowFields`), the bulk status line above the rows,
@@ -85,10 +65,10 @@ import '@ahoo-wang/wow-view-engine/styles.css';
  * scene against a live service; that scene now is the console itself.
  */
 
-const RECOVERABILITY: [RecoverableType, string][] = [
-  [RecoverableType.RECOVERABLE, '可恢复'],
-  [RecoverableType.UNRECOVERABLE, '不可恢复'],
-  [RecoverableType.UNKNOWN, '未知'],
+const RECOVERABILITY = [
+  { value: RecoverableType.RECOVERABLE, label: '可恢复' },
+  { value: RecoverableType.UNRECOVERABLE, label: '不可恢复' },
+  { value: RecoverableType.UNKNOWN, label: '未知' },
 ];
 
 /** What an execution's snapshot says about which commands it takes. */
@@ -97,6 +77,7 @@ function standing(row: RecordRow) {
   const settled = state.status === 'SUCCEEDED';
   const retryable = state.isRetryable === true && !settled;
   return {
+    settled,
     // Wow's `prepare_compensation` retries within the spec; past its limit
     // only the forced one does.
     retry: retryable && state.isBelowRetryThreshold === true,
@@ -105,155 +86,63 @@ function standing(row: RecordRow) {
   };
 }
 
-/** The recoverability choices, the one an execution already has left out. */
-function RecoverabilityItems({
-  current,
-  onMark,
-}: {
-  current?: RecoverableType;
-  onMark(value: RecoverableType, label: string): void;
-}) {
-  return (
-    <DropdownMenuGroup>
-      <DropdownMenuLabel>标记为</DropdownMenuLabel>
-      {RECOVERABILITY.map(([value, label]) => (
-        <DropdownMenuItem
-          key={value}
-          disabled={value === current}
-          onClick={() => onMark(value, label)}
-        >
-          {label}
-        </DropdownMenuItem>
-      ))}
-    </DropdownMenuGroup>
-  );
-}
-
-/** The commands on one execution, in its row: the operator's everyday path. */
-function RowCommands({
-  row,
-  commands,
-  bulk,
-  onRun,
-}: {
-  row: RecordRow;
-  commands: CompensationCommands;
-  bulk: BulkCommand;
-  onRun(command: BulkRun, keys: readonly RecordKey[]): void;
-}) {
-  const can = standing(row);
-  const run = (title: string, each: (id: string) => Promise<void>) =>
-    onRun({ title, each: key => each(String(key)) }, [row.key]);
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger
-        render={
-          <IconButton
-            label={`${String(row.key)} 的操作`}
-            variant="ghost"
-            size="icon-xs"
-            disabled={bulk.running !== null}
-          />
-        }
-      >
-        <EllipsisVerticalIcon />
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
-        <DropdownMenuGroup>
-          <DropdownMenuItem
-            disabled={!can.retry}
-            onClick={() => run('重试', commands.retry)}
-          >
-            重试
-          </DropdownMenuItem>
-          <DropdownMenuItem
-            disabled={!can.forceRetry}
-            onClick={() => run('强制重试', commands.forceRetry)}
-          >
-            强制重试
-          </DropdownMenuItem>
-        </DropdownMenuGroup>
-        <DropdownMenuSeparator />
-        <RecoverabilityItems
-          current={can.recoverable}
-          onMark={(value, label) =>
-            run(`标记为${label}`, id => commands.markRecoverable(id, value))
-          }
-        />
-      </DropdownMenuContent>
-    </DropdownMenu>
-  );
-}
-
-/** The same commands over a selection, in the toolbar while rows are picked. */
-function BulkCommands({
-  selection,
-  commands,
-  bulk,
-  onRun,
-}: {
-  selection: BulkSelection;
-  commands: CompensationCommands;
-  bulk: BulkCommand;
-  onRun(command: BulkRun, selection: BulkSelection): void;
-}) {
-  const count = selection.keys.length;
-  const run = (title: string, each: (id: string) => Promise<void>) =>
-    onRun({ title, each: key => each(String(key)) }, selection);
-  return (
-    <>
-      <Button
-        size="sm"
-        disabled={bulk.running !== null}
-        onClick={() => run('重试', commands.retry)}
-      >
-        {count > 0 ? `重试 ${count} 条` : '重试'}
-      </Button>
-      <Button
-        variant="outline"
-        size="sm"
-        disabled={bulk.running !== null}
-        onClick={() => run('强制重试', commands.forceRetry)}
-      >
-        强制重试
-      </Button>
-      <DropdownMenu>
-        <DropdownMenuTrigger
-          render={
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={bulk.running !== null}
-            />
-          }
-        >
-          标记可恢复性
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="start">
-          <RecoverabilityItems
-            onMark={(value, label) =>
-              run(`标记为${label}`, id => commands.markRecoverable(id, value))
-            }
-          />
-        </DropdownMenuContent>
-      </DropdownMenu>
-    </>
-  );
+/**
+ * The compensation commands, declared: what each does to one execution,
+ * when an execution takes it and why not. Where they go — 「重试」 in the
+ * row, the rest behind its menu, all of them over a selection and in the
+ * detail — how a selection is asked, run a few at a time and reported, is
+ * the engine's.
+ */
+function consoleActions(commands: CompensationCommands): RecordActions {
+  return actions([
+    {
+      id: 'retry',
+      label: '重试',
+      primary: true,
+      available: row => {
+        const can = standing(row);
+        if (can.retry) return true;
+        return can.settled ? '已成功，不用重试' : '已达重试上限，只能强制重试';
+      },
+      run: row => commands.retry(String(row.key)),
+    },
+    {
+      id: 'forceRetry',
+      label: '强制重试',
+      tone: 'danger',
+      available: row => (standing(row).forceRetry ? true : '已成功，不用重试'),
+      run: row => commands.forceRetry(String(row.key)),
+    },
+    {
+      id: 'markRecoverable',
+      label: '标记可恢复性',
+      form: { recoverable: { label: '标记为', options: RECOVERABILITY } },
+      // The recoverability an execution already has is not offered again.
+      available: (row, { input }) =>
+        input?.recoverable === standing(row).recoverable
+          ? '已经是这个标记'
+          : true,
+      run: (row, { recoverable }) =>
+        commands.markRecoverable(
+          String(row.key),
+          recoverable as RecoverableType,
+        ),
+    },
+  ]);
 }
 
 /**
- * The default workbench with the compensation commands hung in its slots.
+ * The default workbench with the compensation commands declared on it.
  *
- * The fixture adds no markup of its own besides the commands: everything a
- * business page needs — what to do to one execution or a selection of them,
- * and what came of it — reaches the workbench through `record`, which is the
- * route an application takes when the default look is right and only the
- * commands are its own. What a command does to one execution is all the
- * console writes; `useBulkCommand` runs it over the rows a few at a time,
- * says how far it has come and why each refusal happened, and leaves the
- * refused rows selected — and the workbench says all of that above the rows
- * (`record.bulk`). A row and a selection run through the one command, so
- * one line says what either did.
+ * The fixture adds no markup of its own: everything a business page needs —
+ * what to do to one execution or a selection of them, and what came of it —
+ * reaches the workbench through `record`, which is the route an application
+ * takes when the default look is right and only the commands are its own.
+ * What a command does to one execution is all the console writes; the
+ * engine runs it over the rows a few at a time, says how far it has come and
+ * why each refusal happened, leaves the refused rows selected, and says all
+ * of that above the rows. A row and a selection run through the one
+ * runner, so one line says what either did.
  */
 function ConsoleWorkbench({
   engine,
@@ -262,35 +151,13 @@ function ConsoleWorkbench({
   engine: ViewEngine;
   commands: CompensationCommands;
 }) {
-  const bulk = useBulkCommand();
-  const actions: RecordActionSlots = {
-    row: ({ row, refresh }) => (
-      <RowCommands
-        row={row}
-        commands={commands}
-        bulk={bulk}
-        // A row's command leaves the selection as it found it.
-        onRun={(command, keys) =>
-          bulk.run({ keys: [...keys], refresh, select() {} }, command)
-        }
-      />
-    ),
-    bulk: selection => (
-      <BulkCommands
-        selection={selection}
-        commands={commands}
-        bulk={bulk}
-        onRun={(command, picked) => bulk.run(picked, command)}
-      />
-    ),
-  };
-
+  const [declared] = useState(() => consoleActions(commands));
   return (
     <DataWorkbench
       engine={engine}
       definitionId={EXECUTION_FAILED}
       {...HOST_LANGUAGE}
-      record={{ actions, bulk }}
+      record={{ actions: declared }}
     />
   );
 }
@@ -395,8 +262,14 @@ export const RowCommandsAndDetail: Story = {
 
     // A row offers what its execution takes: past the retry limit only the
     // forced retry, and never the recoverability it already has.
+    const inRow = (id: string) =>
+      within(
+        canvas.getByRole('button', { name: `${id} 的操作` }).closest('tr')!,
+      );
+    await expect(
+      inRow('EF-4').getByRole('button', { name: '重试' }),
+    ).toBeDisabled();
     const past = await rowMenu(canvas, 'EF-4');
-    await expect(enabled(past.item('重试'))).toBe(false);
     await expect(enabled(past.item('强制重试'))).toBe(true);
     await expect(enabled(past.item('不可恢复'))).toBe(false);
     await userEvent.keyboard('{Escape}');
@@ -405,8 +278,7 @@ export const RowCommandsAndDetail: Story = {
     );
 
     // Retrying one from its row prepares it, says so, and the row shows it.
-    const within1 = await rowMenu(canvas, 'EF-1');
-    await userEvent.click(within1.item('重试'));
+    await userEvent.click(inRow('EF-1').getByRole('button', { name: '重试' }));
     // The workbench says what the command came to, above the rows.
     const settled = await waitFor(() => {
       const found = canvasElement.querySelector<HTMLElement>(

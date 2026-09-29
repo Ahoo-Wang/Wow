@@ -11,6 +11,7 @@
  * limitations under the License.
  */
 
+import { actionsMessages } from './actions.js';
 import { analysisMessages } from './analysis.js';
 import { buildingMessages } from './building.js';
 import { capabilitiesMessages } from './capabilities.js';
@@ -70,5 +71,6 @@ export const en = {
   ...workbenchMessages,
   ...renderMessages,
   ...bulkMessages,
+  ...actionsMessages,
   ...reorderMessages,
 } as const;

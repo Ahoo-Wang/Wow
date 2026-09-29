@@ -11,15 +11,15 @@
  * limitations under the License.
  */
 
-import { useState, type ReactNode } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import type { FieldOption } from '../../model/index.js';
 import type { RecordRow } from '../../record/index.js';
 import type { RecordViewRuntime } from '../../runtime/index.js';
+import type { RecordActions } from '../../runtime/actions.js';
 import {
   useRecordDetail,
   useRecordTable,
   useSearchBox,
-  type BulkCommand,
   type RecordActionSlots,
   type RecordDetailControl,
   type RecordDetailController,
@@ -45,7 +45,7 @@ import { RecordDetail } from '../record/RecordDetail.js';
 import { wayOutOf } from '../record/emptyWayOut.js';
 import { NO_RELEASE, type ReleasedPins } from '../record/pinCap.js';
 import { ResultToolbar, type ResultToolbarProps } from '../ResultToolbar.js';
-import { BulkStatus } from '../BulkStatus.js';
+import { useActionSurface } from '../actions/ActionSurface.js';
 import { useViewMessages } from '../MessagesProvider.js';
 import { recordIssueNamer } from '../record/issueNames.js';
 import type { ViewMessages } from '../messages.js';
@@ -64,20 +64,20 @@ import { SearchBox } from './SearchBox.js';
  */
 export interface RecordViewProps {
   /**
-   * The host's own business actions: one over the view, one over a selection,
-   * one per row. They are render functions rather than names in a config —
-   * what may be *done* to a record belongs to the application that mounted
-   * the workbench, not to the way of looking somebody saved.
+   * The host's declared actions (`actions()`, host-integration.md 5): what
+   * may be *done* to a record, which the workbench places — the row's
+   * button and menu, the selection's bar, the detail — asks about, runs a
+   * few at a time and reports on the line above the rows. What may be done
+   * belongs to the application that mounted the workbench, not to the way
+   * of looking somebody saved.
    */
-  actions?: RecordActionSlots;
+  actions?: RecordActions;
   /**
-   * The host's bulk command (`useBulkCommand`), whose progress and outcome
-   * the workbench says above the rows, where a failed query is said. The
-   * command outlives the selection it ran over — the toolbar's bulk slot
-   * goes with the selection — so its line belongs to the result, not to
-   * the slot that started it.
+   * The host's own markup, drawn after the declared actions — one over the
+   * view, one over a selection, one per row: the escape hatch for what a
+   * declaration cannot say, a link out, say.
    */
-  bulk?: BulkCommand;
+  slots?: RecordActionSlots;
   /**
    * Renders one cell of the table; the default reads it as the column says.
    *
@@ -134,7 +134,7 @@ export interface RecordDetailOptions extends RecordDetailControl {
   /**
    * The host's sections for the record open, asked each time the detail
    * draws a record — the context says which, and whether it is whole yet.
-   * A render function, as `actions.row` is: what the application shows about
+   * A render function, as `slots.row` is: what the application shows about
    * a record is code, not something a saved view holds.
    */
   sections?(
@@ -202,7 +202,7 @@ export function RecordParts({
   optionsFor,
   features,
   actions,
-  bulk,
+  slots,
   renderCell,
   selectable,
   emptyTitle,
@@ -239,7 +239,24 @@ export function RecordParts({
   useQueryAnnouncement(table, messages, voice, emptyTitle);
 
   const fields = record?.fields ?? [];
-  const row = actions?.row;
+  // The record the detail holds, which the page may not: its actions are
+  // drawn there, and its availability changes on its own as a row's does.
+  const { key: detailKey, record: detailData } = detail;
+  const detailRows = useMemo(
+    () =>
+      detailKey !== null && detailData
+        ? [{ key: detailKey, data: detailData }]
+        : undefined,
+    [detailKey, detailData],
+  );
+  const surface = useActionSurface({
+    actions,
+    slots,
+    table,
+    runtime: record,
+    ...(detailRows ? { also: detailRows } : {}),
+    say: voice.say,
+  });
 
   // The condition fold, held here only so the empty result can open it.
   //
@@ -291,10 +308,10 @@ export function RecordParts({
     // As an element rather than a call: the slot then renders inside the
     // shell's boundary for it, and a host action that throws takes the slot
     // and not the workbench.
-    actions: actions?.global && (
+    actions: slots?.global && (
       <RenderSlot
         render={() =>
-          actions.global?.({ runtime: record, refresh: table.refresh })
+          slots.global?.({ runtime: record, refresh: table.refresh })
         }
       />
     ),
@@ -409,7 +426,7 @@ export function RecordParts({
         rowKey={table.rowKey}
         // Cards draw no pins, so nothing is let go under them.
         released={table.layout === 'table' ? released : NO_RELEASE}
-        bulkActions={actions?.bulk}
+        bulkActions={surface.bulk}
         features={features}
         runtime={record}
         exports={shown.export}
@@ -420,7 +437,7 @@ export function RecordParts({
     ),
     result: (
       <>
-        {bulk && <BulkStatus command={bulk} />}
+        {surface.status}
         {table.layout === 'card' ? (
           <RecordCards
             table={table}
@@ -428,7 +445,7 @@ export function RecordParts({
             selectable={selectable}
             emptyTitle={emptyTitle}
             emptyDescription={emptyDescription}
-            rowActions={bindRow(row, record, table.refresh)}
+            rowActions={surface.row}
             onOpen={detail.open}
             emptyWayOut={wayOut}
             onEmptyAction={onEmptyAction}
@@ -440,7 +457,7 @@ export function RecordParts({
             selectable={selectable}
             emptyTitle={emptyTitle}
             emptyDescription={emptyDescription}
-            rowActions={bindRow(row, record, table.refresh)}
+            rowActions={surface.row}
             onOpen={detail.open}
             emptyWayOut={wayOut}
             onEmptyAction={onEmptyAction}
@@ -450,7 +467,7 @@ export function RecordParts({
 
         <RecordDetail
           detail={detail}
-          actions={bindRow(row, record, table.refresh)}
+          actions={surface.detail}
           sections={bindSections(
             detailOptions?.sections,
             detail,
@@ -469,6 +486,8 @@ export function RecordParts({
 
         <RecordPagination table={table} />
 
+        {surface.dialog}
+
         {/* Last in the block, where nothing about it can be reached by a
             pointer or a tab: it draws nothing and is read, not seen. */}
         {announcement}
@@ -477,25 +496,6 @@ export function RecordParts({
     resultSlots: RESULT_SLOTS,
     resultWithoutQuery: table.filterRequired === true,
   });
-}
-
-/**
- * The host's row slot bound to the open view, or nothing at all.
- *
- * The table is handed a function of the row alone — it knows a result, not a
- * runtime — so the binding happens here, where both are in hand. The wrapper
- * is the table's and the cards' to add (`RowActions`), once, the same way an
- * embed's actions get it; binding it here as well drew two nested
- * `row-actions` around every row's buttons. The slot still runs inside the
- * result's render boundary, so a host's action that throws takes the rows
- * with it and nothing else.
- */
-function bindRow(
-  row: RecordActionSlots['row'],
-  runtime: RecordViewRuntime,
-  refresh: () => void,
-): ((row: RecordRow) => ReactNode) | undefined {
-  return row ? item => row({ row: item, runtime, refresh }) : undefined;
 }
 
 /**

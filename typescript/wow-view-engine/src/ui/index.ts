@@ -39,7 +39,6 @@ export {
 } from './charts/maps.js';
 export { AnalysisTable, type AnalysisTableProps } from './AnalysisTable.js';
 export { AppliedBar, type AppliedBarProps } from './AppliedBar.js';
-export { BulkStatus, type BulkStatusProps } from './BulkStatus.js';
 export { ColumnSettings, type ColumnSettingsProps } from './ColumnSettings.js';
 export {
   PanelGridItem,
@@ -298,6 +297,7 @@ export { ViewList, type ViewListProps } from './ViewList.js';
 export { ViewSwitcher, type ViewSwitcherProps } from './ViewSwitcher.js';
 export { ViewManager, type ViewManagerProps } from './ViewManager.js';
 export { ViewHost, type ViewHostProps } from './ViewHost.js';
+export { useEngine } from './ViewEngineProvider.js';
 export {
   type ColorMode,
   type ColorModeControl,

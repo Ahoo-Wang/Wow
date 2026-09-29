@@ -119,11 +119,11 @@ View Engine 的每个场景都放在宿主应用里评判：`shared/AppShell.tsx
 
 补偿控制台（`compensation/dashboard`）已经用视图引擎重建（[view-engine-rebuild.md](../../compensation/dashboard/docs/design/view-engine-rebuild.md) 批 0～6），产品的定义在 `compensation/dashboard/src/views/`，随控制台发版；连真服务的走查由控制台自己的 e2e（`e2e/real-server/`）负责。原来「真实后端/补偿控制台」下连 `host` 的三个场景因此撤掉（批 7），只留引擎回归要的部分，收成三个只有回归的文件，标题都在 `View Engine/回归夹具/补偿/…`，标签 `['!dev', '!autodocs', 'test']`，不进目录与宿主导航：
 
-| 文件                                     | 夹具                                                                                            | 守的是引擎的                                                                                                                                     |
-| ---------------------------------------- | ----------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `CompensationWorkbench.test.stories.tsx` | `compensation.ts` 的定义，`compensationService.ts` 录的五次执行，三条补偿命令按服务的规则改它们 | 宿主挂在行上与选择上的命令（`record.actions`、`useBulkCommand`）与结果条、`rowFields`、键盘进出详情、条件值取自数据（`TERMS`）、标题栏的短语搜索 |
-| `CompensationEvents.test.stories.tsx`    | `compensationEvents.ts` 的事件流定义，`compensationEventsService.ts` 录的八条事件流             | 事件在数组 `body` 里：按元素类型读的列、元素匹配的条件、展开计数的分析、逐元素的详情、聚合回来的日期                                             |
-| `CompensationOverview.test.stories.tsx`  | `compensationBoard.ts` 的板与八月以来的执行，时钟钉在 2026-09-22 10:00 Asia/Shanghai            | 跨定义的面板引用与相对日期、每个面板的黄金值、面板里固定列不压别的列、嵌入的只读报告与铺满屏幕（D36）                                            |
+| 文件                                     | 夹具                                                                                            | 守的是引擎的                                                                                                                                  |
+| ---------------------------------------- | ----------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| `CompensationWorkbench.test.stories.tsx` | `compensation.ts` 的定义，`compensationService.ts` 录的五次执行，三条补偿命令按服务的规则改它们 | 宿主声明的命令（`record.actions`、`actions()`）在行上与选择上、结果条、`rowFields`、键盘进出详情、条件值取自数据（`TERMS`）、标题栏的短语搜索 |
+| `CompensationEvents.test.stories.tsx`    | `compensationEvents.ts` 的事件流定义，`compensationEventsService.ts` 录的八条事件流             | 事件在数组 `body` 里：按元素类型读的列、元素匹配的条件、展开计数的分析、逐元素的详情、聚合回来的日期                                          |
+| `CompensationOverview.test.stories.tsx`  | `compensationBoard.ts` 的板与八月以来的执行，时钟钉在 2026-09-22 10:00 Asia/Shanghai            | 跨定义的面板引用与相对日期、每个面板的黄金值、面板里固定列不压别的列、嵌入的只读报告与铺满屏幕（D36）                                         |
 
 这些是引擎的夹具，不是产品：定义只保留这些故事断言到的部分，与控制台的定义**有意漂移**——产品改视图不该动引擎的回归，引擎的回归也不等产品。每个文件的注释都写明这一点。
 

@@ -27,7 +27,8 @@ import { executionFailedCommandClient } from "@/services";
 
 /**
  * The compensation commands the failed-executions workbench sends, one
- * execution at a time; `useBulkCommand` runs them over a selection.
+ * execution at a time; the engine runs the declared actions over them
+ * (`executionActions`), a few at a time over a selection.
  *
  * Each resolves once the execution's snapshot reflects the command, so the
  * refresh that follows shows the new state rather than the old one, and

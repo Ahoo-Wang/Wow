@@ -216,7 +216,7 @@ describe('the workbench boundaries', () => {
         engine={engine}
         definitionId="orders"
         onRenderFailure={f => failures.push(f)}
-        record={{ actions: actions }}
+        record={{ slots: actions }}
       />,
     );
 
@@ -244,7 +244,7 @@ describe('the workbench boundaries', () => {
         engine={engine}
         definitionId="orders"
         onRenderFailure={f => failures.push(f)}
-        record={{ actions: actions }}
+        record={{ slots: actions }}
       />,
     );
     await userEvent.click(
@@ -264,7 +264,7 @@ describe('the workbench boundaries', () => {
         definitionId="orders"
         onRenderFailure={f => failures.push(f)}
         record={{
-          actions: {
+          slots: {
             global: () => {
               throw new Error('global action failed');
             },

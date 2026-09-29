@@ -14,6 +14,7 @@
 import type { FunctionKind, RecoverableType } from "@ahoo-wang/wow-client";
 import type { RecordRow } from "@ahoo-wang/wow-view-engine";
 import type { ApplyRetrySpec } from "@/generated";
+import type { Message } from "@/i18n.tsx";
 
 /** The execution's state, as the whole record carries it. */
 export interface ExecutionState {
@@ -57,4 +58,17 @@ export function stateOf(row: RecordRow): ExecutionState {
 export function executionTitle(row: RecordRow): string | undefined {
   const target = stateOf(row).function;
   return target ? `${target.processorName}.${target.name}` : undefined;
+}
+
+const RECOVERABILITY_LABEL: Partial<Record<RecoverableType, Message>> = {
+  RECOVERABLE: "Recoverable",
+  UNRECOVERABLE: "Unrecoverable",
+  UNKNOWN: "Unknown",
+};
+
+/** How an execution's recoverability reads. */
+export function recoverabilityLabel(
+  value: RecoverableType | undefined,
+): Message {
+  return (value && RECOVERABILITY_LABEL[value]) ?? "Unknown";
 }

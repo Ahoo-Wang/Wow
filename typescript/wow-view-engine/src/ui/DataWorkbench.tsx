@@ -161,14 +161,14 @@ export interface DataWorkbenchProps {
    * view (D20: an analysis view has no business actions), and a workbench of
    * both kinds would otherwise wear seven props that apply to half of what
    * it draws. What the host bound to the definition (`bind`: its `actions`,
-   * `bulk` and `reading`) is the default of each; one given here wins.
+   * `slots` and `reading`) is the default of each; one given here wins.
    */
   record?: RecordViewProps;
 }
 
 /**
  * What the host says about a definition's record views: its binding
- * (`bind` — `actions`, `bulk`, `reading` as the detail), each overridden by
+ * (`bind` — `actions`, `slots`, `reading` as the detail), each overridden by
  * the surface's own `record` where that says it.
  */
 function useBoundRecord(
@@ -178,10 +178,10 @@ function useBoundRecord(
   const binding = useBindings()(definitionId);
   return useMemo(() => {
     if (!binding) return given;
-    const { actions, bulk, reading } = binding;
+    const { actions, slots, reading } = binding;
     return {
       ...(actions ? { actions } : {}),
-      ...(bulk ? { bulk } : {}),
+      ...(slots ? { slots } : {}),
       ...(reading ? { detail: reading } : {}),
       ...given,
     };

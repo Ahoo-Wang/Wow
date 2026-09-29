@@ -186,6 +186,10 @@ function orderOf(row: RecordRow): { orderNo: string; warehouse: string } {
 /**
  * 订单上的宿主动作：每一行「订单详情」与（还在待发货的）「催发货」，勾选几行时
  * 成批「催发货」。按下之后那一行读作「已催」，同一张单不催第二次。
+ *
+ * 走的是插槽（逃生口，host-integration.md 5）：一条链出去的「订单详情」与一句
+ * 宿主自己说的「已催」是声明说不了的；命令本该声明，见订单工作台
+ * （`RetailOrders.stories.tsx`）。
  */
 export function orderActions(nudges: Nudges): RecordActionSlots {
   return {
@@ -273,7 +277,7 @@ export interface BoardReader {
  * 4）：订单的记录面板都挂，别的面板什么也不挂。
  */
 export function orderBindings(nudges: Nudges) {
-  return [bind(RETAIL_ORDERS, { actions: orderActions(nudges) })];
+  return [bind(RETAIL_ORDERS, { slots: orderActions(nudges) })];
 }
 
 /**
@@ -343,7 +347,7 @@ export function RoutedBoard({
           onNavigate={route}
           record={
             away.definitionId === RETAIL_ORDERS
-              ? { actions, emptyTitle: '没有这样的订单' }
+              ? { slots: actions, emptyTitle: '没有这样的订单' }
               : undefined
           }
           {...HOST_LANGUAGE}

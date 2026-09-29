@@ -48,7 +48,7 @@ interface WorkbenchProps {
 /**
  * The failed executions' workbench on the console's one engine: what an
  * execution offers — its commands, how it is read — is bound once to the
- * definition (`PageCommands`), so the page says only which view is open.
+ * definition (`consoleBindings`), so the page says only which view is open.
  */
 function Workbench({
   handOver,

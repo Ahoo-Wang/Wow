@@ -16,7 +16,7 @@ For what the engine does and a walkthrough of the target usage, read the [View E
 | Entry | Exports |
 |---|---|
 | `@ahoo-wang/wow-view-engine` | Model types, pure kernels (`validate*`, `compile*`, `project*`), runtime, the `ViewStore` port, `MemoryViewStore` |
-| `/react` | `useViewEngine`, `useOpenView`, `useViewRuntime`, `useViewList`, `useViewManager`, `useWorkbench`, `useLeaveGuard`, `useFilterEditor`, `useRecordTable`, `useAnalysisEditor`, `useAnalysisResult`, `useDashboard`, `useSaveCommands`, `RecordActionSlots` |
+| `/react` | `useViewEngine`, `useOpenView`, `useViewRuntime`, `useViewList`, `useViewManager`, `useWorkbench`, `useLeaveGuard`, `useFilterEditor`, `useRecordTable`, `useAnalysisEditor`, `useAnalysisResult`, `useDashboard`, `useSaveCommands`, `useRecordActions`, `RecordActionSlots` |
 | `/ui` | Workbenches (`DataWorkbench`, `DashboardWorkbench`), embeds (`EmbeddedView`, `EmbeddedDashboard`), view management (`ViewHeader`, `SaveActions`, `ViewManager`, `LeaveDialog`), editing and results (`FilterPanel`, `RecordTable`, `RecordCards`, `RecordPagination`, `AnalysisTable`, `AnalysisChart`, `DashboardGrid`), content panels, and `MessagesProvider` |
 | `/styles.css` | The theme. Import it explicitly; no JavaScript entry imports CSS |
 | `/themes.css` | Optional presets, selected by `data-fve-preset` |
@@ -90,7 +90,7 @@ Architecture tests enforce the dependency rules: `model` imports nothing; `filte
 | Field type | Register a `FieldKind`: operators, validation, `compile` to `FilterExpression`, and an editor descriptor that names one of the built-in value inputs |
 | Data source | Each entry of `resources` pairs a definition with its source, a `wow-client` query client |
 | Persistence | Implement `ViewStore` |
-| Actions | Pass `global`, `bulk`, and `row` action render functions to a workbench; they are code and are never saved |
+| Actions | Declare them with `actions()` and bind them (`bind(id, { actions })`): the engine places, confirms, runs and reports them; `slots` (`global`, `bulk`, `row` render functions) are the escape hatch. They are code and are never saved |
 | Appearance | CSS variables, presets and the shadcn bridge (see [Theming the View Engine](../../../guide/typescript/view-engine-theming.md)); replace components by composing the `/react` hooks |
 | Wording | `defaultMessages` (English) and `zhCN` catalogues, merged through the `messages` prop or `MessagesProvider` |
 

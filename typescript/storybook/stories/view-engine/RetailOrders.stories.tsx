@@ -12,21 +12,12 @@
  */
 
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { BellRingIcon } from 'lucide-react';
-import type {
-  RecordKey,
-  RecordRow,
-  ViewEngine,
-} from '@ahoo-wang/wow-view-engine';
 import {
-  useBulkCommand,
-  type BulkCommand,
-  type RecordActionSlots,
-} from '@ahoo-wang/wow-view-engine/react';
+  actions,
+  type RecordRow,
+  type ViewEngine,
+} from '@ahoo-wang/wow-view-engine';
 import { DataWorkbench } from '@ahoo-wang/wow-view-engine/ui';
-// View Engine's own primitives, so the host's command looks like its own.
-import { Button } from '@/ui/components/button';
-import { IconButton } from '@/ui/IconButton';
 import { HOST_LANGUAGE } from './fixtures.js';
 import { StoryEngine } from './StoryEngine.js';
 import { RETAIL_DATA_NOTE, retailShell } from './retail/scene.js';
@@ -49,77 +40,33 @@ function awaitingShipment(row: RecordRow): boolean {
 }
 
 /**
- * The host's one command: 「催发货」, a reminder pushed to the warehouse's
- * work queue. It changes nothing on the order itself — which is why it is
- * the command here and 「标记加急」 is not: a tag written by a story that
- * cannot write the data would claim a change the list never shows. An
- * order that has left the warehouse is refused with the reason, and stays
- * selected.
+ * The host's one command, declared (host-integration.md 5): 「催发货」, a
+ * reminder pushed to the warehouse's work queue. It changes nothing on the
+ * order itself — which is why it is the command here and 「标记加急」 is
+ * not: a tag written by a story that cannot write the data would claim a
+ * change the list never shows. The host says what and when; the engine puts
+ * it in each row and over a selection, asks how many, sends it a few at a
+ * time and reports. An order that has left the warehouse is refused with
+ * the reason before anything is sent, and stays selected.
  */
-function remind(rows: readonly RecordRow[]) {
-  const byKey = new Map(rows.map(row => [row.key, row]));
-  return async (key: RecordKey) => {
-    await new Promise(resolve => setTimeout(resolve, 120));
-    const row = byKey.get(key);
-    if (!row || !awaitingShipment(row))
-      throw new Error('这张单已经发出，不用催');
-  };
-}
-
-function RemindButton({
-  rows,
-  bulk,
-  onRun,
-}: {
-  rows: RecordRow[];
-  bulk: BulkCommand;
-  onRun(): void;
-}) {
-  return (
-    <Button size="sm" disabled={bulk.running !== null} onClick={onRun}>
-      <BellRingIcon data-icon="inline-start" />
-      催发货 {rows.length} 单
-    </Button>
-  );
-}
+const ORDER_ACTIONS = actions([
+  {
+    id: 'remind',
+    label: '催发货',
+    primary: true,
+    available: row => (awaitingShipment(row) ? true : '这张单已经发出，不用催'),
+    run: () => new Promise(resolve => setTimeout(resolve, 120)),
+  },
+]);
 
 function OrderWorkbench({ engine }: { engine: ViewEngine }) {
-  const bulk = useBulkCommand();
-  const actions: RecordActionSlots = {
-    row: ({ row, refresh }) => (
-      <IconButton
-        label={`催 ${String(row.key)} 发货`}
-        variant="ghost"
-        size="icon-xs"
-        disabled={bulk.running !== null || !awaitingShipment(row)}
-        onClick={() =>
-          bulk.run(
-            { keys: [row.key], refresh, select() {} },
-            { title: '催发货', each: remind([row]) },
-          )
-        }
-      >
-        <BellRingIcon />
-      </IconButton>
-    ),
-    bulk: selection => (
-      <RemindButton
-        rows={selection.rows}
-        bulk={bulk}
-        onRun={() =>
-          bulk.run(selection, { title: '催发货', each: remind(selection.rows) })
-        }
-      />
-    ),
-  };
   return (
     <DataWorkbench
       engine={engine}
       definitionId={RETAIL_ORDERS}
       {...HOST_LANGUAGE}
       record={{
-        actions,
-        bulk,
+        actions: ORDER_ACTIONS,
         emptyTitle: '没有符合条件的订单',
         emptyDescription: '换一个时间范围，或清掉几个条件再看。',
       }}

@@ -404,7 +404,7 @@ describe('render and chart failures reach onError', () => {
         instanceId="orders-1"
         onRenderFailure={caught => failures.push(caught)}
         record={{
-          actions: {
+          slots: {
             row: () => {
               throw failure;
             },

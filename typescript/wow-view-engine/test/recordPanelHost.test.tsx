@@ -29,6 +29,7 @@ import {
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
+  actions,
   MemoryViewStore,
   ViewEngine,
   type DashboardPanel,
@@ -188,7 +189,7 @@ describe('the host’s commands on a record panel (D39)', () => {
     const source = orders(2);
     const asked: string[] = [];
     await open(source, {}, undefined, {
-      actions: {
+      slots: {
         row: ({ row, refresh }) => (
           <button
             type="button"
@@ -226,7 +227,7 @@ describe('the host’s commands on a record panel (D39)', () => {
   it('re-runs the board after a selection’s command, too', async () => {
     const source = orders(2);
     const panel = await open(source, {}, undefined, {
-      actions: {
+      slots: {
         bulk: ({ refresh }) => (
           <button type="button" onClick={refresh}>
             Nudge all
@@ -253,7 +254,7 @@ describe('the host’s commands on a record panel (D39)', () => {
   it('offers a selection’s command over picked rows, where the board has controls', async () => {
     const run = vi.fn();
     const panel = await open(orders(2), {}, undefined, {
-      actions: {
+      slots: {
         bulk: ({ keys }) => (
           <button type="button" onClick={() => run(keys)}>
             Nudge all
@@ -278,35 +279,13 @@ describe('the host’s commands on a record panel (D39)', () => {
 
   it('picks no rows on a board with no controls, and keeps the row’s command', async () => {
     await open(orders(2), { interaction: 'static' }, undefined, {
-      actions: {
+      slots: {
         row: ({ row }) => <span>Row {String(row.key)}</span>,
         bulk: () => <button type="button">Nudge all</button>,
       },
     });
     await screen.findByText('Row o-1');
     expect(screen.queryByRole('checkbox')).toBeNull();
-  });
-
-  it('says how far the host’s bulk command has come above the rows', async () => {
-    const command = {
-      run: vi.fn(),
-      stop: vi.fn(),
-      dismiss: vi.fn(),
-      outcome: null,
-      running: {
-        title: 'Nudge',
-        progress: { total: 3, done: 1, failed: 0 },
-        stopping: false,
-      },
-    };
-    const panel = await open(orders(2), {}, undefined, {
-      actions: {},
-      bulk: command,
-    });
-    const card = panel.closest<HTMLElement>('[data-slot="dashboard-panel"]')!;
-    await waitFor(() =>
-      expect(card.querySelector('[data-slot="bulk-status"]')).not.toBeNull(),
-    );
   });
 });
 
@@ -340,5 +319,62 @@ describe('an empty record panel says what it is empty of', () => {
     expect(
       await within(panel).findByText('There are no records yet.'),
     ).toBeTruthy();
+  });
+});
+
+describe('declared actions on a record panel (host-integration.md 5)', () => {
+  it('places a bound definition’s actions on the panel’s rows and selection, says the run above the rows and reads the board again', async () => {
+    const source = orders(2);
+    const run = vi.fn(() => Promise.resolve());
+    const panel = await open(source, {}, undefined, {
+      actions: actions([{ id: 'nudge', label: 'Nudge', primary: true, run }]),
+    });
+    const card = panel.closest<HTMLElement>('[data-slot="dashboard-panel"]')!;
+    const buttons = await within(card).findAllByRole('button', {
+      name: 'Nudge',
+    });
+    await waitFor(() => expect(source.aggregate).toHaveBeenCalled());
+    const sibling = vi.mocked(source.aggregate).mock.calls.length;
+
+    await userEvent.click(buttons[0]);
+    await waitFor(() =>
+      expect(
+        card.querySelector('[data-slot="bulk-status"]')?.textContent,
+      ).toContain('Nudge · 1 done'),
+    );
+    await waitFor(() =>
+      expect(vi.mocked(source.aggregate).mock.calls.length).toBeGreaterThan(
+        sibling,
+      ),
+    );
+
+    // Picked rows: the bar offers the same action, counting them.
+    const boxes = await within(card).findAllByRole('checkbox');
+    await userEvent.click(boxes[boxes.length - 1]);
+    await userEvent.click(
+      within(card).getByRole('button', { name: 'Nudge 1' }),
+    );
+    expect(
+      await screen.findByRole('alertdialog', {
+        name: 'Run “Nudge” on 1 record?',
+      }),
+    ).toBeTruthy();
+  });
+
+  it('offers no selection on a board with no controls, and keeps a record’s action', async () => {
+    await open(orders(2), { interaction: 'static' }, undefined, {
+      actions: actions([
+        {
+          id: 'nudge',
+          label: 'Nudge',
+          primary: true,
+          run: () => Promise.resolve(),
+        },
+      ]),
+    });
+    expect(
+      (await screen.findAllByRole('button', { name: 'Nudge' })).length,
+    ).toBe(2);
+    expect(screen.queryByRole('checkbox')).toBeNull();
   });
 });

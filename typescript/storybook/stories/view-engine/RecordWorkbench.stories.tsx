@@ -18,11 +18,7 @@ import {
   type RecordKey,
   type ViewInstance,
 } from '@ahoo-wang/wow-view-engine';
-import {
-  useBulkCommand,
-  type BulkCommand,
-  type RecordActionSlots,
-} from '@ahoo-wang/wow-view-engine/react';
+import { type RecordActionSlots } from '@ahoo-wang/wow-view-engine/react';
 import { DataWorkbench, type FveToken } from '@ahoo-wang/wow-view-engine/ui';
 // View Engine's own button, so the host's commands sit in its toolbar rather
 // than beside it — exactly what an application does with the action slots.
@@ -376,10 +372,6 @@ function RecordWorkbenchDemo({
    */
   wide?: boolean;
 }) {
-  // The whole of a host's bulk command that is not what it does to one
-  // order: records a few at a time, how far it has come, the reasons, and
-  // what that leaves selected — said by the workbench above the rows.
-  const exportSelected = useBulkCommand();
   const workbench = (
     <>
       <StoryEngine
@@ -503,12 +495,11 @@ function RecordWorkbenchDemo({
             // handed the answer.
             defaultSidebarOpen={collapsed ? false : undefined}
             record={{
-              actions: breakable
+              slots: breakable
                 ? breakableActions
                 : withActions
-                  ? businessActions(exportSelected)
+                  ? businessActions
                   : undefined,
-              bulk: withActions ? exportSelected : undefined,
             }}
           />
         )}
@@ -625,8 +616,9 @@ const breakableActions: RecordActionSlots = {
 const EXPORT_SELECTED = '导出所选';
 
 /**
- * The host's own command, which is the only part `useBulkCommand` leaves to
- * it: what exporting does to one order. A cancelled order is not
+ * The host's own command, which is the only part the surface's runner
+ * leaves to it (`run` on the slot's context): what exporting does to one
+ * order. A cancelled order is not
  * exportable, so selecting the whole of 「全部」 gives the partial reading
  * rather than the tidy one. That is on purpose — a bulk command over real
  * records is partly refused more often than not.
@@ -645,72 +637,74 @@ function exportOrder(key: RecordKey): Promise<void> {
 
 const CANCELLED_ORDERS = ['SO-1002'];
 
-function businessActions(exportSelected: BulkCommand): RecordActionSlots {
-  return {
-    // `outline`, not the default: the one primary on a screen is the Apply
-    // that runs the query (D12 Ⅰ), and a host that put its own button in that
-    // weight would be the second primary the moment the editor band is open.
-    global: () => (
-      <Button variant="outline" size="sm" onClick={() => alert('新建订单')}>
-        新建订单
-      </Button>
-    ),
-    // The selection goes to `run` as it came from the slot: the keys it is
-    // over, and the ways of leaving the refused ones picked and reading the
-    // page again. The button's
-    // name does not change while it runs — a control that renames itself
-    // mid-press is one a screen reader has lost — so the spinner is drawn
-    // and `aria-busy` is what says so. The registry's `Spinner` carries its
-    // own `role="status"` and `aria-label`, for a spinner standing on its
-    // own; inside a button those join the button's name, so this one is
-    // hidden and the state is announced on the control itself.
-    bulk: selection => (
+/**
+ * The host's slots — the escape hatch beside declared actions
+ * (host-integration.md 5): a global button, a row's two links, and a
+ * command over the selection sent through the surface's own runner, so the
+ * workbench says above the rows how far it has come, the reasons, and what
+ * that leaves selected.
+ */
+const businessActions: RecordActionSlots = {
+  // `outline`, not the default: the one primary on a screen is the Apply
+  // that runs the query (D12 Ⅰ), and a host that put its own button in that
+  // weight would be the second primary the moment the editor band is open.
+  global: () => (
+    <Button variant="outline" size="sm" onClick={() => alert('新建订单')}>
+      新建订单
+    </Button>
+  ),
+  // The selection goes to `run` as it came from the slot: the keys it is
+  // over, and the ways of leaving the refused ones picked and reading the
+  // page again. The button's
+  // name does not change while it runs — a control that renames itself
+  // mid-press is one a screen reader has lost — so the spinner is drawn
+  // and `aria-busy` is what says so. The registry's `Spinner` carries its
+  // own `role="status"` and `aria-label`, for a spinner standing on its
+  // own; inside a button those join the button's name, so this one is
+  // hidden and the state is announced on the control itself.
+  bulk: selection => (
+    <Button
+      variant="outline"
+      size="sm"
+      aria-busy={selection.busy}
+      disabled={selection.busy}
+      onClick={() =>
+        selection.run({ title: EXPORT_SELECTED, each: exportOrder })
+      }
+    >
+      {selection.busy && (
+        <Spinner
+          data-icon="inline-start"
+          role={undefined}
+          aria-label={undefined}
+          aria-hidden="true"
+        />
+      )}
+      {EXPORT_SELECTED}
+    </Button>
+  ),
+  row: ({ row, refresh }) => (
+    <>
       <Button
-        variant="outline"
-        size="sm"
-        aria-busy={exportSelected.running !== null}
-        disabled={exportSelected.running !== null}
-        onClick={() =>
-          exportSelected.run(selection, {
-            title: EXPORT_SELECTED,
-            each: exportOrder,
-          })
-        }
+        variant="ghost"
+        size="xs"
+        onClick={() => alert(`打开 ${row.key}`)}
       >
-        {exportSelected.running !== null && (
-          <Spinner
-            data-icon="inline-start"
-            role={undefined}
-            aria-label={undefined}
-            aria-hidden="true"
-          />
-        )}
-        {EXPORT_SELECTED}
+        打开
       </Button>
-    ),
-    row: ({ row, refresh }) => (
-      <>
-        <Button
-          variant="ghost"
-          size="xs"
-          onClick={() => alert(`打开 ${row.key}`)}
-        >
-          打开
-        </Button>
-        <Button
-          variant="ghost"
-          size="xs"
-          onClick={() => {
-            alert(`取消 ${row.key}`);
-            refresh();
-          }}
-        >
-          取消
-        </Button>
-      </>
-    ),
-  };
-}
+      <Button
+        variant="ghost"
+        size="xs"
+        onClick={() => {
+          alert(`取消 ${row.key}`);
+          refresh();
+        }}
+      >
+        取消
+      </Button>
+    </>
+  ),
+};
 
 /** What the scenes answer from, said in the host's service line and below. */
 const FIXTURE = '内存 ViewStore · 六条订单 · 可切换的数据源行为';

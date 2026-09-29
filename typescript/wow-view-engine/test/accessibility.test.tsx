@@ -588,7 +588,7 @@ describe('the default workbenches pass axe', () => {
           definitionId="orders"
           instanceId="pending"
           record={{
-            actions: { row: () => <button type="button">{'Open'}</button> },
+            slots: { row: () => <button type="button">{'Open'}</button> },
           }}
         />
       </ViewSurface>,

@@ -58,7 +58,8 @@ import { AnalysisTable } from '../AnalysisTable.js';
 import { AnalysisEmpty, emptyWithoutGroups } from '../analysis/EmptyResult.js';
 import { RecordTable } from '../RecordTable.js';
 import { RecordPagination } from '../RecordPagination.js';
-import { BulkStatus } from '../BulkStatus.js';
+import { useActionSurface } from '../actions/ActionSurface.js';
+import { useSurfaceAnnouncer } from '../Announcer.js';
 import { SelectionBar } from '../record/SelectionBar.js';
 import { emptyHintOf } from '../record/EmptyResult.js';
 import type { RecordViewProps } from '../workbench/RecordParts.js';
@@ -81,19 +82,26 @@ import {
 import { Skeleton } from '../components/skeleton.js';
 
 /**
- * What a host puts on a board's record panels (D39): its own commands — a
- * row's and a selection's, as a record workbench takes them — and the bulk
- * command whose progress and outcome the panel says above its rows. The
- * commands are the host's, run by the host's code against its own service;
- * the engine writes nothing (D36). A workbench's `global` slot has no place
- * on a panel: the page around the board is the host's.
+ * What a host puts on a board's record panels (D39): its declared actions
+ * on the records — a row's and a selection's, as a record workbench places
+ * them — and its slots after them, and what reading the board again means
+ * after a command. The commands are the host's, run by the host's code
+ * against its own service; the engine writes nothing (D36). A workbench's
+ * `global` slot has no place on a panel: the page around the board is the
+ * host's.
  */
-export type RecordPanelHost = Pick<RecordViewProps, 'actions' | 'bulk'>;
+export interface RecordPanelHost extends Pick<
+  RecordViewProps,
+  'actions' | 'slots'
+> {
+  /** What reading again after a command means: the whole board. */
+  refresh?(): void;
+}
 
 /**
  * What the host bound to the definition a record panel's view is over
- * (`bind`): its commands and its bulk command, or nothing for a panel of
- * another kind, or over a definition it bound none to.
+ * (`bind`): its actions and its slots, or nothing for a panel of another
+ * kind, or over a definition it bound none to.
  */
 export function recordHostOf(
   panel: DashboardPanelView,
@@ -102,50 +110,40 @@ export function recordHostOf(
   const runtime = panel.runtime;
   if (!runtime || runtime.kind !== 'record') return undefined;
   const binding = bindingOf(runtime.definition.id);
-  if (!binding?.actions && !binding?.bulk) return undefined;
+  if (!binding?.actions && !binding?.slots) return undefined;
   return {
     ...(binding.actions ? { actions: binding.actions } : {}),
-    ...(binding.bulk ? { bulk: binding.bulk } : {}),
+    ...(binding.slots ? { slots: binding.slots } : {}),
   };
 }
 
 /**
- * The host's commands on a panel of a board, their `refresh` re-running the
- * board rather than the panel alone. A command writes to the host's
- * service, and which of the board's questions that answers differently is
- * nothing the engine can see: a retry on the failed executions moves the
- * count of 「可立即处理」 on a card over the same records, and the event
- * stream another panel reads over a different definition. So every panel
- * on the tab shown asks again (`DashboardController.refresh`, the one the
- * title bar's refresh runs); the others when they are shown. A command is
- * a reader's deliberate act, rare beside the board's own timer, so the
+ * The host's commands on a panel of a board, reading the board again after
+ * one rather than the panel alone. A command writes to the host's service,
+ * and which of the board's questions that answers differently is nothing
+ * the engine can see: a retry on the failed executions moves the count of
+ * 「可立即处理」 on a card over the same records, and the event stream
+ * another panel reads over a different definition. So every panel on the
+ * tab shown asks again (`DashboardController.refresh`, the one the title
+ * bar's refresh runs); the others when they are shown. A command is a
+ * reader's deliberate act, rare beside the board's own timer, so the
  * queries it costs are the price of no number on screen staying stale.
  */
 export function boardWideHost(
   host: RecordPanelHost | undefined,
   refresh: () => void,
 ): RecordPanelHost | undefined {
-  const actions = host?.actions;
-  if (!host || !actions) return host;
-  const { row, bulk } = actions;
-  return {
-    ...host,
-    actions: {
-      ...actions,
-      ...(row ? { row: context => row({ ...context, refresh }) } : {}),
-      ...(bulk ? { bulk: context => bulk({ ...context, refresh }) } : {}),
-    },
-  };
+  return host && { ...host, refresh };
 }
 
 /**
  * A record panel is a readout until its host brings commands (D39): without
  * them the dashboard shows rows and offers nothing to do with a pick — no
  * toolbar, no row action, nothing that reads the selection — so the table
- * comes without its checkbox column. With a host's row slot each row carries
- * it; with a bulk slot, where the board has controls at all, the rows can be
- * picked and a bar over them offers it, and the bulk command's line says how
- * far it has come. Each context's `refresh` re-runs this panel alone; on a
+ * comes without its checkbox column. With actions for a row each row carries
+ * them; with actions for a selection, where the board has controls at all,
+ * the rows can be picked and a bar over them offers them, and the command's
+ * line says how far it has come. A command re-runs this panel alone; on a
  * board, `boardWideHost` makes it re-run the board.
  *
  * The panel is what scrolls here, so the table does not: its own scroll area
@@ -184,15 +182,24 @@ export function RecordPanel({
   // the page is empty of what it asks for, not of records altogether.
   const emptyHint = emptyHintOf(useFilterEditor(runtime));
   const failed = table.status === 'error';
-  const row = host?.actions?.row;
-  const bulk = readOnly ? undefined : host?.actions?.bulk;
+  const { say, region } = useSurfaceAnnouncer('panel-actions-announcement');
+  const surface = useActionSurface({
+    actions: host?.actions,
+    slots: host?.slots,
+    table,
+    runtime,
+    ...(host?.refresh ? { refresh: host.refresh } : {}),
+    say,
+    bulk: !readOnly,
+  });
+  const bulk = surface.bulk;
   if (failed && !table.hasResult)
     return <PanelFailed error={table.error ?? undefined} onRetry={onRetry} />;
   if (table.loading && table.rows.length === 0) return <PanelLoading />;
   return (
     <div className="flex flex-col gap-2">
       <QueryStrip error={failed ? table.error : null} stale onRetry={onRetry} />
-      {host?.bulk && <BulkStatus command={host.bulk} />}
+      {surface.status}
       {bulk && (
         <SelectionBar table={table} runtime={runtime} bulkActions={bulk} />
       )}
@@ -203,10 +210,10 @@ export function RecordPanel({
         holdEnd={false}
         readOnly={readOnly}
         emptyDescription={messages.label(emptyHint)}
-        rowActions={
-          row && (item => row({ row: item, runtime, refresh: table.refresh }))
-        }
+        rowActions={surface.row}
       />
+      {surface.dialog}
+      {region}
     </div>
   );
 }

@@ -1,4 +1,4 @@
-# @ahoo-wang/wow-view-engine/ui — 236 names, from src/ui/index.ts.
+# @ahoo-wang/wow-view-engine/ui — 235 names, from src/ui/index.ts.
 # Written by test/publicSurface.test.ts; a change here is a change to
 # the public surface (README「Entries」, docs/design/decisions.md D29).
 value AUDIENCE_ICON
@@ -15,8 +15,6 @@ type  AppliedBarProps
 value BUILT_IN_PRESETS
 type  BoardFilterModes
 type  BuiltInPreset
-value BulkStatus
-type  BulkStatusProps
 type  CellField
 type  CellSurface
 type  ChartMapGeoJson
@@ -223,6 +221,7 @@ value tabTitle
 value useColorMode
 value useDashboardEditExtensions
 value useDashboardExtensions
+value useEngine
 value useKindIssue
 value useKindWord
 value useSaidText

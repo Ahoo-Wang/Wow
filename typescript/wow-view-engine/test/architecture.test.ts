@@ -108,14 +108,17 @@ const PORTS: Partial<Record<Location, Partial<Record<Layer, string>>>> = {
 /**
  * The modules a port layer may import by value besides: `/testing`'s
  * `admit` is the engine's own admission, run without an engine
- * (host-integration.md 6), and `resolveNavigation` the engine's own
- * routing of a way off (host-integration.md 4), so a host's tests run the
- * runtime's own and never a copy of it.
+ * (host-integration.md 6), `resolveNavigation` the engine's own
+ * routing of a way off (host-integration.md 4), and `actionHarness` the
+ * engine's own reading of declared actions (host-integration.md 5, 6), so a
+ * host's tests run the runtime's own and never a copy of it.
  */
 const VALUE_PORTS: Partial<
   Record<Location, Partial<Record<Layer, readonly string[]>>>
 > = {
-  testing: { runtime: ['runtime/admission', 'runtime/routes'] },
+  testing: {
+    runtime: ['runtime/admission', 'runtime/routes', 'runtime/actions'],
+  },
 };
 
 /** Layers (and the root entry) that must stay free of React. */
@@ -167,10 +170,11 @@ const UI_FOLDERS: Record<string, readonly string[]> = {
   columns: [],
   sort: [],
   manage: [],
+  actions: ['record'],
   filter: ['record'],
   analysis: ['charts', 'filter', 'record'],
-  workbench: ['analysis', 'filter', 'record'],
-  dashboard: ['analysis', 'filter', 'record', 'workbench'],
+  workbench: ['actions', 'analysis', 'filter', 'record'],
+  dashboard: ['actions', 'analysis', 'filter', 'record', 'workbench'],
   embed: ['analysis', 'record', 'workbench'],
 };
 /** Under every folder: importing one of these is no direction at all. */

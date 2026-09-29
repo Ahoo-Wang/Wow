@@ -29,7 +29,7 @@ import { BOARDS_PATH, withView } from "@/views/routes.ts";
  * numbers were read with a refresh beside it (`withRefresh`, as the old
  * home page's header had), and nothing is saved (D36). The due-for-retry
  * panel carries the same row and bulk commands as the failed executions'
- * workbench (D39): they are bound to the definition (`PageCommands`).
+ * workbench (D39): they are bound to the definition (`consoleBindings`).
  * Rearranging the board, or saving one of their own, is the dashboard
  * workbench's.
  */

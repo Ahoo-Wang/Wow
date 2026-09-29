@@ -1,4 +1,4 @@
-# @ahoo-wang/wow-view-engine — 833 names, from src/index.ts.
+# @ahoo-wang/wow-view-engine — 845 names, from src/index.ts.
 # Written by test/publicSurface.test.ts; a change here is a change to
 # the public surface (README「Entries」, docs/design/decisions.md D29).
 value ALWAYS_VISIBLE
@@ -8,6 +8,13 @@ value ANALYSIS_DATE_PARTS
 value ANALYSIS_DATE_UNITS
 value ANALYSIS_PRESENTATION_MEMBERS
 type  AbsoluteDateTimeValue
+type  ActionConfirm
+type  ActionContext
+type  ActionForm
+type  ActionFormField
+type  ActionInput
+type  ActionPlace
+type  ActionTone
 type  AggregationFieldCapability
 type  AnalysisCapability
 type  AnalysisColumn
@@ -39,6 +46,7 @@ type  AnalysisViewConfig
 type  AnyViewRuntime
 type  ArrangeStep
 type  ArrayFilterValue
+type  Availability
 type  AxisSpec
 value BUILTIN_FIELD_KINDS
 value BUILTIN_FIELD_KIND_IDS
@@ -334,6 +342,8 @@ value RELATIVE_DATE_UNITS
 type  RadarData
 type  RadarSpec
 type  RangeEdge
+type  RecordAction
+type  RecordActions
 type  RecordCapability
 type  RecordCardField
 type  RecordCardSpec
@@ -358,6 +368,7 @@ type  ReferenceItem
 type  ReferenceLine
 type  ReferenceStatistic
 type  RefreshConfig
+type  RefusalGroup
 type  RelativeDateDirection
 type  RelativeDateTimeValue
 type  RelativeDateUnit
@@ -464,6 +475,7 @@ type  WriteHandle
 type  WritePayload
 type  WriteState
 type  WriteTarget
+value actions
 value addFilter
 value addPanel
 value addTab

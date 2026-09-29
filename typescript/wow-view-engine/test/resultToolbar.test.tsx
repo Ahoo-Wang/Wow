@@ -166,7 +166,7 @@ describe('ResultToolbar selection side', () => {
    * order the user is reading, rather than the order they were clicked.
    */
   it('hands a bulk action the selected rows in result order', () => {
-    const seen: RecordBulkActionContext[] = [];
+    const seen: Omit<RecordBulkActionContext, 'run' | 'busy'>[] = [];
     const table = tableController({
       // Clicked bottom-up; the controller hands them back top-down.
       selection: ['o-3', 'o-1'],

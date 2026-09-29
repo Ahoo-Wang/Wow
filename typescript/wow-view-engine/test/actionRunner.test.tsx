@@ -22,11 +22,14 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { RecordKey } from '../src/index.js';
 import {
   failureReasons,
-  useBulkCommand,
-  type BulkCommand,
+  type ActionRunner,
   type BulkSelection,
 } from '../src/react/index.js';
-import { BulkStatus } from '../src/ui/index.js';
+import { useActionRunner } from '../src/react/actionRunner.js';
+import { ActionRefused } from '../src/runtime/actions.js';
+import { text } from '../src/index.js';
+import { BulkStatus } from '../src/ui/actions/BulkStatus.js';
+import { MessagesProvider } from '../src/ui/index.js';
 import { nextTask } from './fixtures.js';
 
 afterEach(cleanup);
@@ -71,9 +74,9 @@ function refusal(errorMsg: string) {
   });
 }
 
-describe('useBulkCommand', () => {
+describe('useActionRunner', () => {
   it('runs a handful of records at a time, and the next as one lands', async () => {
-    const { result } = renderHook(() => useBulkCommand({ concurrency: 2 }));
+    const { result } = renderHook(() => useActionRunner({ concurrency: 2 }));
     const run = gated();
 
     act(() => result.current.run(selection(['a', 'b', 'c']), run.command));
@@ -91,7 +94,7 @@ describe('useBulkCommand', () => {
   });
 
   it('refuses a second run while one is in flight, and runs nothing over no rows', () => {
-    const { result } = renderHook(() => useBulkCommand());
+    const { result } = renderHook(() => useActionRunner());
     const run = gated();
 
     act(() => result.current.run(selection([]), run.command));
@@ -103,7 +106,7 @@ describe('useBulkCommand', () => {
   });
 
   it('lets go of the selection and reads the page again when every record took it', async () => {
-    const { result } = renderHook(() => useBulkCommand());
+    const { result } = renderHook(() => useActionRunner());
     const run = gated();
     const picked = selection(['a', 'b']);
 
@@ -128,7 +131,7 @@ describe('useBulkCommand', () => {
    * command threw, rather than one reason said for all of them.
    */
   it('keeps the refused records selected, each with the source’s reason', async () => {
-    const { result } = renderHook(() => useBulkCommand());
+    const { result } = renderHook(() => useActionRunner());
     const run = gated();
     const picked = selection(['a', 'b', 'c']);
 
@@ -145,8 +148,18 @@ describe('useBulkCommand', () => {
     expect(picked.refresh).toHaveBeenCalledTimes(1);
   });
 
+  it('keeps an action’s own refusal as written — a key stays a key', async () => {
+    const { result } = renderHook(() => useActionRunner());
+    const run = gated();
+    act(() => result.current.run(selection(['a']), run.command));
+    await run.settle('a', new ActionRefused(text('orders.shipped')));
+    expect(result.current.outcome?.failed).toEqual([
+      { key: 'a', reason: text('orders.shipped') },
+    ]);
+  });
+
   it('starts nothing more once stopped, and leaves what never ran selected', async () => {
-    const { result } = renderHook(() => useBulkCommand({ concurrency: 1 }));
+    const { result } = renderHook(() => useActionRunner({ concurrency: 1 }));
     const run = gated();
     const picked = selection(['a', 'b', 'c']);
 
@@ -165,7 +178,7 @@ describe('useBulkCommand', () => {
   });
 
   it('takes the outcome down when dismissed, and when the next run starts', async () => {
-    const { result } = renderHook(() => useBulkCommand());
+    const { result } = renderHook(() => useActionRunner());
     const run = gated();
 
     act(() => result.current.run(selection(['a']), run.command));
@@ -180,7 +193,7 @@ describe('useBulkCommand', () => {
   });
 
   it('reports nothing once the host that asked has gone', async () => {
-    const { result, unmount } = renderHook(() => useBulkCommand());
+    const { result, unmount } = renderHook(() => useActionRunner());
     const run = gated();
     const picked = selection(['a']);
 
@@ -193,7 +206,7 @@ describe('useBulkCommand', () => {
   });
 
   it('starts nothing from a run asked for after its host has gone', () => {
-    const { result, unmount } = renderHook(() => useBulkCommand());
+    const { result, unmount } = renderHook(() => useActionRunner());
     // Held by a handler that outlives the page: a late click, a timer.
     const run = result.current.run;
     unmount();
@@ -204,7 +217,7 @@ describe('useBulkCommand', () => {
 
   it('starts no record once the host that asked has gone, and lets those under way land', async () => {
     const { result, unmount } = renderHook(() =>
-      useBulkCommand({ concurrency: 2 }),
+      useActionRunner({ concurrency: 2 }),
     );
     const sent: RecordKey[] = [];
     const landed: RecordKey[] = [];
@@ -214,7 +227,7 @@ describe('useBulkCommand', () => {
     act(() =>
       result.current.run(selection(keys), {
         title: 'Retry',
-        each: key => {
+        each: (key: RecordKey) => {
           sent.push(key);
           return new Promise<void>(resolve =>
             releases.push(() => {
@@ -253,7 +266,7 @@ describe('failureReasons', () => {
 });
 
 /** A command as the line reads it, in the state a test puts it in. */
-function command(state: Partial<BulkCommand>): BulkCommand {
+function command(state: Partial<ActionRunner>): ActionRunner {
   return {
     run: vi.fn(),
     stop: vi.fn(),
@@ -372,5 +385,32 @@ describe('BulkStatus', () => {
 
     await userEvent.click(screen.getByRole('button', { name: 'Dismiss' }));
     expect(dismiss).toHaveBeenCalledTimes(1);
+  });
+
+  it('says a run’s name and an action’s refusal in the words in force', () => {
+    render(
+      <MessagesProvider
+        messages={{
+          'orders.remind': 'Remind as {value}',
+          'orders.urgent': 'urgent',
+          'orders.shipped': 'Already shipped.',
+        }}
+      >
+        <BulkStatus
+          command={command({
+            outcome: {
+              title: text('orders.remind'),
+              values: { value: text('orders.urgent') },
+              succeeded: ['a'],
+              failed: [{ key: 'b', reason: text('orders.shipped') }],
+              skipped: [],
+            },
+          })}
+        />
+      </MessagesProvider>,
+    );
+    expect(screen.getByRole('status').textContent).toContain(
+      'Remind as urgent · 1 done, 1 failed · Already shipped. (1)',
+    );
   });
 });

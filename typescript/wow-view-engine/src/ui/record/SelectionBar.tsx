@@ -17,6 +17,9 @@ import type {
   RecordBulkActionContext,
   RecordTableController,
 } from '../../react/index.js';
+
+/** What the selection's bar hands its actions: the selection itself. */
+export type SelectionContext = Omit<RecordBulkActionContext, 'run' | 'busy'>;
 import type { RecordViewRuntime } from '../../runtime/index.js';
 import { Badge } from '../components/badge.js';
 import { Button } from '../components/button.js';
@@ -25,11 +28,12 @@ import { SPACE } from '../layout.js';
 import { Toolbar, ToolbarItem } from '../toolbar.js';
 import { useViewMessages } from '../MessagesProvider.js';
 
-/** What the selection shows: its count, the way to drop it, the host's bulk slot. */
+/** What the selection shows: its count, the way to drop it, its actions. */
 interface SelectionProps {
   table: RecordTableController;
   runtime: RecordViewRuntime;
-  bulkActions?(context: RecordBulkActionContext): React.ReactNode;
+  /** The declared actions over the selection, then the host's bulk slot. */
+  bulkActions?(context: SelectionContext): React.ReactNode;
 }
 
 /**
@@ -93,11 +97,11 @@ export function SelectionGroup({
           <XIcon />
         </IconTooltip>
       </div>
-      {/* The host's own controls stay as they came: a bulk slot holds
-          arbitrary nodes, and an item can only be made of an element
-          this file renders. They are ordinary tab stops between the two
-          ends of the bar, which is the honest reading — the toolbar
-          does not own them. */}
+      {/* The actions stay as they came: a bulk slot holds arbitrary
+          nodes, and an item can only be made of an element this file
+          renders. They are ordinary tab stops between the two ends of
+          the bar, which is the honest reading — the toolbar does not own
+          them. */}
       {bulkActions?.({
         rows: table.selectedRows,
         keys: table.selection,
