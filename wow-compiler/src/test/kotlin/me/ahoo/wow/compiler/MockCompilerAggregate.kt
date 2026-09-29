@@ -41,6 +41,8 @@ interface CompilerAggregate
 interface MountedCommand
 
 @AggregateRoot(commands = [MountedCommand::class])
+// Wow finds and invokes the private command and sourcing handlers by reflection.
+@Suppress("UnusedPrivateMember")
 class MockCompilerAggregate(val id: String) : CompilerAggregate {
     private var state: String? = null
     fun state(): String? {

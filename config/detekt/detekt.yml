@@ -14,6 +14,21 @@ complexity:
   TooManyFunctions:
     active: false
 style:
+  ForbiddenImport:
+    active: true
+    # The event-stream record layout belongs to the event stores and the event-stream query backends. The snapshot,
+    # schema and aggregation query code reaches the store's layout through its own store, not through these names.
+    includes:
+      - '**/src/main/kotlin/me/ahoo/wow/mongo/query/**'
+      - '**/src/main/kotlin/me/ahoo/wow/elasticsearch/query/**'
+    excludes:
+      - '**/src/main/kotlin/me/ahoo/wow/mongo/query/event/**'
+      - '**/src/main/kotlin/me/ahoo/wow/elasticsearch/query/event/**'
+    imports:
+      - value: 'me.ahoo.wow.serialization.MessageRecords*'
+        reason: 'Only the event-stream query backends may name event-stream record fields; ask the store for its layout.'
+      - value: 'me.ahoo.wow.serialization.event.*'
+        reason: 'Only the event-stream query backends may name event-stream record fields; ask the store for its layout.'
   ForbiddenComment:
     comments:
       - reason: 'FIXME comments are not actionable; fix the issue or track it externally.'
@@ -32,13 +47,15 @@ style:
   UseCheckOrError:
     active: false
   UnusedPrivateMember:
-    active: false
+    active: true
   ProtectedMemberInFinalClass:
     active: false
   MagicNumber:
     active: false
   UnnecessaryAbstractClass:
-    active: false
+    # Needs type resolution (detektMain), which the `detekt` task does not run; wow-query, wow-mongo and
+    # wow-elasticsearch enforce it with wow-tck's UnnecessaryAbstractClassGuardrail in their tests.
+    active: true
   LoopWithTooManyJumpStatements:
     active: false
   WildcardImport:

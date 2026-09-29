@@ -18,6 +18,11 @@ import me.ahoo.wow.eventsourcing.snapshot.Snapshot
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.serialization.toLinkedHashMap
 
+/**
+ * The snapshot field the snapshot store indexes as the document `_id`: a snapshot is indexed under its aggregate id.
+ */
+internal const val SNAPSHOT_DOCUMENT_ID_SOURCE = MessageRecords.AGGREGATE_ID
+
 internal data class ElasticsearchSnapshotWrite(
     val index: String,
     val id: String,

@@ -22,7 +22,6 @@ import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.Queryable
 import me.ahoo.wow.mongo.Documents
-import me.ahoo.wow.mongo.Documents.replacePrimaryKeyTo
 import me.ahoo.wow.mongo.query.aggregation.MongoAggregationCompiler
 import me.ahoo.wow.mongo.toObjectNode
 import me.ahoo.wow.query.AdmittedQuery
@@ -40,9 +39,13 @@ import reactor.kotlin.core.publisher.toFlux
 import reactor.kotlin.core.publisher.toMono
 import tools.jackson.databind.node.ObjectNode
 
-internal fun Document.toQueryObjectNode(idField: String): ObjectNode {
+/**
+ * Serializes a stored document as a query row, first undoing the store's own primary-key mapping so the row carries
+ * the field the store moved into `_id`. The store owns that mapping; the query backend does not name the field.
+ */
+internal fun Document.toQueryObjectNode(restorePrimaryKey: Document.() -> Document): ObjectNode {
     if (containsKey(Documents.ID_FIELD)) {
-        replacePrimaryKeyTo(idField)
+        restorePrimaryKey()
     }
     return toObjectNode()
 }

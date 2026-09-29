@@ -27,6 +27,8 @@ import me.ahoo.wow.api.command.DeleteAggregate
 import me.ahoo.wow.api.command.RecoverAggregate
 import me.ahoo.wow.api.modeling.aware.VersionAware
 
+// Wow finds and invokes the private command and sourcing handlers by reflection.
+@Suppress("UnusedPrivateMember")
 class MockCommandAggregate(private val id: String) : VersionAware {
     private var state: String? = null
     private var otherState: String? = null
