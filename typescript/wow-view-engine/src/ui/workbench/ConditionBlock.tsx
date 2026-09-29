@@ -58,7 +58,7 @@ export function ConditionBlock({
   ) : (
     <section
       data-slot="condition-block"
-      className={cn('flex flex-col', TRAY, SPACE.ROWS)}
+      className={cn('fve:flex fve:flex-col', TRAY, SPACE.ROWS)}
     >
       <RenderBoundary
         name="editor"

@@ -145,15 +145,15 @@ export function ViewManager({
   };
 
   const rows = (
-    <div data-slot="view-manager" className="flex flex-col gap-3">
+    <div data-slot="view-manager" className="fve:flex fve:flex-col fve:gap-3">
       {groups.map(group => (
         <div
           key={group.audience}
           data-slot="view-manager-group"
           data-audience={group.audience}
-          className="flex flex-col gap-1"
+          className="fve:flex fve:flex-col fve:gap-1"
         >
-          <span className={cn('text-muted-foreground px-1', TEXT_UI)}>
+          <span className={cn('fve:text-muted-foreground fve:px-1', TEXT_UI)}>
             {messages.label(word(`label.scope.group.${group.audience}`))}
           </span>
           {group.items.map((item, index) => {
@@ -202,7 +202,7 @@ export function ViewManager({
           its drag handle: either way the dialog opens with a write under the
           user's finger and no word about what they are looking at. The
           heading is where a reader starts, and Tab from it is the first row. */}
-      <DialogContent className="sm:max-w-lg" initialFocus={heading}>
+      <DialogContent className="fve:sm:max-w-lg" initialFocus={heading}>
         <DialogHeader>
           {/* `tabIndex={-1}` makes it a focus target without making it a tab
               stop: it is reachable when focus is *sent* here, and invisible

@@ -1095,9 +1095,9 @@ describe('where the keyboard goes after a press on the bar (U-02)', () => {
     // fills come to is measured in the browser stories.
     const primary = () =>
       [...document.querySelectorAll<HTMLElement>('button')]
-        .filter(button => button.classList.contains('bg-primary'))
+        .filter(button => button.classList.contains('fve:bg-primary'))
         .map(button => button.textContent?.trim());
-    expect(wire.classList.contains('bg-primary')).toBe(false);
+    expect(wire.classList.contains('fve:bg-primary')).toBe(false);
     await user.click(wire);
     await screen.findByRole('button', { name: 'Done wiring' });
     expect(primary()).toEqual(['Save']);

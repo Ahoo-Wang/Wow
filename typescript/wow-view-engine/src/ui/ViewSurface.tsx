@@ -455,7 +455,10 @@ function Surface({
       data-theme={pinned}
       data-fve-preset={preset}
       data-fve-density={density}
-      className={cn('fve-root flex min-h-0 flex-col gap-3', className)}
+      className={cn(
+        'fve-root fve:flex fve:min-h-0 fve:flex-col fve:gap-3',
+        className,
+      )}
       // The host's values under the caller's own style, so a caller that
       // sets the same variable in `style` still says the last word.
       style={tokens ? { ...tokens, ...style } : style}

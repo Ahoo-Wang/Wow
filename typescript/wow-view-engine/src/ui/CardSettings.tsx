@@ -129,7 +129,7 @@ export function CardSettings({ table, fields, trigger }: CardSettingsProps) {
           </TooltipContent>
         </Tooltip>
       )}
-      <PopoverContent align="end" className="w-80">
+      <PopoverContent align="end" className="fve:w-80">
         <PopoverHeader>
           <PopoverTitle>{messages.label('label.card.title')}</PopoverTitle>
           <PopoverDescription>
@@ -170,7 +170,7 @@ export function CardSettings({ table, fields, trigger }: CardSettingsProps) {
 
           <FieldSet data-slot="card-body-fields">
             <FieldTitle>{messages.label('label.card.fields')}</FieldTitle>
-            <FieldGroup className="gap-2">
+            <FieldGroup className="fve:gap-2">
               {offered
                 .filter(field => field.name !== spec.title)
                 .map(field => {
@@ -194,7 +194,7 @@ export function CardSettings({ table, fields, trigger }: CardSettingsProps) {
                         onCheckedChange={checked => toggle(field.name, checked)}
                       />
                       <FieldContent>
-                        <FieldLabel htmlFor={id} className="font-normal">
+                        <FieldLabel htmlFor={id} className="fve:font-normal">
                           {field.label}
                         </FieldLabel>
                       </FieldContent>

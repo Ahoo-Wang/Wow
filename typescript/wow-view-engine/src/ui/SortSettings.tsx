@@ -276,7 +276,7 @@ export function SortSettings({
           />
         </ToolbarItem>
       )}
-      <PopoverContent align="end" className="w-80">
+      <PopoverContent align="end" className="fve:w-80">
         <PopoverHeader>
           <PopoverTitle>{messages.label('label.sort.title')}</PopoverTitle>
           <PopoverDescription>{messages.label(words.hint)}</PopoverDescription>
@@ -288,7 +288,7 @@ export function SortSettings({
             happened — inside a popover this small it would be a bordered,
             icon-bearing box taking more room than the list it is about. */}
         {full && (
-          <p className="text-muted-foreground">
+          <p className="fve:text-muted-foreground">
             {messages.label(words.full, {
               max: table.maxSortFields,
             })}
@@ -299,7 +299,7 @@ export function SortSettings({
           // Nothing here yet, which is what `Empty` is for: the same shape
           // the result block and the view list use when they have nothing
           // to show, rather than a third way of saying it.
-          <Empty data-slot="sort-unsorted" className="p-0">
+          <Empty data-slot="sort-unsorted" className="fve:p-0">
             <EmptyHeader>
               <EmptyDescription>
                 {messages.label(words.unsorted)}
@@ -317,7 +317,7 @@ export function SortSettings({
             <ul
               data-slot="sort-entries"
               aria-label={messages.label('label.sort.title')}
-              className="flex flex-col gap-1"
+              className="fve:flex fve:flex-col fve:gap-1"
             >
               {table.sort.map((entry, index) => (
                 <SortEntry
@@ -448,7 +448,7 @@ function SortEntry({
     >
       {/* The handle and the place it holds are one group: where this entry
           sits and how to move it are the same subject. */}
-      <ItemMedia className="gap-1">
+      <ItemMedia className="fve:gap-1">
         <DragHandle
           ref={handleRef}
           label={messages.label('label.sort.drag', { field: label })}
@@ -461,16 +461,21 @@ function SortEntry({
           disabled={total < 2}
           onMove={onMove}
         />
-        <span className={cn('text-muted-foreground w-4 text-center', TEXT_UI)}>
+        <span
+          className={cn(
+            'fve:text-muted-foreground fve:w-4 fve:text-center',
+            TEXT_UI,
+          )}
+        >
           {index + 1}
         </span>
       </ItemMedia>
 
-      <ItemContent className="min-w-0">
-        <ItemTitle className="max-w-full">{label}</ItemTitle>
+      <ItemContent className="fve:min-w-0">
+        <ItemTitle className="fve:max-w-full">{label}</ItemTitle>
       </ItemContent>
 
-      <ItemActions className="gap-1">
+      <ItemActions className="fve:gap-1">
         <Button
           type="button"
           variant="ghost"

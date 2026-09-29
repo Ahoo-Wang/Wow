@@ -158,7 +158,11 @@ async function selectFirstRow(table: HTMLElement): Promise<HTMLElement> {
 
 /** The heights of every registry button drawn at one of its two steps. */
 function buttonHeights(root: HTMLElement, step: 'h-8' | 'h-7'): number[] {
-  return [...root.querySelectorAll<HTMLElement>(`.group\\/button.${step}`)]
+  return [
+    ...root.querySelectorAll<HTMLElement>(
+      `.fve\\:group\\/button.fve\\:${step}`,
+    ),
+  ]
     .filter(button => button.getClientRects().length > 0)
     .map(button => button.getBoundingClientRect().height);
 }

@@ -239,7 +239,7 @@ describe('the theme has two boundaries and only one of them is a surface', () =>
   it('paints the page on the surface alone', () => {
     const painted: string[] = [];
     postcss.parse(STYLESHEET).walkAtRules('apply', rule => {
-      if (rule.params.includes('bg-background'))
+      if (rule.params.includes('fve:bg-background'))
         painted.push((rule.parent as Rule).selector);
     });
 

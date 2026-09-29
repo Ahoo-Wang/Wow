@@ -85,7 +85,7 @@ export function EditableTabBar({
 }) {
   const messages = useViewMessages();
   return (
-    <div className="flex min-w-0 flex-wrap items-center gap-1 border-b pb-1">
+    <div className="fve:flex fve:min-w-0 fve:flex-wrap fve:items-center fve:gap-1 fve:border-b fve:pb-1">
       <DragDropProvider
         {...sortableList(
           dragAccessibility(dragWording(messages, TAB_DRAG_WORDING), id => {
@@ -104,7 +104,7 @@ export function EditableTabBar({
       >
         <ul
           aria-label={messages.label('label.tabs.name')}
-          className="flex min-w-0 flex-wrap items-center gap-1"
+          className="fve:flex fve:min-w-0 fve:flex-wrap fve:items-center fve:gap-1"
         >
           {tabs.map((tab, index) => (
             <EditableTab
@@ -226,7 +226,7 @@ function EditableTab({
       ref={ref}
       data-slot="dashboard-tab-item"
       data-dragging={isDragging || undefined}
-      className="flex items-center"
+      className="fve:flex fve:items-center"
     >
       <DragHandle
         ref={handleRef}
@@ -246,7 +246,7 @@ function EditableTab({
           required
           onCommit={typed => onRenamed(keptKey(typed, tab.title, messages.say))}
           onCancel={onRenameCancel}
-          className="h-7 w-36"
+          className="fve:h-7 fve:w-36"
         />
       ) : (
         <Button

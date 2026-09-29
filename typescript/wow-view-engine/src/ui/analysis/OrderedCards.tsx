@@ -100,7 +100,7 @@ export function OrderedCards<T extends OrderedCard>({
           if (drop) moveTo(drop.from, drop.to);
         }}
       >
-        <ol aria-label={label} className="flex flex-col gap-2">
+        <ol aria-label={label} className="fve:flex fve:flex-col fve:gap-2">
           {items.map((item, index) => (
             <OrderedCardRow
               // Kept by what it is, so a move carries the card — and the

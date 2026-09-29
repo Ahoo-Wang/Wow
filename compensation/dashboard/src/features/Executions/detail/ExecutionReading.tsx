@@ -402,9 +402,9 @@ function Story({
           {read.moments.map((moment, index) => (
             <li
               key={`${moment.kind}-${moment.at}-${index}`}
-              // One layout at every width: inside the engine's panel its
-              // own utilities outrank a host's breakpoint variants.
-              className="grid grid-cols-[5.5rem_minmax(0,1fr)_auto] items-baseline gap-x-3 border-t px-3 py-2 text-sm first:border-t-0"
+              // On a phone the duration goes under the reading, so the
+              // reading keeps the row's width.
+              className="grid grid-cols-[5.5rem_minmax(0,1fr)] items-baseline gap-x-3 border-t px-3 py-2 text-sm first:border-t-0 sm:grid-cols-[5.5rem_minmax(0,1fr)_auto]"
             >
               <span className="font-medium">{momentLabel(moment, t)}</span>
               <span className="flex min-w-0 flex-wrap items-baseline gap-x-3">
@@ -415,7 +415,7 @@ function Story({
                   <MomentResult moment={moment} />
                 </span>
               </span>
-              <span className="text-right text-muted-foreground tabular-nums">
+              <span className="col-start-2 text-muted-foreground tabular-nums sm:col-start-auto sm:text-right">
                 {moment.kind === "attempt" && moment.endedAt !== null
                   ? formatSeconds(
                       Math.max(

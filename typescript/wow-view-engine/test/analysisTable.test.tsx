@@ -531,7 +531,7 @@ describe('an identifier dimension', () => {
     // Surviving class assertion: the face is a declaration with no state
     // behind it — the record table's own `IDENTIFIER_FACE`, which the
     // browser story measures as a monospace family.
-    expect(ids[0]!.className).toContain('font-mono');
+    expect(ids[0]!.className).toContain('fve:font-mono');
   });
 });
 

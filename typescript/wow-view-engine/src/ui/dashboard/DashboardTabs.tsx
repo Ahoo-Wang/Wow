@@ -146,7 +146,7 @@ export function DashboardTabs({
   const building = editing != null;
   if (tabs.length < 2)
     return building ? (
-      <div data-slot="dashboard-tabs" className="flex items-center">
+      <div data-slot="dashboard-tabs" className="fve:flex fve:items-center">
         <Button variant="ghost" size="sm" onClick={add}>
           <PlusIcon data-icon="inline-start" />
           {messages.label('label.tabs.add')}
@@ -179,7 +179,10 @@ export function DashboardTabs({
   // sortable list in this package is. Read, it is the tabs.
   if (building)
     return (
-      <div data-slot="dashboard-tabs" className="flex flex-col gap-3">
+      <div
+        data-slot="dashboard-tabs"
+        className="fve:flex fve:flex-col fve:gap-3"
+      >
         <EditableTabBar
           tabs={tabs}
           shown={shown}
@@ -208,7 +211,7 @@ export function DashboardTabs({
     <TabsList
       variant="line"
       aria-label={messages.label('label.tabs.name')}
-      className="max-w-full flex-wrap"
+      className="fve:max-w-full fve:flex-wrap"
     >
       {tabs.map((tab, index) => (
         <TabsTrigger
@@ -216,7 +219,7 @@ export function DashboardTabs({
           value={tab.id}
           data-slot="dashboard-tab"
           ref={triggerRef(tab.id)}
-          className="flex-none"
+          className="fve:flex-none"
         >
           {titleOf(tab, index)}
         </TabsTrigger>
@@ -230,12 +233,14 @@ export function DashboardTabs({
       onValueChange={value => {
         if (typeof value === 'string') show(value);
       }}
-      className="gap-3"
+      className="fve:gap-3"
     >
       {end ? (
-        <div className="flex items-center gap-2">
+        <div className="fve:flex fve:items-center fve:gap-2">
           {list}
-          <div className="ml-auto flex shrink-0 items-center gap-2">{end}</div>
+          <div className="fve:ml-auto fve:flex fve:shrink-0 fve:items-center fve:gap-2">
+            {end}
+          </div>
         </div>
       ) : (
         list

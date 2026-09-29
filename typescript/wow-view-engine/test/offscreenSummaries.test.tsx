@@ -246,7 +246,7 @@ describe('the hint in a record table', () => {
    */
   const shown = (button: HTMLElement) => {
     const words = button.cloneNode(true) as Element;
-    words.querySelector('.sr-only')?.remove();
+    words.querySelector('.fve\\:sr-only')?.remove();
     words.querySelector('svg')?.remove();
     const label = words.querySelector('[data-slot="summary-offscreen-label"]');
     return `${label?.textContent ?? ''} ${label?.nextElementSibling?.textContent?.trim() ?? ''}`;

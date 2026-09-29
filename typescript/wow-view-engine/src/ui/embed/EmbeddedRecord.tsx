@@ -144,7 +144,7 @@ export function EmbeddedRecord({
   if (failed && !table.hasResult)
     body = <QueryStrip error={table.error} stale={false} onRetry={retry} />;
   else if (table.loading && table.rows.length === 0)
-    body = <Skeleton className="h-24 w-full" />;
+    body = <Skeleton className="fve:h-24 fve:w-full" />;
   else
     body = (
       <>
@@ -184,16 +184,16 @@ export function EmbeddedRecord({
       {search ? (
         <div
           data-slot="applied-row"
-          className="flex flex-wrap items-center gap-2"
+          className="fve:flex fve:flex-wrap fve:items-center fve:gap-2"
         >
           <AppliedBar
             filter={filter}
             asked={hasAsked(state)}
             readOnly
             title={state?.title}
-            className="min-w-0 grow"
+            className="fve:min-w-0 fve:grow"
           />
-          <div className="ml-auto">{search}</div>
+          <div className="fve:ml-auto">{search}</div>
         </div>
       ) : (
         <AppliedBar

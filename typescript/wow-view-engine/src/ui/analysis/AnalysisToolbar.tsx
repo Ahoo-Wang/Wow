@@ -116,18 +116,20 @@ export function AnalysisToolbar({
     <Toolbar
       data-slot="result-toolbar"
       aria-label={messages.label('label.toolbar.title')}
-      className={`flex flex-wrap items-center ${SPACE.GROUPS}`}
+      className={`fve:flex fve:flex-wrap fve:items-center ${SPACE.GROUPS}`}
     >
       {/* Wraps rather than truncates: the having comes last, and it is
           the part that explains groups missing from the table — a line cut
           at its tail would cut exactly that. */}
       <span
         data-slot="analysis-reading"
-        className={`text-muted-foreground min-w-0 ${TEXT_UI}`}
+        className={`fve:text-muted-foreground fve:min-w-0 ${TEXT_UI}`}
       >
         {reading}
       </span>
-      <div className={`ml-auto flex flex-wrap items-center ${SPACE.GROUPS}`}>
+      <div
+        className={`fve:ml-auto fve:flex fve:flex-wrap fve:items-center ${SPACE.GROUPS}`}
+      >
         <ToggleGroup
           value={[analysis.layout]}
           onValueChange={value => {

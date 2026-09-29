@@ -92,7 +92,7 @@ export function TimeOfDay({
   const labelTo = messages.label('label.date.time-to');
 
   return (
-    <FieldGroup className={cn('border-t p-3', SPACE.ROWS)}>
+    <FieldGroup className={cn('fve:border-t fve:p-3', SPACE.ROWS)}>
       {open ? (
         <>
           <TimeField
@@ -125,7 +125,7 @@ export function TimeOfDay({
             variant="ghost"
             size="sm"
             data-slot="date-time-remove"
-            className="self-start"
+            className="fve:self-start"
             disabled={disabled}
             onClick={() => {
               if (from.time !== '') onFrom('');
@@ -140,10 +140,10 @@ export function TimeOfDay({
           </Button>
         </>
       ) : (
-        <div className="flex items-center justify-between gap-2">
+        <div className="fve:flex fve:items-center fve:justify-between fve:gap-2">
           <span
             data-slot="date-time-whole-day"
-            className="text-muted-foreground text-sm"
+            className="fve:text-muted-foreground fve:text-sm"
           >
             {messages.label('label.date.time-whole-day')}
           </span>
@@ -253,7 +253,7 @@ function TimeField({
             }
           }}
         />
-        <InputGroupText aria-hidden="true" className="px-0">
+        <InputGroupText aria-hidden="true" className="fve:px-0">
           :
         </InputGroupText>
         <Segment
@@ -267,7 +267,7 @@ function TimeField({
           }
         />
         {/* The × at the far end, where every other clearable box keeps it. */}
-        <InputGroupAddon align="inline-end" className="ml-auto">
+        <InputGroupAddon align="inline-end" className="fve:ml-auto">
           {set && (
             <IconButton
               type="button"
@@ -318,7 +318,7 @@ function Segment({
       format={{ minimumIntegerDigits: 2, useGrouping: false }}
       disabled={disabled}
       onValueChange={next => onValue(next)}
-      className="contents"
+      className="fve:contents"
     >
       <NumberFieldPrimitive.Input
         ref={inputRef}
@@ -333,7 +333,7 @@ function Segment({
           if (/^\d$/.test(event.key)) onText?.(event.currentTarget.value);
         }}
         render={
-          <InputGroupInput className="w-8 flex-none px-0 text-center tabular-nums" />
+          <InputGroupInput className="fve:w-8 fve:flex-none fve:px-0 fve:text-center fve:tabular-nums" />
         }
       />
     </NumberFieldPrimitive.Root>

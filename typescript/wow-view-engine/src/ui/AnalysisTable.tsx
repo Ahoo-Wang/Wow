@@ -380,9 +380,9 @@ export function AnalysisTable({
                 aria-current={pressed ? 'true' : undefined}
                 aria-haspopup={onPick && opensMenu ? 'menu' : undefined}
                 className={cn(
-                  onPick && 'cursor-pointer',
+                  onPick && 'fve:cursor-pointer',
                   FOCUS_ROW,
-                  'data-[pressed]:bg-row-selected data-[pressed]:text-row-selected-foreground',
+                  'fve:data-[pressed]:bg-row-selected fve:data-[pressed]:text-row-selected-foreground',
                 )}
                 // The menu hangs from the cell pressed, or from the row's first
                 // cell for a key, never from the row: a menu anchored to a row
@@ -499,7 +499,10 @@ export function AnalysisTable({
                         action to take. */}
                     <span
                       data-slot="totals-scope"
-                      className={cn('block truncate font-normal', TEXT_UI)}
+                      className={cn(
+                        'fve:block fve:truncate fve:font-normal',
+                        TEXT_UI,
+                      )}
                     >
                       {messages.label('label.analysis.totals-scope')}
                     </span>
@@ -516,7 +519,10 @@ export function AnalysisTable({
                       <span
                         data-slot="totals-hidden"
                         title={hidden.join(' · ')}
-                        className={cn('block truncate font-normal', TEXT_UI)}
+                        className={cn(
+                          'fve:block fve:truncate fve:font-normal',
+                          TEXT_UI,
+                        )}
                       >
                         {hidden.join(' · ')}
                       </span>
@@ -538,23 +544,27 @@ export function AnalysisTable({
           `aria-describedby` reaching an id that is not there is a broken
           description rather than a missing one. */}
       {sorting && (
-        <span id={additiveId} className="sr-only">
+        <span id={additiveId} className="fve:sr-only">
           {messages.label('label.sort.additive')}
         </span>
       )}
       {spans && (
-        <span id={spanId} className="sr-only">
+        <span id={spanId} className="fve:sr-only">
           {messages.label('label.drill.span-hint')}
         </span>
       )}
       {view.columns.some(column => column.fn === 'PERCENTILE') && (
-        <span id={approximateId} className="sr-only">
+        <span id={approximateId} className="fve:sr-only">
           {messages.label('label.analysis.approximate')}
         </span>
       )}
       {columns.map(({ column }, index) =>
         column.condition ? (
-          <span key={column.alias} id={conditionId(index)} className="sr-only">
+          <span
+            key={column.alias}
+            id={conditionId(index)}
+            className="fve:sr-only"
+          >
             {onlyWhereText(column.condition.items, messages, display)}
           </span>
         ) : null,

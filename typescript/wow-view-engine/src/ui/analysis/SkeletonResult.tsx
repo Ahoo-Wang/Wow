@@ -52,7 +52,7 @@ export function AnalysisSkeleton({ layout, columns }: AnalysisSkeletonProps) {
       <Skeleton
         data-slot="analysis-chart-skeleton"
         aria-hidden
-        className="mx-4 mt-3 min-h-0 flex-1"
+        className="fve:mx-4 fve:mt-3 fve:min-h-0 fve:flex-1"
       />
     );
 
@@ -71,7 +71,7 @@ export function AnalysisSkeleton({ layout, columns }: AnalysisSkeletonProps) {
                   style={column.width ? { width: column.width } : undefined}
                 >
                   <Skeleton
-                    className="h-4"
+                    className="fve:h-4"
                     style={{ width: barWidth(column.label) }}
                   />
                 </TableCell>
@@ -96,10 +96,10 @@ export function CaptionSkeleton() {
       data-slot="analysis-caption"
       data-loading=""
       aria-hidden
-      className="flex justify-end"
+      className="fve:flex fve:justify-end"
     >
       {/* One line of the caption's `text-sm`: 20px. */}
-      <Skeleton className="h-5 w-40" />
+      <Skeleton className="fve:h-5 fve:w-40" />
     </div>
   );
 }

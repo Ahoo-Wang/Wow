@@ -137,9 +137,9 @@ export function ChooseStep({
           how many rows, under what, which columns, and what it is called. */}
       <div
         data-slot="export-summary"
-        className="text-muted-foreground flex flex-col gap-1 text-sm"
+        className="fve:text-muted-foreground fve:flex fve:flex-col fve:gap-1 fve:text-sm"
       >
-        <span data-slot="export-rows" className="text-foreground">
+        <span data-slot="export-rows" className="fve:text-foreground">
           {holds?.rows ??
             (count === null
               ? messages.label('label.export.rows-unknown')
@@ -217,7 +217,10 @@ export function RunningStep({ control }: { control: RecordExportController }) {
       ? messages.label('label.export.progress-unknown', { fetched })
       : messages.label('label.export.progress', { fetched, total });
   return (
-    <div data-slot="export-progress" className="flex flex-col gap-2">
+    <div
+      data-slot="export-progress"
+      className="fve:flex fve:flex-col fve:gap-2"
+    >
       {/* Indeterminate where no total was reported: a bar that filled
           against a number nobody has would be inventing the number.
           `aria-valuetext` is the line printed beside it rather than the
@@ -231,9 +234,9 @@ export function RunningStep({ control }: { control: RecordExportController }) {
         aria-valuetext={said}
         value={total === undefined ? null : fetched}
         max={total ?? 100}
-        className="[&_[data-slot=progress-track]]:h-2"
+        className="fve:[&_[data-slot=progress-track]]:h-2"
       />
-      <span data-slot="export-count" role="status" className="text-sm">
+      <span data-slot="export-count" role="status" className="fve:text-sm">
         {said}
       </span>
     </div>
@@ -254,14 +257,17 @@ export function DoneStep({
   const outcome = control.outcome;
   if (!outcome) return null;
   return (
-    <div data-slot="export-done" className="flex flex-col gap-1 text-sm">
-      <span data-slot="export-file" className="text-muted-foreground">
+    <div
+      data-slot="export-done"
+      className="fve:flex fve:flex-col fve:gap-1 fve:text-sm"
+    >
+      <span data-slot="export-file" className="fve:text-muted-foreground">
         {messages.label('label.export.file', { name: fileName })}
       </span>
       {/* A file the ceiling cut short is the file that was agreed to, so it
           is said as part of the outcome rather than as a warning of its own. */}
       {outcome.capped && (
-        <span data-slot="export-capped" className="text-warning">
+        <span data-slot="export-capped" className="fve:text-warning">
           {outcome.total === undefined
             ? messages.label('label.export.done-capped-unknown', { max })
             : messages.label('label.export.done-capped', {

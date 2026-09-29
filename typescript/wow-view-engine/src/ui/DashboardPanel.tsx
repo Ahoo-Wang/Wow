@@ -325,8 +325,8 @@ export function DashboardPanel({
       data-kind={panel.panel.kind === 'view' ? undefined : panel.panel.kind}
       data-warning={warned || undefined}
       className={cn(
-        'h-full gap-2 overflow-hidden py-(--_fve-panel-padding-block)',
-        heading && 'justify-center',
+        'fve:h-full fve:gap-2 fve:overflow-hidden fve:py-(--_fve-panel-padding-block)',
+        heading && 'fve:justify-center',
       )}
     >
       <PanelHeader
@@ -344,7 +344,7 @@ export function DashboardPanel({
         picture={picture}
       />
       {picture && (
-        <div className="px-3 empty:hidden">
+        <div className="fve:px-3 fve:empty:hidden">
           <ImageFailed offer={picture} />
         </div>
       )}
@@ -364,7 +364,7 @@ export function DashboardPanel({
           data-scroll-below={scroll.below || undefined}
           style={scroll.style}
           className={cn(
-            'min-h-0 flex-1 overflow-auto px-(--_fve-panel-padding)',
+            'fve:min-h-0 fve:flex-1 fve:overflow-auto fve:px-(--_fve-panel-padding)',
             FOCUS_INSET,
           )}
         >
@@ -399,7 +399,7 @@ export function DashboardPanel({
       )}
       {(!heading || panel.broken) && <ScrollCue scroll={scroll} />}
       {!panel.broken && panel.runtime && isRecordRuntime(panel.runtime) && (
-        <div className="px-(--_fve-panel-padding)" data-slot="panel-paging">
+        <div className="fve:px-(--_fve-panel-padding)" data-slot="panel-paging">
           <RecordPanelPaging
             runtime={panel.runtime}
             name={name}
@@ -407,7 +407,7 @@ export function DashboardPanel({
           />
         </div>
       )}
-      {footer && <div className="px-(--_fve-panel-padding)">{footer}</div>}
+      {footer && <div className="fve:px-(--_fve-panel-padding)">{footer}</div>}
       {commands?.exportRows && exporting !== null && (
         <PanelExport
           key={commands.exportRows.id}
@@ -470,12 +470,12 @@ function PanelHeader({
   return (
     <CardHeader
       data-untitled={untitled || undefined}
-      className={cn('px-(--_fve-panel-padding)', bare && 'sr-only')}
+      className={cn('fve:px-(--_fve-panel-padding)', bare && 'fve:sr-only')}
     >
       <CardTitle
         className={cn(
-          'flex min-w-0 items-center gap-1',
-          heading ? 'text-base' : 'text-sm',
+          'fve:flex fve:min-w-0 fve:items-center fve:gap-1',
+          heading ? 'fve:text-base' : 'fve:text-sm',
         )}
       >
         <PanelMarks marks={marks} line="glyphs" />
@@ -515,7 +515,10 @@ function PanelHeader({
         ) : (
           <Title
             data-slot="panel-title"
-            className={cn('min-w-0 truncate', untitled && 'sr-only')}
+            className={cn(
+              'fve:min-w-0 fve:truncate',
+              untitled && 'fve:sr-only',
+            )}
           >
             {name}
           </Title>
@@ -524,7 +527,7 @@ function PanelHeader({
           menu is on every panel a reader sees, and a header grown by
           it would take its height from a metric card's two rows. */}
         {menu && (
-          <span className="-my-1 ml-auto flex shrink-0">
+          <span className="fve:-my-1 fve:ml-auto fve:flex fve:shrink-0">
             <PanelMenu
               name={name}
               commands={menu}
@@ -551,7 +554,7 @@ interface WayOut {
 function AwaitingDate({ filter }: { filter: string }) {
   const messages = useViewMessages();
   return (
-    <Empty data-slot="panel-awaiting-date" className="h-full p-4">
+    <Empty data-slot="panel-awaiting-date" className="fve:h-full fve:p-4">
       <EmptyHeader>
         <EmptyMedia variant="icon">
           <CalendarIcon />

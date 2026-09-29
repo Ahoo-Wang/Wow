@@ -95,10 +95,10 @@ export function ChartLegend({
       data-slot="chart-legend"
       data-open={open || undefined}
       className={cn(
-        'text-muted-foreground flex min-w-0 gap-2',
+        'fve:text-muted-foreground fve:flex fve:min-w-0 fve:gap-2',
         at === 'right'
-          ? 'max-w-[40%] shrink-0 flex-col justify-center overflow-y-auto'
-          : 'items-start',
+          ? 'fve:max-w-[40%] fve:shrink-0 fve:flex-col fve:justify-center fve:overflow-y-auto'
+          : 'fve:items-start',
       )}
     >
       <ul
@@ -107,11 +107,13 @@ export function ChartLegend({
           switches ? messages.label('label.chart.legend.toggle') : undefined
         }
         className={cn(
-          'relative flex min-w-0 gap-y-1',
-          switches ? 'gap-x-1' : 'gap-x-4',
-          at === 'right' ? 'flex-col' : 'flex-1 flex-wrap items-center',
-          folds && !open && 'overflow-hidden',
-          folds && !open && (switches ? 'max-h-6' : 'max-h-4'),
+          'fve:relative fve:flex fve:min-w-0 fve:gap-y-1',
+          switches ? 'fve:gap-x-1' : 'fve:gap-x-4',
+          at === 'right'
+            ? 'fve:flex-col'
+            : 'fve:flex-1 fve:flex-wrap fve:items-center',
+          folds && !open && 'fve:overflow-hidden',
+          folds && !open && (switches ? 'fve:max-h-6' : 'fve:max-h-4'),
         )}
       >
         {lead}
@@ -121,8 +123,8 @@ export function ChartLegend({
             data-slot="chart-legend-item"
             data-hidden={entry.hidden || undefined}
             className={cn(
-              'flex min-w-0 items-center gap-1.5',
-              switches ? 'h-6' : 'h-4',
+              'fve:flex fve:min-w-0 fve:items-center fve:gap-1.5',
+              switches ? 'fve:h-6' : 'fve:h-4',
             )}
           >
             {switches ? (
@@ -131,7 +133,7 @@ export function ChartLegend({
                 variant="ghost"
                 size="xs"
                 aria-pressed={!entry.hidden}
-                className="min-w-0"
+                className="fve:min-w-0"
                 onClick={() => onToggle(entry.key)}
               >
                 <EntryText entry={entry} />
@@ -147,7 +149,10 @@ export function ChartLegend({
           data-slot="chart-legend-more"
           variant="link"
           size="xs"
-          className={cn('shrink-0 px-0', switches ? 'h-6' : 'h-4')}
+          className={cn(
+            'fve:shrink-0 fve:px-0',
+            switches ? 'fve:h-6' : 'fve:h-4',
+          )}
           aria-expanded={open}
           onClick={() => setOpen(!open)}
         >
@@ -174,27 +179,29 @@ function EntryText({ entry }: { entry: LegendEntry }) {
           data-slot="chart-legend-dash"
           data-stroke={entry.dashed}
           className={cn(
-            'text-foreground w-3 shrink-0 border-t-2 border-current',
-            entry.dashed === 'dotted' ? 'border-dotted' : 'border-dashed',
-            entry.hidden && 'opacity-50',
+            'fve:text-foreground fve:w-3 fve:shrink-0 fve:border-t-2 fve:border-current',
+            entry.dashed === 'dotted'
+              ? 'fve:border-dotted'
+              : 'fve:border-dashed',
+            entry.hidden && 'fve:opacity-50',
           )}
         />
       ) : (
         <span
           aria-hidden
           data-slot="chart-legend-dot"
-          className="size-2 shrink-0 rounded-full border-2"
+          className="fve:size-2 fve:shrink-0 fve:rounded-full fve:border-2"
           style={{
             borderColor: entry.color,
             background: entry.hidden ? 'transparent' : entry.color,
           }}
         />
       )}
-      <span className={cn('truncate', entry.hidden && 'line-through')}>
+      <span className={cn('fve:truncate', entry.hidden && 'fve:line-through')}>
         {entry.label}
       </span>
       {entry.value !== undefined && (
-        <span className="text-foreground ml-auto pl-1 tabular-nums">
+        <span className="fve:text-foreground fve:ml-auto fve:pl-1 fve:tabular-nums">
           {entry.value}
         </span>
       )}

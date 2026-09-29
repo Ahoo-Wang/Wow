@@ -54,14 +54,14 @@ export function ScrollCue({ scroll }: { scroll: ScrollState }) {
     <div
       data-slot="panel-scroll-cue-anchor"
       aria-hidden="true"
-      className="relative -mt-2 h-0"
+      className="fve:relative fve:-mt-2 fve:h-0"
     >
       <Badge
         variant="secondary"
         data-slot="panel-scroll-cue"
         data-rows={scroll.rows}
         data-columns={scroll.columns}
-        className="pointer-events-none absolute right-(--_fve-panel-padding) shadow-sm"
+        className="fve:pointer-events-none fve:absolute fve:right-(--_fve-panel-padding) fve:shadow-sm"
         style={{ bottom: scroll.inset + 4 }}
       >
         <Icon data-icon="inline-start" />

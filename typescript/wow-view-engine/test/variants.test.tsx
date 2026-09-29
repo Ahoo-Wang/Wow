@@ -68,20 +68,20 @@ describe('ToneBadge', () => {
     // unset; theme-architecture.md 4.2) — the recipe writes the words alone.
     expect(success.dataset.tone).toBe('success');
     expect(danger.dataset.tone).toBe('danger');
-    expect(success.className).toContain('text-success');
-    expect(success.className).not.toContain('bg-success/10');
-    expect(success.className).not.toContain('border-success/30');
+    expect(success.className).toContain('fve:text-success');
+    expect(success.className).not.toContain('fve:bg-success/10');
+    expect(success.className).not.toContain('fve:border-success/30');
     // Danger writes in its own token in both modes: the dark-only mix
     // toward the foreground went with the quieter dark status colours (Q44),
     // whose ink `test/presetContrast.test.ts` measures in every preset.
-    expect(danger.className).toContain('text-destructive');
+    expect(danger.className).toContain('fve:text-destructive');
     expect(danger.className).not.toContain('dark:text-');
     // No tone is no fill at all: the edge is the whole of a neutral badge,
     // because the row under it moves through the registry's `secondary`.
-    expect(neutral.className).toContain('border-input');
-    expect(neutral.className).not.toContain('bg-success');
+    expect(neutral.className).toContain('fve:border-input');
+    expect(neutral.className).not.toContain('fve:bg-success');
     // The dot says "a status"; a neutral value is only a value.
-    expect(success.className).toContain("before:content-['']");
+    expect(success.className).toContain("fve:before:content-['']");
     expect(neutral.className).not.toContain('before:content');
   });
 
@@ -106,8 +106,8 @@ describe('ToneBadge', () => {
     );
     // The tone stays; only the dot the icon would stand beside goes.
     const badge = document.querySelector<HTMLElement>('[data-slot="badge"]')!;
-    expect(badge.className).toContain('text-success');
-    expect(badge.className).toContain('before:hidden');
+    expect(badge.className).toContain('fve:text-success');
+    expect(badge.className).toContain('fve:before:hidden');
   });
 });
 
@@ -124,11 +124,11 @@ describe('AddButton', () => {
     );
     const button = screen.getByRole('button', { name: 'Add' });
     expect(button.getAttribute('data-affordance')).toBe('add');
-    expect(button.className).toContain('border-dashed');
-    expect(button.className).toContain('border-border');
-    expect(button.className).toContain('dark:border-input');
-    expect(button.className).toContain('hover:bg-muted');
-    expect(button.className).toContain('focus-visible:ring-ring/50');
+    expect(button.className).toContain('fve:border-dashed');
+    expect(button.className).toContain('fve:border-border');
+    expect(button.className).toContain('fve:dark:border-input');
+    expect(button.className).toContain('fve:hover:bg-muted');
+    expect(button.className).toContain('fve:focus-visible:ring-ring/50');
   });
 });
 
@@ -148,13 +148,13 @@ describe('the controls of a condition pill', () => {
     const [inPill, alone] = [
       ...document.querySelectorAll<HTMLElement>('[data-slot="input"]'),
     ];
-    expect(inPill.className).toContain('border-transparent');
-    expect(inPill.className).toContain('bg-transparent');
-    expect(alone.className).not.toContain('border-transparent');
+    expect(inPill.className).toContain('fve:border-transparent');
+    expect(inPill.className).toContain('fve:bg-transparent');
+    expect(alone.className).not.toContain('fve:border-transparent');
     // Everything the registry ships is still on both of them: the wrapper
     // adds a layer, it does not replace the component's own class.
-    expect(alone.className).toContain('border-input');
-    expect(inPill.className).toContain('focus-visible:ring-ring/50');
+    expect(alone.className).toContain('fve:border-input');
+    expect(inPill.className).toContain('fve:focus-visible:ring-ring/50');
   });
 
   it('strips the select the same way, and keeps its accessible name', () => {
@@ -167,8 +167,8 @@ describe('the controls of a condition pill', () => {
     );
     const trigger = screen.getByLabelText('Operator');
     expect(trigger.getAttribute('data-slot')).toBe('select-trigger');
-    expect(trigger.className).toContain('border-transparent');
-    expect(trigger.className).toContain('shadow-none');
+    expect(trigger.className).toContain('fve:border-transparent');
+    expect(trigger.className).toContain('fve:shadow-none');
   });
 });
 
@@ -188,16 +188,16 @@ describe('SidebarItem', () => {
     // The sheet is the theme's `nav-current` roles: the work area's
     // `background`, its words, the `border` edge and the `shadow-xs` lift
     // unless a theme says otherwise.
-    expect(current.className).toContain('bg-nav-current');
-    expect(current.className).toContain('text-nav-current-foreground');
-    expect(current.className).toContain('border-nav-current-edge');
-    expect(current.className).toContain('shadow-nav-current');
+    expect(current.className).toContain('fve:bg-nav-current');
+    expect(current.className).toContain('fve:text-nav-current-foreground');
+    expect(current.className).toContain('fve:border-nav-current-edge');
+    expect(current.className).toContain('fve:shadow-nav-current');
     expect(current.className).not.toContain('shadow-[inset');
     expect(current.getAttribute('aria-current')).toBe('true');
     // Hover is the column's own step in the other direction — on this ground
     // the ghost variant's `muted` *is* the ground.
-    expect(other.className).toContain('hover:bg-sidebar-accent');
-    expect(other.className).not.toContain('border-nav-current-edge');
+    expect(other.className).toContain('fve:hover:bg-sidebar-accent');
+    expect(other.className).not.toContain('fve:border-nav-current-edge');
   });
 });
 
@@ -228,13 +228,13 @@ describe('TableDataRow', () => {
     // opacity itself is measured in the browser (`PinnedEdges`).
     // At rest the row is the rows' ground (`content`, the page's own
     // unset), and every other one the stripe a theme may turn on.
-    expect(rest.className).toContain('bg-content');
-    expect(rest.className).toContain('even:bg-row-stripe');
-    expect(rest.className).toContain('hover:bg-row-hover');
+    expect(rest.className).toContain('fve:bg-content');
+    expect(rest.className).toContain('fve:even:bg-row-stripe');
+    expect(rest.className).toContain('fve:hover:bg-row-hover');
     // The row whose menu is open, which the registry washes the same way.
-    expect(rest.className).toContain('has-aria-expanded:bg-row-hover');
-    expect(rest.className).not.toContain('hover:bg-muted/50');
-    expect(rest.className).not.toContain('has-aria-expanded:bg-muted/50');
+    expect(rest.className).toContain('fve:has-aria-expanded:bg-row-hover');
+    expect(rest.className).not.toContain('fve:hover:bg-muted/50');
+    expect(rest.className).not.toContain('fve:has-aria-expanded:bg-muted/50');
   });
 
   it('keeps a picked row picked while the pointer is on it', () => {
@@ -244,13 +244,13 @@ describe('TableDataRow', () => {
     // in the selection.
     // The tint is the theme's `row-selected` role, `muted` unset.
     expect(selected.className).toContain(
-      'data-[state=selected]:bg-row-selected',
+      'fve:data-[state=selected]:bg-row-selected',
     );
     expect(selected.className).toContain(
-      'data-[state=selected]:hover:bg-row-selected',
+      'fve:data-[state=selected]:hover:bg-row-selected',
     );
     expect(selected.className).toContain(
-      'data-[state=selected]:text-row-selected-foreground',
+      'fve:data-[state=selected]:text-row-selected-foreground',
     );
   });
 
@@ -258,10 +258,10 @@ describe('TableDataRow', () => {
     const { container } = render(
       <table>
         <tbody>
-          <TableDataRow className="group/row" />
+          <TableDataRow className="fve:group/row" />
         </tbody>
       </table>,
     );
-    expect(container.querySelector('tr')!.className).toContain('group/row');
+    expect(container.querySelector('tr')!.className).toContain('fve:group/row');
   });
 });

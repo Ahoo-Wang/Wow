@@ -81,7 +81,7 @@ export function StatusStrip({
         <Collapsible
           open={open}
           onOpenChange={next => setOpen(next)}
-          className="contents"
+          className="fve:contents"
         >
           <CollapsibleTrigger render={<Button variant="ghost" size="xs" />}>
             {/* Once they are open, the findings are on screen: "{count} more"
@@ -93,8 +93,8 @@ export function StatusStrip({
           </CollapsibleTrigger>
           {/* A whole row of its own under the sentence, which is what the
               line's wrap is for. */}
-          <CollapsibleContent className="w-full">
-            <ul className={cn('list-disc pl-6', TEXT_UI)}>
+          <CollapsibleContent className="fve:w-full">
+            <ul className={cn('fve:list-disc fve:pl-6', TEXT_UI)}>
               {lines.map((line, index) => (
                 // Two findings can read the same after `dedupeIssues` has had
                 // its say — a caller may not have used it — so the index is

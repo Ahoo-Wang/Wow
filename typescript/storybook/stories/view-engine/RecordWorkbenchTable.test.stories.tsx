@@ -279,10 +279,10 @@ export const CopyADocumentNumber: Story = {
     await expect(getComputedStyle(copy).opacity).toBe('0');
     await expect(getComputedStyle(copy).display).not.toBe('none');
     await expect(copy.tabIndex).toBeGreaterThanOrEqual(0);
-    await expect(key.parentElement!.className).toContain('group/row');
+    await expect(key.parentElement!.className).toContain('fve:group/row');
     await expect(
       key.querySelector('[data-slot="cell-copyable"]')!.className,
-    ).toContain('group/copyable');
+    ).toContain('fve:group/copyable');
 
     // The clipboard this press writes to is user-event's: `setup()` puts
     // its own stub on `navigator.clipboard`, and the runner's page, which

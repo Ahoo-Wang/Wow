@@ -44,7 +44,7 @@ export function ChartReadingTable({ reading }: { reading: ChartReading }) {
       // scrollable region no one can reach by keyboard, which is a real
       // finding — for a table anyone looks at. This one nobody does, so the
       // container is told not to scroll rather than given a tab stop.
-      className="sr-only [&_[data-slot=table-container]]:overflow-visible"
+      className="fve:sr-only fve:[&_[data-slot=table-container]]:overflow-visible"
     >
       <Table>
         <TableCaption>

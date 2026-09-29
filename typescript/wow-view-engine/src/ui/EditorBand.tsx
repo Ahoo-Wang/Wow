@@ -61,7 +61,7 @@ export interface EditorFoldProps {
 export function EditorFold({ open, onOpenChange, children }: EditorFoldProps) {
   return (
     <Collapsible
-      className="contents"
+      className="fve:contents"
       open={open}
       onOpenChange={next => onOpenChange(next)}
     >
@@ -109,7 +109,7 @@ export function EditorBand({ id, children, className }: EditorBandProps) {
       // round it under the same name is a second landmark with the same
       // name, which is a thing a screen reader cannot tell apart from the
       // first. The toggle reaches it by `aria-controls` and needs no role.
-      className={cn('flex flex-col', className)}
+      className={cn('fve:flex fve:flex-col', className)}
     >
       {children}
     </CollapsibleContent>
@@ -165,9 +165,14 @@ export function EditorBandToggle({
         aria-label={name}
       >
         <SlidersHorizontalIcon data-icon="inline-start" />
-        <span className="truncate">{label}</span>
+        <span className="fve:truncate">{label}</span>
         {pendingLabel !== null && (
-          <span className={cn('flex items-center gap-1 font-normal', TEXT_UI)}>
+          <span
+            className={cn(
+              'fve:flex fve:items-center fve:gap-1 fve:font-normal',
+              TEXT_UI,
+            )}
+          >
             {/* The same dot the pills wear. It names nothing here: the
                 count right beside it is the wording. */}
             <PendingDot />

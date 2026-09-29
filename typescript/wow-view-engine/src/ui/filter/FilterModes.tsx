@@ -163,7 +163,7 @@ export function FilterModeToggle({
 function NotSimpleReason({ id }: { id: string }) {
   const messages = useViewMessages();
   return (
-    <span id={id} className="sr-only">
+    <span id={id} className="fve:sr-only">
       {messages.label('config.filterMode.not-simple')}
     </span>
   );

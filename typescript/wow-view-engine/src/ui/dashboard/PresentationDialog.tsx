@@ -98,7 +98,7 @@ export function PresentationDialog({
       <DialogContent
         {...(finalFocus ? { finalFocus } : {})}
         data-slot="panel-presentation-dialog"
-        className="flex max-h-[calc(100dvh-2rem)] flex-col sm:max-w-4xl"
+        className="fve:flex fve:max-h-[calc(100dvh-2rem)] fve:flex-col fve:sm:max-w-4xl"
       >
         {panel && (
           <PresentationForm
@@ -163,7 +163,7 @@ function PresentationForm({
           </EmptyHeader>
         </Empty>
       )}
-      <DialogFooter className="sm:justify-between">
+      <DialogFooter className="fve:sm:justify-between">
         <Button
           variant="ghost"
           data-slot="panel-presentation-reset"
@@ -172,7 +172,7 @@ function PresentationForm({
         >
           {messages.label('label.panel.presentation.reset')}
         </Button>
-        <div className="flex gap-2">
+        <div className="fve:flex fve:gap-2">
           <DialogClose
             render={<Button variant="outline" />}
             onClick={event => {
@@ -256,15 +256,15 @@ function LookEditor({
   const focus = useVisualizationFocus(level);
 
   return (
-    <div className="-mx-4 flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-4 sm:flex-row">
+    <div className="fve:-mx-4 fve:flex fve:min-h-0 fve:flex-1 fve:flex-col fve:gap-4 fve:overflow-y-auto fve:px-4 fve:sm:flex-row">
       <section
         data-slot="panel-presentation-preview"
         aria-label={messages.label('label.panel.presentation.preview')}
-        className="flex h-80 min-w-0 flex-1 flex-col rounded-lg border p-3"
+        className="fve:flex fve:h-80 fve:min-w-0 fve:flex-1 fve:flex-col fve:rounded-lg fve:border fve:p-3"
       >
         <AnalysisPanel runtime={runtime} />
       </section>
-      <aside className="flex-none sm:w-72">
+      <aside className="fve:flex-none fve:sm:w-72">
         {visualizationPanel({
           // With no question to set options over, the types stay on screen.
           level: level === 'options' && !result.question ? 'picker' : level,

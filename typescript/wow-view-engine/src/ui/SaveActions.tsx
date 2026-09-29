@@ -163,7 +163,7 @@ export function SaveActions({
   // as the building ends, and says so.
   const idle = copyWhenClean && !first && !state.dirty;
   const announce = saved && (
-    <span role="status" className="sr-only">
+    <span role="status" className="fve:sr-only">
       {messages.label(word('label.save.saved-announce'))}
     </span>
   );
@@ -200,7 +200,10 @@ export function SaveActions({
     void commands.save().then(made => made && onSaved?.(made));
 
   return (
-    <div data-slot="save-actions" className="flex items-center gap-2">
+    <div
+      data-slot="save-actions"
+      className="fve:flex fve:items-center fve:gap-2"
+    >
       <ButtonGroup aria-label={messages.label(word('label.save.group'))}>
         <Button
           variant="outline"
@@ -343,7 +346,7 @@ export function SharedSaveConfirm({
  * still `label.save.save` to a test; only the pixels go.
  */
 function Face({ children }: { children: ReactNode }) {
-  return <span className="@max-md/header:sr-only">{children}</span>;
+  return <span className="fve:@max-md/header:sr-only">{children}</span>;
 }
 
 /** What the primary button wears right now: saving, saved, or its own name. */
@@ -423,7 +426,10 @@ export function UnsavedMark({
       data-look-only={lookOnly || undefined}
       // The word keeps its own padding; the button after it sits in the
       // badge's right padding so the pill does not grow a second box.
-      className={cn('shrink-0', commands.can.revert && 'gap-0.5 pr-0.5')}
+      className={cn(
+        'fve:shrink-0',
+        commands.can.revert && 'fve:gap-0.5 fve:pr-0.5',
+      )}
     >
       {messages.label(
         lookOnly ? 'label.header.unsaved-look' : 'label.header.unsaved',

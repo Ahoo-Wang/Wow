@@ -31,16 +31,16 @@ export function SkeletonCards({ fields }: { fields: number }) {
     <div
       data-slot="record-cards-skeleton"
       aria-hidden
-      className="bg-canvas grid gap-3 p-3 sm:grid-cols-2 lg:grid-cols-3"
+      className="fve:bg-canvas fve:grid fve:gap-3 fve:p-3 fve:sm:grid-cols-2 fve:lg:grid-cols-3"
     >
       {Array.from({ length: CARDS }, (_unused, index) => (
         <Card key={index} className={CARD_LIFT}>
           <CardHeader>
-            <Skeleton className="h-5 w-1/2" />
+            <Skeleton className="fve:h-5 fve:w-1/2" />
           </CardHeader>
-          <CardContent className="flex flex-col gap-2">
+          <CardContent className="fve:flex fve:flex-col fve:gap-2">
             {lines.map(line => (
-              <Skeleton key={line} className="h-4 w-full" />
+              <Skeleton key={line} className="fve:h-4 fve:w-full" />
             ))}
           </CardContent>
         </Card>

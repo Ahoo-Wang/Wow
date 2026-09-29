@@ -104,7 +104,7 @@ export function ClickSettings({
     <Dialog open={open} onOpenChange={next => !next && onClose()}>
       <DialogContent
         data-slot="panel-click-settings"
-        className="sm:max-w-lg"
+        className="fve:sm:max-w-lg"
         finalFocus={finalFocus}
       >
         {panel && (
@@ -193,7 +193,7 @@ function ClickForm({
 
   return (
     <>
-      <form onSubmit={submit} className="flex flex-col gap-4">
+      <form onSubmit={submit} className="fve:flex fve:flex-col fve:gap-4">
         <DialogHeader>
           <DialogTitle>
             {messages.label('label.click.title', { panel: name })}
@@ -203,7 +203,7 @@ function ClickForm({
           </DialogDescription>
         </DialogHeader>
         <FieldSet>
-          <FieldLegend variant="label" className="sr-only">
+          <FieldLegend variant="label" className="fve:sr-only">
             {messages.label('label.click.choice')}
           </FieldLegend>
           <RadioGroup
@@ -231,7 +231,7 @@ function ClickForm({
               disabled={choices.length === 0}
             />
             {choice === 'filter' && choices.length > 0 && (
-              <Field className="pl-6">
+              <Field className="fve:pl-6">
                 <FieldLabel>
                   {messages.label('label.click.filter-pick')}
                 </FieldLabel>
@@ -327,7 +327,7 @@ function GoFields({
   const { goKind, view } = draft;
   const fields = [...new Set(groups.map(group => group.field))];
   return (
-    <FieldGroup className="gap-3 pl-6" data-slot="click-go">
+    <FieldGroup className="fve:gap-3 fve:pl-6" data-slot="click-go">
       <Field>
         <FieldLabel id={`${ids}-go-kind`}>
           {messages.label('label.click.go-kind')}
@@ -370,7 +370,7 @@ function GoFields({
       ) : goKind === 'view' ? (
         <Field data-invalid={gaps.view || undefined}>
           {view && (
-            <span data-slot="click-view" className="text-sm">
+            <span data-slot="click-view" className="fve:text-sm">
               {viewTitle === undefined ? view : messages.say(viewTitle)}
             </span>
           )}
@@ -378,7 +378,7 @@ function GoFields({
             type="button"
             variant="outline"
             size="sm"
-            className="self-start"
+            className="fve:self-start"
             aria-invalid={gaps.view || undefined}
             onClick={() => onPick('destination')}
           >

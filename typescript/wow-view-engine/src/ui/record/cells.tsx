@@ -49,7 +49,7 @@ export type CellField = DisplayField;
  * limits the lines, and a line has to end somewhere for there to be a second
  * one.
  */
-const TEXT_CELL = 'max-w-[var(--fve-record-text-max-w,24rem)]';
+const TEXT_CELL = 'fve:max-w-[var(--fve-record-text-max-w,24rem)]';
 
 /**
  * Where the reading is drawn, which is the one thing the two surfaces
@@ -133,7 +133,7 @@ export function cellValue(
         // `window.opener`, nor arrive carrying where it was opened from.
         target="_blank"
         rel="noopener noreferrer"
-        className="text-primary underline underline-offset-4"
+        className="fve:text-primary fve:underline fve:underline-offset-4"
       >
         {value}
       </a>
@@ -150,12 +150,12 @@ export function cellValue(
               // `max-width` and an ellipsis need a box and a bare `<span>`
               // is not one; the newlines the author typed come out as
               // spaces, which is what a one-line reading of a paragraph is.
-              'block truncate'
+              'fve:block fve:truncate'
             : // Three lines on a card, where there is no column to line up
               // with. Clamped rather than truncated, and the author's own
               // newlines kept: a paragraph folded into one line is a
               // different paragraph, and here there is room not to fold it.
-              'line-clamp-3 whitespace-pre-wrap',
+              'fve:line-clamp-3 fve:whitespace-pre-wrap',
         )}
         // Either way the whole of it is one hover away.
         title={value}
@@ -190,12 +190,12 @@ export function cellValue(
         // share the pin cap allows the held group, and the actions column
         // lost its pin.
         className={cn(
-          'group/copyable inline-flex items-center gap-1',
+          'fve:group/copyable fve:inline-flex fve:items-center fve:gap-1',
           IDENTIFIER_FACE,
         )}
       >
         {text}
-        <CopyButton value={text} className="shrink-0" />
+        <CopyButton value={text} className="fve:shrink-0" />
       </span>
     );
   }
@@ -244,10 +244,10 @@ function Badges({
   return (
     <span
       className={cn(
-        'flex items-center gap-1',
+        'fve:flex fve:items-center fve:gap-1',
         // A card and the detail have the room downwards; a table row does
         // not.
-        surface !== 'table' && 'flex-wrap',
+        surface !== 'table' && 'fve:flex-wrap',
       )}
     >
       {entries.map((entry, index) => (
@@ -304,10 +304,10 @@ function Elements({
       data-slot="cell-elements"
       data-count={entries.length}
       className={cn(
-        'flex items-center gap-1',
+        'fve:flex fve:items-center fve:gap-1',
         // A card and the detail have the room downwards; a table row does
         // not.
-        surface !== 'table' && 'flex-wrap',
+        surface !== 'table' && 'fve:flex-wrap',
       )}
       title={folds ? labelsOf(entries, messages) : undefined}
     >
@@ -323,7 +323,7 @@ function Elements({
           <span data-slot="cell-elements-more" aria-hidden>
             {messages.label('label.value.more', { count: rest.length })}
           </span>
-          <span className="sr-only">{labelsOf(rest, messages)}</span>
+          <span className="fve:sr-only">{labelsOf(rest, messages)}</span>
         </>
       )}
     </span>

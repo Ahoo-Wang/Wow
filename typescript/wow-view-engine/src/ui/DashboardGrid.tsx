@@ -383,8 +383,8 @@ export function DashboardGrid({
       data-editing={editable || undefined}
       data-width={dashboard.width}
       className={cn(
-        'flex w-full flex-col gap-3',
-        fixed && 'mx-auto',
+        'fve:flex fve:w-full fve:flex-col fve:gap-3',
+        fixed && 'fve:mx-auto',
         className,
       )}
       style={fixed ? { maxWidth: FIXED_BOARD_WIDTH } : undefined}
@@ -397,7 +397,10 @@ export function DashboardGrid({
         data-slot="dashboard-tab-panel"
         // It holds the grid alone, at the grid's width and height, so the
         // blocks are one layer inside it, under the panels.
-        className={cn('flex min-w-0 flex-col', blocks && 'relative isolate')}
+        className={cn(
+          'fve:flex fve:min-w-0 fve:flex-col',
+          blocks && 'fve:relative fve:isolate',
+        )}
         {...(shownTab === null
           ? {}
           : { role: 'tabpanel', 'aria-label': shownTab })}
@@ -479,7 +482,7 @@ export function DashboardGrid({
                   panelId={panel.id}
                   name={names.get(panel.id) ?? ''}
                   say={say}
-                  className="min-h-0"
+                  className="fve:min-h-0"
                   // Sized by hand (D68): drawn at its size, never grown.
                   data-fixed-height={hasFixedHeight(panel.layout) || undefined}
                 >

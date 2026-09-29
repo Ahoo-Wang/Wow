@@ -161,13 +161,13 @@ export function HavingRows({
     // A set of rows under one visible label, which is the fieldset's
     // legend: the rows' own controls are named for what they are (metric,
     // comparison, value), and the legend is what says they keep groups.
-    <FieldSet data-slot="analysis-having" className={cn('gap-2', TEXT_UI)}>
-      <FieldLegend variant="label" className="mb-0">
+    <FieldSet data-slot="analysis-having" className={cn('fve:gap-2', TEXT_UI)}>
+      <FieldLegend variant="label" className="fve:mb-0">
         {messages.label('label.analysis.having-title')}
       </FieldLegend>
       {stored === null ? (
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="text-muted-foreground">
+        <div className="fve:flex fve:flex-wrap fve:items-center fve:gap-2">
+          <span className="fve:text-muted-foreground">
             {messages.label('label.analysis.having-unreadable')}
           </span>
           <Button
@@ -196,7 +196,7 @@ export function HavingRows({
             {/* The legend above says 「只保留」 once; a second row reads on
                 from the first, since every row has to hold. */}
             {index > 0 && (
-              <span className="text-muted-foreground">
+              <span className="fve:text-muted-foreground">
                 {messages.label('label.analysis.having-and')}
               </span>
             )}
@@ -229,7 +229,7 @@ export function HavingRows({
             <NumberInput
               label={messages.label('label.analysis.having-value')}
               chrome="box"
-              className="w-24"
+              className="fve:w-24"
               disabled={disabled}
               value={row.value}
               onNumber={value =>
@@ -244,7 +244,7 @@ export function HavingRows({
               label={messages.label('label.analysis.remove-having')}
               variant="ghost"
               size="icon-xs"
-              className="ml-auto"
+              className="fve:ml-auto"
               disabled={disabled}
               onClick={event => {
                 focus.removing(event, index);
@@ -258,7 +258,7 @@ export function HavingRows({
       )}
       {having.add && (
         <AddButton
-          className="self-start"
+          className="fve:self-start"
           data-slot="add-having"
           disabled={disabled}
           onClick={having.add}
@@ -268,7 +268,7 @@ export function HavingRows({
         </AddButton>
       )}
       {rows.length > 0 && (
-        <span data-slot="having-note" className="text-muted-foreground">
+        <span data-slot="having-note" className="fve:text-muted-foreground">
           {messages.label('label.analysis.having-note')}
         </span>
       )}

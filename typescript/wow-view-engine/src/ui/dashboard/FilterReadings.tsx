@@ -33,7 +33,7 @@ import { useSurfaceDisplay } from '../ViewSurface.js';
 
 /** How a chip lays out its name, its control and its buttons in its frame. */
 export const CHIP =
-  'flex min-w-0 shrink-0 items-center gap-1 py-0.5 pr-0.5 text-sm';
+  'fve:flex fve:min-w-0 fve:shrink-0 fve:items-center fve:gap-1 fve:py-0.5 fve:pr-0.5 fve:text-sm';
 
 /**
  * The board's fixed scope (D26 Q31, D27): the condition a board saved
@@ -58,9 +58,9 @@ export function FixedScope({
       data-slot="dashboard-fixed-scope"
       role="group"
       aria-label={label}
-      className={cn(CHIP, 'pl-2')}
+      className={cn(CHIP, 'fve:pl-2')}
     >
-      <span className="text-muted-foreground shrink-0 whitespace-nowrap">
+      <span className="fve:text-muted-foreground fve:shrink-0 fve:whitespace-nowrap">
         {label}
       </span>
       {items.map(item => (
@@ -68,7 +68,7 @@ export function FixedScope({
           key={item.path.join('.')}
           data-slot="filter-reading"
           data-unresolved={item.unresolved || undefined}
-          className="min-w-0 truncate"
+          className="fve:min-w-0 fve:truncate"
         >
           {summaryText(item, messages, display)}
         </span>
@@ -168,12 +168,12 @@ export function LockedReading({
       aria-label={messages.label('label.embed.locked-name', {
         filter: label,
       })}
-      className={cn(CHIP, 'pl-2')}
+      className={cn(CHIP, 'fve:pl-2')}
     >
-      <span className="text-muted-foreground shrink-0 whitespace-nowrap">
+      <span className="fve:text-muted-foreground fve:shrink-0 fve:whitespace-nowrap">
         {messages.say(label)}
       </span>
-      <span data-slot="filter-reading" className="min-w-0 truncate">
+      <span data-slot="filter-reading" className="fve:min-w-0 fve:truncate">
         {reading}
       </span>
       <IconTooltip

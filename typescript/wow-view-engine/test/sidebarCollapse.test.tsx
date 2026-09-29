@@ -169,23 +169,23 @@ describe('collapsing the sidebar', () => {
     // `className` is for — there is no state behind a length or a
     // direction, and jsdom lays nothing out. The pixels are the browser
     // stories’.
-    expect(trigger.className).toContain('max-w-fit');
-    expect(trigger.className).toContain('justify-start');
+    expect(trigger.className).toContain('fve:max-w-fit');
+    expect(trigger.className).toContain('fve:justify-start');
 
     // The floor is on the trigger, because `w-0` is also what stops the
     // label's `nowrap` asking the group for the whole string — so it has to
     // be the label's 6em plus the furniture around it. The label keeps its
     // own 6em to stay clear of the icons.
-    expect(trigger.className).toContain('min-w-[calc(6em+3.25rem)]');
+    expect(trigger.className).toContain('fve:min-w-[calc(6em+3.25rem)]');
     const label = within(trigger).getByText('Mine');
-    expect(label.className).toContain('min-w-[6em]');
+    expect(label.className).toContain('fve:min-w-[6em]');
 
     // And the group around it may not be squeezed below that floor, or it
     // reports a width it cannot keep and the bar never wraps.
     const collapsed = document.querySelector<HTMLElement>(
       '[data-slot="view-collapsed"]',
     )!;
-    expect(collapsed.className).not.toContain('min-w-0');
+    expect(collapsed.className).not.toContain('fve:min-w-0');
     // And it has no box of its own: the switcher is the identity group's
     // spring directly, so with a short name the audience word and Save
     // stand against it rather than at the far end of a box that grew on.
@@ -207,8 +207,8 @@ describe('collapsing the sidebar', () => {
       '[data-slot="definition-title"]',
     )!;
     expect(definition.className).toContain('hidden');
-    expect(definition.className).toContain('@md/header:block');
-    expect(definition.className).not.toContain('sm:inline');
+    expect(definition.className).toContain('fve:@md/header:block');
+    expect(definition.className).not.toContain('fve:sm:inline');
     // The page's name, at the level it has in the sidebar, and joined to
     // the view it is the parent of.
     expect(definition.tagName).toBe('H1');
@@ -228,7 +228,7 @@ describe('collapsing the sidebar', () => {
       '[data-slot="view-title"]',
     )!;
     expect(title.tagName).toBe('H2');
-    expect(title.className).toContain('sr-only');
+    expect(title.className).toContain('fve:sr-only');
     expect(
       document.querySelector('main')!.getAttribute('aria-labelledby'),
     ).toBe(title.id);
@@ -564,6 +564,8 @@ describe('collapsing with nothing to switch to', () => {
       '[data-slot="definition-title"]',
     )!;
     expect(definition.textContent).toBe('Orders');
-    expect(definition.closest('[class~="@container/header"]')).not.toBeNull();
+    expect(
+      definition.closest('[class~="fve:@container/header"]'),
+    ).not.toBeNull();
   });
 });

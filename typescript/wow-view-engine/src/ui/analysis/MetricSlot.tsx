@@ -148,7 +148,7 @@ export function MetricSlot({
         />
       }
     >
-      <div className="flex flex-wrap items-start gap-2">
+      <div className="fve:flex fve:flex-wrap fve:items-start fve:gap-2">
         <DragDropProvider
           {...sortableList(chartDragAccessibility(messages, nameOf))}
           onDragEnd={({ operation, canceled }) => {
@@ -159,7 +159,7 @@ export function MetricSlot({
           <ol
             aria-label={title}
             data-slot="metric-list"
-            className="flex min-w-0 flex-wrap items-start gap-2"
+            className="fve:flex fve:min-w-0 fve:flex-wrap fve:items-start fve:gap-2"
           >
             {metrics.map((metric, index) => (
               <MetricRow
@@ -215,7 +215,7 @@ export function MetricSlot({
       {stopped && (
         <p
           data-slot="metric-order-note"
-          className="text-muted-foreground text-xs"
+          className="fve:text-muted-foreground fve:text-xs"
         >
           {stopped}
         </p>
@@ -246,7 +246,7 @@ function MetricRow(props: MetricRowProps) {
   return props.sortable ? (
     <SortableMetricRow {...props} />
   ) : (
-    <li className="max-w-full min-w-0">
+    <li className="fve:max-w-full fve:min-w-0">
       {props.children({ ref: NO_HANDLE, dragging: false })}
     </li>
   );
@@ -265,7 +265,7 @@ function SortableMetricRow({ alias, index, children }: MetricRowProps) {
     <li
       ref={ref}
       data-dragging={isDragging ? '' : undefined}
-      className="max-w-full min-w-0"
+      className="fve:max-w-full fve:min-w-0"
     >
       {children({ ref: handleRef, dragging: isDragging })}
     </li>

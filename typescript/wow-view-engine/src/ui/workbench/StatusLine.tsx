@@ -154,7 +154,7 @@ export function StatusLine({
   return (
     <div
       data-slot="status-line"
-      className={cn('flex flex-col empty:hidden', SPACE.ROWS)}
+      className={cn('fve:flex fve:flex-col fve:empty:hidden', SPACE.ROWS)}
     >
       {unavailable && (
         <StatusStrip

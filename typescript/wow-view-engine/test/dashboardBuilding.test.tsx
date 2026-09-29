@@ -223,7 +223,7 @@ describe('reading and building a dashboard (D22 A)', () => {
     await screen.findByText('Pending', { selector: 'h3' });
     const filled = () =>
       [...document.querySelectorAll<HTMLElement>('button')].filter(button =>
-        button.classList.contains('bg-primary'),
+        button.classList.contains('fve:bg-primary'),
       );
 
     const edit = slot('dashboard-edit')!;

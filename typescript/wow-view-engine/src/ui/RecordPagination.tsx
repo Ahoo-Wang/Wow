@@ -166,11 +166,11 @@ export function RecordPagination({
       // whole, the controls take the line below it, and `ml-auto` keeps
       // them at the end of whichever line they land on.
       className={cn(
-        'text-muted-foreground mx-0 flex-wrap items-center justify-start gap-x-4 gap-y-2',
+        'fve:text-muted-foreground fve:mx-0 fve:flex-wrap fve:items-center fve:justify-start fve:gap-x-4 fve:gap-y-2',
         TEXT_UI,
       )}
     >
-      <span className="whitespace-nowrap">{count}</span>
+      <span className="fve:whitespace-nowrap">{count}</span>
       {/* One short line, only when the window cuts the pages short of the
           total — it says where they stop and what to do about the rest. It
           is not a warning: nothing failed, and the way on is the conditions
@@ -184,9 +184,9 @@ export function RecordPagination({
       )}
 
       {controls !== 'none' && (
-        <PaginationContent className="ml-auto flex-wrap justify-end gap-2">
+        <PaginationContent className="fve:ml-auto fve:flex-wrap fve:justify-end fve:gap-2">
           {controls === 'all' && (
-            <PaginationItem className="flex items-center gap-2">
+            <PaginationItem className="fve:flex fve:items-center fve:gap-2">
               <span id={sizeLabelId}>
                 {messages.label('label.pagination.page-size')}
               </span>
@@ -225,7 +225,7 @@ export function RecordPagination({
           {/* A cursor source has no page numbers and no way back, so it shows
             neither rather than showing them dead. */}
           {paged && (
-            <PaginationItem className="flex items-center gap-2">
+            <PaginationItem className="fve:flex fve:items-center fve:gap-2">
               {pages === undefined
                 ? messages.label('label.toolbar.page', {
                     index: paging.index,
@@ -257,7 +257,7 @@ export function RecordPagination({
           {!onePage && (
             // The two steps are one group, so they sit `SPACE.WITHIN` apart
             // inside the `SPACE.GROUPS` the list puts between its items.
-            <PaginationItem className="flex items-center gap-1">
+            <PaginationItem className="fve:flex fve:items-center fve:gap-1">
               {paged && (
                 <IconButton
                   label={messages.label('label.toolbar.previous')}
@@ -442,7 +442,7 @@ function PageInput({
       inputMode="numeric"
       // Wide enough for the pages there are and no wider — a box for four
       // digits beside a four-page result reads as a field, not as a number.
-      className="w-14 text-center"
+      className="fve:w-14 fve:text-center"
       defaultValue={String(index)}
       onBlur={commit}
       onKeyDown={event => {

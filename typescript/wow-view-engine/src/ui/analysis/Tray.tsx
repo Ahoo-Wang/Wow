@@ -120,7 +120,7 @@ export function Tray({
     <section
       data-slot="analysis-tray"
       aria-label={messages.label('label.analysis.editor')}
-      className={cn('flex min-h-0 flex-col', SPACE.ROWS)}
+      className={cn('fve:flex fve:min-h-0 fve:flex-col', SPACE.ROWS)}
       // Auto-refresh holds while a control in here has focus, as in the
       // filter panel; a move between two controls inside is neither.
       onFocus={event => {
@@ -137,8 +137,8 @@ export function Tray({
         // From `md` up, a grid of two columns every row is a subgrid of
         // (`EditorSlot`): the terms, as wide as the widest, and the rows.
         className={cn(
-          '-mx-1 flex min-h-0 flex-col overflow-y-auto px-1 py-0.5',
-          'md:grid md:grid-cols-[max-content_minmax(0,1fr)] md:content-start md:gap-x-3',
+          'fve:-mx-1 fve:flex fve:min-h-0 fve:flex-col fve:overflow-y-auto fve:px-1 fve:py-0.5',
+          'fve:md:grid fve:md:grid-cols-[max-content_minmax(0,1fr)] fve:md:content-start fve:md:gap-x-3',
           SPACE.ROWS,
         )}
       >
@@ -182,7 +182,7 @@ export function Tray({
           row wraps (`order-last basis-full`). */}
       <div
         data-slot="analysis-tray-actions"
-        className="flex shrink-0 flex-wrap items-center justify-end gap-x-3 gap-y-1"
+        className="fve:flex fve:shrink-0 fve:flex-wrap fve:items-center fve:justify-end fve:gap-x-3 fve:gap-y-1"
       >
         {/* Auto-run (D20): the question runs on its own a moment after it
             changes; the range still waits for Apply, which the ⓘ says,
@@ -192,7 +192,7 @@ export function Tray({
         {autoRun && (
           <Field
             orientation="horizontal"
-            className="mr-auto w-auto items-center gap-1.5"
+            className="fve:mr-auto fve:w-auto fve:items-center fve:gap-1.5"
             data-slot="auto-run"
           >
             <Checkbox
@@ -220,7 +220,7 @@ export function Tray({
             id={heldId}
             data-slot="auto-run-hint"
             data-held
-            className="order-last basis-full md:order-none md:flex-1 md:basis-auto"
+            className="fve:order-last fve:basis-full fve:md:order-none fve:md:flex-1 fve:md:basis-auto"
           >
             {messages.label('label.analysis.auto-run-held')}
           </FieldDescription>

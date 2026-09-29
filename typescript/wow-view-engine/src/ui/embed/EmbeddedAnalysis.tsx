@@ -109,7 +109,7 @@ export function EmbeddedAnalysis({
   // refresh that failed over it.
   if (failed && !view)
     body = <QueryStrip error={error} stale={false} onRetry={retry} />;
-  else if (!view) body = <Skeleton className="h-24 w-full" />;
+  else if (!view) body = <Skeleton className="fve:h-24 fve:w-full" />;
   else
     body = (
       <>
@@ -119,7 +119,10 @@ export function EmbeddedAnalysis({
         {interactive && (
           <AnalysisToolbar analysis={analysis} columns={result.columns} />
         )}
-        <div data-slot="analysis-result" className="flex min-w-0 flex-col">
+        <div
+          data-slot="analysis-result"
+          className="fve:flex fve:min-w-0 fve:flex-col"
+        >
           {view.rows.length === 0 ? (
             <AnalysisEmpty />
           ) : analysis.layout === 'chart' && chartData ? (

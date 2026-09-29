@@ -414,7 +414,7 @@ function StageList({
               // reads the rest of it.
               <span
                 data-slot="stage-name"
-                className="truncate font-medium"
+                className="fve:truncate fve:font-medium"
                 title={stage.name}
               >
                 {stage.name}
@@ -427,7 +427,7 @@ function StageList({
                 })}
                 variant="ghost"
                 size="icon-xs"
-                className="ml-auto"
+                className="fve:ml-auto"
                 disabled={stages.length <= 2}
                 onClick={event => {
                   focus.removing(event, index);

@@ -108,10 +108,10 @@ function useSuggestions(
           messages.label('label.filter.add-value', { value })
         ) : (
           <>
-            <span className="min-w-0 flex-1 truncate">{value}</span>
+            <span className="fve:min-w-0 fve:flex-1 fve:truncate">{value}</span>
             <span
               data-slot="candidate-count"
-              className="text-muted-foreground shrink-0 text-xs tabular-nums"
+              className="fve:text-muted-foreground fve:shrink-0 fve:text-xs fve:tabular-nums"
             >
               {formatNumber(count, undefined, locale)}
             </span>
@@ -128,7 +128,7 @@ function useSuggestions(
         <div
           role="status"
           data-slot="candidate-status"
-          className="text-muted-foreground flex items-center gap-2 px-2 py-1.5 text-xs"
+          className="fve:text-muted-foreground fve:flex fve:items-center fve:gap-2 fve:px-2 fve:py-1.5 fve:text-xs"
         >
           <Spinner />
           {messages.label('label.filter.values-loading')}
@@ -139,9 +139,9 @@ function useSuggestions(
           role="alert"
           data-slot="candidate-status"
           data-failed=""
-          className="text-destructive flex items-center justify-between gap-2 px-2 py-1.5 text-xs"
+          className="fve:text-destructive fve:flex fve:items-center fve:justify-between fve:gap-2 fve:px-2 fve:py-1.5 fve:text-xs"
         >
-          <span className="min-w-0">
+          <span className="fve:min-w-0">
             {messages.label('label.filter.values-failed', {
               reason: candidates.reason ?? '',
             })}
@@ -161,7 +161,7 @@ function useSuggestions(
         values.length > 0 && (
           <div
             data-slot="candidate-status"
-            className="text-muted-foreground border-t px-2 py-1.5 text-xs"
+            className="fve:text-muted-foreground fve:border-t fve:px-2 fve:py-1.5 fve:text-xs"
           >
             {messages.label('label.filter.values-top')}
           </div>
@@ -226,7 +226,7 @@ function SuggestedText({
         aria-label={label}
         aria-invalid={invalid}
         placeholder={messages.label('label.filter.pick-or-type')}
-        className="w-full"
+        className="fve:w-full"
       />
       <ComboboxContent className={VALUE_LIST}>
         {empty}
@@ -305,12 +305,12 @@ function SuggestedList({
                     render={
                       <ComboboxPrimitive.ChipRemove
                         data-slot="combobox-chip-remove"
-                        className="-ml-1 opacity-50 hover:opacity-100"
+                        className="fve:-ml-1 fve:opacity-50 fve:hover:opacity-100"
                         render={<Button variant="ghost" size="icon-xs" />}
                       />
                     }
                   >
-                    <XIcon className="pointer-events-none" />
+                    <XIcon className="fve:pointer-events-none" />
                   </IconTooltip>
                 </ComboboxChip>
               ))}
@@ -352,4 +352,4 @@ function SuggestedList({
  * first three letters.
  */
 const VALUE_LIST =
-  'w-max min-w-(--anchor-width) max-w-[min(28rem,var(--available-width))]';
+  'fve:w-max fve:min-w-(--anchor-width) fve:max-w-[min(28rem,var(--available-width))]';

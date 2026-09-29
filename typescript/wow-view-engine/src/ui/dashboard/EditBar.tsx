@@ -129,14 +129,14 @@ export function EditBar({
       role="region"
       aria-labelledby={labelId}
       className={cn(
-        'bg-row-hover sticky top-0 z-10 mt-1 flex flex-wrap items-center gap-2',
+        'fve:bg-row-hover fve:sticky fve:top-0 fve:z-10 fve:mt-1 fve:flex fve:flex-wrap fve:items-center fve:gap-2',
         // The rem above it is the board's ground too: stuck under a
         // scroller's padding, the panels sliding up would show through
         // there; at rest it is the gap over the bar, which is that ground
         // already. The ground is the canvas a board stands on
         // (`.fve-root[data-kind='dashboard']`), not `background`: a theme
         // that greys the canvas would otherwise draw a white strip here.
-        'before:bg-canvas before:absolute before:-inset-x-px before:bottom-full before:h-4',
+        'fve:before:bg-canvas fve:before:absolute fve:before:-inset-x-px fve:before:bottom-full fve:before:h-4',
       )}
     >
       <p
@@ -144,15 +144,20 @@ export function EditBar({
         id={labelId}
         // Focus is sent here when 撤销 and 重做 cannot take it, never by Tab.
         tabIndex={-1}
-        className="flex items-center gap-1.5 text-sm font-medium"
+        className="fve:flex fve:items-center fve:gap-1.5 fve:text-sm fve:font-medium"
       >
-        <PencilRulerIcon aria-hidden className="size-4" />
+        <PencilRulerIcon aria-hidden className="fve:size-4" />
         {messages.label('label.dashboard.editing')}
       </p>
-      <p className={cn('text-muted-foreground min-w-0 grow', TEXT_UI)}>
+      <p
+        className={cn(
+          'fve:text-muted-foreground fve:min-w-0 fve:grow',
+          TEXT_UI,
+        )}
+      >
         {messages.label('label.dashboard.editing-hint')}
       </p>
-      <div className="ml-auto flex flex-wrap items-center gap-2">
+      <div className="fve:ml-auto fve:flex fve:flex-wrap fve:items-center fve:gap-2">
         {/* One step at a time, each named after what it takes back; the
             same keys as anywhere else while the focus is on the board. */}
         <ButtonGroup data-slot="dashboard-history">

@@ -74,13 +74,13 @@ export function SidebarColumn({
           side="bottom"
           data-slot="view-panel"
           data-drawer=""
-          className="bg-sidebar text-sidebar-foreground gap-0"
+          className="fve:bg-sidebar fve:text-sidebar-foreground fve:gap-0"
           // The panel's own back arrow is its way out, as it is beside the
           // view; a close button beside it would be a second saying the same.
           showCloseButton={false}
           // Dimmed, not blurred: the result above is what a pick here
           // redraws, and a reader looks up to see it change.
-          overlayClassName="supports-backdrop-filter:backdrop-blur-none"
+          overlayClassName="fve:supports-backdrop-filter:backdrop-blur-none"
           // The keyboard lands where the panel's own levels land it: on the
           // heading it is sent to (`tabIndex={-1}`), which exists only once
           // the drawer has drawn its content — the panel's own effect runs
@@ -92,10 +92,10 @@ export function SidebarColumn({
           }
           finalFocus={false}
         >
-          <SheetTitle className="sr-only">
+          <SheetTitle className="fve:sr-only">
             {messages.label('label.chart.picker')}
           </SheetTitle>
-          <div ref={landing} className="contents">
+          <div ref={landing} className="fve:contents">
             {panel}
           </div>
         </SheetContent>
@@ -106,7 +106,7 @@ export function SidebarColumn({
       {panel && (
         <aside
           data-slot="view-panel"
-          className="bg-sidebar text-sidebar-foreground border-sidebar-border flex w-full shrink-0 flex-col border-b md:w-64 md:border-r md:border-b-0"
+          className="fve:bg-sidebar fve:text-sidebar-foreground fve:border-sidebar-border fve:flex fve:w-full fve:shrink-0 fve:flex-col fve:border-b fve:md:w-64 fve:md:border-r fve:md:border-b-0"
         >
           {panel}
         </aside>
@@ -124,7 +124,7 @@ export function SidebarColumn({
         // definition name beside the heading's three buttons.
         <aside
           data-slot="view-sidebar"
-          className="flex w-full shrink-0 flex-col md:w-64"
+          className="fve:flex fve:w-full fve:shrink-0 fve:flex-col fve:md:w-64"
         >
           <ViewList
             list={list}
@@ -181,7 +181,7 @@ export function FoldedSidebar({
       // follow it, and whatever is left over lies after Save where nothing
       // stands. The group's floor is unchanged: it is the sum of its items'
       // floors either way, and the switcher keeps its own.
-      className="contents"
+      className="fve:contents"
     >
       <IconButton
         ref={expandRef}
@@ -216,14 +216,14 @@ export function FoldedSidebar({
               and the page's own name set smaller than the view it holds. */}
           <h1
             data-slot="definition-title"
-            className="hidden min-w-0 truncate text-base font-semibold @md/header:block"
+            className="fve:hidden fve:min-w-0 fve:truncate fve:text-base fve:font-semibold fve:@md/header:block"
           >
             {messages.say(title)}
           </h1>
           <span
             aria-hidden
             data-slot="definition-separator"
-            className="text-muted-foreground hidden select-none @md/header:inline"
+            className="fve:text-muted-foreground fve:hidden fve:select-none fve:@md/header:inline"
           >
             /
           </span>

@@ -548,7 +548,7 @@ describe('every data value in the result appears in the readable text', () => {
     // A **surviving class assertion**: `sr-only` is the one way to say
     // "in the accessible tree, not on screen", and there is no state to
     // read it back from.
-    expect(reading.className).toContain('sr-only');
+    expect(reading.className).toContain('fve:sr-only');
     // The series is headed by its column, not by the alias the query
     // carried: the same title the legend and the tooltip show (D20).
     expect(

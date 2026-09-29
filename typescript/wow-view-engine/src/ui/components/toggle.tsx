@@ -3,18 +3,18 @@ import { cva, type VariantProps } from "class-variance-authority"
 import { cn } from "cn"
 
 const toggleVariants = cva(
-  "group/toggle inline-flex items-center justify-center gap-1 rounded-lg text-sm font-medium whitespace-nowrap transition-all outline-none hover:bg-muted hover:text-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-destructive/20 aria-pressed:bg-muted data-[state=on]:bg-muted dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+  "fve:group/toggle fve:inline-flex fve:items-center fve:justify-center fve:gap-1 fve:rounded-lg fve:text-sm fve:font-medium fve:whitespace-nowrap fve:transition-all fve:outline-none fve:hover:bg-muted fve:hover:text-foreground fve:focus-visible:border-ring fve:focus-visible:ring-[3px] fve:focus-visible:ring-ring/50 fve:disabled:pointer-events-none fve:disabled:opacity-50 fve:aria-invalid:border-destructive fve:aria-invalid:ring-destructive/20 fve:aria-pressed:bg-muted fve:data-[state=on]:bg-muted fve:dark:aria-invalid:ring-destructive/40 fve:[&_svg]:pointer-events-none fve:[&_svg]:shrink-0 fve:[&_svg:not([class*='size-'])]:size-4",
   {
     variants: {
       variant: {
-        default: "bg-transparent",
-        outline: "border border-input bg-transparent hover:bg-muted",
+        default: "fve:bg-transparent",
+        outline: "fve:border fve:border-input fve:bg-transparent fve:hover:bg-muted",
       },
       size: {
         default:
-          "h-8 min-w-8 px-2.5 has-data-[icon=inline-end]:pr-2 has-data-[icon=inline-start]:pl-2",
-        sm: "h-7 min-w-7 rounded-[min(var(--radius-md),12px)] px-2.5 text-[0.8rem] has-data-[icon=inline-end]:pr-1.5 has-data-[icon=inline-start]:pl-1.5 [&_svg:not([class*='size-'])]:size-3.5",
-        lg: "h-9 min-w-9 px-2.5 has-data-[icon=inline-end]:pr-2 has-data-[icon=inline-start]:pl-2",
+          "fve:h-8 fve:min-w-8 fve:px-2.5 fve:has-data-[icon=inline-end]:pr-2 fve:has-data-[icon=inline-start]:pl-2",
+        sm: "fve:h-7 fve:min-w-7 fve:rounded-[min(var(--radius-md),12px)] fve:px-2.5 fve:text-[0.8rem] fve:has-data-[icon=inline-end]:pr-1.5 fve:has-data-[icon=inline-start]:pl-1.5 fve:[&_svg:not([class*='size-'])]:size-3.5",
+        lg: "fve:h-9 fve:min-w-9 fve:px-2.5 fve:has-data-[icon=inline-end]:pr-2 fve:has-data-[icon=inline-start]:pl-2",
       },
     },
     defaultVariants: {

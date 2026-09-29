@@ -41,12 +41,12 @@ export function SystemMark({ className }: { className?: string }) {
         render={
           <span
             data-slot="view-system-tag"
-            className={cn('flex shrink-0 opacity-70', className)}
+            className={cn('fve:flex fve:shrink-0 fve:opacity-70', className)}
           />
         }
       >
-        <Icon aria-hidden className="size-3.5" />
-        <span className="sr-only">
+        <Icon aria-hidden className="fve:size-3.5" />
+        <span className="fve:sr-only">
           {messages.label('label.scope.tag.system')}
         </span>
       </TooltipTrigger>

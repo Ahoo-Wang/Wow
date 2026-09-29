@@ -112,7 +112,7 @@ async function workbench(canvasElement: HTMLElement) {
   )!;
   // The view list's open view (a page button says `aria-current` too).
   const current = surface.querySelector<HTMLElement>(
-    '[aria-current="true"].bg-nav-current',
+    '[aria-current="true"].fve\\:bg-nav-current',
   )!;
   return { surface, current };
 }
@@ -183,7 +183,7 @@ async function hoveredOutlineButton(
   if (!mouse) throw new Error('This story needs the runner’s own mouse.');
   const button = [
     ...canvasElement.querySelectorAll<HTMLElement>(
-      '.group\\/button.border-border',
+      '.fve\\:group\\/button.fve\\:border-border',
     ),
   ].find(
     candidate =>

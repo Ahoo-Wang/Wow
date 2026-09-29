@@ -118,19 +118,19 @@ export function AppliedBar({
           : messages.label('label.applied.title')
       }
       className={cn(
-        'flex flex-wrap items-center gap-1 rounded-md',
+        'fve:flex fve:flex-wrap fve:items-center fve:gap-1 fve:rounded-md',
         FOCUS_CARD,
         TEXT_UI,
         className,
       )}
     >
-      <span className="text-muted-foreground shrink-0">
+      <span className="fve:text-muted-foreground fve:shrink-0">
         {messages.label('label.applied.title')}
       </span>
       {/* "All records" answers for everything in force, so a scope counts:
           rows narrowed by the page are not all of them. */}
       {applied.length === 0 && scoped.length === 0 && implied.length === 0 && (
-        <span className="text-muted-foreground">
+        <span className="fve:text-muted-foreground">
           {messages.label('label.applied.all')}
         </span>
       )}
@@ -173,7 +173,7 @@ export function AppliedBar({
               // outline at 60% is a focus outline that fails its own
               // contrast. The pull is the badge's right padding, so the
               // pill does not grow a second box round the button.
-              className="-mr-1.5 opacity-60 hover:opacity-100 focus-visible:opacity-100"
+              className="fve:-mr-1.5 fve:opacity-60 fve:hover:opacity-100 fve:focus-visible:opacity-100"
               onClick={() => {
                 going.current = { key: item.path.join('.'), at: index };
                 // A segment is two conditions said as one badge, so its ✕
@@ -206,7 +206,7 @@ export function AppliedBar({
           data-unresolved={item.unresolved || undefined}
         >
           {say(item)}
-          <span className="sr-only">
+          <span className="fve:sr-only">
             {' '}
             {messages.label('label.applied.scoped')}
           </span>
@@ -224,7 +224,7 @@ export function AppliedBar({
           data-implied
         >
           {say(item)}
-          <span className="sr-only">
+          <span className="fve:sr-only">
             {' '}
             {messages.label('label.applied.implied')}
           </span>

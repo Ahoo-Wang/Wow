@@ -451,7 +451,7 @@ The five are `--fve-table-header-height`, `--fve-table-cell-padding-block` and `
 | `shadow-sm`                     | The low lift: a raised card                                                                                                                                                                           | Tailwind's `shadow-sm`                                | the same                          |
 | `shadow-md`                     | The middle lift: a popup                                                                                                                                                                              | Tailwind's `shadow-md`                                | the same                          |
 | `shadow-lg`                     | The high lift: a dragged panel                                                                                                                                                                        | Tailwind's `shadow-lg`                                | the same                          |
-| `canvas`                        | The grouped ground a board and a host's card-laid page stand on (`bg-canvas`)                                                                                                                         | `background`                                          | `background`                      |
+| `canvas`                        | The grouped ground a board and a host's card-laid page stand on (`fve:bg-canvas`)                                                                                                                     | `background`                                          | `background`                      |
 | `content`                       | The ground rows and a result are written on                                                                                                                                                           | `background`                                          | `background`                      |
 | `card-edge`                     | The ring round a card: a board panel, a record card                                                                                                                                                   | `foreground` at 10%                                   | the same                          |
 | `card-shadow`                   | A card's lift off what it sits on                                                                                                                                                                     | `0 0 #0000`                                           | `0 0 #0000`                       |
@@ -589,7 +589,7 @@ Every rule of the stylesheet is scoped at build time, so the theme's tokens and 
 | Light or dark                         | a `.dark` ancestor, or `theme` pinning one with `data-theme` | a `.dark` ancestor, and nothing else                                     |
 | Wording, locale, time zone, tooltips  | yes, through `ViewSurface`'s props                           | no                                                                       |
 
-**What `fve-tokens` promises is the tokens and the utilities, not components.** The shadcn primitives this package renders with are vendored, updated with `shadcn add --diff`, and not part of its public surface — so build your chrome from your own components, or from your own copy of shadcn/ui, and let the boundary give them this theme's colours and spacing:
+**What `fve-tokens` promises is the tokens and the utilities — the engine's, written with its prefix, `fve:flex` — not components.** The shadcn primitives this package renders with are vendored, updated with `shadcn add --diff`, and not part of its public surface — so build your chrome from your own components, or from your own copy of shadcn/ui, and let the boundary give them this theme's colours and spacing:
 
 <!-- typecheck-context
 import { ViewEngine } from '@ahoo-wang/wow-view-engine';
@@ -599,8 +599,8 @@ declare const id: string;
 -->
 
 ```tsx
-<div className="fve-tokens flex flex-col gap-4">
-  <header className="flex items-center gap-2 rounded-lg border bg-card p-4 text-card-foreground">
+<div className="fve-tokens fve:flex fve:flex-col fve:gap-4">
+  <header className="fve:flex fve:items-center fve:gap-2 fve:rounded-lg fve:border fve:bg-card fve:p-4 fve:text-card-foreground">
     …your own header, wearing this theme's tokens…
   </header>
   <EmbeddedView engine={engine} instanceId={id} theme="light" />

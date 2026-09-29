@@ -156,34 +156,34 @@ export function RecordDetail({
           initialFocus={heading}
           finalFocus={() => rowOf(anchor.current, last.current) ?? true}
           showCloseButton={!nested}
-          className={cn(nested ? 'sm:max-w-[39rem]' : 'sm:max-w-2xl')}
+          className={cn(nested ? 'fve:sm:max-w-[39rem]' : 'fve:sm:max-w-2xl')}
         >
-          <SheetHeader className={cn('gap-2', !nested && 'pr-12')}>
+          <SheetHeader className={cn('fve:gap-2', !nested && 'fve:pr-12')}>
             {layer ? (
-              <div className="-ml-2 flex min-w-0 items-center gap-1">
+              <div className="fve:-ml-2 fve:flex fve:min-w-0 fve:items-center fve:gap-1">
                 <SheetClose
                   data-slot="record-detail-back"
                   render={<Button variant="ghost" size="sm" />}
                   aria-label={messages.label('label.record.detail.back', {
                     key: String(layer.parent),
                   })}
-                  className="min-w-0 font-mono"
+                  className="fve:min-w-0 fve:font-mono"
                 >
                   <ArrowLeftIcon data-icon="inline-start" />
-                  <span className="truncate">{String(layer.parent)}</span>
+                  <span className="fve:truncate">{String(layer.parent)}</span>
                 </SheetClose>
                 <ChevronRightIcon
                   aria-hidden="true"
-                  className="size-3.5 shrink-0 text-muted-foreground"
+                  className="fve:size-3.5 fve:shrink-0 fve:text-muted-foreground"
                 />
-                <SheetDescription className="truncate">
+                <SheetDescription className="fve:truncate">
                   {layer.section}
                 </SheetDescription>
               </div>
             ) : title !== undefined ? (
               <SheetDescription
                 data-slot="record-detail-key"
-                className="font-mono break-all"
+                className="fve:font-mono fve:break-all"
               >
                 {String(key)}
               </SheetDescription>
@@ -196,20 +196,23 @@ export function RecordDetail({
               ref={heading}
               tabIndex={-1}
               className={cn(
-                'break-all',
-                title === undefined && 'font-mono',
-                title !== undefined && 'text-lg',
+                'fve:break-all',
+                title === undefined && 'fve:font-mono',
+                title !== undefined && 'fve:text-lg',
               )}
             >
               {title ?? (key === null ? '' : String(key))}
             </SheetTitle>
             {row && actions && (
-              <div data-slot="record-detail-actions" className="flex gap-2">
+              <div
+                data-slot="record-detail-actions"
+                className="fve:flex fve:gap-2"
+              >
                 <RowActions>{actions(row)}</RowActions>
               </div>
             )}
           </SheetHeader>
-          <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-4 pb-4">
+          <div className="fve:flex fve:min-h-0 fve:flex-1 fve:flex-col fve:gap-4 fve:overflow-y-auto fve:px-4 fve:pb-4">
             {error && (
               <LineAlert
                 tone="error"
@@ -242,7 +245,7 @@ export function RecordDetail({
             {detail.missing ? (
               <p
                 data-slot="record-detail-missing"
-                className="text-muted-foreground"
+                className="fve:text-muted-foreground"
               >
                 {messages.label('label.record.detail.missing')}
               </p>
@@ -276,7 +279,7 @@ export function RecordDetail({
               detail.loading && <Reading />
             )}
             {detail.loading && (
-              <p className="sr-only" role="status">
+              <p className="fve:sr-only" role="status">
                 {messages.label('label.record.detail.loading')}
               </p>
             )}
@@ -303,19 +306,19 @@ function FieldSection({
     <section
       aria-labelledby={heading}
       data-slot="record-detail-section"
-      className="flex flex-col gap-2"
+      className="fve:flex fve:flex-col fve:gap-2"
     >
-      <h3 id={heading} className="text-sm font-semibold">
+      <h3 id={heading} className="fve:text-sm fve:font-semibold">
         {section.label === null
           ? messages.label('label.record.detail.other')
           : messages.say(section.label)}
       </h3>
-      <dl className="grid grid-cols-[minmax(6rem,max-content)_minmax(0,1fr)] gap-x-4 gap-y-2">
+      <dl className="fve:grid fve:grid-cols-[minmax(6rem,max-content)_minmax(0,1fr)] fve:gap-x-4 fve:gap-y-2">
         {section.fields.map(field => {
           const value = record ? recordValue(record, field.field) : undefined;
           const shown =
             value === undefined && detail.loading ? (
-              <Skeleton className="h-4 w-24" />
+              <Skeleton className="fve:h-4 fve:w-24" />
             ) : (
               (cellValue(
                 value,
@@ -329,15 +332,21 @@ function FieldSection({
           // label (`blockOf`).
           const block = blockOf(value);
           return (
-            <div key={field.field} className="contents">
+            <div key={field.field} className="fve:contents">
               <dt
-                className={cn('text-muted-foreground', block && 'col-span-2')}
+                className={cn(
+                  'fve:text-muted-foreground',
+                  block && 'fve:col-span-2',
+                )}
               >
                 {messages.say(field.label)}
               </dt>
               <dd
                 data-block={block ? '' : undefined}
-                className={cn('min-w-0 [overflow-wrap:anywhere]', block)}
+                className={cn(
+                  'fve:min-w-0 fve:[overflow-wrap:anywhere]',
+                  block,
+                )}
               >
                 {shown}
               </dd>
@@ -372,9 +381,9 @@ function HostSection({
       data-slot="record-detail-section"
       data-host=""
       data-section={section.id}
-      className="flex flex-col gap-2"
+      className="fve:flex fve:flex-col fve:gap-2"
     >
-      <h3 id={heading} className="text-sm font-semibold">
+      <h3 id={heading} className="fve:text-sm fve:font-semibold">
         {say(section.title)}
       </h3>
       <DetailLayerContext.Provider value={{ parent, section: section.title }}>
@@ -396,12 +405,12 @@ function Reading() {
     <div
       data-slot="record-detail-reading"
       aria-hidden="true"
-      className="flex flex-col gap-2"
+      className="fve:flex fve:flex-col fve:gap-2"
     >
-      <Skeleton className="h-4 w-32" />
-      <Skeleton className="h-4 w-full" />
-      <Skeleton className="h-4 w-3/4" />
-      <Skeleton className="h-4 w-2/3" />
+      <Skeleton className="fve:h-4 fve:w-32" />
+      <Skeleton className="fve:h-4 fve:w-full" />
+      <Skeleton className="fve:h-4 fve:w-3/4" />
+      <Skeleton className="fve:h-4 fve:w-2/3" />
     </div>
   );
 }

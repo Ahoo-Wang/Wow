@@ -43,11 +43,11 @@ export default function OverviewPage() {
   const filters = state.boards?.[OVERVIEW_BOARD]?.filters ?? state.filters;
 
   return (
-    // The page stands on the board's own ground (`bg-canvas`), header and
+    // The page stands on the board's own ground (`fve:bg-canvas`), header and
     // all: a white strip over a grey board read as two pages (D59). The
     // header's edges line up with the panels': the page's 12px and the
     // board's inset of 10px.
-    <div className="flex min-h-0 flex-1 flex-col gap-3 bg-canvas p-3">
+    <div className="flex min-h-0 flex-1 flex-col gap-3 fve:bg-canvas p-3">
       <div className="flex flex-wrap items-center justify-between gap-2 px-2.5">
         {/* The page's heading: the top bar names the place, not the page, and
             the board has no workbench to title it (console-redesign.md §5.1). */}

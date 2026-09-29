@@ -51,7 +51,7 @@ export function CardName({
       // what the pointer is owed.
       <span
         data-slot="card-name"
-        className="truncate font-medium"
+        className="fve:truncate fve:font-medium"
         title={shown}
       >
         {shown}
@@ -113,7 +113,7 @@ function NameBox({ name, given, label, onRename, onDone }: CardNameProps) {
     <PillInput
       aria-label={label}
       chrome="box"
-      className="w-32"
+      className="fve:w-32"
       autoFocus
       value={text}
       placeholder={name}
@@ -164,7 +164,7 @@ export function CardMenu({
             label={messages.label('label.analysis.card-menu', { name })}
             variant="ghost"
             size="icon-xs"
-            className="ml-auto"
+            className="fve:ml-auto"
             data-slot="card-menu"
             disabled={disabled}
           />
@@ -172,7 +172,7 @@ export function CardMenu({
       >
         <EllipsisVerticalIcon />
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="min-w-44">
+      <DropdownMenuContent align="end" className="fve:min-w-44">
         <DropdownMenuGroup>
           <DropdownMenuItem onClick={onRename}>
             {messages.label('label.analysis.rename')}

@@ -94,7 +94,7 @@ function BinaryEditor<E extends { type: string }>({
     // the note below says why it cannot be touched.
     if (current === null)
       return (
-        <span data-slot="operand-text" className="text-muted-foreground">
+        <span data-slot="operand-text" className="fve:text-muted-foreground">
           {text(value)}
         </span>
       );
@@ -117,7 +117,7 @@ function BinaryEditor<E extends { type: string }>({
           <NumberInput
             label={messages.label('label.analysis.operand-value', { name })}
             chrome="box"
-            className="w-20"
+            className="fve:w-20"
             disabled={disabled}
             value={current}
             onNumber={next => {
@@ -145,7 +145,7 @@ function BinaryEditor<E extends { type: string }>({
       {(read(left) === null || read(right) === null) && (
         <span
           data-slot="expression-unreadable"
-          className="text-muted-foreground w-full"
+          className="fve:text-muted-foreground fve:w-full"
         >
           {messages.label('label.analysis.expression-unreadable')}
         </span>
@@ -286,7 +286,7 @@ export function DurationControls({
         disabled={disabled}
         onChange={from => write({ from })}
       />
-      <span aria-hidden="true" className="text-muted-foreground">
+      <span aria-hidden="true" className="fve:text-muted-foreground">
         →
       </span>
       <CompactSelect
@@ -479,7 +479,7 @@ function DerivedFormatControls({
       <NumberInput
         label={messages.label('label.analysis.derived.decimals', { name })}
         chrome="box"
-        className="w-16"
+        className="fve:w-16"
         disabled={disabled}
         value={decimals}
         placeholder={String(style === 'percent' ? 1 : 2)}
@@ -506,7 +506,7 @@ function DerivedFormatControls({
           placeholder={messages.label(
             'label.analysis.derived.currency-inherited',
           )}
-          className="h-7 w-24 uppercase"
+          className="fve:h-7 fve:w-24 fve:uppercase"
           maxLength={3}
           disabled={disabled}
           defaultValue={currency ?? ''}

@@ -451,7 +451,7 @@ pnpm exec wow-view-engine theme-check src/theme.css --preset azure --preset porc
 | `shadow-sm`                     | 低的一档浮起：浮起的卡片                                                                                                            | Tailwind 的 `shadow-sm`                | 同左                              |
 | `shadow-md`                     | 中的一档浮起：弹层                                                                                                                  | Tailwind 的 `shadow-md`                | 同左                              |
 | `shadow-lg`                     | 高的一档浮起：拖动中的面板                                                                                                          | Tailwind 的 `shadow-lg`                | 同左                              |
-| `canvas`                        | 分组底：看板与宿主按卡片排的页面站在它上面（`bg-canvas`）                                                                           | `background`                           | `background`                      |
+| `canvas`                        | 分组底：看板与宿主按卡片排的页面站在它上面（`fve:bg-canvas`）                                                                       | `background`                           | `background`                      |
 | `content`                       | 行与结果写在上面的底                                                                                                                | `background`                           | `background`                      |
 | `card-edge`                     | 卡片的一圈边：看板面板、记录卡片                                                                                                    | `foreground` 的 10%                    | 同左                              |
 | `card-shadow`                   | 卡片离开底的浮起                                                                                                                    | `0 0 #0000`                            | `0 0 #0000`                       |
@@ -589,7 +589,7 @@ pnpm exec wow-view-engine theme-check src/theme.css --preset azure --preset porc
 | 明暗                      | 祖先上的 `.dark`，或 `theme` 用 `data-theme` 钉住 | 只认祖先上的 `.dark`                                             |
 | 措辞、语言、时区、tooltip | 有，走 `ViewSurface` 的 props                     | 没有                                                             |
 
-**`fve-tokens` 许诺的是 token 与 utility，不是组件。** 本包渲染所用的 shadcn 原语是 vendored 的，靠 `shadcn add --diff` 升级，不属于公开 API——所以请用你自己的组件、或你自己那份 shadcn/ui 搭 chrome，由这道边界把本主题的配色与间距交给它们：
+**`fve-tokens` 许诺的是 token 与 utility（引擎的，带它的前缀写：`fve:flex`），不是组件。** 本包渲染所用的 shadcn 原语是 vendored 的，靠 `shadcn add --diff` 升级，不属于公开 API——所以请用你自己的组件、或你自己那份 shadcn/ui 搭 chrome，由这道边界把本主题的配色与间距交给它们：
 
 <!-- typecheck-context
 import { ViewEngine } from '@ahoo-wang/wow-view-engine';
@@ -599,8 +599,8 @@ declare const id: string;
 -->
 
 ```tsx
-<div className="fve-tokens flex flex-col gap-4">
-  <header className="flex items-center gap-2 rounded-lg border bg-card p-4 text-card-foreground">
+<div className="fve-tokens fve:flex fve:flex-col fve:gap-4">
+  <header className="fve:flex fve:items-center fve:gap-2 fve:rounded-lg fve:border fve:bg-card fve:p-4 fve:text-card-foreground">
     ……你自己的页头，穿着本主题的 token……
   </header>
   <EmbeddedView engine={engine} instanceId={id} theme="light" />

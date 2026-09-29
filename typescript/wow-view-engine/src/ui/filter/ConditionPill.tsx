@@ -64,7 +64,7 @@ import { recordIssueNamer } from '../record/issueNames.js';
  * sits in the same track as its neighbours.
  */
 const PILL_FRAME =
-  'border-border bg-muted/40 data-[blank]:border-dashed data-[invalid]:border-destructive data-[warning]:border-warning @[40rem]:data-[wide]:col-span-2 relative flex min-w-0 flex-wrap items-center gap-1 rounded-md border py-0.5 pr-0.5 pl-2 text-sm';
+  'fve:border-border fve:bg-muted/40 fve:data-[blank]:border-dashed fve:data-[invalid]:border-destructive fve:data-[warning]:border-warning fve:@[40rem]:data-[wide]:col-span-2 fve:relative fve:flex fve:min-w-0 fve:flex-wrap fve:items-center fve:gap-1 fve:rounded-md fve:border fve:py-0.5 fve:pr-0.5 fve:pl-2 fve:text-sm';
 
 /**
  * One condition: a field, an operator and whatever value editor the kind
@@ -195,7 +195,7 @@ export function ConditionPill({
         })}
         aria-invalid={invalidOperator || undefined}
         size="sm"
-        className="h-7 w-full px-1"
+        className="fve:h-7 fve:w-full fve:px-1"
       >
         <SelectValue />
       </PillSelectTrigger>
@@ -242,7 +242,7 @@ export function ConditionPill({
         <Toggle
           data-slot="filter-negate"
           size="sm"
-          className="size-7 min-w-7 px-0"
+          className="fve:size-7 fve:min-w-7 fve:px-0"
           pressed={negated === true}
           disabled={disabled}
           onPressedChange={() => filter.negate(path)}
@@ -256,7 +256,7 @@ export function ConditionPill({
     <Badge
       data-slot="filter-negated"
       variant="secondary"
-      className="shrink-0 px-1.5"
+      className="fve:shrink-0 fve:px-1.5"
     >
       {messages.label('label.filter.negated')}
     </Badge>
@@ -270,7 +270,9 @@ export function ConditionPill({
   const name = (
     <Tooltip>
       <TooltipTrigger
-        render={<span className="w-16 shrink-0 truncate font-medium" />}
+        render={
+          <span className="fve:w-16 fve:shrink-0 fve:truncate fve:font-medium" />
+        }
       >
         {label}
       </TooltipTrigger>
@@ -307,13 +309,13 @@ export function ConditionPill({
             offers, and without it there is no list to choose from. An empty
             select was the old answer, and it read as a choice the user had
             failed to make. */}
-        <span className="w-24 shrink-0 truncate">
+        <span className="fve:w-24 fve:shrink-0 fve:truncate">
           {operatorLabel(messages, leaf.operator, kind)}
         </span>
         <UnsupportedValue
           kind={field.kind}
           value={leaf.value}
-          className="min-w-24 flex-1"
+          className="fve:min-w-24 fve:flex-1"
         />
         {remove}
       </div>
@@ -333,15 +335,15 @@ export function ConditionPill({
         data-blank={blank || undefined}
         data-pending={pending || undefined}
         data-negated={negated || undefined}
-        className="border-border data-[blank]:border-dashed data-[invalid]:border-destructive data-[warning]:border-warning relative col-span-full flex flex-col gap-1 rounded-md border p-2"
+        className="fve:border-border fve:data-[blank]:border-dashed fve:data-[invalid]:border-destructive fve:data-[warning]:border-warning fve:relative fve:col-span-full fve:flex fve:flex-col fve:gap-1 fve:rounded-md fve:border fve:p-2"
       >
         {pending && <PendingDot named className={PENDING_AT_CORNER} />}
-        <div className="flex items-center gap-1">
-          <span className="shrink-0 text-sm font-medium whitespace-nowrap">
+        <div className="fve:flex fve:items-center fve:gap-1">
+          <span className="fve:shrink-0 fve:text-sm fve:font-medium fve:whitespace-nowrap">
             {label}
           </span>
           {negatedWord}
-          <div className="w-44 shrink-0">{operatorSelect}</div>
+          <div className="fve:w-44 fve:shrink-0">{operatorSelect}</div>
           {negate}
           {remove}
         </div>
@@ -378,7 +380,7 @@ export function ConditionPill({
       {pending && <PendingDot named className={PENDING_AT_CORNER} />}
       {name}
       {negatedWord}
-      <div className="w-24 shrink-0">{operatorSelect}</div>
+      <div className="fve:w-24 fve:shrink-0">{operatorSelect}</div>
       {/* One border per condition (D12): the pill is the field, so the
           value control inside it draws none of its own — like the operator
           select beside it — and shows focus by the ring alone. That used to
@@ -390,7 +392,7 @@ export function ConditionPill({
       <div
         data-slot="filter-value"
         className={cn(
-          'min-w-0 flex-1',
+          'fve:min-w-0 fve:flex-1',
           // The floor that decides where the pill wraps. A value control is
           // the answer itself, and below a few characters it stops being one:
           // on a 420-wide strip the field's name and the operator left 38px,
@@ -400,7 +402,7 @@ export function ConditionPill({
           // whole pill — 6rem for one input, 9rem for the two a range or a
           // date needs. Above the floor it still takes only what is left, and
           // clamps.
-          wide ? 'min-w-36' : 'min-w-24',
+          wide ? 'fve:min-w-36' : 'fve:min-w-24',
         )}
       >
         {/* `field` is defined wherever `editor` is — the descriptor comes
@@ -454,7 +456,7 @@ export function ConditionPill({
         <p
           id={reasonId}
           data-slot="filter-condition-reason"
-          className="text-destructive basis-full pb-0.5 text-xs"
+          className="fve:text-destructive fve:basis-full fve:pb-0.5 fve:text-xs"
         >
           {errors
             .map(found =>
@@ -510,7 +512,7 @@ function NestedPredicate({
   });
 
   return (
-    <div className="min-w-0">
+    <div className="fve:min-w-0">
       <GroupBlock
         filter={nested}
         group={nested.tree}

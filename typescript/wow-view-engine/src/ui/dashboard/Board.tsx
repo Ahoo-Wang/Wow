@@ -260,7 +260,7 @@ export function DashboardBoard({
           opened bubbles here through React, but is not on the board. */}
         <div
           ref={gridRef}
-          className="flex flex-col gap-3"
+          className="fve:flex fve:flex-col fve:gap-3"
           onKeyDown={history.onKeyDown}
         >
           <DashboardGrid

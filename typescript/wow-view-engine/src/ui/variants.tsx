@@ -124,25 +124,25 @@ const TONE_BASE: Record<FieldTone, 'secondary' | 'destructive'> = {
  * neutral value is a value.
  */
 const SOFT =
-  "before:size-1.5 before:shrink-0 before:rounded-full before:bg-current before:content-['']";
+  "fve:before:size-1.5 fve:before:shrink-0 fve:before:rounded-full fve:before:bg-current fve:before:content-['']";
 
 const toneBadgeVariants = cva('', {
   variants: {
     tone: {
-      neutral: 'border-input',
+      neutral: 'fve:border-input',
       // The wash and the edge are the stylesheet's, by `data-tone`: as much
       // of the tone as `--_fve-badge-fill` and `--_fve-badge-edge` say
       // (10% and 30% unset; `styles.css`, theme-architecture.md 4.2).
-      success: `text-success ${SOFT}`,
-      warning: `text-warning ${SOFT}`,
-      danger: `text-destructive ${SOFT}`,
+      success: `fve:text-success ${SOFT}`,
+      warning: `fve:text-warning ${SOFT}`,
+      danger: `fve:text-destructive ${SOFT}`,
     } satisfies Record<FieldTone, string>,
     /**
      * `false` where an icon already marks the badge — a metric card's
      * change leads with its arrow, and a dot beside the arrow is two marks
      * saying one thing.
      */
-    dot: { true: '', false: 'before:hidden' },
+    dot: { true: '', false: 'fve:before:hidden' },
   },
   defaultVariants: { tone: 'neutral', dot: true },
 });
@@ -229,7 +229,7 @@ export function ChangeBadge({
       data-tone={tone}
       data-change={direction}
       variant="secondary"
-      className={cn('text-change', className)}
+      className={cn('fve:text-change', className)}
       {...props}
     />
   );
@@ -253,7 +253,10 @@ export function WrappingBadge({
 }: React.ComponentProps<typeof Badge>) {
   return (
     <Badge
-      className={cn('h-auto max-w-full text-left whitespace-normal', className)}
+      className={cn(
+        'fve:h-auto fve:max-w-full fve:text-left fve:whitespace-normal',
+        className,
+      )}
       {...props}
     />
   );
@@ -284,8 +287,8 @@ export function WrappingBadge({
  * `variant="destructive"` rather than replacing it.
  */
 const destructiveActionVariants = cva([
-  'bg-destructive dark:bg-destructive text-destructive-foreground',
-  'hover:bg-destructive/90 dark:hover:bg-destructive/90',
+  'fve:bg-destructive fve:dark:bg-destructive fve:text-destructive-foreground',
+  'fve:hover:bg-destructive/90 fve:dark:hover:bg-destructive/90',
 ]);
 
 /**
@@ -322,7 +325,7 @@ export function DestructiveAction({
  * outline button does and the edge stays dashed. Size, hit area and focus
  * ring are the registry's.
  */
-const addButtonVariants = cva('border-dashed');
+const addButtonVariants = cva('fve:border-dashed');
 
 /**
  * A button that adds something not there yet — 「+ 添加」 on the tray's
@@ -386,7 +389,10 @@ export function SectionDivider({
   return (
     <Separator
       orientation="vertical"
-      className={cn('dark:bg-input h-5 data-vertical:self-center', className)}
+      className={cn(
+        'fve:dark:bg-input fve:h-5 fve:data-vertical:self-center',
+        className,
+      )}
       {...props}
     />
   );
@@ -408,7 +414,7 @@ const controlChromeVariants = cva('', {
   variants: {
     chrome: {
       box: '',
-      none: 'border-transparent bg-transparent shadow-none',
+      none: 'fve:border-transparent fve:bg-transparent fve:shadow-none',
     },
   },
   defaultVariants: { chrome: 'none' },
@@ -456,7 +462,7 @@ export function PillChips({
   return (
     <ComboboxChips
       className={cn(
-        'min-h-7 px-1 py-0.5',
+        'fve:min-h-7 fve:px-1 fve:py-0.5',
         controlChromeVariants({ chrome }),
         className,
       )}
@@ -550,14 +556,14 @@ export function PillSelectTrigger({
  * full-strength shadows come first, so they are painted over the halo.
  */
 export const FOCUS_ROW = cn(
-  'outline-none',
-  'focus-visible:*:bg-row-hover',
+  'fve:outline-none',
+  'fve:focus-visible:*:bg-row-hover',
   // The ring, then the halo every control here wears (`--_fve-focus-halo`,
   // the registry's `ring-ring/50` unset), written out: Tailwind reads class
   // names, not code.
-  'focus-visible:*:shadow-[inset_0_1px_0_var(--ring),inset_0_-1px_0_var(--ring),inset_0_3px_0_var(--_fve-focus-halo),inset_0_-3px_0_var(--_fve-focus-halo)]',
-  'focus-visible:*:first:shadow-[inset_0_1px_0_var(--ring),inset_0_-1px_0_var(--ring),inset_1px_0_0_var(--ring),inset_0_3px_0_var(--_fve-focus-halo),inset_0_-3px_0_var(--_fve-focus-halo),inset_3px_0_0_var(--_fve-focus-halo)]',
-  'focus-visible:*:last:shadow-[inset_0_1px_0_var(--ring),inset_0_-1px_0_var(--ring),inset_-1px_0_0_var(--ring),inset_0_3px_0_var(--_fve-focus-halo),inset_0_-3px_0_var(--_fve-focus-halo),inset_-3px_0_0_var(--_fve-focus-halo)]',
+  'fve:focus-visible:*:shadow-[inset_0_1px_0_var(--ring),inset_0_-1px_0_var(--ring),inset_0_3px_0_var(--_fve-focus-halo),inset_0_-3px_0_var(--_fve-focus-halo)]',
+  'fve:focus-visible:*:first:shadow-[inset_0_1px_0_var(--ring),inset_0_-1px_0_var(--ring),inset_1px_0_0_var(--ring),inset_0_3px_0_var(--_fve-focus-halo),inset_0_-3px_0_var(--_fve-focus-halo),inset_3px_0_0_var(--_fve-focus-halo)]',
+  'fve:focus-visible:*:last:shadow-[inset_0_1px_0_var(--ring),inset_0_-1px_0_var(--ring),inset_-1px_0_0_var(--ring),inset_0_3px_0_var(--_fve-focus-halo),inset_0_-3px_0_var(--_fve-focus-halo),inset_-3px_0_0_var(--_fve-focus-halo)]',
 );
 
 /**
@@ -569,8 +575,8 @@ export const FOCUS_ROW = cn(
  * page and 2.15:1 on the dark one (phase 5, 5A; `FocusMarks*`).
  */
 export const FOCUS_CARD = cn(
-  'outline-none focus-visible:outline-solid focus-visible:outline-1 focus-visible:-outline-offset-1 focus-visible:outline-ring',
-  'focus-visible:ring-[3px] focus-visible:ring-ring/50',
+  'fve:outline-none fve:focus-visible:outline-solid fve:focus-visible:outline-1 fve:focus-visible:-outline-offset-1 fve:focus-visible:outline-ring',
+  'fve:focus-visible:ring-[3px] fve:focus-visible:ring-ring/50',
 );
 
 /**
@@ -582,8 +588,8 @@ export const FOCUS_CARD = cn(
  * holds 3:1, and the 3px halo at half strength), turned inward.
  */
 export const FOCUS_INSET = cn(
-  'outline-none focus-visible:outline-solid focus-visible:outline-1 focus-visible:-outline-offset-1 focus-visible:outline-ring',
-  'focus-visible:ring-[3px] focus-visible:ring-inset focus-visible:ring-ring/50',
+  'fve:outline-none fve:focus-visible:outline-solid fve:focus-visible:outline-1 fve:focus-visible:-outline-offset-1 fve:focus-visible:outline-ring',
+  'fve:focus-visible:ring-[3px] fve:focus-visible:ring-inset fve:focus-visible:ring-ring/50',
 );
 
 /**
@@ -593,7 +599,7 @@ export const FOCUS_INSET = cn(
  * board's panels, the record cards and their skeletons.
  */
 export const CARD_LIFT =
-  'ring-(color:--_fve-card-edge) shadow-(--_fve-card-shadow)';
+  'fve:ring-(color:--_fve-card-edge) fve:shadow-(--_fve-card-shadow)';
 
 /**
  * A dashboard panel's frame: the registry's card, whose edge is a ring
@@ -613,7 +619,7 @@ export function PanelCard({
 }: React.ComponentProps<typeof Card>) {
   return (
     <Card
-      className={cn(CARD_LIFT, 'data-[warning]:ring-warning', className)}
+      className={cn(CARD_LIFT, 'fve:data-[warning]:ring-warning', className)}
       {...props}
     />
   );
@@ -647,7 +653,7 @@ export function ControlFrame({
       // (`styles.css`), found by this.
       data-control-frame=""
       className={cn(
-        'rounded-md border border-[color:var(--_fve-control-edge,var(--input))] bg-[color:var(--_fve-control,color-mix(in_oklab,var(--muted)_40%,transparent))] has-[[data-slot=input]]:border-input data-[idle]:border-dashed data-[idle]:border-input data-[idle]:bg-background',
+        'fve:rounded-md fve:border fve:border-[color:var(--_fve-control-edge,var(--input))] fve:bg-[color:var(--_fve-control,color-mix(in_oklab,var(--muted)_40%,transparent))] fve:has-[[data-slot=input]]:border-input fve:data-[idle]:border-dashed fve:data-[idle]:border-input fve:data-[idle]:bg-background',
         className,
       )}
       {...props}
@@ -655,13 +661,13 @@ export function ControlFrame({
   );
 }
 
-const modeBarVariants = cva('bg-muted/50 border-border border', {
+const modeBarVariants = cva('fve:bg-muted/50 fve:border-border fve:border', {
   variants: {
     size: {
       /** Across the board: the edit bar, the wiring bar. */
-      bar: 'rounded-lg px-3 py-2',
+      bar: 'fve:rounded-lg fve:px-3 fve:py-2',
       /** Under one panel: its wiring strip. */
-      strip: 'rounded-md px-2 py-1',
+      strip: 'fve:rounded-md fve:px-2 fve:py-1',
     },
   },
   defaultVariants: { size: 'bar' },
@@ -685,9 +691,9 @@ export function ModeBar({
 const tableDataRowVariants = cva([
   // The rows' own ground (`--_fve-content`, the page's `background` unset),
   // every other one striped where a theme turns the stripe on.
-  'bg-content even:bg-row-stripe',
-  'hover:bg-row-hover has-aria-expanded:bg-row-hover',
-  'data-[state=selected]:bg-row-selected data-[state=selected]:hover:bg-row-selected data-[state=selected]:text-row-selected-foreground',
+  'fve:bg-content fve:even:bg-row-stripe',
+  'fve:hover:bg-row-hover fve:has-aria-expanded:bg-row-hover',
+  'fve:data-[state=selected]:bg-row-selected fve:data-[state=selected]:hover:bg-row-selected fve:data-[state=selected]:text-row-selected-foreground',
 ]);
 
 /**
@@ -738,11 +744,11 @@ export function TableDataRow({
 const sidebarItemVariants = cva(
   // The row's height is the surface's density (`--_fve-sidebar-item-height`,
   // `styles.css`): 28px at the default, which is the registry's `sm`.
-  'hover:bg-sidebar-accent hover:text-sidebar-accent-foreground h-(--_fve-sidebar-item-height) justify-start',
+  'fve:hover:bg-sidebar-accent fve:hover:text-sidebar-accent-foreground fve:h-(--_fve-sidebar-item-height) fve:justify-start',
   {
     variants: {
       current: {
-        true: 'bg-nav-current text-nav-current-foreground hover:bg-nav-current hover:text-nav-current-foreground border-nav-current-edge shadow-nav-current font-medium',
+        true: 'fve:bg-nav-current fve:text-nav-current-foreground fve:hover:bg-nav-current fve:hover:text-nav-current-foreground fve:border-nav-current-edge fve:shadow-nav-current fve:font-medium',
         false: '',
       },
     },
@@ -809,9 +815,9 @@ export function SidebarItem({
  * own `result` slot needs (`ResultBlock.slots`).
  */
 export const resultFrameChrome =
-  'bg-content border-border -mx-4 -mb-4 overflow-hidden border-t ' +
-  '[&>[data-slot=result-toolbar]]:border-border [&>[data-slot=result-toolbar]]:border-b [&>[data-slot=result-toolbar]]:px-4 [&>[data-slot=result-toolbar]]:py-2 ' +
-  '[&>[data-slot=status-strip]]:mx-4 [&>[data-slot=status-strip]]:my-3';
+  'fve:bg-content fve:border-border fve:-mx-4 fve:-mb-4 fve:overflow-hidden fve:border-t ' +
+  'fve:[&>[data-slot=result-toolbar]]:border-border fve:[&>[data-slot=result-toolbar]]:border-b fve:[&>[data-slot=result-toolbar]]:px-4 fve:[&>[data-slot=result-toolbar]]:py-2 ' +
+  'fve:[&>[data-slot=status-strip]]:mx-4 fve:[&>[data-slot=status-strip]]:my-3';
 
 /**
  * What a kind's own parts wear inside that frame, one recipe per part.
@@ -829,14 +835,14 @@ const RESULT_SLOTS = {
    * 秒」. A kind that grows another names it here, beside these.
    */
   caption:
-    '[&>[data-slot=record-pagination]]:border-border [&>[data-slot=record-pagination]]:bg-muted/40 [&>[data-slot=record-pagination]]:border-t [&>[data-slot=record-pagination]]:px-4 [&>[data-slot=record-pagination]]:py-2 ' +
-    '[&>[data-slot=analysis-caption]]:border-border [&>[data-slot=analysis-caption]]:bg-muted/40 [&>[data-slot=analysis-caption]]:border-t [&>[data-slot=analysis-caption]]:px-4 [&>[data-slot=analysis-caption]]:py-2',
+    'fve:[&>[data-slot=record-pagination]]:border-border fve:[&>[data-slot=record-pagination]]:bg-muted/40 fve:[&>[data-slot=record-pagination]]:border-t fve:[&>[data-slot=record-pagination]]:px-4 fve:[&>[data-slot=record-pagination]]:py-2 ' +
+    'fve:[&>[data-slot=analysis-caption]]:border-border fve:[&>[data-slot=analysis-caption]]:bg-muted/40 fve:[&>[data-slot=analysis-caption]]:border-t fve:[&>[data-slot=analysis-caption]]:px-4 fve:[&>[data-slot=analysis-caption]]:py-2',
   /** A query that matched nothing, in air of its own rather than to the edge. */
-  empty: '[&>[data-slot=record-empty]]:my-6',
+  empty: 'fve:[&>[data-slot=record-empty]]:my-6',
   /** Cards keep the column's padding; a table is what runs to the edge. */
-  cards: '[&>[data-slot=record-cards]]:p-4',
+  cards: 'fve:[&>[data-slot=record-cards]]:p-4',
   /** A host command's line sits where the query strip does, and as it does. */
-  bulk: '[&>[data-slot=bulk-status]]:mx-4 [&>[data-slot=bulk-status]]:my-3',
+  bulk: 'fve:[&>[data-slot=bulk-status]]:mx-4 fve:[&>[data-slot=bulk-status]]:my-3',
 } as const;
 
 /** One part of a kind's result, by the job it does inside the frame. */
@@ -882,7 +888,7 @@ export function EditorSlot({
       data-slot={`analysis-slot-${name}`}
       aria-label={title}
       className={cn(
-        'grid min-w-0 grid-cols-1 items-start md:col-span-2 md:grid-cols-subgrid',
+        'fve:grid fve:min-w-0 fve:grid-cols-1 fve:items-start fve:md:col-span-2 fve:md:grid-cols-subgrid',
         SPACE.WITHIN,
         className,
       )}
@@ -896,15 +902,21 @@ export function EditorSlot({
           where nothing is meant to be pressed. */}
       <div
         data-slot="analysis-slot-head"
-        className={cn('flex min-h-7 items-center gap-0.5', TEXT_UI)}
+        className={cn(
+          'fve:flex fve:min-h-7 fve:items-center fve:gap-0.5',
+          TEXT_UI,
+        )}
       >
-        <h3 className="text-foreground font-semibold">{title}</h3>
+        <h3 className="fve:text-foreground fve:font-semibold">{title}</h3>
         {tip}
       </div>
-      <div className="flex min-w-0 flex-wrap items-start gap-x-3 gap-y-2">
+      <div className="fve:flex fve:min-w-0 fve:flex-wrap fve:items-start fve:gap-x-3 fve:gap-y-2">
         <div
           data-slot="analysis-slot-body"
-          className={cn('flex min-w-0 flex-1 basis-64 flex-col', SPACE.GROUPS)}
+          className={cn(
+            'fve:flex fve:min-w-0 fve:flex-1 fve:basis-64 fve:flex-col',
+            SPACE.GROUPS,
+          )}
         >
           {children}
         </div>
@@ -912,7 +924,7 @@ export function EditorSlot({
           <div
             data-slot="analysis-slot-end"
             className={cn(
-              'ml-auto flex min-h-7 shrink-0 items-center',
+              'fve:ml-auto fve:flex fve:min-h-7 fve:shrink-0 fve:items-center',
               TEXT_UI,
             )}
           >
@@ -937,7 +949,7 @@ export function EditorCard({
     <div
       data-slot="editor-card"
       className={cn(
-        'bg-background border-border flex min-w-0 flex-wrap items-center gap-2 rounded-md border px-2 py-1',
+        'fve:bg-background fve:border-border fve:flex fve:min-w-0 fve:flex-wrap fve:items-center fve:gap-2 fve:rounded-md fve:border fve:px-2 fve:py-1',
         TEXT_UI,
         className,
       )}
@@ -978,13 +990,13 @@ export function ChartTile({
       type="button"
       data-slot="chart-tile"
       className={cn(
-        'bg-background border-border text-foreground relative flex min-h-16 w-full flex-col items-center justify-center gap-1 rounded-md border px-1 py-2 text-center',
-        'aria-checked:ring-primary aria-checked:border-primary aria-checked:ring-1',
-        'aria-disabled:border-dashed aria-disabled:bg-muted/40 aria-disabled:cursor-not-allowed',
-        'focus-visible:ring-ring/50 outline-none focus-visible:ring-[3px]',
-        '[&_[data-slot=chart-reason]]:text-quiet-foreground [&_[data-slot=chart-reason]]:text-xs [&_[data-slot=chart-reason]]:leading-tight',
-        '[&_[data-slot=chart-hint]]:text-quiet-foreground [&_[data-slot=chart-hint]]:text-xs [&_[data-slot=chart-hint]]:leading-tight',
-        '[&_[data-slot=chart-recommended]]:bg-primary [&_[data-slot=chart-recommended]]:text-primary-foreground [&_[data-slot=chart-recommended]]:absolute [&_[data-slot=chart-recommended]]:-bottom-2 [&_[data-slot=chart-recommended]]:left-1/2 [&_[data-slot=chart-recommended]]:-translate-x-1/2 [&_[data-slot=chart-recommended]]:whitespace-nowrap [&_[data-slot=chart-recommended]]:rounded-full [&_[data-slot=chart-recommended]]:px-1.5 [&_[data-slot=chart-recommended]]:text-[10px]',
+        'fve:bg-background fve:border-border fve:text-foreground fve:relative fve:flex fve:min-h-16 fve:w-full fve:flex-col fve:items-center fve:justify-center fve:gap-1 fve:rounded-md fve:border fve:px-1 fve:py-2 fve:text-center',
+        'fve:aria-checked:ring-primary fve:aria-checked:border-primary fve:aria-checked:ring-1',
+        'fve:aria-disabled:border-dashed fve:aria-disabled:bg-muted/40 fve:aria-disabled:cursor-not-allowed',
+        'fve:focus-visible:ring-ring/50 fve:outline-none fve:focus-visible:ring-[3px]',
+        'fve:[&_[data-slot=chart-reason]]:text-quiet-foreground fve:[&_[data-slot=chart-reason]]:text-xs fve:[&_[data-slot=chart-reason]]:leading-tight',
+        'fve:[&_[data-slot=chart-hint]]:text-quiet-foreground fve:[&_[data-slot=chart-hint]]:text-xs fve:[&_[data-slot=chart-hint]]:leading-tight',
+        'fve:[&_[data-slot=chart-recommended]]:bg-primary fve:[&_[data-slot=chart-recommended]]:text-primary-foreground fve:[&_[data-slot=chart-recommended]]:absolute fve:[&_[data-slot=chart-recommended]]:-bottom-2 fve:[&_[data-slot=chart-recommended]]:left-1/2 fve:[&_[data-slot=chart-recommended]]:-translate-x-1/2 fve:[&_[data-slot=chart-recommended]]:whitespace-nowrap fve:[&_[data-slot=chart-recommended]]:rounded-full fve:[&_[data-slot=chart-recommended]]:px-1.5 fve:[&_[data-slot=chart-recommended]]:text-[10px]',
         TEXT_UI,
         className,
       )}
@@ -1006,8 +1018,8 @@ export function LongText({ className, ...props }: React.ComponentProps<'pre'>) {
       data-slot="long-text"
       tabIndex={0}
       className={cn(
-        'max-h-80 overflow-auto rounded-md bg-muted/60 p-2 font-mono text-xs leading-relaxed whitespace-pre-wrap [overflow-wrap:anywhere] text-foreground',
-        'focus-visible:ring-ring/50 outline-none focus-visible:ring-[3px]',
+        'fve:max-h-80 fve:overflow-auto fve:rounded-md fve:bg-muted/60 fve:p-2 fve:font-mono fve:text-xs fve:leading-relaxed fve:whitespace-pre-wrap fve:[overflow-wrap:anywhere] fve:text-foreground',
+        'fve:focus-visible:ring-ring/50 fve:outline-none fve:focus-visible:ring-[3px]',
         className,
       )}
       {...props}

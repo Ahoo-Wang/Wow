@@ -185,9 +185,9 @@ export function ChartOptions({
     <div
       data-slot="chart-options"
       data-chart-type={picked}
-      className={cn('flex flex-col gap-3 p-3', TEXT_UI)}
+      className={cn('fve:flex fve:flex-col fve:gap-3 fve:p-3', TEXT_UI)}
     >
-      <div className="flex items-center gap-2">
+      <div className="fve:flex fve:items-center fve:gap-2">
         <IconButton
           label={messages.label('label.chart.options-back')}
           variant="ghost"
@@ -208,7 +208,7 @@ export function ChartOptions({
               setTab(next as OptionsTab);
           }}
         >
-          <TabsList className="w-full">
+          <TabsList className="fve:w-full">
             {tabs.map(which => (
               <TabsTrigger key={which} value={which}>
                 {messages.label(`label.chart.tab.${which}`)}
@@ -219,14 +219,14 @@ export function ChartOptions({
             <TabsContent
               key={which}
               value={which}
-              className={cn('flex flex-col gap-3', TEXT_UI)}
+              className={cn('fve:flex fve:flex-col fve:gap-3', TEXT_UI)}
             >
               {pageOf(which)}
             </TabsContent>
           ))}
         </Tabs>
       ) : (
-        <div className="flex flex-col gap-3">{pageOf(current)}</div>
+        <div className="fve:flex fve:flex-col fve:gap-3">{pageOf(current)}</div>
       )}
     </div>
   );

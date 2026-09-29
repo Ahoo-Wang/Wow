@@ -98,7 +98,7 @@ export function DimensionSlot({
     >
       {/* The cards run along the row and wrap (D71), each as wide as what
           it holds, with 「+ 添加」 after the last. */}
-      <div className="flex flex-wrap items-start gap-2">
+      <div className="fve:flex fve:flex-wrap fve:items-start fve:gap-2">
         {analysis.groups.map((group, index) => (
           <DimensionCard
             key={group.alias}
@@ -238,7 +238,7 @@ function DimensionCard({
         />
       ) : (
         types[0] && (
-          <span className="text-muted-foreground">{types[0].label}</span>
+          <span className="fve:text-muted-foreground">{types[0].label}</span>
         )
       )}
       {group.type === 'DATE_HISTOGRAM' && (
@@ -277,7 +277,7 @@ function DimensionCard({
         <NumberInput
           label={messages.label('label.analysis.interval')}
           chrome="box"
-          className="w-20"
+          className="fve:w-20"
           disabled={disabled}
           value={group.interval}
           onNumber={next => {

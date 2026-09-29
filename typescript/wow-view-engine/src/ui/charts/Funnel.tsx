@@ -155,7 +155,7 @@ export function Funnel({
           ? {
               at: 'top',
               node: (
-                <span className="flex flex-wrap gap-x-3 text-muted-foreground">
+                <span className="fve:flex fve:flex-wrap fve:gap-x-3 fve:text-muted-foreground">
                   {cumulative && (
                     <span data-slot="funnel-cumulative-note">
                       {messages.label('label.chart.column.cumulative')}
@@ -164,7 +164,7 @@ export function Funnel({
                   {overall !== undefined && (
                     <span
                       data-slot="funnel-overall"
-                      className="font-medium text-foreground"
+                      className="fve:font-medium fve:text-foreground"
                     >
                       {overall}
                     </span>

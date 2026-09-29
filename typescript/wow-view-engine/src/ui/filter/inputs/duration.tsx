@@ -61,7 +61,7 @@ export function DurationValue({
     } satisfies DurationFilterValue);
   const set = isDurationFilterValue(value);
   return (
-    <div className="flex min-w-0 flex-wrap items-center gap-2">
+    <div className="fve:flex fve:min-w-0 fve:flex-wrap fve:items-center fve:gap-2">
       <ChoiceValue
         label={messages.label('label.filter.duration-from')}
         disabled={disabled}
@@ -86,7 +86,7 @@ export function DurationValue({
       />
       <NumberInput
         label={`${label} · ${messages.label('label.filter.duration-amount')}`}
-        className="w-16"
+        className="fve:w-16"
         disabled={disabled || !set}
         invalid={invalid}
         value={current.value}

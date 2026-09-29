@@ -100,7 +100,7 @@ export function HeadingPanel({ content, headingLevel }: HeadingPanelProps) {
   return (
     <Title
       data-slot="panel-heading"
-      className="truncate text-base font-semibold"
+      className="fve:truncate fve:text-base fve:font-semibold"
     >
       {say(content)}
     </Title>
@@ -163,7 +163,7 @@ function NewTabNote() {
   // The space is inside the hidden span: a name is read as one string, and
   // without it the note runs into the last word of the link.
   return (
-    <span className="sr-only"> {messages.label('label.link.new-tab')}</span>
+    <span className="fve:sr-only"> {messages.label('label.link.new-tab')}</span>
   );
 }
 
@@ -191,8 +191,8 @@ function NewTabNote() {
  * doing nothing at all, because the plugin it belongs to was never installed.
  */
 const MARKDOWN_PROSE =
-  "text-sm [&_a]:underline [&_[data-depth='1']]:text-base [&_[data-depth='1']]:font-semibold " +
-  "[&_[data-depth='2']]:text-sm [&_[data-depth='2']]:font-semibold [&_ul]:list-disc [&_ul]:pl-4";
+  "fve:text-sm fve:[&_a]:underline fve:[&_[data-depth='1']]:text-base fve:[&_[data-depth='1']]:font-semibold " +
+  "fve:[&_[data-depth='2']]:text-sm fve:[&_[data-depth='2']]:font-semibold fve:[&_ul]:list-disc fve:[&_ul]:pl-4";
 
 type HeadingTag = 'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6';
 
@@ -230,7 +230,10 @@ export function MarkdownPanel({
   return (
     <div
       data-slot="markdown-panel"
-      className={cn('flex h-full flex-col gap-2 overflow-auto', MARKDOWN_PROSE)}
+      className={cn(
+        'fve:flex fve:h-full fve:flex-col fve:gap-2 fve:overflow-auto',
+        MARKDOWN_PROSE,
+      )}
     >
       <Markdown components={components}>{say(content)}</Markdown>
     </div>
@@ -270,7 +273,7 @@ export function ImagePanel({
   // failure twice.
   if (failed || !isSafeContentUrl(src))
     return (
-      <Empty data-slot="image-panel-placeholder" className="h-full p-4">
+      <Empty data-slot="image-panel-placeholder" className="fve:h-full fve:p-4">
         <EmptyHeader>
           <EmptyMedia variant="icon">
             <ImageOffIcon />
@@ -291,8 +294,8 @@ export function ImagePanel({
       referrerPolicy="no-referrer"
       onError={() => setFailed(true)}
       className={cn(
-        'h-full w-full',
-        fit === 'cover' ? 'object-cover' : 'object-contain',
+        'fve:h-full fve:w-full',
+        fit === 'cover' ? 'fve:object-cover' : 'fve:object-contain',
       )}
     />
   );
@@ -308,12 +311,12 @@ export function ImagePanel({
       href={href}
       target="_blank"
       rel="noopener noreferrer"
-      className="h-full"
+      className="fve:h-full"
       data-slot="image-panel-link"
     >
       {image}
       {!alt && (
-        <span className="sr-only">
+        <span className="fve:sr-only">
           {title ?? messages.label('label.image.link')}
         </span>
       )}
@@ -346,27 +349,30 @@ export interface LinksPanelProps {
 export function LinksPanel({ items }: LinksPanelProps) {
   const say = useSay();
   return (
-    <ul data-slot="links-panel" className="flex flex-col overflow-auto">
+    <ul
+      data-slot="links-panel"
+      className="fve:flex fve:flex-col fve:overflow-auto"
+    >
       {items.map(item => (
         <li key={`${item.href}:${item.label}`}>
-          <RowItem size="sm" className="px-2 py-1.5">
-            <ItemContent className="min-w-0">
-              <ItemTitle className="max-w-full">
+          <RowItem size="sm" className="fve:px-2 fve:py-1.5">
+            <ItemContent className="fve:min-w-0">
+              <ItemTitle className="fve:max-w-full">
                 {isSafeContentUrl(item.href) ? (
                   <a
                     href={item.href}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex min-w-0 items-center gap-1 underline-offset-4 hover:underline"
+                    className="fve:flex fve:min-w-0 fve:items-center fve:gap-1 fve:underline-offset-4 fve:hover:underline"
                   >
-                    <span className="truncate">{say(item.label)}</span>
-                    <ExternalLinkIcon className="size-3" aria-hidden />
+                    <span className="fve:truncate">{say(item.label)}</span>
+                    <ExternalLinkIcon className="fve:size-3" aria-hidden />
                     <NewTabNote />
                   </a>
                 ) : (
                   // A destination this package refuses costs the link, not
                   // the words: what is left is a line of quiet text.
-                  <span className="text-muted-foreground truncate">
+                  <span className="fve:text-muted-foreground fve:truncate">
                     {say(item.label)}
                   </span>
                 )}

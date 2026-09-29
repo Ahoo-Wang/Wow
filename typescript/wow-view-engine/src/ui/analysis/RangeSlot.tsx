@@ -105,13 +105,18 @@ export function RangeSlot({
       }
     >
       {locked.length > 0 && (
-        <ul data-slot="range-locked" className="flex flex-wrap gap-1">
+        <ul
+          data-slot="range-locked"
+          className="fve:flex fve:flex-wrap fve:gap-1"
+        >
           {locked.map(item => (
             <li key={item.key}>
               <WrappingBadge variant="outline" data-locked={item.mark}>
                 <LockIcon data-icon="inline-start" aria-hidden />
                 {item.text}
-                <span className="text-muted-foreground">· {item.whose}</span>
+                <span className="fve:text-muted-foreground">
+                  · {item.whose}
+                </span>
               </WrappingBadge>
             </li>
           ))}

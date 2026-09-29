@@ -182,7 +182,10 @@ export function RefreshControl({
             // reserved box keeps "10s" the same width as "9s", or "1 min"
             // the same width as "59s" — and a button that changes width
             // once a second walks the controls beside it across the bar.
-            className={cn('text-muted-foreground grid tabular-nums', TEXT_UI)}
+            className={cn(
+              'fve:text-muted-foreground fve:grid fve:tabular-nums',
+              TEXT_UI,
+            )}
             // A screen reader is told the cadence once, as a sentence, by
             // the button's description. A number that changes every
             // second would be read out every second, which is the opposite
@@ -190,7 +193,10 @@ export function RefreshControl({
             aria-hidden
           >
             {widestReadings(interval, messages).map(text => (
-              <span key={text} className="invisible col-start-1 row-start-1">
+              <span
+                key={text}
+                className="fve:invisible fve:col-start-1 fve:row-start-1"
+              >
                 {text}
               </span>
             ))}
@@ -200,7 +206,7 @@ export function RefreshControl({
                 unit word stays put while the digits in front of it shrink. */}
             <span
               data-slot="refresh-cadence"
-              className="col-start-1 row-start-1 justify-self-end"
+              className="fve:col-start-1 fve:row-start-1 fve:justify-self-end"
             >
               {reading === null ? cadence : remainingLabel(reading, messages)}
             </span>
@@ -212,7 +218,7 @@ export function RefreshControl({
           No `data-slot`, so the group's joined-edge rules, which pick their
           members by that attribute, pass over it. */}
       {cadence !== null && (
-        <span id={cadenceId} className="sr-only">
+        <span id={cadenceId} className="fve:sr-only">
           {messages.label(word('label.refresh.on'), { interval: cadence })}
         </span>
       )}
@@ -258,7 +264,7 @@ export function RefreshControl({
               {note !== undefined && (
                 <DropdownMenuLabel
                   data-slot="refresh-note"
-                  className="text-muted-foreground max-w-56 font-normal whitespace-normal"
+                  className="fve:text-muted-foreground fve:max-w-56 fve:font-normal fve:whitespace-normal"
                 >
                   {note}
                 </DropdownMenuLabel>

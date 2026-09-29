@@ -119,7 +119,7 @@ export function NewAnalysisDialog({
       <DialogContent
         {...(finalFocus ? { finalFocus } : {})}
         data-slot="new-analysis"
-        className="flex max-h-[calc(100dvh-2rem)] flex-col sm:max-w-6xl"
+        className="fve:flex fve:max-h-[calc(100dvh-2rem)] fve:flex-col fve:sm:max-w-6xl"
       >
         {/* A fresh question each time it opens. */}
         {open && (
@@ -253,8 +253,8 @@ function NewAnalysisForm({
           </EmptyHeader>
         </Empty>
       ) : (
-        <Field orientation="horizontal" className="w-auto">
-          <FieldLabel htmlFor={`${id}-data`} className="flex-none">
+        <Field orientation="horizontal" className="fve:w-auto">
+          <FieldLabel htmlFor={`${id}-data`} className="fve:flex-none">
             {messages.label('label.panel.new-analysis.data')}
           </FieldLabel>
           <Select
@@ -272,7 +272,7 @@ function NewAnalysisForm({
             <SelectTrigger
               id={`${id}-data`}
               data-slot="new-analysis-data"
-              className="min-w-48"
+              className="fve:min-w-48"
             >
               <SelectValue
                 placeholder={messages.label('label.panel.new-analysis.pick')}
@@ -291,7 +291,7 @@ function NewAnalysisForm({
         </Field>
       )}
 
-      <div className="-mx-4 min-h-0 flex-1 overflow-y-auto px-4">
+      <div className="fve:-mx-4 fve:min-h-0 fve:flex-1 fve:overflow-y-auto fve:px-4">
         {definitions.length > 0 && !definition && (
           <Empty data-slot="new-analysis-pick">
             <EmptyHeader>
@@ -333,7 +333,7 @@ function NewAnalysisForm({
             )}
           >
             {parts => (
-              <div className="flex min-w-0 flex-col gap-4">
+              <div className="fve:flex fve:min-w-0 fve:flex-col fve:gap-4">
                 <ErrorStrip
                   issues={filter.unmarked.map(parts.nameIssue ?? same)}
                   action={
@@ -348,16 +348,16 @@ function NewAnalysisForm({
                     .map(parts.nameIssue ?? same)}
                 />
                 <div data-slot="new-analysis-tray">{parts.editor}</div>
-                <div className="flex min-w-0 gap-4">
+                <div className="fve:flex fve:min-w-0 fve:gap-4">
                   {parts.panel && (
                     <aside
                       data-slot="new-analysis-panel"
-                      className="w-72 flex-none border-r pr-4"
+                      className="fve:w-72 fve:flex-none fve:border-r fve:pr-4"
                     >
                       {parts.panel}
                     </aside>
                   )}
-                  <div className="min-w-0 flex-1">
+                  <div className="fve:min-w-0 fve:flex-1">
                     <ShellResult
                       framed
                       slots={parts.resultSlots}
@@ -388,8 +388,8 @@ function NewAnalysisForm({
           other way up, which put 「放进仪表盘」 over the title it adds by —
           seen before what is to be filled in, and Tab going the other way
           (U-14). So the stack reads down, the title first. */}
-      <DialogFooter className="items-end max-sm:flex-col max-sm:items-stretch sm:justify-between">
-        <Field className="sm:max-w-md" data-invalid={full || undefined}>
+      <DialogFooter className="fve:items-end fve:max-sm:flex-col fve:max-sm:items-stretch fve:sm:justify-between">
+        <Field className="fve:sm:max-w-md" data-invalid={full || undefined}>
           <FieldLabel htmlFor={`${id}-title`}>
             {messages.label('label.panel.new-analysis.title')}
           </FieldLabel>
@@ -415,7 +415,7 @@ function NewAnalysisForm({
             </FieldDescription>
           )}
         </Field>
-        <div className="flex justify-end gap-2">
+        <div className="fve:flex fve:justify-end fve:gap-2">
           <DialogClose render={<Button variant="outline" />}>
             {messages.label('label.dialog.cancel')}
           </DialogClose>

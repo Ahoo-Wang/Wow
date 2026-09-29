@@ -185,7 +185,7 @@ export function ColumnResizer({ column, onResize }: ColumnResizerProps) {
       // hover, which the user rejected (2026-09-21) and this package's own
       // rule already forbade: an affordance that shows up only after it has
       // been used is not an affordance, and a touch screen never hovers.
-      className="absolute top-0 right-0 z-20 h-full w-2 cursor-col-resize touch-none select-none after:absolute after:inset-y-0 after:right-0 after:w-px after:bg-border hover:after:w-0.5 hover:after:bg-ring focus-visible:outline-none focus-visible:after:w-0.5 focus-visible:after:bg-ring"
+      className="fve:absolute fve:top-0 fve:right-0 fve:z-20 fve:h-full fve:w-2 fve:cursor-col-resize fve:touch-none fve:select-none fve:after:absolute fve:after:inset-y-0 fve:after:right-0 fve:after:w-px fve:after:bg-border fve:hover:after:w-0.5 fve:hover:after:bg-ring fve:focus-visible:outline-none fve:focus-visible:after:w-0.5 fve:focus-visible:after:bg-ring"
       onPointerDown={onPointerDown}
       onKeyDown={onKeyDown}
       // The gesture's own "never mind": back to whatever the content asks

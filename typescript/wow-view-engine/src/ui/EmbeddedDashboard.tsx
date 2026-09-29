@@ -497,7 +497,7 @@ function ReadBoard({
             {trailingAt === 'alone' && (
               <div
                 data-slot="dashboard-board-controls"
-                className="flex justify-end"
+                className="fve:flex fve:justify-end"
               >
                 {trailing}
               </div>

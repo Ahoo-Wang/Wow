@@ -64,21 +64,24 @@ export function EmbedHead({
   return (
     <div
       data-slot="embed-head"
-      className="flex flex-wrap items-center gap-2"
+      className="fve:flex fve:flex-wrap fve:items-center fve:gap-2"
       style={inset === undefined ? undefined : { paddingInline: inset }}
     >
       {title !== undefined && (
-        <div data-slot="embed-heading" className="flex min-w-0 flex-col gap-1">
+        <div
+          data-slot="embed-heading"
+          className="fve:flex fve:min-w-0 fve:flex-col fve:gap-1"
+        >
           <Title
             data-slot="embed-title"
-            className="min-w-0 truncate text-base font-semibold"
+            className="fve:min-w-0 fve:truncate fve:text-base fve:font-semibold"
           >
             {say(title)}
           </Title>
           {caption != null && caption !== false && (
             <div
               data-slot="embed-caption"
-              className={cn('text-muted-foreground', TEXT_UI)}
+              className={cn('fve:text-muted-foreground', TEXT_UI)}
             >
               {caption}
             </div>
@@ -88,7 +91,7 @@ export function EmbedHead({
       {controls && (
         <div
           data-slot="embed-actions"
-          className="ml-auto flex shrink-0 items-center gap-2"
+          className="fve:ml-auto fve:flex fve:shrink-0 fve:items-center fve:gap-2"
         >
           {children}
         </div>
@@ -193,7 +196,7 @@ export function EmbedFreshness({
         <time
           data-slot="embed-read-at"
           dateTime={new Date(readAt).toISOString()}
-          className={cn('text-muted-foreground tabular-nums', TEXT_UI)}
+          className={cn('fve:text-muted-foreground fve:tabular-nums', TEXT_UI)}
         >
           {messages.label('label.refresh.read-at', {
             time: readingTime(new Date(readAt), now(), display),

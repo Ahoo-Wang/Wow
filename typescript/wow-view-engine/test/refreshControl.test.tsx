@@ -625,14 +625,16 @@ describe('RefreshControl', () => {
     // One per unit band the countdown passes through: the longest seconds
     // reading, and the longest minutes one.
     expect(
-      [...box.querySelectorAll('.invisible')].map(span => span.textContent),
+      [...box.querySelectorAll('.fve\\:invisible')].map(
+        span => span.textContent,
+      ),
     ).toEqual([left(59), left(300)]);
     // The count itself is in the same cell as the reserved ones, so the box
     // never resizes while it ticks.
     const count = box.querySelector('[data-slot="refresh-cadence"]')!;
     // A **surviving class assertion**: which grid cell the countdown sits
     // in is layout, and nothing about the control's state.
-    expect(count.className).toContain('col-start-1');
+    expect(count.className).toContain('fve:col-start-1');
     expect(
       describedText(screen.getByRole('button', { name: new RegExp(REFRESH) })),
     ).toBe(

@@ -116,7 +116,7 @@ export function PanelMenu({
       >
         <MoreHorizontalIcon />
       </IconTooltip>
-      <HandOffMenuContent align="end" className="min-w-48">
+      <HandOffMenuContent align="end" className="fve:min-w-48">
         {looks && (
           <DropdownMenuGroup>
             <DropdownMenuLabel>
@@ -314,7 +314,7 @@ export function PanelTitleInput({
       }}
       onCancel={renaming.cancel}
       returnTo={returnTo}
-      className="h-7 min-w-0 flex-1"
+      className="fve:h-7 fve:min-w-0 fve:flex-1"
     />
   );
 }

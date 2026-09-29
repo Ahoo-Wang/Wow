@@ -29,7 +29,7 @@ export function RowActions({ children }: RowActionsProps) {
   return (
     <div
       data-slot="row-actions"
-      className="flex items-center justify-end gap-1"
+      className="fve:flex fve:items-center fve:justify-end fve:gap-1"
     >
       {children}
     </div>

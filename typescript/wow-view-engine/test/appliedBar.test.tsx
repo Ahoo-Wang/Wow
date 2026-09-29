@@ -165,7 +165,7 @@ describe('AppliedBar', () => {
     // `outline` badge rather than a toned one, and a variant is not
     // reflected on the element — the class is the only witness. `ToneBadge`
     // is what says a tone on itself, and this badge is deliberately not one.
-    expect(badge.className).toContain('border-border');
+    expect(badge.className).toContain('fve:border-border');
   });
 
   it('draws its remove as the ghost icon button every badge here wears', async () => {
@@ -189,9 +189,9 @@ describe('AppliedBar', () => {
     expect(remove.querySelector('svg')!.className.baseVal).not.toContain(
       'size-',
     );
-    expect(remove.className).toContain('size-6');
-    expect(remove.className).toContain('focus-visible:border-ring');
-    expect(remove.className).toContain('focus-visible:opacity-100');
+    expect(remove.className).toContain('fve:size-6');
+    expect(remove.className).toContain('fve:focus-visible:border-ring');
+    expect(remove.className).toContain('fve:focus-visible:opacity-100');
   });
 
   it('takes a condition out of force from its badge, keeping the field', async () => {
@@ -328,7 +328,7 @@ describe('AppliedBar', () => {
     expect(badges[0].hasAttribute('data-scoped')).toBe(false);
     expect(badges[1].hasAttribute('data-scoped')).toBe(true);
     // Worn plainly — the `outline` badge, as above.
-    expect(badges[1].className).toContain('border-border');
+    expect(badges[1].className).toContain('fve:border-border');
     expect(
       screen.queryByRole('button', { name: 'Unset Customer is c-1' }),
     ).toBeNull();

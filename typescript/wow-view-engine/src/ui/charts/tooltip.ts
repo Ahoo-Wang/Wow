@@ -63,7 +63,7 @@ export function tooltipHtml(
   const body = rows
     .map(
       row =>
-        `<div class="flex w-full items-center gap-2">` +
+        `<div class="fve:flex fve:w-full fve:items-center fve:gap-2">` +
         // The swatch is an SVG painted by its `fill` attribute, never an
         // inline `style`: a page under a strict `style-src` drops every
         // style attribute in markup, and the swatch went blank (CSP, D33
@@ -72,22 +72,24 @@ export function tooltipHtml(
         // stylesheet, and a rule of `styles.css` on its slot, which outranks
         // a host's `svg` icon rule and the plot's own: a utility class did
         // not, and the swatch grew to the size of the plot.
-        `<svg data-slot="chart-tooltip-swatch" class="shrink-0" width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><rect width="10" height="10" rx="2" fill="${escapeHtml(row.color)}"/></svg>` +
-        `<div class="flex flex-1 items-center justify-between gap-2 leading-none">` +
-        `<span class="text-muted-foreground">${escapeHtml(row.name)}</span>` +
-        `<span class="text-chart-tooltip-foreground font-mono font-medium tabular-nums">${escapeHtml(row.value)}` +
+        `<svg data-slot="chart-tooltip-swatch" class="fve:shrink-0" width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><rect width="10" height="10" rx="2" fill="${escapeHtml(row.color)}"/></svg>` +
+        `<div class="fve:flex fve:flex-1 fve:items-center fve:justify-between fve:gap-2 fve:leading-none">` +
+        `<span class="fve:text-muted-foreground">${escapeHtml(row.name)}</span>` +
+        `<span class="fve:text-chart-tooltip-foreground fve:font-mono fve:font-medium fve:tabular-nums">${escapeHtml(row.value)}` +
         (row.note === undefined
           ? ''
-          : ` <span data-slot="chart-tooltip-note" class="text-muted-foreground font-normal">${escapeHtml(row.note)}</span>`) +
+          : ` <span data-slot="chart-tooltip-note" class="fve:text-muted-foreground fve:font-normal">${escapeHtml(row.note)}</span>`) +
         `</span></div></div>`,
     )
     .join('');
   return (
-    `<div data-slot="chart-tooltip" class="border-border/50 bg-chart-tooltip text-chart-tooltip-foreground grid min-w-32 items-start gap-1.5 rounded-popover border px-2.5 py-1.5 text-xs shadow-chart-tooltip">` +
-    (heading ? `<div class="font-medium">${escapeHtml(heading)}</div>` : '') +
-    `<div class="grid gap-1.5">${body}</div>` +
+    `<div data-slot="chart-tooltip" class="fve:border-border/50 fve:bg-chart-tooltip fve:text-chart-tooltip-foreground fve:grid fve:min-w-32 fve:items-start fve:gap-1.5 fve:rounded-popover fve:border fve:px-2.5 fve:py-1.5 fve:text-xs fve:shadow-chart-tooltip">` +
+    (heading
+      ? `<div class="fve:font-medium">${escapeHtml(heading)}</div>`
+      : '') +
+    `<div class="fve:grid fve:gap-1.5">${body}</div>` +
     (footnote
-      ? `<div data-slot="chart-tooltip-footnote" class="text-muted-foreground text-right">${escapeHtml(footnote)}</div>`
+      ? `<div data-slot="chart-tooltip-footnote" class="fve:text-muted-foreground fve:text-right">${escapeHtml(footnote)}</div>`
       : '') +
     `</div>`
   );

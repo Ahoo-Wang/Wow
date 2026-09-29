@@ -112,7 +112,7 @@ export function ViewPicker({
     <Dialog open={open} onOpenChange={next => !next && onClose()}>
       <DialogContent
         data-slot="view-picker"
-        className="sm:max-w-xl"
+        className="fve:sm:max-w-xl"
         finalFocus={finalFocus}
       >
         <DialogHeader>
@@ -246,8 +246,8 @@ function Catalogue({
   ];
 
   return (
-    <div className="flex min-h-0 flex-col gap-3">
-      <FieldGroup className="gap-3">
+    <div className="fve:flex fve:min-h-0 fve:flex-col fve:gap-3">
+      <FieldGroup className="fve:gap-3">
         <InputGroup>
           <InputGroupAddon>
             <SearchIcon />
@@ -261,9 +261,9 @@ function Catalogue({
             onChange={event => setQuery(event.target.value)}
           />
         </InputGroup>
-        <div className="flex flex-wrap items-end gap-3">
+        <div className="fve:flex fve:flex-wrap fve:items-end fve:gap-3">
           {!boards && (
-            <Field className="w-auto">
+            <Field className="fve:w-auto">
               <FieldLabel id={`${ids}-kind`}>
                 {messages.label('label.picker.kind')}
               </FieldLabel>
@@ -291,7 +291,7 @@ function Catalogue({
             </Field>
           )}
           {definitions.length > 1 && (
-            <Field className="w-auto min-w-40">
+            <Field className="fve:w-auto fve:min-w-40">
               <FieldLabel id={`${ids}-data`}>
                 {messages.label('label.picker.definition')}
               </FieldLabel>
@@ -328,7 +328,7 @@ function Catalogue({
 
       <div
         data-slot="picker-list"
-        className="-mx-1 flex max-h-[min(24rem,50vh)] flex-col gap-3 overflow-y-auto px-1"
+        className="fve:-mx-1 fve:flex fve:max-h-[min(24rem,50vh)] fve:flex-col fve:gap-3 fve:overflow-y-auto fve:px-1"
       >
         {loading ? (
           <div
@@ -338,14 +338,14 @@ function Catalogue({
                 ? 'label.click.board-list-loading'
                 : 'label.picker.loading',
             )}
-            className="flex flex-col gap-2"
+            className="fve:flex fve:flex-col fve:gap-2"
           >
-            <Skeleton className="h-10 w-full" />
-            <Skeleton className="h-10 w-full" />
-            <Skeleton className="h-10 w-full" />
+            <Skeleton className="fve:h-10 fve:w-full" />
+            <Skeleton className="fve:h-10 fve:w-full" />
+            <Skeleton className="fve:h-10 fve:w-full" />
           </div>
         ) : shown.length === 0 ? (
-          <p role="status" className={cn('text-muted-foreground', TEXT_UI)}>
+          <p role="status" className={cn('fve:text-muted-foreground', TEXT_UI)}>
             {messages.label(
               views.length === 0
                 ? boards
@@ -366,13 +366,13 @@ function Catalogue({
                 <h3
                   id={heading}
                   className={cn(
-                    'text-muted-foreground px-2 pb-1 font-medium',
+                    'fve:text-muted-foreground fve:px-2 fve:pb-1 fve:font-medium',
                     TEXT_UI,
                   )}
                 >
                   {messages.label(`label.scope.group.${group}`)}
                 </h3>
-                <ul className="flex flex-col">
+                <ul className="fve:flex fve:flex-col">
                   {items.map(view => (
                     <li key={view.id}>
                       <PickerRow
@@ -427,9 +427,9 @@ function PickerRow({
       <ItemMedia>
         <Kind aria-hidden />
       </ItemMedia>
-      <ItemContent className="min-w-0">
-        <ItemTitle className="max-w-full">
-          <span className="truncate">{messages.say(view.title)}</span>
+      <ItemContent className="fve:min-w-0">
+        <ItemTitle className="fve:max-w-full">
+          <span className="fve:truncate">{messages.say(view.title)}</span>
           {isSystemScope(view.scope) && <SystemMark />}
         </ItemTitle>
         <ItemDescription>

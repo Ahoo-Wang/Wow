@@ -619,7 +619,7 @@ export function WorkbenchShell({
         // (`styles.css`, "A workbench fills its container"). A container of
         // no definite height makes `h-full` nothing, and the floor is then
         // the whole of it — 36rem, or the host's `--fve-workbench-min-height`.
-        className="h-full min-h-[var(--fve-workbench-min-height,36rem)] gap-0 md:flex-row"
+        className="fve:h-full fve:min-h-[var(--fve-workbench-min-height,36rem)] fve:gap-0 fve:md:flex-row"
       >
         <SidebarColumn
           panel={panel}
@@ -646,7 +646,7 @@ export function WorkbenchShell({
           // title it takes the definition's; a `main` is one either way.
           aria-label={Column === 'section' && !open ? title : undefined}
           className={cn(
-            'flex min-w-0 flex-1 flex-col p-4',
+            'fve:flex fve:min-w-0 fve:flex-1 fve:flex-col fve:p-4',
             SPACE.BLOCKS,
             className,
           )}
@@ -660,7 +660,9 @@ export function WorkbenchShell({
             container to ask and stayed hidden at every width — on the one
             screen where nothing else says which definition this is. */}
           {!open && collapsed && (
-            <div className="@container/header flex min-h-10">{collapsed}</div>
+            <div className="fve:@container/header fve:flex fve:min-h-10">
+              {collapsed}
+            </div>
           )}
 
           {unopenable && (
@@ -792,14 +794,14 @@ export function WorkbenchShell({
               {search ? (
                 <div
                   data-slot="applied-row"
-                  className="flex flex-wrap items-center gap-2"
+                  className="fve:flex fve:flex-wrap fve:items-center fve:gap-2"
                 >
                   <AppliedBar
                     filter={filter}
                     asked={asked && applied}
-                    className="min-w-0 grow"
+                    className="fve:min-w-0 fve:grow"
                   />
-                  <div className="ml-auto">{search}</div>
+                  <div className="fve:ml-auto">{search}</div>
                 </div>
               ) : (
                 <AppliedBar filter={filter} asked={asked && applied} />

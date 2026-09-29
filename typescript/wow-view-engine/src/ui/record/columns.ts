@@ -131,7 +131,7 @@ function observeResize(
  * right edge goes with them: a frame's end is worth less than a middle
  * nobody can read (D17-4).
  */
-export const ACTION_CELL = 'w-0 bg-inherit whitespace-nowrap';
+export const ACTION_CELL = 'fve:w-0 fve:bg-inherit fve:whitespace-nowrap';
 
 /**
  * The table's border model, and the hairlines drawn under it.
@@ -146,7 +146,7 @@ export const ACTION_CELL = 'w-0 bg-inherit whitespace-nowrap';
  * that line as its own top.
  */
 export const TABLE_CELLS =
-  'border-separate border-spacing-0 [&_th]:border-b [&_td]:border-b [&_tfoot_tr:last-child_td]:border-b-0';
+  'fve:border-separate fve:border-spacing-0 fve:[&_th]:border-b fve:[&_td]:border-b fve:[&_tfoot_tr:last-child_td]:border-b-0';
 
 /**
  * The sort button may be as wide as the cell it sits in — all of it.
@@ -173,7 +173,7 @@ export const TABLE_CELLS =
  * `var(-- fve-…)`, which the minifier dropped with the whole rule.
  */
 const HEAD_BUTTON =
-  '[&>button]:max-w-[calc(var(--_fve-table-cell-padding-inline)*2+100%)]';
+  'fve:[&>button]:max-w-[calc(var(--_fve-table-cell-padding-inline)*2+100%)]';
 
 /**
  * What the pointer resting on a sortable header lights up.
@@ -195,7 +195,7 @@ const HEAD_BUTTON =
  * file's `HEAD_CELL`, and `> button:hover` outranks the variant's own
  * `:hover` by the child selector it is written with.
  */
-const HEAD_HOVER = '[&>button]:hover:bg-background';
+const HEAD_HOVER = 'fve:[&>button]:hover:bg-background';
 
 /**
  * A column header is metadata about the column rather than content in it —
@@ -211,7 +211,7 @@ const HEAD_HOVER = '[&>button]:hover:bg-background';
 export const HEAD_CELL = `${TEXT_UI} ${HEAD_BUTTON} ${HEAD_HOVER}`;
 
 /** Numbers line up on their last digit, in the cells and in the header. */
-export const NUMERIC_CELL = 'text-right tabular-nums';
+export const NUMERIC_CELL = 'fve:text-right fve:tabular-nums';
 
 /**
  * The face an identifier is read in: monospace, so `0` and `O`, `l` and `1`
@@ -220,7 +220,7 @@ export const NUMERIC_CELL = 'text-right tabular-nums';
  * `cells.tsx`, the copyable reading). The analysis table's key dimensions
  * wear the same one.
  */
-export const IDENTIFIER_FACE = 'font-mono text-[0.9em]';
+export const IDENTIFIER_FACE = 'fve:font-mono fve:text-[0.9em]';
 
 /**
  * A column that was given a width keeps it: the cell is capped as well as

@@ -106,10 +106,10 @@ describe('the resize handle', () => {
     // browser story; what is kept here is that the resting one is not
     // transparent, which is the regression the user's call was about.
     const node = handle();
-    expect(node.className).toContain('after:bg-border');
-    expect(node.className).not.toContain('after:bg-transparent');
-    expect(node.className).toContain('hover:after:bg-ring');
-    expect(node.className).toContain('focus-visible:after:bg-ring');
+    expect(node.className).toContain('fve:after:bg-border');
+    expect(node.className).not.toContain('fve:after:bg-transparent');
+    expect(node.className).toContain('fve:hover:after:bg-ring');
+    expect(node.className).toContain('fve:focus-visible:after:bg-ring');
   });
 
   /**

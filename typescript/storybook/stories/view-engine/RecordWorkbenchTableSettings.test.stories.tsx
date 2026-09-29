@@ -214,7 +214,7 @@ export const CardsAreSetUpFromTheSameButton: Story = {
     await waitFor(() =>
       expect(
         canvasElement.querySelector('[data-slot="record-cards"]'),
-      ).toHaveClass('sm:grid-cols-2'),
+      ).toHaveClass('fve:sm:grid-cols-2'),
     );
   },
 };

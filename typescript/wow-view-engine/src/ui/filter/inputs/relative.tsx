@@ -53,7 +53,7 @@ export function RelativeDate({
   // filter sheet on a phone, in English — rather than running under the
   // reset beside them (compensation console walkthrough, W11).
   return (
-    <div className="flex flex-wrap items-center gap-2">
+    <div className="fve:flex fve:flex-wrap fve:items-center fve:gap-2">
       <ChoiceValue
         label={messages.label('label.date.direction-of', {
           field: label,
@@ -78,7 +78,7 @@ export function RelativeDate({
         label={messages.label('label.date.amount-of', { field: label })}
         disabled={disabled}
         invalid={invalid}
-        className="w-20"
+        className="fve:w-20"
         value={value.amount}
         onNumber={next =>
           // An emptied amount is a row still being written, not a window

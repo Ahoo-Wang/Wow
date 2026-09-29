@@ -101,7 +101,7 @@ export function AddEntry({
                     thinks in AND/OR finds it at a glance, and one who does
                     not reads what it will mean for the conditions under
                     it. */}
-                <span className="text-muted-foreground font-mono text-xs">
+                <span className="fve:text-muted-foreground fve:font-mono fve:text-xs">
                   {operatorCode(op)}
                 </span>
                 {/* The space is load-bearing: without it the two run together

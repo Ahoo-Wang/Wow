@@ -60,7 +60,7 @@ import { RenameInput } from './RenameInput.js';
  * is what the store will take (decisions.md D4), and a greyed-out Delete on
  * a view that can never be deleted is an offer that was never on the table.
  */
-const ACTION_CELLS = 'grid grid-cols-3';
+const ACTION_CELLS = 'fve:grid fve:grid-cols-3';
 
 export interface ViewManagerRowProps {
   item: ViewInstanceSummary;
@@ -128,7 +128,7 @@ export function ViewManagerRow({
         // container, so the two distances are said apart: `SPACE.GROUPS`
         // between the controls on the row (which `xs` already gives) and
         // `SPACE.WITHIN` between the row and the line below it.
-        className="gap-y-1"
+        className="fve:gap-y-1"
       >
         {/* The order is the user's, and it is made by carrying a row
             (「可排序的列表一律拖拽排序」); a click on the handle offers the
@@ -159,10 +159,10 @@ export function ViewManagerRow({
               onMove={onMove}
             />
           )}
-          <Kind className="text-muted-foreground size-4" aria-hidden />
+          <Kind className="fve:text-muted-foreground fve:size-4" aria-hidden />
         </ItemMedia>
 
-        <ItemContent className="min-w-0">
+        <ItemContent className="fve:min-w-0">
           {renaming ? (
             // The two answers to the field sit **in** the field, not in the
             // action cells at the end of the row: they are this input's ✓
@@ -193,10 +193,10 @@ export function ViewManagerRow({
                 setRenaming(false);
               }}
               onCancel={() => setRenaming(false)}
-              className="h-7 w-full min-w-0"
+              className="fve:h-7 fve:w-full fve:min-w-0"
             />
           ) : (
-            <ItemTitle className="max-w-full">
+            <ItemTitle className="fve:max-w-full">
               {messages.say(item.title)}
             </ItemTitle>
           )}
@@ -213,10 +213,10 @@ export function ViewManagerRow({
           <>
             <StarIcon
               data-slot="view-default-star"
-              className="text-primary size-3.5 shrink-0 fill-current"
+              className="fve:text-primary fve:size-3.5 fve:shrink-0 fve:fill-current"
               aria-hidden
             />
-            <span className="sr-only">
+            <span className="fve:sr-only">
               {messages.label('label.manage.default')}
             </span>
           </>
@@ -258,7 +258,7 @@ export function ViewManagerRow({
                           thing that answered. */}
                     <StarIcon
                       data-default={isDefault || undefined}
-                      className={isDefault ? 'fill-current' : undefined}
+                      className={isDefault ? 'fve:fill-current' : undefined}
                     />
                   </IconButton>
                 )}
@@ -294,7 +294,7 @@ export function ViewManagerRow({
             registry's full-width row, and the sentence it holds is as long
             as it needs to be. */}
         {outcome && (
-          <ItemFooter className="flex-col items-stretch">
+          <ItemFooter className="fve:flex-col fve:items-stretch">
             <ViewManagerOutcome
               state={outcome}
               manager={manager}

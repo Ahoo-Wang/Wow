@@ -1077,13 +1077,13 @@ describe('EChart: a legend beside the plot, where there is room', () => {
   it('stands beside a pie on a wide frame', () => {
     const frame = framed(800);
     expect(frame.getAttribute('data-legend')).toBe('right');
-    expect(frame.className).toContain('flex-row');
+    expect(frame.className).toContain('fve:flex-row');
   });
 
   it('goes under the pie on a phone, and folds to a line there (audit P0-6)', () => {
     const frame = framed(382);
     expect(frame.getAttribute('data-legend')).toBe('bottom');
-    expect(frame.className).toContain('flex-col');
+    expect(frame.className).toContain('fve:flex-col');
     // Under the plot, after it.
     expect(frame.lastElementChild?.getAttribute('data-slot')).toBe(
       'chart-legend',

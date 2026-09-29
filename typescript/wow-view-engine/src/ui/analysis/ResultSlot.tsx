@@ -81,7 +81,7 @@ export function ResultSlot({
       <HavingRows having={having} disabled={disabled} />
       <div
         data-slot="analysis-order"
-        className="flex flex-wrap items-center gap-x-6 gap-y-2"
+        className="fve:flex fve:flex-wrap fve:items-center fve:gap-x-6 fve:gap-y-2"
       >
         <SortField analysis={analysis} />
         <LimitField analysis={analysis} disabled={disabled} />
@@ -135,7 +135,7 @@ function SortField({ analysis }: { analysis: AnalysisEditorController }) {
       data-slot="analysis-sort"
       orientation="horizontal"
       aria-labelledby={titleId}
-      className="w-auto"
+      className="fve:w-auto"
     >
       <FieldTitle id={titleId}>{messages.label('label.sort.title')}</FieldTitle>
       <SortSettings table={owner} fields={fields} of="groups" />
@@ -204,7 +204,7 @@ function LimitField({
       data-invalid={invalid || undefined}
       data-slot="analysis-limit"
       orientation="horizontal"
-      className="w-auto flex-wrap"
+      className="fve:w-auto fve:flex-wrap"
     >
       <FieldLabel htmlFor={inputId}>
         {messages.label('label.analysis.row-limit')}
@@ -213,7 +213,7 @@ function LimitField({
         id={inputId}
         label={messages.label('label.analysis.row-limit')}
         chrome="box"
-        className="w-20"
+        className="fve:w-20"
         disabled={disabled}
         invalid={invalid}
         describedBy={described.length > 0 ? described.join(' ') : undefined}
@@ -231,7 +231,7 @@ function LimitField({
       />
       {invalid && (
         // Its own line under the box: the refusal is about what was typed.
-        <FieldError id={errorId} className="basis-full">
+        <FieldError id={errorId} className="fve:basis-full">
           {messages.label('label.analysis.row-limit-invalid', { max })}
         </FieldError>
       )}
