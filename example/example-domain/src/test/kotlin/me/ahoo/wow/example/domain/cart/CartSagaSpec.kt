@@ -16,6 +16,7 @@ package me.ahoo.wow.example.domain.cart
 import io.mockk.every
 import io.mockk.mockk
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.modeling.SpaceIdCapable
 import me.ahoo.wow.example.api.cart.RemoveCartItem
 import me.ahoo.wow.example.api.order.OrderCreated
 import me.ahoo.wow.example.api.order.OrderItem
@@ -48,6 +49,35 @@ class CartSagaSpec : SagaSpec<CartSaga>({
                 aggregateId.id.assert().isEqualTo(ownerId)
                 body.productIds.assert().hasSize(1)
                 body.productIds.assert().first().isEqualTo(orderItem.productId)
+            }
+        }
+    }
+    on {
+        name("FromSpacedOrder")
+        // The order is spaced; the cart is not. The saga's command must not inherit the order's space, or the cart
+        // would reject it (IllegalAccessSpaceAggregateException) and the saga would retry into compensation.
+        val ownerId = generateGlobalId()
+        val orderItem = OrderItem(
+            id = generateGlobalId(),
+            productId = generateGlobalId(),
+            price = BigDecimal.valueOf(10),
+            quantity = 10,
+        )
+        whenEvent(
+            event = mockk<OrderCreated> {
+                every {
+                    items
+                } returns listOf(orderItem)
+                every {
+                    fromCart
+                } returns true
+            },
+            ownerId = ownerId,
+            spaceId = "store-1"
+        ) {
+            expectCommandType(RemoveCartItem::class)
+            expectCommand<RemoveCartItem> {
+                spaceId.assert().isEqualTo(SpaceIdCapable.DEFAULT_SPACE_ID)
             }
         }
     }

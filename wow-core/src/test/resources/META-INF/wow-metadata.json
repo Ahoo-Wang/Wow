@@ -38,6 +38,9 @@
             "me.ahoo.wow.modeling.command"
           ]
         },
+        "modeling_command_spaced_aggregate": {
+          "type": "me.ahoo.wow.modeling.command.SpacedCommandAggregate"
+        },
         "modeling_command_error_handling_aggregate": {
           "type": "me.ahoo.wow.modeling.command.ErrorHandlingCommandAggregate"
         },

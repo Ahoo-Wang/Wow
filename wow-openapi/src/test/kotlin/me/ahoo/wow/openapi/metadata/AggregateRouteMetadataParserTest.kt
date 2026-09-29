@@ -42,9 +42,8 @@ internal class AggregateRouteMetadataParserTest {
     }
 
     @Test
-    fun `should reach the route metadata from the aggregate metadata`() {
-        aggregateMetadata<Order, OrderState>().aggregateRouteMetadata()
-            .assert().isSameAs(aggregateRouteMetadata<Order>())
-        MOCK_AGGREGATE_METADATA.aggregateRouteMetadata().spaced.assert().isFalse()
+    fun `route spaced is the aggregate metadata's own flag`() {
+        aggregateRouteMetadata<Order>().spaced.assert().isEqualTo(aggregateMetadata<Order, OrderState>().spaced)
+        aggregateRouteMetadata<MockCommandAggregate>().spaced.assert().isEqualTo(MOCK_AGGREGATE_METADATA.spaced)
     }
 }

@@ -17,6 +17,7 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.annotation.sortedByOrder
 import me.ahoo.wow.api.annotation.AfterCommand
 import me.ahoo.wow.api.annotation.AggregateRoot
+import me.ahoo.wow.api.annotation.AggregateRoute
 import me.ahoo.wow.api.annotation.DEFAULT_AFTER_COMMAND_NAME
 import me.ahoo.wow.api.annotation.DEFAULT_ON_COMMAND_NAME
 import me.ahoo.wow.api.annotation.DEFAULT_ON_ERROR_NAME
@@ -149,7 +150,8 @@ object AggregateMetadataParser : CacheableMetadataParser() {
                 mountedCommands = mountedCommands.toSet(),
                 commandFunctionRegistry = commandFunctionRegistry,
                 errorFunctionRegistry = errorFunctionRegistry,
-                afterCommandFunctionRegistry = afterCommandFunctionRegistry.sortedByOrder()
+                afterCommandFunctionRegistry = afterCommandFunctionRegistry.sortedByOrder(),
+                spaced = commandAggregateType.kotlin.scanAnnotation<AggregateRoute>()?.spaced ?: false,
             )
 
             val staticTenantId = commandAggregateType.kotlin.scanAnnotation<StaticTenantId>()?.tenantId

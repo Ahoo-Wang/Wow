@@ -55,17 +55,21 @@ import reactor.core.publisher.Mono
  * @property commandFunctionRegistry Map of command types to their function metadata for command handling.
  * @property errorFunctionRegistry Map of error types to their function metadata for error handling.
  * @property afterCommandFunctionRegistry List of after-command function metadata.
+ * @property spaced Whether the aggregate is spaced, parsed from `@AggregateRoute(spaced = true)`. Only a spaced
+ * aggregate takes a space from its commands: the command factory gives a command to any other aggregate the default
+ * space, and that aggregate neither checks nor records a command's space.
  *
  * @constructor Creates a new CommandAggregateMetadata with the specified properties.
  */
-data class CommandAggregateMetadata<C : Any>(
+data class CommandAggregateMetadata<C : Any> @JvmOverloads constructor(
     override val aggregateType: Class<C>,
     override val namedAggregate: NamedAggregate,
     val constructorAccessor: ConstructorAccessor<C>,
     val mountedCommands: Set<Class<*>>,
     val commandFunctionRegistry: Map<Class<*>, FunctionAccessorMetadata<C, Mono<*>>>,
     val errorFunctionRegistry: Map<Class<*>, FunctionAccessorMetadata<C, Mono<*>>>,
-    val afterCommandFunctionRegistry: List<AfterCommandFunctionMetadata<C>> = emptyList()
+    val afterCommandFunctionRegistry: List<AfterCommandFunctionMetadata<C>> = emptyList(),
+    val spaced: Boolean = false
 ) : NamedTypedAggregate<C>,
     NamedAggregateDecorator,
     Metadata,

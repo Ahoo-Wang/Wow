@@ -19,6 +19,7 @@ import me.ahoo.wow.api.abac.AbacTags
 import me.ahoo.wow.api.abac.ApplyResourceTags
 import me.ahoo.wow.api.annotation.AggregateId
 import me.ahoo.wow.api.annotation.AggregateRoot
+import me.ahoo.wow.api.annotation.AggregateRoute
 import me.ahoo.wow.api.annotation.AggregateVersion
 import me.ahoo.wow.api.annotation.CreateAggregate
 import me.ahoo.wow.api.annotation.OnError
@@ -66,6 +67,27 @@ class MockCommandAggregate(private val id: String) : VersionAware {
 
     private fun onSourcing(otherStateChanged: OtherStateChanged) {
         otherState = otherStateChanged.otherState
+    }
+}
+
+/** [MockCommandAggregate]'s behaviour on an aggregate declared `@AggregateRoute(spaced = true)`. */
+@AggregateRoute(spaced = true)
+// Wow finds and invokes the private command and sourcing handlers by reflection.
+@Suppress("UnusedPrivateMember")
+class SpacedCommandAggregate(private val id: String) : VersionAware {
+    private var state: String? = null
+    override var version: Int = Version.UNINITIALIZED_VERSION
+
+    fun id(): String = id
+
+    fun state(): String? = state
+
+    private fun onCommand(create: Create): StateChanged = StateChanged(create.id, create.state)
+
+    private fun onCommand(changeState: ChangeState): StateChanged = StateChanged(changeState.id, changeState.state)
+
+    private fun onSourcing(stateChanged: StateChanged) {
+        state = stateChanged.state
     }
 }
 

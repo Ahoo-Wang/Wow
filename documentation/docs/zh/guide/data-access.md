@@ -130,7 +130,7 @@ class Order(private val state: OrderState)
 
 对启用 spaced 的聚合，WebFlux 读取 `Wow-Space-Id`：命令写入该 space，查询路由（快照、事件流、状态与溯源读取）追加 `SPACE_ID` 过滤器。请求头不会变成 URL 段，也不会认证调用方是否有权访问该 space。
 
-未声明 `spaced = true` 的聚合在所有路由上忽略该请求头：无论客户端发送什么，其命令都使用默认 space（`""`），其查询也不追加 space 过滤器。fetcher-cosec 等客户端会在每个请求上发送 space 请求头，因此依赖该请求头隔离非 spaced 聚合的部署必须为该聚合声明 `spaced = true`。
+未声明 `spaced = true` 的聚合在所有路由上忽略该请求头：无论客户端发送什么，其命令都使用默认 space（`""`），其查询也不追加 space 过滤器。其他来源的命令同理：Saga 响应 spaced 聚合的事件时，不会把该 space 传给非 spaced 聚合；非 spaced 聚合也从不校验或记录命令的 space。fetcher-cosec 等客户端会在每个请求上发送 space 请求头，因此依赖该请求头隔离非 spaced 聚合的部署必须为该聚合声明 `spaced = true`。
 
 ### 命名空间转移
 

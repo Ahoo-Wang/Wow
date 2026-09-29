@@ -25,8 +25,17 @@ import me.ahoo.wow.api.query.SpaceIdFilter
 import me.ahoo.wow.api.query.TenantIdFilter
 import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.api.query.schema.QueryValueKind
+import me.ahoo.wow.example.api.order.OrderCreated
+import me.ahoo.wow.example.api.order.OrderItem
+import me.ahoo.wow.example.api.order.ShippingAddress
+import me.ahoo.wow.example.domain.order.Order
+import me.ahoo.wow.example.domain.order.OrderState
 import me.ahoo.wow.exception.ErrorCodes
+import me.ahoo.wow.modeling.annotation.aggregateMetadata
+import me.ahoo.wow.modeling.metadata.AggregateMetadata
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory.toStateAggregate
+import me.ahoo.wow.modeling.state.ReadOnlyStateAggregate
+import me.ahoo.wow.openapi.CommonComponent
 import me.ahoo.wow.query.QueryEntry
 import me.ahoo.wow.query.QueryEntryPolicy
 import me.ahoo.wow.query.QueryPolicy
@@ -46,6 +55,7 @@ import reactor.core.publisher.Mono
 import reactor.kotlin.test.test
 import tools.jackson.databind.node.LongNode
 import tools.jackson.databind.node.NullNode
+import java.math.BigDecimal
 
 class PointReadAdmissionTest {
     private val state = MOCK_AGGREGATE_METADATA.toStateAggregate(
@@ -179,5 +189,39 @@ class PointReadAdmissionTest {
         PointReadAdmission(enabled = true, tracingMaxVersions = 0).requireTracingVersions(Int.MAX_VALUE)
         PointReadAdmission(tracingMaxVersions = 2).requireTracingVersions(3)
         assertThrows<IllegalArgumentException> { PointReadAdmission(tracingMaxVersions = -1) }
+    }
+
+    @Test
+    fun `the request's space hides another space's state of a spaced aggregate only`() {
+        val orderMetadata = aggregateMetadata<Order, OrderState>()
+        val order = orderMetadata.toStateAggregate(
+            state = OrderState("o1").apply {
+                onSourcing(
+                    OrderCreated(
+                        orderId = "o1",
+                        items = listOf(OrderItem("i1", "p1", BigDecimal.TEN, 1)),
+                        address = ShippingAddress("China", "Shanghai", "Shanghai", "Pudong", "Road 1"),
+                        fromCart = false,
+                    )
+                )
+            },
+            version = 1,
+            spaceId = "space",
+        )
+        fun readsWithSpace(
+            metadata: AggregateMetadata<*, *>,
+            state: ReadOnlyStateAggregate<*>,
+            spaceId: String,
+        ): Boolean = PointReadAdmission(enabled = true).read(
+            metadata,
+            MockServerRequest.builder().header(CommonComponent.Header.SPACE_ID, spaceId).build(),
+            state,
+        ).blockOptional().isPresent
+
+        // Order is spaced: its own space reads, another space's state reads as absent.
+        readsWithSpace(orderMetadata, order, "space").assert().isTrue()
+        readsWithSpace(orderMetadata, order, "other-space").assert().isFalse()
+        // The mock aggregate is not spaced: the header scopes nothing.
+        readsWithSpace(MOCK_AGGREGATE_METADATA, state, "other-space").assert().isTrue()
     }
 }

@@ -65,6 +65,17 @@ class SimpleCommandAggregate<C : Any, S : Any>(
     override var commandState = CommandState.STORED
 
     /**
+     * Whether a command in [spaceId] addresses another space than this aggregate's: only a spaced aggregate checks,
+     * and only once initialized; a blank space states none.
+     */
+    private fun isForeignSpace(spaceId: String): Boolean {
+        if (!metadata.spaced || spaceId.isBlank()) {
+            return false
+        }
+        return initialized && spaceId != state.spaceId
+    }
+
+    /**
      * Processes a command exchange by validating, executing, and persisting the results.
      *
      * This method performs comprehensive command processing including:
@@ -101,7 +112,7 @@ class SimpleCommandAggregate<C : Any, S : Any>(
             if (initialized && message.ownerId.isNotBlank() && message.ownerId != state.ownerId) {
                 return@defer IllegalAccessOwnerAggregateException(aggregateId).toMono()
             }
-            if (initialized && message.spaceId.isNotBlank() && message.spaceId != state.spaceId) {
+            if (isForeignSpace(message.spaceId)) {
                 return@defer IllegalAccessSpaceAggregateException(aggregateId).toMono()
             }
             check(commandState == CommandState.STORED) {

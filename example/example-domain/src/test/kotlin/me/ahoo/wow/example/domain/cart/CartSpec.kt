@@ -17,6 +17,7 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.command.DefaultDeleteAggregate
 import me.ahoo.wow.api.command.DefaultRecoverAggregate
 import me.ahoo.wow.api.event.DefaultAggregateDeleted
+import me.ahoo.wow.api.modeling.SpaceIdCapable
 import me.ahoo.wow.example.api.cart.AddCartItem
 import me.ahoo.wow.example.api.cart.CartItemAdded
 import me.ahoo.wow.example.api.cart.CartItemRemoved
@@ -60,6 +61,31 @@ class CartSpec : AggregateSpec<Cart, CartState>(
                         expectEventType(DefaultAggregateDeleted::class)
                         expectStateAggregate {
                             deleted.assert().isTrue()
+                        }
+                    }
+                }
+            }
+        }
+        on {
+            name("Space of a non-spaced aggregate")
+            // Cart is not spaced: a command stating a space (as the cart saga's did, from a spaced order) is
+            // accepted, and neither its events nor its state take that space.
+            val ownerId = generateGlobalId()
+            givenOwnerId(ownerId)
+            whenCommand(AddCartItem(productId = "productId", quantity = 1), spaceId = "store-1") {
+                expectNoError()
+                expectEventStream {
+                    spaceId.assert().isEqualTo(SpaceIdCapable.DEFAULT_SPACE_ID)
+                }
+                expectStateAggregate {
+                    spaceId.assert().isEqualTo(SpaceIdCapable.DEFAULT_SPACE_ID)
+                }
+                fork(name = "RemoveCartItem from the saga of a spaced order") {
+                    whenCommand(RemoveCartItem(productIds = setOf("productId")), spaceId = "store-1") {
+                        expectNoError()
+                        expectEventType(CartItemRemoved::class)
+                        expectState {
+                            items.assert().isEmpty()
                         }
                     }
                 }

@@ -25,9 +25,9 @@ import me.ahoo.wow.modeling.metadata.AggregateMetadata
  * @property enabled whether the aggregate has routes at all.
  * @property aggregateMetadata the aggregate the routes serve.
  * @property resourceName the resource segment of the routes.
- * @property spaced whether the aggregate's routes take a space from the request (`Wow-Space-Id`). Only a spaced
- * aggregate has a space written to its commands or its queries scoped by space; for any other aggregate the adapter
- * ignores the header, so its commands carry the default space.
+ * @property spaced [AggregateMetadata.spaced], the aggregate's own flag: whether its routes take a space from the
+ * request (`Wow-Space-Id`). Only a spaced aggregate has a space written to its commands or its queries scoped by
+ * space; for any other aggregate the adapter ignores the header.
  * @property owner the ownership policy of the routes.
  */
 data class AggregateRouteMetadata<C : Any>(
