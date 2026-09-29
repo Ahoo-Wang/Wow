@@ -22,7 +22,9 @@ import {
 } from '../model/index.js';
 import { filterFields } from '../filter/index.js';
 import { analysisScope, type AnalysisScope } from './capability.js';
+import { withoutDangling } from './dangling.js';
 import { firstMetric } from './defaults.js';
+import { momentMetrics } from './metricFormat.js';
 
 /**
  * The config re-scoped to a new expansion chain (D20 屏 G).
@@ -37,9 +39,12 @@ import { firstMetric } from './defaults.js';
  * the first thing the new unit can count, as a fresh analysis would. What
  * still names a field of the unit is kept as it was.
  *
- * The chart, the sort and the table columns follow the survivors the way
- * they follow any change of groups and metrics (`useAnalysisEditor`'s
- * reshape), so this answers only what is grouped and measured.
+ * A derived metric that read a metric that left goes too, and one that read
+ * it after it (`withoutDangling`); one that read nothing before the step
+ * stays for admission to point at. The chart, the sort, the table columns
+ * and the having follow the survivors the way they follow any change of
+ * groups and metrics (`useAnalysisEditor`'s reshape), so this answers only
+ * what is grouped and measured.
  */
 export function withElements(
   config: AnalysisViewConfig,
@@ -63,21 +68,27 @@ export function withElements(
       ? metric
       : withoutFilter(metric);
   });
-  const named = new Set([
-    ...groups.map(group => group.alias),
-    ...metrics.map(metric => metric.alias),
-  ]);
-  const derivable = metrics.filter(
-    metric =>
-      metric.type !== 'DERIVED' ||
-      derivedRefs(metric.expression).every(alias => named.has(alias)),
+  // A derived metric that read one that left goes with it, in cascade;
+  // one that read nothing before the step is not the step's to take.
+  const { metrics: derivable } = withoutDangling(
+    { groups, metrics: metrics as AnalysisViewConfig['metrics'] },
+    { moments: momentMetrics(metrics, scope.fields) },
+    {
+      shape: config,
+      facts: {
+        moments: momentMetrics(
+          config.metrics,
+          analysisScope(definition, capability, config).fields,
+        ),
+      },
+    },
   );
   return {
     elements: elements.length === 0 ? [] : elements,
     groups,
     metrics:
       derivable.length > 0
-        ? (derivable as AnalysisViewConfig['metrics'])
+        ? derivable
         : [firstMetric(capability.count, [...scope.aggregations.values()])],
   };
 }
@@ -193,22 +204,6 @@ function expressionFields(
       ];
     case 'DATE_DIFF':
       return [expression.from, expression.to];
-    default:
-      return [];
-  }
-}
-
-function derivedRefs(
-  expression: Extract<AnalysisMetric, { type: 'DERIVED' }>['expression'],
-): string[] {
-  switch (expression.type) {
-    case 'METRIC_REF':
-      return [expression.metric];
-    case 'BINARY':
-      return [
-        ...derivedRefs(expression.left),
-        ...derivedRefs(expression.right),
-      ];
     default:
       return [];
   }

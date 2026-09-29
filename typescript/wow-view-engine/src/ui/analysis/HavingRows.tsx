@@ -63,11 +63,6 @@ export function useHaving(analysis: AnalysisEditorController) {
     item: '[data-slot="having-row"]',
     add: '[data-slot="add-having"]',
   });
-  const rows = stored === null ? [] : [...stored, ...pending];
-  const write = (next: HavingRow[]) => {
-    setPending(next.filter(row => row.value === null));
-    analysis.setHaving(withHavingRows(next));
-  };
   // A group is kept by a number it is compared with; a sample value and a
   // moment (`analysis.moments`) have none a reader would type.
   const keepable = analysis.metrics
@@ -82,6 +77,23 @@ export function useHaving(analysis: AnalysisEditorController) {
       value: metric.alias,
       label: metricReference(analysis, metric, messages),
     }));
+  // A row being filled in follows the metrics as the config's rows do
+  // (`withoutDangling`): one on a metric that can no longer keep a group —
+  // removed, or become a sample value or a moment — is gone, rather than
+  // written out on its value into a having admission refuses.
+  const rows =
+    stored === null
+      ? []
+      : [
+          ...stored,
+          ...pending.filter(row =>
+            keepable.some(entry => entry.value === row.metric),
+          ),
+        ];
+  const write = (next: HavingRow[]) => {
+    setPending(next.filter(row => row.value === null));
+    analysis.setHaving(withHavingRows(next));
+  };
   const first = keepable[0];
   return {
     analysis,

@@ -296,6 +296,48 @@ describe('keeping only some of the groups', () => {
   });
 
   /**
+   * A row being filled in lives in the editor, not the config, so the
+   * config's following a removed metric (`withoutDangling`) never saw it:
+   * the row stayed on the metric that left, and its value then wrote a
+   * having admission refuses (`analysis.having.unknown-metric`). It follows
+   * the metrics as the config's rows do.
+   */
+  it('takes a row being filled in with the metric it compared', async () => {
+    const { engine } = await open();
+
+    fireEvent.click(addRow()!);
+    await waitFor(() => expect(rows()).toHaveLength(1));
+    expect(
+      within(rows()[0]).getByLabelText(
+        defaultMessages['label.analysis.having-metric'],
+      ).textContent,
+    ).not.toBe('');
+
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: formatMessage(defaultMessages, 'label.analysis.remove-metric', {
+          name: defaultMessages['label.analysis.row-count'],
+        }),
+      }),
+    );
+
+    await waitFor(() =>
+      expect(draft(engine).metrics.map(metric => metric.alias)).toEqual([
+        'amount',
+        'sample',
+      ]),
+    );
+    expect(rows()).toHaveLength(0);
+    expect('having' in json(draft(engine))).toBe(false);
+    expect(
+      engine
+        .openRuntimes()[0]
+        .getSnapshot()
+        .issues.filter(found => found.code.startsWith('analysis.having')),
+    ).toEqual([]);
+  });
+
+  /**
    * Several rows are one AND — every one of them has to hold — and taking
    * one back returns the expression to what the rest of them say, down to
    * the key being gone when the last row goes. A config is plain JSON: a
