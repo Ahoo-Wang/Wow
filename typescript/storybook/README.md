@@ -93,15 +93,15 @@ View Engine 的每个场景都放在宿主应用里评判：`shared/AppShell.tsx
 `view-engine/ProductPricingEvents.stories.tsx` 是定价的**事件流分析台**：定价历史、状态变更，以及事件类型分布、每月／每日事件量、改动最多的定价，见 `productPricingEvents.ts`。
 
 - 这些场景与其余 View Engine 场景一样放在宿主外壳里（见上一节）；「服务」一行就是场景连接的 `host`。
-- 服务地址是故事的 `host` 参数，可在 Controls 面板随时切换；初始值取环境变量，未设置时为开发集群服务在本机的端口转发（集群内地址命令行能连，但桌面应用的内置浏览器解析不了 `*.svc.cluster.local`）。同一个服务的两个场景共用一个地址：
+- 服务地址是故事的 `host` 参数，可在 Controls 面板随时切换；初始值取环境变量，未设置时为开发集群（`dev` 命名空间）的服务地址。同一个服务的两个场景共用一个地址：
 
-  | 服务        | 环境变量                     | 默认                    | 集群内                                         |
-  | ----------- | ---------------------------- | ----------------------- | ---------------------------------------------- |
-  | 客户（CRM） | `STORYBOOK_WOW_CRM_HOST`     | `http://localhost:8085` | `http://crm-service.dev.svc.cluster.local`     |
-  | 交易订单    | `STORYBOOK_WOW_TRADING_HOST` | `http://localhost:8088` | `http://trading-service.dev.svc.cluster.local` |
-  | 商品定价    | `STORYBOOK_WOW_PRICING_HOST` | `http://localhost:8089` | `http://pricing-service.dev.svc.cluster.local` |
+  | 服务        | 环境变量                     | 默认（dev 集群）                               | 端口转发时              |
+  | ----------- | ---------------------------- | ---------------------------------------------- | ----------------------- |
+  | 客户（CRM） | `STORYBOOK_WOW_CRM_HOST`     | `http://crm-service.dev.svc.cluster.local`     | `http://localhost:8085` |
+  | 交易订单    | `STORYBOOK_WOW_TRADING_HOST` | `http://trading-service.dev.svc.cluster.local` | `http://localhost:8088` |
+  | 商品定价    | `STORYBOOK_WOW_PRICING_HOST` | `http://pricing-service.dev.svc.cluster.local` | `http://localhost:8089` |
 
-- **在本机跑起来**：先把开发集群的三个服务转发到上表的端口（集群内地址不带端口，即服务的 80 端口；需要能访问 `dev` 命名空间的 kubeconfig），每条一个终端、一直开着：
+- **在本机跑起来**：能解析 `*.dev.svc.cluster.local` 的机器（接入了集群网络或 DNS）直接在仓库根运行 `pnpm --filter wow-storybook storybook`（`http://localhost:6006`），打开导航里「真实后端 · …」的场景即可。解析不了集群地址的浏览器（如桌面应用的内置浏览器），先把要看的服务转发到上表「端口转发时」一列的端口（集群内地址不带端口，即服务的 80 端口；需要能访问 `dev` 命名空间的 kubeconfig），每条一个终端、一直开着：
 
   ```bash
   kubectl -n dev port-forward svc/crm-service 8085:80
@@ -109,7 +109,7 @@ View Engine 的每个场景都放在宿主应用里评判：`shared/AppShell.tsx
   kubectl -n dev port-forward svc/pricing-service 8089:80
   ```
 
-  再在仓库根运行 `pnpm --filter wow-storybook storybook`（`http://localhost:6006`），打开导航里「真实后端 · …」的场景。只看其中一个服务，就只转发那一个；服务在别处时，启动前设环境变量（如 `STORYBOOK_WOW_CRM_HOST=http://127.0.0.1:9085 pnpm --filter wow-storybook storybook`），或打开后在 Controls 面板改 `host`。场景连不上时画的是查询失败，不是空结果——先看端口转发是否还活着。
+  再以对应的环境变量启动（如 `STORYBOOK_WOW_CRM_HOST=http://localhost:8085 pnpm --filter wow-storybook storybook`），或打开后在 Controls 面板改 `host`。场景连不上时画的是查询失败，不是空结果——先看集群地址能否解析、端口转发是否还活着。
 
 - 客户、交易订单与商品定价只读，不发命令。
 - 真实数据每次都不同，这些故事标记为 `!test`，不进入回归测试；文档页用 `docs.autoMount: false` 只列出场景链接，不挂载示例，因此打开目录不会调用服务。
