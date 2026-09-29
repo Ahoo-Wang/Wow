@@ -140,7 +140,7 @@ class ViewStoreMongoTest {
         single("alice", id).expectStatus().isOk
             .expectBody()
             .jsonPath("$.state.appId").isEqualTo(APP)
-            .jsonPath("$.state.kind").isEqualTo("record")
+            .jsonPath("$.state.config.kind").isEqualTo("record")
             .jsonPath("$.state.audience").isEqualTo("personal")
             .jsonPath("$.version").isEqualTo(1)
         single("alice", id, OTHER_APP).expectStatus().isNotFound
@@ -313,14 +313,57 @@ class ViewStoreMongoTest {
     }
 
     @Test
-    fun `a view a shared dashboard references stays shared`() {
-        val view = create(SHARED)
-        val board = create(SHARED, """{"kind":"dashboard","panels":[{"id":"p1","instanceId":"$view"}]}""")
-        write("PUT", "$SCOPE/$SHARED/view/$view/audience", """{"audience":"personal"}""", version = 1, operator = "bob")
-            .expectStatus().isBadRequest
+    fun `a list reads the kind without the rest of the config`() {
+        val board = create(SHARED, """{"kind":"dashboard","panels":[{"id":"p1","instanceId":"v1"}],"tabs":[]}""")
+        query(
+            "$SCOPE/$SHARED/view/snapshot/list",
+            listQuery {
+                filter { id(board) }
+                projection { include("aggregateId", "state.title", "state.config.kind") }
+            }.toJsonString(),
+        ).expectStatus().isOk
             .expectBody()
-            .jsonPath("$.errorCode").isEqualTo(ViewStoreErrorCodes.VIEW_INVALID)
-            .jsonPath("$.bindingErrors[0].name").isEqualTo(board)
+            .jsonPath("$[0].state.title").isEqualTo("View")
+            .jsonPath("$[0].state.config.kind").isEqualTo("dashboard")
+            .jsonPath("$[0].state.config.panels").doesNotExist()
+            .jsonPath("$[0].state.config.tabs").doesNotExist()
+            .jsonPath("$[0].state.appId").doesNotExist()
+        query(
+            "$SCOPE/$SHARED/view/snapshot/list",
+            listQuery { filter { "state.config.kind" eq "dashboard"; id(board) } }.toJsonString(),
+        ).expectStatus().isOk.expectBody().jsonPath("$[0].aggregateId").isEqualTo(board)
+    }
+
+    /**
+     * Every place a dashboard panel references a saved view (the engine's `DashboardPanel`): the view it shows, the
+     * view 「在工作台中打开」 opens, and the view or dashboard a press opens.
+     */
+    private fun boardReferencing(view: String): List<String> = listOf(
+        """{"kind":"dashboard","tabs":[],"panels":[{"id":"p1","kind":"view","instanceId":"$view"}]}""",
+        """{"kind":"dashboard","tabs":[],"panels":[{"id":"p1","kind":"view","owned":{"definitionId":"orders","config":{"kind":"analysis"}},"opens":"$view"}]}""",
+        """{"kind":"dashboard","tabs":[],"panels":[{"id":"p1","kind":"view","instanceId":"other","click":{"kind":"view","instanceId":"$view"}}]}""",
+        """{"kind":"dashboard","tabs":[],"panels":[{"id":"p0","kind":"heading","content":"x"},{"id":"p1","kind":"view","instanceId":"other","click":{"kind":"dashboard","instanceId":"$view","values":{}}}]}""",
+    )
+
+    @Test
+    fun `a view a shared dashboard references stays shared`() {
+        val boardCount = boardReferencing("x").size
+        (0 until boardCount).forEach { index ->
+            val view = create(SHARED)
+            val board = create(SHARED, boardReferencing(view)[index])
+            write("PUT", "$SCOPE/$SHARED/view/$view/audience", """{"audience":"personal"}""", version = 1, operator = "bob")
+                .expectStatus().isBadRequest
+                .expectBody()
+                .jsonPath("$.errorCode").isEqualTo(ViewStoreErrorCodes.VIEW_INVALID)
+                .jsonPath("$.bindingErrors[0].name").isEqualTo(board)
+            // A record view of the same shape is no board, so it does not count.
+            val elsewhere = create(SHARED)
+            create(SHARED, boardReferencing(elsewhere)[index].replace("\"dashboard\",\"tabs\"", "\"record\",\"tabs\""))
+            write("PUT", "$SCOPE/$SHARED/view/$elsewhere/audience", """{"audience":"personal"}""", version = 1, operator = "bob")
+                .expectStatus().isOk
+        }
+        val view = create(SHARED)
+        val board = create(SHARED, boardReferencing(view)[0])
         write("PUT", "$SCOPE/$SHARED/view/$board/audience", """{"audience":"personal"}""", version = 1)
             .expectStatus().isUnauthorized
             .expectBody().jsonPath("$.errorCode").isEqualTo(ViewStoreErrorCodes.VIEW_OPERATOR_REQUIRED)
@@ -329,6 +372,12 @@ class ViewStoreMongoTest {
         single("bob", board).expectStatus().isOk
         // The board went personal, so it no longer keeps the view shared.
         write("PUT", "$SCOPE/$SHARED/view/$view/audience", """{"audience":"personal"}""", version = 1, operator = "bob")
+            .expectStatus().isOk
+        // A board of another application does not keep it shared either.
+        val other = create(SHARED)
+        write("POST", "$SCOPE/$SHARED/view", """{"definitionId":"orders","title":"B","config":${boardReferencing(other)[0]}}""", appId = OTHER_APP)
+            .expectStatus().isOk
+        write("PUT", "$SCOPE/$SHARED/view/$other/audience", """{"audience":"personal"}""", version = 1, operator = "bob")
             .expectStatus().isOk
     }
 

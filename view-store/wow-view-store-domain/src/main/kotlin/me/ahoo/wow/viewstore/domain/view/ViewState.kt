@@ -16,7 +16,6 @@ package me.ahoo.wow.viewstore.domain.view
 import me.ahoo.wow.api.annotation.OnSourcing
 import me.ahoo.wow.serialization.JsonSerializer
 import me.ahoo.wow.viewstore.api.ViewAudience
-import me.ahoo.wow.viewstore.api.ViewKind
 import me.ahoo.wow.viewstore.api.view.ViewAudienceChanged
 import me.ahoo.wow.viewstore.api.view.ViewCreated
 import me.ahoo.wow.viewstore.api.view.ViewRenamed
@@ -40,16 +39,11 @@ class ViewState(val id: String) {
     var appId: String = ""
         private set
 
-    /** `config.kind`, kept beside it so a list can leave the config out. */
-    var kind: ViewKind = ViewKind.RECORD
-        private set
-
-    /** The engine's `ViewConfig`, whole; the server does not read its meaning. */
+    /**
+     * The engine's `ViewConfig`, whole; the server does not read its meaning. Its `kind` is the view's kind, and a
+     * list reads `config.kind` alone (the starter declares it in the query schema).
+     */
     var config: ObjectNode = JsonSerializer.createObjectNode()
-        private set
-
-    /** The saved views a dashboard's panels reference; what the shared-board check queries. */
-    var references: Set<String> = emptySet()
         private set
 
     @OnSourcing
@@ -58,16 +52,12 @@ class ViewState(val id: String) {
         title = event.title
         audience = event.audience
         appId = event.appId
-        kind = event.kind
         config = event.config
-        references = event.references
     }
 
     @OnSourcing
     fun onSaved(event: ViewSaved) {
-        kind = event.kind
         config = event.config
-        references = event.references
     }
 
     @OnSourcing

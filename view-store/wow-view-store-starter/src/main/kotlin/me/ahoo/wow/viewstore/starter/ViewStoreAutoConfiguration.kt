@@ -19,6 +19,7 @@ import me.ahoo.wow.modeling.state.StateAggregateRepository
 import me.ahoo.wow.openapi.RouterSpecs
 import me.ahoo.wow.openapi.metadata.aggregateRouteMetadata
 import me.ahoo.wow.query.event.EventStreamQueryGateway
+import me.ahoo.wow.query.schema.QuerySchemaRegistration
 import me.ahoo.wow.query.snapshot.SnapshotQueryGateway
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
 import me.ahoo.wow.spring.boot.starter.WowAutoConfiguration
@@ -98,6 +99,10 @@ class ViewStoreAutoConfiguration {
     @ConditionalOnMissingBean
     fun systemViewProvider(viewStoreProperties: ViewStoreProperties): SystemViewProvider =
         PropertiesSystemViewProvider(viewStoreProperties.systemViews)
+
+    /** Opens `state.config.kind` and the panel references of `state.config` to snapshot queries. */
+    @Bean
+    fun viewStoreConfigQuerySchema(): QuerySchemaRegistration = ViewConfigQuerySchema.registration()
 
     @Suppress("UNCHECKED_CAST")
     @Bean

@@ -52,15 +52,13 @@ class View(private val state: ViewState) {
     fun onCreate(command: CommandMessage<CreateView>): ViewCreated {
         val appId = command.requiredAppId()
         val body = command.body
-        val kind = ViewConfigs.requireValid(body.config)
+        ViewConfigs.requireValid(body.config)
         return ViewCreated(
             definitionId = ViewConfigs.requireDefinitionId(body.definitionId),
             title = ViewConfigs.requireTitle(body.title),
             audience = ViewAudience.ofOwner(command.ownerId),
             appId = appId,
-            kind = kind,
             config = body.config,
-            references = ViewConfigs.references(kind, body.config),
         )
     }
 
@@ -68,8 +66,8 @@ class View(private val state: ViewState) {
     fun onSave(command: CommandMessage<SaveView>): ViewSaved {
         command.requireSameApp(state.appId)
         val config = command.body.config
-        val kind = ViewConfigs.requireValid(config)
-        return ViewSaved(kind = kind, config = config, references = ViewConfigs.references(kind, config))
+        ViewConfigs.requireValid(config)
+        return ViewSaved(config = config)
     }
 
     @OnCommand

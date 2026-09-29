@@ -22,6 +22,7 @@ import me.ahoo.wow.viewstore.ViewStoreService.SHARED_OWNER_ID
 import me.ahoo.wow.viewstore.api.ViewKind
 import me.ahoo.wow.viewstore.domain.view.BoardReference
 import me.ahoo.wow.viewstore.domain.view.SharedBoardReferences
+import me.ahoo.wow.viewstore.domain.view.ViewConfigs
 import me.ahoo.wow.viewstore.domain.view.ViewState
 import reactor.core.publisher.Flux
 
@@ -35,6 +36,7 @@ class SnapshotSharedBoardReferences(
 ) : SharedBoardReferences {
     companion object {
         const val MAX_BOARDS = 20
+        private const val CONFIG = "config"
     }
 
     override fun referencingBoards(tenantId: String, appId: String, viewId: String): Flux<BoardReference> {
@@ -45,8 +47,12 @@ class SnapshotSharedBoardReferences(
                 ownerId(SHARED_OWNER_ID)
                 pathState {
                     ViewStoreQueryPolicy.APP_ID_FIELD eq appId
-                    "kind" eq ViewKind.DASHBOARD.value
-                    "references" containsAll listOf(viewId)
+                    "$CONFIG.${ViewConfigs.KIND}" eq ViewKind.DASHBOARD.value
+                    or {
+                        ViewConfigs.PANEL_REFERENCES.forEach { reference ->
+                            "$CONFIG.${ViewConfigs.PANELS}".elementMatch { reference eq viewId }
+                        }
+                    }
                 }
             }
         }.query(snapshotQueryGateway()).toState().map { BoardReference(it.id, it.title) }

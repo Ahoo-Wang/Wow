@@ -66,9 +66,7 @@ class ViewSpec : AggregateSpec<View, ViewState>({
                 title.assert().isEqualTo("Open orders")
                 audience.assert().isEqualTo(ViewAudience.PERSONAL)
                 appId.assert().isEqualTo(APP)
-                kind.assert().isEqualTo(ViewKind.RECORD)
                 config.assert().isEqualTo(recordConfig())
-                references.assert().isEmpty()
             }
             ref("personal")
             fork("save a new config") {
@@ -78,7 +76,6 @@ class ViewSpec : AggregateSpec<View, ViewState>({
                     expectEventType(ViewSaved::class)
                     expectState {
                         this.config.assert().isEqualTo(config)
-                        kind.assert().isEqualTo(ViewKind.RECORD)
                     }
                 }
             }
@@ -86,8 +83,7 @@ class ViewSpec : AggregateSpec<View, ViewState>({
                 whenCommand(SaveView(stateRoot.id, dashboardConfig("v1")), appHeader(), ALICE) {
                     expectNoError()
                     expectState {
-                        kind.assert().isEqualTo(ViewKind.DASHBOARD)
-                        references.assert().containsExactly("v1")
+                        config.get("kind").stringValue().assert().isEqualTo(ViewKind.DASHBOARD.value)
                     }
                 }
             }
@@ -332,8 +328,7 @@ class ViewSpec : AggregateSpec<View, ViewState>({
         whenCommand(CreateView("orders", "Board", dashboardConfig("v1", "v2", "v1")), appHeader(), SHARED_OWNER_ID) {
             expectNoError()
             expectState {
-                kind.assert().isEqualTo(ViewKind.DASHBOARD)
-                references.assert().containsExactlyInAnyOrder("v1", "v2")
+                config.assert().isEqualTo(dashboardConfig("v1", "v2", "v1"))
             }
         }
     }

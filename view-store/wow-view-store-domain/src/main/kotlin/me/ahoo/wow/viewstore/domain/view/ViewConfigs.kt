@@ -24,8 +24,16 @@ import tools.jackson.databind.node.ObjectNode
  */
 object ViewConfigs {
     const val KIND = "kind"
+
+    /** A dashboard's panels, the array of `config` that references saved views. */
     const val PANELS = "panels"
-    const val INSTANCE_ID = "instanceId"
+
+    /**
+     * Where a dashboard panel (an element of [PANELS]) references a saved view, in the engine's `DashboardPanel`:
+     * the view it shows (`instanceId`), the view 「在工作台中打开」 opens (`opens`), and the view or dashboard a press
+     * opens (`click.instanceId`). A board's tabs hold no panels, and a view it owns (`owned`) is not a reference.
+     */
+    val PANEL_REFERENCES: List<String> = listOf("instanceId", "opens", "click.instanceId")
     const val MAX_CONFIG_BYTES = 256 * 1024
     const val MAX_TITLE_LENGTH = 120
 
@@ -47,20 +55,6 @@ object ViewConfigs {
         if (bytes > MAX_CONFIG_BYTES) {
             throw ViewStoreException.invalid("A view's config is $bytes bytes; the limit is $MAX_CONFIG_BYTES.")
         }
-    }
-
-    /** The saved views a dashboard's panels reference; empty for any other kind. */
-    fun references(kind: ViewKind, config: ObjectNode): Set<String> {
-        if (kind != ViewKind.DASHBOARD) {
-            return emptySet()
-        }
-        val panels = config.get(PANELS)
-        if (panels == null || !panels.isArray) {
-            return emptySet()
-        }
-        return panels.mapNotNull { panel ->
-            panel.get(INSTANCE_ID)?.takeIf { it.isString }?.stringValue()?.takeIf { it.isNotBlank() }
-        }.toSet()
     }
 
     /** [title] without surrounding blanks, after checking it is neither empty nor too long. */

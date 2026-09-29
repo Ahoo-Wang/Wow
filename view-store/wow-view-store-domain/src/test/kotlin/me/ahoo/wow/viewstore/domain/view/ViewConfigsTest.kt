@@ -17,7 +17,6 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.serialization.JsonSerializer
 import me.ahoo.wow.viewstore.api.ViewKind
-import me.ahoo.wow.viewstore.domain.ViewFixtures.dashboardConfig
 import me.ahoo.wow.viewstore.domain.ViewStoreException
 import org.junit.jupiter.api.Test
 
@@ -47,15 +46,5 @@ class ViewConfigsTest {
         ViewConfigs.requireValid(config).assert().isEqualTo(ViewKind.RECORD)
         config.put("n", "x".repeat(ViewConfigs.MAX_CONFIG_BYTES - overhead + 1))
         assertThrownBy<ViewStoreException> { ViewConfigs.requireValid(config) }
-    }
-
-    @Test
-    fun `only a dashboard's panels reference views`() {
-        ViewConfigs.references(ViewKind.DASHBOARD, dashboardConfig("a", "b")).assert().containsExactly("a", "b")
-        ViewConfigs.references(ViewKind.RECORD, dashboardConfig("a")).assert().isEmpty()
-        ViewConfigs.references(ViewKind.DASHBOARD, JsonSerializer.createObjectNode()).assert().isEmpty()
-        val odd = JsonSerializer.createObjectNode()
-        odd.putArray("panels").addObject().put("instanceId", 7)
-        ViewConfigs.references(ViewKind.DASHBOARD, odd).assert().isEmpty()
     }
 }

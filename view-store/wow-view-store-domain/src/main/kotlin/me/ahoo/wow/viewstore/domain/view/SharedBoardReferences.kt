@@ -22,7 +22,7 @@ import reactor.core.publisher.Flux
 fun interface SharedBoardReferences {
     /**
      * The shared dashboards (owner `(shared)`) of [tenantId] and [appId], not deleted, whose panels reference
-     * [viewId].
+     * [viewId] at any of [ViewConfigs.PANEL_REFERENCES].
      */
     fun referencingBoards(tenantId: String, appId: String, viewId: String): Flux<BoardReference>
 }

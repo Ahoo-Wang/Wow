@@ -18,7 +18,6 @@ import me.ahoo.wow.api.annotation.CreateAggregate
 import me.ahoo.wow.api.annotation.Order
 import me.ahoo.wow.api.annotation.Summary
 import me.ahoo.wow.viewstore.api.ViewAudience
-import me.ahoo.wow.viewstore.api.ViewKind
 import tools.jackson.databind.node.ObjectNode
 
 /**
@@ -41,8 +40,6 @@ data class ViewCreated(
     val title: String,
     val audience: ViewAudience,
     val appId: String,
-    val kind: ViewKind,
+    /** The engine's `ViewConfig`, whole; its `kind` is the view's kind. */
     val config: ObjectNode,
-    /** The saved views the config's panels reference, for a dashboard; empty otherwise. */
-    val references: Set<String> = emptySet(),
 )

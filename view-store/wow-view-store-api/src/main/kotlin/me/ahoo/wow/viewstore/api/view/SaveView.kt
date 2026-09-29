@@ -17,7 +17,6 @@ import me.ahoo.wow.api.Identifier
 import me.ahoo.wow.api.annotation.CommandRoute
 import me.ahoo.wow.api.annotation.Order
 import me.ahoo.wow.api.annotation.Summary
-import me.ahoo.wow.viewstore.api.ViewKind
 import tools.jackson.databind.node.ObjectNode
 
 /** Overwrites a view's config; carries the expected version. */
@@ -31,7 +30,5 @@ data class SaveView(
 ) : Identifier
 
 data class ViewSaved(
-    val kind: ViewKind,
     val config: ObjectNode,
-    val references: Set<String> = emptySet(),
 )
