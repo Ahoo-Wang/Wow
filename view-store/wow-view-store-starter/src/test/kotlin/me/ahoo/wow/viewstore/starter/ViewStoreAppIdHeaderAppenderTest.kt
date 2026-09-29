@@ -49,6 +49,10 @@ class ViewStoreAppIdHeaderAppenderTest {
     @Test
     fun `the application comes from CoSec-App-Id only`() {
         append("/view-store/tenant/t1/owner/alice/view", null, clientAppId = "portal").assert().isNull()
-        append("/view-store/tenant/t1/owner/alice/view", "console", clientAppId = "portal").assert().isEqualTo("console")
+        append(
+            "/view-store/tenant/t1/owner/alice/view",
+            "console",
+            clientAppId = "portal"
+        ).assert().isEqualTo("console")
     }
 }

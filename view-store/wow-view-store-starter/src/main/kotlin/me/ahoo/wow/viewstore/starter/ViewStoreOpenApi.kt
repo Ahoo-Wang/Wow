@@ -34,6 +34,7 @@ import me.ahoo.wow.api.query.MaterializedSnapshot
 import me.ahoo.wow.command.CommandResult
 import me.ahoo.wow.openapi.aggregate.command.CommandComponent
 import me.ahoo.wow.openapi.context.OpenAPIComponentContext
+import me.ahoo.wow.openapi.contract.HttpRouteContract
 import me.ahoo.wow.viewstore.ViewStoreService
 import me.ahoo.wow.viewstore.api.SystemView
 import me.ahoo.wow.viewstore.api.preferences.ViewPreferencesInput
@@ -47,6 +48,18 @@ class ViewStoreOpenApi(private val paths: ViewStorePaths) {
     companion object {
         const val TAG = ViewStoreService.SERVICE_ALIAS
         private const val JSON = "application/json"
+    }
+
+    /** Takes the routes [ViewStoreRouteGuard] closes out of the document, so it shows only what is served. */
+    fun withoutClosedRoutes(openApi: OpenAPI, closedContracts: List<HttpRouteContract>) {
+        val documented = openApi.paths ?: return
+        closedContracts.forEach { contract ->
+            val item = documented[contract.path] ?: return@forEach
+            item.operation(PathItem.HttpMethod.valueOf(contract.method), null)
+            if (item.readOperations().isEmpty()) {
+                documented.remove(contract.path)
+            }
+        }
     }
 
     fun merge(openApi: OpenAPI) {

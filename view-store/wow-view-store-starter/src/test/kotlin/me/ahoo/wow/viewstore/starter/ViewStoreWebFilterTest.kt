@@ -17,8 +17,8 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.example.api.cart.AddCartItem
 import me.ahoo.wow.naming.MaterializedNamedBoundedContext
 import me.ahoo.wow.openapi.RouterSpecs
-import me.ahoo.wow.openapi.contract.BuiltInHttpRoutePaths
 import me.ahoo.wow.openapi.aggregate.command.CommandComponent
+import me.ahoo.wow.openapi.contract.BuiltInHttpRoutePaths
 import me.ahoo.wow.serialization.JsonSerializer
 import me.ahoo.wow.viewstore.ViewStoreService
 import me.ahoo.wow.viewstore.api.ViewStoreErrorCodes
@@ -59,7 +59,6 @@ class ViewStoreWebFilterTest {
     private val guard = ViewStoreRouteGuard(
         paths,
         routerSpecs,
-        ViewStoreQueryRoutes(paths, routerSpecs, ViewStoreTestAggregates.namedAggregates),
         ViewStoreTestAggregates.namedAggregates,
     )
     private val filter = ViewStoreWebFilter(paths, provider, guard)
@@ -149,6 +148,7 @@ class ViewStoreWebFilterTest {
             MockServerHttpRequest.get("/view-store/tenant/t1/owner/alice/view_preferences/p1/state"),
             MockServerHttpRequest.post("/view-store/owner/alice/view/snapshot/list"),
             MockServerHttpRequest.post("/view-store/tenant/t1/view/event/list"),
+            MockServerHttpRequest.post("/view-store/tenant/t1/owner/alice/view/event/list"),
         ).forEach { request ->
             val (exchange, chain) = run(request.header(ViewStoreService.APP_ID_HEADER, "console").build())
             chain.exchange.assert().isNull()
@@ -160,7 +160,9 @@ class ViewStoreWebFilterTest {
     fun `refuses the view store's commands on the command facade`() {
         val facade = BuiltInHttpRoutePaths.Global.COMMAND_SEND
         listOf(
-            MockServerHttpRequest.post(facade).header(CommandComponent.Header.COMMAND_TYPE, CreateView::class.java.name),
+            MockServerHttpRequest.post(
+                facade
+            ).header(CommandComponent.Header.COMMAND_TYPE, CreateView::class.java.name),
             MockServerHttpRequest.post(facade)
                 .header(CommandComponent.Header.COMMAND_TYPE, "me.ahoo.wow.viewstore.api.view.Unknown"),
             MockServerHttpRequest.post(facade)
@@ -174,7 +176,11 @@ class ViewStoreWebFilterTest {
             chain.exchange.assert().isNull()
             exchange.response.statusCode.assert().isEqualTo(HttpStatus.NOT_FOUND)
         }
-        run(MockServerHttpRequest.post(facade).header(CommandComponent.Header.COMMAND_TYPE, AddCartItem::class.java.name).build())
+        run(
+            MockServerHttpRequest.post(
+                facade
+            ).header(CommandComponent.Header.COMMAND_TYPE, AddCartItem::class.java.name).build()
+        )
             .second.exchange.assert().isNotNull()
     }
 }

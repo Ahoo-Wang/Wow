@@ -22,8 +22,8 @@ import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.boot.test.context.TestConfiguration
-import org.springframework.context.annotation.Bean
 import org.springframework.context.ApplicationContext
+import org.springframework.context.annotation.Bean
 import org.springframework.http.HttpHeaders
 import org.springframework.http.MediaType
 import org.springframework.test.web.reactive.server.WebTestClient
@@ -171,7 +171,6 @@ class ViewStoreServerBootTest {
             encode("signature")
     }
 }
-
 
 private const val OPENAPI_BUFFER_BYTES = 16 * 1024 * 1024
 private const val TOKEN_TTL_SECONDS = 600L

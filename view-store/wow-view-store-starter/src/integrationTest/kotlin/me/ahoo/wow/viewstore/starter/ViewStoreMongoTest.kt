@@ -156,6 +156,8 @@ class ViewStoreMongoTest {
             .expectStatus().isNotFound
         query("/view-store/owner/alice/view/event/list", listQuery { }.toJsonString())
             .expectStatus().isNotFound
+        query("$SCOPE/alice/view/event/list", listQuery { }.toJsonString())
+            .expectStatus().isNotFound
     }
 
     @Test

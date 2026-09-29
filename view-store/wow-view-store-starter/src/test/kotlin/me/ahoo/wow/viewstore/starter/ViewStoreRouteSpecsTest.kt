@@ -57,14 +57,12 @@ class ViewStoreRouteSpecsTest {
      */
     @Test
     fun `the open routes of the view store are exactly these`() {
-        val queryRoutes = ViewStoreQueryRoutes(paths, routerSpecs, namedAggregates)
-        val guard = ViewStoreRouteGuard(paths, routerSpecs, queryRoutes, namedAggregates)
+        val guard = ViewStoreRouteGuard(paths, routerSpecs, namedAggregates)
         val snapshotQueries = listOf(
             "aggregation", "count", "cursor", "cursor/state", "list", "list/state", "paged", "paged/state", "single",
             "single/state",
         )
         val exposed = guard.openContracts.map { "${it.method} ${it.path}" } +
-            queryRoutes.contracts.map { "${it.method} ${it.path}" } +
             listOf(
                 "GET ${paths.systemViews}",
                 "GET ${paths.systemView}",
@@ -91,7 +89,8 @@ class ViewStoreRouteSpecsTest {
                 ).toTypedArray()
         )
         // Everything else Wow generates for them is closed: state and tracing reads, snapshot and event loads,
-        // snapshot regeneration, state resend, compensation, schemas and the tenant-only or owner-only queries.
+        // snapshot regeneration, state resend, compensation, schemas, the tenant-only or owner-only queries, and every
+        // event-stream query (under the tenant and the owner too).
         val closedKeys = guard.closedContracts.map { it.handlerKey }.toSet()
         closedKeys.assert().contains(
             BuiltInHttpRouteHandlerKeys.State.LOAD_AGGREGATE,
@@ -108,6 +107,8 @@ class ViewStoreRouteSpecsTest {
             BuiltInHttpRouteHandlerKeys.Snapshot.LIST_QUERY,
         )
         closedKeys.assert().doesNotContain(BuiltInHttpRouteHandlerKeys.Command.COMMAND)
+        guard.closedContracts.map { "${it.method} ${it.path}" }.assert()
+            .contains("POST $scope/view/event/list", "POST $scope/view_preferences/event/count")
         guard.closedContracts.forEach { contract ->
             val concrete = contract.path.replace(Regex("\\{[^}]+}"), "x")
             guard.isClosed(HttpMethod.valueOf(contract.method), concrete).assert().isTrue()
@@ -119,27 +120,19 @@ class ViewStoreRouteSpecsTest {
     }
 
     @Test
-    fun `the starter adds the snapshot queries under the tenant and the owner`() {
-        val queryRoutes = ViewStoreQueryRoutes(paths, routerSpecs, namedAggregates)
-        val routes = queryRoutes.contracts.map { "${it.method} ${it.path}" }
-        routes.assert().contains(
-            "POST $scope/view/snapshot/list",
-            "POST $scope/view/snapshot/single",
-            "POST $scope/view/snapshot/paged",
-            "POST $scope/view_preferences/snapshot/single",
-        )
-        routes.none { it.contains("/event/") || it.contains("cart") }.assert().isTrue()
-        queryRoutes.contracts.forEach { contract ->
-            contract.parameters.map { it.name }.assert().contains("tenantId", "ownerId")
-        }
-    }
-
-    @Test
     fun `OpenAPI shows the custom and the scoped routes`() {
         val openApi = OpenAPI()
         routerSpecs.mergeOpenAPIFromCatalog(openApi)
-        ViewStoreQueryRoutes(paths, routerSpecs, namedAggregates).merge(openApi, routerSpecs)
+        val guard = ViewStoreRouteGuard(paths, routerSpecs, namedAggregates)
+        ViewStoreOpenApi(paths).withoutClosedRoutes(openApi, guard.closedContracts)
         ViewStoreOpenApi(paths).merge(openApi)
+        openApi.paths.keys.assert().doesNotContain(
+            "$scope/view/{id}/state",
+            "/view-store/tenant/{tenantId}/view/{id}/state/tracing",
+            "/view-store/owner/{ownerId}/view/snapshot/list",
+            "$scope/view/event/list",
+        )
+        openApi.paths["$scope/view/{id}"]!!.readOperations().map { it.operationId }.assert().hasSize(1)
         openApi.paths.keys.assert().contains(
             "$scope/view/snapshot/list",
             "$scope/system-views",

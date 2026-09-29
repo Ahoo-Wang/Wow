@@ -36,8 +36,8 @@ import org.springframework.web.util.pattern.PathPatternParser
  * leave them out for one aggregate. Most of them read or rewrite a view without the application check, some without
  * the owner, so for the view store's aggregates only these stay open:
  * - the five command routes Wow generates (create, save, rename, audience, delete), and its snapshot queries under
- *   `tenant/{tenantId}/owner/{ownerId}` when it generates them;
- * - the routes the starter adds: the tenant-and-owner snapshot queries, system views, preferences and replay.
+ *   `tenant/{tenantId}/owner/{ownerId}`;
+ * - the routes the starter adds: system views, preferences and replay.
  *
  * Every other route Wow generates for them is closed, and so is the command facade (`POST /wow/command/send`) for
  * their commands: it takes the aggregate id, the owner and the headers from the caller and passes none of the
@@ -46,7 +46,6 @@ import org.springframework.web.util.pattern.PathPatternParser
 class ViewStoreRouteGuard(
     paths: ViewStorePaths,
     routerSpecs: RouterSpecs,
-    viewStoreQueryRoutes: ViewStoreQueryRoutes,
     private val namedAggregates: Set<NamedAggregate>,
 ) {
     private data class Route(val method: HttpMethod, val pattern: PathPattern) {
@@ -61,18 +60,17 @@ class ViewStoreRouteGuard(
 
     /**
      * The routes of the view store's aggregates Wow generates and the starter keeps open: the command routes, and the
-     * snapshot queries under the tenant and the owner should Wow generate them.
+     * snapshot queries under the tenant and the owner (the query policy then keeps them in the request's application).
      */
     val openContracts: List<HttpRouteContract> = viewStoreContracts.filter {
         it.handlerKey == BuiltInHttpRouteHandlerKeys.Command.COMMAND ||
-            (it.handlerKey in ViewStoreQueryRoutes.SNAPSHOT_QUERY_KEYS && it.path.startsWith(scopedPrefix))
+            (it.handlerKey in SNAPSHOT_QUERY_KEYS && it.path.startsWith(scopedPrefix))
     }
 
     /** Every other route Wow generates for the view store's aggregates. */
     val closedContracts: List<HttpRouteContract> = viewStoreContracts - openContracts.toSet()
 
     private val openRoutes: List<Route> = openContracts.map { it.toRoute() } +
-        viewStoreQueryRoutes.contracts.map { it.toRoute() } +
         listOf(
             Route(HttpMethod.GET, paths.systemViews.toPattern()),
             Route(HttpMethod.GET, paths.systemView.toPattern()),
@@ -145,6 +143,20 @@ class ViewStoreRouteGuard(
     }
 
     private companion object {
+        /** Wow's snapshot query routes: the only query routes of the view store that are open. */
+        val SNAPSHOT_QUERY_KEYS = setOf(
+            BuiltInHttpRouteHandlerKeys.Snapshot.AGGREGATION,
+            BuiltInHttpRouteHandlerKeys.Snapshot.COUNT,
+            BuiltInHttpRouteHandlerKeys.Snapshot.LIST_QUERY,
+            BuiltInHttpRouteHandlerKeys.Snapshot.LIST_QUERY_STATE,
+            BuiltInHttpRouteHandlerKeys.Snapshot.PAGED_QUERY,
+            BuiltInHttpRouteHandlerKeys.Snapshot.PAGED_QUERY_STATE,
+            BuiltInHttpRouteHandlerKeys.Snapshot.CURSOR_QUERY,
+            BuiltInHttpRouteHandlerKeys.Snapshot.CURSOR_QUERY_STATE,
+            BuiltInHttpRouteHandlerKeys.Snapshot.SINGLE,
+            BuiltInHttpRouteHandlerKeys.Snapshot.SINGLE_STATE,
+        )
+
         /** The package of the view store's commands, so one the host cannot resolve is refused all the same. */
         const val VIEW_STORE_PACKAGE = "me.ahoo.wow.viewstore."
     }

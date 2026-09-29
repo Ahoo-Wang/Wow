@@ -129,17 +129,12 @@ class ViewStoreAutoConfiguration {
         exceptionHandler = exceptionHandler,
     )
 
-    @Bean
-    fun viewStoreQueryRoutes(viewStorePaths: ViewStorePaths, routerSpecs: RouterSpecs): ViewStoreQueryRoutes =
-        ViewStoreQueryRoutes(viewStorePaths, routerSpecs, setOf(viewNamedAggregate, preferencesNamedAggregate))
-
     @Bean(ROUTER_FUNCTION_BEAN_NAME)
     @Order(0)
     @Suppress("LongParameterList")
     fun viewStoreRouterFunction(
         viewStorePaths: ViewStorePaths,
         viewStoreHandlers: ViewStoreHandlers,
-        viewStoreQueryRoutes: ViewStoreQueryRoutes,
         viewStoreRouteGuard: ViewStoreRouteGuard,
         routeHandlerFunctionRegistrar: RouteHandlerFunctionRegistrar,
         stateAggregateRepository: StateAggregateRepository,
@@ -148,23 +143,22 @@ class ViewStoreAutoConfiguration {
         val audienceContract = viewStoreRouteGuard.openContracts.single {
             it.method == HttpMethod.PUT.name() && it.path == viewStorePaths.audience
         }
-        val audienceDispatch = requireNotNull(routeHandlerFunctionRegistrar.getHttpFactory(audienceContract.handlerKey)) {
+        val audienceDispatch = requireNotNull(
+            routeHandlerFunctionRegistrar.getHttpFactory(audienceContract.handlerKey)
+        ) {
             "No handler for [${audienceContract.handlerKey}] of route [${audienceContract.path}]."
         }.create(audienceContract)
         val audienceHandler = ViewAudienceHandler(stateAggregateRepository, audienceDispatch, exceptionHandler)
-        val routes = ViewStoreRoutes.routerFunction(viewStorePaths, viewStoreHandlers, audienceHandler)
-        return viewStoreQueryRoutes.routerFunction(routeHandlerFunctionRegistrar)?.let { routes.and(it) } ?: routes
+        return ViewStoreRoutes.routerFunction(viewStorePaths, viewStoreHandlers, audienceHandler)
     }
 
     @Bean
     fun viewStoreRouteGuard(
         viewStorePaths: ViewStorePaths,
         routerSpecs: RouterSpecs,
-        viewStoreQueryRoutes: ViewStoreQueryRoutes,
     ): ViewStoreRouteGuard = ViewStoreRouteGuard(
         viewStorePaths,
         routerSpecs,
-        viewStoreQueryRoutes,
         setOf(viewNamedAggregate, preferencesNamedAggregate)
     )
 
@@ -181,12 +175,11 @@ class ViewStoreAutoConfiguration {
         @Bean
         fun viewStoreOpenApiCustomizer(
             viewStorePaths: ViewStorePaths,
-            viewStoreQueryRoutes: ViewStoreQueryRoutes,
-            routerSpecs: RouterSpecs,
+            viewStoreRouteGuard: ViewStoreRouteGuard,
         ): OpenApiCustomizer {
             val openApi = ViewStoreOpenApi(viewStorePaths)
             return OpenApiCustomizer {
-                viewStoreQueryRoutes.merge(it, routerSpecs)
+                openApi.withoutClosedRoutes(it, viewStoreRouteGuard.closedContracts)
                 openApi.merge(it)
             }
         }
