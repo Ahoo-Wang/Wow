@@ -75,6 +75,9 @@ catalogs:
     '@storybook/react-vite':
       specifier: ^10.6.0
       version: 10.6.0
+    '@tailwindcss/node':
+      specifier: ^4.3.3
+      version: 4.3.3
     '@tailwindcss/vite':
       specifier: ^4.3.3
       version: 4.3.3
@@ -1048,6 +1051,9 @@ importers:
       '@rolldown/plugin-babel':
         specifier: 'catalog:'
         version: 0.2.4(@babel/core@7.29.7)(@babel/runtime@8.0.5)(rolldown@1.2.11)(vite@8.3.1(@types/node@26.6.3)(jiti@2.7.0)(yaml@2.9.1))
+      '@tailwindcss/node':
+        specifier: 'catalog:'
+        version: 4.3.3
       '@tailwindcss/vite':
         specifier: 'catalog:'
         version: 4.3.3(vite@8.3.1(@types/node@26.6.3)(jiti@2.7.0)(yaml@2.9.1))

@@ -11,7 +11,9 @@
  * limitations under the License.
  */
 
+import { afterEach, beforeEach } from 'vitest';
 import { loadCharts } from '../src/ui/charts/load.js';
+import { KNOWN_MISSES, utilityCheck } from './fixtures/utilities.js';
 
 /**
  * The browser APIs jsdom does not implement, stubbed just enough to import.
@@ -101,3 +103,91 @@ await loadCharts('statistics');
 await loadCharts('hierarchy');
 await loadCharts('time');
 await loadCharts('geo');
+
+/**
+ * Every class a suite puts on the page carries the engine's prefix (D66) —
+ * the runtime half of `prefixedClasses.test.ts`, which reads the strings in
+ * `src`; this reads what they became. The build is `prefix(fve)`, so a class
+ * without it, however it was spelled, joined or looked up, generates nothing
+ * and the element silently loses its styling. Each class that reaches an
+ * element during a test is recorded as it lands — by a `MutationObserver`,
+ * because most suites unmount in an `afterEach` of their own, which runs
+ * before this one — and after the test every word without the prefix that
+ * `fve:` would turn into a utility fails it.
+ *
+ * The hooks below are passed without asking — each is a class that is no
+ * utility and is not meant to be one: the engine's own boundaries, the dark
+ * switch, and the classes third-party components mark or style their own
+ * elements by. Any other word is asked about: the design system loads on the
+ * first one a file meets (`fixtures/utilities.ts`, ~60 ms) and each verdict
+ * is cached, so a suite that renders nothing unusual never loads it.
+ */
+const HOOKS = new RegExp(
+  [
+    // The engine's surface and the popups' token scope (styles.css).
+    '^fve-(root|tokens)$',
+    // The dark mode switch on the root (colorMode.tsx, `@custom-variant dark`).
+    '^dark$',
+    // lucide-react stamps every icon with `lucide` and `lucide-<name>`.
+    '^lucide(-|$)',
+    // react-grid-layout and its react-resizable / react-draggable parts,
+    // styled by react-grid-layout/css/styles.css (the dashboard grid).
+    '^react-(grid|resizable|draggable)',
+    '^(cssTransforms|placeholder-resizing)$',
+    // react-day-picker's parts (the calendar), themed through its own names.
+    '^rdp-',
+    // Base UI's scroll lock marks the page it locks.
+    '^base-ui-',
+  ].join('|'),
+);
+
+const seen = new Map<string, Element>();
+
+function record(element: Element): void {
+  for (const token of element.classList)
+    if (!token.startsWith('fve:') && !HOOKS.test(token) && !seen.has(token))
+      seen.set(token, element);
+}
+
+function recordAll(records: readonly MutationRecord[]): void {
+  for (const change of records) {
+    if (change.type === 'attributes') record(change.target as Element);
+    else
+      for (const node of change.addedNodes)
+        if (node instanceof Element) {
+          record(node);
+          for (const inner of node.querySelectorAll('[class]')) record(inner);
+        }
+  }
+}
+
+const classes = new MutationObserver(recordAll);
+
+beforeEach(() => {
+  seen.clear();
+  classes.observe(document, {
+    subtree: true,
+    childList: true,
+    attributes: true,
+    attributeFilter: ['class'],
+  });
+});
+
+afterEach(async () => {
+  recordAll(classes.takeRecords());
+  classes.disconnect();
+  for (const { token } of KNOWN_MISSES) seen.delete(token);
+  if (seen.size === 0) return;
+  const isUtility = await utilityCheck();
+  const bare = [...seen]
+    .filter(([token]) => isUtility(`fve:${token}`))
+    .map(
+      ([token, element]) =>
+        `${token} on <${element.localName} class="${element.getAttribute('class')}">`,
+    );
+  seen.clear();
+  if (bare.length > 0)
+    throw new Error(
+      `Classes without the prefix fve: generate no CSS (D66): ${bare.join('; ')}`,
+    );
+});

@@ -718,6 +718,7 @@
 - **没选**：作用域改零权重 `:where`（G16 回退：宿主后导入的 `.w-full` 又压过引擎的 `md:w-64`）；分区权重（`.fve-root` 里 +1、宿主插槽与 `.fve-tokens` 下零权重——要给每个宿主插槽打标记，选择器更复杂，引擎组件放进宿主外壳时仍看导入先后）。
 - **判据**：全部截图基线与主题故事不变；另加一个故事，宿主的断点类在引擎面里生效；控制台两处绕开的写法改回带断点的写法。体积上限若因类名变长越线，照「功能优先」在同一个 PR 里抬。
 - **落点**：`src/**/*.tsx` 的类名（codemod）、`components.json`、`src/styles.css`、`scripts/scope-utilities.mjs`、`scripts/verify-package.mjs`；[theme-architecture.md](theme-architecture.md) G16 一节随之改写。
+- **护栏**（2026-09-29）：不带前缀的类编译出来什么也没有、也不报错（`CLIPPED_CELL = 'truncate'`，#3792 修），故两层都问引擎自己的设计系统（`src/styles.css`，`test/fixtures/utilities.ts`）：`test/prefixedClasses.test.ts` 读 `src` 里每个字符串——带 `fve:` 的串、HTML 里的 `class="…"`、`cn`／`cva`／`classList` 的参数按类名读，其中加上 `fve:` 就是工具类的词、以及不是工具类的 `fve:` 词都算错；不带 `fve:` 的单词只在不是数据的位置才算（类型、比较、键、路径、调用参数、带类型或数据名的值、`data-*` 属性）；`test/setup.ts` 在每个测试后读这次落到元素上的每个类，第三方的钩子（`lucide-*`、`rdp-*`、`react-grid-*` 等）放行。已知、正在别处修的一处写在 `KNOWN_MISSES` 里并注明日期，修好后条目过期即失败。
 - **落地时定的两处**（2026-09-29，见 theme-architecture.md G16）：Tailwind 的主题 `inline reference`，一个变量也不输出——带前缀的主题变量会叫 `--fve-*`，与宿主 token 同名（`--fve-font-sans`）；宿主传给引擎组件的 `className` 不再经 `cn` 替掉引擎同属性的类（名字不同，`cn` 不合并），两者都留在元素上按层叠定。
 
 ## D67 宿主接入：事实归机器，选择归宿主（2026-09-28）
