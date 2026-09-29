@@ -149,12 +149,98 @@ class ViewStoreMongoTest {
             .expectStatus().isNotFound
         single("alice", id, appId = null).expectStatus().isBadRequest
             .expectBody().jsonPath("$.errorCode").isEqualTo(ViewStoreErrorCodes.VIEW_APP_REQUIRED)
+        // Wow's owner-only and tenant-only queries, and every event-stream query, are closed routes.
         query("/view-store/owner/alice/view/snapshot/list", listQuery { }.toJsonString())
-            .expectStatus().isBadRequest
-            .expectBody().jsonPath("$.errorCode").isEqualTo(ViewStoreErrorCodes.VIEW_SCOPE_REQUIRED)
+            .expectStatus().isNotFound
+        query("/view-store/tenant/t1/view/snapshot/list", listQuery { }.toJsonString())
+            .expectStatus().isNotFound
         query("/view-store/owner/alice/view/event/list", listQuery { }.toJsonString())
-            .expectStatus().isForbidden
-            .expectBody().jsonPath("$.errorCode").isEqualTo(ViewStoreErrorCodes.VIEW_EVENT_STREAM_CLOSED)
+            .expectStatus().isNotFound
+    }
+
+    @Test
+    fun `Wow's state, tracing and maintenance routes are closed for the view store`() {
+        val id = create("alice")
+        listOf(
+            "GET" to "$SCOPE/alice/view/$id/state",
+            "GET" to "$SCOPE/alice/view/$id/state/1",
+            "GET" to "$SCOPE/alice/view/$id/state/time/${System.currentTimeMillis()}",
+            "GET" to "$SCOPE/alice/view/$id/snapshot",
+            "GET" to "/view-store/tenant/t1/view/$id/state/tracing",
+            "GET" to "/view-store/tenant/t1/view/$id/event/1/9",
+            "PUT" to "/view-store/tenant/t1/view/$id/snapshot",
+            "PUT" to "/view-store/view/snapshot/0/10",
+            "POST" to "/view-store/view/state/0/10",
+            "PUT" to "/view-store/tenant/t1/view/$id/1/compensate",
+            "GET" to "/view-store/view/snapshot/schema",
+        ).forEach { (method, uri) ->
+            listOf(APP, OTHER_APP, null).forEach { appId ->
+                val spec = client.method(org.springframework.http.HttpMethod.valueOf(method)).uri(uri)
+                appId?.let { spec.header(ViewStoreService.APP_ID_HEADER, it) }
+                spec.exchange().expectStatus().isNotFound
+                    .expectBody().jsonPath("$.errorCode").isEqualTo(ErrorCodes.NOT_FOUND)
+            }
+        }
+    }
+
+    private fun facade(commandType: String, body: String, headers: Map<String, String> = emptyMap()): WebTestClient.ResponseSpec {
+        val spec = client.post().uri("/wow/command/send")
+            .header(CommandComponent.Header.COMMAND_TYPE, commandType)
+            .header(CommandComponent.Header.WAIT_STAGE, "SNAPSHOT")
+            .header(ViewStoreService.APP_ID_HEADER, APP)
+            .contentType(MediaType.APPLICATION_JSON)
+        headers.forEach { (name, value) -> spec.header(name, value) }
+        return spec.bodyValue(body).exchange()
+    }
+
+    @Test
+    fun `the command facade does not serve the view store's commands`() {
+        val id = create("alice")
+        facade(
+            "me.ahoo.wow.viewstore.api.view.CreateView",
+            """{"definitionId":"orders","title":"Squat","config":{"kind":"record"}}""",
+            mapOf(CommandComponent.Header.AGGREGATE_ID to "orders-open", CommandComponent.Header.OWNER_ID to SHARED),
+        ).expectStatus().isNotFound
+        facade(
+            "me.ahoo.wow.viewstore.api.preferences.SetViewPreferences",
+            """{"definitionId":"orders","order":[]}""",
+            mapOf(CommandComponent.Header.AGGREGATE_ID to "any", CommandComponent.Header.OWNER_ID to "mallory"),
+        ).expectStatus().isNotFound
+        facade(
+            "me.ahoo.wow.viewstore.api.view.RenameView",
+            """{"id":"$id","title":"Taken"}""",
+            mapOf(CommandComponent.Header.AGGREGATE_ID to id),
+        ).expectStatus().isNotFound
+        facade(
+            "any",
+            """{"title":"Taken"}""",
+            mapOf(
+                CommandComponent.Header.COMMAND_AGGREGATE_CONTEXT to ViewStoreService.SERVICE_NAME,
+                CommandComponent.Header.COMMAND_AGGREGATE_NAME to ViewStoreService.VIEW_AGGREGATE_NAME,
+                CommandComponent.Header.AGGREGATE_ID to id,
+            ),
+        ).expectStatus().isNotFound
+        single("alice", id).expectStatus().isOk.expectBody().jsonPath("$.version").isEqualTo(1)
+    }
+
+    @Test
+    fun `the application comes from CoSec-App-Id, never from a command header`() {
+        client.post().uri("$SCOPE/alice/view")
+            .header(CommandComponent.Header.WAIT_STAGE, "SNAPSHOT")
+            .header(CommandComponent.Header.COMMAND_HEADER_X_PREFIX + ViewStoreService.APP_ID_MESSAGE_HEADER, OTHER_APP)
+            .contentType(MediaType.APPLICATION_JSON)
+            .bodyValue("""{"definitionId":"orders","title":"View","config":{"kind":"record"}}""")
+            .exchange().expectStatus().isBadRequest
+            .expectBody().jsonPath("$.errorCode").isEqualTo(ViewStoreErrorCodes.VIEW_APP_REQUIRED)
+        val id = create("alice")
+        client.put().uri("$SCOPE/alice/view/$id/rename")
+            .header(CommandComponent.Header.WAIT_STAGE, "SNAPSHOT")
+            .header(CommandComponent.Header.AGGREGATE_VERSION, "1")
+            .header(ViewStoreService.APP_ID_HEADER, OTHER_APP)
+            .header(CommandComponent.Header.COMMAND_HEADER_X_PREFIX + ViewStoreService.APP_ID_MESSAGE_HEADER, APP)
+            .contentType(MediaType.APPLICATION_JSON)
+            .bodyValue("""{"title":"Taken"}""")
+            .exchange().expectStatus().isNotFound
     }
 
     @Test
@@ -197,6 +283,31 @@ class ViewStoreMongoTest {
         single(SHARED, id).expectStatus().isOk
             .expectBody().jsonPath("$.state.audience").isEqualTo("shared").jsonPath("$.ownerId").isEqualTo(SHARED)
         single("alice", id).expectStatus().isNotFound
+
+    }
+
+    @Test
+    fun `an audience the view already has is answered without a change`() {
+        val id = create(SHARED)
+        write("PUT", "$SCOPE/$SHARED/view/$id/audience", """{"audience":"shared"}""", version = 1)
+            .expectStatus().isOk
+            .expectBody()
+            .jsonPath("$.errorCode").isEqualTo(ErrorCodes.SUCCEEDED)
+            .jsonPath("$.aggregateId").isEqualTo(id)
+            .jsonPath("$.aggregateVersion").isEqualTo(1)
+        write("PUT", "$SCOPE/$SHARED/view/$id/audience", """{"audience":"shared"}""")
+            .expectStatus().isOk
+        single(SHARED, id).expectStatus().isOk.expectBody().jsonPath("$.version").isEqualTo(1)
+        // Anything but a request that would succeed goes to the command and gets its answer.
+        write("PUT", "$SCOPE/$SHARED/view/$id/audience", """{"audience":"shared"}""", version = 3)
+            .expectStatus().isEqualTo(HttpStatus.CONFLICT)
+        write("PUT", "$SCOPE/$SHARED/view/$id/audience", """{"audience":"shared"}""", appId = OTHER_APP, version = 1)
+            .expectStatus().isNotFound
+        write("PUT", "$SCOPE/alice/view/$id/audience", """{"audience":"shared"}""", version = 1)
+            .expectStatus().isForbidden
+        write("PUT", "$SCOPE/$SHARED/view/$id/audience", """{"audience":"personal"}""", version = 1, operator = "bob")
+            .expectStatus().isOk
+        single("bob", id).expectStatus().isOk.expectBody().jsonPath("$.version").isEqualTo(2)
     }
 
     @Test
@@ -236,6 +347,7 @@ class ViewStoreMongoTest {
         replay("alice", renameRequest).expectStatus().isOk
             .expectBody().jsonPath("$.version").isEqualTo(2).jsonPath("$.state.title").isEqualTo("Second")
         replay("alice", deleteRequest).expectStatus().isNoContent
+        replay("alice", deleteRequest, OTHER_APP).expectStatus().isNotFound
         replay("alice", createRequest, OTHER_APP).expectStatus().isNotFound
         replay("bob", createRequest).expectStatus().isNotFound
         replay("alice", "unknown").expectStatus().isNotFound
