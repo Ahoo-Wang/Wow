@@ -33,6 +33,17 @@ cosid:
         machine-id: 1
   generator:
     enabled: true
+cosec:
+  # The CoSec gateway in front authenticates and authorizes by path. This service only injects the principal of the
+  # token the gateway forwards (without verifying it again), so `audience=personal` knows its user.
+  inject:
+    enabled: true
+  authentication:
+    enabled: false
+  authorization:
+    enabled: false
+  jwt:
+    enabled: false
 wow:
   command:
     bus:
