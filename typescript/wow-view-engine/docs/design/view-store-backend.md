@@ -54,22 +54,23 @@ Wow 自己做这个后端也最顺：端口的两条一致性规则在 Wow 里�
 | 共享 | `/view-store/tenant/{tenantId}/owner/(shared)/view/…`  | 所有者段是保留值 `(shared)`：按角色或权限放行 |
 
 - `(shared)` 是保留的所有者值：带括号，不会与任何用户 id 相同。
-- **改受众 = 转移所有者**（Wow 的转移所有者事件），视图 id 不变，看板的引用不断。
+- **改受众 = 转移所有者**（Wow 的转移所有者事件），视图 id 不变，看板的引用不断。身份也从路径来（用户 2026-09-29）：「设为个人」发到**调用者自己的个人路径**（`owner/{ownerId}` 由 fetcher-cosec 按令牌自动填，网关只放行本人），服务端把视图从 `(shared)` 转给这个 `{ownerId}`；「设为共享」发到视图当前所在的个人路径，转给 `(shared)`。服务端不从令牌取身份，独立的 server 也不需要 CoSec 依赖。
 - 不登录的宿主只用 `owner/(shared)`，没有个人视图。
 
 ### 4.3 路径一览
 
 所有路径的前缀是 `/view-store/tenant/{tenantId}/owner/{ownerId}`，下表省略它。命令路由由 Wow 按聚合元数据生成；读的合并与偏好走自定义路由，同样带这个前缀。
 
-| 方法与路径                                           | 端口方法                             | 说明                                                                                      |
-| ---------------------------------------------------- | ------------------------------------ | ----------------------------------------------------------------------------------------- |
-| `POST /view`（CreateView）                           | `create`                             | 聚合 id 由服务端生成                                                                      |
-| `PUT /view/{id}/save`、`/rename`、`/audience`        | `save`、`rename`、**changeAudience** | 带期望版本                                                                                |
-| `DELETE /view/{id}`                                  | `delete`                             | 带期望版本                                                                                |
-| Wow 的快照查询路由（列表、按 id 读）                 | `list`、`get`                        | 摘要只投影不含 `config` 的字段；`kind` 取自 `config.kind`                                 |
-| `GET /system-views?definitionId=…`                   | `list` 的一部分                      | 服务端配置的系统视图（只读），只挂在 `owner/(shared)` 下                                  |
-| `GET /view/requests/{requestId}`                     | 重放                                 | 这次写入落地时的实例，只在本路径的租户、所有者与请求的应用内查找；删除类答 204（第 6 节） |
-| `GET`、`PUT /definitions/{definitionId}/preferences` | `getPreferences`、`setPreferences`   | 偏好聚合的 id 由服务端按「所有者 × 应用 × 定义」算出                                      |
+| 方法与路径                                           | 端口方法                                 | 说明                                                                                      |
+| ---------------------------------------------------- | ---------------------------------------- | ----------------------------------------------------------------------------------------- |
+| `POST /view`（CreateView）                           | `create`                                 | 聚合 id 由服务端生成                                                                      |
+| `PUT /view/{id}/save`、`/rename`                     | `save`、`rename`                         | 带期望版本                                                                                |
+| `PUT /view/{id}/claim`、`/share`                     | **changeAudience**（设为个人、设为共享） | 带期望版本；claim 发到自己的个人路径，share 发到视图当前所在的路径                        |
+| `DELETE /view/{id}`                                  | `delete`                                 | 带期望版本                                                                                |
+| Wow 的快照查询路由（列表、按 id 读）                 | `list`、`get`                            | 摘要只投影不含 `config` 的字段；`kind` 取自 `config.kind`                                 |
+| `GET /system-views?definitionId=…`                   | `list` 的一部分                          | 服务端配置的系统视图（只读），只挂在 `owner/(shared)` 下                                  |
+| `GET /view/requests/{requestId}`                     | 重放                                     | 这次写入落地时的实例，只在本路径的租户、所有者与请求的应用内查找；删除类答 204（第 6 节） |
+| `GET`、`PUT /definitions/{definitionId}/preferences` | `getPreferences`、`setPreferences`       | 偏好聚合的 id 由服务端按「所有者 × 应用 × 定义」算出                                      |
 
 每个写入都带 `Command-Request-Id`（端口的 `requestId`）与 `Command-Wait-Stage: SNAPSHOT`；修改类另带 `Command-Aggregate-Version`（端口的 `revision`）。**`Command-Request-Id` 必须显式给**：fetcher-cosec 每个请求都生成一个新的 `CoSec-Request-Id`，Wow 只在命令没有 requestId 时拿它来补，重试若不显式带同一个 requestId 就去不了重。
 
@@ -104,13 +105,14 @@ data class ViewState(
 )
 ```
 
-| 命令                                                   | 事件                                 | 规则                                                                                                                                                                                                                                        |
-| ------------------------------------------------------ | ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **CreateView** `{definitionId, title, config}`（创建） | **ViewCreated**                      | id 由服务端生成；应用取自 `CoSec-App-Id`（缺则拒绝）；受众由路径的所有者段推出                                                                                                                                                              |
-| **SaveView** `{config}`                                | **ViewSaved**                        | 期望版本；应用与状态不符读作不存在                                                                                                                                                                                                          |
-| **RenameView** `{title}`                               | **ViewRenamed**                      | 同上；标题去空白后非空、不超过 120 字                                                                                                                                                                                                       |
-| **ChangeViewAudience** `{audience}`                    | **ViewAudienceChanged** + 转移所有者 | 同上；发往视图当前所在的所有者路径；目标所有者由服务端定——共享是 `(shared)`，个人是命令的操作人（认证后的用户，没有则拒绝），客户端不必知道用户 id；**改成个人时，若被共享看板引用则拒绝**（**ViewInvalid**，带引用它的看板）；没变是空操作 |
-| **DeleteView**（删除聚合）                             | **ViewDeleted**（聚合已删除）        | 同上；软删，之后读作不存在                                                                                                                                                                                                                  |
+| 命令                                                   | 事件                                 | 规则                                                                                                                                                                                                   |
+| ------------------------------------------------------ | ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **CreateView** `{definitionId, title, config}`（创建） | **ViewCreated**                      | id 由服务端生成；应用取自 `CoSec-App-Id`（缺则拒绝）；受众由路径的所有者段推出                                                                                                                         |
+| **SaveView** `{config}`                                | **ViewSaved**                        | 期望版本；应用与状态不符读作不存在                                                                                                                                                                     |
+| **RenameView** `{title}`                               | **ViewRenamed**                      | 同上；标题去空白后非空、不超过 120 字                                                                                                                                                                  |
+| **ClaimView**（`…/owner/{ownerId}/view/{id}/claim`）   | **ViewAudienceChanged** + 转移所有者 | 同上；视图须当前共享（所有者 `(shared)`）；转给路径的 `{ownerId}`（不得是带括号的保留值）；**若被共享看板引用则拒绝**（**ViewInvalid**，带引用它的看板）；已是本人的个人视图则原样答当前版本，不发命令 |
+| **ShareView**（`…/owner/{ownerId}/view/{id}/share`）   | **ViewAudienceChanged** + 转移所有者 | 同上；发往视图当前所在的个人路径，转给 `(shared)`；已共享则原样答当前版本，不发命令                                                                                                                    |
+| **DeleteView**（删除聚合）                             | **ViewDeleted**（聚合已删除）        | 同上；软删，之后读作不存在                                                                                                                                                                             |
 
 - `config` 只做形状与大小的检查（是对象、`kind` 为记录／分析／仪表盘之一、不超过 256 KB）；语义由引擎打开时准入。
 - 所有者不符由 Wow 自己拒绝（命令里的所有者与状态不符）；应用不符由领域拒绝为不存在，不暴露它在别的应用里存在。
