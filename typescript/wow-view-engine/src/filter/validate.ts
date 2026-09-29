@@ -145,7 +145,11 @@ export function validateFilter(
       issues.push(...judgeLeaf(node, field, kind, fields, kinds, path, limits));
     } catch (error) {
       issues.push(
+        // The sentence names the field by its label; the kind's id and the
+        // host's own message are for a developer, never interpolated.
         issue('filter.kind.failed', path, {
+          field: field.name,
+          label: field.label,
           kind: field.kind,
           reason: error instanceof Error ? error.message : String(error),
         }),

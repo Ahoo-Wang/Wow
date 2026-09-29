@@ -210,7 +210,12 @@ describe('validateFilter', () => {
         code: 'filter.kind.failed',
         severity: 'error',
         path: ['children', 0],
-        params: { kind: 'brittle', reason: 'brittle is broken' },
+        params: {
+          field: 'grade',
+          label: 'Grade',
+          kind: 'brittle',
+          reason: 'brittle is broken',
+        },
       },
     ]);
   });

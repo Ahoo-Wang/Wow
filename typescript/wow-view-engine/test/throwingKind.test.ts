@@ -24,12 +24,15 @@ import {
   type ViewInstance,
 } from '../src/index.js';
 import { DashboardViewRuntime } from '../src/runtime/dashboardRuntime.js';
+import { defaultMessages, formatIssue } from '../src/ui/messages.js';
+import { zhCN } from '../src/ui/messages/zh-CN.js';
 import {
   dashboardConfig,
   nextTask,
   ordersDefinition,
   overviewDefinition,
   recordConfig,
+  resourcesOf,
   testEnvironment,
   testSource,
 } from './fixtures.js';
@@ -95,18 +98,20 @@ async function openBoard(config: DashboardViewConfig) {
   });
   const source = testSource();
   const engine = new ViewEngine({
-    definitions: [
-      {
-        ...orders,
-        fields: [
-          ...orders.fields,
-          { name: 'grade', label: 'Grade', kind: 'brittle' },
-        ],
-      },
-      overviewDefinition(),
-    ],
+    resources: resourcesOf(
+      [
+        {
+          ...orders,
+          fields: [
+            ...orders.fields,
+            { name: 'grade', label: 'Grade', kind: 'brittle' },
+          ],
+        },
+        overviewDefinition(),
+      ],
+      () => source,
+    ),
     store,
-    resolveSource: () => source,
     environment: testEnvironment().environment,
     kinds: withFieldKinds(builtinFieldKinds, [brittle]),
   });
@@ -144,7 +149,12 @@ describe('a host kind whose validate throws', () => {
         code: 'filter.kind.failed',
         severity: 'error',
         path: ['panels', 1, 'filter', 'children', 0],
-        params: { kind: 'brittle', reason: 'brittle is broken' },
+        params: {
+          field: 'grade',
+          label: 'Grade',
+          kind: 'brittle',
+          reason: 'brittle is broken',
+        },
       },
     ]);
     expect(graded.runtime).toBeNull();
@@ -162,5 +172,24 @@ describe('a host kind whose validate throws', () => {
     ]);
     expect(graded.runtime).toBeNull();
     expect(plain.runtime?.getSnapshot().query.status).toBe('success');
+  });
+
+  /**
+   * The reader sees the field by its label and is sent to whoever keeps the
+   * view: the kind's id and the host's message (English, maybe internal)
+   * stay params for a developer.
+   */
+  it('names the field by its label and keeps the host message out', async () => {
+    const runtime = await openBoard(
+      dashboardConfig({ panels: [panel('plain', 0), panel('graded', 4)] }),
+    );
+    const [found] = runtime.getSnapshot().panels[1].issues;
+
+    expect(formatIssue(defaultMessages, found)).toBe(
+      'The condition on "Grade" couldn\'t be checked; ask whoever maintains this view.',
+    );
+    expect(formatIssue(zhCN, found)).toBe(
+      '「Grade」这个条件没能检查，请联系维护这个视图的人。',
+    );
   });
 });
