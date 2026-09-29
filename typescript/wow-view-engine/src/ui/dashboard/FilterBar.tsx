@@ -285,7 +285,7 @@ export function FilterBar({
           data-slot="dashboard-filters-clear"
           variant="ghost"
           size="sm"
-          className="ml-auto shrink-0"
+          className="fve:ml-auto fve:shrink-0"
           disabled={cleared}
           onClick={() => {
             const board = bar.current;
@@ -348,7 +348,7 @@ export function FilterBar({
       data-slot="dashboard-filter-bar"
       role="region"
       aria-label={messages.label('label.filters.bar')}
-      className="flex flex-wrap items-center gap-2"
+      className="fve:flex fve:flex-wrap fve:items-center fve:gap-2"
       // In line with the panels when it is the row itself (`BOARD_INSET`).
       style={trailing ? undefined : { paddingInline: BOARD_INSET }}
     >
@@ -379,15 +379,15 @@ export function FilterBar({
   return (
     <div
       data-slot="dashboard-filter-row"
-      className="flex items-start gap-2"
+      className="fve:flex fve:items-start fve:gap-2"
       // In line with the panels (`BOARD_INSET`).
       style={{ paddingInline: BOARD_INSET }}
     >
-      <div className="min-w-0 flex-1">{drawn}</div>
+      <div className="fve:min-w-0 fve:flex-1">{drawn}</div>
       <div
         className={cn(
-          'flex shrink-0 items-center gap-2',
-          !narrow && 'border border-transparent py-0.5',
+          'fve:flex fve:shrink-0 fve:items-center fve:gap-2',
+          !narrow && 'fve:border fve:border-transparent fve:py-0.5',
         )}
       >
         {trailing}
@@ -493,18 +493,18 @@ function FilterChip({
       }
       // Quieter, not fainter (`ControlFrame`): a dashed edge on the page's
       // ground, the words at their own contrast.
-      className={cn(CHIP, carry ? 'pl-0.5' : 'pl-2')}
+      className={cn(CHIP, carry ? 'fve:pl-0.5' : 'fve:pl-2')}
     >
       {carry?.handle}
       <span
         aria-hidden="true"
-        className="text-muted-foreground shrink-0 whitespace-nowrap"
+        className="fve:text-muted-foreground fve:shrink-0 fve:whitespace-nowrap"
       >
         {label}
-        {field.required && <span className="text-destructive">*</span>}
+        {field.required && <span className="fve:text-destructive">*</span>}
       </span>
       {kinds && (
-        <div data-slot="filter-value" className="min-w-28">
+        <div data-slot="filter-value" className="fve:min-w-28">
           <FilterValueEditor
             editor={filterEditor(
               field,
@@ -536,7 +536,7 @@ function FilterChip({
         <Badge
           data-slot="dashboard-filter-from"
           variant="secondary"
-          className="shrink-0"
+          className="fve:shrink-0"
         >
           {messages.label('label.click.from', { panel: pressedOn })}
         </Badge>

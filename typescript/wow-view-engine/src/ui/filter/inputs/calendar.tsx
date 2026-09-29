@@ -63,7 +63,7 @@ export const SurfaceCalendar = memo(function SurfaceCalendar({
       // the calendar (7 × 36 + 16 = 268px) and the popover's floor within a
       // few pixels of each other, so the clock under it is not sized by a
       // grid of digits.
-      className={cn('[--cell-size:--spacing(9)]', className)}
+      className={cn('fve:[--cell-size:--spacing(9)]', className)}
     />
   );
 });

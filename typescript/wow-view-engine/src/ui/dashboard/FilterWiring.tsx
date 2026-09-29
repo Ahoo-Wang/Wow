@@ -90,16 +90,25 @@ export function PanelWiring({
       data-slot="panel-wiring"
       data-wired={wired ? true : undefined}
       size="strip"
-      className={cn('flex flex-wrap items-center gap-1.5', TEXT_UI)}
+      className={cn(
+        'fve:flex fve:flex-wrap fve:items-center fve:gap-1.5',
+        TEXT_UI,
+      )}
     >
-      <CableIcon aria-hidden className="text-muted-foreground size-3.5" />
+      <CableIcon
+        aria-hidden
+        className="fve:text-muted-foreground fve:size-3.5"
+      />
       {fields.length === 0 ? (
-        <span data-slot="panel-wiring-none" className="text-muted-foreground">
+        <span
+          data-slot="panel-wiring-none"
+          className="fve:text-muted-foreground"
+        >
           {messages.label('label.filters.no-field')}
         </span>
       ) : (
         <>
-          <span aria-hidden="true" className="text-muted-foreground">
+          <span aria-hidden="true" className="fve:text-muted-foreground">
             {messages.label('label.filters.wire-field')}
           </span>
           <CompactSelect
@@ -161,13 +170,21 @@ export function WiringBar({
       data-slot="dashboard-wiring-bar"
       role="region"
       aria-labelledby={titleId}
-      className="flex flex-wrap items-center gap-2"
+      className="fve:flex fve:flex-wrap fve:items-center fve:gap-2"
     >
-      <p id={titleId} className="flex items-center gap-1.5 text-sm font-medium">
-        <CableIcon aria-hidden className="size-4" />
+      <p
+        id={titleId}
+        className="fve:flex fve:items-center fve:gap-1.5 fve:text-sm fve:font-medium"
+      >
+        <CableIcon aria-hidden className="fve:size-4" />
         {messages.label('label.filters.wiring', { filter: filter.label })}
       </p>
-      <p className={cn('text-muted-foreground min-w-0 grow', TEXT_UI)}>
+      <p
+        className={cn(
+          'fve:text-muted-foreground fve:min-w-0 fve:grow',
+          TEXT_UI,
+        )}
+      >
         {messages.label('label.filters.wiring-hint')}
       </p>
       <Button
@@ -176,7 +193,7 @@ export function WiringBar({
         // it is the one that saves.
         variant="outline"
         size="sm"
-        className="ml-auto"
+        className="fve:ml-auto"
         onClick={event => onDone(event.currentTarget)}
       >
         {messages.label('label.filters.wiring-done')}
@@ -203,7 +220,7 @@ export function BoardToasts() {
       {toasts.map(item => (
         <Toast key={item.id} toast={item}>
           <ToastContent>
-            <ToastTitle className="min-w-0 flex-1" />
+            <ToastTitle className="fve:min-w-0 fve:flex-1" />
             <ToastAction />
             <ToastClose aria-label={messages.label('label.filters.dismiss')}>
               <XIcon aria-hidden="true" />

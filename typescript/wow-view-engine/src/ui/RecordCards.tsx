@@ -87,10 +87,10 @@ export interface RecordCardsProps {
  * stylesheet.
  */
 const GRID: Record<1 | 2 | 3 | 4, string> = {
-  1: 'grid-cols-1',
-  2: 'sm:grid-cols-2',
-  3: 'sm:grid-cols-2 lg:grid-cols-3',
-  4: 'sm:grid-cols-2 lg:grid-cols-4',
+  1: 'fve:grid-cols-1',
+  2: 'fve:sm:grid-cols-2',
+  3: 'fve:sm:grid-cols-2 fve:lg:grid-cols-3',
+  4: 'fve:sm:grid-cols-2 fve:lg:grid-cols-4',
 };
 
 /**
@@ -182,16 +182,22 @@ export function RecordCards({
       <div
         ref={grid}
         data-slot="record-cards"
-        className={cn('bg-canvas grid gap-3 p-3', GRID[card.perRow ?? 3])}
+        className={cn(
+          'fve:bg-canvas fve:grid fve:gap-3 fve:p-3',
+          GRID[card.perRow ?? 3],
+        )}
       >
         {table.rows.map(row => (
           <Card
             key={String(row.key)}
-            className={cn(CARD_LIFT, onOpen && ['cursor-pointer', FOCUS_CARD])}
+            className={cn(
+              CARD_LIFT,
+              onOpen && ['fve:cursor-pointer', FOCUS_CARD],
+            )}
             {...opening.row(row)}
           >
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
+              <CardTitle className="fve:flex fve:items-center fve:gap-2">
                 {selectable && (
                   <RowCheckbox table={table} row={row} hintId={rangeId} />
                 )}
@@ -206,7 +212,7 @@ export function RecordCards({
                     nothing. */}
                 <span
                   data-slot="card-title-text"
-                  className="line-clamp-2 min-w-0 [overflow-wrap:anywhere]"
+                  className="fve:line-clamp-2 fve:min-w-0 fve:[overflow-wrap:anywhere]"
                   title={titleText(row)}
                 >
                   {card.titleField
@@ -215,7 +221,7 @@ export function RecordCards({
                 </span>
               </CardTitle>
             </CardHeader>
-            <CardContent className="flex flex-col gap-1">
+            <CardContent className="fve:flex fve:flex-col fve:gap-1">
               {card.image && (
                 <CardImage src={recordValue(row.data, card.image)} />
               )}
@@ -224,7 +230,7 @@ export function RecordCards({
                   reading per row, the field's name beside the value it
                   belongs to. `role="listitem"` is said out loud because the
                   group says `role="list"` and these rows are `div`s. */}
-              <ItemGroup className="gap-0">
+              <ItemGroup className="fve:gap-0">
                 {card.fields.map(field => (
                   <RowItem
                     key={field.field}
@@ -238,17 +244,17 @@ export function RecordCards({
                     // `group/row` for the same reason the table's rows carry
                     // it: a card field is the row a cell asks about when it
                     // only offers something under the pointer (`CopyButton`).
-                    className="group/row gap-2 px-0 py-0"
+                    className="fve:group/row fve:gap-2 fve:px-0 fve:py-0"
                   >
-                    <ItemContent className="min-w-0 flex-row items-baseline gap-2">
-                      <ItemDescription className="shrink-0">
+                    <ItemContent className="fve:min-w-0 fve:flex-row fve:items-baseline fve:gap-2">
+                      <ItemDescription className="fve:shrink-0">
                         {messages.say(field.label)}
                       </ItemDescription>
                       {/* An identifier has no space to wrap at — a
                           function name like onInvoiceRegistrationCreated —
                           so it may break anywhere rather than run off the
                           card's edge. */}
-                      <ItemTitle className="min-w-0 [overflow-wrap:anywhere]">
+                      <ItemTitle className="fve:min-w-0 fve:[overflow-wrap:anywhere]">
                         {render(cell(row, field))}
                       </ItemTitle>
                     </ItemContent>
@@ -261,7 +267,7 @@ export function RecordCards({
                 the foot of the tallest card in the row too (`mt-auto`), not
                 wherever a shorter card's body ended. */}
             {rowActions && (
-              <CardFooter className="mt-auto flex justify-end gap-1 border-t pt-2">
+              <CardFooter className="fve:mt-auto fve:flex fve:justify-end fve:gap-1 fve:border-t fve:pt-2">
                 <RowActions>{rowActions(row)}</RowActions>
               </CardFooter>
             )}
@@ -269,7 +275,7 @@ export function RecordCards({
         ))}
       </div>
       {opening.hintId && (
-        <span id={opening.hintId} className="sr-only">
+        <span id={opening.hintId} className="fve:sr-only">
           {messages.label('label.record.detail.hint')}
         </span>
       )}
@@ -300,7 +306,11 @@ function kindOf(value: unknown): string {
 function CardImage({ src }: { src: unknown }) {
   if (typeof src !== 'string' || src.length === 0) return null;
   return (
-    <img src={src} alt="" className="h-32 w-full rounded-md object-cover" />
+    <img
+      src={src}
+      alt=""
+      className="fve:h-32 fve:w-full fve:rounded-md fve:object-cover"
+    />
   );
 }
 

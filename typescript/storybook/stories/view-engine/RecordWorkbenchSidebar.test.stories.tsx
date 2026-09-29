@@ -123,7 +123,7 @@ export const SidebarIsANavigationColumn: Story = {
     // that used to be identical.
     const other = listItem(canvasElement, '我盯的大额单');
     await expect(paintOf(other)).toBe('rgba(0, 0, 0, 0)');
-    await expect(other.className).toContain('hover:bg-sidebar-accent');
+    await expect(other.className).toContain('fve:hover:bg-sidebar-accent');
     // Painted rather than hovered: the runner's pointer events do not put a
     // real `:hover` on the element, and what broke before was never the
     // pseudo-class — it was the two tokens resolving to one grey. So the

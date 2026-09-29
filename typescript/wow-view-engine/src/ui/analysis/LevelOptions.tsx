@@ -58,7 +58,7 @@ export function LevelSlots({ chart, shape, onChange }: OptionsPageProps) {
           }
         >
           {level => (
-            <span className="truncate font-medium" title={level.name}>
+            <span className="fve:truncate fve:font-medium" title={level.name}>
               {level.name}
             </span>
           )}

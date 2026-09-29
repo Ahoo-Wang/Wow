@@ -79,15 +79,15 @@ export function DetailStructure({
       <Tree value={value} depth={1} messages={messages} />
     );
   return (
-    <ol data-slot="detail-elements" className="flex flex-col gap-3">
+    <ol data-slot="detail-elements" className="fve:flex fve:flex-col fve:gap-3">
       {value.map((element, index) => (
         <li
           key={index}
           data-slot="detail-element"
-          className="flex flex-col gap-1.5 border-l-2 pl-3"
+          className="fve:flex fve:flex-col fve:gap-1.5 fve:border-l-2 fve:pl-3"
         >
-          <span className="flex flex-wrap items-center gap-2">
-            <span className="text-muted-foreground text-xs tabular-nums">
+          <span className="fve:flex fve:flex-wrap fve:items-center fve:gap-2">
+            <span className="fve:text-muted-foreground fve:text-xs fve:tabular-nums">
               {messages.label('label.record.detail.element', {
                 index: index + 1,
               })}
@@ -165,8 +165,13 @@ function Element({
         const value = recordValue(element as RecordData, one.field);
         const block = blockOf(value);
         return (
-          <div key={one.field} className="contents">
-            <dt className={cn('text-muted-foreground', block && 'col-span-2')}>
+          <div key={one.field} className="fve:contents">
+            <dt
+              className={cn(
+                'fve:text-muted-foreground',
+                block && 'fve:col-span-2',
+              )}
+            >
               {messages.say(one.label)}
             </dt>
             <dd
@@ -214,9 +219,9 @@ function Tree({
         .map(item => (typeof item === 'string' ? item : scalarText(item)))
         .join(messages.label('label.filter.join'));
     return (
-      <ol className="flex flex-col gap-2">
+      <ol className="fve:flex fve:flex-col fve:gap-2">
         {value.map((item, index) => (
-          <li key={index} className="border-l-2 pl-3">
+          <li key={index} className="fve:border-l-2 fve:pl-3">
             <Tree value={item} depth={depth + 1} messages={messages} />
           </li>
         ))}
@@ -254,11 +259,11 @@ function Pair({
 }) {
   const block = blockOf(value);
   return (
-    <div className="contents">
+    <div className="fve:contents">
       <dt
         className={cn(
-          'text-muted-foreground font-mono text-xs leading-5',
-          block && 'col-span-2',
+          'fve:text-muted-foreground fve:font-mono fve:text-xs fve:leading-5',
+          block && 'fve:col-span-2',
         )}
       >
         {name}
@@ -283,10 +288,10 @@ function Pair({
  */
 export function blockOf(value: unknown): string | undefined {
   if (typeof value === 'string')
-    return isLong(value) ? 'col-span-2' : undefined;
+    return isLong(value) ? 'fve:col-span-2' : undefined;
   if (!isObject(value) || (Array.isArray(value) && !value.some(isObject)))
     return undefined;
-  return 'col-span-2 border-l-2 pl-3';
+  return 'fve:col-span-2 fve:border-l-2 fve:pl-3';
 }
 
 /**
@@ -296,9 +301,15 @@ export function blockOf(value: unknown): string | undefined {
  */
 export function LongValue({ value }: { value: string }) {
   return (
-    <span data-slot="cell-long" className="group/copyable relative block">
+    <span
+      data-slot="cell-long"
+      className="fve:group/copyable fve:relative fve:block"
+    >
       <LongText>{value}</LongText>
-      <CopyButton value={value} className="absolute top-1 right-1" />
+      <CopyButton
+        value={value}
+        className="fve:absolute fve:top-1 fve:right-1"
+      />
     </span>
   );
 }
@@ -311,8 +322,8 @@ export function isLong(value: string): boolean {
 }
 
 const PAIRS =
-  'grid grid-cols-[minmax(4rem,max-content)_minmax(0,1fr)] gap-x-3 gap-y-1';
-const VALUE = 'min-w-0 [overflow-wrap:anywhere]';
+  'fve:grid fve:grid-cols-[minmax(4rem,max-content)_minmax(0,1fr)] fve:gap-x-3 fve:gap-y-1';
+const VALUE = 'fve:min-w-0 fve:[overflow-wrap:anywhere]';
 
 /** A number, a flag or nothing, as the document wrote it. */
 function scalarText(value: unknown): string {

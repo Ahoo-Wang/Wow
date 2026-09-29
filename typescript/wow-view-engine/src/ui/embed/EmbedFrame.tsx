@@ -128,10 +128,10 @@ export function EmbedFrame({
             embed's first moment is otherwise silent to a reader. */}
         {opened.loading && (
           <div data-slot="embed-opening" aria-busy="true">
-            <span role="status" className="sr-only">
+            <span role="status" className="fve:sr-only">
               {messages.label(kindWord('label.workbench.opening', kind))}
             </span>
-            <Skeleton aria-hidden="true" className="h-24 w-full" />
+            <Skeleton aria-hidden="true" className="fve:h-24 fve:w-full" />
           </div>
         )}
         {runtime && !wrongKind && (

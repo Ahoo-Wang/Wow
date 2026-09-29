@@ -199,7 +199,7 @@ export function PieSlices({
                 measure !== undefined && (
                   <li
                     data-slot="pie-measure"
-                    className="text-foreground font-medium"
+                    className="fve:text-foreground fve:font-medium"
                   >
                     {cutShort
                       ? `${measure} · ${messages.label('label.chart.share-basis')}`

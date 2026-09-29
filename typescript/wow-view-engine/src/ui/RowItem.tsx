@@ -26,7 +26,7 @@ import { Item } from './components/item.js';
  * (decisions.md D16 ruling 8).
  */
 const rowItemVariants = cva(
-  'data-dragging:bg-muted data-broken:text-muted-foreground',
+  'fve:data-dragging:bg-muted fve:data-broken:text-muted-foreground',
   {
     variants: {
       /**
@@ -40,7 +40,7 @@ const rowItemVariants = cva(
        * is what a card body and a link list want.
        */
       density: {
-        dense: 'px-1 py-0.5',
+        dense: 'fve:px-1 fve:py-0.5',
         roomy: '',
       },
       /**
@@ -66,14 +66,14 @@ const rowItemVariants = cva(
        * row that is a link (`[a]:hover:bg-muted`), and read from its start.
        */
       pressable: {
-        true: 'hover:bg-muted cursor-pointer text-left',
+        true: 'fve:hover:bg-muted fve:cursor-pointer fve:text-left',
         false: '',
       },
       description: {
         prose: '',
         label: [
-          '[&_[data-slot=item-description]]:text-[length:var(--_fve-text-ui)]',
-          '[&_[data-slot=item-description]]:leading-[1.125rem]',
+          'fve:[&_[data-slot=item-description]]:text-[length:var(--_fve-text-ui)]',
+          'fve:[&_[data-slot=item-description]]:leading-[1.125rem]',
         ],
       },
     },

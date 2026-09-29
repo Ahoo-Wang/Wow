@@ -169,9 +169,9 @@ describe('RenderBoundary', () => {
     // `className` is for — there is no state behind a length or a
     // direction, and jsdom lays nothing out. The pixels are the browser
     // stories’.
-    expect(alert.className).toContain('inline-flex');
-    expect(alert.className).toContain('w-auto');
-    expect(alert.className).toContain('border-0');
+    expect(alert.className).toContain('fve:inline-flex');
+    expect(alert.className).toContain('fve:w-auto');
+    expect(alert.className).toContain('fve:border-0');
     expect(alert.getAttribute('data-boundary')).toBe('actions');
     // What went wrong has no room on one line, so it is one hover away —
     // a `Tooltip` rather than a native `title` (D16), which is the one

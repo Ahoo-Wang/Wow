@@ -25,9 +25,10 @@
 // 4. The stylesheet holds no rule outside the two style boundaries at all, so
 //    a host that does import it keeps its own page and its own variables, and
 //    every scope it does carry names both of them — bar the preset reset, one
-//    rule in the lowest layer that only empties the preset layer. Every other
-//    rule weighs one class more than its source wrote it, so a host's
-//    Tailwind, imported before or after, never outweighs it on a surface.
+//    rule in the lowest layer that only empties the preset layer, and the
+//    utilities, which are ours by name: every class it styles carries the
+//    `fve:` prefix (D66), so a host's Tailwind never writes the same rule,
+//    and the scope weighs nothing, so neither side outweighs the other.
 // 5. The `dark:` utilities and the dark tokens turn on the same roots, so no
 //    host can end up with the utilities of one mode over the other's tokens.
 // 6. Every token reads a host-level `--fve-*` variable first and a preset's
@@ -128,8 +129,9 @@ const stylesheet = readFileSync(new URL(styles, packageRoot), 'utf8');
 const BOUNDARIES = ['.fve-root', '.fve-tokens'];
 
 /**
- * The weight `scripts/scope-utilities.mjs` puts on every rule, as the
- * minifier writes it: an `:is()` of both boundaries and their contents.
+ * The scope `scripts/scope-utilities.mjs` puts on every rule but a utility,
+ * as the minifier writes it: a `:where()` of both boundaries and their
+ * contents, weighing nothing.
  */
 const SCOPE_PARTS = BOUNDARIES.flatMap(boundary => [boundary, `${boundary} *`]);
 for (const boundary of BOUNDARIES)
@@ -138,24 +140,31 @@ for (const boundary of BOUNDARIES)
     `The theme must hang off the ${boundary} boundary`,
   );
 
-// 4. No rule sits outside the boundaries — custom properties included.
+// 4. No rule sits outside the boundaries — custom properties included — but
+// the utilities.
 //
 // Tailwind's preflight would reset `*`, `html`, headings, lists and buttons on
-// the whole host page, and its utilities are bare classes a host may share;
-// `scripts/scope-utilities.mjs` pins every rule to the root at build time, and
-// this is where that is checked. A rule that only sets custom properties is no
-// exception, because a host reads custom properties: a `:root` variable is as
-// much a leak as a painted pixel. Tailwind's theme variables (`--spacing`,
-// `--radius-md`, `--font-sans`, …) would otherwise overwrite a host Tailwind's
-// values for the same names, or be overwritten by them, and its `--tw-*`
-// defaults on `*` are scoped to the root like everything else. Only
-// `@property` registrations stay global, and they have no selector at all.
+// the whole host page, the theme's `data-slot` rules would reach a host's own
+// shadcn components, and the grid adapter's classes are bare;
+// `scripts/scope-utilities.mjs` pins every such rule to the root at build
+// time, and this is where that is checked. A rule that only sets custom
+// properties is no exception, because a host reads custom properties: a
+// `:root` variable is as much a leak as a painted pixel. Tailwind's theme is
+// inlined and declares no variable at all, and its `--tw-*` defaults on `*`
+// are scoped to the root like everything else. Only `@property`
+// registrations stay global, and they have no selector at all. A utility —
+// a selector whose subject starts with one of our prefixed classes — needs
+// no boundary: it matches nothing but an element that wears our class (4e).
 const RESET_LAYER = 'fve-reset';
+const UTILITY = '.fve\\:';
 const scopedRules = styleRules(stylesheet).filter(
   ({ layer }) => layer !== RESET_LAYER,
 );
+const utility = part => part.startsWith(UTILITY);
 const leaks = scopedRules.filter(
-  ({ selector }) => !BOUNDARIES.some(boundary => selector.includes(boundary)),
+  ({ selector }) =>
+    !selectorList(selector).every(utility) &&
+    !BOUNDARIES.some(boundary => selector.includes(boundary)),
 );
 assert.deepEqual(
   leaks.map(({ selector }) => selector),
@@ -206,22 +215,85 @@ assert.ok(
   'No rule carries the scope the build pins them to; scope-utilities did not run',
 );
 
-// 4c. And every rule weighs one class more than its source wrote it (G16).
+// 4c. And every other selector carries the scope, weighing nothing (D66).
 //
-// A host's Tailwind fills the same `utilities` layer, where a tie in weight
-// goes to whichever stylesheet came later: imported before the host's own,
-// our `md:w-64` lost to the host's `.w-full` on our own surface. The scope is
-// an `:is()` of both boundaries and what is inside them — one class — on
-// every part of every selector, the ones that already named a boundary too,
-// so the cascade among our own rules is unchanged and the host's order no
-// longer matters.
-const unweighed = scopedRules.flatMap(({ selector }) =>
-  selectorList(selector).filter(part => unscoped(part) === part),
+// Every part of every selector that is not a utility carries a `:where()` of
+// both boundaries and what is inside them, the ones that already named a
+// boundary too; a utility carries none. So every rule weighs what its source
+// wrote, the cascade among our own rules is what the sources produced, and a
+// host's class on its own markup inside our surface — `sm:grid-cols-4` — is
+// weighed against ours by its own cascade: G16's extra class, which made it
+// lose to any rule of ours with the same base, is gone, and the names no
+// longer meet at all (4e).
+const unscopedParts = scopedRules.flatMap(({ selector }) =>
+  selectorList(selector).filter(
+    part => !utility(part) && unscoped(part) === part,
+  ),
 );
 assert.deepEqual(
-  unweighed,
+  unscopedParts,
   [],
-  `Every selector must carry :is(${SCOPE_PARTS.join(', ')}), the one class that keeps a host's utilities from outweighing ours`,
+  `Every selector but a utility's must carry :where(${SCOPE_PARTS.join(', ')})`,
+);
+const weighed = scopedRules.flatMap(({ selector }) =>
+  selectorList(selector).filter(part =>
+    whereArguments(part, ':is(').some(scope => {
+      const parts = selectorList(scope);
+      return SCOPE_PARTS.every(expected => parts.includes(expected));
+    }),
+  ),
+);
+assert.deepEqual(
+  weighed,
+  [],
+  'A selector still carries the scope as :is(), a class of weight (G16); the scope is a :where() now (D66)',
+);
+
+// 4e. No unprefixed utility: every class the stylesheet styles is ours by
+// name (D66).
+//
+// Tailwind compiles with `prefix(fve)`, so every utility is `.fve\\:…`, and
+// the theme's own rules name those same classes. A bare class here is a
+// class a host's Tailwind (or Bootstrap) may also define — the collision D66
+// removed. The only bare classes are the two boundaries, the host's `.dark`
+// the dark variant reads, the classes the grid adapter and the date picker
+// put on their own elements (`react-grid-*`, `react-resizable-*`, `rdp-*`),
+// and `shimmer`, which `shadcn/tailwind.css` names bare in its reduced-motion
+// rule for a utility this package does not compile.
+const BARE_CLASSES = new Set([
+  'fve-root',
+  'fve-tokens',
+  'dark',
+  'shimmer',
+  // react-grid-layout's own state classes, beside its prefixed names.
+  'cssTransforms',
+  'dropping',
+  'placeholder-resizing',
+  'resizing',
+  'static',
+]);
+const THIRD_PARTY = /^(react-grid-|react-resizable|react-draggable|rdp-)/;
+const bareClasses = new Set(
+  scopedRules.flatMap(({ selector }) =>
+    classNames(selector).filter(
+      name =>
+        !name.startsWith('fve\\:') &&
+        !BARE_CLASSES.has(name) &&
+        !THIRD_PARTY.test(name),
+    ),
+  ),
+);
+assert.deepEqual(
+  [...bareClasses].sort(),
+  [],
+  'The stylesheet styles a class without the fve: prefix; write the utility as fve:<utility>',
+);
+const utilities = scopedRules.filter(({ selector }) =>
+  selectorList(selector).every(utility),
+);
+assert.ok(
+  utilities.length > 0,
+  'The stylesheet compiled no fve: utility; is the prefix still set?',
 );
 
 // 4d. The preset reset: one rule in the lowest layer, and nothing else there.
@@ -288,7 +360,7 @@ assert.equal(
 // would append a second `:where(.fve-root, .fve-root *)`, and does so as soon
 // as the variant stops naming the root itself, so read the first one.
 const darkUtility = styleRules(stylesheet).find(({ selector }) =>
-  selector.startsWith('.dark\\:'),
+  selector.startsWith('.fve\\:dark\\:'),
 );
 assert.ok(darkUtility, 'The stylesheet compiled no dark: utility to check');
 const variantSelectors = selectorList(whereArguments(darkUtility.selector)[0]);
@@ -750,18 +822,50 @@ function scopeArguments(selector) {
   return [...whereArguments(selector), ...whereArguments(selector, ':is(')];
 }
 
-/** One selector part with the scope's `:is()` taken out of it. */
+/** One selector part with the scope's `:where()` taken out of it. */
 function unscoped(part) {
   let text = part;
-  for (const scope of whereArguments(part, ':is(')) {
+  for (const scope of whereArguments(part)) {
     const parts = selectorList(scope);
     if (
       parts.length === SCOPE_PARTS.length &&
       SCOPE_PARTS.every(expected => parts.includes(expected))
     )
-      text = text.replace(`:is(${scope})`, '');
+      text = text.replace(`:where(${scope})`, '');
   }
   return text;
+}
+
+/**
+ * Every class a selector names, as the stylesheet escapes it: `.a\\:b` is one
+ * class, `fve\\:b`, and a class inside an escaped arbitrary variant
+ * (`.fve\\:\\[\\&_\\.x\\]\\:…`) is part of the class that holds it.
+ */
+function classNames(selector) {
+  const names = [];
+  for (let at = 0; at < selector.length; at += 1) {
+    const char = selector[at];
+    if (char === '\\') at += 1;
+    else if (char === '[') {
+      // An attribute selector's value is not a class (`[href$='.pdf']`).
+      for (let depth = 1; depth > 0 && at + 1 < selector.length;) {
+        at += 1;
+        if (selector[at] === '\\') at += 1;
+        else if (selector[at] === '[') depth += 1;
+        else if (selector[at] === ']') depth -= 1;
+      }
+    } else if (char === '.' && /[\w\\-]/.test(selector[at + 1] ?? '')) {
+      let end = at + 1;
+      while (end < selector.length) {
+        if (selector[end] === '\\') end += 2;
+        else if (/[\w-]/.test(selector[end])) end += 1;
+        else break;
+      }
+      names.push(selector.slice(at + 1, end));
+      at = end - 1;
+    }
+  }
+  return names;
 }
 
 /**
@@ -1192,7 +1296,7 @@ for (const [css, found] of [
 rmSync(checkDir, { recursive: true, force: true });
 
 console.log(
-  `${targets.size} entries resolve and import, the code entries export at run time exactly the values their surface lists name, the root and /testing entries' types need no DOM lib, ${visited.size} runtime modules import no CSS, the chart chunk and each family chunk draw, the stylesheet holds no rule outside ${BOUNDARIES.join(' / ')} bar the preset reset (@layer ${RESET_LAYER}, the first layer, emptying ${reset.declarations.length} --fvp-* variables) and no :root selector at all, every one of its ${scopedRules.length} other rules carries the one-class scope naming both boundaries and none names only one, its dark: utilities turn on the same ${tokenSelectors.length} roots as its dark tokens, its ${lightTokens.tokens.length} light and ${darkTokens.tokens.length} dark tokens all read --fve-* host variables before the preset layer, themes.css holds ${presets.size} preset(s) (${[...presets.keys()].join(', ')}), each shipped alone too as themes/<name>.css, each assigning only --fvp-* variables it changes (${[
+  `${targets.size} entries resolve and import, the code entries export at run time exactly the values their surface lists name, the root and /testing entries' types need no DOM lib, ${visited.size} runtime modules import no CSS, the chart chunk and each family chunk draw, the stylesheet holds no rule outside ${BOUNDARIES.join(' / ')} bar the preset reset (@layer ${RESET_LAYER}, the first layer, emptying ${reset.declarations.length} --fvp-* variables) and no :root selector at all, its ${utilities.length} utilities all carry the fve: prefix and no bare class is styled, every one of its ${scopedRules.length - utilities.length} other rules carries the zero-weight scope naming both boundaries and none names only one, its dark: utilities turn on the same ${tokenSelectors.length} roots as its dark tokens, its ${lightTokens.tokens.length} light and ${darkTokens.tokens.length} dark tokens all read --fve-* host variables before the preset layer, themes.css holds ${presets.size} preset(s) (${[...presets.keys()].join(', ')}), each shipped alone too as themes/<name>.css, each assigning only --fvp-* variables it changes (${[
     ...presets,
   ]
     .map(([preset, assigned]) => `${preset} ${assigned.size}`)

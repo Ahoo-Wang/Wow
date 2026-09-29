@@ -140,7 +140,7 @@ export function PanelHandle({ title, onStep, onCancel }: PanelHandleProps) {
         aria-keyshortcuts={HANDLE_KEYS}
         variant={arranging ? 'secondary' : 'ghost'}
         size="icon-sm"
-        className="shrink-0 cursor-move"
+        className="fve:shrink-0 fve:cursor-move"
         onClick={(event: React.MouseEvent) => {
           if (event.detail !== 0) return;
           if (live.current.arranging) {

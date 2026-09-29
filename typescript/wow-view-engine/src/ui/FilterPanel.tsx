@@ -137,7 +137,7 @@ export function FilterPanel({
         // tray's footer does (second review R1-P1-4: at 390 wide the band
         // scrolled whole, cut a condition in half and put Apply below the
         // fold with nothing to say it was there).
-        className="flex min-h-0 flex-col gap-3"
+        className="fve:flex fve:min-h-0 fve:flex-col fve:gap-3"
         // Auto-refresh holds while any control in here has focus. Focus events
         // bubble in React, so the root sees every input; a move from one
         // control to another inside the panel is not a leave and not an enter.
@@ -161,7 +161,7 @@ export function FilterPanel({
         }}
       >
         {modes && (
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="fve:flex fve:flex-wrap fve:items-center fve:gap-2">
             <FilterModeToggle filter={filter} disabled={disabled} />
           </div>
         )}
@@ -193,7 +193,7 @@ export function FilterPanel({
             // included, inside 424px and puts the toolbar at 640px.
             <div
               data-slot="filter-tree"
-              className="max-h-[40vh] min-h-0 overflow-y-auto"
+              className="fve:max-h-[40vh] fve:min-h-0 fve:overflow-y-auto"
             >
               {tree}
             </div>
@@ -213,7 +213,7 @@ export function FilterPanel({
         {(!advanced || submit) && (
           <div
             data-slot="filter-actions"
-            className="flex shrink-0 flex-wrap items-center gap-2"
+            className="fve:flex fve:shrink-0 fve:flex-wrap fve:items-center fve:gap-2"
           >
             {!advanced && (
               <AddEntry

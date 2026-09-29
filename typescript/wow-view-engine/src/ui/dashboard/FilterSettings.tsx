@@ -126,7 +126,7 @@ export function AddFilterMenu({
         <ChevronDownIcon data-icon="inline-end" />
       </DropdownMenuTrigger>
       <DropdownMenuContent
-        className="min-w-44"
+        className="fve:min-w-44"
         finalFocus={() =>
           grouped.current &&
           (focusableIn(
@@ -240,11 +240,11 @@ export function FilterSettings({
       >
         <Settings2Icon />
       </IconTooltip>
-      <PopoverContent align="start" className="w-80">
+      <PopoverContent align="start" className="fve:w-80">
         <PopoverHeader>
           <PopoverTitle>{title}</PopoverTitle>
         </PopoverHeader>
-        <FieldGroup className="gap-4">
+        <FieldGroup className="fve:gap-4">
           <Field>
             <FieldLabel htmlFor={`${ids}-type`}>
               {messages.label('label.filters.type')}
@@ -270,7 +270,7 @@ export function FilterSettings({
             <ControlFrame
               role="group"
               aria-labelledby={`${ids}-default`}
-              className="px-1 py-0.5"
+              className="fve:px-1 fve:py-0.5"
             >
               <FilterValueEditor
                 editor={filterEditor(
@@ -335,7 +335,7 @@ export function FilterSettings({
               onChange={options => edit.setFilterOptions(field.name, options)}
             />
           )}
-          <div className="flex flex-wrap gap-2">
+          <div className="fve:flex fve:flex-wrap fve:gap-2">
             <Button
               data-slot="dashboard-filter-wire"
               variant="outline"
@@ -456,7 +456,7 @@ function SourceField({
           <FieldLegend variant="label">
             {messages.label('label.filters.list')}
           </FieldLegend>
-          <ControlFrame className="px-1 py-0.5">
+          <ControlFrame className="fve:px-1 fve:py-0.5">
             <ValueChips<string | number>
               // The list's own identity keys what is being typed into it.
               value={writeValue(field.options ?? null)}

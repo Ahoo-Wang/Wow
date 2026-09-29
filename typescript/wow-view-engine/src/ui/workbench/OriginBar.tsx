@@ -50,7 +50,7 @@ export function OriginBar({
           ? 'label.origin.board-region'
           : 'label.origin.region',
       )}
-      className={`flex flex-wrap items-center gap-2 ${TEXT_UI}`}
+      className={`fve:flex fve:flex-wrap fve:items-center fve:gap-2 ${TEXT_UI}`}
     >
       <Button variant="outline" size="xs" onClick={onBack}>
         <ArrowLeftIcon data-icon="inline-start" />

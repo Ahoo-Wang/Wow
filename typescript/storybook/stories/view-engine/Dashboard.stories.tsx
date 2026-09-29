@@ -1018,17 +1018,17 @@ export const HeadingPanelAlone: Story = {
       }}
     >
       <ViewSurface {...HOST_LANGUAGE}>
-        <div className="rounded-lg border bg-card p-4">
+        <div className="fve:rounded-lg fve:border fve:bg-card fve:p-4">
           <HeadingPanel content="华南仓 · 本周出库" />
         </div>
       </ViewSurface>
       <ViewSurface {...HOST_LANGUAGE}>
-        <div className="rounded-lg border bg-card p-4">
+        <div className="fve:rounded-lg fve:border fve:bg-card fve:p-4">
           <HeadingPanel content="华南仓、华东仓与西南仓 · 本周出库、退货与异常处理的总览" />
         </div>
       </ViewSurface>
       <ViewSurface {...HOST_LANGUAGE}>
-        <div className="rounded-lg border bg-card p-4">
+        <div className="fve:rounded-lg fve:border fve:bg-card fve:p-4">
           <HeadingPanel content="华东仓 · 本月退货" headingLevel={2} />
         </div>
       </ViewSurface>

@@ -136,7 +136,7 @@ export function OptionValue({
         aria-label={label}
         aria-invalid={invalid}
         size="sm"
-        className="w-full min-w-0"
+        className="fve:w-full fve:min-w-0"
       >
         {/*
          * The placeholder belongs to the value, not to the root: `Select`

@@ -200,7 +200,7 @@ export function DrillMenu({
           // wrong for a table row it used to hang from — the menu came out as
           // wide as the table. Capped, so a long condition in its heading
           // wraps rather than stretching it back.
-          className="w-auto min-w-56 max-w-80"
+          className="fve:w-auto fve:min-w-56 fve:max-w-80"
         >
           <DropdownMenuGroup>
             {/* The group pressed, named by its conditions: what every item
@@ -213,7 +213,7 @@ export function DrillMenu({
               {context && (
                 <span
                   data-slot="drill-context"
-                  className="text-muted-foreground block font-normal"
+                  className="fve:text-muted-foreground fve:block fve:font-normal"
                 >
                   {context}
                 </span>
@@ -242,11 +242,11 @@ export function DrillMenu({
                         aria-describedby={`${menuId}-gap`}
                       >
                         <TableIcon />
-                        <span className="flex flex-col">
+                        <span className="fve:flex fve:flex-col">
                           {messages.label('label.drill.records')}
                           <span
                             id={`${menuId}-gap`}
-                            className="text-muted-foreground text-xs"
+                            className="fve:text-muted-foreground fve:text-xs"
                           >
                             {messages.label(`label.drill.gap.${action.gap}`)}
                           </span>
@@ -336,8 +336,8 @@ function Away() {
   const messages = useViewMessages();
   return (
     <>
-      <ArrowUpRightIcon data-slot="drill-away" className="ml-auto" />
-      <span className="sr-only">{messages.label('label.drill.away')}</span>
+      <ArrowUpRightIcon data-slot="drill-away" className="fve:ml-auto" />
+      <span className="fve:sr-only">{messages.label('label.drill.away')}</span>
     </>
   );
 }

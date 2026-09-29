@@ -75,10 +75,10 @@ export function DroppedNotice({
           role="group"
           aria-labelledby={text}
           data-slot="dropped-notice"
-          className="flex items-center gap-2 py-1.5"
+          className="fve:flex fve:items-center fve:gap-2 fve:py-1.5"
         >
           <InfoIcon aria-hidden />
-          <AlertDescription id={text} className="min-w-0 flex-1">
+          <AlertDescription id={text} className="fve:min-w-0 fve:flex-1">
             {sentence}
           </AlertDescription>
           <Button

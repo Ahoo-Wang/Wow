@@ -180,7 +180,7 @@ export function DragHandle({
         silent={dragging || open}
         variant="ghost"
         size={size}
-        className="cursor-grab"
+        className="fve:cursor-grab"
         disabled={disabled}
         aria-describedby={describedBy}
         aria-haspopup="menu"

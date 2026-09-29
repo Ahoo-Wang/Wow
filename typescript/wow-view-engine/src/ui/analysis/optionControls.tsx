@@ -85,7 +85,7 @@ export interface OptionsShape {
  * is the sentence that says why a control is the way it is, so it is toned
  * rather than faded: quieter than the label above it, and still legible.
  */
-export const HINT = 'text-quiet-foreground';
+export const HINT = 'fve:text-quiet-foreground';
 
 /** What every options page receives. */
 export interface OptionsPageProps {
@@ -297,7 +297,7 @@ export function NumberField({
       <NumberInput
         label={label}
         chrome="box"
-        className="w-28"
+        className="fve:w-28"
         value={value}
         onNumber={next => {
           if (next === null) onChange(undefined);
@@ -339,7 +339,7 @@ export function TextField({
       <PillInput
         aria-label={label}
         chrome="box"
-        className="placeholder:text-quiet-foreground"
+        className="fve:placeholder:text-quiet-foreground"
         placeholder={placeholder}
         value={text.shown}
         onChange={event => onChange(text.back(event.target.value) || undefined)}
@@ -384,7 +384,7 @@ export function NameField({
     <PillInput
       aria-label={label}
       chrome="box"
-      className="placeholder:text-quiet-foreground h-7 min-w-0 flex-1"
+      className="fve:placeholder:text-quiet-foreground fve:h-7 fve:min-w-0 fve:flex-1"
       placeholder={placeholder}
       value={text.shown}
       onChange={event => onChange(text.back(event.target.value) || undefined)}
@@ -408,7 +408,7 @@ export function OptionsSection({
     <section
       data-slot={`chart-options-${name}`}
       aria-label={title}
-      className={cn('flex flex-col gap-3', className)}
+      className={cn('fve:flex fve:flex-col fve:gap-3', className)}
     >
       {/* **`h3`, and not grey.** The panel's own title is the `h2` above
           (`ChartOptions`), so a section under it is the next level down —
@@ -419,7 +419,7 @@ export function OptionsSection({
           call `SortSettings` records for the same grey. It stays secondary
           by being a short bold line over the controls it names, not by
           being paler. */}
-      {title && <h3 className="font-semibold">{title}</h3>}
+      {title && <h3 className="fve:font-semibold">{title}</h3>}
       {children}
     </section>
   );
@@ -443,7 +443,7 @@ export function ReferenceLabel({
       aria-label={messages.label('label.chart.reference-label')}
       placeholder={messages.label('label.chart.reference-label')}
       chrome="box"
-      className="min-w-0 flex-1 basis-24"
+      className="fve:min-w-0 fve:flex-1 fve:basis-24"
       value={text.shown}
       onChange={event => onChange(text.back(event.target.value) || undefined)}
     />

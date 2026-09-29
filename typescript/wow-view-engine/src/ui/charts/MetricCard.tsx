@@ -142,7 +142,7 @@ const DIRECTION_ICON = {
  * in. Anywhere wider it stays the registry's one-line pill, as it was.
  */
 const CHANGE_WRAPS =
-  'max-w-full @max-3xs/metric:h-auto @max-3xs/metric:min-h-5 @max-3xs/metric:py-0 @max-3xs/metric:whitespace-normal';
+  'fve:max-w-full fve:@max-3xs/metric:h-auto fve:@max-3xs/metric:min-h-5 fve:@max-3xs/metric:py-0 fve:@max-3xs/metric:whitespace-normal';
 
 function PeriodChange({
   period,
@@ -163,7 +163,7 @@ function PeriodChange({
         data-change={
           period.unmatched ? 'unmatched' : change === null ? 'unknown' : 'none'
         }
-        className="text-muted-foreground text-sm"
+        className="fve:text-muted-foreground fve:text-sm"
       >
         {messages.label(
           period.unmatched
@@ -185,7 +185,7 @@ function PeriodChange({
     <span
       data-slot="metric-change"
       data-direction={direction}
-      className="flex flex-wrap items-center gap-1.5 text-sm"
+      className="fve:flex fve:flex-wrap fve:items-center fve:gap-1.5 fve:text-sm"
     >
       <ChangeBadge
         direction={direction}
@@ -203,7 +203,7 @@ function PeriodChange({
         {amount}
         {ratio !== undefined && ` · ${ratio}`}
       </ChangeBadge>
-      <span className="text-muted-foreground">
+      <span className="fve:text-muted-foreground">
         {messages.label(`label.chart.change.against.${period.unit}`)}
       </span>
     </span>
@@ -236,7 +236,7 @@ function CompareChange({
   const messages = useViewMessages();
   const { locale } = useSurfaceDisplay();
   const said = (
-    <span className="text-muted-foreground">
+    <span className="fve:text-muted-foreground">
       {messages.label('label.chart.compare.against', { metric: against })}
     </span>
   );
@@ -245,7 +245,7 @@ function CompareChange({
       <span
         data-slot="metric-compare"
         data-change="unmatched"
-        className="text-muted-foreground text-sm"
+        className="fve:text-muted-foreground fve:text-sm"
       >
         {messages.label('label.chart.compare.unmatched', { metric: against })}
       </span>
@@ -254,9 +254,9 @@ function CompareChange({
     return (
       <span
         data-slot="metric-compare"
-        className="flex flex-wrap items-center gap-1.5 text-sm"
+        className="fve:flex fve:flex-wrap fve:items-center fve:gap-1.5 fve:text-sm"
       >
-        <span className="text-muted-foreground">—</span>
+        <span className="fve:text-muted-foreground">—</span>
         {said}
       </span>
     );
@@ -266,7 +266,7 @@ function CompareChange({
     <span
       data-slot="metric-compare"
       data-direction={direction}
-      className="flex flex-wrap items-center gap-1.5 text-sm"
+      className="fve:flex fve:flex-wrap fve:items-center fve:gap-1.5 fve:text-sm"
     >
       <ChangeBadge direction={direction} tone={tone} className={CHANGE_WRAPS}>
         <Icon data-icon="inline-start" />
@@ -343,19 +343,22 @@ export function MetricCard({
       // Its own width decides the figure's size: a card half a phone wide
       // (two to a row in a board's narrow reading) sets it a step smaller
       // rather than let 「¥16,052.93」 run past its edge.
-      className={cn('@container/metric flex flex-col gap-2', className)}
+      className={cn(
+        'fve:@container/metric fve:flex fve:flex-col fve:gap-2',
+        className,
+      )}
     >
       {span !== undefined && (
         <span
           data-slot="metric-period"
-          className="text-muted-foreground text-sm"
+          className="fve:text-muted-foreground fve:text-sm"
         >
           {span}
         </span>
       )}
       <span
         data-slot="metric-value"
-        className="text-3xl font-semibold tabular-nums"
+        className="fve:text-3xl fve:font-semibold fve:tabular-nums"
         // How wide the figure is, in ems, which the stylesheet sizes it by so
         // that it fits the card on one line (`styles.css`).
         style={{ '--_fve-metric-ems': figureEms(figure) } as CSSProperties}
@@ -373,7 +376,7 @@ export function MetricCard({
         <span
           data-slot="metric-cut"
           role="note"
-          className="text-muted-foreground text-sm"
+          className="fve:text-muted-foreground fve:text-sm"
         >
           {messages.label('label.chart.period.cut', {
             limit: data.cut.limit,
@@ -393,7 +396,7 @@ export function MetricCard({
       {period?.skipped !== undefined && (
         <span
           data-slot="metric-skipped"
-          className="text-muted-foreground text-xs"
+          className="fve:text-muted-foreground fve:text-xs"
         >
           {messages.label('label.chart.period.skipped', {
             period: periodOf(period.skipped),
@@ -419,9 +422,9 @@ export function MetricCard({
           })}
           value={reached(data.value, data.target)}
           className={cn(
-            '[&_[data-slot=progress-track]]:h-2',
+            'fve:[&_[data-slot=progress-track]]:h-2',
             // Without a trend under it, the bar is the card's foot.
-            !trend?.length && 'mt-auto',
+            !trend?.length && 'fve:mt-auto',
           )}
         />
       )}
@@ -437,7 +440,7 @@ export function MetricCard({
       {trend && trend.length > 0 && (
         <EChart
           name={messages.label('label.chart.sparkline', { name })}
-          className="mt-auto aspect-auto max-h-40 min-h-16 flex-1"
+          className="fve:mt-auto fve:aspect-auto fve:max-h-40 fve:min-h-16 fve:flex-1"
           option={sparkline}
           data={{ 'data-chart': 'sparkline', 'data-marks': trend.length }}
         />

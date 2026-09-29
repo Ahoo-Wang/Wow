@@ -50,7 +50,7 @@ describe('StatusStrip', () => {
 
   it('wears the colour of its tone and says which it is', () => {
     const { rerender } = render(
-      <StatusStrip tone="warning" title="Worth noting" className="mt-2" />,
+      <StatusStrip tone="warning" title="Worth noting" className="fve:mt-2" />,
     );
     const strip = () =>
       document.querySelector('[data-slot="status-strip"]') as HTMLElement;
@@ -60,7 +60,7 @@ describe('StatusStrip', () => {
     // one recipe for all three. `mt-2` is not a colour but the caller's own
     // class, and that it survives is the contract being checked.
     expect(strip().getAttribute('data-tone')).toBe('warning');
-    expect(strip().className).toContain('mt-2');
+    expect(strip().className).toContain('fve:mt-2');
 
     rerender(<StatusStrip tone="error" title="It broke" />);
     expect(strip().getAttribute('data-tone')).toBe('error');
@@ -221,7 +221,7 @@ describe('WarningStrip', () => {
   it('wears the warning colour, a class of its own, and a status role', () => {
     render(
       <WarningStrip
-        className="mt-2"
+        className="fve:mt-2"
         issues={[
           { code: 'blocking.elsewhere', severity: 'error', path: [] },
           {
@@ -237,7 +237,7 @@ describe('WarningStrip', () => {
     // interrupting whatever its user was doing.
     const notice = screen.getByRole('status');
     expect(notice.getAttribute('data-tone')).toBe('warning');
-    expect(notice.className).toContain('mt-2');
+    expect(notice.className).toContain('fve:mt-2');
     // One finding is its own sentence: no count to read, nothing to unfold.
     expect(notice.textContent).toContain('advanced editor');
     expect(notice.textContent).not.toContain('worth noting');

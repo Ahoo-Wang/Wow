@@ -268,9 +268,9 @@ describe('where the surplus width goes', () => {
       // registry's own `px-2` is a pair of declarations rather than a state
       // — the browser story `ColumnsKeepTheirWidthAndRowsFillTheFrame`
       // measures what they come to.
-      expect(cell.className).toContain('w-full');
+      expect(cell.className).toContain('fve:w-full');
       // The registry pads every cell; this one holds nothing to pad.
-      expect(cell.className).toContain('px-0');
+      expect(cell.className).toContain('fve:px-0');
       expect(cell.textContent).toBe('');
       // Never held against an edge, so it draws no edge either — and it
       // says so the way every cell of this table says it, because it is
@@ -352,7 +352,7 @@ describe('where the surplus width goes', () => {
       'thead th:not([data-column="filler"])',
     ))
       expect(cell.className).toContain(
-        '[&>button]:max-w-[calc(var(--_fve-table-cell-padding-inline)*2+100%)]',
+        'fve:[&>button]:max-w-[calc(var(--_fve-table-cell-padding-inline)*2+100%)]',
       );
   });
 });
@@ -707,7 +707,7 @@ describe('the sticky chrome recipe', () => {
 
     // `bg-inherit`, so selection and hover do not break across the freeze;
     // `z-10`, above the columns sliding under it and below the two bands.
-    expect(cell.className).toBe('sticky z-10 bg-inherit');
+    expect(cell.className).toBe('fve:sticky fve:z-10 fve:bg-inherit');
     expect(cell.style).toEqual({ left: '8px' });
     expect(cell['data-pin']).toBe('left');
     expect(cell['data-pin-edge']).toBeUndefined();
@@ -730,10 +730,10 @@ describe('the sticky chrome recipe', () => {
     // no `data-*` of its own to answer it: `data-pin-edge` says "this cell
     // is the boundary" and the port says whether a boundary is called for.
     expect(left.className).toContain(
-      'in-data-[overflowing]:shadow-[inset_-1px_0_0_var(--border),8px_0_8px_-8px_var(--_fve-pin-shadow)]',
+      'fve:in-data-[overflowing]:shadow-[inset_-1px_0_0_var(--border),8px_0_8px_-8px_var(--_fve-pin-shadow)]',
     );
     expect(right.className).toContain(
-      'in-data-[overflowing]:shadow-[inset_1px_0_0_var(--border),-8px_0_8px_-8px_var(--_fve-pin-shadow)]',
+      'fve:in-data-[overflowing]:shadow-[inset_1px_0_0_var(--border),-8px_0_8px_-8px_var(--_fve-pin-shadow)]',
     );
     expect(left['data-pin-edge']).toBe('');
     expect(right['data-pin-edge']).toBe('');
@@ -747,28 +747,30 @@ describe('the sticky chrome recipe', () => {
     // because there is nothing outside them to clear, so the place is a
     // class rather than a variable.
     expect(stickyCell({ side: 'left', edge: false }).className).toContain(
-      'left-0',
+      'fve:left-0',
     );
     expect(stickyCell({ side: 'right', edge: true }).className).toContain(
-      'right-0',
+      'fve:right-0',
     );
     expect(stickyCell({ side: 'left', edge: false }).style).toEqual({});
   });
 
   it('keeps the cell its own styling, held or not', () => {
     const scrolls = stickyCell(undefined, {
-      className: 'truncate',
+      className: 'fve:truncate',
       style: { width: 120 },
     });
-    expect(scrolls.className).toBe('truncate');
+    expect(scrolls.className).toBe('fve:truncate');
     expect(scrolls.style).toEqual({ width: 120 });
     expect(scrolls['data-pin']).toBeUndefined();
 
     const held = stickyCell(
       { side: 'left', index: 0, offset: '0px', edge: false },
-      { className: 'truncate', style: { width: 120 } },
+      { className: 'fve:truncate', style: { width: 120 } },
     );
-    expect(held.className).toBe('truncate sticky z-10 bg-inherit');
+    expect(held.className).toBe(
+      'fve:truncate fve:sticky fve:z-10 fve:bg-inherit',
+    );
     expect(held.style).toEqual({ width: 120, left: '0px' });
   });
 
@@ -795,10 +797,15 @@ describe('the sticky chrome recipe', () => {
     // The same `--muted` at both ends is the whole point (P-21): each end is
     // a role of its own (`table-header`, `totals`), both `--muted` until a
     // theme parts them, and each says which end of the scroll port it holds.
-    expect(BAND).toEqual({ top: 'bg-table-header', bottom: 'bg-totals' });
-    expect(stickyBand('top').className).toBe(`${BAND.top} sticky z-20 top-0`);
+    expect(BAND).toEqual({
+      top: 'fve:bg-table-header',
+      bottom: 'fve:bg-totals',
+    });
+    expect(stickyBand('top').className).toBe(
+      `${BAND.top} fve:sticky fve:z-20 fve:top-0`,
+    );
     expect(stickyBand('bottom').className).toBe(
-      `${BAND.bottom} sticky z-20 bottom-0`,
+      `${BAND.bottom} fve:sticky fve:z-20 fve:bottom-0`,
     );
     expect(stickyBand('top')['data-sticky']).toBe('top');
     expect(stickyBand('bottom')['data-sticky']).toBe('bottom');

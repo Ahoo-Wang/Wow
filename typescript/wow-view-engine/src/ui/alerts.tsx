@@ -52,7 +52,7 @@ export const TONE_ICON: Record<AlertTone, typeof InfoIcon> = {
  */
 const lineAlertVariants = cva(
   [
-    'flex flex-wrap items-center gap-2 rounded-md px-2 py-1',
+    'fve:flex fve:flex-wrap fve:items-center fve:gap-2 fve:rounded-md fve:px-2 fve:py-1',
     // The width is the container's, not 100% of it. The registry's `Alert`
     // is `w-full`, which is a length — 100% of the containing block, margins
     // not deducted — and every callout here is laid out by a flex column
@@ -62,18 +62,18 @@ const lineAlertVariants = cva(
     // wider than the room it was given and its right edge ran out under the
     // frame (F-14). `w-auto` hands the question back to the layout, which is
     // the only thing that knows about the margins.
-    'w-auto',
+    'fve:w-auto',
     // The icon is nudged down half a step to meet the first line of a block;
     // centred on a row, that only leaves it sitting low. It must not shrink
     // either — in a grid cell nothing asked it to.
-    '*:[svg]:translate-y-0 *:[svg]:shrink-0',
+    'fve:*:[svg]:translate-y-0 fve:*:[svg]:shrink-0',
     // The sentence takes whatever room the rest of the line leaves.
-    '[&>[data-slot=alert-title]]:min-w-0 [&>[data-slot=alert-title]]:flex-1',
+    'fve:[&>[data-slot=alert-title]]:min-w-0 fve:[&>[data-slot=alert-title]]:flex-1',
     // The buttons are the last thing on the line rather than a corner
     // overlay, so the block's reserved column goes with the absolute one.
-    'has-data-[slot=alert-action]:pr-2',
-    '[&>[data-slot=alert-action]]:static [&>[data-slot=alert-action]]:flex',
-    '[&>[data-slot=alert-action]]:items-center [&>[data-slot=alert-action]]:gap-2',
+    'fve:has-data-[slot=alert-action]:pr-2',
+    'fve:[&>[data-slot=alert-action]]:static fve:[&>[data-slot=alert-action]]:flex',
+    'fve:[&>[data-slot=alert-action]]:items-center fve:[&>[data-slot=alert-action]]:gap-2',
     // A control on this line takes no fill of its own in the dark theme.
     // The tone's text colour was measured against the callout's surface,
     // and `outline` carries `dark:bg-input/30` — which lightens that
@@ -83,16 +83,16 @@ const lineAlertVariants = cva(
     // the hover are the button's own; only the resting fill goes, and it is
     // written here rather than at each call site because there is one
     // callout recipe (D16 ruling 8) and this is a fact about it.
-    'dark:[&>[data-slot=alert-action]_button]:bg-transparent',
+    'fve:dark:[&>[data-slot=alert-action]_button]:bg-transparent',
   ],
   {
     variants: {
       tone: {
         // `destructive` has a registry token of its own; `warning` is this
         // theme's (`styles.css`), and `info` is the page's own quiet grey.
-        error: 'border-destructive text-destructive',
-        warning: 'border-warning text-warning',
-        info: 'border-border text-muted-foreground',
+        error: 'fve:border-destructive fve:text-destructive',
+        warning: 'fve:border-warning fve:text-warning',
+        info: 'fve:border-border fve:text-muted-foreground',
       },
       frame: {
         /** A band of its own: the registry's border and card surface. */
@@ -103,8 +103,8 @@ const lineAlertVariants = cva(
          * of controls, where a framed band would break the line it is on.
          */
         bare: [
-          'border-0 bg-transparent p-0',
-          'has-data-[slot=alert-action]:pr-0',
+          'fve:border-0 fve:bg-transparent fve:p-0',
+          'fve:has-data-[slot=alert-action]:pr-0',
           TEXT_UI,
         ],
       },

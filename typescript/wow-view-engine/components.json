@@ -7,7 +7,8 @@
     "config": "",
     "css": "src/styles.css",
     "baseColor": "neutral",
-    "cssVariables": true
+    "cssVariables": true,
+    "prefix": "fve"
   },
   "iconLibrary": "lucide",
   "rtl": false,

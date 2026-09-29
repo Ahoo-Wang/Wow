@@ -106,18 +106,18 @@ function CustomerPage({ engine }: { engine: ViewEngine }) {
   return (
     <div
       data-host-page
-      className="fve-tokens bg-canvas text-foreground flex min-h-0 flex-col gap-4"
+      className="fve-tokens fve:bg-canvas fve:text-foreground fve:flex fve:min-h-0 fve:flex-col fve:gap-4"
     >
-      <div className="flex min-w-0 flex-col gap-0.5">
-        <p className="text-muted-foreground text-xs">
+      <div className="fve:flex fve:min-w-0 fve:flex-col fve:gap-0.5">
+        <p className="fve:text-muted-foreground fve:text-xs">
           订单中心 / 客户 / {CUSTOMER.label}
         </p>
-        <h1 className="truncate text-base font-semibold">
+        <h1 className="fve:truncate fve:text-base fve:font-semibold">
           {CUSTOMER.label} · 客户详情
         </h1>
       </div>
       <Separator />
-      <div className="grid min-w-0 gap-4 lg:grid-cols-[minmax(180px,220px)_minmax(0,1fr)]">
+      <div className="fve:grid fve:min-w-0 fve:gap-4 fve:lg:grid-cols-[minmax(180px,220px)_minmax(0,1fr)]">
         <Card>
           <CardHeader>
             <CardTitle>客户资料</CardTitle>
@@ -125,23 +125,25 @@ function CustomerPage({ engine }: { engine: ViewEngine }) {
               <Badge variant="secondary">月结</Badge>
             </CardAction>
           </CardHeader>
-          <CardContent className="flex flex-col gap-3">
+          <CardContent className="fve:flex fve:flex-col fve:gap-3">
             {CUSTOMER_FACTS.map(([label, value]) => (
-              <div key={label} className="flex flex-col gap-0.5">
-                <span className="text-muted-foreground text-xs">{label}</span>
-                <span className="text-sm">{value}</span>
+              <div key={label} className="fve:flex fve:flex-col fve:gap-0.5">
+                <span className="fve:text-muted-foreground fve:text-xs">
+                  {label}
+                </span>
+                <span className="fve:text-sm">{value}</span>
               </div>
             ))}
           </CardContent>
         </Card>
-        <Card className="min-w-0" style={ON_CARD}>
+        <Card className="fve:min-w-0" style={ON_CARD}>
           <CardHeader>
             <CardTitle>订单</CardTitle>
             <CardDescription>
               这块板锁定在这位客户上；下单时间可以换。
             </CardDescription>
           </CardHeader>
-          <CardContent className="flex min-w-0 flex-col gap-3">
+          <CardContent className="fve:flex fve:min-w-0 fve:flex-col fve:gap-3">
             <EmbeddedDashboard
               className="host-embed"
               engine={engine}
@@ -160,16 +162,22 @@ function CustomerPage({ engine }: { engine: ViewEngine }) {
         </Card>
       </div>
       <Separator />
-      <dl className="text-muted-foreground grid gap-1 text-xs">
-        <div className="flex gap-2">
+      <dl className="fve:text-muted-foreground fve:grid fve:gap-1 fve:text-xs">
+        <div className="fve:flex fve:gap-2">
           <dt>宿主地址</dt>
-          <dd data-host-address className="min-w-0 font-mono break-all">
+          <dd
+            data-host-address
+            className="fve:min-w-0 fve:font-mono fve:break-all"
+          >
             {addressOf(address)}
           </dd>
         </div>
-        <div className="flex gap-2">
+        <div className="fve:flex fve:gap-2">
           <dt>宿主路由</dt>
-          <dd data-host-route className="min-w-0 font-mono break-all">
+          <dd
+            data-host-route
+            className="fve:min-w-0 fve:font-mono fve:break-all"
+          >
             {routeOf(route)}
           </dd>
         </div>
@@ -189,13 +197,15 @@ function WallScreen({ engine }: { engine: ViewEngine }) {
     <div className="dark">
       <div
         data-host-page
-        className="fve-tokens bg-canvas text-foreground flex h-[720px] min-h-0 flex-col gap-3 rounded-lg p-4"
+        className="fve-tokens fve:bg-canvas fve:text-foreground fve:flex fve:h-[720px] fve:min-h-0 fve:flex-col fve:gap-3 fve:rounded-lg fve:p-4"
       >
-        <div className="flex items-baseline justify-between gap-2">
-          <h1 className="text-lg font-semibold">华东仓 · 出库大屏</h1>
-          <span className="text-muted-foreground text-xs">每分钟刷新</span>
+        <div className="fve:flex fve:items-baseline fve:justify-between fve:gap-2">
+          <h1 className="fve:text-lg fve:font-semibold">华东仓 · 出库大屏</h1>
+          <span className="fve:text-muted-foreground fve:text-xs">
+            每分钟刷新
+          </span>
         </div>
-        <div data-wall className="min-h-0 flex-1">
+        <div data-wall className="fve:min-h-0 fve:flex-1">
           <EmbeddedDashboard
             className="host-embed"
             engine={engine}
@@ -215,15 +225,18 @@ function WallScreen({ engine }: { engine: ViewEngine }) {
 /** A board one of whose panels is out, on the customer page's card. */
 function PanelOutPage({ engine }: { engine: ViewEngine }) {
   return (
-    <div data-host-page className="fve-tokens bg-background text-foreground">
-      <Card className="min-w-0" style={ON_CARD}>
+    <div
+      data-host-page
+      className="fve-tokens fve:bg-background fve:text-foreground"
+    >
+      <Card className="fve:min-w-0" style={ON_CARD}>
         <CardHeader>
           <CardTitle>出库概览</CardTitle>
           <CardDescription>
             一块共享仪表盘，其中一个面板指向的视图已经删了。
           </CardDescription>
         </CardHeader>
-        <CardContent className="min-w-0">
+        <CardContent className="fve:min-w-0">
           <EmbeddedDashboard
             className="host-embed"
             engine={engine}
@@ -245,9 +258,9 @@ function RefreshPage({ engine }: { engine: ViewEngine }) {
   return (
     <div
       data-host-page
-      className="fve-tokens bg-background text-foreground flex min-w-0 flex-col gap-3"
+      className="fve-tokens fve:bg-background fve:text-foreground fve:flex fve:min-w-0 fve:flex-col fve:gap-3"
     >
-      <h1 className="text-base font-semibold">订单概览</h1>
+      <h1 className="fve:text-base fve:font-semibold">订单概览</h1>
       <EmbeddedDashboard
         className="host-embed"
         engine={engine}

@@ -140,10 +140,10 @@ export function BoardDestination({
   const fields = panel.runtime?.fields ?? null;
   const picked = read.status !== 'none';
   return (
-    <FieldGroup className="gap-3" data-slot="click-board">
+    <FieldGroup className="fve:gap-3" data-slot="click-board">
       <Field data-invalid={missing || undefined}>
         {read.status === 'ready' && (
-          <span data-slot="click-board-title" className="text-sm">
+          <span data-slot="click-board-title" className="fve:text-sm">
             {messages.say(read.board.title)}
           </span>
         )}
@@ -151,7 +151,7 @@ export function BoardDestination({
           type="button"
           variant="outline"
           size="sm"
-          className="self-start"
+          className="fve:self-start"
           aria-invalid={missing || undefined}
           onClick={onPick}
         >
@@ -167,10 +167,10 @@ export function BoardDestination({
         <div
           role="status"
           aria-label={messages.label('label.click.board-loading')}
-          className="flex flex-col gap-2"
+          className="fve:flex fve:flex-col fve:gap-2"
         >
-          <Skeleton className="h-8 w-full" />
-          <Skeleton className="h-8 w-full" />
+          <Skeleton className="fve:h-8 fve:w-full" />
+          <Skeleton className="fve:h-8 fve:w-full" />
         </div>
       )}
       {read.status === 'unreadable' && (
@@ -274,7 +274,10 @@ function BoardFilters({
   const { kept, stale } = mappedValues(board.config, values, sources);
   if (filters.length === 0)
     return (
-      <p className="text-muted-foreground text-sm" data-slot="click-board-none">
+      <p
+        className="fve:text-muted-foreground fve:text-sm"
+        data-slot="click-board-none"
+      >
         {messages.label('label.click.board-no-filters')}
       </p>
     );
@@ -313,7 +316,7 @@ function BoardFilters({
           </AlertTitle>
         </LineAlert>
       )}
-      <FieldGroup className="gap-2">
+      <FieldGroup className="fve:gap-2">
         {filters.map(filter => {
           const kept1 = kept[filter.name];
           return (
@@ -396,7 +399,7 @@ function BoardFilterRow({
     >
       {/* No `data-disabled` on the row: it fades the name below contrast,
           and the name is still worth reading — only the select is off. */}
-      <FieldContent className="min-w-0">
+      <FieldContent className="fve:min-w-0">
         <FieldLabel id={id}>{messages.say(filter.label)}</FieldLabel>
         {choices.length === 0 && (
           <FieldDescription>

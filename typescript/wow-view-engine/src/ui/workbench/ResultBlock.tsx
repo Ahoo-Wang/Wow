@@ -102,7 +102,7 @@ export function ResultBlock({
       data-slot="result-block"
       data-framed={framed || undefined}
       className={cn(
-        'flex min-w-0 flex-col',
+        'fve:flex fve:min-w-0 fve:flex-col',
         // One frame round the result and nothing else (D12): the toolbar is
         // its top row and the caption its bottom row, ruled off; the rows
         // run to its edge; what else lands in it — a query strip, an empty

@@ -152,7 +152,10 @@ export function AbsoluteDate({
           48px and the hint ran to three lines. The floor is the calendar's
           own width (7 cells plus its padding), so nothing below it is sized
           by the grid above it. */}
-      <PopoverContent className="w-auto min-w-[17rem] p-0" aria-label={label}>
+      <PopoverContent
+        className="fve:w-auto fve:min-w-[17rem] fve:p-0"
+        aria-label={label}
+      >
         {range ? (
           <SurfaceCalendar
             mode="range"

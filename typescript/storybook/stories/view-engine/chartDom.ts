@@ -102,7 +102,7 @@ function painted(root: ParentNode): SVGPathElement[] {
 /** The names the legend lists, in its order: a slice's or a series'. */
 export function legendNames(root: ParentNode): string[] {
   return [
-    ...root.querySelectorAll('[data-slot="chart-legend-item"] .truncate'),
+    ...root.querySelectorAll('[data-slot="chart-legend-item"] .fve\\:truncate'),
   ].map(name => name.textContent ?? '');
 }
 

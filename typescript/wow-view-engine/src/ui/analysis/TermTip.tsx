@@ -69,7 +69,7 @@ export function TermTip({
             // A landing passes it over (`focusableIn`): opening the tray
             // must not open the first term's tooltip.
             {...{ [PASSED_OVER]: '' }}
-            className="text-muted-foreground -my-1.5 -ml-1 self-start"
+            className="fve:text-muted-foreground fve:-my-1.5 fve:-ml-1 fve:self-start"
           />
         }
       >

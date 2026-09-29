@@ -179,7 +179,7 @@ export function MetricCard({
           P2-6), where they read as belonging to nothing. */}
       <div
         data-slot="metric-controls"
-        className="flex min-w-0 flex-1 flex-wrap items-center gap-2"
+        className="fve:flex fve:min-w-0 fve:flex-1 fve:flex-wrap fve:items-center fve:gap-2"
       >
         <CardName
           name={fallback}
@@ -278,7 +278,7 @@ export function MetricCard({
           <NumberInput
             label={messages.label('label.analysis.percentile')}
             chrome="box"
-            className="w-16"
+            className="fve:w-16"
             disabled={disabled}
             value={metric.percentile}
             onNumber={next => {
@@ -308,7 +308,7 @@ export function MetricCard({
       </div>
       <div
         data-slot="metric-actions"
-        className="flex shrink-0 items-center gap-2 self-start"
+        className="fve:flex fve:shrink-0 fve:items-center fve:gap-2 fve:self-start"
       >
         <CardMenu
           ref={menu}
@@ -358,7 +358,7 @@ export function MetricCard({
       {metric.type === 'ANY' && (
         <span
           data-slot="metric-note"
-          className="text-muted-foreground contain-inline-size w-full"
+          className="fve:text-muted-foreground fve:contain-inline-size fve:w-full"
         >
           {messages.label('label.analysis.any-note')}
         </span>
@@ -366,7 +366,7 @@ export function MetricCard({
       {(metric.type === 'FIRST' || metric.type === 'LAST') && (
         <span
           data-slot="metric-note"
-          className="text-muted-foreground contain-inline-size w-full"
+          className="fve:text-muted-foreground fve:contain-inline-size fve:w-full"
         >
           {messages.label('label.analysis.first-last-note')}
         </span>
@@ -465,7 +465,7 @@ function RemoveMetric({
             data-slot="remove-metric"
             data-blocked={reason ? removal : undefined}
             disabled={disabled}
-            className="aria-disabled:cursor-not-allowed aria-disabled:opacity-50"
+            className="fve:aria-disabled:cursor-not-allowed fve:aria-disabled:opacity-50"
             onClick={(event: MouseEvent<HTMLButtonElement>) => {
               if (!reason) onRemove(event);
             }}

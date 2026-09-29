@@ -90,8 +90,8 @@ import {
  * first content at its title, `OpsDailyEdges`). The rows keep their height:
  * the room is across, not down.
  */
-const SELECT_BOX = 'flex w-7 items-center';
-const SELECT_CELL = '[&:has([role=checkbox])]:pr-2';
+const SELECT_BOX = 'fve:flex fve:w-7 fve:items-center';
+const SELECT_CELL = 'fve:[&:has([role=checkbox])]:pr-2';
 
 export interface RecordTableProps {
   table: RecordTableController;
@@ -354,7 +354,7 @@ export function RecordTable({
                 <TableHead
                   data-column={SELECT_COLUMN}
                   {...stickyHead(pins.select, {
-                    className: cn('w-10', HEAD_CELL, SELECT_CELL),
+                    className: cn('fve:w-10', HEAD_CELL, SELECT_CELL),
                   })}
                 >
                   <span className={SELECT_BOX}>
@@ -424,7 +424,7 @@ export function RecordTable({
                 // Named `row`, because a cell that only offers something
                 // while the pointer is on the row has to be able to ask
                 // about the row and not about itself (`CopyButton`).
-                className={cn('group/row', onOpen && 'cursor-pointer')}
+                className={cn('fve:group/row', onOpen && 'fve:cursor-pointer')}
                 data-state={table.isSelected(row.key) ? 'selected' : undefined}
                 {...opening.row(row)}
               >
@@ -519,13 +519,13 @@ export function RecordTable({
           and a reader would say it again beside every value under it. Only
           while a sortable header is there to point at it. */}
       {opening.hintId && table.rows.length > 0 && (
-        <span id={opening.hintId} className="sr-only">
+        <span id={opening.hintId} className="fve:sr-only">
           {messages.label('label.record.detail.hint')}
         </span>
       )}
       {selectable && table.rows.length > 0 && <RangeHint id={rangeId} />}
       {!firstLoad && columns.some(column => column.sortable) && (
-        <span id={additiveId} className="sr-only">
+        <span id={additiveId} className="fve:sr-only">
           {messages.label('label.sort.additive')}
         </span>
       )}

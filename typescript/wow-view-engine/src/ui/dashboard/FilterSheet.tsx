@@ -60,7 +60,7 @@ export function FilterSheet({
       data-narrow=""
       role="region"
       aria-label={name}
-      className="flex flex-wrap items-center gap-2"
+      className="fve:flex fve:flex-wrap fve:items-center fve:gap-2"
     >
       {held}
       {opens && (
@@ -79,7 +79,7 @@ export function FilterSheet({
             data-slot="dashboard-filter-sheet"
             // Dimmed, not blurred: the panels above are what a value set
             // here narrows, and a reader looks up to see them change.
-            overlayClassName="supports-backdrop-filter:backdrop-blur-none"
+            overlayClassName="fve:supports-backdrop-filter:backdrop-blur-none"
           >
             <SheetHeader>
               <SheetTitle>{name}</SheetTitle>
@@ -87,7 +87,7 @@ export function FilterSheet({
             <div
               ref={listRef}
               data-slot="dashboard-filter-list"
-              className="flex min-h-0 flex-col items-start gap-2 overflow-y-auto px-4 pb-4"
+              className="fve:flex fve:min-h-0 fve:flex-col fve:items-start fve:gap-2 fve:overflow-y-auto fve:px-4 fve:pb-4"
             >
               {children}
             </div>

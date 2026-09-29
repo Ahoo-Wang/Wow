@@ -8,7 +8,7 @@ function RadioGroup({ className, ...props }: RadioGroupPrimitive.Props) {
   return (
     <RadioGroupPrimitive
       data-slot="radio-group"
-      className={cn("grid w-full gap-2", className)}
+      className={cn("fve:grid fve:w-full fve:gap-2", className)}
       {...props}
     />
   )
@@ -19,16 +19,16 @@ function RadioGroupItem({ className, ...props }: RadioPrimitive.Root.Props) {
     <RadioPrimitive.Root
       data-slot="radio-group-item"
       className={cn(
-        "group/radio-group-item peer relative flex aspect-square size-4 shrink-0 rounded-full border border-input outline-none group-has-[:focus-visible]/field-label:ring-0 group-has-[:focus-visible]/field-label:not-data-checked:border-input after:absolute after:-inset-x-3 after:-inset-y-2 focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 aria-invalid:aria-checked:border-primary dark:bg-input/30 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 data-checked:border-primary data-checked:bg-primary data-checked:text-primary-foreground group-has-[:focus-visible]/field-label:data-checked:border-primary dark:data-checked:bg-primary",
+        "fve:group/radio-group-item fve:peer fve:relative fve:flex fve:aspect-square fve:size-4 fve:shrink-0 fve:rounded-full fve:border fve:border-input fve:outline-none fve:group-has-[:focus-visible]/field-label:ring-0 fve:group-has-[:focus-visible]/field-label:not-data-checked:border-input fve:after:absolute fve:after:-inset-x-3 fve:after:-inset-y-2 fve:focus-visible:border-ring fve:focus-visible:ring-3 fve:focus-visible:ring-ring/50 fve:disabled:cursor-not-allowed fve:disabled:opacity-50 fve:aria-invalid:border-destructive fve:aria-invalid:ring-3 fve:aria-invalid:ring-destructive/20 fve:aria-invalid:aria-checked:border-primary fve:dark:bg-input/30 fve:dark:aria-invalid:border-destructive/50 fve:dark:aria-invalid:ring-destructive/40 fve:data-checked:border-primary fve:data-checked:bg-primary fve:data-checked:text-primary-foreground fve:group-has-[:focus-visible]/field-label:data-checked:border-primary fve:dark:data-checked:bg-primary",
         className
       )}
       {...props}
     >
       <RadioPrimitive.Indicator
         data-slot="radio-group-indicator"
-        className="flex size-4 items-center justify-center"
+        className="fve:flex fve:size-4 fve:items-center fve:justify-center"
       >
-        <span className="absolute top-1/2 left-1/2 size-2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary-foreground" />
+        <span className="fve:absolute fve:top-1/2 fve:left-1/2 fve:size-2 fve:-translate-x-1/2 fve:-translate-y-1/2 fve:rounded-full fve:bg-primary-foreground" />
       </RadioPrimitive.Indicator>
     </RadioPrimitive.Root>
   )

@@ -77,7 +77,7 @@ function keepTextWhereItIs(event: React.MouseEvent<HTMLElement>) {
 export function RangeHint({ id }: { id: string }) {
   const messages = useViewMessages();
   return (
-    <span id={id} className="sr-only">
+    <span id={id} className="fve:sr-only">
       {messages.label('label.record.select.hint')}
     </span>
   );

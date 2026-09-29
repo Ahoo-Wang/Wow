@@ -126,7 +126,7 @@ export function DateValue({
   ];
 
   return (
-    <div className="flex flex-wrap items-center gap-2">
+    <div className="fve:flex fve:flex-wrap fve:items-center fve:gap-2">
       <ChoiceValue
         label={messages.label('label.date.shape-of', { field: label })}
         disabled={disabled}

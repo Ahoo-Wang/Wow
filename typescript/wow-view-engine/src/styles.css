@@ -60,8 +60,11 @@
 
 /* Tailwind v4 resolves string imports itself; url() would leave them to the browser. */
 /* stylelint-disable import-notation */
-@import 'tailwindcss';
-@import 'tw-animate-css';
+@layer theme, base, components, utilities;
+@import 'tailwindcss/theme.css' layer(theme) prefix(fve) theme(inline reference);
+@import 'tailwindcss/preflight.css' layer(base);
+@import 'tailwindcss/utilities.css' layer(utilities);
+@import 'tw-animate-css/prefix';
 @import 'shadcn/tailwind.css';
 
 /*
@@ -79,7 +82,7 @@
  * grouped ground a host paints its own card-laid page with, inside the
  * tokens boundary, so the page and the board on it are one ground.
  */
-@source inline("bg-canvas");
+@source inline("fve:bg-canvas");
 
 /*
  * Light and dark are decided once, in one set of selectors: this variant and
@@ -117,7 +120,7 @@
   }
 }
 
-@theme inline {
+@theme inline reference {
   /*
    * The ink on a filled destructive surface, and the two colours the record
    * table draws itself with. They are registered here so a call site can
@@ -749,6 +752,21 @@
   --radius: var(--fve-radius, var(--fvp-radius, 0.625rem));
 
   /*
+   * The Tailwind steps read by name rather than through a utility: the
+   * radius the vendored components put in arbitrary values
+   * (`rounded-[min(var(--radius-md),12px)]`), and the two leadings the
+   * metric rules below set. The theme is inlined and declares no variable
+   * (`theme(inline reference)` above: with the `fve` prefix its variables
+   * would be named `--fve-*`, the host's namespace), so these are declared
+   * here, with the values the theme gives them. The leadings stay variables
+   * rather than `--theme()` because the minifier folds a `calc()` written in
+   * a declaration to five decimals, and `24px × 1.33333` is not 32px.
+   */
+  --radius-md: calc(var(--radius) * 0.8);
+  --text-xs--line-height: calc(1 / 0.75);
+  --text-2xl--line-height: calc(2 / 1.5);
+
+  /*
    * The one step under the body size — 13px, and there is only one of it.
    *
    * The surface used to hold four sizes at once: 16 (headings), 14
@@ -1371,17 +1389,19 @@
   padding-block: var(--_fve-table-cell-padding-block);
 }
 
-.fve-root :is([data-slot='table-head'], [data-slot='table-cell']):not(.px-0),
-.fve-tokens :is([data-slot='table-head'], [data-slot='table-cell']):not(.px-0) {
+.fve-root
+  :is([data-slot='table-head'], [data-slot='table-cell']):not(.fve\:px-0),
+.fve-tokens
+  :is([data-slot='table-head'], [data-slot='table-cell']):not(.fve\:px-0) {
   padding-left: var(--_fve-table-cell-padding-inline);
 }
 
 .fve-root
-  :is([data-slot='table-head'], [data-slot='table-cell']):not(.px-0):not(
+  :is([data-slot='table-head'], [data-slot='table-cell']):not(.fve\:px-0):not(
     :has([role='checkbox'])
   ),
 .fve-tokens
-  :is([data-slot='table-head'], [data-slot='table-cell']):not(.px-0):not(
+  :is([data-slot='table-head'], [data-slot='table-cell']):not(.fve\:px-0):not(
     :has([role='checkbox'])
   ) {
   padding-right: var(--_fve-table-cell-padding-inline);
@@ -1432,9 +1452,9 @@
  * 12px: it is a rank below the chrome around it, and it is never read
  * beside one of these.
  */
-.fve-root .text-\[0\.8rem\],
+.fve-root .fve\:text-\[0\.8rem\],
 .fve-root [data-slot='badge'],
-.fve-tokens .text-\[0\.8rem\],
+.fve-tokens .fve\:text-\[0\.8rem\],
 .fve-tokens [data-slot='badge'] {
   font-size: var(--_fve-text-ui);
 }
@@ -1469,8 +1489,8 @@
  * rename as the `text-[0.8rem]` pin above, and `test/popups.test.tsx`-style
  * drift is what `shadcn add --diff` is read for.
  */
-.fve-root .group\/badge[data-variant='outline'],
-.fve-tokens .group\/badge[data-variant='outline'] {
+.fve-root .fve\:group\/badge[data-variant='outline'],
+.fve-tokens .fve\:group\/badge[data-variant='outline'] {
   border-color: var(--input);
 }
 
@@ -1518,7 +1538,7 @@
     font-weight: var(--_fve-table-header-weight);
   }
 
-  [data-sticky='top'] > tr > [data-slot='table-head'] > .group\/button {
+  [data-sticky='top'] > tr > [data-slot='table-head'] > .fve\:group\/button {
     font-weight: var(--_fve-table-header-weight);
   }
 
@@ -1570,7 +1590,7 @@
     color: var(--_fve-tooltip-foreground);
   }
 
-  [data-slot='tooltip-content'] > .fill-foreground {
+  [data-slot='tooltip-content'] > .fve\:fill-foreground {
     background-color: var(--_fve-tooltip);
     fill: var(--_fve-tooltip);
   }
@@ -1640,15 +1660,15 @@
    * halo takes `focus-halo` wherever it is the registry's `ring` at 50%,
    * which leaves a destructive or an invalid control's red alone.
    */
-  :is(.focus-visible\:ring-3, .focus-visible\:ring-\[3px\]):not(
-      .focus-visible\:outline-solid,
-      .outline-hidden
+  :is(.fve\:focus-visible\:ring-3, .fve\:focus-visible\:ring-\[3px\]):not(
+      .fve\:focus-visible\:outline-solid,
+      .fve\:outline-hidden
     ):focus-visible {
     outline: var(--_fve-focus-width) var(--_fve-focus-style) var(--ring);
     outline-offset: var(--_fve-focus-offset);
   }
 
-  :where(.focus-visible\:ring-ring\/50):focus-visible:not(
+  :where(.fve\:focus-visible\:ring-ring\/50):focus-visible:not(
       [aria-invalid='true']
     ) {
     --tw-ring-color: var(--_fve-focus-halo);
@@ -1659,37 +1679,37 @@
    * a button, a toggle, a text box, a group around one, a select.
    */
   :is(
-    .group\/button,
-    .group\/toggle,
+    .fve\:group\/button,
+    .fve\:group\/toggle,
     [data-slot='input'],
     [data-slot='input-group']
-  ):where(.h-8),
-  .group\/button:where(.size-8),
+  ):where(.fve\:h-8),
+  .fve\:group\/button:where(.fve\:size-8),
   [data-slot='select-trigger'][data-size='default'] {
     height: var(--_fve-control-height);
   }
 
-  :is(.group\/button, .group\/toggle):where(.h-7),
-  .group\/button:where(.size-7),
+  :is(.fve\:group\/button, .fve\:group\/toggle):where(.fve\:h-7),
+  .fve\:group\/button:where(.fve\:size-7),
   [data-slot='select-trigger'][data-size='sm'] {
     height: var(--_fve-control-height-sm);
   }
 
-  .group\/button:where(.size-8),
-  .group\/toggle:where(.min-w-8) {
+  .fve\:group\/button:where(.fve\:size-8),
+  .fve\:group\/toggle:where(.fve\:min-w-8) {
     min-width: var(--_fve-control-height);
   }
 
-  .group\/button:where(.size-7),
-  .group\/toggle:where(.min-w-7) {
+  .fve\:group\/button:where(.fve\:size-7),
+  .fve\:group\/toggle:where(.fve\:min-w-7) {
     min-width: var(--_fve-control-height-sm);
   }
 
-  .group\/button:where(.size-8) {
+  .fve\:group\/button:where(.fve\:size-8) {
     width: var(--_fve-control-height);
   }
 
-  .group\/button:where(.size-7) {
+  .fve\:group\/button:where(.fve\:size-7) {
     width: var(--_fve-control-height-sm);
   }
 
@@ -1706,7 +1726,7 @@
 
   [data-control-frame]
     :is(
-      :is(.group\/button, .group\/toggle):where(.h-8, .h-7),
+      :is(.fve\:group\/button, .fve\:group\/toggle):where(.fve\:h-8, .fve\:h-7),
       [data-slot='input'],
       [data-slot='input-group'],
       [data-slot='select-trigger'],
@@ -1722,8 +1742,8 @@
    * not an edge, and is left as it is.
    */
   :is(
-      .group\/button,
-      .group\/toggle,
+      .fve\:group\/button,
+      .fve\:group\/toggle,
       [data-slot='input'],
       [data-slot='textarea'],
       [data-slot='select-trigger'],
@@ -1731,7 +1751,7 @@
       [data-slot='checkbox'],
       [data-slot='radio-group-item'],
       [data-slot='combobox-chips']
-    ):where(.border):not(.border-transparent) {
+    ):where(.fve\:border):not(.fve\:border-transparent) {
     border-width: var(--_fve-edge-width);
   }
 
@@ -1741,24 +1761,24 @@
    * 0.8 of the control's corner.
    */
   :is(
-    .group\/button,
-    .group\/toggle,
+    .fve\:group\/button,
+    .fve\:group\/toggle,
     [data-slot='input'],
     [data-slot='textarea'],
     [data-slot='select-trigger'],
     [data-slot='input-group'],
     [data-slot='combobox-chips']
-  ):where(.rounded-lg) {
+  ):where(.fve\:rounded-lg) {
     border-radius: var(--_fve-radius-control);
   }
 
-  :is(.group\/button, .group\/toggle):where(
-    .rounded-\[min\(var\(--radius-md\)\,12px\)\]
+  :is(.fve\:group\/button, .fve\:group\/toggle):where(
+    .fve\:rounded-\[min\(var\(--radius-md\)\,12px\)\]
   ) {
     border-radius: min(calc(var(--_fve-radius-control) * 0.8), 12px);
   }
 
-  .group\/button:where(.rounded-\[min\(var\(--radius-md\)\,10px\)\]),
+  .fve\:group\/button:where(.fve\:rounded-\[min\(var\(--radius-md\)\,10px\)\]),
   [data-slot='select-trigger'][data-size='sm'] {
     border-radius: min(calc(var(--_fve-radius-control) * 0.8), 10px);
   }
@@ -1767,11 +1787,11 @@
     [data-slot='card'],
     [data-slot='dialog-content'],
     [data-slot='alert-dialog-content']
-  ):where(.rounded-xl) {
+  ):where(.fve\:rounded-xl) {
     border-radius: var(--_fve-radius-card);
   }
 
-  [data-slot='card-header']:where(.rounded-t-xl) {
+  [data-slot='card-header']:where(.fve\:rounded-t-xl) {
     border-start-start-radius: var(--_fve-radius-card);
     border-start-end-radius: var(--_fve-radius-card);
   }
@@ -1780,7 +1800,7 @@
     [data-slot='card-footer'],
     [data-slot='dialog-footer'],
     [data-slot='alert-dialog-footer']
-  ):where(.rounded-b-xl) {
+  ):where(.fve\:rounded-b-xl) {
     border-end-start-radius: var(--_fve-radius-card);
     border-end-end-radius: var(--_fve-radius-card);
   }
@@ -1791,15 +1811,15 @@
     [data-slot='dropdown-menu-sub-content'],
     [data-slot='select-content'],
     [data-slot='combobox-content']
-  ):where(.rounded-lg) {
+  ):where(.fve\:rounded-lg) {
     border-radius: var(--_fve-radius-popover);
   }
 
-  .group\/badge:where(.rounded-4xl) {
+  .fve\:group\/badge:where(.fve\:rounded-4xl) {
     border-radius: var(--_fve-radius-badge);
   }
 
-  [data-slot='checkbox']:where(.rounded-\[4px\]) {
+  [data-slot='checkbox']:where(.fve\:rounded-\[4px\]) {
     border-radius: var(--_fve-radius-checkbox);
   }
 
@@ -1809,7 +1829,7 @@
    * the element). The dark wash is the same 10%, which is why the registry's
    * `dark:bg-destructive/20` is set aside there.
    */
-  .group\/badge[data-tone='success'] {
+  .fve\:group\/badge[data-tone='success'] {
     border-color: color-mix(
       in oklab,
       var(--success) var(--_fve-badge-edge),
@@ -1822,7 +1842,7 @@
     );
   }
 
-  .group\/badge[data-tone='warning'] {
+  .fve\:group\/badge[data-tone='warning'] {
     border-color: color-mix(
       in oklab,
       var(--warning) var(--_fve-badge-edge),
@@ -1835,7 +1855,7 @@
     );
   }
 
-  .group\/badge[data-tone='danger'] {
+  .fve\:group\/badge[data-tone='danger'] {
     border-color: color-mix(
       in oklab,
       var(--destructive) var(--_fve-badge-edge),
@@ -1848,7 +1868,7 @@
     );
   }
 
-  .group\/badge[data-change]:not([data-tone='neutral']) {
+  .fve\:group\/badge[data-change]:not([data-tone='neutral']) {
     border-color: color-mix(
       in oklab,
       var(--_fve-change) var(--_fve-badge-edge),
@@ -1866,7 +1886,7 @@
    * `control-pressed`. A segmented control's pressed item is a thumb on its
    * track and takes `control-thumb` instead (below, later and heavier).
    */
-  .group\/toggle:is([aria-pressed='true'], [data-state='on']) {
+  .fve\:group\/toggle:is([aria-pressed='true'], [data-state='on']) {
     background-color: var(--_fve-control-pressed, var(--muted));
   }
 }
@@ -1886,7 +1906,9 @@
  */
 @layer utilities {
   @media (hover: hover) {
-    :is(.group\/button, .group\/toggle):where(.hover\:bg-muted):hover:not(
+    :is(.fve\:group\/button, .fve\:group\/toggle):where(
+        .fve\:hover\:bg-muted
+      ):hover:not(
         [aria-expanded='true'],
         [aria-pressed='true'],
         [data-state='on'],
@@ -1899,8 +1921,8 @@
     }
 
     @media not print {
-      :is(.group\/button, .group\/toggle):where(
-          .dark\:hover\:bg-muted\/50
+      :is(.fve\:group\/button, .fve\:group\/toggle):where(
+          .fve\:dark\:hover\:bg-muted\/50
         ):where(
           .fve-root[data-theme='dark'] *,
           .dark .fve-root:not([data-theme='light']) *,
@@ -1920,8 +1942,8 @@
         );
       }
 
-      :is(.group\/button, .group\/toggle):where(
-          .dark\:hover\:bg-input\/50
+      :is(.fve\:group\/button, .fve\:group\/toggle):where(
+          .fve\:dark\:hover\:bg-input\/50
         ):where(
           .fve-root[data-theme='dark'] *,
           .dark .fve-root:not([data-theme='light']) *,
@@ -1951,7 +1973,7 @@
      * focused or invalid, whose edges are theirs. In the dark the registry's
      * edge is `input`, so the rule is said again there, as above.
      */
-    .group\/button:where(.border-border):hover:not(
+    .fve\:group\/button:where(.fve\:border-border):hover:not(
         [aria-expanded='true'],
         [aria-invalid='true'],
         :focus-visible
@@ -1961,7 +1983,7 @@
     }
 
     @media not print {
-      .group\/button:where(.border-border):where(
+      .fve\:group\/button:where(.fve\:border-border):where(
           .fve-root[data-theme='dark'] *,
           .dark .fve-root:not([data-theme='light']) *,
           .dark .fve-tokens :not(.fve-root, .fve-root *)
@@ -1984,13 +2006,15 @@
      * pressed, expanded, focus and invalid states stay the registry's: each
      * weighs a state beside its class and outweighs this rule.
      */
-    .group\/button:where(.border-border):where([role='toolbar'] *) {
+    .fve\:group\/button:where(.fve\:border-border):where([role='toolbar'] *) {
       border-color: var(--_fve-control-edge, var(--border));
       background-color: var(--_fve-control, var(--background));
     }
 
     @media not print {
-      .group\/button:where(.border-border):where([role='toolbar'] *):where(
+      .fve\:group\/button:where(.fve\:border-border):where(
+          [role='toolbar'] *
+        ):where(
           .fve-root[data-theme='dark'] *,
           .dark .fve-root:not([data-theme='light']) *,
           .dark .fve-tokens :not(.fve-root, .fve-root *)
@@ -2750,7 +2774,7 @@
   .fve-tokens *,
   .fve-tokens *::before,
   .fve-tokens *::after {
-    @apply border-border outline-ring/50;
+    @apply fve:border-border fve:outline-ring/50;
   }
 
   /*
@@ -2771,7 +2795,7 @@
    * the host's page, and only the popup's own inline value sets it.
    */
   .fve-root {
-    @apply bg-background text-foreground;
+    @apply fve:bg-background fve:text-foreground;
 
     --_fve-surface-font: initial;
 
@@ -3102,7 +3126,7 @@
  * result to stand in and keeps its 3xl.
  */
 .fve-root [data-slot='dashboard-panel'] [data-slot='metric-value'] {
-  --_fve-metric-size: var(--text-2xl);
+  --_fve-metric-size: --theme(--text-2xl);
   line-height: 1;
 }
 
@@ -3144,7 +3168,7 @@
  * one on a narrow card steps down.
  */
 .fve-root [data-slot='metric-value'] {
-  --_fve-metric-size: var(--text-3xl);
+  --_fve-metric-size: --theme(--text-3xl);
   font-size: min(var(--_fve-metric-size), 100cqi / var(--_fve-metric-ems, 1));
   white-space: nowrap;
 }
@@ -3152,7 +3176,7 @@
 @container metric (width < 16rem) {
   /* Weighs less than a tile's and a workbench's own rules, which win there. */
   .fve-root [data-slot='metric-value'] {
-    --_fve-metric-size: var(--text-2xl);
+    --_fve-metric-size: --theme(--text-2xl);
     line-height: var(--text-2xl--line-height);
   }
 }
@@ -3176,7 +3200,7 @@
 
   .fve-root [data-slot='badge'][data-share]::after {
     content: attr(data-share) / '';
-    font-size: var(--text-xs);
+    font-size: --theme(--text-xs);
     line-height: var(--text-xs--line-height);
   }
 }
@@ -3374,7 +3398,7 @@
   [data-slot='analysis-result']
   > [data-slot='metric-card']
   [data-slot='metric-value'] {
-  --_fve-metric-size: var(--text-5xl);
+  --_fve-metric-size: --theme(--text-5xl);
   line-height: 1;
 }
 
@@ -3622,7 +3646,7 @@
 
   /* Upstream paints the drop placeholder red; the theme owns that colour. */
   .fve-root .react-grid-item.react-grid-placeholder {
-    @apply bg-primary;
+    @apply fve:bg-primary;
   }
 
   /* Upstream draws the resize handle in translucent black; the theme owns that colour. */

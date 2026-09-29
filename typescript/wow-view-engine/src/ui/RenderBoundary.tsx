@@ -171,7 +171,7 @@ function RenderFailed({
         frame="bare"
         data-slot="render-failed"
         data-boundary={name}
-        className="inline-flex w-auto"
+        className="fve:inline-flex fve:w-auto"
       >
         <AlertTitle>{messages.label('label.render.failed')}</AlertTitle>
         <AlertAction>{retry}</AlertAction>
@@ -202,7 +202,7 @@ function RenderFailed({
       <AlertDescription>
         <p>{messages.label(word('label.render.failed-hint'))}</p>
         {detail && (
-          <p data-slot="render-detail" className="text-muted-foreground">
+          <p data-slot="render-detail" className="fve:text-muted-foreground">
             {detail}
           </p>
         )}

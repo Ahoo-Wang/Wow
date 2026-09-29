@@ -179,7 +179,7 @@ const POPUP_LAYER: React.CSSProperties = {
  * question with a cost, and the registry's tint is right for those: they
  * are the ones a user reads the page *around*.
  */
-const ALERT_DIALOG_BACKDROP_DIM = 'bg-black/50';
+const ALERT_DIALOG_BACKDROP_DIM = 'fve:bg-black/50';
 
 /**
  * The edge the destructive dialog's own card is raised by, over the ring the
@@ -201,21 +201,21 @@ const ALERT_DIALOG_BACKDROP_DIM = 'bg-black/50';
  * copy stays a copy, and `test/popups.test.tsx` names this addition
  * alongside the root class when it compares the two renders.
  */
-const ALERT_DIALOG_RAISED = 'ring-foreground/40';
+const ALERT_DIALOG_RAISED = 'fve:ring-foreground/40';
 
 /** The vendored positioner's classes, copied verbatim from `components/`. */
-const POSITIONER_CLASS = 'isolate z-50';
-const MENU_POSITIONER_CLASS = 'isolate z-50 outline-none';
+const POSITIONER_CLASS = 'fve:isolate fve:z-50';
+const MENU_POSITIONER_CLASS = 'fve:isolate fve:z-50 fve:outline-none';
 
 /** The vendored popups' classes, copied verbatim from `components/`. */
 const ALERT_DIALOG_POPUP_CLASS =
-  'group/alert-dialog-content fixed top-1/2 left-1/2 z-50 grid w-full -translate-x-1/2 -translate-y-1/2 gap-4 rounded-xl bg-popover p-4 text-popover-foreground ring-1 ring-foreground/10 duration-100 outline-none data-[size=default]:max-w-xs data-[size=sm]:max-w-xs data-[size=default]:sm:max-w-sm data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95';
+  'fve:group/alert-dialog-content fve:fixed fve:top-1/2 fve:left-1/2 fve:z-50 fve:grid fve:w-full fve:-translate-x-1/2 fve:-translate-y-1/2 fve:gap-4 fve:rounded-xl fve:bg-popover fve:p-4 fve:text-popover-foreground fve:ring-1 fve:ring-foreground/10 fve:duration-100 fve:outline-none fve:data-[size=default]:max-w-xs fve:data-[size=sm]:max-w-xs fve:data-[size=default]:sm:max-w-sm fve:data-open:animate-in fve:data-open:fade-in-0 fve:data-open:zoom-in-95 fve:data-closed:animate-out fve:data-closed:fade-out-0 fve:data-closed:zoom-out-95';
 const COMBOBOX_POPUP_CLASS =
-  'group/combobox-content relative max-h-(--available-height) w-(--anchor-width) max-w-(--available-width) min-w-[calc(var(--anchor-width)+--spacing(7))] origin-(--transform-origin) overflow-hidden rounded-lg bg-popover text-popover-foreground shadow-md ring-1 ring-foreground/10 duration-100 data-[chips=true]:min-w-(--anchor-width) data-[side=bottom]:slide-in-from-top-2 data-[side=inline-end]:slide-in-from-left-2 data-[side=inline-start]:slide-in-from-right-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 *:data-[slot=input-group]:m-1 *:data-[slot=input-group]:mb-0 *:data-[slot=input-group]:h-8 *:data-[slot=input-group]:border-input/30 *:data-[slot=input-group]:bg-input/30 *:data-[slot=input-group]:shadow-none data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95';
+  'fve:group/combobox-content fve:relative fve:max-h-(--available-height) fve:w-(--anchor-width) fve:max-w-(--available-width) fve:min-w-[calc(var(--anchor-width)+--spacing(7))] fve:origin-(--transform-origin) fve:overflow-hidden fve:rounded-lg fve:bg-popover fve:text-popover-foreground fve:shadow-md fve:ring-1 fve:ring-foreground/10 fve:duration-100 fve:data-[chips=true]:min-w-(--anchor-width) fve:data-[side=bottom]:slide-in-from-top-2 fve:data-[side=inline-end]:slide-in-from-left-2 fve:data-[side=inline-start]:slide-in-from-right-2 fve:data-[side=left]:slide-in-from-right-2 fve:data-[side=right]:slide-in-from-left-2 fve:data-[side=top]:slide-in-from-bottom-2 fve:*:data-[slot=input-group]:m-1 fve:*:data-[slot=input-group]:mb-0 fve:*:data-[slot=input-group]:h-8 fve:*:data-[slot=input-group]:border-input/30 fve:*:data-[slot=input-group]:bg-input/30 fve:*:data-[slot=input-group]:shadow-none fve:data-open:animate-in fve:data-open:fade-in-0 fve:data-open:zoom-in-95 fve:data-closed:animate-out fve:data-closed:fade-out-0 fve:data-closed:zoom-out-95';
 const DIALOG_POPUP_CLASS =
-  'fixed top-1/2 left-1/2 z-50 grid w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 gap-4 rounded-xl bg-popover p-4 text-sm text-popover-foreground ring-1 ring-foreground/10 duration-100 outline-none sm:max-w-sm data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95';
+  'fve:fixed fve:top-1/2 fve:left-1/2 fve:z-50 fve:grid fve:w-full fve:max-w-[calc(100%-2rem)] fve:-translate-x-1/2 fve:-translate-y-1/2 fve:gap-4 fve:rounded-xl fve:bg-popover fve:p-4 fve:text-sm fve:text-popover-foreground fve:ring-1 fve:ring-foreground/10 fve:duration-100 fve:outline-none fve:sm:max-w-sm fve:data-open:animate-in fve:data-open:fade-in-0 fve:data-open:zoom-in-95 fve:data-closed:animate-out fve:data-closed:fade-out-0 fve:data-closed:zoom-out-95';
 const MENU_POPUP_CLASS =
-  'z-50 max-h-(--available-height) w-(--anchor-width) min-w-32 origin-(--transform-origin) overflow-x-hidden overflow-y-auto rounded-lg bg-popover p-1 text-popover-foreground shadow-md ring-1 ring-foreground/10 duration-100 outline-none data-[side=bottom]:slide-in-from-top-2 data-[side=inline-end]:slide-in-from-left-2 data-[side=inline-start]:slide-in-from-right-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:overflow-hidden data-closed:fade-out-0 data-closed:zoom-out-95';
+  'fve:z-50 fve:max-h-(--available-height) fve:w-(--anchor-width) fve:min-w-32 fve:origin-(--transform-origin) fve:overflow-x-hidden fve:overflow-y-auto fve:rounded-lg fve:bg-popover fve:p-1 fve:text-popover-foreground fve:shadow-md fve:ring-1 fve:ring-foreground/10 fve:duration-100 fve:outline-none fve:data-[side=bottom]:slide-in-from-top-2 fve:data-[side=inline-end]:slide-in-from-left-2 fve:data-[side=inline-start]:slide-in-from-right-2 fve:data-[side=left]:slide-in-from-right-2 fve:data-[side=right]:slide-in-from-left-2 fve:data-[side=top]:slide-in-from-bottom-2 fve:data-open:animate-in fve:data-open:fade-in-0 fve:data-open:zoom-in-95 fve:data-closed:animate-out fve:data-closed:overflow-hidden fve:data-closed:fade-out-0 fve:data-closed:zoom-out-95';
 /**
  * The one place the copy is deliberately not the registry's: a popover that
  * is taller than the room under its trigger scrolls instead of running off
@@ -234,13 +234,13 @@ const MENU_POPUP_CLASS =
  * else.
  */
 const POPOVER_POPUP_CLASS =
-  'z-50 flex max-h-(--available-height) w-72 origin-(--transform-origin) flex-col gap-2.5 overflow-y-auto rounded-lg bg-popover p-2.5 text-sm text-popover-foreground shadow-md ring-1 ring-foreground/10 outline-hidden duration-100 data-[side=bottom]:slide-in-from-top-2 data-[side=inline-end]:slide-in-from-left-2 data-[side=inline-start]:slide-in-from-right-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95';
+  'fve:z-50 fve:flex fve:max-h-(--available-height) fve:w-72 fve:origin-(--transform-origin) fve:flex-col fve:gap-2.5 fve:overflow-y-auto fve:rounded-lg fve:bg-popover fve:p-2.5 fve:text-sm fve:text-popover-foreground fve:shadow-md fve:ring-1 fve:ring-foreground/10 fve:outline-hidden fve:duration-100 fve:data-[side=bottom]:slide-in-from-top-2 fve:data-[side=inline-end]:slide-in-from-left-2 fve:data-[side=inline-start]:slide-in-from-right-2 fve:data-[side=left]:slide-in-from-right-2 fve:data-[side=right]:slide-in-from-left-2 fve:data-[side=top]:slide-in-from-bottom-2 fve:data-open:animate-in fve:data-open:fade-in-0 fve:data-open:zoom-in-95 fve:data-closed:animate-out fve:data-closed:fade-out-0 fve:data-closed:zoom-out-95';
 const SELECT_POPUP_CLASS =
-  'relative isolate z-50 max-h-(--available-height) w-(--anchor-width) min-w-36 origin-(--transform-origin) overflow-x-hidden overflow-y-auto rounded-lg bg-popover text-popover-foreground shadow-md ring-1 ring-foreground/10 duration-100 data-[align-trigger=true]:animate-none data-[side=bottom]:slide-in-from-top-2 data-[side=inline-end]:slide-in-from-left-2 data-[side=inline-start]:slide-in-from-right-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95';
+  'fve:relative fve:isolate fve:z-50 fve:max-h-(--available-height) fve:w-(--anchor-width) fve:min-w-36 fve:origin-(--transform-origin) fve:overflow-x-hidden fve:overflow-y-auto fve:rounded-lg fve:bg-popover fve:text-popover-foreground fve:shadow-md fve:ring-1 fve:ring-foreground/10 fve:duration-100 fve:data-[align-trigger=true]:animate-none fve:data-[side=bottom]:slide-in-from-top-2 fve:data-[side=inline-end]:slide-in-from-left-2 fve:data-[side=inline-start]:slide-in-from-right-2 fve:data-[side=left]:slide-in-from-right-2 fve:data-[side=right]:slide-in-from-left-2 fve:data-[side=top]:slide-in-from-bottom-2 fve:data-open:animate-in fve:data-open:fade-in-0 fve:data-open:zoom-in-95 fve:data-closed:animate-out fve:data-closed:fade-out-0 fve:data-closed:zoom-out-95';
 const TOOLTIP_POPUP_CLASS =
-  'z-50 inline-flex w-fit max-w-xs origin-(--transform-origin) items-center gap-1.5 rounded-md bg-foreground px-3 py-1.5 text-xs text-background has-data-[slot=kbd]:pr-1.5 data-[side=bottom]:slide-in-from-top-2 data-[side=inline-end]:slide-in-from-left-2 data-[side=inline-start]:slide-in-from-right-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 **:data-[slot=kbd]:relative **:data-[slot=kbd]:isolate **:data-[slot=kbd]:z-50 **:data-[slot=kbd]:rounded-sm data-[state=delayed-open]:animate-in data-[state=delayed-open]:fade-in-0 data-[state=delayed-open]:zoom-in-95 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95';
+  'fve:z-50 fve:inline-flex fve:w-fit fve:max-w-xs fve:origin-(--transform-origin) fve:items-center fve:gap-1.5 fve:rounded-md fve:bg-foreground fve:px-3 fve:py-1.5 fve:text-xs fve:text-background fve:has-data-[slot=kbd]:pr-1.5 fve:data-[side=bottom]:slide-in-from-top-2 fve:data-[side=inline-end]:slide-in-from-left-2 fve:data-[side=inline-start]:slide-in-from-right-2 fve:data-[side=left]:slide-in-from-right-2 fve:data-[side=right]:slide-in-from-left-2 fve:data-[side=top]:slide-in-from-bottom-2 fve:**:data-[slot=kbd]:relative fve:**:data-[slot=kbd]:isolate fve:**:data-[slot=kbd]:z-50 fve:**:data-[slot=kbd]:rounded-sm fve:data-[state=delayed-open]:animate-in fve:data-[state=delayed-open]:fade-in-0 fve:data-[state=delayed-open]:zoom-in-95 fve:data-open:animate-in fve:data-open:fade-in-0 fve:data-open:zoom-in-95 fve:data-closed:animate-out fve:data-closed:fade-out-0 fve:data-closed:zoom-out-95';
 const TOOLTIP_ARROW_CLASS =
-  'z-50 size-2.5 translate-y-[calc(-50%-2px)] rotate-45 rounded-[2px] bg-foreground fill-foreground data-[side=bottom]:top-1 data-[side=inline-end]:top-1/2! data-[side=inline-end]:-left-1 data-[side=inline-end]:-translate-y-1/2 data-[side=inline-start]:top-1/2! data-[side=inline-start]:-right-1 data-[side=inline-start]:-translate-y-1/2 data-[side=left]:top-1/2! data-[side=left]:-right-1 data-[side=left]:-translate-y-1/2 data-[side=right]:top-1/2! data-[side=right]:-left-1 data-[side=right]:-translate-y-1/2 data-[side=top]:-bottom-2.5';
+  'fve:z-50 fve:size-2.5 fve:translate-y-[calc(-50%-2px)] fve:rotate-45 fve:rounded-[2px] fve:bg-foreground fve:fill-foreground fve:data-[side=bottom]:top-1 fve:data-[side=inline-end]:top-1/2! fve:data-[side=inline-end]:-left-1 fve:data-[side=inline-end]:-translate-y-1/2 fve:data-[side=inline-start]:top-1/2! fve:data-[side=inline-start]:-right-1 fve:data-[side=inline-start]:-translate-y-1/2 fve:data-[side=left]:top-1/2! fve:data-[side=left]:-right-1 fve:data-[side=left]:-translate-y-1/2 fve:data-[side=right]:top-1/2! fve:data-[side=right]:-left-1 fve:data-[side=right]:-translate-y-1/2 fve:data-[side=top]:-bottom-2.5';
 
 /**
  * The destructive dialog's two portalled elements, themed like the plain one.
@@ -377,7 +377,7 @@ export function DialogContent({
             render={
               <Button
                 variant="ghost"
-                className="absolute top-2 right-2"
+                className="fve:absolute fve:top-2 fve:right-2"
                 size="icon-sm"
               />
             }
@@ -386,7 +386,7 @@ export function DialogContent({
             {/* The one place the copy differs from the registry's: this file
                 composes the markup now, so the label goes through the
                 catalogue like every other word this package writes. */}
-            <span className="sr-only">
+            <span className="fve:sr-only">
               {messages.label('label.dialog.close')}
             </span>
           </DialogClose>
@@ -448,13 +448,13 @@ export function SheetContent({
             render={
               <Button
                 variant="ghost"
-                className="absolute top-3 right-3"
+                className="fve:absolute fve:top-3 fve:right-3"
                 size="icon-sm"
               />
             }
           >
             <XIcon />
-            <span className="sr-only">
+            <span className="fve:sr-only">
               {messages.label('label.dialog.close')}
             </span>
           </DialogClose>
@@ -475,14 +475,14 @@ export function SheetContent({
  * frosted list hid which row that was.
  */
 const SHEET_OVERLAY_CLASS =
-  'duration-200 fill-mode-forwards supports-backdrop-filter:backdrop-blur-none';
+  'fve:duration-200 fve:fill-mode-forwards fve:supports-backdrop-filter:backdrop-blur-none';
 
 /** The registry's sheet recipe for each edge it comes from. */
 const SHEET_POPUP_CLASS = {
   right:
-    'fixed inset-y-0 right-0 flex h-full w-full flex-col gap-4 border-l bg-popover bg-clip-padding text-sm text-popover-foreground shadow-lg transition duration-200 ease-in-out data-ending-style:translate-x-[2.5rem] data-ending-style:opacity-0 data-starting-style:translate-x-[2.5rem] data-starting-style:opacity-0 sm:max-w-xl',
+    'fve:fixed fve:inset-y-0 fve:right-0 fve:flex fve:h-full fve:w-full fve:flex-col fve:gap-4 fve:border-l fve:bg-popover fve:bg-clip-padding fve:text-sm fve:text-popover-foreground fve:shadow-lg fve:transition fve:duration-200 fve:ease-in-out fve:data-ending-style:translate-x-[2.5rem] fve:data-ending-style:opacity-0 fve:data-starting-style:translate-x-[2.5rem] fve:data-starting-style:opacity-0 fve:sm:max-w-xl',
   bottom:
-    'fixed inset-x-0 bottom-0 flex h-auto max-h-[80dvh] flex-col gap-4 overflow-y-auto border-t bg-popover bg-clip-padding text-sm text-popover-foreground shadow-lg transition duration-200 ease-in-out data-ending-style:translate-y-[2.5rem] data-ending-style:opacity-0 data-starting-style:translate-y-[2.5rem] data-starting-style:opacity-0',
+    'fve:fixed fve:inset-x-0 fve:bottom-0 fve:flex fve:h-auto fve:max-h-[80dvh] fve:flex-col fve:gap-4 fve:overflow-y-auto fve:border-t fve:bg-popover fve:bg-clip-padding fve:text-sm fve:text-popover-foreground fve:shadow-lg fve:transition fve:duration-200 fve:ease-in-out fve:data-ending-style:translate-y-[2.5rem] fve:data-ending-style:opacity-0 fve:data-starting-style:translate-y-[2.5rem] fve:data-starting-style:opacity-0',
 } as const;
 
 export function DropdownMenuContent({
@@ -572,7 +572,7 @@ export function DropdownMenuSubContent({
   return (
     <DropdownMenuContent
       data-slot="dropdown-menu-sub-content"
-      className={withClass('w-auto min-w-24', className)}
+      className={withClass('fve:w-auto fve:min-w-24', className)}
       align={align}
       alignOffset={alignOffset}
       side={side}

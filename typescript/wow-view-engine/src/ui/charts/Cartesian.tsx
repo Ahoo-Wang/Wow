@@ -320,12 +320,12 @@ function ChartNotes({
 }) {
   if (notes.length === 0) return children;
   return (
-    <div className="flex min-w-0 flex-col gap-1">
+    <div className="fve:flex fve:min-w-0 fve:flex-col fve:gap-1">
       {notes.map(note => (
         <p
           key={note}
           data-slot="chart-gap-note"
-          className="text-muted-foreground"
+          className="fve:text-muted-foreground"
         >
           {note}
         </p>

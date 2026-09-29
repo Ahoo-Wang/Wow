@@ -55,14 +55,17 @@ export function UnsupportedValue({
   return (
     <div
       data-slot="filter-unsupported"
-      className={cn('flex min-w-0 flex-col gap-0.5 py-1', className)}
+      className={cn(
+        'fve:flex fve:min-w-0 fve:flex-col fve:gap-0.5 fve:py-1',
+        className,
+      )}
     >
       {text !== '' && (
         // The value is shown, not offered: it is what the view asks for and
         // the user is entitled to read it before deciding to remove the row.
-        <span className="truncate">{text}</span>
+        <span className="fve:truncate">{text}</span>
       )}
-      <span className="text-destructive text-xs">
+      <span className="fve:text-destructive fve:text-xs">
         {messages.label('label.filter.kind-unregistered', { kind })}
       </span>
     </div>

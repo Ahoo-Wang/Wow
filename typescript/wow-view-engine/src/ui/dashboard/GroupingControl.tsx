@@ -38,7 +38,7 @@ export function GroupingControl({
     <div
       data-slot="dashboard-grouping"
       data-idle={idle || undefined}
-      className="flex shrink-0 items-center gap-1"
+      className="fve:flex fve:shrink-0 fve:items-center fve:gap-1"
     >
       <ToggleGroup
         value={[unit]}

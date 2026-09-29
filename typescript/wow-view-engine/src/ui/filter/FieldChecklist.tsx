@@ -176,9 +176,13 @@ export function FieldChecklist({
     // is the popup that knows which it is. `gap-2` is one class rather than
     // `gap-x`/`gap-y`, so that it replaces the registry's own `gap-5`
     // outright instead of racing it in the stylesheet.
-    <FieldGroup className="grid grid-cols-1 gap-2 @md/checklist:grid-cols-2">
+    <FieldGroup className="fve:grid fve:grid-cols-1 fve:gap-2 fve:@md/checklist:grid-cols-2">
       {fields.map(field => (
-        <Field key={field.name} orientation="horizontal" className="min-w-0">
+        <Field
+          key={field.name}
+          orientation="horizontal"
+          className="fve:min-w-0"
+        >
           <Checkbox
             id={`${ids}-${field.name}`}
             disabled={disabled}
@@ -191,9 +195,9 @@ export function FieldChecklist({
               weigh the same as the headings has no headings. */}
           <FieldLabel
             htmlFor={`${ids}-${field.name}`}
-            className="min-w-0 font-normal"
+            className="fve:min-w-0 fve:font-normal"
           >
-            <span className="truncate">{messages.say(field.label)}</span>
+            <span className="fve:truncate">{messages.say(field.label)}</span>
             {/* Still offered, and said: its source is moving off it
                 (#3519). The reason, where there is one, is its title. */}
             {field.deprecated && (
@@ -244,7 +248,7 @@ export function FieldChecklist({
         // The popup's own scroll port is handed to the grid below instead:
         // the title and the search line stay put while the fields go past
         // them, which is the whole point of having a search line.
-        className="@container/checklist w-(--available-width) max-w-140 overflow-y-hidden"
+        className="fve:@container/checklist fve:w-(--available-width) fve:max-w-140 fve:overflow-y-hidden"
         initialFocus={search}
         // A field ticked here is a condition waiting for its value, so the
         // keyboard goes on to that value rather than back to 「添加」, one
@@ -273,8 +277,8 @@ export function FieldChecklist({
           return valueOf(condition) ?? trigger.current ?? true;
         }}
       >
-        <PopoverHeader className="flex-row items-center gap-2">
-          <PopoverTitle className="flex-1 truncate">
+        <PopoverHeader className="fve:flex-row fve:items-center fve:gap-2">
+          <PopoverTitle className="fve:flex-1 fve:truncate">
             {messages.label('label.filter.pick-fields')}
           </PopoverTitle>
           {/* The way out is a button rather than only the Escape key: the
@@ -317,10 +321,10 @@ export function FieldChecklist({
             fields that fit. */}
         <div
           data-slot="field-checklist"
-          className="-mx-2.5 -my-2 flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-2.5 py-2"
+          className="fve:-mx-2.5 fve:-my-2 fve:flex fve:min-h-0 fve:flex-1 fve:flex-col fve:gap-3 fve:overflow-y-auto fve:px-2.5 fve:py-2"
         >
           {sections.length === 0 ? (
-            <Empty data-slot="field-checklist-none" className="p-0">
+            <Empty data-slot="field-checklist-none" className="fve:p-0">
               <EmptyHeader>
                 <EmptyDescription>
                   {messages.label('label.field.none')}

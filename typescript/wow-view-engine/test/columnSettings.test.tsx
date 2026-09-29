@@ -1003,7 +1003,7 @@ describe('a column the definition dropped', () => {
     // assertion**, and the robust kind — `sr-only` is the one way to say
     // "in the accessible tree and not on screen", and jsdom's own
     // visibility does not see through its clip.
-    expect(note.className).not.toContain('sr-only');
+    expect(note.className).not.toContain('fve:sr-only');
     // And an icon beside it, so the row is marked before it is read.
     expect(note.querySelector('svg')).toBeTruthy();
 
@@ -1085,7 +1085,7 @@ describe('a summary on a field that is not a column', () => {
     const note = within(row).getByText(
       defaultMessages['label.columns.summary-unknown'],
     );
-    expect(note.className).not.toContain('sr-only');
+    expect(note.className).not.toContain('fve:sr-only');
     expect(
       screen
         .getByRole('checkbox', { name: 'Keep the summary of gone' })

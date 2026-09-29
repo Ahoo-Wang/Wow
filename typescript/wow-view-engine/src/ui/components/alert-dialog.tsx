@@ -28,7 +28,7 @@ function AlertDialogOverlay({
     <AlertDialogPrimitive.Backdrop
       data-slot="alert-dialog-overlay"
       className={cn(
-        "fixed inset-0 isolate z-50 bg-black/10 duration-100 supports-backdrop-filter:backdrop-blur-xs data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0",
+        "fve:fixed fve:inset-0 fve:isolate fve:z-50 fve:bg-black/10 fve:duration-100 fve:supports-backdrop-filter:backdrop-blur-xs fve:data-open:animate-in fve:data-open:fade-in-0 fve:data-closed:animate-out fve:data-closed:fade-out-0",
         className
       )}
       {...props}
@@ -50,7 +50,7 @@ function AlertDialogContent({
         data-slot="alert-dialog-content"
         data-size={size}
         className={cn(
-          "group/alert-dialog-content fixed top-1/2 left-1/2 z-50 grid w-full -translate-x-1/2 -translate-y-1/2 gap-4 rounded-xl bg-popover p-4 text-popover-foreground ring-1 ring-foreground/10 duration-100 outline-none data-[size=default]:max-w-xs data-[size=sm]:max-w-xs data-[size=default]:sm:max-w-sm data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
+          "fve:group/alert-dialog-content fve:fixed fve:top-1/2 fve:left-1/2 fve:z-50 fve:grid fve:w-full fve:-translate-x-1/2 fve:-translate-y-1/2 fve:gap-4 fve:rounded-xl fve:bg-popover fve:p-4 fve:text-popover-foreground fve:ring-1 fve:ring-foreground/10 fve:duration-100 fve:outline-none fve:data-[size=default]:max-w-xs fve:data-[size=sm]:max-w-xs fve:data-[size=default]:sm:max-w-sm fve:data-open:animate-in fve:data-open:fade-in-0 fve:data-open:zoom-in-95 fve:data-closed:animate-out fve:data-closed:fade-out-0 fve:data-closed:zoom-out-95",
           className
         )}
         {...props}
@@ -67,7 +67,7 @@ function AlertDialogHeader({
     <div
       data-slot="alert-dialog-header"
       className={cn(
-        "grid grid-rows-[auto_1fr] place-items-center gap-1.5 text-center has-data-[slot=alert-dialog-media]:grid-rows-[auto_auto_1fr] has-data-[slot=alert-dialog-media]:gap-x-4 sm:group-data-[size=default]/alert-dialog-content:place-items-start sm:group-data-[size=default]/alert-dialog-content:text-left sm:group-data-[size=default]/alert-dialog-content:has-data-[slot=alert-dialog-media]:grid-rows-[auto_1fr]",
+        "fve:grid fve:grid-rows-[auto_1fr] fve:place-items-center fve:gap-1.5 fve:text-center fve:has-data-[slot=alert-dialog-media]:grid-rows-[auto_auto_1fr] fve:has-data-[slot=alert-dialog-media]:gap-x-4 fve:sm:group-data-[size=default]/alert-dialog-content:place-items-start fve:sm:group-data-[size=default]/alert-dialog-content:text-left fve:sm:group-data-[size=default]/alert-dialog-content:has-data-[slot=alert-dialog-media]:grid-rows-[auto_1fr]",
         className
       )}
       {...props}
@@ -83,7 +83,7 @@ function AlertDialogFooter({
     <div
       data-slot="alert-dialog-footer"
       className={cn(
-        "-mx-4 -mb-4 flex flex-col-reverse gap-2 rounded-b-xl border-t bg-muted/50 p-4 group-data-[size=sm]/alert-dialog-content:grid group-data-[size=sm]/alert-dialog-content:grid-cols-2 sm:flex-row sm:justify-end",
+        "fve:-mx-4 fve:-mb-4 fve:flex fve:flex-col-reverse fve:gap-2 fve:rounded-b-xl fve:border-t fve:bg-muted/50 fve:p-4 fve:group-data-[size=sm]/alert-dialog-content:grid fve:group-data-[size=sm]/alert-dialog-content:grid-cols-2 fve:sm:flex-row fve:sm:justify-end",
         className
       )}
       {...props}
@@ -99,7 +99,7 @@ function AlertDialogMedia({
     <div
       data-slot="alert-dialog-media"
       className={cn(
-        "mb-2 inline-flex size-10 items-center justify-center rounded-md bg-muted sm:group-data-[size=default]/alert-dialog-content:row-span-2 *:[svg:not([class*='size-'])]:size-6",
+        "fve:mb-2 fve:inline-flex fve:size-10 fve:items-center fve:justify-center fve:rounded-md fve:bg-muted fve:sm:group-data-[size=default]/alert-dialog-content:row-span-2 fve:*:[svg:not([class*='size-'])]:size-6",
         className
       )}
       {...props}
@@ -115,7 +115,7 @@ function AlertDialogTitle({
     <AlertDialogPrimitive.Title
       data-slot="alert-dialog-title"
       className={cn(
-        "text-base font-medium sm:group-data-[size=default]/alert-dialog-content:group-has-data-[slot=alert-dialog-media]/alert-dialog-content:col-start-2",
+        "fve:text-base fve:font-medium fve:sm:group-data-[size=default]/alert-dialog-content:group-has-data-[slot=alert-dialog-media]/alert-dialog-content:col-start-2",
         className
       )}
       {...props}
@@ -131,7 +131,7 @@ function AlertDialogDescription({
     <AlertDialogPrimitive.Description
       data-slot="alert-dialog-description"
       className={cn(
-        "text-sm text-balance text-muted-foreground md:text-pretty *:[a]:underline *:[a]:underline-offset-3 *:[a]:hover:text-foreground",
+        "fve:text-sm fve:text-balance fve:text-muted-foreground fve:md:text-pretty fve:*:[a]:underline fve:*:[a]:underline-offset-3 fve:*:[a]:hover:text-foreground",
         className
       )}
       {...props}

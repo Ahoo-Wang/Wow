@@ -146,7 +146,7 @@ export function SeriesList({
         <ul
           data-slot="series-list"
           aria-label={messages.label('label.chart.slot.series')}
-          className="flex flex-col gap-1"
+          className="fve:flex fve:flex-col fve:gap-1"
         >
           {spec.series.map((series, index) => (
             <SeriesRow
@@ -183,7 +183,7 @@ export function SeriesList({
                 size="sm"
                 disabled={undrawn.length === 0}
                 data-slot="add-series"
-                className="self-start"
+                className="fve:self-start"
               />
             }
           >
@@ -291,15 +291,15 @@ function SeriesRow({
         />
       </ItemMedia>
 
-      <ItemContent className="min-w-0">
+      <ItemContent className="fve:min-w-0">
         {/* The row is one line and a long metric name is cut off in it, so
             the whole of it is on the element for a pointer to read. */}
-        <ItemTitle className="max-w-full font-medium" title={name}>
+        <ItemTitle className="fve:max-w-full fve:font-medium" title={name}>
           {name}
         </ItemTitle>
       </ItemContent>
 
-      <ItemActions className="gap-1">
+      <ItemActions className="fve:gap-1">
         {type === 'combo' && (
           <CompactSelect
             label={messages.label('label.chart.mark-of', { name })}

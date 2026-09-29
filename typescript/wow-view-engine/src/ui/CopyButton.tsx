@@ -51,11 +51,11 @@ const SETTLE_MS = 1500;
  * own markup has no row of ours to hover).
  */
 const REVEAL = [
-  'transition-opacity',
-  '[@media(hover:hover)]:opacity-0',
-  'group-hover/row:opacity-100',
-  'group-hover/copyable:opacity-100',
-  'focus-visible:opacity-100',
+  'fve:transition-opacity',
+  'fve:[@media(hover:hover)]:opacity-0',
+  'fve:group-hover/row:opacity-100',
+  'fve:group-hover/copyable:opacity-100',
+  'fve:focus-visible:opacity-100',
 ];
 
 /** What the last press settled as; `null` while the button is just offering. */
@@ -139,7 +139,7 @@ export function CopyButton({ value, className }: CopyButtonProps) {
         <span
           data-slot="cell-copy-announcement"
           role="status"
-          className="sr-only"
+          className="fve:sr-only"
         >
           {label}
         </span>

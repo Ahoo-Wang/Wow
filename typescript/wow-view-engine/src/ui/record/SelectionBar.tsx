@@ -50,7 +50,7 @@ export function SelectionGroup({
   return (
     <div
       data-slot="toolbar-selection"
-      className={`flex flex-wrap items-center ${SPACE.GROUPS}`}
+      className={`fve:flex fve:flex-wrap fve:items-center ${SPACE.GROUPS}`}
     >
       {/* The count and the way to drop it are one thing, so they sit
           4px apart inside the 8px the groups keep between them: a ✕ is
@@ -60,7 +60,7 @@ export function SelectionGroup({
           again on every change of the count. */}
       <div
         data-slot="toolbar-selection-count"
-        className="flex items-center gap-1"
+        className="fve:flex fve:items-center fve:gap-1"
       >
         <Badge variant="secondary" role="status">
           {messages.label('label.toolbar.selected', {
@@ -126,7 +126,7 @@ export function SelectionBar(props: SelectionProps) {
     <Toolbar
       data-slot="panel-selection"
       aria-label={messages.label('label.toolbar.title')}
-      className={`flex flex-wrap items-center ${SPACE.GROUPS}`}
+      className={`fve:flex fve:flex-wrap fve:items-center ${SPACE.GROUPS}`}
     >
       <SelectionGroup {...props} />
     </Toolbar>

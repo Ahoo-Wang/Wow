@@ -651,10 +651,10 @@ describe('WriteOutcome', () => {
     // and a button carries no state saying which variant it is — see
     // `test/analysisUi.test.tsx` for the same exception.
     expect(
-      buttons.filter(button => button.classList.contains('bg-primary')),
+      buttons.filter(button => button.classList.contains('fve:bg-primary')),
     ).toEqual([]);
     for (const button of buttons)
-      expect(button.classList.contains('border-border')).toBe(true);
+      expect(button.classList.contains('fve:border-border')).toBe(true);
   });
 
   it('puts the choice once more, with both ways of looking side by side', async () => {

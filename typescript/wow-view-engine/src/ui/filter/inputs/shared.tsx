@@ -117,9 +117,12 @@ export function ChoiceValue({
 export function RangeRow({ from, to }: { from: ReactNode; to: ReactNode }) {
   const messages = useViewMessages();
   return (
-    <div className="flex min-w-0 items-center gap-2">
+    <div className="fve:flex fve:min-w-0 fve:items-center fve:gap-2">
       {from}
-      <span aria-hidden="true" className="text-muted-foreground shrink-0">
+      <span
+        aria-hidden="true"
+        className="fve:text-muted-foreground fve:shrink-0"
+      >
         {messages.label('label.filter.range-join')}
       </span>
       {to}

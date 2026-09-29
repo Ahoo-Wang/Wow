@@ -79,7 +79,9 @@ export function ElementsSlot({
           data-slot="counting-unit"
           data-emphasis={expanded ? 'strong' : undefined}
           className={cn(
-            expanded ? 'text-foreground font-medium' : 'text-muted-foreground',
+            expanded
+              ? 'fve:text-foreground fve:font-medium'
+              : 'fve:text-muted-foreground',
             TEXT_UI,
           )}
         >
@@ -87,7 +89,7 @@ export function ElementsSlot({
         </span>
       }
     >
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="fve:flex fve:flex-wrap fve:items-center fve:gap-2">
         {analysis.elements.map((element, index) => (
           <ElementCard
             key={element.path}
@@ -102,7 +104,7 @@ export function ElementsSlot({
         {next && expanded && (
           <ChevronRightIcon
             aria-hidden
-            className="text-muted-foreground size-4"
+            className="fve:text-muted-foreground fve:size-4"
           />
         )}
         {next && (
@@ -164,11 +166,11 @@ function ElementCard({
       {index > 0 && (
         <ChevronRightIcon
           aria-hidden
-          className="text-muted-foreground size-4"
+          className="fve:text-muted-foreground fve:size-4"
         />
       )}
       <EditorCard data-slot="element-card" data-path={element.path}>
-        <span data-slot="card-name" className="truncate font-medium">
+        <span data-slot="card-name" className="fve:truncate fve:font-medium">
           {name}
         </span>
         {/* The gate says what it is for in words (D71), 「只算满足条件的
@@ -195,7 +197,7 @@ function ElementCard({
           label={messages.label('label.analysis.collapse', { name })}
           variant="ghost"
           size="icon-xs"
-          className="ml-auto"
+          className="fve:ml-auto"
           disabled={disabled}
           onClick={event => {
             focus.removing(event, index);

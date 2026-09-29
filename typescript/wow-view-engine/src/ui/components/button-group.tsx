@@ -6,14 +6,14 @@ import { cn } from "cn"
 import { Separator } from "@/ui/components/separator"
 
 const buttonGroupVariants = cva(
-  "flex w-fit items-stretch *:focus-visible:relative *:focus-visible:z-10 has-[>[data-slot=button-group]]:gap-2 has-[select[aria-hidden=true]:last-child]:[&>[data-slot=select-trigger]:last-of-type]:rounded-r-lg [&>[data-slot=select-trigger]:not([class*='w-'])]:w-fit [&>input]:flex-1",
+  "fve:flex fve:w-fit fve:items-stretch fve:*:focus-visible:relative fve:*:focus-visible:z-10 fve:has-[>[data-slot=button-group]]:gap-2 fve:has-[select[aria-hidden=true]:last-child]:[&>[data-slot=select-trigger]:last-of-type]:rounded-r-lg fve:[&>[data-slot=select-trigger]:not([class*='w-'])]:w-fit fve:[&>input]:flex-1",
   {
     variants: {
       orientation: {
         horizontal:
-          "*:data-slot:rounded-r-none [&>[data-slot]:not(:has(~[data-slot]))]:rounded-r-lg! [&>[data-slot]~[data-slot]]:rounded-l-none [&>[data-slot]~[data-slot]]:border-l-0",
+          "fve:*:data-slot:rounded-r-none fve:[&>[data-slot]:not(:has(~[data-slot]))]:rounded-r-lg! fve:[&>[data-slot]~[data-slot]]:rounded-l-none fve:[&>[data-slot]~[data-slot]]:border-l-0",
         vertical:
-          "flex-col *:data-slot:rounded-b-none [&>[data-slot]:not(:has(~[data-slot]))]:rounded-b-lg! [&>[data-slot]~[data-slot]]:rounded-t-none [&>[data-slot]~[data-slot]]:border-t-0",
+          "fve:flex-col fve:*:data-slot:rounded-b-none fve:[&>[data-slot]:not(:has(~[data-slot]))]:rounded-b-lg! fve:[&>[data-slot]~[data-slot]]:rounded-t-none fve:[&>[data-slot]~[data-slot]]:border-t-0",
       },
     },
     defaultVariants: {
@@ -48,7 +48,7 @@ function ButtonGroupText({
     props: mergeProps<"div">(
       {
         className: cn(
-          "flex items-center gap-2 rounded-lg border bg-muted px-2.5 text-sm font-medium [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4",
+          "fve:flex fve:items-center fve:gap-2 fve:rounded-lg fve:border fve:bg-muted fve:px-2.5 fve:text-sm fve:font-medium fve:[&_svg]:pointer-events-none fve:[&_svg:not([class*='size-'])]:size-4",
           className
         ),
       },
@@ -71,7 +71,7 @@ function ButtonGroupSeparator({
       data-slot="button-group-separator"
       orientation={orientation}
       className={cn(
-        "relative self-stretch bg-input data-horizontal:mx-px data-horizontal:w-auto data-vertical:my-px data-vertical:h-auto",
+        "fve:relative fve:self-stretch fve:bg-input fve:data-horizontal:mx-px fve:data-horizontal:w-auto fve:data-vertical:my-px fve:data-vertical:h-auto",
         className
       )}
       {...props}

@@ -197,7 +197,7 @@ describe('a tags cell', () => {
       <RecordTable table={tagged(['rush', 'gift'])} />,
     );
     const row = badges(container)[0].parentElement!;
-    expect(row.className).not.toContain('flex-wrap');
+    expect(row.className).not.toContain('fve:flex-wrap');
 
     cleanup();
     const card = render(
@@ -220,7 +220,7 @@ describe('a tags cell', () => {
       />,
     );
     expect(badges(card.container)[0].parentElement!.className).toContain(
-      'flex-wrap',
+      'fve:flex-wrap',
     );
   });
 });
@@ -278,7 +278,7 @@ describe('a text cell', () => {
     // text to count. What it comes to on screen — every row of the wide
     // table the same height — is measured in `WideTable`.
     expect(cell.className).toContain('truncate');
-    expect(cell.className).not.toContain('line-clamp-3');
+    expect(cell.className).not.toContain('fve:line-clamp-3');
     // Cut on screen, whole on hover: nothing is lost, only folded.
     expect(cell.getAttribute('title')).toBe(NOTE);
     expect(cell.textContent).toBe(NOTE);
@@ -308,8 +308,8 @@ describe('a text cell', () => {
     const cell = container.querySelector<HTMLElement>(
       '[data-slot="cell-text"]',
     )!;
-    expect(cell.className).toContain('line-clamp-3');
-    expect(cell.className).toContain('whitespace-pre-wrap');
+    expect(cell.className).toContain('fve:line-clamp-3');
+    expect(cell.className).toContain('fve:whitespace-pre-wrap');
     expect(cell.className).not.toContain('truncate');
     expect(cell.getAttribute('title')).toBe(NOTE);
   });
@@ -497,7 +497,7 @@ describe('a copyable cell', () => {
     // Taken character for character, so `0` and `O` must not look alike.
     expect(
       container.querySelector('[data-slot="cell-copyable"]')!.className,
-    ).toContain('font-mono text-[0.9em]');
+    ).toContain('fve:font-mono fve:text-[0.9em]');
   });
 
   it('offers nothing where there is nothing to take away', () => {
@@ -524,16 +524,16 @@ describe('a copyable cell', () => {
     // query — none of them a state the button could carry, and jsdom has no
     // pointer to resolve any of them. The negative one is the regression
     // being guarded: `hidden` would take the button out of the tab order.
-    expect(copy.className).toContain('group-hover/row:opacity-100');
-    expect(copy.className).toContain('group-hover/copyable:opacity-100');
-    expect(copy.className).toContain('focus-visible:opacity-100');
+    expect(copy.className).toContain('fve:group-hover/row:opacity-100');
+    expect(copy.className).toContain('fve:group-hover/copyable:opacity-100');
+    expect(copy.className).toContain('fve:focus-visible:opacity-100');
     expect(copy.className).not.toContain('hidden');
     // The hiding is what the hover query guards, not the showing: Tailwind
     // wraps `group-hover` in `(hover: hover)` too, so hiding outside it
     // would hide the button on a touch screen for good.
-    expect(copy.className).toContain('[@media(hover:hover)]:opacity-0');
+    expect(copy.className).toContain('fve:[@media(hover:hover)]:opacity-0');
     expect(container.querySelector('tbody tr')?.className).toContain(
-      'group/row',
+      'fve:group/row',
     );
   });
 
@@ -559,7 +559,7 @@ describe('a copyable cell', () => {
     expect(
       container.querySelector('[data-slot="card-field"][data-field="no"]')
         ?.className,
-    ).toContain('group/row');
+    ).toContain('fve:group/row');
     await act(async () => {
       fireEvent.click(button('Copy SO-1001'));
     });
@@ -754,7 +754,7 @@ describe('an array of objects', () => {
     // The count is for the eye; a reader hears what it stands for, and the
     // whole list is one hover away.
     expect(more?.getAttribute('aria-hidden')).toBe('true');
-    expect(container.querySelector('.sr-only')?.textContent).toBe(
+    expect(container.querySelector('.fve\\:sr-only')?.textContent).toBe(
       '准备重试, 执行成功',
     );
     expect(
@@ -798,7 +798,7 @@ describe('an array of objects', () => {
     // behind it, and the card and the detail are the surfaces that wrap.
     expect(
       container.querySelector('[data-slot="cell-elements"]')?.className,
-    ).toContain('flex-wrap');
+    ).toContain('fve:flex-wrap');
   });
 
   it('counts what it holds when the definition names no title', () => {

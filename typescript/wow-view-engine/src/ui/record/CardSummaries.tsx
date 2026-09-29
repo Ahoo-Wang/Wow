@@ -37,29 +37,32 @@ export function CardSummaries({ rows }: { rows: readonly SummaryRow[] }) {
       data-layout="card"
       // The same muted layer the table's footer is: the numbers are about
       // the rows, not one more of them.
-      className="bg-muted border-border flex flex-col gap-1 border-t px-3 py-2"
+      className="fve:bg-muted fve:border-border fve:flex fve:flex-col fve:gap-1 fve:border-t fve:px-3 fve:py-2"
     >
       {rows.map(row => (
         <div
           key={row.scope}
           data-scope={row.scope}
-          className="flex flex-wrap items-baseline gap-x-4 gap-y-1"
+          className="fve:flex fve:flex-wrap fve:items-baseline fve:gap-x-4 fve:gap-y-1"
         >
           <span
             data-slot="summary-scope"
-            className={cn('text-quiet-foreground font-normal', TEXT_UI)}
+            className={cn('fve:text-quiet-foreground fve:font-normal', TEXT_UI)}
           >
             {messages.label(`label.summary.scope.${row.scope}`)}
           </span>
           {row.cells.map(cell => (
             <span
               key={`${cell.field}-${cell.fn}`}
-              className="flex items-baseline gap-1 text-sm font-medium"
+              className="fve:flex fve:items-baseline fve:gap-1 fve:text-sm fve:font-medium"
             >
               {/* The field's name first: under a column the heading says
                   it, on a line it has to be said here. */}
               <span
-                className={cn('text-quiet-foreground font-normal', TEXT_UI)}
+                className={cn(
+                  'fve:text-quiet-foreground fve:font-normal',
+                  TEXT_UI,
+                )}
               >
                 {messages.say(cell.label)}
               </span>

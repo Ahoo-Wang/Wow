@@ -133,7 +133,7 @@ export function ViewList({
       // The rule follows the layout: the surface is a column below `md` and
       // a row from there up, so the edge between list and work area is the
       // bottom one until the two stand side by side.
-      className="bg-sidebar text-sidebar-foreground border-sidebar-border flex min-w-0 flex-1 flex-col border-b md:border-r md:border-b-0"
+      className="fve:bg-sidebar fve:text-sidebar-foreground fve:border-sidebar-border fve:flex fve:min-w-0 fve:flex-1 fve:flex-col fve:border-b fve:md:border-r fve:md:border-b-0"
     >
       {/* The heading is its own row: the definition's name, and whatever acts
           on the list as a whole sits beside it rather than among the views.
@@ -154,9 +154,9 @@ export function ViewList({
           act on the list as it is. */}
       <div
         data-slot="view-list-header"
-        className="border-sidebar-border border-b px-3 pt-4 pb-3"
+        className="fve:border-sidebar-border fve:border-b fve:px-3 fve:pt-4 fve:pb-3"
       >
-        <div className="flex min-h-10 min-w-0 items-center gap-1">
+        <div className="fve:flex fve:min-h-10 fve:min-w-0 fve:items-center fve:gap-1">
           {/* The page's own name, one level above every view in it (the
               view's name is the `h2` in the title bar): a definition is the
               thing this whole screen is about, and a heading the size of
@@ -164,7 +164,7 @@ export function ViewList({
           <h1
             id={headingId}
             data-slot="view-list-title"
-            className="min-w-0 flex-1 truncate px-1.5 text-base font-semibold"
+            className="fve:min-w-0 fve:flex-1 fve:truncate fve:px-1.5 fve:text-base fve:font-semibold"
           >
             {(title && messages.say(title)) ||
               messages.label(word('label.view.list'))}
@@ -206,7 +206,7 @@ export function ViewList({
               // screen, so it sat lit — plainly so on the dark ground (the
               // 2026-09-23 audit, P2-11). The state stays for screen readers;
               // only the fill goes, and hover still answers.
-              className="aria-expanded:not-hover:bg-transparent"
+              className="fve:aria-expanded:not-hover:bg-transparent"
               onClick={onCollapse}
             >
               <PanelLeftCloseIcon />
@@ -216,7 +216,7 @@ export function ViewList({
       </div>
       <div
         data-slot="view-list-body"
-        className={cn('flex min-w-0 flex-col p-3', SPACE.ROWS)}
+        className={cn('fve:flex fve:min-w-0 fve:flex-col fve:p-3', SPACE.ROWS)}
       >
         <ViewListBody
           list={list}
@@ -263,9 +263,9 @@ function ViewListBody({
   );
   if (list.loading)
     return (
-      <div className="flex flex-col gap-2">
+      <div className="fve:flex fve:flex-col fve:gap-2">
         {Array.from({ length: 3 }, (_unused, index) => (
-          <Skeleton key={`view-${index}`} className="h-8 w-full" />
+          <Skeleton key={`view-${index}`} className="fve:h-8 fve:w-full" />
         ))}
       </div>
     );
@@ -290,7 +290,7 @@ function ViewListBody({
         // this column's ground.
         <p
           data-slot="view-list-empty"
-          className={cn('text-sidebar-foreground/70 px-1.5', TEXT_UI)}
+          className={cn('fve:text-sidebar-foreground/70 fve:px-1.5', TEXT_UI)}
         >
           {messages.label(word('label.view.none'))}
         </p>
@@ -352,7 +352,7 @@ function ViewGroup({
       data-slot="view-group"
       role="group"
       aria-labelledby={labelId}
-      className="flex flex-col gap-1"
+      className="fve:flex fve:flex-col fve:gap-1"
     >
       {/* Not `muted-foreground`: that grey was picked to clear 4.5:1 on
           *white*, and on the column's ground it measures 4.34:1 — a rule the
@@ -365,7 +365,10 @@ function ViewGroup({
       <h2
         id={labelId}
         data-slot="view-group-heading"
-        className={cn('text-sidebar-foreground/70 px-1.5 font-medium', TEXT_UI)}
+        className={cn(
+          'fve:text-sidebar-foreground/70 fve:px-1.5 fve:font-medium',
+          TEXT_UI,
+        )}
       >
         {messages.label(word(`label.scope.group.${audience}`))}
       </h2>
@@ -429,7 +432,9 @@ function ViewListItem({
           syllables. */}
       <Tooltip>
         <TooltipTrigger
-          render={<span data-slot="view-kind" className="flex shrink-0" />}
+          render={
+            <span data-slot="view-kind" className="fve:flex fve:shrink-0" />
+          }
         >
           <Icon data-icon="inline-start" />
         </TooltipTrigger>
@@ -437,23 +442,23 @@ function ViewListItem({
           {messages.label(`label.kind.${item.kind}`)}
         </TooltipContent>
       </Tooltip>
-      <span className="truncate">{messages.say(item.title)}</span>
+      <span className="fve:truncate">{messages.say(item.title)}</span>
       {/* The row's end holds the facts about the view rather than its name:
           the star when it opens first, and the lock when it came with the
           definition (`SystemMark`). One group pushed to the end, so a
           default system view has both side by side and neither floats. */}
       {(isDefault || isSystemScope(item.scope)) && (
-        <span className="ml-auto flex shrink-0 items-center gap-1.5">
+        <span className="fve:ml-auto fve:flex fve:shrink-0 fve:items-center fve:gap-1.5">
           {isDefault && (
             <>
               <StarIcon
                 data-slot="view-default-star"
-                className="text-primary size-3.5 fill-current"
+                className="fve:text-primary fve:size-3.5 fve:fill-current"
                 aria-hidden
               />
               {/* The star is a picture of a fact, so the fact is also a
                   word: a reader hears "Mine, Default" rather than nothing. */}
-              <span className="sr-only">
+              <span className="fve:sr-only">
                 {messages.label('label.manage.default')}
               </span>
             </>

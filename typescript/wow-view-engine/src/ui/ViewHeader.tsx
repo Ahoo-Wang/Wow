@@ -208,11 +208,11 @@ export function ViewHeader({
     // words on the save commands — reads `@…/header`.
     <div
       data-slot="view-header-band"
-      className="@container/header flex flex-col gap-2"
+      className="fve:@container/header fve:flex fve:flex-col fve:gap-2"
     >
       <div
         data-slot="view-header"
-        className="flex min-h-10 flex-wrap items-center gap-2"
+        className="fve:flex fve:min-h-10 fve:flex-wrap fve:items-center fve:gap-2"
       >
         {/* Which view this is, and the commands that keep it: one group, in
             the order a user reads it — where it sits, what it is, what to do
@@ -235,14 +235,14 @@ export function ViewHeader({
           // nothing, so it never wraps and the group is squeezed to its
           // min-content with Save spilling past the bar. With an `auto` basis
           // the row wraps the controls at the width where both no longer fit.
-          className="flex grow items-center gap-2"
+          className="fve:flex fve:grow fve:items-center fve:gap-2"
         >
           {leading}
           {namesView && (
             <Tooltip>
               <TooltipTrigger
                 render={
-                  <Kind className="text-muted-foreground size-4 shrink-0" />
+                  <Kind className="fve:text-muted-foreground fve:size-4 fve:shrink-0" />
                 }
               />
               <TooltipContent>
@@ -298,14 +298,16 @@ export function ViewHeader({
                   data-slot="view-title"
                   data-dirty={state.dirty || undefined}
                   className={cn(
-                    'truncate font-medium',
+                    'fve:truncate fve:font-medium',
                     // `sr-only` sets a width of its own, so the spring is
                     // only for the title that is actually on the line.
                     // `max-w-max` caps the spring at the name's own width,
                     // so the audience and Save stand against it rather than
                     // at the end of the row; `w-0` still keeps the group's
                     // wrap arithmetic.
-                    namesView ? 'w-0 max-w-max min-w-[6em] grow' : 'sr-only',
+                    namesView
+                      ? 'fve:w-0 fve:max-w-max fve:min-w-[6em] fve:grow'
+                      : 'fve:sr-only',
                   )}
                 />
               }
@@ -325,18 +327,21 @@ export function ViewHeader({
             data-slot="view-audience"
             data-scope={scopeKey}
             className={cn(
-              'text-muted-foreground @max-md/header:sr-only shrink-0',
+              'fve:text-muted-foreground fve:@max-md/header:sr-only fve:shrink-0',
               TEXT_UI,
             )}
           >
-            <Audience aria-hidden className="mr-1 inline size-3 align-[-1px]" />
+            <Audience
+              aria-hidden
+              className="fve:mr-1 fve:inline fve:size-3 fve:align-[-1px]"
+            />
             {messages.label(`label.scope.tag.${scopeKey}`)}
           </span>
 
           {/* Two different things, so two different words: one view was never
               saved, the other has been saved and edited since. */}
           {state.saved === null ? (
-            <Badge variant="outline" className="shrink-0">
+            <Badge variant="outline" className="fve:shrink-0">
               {messages.label('label.header.new-view')}
             </Badge>
           ) : (
@@ -399,7 +404,7 @@ export function ViewHeader({
             of the bar. */}
         <div
           data-slot="view-controls"
-          className="ml-auto flex shrink-0 items-center gap-2"
+          className="fve:ml-auto fve:flex fve:shrink-0 fve:items-center fve:gap-2"
         >
           {trailing}
           {/* The line between two authorships — this package's controls and

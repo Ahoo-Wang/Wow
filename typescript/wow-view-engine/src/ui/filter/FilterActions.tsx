@@ -99,12 +99,12 @@ export function FilterActions({
     : null;
   const why = useId();
   return (
-    <div className="ml-auto flex items-center gap-2">
+    <div className="fve:ml-auto fve:flex fve:items-center fve:gap-2">
       {needs !== null && filter.blocked === 0 && (
         <span
           id={why}
           data-slot="filter-needs-condition"
-          className={cn('text-muted-foreground', TEXT_UI)}
+          className={cn('fve:text-muted-foreground', TEXT_UI)}
         >
           {messages.label(needs)}
         </span>
@@ -112,7 +112,7 @@ export function FilterActions({
       {filter.blocked > 0 && (
         // Apply is refused and the pills say where; this says how many,
         // beside the button that will not move until they are gone.
-        <span className={cn('text-destructive', TEXT_UI)}>
+        <span className={cn('fve:text-destructive', TEXT_UI)}>
           {messages.label('label.filter.blocked', {
             count: filter.blocked,
           })}

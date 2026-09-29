@@ -189,13 +189,13 @@ export function RowActionButtons({
         );
         if (!reason) return <Fragment key={view.action.id}>{button}</Fragment>;
         return (
-          <span key={view.action.id} className="inline-flex">
-            <span id={reasonId} className="sr-only">
+          <span key={view.action.id} className="fve:inline-flex">
+            <span id={reasonId} className="fve:sr-only">
               {reason}
             </span>
             <Tooltip>
               {/* A disabled button takes no pointer; its box shows the tip. */}
-              <TooltipTrigger render={<span className="inline-flex" />}>
+              <TooltipTrigger render={<span className="fve:inline-flex" />}>
                 {button}
               </TooltipTrigger>
               <TooltipContent>{reason}</TooltipContent>
@@ -224,11 +224,11 @@ export function RowActionButtons({
           >
             <EllipsisVerticalIcon />
           </IconTooltip>
-          <HandOffMenuContent align="end" className="min-w-56">
+          <HandOffMenuContent align="end" className="fve:min-w-56">
             {reasons.length > 0 && (
               <DropdownMenuGroup data-slot="action-reasons">
                 {reasons.map(reason => (
-                  <DropdownMenuLabel key={reason} className="font-normal">
+                  <DropdownMenuLabel key={reason} className="fve:font-normal">
                     {reason}
                   </DropdownMenuLabel>
                 ))}

@@ -105,12 +105,12 @@ export function ConditionLine({
     <span
       data-slot="metric-condition-line"
       className={cn(
-        'text-muted-foreground min-w-0 truncate',
+        'fve:text-muted-foreground fve:min-w-0 fve:truncate',
         // No say in how wide the card is (D71): the cards run along a row,
         // each as wide as its controls, and the sentence under them takes
         // that width — it used to count as if it stood beside them, and
         // every card with a condition doubled in width.
-        !onName && 'contain-inline-size basis-full',
+        !onName && 'fve:contain-inline-size fve:basis-full',
         TEXT_UI,
       )}
     >
@@ -119,7 +119,7 @@ export function ConditionLine({
   );
   if (!onName) return line;
   return (
-    <div className="contain-inline-size flex min-w-0 basis-full items-center gap-2">
+    <div className="fve:contain-inline-size fve:flex fve:min-w-0 fve:basis-full fve:items-center fve:gap-2">
       {line}
       <Button
         variant="link"
@@ -194,14 +194,16 @@ export function ConditionsBlock({
       data-slot="card-conditions"
       role="group"
       aria-label={label}
-      className={cn('flex basis-full flex-col gap-2', TEXT_UI)}
+      className={cn('fve:flex fve:basis-full fve:flex-col fve:gap-2', TEXT_UI)}
     >
-      <div className="flex items-center gap-2">
-        <span className="text-muted-foreground font-semibold">{title}</span>
+      <div className="fve:flex fve:items-center fve:gap-2">
+        <span className="fve:text-muted-foreground fve:font-semibold">
+          {title}
+        </span>
         <Button
           variant="ghost"
           size="xs"
-          className="ml-auto"
+          className="fve:ml-auto"
           disabled={disabled}
           onClick={onClear}
         >

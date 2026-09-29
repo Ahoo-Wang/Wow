@@ -15,52 +15,49 @@ import { fileURLToPath } from 'node:url';
 import prefixer from 'postcss-prefix-selector';
 
 /**
- * Keeps every rule of the theme inside one of the two style boundaries.
+ * Keeps the theme's own rules inside one of the two style boundaries.
  *
  * They are `.fve-root`, the surface `ViewSurface` renders, and `.fve-tokens`,
  * the boundary a host puts on its own chrome so the same primitives and the
- * same utilities paint there (D17-10). Both carry the tokens and the
- * utilities; only the surface is a surface — it paints a page and can pin a
- * mode with `data-theme`, which is why roots do not nest and a host reaches
- * for the tokens class instead.
+ * same tokens reach there (D17-10). Both carry the tokens; only the surface
+ * is a surface — it paints a page and can pin a mode with `data-theme`, which
+ * is why roots do not nest and a host reaches for the tokens class instead.
  *
- * Tailwind's preflight resets `*`, `html`, headings, lists and buttons on the
- * whole page, its utilities are bare classes (`.flex`, `.container`,
- * `.collapse`) a host may share with Bootstrap, and the grid adapter's
- * `.react-grid-*` are bare classes too. Tailwind v4 has no prefix that leaves
- * the vendored components untouched, so `postcss-prefix-selector` rewrites
- * every selector instead. The subject gets the boundaries and their
- * descendants — `:is(.fve-root, .fve-root *, .fve-tokens, .fve-tokens *)` —
- * rather than a descendant prefix, because a popup carries the root class
- * itself. A rule whose subject can never be inside a boundary (`html`)
- * simply stops matching, which is how the host keeps its typography.
+ * **The utilities are the engine's by name, not by weight** (D66). Tailwind
+ * compiles them with the prefix `fve` (`@import 'tailwindcss' prefix(fve)` in
+ * `src/styles.css`), so every one is a class no host writes by accident —
+ * `.fve\:flex`, `.fve\:md\:w-64` — and a host's `.w-full` or
+ * `sm:grid-cols-4` is never the same rule as ours. A selector whose subject
+ * starts with such a class is left exactly as Tailwind wrote it: it can only
+ * match an element that wears one of our classes, so it needs no boundary,
+ * and it gains no weight, so a host's own breakpoint class on its own
+ * markup inside our surface wins or loses by its own cascade alone (G16's
+ * `:is()` weight, which made every host class with a base of ours lose
+ * inside the scope, is gone).
  *
- * **Every rule weighs one class more than its source wrote it, so the
- * host's import order stops mattering** (G16). The scope is `:is()`, which
- * weighs its heaviest argument — one class — and it is put on every rule of
- * the file, the ones that already name a boundary too (the `dark:` variant,
- * the rules written against `.fve-root`). The cascade among this file's own
- * rules is therefore exactly what the sources produced: each of them moved by
- * the same class. What changes is the tie with a host's Tailwind. Its
- * utilities and ours fill the same `utilities` layer, where a tie in weight
- * goes to whichever stylesheet came later, so a host that imported this file
- * before its own saw its bare `.w-full` and `.flex-col` beat our `md:w-64`
- * and `md:flex-row` on our own surfaces — a workbench whose view list took
- * the whole row (the compensation console, 2026-09-25). One class more and
- * ours win on our surfaces in either order; outside them ours match nothing,
- * so the host's own markup is untouched in either order too.
+ * Everything else is still scoped: Tailwind's preflight resets `*`, `html`,
+ * headings, lists and buttons on the whole page; the base layer, the theme's
+ * rules on `data-slot` (a host's own shadcn components carry the same
+ * slots) and the grid adapter's bare `.react-grid-*` classes would reach a
+ * host's markup; and the token blocks set custom properties a host reads.
+ * `postcss-prefix-selector` rewrites each such selector's subject to the
+ * boundaries and their descendants —
+ * `:where(.fve-root, .fve-root *, .fve-tokens, .fve-tokens *)` — rather than
+ * a descendant prefix, because a popup carries the root class itself. The
+ * scope is a `:where()`, weighing nothing, so every rule of the file keeps
+ * the weight its source wrote and the cascade among them is exactly what the
+ * sources produced. A rule whose subject can never be inside a boundary
+ * (`html`) simply stops matching, which is how the host keeps its
+ * typography.
  *
  * A selector part that is exactly `:root` or `:host` becomes the boundaries
- * themselves. Nothing else is exempt
- * — a rule that only sets custom properties is rewritten like any other,
- * because a host reads custom properties. Tailwind emits its theme variables
- * (`--spacing`, `--text-sm`, `--font-sans`, `--radius-md`, …) on `:root, :host`,
- * so left there they would overwrite a host Tailwind's values for the same
- * names, or be overwritten by them; and a variable derived from a token of
- * this root (`--radius-md: calc(var(--radius) * .8)`) is only valid where the
- * token is, which is a boundary and nowhere else. `*` becoming
- * `*:is(…)` is right for the same reason: Tailwind's `--tw-*` defaults
- * then apply to each boundary and to everything inside it.
+ * themselves. Nothing else is exempt — a rule that only sets custom
+ * properties is rewritten like any other, because a host reads custom
+ * properties. `*` becoming `*:where(…)` is right for the same reason:
+ * Tailwind's `--tw-*` defaults then apply to each boundary and to everything
+ * inside it. Tailwind's own theme variables are not declared at all: the
+ * theme is inlined (`theme(inline)`), because with the prefix they would be
+ * named `--fve-*`, the host's namespace (`--fve-font-sans` is a host token).
  * Only `@property` registrations stay global, because registration has no
  * selector by nature — and what it registers is the `--tw-*` and animation
  * names a host Tailwind registers identically — and the preset reset
@@ -88,16 +85,22 @@ const PSEUDO_ELEMENT =
 export const BOUNDARIES = ['.fve-root', '.fve-tokens'];
 
 /**
- * The subject every rule is pinned to: each boundary, and what is inside it,
- * weighing one class.
+ * The subject every scoped rule is pinned to: each boundary, and what is
+ * inside it, weighing nothing.
  */
-export const SCOPE = `:is(${BOUNDARIES.flatMap(boundary => [
+export const SCOPE = `:where(${BOUNDARIES.flatMap(boundary => [
   boundary,
   `${boundary} *`,
 ]).join(', ')})`;
 
 /** The preset reset's layer, whose one rule is left as it is written. */
 export const RESET_LAYER = 'fve-reset';
+
+/**
+ * The start of every utility Tailwind compiles with the `fve` prefix, as it
+ * escapes it in a selector: `.fve\:flex`.
+ */
+export const UTILITY = '.fve\\:';
 
 /** `SCOPE` put on one selector part, before a pseudo-element if it has one. */
 function scoped(part) {
@@ -120,7 +123,7 @@ export function scopeUtilities() {
         return part;
       if (part === ':root' || part === ':host')
         return BOUNDARIES.map(scoped).join(', ');
-      if (part.includes(SCOPE)) return part;
+      if (part.includes(SCOPE) || part.startsWith(UTILITY)) return part;
       return scoped(part);
     },
   });

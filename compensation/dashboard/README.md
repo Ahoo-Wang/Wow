@@ -51,7 +51,7 @@ Wow 客户端与视图引擎来自同仓的工作区包 `@ahoo-wang/wow-client`�
 - **能用什么由服务端说**（N5 C6）：`src/views/engine.ts` 的两个数据源带上 `describe`（wow-client 的 `QueryDescriptorClient.describeSnapshot`／`describeEventStream`，同一个 `fetcher`），引擎先读 `execution_failed/snapshot/schema` 与 `execution_failed/event/schema` 的能力描述，把定义收窄到描述准入的算子、排序、分组与上限，再发第一条查询；描述每个源读一次，之后按引擎的节奏带版本重新验证（304）。定义不再替服务端写上限（页大小、窗口、分析组数都读描述）。服务端没有描述（Wow 9.2 之前）时照定义运行。
 - 「搜索错误」是全文检索，**只在存储答得出时出现**：Elasticsearch 快照存储按短语检索；MongoDB 快照存储只在集合上建了文本索引时才描述全文能力，没建时搜索框不画、也不会发出注定被拒的检索（方案 G15，随 C6 关闭）。
 - **只用引擎的公开面**（方案判据 7）：ESLint 只放行 `@ahoo-wang/wow-view-engine` 的根、`/react`、`/ui` 与 CSS 入口，拒绝字符串里的 `fve-` 类名；`src/engineBoundary.test.ts` 断言样式表里没有 `.fve-` 选择器——引擎的外观只经 `--fve-*` 变量调。开发构建里引擎对定义的发现（本部署缺的能力、读不到描述）以 `console.debug` 打出，生产构建不打。
-- `src/main.tsx` 先引入 `index.css` 再引入引擎样式：两者都写 Tailwind 的 `utilities` 层，引擎的放在后面，它的响应式类才不被控制台的全局工具类盖掉（方案 G16）。
+- 引擎样式与 `index.css` 的次序无关：引擎的工具类带 `fve:` 前缀，与控制台的不同名，控制台写在引擎面里的断点类照常生效（引擎 D66）。外壳要用引擎的「分组底」时写 `fve:bg-canvas`。
 
 ## 验证命令
 

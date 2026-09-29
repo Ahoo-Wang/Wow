@@ -246,7 +246,7 @@ describe('a dialog themes its backdrop as well as its surface', () => {
 
     const surface = await screen.findByRole('dialog');
 
-    expect(surface.classList.contains('bg-popover')).toBe(true);
+    expect(surface.classList.contains('fve:bg-popover')).toBe(true);
     expect(surface.getAttribute('data-slot')).toBe('dialog-content');
   });
 
@@ -282,7 +282,7 @@ describe('a dialog themes its backdrop as well as its surface', () => {
       classes.indexOf('is-open'),
     );
     // The vendored popup classes survive both wrappers too.
-    expect(surface.classList.contains('bg-popover')).toBe(true);
+    expect(surface.classList.contains('fve:bg-popover')).toBe(true);
   });
 
   it('still closes from the close button', async () => {
@@ -320,11 +320,11 @@ describe("a side panel's backdrop leaves with the panel (#3690)", () => {
     const panel = document.querySelector('[data-slot="sheet-content"]');
     // Its fade ended 100ms before the panel's slide, and it snapped back.
     expect(duration(backdrop)).toEqual(duration(panel));
-    expect(backdrop?.classList).toContain('fill-mode-forwards');
+    expect(backdrop?.classList).toContain('fve:fill-mode-forwards');
     expect(backdrop?.className).toContain(
-      'supports-backdrop-filter:backdrop-blur-none',
+      'fve:supports-backdrop-filter:backdrop-blur-none',
     );
-    expect(backdrop?.className).not.toContain('backdrop-blur-xs');
+    expect(backdrop?.className).not.toContain('fve:backdrop-blur-xs');
   });
 });
 
@@ -381,14 +381,16 @@ describe('an alert dialog themes its backdrop as well as its surface', () => {
     // question it asks throughout is whether our copy of a popup's markup
     // still carries what the registry's does, which is a question about
     // class strings and about nothing else.
-    expect(backdrop?.classList.contains('bg-black/50')).toBe(true);
-    expect(backdrop?.classList.contains('bg-black/10')).toBe(false);
+    expect(backdrop?.classList.contains('fve:bg-black/50')).toBe(true);
+    expect(backdrop?.classList.contains('fve:bg-black/10')).toBe(false);
     // And its own card is ringed heavily enough to stand on another card,
     // which is the half of this a scrim cannot do: near black there is
     // nothing left to darken, so the dark theme separates the two layers by
     // this edge alone.
     expect(
-      screen.getByRole('alertdialog').classList.contains('ring-foreground/40'),
+      screen
+        .getByRole('alertdialog')
+        .classList.contains('fve:ring-foreground/40'),
     ).toBe(true);
   });
 
@@ -515,7 +517,7 @@ const KINDS: PopupKind[] = [
     // A popover this package opens can be a list as long as the definition
     // has fields, so it gets the scroll port the select, the menu and the
     // combobox already have.
-    adds: ['max-h-(--available-height)', 'overflow-y-auto'],
+    adds: ['fve:max-h-(--available-height)', 'fve:overflow-y-auto'],
     vendored: (
       <Popover open>
         <VendoredPopoverContent>Fields</VendoredPopoverContent>
@@ -754,7 +756,7 @@ describe('the composed popups keep step with the registry', () => {
     [...element.classList]
       .filter(name => name !== 'fve-root')
       .map(name =>
-        name === 'ring-foreground/40' ? 'ring-foreground/10' : name,
+        name === 'fve:ring-foreground/40' ? 'fve:ring-foreground/10' : name,
       )
       .sort();
 

@@ -460,7 +460,7 @@ describe('the tooltip of a bar chart', () => {
     expect(html).not.toContain('<b>');
     expect(html).not.toContain('<i>');
     expect(html).toContain('1 &amp; 2');
-    expect(tooltipHtml('', [])).not.toContain('font-medium');
+    expect(tooltipHtml('', [])).not.toContain('fve:font-medium');
   });
 });
 

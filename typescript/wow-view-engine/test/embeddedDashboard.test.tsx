@@ -288,12 +288,12 @@ describe('EmbeddedDashboard', () => {
     });
 
     const title = await screen.findByRole('heading', { name: 'Note' });
-    expect(title.className).toContain('sr-only');
+    expect(title.className).toContain('fve:sr-only');
     const head = title.closest('[data-slot="card-header"]');
     expect(head?.getAttribute('data-untitled')).toBe('true');
     // Nothing else stood in the header, so the row goes with the title
     // (surviving class assertion: `sr-only` is the whole of the contract).
-    expect(head?.className).toContain('sr-only');
+    expect(head?.className).toContain('fve:sr-only');
   });
 
   it('names a record view as one it cannot show: that is EmbeddedView', async () => {

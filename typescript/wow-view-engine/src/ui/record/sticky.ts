@@ -80,9 +80,9 @@ export type PinSide = 'left' | 'right';
  * carries a value per theme (`styles.css` has the measurements).
  */
 const EDGE = {
-  left: 'in-data-[overflowing]:shadow-[inset_-1px_0_0_var(--border),8px_0_8px_-8px_var(--_fve-pin-shadow)]',
+  left: 'fve:in-data-[overflowing]:shadow-[inset_-1px_0_0_var(--border),8px_0_8px_-8px_var(--_fve-pin-shadow)]',
   right:
-    'in-data-[overflowing]:shadow-[inset_1px_0_0_var(--border),-8px_0_8px_-8px_var(--_fve-pin-shadow)]',
+    'fve:in-data-[overflowing]:shadow-[inset_1px_0_0_var(--border),-8px_0_8px_-8px_var(--_fve-pin-shadow)]',
 } as const;
 
 /**
@@ -105,11 +105,13 @@ const EDGE = {
  */
 function held(pin: StickyPin): string {
   return cn(
-    'sticky z-10 bg-inherit',
+    'fve:sticky fve:z-10 fve:bg-inherit',
     // Against the port's own edge. On the right that is the only place there
     // is; on the left it is where the two chrome columns sit, with nothing
     // outside them to clear.
-    pin.side === 'right' ? 'right-0' : pin.offset === undefined && 'left-0',
+    pin.side === 'right'
+      ? 'fve:right-0'
+      : pin.offset === undefined && 'fve:left-0',
     pin.edge && EDGE[pin.side],
   );
 }
@@ -238,7 +240,7 @@ export function stickyHead(
  * classes on one element is a race between stylesheet rules rather than a
  * choice, so this is the alternative to a pin and never an addition to one.
  */
-export const OWN_LAYER = 'relative isolate';
+export const OWN_LAYER = 'fve:relative fve:isolate';
 
 /**
  * A band at one end of the table: the header at the top, the summaries at
@@ -260,8 +262,8 @@ export const OWN_LAYER = 'relative isolate';
  * band is hovered as a row — in the header only the button in it is.
  */
 export const BAND = {
-  top: 'bg-table-header',
-  bottom: 'bg-totals',
+  top: 'fve:bg-table-header',
+  bottom: 'fve:bg-totals',
 } as const;
 
 /**
@@ -271,8 +273,8 @@ export const BAND = {
  * parts them.
  */
 export const BAND_ROW = {
-  top: 'bg-table-header hover:bg-table-header',
-  bottom: 'bg-totals hover:bg-totals',
+  top: 'fve:bg-table-header fve:hover:bg-table-header',
+  bottom: 'fve:bg-totals fve:hover:bg-totals',
 } as const;
 
 /** What a band wears, and which end of the scroll port it holds. */
@@ -293,7 +295,11 @@ export interface StickyBandProps {
  */
 export function stickyBand(at: 'top' | 'bottom'): StickyBandProps {
   return {
-    className: cn(BAND[at], 'sticky z-20', at === 'top' ? 'top-0' : 'bottom-0'),
+    className: cn(
+      BAND[at],
+      'fve:sticky fve:z-20',
+      at === 'top' ? 'fve:top-0' : 'fve:bottom-0',
+    ),
     'data-sticky': at,
   };
 }
@@ -339,11 +345,12 @@ export function stickyPort(scrolls: boolean): StickyPortProps {
   return scrolls
     ? {
         className:
-          'relative max-h-[var(--fve-record-table-max-h,70vh)] overflow-auto [&>[data-slot=table-container]]:overflow-visible',
+          'fve:relative fve:max-h-[var(--fve-record-table-max-h,70vh)] fve:overflow-auto fve:[&>[data-slot=table-container]]:overflow-visible',
         'data-scrolls': '',
       }
     : {
-        className: 'relative [&>[data-slot=table-container]]:overflow-visible',
+        className:
+          'fve:relative fve:[&>[data-slot=table-container]]:overflow-visible',
       };
 }
 

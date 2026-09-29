@@ -161,7 +161,7 @@ function CandidateValue({
         <div
           role="status"
           data-slot="candidate-status"
-          className="text-muted-foreground px-2 py-1.5 text-xs"
+          className="fve:text-muted-foreground fve:px-2 fve:py-1.5 fve:text-xs"
         >
           {status}
         </div>
@@ -171,7 +171,7 @@ function CandidateValue({
           role="alert"
           data-slot="candidate-status"
           data-failed=""
-          className="text-destructive flex items-center justify-between gap-2 px-2 py-1.5 text-xs"
+          className="fve:text-destructive fve:flex fve:items-center fve:justify-between fve:gap-2 fve:px-2 fve:py-1.5 fve:text-xs"
         >
           <span>{messages.label('label.filter.candidates-failed')}</span>
           <Button type="button" variant="ghost" size="xs" onClick={retry}>
@@ -180,12 +180,12 @@ function CandidateValue({
         </div>
       )}
       {state.status === 'success' && state.nextCursor !== null && (
-        <div className="px-1 py-1">
+        <div className="fve:px-1 fve:py-1">
           <Button
             type="button"
             variant="ghost"
             size="xs"
-            className="w-full"
+            className="fve:w-full"
             disabled={state.loadingMore}
             onClick={more}
           >
@@ -230,7 +230,7 @@ function CandidateValue({
           aria-label={label}
           aria-invalid={invalid}
           placeholder={messages.label('label.filter.search-candidates')}
-          className="w-full"
+          className="fve:w-full"
         />
         <ComboboxContent className={VALUE_LIST}>
           {empty}
@@ -266,10 +266,10 @@ function CandidateValue({
                     aria-label={messages.label('label.filter.remove-value', {
                       value: item.label,
                     })}
-                    className="-ml-1 opacity-50 hover:opacity-100"
+                    className="fve:-ml-1 fve:opacity-50 fve:hover:opacity-100"
                     data-slot="combobox-chip-remove"
                   >
-                    <XIcon className="pointer-events-none" />
+                    <XIcon className="fve:pointer-events-none" />
                   </ComboboxPrimitive.ChipRemove>
                 </ComboboxChip>
               ))}
@@ -301,4 +301,4 @@ function CandidateValue({
  * first three letters.
  */
 const VALUE_LIST =
-  'w-max min-w-(--anchor-width) max-w-[min(28rem,var(--available-width))]';
+  'fve:w-max fve:min-w-(--anchor-width) fve:max-w-[min(28rem,var(--available-width))]';

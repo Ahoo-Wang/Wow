@@ -90,7 +90,7 @@ export function TitleBar({
       // The rule runs the whole width of the column, under `main`'s own
       // padding, so it meets the sidebar's edge and the two heads end
       // on one continuous line rather than two dashes with a gap.
-      className="border-border -mx-4 border-b px-4 pb-3"
+      className="fve:border-border fve:-mx-4 fve:border-b fve:px-4 fve:pb-3"
     >
       <ViewHeader
         state={state}

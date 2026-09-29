@@ -117,13 +117,13 @@ describe('the result block', () => {
     // stories’.
     // A band rather than a card: one rule across its top, and its sides
     // and bottom are the work column's own edges, bled through its padding.
-    expect(result.className).toContain('border-t');
-    expect(result.className).toContain('-mx-4');
-    expect(result.className).not.toContain('rounded-lg');
+    expect(result.className).toContain('fve:border-t');
+    expect(result.className).toContain('fve:-mx-4');
+    expect(result.className).not.toContain('fve:rounded-lg');
     // But no padding of its own — the rows go to the edge; what needs a
     // margin (the toolbar, the pagination, a strip) gets it by slot.
     expect(result.className).not.toMatch(/(^|\s)p-\d/);
-    expect(result.className).not.toContain('bg-card');
+    expect(result.className).not.toContain('fve:bg-card');
 
     cleanup();
     await open({ resultFramed: false });

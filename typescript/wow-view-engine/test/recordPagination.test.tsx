@@ -84,12 +84,12 @@ describe('RecordPagination counts the records', () => {
     // `className` is for — there is no state behind a length or a
     // direction, and jsdom lays nothing out. The pixels are the browser
     // stories’.
-    expect(bar.className).toContain('flex-wrap');
+    expect(bar.className).toContain('fve:flex-wrap');
     expect(screen.getByText('42 records in all').className).toContain(
-      'whitespace-nowrap',
+      'fve:whitespace-nowrap',
     );
     // The controls end the line they land on, first or second.
-    expect(bar.lastElementChild!.className).toContain('ml-auto');
+    expect(bar.lastElementChild!.className).toContain('fve:ml-auto');
   });
 
   /** A cursor source was never asked for a total, so it claims none. */

@@ -169,7 +169,7 @@ export function ResultToolbar({
     <Toolbar
       data-slot="result-toolbar"
       aria-label={messages.label('label.toolbar.title')}
-      className={`flex flex-wrap items-center ${SPACE.GROUPS}`}
+      className={`fve:flex fve:flex-wrap fve:items-center ${SPACE.GROUPS}`}
     >
       {/* Nothing at all when nothing is selected: the empty box that used to
           stand here held a button's height so that picking the first row did
@@ -199,7 +199,7 @@ export function ResultToolbar({
           the bar ends whether it took one line or two. */}
       <div
         data-slot="toolbar-arrangement"
-        className={`ml-auto flex flex-wrap items-center justify-end ${SPACE.GROUPS}`}
+        className={`fve:ml-auto fve:flex fve:flex-wrap fve:items-center fve:justify-end ${SPACE.GROUPS}`}
       >
         {/* Only the definition's layouts, in its order — and nothing at all
           when there is no choice to make, unless the view is saved in a

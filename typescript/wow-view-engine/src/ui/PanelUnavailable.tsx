@@ -205,7 +205,7 @@ export function PanelUnavailable({
           : 'label.panel.way-out.edit-content',
       );
   return (
-    <Empty data-slot="panel-unavailable" className="p-4">
+    <Empty data-slot="panel-unavailable" className="fve:p-4">
       <EmptyHeader>
         <EmptyMedia variant="icon">
           <UnplugIcon />
@@ -220,7 +220,7 @@ export function PanelUnavailable({
       </EmptyHeader>
       {remove && (
         <EmptyContent>
-          <div className="flex flex-wrap justify-center gap-2">
+          <div className="fve:flex fve:flex-wrap fve:justify-center fve:gap-2">
             {replace && (
               <Button variant="outline" size="sm" onClick={replace}>
                 <ArrowRightLeftIcon data-icon="inline-start" />

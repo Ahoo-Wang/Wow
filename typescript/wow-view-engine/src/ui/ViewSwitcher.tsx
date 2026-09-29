@@ -157,7 +157,7 @@ export function ViewSwitcher({
             // same pair the sidebar shows when it is open. `cn` drops the
             // vendored size along with it, so the pinning rule in
             // `styles.css` no longer matches this button.
-            className="w-0 min-w-[calc(6em+3.25rem)] max-w-fit grow justify-start text-sm"
+            className="fve:w-0 fve:min-w-[calc(6em+3.25rem)] fve:max-w-fit fve:grow fve:justify-start fve:text-sm"
           />
         }
       >
@@ -165,7 +165,10 @@ export function ViewSwitcher({
         {/* The same 6em floor `ViewHeader` puts under the heading, here
             keeping the label off the icons beside it once the trigger is at
             its own floor above. */}
-        <span data-slot="view-switcher-label" className="min-w-[6em] truncate">
+        <span
+          data-slot="view-switcher-label"
+          className="fve:min-w-[6em] fve:truncate"
+        >
           {choosing ? name : messages.say(currentTitle)}
         </span>
         {/* The trigger's own foreground, not `muted`: an icon inside a
@@ -175,7 +178,7 @@ export function ViewSwitcher({
         <ChevronDownIcon />
       </DropdownMenuTrigger>
 
-      <DropdownMenuContent className="min-w-56">
+      <DropdownMenuContent className="fve:min-w-56">
         {VIEW_AUDIENCES.map(audience => {
           const items = list.items.filter(
             item => audienceOf(item.scope) === audience,
@@ -238,8 +241,10 @@ function SwitcherItem({ item }: { item: ViewInstanceSummary }) {
   return (
     <DropdownMenuRadioItem value={item.id} closeOnClick>
       <Kind aria-hidden />
-      <span className="truncate">{say(item.title)}</span>
-      {isSystemScope(item.scope) && <SystemMark className="mr-4 ml-auto" />}
+      <span className="fve:truncate">{say(item.title)}</span>
+      {isSystemScope(item.scope) && (
+        <SystemMark className="fve:mr-4 fve:ml-auto" />
+      )}
     </DropdownMenuRadioItem>
   );
 }

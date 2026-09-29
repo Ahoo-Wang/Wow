@@ -31,7 +31,8 @@
  * labels drawn *inside* a chart, where density is the point, and the
  * `AND`/`OR` code a menu item wears in front of the sentence it stands for.
  */
-export const TEXT_UI = 'text-[length:var(--_fve-text-ui)] leading-[1.125rem]';
+export const TEXT_UI =
+  'fve:text-[length:var(--_fve-text-ui)] fve:leading-[1.125rem]';
 
 /**
  * A heading the keyboard is *sent* to when a panel changes level
@@ -42,7 +43,8 @@ export const TEXT_UI = 'text-[length:var(--_fve-text-ui)] leading-[1.125rem]';
  * it, which rings as every control does; a screen reader reads the heading
  * it landed on either way.
  */
-export const LANDING_HEADING = 'text-base font-semibold outline-none';
+export const LANDING_HEADING =
+  'fve:text-base fve:font-semibold fve:outline-none';
 
 /**
  * The four distances this package puts between things, and the one surface
@@ -62,10 +64,10 @@ export const LANDING_HEADING = 'text-base font-semibold outline-none';
  * | `WITHIN`  | controls inside one group (4px)             |
  */
 export const SPACE = {
-  BLOCKS: 'gap-4',
-  ROWS: 'gap-3',
-  GROUPS: 'gap-2',
-  WITHIN: 'gap-1',
+  BLOCKS: 'fve:gap-4',
+  ROWS: 'fve:gap-3',
+  GROUPS: 'fve:gap-2',
+  WITHIN: 'fve:gap-1',
 } as const;
 
 /**
@@ -90,4 +92,4 @@ export const FIXED_BOARD_WIDTH = 1200;
  * border. The conditions inside it are the bordered things; a border around
  * a row of bordered pills was the box-in-box the layout was rebuilt to lose.
  */
-export const TRAY = 'rounded-lg bg-muted/40 p-3';
+export const TRAY = 'fve:rounded-lg fve:bg-muted/40 fve:p-3';

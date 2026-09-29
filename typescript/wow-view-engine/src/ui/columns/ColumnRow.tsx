@@ -211,9 +211,9 @@ export function ColumnRow({
       // `SPACE.WITHIN` between the handle, the checkbox and the name — they
       // are one group, the row's subject — and the row's own `SPACE.GROUPS`
       // before the controls that act on it.
-      className="gap-y-0.5"
+      className="fve:gap-y-0.5"
     >
-      <ItemMedia className="gap-1">
+      <ItemMedia className="fve:gap-1">
         <DragHandle
           ref={handleRef}
           label={messages.label('label.columns.drag', { field: label })}
@@ -248,8 +248,8 @@ export function ColumnRow({
         />
       </ItemMedia>
 
-      <ItemContent className="min-w-0">
-        <ItemTitle className="max-w-full">{label}</ItemTitle>
+      <ItemContent className="fve:min-w-0">
+        <ItemTitle className="fve:max-w-full">{label}</ItemTitle>
       </ItemContent>
 
       <ItemActions>
@@ -275,7 +275,7 @@ export function ColumnRow({
           >
             <SelectTrigger
               size="sm"
-              className="w-28"
+              className="fve:w-28"
               aria-label={messages.label('label.columns.summary', {
                 field: label,
               })}
@@ -333,12 +333,12 @@ export function ColumnRow({
         >
           <PinIcon
             className={cn(
-              'text-muted-foreground',
+              'fve:text-muted-foreground',
               // Pinned is a filled pin in the row's own ink; unpinned is the
               // outline, quiet. A pin the cap let go is filled — the config
               // holds it — and faded, because the table is not drawing it.
-              pinned && 'fill-current text-foreground',
-              released && 'opacity-50',
+              pinned && 'fve:fill-current fve:text-foreground',
+              released && 'fve:opacity-50',
             )}
           />
         </IconButton>
@@ -361,8 +361,11 @@ export function ColumnRow({
             // `basis-full` puts it on a line of its own: the row is one
             // wrapping flex container now, not a column with a row in it.
             NOTES[note].shown
-              ? ['flex basis-full items-start gap-1 pl-8', TEXT_UI]
-              : 'sr-only',
+              ? [
+                  'fve:flex fve:basis-full fve:items-start fve:gap-1 fve:pl-8',
+                  TEXT_UI,
+                ]
+              : 'fve:sr-only',
           )}
         >
           {row.broken && (
@@ -370,7 +373,10 @@ export function ColumnRow({
             // difference a reader sees before reading anything, and it is
             // `aria-hidden` because the sentence beside it is the one thing
             // a reader hears.
-            <CircleSlashIcon aria-hidden className="mt-0.5 size-3 shrink-0" />
+            <CircleSlashIcon
+              aria-hidden
+              className="fve:mt-0.5 fve:size-3 fve:shrink-0"
+            />
           )}
           {messages.label(NOTES[note].key)}
         </FieldDescription>

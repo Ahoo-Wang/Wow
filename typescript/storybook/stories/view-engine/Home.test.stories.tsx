@@ -884,9 +884,9 @@ export const OnAPhone: Story = {
     const calendar = await within(sheet).findByRole('button', {
       name: '日期',
     });
-    await expect(getComputedStyle(calendar.closest('div.flex')!).flexWrap).toBe(
-      'wrap',
-    );
+    await expect(
+      getComputedStyle(calendar.closest('div.fve\\:flex')!).flexWrap,
+    ).toBe('wrap');
     const inside = (chip: Element) => {
       const edge = chip.getBoundingClientRect().right;
       return [...chip.querySelectorAll('*')].every(

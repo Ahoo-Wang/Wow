@@ -323,7 +323,7 @@ describe('RecordCards on its own', () => {
       // the pixels are measured in the browser.
       // A **surviving class assertion**: the card's own grid template.
       expect(row.className).toContain(
-        '[&_[data-slot=item-description]]:text-[length:var(--_fve-text-ui)]',
+        'fve:[&_[data-slot=item-description]]:text-[length:var(--_fve-text-ui)]',
       );
     }
   });
@@ -450,7 +450,7 @@ describe('RecordCards on its own', () => {
     expect(
       container
         .querySelector('[data-slot="record-cards"]')
-        ?.className.includes('sm:grid-cols-2'),
+        ?.className.includes('fve:sm:grid-cols-2'),
     ).toBe(true);
   });
 });

@@ -65,13 +65,13 @@ function OverviewPage({ engine }: { engine: ViewEngine }) {
       data-host-page
       // The host's own markup, painted from View Engine's tokens as the
       // shell is (D17-10); the page area around it gives the gutter.
-      className="fve-tokens bg-canvas text-foreground flex min-w-0 flex-col gap-4"
+      className="fve-tokens fve:bg-canvas fve:text-foreground fve:flex fve:min-w-0 fve:flex-col fve:gap-4"
     >
       {/* Not a `header`: the shell's bar is the page's one banner. */}
-      <div className="flex flex-col gap-1">
-        <p className="text-muted-foreground text-xs">{today}</p>
-        <h1 className="text-xl font-semibold">运营概览</h1>
-        <p className="text-muted-foreground text-sm">
+      <div className="fve:flex fve:flex-col fve:gap-1">
+        <p className="fve:text-muted-foreground fve:text-xs">{today}</p>
+        <h1 className="fve:text-xl fve:font-semibold">运营概览</h1>
+        <p className="fve:text-muted-foreground fve:text-sm">
           补偿服务里执行失败的现状：还在等人处理的、今天新开的，以及这个月每天的走势。
         </p>
       </div>

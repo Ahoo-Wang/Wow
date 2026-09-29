@@ -74,7 +74,7 @@ export function ImageFailed({ offer }: { offer: ChartImageOffer }) {
     <LineAlert
       tone="error"
       frame="bare"
-      className="basis-full"
+      className="fve:basis-full"
       data-slot="export-image-failed"
     >
       <AlertTitle>{messages.label('label.export.image-failed')}</AlertTitle>
@@ -127,7 +127,7 @@ export function ExportMenu({
         >
           <DownloadIcon />
         </IconTooltip>
-        <HandOffMenuContent align="end" className="min-w-48">
+        <HandOffMenuContent align="end" className="fve:min-w-48">
           <DropdownMenuGroup>
             {data && (
               <DialogMenuItem

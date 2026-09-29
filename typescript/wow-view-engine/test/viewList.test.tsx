@@ -235,7 +235,7 @@ describe('ViewList on its own', () => {
     // fact rather than only drawing it.
     const tags = screen.getAllByText('system');
     expect(tags).toHaveLength(1);
-    expect(tags[0].className).toContain('sr-only');
+    expect(tags[0].className).toContain('fve:sr-only');
     const system = tags[0].closest('button');
     expect(system?.textContent).toContain('All orders');
     expect(
@@ -331,9 +331,9 @@ describe('ViewList on its own', () => {
     // and the three `sidebar` tokens are the whole of that fact — there is
     // no state behind them for an element to carry, and jsdom paints
     // nothing. The ratios are measured by the browser stories.
-    expect(nav.className).toContain('bg-sidebar');
-    expect(nav.className).toContain('text-sidebar-foreground');
-    expect(nav.className).toContain('border-sidebar-border');
+    expect(nav.className).toContain('fve:bg-sidebar');
+    expect(nav.className).toContain('fve:text-sidebar-foreground');
+    expect(nav.className).toContain('fve:border-sidebar-border');
   });
 
   it('marks the open view as a raised sheet rather than with another grey', () => {

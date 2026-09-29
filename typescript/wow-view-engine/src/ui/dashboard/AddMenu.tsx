@@ -77,7 +77,7 @@ export function AddMenu({
         {messages.label('label.dashboard.add')}
         <ChevronDownIcon data-icon="inline-end" />
       </DropdownMenuTrigger>
-      <HandOffMenuContent className="min-w-48">
+      <HandOffMenuContent className="fve:min-w-48">
         <DropdownMenuGroup>
           <DropdownMenuLabel>
             {messages.label('label.dashboard.add.data')}
@@ -140,7 +140,7 @@ export function AddMenu({
 export function EmptyBoardActions({ add, canCreate }: AddCommands) {
   const messages = useViewMessages();
   return (
-    <div className="flex flex-wrap justify-center gap-2">
+    <div className="fve:flex fve:flex-wrap fve:justify-center fve:gap-2">
       <Button data-slot="empty-add-view" onClick={() => add('saved-view')}>
         <LayoutListIcon data-icon="inline-start" />
         {messages.label('label.dashboard.empty.add-view')}

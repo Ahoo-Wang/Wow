@@ -222,9 +222,9 @@ describe('ViewHeader', () => {
     // `className` is for — there is no state behind a length or a
     // direction, and jsdom lays nothing out. The pixels are the browser
     // stories’.
-    expect(title().className).toContain('w-0');
+    expect(title().className).toContain('fve:w-0');
     expect(title().className).toContain('grow');
-    expect(title().className).toContain('min-w-[6em]');
+    expect(title().className).toContain('fve:min-w-[6em]');
   });
 
   /**
@@ -241,7 +241,7 @@ describe('ViewHeader', () => {
     const band = document.querySelector<HTMLElement>(
       '[data-slot="view-header-band"]',
     )!;
-    expect(band.className).toContain('@container/header');
+    expect(band.className).toContain('fve:@container/header');
 
     // The tag keeps its word in the accessible name at every width and puts
     // it back on screen above `@md`: a clipped "personal" would be worse
@@ -249,14 +249,14 @@ describe('ViewHeader', () => {
     // whole of it, never half.
     const tag = within(group('view-identity')).getByText('personal');
     expect(tag.getAttribute('data-slot')).toBe('view-audience');
-    expect(tag.className).toContain('@max-md/header:sr-only');
+    expect(tag.className).toContain('fve:@max-md/header:sr-only');
 
     // Save is the command a narrow screen most needs; below `@md` it is its
     // icon, and its name is still the word.
     expect(
       screen.getByRole('button', { name: 'Save' }).querySelector('span')!
         .className,
-    ).toContain('@max-md/header:sr-only');
+    ).toContain('fve:@max-md/header:sr-only');
   });
 
   /**
@@ -276,7 +276,7 @@ describe('ViewHeader', () => {
       />,
     );
 
-    expect(group('view-controls').className).toContain('ml-auto');
+    expect(group('view-controls').className).toContain('fve:ml-auto');
   });
 
   it('says a shared view is shared', async () => {

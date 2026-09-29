@@ -42,18 +42,18 @@ function TooltipContent({
         alignOffset={alignOffset}
         side={side}
         sideOffset={sideOffset}
-        className="isolate z-50"
+        className="fve:isolate fve:z-50"
       >
         <TooltipPrimitive.Popup
           data-slot="tooltip-content"
           className={cn(
-            "z-50 inline-flex w-fit max-w-xs origin-(--transform-origin) items-center gap-1.5 rounded-md bg-foreground px-3 py-1.5 text-xs text-background has-data-[slot=kbd]:pr-1.5 data-[side=bottom]:slide-in-from-top-2 data-[side=inline-end]:slide-in-from-left-2 data-[side=inline-start]:slide-in-from-right-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 **:data-[slot=kbd]:relative **:data-[slot=kbd]:isolate **:data-[slot=kbd]:z-50 **:data-[slot=kbd]:rounded-sm data-[state=delayed-open]:animate-in data-[state=delayed-open]:fade-in-0 data-[state=delayed-open]:zoom-in-95 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
+            "fve:z-50 fve:inline-flex fve:w-fit fve:max-w-xs fve:origin-(--transform-origin) fve:items-center fve:gap-1.5 fve:rounded-md fve:bg-foreground fve:px-3 fve:py-1.5 fve:text-xs fve:text-background fve:has-data-[slot=kbd]:pr-1.5 fve:data-[side=bottom]:slide-in-from-top-2 fve:data-[side=inline-end]:slide-in-from-left-2 fve:data-[side=inline-start]:slide-in-from-right-2 fve:data-[side=left]:slide-in-from-right-2 fve:data-[side=right]:slide-in-from-left-2 fve:data-[side=top]:slide-in-from-bottom-2 fve:**:data-[slot=kbd]:relative fve:**:data-[slot=kbd]:isolate fve:**:data-[slot=kbd]:z-50 fve:**:data-[slot=kbd]:rounded-sm fve:data-[state=delayed-open]:animate-in fve:data-[state=delayed-open]:fade-in-0 fve:data-[state=delayed-open]:zoom-in-95 fve:data-open:animate-in fve:data-open:fade-in-0 fve:data-open:zoom-in-95 fve:data-closed:animate-out fve:data-closed:fade-out-0 fve:data-closed:zoom-out-95",
             className
           )}
           {...props}
         >
           {children}
-          <TooltipPrimitive.Arrow className="z-50 size-2.5 translate-y-[calc(-50%-2px)] rotate-45 rounded-[2px] bg-foreground fill-foreground data-[side=bottom]:top-1 data-[side=inline-end]:top-1/2! data-[side=inline-end]:-left-1 data-[side=inline-end]:-translate-y-1/2 data-[side=inline-start]:top-1/2! data-[side=inline-start]:-right-1 data-[side=inline-start]:-translate-y-1/2 data-[side=left]:top-1/2! data-[side=left]:-right-1 data-[side=left]:-translate-y-1/2 data-[side=right]:top-1/2! data-[side=right]:-left-1 data-[side=right]:-translate-y-1/2 data-[side=top]:-bottom-2.5" />
+          <TooltipPrimitive.Arrow className="fve:z-50 fve:size-2.5 fve:translate-y-[calc(-50%-2px)] fve:rotate-45 fve:rounded-[2px] fve:bg-foreground fve:fill-foreground fve:data-[side=bottom]:top-1 fve:data-[side=inline-end]:top-1/2! fve:data-[side=inline-end]:-left-1 fve:data-[side=inline-end]:-translate-y-1/2 fve:data-[side=inline-start]:top-1/2! fve:data-[side=inline-start]:-right-1 fve:data-[side=inline-start]:-translate-y-1/2 fve:data-[side=left]:top-1/2! fve:data-[side=left]:-right-1 fve:data-[side=left]:-translate-y-1/2 fve:data-[side=right]:top-1/2! fve:data-[side=right]:-left-1 fve:data-[side=right]:-translate-y-1/2 fve:data-[side=top]:-bottom-2.5" />
         </TooltipPrimitive.Popup>
       </TooltipPrimitive.Positioner>
     </TooltipPrimitive.Portal>

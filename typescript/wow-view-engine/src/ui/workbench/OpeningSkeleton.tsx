@@ -72,9 +72,9 @@ export function OpeningSkeleton({
       // and this one never does — it unmounts when the view arrives, and
       // the sentence would never have been read.
       aria-busy="true"
-      className={cn('flex min-w-0 flex-col', SPACE.BLOCKS)}
+      className={cn('fve:flex fve:min-w-0 fve:flex-col', SPACE.BLOCKS)}
     >
-      <span role="status" className="sr-only">
+      <span role="status" className="fve:sr-only">
         {messages.label(word('label.workbench.opening'))}
       </span>
 
@@ -85,18 +85,23 @@ export function OpeningSkeleton({
           data-slot="view-header-skeleton"
           aria-hidden
           className={cn(
-            'border-border -mx-4 flex min-h-10 items-center border-b px-4 pb-3',
+            'fve:border-border fve:-mx-4 fve:flex fve:min-h-10 fve:items-center fve:border-b fve:px-4 fve:pb-3',
             SPACE.GROUPS,
           )}
         >
           {/* The kind's icon, the view's name — the left group says which
               view this is — and two controls at the right end, which is
               where the ones about how it is being looked at stand. */}
-          <Skeleton className="size-5 shrink-0" />
-          <Skeleton className="h-5 w-40" />
-          <div className={cn('ml-auto flex items-center', SPACE.GROUPS)}>
-            <Skeleton className="h-8 w-20" />
-            <Skeleton className="size-8" />
+          <Skeleton className="fve:size-5 fve:shrink-0" />
+          <Skeleton className="fve:h-5 fve:w-40" />
+          <div
+            className={cn(
+              'fve:ml-auto fve:flex fve:items-center',
+              SPACE.GROUPS,
+            )}
+          >
+            <Skeleton className="fve:h-8 fve:w-20" />
+            <Skeleton className="fve:size-8" />
           </div>
         </div>
       )}
@@ -108,12 +113,17 @@ export function OpeningSkeleton({
         <div
           data-slot="result-toolbar"
           aria-hidden
-          className={cn('flex min-h-8 items-center', SPACE.GROUPS)}
+          className={cn('fve:flex fve:min-h-8 fve:items-center', SPACE.GROUPS)}
         >
-          <Skeleton className="h-4 w-32" />
-          <div className={cn('ml-auto flex items-center', SPACE.GROUPS)}>
+          <Skeleton className="fve:h-4 fve:w-32" />
+          <div
+            className={cn(
+              'fve:ml-auto fve:flex fve:items-center',
+              SPACE.GROUPS,
+            )}
+          >
             {Array.from({ length: CONTROLS }, (_unused, index) => (
-              <Skeleton key={index} className="size-8" />
+              <Skeleton key={index} className="fve:size-8" />
             ))}
           </div>
         </div>
@@ -121,10 +131,10 @@ export function OpeningSkeleton({
         <div
           data-slot="result-rows-skeleton"
           aria-hidden
-          className={cn('flex flex-col p-3', SPACE.ROWS)}
+          className={cn('fve:flex fve:flex-col fve:p-3', SPACE.ROWS)}
         >
           {Array.from({ length: ROWS }, (_unused, index) => (
-            <Skeleton key={index} className="h-4 w-full" />
+            <Skeleton key={index} className="fve:h-4 fve:w-full" />
           ))}
         </div>
       </ResultBlock>

@@ -137,7 +137,7 @@ function ReferenceLines(props: SpecProps) {
       {statisticGap && (
         <p
           data-slot="reference-statistic-gap"
-          className="text-quiet-foreground"
+          className="fve:text-quiet-foreground"
         >
           {gapReason(messages, { kind: 'average', gap: statisticGap })}
         </p>
@@ -208,7 +208,7 @@ function ReferenceLines(props: SpecProps) {
                 <NumberInput
                   label={messages.label('label.chart.reference-value')}
                   chrome="box"
-                  className="w-20"
+                  className="fve:w-20"
                   value={line.value}
                   onNumber={value => {
                     if (value !== null) setLine(index, { ...line, value });
@@ -261,7 +261,7 @@ function ReferenceLines(props: SpecProps) {
       <Button
         variant="ghost"
         size="sm"
-        className="self-start"
+        className="fve:self-start"
         data-slot="add-reference-line"
         onClick={() => setLines([...lines, { axis: 'left', value: 0 }])}
       >
@@ -338,7 +338,7 @@ function ReferenceBands(props: SpecProps) {
             <NumberInput
               label={messages.label('label.chart.band-from')}
               chrome="box"
-              className="w-20"
+              className="fve:w-20"
               value={band.from}
               onNumber={from => {
                 if (from !== null) setBand(index, { ...band, from });
@@ -346,13 +346,13 @@ function ReferenceBands(props: SpecProps) {
             />
             {/* The two ends read as one span, 「1,000 ～ 1,400」; each box is
                 named 从／到 for whoever does not see the mark. */}
-            <span aria-hidden className="text-muted-foreground">
+            <span aria-hidden className="fve:text-muted-foreground">
               ～
             </span>
             <NumberInput
               label={messages.label('label.chart.band-to')}
               chrome="box"
-              className="w-20"
+              className="fve:w-20"
               value={band.to}
               invalid={!ordered}
               describedBy={ordered ? undefined : `${orderId}-${index}`}
@@ -386,7 +386,7 @@ function ReferenceBands(props: SpecProps) {
               <p
                 id={`${orderId}-${index}`}
                 role="alert"
-                className="text-destructive basis-full"
+                className="fve:text-destructive fve:basis-full"
               >
                 {messages.label('label.chart.band-order')}
               </p>
@@ -397,7 +397,7 @@ function ReferenceBands(props: SpecProps) {
       <Button
         variant="ghost"
         size="sm"
-        className="self-start"
+        className="fve:self-start"
         data-slot="add-reference-band"
         onClick={() => setBands([...bands, fresh])}
       >
@@ -477,7 +477,7 @@ function DerivedLines(props: SpecProps) {
       name="derived"
       title={messages.label('label.chart.derived')}
     >
-      <p className="text-quiet-foreground">
+      <p className="fve:text-quiet-foreground">
         {messages.label('label.chart.derived.hint')}
       </p>
       {metrics.length > 1 && (
@@ -504,7 +504,7 @@ function DerivedLines(props: SpecProps) {
               : entry?.window,
         });
         return (
-          <div key={kind} className="flex flex-col gap-2">
+          <div key={kind} className="fve:flex fve:flex-col fve:gap-2">
             <CheckField
               data-slot={`chart-derived-${kind}`}
               label={messages.label(`label.chart.derived.add.${kind}`)}

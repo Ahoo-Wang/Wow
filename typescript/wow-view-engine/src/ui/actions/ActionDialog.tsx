@@ -135,7 +135,7 @@ export function ActionDialog({
         {refused.length > 0 && (
           <div
             data-slot="action-refused"
-            className="flex flex-col gap-1 text-sm text-muted-foreground"
+            className="fve:flex fve:flex-col fve:gap-1 fve:text-sm fve:text-muted-foreground"
           >
             <p>
               {messages.label(
@@ -146,7 +146,7 @@ export function ActionDialog({
               )}
             </p>
             <p>{messages.label('label.action.refused')}</p>
-            <ul className="list-disc pl-5">
+            <ul className="fve:list-disc fve:pl-5">
               {refused.map(group => (
                 <li key={group.reason}>
                   <span>
@@ -155,7 +155,7 @@ export function ActionDialog({
                       count: group.keys.length,
                     })}
                   </span>{' '}
-                  <span className="break-all">
+                  <span className="fve:break-all">
                     {keysOf(group.keys, messages)}
                   </span>
                 </li>

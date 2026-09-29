@@ -197,7 +197,7 @@ export function RecordPanel({
     return <PanelFailed error={table.error ?? undefined} onRetry={onRetry} />;
   if (table.loading && table.rows.length === 0) return <PanelLoading />;
   return (
-    <div className="flex flex-col gap-2">
+    <div className="fve:flex fve:flex-col fve:gap-2">
       <QueryStrip error={failed ? table.error : null} stale onRetry={onRetry} />
       {surface.status}
       {bulk && (
@@ -359,7 +359,7 @@ export function AnalysisPanel({
         spec={chart}
         columns={view.schema ?? view.columns}
         // Under the stale line the chart takes what is left of the panel.
-        className={failed ? 'min-h-0 flex-1' : 'h-full'}
+        className={failed ? 'fve:min-h-0 fve:flex-1' : 'fve:h-full'}
         cutShort={view.truncated || view.atLimit !== undefined}
         onPick={onPick}
         highlight={highlight}
@@ -395,7 +395,7 @@ export function AnalysisPanel({
       </>
     );
   return (
-    <div className="flex h-full flex-col gap-2">
+    <div className="fve:flex fve:h-full fve:flex-col fve:gap-2">
       <QueryStrip error={state.query.error} stale onRetry={onRetry} />
       {body}
       {menu}
@@ -503,7 +503,7 @@ function PanelFailed({
     <Empty
       data-slot="panel-failed"
       data-forbidden={forbidden || undefined}
-      className="p-4"
+      className="fve:p-4"
     >
       <EmptyHeader>
         <EmptyMedia variant="icon">
@@ -540,8 +540,10 @@ function PanelLoading() {
   const messages = useViewMessages();
   return (
     <div data-slot="panel-loading" aria-busy="true">
-      <span className="sr-only">{messages.label('label.status.loading')}</span>
-      <Skeleton aria-hidden="true" className="h-24 w-full" />
+      <span className="fve:sr-only">
+        {messages.label('label.status.loading')}
+      </span>
+      <Skeleton aria-hidden="true" className="fve:h-24 fve:w-full" />
     </div>
   );
 }

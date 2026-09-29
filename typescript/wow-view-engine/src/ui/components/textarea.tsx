@@ -6,7 +6,7 @@ function Textarea({ className, ...props }: React.ComponentProps<"textarea">) {
     <textarea
       data-slot="textarea"
       className={cn(
-        "flex field-sizing-content min-h-16 w-full rounded-lg border border-input bg-transparent px-2.5 py-2 text-base transition-colors outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:bg-input/50 disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 md:text-sm dark:bg-input/30 dark:disabled:bg-input/80 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40",
+        "fve:flex fve:field-sizing-content fve:min-h-16 fve:w-full fve:rounded-lg fve:border fve:border-input fve:bg-transparent fve:px-2.5 fve:py-2 fve:text-base fve:transition-colors fve:outline-none fve:placeholder:text-muted-foreground fve:focus-visible:border-ring fve:focus-visible:ring-3 fve:focus-visible:ring-ring/50 fve:disabled:cursor-not-allowed fve:disabled:bg-input/50 fve:disabled:opacity-50 fve:aria-invalid:border-destructive fve:aria-invalid:ring-3 fve:aria-invalid:ring-destructive/20 fve:md:text-sm fve:dark:bg-input/30 fve:dark:disabled:bg-input/80 fve:dark:aria-invalid:border-destructive/50 fve:dark:aria-invalid:ring-destructive/40",
         className
       )}
       {...props}

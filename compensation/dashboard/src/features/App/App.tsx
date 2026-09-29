@@ -102,6 +102,7 @@ function PlacesMenu({ places }: { places: readonly PlaceLink[] }) {
             type="button"
             variant="outline"
             size="icon"
+            className="md:hidden"
             aria-label={t("Open navigation")}
           />
         }
@@ -232,7 +233,7 @@ function BuildVersion() {
     <Button
       variant="ghost"
       size="sm"
-      className="font-normal text-muted-foreground tabular-nums"
+      className="font-normal text-muted-foreground tabular-nums max-md:hidden"
       aria-label={`${t("Version {version}", { version: buildVersion })}, ${commit}`}
       title={commit}
       render={
@@ -272,15 +273,10 @@ export default function App({ places: named }: AppProps) {
           {t("Skip to main content")}
         </a>
         <div className="flex min-h-svh flex-col">
-          {/* Inside the engine's `fve-tokens` boundary its own utilities win
-            over ours on one element, so what shows or hides by width sits
-            on a wrapper of its own, never beside a display utility. */}
           <header className="sticky top-0 z-10 flex h-13 shrink-0 items-center gap-4 border-b border-sidebar-border bg-sidebar px-4 text-sidebar-foreground">
             {/* A phone's way to the places: a button, whose menu is the
               navigation; one landmark on the page, not two. */}
-            <div className="md:hidden">
-              <PlacesMenu places={places} />
-            </div>
+            <PlacesMenu places={places} />
             <Link
               to={HOME_PATH}
               className="inline-flex items-center gap-2 font-semibold whitespace-nowrap outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
@@ -288,17 +284,16 @@ export default function App({ places: named }: AppProps) {
               <img src="/logo.svg" alt="" className="size-5.5" />
               {t("Compensation console")}
             </Link>
-            <div className="h-full max-md:hidden">
-              <nav aria-label={placesLabel} className="flex h-full gap-1">
-                <Places places={places} />
-              </nav>
-            </div>
+            <nav
+              aria-label={placesLabel}
+              className="flex h-full gap-1 max-md:hidden"
+            >
+              <Places places={places} />
+            </nav>
             <div className="ml-auto flex min-w-0 items-center gap-1.5">
               <LanguageMenu />
               <ColorModeMenu />
-              <div className="max-md:hidden">
-                <BuildVersion />
-              </div>
+              <BuildVersion />
             </div>
           </header>
           <main

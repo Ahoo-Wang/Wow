@@ -94,7 +94,7 @@ export function Treemap({
               node: (
                 <span
                   data-slot="treemap-notes"
-                  className="flex flex-wrap gap-x-3 text-muted-foreground"
+                  className="fve:flex fve:flex-wrap fve:gap-x-3 fve:text-muted-foreground"
                 >
                   {notes.map(note => (
                     <span key={note}>{note}</span>

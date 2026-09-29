@@ -42,7 +42,7 @@ export function SearchBox({ search }: { search: SearchBoxController }) {
   const hint = useId();
   const { field, value } = search;
   return (
-    <InputGroup data-slot="view-search" className="w-56 max-w-full">
+    <InputGroup data-slot="view-search" className="fve:w-56 fve:max-w-full">
       <InputGroupAddon>
         <SearchIcon />
       </InputGroupAddon>
@@ -68,7 +68,7 @@ export function SearchBox({ search }: { search: SearchBoxController }) {
           search.submit();
         }}
       />
-      <span id={hint} className="sr-only">
+      <span id={hint} className="fve:sr-only">
         {messages.label('label.search.hint')}
       </span>
       {(value !== '' || search.applied !== '') && (

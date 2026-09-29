@@ -62,7 +62,7 @@ export function BulkStatus({ command }: BulkStatusProps) {
   if (running) {
     return (
       <LineAlert tone="info" data-slot="bulk-status" data-state="running">
-        <AlertTitle className="tabular-nums">
+        <AlertTitle className="fve:tabular-nums">
           {runningSentence(running, messages, sayWith)}
         </AlertTitle>
         <AlertAction>

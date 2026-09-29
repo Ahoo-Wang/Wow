@@ -137,7 +137,7 @@ function FindingGlyphs({ marks }: { marks: PanelMarkSet }) {
             <Button data-slot="panel-warning" variant="ghost" size="icon-sm" />
           }
         >
-          <TriangleAlertIcon className="text-warning" />
+          <TriangleAlertIcon className="fve:text-warning" />
         </IconTooltip>
       )}
       {marks.notes.length > 0 && (
@@ -147,7 +147,7 @@ function FindingGlyphs({ marks }: { marks: PanelMarkSet }) {
             <Button data-slot="panel-note" variant="ghost" size="icon-sm" />
           }
         >
-          <InfoIcon className="text-muted-foreground" />
+          <InfoIcon className="fve:text-muted-foreground" />
         </IconTooltip>
       )}
     </>
@@ -163,7 +163,8 @@ function FindingGlyphs({ marks }: { marks: PanelMarkSet }) {
  */
 // On one line it is the registry's 20px: the vertical padding gives back the
 // border that `h-5` counted in.
-const BADGE_WRAPS = 'h-auto min-h-5 max-w-full py-px whitespace-normal';
+const BADGE_WRAPS =
+  'fve:h-auto fve:min-h-5 fve:max-w-full fve:py-px fve:whitespace-normal';
 
 /*
  * The title's line is the name's: a reader tells panels apart by it, so
@@ -175,7 +176,10 @@ function BadgeLine({ marks }: { marks: PanelMarkSet }) {
   if (!hasBadges(marks)) return null;
   const { unreached, pressesFilter, look } = marks;
   return (
-    <div data-slot="panel-badges" className="flex min-w-0 flex-wrap gap-1">
+    <div
+      data-slot="panel-badges"
+      className="fve:flex fve:min-w-0 fve:flex-wrap fve:gap-1"
+    >
       {unreached.length > 0 && (
         <ToneBadge
           data-slot="panel-not-reached"

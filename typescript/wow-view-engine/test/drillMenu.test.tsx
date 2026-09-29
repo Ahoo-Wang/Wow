@@ -670,7 +670,7 @@ describe('the follow-up menu on one group', () => {
     // popup's recipe carries `w-(--anchor-width)`; the menu's own width
     // replaces it, and what that measures is `FollowUpMenuFitsItsWords`.
     expect(menu()!.className).toMatch(/\bw-auto\b/);
-    expect(menu()!.className).not.toContain('w-(--anchor-width)');
+    expect(menu()!.className).not.toContain('fve:w-(--anchor-width)');
   });
 
   /**

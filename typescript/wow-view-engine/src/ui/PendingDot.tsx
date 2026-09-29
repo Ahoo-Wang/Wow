@@ -18,7 +18,7 @@ import { useViewMessages } from './MessagesProvider.js';
  * Pinned to the corner of the bordered node it belongs to — a condition
  * pill or a group block, both of which are `relative` for it.
  */
-export const PENDING_AT_CORNER = 'absolute -top-0.5 -right-0.5';
+export const PENDING_AT_CORNER = 'fve:absolute fve:-top-0.5 fve:-right-0.5';
 
 /**
  * The one credential for "said, but not yet asked".
@@ -60,13 +60,13 @@ export function PendingDot({
       data-slot="pending-dot"
       aria-hidden={named ? undefined : 'true'}
       className={cn(
-        'size-1.5 rounded-full',
-        tone === 'primary' ? 'bg-primary' : 'bg-primary-foreground',
+        'fve:size-1.5 fve:rounded-full',
+        tone === 'primary' ? 'fve:bg-primary' : 'fve:bg-primary-foreground',
         className,
       )}
     >
       {named && (
-        <span className="sr-only">
+        <span className="fve:sr-only">
           {messages.label('label.filter.pending')}
         </span>
       )}

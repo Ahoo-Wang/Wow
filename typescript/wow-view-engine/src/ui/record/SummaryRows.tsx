@@ -56,7 +56,7 @@ import { OffscreenSummary } from './OffscreenSummary.js';
  * where a host can move it: small grey-on-grey text is exactly where a
  * palette meant for one background fails on another.
  */
-const QUIET = `text-quiet-foreground block font-normal ${TEXT_UI}`;
+const QUIET = `fve:text-quiet-foreground fve:block fve:font-normal ${TEXT_UI}`;
 
 export interface SummaryRowsProps {
   /**
@@ -283,13 +283,13 @@ export function SummaryValue({
       <TooltipTrigger
         render={
           <span
-            className="flex items-baseline justify-end gap-1 whitespace-nowrap"
+            className="fve:flex fve:items-baseline fve:justify-end fve:gap-1 fve:whitespace-nowrap"
             {...(reading ? { [SUMMARY_READING]: cell.field } : {})}
           />
         }
       >
         <span className={QUIET}>{fn}</span>
-        <span data-slot="summary-value" className="tabular-nums">
+        <span data-slot="summary-value" className="fve:tabular-nums">
           {summaryText(cell, messages, display)}
         </span>
       </TooltipTrigger>

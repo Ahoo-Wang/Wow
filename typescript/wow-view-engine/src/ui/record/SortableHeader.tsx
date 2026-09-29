@@ -134,7 +134,7 @@ export function SortableHeader({
   const label = (
     <Tooltip>
       <TooltipTrigger
-        render={<span data-slot="column-label" className="truncate" />}
+        render={<span data-slot="column-label" className="fve:truncate" />}
       >
         {said}
       </TooltipTrigger>
@@ -243,9 +243,9 @@ export function SortableHeader({
           // where the values under it do at every density: at compact the
           // cell gives 4px and the button kept its 8px, and a numeric
           // header ended 4px short of its digits (2026-09-27, D59).
-          '-mx-(--_fve-table-cell-padding-inline) px-(--_fve-table-cell-padding-inline) max-w-full',
+          'fve:-mx-(--_fve-table-cell-padding-inline) fve:px-(--_fve-table-cell-padding-inline) fve:max-w-full',
           // The label keeps the column's edge; the marks follow it inward.
-          numeric && 'ml-auto flex-row-reverse',
+          numeric && 'fve:ml-auto fve:flex-row-reverse',
         )}
         // A plain click sorts by this column alone — what a table header
         // means everywhere else — and a modifier adds the column to the sort
@@ -282,7 +282,7 @@ export function SortableHeader({
           <span
             aria-hidden="true"
             data-slot="sort-position"
-            className="text-muted-foreground text-[0.625rem] leading-none tabular-nums"
+            className="fve:text-muted-foreground fve:text-[0.625rem] fve:leading-none fve:tabular-nums"
           >
             {position}
           </span>
@@ -356,7 +356,7 @@ function SortMark({ direction }: { direction: SortDirection | null }) {
       // to ask for by hand.
       <ArrowUpDownIcon
         data-slot="sort-available"
-        className="text-muted-foreground/60"
+        className="fve:text-muted-foreground/60"
       />
     );
   const Arrow = direction === 'ASC' ? ArrowUpIcon : ArrowDownIcon;

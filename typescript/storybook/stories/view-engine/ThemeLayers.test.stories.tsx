@@ -23,7 +23,10 @@
  *   the outer preset gave — a group the inner one leaves out — gets through.
  *   A host's own preset, written without a single `initial`, nests the same.
  * - A host's Tailwind utilities, loaded after the engine's stylesheet, do
- *   not undo the engine's responsive layout on its own surfaces.
+ *   not undo the engine's responsive layout on its own surfaces, and a
+ *   host's breakpoint class on its own markup inside a surface takes effect:
+ *   the engine's utilities are `fve:`-prefixed, so the two never share a
+ *   name (D66).
  *
  * The jsdom side is `test/themeLayers.test.ts` in the package.
  */
@@ -297,13 +300,14 @@ const HOST_UTILITIES = `@layer theme, base, components, utilities;
 }`;
 
 /**
- * 宿主的 Tailwind 排在引擎样式之后，也打不乱引擎的布局（补偿控制台的 G16）。
+ * 宿主的 Tailwind 排在引擎样式之后，也打不乱引擎的布局（补偿控制台的 G16，D66）。
  *
  * 宿主的工具类与引擎的同在 `utilities` 层，同权重时后来者胜：控制台把引擎样式放在
  * 自己的 `index.css` 之前，全局的 `.w-full`、`.flex-col` 就盖掉了引擎的
- * `md:w-64`、`md:flex-row`，桌面宽度下视图列表占满整行。现在引擎的每条规则都比
- * 源码多一个类的权重，这里把宿主的两条工具类排在引擎样式之后：视图列表仍是 16rem，
- * 面仍是横排；而同一页上宿主自己的元素照样吃宿主的工具类。
+ * `md:w-64`、`md:flex-row`，桌面宽度下视图列表占满整行。现在引擎的工具类带前缀
+ * （`fve:w-full`、`fve:md:w-64`），与宿主的不同名：这里把宿主的两条工具类排在引擎
+ * 样式之后，引擎的元素上没有宿主的类名，视图列表仍是 16rem，面仍是横排；而同一页上
+ * 宿主自己的元素照样吃宿主的工具类。
  */
 export const HostUtilitiesAfterTheEngine: Story = {
   ...DisplayWithData,
@@ -336,8 +340,11 @@ export const HostUtilitiesAfterTheEngine: Story = {
       const sidebar = canvasElement.querySelector<HTMLElement>(
         '[data-slot="view-sidebar"]',
       )!;
-      await expect(surface.classList.contains('flex-col')).toBe(true);
-      await expect(sidebar.classList.contains('w-full')).toBe(true);
+      // The engine wears its own names, never the host's.
+      await expect(surface.classList.contains('fve:flex-col')).toBe(true);
+      await expect(sidebar.classList.contains('fve:w-full')).toBe(true);
+      await expect(surface.classList.contains('flex-col')).toBe(false);
+      await expect(sidebar.classList.contains('w-full')).toBe(false);
       await waitFor(() =>
         expect(getComputedStyle(surface).flexDirection).toBe('row'),
       );
@@ -347,6 +354,67 @@ export const HostUtilitiesAfterTheEngine: Story = {
           .querySelector('[data-slot="workbench-main"]')!
           .getBoundingClientRect().width,
       ).toBeGreaterThan(surface.getBoundingClientRect().width - 257);
+    } finally {
+      own.remove();
+      release();
+    }
+  },
+};
+
+/**
+ * What a host's Tailwind build emits for a responsive grid of its own: one
+ * column, three from `sm` up. The engine compiles a `grid-cols-1` of its own
+ * (the record cards'), which is the name the two used to share.
+ */
+const HOST_BREAKPOINTS = `@layer theme, base, components, utilities;
+@layer utilities {
+  .grid-cols-1 { grid-template-columns: repeat(1, minmax(0, 1fr)); }
+  @media (width >= 40rem) {
+    .sm\\:grid-cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  }
+}`;
+
+/**
+ * 宿主写在引擎面里的断点类生效（D66）。
+ *
+ * G16 让引擎的每条规则多一个类的权重，于是在引擎面里（控制台把 `fve-tokens` 挂在
+ * 整个外壳上）宿主的 `sm:grid-cols-3` 输给引擎同名的 `grid-cols-1`，1440 宽下仍是
+ * 一列。现在引擎的工具类带前缀、作用域不加权重：宿主自己的元素放进引擎的面里，
+ * 它的断点类照宿主自己的层叠生效，是三列。
+ */
+export const HostBreakpointInsideTheSurface: Story = {
+  ...DisplayWithData,
+  parameters: {
+    ...displayMeta.parameters,
+    viewport: {
+      options: {
+        desk: {
+          name: '1440×900',
+          styles: { width: '1440px', height: '900px' },
+        },
+      },
+    },
+  },
+  globals: { viewport: { value: 'desk' } },
+  play: async ({ canvasElement }) => {
+    await expect(window.innerWidth).toBe(1440);
+    await within(canvasElement).findByRole('table');
+    const release = withStyle(HOST_BREAKPOINTS);
+    const surface = canvasElement.querySelector<HTMLElement>(
+      '[data-slot="view-surface"]',
+    )!;
+    const own = document.createElement('div');
+    own.className = 'grid-cols-1 sm:grid-cols-3';
+    own.style.display = 'grid';
+    for (let cell = 0; cell < 3; cell += 1)
+      own.append(document.createElement('div'));
+    surface.append(own);
+    try {
+      // Inside the surface, and inside its boundary.
+      await expect(own.closest('.fve-root')).not.toBeNull();
+      await expect(
+        getComputedStyle(own).gridTemplateColumns.split(' '),
+      ).toHaveLength(3);
     } finally {
       own.remove();
       release();

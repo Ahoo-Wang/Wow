@@ -93,7 +93,7 @@ export function useAnnouncer(slot: string): OwnAnnouncer {
         data-slot={slot}
         role="status"
         aria-live="polite"
-        className="sr-only"
+        className="fve:sr-only"
       >
         {said.message !== '' && <span key={said.count}>{said.message}</span>}
       </div>

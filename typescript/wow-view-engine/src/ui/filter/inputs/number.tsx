@@ -78,7 +78,7 @@ export function NumberInput({
       // The primitive's root is a wrapper with nothing of its own to draw,
       // and the field's box is the input, so the width a caller asks for is
       // the input's and the wrapper stays out of the layout.
-      className="contents"
+      className="fve:contents"
     >
       <NumberFieldPrimitive.Input
         render={
@@ -165,7 +165,7 @@ function NumberRangeValue({
       value={ends[index]}
       // Neither end is the one that gives: they share the pill's room and
       // each shrinks to nothing rather than pushing the row wider.
-      className="min-w-0 flex-1"
+      className="fve:min-w-0 fve:flex-1"
       onNumber={next => {
         const written = index === 0 ? [next, ends[1]] : [ends[0], next];
         // Two empty ends are the kind's blank value, not a range between

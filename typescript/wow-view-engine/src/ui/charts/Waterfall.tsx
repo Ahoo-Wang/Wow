@@ -122,7 +122,7 @@ export function Waterfall({
               node: (
                 <span
                   data-slot="waterfall-total-basis"
-                  className="text-muted-foreground"
+                  className="fve:text-muted-foreground"
                 >
                   {messages.label('label.chart.waterfall.total-basis')}
                 </span>

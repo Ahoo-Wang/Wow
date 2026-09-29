@@ -443,7 +443,7 @@ describe('the analysis tray', () => {
 
     const primary = Array.from(
       document.querySelectorAll<HTMLElement>('[data-slot="button"]'),
-    ).filter(button => button.classList.contains('bg-primary'));
+    ).filter(button => button.classList.contains('fve:bg-primary'));
 
     expect(primary.map(button => button.textContent?.trim())).toEqual([APPLY]);
     expect(applyButton().getAttribute('data-emphasis')).toBe('primary');
@@ -467,7 +467,7 @@ describe('the analysis tray', () => {
     expect(
       Array.from(
         document.querySelectorAll<HTMLElement>('[data-slot="button"]'),
-      ).filter(button => button.classList.contains('bg-primary')),
+      ).filter(button => button.classList.contains('fve:bg-primary')),
     ).toEqual([]);
 
     // A condition in the range is not the question: it waits for Apply.

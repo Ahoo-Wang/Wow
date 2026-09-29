@@ -105,7 +105,7 @@ export function OffscreenSummary({
             // in the primary colour it was the loudest thing in the table
             // (2026-09-27 review). The underline under the pointer still
             // says it can be pressed.
-            className="text-foreground -my-0.5 h-auto min-h-6 w-full min-w-0 flex-col items-start gap-0 px-0 py-0.5 [contain:inline-size]"
+            className="fve:text-foreground fve:-my-0.5 fve:h-auto fve:min-h-6 fve:w-full fve:min-w-0 fve:flex-col fve:items-start fve:gap-0 fve:px-0 fve:py-0.5 fve:[contain:inline-size]"
           />
         }
       >
@@ -115,14 +115,14 @@ export function OffscreenSummary({
             it on one. */}
         <span
           data-slot="summary-offscreen-label"
-          className="text-quiet-foreground line-clamp-2 w-full text-left font-normal break-words whitespace-normal"
+          className="fve:text-quiet-foreground fve:line-clamp-2 fve:w-full fve:text-left fve:font-normal fve:break-words fve:whitespace-normal"
         >
           {withScope && (
             <>
               {/* Still the row's scope label, in its own quiet colour. */}
               <span
                 data-slot="summary-scope"
-                className="text-quiet-foreground font-normal"
+                className="fve:text-quiet-foreground fve:font-normal"
               >
                 {scopeWord}
               </span>
@@ -134,29 +134,35 @@ export function OffscreenSummary({
         {/* The two lines are two spans, and a name computed from them runs
             them together (「总和¥1,401.49」) without a space between; in a
             flex column the space takes no room on screen. */}{' '}
-        <span className="flex w-full min-w-0 items-center gap-1">
+        <span className="fve:flex fve:w-full fve:min-w-0 fve:items-center fve:gap-1">
           {hint.side === 'left' && (
-            <Arrow data-icon="inline-start" className="text-quiet-foreground" />
+            <Arrow
+              data-icon="inline-start"
+              className="fve:text-quiet-foreground"
+            />
           )}
           {/* The number keeps its room and 「等 N 项」 gives way first: a
               count of more columns is worth less than the number itself. */}
           <span
             data-slot="summary-offscreen-value"
-            className="max-w-full shrink-0 truncate tabular-nums"
+            className="fve:max-w-full fve:shrink-0 fve:truncate fve:tabular-nums"
           >
             {value}
           </span>
           {/* A word apart from the number where there is a word to add;
               the tail's own punctuation needs none. */}
           {more && ' '}
-          <span className="min-w-0 truncate">
+          <span className="fve:min-w-0 fve:truncate">
             {more}
             {/* Inside the words it follows, so a reader hears one
                 sentence; out of the flow, so it never takes their room. */}
-            <span className="sr-only">{tail}</span>
+            <span className="fve:sr-only">{tail}</span>
           </span>
           {hint.side === 'right' && (
-            <Arrow data-icon="inline-end" className="text-quiet-foreground" />
+            <Arrow
+              data-icon="inline-end"
+              className="fve:text-quiet-foreground"
+            />
           )}
         </span>
       </TooltipTrigger>

@@ -1019,11 +1019,11 @@ export const ReducedMotionIsHonoured: Story = {
           rule instanceof CSSStyleRule &&
           // 两个边界**本身**各是它的一个选择器分支，而不是某个类恰好落在边界
           // 里——vendored 的 `.shimmer` 也有一条 reduce 规则，作用域同样点到
-          // 两个边界，说的却只是它自己那一个类。每个分支都带着构建加的那一个类
-          // 的权重（`:is(…)`，G16），比的是它前面的部分。
+          // 两个边界，说的却只是它自己那一个类。每个分支都带着构建加的作用域
+          // （`:where(…)`，D66），比的是它前面的部分。
           ['.fve-root', '.fve-tokens'].every(boundary =>
             branches(rule.selectorText).some(
-              part => part.split(':is(')[0].trim() === boundary,
+              part => part.split(':where(')[0].trim() === boundary,
             ),
           ),
       );
@@ -1122,7 +1122,7 @@ const outlineBadgeEdges = (theme: 'light' | 'dark'): Story => ({
 
     // registry 自己的两样东西：徽章的组名与它的 variant。
     await expect(mark.getAttribute('data-variant')).toBe('outline');
-    await expect(mark.getAttribute('class')).toContain('group/badge');
+    await expect(mark.getAttribute('class')).toContain('fve:group/badge');
 
     const { ratio, colors } = measureBorderContrast(mark);
     await expect(

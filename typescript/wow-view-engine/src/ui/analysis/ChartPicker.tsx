@@ -164,9 +164,9 @@ export function ChartPicker({
   return (
     <div
       data-slot="chart-picker"
-      className={cn('flex flex-col gap-3 p-3', TEXT_UI)}
+      className={cn('fve:flex fve:flex-col fve:gap-3 fve:p-3', TEXT_UI)}
     >
-      <div className="flex items-center gap-2">
+      <div className="fve:flex fve:items-center fve:gap-2">
         {onBack && (
           <IconButton
             label={backLabel ?? messages.label('label.chart.picker-back')}
@@ -188,7 +188,7 @@ export function ChartPicker({
       <div
         role="radiogroup"
         aria-label={messages.label('label.chart.picker')}
-        className="flex flex-col gap-3"
+        className="fve:flex fve:flex-col fve:gap-3"
       >
         {(
           [
@@ -203,11 +203,11 @@ export function ChartPicker({
               aria-labelledby={`${ids}-group-${group}`}
               data-slot="chart-group"
               data-group={group}
-              className="flex flex-col gap-1.5"
+              className="fve:flex fve:flex-col fve:gap-1.5"
             >
               <h3
                 id={`${ids}-group-${group}`}
-                className="font-medium text-quiet-foreground"
+                className="fve:font-medium fve:text-quiet-foreground"
               >
                 {messages.label(`label.chart.group.${group}`)}
               </h3>
@@ -219,7 +219,7 @@ export function ChartPicker({
                   it (`ChartTile`). The rows stand a step further apart than
                   the columns: the 「推荐」 mark hangs across its tile's
                   bottom edge, into that gap. */}
-              <div className="grid grid-cols-3 gap-x-2 gap-y-3 *:min-w-0">
+              <div className="fve:grid fve:grid-cols-3 fve:gap-x-2 fve:gap-y-3 fve:*:min-w-0">
                 {section.map(value => {
                   const fit = fitOf(value);
                   const index = tiles.findIndex(tile => tile.value === value);
@@ -253,7 +253,7 @@ export function ChartPicker({
                     <div
                       key={value}
                       data-slot="chart-cell"
-                      className="relative"
+                      className="fve:relative"
                     >
                       <ChartTile
                         ref={node => {
@@ -270,7 +270,7 @@ export function ChartPicker({
                         aria-labelledby={nameId}
                         aria-describedby={describedBy}
                         data-chart-type={value}
-                        className="h-full"
+                        className="fve:h-full"
                         data-recommended={fit.recommended || undefined}
                         tabIndex={picked === value ? 0 : -1}
                         onClick={() => {
@@ -293,7 +293,7 @@ export function ChartPicker({
                           }
                         }}
                       >
-                        <Icon aria-hidden className="size-5" />
+                        <Icon aria-hidden className="fve:size-5" />
                         <span id={nameId}>{name}</span>
                         {fit.recommended && (
                           <span id={badgeId} data-slot="chart-recommended">
@@ -320,7 +320,7 @@ export function ChartPicker({
                           variant="ghost"
                           size="icon-xs"
                           data-slot="chart-options-open"
-                          className="absolute top-0.5 right-0.5"
+                          className="fve:absolute fve:top-0.5 fve:right-0.5"
                           onClick={onOptions}
                         >
                           <SlidersHorizontalIcon />

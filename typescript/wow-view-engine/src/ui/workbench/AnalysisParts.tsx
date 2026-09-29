@@ -372,7 +372,7 @@ export function AnalysisParts({
           // lays the three parts out exactly as the result block laid them
           // out when they were its own children (no gap, no margin
           // collapsing, `min-w-0` so a wide table still scrolls inside it).
-          className="flex min-w-0 flex-col data-[stale]:opacity-60 data-[stale]:transition-opacity"
+          className="fve:flex fve:min-w-0 fve:flex-col fve:data-[stale]:opacity-60 fve:data-[stale]:transition-opacity"
         >
           {/* A grouping nothing fell into is one sentence whichever layout is
               in force; a chart of no rows is a pair of empty axes, which reads
@@ -385,13 +385,13 @@ export function AnalysisParts({
               a metric and cut at N on purpose — says nothing
               (`cutShortIssues`). */}
           {view && view.rows.length > 0 && cutShort.length > 0 && (
-            <div data-slot="analysis-cut-short" className="pb-2">
+            <div data-slot="analysis-cut-short" className="fve:pb-2">
               <WarningStrip issues={cutShort} />
               <NoteStrip issues={cutShort} />
             </div>
           )}
           {view && view.rows.length > 0 && money.length > 0 && (
-            <div data-slot="analysis-currency" className="pb-2">
+            <div data-slot="analysis-currency" className="fve:pb-2">
               <CurrencyStrip issues={money} analysis={analysis} />
             </div>
           )}
@@ -513,7 +513,7 @@ function AnalysisCaption({
       // On the right, where the record view's pager is: the left of the
       // row is where a reader starts the report, and this is its footnote
       // (the user's 2026-09-23 review).
-      className="text-muted-foreground text-right text-sm tabular-nums"
+      className="fve:text-muted-foreground fve:text-right fve:text-sm fve:tabular-nums"
     >
       {rows === null
         ? messages.label('label.analysis.caption-whole', { seconds: time })

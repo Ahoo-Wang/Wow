@@ -173,13 +173,13 @@ function HomePage({ state }: { state: HomeState }) {
       data-started-at={startedAt}
       // The host's markup, painted from View Engine's tokens as the shell is
       // (D17-10); the page area around it gives the gutter.
-      className="fve-tokens bg-canvas text-foreground flex min-w-0 flex-col gap-3"
+      className="fve-tokens fve:bg-canvas fve:text-foreground fve:flex fve:min-w-0 fve:flex-col fve:gap-3"
     >
       {/* Not a `header`: the shell's bar is the page's one banner. */}
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div className="flex min-w-0 flex-col gap-1">
-          <h1 className="text-xl font-semibold">运营日报</h1>
-          <p className="text-muted-foreground text-sm" data-host-report>
+      <div className="fve:flex fve:flex-wrap fve:items-end fve:justify-between fve:gap-3">
+        <div className="fve:flex fve:min-w-0 fve:flex-col fve:gap-1">
+          <h1 className="fve:text-xl fve:font-semibold">运营日报</h1>
+          <p className="fve:text-muted-foreground fve:text-sm" data-host-report>
             栖木生活全渠道 · 指标卡读
             <span data-host-report-day>{day}</span>
             {day === yesterday && '（昨日）'}，较前一日 · 数据截至{' '}

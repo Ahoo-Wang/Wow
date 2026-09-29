@@ -308,9 +308,9 @@ function ContentForm({
         event.preventDefault();
         submit();
       }}
-      className="flex min-h-0 flex-col gap-4"
+      className="fve:flex fve:min-h-0 fve:flex-col fve:gap-4"
     >
-      <FieldGroup className="max-h-[min(28rem,60vh)] overflow-y-auto p-0.5">
+      <FieldGroup className="fve:max-h-[min(28rem,60vh)] fve:overflow-y-auto fve:p-0.5">
         {kind === 'markdown' && (
           <Field data-invalid={(tried && problems.content) || undefined}>
             <FieldLabel htmlFor={`${ids}-content`}>
@@ -394,7 +394,7 @@ function ContentForm({
         {kind === 'links' &&
           draft.links.map((link, index) => (
             <FieldSet key={index} data-slot="content-link">
-              <div className="flex items-center justify-between gap-2">
+              <div className="fve:flex fve:items-center fve:justify-between fve:gap-2">
                 <FieldLegend variant="label">
                   {messages.label('label.content.links.item', { n: index + 1 })}
                 </FieldLegend>
@@ -451,7 +451,7 @@ function ContentForm({
             type="button"
             variant="outline"
             size="sm"
-            className="self-start"
+            className="fve:self-start"
             onClick={() =>
               set({
                 links: [

@@ -214,7 +214,7 @@ describe('FilterValueEditor', () => {
     for (const end of ['amount from', 'amount to'])
       // A **surviving class assertion**: the two bounds share the row
       // evenly, which is a flex basis and not a state.
-      expect(screen.getByLabelText(end).className).toContain('flex-1');
+      expect(screen.getByLabelText(end).className).toContain('fve:flex-1');
   });
 
   /**
@@ -227,7 +227,7 @@ describe('FilterValueEditor', () => {
     editor({ input: 'select', options: CANDIDATES }, 'CN');
 
     const trigger = screen.getByLabelText('amount');
-    expect(trigger.className).toContain('min-w-0');
+    expect(trigger.className).toContain('fve:min-w-0');
     expect(trigger.className).not.toMatch(/(^|\s)min-w-(?!0)/);
   });
 
@@ -653,10 +653,10 @@ describe('FilterValueEditor', () => {
     );
 
     fireEvent.change(screen.getByLabelText('amount'), {
-      target: { value: 'w-1' },
+      target: { value: 'fve:w-1' },
     });
 
-    expect(changes).toEqual(['w-1']);
+    expect(changes).toEqual(['fve:w-1']);
   });
 
   it('switches a date between absolute, relative and a period', async () => {

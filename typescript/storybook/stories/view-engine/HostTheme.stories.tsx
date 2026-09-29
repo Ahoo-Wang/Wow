@@ -64,7 +64,7 @@ function HostThemePage() {
     >
       {engine => (
         <div
-          className="fve-tokens bg-background text-foreground"
+          className="fve-tokens fve:bg-background fve:text-foreground"
           style={{
             display: 'flex',
             flexDirection: 'column',

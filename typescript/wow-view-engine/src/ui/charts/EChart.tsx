@@ -23,12 +23,12 @@ import {
   type CSSProperties,
   type ReactNode,
 } from 'react';
-import { cn } from 'cn';
 import { useViewMessages } from '../MessagesProvider.js';
 import { useSurfaceTheme, useSurfaceTokens } from '../ViewSurface.js';
 import { BRUSH_CLEAR, BRUSH_CURSOR } from './cartesianBrush.js';
 import type { LegendEntry } from './ChartLegend.js';
 import { ChartFailure } from './failure.js';
+import { frameClass } from './frameClass.js';
 import { ChartImageTarget, pictureTheme } from './image.js';
 import type { ZoomWindow } from './cartesianZoom.js';
 import { loadCharts, loadedCharts, type ChartChunk } from './load.js';
@@ -530,7 +530,7 @@ export function EChart({
       role="img"
       aria-label={name}
       aria-describedby={sentence ? sentenceId : undefined}
-      className="relative min-h-0 min-w-0 flex-1"
+      className="fve:relative fve:min-h-0 fve:min-w-0 fve:flex-1"
       style={{ maxWidth: hugWidth, height: plotHeight }}
     >
       {/* Positioned inline: the library makes its element `relative` unless
@@ -540,7 +540,11 @@ export function EChart({
       {/* Read as the drawing's description, never seen: inside the image,
           so the frame's own children stay the legend and the plot. */}
       {sentence && (
-        <span id={sentenceId} data-slot="chart-sentence" className="sr-only">
+        <span
+          id={sentenceId}
+          data-slot="chart-sentence"
+          className="fve:sr-only"
+        >
           {sentence}
         </span>
       )}
@@ -567,17 +571,7 @@ export function EChart({
             } as CSSProperties)
           : undefined
       }
-      className={cn(
-        'flex aspect-video min-h-52 w-full gap-2 text-xs',
-        // The tooltip the library draws is ours (`tooltipHtml`), inside its
-        // own transparent box: hidden, nothing of it is on screen.
-        'data-menu-open:[&_[data-slot=chart-tooltip]]:invisible',
-        'data-tap-armed:[&_[data-slot=chart-tooltip]]:after:text-muted-foreground data-tap-armed:[&_[data-slot=chart-tooltip]]:after:content-(--_fve-tap-hint)',
-        placed === 'right' ? 'flex-row' : 'flex-col',
-        hugged && 'justify-center',
-        plotHeight && 'aspect-auto min-h-0 *:data-[slot=chart-plot]:flex-none',
-        className,
-      )}
+      className={frameClass(placed, hugged, !!plotHeight, className)}
     >
       {placed === 'top' && legendNode}
       {plotted}

@@ -253,7 +253,7 @@ export function NudgeStatus({ nudges }: { nudges: Nudges }) {
       data-host-status
       // Mounted from the start, so a screen reader hears what lands in
       // it; empty, it takes no room on the page.
-      className="text-muted-foreground text-sm empty:sr-only"
+      className="fve:text-muted-foreground fve:text-sm fve:empty:sr-only"
     >
       {nudges.message}
     </p>
@@ -339,7 +339,10 @@ export function RoutedBoard({
     });
   if (away.kind === 'view' || away.kind === 'unsaved')
     return (
-      <div className="flex h-full min-h-0 flex-col" data-host-route="workbench">
+      <div
+        className="fve:flex fve:h-full fve:min-h-0 fve:flex-col"
+        data-host-route="workbench"
+      >
         <DataWorkbench
           engine={engine}
           definitionId={away.definitionId}
@@ -356,13 +359,13 @@ export function RoutedBoard({
     );
   return (
     <div
-      className="flex h-full min-h-0 flex-col gap-3"
+      className="fve:flex fve:h-full fve:min-h-0 fve:flex-col fve:gap-3"
       data-host-route={away.kind}
     >
       <Button
         variant="outline"
         size="sm"
-        className="self-start"
+        className="fve:self-start"
         data-slot="host-back"
         onClick={() => setAway(null)}
       >
@@ -409,7 +412,7 @@ export function RetailBoardScene({
     <StoryEngine create={() => createBoardEngine()}>
       {engine => (
         <ViewHost bindings={bindings} colorMode="host">
-          <div className="fve-tokens flex h-full min-h-0 flex-col">
+          <div className="fve-tokens fve:flex fve:h-full fve:min-h-0 fve:flex-col">
             <NudgeStatus nudges={nudges} />
             <RoutedBoard
               engine={engine}

@@ -69,7 +69,7 @@ export function ConflictConfirm({
             {messages.label('label.conflict.choice')}
           </AlertDialogDescription>
         </AlertDialogHeader>
-        <div className="grid grid-cols-2 gap-3 text-sm">
+        <div className="fve:grid fve:grid-cols-2 fve:gap-3 fve:text-sm">
           <ConfigSide titleKey="label.conflict.local" config={local} />
           <ConfigSide titleKey="label.conflict.remote" config={remote} />
         </div>
@@ -108,10 +108,10 @@ function ConfigSide({
 }) {
   const messages = useViewMessages();
   return (
-    <div className="flex min-w-0 flex-col gap-1">
-      <span className="font-medium">{messages.label(titleKey)}</span>
+    <div className="fve:flex fve:min-w-0 fve:flex-col fve:gap-1">
+      <span className="fve:font-medium">{messages.label(titleKey)}</span>
       {config && (
-        <span className="text-muted-foreground">
+        <span className="fve:text-muted-foreground">
           {describeConfig(config, messages)}
         </span>
       )}

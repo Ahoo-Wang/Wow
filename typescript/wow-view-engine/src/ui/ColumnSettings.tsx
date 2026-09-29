@@ -279,7 +279,7 @@ export function ColumnSettings({
           axis is named on purpose — `overflow-hidden` would not replace
           `overflow-y-auto` on merge, and the horizontal axis is the
           registry's to decide. */}
-      <PopoverContent align="end" className="w-96 overflow-y-hidden">
+      <PopoverContent align="end" className="fve:w-96 fve:overflow-y-hidden">
         <PopoverHeader>
           <PopoverTitle>{messages.label('label.columns.title')}</PopoverTitle>
           {/* One sentence, and the only one no row can say for itself.
@@ -323,7 +323,7 @@ export function ColumnSettings({
           <p
             id={noteId}
             data-slot="column-filtered"
-            className="text-muted-foreground"
+            className="fve:text-muted-foreground"
           >
             {messages.label('label.columns.filtered')}
           </p>
@@ -331,12 +331,12 @@ export function ColumnSettings({
 
         <div
           data-slot="column-list"
-          className="-mx-2.5 flex min-h-0 flex-1 flex-col overflow-y-auto px-2.5"
+          className="fve:-mx-2.5 fve:flex fve:min-h-0 fve:flex-1 fve:flex-col fve:overflow-y-auto fve:px-2.5"
         >
           {listed.length === 0 ? (
             // Nothing matched, which is what `Empty` is for — the same shape
             // and the same sentence the field picker shows.
-            <Empty data-slot="column-none" className="p-0">
+            <Empty data-slot="column-none" className="fve:p-0">
               <EmptyHeader>
                 <EmptyDescription>
                   {messages.label('label.field.none')}
@@ -413,7 +413,7 @@ function Region({
   if (sections.length === 0) return null;
 
   return (
-    <div data-slot="column-region-group" className="flex flex-col">
+    <div data-slot="column-region-group" className="fve:flex fve:flex-col">
       {/* Said, and now also drawn. The areas were `aria-label`s and nothing
           on the screen, so a column that had just been pinned did not read
           as held at the edge — it read as having jumped to the top of the
@@ -422,7 +422,7 @@ function Region({
       <h3
         id={headingId}
         data-slot="column-region-heading"
-        className="text-muted-foreground px-2 pt-2 pb-1 text-xs font-medium"
+        className="fve:text-muted-foreground fve:px-2 fve:pt-2 fve:pb-1 fve:text-xs fve:font-medium"
       >
         {messages.label(REGION_LABEL[props.region])}
       </h3>
@@ -480,7 +480,7 @@ function Section({
         <h4
           id={labelId}
           data-slot="column-group-heading"
-          className="text-muted-foreground px-2 pt-1.5 pb-0.5 pl-3 text-xs"
+          className="fve:text-muted-foreground fve:px-2 fve:pt-1.5 fve:pb-0.5 fve:pl-3 fve:text-xs"
         >
           {say(group.label)}
         </h4>
@@ -490,7 +490,7 @@ function Section({
         data-region={region}
         data-group={group?.id}
         aria-labelledby={group === undefined ? regionHeadingId : labelId}
-        className="flex flex-col"
+        className="fve:flex fve:flex-col"
       >
         {rows.map(row => {
           // While a search narrows the list nothing is dragged: the rows a

@@ -160,12 +160,12 @@ export function ValueChips<T extends string | number>({
                   render={
                     <ComboboxPrimitive.ChipRemove
                       data-slot="combobox-chip-remove"
-                      className="-ml-1 opacity-50 hover:opacity-100"
+                      className="fve:-ml-1 fve:opacity-50 fve:hover:opacity-100"
                       render={<Button variant="ghost" size="icon-xs" />}
                     />
                   }
                 >
-                  <XIcon className="pointer-events-none" />
+                  <XIcon className="fve:pointer-events-none" />
                 </IconTooltip>
               </ComboboxChip>
             ))}

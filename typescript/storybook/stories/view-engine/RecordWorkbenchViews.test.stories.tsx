@@ -204,14 +204,14 @@ export const ManageViews: Story = {
           name: zhCN['label.manage.unset-default'],
         })
         .querySelector('svg')!.classList,
-    ).toContain('fill-current');
+    ).toContain('fve:fill-current');
     await expect(
       within(row('全部订单'))
         .getByRole('button', {
           name: zhCN['label.manage.set-default'],
         })
         .querySelector('svg')!.classList,
-    ).not.toContain('fill-current');
+    ).not.toContain('fve:fill-current');
 
     // And the order is the user's: a row is carried by its handle rather
     // than clicked up one step at a time. This is the half jsdom cannot
@@ -745,7 +745,7 @@ export const DefaultViewWearsTheStar: Story = {
     await expect(star).not.toBeNull();
     // Filled and in the primary colour, so it reads as a mark rather than as
     // one more outline among the icons.
-    await expect(star.classList).toContain('fill-current');
+    await expect(star.classList).toContain('fve:fill-current');
     await expect(getComputedStyle(star).color).not.toBe(
       getComputedStyle(starred).color,
     );

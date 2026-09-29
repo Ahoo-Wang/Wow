@@ -77,10 +77,10 @@ export function GroupBlock({
       role="group"
       aria-label={messages.label(GROUP_OPERATOR_LABEL[group.op])}
       data-pending={pending || undefined}
-      className="border-border relative flex flex-col gap-2 rounded-md border p-2"
+      className="fve:border-border fve:relative fve:flex fve:flex-col fve:gap-2 fve:rounded-md fve:border fve:p-2"
     >
       {pending && <PendingDot named className={PENDING_AT_CORNER} />}
-      <div className="flex items-center gap-1">
+      <div className="fve:flex fve:items-center fve:gap-1">
         {/* One at a time rather than three abreast: the operator is a
             sentence about the conditions below it ("All conditions"), and a
             row of three shouted all three of them at a reader who only
@@ -135,7 +135,7 @@ export function GroupBlock({
         isPending={isPending}
       />
 
-      <div className="flex flex-wrap items-center gap-1">
+      <div className="fve:flex fve:flex-wrap fve:items-center fve:gap-1">
         {/* It says what it adds, 「添加条件」, whatever group it is in: the
             box it sits in already says which group, and a metric's name
             put in front of the text (「金额的总和 在这个分组里添加」) read as
@@ -213,7 +213,7 @@ export function ConditionStrip({
       // the editor band they are in. Clamped to the band, the column is
       // 20rem where there is 20rem and the band's own width where there is
       // not — which is the same layout everywhere it used to be right.
-      className="@container grid grid-cols-[repeat(auto-fill,minmax(min(20rem,100%),1fr))] gap-1.5"
+      className="fve:@container fve:grid fve:grid-cols-[repeat(auto-fill,minmax(min(20rem,100%),1fr))] fve:gap-1.5"
     >
       {group.children.map((child, index) => {
         const pressed = negated.get(index);
@@ -233,7 +233,7 @@ export function ConditionStrip({
             negated
           />
         ) : isFilterGroup(child) ? (
-          <div key={index} className="col-span-full">
+          <div key={index} className="fve:col-span-full">
             <GroupBlock
               filter={filter}
               group={child}

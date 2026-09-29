@@ -64,7 +64,7 @@ export function SkeletonRows({
     return rows.map(index => (
       <TableRow key={`skeleton-${index}`}>
         <TableCell colSpan={(selectable ? 1 : 0) + (actions ? 1 : 0) || 1}>
-          <Skeleton className="h-4 w-full" />
+          <Skeleton className="fve:h-4 fve:w-full" />
         </TableCell>
       </TableRow>
     ));
@@ -73,7 +73,7 @@ export function SkeletonRows({
     <TableRow key={`skeleton-${index}`}>
       {selectable && (
         <TableCell>
-          <Skeleton className="size-4" />
+          <Skeleton className="fve:size-4" />
         </TableCell>
       )}
       {columns.map(column => (
@@ -89,12 +89,15 @@ export function SkeletonRows({
             style: columnWidth(column),
           })}
         >
-          <Skeleton className="h-4" style={{ width: barWidth(column.label) }} />
+          <Skeleton
+            className="fve:h-4"
+            style={{ width: barWidth(column.label) }}
+          />
         </TableCell>
       ))}
       {actions && (
         <TableCell>
-          <Skeleton className="h-4 w-12" />
+          <Skeleton className="fve:h-4 fve:w-12" />
         </TableCell>
       )}
       {/* The same last cell the real rows carry, so the bars come out at the

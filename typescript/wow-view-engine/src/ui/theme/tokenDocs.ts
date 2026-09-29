@@ -206,8 +206,8 @@ export const TOKEN_DOCS: Readonly<Record<TokenName, TokenDoc>> = {
   }),
   canvas: {
     role: {
-      en: "The grouped ground a board and a host's card-laid page stand on (`bg-canvas`)",
-      zh: '分组底：看板与宿主按卡片排的页面站在它上面（`bg-canvas`）',
+      en: "The grouped ground a board and a host's card-laid page stand on (`fve:bg-canvas`)",
+      zh: '分组底：看板与宿主按卡片排的页面站在它上面（`fve:bg-canvas`）',
     },
   },
   content: {

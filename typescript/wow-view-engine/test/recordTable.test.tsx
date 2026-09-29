@@ -370,10 +370,10 @@ describe('sorting from the headers', () => {
     // said on — the class is the whole of it.
     expect(
       header(container, 'amount').querySelector('button')!.className,
-    ).toContain('flex-row-reverse');
+    ).toContain('fve:flex-row-reverse');
     expect(
       header(container, 'id').querySelector('button')!.className,
-    ).not.toContain('flex-row-reverse');
+    ).not.toContain('fve:flex-row-reverse');
   });
 
   it('says which way one sorted column goes, and what a click would do next', () => {
@@ -664,7 +664,7 @@ describe('the table chrome', () => {
     // is precisely the defect: the sticky layers would resolve against the
     // inner one, which nothing ever scrolls.
     expect(area.className).toContain(
-      '[&>[data-slot=table-container]]:overflow-visible',
+      'fve:[&>[data-slot=table-container]]:overflow-visible',
     );
     // The header and summaries still hold — against whatever really
     // scrolls, which the dashboard story measures for real.
@@ -692,7 +692,7 @@ describe('the table chrome', () => {
       // no offset to measure, and a flat `right-0` rather than a variable
       // that would resolve to zero every time (A9).
       expect(cell.style.right).toBe('');
-      expect(cell.className).toContain('right-0');
+      expect(cell.className).toContain('fve:right-0');
     }
     // The selection column is pinned along with them, or the pinned column
     // would scroll over the checkboxes.

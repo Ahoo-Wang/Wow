@@ -30,11 +30,11 @@ export function chartNotes(
   return {
     at: 'top',
     node: placed => (
-      <div className="flex min-w-0 flex-col gap-1">
+      <div className="fve:flex fve:min-w-0 fve:flex-col fve:gap-1">
         {notes.length > 0 && (
           <span
             data-slot={slot}
-            className="flex flex-wrap gap-x-3 text-muted-foreground"
+            className="fve:flex fve:flex-wrap fve:gap-x-3 fve:text-muted-foreground"
           >
             {notes.map(note => (
               <span key={note}>{note}</span>

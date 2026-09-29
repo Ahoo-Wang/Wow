@@ -29,7 +29,7 @@ function ErrorFallback({ error, retry }: { error?: Error; retry: () => void }) {
   const { t } = useI18n();
 
   return (
-    <div role="alert" className="flex min-h-svh items-center justify-center bg-canvas p-6">
+    <div role="alert" className="flex min-h-svh items-center justify-center fve:bg-canvas p-6">
       <div className="w-full max-w-md rounded-xl border border-destructive/30 bg-card p-6 text-center text-card-foreground shadow-sm">
         <CircleAlert aria-hidden="true" className="mx-auto size-8 text-destructive" />
         <h2 className="mt-3 text-lg font-semibold">
