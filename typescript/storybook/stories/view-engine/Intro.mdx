@@ -136,19 +136,25 @@ View Engine 是 Wow 的数据视图引擎。业务系统里大多数页面是「
 ### 记录
 
 - 简单与高级筛选（且、或、都不是、取反）、相对日期、数组「全都包含」、引用字段、全文搜索：[订单工作台](./?path=/story/view-engine-业务场景-订单工作台--order-workbench-scene)
-- 列设置、冻结、多重排序、本页与全部的汇总、单元格读法、卡片与详情、行上的命令、自动刷新：[订单工作台](./?path=/story/view-engine-业务场景-订单工作台--order-workbench-scene)
+- 列设置、冻结、多重排序、本页与全部的汇总、单元格读法、卡片与详情、自动刷新：[订单工作台](./?path=/story/view-engine-业务场景-订单工作台--order-workbench-scene)
+- 声明式操作——宿主声明命令、何时可用、怎么说，引擎放进行里、多选条与详情，先问、分批发、报结果：[订单工作台](./?path=/story/view-engine-业务场景-订单工作台--order-workbench-scene)的「催发货」；每一种样子（主操作与「⋯」菜单、多选里部分可用与「只选能做的」、表单、危险确认、到点翻转、进度与停止、详情抽屉）：[组件状态 · 声明式操作](./?path=/story/view-engine-组件状态-声明式操作--row-primary-and-overflow)；补偿控制台的三条命令照同一套声明：[回归夹具 · 补偿](./?path=/story/view-engine-回归夹具-补偿-记录工作台--row-commands-and-detail)
 - 导出 CSV：[售后工作台](./?path=/story/view-engine-业务场景-售后工作台--after-sale-workbench)
 - 宽表：[运单宽表](./?path=/story/view-engine-业务场景-运单宽表--waybill-wide-table)
 - 事件流，按事件筛选、按事件展开分析：[订单事件流](./?path=/story/view-engine-业务场景-订单事件流--order-event-stream)
+- 记录详情里宿主的分区、链到另一条记录：[记录详情](./?path=/docs/view-engine-组件状态-记录工作台-记录详情--docs)；金额各按各的币种、多种货币不合计：[金额与小数](./?path=/docs/view-engine-能力-金额与小数--docs)
+- 同一份定义部署到不同存储，各得各的能力：[随部署收窄](./?path=/docs/view-engine-能力-随部署收窄--docs)、[元素内检索](./?path=/docs/view-engine-能力-元素内检索--docs)
 
 ### 分析
 
 - 分组与指标、派生指标、只保留与前 N 组、数组展开、空值分组、{GUIDE_COUNTS.chartTypes} 种图与表格：[分析工作台](./?path=/story/view-engine-业务场景-分析工作台--order-analysis)
+- 编辑区按依赖排行——展开、指标、维度、结果、范围，展开带走指标时可撤销、指标拖动排序、范围待应用时底部直说：[编辑区的次序](./?path=/story/view-engine-业务场景-分析工作台-回归--tray-rows-in-dependency-order)、[展开的撤销](./?path=/story/view-engine-业务场景-分析工作台-回归--expansion-undo)；选中图型卡片右上角的选项图标：[图型选项](./?path=/story/view-engine-业务场景-分析工作台-回归--chart-options-corner)
 - 全部图型在一块板上，一种图一个问题：[图型全景](./?path=/story/view-engine-业务场景-图型全景--trend)；统计与结构图型各自怎样配置：[图型陈列](./?path=/story/view-engine-业务场景-图型陈列--boxplot)
 - 帕累托、按首单月的复购率：[分析工作台 · 会员](./?path=/story/view-engine-业务场景-分析工作台--member-analysis)
 - 对数轴、散点的轴、超过调色板的系列并成「其他」：[显示收口](./?path=/story/view-engine-能力-显示收口--log-scale)
 - 平均线、目标区间、趋势、移动平均、累计：[参考与算出的系列](./?path=/story/view-engine-能力-参考与算出的系列--average-and-target)
 - 缩放、图例开关、较上一期、大数据、花纹：[长时间轴](./?path=/story/view-engine-能力-长时间轴--daily-gmv)
+- 世界与省级地图、宿主没注册地图时：[地图](./?path=/docs/view-engine-能力-地图--docs)
+- 一万行的表格只画看得见的那几行，键盘照样走遍：[长表](./?path=/docs/view-engine-分析视图-长表--docs)
 - 查看这些记录、框选一段、设为时间筛选：[框选与追问](./?path=/story/view-engine-能力-框选与追问--in-the-workbench)
 
 ### 仪表盘与嵌入
@@ -159,17 +165,23 @@ View Engine 是 Wow 的数据视图引擎。业务系统里大多数页面是「
 - 板上的搜索：[板上的搜索](./?path=/story/view-engine-能力-板上的搜索--build-a-search)
 - 嵌入仪表盘、嵌入视图：[会员详情页](./?path=/story/view-engine-业务场景-会员详情页--member-detail-page)、[订单详情页](./?path=/story/view-engine-业务场景-订单详情页--order-detail-page)
 
+### 接入
+
+- `defineView`、资源、`ViewHost`（路由、主题、明暗）、声明式操作与导航数据，五步的真实代码：[接入导览](./?path=/docs/view-engine-接入导览--docs)
+- 导航是数据：每个场景左栏「业务场景」里的五个工作台由 `useViewNavigation` 推出，宿主用自己的标记画：[订单工作台](./?path=/story/view-engine-业务场景-订单工作台--order-workbench-scene)
+
 ### 外观与状态
 
 - 主题预设、明暗、跟随系统、对比度：[主题与预设](./?path=/docs/view-engine-能力-主题与预设--docs)
+- 宿主自己的主题与预设：[宿主自定义主题](./?path=/story/view-engine-能力-主题与预设-宿主自定义主题--host-authored)；引擎的工具类带前缀 `fve:`，宿主写在视图里的断点类照样生效：[宿主的断点类](./?path=/story/view-engine-能力-主题与预设-三层-回归--host-breakpoint-inside-the-surface)
 - 空、加载中、查询失败、待修复、保存冲突、窄屏：[组件状态 · 记录工作台](./?path=/docs/view-engine-组件状态-记录工作台--docs)
 
 ## 目录怎么读
 
-- **接入导览**回答「我怎样把一个业务对象接进来」：定义、数据源、引擎与页面四个文件的真实代码，和它们跑起来的样子：[接入导览](./?path=/docs/view-engine-接入导览--docs)。
+- **接入导览**回答「我怎样把一个业务对象接进来」：`defineView` 声明定义、注册资源接上数据、`ViewHost`（路由、主题、明暗）、声明操作、画导航与工作台，五步的真实代码和它们跑起来的样子：[接入导览](./?path=/docs/view-engine-接入导览--docs)。
 - **业务场景**回答「引擎能替我的业务做什么」：栖木生活的四块仪表盘（其中一块是图型全景）、五个工作台、两张嵌入页与一面图型陈列。
 - **能力**回答「某一项功能长什么样」：一项能力一页，场景尽量小。
 - **组件状态**回答「空、加载、失败、冲突、窄屏时它是什么样」：[记录工作台](./?path=/docs/view-engine-组件状态-记录工作台--docs)、[分析工作台](./?path=/docs/view-engine-组件状态-分析工作台--docs)、[仪表盘](./?path=/docs/view-engine-组件状态-仪表盘--docs)、[EmbeddedView](./?path=/docs/view-engine-组件状态-embeddedview--docs)、[EmbeddedDashboard](./?path=/docs/view-engine-组件状态-embeddeddashboard--docs) 与 [筛选编辑器](./?path=/docs/view-engine-组件状态-筛选编辑器--docs)，用的是专为断言手挑的小夹具。
 - **真实后端**回答「连上真服务是什么样」：[客户](./?path=/docs/view-engine-真实后端-客户-快照控制台--docs)、交易订单与商品定价三个服务的快照控制台与事件流分析台（补偿服务的控制台就是产品本身，在 `compensation/dashboard`），要先把服务转发到本机（见仓库里 Storybook 的 README）；文档页不挂载示例，打开目录不会发请求。
 
-工具栏上的明暗开关、「Preset」与「Density」对场景都有效（主题一览自己钉住了每一条带的预设与明暗）。每个场景还有一个回归孪生故事，不在目录里，由 CI 在浏览器里逐个跑。
+工具栏上的明暗开关、「Preset」与「Density」对场景都有效（主题一览自己钉住了每一条带的预设与明暗）。每个场景还有一个回归孪生故事，不在目录里，由 CI 在浏览器里逐个跑；这一页链到的几个「回归」故事就是它们，打开时会自己把断言的操作跑一遍。

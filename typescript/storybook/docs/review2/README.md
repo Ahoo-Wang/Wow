@@ -1,6 +1,6 @@
 # 第二轮全面审查（2026-09-26）
 
-首发前的门（[todo.md](../../../wow-view-engine/docs/design/todo.md)「首发前的门」）要求的第二轮全面审查。在 `95b331df0`（#3661 之后）上三路并行、只读、逐个控件真实操作（Playwright 驱动的 Chromium，另跑了 Firefox 与 WebKit）；porcelain 为默认预设，另看明暗、其他预设、390 宽与中英文。
+npm 首发之前的第二轮全面审查（[todo.md](../../../wow-view-engine/docs/design/todo.md#首发前)「首发前」第 2 项）。在 `95b331df0`（#3661 之后）上三路并行、只读、逐个控件真实操作（Playwright 驱动的 Chromium，另跑了 Firefox 与 WebKit）；porcelain 为默认预设，另看明暗、其他预设、390 宽与中英文。
 
 - [r1.md](r1.md) 记录视图与筛选；[r2.md](r2.md) 分析视图与图表（含 22 种图型「这张图回答什么问题」的逐一结论）；[r3.md](r3.md) 仪表盘、嵌入、面向宿主的主题与补偿控制台（含就绪审计 P1 的处置依据、W14／W15 的证据）。
 - 各路文件原样保存；其中截图与脚本的路径指向审查时的本地临时目录，不随仓库保存。

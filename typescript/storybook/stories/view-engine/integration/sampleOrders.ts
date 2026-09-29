@@ -12,11 +12,13 @@
  */
 
 import type { RecordData } from '@ahoo-wang/wow-view-engine';
+import type { OrderCommands } from './orderActions.js';
 
 /*
  * The walkthrough's stand-in for a Wow service: twelve order snapshots, in
  * the shape the snapshot query answers (the envelope beside `state`). In a
- * host, `wowOrderSource` reads them from the service instead.
+ * host, `wowOrderSource` reads them from the service instead, and
+ * `wowOrderCommands` changes them there.
  */
 
 const WAREHOUSES = ['华东（嘉兴）', '华北（天津）', '华南（东莞）'] as const;
@@ -40,3 +42,25 @@ export const SAMPLE_ORDERS: readonly RecordData[] = Array.from(
 export const SAMPLE_TO_SHIP = SAMPLE_ORDERS.filter(
   order => (order.state as { status: string }).status === 'PAID',
 ).length;
+
+/** A copy of the orders of its own, for one example to change. */
+export function sampleOrders(): RecordData[] {
+  return SAMPLE_ORDERS.map(order => ({
+    ...order,
+    state: { ...(order.state as object) },
+  }));
+}
+
+/**
+ * The commands over `orders` in memory: each writes the order's status, as
+ * the service's snapshot would show it, a moment later.
+ */
+export function sampleCommands(orders: readonly RecordData[]): OrderCommands {
+  const write = (status: string) => async (orderId: string) => {
+    await new Promise(resolve => setTimeout(resolve, 80));
+    const order = orders.find(each => each.aggregateId === orderId);
+    if (!order) throw new Error(`No order ${orderId}.`);
+    (order.state as { status: string }).status = status;
+  };
+  return { ship: write('SHIPPED'), cancel: write('CANCELLED') };
+}

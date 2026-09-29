@@ -17,7 +17,7 @@ import {
   type RecordRow,
   type ViewEngine,
 } from '@ahoo-wang/wow-view-engine';
-import { DataWorkbench } from '@ahoo-wang/wow-view-engine/ui';
+import { bind, DataWorkbench, ViewHost } from '@ahoo-wang/wow-view-engine/ui';
 import { HOST_LANGUAGE } from './fixtures.js';
 import { StoryEngine } from './StoryEngine.js';
 import { RETAIL_DATA_NOTE, retailShell } from './retail/scene.js';
@@ -59,18 +59,33 @@ const ORDER_ACTIONS = actions([
   },
 ]);
 
+/**
+ * What the orders do in this host (`bind`): the declared command, on every
+ * record view over them — this workbench, its detail, a board's panel.
+ */
+const ORDER_BINDINGS = [bind(RETAIL_ORDERS, { actions: ORDER_ACTIONS })];
+
+/**
+ * The host around the page (`ViewHost`): the engine, the language and the
+ * bindings. The workbench takes only what differs where it stands. The
+ * Storybook toolbar paints light and dark, so the mode is the host's.
+ */
 function OrderWorkbench({ engine }: { engine: ViewEngine }) {
   return (
-    <DataWorkbench
+    <ViewHost
       engine={engine}
-      definitionId={RETAIL_ORDERS}
       {...HOST_LANGUAGE}
-      record={{
-        actions: ORDER_ACTIONS,
-        emptyTitle: '没有符合条件的订单',
-        emptyDescription: '换一个时间范围，或清掉几个条件再看。',
-      }}
-    />
+      bindings={ORDER_BINDINGS}
+      colorMode="host"
+    >
+      <DataWorkbench
+        definitionId={RETAIL_ORDERS}
+        record={{
+          emptyTitle: '没有符合条件的订单',
+          emptyDescription: '换一个时间范围，或清掉几个条件再看。',
+        }}
+      />
+    </ViewHost>
   );
 }
 
