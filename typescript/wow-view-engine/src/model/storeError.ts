@@ -45,17 +45,25 @@ export class ViewStoreError extends Error {
   readonly instance?: ViewInstance;
   /** The preferences it holds, when a preference write conflicted. */
   readonly preferences?: ViewPreferences;
+  /**
+   * With `UNAVAILABLE`: the browser's own storage would not keep the write
+   * (full, or turned off), so it never left the device and nothing was
+   * written. The outcome is known, not lost on the way, and the reader is
+   * told what to free rather than that the result never came back.
+   */
+  readonly storage?: true;
 
   constructor(
     code: ViewStoreErrorCode,
     message: string,
-    held: ConflictingState = {},
+    held: ConflictingState & { storage?: true } = {},
   ) {
     super(message);
     this.name = 'ViewStoreError';
     this.code = code;
     this.instance = held.instance;
     this.preferences = held.preferences;
+    if (held.storage) this.storage = true;
   }
 }
 

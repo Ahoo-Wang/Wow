@@ -32,6 +32,16 @@ export interface SourceFailure {
   errorCode?: string;
   /** The HTTP status the source answered with, when there was one. */
   status?: number;
+  /**
+   * The request never reached the service: the browser's fetch rejected
+   * with a `TypeError` (「Failed to fetch」, 「Load failed」,
+   * 「NetworkError when attempting to fetch resource.」), bare or as the
+   * cause of an exchange that has no response, with no status and no
+   * body. `reason` keeps the browser's words, which are English whatever
+   * the reader's language, for the host; the reader is told the server
+   * could not be reached.
+   */
+  unreachable?: true;
 }
 
 /**
@@ -93,7 +103,20 @@ async function readFailure(error: unknown): Promise<SourceFailure> {
     if (answered) return answered;
     if (status !== undefined) return { reason: `HTTP ${status}`, status };
   }
-  return { reason: error instanceof Error ? error.message : String(error) };
+  const reason = error instanceof Error ? error.message : String(error);
+  return isNetworkFailure(error) ? { reason, unreachable: true } : { reason };
+}
+
+/**
+ * Whether a failure with no status and no body is fetch's own: the fetch
+ * standard rejects a request that got no response with a `TypeError`, and
+ * fetcher's `ExchangeError` carries it as its `cause`.
+ */
+function isNetworkFailure(error: unknown): boolean {
+  return (
+    error instanceof TypeError ||
+    (error as { cause?: unknown } | null)?.cause instanceof TypeError
+  );
 }
 
 function statusOf(holder: unknown): number | undefined {

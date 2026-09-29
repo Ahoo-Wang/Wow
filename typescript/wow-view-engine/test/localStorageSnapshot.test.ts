@@ -79,6 +79,7 @@ describe('localStorageSnapshot: a write storage refuses', () => {
     expect(refused).toMatchObject({
       name: 'ViewStoreError',
       code: 'UNAVAILABLE',
+      storage: true,
       message: expect.stringContaining('QuotaExceededError'),
     });
     // Undone in memory as well: nothing claims a view the next load lacks.
@@ -151,6 +152,13 @@ describe('localStorageSnapshot: a write storage refuses', () => {
     const error = await engine.save(runtime).catch((caught: unknown) => caught);
 
     expect(isViewWriteError(error) && error.state.kind).toBe('unknown');
+    // Said as the browser's storage refusing it, not as a lost answer.
+    expect(isViewWriteError(error) && error.state).toMatchObject({
+      issue: {
+        code: 'view.write.storage',
+        params: { reason: expect.stringContaining('QuotaExceededError') },
+      },
+    });
     expect(errors).toEqual([
       expect.objectContaining({
         kind: 'store',

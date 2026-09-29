@@ -304,6 +304,18 @@ export class WriteLedger {
 
     switch (error.code) {
       case 'UNAVAILABLE':
+        // The browser's own storage would not keep it (`storage`): nothing
+        // was written, and the retry that follows writes it again once
+        // there is room — so it stays the retry-or-abandon outcome, but
+        // says why in the reader's words rather than that the result never
+        // came back.
+        if (error.storage === true)
+          return {
+            kind: 'unknown',
+            requestId,
+            payload,
+            issue: issue('view.write.storage', [], { reason: error.message }),
+          };
         return { kind: 'unknown', requestId, payload };
       case 'CONFLICT': {
         // Which of the two the error may carry is decided by what was being

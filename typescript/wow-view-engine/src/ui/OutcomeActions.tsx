@@ -158,7 +158,11 @@ export function OutcomeActions({
   if (state.kind === 'unknown')
     return (
       <OutcomeLine surface={surface} tone="warning">
-        <AlertTitle>{messages.label('label.write.unknown')}</AlertTitle>
+        <AlertTitle>
+          {state.issue
+            ? messages.issue(state.issue)
+            : messages.label('label.write.unknown')}
+        </AlertTitle>
         <AlertAction>
           {actions.retry && (
             <Button size={size} disabled={pending} onClick={actions.retry}>
