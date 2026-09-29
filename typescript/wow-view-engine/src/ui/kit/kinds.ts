@@ -108,6 +108,10 @@ const DASHBOARD_WORDS: Partial<Record<MessageKey, MessageKey>> = {
   // What the engine reports about the thing open (`kindIssue`), by the entry
   // its code reads. Only the entries whose sentence names a view: the rest
   // say a write, a server or a definition, and read the same on a board.
+  'view.changeAudience.failed': 'label.dashboard.audience-failed',
+  'view.changeAudience.forbidden': 'label.dashboard.audience-forbidden',
+  'view.changeAudience.invalid': 'label.dashboard.audience-invalid',
+  'view.changeAudience.unsupported': 'label.dashboard.audience-unsupported',
   'view.config.invalid': 'label.dashboard.config-invalid',
   'view.create.forbidden': 'label.dashboard.create-forbidden',
   'view.delete.failed': 'label.dashboard.delete-failed',

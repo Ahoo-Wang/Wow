@@ -1148,6 +1148,7 @@ describe('useViewManager', () => {
           save: true,
           rename: id === 'orders-1',
           delete: false,
+          changeAudience: id === 'orders-1',
         }),
       }),
     });
@@ -1158,10 +1159,12 @@ describe('useViewManager', () => {
     expect(result.current.manager.can.instance('orders-1')).toEqual({
       rename: true,
       delete: false,
+      changeAudience: true,
     });
     expect(result.current.manager.can.instance('orders-2')).toEqual({
       rename: false,
       delete: false,
+      changeAudience: false,
     });
   });
 
@@ -1173,10 +1176,12 @@ describe('useViewManager', () => {
     expect(result.current.manager.can.instance('orders-1')).toEqual({
       rename: true,
       delete: true,
+      changeAudience: true,
     });
     expect(result.current.manager.can.instance('system:orders:all')).toEqual({
       rename: false,
       delete: false,
+      changeAudience: false,
     });
 
     await act(async () => {
@@ -1270,7 +1275,12 @@ describe('useViewManager', () => {
       permissions: permitting({
         reorder: false,
         setDefault: false,
-        instance: () => ({ save: true, rename: false, delete: false }),
+        instance: () => ({
+          save: true,
+          rename: false,
+          delete: false,
+          changeAudience: false,
+        }),
       }),
     });
     const { result } = await managed(engine);

@@ -41,20 +41,27 @@ export const ALLOW_ALL: ViewPermissions = {
   createShared: true,
   reorder: true,
   setDefault: true,
-  instance: () => ({ save: true, rename: true, delete: true }),
+  instance: () => ({
+    save: true,
+    rename: true,
+    delete: true,
+    changeAudience: true,
+  }),
 };
 
-/** Nothing may be written, which is what a system view answers to all three. */
-const NO_INSTANCE_WRITES: InstancePermissions = {
+/** Nothing may be written, which is what a system view answers to all of them. */
+const NO_INSTANCE_WRITES: Required<InstancePermissions> = {
   save: false,
   rename: false,
   delete: false,
+  changeAudience: false,
 };
 
 const INSTANCE_ACTION_SET = {
   save: true,
   rename: true,
   delete: true,
+  changeAudience: true,
 } satisfies Record<keyof InstancePermissions, true>;
 
 /**
@@ -69,7 +76,7 @@ export const INSTANCE_ACTIONS = Object.keys(
 ) as readonly (keyof InstancePermissions)[];
 
 /** What may be done to one instance, and — when nothing may — why not. */
-export interface InstanceAbilities extends InstancePermissions {
+export interface InstanceAbilities extends Required<InstancePermissions> {
   /**
    * True when the refusal is the view's own nature rather than the store's
    * answer. The guard words that refusal differently
@@ -94,6 +101,12 @@ export interface InstanceAbilities extends InstancePermissions {
  * do not hold gets the store's answer, and the guard — which always has the
  * scope, because it reads a summary or an instance — is the one that refuses
  * it for certain.
+ *
+ * `changeAudience` answers for the move the manager offers — to the other
+ * audience — so it asks the store's `changeAudience` (silence allows it, as
+ * everywhere) **and** the create permission of the audience the view goes
+ * to: sharing puts a view in front of everyone, which is what
+ * `createShared` guards, however the view came to exist.
  */
 export function instanceAbilities(
   summary: { id: string; scope?: ViewScope },
@@ -102,10 +115,17 @@ export function instanceAbilities(
   if (summary.scope !== undefined && isSystemScope(summary.scope))
     return { ...NO_INSTANCE_WRITES, readOnly: true };
   const granted = permissions.instance(summary.id);
+  const into =
+    summary.scope === undefined
+      ? true
+      : audienceOf(summary.scope) === 'personal'
+        ? permissions.createShared
+        : permissions.createPersonal;
   return {
     save: granted.save,
     rename: granted.rename,
     delete: granted.delete,
+    changeAudience: granted.changeAudience !== false && into,
     readOnly: false,
   };
 }
@@ -117,8 +137,24 @@ export class PermissionGuard {
     this.store = store;
   }
 
+  /**
+   * The store's answer, or everything. A store without `changeAudience` has
+   * no such move to permit, so its answer says so for every instance — the
+   * one reading the manager's buttons and this guard share (D4).
+   */
   of(definitionId: string): ViewPermissions {
-    return this.store.permissions?.(definitionId) ?? ALLOW_ALL;
+    const permissions = this.store.permissions?.(definitionId) ?? ALLOW_ALL;
+    if (this.store.changeAudience) return permissions;
+    return {
+      createPersonal: permissions.createPersonal,
+      createShared: permissions.createShared,
+      reorder: permissions.reorder,
+      setDefault: permissions.setDefault,
+      instance: id => ({
+        ...permissions.instance(id),
+        changeAudience: false,
+      }),
+    };
   }
 
   requireCreate(definitionId: string, scope: ViewScope): void {

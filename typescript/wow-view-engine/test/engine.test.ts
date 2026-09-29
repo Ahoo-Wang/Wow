@@ -1276,6 +1276,7 @@ describe('ViewEngine wiring', () => {
       save: true,
       rename: true,
       delete: true,
+      changeAudience: true,
     });
   });
 

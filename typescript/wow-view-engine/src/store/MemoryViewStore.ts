@@ -12,10 +12,12 @@
  */
 
 import {
+  audienceOf,
   isSystemInstanceId,
   isSystemScope,
   toSummary,
   ViewStoreError,
+  type ViewAudience,
   type ViewConfig,
   type ViewInstance,
   type ViewInstanceSummary,
@@ -176,6 +178,34 @@ export class MemoryViewStore implements ViewStore {
     }));
   }
 
+  /**
+   * The port's in-place audience change: personal and shared swap, the id
+   * and everything else stay. Asked for the audience the view already has,
+   * it answers the view unchanged — no revision spent, nothing written — and
+   * remembers that answer under the `requestId` like any other outcome.
+   * A view a shared (or system) board shows is refused as `INVALID` when it
+   * would become personal, the message naming those boards.
+   */
+  changeAudience(
+    id: string,
+    audience: ViewAudience,
+    revision: string,
+    context: WriteContext,
+  ): Promise<ViewInstance> {
+    return this.update(id, revision, context, current => {
+      if (audienceOf(current.scope) === audience) return null;
+      if (audience === 'personal') {
+        const boards = this.sharedBoardsShowing(id);
+        if (boards.length > 0)
+          return new ViewStoreError(
+            'INVALID',
+            `Shared dashboards show view ${id}: ${boards.join(', ')}`,
+          );
+      }
+      return { ...current, scope: audience };
+    });
+  }
+
   delete(id: string, revision: string, context: WriteContext): Promise<void> {
     if (this.outcomes.has(context.requestId)) return Promise.resolve();
     this.reload();
@@ -244,11 +274,17 @@ export class MemoryViewStore implements ViewStore {
     return Promise.resolve(next);
   }
 
+  /**
+   * One instance write: replay, re-read, the three refusals every instance
+   * write shares, then `change`. It may answer `null` for a write that
+   * changes nothing — the view is answered as it is and the revision is not
+   * spent — or a `ViewStoreError` for a refusal of its own.
+   */
   private update(
     id: string,
     revision: string,
     context: WriteContext,
-    change: (current: ViewInstance) => ViewInstance,
+    change: (current: ViewInstance) => ViewInstance | ViewStoreError | null,
   ): Promise<ViewInstance> {
     const replayed = this.outcomes.get(context.requestId);
     if (replayed) return Promise.resolve(copy(replayed));
@@ -266,12 +302,40 @@ export class MemoryViewStore implements ViewStore {
     const conflict = this.expect(current, revision);
     if (conflict) return Promise.reject(conflict);
 
+    const changed = change(current);
+    if (changed instanceof ViewStoreError) return Promise.reject(changed);
+    if (changed === null) {
+      this.outcomes.set(context.requestId, current);
+      return Promise.resolve(copy(current));
+    }
     const next: ViewInstance = {
-      ...change(current),
+      ...changed,
       revision: String(Number(current.revision) + 1),
     };
     this.instances.set(id, next);
     return this.commit(context, next, () => this.instances.set(id, current));
+  }
+
+  /**
+   * The titles of the boards everyone sees that show `id` in a panel — the
+   * reference the dashboard kernel's `coversScope` guards from the board's
+   * side. Read off the stored configs as the untrusted JSON they are: the
+   * store may import nothing but the model.
+   */
+  private sharedBoardsShowing(id: string): string[] {
+    const boards: string[] = [];
+    for (const instance of this.instances.values()) {
+      const { config } = instance;
+      if (
+        config.kind !== 'dashboard' ||
+        audienceOf(instance.scope) !== 'shared'
+      )
+        continue;
+      const panels: unknown = config.panels;
+      if (Array.isArray(panels) && panels.some(panel => shows(panel, id)))
+        boards.push(instance.title);
+    }
+    return boards;
   }
 
   private expect(
@@ -340,6 +404,16 @@ export class MemoryViewStore implements ViewStore {
     for (const [definitionId, preferences] of Object.entries(state.preferences))
       this.preferences.set(definitionId, preferences);
   }
+}
+
+/** Whether a stored panel shows the saved view `id` (not one the board owns). */
+function shows(panel: unknown, id: string): boolean {
+  if (typeof panel !== 'object' || panel === null) return false;
+  const { instanceId, owned } = panel as {
+    instanceId?: unknown;
+    owned?: unknown;
+  };
+  return owned === undefined && instanceId === id;
 }
 
 /** What a refusal said — a `DOMException` is an `Error` only in some realms. */

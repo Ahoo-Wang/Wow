@@ -306,6 +306,7 @@ describe('ViewManager outcomes', () => {
     cleanup();
     const refused: ViewManagerController = {
       rename: () => Promise.resolve(false),
+      changeAudience: () => Promise.resolve(false),
       delete: () => Promise.resolve(false),
       setDefault: () => Promise.resolve(false),
       moveTo: () => Promise.resolve(false),
@@ -335,7 +336,7 @@ describe('ViewManager outcomes', () => {
       can: {
         reorder: true,
         setDefault: true,
-        instance: () => ({ rename: true, delete: true }),
+        instance: () => ({ rename: true, delete: true, changeAudience: false }),
         anything: true,
       },
     };

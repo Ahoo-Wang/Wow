@@ -281,6 +281,7 @@ src/
     queryWeight.ts            — `queryWeight`, `aggregationWeight`: a compiled query's filter nodes and longest value list, counted as a Wow service's query guard counts them (internal, not exported)
     exportRows.ts             — Fetching every row the conditions match, page by page, under `exportMax` and the source's paging window (`exportPlan`)
     failures.ts               — A failure told to the host's `onError` once and never thrown back (`reportError`, `failureReporter`, `queryFailureReporter` — a query's, told once the source's answer is read, `reportViewFailure`), a call called off told apart (`isCalledOff`), and every store call watched at the engine's door (`reportingStore`) (D40; internal, not exported)
+    commandChecks.ts          — `requireTitle`, `requireSavable`: what a command refuses of its own input before anything is sent (internal, not exported)
     abort.ts                  — `abortWith`: the controller a source call takes, following the caller's signal (internal, not exported)
     fetchRecord.ts            — One record, whole, by its row key within the injected scope — not the page's conditions, no projection
     issues.ts                 — `toIssue`: one Issue for whatever a command threw
@@ -307,7 +308,7 @@ src/
     source.ts                 — resolveSource — three QueryApi methods, and `describe`, the capability descriptor, where the source has one
     storedViews.ts            — The one read boundary for stored views: `readingStore` wraps the host's store so every view it hands back, a conflict's included, passes `readStored` (a dashboard through `migrateDashboardConfig`) once on its way in
     tabMemory.ts              — `TabMemory`: where each reader last read each dashboard (`ViewPreferences.lastTabs`), the tab a board opens on, and a burst of switches written as its last, never rejecting
-    summaries.ts              — The instance-summary cache: noted on listing and on a confirmed write, dropped on delete, read before the store
+    summaries.ts              — The instance-summary cache: noted on listing and on a confirmed write, dropped on delete, read before the store; `storedSummaries`, the stored half of a list — its failure answered beside it, a reserved id dropped
     actions.ts                — Declared actions (host-integration.md 5, D67): `actions()` and `RecordAction` — what a host says of a command — and the pure reading the UI and `/testing`'s `actionHarness` share: `actionState`, `choiceOf`, `asksFirst`, `splitFor`, `refusalsByReason`, `nextChange`, `runOne` and `ActionRefused`; the other runtime module `/testing` imports by value
     admission.ts              — `admit`, `/testing`'s: every definition a host declares admitted as the engine admits it — its keys said, its own rules, its boards against the rest, each narrowed to its committed descriptor — each finding with its definition (host-integration.md 6); the one runtime module `/testing` imports by value
     define/                   — `defineView` (host-integration.md 3, D67): a data definition built from its descriptor snapshot, the host's `DefineViewSpec` picking, naming and narrowing — `spec.ts` the spec, `fields.ts` the fields (kind, values, sort from the descriptor), `analysis.ts` the host's analysis plan and its reading over the snapshot (`capabilities/open.ts`), `defineView.ts` the record capability and the rest; what it found rides on `described`
@@ -337,13 +338,14 @@ src/
       history.ts              — `EditHistory`: one step per edit command, the members it changed before and after on the draft and the screen, a burst of one naming or setting on one thing one step; `outsideHistory`, a plain `edit` kept off the members those commands own; `rewound`
       owned.ts                — `admitBoard`: a board's admission as its runtime makes it, the dashboard kernel's and then each owned analysis through the analysis kernel (`ownedRefusals`, which the definition's admission of a declared board runs too) — every such finding the panel's alone
       panels.ts               — What the runtime knows of its panels without holding any: `DashboardPanelState`, the click in force and the finding that set a click aside (`clickInForce`), which panel a finding is about (`panelOf`); `blocksBoard`, the errors that stop the whole board; `boardFindings`, what the board says above its panels — the one reading the workbench, an embed and a host share; `stopsSave`, what stops a save of each kind; a child's findings addressed to its panel (`panelIssues`, `atPanel`, `reissued`), `samePanels`; `shownTab`, the tab on screen
+      opening.ts              — `openingState`: a board's state as it opens — the config as draft and applied, its first tab, its filters at their defaults, nothing asked, dirty only when never saved
       presentation.ts         — `presentedConfig`: a panel's override of how it looks laid over its view's config, dropped with a note when it no longer fits
       press.ts                — `PanelPresses`: a press on a panel's group worked out (D22 H, I), the click read off the panel state and never judged again (A-11) — the group's value in a board filter's shape set from the panel (`crossFilter`, a second press clears), a brushed span set into a date filter wired to the panel (`spanFilters`, `pressSpan`, D33 Q52), whether a group is one pressed (`pressed`, a bucket inside a brushed span included), and where a custom destination goes carrying it (`destination`: a filled URL, a saved view taking what the panel takes off the board (`handOver`) and the group's conditions, on the fields its data has too, or another board with its mapped filters set and the rest at their defaults — a click set aside, or a mapping the board read at the press finds stale, falls back to the follow-up menu); `board`, another board read only when asked
       references.ts           — PanelReferences: loading what panels point at
   store/                      — Persistence port — imports model only
-    MemoryViewStore.ts        — In-memory implementation for examples and tests; with a snapshot it re-reads before every write and undoes a write the snapshot refused (`UNAVAILABLE`)
+    MemoryViewStore.ts        — In-memory implementation for examples and tests; with a snapshot it re-reads before every write and undoes a write the snapshot refused (`UNAVAILABLE`); `changeAudience` in place, refusing to make personal a view a shared board shows (`INVALID`)
     localStorageSnapshot.ts   — `localStorageSnapshot(key)`: its snapshot in `localStorage` for development and single-user hosts — a refused write fails, tabs merge by revision or conflict, a `storage` event reloads
-    ViewStore.ts              — The only port a backend must satisfy
+    ViewStore.ts              — The only port a backend must satisfy: eight methods and the optional `changeAudience`
     index.ts                  — Persistence is one port with eight methods
   testing/                    — The `/testing` entry (D65): an in-memory `ViewSource` with Wow's query semantics, `admit` (host-integration.md 6), `resolveNavigation` (host-integration.md 4) and `actionHarness` (host-integration.md 6), for a host's tests — imports `model`, the `runtime/source` type, `runtime/admission`, `runtime/routes` and `runtime/actions`
     index.ts                  — Entry — `memorySource`, `matches`, `MemorySourceOptions`, each named
@@ -786,7 +788,7 @@ src/
       panelsToFix.ts          — `boardErrorTitle`: a board's red line said of its panels when only the open board's panels are broken (「有 N 个面板要先修正才能显示」), of the board otherwise; `saidByBoard`: a definition finding the open declared board already says by name
 ```
 
-`test/` (one file per subject plus `fixtures.ts` and `fixtures/`), `examples/` (`FetcherViewStore.ts`, `PlainRecordWorkbench.tsx`, `quickstart.ts`) and `docs/design/` sit beside `src/`.
+`test/` (one file per subject plus `fixtures.ts` and `fixtures/`, and `conformance/viewStoreConformance.ts` — the `ViewStore` port's conformance suite, `describeViewStoreConformance`, run here over `MemoryViewStore` and its `localStorage` snapshot and imported by path from `typescript/integration-test` for the Wow backend's client, never published), `examples/` (`FetcherViewStore.ts`, `PlainRecordWorkbench.tsx`, `quickstart.ts`) and `docs/design/` sit beside `src/`.
 
 ### Key Concepts
 

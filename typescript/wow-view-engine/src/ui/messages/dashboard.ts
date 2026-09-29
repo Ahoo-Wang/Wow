@@ -65,6 +65,14 @@ export const dashboardMessages = {
   'label.dashboard.config-invalid':
     'Fix what this dashboard reports before saving it.',
   'label.dashboard.create-forbidden': 'You may not create dashboards here.',
+  'label.dashboard.audience-failed':
+    'Who this dashboard is for could not be changed.',
+  'label.dashboard.audience-forbidden':
+    'You may not change who this dashboard is for; save a copy of your own instead.',
+  'label.dashboard.audience-unsupported':
+    'This store cannot move a dashboard between personal and shared.',
+  'label.dashboard.audience-invalid':
+    'Who this dashboard is for could not be changed: {reason}',
   'label.dashboard.delete-failed': 'This dashboard could not be deleted.',
   'label.dashboard.delete-forbidden':
     'You may not delete this dashboard; ask whoever owns it to remove it.',

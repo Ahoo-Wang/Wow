@@ -932,7 +932,7 @@ expect(orders.asks('cancel', 'row').asks).toBe(true);
 | `ViewInstance`   | A saved `ViewConfig` plus id, title, scope and an opaque `revision`. Scope is system, shared or personal.                                                                                                                                                                                                                                                                                                                                          | store    |
 | `ViewRuntime`    | One open view: draft, applied config, result, status, selection. `subscribe` / `getSnapshot`.                                                                                                                                                                                                                                                                                                                                                      | memory   |
 | `ViewEngine`     | Registry of definitions, the store and open runtimes; entry point for open, save, list commands.                                                                                                                                                                                                                                                                                                                                                   | memory   |
-| `ViewStore`      | Eight-method persistence port. Ship your own for your backend.                                                                                                                                                                                                                                                                                                                                                                                     | app      |
+| `ViewStore`      | Eight-method persistence port, plus an optional `changeAudience`. Ship your own for your backend.                                                                                                                                                                                                                                                                                                                                                  | app      |
 | `FieldKind`      | Operators, validation, compilation and editor descriptor for one field type.                                                                                                                                                                                                                                                                                                                                                                       | registry |
 
 ## View management
@@ -994,6 +994,13 @@ interface ViewStore {
     ctx: WriteContext,
   ): Promise<ViewInstance>;
   delete(id: string, revision: string, ctx: WriteContext): Promise<void>;
+  // Optional: without it the manager offers no “Make shared” / “Make personal”.
+  changeAudience?(
+    id: string,
+    audience: ViewAudience,
+    revision: string,
+    ctx: WriteContext,
+  ): Promise<ViewInstance>;
   getPreferences(
     definitionId: string,
     signal?: AbortSignal,
@@ -1011,6 +1018,10 @@ Two rules make it consistent:
 
 1. **Optimistic revision.** Writes carry the expected `revision`; a mismatch throws `ViewStoreError` with code `CONFLICT`, and the UI offers reload-and-overwrite or save-as.
 2. **Idempotent `requestId`.** Each logical write gets one `requestId` in `WriteContext`. Retries after a timeout reuse it; the server deduplicates.
+
+`changeAudience` moves a saved view between personal and shared in place — the id stays, so a dashboard that shows it keeps showing it. It keeps the same two rules, answers a request for the audience the view already has with the view unchanged (no new revision), and refuses to make a view personal while a shared dashboard shows it (`INVALID`, naming the dashboards). A store without it simply has no such button in the view manager; one with it gets “Make shared” or “Make personal” on each row the store's `permissions` allow — `instance(id).changeAudience` (absent reads as allowed) and the create permission of the audience the view goes to.
+
+A store implementation can run the port's conformance suite, `test/conformance/viewStoreConformance.ts` in this package's repository (not published): `describeViewStoreConformance({ name, capabilities, connect })` registers the cases every store must pass — lists, visibility, the writes, stale revisions, system views, replays, preferences — and skips those a declared capability rules out.
 
 The package ships `MemoryViewStore` for tests, examples and query-only use. Business applications implement `ViewStore` against their own API with their own fetcher; mapping HTTP status codes to `ViewStoreError.code` belongs there. Authorization, visibility filtering and deduplication are server responsibilities; `permissions` only drives button availability.
 

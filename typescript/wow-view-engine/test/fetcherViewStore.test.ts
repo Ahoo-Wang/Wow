@@ -187,6 +187,20 @@ describe('FetcherViewStore writes', () => {
     expect(sent().body).toEqual({ title: 'Theirs' });
   });
 
+  it('sends an audience change as the audience alone, against its revision', async () => {
+    await store().changeAudience('orders-1', 'shared', 'r1', {
+      requestId: 'req-5',
+    });
+
+    expect(sent().method).toBe('PUT');
+    expect(sent().url).toBe(
+      'https://views.test/view-engine/views/orders-1/audience',
+    );
+    expect(sent().body).toEqual({ audience: 'shared' });
+    expect(sent().headers.get('If-Match')).toBe('r1');
+    expect(sent().headers.get('Idempotency-Key')).toBe('req-5');
+  });
+
   it('deletes without reading a body back', async () => {
     fetchMock.mockResolvedValueOnce(new Response(null, { status: 204 }));
 
@@ -325,6 +339,7 @@ describe('FetcherViewStore permissions', () => {
       save: true,
       rename: true,
       delete: true,
+      changeAudience: true,
     });
   });
 
@@ -358,6 +373,7 @@ describe('FetcherViewStore permissions', () => {
       save: false,
       rename: true,
       delete: false,
+      changeAudience: true,
     });
   });
 
@@ -374,6 +390,7 @@ describe('FetcherViewStore permissions', () => {
       save: true,
       rename: true,
       delete: false,
+      changeAudience: true,
     });
   });
 

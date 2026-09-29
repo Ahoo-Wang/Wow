@@ -450,7 +450,12 @@ describe('the view manager behind two entries', () => {
     const readOnly = permitting({
       reorder: false,
       setDefault: false,
-      instance: () => ({ save: false, rename: false, delete: false }),
+      instance: () => ({
+        save: false,
+        rename: false,
+        delete: false,
+        changeAudience: false,
+      }),
     });
     const user = await open(engineWith(instances(), readOnly));
 

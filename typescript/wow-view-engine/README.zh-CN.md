@@ -924,7 +924,7 @@ expect(orders.asks('cancel', 'row').asks).toBe(true);
 | `ViewInstance`   | 一份保存的 `ViewConfig`，加 id、标题、范围与不透明 `revision`。范围为系统、共享或个人。                                                                                                                                                                                                                                                      | 存储   |
 | `ViewRuntime`    | 一个打开的视图：草稿、已应用配置、结果、状态、选择。提供 `subscribe` / `getSnapshot`。                                                                                                                                                                                                                                                       | 内存   |
 | `ViewEngine`     | 定义、存储与已打开运行时的注册表；打开、保存、列表等命令的入口。                                                                                                                                                                                                                                                                             | 内存   |
-| `ViewStore`      | 八个方法的持久化端口。业务应用为自己的后端实现它。                                                                                                                                                                                                                                                                                           | 应用   |
+| `ViewStore`      | 八个方法（外加可选的 `changeAudience`）的持久化端口。业务应用为自己的后端实现它。                                                                                                                                                                                                                                                            | 应用   |
 | `FieldKind`      | 一种字段类型的操作符、校验、编译与编辑器描述。                                                                                                                                                                                                                                                                                               | 注册表 |
 
 ## 视图管理
@@ -986,6 +986,13 @@ interface ViewStore {
     ctx: WriteContext,
   ): Promise<ViewInstance>;
   delete(id: string, revision: string, ctx: WriteContext): Promise<void>;
+  // 可选：没有它，视图管理里就没有「设为共享／设为个人」。
+  changeAudience?(
+    id: string,
+    audience: ViewAudience,
+    revision: string,
+    ctx: WriteContext,
+  ): Promise<ViewInstance>;
   getPreferences(
     definitionId: string,
     signal?: AbortSignal,
@@ -1003,6 +1010,10 @@ interface ViewStore {
 
 1. **乐观 revision。** 写入携带期望 `revision`，不匹配时抛出 code 为 `CONFLICT` 的 `ViewStoreError`，UI 提供"重新加载后覆盖"或"另存"。
 2. **幂等 `requestId`。** 每个逻辑写入在 `WriteContext` 中携带一次 `requestId`，超时后的重试复用它，服务端去重。
+
+`changeAudience` 把已保存的视图就地在个人与共享之间移动——id 不变，显示它的仪表盘照常显示。它守同样两条规则；要求改成视图已有的受众时原样答回、不花 revision；共享仪表盘还在显示它时拒绝改成个人（`INVALID`，说出是哪些仪表盘）。没有这个方法的 store，视图管理里就没有这颗按钮；有的，每一行按 store 的 `permissions` 给「设为共享」或「设为个人」——`instance(id).changeAudience`（缺省读作允许）加上去往那个受众的创建许可。
+
+实现 store 时可以跑端口一致性测试 `test/conformance/viewStoreConformance.ts`（在本包的仓库里，不随包发布）：`describeViewStoreConformance({ name, capabilities, connect })` 登记每个 store 都要通过的用例——列表、可见性、各种写入、过期 revision、系统视图、重放、偏好——声明不具备的能力对应的用例跳过。
 
 本包提供 `MemoryViewStore`，用于测试、示例与只查询不持久化的场景。业务应用用自己的 fetcher 针对自己的 API 实现 `ViewStore`，HTTP 状态码到 `ViewStoreError.code` 的映射在应用侧完成。授权、可见性过滤与去重是服务端职责，`permissions` 只决定按钮可用性。
 

@@ -758,6 +758,12 @@ export const zhCN: Readonly<Record<string, string>> = {
   'view.create.forbidden': '你不能在这里创建视图。',
   'view.definition.invalid': '{id} 定义有 {issues} 个问题，无法打开。',
   'view.definition.not-found': '没有名为 {id} 的定义。',
+  'view.changeAudience.failed': '没能改变这个视图给谁看。',
+  'view.changeAudience.forbidden':
+    '你不能改变这个视图给谁看，另存一份自己的吧。',
+  'view.changeAudience.unsupported':
+    '当前的视图存储不支持在个人与共享之间移动视图。',
+  'view.changeAudience.invalid': '没能改变这个视图给谁看：{reason}',
   'view.delete.failed': '这个视图删不掉。',
   'view.delete.forbidden': '你不能删除这个视图，请联系它的归属人。',
   'view.list.failed': '视图列表加载失败。',
@@ -818,6 +824,10 @@ export const zhCN: Readonly<Record<string, string>> = {
   'label.manage.rename-confirm': '保存标题',
   'label.manage.rename-cancel': '保留原标题',
   'label.manage.delete': '删除',
+  'label.manage.share': '设为共享',
+  'label.manage.make-personal': '设为个人',
+  'label.manage.shared': '{title} 已设为共享',
+  'label.manage.made-personal': '{title} 已设为个人',
   'label.manage.resubmit': '再应用一次',
   'label.manage.reload': '重新加载列表',
 
@@ -1604,6 +1614,12 @@ export const zhCN: Readonly<Record<string, string>> = {
     '改名、排序、删除仪表盘，并选择默认打开的仪表盘。',
   'label.dashboard.config-invalid': '先修正这个仪表盘报出的问题，再保存。',
   'label.dashboard.create-forbidden': '你不能在这里创建仪表盘。',
+  'label.dashboard.audience-failed': '没能改变这个仪表盘给谁看。',
+  'label.dashboard.audience-forbidden':
+    '你不能改变这个仪表盘给谁看，另存一份自己的吧。',
+  'label.dashboard.audience-unsupported':
+    '当前的存储不支持在个人与共享之间移动仪表盘。',
+  'label.dashboard.audience-invalid': '没能改变这个仪表盘给谁看：{reason}',
   'label.dashboard.delete-failed': '这个仪表盘删不掉。',
   'label.dashboard.delete-forbidden':
     '你不能删除这个仪表盘，请联系它的归属人。',

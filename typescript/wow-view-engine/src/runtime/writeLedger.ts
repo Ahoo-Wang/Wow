@@ -14,6 +14,7 @@
 import {
   isViewStoreError,
   type ViewInstance,
+  type ViewStoreError,
   type ViewPreferences,
 } from '../model/index.js';
 import { issue } from '../filter/index.js';
@@ -205,7 +206,8 @@ export class WriteLedger {
         return;
       }
       case 'save':
-      case 'rename': {
+      case 'rename':
+      case 'changeAudience': {
         const instance = result as ViewInstance;
         this.host.noteInstance(instance);
         // Every open view of this instance moves to the new baseline, not
@@ -236,9 +238,9 @@ export class WriteLedger {
     }
   }
 
-  /** The three actions that hand back an instance say so the same way. */
+  /** The actions that hand back an instance say so the same way. */
   private announce(
-    kind: 'create' | 'save' | 'rename',
+    kind: 'create' | 'save' | 'rename' | 'changeAudience',
     instance: ViewInstance,
   ): void {
     this.host.noteChange({
@@ -268,6 +270,15 @@ export class WriteLedger {
         return store.rename(
           payload.id,
           payload.title,
+          payload.revision,
+          context,
+        );
+      case 'changeAudience':
+        // Only ever dispatched over a store that has the method: the engine
+        // refuses the command before anything is sent otherwise.
+        return store.changeAudience!(
+          payload.id,
+          payload.audience,
           payload.revision,
           context,
         );
@@ -342,7 +353,7 @@ export class WriteLedger {
           kind: 'rejected',
           requestId,
           payload,
-          issue: issue(`view.write.${error.code.toLowerCase()}`, [], {
+          issue: issue(refusalCode(payload, error), [], {
             reason: error.message,
           }),
         };
@@ -427,6 +438,18 @@ export class WriteLedger {
       owner.setWrite(null);
     this.owners.delete(requestId);
   }
+}
+
+/**
+ * The sentence a refusal is said in. An audience change the store finds
+ * invalid has one reason the reader can act on — a shared board shows the
+ * view — and the store's message names the boards, so it is said with it
+ * rather than as the bare 「服务端拒绝了这次写入」.
+ */
+function refusalCode(payload: WritePayload, error: ViewStoreError): string {
+  return payload.action === 'changeAudience' && error.code === 'INVALID'
+    ? 'view.changeAudience.invalid'
+    : `view.write.${error.code.toLowerCase()}`;
 }
 
 function isRuntime(target: WriteTarget): target is ViewRuntime {

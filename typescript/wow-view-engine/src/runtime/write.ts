@@ -13,6 +13,7 @@
 
 import type {
   Issue,
+  ViewAudience,
   ViewConfig,
   ViewInstance,
   ViewPreferences,
@@ -37,6 +38,14 @@ export type WritePayload =
     }
   | { action: 'save'; id: string; revision: string; config: ViewConfig }
   | { action: 'rename'; id: string; revision: string; title: string }
+  // 设为共享／设为个人 (D18 item 10): the audience it goes to, which a retry
+  // and an overwrite ask for again whatever the view holds by then.
+  | {
+      action: 'changeAudience';
+      id: string;
+      revision: string;
+      audience: ViewAudience;
+    }
   // The definition travels with a delete because nothing else in the body
   // names it, and the list that loses this row has to be told which one it is
   // — on the first attempt and on every replay of it.

@@ -13,6 +13,7 @@
 
 import { describe, expect, it, vi } from 'vitest';
 import {
+  emptyDashboardConfig,
   emptyPreferences,
   isViewStoreError,
   MemoryViewStore,
@@ -340,5 +341,41 @@ describe('MemoryViewStore', () => {
     expect(isViewStoreError({ code: 'CONFLICT' })).toBe(true);
     expect(isViewStoreError({ code: 'TEAPOT' })).toBe(false);
     expect(isViewStoreError(null)).toBe(false);
+  });
+});
+
+describe('MemoryViewStore.changeAudience reads boards as stored data', () => {
+  it('finds a shared board by its panels, whatever else the stored configs hold', async () => {
+    const view: ViewInstance = {
+      id: 'v',
+      definitionId: 'orders',
+      title: 'V',
+      scope: 'shared',
+      revision: '1',
+      config: recordConfig(),
+    };
+    const board = (id: string, panels: unknown): ViewInstance => ({
+      id,
+      definitionId: 'overview',
+      title: id,
+      scope: 'shared',
+      revision: '1',
+      config: { ...emptyDashboardConfig(), panels } as ViewInstance['config'],
+    });
+    const store = new MemoryViewStore({
+      instances: [
+        view,
+        board('no-panels', 'not a list'),
+        board('odd-panels', [null, 'x', { owned: { config: {} } }]),
+        // A board that owns a copy is not showing the saved view.
+        board('owned', [{ instanceId: 'v', owned: {} }]),
+      ],
+    });
+
+    const moved = await store.changeAudience('v', 'personal', '1', {
+      requestId: 'r',
+    });
+
+    expect(moved.scope).toBe('personal');
   });
 });

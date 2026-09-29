@@ -30,10 +30,39 @@
  */
 
 import {
+  isSystemInstanceId,
   toSummary,
+  type Issue,
   type ViewInstance,
   type ViewInstanceSummary,
 } from '../model/index.js';
+import type { ViewStore } from '../store/ViewStore.js';
+import { toIssue } from './issues.js';
+
+/**
+ * The stored half of a definition's list, which may fail on its own: a
+ * store that is down takes the saved views with it and nothing else, so the
+ * failure is answered beside an empty list rather than thrown (management.md).
+ * An id in the reserved `system:` namespace is dropped and handed to
+ * `reserved`: only a definition may declare one.
+ */
+export async function storedSummaries(
+  store: ViewStore,
+  definitionId: string,
+  reserved: (id: string) => void,
+): Promise<{ stored: ViewInstanceSummary[]; failed: Issue | null }> {
+  try {
+    const listed = await store.list(definitionId);
+    const stored = listed.filter(summary => {
+      if (!isSystemInstanceId(summary.id)) return true;
+      reserved(summary.id);
+      return false;
+    });
+    return { stored, failed: null };
+  } catch (error) {
+    return { stored: [], failed: toIssue(error, 'view.list.failed') };
+  }
+}
 
 export class SummaryCache {
   private readonly cache = new Map<string, ViewInstanceSummary>();
