@@ -235,6 +235,28 @@ describe('a column widened from its own header', () => {
     expect(setColumnWidth).toHaveBeenLastCalledWith('id', 192);
   });
 
+  /**
+   * Each step is said: the new width, which is what the step changed —
+   * nothing about a query, since a width fetches nothing (`restyle`).
+   */
+  it('says the width each step lands on, and the way back', async () => {
+    const user = userEvent.setup();
+    table({
+      columns: COLUMNS.map(column =>
+        column.field === 'id' ? { ...column, width: 160 } : column,
+      ),
+    });
+    const said = () =>
+      document.querySelector('[data-slot="column-width-announcement"]')
+        ?.textContent;
+
+    headers()[0].focus();
+    await user.keyboard('{Alt>}{ArrowRight}{/Alt}');
+    expect(said()).toBe('Order is 168 px wide');
+    await user.keyboard('{Alt>}{Enter}{/Alt}');
+    expect(said()).toBe('Order fits its content');
+  });
+
   /** A column that cannot be sorted is a cell, and it resizes all the same. */
   it('answers on a column with no button in it', async () => {
     const user = userEvent.setup();

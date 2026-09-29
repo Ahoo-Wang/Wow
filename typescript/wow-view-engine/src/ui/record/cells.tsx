@@ -189,12 +189,20 @@ export function cellValue(
         // runs wider: at 1em the key column of `PinnedEdges` grew past the
         // share the pin cap allows the held group, and the actions column
         // lost its pin.
+        //
+        // Never wider than the cell (`max-w-full`), with the text the part
+        // that gives way: in a column narrower than the value the text is
+        // cut with an ellipsis and the button stays whole inside the cell.
+        // Unbounded, the pair kept its own width, spilled out of the cell
+        // and put the button over the next column, where it was clipped or
+        // covered the moment it took focus (WCAG 2.4.11). Still inline, so
+        // it sits on the cell's line as it always did.
         className={cn(
-          'fve:group/copyable fve:inline-flex fve:items-center fve:gap-1',
+          'fve:group/copyable fve:inline-flex fve:max-w-full fve:items-center fve:gap-1',
           IDENTIFIER_FACE,
         )}
       >
-        {text}
+        <span className="fve:min-w-0 fve:truncate">{text}</span>
         <CopyButton value={text} className="fve:shrink-0" />
       </span>
     );

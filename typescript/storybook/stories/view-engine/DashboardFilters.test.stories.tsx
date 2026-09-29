@@ -511,3 +511,52 @@ const chipsIn = (
 export const ChipsUnsetInNeutral: Story = chipsIn('neutral', [34, 38]);
 export const ChipsAt32InAzure: Story = chipsIn('azure', [32]);
 export const ChipsUnsetInPorcelain: Story = chipsIn('porcelain', [34, 38]);
+
+/**
+ * WCAG 4.1.3: a value picked on the bar is said once its panels settle —
+ * which filter, how many panels it reached — in the board's one voice. The
+ * panels rerun each on its own, and a reader used to hear nothing of it.
+ */
+export const FilterChangeIsSaid: Story = {
+  ...DisplayFilters,
+  decorators: [DESK],
+  play: async ({ canvasElement }) => {
+    const bar = await filterBar(canvasElement);
+    await within(canvasElement).findByRole('heading', {
+      level: 3,
+      name: '每日订单',
+    });
+    const region = () =>
+      canvasElement.querySelector<HTMLElement>(
+        '[data-slot="dashboard-announcement"]',
+      )!;
+    const heard: string[] = [];
+    const observer = new MutationObserver(() => {
+      const text = region().textContent?.trim() ?? '';
+      if (text !== '' && heard[heard.length - 1] !== text) heard.push(text);
+    });
+    observer.observe(region(), {
+      characterData: true,
+      childList: true,
+      subtree: true,
+    });
+
+    await pickSouth(bar);
+    await waitFor(() => expect(heard).toHaveLength(1));
+    // Every data panel but the one the filter does not reach.
+    const reached = [
+      ...canvasElement.querySelectorAll('[data-slot="dashboard-panel"]'),
+    ].filter(
+      panel =>
+        !panel.hasAttribute('data-kind') &&
+        !panel.querySelector('[data-slot="panel-not-reached"]'),
+    ).length;
+    await expect(heard).toEqual([
+      label('label.filters.outcome', {
+        filters: '仓库',
+        count: String(reached),
+      }),
+    ]);
+    observer.disconnect();
+  },
+};

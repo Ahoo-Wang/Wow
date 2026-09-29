@@ -298,6 +298,7 @@ src/
     routes.ts                 — `resolveNavigation`: a way off a board or a view through the route of the definition it leads to (`ViewRoute`), pure; `ViewHost` and `/testing` both use it (host-integration.md 4); and the router port's types, `ViewRouter` and `ViewLocation` (4.2), type-only for `/react-router`
     issueReport.ts            — The development default of `onIssue`: findings grouped by resource on the console, each with how to fix it; silent in production and under a test runner
     recordRuntime.ts          — `RecordDataViewRuntime`: the page, the selection, the export and the record read whole — a Record view's alone; `dataViewRuntime` builds the one a config's kind runs on, `isRecordRuntime` tells them apart
+    restyle.ts                — `restyledOnly`: whether an apply asks the source anything the rows on screen do not answer — only drawn (a width, an order, a pin), only the summaries, or a new question
     runtimeFactory.ts         — How one runtime is assembled, `open` and `create` alike
     runtimeStore.ts           — The store both runtimes are made of: the state, its listeners, the refresh timer's bookkeeping and the rollover's (`expiresAt`), dirty-against-saved; `hasError`
     sourceReason.ts           — What a source said went wrong, in its own words: a Wow error body's `errorMsg`, else the HTTP status, never the URL; `sourceFailure` adds the violation a rejected query names (its first coded binding error), read once per failure
@@ -530,6 +531,7 @@ src/
       reading.ts              — A chart as text: its name and the numbers it draws
       readingStatistics.ts    — The D41 families as text: a boxplot's five numbers, a candlestick's four and its direction in words, a gauge's number, target and scale, a radar's or parallel axes' profiles, a hierarchy's innermost parts under their parents, a sankey's bands, a calendar's days, a theme river's buckets, a map's regions
       sentence.ts             — `chartSentence`: a chart in one sentence, its description after its name — how many groups, the highest and the lowest, over a time axis its first and last bucket and which way it went (`direction`)
+      sentenceParts.ts        — The pieces the chart sentences are built from: `highLow` and `said` for the extremes, `fittedDirection` and `direction` for which way a run went
       image.ts                — A chart as a picture (D33 Q58): `ChartImageTarget` (where a chart hands over its capture), `chartImageSvg` (the drawing rendered off the page by the library's `ssr`, under a head of graphic elements — title, range, legend), `rasterize` (the SVG onto a canvas as a PNG)
       optionMerge.ts          — `merged`: an adjustment laid onto an option object by object and series by series, as the library merges one
     embed/                    — What the two embeds share, and the data view's bodies (D22)
@@ -559,6 +561,7 @@ src/
       FilterReadings.tsx      — What the bar holds that the reader reads and does not change: the board's fixed scope (`FixedScope`, 「固定范围」, its author's ✕ while built), a filter the page locked (`LockedChip`, `LockedReading`), and the chip's own layout (`CHIP`)
       FilterSheet.tsx         — The filter bar below `md` (D26 Q38): one button, 「筛选（已设 n 个）」, opening every filter in a sheet from the bottom edge; the fixed scope and the locked filters read beside it
       findings.ts             — `filterNamer`: a kernel finding about one of the board's filters said by its name on the bar, never its key (X-03); `boardFindingNamer`: what the board says above its panels as the workbench and an embed say it — a panel after its name, the fields in it as its frame names them, a filter after its (Q-01)
+      filterOutcome.ts        — `useFilterOutcome`: what a change of the board's filters came to, said once its panels settle — which filters, how many panels, how many failed (WCAG 4.1.3)
       FilterOrder.tsx         — `useFilterOrder`: the bar's filters put in another order while the board is built — a `DragHandle` on each chip, ←/→ or a drag, the landing said in the board's voice, every move `moveFilter`; the places are the bar's, a hidden filter kept in order (`barMove`), the time grouping after them all
       FilterSettings.tsx      — 「添加筛选」 (`AddFilterMenu`) and one filter's settings popover: type, name, default, several values, required, where its values come from, 接线 and 移除
       FilterWiring.tsx        — Wiring a filter (D22 G): the context the grid reads, each panel's strip (same-type fields, 「没有可接的字段」, 「手动」), the wiring bar, the toasts in the board's own root
@@ -584,11 +587,12 @@ src/
       PanelUnavailable.tsx    — A dashboard panel that cannot show anything: the finding mapped to why, in the reader's words, and who can bring it back — or, while the board is built, the buttons that do
       gridPlacement.ts        — `useGridPlacement`: a pointer drag or resize placed by the kernel's `placePanel`, preview and drop alike
     columns/
-      ColumnRow.tsx           — One row of the column settings: checkbox, two-state pin toggle, summary, handle
+      ColumnRow.tsx           — One row of the column settings: checkbox, two-state pin toggle, summary, width, handle
       drag.ts                 — What the settings make of a drag: `columnDrop` refuses one across the areas, plus what a reader hears
       rows.ts                 — The column settings' model: rows, the two areas (D19), order
       sections.ts             — Rows of one area by catalogue group; the search over them
       ColumnSettings.tsx      — Which columns show, in which order, pinned or not, summarised how — one sortable group per area (D19)
+      WidthInput.tsx          — A column's width typed on its settings row: the no-drag way to it (WCAG 2.5.7), read on Enter or leaving
     components/               — 34 shadcn/ui primitives — vendored, see below
     filter/                   — What the panel is made of
       AddEntry.tsx            — The field picker a group is added to from
@@ -663,7 +667,7 @@ src/
       popups.tsx              — The popups this package renders, themed and on a layer of their own
       roving.ts               — A group of peers as one Tab stop: who holds it, how it moves, where an arrow lands; the record header and the analysis result's rows share it
       summary.ts              — The applied-conditions bar in words: one `FilterSummaryItem` as a sentence
-      toolbar.tsx             — Base UI's toolbar primitive: one tab stop with the arrow keys inside
+      toolbar.tsx             — Base UI's toolbar primitive: one tab stop with the arrow keys inside; `DetachedPopover`, a popover whose button is in the bar and whose popup is drawn beside it
       variants.tsx            — The colours, edges and shapes a vendored component does not ship, in one place (D16-8); `ChangeBadge`, a change in the colour the host's change convention picks (`styles.css`); `TableDataRow` holds a record row's three states; the dashboard's `PanelCard` (the warning edge on the card's ring), `ControlFrame` (the `--input` edge a filter chip's controls share), `ModeBar` and `FOCUS_INSET`
       chartFailure.ts         — `ChartFailure`: a chart whose library did not arrive or threw drawing, thrown in render for the boundary to tell the host as a `chart` failure (D40)
     lib/utils.ts              — shadcn cn() helper — vendored

@@ -165,6 +165,7 @@ export function EmbeddedRecord({
             readOnly={!interactive}
             onOpen={onOpen}
             emptyDescription={emptyDescription}
+            {...(state?.title ? { name: state.title } : {})}
           />
         )}
         {interactive && <RecordPagination table={table} />}

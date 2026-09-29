@@ -168,6 +168,7 @@ export function RecordPanel({
   onRetry,
   readOnly = false,
   host,
+  name,
 }: {
   runtime: RecordViewRuntime;
   onRetry?: () => void;
@@ -175,6 +176,8 @@ export function RecordPanel({
   readOnly?: boolean;
   /** The host's commands on this panel (D39). */
   host?: RecordPanelHost;
+  /** What the table is called: the panel's name (`panelName`). */
+  name?: string;
 }) {
   const table = useRecordTable(runtime);
   const messages = useViewMessages();
@@ -211,6 +214,7 @@ export function RecordPanel({
         readOnly={readOnly}
         emptyDescription={messages.label(emptyHint)}
         rowActions={surface.row}
+        {...(name === undefined ? {} : { name })}
       />
       {surface.dialog}
       {region}

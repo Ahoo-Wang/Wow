@@ -31,7 +31,7 @@ import { ExportButton, type ExportWindowProps } from '../kit/ExportDialog.js';
 import { SortSettings } from '../sort/SortSettings.js';
 import { featuresOf, type WorkbenchFeatures } from '../kit/features.js';
 import { SPACE } from '../kit/layout.js';
-import { Toolbar } from '../kit/toolbar.js';
+import { Toolbar, usePopoverHandle } from '../kit/toolbar.js';
 import { LAYOUT_LABEL } from '../record/issueNames.js';
 import { useViewMessages } from '../kit/MessagesProvider.js';
 import {
@@ -158,14 +158,32 @@ export function ResultToolbar({
   const messages = useViewMessages();
   const selected = table.selection.length > 0;
   const shown = featuresOf(features);
+  // The settings' popups are drawn beside the bar, not inside it; see
+  // `DetachedPopover`. One handle each, joining the button in the bar to
+  // its popup out here.
+  const arrange = usePopoverHandle();
+  const order = usePopoverHandle();
+  const columns = {
+    table,
+    fields,
+    ...(fieldGroups ? { fieldGroups } : {}),
+    ...(rowKey === undefined ? {} : { rowKey }),
+    ...(released ? { released } : {}),
+  };
+  const sorting = {
+    table,
+    fields,
+    ...(fieldGroups ? { fieldGroups } : {}),
+  };
 
   return (
-    <Toolbar
-      data-slot="result-toolbar"
-      aria-label={messages.label('label.toolbar.title')}
-      className={`fve:flex fve:flex-wrap fve:items-center ${SPACE.GROUPS}`}
-    >
-      {/* Nothing at all when nothing is selected: the empty box that used to
+    <>
+      <Toolbar
+        data-slot="result-toolbar"
+        aria-label={messages.label('label.toolbar.title')}
+        className={`fve:flex fve:flex-wrap fve:items-center ${SPACE.GROUPS}`}
+      >
+        {/* Nothing at all when nothing is selected: the empty box that used to
           stand here held a button's height so that picking the first row did
           not shove the result down a line, but the groups on the right are
           buttons too and hold the same 32px whatever the selection is — so
@@ -173,7 +191,7 @@ export function ResultToolbar({
           nothing that could take a line to itself. Its own contents wrap:
           a count, a way to drop it, and however many bulk actions the host
           brought are more than one narrow line holds. */}
-      {/* Nothing selected is nothing said. A sentence used to stand here
+        {/* Nothing selected is nothing said. A sentence used to stand here
           ("Select rows to act on them") whenever the host brought a bulk
           action, and it said on every view, every visit, what the column of
           checkboxes already says on every row: a standing instruction for a
@@ -181,21 +199,21 @@ export function ResultToolbar({
           of prose in a bar of controls (2026-09-23 visual review). The bulk
           actions appear here the moment a row is picked, which is where the
           eye already is. */}
-      {selected && (
-        <SelectionGroup
-          table={table}
-          runtime={runtime}
-          bulkActions={bulkActions}
-        />
-      )}
+        {selected && (
+          <SelectionGroup
+            table={table}
+            runtime={runtime}
+            bulkActions={bulkActions}
+          />
+        )}
 
-      {/* How the result is shown: one block of three groups, ending where
+        {/* How the result is shown: one block of three groups, ending where
           the bar ends whether it took one line or two. */}
-      <div
-        data-slot="toolbar-arrangement"
-        className={`fve:ml-auto fve:flex fve:flex-wrap fve:items-center fve:justify-end ${SPACE.GROUPS}`}
-      >
-        {/* Only the definition's layouts, in its order — and nothing at all
+        <div
+          data-slot="toolbar-arrangement"
+          className={`fve:ml-auto fve:flex fve:flex-wrap fve:items-center fve:justify-end ${SPACE.GROUPS}`}
+        >
+          {/* Only the definition's layouts, in its order — and nothing at all
           when there is no choice to make, unless the view is saved in a
           layout the definition has since dropped: `validateRecord` refuses
           that config, and a switcher that hides itself exactly then leaves
@@ -205,77 +223,79 @@ export function ResultToolbar({
           two positions rather than two bordered buttons that happen to sit
           together: the registry's own joined group — no gap, square inner
           corners, one shared seam — asked for by the prop it is on. */}
-        {shown.layouts &&
-          (table.layouts.length >= 2 ||
-            !table.layouts.includes(table.layout)) && (
-            <ToggleGroup
-              value={[table.layout]}
-              onValueChange={value => {
-                // Matched against the allowed layouts rather than cast: the
-                // group is built from them, so anything else is not a layout.
-                const next = table.layouts.find(layout => layout === value[0]);
-                if (next) table.setLayout(next);
-              }}
-              variant="outline"
-              size="sm"
-              spacing={0}
-              aria-label={messages.label('label.toolbar.layout')}
-            >
-              {table.layouts.map(layout => {
-                // An icon with the word in its name and its tooltip (D12): the
-                // switch reports which layout is on by which segment is
-                // pressed, so the word adds nothing a glance does not have.
-                const Icon = LAYOUT_ICON[layout];
-                return (
-                  <Tooltip key={layout}>
-                    <TooltipTrigger
-                      render={
-                        <ToggleGroupItem
-                          value={layout}
-                          aria-label={messages.label(LAYOUT_LABEL[layout])}
-                        />
-                      }
-                    >
-                      <Icon />
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      {messages.label(LAYOUT_LABEL[layout])}
-                    </TooltipContent>
-                  </Tooltip>
-                );
-              })}
-            </ToggleGroup>
-          )}
+          {shown.layouts &&
+            (table.layouts.length >= 2 ||
+              !table.layouts.includes(table.layout)) && (
+              <ToggleGroup
+                value={[table.layout]}
+                onValueChange={value => {
+                  // Matched against the allowed layouts rather than cast: the
+                  // group is built from them, so anything else is not a layout.
+                  const next = table.layouts.find(
+                    layout => layout === value[0],
+                  );
+                  if (next) table.setLayout(next);
+                }}
+                variant="outline"
+                size="sm"
+                spacing={0}
+                aria-label={messages.label('label.toolbar.layout')}
+              >
+                {table.layouts.map(layout => {
+                  // An icon with the word in its name and its tooltip (D12): the
+                  // switch reports which layout is on by which segment is
+                  // pressed, so the word adds nothing a glance does not have.
+                  const Icon = LAYOUT_ICON[layout];
+                  return (
+                    <Tooltip key={layout}>
+                      <TooltipTrigger
+                        render={
+                          <ToggleGroupItem
+                            value={layout}
+                            aria-label={messages.label(LAYOUT_LABEL[layout])}
+                          />
+                        }
+                      >
+                        <Icon />
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        {messages.label(LAYOUT_LABEL[layout])}
+                      </TooltipContent>
+                    </Tooltip>
+                  );
+                })}
+              </ToggleGroup>
+            )}
 
-        {/* How the result shows what it has: one responsibility, one group.
+          {/* How the result shows what it has: one responsibility, one group.
             The first button answers for whichever layout is showing (D18
             VI): what a row looks like under the table, what a card shows
             under the cards — one place, one question, two answers. */}
-        {(shown.columns || shown.sort) && (
-          <ButtonGroup aria-label={messages.label('label.toolbar.arrange')}>
-            {shown.columns &&
-              (table.layout === 'card' ? (
-                <CardSettings table={table} fields={fields} />
-              ) : (
-                <ColumnSettings
-                  table={table}
-                  fields={fields}
-                  {...(fieldGroups ? { fieldGroups } : {})}
-                  {...(rowKey === undefined ? {} : { rowKey })}
-                  {...(released ? { released } : {})}
+          {(shown.columns || shown.sort) && (
+            <ButtonGroup aria-label={messages.label('label.toolbar.arrange')}>
+              {shown.columns &&
+                (table.layout === 'card' ? (
+                  <CardSettings
+                    table={table}
+                    fields={fields}
+                    detached={{ handle: arrange, part: 'trigger' }}
+                  />
+                ) : (
+                  <ColumnSettings
+                    {...columns}
+                    detached={{ handle: arrange, part: 'trigger' }}
+                  />
+                ))}
+              {shown.sort && (
+                <SortSettings
+                  {...sorting}
+                  detached={{ handle: order, part: 'trigger' }}
                 />
-              ))}
-            {shown.sort && (
-              <SortSettings
-                table={table}
-                fields={fields}
-                {...(fieldGroups ? { fieldGroups } : {})}
-              />
-            )}
-          </ButtonGroup>
-        )}
+              )}
+            </ButtonGroup>
+          )}
 
-        {/* Taking the rows away is its own responsibility, so it is its own
+          {/* Taking the rows away is its own responsibility, so it is its own
             group at the end of the block (D12 Ⅳ): the two above change how
             the result is drawn, this one changes nothing at all.
 
@@ -287,8 +307,32 @@ export function ResultToolbar({
             disabled (P-17, user 2026-09-22); once a result has landed it
             stays, because a refresh that failed keeps the rows it could
             not replace and those rows are still exportable. */}
-        {exporter && table.hasResult && <ExportButton {...exporter} />}
-      </div>
-    </Toolbar>
+          {exporter && table.hasResult && <ExportButton {...exporter} />}
+        </div>
+      </Toolbar>
+      {/* The popups of the two settings buttons, outside the bar's React
+        subtree so its roving focus does not reach the controls in them
+        (`DetachedPopover`). A popup renders nothing here until it opens,
+        and then into a portal. */}
+      {shown.columns &&
+        (table.layout === 'card' ? (
+          <CardSettings
+            table={table}
+            fields={fields}
+            detached={{ handle: arrange, part: 'popup' }}
+          />
+        ) : (
+          <ColumnSettings
+            {...columns}
+            detached={{ handle: arrange, part: 'popup' }}
+          />
+        ))}
+      {shown.sort && (
+        <SortSettings
+          {...sorting}
+          detached={{ handle: order, part: 'popup' }}
+        />
+      )}
+    </>
   );
 }

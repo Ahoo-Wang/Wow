@@ -754,7 +754,7 @@ describe('an array of objects', () => {
     // The count is for the eye; a reader hears what it stands for, and the
     // whole list is one hover away.
     expect(more?.getAttribute('aria-hidden')).toBe('true');
-    expect(container.querySelector('.fve\\:sr-only')?.textContent).toBe(
+    expect(container.querySelector('tbody .fve\\:sr-only')?.textContent).toBe(
       '准备重试, 执行成功',
     );
     expect(

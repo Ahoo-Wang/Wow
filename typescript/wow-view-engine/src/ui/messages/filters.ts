@@ -51,6 +51,15 @@ export const filtersMessages = {
   // A search filter's empty box: an invitation to type, not a missing value.
   'label.filters.search-placeholder': 'Search…',
   'label.filters.removed': 'Removed the filter “{filter}”',
+  // Said once a change of the board's filters has settled on every panel it
+  // reached (WCAG 4.1.3): which filters, how many panels, and how many of
+  // them could not load, run on as one sentence.
+  'label.filters.outcome': 'Filtered by {filters}; {count} panels updated.',
+  'label.filters.outcome-one': 'Filtered by {filters}; 1 panel updated.',
+  'label.filters.outcome-cleared': 'Cleared {filters}; {count} panels updated.',
+  'label.filters.outcome-cleared-one': 'Cleared {filters}; 1 panel updated.',
+  'label.filters.outcome-failed': ' {count} panels could not load.',
+  'label.filters.outcome-failed-one': ' 1 panel could not load.',
   // A filter's settings.
   'label.filters.settings-of': 'Settings of “{filter}”',
   'label.filters.type': 'Type',

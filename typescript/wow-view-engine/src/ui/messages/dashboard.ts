@@ -270,6 +270,18 @@ export const dashboardMessages = {
   'label.panel.copy-shared': 'Copy as a shared view and replace…',
   'label.panel.duplicate': 'Duplicate',
   'label.panel.move-to-tab': 'Move to tab',
+  // The panel's place and size, one step a click, from its 「⋯」 menu while
+  // the board is built: what the handle's drag and its arrow keys do, for
+  // a pointer that cannot drag (WCAG 2.5.7). The steps are the keyboard's.
+  'label.panel.arrange-menu': 'Move or resize',
+  'label.panel.step.left': 'Move left',
+  'label.panel.step.right': 'Move right',
+  'label.panel.step.up': 'Move up',
+  'label.panel.step.down': 'Move down',
+  'label.panel.step.wider': 'Wider',
+  'label.panel.step.narrower': 'Narrower',
+  'label.panel.step.taller': 'Taller',
+  'label.panel.step.shorter': 'Shorter',
   'label.panel.save-as-view': 'Save as a view…',
   'label.panel.remove': 'Remove from dashboard',
   // The one-column reading's order (D22 J): the handle it is carried by,

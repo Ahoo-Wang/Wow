@@ -21,6 +21,12 @@
  * what the button does, "Collapse" is only where it points.
  */
 export const workbenchMessages = {
+  // The language this catalogue is written in, as a BCP 47 tag. It is not
+  // shown: the surface writes it as its `lang`, and every popup it opens
+  // carries it too, so a screen reader reads the words in the language they
+  // are in when the host's page is in another (WCAG 3.1.2). A translation
+  // sets it to its own language.
+  'label.language': 'en',
   'label.workbench.collapse-sidebar': 'Hide the view list',
   'label.workbench.expand-sidebar': 'Show the view list',
   // Not "Full screen": that is the browser's own, on F11, and it takes the

@@ -66,7 +66,7 @@ import {
   type MessageFormatters,
 } from '../kit/MessagesProvider.js';
 import { TEXT_UI } from '../kit/layout.js';
-import { ToolbarItem } from '../kit/toolbar.js';
+import { ToolbarItem, type DetachedPopover } from '../kit/toolbar.js';
 import { useAnnouncer } from '../kit/Announcer.js';
 import { cn } from 'cn';
 
@@ -155,6 +155,8 @@ export interface SortSettingsProps {
    * `ColumnSettings`' `trigger`). Left out, the toolbar's own button.
    */
   trigger?: ReactElement<Record<string, unknown>>;
+  /** One half of it, as `ColumnSettings`' `detached`. */
+  detached?: DetachedPopover;
 }
 
 /** The words that differ between ordering rows and ordering groups. */
@@ -189,6 +191,7 @@ export function SortSettings({
   fieldGroups,
   of = 'records',
   trigger,
+  detached,
 }: SortSettingsProps) {
   const messages = useViewMessages();
   const words = WORDS[of];
@@ -250,17 +253,19 @@ export function SortSettings({
     );
   };
 
-  return (
-    <Popover>
+  const handle = detached?.handle;
+  const opener = (
+    <>
       {/* A toolbar item where a toolbar is around it, an ordinary button
           anywhere else: the bar owns the roving focus order and this is one
           of the stops in it. */}
       {trigger ? (
-        <PopoverTrigger data-control="sort" render={trigger} />
+        <PopoverTrigger handle={handle} data-control="sort" render={trigger} />
       ) : (
         <ToolbarItem
           render={
             <PopoverTrigger
+              handle={handle}
               data-control="sort"
               // Bordered like every other function on the bar (D12 Ⅳ), and the
               // one that keeps its words: what it says is the sort in force.
@@ -279,6 +284,13 @@ export function SortSettings({
           />
         </ToolbarItem>
       )}
+    </>
+  );
+  if (detached?.part === 'trigger') return opener;
+
+  return (
+    <Popover handle={handle}>
+      {detached ? null : opener}
       <PopoverContent align="end" className="fve:w-80">
         <PopoverHeader>
           <PopoverTitle>{messages.label('label.sort.title')}</PopoverTitle>

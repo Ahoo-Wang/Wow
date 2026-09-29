@@ -590,6 +590,63 @@ export const NoGripsUntilBuilding: Story = {
   },
 };
 
+/**
+ * WCAG 2.2 2.5.7: a panel's place and size with no drag — one click a step
+ * from its 「⋯」, the steps the handle's arrows take. The submenu stays open
+ * for the next click, and each step is said as a key step is.
+ */
+export const PanelArrangedByClicks: Story = {
+  ...DisplayAllPanels,
+  decorators: [DESK],
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await canvas.findByRole('heading', { level: 3, name: '待出库明细' });
+    await userEvent.click(
+      canvas.getByRole('button', { name: zhCN['label.dashboard.edit'] }),
+    );
+    await waitFor(() =>
+      expect(
+        canvasElement.querySelectorAll('[data-slot="panel-grip"]').length,
+      ).toBe(3),
+    );
+    const item = canvasElement.querySelector<HTMLElement>(
+      '.react-grid-item:has([data-slot="panel-title"])',
+    )!;
+    const title =
+      item.querySelector('[data-slot="panel-title"]')?.textContent ?? '';
+    const box = () => item.getBoundingClientRect();
+    await userEvent.click(
+      within(item).getByRole('button', {
+        name: label('label.panel.menu', { title }),
+      }),
+    );
+    await userEvent.click(
+      await screen.findByRole('menuitem', {
+        name: zhCN['label.panel.arrange-menu'],
+      }),
+    );
+    const said = () =>
+      canvasElement.querySelector('[data-slot="dashboard-announcement"]')
+        ?.textContent ?? '';
+
+    const narrowFrom = box().width;
+    await userEvent.click(
+      await screen.findByRole('menuitem', {
+        name: zhCN['label.panel.step.narrower'],
+      }),
+    );
+    await waitFor(() => expect(box().width).toBeLessThan(narrowFrom));
+    await expect(said()).toContain(title);
+
+    const leftFrom = box().left;
+    await userEvent.click(
+      screen.getByRole('menuitem', { name: zhCN['label.panel.step.right'] }),
+    );
+    await waitFor(() => expect(box().left).toBeGreaterThan(leftFrom));
+    await expect(said()).toContain(title);
+  },
+};
+
 /** 「撤销」 as the edit bar names it for one step (「撤销移除「按仓库汇总」」). */
 function undoOf(what: string): string {
   return label('label.history.undo-step', { what });

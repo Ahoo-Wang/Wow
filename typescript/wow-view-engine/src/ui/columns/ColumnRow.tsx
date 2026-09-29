@@ -39,6 +39,7 @@ import {
 import { SelectContent } from '../kit/popups.js';
 import { useViewMessages } from '../kit/MessagesProvider.js';
 import type { ColumnSettingRow } from './rows.js';
+import { WidthInput } from './WidthInput.js';
 import { TEXT_UI } from '../kit/layout.js';
 import { cn } from 'cn';
 
@@ -114,6 +115,10 @@ export interface ColumnRowProps {
    */
   released?: boolean;
   onSummary(fn: SummaryFunction | null): void;
+  /** The column's width in pixels; `undefined` while it sizes itself. */
+  width?: number;
+  /** Sets the width, or `null` back to automatic (`WidthInput`). */
+  onWidth(width: number | null): void;
   /**
    * Where the row stands among the columns it can trade places with — its
    * area's movable ones — and how many there are, for the handle's menu.
@@ -149,6 +154,8 @@ export function ColumnRow({
   onPin,
   released = false,
   onSummary,
+  width,
+  onWidth,
   place,
   onMove,
   dragging,
@@ -231,14 +238,6 @@ export function ColumnRow({
           // the projection never draws a table without it and the settings
           // never offer to.
           disabled={row.primary}
-          // Said outright because the settings open from the result
-          // toolbar: Base UI's toolbar hands its roving-focus context to
-          // everything under it, the popup included, and a checkbox that
-          // believes it is a toolbar item leaves its tab stop to the bar —
-          // which never gives it one. It rendered with no `tabindex` at all,
-          // so no column could be shown or hidden from the keyboard (the
-          // 2026-09-25 keyboard walkthrough; the root cause is a TODO).
-          tabIndex={row.primary ? -1 : 0}
           aria-label={toggleLabel}
           // The checkbox on a broken row is enabled and is the repair, so it
           // takes the same sentence for the opposite reason: not why it is
@@ -301,6 +300,19 @@ export function ColumnRow({
           </Select>
         )}
 
+        {/* The width, typed: the one way to it that needs no drag (WCAG
+            2.5.7). A summary-only row is no column and has none. Beside the
+            pin, so the boxes line up down the list whether or not a row
+            offers a summary. */}
+        {!row.summaryOnly && (
+          <WidthInput
+            label={label}
+            width={width}
+            disabled={!row.visible || row.broken}
+            describedBy={refused ? noteId : undefined}
+            onWidth={onWidth}
+          />
+        )}
         {/* A pin is where a column is held while the rest scrolls, and a
           column the table does not draw is held nowhere: the area it would
           move to shows nothing of it, and `config.summaries` has no cell to

@@ -61,7 +61,7 @@ import {
 } from './rows.js';
 import { columnSections, matchingRows } from './sections.js';
 import { useSay, useViewMessages } from '../kit/MessagesProvider.js';
-import { ToolbarItem } from '../kit/toolbar.js';
+import { ToolbarItem, type DetachedPopover } from '../kit/toolbar.js';
 import { useAnnouncer } from '../kit/Announcer.js';
 
 /**
@@ -117,6 +117,12 @@ export interface ColumnSettingsProps {
    * names nothing.
    */
   trigger?: ReactElement<Record<string, unknown>>;
+  /**
+   * Draws one half of it, joined to the other by a handle: the toolbar's
+   * button inside the toolbar, the popup beside it (`DetachedPopover`).
+   * Left out, both halves are drawn here together.
+   */
+  detached?: DetachedPopover;
 }
 
 /**
@@ -138,6 +144,7 @@ export function ColumnSettings({
   rowKey,
   released = NO_RELEASE,
   trigger,
+  detached,
 }: ColumnSettingsProps) {
   const messages = useViewMessages();
   const noteId = useId();
@@ -231,17 +238,36 @@ export function ColumnSettings({
     [announce, messages, rows, table],
   );
 
-  return (
-    <Popover
-      onOpenChange={open => {
-        if (!open) setQuery('');
-      }}
-    >
+  /** Sets one column's width from its row, and says what it came to. */
+  const widthTo = useCallback(
+    (field: string, width: number | null) => {
+      table.setColumnWidth(field, width);
+      announce(
+        width === null
+          ? messages.label('label.columns.resized-auto', {
+              field: nameOf(field),
+            })
+          : messages.label('label.columns.resized', {
+              field: nameOf(field),
+              width,
+            }),
+      );
+    },
+    [announce, messages, nameOf, table],
+  );
+
+  const handle = detached?.handle;
+  const opener = (
+    <>
       {/* The caller's own control, where it gave one: it already says what
           it opens in words, so it wears neither the icon nor the tooltip
           that stand in for them. */}
       {trigger ? (
-        <PopoverTrigger data-control="columns" render={trigger} />
+        <PopoverTrigger
+          handle={handle}
+          data-control="columns"
+          render={trigger}
+        />
       ) : (
         /* A bordered icon button with the word in its name and its tooltip
            (D12 Ⅳ): the control reports no state, so it carries no text. */
@@ -254,6 +280,7 @@ export function ColumnSettings({
               <ToolbarItem
                 render={
                   <PopoverTrigger
+                    handle={handle}
                     data-control="columns"
                     aria-label={messages.label('label.toolbar.columns')}
                     render={<Button variant="outline" size="icon-sm" />}
@@ -269,6 +296,18 @@ export function ColumnSettings({
           </TooltipContent>
         </Tooltip>
       )}
+    </>
+  );
+  if (detached?.part === 'trigger') return opener;
+
+  return (
+    <Popover
+      handle={handle}
+      onOpenChange={open => {
+        if (!open) setQuery('');
+      }}
+    >
+      {detached ? null : opener}
       {/* The popup's own scroll port is handed to the list below instead:
           the search line and the title stay put while twenty rows go past
           them, which is the whole point of having a search line. The `y`
@@ -289,6 +328,16 @@ export function ColumnSettings({
           <PopoverDescription>
             {messages.label('label.columns.hint')}
           </PopoverDescription>
+          {/* The header's width keys, where a sighted keyboard user can
+              read them: they were only in `aria-keyshortcuts`, which a
+              screen reader says and nothing on screen does. Here, beside
+              the width boxes, because this is where widths are set. */}
+          <p
+            data-slot="column-resize-keys"
+            className="fve:text-muted-foreground fve:text-xs"
+          >
+            {messages.label('label.columns.resize-keys')}
+          </p>
         </PopoverHeader>
 
         {/* A list one row long per column is a list to search once it is a
@@ -365,6 +414,7 @@ export function ColumnSettings({
                   released={released}
                   onMove={moveTo}
                   onPin={pinTo}
+                  onWidth={widthTo}
                 />
               ))}
             </DragDropProvider>
@@ -396,6 +446,8 @@ interface ListProps {
   onMove(field: string, toIndex: number): void;
   /** Cycles one column's pinning, and says what that did. */
   onPin(field: string): void;
+  /** Sets one column's width, and says what it came to. */
+  onWidth(field: string, width: number | null): void;
 }
 
 /** One area's rows, or nothing at all when the area holds none. */
@@ -455,6 +507,7 @@ function Section({
   released,
   onMove,
   onPin,
+  onWidth,
   group,
   regionHeadingId,
 }: ListProps & {
@@ -507,6 +560,9 @@ function Section({
             released: released.fields.has(row.field),
             onSummary: (fn: SummaryFunction | null) =>
               table.setSummary(row.field, fn),
+            width: table.columns.find(column => column.field === row.field)
+              ?.width,
+            onWidth: (width: number | null) => onWidth(row.field, width),
             place: {
               index: movableIndex(all, row.field),
               total: movableFields(all, row.region).length,

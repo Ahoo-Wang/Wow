@@ -395,6 +395,10 @@ export function AnalysisTable({
                 // the whole table (the popup's recipe is `--anchor-width`). The
                 // row stays where the keyboard goes back to.
                 aria-describedby={spans ? spanId : undefined}
+                // Said on the row too, for the follow-up menu it opens: the
+                // menu shows the same sentence where it can be seen, under
+                // the group picked (`DrillMenu`).
+                data-spans={spans ? '' : undefined}
                 onClick={
                   onPick
                     ? event =>

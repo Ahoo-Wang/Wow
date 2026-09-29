@@ -19,8 +19,8 @@ import type {
   RecordPageTarget,
   RecordViewConfig,
 } from '../model/index.js';
-import { pageAfterShrink } from '../record/index.js';
-import { firstPageOf } from './execute.js';
+import { pageAfterShrink, restyleRecord } from '../record/index.js';
+import { executeSummaries, firstPageOf } from './execute.js';
 import {
   fetchExportRows,
   isExportCancelled,
@@ -29,6 +29,7 @@ import {
 } from './exportRows.js';
 import { fetchRecord } from './fetchRecord.js';
 import { isCalledOff } from './failures.js';
+import { restyledOnly } from './restyle.js';
 import { withScopeFilter } from './scope.js';
 import type { SourceFailure } from './sourceReason.js';
 import type { ProjectedView } from './source.js';
@@ -124,6 +125,39 @@ export class RecordDataViewRuntime
         void this.context.queryFailed('record', error);
       throw error;
     });
+  }
+
+  /**
+   * A draft that changes only how the rows on screen are drawn keeps them:
+   * the page, its selection and the reader's place stay, and only the
+   * columns are projected again (`restyleRecord`). One whose summaries
+   * changed too asks the source for the summary row alone. Either way the
+   * page is not fetched, so nothing says 「正在查询」 over rows that stay.
+   *
+   * Only over a result that landed and is current: while a query is out, or
+   * after one failed, the rows on screen are not the answer to the config
+   * that ran, and the whole query runs as before.
+   */
+  protected override restyle(draft: RecordViewConfig): (() => void) | null {
+    const result = this.state.result;
+    if (!result || this.state.query.status !== 'success') return null;
+    const data = result.data;
+    if (data.kind !== 'record') return null;
+    const change = restyledOnly(result.own, draft);
+    if (change === null) return null;
+    const view = restyleRecord(this.context.definition, draft, data.view);
+    if (change === 'summaries')
+      return () =>
+        this.execute({
+          keepSelection: true,
+          fetch: (config, controller) =>
+            executeSummaries(this.context, config, view, controller),
+        });
+    const config = withScopeFilter(draft, this.scopeFilter);
+    return () =>
+      this.store.setState({
+        result: { ...result, config, own: draft, data: { ...data, view } },
+      });
   }
 
   /** A new question starts on the first page, with nothing picked. */

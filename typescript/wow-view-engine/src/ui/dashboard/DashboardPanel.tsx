@@ -395,6 +395,7 @@ export function DashboardPanel({
                   press={press}
                   headingLevel={headingLevel}
                   record={record}
+                  name={name}
                 />
               ) : (
                 <AwaitingDate filter={awaiting} />
@@ -540,6 +541,7 @@ function PanelHeader({
               triggerRef={menuTrigger}
               onExport={onExport}
               picture={picture}
+              {...(arrange ? { arrange } : {})}
             />
           </span>
         )}
@@ -583,6 +585,7 @@ function PanelBody({
   press,
   headingLevel,
   record,
+  name,
 }: {
   panel: DashboardPanelView;
   onRetry?: () => void;
@@ -594,6 +597,8 @@ function PanelBody({
   /** The panel title's level, which a note's own headings go under. */
   headingLevel: PanelHeadingLevel;
   record?: RecordPanelHost;
+  /** The panel's name, which its table is called by. */
+  name: string;
 }) {
   // A panel the dashboard could not open, or one admission refused, says so
   // and leaves the rest alone. Content panels come through here too: a link
@@ -616,6 +621,7 @@ function PanelBody({
       onRetry={onRetry}
       readOnly={readOnly}
       host={record}
+      name={name}
     />
   ) : (
     <AnalysisPanel runtime={panel.runtime} onRetry={onRetry} press={press} />

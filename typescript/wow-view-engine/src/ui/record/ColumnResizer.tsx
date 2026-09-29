@@ -179,7 +179,11 @@ export function ColumnResizer({ column, onResize }: ColumnResizerProps) {
       // where a reader already is when it wants this column wider.
       tabIndex={-1}
       // The hit area is wider than the line, and sits inside the cell so it
-      // can never be clipped by a column that has one. The line is drawn at
+      // can never be clipped by a column that has one. It stays 8px: widened
+      // to WCAG 2.5.8's 24px it would lie over the sort button beside it,
+      // and it meets the criterion by its equivalent-control exception
+      // instead — the width box on the column's row in the column settings
+      // (`WidthInput`) sets the same width with no drag at all. The line is drawn at
       // rest — a hairline in `--border` on the boundary — and thickens to
       // `--ring` under the pointer or focus. It used to appear only on
       // hover, which the user rejected (2026-09-21) and this package's own
@@ -260,10 +264,11 @@ function columnCells(node: HTMLElement | null): HTMLTableCellElement[] {
 /**
  * The width to go on from, which is the width the column is *now*.
  *
- * Not `column.width`: a committed width only reaches the projection with the
- * next result, so a second arrow press within that round trip would repeat
- * the first one. The inline width a gesture has already written answers
- * first, then the box the table laid out.
+ * Not `column.width`: a committed width reaches the projection on the
+ * controller's next render (a width fetches nothing — `restyle` draws the
+ * rows on screen again), and two presses inside one render would repeat
+ * the first. The inline width a gesture has already written answers first,
+ * then the box the table laid out.
  */
 function measure(node: HTMLElement): number {
   const head = headOf(node);

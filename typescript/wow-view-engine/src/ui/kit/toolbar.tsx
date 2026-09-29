@@ -12,6 +12,7 @@
  */
 
 import * as React from 'react';
+import { Popover as PopoverPrimitive } from '@base-ui/react/popover';
 import { Toolbar as ToolbarPrimitive } from '@base-ui/react/toolbar';
 import { useRender } from '@base-ui/react/use-render';
 
@@ -90,4 +91,44 @@ function LooseItem({ render, ref, ...props }: ToolbarItemProps) {
   // Base UI's own merge, so handlers chain and `className` joins rather than
   // the outer props overwriting what the element came with.
   return useRender({ render, ...(ref ? { ref } : {}), props });
+}
+
+/**
+ * A popover opened from a toolbar, whose content is drawn outside it.
+ *
+ * Base UI's `Toolbar` hands its roving-focus context to its whole React
+ * subtree — and a portal is still that subtree — so every control in a
+ * popover opened from a toolbar button believed it was an item of the bar:
+ * a checkbox, a pin toggle, a select trigger each left its `tabindex` to a
+ * bar that never gave it one. Chromium still reached the native buttons;
+ * Safari's default Tab, which stops only on fields and on what carries a
+ * `tabindex`, skipped them, and a checkbox (a `<span>`) was out of every
+ * browser's Tab order until each was given `tabIndex` by hand (the
+ * 2026-09-25 keyboard walkthrough).
+ *
+ * So the popover is split along the line the bar draws: the **trigger**
+ * stands in the toolbar and is one of its stops, the **popup** — the root
+ * and everything in it — is rendered beside the toolbar rather than inside
+ * it, and the two are joined by a handle (`Popover.createHandle`, Base UI's
+ * detached trigger). Nothing in the popup is under the bar any more, so no
+ * control in it needs to be told what it already is.
+ */
+export interface DetachedPopover {
+  handle: PopoverHandle;
+  /** Which half this rendering is: the bar's button, or the popup. */
+  part: 'trigger' | 'popup';
+}
+
+/** The handle `DetachedPopover` joins its two halves by. */
+export type PopoverHandle = PopoverPrimitive.Handle<unknown>;
+
+/** A new handle, as `useState` takes an initialiser. */
+function createPopoverHandle(): PopoverHandle {
+  return PopoverPrimitive.createHandle<unknown>();
+}
+
+/** One handle for the life of the component, for one detached popover. */
+export function usePopoverHandle(): PopoverHandle {
+  const [handle] = React.useState(createPopoverHandle);
+  return handle;
 }
