@@ -136,6 +136,22 @@ interface LinkDraft {
   label: string;
   href: string;
   description: string;
+  /**
+   * The link this row opened on, keys and all, and the words it was shown
+   * in: carried with the row, so a row still gives back its own keys after
+   * a row above it is removed.
+   */
+  was?: { label: Opened; description: Opened };
+}
+
+/** A label as the form opened on it: the key, and the words it showed. */
+interface Opened {
+  key: string;
+  shown: string;
+}
+
+function opened(key: string, say: (value: string) => string): Opened {
+  return { key, shown: say(key) };
 }
 
 /**
@@ -146,6 +162,18 @@ interface LinkDraft {
  */
 function draftOf(target: ContentTarget, say: (value: string) => string) {
   const panel = target.mode === 'edit' ? target.panel : undefined;
+  const links: LinkDraft[] =
+    panel?.kind === 'links'
+      ? panel.items.map(item => ({
+          label: say(item.label),
+          href: item.href,
+          description: say(item.description ?? ''),
+          was: {
+            label: opened(item.label, say),
+            description: opened(item.description ?? '', say),
+          },
+        }))
+      : [{ label: '', href: '', description: '' }];
   return {
     title: say(panel?.title ?? ''),
     content: say(panel?.kind === 'markdown' ? panel.content : ''),
@@ -153,14 +181,21 @@ function draftOf(target: ContentTarget, say: (value: string) => string) {
     alt: say(panel?.kind === 'image' ? (panel.alt ?? '') : ''),
     href: panel?.kind === 'image' ? (panel.href ?? '') : '',
     fit: panel?.kind === 'image' ? (panel.fit ?? 'contain') : 'contain',
-    links:
-      panel?.kind === 'links'
-        ? panel.items.map(item => ({
-            label: say(item.label),
-            href: item.href,
-            description: say(item.description ?? ''),
-          }))
-        : [{ label: '', href: '', description: '' }],
+    links,
+  };
+}
+
+/**
+ * What the panel held, keys and all, with the words the form opened on
+ * them: what a box left as it opened gives back (`keptKey`) — the key,
+ * even where the language changed while the form was open.
+ */
+function heldOf(target: ContentTarget, say: (value: string) => string) {
+  const panel = target.mode === 'edit' ? target.panel : undefined;
+  return {
+    title: opened(panel?.title ?? '', say),
+    content: opened(panel?.kind === 'markdown' ? panel.content : '', say),
+    alt: opened(panel?.kind === 'image' ? (panel.alt ?? '') : '', say),
   };
 }
 
@@ -181,9 +216,9 @@ function ContentForm({
   const [draft, setDraft] = useState(() => draftOf(target, messages.say));
   // What the panel held, keys and all: words left as they were shown go
   // back as the keys they were said from (`keptKey`).
-  const [held] = useState(() => draftOf(target, value => value));
-  const back = (typed: string, was: string | undefined) =>
-    keptKey(typed, was ?? '', messages.say);
+  const [held] = useState(() => heldOf(target, messages.say));
+  const back = (typed: string, was: Opened | undefined) =>
+    was ? keptKey(typed, was.key, messages.say, was.shown) : typed;
   // Nothing is marked before the first try: an empty box a moment after it
   // appeared is not a mistake yet.
   const [tried, setTried] = useState(false);
@@ -231,12 +266,10 @@ function ContentForm({
       onSubmit({
         kind,
         title,
-        items: draft.links.map((link, at) => ({
-          label: back(link.label.trim(), held.links[at]?.label),
+        items: draft.links.map(link => ({
+          label: back(link.label.trim(), link.was?.label),
           href: link.href.trim(),
-          description: optional(
-            back(link.description, held.links[at]?.description),
-          ),
+          description: optional(back(link.description, link.was?.description)),
         })),
       });
   };

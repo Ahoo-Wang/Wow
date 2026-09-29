@@ -505,8 +505,9 @@ function PanelHeader({
             initial={
               panel.panel.kind === 'heading'
                 ? panel.panel.content
-                : (panel.title ?? name)
+                : panel.title || undefined
             }
+            name={name}
             heading={heading}
             renaming={commands.renaming}
             returnTo={menuTrigger}

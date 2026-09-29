@@ -19,6 +19,7 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
 } from './components/dropdown-menu.js';
+import { useSay } from './MessagesProvider.js';
 
 /**
  * A picker's entries by group: the fields outside any group first, then
@@ -44,6 +45,7 @@ export function GroupedMenu<T>({
   itemKey(item: T): string;
   render(item: T): ReactNode;
 }) {
+  const say = useSay();
   return (
     <>
       {fieldGroups(items, groups, itemKey).map((entry, index) => (
@@ -55,7 +57,7 @@ export function GroupedMenu<T>({
           {index > 0 && <DropdownMenuSeparator />}
           <DropdownMenuGroup>
             {entry.group !== undefined && (
-              <DropdownMenuLabel>{entry.group.label}</DropdownMenuLabel>
+              <DropdownMenuLabel>{say(entry.group.label)}</DropdownMenuLabel>
             )}
             {entry.items.map(render)}
           </DropdownMenuGroup>

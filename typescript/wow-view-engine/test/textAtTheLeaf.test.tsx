@@ -30,13 +30,7 @@ import {
 } from '@testing-library/react';
 import { getInstanceByDom } from 'echarts/core';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import {
-  MemoryViewStore,
-  ViewEngine,
-  systemInstanceId,
-  type DashboardDefinition,
-  type DataViewDefinition,
-} from '../src/index.js';
+import { systemInstanceId, type ViewEngine } from '../src/index.js';
 import {
   DashboardWorkbench,
   DataWorkbench,
@@ -44,15 +38,7 @@ import {
   EmbeddedView,
   ViewEngineProvider,
 } from '../src/ui/index.js';
-import {
-  analysisConfig,
-  dashboardConfig,
-  namedOrdersDefinition,
-  overviewDefinition,
-  recordConfig,
-  testSource,
-} from './fixtures.js';
-import { keyed, markersIn } from './fixtures/keyed.js';
+import { EN, ZH, keyedEngine, markersIn } from './fixtures/keyed.js';
 import { editorToggle, openTray } from './fixtures/workbench.js';
 
 afterEach(cleanup);
@@ -62,166 +48,6 @@ function drawnCharts(): { getOption(): unknown }[] {
   return [...document.querySelectorAll('[_echarts_instance_]')].flatMap(
     element => getInstanceByDom(element as HTMLElement) ?? [],
   );
-}
-
-const EN: Record<string, string> = {};
-const ZH: Record<string, string> = {};
-
-/** The orders, every label a key: the definition, its views, their configs. */
-function ordersDefinition(): DataViewDefinition {
-  const base = namedOrdersDefinition();
-  const literal: DataViewDefinition = {
-    ...base,
-    title: 'Orders',
-    fieldGroups: [{ id: 'money', label: 'Money', fields: ['amount'] }],
-    fields: base.fields.map(field =>
-      field.name === 'amount'
-        ? { ...field, description: 'What the order came to' }
-        : field,
-    ),
-    views: [
-      {
-        id: 'all',
-        title: 'All orders',
-        config: recordConfig({
-          table: {
-            columns: [
-              { field: 'id' },
-              { field: 'warehouse' },
-              { field: 'amount' },
-            ],
-          },
-        }),
-      },
-      {
-        id: 'by-warehouse',
-        title: 'By warehouse',
-        config: analysisConfig({
-          metrics: [
-            { alias: 'orders', type: 'COUNT', label: 'Order count' },
-            {
-              alias: 'amount_sum',
-              type: 'NUMERIC',
-              function: 'SUM',
-              expression: { type: 'FIELD', field: 'amount' },
-            },
-          ],
-          layout: 'table',
-        }),
-      },
-      {
-        id: 'chart',
-        title: 'Orders chart',
-        config: analysisConfig({
-          metrics: [{ alias: 'orders', type: 'COUNT', label: 'Order count' }],
-          layout: 'chart',
-          chart: {
-            type: 'bar',
-            cartesian: {
-              x: 'warehouse',
-              series: [{ metric: 'orders' }],
-              yAxis: { left: { label: 'How many' } },
-              referenceLines: [
-                { axis: 'left', value: 1, label: 'Target line' },
-              ],
-            },
-          },
-        }),
-      },
-    ],
-  } as DataViewDefinition;
-  const en = keyed(literal, EN, 'orders');
-  keyed(literal, ZH, 'orders', original => `中:${original}`);
-  return en;
-}
-
-function boardDefinition(): DashboardDefinition {
-  const literal = overviewDefinition({
-    title: 'Overview',
-    views: [
-      {
-        id: 'main',
-        title: 'Main board',
-        config: dashboardConfig({
-          fields: [{ name: 'region', label: 'Region', kind: 'string' }],
-          panels: [
-            {
-              id: 'heading',
-              kind: 'heading',
-              content: 'Today',
-              layout: { x: 0, y: 0, w: 24, h: 1 },
-            },
-            {
-              id: 'note',
-              kind: 'markdown',
-              content: 'Read me',
-              title: 'Note',
-              layout: { x: 0, y: 1, w: 12, h: 2 },
-            },
-            {
-              id: 'links',
-              kind: 'links',
-              title: 'Links',
-              items: [
-                {
-                  label: 'Docs',
-                  href: 'https://example.com',
-                  description: 'The manual',
-                },
-              ],
-              layout: { x: 12, y: 1, w: 12, h: 2 },
-            },
-            {
-              id: 'list',
-              kind: 'view',
-              title: 'Order list',
-              instanceId: systemInstanceId('orders', 'all'),
-              bindings: [{ globalField: 'region', panelField: 'warehouse' }],
-              layout: { x: 0, y: 3, w: 12, h: 4 },
-            },
-            {
-              id: 'by',
-              kind: 'view',
-              instanceId: systemInstanceId('orders', 'by-warehouse'),
-              bindings: [],
-              layout: { x: 12, y: 3, w: 12, h: 4 },
-            },
-          ],
-        }),
-      },
-    ],
-  });
-  const en = keyed(literal, EN, 'board');
-  keyed(literal, ZH, 'board', original => `中:${original}`);
-  return en;
-}
-
-function keyedEngine() {
-  const source = testSource();
-  const board = boardDefinition();
-  const engine = new ViewEngine({
-    resources: [
-      { definition: ordersDefinition(), source },
-      { definition: board },
-    ],
-    // A reader's copy of the board, saved as it was made: keys and all.
-    store: new MemoryViewStore({
-      instances: [
-        {
-          id: 'mine',
-          definitionId: 'overview',
-          title: board.views![0].title,
-          scope: 'personal',
-          revision: '1',
-          config: board.views![0].config,
-        },
-      ],
-    }),
-    onIssue: found => {
-      if (process.env.LEAF_DEBUG) console.log('issue', JSON.stringify(found));
-    },
-  });
-  return { engine, source };
 }
 
 async function settled() {
@@ -234,6 +60,48 @@ function expectNoMarkers() {
   if (process.env.LEAF_DEBUG)
     console.log(document.body.textContent?.slice(0, 3000));
   expect(markersIn(document.body)).toEqual([]);
+}
+
+/**
+ * Opens each trigger `triggers` finds — a menu, a list, a popup — one at a
+ * time, and looks for markers in what opens: the nested menus a popup or a
+ * tray holds, which drawing the popup alone never shows. `reopen` puts the
+ * outer popup back where Escape took it too.
+ */
+async function openEach(
+  triggers: () => HTMLElement[],
+  reopen: () => Promise<void> = async () => {},
+): Promise<string[]> {
+  const opened: string[] = [];
+  const count = triggers().length;
+  for (let at = 0; at < count; at += 1) {
+    let trigger = triggers()[at];
+    if (!trigger) {
+      await reopen();
+      trigger = triggers()[at];
+    }
+    if (!trigger || trigger.hasAttribute('disabled')) continue;
+    const name =
+      trigger.getAttribute('aria-label') ?? trigger.textContent ?? '';
+    fireEvent.click(trigger);
+    await settled();
+    opened.push(name);
+    expect(markersIn(document.body), name).toEqual([]);
+    fireEvent.keyDown(document.activeElement ?? document.body, {
+      key: 'Escape',
+    });
+    await settled();
+  }
+  return opened;
+}
+
+/** The triggers of popups inside `root`: menus, lists, dialogs. */
+function popupTriggers(root: () => ParentNode | null | undefined) {
+  return () => [
+    ...(root()?.querySelectorAll<HTMLElement>(
+      '[aria-haspopup]:not([aria-haspopup="false"])',
+    ) ?? []),
+  ];
 }
 
 describe('no key reaches the document (D2, words at the leaf)', () => {
@@ -286,7 +154,7 @@ describe('no key reaches the document (D2, words at the leaf)', () => {
         />
       </ViewEngineProvider>,
     );
-    await waitFor(() => expect(screen.getAllByRole('table').length).toBe(2));
+    await waitFor(() => expect(screen.getAllByRole('table').length).toBe(3));
     await settled();
     expectNoMarkers();
     screen.getByText('Today');
@@ -309,7 +177,7 @@ describe('no key reaches the document (D2, words at the leaf)', () => {
         />
       </ViewEngineProvider>,
     );
-    await waitFor(() => expect(screen.getAllByRole('table').length).toBe(3));
+    await waitFor(() => expect(screen.getAllByRole('table').length).toBe(4));
     await settled();
     expectNoMarkers();
     expect(screen.getByRole('heading', { name: 'All orders' })).toBeTruthy();
@@ -356,6 +224,30 @@ describe('no key reaches the document (D2, words at the leaf)', () => {
     expect(option).toContain('How many');
     // A reference line's name is written by a formatter, into the drawing.
     expect(document.body.textContent).toContain('Target line');
+  });
+
+  it.each([
+    ['line', ['Order count', 'How many']],
+    ['pie', ['China']],
+    ['funnel', ['Placed', 'Amount total']],
+  ])('a %s chart, and the option ECharts is given', async (view, words) => {
+    const { engine } = keyedEngine();
+    render(
+      <ViewEngineProvider engine={engine} messages={EN}>
+        <DataWorkbench
+          definitionId="orders"
+          instanceId={systemInstanceId('orders', view)}
+        />
+      </ViewEngineProvider>,
+    );
+    await waitFor(() => expect(drawnCharts().length).toBeGreaterThan(0));
+    await settled();
+    expectNoMarkers();
+    const option = JSON.stringify(
+      drawnCharts().map(chart => chart.getOption()),
+    );
+    expect(option).not.toMatch(/[\uE000\uE001]/);
+    for (const word of words) expect(option).toContain(word);
   });
 
   it('a CSV export', async () => {
@@ -411,6 +303,12 @@ describe('no key reaches an editor or a popup (D2)', () => {
       name: 'Choose fields',
     });
     expectNoMarkers();
+    // A field its source deprecates says why, in words.
+    expect(
+      picker
+        .querySelector('[data-slot="field-deprecated"]')
+        ?.getAttribute('title'),
+    ).toBe('Read the state instead');
     fireEvent.click(
       within(picker).getByRole('checkbox', { name: 'Warehouse' }),
     );
@@ -438,6 +336,40 @@ describe('no key reaches an editor or a popup (D2)', () => {
     }
   });
 
+  it('every menu inside the sort and columns popups', async () => {
+    workbench('all');
+    await waitFor(() => expect(screen.getByRole('table')).toBeTruthy());
+    const opened: string[] = [];
+    for (const name of [/Sort/, 'Columns']) {
+      const open = async () => {
+        fireEvent.click(screen.getAllByRole('button', { name })[0]);
+        await settled();
+      };
+      await open();
+      const popup = () =>
+        document.querySelector<HTMLElement>('[role="dialog"]');
+      opened.push(...(await openEach(popupTriggers(popup), open)));
+      fireEvent.keyDown(document.activeElement ?? document.body, {
+        key: 'Escape',
+      });
+      await settled();
+    }
+    // The sort's field menu, grouped under the definition's field groups.
+    expect(opened.join('|')).toMatch(/Sort by a field|Add/);
+  });
+
+  it('every menu in the analysis tray: add a group, add a metric, a card’s own', async () => {
+    workbench('by-warehouse');
+    await waitFor(() => expect(screen.getByRole('table')).toBeTruthy());
+    await openTray();
+    await settled();
+    const tray = () =>
+      document.querySelector<HTMLElement>('[data-slot="analysis-tray"]');
+    const opened = await openEach(popupTriggers(tray));
+    expect(opened.length).toBeGreaterThan(2);
+    expect(document.body.textContent).toContain('Order count');
+  });
+
   it('the analysis tray and its cards', async () => {
     workbench('by-warehouse');
     await waitFor(() => expect(screen.getByRole('table')).toBeTruthy());
@@ -463,7 +395,7 @@ describe('no key reaches an editor or a popup (D2)', () => {
         <DashboardWorkbench definitionId="overview" instanceId="mine" />
       </ViewEngineProvider>,
     );
-    await waitFor(() => expect(screen.getAllByRole('table').length).toBe(2));
+    await waitFor(() => expect(screen.getAllByRole('table').length).toBe(3));
     fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
     await settled();
     expectNoMarkers();

@@ -29,7 +29,11 @@ import {
 import { IconTooltip } from './IconButton.js';
 
 export interface RenameInputProps {
-  /** What the name says now; the field opens holding it, selected. */
+  /**
+   * What the name says now; the field opens holding it, selected. Read as
+   * it opens: a name left as it opened is unchanged, even where the words
+   * it was said in changed while the field was open (D2).
+   */
   initial: string;
   /** The field's accessible name — best after the thing it renames. */
   label: string;
@@ -92,6 +96,8 @@ export function RenameInput({
   className,
   'data-slot': slot,
 }: RenameInputProps) {
+  // The name as the field opened on it: what an unchanged name is.
+  const [opened] = useState(initial);
   const [value, setValue] = useState(initial);
   // Enter and Escape end the edit before the blur they cause arrives.
   const ended = useRef(false);
@@ -101,7 +107,7 @@ export function RenameInput({
   const end = (keep: boolean) => {
     if (ended.current) return;
     ended.current = true;
-    if (keep && name !== initial.trim()) onCommit(name);
+    if (keep && name !== opened.trim()) onCommit(name);
     else onCancel();
   };
   const confirm = () => {

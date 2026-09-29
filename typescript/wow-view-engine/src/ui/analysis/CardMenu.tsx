@@ -85,7 +85,10 @@ function NameBox({ name, given, label, onRename, onDone }: CardNameProps) {
   // A key is shown in its words, and comes back a key where it was left so:
   // the name keeps following the language (D2).
   const say = useSay();
-  const [text, setText] = useState(() => say(given ?? ''));
+  // The words it opened on: left as they were, the name is unchanged even
+  // where the language changed while the box was open.
+  const [shown] = useState(() => say(given ?? ''));
+  const [text, setText] = useState(shown);
   /**
    * Leaving the box is what hands focus back to the menu, and a focus move
    * is a blur — so a box that committed on blur committed the very text
@@ -98,7 +101,11 @@ function NameBox({ name, given, label, onRename, onDone }: CardNameProps) {
     settled.current = true;
     if (keep) {
       const trimmed = text.trim();
-      onRename(trimmed === '' ? undefined : keptKey(trimmed, given ?? '', say));
+      onRename(
+        trimmed === ''
+          ? undefined
+          : keptKey(trimmed, given ?? '', say, shown.trim()),
+      );
     }
     onDone();
   };

@@ -194,6 +194,8 @@ Wow 的源对没有说明的查询只回未删除的记录；一份把已删除�
 - **发现不抛**：一律记在 `described.findings`，`validateDefinition` 照报（`onIssue`、`definitionIssues`）；定义照样加载，按 A 能坏的只坏那一处。
 - **措辞是键**（第 3.1 节）：`text(key)` 是一个带私用区标记（U+E000 … U+E001）的字符串，放得进任何标签位。定义、配置、状态与快照里始终是键；只在叶子上——界面显示、图表 option、导出、无障碍名称与播报、标题——说成话（`say(value, words)`，界面里 `useSay()`），措辞是最近的 Provider 的 `messages`，缺的退回 `ViewEngineOptions.text`（`TextResolver`），再缺就按键本身显示。`ViewEngineOptions.text` 在注册时只用来核对（`withText` 走一遍，说不出的键报 `definition.text.unknown`）。
 
+  编辑器显示成话、交回键（`keptKey`、`useSaidText`）：原样留着的话——按打开时显示的那种语言比，打开期间换了语言也一样——交回原来的键。界面自己起的默认名字（「X 的副本」、新标签页的名字、新分析的默认标题）不是键：是起名那一刻所用语言的话，照字面存，此后不随语言变——这是有意的，名字一经起定就归作者所有，和手打的一样。
+
 （见 test/defineView.test.ts、test/defineViewOpen.test.ts、test/text.test.ts）
 
 ## 配置

@@ -183,25 +183,52 @@ const SAY_DEPTH = 16;
  * were shown, else what they typed. An editor takes a key and shows it in
  * words; it must not hand the words back as though the reader wrote them,
  * or the label would stop following the language.
+ *
+ * `shown` is the words the box opened on, for a box that keeps a draft of
+ * its own: the language may change while it is open, and a draft left as
+ * it opened is still the original, whichever language it was said in.
  */
-export function keptKey(typed: string, original: string, say: Say): string {
-  return typed === say(original) ? original : typed;
+export function keptKey(
+  typed: string,
+  original: string,
+  say: Say,
+  shown?: string,
+): string {
+  return typed === say(original) || (shown !== undefined && typed === shown)
+    ? original
+    : typed;
 }
 
 /**
  * A box that edits a label as it is typed: what it shows — `value` in
  * words — and what a keystroke gives back (`keptKey`, against the value the
  * box opened on), so words typed back to what was shown are the key again.
+ *
+ * A `value` the box did not give back itself — another row's, after the
+ * list it sits in lost one; an undo — opens it again on that value.
  */
 export function useSaidText(value: string | undefined): {
   shown: string;
   back(typed: string): string;
 } {
   const say = useSay();
-  const [opened] = useState(() => value ?? '');
+  const current = value ?? '';
+  const [held, setHeld] = useState(() => ({
+    opened: current,
+    given: current,
+  }));
+  let opened = held.opened;
+  if (current !== held.given) {
+    opened = current;
+    setHeld({ opened: current, given: current });
+  }
   return {
-    shown: say(value ?? ''),
-    back: typed => keptKey(typed, opened, say),
+    shown: say(current),
+    back: typed => {
+      const next = keptKey(typed, opened, say);
+      setHeld({ opened, given: next });
+      return next;
+    },
   };
 }
 

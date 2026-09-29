@@ -342,13 +342,7 @@ export function TextField({
         className="placeholder:text-quiet-foreground"
         placeholder={placeholder}
         value={text.shown}
-        onChange={event =>
-          onChange(
-            event.target.value === ''
-              ? undefined
-              : text.back(event.target.value),
-          )
-        }
+        onChange={event => onChange(text.back(event.target.value) || undefined)}
       />
     </Field>
   );
@@ -393,11 +387,7 @@ export function NameField({
       className="placeholder:text-quiet-foreground h-7 min-w-0 flex-1"
       placeholder={placeholder}
       value={text.shown}
-      onChange={event =>
-        onChange(
-          event.target.value === '' ? undefined : text.back(event.target.value),
-        )
-      }
+      onChange={event => onChange(text.back(event.target.value) || undefined)}
     />
   );
 }
@@ -455,10 +445,7 @@ export function ReferenceLabel({
       chrome="box"
       className="min-w-0 flex-1 basis-24"
       value={text.shown}
-      onChange={event => {
-        const typed = event.target.value;
-        onChange(typed === '' ? undefined : text.back(typed));
-      }}
+      onChange={event => onChange(text.back(event.target.value) || undefined)}
     />
   );
 }

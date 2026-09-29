@@ -216,12 +216,14 @@ function SaveAsForm({
   const refusal = (found: Issue) =>
     intent === 'copy' || intent === 'first' ? ownWord(found) : found;
   const words = WORDS[intent];
-  // Shown in words; left as shown, a first save keeps the key it came as.
-  const [next, setNext] = useState(() =>
+  // Shown in words; left as shown, a first save keeps the key it came as —
+  // as it was shown when the dialog opened, whatever the language since.
+  const [shown] = useState(() =>
     first
       ? messages.say(title)
       : messages.label('label.save-as.copy-title', { title }),
   );
+  const [next, setNext] = useState(shown);
 
   const named = next.trim();
   const offered = allows(can, scope);
@@ -234,7 +236,9 @@ function SaveAsForm({
   // flight, no title, or a scope this user may not create in.
   const stopped = state.pending || named.length === 0 || !offered;
   const submit = () => {
-    const kept = first ? keptKey(named, title, messages.say) : named;
+    const kept = first
+      ? keptKey(named, title, messages.say, shown.trim())
+      : named;
     void commands.saveAs({ title: kept, scope }).then(saved => {
       if (!saved) return;
       onSaved?.(saved);

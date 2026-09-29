@@ -209,7 +209,16 @@ export function useDashboardExtensions({
         onOpenChange={close}
         finalFocus={finalFocus}
         intent="promote"
-        title={promoted ? (names.get(promoted.id) ?? '') : ''}
+        // The panel's own title or its view's, keys and all — the dialog
+        // says them and gives a key left as shown back as the key (D2);
+        // only a panel with neither takes the name the board made up.
+        title={
+          promoted
+            ? promoted.title ||
+              promoted.runtime?.getSnapshot()?.title ||
+              (names.get(promoted.id) ?? '')
+            : ''
+        }
         description={messages.label('label.panel.save-owned.description', {
           definition: ownedDefinition?.title ?? '',
         })}

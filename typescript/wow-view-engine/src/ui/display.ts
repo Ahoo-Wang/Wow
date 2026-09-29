@@ -44,7 +44,11 @@ export interface DisplayContext {
   timeZone?: string;
   /**
    * How a definition's words are shown here (`useSay`): an option's label
-   * is said in them. Left out, a label reads as it is written.
+   * is said in them. Left out, a label reads as it is written — a keyed
+   * definition's (`text(key)`) as its key, marker and all — so a host that
+   * calls `cellText` or `displayValue` itself for such a definition passes
+   * `useSay()` here (a surface's own context, `useSurfaceDisplay`, carries
+   * it already).
    */
   say?: (value: string) => string;
 }
@@ -505,6 +509,9 @@ export function valueText(
  * Several badges, several elements or several plain values read as one list
  * joined by the catalogue's separator, the way the cell reads out loud; an
  * array of objects or an object reads as `heldReading` says.
+ *
+ * An option's label is said through `context.say`: give it (`useSay()`)
+ * for a definition written in keys, or the text carries the keys (D2).
  */
 export function cellText(
   value: unknown,
