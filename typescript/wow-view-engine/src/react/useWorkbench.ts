@@ -467,11 +467,17 @@ export function useWorkbench(
       : null;
   // A view made from nothing releases the one opened by id; a drilled view
   // keeps it, because it is the origin.
+  // Only this definition's views: an id of another's — an address two
+  // workbenches share, a host's slip — is refused before it runs.
+  const opensHere = useCallback(
+    (id: string) => ({ ...opening?.(id), definitionId }),
+    [opening, definitionId],
+  );
   const byId = useOpenView(
     engine,
     held && !held.origin ? null : openId,
     handedHere?.scopeFilter ?? null,
-    opening,
+    opensHere,
   );
   const opened: OpenViewState = held
     ? { runtime: held.runtime, loading: false, error: null, scopeIssues: [] }

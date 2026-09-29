@@ -25,7 +25,11 @@ import { DashboardBoard } from './dashboard/Board.js';
 import { RefreshControl } from './RefreshControl.js';
 import { StartingWords, useViewMessages } from './MessagesProvider.js';
 import { useEngine, useRoutedNavigate } from './ViewEngineProvider.js';
-import { useAddressedBoard, useAddressedInstance } from './address.js';
+import {
+  boardKey,
+  useAddressedBoard,
+  useAddressedInstance,
+} from './address.js';
 import type { ViewMessages } from './messages.js';
 import { featuresOf, type WorkbenchFeatures } from './features.js';
 import { WorkbenchShell, type WorkbenchLandmark } from './WorkbenchShell.js';
@@ -188,13 +192,19 @@ export function DashboardWorkbench(props: DashboardWorkbenchProps) {
 function DashboardWorkbenchSurface(props: DashboardWorkbenchProps) {
   // Under a `ViewHost`'s router, the address's board, and the filters and
   // tab of the history entry, where the host passes none (4.2).
+  const engine = useEngine(props.engine);
   const addressed = useAddressedInstance(
+    engine,
+    props.definitionId,
     props.instanceId,
     props.onInstanceChange,
   );
-  return (
-    <DashboardWorkbenchBody {...useAddressedBoard(props)} {...addressed} />
+  // Kept under the board open by id, or the definition's default one.
+  const board = useAddressedBoard(
+    props,
+    boardKey(addressed.instanceId, props.definitionId),
   );
+  return <DashboardWorkbenchBody {...board} {...addressed} />;
 }
 
 function DashboardWorkbenchBody({

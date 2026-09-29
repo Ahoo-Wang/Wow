@@ -338,7 +338,10 @@ export class ViewEngine extends EngineResources {
     instanceId: string,
     options: OpenOptions = {},
   ): Promise<AnyViewRuntime> {
-    const instance = await this.readInstance(instanceId);
+    const instance = this.registry.ofDefinition(
+      await this.readInstance(instanceId),
+      options.definitionId,
+    );
     // What its sources admit is read before the first query, so that query
     // already goes out narrowed.
     await this.capabilities.prepareFor(instance);

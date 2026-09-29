@@ -21,9 +21,20 @@
  * charge, the address the default.
  */
 
-import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import type { DashboardFilters, RecordKey } from '../model/index.js';
-import type { ViewHandOver } from '../runtime/index.js';
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
+import {
+  parseSystemInstanceId,
+  type DashboardFilters,
+  type RecordKey,
+} from '../model/index.js';
+import type { ViewEngine, ViewHandOver } from '../runtime/index.js';
 import type {
   ViewDestination,
   ViewLocation,
@@ -97,11 +108,64 @@ export function useLatestRouter(
 }
 
 /**
+ * What a workbench has learned of which views are its definition's: its
+ * list as last read (`asked` is the view that sent it to read it), and the
+ * views it named in the address itself.
+ */
+interface Owned {
+  listed: ReadonlySet<string>;
+  failed: boolean;
+  asked: string | null;
+  named: ReadonlySet<string>;
+}
+
+const NOTHING_OWNED: Owned = {
+  listed: new Set(),
+  failed: false,
+  asked: null,
+  named: new Set(),
+};
+
+/**
+ * Whether the view `id` is one of `definitionId`'s: `true`, `false`, or
+ * `undefined` while nobody knows yet. `null` — the default — is anyone's.
+ * A declared view says its definition in its id; a saved one is known by
+ * the list, or by this workbench having named it. A list that failed to
+ * load leaves an id it could not answer for as this workbench's: only a
+ * view known to be another's is set aside.
+ */
+function owns(
+  definitionId: string,
+  id: string | null,
+  owned: Owned,
+): boolean | undefined {
+  if (id === null) return true;
+  const declared = parseSystemInstanceId(id);
+  if (declared) return declared.definitionId === definitionId;
+  if (owned.named.has(id) || owned.listed.has(id)) return true;
+  if (owned.asked === id) return owned.failed;
+  return undefined;
+}
+
+/**
  * Which view a workbench opens, and where it says it moved: the props, or
  * — with neither given, under a router — the address's `?view=`, a new
  * view a new history entry.
+ *
+ * Only a view of the workbench's own definition: two workbenches on one
+ * page share the one `?view=`, and a view of the other's is no view of
+ * this one's. Such a view is set aside — the workbench keeps the view it
+ * had (or, opening on one, its default) — and is never answered: the
+ * workbench does not write its default over the other's view. A saved
+ * view is known by the definition's list, read once and again for an id
+ * it did not name; until it answers, a workbench opening on one opens it
+ * (`useWorkbench` refuses it before it runs if it is another's, and the
+ * list's answer then turns it to the default), and one already open keeps
+ * what it has.
  */
 export function useAddressedInstance(
+  engine: ViewEngine,
+  definitionId: string,
   instanceId: string | null | undefined,
   onInstanceChange: ((id: string | null) => void) | undefined,
 ): {
@@ -113,12 +177,60 @@ export function useAddressedInstance(
     router !== undefined &&
     instanceId === undefined &&
     onInstanceChange === undefined;
-  const named = addressed ? paramOf(router.location, VIEW_PARAM) : undefined;
+  const named = addressed ? paramOf(router.location, VIEW_PARAM) : null;
+  const [owned, setOwned] = useState(NOTHING_OWNED);
+  const verdict = owns(definitionId, named, owned);
+  // The view on screen as far as the address goes: the last of its own
+  // it named, held while it names another's or one not yet known.
+  const [kept, keep] = useState(() => (verdict === false ? null : named));
+  if (verdict === true && kept !== named) keep(named);
+  // Opened on trust, and it was another's: the default, after all.
+  if (verdict === false && kept === named) keep(null);
+  const open = verdict === true ? named : kept;
+
+  useEffect(() => {
+    if (!addressed || named === null || verdict !== undefined) return;
+    let cancelled = false;
+    const answer = (listed: ReadonlySet<string> | null) => {
+      if (cancelled) return;
+      setOwned(current => ({
+        ...current,
+        listed: listed ?? current.listed,
+        failed: listed === null,
+        asked: named,
+      }));
+    };
+    void engine.list(definitionId).then(
+      listing =>
+        answer(
+          listing.failed ? null : new Set(listing.items.map(item => item.id)),
+        ),
+      () => answer(null),
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, [addressed, named, verdict, engine, definitionId]);
+
   const latest = useLatestRouter(router);
+  const judge = useRef(owned);
+  useLayoutEffect(() => {
+    judge.current = owned;
+  });
   const change = useCallback(
     (id: string | null) => {
       const now = latest();
-      if (!now || id === paramOf(now.location, VIEW_PARAM)) return;
+      if (!now) return;
+      const at = paramOf(now.location, VIEW_PARAM);
+      if (id === at) return;
+      // Its default, while the address names a view that is not its own:
+      // said, it would take another workbench's view out of the address.
+      if (id === null && owns(definitionId, at, judge.current) !== true) return;
+      if (id !== null)
+        setOwned(current => ({
+          ...current,
+          named: new Set(current.named).add(id),
+        }));
       const path = withParam(now.location, VIEW_PARAM, id);
       // The view the page was handed, opened: named on the entry it came
       // with, which keeps it for a reload. Any other is a step of its own.
@@ -127,10 +239,10 @@ export function useAddressedInstance(
         now.go(path, { state: now.location.state, replace: true });
       else now.go(path);
     },
-    [latest],
+    [latest, definitionId, setOwned],
   );
   return addressed
-    ? { instanceId: named, onInstanceChange: change }
+    ? { instanceId: open, onInstanceChange: change }
     : { instanceId, onInstanceChange };
 }
 
@@ -163,23 +275,73 @@ export interface BoardAddress {
 }
 
 /**
+ * Which board a surface's filters and tab are kept under in the history
+ * entry (`ViewRouteState.boards`): the board it names, or — a workbench
+ * left on its default — its definition's default.
+ */
+export function boardKey(
+  instanceId: string | null | undefined,
+  definitionId?: string,
+): string {
+  return instanceId ?? `default:${definitionId ?? ''}`;
+}
+
+/** What the history entry holds for the board kept under `key`. */
+function boardState(
+  state: ViewRouteState,
+  key: string,
+): { filters?: DashboardFilters; tab?: string | null } {
+  const own = state.boards?.[key];
+  // Each member the board wrote itself, or else what a way off handed the
+  // page (`resolveNavigation`) — and what an entry written before boards
+  // were kept apart holds.
+  return {
+    ...(state.filters !== undefined ? { filters: state.filters } : {}),
+    ...(state.tab !== undefined ? { tab: state.tab } : {}),
+    ...own,
+  };
+}
+
+/**
  * A board's filters and tab: the props, each pair on its own, or — left
  * out, under a router — the history entry's, written back to it (replacing
  * it) as the reader changes them, so a reload and the way back from a
  * workbench find the board as it was left.
+ *
+ * Each board keeps its own under `key` (`boardKey`), in the entry's
+ * `boards`: several boards on one page — two embeds, an embed beside a
+ * workbench — each find their own again, where one shared pair went to
+ * whichever wrote last. What the entry holds at its top (`filters`, `tab`:
+ * what a way off hands the page it opens) is read by a board that has
+ * written nothing of its own yet, and never written over.
  */
-export function useAddressedBoard<P extends BoardAddress>(props: P): P {
+export function useAddressedBoard<P extends BoardAddress>(
+  props: P,
+  key: string,
+): P {
   const router = useViewRouter();
   const latest = useLatestRouter(router);
+  const latestKey = useRef(key);
+  useLayoutEffect(() => {
+    latestKey.current = key;
+  });
   const keep = useCallback(
     (member: 'filters' | 'tab', value: unknown) => {
       const now = latest();
       if (!now) return;
+      const board = latestKey.current;
       const state = routeStateOf(now.location);
-      if (JSON.stringify(state[member]) === JSON.stringify(value)) return;
+      const held = boardState(state, board);
+      if (JSON.stringify(held[member]) === JSON.stringify(value)) return;
       const { pathname, search } = now.location;
       now.go(`${pathname}${search}`, {
-        state: { ...state, [member]: value },
+        state: {
+          ...state,
+          boards: {
+            ...state.boards,
+            [board]: { ...state.boards?.[board], [member]: value },
+          },
+        },
         replace: true,
       });
     },
@@ -194,7 +356,7 @@ export function useAddressedBoard<P extends BoardAddress>(props: P): P {
     [keep],
   );
   if (!router) return props;
-  const state = routeStateOf(router.location);
+  const held = boardState(routeStateOf(router.location), key);
   const filtersHeld =
     props.initialFilters === undefined && props.onFiltersChange === undefined;
   const tabHeld =
@@ -203,9 +365,9 @@ export function useAddressedBoard<P extends BoardAddress>(props: P): P {
   return {
     ...props,
     ...(filtersHeld
-      ? { initialFilters: state.filters ?? null, onFiltersChange }
+      ? { initialFilters: held.filters ?? null, onFiltersChange }
       : {}),
-    ...(tabHeld ? { initialTab: state.tab, onTabChange } : {}),
+    ...(tabHeld ? { initialTab: held.tab, onTabChange } : {}),
   };
 }
 

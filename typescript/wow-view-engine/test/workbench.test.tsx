@@ -152,6 +152,42 @@ describe('useWorkbench', () => {
     expect(result.current.state).toBeNull();
   });
 
+  /**
+   * Two workbenches on one page share an address, and a host may slip: an
+   * id of another definition's view is no view of this page's. It is
+   * refused before it runs, rather than drawn under this page's list.
+   */
+  it('refuses a view of another definition before it runs', async () => {
+    const source = testSource();
+    const shipments = { ...ordersDefinition(), id: 'shipments' };
+    const theirs: ViewInstance = {
+      ...mine,
+      id: 'shipments-1',
+      definitionId: 'shipments',
+    };
+    const engine = new ViewEngine({
+      resources: resourcesOf([ordersDefinition(), shipments], () => source),
+      store: new MemoryViewStore({ instances: [mine, theirs] }),
+    });
+    const { result } = open(engine, 'shipments-1');
+
+    await waitFor(() =>
+      expect(result.current.unopenable?.code).toBe(
+        'view.open.other-definition',
+      ),
+    );
+    expect(result.current.runtime).toBeNull();
+    expect(source.paged).not.toHaveBeenCalled();
+    // A declared view of the other definition, too.
+    const declared = open(engine, systemInstanceId('shipments', 'all'));
+    await waitFor(() =>
+      expect(declared.result.current.unopenable?.code).toBe(
+        'view.open.other-definition',
+      ),
+    );
+    expect(source.paged).not.toHaveBeenCalled();
+  });
+
   it('reports a view that would not open at all', async () => {
     const { result } = open(engineWith([mine]), 'missing');
 

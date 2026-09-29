@@ -757,6 +757,7 @@ export const zhCN: ViewMessages = {
   'view.open.failed': '无法打开这个视图。',
   'view.open.not-found': '没有名为 {id} 的视图。',
   'view.open.wrong-kind': '这个视图是另一种类型（{kind}），这个页面无法显示。',
+  'view.open.other-definition': '这个视图属于另一个页面，这个页面无法显示。',
   'view.preferences.default-forbidden': '你不能设置默认视图。',
   'view.preferences.failed': '视图偏好保存失败。',
   'view.preferences.load-failed': '视图偏好加载失败，视图按服务端顺序显示。',
@@ -1606,6 +1607,8 @@ export const zhCN: ViewMessages = {
   'label.dashboard.open-failed': '无法打开这个仪表盘。',
   'label.dashboard.not-found': '没有名为 {id} 的仪表盘。',
   'label.dashboard.wrong-kind': '这不是仪表盘（{kind}），这个页面无法显示。',
+  'label.dashboard.other-definition':
+    '这个仪表盘属于另一个页面，这个页面无法显示。',
   'label.dashboard.gone': '这个仪表盘已不存在。',
   'label.dashboard.open-forbidden': '你不能打开这个仪表盘。',
   'label.dashboard.open-unavailable': '无法加载这个仪表盘：无法连接服务端。',

@@ -470,4 +470,12 @@ export interface OpenOptions {
    * else reads it.
    */
   held?: HeldFilters | null;
+  /**
+   * The definition the caller draws views of — a workbench's. An instance
+   * of another is refused (`view.open.other-definition`) before anything
+   * runs: an id handed over by an address two workbenches share, or by a
+   * host, is no view of this page's, and opening it would show another
+   * page's view under this one's list. Left out, any definition's.
+   */
+  definitionId?: string;
 }

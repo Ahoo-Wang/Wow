@@ -316,7 +316,7 @@ export function Host({ children }: { children: ReactNode }) {
 | `colorMode`、`rememberColorMode` | 主题 | `<html>` 上的明暗：缺省 `system`，跟随系统；`light`／`dark` 从钉住开始；宿主自己画明暗时写 `host`。`useColorMode()` 给宿主的开关 `{ mode, setMode }`，读者的选择按给的 `localStorage` 键记住                                                                                                                                                                                                                                                       |
 | `navigate`                       | 路由 | 每一条去处由宿主自己接，不走路由端口：按目标的 `route` 解析好交来——`{ kind: 'route', path, state }`——网址与没有 `route` 的资源原样交来                                                                                                                                                                                                                                                                                                             |
 
-**有了路由端口，地址由引擎管。** 离开看板或视图的每一条路——「在工作台中打开」、一组上的追问、面板的去处、回到看板——都去目标资源的 `route`，页面要打开的东西作为这条历史的 state（`ViewRouteState`：交接来的视图、看板的 `filters` 与 `tab`）；宿主自己的路径也经路由，别的站点另开。没传 `instanceId` 的 `DataWorkbench`、`DashboardWorkbench` 打开地址的 `?view=`，读者换视图就写回去，每换一个一条历史；没传 `handOver` 的，打开这条历史里交接的视图；没传筛选那一对（`initialFilters`、`onFiltersChange`）或标签页那一对的看板——工作台的，或 `EmbeddedDashboard`——从这条历史读，读者一改就记回去。绑定了的资源，记录详情跟着 `?id=`，除非它的 `reading` 自己握着 `open`。宿主自己的 props 仍然优先，每一对各算各的。别的路由库只要两个成员：
+**有了路由端口，地址由引擎管。** 离开看板或视图的每一条路——「在工作台中打开」、一组上的追问、面板的去处、回到看板——都去目标资源的 `route`，页面要打开的东西作为这条历史的 state（`ViewRouteState`：交接来的视图、看板的 `filters` 与 `tab`）；宿主自己的路径也经路由，别的站点另开。没传 `instanceId` 的 `DataWorkbench`、`DashboardWorkbench` 打开地址的 `?view=`——只认自己定义的视图，一页上两个工作台互不干扰——读者换视图就写回去，每换一个一条历史；没传 `handOver` 的，打开这条历史里交接的视图；没传筛选那一对（`initialFilters`、`onFiltersChange`）或标签页那一对的看板——工作台的，或 `EmbeddedDashboard`——从这条历史读，读者一改就记回去，每块板各记各的，一页上几块板各自找回自己的。绑定了的资源，记录详情跟着 `?id=`，除非它的 `reading` 自己握着 `open`。宿主自己的 props 仍然优先，每一对各算各的。别的路由库只要两个成员：
 
 <!-- typecheck-context
 type ViewRouter = import('@ahoo-wang/wow-view-engine/ui').ViewRouter;
@@ -332,6 +332,8 @@ const router: ViewRouter = {
   go: (path, options) => push(path, options?.state, options?.replace ?? false),
 };
 ```
+
+地址一变就给一个新的路由对象，不变就给同一个——像 `useReactRouter` 那样按地址的几个部分 `useMemo`：读地址的一切只在路由对象换了时重读。
 
 **导航是数据。** 引擎画视图、页面归宿主，所以没有整页外壳；`useViewNavigation()` 给宿主的外壳它的去处——每一项绑了 `route` 的资源，按注册的次序：`{ id, kind, title, path, current, views }`，`views` 是它的系统视图（看板定义的就是系统看板），各带 `{ id, title, path, current }`。标题按生效的措辞说，`current` 读路由端口的地址。用宿主自己的组件画——shadcn 的 `Sidebar`、顶栏都行——名字也可以是宿主自己起的：
 
@@ -630,6 +632,8 @@ import {
 
 #### 主题：先选一条路
 
+> **宿主已经在切明暗**（next-themes、自己的 `.dark` 开关）？在 `ViewHost` 上写 **`colorMode="host"`**。不写时引擎也会写 `<html>` 的 `.dark`，两边会互相覆盖。
+
 引入 `styles.css`，再在 `ViewHost` 上做一个选择：
 
 | 路         | 适合                                  | 写法                                                                        | 引擎做                                                                                |
@@ -645,7 +649,7 @@ import '@ahoo-wang/wow-view-engine/shadcn-bridge.css';
 // import '@ahoo-wang/wow-view-engine/themes/porcelain.css';
 ```
 
-**明暗归 `ViewHost`。** 缺省的 `colorMode="system"` 在第一次绘制前写 `<html>` 的 `.dark` 与 `color-scheme`，跟随系统；`light`／`dark` 从钉住开始；读者经 `useColorMode()` 选的，按 `rememberColorMode` 记在本机。宿主已经在画明暗（next-themes、自己的开关）时写 `colorMode="host"`，视图跟宿主的 `.dark`。面上的 `theme="light"`、`"dark"`、`"system"` 仍可钉住某一个视图。宿主自己的暗色值写 `--fve-dark-*`，不写 `.dark` 下的 `--fve-*`：钉在浅色的视图会继承到它。
+**明暗归 `ViewHost`。** 缺省的 `colorMode="system"` 在第一次绘制前写 `<html>` 的 `.dark` 与 `color-scheme`，跟随系统；`light`／`dark` 从钉住开始；读者经 `useColorMode()` 选的，按 `rememberColorMode` 记在本机；`host` 如上，跟宿主的 `.dark`。面上的 `theme="light"`、`"dark"`、`"system"` 仍可钉住某一个视图。宿主自己的暗色值写 `--fve-dark-*`，不写 `.dark` 下的 `--fve-*`：钉在浅色的视图会继承到它。
 
 **宿主自己的外壳**挂 `className="fve-tokens"` 穿上主题——挂在用到它的外壳上，不挂 `<body>`：边界里有 preflight——宿主自己的每个弹层离开外壳到了 `<body>`，它的 portal 也挂上（`<Menu.Portal className="fve-tokens">`）。
 

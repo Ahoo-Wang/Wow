@@ -45,6 +45,7 @@ import {
 import { useReactRouter } from '../src/react-router/index.js';
 import {
   bind,
+  DashboardWorkbench,
   DataWorkbench,
   EmbeddedView,
   useColorMode,
@@ -297,6 +298,61 @@ describe('the address: `?view=`, a new entry per view', () => {
   });
 });
 
+describe('the address: two workbenches on one page', () => {
+  /** The view a workbench's sidebar marks as open, by its definition's title. */
+  function openIn(definition: string): string | null {
+    const list = screen.getByRole('navigation', { name: definition });
+    return (
+      within(list)
+        .getAllByRole('button')
+        .find(button => button.ariaCurrent === 'true')?.textContent ?? null
+    );
+  }
+
+  it('each opens only its own definition’s view, and neither writes over the other’s', async () => {
+    const { at } = hosted(
+      {
+        '/': (
+          <>
+            <DataWorkbench definitionId="orders" />
+            <DashboardWorkbench definitionId="overview" />
+          </>
+        ),
+      },
+      '/?view=orders-1',
+    );
+    await waitFor(() => expect(openIn('Orders')).toBe('Mine'));
+    // The board workbench sets the orders view aside: its own default, and
+    // no 「belongs to another page」 left on screen.
+    await waitFor(() => expect(openIn('Overview')).toMatch(/^Home board/));
+    expect(screen.queryByText(/belongs to another page/)).toBeNull();
+    // Its default is not said back over the orders view.
+    expect(at().search).toBe('?view=orders-1');
+    // The reader moves in the orders workbench; the boards stay put.
+    fireEvent.click(screen.getByRole('button', { name: 'Other' }));
+    await waitFor(() => expect(at().search).toBe('?view=orders-2'));
+    await waitFor(() => expect(openIn('Orders')).toBe('Other'));
+    expect(openIn('Overview')).toMatch(/^Home board/);
+  });
+
+  it('sets a declared view of another definition aside by its id alone', async () => {
+    const { at } = hosted(
+      {
+        '/': (
+          <>
+            <DataWorkbench definitionId="orders" />
+            <DashboardWorkbench definitionId="overview" />
+          </>
+        ),
+      },
+      `/?view=${ALL}`,
+    );
+    await waitFor(() => expect(openIn('Orders')).toMatch(/^All orders/));
+    await waitFor(() => expect(openIn('Overview')).toMatch(/^Home board/));
+    expect(at().search).toBe(`?view=${ALL}`);
+  });
+});
+
 describe('the address: `?id=`, the record a bound resource’s detail holds', () => {
   const reading = [
     ...ROUTES,
@@ -347,7 +403,7 @@ describe('the address: a board’s filters and tab in the history entry', () => 
   const Given = createContext<Board>({});
   const last = lastOf<Board>();
   function Probe() {
-    last.told(useAddressedBoard(useContext(Given)));
+    last.told(useAddressedBoard(useContext(Given), 'b'));
     return null;
   }
 
@@ -386,12 +442,15 @@ describe('the address: a board’s filters and tab in the history entry', () => 
     expect(last.value.initialTab).toBe('week');
     const next = { values: { day: 'today' } };
     act(() => last.value.onFiltersChange?.(next));
+    // Written under the board, beside what the page was handed.
     await waitFor(() =>
       expect(router.state.location.state).toEqual({
-        filters: next,
+        filters,
         tab: 'week',
+        boards: { b: { filters: next } },
       }),
     );
+    expect(last.value.initialFilters).toEqual(next);
     expect(router.state.historyAction).toBe('REPLACE');
     expect(router.state.location.search).toBe('?board=b');
     // The same filters again write nothing.
@@ -400,8 +459,68 @@ describe('the address: a board’s filters and tab in the history entry', () => 
     expect(router.state.location.key).toBe(key);
     act(() => last.value.onTabChange?.('month'));
     await waitFor(() =>
-      expect(router.state.location.state).toMatchObject({ tab: 'month' }),
+      expect(router.state.location.state).toMatchObject({
+        boards: { b: { filters: next, tab: 'month' } },
+      }),
     );
+    // The tab it was handed is already where it is: nothing to write.
+    const month = router.state.location.key;
+    act(() => last.value.onTabChange?.('month'));
+    expect(router.state.location.key).toBe(month);
+  });
+
+  it('keeps each board’s own, so several on one page each find theirs again', async () => {
+    type Told = ReturnType<typeof lastOf<Board>>;
+    const boards: Record<string, Told> = {
+      north: lastOf<Board>(),
+      south: lastOf<Board>(),
+    };
+    function Boards() {
+      boards.north.told(useAddressedBoard({}, 'north'));
+      boards.south.told(useAddressedBoard({}, 'south'));
+      return null;
+    }
+    const page = (start: InitialEntry) => {
+      const router = createMemoryRouter(
+        [
+          {
+            path: '*',
+            element: (
+              <RoutedChildren engine={engineOf()}>
+                <Boards />
+              </RoutedChildren>
+            ),
+          },
+        ],
+        { initialEntries: [start] },
+      );
+      return { router, view: render(<RouterProvider router={router} />) };
+    };
+    const first = page('/boards');
+    // Each board says what it opened on, as an embed does as it mounts.
+    const north = { values: { region: 'north' } };
+    const south = { values: { region: 'south' } };
+    act(() => boards.north.value.onFiltersChange?.(north));
+    await waitFor(() =>
+      expect(first.router.state.location.state).toMatchObject({
+        boards: { north: { filters: north } },
+      }),
+    );
+    act(() => boards.south.value.onFiltersChange?.(south));
+    act(() => boards.north.value.onTabChange?.('week'));
+    await waitFor(() =>
+      expect(first.router.state.location.state).toMatchObject({
+        boards: { north: { tab: 'week' }, south: { filters: south } },
+      }),
+    );
+    // Read again from the entry — a reload: each board finds its own.
+    const { location } = first.router.state;
+    first.view.unmount();
+    page(location);
+    expect(boards.north.value.initialFilters).toEqual(north);
+    expect(boards.north.value.initialTab).toBe('week');
+    expect(boards.south.value.initialFilters).toEqual(south);
+    expect(boards.south.value.initialTab).toBeUndefined();
   });
 
   it('keeps a host’s own pair, each on its own', () => {

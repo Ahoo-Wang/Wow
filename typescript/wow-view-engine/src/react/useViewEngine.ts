@@ -165,14 +165,17 @@ const NO_REOPEN: Reopen = { after: null, attempt: 0 };
  * `scopeIssues` says which condition did not take (D17-5).
  *
  * `opening` says which tab a dashboard opens on and what its filters hold
- * (`OpenOptions.tab`, `OpenOptions.filters`), asked of the caller as each
+ * (`OpenOptions.tab`, `OpenOptions.filters`), and which definition the
+ * caller draws (`OpenOptions.definitionId`), asked of the caller as each
  * view opens — only then does it mean anything.
  */
 export function useOpenView(
   engine: ViewEngine,
   instanceId: string | null,
   scopeFilter: FilterTree | null = null,
-  opening?: (instanceId: string) => DashboardOpening | undefined,
+  opening?: (
+    instanceId: string,
+  ) => Omit<OpenOptions, 'scopeFilter'> | undefined,
 ): OpenViewState {
   const [opened, setOpened] = useState<OpenedView>(NOT_OPENED);
   // Advanced once per runtime disposed under the hook, so the opening effect

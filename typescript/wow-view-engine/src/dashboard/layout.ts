@@ -233,14 +233,15 @@ export function placePanelIn(
  * saved, `shown` as drawn before the hand, `placed` as drawn after it.
  *
  * Each panel keeps its saved height — except the one placed when the hand
- * changed its height, or sized it (`fixedHeight`) — and is saved at the row
- * that `grownLayout` turns back into the row it is drawn at: its drawn row
- * less the rows the panels above it pushed it down. So the board grown again
- * is the board the author let go of, and a panel neither placed nor pushed
- * comes out with the row it had. Where that row would put it on a panel
- * above it (two side by side that grow unevenly, with one wide one under
- * both), it is saved just under that panel instead: the reading keeps the
- * rows between them, and a saved board never overlaps.
+ * changed its height, or sized it (`fixedHeight`) — and keeps, below the
+ * lowest of the panels above it, the rows it is drawn clear of the lowest
+ * of them drawn: the one thing `grownLayout` reads a saved row by. So the
+ * board grown again is exactly the board the author let go of (D68), for
+ * every placement: read in the same order, each panel lands on the same
+ * panels above it, as far below the lowest of them as it was let go. A
+ * panel neither placed nor pushed comes out with the row it had, and no
+ * two saved panels share a cell, since each is saved under every panel
+ * that is drawn above it.
  */
 function savedPlacement(
   boxes: readonly PlacedPanel[],
@@ -260,32 +261,31 @@ function savedPlacement(
       box.h !== drawnBefore.get(box.id)!.h;
     return resized ? box.h : own.h;
   };
-  // How far each panel's bottom is drawn below where it is saved.
-  const drop = new Map<string, number>();
   const saved = new Map<string, PlacedPanel>();
   const read = readingOrder(placed.map(box => ({ box, layout: box })));
   for (const { box } of read) {
-    let push = 0;
-    let floor = 0;
+    // The lowest panel drawn above it, drawn and saved.
+    let drawnFloor = -1;
+    let savedFloor = 0;
     for (const { box: above } of read) {
       const settled = saved.get(above.id);
-      if (
-        !settled ||
-        above.y + above.h > box.y ||
-        above.x >= box.x + box.w ||
-        box.x >= above.x + above.w
-      )
-        continue;
-      push = Math.max(push, drop.get(above.id)!);
-      floor = Math.max(floor, settled.y + settled.h);
+      if (!settled || !stacked(above, box)) continue;
+      drawnFloor = Math.max(drawnFloor, above.y + above.h);
+      savedFloor = Math.max(savedFloor, settled.y + settled.h);
     }
-    const h = heightOf(box);
-    const y = Math.max(box.y - push, floor);
-    saved.set(box.id, { id: box.id, x: box.x, y, w: box.w, h });
-    // Grown again it is drawn `push` rows below its saved row, `box.h` tall.
-    drop.set(box.id, push + box.h - h);
+    const y = drawnFloor < 0 ? box.y : savedFloor + (box.y - drawnFloor);
+    saved.set(box.id, { id: box.id, x: box.x, y, w: box.w, h: heightOf(box) });
   }
   return placed.map(box => saved.get(box.id)!);
+}
+
+/** Whether `above` stands wholly over `below`, sharing a column with it. */
+function stacked(above: PanelLayout, below: PanelLayout): boolean {
+  return (
+    above.y + above.h <= below.y &&
+    above.x < below.x + below.w &&
+    below.x < above.x + above.w
+  );
 }
 
 /**
@@ -409,11 +409,15 @@ export function stackedLayout(
 /**
  * The layout read with some panels taller than saved (`heights`, rows by
  * panel id): each grows to the height asked for, never shorter than it was
- * saved, and whatever stood under it moves down with it, keeping the rows
- * it had between them — so every panel under a grown one still reads where
- * the author put it relative to it. Nothing rises, nothing moves sideways,
- * and two panels a stored config put on one cell stay on it: only a panel
- * that was clear of another is kept clear of it.
+ * saved, and whatever stood under it moves down with it. A panel is read
+ * as resting on the panels above it: it keeps the rows it had under the
+ * lowest of them (its nearest blocker), below the lowest of them as grown
+ * — so every panel under a grown one still reads where the author put it
+ * relative to what it sat on, and a saved row the placement writes back
+ * (`placePanelIn`) always reads as the row it was let go at (D68). Nothing
+ * rises, nothing moves sideways, and two panels a stored config put on
+ * one cell stay on it: only a panel that was clear of another is kept
+ * clear of it. With nothing grown it is the layout as saved.
  *
  * A reading, like `stackedLayout`, never a placement: a table panel shown
  * whole while the board is read (P1-3) is not a layout its author chose,
@@ -428,14 +432,15 @@ export function grownLayout(
   const read = readingOrder(panels.map(panel => ({ panel, layout: panel })));
   for (const { panel: from } of read) {
     const h = Math.max(from.h, Math.floor(heights.get(from.id) ?? 0));
-    let y = from.y;
+    // The lowest panel above it, as saved and as grown.
+    let savedFloor = -1;
+    let grownFloor = 0;
     for (const { from: above, to } of settled)
-      if (
-        above.y + above.h <= from.y &&
-        above.x < from.x + from.w &&
-        from.x < above.x + above.w
-      )
-        y = Math.max(y, to.y + to.h + (from.y - above.y - above.h));
+      if (stacked(above, from)) {
+        savedFloor = Math.max(savedFloor, above.y + above.h);
+        grownFloor = Math.max(grownFloor, to.y + to.h);
+      }
+    const y = savedFloor < 0 ? from.y : grownFloor + (from.y - savedFloor);
     const to = { ...from, y, h };
     grown.set(from.id, to);
     settled.push({ from, to });
