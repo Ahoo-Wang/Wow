@@ -141,7 +141,7 @@ const engine = new ViewEngine({
 - 外壳只要 id：`<DataWorkbench definitionId={EXECUTION_FAILED} />`。props 只留「这一处与别处不同」的：嵌入的交互档位、标题开关、这一处独有的操作。
 - **ViewHost** 可以嵌套，内层的 `bindings` 按 id 覆盖外层，也可以在外壳上显式传 `engine`：一页两个引擎的宿主照样写得出。只有最外层画 `<html>`（明暗、预设、品牌）。
 - **一个应用一个引擎**：注册在应用启动时做一次；页面之间共享查询缓存、偏好与描述符。
-- 查询队列按看板规模自己留位（todo.md「看板打开时查询队列按看板的规模留位」），控制台的 `maxQueuedQueries: 64` 删去。
+- 查询队列按看板规模自己留位，控制台的 `maxQueuedQueries: 64` 删去。
 - 开发期的 `onIssue` 缺省按资源分组打印，每条带改法；宿主接了自己的就用宿主的。
 
 ### 4.1 主题接入：先选一条路（用户 2026-09-28 定）

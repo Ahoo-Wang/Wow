@@ -222,7 +222,7 @@ flowchart LR
 - **引擎在走查里补的一处**（#3542）：「铺满屏幕」的面固定在层级 0，宿主有意抬高的界面仍盖在它上面；shadcn 外壳的侧栏是 `fixed` + `z-index: 10`，所以铺满的工作台与概览最左 175px 一直在侧栏下面。引擎加布局变量 `--fve-expanded-z-index`（缺省 0 不变），控制台在 `index.css` 设 20（侧栏之上、弹层 50 之下）。
 - **走查里在控制台修的**：语言菜单选完不收起（`closeOnClick`）；「变更函数」的函数类型按钮写的是 `EVENT`／`STATE_EVENT`，改成「事件／状态事件」；堆栈「自动换行」时一整条栈帧没有断点、仍横向滚动，改为可在词内断行；事件流工作台 `/executions/events` 的行说不出是哪一条执行的——加系统视图「全部事件流」（缺省打开，按时间降序，带「执行 ID」列，窄屏钉住的末列是「事件」），执行 ID 可复制，事件流详情按「事件流／事件」分组而不是「其他」；宿主的 `--muted-foreground`（slate 500）在带色的背景上只有 4.46:1，分页、说明文字与字段标签在 axe 下不过 AA，压暗一档（见判据 5）。
 - **判据 7 写进 lint**：ESLint 的 `no-restricted-imports` 只放行引擎的根、`/react`、`/ui` 与 CSS 入口，`no-restricted-syntax` 拒绝字符串里的 `fve-` 类名；样式表由 `src/engineBoundary.test.ts` 读出、断言没有 `.fve-` 选择器。
-- **流入与结局仍不是四线图**：#3532（N1 FIRST／LAST）给的是组内最早／最晚的值，#3524（N2 DATE_PART）给的是按星期、小时等分组，#3539（N3）给的是日期差表达式、表达式条件与表达式分组——都不改批 6 挡路的两件事：指标条件对数组仍被拒（`METRIC_FILTER_ELEMENT_MATCH`、`METRIC_FILTER_ARRAY_FIELD`，Mongo 的 `$cond` 与 ES 的 filter 聚合只看一条记录的一个值），展开 `body` 后也仍不能按根字段 `createTime` 分组。所以没做；缺口记在 view-engine [todo.md](../../../../typescript/wow-view-engine/docs/design/todo.md)「补偿控制台留下的引擎缺口」，要等 Wow 查询支持其一。
+- **流入与结局仍不是四线图**：#3532（N1 FIRST／LAST）给的是组内最早／最晚的值，#3524（N2 DATE_PART）给的是按星期、小时等分组，#3539（N3）给的是日期差表达式、表达式条件与表达式分组——都不改批 6 挡路的两件事：指标条件对数组仍被拒（`METRIC_FILTER_ELEMENT_MATCH`、`METRIC_FILTER_ARRAY_FIELD`，Mongo 的 `$cond` 与 ES 的 filter 聚合只看一条记录的一个值），展开 `body` 后也仍不能按根字段 `createTime` 分组。所以没做；缺口记在 view-engine [todo.md](../../../../typescript/wow-view-engine/docs/design/todo.md)「首发后再议」H，要等 Wow 查询支持其一。
 
 ### 验证报告（第 6 节逐条，2026-09-25）
 

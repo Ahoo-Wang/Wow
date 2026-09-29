@@ -7,206 +7,128 @@
 - 做完就**删掉**这一条，不打勾、不留归档。历史在 git 里。
 - 改行为之前先看这里有没有对应项；有就接着做，别另起一条。
 
-## 首发前的门（npm 首发与阶段 6 开工之前）
+## 首发前
 
-- **全面审查过门，由用户明确点头**（用户 2026-09-24）：npm 首发与阶段 6（Wow 存储后端）开工之前，先做第二轮全面审查——架构质量（职责清晰、高内聚、低耦合、扩展性、可维护性）、企业级产品体验（UI 视觉、UX 交互）、功能的可用性、可访问性与易用性——处置完后交审查报告，**用户明确审查通过**才开始这两件事。
+npm 首发（`9.2.0-rc.0`）之前按下面的顺序做，同时只做一件。审查里「现在做还是以后做」默认现在做：公开面（[D29](decisions.md) 快照）上的破坏性改动趁首发前一次改到位，不为发布前的形态留兼容层（用户 2026-09-24）。
+
+### 1. 严格 CSP
+
+- **严格 CSP 下整个引擎零违规**（就绪审计 P1）：已有的——提示框色块是 SVG 的 `fill`、不写 `style=`（#3434）；拖动的样式带页面 nonce（[D61](decisions.md)）；README「Content Security Policy」写了要放行的三件事；补偿控制台的 e2e 在严格策略下走遍四个去处（`compensation/dashboard/e2e/csp.spec.ts`）。
+  - 为什么：控制台只用到引擎的一部分；控制台之外的图型、导出与看板搭建在严格策略下还没人走过，README 的「可运行」只有这一处证据。
+  - 判据：一条 Storybook 故事在严格 CSP（与 README 同一条策略）下走过记录、每种图型、导出、看板的读与搭，零违规，并进 CI；文档站的视图引擎指南（中英）有同样的 CSP 一节。
+  - 落点：`typescript/storybook/`、README「Content Security Policy」、`documentation/docs/{zh,en}/guide/typescript/`。
+
+### 2. 第二轮全面审查，由用户明确通过
+
+- **审查过门**（用户 2026-09-24）：架构质量（职责清晰、高内聚、低耦合、扩展性、可维护性）、企业级产品体验（UI 视觉、UX 交互）、功能的可用性、可访问性与易用性。
   - 为什么：这是一次重大发布；公开面一旦上 npm 就要背兼容性。
-  - 判据：审查报告（含 Storybook 场景审查与就绪审计 P1 的处置）交给用户并得到明确通过；此前不发布、不开阶段 6。
-  - 落点：[progress.md](progress.md)「这个暂停点」；Wow 仓的 `typescript/RELEASING.md`。
-- **先重构到生产就绪，不留兼容债**（用户 2026-09-24：「尽早重构解决问题，避免以后再考虑兼容性债务」）：审查里「现在做还是以后做」默认现在做；公开面（[D29](decisions.md) 快照）上的破坏性改动趁首发前一次改到位，不为发布前的形态留兼容层（面向已部署 Wow 服务端的兼容除外）。
-  - 判据：首发时 `docs/compat-debt.md` 里没有本包因发布前形态而欠下的条目。落点：本页各节、[decisions.md](decisions.md)。
-- **采用查询模块的能力描述，替掉本包写死的上限与算子表**（查询模块重构 N5；协调会话 2026-09-25）：本包首发 npm 之前，定义准入、编译与托盘改读服务端声明的能力描述（能分哪些组、能算哪些指标、上限多少、百分位是否精确），不再写死 `maxAnalysisRows`、算子表与「百分位是近似值」。
-  - 为什么：写死的上限与服务端守卫不一致已经出过错（见下「连真 Wow 服务端的端到端」第一条）；D41 箱线图的「近似值」也该按后端声明写。
-  - 判据：能力描述落地后，本包的上限、算子与百分位精度都读它；端到端去掉手写的 `maxLimit` 仍通过。
-  - 落点：查询模块的方案 documentation/designs/2026-09-24-query-target-architecture-design.md §11（尚未合入 main）；本包 `src/model/limits.ts`、`src/analysis/`、`src/filter/`。
-  - 方案：[capabilities.md](capabilities.md)（数据源端口的 `describe`、定义 × 描述的收窄、缓存与重新验证、违规码、批次 C2～C6；Q1～Q3 已定，D47）。
-  - 进度：C1 已合并（#3482）；C2 已落地，分两次合并（#3499 与余项，capabilities.md 第 12 节）；C3 已落地（#3517，第 14 节）；C4 已落地（第 15 节）；C5 已落地（第 16 节）；C6 已落地（补偿控制台 #3541，接入时撞到的 `ELEMENT_MATCH` 收窄缺陷由 #3540 修，第 20 节）。
-- **就绪审计里本包的 P1**（2026-09-24 只读审计；本包这次不发 npm，所以不挡 9.2.0，但挡本包首发）——并入第二轮审查的清单，逐条变成带判据的 TODO 或拍板：
-  - 严格 CSP：提示框色块的 `style=` 改 class，写 CSP 指南，加一个严格 CSP 下的故事。
-  - 真人读屏走查（VoiceOver／NVDA）：纯键盘走查与 WCAG 2.2 AA 符合性声明已成文（文档站「视图引擎的可访问性」），读屏这一半见下面「可访问性」一节的第一条。
-  - 视觉回归基线，Firefox／WebKit 跑一次。（连真服务端的端到端已落地，见下一节。）
-  - 判据：每条要么合并、要么由用户拍板推迟到首发后并写进 [decisions.md](decisions.md)。落点：本页。
+  - 判据：下面的已知项逐条修掉，或由用户拍板推迟并写进 [decisions.md](decisions.md)；审查报告交给用户并得到**明确通过**；此前不发布、不开阶段 6（Wow 存储后端）。首发时 `docs/compat-debt.md` 里没有本包因发布前形态欠下的条目。
+  - 落点：审查报告；Wow 仓的 `typescript/RELEASING.md`「首发清单」。
 
-## 架构与代码质量审查（2026-09-27）的处置——按序交子代理做
+下面是这一轮要裁定的已知项，默认现在修。
 
-第一轮扫描（重复度、依赖方向、没人用的导出）的发现，用户 2026-09-27 按推荐定；同时只跑一个子代理，一件做完再派下一件。
+#### 可访问性
 
-1. ~~**其余发现**~~：mongo 空值安全运算合一 #3729、拆 `RecordWorkbench.test.stories.tsx` #3758、ui 根目录拆成三层（分支 `refactor/ui-three-tiers`，在审；移动表、方向表的改法与判据见 PR 描述）。
+走查记录与逐条符合性表在文档站「视图引擎的可访问性」（`documentation/docs/{zh,en}/guide/typescript/view-engine-accessibility.md`）。每条对应声明里一处「部分支持」或一条已知缺口，做完一条就改声明里那一格。真人读屏走查已推迟到首发后（[D73](decisions.md#d73-真人读屏走查与多浏览器视觉回归放到首发之后2026-09-29)）：首发前由用户用 VoiceOver 抽查记录工作台与分析编辑区的撤销提示，声明写明读屏软件实测待做。
 
-2. **补审 wow-react 与查询后端（2026-09-28）**：17 条中后端与 wow-react 的全部落地——#3754、#3755、#3757、#3760、#3764、#3765（含 F2：MongoDB 的日期字段按日期比较）、#3766、#3768（护栏：事件流导入限制、无抽象成员的抽象类由反射测试守）；#3759 让只改 Kotlin 的 PR 也跑兼容债账本。余下一条：
-   - **F9（控制台）**：`useMoments.ts` 自写的分页 hook 有迟到结果覆盖的竞态，改用 wow-react `usePagedQuery`（H2a 合并后，控制台不再冲突）。
-
-## 看板真实接入（补偿控制台，2026-09-27）暴露的问题——首发前做，按序交子代理
-
-控制台是引擎第一个真实宿主。从宿主的四件事看（声明要快、配错能马上知道且只坏那一块、融得进宿主的样式、能在自己的测试里跑），用户 2026-09-27 按推荐定：A、C、D 首发前做，B 先出方案；F（宿主测试用的内存数据源）已随求值器合一做成公开入口 `/testing`（[D65](decisions.md)）；E、G、H 见「首发后再议」。顺序：~~`HeadingPanel`~~（#3728）→ A → C → 宿主接入 H1～H3（[host-integration.md](host-integration.md)，D67；D 并入 H1）→ ~~B~~（D66）。
-
-~~A~~（#3732）与 ~~C~~（#3734）已合并。
-
-3. **宿主接入 H1～H3**（[host-integration.md](host-integration.md) 第 8 节，[D67](decisions.md#d67-宿主接入事实归机器选择归宿主2026-09-28)）：~~H1~~（#3744）→ ~~H2a~~（#3761，翻译随后由 #3774 改到叶子上）→ ~~H2b~~（#3780）→ ~~H3~~（#3783，第 5 节，落地见 5.1：声明、**actionHarness**、控制台改为声明、`useBulkCommand` 收进引擎）。两个 skill 等引擎定稿后再写（用户 2026-09-28）。每批的判据以方案为准。
-   - 描述符的三项事实（时长、引用、时间角色）已由 #3738 补上；控制台的描述符快照另行刷新。
-4. ~~**看板打磨**：红条措辞（只有面板坏了时说面板）、D68 面板手调过高度就照手调、D70 铺满屏幕时保留标题与口径说明~~（#3779，在审；判据与证据见 PR 描述）。
-
-5. ~~**分析编辑区按依赖排行**~~（#3781，在审；判据与证据见 PR 描述；[D71](decisions.md#d71-分析编辑区按依赖排行展开指标维度结果范围2026-09-28修订-d20)，修订 D20）：展开 → 指标 → 维度 → 结果 → 范围，行首术语带 ⓘ；展开带走指标时提示可撤销；指标可拖动排序；范围待应用时提示与「应用」直接出现在底部。与看板打磨同一批，A 合并、悬空引用修复合并后做。判据见 D71。
-
-6. ~~**图型选项从卡片右上角进**~~（#3781，在审；判据与证据见 PR 描述；[D72](decisions.md#d72-图型的选项从卡片右上角进不再压在图型列表底下2026-09-28)）：选中卡片右上角的选项图标替代列表底部的「…选项 ›」。与 D71 同一批。判据见 D72。
-
-## Storybook 审查（2026-09-26）的处置
-
-- **按道修 [review-2026-09-26.md](../../../storybook/docs/review-2026-09-26.md) 的 P0/P1**：
-  - 为什么：P0 是数字的口径标错，P1 是状态不反映结果、表格被裁、标签压盖与宿主学不到接入，都挡首发审查。
-  - 判据：报告里每条 P0/P1 的状态一栏写上合并的 PR 号，或由用户拍板推迟并写进 [decisions.md](decisions.md)。
-  - 落点：报告本身（逐条标了道）；P0 由 #3606、P1-1 与 P1-10 由 #3619、P1-3 由 #3615（空合计带）与 #3630（面板按行长高、滚动提示）修掉。D51（视野外写出汇总）由 #3634、P1-5 与 P1-6 由 #3654 与 #3657（D53）、P1-2／P1-7／P1-8／P1-9 由 #3656（D55）修掉。P1-4 由 #3661（D56）与 #3663 修掉。P2 在报告里，首发后排。
-- **对话框与弹层的函数式 `finalFocus`**：#3547 修了下拉菜单关闭时抢回已移走的焦点（Base UI 1.8.0 在 `finalFocus` 是函数时不看焦点是否已离开）；对话框、弹层若也传函数，可能是同一个竞态。
-  - 判据：逐个查过，同样处理或说明不受影响，并有一个回归故事。落点：`src/ui/kit/popups.tsx`。
-- **图上的字：还没做的两处**（D53 落地时记下）：长柱上「最低 …」比柱子宽时压到两旁柱身（有底色描边，读得清，如「近 30 天」「双 11」）；多段堆叠柱多时栈顶合计仍每根都写，要不要也只标峰谷。
-  - 判据：各自定下做法并落地，或写进 decisions 不做。落点：`src/ui/charts/cartesianMarks.ts`、`src/analysis/chartFamilies.ts`。
-- **查询失败时仍显示上一次的结果**（故事道 P1-2 时提出）：条件改了而新查询失败，表格留着旧条件的行（`useRecordTable` 的「失败的刷新保留旧行」）。刷新失败时保留是对的；条件变了时要让人看出眼前是旧条件的结果。
-  - 判据：第二轮全面审查里逐个筛选模式在真浏览器里验证：改条件后失败，界面说清「显示的是改之前的结果」或不再显示旧行；不清楚就修。落点：`src/react/useRecordTable.ts`、`src/ui/record/`。
-- **场景描述里还有手写的数字**（故事道 P1-7 时记下）：如运营日报的「约 82%」「11 张」。
-  - 判据：像导览一样由 `retail/guide.ts` 的做法从数据读出，或删掉数字。落点：`typescript/storybook/stories/view-engine/` 各场景的 docs 描述。
-
-## 首发后再议（用户 2026-09-26 要求记下，不要遗漏）
-
-- **H：补偿控制台「每天各种结局」画成一张多序列图——定为后端支持**（用户 2026-09-27 按推荐定；引擎不做「多个查询拼一张图」）：今天四张结局卡各自带逐日走势，因为 Wow 在展开元素的聚合里够不到根字段 `createTime`。由「查询模块架构重构」会话在后端加「元素作用域里按上层（根）字段分组」：准入放宽为字段属于当前或上层作用域并定下指明根字段的写法；MongoDB 的 `$unwind` 本就带着根字段，几乎不用改；Elasticsearch 要把根字段的分组放到 `nested` 外（或 `reverse_nested`）并与分页器的 composite 相容，是主要成本；TCK 两个后端都加用例。约一周。契约走交接协议；之后 TS 镜像（描述符能力开关、DSL、本包放开 `analysis.field.outside-scope`）、控制台把四张卡合成一张图。
-  - 判据：一次查询出「按天 × 事件名」，MongoDB 与 ES 的 TCK 都过；控制台「补偿活动」板的结局是一张四条线的图。落点：`wow-query` 的 `QueryResolver`、`wow-mongo`／`wow-elasticsearch` 的聚合编译、本包 `analysis/`、控制台 `src/views/overview.ts`。
-- **E：看板布局不用手算坐标**：面板位置今天是手写的 `x/y/w/h`，给总览插三个面板要把后面面板的 `y` 全部重算。加一个按行排布的辅助（给宽度、自动排位置），或 `y` 省略时自动接在上一行后。判据：控制台的三块板改用它后布局不变。落点：`src/dashboard/layout.ts`。
-- **G：枚举字段宽容 `EQ`**：把字段从字符串改成枚举时，已有的 `EQ` 条件全部失效（A 的起因）。读的时候已经把只有一个值的 `IN` 说成「是」，写的时候对枚举上的 `EQ` 同样宽容（按一个值的 `IN` 读）。判据：枚举字段上存下的 `EQ` 条件照常准入与编译。落点：`src/filter/kinds/enum.ts`。
-
-## 连真 Wow 服务端的端到端（2026-09-25 落地后的余项）
-
-端到端在 Wow 仓 `typescript/integration-test/test/view-engine/`，由 `typescript-contract.yml` 的同源契约作业对着同一提交构建的示例服务端（MongoDB）运行；覆盖面与本地跑法见那里的 README「View engine against the server」。落地时发现、没在那个 PR 里修的：
-
-- **分析视图的时间轴也只补首尾之间的洞**：走势卡已经补到自己的窗口（`cardWindow`，D39），柱、线、面积与热力图的时间轴仍只补回来的首尾两桶之间——「近 30 天」而前五天没有记录时，轴从第六天开始。
-  - 为什么：与走势卡同一个缺口；拆分与热力图的洞要按组合补，与卡的一维补法不同，没在修卡的 PR 里一起做。
-  - 判据：条件在时间轴字段上钉住窗口、且结果完整（`absenceReader` 能担保）时，这几种图的时间轴补到窗口两端，可加的指标补 0 并标 `filled`。
-  - 落点：`src/analysis/cartesian.ts`、`src/analysis/chart.ts`（热力图），[kernels.md](kernels.md)。
-- **搜索在 MongoDB 后端不可用**：示例服务端的快照模型没有全文能力，`SEARCH` 被拒（`Model search is unsupported.`／`FULL_TEXT_TERMS`），端到端只验证了拒绝如实报出。要验证搜索真的命中，需要一台带 Elasticsearch 快照的服务端。
-  - 判据：契约作业有了 ES 快照（或另起一个作业）后，搜索用例改为断言命中。落点：`recordView.test.ts`。
-
-## 可访问性：2026-09-25 走查留下的
-
-走查记录与逐条符合性表在文档站「视图引擎的可访问性」（`documentation/docs/{zh,en}/guide/typescript/view-engine-accessibility.md`）；小而局部的问题已随同一个 PR 修掉。下面是没修的，每条对应声明里一处「部分支持」或一条已知缺口，做完一条就改声明里那一格。
-
-- **真人读屏走一遍**：VoiceOver + Safari（macOS）、NVDA + Firefox／Chrome（Windows）各走一遍记录工作台、分析、仪表盘与两种嵌入的核心任务。
-  - 为什么：这次没有驱动 VoiceOver（打开它的 AppleScript 控制要改系统安全设置），读屏一半用的是 Chromium 自己算出的无障碍树（CDP `Accessibility.getFullAXTree`）、Playwright 的 ARIA 快照与播报区的变化记录——它们说明名字、角色、状态和播报文字对不对，说明不了读屏软件实际怎么念、念几遍、会不会被打断。
-  - 判据：每个任务一行「能否完成 / 实际念出的话 / 与预期的差异」，差异修掉或各成一条 TODO；声明里「评估方法」一节补上读屏软件与版本。
-  - 落点：文档站那一页的「评估方法」与走查表。
-  - 清单：[screen-reader-walkthrough.md](screen-reader-walkthrough.md)——约 30 分钟的逐步走查（准备、十个任务的按键与应听到的话、记录表与严重程度），走完照它交回结果。
-- **工具栏的漫游焦点漏进它打开的弹层**：Base UI 1.8 的 `Toolbar` 把 composite 上下文交给整棵子树，弹层也在其中；弹层里用 `useButton` 的控件自认是工具栏的一项，不再给自己 `tabindex`。复选框（`span`）因此整个 Tab 不到——这次在列设置与卡片设置的复选框上各补了一个明写的 `tabIndex` 止血；原生按钮与下拉框的触发钮在 Chromium 里照样可达，但在 Safari 默认设置（Tab 只停在带 `tabindex` 的控件与输入框）下被跳过，列设置的「固定」、汇总下拉都是。
-  - 为什么：止血是逐个控件记着补，下一个放进工具栏弹层的复选框或开关还会再掉一次。
-  - 判据：工具栏里的弹层内容不再在工具栏的 React 子树里（Base UI 的分离触发器 `Popover.createHandle`，或上游修复后升级），删掉两处明写的 `tabIndex`；一条故事在 WebKit 里从列设置的搜索框一路 Tab，每一行的复选框、固定钮与汇总下拉都停得到。
-  - 落点：`src/ui/workbench/ResultToolbar.tsx`、`ColumnSettings.tsx`、`CardSettings.tsx`、`SortSettings.tsx`；[ui/README.md](ui/README.md)。
-- **仪表盘面板的移动与缩放、列宽要有单指针的替代**（WCAG 2.2 2.5.7）：可排序的列表已经有了——抓手点一下弹出「移到…」菜单（[D49](decisions.md#d49-可排序的列表一律拖拽排序2026-09-25)）；剩下宽栅格里面板的移动与缩放、表头的列宽，今天指针只能拖，键盘各有等价物（抓手上的 Enter、Alt+←／→），只有指针、不能拖的人（头控、单开关、手抖）用不了。
-  - 为什么：声明里 2.5.7 是「部分支持」，剩下的原因就是这两处。
-  - 判据：面板「⋯」里有「左移、右移、加宽、变窄」一类，列设置里能填宽度，各有一条故事只用点击完成；2.5.7 改为「支持」。
+- **工具栏的漫游焦点漏进它打开的弹层**：Base UI 1.8 的 `Toolbar` 把 composite 上下文交给整棵子树，弹层里用 `useButton` 的控件自认是工具栏的一项、不给自己 `tabindex`；列设置与卡片设置的复选框靠明写的 `tabIndex` 止血，Safari 默认设置下列设置的「固定」、汇总下拉仍被跳过。
+  - 为什么：止血要逐个控件记着补，下一个放进工具栏弹层的控件还会再掉一次。
+  - 判据：弹层内容不在工具栏的 React 子树里（`Popover.createHandle` 分离触发器，或上游修复后升级），删掉两处明写的 `tabIndex`；一条 WebKit 故事从列设置的搜索框一路 Tab，每行的复选框、固定钮与汇总下拉都停得到。
+  - 落点：`src/ui/workbench/ResultToolbar.tsx`、`src/ui/columns/ColumnSettings.tsx`、`src/ui/record/CardSettings.tsx`、`src/ui/sort/SortSettings.tsx`；[ui/README.md](ui/README.md)。
+- **面板的移动与缩放、列宽要有单指针的替代**（WCAG 2.2 2.5.7）：可排序的列表已有「移到…」菜单（[D49](decisions.md#d49-可排序的列表一律拖拽排序2026-09-25)），宽栅格的面板与表头的列宽指针只能拖。
+  - 判据：面板「⋯」里有左移、右移、加宽、变窄一类，列设置里能填宽度，各有一条只用点击的故事；2.5.7 改为「支持」。
   - 落点：[ui/record.md](ui/record.md)、[ui/dashboard.md](ui/dashboard.md)。
-- **列宽的把手只有 8px 宽**（WCAG 2.2 2.5.8）：表头右缘的拖动区 `w-2`，紧挨着排序按钮，既不够 24px、也不满足间距例外。
-  - 判据：拖动区在不压住排序按钮的前提下达到 24px（比如向两侧各伸出、且不与相邻按钮的 24px 圆相交），或上一条的点击替代落地后按「等价控件」例外成立；声明改为「支持」。
+- **列宽的把手只有 8px 宽**（WCAG 2.2 2.5.8）：紧挨排序按钮，既不够 24px、也不满足间距例外。
+  - 判据：拖动区在不压住排序按钮的前提下达到 24px，或上一条的点击替代落地后按「等价控件」例外成立；声明改为「支持」。
   - 落点：`src/ui/record/ColumnResizer.tsx`、[ui/record.md](ui/record.md)。
-- **只改外观的编辑也重跑查询，播报也跟着念**：列宽（Alt+←／→ 每一步）、列顺序、固定、汇总都走 `editAndApply`，每一步都重发一次查询，播报区连说「正在查询」「共 N 条记录」；而新的列宽一次也没说。
-  - 为什么：读屏用户按一下方向键听到三句与这一下无关的话；查询也白跑。
-  - 判据：只动呈现的编辑不重发查询（汇总变了才发聚合），Alt+←／→ 每一步说一次「〈列〉宽 N 像素」一类的话、不说查询；故事断言按三下只有三句宽度的播报、没有查询。
+- **只改外观的编辑也重跑查询，播报也跟着念**：列宽、列顺序、固定、汇总都走 `editAndApply`，Alt+←／→ 每一步重发查询、念「正在查询」「共 N 条记录」，新的列宽一次也没说。
+  - 判据：只动呈现的编辑不重发查询（汇总变了才发聚合）；每一步说一次「〈列〉宽 N 像素」一类；故事断言按三下只有三句宽度播报、没有查询。
   - 落点：`src/react/useRecordTable.ts`、`src/ui/record/ColumnResizer.tsx`、[ui/record.md](ui/record.md)。
-- **仪表盘的两件事不出声**：改筛选条上的值（或交叉筛选）之后，面板各自重跑，板子的播报区什么也不说；面板查询失败也只在面板里画出来，没有播报。
-  - 为什么：读屏用户改完筛选听不到任何回应，也不知道有面板失败，要逐块走过去看（WCAG 4.1.3 目前记「支持」是因为记录与分析视图都播报，这一处是差距）。
-  - 判据：筛选落定后在板子的那一个播报区说一次（「已按〈筛选〉筛选，N 个面板已更新」一类，措辞走目录、双语），有面板失败时同一句带上「M 个面板没能加载」；一个板一次、不按面板逐条念；故事断言播报文字。
-  - 落点：`src/ui/dashboard/`（等 PR3 合并后再动）、[ui/dashboard.md](ui/dashboard.md)。
-- **表格与小图的名字**：记录表没有可及名字（读屏的表格列表里是一串「表格」，一块板上有几个记录面板时分不开）；指标卡的走势小图没有摘要句（别的图都有），它的数据表首列表头是「类别」而不是维度名。
-  - 判据：记录表以视图名（工作台）或面板标题（仪表盘）命名；指标卡小图有与其他图同一套的摘要句，数据表首列用维度的显示名；各有测试。
+- **仪表盘改筛选与面板失败不出声**（WCAG 4.1.3）：面板各自重跑，板子的播报区什么也不说。
+  - 判据：筛选落定后在板子的播报区说一次（「已按〈筛选〉筛选，N 个面板已更新」，有失败时带上「M 个面板没能加载」），措辞走目录、双语；故事断言播报文字。
+  - 落点：`src/ui/dashboard/`、[ui/dashboard.md](ui/dashboard.md)。
+- **表格与小图的名字**：记录表没有可及名字（一块板上几个记录面板分不开）；指标卡的走势小图没有摘要句，数据表首列表头是「类别」而不是维度名。
+  - 判据：记录表以视图名或面板标题命名；小图有同一套摘要句，首列用维度的显示名；各有测试。
   - 落点：`src/ui/record/RecordTable.tsx`、`src/ui/charts/`、[ui/analysis.md](ui/analysis.md#图表怎么被读出来)。
-- **窄列里溢出的单元格盖住焦点**（WCAG 2.2 2.4.11）：列宽比内容窄时（存下来的列宽，或窄屏），订单号那一格的文字加「复制」按钮溢出到右边一格，右边那格的底色把聚焦的「复制」盖得只剩一条边（运单宽表，900px 宽）。溢出再多一点就整颗看不见。
-  - 判据：单元格不向相邻格溢出（截断加省略号、提示框给全文，或行内按钮留在格内），聚焦的控件四角都在自己格里；一条故事在窄宽度下把每一颗「复制」聚焦一遍，量它正中那一点是它自己。
+- **窄列里溢出的单元格盖住焦点**（WCAG 2.2 2.4.11）：列宽比内容窄时，「复制」按钮溢出到右边一格，被那格的底色盖住。
+  - 判据：单元格不向相邻格溢出，聚焦的控件四角都在自己格里；一条窄宽度故事逐个聚焦「复制」并量它正中那一点是它自己。
   - 落点：`src/ui/record/cells.tsx`、`src/ui/kit/CopyButton.tsx`、[ui/record.md](ui/record.md)。
-- **视图的面不声明自己的语言**（WCAG 2.2 3.1.2）：措辞目录是中文、宿主页面是英文（或反过来）时，`.fve-root` 上没有 `lang`，读屏按宿主的语言念中文。
-  - 判据：面按它用的措辞目录写 `lang`（宿主可覆盖），弹层随之带上；测试断言中英两种目录下的 `lang`。
+- **视图的面不声明自己的语言**（WCAG 2.2 3.1.2）：措辞目录与宿主语言不同时，`.fve-root` 上没有 `lang`，读屏按宿主的语言念。
+  - 判据：面按措辞目录写 `lang`（宿主可覆盖），弹层随之带上；测试断言中英两种目录下的 `lang`。
   - 落点：`src/ui/kit/ViewSurface.tsx`、`src/ui/kit/popups.tsx`、[ui/README.md](ui/README.md#措辞与-messagesprovider)。
-- **看得见的快捷键提示**：Alt+←／→ 调列宽只写在 `aria-keyshortcuts` 里，Shift+Enter 选一段只在读屏的描述里；看得见屏幕、只用键盘的人无从得知。
-  - 判据：表头聚焦时的提示框（或表格设置里的一行）写出列宽键；分析表的「按住 Shift 选一段」在表格布局下看得见；措辞双语。
+- **看得见的快捷键提示**：Alt+←／→ 调列宽只在 `aria-keyshortcuts` 里，分析表的 Shift+Enter 选一段只在读屏描述里。
+  - 判据：表头聚焦时的提示框（或表格设置里的一行）写出列宽键；分析表「按住 Shift 选一段」看得见；双语。
   - 落点：`src/ui/record/SortableHeader.tsx`、`src/ui/analysis/AnalysisTable.tsx`。
 
-## Storybook：真实交易订单场景
+#### 界面与图表
 
-- **七批按方案做**（Wow 仓 [typescript/storybook/docs/scenarios.md](../../../storybook/docs/scenarios.md)，Q1～Q4 与首页验收 6.3 已定）：零售数据集与生成器（第 1 批，在做）→ 数据源加速与补语义 → 记录、分析、事件流的业务场景 → 仪表盘与嵌入页 → 目录与导览 → 跟着 ECharts B、C、E 补展示 → 首页换成只读的运营日报（必做）。
-  - 为什么：用户 2026-09-24——夹具要面向真实交易订单场景，尽量体现本包的能力，分析视图面向真实的数据分析。
-  - 判据：以方案为准；七批做完后按第一性原理做一次完整 review（领域专家、架构、前端、数据分析、UI/UX 五个视角，真浏览器逐场景走查），处置后报告给用户，并入上面的第二轮审查。
-  - 落点：`typescript/storybook/stories/view-engine/retail/`；方案页。
-
-## 补偿控制台留下的引擎缺口
-
-补偿控制台按方案八批重构完（Wow 仓 [compensation/dashboard/docs/design/view-engine-rebuild.md](../../../../compensation/dashboard/docs/design/view-engine-rebuild.md)「批 7 的记录」与验证报告）；走查里的引擎缺口已合并的不再列，余下这几条：
-
-- **四种结局画成一张四条线的走势图**（2026-09-27 定为后端支持，见「首发后再议」H）：要么 Wow 查询允许对数组元素写指标条件（今天拒绝：`METRIC_FILTER_ELEMENT_MATCH`、`METRIC_FILTER_ARRAY_FIELD`），要么展开元素时允许按根字段（事件流的 `createTime`）分组（今天报 `analysis.field.outside-scope`）。N1～N3 都没有改变这两点。
-  - 为什么：控制台只能画四张各带走势的指标卡，看不出结局之间的相对走势。判据：补偿概览的「流入与结局」写成一张按事件名拆开的日直方图，对真服务答得出。落点：Wow 查询目标架构；本包 `analysis/`。
-- **看板打开时查询队列按看板的规模留位**（2026-09-27，补偿概览扩到十九个面板时撞到）：默认 `maxQueuedQueries` 32，而一个分析面板可能一次问两三条（拆分的「其他」、截断的探测），概览的最后几个面板被拒成「同时查询太多，过一会儿再试」。控制台先把队列提到 64（`compensation/dashboard/src/views/engine.ts`）。
-  - 为什么：看板上的面板是同一次打开，拒掉其中几个不是「太忙」，是队列没为这块板留位；宿主不该为此猜一个数。判据：一块板打开时，它的全部面板都能排进队列（按面板数给队列留位，或板的查询不计入普通上限），三十个面板的故事里没有面板报 `runtime.query.queue-full`，控制台去掉自己的 64 仍通过。落点：`src/runtime/requestRunner.ts`、`src/model/limits.ts`、`ui/dashboard/`。
-- **直角坐标图的拆分系列读选项的 `tone`**：饼已按语气取色（[ui/analysis.md](ui/analysis.md)「饼的类别穿选项的语气」）；按带语气的枚举拆开的柱与线仍按次序取色位。
-  - 为什么：同一个状态在饼上是红的、在拆分的柱上是某个色位，读者要重新对一遍图例。N1～N4 正在改图型，本条等它们合并后接，免得冲突。判据：按带 `tone` 的枚举拆分时系列颜色与徽标同语气，同语气的两条取色位。落点：`ui/charts/cartesianPlan.ts`、`timeOption.ts`（`toneColor`）。
-
-## D22 标了「以后」的几项（线索）
-
-- 联动筛选、卡片内筛选（「全局筛选」）；按列的点击行为（「点击」）；整板 PDF（「运维」）；订阅、版本历史、验证、缓存要服务端，归阶段 6。
-  - 为什么：它们只在 decisions 里有半句话，排下一个阶段时看不到（审查 X-11）。
-  - 判据：排进某个阶段时各自成为一条带判据的 TODO，或进 [decisions.md#搁置待议](decisions.md#搁置待议)；那时删掉这一条。
-  - 落点：本页。
-- 改变窗口尺寸或从板子「返回」重新挂载的第一帧，网格会短暂比容器宽（随即恢复）——迁移前看到、未处理；第二轮审查时复现，确认后修或删掉这一条。
-
-## 阶段 5：内置多主题
-
-- **四批（5A～5D）都已合并，剩阶段审查与收尾**（[phase5-themes.md](phase5-themes.md) 第 4 节，裁定 [D30](decisions.md#d30-阶段-5-内置多主题的十条裁定2026-09-24)）：
-  - 为什么：批次的判据各自由测试守住了（对比度矩阵、`test/presetContrast.test.ts`、`verify-package` 的预设与桥接检查），但方案页还单独立着，阶段的五维审查也还没做。
-  - 判据：按惯例先把架构、代码质量、UI、视觉、UX 五个维度的审查清单给用户看，处置完后把 [phase5-themes.md](phase5-themes.md) 并入 [ui/README.md#主题弹层与明暗](ui/README.md#主题弹层与明暗)，删掉方案页与这一条，并重写 [progress.md](progress.md)。
-  - 落点：[phase5-themes.md](phase5-themes.md)、[ui/README.md](ui/README.md)、[progress.md](progress.md)。
-
-## 内置主题目录
-
-- **六批按方案做**（[themes.md](themes.md) 第 7 节，裁定 [D35](decisions.md#d35-内置主题目录与三条轴的四条裁定2026-09-24)）；每批的完整判据以方案为准，这里只列线索：
-  - 为什么：用户 2026-09-24 要内置常用、经典风格的主题；宿主研发选，引擎只暴露属性、prop 与 CSS 入口。
-  - T6 阶段审查与收尾。
-  - porcelain 走查剩下的三件（[D43](decisions.md#d43-主题可以说面怎样分层控件怎样画2026-09-25)，themes.md 第 7 节「porcelain 走查与四个缺口」）：描边按钮也能填色（先让按钮在元素上说出 variant）。徽标的边已定保留（`badge-edge`）、选中项的着色已是角色（`row-selected`，[theme-architecture.md](theme-architecture.md) 4.8），各预设在重调批里设。
-  - 判据：每套 × 每种明暗过对比度矩阵与色板门；neutral 在默认密度、默认约定下像素不变；每批 PR 写 CSS gzip 实测数。
-  - 落点：[themes.md](themes.md)；做完一批删一行，全部做完后把方案页并入 [ui/README.md](ui/README.md)，删掉方案页与这一条。
-
-## 主题架构重构
-
-- **按方案逐批做**（[theme-architecture.md](theme-architecture.md) 第 9 节，裁定 [D46](decisions.md#d46-主题架构重构五条结构一张登记表2026-09-25)）；每批的完整判据以方案为准，这里只列线索：
-  - 为什么：首发前把主题的结构一次改到位（品牌是输入、三层、角色、登记表、图表读角色）；本包在 `HELD_BACK`，不欠兼容。
-  - S1 登记表已合并（#3476），S2 三层（含控制台的 G16：宿主 Tailwind 与引擎样式的先后，#3518）、S3 角色（theme-architecture.md 4.8，#3528）、S4 品牌是输入（2.7，#3533；`brand` 预设删掉）、S5 图表读角色（6.7，#3536）、S9 porcelain 重调（9.1）、S8 azure 重调（9.2）与 S11 contrast 重调（9.4）已完成，S8、S9 报出的机制缺口也已修（9.3）；首发收敛为四套预设（`neutral`、`azure`、`porcelain`、`contrast`；2026-09-25 删掉 `slate`、`graphite`、`fjord`）。
-  - 结构批 S6（#3635，宿主主题指南与 `acme.css`）、S7（#3643，`theme-check` 命令）已完成；D46 各批只剩 S6 清单里的「密度的长度对宿主开放」（要改 `styles.css` 与登记表）。
-  - 两次重调报出的机制缺口已在机制批修了（theme-architecture.md 9.3）：角色的**链接**（`<role>-link`，在面上解析，随品牌色与宿主的 `--fve-primary`）、侧栏当前项的边与浮起、菜单与选择框的已选项、描边按钮悬停的边与字、看板筛选芯片的高度（`filter-height`）；azure、porcelain 已用上。剩下的：
-    - porcelain 暗色的菜单高亮链了主色后是 `#5AAEFF` 配深字，不再是 `#0058D0` 配白字——面上没有「暗色下更深一档的品牌色」，要两全得加一个角色或派生（9.3）。
-    - 看板筛选芯片里打字的框必有 `input` 边（S9 的第二条）：要无边须先论证填色本身能当边界，再给配方一个角色。
-    - 角色截图「提示框」（`ThemeRoles.test.stories.tsx` 的 `TooltipChip`）钉 neutral，却截到故事外壳顶栏的提示框（在 `<html>` 的预设下），应改截面内的触发器。
-  - S11 查出的机制缺口（theme-architecture.md 9.4，没有给 contrast 开特例）：引擎自己的三个焦点配方（`FOCUS_ROW`、`FOCUS_CARD`、`FOCUS_INSET`：表格行、记录卡片、看板面板的滚动体）不读 `focus-width`／`focus-offset`，是 1px `ring` 加 `focus-halo`，而光晕是控件轮廓与控件之间的那道间隔、不能同时当行的粗边——contrast 的这三处因此是 1px；选中行没有颜色以外的标记角色（左侧色条或加粗的边），今天靠行里勾上的复选框；contrast 的菜单高亮没用 9.3 的链接，仍是字面值、不跟品牌色（要跟时加 `highlight-link`）。登记表 `PENDING` 已清空（S11 还清 contrast 暗色的六条），机制留着给以后的重调批。
-  - 判据：S1～S7 每批全部截图逐像素相同（只有方案里明说的例外）；重调批只改它那一套的基线，PR 里并排给出改前改后。
-  - 落点：[theme-architecture.md](theme-architecture.md)；做完一批删一行，全部落地后并入 [themes.md](themes.md) 与 [ui/README.md#主题弹层与明暗](ui/README.md#主题弹层与明暗)，删掉方案页与这一条。
-
-## 只读的板不挂拖动的触摸监听
-
-- **只读的仪表盘不再给每块面板挂非 passive 的 `touchstart`**：
-  - 为什么：react-grid-layout 在拖动与缩放都关着时仍把每个格子包进 `DraggableCore`、给缩放角包一个，每块面板两个非 passive 的 `touchstart`（T5 的 Linux WebKit 剖析里看到，[themes.md](themes.md) T5 落地记录）。触屏上从面板开始的滚动要等主线程答完它，图表正在画时就是卡顿；桌面浏览器不受影响。
-  - 判据：读的时候（非搭建）面板上没有 `touchstart`／`touchmove` 监听，摆放与今天逐像素相同（`calcGridItemPosition` 同一套算法），进入与退出搭建不重挂面板（图表不重建）；截图基线不变。
+- **查询失败时仍显示上一次的结果**：条件改了而新查询失败，表格留着旧条件的行。
+  - 为什么：刷新失败时保留旧行是对的；条件变了时，要让人看出眼前是旧条件的结果。
+  - 判据：逐个筛选模式在真浏览器里改条件后让查询失败，界面说清「显示的是改之前的结果」或不再显示旧行。
+  - 落点：`src/react/useRecordTable.ts`、`src/ui/record/`。
+- **对话框与弹层的函数式 `finalFocus`**：#3547 修了下拉菜单关闭时抢回已移走的焦点（Base UI 1.8 在 `finalFocus` 是函数时不看焦点是否已离开）；对话框、弹层也传函数时可能是同一个竞态。
+  - 判据：逐个查过，同样处理或说明不受影响，并有一个回归故事。
+  - 落点：`src/ui/kit/popups.tsx`、`src/ui/kit/ExportDialog.tsx`、`src/ui/record/RecordDetail.tsx`。
+- **图上的字还有两处压盖**：长柱上「最低 …」比柱子宽时压到两旁柱身；多段堆叠柱多时栈顶合计仍每根都写。
+  - 判据：各自定下做法并落地（如也只标峰谷），或写进 decisions 不做。
+  - 落点：`src/ui/charts/cartesianMarks.ts`、`src/analysis/chartFamilies.ts`。
+- **直角坐标图的拆分系列读选项的 `tone`**：饼已按语气取色（[ui/analysis.md](ui/analysis.md)「饼的类别穿选项的语气」），按带语气的枚举拆开的柱与线仍按次序取色位。
+  - 为什么：同一个状态在饼上是红的、在柱上是某个色位，读者要重新对一遍图例。
+  - 判据：按带 `tone` 的枚举拆分时系列颜色与徽标同语气，同语气的两条取色位。
+  - 落点：`src/ui/charts/cartesianPlan.ts`、`src/ui/charts/timeOption.ts`（`toneColor`）。
+- **分析视图的时间轴只补首尾之间的洞**：走势卡已补到自己的窗口（`cardWindow`，D39），柱、线、面积与热力图仍只补回来的首尾两桶之间——「近 30 天」前五天没有记录时，轴从第六天开始。
+  - 判据：条件在时间轴字段上钉住窗口、且结果完整（`absenceReader` 能担保）时，这几种图补到窗口两端，可加的指标补 0 并标 `filled`；拆分与热力图按组合补。
+  - 落点：`src/analysis/cartesian.ts`、`src/analysis/chart.ts`，[kernels.md](kernels.md)。
+- **场景描述里的手写数字**：如运营日报的「约 82%」「11 张」，数据一变就说错。
+  - 判据：照 `retail/guide.ts` 的做法从数据读出，或删掉数字。
+  - 落点：`typescript/storybook/stories/view-engine/` 各场景的 docs 描述。
+- **只读的板不挂拖动的触摸监听**：react-grid-layout 在拖动与缩放都关着时仍给每块面板挂两个非 passive 的 `touchstart`，触屏上从面板开始的滚动要等主线程。
+  - 判据：读板时面板上没有 `touchstart`／`touchmove` 监听，摆放逐像素不变，进出搭建不重挂面板；截图基线不变。
   - 落点：`src/ui/dashboard/DashboardGrid.tsx`、[ui/dashboard.md](ui/dashboard.md)。
+- **网格第一帧比容器宽**：改变窗口尺寸或从板子「返回」重新挂载时，网格短暂比容器宽、随即恢复。
+  - 判据：复现并修掉，或确认复现不了后删掉这一条。
+  - 落点：`src/ui/dashboard/DashboardGrid.tsx`。
 
-## 分析视图：释放 ECharts
+#### 主题与方案页收尾
 
-- **五批按方案做**，A（#3334）、B（#3341）、C（#3365）、D（#3331）、E 已做，剩阶段审查（[analysis-echarts.md](analysis-echarts.md) 第 3 节，裁定 [D33](decisions.md#d33-分析视图释放-echarts-能力的九条裁定2026-09-24)）；每批的完整判据以方案为准，这里只列线索：
-  - 为什么：用户 2026-09-24 的方向，首个大版本前分析视图要到企业 BI（Metabase、Superset、Grafana、Tableau）的水准；审计见方案第 1 节——缩放、框选、图例点选、花纹、采样、导出图片都还没有。
-  - 首发后的线索（Q59 整段对比、注释等）见方案第 3 节末；新图型已由 D41 提到首发前，见下一条；每批 PR 写图表块 gzip 实测数。
-  - 落点：[analysis-echarts.md](analysis-echarts.md)；做完一批删一行，五批与阶段审查做完后把方案页并入 [ui/analysis.md](ui/analysis.md)、[model-shapes.md](model-shapes.md)、[kernels.md](kernels.md)，删掉方案页与这一条。
+- **阶段 5、内置主题目录、主题架构、ECharts 的阶段审查与收尾**：批次都已合并，方案页还单独立着。
+  - 为什么：方案页写的是当时的计划，读者要知道今天是什么样，得去 [ui/README.md](ui/README.md)、[ui/analysis.md](ui/analysis.md) 对照。
+  - 判据：在本轮审查里一并审过；[phase5-themes.md](phase5-themes.md)、[themes.md](themes.md)、[theme-architecture.md](theme-architecture.md) 并入 [ui/README.md#主题弹层与明暗](ui/README.md#主题弹层与明暗)，[analysis-echarts.md](analysis-echarts.md) 并入 [ui/analysis.md](ui/analysis.md)、[model-shapes.md](model-shapes.md)、[kernels.md](kernels.md)，删掉方案页。
+  - 落点：上述各页。
+- **主题机制的余项**（[theme-architecture.md](theme-architecture.md) 9.3、9.4，[D43](decisions.md#d43-主题可以说面怎样分层控件怎样画2026-09-25)）：
+  - 描边按钮也能填色（先让按钮在元素上说出 variant）；
+  - porcelain 暗色的菜单高亮链了主色后是浅字配深底——面上缺「暗色下更深一档的品牌色」，要两全得加一个角色或派生；
+  - 看板筛选芯片里打字的框必有 `input` 边：要无边先论证填色本身能当边界，再给配方一个角色；
+  - 引擎的三个焦点配方（`FOCUS_ROW`、`FOCUS_CARD`、`FOCUS_INSET`）不读 `focus-width`／`focus-offset`，contrast 下是 1px；选中行没有颜色以外的标记角色；contrast 的菜单高亮不跟品牌色（要跟时加 `highlight-link`）；
+  - 角色截图「提示框」（`ThemeRoles.test.stories.tsx` 的 `TooltipChip`）截到了故事外壳顶栏的提示框，应改截面内的触发器。
+  - 判据：每条落地或写进 decisions 不做；每套 × 每种明暗过对比度矩阵与色板门，neutral 在默认密度、默认约定下像素不变。
+  - 落点：[theme-architecture.md](theme-architecture.md)、`src/themes/`、`src/ui/theme/`。
 
-- **D41：除了要后端的，全部图型都加**（[decisions.md](decisions.md#d41-除了要后端的全部图型都加2026-09-25)，分四个 PR，线索在 [analysis-echarts.md](analysis-echarts.md) 第 6 节）：统计（箱线图、刻度盘、雷达、平行坐标）→ 层级与流向（旭日、树、桑基等）→ 时间（日历热力图、河流图）→ 地理（中国省级地图）。
-  - 为什么：用户 2026-09-25 修订 D33 Q55。
-  - 判据：四个 PR 都合并，每种图有适合规则、内核整形、读屏表与摘要、导出、零售故事与孪生；每个 PR 写一次包体实测。
-  - 落点：[analysis-echarts.md](analysis-echarts.md) 第 6 节；做完一个 PR 删掉第 6 节里对应的一行。
+### 3. 两个 skill（最后做）
 
-## 需要后端的图型与分析
+- **视图定义与宿主接入两个 skill**（用户 2026-09-29）：在引擎定稿之后写，即上面两步都做完、审查通过之后。
+  - 为什么：skill 教的是最终的公开面；引擎还在改时写，写完就过时。
+  - 判据：按 [host-integration.md](host-integration.md) 第 6 节——改写 `wow-view-definition`（只讲判断，自检就是 `admit`），新增 `wow-view-host`（资源、**ViewHost**、`bind`、路由与「从命令到操作」）；智能体按 skill 从零给零售场景写一份定义与操作，一次通过 `admit`。
+  - 落点：仓库 `skills/`；[host-integration.md](host-integration.md) 第 6 节。
 
-D41 定下「除了需要后端支持的，全部都需要增加」；下面这些当时 Wow 聚合算不出，查询模块重构会话把它们记为 N1～N6（方案 documentation/designs/2026-09-24-query-target-architecture-design.md §11）。wow-client 已有 DATE_PART（#3524，N2）、元素里的 SEARCH（#3525，N4）、FIRST／LAST（#3532，N1）、DATE_DIFF 与 EXPRESSION 条件（#3539，N3）；本包按 N2 → N1 → N3 → N4 一项一个 PR 采用，采用一项删一行。按日期部件分组（N2）已采用；元素内检索（N4）已采用：只在描述有 `elements[].search` 时提供（见 D39）；两个时刻之差（N3）已采用：指标、箱线图、直方分组与「距另一时刻」的条件（见 test/dateDiff.test.ts、test/durationUi.test.tsx、test/durationCondition.test.tsx）；期初值、期末值与 K 线图（N1）已采用：指标卡的汇总方式与先后、「补齐 K 线的四个数」、涨跌配色、读屏表与摘要（见 test/firstLast.test.ts、test/candlestickUi.test.tsx）。N2 的落点：定义准入、描述收窄、托盘的周期选择、周期轴与热力图「星期 × 时段」、Storybook 零售数据按真实下单时间分组（见 [kernels.md](kernels.md)、test/datePart.test.ts）。
+## 首发后再议
 
-- **能力描述**——N5，见上面「首发前的门」。
+用户已定推迟到首发之后；排进某个版本时各自成为带判据的条目。
 
-## 阶段 2 留下的线索（不做，或待产品口径）
+- **真人读屏走查（VoiceOver／NVDA）**（[D73](decisions.md#d73-真人读屏走查与多浏览器视觉回归放到首发之后2026-09-29)）：VoiceOver + Safari、NVDA + Firefox／Chrome 各走一遍记录工作台、分析、仪表盘与两种嵌入的核心任务，照 [screen-reader-walkthrough.md](screen-reader-walkthrough.md) 交回结果。判据：每个任务一行「能否完成 / 实际念出的话 / 与预期的差异」，差异修掉或各成一条；声明的「评估方法」补上读屏软件与版本。落点：文档站「视图引擎的可访问性」。
+- **Firefox／WebKit 的视觉回归基线**（D73）：视觉回归在 Firefox 与 WebKit 上各跑一次（要下载这两种浏览器）。判据：两种引擎各有一套基线，差异修掉或记下原因。落点：Storybook 的截图脚本。
+- **H：补偿控制台「每天各种结局」画成一张多序列图，由后端支持**（用户 2026-09-27）：Wow 在展开元素的聚合里够不到根字段 `createTime`；后端加「元素作用域里按上层（根）字段分组」（MongoDB 几乎不用改，Elasticsearch 要把根字段的分组放到 `nested` 外并与 composite 分页相容），TCK 两个后端都加用例，之后 TS 镜像、本包放开 `analysis.field.outside-scope`。判据：一次查询出「按天 × 事件名」，两个后端的 TCK 都过；控制台「补偿活动」板的结局是一张四条线的图。落点：`wow-query` 的 `QueryResolver`、`wow-mongo`／`wow-elasticsearch` 的聚合编译、本包 `analysis/`、控制台 `src/views/overview.ts`。
+- **E：看板布局不用手算坐标**：面板位置是手写的 `x/y/w/h`，插一个面板要重算后面的 `y`。加按行排布的辅助，或 `y` 省略时自动接在上一行后。判据：控制台的三块板改用它后布局不变。落点：`src/dashboard/layout.ts`。
+- **G：枚举字段宽容 `EQ`**：字段从字符串改成枚举时，已存的 `EQ` 条件全部失效。写的时候对枚举上的 `EQ` 按一个值的 `IN` 读。判据：枚举字段上存下的 `EQ` 条件照常准入与编译。落点：`src/filter/kinds/enum.ts`。
+- **与上一期整段、去年同期对比（Q59）与注释**：要第二条查询与运行时路径；注释要存储，随阶段 6。D71 里「对比上一期一步生成两个指标」一并在此。落点：[analysis-echarts.md](analysis-echarts.md) 第 3 节末。
+- **Storybook 审查（2026-09-26）的 P2**：P0、P1 已全部处置。落点：`typescript/storybook/docs/review-2026-09-26.md`。
+- **搜索在真服务端上命中**：示例服务端的快照在 MongoDB 上，没有全文能力，端到端只验证了 `SEARCH` 被拒且如实报出。判据：契约作业有了 Elasticsearch 快照后，搜索用例改为断言命中。落点：Wow 仓端到端的 `view-engine/recordView` 用例（`typescript/integration-test/`）。
 
-- 准入发现里的字段用的是 `field.name`（「给 status 一个值」）而不是显示名——整个包的惯例，要改是包级的决定。
+## 线索
+
+尚未排期、也还没有判据；排进某个阶段时各自成为一条带判据的条目，或进 [decisions.md#搁置待议](decisions.md#搁置待议)。
+
+- D22 标了「以后」的：联动筛选、卡片内筛选；按列的点击行为；整板 PDF；订阅、版本历史、验证、缓存要服务端，归阶段 6。
+- 准入发现里的字段用 `field.name`（「给 status 一个值」）而不是显示名——整个包的惯例，要改是包级的决定。
 - 「更多图型」折叠宿主扩展的图型：今天没有宿主扩展图型的入口，等有了再做。
 - 透视表（Q8）；精确的 M（Q7）；分析表冻结列；STDDEV／VARIANCE 与去重计数在 ES 上的近似提示按后端能力声明。

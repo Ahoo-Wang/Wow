@@ -129,7 +129,7 @@ flowchart LR
 | 开发 | 重试停在哪？ | 已用的重试次数（直方图，尖峰落在重试上限） | 快照 |
 | 分析 | 补偿每天做了多少？ | 每日补偿活动（事件流数 + 涉及的执行数）、事件构成、人工干预 | 事件流 |
 
-事件流聚合的边界（对真服务验证过，不是缺陷）：展开 `body` 后够不到根字段 `createTime`，指标条件不能用 `ELEMENT_MATCH`，本部署的 schema 没有声明事件载荷（`body.body.*`）可聚合——所以按日按事件类型的多系列图做不了，结局走势仍是每种结局一张指标卡（引擎待办见 view-engine `todo.md`「补偿控制台留下的引擎缺口」）。落点：`src/views/failureAnalyses.ts`、`src/views/activityAnalyses.ts`、`src/views/overview.ts`。
+事件流聚合的边界（对真服务验证过，不是缺陷）：展开 `body` 后够不到根字段 `createTime`，指标条件不能用 `ELEMENT_MATCH`，本部署的 schema 没有声明事件载荷（`body.body.*`）可聚合——所以按日按事件类型的多系列图做不了，结局走势仍是每种结局一张指标卡（由后端支持，见 view-engine `todo.md`「首发后再议」H）。落点：`src/views/failureAnalyses.ts`、`src/views/activityAnalyses.ts`、`src/views/overview.ts`。
 
 ## 6 外壳与主题
 
