@@ -109,7 +109,7 @@ function Band({
 }
 
 /**
- * 主题一览里的一套预设：亮、暗两条带，每条三种视图（themes.md 4.5，T5）。
+ * 主题一览里的一套预设：亮、暗两条带，每条三种视图（ui/theme.md「质量门」，T5）。
  */
 function GalleryPage({ preset }: { preset: string }) {
   return (
@@ -119,7 +119,7 @@ function GalleryPage({ preset }: { preset: string }) {
         // Storybook puts on `<html>`, so every band's picture has the same
         // corners. Each surface pins its preset over it, and the reset rule
         // makes that pin replace this one and the toolbar's whole
-        // (theme-architecture.md 3, S2): each preset draws as a host that
+        // (ui/theme.md, three layers, S2): each preset draws as a host that
         // chose it alone would see it.
         <div
           data-fve-preset={ENGINE_PRESET}
@@ -145,7 +145,7 @@ const GALLERY_CSS = `.gallery-page { display: flex; flex-direction: column; gap:
 .gallery-band-title { margin: 0; font-size: 16px; font-weight: 600; }
 .gallery-band > [data-gallery-block] > .fve-root { padding: 12px; border-radius: 12px; }`;
 
-const description = `**能力 · 主题与预设：主题一览**（themes.md 4.5、5.5，T5）
+const description = `**能力 · 主题与预设：主题一览**（docs/design/ui/theme.md「质量门」「Storybook」，T5）
 
 每套预设一个故事：亮、暗两条带，每条带是同一批华东仓的单画成的三种视图，每块面都用 \`preset\` 与 \`theme\` 钉住预设与明暗，不受工具栏影响。
 

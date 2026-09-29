@@ -285,7 +285,7 @@
 
 ## D30 阶段 5 内置多主题的十条裁定（2026-09-24）
 
-- **来由**：阶段 5 方案（[phase5-themes.md](phase5-themes.md)，Ahoo-Wang/Wow#3308）把要产品判断的十条记为 Q41～Q50 并附推荐；用户 2026-09-24 全部按推荐拍板。批次 5A～5D 与完成标准在方案第 4 节。
+- **来由**：阶段 5 方案（Ahoo-Wang/Wow#3308，已并入 [ui/theme.md](ui/theme.md)）把要产品判断的十条记为 Q41～Q50 并附推荐；用户 2026-09-24 全部按推荐拍板。
 - **Q41 谁选主题**：预设与明暗都由宿主选，引擎跟随；主题不进 `ViewConfig`、`ViewInstance` 与仪表盘配置，工作台里不放主题开关，也不替终端用户记住偏好。理由：主题是宿主的外观，不是观察方式——存进配置，同一份观察换个宿主就穿错衣服；引擎自带开关会与宿主的打架。
 - **Q42 内置三套预设**：`neutral`（默认，即今天的样子）、`blue`（neutral 灰配蓝色主色）、`slate`（冷灰配蓝，对齐补偿控制台），各有亮暗两半；高对比预设以后另议。理由：覆盖最常见的场景，也给多主题机制一个真实的使用者；每多一套就多一套要逐条量的颜色，三套量得过来。**已由 [D35](#d35-内置主题目录与三条轴的四条裁定2026-09-24) Q60 修订**：扩成七套加 `brand` 派生，删掉 `blue`，高对比进首发。
 - **Q43 加「跟随系统」**：`theme` 增加 `'system'` 一档，按 `prefers-color-scheme` 判定，`@custom-variant dark` 与暗色 token 块同时加这一组根，`useResolvedTheme` 监听 `matchMedia`。理由：没有暗色开关的嵌入宿主只能靠它跟随系统；代价是一组选择器加一个监听，都有测试守。
@@ -296,7 +296,7 @@
 - **Q48 本阶段仍不做图表颜色控件**（结清 [D20](#d20-分析视图的交互2026-09-22) 留下的「颜色不做控件（主题，阶段 5）」）：`ChartSpec.colors` 继续只由代码声明；将来若做，只从八个色位里挑，不给取色器。理由：存进配置的字面量颜色不随明暗与预设变化。
 - **Q49 密度不进阶段 5**：作为「这次怎样看」的个人偏好，与阶段 6 的偏好存储一起议。理由：它更像用户的观察偏好而不是宿主的外观；全局缩放 `--spacing` 会让点击目标跌破 WCAG 2.5.8。**已由 [D35](#d35-内置主题目录与三条轴的四条裁定2026-09-24) Q63 修订**：密度成为宿主的一条轴（`data-fve-density`）。
 - **Q50 暂不做给宿主 CI 的主题自查脚本**：只在 Storybook 的「主题一览」里当场量，README 的 token 表写明每个变量要守的线。理由：先看有没有宿主真的需要。
-- **落点**：[phase5-themes.md](phase5-themes.md)（方案与批次）；实现后并入 [ui/README.md#主题弹层与明暗](ui/README.md#主题弹层与明暗)、[extension.md](extension.md) 与包 README 的 token 表。
+- **落点**：[ui/theme.md](ui/theme.md)、[ui/README.md#主题弹层与明暗](ui/README.md#主题弹层与明暗)、[extension.md](extension.md) 与包 README 的 token 表。
 
 ## D31 仪表盘的固定宽度／全宽（2026-09-24）
 
@@ -316,7 +316,7 @@
 
 ## D32 仪表盘读的时候「编辑」是主按钮，在行尾（2026-09-24）
 
-- **来由**：用户 2026-09-24 在 Storybook 走查：「编辑作为主按钮，放到最右侧。」此前「编辑」是 `outline`，在名字旁拆分的「保存 ▾」右边（D22 A），读一块板时整屏没有 primary；[D17](#d17-阶段一收尾的七条裁定) 第 3 条写的是「一屏只有一个 primary，它是跑查询的那一个」，仪表盘读的时候没有要手动跑的查询（D27：筛选改了就跑）。
+- **来由**：用户 2026-09-24 在 Storybook 走查：「编辑作为主按钮，放到最右侧。」此前「编辑」是 `outline`，在名字旁拆分的「保存 ▾」右边（D22 A），读一块板时整屏没有 primary；[D17](#d17-十一条产品与模型裁定2026-09-21) 第 3 条写的是「一屏只有一个 primary，它是跑查询的那一个」，仪表盘读的时候没有要手动跑的查询（D27：筛选改了就跑）。
 - **裁定**：
   - **一个状态一颗 primary，站在同一处（行尾）**：仪表盘读的时候是「编辑」（`default` 变体），在标题栏整行最后——框架功能与宿主的全局动作之后。（原有「嵌入里是首行右侧那组的最后一颗」，[D36](#d36-嵌入一律不写档位是-staticinteractive2026-09-24) 起嵌入不搭板子，没有「编辑」。）搭的时候「编辑」离开，编辑条的「保存」是唯一的 primary，也在那一条的最后。记录与分析视图不变：primary 是编辑带或托盘底部的 Apply（D17 第 3 条），标题栏没有 primary。D17 第 3 条的措辞据此放宽为「一屏一个 primary，是接下来要做的那一件」。
   - **读的时候名字旁只给「另存为」**：板子的改动只在搭的时候发生、由编辑条的「保存」存下（D26 Q37），读的时候就地保存永远是灰的；灰的「保存」加一个只收着另存为的 ▾ 是两颗假控件，挤在唯一的 primary 旁边。另存为本身仍要（复制一块板）。读的时候真有未保存的改动时，拆分的「保存 ▾」照旧出现（仍是 `outline`）。
@@ -326,7 +326,7 @@
 
 ## D33 分析视图释放 ECharts 能力的九条裁定（2026-09-24）
 
-- **来由**：用户 2026-09-24 的方向「分析视图能力与体验：要全面释放 ECharts 的能力」，首个大版本前达到生产级，对标 Metabase、Superset、Grafana、Tableau。方案（[analysis-echarts.md](analysis-echarts.md)，Ahoo-Wang/Wow#3317）把要产品判断的九条记为 Q51～Q59 并附推荐；用户同日全部按推荐拍板。批次 A～E 与完成判据在方案第 3 节。
+- **来由**：用户 2026-09-24 的方向「分析视图能力与体验：要全面释放 ECharts 的能力」，首个大版本前达到生产级，对标 Metabase、Superset、Grafana、Tableau。方案（Ahoo-Wang/Wow#3317，已并入 [ui/analysis.md](ui/analysis.md)）把要产品判断的九条记为 Q51～Q59 并附推荐；用户同日全部按推荐拍板。
 - **Q51 缩放不随视图保存**：每次打开看全范围。理由：缩放是「这次看哪一段」，与滚动位置一样是瞬时的；要长期只看一段，出路是框选后的「只看这段时间」，它写进范围、看得见、能撤。存下缩放会让保存的视图悄悄只画范围的一部分，而状态条说的是整个范围。
 - **Q52 框选弹出与点一组同一个追问菜单**，不直接改当前视图；仪表盘上多一项「设为〈时间筛选〉」，与点击筛选同一口径。理由：D20 的追问「都开在旁边、不改写这一个」；Metabase 框选即改问题，但本包的视图是保存过的观察方式，框一下就变脏违背 D20 的修订。
 - **Q53 趋势、移动平均、累计在行不完整时置灰并说原因**（「结果只显示了前 N 组，累计不完整」），不画一条带警告的线。理由：Wow 聚合没有窗口计算，这些都在客户端对拿回来的行算，行被截断、被「只保留」筛过或时间轴有不确知的洞时会悄悄算错；画错的线比没有更糟，与「补 0 只在确知时补」同一条原则。
@@ -336,7 +336,7 @@
 - **Q57 花纹（decal）跟随系统的「提高对比度」**（`prefers-contrast: more`）自动开，宿主可钉开或钉关；工作台里不放开关、不进配置。理由：花纹是读者的可达性需要，与 [D30](#d30-阶段-5-内置多主题的十条裁定2026-09-24) Q41「宿主的外观不进配置」同理；八色里亮色的青、黄、品红对卡片不到 3:1，花纹正是它们的补救。
 - **Q58 导出图片为 PNG 与 SVG，图里带标题、图例与一行范围说明**，入口与分析的「导出数据…」（[D25](#d25-阶段-3-收尾的四条细化2026-09-24) Q28）在同一个菜单。理由：图例是 HTML，不在库画的 SVG 里，只截库的画面会丢图例；导出时另出一份带标题与图例的 option 在无界面环境渲染，导出的图才能离开页面被读懂。
 - **Q59 与上一期、去年同期整段对比首发后做**；首发前只在提示框写较上一桶的变化。理由：整段对比要第二条查询、按 `periodOf` 平移范围、运行时多一条失败路径，面与合计行相当；提示框的环比不发查询，覆盖最常见的问题。
-- **落点**：[analysis-echarts.md](analysis-echarts.md)（方案、批次与判据）；批次线索在 [todo.md](todo.md)「分析视图：释放 ECharts」；实现后并入 [ui/analysis.md](ui/analysis.md)、[model-shapes.md](model-shapes.md) 与 [kernels.md](kernels.md)。
+- **落点**：[ui/analysis.md](ui/analysis.md)（[ECharts 的边界](ui/analysis.md#echarts-的边界内核整形库只画)）、[model-shapes.md](model-shapes.md) 与 [kernels.md](kernels.md)。
 
 ## D34 搭板子时的格子是实心方块，行高仍是 80px（2026-09-24）
 
@@ -364,12 +364,12 @@
 
 ## D35 内置主题目录与三条轴的四条裁定（2026-09-24）
 
-- **来由**：内置主题系统方案（[themes.md](themes.md)，Ahoo-Wang/Wow#3338）把要产品判断的四条记为 Q60～Q63 并附推荐；用户 2026-09-24「按你推荐」全部拍板。同日用户另定：**主题由宿主研发选**，工作台不放终端用户的主题开关，偏好的持久化是宿主的事（与 D30 Q41 一致）。批次 T1～T6 与完成标准在方案第 7 节。
+- **来由**：内置主题系统方案（Ahoo-Wang/Wow#3338，已并入 [ui/theme.md](ui/theme.md)）把要产品判断的四条记为 Q60～Q63 并附推荐；用户 2026-09-24「按你推荐」全部拍板。同日用户另定：**主题由宿主研发选**，工作台不放终端用户的主题开关，偏好的持久化是宿主的事（与 D30 Q41 一致）。
 - **Q60 首发目录**（2026-09-25 由 [D46](#d46-主题架构重构五条结构一张登记表2026-09-25) 收敛为四套）：`neutral`（默认）、`slate`、`azure`、`porcelain`、`graphite`、`fjord`、`contrast` 七套，加 `brand`（从 `--fve-brand` 派生主色）；删掉 `blue`（由 `brand` 取代）；暖灰、Material／Fluent／Primer 风格与几套暗色优先的编辑器配色推迟。名字是描述性的普通词，不用任何公司、产品、设计系统或编辑器主题的名字。理由：每套在形状（圆角、密度、层级的画法）上都与其余明显不同，覆盖五类真实宿主；只换颜色的需求由 `brand` 满足。修订 [D30](#d30-阶段-5-内置多主题的十条裁定2026-09-24) Q42。
 - **Q61 涨跌色默认按好坏**：`data-fve-change-colors` 默认 `semantic`，`red-up`／`green-up` 只在宿主显式设置时生效，不按界面语言自动切。理由：语言不等于市场，自动切会让同一份看板换个语言就红绿颠倒。
 - **Q62 预设可以带自己的图表八色**：全带或全不带，必须过色觉间距、对底色对比与柱内字色三道门，过不了就用默认八色；色位是序数（「第几个系列」），表达好坏涨跌用语义 token。理由：宿主只选一套，跨预设的系列身份几乎没有读者，而风格与色板不协调每天都看得见。修订 D30 Q47。
 - **Q63 密度成为宿主的一条轴**：`data-fve-density`（紧凑／默认／舒适）与面上的 `density` prop，只动表格行高、单元格内边距、侧栏项与面板内边距；不动控件高度、字号与仪表盘行高（[D34](#d34-搭板子时的格子是实心方块行高仍是-80px2026-09-24)）。理由：「宿主研发选」定了之后密度与预设一样是宿主的外观；阶段 6 的个人偏好可以写同一个属性。修订 D30 Q49。
-- **落点**：[themes.md](themes.md)（方案与批次）；实现后并入 [ui/README.md#主题弹层与明暗](ui/README.md#主题弹层与明暗)、[extension.md](extension.md)、[model-shapes.md](model-shapes.md) 与包 README 的 token 表和预设目录。
+- **落点**：[ui/theme.md](ui/theme.md)、[ui/README.md#主题弹层与明暗](ui/README.md#主题弹层与明暗)、[extension.md](extension.md)、[model-shapes.md](model-shapes.md) 与包 README 的 token 表和预设目录。
 
 ## D36 嵌入一律不写，档位是 static／interactive（2026-09-24）
 
@@ -447,7 +447,7 @@
 - **来由**：用户 2026-09-25 原话：「除了需要后端支持的，全部都需要增加。后端支持的列入 TODO 计划」。**修订 [D33](#d33-分析视图释放-echarts-能力的九条裁定2026-09-24) Q55**：Q55 首发只加瀑布图与矩形树图，箱线图、雷达、旭日、桑基、地图、仪表盘式指标留到首发后；现在凡是今天的 Wow 查询（SUM／COUNT／AVG／MIN／MAX／DISTINCT_COUNT／PERCENTILE／STDDEV／ANY、多维分组、DATE_HISTOGRAM）喂得出的 ECharts 图型，首发前全部加上。
 - **裁定**：
   - **按家族分四个 PR**：统计（箱线图、刻度盘、雷达图、平行坐标图）→ 层级与流向（旭日图、树图、桑基图等）→ 时间（日历热力图、河流图）→ 地理（中国省级地图，世界地图若便宜）。每个 PR 合并前真浏览器亮暗、1280 与 375 走查。每种新图都走同一套：适合规则决定灰不灰（灰的写原因，中英）、内核整形（统计量在内核算，补出的 0 不算）、主题色板与花纹、提示框（CSP 安全、尺寸写在属性上，#3410）、读屏表与一句摘要、导出图片、零售数据上的故事与孪生。
-  - **库模块按家族懒注册**：新家族的 ECharts 模块各成一块（`ChartChunk`，`loadCharts(chunk)`），第一次画该家族时才加载；柱、线、饼等第一张图的成本不变（[analysis-echarts.md](analysis-echarts.md) §5 的建议）。包体只是护栏，功能先行；每个 PR 写一次实测增量。
+  - **库模块按家族懒注册**：新家族的 ECharts 模块各成一块（`ChartChunk`，`loadCharts(chunk)`），第一次画该家族时才加载；柱、线、饼等第一张图的成本不变（[ui/analysis.md#echarts-的边界内核整形库只画](ui/analysis.md#echarts-的边界内核整形库只画)）。包体只是护栏，功能先行；每个 PR 写一次实测增量。
   - **箱线图**：五个数是同一字段、同一条件下的 `MIN`、三个从低到高的 `PERCENTILE` 与 `MAX`，内核认作一组；托盘在指标卡菜单里「补齐箱线图的五个数」一次加齐。Wow 的百分位是近似值，图上总写「四分位与中位数是近似值」；能力描述（见 todo「首发前的门」）能声明精确值后按声明写。
   - **刻度盘不叫「仪表盘」**：本包的「仪表盘」是看板。刻度盘与指标卡的进度条重叠，但用户说「全部」，所以加；两张磁贴在网格里写各自回答什么——指标卡「数字与变化」，刻度盘「在刻度上的位置」。
   - **要后端的不做，只进 TODO**：K 线（每桶的首值与末值）、星期 × 时段（按日期部件分组）、两个时刻之差的指标；查询模块重构会话已记下（见 todo「需要后端的图型与分析」）。
@@ -455,9 +455,9 @@
   - **河流图不留洞，但说出它猜了几处**：河流不能断，一个没有行的点画 0；确知那一组没有记录时这就是对的数，不确知时（截断、「只保留」）图上方说有几处按 0 画。日历热力图不补：没有行的日子不画格子，色标只按量出的天。
   - **关系图与和弦图不做**：两个维度的组合画成点与边就是二部的流向，桑基画得更清楚；关系图的真读法要定义声明两个字段是同一类值，今天没有这种声明。
   - **地图只给宿主一个注册地图的口子，本包不带任何地图数据**（用户 2026-09-25 选方案 1）：地图的边界画成什么样、能不能发布，由发布地的法规决定——在中国发布中国地图要审图号——所以地理数据归宿主选、归宿主负责。宿主调 `/ui` 的 `registerChartMap({ name, label, load })` 注册，`load` 在第一次画这张地图时才调用；地区维度的取值按列的显示文字与地图要素的 `properties.name` 对上，对不上的地区计数并在图上说出来，不猜。没有注册地图时，图型网格里地图置灰、写「这里没有可用的地图」。Storybook 用公有领域的 Natural Earth 世界地图（`world-atlas`，ISC，经 `topojson-client` 转成 GeoJSON）做按国家的例子，只在 Storybook 里、不进包；包里不带任何地图数据。**修订（用户 2026-09-26）**：Storybook 另加一张中国省级地图的例子（#3636）——边界用阿里云 DataV GeoAtlas 省级（`100000_full.json`，数据来自高德，含南海诸岛），在 Storybook 里第一次画地图时在线读取，不放进仓库、不进包；故事说明写明宿主负责地理数据与发布合规（审图号）。DataV 的授权条款由用户判断；要换成带审图号的数据（如天地图）只换宿主注册的地理数据。测试用合成的小地图，不连网。
-  - **喂不了的图型写明原因，不硬做**：见 [analysis-echarts.md](analysis-echarts.md) 第 6 节的 ECharts 系列清单。
+  - **喂不了的图型写明原因，不硬做**：见 [ui/analysis.md#echarts-的边界内核整形库只画](ui/analysis.md#echarts-的边界内核整形库只画) 的「不做的系列」。
 - **公开面**：根入口多 `BoxplotSpec`、`GaugeSpec`、`RadarSpec`、`ParallelSpec`、`BoxplotData`、`BoxplotBox`、`GaugeData`、`RadarData`、`ParallelData`、`ChartProfile`（第一批），`HierarchySpec`、`SankeySpec`、`MAX_CHART_LEVELS`、`HierarchyData`、`HierarchyNode`、`SankeyData`、`SankeyNode`、`SankeyLink`（第二批），`CalendarSpec`、`ThemeRiverSpec`、`CalendarData`、`CalendarDay`、`ThemeRiverData`、`RiverStream`（第三批），`MapSpec`、`MapData`、`MapRegion`（第四批），`/ui` 多 `registerChartMap`、`ChartMapSource`、`ChartMapGeoJson`；`ChartSpec` 多可选的 `boxplot`、`gauge`、`radar`、`parallel`、`sunburst`、`tree`、`sankey`、`calendar`、`themeRiver`、`map`，`ChartType` 多十个值。`/react` 的分析编辑控制器多 `addFiveNumbers`。
-- **落点**：`src/model/chart.ts`；`src/analysis/boxplot.ts`、`gauge.ts`、`profiles.ts`、`hierarchy.ts`、`timeCharts.ts`、`map.ts`、`chartFamilies.ts`、`fitCharts.ts`、`chartSlots.ts`、`chartSwitch.ts`、`validateChart.ts`；`src/ui/charts/echartsStatistics.ts`、`load.ts`、`Boxplot.tsx`、`Gauge.tsx`、`Profiles.tsx` 与各自的 option；`src/ui/analysis/StatisticalOptions.tsx`、`ChartPicker.tsx`、`MetricCard.tsx`；[ui/analysis.md](ui/analysis.md#一个家族一个文件)、[analysis-echarts.md](analysis-echarts.md) 第 6 节。（见 test/statisticalCharts.test.ts、test/statisticalChartsUi.test.tsx、test/hierarchyCharts.test.tsx、test/timeCharts.test.tsx、test/mapChart.test.tsx、test/chartFamilies.test.ts「one rule, read forward and after the fact」）
+- **落点**：`src/model/chart.ts`；`src/analysis/boxplot.ts`、`gauge.ts`、`profiles.ts`、`hierarchy.ts`、`timeCharts.ts`、`map.ts`、`chartFamilies.ts`、`fitCharts.ts`、`chartSlots.ts`、`chartSwitch.ts`、`validateChart.ts`；`src/ui/charts/echartsStatistics.ts`、`load.ts`、`Boxplot.tsx`、`Gauge.tsx`、`Profiles.tsx` 与各自的 option；`src/ui/analysis/StatisticalOptions.tsx`、`ChartPicker.tsx`、`MetricCard.tsx`；[ui/analysis.md](ui/analysis.md#一个家族一个文件)、[ui/analysis.md#echarts-的边界内核整形库只画](ui/analysis.md#echarts-的边界内核整形库只画)。（见 test/statisticalCharts.test.ts、test/statisticalChartsUi.test.tsx、test/hierarchyCharts.test.tsx、test/timeCharts.test.tsx、test/mapChart.test.tsx、test/chartFamilies.test.ts「one rule, read forward and after the fact」）
 
 ## D42 引擎的缺省预算不超过缺省配置的 Wow 服务端（2026-09-25）
 
@@ -474,8 +474,8 @@
 
 ## D43 主题可以说面怎样分层、控件怎样画（2026-09-25）
 
-- **来由**：用户 2026-09-25 走查：「切换到 porcelain 主题后，感觉不像 Apple 风格」。并排对照（[themes.md](themes.md) 第 7 节「porcelain 走查与四个缺口」）发现，差的不是值，是合同说不出来：页底与卡片只能同色（看板的底就是内容的底），卡片只能画环线，控件只能描边，标题只能 500。用户给主题定的目标是「内置预设只用宿主也能用的合同」，所以缺口修在合同上。
-- **裁定**（协调者按第一性原理定，修订 [themes.md](themes.md) 1.2 的「阴影：只改阴影本身，不改哪里用阴影」）：
+- **来由**：用户 2026-09-25 走查：「切换到 porcelain 主题后，感觉不像 Apple 风格」。并排对照（当时方案页的「porcelain 走查与四个缺口」，已并入 [ui/theme.md](ui/theme.md)）发现，差的不是值，是合同说不出来：页底与卡片只能同色（看板的底就是内容的底），卡片只能画环线，控件只能描边，标题只能 500。用户给主题定的目标是「内置预设只用宿主也能用的合同」，所以缺口修在合同上。
+- **裁定**（协调者按第一性原理定，修订内置主题方案「一套主题包括什么」的「阴影：只改阴影本身，不改哪里用阴影」，今天的边界见 [ui/theme.md#五条轴](ui/theme.md#五条轴)）：
   - **主题可以说卡片怎样浮起**：`card-edge`（环线颜色）与 `card-shadow`（浮起），卡片从此穿主题给的阴影。别处用不用阴影仍不归主题。
   - **主题可以说以文字或图标自明的控件是描边还是填色**：`control`／`control-edge`／`control-thumb`，只到看板筛选条与分段控件；打字的框仍有 3:1 的 `input` 边（WCAG 1.4.11 要求它、不要求前者）。
   - **分组底与内容底分开**：`canvas`，看板与记录卡片站在它上面，不设就是 `background`。
@@ -501,29 +501,29 @@
 
 ## D45 主题一览拆成每套一个故事，截图基线在 Playwright 的 Linux 容器里截（2026-09-25）
 
-- **来由**：主题批 T5（[themes.md](themes.md) 第 7 节，D35）。一页 24 条带的主题一览在 Linux WebKit 里要 9～12 秒，已经挨着 15 秒的时限；三视图矩阵还要再大一倍。截图基线要能在谁的机器上都截出同一张图。
+- **来由**：主题批 T5（D35；做法见 [ui/theme.md#质量门](ui/theme.md#质量门)）。一页 24 条带的主题一览在 Linux WebKit 里要 9～12 秒，已经挨着 15 秒的时限；三视图矩阵还要再大一倍。截图基线要能在谁的机器上都截出同一张图。
 - **裁定**（协调者按第一性原理定）：
-  - **一览每套预设一个故事**，亮、暗两条带，每条三种视图；不放宽时限。剖析说明时间花在 Linux WebKit 的整页走查上（根上的样式失效与触摸／滚轮监听的增减之后，下一次布局走整页，一遍的代价随页面大小涨）以及 axe 在大页上的一遍——都是一次性的，#3408 之后产品里没有「每块面板一遍」的走查，所以改的是一览的形状，不是产品（数据与改前改后的时长见 themes.md T5 落地记录）。「跟随系统」不再占一条带。
+  - **一览每套预设一个故事**，亮、暗两条带，每条三种视图；不放宽时限。剖析说明时间花在 Linux WebKit 的整页走查上（根上的样式失效与触摸／滚轮监听的增减之后，下一次布局走整页，一遍的代价随页面大小涨）以及 axe 在大页上的一遍——都是一次性的，#3408 之后产品里没有「每块面板一遍」的走查，所以改的是一览的形状，不是产品（数据与改前改后的时长见 T5 的 PR）。「跟随系统」不再占一条带。
   - **截图的浏览器永远在 Playwright 自己的 Linux 容器里**（与 `playwright` 同版本的镜像，按主机的架构原生地跑：arm64 与 amd64 截出的图逐像素相同），本机与 CI 走同一个脚本，所以本机截出的就是 CI 的基线；更新基线可以在本机做，也可以手动触发 CI 并下载产物，都要人看过再提交。比对不留容差（不同像素 0）：同一镜像两遍、两种架构都逐像素相同。截图只进 `visual` 工程，故事照样是交互测试。
   - **截图的范围**：主题一览的每一块（48 张）加三块关键屏（首页日报、分析工作台、工作台里的日报），共 51 张；再加要有理由。
   - **强制颜色下焦点是 `CanvasText` 的轮廓，选中行是 `Highlight` 的内框**；**纸上是预设的亮色一半、没有阴影、图表开花纹、颜色照印**，图表在打印开始与结束时重读主题。
 - **代价**：本机跑截图要 Docker（51 张约 40 秒，容器限 2 个 CPU）；CI 多一个拉镜像的作业。
-- **落点**：`typescript/storybook/`（`scripts/linux-browser.mjs`、`scripts/visual.mjs`、`vitest.config.ts` 的 `visual` 工程、`baselines/`、README「截图基线」）、`.github/workflows/typescript-storybook.yml`（`visual` 作业）、`src/styles.css`（`@media print`、`@media (forced-colors: active)`、暗色包进 `@media not print`）、`src/ui/charts/print.ts`；[themes.md](themes.md) 4.5、4.6、5.4、5.5 与 T5 落地记录。（见 test/styleBoundary.test.tsx「prints in the light half: the dark tokens and utilities hold off paper only (T5)」「keeps focus and selection in forced colours, in system colours (T5)」、test/chartTheme.test.tsx「redraws for paper when printing starts, and back when it ends (T5)」、Storybook「强制颜色与打印/回归」）
+- **落点**：`typescript/storybook/`（`scripts/linux-browser.mjs`、`scripts/visual.mjs`、`vitest.config.ts` 的 `visual` 工程、`baselines/`、README「截图基线」）、`.github/workflows/typescript-storybook.yml`（`visual` 作业）、`src/styles.css`（`@media print`、`@media (forced-colors: active)`、暗色包进 `@media not print`）、`src/ui/charts/print.ts`；[ui/theme.md#打印与强制颜色](ui/theme.md#打印与强制颜色)、[ui/theme.md#质量门](ui/theme.md#质量门)。（见 test/styleBoundary.test.tsx「prints in the light half: the dark tokens and utilities hold off paper only (T5)」「keeps focus and selection in forced colours, in system colours (T5)」、test/chartTheme.test.tsx「redraws for paper when printing starts, and back when it ends (T5)」、Storybook「强制颜色与打印/回归」）
 
 ## D46 主题架构重构：五条结构、一张登记表（2026-09-25）
 
-- **来由**：协调者按第一性原理审查主题系统，找出五个结构问题（轴、层、角色、合同的真相源、图表只拿到颜色）；同日的视觉保真走查实测八套预设「只是换色」。方案 [theme-architecture.md](theme-architecture.md) 把两者合成首发前的一次重构；用户 2026-09-25：「基于第一性原理，按你推荐。」方向与方案第 10 节的十三条全部按推荐定。
+- **来由**：协调者按第一性原理审查主题系统，找出五个结构问题（轴、层、角色、合同的真相源、图表只拿到颜色）；同日的视觉保真走查实测八套预设「只是换色」。方案（已并入 [ui/theme.md](ui/theme.md)）把两者合成首发前的一次重构；用户 2026-09-25：「基于第一性原理，按你推荐。」方向与方案列出的十三条全部按推荐定，今天的样子见 [ui/theme.md](ui/theme.md)。
 - **裁定**：
   - **品牌色是输入**：`--fve-brand` 由每一套预设接受，派生式只在 `styles.css` 写一处，预设只给夹子边界；没给品牌色时派生无效、像素不变。**删掉 `brand` 预设，不留别名**（修订 [D35](#d35-内置主题目录与三条轴的四条裁定2026-09-24) Q60 的「加 `brand` 派生」）。图表第 1 色跟品牌色是宿主的开关，默认关；品牌色给了时选中行派生品牌淡色。
   - **三层**：预设写 `--fvp-*`，宿主写 `--fve-*`，引擎读 `var(--fve-x, var(--fvp-x, 内置值))`；钉住的预设由一条零权重的复位规则完整替换外层预设，预设只写它改的；宿主的 `--fve-*` 在任何嵌套与钉住下都赢；桥接写预设层；私有变量改 `--_fve-*`；面加 `tokens` prop。
-  - **角色层**：引擎自己的面（底、表头、选中行、合计带、斑马纹、菜单高亮、焦点、控件、控件高度、分部件圆角、控件边宽、字重、提示框、图表）各是一个角色，落回语义 token，内置值等于今天；`canvas`、卡片、控件、标题四个可选组并入。行斑马纹默认关；徽标的边默认保留（淡色徽标在选中行上否则只剩 1.16～1.22:1，低于 1.5:1），预设改用填色须在自己的选中行上仍过 1.5:1。修订 [themes.md](themes.md) 1.2：分部件圆角、控件高度梯级、控件边宽、菜单高亮与徽标样式进主题；形状变体、网络字体、毛玻璃、动效、存下的几何仍不进。
+  - **角色层**：引擎自己的面（底、表头、选中行、合计带、斑马纹、菜单高亮、焦点、控件、控件高度、分部件圆角、控件边宽、字重、提示框、图表）各是一个角色，落回语义 token，内置值等于今天；`canvas`、卡片、控件、标题四个可选组并入。行斑马纹默认关；徽标的边默认保留（淡色徽标在选中行上否则只剩 1.16～1.22:1，低于 1.5:1），预设改用填色须在自己的选中行上仍过 1.5:1。修订内置主题方案「一套主题包括什么」（今天的边界见 [ui/theme.md#五条轴](ui/theme.md#五条轴)）：分部件圆角、控件高度梯级、控件边宽、菜单高亮与徽标样式进主题；形状变体、网络字体、毛玻璃、动效、存下的几何仍不进。
   - **一张登记表**：纯结构的 TS 模块生成 README 中英 token 表、**FveToken** 类型、`verify-package` 的规则、两份对比度对表与图表 token 表，值仍只在 CSS 里；做开发期的 theme-check（修订 [D30](#d30-阶段-5-内置多主题的十条裁定2026-09-24) Q50）。桥接首发只支持 Tailwind v4。
   - **图表读角色**：网格、坐标轴、字号、线宽、面积、柱宽、柱圆角、扇区边、提示框都从角色读出。
-  - **neutral** 的选中、悬停、焦点保持现状；更强的默认值由各预设在重调批里设。**graphite** 保留用途（紧凑、方角的运维看板），暗色以开源监控看板为参照，亮色沿用方角灰阶，写进 [themes.md](themes.md) 3.4.3。（同日撤回：`graphite` 删掉，见下面「首发收敛为四套预设」一条。）
+  - **neutral** 的选中、悬停、焦点保持现状；更强的默认值由各预设在重调批里设。**graphite** 保留用途（紧凑、方角的运维看板），暗色以开源监控看板为参照，亮色沿用方角灰阶。（同日撤回：`graphite` 删掉，见下面「首发收敛为四套预设」一条。）
 - **代价**：约 19.5 人日，十三批（S1～S7 结构、S8～S13 每套一批重调）；S1～S7 每批全部截图逐像素相同，重调批只改它那一套的基线。
-- **落点**：[theme-architecture.md](theme-architecture.md)（方案、批次、视觉走查结论）；落地后并入 [themes.md](themes.md)、[ui/README.md#主题弹层与明暗](ui/README.md#主题弹层与明暗) 与包 README 的 token 表。
-- **2026-09-25 首发收敛为四套预设**（用户）：首发只带 `neutral`、`azure`、`porcelain`、`contrast`；删掉 `slate`、`graphite`、`fjord`，不留别名，首发后有真实宿主要再加回。理由：`slate` 在视觉走查里与 `neutral` 分不出来；`graphite` 走查得分最低、要重新设计才站得住（上面「graphite 保留用途」一条随之撤回）；`fjord` 面向的人群窄。`brand` 仍按 S4 改成输入。结构批 S1～S7 照旧，重调批缩成 S8 azure、S9 porcelain、S11 contrast（S10、S12、S13 取消），合计约 17.5 人日。落在 [themes.md](themes.md) 3.3～3.4 与 [theme-architecture.md](theme-architecture.md) 第 9 节。
-- **2026-09-25 `porcelain` 不改名为 `apple`**（用户）：Apple 是商标，预设一律以风格命名、不以品牌命名。改为让它找得到：README 与主题指南的「该选哪套」表、Storybook 的预设说明写「想要 macOS／Apple 桌面应用那种感觉 → `porcelain`」；[themes.md](themes.md) 的「受其启发，与其无关」措辞不变，3.1 记下这一处例外。
+- **落点**：[ui/theme.md](ui/theme.md)、[ui/README.md#主题弹层与明暗](ui/README.md#主题弹层与明暗) 与包 README 的 token 表。
+- **2026-09-25 首发收敛为四套预设**（用户）：首发只带 `neutral`、`azure`、`porcelain`、`contrast`；删掉 `slate`、`graphite`、`fjord`，不留别名，首发后有真实宿主要再加回。理由：`slate` 在视觉走查里与 `neutral` 分不出来；`graphite` 走查得分最低、要重新设计才站得住（上面「graphite 保留用途」一条随之撤回）；`fjord` 面向的人群窄。`brand` 仍按 S4 改成输入。结构批 S1～S7 照旧，重调批缩成 S8 azure、S9 porcelain、S11 contrast（S10、S12、S13 取消），合计约 17.5 人日。落在 [ui/theme.md#内置预设](ui/theme.md#内置预设)。
+- **2026-09-25 `porcelain` 不改名为 `apple`**（用户）：Apple 是商标，预设一律以风格命名、不以品牌命名。改为让它找得到：README 与主题指南的「该选哪套」表、Storybook 的预设说明写「想要 macOS／Apple 桌面应用那种感觉 → `porcelain`」；预设源文件的「受其启发，与其无关」措辞不变，[ui/theme.md#内置预设](ui/theme.md#内置预设) 的命名规矩记下这一处例外。
 
 ## D47 采用服务端的能力描述（N5，修订 D42）（2026-09-25）
 
@@ -611,7 +611,7 @@
 - **来由**：暗色下南海诸岛、九段线几乎看不见，没数的区域（台湾、香港、澳门）与底色难分。
 - **裁定**（#3655，主题样式道提出、协调者认可）：新增图表角色 `chart-map-edge`（两种明暗、预设可写，缺省落回 `chart-axis`），每个区域的边界读它，对页底、卡片、陆地与色阶最浅一档都过 3:1（contrast 预设 4.5:1），进 `pairs.ts`。陆地与最浅一档的**填色**不守线：最浅一档离底色只有约 1.3:1，陆地若要同时离两者 3:1 就只能比最浅一档更亮，没数的区域会读成「有数」；区分交给 3:1 的边界线（WCAG 1.4.11）。
 - **没选**：提亮陆地填色；换色阶起点（另议）。
-- **落点**：`src/ui/theme/{tokens,pairs}.ts`、`src/ui/charts/{theme,mapOption}.ts`；[theme-architecture.md](theme-architecture.md) 6.7。
+- **落点**：`src/ui/theme/{tokens,pairs}.ts`、`src/ui/charts/{theme,mapOption}.ts`；[ui/theme.md#图表从主题读外观](ui/theme.md#图表从主题读外观)。
 
 ## D55 Storybook 的导览读数据、接入用真代码（2026-09-26）
 
@@ -717,9 +717,9 @@
 - **裁定**（用户：「按你推荐」）：引擎的工具类用 Tailwind v4 的 `prefix(fve)`，源码写 `fve:flex`、`fve:md:w-64`；shadcn 的 `components.json` 同设 `tailwind.prefix`，以后引入的组件照样带前缀。两边不再同名，宿主的类在引擎面里、引擎的类在宿主页上都按各自的层叠生效，引擎也不受导入先后影响（G16 的目标由不同名达成，不再靠权重）。作用域只管 preflight、base 与变量，不再给每条规则加一个类；`verify-package` 的护栏改守「引擎样式表里没有不带前缀的工具类」。
 - **没选**：作用域改零权重 `:where`（G16 回退：宿主后导入的 `.w-full` 又压过引擎的 `md:w-64`）；分区权重（`.fve-root` 里 +1、宿主插槽与 `.fve-tokens` 下零权重——要给每个宿主插槽打标记，选择器更复杂，引擎组件放进宿主外壳时仍看导入先后）。
 - **判据**：全部截图基线与主题故事不变；另加一个故事，宿主的断点类在引擎面里生效；控制台两处绕开的写法改回带断点的写法。体积上限若因类名变长越线，照「功能优先」在同一个 PR 里抬。
-- **落点**：`src/**/*.tsx` 的类名（codemod）、`components.json`、`src/styles.css`、`scripts/scope-utilities.mjs`、`scripts/verify-package.mjs`；[theme-architecture.md](theme-architecture.md) G16 一节随之改写。
+- **落点**：`src/**/*.tsx` 的类名（codemod）、`components.json`、`src/styles.css`、`scripts/scope-utilities.mjs`、`scripts/verify-package.mjs`；[ui/theme.md#三层变量](ui/theme.md#三层变量) 随之改写。
 - **护栏**（2026-09-29）：不带前缀的类编译出来什么也没有、也不报错（`CLIPPED_CELL = 'truncate'`，#3792 修），故两层都问引擎自己的设计系统（`src/styles.css`，`test/fixtures/utilities.ts`）：`test/prefixedClasses.test.ts` 读 `src` 里每个字符串——带 `fve:` 的串、HTML 里的 `class="…"`、`cn`／`cva`／`classList` 的参数按类名读，其中加上 `fve:` 就是工具类的词、以及不是工具类的 `fve:` 词都算错；不带 `fve:` 的单词只在不是数据的位置才算（类型、比较、键、路径、调用参数、带类型或数据名的值、`data-*` 属性）；`test/setup.ts` 在每个测试后读这次落到元素上的每个类，第三方的钩子（`lucide-*`、`rdp-*`、`react-grid-*` 等）放行。已知、正在别处修的一处写在 `KNOWN_MISSES` 里并注明日期，修好后条目过期即失败。
-- **落地时定的两处**（2026-09-29，见 theme-architecture.md G16）：Tailwind 的主题 `inline reference`，一个变量也不输出——带前缀的主题变量会叫 `--fve-*`，与宿主 token 同名（`--fve-font-sans`）；宿主传给引擎组件的 `className` 不再经 `cn` 替掉引擎同属性的类（名字不同，`cn` 不合并），两者都留在元素上按层叠定。
+- **落地时定的两处**（2026-09-29，见 [ui/theme.md#三层变量](ui/theme.md#三层变量)）：Tailwind 的主题 `inline reference`，一个变量也不输出——带前缀的主题变量会叫 `--fve-*`，与宿主 token 同名（`--fve-font-sans`）；宿主传给引擎组件的 `className` 不再经 `cn` 替掉引擎同属性的类（名字不同，`cn` 不合并），两者都留在元素上按层叠定。
 
 ## D67 宿主接入：事实归机器，选择归宿主（2026-09-28）
 
@@ -765,7 +765,7 @@
   - **不做卡中卡**：记录视图放在看板面板、或宿主自己的卡片里嵌入时（`resultFramed` 为假、嵌入视图），结果仍是贴边的，不再套一层卡片。
 - **没选**：发丝线加条纹（B）、磨砂侧栏与 32px（C）——对比稿上用户选了 E。
 - **判据**：Storybook 的记录工作台在 porcelain 亮与暗下与画布 E 一致；neutral、azure、contrast 的截图基线一张不变，porcelain 的基线有意更新并在 PR 里列出；对比度矩阵通过；看板面板与嵌入的记录视图没有卡中卡。
-- **落点**：`src/themes/porcelain.css`（新角色经登记表，[theme-architecture.md](theme-architecture.md) 的规则）、`src/styles.css`、`src/ui/workbench/WorkbenchShell.tsx`／`variants.tsx` 的 `resultFrameChrome`、[themes.md](themes.md) 3.4.1。
+- **落点**：`src/themes/porcelain.css`（新角色经登记表，[ui/theme.md#角色引擎自己的面](ui/theme.md#角色引擎自己的面) 的规则）、`src/styles.css`、`src/ui/workbench/WorkbenchShell.tsx`／`variants.tsx` 的 `resultFrameChrome`、[ui/theme.md#内置预设](ui/theme.md#内置预设)。
 
 ## D70 铺满屏幕时保留标题与口径说明（2026-09-28）
 

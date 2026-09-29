@@ -21,11 +21,8 @@
 | [ui/analysis.md](ui/analysis.md)                             | Analysis 的编辑器、表格与图表                                                                                                     |
 | [ui/dashboard.md](ui/dashboard.md)                           | Dashboard 的栅格、面板 chrome 与面板级告警                                                                                        |
 | [ui/embed.md](ui/embed.md)                                   | 嵌入：两个入口、交互档、开关、仪表盘筛选三态、高度                                                                                |
+| [ui/theme.md](ui/theme.md)                                   | 主题：五条轴、三层变量、角色与链接、登记表、品牌色、内置预设、密度与涨跌约定、图表外观、质量门（裁定见 D30、D35、D43、D46）       |
 | [extension.md](extension.md)                                 | 扩展点（`FieldKind`、数据源、持久化、动作槽位、外观）与 Wow 协议的对应                                                            |
-| [phase5-themes.md](phase5-themes.md)                         | 阶段 5 内置多主题的方案：现状审计、选项与取舍、批次（裁定见 D30）                                                                 |
-| [themes.md](themes.md)                                       | 内置主题系统与经典风格预设的方案：目标与边界、token 分层、预设目录、选择与切换、质量门、批次（裁定见 D35）                        |
-| [theme-architecture.md](theme-architecture.md)               | 主题架构重构（首发前）：品牌色是输入、预设层与宿主层、角色层、登记表、图表读角色、视觉走查结论、批次（裁定见 D46）                |
-| [analysis-echarts.md](analysis-echarts.md)                   | 分析视图全面释放 ECharts 的方案：现状审计、能力地图、首发前批次、待拍板 Q51～Q59                                                  |
 | [capabilities.md](capabilities.md)                           | 采用服务端的能力描述（N5）：数据源端口、定义 × 描述的收窄、界面、缓存、违规码、裁定（D47）、批次与落地记录                        |
 | [host-integration.md](host-integration.md)                   | 宿主接入：事实归机器、选择归宿主——**defineView**、按资源注册与 Provider、声明式操作、skills、描述符要补的事实、批次（裁定见 D67） |
 | [decisions.md](decisions.md)                                 | 界面已经体现的产品决定，以及搁置待议的问题                                                                                        |
@@ -112,7 +109,7 @@ src/
 
 ### 本地门禁
 
-合并前在本机跑齐，每条单独看退出码，全部为 0 才算过；命令、顺序与环境的全文在仓库的 [stories/README.md「本地门禁」](../../../../stories/README.md#本地门禁)，真实后端场景怎样在本机连上服务在同一页「真实后端」。这里只记本包的部分：
+合并前在本机跑齐，每条单独看退出码，全部为 0 才算过；命令、顺序与环境的全文在仓库的 [storybook/README.md「本地门禁」](../../../storybook/README.md#本地门禁)，真实后端场景怎样在本机连上服务在同一页「真实后端」。这里只记本包的部分：
 
 - 新 worktree 先在仓库根 `pnpm build:typescript`：本包的测试与构建按 `dist/` 引用 wow 等依赖；
 - 包目录里三条：`pnpm lint:check`、`pnpm test`（vitest 加覆盖率阈值——阈值在本包的 `vitest.config.ts`，不达标即非零退出，哪怕每个用例都绿——然后 `test:type` 的三个 tsc 工程）、`pnpm build`（vite build 后 `test:package` 检查产物）；

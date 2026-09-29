@@ -67,20 +67,16 @@ npm 首发（`9.2.0-rc.0`）之前按下面的顺序做，同时只做一件。�
   - 判据：复现并修掉，或确认复现不了后删掉这一条。
   - 落点：`src/ui/dashboard/DashboardGrid.tsx`。
 
-#### 主题与方案页收尾
+#### 主题机制
 
-- **阶段 5、内置主题目录、主题架构、ECharts 的阶段审查与收尾**：批次都已合并，方案页还单独立着。
-  - 为什么：方案页写的是当时的计划，读者要知道今天是什么样，得去 [ui/README.md](ui/README.md)、[ui/analysis.md](ui/analysis.md) 对照。
-  - 判据：在本轮审查里一并审过；[phase5-themes.md](phase5-themes.md)、[themes.md](themes.md)、[theme-architecture.md](theme-architecture.md) 并入 [ui/README.md#主题弹层与明暗](ui/README.md#主题弹层与明暗)，[analysis-echarts.md](analysis-echarts.md) 并入 [ui/analysis.md](ui/analysis.md)、[model-shapes.md](model-shapes.md)、[kernels.md](kernels.md)，删掉方案页。
-  - 落点：上述各页。
-- **主题机制的余项**（[theme-architecture.md](theme-architecture.md) 9.3、9.4，[D43](decisions.md#d43-主题可以说面怎样分层控件怎样画2026-09-25)）：
+- **主题机制的余项**（[ui/theme.md](ui/theme.md) 的角色与链接，[D43](decisions.md#d43-主题可以说面怎样分层控件怎样画2026-09-25)）：
   - 描边按钮也能填色（先让按钮在元素上说出 variant）；
   - porcelain 暗色的菜单高亮链了主色后是浅字配深底——面上缺「暗色下更深一档的品牌色」，要两全得加一个角色或派生；
   - 看板筛选芯片里打字的框必有 `input` 边：要无边先论证填色本身能当边界，再给配方一个角色；
   - 引擎的三个焦点配方（`FOCUS_ROW`、`FOCUS_CARD`、`FOCUS_INSET`）不读 `focus-width`／`focus-offset`，contrast 下是 1px；选中行没有颜色以外的标记角色；contrast 的菜单高亮不跟品牌色（要跟时加 `highlight-link`）；
   - 角色截图「提示框」（`ThemeRoles.test.stories.tsx` 的 `TooltipChip`）截到了故事外壳顶栏的提示框，应改截面内的触发器。
   - 判据：每条落地或写进 decisions 不做；每套 × 每种明暗过对比度矩阵与色板门，neutral 在默认密度、默认约定下像素不变。
-  - 落点：[theme-architecture.md](theme-architecture.md)、`src/themes/`、`src/ui/theme/`。
+  - 落点：[ui/theme.md](ui/theme.md)、`src/themes/`、`src/ui/theme/`。
 
 ## 首发后再议
 
@@ -91,7 +87,7 @@ npm 首发（`9.2.0-rc.0`）之前按下面的顺序做，同时只做一件。�
 - **H：补偿控制台「每天各种结局」画成一张多序列图，由后端支持**（用户 2026-09-27）：Wow 在展开元素的聚合里够不到根字段 `createTime`；后端加「元素作用域里按上层（根）字段分组」（MongoDB 几乎不用改，Elasticsearch 要把根字段的分组放到 `nested` 外并与 composite 分页相容），TCK 两个后端都加用例，之后 TS 镜像、本包放开 `analysis.field.outside-scope`。判据：一次查询出「按天 × 事件名」，两个后端的 TCK 都过；控制台「补偿活动」板的结局是一张四条线的图。落点：`wow-query` 的 `QueryResolver`、`wow-mongo`／`wow-elasticsearch` 的聚合编译、本包 `analysis/`、控制台 `src/views/overview.ts`。
 - **E：看板布局不用手算坐标**：面板位置是手写的 `x/y/w/h`，插一个面板要重算后面的 `y`。加按行排布的辅助，或 `y` 省略时自动接在上一行后。判据：控制台的三块板改用它后布局不变。落点：`src/dashboard/layout.ts`。
 - **G：枚举字段宽容 `EQ`**：字段从字符串改成枚举时，已存的 `EQ` 条件全部失效。写的时候对枚举上的 `EQ` 按一个值的 `IN` 读。判据：枚举字段上存下的 `EQ` 条件照常准入与编译。落点：`src/filter/kinds/enum.ts`。
-- **与上一期整段、去年同期对比（Q59）与注释**：要第二条查询与运行时路径；注释要存储，随阶段 6。D71 里「对比上一期一步生成两个指标」一并在此。落点：[analysis-echarts.md](analysis-echarts.md) 第 3 节末。
+- **与上一期整段、去年同期对比（Q59）与注释**：要第二条查询与运行时路径；注释要存储，随阶段 6。D71 里「对比上一期一步生成两个指标」一并在此。落点：`src/analysis/`、运行时（第二条查询）、[ui/analysis.md](ui/analysis.md)。
 - **Storybook 审查（2026-09-26）的 P2**：P0、P1 已全部处置。落点：`typescript/storybook/docs/review-2026-09-26.md`。
 - **搜索在真服务端上命中**：示例服务端的快照在 MongoDB 上，没有全文能力，端到端只验证了 `SEARCH` 被拒且如实报出。判据：契约作业有了 Elasticsearch 快照后，搜索用例改为断言命中。落点：Wow 仓端到端的 `view-engine/recordView` 用例（`typescript/integration-test/`）。
 - **阶段 7：文档站**（用户 2026-09-29：首发后再维护）：视图引擎在文档站（`documentation/docs/{zh,en}`）只有「视图引擎」指南与可访问性声明两页。补齐面向使用者的一套：入门（从零接入一个业务对象）、概念（定义、视图、看板、系统视图与用户视图、存储）、指南（宿主接入、声明式操作、Wow 存储后端与 CoSec 路径规则、主题、CSP、可访问性）、API 参考，中英两版。
