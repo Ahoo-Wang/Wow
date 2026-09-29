@@ -58,6 +58,7 @@ import {
   type AnalysisScope,
 } from '../analysis/index.js';
 import { isFieldlessKind, isSingleStringField } from '../model/index.js';
+import { withoutDangling } from '../analysis/dangling.js';
 import { questionEditing, type QuestionEditing } from './analysisEditing.js';
 import type { FieldKindRegistry } from '../filter/index.js';
 import type { OptionSource, ViewRuntime } from '../runtime/index.js';
@@ -340,6 +341,11 @@ export function useAnalysisEditor(
    * sort reported `analysis.sort.unknown-alias` — so the one edit carries all
    * four. A slot, an ordering or a column the user chose is kept wherever it
    * still names something; nothing else survives the alias it referred to.
+   * The metrics themselves follow the same way (`withoutDangling`): a
+   * derived metric that read one gone goes with it, and so does a having
+   * rule on it — else the next run stopped at `analysis.derived.unknown-metric`
+   * or `analysis.having.unknown-metric`. An edit that would leave nothing
+   * to measure is not made.
    */
   const reshape = useCallback(
     (
@@ -351,14 +357,32 @@ export function useAnalysisEditor(
         | undefined,
     ) =>
       change(current => {
-        const next = update(current);
-        if (!next) return {};
+        const proposed = update(current);
+        if (!proposed) return {};
+        const shape = { ...current, ...proposed };
+        const followed = withoutDangling(
+          shape,
+          definition && capability
+            ? {
+                moments: momentMetrics(
+                  shape.metrics,
+                  analysisScope(definition, capability, shape).fields,
+                ),
+                havingMetrics: capability.havingMetrics,
+              }
+            : {},
+        );
+        if (followed.metrics.length === 0) return {};
+        const next = { ...proposed, metrics: followed.metrics };
         const aliases = new Set([
           ...next.groups.map(group => group.alias),
           ...next.metrics.map(metric => metric.alias),
         ]);
         return {
           ...next,
+          ...(followed.having === current.having
+            ? {}
+            : { having: followed.having }),
           chart: fitTo(current.chart, { ...current, ...next }),
           // Wow refuses a sort over an ungrouped aggregation, and it has one
           // row anyway, so losing the last group empties the ordering too.
@@ -374,7 +398,7 @@ export function useAnalysisEditor(
           },
         };
       }),
-    [change, fitTo],
+    [change, fitTo, definition, capability],
   );
 
   const fields = useMemo<AnalysisFieldOption[]>(() => {
