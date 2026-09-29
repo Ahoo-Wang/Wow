@@ -67,7 +67,7 @@ const description = `**真实后端 · 商品定价**
 
 Wow 定价服务里商品定价的事件流：真实的事件、真实的数据量；同一个工作台里读最近的事件、查一档定价的完整历史（每次保存的单价、每次状态变更）、看事件按类型与时间的分布。
 
-- **数据源**：Wow 定价服务 \`product_pricing\` 的事件流，地址是 \`host\` 参数，可在 Controls 面板切换；改动后按新地址重建引擎。默认是本机转发的 \`http://localhost:8089\`，集群内直接用 \`http://pricing-service.dev.svc.cluster.local\`；初始值可用 \`STORYBOOK_WOW_PRICING_HOST\` 改。
+- **数据源**：Wow 定价服务 \`product_pricing\` 的事件流，地址是 \`host\` 参数，可在 Controls 面板切换；改动后按新地址重建引擎。默认是 dev 集群的 \`http://pricing-service.dev.svc.cluster.local\`；浏览器解析不了集群地址时，端口转发后改成 \`http://localhost:8089\`；初始值可用 \`STORYBOOK_WOW_PRICING_HOST\` 改。
 - **准备**：引擎与视图存储随故事新建；数据直连 \`host\` 指向的服务，只读。
 - **操作**：打开「事件流分析台」场景，它放在宿主应用里——顶部导航与左侧应用导航是宿主的，中间那一块是视图引擎——像使用者看到的一样。
 - **观察**：一条记录是一次命令追加的事件流；按事件筛选（事件类型、商品编码、单价、变更后状态）是对 \`body\` 的元素匹配，按事件分析会展开 \`body\`、以事件为计数单位。

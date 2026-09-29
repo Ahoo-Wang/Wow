@@ -30,16 +30,16 @@ import {
 } from '@ahoo-wang/wow-view-engine';
 
 /**
- * The Wow trading service the trade order stories start on. Each story takes
- * it as its `host` arg, so the Controls panel can point it anywhere without a
- * restart; set `STORYBOOK_WOW_TRADING_HOST` to change where it starts.
- *
- * It starts on a local port-forward of the dev cluster's trading service,
- * since a browser outside the cluster cannot resolve its name; inside the
- * cluster, point it at `http://trading-service.dev.svc.cluster.local`.
+ * The Wow service the trade order stories start on: the dev cluster's `trading-service` at
+ * `http://trading-service.dev.svc.cluster.local`. Each story takes the address as its `host` arg, so the
+ * Controls panel can point it anywhere without a restart; set `STORYBOOK_WOW_TRADING_HOST`
+ * to change where it starts — a local port-forward
+ * (`kubectl -n dev port-forward svc/trading-service 8088:80`, then `http://localhost:8088`)
+ * where the browser cannot resolve cluster names.
  */
 export const DEFAULT_TRADING_HOST: string =
-  import.meta.env.STORYBOOK_WOW_TRADING_HOST ?? 'http://localhost:8088';
+  import.meta.env.STORYBOOK_WOW_TRADING_HOST ??
+  'http://trading-service.dev.svc.cluster.local';
 
 export const TRADE_ORDER = 'trade-order';
 

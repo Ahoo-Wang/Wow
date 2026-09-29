@@ -30,15 +30,16 @@ import {
 } from '@ahoo-wang/wow-view-engine';
 
 /**
- * The CRM service the customer scenes start on: a local port-forward of the
- * dev cluster's `crm-service`, since a browser outside the cluster cannot
- * resolve its in-cluster name. Inside the cluster the service answers at
- * `http://crm-service.dev.svc.cluster.local`. Each story takes the address as
- * its `host` arg, so the Controls panel can point it anywhere without a
- * restart; set `STORYBOOK_WOW_CRM_HOST` to change where it starts.
+ * The Wow service the customer scenes start on: the dev cluster's `crm-service` at
+ * `http://crm-service.dev.svc.cluster.local`. Each story takes the address as its `host` arg, so the
+ * Controls panel can point it anywhere without a restart; set `STORYBOOK_WOW_CRM_HOST`
+ * to change where it starts — a local port-forward
+ * (`kubectl -n dev port-forward svc/crm-service 8085:80`, then `http://localhost:8085`)
+ * where the browser cannot resolve cluster names.
  */
 export const DEFAULT_CRM_HOST: string =
-  import.meta.env.STORYBOOK_WOW_CRM_HOST ?? 'http://localhost:8085';
+  import.meta.env.STORYBOOK_WOW_CRM_HOST ??
+  'http://crm-service.dev.svc.cluster.local';
 
 export const CUSTOMER = 'customer';
 

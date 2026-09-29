@@ -31,16 +31,16 @@ import {
 } from '@ahoo-wang/wow-view-engine';
 
 /**
- * The Wow pricing service the product pricing scenes start on: a local
- * port-forward of `pricing-service`, since a browser outside the cluster
- * cannot resolve its in-cluster address
- * (`http://pricing-service.dev.svc.cluster.local`), which is the one to use
- * from inside it. Each story takes it as its `host` arg, so the Controls
- * panel can point it anywhere without a restart; set
- * `STORYBOOK_WOW_PRICING_HOST` to change where it starts.
+ * The Wow service the product pricing scenes start on: the dev cluster's `pricing-service` at
+ * `http://pricing-service.dev.svc.cluster.local`. Each story takes the address as its `host` arg, so the
+ * Controls panel can point it anywhere without a restart; set `STORYBOOK_WOW_PRICING_HOST`
+ * to change where it starts — a local port-forward
+ * (`kubectl -n dev port-forward svc/pricing-service 8089:80`, then `http://localhost:8089`)
+ * where the browser cannot resolve cluster names.
  */
 export const DEFAULT_PRICING_HOST: string =
-  import.meta.env.STORYBOOK_WOW_PRICING_HOST ?? 'http://localhost:8089';
+  import.meta.env.STORYBOOK_WOW_PRICING_HOST ??
+  'http://pricing-service.dev.svc.cluster.local';
 
 export const PRODUCT_PRICING = 'product-pricing';
 
