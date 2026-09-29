@@ -14,6 +14,7 @@
 | [kernels.md](kernels.md)                                     | 四个纯内核的签名与校验、编译、投影规则，以及定义准入                                                                              |
 | [runtime.md](runtime.md)                                     | `ViewRuntime` 状态与命令、执行规则、自动刷新、`DashboardRuntime`、`ViewEngine`、环境                                              |
 | [management.md](management.md)                               | 实例生命周期、范围与许可、列表与偏好、冲突与未知结果、`ViewStore` 与一致性                                                        |
+| [view-store-backend.md](view-store-backend.md)               | Wow 存储后端（阶段 6）：`ViewStore` 的服务端、端口一致性测试与真服务端验证                                                        |
 | [react.md](react.md)                                         | `/react` 的钩子与控制器合同，一节一个钩子                                                                                         |
 | [ui/README.md](ui/README.md)                                 | `/ui` 三种视图共用的规则：措辞、状态条、值显示、主题作用域、工作台骨架、保存与管理、FilterPanel                                   |
 | [ui/record.md](ui/record.md)                                 | Record 的结果区组件                                                                                                               |
@@ -143,5 +144,5 @@ src/
 
 - **定义生成。** `wow-generator` 从 Wow 聚合元数据生成 `ViewDefinition`，业务方零成本获得记录、分析与概览。这是"配置代替页面"相对于手写 React 页面的决定性杠杆，也是定义作为代码的直接结果。
 - **共享与嵌入。** `scope: 'shared'`、服务端配置的 `scope: 'system'` 与嵌入（`EmbeddedView`、`EmbeddedDashboard`）在业务应用的 `ViewStore` 落地后由业务服务授权；嵌入页面锁定的条件不是安全边界（[ui/embed.md](ui/embed.md#锁定不是安全边界)）。
-- **服务端实现。** 若需要官方后端，另立设计文档随后端代码放置；[management.md](management.md) 的 `ViewStore` 合同是它的输入。
+- **服务端实现。** 官方后端的方案在 [view-store-backend.md](view-store-backend.md)（D75，首发前做）；[management.md](management.md) 的 `ViewStore` 合同是它的输入。
 - **更多图型。** 图表按族扩展，新增一族只增加一个子对象、一个 `type` 字面量、一条校验分支、一段投影与一个渲染器，不改既有类型。候选：帕累托（combo 加投影层累计占比，依赖结果集完整）、矩形树图、箱线图（百分位指标已能支撑）。
