@@ -19,9 +19,14 @@ import {
   Moon,
   Sun,
 } from "lucide-react";
-import { Link, NavLink, Outlet, useLocation } from "react-router";
+import { Link, Outlet } from "react-router";
+import {
+  useColorMode,
+  useViewNavigation,
+  type ColorMode,
+} from "@ahoo-wang/wow-view-engine/ui";
 import { ErrorBoundary } from "../../components/ErrorBoundary/ErrorBoundary.tsx";
-import type { NavItem } from "../../routes/constants.tsx";
+import type { Place } from "../../routes/constants.tsx";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -34,11 +39,32 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { useI18n, type Message } from "@/i18n.tsx";
-import { HOME_PATH } from "@/views/navigation.ts";
-import { COLOR_MODES, useColorMode, type ColorMode } from "./colorMode.ts";
+import { HOME_PATH } from "@/views/routes.ts";
 
 interface AppProps {
-  navItems: readonly NavItem[];
+  places: readonly Place[];
+}
+
+/** A place as the bar draws it: its word, where it is, whether it is here. */
+interface PlaceLink {
+  label: Message;
+  path: string;
+  current: boolean;
+}
+
+/**
+ * The places, from the engine's navigation (host-integration.md 4.3): each
+ * resource's page — or one of its system views — where the route table
+ * puts it, and whether the address is on it.
+ */
+function usePlaces(places: readonly Place[]): PlaceLink[] {
+  const navigation = useViewNavigation();
+  return places.flatMap(({ label, resource, view }) => {
+    const item = navigation.find(({ id }) => id === resource);
+    const at =
+      view === undefined ? item : item?.views.find(({ id }) => id === view);
+    return at ? [{ label, path: at.path, current: at.current }] : [];
+  });
 }
 
 const buildVersion = import.meta.env.VITE_APP_VERSION;
@@ -51,27 +77,23 @@ const buildCommitUrl = `https://github.com/Ahoo-Wang/Wow/commit/${buildCommitSha
  * primary colour, as the approved mockup draws it; the rest quiet until the
  * pointer finds them.
  */
-function Places({ navItems }: { navItems: readonly NavItem[] }) {
+function Places({ places }: { places: readonly PlaceLink[] }) {
   const { t } = useI18n();
-  return navItems.map((item) => (
-    <NavLink
+  return places.map((item) => (
+    <Link
       key={item.path}
       to={item.path}
-      end={item.path === HOME_PATH}
+      aria-current={item.current ? "page" : undefined}
       className="inline-flex h-full items-center border-b-2 border-transparent px-3 font-medium whitespace-nowrap text-muted-foreground outline-none hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 aria-[current=page]:border-primary aria-[current=page]:text-foreground"
     >
       {t(item.label)}
-    </NavLink>
+    </Link>
   ));
 }
 
 /** On a phone the places are a menu under one button, the current one checked. */
-function PlacesMenu({ navItems }: { navItems: readonly NavItem[] }) {
+function PlacesMenu({ places }: { places: readonly PlaceLink[] }) {
   const { t } = useI18n();
-  const { pathname } = useLocation();
-  const current = navItems.find((item) =>
-    item.path === HOME_PATH ? pathname === HOME_PATH : pathname.startsWith(item.path),
-  );
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
@@ -88,10 +110,10 @@ function PlacesMenu({ navItems }: { navItems: readonly NavItem[] }) {
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start">
         <DropdownMenuGroup>
-          {navItems.map((item) => (
+          {places.map((item) => (
             <DropdownMenuItem
               key={item.path}
-              aria-current={item === current ? "page" : undefined}
+              aria-current={item.current ? "page" : undefined}
               className="aria-[current=page]:font-medium aria-[current=page]:text-primary"
               render={<Link to={item.path} />}
             >
@@ -152,10 +174,16 @@ const MODE_WORDS: Record<ColorMode, Message> = {
 
 const MODE_ICONS = { system: Monitor, light: Sun, dark: Moon };
 
-/** Light, dark, or the system's (§6): pinned on this machine once picked. */
+const COLOR_MODES = Object.keys(MODE_WORDS) as ColorMode[];
+
+/**
+ * Light, dark, or the system's (§6): the engine paints it (`ViewHost`),
+ * pinned on this machine once picked.
+ */
 function ColorModeMenu() {
   const { t } = useI18n();
-  const [mode, setMode] = useColorMode();
+  const { mode: painted, setMode } = useColorMode();
+  const mode = painted === "host" ? "system" : painted;
   const Icon = MODE_ICONS[mode];
   const label = t("Appearance: {mode}", { mode: t(MODE_WORDS[mode]) });
 
@@ -227,56 +255,61 @@ function BuildVersion() {
  * column beside them was the old console's two rails (W15). On a phone the
  * places fold into a menu.
  */
-export default function App({ navItems }: AppProps) {
+export default function App({ places: named }: AppProps) {
   const { t } = useI18n();
   const placesLabel = t("Primary navigation");
+  const places = usePlaces(named);
 
   return (
-    <ErrorBoundary>
-      <a
-        className="fixed top-2 left-2 z-50 -translate-y-[160%] rounded-md bg-popover px-3.5 py-2.5 text-sm font-semibold text-popover-foreground shadow-md focus:translate-y-0 focus:outline-2 focus:outline-offset-2 focus:outline-ring"
-        href="#main-content"
-      >
-        {t("Skip to main content")}
-      </a>
-      <div className="flex min-h-svh flex-col">
-        {/* Inside the engine's `fve-tokens` boundary its own utilities win
+    // The engine's theme on the console's own chrome (`fve-tokens`, 4.1):
+    // on the shell that wears it, not on `<body>`.
+    <div className="fve-tokens bg-background text-foreground">
+      <ErrorBoundary>
+        <a
+          className="fixed top-2 left-2 z-50 -translate-y-[160%] rounded-md bg-popover px-3.5 py-2.5 text-sm font-semibold text-popover-foreground shadow-md focus:translate-y-0 focus:outline-2 focus:outline-offset-2 focus:outline-ring"
+          href="#main-content"
+        >
+          {t("Skip to main content")}
+        </a>
+        <div className="flex min-h-svh flex-col">
+          {/* Inside the engine's `fve-tokens` boundary its own utilities win
             over ours on one element, so what shows or hides by width sits
             on a wrapper of its own, never beside a display utility. */}
-        <header className="sticky top-0 z-10 flex h-13 shrink-0 items-center gap-4 border-b border-sidebar-border bg-sidebar px-4 text-sidebar-foreground">
-          {/* A phone's way to the places: a button, whose menu is the
+          <header className="sticky top-0 z-10 flex h-13 shrink-0 items-center gap-4 border-b border-sidebar-border bg-sidebar px-4 text-sidebar-foreground">
+            {/* A phone's way to the places: a button, whose menu is the
               navigation; one landmark on the page, not two. */}
-          <div className="md:hidden">
-            <PlacesMenu navItems={navItems} />
-          </div>
-          <Link
-            to={HOME_PATH}
-            className="inline-flex items-center gap-2 font-semibold whitespace-nowrap outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
-          >
-            <img src="/logo.svg" alt="" className="size-5.5" />
-            {t("Compensation console")}
-          </Link>
-          <div className="h-full max-md:hidden">
-            <nav aria-label={placesLabel} className="flex h-full gap-1">
-              <Places navItems={navItems} />
-            </nav>
-          </div>
-          <div className="ml-auto flex min-w-0 items-center gap-1.5">
-            <LanguageMenu />
-            <ColorModeMenu />
-            <div className="max-md:hidden">
-              <BuildVersion />
+            <div className="md:hidden">
+              <PlacesMenu places={places} />
             </div>
-          </div>
-        </header>
-        <main
-          id="main-content"
-          tabIndex={-1}
-          className="flex min-h-0 flex-1 flex-col outline-none"
-        >
-          <Outlet />
-        </main>
-      </div>
-    </ErrorBoundary>
+            <Link
+              to={HOME_PATH}
+              className="inline-flex items-center gap-2 font-semibold whitespace-nowrap outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+            >
+              <img src="/logo.svg" alt="" className="size-5.5" />
+              {t("Compensation console")}
+            </Link>
+            <div className="h-full max-md:hidden">
+              <nav aria-label={placesLabel} className="flex h-full gap-1">
+                <Places places={places} />
+              </nav>
+            </div>
+            <div className="ml-auto flex min-w-0 items-center gap-1.5">
+              <LanguageMenu />
+              <ColorModeMenu />
+              <div className="max-md:hidden">
+                <BuildVersion />
+              </div>
+            </div>
+          </header>
+          <main
+            id="main-content"
+            tabIndex={-1}
+            className="flex min-h-0 flex-1 flex-col outline-none"
+          >
+            <Outlet />
+          </main>
+        </div>
+      </ErrorBoundary>
+    </div>
   );
 }

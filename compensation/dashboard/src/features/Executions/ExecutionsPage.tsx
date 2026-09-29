@@ -12,11 +12,7 @@
  */
 
 import { useCallback, useState } from "react";
-import {
-  useLocation,
-  useSearchParams,
-  type SetURLSearchParams,
-} from "react-router";
+import { useSearchParams, type SetURLSearchParams } from "react-router";
 import type { ViewHandOver } from "@ahoo-wang/wow-view-engine";
 import { DataWorkbench } from "@ahoo-wang/wow-view-engine/ui";
 import { CircleAlert, ListFilter } from "lucide-react";
@@ -29,7 +25,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { useI18n } from "@/i18n.tsx";
 import { EXECUTION_FAILED } from "@/views/executionFailed.ts";
-import { navigationState } from "@/views/navigation.ts";
 import {
   CLUSTER_PARAM,
   END_PARAM,
@@ -44,7 +39,8 @@ import {
 export { VIEW_PARAM } from "./linkScope.ts";
 
 interface WorkbenchProps {
-  handOver: ViewHandOver | null;
+  /** A link's narrowing; left out, the view a way off handed the page. */
+  handOver: ViewHandOver | undefined;
   searchParams: URLSearchParams;
   setSearchParams: SetURLSearchParams;
 }
@@ -52,7 +48,7 @@ interface WorkbenchProps {
 /**
  * The failed executions' workbench on the console's one engine: what an
  * execution offers — its commands, how it is read — is bound once to the
- * definition (`ViewsHost`), so the page says only which view is open.
+ * definition (`PageCommands`), so the page says only which view is open.
  */
 function Workbench({
   handOver,
@@ -154,9 +150,6 @@ function without(
 export default function ExecutionsPage() {
   const { t } = useI18n();
   const [searchParams, setSearchParams] = useSearchParams();
-  // A view a board sent here (「在工作台中打开」, a press on a group), with the
-  // history entry it was opened on; a link's narrowing is in the address.
-  const sent = navigationState(useLocation().state).handOver ?? null;
   const instanceId = searchParams.get(VIEW_PARAM);
   const key = scopeKey(searchParams);
   const scope = readLinkScope(searchParams);
@@ -229,7 +222,10 @@ export default function ExecutionsPage() {
         </Alert>
       ) : null}
       <Workbench
-        handOver={(handed.key === key ? handed.handOver : null) ?? sent}
+        // A link's narrowing is in the address; a view a board sent here
+        // (「在工作台中打开」, a press on a group) is in the history entry
+        // it was opened on, where the engine reads it.
+        handOver={(handed.key === key ? handed.handOver : null) ?? undefined}
         searchParams={searchParams}
         setSearchParams={setSearchParams}
       />

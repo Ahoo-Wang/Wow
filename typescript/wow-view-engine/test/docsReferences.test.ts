@@ -154,6 +154,7 @@ describe('the entries the READMEs list', () => {
     '@ahoo-wang/wow-view-engine': '@ahoo-wang/wow-view-engine',
     '/react': '@ahoo-wang/wow-view-engine/react',
     '/ui': '@ahoo-wang/wow-view-engine/ui',
+    '/react-router': '@ahoo-wang/wow-view-engine/react-router',
   };
   const exports = new Map(
     Object.entries(ENTRIES).map(([row, entry]) => [row, entryExports(entry)]),
@@ -176,7 +177,7 @@ describe('the entries the READMEs list', () => {
       }),
     );
 
-  it('lists the three code entries in both languages', () => {
+  it('lists the four code entries in both languages', () => {
     expect(rows.map(({ entry }) => entry).sort()).toEqual(
       [...Object.keys(ENTRIES), ...Object.keys(ENTRIES)].sort(),
     );

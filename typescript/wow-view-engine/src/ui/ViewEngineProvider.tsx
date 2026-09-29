@@ -20,6 +20,7 @@ import {
   type ReactNode,
 } from 'react';
 import type { ViewEngine, ViewNavigation } from '../runtime/index.js';
+import type { RecordDetailControl } from '../react/index.js';
 import {
   MessagesProvider,
   StartingWords,
@@ -28,7 +29,11 @@ import {
 } from './MessagesProvider.js';
 import type { ViewMessages } from './messages.js';
 import type { ViewBinding } from './bindings.js';
-import { resolveNavigation, type ViewDestination } from '../runtime/routes.js';
+import {
+  resolveNavigation,
+  type ViewDestination,
+  type ViewRouter,
+} from '../runtime/routes.js';
 
 /** What a surface finds above it; see `ViewEngineProvider`. */
 interface EngineContext {
@@ -38,6 +43,15 @@ interface EngineContext {
   bindings: ReadonlyMap<string, ViewBinding>;
   /** The engines a provider above already checks the words of. */
   worded: ReadonlySet<ViewEngine>;
+  /** The host's router (`ViewHost`'s `router`), where it gave one. */
+  router: ViewRouter | undefined;
+  /**
+   * The record open in the address (`?id=`), for every bound resource's
+   * record detail that holds none of its own; see `ViewHost`.
+   */
+  detail: RecordDetailControl | undefined;
+  /** Whether a `ViewHost` is above: only the outermost one paints `<html>`. */
+  hosted: boolean;
 }
 
 const NO_BINDINGS: ReadonlyMap<string, ViewBinding> = new Map();
@@ -47,6 +61,9 @@ const Context = createContext<EngineContext>({
   navigate: undefined,
   bindings: NO_BINDINGS,
   worded: new Set(),
+  router: undefined,
+  detail: undefined,
+  hosted: false,
 });
 
 export interface ViewEngineProviderProps {
@@ -86,12 +103,19 @@ export interface ViewEngineProviderProps {
    * id.
    */
   bindings?: readonly ViewBinding[];
+  /** The host's router; the outer provider's when left out. */
+  router?: ViewRouter;
+  /** The record open in the address; the outer provider's when left out. */
+  detail?: RecordDetailControl;
+  /** Set by `ViewHost`: what is under it has a host above. */
+  hosted?: boolean;
   children: ReactNode;
 }
 
 /**
  * The engine, its words and its bindings, for every surface under it
- * (host-integration.md 4): one engine for the application, so a surface
+ * (host-integration.md 4) — `ViewHost`'s inside, not an entry of its own
+ * (4.2): one engine for the application, so a surface
  * takes only what differs where it stands — `<DataWorkbench
  * definitionId={ORDERS} />`. Providers nest, the inner one over the outer
  * one; a surface's own `engine`, `messages`, `locale` or `onNavigate` still
@@ -109,6 +133,9 @@ export function ViewEngineProvider({
   messages,
   navigate,
   bindings,
+  router,
+  detail,
+  hosted,
   children,
 }: ViewEngineProviderProps) {
   const outer = useContext(Context);
@@ -140,8 +167,24 @@ export function ViewEngineProvider({
         own && !outer.worded.has(own)
           ? new Set([...outer.worded, own])
           : outer.worded,
+      router: router ?? outer.router,
+      detail: detail ?? outer.detail,
+      hosted: hosted ?? outer.hosted,
     }),
-    [engine, own, navigate, outer.navigate, bound, outer.worded],
+    [
+      engine,
+      own,
+      navigate,
+      outer.navigate,
+      bound,
+      outer.worded,
+      router,
+      outer.router,
+      detail,
+      outer.detail,
+      hosted,
+      outer.hosted,
+    ],
   );
   return (
     <Context.Provider value={value}>
@@ -186,7 +229,7 @@ export function useEngine(own?: ViewEngine): ViewEngine {
   const found = own ?? engine;
   if (!found)
     throw new Error(
-      'No view engine: pass `engine`, or render inside a <ViewEngineProvider engine={…}>.',
+      'No view engine: pass `engine`, or render inside a <ViewHost engine={…}>.',
     );
   return found;
 }
@@ -210,10 +253,40 @@ export function useRoutedNavigate(
   return own ?? routed;
 }
 
-/** What the host bound to a definition (`bind`), from the providers above. */
+/**
+ * What the host bound to a definition (`bind`), from the providers above.
+ * Under a router, a bound resource's record detail follows the address
+ * (`?id=`) where its `reading` holds no open record of its own.
+ */
 export function useBindings(): (
   definitionId: string,
 ) => ViewBinding | undefined {
-  const { bindings } = useContext(Context);
-  return useMemo(() => (id: string) => bindings.get(id), [bindings]);
+  const { bindings, detail } = useContext(Context);
+  // Built whole, never filled in as asked: one object per binding for as
+  // long as the bindings and the record open stay put.
+  const addressed = useMemo(
+    () =>
+      detail
+        ? new Map(
+            [...bindings].map(([id, binding]) => [
+              id,
+              binding.reading?.open !== undefined
+                ? binding
+                : { ...binding, reading: { ...binding.reading, ...detail } },
+            ]),
+          )
+        : bindings,
+    [bindings, detail],
+  );
+  return useMemo(() => (id: string) => addressed.get(id), [addressed]);
+}
+
+/** The host's router, from the `ViewHost` above; `undefined` without one. */
+export function useViewRouter(): ViewRouter | undefined {
+  return useContext(Context).router;
+}
+
+/** Whether a `ViewHost` is above. */
+export function useHosted(): boolean {
+  return useContext(Context).hosted;
 }

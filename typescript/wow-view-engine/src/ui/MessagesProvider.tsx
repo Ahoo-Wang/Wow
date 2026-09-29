@@ -114,7 +114,7 @@ function useMessages(): ViewMessages {
 /**
  * The wording in force here with `messages` merged over it, as a
  * `MessagesProvider` given them would hand its children: what
- * `ViewEngineProvider` says a definition's keys in.
+ * `ViewHost` says a definition's keys in.
  */
 export function useMergedMessages(messages?: ViewMessages): ViewMessages {
   return useMerged(useMessages(), messages);

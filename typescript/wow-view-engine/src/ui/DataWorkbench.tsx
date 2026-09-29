@@ -24,6 +24,7 @@ import type {
 } from '../runtime/index.js';
 import { useWorkbench } from '../react/index.js';
 import { StartingWords, useViewMessages } from './MessagesProvider.js';
+import { useAddressedHandOver, useAddressedInstance } from './address.js';
 import {
   useBindings,
   useEngine,
@@ -43,7 +44,7 @@ import { RecordParts, type RecordViewProps } from './workbench/RecordParts.js';
 export type DataViewKind = 'record' | 'analysis';
 
 export interface DataWorkbenchProps {
-  /** The engine; the `ViewEngineProvider`'s when left out. */
+  /** The engine; the `ViewHost`'s when left out. */
   engine?: ViewEngine;
   definitionId: string;
   /**
@@ -86,7 +87,7 @@ export interface DataWorkbenchProps {
    * The host's route, for the way back to the board a view was handed from:
    * with it, the workbench draws 「返回〈仪表盘〉」 under the title bar and
    * hands the board's own target here when it is pressed (D26 Q33). The
-   * `ViewEngineProvider`'s route when left out.
+   * `ViewHost`'s route when left out.
    */
   onNavigate?(to: ViewNavigation): void;
   /**
@@ -241,6 +242,10 @@ function DataWorkbenchSurface({
   const engine = useEngine(own);
   const onNavigate = useRoutedNavigate(route);
   const record = useBoundRecord(definitionId, given);
+  // Under a `ViewHost`'s router, the address's view and what the page was
+  // handed, where the host passes neither (host-integration.md 4.2).
+  const addressed = useAddressedInstance(instanceId, onInstanceChange);
+  const handed = useAddressedHandOver(handOver);
   // The host's wording, resolved here rather than read off the provider:
   // `ViewSurface` is inside `WorkbenchShell`, so this component is above the
   // context and would otherwise name a new view in English on a translated
@@ -248,9 +253,9 @@ function DataWorkbenchSurface({
   const messages = useViewMessages(wording, locale);
   const workbench = useWorkbench(engine, definitionId, {
     kinds,
-    instanceId,
-    onInstanceChange,
-    handOver,
+    instanceId: addressed.instanceId,
+    onInstanceChange: addressed.onInstanceChange,
+    handOver: handed,
     onNavigate,
     newView: {
       title: messages.label('label.view.new-title'),

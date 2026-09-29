@@ -33,7 +33,7 @@ import {
   bind,
   DashboardWorkbench,
   DataWorkbench,
-  ViewEngineProvider,
+  ViewHost,
 } from '@ahoo-wang/wow-view-engine/ui';
 import { ArrowLeftIcon, BellRingIcon, FileTextIcon } from 'lucide-react';
 import { Button, buttonVariants } from '@/ui/components/button';
@@ -404,7 +404,7 @@ export function RetailBoardScene({
   return (
     <StoryEngine create={() => createBoardEngine()}>
       {engine => (
-        <ViewEngineProvider bindings={bindings}>
+        <ViewHost bindings={bindings} colorMode="host">
           <div className="fve-tokens flex h-full min-h-0 flex-col">
             <NudgeStatus nudges={nudges} />
             <RoutedBoard
@@ -429,7 +429,7 @@ export function RetailBoardScene({
               )}
             />
           </div>
-        </ViewEngineProvider>
+        </ViewHost>
       )}
     </StoryEngine>
   );

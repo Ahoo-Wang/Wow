@@ -11,24 +11,16 @@
  * limitations under the License.
  */
 
-import type {
-  RecordKey,
-  ViewEngine,
-  ViewSource,
-} from "@ahoo-wang/wow-view-engine";
+import type { ViewEngine, ViewSource } from "@ahoo-wang/wow-view-engine";
 import type { RecordDetailSectionContext } from "@ahoo-wang/wow-view-engine/react";
 import type {
   EmbeddedViewProps,
   RecordDetailOptions,
 } from "@ahoo-wang/wow-view-engine/ui";
-import { useCallback, useLayoutEffect, useMemo, useRef } from "react";
-import { useSearchParams } from "react-router";
+import { useCallback, useMemo } from "react";
 import type { ExecutionCommands } from "../executionCommands.ts";
 import { ExecutionReading } from "./ExecutionReading.tsx";
 import { executionTitle } from "./executionState.ts";
-
-/** The route parameter naming the execution open in the detail. */
-export const ID_PARAM = "id";
 
 export interface ExecutionDetailOptions {
   engine: ViewEngine;
@@ -40,10 +32,10 @@ export interface ExecutionDetailOptions {
 }
 
 /**
- * The failed executions' record detail: which execution is open is the
- * address's `id`, so a link opens it — on the current page or not — and the
- * execution is read the console's way (`ExecutionReading`, D60) under the
- * handler's name, in the engine's panel.
+ * The failed executions' record detail: the execution read the console's
+ * way (`ExecutionReading`, D60) under the handler's name, in the engine's
+ * panel. Which execution is open is the address's `?id=`, which the
+ * engine keeps (`ViewHost`'s router), so a link opens it.
  */
 export function useExecutionDetail({
   engine,
@@ -52,31 +44,6 @@ export function useExecutionDetail({
   locale,
   messages,
 }: ExecutionDetailOptions): RecordDetailOptions {
-  const [searchParams, setSearchParams] = useSearchParams();
-  const open = searchParams.get(ID_PARAM);
-
-  // Held by a ref, so the reading changes only with the record open: the
-  // rest of the address moving (another view, a link's narrowing) leaves
-  // it — and every surface bound to it — as it was.
-  const latest = useRef({ open, setSearchParams });
-  useLayoutEffect(() => {
-    latest.current = { open, setSearchParams };
-  });
-  const onOpenChange = useCallback((key: RecordKey | null) => {
-    const next = key === null ? null : String(key);
-    if (next === latest.current.open) return;
-    latest.current.setSearchParams(
-      (current) => {
-        const params = new URLSearchParams(current);
-        if (next === null) params.delete(ID_PARAM);
-        else params.set(ID_PARAM, next);
-        return params;
-      },
-      // Opening one execution after another is reading, not navigating.
-      { replace: true },
-    );
-  }, []);
-
   const render = useCallback(
     ({ row, complete, refresh }: RecordDetailSectionContext) => (
       <ExecutionReading
@@ -93,8 +60,5 @@ export function useExecutionDetail({
     [commands, engine, history, locale, messages],
   );
 
-  return useMemo(
-    () => ({ open, onOpenChange, render, title: executionTitle }),
-    [open, onOpenChange, render],
-  );
+  return useMemo(() => ({ render, title: executionTitle }), [render]);
 }

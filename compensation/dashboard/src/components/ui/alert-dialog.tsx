@@ -57,7 +57,8 @@ function AlertDialogContent({
   size?: "default" | "sm";
 }) {
   return (
-    <AlertDialogPortal>
+    // The shell's theme, on a dialog portalled out of the shell (`fve-tokens`).
+    <AlertDialogPortal className="fve-tokens">
       <AlertDialogOverlay />
       <AlertDialogPrimitive.Popup
         data-slot="alert-dialog-content"

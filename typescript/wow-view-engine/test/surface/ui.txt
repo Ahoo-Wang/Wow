@@ -1,4 +1,4 @@
-# @ahoo-wang/wow-view-engine/ui — 227 names, from src/ui/index.ts.
+# @ahoo-wang/wow-view-engine/ui — 236 names, from src/ui/index.ts.
 # Written by test/publicSurface.test.ts; a change here is a change to
 # the public surface (README「Entries」, docs/design/decisions.md D29).
 value AUDIENCE_ICON
@@ -21,6 +21,8 @@ type  CellField
 type  CellSurface
 type  ChartMapGeoJson
 type  ChartMapSource
+type  ColorMode
+type  ColorModeControl
 value ColumnSettings
 type  ColumnSettingsProps
 value ContentPanel
@@ -71,6 +73,7 @@ type  FilterValueEditorProps
 type  FveToken
 value HeadingPanel
 type  HeadingPanelProps
+type  HostColorMode
 value ImagePanel
 type  ImagePanelProps
 type  IssueStripProps
@@ -158,8 +161,6 @@ type  ViewBinding
 type  ViewBindingOptions
 type  ViewDensity
 type  ViewDestination
-value ViewEngineProvider
-type  ViewEngineProviderProps
 value ViewExpandExit
 value ViewExpandToggle
 type  ViewExpandToggleProps
@@ -167,15 +168,21 @@ type  ViewExpansion
 value ViewHeader
 type  ViewHeaderProps
 type  ViewHeaderState
+value ViewHost
+type  ViewHostProps
 value ViewList
 type  ViewListProps
+type  ViewLocation
 value ViewManager
 type  ViewManagerProps
 type  ViewMessages
+type  ViewNavigationItem
+type  ViewNavigationView
 type  ViewPreset
 type  ViewRoute
 type  ViewRouteOf
 type  ViewRouteState
+type  ViewRouter
 value ViewSurface
 type  ViewSurfaceProps
 value ViewSwitcher
@@ -213,6 +220,7 @@ value panelName
 value panelNames
 value registerChartMap
 value tabTitle
+value useColorMode
 value useDashboardEditExtensions
 value useDashboardExtensions
 value useKindIssue
@@ -227,4 +235,5 @@ value useSurfaceTheme
 value useSurfaceTokens
 value useViewExpansion
 value useViewMessages
+value useViewNavigation
 value zhCN

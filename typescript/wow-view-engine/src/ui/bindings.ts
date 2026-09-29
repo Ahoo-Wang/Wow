@@ -16,7 +16,7 @@
  * behaviour the headless core cannot hold — where a view of it lives in the
  * host's address, how one of its records is read, and, until H3's
  * declarative actions, the host's commands on its records. Registered once
- * on `ViewEngineProvider`, by the definition's id, and found by every
+ * on `ViewHost`, by the definition's id, and found by every
  * surface that draws that definition: its workbench, a board's record
  * panel, an embed. The host writes no `definition.id ===` branch.
  */
@@ -31,10 +31,12 @@ export interface ViewBindingOptions {
    * address: the path of the page that opens `instanceId` — `null` for a
    * view nobody saved (a follow-up on a group, a board's own analysis),
    * which opens on the page's default and is handed over whole. The engine
-   * hands the host's `navigate` the path with what the page opens with
-   * (`ViewRoute.state`); a definition with no route is handed over raw.
+   * hands the host's router (or `navigate`) the path with what the page
+   * opens with (`ViewRoute.state`); a definition with no route is handed
+   * over raw. `target` is absent where the engine asks for a link rather
+   * than a way off: the resource's place in `useViewNavigation`.
    */
-  route?(instanceId: string | null, target: RoutedTarget): string;
+  route?(instanceId: string | null, target?: RoutedTarget): string;
   /**
    * How one of its records is read (D60): the detail's own reading of the
    * record, its title, its sections, who holds which record is open — what
@@ -53,7 +55,7 @@ export interface ViewBindingOptions {
   bulk?: BulkCommand;
 }
 
-/** One definition's binding, as `ViewEngineProvider` takes it. */
+/** One definition's binding, as `ViewHost` takes it. */
 export interface ViewBinding extends ViewBindingOptions {
   readonly definitionId: string;
 }

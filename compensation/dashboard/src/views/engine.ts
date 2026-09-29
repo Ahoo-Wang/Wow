@@ -31,79 +31,50 @@ import { createLocalViewStore } from "./localViewStore.ts";
 import { overview } from "./overview.ts";
 import { definitionText } from "./text.ts";
 
-/**
- * The compensation service's query capability descriptors
- * (`execution_failed/snapshot/schema`, `execution_failed/event/schema`):
- * what each query model admits on this deployment. The engine reads them
- * through each source's `describe` and narrows the definitions to them, so
- * a control the storage cannot answer is never offered — the error search
- * on a MongoDB snapshot store without a text index (G15) — and the page and
- * aggregation limits are the server's own (capabilities.md, C6).
- */
-function descriptorClient(): QueryDescriptorClient {
-  return new QueryDescriptorClient({
-    basePath: EXECUTION_FAILED_SOURCE,
-    fetcher,
-  });
-}
+/** The compensation service's clients, on the console's own fetcher. */
+const service = { basePath: EXECUTION_FAILED_SOURCE, fetcher };
 
 /**
- * The failed executions as a view source: the snapshot query client, on the
- * console's own fetcher so the base URL and the CoSec interceptors apply to
- * the engine's queries exactly as to the commands', described by the
- * snapshot model's descriptor. The clients bind their own methods.
+ * A query model of the service as a view source, described by its
+ * capability descriptor (capabilities.md): the engine narrows the
+ * definitions to what the deployment's storage answers. The clients bind
+ * their own methods.
  */
+function sourceOf(
+  client: Pick<ViewSource, "paged" | "cursor" | "aggregate">,
+  describe: ViewSource["describe"],
+): ViewSource {
+  const { paged, cursor, aggregate } = client;
+  return { paged, cursor, aggregate, describe };
+}
+
+/** The failed executions, over their snapshots. */
 export function executionFailedSource(): ViewSource {
-  const snapshots = new SnapshotQueryClient({
-    basePath: EXECUTION_FAILED_SOURCE,
-    fetcher,
-  });
-  return {
-    paged: snapshots.paged,
-    cursor: snapshots.cursor,
-    aggregate: snapshots.aggregate,
-    describe: descriptorClient().describeSnapshot,
-  };
+  return sourceOf(
+    new SnapshotQueryClient(service),
+    new QueryDescriptorClient(service).describeSnapshot,
+  );
 }
 
-/**
- * The failed executions' event streams, on the same fetcher: an execution's
- * history in its detail (`execution_failed/event/paged`) and the outcomes on
- * the overview, described by the event stream model's descriptor.
- */
+/** Their event streams: an execution's history, and the outcomes by day. */
 export function executionHistorySource(): ViewSource {
-  const streams = new EventStreamQueryClient({
-    basePath: EXECUTION_FAILED_SOURCE,
-    fetcher,
-  });
-  return {
-    paged: streams.paged,
-    cursor: streams.cursor,
-    aggregate: streams.aggregate,
-    describe: descriptorClient().describeEventStream,
-  };
+  return sourceOf(
+    new EventStreamQueryClient(service),
+    new QueryDescriptorClient(service).describeEventStream,
+  );
 }
 
 export interface ExecutionEngineOptions {
   store: ViewStore;
   source?: ViewSource;
-  /** Where the event streams come from; the service's by default. */
   historySource?: ViewSource;
-  /**
-   * The words the definitions' keys fall back on where no Provider gives
-   * them (`ViewEngineOptions.text`): for a test that draws without one.
-   * The console's engine takes none — its Provider's words say the keys
-   * where they are shown, and a change of language only redraws.
-   */
+  /** Starting words, for a test that draws with no host above. */
   locale?: Locale;
 }
 
 /**
- * The console's engine (host-integration.md 4): the failed executions over
- * their snapshots, their event streams — an execution's history in its
- * detail, and the outcomes by day — and the overview board over both, each
- * definition registered with its source. The board queries nothing of its
- * own; the query queue makes room for its panels by itself.
+ * The console's resources (host-integration.md 4): the failed executions,
+ * their event streams, and the overview board over both.
  */
 export function executionEngineOptions({
   store,
@@ -132,22 +103,10 @@ export function createExecutionEngine(
   return new ViewEngine(executionEngineOptions(options));
 }
 
-let sharedStore: ViewStore | undefined;
+let shared: ViewEngine | undefined;
 
-/** The one store of this page load. */
-export function localViewStore(): ViewStore {
-  sharedStore ??= createLocalViewStore();
-  return sharedStore;
-}
-
-let sharedEngine: ViewEngine | undefined;
-
-/**
- * The console's one engine, over the service and this browser's store:
- * the three pages share it — its queries, its preferences, the descriptors
- * it has read — and a change of language only redraws it.
- */
+/** The console's one engine, over the service and this browser's store. */
 export function consoleEngine(): ViewEngine {
-  sharedEngine ??= createExecutionEngine({ store: localViewStore() });
-  return sharedEngine;
+  shared ??= createExecutionEngine({ store: createLocalViewStore() });
+  return shared;
 }

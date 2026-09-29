@@ -21,10 +21,7 @@ import {
   type ViewInstance,
   type ViewSource,
 } from '@ahoo-wang/wow-view-engine';
-import {
-  EmbeddedDashboard,
-  ViewEngineProvider,
-} from '@ahoo-wang/wow-view-engine/ui';
+import { EmbeddedDashboard, ViewHost } from '@ahoo-wang/wow-view-engine/ui';
 import { BellRingIcon } from 'lucide-react';
 import { Badge } from '@/ui/components/badge';
 import { Button } from '@/ui/components/button';
@@ -200,7 +197,7 @@ function HomePage({ state }: { state: HomeState }) {
             nudges={nudges}
             onFiltersChange={setFilters}
             board={reader => (
-              <ViewEngineProvider bindings={bindings}>
+              <ViewHost bindings={bindings} colorMode="host">
                 <EmbeddedDashboard
                   className="host-home"
                   engine={engine}
@@ -210,7 +207,7 @@ function HomePage({ state }: { state: HomeState }) {
                   {...reader}
                   {...HOST_LANGUAGE}
                 />
-              </ViewEngineProvider>
+              </ViewHost>
             )}
           />
         )}

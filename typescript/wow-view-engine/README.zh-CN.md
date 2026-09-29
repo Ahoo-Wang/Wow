@@ -165,7 +165,7 @@ export const orders = defineView(ordersDescriptor, {
 
 - **事实取快照，能力取数据源。** 没列出的字段不出现。种类、枚举值、敏感级别与数组的条目是模型的事实，取自快照；快照没有的路径或值是准入错误（`validateDefinition`、`onIssue`）——定义照样加载，并说出错在哪。路径能怎么排序、筛选、聚合是存储的能力：你没收窄的，定义取它所运行的数据源给的一切（Elasticsearch 上有数组条目里的搜索，MongoDB 上没有）；你收窄的——`operators`、`sortable: false`、`summary`、`analysis` 或 `analysis: false`——取你的子集与之相交。收窄超出快照是警告，因为换一个存储可能就有。已弃用的路径在写明理由前一直警告；敏感字段退出分析，机密字段不做任何比较；时刻按日历分组，只有最早与最晚。
 - **快照随代码提交。** 定义在模块加载时就建好，测试里一样。运行时给出描述符的数据源，用它填上你留开的能力、收窄其余，与任何定义一样；不给描述符的数据源按快照的能力跑。
-- **措辞写键。** `text(key)` 占着标签的位置，一份定义服务所有语言。引擎存着的、交出去的都留着键：定义、每个视图的状态与快照、`list()`、编辑器拿到的与交回的，以及存储——从系统视图另存的视图连键一起存，所以换到哪种语言都仍是未修改、还原也对。键只在显示或离开引擎的地方说成话——单元格、表头、图表的 option、导出、无障碍名称、标题——按最近的 `ViewEngineProvider` 的 `messages`，缺的退回 `ViewEngineOptions.text`；所以换语言只重画已打开的视图，不重开、不重查、不变脏。自己写的组件用 `/ui` 的 `useSay()` 说，React 之外的代码用 `say(label, words)`；`cellText`、`displayValue` 经上下文的 `say` 说选项标签，`renderCell` 拿到的是原值，键也在内。自己写的编辑器显示成话、交回键：原样留着的话交回原来的键——提交草稿时用 `keptKey(typed, original, say, shown)`（`shown` 是打开时显示的话，打开期间换了语言，没动过的标签也不会变成话），每敲一键就写回的输入框用 `useSaidText(value)`。起始措辞只传到 `ViewEngineProvider`、工作台和嵌入画的东西里；自己用 `ViewSurface` 包部件、上面又没有 Provider 的，给它 `engine={engine}`。界面自己起的名字——「…的副本」、新标签页、新分析的默认标题——是起名时所用语言的话，此后不变。措辞缺的键按键本身显示；写了这个引擎的最外层 Provider 每种语言报一次（`definition.text.unknown`，起始措辞补上了的报 `definition.text.fallback`）。字面字符串仍可当标签。
+- **措辞写键。** `text(key)` 占着标签的位置，一份定义服务所有语言。引擎存着的、交出去的都留着键：定义、每个视图的状态与快照、`list()`、编辑器拿到的与交回的，以及存储——从系统视图另存的视图连键一起存，所以换到哪种语言都仍是未修改、还原也对。键只在显示或离开引擎的地方说成话——单元格、表头、图表的 option、导出、无障碍名称、标题——按最近的 `ViewHost` 的 `messages`，缺的退回 `ViewEngineOptions.text`；所以换语言只重画已打开的视图，不重开、不重查、不变脏。自己写的组件用 `/ui` 的 `useSay()` 说，React 之外的代码用 `say(label, words)`；`cellText`、`displayValue` 经上下文的 `say` 说选项标签，`renderCell` 拿到的是原值，键也在内。自己写的编辑器显示成话、交回键：原样留着的话交回原来的键——提交草稿时用 `keptKey(typed, original, say, shown)`（`shown` 是打开时显示的话，打开期间换了语言，没动过的标签也不会变成话），每敲一键就写回的输入框用 `useSaidText(value)`。起始措辞只传到 `ViewHost`、工作台和嵌入画的东西里；自己用 `ViewSurface` 包部件、上面又没有 `ViewHost` 的，给它 `engine={engine}`。界面自己起的名字——「…的副本」、新标签页、新分析的默认标题——是起名时所用语言的话，此后不变。措辞缺的键按键本身显示；写了这个引擎的最外层 `ViewHost` 每种语言报一次（`definition.text.unknown`，起始措辞补上了的报 `definition.text.fallback`）。字面字符串仍可当标签。
 - **时间。** `timeField`——或系统视图自己的，`null` 表示整体读——是看板唯一的日期筛选接到没有接线的面板上所经的字段；手写的接线优先，面板上的 `ignoresTime: true` 让时间范围不作用于它。
 - `/testing` 的 `admit` 在宿主的测试里把这些一并核对（[测试宿主](#测试宿主内存数据源)）。
 
@@ -259,9 +259,9 @@ const engine = new ViewEngine({
 
 `context` 在知道时还写明是哪个视图——`definitionId`、`instanceId`、`runtimeId`——`render` 与 `chart` 另有 `boundary`、`panelId` 与 React 的 `componentStack`。被叫停的请求（被下一个顶掉、被取消）不算失败，不告知。工作台、网格与嵌入上的 `onRenderFailure` 照旧：它是那一块界面自己的回调，拿到的是同一个 `error`；`onError` 是整个引擎的。引擎的 `onIssue` 只管没有抛出物的发现，比如定义准入。
 
-### 3. 把引擎放在页面之上：`ViewEngineProvider`
+### 3. 把引擎放在页面之上：`ViewHost`
 
-引擎是无头的；一项资源在宿主里怎么表现——它的视图在地址里的哪里、一条记录怎么读、宿主对它的记录有哪些命令——在 React 里按定义的 id 绑一次：
+`ViewHost` 是宿主在页面外面要写的唯一一样东西。它由几个端口组成，每个都只是一座桥，通到宿主已经有的东西——**数据**（引擎，连同它的 `resources` 与 `store`）、**路由**、**语言**、**主题**，以及每项资源上的**命令**（`bind`）——路由库、i18n 与主题系统仍是宿主自己的：
 
 <!-- typecheck-context
 import { ViewEngine } from '@ahoo-wang/wow-view-engine';
@@ -270,13 +270,13 @@ declare const engine: ViewEngine;
 declare const locale: string;
 declare const ordersWords: Record<string, string>;
 declare const orderActions: import('@ahoo-wang/wow-view-engine/react').RecordActionSlots;
-declare function go(path: string, state: unknown): void;
-declare function openElsewhere(to: object): void;
-declare const children: ReactNode;
 -->
 
 ```tsx
-import { bind, ViewEngineProvider } from '@ahoo-wang/wow-view-engine/ui';
+import '@ahoo-wang/wow-view-engine/styles.css';
+import '@ahoo-wang/wow-view-engine/themes/porcelain.css';
+import { useReactRouter } from '@ahoo-wang/wow-view-engine/react-router';
+import { bind, ViewHost } from '@ahoo-wang/wow-view-engine/ui';
 
 const bindings = [
   bind('orders', {
@@ -284,31 +284,82 @@ const bindings = [
     reading: { title: row => `订单 ${String(row.key)}` },
     actions: orderActions,
   }),
-  bind('overview', { route: board => `/boards/${board}` }),
+  bind('overview', {
+    route: board => (board ? `/boards?view=${board}` : '/boards'),
+  }),
 ];
 
-<ViewEngineProvider
-  engine={engine}
-  locale={locale}
-  messages={ordersWords}
-  navigate={to =>
-    to.kind === 'route' ? go(to.path, to.state) : openElsewhere(to)
-  }
-  bindings={bindings}
->
-  {children}
-</ViewEngineProvider>;
+export function Host({ children }: { children: ReactNode }) {
+  return (
+    <ViewHost
+      engine={engine}
+      router={useReactRouter()}
+      locale={locale}
+      messages={ordersWords}
+      bindings={bindings}
+      preset="porcelain"
+      rememberColorMode="my-app.color-mode"
+    >
+      {children}
+    </ViewHost>
+  );
+}
 ```
 
-| 属性       | 做什么                                                                                                                                                                                                                                                                                                                    |
-| ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `engine`   | 应用的引擎。写了它的那层 Provider 用自己的 `messages` 说出引擎定义里的键                                                                                                                                                                                                                                                  |
-| `locale`   | 值按哪种语言显示；它与 `messages` 一换，所有打开的视图就地重画——还是那些运行时，不重发查询                                                                                                                                                                                                                                |
-| `messages` | 合并在已生效措辞之上的措辞：引擎自己的（`zhCN`、宿主的改写）与定义的键一样放在这里                                                                                                                                                                                                                                        |
-| `navigate` | 宿主的路由。离开看板或视图的路——「在工作台中打开」、一组上的追问、面板的去处、回到看板——按目标定义的 `route` 解析好再交来：`{ kind: 'route', path, state }`，`state` 里是要打开的视图（`handOver`）或看板的 `filters` 与 `tab`。网址与没有 `route` 的定义原样交来                                                         |
-| `bindings` | `bind(definitionId, { route, reading, actions, bulk })`：`route(instanceId, target)` 是打开它的页面路径（没人保存的视图 `instanceId` 为 `null`）；`reading` 是记录详情的选项（`render`、`title`、`sections`、`open`／`onOpenChange`）；`actions` 与 `bulk` 是宿主对它的记录的命令——它的工作台与所有看板上它的记录面板都挂 |
+| 属性                             | 端口 | 做什么                                                                                                                                                                                                                                                                                                                                                                 |
+| -------------------------------- | ---- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `engine`                         | 数据 | 应用的引擎，建一次。写了它的那层用自己的 `messages` 说出引擎定义里的键                                                                                                                                                                                                                                                                                                 |
+| `router`                         | 路由 | 宿主的路由：`/react-router` 的 `useReactRouter()`（React Router 是可选 peer，只有这个入口加载它），或在别的路由库上写 `ViewRouter` 的两个成员                                                                                                                                                                                                                          |
+| `locale`、`messages`             | 语言 | 值按哪种语言显示，以及合并在已生效措辞之上的措辞——引擎自己的（`zhCN`、宿主的改写）与定义的键一样放在这里；一换，所有打开的视图就地重画，还是那些运行时，不重发查询                                                                                                                                                                                                     |
+| `bindings`                       | 命令 | `bind(definitionId, { route, reading, actions, bulk })`：`route(instanceId, target?)` 是打开它的页面路径（没人保存的视图 `instanceId` 为 `null`；引擎要一条链接而不是一条去处时——`useViewNavigation`——不给 `target`）；`reading` 是记录详情的选项（`render`、`title`、`sections`）；`actions` 与 `bulk` 是宿主对它的记录的命令——它的工作台与所有看板上它的记录面板都挂 |
+| `theme`、`preset`、`brand`       | 主题 | [两条路](#主题先选一条路)选其一                                                                                                                                                                                                                                                                                                                                        |
+| `colorMode`、`rememberColorMode` | 主题 | `<html>` 上的明暗：缺省 `system`，跟随系统；`light`／`dark` 从钉住开始；宿主自己画明暗时写 `host`。`useColorMode()` 给宿主的开关 `{ mode, setMode }`，读者的选择按给的 `localStorage` 键记住                                                                                                                                                                           |
+| `navigate`                       | 路由 | 每一条去处由宿主自己接，不走路由端口：按目标的 `route` 解析好交来——`{ kind: 'route', path, state }`——网址与没有 `route` 的资源原样交来                                                                                                                                                                                                                                 |
 
-它下面的外壳只写这一处与别处不同的：`<DataWorkbench definitionId="orders" />`、`<EmbeddedDashboard instanceId="…" />`。外壳自己的 `engine`、`messages`、`locale`、`onNavigate`、`record` 仍然优先；Provider 可以嵌套，内层的绑定按 id 覆盖外层——一页两个引擎照样写得出。引擎的定义说的是写了这个引擎的最外层 Provider 的 `messages`——一个引擎同时只说一种语言——所以内层换一种语言的 Provider——无论隔几层再写一次这个引擎，还是不写——只改写它之下引擎自己的措辞，不改定义的键；两个并列的 Provider 写同一个引擎时，须给它同样的措辞。`EmbeddedView` 的 `detail` 按绑定的读法读记录（`render`、`title`、`sections`），但开着哪一条是它自己的：同一定义的两个嵌入不会打开同一条，也不写绑定的 `open`。
+**有了路由端口，地址由引擎管。** 离开看板或视图的每一条路——「在工作台中打开」、一组上的追问、面板的去处、回到看板——都去目标资源的 `route`，页面要打开的东西作为这条历史的 state（`ViewRouteState`：交接来的视图、看板的 `filters` 与 `tab`）；宿主自己的路径也经路由，别的站点另开。没传 `instanceId` 的 `DataWorkbench`、`DashboardWorkbench` 打开地址的 `?view=`，读者换视图就写回去，每换一个一条历史；没传 `handOver` 的，打开这条历史里交接的视图；没传筛选那一对（`initialFilters`、`onFiltersChange`）或标签页那一对的看板——工作台的，或 `EmbeddedDashboard`——从这条历史读，读者一改就记回去。绑定了的资源，记录详情跟着 `?id=`，除非它的 `reading` 自己握着 `open`。宿主自己的 props 仍然优先，每一对各算各的。别的路由库只要两个成员：
+
+<!-- typecheck-context
+type ViewRouter = import('@ahoo-wang/wow-view-engine/ui').ViewRouter;
+declare const pathname: string;
+declare const search: string;
+declare const state: unknown;
+declare function push(path: string, state: unknown, replace: boolean): void;
+-->
+
+```ts
+const router: ViewRouter = {
+  location: { pathname, search, state },
+  go: (path, options) => push(path, options?.state, options?.replace ?? false),
+};
+```
+
+**导航是数据。** 引擎画视图、页面归宿主，所以没有整页外壳；`useViewNavigation()` 给宿主的外壳它的去处——每一项绑了 `route` 的资源，按注册的次序：`{ id, kind, title, path, current, views }`，`views` 是它的系统视图（看板定义的就是系统看板），各带 `{ id, title, path, current }`。标题按生效的措辞说，`current` 读路由端口的地址。用宿主自己的组件画——shadcn 的 `Sidebar`、顶栏都行——名字也可以是宿主自己起的：
+
+<!-- typecheck: skip — Sidebar、SidebarMenu 与 Link 是宿主自己的组件 -->
+
+```tsx
+function AppSidebar() {
+  const places = useViewNavigation();
+  return (
+    <Sidebar>
+      <SidebarMenu>
+        {places.map(place => (
+          <SidebarMenuItem key={place.id}>
+            <SidebarMenuButton
+              isActive={place.current}
+              render={<Link to={place.path} />}
+            >
+              {place.title}
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        ))}
+      </SidebarMenu>
+    </Sidebar>
+  );
+}
+```
+
+它下面的外壳只写这一处与别处不同的：`<DataWorkbench definitionId="orders" />`、`<EmbeddedDashboard instanceId="…" />`。外壳自己的 `engine`、`messages`、`locale`、`onNavigate`、`record` 仍然优先；**ViewHost** 可以嵌套，内层的绑定按 id 覆盖外层——一页两个引擎照样写得出。引擎的定义说的是写了这个引擎的最外层 `ViewHost` 的 `messages`——一个引擎同时只说一种语言——所以内层换一种语言的 `ViewHost`——无论隔几层再写一次这个引擎，还是不写——只改写它之下引擎自己的措辞，不改定义的键；两个并列的 `ViewHost` 写同一个引擎时，须给它同样的措辞。`EmbeddedView` 的 `detail` 按绑定的读法读记录（`render`、`title`、`sections`），但开着哪一条是它自己的：同一定义的两个嵌入不会打开同一条，也不写绑定的 `open`。
 
 ### 3a. 渲染默认工作台
 
@@ -326,7 +377,7 @@ export function OrdersPage() {
 }
 ```
 
-主题跟随宿主：祖先上带 `.dark` class 即为暗色；给 `ViewSurface`（或工作台、嵌入组件）传 `theme="light"` 或 `theme="dark"` 可以把某一处视图钉住，传 `theme="system"` 则跟随读者系统的 `prefers-color-scheme` 并随它实时切换，适合自己没有明暗开关的页面。弹层 portal 到 `<body>` 时带着面从级联里解析出的模式，`.dark` 不必放在 `<html>` 上。预设也是这样选的，见[预设](#预设)。
+主题跟随宿主：祖先上带 `.dark` class 即为暗色；给 `ViewSurface`（或工作台、嵌入组件）传 `theme="light"` 或 `theme="dark"` 可以把某一处视图钉住，传 `theme="system"` 则跟随读者系统的 `prefers-color-scheme` 并随它实时切换，适合自己没有明暗开关的页面。弹层 portal 到 `<body>` 时带着面从级联里解析出的模式，`.dark` 不必放在 `<html>` 上。预设也是这样选的，见[预设](https://wow.ahoo.me/zh/guide/typescript/view-engine-theming#预设)。
 
 **导入次序无关。** `styles.css` 放在宿主自己的 Tailwind 样式之前或之后都行。两者都把工具类写进 Tailwind 的 `utilities` 层，同权重的两条规则归后加载的那份，所以 `styles.css` 的每条规则都比源码多一个类的权重：在面上，我们的 `md:w-64` 不管次序都赢过宿主全局的 `.w-full`；面之外我们的规则一条也不匹配，宿主自己的标记也不管次序都照用宿主的工具类（`scripts/verify-package.mjs` 核对每条规则都带着这份权重）。
 
@@ -361,7 +412,7 @@ export function OrdersPage() {
 
 一个数据定义同时装着它的记录视图与分析视图，`DataWorkbench` 把它们列在一张列表里：用户在一张订单表与一张订单图之间切换，就像在任意两个视图之间切换一样，「新建视图」会先问要建哪一种。宿主要一页只有一种，就收窄——`kinds={['record']}`——另一种在这一页既不列出也打不开。
 
-一个人打开的视图，就是他可以发出去的一条链接。两个工作台因此都收 `instanceId` 与 `onInstanceChange`——进出你的路由的两个方向，`DataWorkbench` 与 `DashboardWorkbench` 契约完全一致。
+一个人打开的视图，就是他可以发出去的一条链接。两个工作台因此都收 `instanceId` 与 `onInstanceChange`——进出你的路由的两个方向，`DataWorkbench` 与 `DashboardWorkbench` 契约完全一致。`ViewHost` 带了 `router` 时这两个都不用写：工作台自己把开着的视图记在地址的 `?view=` 里。它们留给把视图记在别处的宿主，或者要决定的不止是视图的页面（控制台的失败执行按链接的 `?cluster=` 收窄视图）。
 
 <!-- typecheck-context
 import { ViewEngine } from '@ahoo-wang/wow-view-engine';
@@ -489,423 +540,34 @@ import {
 
 **仪表盘的筛选逐个三态**（`filterModes` 按筛选名，时间粒度用 `groupingMode`）：`adjustable`——在筛选条上、归读者，这一次看时可调，与工作台一样，也是缺省；`locked`——在筛选条上读作它的值，带一把锁、没有控件；`hidden`——不在筛选条上，照样收窄接上的面板。锁定与隐藏由 runtime 持有，读者做什么——改值、「清空」、点一组交叉筛选——都改不了它们。它们的值是页面自己的 `pageValues`（没写就是默认值）：从第一次查询起就在，并**跟着这个属性变**——客户页换到下一位客户，板子跟着换。读者的筛选是宿主地址里的那一份：`initialFilters` 与 `onFiltersChange`，读法、报法与 `DashboardWorkbench` 相同。**锁定与隐藏的值从不走地址**：`initialFilters` 里写到它们的条目不算，`onFiltersChange` 只报读者能设的筛选——否则读者改一下地址就换了客户，与「锁定」正相反。板子不收条件树（`EmbeddedDashboard` 没有 `scopeFilter`）：要收窄它，在板上声明那个筛选，再锁定或隐藏它。
 
-**记录面板上的宿主命令**来自宿主给面板视图所在定义的绑定（`ViewEngineProvider` 上的 `bind(definitionId, { actions, bulk })`，`EmbeddedDashboard` 与 `DashboardWorkbench` 都一样）：记录工作台同一套 `actions`——行动作两档都画，成批命令只在能勾选的一档（`interactive`）——以及 `useBulkCommand`，面板在行上方说它的进度；每个上下文的 `refresh` 重跑整块板。它们是宿主对自己服务的命令，嵌入照旧什么也不写。记录面板也说一共多少条，`interactive` 一档能翻页。
+**记录面板上的宿主命令**来自宿主给面板视图所在定义的绑定（`ViewHost` 上的 `bind(definitionId, { actions, bulk })`，`EmbeddedDashboard` 与 `DashboardWorkbench` 都一样）：记录工作台同一套 `actions`——行动作两档都画，成批命令只在能勾选的一档（`interactive`）——以及 `useBulkCommand`，面板在行上方说它的进度；每个上下文的 `refresh` 重跑整块板。它们是宿主对自己服务的命令，嵌入照旧什么也不写。记录面板也说一共多少条，`interactive` 一档能翻页。
 
 **锁定不是安全边界。** 页面锁定的条件是在浏览器里拼进查询的，只保证读者在界面上改不了、在这里看不到别的。改一下页面脚本、直接调接口，就能问到别的客户。租户、归属与权限必须由 Wow 后端强制——对外的页面尤其如此。本包是宿主进程里的库，不照搬 Metabase 的 iframe、签名令牌或 SSO：身份与权限属于宿主与后端。
 
 铺满屏幕：开了 `expandable`，可交互的嵌入自己画这颗开关。想把它放在宿主自己的 chrome 里，或让一块 `static` 的大屏铺满，就传一个 `ref`，用 `useViewExpansion` 指向它。
 
-#### 定制主题
+#### 主题：先选一条路
 
-每个 token 都读一个宿主层变量，并以内置值兜底：在自己的 `:root` 上给亮色设 `--fve-<token>`、给暗色设 `--fve-dark-<token>` 即可，视图根与 Portal 到 `<body>` 的弹层都会读到——不必考虑选择器作用域，也不必考虑样式加载顺序。**`:root` 上的值赢过任何预设，钉在面上的预设也不例外**：宿主、预设与引擎各写自己前缀的变量——`--fve-*` 是宿主的，`--fvp-*` 是预设的，`--_fve-*` 是引擎自己的、谁也不该写——每个 token 先读宿主的：`var(--fve-<token>, var(--fvp-<token>, <内置值>))`。想让某一块面不受某个覆盖影响，就把覆盖写在比 `:root` 更窄的选择器上。
+引入 `styles.css`，再在 `ViewHost` 上做一个选择：
 
-只给某一块面的值，用 `ViewSurface`、工作台或嵌入组件的 `tokens`——`tokens={{ '--fve-primary': '#0f766e' }}`，类型是 `FveToken`——而不是写在包裹层上：弹层 portal 到 `<body>`，不在包裹层下面，`tokens` 会写在面上，也写在它打开的每个弹层上。
-
-```css
-:root {
-  --fve-primary: oklch(0.4 0.21 265deg);
-  --fve-primary-foreground: oklch(0.99 0 0deg);
-  --fve-dark-primary: oklch(0.75 0.15 265deg);
-  --fve-dark-primary-foreground: oklch(0.21 0.05 265deg);
-  --fve-radius: 0.375rem;
-}
-```
-
-`/ui` 导出 `FveToken`，即下表每个变量的类型——`--fve-<token>`，以及有暗色那一半时的 `--fve-dark-<token>`——供在代码里设变量的宿主使用。下表由包的主题登记表生成，`dist/theme-tokens.json` 是这张登记表的数据形式，宿主自己的工具可以读它。
-
-<!-- theme-tokens:begin -->
-
-| Token                           | 用途                                                                                                                                | 亮色默认值                             | 暗色默认值                        |
-| ------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------- | --------------------------------- |
-| `background`                    | 整体底色                                                                                                                            | `oklch(1 0 0deg)`                      | `oklch(0.145 0 0deg)`             |
-| `foreground`                    | 默认文字                                                                                                                            | `oklch(0.145 0 0deg)`                  | `oklch(0.985 0 0deg)`             |
-| `card`                          | 卡片与面板底色                                                                                                                      | `oklch(1 0 0deg)`                      | `oklch(0.205 0 0deg)`             |
-| `card-foreground`               | 卡片上的文字                                                                                                                        | `oklch(0.145 0 0deg)`                  | `oklch(0.985 0 0deg)`             |
-| `popover`                       | 弹层底色                                                                                                                            | `oklch(1 0 0deg)`                      | `oklch(0.205 0 0deg)`             |
-| `popover-foreground`            | 弹层内文字                                                                                                                          | `oklch(0.145 0 0deg)`                  | `oklch(0.985 0 0deg)`             |
-| `primary`                       | 主操作填充                                                                                                                          | `oklch(0.205 0 0deg)`                  | `oklch(0.922 0 0deg)`             |
-| `primary-foreground`            | 主操作上的文字                                                                                                                      | `oklch(0.985 0 0deg)`                  | `oklch(0.205 0 0deg)`             |
-| `secondary`                     | 次操作填充                                                                                                                          | `oklch(0.97 0 0deg)`                   | `oklch(0.269 0 0deg)`             |
-| `secondary-foreground`          | 次操作上的文字                                                                                                                      | `oklch(0.205 0 0deg)`                  | `oklch(0.985 0 0deg)`             |
-| `muted`                         | 弱化底色                                                                                                                            | `oklch(0.97 0 0deg)`                   | `oklch(0.269 0 0deg)`             |
-| `muted-foreground`              | 次要文字                                                                                                                            | `oklch(0.556 0 0deg)`                  | `oklch(0.708 0 0deg)`             |
-| `accent`                        | 悬停与选中填充                                                                                                                      | `oklch(0.97 0 0deg)`                   | `oklch(0.269 0 0deg)`             |
-| `accent-foreground`             | 强调态上的文字                                                                                                                      | `oklch(0.205 0 0deg)`                  | `oklch(0.985 0 0deg)`             |
-| `sidebar`                       | 导航列底色                                                                                                                          | `oklch(0.97 0 0deg)`                   | `oklch(0.205 0 0deg)`             |
-| `sidebar-foreground`            | 导航列上的文字                                                                                                                      | `oklch(0.145 0 0deg)`                  | `oklch(0.985 0 0deg)`             |
-| `sidebar-accent`                | 导航列的悬停项                                                                                                                      | `oklch(0.922 0 0deg)`                  | `oklch(0.279 0 0deg)`             |
-| `sidebar-accent-foreground`     | 悬停项上的文字                                                                                                                      | `oklch(0.205 0 0deg)`                  | `oklch(0.985 0 0deg)`             |
-| `sidebar-border`                | 导航列的边                                                                                                                          | `oklch(0.898 0 0deg)`                  | `oklch(1 0 0deg / 20%)`           |
-| `destructive`                   | 危险与删除                                                                                                                          | `oklch(0.505 0.213 27.518deg)`         | `oklch(0.76 0.15 22.216deg)`      |
-| `success`                       | 成功                                                                                                                                | `oklch(0.448 0.119 151.328deg)`        | `oklch(0.792 0.15 151.711deg)`    |
-| `warning`                       | 需要注意、不阻塞                                                                                                                    | `oklch(0.473 0.137 46.201deg)`         | `oklch(0.828 0.15 84.429deg)`     |
-| `border`                        | 边框与分隔线                                                                                                                        | `oklch(0.922 0 0deg)`                  | `oklch(1 0 0deg / 20%)`           |
-| `input`                         | 输入与控件边框                                                                                                                      | `oklch(0.62 0 0deg)`                   | `oklch(1 0 0deg / 40%)`           |
-| `ring`                          | 焦点环                                                                                                                              | `oklch(0.62 0 0deg)`                   | `oklch(0.66 0 0deg)`              |
-| `destructive-foreground`        | 危险填充上的文字（推导）                                                                                                            | `background`                           | `background`                      |
-| `quiet-foreground`              | 汇总行里弱的那一半（推导）                                                                                                          | `foreground` 的 70%                    | 同左                              |
-| `pin-shadow`                    | 冻结列的柔边；归明暗，不归预设                                                                                                      | `oklch(0 0 0deg / 12%)`                | `oklch(1 0 0deg / 10%)`           |
-| `chart-1`                       | 图表第 1 个色位：第 1 个系列                                                                                                        | `oklch(0.565 0.1626 255.532deg)`       | `oklch(0.6221 0.1612 255.053deg)` |
-| `chart-2`                       | 图表第 2 个色位：第 2 个系列                                                                                                        | `oklch(0.6708 0.175 40.642deg)`        | `oklch(0.6221 0.1726 40.112deg)`  |
-| `chart-3`                       | 图表第 3 个色位：第 3 个系列                                                                                                        | `oklch(0.669 0.1408 162.111deg)`       | `oklch(0.6212 0.1283 163.115deg)` |
-| `chart-4`                       | 图表第 4 个色位：第 4 个系列                                                                                                        | `oklch(0.7644 0.1612 75.116deg)`       | `oklch(0.6699 0.1425 73.227deg)`  |
-| `chart-5`                       | 图表第 5 个色位：第 5 个系列                                                                                                        | `oklch(0.7163 0.1412 357.389deg)`      | `oklch(0.6224 0.1712 0.838deg)`   |
-| `chart-6`                       | 图表第 6 个色位：第 6 个系列                                                                                                        | `oklch(0.5285 0.1798 142.495deg)`      | `oklch(0.5285 0.1798 142.495deg)` |
-| `chart-7`                       | 图表第 7 个色位：第 7 个系列                                                                                                        | `oklch(0.4331 0.1671 283.624deg)`      | `oklch(0.6696 0.1452 286.827deg)` |
-| `chart-8`                       | 图表第 8 个色位：第 8 个系列                                                                                                        | `oklch(0.6226 0.1909 24.912deg)`       | `oklch(0.6693 0.1586 22.307deg)`  |
-| `radius`                        | 圆角基准，其余档位由它换算                                                                                                          | `0.625rem`                             | —                                 |
-| `text-ui`                       | 正文之下唯一的那一档字号                                                                                                            | `0.8125rem`                            | —                                 |
-| `font-sans`                     | 字体，一条系统字体栈                                                                                                                | 不设：页面的                           | —                                 |
-| `chart-patterns`                | 图表系列上的花纹：`on`、`off`，或不设／`auto` 跟随读者的「提高对比度」                                                              | 不设                                   | —                                 |
-| `brand`                         | 品牌色，任何预设都接受：主色、`accent`、`sidebar-accent` 与选中行的淡色，以及预设给了边界时的焦点环都取它的色相，各按该预设的线收住 | 不设                                   | `brand`                           |
-| `brand-l-min`                   | 主色亮度的下限：比它暗的品牌色被提到这里                                                                                            | `0.4`                                  | `0.68`                            |
-| `brand-l-max`                   | 主色亮度的上限：比它亮的品牌色被压到这里                                                                                            | `0.5`                                  | `0.8`                             |
-| `brand-c-max`                   | 主色与焦点环的彩度上限                                                                                                              | `0.37`                                 | `0.18`                            |
-| `brand-ring-l-min`              | 焦点环亮度的下限；两个焦点边界都不设时焦点环不跟品牌色                                                                              | 不设                                   | 同左                              |
-| `brand-ring-l-max`              | 焦点环亮度的上限                                                                                                                    | 不设                                   | 同左                              |
-| `brand-accent-lc`               | `accent` 取品牌色相时的亮度与彩度（两个数）                                                                                         | `0.96 0.02`                            | `0.3 0.03`                        |
-| `brand-sidebar-accent-lc`       | `sidebar-accent` 取品牌色相时的亮度与彩度                                                                                           | `0.92 0.03`                            | `0.3 0.03`                        |
-| `brand-row-selected-lc`         | 选中行取品牌色相时的亮度与彩度                                                                                                      | `0.965 0.02`                           | `0.28 0.03`                       |
-| `brand-chart-1-lc`              | 有 `data-fve-brand-chart` 时图表第 1 色的亮度与彩度——即预设自己第 1 色的                                                            | `0.565 0.1626`                         | `0.6221 0.1612`                   |
-| `preset-density`                | 预设推荐的密度：`-1`、`0` 或 `1`（归预设；宿主用 `data-fve-density`）                                                               | 不设                                   | —                                 |
-| `rise`                          | 上升，按方向                                                                                                                        | `success`（见[涨跌色](#涨跌色升与降)） | `success`                         |
-| `fall`                          | 下降，按方向                                                                                                                        | `destructive`                          | `destructive`                     |
-| `shadow-sm`                     | 低的一档浮起：浮起的卡片                                                                                                            | Tailwind 的 `shadow-sm`                | 同左                              |
-| `shadow-md`                     | 中的一档浮起：弹层                                                                                                                  | Tailwind 的 `shadow-md`                | 同左                              |
-| `shadow-lg`                     | 高的一档浮起：拖动中的面板                                                                                                          | Tailwind 的 `shadow-lg`                | 同左                              |
-| `canvas`                        | 分组底：看板与宿主按卡片排的页面站在它上面（`bg-canvas`）                                                                           | `background`                           | `background`                      |
-| `content`                       | 行与结果写在上面的底                                                                                                                | `background`                           | `background`                      |
-| `card-edge`                     | 卡片的一圈边：看板面板、记录卡片                                                                                                    | `foreground` 的 10%                    | 同左                              |
-| `card-shadow`                   | 卡片离开底的浮起                                                                                                                    | `0 0 #0000`                            | `0 0 #0000`                       |
-| `scrim`                         | 对话框与抽屉背后压暗页面的遮罩                                                                                                      | `oklch(0 0 0deg / 10%)`                | `oklch(0 0 0deg / 10%)`           |
-| `table-header`                  | 表格的表头带                                                                                                                        | `muted`                                | `muted`                           |
-| `table-header-foreground`       | 表头带上的文字                                                                                                                      | `foreground`                           | `foreground`                      |
-| `table-header-weight`           | 表头的字重                                                                                                                          | `strong-weight`                        | —                                 |
-| `table-header-divider`          | 表头列与列之间的分隔线（`transparent`：没有）                                                                                       | `transparent`                          | `transparent`                     |
-| `totals`                        | 表格的合计带：汇总行、分析的合计行                                                                                                  | `muted`                                | `muted`                           |
-| `row-selected`                  | 选中的行、按下的分组                                                                                                                | `muted`                                | `muted`                           |
-| `row-selected-foreground`       | 选中行上的文字                                                                                                                      | `foreground`                           | `foreground`                      |
-| `row-hover`                     | 悬停的行（推导）                                                                                                                    | `muted` 与 `background` 各半           | 同左                              |
-| `row-stripe`                    | 隔行的底（关：行自己的底）                                                                                                          | `content`                              | `content`                         |
-| `row-divider`                   | 表体两行之间的分隔线（`transparent`：没有，隔行已有条纹时）                                                                         | `border`                               | `border`                          |
-| `table-sort-idle`               | 可排序列未排序时的标记在有指针的设备上显示多少（`0`：只在指针下或聚焦时出现）                                                       | `1`                                    | —                                 |
-| `highlight`                     | 菜单、选择框、组合框里键盘或指针所在的那一项                                                                                        | `accent`                               | `accent`                          |
-| `highlight-foreground`          | 那一项上的文字                                                                                                                      | `accent-foreground`                    | `accent-foreground`               |
-| `highlight-link`                | `highlight` 取解析后的 `primary` 多少：`100%` 就是 `primary` 本身，随品牌色与明暗                                                   | 不设：不链接                           | —                                 |
-| `highlight-foreground-link`     | `highlight-foreground` 取解析后的 `primary-foreground` 多少：`100%` 就是 `primary-foreground` 本身，随品牌色与明暗                  | 不设：不链接                           | —                                 |
-| `item-selected`                 | 菜单、选择框、组合框里已选中的那一项                                                                                                | `transparent`                          | `transparent`                     |
-| `item-selected-foreground`      | 那一项上的文字                                                                                                                      | `popover-foreground`                   | `popover-foreground`              |
-| `item-selected-weight`          | 那些文字的字重                                                                                                                      | 不设：那一项原样                       | —                                 |
-| `item-selected-link`            | `item-selected` 取解析后的 `row-selected` 多少：`100%` 就是 `row-selected` 本身，随品牌色与明暗                                     | 不设：不链接                           | —                                 |
-| `nav-current`                   | 视图列表里正在看的那一个                                                                                                            | `background`                           | `background`                      |
-| `nav-current-foreground`        | 它的文字                                                                                                                            | `foreground`                           | `foreground`                      |
-| `nav-current-edge`              | 它的边                                                                                                                              | `border`                               | `border`                          |
-| `nav-current-shadow`            | 它离开侧栏的浮起                                                                                                                    | `0 1px 2px 0 rgb(0 0 0 / 0.05)`        | `0 1px 2px 0 rgb(0 0 0 / 0.05)`   |
-| `nav-current-link`              | `nav-current` 取解析后的 `row-selected` 多少：`100%` 就是 `row-selected` 本身，随品牌色与明暗                                       | 不设：不链接                           | —                                 |
-| `nav-current-foreground-link`   | `nav-current-foreground` 取解析后的 `primary` 多少：`100%` 就是 `primary` 本身，随品牌色与明暗                                      | 不设：不链接                           | —                                 |
-| `control-hover`                 | 指针下的按钮或切换                                                                                                                  | 不设：各控件原样                       | 不设：各控件原样                  |
-| `control-pressed`               | 按下的切换                                                                                                                          | 不设：`muted`                          | 不设：`muted`                     |
-| `outline-hover-edge`            | 指针下的描边按钮的边                                                                                                                | 不设：`border`                         | 不设：`input`                     |
-| `outline-hover-foreground`      | 它的文字                                                                                                                            | `foreground`                           | `foreground`                      |
-| `outline-hover-edge-link`       | `outline-hover-edge` 取解析后的 `primary` 多少：`100%` 就是 `primary` 本身，随品牌色与明暗                                          | 不设：不链接                           | —                                 |
-| `outline-hover-foreground-link` | `outline-hover-foreground` 取解析后的 `primary` 多少：`100%` 就是 `primary` 本身，随品牌色与明暗                                    | 不设：不链接                           | —                                 |
-| `focus-width`                   | 获得焦点的控件的轮廓宽度                                                                                                            | 不设：没有轮廓，用 registry 的边与光晕 | —                                 |
-| `focus-offset`                  | 那道轮廓离控件边的距离                                                                                                              | `0px`                                  | —                                 |
-| `focus-style`                   | 那道轮廓的样式：`solid`、`dashed`、`double`……                                                                                       | `solid`                                | —                                 |
-| `focus-halo`                    | 获得焦点的控件周围的光晕（`transparent`：没有）                                                                                     | `ring` 的 50%                          | 同左                              |
-| `control`                       | 以文字或图标自明的控件的静止填色：筛选条、分段控件、工具栏上的描边按钮                                                              | 不设：各控件原样                       | 不设：各控件原样                  |
-| `control-edge`                  | 这类控件的边（装着输入框的筛选条仍用 `input`）                                                                                      | 不设：各控件原样                       | 不设：各控件原样                  |
-| `control-thumb`                 | 分段控件按下的那一项，轨道上的滑块                                                                                                  | 不设：`muted`                          | 不设：`muted`                     |
-| `control-thumb-shadow`          | 滑块离开轨道的浮起                                                                                                                  | `0 0 #0000`                            | `0 0 #0000`                       |
-| `control-height`                | 控件的高度：按钮、输入框、选择框、筛选条里的控件                                                                                    | `2rem`                                 | —                                 |
-| `control-height-sm`             | 小控件的高度：工具栏的按钮                                                                                                          | `1.75rem`                              | —                                 |
-| `filter-height`                 | 看板筛选芯片的高度，里面的控件填满它                                                                                                | 不设：由控件与内边距撑开               | —                                 |
-| `edge-width`                    | 控件边的宽度（分隔线仍是 1px）                                                                                                      | `1px`                                  | —                                 |
-| `badge-edge`                    | 带色徽标的边取它的色调多少                                                                                                          | `30%`                                  | —                                 |
-| `badge-fill`                    | 带色徽标的底取它的色调多少                                                                                                          | `10%`                                  | —                                 |
-| `radius-card`                   | 卡片与对话框的圆角                                                                                                                  | `radius` × 1.4                         | —                                 |
-| `radius-control`                | 控件的圆角（小控件取它的 0.8，最多 12px）                                                                                           | `radius`                               | —                                 |
-| `radius-popover`                | 弹层的圆角                                                                                                                          | `radius`                               | —                                 |
-| `radius-badge`                  | 徽标的圆角                                                                                                                          | `radius` × 2.6                         | —                                 |
-| `radius-checkbox`               | 复选框的圆角                                                                                                                        | `4px`                                  | —                                 |
-| `title-weight`                  | 视图、卡片与对话框标题的字重                                                                                                        | `500`                                  | —                                 |
-| `strong-weight`                 | 比周围文字更重的那些的字重：表头、合计                                                                                              | `500`                                  | —                                 |
-| `tooltip`                       | 提示框的底                                                                                                                          | `foreground`                           | `foreground`                      |
-| `tooltip-foreground`            | 提示框里的文字                                                                                                                      | `background`                           | `background`                      |
-| `chart-grid`                    | 图表的网格线与轴线                                                                                                                  | `border`                               | `border`                          |
-| `chart-grid-width`              | 图表网格线的宽度                                                                                                                    | `1px`                                  | —                                 |
-| `chart-axis`                    | 图表里弱一级的字：刻度、轴名、色阶两端、图形旁的名称                                                                                | `muted-foreground`                     | `muted-foreground`                |
-| `chart-text-size`               | 图表文字的字号：刻度、轴名、名称                                                                                                    | `text-ui` − 1px（12px）                | —                                 |
-| `chart-label-size`              | 标在图形上的数值的字号，比图表文字小一级                                                                                            | `text-ui` − 2px（11px）                | —                                 |
-| `chart-line-width`              | 折线的宽度（算出的系列取它的 ¾）                                                                                                    | `2px`                                  | —                                 |
-| `chart-area-opacity`            | 面积图线下填色的不透明度                                                                                                            | `0.2`                                  | —                                 |
-| `chart-bar-radius`              | 柱末端的圆角（漏斗的级、热力图的格同样）                                                                                            | `radius` × 0.6，最多 2px               | —                                 |
-| `chart-bar-min-width`           | 柱最窄画多宽                                                                                                                        | 不设：随绘图区                         | —                                 |
-| `chart-bar-max-width`           | 柱最宽画多宽                                                                                                                        | `80px`                                 | —                                 |
-| `chart-slice-border`            | 饼图扇区之间的缝，颜色取图表的底                                                                                                    | `1px`                                  | —                                 |
-| `chart-map-edge`                | 地图的边界线，有数与没数的区域都描                                                                                                  | `chart-axis`                           | `chart-axis`                      |
-| `chart-tooltip`                 | 图表提示框的底                                                                                                                      | `popover`                              | `popover`                         |
-| `chart-tooltip-foreground`      | 图表提示框里的数                                                                                                                    | `popover-foreground`                   | `popover-foreground`              |
-| `chart-tooltip-shadow`          | 图表提示框的浮起                                                                                                                    | `shadow-md`                            | `shadow-md`                       |
-
-<!-- theme-tokens:end -->
-
-字体归宿主：面上写的是 `font-family: var(--fve-font-sans, var(--fvp-font-sans))`——先宿主、后预设——不设时这条声明无效，`font-family` 照旧从页面继承。把 `--fve-font-sans` 设成一条系统字体栈，视图就用它；图表读计算出来的字体，跟着变。它没有暗色那一半。
-
-五个 `sidebar*` 用的是 shadcn 自己的命名，指的是工作台放视图列表的那条导航列——已经在给 shadcn 侧栏配主题的宿主，用同一组词就能配这一条。只声明这条列真正画到的那五个。列里当前打开的那一项是 `background` 叠在 `sidebar` 上，悬停是 `sidebar-accent`，三者因此必须互相分得开：其中两个解析成同一档灰，这份列表就没有「你在这里」了。
-
-`input` 与 `ring` 要守一条别的 token 不必守的线：控件的边与焦点标记按 WCAG 1.4.11 要与身后的颜色有 3:1，两个默认值在明暗两态都调到过线（Storybook 的对比度故事在浏览器里量）。它们刻意是独立的值。常见的 shadcn 品牌主题会把它们改指别处——`--ring: var(--primary)`、`--input: var(--border)`——这就把 3:1 交给了一个品牌色和一档分隔线灰，而它们都不欠这条线：未勾的复选框成了一根细线，获焦的行只剩一层淡色。设 `--fve-primary` 或 `--fve-border` 不会动到它们；设了 `--fve-ring`／`--fve-input`（或 `--fve-dark-` 那一半）的宿主，同样欠自己的主题这条 3:1，应当自己量。
-
-有几个 token 是推导出来的：汇总行的弱字 `quiet-foreground` 是 `foreground` 的七成，`destructive-foreground` 是 `background`，宿主改了 `--fve-foreground` 或 `--fve-background`，它们跟着变。每一个仍能单独设（`--fve-quiet-foreground`、`--fve-destructive-foreground` 与各自的 `--fve-dark-` 那一半）。
-
-图表用从这些 token 读回来的具体颜色、长度与数字画，而不是 `var()`，所以面或它任一祖先上的这些属性变了时，它要被告知重读：<!-- chart-attributes:begin -->`class`、`data-theme`、`data-fve-preset`、`data-fve-change-colors`、`data-fve-density`、`data-fve-brand-chart` 或 `style`<!-- chart-attributes:end -->。样式表推导出来的值（`color-mix()`、`oklch(from …)`、`calc()`）由浏览器先算好再交给图表。换主题请改这些属性之一；只换样式表而不动任何属性，图表会留在旧颜色上。
-
-`radius` 与 `text-ui` 是暗色块不重新声明的两个 token——长度在明暗两态里是同一个长度——因此 `--fve-radius` 与 `--fve-text-ui` 对两态同时生效，也就没有对应的 `--fve-dark-` 那一半。`text-ui` 是正文之下唯一的那一档：分组标签、列头、徽章、分页与所有 `sm` 控件都用它，宿主改一处，这些一起动。
-
-根默认涂 `--background`，因此嵌入在宿主卡片里的视图会露出自己的底色矩形——暗色下 `--card` 比 `--background` 亮一档，嵌入块读成卡片里一块更深的区域。让它涂所在之处的颜色：在那张卡片上把 `--fve-background` 与 `--fve-dark-background` 设为卡片色（变量会继承，卡片里的嵌入视图读到，别处不受影响）。不要设成 `transparent`：行、冻结列、悬停色与危险按钮上的字都用 `--background` 画，透明会让横向滚动的列从冻结列底下透出来，危险按钮的字也看不见。
-
-弹层——菜单、下拉列表、Popover、Tooltip 与对话框——都 portal 到 `<body>`，画在 `z-index: 50` 这一层，压在周围页面之上。宿主自己的 chrome 堆得比它还高时，改一个变量即可把它们一起抬起来：
-
-```css
-:root {
-  --fve-popup-z-index: 2000;
-}
-```
-
-铺满屏幕的视图（工作台或嵌入上的「铺满屏幕」）钉在视口上、层级为 `0`：盖住页面的普通内容，宿主有意抬高的界面仍然盖在它上面。侧栏是 `position: fixed` 且层级更高的外壳（shadcn 的侧栏是 `z-index: 10`）会挡住视图最左边的几列，这样的宿主把铺满的视图抬到自己的界面之上、弹层之下：
-
-```css
-:root {
-  --fve-expanded-z-index: 20;
-}
-```
-
-它是十个宿主变量之一：它们是布局的长度与层级，不属于主题——没有预设设它们，也没有暗色那一半。前五个是[密度](#密度)的长度：缺省值由密度档位给，你写的值压过档位：
-
-<!-- layout-variables:begin -->
-
-| 变量                              | 用途                                                                    | 默认值                 |
-| --------------------------------- | ----------------------------------------------------------------------- | ---------------------- |
-| `--fve-table-header-height`       | 表格表头行的高度，压过密度                                              | 随密度：32 / 40 / 44px |
-| `--fve-table-cell-padding-block`  | 表格单元格里值上下的留白，压过密度                                      | 随密度：4 / 8 / 10px   |
-| `--fve-table-cell-padding-inline` | 表格单元格里值左右的留白，压过密度                                      | 随密度：6 / 8 / 12px   |
-| `--fve-sidebar-item-height`       | 视图列表里一项的高度，压过密度；不要低于 24px（WCAG 2.5.8）             | 随密度：24 / 28 / 32px |
-| `--fve-panel-padding`             | 仪表盘面板内容四周的留白，压过密度；上下最多 12px（仪表盘的 80px 行高） | 随密度：8 / 12 / 16px  |
-| `--fve-expanded-z-index`          | 铺满屏幕的视图相对宿主页面所在的层级                                    | `0`                    |
-| `--fve-popup-z-index`             | 每个 portal 出去的弹层所在的层级                                        | `50`                   |
-| `--fve-record-table-max-h`        | 记录表格与分析表格的最大高度，超出即在表内滚动（`size="content"`）      | `70vh`                 |
-| `--fve-record-text-max-w`         | `text` 单元格换行之前最多多宽                                           | `24rem`                |
-| `--fve-workbench-min-height`      | 容器没有确定高度时，工作台的最低高度                                    | `36rem`                |
-
-<!-- layout-variables:end -->
-
-#### 预设
-
-预设是上面那些变量换成预设前缀后的一组取值——`--fvp-*`／`--fvp-dark-*`——由 `data-fve-preset` 属性选中。选一套只要一行：引一个文件、写一个属性（或一个 prop）。
+| 路         | 适合                                  | 写法                                                                        | 引擎做                                                                                |
+| ---------- | ------------------------------------- | --------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
+| 引擎跟宿主 | 已有 shadcn 主题（Tailwind v4）的宿主 | `theme="host"`，并引入 `shadcn-bridge.css`                                  | 把宿主的 shadcn 变量读进自己的；`input`、`ring`、状态色与图表色仍用本包的，为了对比度 |
+| 宿主跟引擎 | 没有主题、或愿意穿引擎主题的宿主      | `preset="porcelain"`（引入 `themes/porcelain.css`），可加 `brand="#1d4ed8"` | 在 `<html>` 上点名预设与品牌色；宿主自己的外壳挂 `fve-tokens`，拿到同一套 shadcn 名   |
 
 ```ts
 import '@ahoo-wang/wow-view-engine/styles.css';
-// 只要一套：只引它自己的文件
-import '@ahoo-wang/wow-view-engine/themes/porcelain.css';
-// 或者运行时切换：引全部预设
-// import '@ahoo-wang/wow-view-engine/themes.css';
-```
-
-```html
-<html data-fve-preset="porcelain"></html>
-```
-
-属性挂在 `<html>` 上，所有视图与弹层都换上这套预设。想让某一个视图用自己的，就在 `ViewSurface`、工作台或嵌入组件上用 `preset` 钉住；它的弹层像带着 `data-theme` 一样把它带到 `<body>`。钉在另一套里面的预设整套替换外层那套：`styles.css` 在每个挂了预设的元素上先清空预设层，外层给了、里层没给的（比如某个可选组）一样也到不了钉住的面。挂在其他祖先上的 `data-fve-preset` 也有效：面会找到最近的那个，交给自己的弹层。`/ui` 导出 `BUILT_IN_PRESETS`（内置预设名的只读数组）与由它得出的 `BuiltInPreset` 类型；`preset` prop 的类型 `ViewPreset` 是内置名加任意字符串——内置名有补全，宿主自己的预设名也能传。引擎不画主题选择器：要给用户选，就在宿主自己的 chrome 里用 `BUILT_IN_PRESETS` 列出来。
-
-**内置目录**（名字是描述性的普通词，不指任何公司或产品；每套亮暗两半都量过）：
-
-| 预设        | 性格                                                                                                           | 圆角           | 字体                 | 图表八色 | 适合                                           |
-| ----------- | -------------------------------------------------------------------------------------------------------------- | -------------- | -------------------- | -------- | ---------------------------------------------- |
-| `neutral`   | 默认；中性灰、黑色主色                                                                                         | 10px           | 宿主的               | 默认     | 不想要任何风格，或自己改几个变量               |
-| `azure`     | 中国企业后台：明快的蓝、灰底白卡、柔和的多层阴影                                                               | 6px            | 中文优先的系统字体   | 自带     | 中国企业的内部系统                             |
-| `porcelain` | 桌面原生：系统字体、6px 的控件配 12px 的卡片、柔和阴影、近中性的灰、主色填充的菜单高亮、隔行的表格，焦点跟主色 | 6px／卡片 12px | 系统字体（苹果优先） | 自带     | 面向业务人员与管理层的产品、Mac 为主的团队     |
-| `contrast`  | 高对比：字 ≥7:1，2px 的控件边与离控件 2px 的 2px 焦点 ≥4.5:1，选中行着色，默认开图表花纹                       | 4px            | 宿主的               | 自带     | 低视力读者、强光下的大屏、要求 WCAG AAA 的客户 |
-
-**我的品牌该选哪套**：
-
-| 你的情况                           | 用什么                                                                       |
-| ---------------------------------- | ---------------------------------------------------------------------------- |
-| 已经是 shadcn 应用，有自己的主题   | `shadcn-bridge.css`，不挂预设（见下文）                                      |
-| 没有设计系统，要一个现成的风格     | 上表里最像你的那一套                                                         |
-| 后台长得像国内常见的开源组件库     | `azure`；看板面向 A 股或国内经营数据时再加 `data-fve-change-colors="red-up"` |
-| 想要 macOS／Apple 桌面应用那种感觉 | `porcelain`                                                                  |
-| 只有一个品牌色                     | 任何一套预设（包括 `neutral`）加 `--fve-brand: <你的颜色>`（见下）           |
-| 有完整的设计规范                   | 选最接近的一套，再在 `:root` 上覆盖差的那几个 `--fve-*`                      |
-
-- **预设与明暗互不相干。** 预设只提供亮暗两半的值；亮还是暗仍由上文的 `.dark` 或 `theme` 决定。
-- **宿主自己的变量优先。** 你在 `:root` 上设的 `--fve-*` 总是赢过你选的预设——挂在 `<html>` 上的也好、钉在面上的也好，不管哪份样式表先加载——因为预设写的是 `--fvp-*`，每个 token 先读你的：想改预设里的某一个颜色，不必把其余的重写一遍。
-- **图表花纹**：`--fve-chart-patterns: on | off` 设在任一祖先上，钉开或钉关图表系列上的花纹（decal）；不设（或 `auto`）时跟随读者系统的「提高对比度」（`prefers-contrast: more`）。它不是颜色；只有 `contrast` 这一套预设设它（`--fvp-chart-patterns: on`），你在 `:root` 上写的 `off` 仍然赢。
-- **预设给什么**：只写它要改的。没写的就是内置值——绝不是外层预设的，因为挂了预设的元素上预设层先被清空——`neutral` 一个也不写。有两组各是一个整体、全给或全不给：两种明暗的图表八色、两种明暗的三档阴影。颜色与 `radius` 之外，预设还可以给一条系统字体栈（`--fvp-font-sans`）、图表花纹的钉（`--fvp-chart-patterns`）、推荐的密度（`--fvp-preset-density`，见[密度](#密度)），以及任何一个**角色**——见下面的[角色](#角色)。预设自带的色板与默认八色过同一套色觉与对比门（`test/paletteDistance.test.ts`）；色位是序数——「第三个系列」——不是色相，所以 `ChartSpec.colors` 里写 `var(--chart-3)` 的，换预设颜色会跟着变。要去掉一档阴影，写一个透明的阴影（`0 0 0 0 transparent`），不要写 `none`：工具类把阴影与描边拼成一个列表，`none` 放进列表里整条声明就失效，连弹层的描边也一起没了。
-- <a id="角色"></a>**角色**：上面 token 表里从 `canvas` 到 `chart-tooltip-shadow` 的那些行，是引擎自己的面，而不是颜色——分组底与行的底（`canvas`、`content`）、卡片的边与浮起、对话框背后的遮罩、表格的表头带（底、字、字重、列之间的分隔线）、合计带、选中行与隔行底、菜单的高亮项、视图列表里正在看的那一个、指针下或按下的控件、焦点（轮廓的宽度、偏移与样式，以及光晕）、控件的填色、边、按下的滑块与它的浮起、控件的两档高度、控件边的宽度、带色徽标的底与边、分部件的圆角（卡片、控件、弹层、徽标、复选框）、标题与强调的字重、提示框，以及图表的外观（见下）。每个角色与其他 token 一样，宿主写 `--fve-<角色>`、预设写 `--fvp-<角色>`；**不设时就是它落回的那个 token，或者这块面在有这个角色之前画出来的样子**——所以改 `--fve-muted` 仍会带着表头带、合计带与选中行一起变，一个角色都不设的主题与从前一模一样。要把某一块面与其余分开就设它的角色：`--fve-row-selected: oklch(0.96 0.03 250deg)` 只给选中行上色，表头带仍是 `muted`。控件高度守 24px 的地板（WCAG 2.5.8），承诺 AAA 的主题给 `--fve-focus-width` 至少 2px（WCAG 2.4.13）；每个作为底的角色与其余的底一样量对比度（`src/ui/theme/pairs.ts`）。
-- <a id="角色的链接"></a>**链接**：预设写的颜色在挂预设的元素上（通常是 `<html>`）就定下来了，所以预设说不出「菜单高亮就是主色」——那个主色要到视图上才从品牌色或宿主自己的 `--fve-primary` 解析出来。链接替它说：`<角色>-link`（上表里 `-link` 结尾的几行）是视图上解析出的那个 token 取多少来画这个角色，`100%` 就是它本身，少于它是把它半透明地铺在底上。`--fve-highlight-link: 100%` 加 `--fve-highlight-foreground-link: 100%`，菜单、选择框、组合框的高亮项就都用主色填充、主色的字——即你的品牌色，亮暗都对。链接一个数管两种明暗；你写的角色颜色赢过它，它赢过预设自己的颜色。`porcelain` 链了菜单高亮，`azure` 链了当前视图、已选项与描边按钮悬停时的边，所以两者都跟着品牌色。
-- <a id="图表角色"></a>**图表的角色**：图表库画的是自己的 SVG，样式表够不到，所以图表从自己的元素上把整个外观读回来——颜色读成颜色、长度读成像素、数字读成数字，都由浏览器算（`calc()`、`min()`、`oklch(from …)` 都算在内）——再用它来画：网格线与轴线（`chart-grid`、`chart-grid-width`）、图表里弱一级的字（`chart-axis`）、图表文字与数值标签的字号（`chart-text-size`、`chart-label-size`，跟随 `text-ui`）、线宽与面积的不透明度（`chart-line-width`、`chart-area-opacity`）、柱的圆角与柱宽的上下限（`chart-bar-radius`、`chart-bar-min-width`、`chart-bar-max-width`）、饼图扇区之间的缝（`chart-slice-border`）、地图的边界线（`chart-map-edge`，不设时是图表弱一级的灰；它是边，对底色、对没数的区域、对色阶最浅的一档都守 3:1，没数的区域、岛屿与争议线靠它才与底色分得开）。不设时就是图表原来的样子；柱的圆角跟着 `radius` 走（取它的 0.6，最多 2px），所以方角风格的柱子自己就是方的，不必为柱子另说一句。图表的提示框是 HTML，像任何弹层一样读它的角色（`chart-tooltip`、`-foreground`、`-shadow`：弹层的底、字与浮起）。何时让图表重读，与它的颜色相同，见下。
-- **预设从不改的**：`pin-shadow`（由明暗决定）、`text-ui`（宿主的排版）与 `rise`／`fall`（宿主的[涨跌色约定](#涨跌色升与降)）。宿主自己设 `--fve-chart-*` 的，要替自己的色板补上上面那些测量。
-- **每套都只用这份合同。** 内置预设只写上面 token 表里记下的变量的预设层，没有私有选择器，也没有为哪一套预设开的代码路径（`test/themeFiles.test.ts` 核对每个变量都在主题登记表 `src/ui/theme/tokens.ts` 里，上面的 token 表就由它生成）。所以内置预设做得到的，你自己的预设也做得到。每套预设在两种明暗下，字、控件边、焦点的每一对都过 4.5:1／3:1（`test/presetContrast.test.ts`）。
-- `themes.css` 与 `themes/<名>.css` 里只有这些变量赋值，没有任何 at-rule；`scripts/verify-package.mjs` 在每次构建时核对：每条规则都是一个预设块，每条声明都是登记表里的 `--fvp-` 变量、且从不写 `initial`，图表八色与阴影全给或全不给，`styles.css` 里的复位规则清空的正好是预设层，单套文件拼起来就是 `themes.css`，每套 gzip 后不超过 1.5 KB、全部不超过 8 KB。每套的取值与取舍写在包里 `src/themes/<名>.css` 的注释里。
-
-**我有品牌色**：把你的颜色写成 `--fve-brand`，预设照样随便挑——不挂也行。整套主题就这些：
-
-```css
-@import '@ahoo-wang/wow-view-engine/styles.css';
-@import '@ahoo-wang/wow-view-engine/themes/azure.css';
-
-:root {
-  --fve-brand: #7c3aed;
-  /* 可选：暗色另给一个；不给，暗色也从 --fve-brand 派生 */
-  --fve-dark-brand: #a78bfa;
-}
-```
-
-```html
-<html data-fve-preset="azure"></html>
-```
-
-主色取你的颜色的色相，`accent`（选中的项）、`sidebar-accent`（视图列表里悬停的那一个）与选中行的淡色也取它；焦点环本来就是主色的预设（`porcelain`、`contrast`）里焦点环也跟着变。派生在 OKLCH 里算、只写一处（`styles.css`），每套预设只给它在自己的底上量出来的**边界**——token 表里 `brand-*` 那几行：`neutral` 把主色亮度夹在亮色 0.40～0.50（配近白的字）、暗色 0.68～0.80（彩度至多 0.18，配深色的字）；`contrast` 承诺 7:1，夹在 0.25～0.36 与 0.80～0.90。所以不管给什么颜色，挂哪一套，作字、作填充都守得住那一套的每一条对比度线——有测试在每一套、每种明暗下把整个 sRGB 色域扫一遍来守。太亮的品牌色（比如黄）或太暗的，会比品牌手册深一些或浅一些：这是这份保证的代价。灰、`input`、状态色与图表八色仍是预设自己的。
-
-- **`--fve-brand` 挂在视图之上的哪里都行**——`:root`、某个包裹层，或面的 `tokens`——因为派生在视图自己身上算，不在挂预设的地方。弹层会被 portal 到包裹层之外的 `<body>`，所以只给某一块视图时用 `tokens`，与任何变量一样。
-- **你自己写的值仍然赢**：你设的 `--fve-primary`（或 `--fve-accent`、`--fve-row-selected`、`--fve-ring`）赢过品牌派生，品牌派生赢过预设自己的颜色。
-- **图表第 1 色**默认保持预设的颜色，要你用一个属性打开，与预设、密度一样：在 `<html>` 或视图的任一祖先上加 `data-fve-brand-chart`（有就开、没有就关；视图会把它抄到弹层上），它就取你的色相、保留预设调好的亮度与彩度，所以柱内的字与它在卡片上的对比度不变。它与其余七色的色觉间距对任意颜色证明不了，打开之后色板的测量归你，与自己设 `--fve-chart-*` 一样。
-- **没给颜色就没有品牌**：不设 `--fve-brand`，每个派生值都无效，预设原样。
-- **浏览器**：用的是相对颜色语法（Chrome 119、Safari 18、Firefox 128 起）。派生包在 `@supports` 里，旧浏览器看到的是预设自己的颜色，而不是失效的颜色。
-- **原来的 `brand` 预设**就是不挂预设（或 `neutral`）加 `--fve-brand`；原来的 `blue` 就是再给 `--fve-brand: oklch(0.488 0.243 264.376deg)`，要暗色也一模一样，再加 `--fve-dark-brand: oklch(0.707 0.165 254.624deg)`。
-
-**自己写一套**：照同样的写法定义自己的预设——`:where([data-fve-preset='acme']) { --fvp-table-header-weight: 600; --fvp-highlight-link: 100%; … }`，只写 `--fvp-*`、只写要改的，写在你自己的任何 `@layer` 之外（复位规则在 `styles.css` 最低的 `fve-reset` 层里，你的样式表若先声明了一个层、又把预设写进去，会输给复位）——用同一个属性或 prop 选中。品牌色写成旁边的 `--fve-brand`，不要把颜色抄进预设：品牌色的派生守着对比度线，抄进去的主色不守。写完怎样自查：打开 Storybook 的「主题/预设 → 对比度矩阵」，把自己的 `--fve-*` 或 `--fvp-*` 声明粘进输入框，它们作为一套预设当场与内置预设一起量——对比度矩阵与图表八色的三道门都在那一页。Storybook 的「主题/宿主自定义主题」是一套完整的例子，即 `stories/view-engine/host-theme/acme.css`：包外的一份样式表，一个品牌色、几个角色、链接到主色的菜单高亮、一套自己的图表八色，只用这份合同，过同样的门（浏览器里，以及 `test/themeGuide.test.ts`——它还把本 README 与主题指南里的每一段 CSS、HTML 示例对到登记表与对比度线上）。
-
-#### 涨跌色：升与降
-
-视图上有两处颜色表示变化：指标卡的变化（较上一期、较对比指标），和瀑布图的每一步。默认按**好坏**着色——指标往好的方向走（`lowerIsBetter` 决定哪边是好）用 `success`，往坏的方向用 `destructive`；瀑布图升用 `success`、降用 `destructive`。市场的读法不同：中国大陆的看板按**方向**着色、红涨；港股、欧美也按方向、绿涨。这由宿主按市场与读者决定，与预设无关：
-
-```html
-<html data-fve-change-colors="red-up"></html>
-```
-
-| `data-fve-change-colors` | 指标卡的变化 | `--rise`／`--fall`（瀑布图） |
-| ------------------------ | ------------ | ---------------------------- |
-| 不设，或 `semantic`      | 按好坏       | `success`／`destructive`     |
-| `green-up`               | 按方向       | `success`／`destructive`     |
-| `red-up`                 | 按方向       | `destructive`／`success`     |
-
-- 语言不等于市场，所以没有任何东西替你自动切换：中文界面看海外业务、英文界面看 A 股都很常见。
-- 没有 prop：一页读的是一个市场，一页里两种约定会让读者读反。弹层照抄它，与预设一样送到 `<body>`。
-- `--fve-rise`／`--fve-fall`（及 `--fve-dark-` 两半）设的是颜色本身；约定只决定它们默认取哪一对。预设从不设它们。
-- 颜色从来不是唯一的线索：指标卡的变化带方向箭头与正负号，瀑布图的标签带符号——红与绿在红绿色弱的读者眼里是同一种颜色。
-
-#### 密度
-
-行排得多紧也由宿主定，与预设互不相干：
-
-```html
-<html data-fve-density="compact"></html>
-```
-
-| `data-fve-density` | 表头行 | 表格行 | 值两侧 | 视图列表的一项 | 仪表盘面板内边距 |
-| ------------------ | ------ | ------ | ------ | -------------- | ---------------- |
-| `compact`          | 32px   | 33px   | 6px    | 24px           | 8px              |
-| `default`          | 40px   | 41px   | 8px    | 28px           | 12px             |
-| `comfortable`      | 44px   | 45px   | 12px   | 32px           | 16px             |
-
-- **只动这四样长度。** 控件高度（点击目标至少 24px）、字号、弹层尺寸与仪表盘的 80px 行高都不动——存下的板子几何就是按这个行高数的。
-- **单独一个视图**：在 `ViewSurface`、工作台或嵌入组件上写 `density`，钉在这块面和它的弹层上。
-- **不设时，面按预设的推荐**：`porcelain` 舒适，其余默认。预设用 `--fvp-preset-density`（`-1`、`0`、`1`）说；你的属性或 prop 总赢过它。
-- `default` 画出的长度与有这条轴之前一模一样。
-- **单独改一个长度**：这几个长度也各是一个宿主变量（`--fve-table-header-height`、`--fve-table-cell-padding-block`、`--fve-table-cell-padding-inline`、`--fve-sidebar-item-height`、`--fve-panel-padding`，见上面的布局变量表）。写了就压过档位，不论哪套预设、怎样嵌套、`data-fve-density` 是什么；没写的仍由档位给。预设不设它们。样式表不给它们设下限：视图列表的一项是按钮，`--fve-sidebar-item-height` 请保持 24px 以上（WCAG 2.5.8）——低于它时 `theme-check` 报错，`--fve-control-height`、`--fve-control-height-sm` 与 `--fve-filter-height` 也一样。
-
-#### 已有 shadcn 主题的宿主：`shadcn-bridge.css`
-
-宿主已经有一套 shadcn/ui 主题——`:root` 上声明了 `--background`、`--primary`、`--radius` 等，暗色值写在 `.dark` 下——就既不需要预设，也不必把颜色抄一遍。再引一个可选入口，它把预设层——每个 `--fvp-*`／`--fvp-dark-*` 变量，与预设写的一样——指向同名的 shadcn token：
-
-```ts
-import '@ahoo-wang/wow-view-engine/styles.css';
+// 引擎跟宿主：
 import '@ahoo-wang/wow-view-engine/shadcn-bridge.css';
+// ……或宿主跟引擎：
+// import '@ahoo-wang/wow-view-engine/themes/porcelain.css';
 ```
 
-- **有四类不桥接**，保持本包自己的值：`input` 与 `ring`（shadcn 主题常写的 `--input: var(--border)`、`--ring: var(--primary)` 不欠控件边与焦点要的 3:1）、状态色 `destructive`、`success`、`warning`（按 4.5:1 量过的文字色；shadcn 没有 `success` 与 `warning`），以及图表八色。想用自己的，就逐个自己设——并量一量设出来的值。阴影也不桥接（shadcn 没有标准的阴影 token 名）；字体桥接，`--fvp-font-sans` 取宿主的 `--font-sans`。
-- **明暗归宿主。** 桥接在 `<html>` 上解析，读到的是 `<html>` 当前模式下 `:root` 的值：像 shadcn 那样把 `.dark` 挂在 `<html>` 上，让视图跟着它。用 `theme` 钉成相反模式的视图，亮暗两半拿到的都是宿主当前的值；只在与页面一致的地方钉模式。
-- **宿主自己的 `--fve-*` 仍然优先**，用 `preset` 钉住预设的面穿那套预设：复位规则清空了桥接给它的值。
-- **桥接与预设二选一。** 桥接只在 `<html>` 没挂预设时生效：`<html>` 上写了 `data-fve-preset`，得到的就是预设，与两个文件谁后引入无关。
-- **文字颜色是宿主主题的。** 文字 token 原样桥接；宿主的 `--muted-foreground` 在它的 `--background` 上不到 4.5:1，视图里的弱字也就不到。
-- **只支持 Tailwind v4。** 桥接把宿主的 token 当颜色读，这是 Tailwind v4 的 shadcn 主题的写法（`--primary: oklch(0.205 0 0)`）。Tailwind v3 的主题写的是 HSL 通道（`--primary: 222.2 47.4% 11.2%`），单独拿出来不是颜色，桥接过来的每个值都会无效。v3 的宿主不要引这个文件，自己写同一条规则，把每个通道 token 包进 `hsl()`，桥接的每个 token 与它的暗色一半各一行：
+**明暗归 `ViewHost`。** 缺省的 `colorMode="system"` 在第一次绘制前写 `<html>` 的 `.dark` 与 `color-scheme`，跟随系统；`light`／`dark` 从钉住开始；读者经 `useColorMode()` 选的，按 `rememberColorMode` 记在本机。宿主已经在画明暗（next-themes、自己的开关）时写 `colorMode="host"`，视图跟宿主的 `.dark`。面上的 `theme="light"`、`"dark"`、`"system"` 仍可钉住某一个视图。宿主自己的暗色值写 `--fve-dark-*`，不写 `.dark` 下的 `--fve-*`：钉在浅色的视图会继承到它。
 
-```css
-:where(:root:not([data-fve-preset])) {
-  --fvp-primary: hsl(var(--primary));
-  --fvp-dark-primary: hsl(var(--primary));
-  --fvp-radius: var(--radius);
-}
-```
+**宿主自己的外壳**挂 `className="fve-tokens"` 穿上主题——挂在用到它的外壳上，不挂 `<body>`：边界里有 preflight——宿主自己的每个弹层离开外壳到了 `<body>`，它的 portal 也挂上（`<Menu.Portal className="fve-tokens">`）。
 
-Storybook 的回归用例 `ShadcnBridge.test.stories.tsx` 把补偿控制台的主题连同桥接挂到一个工作台上，量出两种明暗下控件边与焦点都 ≥3:1。
-
-#### 覆盖变量要守的线
-
-每一套内置预设在两种明暗下都守住这些线，面上画的每一对都量——那张表是 `src/ui/theme/pairs.ts`，每个作为底的角色都在上面——在 jsdom 里由 `test/presetContrast.test.ts`、对你的主题由 [`theme-check`](#检查一套主题theme-check)、在真浏览器里由 Storybook 的**对比度矩阵**（View Engine / 主题 / 预设 / 对比度矩阵）量出；粘贴进去的变量也一起量：
-
-| 线                       | 量什么                                                                                                                                                                               |
-| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| ≥4.5:1（`contrast` 7:1） | 每个前景色在它的底上——页面、卡片、弹层、表头带与合计带、选中行、隔行与悬停行、高亮项与已选项、当前视图、提示框、图表里弱一级的字；状态色作为文字，以及作为徽标的字落在它自己的淡底上 |
-| ≥3:1（`contrast` 4.5:1） | `input` 与 `ring` 在控件所在的每一种底上（以及暗色控件自己的 `input/30` 底上）；`primary`、`rise`、`fall` 填充表示状态的标记时                                                       |
-| 无                       | `border` 与 `sidebar-border`（分隔线）、`radius`、`text-ui`                                                                                                                          |
-
-宿主设了一个颜色——token、角色、链接或品牌色的边界——它落到的每一种底上就欠同一条线；落在预设边界之内的品牌色什么都不欠。图表八色另有自己的线：色位之间的色觉缺陷间距、每个标记上的字都读得清——自带色板的预设同样要过。完整的说明见[视图引擎的主题](https://wow.ahoo.me/zh/guide/typescript/view-engine-theming)。
-
-#### 检查一套主题：`theme-check`
-
-包带一个命令，给宿主的 CI 用：按内置预设要过的那些门检查你的主题，用的是包自己的测试用的同一张登记表、同一套算术。
-
-```bash
-pnpm exec wow-view-engine theme-check src/theme.css
-pnpm exec wow-view-engine theme-check src/theme.css --preset azure --preset porcelain
-```
-
-它读你的样式表（给几个就按次序拼起来），报出问题与行列号：
-
-- **登记表与分层**：登记表里没有的 `--fve-*`、`--fvp-*`（什么也不做）、写了或读了 `--_fve-*`（引擎自己的）、预设块之外的预设变量、预设块里的宿主变量、写在 `@layer` 里的预设（输给复位）、只给了一部分的图表八色或三档阴影、预设里的 `initial`；
-- **点击目标的高度**：`--fve-control-height`、`--fve-control-height-sm`、`--fve-filter-height` 或 `--fve-sidebar-item-height`（或你的预设里对应的 `--fvp-*`）低于 24px——可按的东西最低就是这么高（WCAG 2.5.8）——报错，并给出要写的值；算不出的高度（`calc()`）报警告。样式表按你写的高度原样画，不给它们设下限；
-- **Tailwind v3 的 HSL 通道**——写成或读到 `222.2 47.4% 11.2%` 的颜色，或桥接会读到的 v3 shadcn 主题——并给出要的 `hsl()` 写法；
-- **你改了的品牌色边界**（`--fve-brand-*`，或你的预设里的 `--fvp-brand-*`）：越界或上下颠倒，以及一遍扫过整个 sRGB 的品牌色，因为边界是对任何颜色的承诺；
-- **对比度**：`src/ui/theme/pairs.ts` 的每一对，两种明暗、每种涨跌约定，在你自己的每套预设上，以及你 `:root` 上的变量所落在的内置预设上（不用 `--preset` 点名就是全部）；给了品牌色时两种回到色域的方式都量；
-- **图表八色**：带了自己的色板或传了 `--brand-chart` 时，过上面那三道门。
-
-有错误退出码是 1，只有警告是 0；`--json` 把结果打成数据。它读 `dist/theme-tokens.json`、`dist/theme-source.css`（`styles.css` 里原样的 token 规则）与 `dist/themes.css`，在 Node 22.12 及以上运行，不需要页面。它看不见页面运行时做的事——脚本里设的变量、它不知道是你的选择器——所以浏览器里画出来的样子仍以 Storybook 的对比度矩阵为准。
-
-#### 宿主自己的 chrome：`fve-tokens`
-
-样式表的每一条规则都在构建时被收进样式边界，所以主题的 token，连 `grid`、`gap-4`、`bg-background` 这样的 utility，都只在边界里才画得出来。边界有两个，其中只有一个是 surface：
-
-|                           | `.fve-root`                                       | `.fve-tokens`                                                    |
-| ------------------------- | ------------------------------------------------- | ---------------------------------------------------------------- |
-| 谁渲染                    | `ViewSurface`，以及各工作台与嵌入                 | 你自己的 DOM                                                     |
-| token、utility、preflight | 有                                                | 有                                                               |
-| 涂底色与文字色            | 涂                                                | **不涂**——想要本包那张底，自己写 `bg-background text-foreground` |
-| 明暗                      | 祖先上的 `.dark`，或 `theme` 用 `data-theme` 钉住 | 只认祖先上的 `.dark`                                             |
-| 措辞、语言、时区、tooltip | 有，走 `ViewSurface` 的 props                     | 没有                                                             |
-
-**`fve-tokens` 许诺的是 token 与 utility，不是组件。** 本包渲染所用的 shadcn 原语是 vendored 的，靠 `shadcn add --diff` 升级，不属于公开 API——所以请用你自己的组件、或你自己那份 shadcn/ui 搭 chrome，由这道边界把本主题的配色与间距交给它们：
-
-<!-- typecheck-context
-import { ViewEngine } from '@ahoo-wang/wow-view-engine';
-declare const engine: ViewEngine;
-import { EmbeddedView } from '@ahoo-wang/wow-view-engine/ui';
-declare const id: string;
--->
-
-```tsx
-<div className="fve-tokens flex flex-col gap-4">
-  <header className="flex items-center gap-2 rounded-lg border bg-card p-4 text-card-foreground">
-    ……你自己的页头，穿着本主题的 token……
-  </header>
-  <EmbeddedView engine={engine} instanceId={id} theme="light" />
-</div>
-```
-
-`fve-tokens` 判断明暗只读一样东西：祖先上的 `.dark` class，和各个面读的是同一个——放在 `<html>` 上、放在应用外壳上都行，你的应用本来放在哪儿就放哪儿。它**不读**自己身上的 `data-theme`：钉模式是 surface 的事。它还会把凡是归某块面管的元素原样交还给那块面，所以上面那个钉成亮色的视图，在暗色页面里 token 与 utility 一路都是亮的。
-
-preflight 同样在边界里生效：这片区域内你自己的标题、列表与按钮，会像在视图里一样被重置。这是换取这套 utility 的代价，也正是这个类该戴在用到它们的那块 chrome 上、而不是整页上的原因。
+其余的——逐个 `--fve-*` 覆盖与完整的 token 表、只给一块面的 `tokens`、逐套预设、品牌色的边界、角色与链接、密度、涨跌色、桥接的细则、覆盖变量要守的线、给 CI 用的 `theme-check`——都在文档站的[视图引擎的主题](https://wow.ahoo.me/zh/guide/typescript/view-engine-theming)。
 
 #### 工作台确实交出来的东西：一个值的读法
 
@@ -957,7 +619,7 @@ function OrderCell({ cell }: { cell: RecordCell }) {
 
 - **`sections(context)`** 按开着的记录返回你自己的节——每节一个 `id`、一个 `title`、一个 `render()`——与引擎的节并排。`placement` 放在 `'start'`、`'end'`（缺省）或 `{ after: '<字段分组 id>' }`。`render` 只在这条记录上屏时才调用，所以节里的 `EmbeddedView` 在读者打开记录时才去读数据；每节是一个有名字的区域，各自包在一道渲染边界里（`'detail'`）。上下文带 `row`（整条读到之前是页上的那一行，读到之后 `complete` 为真）、`runtime` 与 `refresh`，与行动作的上下文一样。节若按自己的读法画定义里的某个字段，就在 `fields` 里点名（`fields: ['state.error.stackTrace']`）：引擎的分组不再列它，记录里不会读两遍，被拿空的分组不画。
 - **`render(context)`** 换成你自己的读法：它返回的就是整个正文，替掉定义的分组与你的 `sections`——适合一条记录只回答一个问题（为什么失败、再试有没有用），按自己的版式说比按字段排清楚的时候。面板仍是引擎的：从行上立即打开、读全这条、说它不在／被拒／读不到、头部的行命令、焦点与返回。上下文与渲染边界同 `sections`。**`title(row)`** 在头部用你的名字代替键作标题，键移到名字上方。
-- **`open`／`onOpenChange`** 握住开着的是哪一条，与 `instanceId`／`onInstanceChange` 握住开着的视图同一个做法：不传 `open` 由工作台自己管；传一个键（或 `null`），每个值都打开它说的那一条——不在当前页上的也行，单独读（`runtime.fetchRecord`，只叠注入的作用域），有自己的「正在读」「已不在」「没有权限」（HTTP 401／403）与「读不到、可重试」几种状态。按一行、关掉抽屉都只是经 `onOpenChange` 请求，两种模式下它都会被告知。
+- **`open`／`onOpenChange`** 握住开着的是哪一条，与 `instanceId`／`onInstanceChange` 握住开着的视图同一个做法——`ViewHost` 带了 `router` 时，绑定了的资源的详情已经记在地址的 `?id=` 里，这一对留给记在别处的宿主：不传 `open` 由工作台自己管；传一个键（或 `null`），每个值都打开它说的那一条——不在当前页上的也行，单独读（`runtime.fetchRecord`，只叠注入的作用域），有自己的「正在读」「已不在」「没有权限」（HTTP 401／403）与「读不到、可重试」几种状态。按一行、关掉抽屉都只是经 `onOpenChange` 请求，两种模式下它都会被告知。
 
 <!-- typecheck-context
 import { ViewEngine } from '@ahoo-wang/wow-view-engine';
@@ -1173,18 +835,19 @@ expect(
 
 ## 入口
 
-| 入口                         | 导出                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
-| ---------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `@ahoo-wang/wow-view-engine` | 模型类型与常量；四个纯内核（`validate*` / `compile*` / `project*` 及其旁边的读法）；运行时只导出宿主要握的，不导出它由什么搭成——`ViewEngine`、`validateDefinition`、运行时合同 `ViewRuntime`、`RecordViewRuntime`、`DashboardRuntime`、`AnyViewRuntime` 连同它们签名里出现的每一个类型、`hasResult`、`hasAsked`、`isRecordRuntime`、写入错误 `ViewWriteError` 与 `ViewCommandError`、`ExportCancelled`、`RuntimeEnvironment`、`defaultRuntimeEnvironment`、`ViewSource`、`OptionSource`；`ViewStore` 端口、`MemoryViewStore` 与 `localStorageSnapshot`                                                                                        |
-| `/react`                     | 钩子与无样式控制器，连同它们交出的类型：`useViewEngine`、`useOpenView`、`useViewRuntime`、`useViewList`、`useViewManager`、`useWorkbench`、`useLeaveGuard`、`useFilterEditor`、`useRecordTable`、`useAnalysisEditor`、`useAnalysisResult`、`useDashboard`、`useSaveCommands`、`RecordActionSlots`，以及保存命令与管理器共用的写入结局词汇                                                                                                                                                                                                                                                                                                     |
-| `/ui`                        | 默认组件、视图与工作台，连同它们的 props：`DataWorkbench`、`DashboardWorkbench`、`DashboardEditExtensions`、`useDashboardExtensions`、`EmbeddedView`、`EmbeddedDashboard`、`ViewEngineProvider`、`bind`、`ViewHeader`、`SaveActions`、`ViewManager`、`LeaveDialog`、`EditorBand`、`FilterPanel`、`StatusStrip`、`AppliedBar`、`ResultToolbar`、`RowActions`、`RecordTable`、`RecordCards`、`RecordPagination`、`AnalysisTable`、`AnalysisChart`、`DashboardGrid`、`HeadingPanel`、`MarkdownPanel`、`ImagePanel`、`LinksPanel`、`MessagesProvider`；措辞目录 `defaultMessages` 与 `zhCN`；一个值的读法 `cellValue`、`cellText`、`displayValue` |
-| `/testing`                   | `memorySource` 与 `matches`：带 Wow 查询语义的内存 `ViewSource`；`resolveNavigation`：引擎自己按宿主绑定解析离开的路，供宿主测路由；`admit`：按提交的描述符准入宿主的声明——供宿主测试使用（[测试宿主](#测试宿主内存数据源)）                                                                                                                                                                                                                                                                                                                                                                                                                  |
-| `/styles.css`                | 主题。显式导入；任何 JS 入口都不会引入 CSS，产物也不会在 `.fve-root`／`.fve-tokens` 两个样式边界之外绘制任何东西（preflight 与工具类在构建时收进边界内，每条规则比源码多一个类的权重，所以宿主的导入次序无关）——预设的复位规则除外，它只在挂了预设的元素上清空 `--fvp-*` 层——`scripts/verify-package.mjs` 在每次构建时逐条核对。                                                                                                                                                                                                                                                                                                              |
-| `/themes.css`                | 预设，可选：只有按 `data-fve-preset` 选中的 `--fvp-*` 赋值（[预设](#预设)），由同一个脚本核对。                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
-| `/themes/<名>.css`           | 单独一套预设，给只用一套的宿主：就是 `themes.css` 里它那一块（[预设](#预设)）。                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
-| `/shadcn-bridge.css`         | 可选：把宿主的 shadcn token 读进 `--fvp-*` 变量，`input`、`ring`、状态色、图表色与阴影除外，且只在没挂预设时生效（[桥接](#已有-shadcn-主题的宿主shadcn-bridgecss)），由同一个脚本核对。                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| 入口                         | 导出                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `@ahoo-wang/wow-view-engine` | 模型类型与常量；四个纯内核（`validate*` / `compile*` / `project*` 及其旁边的读法）；运行时只导出宿主要握的，不导出它由什么搭成——`ViewEngine`、`validateDefinition`、运行时合同 `ViewRuntime`、`RecordViewRuntime`、`DashboardRuntime`、`AnyViewRuntime` 连同它们签名里出现的每一个类型、`hasResult`、`hasAsked`、`isRecordRuntime`、写入错误 `ViewWriteError` 与 `ViewCommandError`、`ExportCancelled`、`RuntimeEnvironment`、`defaultRuntimeEnvironment`、`ViewSource`、`OptionSource`；`ViewStore` 端口、`MemoryViewStore` 与 `localStorageSnapshot`                                                                                                                   |
+| `/react`                     | 钩子与无样式控制器，连同它们交出的类型：`useViewEngine`、`useOpenView`、`useViewRuntime`、`useViewList`、`useViewManager`、`useWorkbench`、`useLeaveGuard`、`useFilterEditor`、`useRecordTable`、`useAnalysisEditor`、`useAnalysisResult`、`useDashboard`、`useSaveCommands`、`RecordActionSlots`，以及保存命令与管理器共用的写入结局词汇                                                                                                                                                                                                                                                                                                                                |
+| `/ui`                        | 默认组件、视图与工作台，连同它们的 props：`DataWorkbench`、`DashboardWorkbench`、`DashboardEditExtensions`、`useDashboardExtensions`、`EmbeddedView`、`EmbeddedDashboard`、`ViewHost`、`bind`、`useViewNavigation`、`useColorMode`、`ViewHeader`、`SaveActions`、`ViewManager`、`LeaveDialog`、`EditorBand`、`FilterPanel`、`StatusStrip`、`AppliedBar`、`ResultToolbar`、`RowActions`、`RecordTable`、`RecordCards`、`RecordPagination`、`AnalysisTable`、`AnalysisChart`、`DashboardGrid`、`HeadingPanel`、`MarkdownPanel`、`ImagePanel`、`LinksPanel`、`MessagesProvider`；措辞目录 `defaultMessages` 与 `zhCN`；一个值的读法 `cellValue`、`cellText`、`displayValue` |
+| `/testing`                   | `memorySource` 与 `matches`：带 Wow 查询语义的内存 `ViewSource`；`resolveNavigation`：引擎自己按宿主绑定解析离开的路，供宿主测路由；`admit`：按提交的描述符准入宿主的声明——供宿主测试使用（[测试宿主](#测试宿主内存数据源)）                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| `/react-router`              | `useReactRouter`：把 React Router 接成视图宿主的路由端口。React Router 是可选 peer，只有这个入口加载它                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| `/styles.css`                | 主题。显式导入；任何 JS 入口都不会引入 CSS，产物也不会在 `.fve-root`／`.fve-tokens` 两个样式边界之外绘制任何东西（preflight 与工具类在构建时收进边界内，每条规则比源码多一个类的权重，所以宿主的导入次序无关）——预设的复位规则除外，它只在挂了预设的元素上清空 `--fvp-*` 层——`scripts/verify-package.mjs` 在每次构建时逐条核对。                                                                                                                                                                                                                                                                                                                                         |
+| `/themes.css`                | 预设，可选：只有按 `data-fve-preset` 选中的 `--fvp-*` 赋值（[预设](https://wow.ahoo.me/zh/guide/typescript/view-engine-theming#预设)），由同一个脚本核对。                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| `/themes/<名>.css`           | 单独一套预设，给只用一套的宿主：就是 `themes.css` 里它那一块（[预设](https://wow.ahoo.me/zh/guide/typescript/view-engine-theming#预设)）。                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| `/shadcn-bridge.css`         | 可选：把宿主的 shadcn token 读进 `--fvp-*` 变量，`input`、`ring`、状态色、图表色与阴影除外，且只在没挂预设时生效（[桥接](https://wow.ahoo.me/zh/guide/typescript/view-engine-theming#shadcn-桥接)），由同一个脚本核对。                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 
-这就是公开面，而且逐个名字守着。每个入口把它导出的名字逐个写出，按声明它的文件分组，不整模块转出（`test/architecture.test.ts`），所以文件为包内邻居写的 `export` 不会意外变成公开的。每个代码入口的完整清单——每一个名字，以及它是类型还是值——在 `test/surface/`（`root.txt`、`react.txt`、`ui.txt`、`testing.txt`）：入口多导出了清单上没有的名字、或不再导出清单上有的名字，`test/publicSurface.test.ts` 就失败；`scripts/verify-package.mjs` 再拿同一份清单核对构建出的每个 JS 入口。往清单里加一个名字或拿掉一个，就是改公开面，按改公开面来审。命令也是公开面：`test/surface/bin.txt` 列出 `bin`（`wow-view-engine`）与它认的每个子命令（[`theme-check`](#检查一套主题theme-check)）。
+这就是公开面，而且逐个名字守着。每个入口把它导出的名字逐个写出，按声明它的文件分组，不整模块转出（`test/architecture.test.ts`），所以文件为包内邻居写的 `export` 不会意外变成公开的。每个代码入口的完整清单——每一个名字，以及它是类型还是值——在 `test/surface/`（`root.txt`、`react.txt`、`ui.txt`、`testing.txt`、`react-router.txt`）：入口多导出了清单上没有的名字、或不再导出清单上有的名字，`test/publicSurface.test.ts` 就失败；`scripts/verify-package.mjs` 再拿同一份清单核对构建出的每个 JS 入口。往清单里加一个名字或拿掉一个，就是改公开面，按改公开面来审。命令也是公开面：`test/surface/bin.txt` 列出 `bin`（`wow-view-engine`）与它认的每个子命令（[`theme-check`](https://wow.ahoo.me/zh/guide/typescript/view-engine-theming#检查一套主题)）。
 
 运行时自己的部件不导出：请求调度器、两种运行时共用的那个 store、刷新计时器、监听者集合、运行时的类与它们的构造函数。运行时经 `ViewEngine` 打开或新建、按合同持有，从不手搭；`/react` 与 `/ui` 在包内直接取这些部件，不经入口。
 
@@ -1257,7 +920,7 @@ const store = new MemoryViewStore({
 
 ### 措辞与语言
 
-模型只带 `code` 与 `params`，措辞归 `/ui`。`defaultMessages`（即 `en`）给每个 issue 一句英文，`ViewSurface` 与每个工作台的 `messages` 按 key 合并在已生效的措辞之上——改写与本地化是同一个入口；在应用外层放一个 `ViewEngineProvider`（或单独的 `MessagesProvider`），就能对其中所有视图一次设定，连同值显示的语言（`locale`）。包里另带一份逐键对应的简体中文 `zhCN`：整份交给 `messages` 即可，要改其中几句就铺开再覆盖（`{ ...zhCN, 'label.filter.apply': '确定' }`）。
+模型只带 `code` 与 `params`，措辞归 `/ui`。`defaultMessages`（即 `en`）给每个 issue 一句英文，`ViewSurface` 与每个工作台的 `messages` 按 key 合并在已生效的措辞之上——改写与本地化是同一个入口；在应用外层放一个 `ViewHost`（或单独的 `MessagesProvider`），就能对其中所有视图一次设定，连同值显示的语言（`locale`）。包里另带一份逐键对应的简体中文 `zhCN`：整份交给 `messages` 即可，要改其中几句就铺开再覆盖（`{ ...zhCN, 'label.filter.apply': '确定' }`）。
 
 值按字段显示：枚举显示选项的标签，`datetime`／`date` 经 `Intl.DateTimeFormat` 格式化，日期直方图的键显示为它起始的年、季度、月或日。`locale` 决定这些值用什么语言显示，缺省为运行环境的语言；它和 `messages` 是同一个选择，一个管文字，一个管值：
 

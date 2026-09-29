@@ -15,9 +15,9 @@ import type * as Ui from "@ahoo-wang/wow-view-engine/ui";
 import type {
   DashboardWorkbenchProps,
   ViewBinding,
-  ViewEngineProviderProps,
+  ViewHostProps,
 } from "@ahoo-wang/wow-view-engine/ui";
-import { act, render, screen } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import { createMemoryRouter, RouterProvider } from "react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { I18nProvider } from "@/i18n.tsx";
@@ -29,20 +29,21 @@ const seen = vi.hoisted(() => ({
   binding: undefined as ViewBinding | undefined,
 }));
 
-// The workbench itself is the engine's, tested there; this page is the
-// wiring around it: which board, which filters, and the way back out.
+// The workbench itself is the engine's, tested there — the board the
+// address names, its filters, the way back out; this page is what is
+// around it.
 vi.mock("@ahoo-wang/wow-view-engine/ui", async (actual) => {
   const ui = await actual<typeof Ui>();
   return {
     ...ui,
     // What a record panel over the failed executions takes (`bind`): the
     // page's own binding of it.
-    ViewEngineProvider: (props: ViewEngineProviderProps) => {
+    ViewHost: (props: ViewHostProps) => {
       const bound = props.bindings?.find(
         (entry) => entry.definitionId === "execution-failed",
       );
       if (!props.engine && bound) seen.binding = bound;
-      return <ui.ViewEngineProvider {...props} />;
+      return <ui.ViewHost {...props} />;
     },
     DashboardWorkbench: (props: DashboardWorkbenchProps) => {
       seen.props = props;
@@ -75,34 +76,27 @@ describe("BoardsPage", () => {
     localStorage.setItem("wow-dashboard-locale", "en");
   });
 
-  it("opens the board the route names, under the filters it was handed", () => {
-    const filters = { values: { window: { type: "preset", preset: "today" } } };
-    renderAt("?view=system%3Aoverview%3Ahome", { filters });
+  it("opens the dashboard workbench, the board and its filters the address's", () => {
+    renderAt("?view=system%3Aoverview%3Ahome", { filters: { values: {} } });
     expect(screen.getByText("workbench of overview")).toBeInTheDocument();
-    expect(seen.props).toMatchObject({
-      instanceId: "system:overview:home",
-      initialFilters: filters,
-      landmark: "region",
-    });
-    // The engine, the words and the commands on the failed executions'
-    // records are the host's (`ViewsHost`), bound once for every page.
-    expect(seen.props?.engine).toBeUndefined();
-    expect(seen.props?.locale).toBeUndefined();
+    expect(seen.props).toMatchObject({ landmark: "region" });
+    // Which board, under which filters, is the address's — the engine keeps
+    // it through the console's router (`ConsoleHost`) — and the engine, the
+    // words and the commands on the failed executions' records are the
+    // hosts', bound once for every page.
+    for (const prop of [
+      "instanceId",
+      "onInstanceChange",
+      "initialFilters",
+      "onFiltersChange",
+      "engine",
+      "locale",
+    ])
+      expect(seen.props).not.toHaveProperty(prop);
     // The board's record panels over the failed executions take their row
     // and bulk commands, and the bulk command's line, from the binding.
     expect(seen.binding?.actions?.row).toBeTypeOf("function");
     expect(seen.binding?.actions?.bulk).toBeTypeOf("function");
     expect(seen.binding?.bulk?.run).toBeTypeOf("function");
-  });
-
-  it("puts the board the reader opens in the route", () => {
-    const router = renderAt("");
-    expect(seen.props?.instanceId).toBeNull();
-    act(() => seen.props?.onInstanceChange?.(null));
-    expect(router.state.location.search).toBe("");
-    act(() => seen.props?.onInstanceChange?.("mine"));
-    expect(router.state.location.search).toBe("?view=mine");
-    act(() => seen.props?.onInstanceChange?.(null));
-    expect(router.state.location.search).toBe("");
   });
 });

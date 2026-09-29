@@ -12,15 +12,15 @@
  */
 
 /**
- * The README's theme contract, rendered from the registry
+ * The theme contract as the theming guide prints it, rendered from the registry
  * (`src/ui/theme/tokens.ts` and its words in `tokenDocs.ts`), and the host
  * variables the package's source reads, found where they are read.
  *
- * Three regions of each README are generated, each between a pair of
+ * Three regions of each language's theming guide are generated, each between a pair of
  * `<!-- name:begin -->` / `<!-- name:end -->` markers: the token table, the
  * table of the host's layout variables, and the list of attributes that
  * make a chart read its theme again. `test/themeFiles.test.ts` holds each
- * README to its rendering (`pnpm --filter @ahoo-wang/wow-view-engine
+ * page to its rendering (`pnpm --filter @ahoo-wang/wow-view-engine
  * theme:docs` writes them). The defaults are read, not written: a token's
  * off the stylesheet's own blocks, a layout variable's off the `var()` that
  * reads it — the registry only has words where the default is no single
@@ -45,10 +45,15 @@ export const ROOT = join(import.meta.dirname, '..', '..');
 
 export type Language = keyof Words;
 
-/** A README and the language its tables are written in. */
-export const READMES: readonly [file: string, language: Language][] = [
-  ['README.md', 'en'],
-  ['README.zh-CN.md', 'zh'],
+/**
+ * A page that carries the generated regions, and the language its tables
+ * are written in: the theming guide on the documentation site, in both
+ * languages (host-integration.md 4.1 — the README's theme is a quick start
+ * that sends the rest there).
+ */
+export const THEME_PAGES: readonly [file: string, language: Language][] = [
+  ['../../documentation/docs/en/guide/typescript/view-engine-theming.md', 'en'],
+  ['../../documentation/docs/zh/guide/typescript/view-engine-theming.md', 'zh'],
 ];
 
 const ENTRIES: readonly TokenEntry[] = TOKENS;
@@ -287,15 +292,17 @@ const RENDER: Record<string, (language: Language) => string> = {
 };
 
 /**
- * One README with its generated regions written from the registry, and
- * formatted as the repository formats Markdown — what the file should be.
+ * One page with its generated regions written from the registry — what the
+ * file should be. The site keeps its own Markdown style, so only what is
+ * generated is formatted, as the repository formats a Markdown table.
  */
-export async function renderReadme(
+export async function renderThemePage(
   file: string,
   language: Language,
 ): Promise<string> {
   const path = join(ROOT, file);
   let text = readFileSync(path, 'utf8');
+  const options = await resolveConfig(join(ROOT, 'README.md'));
   for (const [region, render] of Object.entries(RENDER)) {
     const begin = `<!-- ${region}:begin -->`;
     const end = `<!-- ${region}:end -->`;
@@ -303,10 +310,14 @@ export async function renderReadme(
     const to = text.indexOf(end);
     if (from < 0 || to < from)
       throw new Error(`${file} has no ${begin} … ${end} region`);
-    text = `${text.slice(0, from + begin.length)}${render(language)}${text.slice(to)}`;
+    const rendered = render(language);
+    // A block (a table) is formatted on its own; an inline list is prose.
+    const body = rendered.startsWith('\n')
+      ? `\n\n${(await format(rendered, { ...options, parser: 'markdown' })).trim()}\n\n`
+      : rendered;
+    text = `${text.slice(0, from + begin.length)}${body}${text.slice(to)}`;
   }
-  const options = await resolveConfig(path);
-  return format(text, { ...options, filepath: path });
+  return text;
 }
 
 /**

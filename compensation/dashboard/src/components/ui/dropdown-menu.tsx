@@ -42,7 +42,8 @@ function DropdownMenuContent({
     "align" | "alignOffset" | "side" | "sideOffset"
   >) {
   return (
-    <MenuPrimitive.Portal>
+    // The shell's theme, on a popup portalled out of the shell (`fve-tokens`).
+    <MenuPrimitive.Portal className="fve-tokens">
       <MenuPrimitive.Positioner
         className="isolate z-50 outline-none"
         align={align}

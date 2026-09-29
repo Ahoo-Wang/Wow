@@ -50,7 +50,8 @@ function TooltipContent({
     "align" | "alignOffset" | "side" | "sideOffset"
   >) {
   return (
-    <TooltipPrimitive.Portal>
+    // The shell's theme, on a popup portalled out of the shell (`fve-tokens`).
+    <TooltipPrimitive.Portal className="fve-tokens">
       <TooltipPrimitive.Positioner
         align={align}
         alignOffset={alignOffset}

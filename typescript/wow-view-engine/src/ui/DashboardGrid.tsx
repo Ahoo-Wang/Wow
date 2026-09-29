@@ -112,7 +112,7 @@ export interface DashboardGridProps {
    * The host's route (`ViewNavigation`): 在工作台中打开 in a panel's
    * menu, the follow-up menu on a group, a panel's custom destination. No
    * route, none of them — a panel that cross-filters still does. The
-   * `ViewEngineProvider`'s route when left out.
+   * `ViewHost`'s route when left out.
    */
   onNavigate?(to: ViewNavigation): void;
   /**

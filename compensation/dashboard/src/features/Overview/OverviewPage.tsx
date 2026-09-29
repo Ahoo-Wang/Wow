@@ -11,17 +11,16 @@
  * limitations under the License.
  */
 
-import { Link } from "react-router";
+import { Link, useLocation } from "react-router";
 import { LayoutDashboard } from "lucide-react";
-import { EmbeddedDashboard } from "@ahoo-wang/wow-view-engine/ui";
+import {
+  EmbeddedDashboard,
+  type ViewRouteState,
+} from "@ahoo-wang/wow-view-engine/ui";
 import { Button } from "@/components/ui/button";
 import { useI18n } from "@/i18n.tsx";
-import {
-  BOARDS_PATH,
-  VIEW_PARAM,
-  useBoardFilters,
-} from "@/views/navigation.ts";
 import { OVERVIEW_BOARD } from "@/views/overview.ts";
+import { BOARDS_PATH, withView } from "@/views/routes.ts";
 
 /**
  * 「概览」, the console's home page: the overview's system board, embedded in
@@ -30,16 +29,15 @@ import { OVERVIEW_BOARD } from "@/views/overview.ts";
  * numbers were read with a refresh beside it (`withRefresh`, as the old
  * home page's header had), and nothing is saved (D36). The due-for-retry
  * panel carries the same row and bulk commands as the failed executions'
- * workbench (D39): they are bound to the definition (`ViewsHost`).
+ * workbench (D39): they are bound to the definition (`PageCommands`).
  * Rearranging the board, or saving one of their own, is the dashboard
  * workbench's.
  */
 export default function OverviewPage() {
   const { t } = useI18n();
-  const { initialFilters, onFiltersChange } = useBoardFilters();
-  const workbench = `${BOARDS_PATH}?${new URLSearchParams({
-    [VIEW_PARAM]: OVERVIEW_BOARD,
-  })}`;
+  // The filters the reader left the board under, which the engine keeps in
+  // the history entry: the workbench opens the board under them too.
+  const { filters } = (useLocation().state ?? {}) as ViewRouteState;
 
   return (
     // The page stands on the board's own ground (`bg-canvas`), header and
@@ -56,8 +54,8 @@ export default function OverviewPage() {
           size="sm"
           render={
             <Link
-              to={workbench}
-              state={{ filters: initialFilters ?? undefined }}
+              to={withView(BOARDS_PATH, OVERVIEW_BOARD)}
+              state={{ filters }}
             />
           }
         >
@@ -72,8 +70,6 @@ export default function OverviewPage() {
         size="fill"
         expandable
         withRefresh
-        initialFilters={initialFilters}
-        onFiltersChange={onFiltersChange}
       />
     </div>
   );

@@ -114,6 +114,7 @@ describe('the README only names symbols that exist', () => {
       '@ahoo-wang/wow-view-engine': '../src/index.ts',
       '@ahoo-wang/wow-view-engine/react': '../src/react/index.ts',
       '@ahoo-wang/wow-view-engine/ui': '../src/ui/index.ts',
+      '@ahoo-wang/wow-view-engine/react-router': '../src/react-router/index.ts',
     };
 
     const imports = readme.matchAll(

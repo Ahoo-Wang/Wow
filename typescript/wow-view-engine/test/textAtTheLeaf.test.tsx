@@ -36,7 +36,7 @@ import {
   DataWorkbench,
   EmbeddedDashboard,
   EmbeddedView,
-  ViewEngineProvider,
+  ViewHost,
 } from '../src/ui/index.js';
 import { EN, ZH, keyedEngine, markersIn } from './fixtures/keyed.js';
 import { editorToggle, openTray } from './fixtures/workbench.js';
@@ -108,12 +108,12 @@ describe('no key reaches the document (D2, words at the leaf)', () => {
   it('a record view', async () => {
     const { engine } = keyedEngine();
     render(
-      <ViewEngineProvider engine={engine} messages={EN}>
+      <ViewHost engine={engine} messages={EN}>
         <DataWorkbench
           definitionId="orders"
           instanceId={systemInstanceId('orders', 'all')}
         />
-      </ViewEngineProvider>,
+      </ViewHost>,
     );
     await settled();
     expectNoMarkers();
@@ -128,12 +128,12 @@ describe('no key reaches the document (D2, words at the leaf)', () => {
   it('an analysis view', async () => {
     const { engine } = keyedEngine();
     render(
-      <ViewEngineProvider engine={engine} messages={EN}>
+      <ViewHost engine={engine} messages={EN}>
         <DataWorkbench
           definitionId="orders"
           instanceId={systemInstanceId('orders', 'by-warehouse')}
         />
-      </ViewEngineProvider>,
+      </ViewHost>,
     );
     await waitFor(() => expect(screen.getByRole('table')).toBeTruthy());
     await settled();
@@ -147,12 +147,12 @@ describe('no key reaches the document (D2, words at the leaf)', () => {
   it('a dashboard', async () => {
     const { engine } = keyedEngine();
     render(
-      <ViewEngineProvider engine={engine} messages={EN}>
+      <ViewHost engine={engine} messages={EN}>
         <DashboardWorkbench
           definitionId="overview"
           instanceId={systemInstanceId('overview', 'main')}
         />
-      </ViewEngineProvider>,
+      </ViewHost>,
     );
     await waitFor(() => expect(screen.getAllByRole('table').length).toBe(3));
     await settled();
@@ -166,7 +166,7 @@ describe('no key reaches the document (D2, words at the leaf)', () => {
   it('an embedded view and an embedded board', async () => {
     const { engine } = keyedEngine();
     render(
-      <ViewEngineProvider engine={engine} messages={EN}>
+      <ViewHost engine={engine} messages={EN}>
         <EmbeddedView
           instanceId={systemInstanceId('orders', 'all')}
           withTitle
@@ -175,7 +175,7 @@ describe('no key reaches the document (D2, words at the leaf)', () => {
           instanceId={systemInstanceId('overview', 'main')}
           withTitle
         />
-      </ViewEngineProvider>,
+      </ViewHost>,
     );
     await waitFor(() => expect(screen.getAllByRole('table').length).toBe(4));
     await settled();
@@ -187,13 +187,13 @@ describe('no key reaches the document (D2, words at the leaf)', () => {
   it('the view list and the filter editor', async () => {
     const { engine } = keyedEngine();
     render(
-      <ViewEngineProvider engine={engine} messages={EN}>
+      <ViewHost engine={engine} messages={EN}>
         <DataWorkbench
           definitionId="orders"
           instanceId={systemInstanceId('orders', 'all')}
           defaultSidebarOpen
         />
-      </ViewEngineProvider>,
+      </ViewHost>,
     );
     await waitFor(() => expect(screen.getByRole('table')).toBeTruthy());
     await settled();
@@ -206,12 +206,12 @@ describe('no key reaches the document (D2, words at the leaf)', () => {
   it('a chart, and the option ECharts is given', async () => {
     const { engine } = keyedEngine();
     render(
-      <ViewEngineProvider engine={engine} messages={EN}>
+      <ViewHost engine={engine} messages={EN}>
         <DataWorkbench
           definitionId="orders"
           instanceId={systemInstanceId('orders', 'chart')}
         />
-      </ViewEngineProvider>,
+      </ViewHost>,
     );
     await waitFor(() => expect(drawnCharts().length).toBeGreaterThan(0));
     await settled();
@@ -233,12 +233,12 @@ describe('no key reaches the document (D2, words at the leaf)', () => {
   ])('a %s chart, and the option ECharts is given', async (view, words) => {
     const { engine } = keyedEngine();
     render(
-      <ViewEngineProvider engine={engine} messages={EN}>
+      <ViewHost engine={engine} messages={EN}>
         <DataWorkbench
           definitionId="orders"
           instanceId={systemInstanceId('orders', view)}
         />
-      </ViewEngineProvider>,
+      </ViewHost>,
     );
     await waitFor(() => expect(drawnCharts().length).toBeGreaterThan(0));
     await settled();
@@ -258,13 +258,13 @@ describe('no key reaches the document (D2, words at the leaf)', () => {
     Object.assign(URL, { createObjectURL: created, revokeObjectURL: vi.fn() });
     const { engine } = keyedEngine();
     render(
-      <ViewEngineProvider engine={engine} messages={EN}>
+      <ViewHost engine={engine} messages={EN}>
         <EmbeddedView
           instanceId={systemInstanceId('orders', 'all')}
           interaction="interactive"
           withExport
         />
-      </ViewEngineProvider>,
+      </ViewHost>,
     );
     await waitFor(() => expect(screen.getAllByRole('row')).toHaveLength(3));
     fireEvent.click(await screen.findByRole('button', { name: /Export/ }));
@@ -283,12 +283,12 @@ describe('no key reaches an editor or a popup (D2)', () => {
   function workbench(instance: string) {
     const { engine } = keyedEngine();
     render(
-      <ViewEngineProvider engine={engine} messages={EN}>
+      <ViewHost engine={engine} messages={EN}>
         <DataWorkbench
           definitionId="orders"
           instanceId={systemInstanceId('orders', instance)}
         />
-      </ViewEngineProvider>,
+      </ViewHost>,
     );
     return engine;
   }
@@ -391,9 +391,9 @@ describe('no key reaches an editor or a popup (D2)', () => {
   it('a dashboard being built', async () => {
     const { engine } = keyedEngine();
     render(
-      <ViewEngineProvider engine={engine} messages={EN}>
+      <ViewHost engine={engine} messages={EN}>
         <DashboardWorkbench definitionId="overview" instanceId="mine" />
-      </ViewEngineProvider>,
+      </ViewHost>,
     );
     await waitFor(() => expect(screen.getAllByRole('table').length).toBe(3));
     fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
@@ -461,12 +461,12 @@ describe('a change of language only redraws (D2)', () => {
     const { engine, source } = keyedEngine();
     const open = vi.spyOn(engine, 'open');
     const page = (words: Record<string, string>) => (
-      <ViewEngineProvider engine={engine} messages={words}>
+      <ViewHost engine={engine} messages={words}>
         <DataWorkbench
           definitionId="orders"
           instanceId={systemInstanceId('orders', 'by-warehouse')}
         />
-      </ViewEngineProvider>
+      </ViewHost>
     );
     const { rerender } = render(page(EN));
     await screen.findByRole('heading', { name: 'By warehouse' });
@@ -495,12 +495,12 @@ describe('a change of language only redraws (D2)', () => {
 describe('the two findings the leaf closes (review of #3761)', () => {
   function page(engine: ViewEngine, words: Record<string, string>) {
     return (
-      <ViewEngineProvider engine={engine} messages={words}>
+      <ViewHost engine={engine} messages={words}>
         <DataWorkbench
           definitionId="orders"
           instanceId={systemInstanceId('orders', 'by-warehouse')}
         />
-      </ViewEngineProvider>
+      </ViewHost>
     );
   }
 
@@ -587,9 +587,9 @@ describe('the two findings the leaf closes (review of #3761)', () => {
     const saved = made.getSnapshot().saved!;
     made.dispose();
     const { rerender } = render(
-      <ViewEngineProvider engine={engine} messages={EN}>
+      <ViewHost engine={engine} messages={EN}>
         <DataWorkbench definitionId="orders" instanceId={saved.id} />
-      </ViewEngineProvider>,
+      </ViewHost>,
     );
     await screen.findByRole('heading', { name: 'By warehouse' });
     const [runtime] = engine
@@ -600,9 +600,9 @@ describe('the two findings the leaf closes (review of #3761)', () => {
     expect(JSON.stringify(saved.config)).toMatch(/\uE000/);
 
     rerender(
-      <ViewEngineProvider engine={engine} messages={ZH}>
+      <ViewHost engine={engine} messages={ZH}>
         <DataWorkbench definitionId="orders" instanceId={saved.id} />
-      </ViewEngineProvider>,
+      </ViewHost>,
     );
     await screen.findByRole('heading', { name: '中:By warehouse' });
     expect(runtime.getSnapshot().dirty).toBe(false);

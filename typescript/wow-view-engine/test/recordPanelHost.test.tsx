@@ -38,7 +38,7 @@ import {
 import {
   bind,
   EmbeddedDashboard,
-  ViewEngineProvider,
+  ViewHost,
   type EmbeddedDashboardProps,
   type ViewBindingOptions,
 } from '../src/ui/index.js';
@@ -130,7 +130,7 @@ function open(
   orders: ViewBindingOptions = {},
 ) {
   render(
-    <ViewEngineProvider
+    <ViewHost
       engine={engineOf(source, list)}
       bindings={[bind('orders', orders)]}
     >
@@ -139,7 +139,7 @@ function open(
         interaction="interactive"
         {...props}
       />
-    </ViewEngineProvider>,
+    </ViewHost>,
   );
   return screen.findByRole('group', { name: 'Orders' });
 }

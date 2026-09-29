@@ -26,7 +26,6 @@ import { I18nProvider } from "@/i18n.tsx";
 import type { ExecutionCommands } from "../executionCommands.ts";
 import ExecutionsPage from "../ExecutionsPage.tsx";
 import { withViews } from "../../App/withViews.tsx";
-import { ID_PARAM } from "./useExecutionDetail.tsx";
 
 const TRACE = [
   "java.lang.IllegalStateException: Inventory refused",
@@ -223,7 +222,7 @@ describe("the execution detail", () => {
   });
 
   it("opens the execution the address names, read the way it is asked about", async () => {
-    renderAt(`/executions?${ID_PARAM}=EF-1`);
+    renderAt(`/executions?id=EF-1`);
     const panel = await openDetail();
 
     // Named by its handler, its key above the name (D60).
@@ -267,7 +266,7 @@ describe("the execution detail", () => {
   });
 
   it("tells the attempts from the event streams, and when retrying will not help", async () => {
-    renderAt(`/executions?${ID_PARAM}=EF-1`);
+    renderAt(`/executions?id=EF-1`);
     const panel = await openDetail();
     const attempts = within(panel).getByRole("region", { name: "Attempts" });
     const items = await within(attempts).findAllByRole("listitem");
@@ -299,7 +298,7 @@ describe("the execution detail", () => {
     records["EF-1"] = execution("EF-1", {
       error: { errorCode: "TIMEOUT", errorMsg: "Timed out", stackTrace: "" },
     });
-    renderAt(`/executions?${ID_PARAM}=EF-1`);
+    renderAt(`/executions?id=EF-1`);
     const panel = await openDetail();
     const attempts = within(panel).getByRole("region", { name: "Attempts" });
     await within(attempts).findAllByRole("listitem");
@@ -307,7 +306,7 @@ describe("the execution detail", () => {
   });
 
   it("reads the execution's history, scoped to it and the newest first", async () => {
-    renderAt(`/executions?${ID_PARAM}=EF-1`);
+    renderAt(`/executions?id=EF-1`);
     const panel = await openDetail();
     const history = await openHistory(panel);
     expect(
@@ -319,7 +318,7 @@ describe("the execution detail", () => {
   });
 
   it("opens a stream of the history over the execution, its payload read whole", async () => {
-    renderAt(`/executions?${ID_PARAM}=EF-1`);
+    renderAt(`/executions?id=EF-1`);
     const panel = await openDetail();
     const history = await openHistory(panel);
     const row = (
@@ -350,7 +349,7 @@ describe("the execution detail", () => {
     fireEvent.keyDown(row, { key: "Enter" });
     await openDetail();
     await waitFor(() =>
-      expect(router.state.location.search).toBe(`?${ID_PARAM}=EF-1`),
+      expect(router.state.location.search).toBe(`?id=EF-1`),
     );
 
     fireEvent.keyDown(await screen.findByRole("dialog"), { key: "Escape" });
@@ -358,7 +357,7 @@ describe("the execution detail", () => {
   });
 
   it("opens one the page does not hold, and says when it is not there", async () => {
-    renderAt(`/executions?${ID_PARAM}=EF-9`);
+    renderAt(`/executions?id=EF-9`);
     const panel = await openDetail();
     expect(
       within(panel).getByRole("heading", {
@@ -379,7 +378,7 @@ describe("the execution detail", () => {
   });
 
   it("says a linked execution is gone rather than drawing forms for it", async () => {
-    renderAt(`/executions?${ID_PARAM}=EF-404`);
+    renderAt(`/executions?id=EF-404`);
     const panel = await screen.findByRole("dialog");
     expect(
       await within(panel).findByText(/no longer there/i),
@@ -391,7 +390,7 @@ describe("the execution detail", () => {
 
   it("applies a retry spec and reads the execution again", async () => {
     const sent = commands();
-    renderAt(`/executions?${ID_PARAM}=EF-1`, sent);
+    renderAt(`/executions?id=EF-1`, sent);
     const panel = await openDetail();
     const form = await openForm(panel, "Apply retry specification");
     const apply = within(form).getByRole("button", {
@@ -437,7 +436,7 @@ describe("the execution detail", () => {
   it("changes the function, and keeps the service's refusal beside the form", async () => {
     const sent = commands();
     sent.changeFunction.mockRejectedValueOnce(new Error("Function not found."));
-    renderAt(`/executions?${ID_PARAM}=EF-1`, sent);
+    renderAt(`/executions?id=EF-1`, sent);
     const panel = await openDetail();
     const form = await openForm(panel, "Change function");
     fireEvent.change(within(form).getByLabelText("Processor name"), {
@@ -472,7 +471,7 @@ describe("the execution detail", () => {
       configurable: true,
       value: { writeText },
     });
-    renderAt(`/executions?${ID_PARAM}=EF-1`);
+    renderAt(`/executions?id=EF-1`);
     const panel = await openDetail();
     const trace = within(panel).getByRole("region", { name: "Stack trace" });
     fireEvent.click(
@@ -501,7 +500,7 @@ describe("the execution detail", () => {
       configurable: true,
       value: undefined,
     });
-    renderAt(`/executions?${ID_PARAM}=EF-1`);
+    renderAt(`/executions?id=EF-1`);
     const panel = await openDetail();
     const trace = within(panel).getByRole("region", { name: "Stack trace" });
     fireEvent.click(
@@ -516,7 +515,7 @@ describe("the execution detail", () => {
     records["EF-1"] = execution("EF-1", {
       error: { errorCode: "BAD_REQUEST", errorMsg: "x", stackTrace: "" },
     });
-    renderAt(`/executions?${ID_PARAM}=EF-1`);
+    renderAt(`/executions?id=EF-1`);
     const panel = await openDetail();
     const trace = within(panel).getByRole("region", { name: "Stack trace" });
     expect(within(trace).getByText("No stack trace")).toBeInTheDocument();

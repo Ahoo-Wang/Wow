@@ -14,13 +14,14 @@
 import { Suspense, type ComponentType } from "react";
 import { createBrowserRouter, Navigate } from "react-router";
 import App from "../features/App/App.tsx";
-import { NavItems } from "./constants.tsx";
+import { ConsoleHost } from "../features/App/ConsoleHost.tsx";
+import { Places } from "./constants.tsx";
 import {
   LazyBoardsPage,
   LazyEventsPage,
   LazyExecutionsPage,
   LazyOverviewPage,
-  LazyViewsLayout,
+  LazyPageLayout,
 } from "./lazyPages.ts";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -28,7 +29,7 @@ import {
   EVENTS_PATH,
   EXECUTIONS_PATH,
   HOME_PATH,
-} from "@/views/navigation.ts";
+} from "@/views/routes.ts";
 
 const routeFallback = (
   <div className="flex flex-1 flex-col gap-4 p-5">
@@ -48,16 +49,21 @@ function page(Page: ComponentType) {
 
 /**
  * The four places and nothing else (console-redesign.md §4): an address
- * the console does not have lands on the overview.
+ * the console does not have lands on the overview. One host of views for
+ * the shell and the four places: they share its engine, a change of
+ * language redraws it (host-integration.md 4), and the shell's places are
+ * its navigation (4.3).
  */
 export const AppRouter = createBrowserRouter([
   {
-    element: <App navItems={NavItems} />,
+    element: (
+      <ConsoleHost>
+        <App places={Places} />
+      </ConsoleHost>
+    ),
     children: [
       {
-        // One engine for the four places: they share it, and a change of
-        // language redraws it (host-integration.md 4).
-        element: page(LazyViewsLayout),
+        element: page(LazyPageLayout),
         children: [
           { index: true, element: page(LazyOverviewPage) },
           { path: EXECUTIONS_PATH, element: page(LazyExecutionsPage) },

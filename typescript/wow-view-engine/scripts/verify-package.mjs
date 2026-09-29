@@ -45,6 +45,8 @@
 //    (still loaded lazily) and the two stylesheets, gzipped, each under a
 //    regression ceiling in `scripts/size-budget.json` (not a size target).
 // 13. `mingo`, an optional peer, is imported by `/testing` and by no other entry.
+// 14. `react-router`, an optional peer, is imported by `/react-router` and by
+//    no other entry.
 import assert from 'node:assert/strict';
 import {
   readdirSync,
@@ -883,6 +885,7 @@ const SURFACE_LISTS = {
   [`${name}/react`]: 'test/surface/react.txt',
   [`${name}/ui`]: 'test/surface/ui.txt',
   [`${name}/testing`]: 'test/surface/testing.txt',
+  [`${name}/react-router`]: 'test/surface/react-router.txt',
 };
 for (const { specifier, resolved } of jsEntries) {
   const module = await import(resolved);
@@ -989,6 +992,28 @@ for (const entry of ['.', './react', './ui']) {
   );
 }
 
+// 14. `react-router` is an optional peer of `/react-router` alone
+// (host-integration.md 4.2): the adapter imports it, and nothing another
+// entry loads does, so a host on another router never needs it installed.
+const importsReactRouter = file =>
+  /\bfrom\s*["']react-router(?:\/[^"']*)?["']|import\(\s*["']react-router["']\)/.test(
+    readFileSync(file, 'utf8'),
+  );
+assert.ok(
+  entryFiles('./react-router').some(importsReactRouter),
+  '/react-router no longer imports react-router: drop the optional peer, or say why it stays',
+);
+for (const entry of ['.', './react', './ui', './testing']) {
+  const files = entryFiles(entry);
+  const reached = [...files, ...lazyChunks(files)];
+  const offending = reached.filter(importsReactRouter);
+  assert.deepEqual(
+    offending,
+    [],
+    `${entry} loads react-router, an optional peer only /react-router may import: ${offending.join(', ')}`,
+  );
+}
+
 const sizes = checkSizes({
   packageName: name,
   budgetFile: fileURLToPath(new URL('scripts/size-budget.json', packageRoot)),
@@ -997,6 +1022,7 @@ const sizes = checkSizes({
     './react': gzippedSize(entryFiles('./react')),
     './ui': gzippedSize(uiFiles),
     './testing': gzippedSize(entryFiles('./testing')),
+    './react-router': gzippedSize(entryFiles('./react-router')),
     'echarts chunk': gzippedSize(staticClosure(chartChunk, new Set(uiFiles))),
     './styles.css': cssSizes['styles.css'],
     './themes.css': cssSizes['themes.css'],

@@ -27,6 +27,8 @@ catalogs:
     mingo: ^7.2.4
     react: ^19.3.0
     react-dom: ^19.3.0
+    # Optional: only the view engine's /react-router entry loads it (host-integration.md 4.2).
+    react-router: ^8.0.0
 
 # One version per external dependency across the workspace. Packages reference
 # these with `catalog:`; internal packages use the `workspace:` protocol.

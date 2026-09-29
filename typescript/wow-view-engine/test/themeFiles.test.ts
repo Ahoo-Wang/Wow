@@ -26,7 +26,7 @@
  * every token the registry puts in the stylesheet's blocks is declared there
  * as it says, reading the host's layer before the preset's — so the contract
  * is complete as well as kept; holds each preset to it; holds the reset rule
- * to the registry's preset layer; and holds both READMEs to their rendering
+ * to the registry's preset layer; and holds both theming guides to their rendering
  * of it. It also holds the list of names a host can build a picker from,
  * `BUILT_IN_PRESETS`, to the files.
  */
@@ -47,8 +47,8 @@ import {
 import { presetSources } from '../scripts/themes.mjs';
 import {
   hostReads,
-  READMES,
-  renderReadme,
+  THEME_PAGES,
+  renderThemePage,
   renderStyles,
   ROOT,
 } from './fixtures/themeDocs';
@@ -260,10 +260,10 @@ describe('the registry is the contract', () => {
   });
 });
 
-describe.each(READMES)('%s', (file, language) => {
+describe.each(THEME_PAGES)('%s', (file, language) => {
   // Regenerate with `pnpm --filter @ahoo-wang/wow-view-engine theme:docs`.
   it(`is the registry's rendering, in ${language}`, async () => {
-    await expect(await renderReadme(file, language)).toMatchFileSnapshot(
+    await expect(await renderThemePage(file, language)).toMatchFileSnapshot(
       join(ROOT, file),
     );
   });

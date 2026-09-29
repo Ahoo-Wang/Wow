@@ -45,6 +45,7 @@ const LAYERS = [
   'react',
   'ui',
   'testing',
+  'react-router',
 ] as const;
 type Layer = (typeof LAYERS)[number];
 type Location = Layer | 'root';
@@ -75,10 +76,14 @@ const ALLOWED: Record<Location, readonly Layer[]> = {
     'runtime',
     'store',
   ],
-  ui: [...LAYERS],
+  // Everything but the router adapter, whose peer `/ui` must never load.
+  ui: LAYERS.filter(layer => layer !== 'react-router'),
   // The in-memory source a host tests against (`/testing`, D65): it answers
   // the contracts the engine reads, and nothing depends on it.
   testing: ['model', 'runtime'],
+  // The router port's adapter (`/react-router`, host-integration.md 4.2):
+  // React Router read as the port, and nothing depends on it.
+  'react-router': ['runtime'],
   root: [
     'model',
     'filter',
@@ -97,6 +102,7 @@ const ALLOWED: Record<Location, readonly Layer[]> = {
 const PORTS: Partial<Record<Location, Partial<Record<Layer, string>>>> = {
   runtime: { store: 'store/ViewStore' },
   testing: { runtime: 'runtime/source' },
+  'react-router': { runtime: 'runtime/routes' },
 };
 
 /**
@@ -201,6 +207,9 @@ const HEADLESS_DEPENDENCIES: Record<string, readonly Location[]> = {
   dequal: ['runtime'],
   // MongoDB's query semantics, which the in-memory source answers with.
   mingo: ['testing'],
+  // The adapter is a hook: React, and the router it adapts, there alone.
+  react: ['react', 'ui', 'react-router'],
+  'react-router': ['react-router'],
 };
 
 const manifest = JSON.parse(
@@ -392,6 +401,7 @@ const SELF_ENTRIES: Record<string, string> = {
   './react': 'react',
   './ui': 'ui',
   './testing': 'testing',
+  './react-router': 'react-router',
 };
 
 function targetOf(from: SourceFile, specifier: string): string | null {
@@ -577,6 +587,7 @@ describe('architecture', () => {
       join('ui', 'index.ts'),
       join('react', 'index.ts'),
       join('testing', 'index.ts'),
+      join('react-router', 'index.ts'),
     ];
     const seen = new Set<string>();
     const violations: string[] = [];

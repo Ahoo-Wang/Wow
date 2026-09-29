@@ -26,8 +26,12 @@ vi.mock("../../features/App/App.tsx", () => ({
   default: () => null,
 }));
 
+vi.mock("../../features/App/ConsoleHost.tsx", () => ({
+  ConsoleHost: () => null,
+}));
+
 vi.mock("../lazyPages.ts", () => ({
-  LazyViewsLayout: () => null,
+  LazyPageLayout: () => null,
   LazyOverviewPage: () => {
     throw new Promise(() => undefined);
   },
@@ -36,13 +40,16 @@ vi.mock("../lazyPages.ts", () => ({
   LazyEventsPage: () => null,
 }));
 
-vi.mock("../constants.tsx", () => ({ NavItems: [] }));
+vi.mock("../constants.tsx", () => ({ Places: [] }));
 
 describe("AppRouter", () => {
   it("routes the four places under one host of views, and sends any other address home", () => {
     expect(AppRouter).toBeDefined();
 
     const root = mocks.routerConfig?.[0];
+    // The shell under the console's host of views: its places are the
+    // engine's navigation.
+    expect(root?.element?.props.children).toBeDefined();
     const [views, other] = root?.children ?? [];
     expect(views?.path).toBeUndefined();
     expect(views?.element?.props.children).toBeDefined();

@@ -113,30 +113,34 @@ const engine = new ViewEngine({
 
 ```tsx
 // React：行为
-<ViewEngineProvider
+<ViewHost
   engine={engine}
+  router={useReactRouter()}
   locale={locale}
   messages={consoleText}
-  navigate={navigate}
+  preset="porcelain"
   bindings={[
     bind(EXECUTION_FAILED, {
-      route: view => `/executions?view=${view}`,
+      route: view => withView('/executions', view),
       actions: executionActions,
+      bulk,
       reading: { render, title },
     }),
-    bind(EXECUTION_HISTORY, { route: view => `/events?view=${view}` }),
-    bind(OVERVIEW, { route: () => '/' }),
+    bind(EXECUTION_HISTORY, { route: view => withView('/events', view) }),
+    bind(OVERVIEW, {
+      route: board => (board === HOME ? '/' : withView('/boards', board)),
+    }),
   ]}
 >
   <App />
-</ViewEngineProvider>
+</ViewHost>
 ```
 
 - `resources` 替掉 `definitions` 与 `resolveSource`；没有 `source` 的资源（看板）不查数据。
-- `route` 替掉宿主按定义分派的路由：引擎按目标资源的 `route` 把 `ViewNavigation` 解析成具体的路径与 state 再交给 `navigate`；网址与没有 `route` 的目标仍原样交给宿主。
-- `actions`（第 5 节）与 `reading`（[D60](decisions.md)）替掉 `recordPanel`：失败执行出现在工作台、详情抽屉、看板的记录面板、嵌入视图与追问的结果里，都自动带上。
+- `route(instanceId | null, target?)` 替掉宿主按定义分派的路由：`instanceId` 是要打开的视图或看板，`null` 是没人存过的视图（追问、看板自己的分析），落在页面的缺省上、整份交接；`target` 是这次的去处，引擎为导航要链接时（4.3）不给。引擎按目标资源的 `route` 把 `ViewNavigation` 解析成 `ViewDestination`——`{ kind: 'route', path, state, target }`，`state` 是 `ViewRouteState`（`handOver`、`filters`、`tab`）——交给路由端口（4.2）；网址与没有 `route` 的目标原样交出。宿主要自己接每一条去处时写 `navigate(to: ViewDestination)`，它优先于路由端口。同一套解析在 `/testing` 的 `resolveNavigation` 里，宿主的路由单测跑的就是引擎自己的。
+- `actions`（今天是 `RecordActionSlots` 插槽，H3 改为声明，第 5 节）、`bulk`（`useBulkCommand` 的那一行）与 `reading`（[D60](decisions.md)）替掉 `recordPanel`：失败执行出现在工作台、详情抽屉、看板的记录面板、嵌入视图与追问的结果里，都自动带上；外壳自己的 prop 仍优先。
 - 外壳只要 id：`<DataWorkbench definitionId={EXECUTION_FAILED} />`。props 只留「这一处与别处不同」的：嵌入的交互档位、标题开关、这一处独有的操作。
-- Provider 可以嵌套，内层覆盖外层，也可以在外壳上显式传 `engine`：一页两个引擎的宿主照样写得出。
+- **ViewHost** 可以嵌套，内层的 `bindings` 按 id 覆盖外层，也可以在外壳上显式传 `engine`：一页两个引擎的宿主照样写得出。只有最外层画 `<html>`（明暗、预设、品牌）。
 - **一个应用一个引擎**：注册在应用启动时做一次；页面之间共享查询缓存、偏好与描述符。
 - 查询队列按看板规模自己留位（todo.md「看板打开时查询队列按看板的规模留位」），控制台的 `maxQueuedQueries: 64` 删去。
 - 开发期的 `onIssue` 缺省按资源分组打印，每条带改法；宿主接了自己的就用宿主的。
@@ -145,17 +149,17 @@ const engine = new ViewEngine({
 
 今天的主题机制是对的（每个预设在两种模式下守 4.5:1 与 3:1，`theme-check` 与对比度矩阵核对，样式全在边界内），但宿主要先读懂四种变量前缀、预设、`tokens`、`theme`、品牌与六个边界、桥接、两种边界、密度与涨跌色，README 光主题就约 400 行，没有「先选哪条路」的入口。参考宿主控制台有 shadcn 主题却没用桥接，反把 `fve-tokens` 挂在 `<body>` 上（README 说该挂在用到它的外壳上：边界内有 preflight），B（D66）的断点失效正由此撞出；它还自写约 60 行的明暗切换。
 
-改为两条路，宿主第一步只做一个选择，都在 Provider 上写：
+改为两条路，宿主第一步只做一个选择，都在 **ViewHost** 上写：
 
 | 路             | 适合                                  | 写法                                             | 引擎做                                                                                                      |
 | -------------- | ------------------------------------- | ------------------------------------------------ | ----------------------------------------------------------------------------------------------------------- |
 | **引擎跟宿主** | 已有 shadcn 主题（Tailwind v4）的宿主 | **theme="host"**                                 | 等同今天的 `shadcn-bridge.css`：预设层读宿主的同名变量；`input`、`ring`、状态色与图表色仍用本包的（对比度） |
 | **宿主跟引擎** | 没有主题、或愿意用引擎主题的宿主      | **preset="porcelain"**，可加 **brand="#1d4ed8"** | 预设与品牌；宿主自己的外壳挂 `fve-tokens` 拿到同一套 shadcn 名（`--background`、`--primary`…）              |
 
-- **明暗归 Provider**：**colorMode**（`system`／`light`／`dark`，可选记住读者的选择）写 `<html>` 的 `.dark` 与 `color-scheme`，跟随系统变化；控制台的明暗切换删去。面上的 `theme` 仍可把某一块钉在一种模式。
+- **明暗归 ViewHost**：**colorMode**（`system`／`light`／`dark`，可选记住读者的选择）写 `<html>` 的 `.dark` 与 `color-scheme`，跟随系统变化；控制台的明暗切换删去。面上的 `theme` 仍可把某一块钉在一种模式。
 - **进阶不挡路**：逐个 `--fve-*` 覆盖、`tokens`、品牌边界、密度、涨跌色与 `theme-check` 照旧，挪到文档站的进阶页；README 的主题一节压成约 30 行，只讲两条路与明暗。
-- **暗色的另一种写法**（待评估，H2 内定）：今天暗色值写 `--fve-dark-*`，好让钉在另一种模式的面也画对；另收 shadcn 习惯的写法——宿主在 `.dark` 下重写同一个 `--fve-*`——前提是与「钉模式」不冲突，冲突就只在文档里讲清为什么要 `--fve-dark-*`。
-- **控制台走推荐的路**：`fve-tokens` 从 `<body>` 挪到用到它的外壳上，明暗交给 Provider；它是参考宿主，就是示范。
+- **暗色的另一种写法**（H2b 定：不收）：暗色值仍写 `--fve-dark-*`。shadcn 习惯的写法——宿主在 `.dark` 下重写同一个 `--fve-*`——与「钉模式」冲突：变量从 `<html class="dark">` 一路继承下来，钉在浅色的面（`theme="light"`）拿到的就是宿主的暗色值，面分不出哪个值是给哪种模式的。两半分开写，面才能按自己的模式挑。文档站主题页「Light, dark and system」讲清这一条；走「引擎跟宿主」的宿主不受影响：桥接读的是宿主自己按 `.dark` 切换的 shadcn 变量。
+- **控制台走推荐的路**：`fve-tokens` 从 `<body>` 挪到用到它的外壳上，明暗交给 ViewHost；它是参考宿主，就是示范。
 - 与 B（D66）互补：前缀消掉同名工具类互压，这里消掉「不知道怎么接」。
 
 ### 4.2 **ViewHost**：宿主唯一要认的入口（用户 2026-09-28 定）
@@ -172,14 +176,19 @@ H2a 的 Provider 解决了「按资源注册」，但宿主周围的胶水还在
 | 数据与存储 | `resources`、`store`（第 4 节）                                                            | 资源列表                                       |
 | 命令       | 声明式操作（第 5 节）                                                                      | 经 `bind` 给                                   |
 
-- **唯一公开入口**：**ViewHost** 取代 H2a 的 **ViewEngineProvider**（降为内部），首发前改名，不留两种写法。
-- **适配器**：首发只带 react-router，放在单独入口 `/react-router`，react-router 作可选 peer；其余路由与 i18n 照端口写，文档给示例。
-- **明暗**：**colorMode** 缺省 `system`，由引擎管（写 `<html>` 的 `.dark` 与 `color-scheme`、跟随系统、可记住读者的选择）；宿主已在管（如 next-themes）时写 `host`，引擎只读 `.dark`。
+- **唯一公开入口**：**ViewHost** 取代 H2a 的 **ViewEngineProvider**（降为内部：`src/ui/ViewEngineProvider.tsx` 仍是上下文本身，不再从 `/ui` 导出），首发前改名，不留别名、不留两种写法。
+- **路由端口**是两个成员的 **ViewRouter**：`location`（`pathname`、`search`、`state`）与 `go(path, { state, replace })`。有了它，引擎：把每条去处交给 `go`（`ViewRoute` 带 `state` 进 history；宿主自己的路径——以 `/` 开头、不是 `//`——也走 `go`；别的站点 `window.open` 另开；没有路由的目标不去）；工作台（`DataWorkbench`、`DashboardWorkbench`）在宿主没给 `instanceId`／`onInstanceChange` 时打开地址的 `?view=`，读者换视图时写回（新的一条历史）；打开交接来的视图时把 `?view=` 写在交接的那一条上（替换，交接留着，刷新还在）；工作台在宿主没给 `handOver` 时读 history state 的 `handOver`（按内容认同一个，浏览器每写一次 state 都是新拷贝）；看板（工作台与 `EmbeddedDashboard`）在宿主没给那一对 prop 时从 state 读 `filters`、`tab`，读者一改就替换当前这一条；每个绑定了的资源的记录详情，在 `reading` 没有自己的 `open` 时跟着地址的 `?id=`（替换，不加历史）。参数名固定为 `view` 与 `id`：`route` 是宿主的函数，引擎读不回它拼的路径，只能与宿主约定这两个名字。
+- **适配器**：首发只带 react-router，放在单独入口 `/react-router`（`useReactRouter()`，约 400 B），react-router 作可选 peer（`catalog:peers` 的 `^8.0.0`），只有这个入口导入它（`scripts/verify-package.mjs` 核对）；其余路由照端口的两个成员写，i18n 就是 `locale` 与 `messages`。
+- **明暗**：**colorMode** 缺省 `system`，由引擎管——在第一次绘制前写 `<html>` 的 `.dark` 与 `color-scheme`，跟随系统变化；`light`／`dark` 从钉住开始；**rememberColorMode** 给一个 `localStorage` 键，读者经 **useColorMode**（`{ mode, setMode }`）选的就记在这台机器上，选回宿主的起始模式即忘掉；宿主已在管（如 next-themes）时写 `host`，引擎不碰 `<html>`，面照旧跟 `.dark`。只有最外层的 **ViewHost** 画；它卸下时把 `<html>` 还原。
+- **主题**：`preset` 与 `brand` 由最外层写到 `<html>` 的 `data-fve-preset` 与 `--fve-brand`；`theme="host"` 什么也不写（桥接只在 `<html>` 不点名预设时生效）。样式表仍由宿主导入（`styles.css`，加 `themes/<name>.css` 或 `shadcn-bridge.css`）：打包器的事，端口替不了。
 - **边界**：不接管宿主的应用——路由库、i18n、主题系统仍是宿主的，端口只做桥。
+- **落地（H2b）**：控制台的接线剩三处——`features/App/ConsoleHost.tsx`（引擎、路由、语言、主题）、`views/routes.ts`（路由表）、`features/App/PageCommands.tsx`（失败执行的读法与命令，H3 前仍是插槽）——加上资源与数据源 `views/engine.ts`；`views/navigation.ts`、`colorMode.ts`、`?id=` 的同步与 `<body>` 上的 `fve-tokens` 都删了，控制台自己的外壳与弹层各自挂 `fve-tokens`。
 
 ### 4.3 导航数据，不做整页外壳（用户 2026-09-28 定）
 
 不做整页布局组件：引擎画视图、宿主管页面（D17 的 `fve-tokens` 就是给宿主外壳的）；做成可配的外壳就成了后台框架，也加重首发前的公开面与 `./ui` 的体积。做的是导航**数据**：**useViewNavigation** 从 **ViewHost** 的资源、路由、系统视图与看板推出 `{ id, title, path, current, kind, views }`，宿主用自己的组件画（shadcn `Sidebar`、顶栏都行）；标题按渲染时译，资源一改导航跟着变。Storybook 的外壳与控制台的外壳改用它作示范，文档给 shadcn `Sidebar` 的例子。
+
+落地（H2b）：**useViewNavigation()** 返回每个绑了 `route` 的资源，按注册的次序：`{ id, kind, title, path, current, views }`，`path` 是 `route(null)`，`views` 是它的系统视图（看板定义的就是系统看板），各带 `{ id, title, path, current }`，`path` 是 `route(instanceId)`；标题经 **useSay** 说成最近一层的措辞，换语言即重画。`current` 读路由端口的地址：路径相同、且那条路径自己写的每个参数地址里都一样——所以按路径分页的宿主（控制台）与按查询参数分页的宿主（Storybook 的 `?path=`）都认得出；没有路由端口时都不是当前。没有 `route` 的资源不是一个去处，不出现。存储里的共享视图与看板不在其中（要异步读存储，交给宿主自己的视图列表）。宿主给地方起自己的名字（控制台的「事件流」「看板」），数据给去处与「在不在这里」：控制台顶栏的四处——概览是 `overview` 的系统板 `home`、看板是 `overview` 的页——与 Storybook 左栏「业务场景」里五个零售工作台都由它推出。
 
 ## 5. 声明式操作：宿主声明做什么，引擎负责怎样做
 
@@ -235,7 +244,7 @@ const executionActions = actions<ExecutionRow>([
 - `/testing` 加 `admit(resources, descriptors)`：用提交的快照把全部定义与看板过一遍准入，返回问题列表；宿主一行单测。控制台 `overview.test.ts` 的「each naming a view there is」只删一半：它还拦存储里的视图 id 与钉看板 id，准入判断不了。`admit` 连带运行时，`/testing` 的体积约与根入口相当（上限 111,000 B，只用 **memorySource** 的包摇掉它）。
 - 操作的单测：`/testing` 给一个无头的 `actionHarness(actions, rows)`，断言某行可用与否、拒绝理由、确认与表单的形状，不渲染界面。
 - **`wow-view-definition` 改写**：从「对着描述符抄路径、别编字段」改为只讲判断——受众、列哪些、口径、默认、系统视图与看板；自检就是 `admit`。
-- **新增 `wow-view-host`**：接入一个宿主——`resources`、Provider、`bind`、路由，以及「从命令到操作」：哪些命令上界面、可用规则从聚合状态怎么读、拒绝理由用业务话、破坏性一律确认、批量是否允许、`run` 等到哪个阶段。与定义分开，是因为写定义的人与接宿主的人常常不是同一个，两者的自检也不同。
+- **新增 `wow-view-host`**：接入一个宿主——`resources`、**ViewHost**、`bind`、路由，以及「从命令到操作」：哪些命令上界面、可用规则从聚合状态怎么读、拒绝理由用业务话、破坏性一律确认、批量是否允许、`run` 等到哪个阶段。与定义分开，是因为写定义的人与接宿主的人常常不是同一个，两者的自检也不同。
 
 ## 7. 描述符要补的事实（交后端）
 

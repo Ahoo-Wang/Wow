@@ -297,17 +297,27 @@ export {
 export { ViewList, type ViewListProps } from './ViewList.js';
 export { ViewSwitcher, type ViewSwitcherProps } from './ViewSwitcher.js';
 export { ViewManager, type ViewManagerProps } from './ViewManager.js';
+export { ViewHost, type ViewHostProps } from './ViewHost.js';
 export {
-  ViewEngineProvider,
-  type ViewEngineProviderProps,
-} from './ViewEngineProvider.js';
+  type ColorMode,
+  type ColorModeControl,
+  type HostColorMode,
+  useColorMode,
+} from './colorMode.js';
+export {
+  useViewNavigation,
+  type ViewNavigationItem,
+  type ViewNavigationView,
+} from './viewNavigation.js';
 export { bind, type ViewBinding, type ViewBindingOptions } from './bindings.js';
 export type {
   RoutedTarget,
   ViewDestination,
+  ViewLocation,
   ViewRoute,
   ViewRouteOf,
   ViewRouteState,
+  ViewRouter,
 } from '../runtime/routes.js';
 export {
   ViewSurface,
