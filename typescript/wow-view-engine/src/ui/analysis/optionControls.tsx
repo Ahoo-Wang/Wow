@@ -33,6 +33,7 @@ import { cn } from 'cn';
 import { PillInput } from '../variants.js';
 import { CompactSelect } from './CompactSelect.js';
 import type { ValueLabel } from '../charts/family.js';
+import { useSaidText, useViewMessages } from '../MessagesProvider.js';
 
 /** An alias offered for a slot, named as its column is titled. */
 export interface Choice {
@@ -330,6 +331,8 @@ export function TextField({
   placeholder?: string;
   onChange(value: string | undefined): void;
 }) {
+  // A key in words, and back a key where the words are left as shown.
+  const text = useSaidText(value);
   return (
     <Field>
       <FieldLabel>{label}</FieldLabel>
@@ -338,9 +341,13 @@ export function TextField({
         chrome="box"
         className="placeholder:text-quiet-foreground"
         placeholder={placeholder}
-        value={value ?? ''}
+        value={text.shown}
         onChange={event =>
-          onChange(event.target.value === '' ? undefined : event.target.value)
+          onChange(
+            event.target.value === ''
+              ? undefined
+              : text.back(event.target.value),
+          )
         }
       />
     </Field>
@@ -378,15 +385,18 @@ export function NameField({
   value: string | undefined;
   onChange(value: string | undefined): void;
 }) {
+  const text = useSaidText(value);
   return (
     <PillInput
       aria-label={label}
       chrome="box"
       className="placeholder:text-quiet-foreground h-7 min-w-0 flex-1"
       placeholder={placeholder}
-      value={value ?? ''}
+      value={text.shown}
       onChange={event =>
-        onChange(event.target.value === '' ? undefined : event.target.value)
+        onChange(
+          event.target.value === '' ? undefined : text.back(event.target.value),
+        )
       }
     />
   );
@@ -422,5 +432,33 @@ export function OptionsSection({
       {title && <h3 className="font-semibold">{title}</h3>}
       {children}
     </section>
+  );
+}
+
+/**
+ * A line's or a band's name, typed where it is set: shown in words, and a
+ * key again where the words are left as shown (`useSaidText`).
+ */
+export function ReferenceLabel({
+  value,
+  onChange,
+}: {
+  value: string | undefined;
+  onChange(value: string | undefined): void;
+}) {
+  const messages = useViewMessages();
+  const text = useSaidText(value);
+  return (
+    <PillInput
+      aria-label={messages.label('label.chart.reference-label')}
+      placeholder={messages.label('label.chart.reference-label')}
+      chrome="box"
+      className="min-w-0 flex-1 basis-24"
+      value={text.shown}
+      onChange={event => {
+        const typed = event.target.value;
+        onChange(typed === '' ? undefined : text.back(typed));
+      }}
+    />
   );
 }

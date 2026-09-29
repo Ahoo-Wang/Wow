@@ -34,7 +34,7 @@ import { EmbeddedAnalysis } from './embed/EmbeddedAnalysis.js';
 import { EmbeddedRecord } from './embed/EmbeddedRecord.js';
 import type { EmbedBaseProps, EmbedInteraction } from './embed/options.js';
 import type { RecordDetailOptions } from './workbench/RecordParts.js';
-import { useViewMessages } from './MessagesProvider.js';
+import { StartingWords, useViewMessages } from './MessagesProvider.js';
 import {
   useBindings,
   useEngine,
@@ -147,14 +147,16 @@ export function EmbeddedView(given: EmbeddedViewProps) {
   // refuses is reported as a refusal instead of being quietly dropped.
   const opened = useOpenView(engine, instanceId, scopeFilter);
   return (
-    <EmbedFrame
-      engine={engine}
-      opened={opened}
-      kinds={DATA_KINDS}
-      props={props}
-    >
-      {runtime => <EmbeddedData runtime={runtime} props={props} />}
-    </EmbedFrame>
+    <StartingWords engine={engine}>
+      <EmbedFrame
+        engine={engine}
+        opened={opened}
+        kinds={DATA_KINDS}
+        props={props}
+      >
+        {runtime => <EmbeddedData runtime={runtime} props={props} />}
+      </EmbedFrame>
+    </StartingWords>
   );
 }
 

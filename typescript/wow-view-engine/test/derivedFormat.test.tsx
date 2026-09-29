@@ -51,6 +51,7 @@ afterEach(cleanup);
 
 const messages: MessageFormatters = {
   label: (key, params) => formatMessage(defaultMessages, key, params),
+  say: value => value,
   issue: found => formatIssue(defaultMessages, found),
   issues: found =>
     found.map(each => formatIssue(defaultMessages, each)).join(' '),

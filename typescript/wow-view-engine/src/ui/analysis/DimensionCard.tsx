@@ -134,7 +134,7 @@ export function DimensionSlot({
                   )
                 }
               >
-                {field.label}
+                {messages.say(field.label)}
               </DropdownMenuItem>
             )}
           />
@@ -182,13 +182,13 @@ function DimensionCard({
   // computes, 「付款时间 → 发货时间」 (N3).
   const fallback =
     group.field === undefined
-      ? expressionText(
-          group.expression,
-          name =>
+      ? expressionText(group.expression, name =>
+          messages.say(
             analysis.fields.find(entry => entry.field === name)?.label ?? name,
+          ),
         )
-      : (field?.label ?? group.field);
-  const name = group.label ?? fallback;
+      : messages.say(field?.label ?? group.field);
+  const name = group.label === undefined ? fallback : messages.say(group.label);
   // Only a time dimension standing alone may fill its empty periods: a
   // second dimension would multiply the filling out (Wow refuses it).
   const alone = analysis.groups.length === 1;

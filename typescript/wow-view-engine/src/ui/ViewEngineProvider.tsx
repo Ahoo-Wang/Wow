@@ -14,7 +14,6 @@
 import {
   createContext,
   useContext,
-  useEffect,
   useLayoutEffect,
   useMemo,
   useState,
@@ -23,6 +22,7 @@ import {
 import type { ViewEngine, ViewNavigation } from '../runtime/index.js';
 import {
   MessagesProvider,
+  StartingWords,
   useInheritedLocale,
   useMergedMessages,
 } from './MessagesProvider.js';
@@ -36,9 +36,7 @@ interface EngineContext {
   /** The host's route, as it takes a resolved target. */
   navigate: ((to: ViewDestination) => void) | undefined;
   bindings: ReadonlyMap<string, ViewBinding>;
-  /** Advanced whenever the engine's words change, so readers draw again. */
-  words: number;
-  /** The engines a provider above already says the words of. */
+  /** The engines a provider above already checks the words of. */
   worded: ReadonlySet<ViewEngine>;
 }
 
@@ -48,7 +46,6 @@ const Context = createContext<EngineContext>({
   engine: undefined,
   navigate: undefined,
   bindings: NO_BINDINGS,
-  words: 0,
   worded: new Set(),
 });
 
@@ -56,12 +53,11 @@ export interface ViewEngineProviderProps {
   /**
    * The application's engine, built once (host-integration.md 4); an inner
    * provider without one uses the outer one's. The engine's definitions
-   * speak the `messages` of the outermost provider that names it: nesting a
-   * provider in another language — naming the engine again at any depth,
-   * or naming none — rewords the engine's own messages under it, not the
-   * definitions' keys; one engine speaks one language at a time. Two
-   * sibling providers naming one engine must give it the same words (the
-   * last to draw would win).
+   * are said where they are shown, in the wording in force there (`useSay`),
+   * so a provider nested in another language says them in its words as it
+   * says the engine's own messages. The words of the outermost provider
+   * that names the engine are the ones checked for keys they lack
+   * (`ViewEngine.setText`).
    */
   engine?: ViewEngine;
   /**
@@ -71,9 +67,10 @@ export interface ViewEngineProviderProps {
   locale?: string;
   /**
    * Wording, merged over what is already in force — the engine's own and
-   * the definitions' keys (`text(key)`) alike: the engine says its
-   * definitions' keys in these words, at render time, so switching them
-   * switches every open view's words without reopening it (3.1).
+   * the definitions' keys (`text(key)`) alike: every label a definition
+   * carries is said in these words where it is shown, so switching them
+   * redraws every open view in them without reopening, re-querying or
+   * dirtying anything (3.1).
    */
   messages?: ViewMessages;
   /**
@@ -100,10 +97,11 @@ export interface ViewEngineProviderProps {
  * one; a surface's own `engine`, `messages`, `locale` or `onNavigate` still
  * wins, so a page with two engines is as easy to write as before.
  *
- * The provider that names an engine says that engine's definitions in its
- * wording (`ViewEngine.setText`): the definitions keep their keys, and a
- * change of `messages` or `locale` redraws what is open in the new words —
- * the same runtimes, no query run again.
+ * The definitions keep their keys, and every surface under it says them in
+ * the wording in force where it shows them (`useSay`): a change of
+ * `messages` or `locale` redraws what is open in the new words — the same
+ * runtimes, no query run again. The provider that names an engine checks
+ * its words for the keys they lack (`ViewEngine.setText`).
  */
 export function ViewEngineProvider({
   engine: own,
@@ -117,12 +115,10 @@ export function ViewEngineProvider({
   const engine = own ?? outer.engine;
   const wording = useMergedMessages(messages);
   const inherited = useInheritedLocale();
-  // The words of an engine are the outermost provider's that names it: one
-  // engine speaks one language at a time (`setText` is the engine's, not a
-  // subtree's), so an inner provider naming it again, or naming none,
-  // rewords the engine's own messages under it but never its definitions'
-  // keys — whatever order React runs their effects in.
-  const words = useEngineWords(
+  // The words checked are the outermost provider's that names the engine
+  // (`setText` is the engine's, not a subtree's), whatever order React runs
+  // their effects in.
+  useCheckedWords(
     own && !outer.worded.has(own) ? own : undefined,
     wording,
     locale ?? inherited ?? '',
@@ -140,59 +136,45 @@ export function ViewEngineProvider({
       engine,
       navigate: navigate ?? outer.navigate,
       bindings: bound,
-      words: outer.words + words,
       worded:
         own && !outer.worded.has(own)
           ? new Set([...outer.worded, own])
           : outer.worded,
     }),
-    [
-      engine,
-      own,
-      navigate,
-      outer.navigate,
-      bound,
-      outer.words,
-      outer.worded,
-      words,
-    ],
+    [engine, own, navigate, outer.navigate, bound, outer.worded],
   );
   return (
     <Context.Provider value={value}>
-      <MessagesProvider messages={messages} locale={locale}>
-        {children}
-      </MessagesProvider>
+      <StartingWords engine={engine}>
+        <MessagesProvider messages={messages} locale={locale}>
+          {children}
+        </MessagesProvider>
+      </StartingWords>
     </Context.Provider>
   );
 }
 
 /**
- * Says `engine`'s keys in `wording` from the first draw on, and counts each
- * change of its words, so what reads the engine draws again.
+ * Checks `engine`'s definitions against `wording` from the first draw on
+ * (`setText`): a key it lacks is told once per language. Nothing is said
+ * or redrawn by it.
  */
-function useEngineWords(
+function useCheckedWords(
   engine: ViewEngine | undefined,
   wording: ViewMessages,
   language: string,
-): number {
+): void {
   const resolver = useMemo(
     () =>
       (key: string): string | undefined =>
         wording[key],
     [wording],
   );
-  // Before the first draw, so nothing is drawn in keys: an engine is given
-  // to its provider before anything of it is open.
+  // Before the first draw, as the engine is given to its provider.
   useState(() => engine?.setText(resolver, language));
   useLayoutEffect(() => {
     engine?.setText(resolver, language);
   }, [engine, resolver, language]);
-  const [words, setWords] = useState(0);
-  useEffect(
-    () => engine?.subscribeText(() => setWords(count => count + 1)),
-    [engine],
-  );
-  return words;
 }
 
 /**
@@ -200,7 +182,6 @@ function useEngineWords(
  * neither is a host's mistake, said as one.
  */
 export function useEngine(own?: ViewEngine): ViewEngine {
-  // Read either way, so a change of the provider's words draws it again.
   const { engine } = useContext(Context);
   const found = own ?? engine;
   if (!found)

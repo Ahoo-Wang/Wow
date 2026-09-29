@@ -230,8 +230,13 @@ export function useAnalysisExportOffer({
   const now = runtime?.environment.now;
   // Named before it exists and asked once, as the window opens (D14).
   const nameFile = useCallback(
-    () => fileName(title, isoDay(now ? now() : new Date(), display), 'csv'),
-    [display, now, title],
+    () =>
+      fileName(
+        messages.say(title),
+        isoDay(now ? now() : new Date(), display),
+        'csv',
+      ),
+    [display, messages, now, title],
   );
   if (!view || !file || view.rows.length === 0) return null;
   // The groups, the totals row not counted: 「已导出 12 组」 is about groups.

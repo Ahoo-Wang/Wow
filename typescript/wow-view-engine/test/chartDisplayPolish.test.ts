@@ -101,6 +101,7 @@ const context = (spec: ChartSpec): CartesianContext => ({
 const catalogue = (messages: typeof defaultMessages) => ({
   label: (key: string, params?: Record<string, string | number>) =>
     formatMessage(messages, key as never, params),
+  say: (value: string) => value,
   issue: () => '',
   issues: () => '',
 });

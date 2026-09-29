@@ -33,7 +33,7 @@ import {
   SheetTitle,
 } from '../components/sheet.js';
 import { Skeleton } from '../components/skeleton.js';
-import { useViewMessages } from '../MessagesProvider.js';
+import { useSay, useViewMessages } from '../MessagesProvider.js';
 import { SheetContent } from '../popups.js';
 import {
   RenderBoundary,
@@ -306,7 +306,9 @@ function FieldSection({
       className="flex flex-col gap-2"
     >
       <h3 id={heading} className="text-sm font-semibold">
-        {section.label ?? messages.label('label.record.detail.other')}
+        {section.label === null
+          ? messages.label('label.record.detail.other')
+          : messages.say(section.label)}
       </h3>
       <dl className="grid grid-cols-[minmax(6rem,max-content)_minmax(0,1fr)] gap-x-4 gap-y-2">
         {section.fields.map(field => {
@@ -331,7 +333,7 @@ function FieldSection({
               <dt
                 className={cn('text-muted-foreground', block && 'col-span-2')}
               >
-                {field.label}
+                {messages.say(field.label)}
               </dt>
               <dd
                 data-block={block ? '' : undefined}
@@ -363,6 +365,7 @@ function HostSection({
   onRenderFailure?: RenderFailureHandler;
 }) {
   const heading = `record-detail-host-${section.id}`;
+  const say = useSay();
   return (
     <section
       aria-labelledby={heading}
@@ -372,7 +375,7 @@ function HostSection({
       className="flex flex-col gap-2"
     >
       <h3 id={heading} className="text-sm font-semibold">
-        {section.title}
+        {say(section.title)}
       </h3>
       <DetailLayerContext.Provider value={{ parent, section: section.title }}>
         <RenderBoundary name="detail" onFailure={onRenderFailure}>

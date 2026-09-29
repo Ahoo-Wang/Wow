@@ -192,7 +192,7 @@ Wow 的源对没有说明的查询只回未删除的记录；一份把已删除�
 - **记录能力**：`rowKey` 缺省是描述的 `identity`，分页缺省按页（描述有 `PAGED` 时），布局缺省表格；快照不给的分页方式是 warning。
 - **没有描述符时按快照**（评审 #3744）：宿主没收窄的算子写上按快照收窄后的那一份（`open.operators` 记下哪些是留给源的，有描述符的源先还原为种类的缺省再收窄）；时刻的日历部分写上快照的；快照一个指标都没有时不写 `analysis`（不让定义因一个存储的话被拒），源有指标时补上；这样的定义里的分析系统视图不报 `definition.view.kind-mismatch`（error），改报 warning `definition.view.analysis-open`：给出分析能力的源上打得开，不给的源上打不开，定义照样可用。宿主自己注册的种类要把同一个注册表传给 `defineView(…, { kinds })`，快照的算子才写得上（定义先于引擎建好）。**搜索框是宿主要的**，与写了 `operators` 一样：没有描述符时照声明提供，有描述符的源说了不搜就收掉——控制台对 9.2 之前的服务照旧有错误搜索（e2e「filters, pages, switches to cards and exports」）。重开（`reopened`）只加不减：快照给过、这个源不给的，交给随后的收窄拿掉并照手写定义一样报 `capability.*`；敏感字段按别名与变体都认得（`DescribedField.sensitive`）。
 - **发现不抛**：一律记在 `described.findings`，`validateDefinition` 照报（`onIssue`、`definitionIssues`）；定义照样加载，按 A 能坏的只坏那一处。
-- **措辞是键**（第 3.1 节）：`text(key)` 是一个带私用区标记（U+E000）的字符串，放得进任何标签位；`ViewEngineOptions.text`（`TextResolver`）在注册时把每份定义的键说成当下语言的话（`withText`），没有措辞的键按键本身显示并报 `definition.text.unknown`。内核、控制器与界面只见话。H2 的 Provider 接手的就是这个解析函数：定义与键都不用改。
+- **措辞是键**（第 3.1 节）：`text(key)` 是一个带私用区标记（U+E000 … U+E001）的字符串，放得进任何标签位。定义、配置、状态与快照里始终是键；只在叶子上——界面显示、图表 option、导出、无障碍名称与播报、标题——说成话（`say(value, words)`，界面里 `useSay()`），措辞是最近的 Provider 的 `messages`，缺的退回 `ViewEngineOptions.text`（`TextResolver`），再缺就按键本身显示。`ViewEngineOptions.text` 在注册时只用来核对（`withText` 走一遍，说不出的键报 `definition.text.unknown`）。
 
 （见 test/defineView.test.ts、test/defineViewOpen.test.ts、test/text.test.ts）
 

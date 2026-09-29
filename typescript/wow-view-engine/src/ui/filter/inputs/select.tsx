@@ -101,7 +101,7 @@ export function OptionValue({
 }: ValueProps & { multiple: boolean; options: readonly FieldOption[] }) {
   const messages = useViewMessages();
   const items = options.map(option => ({
-    label: option.label,
+    label: messages.say(option.label),
     value: String(option.value),
   }));
   const byText = new Map(options.map(option => [String(option.value), option]));

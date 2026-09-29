@@ -15,6 +15,7 @@ import { describe, expect, it } from 'vitest';
 import {
   MemoryViewStore,
   ViewEngine,
+  say,
   text,
   textKeyOf,
   withText,
@@ -49,6 +50,18 @@ describe('text', () => {
       views: [{ title: 'gone' }],
     });
     expect(missing).toEqual([['gone', ['views', 0, 'title']]]);
+  });
+
+  it('says a label in a catalogue or a resolver, a key it lacks as the key (`say`, D2)', () => {
+    const label = `${text('orders.id')} · ${text('orders.none')}`;
+    expect(say(label, { 'orders.id': 'Order' })).toBe('Order · orders.none');
+    expect(
+      say(label, key => (key === 'orders.id' ? '订单号' : undefined)),
+    ).toBe('订单号 · orders.none');
+    // A catalogue's inherited members are no words.
+    expect(say(text('toString'), {})).toBe('toString');
+    const plain = 'Order';
+    expect(say(plain, {})).toBe(plain);
   });
 
   it('says a key where code has put it inside a longer string', () => {
@@ -92,11 +105,13 @@ describe('text', () => {
       onIssue: found => reported.push(found.code),
     });
     const definition = engine.definitions.get('orders');
-    // Said as the engine hands it out, in the words it started with.
-    expect(definition?.title).toBe('订单');
+    // Handed out as declared; the words it started with are the screen's
+    // to fall back on (`startingWord`, `useSay`).
+    expect(definition?.title).toBe(text('orders.title'));
+    expect(engine.startingWord('orders.title')).toBe('订单');
     expect(
       definition?.kind === 'data' ? definition.fields[0].label : null,
-    ).toBe('orders.id');
+    ).toBe(text('orders.id'));
     expect(reported).toEqual(['definition.text.unknown']);
     expect(engine.definitionIssues('orders')).toEqual([
       expect.objectContaining({

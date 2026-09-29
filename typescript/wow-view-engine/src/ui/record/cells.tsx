@@ -15,14 +15,13 @@ import type * as React from 'react';
 import { cn } from 'cn';
 import { isSafeContentUrl } from '../../dashboard/index.js';
 import { CopyButton } from '../CopyButton.js';
+import { badgeEntries, type BadgeEntry } from '../badges.js';
 import {
-  badgeEntries,
   cellText,
   displayValue,
   formatNumber,
   heldReading,
   labelsOf,
-  type BadgeEntry,
   type DisplayContext,
   type DisplayField,
 } from '../display.js';
@@ -115,7 +114,7 @@ export function cellValue(
     );
   }
 
-  const badges = badgeEntries(value, field);
+  const badges = badgeEntries(value, field, display.say);
   if (badges) return <Badges entries={badges} surface={surface} />;
 
   const cell = field.cell ?? field.kind;

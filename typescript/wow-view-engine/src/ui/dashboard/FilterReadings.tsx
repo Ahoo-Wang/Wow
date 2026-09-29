@@ -171,7 +171,7 @@ export function LockedReading({
       className={cn(CHIP, 'pl-2')}
     >
       <span className="text-muted-foreground shrink-0 whitespace-nowrap">
-        {label}
+        {messages.say(label)}
       </span>
       <span data-slot="filter-reading" className="min-w-0 truncate">
         {reading}

@@ -187,7 +187,7 @@ export function MetricSlot({
                   )
                 }
               >
-                {field.label}
+                {messages.say(field.label)}
               </DropdownMenuItem>
             )}
           />
@@ -281,7 +281,8 @@ function MetricCard({
   // What the card is called, and what every control on it is named after:
   // the name the analyst gave, else what the field composes (D20 显示名).
   const fallback = metricFallbackName(analysis, metric, messages);
-  const name = metric.label ?? fallback;
+  const name =
+    metric.label === undefined ? fallback : messages.say(metric.label);
   // The title says the bare field, because the summary sits next to it and
   // says the rest — and so do the controls that *are* the summary and its
   // operands, whose own value is the other half ("Summary for Amount",

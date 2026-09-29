@@ -20,7 +20,6 @@ import {
 } from '../src/index.js';
 import { bandText } from '../src/ui/band.js';
 import {
-  badgeEntries,
   cellText,
   csvCellText,
   displayValue,
@@ -31,6 +30,7 @@ import {
   type DisplayField,
   columnTitle,
 } from '../src/ui/display.js';
+import { badgeEntries } from '../src/ui/badges.js';
 import { summaryText } from '../src/ui/summary.js';
 import { en } from '../src/ui/messages/en.js';
 import { zhCN } from '../src/ui/messages/zh-CN.js';
@@ -395,6 +395,7 @@ describe('formatNumber', () => {
 describe('bandText', () => {
   const catalogue = (messages: ViewMessages): MessageFormatters => ({
     label: (key, params) => formatMessage(messages, key, params),
+    say: value => value,
     issue: () => '',
     issues: () => '',
   });
@@ -461,6 +462,7 @@ describe('bandText', () => {
 describe('cellText', () => {
   const words: MessageFormatters = {
     label: key => formatMessage(en, key),
+    say: value => value,
     issue: () => '',
     issues: () => '',
   };
@@ -527,6 +529,7 @@ describe('cellText', () => {
 describe('cellText of an array of objects', () => {
   const words = (catalogue: ViewMessages): MessageFormatters => ({
     label: (key, params) => formatMessage(catalogue, key, params),
+    say: value => value,
     issue: () => '',
     issues: () => '',
   });
@@ -595,6 +598,7 @@ describe('csvCellText', () => {
   const context = { locale: 'en-GB', timeZone: 'UTC' };
   const words: MessageFormatters = {
     label: key => formatMessage(en, key),
+    say: value => value,
     issue: () => '',
     issues: () => '',
   };
@@ -779,6 +783,7 @@ describe('summaryText', () => {
       const found = formatMessage(en, key, params);
       return found === key && fallback !== undefined ? fallback : found;
     },
+    say: value => value,
     issue: () => '',
     issues: () => '',
   };
@@ -1104,6 +1109,7 @@ describe('columnTitle', () => {
       const found = formatMessage(en, key, params);
       return found === key && fallback !== undefined ? fallback : found;
     },
+    say: value => value,
     issue: () => '',
     issues: () => '',
   };
@@ -1140,6 +1146,7 @@ describe('columnTitle', () => {
 
   const zh: MessageFormatters = {
     label: (key, params) => formatMessage(zhCN, key, params),
+    say: value => value,
     issue: () => '',
     issues: () => '',
   };

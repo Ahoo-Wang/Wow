@@ -22,7 +22,7 @@ import { TEXT_UI } from '../layout.js';
 import { RefreshControl } from '../RefreshControl.js';
 import { useSurfaceDisplay } from '../ViewSurface.js';
 import type { PanelHeadingLevel } from '../DashboardPanel.js';
-import { useViewMessages } from '../MessagesProvider.js';
+import { useSay, useViewMessages } from '../MessagesProvider.js';
 import { useViewExpansion, ViewExpandToggle } from '../ViewExpansion.js';
 
 /**
@@ -54,6 +54,7 @@ export function EmbedHead({
   // them is no control, and must not draw an empty row that the surface's
   // gap then doubles.
   const controls = Children.toArray(children).length > 0;
+  const say = useSay();
   if (title === undefined && !controls) return null;
   const Title: `h${PanelHeadingLevel}` = `h${headingLevel}`;
   return (
@@ -67,7 +68,7 @@ export function EmbedHead({
           data-slot="embed-title"
           className="min-w-0 truncate text-base font-semibold"
         >
-          {title}
+          {say(title)}
         </Title>
       )}
       {controls && (

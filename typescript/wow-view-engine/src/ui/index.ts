@@ -187,6 +187,8 @@ export {
   type MessageFormatters,
   MessagesProvider,
   type MessagesProviderProps,
+  type Say,
+  useSay,
   useViewMessages,
 } from './MessagesProvider.js';
 export {

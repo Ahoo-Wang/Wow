@@ -33,7 +33,7 @@ import {
 } from './components/dropdown-menu.js';
 import { KIND_ICON, useKindWord } from './kinds.js';
 import { SystemMark } from './SystemMark.js';
-import { useViewMessages } from './MessagesProvider.js';
+import { useSay, useViewMessages } from './MessagesProvider.js';
 import { DropdownMenuContent } from './popups.js';
 import { NewViewItem, type NewViewCommand } from './workbench/NewView.js';
 
@@ -166,7 +166,7 @@ export function ViewSwitcher({
             keeping the label off the icons beside it once the trigger is at
             its own floor above. */}
         <span data-slot="view-switcher-label" className="min-w-[6em] truncate">
-          {choosing ? name : currentTitle}
+          {choosing ? name : messages.say(currentTitle)}
         </span>
         {/* The trigger's own foreground, not `muted`: an icon inside a
             button inherits the button's ink, and that grey measures 4.34:1
@@ -234,10 +234,11 @@ export function ViewSwitcher({
  */
 function SwitcherItem({ item }: { item: ViewInstanceSummary }) {
   const Kind = KIND_ICON[item.kind];
+  const say = useSay();
   return (
     <DropdownMenuRadioItem value={item.id} closeOnClick>
       <Kind aria-hidden />
-      <span className="truncate">{item.title}</span>
+      <span className="truncate">{say(item.title)}</span>
       {isSystemScope(item.scope) && <SystemMark className="mr-4 ml-auto" />}
     </DropdownMenuRadioItem>
   );

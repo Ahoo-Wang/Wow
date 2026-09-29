@@ -23,12 +23,14 @@
  * summary, 「{field} · {element}」 — so it is said there too. A literal
  * string is still a label, for a host of one language.
  *
- * A key is said at render time (D2, user 2026-09-28): the definitions, the
- * stored configs and every runtime's own state keep their keys, and the
- * engine reads what it hands out in the words in force — the ones its
- * Provider's messages give (`ViewEngine.setText`), or the ones it was built
- * with (`ViewEngineOptions.text`) — so one engine serves every language and
- * a change of language only redraws.
+ * A key is said at the leaf (D2, user 2026-09-28): the definitions, the
+ * stored configs, every runtime's state and snapshot, and what an editor
+ * takes and gives back keep their keys; only where text is shown or leaves
+ * the engine — a rendered label, a chart's option, an export, an accessible
+ * name, a title — is it said (`say`, and `useSay` in `/ui`), in the words
+ * of the Provider in force, else the ones the engine was built with
+ * (`ViewEngineOptions.text`). So one engine serves every language, and a
+ * change of language only redraws.
  */
 
 /** A key standing where a label goes; a string, so it goes anywhere one does. */
@@ -36,6 +38,10 @@ export type Text = string & { readonly __text: unique symbol };
 
 /** How a host says a key in the language in force; `undefined` for none. */
 export type TextResolver = (key: string) => string | undefined;
+
+/** The words keys are said in: a resolver, or a catalogue by key. */
+export type TextWords =
+  TextResolver | Readonly<Record<string, string | undefined>>;
 
 const MARK = '\uE000';
 const END = '\uE001';
@@ -79,6 +85,26 @@ export function sayKeys(
     missing(key);
     return key;
   });
+}
+
+/**
+ * `value` with every key in it said in `words` (D2): what a label reads as
+ * where it is shown or leaves the engine. A key `words` lack reads as the
+ * key itself — visible, never a marker. The same string where it holds no
+ * key.
+ */
+export function say(value: string, words: TextWords): string {
+  // Only a string holds a key; anything else a caller let through is shown
+  // as it came, never thrown over.
+  if (typeof value !== 'string' || !value.includes(MARK)) return value;
+  const resolve: TextResolver =
+    typeof words === 'function'
+      ? words
+      : key =>
+          Object.prototype.hasOwnProperty.call(words, key)
+            ? words[key]
+            : undefined;
+  return sayKeys(value, resolve);
 }
 
 /** Every key written anywhere in `value`: what a definition says in words. */

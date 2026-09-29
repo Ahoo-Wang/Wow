@@ -12,11 +12,13 @@
  */
 
 /**
- * Render-time words (host-integration.md 3.1) as #3761's review held them:
- * a baseline that stays right across languages, a board's own fields said,
- * only a definition's keys ever said — never a reader's title or a row —
- * a key without words reported whichever words are in force, and the
- * words an engine started with kept under a Provider that lacks one.
+ * Words at the leaf (host-integration.md 3.1, D2, user 2026-09-28) at the
+ * engine's side, as #3761's reviews held it: nothing the engine holds or
+ * hands out is in any language — a baseline, a board's own fields, a title,
+ * a row come out as they went in, keys and all — so dirty and revert hold
+ * in every language by plain comparison; and the words a Provider sets are
+ * still checked for the keys they lack, once per language, falling back on
+ * the words the engine started with.
  */
 
 import { describe, expect, it, vi } from 'vitest';
@@ -141,7 +143,7 @@ describe('a saved baseline in every language (review of #3761, 7)', () => {
     expect(board.getSnapshot().dirty).toBe(false);
   });
 
-  it('reverts to the saved board in the words in force now', async () => {
+  it('reverts to the saved board, keys and all', async () => {
     const { engine } = engineOf();
     engine.setText(say('zh'));
     const board = await savedBoard(engine);
@@ -149,27 +151,31 @@ describe('a saved baseline in every language (review of #3761, 7)', () => {
     board.place('heading', { x: 0, y: 0, w: 12, h: 1 });
     board.revert();
     expect(headingOf(board)).toMatchObject({
-      content: 'Today',
+      content: text('board.today'),
       layout: HEADING.layout,
     });
   });
 });
 
 describe('a board’s own fields (review of #3761, 8)', () => {
-  it('are said in the words in force', async () => {
+  it('keep their keys whatever the words', async () => {
     const { engine } = engineOf();
     engine.setText(say('zh'));
     const board = await savedBoard(engine);
-    expect(board.fields.map(field => field.label)).toEqual(['区域']);
+    expect(board.fields.map(field => field.label)).toEqual([
+      text('board.region'),
+    ]);
     engine.setText(say('en'));
-    expect(board.fields.map(field => field.label)).toEqual(['Region']);
+    expect(board.fields.map(field => field.label)).toEqual([
+      text('board.region'),
+    ]);
   });
 });
 
-describe('only a definition’s keys are said (review of #3761, 9)', () => {
+describe('nothing is said on the way out (review of #3761, 9)', () => {
   const forged = `mine`;
 
-  it('leaves a reader’s title and a row’s cell as they came, markers and all', async () => {
+  it('hands a declared title, a reader’s title and a row’s cell out as they came', async () => {
     const mine: RecordViewConfig = recordConfig();
     const store = new MemoryViewStore({
       instances: [
@@ -197,7 +203,7 @@ describe('only a definition’s keys are said (review of #3761, 9)', () => {
 
     const listing = await engine.list('orders');
     expect(listing.items.map(item => item.title)).toEqual([
-      'All orders',
+      text('orders.all'),
       text('orders.title'),
     ]);
     const view = await engine.open('mine');
@@ -299,20 +305,21 @@ describe('the words set, checked on their own (second review of #3761, 4)', () =
     // them in: the engine's own catalogue, which holds none of their keys.
     engine.setText(key => (key === 'label.filter.apply' ? 'Apply' : undefined));
     expect(issues).toEqual([]);
-    expect(engine.definitions.get('orders')?.title).toBe('Orders');
   });
 });
 
 describe('the words an engine started with (review of #3761, 12)', () => {
-  it('say what the words set later lack', () => {
+  it('stay what a surface falls back on, whatever words are set later', () => {
     const { engine } = engineOf({ text: say('zh') });
     engine.setText(key => (key === 'orders.title' ? 'Orders' : undefined));
-    expect(engine.definitions.get('orders')?.title).toBe('Orders');
-    expect(engine.definitions.get('overview')?.title).toBe('概览');
+    expect(engine.startingWord('orders.title')).toBe('订单');
+    expect(engine.startingWord('board.title')).toBe('概览');
+    expect(engine.startingWord('nowhere')).toBeUndefined();
+    expect(engineOf().engine.startingWord('board.title')).toBeUndefined();
   });
 });
 
-describe('a baseline keyed against what the save sent (second review of #3761, 2)', () => {
+describe('a baseline is what the store keeps (second review of #3761, 2)', () => {
   function gated() {
     const store = new MemoryViewStore();
     const create = store.create.bind(store);
@@ -351,7 +358,7 @@ describe('a baseline keyed against what the save sent (second review of #3761, 2
     expect(board.getSnapshot().dirty).toBe(false);
     board.place('heading', { x: 0, y: 0, w: 12, h: 1 });
     board.revert();
-    expect(headingOf(board)).toMatchObject({ content: 'Today' });
+    expect(headingOf(board)).toMatchObject({ content: text('board.today') });
   });
 
   it('holds when the words change while the save is in flight', async () => {
@@ -364,10 +371,13 @@ describe('a baseline keyed against what the save sent (second review of #3761, 2
     gate.resolve();
     await saving;
     expect(board.getSnapshot().dirty).toBe(false);
-    expect(headingOf(board)).toMatchObject({ content: 'Today' });
+    expect(headingOf(board)).toMatchObject({ content: text('board.today') });
+    // Saved as it was: the key went to the store.
     const [stored] = await store.list('overview');
     const kept = await store.get(stored.id);
-    expect(JSON.stringify(kept.config)).toContain('今天');
+    expect(JSON.stringify(kept.config)).toContain(
+      JSON.stringify(text('board.today')).slice(1, -1),
+    );
   });
 
   it('holds when the store adds to what it keeps', async () => {
@@ -387,12 +397,12 @@ describe('a baseline keyed against what the save sent (second review of #3761, 2
     engine.setText(say('en'));
     board.place('heading', { x: 0, y: 0, w: 12, h: 1 });
     board.revert();
-    expect(headingOf(board)).toMatchObject({ content: 'Today' });
+    expect(headingOf(board)).toMatchObject({ content: text('board.today') });
   });
 });
 
 describe('a title nobody stored yet (second review of #3761, 5)', () => {
-  it('is said on a board’s own panel, which its definition wrote', async () => {
+  it('keeps its key on a board’s own panel, which its definition wrote', async () => {
     const owned = {
       id: 'owned',
       kind: 'view',
@@ -424,10 +434,12 @@ describe('a title nobody stored yet (second review of #3761, 5)', () => {
     const board = await engine.open(systemInstanceId('overview', 'main'));
     if (!(board instanceof DashboardViewRuntime)) throw new Error('board');
     await nextTask();
-    expect(board.panelRuntime('owned')?.getSnapshot().title).toBe('Today');
+    expect(board.panelRuntime('owned')?.getSnapshot().title).toBe(
+      text('board.today'),
+    );
   });
 
-  it('is said when it is a definition’s key', () => {
+  it('keeps a definition’s key', () => {
     const { engine } = engineOf();
     engine.setText(say('en'));
     const view = engine.create('orders', {
@@ -435,6 +447,6 @@ describe('a title nobody stored yet (second review of #3761, 5)', () => {
       scope: 'personal',
       config: recordConfig(),
     });
-    expect(view.getSnapshot().title).toBe('All orders');
+    expect(view.getSnapshot().title).toBe(text('orders.all'));
   });
 });

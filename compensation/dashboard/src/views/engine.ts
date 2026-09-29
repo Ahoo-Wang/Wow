@@ -90,10 +90,10 @@ export interface ExecutionEngineOptions {
   /** Where the event streams come from; the service's by default. */
   historySource?: ViewSource;
   /**
-   * The language the definitions' keys are said in until a Provider says
-   * them (`ViewEngine.setText`): for a test that reads the engine alone.
-   * The console's engine takes none — its Provider says them in the
-   * language in force, and a change of language rebuilds nothing.
+   * The words the definitions' keys fall back on where no Provider gives
+   * them (`ViewEngineOptions.text`): for a test that draws without one.
+   * The console's engine takes none — its Provider's words say the keys
+   * where they are shown, and a change of language only redraws.
    */
   locale?: Locale;
 }

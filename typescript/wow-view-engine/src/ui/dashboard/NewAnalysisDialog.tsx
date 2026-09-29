@@ -260,7 +260,7 @@ function NewAnalysisForm({
           <Select
             items={definitions.map(entry => ({
               value: entry.id,
-              label: entry.title,
+              label: messages.say(entry.title),
             }))}
             value={definitionId}
             onValueChange={next => {
@@ -282,7 +282,7 @@ function NewAnalysisForm({
               <SelectGroup>
                 {definitions.map(entry => (
                   <SelectItem key={entry.id} value={entry.id}>
-                    {entry.title}
+                    {messages.say(entry.title)}
                   </SelectItem>
                 ))}
               </SelectGroup>

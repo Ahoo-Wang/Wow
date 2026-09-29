@@ -37,7 +37,7 @@ import { RowItem } from './RowItem.js';
 import { DeleteDialog } from './DeleteDialog.js';
 import { KIND_ICON, useKindWord } from './kinds.js';
 import { SystemMark } from './SystemMark.js';
-import { useViewMessages } from './MessagesProvider.js';
+import { keptKey, useViewMessages } from './MessagesProvider.js';
 import { OutcomeActions } from './OutcomeActions.js';
 import { RenameInput } from './RenameInput.js';
 
@@ -175,7 +175,7 @@ export function ViewManagerRow({
             // Its Escape stops at it — the manager is a dialog whose dismiss
             // listens on `document` (`RenameInput`).
             <RenameInput
-              initial={item.title}
+              initial={messages.say(item.title)}
               label={messages.label('label.manage.rename-of', {
                 title: item.title,
               })}
@@ -186,14 +186,19 @@ export function ViewManagerRow({
                 cancel: messages.label('label.manage.rename-cancel'),
               }}
               onCommit={title => {
-                void manager.rename(item.id, title);
+                void manager.rename(
+                  item.id,
+                  keptKey(title, item.title, messages.say),
+                );
                 setRenaming(false);
               }}
               onCancel={() => setRenaming(false)}
               className="h-7 w-full min-w-0"
             />
           ) : (
-            <ItemTitle className="max-w-full">{item.title}</ItemTitle>
+            <ItemTitle className="max-w-full">
+              {messages.say(item.title)}
+            </ItemTitle>
           )}
         </ItemContent>
 

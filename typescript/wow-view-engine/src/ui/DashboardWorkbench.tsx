@@ -23,7 +23,7 @@ import { useDashboard, useWorkbench } from '../react/index.js';
 import { SurfaceAnnouncer, useAnnouncer } from './Announcer.js';
 import { DashboardBoard } from './dashboard/Board.js';
 import { RefreshControl } from './RefreshControl.js';
-import { useViewMessages } from './MessagesProvider.js';
+import { StartingWords, useViewMessages } from './MessagesProvider.js';
 import { useEngine, useRoutedNavigate } from './ViewEngineProvider.js';
 import type { ViewMessages } from './messages.js';
 import { featuresOf, type WorkbenchFeatures } from './features.js';
@@ -172,7 +172,19 @@ export interface DashboardWorkbenchProps {
 /** The one kind a dashboard workbench draws, held once so the list is not re-narrowed per render. */
 const DASHBOARD = ['dashboard'] as const;
 
-export function DashboardWorkbench({
+/**
+ * The words the engine was built with, under the surface, where its own
+ * engine names them (`useSay`).
+ */
+export function DashboardWorkbench(props: DashboardWorkbenchProps) {
+  return (
+    <StartingWords engine={useEngine(props.engine)}>
+      <DashboardWorkbenchSurface {...props} />
+    </StartingWords>
+  );
+}
+
+function DashboardWorkbenchSurface({
   engine: given,
   definitionId,
   instanceId,

@@ -151,7 +151,7 @@ export function FieldChecklist({
     needle === ''
       ? candidates
       : candidates.filter(field =>
-          field.label.toLocaleLowerCase().includes(needle),
+          messages.say(field.label).toLocaleLowerCase().includes(needle),
         );
   const sections = fieldGroups(listed, filter.fieldGroups, field => field.name);
 
@@ -192,14 +192,18 @@ export function FieldChecklist({
             htmlFor={`${ids}-${field.name}`}
             className="min-w-0 font-normal"
           >
-            <span className="truncate">{field.label}</span>
+            <span className="truncate">{messages.say(field.label)}</span>
             {/* Still offered, and said: its source is moving off it
                 (#3519). The reason, where there is one, is its title. */}
             {field.deprecated && (
               <Badge
                 data-slot="field-deprecated"
                 variant="outline"
-                title={field.deprecated.message}
+                title={
+                  field.deprecated.message === undefined
+                    ? undefined
+                    : messages.say(field.deprecated.message)
+                }
               >
                 {messages.label('label.field.deprecated')}
               </Badge>
@@ -333,7 +337,7 @@ export function FieldChecklist({
               ) : (
                 <FieldSet key={section.group.id}>
                   <FieldLegend variant="label">
-                    {section.group.label}
+                    {messages.say(section.group.label)}
                   </FieldLegend>
                   {grid(section.items)}
                 </FieldSet>

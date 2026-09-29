@@ -220,6 +220,7 @@ describe('the share line as drawn', () => {
     const reading = readChart(data, pareto().chart, {
       messages: {
         label: (key, params) => formatMessage(defaultMessages, key, params),
+        say: value => value,
         issue: () => '',
         issues: () => '',
       },

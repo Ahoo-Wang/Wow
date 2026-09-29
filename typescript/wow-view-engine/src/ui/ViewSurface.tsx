@@ -15,7 +15,11 @@ import * as React from 'react';
 import { cn } from 'cn';
 import { TooltipProvider } from './components/tooltip.js';
 import type { DisplayContext } from './display.js';
-import { MessagesProvider, useInheritedLocale } from './MessagesProvider.js';
+import {
+  MessagesProvider,
+  useInheritedLocale,
+  useSay,
+} from './MessagesProvider.js';
 import type { ViewMessages } from './messages.js';
 import { ViewExpandExit } from './ViewExpansion.js';
 import { CHART_TOKENS, THEME_ATTRIBUTES } from './charts/theme.js';
@@ -396,9 +400,11 @@ export function ViewSurface({
   // it set (`ViewEngineProvider`'s `locale`), as its wording follows it.
   const inherited = useInheritedLocale();
   const language = locale ?? inherited;
+  // The definition's words as this surface's wording says them.
+  const say = useSay(messages);
   const display = React.useMemo(
-    () => ({ locale: language, timeZone }),
-    [language, timeZone],
+    () => ({ locale: language, timeZone, say }),
+    [language, timeZone, say],
   );
   // The surface keeps its own handle on the root — the resolved theme is read
   // off it — and hands the caller the same element. A caller's ref cannot

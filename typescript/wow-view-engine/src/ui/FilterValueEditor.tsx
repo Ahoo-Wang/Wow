@@ -26,6 +26,8 @@ import {
 } from './filter/inputs/select.js';
 import { SuggestedValue } from './filter/inputs/suggested.js';
 import { TextValue } from './filter/inputs/text.js';
+import { useMemo } from 'react';
+import { useSay } from './MessagesProvider.js';
 
 /**
  * A number field that lets a half-typed number stay half typed. Lives with
@@ -117,7 +119,26 @@ export interface FilterValueEditorProps {
  * edit it, and admission refuses the condition for the same reason
  * (`filter.kind.unknown-editor`), so Apply does not run it either.
  */
-export function FilterValueEditor({
+export function FilterValueEditor(props: FilterValueEditorProps) {
+  // The field's name and its options' labels are a definition's words: said
+  // here, where every control below shows them (D2). What a control gives
+  // back is a value, never a label.
+  const say = useSay();
+  const { label, options } = props;
+  const shown = useMemo(
+    () => options?.map(option => ({ ...option, label: say(option.label) })),
+    [options, say],
+  );
+  return (
+    <FilterValueControl
+      {...props}
+      label={say(label)}
+      {...(shown ? { options: shown } : {})}
+    />
+  );
+}
+
+function FilterValueControl({
   editor,
   kind,
   value,

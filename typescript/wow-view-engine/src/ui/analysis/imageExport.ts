@@ -89,11 +89,13 @@ export function useChartImageOffer({
   const filter = useFilterEditor(runtime);
   const [failed, setFailed] = useState<ImageFormat | null>(null);
   if (!capture) return null;
+  // The title leaves in the surface's words: the picture's head, its name.
+  const said = messages.say(title).trim();
   const take = (format: ImageFormat) => {
     setFailed(null);
     const now = runtime?.environment.now;
     const name = fileName(
-      title.trim() === '' ? messages.label('label.export.image-name') : title,
+      said === '' ? messages.label('label.export.image-name') : said,
       isoDay(now ? now() : new Date(), display),
       format,
     );
@@ -115,7 +117,7 @@ export function useChartImageOffer({
         fail();
         return;
       }
-      const picture = chartImageSvg(drawn, { title: title.trim(), range });
+      const picture = chartImageSvg(drawn, { title: said, range });
       if (format === 'svg') {
         downloadFile({ name, content: picture.svg, type: IMAGE_TYPE.svg });
         return;

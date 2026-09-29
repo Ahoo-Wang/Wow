@@ -11,8 +11,14 @@
  * limitations under the License.
  */
 
-import { createContext, useContext, useMemo, type ReactNode } from 'react';
-import type { Issue } from '../model/index.js';
+import {
+  createContext,
+  useContext,
+  useMemo,
+  useState,
+  type ReactNode,
+} from 'react';
+import { say, type Issue, type TextResolver } from '../model/index.js';
 import {
   defaultMessages,
   formatIssue,
@@ -23,6 +29,36 @@ import {
 } from './messages.js';
 
 const MessagesContext = createContext<ViewMessages>(defaultMessages);
+
+/**
+ * The words the engine on hand was built with (`ViewEngineOptions.text`):
+ * what a definition's key is said in where the wording in force lacks it.
+ */
+const StartingWordsContext = createContext<TextResolver | undefined>(undefined);
+
+/**
+ * Hands the words `engine` was built with down to what shows its
+ * definitions (`useSay`): a Provider does for its engine, and a surface
+ * given an engine of its own does for that one.
+ */
+export function StartingWords({
+  engine,
+  children,
+}: {
+  engine: { startingWord(key: string): string | undefined } | undefined;
+  children: ReactNode;
+}) {
+  const outer = useContext(StartingWordsContext);
+  const words = useMemo<TextResolver | undefined>(
+    () => (engine ? key => engine.startingWord(key) : outer),
+    [engine, outer],
+  );
+  return (
+    <StartingWordsContext.Provider value={words}>
+      {children}
+    </StartingWordsContext.Provider>
+  );
+}
 
 /**
  * The language a number inside a sentence is grouped in. It travels with the
@@ -84,6 +120,99 @@ export function useMergedMessages(messages?: ViewMessages): ViewMessages {
   return useMerged(useMessages(), messages);
 }
 
+/** A definition's words as they are shown; see `useSay`. */
+export type Say = (value: string) => string;
+
+/**
+ * How a definition's keys (`text(key)`) are said here: in the wording in
+ * force — the nearest provider's `messages`, merged over the ones above —
+ * else in the words the engine was built with, else as the key itself
+ * (D2). Every label a definition carries passes through this where it is
+ * shown or leaves the engine — a cell, a chart's option, an export, an
+ * accessible name — and nowhere else: the state, the snapshots and what an
+ * editor takes and gives back keep their keys. A change of language is a
+ * new function, so what reads it draws again.
+ */
+export function useSay(messages?: ViewMessages): Say {
+  const merged = useMerged(useMessages(), messages);
+  const start = useContext(StartingWordsContext);
+  return useMemo(() => sayIn(merged, start), [merged, start]);
+}
+
+/**
+ * `value` with every string in it as `say` shows it: a drawing's input —
+ * a chart's series, lines and stages, its spec's axis names — said as it
+ * reaches the code that draws it, and never kept (D2). The same object
+ * where nothing in it is a key; a class instance, a `Date` or a `Map` is
+ * left as it is.
+ */
+export function sayAll<T>(value: T, say: Say): T {
+  const walk = (node: unknown, depth: number): unknown => {
+    if (typeof node === 'string') return say(node);
+    if (node === null || typeof node !== 'object' || depth > SAY_DEPTH)
+      return node;
+    if (Array.isArray(node)) {
+      let changed = false;
+      const next = node.map(entry => {
+        const said = walk(entry, depth + 1);
+        if (said !== entry) changed = true;
+        return said;
+      });
+      return changed ? next : node;
+    }
+    const prototype: unknown = Object.getPrototypeOf(node);
+    if (prototype !== Object.prototype && prototype !== null) return node;
+    let changed = false;
+    const next: Record<string, unknown> = {};
+    for (const [key, entry] of Object.entries(node)) {
+      const said = walk(entry, depth + 1);
+      if (said !== entry) changed = true;
+      next[key] = said;
+    }
+    return changed ? next : node;
+  };
+  return walk(value, 0) as T;
+}
+
+/** How deep `sayAll` reads: a drawing's words sit a few levels in. */
+const SAY_DEPTH = 16;
+
+/**
+ * What an editor gives back for a label it showed as `say(original)`: the
+ * original — a key stays a key — where the reader left the words as they
+ * were shown, else what they typed. An editor takes a key and shows it in
+ * words; it must not hand the words back as though the reader wrote them,
+ * or the label would stop following the language.
+ */
+export function keptKey(typed: string, original: string, say: Say): string {
+  return typed === say(original) ? original : typed;
+}
+
+/**
+ * A box that edits a label as it is typed: what it shows — `value` in
+ * words — and what a keystroke gives back (`keptKey`, against the value the
+ * box opened on), so words typed back to what was shown are the key again.
+ */
+export function useSaidText(value: string | undefined): {
+  shown: string;
+  back(typed: string): string;
+} {
+  const say = useSay();
+  const [opened] = useState(() => value ?? '');
+  return {
+    shown: say(value ?? ''),
+    back: typed => keptKey(typed, opened, say),
+  };
+}
+
+function sayIn(merged: ViewMessages, start: TextResolver | undefined): Say {
+  const resolve: TextResolver = key =>
+    (Object.prototype.hasOwnProperty.call(merged, key)
+      ? merged[key]
+      : undefined) ?? start?.(key);
+  return value => say(value, resolve);
+}
+
 /** The language set by the nearest provider that set one. */
 export function useInheritedLocale(): string | undefined {
   return useContext(LocaleContext);
@@ -115,6 +244,12 @@ export interface MessageFormatters {
   label(key: MessageKey, params?: Issue['params'], fallback?: string): string;
   issue(found: Issue): string;
   issues(found: readonly Issue[]): string;
+  /**
+   * A definition's words as they are shown here (`useSay`): its keys
+   * (`text(key)`) said in this wording. `label`, `issue` and `issues` say
+   * the keys their parameters carry already.
+   */
+  say: Say;
 }
 
 /**
@@ -130,16 +265,20 @@ export function useViewMessages(
 ): MessageFormatters {
   const merged = useMerged(useMessages(), messages);
   const inherited = useContext(LocaleContext);
+  const start = useContext(StartingWordsContext);
   const language = locale ?? inherited;
-  return useMemo(
-    () => ({
+  return useMemo(() => {
+    // A parameter may carry a definition's label, key and all: the
+    // sentence is said as a whole, where it is shown.
+    const said = sayIn(merged, start);
+    return {
       label: (key, params, fallback) => {
         const found = formatMessage(merged, key, params, language);
-        return found === key && fallback !== undefined ? fallback : found;
+        return said(found === key && fallback !== undefined ? fallback : found);
       },
-      issue: found => formatIssue(merged, found, language),
-      issues: found => formatIssues(merged, found, language),
-    }),
-    [merged, language],
-  );
+      issue: found => said(formatIssue(merged, found, language)),
+      issues: found => said(formatIssues(merged, found, language)),
+      say: said,
+    };
+  }, [merged, language, start]);
 }

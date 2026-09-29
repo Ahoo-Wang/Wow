@@ -386,7 +386,9 @@ function NameField({
   const [typed, setTyped] = useState<{ over: string; text: string } | null>(
     null,
   );
-  const text = typed?.over === field.label ? typed.text : field.label;
+  // A key is shown in its words; typed over, the filter is called what was typed.
+  const text =
+    typed?.over === field.label ? typed.text : messages.say(field.label);
   return (
     <Field>
       <FieldLabel htmlFor={id}>

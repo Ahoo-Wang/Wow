@@ -314,7 +314,10 @@ describe('defineView, as reviewed', () => {
       store: new MemoryViewStore(),
       text: host.text.bind(host),
     });
-    expect(engine.definitions.get('orders')?.title).toBe('Orders');
+    // The definition keeps its key; the words the engine started with are
+    // read off the host's catalogue, called as its method.
+    expect(engine.definitions.get('orders')?.title).toBe(text('orders.title'));
+    expect(engine.startingWord('orders.title')).toBe('Orders');
     const unbound = {
       resources: resourcesOf([base], () => testSource()),
       store: new MemoryViewStore(),
@@ -323,9 +326,7 @@ describe('defineView, as reviewed', () => {
         return (this as unknown as typeof host).words[key];
       },
     };
-    expect(new ViewEngine(unbound).definitions.get('orders')?.title).toBe(
-      'Orders',
-    );
+    expect(new ViewEngine(unbound).startingWord('orders.title')).toBe('Orders');
   });
 
   it('says what a source lacks of what the snapshot offered, as it does for a hand-written definition', () => {

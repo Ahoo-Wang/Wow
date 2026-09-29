@@ -144,7 +144,7 @@ export function BoardDestination({
       <Field data-invalid={missing || undefined}>
         {read.status === 'ready' && (
           <span data-slot="click-board-title" className="text-sm">
-            {read.board.title}
+            {messages.say(read.board.title)}
           </span>
         )}
         <Button
@@ -224,7 +224,10 @@ function BoardTabRow({
   const last = messages.label('label.click.board-tab-last');
   const items = [
     { value: '', label: last },
-    ...tabs.map(entry => ({ value: entry.id, label: entry.title })),
+    ...tabs.map(entry => ({
+      value: entry.id,
+      label: messages.say(entry.title),
+    })),
   ];
   return (
     <Field orientation="horizontal" data-slot="click-board-tab">
@@ -394,7 +397,7 @@ function BoardFilterRow({
       {/* No `data-disabled` on the row: it fades the name below contrast,
           and the name is still worth reading — only the select is off. */}
       <FieldContent className="min-w-0">
-        <FieldLabel id={id}>{filter.label}</FieldLabel>
+        <FieldLabel id={id}>{messages.say(filter.label)}</FieldLabel>
         {choices.length === 0 && (
           <FieldDescription>
             {messages.label('label.click.board-no-source')}
@@ -409,7 +412,7 @@ function BoardFilterRow({
           if (typeof next === 'string') onChange(next);
         }}
       >
-        <SelectTrigger aria-label={filter.label} size="sm">
+        <SelectTrigger aria-label={messages.say(filter.label)} size="sm">
           <SelectValue />
         </SelectTrigger>
         <SelectContent>

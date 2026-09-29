@@ -62,8 +62,10 @@ function fileColumns(
   columns: readonly RecordColumnView[],
   messages: MessageFormatters,
 ): (RecordColumnView & { currencyOf?: RecordColumnView })[] {
-  return columns.flatMap(column =>
-    column.numeric?.type === 'money'
+  // The file's headers are the columns' names in the surface's words (D2).
+  return columns.flatMap(given => {
+    const column = { ...given, label: messages.say(given.label) };
+    return column.numeric?.type === 'money'
       ? [
           column,
           {
@@ -75,8 +77,8 @@ function fileColumns(
             currencyOf: column,
           },
         ]
-      : [column],
-  );
+      : [column];
+  });
 }
 
 /** A record's own currency code, as the file's currency column reads it. */
@@ -138,8 +140,8 @@ export function useExportOffer({
   // at delivery: a name holds a day in it, and an export that ran across
   // midnight used to be handed over under a name nobody was shown.
   const nameFile = useCallback(
-    () => fileName(title, isoDay(now(), display), 'csv'),
-    [display, now, title],
+    () => fileName(messages.say(title), isoDay(now(), display), 'csv'),
+    [display, messages, now, title],
   );
   // The host's switch for the file's formulas (`RuntimeLimits`), on unless
   // it is explicitly off.

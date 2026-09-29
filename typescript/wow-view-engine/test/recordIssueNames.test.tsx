@@ -56,6 +56,7 @@ function formatters(catalogue: ViewMessages): MessageFormatters {
       const found = formatMessage(catalogue, key, params);
       return found === key && fallback !== undefined ? fallback : found;
     },
+    say: value => value,
     issue: found => formatIssue(catalogue, found),
     issues: found => found.map(each => formatIssue(catalogue, each)).join(' '),
   };

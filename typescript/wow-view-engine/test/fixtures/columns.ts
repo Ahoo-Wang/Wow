@@ -58,6 +58,7 @@ export function formattersFor(messages: ViewMessages): MessageFormatters {
       const found = formatMessage(messages, key, params);
       return found === key && fallback !== undefined ? fallback : found;
     },
+    say: value => value,
     issue: found => formatIssue(messages, found),
     issues: found => formatIssues(messages, found),
   };

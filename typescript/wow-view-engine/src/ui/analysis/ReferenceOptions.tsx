@@ -34,15 +34,16 @@ import { NumberInput } from '../FilterValueEditor.js';
 import { IconButton } from '../IconButton.js';
 import { useViewMessages } from '../MessagesProvider.js';
 import { gapReason } from '../charts/markWords.js';
-import { EditorCard, PillInput } from '../variants.js';
+import { EditorCard } from '../variants.js';
 import { CompactSelect } from './CompactSelect.js';
 import { useListFocus } from './listFocus.js';
 import {
   CheckField,
   NumberField,
-  OptionsSection,
-  SlotSelect,
   type OptionsPageProps,
+  OptionsSection,
+  ReferenceLabel,
+  SlotSelect,
 } from './optionControls.js';
 
 /** Where a reference line stands: a number, or a statistic of a metric. */
@@ -232,21 +233,16 @@ function ReferenceLines(props: SpecProps) {
                 />
               )
             )}
-            <PillInput
-              aria-label={messages.label('label.chart.reference-label')}
-              placeholder={messages.label('label.chart.reference-label')}
-              chrome="box"
-              className="min-w-0 flex-1 basis-24"
-              value={line.label ?? ''}
-              onChange={event => {
-                const text = event.target.value;
+            <ReferenceLabel
+              value={line.label}
+              onChange={text =>
                 setLine(
                   index,
-                  text === ''
+                  text === undefined
                     ? without(line, 'label')
                     : { ...line, label: text },
-                );
-              }}
+                )
+              }
             />
             <IconButton
               label={messages.label('label.chart.remove-reference-line')}
@@ -364,21 +360,16 @@ function ReferenceBands(props: SpecProps) {
                 if (to !== null) setBand(index, { ...band, to });
               }}
             />
-            <PillInput
-              aria-label={messages.label('label.chart.reference-label')}
-              placeholder={messages.label('label.chart.reference-label')}
-              chrome="box"
-              className="min-w-0 flex-1 basis-24"
-              value={band.label ?? ''}
-              onChange={event => {
-                const text = event.target.value;
+            <ReferenceLabel
+              value={band.label}
+              onChange={text =>
                 setBand(
                   index,
-                  text === ''
+                  text === undefined
                     ? without(band, 'label')
                     : { ...band, label: text },
-                );
-              }}
+                )
+              }
             />
             <IconButton
               label={messages.label('label.chart.remove-reference-band')}

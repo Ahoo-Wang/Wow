@@ -1,4 +1,4 @@
-# @ahoo-wang/wow-view-engine/ui — 223 names, from src/ui/index.ts.
+# @ahoo-wang/wow-view-engine/ui — 225 names, from src/ui/index.ts.
 # Written by test/publicSurface.test.ts; a change here is a change to
 # the public surface (README「Entries」, docs/design/decisions.md D29).
 value AUDIENCE_ICON
@@ -144,6 +144,7 @@ type  SaveActionsProps
 type  SaveAsCommands
 value SaveAsDialog
 type  SaveAsDialogProps
+type  Say
 value SharedSaveConfirm
 type  SortOwner
 value SortSettings
@@ -215,6 +216,7 @@ value useDashboardEditExtensions
 value useDashboardExtensions
 value useKindIssue
 value useKindWord
+value useSay
 value useSurfaceAttributes
 value useSurfaceDisplay
 value useSurfaceFont

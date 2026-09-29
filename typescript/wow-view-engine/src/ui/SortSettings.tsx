@@ -211,7 +211,9 @@ export function SortSettings({
   // sort on it that is used and no longer offered, and "as many used as
   // there are" would then read as "still something to add".
   const available = sortable.filter(field => !used.has(field.name));
-  const labels = new Map(fields.map(field => [field.name, field.label]));
+  const labels = new Map(
+    fields.map(field => [field.name, messages.say(field.label)]),
+  );
   const labelOf = (field: string) => labels.get(field) ?? field;
   /**
    * The field an id names: the one place where what the library is carrying
@@ -385,7 +387,7 @@ export function SortSettings({
                     ])
                   }
                 >
-                  {field.label}
+                  {messages.say(field.label)}
                 </DropdownMenuItem>
               )}
             />

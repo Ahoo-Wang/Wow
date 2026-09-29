@@ -227,19 +227,21 @@ function Catalogue({
   const definitions = [...engine.definitions.values()].filter(definition =>
     views.some(view => view.definitionId === definition.id),
   );
-  const titleOf = (id: string) => engine.definitions.get(id)?.title ?? id;
+  const titleOf = (id: string) =>
+    messages.say(engine.definitions.get(id)?.title ?? id);
   const wanted = query.trim().toLocaleLowerCase();
   const shown = views.filter(
     view =>
       (kind === 'all' || view.kind === kind) &&
       (data === '' || view.definitionId === data) &&
-      (wanted === '' || view.title.toLocaleLowerCase().includes(wanted)),
+      (wanted === '' ||
+        messages.say(view.title).toLocaleLowerCase().includes(wanted)),
   );
   const definitionItems = [
     { value: '', label: messages.label('label.picker.definition.all') },
     ...definitions.map(definition => ({
       value: definition.id,
-      label: definition.title,
+      label: messages.say(definition.title),
     })),
   ];
 
@@ -427,7 +429,7 @@ function PickerRow({
       </ItemMedia>
       <ItemContent className="min-w-0">
         <ItemTitle className="max-w-full">
-          <span className="truncate">{view.title}</span>
+          <span className="truncate">{messages.say(view.title)}</span>
           {isSystemScope(view.scope) && <SystemMark />}
         </ItemTitle>
         <ItemDescription>

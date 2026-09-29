@@ -45,7 +45,7 @@ import {
   HandOffMenuContent,
 } from '../HandOffMenu.js';
 import { IconTooltip } from '../IconButton.js';
-import { useViewMessages } from '../MessagesProvider.js';
+import { keptKey, useViewMessages } from '../MessagesProvider.js';
 import { DropdownMenuSubContent } from '../popups.js';
 import { RenameInput } from '../RenameInput.js';
 import { ImageMenuItems } from '../analysis/ExportMenu.js';
@@ -294,11 +294,12 @@ export function PanelTitleInput({
   return (
     <RenameInput
       data-slot="panel-title-input"
-      initial={initial}
+      // A key is shown in words, and comes back a key where it was left so.
+      initial={messages.say(initial)}
       label={messages.label(
         heading ? 'label.panel.heading-input' : 'label.panel.title-input',
       )}
-      onCommit={renaming.commit}
+      onCommit={typed => renaming.commit(keptKey(typed, initial, messages.say))}
       onCancel={renaming.cancel}
       returnTo={returnTo}
       className="h-7 min-w-0 flex-1"

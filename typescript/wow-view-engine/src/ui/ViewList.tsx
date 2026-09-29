@@ -166,7 +166,8 @@ export function ViewList({
             data-slot="view-list-title"
             className="min-w-0 flex-1 truncate px-1.5 text-base font-semibold"
           >
-            {title || messages.label(word('label.view.list'))}
+            {(title && messages.say(title)) ||
+              messages.label(word('label.view.list'))}
           </h1>
           {create && (
             <NewViewControl
@@ -436,7 +437,7 @@ function ViewListItem({
           {messages.label(`label.kind.${item.kind}`)}
         </TooltipContent>
       </Tooltip>
-      <span className="truncate">{item.title}</span>
+      <span className="truncate">{messages.say(item.title)}</span>
       {/* The row's end holds the facts about the view rather than its name:
           the star when it opens first, and the lock when it came with the
           definition (`SystemMark`). One group pushed to the end, so a

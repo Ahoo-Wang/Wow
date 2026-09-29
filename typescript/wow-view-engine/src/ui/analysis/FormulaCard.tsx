@@ -208,11 +208,11 @@ export function FormulaControls({
               : null
         }
         text={operand =>
-          expressionText(
-            operand,
-            field =>
+          expressionText(operand, field =>
+            messages.say(
               analysis.fields.find(entry => entry.field === field)?.label ??
-              field,
+                field,
+            ),
           )
         }
         onChange={(left, operator, right) =>
