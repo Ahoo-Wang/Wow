@@ -825,10 +825,10 @@
 - **来由**：`ViewStore` 只有内存与本地快照两种实现，都没经历过多用户、共享与个人的可见性、服务端鉴权、真实的并发冲突与重试；端口随首发公开，之后再改就是破坏性改动。原计划阶段 6 在首发之后。
 - **裁定**（用户 2026-09-29：「首发前需要完成 Wow 存储后端，以验证 ViewStore」，四条按推荐）：
   - **阶段 6 移到首发前**，方案 [view-store-backend.md](view-store-backend.md)。
-  - **放在 Wow 仓的一组新模块**（照补偿的样子：api、domain、server，加随后端合同发布的 TS 客户端），领域可嵌进业务服务，也可独立部署。
+  - **放在 Wow 仓的一组新模块**：api、domain 与 **wow-view-starter**（Spring Boot 自动配置，业务服务引入即获得视图能力），加随后端合同发布的 TS 客户端。
   - **第一版范围**：端口的 8 个方法，加就地改受众（D18 第 10 条）；订阅、版本历史、注释在首发后。
   - **隔离沿用 Wow 与 CoSec 的约定**：租户与所有者在路径里（fetcher-cosec 从令牌自动填），所有者段就是受众（共享为 `(shared)`），应用取自 `CoSec-App-Id`，聚合 id 由服务端生成，鉴权由 CoSec 网关负责；视图与偏好不按 space 隔离，前置修复框架：没有开启 `spaced` 的聚合不写入、不过滤 spaceId（用户：原契约是错的）。
-  - **验证宿主是 `typescript/integration-test` 连示例服务端**，外加内存实现与 Wow 实现共用的端口一致性测试。**补偿控制台不迁移**：它不登录、没有个人视图，继续存本机。
+  - **验证宿主**：`typescript/integration-test` 连示例服务端，外加内存实现与 Wow 实现共用的端口一致性测试；**补偿控制台也迁移**——补偿服务引入 starter，控制台不登录，由自己插入的 fetcher 拦截器注入缺省的租户、所有者、应用。
 - **落点**：[view-store-backend.md](view-store-backend.md)、[todo.md](todo.md)「首发前」、[management.md](management.md)。
 
 ## 搁置待议
