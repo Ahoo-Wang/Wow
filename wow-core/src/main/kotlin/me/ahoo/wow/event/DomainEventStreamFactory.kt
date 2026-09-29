@@ -81,6 +81,29 @@ fun Any.toDomainEventStream(
     stateSpaceId: String = SpaceIdCapable.DEFAULT_SPACE_ID,
     header: Header = DefaultHeader.empty(),
     createTime: Long = System.currentTimeMillis()
+): DomainEventStream = toDomainEventStream(
+    upstream = upstream,
+    aggregateVersion = aggregateVersion,
+    stateOwnerId = stateOwnerId,
+    stateSpaceId = stateSpaceId,
+    commandSpaced = true,
+    header = header,
+    createTime = createTime,
+)
+
+/**
+ * [toDomainEventStream] for a command aggregate: when the aggregate is not [spaced][commandSpaced], the command's
+ * space is ignored and the stream keeps the state's space.
+ */
+@Suppress("LongParameterList")
+internal fun Any.toDomainEventStream(
+    upstream: CommandMessage<*>,
+    aggregateVersion: Int,
+    stateOwnerId: String,
+    stateSpaceId: String,
+    commandSpaced: Boolean,
+    header: Header = DefaultHeader.empty(),
+    createTime: Long = System.currentTimeMillis()
 ): DomainEventStream {
     header.propagate(upstream)
     val eventStreamId = generateGlobalId()
@@ -89,9 +112,7 @@ fun Any.toDomainEventStream(
     val streamOwnerId = upstream.ownerId.ifBlank {
         stateOwnerId
     }
-    val streamSpaceId = upstream.spaceId.ifBlank {
-        stateSpaceId
-    }
+    val streamSpaceId = if (commandSpaced) upstream.spaceId.ifBlank { stateSpaceId } else stateSpaceId
     val commandId = upstream.commandId
     val events = flatEvent().mapIndexedWithLast { index, event, isLast ->
         val nonNullEvent = requireNotNull(event) {

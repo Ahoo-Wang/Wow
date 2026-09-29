@@ -31,6 +31,11 @@ import org.springframework.web.reactive.function.server.ServerRequest
 import reactor.core.publisher.Mono
 import reactor.kotlin.core.publisher.toMono
 
+/**
+ * Builds a command from its route's request: identity and scope from path variables and headers. The space
+ * (`Wow-Space-Id`) is taken only for a [spaced][AggregateRouteMetadata.spaced] aggregate; any other aggregate's
+ * command carries the default space whatever the request sends.
+ */
 object DefaultCommandBuilderExtractor : CommandBuilderExtractor {
     override fun extract(
         aggregateRouteMetadata: AggregateRouteMetadata<*>,
@@ -40,7 +45,7 @@ object DefaultCommandBuilderExtractor : CommandBuilderExtractor {
         val aggregateMetadata = aggregateRouteMetadata.aggregateMetadata
         val tenantId = request.getTenantId(aggregateMetadata)
         val ownerId = request.getOwnerId()
-        val spaceId = request.getSpaceId()
+        val spaceId = request.getSpaceId(aggregateRouteMetadata)
         val aggregateId = request.getAggregateId(aggregateRouteMetadata.owner, ownerId)
         val aggregateVersion = request.headers().firstHeader(AGGREGATE_VERSION)?.toIntOrNull()
         val requestId = request.headers().firstHeader(REQUEST_ID).ifNotBlank { it }

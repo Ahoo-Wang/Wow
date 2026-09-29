@@ -98,14 +98,14 @@ The query side works the same way: `cartQueryClientFactory.createSnapshotQueryCl
 
 ## Wow's space
 
-A spaced aggregate reads its space from the `Wow-Space-Id` header, on commands and queries alike. CoSec's own `spaceIdProvider` sends `CoSec-Space-Id`, which Wow does not read. Send Wow's header per command with `commandHeaders({ spaceId })`, or for every request of a client through its `headers`:
+A spaced aggregate (`@AggregateRoute(spaced = true)`) reads its space from the `Wow-Space-Id` header, on commands and queries alike; any other aggregate ignores the header. CoSec's own `spaceIdProvider` sends `CoSec-Space-Id`, which only a server with Wow's CoSec integration reads, as a fallback, and also only for a spaced aggregate. Send Wow's header per command with `commandHeaders({ spaceId })`, or for every request of a client through its `headers`:
 
 ```ts
 import { WowHeaders } from '@ahoo-wang/wow-client';
-import { cartQueryClientFactory } from './generated/index.js';
+import { orderQueryClientFactory } from './generated/index.js';
 
 export const storeSnapshots = (spaceId: string) =>
-  cartQueryClientFactory.createSnapshotQueryClient({
+  orderQueryClientFactory.createSnapshotQueryClient({
     headers: { [WowHeaders.SPACE_ID]: spaceId },
   });
 ```

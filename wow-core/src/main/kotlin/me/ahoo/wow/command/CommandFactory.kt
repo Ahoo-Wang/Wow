@@ -20,6 +20,7 @@ import me.ahoo.wow.api.messaging.Header
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.modeling.OwnerId.Companion.orDefaultOwnerId
 import me.ahoo.wow.api.modeling.SpaceId
+import me.ahoo.wow.api.modeling.SpaceIdCapable.Companion.DEFAULT_SPACE_ID
 import me.ahoo.wow.api.modeling.SpaceIdCapable.Companion.orDefaultSpaceId
 import me.ahoo.wow.api.modeling.TenantId.Companion.orDefaultTenantId
 import me.ahoo.wow.command.annotation.commandMetadata
@@ -30,6 +31,7 @@ import me.ahoo.wow.messaging.DefaultHeader
 import me.ahoo.wow.messaging.propagation.MessagePropagatorProvider.propagate
 import me.ahoo.wow.messaging.propagation.TraceMessagePropagator.Companion.ensureTraceId
 import me.ahoo.wow.modeling.aggregateId
+import me.ahoo.wow.modeling.annotation.acceptsCommandSpace
 
 /**
  * Converts any object to a CommandMessage using reflection and metadata.
@@ -44,7 +46,8 @@ import me.ahoo.wow.modeling.aggregateId
  * @param aggregateId target aggregate instance ID (optional, extracted from command if available)
  * @param tenantId tenant identifier (optional, extracted from command if available)
  * @param ownerId owner identifier (optional, extracted from command if available)
- * @param spaceId space identifier (optional, extracted from command if available)
+ * @param spaceId space identifier (optional); ignored, in favour of the default space, when the target aggregate is
+ * known here and is not spaced (`@AggregateRoute(spaced = true)`)
  * @param aggregateVersion expected aggregate version (optional, extracted from command if available)
  * @param namedAggregate named aggregate information (optional, extracted from command if available)
  * @param header message headers (default empty)
@@ -115,7 +118,7 @@ fun <C : Any> C.toCommandMessage(
         createTime = createTime,
         aggregateId = targetAggregateId,
         ownerId = finalOwnerId.orDefaultOwnerId(),
-        spaceId = spaceId.orDefaultSpaceId(),
+        spaceId = commandNamedAggregate.commandSpaceId(spaceId),
         aggregateVersion = expectedAggregateVersion,
         name = metadata.name,
         isCreate = isCreate,
@@ -123,6 +126,10 @@ fun <C : Any> C.toCommandMessage(
         isVoid = metadata.isVoid,
     ).ensureTraceId()
 }
+
+/** The space of a command to this aggregate: the default space unless the aggregate may take one. */
+private fun NamedAggregate.commandSpaceId(spaceId: SpaceId?): SpaceId =
+    if (acceptsCommandSpace()) spaceId.orDefaultSpaceId() else DEFAULT_SPACE_ID
 
 private fun isCreateCommand(metadataIsCreate: Boolean, expectedAggregateVersion: Int?): Boolean =
     metadataIsCreate || expectedAggregateVersion == Version.UNINITIALIZED_VERSION

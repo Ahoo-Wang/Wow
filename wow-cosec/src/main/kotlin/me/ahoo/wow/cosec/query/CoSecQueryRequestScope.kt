@@ -20,6 +20,10 @@ import me.ahoo.wow.webflux.route.command.getSpaceId
 import me.ahoo.wow.webflux.route.query.AbstractQueryRequestScope
 import org.springframework.web.reactive.function.server.ServerRequest
 
+/**
+ * The request scope with CoSec's space: `Wow-Space-Id`, else `CoSec-Space-Id`. As for every
+ * [AbstractQueryRequestScope], the space applies only to a spaced aggregate.
+ */
 object CoSecQueryRequestScope : AbstractQueryRequestScope() {
 
     override fun ServerRequest.resolveSpaceId(aggregateMetadata: AggregateMetadata<*, *>): String? {

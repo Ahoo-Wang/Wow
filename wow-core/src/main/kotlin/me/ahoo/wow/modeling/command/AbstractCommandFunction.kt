@@ -18,6 +18,7 @@ import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.event.flatEvent
 import me.ahoo.wow.event.toDomainEventStream
 import me.ahoo.wow.messaging.function.MessageFunction
+import me.ahoo.wow.modeling.annotation.aggregateMetadata
 import me.ahoo.wow.modeling.command.after.AfterCommandFunction
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
@@ -102,7 +103,8 @@ abstract class AbstractCommandFunction<C : Any>(
                 upstream = exchange.message,
                 aggregateVersion = commandAggregate.version,
                 stateOwnerId = commandAggregate.state.ownerId,
-                stateSpaceId = commandAggregate.state.spaceId
+                stateSpaceId = commandAggregate.state.spaceId,
+                commandSpaced = commandAggregate.aggregateType.aggregateMetadata<C, Any>().spaced,
             ).also { eventStream ->
                 exchange.setEventStream(eventStream)
             }

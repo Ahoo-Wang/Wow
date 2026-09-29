@@ -16,6 +16,7 @@ package me.ahoo.wow.modeling.command
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.command.DefaultDeleteAggregate
 import me.ahoo.wow.api.command.DefaultRecoverAggregate
+import me.ahoo.wow.command.SimpleCommandMessage
 import me.ahoo.wow.command.SimpleServerCommandExchange
 import me.ahoo.wow.command.toCommandMessage
 import me.ahoo.wow.eventsourcing.InMemoryEventStore
@@ -149,12 +150,9 @@ class SimpleCommandAggregateProcessingTest {
     }
 
     @Test
-    fun `process rejects owner and space mismatches after aggregate is initialized`() {
+    fun `process rejects owner mismatches after aggregate is initialized`() {
         val aggregate = commandAggregate()
-        val create = Create("aggregate-1", "created").toCommandMessage(
-            ownerId = "owner-1",
-            spaceId = "space-1",
-        )
+        val create = Create("aggregate-1", "created").toCommandMessage(ownerId = "owner-1")
         StepVerifier.create(aggregate.process(SimpleServerCommandExchange(create)))
             .expectNextCount(1)
             .verifyComplete()
@@ -168,16 +166,75 @@ class SimpleCommandAggregateProcessingTest {
         )
             .expectError(IllegalAccessOwnerAggregateException::class.java)
             .verify()
+    }
 
-        StepVerifier.create(
-            aggregate.process(
-                SimpleServerCommandExchange(
-                    ChangeState("aggregate-1", "changed").toCommandMessage(spaceId = "space-2")
-                )
-            )
+    @Test
+    fun `a spaced aggregate records the command space and rejects another space`() {
+        val metadata = aggregateMetadata<SpacedCommandAggregate, SpacedCommandAggregate>()
+        metadata.spaced.assert().isTrue()
+        val stateRoot = SpacedCommandAggregate("aggregate-1")
+        val aggregate = SimpleCommandAggregate(
+            state = metadata.toStateAggregate(stateRoot, version = 0),
+            commandRoot = stateRoot,
+            eventStore = InMemoryEventStore(),
+            metadata = metadata.command,
         )
+        val create = Create("aggregate-1", "created").toCommandMessage(namedAggregate = metadata, spaceId = "space-1")
+        create.spaceId.assert().isEqualTo("space-1")
+        StepVerifier.create(aggregate.process(SimpleServerCommandExchange(create)))
+            .assertNext { it.spaceId.assert().isEqualTo("space-1") }
+            .verifyComplete()
+        aggregate.state.spaceId.assert().isEqualTo("space-1")
+
+        val otherSpace = ChangeState("aggregate-1", "changed")
+            .toCommandMessage(namedAggregate = metadata, spaceId = "space-2")
+        StepVerifier.create(aggregate.process(SimpleServerCommandExchange(otherSpace)))
             .expectError(IllegalAccessSpaceAggregateException::class.java)
             .verify()
+    }
+
+    @Test
+    fun `a non-spaced aggregate never takes a space from its commands`() {
+        val aggregate = commandAggregate()
+        aggregateMetadata<MockCommandAggregate, MockCommandAggregate>().spaced.assert().isFalse()
+        // The command factory gives a command to a known non-spaced aggregate the default space.
+        val create = Create("aggregate-1", "created").toCommandMessage(spaceId = "space-1")
+        create.spaceId.assert().isEmpty()
+        StepVerifier.create(aggregate.process(SimpleServerCommandExchange(create)))
+            .assertNext { it.spaceId.assert().isEmpty() }
+            .verifyComplete()
+
+        // A command that still carries a space (built by a service that does not know the aggregate) is neither
+        // checked against nor recorded by it.
+        val change = ChangeState("aggregate-1", "changed").toCommandMessage() as SimpleCommandMessage<ChangeState>
+        val spacedChange = change.copy(spaceId = "space-2")
+        StepVerifier.create(aggregate.process(SimpleServerCommandExchange(spacedChange)))
+            .assertNext { it.spaceId.assert().isEmpty() }
+            .verifyComplete()
+        aggregate.state.spaceId.assert().isEmpty()
+    }
+
+    @Test
+    fun `a non-spaced aggregate keeps its stored space whatever space a command carries`() {
+        val metadata = aggregateMetadata<MockCommandAggregate, MockCommandAggregate>()
+        val stateRoot = MockCommandAggregate("aggregate-1")
+        // A state already in space-x: written before this fix, or moved there by a SpaceTransferred event.
+        val aggregate = SimpleCommandAggregate(
+            state = metadata.toStateAggregate(stateRoot, version = 1, spaceId = "space-x"),
+            commandRoot = stateRoot,
+            eventStore = InMemoryEventStore(),
+            metadata = metadata.command,
+        )
+        val change = ChangeState("aggregate-1", "changed").toCommandMessage() as SimpleCommandMessage<ChangeState>
+
+        StepVerifier.create(aggregate.process(SimpleServerCommandExchange(change.copy(spaceId = "space-y"))))
+            .assertNext { eventStream ->
+                eventStream.spaceId.assert().isEqualTo("space-x")
+                eventStream.first().spaceId.assert().isEqualTo("space-x")
+            }
+            .verifyComplete()
+        aggregate.state.spaceId.assert().isEqualTo("space-x")
+        aggregate.commandRoot.state().assert().isEqualTo("changed")
     }
 
     @Test

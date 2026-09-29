@@ -85,7 +85,7 @@ A dynamic tenant aggregate's default command/state routes receive the `tenant/{t
 
 ### Space Resources
 
-Spaced routes declare the `Wow-Space-Id` request header. Space does not add a path segment. The header participates in command context and query scoping; it is not authentication.
+Spaced routes declare the `Wow-Space-Id` request header. Space does not add a path segment. On a spaced aggregate's routes the header participates in command context and query scoping; it is not authentication. The routes of an aggregate that is not spaced neither declare nor read it. The global command facade declares it for every command, since the target aggregate is known only from the request, and applies it only when that aggregate is spaced.
 
 ### Owner Resources
 

@@ -15,6 +15,10 @@ package me.ahoo.wow.openapi.metadata
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.annotation.AggregateRoute
+import me.ahoo.wow.example.domain.order.Order
+import me.ahoo.wow.example.domain.order.OrderState
+import me.ahoo.wow.modeling.annotation.aggregateMetadata
+import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import me.ahoo.wow.tck.mock.MockCommandAggregate
 import org.junit.jupiter.api.Test
 
@@ -27,5 +31,19 @@ internal class AggregateRouteMetadataParserTest {
         metadata.owner.assert().isEqualTo(AggregateRoute.Owner.NEVER)
         metadata.spaced.assert().isFalse()
         metadata.resourceName.assert().isEqualTo("mock_aggregate")
+    }
+
+    @Test
+    fun `should parse spaced from the annotation`() {
+        val metadata = aggregateRouteMetadata<Order>()
+        metadata.spaced.assert().isTrue()
+        metadata.owner.assert().isEqualTo(AggregateRoute.Owner.ALWAYS)
+        metadata.resourceName.assert().isEqualTo("sales-order")
+    }
+
+    @Test
+    fun `route spaced is the aggregate metadata's own flag`() {
+        aggregateRouteMetadata<Order>().spaced.assert().isEqualTo(aggregateMetadata<Order, OrderState>().spaced)
+        aggregateRouteMetadata<MockCommandAggregate>().spaced.assert().isEqualTo(MOCK_AGGREGATE_METADATA.spaced)
     }
 }

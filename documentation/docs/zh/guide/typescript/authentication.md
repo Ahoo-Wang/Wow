@@ -98,14 +98,14 @@ export const commandsFor = (ownerId: string) =>
 
 ## Wow 的空间
 
-带空间的聚合从 `Wow-Space-Id` 请求头读取空间，命令与查询都一样。CoSec 自己的 `spaceIdProvider` 发送的是 `CoSec-Space-Id`，Wow 不读它。按命令用 `commandHeaders({ spaceId })` 发送 Wow 的请求头，或者通过客户端的 `headers` 让它的每个请求都带上：
+带空间的聚合（`@AggregateRoute(spaced = true)`）从 `Wow-Space-Id` 请求头读取空间，命令与查询都一样；其他聚合忽略该请求头。CoSec 自己的 `spaceIdProvider` 发送的是 `CoSec-Space-Id`，只有启用了 Wow CoSec 集成的服务端会把它作为回退读取，同样只对带空间的聚合生效。按命令用 `commandHeaders({ spaceId })` 发送 Wow 的请求头，或者通过客户端的 `headers` 让它的每个请求都带上：
 
 ```ts
 import { WowHeaders } from '@ahoo-wang/wow-client';
-import { cartQueryClientFactory } from './generated/index.js';
+import { orderQueryClientFactory } from './generated/index.js';
 
 export const storeSnapshots = (spaceId: string) =>
-  cartQueryClientFactory.createSnapshotQueryClient({
+  orderQueryClientFactory.createSnapshotQueryClient({
     headers: { [WowHeaders.SPACE_ID]: spaceId },
   });
 ```

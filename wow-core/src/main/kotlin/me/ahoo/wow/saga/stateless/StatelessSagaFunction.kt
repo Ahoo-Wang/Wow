@@ -82,6 +82,7 @@ class StatelessSagaFunction(
         commandBuilder
             .requestIdIfAbsent("${domainEvent.id}-$index")
             .tenantIdIfAbsent(domainEvent.aggregateId.tenantId)
+            // The command factory drops this space when the target aggregate is not spaced.
             .spaceIdIfAbsent(domainEvent.spaceId)
             .upstream(domainEvent)
             .header {

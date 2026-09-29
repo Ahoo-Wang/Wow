@@ -106,21 +106,23 @@ class LoadAggregateHandlerFunctionTest {
                 aggregateRouteMetadata = RouteTestFixtures.MOCK_AGGREGATE_ROUTE_METADATA
             )
         )
-        fun request(spaceId: String?) = MockServerRequest.builder()
+        fun request(ownerId: String, spaceId: String? = null) = MockServerRequest.builder()
             .method(HttpMethod.GET)
             .uri(URI.create("http://localhost"))
             .pathVariable(MessageRecords.ID, aggregateId)
-            .pathVariable(MessageRecords.OWNER_ID, aggregateId)
+            .pathVariable(MessageRecords.OWNER_ID, ownerId)
             .apply { spaceId?.let { header(CommonComponent.Header.SPACE_ID, it) } }
             .build()
-        fun status(admission: PointReadAdmission, spaceId: String?) =
-            handler(admission).handle(request(spaceId)).block()!!.statusCode()
+        fun status(admission: PointReadAdmission, ownerId: String, spaceId: String? = null) =
+            handler(admission).handle(request(ownerId, spaceId)).block()!!.statusCode()
 
         val on = PointReadAdmission(enabled = true)
-        status(on, null).assert().isEqualTo(HttpStatus.OK)
-        status(on, "other-space").assert().isEqualTo(HttpStatus.NOT_FOUND)
-        // Off, the declared space is not checked against the state.
-        status(PointReadAdmission.DISABLED, "other-space").assert().isEqualTo(HttpStatus.OK)
+        status(on, aggregateId).assert().isEqualTo(HttpStatus.OK)
+        status(on, "other-owner").assert().isEqualTo(HttpStatus.NOT_FOUND)
+        // Off, the declared owner is not checked against the state.
+        status(PointReadAdmission.DISABLED, "other-owner").assert().isEqualTo(HttpStatus.OK)
+        // The mock aggregate is not spaced: its routes ignore the space header, so it scopes nothing.
+        status(on, aggregateId, "other-space").assert().isEqualTo(HttpStatus.OK)
 
         // With require-authenticated-scope on, a declared-only tenant scope is refused as on the query routes,
         // though the state exists in that tenant.

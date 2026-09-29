@@ -11,7 +11,7 @@ description: '命令与等待结果 — @ahoo-wang/wow-client'
 
 CommandRequest 扩展 ParameterRequest；body 为命令可写字段 `CommandBody<C>`，还可带 `path`（端点路径覆盖，不是 `url`）、`method`、路径参数、头和其他请求数据。传输层不会替你生成幂等键或选择等待阶段。
 
-`CommandHeaders` 与 `WowHeaders` 是冻结的 `as const` 头名对象，每个值都是字符串字面量类型。`CommandHeaders.SPACE_ID` 为 `Wow-Space-Id`（即 `WowHeaders.SPACE_ID`），服务端的命令与查询共用它；`Command-Header-` 是服务端复制进命令头的自定义头前缀。`CommandRequestHeaders` 按服务端的解析方式为每个已知命令头定型，且全部可选：
+`CommandHeaders` 与 `WowHeaders` 是冻结的 `as const` 头名对象，每个值都是字符串字面量类型。`CommandHeaders.SPACE_ID` 为 `Wow-Space-Id`（即 `WowHeaders.SPACE_ID`），服务端的命令与查询共用它，且只对 spaced 聚合读取；`Command-Header-` 是服务端复制进命令头的自定义头前缀。`CommandRequestHeaders` 按服务端的解析方式为每个已知命令头定型，且全部可选：
 
 | 头                                                           | 值类型                                           |
 | ------------------------------------------------------------ | ------------------------------------------------ |

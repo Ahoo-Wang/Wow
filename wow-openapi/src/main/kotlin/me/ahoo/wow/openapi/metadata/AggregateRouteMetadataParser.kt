@@ -39,7 +39,7 @@ internal class AggregateRouteMetadataVisitor<C : Any>(private val aggregateType:
             enabled = true,
             aggregateMetadata = aggregateMetadata,
             resourceName = aggregateMetadata.aggregateName,
-            spaced = false,
+            spaced = aggregateMetadata.spaced,
             owner = AggregateRoute.Owner.NEVER
         )
 
@@ -47,7 +47,7 @@ internal class AggregateRouteMetadataVisitor<C : Any>(private val aggregateType:
             aggregateMetadata = aggregateMetadata,
             enabled = aggregateRoute.enabled,
             resourceName = aggregateRoute.resourceName.ifBlank { aggregateMetadata.aggregateName },
-            spaced = aggregateRoute.spaced,
+            spaced = aggregateMetadata.spaced,
             owner = aggregateRoute.owner
         )
     }

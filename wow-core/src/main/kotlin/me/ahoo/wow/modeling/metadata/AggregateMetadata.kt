@@ -55,6 +55,15 @@ data class AggregateMetadata<C : Any, S : Any>(
     val isAggregationPattern: Boolean
         get() = command.aggregateType != state.aggregateType
 
+    /**
+     * Whether the aggregate is spaced (`@AggregateRoute(spaced = true)`), as parsed into
+     * [CommandAggregateMetadata.spaced]: the one source every consumer reads. Commands to an aggregate that is not
+     * spaced carry the default space whatever their source (HTTP, saga, in-process), the aggregate neither checks nor
+     * records a command's space, and its queries are not scoped by a space taken from a request.
+     */
+    val spaced: Boolean
+        get() = command.spaced
+
     private fun extractAggregateId(
         state: S,
         aggregateId: String

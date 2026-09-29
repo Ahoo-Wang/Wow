@@ -11,7 +11,7 @@ description: 'Commands and wait results — @ahoo-wang/wow-client'
 
 CommandRequest extends ParameterRequest. Its body is `CommandBody<C>` (the command's writable fields), with optional `path` (endpoint path override, not `url`), `method`, URL path parameters, headers and other request data. The transport does not synthesize an idempotency key or choose a wait stage for you.
 
-`CommandHeaders` and `WowHeaders` are frozen `as const` objects of header names, so each value is a string literal type. `CommandHeaders.SPACE_ID` is `Wow-Space-Id` (`WowHeaders.SPACE_ID`), which the server shares with queries; `Command-Header-` is the prefix of custom headers the server copies into the command header. `CommandRequestHeaders` types every known command header by what the server parses — each is optional:
+`CommandHeaders` and `WowHeaders` are frozen `as const` objects of header names, so each value is a string literal type. `CommandHeaders.SPACE_ID` is `Wow-Space-Id` (`WowHeaders.SPACE_ID`), which the server shares with queries and reads only for a spaced aggregate; `Command-Header-` is the prefix of custom headers the server copies into the command header. `CommandRequestHeaders` types every known command header by what the server parses — each is optional:
 
 | Header                                                       | Value type                                           |
 | ------------------------------------------------------------ | ---------------------------------------------------- |

@@ -44,7 +44,9 @@ export const CommandHeaders = Object.freeze({
 
   /**
    * Space identifier header, `Wow-Space-Id`
-   * Used to send the command into a space.
+   * Used to send the command into a space. The server reads it only for an
+   * aggregate declared `@AggregateRoute(spaced = true)`; any other aggregate
+   * ignores it and keeps the default space.
    *
    * The server shares this header with queries, so it has the `Wow-` prefix
    * rather than `Command-`; it is the same value as {@link WowHeaders.SPACE_ID}.

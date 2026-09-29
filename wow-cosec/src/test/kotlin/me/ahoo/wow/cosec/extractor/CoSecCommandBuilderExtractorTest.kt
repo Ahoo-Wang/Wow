@@ -19,36 +19,55 @@ import me.ahoo.wow.cosec.extractor.CoSecCommandBuilderExtractor.REQUEST_ID_KEY
 import me.ahoo.wow.cosec.extractor.CoSecCommandBuilderExtractor.SPACE_ID_KEY
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.openapi.aggregate.command.CommandComponent
+import me.ahoo.wow.openapi.metadata.AggregateRouteMetadata
 import me.ahoo.wow.openapi.metadata.aggregateRouteMetadata
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import me.ahoo.wow.tck.mock.MockCreateAggregate
 import org.junit.jupiter.api.Test
 import org.springframework.mock.web.reactive.function.server.MockServerRequest
+import org.springframework.web.reactive.function.server.ServerRequest
 
 class CoSecCommandBuilderExtractorTest {
-    @Test
-    fun `should extract command builder from security context`() {
-        val request = MockServerRequest.builder()
-            .pathVariable(MessageRecords.TENANT_ID, generateGlobalId())
-            .pathVariable(MessageRecords.OWNER_ID, generateGlobalId())
-            .pathVariable(CommandComponent.Header.AGGREGATE_VERSION, 1.toString())
-            .header(CommandComponent.Header.WAIT_STAGE, CommandStage.SENT.toString())
-            .header(CommandComponent.Header.LOCAL_FIRST, false.toString())
-            .header(REQUEST_ID_KEY, generateGlobalId())
-            .header(SPACE_ID_KEY, generateGlobalId())
-            .build()
-        val commandBuilder = CoSecCommandBuilderExtractor.extract(
-            aggregateRouteMetadata = MOCK_AGGREGATE_METADATA.command.aggregateType.aggregateRouteMetadata(),
+    private val routeMetadata = MOCK_AGGREGATE_METADATA.command.aggregateType.aggregateRouteMetadata()
+
+    private fun request(): ServerRequest = MockServerRequest.builder()
+        .pathVariable(MessageRecords.TENANT_ID, generateGlobalId())
+        .pathVariable(MessageRecords.OWNER_ID, generateGlobalId())
+        .pathVariable(CommandComponent.Header.AGGREGATE_VERSION, 1.toString())
+        .header(CommandComponent.Header.WAIT_STAGE, CommandStage.SENT.toString())
+        .header(CommandComponent.Header.LOCAL_FIRST, false.toString())
+        .header(REQUEST_ID_KEY, generateGlobalId())
+        .header(SPACE_ID_KEY, generateGlobalId())
+        .build()
+
+    private fun extract(aggregateRouteMetadata: AggregateRouteMetadata<*>, request: ServerRequest) =
+        CoSecCommandBuilderExtractor.extract(
+            aggregateRouteMetadata = aggregateRouteMetadata,
             commandBody = MockCreateAggregate(
                 id = generateGlobalId(),
                 data = generateGlobalId(),
             ),
             request
-        ).block()
-        commandBuilder!!.requestId.assert()
+        ).block()!!
+
+    @Test
+    fun `should extract request id and space id from CoSec headers for a spaced aggregate`() {
+        val request = request()
+        val commandBuilder = extract(routeMetadata.copy(spaced = true), request)
+        commandBuilder.requestId.assert()
             .isEqualTo(request.headers().firstHeader(REQUEST_ID_KEY))
         commandBuilder.spaceId.assert()
             .isEqualTo(request.headers().firstHeader(SPACE_ID_KEY))
+    }
+
+    @Test
+    fun `should ignore the CoSec space header for a non-spaced aggregate`() {
+        routeMetadata.spaced.assert().isFalse()
+        val request = request()
+        val commandBuilder = extract(routeMetadata, request)
+        commandBuilder.requestId.assert()
+            .isEqualTo(request.headers().firstHeader(REQUEST_ID_KEY))
+        commandBuilder.spaceId.assert().isNull()
     }
 }

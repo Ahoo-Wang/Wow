@@ -20,6 +20,10 @@ import me.ahoo.wow.webflux.route.command.extractor.DefaultCommandBuilderExtracto
 import org.springframework.web.reactive.function.server.ServerRequest
 import reactor.core.publisher.Mono
 
+/**
+ * [DefaultCommandBuilderExtractor] plus CoSec's request headers: `CoSec-Request-Id` fills an absent request id, and,
+ * for a [spaced][AggregateRouteMetadata.spaced] aggregate only, `CoSec-Space-Id` fills an absent space.
+ */
 object CoSecCommandBuilderExtractor : CommandBuilderExtractor {
     const val REQUEST_ID_KEY = "CoSec-Request-Id"
     const val SPACE_ID_KEY = "CoSec-Space-Id"
@@ -33,8 +37,10 @@ object CoSecCommandBuilderExtractor : CommandBuilderExtractor {
                 request.headers().firstHeader(REQUEST_ID_KEY)?.let {
                     commandBuilder.requestIdIfAbsent(it)
                 }
-                request.headers().firstHeader(SPACE_ID_KEY)?.let {
-                    commandBuilder.spaceIdIfAbsent(it)
+                if (aggregateRouteMetadata.spaced) {
+                    request.headers().firstHeader(SPACE_ID_KEY)?.let {
+                        commandBuilder.spaceIdIfAbsent(it)
+                    }
                 }
                 commandBuilder
             }

@@ -33,6 +33,7 @@ import me.ahoo.wow.api.query.Queryable
 import me.ahoo.wow.api.query.RewritableFilter
 import me.ahoo.wow.api.query.SpaceIdFilter
 import me.ahoo.wow.api.query.TenantIdFilter
+import me.ahoo.wow.openapi.CommonComponent
 import me.ahoo.wow.query.AdmittedQuery
 import me.ahoo.wow.query.BackendPage
 import me.ahoo.wow.query.PageWindow
@@ -287,6 +288,37 @@ class LoadQueryBoundaryTest {
                 SpaceIdFilter("trusted-space"),
             ),
         )
+    }
+
+    @Test
+    fun theDefaultRequestScopeIgnoresTheSpaceHeaderOfANonSpacedAggregate() {
+        var received: FilterExpression? = null
+        val backend = object : EventStreamQueryBackend by NoOpEventStreamQueryBackend(
+            MOCK_AGGREGATE_METADATA.namedAggregate
+        ) {
+            override fun stream(query: AdmittedQuery<IListQuery>): Flux<ObjectNode> {
+                received = query.query.filter
+                return Flux.empty()
+            }
+        }
+        val gateway = DefaultEventStreamQueryGateway(
+            namedAggregate = MOCK_AGGREGATE_METADATA.namedAggregate,
+            backend = backend,
+            schemaProvider = RouteTestFixtures.EVENT_STREAM_QUERY_SCHEMA_PROVIDER,
+        )
+        val handler = LoadEventStreamHandlerFunction(
+            MOCK_AGGREGATE_METADATA,
+            gateway,
+            DefaultQueryRequestScope,
+            WebFluxRequestExceptionHandler(),
+        )
+        val request = MockServerRequest.builder().pathVariable("id", "specific-record")
+            .pathVariable("tenantId", "trusted-tenant")
+            .header(CommonComponent.Header.SPACE_ID, "client-space")
+            .pathVariable("headVersion", "3").pathVariable("tailVersion", "5").build()
+        write(handler, request, exchange()).block()
+        leaves(requireNotNull(received)).filterIsInstance<SpaceIdFilter>().assert().isEmpty()
+        leaves(requireNotNull(received)).contains(TenantIdFilter("trusted-tenant")).assert().isTrue()
     }
 
     /** A filter that records the filter it was handed and replaces it with match-all. */
