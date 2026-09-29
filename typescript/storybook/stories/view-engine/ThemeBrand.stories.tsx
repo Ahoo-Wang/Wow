@@ -29,7 +29,7 @@ import '@ahoo-wang/wow-view-engine/styles.css';
 import '@ahoo-wang/wow-view-engine/themes.css';
 
 /**
- * A brand colour is an input beside any preset (theme-architecture.md 2,
+ * A brand colour is an input beside any preset (ui/theme.md, brand input,
  * S4), measured in a browser: the same colour worn on `azure`, `porcelain`
  * and `contrast`, each deriving its primary, its tints and — where the
  * preset bounds it — its focus ring from it, held to that preset's own
@@ -181,7 +181,7 @@ function BrandPage() {
   );
 }
 
-const description = `**能力 · 主题与预设：品牌色**（theme-architecture.md 2，S4）
+const description = `**能力 · 主题与预设：品牌色**（docs/design/ui/theme.md「品牌色是输入，不是预设」，S4）
 
 品牌色不是一套预设，是任何一套都接受的输入：宿主写一个 \`--fve-brand\`，主色、\`accent\`、\`sidebar-accent\` 与选中行的淡色都取它的色相；三套的焦点环本来就是主色，也跟着变。派生式只写在 \`styles.css\` 一处，每套预设只给它在自己的底上量出来的边界（\`--fvp-brand-*\`），所以同一个颜色在 \`contrast\` 上被压得更深，守它的 7:1。
 
@@ -388,8 +388,8 @@ function paintedOf(canvas: HTMLElement, where: string, chip: WrapperChip) {
 }
 
 /**
- * 品牌色挂在包裹层上、预设挂在 `<html>` 上，派生照样生效（theme-architecture.md
- * 2.6）；包裹层外的面仍是预设自己的主色。图表第 1 色的开关是属性：包裹层上挂
+ * 品牌色挂在包裹层上、预设挂在 `<html>` 上，派生照样生效（ui/theme.md
+ * 「品牌色是输入，不是预设」）；包裹层外的面仍是预设自己的主色。图表第 1 色的开关是属性：包裹层上挂
  * `data-fve-brand-chart` 就取品牌色相，不挂就不变——写成变量 `--fve-brand-chart`
  * 什么也不开。每个面把这几样颜色画成色块，看得见，play 量的也就是画出来的色块。
  */
