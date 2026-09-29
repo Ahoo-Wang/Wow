@@ -384,8 +384,9 @@ export function useAnalysisEditor(
           followed.metrics.length === 0
             ? proposed
             : { ...proposed, metrics: followed.metrics };
-        const having =
-          followed.metrics.length === 0 ? current.having : followed.having;
+        // The having follows either way: only the derived metric's finding
+        // is left for admission, not rules on a metric that left.
+        const { having } = followed;
         const aliases = new Set([
           ...next.groups.map(group => group.alias),
           ...next.metrics.map(metric => metric.alias),

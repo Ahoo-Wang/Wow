@@ -60,7 +60,9 @@ export interface DanglingBefore {
  *
  * Only what the edit broke goes (`before`, the config it started from): a
  * derived metric or a rule that already read nothing stays, for admission
- * to point at, rather than vanishing under an edit about something else.
+ * to point at, rather than vanishing under an edit about something else,
+ * and so does a metric the edit itself changed (not the object `before`
+ * held) — the card being typed into is not fallout.
  * Without `before`, everything that reads nothing goes. The metrics may
  * come out empty: the caller says what an empty question becomes.
  */
@@ -69,11 +71,19 @@ export function withoutDangling(
   facts: DanglingFacts = {},
   before?: DanglingBefore,
 ): WithoutDangling {
-  const after = readingsOf(shape.metrics, facts);
-  const was = before && readingsOf(before.shape.metrics, before.facts ?? {});
-  const removed = [...after.dangling].filter(
-    alias => !was?.dangling.has(alias),
-  );
+  const dangling = danglingIn(shape.metrics, facts);
+  const was = before && danglingIn(before.shape.metrics, before.facts ?? {});
+  // Fallout is a metric this edit left as it was that reads nothing now and
+  // read something before; one it changed is the author's, mid-edit, and
+  // stays for admission to point at, as one broken already does.
+  const untouched = (metric: AnalysisMetric) =>
+    before === undefined ||
+    before.shape.metrics.some(
+      entry => entry === metric && !was?.has(entry.alias),
+    );
+  const removed = shape.metrics
+    .filter(metric => dangling.has(metric.alias) && untouched(metric))
+    .map(metric => metric.alias);
   const metrics =
     removed.length === 0
       ? shape.metrics
@@ -81,9 +91,10 @@ export function withoutDangling(
           metric => !removed.includes(metric.alias),
         ) as AnalysisViewConfig['metrics']);
   // A rule stands unless it compared something before and cannot now.
+  const now = comparableIn(metrics, facts);
+  const then = before && comparableIn(before.shape.metrics, before.facts ?? {});
   const stands = (metric: string) =>
-    after.comparable.has(metric) ||
-    (was !== undefined && !was.comparable.has(metric));
+    now.has(metric) || (then !== undefined && !then.has(metric));
   const ungrouped =
     shape.groups.length === 0 &&
     (before === undefined || before.shape.groups.length > 0);
@@ -94,14 +105,11 @@ export function withoutDangling(
   return { metrics, having, removed };
 }
 
-/**
- * The derived metrics of a list that read nothing, in cascade, and the
- * metrics a having may compare.
- */
-function readingsOf(
+/** The derived metrics of a list that read nothing, in cascade. */
+function danglingIn(
   metrics: readonly AnalysisMetric[],
-  { moments = new Set(), havingMetrics }: DanglingFacts,
-) {
+  { moments = new Set() }: DanglingFacts,
+): Set<string> {
   const readable = new Set<string>();
   const dangling = new Set<string>();
   for (const metric of metrics) {
@@ -113,16 +121,28 @@ function readingsOf(
     else if (!isValueMetric(metric) && !moments.has(metric.alias))
       readable.add(metric.alias);
   }
-  const comparable = new Set(
+  return dangling;
+}
+
+/**
+ * The metrics a having may compare, as admission reads them
+ * (`validateHaving`): any but a sample value or a moment, of a type the
+ * source compares.
+ */
+function comparableIn(
+  metrics: readonly AnalysisMetric[],
+  { moments = new Set(), havingMetrics }: DanglingFacts,
+): Set<string> {
+  return new Set(
     metrics
       .filter(
         metric =>
-          readable.has(metric.alias) &&
+          !isValueMetric(metric) &&
+          !moments.has(metric.alias) &&
           (havingMetrics === undefined || havingMetrics.includes(metric.type)),
       )
       .map(metric => metric.alias),
   );
-  return { dangling, comparable };
 }
 
 /** The node less the rules that no longer stand; `undefined` when it keeps all. */

@@ -261,26 +261,44 @@ describe('withoutDangling, given the config an edit started from', () => {
   });
 
   it('may leave nothing to measure, for the caller to say what then', () => {
+    const ratio = derived('ratio', 'amount', 'amount');
     expect(
       withoutDangling(
         {
           groups: grouped,
-          metrics: [
-            derived('ratio', 'amount', 'amount'),
-          ] as AnalysisViewConfig['metrics'],
+          metrics: [ratio] as AnalysisViewConfig['metrics'],
         },
         {},
         {
           shape: {
             groups: grouped,
-            metrics: [
-              amount,
-              derived('ratio', 'amount', 'amount'),
-            ] as AnalysisViewConfig['metrics'],
+            metrics: [amount, ratio] as AnalysisViewConfig['metrics'],
           },
         },
       ).metrics,
     ).toEqual([]);
+  });
+
+  it('leaves a metric the edit itself changed, and the rules on it', () => {
+    const ratio = derived('ratio', 'amount', 'amount');
+    const edited = derived('ratio', 'gone', 'amount');
+    const having = over('ratio');
+    const followed = withoutDangling(
+      {
+        groups: grouped,
+        metrics: [amount, edited] as AnalysisViewConfig['metrics'],
+        having,
+      },
+      {},
+      {
+        shape: {
+          groups: grouped,
+          metrics: [amount, ratio] as AnalysisViewConfig['metrics'],
+        },
+      },
+    );
+    expect(followed.removed).toEqual([]);
+    expect(followed.having).toBe(having);
   });
 });
 
@@ -685,6 +703,64 @@ describe('an edit to the question', () => {
     ]);
     expect(draft().having).toEqual(over('stale'));
     expect(codes()).toContain('analysis.derived.unknown-metric');
+  });
+
+  /**
+   * The card being typed into is the author's, not the edit's fallout: a
+   * derived metric edited to read one already broken stays — with the rule
+   * on it — for admission to point at, rather than vanishing mid-edit.
+   */
+  it('leaves the metric being edited, even where it now reads nothing', async () => {
+    const { analysis, draft } = await editor({
+      metrics: [
+        amount,
+        derived('stale', 'gone', 'gone'),
+        derived('ratio', 'amount', 'amount'),
+      ] as AnalysisViewConfig['metrics'],
+      having: over('ratio'),
+    });
+
+    act(() =>
+      analysis().updateMetric(2, {
+        expression: {
+          type: 'BINARY',
+          operator: 'DIVIDE' as never,
+          left: { type: 'METRIC_REF', metric: 'stale' },
+          right: { type: 'METRIC_REF', metric: 'amount' },
+        },
+      } as never),
+    );
+
+    expect(draft().metrics.map(metric => metric.alias)).toEqual([
+      'amount',
+      'stale',
+      'ratio',
+    ]);
+    expect(draft().having).toEqual(over('ratio'));
+  });
+
+  /**
+   * An edit made as asked still takes the rules on what left: kept, they
+   * read as broken before the next edit and lingered for good.
+   */
+  it('takes the rules on what left when the edit is made as asked', async () => {
+    const { analysis, draft } = await editor({
+      metrics: [
+        amount,
+        derived('ratio', 'amount', 'amount'),
+      ] as AnalysisViewConfig['metrics'],
+      having: and(over('amount'), over('ratio')),
+    });
+
+    act(() => analysis().removeMetric(0));
+    expect(draft().metrics.map(metric => metric.alias)).toEqual(['ratio']);
+    expect('having' in draft()).toBe(false);
+
+    act(() => analysis().addMetric(count));
+    act(() => analysis().removeMetric(0));
+    expect(draft().metrics).toEqual([count]);
+    expect('having' in draft()).toBe(false);
+    expect(analysis().issues).toEqual([]);
   });
 
   it('is made as asked where following it would leave nothing to measure', async () => {
