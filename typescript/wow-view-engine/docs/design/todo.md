@@ -37,11 +37,7 @@
      - 做法：`ui/kit/` 放共用基础件（连同 `focus.ts`、`anchor.ts`），只依赖 components／lib／theme／messages；功能部件归到各自的目录（表格、卡片、分页、行操作、结果工具栏、批量状态 → `record/`；列设置 → `columns/`；排序设置 → `sort/`；筛选面板、条件值编辑、已应用条 → `filter/`；分析表、图外框、字段菜单 → `analysis/`；看板网格、面板、编排 → `dashboard/`；视图列表、视图头、保存／另存／删除／冲突／离开、刷新、导出 → `workbench/`）；根目录只留外壳与入口。先处理 `ViewSurface`、`RenderBoundary` 对 `charts` 的依赖（它们属于底层）。
      - 判据：`test/architecture.test.ts` 的 ui 方向表把 `kit` 放在所有功能目录之下，并加一条「除入口与外壳外，无人依赖根目录」；公开面快照一个名字不变；引擎测试、构建、全部故事与控制台通过。
 
-2. **补审 wow-react 与查询后端（2026-09-28）的处置**（用户按推荐定：后端由本线做、P3 也在首发前做、不引入新工具）。17 条（P1×1、P2×8、P3×8），报告要点在 [progress.md](progress.md)「这个暂停点（2026-09-28 上午）」。
-   - 已做：第一波 F1＋F6（#3754，ES `DATE_DIFF` 与 Mongo 一致、TCK 纪元矩阵）、F8（#3755，Kotlin 兼容债入账，#3759 让只改 Kotlin 的 PR 也跑账本）、F16＋F17（#3757，wow-react）；第二波 F4＋F5＋F15（#3760，`FieldPredicate`、系统筛选读算子规格、`Sort.MAX_FIELDS` 与 `maxItems`）。
-   - **第三波（wow-query，一个 PR）**：F3 工具函数收进 wow-query（`operandValue`、`physicalPath`、`systemPath`；两端对坏操作数一律 4xx）、F7 能力判定表收进 wow-query（适配器只映射原生类型族）、F11 快照／事件流工厂泛型化、F14 `PagingSupport.maxOffsetWindow`（ES 深分页在准入时 4xx）、一条扫描重复声明的清单型测试。
-   - **第四波（两个并行 PR）**：wow-mongo——F3 采用、两处 `ComparisonOperator` 映射合一、F10 编译器对象、F12 复用 `findDocument`、**F2 日期字段的操作数转 `Date` 并给 EXACT_MATCH／RANGE（用户定：修）**加 TCK 用例、F7 采用；wow-elasticsearch——F3 采用、F10、F12 请求构造合一、F13 嵌套排序从字段绑定取、F14 声明上限、F7 采用。
-   - **最后**：`config/detekt/detekt.yml` 打开 `UnnecessaryAbstractClass`、`UnusedPrivateMember` 与 `ForbiddenImport` 条目（三、四波合并后，一次绿）。
+2. **补审 wow-react 与查询后端（2026-09-28）**：17 条中后端与 wow-react 的全部落地——#3754、#3755、#3757、#3760、#3764、#3765（含 F2：MongoDB 的日期字段按日期比较）、#3766、#3768（护栏：事件流导入限制、无抽象成员的抽象类由反射测试守）；#3759 让只改 Kotlin 的 PR 也跑兼容债账本。余下一条：
    - **F9（控制台）**：`useMoments.ts` 自写的分页 hook 有迟到结果覆盖的竞态，改用 wow-react `usePagedQuery`（H2a 合并后，控制台不再冲突）。
 
 ## 看板真实接入（补偿控制台，2026-09-27）暴露的问题——首发前做，按序交子代理
