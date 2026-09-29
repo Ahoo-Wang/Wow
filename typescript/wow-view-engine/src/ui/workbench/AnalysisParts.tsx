@@ -28,8 +28,8 @@ import {
   useAnalysisResult,
   type WorkbenchController,
 } from '../../react/index.js';
-import { AnalysisChart } from '../AnalysisChart.js';
-import { AnalysisTable } from '../AnalysisTable.js';
+import { AnalysisChart } from '../analysis/AnalysisChart.js';
+import { AnalysisTable } from '../analysis/AnalysisTable.js';
 import { AnalysisToolbar } from '../analysis/AnalysisToolbar.js';
 import { useChartImageSlot } from '../analysis/imageExport.js';
 import { Tray } from '../analysis/Tray.js';
@@ -52,14 +52,14 @@ import {
   CaptionSkeleton,
 } from '../analysis/SkeletonResult.js';
 import { wayOutOf } from '../record/emptyWayOut.js';
-import { useAnnouncer, useSentence } from '../Announcer.js';
-import { NoteStrip, WarningStrip } from '../StatusStrip.js';
-import { featuresOf, type WorkbenchFeatures } from '../features.js';
-import type { ViewMessages } from '../messages.js';
-import { useViewMessages } from '../MessagesProvider.js';
-import { formatNumber } from '../display.js';
-import { resultSlots } from '../variants.js';
-import { useSurfaceDisplay } from '../ViewSurface.js';
+import { useAnnouncer, useSentence } from '../kit/Announcer.js';
+import { NoteStrip, WarningStrip } from '../kit/StatusStrip.js';
+import { featuresOf, type WorkbenchFeatures } from '../kit/features.js';
+import type { ViewMessages } from '../kit/messages.js';
+import { useViewMessages } from '../kit/MessagesProvider.js';
+import { formatNumber } from '../kit/display.js';
+import { resultSlots } from '../kit/variants.js';
+import { useSurfaceDisplay } from '../kit/ViewSurface.js';
 import { NO_PARTS, type RenderParts } from './parts.js';
 import { SearchBox } from './SearchBox.js';
 

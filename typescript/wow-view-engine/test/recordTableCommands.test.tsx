@@ -40,7 +40,7 @@ import {
   type ViewSource,
 } from '../src/index.js';
 import { useOpenView, useRecordTable } from '../src/react/index.js';
-import { ResultToolbar } from '../src/ui/ResultToolbar.js';
+import { ResultToolbar } from '../src/ui/workbench/ResultToolbar.js';
 import {
   ordersDefinition,
   recordConfig,

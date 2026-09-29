@@ -20,7 +20,7 @@ import type {
   CartesianSpec,
   ChartType,
 } from '../../model/index.js';
-import { useAnnouncer } from '../Announcer.js';
+import { useAnnouncer } from '../kit/Announcer.js';
 import { Button } from '../components/button.js';
 import {
   DropdownMenu,
@@ -34,13 +34,13 @@ import {
   ItemMedia,
   ItemTitle,
 } from '../components/item.js';
-import { DragHandle, moveTarget, type HandleMove } from '../DragHandle.js';
-import { IconButton } from '../IconButton.js';
-import { useViewMessages } from '../MessagesProvider.js';
-import { DropdownMenuContent } from '../popups.js';
-import { RowItem } from '../RowItem.js';
+import { DragHandle, moveTarget, type HandleMove } from '../kit/DragHandle.js';
+import { IconButton } from '../kit/IconButton.js';
+import { useViewMessages } from '../kit/MessagesProvider.js';
+import { DropdownMenuContent } from '../kit/popups.js';
+import { RowItem } from '../kit/RowItem.js';
 import { CompactSelect } from './CompactSelect.js';
-import { sortableList, withoutOptimisticSorting } from '../dragPlugins.js';
+import { sortableList, withoutOptimisticSorting } from '../kit/dragPlugins.js';
 import { chartDragAccessibility, listDrop } from './drag.js';
 import { useListFocus, type ListFocus } from './listFocus.js';
 import { OptionsSection, type Choice } from './optionControls.js';

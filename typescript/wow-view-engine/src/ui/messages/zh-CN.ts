@@ -11,18 +11,19 @@
  * limitations under the License.
  */
 
-import type { MessageKey, ViewMessages } from '../messages.js';
+import type { en } from './en.js';
 
 /**
  * 简体中文文案，与 `en` 逐键对应。
  *
- * `satisfies Record<MessageKey, string>` 让少一个键或多一个键都成为编译错误，
+ * `satisfies Record<keyof typeof en, string>`（即 `MessageKey`）让少一个键或多一个键都成为编译错误，
+ * 类型取自 `en` 本身，因为文案目录在 `kit` 之下、不向上引用。
  * `test/messages.test.tsx` 另外核对每句里的 `{param}` 占位符。
  *
  * 宿主要改其中几句，把它铺开再覆盖即可：
  * `messages={{ ...zhCN, 'label.filter.apply': '确定' }}`。
  */
-export const zhCN: ViewMessages = {
+export const zhCN: Readonly<Record<string, string>> = {
   // 保存命令、相关对话框，以及一次写入的结局。
   'label.save.save': '保存',
   'label.save.save-as': '另存为',
@@ -2336,4 +2337,4 @@ export const zhCN: ViewMessages = {
     '点击时要打开的仪表盘上的「{filter}」收不了 {field} 的值，点一组会打开追问菜单。',
   'dashboard.click.board-source-unknown':
     '点击要把这个仪表盘的筛选「{filter}」带到另一块仪表盘，但这个仪表盘上已没有它，点一组会打开追问菜单。',
-} satisfies Record<MessageKey, string>;
+} satisfies Record<keyof typeof en, string>;

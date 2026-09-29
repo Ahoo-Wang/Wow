@@ -538,7 +538,7 @@
    * `destructive` lifted from 0.704 to 0.76, which is what lets a danger
    * badge write in the token itself on a selected row. It measured 3.92:1
    * there under the registry's 20% wash and needed a mix toward the
-   * foreground in `ui/variants.tsx`; plain, on its 10% wash over the band,
+   * foreground in `ui/kit/variants.tsx`; plain, on its 10% wash over the band,
    * it now reads 5.48:1 on the neutral dark ground (4.56:1 on porcelain's,
    * the tightest of every preset's), and the mix is gone. `test/presetContrast.test.ts` holds every
    * status pair of every preset to 4.5:1 and the chroma to 0.14–0.16.
@@ -550,13 +550,13 @@
    * (`DestructiveAction`) is the one solid status fill left. The toned
    * badges that used to fill with `success` and `warning` are the soft
    * recipe since the 2026-09-23 visual draft — the token as a 10% tint and
-   * as the writing (`ToneBadge`, `ui/variants.tsx`) — and the two
+   * as the writing (`ToneBadge`, `ui/kit/variants.tsx`) — and the two
    * `-foreground`s went with them, because a token nothing reads is a
    * contract nothing keeps.
    *
    * **There is no `info`** (phase 5, Q45). It was declared and registered
    * as a utility, and nothing ever read it: a note is not a status, and the
-   * info tone of a callout (`LineAlert`, `ui/alerts.tsx`) writes in the
+   * info tone of a callout (`LineAlert`, `ui/kit/alerts.tsx`) writes in the
    * page's own quiet grey, `muted-foreground`, with the `border` edge —
    * yellow and red are kept for when something is wrong. A blue `info` comes
    * back with the first thing that reads it, not before.
@@ -780,7 +780,7 @@
    * the scale is three rungs — 13 / 14 / 16 — each a step the eye can name.
    *
    * It is a length rather than a colour, so the dark block does not
-   * redeclare it, exactly as `radius` does not. `ui/layout.ts` exports
+   * redeclare it, exactly as `radius` does not. `ui/kit/layout.ts` exports
    * `TEXT_UI`, the class our own labels wear; the rule below is for the
    * vendored controls, which cannot be asked at the call site.
    */
@@ -1229,7 +1229,7 @@
 }
 
 /*
- * The change badge's colour (`ChangeBadge`, `ui/variants.tsx`), said as the
+ * The change badge's colour (`ChangeBadge`, `ui/kit/variants.tsx`), said as the
  * one variable its recipe reads. By tone under `semantic`; by direction
  * under the two conventions that colour a direction. Every rule here weighs
  * the same, so the later one wins where both match.
@@ -1469,7 +1469,7 @@
  * outline away and there is no badge, only a word — and the registry paints
  * it `border-border`: measured on the title bar, **1.26:1** in the light
  * theme and 1.77:1 in the dark one. The toned badges in the table made this
- * move already (`ui/variants.tsx`, `neutral`); this is the rest of them —
+ * move already (`ui/kit/variants.tsx`, `neutral`); this is the rest of them —
  * "Not saved yet" and "Edited" beside the view's name, the applied
  * conditions the page put in force, a system view's tag in the manager.
  *
@@ -1518,7 +1518,7 @@
 @layer utilities {
   /*
    * The scrim behind a dialog and a sheet. The overlay is a root of its
-   * own (`ui/popups.tsx`), so the rule names no ancestor. A destructive
+   * own (`ui/kit/popups.tsx`), so the rule names no ancestor. A destructive
    * confirmation keeps its heavier dim (`ALERT_DIALOG_BACKDROP_DIM`): it
    * is asked over a page that is already dimmed.
    */
@@ -1825,7 +1825,7 @@
 
   /*
    * A toned badge's wash and edge, as much of its tone as the theme says
-   * (`ToneBadge`, `ChangeBadge` in `ui/variants.tsx`, which say the tone on
+   * (`ToneBadge`, `ChangeBadge` in `ui/kit/variants.tsx`, which say the tone on
    * the element). The dark wash is the same 10%, which is why the registry's
    * `dark:bg-destructive/20` is set aside there.
    */
@@ -2788,7 +2788,7 @@
    *
    * A popup is a root too, but its parent is `<body>`, whose type need not
    * be the host's: a host that sets it on an application frame leaves the
-   * body at the browser's serif. So `ui/popups.tsx` writes the surface's
+   * body at the browser's serif. So `ui/kit/popups.tsx` writes the surface's
    * computed family into `--_fve-surface-font` on the popup, and a root set in it
    * reads exactly as the surface it opened from. Every root starts it at
    * `initial` (unset), so a surface never takes a value of that name from
@@ -3508,7 +3508,7 @@
  *
  * `z-index: 0` — a stacking context of its own, and not one step higher.
  *
- * The popups are settled elsewhere: `ui/popups.tsx` puts
+ * The popups are settled elsewhere: `ui/kit/popups.tsx` puts
  * `z-index: var(--fve-popup-z-index, 50)` on every positioner it portals, so
  * they stay in front of this whatever it takes. What is left for this number
  * to say is how an expanded surface ranks against the *host's* page, and

@@ -17,7 +17,7 @@ import {
   type BulkOutcome,
   type BulkRunning,
 } from '../../react/index.js';
-import { LineAlert, type AlertTone } from '../alerts.js';
+import { LineAlert, type AlertTone } from '../kit/alerts.js';
 import { AlertAction, AlertTitle } from '../components/alert.js';
 import { Button } from '../components/button.js';
 import {
@@ -25,8 +25,8 @@ import {
   type SayWith,
   useSayWith,
   useViewMessages,
-} from '../MessagesProvider.js';
-import type { MessageKey } from '../messages.js';
+} from '../kit/MessagesProvider.js';
+import type { MessageKey } from '../kit/messages.js';
 
 export interface BulkStatusProps {
   /** The surface's runner; nothing is drawn while it is idle. */

@@ -35,7 +35,7 @@ import {
   treeController,
   type FilterTreeController,
 } from '../../react/index.js';
-import { IconButton, IconTooltip } from '../IconButton.js';
+import { IconButton, IconTooltip } from '../kit/IconButton.js';
 import { Badge } from '../components/badge.js';
 import { Toggle } from '../components/toggle.js';
 import {
@@ -45,14 +45,14 @@ import {
   SelectValue,
 } from '../components/select.js';
 import { Tooltip, TooltipTrigger } from '../components/tooltip.js';
-import { SelectContent, TooltipContent } from '../popups.js';
+import { SelectContent, TooltipContent } from '../kit/popups.js';
 import {
   useViewMessages,
   type MessageFormatters,
-} from '../MessagesProvider.js';
-import { FilterValueEditor } from '../FilterValueEditor.js';
-import { PendingDot, PENDING_AT_CORNER } from '../PendingDot.js';
-import { PillSelectTrigger } from '../variants.js';
+} from '../kit/MessagesProvider.js';
+import { FilterValueEditor } from './FilterValueEditor.js';
+import { PendingDot, PENDING_AT_CORNER } from '../kit/PendingDot.js';
+import { PillSelectTrigger } from '../kit/variants.js';
 import { UnsupportedValue } from './inputs/unsupported.js';
 import { GroupBlock } from './GroupBlock.js';
 import { useConditionFocus } from './conditionFocus.js';
@@ -188,7 +188,7 @@ export function ConditionPill({
     >
       {/* One border per condition (D12): the pill is the field, so the
           select inside it draws none of its own. The variant carries that,
-          not a `className` of colours — `ui/variants.tsx`. */}
+          not a `className` of colours — `ui/kit/variants.tsx`. */}
       <PillSelectTrigger
         aria-label={messages.label('label.filter.operator-of', {
           field: label,
@@ -386,7 +386,7 @@ export function ConditionPill({
           select beside it — and shows focus by the ring alone. That used to
           be written here, as `[&_[data-slot=input]]:…` reaching two levels
           down into whichever vendored components the editor happened to
-          render; it is each control's own variant now (`ui/variants.tsx`),
+          render; it is each control's own variant now (`ui/kit/variants.tsx`),
           so a registry rename cannot silently give the pill its borders
           back. */}
       <div

@@ -23,11 +23,11 @@ import {
   type CSSProperties,
   type ReactNode,
 } from 'react';
-import { useViewMessages } from '../MessagesProvider.js';
-import { useSurfaceTheme, useSurfaceTokens } from '../ViewSurface.js';
+import { useViewMessages } from '../kit/MessagesProvider.js';
+import { useSurfaceTheme, useSurfaceTokens } from '../kit/ViewSurface.js';
 import { BRUSH_CLEAR, BRUSH_CURSOR } from './cartesianBrush.js';
 import type { LegendEntry } from './ChartLegend.js';
-import { ChartFailure } from './failure.js';
+import { ChartFailure } from '../kit/chartFailure.js';
 import { frameClass } from './frameClass.js';
 import { ChartImageTarget, pictureTheme } from './image.js';
 import type { ZoomWindow } from './cartesianZoom.js';

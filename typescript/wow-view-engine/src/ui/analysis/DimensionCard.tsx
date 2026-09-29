@@ -29,12 +29,12 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '../components/dropdown-menu.js';
-import { GroupedMenu } from '../FieldMenu.js';
-import { NumberInput } from '../FilterValueEditor.js';
-import { IconButton } from '../IconButton.js';
-import { useViewMessages } from '../MessagesProvider.js';
-import { DropdownMenuContent } from '../popups.js';
-import { AddButton, EditorCard, EditorSlot } from '../variants.js';
+import { GroupedMenu } from '../kit/FieldMenu.js';
+import { NumberInput } from '../filter/FilterValueEditor.js';
+import { IconButton } from '../kit/IconButton.js';
+import { useViewMessages } from '../kit/MessagesProvider.js';
+import { DropdownMenuContent } from '../kit/popups.js';
+import { AddButton, EditorCard, EditorSlot } from '../kit/variants.js';
 import { CardMenu, CardName } from './CardMenu.js';
 import { CompactSelect } from './CompactSelect.js';
 import { defaultGroup, usedAliases } from './editing.js';

@@ -11,10 +11,20 @@
  * limitations under the License.
  */
 
-import type { FieldDefinition, Issue } from '../../model/index.js';
-import { summaryFunctionKey } from '../display.js';
-import { LAYOUT_LABEL } from '../ResultToolbar.js';
-import type { MessageFormatters } from '../MessagesProvider.js';
+import type {
+  FieldDefinition,
+  Issue,
+  RecordLayout,
+} from '../../model/index.js';
+import { summaryFunctionKey } from '../kit/display.js';
+import type { MessageKey } from '../kit/messages.js';
+import type { MessageFormatters } from '../kit/MessagesProvider.js';
+
+/** Wording per layout, so an unhandled one cannot be silently unlabelled. */
+export const LAYOUT_LABEL: Record<RecordLayout, MessageKey> = {
+  table: 'label.layout.table',
+  card: 'label.layout.cards',
+};
 
 /** The families whose findings a record view shows. */
 const NAMED_FAMILIES = ['record.', 'filter.'] as const;

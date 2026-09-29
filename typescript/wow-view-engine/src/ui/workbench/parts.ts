@@ -12,7 +12,7 @@
  */
 
 import type { ReactNode } from 'react';
-import type { WorkbenchShellProps } from '../WorkbenchShell.js';
+import type { WorkbenchShellProps } from './WorkbenchShell.js';
 
 /**
  * What one kind of view puts into the shell's slots: its editor and how it

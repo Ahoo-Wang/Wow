@@ -12,7 +12,7 @@
  */
 
 import { useEffect, useId, useState } from 'react';
-import type { FinalFocus } from './commands.js';
+import type { FinalFocus } from '../kit/focus.js';
 import { SearchIcon } from 'lucide-react';
 import { cn } from 'cn';
 import {
@@ -52,13 +52,13 @@ import {
 } from '../components/select.js';
 import { Skeleton } from '../components/skeleton.js';
 import { ToggleGroup, ToggleGroupItem } from '../components/toggle-group.js';
-import { LineAlert } from '../alerts.js';
-import { KIND_ICON } from '../kinds.js';
-import { TEXT_UI } from '../layout.js';
-import { useViewMessages } from '../MessagesProvider.js';
-import { DialogContent, SelectContent } from '../popups.js';
-import { RowItem } from '../RowItem.js';
-import { SystemMark } from '../SystemMark.js';
+import { LineAlert } from '../kit/alerts.js';
+import { KIND_ICON } from '../kit/kinds.js';
+import { TEXT_UI } from '../kit/layout.js';
+import { useViewMessages } from '../kit/MessagesProvider.js';
+import { DialogContent, SelectContent } from '../kit/popups.js';
+import { RowItem } from '../kit/RowItem.js';
+import { SystemMark } from '../kit/SystemMark.js';
 
 /** What the picker is for: a new panel, or another view for one panel. */
 export type PickerIntent =

@@ -15,8 +15,8 @@ import { useId } from 'react';
 import { InfoIcon } from 'lucide-react';
 import { Button } from '../components/button.js';
 import { Tooltip, TooltipTrigger } from '../components/tooltip.js';
-import { PASSED_OVER } from '../focus.js';
-import { TooltipContent } from '../popups.js';
+import { PASSED_OVER } from '../kit/focus.js';
+import { TooltipContent } from '../kit/popups.js';
 
 /**
  * The ⓘ at a term's top-right (D71): one sentence saying what the term

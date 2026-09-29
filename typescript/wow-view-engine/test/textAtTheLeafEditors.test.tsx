@@ -49,7 +49,7 @@ import {
   useSaidText,
   useSay,
 } from '../src/ui/index.js';
-import { RenameInput } from '../src/ui/RenameInput.js';
+import { RenameInput } from '../src/ui/kit/RenameInput.js';
 import { testSource } from './fixtures.js';
 import {
   EN,

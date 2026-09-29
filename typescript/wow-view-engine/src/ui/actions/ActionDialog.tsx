@@ -32,14 +32,14 @@ import {
   FieldGroup,
   FieldTitle,
 } from '../components/field.js';
-import { FilterValueEditor } from '../FilterValueEditor.js';
+import { FilterValueEditor } from '../filter/FilterValueEditor.js';
 import {
   useSayWith,
   useViewMessages,
   type MessageFormatters,
-} from '../MessagesProvider.js';
-import { AlertDialogContent } from '../popups.js';
-import { DestructiveAction } from '../variants.js';
+} from '../kit/MessagesProvider.js';
+import { AlertDialogContent } from '../kit/popups.js';
+import { DestructiveAction } from '../kit/variants.js';
 
 export interface ActionDialogProps {
   /** What is waiting on the reader; nothing is open while `null`. */

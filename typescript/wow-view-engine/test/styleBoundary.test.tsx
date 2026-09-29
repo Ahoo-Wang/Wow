@@ -27,7 +27,7 @@ import { CHART_TOKENS } from '../src/ui/charts/theme.js';
 import { TOKENS } from '../src/ui/theme/tokens.js';
 import { CHART_COLOR_SLOTS } from '../src/index.js';
 import { Dialog, DialogTitle } from '../src/ui/components/dialog.js';
-import { DialogContent } from '../src/ui/popups.js';
+import { DialogContent } from '../src/ui/kit/popups.js';
 import {
   BUILT_IN_PRESETS,
   ViewSurface,

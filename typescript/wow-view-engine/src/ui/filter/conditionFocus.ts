@@ -12,7 +12,7 @@
  */
 
 import { createContext, useContext, useEffect, useMemo, useRef } from 'react';
-import { focusIn } from '../focus.js';
+import { focusIn } from '../kit/focus.js';
 
 /**
  * What a condition belongs to on screen: the group block it sits in, or —

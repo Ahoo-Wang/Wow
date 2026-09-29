@@ -30,16 +30,25 @@ export {
   LineAlert,
   type LineAlertProps,
   TONE_ICON,
-} from './alerts.js';
-export { AnalysisChart, type AnalysisChartProps } from './AnalysisChart.js';
+} from './kit/alerts.js';
+export {
+  AnalysisChart,
+  type AnalysisChartProps,
+} from './analysis/AnalysisChart.js';
 export {
   registerChartMap,
   type ChartMapGeoJson,
   type ChartMapSource,
 } from './charts/maps.js';
-export { AnalysisTable, type AnalysisTableProps } from './AnalysisTable.js';
-export { AppliedBar, type AppliedBarProps } from './AppliedBar.js';
-export { ColumnSettings, type ColumnSettingsProps } from './ColumnSettings.js';
+export {
+  AnalysisTable,
+  type AnalysisTableProps,
+} from './analysis/AnalysisTable.js';
+export { AppliedBar, type AppliedBarProps } from './filter/AppliedBar.js';
+export {
+  ColumnSettings,
+  type ColumnSettingsProps,
+} from './columns/ColumnSettings.js';
 export {
   PanelGridItem,
   type PanelGridItemProps,
@@ -49,15 +58,18 @@ export {
   type PanelOrderProps,
   PanelResizeHandle,
   type PanelResizeHandleProps,
-} from './DashboardArrange.js';
-export { DashboardGrid, type DashboardGridProps } from './DashboardGrid.js';
+} from './dashboard/DashboardArrange.js';
+export {
+  DashboardGrid,
+  type DashboardGridProps,
+} from './dashboard/DashboardGrid.js';
 export {
   DashboardPanel,
   type DashboardPanelProps,
   type PanelHeadingLevel,
   panelName,
   panelNames,
-} from './DashboardPanel.js';
+} from './dashboard/DashboardPanel.js';
 export {
   ContentPanel,
   type ContentPanelProps,
@@ -69,7 +81,7 @@ export {
   type LinksPanelProps,
   MarkdownPanel,
   type MarkdownPanelProps,
-} from './DashboardPanels.js';
+} from './dashboard/DashboardPanels.js';
 export {
   type DashboardEditExtensions,
   DashboardEditExtensionsContext,
@@ -100,7 +112,7 @@ export {
   PresentationDialog,
   type PresentationDialogProps,
 } from './dashboard/PresentationDialog.js';
-export { describeConfig } from './describeConfig.js';
+export { describeConfig } from './workbench/describeConfig.js';
 /**
  * How this package reads one value, so a host that renders a cell itself can
  * fall back to it instead of reimplementing it.
@@ -132,8 +144,8 @@ export {
   displayValue,
   type DisplayContext,
   type DisplayField,
-} from './display.js';
-export { type DownloadedFile, downloadFile, fileName } from './download.js';
+} from './kit/display.js';
+export { type DownloadedFile, downloadFile, fileName } from './kit/download.js';
 export {
   EditorBand,
   type EditorBandProps,
@@ -141,7 +153,7 @@ export {
   type EditorBandToggleProps,
   EditorFold,
   type EditorFoldProps,
-} from './EditorBand.js';
+} from './workbench/EditorBand.js';
 export {
   EmbeddedDashboard,
   type EmbeddedDashboardProps,
@@ -162,13 +174,13 @@ export {
   type ExportDialogProps,
   type ExportOffer,
   type ExportWindowProps,
-} from './ExportDialog.js';
+} from './kit/ExportDialog.js';
 export {
   FilterPanel,
   type FilterPanelProps,
   crossesBoundary,
   leavesEditor,
-} from './FilterPanel.js';
+} from './filter/FilterPanel.js';
 export {
   type MessageKey,
   type ViewMessages,
@@ -176,7 +188,7 @@ export {
   formatIssue,
   formatIssues,
   formatMessage,
-} from './messages.js';
+} from './kit/messages.js';
 // The catalogues ship beside the formatters so a host can compose one:
 // `{ ...zhCN, 'label.filter.apply': '确定' }`. `zh-CN` is a leaf module no
 // component imports, so a bundle that only pulls in components drops it.
@@ -191,11 +203,11 @@ export {
   useSaidText,
   useSay,
   useViewMessages,
-} from './MessagesProvider.js';
+} from './kit/MessagesProvider.js';
 export {
   FilterValueEditor,
   type FilterValueEditorProps,
-} from './FilterValueEditor.js';
+} from './filter/FilterValueEditor.js';
 export { NumberInput } from './filter/inputs/number.js';
 export {
   AUDIENCE_ICON,
@@ -206,24 +218,24 @@ export {
   kindWord,
   useKindIssue,
   useKindWord,
-} from './kinds.js';
-export { LeaveDialog, type LeaveDialogProps } from './LeaveGuard.js';
-export { RecordCards, type RecordCardsProps } from './RecordCards.js';
+} from './kit/kinds.js';
+export { LeaveDialog, type LeaveDialogProps } from './workbench/LeaveGuard.js';
+export { RecordCards, type RecordCardsProps } from './record/RecordCards.js';
 export {
   RecordPagination,
   type RecordPaginationProps,
-} from './RecordPagination.js';
+} from './record/RecordPagination.js';
 export {
   type RecordCell,
   RecordTable,
   type RecordTableProps,
-} from './RecordTable.js';
+} from './record/RecordTable.js';
 export {
   type DataViewKind,
   DataWorkbench,
   type DataWorkbenchProps,
 } from './DataWorkbench.js';
-export { type WorkbenchFeatures, featuresOf } from './features.js';
+export { type WorkbenchFeatures, featuresOf } from './kit/features.js';
 export {
   RenderBoundary,
   type RenderBoundaryName,
@@ -231,39 +243,44 @@ export {
   type RenderFailure,
   type RenderFailureHandler,
   RenderSlot,
-} from './RenderBoundary.js';
+} from './kit/RenderBoundary.js';
 export {
   BUILT_IN_PRESETS,
   type BuiltInPreset,
   type ViewDensity,
   type ViewPreset,
-} from './presets.js';
+} from './kit/presets.js';
 // The theme's contract as a type: every `--fve-*` a host may set (the
 // registry itself is not public; its machine form is `theme-tokens.json`).
 export type { FveToken } from './theme/tokens.js';
-export { RefreshControl, type RefreshControlProps } from './RefreshControl.js';
 export {
-  LAYOUT_LABEL,
+  RefreshControl,
+  type RefreshControlProps,
+} from './workbench/RefreshControl.js';
+export {
   ResultToolbar,
   type ResultToolbarProps,
-} from './ResultToolbar.js';
-export { RowActions, type RowActionsProps } from './RowActions.js';
+} from './workbench/ResultToolbar.js';
+// The words per record layout, which the toolbar's switch and a finding
+// about a layout both say.
+export { LAYOUT_LABEL } from './record/issueNames.js';
+export { RowActions, type RowActionsProps } from './record/RowActions.js';
 export {
   SaveActions,
   type SaveActionsProps,
   SharedSaveConfirm,
   UnsavedMark,
-} from './SaveActions.js';
+} from './workbench/SaveActions.js';
 export {
   type SaveAsCommands,
   SaveAsDialog,
   type SaveAsDialogProps,
-} from './SaveAsDialog.js';
+} from './workbench/SaveAsDialog.js';
 export {
   type SortOwner,
   SortSettings,
   type SortSettingsProps,
-} from './SortSettings.js';
+} from './sort/SortSettings.js';
 export {
   ErrorStrip,
   type ErrorStripProps,
@@ -275,7 +292,7 @@ export {
   type StatusStripProps,
   WarningStrip,
   dedupeIssues,
-} from './StatusStrip.js';
+} from './kit/StatusStrip.js';
 // The hook ships beside the toggle: an embed has no title bar to put a
 // button in, so a host that wants its embed to fill the screen owns the
 // control and points this at the surface it got a ref to.
@@ -285,19 +302,22 @@ export {
   type ViewExpandToggleProps,
   type ViewExpansion,
   useViewExpansion,
-} from './ViewExpansion.js';
+} from './kit/ViewExpansion.js';
 export {
   RevertDialog,
   type RevertDialogProps,
   ViewHeader,
   type ViewHeaderProps,
   type ViewHeaderState,
-} from './ViewHeader.js';
-export { ViewList, type ViewListProps } from './ViewList.js';
-export { ViewSwitcher, type ViewSwitcherProps } from './ViewSwitcher.js';
-export { ViewManager, type ViewManagerProps } from './ViewManager.js';
+} from './workbench/ViewHeader.js';
+export { ViewList, type ViewListProps } from './workbench/ViewList.js';
+export {
+  ViewSwitcher,
+  type ViewSwitcherProps,
+} from './workbench/ViewSwitcher.js';
+export { ViewManager, type ViewManagerProps } from './manage/ViewManager.js';
 export { ViewHost, type ViewHostProps } from './ViewHost.js';
-export { useEngine } from './ViewEngineProvider.js';
+export { useEngine } from './workbench/ViewEngineProvider.js';
 export {
   type ColorMode,
   type ColorModeControl,
@@ -309,7 +329,11 @@ export {
   type ViewNavigationItem,
   type ViewNavigationView,
 } from './viewNavigation.js';
-export { bind, type ViewBinding, type ViewBindingOptions } from './bindings.js';
+export {
+  bind,
+  type ViewBinding,
+  type ViewBindingOptions,
+} from './workbench/bindings.js';
 export type {
   RoutedTarget,
   ViewDestination,
@@ -329,12 +353,12 @@ export {
   useSurfaceHostTokens,
   useSurfaceTheme,
   useSurfaceTokens,
-} from './ViewSurface.js';
+} from './kit/ViewSurface.js';
 export {
   type WorkbenchLandmark,
   WorkbenchShell,
   type WorkbenchShellProps,
-} from './WorkbenchShell.js';
+} from './workbench/WorkbenchShell.js';
 export {
   NO_PARTS,
   type RenderParts,
@@ -361,4 +385,4 @@ export {
   type ViewWriteCallbacks,
   WriteOutcome,
   type WriteOutcomeProps,
-} from './WriteOutcome.js';
+} from './workbench/WriteOutcome.js';

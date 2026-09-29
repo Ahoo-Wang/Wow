@@ -21,9 +21,9 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from '../components/dropdown-menu.js';
-import { KIND_ICON, useKindWord } from '../kinds.js';
-import { useViewMessages } from '../MessagesProvider.js';
-import { DropdownMenuContent, DropdownMenuSubContent } from '../popups.js';
+import { KIND_ICON, useKindWord } from '../kit/kinds.js';
+import { useViewMessages } from '../kit/MessagesProvider.js';
+import { DropdownMenuContent, DropdownMenuSubContent } from '../kit/popups.js';
 
 /**
  * The one command behind every "new view" control: which kinds a view may

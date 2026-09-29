@@ -14,7 +14,7 @@
 import { useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { cn } from 'cn';
 import { Button } from '../components/button.js';
-import { useViewMessages } from '../MessagesProvider.js';
+import { useViewMessages } from '../kit/MessagesProvider.js';
 
 export interface LegendEntry {
   key: string;

@@ -12,7 +12,7 @@
  */
 
 import type { MetricPeriod } from '../../analysis/index.js';
-import type { MessageFormatters } from '../MessagesProvider.js';
+import type { MessageFormatters } from '../kit/MessagesProvider.js';
 
 const DAY_MS = 86_400_000;
 

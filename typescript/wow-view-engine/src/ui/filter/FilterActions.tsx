@@ -15,10 +15,10 @@ import { useId, useRef } from 'react';
 import { FilterIcon, Undo2Icon } from 'lucide-react';
 import type { FilterEditorController } from '../../react/index.js';
 import { Button } from '../components/button.js';
-import { useViewMessages } from '../MessagesProvider.js';
-import { PendingDot } from '../PendingDot.js';
-import { TEXT_UI } from '../layout.js';
-import { useLanding } from '../focus.js';
+import { useViewMessages } from '../kit/MessagesProvider.js';
+import { PendingDot } from '../kit/PendingDot.js';
+import { TEXT_UI } from '../kit/layout.js';
+import { useLanding } from '../kit/focus.js';
 import { cn } from 'cn';
 
 /**

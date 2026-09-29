@@ -38,7 +38,7 @@ import {
   type ViewSource,
 } from '../src/index.js';
 import { DataWorkbench } from '../src/ui/index.js';
-import { defaultMessages } from '../src/ui/messages.js';
+import { defaultMessages } from '../src/ui/kit/messages.js';
 import { chartDragAccessibility, listDrop } from '../src/ui/analysis/drag.js';
 import { ordersDefinition, testSource, resourcesOf } from './fixtures.js';
 import { formattersFor } from './fixtures/columns.js';

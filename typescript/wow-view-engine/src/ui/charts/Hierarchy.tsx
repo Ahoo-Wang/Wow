@@ -13,9 +13,9 @@
 
 import { useCallback, useMemo } from 'react';
 import type { HierarchyData, SankeyData } from '../../analysis/index.js';
-import { pointAnchor } from '../anchor.js';
-import { useViewMessages } from '../MessagesProvider.js';
-import { useSurfaceDisplay } from '../ViewSurface.js';
+import { pointAnchor } from '../kit/anchor.js';
+import { useViewMessages } from '../kit/MessagesProvider.js';
+import { useSurfaceDisplay } from '../kit/ViewSurface.js';
 import { chartNotes } from './ChartNotes.js';
 import { EChart, type ChartClick } from './EChart.js';
 import type { FamilyProps } from './family.js';

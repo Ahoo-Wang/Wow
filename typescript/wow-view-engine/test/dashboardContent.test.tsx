@@ -36,7 +36,7 @@ function newTab(name: string): RegExp {
 
 /**
  * The panels that carry no query — a note, an image, a list of links. They
- * are their own file (`src/ui/DashboardPanels.tsx`), exported on their own,
+ * are their own file (`src/ui/dashboard/DashboardPanels.tsx`), exported on their own,
  * and tested on their own rather than through the grid.
  */
 describe('content panels', () => {

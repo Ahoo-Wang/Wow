@@ -29,12 +29,12 @@ import {
   useComboboxAnchor,
 } from '../../components/combobox.js';
 import { Spinner } from '../../components/spinner.js';
-import { formatNumber } from '../../display.js';
-import { IconTooltip } from '../../IconButton.js';
-import { useViewMessages } from '../../MessagesProvider.js';
-import { ComboboxContent } from '../../popups.js';
-import { PillChips, PillComboboxInput } from '../../variants.js';
-import { useSurfaceDisplay } from '../../ViewSurface.js';
+import { formatNumber } from '../../kit/display.js';
+import { IconTooltip } from '../../kit/IconButton.js';
+import { useViewMessages } from '../../kit/MessagesProvider.js';
+import { ComboboxContent } from '../../kit/popups.js';
+import { PillChips, PillComboboxInput } from '../../kit/variants.js';
+import { useSurfaceDisplay } from '../../kit/ViewSurface.js';
 import { isPlainEnter } from '../enter.js';
 import { scalarText, type ValueProps } from './shared.js';
 

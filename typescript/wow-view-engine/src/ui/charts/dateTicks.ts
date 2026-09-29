@@ -15,8 +15,8 @@ import { useMemo } from 'react';
 import type { AnalysisColumnView } from '../../analysis/index.js';
 import { readInstant } from '../../filter/index.js';
 import type { AnalysisDateUnit } from '../../model/index.js';
-import type { DisplayContext } from '../display.js';
-import { useSurfaceDisplay } from '../ViewSurface.js';
+import type { DisplayContext } from '../kit/display.js';
+import { useSurfaceDisplay } from '../kit/ViewSurface.js';
 
 /**
  * The ticks of a time axis, written short: 「9月1日」 and `Sep 1` rather than

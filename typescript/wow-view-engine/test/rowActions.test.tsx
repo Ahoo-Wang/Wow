@@ -15,9 +15,9 @@ import { cleanup, render, screen, within } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
 import type { RecordRow } from '../src/record/index.js';
 import type { RecordTableController } from '../src/react/index.js';
-import { RecordCards } from '../src/ui/RecordCards.js';
-import { RecordTable } from '../src/ui/RecordTable.js';
-import { RowActions } from '../src/ui/RowActions.js';
+import { RecordCards } from '../src/ui/record/RecordCards.js';
+import { RecordTable } from '../src/ui/record/RecordTable.js';
+import { RowActions } from '../src/ui/record/RowActions.js';
 import { recordTableController } from './fixtures/ui.js';
 import { pagedPaging } from '../src/record/index.js';
 

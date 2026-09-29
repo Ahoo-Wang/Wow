@@ -20,23 +20,29 @@ import {
 } from '../model/index.js';
 import type { ViewNavigation, ViewEngine } from '../runtime/index.js';
 import { useDashboard, useWorkbench } from '../react/index.js';
-import { SurfaceAnnouncer, useAnnouncer } from './Announcer.js';
+import { SurfaceAnnouncer, useAnnouncer } from './kit/Announcer.js';
 import { DashboardBoard } from './dashboard/Board.js';
-import { RefreshControl } from './RefreshControl.js';
-import { StartingWords, useViewMessages } from './MessagesProvider.js';
-import { useEngine, useRoutedNavigate } from './ViewEngineProvider.js';
+import { RefreshControl } from './workbench/RefreshControl.js';
+import { StartingWords, useViewMessages } from './kit/MessagesProvider.js';
+import {
+  useEngine,
+  useRoutedNavigate,
+} from './workbench/ViewEngineProvider.js';
 import {
   boardKey,
   useAddressedBoard,
   useAddressedInstance,
-} from './address.js';
-import type { ViewMessages } from './messages.js';
-import { featuresOf, type WorkbenchFeatures } from './features.js';
-import { WorkbenchShell, type WorkbenchLandmark } from './WorkbenchShell.js';
-import type { RenderFailureHandler } from './RenderBoundary.js';
-import { FailureSink } from './failureSink.js';
-import type { ViewDensity, ViewPreset } from './presets.js';
-import type { ViewSurfaceProps, ViewTheme } from './ViewSurface.js';
+} from './workbench/address.js';
+import type { ViewMessages } from './kit/messages.js';
+import { featuresOf, type WorkbenchFeatures } from './kit/features.js';
+import {
+  WorkbenchShell,
+  type WorkbenchLandmark,
+} from './workbench/WorkbenchShell.js';
+import type { RenderFailureHandler } from './kit/RenderBoundary.js';
+import { FailureSink } from './kit/failureSink.js';
+import type { ViewDensity, ViewPreset } from './kit/presets.js';
+import type { ViewSurfaceProps, ViewTheme } from './kit/ViewSurface.js';
 import { DashboardTabs } from './dashboard/DashboardTabs.js';
 import { boardFindingNamer } from './dashboard/findings.js';
 import { useBuildShell } from './dashboard/buildShell.js';

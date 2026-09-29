@@ -43,11 +43,11 @@ import {
   DialogMenuItem,
   HandOffMenu,
   HandOffMenuContent,
-} from '../HandOffMenu.js';
-import { IconTooltip } from '../IconButton.js';
-import { keptKey, useViewMessages } from '../MessagesProvider.js';
-import { DropdownMenuSubContent } from '../popups.js';
-import { RenameInput } from '../RenameInput.js';
+} from '../kit/HandOffMenu.js';
+import { IconTooltip } from '../kit/IconButton.js';
+import { keptKey, useViewMessages } from '../kit/MessagesProvider.js';
+import { DropdownMenuSubContent } from '../kit/popups.js';
+import { RenameInput } from '../kit/RenameInput.js';
 import { ImageMenuItems } from '../analysis/ExportMenu.js';
 import type { ChartImageOffer } from '../analysis/imageExport.js';
 import type { PanelCommands } from './commands.js';

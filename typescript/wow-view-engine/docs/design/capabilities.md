@@ -169,7 +169,7 @@ export interface ViewSource {
 - **排序**：`SortSettings` 与表头排序只列 `sortable` 的字段，并停在收窄后的 `maxSortFields`。
 - **检索框**：`searchFieldOf` 找不到可用的检索字段时不画检索框（G15 在 MongoDB 上就是这样）。检索换成按词时，占位文字随模式改写（「按词检索…」），不另起提示条。
 - **分析托盘**：`groupableFields`、`summaryChoices`、`groupOfType` 读收窄后的 `AggregationFieldCapability`。
-- **「近似值」字样**：来自 `analysis.approximate`（#3489），它列出该后端估算的指标类型（MongoDB 上是 `PERCENTILE`，Elasticsearch 上是 `DISTINCT_COUNT` 与 `PERCENTILE`）。指标类型在其中时标「近似值」，不在时不标；今天写死在 `analysis/boxplot.ts` 和 `ui/display.ts` 里的判断改读它。
+- **「近似值」字样**：来自 `analysis.approximate`（#3489），它列出该后端估算的指标类型（MongoDB 上是 `PERCENTILE`，Elasticsearch 上是 `DISTINCT_COUNT` 与 `PERCENTILE`）。指标类型在其中时标「近似值」，不在时不标；今天写死在 `analysis/boxplot.ts` 和 `ui/kit/display.ts` 里的判断改读它。
 
 **隐藏还是置灰**，按目标架构 §8.2「被去掉的能力不出现，而不是置灰」处理，即隐藏。已保存视图里残留的条件怎样处置是产品问题，见第 9 节 Q1、Q2。
 

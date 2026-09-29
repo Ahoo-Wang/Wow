@@ -45,31 +45,31 @@ import {
   pickOf,
   type Pick as Pressed,
 } from '../analysis/DrillMenu.js';
-import type { DisplayContext } from '../display.js';
-import { useSurfaceDisplay } from '../ViewSurface.js';
+import type { DisplayContext } from '../kit/display.js';
+import { useSurfaceDisplay } from '../kit/ViewSurface.js';
 import {
   boardContext,
   crossFilterSaid,
   pressMode,
   type PanelPress,
 } from './press.js';
-import { AnalysisChart } from '../AnalysisChart.js';
-import { AnalysisTable } from '../AnalysisTable.js';
+import { AnalysisChart } from '../analysis/AnalysisChart.js';
+import { AnalysisTable } from '../analysis/AnalysisTable.js';
 import { AnalysisEmpty, emptyWithoutGroups } from '../analysis/EmptyResult.js';
-import { RecordTable } from '../RecordTable.js';
-import { RecordPagination } from '../RecordPagination.js';
+import { RecordTable } from '../record/RecordTable.js';
+import { RecordPagination } from '../record/RecordPagination.js';
 import { useActionSurface } from '../actions/ActionSurface.js';
-import { useSurfaceAnnouncer } from '../Announcer.js';
+import { useSurfaceAnnouncer } from '../kit/Announcer.js';
 import { SelectionBar } from '../record/SelectionBar.js';
 import { emptyHintOf } from '../record/EmptyResult.js';
 import type { RecordViewProps } from '../workbench/RecordParts.js';
-import type { ViewBinding } from '../bindings.js';
-import { QueryStrip } from '../StatusStrip.js';
+import type { ViewBinding } from '../workbench/bindings.js';
+import { QueryStrip } from '../kit/StatusStrip.js';
 import { isForbiddenQuery } from '../../runtime/queryFailure.js';
 import {
   useViewMessages,
   type MessageFormatters,
-} from '../MessagesProvider.js';
+} from '../kit/MessagesProvider.js';
 import { Button } from '../components/button.js';
 import {
   Empty,

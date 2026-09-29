@@ -18,7 +18,7 @@ import {
   type FilterSummaryItem,
   type NumberFormat,
 } from '../src/index.js';
-import { bandText } from '../src/ui/band.js';
+import { bandText } from '../src/ui/kit/band.js';
 import {
   cellText,
   csvCellText,
@@ -29,12 +29,12 @@ import {
   valueText,
   type DisplayField,
   columnTitle,
-} from '../src/ui/display.js';
-import { badgeEntries } from '../src/ui/badges.js';
-import { summaryText } from '../src/ui/summary.js';
+} from '../src/ui/kit/display.js';
+import { badgeEntries } from '../src/ui/kit/badges.js';
+import { summaryText } from '../src/ui/kit/summary.js';
 import { en } from '../src/ui/messages/en.js';
 import { zhCN } from '../src/ui/messages/zh-CN.js';
-import { formatMessage, type ViewMessages } from '../src/ui/messages.js';
+import { formatMessage, type ViewMessages } from '../src/ui/kit/messages.js';
 
 /**
  * Expected text comes from the same Intl call, not a literal: the ICU data a

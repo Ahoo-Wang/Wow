@@ -27,31 +27,33 @@ import {
   type RecordDetailSectionContext,
   type WorkbenchController,
 } from '../../react/index.js';
-import { useAnnouncer } from '../Announcer.js';
+import { useAnnouncer } from '../kit/Announcer.js';
 import { Button } from '../components/button.js';
-import { CardSettings } from '../CardSettings.js';
-import { ColumnSettings } from '../ColumnSettings.js';
-import { SortSettings } from '../SortSettings.js';
-import { LAYOUT_LABEL } from '../ResultToolbar.js';
+import { CardSettings } from '../record/CardSettings.js';
+import { ColumnSettings } from '../columns/ColumnSettings.js';
+import { SortSettings } from '../sort/SortSettings.js';
 import { configRemedy } from './configRemedy.js';
 import { useExportOffer, type ExportedFile } from '../record/exportOffer.js';
 import { useQueryAnnouncement } from '../record/queryAnnouncement.js';
-import { FilterPanel } from '../FilterPanel.js';
+import { FilterPanel } from '../filter/FilterPanel.js';
 import { FilterModes } from '../filter/FilterModes.js';
-import { RecordCards } from '../RecordCards.js';
-import { RecordPagination } from '../RecordPagination.js';
-import { RecordTable, type RecordCell } from '../RecordTable.js';
+import { RecordCards } from '../record/RecordCards.js';
+import { RecordPagination } from '../record/RecordPagination.js';
+import { RecordTable, type RecordCell } from '../record/RecordTable.js';
 import { RecordDetail } from '../record/RecordDetail.js';
 import { wayOutOf } from '../record/emptyWayOut.js';
 import { NO_RELEASE, type ReleasedPins } from '../record/pinCap.js';
-import { ResultToolbar, type ResultToolbarProps } from '../ResultToolbar.js';
+import { ResultToolbar, type ResultToolbarProps } from './ResultToolbar.js';
 import { useActionSurface } from '../actions/ActionSurface.js';
-import { useViewMessages } from '../MessagesProvider.js';
-import { recordIssueNamer } from '../record/issueNames.js';
-import type { ViewMessages } from '../messages.js';
-import { featuresOf, type WorkbenchFeatures } from '../features.js';
-import { resultSlots } from '../variants.js';
-import { RenderSlot, type RenderFailureHandler } from '../RenderBoundary.js';
+import { useViewMessages } from '../kit/MessagesProvider.js';
+import { LAYOUT_LABEL, recordIssueNamer } from '../record/issueNames.js';
+import type { ViewMessages } from '../kit/messages.js';
+import { featuresOf, type WorkbenchFeatures } from '../kit/features.js';
+import { resultSlots } from '../kit/variants.js';
+import {
+  RenderSlot,
+  type RenderFailureHandler,
+} from '../kit/RenderBoundary.js';
 import { NO_PARTS, type RenderParts } from './parts.js';
 import { SearchBox } from './SearchBox.js';
 

@@ -36,7 +36,7 @@ import {
 import { readChart } from '../src/ui/charts/reading.js';
 import { cartesianTooltip } from '../src/ui/charts/cartesianTooltip.js';
 import { CHART_FALLBACK } from '../src/ui/charts/theme.js';
-import { defaultMessages, formatMessage } from '../src/ui/messages.js';
+import { defaultMessages, formatMessage } from '../src/ui/kit/messages.js';
 
 function pareto(
   overrides: Partial<AnalysisViewConfig> = {},

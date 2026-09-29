@@ -25,8 +25,8 @@ import {
   type MetricCardSpec,
 } from '../../model/index.js';
 import { without } from '../../model/index.js';
-import { IconButton } from '../IconButton.js';
-import { useViewMessages } from '../MessagesProvider.js';
+import { IconButton } from '../kit/IconButton.js';
+import { useViewMessages } from '../kit/MessagesProvider.js';
 import { useListFocus } from './listFocus.js';
 import { OrderedCards } from './OrderedCards.js';
 import { TreemapSlots, WaterfallSlots } from './CompositionOptions.js';

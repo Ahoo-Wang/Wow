@@ -14,11 +14,11 @@
 import type { ReactNode } from 'react';
 import { DragDropProvider } from '@dnd-kit/react';
 import { useSortable } from '@dnd-kit/react/sortable';
-import { useAnnouncer } from '../Announcer.js';
-import { DragHandle, moveTarget, type HandleMove } from '../DragHandle.js';
-import { sortableList, withoutOptimisticSorting } from '../dragPlugins.js';
-import { useViewMessages } from '../MessagesProvider.js';
-import { EditorCard } from '../variants.js';
+import { useAnnouncer } from '../kit/Announcer.js';
+import { DragHandle, moveTarget, type HandleMove } from '../kit/DragHandle.js';
+import { sortableList, withoutOptimisticSorting } from '../kit/dragPlugins.js';
+import { useViewMessages } from '../kit/MessagesProvider.js';
+import { EditorCard } from '../kit/variants.js';
 import { chartDragAccessibility, listDrop } from './drag.js';
 
 /** One row of an ordered list: what it is kept by, and what it reads as. */

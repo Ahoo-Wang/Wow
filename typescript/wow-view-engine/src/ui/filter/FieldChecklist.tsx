@@ -22,7 +22,7 @@ import {
 } from '../../filter/index.js';
 import type { FilterTreeController } from '../../react/index.js';
 import { Button } from '../components/button.js';
-import { AddButton } from '../variants.js';
+import { AddButton } from '../kit/variants.js';
 import { Badge } from '../components/badge.js';
 import { Checkbox } from '../components/checkbox.js';
 import { Empty, EmptyDescription, EmptyHeader } from '../components/empty.js';
@@ -44,9 +44,9 @@ import {
   PopoverTitle,
   PopoverTrigger,
 } from '../components/popover.js';
-import { useViewMessages } from '../MessagesProvider.js';
-import { FOCUSABLE, isBarred } from '../focus.js';
-import { PopoverContent } from '../popups.js';
+import { useViewMessages } from '../kit/MessagesProvider.js';
+import { FOCUSABLE, isBarred } from '../kit/focus.js';
+import { PopoverContent } from '../kit/popups.js';
 import { conditionAt, ownerOf } from './conditionFocus.js';
 
 /**

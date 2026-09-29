@@ -18,8 +18,8 @@ import {
 } from '../../model/index.js';
 import type { FilterPath } from '../../filter/index.js';
 import type { FilterTreeController } from '../../react/index.js';
-import { AddButton } from '../variants.js';
-import { IconTooltip } from '../IconButton.js';
+import { AddButton } from '../kit/variants.js';
+import { IconTooltip } from '../kit/IconButton.js';
 import { ButtonGroup } from '../components/button-group.js';
 import {
   DropdownMenu,
@@ -27,8 +27,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '../components/dropdown-menu.js';
-import { useViewMessages } from '../MessagesProvider.js';
-import { DropdownMenuContent } from '../popups.js';
+import { useViewMessages } from '../kit/MessagesProvider.js';
+import { DropdownMenuContent } from '../kit/popups.js';
 import { FieldChecklist } from './FieldChecklist.js';
 import { GROUP_OPERATOR_LABEL } from './groupOperators.js';
 

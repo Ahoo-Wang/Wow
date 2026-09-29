@@ -27,7 +27,7 @@ import {
   type ViewAudience,
   type ViewInstance,
 } from '../src/index.js';
-import { defaultMessages } from '../src/ui/messages.js';
+import { defaultMessages } from '../src/ui/kit/messages.js';
 import { manageDragAccessibility, managerDrop } from '../src/ui/manage/drag.js';
 import { DataWorkbench } from '../src/ui/DataWorkbench.js';
 import { formattersFor } from './fixtures/columns.js';

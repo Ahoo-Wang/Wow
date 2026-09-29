@@ -17,11 +17,11 @@ import type { AnyViewRuntime, ViewEngine } from '../../runtime/index.js';
 import { kindMismatch, type OpenViewState } from '../../react/index.js';
 import { Alert, AlertDescription, AlertTitle } from '../components/alert.js';
 import { Skeleton } from '../components/skeleton.js';
-import { kindIssue, kindWord, SurfaceKind } from '../kinds.js';
-import { useViewMessages } from '../MessagesProvider.js';
-import { RenderBoundary } from '../RenderBoundary.js';
-import { FailureSink } from '../failureSink.js';
-import { ViewSurface } from '../ViewSurface.js';
+import { kindIssue, kindWord, SurfaceKind } from '../kit/kinds.js';
+import { useViewMessages } from '../kit/MessagesProvider.js';
+import { RenderBoundary } from '../kit/RenderBoundary.js';
+import { FailureSink } from '../kit/failureSink.js';
+import { ViewSurface } from '../kit/ViewSurface.js';
 import type { EmbedBaseProps } from './options.js';
 
 /**

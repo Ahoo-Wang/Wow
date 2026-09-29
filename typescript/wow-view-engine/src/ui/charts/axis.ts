@@ -12,7 +12,7 @@
  */
 
 import type { AxisSpec, ValueFormat } from '../../model/index.js';
-import { compactFormat, formatNumber } from '../display.js';
+import { compactFormat, formatNumber } from '../kit/display.js';
 
 /**
  * A number as the spec asks for it, in the surface's language — through the

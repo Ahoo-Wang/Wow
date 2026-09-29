@@ -22,13 +22,13 @@ import { DragDropProvider } from '@dnd-kit/react';
 import { useSortable } from '@dnd-kit/react/sortable';
 import { EllipsisIcon, PlusIcon } from 'lucide-react';
 import type { DashboardTab } from '../../model/index.js';
-import { DragHandle, moveTarget } from '../DragHandle.js';
-import { IconButton } from '../IconButton.js';
-import { dragAccessibility } from '../dragAnnounce.js';
-import { dropped } from '../dragDrop.js';
-import { sortableList, withoutOptimisticSorting } from '../dragPlugins.js';
-import { dragWording } from '../dragWording.js';
-import { keptKey, useViewMessages } from '../MessagesProvider.js';
+import { DragHandle, moveTarget } from '../kit/DragHandle.js';
+import { IconButton } from '../kit/IconButton.js';
+import { dragAccessibility } from '../kit/dragAnnounce.js';
+import { dropped } from '../kit/dragDrop.js';
+import { sortableList, withoutOptimisticSorting } from '../kit/dragPlugins.js';
+import { dragWording } from '../kit/dragWording.js';
+import { keptKey, useViewMessages } from '../kit/MessagesProvider.js';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -46,8 +46,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '../components/dropdown-menu.js';
-import { AlertDialogContent, DropdownMenuContent } from '../popups.js';
-import { RenameInput } from '../RenameInput.js';
+import { AlertDialogContent, DropdownMenuContent } from '../kit/popups.js';
+import { RenameInput } from '../kit/RenameInput.js';
 
 /**
  * The bar being built: a list whose rows carry a handle, the press that

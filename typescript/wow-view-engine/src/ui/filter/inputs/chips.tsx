@@ -26,9 +26,9 @@ import {
   ComboboxList,
   ComboboxValue,
 } from '../../components/combobox.js';
-import { IconTooltip } from '../../IconButton.js';
-import { useViewMessages } from '../../MessagesProvider.js';
-import { ComboboxContent } from '../../popups.js';
+import { IconTooltip } from '../../kit/IconButton.js';
+import { useViewMessages } from '../../kit/MessagesProvider.js';
+import { ComboboxContent } from '../../kit/popups.js';
 import { isPlainEnter } from '../enter.js';
 
 /**

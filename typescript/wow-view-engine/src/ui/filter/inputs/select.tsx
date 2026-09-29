@@ -18,11 +18,11 @@ import {
   SelectItem,
   SelectValue,
 } from '../../components/select.js';
-import { SelectContent } from '../../popups.js';
+import { SelectContent } from '../../kit/popups.js';
 import { DELETION_STATES, isDeletionState } from '../../../filter/index.js';
-import { deletionLabel } from '../../summary.js';
-import { useViewMessages } from '../../MessagesProvider.js';
-import { PillSelectTrigger } from '../../variants.js';
+import { deletionLabel } from '../../kit/summary.js';
+import { useViewMessages } from '../../kit/MessagesProvider.js';
+import { PillSelectTrigger } from '../../kit/variants.js';
 import { ChoiceValue, scalarText, type ValueProps } from './shared.js';
 
 /**

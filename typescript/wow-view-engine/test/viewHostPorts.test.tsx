@@ -55,8 +55,8 @@ import {
   type ViewHostProps,
   type ViewRouter,
 } from '../src/ui/index.js';
-import { useAddressedBoard } from '../src/ui/address.js';
-import { useRoutedNavigate } from '../src/ui/ViewEngineProvider.js';
+import { useAddressedBoard } from '../src/ui/workbench/address.js';
+import { useRoutedNavigate } from '../src/ui/workbench/ViewEngineProvider.js';
 import {
   mine,
   ordersDefinition,

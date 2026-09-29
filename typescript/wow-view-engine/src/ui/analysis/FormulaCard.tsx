@@ -35,8 +35,8 @@ import {
 } from '../../model/index.js';
 import type { AnalysisEditorController } from '../../react/index.js';
 import { Input } from '../components/input.js';
-import { NumberInput } from '../FilterValueEditor.js';
-import { useViewMessages } from '../MessagesProvider.js';
+import { NumberInput } from '../filter/FilterValueEditor.js';
+import { useViewMessages } from '../kit/MessagesProvider.js';
 import { CompactSelect } from './CompactSelect.js';
 import { metricReference } from './editing.js';
 

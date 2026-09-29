@@ -32,11 +32,11 @@ import type {
 import { Button } from '../components/button.js';
 import { DropdownMenuItem } from '../components/dropdown-menu.js';
 import { Tooltip, TooltipTrigger } from '../components/tooltip.js';
-import { NumberInput } from '../FilterValueEditor.js';
-import { useViewMessages } from '../MessagesProvider.js';
-import { TooltipContent } from '../popups.js';
-import { summaryFunctionKey } from '../display.js';
-import { EditorCard } from '../variants.js';
+import { NumberInput } from '../filter/FilterValueEditor.js';
+import { useViewMessages } from '../kit/MessagesProvider.js';
+import { TooltipContent } from '../kit/popups.js';
+import { summaryFunctionKey } from '../kit/display.js';
+import { EditorCard } from '../kit/variants.js';
 import {
   isDuration,
   isFormula,

@@ -1,0 +1,294 @@
+/*
+ * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+import type * as React from 'react';
+import type {
+  FieldDefinition,
+  FieldGroupDefinition,
+  RecordLayout,
+} from '../../model/index.js';
+import type { RecordTableController } from '../../react/index.js';
+import type { RecordViewRuntime } from '../../runtime/index.js';
+import { ButtonGroup } from '../components/button-group.js';
+import { LayoutGridIcon, Rows3Icon } from 'lucide-react';
+import { ToggleGroup, ToggleGroupItem } from '../components/toggle-group.js';
+import { Tooltip, TooltipTrigger } from '../components/tooltip.js';
+import { TooltipContent } from '../kit/popups.js';
+import { CardSettings } from '../record/CardSettings.js';
+import { ColumnSettings } from '../columns/ColumnSettings.js';
+import type { ReleasedPins } from '../record/pinCap.js';
+import { ExportButton, type ExportWindowProps } from '../kit/ExportDialog.js';
+import { SortSettings } from '../sort/SortSettings.js';
+import { featuresOf, type WorkbenchFeatures } from '../kit/features.js';
+import { SPACE } from '../kit/layout.js';
+import { Toolbar } from '../kit/toolbar.js';
+import { LAYOUT_LABEL } from '../record/issueNames.js';
+import { useViewMessages } from '../kit/MessagesProvider.js';
+import {
+  SelectionGroup,
+  type SelectionContext,
+} from '../record/SelectionBar.js';
+
+export interface ResultToolbarProps {
+  table: RecordTableController;
+  /**
+   * How this view is renewed: the one-shot refresh, and the interval it
+   * keeps itself up to date by. It comes from the workbench rather than off
+   * the table controller because `refresh.interval` belongs to every kind of
+   * view (`ViewConfigBase`), not to a table.
+   */
+  /** Fields the definition offers, for the column picker. */
+  fields: readonly FieldDefinition[];
+  /** The picker groups of the definition the fields come from. */
+  fieldGroups?: readonly FieldGroupDefinition[];
+  /**
+   * The field holding each row's identity. The column settings hold it on
+   * the left, where the table shows it, and let nothing past it.
+   */
+  rowKey?: string;
+  /** Pins the table's cap is not drawing right now (D17-4). */
+  released?: ReleasedPins;
+  /**
+   * What is offered for the rows that are selected: the declared actions
+   * over a selection, then the host's bulk slot. It is a render function
+   * rather than a node, because it acts on the selection and the toolbar
+   * is what knows the selection.
+   */
+  bulkActions?(context: SelectionContext): React.ReactNode;
+  /**
+   * Taking the result away, when the surface offers it (`useExportOffer`):
+   * the controller, the columns and the ceiling, plus the two things only the
+   * workbench can say — the conditions the rows came back under, and what the
+   * file will be called. They are here because the
+   * export window says what the file will hold **before** it is made (D14),
+   * and neither of those is readable off a table controller.
+   *
+   * An embedded view that offers no export simply passes none, and the
+   * button is not there.
+   *
+   * The button also waits for something to export (`table.hasResult`): a
+   * query that failed leaves the frame standing — the strip in it is about
+   * the rows — and Export in that bar was a control over nothing, which
+   * P-17 answers by absence rather than by a disabled button (D4).
+   */
+  exporter?: ExportWindowProps;
+  /**
+   * Which of the toolbar's own controls are there at all (D18 XI). Every one
+   * by default; one turned off is absent, not disabled. The export button
+   * follows `exporter` rather than this — a surface that offers no export
+   * passes none.
+   */
+  features?: WorkbenchFeatures;
+  /**
+   * The runtime behind the controller, which the toolbar hands to `bulkActions`,
+   * whose actions are commands against the view they act in.
+   */
+  runtime: RecordViewRuntime;
+}
+
+const LAYOUT_ICON: Record<RecordLayout, typeof Rows3Icon> = {
+  table: Rows3Icon,
+  card: LayoutGridIcon,
+};
+
+/**
+ * The bar above the result: what is selected on the left, how the result is
+ * shown on the right.
+ *
+ * **It is a `Toolbar`, not a row of buttons that looks like one.** Base UI's
+ * primitive (`ui/kit/toolbar.tsx`; the registry carries no `toolbar`) makes the
+ * whole bar one tab stop with the arrows moving inside it, and writes the
+ * `role` and `aria-orientation` that used to be missing. On a wide record
+ * view this was eight or nine stops between the rows and everything above
+ * them. The layout switch needs nothing said about it: Base UI's own
+ * `ToggleGroup` is toolbar-aware — inside one it draws a plain `role=group`
+ * and its segments register with the bar's roving order rather than opening
+ * a second one. The two grouped functions keep `ButtonGroup`, which is what
+ * draws their shared seam; `Toolbar.Group`'s only behaviour beyond the
+ * `role="group"` both give is disabling a whole group at once, which nothing
+ * here does.
+ *
+ * Layout and column changes are edits to the view — they make it dirty and,
+ * once saved, come back with it. The selection is not: it lives for one
+ * opening, which is why nothing here reaches a saved config. Paging sits
+ * below the result in `RecordPagination`, where the rows it pages are.
+ *
+ * The right is three groups by responsibility, 8px apart and seamless
+ * inside: the layout switch, then how the table shows what it has, then how
+ * fresh it is. Every control here is `ghost` — the toolbar sits above the
+ * result and must not compete with it — except the layout switch, which
+ * wears one outline because that outline is what makes it read as one
+ * control with two positions rather than two buttons. The host's bulk
+ * actions are the only `outline` in the row, and the one primary button on
+ * screen stays the filter's Apply.
+ *
+ * **The three right-hand groups wrap together, as one block.** They used to
+ * be siblings of a `flex-1` spacer, and a spacer is the worst thing to wrap
+ * around: it took a full line of its own width, pushed the layout switch to
+ * the far right of the first line by itself, dropped the arrange group to
+ * the left of the second and the refresh split button to a third — three
+ * rows of 104px at a phone's width, and still three at 768px. Sitting in one
+ * `ml-auto ... justify-end` box, they stay a block that ends where the bar
+ * ends, and the selection keeps the left. 768px is one line now; 375px with
+ * a selection is still three, because 406px of controls does not go into a
+ * 317px bar however it wraps — but they are three grouped lines rather than
+ * three scattered ones.
+ */
+export function ResultToolbar({
+  table,
+  fields,
+  fieldGroups,
+  rowKey,
+  released,
+  bulkActions,
+  exporter,
+  features,
+  runtime,
+}: ResultToolbarProps) {
+  const messages = useViewMessages();
+  const selected = table.selection.length > 0;
+  const shown = featuresOf(features);
+
+  return (
+    <Toolbar
+      data-slot="result-toolbar"
+      aria-label={messages.label('label.toolbar.title')}
+      className={`fve:flex fve:flex-wrap fve:items-center ${SPACE.GROUPS}`}
+    >
+      {/* Nothing at all when nothing is selected: the empty box that used to
+          stand here held a button's height so that picking the first row did
+          not shove the result down a line, but the groups on the right are
+          buttons too and hold the same 32px whatever the selection is — so
+          it was 32px of nothing, and at a phone's width it was 32px of
+          nothing that could take a line to itself. Its own contents wrap:
+          a count, a way to drop it, and however many bulk actions the host
+          brought are more than one narrow line holds. */}
+      {/* Nothing selected is nothing said. A sentence used to stand here
+          ("Select rows to act on them") whenever the host brought a bulk
+          action, and it said on every view, every visit, what the column of
+          checkboxes already says on every row: a standing instruction for a
+          control that is in plain sight is chrome, and it was the one line
+          of prose in a bar of controls (2026-09-23 visual review). The bulk
+          actions appear here the moment a row is picked, which is where the
+          eye already is. */}
+      {selected && (
+        <SelectionGroup
+          table={table}
+          runtime={runtime}
+          bulkActions={bulkActions}
+        />
+      )}
+
+      {/* How the result is shown: one block of three groups, ending where
+          the bar ends whether it took one line or two. */}
+      <div
+        data-slot="toolbar-arrangement"
+        className={`fve:ml-auto fve:flex fve:flex-wrap fve:items-center fve:justify-end ${SPACE.GROUPS}`}
+      >
+        {/* Only the definition's layouts, in its order — and nothing at all
+          when there is no choice to make, unless the view is saved in a
+          layout the definition has since dropped: `validateRecord` refuses
+          that config, and a switcher that hides itself exactly then leaves
+          the user reading an error with no way to answer it. Nothing is
+          pressed in that state, which is the truth — the layout in force is
+          not one of these. `spacing={0}` is what makes it one control with
+          two positions rather than two bordered buttons that happen to sit
+          together: the registry's own joined group — no gap, square inner
+          corners, one shared seam — asked for by the prop it is on. */}
+        {shown.layouts &&
+          (table.layouts.length >= 2 ||
+            !table.layouts.includes(table.layout)) && (
+            <ToggleGroup
+              value={[table.layout]}
+              onValueChange={value => {
+                // Matched against the allowed layouts rather than cast: the
+                // group is built from them, so anything else is not a layout.
+                const next = table.layouts.find(layout => layout === value[0]);
+                if (next) table.setLayout(next);
+              }}
+              variant="outline"
+              size="sm"
+              spacing={0}
+              aria-label={messages.label('label.toolbar.layout')}
+            >
+              {table.layouts.map(layout => {
+                // An icon with the word in its name and its tooltip (D12): the
+                // switch reports which layout is on by which segment is
+                // pressed, so the word adds nothing a glance does not have.
+                const Icon = LAYOUT_ICON[layout];
+                return (
+                  <Tooltip key={layout}>
+                    <TooltipTrigger
+                      render={
+                        <ToggleGroupItem
+                          value={layout}
+                          aria-label={messages.label(LAYOUT_LABEL[layout])}
+                        />
+                      }
+                    >
+                      <Icon />
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      {messages.label(LAYOUT_LABEL[layout])}
+                    </TooltipContent>
+                  </Tooltip>
+                );
+              })}
+            </ToggleGroup>
+          )}
+
+        {/* How the result shows what it has: one responsibility, one group.
+            The first button answers for whichever layout is showing (D18
+            VI): what a row looks like under the table, what a card shows
+            under the cards — one place, one question, two answers. */}
+        {(shown.columns || shown.sort) && (
+          <ButtonGroup aria-label={messages.label('label.toolbar.arrange')}>
+            {shown.columns &&
+              (table.layout === 'card' ? (
+                <CardSettings table={table} fields={fields} />
+              ) : (
+                <ColumnSettings
+                  table={table}
+                  fields={fields}
+                  {...(fieldGroups ? { fieldGroups } : {})}
+                  {...(rowKey === undefined ? {} : { rowKey })}
+                  {...(released ? { released } : {})}
+                />
+              ))}
+            {shown.sort && (
+              <SortSettings
+                table={table}
+                fields={fields}
+                {...(fieldGroups ? { fieldGroups } : {})}
+              />
+            )}
+          </ButtonGroup>
+        )}
+
+        {/* Taking the rows away is its own responsibility, so it is its own
+            group at the end of the block (D12 Ⅳ): the two above change how
+            the result is drawn, this one changes nothing at all.
+
+            And it exists only while there are rows to take: a first query
+            that failed keeps the frame — the failure strip is what the
+            block holds — and the bar above it used to keep an Export that
+            opened a window over no result and made an empty file. A
+            control that cannot apply does not exist rather than sitting
+            disabled (P-17, user 2026-09-22); once a result has landed it
+            stays, because a refresh that failed keeps the rows it could
+            not replace and those rows are still exportable. */}
+        {exporter && table.hasResult && <ExportButton {...exporter} />}
+      </div>
+    </Toolbar>
+  );
+}

@@ -17,12 +17,12 @@ import { describeFilter, type FilterSummaryItem } from '../../filter/index.js';
 import type { DashboardField } from '../../model/index.js';
 import type { DashboardController } from '../../react/index.js';
 import { Button } from '../components/button.js';
-import { IconButton, IconTooltip } from '../IconButton.js';
+import { IconButton, IconTooltip } from '../kit/IconButton.js';
 import { cn } from '../lib/utils.js';
-import { useViewMessages } from '../MessagesProvider.js';
-import { summaryText } from '../summary.js';
-import { ControlFrame } from '../variants.js';
-import { useSurfaceDisplay } from '../ViewSurface.js';
+import { useViewMessages } from '../kit/MessagesProvider.js';
+import { summaryText } from '../kit/summary.js';
+import { ControlFrame } from '../kit/variants.js';
+import { useSurfaceDisplay } from '../kit/ViewSurface.js';
 
 /*
  * What the filter bar holds that the reader reads and does not change:

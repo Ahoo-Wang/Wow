@@ -20,9 +20,9 @@ import { cn } from 'cn';
 import {
   useViewMessages,
   type MessageFormatters,
-} from '../MessagesProvider.js';
-import { useSurfaceDisplay } from '../ViewSurface.js';
-import { ChangeBadge, type ChangeBadgeProps } from '../variants.js';
+} from '../kit/MessagesProvider.js';
+import { useSurfaceDisplay } from '../kit/ViewSurface.js';
+import { ChangeBadge, type ChangeBadgeProps } from '../kit/variants.js';
 import { formatValue } from './axis.js';
 import { EChart } from './EChart.js';
 import type { FamilyProps, ValueLabel } from './family.js';

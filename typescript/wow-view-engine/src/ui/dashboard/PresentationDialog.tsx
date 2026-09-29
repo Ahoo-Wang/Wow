@@ -34,7 +34,7 @@ import {
   visualizationPanel,
   type VisualizationLevel,
 } from '../analysis/VisualizationPanel.js';
-import { useViewMessages } from '../MessagesProvider.js';
+import { useViewMessages } from '../kit/MessagesProvider.js';
 import { Button } from '../components/button.js';
 import {
   Dialog,
@@ -50,9 +50,9 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from '../components/empty.js';
-import { DialogContent } from '../popups.js';
+import { DialogContent } from '../kit/popups.js';
 import { AnalysisPanel } from './PanelBodies.js';
-import type { FinalFocus } from './commands.js';
+import type { FinalFocus } from '../kit/focus.js';
 
 export interface PresentationDialogProps {
   /** The panel whose look is changed; `null` while the dialog is shut. */

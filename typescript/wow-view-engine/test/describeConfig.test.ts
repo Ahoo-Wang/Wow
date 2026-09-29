@@ -13,15 +13,15 @@
 
 import { describe, expect, it } from 'vitest';
 import type { Issue, ViewConfig } from '../src/index.js';
-import { describeConfig } from '../src/ui/describeConfig.js';
+import { describeConfig } from '../src/ui/workbench/describeConfig.js';
 import {
   defaultMessages,
   formatIssue,
   formatIssues,
   formatMessage,
   type ViewMessages,
-} from '../src/ui/messages.js';
-import type { MessageFormatters } from '../src/ui/MessagesProvider.js';
+} from '../src/ui/kit/messages.js';
+import type { MessageFormatters } from '../src/ui/kit/MessagesProvider.js';
 import { analysisConfig, dashboardConfig, recordConfig } from './fixtures.js';
 
 /** The formatters a component would get, without a component to get them. */

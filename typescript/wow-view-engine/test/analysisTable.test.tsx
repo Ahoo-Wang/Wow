@@ -355,7 +355,7 @@ describe('the three readings a result says out loud', () => {
 
 /**
  * A9. The pressable rows are a column of peers, so they are one Tab stop
- * with the arrows inside it (`ui/roving.ts`, the same group the record
+ * with the arrows inside it (`ui/kit/roving.ts`, the same group the record
  * view's header row is). A hundred groups used to be a hundred stops
  * between the toolbar and whatever follows the table, which a keyboard
  * leaving the result had to walk one group at a time.

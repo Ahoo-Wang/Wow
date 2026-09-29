@@ -19,10 +19,10 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '../components/dropdown-menu.js';
-import { IconButton } from '../IconButton.js';
-import { keptKey, useSay, useViewMessages } from '../MessagesProvider.js';
-import { DropdownMenuContent } from '../popups.js';
-import { PillInput } from '../variants.js';
+import { IconButton } from '../kit/IconButton.js';
+import { keptKey, useSay, useViewMessages } from '../kit/MessagesProvider.js';
+import { DropdownMenuContent } from '../kit/popups.js';
+import { PillInput } from '../kit/variants.js';
 
 /**
  * A tray card's name, and the way to change it (D20 显示名). At rest it is

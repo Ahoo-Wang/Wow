@@ -13,7 +13,7 @@
 
 import type * as React from 'react';
 import { useLayoutEffect, useRef } from 'react';
-import { rovingDestination, settleStop, takeStop } from '../roving.js';
+import { rovingDestination, settleStop, takeStop } from '../kit/roving.js';
 import { resizeByKey } from './ColumnResizer.js';
 
 /**

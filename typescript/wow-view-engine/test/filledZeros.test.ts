@@ -24,7 +24,7 @@ import { readChart } from '../src/ui/charts/reading.js';
 import { sparklineOption } from '../src/ui/charts/sparklineOption.js';
 import { CHART_FALLBACK, type ChartTheme } from '../src/ui/charts/theme.js';
 import { zhCN } from '../src/ui/index.js';
-import { defaultMessages, formatMessage } from '../src/ui/messages.js';
+import { defaultMessages, formatMessage } from '../src/ui/kit/messages.js';
 
 /**
  * A 0 the chart filled in — a day the rows lack, a split combination they

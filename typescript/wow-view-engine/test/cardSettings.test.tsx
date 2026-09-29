@@ -21,9 +21,9 @@ import {
 } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { FieldDefinition, RecordViewRuntime } from '../src/index.js';
-import { CardSettings } from '../src/ui/CardSettings.js';
-import { ResultToolbar } from '../src/ui/ResultToolbar.js';
-import { ViewSurface } from '../src/ui/ViewSurface.js';
+import { CardSettings } from '../src/ui/record/CardSettings.js';
+import { ResultToolbar } from '../src/ui/workbench/ResultToolbar.js';
+import { ViewSurface } from '../src/ui/kit/ViewSurface.js';
 import { recordTableController } from './fixtures/ui.js';
 
 afterEach(cleanup);

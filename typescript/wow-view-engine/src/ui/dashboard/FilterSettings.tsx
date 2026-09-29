@@ -66,14 +66,14 @@ import {
   PopoverTrigger,
 } from '../components/popover.js';
 import { ValueChips } from '../filter/inputs/chips.js';
-import { FilterValueEditor } from '../FilterValueEditor.js';
-import { IconTooltip } from '../IconButton.js';
-import { useSaidText, useViewMessages } from '../MessagesProvider.js';
-import { DropdownMenuContent, PopoverContent } from '../popups.js';
-import { ControlFrame } from '../variants.js';
+import { FilterValueEditor } from '../filter/FilterValueEditor.js';
+import { IconTooltip } from '../kit/IconButton.js';
+import { useSaidText, useViewMessages } from '../kit/MessagesProvider.js';
+import { DropdownMenuContent, PopoverContent } from '../kit/popups.js';
+import { ControlFrame } from '../kit/variants.js';
 import { searchPlaceholder } from './FilterBar.js';
 import { boardOf } from './landing.js';
-import { focusableIn } from '../focus.js';
+import { focusableIn } from '../kit/focus.js';
 
 const TYPE_ICONS: Record<DashboardFilterType, LucideIcon> = {
   date: CalendarIcon,

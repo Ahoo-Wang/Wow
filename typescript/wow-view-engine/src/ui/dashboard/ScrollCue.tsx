@@ -13,7 +13,7 @@
 
 import { ArrowDownIcon, ArrowRightIcon } from 'lucide-react';
 import { Badge } from '../components/badge.js';
-import { useViewMessages } from '../MessagesProvider.js';
+import { useViewMessages } from '../kit/MessagesProvider.js';
 import type { ScrollState } from './scrollMore.js';
 
 /**

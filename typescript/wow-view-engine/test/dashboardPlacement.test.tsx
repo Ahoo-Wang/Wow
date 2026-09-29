@@ -33,7 +33,7 @@ import {
 } from '../src/index.js';
 import { useDashboard } from '../src/react/index.js';
 import { DashboardGrid } from '../src/ui/index.js';
-import { useGridPlacement } from '../src/ui/gridPlacement.js';
+import { useGridPlacement } from '../src/ui/dashboard/gridPlacement.js';
 import {
   analysisConfig,
   dashboardConfig,

@@ -14,7 +14,7 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { defaultMessages, RecordCards } from '../src/ui/index.js';
-import { ViewSurface } from '../src/ui/ViewSurface.js';
+import { ViewSurface } from '../src/ui/kit/ViewSurface.js';
 import { INSTANT, ZONE, inZone } from './fixtures.js';
 import { recordTableController, twoColumnTable } from './fixtures/ui.js';
 

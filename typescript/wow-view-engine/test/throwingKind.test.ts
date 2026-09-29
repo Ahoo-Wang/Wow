@@ -24,7 +24,7 @@ import {
   type ViewInstance,
 } from '../src/index.js';
 import { DashboardViewRuntime } from '../src/runtime/dashboardRuntime.js';
-import { defaultMessages, formatIssue } from '../src/ui/messages.js';
+import { defaultMessages, formatIssue } from '../src/ui/kit/messages.js';
 import { zhCN } from '../src/ui/messages/zh-CN.js';
 import {
   dashboardConfig,

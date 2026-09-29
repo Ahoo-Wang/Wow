@@ -18,9 +18,9 @@ import type {
   ViewConfig,
 } from '../../model/index.js';
 import type { DashboardController } from '../../react/index.js';
-import { panelName, panelNames } from '../DashboardPanel.js';
-import type { MessageFormatters } from '../MessagesProvider.js';
-import { outPanelNamer } from '../PanelUnavailable.js';
+import { panelName, panelNames } from './DashboardPanel.js';
+import type { MessageFormatters } from '../kit/MessagesProvider.js';
+import { outPanelNamer } from './PanelUnavailable.js';
 
 /**
  * The kernel's findings about a board's filters that name one in their

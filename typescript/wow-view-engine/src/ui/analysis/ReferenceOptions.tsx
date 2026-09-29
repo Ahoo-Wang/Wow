@@ -30,11 +30,11 @@ import {
   type ReferenceLine,
 } from '../../model/index.js';
 import { Button } from '../components/button.js';
-import { NumberInput } from '../FilterValueEditor.js';
-import { IconButton } from '../IconButton.js';
-import { useViewMessages } from '../MessagesProvider.js';
+import { NumberInput } from '../filter/FilterValueEditor.js';
+import { IconButton } from '../kit/IconButton.js';
+import { useViewMessages } from '../kit/MessagesProvider.js';
 import { gapReason } from '../charts/markWords.js';
-import { EditorCard } from '../variants.js';
+import { EditorCard } from '../kit/variants.js';
 import { CompactSelect } from './CompactSelect.js';
 import { useListFocus } from './listFocus.js';
 import {

@@ -30,8 +30,8 @@ import { afterEach, describe, expect, it } from 'vitest';
 import type { FieldDefinition, RecordViewConfig } from '../src/model/index.js';
 import { builtinFieldKinds, validateRecord } from '../src/index.js';
 import type { RecordTableController } from '../src/react/index.js';
-import { ColumnSettings } from '../src/ui/ColumnSettings.js';
-import { MessagesProvider } from '../src/ui/MessagesProvider.js';
+import { ColumnSettings } from '../src/ui/columns/ColumnSettings.js';
+import { MessagesProvider } from '../src/ui/kit/MessagesProvider.js';
 import {
   columnSettingRows,
   movableFields,
@@ -39,7 +39,7 @@ import {
   reorderColumns,
 } from '../src/ui/columns/rows.js';
 import { columnDragAccessibility, columnDrop } from '../src/ui/columns/drag.js';
-import { defaultMessages } from '../src/ui/messages.js';
+import { defaultMessages } from '../src/ui/kit/messages.js';
 import { ordersDefinition, recordConfig } from './fixtures.js';
 import { formattersFor, tableController } from './fixtures/columns.js';
 

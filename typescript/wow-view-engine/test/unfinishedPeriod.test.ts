@@ -31,8 +31,8 @@ import {
   calendarOption,
   themeRiverOption,
 } from '../src/ui/charts/timeOption.js';
-import type { defaultMessages } from '../src/ui/messages.js';
-import { formatMessage } from '../src/ui/messages.js';
+import type { defaultMessages } from '../src/ui/kit/messages.js';
+import { formatMessage } from '../src/ui/kit/messages.js';
 import { zhCN } from '../src/ui/messages/zh-CN.js';
 import { analysisConfig } from './fixtures.js';
 

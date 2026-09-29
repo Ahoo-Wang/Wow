@@ -23,8 +23,12 @@
 import { useMemo } from 'react';
 import { systemInstanceId } from '../model/index.js';
 import type { ViewLocation } from '../runtime/routes.js';
-import { useSay } from './MessagesProvider.js';
-import { useBindings, useEngine, useViewRouter } from './ViewEngineProvider.js';
+import { useSay } from './kit/MessagesProvider.js';
+import {
+  useBindings,
+  useEngine,
+  useViewRouter,
+} from './workbench/ViewEngineProvider.js';
 
 /** One system view (or system board) of a resource, as a link. */
 export interface ViewNavigationView {

@@ -13,7 +13,7 @@
 
 /**
  * The four wrappers here that hold what a vendored component's cva does not
- * (`LineAlert` is the fifth, in `ui/alerts.tsx`, and `test/statusStrip` holds
+ * (`LineAlert` is the fifth, in `ui/kit/alerts.tsx`, and `test/statusStrip` holds
  * that one), and the one rule that put them there (D16-8): `ui/components/**` is
  * upstream source and is never edited by hand, and a call site never carries
  * a component's colours in a `className`.
@@ -42,7 +42,7 @@ import {
   SidebarItem,
   TableDataRow,
   ToneBadge,
-} from '../src/ui/variants.js';
+} from '../src/ui/kit/variants.js';
 import { Select } from '../src/ui/components/select.js';
 import { ViewSurface } from '../src/ui/index.js';
 

@@ -23,9 +23,9 @@ import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { FieldDefinition, RecordSort } from '../src/model/index.js';
-import { SortSettings } from '../src/ui/SortSettings.js';
-import { MessagesProvider } from '../src/ui/MessagesProvider.js';
-import { defaultMessages } from '../src/ui/messages.js';
+import { SortSettings } from '../src/ui/sort/SortSettings.js';
+import { MessagesProvider } from '../src/ui/kit/MessagesProvider.js';
+import { defaultMessages } from '../src/ui/kit/messages.js';
 import {
   reorderSort,
   sortDragAccessibility,

@@ -32,9 +32,9 @@ import {
   ComboboxValue,
   useComboboxAnchor,
 } from '../../components/combobox.js';
-import { useViewMessages } from '../../MessagesProvider.js';
-import { ComboboxContent } from '../../popups.js';
-import { PillChips } from '../../variants.js';
+import { useViewMessages } from '../../kit/MessagesProvider.js';
+import { ComboboxContent } from '../../kit/popups.js';
+import { PillChips } from '../../kit/variants.js';
 import { useCandidates } from './candidates.js';
 import type { ValueProps } from './shared.js';
 import { TextValue } from './text.js';

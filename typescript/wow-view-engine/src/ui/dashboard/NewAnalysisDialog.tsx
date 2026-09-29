@@ -24,8 +24,8 @@ import { stopsSave } from '../../runtime/dashboard/panels.js';
 import { toIssue, useFilterEditor, useViewRuntime } from '../../react/index.js';
 import { analysisReading } from '../analysis/AnalysisToolbar.js';
 import { ignore } from '../analysis/VisualizationPanel.js';
-import { useViewMessages } from '../MessagesProvider.js';
-import { ErrorStrip, QueryStrip, WarningStrip } from '../StatusStrip.js';
+import { useViewMessages } from '../kit/MessagesProvider.js';
+import { ErrorStrip, QueryStrip, WarningStrip } from '../kit/StatusStrip.js';
 import { Button } from '../components/button.js';
 import {
   Dialog,
@@ -56,14 +56,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from '../components/select.js';
-import { DialogContent, SelectContent } from '../popups.js';
+import { DialogContent, SelectContent } from '../kit/popups.js';
 import {
   AnalysisParts,
   type AnalysisHost,
 } from '../workbench/AnalysisParts.js';
 import { ShellResult } from '../workbench/ResultBlock.js';
-import type { FinalFocus } from './commands.js';
-import type { WorkbenchFeatures } from '../features.js';
+import type { FinalFocus } from '../kit/focus.js';
+import type { WorkbenchFeatures } from '../kit/features.js';
 
 /** The dialog's analysis offers no export of its own (D25 Q28). */
 const NO_EXPORT: WorkbenchFeatures = { export: false };

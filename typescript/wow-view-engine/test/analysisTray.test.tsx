@@ -50,7 +50,7 @@ import {
 } from '../src/ui/index.js';
 import type { ViewMessages } from '../src/ui/index.js';
 import { glyphType } from '../src/ui/analysis/chartIcons.js';
-import { SPACE } from '../src/ui/layout.js';
+import { SPACE } from '../src/ui/kit/layout.js';
 import {
   analysisConfig,
   ordersDefinition,

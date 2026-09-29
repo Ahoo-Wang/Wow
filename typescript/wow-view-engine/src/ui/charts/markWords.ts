@@ -16,7 +16,7 @@ import type {
   CartesianGap,
   DerivedLine,
 } from '../../analysis/index.js';
-import type { MessageFormatters } from '../MessagesProvider.js';
+import type { MessageFormatters } from '../kit/MessagesProvider.js';
 
 /** The words the reference, derived and extreme marks are written with. */
 export interface MarkWords {

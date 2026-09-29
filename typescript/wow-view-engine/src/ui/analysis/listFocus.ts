@@ -12,7 +12,7 @@
  */
 
 import { useEffect, useRef } from 'react';
-import { focusIn, isBarred } from '../focus.js';
+import { focusIn, isBarred } from '../kit/focus.js';
 
 /** Which list a press is in, as three selectors read from the press up. */
 export interface ListShape {

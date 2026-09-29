@@ -33,8 +33,8 @@ import {
   DialogMenuItem,
   HandOffMenu,
   HandOffMenuContent,
-} from '../HandOffMenu.js';
-import { useViewMessages } from '../MessagesProvider.js';
+} from '../kit/HandOffMenu.js';
+import { useViewMessages } from '../kit/MessagesProvider.js';
 
 /** What can be put on a board: a view, or one of the static panels. */
 export type AddChoice =

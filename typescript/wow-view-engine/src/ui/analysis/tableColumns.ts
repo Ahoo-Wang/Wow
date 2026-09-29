@@ -15,15 +15,15 @@ import { rowCurrency, type AnalysisColumnView } from '../../analysis/index.js';
 import { useState } from 'react';
 import { isDateCell, type RecordData } from '../../model/index.js';
 import type { RecordColumnView } from '../../record/index.js';
-import { bandText } from '../band.js';
+import { bandText } from '../kit/band.js';
 import {
   displayValue,
   missingText,
   valueText,
   type DisplayContext,
-} from '../display.js';
-import { currencyText } from '../currency.js';
-import type { MessageFormatters } from '../MessagesProvider.js';
+} from '../kit/display.js';
+import { currencyText } from '../kit/currency.js';
+import type { MessageFormatters } from '../kit/MessagesProvider.js';
 
 /**
  * What an analysis column is read as, in the record table's words: the

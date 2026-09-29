@@ -14,8 +14,8 @@
 import { useCallback, useMemo } from 'react';
 import type { ParallelData, RadarData } from '../../analysis/index.js';
 import { CHART_COLOR_SLOTS } from '../../model/index.js';
-import { pointAnchor } from '../anchor.js';
-import { useViewMessages } from '../MessagesProvider.js';
+import { pointAnchor } from '../kit/anchor.js';
+import { useViewMessages } from '../kit/MessagesProvider.js';
 import { ChartLegend } from './ChartLegend.js';
 import { chartNotes } from './ChartNotes.js';
 import { EChart, type ChartClick } from './EChart.js';

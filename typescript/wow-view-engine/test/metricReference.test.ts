@@ -22,7 +22,7 @@ import {
 } from '../src/ui/analysis/editing.js';
 import { en } from '../src/ui/messages/en.js';
 import { zhCN } from '../src/ui/messages/zh-CN.js';
-import { formatMessage } from '../src/ui/messages.js';
+import { formatMessage } from '../src/ui/kit/messages.js';
 
 function words(catalogue: ViewMessages): MessageFormatters {
   return {

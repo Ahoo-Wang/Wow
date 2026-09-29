@@ -13,7 +13,7 @@
 
 import { useId, useRef, useState, type ReactNode, type Ref } from 'react';
 import { PlusIcon, Trash2Icon } from 'lucide-react';
-import type { FinalFocus } from './commands.js';
+import type { FinalFocus } from '../kit/focus.js';
 import {
   isSafeContentUrl,
   type NewContentPanel,
@@ -43,10 +43,10 @@ import {
 import { Input } from '../components/input.js';
 import { Textarea } from '../components/textarea.js';
 import { ToggleGroup, ToggleGroupItem } from '../components/toggle-group.js';
-import { IconButton } from '../IconButton.js';
-import type { MessageKey } from '../messages.js';
-import { keptKey, useViewMessages } from '../MessagesProvider.js';
-import { DialogContent } from '../popups.js';
+import { IconButton } from '../kit/IconButton.js';
+import type { MessageKey } from '../kit/messages.js';
+import { keptKey, useViewMessages } from '../kit/MessagesProvider.js';
+import { DialogContent } from '../kit/popups.js';
 
 /** The content panels a form edits; a heading is named in place instead. */
 export type EditedKind = 'markdown' | 'image' | 'links';

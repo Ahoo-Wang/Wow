@@ -20,7 +20,7 @@ import {
   TableHeader,
   TableRow,
 } from '../components/table.js';
-import { useViewMessages } from '../MessagesProvider.js';
+import { useViewMessages } from '../kit/MessagesProvider.js';
 import type { ChartReading } from './reading.js';
 
 /**

@@ -75,9 +75,9 @@
 ## D11 弹层有自己的一层，写在 positioner 上
 
 - **日期**：2026-09-20
-- **决定**：本包每个弹层（Select 列表、菜单、Popover、Tooltip、Dialog、Combobox）都由 `ui/popups.tsx` **照着 registry 的结构自己组装** Portal／positioner／popup，而不是再包一层 vendored 组件；层级以 style 写在 **positioner** 上：`z-index: var(--fve-popup-z-index, 50)`（对话框没有 positioner，写在遮罩与面板这两个 portal 出去的元素上）。宿主自己的 chrome 比 50 还高时，在 `:root` 上改这一个变量，所有弹层一起动。vendored 的 `ui/components/**` 仍原样不动、仍用 `shadcn add --diff` 更新，抄来的那份由 `test/popups.test.tsx` 两边各渲染一次逐字比对守住；层级本身由 `stories/view-engine/RecordWorkbenchTheme.test.stories.tsx` 的 `PopupsOverRaisedHostLayer` 在真浏览器里用 `document.elementFromPoint` 逐种弹层验。
+- **决定**：本包每个弹层（Select 列表、菜单、Popover、Tooltip、Dialog、Combobox）都由 `ui/kit/popups.tsx` **照着 registry 的结构自己组装** Portal／positioner／popup，而不是再包一层 vendored 组件；层级以 style 写在 **positioner** 上：`z-index: var(--fve-popup-z-index, 50)`（对话框没有 positioner，写在遮罩与面板这两个 portal 出去的元素上）。宿主自己的 chrome 比 50 还高时，在 `:root` 上改这一个变量，所有弹层一起动。vendored 的 `ui/components/**` 仍原样不动、仍用 `shadcn add --diff` 更新，抄来的那份由 `test/popups.test.tsx` 两边各渲染一次逐字比对守住；层级本身由 `stories/view-engine/RecordWorkbenchTheme.test.stories.tsx` 的 `PopupsOverRaisedHostLayer` 在真浏览器里用 `document.elementFromPoint` 逐种弹层验。
 - **依据**：弹层的 positioner 被布局引擎写上 `transform: translate(...)`，它因此自成一个 stacking context——弹层**内容**上的 `z-50` 出不去，层级只能写在 positioner 自己身上。而 positioner 不带 `fve-root`，构建又把样式表每条规则都钉在 `:where(.fve-root, .fve-root *)` 里，registry 给它的那句 `isolate z-50` 于是谁也没匹配上，停在 `z-index: auto`：所有弹层都画在第 0 层，只靠 portal 排在 `<body>` 末尾才浮在上面——宿主随便抬起一点东西（实测 `z-index: 1` 即可）就把它们整片盖住，#1556 就撞上了这个。包一层够不着 positioner，所以照抄结构；写成 style 而不是 class，是因为样式表在不在、弹层被 portal 到哪儿，这一句都成立——这也正是 class 那条路失败的原因。让样式表留几条不进根的规则是另一条路，但 `scripts/verify-package.mjs` 断言"没有任何规则在 `.fve-root` 之外"，那是对宿主的承诺，不为一个 `z-index` 改。
-- **落点**：[ui/README.md#主题弹层与明暗](ui/README.md#主题弹层与明暗)、`src/ui/popups.tsx`
+- **落点**：[ui/README.md#主题弹层与明暗](ui/README.md#主题弹层与明暗)、`src/ui/kit/popups.tsx`
 
 ## D12 一屏七块，每块只回答一个问题
 
@@ -96,9 +96,9 @@
 ## D14 导出是一个窗口
 
 - **日期**：2026-09-21
-- **决定**：导出的**菜单**换成导出的**窗口**，并且去掉「本页」这个口径。工具栏右端仍是那一颗带边的图标按钮（`Download`，可及名字 `label.export.title`，D12 Ⅳ），点开是一个模态对话框（`src/ui/ExportDialog.tsx`，shadcn `Dialog`），四步同一个壳：**选**——有勾选时一组 `RadioGroup`（「选中（N）」默认、「所有（N，按当前筛选）」），没勾选就只有「所有」；底下摆明文件里会有什么：条数（总数报不出时说「按当前条件」）、已应用条件的一行摘要（与结果条件带同一套读法）、列（`table.columns`，也就是 `cellText` 要写的那一份）、文件名（`<视图名>-<yyyy-MM-dd>.csv`，**在窗口打开的那一刻定下**，整趟——摆出来的那一行、跑完报的那一行、真正交给浏览器的那一个、以及原地重试——都是它；名字里带着一个日子，谁也不能在 render 里和交文件时各读一次时钟，否则一扇开过午夜的窗口承诺的与交出去的就是两个文件名：一段旅程一个壳，也只有一句承诺）；条数已知且超过 `limits.exportMax` 时这里多一行警告，**按下「导出」就是同意**，于是 `useRecordExport` 不再有 `overLimit` 问句与 `force` 选项（截断仍由 `capped` 报回）。**跑**——同一个窗口，一条 `Progress`（不知道总数就走不定态）加「已拉取 {fetched} / {total} 条」，只有一个「取消」；**在途时 Esc 与点遮罩就是取消**，而不是被忽略；「选中」那一路的行在手上，从确认直接到结果。**成**——「已导出 {count} 条」加文件名，被截断时加「文件只含前 {max} 条（共 {total} 条匹配）」，一个「关闭」。**败**——`export.failed` 那句话加「重试」与「关闭」。因此 `RecordWorkbench` 里 `export.failed` / `export.capped` 两条 `StatusStrip` 一并去掉，`ExportMenu.tsx`、`label.export.page`、超上限对话框及其文案全部删除而不是留着导出；`RecordExportScope` 变成 `'selected' | 'all'`，`onExported` 不变。
+- **决定**：导出的**菜单**换成导出的**窗口**，并且去掉「本页」这个口径。工具栏右端仍是那一颗带边的图标按钮（`Download`，可及名字 `label.export.title`，D12 Ⅳ），点开是一个模态对话框（`src/ui/kit/ExportDialog.tsx`，shadcn `Dialog`），四步同一个壳：**选**——有勾选时一组 `RadioGroup`（「选中（N）」默认、「所有（N，按当前筛选）」），没勾选就只有「所有」；底下摆明文件里会有什么：条数（总数报不出时说「按当前条件」）、已应用条件的一行摘要（与结果条件带同一套读法）、列（`table.columns`，也就是 `cellText` 要写的那一份）、文件名（`<视图名>-<yyyy-MM-dd>.csv`，**在窗口打开的那一刻定下**，整趟——摆出来的那一行、跑完报的那一行、真正交给浏览器的那一个、以及原地重试——都是它；名字里带着一个日子，谁也不能在 render 里和交文件时各读一次时钟，否则一扇开过午夜的窗口承诺的与交出去的就是两个文件名：一段旅程一个壳，也只有一句承诺）；条数已知且超过 `limits.exportMax` 时这里多一行警告，**按下「导出」就是同意**，于是 `useRecordExport` 不再有 `overLimit` 问句与 `force` 选项（截断仍由 `capped` 报回）。**跑**——同一个窗口，一条 `Progress`（不知道总数就走不定态）加「已拉取 {fetched} / {total} 条」，只有一个「取消」；**在途时 Esc 与点遮罩就是取消**，而不是被忽略；「选中」那一路的行在手上，从确认直接到结果。**成**——「已导出 {count} 条」加文件名，被截断时加「文件只含前 {max} 条（共 {total} 条匹配）」，一个「关闭」。**败**——`export.failed` 那句话加「重试」与「关闭」。因此 `RecordWorkbench` 里 `export.failed` / `export.capped` 两条 `StatusStrip` 一并去掉，`ExportMenu.tsx`、`label.export.page`、超上限对话框及其文案全部删除而不是留着导出；`RecordExportScope` 变成 `'selected' | 'all'`，`onExported` 不变。
 - **依据**：「本页」是分页留下的痕迹，不是一个意图——结果只有一页时它等于「所有」（菜单上真的并排写着「本页（4）」与「所有（4）」），不止一页时第 3 页那二十行是被排序与每页条数切出来的一刀，谁也没要那一刀；要取样是表头全选加「选中」。而菜单是用来**选**的地方，不是用来**等**的地方：把它按住不放、在里面画一条进度，是在跟它自己的惯例打架（Esc 与点外面只能被拒绝），它又窄到说不清将要导出的是什么；何况超上限那一问早就已经有一个对话框了——一段旅程两个壳。
-- **落点**：[ui/record.md#导出](ui/record.md#导出)、[react.md#userecordexport](react.md#userecordexport)、`src/ui/ExportDialog.tsx`。D12 Ⅳ 里「导出菜单：选中／本页／所有」随之改写。
+- **落点**：[ui/record.md#导出](ui/record.md#导出)、[react.md#userecordexport](react.md#userecordexport)、`src/ui/kit/ExportDialog.tsx`。D12 Ⅳ 里「导出菜单：选中／本页／所有」随之改写。
 
 - **修订**（2026-09-24）：文件里的公式缺省中和，见 [D37](#d37-导出文件缺省中和公式2026-09-24)。
 
@@ -198,7 +198,7 @@
 - **实测**：recharts 现用量 gzip 130KB；ECharts SVG 带六个家族与 grid／tooltip／legend／markLine／visualMap／graphic／LabelLayout 231KB（加 dataZoom／brush／aria／dataset／title／markArea 为 269KB）。1 万点散点 380ms → 7ms；10 万点折线 247ms → 19～91ms。30 天 × 2 系列每柱一个标签，`labelLayout.hideOverlap` 画出约 43／60 个且互不重叠（估算字宽带来个别 2～4px 的擦边）。ECharts SVG 在 jsdom 里能渲染（点击参数带 `{name, seriesName, value, dataIndex, event.offsetX/Y}`），`ssr: true` + `renderToSVGString()` 在 Node 里无 DOM 可用。
 - **分批**：①绑定 + 主题 + 懒加载 + **柱状图**（含横向、堆叠与合计、值标签防重叠、紧凑刻度、轴标题）；②其余直角坐标（折线、面积、组合、带标题的右轴、参考线、图例折叠／滚动）；③饼／环（中心总计、图例带占比、「其他」）与散点／气泡；④指标卡迷你图、漏斗（换掉自绘，标出转化）、热力图（`visualMap` 色标）；⑤删掉 recharts 与 `ui/components/chart.tsx`、文档与包体说明。迁移期间一张图只由一个库画：第一批时 `charts/Cartesian.tsx` 只把 bar 交给 ECharts，第二批起直角坐标四种都由它画。
 - **包体（第五批收尾实测）**：图表块（六个图型、grid／tooltip／markLine／visualMap／graphic／LabelLayout、SVG 渲染器）esbuild 压缩后 626KB、gzip 214KB，只在第一张图时加载，`/ui` 入口不再带任何图表库；recharts 与注册表的 `chart.tsx` 已删。
-- **落点**：`src/ui/charts/{EChart.tsx,echarts.ts,load.ts,theme.ts,cartesianOption.ts,pieOption.ts,scatterOption.ts,funnelOption.ts,heatmapOption.ts,sparklineOption.ts,ChartLegend.tsx,tooltip.ts,measure.ts}`、`src/ui/display.ts`（`compactFormat`）、`src/styles.css`（图的 svg 按库给的框定尺寸）、[ui/analysis.md](ui/analysis.md)。
+- **落点**：`src/ui/charts/{EChart.tsx,echarts.ts,load.ts,theme.ts,cartesianOption.ts,pieOption.ts,scatterOption.ts,funnelOption.ts,heatmapOption.ts,sparklineOption.ts,ChartLegend.tsx,tooltip.ts,measure.ts}`、`src/ui/kit/display.ts`（`compactFormat`）、`src/styles.css`（图的 svg 按库给的框定尺寸）、[ui/analysis.md](ui/analysis.md)。
 
 ## D22 仪表盘与嵌入视图参照 Metabase（2026-09-23）
 
@@ -310,9 +310,9 @@
   - **准入**：不认识的值（更新的版本写的、手改过的存储）是 warning `dashboard.width.unknown`，说出找到的值（截到 40 个字符，不是字符串就说类型）并提示编辑时可选固定宽度或全宽；照全宽画——宁可宽，不让存下的布局悄悄变窄。
   - **编辑**：编辑条上一组 `ToggleGroup`（「仪表盘宽度」：固定宽度／全宽，两个图标、以字命名、有气泡，与结果工具栏的布局切换同一做法），是一条搭板子的命令（`DashboardEditing.setWidth`，内核 `setBoardWidth`），撤销历史里的一步（「撤销对仪表盘宽度的修改」）。窄于 `md` 时不出现：一列的读法没有宽度可看。它不算「只改展示」的成员：它和面板的 `layout` 一样是板子怎么摆，改了就是板子改了。
   - **读的状态按它排**：固定宽度时整块板——筛选条、编辑条、标签栏与面板——的 `max-width` 是 `FIXED_BOARD_WIDTH`（1200px）、`mx-auto` 居中（`DashboardGrid` 的根，`data-width`）；全宽不设上限。
-  - **为什么是 1200px**（从栅格出发，不是从屏幕出发）：24 栏、缝 10px，1200px 时一栏约 40px，面板起始大小（`defaultPanelSize`）各落在读得舒服的宽度上——指标卡 6 栏约 290px，数字与趋势线有余地；图 12 栏约 585px，一个月的日柱仍能标注；笔记 12 栏，一行字读得过来。它宽于 `md`（768px），固定宽度的板子不会比全宽的更早落进一列；它也约等于笔记本上工作台主栏的宽度，所以两种宽度只在全宽会被拉开的地方——宽屏、墙面大屏——才看得出差别，而那正是要固定宽度的地方。它是一个常量（`ui/layout.ts`），不是 `--fve-*` 变量：宽度是板子作者的选择，不是宿主的外观（与 D30 Q41 同理），不给宿主换。
+  - **为什么是 1200px**（从栅格出发，不是从屏幕出发）：24 栏、缝 10px，1200px 时一栏约 40px，面板起始大小（`defaultPanelSize`）各落在读得舒服的宽度上——指标卡 6 栏约 290px，数字与趋势线有余地；图 12 栏约 585px，一个月的日柱仍能标注；笔记 12 栏，一行字读得过来。它宽于 `md`（768px），固定宽度的板子不会比全宽的更早落进一列；它也约等于笔记本上工作台主栏的宽度，所以两种宽度只在全宽会被拉开的地方——宽屏、墙面大屏——才看得出差别，而那正是要固定宽度的地方。它是一个常量（`ui/kit/layout.ts`），不是 `--fve-*` 变量：宽度是板子作者的选择，不是宿主的外观（与 D30 Q41 同理），不给宿主换。
 - **顺带**：栅格在第一次绘制之前量自己的宽度（`useGridWidth`）：react-grid-layout 的 `useContainerWidth` 从 1280px 起、在被动 effect 里才量，栅格因此先拿到一份 1280px、24 栏的布局——手机上也是——库在挂载前按百分比画它，直到那个 effect 跑完；提交所在的任务跑得久（大板子、慢手机）时，浏览器可能在两者之间画出这一帧。现在在 layout effect 里量、量到之前不画面板；切换宽度时同样先量再画。
-- **落点**：`src/model/dashboard.ts`、`src/dashboard/{edit,validate,defaults}.ts`、`src/runtime/dashboard/{editing,history,commands}.ts`、`src/react/useDashboard.ts`、`src/ui/DashboardGrid.tsx`、`src/ui/layout.ts`、`src/ui/dashboard/{BoardWidth.tsx,EditBar.tsx,Board.tsx}`、[model.md#dashboard-配置](model.md#dashboard-配置)、[ui/dashboard.md](ui/dashboard.md)。
+- **落点**：`src/model/dashboard.ts`、`src/dashboard/{edit,validate,defaults}.ts`、`src/runtime/dashboard/{editing,history,commands}.ts`、`src/react/useDashboard.ts`、`src/ui/dashboard/DashboardGrid.tsx`、`src/ui/kit/layout.ts`、`src/ui/dashboard/{BoardWidth.tsx,EditBar.tsx,Board.tsx}`、[model.md#dashboard-配置](model.md#dashboard-配置)、[ui/dashboard.md](ui/dashboard.md)。
 
 ## D32 仪表盘读的时候「编辑」是主按钮，在行尾（2026-09-24）
 
@@ -322,7 +322,7 @@
   - **读的时候名字旁只给「另存为」**：板子的改动只在搭的时候发生、由编辑条的「保存」存下（D26 Q37），读的时候就地保存永远是灰的；灰的「保存」加一个只收着另存为的 ▾ 是两颗假控件，挤在唯一的 primary 旁边。另存为本身仍要（复制一块板）。读的时候真有未保存的改动时，拆分的「保存 ▾」照旧出现（仍是 `outline`）。
   - **宿主的全局动作不再「永远排最后」**：它们仍在框架功能之后、一根竖线之后；视图自己的 primary 收尾整行。理由：primary 的位置跟着状态走而不跟着宿主走——宿主加没加按钮，「编辑」与编辑条的「保存」都在行尾。
   - **「行尾」管页面级的动作条，不管草稿的提交**（用户 2026-09-24 按推荐确认）：记录与分析视图的「应用」留在编辑带或托盘底部，不搬到标题栏行尾。理由：「应用」提交的是它上方那块草稿，放在草稿的末尾是填写的自然顺序，Metabase、Grafana 的查询编辑器都这样放；标题栏与编辑条上的是整页的动作（编辑、保存），两者不是同一类，位置不同不算不一致。
-- **落点**：`src/ui/dashboard/buildShell.tsx`、`src/ui/ViewHeader.tsx`、`src/ui/SaveActions.tsx`（`copyWhenClean`）、`src/ui/dashboard/EditBar.tsx`、[ui/dashboard.md](ui/dashboard.md)、[ui/README.md](ui/README.md#版式三块一套间距一种选项控件)。
+- **落点**：`src/ui/dashboard/buildShell.tsx`、`src/ui/workbench/ViewHeader.tsx`、`src/ui/workbench/SaveActions.tsx`（`copyWhenClean`）、`src/ui/dashboard/EditBar.tsx`、[ui/dashboard.md](ui/dashboard.md)、[ui/README.md](ui/README.md#版式三块一套间距一种选项控件)。
 
 ## D33 分析视图释放 ECharts 能力的九条裁定（2026-09-24）
 
@@ -360,7 +360,7 @@
   - **行高由栏宽推出（Metabase 的做法）**：格子能真正正方，但行高随宽度变，已存的板子全都变高——一行 = 两块正方形时，1200px 固定宽度一行 90px（原 80px，+12.5%，一块 4 行的面板 350→390px），全宽 1920px 一行 150px（+88%，4 行的面板 350→670px，接近翻倍）；宽屏上一屏看得到的东西少了近一半。只为网格好看，不值；也违背 D31「不让存下的布局悄悄变样」的精神。（#3327 第一版就是这样做的，已改掉。）
   - **一行一块正方形并把存下的 `h`、`y` 乘 2 迁移**：行高 = 栏宽，1200px 时一行 40px，不迁移则每块面板矮一半多（4 行 350→190px）；迁移则面板随宽度变高（×2 后 1200px 时 8 行 390px、1920px 时 630px），问题同上，还要多一次存储数据迁移（AGENTS.md 只列用户批过的几种），键盘一步、「N 行」的播报、`defaultPanelSize` 全要跟着改。
 - **代价**：块不是严格的正方形（1200px 时 40×35，1920px 时 70×80）；竖向拖动、缩放、方向键的一步仍是一行，也就是一到三块。
-- **落点**：`src/ui/dashboard/gridBlocks.ts`（`blockHeight`、`gridBlocks`）、`src/ui/DashboardGrid.tsx`（图层 `dashboard-grid-blocks`）、`src/styles.css`、[ui/dashboard.md](ui/dashboard.md)。
+- **落点**：`src/ui/dashboard/gridBlocks.ts`（`blockHeight`、`gridBlocks`）、`src/ui/dashboard/DashboardGrid.tsx`（图层 `dashboard-grid-blocks`）、`src/styles.css`、[ui/dashboard.md](ui/dashboard.md)。
 
 ## D35 内置主题目录与三条轴的四条裁定（2026-09-24）
 
@@ -425,7 +425,7 @@
   - **板对板的点击能说打开到哪一页**：`PanelClick` 的 `dashboard` 形态多可选的 `tab`（标签页 id）；「点击时…」在目标板有两页以上时多一行「打开到」，缺省「读者上次看的那页」。目标板后来删了那一页，按下时就当没说，读者上次看的那页照旧——这不是配错了，不像映射的筛选那样让点击退回追问菜单。
   - **搜索字段不点名数组元素里的字段**：核对了 Wow 的 `SEARCH`（`SearchFilter`）：带 `fields` 时，查询模式的校验要求每个字段在根上可用（`QuerySchemaValidation`：元素里的字段要求在它的 `ELEMENT_MATCH` 作用域里）；Elasticsearch 在嵌套作用域里能跑 `multi_match`，MongoDB 的 `$text` 却只认整个集合的文本索引、忽略 `fields`，也不能放进 `$elemMatch`。服务端做不到可移植的「搜数组元素里的某个字段」，所以引擎不做：`searchFields` 仍只收根字段。要搜商品名这类元素字段，定义里另声明一个根字段（Storybook 的 `state.items.title`，MongoDB 按路径读数组，任一元素匹配即匹配），或在 MongoDB 上不写 `searchFields`、让集合的文本索引覆盖 `items.title`。**N4 落地（2026-09-25，Wow #3525 之后）**：服务端在描述的 `elements[].search` 里声明能在哪个元素里检索（Elasticsearch 有，MongoDB 没有），引擎随之放开——元素里可以声明一个 `search` 字段、`searchFields` 写元素自己的字段，编译成 `ELEMENT_MATCH` 里的 `SEARCH`，按描述收窄；根上的 `searchFields` 仍只收根字段，聚合元素的闸门仍不收检索（[kernels.md](kernels.md)、[capabilities.md](capabilities.md) 4.2）。
 - **公开面**：根入口没有多名字（`PanelClick` 的 `dashboard` 形态多可选的 `tab`，`DateTimePreset` 多一个值）；`/ui` 没有多名字：`DashboardWorkbenchProps`、`EmbeddedDashboardProps`、`DashboardGridProps` 各多可选的 `recordPanel`，`DashboardPanelProps` 多可选的 `record`，`RecordPaginationProps` 多可选的 `controls` 与 `label`（面板上的分页地标按面板命名）。
-- **落点**：`src/runtime/dashboard/anchor.ts`（`panelAnchor`）、`src/runtime/dashboard/panelRun.ts`（`panelScope`、`panelHandOver` 带上锚着的窗口）、`src/runtime/dashboardRuntime.ts`（整板刷新先重新对齐锚点）；`src/filter/time.ts`、`src/filter/values.ts`；`src/ui/dashboard/PanelBodies.tsx`（`RecordPanel`、`RecordPanelPaging`）、`src/ui/record/SelectionBar.tsx`、`src/ui/RecordPagination.tsx`（`controls`）、`src/ui/DashboardGrid.tsx`（`recordPanel`）；`src/dashboard/panels.ts`（`clickOf` 读 `tab`）、`src/dashboard/clickDraft.ts`、`src/runtime/dashboard/press.ts`、`src/ui/dashboard/BoardDestination.tsx`；[runtime.md#dashboard](runtime.md#dashboard)、[model-shapes.md](model-shapes.md)、[kernels.md](kernels.md)、[model.md](model.md)、[ui/dashboard.md](ui/dashboard.md)、[ui/embed.md](ui/embed.md)。（见 test/boardAnchor.test.ts、test/filterTime.test.ts「in whole days (D39)」、test/recordPanelHost.test.tsx、test/dashboardClickDraft.test.ts「names the tab a board opens on」、test/dashboardPress.test.ts「on the tab the click names」、test/dashboardPressUi.test.tsx「names the tab the board opens on」）
+- **落点**：`src/runtime/dashboard/anchor.ts`（`panelAnchor`）、`src/runtime/dashboard/panelRun.ts`（`panelScope`、`panelHandOver` 带上锚着的窗口）、`src/runtime/dashboardRuntime.ts`（整板刷新先重新对齐锚点）；`src/filter/time.ts`、`src/filter/values.ts`；`src/ui/dashboard/PanelBodies.tsx`（`RecordPanel`、`RecordPanelPaging`）、`src/ui/record/SelectionBar.tsx`、`src/ui/record/RecordPagination.tsx`（`controls`）、`src/ui/dashboard/DashboardGrid.tsx`（`recordPanel`）；`src/dashboard/panels.ts`（`clickOf` 读 `tab`）、`src/dashboard/clickDraft.ts`、`src/runtime/dashboard/press.ts`、`src/ui/dashboard/BoardDestination.tsx`；[runtime.md#dashboard](runtime.md#dashboard)、[model-shapes.md](model-shapes.md)、[kernels.md](kernels.md)、[model.md](model.md)、[ui/dashboard.md](ui/dashboard.md)、[ui/embed.md](ui/embed.md)。（见 test/boardAnchor.test.ts、test/filterTime.test.ts「in whole days (D39)」、test/recordPanelHost.test.tsx、test/dashboardClickDraft.test.ts「names the tab a board opens on」、test/dashboardPress.test.ts「on the tab the click names」、test/dashboardPressUi.test.tsx「names the tab the board opens on」）
 
 ## D40 失败交给宿主的一个钩子：`environment.onError`（2026-09-25）
 
@@ -436,11 +436,11 @@
   - **查询失败读完响应体再报，仍只报一次**（2026-09-25 补，Wow #3461 之后）：Wow 拒绝的查询在 `bindingErrors` 里带一个稳定的 `code` 和位置（解码是 JSON 路径，准入是逻辑字段路径，模型级为空）。`query` 类失败（视图自己的查询、汇总、合计、拆分补查、读一条整条、条件取值）一律等源的响应体读完再报（`runtime/failures.ts` 的 `queryFailureReporter`），`context.violation = { code, path, message }` 随报一起到；读的是屏幕上那条 Issue 读的同一份体（`sourceFailure` 每个失败只读一次）。**不分两步报**：约定是恰好一次，没有约定报必须同步。「被顶掉的不报」看的仍是落定那一刻：落定时是当前请求就报，读体期间被新请求顶掉也照报——失败确实发生过，屏幕只是不再画它。`violation` 是可选的：预算类拒绝、不是 Wow 的源都没有它（#3475 起其余解码与准入拒绝都带码）。
   - **拒绝的是读者、不是查询：无权限状态**（2026-09-25 补，Wow #3485 的 `IllegalAccessQueryScope`）：HTTP 403，或 `errorCode` 以 `IllegalAccess` 开头（`IllegalAccessOwnerAggregate`、`IllegalAccessSpaceAggregate`、`IllegalAccessQueryScope` 与今后同前缀的码；`IllegalAccessDeletedAggregate` 除外，它是 410、聚合已删），查询的 Issue 是 `runtime.query.forbidden`（「无权限查看这些数据。」），不是 `runtime.query.failed`。重问不会变，所以不给「重试」（查询条与面板都不画），查询条用 warning 语气、面板画锁；自动刷新的时钟不再问它——视图的计时器按住，看板的时钟跳过这块面板——免得每个周期被拒一次、给宿主报一次；读者按刷新或应用照旧去问。`context.errorCode` 原样带服务端的 `errorCode`（每个 `query` 失败都带，服务端给了就有）。
   - **从不抛进引擎、没有钩子就什么也不做**：`reportError` 吞掉钩子抛的错与它返回的 promise 的拒绝；不写 console（`no-console` 仍开）。界面照旧说失败，钩子只是宿主那一份。
-  - **与 `onRenderFailure` 的关系**：保留。它是**这一块界面**的回调（宿主想在旁边做点什么），`onError` 是**整个引擎**的监控出口；同一次渲染失败两者各得一次，交出的 `error` 是同一个对象。边界在工作台（`DataWorkbench`、`DashboardWorkbench`）与嵌入（`EmbedFrame`）之下才找得到 `onError`（`ui/failureSink.tsx`，内部 context）；单独用的 `RenderBoundary` 只告诉自己的 `onFailure`。
+  - **与 `onRenderFailure` 的关系**：保留。它是**这一块界面**的回调（宿主想在旁边做点什么），`onError` 是**整个引擎**的监控出口；同一次渲染失败两者各得一次，交出的 `error` 是同一个对象。边界在工作台（`DataWorkbench`、`DashboardWorkbench`）与嵌入（`EmbedFrame`）之下才找得到 `onError`（`ui/kit/failureSink.tsx`，内部 context）；单独用的 `RenderBoundary` 只告诉自己的 `onFailure`。
   - **与 `onIssue` 的分工**：`onIssue` 只剩没有抛出物的「发现」——定义准入、列表里被丢掉的保留 id、抛错的变化监听者；`engine.list` 的存储失败不再经 `onIssue`（它已经作为 `store` 报过一次）。
   - **图表画坏了现在也落到边界**：从前 `setOption` 在尺寸观察者的回调里抛，谁也接不住，同一帧里其余图表也不画了；现在创建与绘制都被接住，交给边界。
 - **公开面**：根入口多三个类型名 `ViewErrorEvent`、`ViewErrorKind`、`ViewErrorContext`；`RuntimeEnvironment` 多可选的 `onError`。`ViewErrorContext` 多可选的 `violation`（wow-client 的 `QueryViolation`）与 `errorCode`。`reportError`、`reportingStore`、`ChartFailure`、`FailureSink` 都不出包。
-- **落点**：`src/runtime/environment.ts`、`src/runtime/failures.ts`、`src/runtime/sourceReason.ts`、`src/runtime/queryFailure.ts`、`src/runtime/viewEngine.ts`、`src/runtime/viewRuntime.ts`、`src/runtime/execute.ts`、`src/runtime/recordRuntime.ts`、`src/runtime/valueCandidates.ts`、`src/react/useRecordExport.ts`、`src/ui/RenderBoundary.tsx`、`src/ui/failureSink.tsx`、`src/ui/charts/failure.ts`、`src/ui/charts/EChart.tsx`、`src/ui/analysis/exportOffer.ts`、`src/ui/analysis/imageExport.ts`；[runtime.md#环境](runtime.md#环境)、[ui/README.md#渲染边界](ui/README.md#渲染边界)、[management.md](management.md)。（见 test/hostErrors.test.tsx、test/queryRejection.test.tsx「tells the host once, after the body is read, with the violation」、test/queryForbidden.test.tsx、test/chartLoad.test.tsx「says it could not be drawn when the library does not arrive」）
+- **落点**：`src/runtime/environment.ts`、`src/runtime/failures.ts`、`src/runtime/sourceReason.ts`、`src/runtime/queryFailure.ts`、`src/runtime/viewEngine.ts`、`src/runtime/viewRuntime.ts`、`src/runtime/execute.ts`、`src/runtime/recordRuntime.ts`、`src/runtime/valueCandidates.ts`、`src/react/useRecordExport.ts`、`src/ui/kit/RenderBoundary.tsx`、`src/ui/kit/failureSink.tsx`、`src/ui/kit/chartFailure.ts`、`src/ui/charts/EChart.tsx`、`src/ui/analysis/exportOffer.ts`、`src/ui/analysis/imageExport.ts`；[runtime.md#环境](runtime.md#环境)、[ui/README.md#渲染边界](ui/README.md#渲染边界)、[management.md](management.md)。（见 test/hostErrors.test.tsx、test/queryRejection.test.tsx「tells the host once, after the body is read, with the violation」、test/queryForbidden.test.tsx、test/chartLoad.test.tsx「says it could not be drawn when the library does not arrive」）
 
 ## D41 除了要后端的，全部图型都加（2026-09-25）
 
@@ -483,7 +483,7 @@
   - 四组都是可选组，全给或全不给，内置值就是改前的样子，`neutral` 的像素不变。
 - **不变的**：线宽、组件形状（药丸、浮动标签）、字号阶梯仍不进主题（1.2）。
 - **留给下一步**：描边按钮（registry 的 `Button` 不在元素上写 variant）、选中的着色（归 [D46](#d46-主题架构重构五条结构一张登记表2026-09-25) 的角色层）。徽标的边已定：保留（2026-09-25，按推荐，见 D46）。
-- **落点**：`src/styles.css`（token 与规则）、`src/themes/{neutral,porcelain}.css`、`src/ui/variants.tsx`（`CARD_LIFT`、`ControlFrame`）、`src/ui/RecordCards.tsx`、`src/ui/WorkbenchShell.tsx`／`src/ui/embed/EmbedFrame.tsx`（根上的 `data-kind`）、`scripts/verify-package.mjs`、`test/fixtures/{presetPairs,themeTokens}.ts`、包 README 的 token 表。
+- **落点**：`src/styles.css`（token 与规则）、`src/themes/{neutral,porcelain}.css`、`src/ui/kit/variants.tsx`（`CARD_LIFT`、`ControlFrame`）、`src/ui/record/RecordCards.tsx`、`src/ui/workbench/WorkbenchShell.tsx`／`src/ui/embed/EmbedFrame.tsx`（根上的 `data-kind`）、`scripts/verify-package.mjs`、`test/fixtures/{presetPairs,themeTokens}.ts`、包 README 的 token 表。
 
 ## D44 分析表多于一千组时只画看得见的行（2026-09-25）
 
@@ -497,7 +497,7 @@
   - **导出与复制**读的是结果本身（`view.rows`），从来不是屏上的行，不受影响；**打印**时浏览器一说要打印（`beforeprint`）就同步画齐每一行，打印完再回到只画眼前的。
   - **记录视图不虚拟**：一页最多 `maxPageSize` 条（当时是两百，D42 把缺省降到一百；宿主调高后仍不过两百），两百条实测首次画完与排序都在 0.3～0.9 秒之内、滚动不掉帧。
 - **公开面**：没有变化（`VIRTUAL_ROWS_AFTER` 与 `useVirtualRows` 不出包）。新增运行时依赖 `@tanstack/react-virtual`，只到 `ui`（`test/architecture.test.ts` 的 UI-only 规则）。
-- **落点**：`src/ui/analysis/virtualRows.ts`（`useVirtualRows`、`bodySegments`）、`src/ui/AnalysisTable.tsx`；[ui/analysis.md](ui/analysis.md#长表多于一千组只画看得见的行d44)。（见 test/analysisVirtualRows.test.tsx 与浏览器故事「分析视图/长表/回归」：`TenThousandRowsDrawWhatIsInView` 守一万行表头排序 1000ms 的回归线与同时画出的行数，`KeyboardWalksTenThousandRows`、`PrintingDrawsEveryRow`、`BoardPanelDrawsWhatIsInView`、`OneThousandRowsDrawWhole`）
+- **落点**：`src/ui/analysis/virtualRows.ts`（`useVirtualRows`、`bodySegments`）、`src/ui/analysis/AnalysisTable.tsx`；[ui/analysis.md](ui/analysis.md#长表多于一千组只画看得见的行d44)。（见 test/analysisVirtualRows.test.tsx 与浏览器故事「分析视图/长表/回归」：`TenThousandRowsDrawWhatIsInView` 守一万行表头排序 1000ms 的回归线与同时画出的行数，`KeyboardWalksTenThousandRows`、`PrintingDrawsEveryRow`、`BoardPanelDrawsWhatIsInView`、`OneThousandRowsDrawWhole`）
 
 ## D45 主题一览拆成每套一个故事，截图基线在 Playwright 的 Linux 容器里截（2026-09-25）
 
@@ -556,12 +556,12 @@
 
 - **来由**：用户在「漏斗图选项 › 数据 › 阶段」看到阶段还是一对上移／下移箭头，而列设置、排序、视图管理、系列、标签栏、筛选条早已是拖拽。用户裁定：「排序统一使用拖拽排序，而不是上下箭头。」
 - **裁定**：
-  - **每一个能调顺序的列表都由同一枚抓手搬动**（`ui/DragHandle.tsx`），没有一处用上移／下移（左移／右移）按钮。清点后改过来的三处：漏斗的阶段（`DataTab.tsx` 的 `StageList`）、旭日图／树图／桑基的层级（`LevelOptions.tsx`，两者共用 `analysis/OrderedCards.tsx`），与窄屏一列里的面板（`DashboardArrange.tsx` 的 `PanelOrder`）；标签页菜单里的「左移」「右移」也拿掉，由抓手的菜单代替。
+  - **每一个能调顺序的列表都由同一枚抓手搬动**（`ui/kit/DragHandle.tsx`），没有一处用上移／下移（左移／右移）按钮。清点后改过来的三处：漏斗的阶段（`DataTab.tsx` 的 `StageList`）、旭日图／树图／桑基的层级（`LevelOptions.tsx`，两者共用 `analysis/OrderedCards.tsx`），与窄屏一列里的面板（`DashboardArrange.tsx` 的 `PanelOrder`）；标签页菜单里的「左移」「右移」也拿掉，由抓手的菜单代替。
   - **抓手一处定、处处一样**：同一枚 `GripVerticalIcon`，排在行（卡片、面板标题行）的最前面，至少 24px（`icon-xs`；视图管理与面板标题行跟着邻居用 28px 的 `icon-sm`，WCAG 2.5.8）；三种用法——**指针拖**；**键盘**在抓手上按方向键移一位（竖排 ↑／↓，横排 ←／→），空格拿起交给库的键盘拖动；**点一下**弹出「移到最前／往前移一位／往后移一位／移到最后」四项菜单，是拖不动的指针的一次点击替代（WCAG 2.5.7），到头的项在、但置灰，菜单关上键盘回到抓手。说明是一句共用的（`label.reorder.instructions`），落位由各列表自己的播报区说一次，拿起与放回由库的 `Accessibility` 插件说目录里的句子。
   - **按一下不是拖**：鼠标按下不拿走焦点（和库在按下时就拿起那会儿一样，放下时列表挪动行的节点不会把焦点丢到 `<body>`）；指针要走过 4px（手指要停 250ms）才算拖（`dragPlugins.ts` 的 `sortableList` 给每个列表的 `DragDropProvider` 同一份插件与传感器），否则库在按下那一刻就拿起、吞掉随后的 click，抓手永远点不开菜单。
   - **窄屏的面板**由抓手搬到任意一位：runtime 的 `reorderPanel(panelId, to)` 收一个目标位置（原来是 `'up' | 'down'`），内核 `reorderPanelIn` 一步一位地走过去，每一步仍是「读出来正好挪一位、其余动得最少」的布局，整次移动是撤销的一步。
 - **公开面**：`reorderPanelIn(config, id, to)` 与 `DashboardEditing.reorderPanel(panelId, to)` 收位置；`withMoved` 删去（`withMovedTo` 留下）；`PanelOrderProps` 多 `panelId`、`onMove` 收 `HandleMove`。
-- **落点**：`src/ui/DragHandle.tsx`、`src/ui/dragPlugins.ts`、`src/ui/dragWording.ts`、`src/ui/analysis/{OrderedCards,DataTab,LevelOptions,drag}.tsx`、`src/ui/DashboardArrange.tsx`、`src/ui/DashboardGrid.tsx`、`src/dashboard/layout.ts`、`src/ui/messages/reorder.ts`；[ui/README.md](ui/README.md)「一列行只有一个配方」。（见 test/dragHandle.test.tsx「every ordered list is carried by the one handle」「the handle’s menu, the one-press way to move a row」、test/renameInput.test.tsx「the drag plugins」；浏览器里「图型/回归」的 `FunnelStageOrder`、「仪表盘/搭建」的 `NarrowReorderByHandle`）
+- **落点**：`src/ui/kit/DragHandle.tsx`、`src/ui/kit/dragPlugins.ts`、`src/ui/kit/dragWording.ts`、`src/ui/analysis/{OrderedCards,DataTab,LevelOptions,drag}.tsx`、`src/ui/dashboard/DashboardArrange.tsx`、`src/ui/dashboard/DashboardGrid.tsx`、`src/dashboard/layout.ts`、`src/ui/messages/reorder.ts`；[ui/README.md](ui/README.md)「一列行只有一个配方」。（见 test/dragHandle.test.tsx「every ordered list is carried by the one handle」「the handle’s menu, the one-press way to move a row」、test/renameInput.test.tsx「the drag plugins」；浏览器里「图型/回归」的 `FunnelStageOrder`、「仪表盘/搭建」的 `NarrowReorderByHandle`）
 
 ## D50 金额与小数按描述的语义读（2026-09-25）
 
@@ -572,7 +572,7 @@
   - **不同币种不相加**：一个聚合（分析的指标、记录视图的合计）读的是按记录记币种的金额时，查询在旁边多要两个伴随指标——币种字段的去重计数与任取一个（`currencyCompanions`；合计是 `summaryCurrency`），带上指标自己的条件。一行的记录只有一种币种，就按它写；有几种，**这个数不给**（内核把它置空，所以表格、图、指标卡都画不出它），格子里写「多种货币」。结果上方一行警告说哪个指标有这样的组，给「按「币种」分组」，按一下就加上这个维度并查询——分开以后每一行只剩一种币种；已经按币种分组时不再说（合计那一格仍写「多种货币」）。数据源答不了伴随指标（能力里币种字段没有 `any`／`distinctCount`，或指标数会超过 `maxMetrics`）时不发，改说「数据源核对不了币种，加起来的数可能混了几种货币」并给同一个按钮——不是一句谎话，也不因此拒绝查询。整列的行都是同一种币种时，这一列的格式就带上它（坐标与指标卡跟着有了币种）；各行币种不同时逐行读。派生指标读它操作数的伴随指标：任一操作数混了币种，派生值也不给；格式是金额而没写币种的，按操作数那一行的币种写——这样的派生指标准入不再报 `analysis.derived.currency-unknown`（**修订** D38 的「没有时准入要求写明」，只对按记录记币种的操作数）。
   - **文件里是数本身，币种另起一列**（**修订** D25 Q28 与 [kernels.md#导出序列化](kernels.md#导出序列化) 里「声明了格式的数字照格式写」，只对这两种语义）：记录导出与分析导出里，读法来自描述语义（`numeric`，定义没写 `numberFormat`）的数字写成原数；金额后面紧跟一列「{列名}（币种）」，写固定币种、这一行的币种，或「多种货币」（那一格的金额空着）。理由：一列「¥1,204.50」「JP¥1,205」是表格软件加不起来、也分不清的文本；原数加代码两列，既能求和也能按币种筛。定义自己写了格式的数字照旧按格式写（作者说了怎样读，D37 不变）。
 - **公开面**：根入口多 `FieldNumeric`、`DecimalNumeric`、`FixedMoneyNumeric`、`RowMoneyNumeric`、`NUMERIC_TYPES`、`MAX_NUMERIC_SCALE`、`CURRENCY_CODE_PATTERN`、`numberFormatOf`、`currencyPathOf`、`CurrencyReading`、`ColumnCurrency`、`rowCurrency`；`FieldDefinition` 多 `numeric`，`RecordColumnView` 多 `currencyPath`、`numeric`，`RecordCardField`／`ElementTitleView` 多 `currencyPath`，`SummaryCell` 多 `currencyPath`、`currency`，`AnalysisColumnView` 多 `currency`、`numeric`。读币种的函数（`currencyOfRows`、`companionReading`、`joinCurrencies`）与伴随指标都不出包。
-- **落点**：`src/model/{field,currency}.ts`、`src/capabilities/fields.ts`（`numericOf`、`semanticText`）、`src/runtime/validateFields.ts`（`definition.field.numeric-invalid`）、`src/record/{compile,project,summaryCurrency}.ts`、`src/analysis/{currency,compile,project}.ts`、`src/runtime/execute.ts`、`src/ui/display.ts`、`src/ui/analysis/{tableColumns,exportOffer,CurrencyStrip}.ts(x)`、`src/ui/record/{exportOffer,SummaryRows,RecordDetail}.ts(x)`、`src/ui/{RecordTable,RecordCards,AnalysisTable}.tsx`、`src/ui/workbench/AnalysisParts.tsx`；[capabilities.md](capabilities.md) 第 21 节、[model.md](model.md)、[kernels.md](kernels.md)。（见 test/money.test.tsx；Storybook「能力/金额与小数」与其「回归」）
+- **落点**：`src/model/{field,currency}.ts`、`src/capabilities/fields.ts`（`numericOf`、`semanticText`）、`src/runtime/validateFields.ts`（`definition.field.numeric-invalid`）、`src/record/{compile,project,summaryCurrency}.ts`、`src/analysis/{currency,compile,project}.ts`、`src/runtime/execute.ts`、`src/ui/kit/display.ts`、`src/ui/analysis/{tableColumns,exportOffer,CurrencyStrip}.ts(x)`、`src/ui/record/{exportOffer,SummaryRows,RecordDetail}.ts(x)`、`src/ui/{RecordTable,RecordCards,AnalysisTable}.tsx`、`src/ui/workbench/AnalysisParts.tsx`；[capabilities.md](capabilities.md) 第 21 节、[model.md](model.md)、[kernels.md](kernels.md)。（见 test/money.test.tsx；Storybook「能力/金额与小数」与其「回归」）
 
 ## D51 汇总列在视野外时，合计行写出它（2026-09-26）
 
@@ -673,7 +673,7 @@
 - **来由**：第三轮审查 R3-P1-3：打包进来的 `@dnd-kit/dom` 在拖动进行中往 `<head>` 插 `<style>`（光标、禁止选中），`style-src 'self'` 会拦，README 却写着严格策略下可运行。协调者定：引擎给宿主一个显式的 nonce 入口，转交给 dnd-kit。
 - **裁定**：入口是页面上的 `<meta property="csp-nonce" nonce="…">`——Vite `html.cspNonce` 的约定，服务端按请求换 nonce 时也最常这样写（`content` 也认）。所有可排序列表共用的 `sortableList` 读到它，就把 `StyleInjector.configure({ nonce })` 加进插件（dnd-kit 的注册表按类去重，后配的选项落到它先注册的那一个上）。没有 meta 时什么都不加。
 - **没选**：每个组件加 `nonce` 属性（排序列表散在十几个面上，漏一个就是一次违规）；把 dnd-kit 的规则写进 `styles.css`（光标规则是 `*` 选择器、按拖动开关，静态写死会误伤，且随库升级漂移）；关掉这几个插件（拖动时的光标与禁止选中是可用性）。
-- **落点**：`src/ui/dragPlugins.ts`（`cspNonce`）；README「Content Security Policy」；补偿控制台 `e2e/csp.spec.ts` 作为门——严格策略下走遍四个去处并真拖一次，零违规；去掉 meta 时它会失败。
+- **落点**：`src/ui/kit/dragPlugins.ts`（`cspNonce`）；README「Content Security Policy」；补偿控制台 `e2e/csp.spec.ts` 作为门——严格策略下走遍四个去处并真拖一次，零违规；去掉 meta 时它会失败。
 
 ## D62 列表只问两个「空」：没有条目、有条目（2026-09-27）
 
@@ -748,7 +748,7 @@
   - **没调过的照 D52**：按内容长高，最多 8 行、只长不缩。
   - **只写回动过的**（用户 2026-09-28 审 #3779 时定）：手在画出来（长高后）的布局上落位，写回的只有被拖或被缩放的那块面板，和因此不得不挪位置的其余面板的行列；没动过的面板不把当天长出来的高度存成自己的 `h`（D52 只长不缩，存下就冻结在那一天的数据上），只拖动的面板也保留保存的高度；一次什么都没改变的落位（原地放下、缩放角原地松手）不改配置、不让板子变脏。**读回逐格就是放手时的样子**（#3779 复审后，2026-09-28）：长高的读法（`grownLayout`）把每块面板读作落在它上面那几块上，只保留它与其中最低那块（最近的阻挡）之间的空行，落位时每块面板照这一条存行（`savedPlacement`）——于是任何一次落位存下、再长高一次都逐格画回放手时的布局，没有例外的一类；没长高的板子读法与从前完全相同（空行照旧，一格不动）。从前与上面每一块都各保留空行，一块离得远却长得多的面板把下面的推得比放手处低，随机拖动约 8% 读回偏低、最多 8 行。窄屏一列的读法同样带着定高标记，手调过的面板在手机上也照手调、写「下面还有 N 行」。
 - **没选**：两态都长高（拖得比内容矮会弹回，拖动像不生效）；两态都按保存尺寸（撤掉 D52，回到只露几行）；保持现状加虚线提示（切换仍跳）。
-- **落点**：看板布局项（定高标记与迁移：已存的板没有标记，一律按「没调过」读）、`src/ui/DashboardGrid.tsx` 的长高与编辑态尺寸、[ui/dashboard.md](ui/dashboard.md)；故事断言切换编辑前后面板高度不变、定高面板读板不长高。
+- **落点**：看板布局项（定高标记与迁移：已存的板没有标记，一律按「没调过」读）、`src/ui/dashboard/DashboardGrid.tsx` 的长高与编辑态尺寸、[ui/dashboard.md](ui/dashboard.md)；故事断言切换编辑前后面板高度不变、定高面板读板不长高。
 
 ## D69 porcelain 的记录视图按看板内容区的画法：灰底上的白卡片（2026-09-28，修订 D63 的条纹）
 
@@ -764,7 +764,7 @@
   - **不做卡中卡**：记录视图放在看板面板、或宿主自己的卡片里嵌入时（`resultFramed` 为假、嵌入视图），结果仍是贴边的，不再套一层卡片。
 - **没选**：发丝线加条纹（B）、磨砂侧栏与 32px（C）——对比稿上用户选了 E。
 - **判据**：Storybook 的记录工作台在 porcelain 亮与暗下与画布 E 一致；neutral、azure、contrast 的截图基线一张不变，porcelain 的基线有意更新并在 PR 里列出；对比度矩阵通过；看板面板与嵌入的记录视图没有卡中卡。
-- **落点**：`src/themes/porcelain.css`（新角色经登记表，[theme-architecture.md](theme-architecture.md) 的规则）、`src/styles.css`、`src/ui/WorkbenchShell.tsx`／`variants.tsx` 的 `resultFrameChrome`、[themes.md](themes.md) 3.4.1。
+- **落点**：`src/themes/porcelain.css`（新角色经登记表，[theme-architecture.md](theme-architecture.md) 的规则）、`src/styles.css`、`src/ui/workbench/WorkbenchShell.tsx`／`variants.tsx` 的 `resultFrameChrome`、[themes.md](themes.md) 3.4.1。
 
 ## D70 铺满屏幕时保留标题与口径说明（2026-09-28）
 
@@ -805,7 +805,7 @@
 
 尚无结论，不要当作规则执行。
 
-- **Q3 提交的措辞**：「应用／未应用」还是「查询／未生效」？现状是措辞集中在 `ui/messages.ts`，按 key 可覆盖，换词不动行为（[ui/README.md#措辞与-messagesprovider](ui/README.md#措辞与-messagesprovider)）。
+- **Q3 提交的措辞**：「应用／未应用」还是「查询／未生效」？现状是措辞集中在 `ui/kit/messages.ts`，按 key 可覆盖，换词不动行为（[ui/README.md#措辞与-messagesprovider](ui/README.md#措辞与-messagesprovider)）。
 - **Q7 「还有更多未列出」的精确组数**：要多发一次 DISTINCT_COUNT(维度)，两个维度时口径难定义；D20 先做探针行。
 - **Q8 透视表**：两个维度只做平铺表 + 图；透视表留线索。
 - **Q64 工作台占不占 `main` 地标**：`WorkbenchShell` 画的是 `<main>`（以视图名命名）。宿主自己已有 `<main>` 再把工作台放进去，就是嵌套的 `main`（axe `landmark-main-is-top-level`、`landmark-no-duplicate-main`）。推荐：默认仍是 `main`（工作台通常就是页面的主体），加一个属性让宿主改成有名字的 `region`；嵌入一直没有 `main`，不变。2026-09-25 可访问性走查提出，见文档站「视图引擎的可访问性」。**已定（2026-09-25，按推荐）**：`DataWorkbench`、`DashboardWorkbench`（与 `WorkbenchShell`）加 `landmark: 'main' | 'region'`，缺省 `main`；`region` 画成 `<section>`，名字与 `main` 同（开着的视图名，没开视图时是定义名）。样式表按 `data-slot="workbench-main"` 找主列、不按标签，两种画法像素一致。落点见 [ui/README.md](ui/README.md)「两级标题」一条。

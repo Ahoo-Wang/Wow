@@ -133,7 +133,7 @@ export const TypeScaleIsThreeRungs: Story = {
 /**
  * Every popup kind, as the workbench opens it.
  *
- * One entry per wrapper in `ui/popups.tsx` that a user of this workbench can
+ * One entry per wrapper in `ui/kit/popups.tsx` that a user of this workbench can
  * reach: a popover, a menu, a select's list, a tooltip and a dialog. The
  * combobox is the sixth wrapper and no surface here opens one, so it is held
  * to the same rule in `test/popups.test.tsx` instead.
@@ -184,7 +184,7 @@ const POPUP_KINDS: readonly {
  * The layer this package's popups paint on, and the one a host can move.
  *
  * Whatever the host raises, a popup has to come out in front of it — the fix
- * is a `z-index` on the *positioner*, written as a style in `ui/popups.tsx`
+ * is a `z-index` on the *positioner*, written as a style in `ui/kit/popups.tsx`
  * because the positioner is no `.fve-root` and every rule of the stylesheet
  * is pinned inside one. Before it, a positioner stayed at `z-index: auto` and
  * every popup here painted at level 0, in front of the page only because its
@@ -654,7 +654,7 @@ export const HeaderBandInDarkTheme: Story = headerBand('dark');
 /**
  * 每一档语气的字压在它自己的底色上都读得出来，而且语气从来不是唯一的区别。
  *
- * 徽章是软配方（`ui/variants.tsx`，2026-09-23 v16 视觉稿）：10% 淡底、语气色
+ * 徽章是软配方（`ui/kit/variants.tsx`，2026-09-23 v16 视觉稿）：10% 淡底、语气色
  * 写字。淡底是半透明的，字对的是「淡底叠在行底上」的层叠色，所以行底动了这个
  * 数就跟着动——这里在三档行底上各量一遍：静息、悬停、选中（选中时行底是
  * `--muted`，淡底落在灰上，是最紧的一档）。暗色 danger 曾在选中行上只有
@@ -755,7 +755,7 @@ export const ControlBordersInDarkTheme: Story = controlBorders('dark');
 /**
  * 状态条在两种主题下都读得出来，而且还是一行高。
  *
- * 它是 registry `Alert` 的紧凑变体（`ui/alerts.tsx`），tone 只改文字与边的
+ * 它是 registry `Alert` 的紧凑变体（`ui/kit/alerts.tsx`），tone 只改文字与边的
  * 颜色，底色是 `bg-card`——所以"读不读得出来"这一问在两种主题下是两道题：
  * 亮色下 `--warning` 压在白卡片上，暗色下同一个 token 压在 0.205 的卡片上。
  * jsdom 不套样式表，这两个数只有真浏览器给得出。一行高是 D1 的约束，这里
@@ -838,13 +838,13 @@ export const WarningCalloutInDarkTheme: Story = calloutTone(
  * `text-destructive`），跟 `ui/record.md` 记过的徽章是同一个陷阱：淡彩把底色
  * 朝字的那个色相挪过去，字于是压在一个已经被自己染过的底上——这颗按钮在亮色
  * 下量到 **3.97:1**（14px），够不着 1.4.3 的 4.5。修法也是同一个：拿 token 填
- * 色、拿 token 自己的 `-foreground` 写字（`ui/variants.tsx` 的
+ * 色、拿 token 自己的 `-foreground` 写字（`ui/kit/variants.tsx` 的
  * `DestructiveAction`）。
  *
  * 顺带量第二件事：这个对话框是从**视图管理器**（一个 `Dialog`）的某一行上抬起
  * 来的，而 Base UI 默认**根本不画**嵌套弹层的遮罩——下面那张列表一点没被压暗，
  * 确认框读起来像是掉进列表里的又一张白卡片（两张 `bg-popover` 互量正好
- * 1.00:1）。所以 `ui/popups.tsx` 的遮罩改成 `forceRender` 并夹到
+ * 1.00:1）。所以 `ui/kit/popups.tsx` 的遮罩改成 `forceRender` 并夹到
  * `ALERT_DIALOG_BACKDROP_DIM`。暗色下这半还是不够：两张卡片都是
  * `oklch(0.205)`，黑纱再厚也压不出差，靠的是卡片自己那圈
  * `ALERT_DIALOG_RAISED` 的边——所以这里取「底色差」与「边线差」里大的那个。
@@ -1093,7 +1093,7 @@ export const ReducedMotionIsHonoured: Story = {
  * 的复选框除了那圈边什么都没有。没有底色的徽章是同一种情形——把边拿掉就没有
  * 徽章了，只剩一个词——而 registry 给它的是 `border-border`：量在标题栏上是
  * **1.26:1**（暗色 1.77:1）。表内那几枚有语气的徽章早就换过了
- * （`ui/variants.tsx` 的 `neutral`），这一条是剩下的那些。
+ * （`ui/kit/variants.tsx` 的 `neutral`），这一条是剩下的那些。
  *
  * 钉的那一枚正是最难够着的一枚：「已修改」这颗徽章上的 `data-slot` 被调用处
  * 写成了 `view-unsaved`（`useRender` 的 state 拗不过调用处的 prop），所以

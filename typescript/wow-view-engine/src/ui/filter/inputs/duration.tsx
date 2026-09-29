@@ -23,8 +23,8 @@ import {
   type DurationComparison,
   type DurationFilterValue,
 } from '../../../filter/index.js';
-import { useViewMessages } from '../../MessagesProvider.js';
-import { COMPARISON_SIGN } from '../../summary.js';
+import { useViewMessages } from '../../kit/MessagesProvider.js';
+import { COMPARISON_SIGN } from '../../kit/summary.js';
 import { NumberInput } from './number.js';
 import { ChoiceValue, type ValueProps } from './shared.js';
 

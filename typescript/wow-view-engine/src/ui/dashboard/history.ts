@@ -20,8 +20,8 @@ import {
 } from 'react';
 import type { DashboardController } from '../../react/index.js';
 import type { EditCommand, EditStep } from '../../runtime/index.js';
-import type { MessageFormatters } from '../MessagesProvider.js';
-import type { MessageKey } from '../messages.js';
+import type { MessageFormatters } from '../kit/MessagesProvider.js';
+import type { MessageKey } from '../kit/messages.js';
 
 /** What a step is, in the words the edit bar says it in, by its command. */
 const PHRASES: Readonly<

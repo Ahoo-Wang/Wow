@@ -20,7 +20,7 @@ import {
   DropdownMenuRadioItem,
 } from '../components/dropdown-menu.js';
 import { ToggleGroup, ToggleGroupItem } from '../components/toggle-group.js';
-import { useViewMessages } from '../MessagesProvider.js';
+import { useViewMessages } from '../kit/MessagesProvider.js';
 
 /**
  * The mode the editor is actually in, and whether the other one is reachable.

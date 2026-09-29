@@ -28,12 +28,12 @@ import {
   FieldLabel,
 } from '../components/field.js';
 import { ToggleGroup, ToggleGroupItem } from '../components/toggle-group.js';
-import { NumberInput } from '../FilterValueEditor.js';
+import { NumberInput } from '../filter/FilterValueEditor.js';
 import { cn } from 'cn';
-import { PillInput } from '../variants.js';
+import { PillInput } from '../kit/variants.js';
 import { CompactSelect } from './CompactSelect.js';
 import type { ValueLabel } from '../charts/family.js';
-import { useSaidText, useViewMessages } from '../MessagesProvider.js';
+import { useSaidText, useViewMessages } from '../kit/MessagesProvider.js';
 
 /** An alias offered for a slot, named as its column is titled. */
 export interface Choice {

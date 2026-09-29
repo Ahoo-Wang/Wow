@@ -13,10 +13,10 @@
 
 import type { ReactNode } from 'react';
 import { cn } from 'cn';
-import { SPACE } from '../layout.js';
-import { RenderBoundary } from '../RenderBoundary.js';
-import { resultFrameChrome } from '../variants.js';
-import type { WorkbenchShellProps } from '../WorkbenchShell.js';
+import { SPACE } from '../kit/layout.js';
+import { RenderBoundary } from '../kit/RenderBoundary.js';
+import { resultFrameChrome } from '../kit/variants.js';
+import type { WorkbenchShellProps } from './WorkbenchShell.js';
 
 export interface ResultBlockContents {
   /** Whether the block would be the framed one. */
@@ -68,7 +68,7 @@ export function resultBlockShown({
  * share carried one kind's furniture by name; D18-1 puts the record and
  * analysis workbenches behind one shell in phase 2, and that shell is meant
  * to grow no `if` per kind. What stays here is the chrome of the two slots
- * the shell itself fills (`ui/variants.tsx`'s `resultFrameChrome` — the
+ * the shell itself fills (`ui/kit/variants.tsx`'s `resultFrameChrome` — the
  * toolbar as the first row, a callout's margin); the rest each kind hands
  * in through `slots`, as the recipe `resultSlots()` gave it.
  *

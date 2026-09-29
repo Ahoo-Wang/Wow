@@ -22,7 +22,7 @@ import type {
   RecordDetailController,
   RecordDetailSection,
 } from '../../react/index.js';
-import { LineAlert } from '../alerts.js';
+import { LineAlert } from '../kit/alerts.js';
 import { AlertAction, AlertTitle } from '../components/alert.js';
 import { Button } from '../components/button.js';
 import {
@@ -33,17 +33,17 @@ import {
   SheetTitle,
 } from '../components/sheet.js';
 import { Skeleton } from '../components/skeleton.js';
-import { useSay, useViewMessages } from '../MessagesProvider.js';
-import { SheetContent } from '../popups.js';
+import { useSay, useViewMessages } from '../kit/MessagesProvider.js';
+import { SheetContent } from '../kit/popups.js';
 import {
   RenderBoundary,
   RenderSlot,
   type RenderFailureHandler,
-} from '../RenderBoundary.js';
-import { RowActions } from '../RowActions.js';
-import { takeStop } from '../roving.js';
-import { useSurfaceDisplay } from '../ViewSurface.js';
-import { inRowCurrency } from '../currency.js';
+} from '../kit/RenderBoundary.js';
+import { RowActions } from './RowActions.js';
+import { takeStop } from '../kit/roving.js';
+import { useSurfaceDisplay } from '../kit/ViewSurface.js';
+import { inRowCurrency } from '../kit/currency.js';
 import { cellValue } from './cells.js';
 import { blockOf } from './DetailStructure.js';
 import { placeSections } from './detailPlacement.js';

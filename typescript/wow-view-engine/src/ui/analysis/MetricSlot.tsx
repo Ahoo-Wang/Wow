@@ -18,7 +18,7 @@ import { PlusIcon } from 'lucide-react';
 import { isValueMetric, type FieldOption } from '../../model/index.js';
 import { summaryChoices } from '../../analysis/index.js';
 import type { AnalysisEditorController } from '../../react/index.js';
-import { useAnnouncer } from '../Announcer.js';
+import { useAnnouncer } from '../kit/Announcer.js';
 import {
   DropdownMenu,
   DropdownMenuGroup,
@@ -26,12 +26,12 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '../components/dropdown-menu.js';
-import { DragHandle, moveTarget } from '../DragHandle.js';
-import { sortableList, withoutOptimisticSorting } from '../dragPlugins.js';
-import { GroupedMenu } from '../FieldMenu.js';
-import { useViewMessages } from '../MessagesProvider.js';
-import { DropdownMenuContent } from '../popups.js';
-import { AddButton, EditorSlot } from '../variants.js';
+import { DragHandle, moveTarget } from '../kit/DragHandle.js';
+import { sortableList, withoutOptimisticSorting } from '../kit/dragPlugins.js';
+import { GroupedMenu } from '../kit/FieldMenu.js';
+import { useViewMessages } from '../kit/MessagesProvider.js';
+import { DropdownMenuContent } from '../kit/popups.js';
+import { AddButton, EditorSlot } from '../kit/variants.js';
 import { chartDragAccessibility, listDrop } from './drag.js';
 import {
   defaultMetric,

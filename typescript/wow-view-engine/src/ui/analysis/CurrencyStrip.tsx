@@ -15,8 +15,8 @@ import { groupOfType } from '../../analysis/index.js';
 import type { Issue } from '../../model/index.js';
 import type { AnalysisEditorController } from '../../react/index.js';
 import { Button } from '../components/button.js';
-import { useViewMessages } from '../MessagesProvider.js';
-import { dedupeIssues, StatusStrip } from '../StatusStrip.js';
+import { useViewMessages } from '../kit/MessagesProvider.js';
+import { dedupeIssues, StatusStrip } from '../kit/StatusStrip.js';
 import { freeAlias, usedAliases } from './editing.js';
 
 /**

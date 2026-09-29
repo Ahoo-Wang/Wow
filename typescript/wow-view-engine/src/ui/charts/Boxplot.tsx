@@ -13,8 +13,8 @@
 
 import { useCallback, useMemo } from 'react';
 import type { BoxplotData } from '../../analysis/index.js';
-import { pointAnchor } from '../anchor.js';
-import { useViewMessages } from '../MessagesProvider.js';
+import { pointAnchor } from '../kit/anchor.js';
+import { useViewMessages } from '../kit/MessagesProvider.js';
 import { boxplotOption, drawnBoxes } from './boxplotOption.js';
 import { chartNotes } from './ChartNotes.js';
 import { EChart, type ChartClick } from './EChart.js';

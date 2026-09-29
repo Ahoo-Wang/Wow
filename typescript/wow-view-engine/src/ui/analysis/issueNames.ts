@@ -14,8 +14,8 @@
 import { CHART_TYPES, type ChartType, type Issue } from '../../model/index.js';
 import type { ChartUnfit } from '../../analysis/index.js';
 import type { AnalysisEditorController } from '../../react/index.js';
-import { summaryFunctionKey } from '../display.js';
-import type { MessageFormatters } from '../MessagesProvider.js';
+import { summaryFunctionKey } from '../kit/display.js';
+import type { MessageFormatters } from '../kit/MessagesProvider.js';
 import {
   groupReference,
   metricReference,

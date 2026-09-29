@@ -40,9 +40,9 @@ import {
   type WorkbenchOptions,
 } from '../src/react/index.js';
 import { EmbeddedView } from '../src/ui/EmbeddedView.js';
-import { LeaveDialog } from '../src/ui/LeaveGuard.js';
-import type { ViewMessages } from '../src/ui/messages.js';
-import { ViewSurface } from '../src/ui/ViewSurface.js';
+import { LeaveDialog } from '../src/ui/workbench/LeaveGuard.js';
+import type { ViewMessages } from '../src/ui/kit/messages.js';
+import { ViewSurface } from '../src/ui/kit/ViewSurface.js';
 import {
   analysisConfig,
   ordersDefinition,

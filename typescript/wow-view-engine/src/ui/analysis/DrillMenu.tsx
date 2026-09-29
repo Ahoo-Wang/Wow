@@ -30,16 +30,16 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from '../components/dropdown-menu.js';
-import type { PickAnchor } from '../anchor.js';
-import { useSurfaceAnnouncer } from '../Announcer.js';
-import type { DisplayContext } from '../display.js';
+import type { PickAnchor } from '../kit/anchor.js';
+import { useSurfaceAnnouncer } from '../kit/Announcer.js';
+import type { DisplayContext } from '../kit/display.js';
 import {
   useViewMessages,
   type MessageFormatters,
-} from '../MessagesProvider.js';
-import { DropdownMenuContent, DropdownMenuSubContent } from '../popups.js';
-import { summaryText } from '../summary.js';
-import { useSurfaceDisplay } from '../ViewSurface.js';
+} from '../kit/MessagesProvider.js';
+import { DropdownMenuContent, DropdownMenuSubContent } from '../kit/popups.js';
+import { summaryText } from '../kit/summary.js';
+import { useSurfaceDisplay } from '../kit/ViewSurface.js';
 
 /** One group of the result the user pressed, and where. */
 export interface Pick {

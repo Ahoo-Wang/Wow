@@ -81,7 +81,7 @@ Beyond the six:
 - `runtime` reaches `store` only as a **type-only import of `store/ViewStore`** — the port, never an implementation
 - `testing` (the `/testing` entry, D65) imports `model`, and `runtime` only as a **type-only import of `runtime/source`** (the `ViewSource` it answers) and by value `runtime/admission` (`admit`), `runtime/routes` (`resolveNavigation`) and `runtime/actions` (what `actionHarness` reads), the engine's own run without an engine (`VALUE_PORTS` in `test/architecture.test.ts`); nothing imports `testing`. Its semantics are held to Wow's `FilterSemantics` matrix and the query TCK's aggregation cases (`test/testingFilterSemantics.test.ts`, `test/testingAggregationTck.test.ts`): a change there on the server is copied here
 - `react-router` (the `/react-router` entry, host-integration.md 4.2) imports `runtime` only as a **type-only import of `runtime/routes`** (the `ViewRouter` it returns), and `react` and `react-router` alone; nothing imports it, `ui` included, so `react-router` stays an optional peer only that entry loads (`scripts/verify-package.mjs` checks the built entries)
-- The folders under `src/ui` import each other **one way only**, down the table `UI_FOLDERS` in `test/architecture.test.ts` (`record`, `charts`, `columns`, `sort`, `manage` at the bottom; `actions` over `record`; `filter` over `record`; `analysis` over `charts`, `filter`, `record`; `workbench` over those; `dashboard` and `embed` on top; `components`, `lib`, `theme`, `messages` under all). A helper two folders share lives below both — at the ui root or in the folder that owns it — never in a feature folder the other one draws. The ui root is outside the rule both ways until it is split into shared pieces and shells
+- The folders under `src/ui` import each other **one way only**, down the table `UI_FOLDERS` in `test/architecture.test.ts`, in three tiers: `components`, `lib`, `theme`, `messages` under all and importing none; `kit` over them and under every feature folder — the shared building blocks (buttons, popups, the toolbar, focus, the drag vocabulary, the words, the surface), depending on no feature; the feature folders (`record`, `charts`, `sort`, `manage` at the bottom; `columns` over `record`; `filter` over `record`; `actions` over `filter` and `record`; `analysis` over `charts`, `filter`, `record`, `sort`; `workbench` over those and `columns`, `manage`; `dashboard` over `workbench`; `embed` on top). The ui root keeps only the `/ui` entry, the shells and the host's own pieces (`UI_ROOT`), and **no file under a folder imports the root**. A helper two folders share lives below both — in `kit` or in the folder that owns it — never in a feature folder the other one draws
 - Third-party landing spots are fixed by `HEADLESS_DEPENDENCIES` in `test/architecture.test.ts`, and a dependency the manifest carries but that list does not name is **UI-only**: `@ahoo-wang/wow-client` only at the root entry and in `model`, `filter`, `record`, `analysis`, `capabilities`, `runtime`, `testing` (not `dashboard`, not `store`); `dayjs` in `filter`, `record`, `analysis`, `runtime`, `ui`, `testing`; `dequal` in `runtime` alone; `culori` in `analysis` and `ui`; `mingo` in `testing` alone, as an optional peer (`peerDependenciesMeta`), in `devDependencies` for the package's own tests and build (D65). UI-only is therefore all the rest — `@base-ui/react`, `@dnd-kit/dom`, `@dnd-kit/react`, `@tanstack/react-virtual`, `class-variance-authority`, `cn`, `lucide-react`, `react-day-picker`, `react-error-boundary`, `react-grid-layout`, `react-markdown`, `echarts` — while `react` / `react-dom` are optional peers and reach `react` and `ui`. There is no table library: D16-1 declined `@tanstack/react-table`; TanStack Virtual draws a long analysis result's rows (D44). A new React dependency cannot reach a headless layer without being listed explicitly in the test
 - **Deprecated Wow APIs are banned.** The test derives the deprecated export set from the wow sources themselves and fails on any import of it. Use `FilterExpression` and the `Filter*Query` family — never `Condition`, `PagedQuery`, `ListQuery` or `SingleQuery`
 - Wow must be imported from its root entry, by name, so every binding can be checked
@@ -399,97 +399,16 @@ src/
       newView.ts              — What `create` makes: the kind's default config and the audience it goes to
       releaseDeleted.ts       — Lets a workbench's pinned id go once the view is deleted
       handOver.ts             — `useHandOver`: a view a host hands the workbench (D26 Q30) — a saved one opened by its id, one nobody saved held as `handed` so the shell opens it folded — once per object through the leave guard, under what the page holds as its scope; `useHandedConditions`, the reader's board values put onto a handed saved view's own conditions
-  ui/                         — Default look; may import every layer
-    AnalysisChart.tsx         — Dispatches by chart family, a pie of no slices to the empty state (`AnalysisEmpty`); nothing else but saying whether the follow-up menu is open over the chart (`ChartMenuOpen`)
-    AnalysisTable.tsx         — The aggregation as a table: groups first, then metrics, with the totals row from its own ungrouped query rather than from summing what is on screen, and its scope said under 「合计」; read with the record table's recipes — numbers on the right, ids in monospace, `SortableHeader`, held widths and the filler; over a time dimension a second row picked with Shift is a span (the keyboard's brush, D33 Q52)
-    Announcer.tsx             — `useAnnouncer`: one live region per surface, handed back rather than rendered by the caller, the same words twice said twice; `SurfaceAnnouncer`／`useSurfaceAnnouncer`: a surface's one voice handed to the parts drawn inside it (a board's grid, tabs, filters, building)
-    AppliedBar.tsx            — The conditions the rows on screen were fetched under; a page's scope worn read-only. Record and analysis views only: a dashboard draws none (D27)
-    CardSettings.tsx          — The card layout's settings behind the column settings' button (D18 VI)
-    ColumnSettings.tsx        — Which columns show, in which order, pinned or not, summarised how — one sortable group per area (D19)
-    ConflictConfirm.tsx       — The same choice, put once more with both configs on the table
-    CopyButton.tsx            — A value's own copy button: the clipboard, the tick, and the two words a press comes back with
-    copyText.ts               — `copyText`: the Clipboard API, or the document's `copy` command where there is none (plain HTTP) or it was refused
-    DashboardArrange.tsx      — Placing a panel without a pointer: one handle a pointer drags and a keyboard arranges with (`PanelHandle`: Enter to start, arrows move, Shift+arrows resize, Esc puts it back), the corner named after its panel (`PanelGridItem` tells it which, and hands the board's voice down), and the reorder handle in the one-column reading (`PanelOrder`, the shared `DragHandle` sorted by the grid's provider)
-    DashboardGrid.tsx         — The panels, placed — measured before the first paint, at the fixed width and centred or full width (D31), in reading order, one column below `md`, the tab on screen alone when a tab bar says which; the edit bar over them and the first things to add on an empty board, where the board is built; each panel's commands (`panelCommands`) and its press (`panelPress`)
-    DashboardPanel.tsx        — One framed panel: its title (a heading panel is that and nothing else), 「不受『〈筛选〉』影响」, 「点击筛选「〈筛选〉」」, its 「⋯」 menu, the wiring strip under it, the one arrange handle while the board is built, the body; what a panel is called (`panelName`, and `panelNames` numbering the names the board makes up); chart findings named by column
-    DashboardPanels.tsx       — The static panels: a heading, a note (its headings under the panel's own), a picture, a list of links
+  ui/                         — Default look; may import every layer. Three tiers: `kit/` under every feature folder, the feature folders, and at the root only the `/ui` entry, the four shells and the host's own pieces
     DashboardWorkbench.tsx    — Default Dashboard workbench: no 「正在显示」 band (D27), the board's fixed scope handed to the filter bar, a finding about a filter or a panel said by its name
     DataWorkbench.tsx         — The data workbench: one list of record and analysis views; `useWorkbench` + both parts + `WorkbenchShell`, joined (D18-1, D20)
-    DeleteDialog.tsx          — What a delete costs, said before it happens — a dashboard's, that the analyses made inside it go with it
-    DragHandle.tsx            — The one handle every ordered list is carried by (「可排序的列表一律拖拽排序」): a pointer drags it, ↑／↓ (←／→ on a bar) move a place, Space picks up, a click opens the menu of four places (WCAG 2.5.7); `HandleMove`, `moveTarget`
-    EditorBand.tsx            — The fold a view's editor lives in
     EmbeddedDashboard.tsx     — A saved board on a business page (D22), read and never written (D36): a tier (static, interactive), each filter adjustable, locked or hidden (`filterModes`) — the locked and hidden values the page's own and followed (`pageValues`), the reader's the host's address (`initialFilters`/`onFiltersChange`, never a held one), every filter read as what it holds in the static tier — the filter bar, tabs and grid (`ReadBoard`), the title, panel-title, export and fill-the-screen switches
     EmbeddedView.tsx          — A saved record or analysis view on a business page (D22), never written (D36): a tier (static, interactive), the page's narrowing ANDed onto the view's own (`scopeFilter`), and the title, search, export, record detail, auto-refresh, fill-the-screen and 在工作台中打开 switches; a dashboard is `EmbeddedDashboard`'s
-    ExportDialog.tsx          — The export window: scope, name, progress and outcome in one journey (D14), controlled so a panel's menu can open it, what the file holds said in the surface's own unit where its rows are an analysis's groups (`holds`, D25 Q28); `ExportButton`, the toolbar's own trigger for it
-    ExportSteps.tsx           — The export window's steps, one per phase (`phaseOf`, `said`): scope and what the file will hold, progress, the outcome, and the buttons each phase ends in
-    FieldMenu.tsx             — A picker's entries by catalogue group; shared by the field pickers
-    FilterPanel.tsx           — Condition builder root: mode, focus boundary, actions row
-    FilterValueEditor.tsx     — The switch over `EditorDescriptor.input`; the only place that knows the union
-    HandOffMenu.tsx           — A menu whose items may open a dialog: `HandOffMenu`, `HandOffMenuContent`, and `DialogMenuItem`, which keeps the menu closing after it from taking the keyboard back to its trigger
-    IconButton.tsx            — An icon-only control and the tooltip saying its name; the one place the two are paired — and `BadgeTooltip`, a badge whose note is a tooltip focus and a tap open too
-    LeaveGuard.tsx            — `LeaveDialog`: draws the headless guard's question
-    MessagesProvider.tsx      — `MessagesProvider`: the wording every default component reads, each provider merging over the one above it; `useSay` / `messages.say`, a definition's keys said in it — else in the engine's starting words (`StartingWords`) — where they are shown (D2); `keptKey` / `useSaidText`, an editor showing a key in words and giving the key back; `sayAll`, a drawing's input said as it comes in
-    ViewEngineProvider.tsx    — `ViewEngineProvider`, `ViewHost`'s inside and not an export: the context every surface reads — the engine, its starting words for `useSay`, its words checked for missing keys (`setText`, the outermost naming it), the route, the bindings (with the address's `?id=` merged into a bound reading), the router; `useEngine`, `useRoutedNavigate`, `useBindings`, `useViewRouter`
     ViewHost.tsx              — `ViewHost`: the host's one entry, made of ports — data (`engine`), router, language, theme (`theme`/`preset`/`brand` on `<html>`), commands (`bindings`) — nesting like the provider, the outermost painting `<html>` (host-integration.md 4.2)
-    address.ts                — The address a router port keeps: `?view=` for a workbench, `?id=` for a bound detail, the history entry's `ViewRouteState` (a view handed over, a board's filters and tab), and the router's handling of a way off
     colorMode.tsx             — `ColorModeHost` and `useColorMode`: light or dark painted on `<html>` — the system's followed live, a reader's pick kept under a key — or left to the host (`host`)
     viewNavigation.ts         — `useViewNavigation`: the host's navigation as data — each routed resource and its system views, titles said, where the address is (4.3)
-    bindings.ts               — `bind`: a definition's behaviour in the host — `route`, `reading` (D60), its declared `actions` and its `slots`
-    OutcomeActions.tsx        — One outcome as a line and its buttons, shared by the two above and the manager
-    PanelUnavailable.tsx      — A dashboard panel that cannot show anything: the finding mapped to why, in the reader's words, and who can bring it back — or, while the board is built, the buttons that do
-    PendingDot.tsx            — The "changed, not applied" dot pinned to a pill or a group
-    RecordCards.tsx           — The same result as cards, drawn from the card half of the saved config (D18 V); a value reads as a card reads it, a note on its own three lines
-    RecordPagination.tsx      — How many rows there are and how to reach the next of them; on a dashboard's record panel the pages alone, or the count alone where the board has no controls (`controls`, D39)
-    RecordTable.tsx           — The record view as a table: the columns and rows of the result that ran, never of the draft; its rows are `TableDataRow`s and a value reads as a table reads it, one line each
-    presets.ts                — `BUILT_IN_PRESETS`, the names `themes.css` ships, and the `preset` prop's type `ViewPreset`; `ViewDensity`, the `density` prop's three steps
-    RefreshControl.tsx        — Refresh now, and the auto-refresh cadence menu, as one split button
-    RenameInput.tsx           — A name typed in place — a panel's title, a tab's, a view's in the manager (Q-10): focused and selected; Enter or leaving keeps, Escape puts back; trimmed, an unchanged name no rename, a blank one refused where asked; ✓ and ✕ in the field where asked
-    RenderBoundary.tsx        — The boundary each part of a view renders behind, so one failing leaves the rest standing; what it catches told to `onFailure` and to the host's `onError`, a chart's as a chart (D40)
-    failureSink.tsx           — `FailureSink`: the way the boundaries below reach the engine's `onError`, set by the workbenches and the embeds with the open view named (internal, not exported)
-    ResultToolbar.tsx         — Selection, bulk slot, layout, columns, refresh
-    RowActions.tsx            — The wrapper a host's per-row actions land in
-    RowItem.tsx               — One row of a list over the registry's `Item`; the five lists share it
-    SaveActions.tsx           — The split save button group: save in place, and the menu of the other ways to save
-    SaveAsDialog.tsx          — What the create is: a copy of a saved view, the first save of one made from nothing, a board's own analysis promoted, or a personal view on a shared board copied for its readers (`share`, no audience asked)
-    SortSettings.tsx          — The sort editor: entries in priority order, direction, drag to reorder
-    SystemMark.tsx            — The lock a view that came with the definition wears in the sidebar and the switcher
-    StatusStrip.tsx           — One-line findings: warning, error, failed query (+ `dedupeIssues`)
-    ViewExpansion.tsx         — Filling the screen: `useViewExpansion`, `ViewExpandToggle`, the document's scroll lock
-    ViewHeader.tsx            — Title bar: kind, audience, title, unsaved mark, save commands
-    ViewList.tsx              — What this list is a list of — the definition's own title
-    ViewManager.tsx           — Rename, delete, reorder and the default view, from the sidebar
-    ViewManagerRow.tsx        — One managed view: drag handle, rename in place, default, delete
-    ViewSurface.tsx           — The boundary every view renders inside: the theme, the wording, the locale and the zone a time reads on; `useSurfaceAttributes`, the mode, preset and change convention a popup copies; `useSurfaceFont`, the surface's computed type a popup is set in
-    ViewSwitcher.tsx          — The view list as one control, for when the sidebar is folded away
-    WorkbenchShell.tsx        — The frame the workbenches share, over one `useWorkbench`: composes its columns and blocks from `workbench/` and holds the state they share; resolves the refresh, the query strip and the warnings itself
-    WriteOutcome.tsx          — The open view's last write, and the three ways out of a conflict
-    anchor.ts                 — `PickAnchor`, where a menu hangs from: the mark or row pressed, or the point (`pointAnchor`); every chart family hands one to the follow-up menu
-    alerts.tsx                — `LineAlert`: one callout one line high, tone deciding colour, icon and role
-    band.ts                   — `bandText`: a number histogram's key as the band it starts, 「¥0～500」, its bounds short when short is exact; `segmentText`, a `GTE`＋`LT` segment written the same way
-    badges.ts                 — What a value an option names wears: its label, said in the surface's words (`DisplayContext.say`), and its tone — a cell's badges (`badgeEntries`), an enum's text (`optionLabel`)
-    describeConfig.ts         — One config in a sentence, for a conflict's side-by-side
-    datePart.ts               — `datePartValue`: a calendar part's key named in the reader's language — 「周一」/Mon, 「20时」/20:00, 「9月」, 「3日」
-    currency.ts               — Money in each record's own currency as the screen and a file read it: a field in the currency its row holds (`inRowCurrency`), an aggregate in its one currency or 「多种货币」 (`currencyText`), and the file's currency column (`currencyCsvText`)
-    display.ts                — A value as its field shows it: enum labels, dates, bucket keys, calendar parts, an array of objects by its elements' title or its count (`heldReading`), never JSON; `summaryFunctionKey` names a summary in its column's vocabulary, `columnTitle` composes an analysis header from its two parts, and a time dimension's with its granularity or its cycle
-    download.ts               — Hands a file to the browser; the whole of the DOM the export needs, and the name it is handed under
-    dragAnnounce.ts           — What a screen reader hears while a row is dragged, in the shape the drag library takes; the four sortable lists share it
-    dragWording.ts            — `dragWording`: one list's three drag sentences — the shared instructions (`label.reorder.instructions`) and its own pick-up and cancel, read under that list's keys; each `drag.ts` names only its keys
-    dragDrop.ts               — `dropped()`: what makes a finished drag a drop at all, before any list adds its own rule
-    dragPlugins.ts            — The drag library's plugins and sensors, set once (Q-11): `sortableList`, a sortable list's provider — the `Accessibility` plugin worded by the list, a pointer that has to travel before a press is a drag (so the handle can be clicked); `withoutOptimisticSorting`, a sortable row's
-    focus.ts                  — Where the keyboard goes when a press takes away what it pressed, one set for every folder: `FOCUSABLE`, `isBarred`, `focusableIn`, `focusIn` and `useLanding` (U-02), which the analysis cards, the board's filter bar, the filter band's actions and the workbench's bands share
-    features.ts               — `WorkbenchFeatures`: which of the workbench's own controls exist (D18 XI)
-    gridPlacement.ts          — `useGridPlacement`: a pointer drag or resize placed by the kernel's `placePanel`, preview and drop alike
-    kinds.ts                  — The icon each kind and audience wears, shared by list and header; `SurfaceKind`, the one kind a surface has open, `kindWord`／`useKindWord`: a dashboard's chrome says 仪表盘 where another says 视图 (D26 Q34), and `kindIssue`／`useKindIssue`, the same for what the engine reports about the thing open, by the entry its code reads
-    layout.ts                 — `TEXT_UI`, `SPACE`: the one small type size and the spacing ruler; `FIXED_BOARD_WIDTH`, what a fixed-width dashboard is held to (D31)
-    messages.ts               — Wording, by key
-    popups.tsx                — The popups this package renders, themed and on a layer of their own
-    panelsToFix.ts            — `boardErrorTitle`: a board's red line said of its panels when only the open board's panels are broken (「有 N 个面板要先修正才能显示」), of the board otherwise; `saidByBoard`: a definition finding the open declared board already says by name
-    roving.ts                 — A group of peers as one Tab stop: who holds it, how it moves, where an arrow lands; the record header and the analysis result's rows share it
-    summary.ts                — The applied-conditions bar in words: one `FilterSummaryItem` as a sentence
-    toolbar.tsx               — Base UI's toolbar primitive: one tab stop with the arrow keys inside
-    variants.tsx              — The colours, edges and shapes a vendored component does not ship, in one place (D16-8); `ChangeBadge`, a change in the colour the host's change convention picks (`styles.css`); `TableDataRow` holds a record row's three states; the dashboard's `PanelCard` (the warning edge on the card's ring), `ControlFrame` (the `--input` edge a filter chip's controls share), `ModeBar` and `FOCUS_INSET`
     index.ts                  — The `/ui` entry: the default look, built on shadcn/ui with Base UI primitives
-    actions/                  — Declared actions drawn (host-integration.md 5.1); under `record` alone
+    actions/                  — Declared actions drawn (host-integration.md 5.1); over `filter` and `record`
       ActionSurface.tsx       — `useActionSurface`: a record surface's actions — the row's, the detail's and the selection's renderers (declared, then the host's slots with `run`), the runner's line, the dialog, the start and outcome said
       ActionButtons.tsx       — A record's buttons and 「⋯」 menu (primary inline, reasons on the button and atop the menu, a choice's options), and the selection bar's buttons
       ActionDialog.tsx        — The question and the form in one `AlertDialog`: the host's words or the engine's, the fields as the condition editor's controls, the refused by reason with 「只选能做的」
@@ -532,13 +451,15 @@ src/
       Tray.tsx                — The analysis view's editor, rows in dependency order (D71): expand → metrics → dimensions → result → range, one Apply for the whole draft (D20), quiet while auto-run leaves it nothing to do; the slots scroll, the footer stays
       editing.ts              — What the tray picks when a field is picked — its alias and the type or summary it starts as (`defaultGroup`, `defaultMetric`), the shapes being the kernel builders' — and what a metric or a dimension is called (`metricReference`, `groupReference`)
       issueNames.ts           — `chartIssueNamer`: a chart finding says each dimension and metric as its column is headed, never by alias, and why a chart shows as the table
-      listFocus.ts            — Where the keyboard stands after the card it was on leaves the page: `useListFocus`, shared by every remove in the tray and the options panel (A2), over `ui/focus.ts`; a move keeps the keyboard on its handle, which moves with the row
+      listFocus.ts            — Where the keyboard stands after the card it was on leaves the page: `useListFocus`, shared by every remove in the tray and the options panel (A2), over `ui/kit/focus.ts`; a move keeps the keyboard on its handle, which moves with the row
       exportOffer.ts          — The analysis's 「导出数据…」 (D25 Q28): `analysisFile`, the result as its table reads it — groups first, the first N, the totals row last, never the chart's padding — and `useAnalysisExportOffer`, what the export window is handed for it, no scope to pick
       imageExport.ts          — `useChartImageSlot` (the slot the chart on screen registers with) and `useChartImageOffer` (the chart as a PNG or an SVG, headed by the title and the conditions, named after the title and the day)
       ExportMenu.tsx          — The analysis toolbar's 「导出」 while a chart is drawn: 「导出数据…」, PNG and SVG in one menu (`ExportMenu`); the picture items a panel's 「⋯」 shares (`ImageMenuItems`) and the line a picture that failed leaves (`ImageFailed`)
       headerSort.ts           — The result table's header sort: `headerSorted` (ascending, descending, back to the order the presses began from — an analysis's sort decides which groups the first N are) and `useHeaderSort`, which writes it through the editor's `sortNow` — run at once, as the record header does, unless the draft holds another edit waiting for Apply
       tableColumns.ts         — An analysis column in the record table's terms: its reading (`readingOf`, a plain metric is a number), one value as its cell reads (`analysisCellText`, the exported file's reading too), whether it is an id (`isIdentifier`), a width from the column alone and never from its values (`columnWidthOf`), and the `RecordColumnView` its `SortableHeader` takes
       virtualRows.ts          — `useVirtualRows`: a result of more than `VIRTUAL_ROWS_AFTER` groups drawn virtually through TanStack Virtual — the rows in view and the one holding the Tab stop, the room the others take (`bodySegments`), scrolled by the table's port, an ancestor or the page; every row while printing
+      AnalysisChart.tsx       — Dispatches by chart family, a pie of no slices to the empty state (`AnalysisEmpty`); nothing else but saying whether the follow-up menu is open over the chart (`ChartMenuOpen`)
+      AnalysisTable.tsx       — The aggregation as a table: groups first, then metrics, with the totals row from its own ungrouped query rather than from summing what is on screen, and its scope said under 「合计」; read with the record table's recipes — numbers on the right, ids in monospace, `SortableHeader`, held widths and the filler; over a time dimension a second row picked with Shift is a span (the keyboard's brush, D33 Q52)
     charts/                   — One file per family, plus what they share
       Cartesian.tsx           — Bar, line, area and combo through `cartesianOption` (D21): the legend, the names fitted to the width, a pressed mark handed back as its group, a brushed stretch of a time axis as a span (D33 Q52); the legend a row of switches for the series and the derived lines (`hidden`), the zoom kept for one result (`zoomFor`), and above the legend why a line asked for is not drawn (`chart-gap-note`, Q53)
       cartesianOption.ts      — `cartesianOption`: a cartesian chart as the library draws it — each series' mark, axes on the scales the plan owns and their titles, short numbers, value labels (inside a stacked segment in the ink that stands off it), stack totals, reference lines, emphasis toward the ink, room for the widest value label
@@ -557,7 +478,6 @@ src/
       frameClass.ts           — `frameClass`: the chart frame's class recipe — where the legend sits, a plot hugging it, a height the frame sets, and the host's own class
       echarts.ts              — The chart chunk: the library's pieces registered on demand (markLine, markArea and markPoint among them), SVG renderer; imported by `load.ts` only
       load.ts                 — `loadCharts`: the chart chunk loaded on first use and kept, and a family's own chunk (`ChartChunk`) registered on its first chart
-      failure.ts              — `ChartFailure`: a chart whose library did not arrive or threw drawing, thrown in render for the boundary to tell the host as a `chart` failure (D40)
       sizes.ts                — `watchSize`: one `ResizeObserver` for every chart, so the charts one frame sizes are all created before any is drawn (Linux WebKit walks the whole page on the first layout after a wheel listener comes); a chart that throws being created or drawn handed to its own `failed` rather than stopping the rest
       measure.ts              — How wide a line of tick text is: a canvas where there is one, an estimate elsewhere
       theme.ts                — `readChartTheme`: the chart's whole look (`ChartTheme`: palette, grid, quiet text, type, lines, bars, slices) read back off the chart's element from the tokens and the chart roles, as concrete colours, pixels and numbers — a derived one (`color-mix()`, `oklch(from …)`, `calc()`) through a hidden probe the browser resolves; `chartText`, the option's `textStyle`; `CHART_TOKENS` and `THEME_ATTRIBUTES` re-exported from the registry, what a chart reads and what `ViewSurface` watches for it; `mixColor`, `emphasized` (a hovered mark a step toward the ink) and `inkOn` (the ink a label on a mark wears, by contrast); the host's pin on patterns (`--fve-chart-patterns`)
@@ -641,7 +561,7 @@ src/
       FilterOrder.tsx         — `useFilterOrder`: the bar's filters put in another order while the board is built — a `DragHandle` on each chip, ←/→ or a drag, the landing said in the board's voice, every move `moveFilter`; the places are the bar's, a hidden filter kept in order (`barMove`), the time grouping after them all
       FilterSettings.tsx      — 「添加筛选」 (`AddFilterMenu`) and one filter's settings popover: type, name, default, several values, required, where its values come from, 接线 and 移除
       FilterWiring.tsx        — Wiring a filter (D22 G): the context the grid reads, each panel's strip (same-type fields, 「没有可接的字段」, 「手动」), the wiring bar, the toasts in the board's own root
-      landing.ts              — The lookups on the board a press that takes its own control away lands by (`useLanding` in `ui/focus.ts`, U-02): the board, a filter's chip and value, 「撤销」, 「添加筛选」
+      landing.ts              — The lookups on the board a press that takes its own control away lands by (`useLanding` in `ui/kit/focus.ts`, U-02): the board, a filter's chip and value, 「撤销」, 「添加筛选」
       EditBar.tsx             — The bar a board is built under: 正在编辑, 撤销／重做, 添加 and 添加筛选 beside it, 取消 (put back the saved board, asked first) and 保存 (the save, a shared board asked first, a new one named; D26 Q37); stuck to the top of what scrolls the board while it is built
       history.ts              — `useBoardHistory`: 撤销／重做 named after the step each takes, said when taken, ⌘Z／Ctrl+Z on the board and never in a field, and where the keyboard goes
       extensions.ts           — `DashboardEditExtensions`: the parts of building that live elsewhere (a new owned analysis, the presentation editor and its reset, 另存为视图, 复制为共享视图并替换 with whether it is offered, the tab bar), each entry there only while provided
@@ -656,11 +576,18 @@ src/
       ScrollCue.tsx           — `ScrollCue`: 「下面还有 N 行」／「右边还有 N 列」／「下面还有内容」 on a panel body's end corner, above its scrollbar and totals band — a picture of the scroll, no Tab stop, `aria-hidden` (P1-3)
       panelFit.ts             — `fittedLayout`: a board read with each table, note or links panel grown by whole rows to its body's height, at most `GROWS_TO_ROWS` (8), never below its saved height, what stood under it moved down (`grownLayout`); `usePanelWholes`, the heights the panels report (P1-3)
       ViewPicker.tsx          — Choosing a saved view: grouped as the switcher groups them, searched, narrowed by kind and data, 「已在板上」 and 「只有你看得到」 said on the row; or, for a click, another board
+      DashboardArrange.tsx    — Placing a panel without a pointer: one handle a pointer drags and a keyboard arranges with (`PanelHandle`: Enter to start, arrows move, Shift+arrows resize, Esc puts it back), the corner named after its panel (`PanelGridItem` tells it which, and hands the board's voice down), and the reorder handle in the one-column reading (`PanelOrder`, the shared `DragHandle` sorted by the grid's provider)
+      DashboardGrid.tsx       — The panels, placed — measured before the first paint, at the fixed width and centred or full width (D31), in reading order, one column below `md`, the tab on screen alone when a tab bar says which; the edit bar over them and the first things to add on an empty board, where the board is built; each panel's commands (`panelCommands`) and its press (`panelPress`)
+      DashboardPanel.tsx      — One framed panel: its title (a heading panel is that and nothing else), 「不受『〈筛选〉』影响」, 「点击筛选「〈筛选〉」」, its 「⋯」 menu, the wiring strip under it, the one arrange handle while the board is built, the body; what a panel is called (`panelName`, and `panelNames` numbering the names the board makes up); chart findings named by column
+      DashboardPanels.tsx     — The static panels: a heading, a note (its headings under the panel's own), a picture, a list of links
+      PanelUnavailable.tsx    — A dashboard panel that cannot show anything: the finding mapped to why, in the reader's words, and who can bring it back — or, while the board is built, the buttons that do
+      gridPlacement.ts        — `useGridPlacement`: a pointer drag or resize placed by the kernel's `placePanel`, preview and drop alike
     columns/
       ColumnRow.tsx           — One row of the column settings: checkbox, two-state pin toggle, summary, handle
       drag.ts                 — What the settings make of a drag: `columnDrop` refuses one across the areas, plus what a reader hears
       rows.ts                 — The column settings' model: rows, the two areas (D19), order
       sections.ts             — Rows of one area by catalogue group; the search over them
+      ColumnSettings.tsx      — Which columns show, in which order, pinned or not, summarised how — one sortable group per area (D19)
     components/               — 34 shadcn/ui primitives — vendored, see below
     filter/                   — What the panel is made of
       AddEntry.tsx            — The field picker a group is added to from
@@ -689,9 +616,60 @@ src/
         time.tsx              — The time of day under a calendar: 「按整天」 until 「+ 指定时刻」, then hours and minutes a bound (Base UI `NumberField` each), × back to the whole day, 「移除时刻」
         timeOfDay.ts          — A time's two segments: `parseTime`, `clampSegment`, `writeTime` (`HH:mm`), `hourIsComplete`
         unsupported.tsx       — A value no control can hold: the stored value and why it is read-only (F-06)
+      AppliedBar.tsx          — The conditions the rows on screen were fetched under; a page's scope worn read-only. Record and analysis views only: a dashboard draws none (D27)
+      FilterPanel.tsx         — Condition builder root: mode, focus boundary, actions row
+      FilterValueEditor.tsx   — The switch over `EditorDescriptor.input`; the only place that knows the union
+    kit/                      — Shared building blocks every feature folder takes — the buttons, popups, toolbar and focus, the drag vocabulary, the words and the surface; imports only `components`, `lib`, `theme` and `messages`
+      Announcer.tsx           — `useAnnouncer`: one live region per surface, handed back rather than rendered by the caller, the same words twice said twice; `SurfaceAnnouncer`／`useSurfaceAnnouncer`: a surface's one voice handed to the parts drawn inside it (a board's grid, tabs, filters, building)
+      CopyButton.tsx          — A value's own copy button: the clipboard, the tick, and the two words a press comes back with
+      copyText.ts             — `copyText`: the Clipboard API, or the document's `copy` command where there is none (plain HTTP) or it was refused
+      DragHandle.tsx          — The one handle every ordered list is carried by (「可排序的列表一律拖拽排序」): a pointer drags it, ↑／↓ (←／→ on a bar) move a place, Space picks up, a click opens the menu of four places (WCAG 2.5.7); `HandleMove`, `moveTarget`
+      ExportDialog.tsx        — The export window: scope, name, progress and outcome in one journey (D14), controlled so a panel's menu can open it, what the file holds said in the surface's own unit where its rows are an analysis's groups (`holds`, D25 Q28); `ExportButton`, the toolbar's own trigger for it
+      ExportSteps.tsx         — The export window's steps, one per phase (`phaseOf`, `said`): scope and what the file will hold, progress, the outcome, and the buttons each phase ends in
+      FieldMenu.tsx           — A picker's entries by catalogue group; shared by the field pickers
+      HandOffMenu.tsx         — A menu whose items may open a dialog: `HandOffMenu`, `HandOffMenuContent`, and `DialogMenuItem`, which keeps the menu closing after it from taking the keyboard back to its trigger
+      IconButton.tsx          — An icon-only control and the tooltip saying its name; the one place the two are paired — and `BadgeTooltip`, a badge whose note is a tooltip focus and a tap open too
+      MessagesProvider.tsx    — `MessagesProvider`: the wording every default component reads, each provider merging over the one above it; `useSay` / `messages.say`, a definition's keys said in it — else in the engine's starting words (`StartingWords`) — where they are shown (D2); `keptKey` / `useSaidText`, an editor showing a key in words and giving the key back; `sayAll`, a drawing's input said as it comes in
+      OutcomeActions.tsx      — One outcome as a line and its buttons, shared by the two above and the manager
+      PendingDot.tsx          — The "changed, not applied" dot pinned to a pill or a group
+      presets.ts              — `BUILT_IN_PRESETS`, the names `themes.css` ships, and the `preset` prop's type `ViewPreset`; `ViewDensity`, the `density` prop's three steps
+      RenameInput.tsx         — A name typed in place — a panel's title, a tab's, a view's in the manager (Q-10): focused and selected; Enter or leaving keeps, Escape puts back; trimmed, an unchanged name no rename, a blank one refused where asked; ✓ and ✕ in the field where asked
+      RenderBoundary.tsx      — The boundary each part of a view renders behind, so one failing leaves the rest standing; what it catches told to `onFailure` and to the host's `onError`, a chart's as a chart (D40)
+      failureSink.tsx         — `FailureSink`: the way the boundaries below reach the engine's `onError`, set by the workbenches and the embeds with the open view named (internal, not exported)
+      RowItem.tsx             — One row of a list over the registry's `Item`; the five lists share it
+      SystemMark.tsx          — The lock a view that came with the definition wears in the sidebar and the switcher
+      StatusStrip.tsx         — One-line findings: warning, error, failed query (+ `dedupeIssues`)
+      ViewExpansion.tsx       — Filling the screen: `useViewExpansion`, `ViewExpandToggle`, the document's scroll lock
+      ViewSurface.tsx         — The boundary every view renders inside: the theme, the wording, the locale and the zone a time reads on; `useSurfaceAttributes`, the mode, preset and change convention a popup copies; `useSurfaceFont`, the surface's computed type a popup is set in
+      anchor.ts               — `PickAnchor`, where a menu hangs from: the mark or row pressed, or the point (`pointAnchor`); every chart family hands one to the follow-up menu
+      alerts.tsx              — `LineAlert`: one callout one line high, tone deciding colour, icon and role
+      band.ts                 — `bandText`: a number histogram's key as the band it starts, 「¥0～500」, its bounds short when short is exact; `segmentText`, a `GTE`＋`LT` segment written the same way
+      badges.ts               — What a value an option names wears: its label, said in the surface's words (`DisplayContext.say`), and its tone — a cell's badges (`badgeEntries`), an enum's text (`optionLabel`)
+      datePart.ts             — `datePartValue`: a calendar part's key named in the reader's language — 「周一」/Mon, 「20时」/20:00, 「9月」, 「3日」
+      currency.ts             — Money in each record's own currency as the screen and a file read it: a field in the currency its row holds (`inRowCurrency`), an aggregate in its one currency or 「多种货币」 (`currencyText`), and the file's currency column (`currencyCsvText`)
+      display.ts              — A value as its field shows it: enum labels, dates, bucket keys, calendar parts, an array of objects by its elements' title or its count (`heldReading`), never JSON; `summaryFunctionKey` names a summary in its column's vocabulary, `columnTitle` composes an analysis header from its two parts, and a time dimension's with its granularity or its cycle
+      download.ts             — Hands a file to the browser; the whole of the DOM the export needs, and the name it is handed under
+      dragAnnounce.ts         — What a screen reader hears while a row is dragged, in the shape the drag library takes; the four sortable lists share it
+      dragWording.ts          — `dragWording`: one list's three drag sentences — the shared instructions (`label.reorder.instructions`) and its own pick-up and cancel, read under that list's keys; each `drag.ts` names only its keys
+      dragDrop.ts             — `dropped()`: what makes a finished drag a drop at all, before any list adds its own rule
+      dragPlugins.ts          — The drag library's plugins and sensors, set once (Q-11): `sortableList`, a sortable list's provider — the `Accessibility` plugin worded by the list, a pointer that has to travel before a press is a drag (so the handle can be clicked); `withoutOptimisticSorting`, a sortable row's
+      focus.ts                — Where the keyboard goes when a press takes away what it pressed, one set for every folder: `FOCUSABLE`, `isBarred`, `focusableIn`, `focusIn` and `useLanding` (U-02), which the analysis cards, the board's filter bar, the filter band's actions and the workbench's bands share
+      features.ts             — `WorkbenchFeatures`: which of the workbench's own controls exist (D18 XI)
+      kinds.ts                — The icon each kind and audience wears, shared by list and header; `SurfaceKind`, the one kind a surface has open, `kindWord`／`useKindWord`: a dashboard's chrome says 仪表盘 where another says 视图 (D26 Q34), and `kindIssue`／`useKindIssue`, the same for what the engine reports about the thing open, by the entry its code reads
+      layout.ts               — `TEXT_UI`, `SPACE`: the one small type size and the spacing ruler; `FIXED_BOARD_WIDTH`, what a fixed-width dashboard is held to (D31)
+      messages.ts             — Wording, by key
+      popups.tsx              — The popups this package renders, themed and on a layer of their own
+      roving.ts               — A group of peers as one Tab stop: who holds it, how it moves, where an arrow lands; the record header and the analysis result's rows share it
+      summary.ts              — The applied-conditions bar in words: one `FilterSummaryItem` as a sentence
+      toolbar.tsx             — Base UI's toolbar primitive: one tab stop with the arrow keys inside
+      variants.tsx            — The colours, edges and shapes a vendored component does not ship, in one place (D16-8); `ChangeBadge`, a change in the colour the host's change convention picks (`styles.css`); `TableDataRow` holds a record row's three states; the dashboard's `PanelCard` (the warning edge on the card's ring), `ControlFrame` (the `--input` edge a filter chip's controls share), `ModeBar` and `FOCUS_INSET`
+      chartFailure.ts         — `ChartFailure`: a chart whose library did not arrive or threw drawing, thrown in render for the boundary to tell the host as a `chart` failure (D40)
     lib/utils.ts              — shadcn cn() helper — vendored
     manage/
       drag.ts                 — What the manager makes of a drag: which drop it will take, and what a screen reader hears while one is under way
+      DeleteDialog.tsx        — What a delete costs, said before it happens — a dashboard's, that the analyses made inside it go with it
+      ViewManager.tsx         — Rename, delete, reorder and the default view, from the sidebar
+      ViewManagerRow.tsx      — One managed view: drag handle, rename in place, default, delete
     messages/                 — the catalogue, one file per prefix family
       analysis.ts             — the analysis editor and its charts, with the two kernels behind them
       building.ts             — building a board, batch B3: tabs, a new analysis in a dashboard, saving it as a view, a panel's own look
@@ -749,8 +727,14 @@ src/
       sticky.ts               — The one home of the table's sticky chrome (A-09): `stickyCell`/`stickyHead` (the held cell's recipe plus `data-pin`/`data-pin-edge`/`data-pin-index`), `stickyBand` and `BAND`/`BAND_ROW` (the two bands, `data-sticky`), `OWN_LAYER`, `pinVar`; `LeftPin` carries the offset chain and `RightPin` is the one column against the edge itself (A9, D19); the boundary's edge is drawn through `in-data-[overflowing]:`, so it answers to the port's word from `overflow.ts` (P-23)
       useSummaries.ts         — The two summary scopes from the one the runtime executed; table and cards share it
       useOffscreenColumns.ts  — `useOffscreenColumns`: one `IntersectionObserver` rooted at the box that scrolls the table sideways, inset by the held columns — which summarised columns are out of view; `revealCell` scrolls one in between the held columns
+      CardSettings.tsx        — The card layout's settings behind the column settings' button (D18 VI)
+      RecordCards.tsx         — The same result as cards, drawn from the card half of the saved config (D18 V); a value reads as a card reads it, a note on its own three lines
+      RecordPagination.tsx    — How many rows there are and how to reach the next of them; on a dashboard's record panel the pages alone, or the count alone where the board has no controls (`controls`, D39)
+      RecordTable.tsx         — The record view as a table: the columns and rows of the result that ran, never of the draft; its rows are `TableDataRow`s and a value reads as a table reads it, one line each
+      RowActions.tsx          — The wrapper a host's per-row actions land in
     sort/
       drag.ts                 — What the sort editor makes of a drag: which entry a drop moves where, the order that comes out of it, and what a screen reader hears meanwhile
+      SortSettings.tsx        — The sort editor: entries in priority order, direction, drag to reorder
     theme/                    — The theme's registry (theme-architecture.md 5, D46): the contract as data, structure and never a value
       tokens.ts               — `TOKENS`: every host variable, its tier, kind, modes, group and whether the blocks declare it, a preset sets it, the bridge points it, a chart reads it, and which role a link draws in which resolved token (`link`, theme-architecture.md 9.3); `TOKEN_GROUPS`, `THEME_AXES`; the `FveToken` type; `CHART_TOKENS` and `THEME_ATTRIBUTES` derived from it
       tokenDocs.ts            — `TOKEN_DOCS`: each token's words for the READMEs' generated tables, in English and Chinese, beside the registry so the runtime does not carry them
@@ -758,7 +742,7 @@ src/
       densityDocs.ts          — `DENSITY_LENGTH_DOCS`: the same words for the density's five lengths, host variables of the layout whose default the step gives (`table-header-height` and the rest), spread into `TOKEN_DOCS`
       stateDocs.ts            — `STATE_DOCS`: the same words for the roles that mark a state and their links, spread into `TOKEN_DOCS`
       pairs.ts                — `GROUNDS` and `contrastPairs`: every pair the surface paints and the line it owes (`LINES`, `PRESET_LINES`, `linesOf`) — the one list the jsdom arithmetic and Storybook's contrast matrix both expand; `PENDING` / `isPending`, a preset's known shortfalls owed by its retuning batch, excused only while still short
-    workbench/                — The shell's private parts, and the parts each kind of view puts into it
+    workbench/                — The shell and its private parts — the view list and header, saving and its confirmations, refresh, the result toolbar, the engine's provider — and the parts each kind of view puts into it
       AnalysisParts.tsx       — What makes an analysis view an analysis view: its editor and its table or chart, handed to the shell as slots
       ConditionBlock.tsx      — The view's editor on a tray of its own: the fold's band when it folds, an open block when it does not, behind one boundary
       configRemedy.ts         — Where a record config that will not run is fixed: the part of it the first error is about
@@ -777,6 +761,23 @@ src/
       useEditorFold.ts        — The editor's fold, per opening; `filled`
       useSidebarFold.ts       — The sidebar's fold, following the surface's width until the user presses; `useNarrowSurface`, whether there is room for a column beside the view at all
       useWorkbenchFolds.ts    — The shell's two folds as one hook: the list beside the view, the view filling the screen, and where a press sends focus
+      ConflictConfirm.tsx     — The same choice, put once more with both configs on the table
+      EditorBand.tsx          — The fold a view's editor lives in
+      LeaveGuard.tsx          — `LeaveDialog`: draws the headless guard's question
+      ViewEngineProvider.tsx  — `ViewEngineProvider`, `ViewHost`'s inside and not an export: the context every surface reads — the engine, its starting words for `useSay`, its words checked for missing keys (`setText`, the outermost naming it), the route, the bindings (with the address's `?id=` merged into a bound reading), the router; `useEngine`, `useRoutedNavigate`, `useBindings`, `useViewRouter`
+      address.ts              — The address a router port keeps: `?view=` for a workbench, `?id=` for a bound detail, the history entry's `ViewRouteState` (a view handed over, a board's filters and tab), and the router's handling of a way off
+      bindings.ts             — `bind`: a definition's behaviour in the host — `route`, `reading` (D60), its declared `actions` and its `slots`
+      RefreshControl.tsx      — Refresh now, and the auto-refresh cadence menu, as one split button
+      ResultToolbar.tsx       — Selection, bulk slot, layout, columns, refresh
+      SaveActions.tsx         — The split save button group: save in place, and the menu of the other ways to save
+      SaveAsDialog.tsx        — What the create is: a copy of a saved view, the first save of one made from nothing, a board's own analysis promoted, or a personal view on a shared board copied for its readers (`share`, no audience asked)
+      ViewHeader.tsx          — Title bar: kind, audience, title, unsaved mark, save commands
+      ViewList.tsx            — What this list is a list of — the definition's own title
+      ViewSwitcher.tsx        — The view list as one control, for when the sidebar is folded away
+      WorkbenchShell.tsx      — The frame the workbenches share, over one `useWorkbench`: composes its columns and blocks from `workbench/` and holds the state they share; resolves the refresh, the query strip and the warnings itself
+      WriteOutcome.tsx        — The open view's last write, and the three ways out of a conflict
+      describeConfig.ts       — One config in a sentence, for a conflict's side-by-side
+      panelsToFix.ts          — `boardErrorTitle`: a board's red line said of its panels when only the open board's panels are broken (「有 N 个面板要先修正才能显示」), of the board otherwise; `saidByBoard`: a definition finding the open declared board already says by name
 ```
 
 `test/` (one file per subject plus `fixtures.ts` and `fixtures/`), `examples/` (`FetcherViewStore.ts`, `PlainRecordWorkbench.tsx`, `quickstart.ts`) and `docs/design/` sit beside `src/`.
@@ -806,7 +807,7 @@ src/
 - ESLint runs `react-hooks` with `exhaustive-deps`, `incompatible-library` and `unsupported-syntax` all set to **error**; CI gates on `lint:check` with `--max-warnings 0`
 - `max-lines` is a tripwire, counting code only (`skipBlankLines`, `skipComments`): **500** for `src/**` (vendored `ui/components` / `ui/lib`, the `ui/messages/` catalogue and the three entries, which are lists of names (D64), are out of scope) and **1200** for `test/**` — a file that exceeds it is either split or given a per-file override in `eslint.config.js`, whose ceiling is **the measured code lines × 1.1, rounded up to a multiple of ten**, so a fix may add a few lines but the file cannot grow back meaningfully; **an override requires a matching entry in `docs/design/todo.md`** saying how it comes back under the line, and a round of splitting re-measures and re-tightens the remaining ceilings
 - **Any work under `src/ui/**` starts with the shadcn skill — `Skill(shadcn)` (or `/shadcn`).** That is this repository's copy at `.claude/skills/shadcn` (from `npx skills add shadcn/ui -a claude-code --copy`). **Never install the skill globally as well**: Claude Code resolves a same-named skill to `~/.claude/skills/shadcn` first, the repository copy is then never loaded, and the global preamble runs `shadcn info` from the repository root and fails on a monorepo. The repository copy's preamble passes `-c "$(git rev-parse --show-toplevel)/typescript/wow-view-engine"`, which is the one workspace with a `components.json`. Read its `SKILL.md` and `rules/*.md` (styling, composition, forms, icons) before writing or reviewing UI; when running any other CLI command from it, pass the same `-c` (or `cd typescript/wow-view-engine` first). Its rules are this package's rules: semantic tokens only; `className` for layout, never a component's colours or typography; existing components before custom markup (`Badge`, `Separator`, `Empty`, `Alert`, `Skeleton`, `Field`/`FieldGroup` for forms, `ToggleGroup` for option sets); icons inside components carry `data-icon` and no size classes; Base UI triggers use `render`; add a missing component with `npx shadcn@latest add <name> -c typescript/wow-view-engine`, never by hand. Where a rule is knowingly set aside — a vendored colour overridden to fix a defect, a component declined for a reason — say so at the call site and in `docs/design/ui/`. A subagent brief for UI work repeats this paragraph.
-- `src/ui/components/**` and `src/ui/lib/**` are vendored from the shadcn registry — update them with `shadcn add --diff` rather than editing by hand; `src/ui/popups.tsx` holds a copy of each popup's Portal/positioner/popup markup, because the theme and the stacking level have to reach elements the vendored wrapper does not expose, so a registry update carries over to it as well — `test/popups.test.tsx` renders both and compares what comes out
+- `src/ui/components/**` and `src/ui/lib/**` are vendored from the shadcn registry — update them with `shadcn add --diff` rather than editing by hand; `src/ui/kit/popups.tsx` holds a copy of each popup's Portal/positioner/popup markup, because the theme and the stacking level have to reach elements the vendored wrapper does not expose, so a registry update carries over to it as well — `test/popups.test.tsx` renders both and compares what comes out
 - Bilingual READMEs (`README.md`, `README.zh-CN.md`); `docs/design/` is in Chinese
 
 ## Git Workflow

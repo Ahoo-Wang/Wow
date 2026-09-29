@@ -28,11 +28,11 @@ import {
 import { cn } from 'cn';
 import { Button } from '../components/button.js';
 import { GroupBlock } from '../filter/GroupBlock.js';
-import { IconButton } from '../IconButton.js';
-import { TEXT_UI } from '../layout.js';
-import { useViewMessages } from '../MessagesProvider.js';
-import { onlyWhereText } from '../summary.js';
-import { useSurfaceDisplay } from '../ViewSurface.js';
+import { IconButton } from '../kit/IconButton.js';
+import { TEXT_UI } from '../kit/layout.js';
+import { useViewMessages } from '../kit/MessagesProvider.js';
+import { onlyWhereText } from '../kit/summary.js';
+import { useSurfaceDisplay } from '../kit/ViewSurface.js';
 
 /** The findings under one place in the config, addressed against the tree there. */
 function issuesAt(issues: readonly Issue[], at: IssuePath): Issue[] {

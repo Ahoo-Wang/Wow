@@ -38,7 +38,7 @@ import {
   EmbeddedView,
   DataWorkbench,
 } from '../src/ui/index.js';
-import { SPACE } from '../src/ui/layout.js';
+import { SPACE } from '../src/ui/kit/layout.js';
 import {
   INSTANT,
   ZONE,

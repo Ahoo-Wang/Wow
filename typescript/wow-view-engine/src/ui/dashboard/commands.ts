@@ -33,7 +33,7 @@ import {
   type ViewNavigation,
   type ViewRuntime,
 } from '../../runtime/index.js';
-import type { MessageFormatters } from '../MessagesProvider.js';
+import type { MessageFormatters } from '../kit/MessagesProvider.js';
 import type { DashboardEditExtensions } from './extensions.js';
 
 /**
@@ -64,15 +64,6 @@ export interface BoardBuilding {
 }
 
 export const BoardBuildingContext = createContext<BoardBuilding | null>(null);
-
-/**
- * Where a dialog the board opened hands the keyboard back as it closes. A
- * dialog opened from a menu item would return it to that item, which went
- * with the menu; so the board names the control that asked instead — the
- * edit bar's 「＋ 添加」, or the panel's own 「⋯」 — asked at closing, since
- * the board has changed under the dialog by then.
- */
-export type FinalFocus = () => HTMLElement | boolean;
 
 /** The builder around the grid; `null` where nothing builds the board. */
 export function useBoardBuilding(): BoardBuilding | null {

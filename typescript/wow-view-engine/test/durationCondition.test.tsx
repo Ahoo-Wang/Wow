@@ -57,9 +57,9 @@ import {
 import { narrowDefinition } from '../src/capabilities/index.js';
 import { withCanonicalNames } from '../src/capabilities/aliases.js';
 import { useFilterEditor } from '../src/react/index.js';
-import { AppliedBar } from '../src/ui/AppliedBar.js';
+import { AppliedBar } from '../src/ui/filter/AppliedBar.js';
 import { FilterPanel } from '../src/ui/index.js';
-import { MessagesProvider } from '../src/ui/MessagesProvider.js';
+import { MessagesProvider } from '../src/ui/kit/MessagesProvider.js';
 import { zhCN } from '../src/ui/messages/zh-CN.js';
 import {
   ordersDefinition,

@@ -12,7 +12,7 @@
  */
 
 import type { FilterGroupOperator } from '../../model/index.js';
-import type { MessageKey } from '../messages.js';
+import type { MessageKey } from '../kit/messages.js';
 
 /**
  * What a group's operator says about the conditions under it.

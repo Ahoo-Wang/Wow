@@ -1118,7 +1118,7 @@ export const ATruncatedColumnNameIsOneHoverAway: Story = {
       return found!;
     });
     await expect(tip.textContent?.trim()).toBe(whole);
-    // Themed from `ui/popups.tsx` like every other popup here: it is drawn
+    // Themed from `ui/kit/popups.tsx` like every other popup here: it is drawn
     // outside the surface, where the tokens do not reach on their own.
     await expect(tip.className).toContain('fve-root');
 

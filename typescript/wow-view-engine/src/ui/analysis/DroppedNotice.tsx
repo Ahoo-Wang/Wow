@@ -17,13 +17,13 @@ import type {
   AnalysisEditorController,
   DropNotice,
 } from '../../react/index.js';
-import { useAnnouncer, useSentence } from '../Announcer.js';
+import { useAnnouncer, useSentence } from '../kit/Announcer.js';
 import { Alert, AlertDescription } from '../components/alert.js';
 import { Button } from '../components/button.js';
-import { IconButton } from '../IconButton.js';
-import type { MessageFormatters } from '../MessagesProvider.js';
-import { useViewMessages } from '../MessagesProvider.js';
-import { useLanding } from '../focus.js';
+import { IconButton } from '../kit/IconButton.js';
+import type { MessageFormatters } from '../kit/MessagesProvider.js';
+import { useViewMessages } from '../kit/MessagesProvider.js';
+import { useLanding } from '../kit/focus.js';
 import { groupReference, metricReference } from './editing.js';
 
 /**

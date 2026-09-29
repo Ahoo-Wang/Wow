@@ -40,7 +40,7 @@ import {
   type ViewInstance,
   type ViewSource,
 } from '../src/index.js';
-import { AnalysisChart } from '../src/ui/AnalysisChart.js';
+import { AnalysisChart } from '../src/ui/analysis/AnalysisChart.js';
 import { cartesianOption } from '../src/ui/charts/cartesianOption.js';
 import type { CartesianContext } from '../src/ui/charts/cartesianPlan.js';
 import { CHART_FALLBACK, type ChartTheme } from '../src/ui/charts/theme.js';

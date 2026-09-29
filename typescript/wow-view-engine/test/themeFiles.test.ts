@@ -36,7 +36,7 @@ import { join } from 'node:path';
 import postcss from 'postcss';
 import { compile } from 'tailwindcss';
 import { describe, expect, it } from 'vitest';
-import { BUILT_IN_PRESETS } from '../src/ui/presets';
+import { BUILT_IN_PRESETS } from '../src/ui/kit/presets';
 import {
   declaredVariable,
   hostVariables,

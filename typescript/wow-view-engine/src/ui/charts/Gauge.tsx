@@ -13,8 +13,8 @@
 
 import { useCallback } from 'react';
 import type { GaugeData } from '../../analysis/index.js';
-import { useViewMessages } from '../MessagesProvider.js';
-import { useSurfaceDisplay } from '../ViewSurface.js';
+import { useViewMessages } from '../kit/MessagesProvider.js';
+import { useSurfaceDisplay } from '../kit/ViewSurface.js';
 import { chartNotes } from './ChartNotes.js';
 import { EChart } from './EChart.js';
 import type { FamilyProps } from './family.js';

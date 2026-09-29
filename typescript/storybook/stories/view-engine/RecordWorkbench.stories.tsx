@@ -1049,7 +1049,7 @@ export const FillTheScreenInScaledHost: Story = {
  * 铺满屏幕时，弹层仍然在面的**前面**——这正是「不进 top layer」当初要保住的东
  * 西，而列设置与排序这两个弹层是后来才有的。
  *
- * 本包所有弹层都 portal 到 `document.body`，`ui/popups.tsx` 给每个 positioner
+ * 本包所有弹层都 portal 到 `document.body`，`ui/kit/popups.tsx` 给每个 positioner
  * 写上 `z-index: var(--fve-popup-z-index, 50)`，所以它们有自己的一层；铺满的面
  * 取 `z-index: 0`，管的只是它与**宿主页面**的高低。两件事分开之后，这条故事问
  * 的仍是同一句话：面铺开时，菜单打得开吗。
@@ -1091,7 +1091,7 @@ export const RenderFailure: Story = {
  * stacking context——弹层内容里的 `z-50` 出不去；而 positioner 上那句
  * `isolate z-50` 是 Tailwind utility，构建又把本样式表每条规则都钉在
  * `:where(.fve-root, .fve-root *)` 里，positioner 不带 `fve-root`，那句话谁也没
- * 匹配上。所以层级只能写在 positioner **自己**身上：`ui/popups.tsx` 把
+ * 匹配上。所以层级只能写在 positioner **自己**身上：`ui/kit/popups.tsx` 把
  * `z-index: var(--fve-popup-z-index, 50)` 作为 style 写上去，样式表在不在都成
  * 立；宿主自己的 chrome 比 50 还高时，在 `:root` 上改这一个变量即可。
  *

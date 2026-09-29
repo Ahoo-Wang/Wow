@@ -12,7 +12,7 @@
  */
 
 import { useChartMaps } from '../charts/maps.js';
-import { useViewMessages } from '../MessagesProvider.js';
+import { useViewMessages } from '../kit/MessagesProvider.js';
 import { SlotSelect, type OptionsPageProps } from './optionControls.js';
 
 /**
