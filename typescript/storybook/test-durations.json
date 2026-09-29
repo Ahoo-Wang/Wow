@@ -65,7 +65,7 @@
   "stories/view-engine/SalesReview.stories.tsx": 5700,
   "stories/view-engine/SalesReview.test.stories.tsx": 6400,
   "stories/view-engine/ShadcnBridge.test.stories.tsx": 2900,
-  "stories/view-engine/StrictCsp.test.stories.tsx": 25000,
+  "stories/view-engine/StrictCsp.test.stories.tsx": 31000,
   "stories/view-engine/ThemeGallery.stories.tsx": 6600,
   "stories/view-engine/ThemePresets.stories.tsx": 2800,
   "stories/view-engine/ThemeTokens.test.stories.tsx": 6300,

@@ -130,8 +130,8 @@ function ShipHours() {
   );
 }
 
-function Showcase() {
-  return <RetailBoardScene instanceId={SHOWCASE} />;
+function Showcase({ tab }: { tab?: Tab }) {
+  return <RetailBoardScene instanceId={SHOWCASE} initialTab={tab} />;
 }
 
 const meta = {
@@ -267,14 +267,12 @@ async function pickOption(combobox: HTMLElement, option: string) {
 }
 
 /**
- * The record workbench: the table read, its columns reordered by a drag and
- * a column's summary picked from a select, a column widened by its edge, the
- * page size changed, a record's detail opened, and the rows exported.
+ * The record workbench's settings: the table read, its columns reordered by
+ * a drag and a column's summary picked from a select.
  */
 export const RecordWorkbench: Story = {
   render: () => <OrderWorkbench />,
   play: async ({ canvasElement }) => {
-    const canvas = within(canvasElement);
     const table = await findDataTable(canvasElement);
     await waitFor(() =>
       expect(table.querySelectorAll('tbody tr').length).toBeGreaterThan(1),
@@ -306,7 +304,23 @@ export const RecordWorkbench: Story = {
     await expectNoViolations('a summary picked');
     await userEvent.keyboard('{Escape}');
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+  },
+};
 
+/**
+ * The record workbench's reading: a column widened by its edge, the page
+ * size changed from its select, a record's detail opened, and the rows
+ * exported as a CSV.
+ */
+export const RecordDetailAndExport: Story = {
+  render: () => <OrderWorkbench />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const table = await findDataTable(canvasElement);
+    await waitFor(() =>
+      expect(table.querySelectorAll('tbody tr').length).toBeGreaterThan(1),
+    );
+    await expectNoViolations('the table');
     // A column widened by its edge.
     const edge = canvas.getAllByRole('separator', {
       name: /^调整 .+ 宽度$/,
@@ -365,54 +379,80 @@ export const RecordWorkbench: Story = {
 };
 
 /**
- * Every chart type, on the showcase board: each tab opened, every panel
- * drawn, each chart's tooltip raised where it has one, and a bar pressed
- * for its follow-up menu.
+ * Every panel of one tab of the showcase board drawn, each chart's tooltip
+ * raised where it has one, and not one violation. The 22 types are spread
+ * over the four tabs, one story each (`CHARTS_BY_TAB`), so no story walks
+ * the whole board at once.
  */
-export const EveryChartType: Story = {
-  play: async ({ canvasElement }) => {
-    const drawn = new Set<string>();
-    for (const [tab, title] of Object.entries(SHOWCASE_TABS) as [
-      Tab,
-      string,
-    ][]) {
-      await userEvent.click(screen.getByRole('tab', { name: title }));
-      await noPanelOut(canvasElement);
-      await chartsDrawn(canvasElement);
-      for (const panel of showcasePanels().filter(one => one.tab === tab)) {
-        drawn.add(panel.type);
-        if (panel.type === 'metric') {
-          await waitFor(() =>
-            expect(
-              panelOf(panel.title).querySelector('[data-slot="metric-value"]')
-                ?.textContent,
-            ).toMatch(/\d/),
-          );
-          continue;
-        }
-        const plot = await waitFor(() => {
-          const found = panelOf(panel.title).querySelector<HTMLElement>(
-            '[data-slot="chart-plot"]',
-          );
-          expect(found).not.toBeNull();
-          return found!;
-        });
-        // A gauge draws one reading and has no tooltip to raise.
-        if (panel.type !== 'gauge') await tooltipOver(plot);
-        await expectNoViolations(`${title}: ${panel.title} (${panel.type})`);
-      }
+async function walkTab(canvasElement: HTMLElement, tab: Tab) {
+  await noPanelOut(canvasElement);
+  await chartsDrawn(canvasElement);
+  for (const panel of showcasePanels().filter(one => one.tab === tab)) {
+    if (panel.type === 'metric') {
+      await waitFor(() =>
+        expect(
+          panelOf(panel.title).querySelector('[data-slot="metric-value"]')
+            ?.textContent,
+        ).toMatch(/\d/),
+      );
+      continue;
     }
-    // The 22 types, each on the board once.
-    await expect(drawn.size).toBe(22);
-
-    // A province pressed on the bars: the whole board filtered to it, every
-    // panel drawn again.
-    const bar = showcasePanels().find(panel => panel.type === 'bar')!;
-    await userEvent.click(
-      screen.getByRole('tab', { name: SHOWCASE_TABS[bar.tab] }),
+    const plot = await waitFor(() => {
+      const found = panelOf(panel.title).querySelector<HTMLElement>(
+        '[data-slot="chart-plot"]',
+      );
+      expect(found).not.toBeNull();
+      return found!;
+    });
+    // A gauge draws one reading and has no tooltip to raise.
+    if (panel.type !== 'gauge') await tooltipOver(plot);
+    await expectNoViolations(
+      `${SHOWCASE_TABS[tab]}: ${panel.title} (${panel.type})`,
     );
+  }
+}
+
+/** The four tabs together hold every chart type, each once. */
+const CHARTS_BY_TAB = new Set(showcasePanels().map(panel => panel.type));
+
+/** 走势: the metric card, the gauge and the time charts. */
+export const ChartsTrend: Story = {
+  args: { tab: 'trend' },
+  play: async ({ canvasElement }) => {
+    await expect(CHARTS_BY_TAB.size).toBe(22);
+    await walkTab(canvasElement, 'trend');
+  },
+};
+
+/** 构成. */
+export const ChartsMix: Story = {
+  args: { tab: 'mix' },
+  play: ({ canvasElement }) => walkTab(canvasElement, 'mix'),
+};
+
+/** 分布与关系. */
+export const ChartsSpread: Story = {
+  args: { tab: 'spread' },
+  play: ({ canvasElement }) => walkTab(canvasElement, 'spread'),
+};
+
+/** 地域与转化, on the story's own map. */
+export const ChartsRegion: Story = {
+  args: { tab: 'region' },
+  play: ({ canvasElement }) => walkTab(canvasElement, 'region'),
+};
+
+/**
+ * A province pressed on the bars: the whole board filtered to it, every
+ * panel drawn again.
+ */
+const BAR = showcasePanels().find(panel => panel.type === 'bar')!;
+export const BoardFilteredFromABar: Story = {
+  args: { tab: BAR.tab },
+  play: async ({ canvasElement }) => {
+    await noPanelOut(canvasElement);
     await chartsDrawn(canvasElement);
-    const [mark] = drawnMarks(panelOf(bar.title));
+    const [mark] = drawnMarks(panelOf(BAR.title));
     pressMark(mark!);
     await waitFor(() =>
       expect(screen.getByRole('group', { name: '省份' })).toHaveTextContent(
@@ -486,11 +526,13 @@ export const Exports: Story = {
 };
 
 /**
- * The showcase board built: 「编辑」, a panel dragged by its grip and
- * resized by its corner, a tab added and dragged into another place, a new
- * analysis made in its dialog and put on the board, and the board saved.
+ * The showcase board arranged: 「编辑」, a panel moved by its grip and sized
+ * by its corner with the browser's own mouse — the grid drag library's
+ * `<style>`, added first under the page's nonce — and the board saved.
  */
-export const BoardBuilt: Story = {
+export const BoardArranged: Story = {
+  // On the lightest tab: the building is under test, not the charts.
+  args: { tab: 'region' },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await noPanelOut(canvasElement);
@@ -531,6 +573,49 @@ export const BoardBuilt: Story = {
     const draggable = document.querySelectorAll('#react-draggable-style-el');
     await expect(draggable).toHaveLength(1);
     await expect((draggable[0] as HTMLStyleElement).nonce).toBe(CSP_NONCE);
+
+    // Saved.
+    await userEvent.click(
+      canvas.getByRole('button', { name: zhCN['label.dashboard.save'] }),
+    );
+    const confirm = await screen.findByRole('alertdialog').catch(() => null);
+    if (confirm)
+      await userEvent.click(
+        within(confirm).getByRole('button', {
+          name: zhCN['label.save.shared-confirm'],
+        }),
+      );
+    await waitFor(() =>
+      expect(
+        canvasElement.querySelector('[data-slot="dashboard-edit-bar"]'),
+      ).toBeNull(),
+    );
+    await chartsDrawn(canvasElement);
+    await expectNoViolations('the board saved');
+  },
+};
+
+/**
+ * The showcase board built: a tab added and dragged in front of the first,
+ * a new analysis made in its dialog (its data picked from a select) and put
+ * on the board, and the board saved.
+ */
+export const BoardBuilt: Story = {
+  // On the lightest tab: the building is under test, not the charts.
+  args: { tab: 'region' },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await noPanelOut(canvasElement);
+    await chartsDrawn(canvasElement);
+    await userEvent.click(
+      canvas.getByRole('button', { name: zhCN['label.dashboard.edit'] }),
+    );
+    await waitFor(() =>
+      expect(
+        canvasElement.querySelector('[data-slot="panel-grip"]'),
+      ).not.toBeNull(),
+    );
+    await expectNoViolations('building begun');
 
     // A tab added, then dragged in front of the first.
     await userEvent.click(
