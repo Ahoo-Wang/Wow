@@ -68,6 +68,19 @@ class ViewStorePaths(currentContext: NamedBoundedContext) {
 
     fun isViewStorePath(path: String): Boolean = isViewStorePath(PathContainer.parsePath(path))
 
+    /**
+     * Whether the decoded tenant and owner of [path] (one of the view store's paths) name one: not empty, and without
+     * whitespace or control characters anywhere. Wow reads a blank tenant or owner path variable as missing and falls
+     * back to the `Command-Tenant-Id` / `Command-Owner-Id` headers (or to no owner at all, which skips its owner
+     * check), so `/tenant/t1/owner/%20/…` would otherwise escape the path's scope.
+     */
+    fun hasValidScope(path: PathContainer): Boolean {
+        val variables = scopePattern.matchAndExtract(path)?.uriVariables ?: return false
+        return variables[TENANT_ID].isScopeId() && variables[OWNER_ID].isScopeId()
+    }
+
+    fun hasValidScope(path: String): Boolean = hasValidScope(PathContainer.parsePath(path))
+
     /** The tenant and id [path] addresses a view by, decoded, or `null` when it addresses none. */
     fun viewTarget(path: PathContainer): ViewTarget? {
         val variables = viewPattern.matchAndExtract(path)?.uriVariables ?: return null
@@ -76,6 +89,9 @@ class ViewStorePaths(currentContext: NamedBoundedContext) {
 
     fun viewTarget(path: String): ViewTarget? = viewTarget(PathContainer.parsePath(path))
 }
+
+private fun String?.isScopeId(): Boolean =
+    !isNullOrEmpty() && none { it.isWhitespace() || it.isISOControl() }
 
 internal fun String.toPattern(): PathPattern = PathPatternParser.defaultInstance.parse(this)
 

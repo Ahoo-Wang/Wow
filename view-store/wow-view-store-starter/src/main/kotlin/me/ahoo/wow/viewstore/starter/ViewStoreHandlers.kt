@@ -28,6 +28,7 @@ import me.ahoo.wow.modeling.metadata.StateAggregateMetadata
 import me.ahoo.wow.modeling.state.StateAggregateRepository
 import me.ahoo.wow.openapi.aggregate.command.CommandComponent
 import me.ahoo.wow.openapi.metadata.aggregateRouteMetadata
+import me.ahoo.wow.query.dsl.FilterDsl
 import me.ahoo.wow.query.dsl.listQuery
 import me.ahoo.wow.query.event.EventStreamQueryGateway
 import me.ahoo.wow.query.event.query
@@ -185,10 +186,7 @@ class ViewStoreHandlers(
                 filter {
                     tenantId(tenantId)
                     MessageRecords.REQUEST_ID eq requestId
-                    or {
-                        ownerId(ownerId)
-                        ownerId(ViewStoreService.SHARED_OWNER_ID)
-                    }
+                    writtenBy(ownerId)
                 }
             }.query(viewEventStreamQueryGateway())
                 .filter { it.writtenBy() == ownerId }
@@ -208,6 +206,34 @@ class ViewStoreHandlers(
                     }
                 }
         }.onErrorResume { exceptionHandler.handle(request, it) }
+    }
+
+    /**
+     * The writes of [ownerId], as [writtenBy] reads them, selected by the query itself: the candidates are bounded, so
+     * another owner's writes with the same request id must not take their place.
+     */
+    private fun FilterDsl.writtenBy(ownerId: String) {
+        if (ownerId == ViewStoreService.SHARED_OWNER_ID) {
+            ownerId(ownerId)
+            nor { MessageRecords.BODY.elementMatch { claimEvent() } }
+            return
+        }
+        or {
+            ownerId(ownerId)
+            and {
+                ownerId(ViewStoreService.SHARED_OWNER_ID)
+                MessageRecords.BODY.elementMatch {
+                    claimEvent()
+                    "${MessageRecords.BODY}.${ViewAudienceChanged::toOwnerId.name}" eq ownerId
+                }
+            }
+        }
+    }
+
+    /** An event of a stream's `body` that is a claim: its audience changed to personal. */
+    private fun FilterDsl.claimEvent() {
+        MessageRecords.BODY_TYPE eq ViewAudienceChanged::class.java.name
+        "${MessageRecords.BODY}.${ViewAudienceChanged::audience.name}" eq ViewAudience.PERSONAL.value
     }
 
     /** The owner whose write this is: the claiming owner for a claim, the stream's owner otherwise. */

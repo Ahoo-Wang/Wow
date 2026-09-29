@@ -62,4 +62,17 @@ class ViewStorePathsTest {
         hosted.viewTarget("/view-store/tenant/t%31/owner/alice/view/v%31;x/rename").assert()
             .isEqualTo(ViewTarget("t1", "v1"))
     }
+
+    @Test
+    fun `a tenant or owner is a name, never blank or with whitespace or control characters`() {
+        hosted.hasValidScope("/view-store/tenant/t1/owner/alice/view/v1/rename").assert().isTrue()
+        hosted.hasValidScope("/view-store/tenant/t1/owner/(shared)/view").assert().isTrue()
+        hosted.hasValidScope("/view-store/tenant/(0)/owner/alice%2Dx/view").assert().isTrue()
+        listOf("%20", "%09", "%E3%80%80", "%C2%A0", "%00", "%0A", "%20%20", "%20;x=alice", "alice%20", "%20alice", "al%20ice")
+            .forEach { blank ->
+                hosted.hasValidScope("/view-store/tenant/t1/owner/$blank/view/v1/rename").assert().isFalse()
+                hosted.hasValidScope("/view-store/tenant/$blank/owner/alice/view").assert().isFalse()
+            }
+        hosted.hasValidScope("/cart/c1").assert().isFalse()
+    }
 }

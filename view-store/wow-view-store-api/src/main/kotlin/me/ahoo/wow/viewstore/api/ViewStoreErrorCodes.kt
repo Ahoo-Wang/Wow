@@ -28,7 +28,8 @@ object ViewStoreErrorCodes {
 
     /**
      * An HTTP query of a view store aggregate names no tenant and owner in its path: only the
-     * `…/tenant/{tenantId}/owner/{ownerId}/…` query routes are open. HTTP 400.
+     * `…/tenant/{tenantId}/owner/{ownerId}/…` query routes are open. Also any view store path whose decoded tenant or
+     * owner is empty or holds whitespace or control characters. HTTP 400.
      */
     const val VIEW_SCOPE_REQUIRED = "ViewScopeRequired"
 

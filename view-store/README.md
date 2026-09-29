@@ -47,6 +47,9 @@ The CoSec gateway must let a caller use `owner/{ownerId}` only when it is their 
 by role or permission who may use `owner/(shared)`. Claiming changes a shared view but is sent to the caller's own
 path, so it needs both: `PUT …/tenant/{tenantId}/owner/{ownerId}/view/{id}/claim` requires `sub == {ownerId}` **and**
 the role that may write `owner/(shared)`. A host gives `permissions.instance(id).changeAudience` by the same role.
+The tenant and owner come from the path only: `Command-Tenant-Id` and `Command-Owner-Id` are dropped, and a path
+whose decoded tenant or owner is empty or holds whitespace or control characters (`owner/%20`, `tenant/%E3%80%80`)
+answers 400 `ViewScopeRequired`, because Wow reads a blank path value as missing and falls back to those headers.
 
 **The shared-board check reads snapshots.** Claiming a view is refused while a shared dashboard references it; the
 check queries the dashboards' snapshots, so a board saved a moment before may not be seen yet (eventual consistency).

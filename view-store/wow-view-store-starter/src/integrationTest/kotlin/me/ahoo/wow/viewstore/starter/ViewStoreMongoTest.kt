@@ -321,6 +321,121 @@ class ViewStoreMongoTest {
             .expectStatus().isForbidden
     }
 
+    /**
+     * Wow reads a blank tenant or owner path variable as missing and falls back to `Command-Tenant-Id` /
+     * `Command-Owner-Id`, or with no header to no owner at all, which skips its owner check. Spring decodes these
+     * segments into non-empty values that match `{tenantId}` / `{ownerId}`, so each must be refused before routing.
+     */
+    private val blankSegments = listOf("%20", "%09", "%E3%80%80", "%20;x=alice")
+
+    private fun scoped(
+        method: String,
+        uri: String,
+        body: String?,
+        headers: Map<String, String>,
+        version: Int? = null,
+    ): WebTestClient.ResponseSpec {
+        val spec = client.method(org.springframework.http.HttpMethod.valueOf(method)).uri(raw(uri))
+            .header(CommandComponent.Header.WAIT_STAGE, "SNAPSHOT")
+            .header(ViewStoreService.APP_ID_HEADER, APP)
+            .contentType(MediaType.APPLICATION_JSON)
+        version?.let { spec.header(CommandComponent.Header.AGGREGATE_VERSION, it.toString()) }
+        headers.forEach { (name, value) -> spec.header(name, value) }
+        return (body?.let { spec.bodyValue(it) } ?: spec).exchange()
+    }
+
+    @Test
+    fun `a blank tenant or owner in the path never falls back to the headers`() {
+        val personal = create("alice")
+        val shared = create(SHARED)
+        val planted = "planted-" + UUID.randomUUID()
+        val plantedTenant = "t-" + UUID.randomUUID()
+        blankSegments.forEach { blank ->
+            val scopes = listOf(
+                "/view-store/tenant/t1/owner/$blank" to listOf(
+                    emptyMap(),
+                    mapOf(CommandComponent.Header.OWNER_ID to "alice"),
+                    mapOf("command-owner-id" to planted),
+                ),
+                "/view-store/tenant/$blank/owner/alice" to listOf(
+                    emptyMap(),
+                    mapOf(CommandComponent.Header.TENANT_ID to "t1"),
+                    mapOf("COMMAND-TENANT-ID" to plantedTenant),
+                ),
+            )
+            scopes.forEach { (scope, headerSets) ->
+                headerSets.forEach { headers ->
+                    listOf(
+                        scoped("PUT", "$scope/view/$personal/rename", """{"title":"Taken"}""", headers, version = 1),
+                        scoped("DELETE", "$scope/view/$personal", "{}", headers, version = 1),
+                        scoped("PUT", "$scope/view/$personal/share", "{}", headers, version = 1),
+                        scoped("PUT", "$scope/view/$shared/claim", null, headers, version = 1),
+                        scoped(
+                            "POST",
+                            "$scope/view",
+                            """{"definitionId":"orders","title":"Planted","config":{"kind":"record"}}""",
+                            headers,
+                        ),
+                        scoped("PUT", "$scope/definitions/orders/preferences", """{"order":["x"]}""", headers, version = 0),
+                        scoped("GET", "$scope/definitions/orders/preferences", null, headers),
+                        scoped("POST", "$scope/view/snapshot/list", listQuery { }.toJsonString(), headers),
+                        scoped("GET", "$scope/view/requests/any", null, headers),
+                    ).forEach { response ->
+                        response.expectStatus().isBadRequest
+                            .expectBody().jsonPath("$.errorCode").isEqualTo(ViewStoreErrorCodes.VIEW_SCOPE_REQUIRED)
+                    }
+                }
+            }
+        }
+        single("alice", personal).expectStatus().isOk
+            .expectBody().jsonPath("$.version").isEqualTo(1).jsonPath("$.state.title").isEqualTo("View")
+        single(SHARED, shared).expectStatus().isOk.expectBody().jsonPath("$.version").isEqualTo(1)
+        listed(planted).assert().isZero()
+        query("/view-store/tenant/$plantedTenant/owner/alice/view/snapshot/list", listQuery { }.toJsonString())
+            .expectStatus().isOk.expectBody().jsonPath("$.length()").isEqualTo(0)
+        getPreferences("$SCOPE/alice/definitions/orders/preferences").expectBody().jsonPath("$.version").isEqualTo(0)
+    }
+
+    @Test
+    fun `a caller's tenant and owner headers never replace the path's`() {
+        val id = create("alice")
+        scoped(
+            "PUT",
+            "$SCOPE/alice/view/$id/rename",
+            """{"title":"Renamed"}""",
+            mapOf(CommandComponent.Header.OWNER_ID to "bob", CommandComponent.Header.TENANT_ID to "t9"),
+            version = 1,
+        ).expectStatus().isOk
+        single("alice", id).expectStatus().isOk.expectBody().jsonPath("$.state.title").isEqualTo("Renamed")
+    }
+
+    private fun listed(owner: String): Int =
+        query("$SCOPE/$owner/view/snapshot/list", listQuery { }.toJsonString())
+            .expectStatus().isOk
+            .expectBody(JsonNode::class.java).returnResult().responseBody!!.size()
+
+    /**
+     * The replay reads a bounded number of candidates, so the writes of another owner with the same request id must
+     * not push the path owner's write out of them: a `(shared)` writer who knows a claim's request id writes more
+     * than the bound under `(shared)` with it.
+     */
+    @Test
+    fun `other owners' writes with a request id never hide the path owner's`() {
+        val requestId = UUID.randomUUID().toString()
+        val claimed = create(SHARED)
+        // Written before the claim, so a bound without the writer in the query reads only these.
+        repeat(25) { create(SHARED, requestId = requestId) }
+        repeat(25) { create("bob", requestId = requestId) }
+        write("PUT", "$SCOPE/alice/view/$claimed/claim", null, version = 1, requestId = requestId).expectStatus().isOk
+        replay("alice", requestId).expectStatus().isOk
+            .expectBody().jsonPath("$.aggregateId").isEqualTo(claimed).jsonPath("$.ownerId").isEqualTo("alice")
+        // The (shared) path finds its own creates, never alice's claim.
+        replay(SHARED, requestId).expectStatus().isOk
+            .expectBody().jsonPath("$.ownerId").isEqualTo(SHARED).jsonPath("$.version").isEqualTo(1)
+        val own = create("carol", requestId = requestId)
+        replay("carol", requestId).expectStatus().isOk.expectBody().jsonPath("$.aggregateId").isEqualTo(own)
+    }
+
     @Test
     fun `a claim is replayed on the claiming owner's path, not on the shared one`() {
         val id = create(SHARED)

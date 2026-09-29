@@ -28,6 +28,7 @@ import me.ahoo.wow.viewstore.starter.system.SystemViewProvider
 import me.ahoo.wow.viewstore.starter.system.SystemViews
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
+import org.springframework.http.HttpMethod
 import org.springframework.http.HttpStatus
 import org.springframework.mock.http.server.reactive.MockServerHttpRequest
 import org.springframework.mock.web.server.MockServerWebExchange
@@ -36,6 +37,7 @@ import org.springframework.web.server.WebFilterChain
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.kotlin.test.test
+import java.net.URI
 
 class ViewStoreWebFilterTest {
     companion object {
@@ -183,4 +185,47 @@ class ViewStoreWebFilterTest {
         )
             .second.exchange.assert().isNotNull()
     }
+
+    @Test
+    fun `refuses a tenant or owner that is blank or holds whitespace`() {
+        listOf(
+            raw(HttpMethod.PUT, "/view-store/tenant/t1/owner/%20/view/v1/rename"),
+            raw(HttpMethod.PUT, "/view-store/tenant/t1/owner/%09/view/v1/rename"),
+            raw(HttpMethod.PUT, "/view-store/tenant/t1/owner/%E3%80%80/view/v1/rename"),
+            raw(HttpMethod.PUT, "/view-store/tenant/t1/owner/%20;x=alice/view/v1/rename"),
+            raw(HttpMethod.POST, "/view-store/tenant/%20/owner/alice/view"),
+            raw(HttpMethod.GET, "/view-store/tenant/t1/owner/%20/definitions/d1/preferences"),
+            raw(HttpMethod.POST, "/view-store/tenant/t1/owner/%20/view/snapshot/list"),
+        ).forEach { request ->
+            val (exchange, chain) = run(
+                request.header(ViewStoreService.APP_ID_HEADER, "console")
+                    .header(CommandComponent.Header.OWNER_ID, "alice")
+                    .header(CommandComponent.Header.TENANT_ID, "t1")
+                    .build()
+            )
+            chain.exchange.assert().isNull()
+            exchange.response.statusCode.assert().isEqualTo(HttpStatus.BAD_REQUEST)
+            exchange.response.bodyAsString.block()!!.assert().contains(ViewStoreErrorCodes.VIEW_SCOPE_REQUIRED)
+        }
+    }
+
+    @Test
+    fun `drops a tenant and owner a caller sends as headers, on view store paths only`() {
+        val passed = run(
+            MockServerHttpRequest.put("/view-store/tenant/t1/owner/alice/view/v1/rename")
+                .header(CommandComponent.Header.OWNER_ID, "bob")
+                .header(CommandComponent.Header.OWNER_ID.uppercase(), "bob")
+                .header(CommandComponent.Header.TENANT_ID.lowercase(), "t9")
+                .build()
+        ).second.exchange!!.request.headers
+        passed.headerNames().none {
+            it.equals(CommandComponent.Header.OWNER_ID, ignoreCase = true) ||
+                it.equals(CommandComponent.Header.TENANT_ID, ignoreCase = true)
+        }.assert().isTrue()
+        run(MockServerHttpRequest.post("/cart").header(CommandComponent.Header.OWNER_ID, "bob").build())
+            .second.exchange!!.request.headers.getFirst(CommandComponent.Header.OWNER_ID).assert().isEqualTo("bob")
+    }
+
+    /** [path] exactly as written: `%xx` escapes are not encoded again. */
+    private fun raw(method: HttpMethod, path: String) = MockServerHttpRequest.method(method, URI.create(path))
 }
