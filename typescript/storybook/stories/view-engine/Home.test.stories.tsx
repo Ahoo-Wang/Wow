@@ -364,6 +364,80 @@ export const ReadOnlyReport: Story = {
 };
 
 /**
+ * Filling the screen keeps what reading the board needs (D70, the user on
+ * 2026-09-28): the host's 「运营日报」 and its 「指标卡读…」 are outside the
+ * embed and covered, so the board titles itself and draws the caption the
+ * page handed it under that — following the reader's 「日期」 as the page's
+ * does — while 「催发货」, the page's own action, stays on the page. On the
+ * page the title is drawn once, by the host.
+ */
+export const ExpandKeepsTitleAndCaption: Story = {
+  ...DisplayDailyReport,
+  name: '铺满屏幕保留标题与口径说明',
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await boardDrawn(canvasElement);
+    const expand = canvas.getByRole('button', {
+      name: zhCN['label.workbench.expand-view'],
+    });
+    const surface = expand.closest<HTMLElement>('.fve-root')!;
+    // On the page: the host's title alone, and no caption in the board.
+    await expect(canvas.getAllByRole('heading', { name: '运营日报' })).toEqual([
+      canvas.getByRole('heading', { level: 1, name: '运营日报' }),
+    ]);
+    await expect(
+      surface.querySelector('[data-slot="embed-caption"]'),
+    ).toBeNull();
+
+    await userEvent.click(expand);
+    await waitFor(() => {
+      const box = surface.getBoundingClientRect();
+      expect(Math.abs(box.height - window.innerHeight)).toBeLessThan(1);
+    });
+    // Its own title, one level over its panels, and the caption under it.
+    const title = within(surface).getByRole('heading', {
+      level: 2,
+      name: '运营日报',
+    });
+    await expect(title).toBeVisible();
+    await expect(
+      within(surface).getByRole('heading', { level: 3, name: 'GMV' }),
+    ).toBeVisible();
+    const caption = surface.querySelector<HTMLElement>(
+      '[data-slot="embed-caption"]',
+    )!;
+    await expect(caption).toBeVisible();
+    const day = canvasElement.querySelector(
+      '[data-host-report-day]',
+    )!.textContent!;
+    await expect(caption).toHaveTextContent(`指标卡读${day}（昨日），较前一日`);
+    await expect(caption.getBoundingClientRect().top).toBeGreaterThanOrEqual(
+      title.getBoundingClientRect().bottom - 1,
+    );
+    // The page's action is not in the board, and the board covers it.
+    const nudge = canvas.getByRole('button', { name: /^催发货.*超时 \d+ 单$/ });
+    await expect(surface.contains(nudge)).toBe(false);
+    const at = nudge.getBoundingClientRect();
+    await expect(
+      surface.contains(
+        document.elementFromPoint(
+          at.left + at.width / 2,
+          at.top + at.height / 2,
+        ),
+      ),
+    ).toBe(true);
+    // The button stays where it was pressed, with the keyboard on it.
+    await expect(document.activeElement).toBe(expand);
+
+    await userEvent.keyboard('{Escape}');
+    await waitFor(() =>
+      expect(surface).not.toHaveAttribute('data-view-expanded'),
+    );
+    await expect(surface.querySelector('[data-slot="embed-head"]')).toBeNull();
+  },
+};
+
+/**
  * The board's search (a filter of the search kind, D36) reaches the overdue
  * list alone: an order number finds its row, and the panels it does not
  * reach say so.

@@ -14,6 +14,7 @@
 import { useCallback, useRef, useState } from 'react';
 import { defaultGridConfig } from 'react-grid-layout/core';
 import { grownLayout, type PlacedPanel } from '../../dashboard/index.js';
+import { hasFixedHeight } from '../../model/index.js';
 
 /** The gap the grid keeps between two rows: the library's own. */
 const GAP_Y = defaultGridConfig.margin[1];
@@ -67,29 +68,43 @@ export function usePanelWholes(): {
 }
 
 /**
- * The layout a board is read in (P1-3): a panel whose body holds more than
- * its saved height shows — a table's rows, a note's lines — grows by whole
- * rows until it holds it all or reaches `GROWS_TO_ROWS`, and whatever
- * stood under it moves down with it (`grownLayout`). A panel never
- * shrinks: the author's height is the least it gets, so a short table
- * beside a chart keeps the row they share even.
+ * The rows each panel grows to (P1-3, D52), by id, for the panels that
+ * grow: one whose body holds more than its saved height shows — a table's
+ * rows, a note's lines — grows by whole rows until it holds it all or
+ * reaches `GROWS_TO_ROWS`. A panel never shrinks: the author's height is
+ * the least it gets, so a short table beside a chart keeps the row they
+ * share even. A panel its author sized by hand (`fixedHeight`, D68) is
+ * drawn at that size and never grows: what they dragged is what a reader
+ * sees, and the cue says what is past its bottom.
  *
- * Only while the board is read. Built, every panel is drawn at the size
- * that is saved, since that is what a drag or a resize changes.
+ * The same on a board read and a board built (D68): 「编辑」 starts from the
+ * heights the reader saw, so nothing jumps, and a hand places against the
+ * board as drawn (`DashboardRuntime.place`'s `grown`).
  */
-export function fittedLayout(
+export function grownRows(
   boxes: readonly PlacedPanel[],
   wholes: ReadonlyMap<string, number>,
   rowHeight: number,
-): PlacedPanel[] {
+): ReadonlyMap<string, number> {
   const heights = new Map<string, number>();
   for (const box of boxes) {
     const whole = wholes.get(box.id) ?? 0;
-    if (whole <= 0) continue;
+    if (whole <= 0 || hasFixedHeight(box)) continue;
     const rows = rowsFor(whole, rowHeight);
     if (rows > box.h)
       heights.set(box.id, Math.min(rows, Math.max(box.h, GROWS_TO_ROWS)));
   }
+  return heights;
+}
+
+/**
+ * The layout a board is drawn in: each panel grown to its `grownRows`, and
+ * whatever stood under it moved down with it (`grownLayout`).
+ */
+export function fittedLayout(
+  boxes: readonly PlacedPanel[],
+  heights: ReadonlyMap<string, number>,
+): PlacedPanel[] {
   return heights.size === 0 ? [...boxes] : grownLayout(boxes, heights);
 }
 

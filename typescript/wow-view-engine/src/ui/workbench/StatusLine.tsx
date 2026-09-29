@@ -20,6 +20,7 @@ import { resultIssues } from '../../runtime/source.js';
 import { useKindIssue } from '../kinds.js';
 import { SPACE } from '../layout.js';
 import { useViewMessages } from '../MessagesProvider.js';
+import { boardErrorTitle, saidByBoard } from '../panelsToFix.js';
 import {
   ErrorStrip,
   NoteStrip,
@@ -105,6 +106,26 @@ export function StatusLine({
           offered(found),
       )
     : [];
+  // The definition's own findings beside the view's: an error in the
+  // definition was reported to `onIssue` and to nobody on screen (F-05). A
+  // view with no condition on a source that wants one is not broken: the
+  // table says so as its own empty state (Q3), not as something to fix.
+  //
+  // Except what the open board says itself: the definition that declares it
+  // found its panels' errors too, at `['views', n, 'config', 'panels', m]`,
+  // and the board reports each at `['panels', m]` by the names a reader
+  // sees (「状态」, 「等于」) — said twice, once in the config's own keys.
+  const board = kind === 'dashboard' ? workbench.declaredAt : null;
+  const errors = [
+    ...filter.unmarked
+      .filter(
+        found => found.code !== 'record.filter.required' && offered(found),
+      )
+      .map(nameIssue),
+    ...workbench.definitionIssues
+      .filter(found => !saidByBoard(found, board))
+      .map(ownWord),
+  ];
   const showConditions = (
     <Button
       data-slot="show-conditions"
@@ -156,23 +177,12 @@ export function StatusLine({
         />
       )}
       <ErrorStrip
-        // The definition's own findings beside the view's: an
-        // error in the definition was reported to `onIssue` and to
-        // nobody on screen (F-05). A view with no condition on a source
-        // that wants one is not broken: the table says so as its own
-        // empty state (Q3), not as something to fix.
-        issues={[
-          ...filter.unmarked
-            .filter(
-              found =>
-                found.code !== 'record.filter.required' && offered(found),
-            )
-            .map(nameIssue),
-          ...workbench.definitionIssues.map(ownWord),
-        ]}
+        issues={errors}
+        // On a board whose only trouble is its panels, the line says so of
+        // the panels: they are out, and the rest of the board draws.
         title={
           kind === 'dashboard'
-            ? messages.label('label.dashboard.needs-fixing')
+            ? boardErrorTitle(errors, messages, board)
             : undefined
         }
         action={errorAction}

@@ -84,6 +84,54 @@ async function onTheGrid(canvasElement: HTMLElement): Promise<void> {
   );
 }
 
+/**
+ * The red line over a board whose only trouble is its panels (todo 5,
+ * 2026-09-28): it talks about the panels — they are out, the rest draws —
+ * and says each finding once, by the names a reader sees (review round 1
+ * of #3779: the definition's own check of the same board used to be listed
+ * again, in the config's keys, 「status」不支持「EQ」). One finding is its
+ * own sentence (F-14), naming its panel; two or more are headed by how many
+ * panels, and the fold says how many findings it holds — as many as it
+ * lists.
+ */
+async function expectPanelsToFix(
+  canvasElement: HTMLElement,
+  panels: number,
+  findings: readonly string[],
+) {
+  const strip = await waitFor(() => {
+    const found = canvasElement.querySelector<HTMLElement>(
+      '[data-slot="status-strip"][data-tone="error"]',
+    );
+    expect(found).not.toBeNull();
+    return found!;
+  });
+  const title = strip.querySelector('[data-slot="alert-title"]')!;
+  await expect(strip.textContent).not.toContain(
+    zhCN['label.dashboard.needs-fixing'],
+  );
+  // Never a key the config holds.
+  for (const key of ['status', 'EQ', 'archived', 'area', 'system:'])
+    await expect(strip.textContent).not.toContain(key);
+  const fold = within(strip).queryByRole('button', {
+    name: new RegExp(
+      `^${zhCN['label.status.show'].replace('{count}', '\\d+')}$`,
+    ),
+  });
+  if (findings.length === 1) {
+    await expect(title).toHaveTextContent(findings[0]);
+    await expect(fold).toBeNull();
+    return;
+  }
+  await expect(title).toHaveTextContent(`有 ${panels} 个面板要先修正才能显示`);
+  await expect(fold).toHaveTextContent(
+    zhCN['label.status.show'].replace('{count}', String(findings.length)),
+  );
+  await userEvent.click(fold!);
+  const items = [...strip.querySelectorAll('li')].map(item => item.textContent);
+  await expect(items).toEqual(findings);
+}
+
 /** 「编辑」: nothing on a board moves until it is being built (D22 A). */
 async function startBuilding(canvasElement: HTMLElement): Promise<void> {
   await userEvent.click(
@@ -212,6 +260,9 @@ export const OneBadPanel: Story = {
     await expect(
       canvas.getByRole('link', { name: /^出库异常处理/ }),
     ).toBeVisible();
+    await expectPanelsToFix(canvasElement, 1, [
+      '「已取消的订单数」：「状态」不支持「等于」。',
+    ]);
   },
 };
 
@@ -260,7 +311,55 @@ export const WrongReferences: Story = {
     );
     await chartsDrawn(canvasElement);
     await waitFor(() => expect(bars(canvasElement)).toHaveLength(4));
+    await expectPanelsToFix(canvasElement, 2, [
+      '「归档订单」：「订单」里没有这个面板要显示的视图。',
+      '「全部订单」：「仓库」接的字段，这个面板显示的视图里没有。',
+    ]);
   },
+};
+
+/**
+ * The panels 「一个面板配错」 and 「引用写错」 add sit right under the board
+ * they are added to, at desk width: no rows left empty above them (review
+ * round 1 of #3779 — they were declared two rows below 值班手册's end).
+ */
+async function sitUnderTheRest(canvasElement: HTMLElement, added: string[]) {
+  await onTheGrid(canvasElement);
+  const item = (id: string) =>
+    canvasElement.querySelector<HTMLElement>(`[data-panel-id="${id}"]`)!;
+  await waitFor(() => {
+    for (const id of added) expect(item(id)).not.toBeNull();
+  });
+  const items = [
+    ...canvasElement.querySelectorAll<HTMLElement>('[data-panel-id]'),
+  ];
+  await waitFor(() => {
+    for (const id of added) {
+      const top = item(id).getBoundingClientRect().top;
+      const above = items
+        .filter(other => !added.includes(other.dataset.panelId!))
+        .map(other => other.getBoundingClientRect().bottom)
+        .filter(bottom => bottom <= top + 1);
+      // The grid's own gap between rows, and no more.
+      expect(top - Math.max(...above)).toBeLessThanOrEqual(11);
+    }
+  });
+}
+
+export const OneBadPanelSitsUnderTheRest: Story = {
+  ...DisplayOneBadPanel,
+  name: '一个面板配错 · 紧接在其余面板之下',
+  decorators: [DESK],
+  play: async ({ canvasElement }) =>
+    sitUnderTheRest(canvasElement, ['cancelled']),
+};
+
+export const WrongReferencesSitUnderTheRest: Story = {
+  ...DisplayWrongReferences,
+  name: '引用写错 · 紧接在其余面板之下',
+  decorators: [DESK],
+  play: async ({ canvasElement }) =>
+    sitUnderTheRest(canvasElement, ['archived', 'misbound']),
 };
 
 /**

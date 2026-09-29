@@ -128,7 +128,11 @@ export interface DashboardController {
    * global filter still being edited stays unapplied
    * (`DashboardRuntime.place`).
    */
-  place(panelId: string, layout: PanelLayout): void;
+  place(
+    panelId: string,
+    layout: PanelLayout,
+    grown?: ReadonlyMap<string, number>,
+  ): void;
   /** Re-runs every panel at once. */
   refresh(): void;
   /** Re-runs one panel: the retry on a panel whose query failed. */
@@ -338,7 +342,11 @@ export function useDashboard(
     readAt,
     dirty: state?.dirty ?? false,
     place: useCallback(
-      (panelId: string, layout: PanelLayout) => runtime?.place(panelId, layout),
+      (
+        panelId: string,
+        layout: PanelLayout,
+        grown?: ReadonlyMap<string, number>,
+      ) => runtime?.place(panelId, layout, grown),
       [runtime],
     ),
     refresh: useCallback(() => runtime?.refresh(), [runtime]),

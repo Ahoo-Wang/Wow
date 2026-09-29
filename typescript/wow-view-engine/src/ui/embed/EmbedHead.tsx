@@ -27,19 +27,23 @@ import { useViewExpansion, ViewExpandToggle } from '../ViewExpansion.js';
 
 /**
  * An embed's first row, when it has one: its title as a heading at the
- * level the host's outline calls for, and on the right what the host
- * switched on — 在工作台中打开, the export, 「铺满屏幕」. Nothing at all when
- * there is neither: an embed is its result, and a row of chrome nobody
- * asked for is what it exists not to add (D10).
+ * level the host's outline calls for — and under it, where handed one, the
+ * words that say what the numbers are read as (D70) — and on the right
+ * what the host switched on — 在工作台中打开, the export, 「铺满屏幕」.
+ * Nothing at all when there is neither: an embed is its result, and a row
+ * of chrome nobody asked for is what it exists not to add (D10).
  */
 export function EmbedHead({
   title,
+  caption,
   headingLevel,
   inset,
   children,
 }: {
   /** The title to draw; left out, none. */
   title?: string | undefined;
+  /** Under the title, where there is one (`EmbeddedDashboard.caption`). */
+  caption?: ReactNode;
   headingLevel: PanelHeadingLevel;
   /**
    * How far it stands in from the edge, in pixels: a board's, in line with
@@ -64,12 +68,22 @@ export function EmbedHead({
       style={inset === undefined ? undefined : { paddingInline: inset }}
     >
       {title !== undefined && (
-        <Title
-          data-slot="embed-title"
-          className="min-w-0 truncate text-base font-semibold"
-        >
-          {say(title)}
-        </Title>
+        <div data-slot="embed-heading" className="flex min-w-0 flex-col gap-1">
+          <Title
+            data-slot="embed-title"
+            className="min-w-0 truncate text-base font-semibold"
+          >
+            {say(title)}
+          </Title>
+          {caption != null && caption !== false && (
+            <div
+              data-slot="embed-caption"
+              className={cn('text-muted-foreground', TEXT_UI)}
+            >
+              {caption}
+            </div>
+          )}
+        </div>
       )}
       {controls && (
         <div
@@ -121,22 +135,29 @@ export function OpenInWorkbench({
  * hidden.
  */
 export function EmbedExpand() {
-  return useEmbedExpand(true);
+  return useEmbedExpand(true).toggle;
 }
 
 /**
  * `EmbedExpand` held by the caller, for an embed that decides where the
  * button stands (`EmbeddedDashboard`: its first row, else the end of the
- * filter bar or the tabs, D10). The expansion lives with the caller, so the
- * button moving between rows — the filter bar giving way as the board
- * narrows — never ends it. Nothing while `enabled` is off.
+ * filter bar or the tabs, D10) and what it draws while the screen is its
+ * (D70: a title and the caption). The expansion lives with the caller, so
+ * the button moving between rows — the filter bar giving way as the board
+ * narrows — never ends it. No button while `enabled` is off.
  */
-export function useEmbedExpand(enabled: boolean): ReactNode {
+export function useEmbedExpand(enabled: boolean): {
+  toggle: ReactNode;
+  expanded: boolean;
+} {
   const toggleRef = useRef<HTMLButtonElement>(null);
   const expansion = useViewExpansion(toggleRef, toggleRef, enabled);
-  return enabled ? (
-    <ViewExpandToggle expansion={expansion} ref={toggleRef} />
-  ) : null;
+  return {
+    toggle: enabled ? (
+      <ViewExpandToggle expansion={expansion} ref={toggleRef} />
+    ) : null,
+    expanded: enabled && expansion.expanded,
+  };
 }
 
 /**

@@ -34,7 +34,11 @@ import type {
   DashboardController,
   DashboardPanelView,
 } from '../react/index.js';
-import type { DashboardWidth } from '../model/index.js';
+import {
+  hasFixedHeight,
+  type DashboardWidth,
+  type PanelLayout,
+} from '../model/index.js';
 import type { ViewNavigation } from '../runtime/index.js';
 import { useSurfaceAnnouncer } from './Announcer.js';
 import { PanelGridItem, PanelResizeHandle } from './DashboardArrange.js';
@@ -44,7 +48,11 @@ import { dropped } from './dragDrop.js';
 import { sortableList } from './dragPlugins.js';
 import { dragWording, type DragWordingKeys } from './dragWording.js';
 import { gridBlocks } from './dashboard/gridBlocks.js';
-import { fittedLayout, usePanelWholes } from './dashboard/panelFit.js';
+import {
+  fittedLayout,
+  grownRows,
+  usePanelWholes,
+} from './dashboard/panelFit.js';
 import {
   DashboardPanel,
   panelNames,
@@ -213,7 +221,6 @@ export function DashboardGrid({
   // it could be written back, so neither the gestures nor the keyboard
   // commands are on offer there.
   const arranging = editable && !narrow;
-  const placement = useGridPlacement(dashboard.place);
   const building = useBoardBuilding();
   const extensions = useDashboardEditExtensions();
   const wiring = useFilterWiring();
@@ -239,13 +246,26 @@ export function DashboardGrid({
   const byId = new Map(onScreen.map(panel => [panel.id, panel]));
   const names = panelNames(dashboard.panels, messages);
 
-  // The board as the kernel places it: a keyboard command is judged against
-  // every panel, since on a board that floats panels up "down" means past
-  // the panel below, and the bottom of a column has nowhere down to go.
-  const placed: PlacedPanel[] = onScreen.map(panel => ({
-    id: panel.id,
-    ...panel.layout,
-  }));
+  // Below `md`, the kernel's one-column reading of the stored layout; the
+  // stored layout itself everywhere else.
+  const boxes = panels.map(panel => ({ id: panel.id, ...panel.layout }));
+  const cards = new Set(panels.filter(isMetricCard).map(panel => panel.id));
+  // A pair of metric cards shares a row there (`stackedLayout`).
+  const read = narrow ? stackedLayout(boxes, id => cards.has(id)) : boxes;
+  // Each panel as tall as its body needs whole, up to a cap (P1-3), unless
+  // its author sized it by hand — read and built alike, so 「编辑」 starts
+  // from the heights the reader saw and nothing jumps (D68).
+  const grown = grownRows(read, fit.wholes, rowHeight);
+  const drawn = fittedLayout(read, grown);
+
+  // The board as the kernel places it: as it is drawn, since a hand places
+  // against what it sees (D68). A keyboard command is judged against every
+  // panel, since on a board that floats panels up "down" means past the
+  // panel below, and the bottom of a column has nowhere down to go.
+  const placed: PlacedPanel[] = drawn;
+  const place = (panelId: string, layout: PanelLayout) =>
+    dashboard.place(panelId, layout, grown);
+  const placement = useGridPlacement(place);
   /**
    * One keyboard command: the same placement a gesture lands. Answers
    * whether the panel went anywhere — against an edge, or at the bottom of
@@ -256,7 +276,11 @@ export function DashboardGrid({
     if (!byId.has(panelId) || !arranging) return false;
     const target = arrangePanel(placed, panelId, step, dashboard.columns);
     if (!target) return false;
-    dashboard.place(panelId, target);
+    // A size stepped is a size chosen by hand (D68).
+    place(
+      panelId,
+      SIZE_STEPS.has(step) ? { ...target, fixedHeight: true } : target,
+    );
     // Where it came to rest, which is what the reader is told — the target
     // is only where it was put down before its tab floated up.
     const next =
@@ -333,17 +357,13 @@ export function DashboardGrid({
     </DragDropProvider>
   );
 
-  // Below `md`, the kernel's one-column reading of the stored layout; the
-  // stored layout itself everywhere else.
-  const boxes = panels.map(panel => ({ id: panel.id, ...panel.layout }));
-  const cards = new Set(panels.filter(isMetricCard).map(panel => panel.id));
-  // A pair of metric cards shares a row there (`stackedLayout`).
-  const read = narrow ? stackedLayout(boxes, id => cards.has(id)) : boxes;
-  // Read, a panel grows towards the height its body needs whole (P1-3);
-  // built, every panel is the size that is saved.
-  const layout: Layout = (
-    arranging ? read : fittedLayout(read, fit.wholes, rowHeight)
-  ).map(({ id, ...box }) => ({ i: id, ...box }));
+  const layout: Layout = drawn.map(({ id, x, y, w, h }) => ({
+    i: id,
+    x,
+    y,
+    w,
+    h,
+  }));
 
   // A fixed-width board (D31) is held to one width and centred: its filters,
   // its edit bar and its tabs with its panels, since they are one board.
@@ -460,6 +480,8 @@ export function DashboardGrid({
                   name={names.get(panel.id) ?? ''}
                   say={say}
                   className="min-h-0"
+                  // Sized by hand (D68): drawn at its size, never grown.
+                  data-fixed-height={hasFixedHeight(panel.layout) || undefined}
                 >
                   <DashboardPanel
                     panel={panel}
@@ -694,6 +716,14 @@ function isMetricCard(panel: DashboardPanelView): boolean {
     config.chart?.type === 'metric'
   );
 }
+
+/** The keyboard steps that size a panel rather than move it. */
+const SIZE_STEPS: ReadonlySet<ArrangeStep> = new Set([
+  'wider',
+  'narrower',
+  'taller',
+  'shorter',
+]);
 
 /** Where the one-column reading's drag sentences live in the catalogue. */
 const PANEL_DRAG_WORDING: DragWordingKeys = {

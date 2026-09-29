@@ -314,6 +314,8 @@ describe('freeSpot', () => {
 });
 
 describe('placePanelIn', () => {
+  const boxesOf = (config: { panels: DashboardPanel[] }) =>
+    config.panels.map(entry => ({ id: entry.id, ...entry.layout }));
   const panels = [
     {
       id: 'a',
@@ -390,6 +392,172 @@ describe('placePanelIn', () => {
     expect(placed.panels[2]).toBe(odd[2]);
     expect(placed.panels[3]).toBe(odd[3]);
     expect(placed.panels[0].layout.y).toBe(4);
+  });
+
+  it('places against the board as drawn, and writes back only what moved (D68)', () => {
+    const config = dashboardConfig({ panels });
+    // `a` is drawn 6 rows tall, so `b` is drawn under it at row 6.
+    const grown = new Map([['a', 6]]);
+    const placed = placePanelIn(
+      config,
+      'b',
+      { x: 12, y: 0, w: 12, h: 4 },
+      undefined,
+      grown,
+    );
+
+    // `a` did not move: its saved box is as it was, not the day's 6 rows.
+    expect(placed.panels[0]).toBe(config.panels[0]);
+    expect(placed.panels.map(entry => entry.layout)).toEqual([
+      { x: 0, y: 0, w: 12, h: 4 },
+      { x: 12, y: 0, w: 12, h: 4 },
+    ]);
+  });
+
+  it('keeps the saved height of a panel only moved, and saves the others where grown again they are drawn (D68)', () => {
+    const config = dashboardConfig({ panels });
+    const grown = new Map([['a', 6]]);
+    const shown = grownLayout(boxesOf(config), grown);
+    // The grid hands `a` over as drawn: 6 rows.
+    const target = { x: 12, y: 0, w: 12, h: 6 };
+    const placed = placePanelIn(config, 'a', target, undefined, grown);
+
+    expect(placed.panels.map(entry => entry.layout)).toEqual([
+      { x: 12, y: 0, w: 12, h: 4 },
+      { x: 0, y: 0, w: 12, h: 4 },
+    ]);
+    expect(grownLayout(boxesOf(placed), grown)).toEqual(
+      placePanel(shown, 'a', target),
+    );
+  });
+
+  it('hands back the same config for a drop where the panel was drawn (D68)', () => {
+    const config = dashboardConfig({ panels });
+    const grown = new Map([['a', 6]]);
+
+    // Drawn at rows 0–6 and 6–10: let go where it was, nothing is saved.
+    expect(
+      placePanelIn(config, 'a', { x: 0, y: 0, w: 12, h: 6 }, undefined, grown),
+    ).toBe(config);
+    expect(
+      placePanelIn(config, 'b', { x: 0, y: 6, w: 12, h: 4 }, undefined, grown),
+    ).toBe(config);
+  });
+
+  it('saves a pushed panel at the row that grown again draws it where it was let go (D68)', () => {
+    const three = dashboardConfig({
+      panels: [
+        { ...panels[0], layout: { x: 0, y: 0, w: 12, h: 4 } },
+        { ...panels[1], layout: { x: 12, y: 0, w: 12, h: 4 } },
+        {
+          ...panels[1],
+          id: 'c',
+          layout: { x: 0, y: 4, w: 24, h: 2 },
+        },
+      ] as DashboardPanel[],
+    });
+    const grown = new Map([['a', 6]]);
+    const shown = grownLayout(boxesOf(three), grown);
+    const target = { x: 0, y: 0, w: 24, h: 2 };
+    const placed = placePanelIn(three, 'c', target, undefined, grown);
+
+    expect(placed.panels.map(entry => entry.layout)).toEqual([
+      { x: 0, y: 2, w: 12, h: 4 },
+      { x: 12, y: 2, w: 12, h: 4 },
+      { x: 0, y: 0, w: 24, h: 2 },
+    ]);
+    expect(grownLayout(boxesOf(placed), grown)).toEqual(
+      placePanel(shown, 'c', target),
+    );
+
+    // Sized by hand to the rows it was drawn: its own box is saved, and the
+    // panel under it is saved right under it.
+    const sized = placePanelIn(
+      three,
+      'a',
+      { x: 0, y: 0, w: 12, h: 6, fixedHeight: true },
+      undefined,
+      grown,
+    );
+    expect(sized.panels.map(entry => entry.layout)).toEqual([
+      { x: 0, y: 0, w: 12, h: 6, fixedHeight: true },
+      { x: 12, y: 0, w: 12, h: 4 },
+      { x: 0, y: 6, w: 24, h: 2 },
+    ]);
+    expect(sized.panels[1]).toBe(three.panels[1]);
+  });
+
+  it('never saves one panel on another where the rows cannot be kept (D68)', () => {
+    // `a` grows six rows and `b` beside it none, so `c` under both is read
+    // two rows clear of `a`; grown `a`'s bottom cannot be saved under `b`.
+    const three = dashboardConfig({
+      panels: [
+        { ...panels[0], layout: { x: 0, y: 0, w: 12, h: 2 } },
+        { ...panels[1], layout: { x: 12, y: 0, w: 12, h: 4 } },
+        {
+          ...panels[1],
+          id: 'c',
+          layout: { x: 0, y: 4, w: 24, h: 2 },
+        },
+      ] as DashboardPanel[],
+    });
+    const grown = new Map([['a', 8]]);
+    const placed = placePanelIn(
+      three,
+      'c',
+      { x: 0, y: 8, w: 24, h: 2 },
+      undefined,
+      grown,
+    );
+    const saved = boxesOf(placed);
+    for (const one of saved)
+      for (const other of saved)
+        if (one !== other) expect(overlaps(one, other)).toBe(false);
+    expect(placed).toBe(three);
+  });
+
+  it('marks a panel sized by hand, and keeps the mark through later moves (D68)', () => {
+    const config = dashboardConfig({ panels });
+    const sized = placePanelIn(config, 'a', {
+      x: 0,
+      y: 0,
+      w: 12,
+      h: 3,
+      fixedHeight: true,
+    });
+    expect(sized.panels[0].layout).toEqual({
+      x: 0,
+      y: 0,
+      w: 12,
+      h: 3,
+      fixedHeight: true,
+    });
+    // `b` floated up under it and says nothing of its own.
+    expect(sized.panels[1].layout).toEqual({ x: 0, y: 3, w: 12, h: 4 });
+
+    // A drag says nothing, and the panel keeps what it had.
+    const moved = placePanelIn(sized, 'a', { x: 12, y: 0, w: 12, h: 3 });
+    expect(moved.panels[0].layout).toEqual({
+      x: 12,
+      y: 0,
+      w: 12,
+      h: 3,
+      fixedHeight: true,
+    });
+    // The same size marked again changes nothing.
+    expect(
+      placePanelIn(moved, 'a', {
+        ...moved.panels[0].layout,
+        fixedHeight: true,
+      }),
+    ).toBe(moved);
+  });
+
+  it('reads a board saved before the mark as untouched (D68)', () => {
+    const config = dashboardConfig({ panels });
+    const placed = placePanelIn(config, 'b', { x: 12, y: 0, w: 12, h: 4 });
+    for (const entry of placed.panels)
+      expect(entry.layout).not.toHaveProperty('fixedHeight');
   });
 
   it('reads a config whose panels are not a list as having none', () => {

@@ -36,6 +36,7 @@ import {
   type PanelBinding,
   type PanelPresentation,
   type ViewConfig,
+  hasFixedHeight,
   overlaid,
   without,
 } from '../model/index.js';
@@ -164,8 +165,9 @@ export function removePanel(
  * when there is no such panel or no room for one more. The copy keeps the
  * title, the view, the wiring and the override, and lands at the first free
  * place from the original's row — next to it when there is room, under it
- * when there is not. An owned view is copied with it: the copy is its own
- * question from then on, as a copied panel is its own panel.
+ * when there is not, and as tall: sized by hand if the original was (D68).
+ * An owned view is copied with it: the copy is its own question from then
+ * on, as a copied panel is its own panel.
  */
 export function duplicatePanel(
   config: DashboardViewConfig,
@@ -177,12 +179,26 @@ export function duplicatePanel(
   const layout = panel.layout;
   const tab = panelTab(config, panel);
   const copy = without(without(without(panel, 'id'), 'layout'), 'tab');
-  return addPanel(config, copy as NewPanel, {
+  const added = addPanel(config, copy as NewPanel, {
     tab: tab ?? undefined,
     fromRow: layout.y,
     size: { w: layout.w, h: layout.h },
     max,
   });
+  return added && hasFixedHeight(layout)
+    ? { ...added, config: withFixedHeight(added.config, added.id) }
+    : added;
+}
+
+/** The board with one panel marked sized by hand (D68). */
+function withFixedHeight(
+  config: DashboardViewConfig,
+  id: string,
+): DashboardViewConfig {
+  return mapPanel(config, id, panel => ({
+    ...panel,
+    layout: { ...panel.layout, fixedHeight: true },
+  }));
 }
 
 /** A panel's title set, or taken off for a blank one so it is named by what it shows. */
@@ -321,8 +337,15 @@ export function movePanelToTab(
   if (!panel || !config.tabs.some(entry => entry.id === tab)) return config;
   const from = panelTab(config, panel);
   if (from === tab || !fitsGrid(panel.layout)) return config;
+  // As tall as it was, and sized by hand if it was (D68).
   const layout = freeSpot(boxesOn(config, tab), panel.layout);
-  const moved = mapPanel(config, id, entry => ({ ...entry, tab, layout }));
+  const moved = mapPanel(config, id, entry => ({
+    ...entry,
+    tab,
+    layout: hasFixedHeight(panel.layout)
+      ? { ...layout, fixedHeight: true }
+      : layout,
+  }));
   return compactTab(moved, from);
 }
 

@@ -32,10 +32,12 @@ import {
 import {
   GROWS_TO_ROWS,
   fittedLayout,
+  grownRows,
   rowsFor,
   usePanelWholes,
 } from '../src/ui/dashboard/panelFit.js';
 import { ScrollCue } from '../src/ui/dashboard/ScrollCue.js';
+import { stackedLayout } from '../src/index.js';
 import { MessagesProvider } from '../src/ui/MessagesProvider.js';
 import { zhCN } from '../src/ui/messages/zh-CN.js';
 
@@ -310,14 +312,18 @@ describe('fittedLayout', () => {
     { id: 'chart', x: 12, y: 0, w: 12, h: 5 },
     { id: 'under', x: 0, y: 5, w: 24, h: 4 },
   ];
+  const fitted = (panels: typeof boxes, wholes: ReadonlyMap<string, number>) =>
+    fittedLayout(panels, grownRows(panels, wholes, 80));
 
   it('grows a panel by whole rows to hold its body, and moves the rest down', () => {
     // 681px is 8 rows of 80 with 10 between (710px); 7 are 620px.
     expect(rowsFor(681, 80)).toBe(8);
     expect(rowsFor(620, 80)).toBe(7);
     expect(rowsFor(0, 80)).toBe(1);
-    const fitted = fittedLayout(boxes, new Map([['table', 620]]), 80);
-    expect(fitted).toEqual([
+    expect(grownRows(boxes, new Map([['table', 620]]), 80)).toEqual(
+      new Map([['table', 7]]),
+    );
+    expect(fitted(boxes, new Map([['table', 620]]))).toEqual([
       { id: 'table', x: 0, y: 0, w: 12, h: 7 },
       boxes[1],
       { id: 'under', x: 0, y: 7, w: 24, h: 4 },
@@ -325,20 +331,55 @@ describe('fittedLayout', () => {
   });
 
   it('stops at the cap, keeps a taller saved height, and never shrinks one', () => {
-    const tall = fittedLayout(boxes, new Map([['table', 5000]]), 80);
+    const tall = fitted(boxes, new Map([['table', 5000]]));
     expect(tall[0].h).toBe(GROWS_TO_ROWS);
     const saved = [{ ...boxes[0], h: 12 }];
-    expect(fittedLayout(saved, new Map([['table', 5000]]), 80)).toEqual(saved);
+    expect(fitted(saved, new Map([['table', 5000]]))).toEqual(saved);
     expect(
-      fittedLayout(
+      fitted(
         boxes,
         new Map([
           ['table', 100],
           ['chart', 0],
         ]),
-        80,
       ),
     ).toEqual(boxes);
+  });
+
+  it('never grows a panel its author sized by hand (D68)', () => {
+    const sized = [{ ...boxes[0], h: 3, fixedHeight: true }, ...boxes.slice(1)];
+    expect(grownRows(sized, new Map([['table', 5000]]), 80).size).toBe(0);
+    expect(fitted(sized, new Map([['table', 5000]]))).toEqual(sized);
+    // Marked anything but `true`, it is untouched, as a stored board is.
+    const unmarked = [{ ...boxes[0], fixedHeight: false }, ...boxes.slice(1)];
+    expect(fitted(unmarked, new Map([['table', 620]]))[0].h).toBe(7);
+  });
+
+  it('keeps a panel sized by hand at its height on a narrow screen too (D68)', () => {
+    const sized = [
+      { ...boxes[0], h: 3, fixedHeight: true },
+      { ...boxes[1], fixedHeight: true },
+      ...boxes.slice(2),
+    ];
+    // The one-column reading, the chart and the table a pair of cards.
+    const stacked = stackedLayout(sized, id => id !== 'under');
+    expect(stacked.map(box => box.fixedHeight)).toEqual([
+      true,
+      true,
+      undefined,
+    ]);
+    expect(grownRows(stacked, new Map([['table', 5000]]), 80).size).toBe(0);
+    expect(fitted(stacked, new Map([['table', 5000]]))[0].h).toBe(5);
+    // Down one column on its own row, it keeps the height it was set.
+    const alone = stackedLayout(sized);
+    expect(fitted(alone, new Map([['table', 5000]]))[0]).toEqual({
+      id: 'table',
+      x: 0,
+      y: 0,
+      w: 2,
+      h: 3,
+      fixedHeight: true,
+    });
   });
 });
 

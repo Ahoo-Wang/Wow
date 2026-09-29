@@ -117,6 +117,7 @@ function board(): DashboardViewConfig {
 function engineOf(
   config: DashboardViewConfig = board(),
   environment?: ReturnType<typeof testEnvironment>['environment'],
+  title = 'Operations',
 ) {
   const store = new MemoryViewStore({
     instances: [
@@ -124,7 +125,7 @@ function engineOf(
       {
         id: 'board',
         definitionId: 'overview',
-        title: 'Operations',
+        title,
         scope: 'shared',
         revision: 'r1',
         config,
@@ -713,6 +714,103 @@ describe('EmbeddedDashboard', () => {
     expect(expand.getAttribute('aria-expanded')).toBe('true');
     await userEvent.keyboard('{Escape}');
     expect(surface.hasAttribute('data-view-expanded')).toBe(false);
+  });
+
+  /**
+   * Filling the screen keeps what reading the board needs (D70): the host's
+   * title and its caption were drawn outside the embed and are covered, so
+   * the board draws its own title — its panels a level under it — and the
+   * caption the host handed it under that; on the page, neither.
+   */
+  it('draws its title and the host’s caption while it fills the screen, and neither on the page', async () => {
+    embed({
+      interaction: 'interactive',
+      expandable: true,
+      caption: <span>Read for yesterday</span>,
+    });
+    await chartRow('CN');
+    expect(document.querySelector('[data-slot="embed-head"]')).toBeNull();
+    expect(screen.queryByText('Read for yesterday')).toBeNull();
+    expect(
+      screen.getByRole('heading', { level: 2, name: 'By warehouse' }),
+    ).toBeDefined();
+
+    const expand = screen.getByRole('button', { name: 'Fill the screen' });
+    await userEvent.click(expand);
+    const title = screen.getByRole('heading', { level: 2, name: 'Operations' });
+    expect(
+      screen.getByRole('heading', { level: 3, name: 'By warehouse' }),
+    ).toBeDefined();
+    const caption = document.querySelector<HTMLElement>(
+      '[data-slot="embed-caption"]',
+    )!;
+    expect(caption.textContent).toBe('Read for yesterday');
+    expect(
+      title.compareDocumentPosition(caption) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    // The button stays where it was pressed, with the keyboard on it.
+    expect(
+      document
+        .querySelector('[data-slot="dashboard-filter-row"]')
+        ?.contains(expand),
+    ).toBe(true);
+    expect(document.activeElement).toBe(expand);
+
+    await userEvent.keyboard('{Escape}');
+    expect(document.querySelector('[data-slot="embed-head"]')).toBeNull();
+    expect(screen.queryByText('Read for yesterday')).toBeNull();
+  });
+
+  /**
+   * A board with no title of its own draws no heading while it fills the
+   * screen — an empty heading names nothing — and its panels keep their
+   * level; the caption goes under a title, so with none it has no place.
+   * Nor while it opens: no title yet.
+   */
+  it('draws no empty heading for a board with no title', async () => {
+    embed({
+      engine: engineOf(board(), undefined, ''),
+      interaction: 'interactive',
+      expandable: true,
+      withTitle: true,
+      caption: 'Read for yesterday',
+    });
+    expect(document.querySelector('[data-slot="embed-title"]')).toBeNull();
+    await chartRow('CN');
+    await userEvent.click(
+      screen.getByRole('button', { name: 'Fill the screen' }),
+    );
+    expect(document.querySelector('[data-slot="embed-title"]')).toBeNull();
+    for (const heading of screen.getAllByRole('heading'))
+      expect(heading.textContent).not.toBe('');
+    expect(
+      screen.getByRole('heading', { level: 2, name: 'By warehouse' }),
+    ).toBeDefined();
+    expect(document.querySelector('[data-slot="embed-caption"]')).toBeNull();
+    await userEvent.keyboard('{Escape}');
+  });
+
+  /** A host that titles the board keeps its title, and still no caption on the page. */
+  it('keeps a title the host asked for, and adds only the caption when it fills the screen', async () => {
+    embed({
+      interaction: 'interactive',
+      expandable: true,
+      withTitle: true,
+      caption: 'Read for yesterday',
+    });
+    await chartRow('CN');
+    expect(screen.getAllByRole('heading', { name: 'Operations' })).toHaveLength(
+      1,
+    );
+    expect(screen.queryByText('Read for yesterday')).toBeNull();
+    await userEvent.click(
+      screen.getByRole('button', { name: 'Fill the screen' }),
+    );
+    expect(screen.getAllByRole('heading', { name: 'Operations' })).toHaveLength(
+      1,
+    );
+    expect(screen.getByText('Read for yesterday')).toBeDefined();
+    await userEvent.keyboard('{Escape}');
   });
 
   /**

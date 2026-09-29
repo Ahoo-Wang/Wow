@@ -145,8 +145,19 @@ export interface DashboardEditing {
    * pending. A layout the grid does not admit, or a panel id there is none
    * of, is ignored. No panel re-queries for it: a child is kept while its
    * reference and its scope are unchanged, and neither is.
+   *
+   * `grown` is the rows each panel is drawn tall where the screen grew it
+   * past what is saved (D52): the placement lands on the board as drawn,
+   * and only what moved is written back (D68, `placePanelIn`) — no
+   * untouched panel saves a grown height, and a placement that moves
+   * nothing leaves the draft as it was. A layout
+   * that says `fixedHeight` marks the panel sized by hand.
    */
-  place(panelId: string, layout: PanelLayout): void;
+  place(
+    panelId: string,
+    layout: PanelLayout,
+    grown?: ReadonlyMap<string, number>,
+  ): void;
   /**
    * Moves a panel to place `to` (from 0) along its tab's reading order —
    * the one-column reading's handle (D22 J): a drop, an arrow key, its
@@ -428,8 +439,10 @@ export function boardEditing(host: EditingHost): BoardEdits {
       edit('moveTab', tabId, config => moveTab(config, tabId, index)),
     removeTab: tabId =>
       edit('removeTab', tabId, config => removeTab(config, tabId)),
-    place: (panelId, layout) =>
-      edit('place', panelId, config => placePanelIn(config, panelId, layout)),
+    place: (panelId, layout, grown) =>
+      edit('place', panelId, config =>
+        placePanelIn(config, panelId, layout, undefined, grown),
+      ),
     reorderPanel: (panelId, to) =>
       edit('reorderPanel', panelId, config =>
         reorderPanelIn(config, panelId, to),

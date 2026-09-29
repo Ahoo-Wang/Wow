@@ -232,6 +232,21 @@ export interface PanelLayout {
   y: number;
   w: number;
   h: number;
+  /**
+   * Whether the author sized the panel by hand — dragged its corner or
+   * stepped its size by keyboard (D68): a board read draws it exactly `h`
+   * rows tall, and says what is past its bottom, rather than growing it to
+   * its content as it does an untouched panel (D52). Left out — every board
+   * saved before a panel could say — the panel is untouched: an optional
+   * member a reader that does not know it ignores, so the stored form stays
+   * readable both ways.
+   */
+  fixedHeight?: boolean;
+}
+
+/** Whether a layout's height is its author's own, never grown (D68). */
+export function hasFixedHeight(layout: { fixedHeight?: unknown }): boolean {
+  return layout.fixedHeight === true;
 }
 
 /**

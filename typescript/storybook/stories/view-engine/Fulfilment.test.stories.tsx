@@ -10,8 +10,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+import type { ComponentType } from 'react';
 import type { StoryObj } from '@storybook/react-vite';
-import { expect, waitFor, within } from 'storybook/test';
+import { expect, screen, userEvent, waitFor, within } from 'storybook/test';
+import { zhCN } from '@ahoo-wang/wow-view-engine/ui';
 import displayMeta, {
   AfterSales as DisplayAfterSales,
   FulfilmentTab as DisplayFulfilment,
@@ -24,9 +26,20 @@ import {
   expectCueIsNoStop,
   expectNoPanelsOverlap,
   expectRowsCue,
+  expectSameHeights,
   expectShownWhole,
+  GROWN_AT_MOST,
+  panelHeights,
+  panelParts,
+  settledHeights,
 } from './panelFit.js';
-import { findReading, noPanelOut, panelOf, rowsOf } from './retail/twins.js';
+import {
+  findReading,
+  label,
+  noPanelOut,
+  panelOf,
+  rowsOf,
+} from './retail/twins.js';
 
 function percentOf(text: string | undefined): number {
   return Number((text ?? '').replace('%', ''));
@@ -170,5 +183,105 @@ export const AfterSalesDetailSaysWhatIsPast: Story = {
     await expectColumnsCue('售后单明细');
     await expectCueIsNoStop('售后单明细');
     await expectNoPanelsOverlap(canvasElement);
+  },
+};
+
+/**
+ * A desk: the test browser is a phone's width, and below `md` the board is
+ * one column in which nothing is sized.
+ */
+const DESK = (Story: ComponentType) => (
+  <div style={{ width: 1280 }}>
+    <Story />
+  </div>
+);
+
+/** 「编辑」, and the grips out: the board is being built. */
+async function startBuilding(canvasElement: HTMLElement) {
+  await userEvent.click(
+    within(canvasElement).getByRole('button', {
+      name: zhCN['label.dashboard.edit'],
+    }),
+  );
+  await waitFor(() =>
+    expect(
+      canvasElement.querySelector('[data-slot="panel-grip"]'),
+    ).not.toBeNull(),
+  );
+}
+
+/**
+ * What the author sized is what a reader sees (D68, revising D52; the user
+ * on 2026-09-28): the after-sales detail, saved five rows tall, is read
+ * grown to its cap, and 「编辑」 starts from there — it and every other
+ * panel as tall as they were read, nothing on the board jumping. Sized
+ * three rows shorter by its corner and saved, it is read at exactly that
+ * size, never grown back, with 「下面还有 N 行」 on its edge; and 「编辑」
+ * again moves nothing. The board as stored carries no mark: every panel on
+ * it reads as untouched.
+ */
+export const SizedByHandIsWhatIsRead: Story = {
+  ...DisplayAfterSales,
+  name: '履约与售后 · 手调过高度就照手调',
+  decorators: [DESK],
+  play: async ({ canvasElement }) => {
+    const detail = '售后单明细';
+    await noPanelOut(canvasElement);
+    // Grown to its cap, over the five rows it is saved at.
+    await expectRowsCue(detail);
+    await expect(canvasElement.querySelector('[data-fixed-height]')).toBeNull();
+    const read = await settledHeights(canvasElement);
+    await expect(
+      Math.abs(read.get('after-sales')! - GROWN_AT_MOST),
+    ).toBeLessThanOrEqual(1);
+
+    await startBuilding(canvasElement);
+    await expectSameHeights(canvasElement, read);
+
+    // Three rows shorter by the corner's keys: a size chosen by hand.
+    const corner = within(canvasElement).getByRole('button', {
+      name: label('label.panel.resize', { title: detail }),
+    });
+    corner.focus();
+    await userEvent.keyboard('{ArrowUp}{ArrowUp}{ArrowUp}');
+    await waitFor(() =>
+      expect(panelHeights(canvasElement).get('after-sales')).toBeLessThan(
+        GROWN_AT_MOST - 200,
+      ),
+    );
+    const sized = await settledHeights(canvasElement);
+    await userEvent.click(
+      within(canvasElement).getByRole('button', {
+        name: zhCN['label.dashboard.save'],
+      }),
+    );
+    const confirm = await screen.findByRole('alertdialog');
+    await userEvent.click(
+      within(confirm).getByRole('button', {
+        name: zhCN['label.save.shared-confirm'],
+      }),
+    );
+    await waitFor(() =>
+      expect(
+        canvasElement.querySelector('[data-slot="panel-grip"]'),
+      ).toBeNull(),
+    );
+
+    // Read at exactly that size, and the rows past its edge said.
+    await expectSameHeights(canvasElement, sized);
+    await expect(
+      canvasElement.querySelector(
+        '.react-grid-item[data-panel-id="after-sales"]',
+      ),
+    ).toHaveAttribute('data-fixed-height', 'true');
+    await waitFor(() => {
+      const { cue } = panelParts(detail);
+      const rows = Number(cue?.dataset.rows);
+      expect(rows).toBeGreaterThan(0);
+      expect(cue?.textContent).toContain(`下面还有 ${rows} 行`);
+    });
+
+    await startBuilding(canvasElement);
+    await expectSameHeights(canvasElement, sized);
   },
 };

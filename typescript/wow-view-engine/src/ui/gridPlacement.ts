@@ -49,6 +49,12 @@ export interface GridPlacement {
  * panel in hand is handed to `place`; the runtime pushes the rest by the
  * same rule. Outside a gesture — on mount, on every new layout — it changes
  * nothing, because the grid shows the layout as it was admitted.
+ *
+ * A resize that changed the panel's size says so (`fixedHeight`, D68): the
+ * author sized it by hand, and a board read draws it at that size. One let
+ * go at the size it started from places nothing, so it neither marks the
+ * panel nor leaves an edit to save. A drag says nothing, and the panel keeps
+ * what it had.
  */
 export function useGridPlacement(
   place: (panelId: string, layout: PanelLayout) => void,
@@ -89,13 +95,20 @@ export function useGridPlacement(
     gesture.current = null;
     if (item) place(item.i, geometry(item));
   };
+  const resized: EventCallback = (_layout, old, item) => {
+    gesture.current = null;
+    // A corner let go at the size it started from chose nothing: no mark,
+    // and no edit left to save.
+    if (!item || (old && old.w === item.w && old.h === item.h)) return;
+    place(item.i, { ...geometry(item), fixedHeight: true });
+  };
 
   return {
     compactor,
     onDragStart: start,
     onDragStop: stop,
     onResizeStart: start,
-    onResizeStop: stop,
+    onResizeStop: resized,
   };
 }
 

@@ -155,3 +155,68 @@ export async function expectNoPanelsOverlap(canvasElement: HTMLElement) {
           b.top < a.bottom - 1,
       ).toBe(false);
 }
+
+/*
+ * What an author sized is what a reader sees (D68): a panel's height on
+ * screen, read and built, measured once the grid has come to rest.
+ */
+
+/** Every panel's height on screen, by its id. */
+export function panelHeights(canvasElement: HTMLElement): Map<string, number> {
+  return new Map(
+    [
+      ...canvasElement.querySelectorAll<HTMLElement>(
+        '.react-grid-item[data-panel-id]',
+      ),
+    ].map(item => [item.dataset.panelId!, item.getBoundingClientRect().height]),
+  );
+}
+
+/**
+ * The heights once the grid has come to rest: a grid item moves and sizes
+ * by a CSS transition, so a height read mid-way is neither the old one nor
+ * the new — at rest each panel is a whole number of 80px rows with 10px
+ * between them, to the half pixel, and the same a frame later. A read a
+ * pixel short of a whole row is a transition about to end (441px on its
+ * way to 440), not a board at rest.
+ */
+export async function settledHeights(
+  canvasElement: HTMLElement,
+): Promise<Map<string, number>> {
+  let heights = new Map<string, number>();
+  await waitFor(
+    async () => {
+      heights = panelHeights(canvasElement);
+      for (const [id, height] of heights)
+        expect(
+          Math.abs(height + 10 - 90 * Math.round((height + 10) / 90)),
+          `${id}: ${height}px is whole rows`,
+        ).toBeLessThanOrEqual(0.5);
+      await new Promise(resolve => requestAnimationFrame(resolve));
+      const again = panelHeights(canvasElement);
+      for (const [id, height] of heights)
+        expect(again.get(id), `${id}: still ${height}px`).toBe(height);
+    },
+    { timeout: 5_000 },
+  );
+  return heights;
+}
+
+/** No panel is taller or shorter than `before`, give or take a pixel. */
+export async function expectSameHeights(
+  canvasElement: HTMLElement,
+  before: ReadonlyMap<string, number>,
+) {
+  await waitFor(
+    () => {
+      const now = panelHeights(canvasElement);
+      expect([...now.keys()].sort()).toEqual([...before.keys()].sort());
+      for (const [id, height] of before)
+        expect(
+          Math.abs(now.get(id)! - height),
+          `${id}: ${height}px before, ${now.get(id)}px now`,
+        ).toBeLessThanOrEqual(1);
+    },
+    { timeout: 5_000 },
+  );
+}

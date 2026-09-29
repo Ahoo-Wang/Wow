@@ -59,6 +59,7 @@ import { StartingWords, useViewMessages } from './MessagesProvider.js';
 import { useEngine, useRoutedNavigate } from './ViewEngineProvider.js';
 import { useAddressedBoard } from './address.js';
 import { ErrorStrip, WarningStrip } from './StatusStrip.js';
+import { boardErrorTitle } from './panelsToFix.js';
 
 export type {
   BoardFilterModes,
@@ -137,6 +138,16 @@ export interface EmbeddedDashboardProps extends EmbedBaseProps {
    * controls, so it draws the time alone.
    */
   withRefresh?: boolean;
+  /**
+   * What the board's numbers are read as, in the host's words — 「指标卡读
+   * 9 月 21 日（昨日），较前一日」 — drawn under the title while the board
+   * fills the screen, and never otherwise (D70): on the page the host draws
+   * it itself, beside its own title, and the expanded board covers both.
+   * Written from what the host is told (`onFiltersChange`), it follows the
+   * reader's filters into the expansion. The host's own actions stay on its
+   * page: filling the screen keeps what reading the board needs.
+   */
+  caption?: ReactNode;
 }
 
 /** Pixel height of one grid row: the workbench's (`DashboardBoard`). */
@@ -232,6 +243,7 @@ function EmbeddedBoard({
     onTabChange,
     withRefresh = false,
     autoRefresh = true,
+    caption,
   } = props;
   const runtime = opened as DashboardRuntime;
   const state = useViewRuntime(runtime);
@@ -243,7 +255,9 @@ function EmbeddedBoard({
   const interactive = interaction === 'interactive';
   // 「铺满屏幕」, held here so that the row it stands in (below) can change
   // without ending the expansion.
-  const expand = useEmbedExpand(interactive && expandable);
+  const { toggle: expand, expanded } = useEmbedExpand(
+    interactive && expandable,
+  );
   // The workbench's refresh, the menu left off. With the host's
   // `autoRefresh` off the timer never runs, so the button claims no cadence.
   const renewing = useAutoRefresh(runtime);
@@ -323,10 +337,16 @@ function EmbeddedBoard({
         grouping: groupingMode,
       });
 
+  // Filling the screen, the board is titled whatever the host asked (D70):
+  // the host's own title is under it. Its panels go a level down with it,
+  // as under a title the host asked for. A board with no title — none of
+  // its own, or not opened yet — draws no heading at all: an empty one is a
+  // landmark that names nothing, and its panels stay where they were.
+  const title = state?.title || undefined;
+  const titled = (withTitle || expanded) && title !== undefined;
   const panelLevel = (
-    withTitle ? Math.min(headingLevel + 1, 6) : headingLevel
+    titled ? Math.min(headingLevel + 1, 6) : headingLevel
   ) as PanelHeadingLevel;
-  const title = state?.title ?? '';
 
   // What the board says above its panels, the one reading the workbench
   // shares (`DashboardController.issues`): a panel's own findings stay in
@@ -347,13 +367,15 @@ function EmbeddedBoard({
   // 「铺满屏幕」 joins a row the embed draws anyway, never one of its own
   // (D10): the first row where the host asked for a title or the time (or
   // the board is stopped, and draws nothing else); else a row of the
-  // board's own (`ReadBoard`).
+  // board's own (`ReadBoard`). Not the title filling the screen draws: the
+  // button stays where it was pressed, and the keyboard with it.
   const headed = withTitle || withRefresh || blocked;
 
   return (
     <>
       <EmbedHead
-        title={withTitle ? title : undefined}
+        title={titled ? title : undefined}
+        caption={expanded ? caption : undefined}
         headingLevel={headingLevel}
         inset={BOARD_INSET}
       >
@@ -375,7 +397,12 @@ function EmbeddedBoard({
           </AlertDescription>
         </Alert>
       )}
-      {errors.length > 0 && <ErrorStrip issues={errors.map(nameIssue)} />}
+      {errors.length > 0 && (
+        <ErrorStrip
+          issues={errors.map(nameIssue)}
+          title={boardErrorTitle(errors, messages)}
+        />
+      )}
       <WarningStrip issues={warnings.map(nameIssue)} />
       {!blocked && (
         <ReadBoard

@@ -31,6 +31,7 @@
 
 import {
   DASHBOARD_GRID_COLUMNS,
+  hasFixedHeight,
   type DashboardPanel,
   type DashboardViewConfig,
   type PanelLayout,
@@ -192,16 +193,99 @@ export function freeSpot(
  * untrusted thing a stored config is: an entry that is no panel, or a panel
  * whose layout admission would refuse, takes no part — it is not moved and
  * moves nothing — and is handed back untouched.
+ *
+ * `grown` is the rows each panel is drawn tall where the screen grew it
+ * past what is saved (`grownLayout`, D52): a hand places against the board
+ * it sees, so the placement lands on the tab as drawn. What is written back
+ * is only what the hand moved (D68): the panel placed, and where another
+ * panel had to go — the row it is saved at, chosen so that the board grown
+ * again draws it where the author saw it. No untouched panel's saved height
+ * changes, since a grown height is one day's data, not a size anyone chose;
+ * and a panel only moved keeps its saved height too. A placement that moves
+ * nothing hands the same config back. A `layout` that says `fixedHeight`
+ * marks the panel sized by hand; one that does not say keeps what the panel
+ * had, as every other panel does.
  */
 export function placePanelIn(
   config: DashboardViewConfig,
   id: string,
   layout: PanelLayout,
   columns: number = DASHBOARD_GRID_COLUMNS,
+  grown?: ReadonlyMap<string, number>,
 ): DashboardViewConfig {
   const boxes = tabBoxes(config, id, columns);
-  const placed = boxes && placePanel(boxes, id, layout, columns);
-  return placed ? withLayouts(config, placed) : config;
+  const shown = boxes && grown ? grownLayout(boxes, grown) : boxes;
+  const placed = shown && placePanel(shown, id, layout, columns);
+  if (!boxes || !shown || !placed) return config;
+  const saved = savedPlacement(boxes, shown, placed, id, layout);
+  return withLayouts(
+    config,
+    layout.fixedHeight === undefined
+      ? saved
+      : saved.map(box =>
+          box.id === id ? { ...box, fixedHeight: layout.fixedHeight } : box,
+        ),
+  );
+}
+
+/**
+ * The saved boxes behind a placement made on the tab as drawn: `boxes` as
+ * saved, `shown` as drawn before the hand, `placed` as drawn after it.
+ *
+ * Each panel keeps its saved height — except the one placed when the hand
+ * changed its height, or sized it (`fixedHeight`) — and is saved at the row
+ * that `grownLayout` turns back into the row it is drawn at: its drawn row
+ * less the rows the panels above it pushed it down. So the board grown again
+ * is the board the author let go of, and a panel neither placed nor pushed
+ * comes out with the row it had. Where that row would put it on a panel
+ * above it (two side by side that grow unevenly, with one wide one under
+ * both), it is saved just under that panel instead: the reading keeps the
+ * rows between them, and a saved board never overlaps.
+ */
+function savedPlacement(
+  boxes: readonly PlacedPanel[],
+  shown: readonly PlacedPanel[],
+  placed: readonly PlacedPanel[],
+  id: string,
+  layout: PanelLayout,
+): PlacedPanel[] {
+  const stored = new Map(boxes.map(box => [box.id, box]));
+  const drawnBefore = new Map(shown.map(box => [box.id, box]));
+  const heightOf = (box: PlacedPanel): number => {
+    const own = stored.get(box.id)!;
+    if (box.id !== id) return own.h;
+    const resized =
+      layout.fixedHeight === true ||
+      hasFixedHeight(own) ||
+      box.h !== drawnBefore.get(box.id)!.h;
+    return resized ? box.h : own.h;
+  };
+  // How far each panel's bottom is drawn below where it is saved.
+  const drop = new Map<string, number>();
+  const saved = new Map<string, PlacedPanel>();
+  const read = readingOrder(placed.map(box => ({ box, layout: box })));
+  for (const { box } of read) {
+    let push = 0;
+    let floor = 0;
+    for (const { box: above } of read) {
+      const settled = saved.get(above.id);
+      if (
+        !settled ||
+        above.y + above.h > box.y ||
+        above.x >= box.x + box.w ||
+        box.x >= above.x + above.w
+      )
+        continue;
+      push = Math.max(push, drop.get(above.id)!);
+      floor = Math.max(floor, settled.y + settled.h);
+    }
+    const h = heightOf(box);
+    const y = Math.max(box.y - push, floor);
+    saved.set(box.id, { id: box.id, x: box.x, y, w: box.w, h });
+    // Grown again it is drawn `push` rows below its saved row, `box.h` tall.
+    drop.set(box.id, push + box.h - h);
+  }
+  return placed.map(box => saved.get(box.id)!);
 }
 
 /**
@@ -233,7 +317,8 @@ function tabBoxes(
 /**
  * A config with these boxes written into the panels they name, or the same
  * config when none of them moves. A panel no box names, or whose stored
- * layout is not one the grid admits, is left as it is.
+ * layout is not one the grid admits, is left as it is. A box that says
+ * `fixedHeight` sets it; one that does not keeps the panel's own (D68).
  */
 export function withLayouts(
   config: DashboardViewConfig,
@@ -247,10 +332,15 @@ export function withLayouts(
     if (!isPlainObject(panel) || typeof panel.id !== 'string') return panel;
     const box = moved.get(panel.id);
     const current = panel.layout;
-    if (!box || !fitsGrid(current, columns) || sameLayout(current, box))
+    if (!box || !fitsGrid(current, columns)) return panel;
+    const fixed = hasFixedHeight(box.fixedHeight === undefined ? current : box);
+    const layout = fixed
+      ? { ...geometry(box), fixedHeight: true }
+      : geometry(box);
+    if (sameLayout(current, layout) && hasFixedHeight(current) === fixed)
       return panel;
     changed = true;
-    return { ...panel, layout: geometry(box) };
+    return { ...panel, layout };
   });
   return changed ? { ...config, panels: next as DashboardPanel[] } : config;
 }
@@ -282,6 +372,10 @@ export const STACKED_COLUMNS = 2;
  * height, made the reader scroll past a screen of white for every two
  * figures. A card with no card after it takes the row alone.
  *
+ * A panel sized by hand keeps its mark (`fixedHeight`, D68), so the
+ * narrow reading draws it at the height its author set, as the wide one
+ * does, rather than growing it back.
+ *
  * The column is `STACKED_COLUMNS` wide. A reading of the layout, not a
  * placement — it is never handed to `place`, because nothing in it maps
  * back to the wide layout the config holds.
@@ -298,13 +392,15 @@ export function stackedLayout(
     const next = read[at + 1]?.panel;
     if (next && paired(panel.id) && paired(next.id)) {
       const h = Math.max(panel.h, next.h);
-      stacked.push({ id: panel.id, x: 0, y, w: 1, h });
-      stacked.push({ id: next.id, x: 1, y, w: 1, h });
+      stacked.push(marked(panel, { id: panel.id, x: 0, y, w: 1, h }));
+      stacked.push(marked(next, { id: next.id, x: 1, y, w: 1, h }));
       y += h;
       at += 1;
       continue;
     }
-    stacked.push({ id: panel.id, x: 0, y, w: STACKED_COLUMNS, h: panel.h });
+    stacked.push(
+      marked(panel, { id: panel.id, x: 0, y, w: STACKED_COLUMNS, h: panel.h }),
+    );
     y += panel.h;
   }
   return stacked;
@@ -345,6 +441,11 @@ export function grownLayout(
     settled.push({ from, to });
   }
   return panels.map(panel => grown.get(panel.id) ?? panel);
+}
+
+/** `box`, carrying `from`'s mark when its author sized it by hand (D68). */
+function marked(from: PanelLayout, box: PlacedPanel): PlacedPanel {
+  return hasFixedHeight(from) ? { ...box, fixedHeight: true } : box;
 }
 
 /** One step along the one-column reading: before the panel read before it, or after the one read after it. */

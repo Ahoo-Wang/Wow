@@ -14,6 +14,11 @@
 /** The dashboard grid, its panels, and the dashboard kernel behind them. */
 export const dashboardMessages = {
   'label.dashboard.needs-fixing': 'This dashboard needs fixing before it runs',
+  // Only panels are broken: they are out, and the rest of the board draws.
+  'label.dashboard.panels-need-fixing':
+    '{count} panels need fixing before they can show',
+  'label.dashboard.panels-need-fixing-one':
+    '1 panel needs fixing before it can show',
   // The dashboard workbench calls what it has open a dashboard wherever
   // another workbench says view (D26 Q34, `kindWord`): new, save, the
   // shared-save question, delete and the manager.
