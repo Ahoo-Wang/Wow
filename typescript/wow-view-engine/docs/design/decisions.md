@@ -820,6 +820,17 @@
 - **没选**：往策略里加 `img-src data:`、`'unsafe-inline'`（改策略去迁就引擎，宿主就得跟着放宽）；Base UI 用 `disableStyleElements` 再在样式表里写同一条规则（规则得出 `.fve-root` 或用库的类名，`verify-package` 的边界要破例，而 nonce 已经是宿主为拖动发布过的）；在构建好的 Storybook 上用响应头下策略（预览页本身有内联脚本，要么放宽 `script-src`、要么给框架的脚本算 hash，测的就不是 README 那条策略了）。
 - **落点**：`src/ui/kit/cspNonce.ts`、`src/ui/kit/popups.tsx`、`src/ui/dashboard/DashboardGrid.tsx`、`src/ui/dashboard/GridBlocksLayer.tsx`、`src/ui/dashboard/gridBlocks.ts`、`src/styles.css`；README「Content Security Policy」；文档站视图引擎指南「内容安全策略（CSP）」；Storybook `StrictCsp.test.stories.tsx`；单测 `test/cspNonce.test.tsx`、`test/dashboardWidth.test.tsx`。
 
+## D75 首发前做 Wow 存储后端，用真服务端验证 `ViewStore`（2026-09-29）
+
+- **来由**：`ViewStore` 只有内存与本地快照两种实现，都没经历过多用户、共享与个人的可见性、服务端鉴权、真实的并发冲突与重试；端口随首发公开，之后再改就是破坏性改动。原计划阶段 6 在首发之后。
+- **裁定**（用户 2026-09-29：「首发前需要完成 Wow 存储后端，以验证 ViewStore」，四条按推荐）：
+  - **阶段 6 移到首发前**，方案 [view-store-backend.md](view-store-backend.md)。
+  - **放在 Wow 仓的一组新模块**：api、domain、**wow-view-store-starter**（Spring Boot 自动配置，业务服务引入即获得视图能力）与 **wow-view-store-server**（引入 starter 的独立宿主服务），加随后端合同发布的 TS 客户端。
+  - **第一版范围**：端口的 8 个方法，加就地改受众（D18 第 10 条）；订阅、版本历史、注释在首发后。
+  - **隔离沿用 Wow 与 CoSec 的约定**：租户与所有者在路径里（fetcher-cosec 从令牌自动填），所有者段就是受众（共享为 `(shared)`），应用取自 `CoSec-App-Id`，聚合 id 由服务端生成，鉴权由 CoSec 网关负责；视图与偏好不按 space 隔离，前置修复框架：没有开启 `spaced` 的聚合不写入、不过滤 spaceId（用户：原契约是错的）。
+  - **验证宿主**：`typescript/integration-test` 连示例服务端，外加内存实现与 Wow 实现共用的端口一致性测试；**补偿控制台也迁移**——补偿服务引入 starter，控制台不登录，由自己插入的 fetcher 拦截器注入缺省的租户、所有者、应用。
+- **落点**：[view-store-backend.md](view-store-backend.md)、[todo.md](todo.md)「首发前」、[management.md](management.md)。
+
 ## 搁置待议
 
 尚无结论，不要当作规则执行。
