@@ -40,7 +40,8 @@ import { momentMetrics } from './metricFormat.js';
  * still names a field of the unit is kept as it was.
  *
  * A derived metric that read a metric that left goes too, and one that read
- * it after it (`withoutDangling`). The chart, the sort, the table columns
+ * it after it (`withoutDangling`); one that read nothing before the step
+ * stays for admission to point at. The chart, the sort, the table columns
  * and the having follow the survivors the way they follow any change of
  * groups and metrics (`useAnalysisEditor`'s reshape), so this answers only
  * what is grouped and measured.
@@ -67,10 +68,20 @@ export function withElements(
       ? metric
       : withoutFilter(metric);
   });
-  // A derived metric that read one that left goes with it, in cascade.
+  // A derived metric that read one that left goes with it, in cascade;
+  // one that read nothing before the step is not the step's to take.
   const { metrics: derivable } = withoutDangling(
     { groups, metrics: metrics as AnalysisViewConfig['metrics'] },
     { moments: momentMetrics(metrics, scope.fields) },
+    {
+      shape: config,
+      facts: {
+        moments: momentMetrics(
+          config.metrics,
+          analysisScope(definition, capability, config).fields,
+        ),
+      },
+    },
   );
   return {
     elements: elements.length === 0 ? [] : elements,

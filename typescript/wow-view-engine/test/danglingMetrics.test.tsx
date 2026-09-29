@@ -207,6 +207,83 @@ describe('withoutDangling', () => {
   });
 });
 
+describe('withoutDangling, given the config an edit started from', () => {
+  it('takes only what the edit broke', () => {
+    const before = {
+      groups: grouped,
+      metrics: [
+        count,
+        amount,
+        derived('stale', 'gone', 'orders'),
+        derived('staler', 'stale', 'orders'),
+        derived('perOrder', 'amount', 'orders'),
+      ] as AnalysisViewConfig['metrics'],
+    };
+    const having = and(over('stale'), over('amount'), over('orders'));
+    const followed = withoutDangling(
+      {
+        groups: grouped,
+        metrics: before.metrics.filter(
+          metric => metric.alias !== 'amount',
+        ) as AnalysisViewConfig['metrics'],
+        having,
+      },
+      {},
+      { shape: before },
+    );
+    expect(followed.removed).toEqual(['perOrder']);
+    expect(followed.metrics.map(metric => metric.alias)).toEqual([
+      'orders',
+      'stale',
+      'staler',
+    ]);
+    expect(followed.having).toEqual(and(over('stale'), over('orders')));
+  });
+
+  it('leaves a having that had no dimension to keep before', () => {
+    const having = over('orders');
+    expect(
+      withoutDangling(
+        {
+          groups: [],
+          metrics: [count] as AnalysisViewConfig['metrics'],
+          having,
+        },
+        {},
+        {
+          shape: {
+            groups: [],
+            metrics: [count] as AnalysisViewConfig['metrics'],
+          },
+        },
+      ).having,
+    ).toBe(having);
+  });
+
+  it('may leave nothing to measure, for the caller to say what then', () => {
+    expect(
+      withoutDangling(
+        {
+          groups: grouped,
+          metrics: [
+            derived('ratio', 'amount', 'amount'),
+          ] as AnalysisViewConfig['metrics'],
+        },
+        {},
+        {
+          shape: {
+            groups: grouped,
+            metrics: [
+              amount,
+              derived('ratio', 'amount', 'amount'),
+            ] as AnalysisViewConfig['metrics'],
+          },
+        },
+      ).metrics,
+    ).toEqual([]);
+  });
+});
+
 describe('withElements', () => {
   it('takes a derived metric over a derived metric that left', () => {
     const chained = ordersDefinition({
@@ -250,14 +327,20 @@ describe('withElements', () => {
 });
 
 describe('an edit to the question', () => {
-  /** Two summable fields and a sample value, with having and derived metrics. */
-  function definition(): DataViewDefinition {
+  /**
+   * Two summable fields, a sample value and a time, with having and derived
+   * metrics; `havingMetrics` narrows what 「只保留」 may compare.
+   */
+  function definition(
+    havingMetrics?: AnalysisMetric['type'][],
+  ): DataViewDefinition {
     return ordersDefinition({
       fields: [
         { name: 'id', label: 'Order', kind: 'string', sortable: true },
         { name: 'warehouse', label: 'Warehouse', kind: 'string' },
         { name: 'amount', label: 'Amount', kind: 'number', sortable: true },
         { name: 'cost', label: 'Cost', kind: 'number', sortable: true },
+        { name: 'createdAt', label: 'Created', kind: 'datetime' },
         {
           name: 'items',
           label: 'Items',
@@ -272,6 +355,7 @@ describe('an edit to the question', () => {
         count: true,
         expressions: true,
         having: true,
+        ...(havingMetrics ? { havingMetrics } : {}),
         fields: [
           {
             field: 'warehouse',
@@ -282,9 +366,16 @@ describe('an edit to the question', () => {
             field: 'amount',
             groups: [],
             functions: [AggregationFunction.SUM],
+            distinctCount: true,
             any: true,
           },
           { field: 'cost', groups: [], functions: [AggregationFunction.SUM] },
+          {
+            field: 'createdAt',
+            groups: [],
+            functions: [AggregationFunction.MAX],
+            distinctCount: true,
+          },
         ],
         elements: [
           {
@@ -307,7 +398,10 @@ describe('an edit to the question', () => {
     });
   }
 
-  async function editor(config: Partial<AnalysisViewConfig>) {
+  async function editor(
+    config: Partial<AnalysisViewConfig>,
+    havingMetrics?: AnalysisMetric['type'][],
+  ) {
     const store = new MemoryViewStore({
       instances: [
         {
@@ -321,7 +415,7 @@ describe('an edit to the question', () => {
       ],
     });
     const engine = new ViewEngine({
-      resources: resourcesOf([definition()], () => testSource()),
+      resources: resourcesOf([definition(havingMetrics)], () => testSource()),
       store,
     });
     const { result } = renderHook(() => {
@@ -456,15 +550,157 @@ describe('an edit to the question', () => {
     expect(analysis().issues).toEqual([]);
   });
 
-  it('is not made when it would leave nothing to measure', async () => {
-    const metrics = [
-      amount,
-      derived('ratio', 'amount', 'amount'),
-    ] as AnalysisViewConfig['metrics'];
-    const { analysis, draft } = await editor({ metrics });
+  it('takes a rule out of an AND inside an OR, and an OR on its own whole', async () => {
+    const nested = or(and(over('orders'), over('amount')), over('cost'));
+    const { analysis, draft } = await editor({
+      metrics: [count, amount, cost] as AnalysisViewConfig['metrics'],
+      having: nested,
+    });
+
+    act(() => analysis().removeMetric(1));
+
+    expect(draft().having).toEqual(or(and(over('orders')), over('cost')));
+    expect(analysis().issues).toEqual([]);
+
+    act(() => analysis().removeMetric(1));
+
+    // The OR had the cost on one side: without it, every group is kept.
+    expect('having' in draft()).toBe(false);
+    expect(analysis().issues).toEqual([]);
+  });
+
+  it('takes a rule on a metric its type no longer lets 「只保留」 compare', async () => {
+    const { analysis, draft } = await editor(
+      {
+        metrics: [count, amount] as AnalysisViewConfig['metrics'],
+        having: and(over('orders'), over('amount')),
+      },
+      ['COUNT', 'NUMERIC'],
+    );
+    expect(analysis().issues).toEqual([]);
+
+    act(() =>
+      analysis().replaceMetric(1, {
+        alias: 'amount',
+        type: 'DISTINCT_COUNT',
+        expression: { type: 'FIELD', field: 'amount' },
+      }),
+    );
+
+    expect(draft().having).toEqual(and(over('orders')));
+    expect(analysis().issues).toEqual([]);
+  });
+
+  it('follows a change of summary into a moment', async () => {
+    const { analysis, draft } = await editor({
+      metrics: [
+        count,
+        {
+          alias: 'days',
+          type: 'DISTINCT_COUNT',
+          expression: { type: 'FIELD', field: 'createdAt' },
+        },
+        derived('perDay', 'orders', 'days'),
+      ] as AnalysisViewConfig['metrics'],
+      having: and(over('orders'), over('days')),
+    });
+    expect(analysis().issues).toEqual([]);
+
+    act(() =>
+      analysis().replaceMetric(1, {
+        alias: 'days',
+        type: 'NUMERIC',
+        function: 'MAX',
+        expression: { type: 'FIELD', field: 'createdAt' },
+      }),
+    );
+
+    expect(draft().metrics.map(metric => metric.alias)).toEqual([
+      'orders',
+      'days',
+    ]);
+    expect(draft().having).toEqual(and(over('orders')));
+    expect(analysis().issues).toEqual([]);
+  });
+
+  it('takes what reads a metric a collapse leaves behind', async () => {
+    const qty: AnalysisMetric = {
+      alias: 'qty',
+      type: 'NUMERIC',
+      function: 'SUM',
+      expression: { type: 'FIELD', field: 'items.qty' },
+    };
+    const { analysis, draft } = await editor({
+      elements: [{ path: 'items' }],
+      groups: [{ alias: 'sku', field: 'items.sku', type: 'TERMS' }],
+      metrics: [
+        count,
+        qty,
+        derived('perItem', 'qty', 'orders'),
+      ] as AnalysisViewConfig['metrics'],
+      having: and(over('orders'), over('qty')),
+      chart: {
+        type: 'bar',
+        cartesian: { x: 'sku', series: [{ metric: 'orders' }] },
+      },
+    });
+    expect(analysis().issues).toEqual([]);
+
+    act(() => analysis().collapse(0));
+
+    expect(draft().elements).toEqual([]);
+    expect(draft().metrics).toEqual([count]);
+    expect('having' in draft()).toBe(false);
+    expect(analysis().issues).toEqual([]);
+  });
+
+  /**
+   * Only what the edit broke follows it. A stored config whose derived
+   * metric already read nothing used to have it taken by any edit at all —
+   * and, where nothing else was left, every edit refused — so the one
+   * finding admission pointed at vanished under an edit about something
+   * else, or the question could not be edited at all.
+   */
+  it('leaves what already read nothing for admission to say', async () => {
+    const broken = derived('stale', 'gone', 'gone');
+    const { analysis, draft } = await editor({
+      metrics: [broken] as AnalysisViewConfig['metrics'],
+      having: over('stale'),
+    });
+    const codes = () => analysis().issues.map(found => found.code);
+    expect(codes()).toContain('analysis.derived.unknown-metric');
+
+    act(() => analysis().renameMetric(0, 'Stale'));
+    expect(draft().metrics).toEqual([{ ...broken, label: 'Stale' }]);
+    expect(draft().having).toEqual(over('stale'));
+
+    act(() => analysis().renameGroup(0, 'Where'));
+    expect(draft().groups[0]).toMatchObject({ label: 'Where' });
+    expect(draft().metrics).toHaveLength(1);
+
+    act(() => analysis().addMetric(count));
+    expect(draft().metrics.map(metric => metric.alias)).toEqual([
+      'stale',
+      'orders',
+    ]);
+    expect(draft().having).toEqual(over('stale'));
+    expect(codes()).toContain('analysis.derived.unknown-metric');
+  });
+
+  it('is made as asked where following it would leave nothing to measure', async () => {
+    const { analysis, draft } = await editor({
+      metrics: [
+        amount,
+        derived('ratio', 'amount', 'amount'),
+      ] as AnalysisViewConfig['metrics'],
+    });
 
     act(() => analysis().removeMetric(0));
 
-    expect(draft().metrics).toEqual(metrics);
+    // Admission says what it lacks; the remove button is the UI's to refuse.
+    expect(draft().metrics.map(metric => metric.alias)).toEqual(['ratio']);
+    expect(analysis().issues.map(found => found.code)).toContain(
+      'analysis.derived.unknown-metric',
+    );
   });
 });

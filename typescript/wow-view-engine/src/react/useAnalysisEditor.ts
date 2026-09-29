@@ -344,8 +344,10 @@ export function useAnalysisEditor(
    * The metrics themselves follow the same way (`withoutDangling`): a
    * derived metric that read one gone goes with it, and so does a having
    * rule on it — else the next run stopped at `analysis.derived.unknown-metric`
-   * or `analysis.having.unknown-metric`. An edit that would leave nothing
-   * to measure is not made.
+   * or `analysis.having.unknown-metric`. Only what this edit broke goes: a
+   * reference that read nothing before it stays for admission to point at.
+   * Where following would leave nothing to measure, the edit is made as
+   * asked, and admission says so.
    */
   const reshape = useCallback(
     (
@@ -360,29 +362,37 @@ export function useAnalysisEditor(
         const proposed = update(current);
         if (!proposed) return {};
         const shape = { ...current, ...proposed };
-        const followed = withoutDangling(
-          shape,
+        const factsOf = (
+          of: AnalysisViewConfig,
+        ): Parameters<typeof withoutDangling>[1] =>
           definition && capability
             ? {
                 moments: momentMetrics(
-                  shape.metrics,
-                  analysisScope(definition, capability, shape).fields,
+                  of.metrics,
+                  analysisScope(definition, capability, of).fields,
                 ),
                 havingMetrics: capability.havingMetrics,
               }
-            : {},
-        );
-        if (followed.metrics.length === 0) return {};
-        const next = { ...proposed, metrics: followed.metrics };
+            : {};
+        const followed = withoutDangling(shape, factsOf(shape), {
+          shape: current,
+          facts: factsOf(current),
+        });
+        // Where following the edit would leave nothing to measure, the edit
+        // is made as asked and admission says what it lacks.
+        const next =
+          followed.metrics.length === 0
+            ? proposed
+            : { ...proposed, metrics: followed.metrics };
+        const having =
+          followed.metrics.length === 0 ? current.having : followed.having;
         const aliases = new Set([
           ...next.groups.map(group => group.alias),
           ...next.metrics.map(metric => metric.alias),
         ]);
         return {
           ...next,
-          ...(followed.having === current.having
-            ? {}
-            : { having: followed.having }),
+          ...(having === current.having ? {} : { having }),
           chart: fitTo(current.chart, { ...current, ...next }),
           // Wow refuses a sort over an ungrouped aggregation, and it has one
           // row anyway, so losing the last group empties the ordering too.

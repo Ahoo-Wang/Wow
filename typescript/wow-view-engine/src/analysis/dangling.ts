@@ -34,10 +34,18 @@ export interface WithoutDangling {
   removed: string[];
 }
 
+type Shape = Pick<AnalysisViewConfig, 'groups' | 'metrics' | 'having'>;
+
+/** The config an edit started from, and what its metrics were read by. */
+export interface DanglingBefore {
+  shape: Pick<AnalysisViewConfig, 'groups' | 'metrics'>;
+  facts?: DanglingFacts;
+}
+
 /**
- * The metrics and the having that still read something, after an edit to
- * what is grouped or measured: the one rule every such edit follows, the
- * way the chart, the sort and the table columns follow the aliases.
+ * The metrics and the having an edit to what is grouped or measured leaves
+ * reading something: the one rule every such edit follows, the way the
+ * chart, the sort and the table columns follow the aliases.
  *
  * - **A derived metric leaves with an operand it can no longer read**: one
  *   gone, turned into a sample value or a moment, or declared after it —
@@ -50,27 +58,61 @@ export interface WithoutDangling {
  *   having; no dimension left, no having either — Wow has no groups to
  *   keep (`analysis.having.requires-group`).
  *
- * The metrics are never emptied here: when nothing is left the caller says
- * what an empty question becomes.
+ * Only what the edit broke goes (`before`, the config it started from): a
+ * derived metric or a rule that already read nothing stays, for admission
+ * to point at, rather than vanishing under an edit about something else.
+ * Without `before`, everything that reads nothing goes. The metrics may
+ * come out empty: the caller says what an empty question becomes.
  */
 export function withoutDangling(
-  shape: Pick<AnalysisViewConfig, 'groups' | 'metrics' | 'having'>,
-  { moments = new Set(), havingMetrics }: DanglingFacts = {},
+  shape: Shape,
+  facts: DanglingFacts = {},
+  before?: DanglingBefore,
 ): WithoutDangling {
+  const after = readingsOf(shape.metrics, facts);
+  const was = before && readingsOf(before.shape.metrics, before.facts ?? {});
+  const removed = [...after.dangling].filter(
+    alias => !was?.dangling.has(alias),
+  );
+  const metrics =
+    removed.length === 0
+      ? shape.metrics
+      : (shape.metrics.filter(
+          metric => !removed.includes(metric.alias),
+        ) as AnalysisViewConfig['metrics']);
+  // A rule stands unless it compared something before and cannot now.
+  const stands = (metric: string) =>
+    after.comparable.has(metric) ||
+    (was !== undefined && !was.comparable.has(metric));
+  const ungrouped =
+    shape.groups.length === 0 &&
+    (before === undefined || before.shape.groups.length > 0);
+  const having =
+    shape.having === undefined || ungrouped
+      ? undefined
+      : kept(shape.having, stands);
+  return { metrics, having, removed };
+}
+
+/**
+ * The derived metrics of a list that read nothing, in cascade, and the
+ * metrics a having may compare.
+ */
+function readingsOf(
+  metrics: readonly AnalysisMetric[],
+  { moments = new Set(), havingMetrics }: DanglingFacts,
+) {
   const readable = new Set<string>();
-  const removed: string[] = [];
-  const metrics = shape.metrics.filter(metric => {
+  const dangling = new Set<string>();
+  for (const metric of metrics) {
     if (
       metric.type === 'DERIVED' &&
       !derivedRefs(metric.expression).every(alias => readable.has(alias))
-    ) {
-      removed.push(metric.alias);
-      return false;
-    }
-    if (!isValueMetric(metric) && !moments.has(metric.alias))
+    )
+      dangling.add(metric.alias);
+    else if (!isValueMetric(metric) && !moments.has(metric.alias))
       readable.add(metric.alias);
-    return true;
-  });
+  }
   const comparable = new Set(
     metrics
       .filter(
@@ -80,31 +122,19 @@ export function withoutDangling(
       )
       .map(metric => metric.alias),
   );
-  const having =
-    shape.having === undefined || shape.groups.length === 0
-      ? undefined
-      : kept(shape.having, comparable);
-  return {
-    metrics:
-      removed.length === 0
-        ? shape.metrics
-        : (metrics as AnalysisViewConfig['metrics']),
-    having,
-    removed,
-  };
+  return { dangling, comparable };
 }
 
-/** The node less its rules on metrics gone; `undefined` when it keeps all. */
+/** The node less the rules that no longer stand; `undefined` when it keeps all. */
 function kept(
   node: AnalysisHavingExpression,
-  comparable: ReadonlySet<string>,
+  stands: (metric: string) => boolean,
 ): AnalysisHavingExpression | undefined {
   // A shape admission refuses is left for admission to say.
   if (typeof node !== 'object' || node === null) return node;
-  if (!('operands' in node))
-    return comparable.has(node.metric) ? node : undefined;
+  if (!('operands' in node)) return stands(node.metric) ? node : undefined;
   if (!Array.isArray(node.operands)) return node;
-  const operands = node.operands.map(operand => kept(operand, comparable));
+  const operands = node.operands.map(operand => kept(operand, stands));
   if (operands.every((operand, at) => operand === node.operands[at]))
     return node;
   if (node.type === 'OR' && operands.includes(undefined)) return undefined;
