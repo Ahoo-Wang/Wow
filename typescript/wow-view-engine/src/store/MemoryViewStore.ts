@@ -317,6 +317,7 @@ export class MemoryViewStore implements ViewStore {
       return new ViewStoreError(
         'UNAVAILABLE',
         `The view store could not keep this write: ${reasonOf(error)}`,
+        { storage: true },
       );
     }
   }

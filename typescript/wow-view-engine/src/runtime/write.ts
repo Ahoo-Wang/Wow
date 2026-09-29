@@ -59,12 +59,15 @@ export type WriteAction = WritePayload['action'];
  *
  * `unknown` is the one that matters: the request left, and nothing came back.
  * It is neither a failure nor a success, and the only safe move is to replay
- * the same `requestId` and let the server deduplicate.
+ * the same `requestId` and let the server deduplicate. Its `issue`, when it
+ * has one, says what is known of why: the browser's storage would not keep
+ * the write (`view.write.storage`), which a retry writes again once there is
+ * room.
  */
 export type WriteState = { requestId: string; payload: WritePayload } & (
   | { kind: 'conflict'; remote: ViewInstance | ViewPreferences }
   | { kind: 'rejected'; issue: Issue }
-  | { kind: 'unknown' }
+  | { kind: 'unknown'; issue?: Issue }
 );
 
 /**

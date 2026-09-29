@@ -376,6 +376,47 @@ describe('queryFailureIssue', () => {
     expect(isForbiddenQuery(found)).toBe(false);
   });
 
+  it('says a server it could not reach in the reader’s words, not the browser’s (#3593)', async () => {
+    // Bare, as a source that calls fetch itself rejects, and as fetcher's
+    // `ExchangeError` carries it: an exchange with no response, the
+    // TypeError its cause.
+    const bare = new TypeError('Failed to fetch');
+    const exchanged = Object.assign(new Error('Failed to fetch'), {
+      cause: new TypeError('Failed to fetch'),
+      exchange: {
+        response: undefined,
+        extractResult: () => Promise.reject(new Error('no response')),
+      },
+    });
+    for (const error of [bare, exchanged]) {
+      const failure = await sourceFailure(error);
+      expect(failure).toEqual({ reason: 'Failed to fetch', unreachable: true });
+      const found = queryFailureIssue(failure, withItems(), FILTER);
+
+      expect(found.code).toBe('runtime.query.unreachable');
+      expect(found.path).toEqual([]);
+      // The browser's words stay for the host, out of the sentence.
+      expect(found.params).toEqual({ reason: 'Failed to fetch' });
+      expect(formatIssue(zhCN, found)).toBe('没能加载数据：无法连接服务端。');
+      expect(formatIssue(zhCN, found)).not.toMatch(/[A-Za-z]/);
+      expect(formatIssue(en, found)).toBe(
+        'Could not load the data: the server could not be reached.',
+      );
+      // Asking again may well reach it: the retry stays.
+      expect(isForbiddenQuery(found)).toBe(false);
+    }
+  });
+
+  it('keeps any other failure with no answer in the source’s own words', async () => {
+    const found = queryFailureIssue(
+      await sourceFailure(new Error('gateway down')),
+      withItems(),
+      FILTER,
+    );
+    expect(found.code).toBe('runtime.query.failed');
+    expect(formatIssue(zhCN, found)).toBe('没能加载数据：gateway down');
+  });
+
   it('words a model-level rule without a field', async () => {
     const found = await issueFor('MODEL_SEARCH_UNSUPPORTED', '');
 

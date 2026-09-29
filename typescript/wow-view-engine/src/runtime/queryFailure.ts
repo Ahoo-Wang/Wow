@@ -29,6 +29,11 @@ import { isForbiddenFailure, type SourceFailure } from './sourceReason.js';
  * `runtime.query.forbidden`, with `reason` and the service's `errorCode`:
  * the permission state, which a retry does not change.
  *
+ * A request that never reached the service (`unreachable`: fetch's own
+ * `TypeError`, 「Failed to fetch」) is `runtime.query.unreachable`, said in
+ * the reader's words rather than the browser's English; `reason` keeps the
+ * browser's for the host.
+ *
  * Without a violation it is `runtime.query.failed` with the source's reason.
  * With one — a Wow service naming the rule the query broke — the code is
  * `runtime.query.failed.<code>` (the violation's code in lower case), which
@@ -61,6 +66,8 @@ export function queryFailureIssue(
       reason,
       ...(failure.errorCode ? { errorCode: failure.errorCode } : {}),
     });
+  if (failure.unreachable)
+    return issue('runtime.query.unreachable', [], { reason });
   if (!violation) return issue('runtime.query.failed', [], { reason });
   const found = fieldAt(definition.fields, violation.path);
   const params: Record<string, string> = {

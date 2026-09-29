@@ -63,7 +63,9 @@ type KeptStorage = ReturnType<
  *   `setItem` threw (a full quota, blocked storage), and the store undoes the
  *   write and rejects it as `UNAVAILABLE` — which the engine reports to the
  *   environment's `onError` as a `store` failure and the UI shows as a save
- *   whose outcome needs a retry. It never pretends a view was kept.
+ *   whose outcome needs a retry, the error marked `storage` so the line
+ *   says the browser's storage is full or turned off rather than that the
+ *   result never came back. It never pretends a view was kept.
  * - **Tabs do not overwrite each other.** The stamps are the revisions the
  *   stored state already carries, one per instance and one per definition's
  *   preferences. The store re-reads this document before every write and

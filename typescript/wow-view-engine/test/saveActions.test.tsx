@@ -881,6 +881,29 @@ describe('WriteOutcome', () => {
     expect((await store.get('orders-1')).revision).toBe('2');
   });
 
+  it('says a browser store that would not keep the write, and still offers the retry', async () => {
+    const { store, runtime } = await open();
+    vi.spyOn(store, 'save').mockRejectedValueOnce(
+      new ViewStoreError(
+        'UNAVAILABLE',
+        'The view store could not keep this write: QuotaExceededError',
+        { storage: true },
+      ),
+    );
+    editIt(runtime);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    await screen.findByText(
+      'This browser could not keep the change: its storage is full or turned off.',
+    );
+    expect(screen.queryByText('The result never came back')).toBeNull();
+
+    const retried = landed(store);
+    await clickWhenEnabled('Try again');
+    await retried;
+    expect((await store.get('orders-1')).revision).toBe('2');
+  });
+
   it('lets an unknown result be left alone', async () => {
     const { store, runtime } = await open();
     vi.spyOn(store, 'save').mockRejectedValueOnce(new Error('socket closed'));

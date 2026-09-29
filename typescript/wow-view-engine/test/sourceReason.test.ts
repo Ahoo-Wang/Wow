@@ -12,7 +12,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { sourceReason } from '../src/runtime/sourceReason.js';
+import { sourceFailure, sourceReason } from '../src/runtime/sourceReason.js';
 
 /**
  * A rejection shaped like fetcher's `ExchangeError`: the engine reads an
@@ -56,6 +56,31 @@ describe('sourceReason', () => {
       expect(reason).toBe('HTTP 502');
       expect(reason).not.toContain('http://');
     }
+  });
+
+  it('marks fetch’s own TypeError unreachable, bare or as an exchange’s cause', async () => {
+    await expect(
+      sourceFailure(new TypeError('Failed to fetch')),
+    ).resolves.toEqual({ reason: 'Failed to fetch', unreachable: true });
+    await expect(
+      sourceFailure(
+        Object.assign(new Error('Load failed'), {
+          cause: new TypeError('Load failed'),
+          exchange: { response: undefined },
+        }),
+      ),
+    ).resolves.toEqual({ reason: 'Load failed', unreachable: true });
+    // One the service answered is not: it was reached.
+    await expect(
+      sourceFailure(
+        Object.assign(new TypeError('x'), {
+          exchange: { response: { status: 502 } },
+        }),
+      ),
+    ).resolves.toEqual({ reason: 'HTTP 502', status: 502 });
+    await expect(sourceFailure(new Error('gateway down'))).resolves.toEqual({
+      reason: 'gateway down',
+    });
   });
 
   it('reads anything else by its own message', async () => {

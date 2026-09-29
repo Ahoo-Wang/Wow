@@ -89,6 +89,13 @@ export const viewMessages = {
   // worded for its reader is one they know what to do about — the line
   // ends in Try again.
   'runtime.query.failed': 'Could not load the data: {reason}',
+  // The request never reached the service (fetch's own TypeError): the
+  // browser's words — 「Failed to fetch」 — are English in every language
+  // and say nothing a reader can act on, so the sentence says what they
+  // mean, as a view that could not be opened does. The browser's words stay
+  // in `{reason}` for the host.
+  'runtime.query.unreachable':
+    'Could not load the data: the server could not be reached.',
   // The source refused the reader rather than the query (HTTP 403, Wow's
   // IllegalAccess* codes): a permission, which asking again does not change,
   // so it is said as one and offers no retry.
@@ -259,6 +266,13 @@ export const viewMessages = {
   'view.write.invalid': 'The server refused this write.',
   'view.write.not_found': 'This view no longer exists.',
   'view.write.unavailable': 'The server could not be reached.',
+  // The browser's own storage would not keep the write (a local store's
+  // quota, or storage turned off): the title of the retry-or-abandon line in
+  // place of 「The result never came back」, which told the reader nothing
+  // they could act on. It names no kind: a board, a view and a preference
+  // are kept alike.
+  'view.write.storage':
+    'This browser could not keep the change: its storage is full or turned off.',
   // A record the source refused to this reader (HTTP 401/403) — a link to
   // one outside what they may see. Trying again changes nothing, so the
   // sentence says whose call it is rather than what failed.

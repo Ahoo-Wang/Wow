@@ -650,6 +650,7 @@ export const zhCN: ViewMessages = {
   'runtime.source.unresolved': '{source} 没有注册数据源。',
   'runtime.options.unresolved': '{source} 没有配置候选来源。',
   'runtime.query.failed': '没能加载数据：{reason}',
+  'runtime.query.unreachable': '没能加载数据：无法连接服务端。',
   'runtime.query.forbidden': '无权限查看这些数据。',
   'runtime.query.failed.invalid_json':
     '服务端读不懂这个视图发出的查询：{reason}',
@@ -784,6 +785,7 @@ export const zhCN: ViewMessages = {
   'view.write.invalid': '服务端拒绝了这次写入。',
   'view.write.not_found': '这个视图已不存在。',
   'view.write.unavailable': '无法连接服务端。',
+  'view.write.storage': '这个浏览器没能把这次修改存下来（存储已满或被禁用）。',
   'record.detail.forbidden': '你没有权限查看这条记录。',
   'view.open.failed.not_found': '这个视图已不存在。',
   'view.open.failed.forbidden': '你不能打开这个视图。',
