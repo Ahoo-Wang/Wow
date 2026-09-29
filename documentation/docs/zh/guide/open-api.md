@@ -19,6 +19,8 @@ Wow 注解
 
 共享 `RouteCatalog` 是关键边界：运行时 WebFlux Handler 与 OpenAPI renderer 消费同一套路由合同。KSP 不会生成可运行 HTTP 服务；存在 OpenAPI 也不能证明后端、查询能力、认证策略或客户端部署已经可用。
 
+生成的路径模板可能重叠而不相等：路径以 `count` 结尾的命令会生成 `POST …/{resource}/{id}/count`，它同样匹配查询路径 `POST …/{resource}/snapshot/count`。WebFlux 路由按 catalog 的分发顺序（`RouteCatalog.dispatchRoutes`）尝试路由：两个重叠模板中，在第一个不同段上为字面量的那个排在前面，因此查询路径到达查询，其余 id 仍到达命令。同一方法下仅变量名不同的两个模板匹配完全相同的路径，catalog 会在启动时拒绝并指出这两条路由。
+
 ## 安装
 
 `wow-openapi` 提供路由合同与 Schema components：

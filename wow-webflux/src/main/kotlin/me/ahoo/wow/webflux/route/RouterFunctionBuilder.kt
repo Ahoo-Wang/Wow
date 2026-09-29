@@ -30,7 +30,7 @@ class RouterFunctionBuilder(
 
     fun build(): RouterFunction<ServerResponse> {
         val routerFunctionBuilder = RouterFunctions.route()
-        for (contract in routerSpecs.toRouteCatalog().routes) {
+        for (contract in routerSpecs.toRouteCatalog().dispatchRoutes) {
             val binding = routeMaterializer.materialize(contract)
             routerFunctionBuilder.route(
                 binding.predicate,
