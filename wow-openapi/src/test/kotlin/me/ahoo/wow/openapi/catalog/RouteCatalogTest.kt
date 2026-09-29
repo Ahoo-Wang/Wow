@@ -79,7 +79,7 @@ internal class RouteCatalogTest {
     }
 
     @Test
-    fun `should try a literal segment before the variable it overlaps`() {
+    fun `should try a contained template before the template containing it`() {
         val command = commandRoute(
             routeId = "cart.count_items",
             path = "/owner/{ownerId}/cart/{id}/count",
@@ -97,12 +97,26 @@ internal class RouteCatalogTest {
     }
 
     @Test
-    fun `should dispatch the first literal of crossing templates first`() {
+    fun `should keep the catalog order of crossing templates`() {
+        // `POST /cart/state/items/5` matches both; neither template contains the other, so the command listed
+        // first keeps it (id = state), as before.
+        val command = commandRoute(
+            routeId = "cart.remove_item",
+            path = "/cart/{id}/items/{itemId}",
+            pathVariables = listOf("id", "itemId")
+        )
+        val resend = query(routeId = "cart.state.resend", path = "/cart/state/{afterId}/{limit}")
         val regenerate = query(routeId = "cart.snapshot.batch_regenerate", path = "/cart/snapshot/{afterId}/{limit}")
+            .copy(method = "PUT")
         val compensate = query(routeId = "cart.compensate", path = "/cart/{id}/{version}/compensate")
+            .copy(method = "PUT")
 
-        RouteCatalog(listOf(compensate, regenerate)).dispatchRoutes.map { it.routeId }.assert()
-            .isEqualTo(listOf("cart.snapshot.batch_regenerate", "cart.compensate"))
+        val catalog = RouteCatalog(listOf(resend, compensate, regenerate, command))
+
+        catalog.dispatchRoutes.assert().isEqualTo(catalog.routes)
+        catalog.dispatchRoutes.map { it.routeId }.assert().isEqualTo(
+            listOf("cart.remove_item", "cart.snapshot.batch_regenerate", "cart.state.resend", "cart.compensate")
+        )
     }
 
     @Test

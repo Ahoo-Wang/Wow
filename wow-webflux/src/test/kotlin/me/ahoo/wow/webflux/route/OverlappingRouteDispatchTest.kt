@@ -44,9 +44,9 @@ import org.springframework.web.reactive.function.server.ServerResponse
  * An owned aggregate without a static tenant publishes its commands under `/tenant/{tenantId}/owner/{ownerId}`; one
  * whose command path ends in `count` generates `POST …/{resource}/{id}/count`, which overlaps the tenant + owner
  * snapshot and event-stream count queries `POST …/{resource}/snapshot/count` and `POST …/{resource}/event/count`.
- * The catalog lists commands first, so a router following that order hands both queries to the command (with `id`
- * = `snapshot` / `event`); the router follows the catalog's dispatch order, where the literal segment wins, so each
- * request reaches its own handler.
+ * The command's template contains both queries', and the catalog lists commands first, so a router following that
+ * order hands both queries to the command (with `id` = `snapshot` / `event`); the router follows the catalog's
+ * dispatch order, where a contained template is tried before its container, so each request reaches its own handler.
  */
 class OverlappingRouteDispatchTest {
     private val routerSpecs = RouterSpecs(

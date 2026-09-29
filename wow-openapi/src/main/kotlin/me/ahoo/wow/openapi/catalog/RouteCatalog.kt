@@ -16,16 +16,18 @@ package me.ahoo.wow.openapi.catalog
 import me.ahoo.wow.openapi.contract.HttpParameterLocation
 import me.ahoo.wow.openapi.contract.HttpRouteContract
 import me.ahoo.wow.openapi.contract.HttpRouteHandlerMetadata
+import java.util.PriorityQueue
 
 /**
  * The validated set of HTTP routes a service exposes.
  *
- * [routes] is the presentation order (commands first, then by path), which OpenAPI documents follow.
- * [dispatchRoutes] is the order a first-match router must try them in: generated templates may overlap without being
- * equal — `POST /{resource}/snapshot/count` and a command at `POST /{resource}/{id}/count` both match
- * `/{resource}/snapshot/count` — and there the template with a literal at the first segment they differ must win,
- * whatever order the routes were declared in. Two templates of the same method that match exactly the same paths
- * (equal but for their variable names) cannot be told apart by any order and are rejected.
+ * [routes] is the catalog order (commands first, then by path), which OpenAPI documents follow.
+ * [dispatchRoutes] is the order a first-match router tries them in. Generated templates may overlap without being
+ * equal: a command at `POST /{resource}/{id}/count` matches every path the query `POST /{resource}/snapshot/count`
+ * matches, so in catalog order the query could never be reached. Where one template's paths are a subset of
+ * another's, the subset is tried first; every other pair keeps the catalog order, so no request that reached a route
+ * before goes elsewhere. Two templates of the same method that match exactly the same paths (equal but for their
+ * variable names) cannot be told apart by any order and are rejected.
  */
 class RouteCatalog(routes: List<HttpRouteContract>) : Iterable<HttpRouteContract> {
     val routes: List<HttpRouteContract> = routes
@@ -33,13 +35,10 @@ class RouteCatalog(routes: List<HttpRouteContract>) : Iterable<HttpRouteContract
         .also(::validate)
 
     /**
-     * [routes] in dispatch precedence: of two routes of the same method whose templates overlap, the more specific
-     * one — a literal where the other has a variable, at the first segment they differ — comes first.
+     * [routes] in dispatch order: a route whose template matches a proper subset of another's paths (same method)
+     * comes before it; otherwise the catalog order is kept.
      */
-    val dispatchRoutes: List<HttpRouteContract> = this.routes
-        .map { it to RouteTemplate(it.path) }
-        .sortedWith(compareBy<Pair<HttpRouteContract, RouteTemplate>> { it.second }.thenBy { it.first.method })
-        .map { it.first }
+    val dispatchRoutes: List<HttpRouteContract> = dispatchOrder(this.routes)
 
     override fun iterator(): Iterator<HttpRouteContract> {
         return routes.iterator()
@@ -101,6 +100,45 @@ class RouteCatalog(routes: List<HttpRouteContract>) : Iterable<HttpRouteContract
     }
 
     private companion object {
+        /**
+         * A stable topological sort: the only constraints are "a strictly contained template precedes its container",
+         * and among the routes free to go next the earliest in catalog order goes first.
+         */
+        private fun dispatchOrder(routes: List<HttpRouteContract>): List<HttpRouteContract> {
+            val templates = routes.map { RouteTemplate(it.path) }
+            val successors = List(routes.size) { mutableListOf<Int>() }
+            val pending = IntArray(routes.size)
+            routes.indices.groupBy { routes[it].method }.values.forEach { sameMethod ->
+                for (inner in sameMethod) {
+                    for (outer in sameMethod) {
+                        if (inner != outer && templates[inner].canNest(templates[outer]) &&
+                            templates[inner].isStrictlyWithin(templates[outer])
+                        ) {
+                            successors[inner].add(outer)
+                            pending[outer]++
+                        }
+                    }
+                }
+            }
+            val ready = PriorityQueue<Int>()
+            routes.indices.filter { pending[it] == 0 }.forEach(ready::add)
+            val ordered = ArrayList<HttpRouteContract>(routes.size)
+            while (ready.isNotEmpty()) {
+                val next = ready.poll()
+                ordered.add(routes[next])
+                successors[next].forEach { outer ->
+                    if (--pending[outer] == 0) {
+                        ready.add(outer)
+                    }
+                }
+            }
+            check(ordered.size == routes.size) { "Route containment must not be cyclic." }
+            return ordered
+        }
+
+        private fun RouteTemplate.canNest(other: RouteTemplate): Boolean =
+            segments.size == other.segments.size || hasCatchAll || other.hasCatchAll
+
         private fun HttpRouteContract.describe(): String {
             val source = when (val metadata = handlerMetadata) {
                 is HttpRouteHandlerMetadata.Command ->

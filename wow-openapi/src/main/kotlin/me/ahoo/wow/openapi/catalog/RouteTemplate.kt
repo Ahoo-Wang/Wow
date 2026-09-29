@@ -16,18 +16,29 @@ package me.ahoo.wow.openapi.catalog
 /**
  * A route path template read segment by segment, as a path pattern matches it at runtime.
  *
- * A segment is a literal, a variable (`{id}`, or any segment carrying a pattern such as `{id}.json` or `*`, which
- * matches one segment), or a trailing catch-all (`{*rest}` or `**`, which matches the remaining segments, none
- * included).
+ * A segment is a literal, a plain variable (`{id}` or `*`, which matches any one segment), a constrained variable (any
+ * other segment carrying a pattern, such as `{id:\d+}` or `{id}.json`, which matches some single segments), or a
+ * trailing catch-all (`{*rest}` or `**`, which matches the remaining segments, none included).
  */
-internal class RouteTemplate(val path: String) : Comparable<RouteTemplate> {
+internal class RouteTemplate(val path: String) {
     enum class Kind {
         LITERAL,
         VARIABLE,
+        CONSTRAINED,
         CATCH_ALL
     }
 
-    data class Segment(val kind: Kind, val text: String)
+    data class Segment(val kind: Kind, val text: String) {
+        /**
+         * The segment with its variable names erased; a constraint is kept, so `{id:\d+}` and `{name:[a-z]+}` differ.
+         */
+        val shape: String = when (kind) {
+            Kind.LITERAL -> text
+            Kind.VARIABLE -> "{}"
+            Kind.CONSTRAINED -> text.replace(VARIABLE_NAME, "{")
+            Kind.CATCH_ALL -> "{*}"
+        }
+    }
 
     val segments: List<Segment> = path.split('/')
         .filter { it.isNotEmpty() }
@@ -36,69 +47,49 @@ internal class RouteTemplate(val path: String) : Comparable<RouteTemplate> {
     /**
      * The template with its variable names erased: two templates with the same shape match the same paths.
      */
-    val shape: String = segments.joinToString(separator = "/", prefix = "/") {
-        when (it.kind) {
-            Kind.LITERAL -> it.text
-            Kind.VARIABLE -> it.text.replace(VARIABLE_NAME, "{}")
-            Kind.CATCH_ALL -> "{*}"
-        }
-    }
+    val shape: String = segments.joinToString(separator = "/", prefix = "/") { it.shape }
+
+    val hasCatchAll: Boolean = segments.any { it.kind == Kind.CATCH_ALL }
 
     /**
-     * Whether a concrete path exists that both templates match.
+     * Whether every path this template matches is also matched by [other], as far as can be told without evaluating
+     * constraints: a constrained segment is only known to be within an identical one.
      */
-    fun overlaps(other: RouteTemplate): Boolean {
-        val shared = minOf(segments.size, other.segments.size)
-        for (index in 0 until shared) {
-            val segment = segments[index]
-            val otherSegment = other.segments[index]
-            if (segment.kind == Kind.CATCH_ALL || otherSegment.kind == Kind.CATCH_ALL) {
+    fun isWithin(other: RouteTemplate): Boolean {
+        other.segments.forEachIndexed { index, otherSegment ->
+            if (otherSegment.kind == Kind.CATCH_ALL) {
                 return true
             }
-            if (segment.kind == Kind.LITERAL && otherSegment.kind == Kind.LITERAL && segment.text != otherSegment.text) {
+            val segment = segments.getOrNull(index) ?: return false
+            val within = when (otherSegment.kind) {
+                Kind.LITERAL -> segment.kind == Kind.LITERAL && segment.text == otherSegment.text
+                Kind.VARIABLE -> segment.kind != Kind.CATCH_ALL
+                else -> segment.kind == otherSegment.kind && segment.shape == otherSegment.shape
+            }
+            if (!within) {
                 return false
             }
         }
-        if (segments.size == other.segments.size) {
-            return true
-        }
-        val longer = if (segments.size > other.segments.size) segments else other.segments
-        return longer.size == shared + 1 && longer.last().kind == Kind.CATCH_ALL
+        return segments.size == other.segments.size
     }
 
     /**
-     * Dispatch precedence: compared segment by segment, a literal comes before a variable and a variable before a
-     * catch-all. Of two overlapping templates, the one with a literal where the other has a variable at the first
-     * segment they differ is therefore tried first, so the path it names is never taken by the more general one.
+     * Whether this template matches a proper subset of the paths [other] matches, so a first-match router that tried
+     * [other] first could never reach this one.
      */
-    override fun compareTo(other: RouteTemplate): Int {
-        val shared = minOf(segments.size, other.segments.size)
-        for (index in 0 until shared) {
-            val segment = segments[index]
-            val otherSegment = other.segments[index]
-            val byKind = segment.kind.compareTo(otherSegment.kind)
-            if (byKind != 0) {
-                return byKind
-            }
-            if (segment.kind == Kind.LITERAL) {
-                val byText = segment.text.compareTo(otherSegment.text)
-                if (byText != 0) {
-                    return byText
-                }
-            }
-        }
-        return segments.size.compareTo(other.segments.size)
-    }
+    fun isStrictlyWithin(other: RouteTemplate): Boolean = isWithin(other) && !other.isWithin(this)
 
     override fun toString(): String = path
 
     private companion object {
-        private val VARIABLE_NAME = Regex("\\{[^}*]*}")
+        private val VARIABLE_NAME = Regex("\\{[^}:*]*(?=[:}])")
+        private val PLAIN_VARIABLE = Regex("\\{[^}:*]+}")
 
         private fun parseSegment(segment: String): Segment {
             val kind = when {
                 segment == "**" || (segment.startsWith("{*") && segment.endsWith("}")) -> Kind.CATCH_ALL
-                segment.contains('{') || segment.contains('*') || segment.contains('?') -> Kind.VARIABLE
+                segment == "*" || PLAIN_VARIABLE.matches(segment) -> Kind.VARIABLE
+                segment.contains('{') || segment.contains('*') || segment.contains('?') -> Kind.CONSTRAINED
                 else -> Kind.LITERAL
             }
             return Segment(kind, segment)

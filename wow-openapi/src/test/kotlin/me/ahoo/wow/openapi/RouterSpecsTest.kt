@@ -42,6 +42,14 @@ internal class RouterSpecsTest {
     }
 
     @Test
+    fun `should dispatch the example routes in catalog order`() {
+        // Their overlaps are either already ordered (state/tracing before state/{version}) or crossing
+        // (snapshot/{afterId}/{limit} and {id}/{version}/compensate), so no example request changes destination.
+        val catalog = RouterSpecs(namedContext).build().toRouteCatalog()
+        catalog.dispatchRoutes.assert().isEqualTo(catalog.routes)
+    }
+
+    @Test
     fun `should merge router specs into open api with context name as title`() {
         val openAPI = OpenAPI()
         RouterSpecs(namedContext).build().mergeOpenAPIFromCatalog(openAPI)

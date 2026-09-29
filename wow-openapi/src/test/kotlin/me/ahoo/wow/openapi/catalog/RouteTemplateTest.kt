@@ -14,6 +14,7 @@
 package me.ahoo.wow.openapi.catalog
 
 import me.ahoo.test.asserts.assert
+import org.junit.jupiter.api.Test
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.CsvSource
 
@@ -21,46 +22,68 @@ class RouteTemplateTest {
     @ParameterizedTest
     @CsvSource(
         "/cart/snapshot/count, /cart/{id}/count, true",
-        "/cart/snapshot/{afterId}/{limit}, /cart/{id}/{version}/compensate, true",
         "/cart/{id}/state/tracing, /cart/{id}/state/{version}, true",
         "/cart/{id}/count, /cart/{cartId}/count, true",
+        "/cart/{id}/count, /cart/snapshot/count, false",
+        "/cart/snapshot/{afterId}/{limit}, /cart/{id}/{version}/compensate, false",
+        "/cart/{id}/{version}/compensate, /cart/snapshot/{afterId}/{limit}, false",
         "/cart/snapshot/count, /cart/event/count, false",
-        "/cart/{id}/pay, /cart/snapshot/single, false",
         "/cart/{id}/count, /cart/{id}/count/state, false",
-        "/tenant/{tenantId}/cart/{id}/pay, /owner/{ownerId}/cart/snapshot/pay, false",
-        "/cart/{id}.json, /cart/snapshot, true",
-        "/files/{*path}, /files/a/b/c, true",
-        "/files/{*path}, /files, true",
-        "/files/**, /other/a, false",
+        "/files/a/b/c, /files/{*path}, true",
+        "/files, /files/{*path}, true",
+        "/files/{*path}, /files/{name}, false",
+        "/files/{*path}, /files/**, true",
+        "/cart/1/count, /cart/{id:\\d+}/count, false",
+        "/cart/{id:\\d+}/count, /cart/{id}/count, true",
+        "/cart/{id:\\d+}/count, /cart/{name:\\d+}/count, true",
+        "/cart/{id:\\d+}/count, /cart/{name:[a-z]+}/count, false",
+        "/cart/{id}/count, /cart/{id:\\d+}/count, false",
     )
-    fun `should decide whether two templates match a common path`(left: String, right: String, expected: Boolean) {
-        RouteTemplate(left).overlaps(RouteTemplate(right)).assert().isEqualTo(expected)
-        RouteTemplate(right).overlaps(RouteTemplate(left)).assert().isEqualTo(expected)
+    fun `should decide whether a template's paths are within another's`(
+        inner: String,
+        outer: String,
+        expected: Boolean
+    ) {
+        RouteTemplate(inner).isWithin(RouteTemplate(outer)).assert().isEqualTo(expected)
     }
 
     @ParameterizedTest
     @CsvSource(
-        "/cart/snapshot/count, /cart/{id}/count",
-        "/cart/snapshot/{afterId}/{limit}, /cart/{id}/{version}/compensate",
-        "/cart/{id}/state/tracing, /cart/{id}/state/{version}",
-        "/files/a/b, /files/{*path}",
-        "/files/{name}, /files/{*path}",
-        "/cart, /cart/{id}",
+        "/cart/snapshot/count, /cart/{id}/count, true",
+        "/cart/{id}/count, /cart/{cartId}/count, false",
+        "/cart/{id}/count, /cart/snapshot/count, false",
+        "/cart/snapshot/{afterId}/{limit}, /cart/{id}/{version}/compensate, false",
     )
-    fun `should order the more specific template first`(first: String, second: String) {
-        (RouteTemplate(first) < RouteTemplate(second)).assert().isTrue()
-        (RouteTemplate(second) > RouteTemplate(first)).assert().isTrue()
+    fun `should decide whether a template's paths are a proper subset of another's`(
+        inner: String,
+        outer: String,
+        expected: Boolean
+    ) {
+        RouteTemplate(inner).isStrictlyWithin(RouteTemplate(outer)).assert().isEqualTo(expected)
     }
 
     @ParameterizedTest
     @CsvSource(
         "/cart/{id}/count, /cart/{}/count",
+        "/cart/*/count, /cart/{}/count",
         "/cart/{id}.json, /cart/{}.json",
+        "/cart/{id:\\d+}, /cart/{:\\d+}",
+        "/cart/{name:[a-z]+}, /cart/{:[a-z]+}",
         "/files/{*path}, /files/{*}",
         "/files/**, /files/{*}",
         "cart//{id}/, /cart/{}",
     )
     fun `should erase variable names from the shape`(path: String, shape: String) {
         RouteTemplate(path).shape.assert().isEqualTo(shape)
+    }
+
+    @Test
+    fun `should not give templates with different constraints the same shape`() {
+        val digits = RouteTemplate("/cart/{id:\\d+}/count")
+        val letters = RouteTemplate("/cart/{name:[a-z]+}/count")
+
+        digits.shape.assert().isNotEqualTo(letters.shape)
+        digits.isWithin(letters).assert().isFalse()
+        letters.isWithin(digits).assert().isFalse()
     }
 }
