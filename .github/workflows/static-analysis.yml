@@ -26,6 +26,7 @@ on:
       - 'test/**'
       - 'example/**'
       - 'compensation/**'
+      - 'view-store/**'
       # The dashboard is TypeScript; dashboard-test.yml checks it.
       - '!compensation/dashboard/**'
 concurrency:
