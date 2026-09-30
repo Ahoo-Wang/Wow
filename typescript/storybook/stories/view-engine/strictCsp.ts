@@ -104,6 +104,49 @@ export async function underStrictPolicy(): Promise<void> {
   seen.length = 0;
 }
 
+/*
+ * Motion, and why these stories run without it.
+ *
+ * Between a play and the checks after it, Storybook's runner freezes every
+ * animation at its end (`pauseAnimations` in `storybook/preview-api`), so
+ * the accessibility check reads a tooltip whole even if it only just opened.
+ * It freezes them with two `<style>` elements, added without a nonce, and
+ * the policy above refuses both — two `style-src-elem` reports from
+ * Storybook's own code a story, after the play, cleared by the next
+ * story's `underStrictPolicy` before anyone reads them. On this page alone,
+ * then, nothing was frozen: a tooltip that opened as a play ended (focus
+ * handed back to its trigger by a closing dialog opens it at once) was
+ * measured still fading in, at 3.08:1 or 1.83:1 against 4.5:1.
+ *
+ * So the page is told the reader asked for less motion, which is a
+ * setting a reader has and needs no stylesheet: the engine's own
+ * `prefers-reduced-motion` rule cuts every popup's animation to nothing,
+ * and a tooltip is either not there or whole whenever axe looks.
+ */
+
+/**
+ * The reader's wish for less motion, on until `motionBack`. Nothing where
+ * no test runner can emulate it (Storybook's own panel).
+ */
+export async function lessMotion(): Promise<void> {
+  const emulator = globalThis.storybookMedia;
+  if (!emulator) return;
+  await emulator.emulate({ reducedMotion: 'reduce' });
+  await expect(
+    matchMedia('(prefers-reduced-motion: reduce)').matches,
+    'the page is told the reader wants less motion',
+  ).toBe(true);
+}
+
+/**
+ * The motion preference handed back to the browser: the emulation is the
+ * page's, and outlives the story (`.storybook/vitest.setup.ts` hands it back
+ * again as each file begins).
+ */
+export async function motionBack(): Promise<void> {
+  await globalThis.storybookMedia?.emulate({ reducedMotion: null });
+}
+
 /** Every violation reported since the story began. */
 export const violations = (): readonly Violation[] => [...seen];
 

@@ -49,6 +49,8 @@ import {
 import {
   CSP_NONCE,
   expectNoViolations,
+  lessMotion,
+  motionBack,
   underStrictPolicy,
 } from './strictCsp.js';
 import '@ahoo-wang/wow-view-engine/styles.css';
@@ -154,11 +156,21 @@ const meta = {
   globals: { viewport: { value: 'desk' } },
   beforeEach: async () => {
     await underStrictPolicy();
-    return registerChartMap({
+    // Storybook's own freeze before the checks is refused on this page
+    // (`strictCsp.ts`, 「Motion」): the reader's wish for less motion does
+    // its work instead.
+    // Handed back when the next story begins, never in an `afterEach`:
+    // Storybook runs this file's `afterEach` before the checks.
+    await lessMotion();
+    const unregister = registerChartMap({
       name: SHOWCASE_MAP,
       label: '中国（合成的回归夹具）',
       load: async () => FIXTURE_MAP,
     });
+    return async () => {
+      unregister();
+      await motionBack();
+    };
   },
 } satisfies Meta<typeof Showcase>;
 
@@ -304,15 +316,8 @@ export const RecordWorkbench: Story = {
     await expectNoViolations('a summary picked');
     await userEvent.keyboard('{Escape}');
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
-    // Left with nothing on its way out, for the accessibility check: the
-    // Escape hands the keyboard back to 「列设置」, whose tooltip opens on
-    // that focus and would be read while it is still fading in.
-    (document.activeElement as HTMLElement | null)?.blur();
-    await waitFor(() =>
-      expect(
-        document.querySelector('[data-slot="tooltip-content"]'),
-      ).toBeNull(),
-    );
+    // The Escape hands focus back to 「列设置」, whose tooltip may open as
+    // the play ends: with motion reduced it is read whole.
   },
 };
 
@@ -522,15 +527,6 @@ export const Exports: Story = {
     // Left with nothing on its way out, for the accessibility check.
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
     await waitFor(() => expect(screen.queryByRole('menu')).toBeNull());
-    await userEvent.unhover(
-      canvas.getByRole('button', { name: zhCN['label.export.title'] }),
-    );
-    (document.activeElement as HTMLElement | null)?.blur();
-    await waitFor(() =>
-      expect(
-        document.querySelector('[data-slot="tooltip-content"]'),
-      ).toBeNull(),
-    );
   },
 };
 

@@ -11,10 +11,14 @@
  * limitations under the License.
  */
 
-/** What the page is laid out for: paper, a Windows contrast theme. */
+/**
+ * What the page is laid out for: paper, a Windows contrast theme, a reader
+ * who asked for less motion.
+ */
 export interface EmulatedMedia {
   media?: 'screen' | 'print' | null;
   forcedColors?: 'active' | 'none' | null;
+  reducedMotion?: 'reduce' | 'no-preference' | null;
 }
 
 /**

@@ -80,11 +80,21 @@ globalThis.storybookMedia = {
   emulate: media => commands.emulateMedia(media),
 };
 
+/**
+ * The emulation is the browser page's, and every story file runs in a frame
+ * of that one page: a file that asked for less motion
+ * (`StrictCsp.test.stories.tsx`) hands it back as each next story begins,
+ * which its last story never sees. So each file begins with the browser's
+ * own preference, whatever the file before it left.
+ */
+await commands.emulateMedia({ reducedMotion: null });
+
 declare module 'vitest/browser' {
   interface BrowserCommands {
     emulateMedia: (media: {
       media?: 'screen' | 'print' | null;
       forcedColors?: 'active' | 'none' | null;
+      reducedMotion?: 'reduce' | 'no-preference' | null;
     }) => Promise<void>;
     realMouse: (
       action: 'move' | 'down' | 'up',
