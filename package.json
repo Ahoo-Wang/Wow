@@ -3,7 +3,7 @@
   "private": true,
   "description": "pnpm workspace root for Wow's TypeScript packages, the compensation dashboard and the documentation site",
   "type": "module",
-  "packageManager": "pnpm@10.34.5",
+  "packageManager": "pnpm@10.34.6",
   "engines": {
     "node": ">=22.12.0"
   },
