@@ -15,14 +15,16 @@ import type { BrowserCommand } from 'vitest/node';
 
 /**
  * The media the page is laid out for, as the browser would be told by a
- * print dialog (`media: 'print'`) or the reader's Windows contrast theme
- * (`forcedColors: 'active'`). Playwright's own emulation re-evaluates every
+ * print dialog (`media: 'print'`), the reader's Windows contrast theme
+ * (`forcedColors: 'active'`) or their wish for less motion
+ * (`reducedMotion: 'reduce'`). Playwright's own emulation re-evaluates every
  * media query — the stylesheet's and a `matchMedia` listener's alike — the
  * way the real change would. `null` hands a feature back to the browser.
  */
 export interface EmulatedMedia {
   media?: 'screen' | 'print' | null;
   forcedColors?: 'active' | 'none' | null;
+  reducedMotion?: 'reduce' | 'no-preference' | null;
 }
 
 export const emulateMedia: BrowserCommand<[media: EmulatedMedia]> = async (
