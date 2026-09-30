@@ -15,14 +15,19 @@ package me.ahoo.wow.viewstore.starter
 
 import com.mongodb.reactivestreams.client.MongoClients
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.command.CommandGateway
+import me.ahoo.wow.command.toCommandMessage
 import me.ahoo.wow.exception.ErrorCodes
+import me.ahoo.wow.messaging.DefaultHeader
 import me.ahoo.wow.openapi.aggregate.command.CommandComponent
 import me.ahoo.wow.query.dsl.listQuery
 import me.ahoo.wow.query.dsl.singleQuery
 import me.ahoo.wow.serialization.toJsonString
+import me.ahoo.wow.serialization.toObjectNode
 import me.ahoo.wow.tck.container.WowTestContainers
 import me.ahoo.wow.viewstore.ViewStoreService
 import me.ahoo.wow.viewstore.api.ViewStoreErrorCodes
+import me.ahoo.wow.viewstore.api.view.CreateView
 import org.bson.Document
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Test
@@ -107,7 +112,8 @@ class ViewStoreMongoTest {
         appId: String? = APP,
         version: Int? = null,
         requestId: String = UUID.randomUUID().toString(),
-    ): WebTestClient.ResponseSpec = write(method, raw(uri), body, appId, version, requestId)
+        headers: Map<String, String> = emptyMap(),
+    ): WebTestClient.ResponseSpec = write(method, raw(uri), body, appId, version, requestId, headers)
 
     private fun write(
         method: String,
@@ -116,12 +122,14 @@ class ViewStoreMongoTest {
         appId: String? = APP,
         version: Int? = null,
         requestId: String = UUID.randomUUID().toString(),
+        headers: Map<String, String> = emptyMap(),
     ): WebTestClient.ResponseSpec {
         val spec = client.method(org.springframework.http.HttpMethod.valueOf(method)).uri(uri)
             .header(CommandComponent.Header.WAIT_STAGE, "SNAPSHOT")
             .header(CommandComponent.Header.REQUEST_ID, requestId)
             .contentType(MediaType.APPLICATION_JSON)
         appId?.let { spec.header(ViewStoreService.APP_ID_HEADER, it) }
+        headers.forEach { (name, value) -> spec.header(name, value) }
         version?.let { spec.header(CommandComponent.Header.AGGREGATE_VERSION, it.toString()) }
         return (body?.let { spec.bodyValue(it) } ?: spec).exchange()
     }
@@ -421,6 +429,97 @@ class ViewStoreMongoTest {
             single(SHARED, shared).expectStatus().isOk.expectBody().jsonPath("$.version").isEqualTo(1)
         }
         single("alice", personal).expectStatus().isOk.expectBody().jsonPath("$.version").isEqualTo(1)
+    }
+
+    /**
+     * Invisible characters outside the format category: combining grapheme joiner, variation selectors (U+FE00,
+     * U+FE0F, U+E0100, U+E01EF), Khmer inherent vowels, Hangul fillers (U+3164, U+FFA0, U+115F, U+1160), braille
+     * blank.
+     */
+    private val otherInvisibleSegments = listOf(
+        "alice%CD%8F", "alice%EF%B8%80", "alice%EF%B8%8F", "alice%F3%A0%84%80", "alice%F3%A0%87%AF",
+        "alice%E1%9E%B4", "alice%E1%9E%B5", "%E3%85%A4", "alice%EF%BE%A0", "%E1%85%9F", "alice%E1%85%A0",
+        "%E2%A0%80",
+    )
+
+    @Test
+    fun `a tenant or owner with an invisible character of another category is refused`() {
+        val personal = create("alice")
+        val shared = create(SHARED)
+        otherInvisibleSegments.forEach { segment ->
+            val tenant = "t1${segment.removePrefix("alice")}"
+            listOf(
+                "/view-store/tenant/t1/owner/$segment",
+                "/view-store/tenant/$tenant/owner/alice",
+                "/view-store/tenant/$tenant/owner/$SHARED",
+            ).forEach { scope ->
+                listOf(
+                    scoped("PUT", "$scope/view/$shared/claim", null, emptyMap(), version = 1),
+                    scoped("PUT", "$scope/view/$personal/rename", """{"title":"X"}""", emptyMap(), version = 1),
+                    scoped("POST", "$scope/view/snapshot/list", listQuery { }.toJsonString(), emptyMap()),
+                ).forEach { response ->
+                    response.expectStatus().isBadRequest
+                        .expectBody().jsonPath("$.errorCode").isEqualTo(ViewStoreErrorCodes.VIEW_SCOPE_REQUIRED)
+                }
+            }
+        }
+        single(SHARED, shared).expectStatus().isOk.expectBody().jsonPath("$.version").isEqualTo(1)
+        single("alice", personal).expectStatus().isOk.expectBody().jsonPath("$.version").isEqualTo(1)
+    }
+
+    @Autowired
+    private lateinit var commandGateway: CommandGateway
+
+    /** A view of alice in `console` with the id [id], created in process (a route never takes a client's id). */
+    private fun seed(id: String) {
+        val command = CreateView(definitionId = "orders", title = "Seeded", config = """{"kind":"record"}""".toObjectNode())
+            .toCommandMessage(
+                aggregateId = id,
+                tenantId = "t1",
+                ownerId = "alice",
+                header = DefaultHeader.empty().with(ViewStoreService.APP_ID_MESSAGE_HEADER, APP),
+            )
+        commandGateway.sendAndWaitForSnapshot(command).block()!!.succeeded.assert().isTrue()
+    }
+
+    /**
+     * An open route wins over a closed one only in its own case. On this case-sensitive host `…/view/REQUESTS/state`
+     * is Wow's closed `view/{id}/state` for a view with the id `REQUESTS`, although it matches the replay route
+     * `view/requests/{requestId}` ignoring case.
+     */
+    @Test
+    fun `a closed route is not opened by an open route in another case`() {
+        seed("REQUESTS")
+        seed("Requests")
+        single("alice", "REQUESTS").expectStatus().isOk
+        listOf("REQUESTS", "Requests").forEach { id ->
+            listOf("state", "snapshot").forEach { read ->
+                listOf(APP, null).forEach { appId ->
+                    val spec = client.get().uri("$SCOPE/alice/view/$id/$read")
+                    appId?.let { spec.header(ViewStoreService.APP_ID_HEADER, it) }
+                    spec.exchange().expectStatus().isNotFound
+                        .expectBody().jsonPath("$.errorCode").isEqualTo(ErrorCodes.NOT_FOUND)
+                        .jsonPath("$.state").doesNotExist()
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `a create names its application by CoSec-App-Id over a command header`() {
+        val result = write(
+            "POST",
+            "$SCOPE/alice/view",
+            """{"definitionId":"orders","title":"View","config":{"kind":"record"}}""",
+            appId = null,
+            headers = mapOf(
+                CommandComponent.Header.COMMAND_HEADER_X_PREFIX + ViewStoreService.APP_ID_MESSAGE_HEADER to OTHER_APP,
+                ViewStoreService.APP_ID_HEADER to APP,
+            ),
+        ).expectStatus().isOk.expectBody(JsonNode::class.java).returnResult().responseBody!!
+        val id = result.get("aggregateId").stringValue()
+        single("alice", id).expectStatus().isOk.expectBody().jsonPath("$.state.appId").isEqualTo(APP)
+        single("alice", id, OTHER_APP).expectStatus().isNotFound
     }
 
     @Test

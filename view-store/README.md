@@ -29,7 +29,9 @@ compensation, recover and resource tags), and the command facade for their comma
 id (Wow takes it from `{id}`); a command without fields (`share`, `delete`) is sent with the body `{}`. The application comes from `CoSec-App-Id`
 only, and every `Command-Header-*` a caller sends to a view store path is dropped (Wow would copy it into the command's
 header as it is, `command_operator` included). The starter matches paths case-insensitively for all of these rules, so
-a host that sets `PathMatchConfigurer.setUseCaseSensitiveMatch(false)` is covered; a host that replaces Spring's
+a host that sets `PathMatchConfigurer.setUseCaseSensitiveMatch(false)` is covered, except one: an open route wins over
+a closed one only in its own case (on a case-sensitive host `…/view/REQUESTS/state` is Wow's closed state route for a
+view with the id `REQUESTS`, not the replay route), so on a case-insensitive host such a path answers 404; a host that replaces Spring's
 `RouterFunctionMapping` with a parser of other options must not embed the starter. Set `wow.view-store.enabled=false` to turn the starter off, and replace the default `SystemViewProvider` bean
 to serve system views from somewhere other than `wow.view-store.system-views`.
 
@@ -52,7 +54,9 @@ path, so it needs both: `PUT …/tenant/{tenantId}/owner/{ownerId}/view/{id}/cla
 the role that may write `owner/(shared)`. A host gives `permissions.instance(id).changeAudience` by the same role.
 The tenant and owner come from the path only: `Command-Tenant-Id` and `Command-Owner-Id` are dropped, and a path
 whose decoded tenant or owner is empty or holds a character that shows as nothing or a blank (whitespace, control and
-format characters such as U+200B, surrogates, private-use and unassigned code points: `owner/%20`,
+format characters such as U+200B, surrogates, private-use and unassigned code points (by the JDK's Unicode version),
+and invisible characters of other categories: the combining grapheme joiner, variation selectors, Hangul fillers,
+the braille blank: `owner/%20`,
 `tenant/%E3%80%80`, `owner/alice%E2%80%8B`) answers 400 `ViewScopeRequired`: Wow reads a blank path value as missing
 and falls back to those headers, and an invisible character makes an owner that reads as another. A claimed owner
 follows the same rule.

@@ -98,10 +98,17 @@ private fun String?.isScopeId(): Boolean = ScopeIds.isValid(this)
  * path matching so (`PathMatchConfigurer.setUseCaseSensitiveMatch(false)`), and Spring then routes Wow's routes
  * case-insensitively too. The decisions that refuse (closed routes, the facade, the scope rule) must match at least
  * what Spring routes, and matching more is safe: on a case-sensitive host a path whose case differs from a route's
- * reaches none of the view store's routes, so what the starter decides for it has no effect.
+ * reaches none of the view store's routes, so what the starter decides for it has no effect — except where a variable
+ * of a closed route takes the segment in that case: the open routes are therefore matched exactly
+ * ([ViewStoreRouteGuard.isClosed]).
  */
 private val PATH_PARSER = PathPatternParser().apply { isCaseSensitive = false }
 
 internal fun String.toPattern(): PathPattern = PATH_PARSER.parse(this)
+
+/** Spring's default, case-sensitive parser: for the open routes, which win over a closed route only exactly. */
+private val EXACT_PATH_PARSER = PathPatternParser()
+
+internal fun String.toExactPattern(): PathPattern = EXACT_PATH_PARSER.parse(this)
 
 data class ViewTarget(val tenantId: String, val viewId: String)

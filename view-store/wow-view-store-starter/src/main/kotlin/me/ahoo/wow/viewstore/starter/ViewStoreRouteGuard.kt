@@ -75,21 +75,36 @@ class ViewStoreRouteGuard(
     /** Every other route Wow generates for the view store's aggregates. */
     val closedContracts: List<HttpRouteContract> = viewStoreContracts - openContracts.toSet()
 
-    private val openRoutes: List<Route> = openContracts.map { it.toRoute() } +
-        listOf(
-            Route(HttpMethod.GET, paths.systemViews.toPattern()),
-            Route(HttpMethod.GET, paths.systemView.toPattern()),
-            Route(HttpMethod.GET, paths.preferences.toPattern()),
-            Route(HttpMethod.PUT, paths.preferences.toPattern()),
-            Route(HttpMethod.GET, paths.replay.toPattern()),
-            Route(HttpMethod.PUT, paths.claim.toPattern()),
-        )
-    private val closedRoutes: List<Route> = closedContracts.map { it.toRoute() }
+    /**
+     * The open routes, matched **case-sensitively**. On a case-sensitive host (Spring's default) a path whose case
+     * differs from an open route's literals is not routed to it, but it may be routed to a closed route through a
+     * variable: `…/view/REQUESTS/state` is Wow's `view/{id}/state` with the id `REQUESTS`, not the replay route
+     * `view/requests/{requestId}`. So an open route wins over a closed one only on an exact match. On a
+     * case-insensitive host that path refuses a little more than Spring routes to a closed route (404 instead of the
+     * replay of a request id `state`), never less.
+     */
+    private val openRoutes: List<Route> = (
+        openContracts.map { HttpMethod.valueOf(it.method) to it.path } +
+            listOf(
+                HttpMethod.GET to paths.systemViews,
+                HttpMethod.GET to paths.systemView,
+                HttpMethod.GET to paths.preferences,
+                HttpMethod.PUT to paths.preferences,
+                HttpMethod.GET to paths.replay,
+                HttpMethod.PUT to paths.claim,
+            )
+        ).map { (method, path) -> Route(method, path.toExactPattern()) }
+
+    /** The closed routes, matched case-insensitively: at least what a host of either case mode routes to them. */
+    private val closedRoutes: List<Route> = closedContracts.map {
+        Route(HttpMethod.valueOf(it.method), it.path.toPattern())
+    }
     private val commandFacade: PathPattern = BuiltInHttpRoutePaths.Global.COMMAND_SEND.toPattern()
 
     /**
-     * Whether [path] is a closed route of the view store's aggregates. The starter's own routes win over Wow's, so a
-     * path that one of them serves is open whatever Wow route it also matches.
+     * Whether [path] is a closed route of the view store's aggregates. An open route (the starter's own routes are
+     * routed before Wow's, and Wow routes its open routes before the closed ones they overlap) wins only when it
+     * matches exactly, case included; every other path a closed route matches in any case is closed.
      */
     fun isClosed(method: HttpMethod, path: PathContainer): Boolean {
         if (openRoutes.any { it.matches(method, path) }) {
@@ -138,8 +153,6 @@ class ViewStoreRouteGuard(
 
     private fun NamedAggregate.isViewStore(): Boolean =
         contextName == ViewStoreService.SERVICE_NAME || namedAggregates.any { it.isSameAggregateName(this) }
-
-    private fun HttpRouteContract.toRoute(): Route = Route(HttpMethod.valueOf(method), path.toPattern())
 
     private fun HttpRouteContract.commandType(): Class<*>? =
         (handlerMetadata as? HttpRouteHandlerMetadata.Command)?.commandRouteMetadata?.commandMetadata?.commandType

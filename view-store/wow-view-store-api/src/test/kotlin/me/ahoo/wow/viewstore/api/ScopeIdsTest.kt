@@ -35,4 +35,19 @@ class ScopeIdsTest {
             ScopeIds.isValid(it).assert().describedAs(it.toString()).isFalse()
         }
     }
+
+    @Test
+    fun `no invisible character of another category`() {
+        listOf(
+            0x034F, 0xFE00, 0xFE0F, 0xE0100, 0xE01EF, 0x17B4, 0x17B5, 0x3164, 0xFFA0, 0x115F, 0x1160, 0x2800,
+            0x180B, 0x180F, 0x200C, 0x200D,
+        ).forEach { codePoint ->
+            val id = "alice" + String(Character.toChars(codePoint))
+            ScopeIds.isValid(id).assert().describedAs("U+%04X", codePoint).isFalse()
+        }
+        // Visible neighbours stay valid: a combining acute accent, a Khmer letter, a braille dot, a Hangul syllable.
+        listOf("e\u0301", "\u1780", "\u2801", "\uD55C").forEach {
+            ScopeIds.isValid(it).assert().describedAs(it).isTrue()
+        }
+    }
 }
