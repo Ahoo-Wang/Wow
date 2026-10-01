@@ -1,4 +1,4 @@
-# Message keys — 2063.
+# Message keys — 2065.
 # Written by test/publicSurface.test.ts; a change here is a change to
 # the public surface (README「Wording and language」, docs/design/decisions.md D29).
 analysis.alias.duplicate
@@ -1207,6 +1207,8 @@ label.drill.focus-span
 label.drill.gap.nested-elements
 label.drill.menu
 label.drill.menu-span
+label.drill.press-brush-hint
+label.drill.press-hint
 label.drill.records
 label.drill.set-filter
 label.drill.span-hint

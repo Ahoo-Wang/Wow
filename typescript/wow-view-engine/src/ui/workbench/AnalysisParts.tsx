@@ -413,6 +413,7 @@ export function AnalysisParts({
               onPick={onPick}
               cutShort={view.truncated || view.atLimit !== undefined}
               menuOpen={followUp !== null && pick !== null}
+              pressHint={result.pickable && !!followUps}
               zoomGestures
               image={image.slot}
             />

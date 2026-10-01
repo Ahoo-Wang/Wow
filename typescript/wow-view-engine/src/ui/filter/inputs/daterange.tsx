@@ -12,7 +12,7 @@
  */
 
 import { CalendarIcon } from 'lucide-react';
-import { useCallback, useLayoutEffect, useMemo, useRef } from 'react';
+import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { DateRange } from 'react-day-picker';
 import type { FilterValue } from '../../../model/index.js';
 import {
@@ -106,8 +106,14 @@ export function AbsoluteDate({
       from: { ...from, day: dayOf(selected?.from) },
       to: { ...to, day: dayOf(selected?.to) },
     });
-  const pickDay = (selected: Date | undefined) =>
+  // One day picked is the whole answer where there is no time to set: the
+  // calendar closes and the keyboard is back on this control, rather than
+  // left inside a grid the board's next render took away (R2-41).
+  const [open, setOpen] = useState(false);
+  const pickDay = (selected: Date | undefined) => {
     put({ from: { ...from, day: dayOf(selected) } });
+    if (!withTime && selected !== undefined) setOpen(false);
+  };
   const picks = useRef({ range: pickRange, day: pickDay });
   useLayoutEffect(() => {
     picks.current = { range: pickRange, day: pickDay };
@@ -132,7 +138,7 @@ export function AbsoluteDate({
   const opensOn = range ? (days.from ?? days.to) : day;
 
   return (
-    <Popover>
+    <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger
         render={<Button variant="outline" size="sm" disabled={disabled} />}
         aria-label={label}

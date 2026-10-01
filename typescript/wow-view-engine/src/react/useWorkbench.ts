@@ -36,7 +36,11 @@ import type {
   ViewRuntimeState,
   WriteAction,
 } from '../runtime/index.js';
-import { untouchedSince, withFilterMode } from '../runtime/navigation.js';
+import {
+  lookedOnly,
+  untouchedSince,
+  withFilterMode,
+} from '../runtime/navigation.js';
 import { kindMismatch } from './issues.js';
 import { useAutoRefresh, type RefreshController } from './useAutoRefresh.js';
 import {
@@ -313,6 +317,12 @@ export interface WorkbenchController {
   board: BoardOrigin | null;
   /** Goes back to `board` through the host's route, past the leave guard. */
   toBoard(): void;
+  /**
+   * Whether the view on screen is one a board or an embed handed over
+   * (`handOver`, D26 Q30), saved or not: the press that sent it took the
+   * keyboard off the page it was on, so the shell gives it to the title.
+   */
+  handedOver: boolean;
   opened: OpenViewState;
   /** Null while the view is unopenable or still loading. */
   runtime: AnyViewRuntime | null;
@@ -529,9 +539,13 @@ export function useWorkbench(
           // its only change until the reader makes another, and the way
           // back puts that on the board again (D26 Q33). Compared as it
           // is, keys and all: shaped and shaped back is untouched.
+          // A search, a sort or a page size on a view this reader cannot
+          // save in place is a look-up, not work (R2-39).
           dirty: held
             ? !sameJson(state.draft, held.draft)
-            : state.dirty && !untouchedSince(state.draft, handedDraft),
+            : state.dirty &&
+              !untouchedSince(state.draft, handedDraft) &&
+              (commands.can.save || !lookedOnly(state, runtime?.definition)),
           write: state.write,
         }
       : null,
@@ -763,6 +777,7 @@ export function useWorkbench(
     back,
     board,
     toBoard,
+    handedOver: held ? held.handed === true : handedHere !== null,
     opened,
     runtime,
     state,

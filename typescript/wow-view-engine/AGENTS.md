@@ -573,6 +573,7 @@ src/
       FilterOrder.tsx         — `useFilterOrder`: the bar's filters put in another order while the board is built — a `DragHandle` on each chip, ←/→ or a drag, the landing said in the board's voice, every move `moveFilter`; the places are the bar's, a hidden filter kept in order (`barMove`), the time grouping after them all
       FilterSettings.tsx      — 「添加筛选」 (`AddFilterMenu`) and one filter's settings popover: type, name, default, several values, required, where its values come from, 接线 and 移除
       FilterWiring.tsx        — Wiring a filter (D22 G): the context the grid reads, each panel's strip (same-type fields, 「没有可接的字段」, 「手动」), the wiring bar, the toasts in the board's own root
+      reveal.ts               — A panel just added scrolled into view, the keyboard on its 「⋯」 (`usePanelReveal`, R2-38)
       landing.ts              — The lookups on the board a press that takes its own control away lands by (`useLanding` in `ui/kit/focus.ts`, U-02): the board, a filter's chip and value, 「撤销」, 「添加筛选」
       EditBar.tsx             — The bar a board is built under: 正在编辑, 撤销／重做, 添加 and 添加筛选 beside it, 取消 (put back the saved board, asked first) and 保存 (the save, a shared board asked first, a new one named; D26 Q37); stuck to the top of what scrolls the board while it is built
       history.ts              — `useBoardHistory`: 撤销／重做 named after the step each takes, said when taken, ⌘Z／Ctrl+Z on the board and never in a field, and where the keyboard goes

@@ -26,10 +26,15 @@ import type {
   FilterTree,
   RecordViewConfig,
   ViewConfig,
+  ViewDefinition,
 } from '../model/index.js';
 import { dequal } from 'dequal';
 import { drillFilter } from '../analysis/index.js';
-import { isSimpleTree } from '../filter/index.js';
+import {
+  isSimpleTree,
+  searchFieldOf,
+  withRootSearch,
+} from '../filter/index.js';
 
 /**
  * What a name 「{subject} · {group}」 claims (D20 追问): the conditions that
@@ -187,4 +192,35 @@ export function untouchedSince(
   landed: ViewConfig | null,
 ): boolean {
   return landed !== null && (draft === landed || dequal(draft, landed));
+}
+
+/**
+ * Whether a draft differs from its saved config only in how it is looked
+ * at — the sort, the page size, the text in the search box (the root search
+ * on the definition's search field) — and in nothing it asks (R2-39). On a
+ * view the reader cannot save in place, such a draft is a look-up nobody
+ * meant to keep: switching away is not asked about, where a condition built
+ * on it still is, since 「另存为」 is what it was for.
+ */
+export function lookedOnly(
+  view: { draft: ViewConfig; saved: { config: ViewConfig } | null },
+  definition: ViewDefinition | undefined,
+): boolean {
+  const { draft } = view;
+  const saved = view.saved?.config;
+  if (!saved || draft.kind !== saved.kind || draft.kind === 'dashboard')
+    return false;
+  const search =
+    definition?.kind === 'data'
+      ? (searchFieldOf(definition.fields)?.name ?? null)
+      : null;
+  const asked = (config: ViewConfig): Record<string, unknown> => {
+    const rest: Record<string, unknown> = { ...config };
+    delete rest.sort;
+    delete rest.pageSize;
+    if (search !== null && 'filter' in config)
+      rest.filter = withRootSearch(config.filter, search, '');
+    return rest;
+  };
+  return dequal(asked(draft), asked(saved));
 }

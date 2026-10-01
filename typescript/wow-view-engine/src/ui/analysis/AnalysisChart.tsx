@@ -18,7 +18,11 @@ import { Boxplot } from '../charts/Boxplot.js';
 import { Candlestick } from '../charts/Candlestick.js';
 import { Cartesian } from '../charts/Cartesian.js';
 import { withoutHidden } from '../charts/cartesianPlan.js';
-import { ChartMenuOpen, ChartSentence } from '../charts/EChart.js';
+import {
+  ChartMenuOpen,
+  ChartPressHint,
+  ChartSentence,
+} from '../charts/EChart.js';
 import { ChartImageTarget, type ChartImageSlot } from '../charts/image.js';
 import { ChartReadingTable } from '../charts/ChartReading.js';
 import { useDateTicks } from '../charts/dateTicks.js';
@@ -82,6 +86,12 @@ export interface AnalysisChartProps {
    */
   menuOpen?: boolean;
   /**
+   * Whether a press on a group opens the follow-up menu here, so the
+   * tooltip says so (`ChartPressHint`): a workbench, an embed that follows
+   * up. A board's press filters, and its badge says that.
+   */
+  pressHint?: boolean;
+  /**
    * Whether a long time axis also zooms by pinch and Ctrl + wheel, not only
    * by its slider — a workbench, where the chart is the page's subject; a
    * dashboard panel or a read-only embedding leaves the wheel to the page
@@ -118,6 +128,7 @@ export function AnalysisChart({
   cutShort,
   highlight,
   menuOpen = false,
+  pressHint = false,
   zoomGestures = false,
   image,
 }: AnalysisChartProps) {
@@ -174,11 +185,13 @@ export function AnalysisChart({
   return (
     <ChartMenuOpen.Provider value={menuOpen}>
       <ChartSentence.Provider value={reading.sentence}>
-        <ChartImageTarget.Provider
-          value={data.type === 'metric' ? null : (image ?? around)}
-        >
-          {family(data, props)}
-        </ChartImageTarget.Provider>
+        <ChartPressHint.Provider value={pressHint && onPick !== undefined}>
+          <ChartImageTarget.Provider
+            value={data.type === 'metric' ? null : (image ?? around)}
+          >
+            {family(data, props)}
+          </ChartImageTarget.Provider>
+        </ChartPressHint.Provider>
       </ChartSentence.Provider>
       <ChartReadingTable reading={reading} />
     </ChartMenuOpen.Provider>

@@ -40,6 +40,7 @@ import { useBoardHistory } from './history.js';
 import { useDashboardEditExtensions } from './extensions.js';
 import { useBoardFilters } from './BoardFilters.js';
 import { ViewPicker, type PickerIntent } from './ViewPicker.js';
+import { usePanelReveal } from './reveal.js';
 
 /** Pixel height of one grid row, and the gap the grid keeps between rows. */
 const ROW_HEIGHT = 80;
@@ -129,6 +130,7 @@ export function DashboardBoard({
   const addRef = useRef<HTMLButtonElement>(null);
   const undoRef = useRef<HTMLButtonElement>(null);
   const redoRef = useRef<HTMLButtonElement>(null);
+  const reveal = usePanelReveal(gridRef, addRef);
 
   // 「编辑」 goes from the title bar as the building starts, and the keyboard
   // that pressed it with it: the bar that took its place is where it lands.
@@ -182,10 +184,13 @@ export function DashboardBoard({
   const added = (id: string | null, fallback: string) => {
     if (id === null) return;
     say(messages.label('label.dashboard.added', { title: fallback }));
+    // Seen as well as heard: a full board puts it below the fold.
+    reveal.reveal(id);
   };
 
   const add = (choice: AddChoice) => {
     if (!edit) return;
+    reveal.reset();
     // An empty board's first steps start the building with them.
     if (!editing) onEditingChange(true);
     switch (choice) {
@@ -224,7 +229,8 @@ export function DashboardBoard({
           ]
             .find(item => item.dataset.panelId === panelId)
             ?.querySelector<HTMLElement>('[data-slot="panel-menu"]');
-    return menu ?? addRef.current ?? true;
+    // An add that landed before its dialog closed: on to the new panel.
+    return menu ?? reveal.returnTo() ?? addRef.current ?? true;
   };
 
   const building: BoardBuilding = {

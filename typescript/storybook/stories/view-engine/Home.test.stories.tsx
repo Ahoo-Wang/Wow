@@ -576,9 +576,10 @@ export const ChannelCrossFilters: Story = {
 
 /**
  * The board's day off the calendar (「选择 指定日期 无效」, 2026-09-25): the
- * starred 日期 turns from 「时间段」 into 「指定日期」 without a blank in
- * between — the board puts a required filter's default straight back — and
- * the day picked runs: every card reads it against the day before (D39).
+ * starred 日期 turns from 「时间段」 into 「指定日期」 on the day in force —
+ * 「昨天」 off the calendar, so no card blanks to 「请选择日期」 (R2-41) —
+ * and the day picked runs: every card reads it against the day before
+ * (D39); the calendar closes on the pick, the keyboard back on its button.
  * Back to 「时间段」 is the same select.
  */
 export const PicksASpecificDay: Story = {
@@ -619,15 +620,12 @@ export const PicksASpecificDay: Story = {
     );
     await expect(kind).toHaveTextContent(zhCN['label.date.absolute']);
     const calendar = within(date).getByRole('button', { name: '日期' });
-    await expect(calendar).toHaveTextContent(zhCN['label.date.pick']);
-    // Nothing picked yet: the value in force is not the one on the bar, so
-    // the panels wired to it ask for a day rather than show 9 月 21 日's
-    // numbers (2026-09-26 review, P1-1).
-    await waitFor(() =>
-      expect(
-        panelOf('GMV').querySelector('[data-slot="panel-awaiting-date"]'),
-      ).toHaveTextContent(zhCN['label.panel.awaiting-date']),
-    );
+    // The day in force, now off the calendar: the board reads what it read,
+    // and no card asks for a day.
+    await waitFor(() => expect(calendar).toHaveTextContent('2026年9月21日'));
+    await expect(
+      panelOf('GMV').querySelector('[data-slot="panel-awaiting-date"]'),
+    ).toBeNull();
 
     await userEvent.click(calendar);
     const popup = await screen.findByRole('dialog', { name: '日期' });
@@ -639,7 +637,10 @@ export const PicksASpecificDay: Story = {
       await userEvent.click(within(popup).getByRole('button', { name: step }));
     }
     await userEvent.click(within(popup).getByRole('button', { name: day }));
-    await userEvent.keyboard('{Escape}');
+    // One day is the whole answer: the calendar goes, the keyboard is back
+    // on its button rather than in a grid the board's next render took.
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    await waitFor(() => expect(calendar).toHaveFocus());
 
     await waitFor(
       () => {
