@@ -236,7 +236,10 @@ export function ViewManager({
           its drag handle: either way the dialog opens with a write under the
           user's finger and no word about what they are looking at. The
           heading is where a reader starts, and Tab from it is the first row. */}
-      <DialogContent className="fve:sm:max-w-lg" initialFocus={heading}>
+      <DialogContent
+        className="fve:grid-rows-[auto_minmax(0,1fr)] fve:sm:max-w-lg"
+        initialFocus={heading}
+      >
         <DialogHeader>
           {/* `tabIndex={-1}` makes it a focus target without making it a tab
               stop: it is reachable when focus is *sent* here, and invisible
@@ -249,45 +252,53 @@ export function ViewManager({
           </DialogDescription>
         </DialogHeader>
 
-        {/* The order and the default are one record, so their outcome belongs
+        {/* The body scrolls, the heading stays: a list longer than the
+            screen (30-odd system views) scrolls here rather than pushing the
+            dialog past the viewport's edges. */}
+        <div
+          data-slot="view-manager-body"
+          className="fve:-mx-1 fve:flex fve:min-h-0 fve:flex-col fve:gap-4 fve:overflow-y-auto fve:px-1 fve:py-0.5"
+        >
+          {/* The order and the default are one record, so their outcome belongs
             to the list rather than to any row that moved. */}
-        {preferences && (
-          <ViewManagerOutcome
-            state={preferences}
-            manager={manager}
-            list={list}
-            outcomeKey={PREFERENCES_KEY}
-          />
-        )}
+          {preferences && (
+            <ViewManagerOutcome
+              state={preferences}
+              manager={manager}
+              list={list}
+              outcomeKey={PREFERENCES_KEY}
+            />
+          )}
 
-        {manager.can.reorder ? (
-          <DragDropProvider
-            {...sortableList(manageDragAccessibility(messages, titleOf))}
-            onDragEnd={({ operation, canceled }) => {
-              // The library holds a drag inside its own group; `managerDrop`
-              // says the same thing where the order is decided, so a drop
-              // the sensor let through cannot store one audience among the
-              // other's rows.
-              const drop = managerDrop(
-                operation,
-                canceled,
-                id => groupOf(id)?.audience,
-              );
-              // The place of the row it was dropped on, asked for now for
-              // the same reason the arrow keys ask for it now.
-              if (drop) move(drop.source, manager.placeOf(drop.target));
-            }}
-          >
-            {rows}
-          </DragDropProvider>
-        ) : (
-          rows
-        )}
+          {manager.can.reorder ? (
+            <DragDropProvider
+              {...sortableList(manageDragAccessibility(messages, titleOf))}
+              onDragEnd={({ operation, canceled }) => {
+                // The library holds a drag inside its own group; `managerDrop`
+                // says the same thing where the order is decided, so a drop
+                // the sensor let through cannot store one audience among the
+                // other's rows.
+                const drop = managerDrop(
+                  operation,
+                  canceled,
+                  id => groupOf(id)?.audience,
+                );
+                // The place of the row it was dropped on, asked for now for
+                // the same reason the arrow keys ask for it now.
+                if (drop) move(drop.source, manager.placeOf(drop.target));
+              }}
+            >
+              {rows}
+            </DragDropProvider>
+          ) : (
+            rows
+          )}
 
-        {/* One voice for what landed: a move asked for with the arrow keys
+          {/* One voice for what landed: a move asked for with the arrow keys
             (the library announces its own pick-up and cancel) and a move to
             the other audience. */}
-        {announcement}
+          {announcement}
+        </div>
       </DialogContent>
     </Dialog>
   );

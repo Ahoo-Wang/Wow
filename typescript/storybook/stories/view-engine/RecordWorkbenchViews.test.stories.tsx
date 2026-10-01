@@ -825,3 +825,66 @@ export const ShareViewInPlace: Story = {
     await expect(group('我盯的大额单')).toBe(zhCN['label.scope.group.shared']);
   },
 };
+
+/**
+ * A screen shorter than the list: the dialog stays inside the viewport with
+ * its heading in view, and the list scrolls inside it rather than running
+ * off the top and bottom of the screen (the compensation console's 30-odd
+ * system views did).
+ */
+export const ManagerFitsAShortScreen: Story = {
+  ...DisplayManageViews,
+  globals: { viewport: { value: 'short' } },
+  parameters: {
+    ...DisplayManageViews.parameters,
+    viewport: {
+      options: {
+        short: {
+          name: '1280×260',
+          styles: { width: '1280px', height: '260px' },
+        },
+      },
+    },
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await canvas.findByRole('table');
+    await userEvent.click(
+      canvas.getByRole('button', { name: zhCN['label.manage.open'] }),
+    );
+    const dialog = await within(document.body).findByRole('dialog');
+    const list = dialog.querySelector<HTMLElement>(
+      '[data-slot="view-manager-body"]',
+    )!;
+    await waitFor(() =>
+      expect(
+        list.querySelectorAll('[data-slot="view-manager-row"]').length,
+      ).toBeGreaterThan(3),
+    );
+    await waitFor(() => {
+      const box = dialog.getBoundingClientRect();
+      expect(box.top, 'the dialog starts on screen').toBeGreaterThanOrEqual(0);
+      expect(box.bottom, 'the dialog ends on screen').toBeLessThanOrEqual(
+        window.innerHeight,
+      );
+    });
+    const heading = within(dialog).getByRole('heading', {
+      name: zhCN['label.manage.heading'],
+    });
+    await expect(heading.getBoundingClientRect().top).toBeGreaterThanOrEqual(0);
+    // The list is the scroller, and its last row can be reached.
+    await expect(list.scrollHeight).toBeGreaterThan(list.clientHeight);
+    list.scrollTop = list.scrollHeight;
+    const rows = list.querySelectorAll<HTMLElement>(
+      '[data-slot="view-manager-row"]',
+    );
+    const last = rows[rows.length - 1]!.getBoundingClientRect();
+    await expect(last.bottom).toBeLessThanOrEqual(
+      list.getBoundingClientRect().bottom + 1,
+    );
+    // The heading did not scroll away with it.
+    await expect(heading.getBoundingClientRect().top).toBeGreaterThanOrEqual(
+      dialog.getBoundingClientRect().top,
+    );
+  },
+};
