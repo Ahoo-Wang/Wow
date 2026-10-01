@@ -20,6 +20,7 @@ import {
 } from '../model/index.js';
 import { issue } from '../filter/index.js';
 import { listParam } from '../model/issue.js';
+import { newRequestId } from './requestId.js';
 import type { ViewStore, WriteContext } from '../store/ViewStore.js';
 import type { ManagedViewRuntime, ViewRuntime } from './viewRuntimeTypes.js';
 import type { ViewChange } from './viewChanges.js';
@@ -93,7 +94,7 @@ export class WriteLedger {
 
   constructor(host: WriteLedgerHost) {
     this.host = host;
-    this.newId = host.newId ?? (() => crypto.randomUUID());
+    this.newId = host.newId ?? newRequestId;
   }
 
   /** Writes still waiting for a decision, by handle id. */
