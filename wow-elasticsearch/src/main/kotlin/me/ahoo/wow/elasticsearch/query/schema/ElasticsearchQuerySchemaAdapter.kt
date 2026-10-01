@@ -117,7 +117,10 @@ class ElasticsearchQuerySchemaAdapter(
                 approximateMetrics = setOf("DISTINCT_COUNT", "PERCENTILE"),
                 // A search whose `from + size` passes the index's window fails; admission rejects the page instead.
                 storage = STORAGE_SUPPORT.copy(paging = PagingSupport(maxOffsetWindow = mapping.maxResultWindow)),
+                provisional = mapping.provisional,
                 capabilities = buildSet {
+                    // A missing index answers nothing, so a model-wide search of it answers nothing as well.
+                    if (mapping.provisional) addAll(PROVISIONAL_MODEL_CAPABILITIES)
                     if (rootSearchFields.any(ElasticsearchMappedField::supportsModelFullText)) {
                         add(QueryCapability.FULL_TEXT_TERMS)
                     }
@@ -130,7 +133,7 @@ class ElasticsearchQuerySchemaAdapter(
                     val symbolic = path.segments.any { it is QueryPathSegment.Key }
                     val source = if (symbolic) null else path.field(emptyList()).path
                     val projection = when {
-                        source in setOf("_id", "_score", "_doc", "_shard_doc") -> null
+                        source in METADATA_FIELDS -> null
                         source != null && source in mapping.fields -> mapping.fields.getValue(
                             source
                         ).projectionPath?.let { target ->
@@ -139,21 +142,72 @@ class ElasticsearchQuerySchemaAdapter(
                         else -> path
                     }?.takeIf { mapping.sourceAvailable(it) }
                     QueryValueBindings(
-                        bindings = if (source == null) {
-                            emptyMap()
-                        } else {
-                            BUILT_IN_CAPABILITIES.mapNotNull { capability ->
-                                (
-                                    documentIdBinding(model, source, capability)
-                                        ?: mapping.binding(source, value, capability, invalidNested, nestedPaths, arrayPaths)
-                                    )?.let { capability to it }
-                            }.toMap()
-                        },
+                        bindings = mapping.valueBindings(
+                            model,
+                            path,
+                            source,
+                            value,
+                            invalidNested,
+                            nestedPaths,
+                            arrayPaths,
+                        ),
                         projectionPath = projection,
                         responsePath = projection,
                     )
                 },
             )
+        }
+
+        @Suppress("LongParameterList")
+        private fun ElasticsearchIndexMapping.valueBindings(
+            model: QueryModel,
+            path: QueryPathTemplate,
+            source: String?,
+            value: QueryValueSchema,
+            invalidNested: Set<String>,
+            nestedPaths: Set<String>,
+            arrayPaths: Set<String>,
+        ): Map<QueryCapability, QueryFieldBindingTemplate> = when {
+            provisional && unmapped(source) -> provisionalBindings(path, value)
+            source == null -> emptyMap()
+            else -> BUILT_IN_CAPABILITIES.mapNotNull { capability ->
+                (
+                    documentIdBinding(model, source, capability)
+                        ?: binding(source, value, capability, invalidNested, nestedPaths, arrayPaths)
+                    )?.let { capability to it }
+            }.toMap()
+        }
+
+        private val METADATA_FIELDS = setOf(DOCUMENT_ID, "_score", "_doc", "_shard_doc")
+
+        private val PROVISIONAL_MODEL_CAPABILITIES =
+            setOf(QueryCapability.FULL_TEXT_TERMS, QueryCapability.FULL_TEXT_PHRASE)
+
+        /** A path the mapping holds no field for: no metadata field, and no field at or below a flattened one. */
+        private fun ElasticsearchIndexMapping.unmapped(source: String?): Boolean =
+            source == null || source !in METADATA_FIELDS && find(source) == null
+
+        /**
+         * Before the first write, a path the templates do not map yet (one that dynamic mapping will add, or a map key)
+         * holds no value: every query of the missing index answers nothing. It is bound for every capability its
+         * logical value allows in some field kind, at its own path, so a query of it answers nothing rather than being
+         * refused; the first load after the write binds what the index then maps.
+         */
+        private fun provisionalBindings(
+            path: QueryPathTemplate,
+            value: QueryValueSchema,
+        ): Map<QueryCapability, QueryFieldBindingTemplate> {
+            val physical = QueryFieldBindingTemplate(
+                QueryPathTemplate(path.segments.filter { it != QueryPathSegment.Item }),
+                null,
+            )
+            return BUILT_IN_CAPABILITIES.filter { capability ->
+                when (capability) {
+                    QueryCapability.PRESENCE -> true
+                    QueryCapability.ELEMENT_SCOPE -> value.isElementScope()
+                    else -> value.provesSomeKind(capability)
+                }
+            }.associateWith { physical }
         }
 
         private fun ElasticsearchIndexMapping.sourceAvailable(path: QueryPathTemplate): Boolean =
@@ -317,7 +371,8 @@ private fun ElasticsearchMappedField.supports(
     if (!enabled || nullValue != null || !logical.provesIndexedValues(ignoreAbove)) return false
     if (normalizer != null && capability in NORMALIZED_VALUE_CAPABILITIES) return false
     val executable = when (capability) {
-        QueryCapability.PRESENCE -> queryable
+        // `_ignored` names no value a flattened field drops, so presence could not see it (see ElasticsearchFilterCompiler).
+        QueryCapability.PRESENCE -> queryable && (kind != Property.Kind.Flattened || ignoreAbove == null)
         QueryCapability.EXACT_MATCH -> queryable && kind in EXACT_KINDS
         QueryCapability.LITERAL_MATCH -> indexed && kind in LITERAL_KINDS
         QueryCapability.RANGE -> queryable && kind in RANGE_KINDS
@@ -393,12 +448,25 @@ private fun QueryValueSchema.provesIndexedValues(ignoreAbove: Int?): Boolean {
     }
 }
 
+/** Whether some field kind proves [capability] for every value branch: [proves] without a mapped kind. */
+private fun QueryValueSchema.provesSomeKind(capability: QueryCapability): Boolean {
+    val values = scalarBranches()
+    return values.isNotEmpty() && values.all { value ->
+        value.kind == QueryValueKind.SCALAR && value.storageKinds(capability).let { requirements ->
+            requirements.isNotEmpty() && requirements.all { it.isNotEmpty() }
+        }
+    }
+}
+
+private fun QueryValueSchema.scalarBranches(): List<QueryValueSchema> =
+    alternativesOrSelf().filter { it.kind != QueryValueKind.NULL }.flatMap {
+        if (it.kind == QueryValueKind.ARRAY) checkNotNull(it.items).alternativesOrSelf() else listOf(it)
+    }.filter { it.kind != QueryValueKind.NULL }
+
 private fun QueryValueSchema.proves(capability: QueryCapability, kind: Property.Kind): Boolean {
     // Whether the value is an element scope at all is the Catalog's rule; storage proves only the nested mapping.
     if (capability == QueryCapability.ELEMENT_SCOPE) return kind in NESTED_KINDS
-    val values = alternativesOrSelf().filter { it.kind != QueryValueKind.NULL }.flatMap {
-        if (it.kind == QueryValueKind.ARRAY) checkNotNull(it.items).alternativesOrSelf() else listOf(it)
-    }.filter { it.kind != QueryValueKind.NULL }
+    val values = scalarBranches()
     return values.isNotEmpty() && values.all { value ->
         value.kind == QueryValueKind.SCALAR && value.storageKinds(capability).let { requirements ->
             requirements.isNotEmpty() && requirements.all { kind in it }

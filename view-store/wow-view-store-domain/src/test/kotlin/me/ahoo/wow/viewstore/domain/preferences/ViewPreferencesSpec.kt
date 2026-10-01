@@ -31,6 +31,7 @@ import me.ahoo.wow.viewstore.domain.ViewFixtures.APP
 import me.ahoo.wow.viewstore.domain.ViewFixtures.OTHER_APP
 import me.ahoo.wow.viewstore.domain.ViewFixtures.appHeader
 import me.ahoo.wow.viewstore.domain.ViewStoreException
+import me.ahoo.wow.viewstore.domain.view.ViewConfigs
 
 class ViewPreferencesSpec : AggregateSpec<ViewPreferences, ViewPreferencesState>({
     on(aggregateId = ViewPreferencesIds.of("tenant", ALICE, APP, "orders")) {
@@ -110,6 +111,29 @@ class ViewPreferencesSpec : AggregateSpec<ViewPreferences, ViewPreferencesState>
         whenCommand(SetViewPreferences(definitionId = " "), appHeader(), ALICE) {
             expectError<ViewStoreException> {
                 errorCode.assert().isEqualTo(ViewStoreErrorCodes.VIEW_INVALID)
+            }
+        }
+    }
+    val id = "i".repeat(ViewConfigs.MAX_ID_LENGTH)
+    on {
+        whenCommand(
+            SetViewPreferences(definitionId = id, order = listOf(id), defaultInstanceId = id),
+            appHeader(),
+            ALICE
+        ) {
+            expectNoError()
+        }
+    }
+    listOf(
+        SetViewPreferences(definitionId = id + "i"),
+        SetViewPreferences(definitionId = "orders", order = listOf("a", id + "i")),
+        SetViewPreferences(definitionId = "orders", defaultInstanceId = id + "i"),
+    ).forEach { command ->
+        on {
+            whenCommand(command, appHeader(), ALICE) {
+                expectError<ViewStoreException> {
+                    errorCode.assert().isEqualTo(ViewStoreErrorCodes.VIEW_INVALID)
+                }
             }
         }
     }

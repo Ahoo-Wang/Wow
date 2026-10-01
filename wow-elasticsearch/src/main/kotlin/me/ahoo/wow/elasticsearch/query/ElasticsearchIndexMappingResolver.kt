@@ -53,10 +53,10 @@ import java.util.concurrent.ConcurrentHashMap
  * Wow creates an aggregate's index on its first write, from the index templates, so until then the index does not
  * exist. Its mapping is then the one the index will be created with: the matching index templates' mapping, as
  * Elasticsearch simulates it for the name (`_index_template/_simulate_index`), or no field at all when no template
- * matches. That mapping is never cached: the next load reads the index once it exists, and the fields it maps then
- * are those of the templates plus the ones its documents added, so a schema compiled before the first write binds no
- * field the index will not have. Simulating needs the `manage_index_templates` cluster privilege, which initializing
- * Wow's templates (`wow.elasticsearch.auto-init-template`) needs as well.
+ * matches. That mapping is [provisional][ElasticsearchIndexMapping.provisional] and never cached: the next load reads
+ * the index once it exists, with the fields of the templates plus the ones its documents added. Simulating needs the
+ * `manage_index_templates` cluster privilege, which initializing Wow's templates
+ * (`wow.elasticsearch.auto-init-template`) needs as well.
  */
 class ElasticsearchIndexMappingResolver(
     private val elasticsearchClient: ReactiveElasticsearchClient,
@@ -113,9 +113,10 @@ class ElasticsearchIndexMappingResolver(
             indexName,
             template.mappings() ?: TypeMapping.of { it },
             maxResultWindow = template.settings()?.declaredMaxResultWindow() ?: DEFAULT_MAX_RESULT_WINDOW,
+            provisional = true,
         )
     }.onErrorResume(Throwable::isNoTemplateMatches) {
-        Mono.just(ElasticsearchIndexMapping.from(indexName, TypeMapping.of { it }))
+        Mono.just(ElasticsearchIndexMapping.from(indexName, TypeMapping.of { it }, provisional = true))
     }
 }
 
@@ -139,8 +140,10 @@ private val SIMULATE_INDEX = SimpleEndpoint<SimulateIndexTemplateRequest, Simula
 )
 
 /**
- * Elasticsearch answers a simulation that no template matches with an empty body, which the client cannot read as a
- * response: its required `template` is missing.
+ * Elasticsearch answers a simulation that no template matches with `{}`, which the client cannot read as a response:
+ * deserializing it throws [MissingRequiredPropertyException] for the required `template` (pinned by
+ * `ElasticsearchIndexMappingResolverTest`, and end to end by `ElasticsearchMissingIndexQueryTest`). Should a client
+ * version read `{}` otherwise, that test fails rather than every query of a template-less missing index.
  */
 private fun Throwable.isNoTemplateMatches(): Boolean =
     generateSequence(this) { it.cause.takeIf { cause -> cause !== it } }.take(8)
@@ -170,6 +173,11 @@ data class ElasticsearchIndexMapping private constructor(
     internal val sourceExcludes: List<String>,
     /** The index's `index.max_result_window`: an offset page may not reach beyond it. */
     val maxResultWindow: Int,
+    /**
+     * Whether the index does not exist yet: the mapping is the one its templates will create it with, and every
+     * query of it answers nothing.
+     */
+    val provisional: Boolean,
 ) {
     val fieldCount: Int
         get() = fields.size
@@ -216,6 +224,7 @@ data class ElasticsearchIndexMapping private constructor(
             indexName: String,
             typeMapping: TypeMapping,
             maxResultWindow: Int = DEFAULT_MAX_RESULT_WINDOW,
+            provisional: Boolean = false,
         ): ElasticsearchIndexMapping {
             val fields = linkedMapOf<String, ElasticsearchMappedField>()
             val aliases = linkedMapOf<String, String>()
@@ -276,6 +285,7 @@ data class ElasticsearchIndexMapping private constructor(
                 sourceIncludes = java.util.List.copyOf(typeMapping.source()?.includes().orEmpty()),
                 sourceExcludes = java.util.List.copyOf(typeMapping.source()?.excludes().orEmpty()),
                 maxResultWindow = maxResultWindow,
+                provisional = provisional,
             )
         }
     }

@@ -454,6 +454,34 @@ class ElasticsearchQuerySchemaAdapterTest {
     }
 
     @Test
+    fun `a capped flattened field gets no presence binding, since _ignored records none of its dropped values`() {
+        // `_ignored` is the guard that keeps an over-long ABAC tag from reading as absent; a flattened field records
+        // nothing there, so presence on it could not see a value its ignore_above dropped.
+        val definition = logical(
+            "tags" to objectValue(additional = array(scalar(QueryValueType.STRING))),
+            "labels" to objectValue(mapOf("color" to scalar(QueryValueType.STRING))),
+            "uncapped" to objectValue(mapOf("color" to scalar(QueryValueType.STRING))),
+        )
+        val schema = bind(
+            definition,
+            TypeMapping.of {
+                it.properties("tags") { it.flattened { it.ignoreAbove(UNCAPPED_IGNORE_ABOVE) } }
+                    .properties("labels") { it.flattened { it.ignoreAbove(UNCAPPED_IGNORE_ABOVE) } }
+                    .properties("uncapped") { it.flattened { it } }
+            }
+        )
+        schema.path("labels.color", QueryCapability.EXACT_MATCH).assert().isEqualTo("labels.color")
+        schema.field(QueryField("labels.color"))!!.bindings.assert().doesNotContainKey(QueryCapability.PRESENCE)
+        schema.path("uncapped.color", QueryCapability.PRESENCE).assert().isEqualTo("uncapped.color")
+        val access = with(me.ahoo.wow.query.snapshot.filter.AbacQueryPolicy) {
+            mapOf("department" to listOf("eng")).toFilterExpression()
+        }
+        assertThrows<QuerySchemaValidationException> {
+            me.ahoo.wow.elasticsearch.query.ElasticsearchFilterCompiler.compile(access, schema)
+        }
+    }
+
+    @Test
     fun `mask declarations do not trim native capabilities`() {
         val rule = me.ahoo.wow.query.schema.MaskRule(SensitivityLevel.DISPLAY)
         val value = QueryValueSchema(QueryValueKind.SCALAR, valueTypes = setOf(QueryValueType.STRING), maskRule = rule)
@@ -594,6 +622,53 @@ class ElasticsearchQuerySchemaAdapterTest {
         compiled.assert().contains("\"tags.department\"")
         // A tag longer than ignore_above is not indexed: `_ignored` keeps it from reading as an untagged resource.
         compiled.assert().contains("\"_ignored\"")
+    }
+
+    @Test
+    fun `a provisional mapping binds the paths it does not map yet and keeps the refusals of those it maps`() {
+        val definition = logical(
+            "tenantId" to scalar(QueryValueType.STRING),
+            "tags" to objectValue(additional = array(scalar(QueryValueType.STRING))),
+            "state" to objectValue(
+                mapOf(
+                    "status" to scalar(QueryValueType.STRING),
+                    "capped" to scalar(QueryValueType.STRING),
+                    "flag" to scalar(QueryValueType.BOOLEAN),
+                )
+            ),
+        )
+        val mapping = TypeMapping.of {
+            it.properties("tenantId") { it.keyword { it } }
+                .properties("state.capped") { it.keyword { it.ignoreAbove(3) } }
+        }
+        val facts = ElasticsearchQuerySchemaAdapter.facts(
+            definition,
+            ElasticsearchIndexMapping.from("test", mapping, provisional = true),
+        )
+        facts.provisional.assert().isTrue()
+        val schema = facts.compile(QueryModel.SNAPSHOT, definition)
+        schema.provisional.assert().isTrue()
+        schema.capabilities.assert().contains(QueryCapability.FULL_TEXT_TERMS)
+        schema.path("tenantId", QueryCapability.EXACT_MATCH).assert().isEqualTo("tenantId")
+        schema.path("tenantId", QueryCapability.FULL_TEXT_TERMS).assert().isNull()
+        listOf(
+            QueryCapability.PRESENCE,
+            QueryCapability.EXACT_MATCH,
+            QueryCapability.SORT,
+            QueryCapability.CURSOR_SORT,
+            QueryCapability.AGGREGATE_TERMS,
+        ).forEach { capability ->
+            schema.path("state.status", capability).assert().isEqualTo("state.status")
+        }
+        schema.path("state.flag", QueryCapability.EXACT_MATCH).assert().isEqualTo("state.flag")
+        schema.path("state.flag", QueryCapability.RANGE).assert().isNull()
+        schema.path("state.flag", QueryCapability.LITERAL_MATCH).assert().isNull()
+        schema.field(QueryField("state.capped"))!!.bindings.assert().isEmpty()
+        schema.path("tags.department", QueryCapability.EXACT_MATCH).assert().isEqualTo("tags.department")
+
+        val existing = bind(definition, mapping)
+        existing.provisional.assert().isFalse()
+        existing.field(QueryField("state.status"))!!.bindings.assert().isEmpty()
     }
 
     @Test

@@ -38,6 +38,7 @@ import me.ahoo.wow.query.PageWindow
 import me.ahoo.wow.query.QueryBackend
 import me.ahoo.wow.query.QueryExecutionException
 import me.ahoo.wow.query.checkExecution
+import me.ahoo.wow.query.schema.QuerySchemaUnavailableException
 import me.ahoo.wow.serialization.JsonSerializer
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
 import reactor.core.publisher.Flux
@@ -67,7 +68,7 @@ abstract class AbstractElasticsearchQueryBackend : QueryBackend {
     override val cursorPositions: CursorPositionCodec = ElasticsearchCursorCodec
 
     override fun stream(query: AdmittedQuery<IListQuery>): Flux<ObjectNode> =
-        streamIndex(query).onErrorResume(Throwable::isIndexNotFound) { Flux.empty() }
+        streamIndex(query).orMissing(query) { Flux.empty() }
 
     private fun streamIndex(query: AdmittedQuery<IListQuery>): Flux<ObjectNode> {
         val listQuery = query.query
@@ -88,7 +89,7 @@ abstract class AbstractElasticsearchQueryBackend : QueryBackend {
     }
 
     override fun page(query: AdmittedQuery<Queryable<*>>, window: PageWindow): Mono<BackendPage> =
-        pageIndex(query, window).onErrorResume(Throwable::isIndexNotFound) {
+        pageIndex(query, window).orMissing(query) {
             Mono.fromSupplier {
                 when (window) {
                     is PageWindow.Offset -> if (window.withTotal) {
@@ -192,13 +193,31 @@ abstract class AbstractElasticsearchQueryBackend : QueryBackend {
                     .query(ElasticsearchFilterCompiler.compile(query))
             }
         }.flatMap(elasticsearchClient::count).map { it.requireComplete().count() }
-            .onErrorResume(Throwable::isIndexNotFound) { Mono.just(0L) }
+            .orMissing(query) { Mono.just(0L) }
     }
 
     /** A missing index has no groups; without any, the core emits the empty summary, as it does over no records. */
     override fun aggregate(query: AdmittedQuery<AggregationQuery>, window: GroupWindow): Flux<ObjectNode> =
         aggregationPager.execute(ElasticsearchAggregationCompiler.compile(query), window)
-            .onErrorResume(Throwable::isIndexNotFound) { Flux.empty() }
+            .orMissing(query) { Flux.empty() }
+
+    /**
+     * [missing] when the index does not exist. A query admitted against the provisional schema of a missing index
+     * that finds the index (created since, by the first write) is refused: its bindings for the paths the templates
+     * did not map are the logical model's, not the index's. The provisional schema expires within seconds.
+     */
+    private fun <T : Any> Flux<T>.orMissing(query: AdmittedQuery<*>, missing: () -> Flux<T>): Flux<T> =
+        (if (query.provisional) thenMany(Flux.error<T> { createdSinceAdmission() }) else this)
+            .onErrorResume(Throwable::isIndexNotFound) { missing() }
+
+    private fun <T : Any> Mono<T>.orMissing(query: AdmittedQuery<*>, missing: () -> Mono<T>): Mono<T> =
+        (if (query.provisional) then(Mono.error<T> { createdSinceAdmission() }) else this)
+            .onErrorResume(Throwable::isIndexNotFound) { missing() }
+
+    private fun createdSinceAdmission(): Throwable = QuerySchemaUnavailableException(
+        "Elasticsearch index [$indexName] was created after the query was admitted against the schema of its " +
+            "templates; retry once its query schema follows the index."
+    )
 }
 
 /** Converts an aggregation row built from response values; the core checks that it is standard JSON. */

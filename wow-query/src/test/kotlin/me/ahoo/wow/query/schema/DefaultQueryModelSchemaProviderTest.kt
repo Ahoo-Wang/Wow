@@ -258,6 +258,50 @@ class DefaultQueryModelSchemaProviderTest {
         compiled.single().sensitivity.assert().isSameAs(policy)
     }
 
+    @Test
+    fun `a provisional schema is kept for its ttl, never published, and the storage is compiled again after it`() {
+        val provisional = AtomicBoolean(true)
+        val resolves = AtomicInteger()
+        val now = java.util.concurrent.atomic.AtomicLong()
+        val adapter = object : QueryStorageAdapter {
+            override fun facts(logicalSchema: LogicalQuerySchema): Mono<QueryStorageFacts> = Mono.fromSupplier {
+                resolves.incrementAndGet()
+                QueryStorageFacts(bindings = emptyMap(), provisional = provisional.get())
+            }
+        }
+        val ttl = java.time.Duration.ofSeconds(2)
+        val provider = DefaultQueryModelSchemaProvider(
+            context = CONTEXT,
+            sources = listOf(CountingSource()),
+            adapter = adapter,
+            provisionalTtl = ttl,
+            nanoTime = now::get,
+        )
+
+        val first = provider.schema().block()!!
+        first.provisional.assert().isTrue()
+        provider.schema().block()!!.assert().isSameAs(first)
+        resolves.get().assert().isEqualTo(1)
+
+        now.addAndGet(ttl.toNanos())
+        provider.schema().block()!!.assert().isNotSameAs(first)
+        resolves.get().assert().isEqualTo(2)
+
+        provider.refresh().block()!!.provisional.assert().isTrue()
+        provider.schema().block()
+        resolves.get().assert().isEqualTo(3)
+
+        // The storage now exists: once the provisional schema expires, its own schema is published.
+        provisional.set(false)
+        provider.schema().block()!!.provisional.assert().isTrue()
+        now.addAndGet(ttl.toNanos())
+        val existing = provider.schema().block()!!
+        existing.provisional.assert().isFalse()
+        now.addAndGet(ttl.toNanos())
+        provider.schema().block()!!.assert().isSameAs(existing)
+        resolves.get().assert().isEqualTo(4)
+    }
+
     private fun provider(
         source: QuerySchemaSource,
         adapter: QueryStorageAdapter,

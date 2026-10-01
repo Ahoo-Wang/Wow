@@ -157,6 +157,7 @@ class ElasticsearchIndexMappingResolverTest {
         val provisional = resolver.currentOrLoad(INDEX).block()!!
         provisional.fields.assert().containsOnlyKeys("name")
         provisional.maxResultWindow.assert().isEqualTo(50)
+        provisional.provisional.assert().isTrue()
         resolver.currentOrLoad(INDEX).block()!!.fields.assert().containsOnlyKeys("code")
         resolver.currentOrLoad(INDEX).block()!!.fields.assert().containsOnlyKeys("code")
 
@@ -181,6 +182,18 @@ class ElasticsearchIndexMappingResolverTest {
 
         mapping.fields.assert().isEmpty()
         mapping.maxResultWindow.assert().isEqualTo(DEFAULT_MAX_RESULT_WINDOW)
+        mapping.provisional.assert().isTrue()
+    }
+
+    @Test
+    fun `the client reads the empty simulation of no matching template as a missing template`() {
+        // Elasticsearch answers `{}` when no template matches; the resolver recognizes the client's failure to read it.
+        val mapper = me.ahoo.wow.elasticsearch.WowJsonpMapper
+        val parser = mapper.jsonProvider().createParser(java.io.StringReader("{}"))
+        val failure = org.junit.jupiter.api.assertThrows<MissingRequiredPropertyException> {
+            SimulateIndexTemplateResponse._DESERIALIZER.deserialize(parser, mapper)
+        }
+        failure.propertyName.assert().isEqualTo("template")
     }
 
     @Test
