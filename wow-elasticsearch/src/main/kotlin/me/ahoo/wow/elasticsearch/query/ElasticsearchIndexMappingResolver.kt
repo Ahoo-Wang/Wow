@@ -36,12 +36,28 @@ import co.elastic.clients.elasticsearch._types.mapping.TypeMapping
 import co.elastic.clients.elasticsearch.indices.GetIndicesSettingsRequest
 import co.elastic.clients.elasticsearch.indices.GetIndicesSettingsResponse
 import co.elastic.clients.elasticsearch.indices.GetMappingRequest
+import co.elastic.clients.elasticsearch.indices.IndexSettings
+import co.elastic.clients.elasticsearch.indices.SimulateIndexTemplateRequest
+import co.elastic.clients.elasticsearch.indices.SimulateIndexTemplateResponse
 import co.elastic.clients.json.JsonData
+import co.elastic.clients.transport.endpoints.SimpleEndpoint
+import co.elastic.clients.util.MissingRequiredPropertyException
 import me.ahoo.wow.query.forInProcessQuery
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
 import reactor.core.publisher.Mono
 import java.util.concurrent.ConcurrentHashMap
 
+/**
+ * The mapping of an index, cached per index until [refresh].
+ *
+ * Wow creates an aggregate's index on its first write, from the index templates, so until then the index does not
+ * exist. Its mapping is then the one the index will be created with: the matching index templates' mapping, as
+ * Elasticsearch simulates it for the name (`_index_template/_simulate_index`), or no field at all when no template
+ * matches. That mapping is never cached: the next load reads the index once it exists, and the fields it maps then
+ * are those of the templates plus the ones its documents added, so a schema compiled before the first write binds no
+ * field the index will not have. Simulating needs the `manage_index_templates` cluster privilege, which initializing
+ * Wow's templates (`wow.elasticsearch.auto-init-template`) needs as well.
+ */
 class ElasticsearchIndexMappingResolver(
     private val elasticsearchClient: ReactiveElasticsearchClient,
 ) {
@@ -54,32 +70,81 @@ class ElasticsearchIndexMappingResolver(
 
     fun refresh(indexName: String): Mono<ElasticsearchIndexMapping> = refreshes.computeIfAbsent(indexName) {
         lateinit var candidate: Mono<ElasticsearchIndexMapping>
-        candidate = Mono.zip(
-            Mono.defer { elasticsearchClient.indices().getMapping(GetMappingRequest.of { it.index(indexName) }) },
-            Mono.defer { elasticsearchClient.indices().getSettings(maxResultWindowRequest(indexName)) },
-        ).map { responses ->
-            val response = responses.t1
-            require(response.mappings().size == 1) {
-                "Elasticsearch index [$indexName] must resolve to exactly one physical index, " +
-                    "but resolved to ${response.mappings().keys}."
+        candidate = existing(indexName)
+            .doOnNext { mappings[indexName] = it }
+            .onErrorResume(Throwable::isIndexNotFound) {
+                mappings.remove(indexName)
+                provisional(indexName)
             }
-            ElasticsearchIndexMapping.from(
-                indexName,
-                response.mappings().values.single().mappings(),
-                maxResultWindow = responses.t2.maxResultWindow(),
-            )
-        }.doOnSuccess { mapping ->
-            mapping?.let { mappings[indexName] = it }
-            refreshes.remove(indexName, candidate)
-        }.doOnError {
-            refreshes.remove(indexName, candidate)
-        }
+            .doOnSuccess { refreshes.remove(indexName, candidate) }
+            .doOnError { refreshes.remove(indexName, candidate) }
             // Shared by every caller, so the load runs without the first caller's scope or entry.
             .contextWrite { it.forInProcessQuery() }
             .cache()
         candidate
     }
+
+    private fun existing(indexName: String): Mono<ElasticsearchIndexMapping> = Mono.zip(
+        Mono.defer { elasticsearchClient.indices().getMapping(GetMappingRequest.of { it.index(indexName) }) },
+        Mono.defer { elasticsearchClient.indices().getSettings(maxResultWindowRequest(indexName)) },
+    ).map { responses ->
+        val response = responses.t1
+        require(response.mappings().size == 1) {
+            "Elasticsearch index [$indexName] must resolve to exactly one physical index, " +
+                "but resolved to ${response.mappings().keys}."
+        }
+        ElasticsearchIndexMapping.from(
+            indexName,
+            response.mappings().values.single().mappings(),
+            maxResultWindow = responses.t2.maxResultWindow(),
+        )
+    }
+
+    /** The mapping and window a missing index will be created with, from the index templates matching its name. */
+    private fun provisional(indexName: String): Mono<ElasticsearchIndexMapping> = Mono.fromFuture {
+        elasticsearchClient._transport().performRequestAsync(
+            SimulateIndexTemplateRequest.of { it.name(indexName) },
+            SIMULATE_INDEX,
+            elasticsearchClient._transportOptions(),
+        )
+    }.map { response ->
+        val template = response.template()
+        ElasticsearchIndexMapping.from(
+            indexName,
+            template.mappings() ?: TypeMapping.of { it },
+            maxResultWindow = template.settings()?.declaredMaxResultWindow() ?: DEFAULT_MAX_RESULT_WINDOW,
+        )
+    }.onErrorResume(Throwable::isNoTemplateMatches) {
+        Mono.just(ElasticsearchIndexMapping.from(indexName, TypeMapping.of { it }))
+    }
 }
+
+/**
+ * `POST _index_template/_simulate_index/{name}` without a body. The client's own endpoint always sends the optional
+ * template to simulate beside the existing ones, and fails to serialize a request without it.
+ */
+private val SIMULATE_INDEX = SimpleEndpoint<SimulateIndexTemplateRequest, SimulateIndexTemplateResponse>(
+    "es/indices.simulate_index_template",
+    { "POST" },
+    { request ->
+        val path = StringBuilder("/_index_template/_simulate_index/")
+        SimpleEndpoint.pathEncode(request.name(), path)
+        path.toString()
+    },
+    { request -> mapOf("name" to request.name()) },
+    { emptyMap() },
+    { emptyMap() },
+    false,
+    SimulateIndexTemplateResponse._DESERIALIZER,
+)
+
+/**
+ * Elasticsearch answers a simulation that no template matches with an empty body, which the client cannot read as a
+ * response: its required `template` is missing.
+ */
+private fun Throwable.isNoTemplateMatches(): Boolean =
+    generateSequence(this) { it.cause.takeIf { cause -> cause !== it } }.take(8)
+        .any { it is MissingRequiredPropertyException && it.propertyName == "template" }
 
 /** Elasticsearch's default `index.max_result_window`: the furthest record `from + size` may reach. */
 internal const val DEFAULT_MAX_RESULT_WINDOW = 10_000
@@ -91,8 +156,10 @@ private fun maxResultWindowRequest(indexName: String): GetIndicesSettingsRequest
 
 /** The window the index declares, or the default when it declares none; the narrowest over several indices. */
 private fun GetIndicesSettingsResponse.maxResultWindow(): Int = settings().values.minOfOrNull { state ->
-    state.settings()?.let { it.index()?.maxResultWindow() ?: it.maxResultWindow() } ?: DEFAULT_MAX_RESULT_WINDOW
+    state.settings()?.declaredMaxResultWindow() ?: DEFAULT_MAX_RESULT_WINDOW
 } ?: DEFAULT_MAX_RESULT_WINDOW
+
+private fun IndexSettings.declaredMaxResultWindow(): Int? = index()?.maxResultWindow() ?: maxResultWindow()
 
 @ConsistentCopyVisibility
 data class ElasticsearchIndexMapping private constructor(

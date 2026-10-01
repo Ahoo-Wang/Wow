@@ -37,13 +37,45 @@ view with the id `REQUESTS`, not the replay route), so on a case-insensitive hos
 `RouterFunctionMapping` with a parser of other options must not embed the starter. Set `wow.view-store.enabled=false` to turn the starter off, and replace the default `SystemViewProvider` bean
 to serve system views from somewhere other than `wow.view-store.system-views`.
 
-The starter creates no MongoDB indexes of its own. Wow has no hook for a module to add snapshot indexes, so for
-large stores add them yourself on `view_snapshot`: `state.config.kind` and the multikey
+### Storage
+
+**MongoDB.** The starter creates no MongoDB indexes of its own. Wow has no hook for a module to add snapshot indexes, so
+for large stores add them yourself on `view_snapshot`: `state.config.kind` and the multikey
 `state.config.panels.instanceId`, `state.config.panels.opens` and `state.config.panels.click.instanceId`.
 
 **Aggregate names.** The aggregates are named `view` and `view_preferences`, and Wow's MongoDB collections
 (`view_event_stream`, `view_snapshot`, …) carry no context. A host that has its own `view` or `view_preferences`
-aggregate would share those collections: do not embed the starter in it, or rename the host's aggregate.
+aggregate would share those collections: do not embed the starter in it, or rename the host's aggregate. Two
+deployments of the view store keep their views apart on MongoDB only by database: two hosts on one database share
+the collections (the queries keep tenants, owners and applications apart, the storage does not), so give each its
+own database, as the compensation service and the standalone server do.
+
+**Elasticsearch.** The starter ships the index definitions of its two snapshot indices
+(`META-INF/wow/elasticsearch/wow.view-store.view.snapshot.json` and `wow.view-store.view_preferences.snapshot.json`),
+which Wow creates at startup when the index does not exist yet, beside its own snapshot template:
+
+- the queried paths are `keyword` without `ignore_above` (`state.definitionId`, `state.appId`, `state.config.kind`
+  and the panel references), so that the query schema admits the filters the view store sends: on Wow's template
+  alone, `*Id` strings carry `ignore_above` and are refused;
+- `state.config` is `dynamic: false`: it holds whatever the engine's config holds, values of several types under
+  one key included, and only `kind` and `panels` (a `nested` array, for the shared-board check, with `instanceId`,
+  `opens` and `click.instanceId`) are fields. The server refuses a config whose `panels` is not an array of objects
+  or whose references are not strings of at most 256 characters, and a `definitionId` longer than 256 characters,
+  since a store refuses a document it cannot index;
+- `state.lastTabs` of the preferences is not indexed (`enabled: false`): its keys are the host's.
+
+An index Wow already created for these aggregates from its template alone (a host that wrote views before it ran a
+starter with these definitions) keeps its mapping, and its view lists are refused. Delete it while it is empty, or
+reindex it into an index created from the definition, before the host starts: Wow does not change an existing
+index's mapping.
+
+The snapshot index names carry no prefix of the deployment: two hosts that embed the starter on one Elasticsearch
+cluster share `wow.view-store.view.snapshot` (the queries keep their applications apart, the storage does not).
+The replay route (`GET …/view/requests/{requestId}`) queries the view's event stream by fields of its events
+(`body.body.audience`), which Wow's event-stream template does not index: keep the view store's events on MongoDB
+(Wow's default event store); on an Elasticsearch event store the replay answers 400.
+
+### Writes, identity and topics
 
 **Creating is not idempotent.** A retried `POST /view` creates another view with a new server-generated id. Saves,
 renames, audience changes, deletes and preferences are idempotent by `Command-Request-Id`, and the replay route

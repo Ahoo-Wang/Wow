@@ -47,4 +47,37 @@ class ViewConfigsTest {
         config.put("n", "x".repeat(ViewConfigs.MAX_CONFIG_BYTES - overhead + 1))
         assertThrownBy<ViewStoreException> { ViewConfigs.requireValid(config) }
     }
+
+    @Test
+    fun `the panel references a store indexes are strings of at most the id length`() {
+        fun dashboard(panels: String) = JsonSerializer.readTree("{\"kind\":\"dashboard\",\"panels\":$panels}") as
+            tools.jackson.databind.node.ObjectNode
+        val id = "x".repeat(ViewConfigs.MAX_ID_LENGTH)
+        listOf(
+            "null",
+            "[]",
+            "[{}]",
+            "[{\"kind\":\"text\",\"text\":{\"a\":[1,\"b\"]}}]",
+            "[{\"instanceId\":\"$id\",\"opens\":null,\"click\":{\"kind\":\"filter\",\"filter\":\"f\"}}]",
+            "[{\"click\":{\"kind\":\"view\",\"instanceId\":\"v\"}}]",
+        ).forEach { ViewConfigs.requireValid(dashboard(it)).assert().isEqualTo(ViewKind.DASHBOARD) }
+        listOf(
+            "{}",
+            "\"panels\"",
+            "[1]",
+            "[{\"instanceId\":1}]",
+            "[{\"instanceId\":{\"id\":\"v\"}}]",
+            "[{\"opens\":[\"v\"]}]",
+            "[{\"instanceId\":\"${id}x\"}]",
+            "[{\"click\":\"v\"}]",
+            "[{\"click\":{\"instanceId\":true}}]",
+        ).forEach { panels -> assertThrownBy<ViewStoreException> { ViewConfigs.requireValid(dashboard(panels)) } }
+    }
+
+    @Test
+    fun `a definition id is at most the id length`() {
+        val id = "d".repeat(ViewConfigs.MAX_ID_LENGTH)
+        ViewConfigs.requireDefinitionId(id).assert().isEqualTo(id)
+        assertThrownBy<ViewStoreException> { ViewConfigs.requireDefinitionId(id + "d") }
+    }
 }

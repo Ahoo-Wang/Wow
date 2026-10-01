@@ -116,7 +116,7 @@ data class ViewState(
 | **ShareView**（`…/owner/{ownerId}/view/{id}/share`）   | **ViewAudienceChanged** + 转移所有者 | 同上；发往视图当前所在的个人路径，转给 `(shared)`；已共享则原样答当前版本，不发命令                                                                                                                    |
 | **DeleteView**（删除聚合）                             | **ViewDeleted**（聚合已删除）        | 同上；软删，之后读作不存在                                                                                                                                                                             |
 
-- `config` 只做形状与大小的检查（是对象、`kind` 为记录／分析／仪表盘之一、不超过 256 KB）；语义由引擎打开时准入。
+- `config` 只做形状与大小的检查（是对象、`kind` 为记录／分析／仪表盘之一、不超过 256 KB；有 `panels` 时是对象数组，其中的引用 `instanceId`、`opens`、`click.instanceId` 是不超过 256 字的字符串——按类型建映射的存储（Elasticsearch）索引这几条路径，别的类型会让整条快照写不进去）；`definitionId` 不超过 256 字；语义由引擎打开时准入。
 - 所有者不符由 Wow 自己拒绝（命令里的所有者与状态不符）；应用不符由领域拒绝为不存在，不暴露它在别的应用里存在。
 - 「被共享看板引用」由领域内一个快照查询回答：同租户、同应用、所有者为 `(shared)` 的仪表盘里，面板引用了这个 id 的。
 
