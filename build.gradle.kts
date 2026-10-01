@@ -203,6 +203,7 @@ configure(libraryProjects) {
     tasks.withType<KotlinCompile> {
         compilerOptions {
             freeCompilerArgs.addAll("-Xjsr305=strict", "-Xannotation-default-target=param-property")
+            optIn.add("me.ahoo.wow.api.annotation.InternalWowApi")
             javaParameters = true
         }
     }

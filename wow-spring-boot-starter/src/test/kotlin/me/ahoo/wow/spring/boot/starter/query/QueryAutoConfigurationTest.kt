@@ -29,6 +29,7 @@ import me.ahoo.wow.query.BackendPage
 import me.ahoo.wow.query.PageWindow
 import me.ahoo.wow.query.QueryAdmission
 import me.ahoo.wow.query.QueryBackendBinding
+import me.ahoo.wow.query.QueryEntryPolicy
 import me.ahoo.wow.query.QueryPolicy
 import me.ahoo.wow.query.aggregate
 import me.ahoo.wow.query.dsl.singleQuery
@@ -98,6 +99,47 @@ class QueryAutoConfigurationTest {
                 genericCalls.get().assert().isEqualTo(2)
                 snapshotCalls.get().assert().isOne()
                 eventCalls.get().assert().isOne()
+            }
+    }
+
+    @Test
+    fun `9_1 http query keys still set the http budget unless the new key is set`() {
+        contextRunner
+            .enableWow()
+            .withUserConfiguration(QueryAutoConfiguration::class.java)
+            .withPropertyValues(
+                "wow.webflux.query.max-list-size=200",
+                "wow.webflux.query.max-page-size=1000",
+                "wow.webflux.query.max-page-window=500",
+                "wow.webflux.query.max-filter-nodes=16",
+                "wow.webflux.query.max-filter-values=20",
+                "wow.webflux.query.allow-expensive-operators=false",
+                "wow.query.http.max-page-size=300",
+            )
+            .run { context: AssertableApplicationContext ->
+                val http = context.getBean(QueryEntryPolicy::class.java).http
+                http.maxListSize.assert().isEqualTo(200)
+                http.maxPageSize.assert().isEqualTo(300)
+                http.maxPageWindow.assert().isEqualTo(500L)
+                http.maxFilterNodes.assert().isEqualTo(16)
+                http.maxFilterValues.assert().isEqualTo(20)
+                http.allowExpensiveOperators.assert().isFalse()
+            }
+    }
+
+    @Test
+    fun `an unchanged configuration keeps the 9_1 http limits`() {
+        contextRunner
+            .enableWow()
+            .withUserConfiguration(QueryAutoConfiguration::class.java)
+            .run { context: AssertableApplicationContext ->
+                val http = context.getBean(QueryEntryPolicy::class.java).http
+                http.maxListSize.assert().isEqualTo(1000)
+                http.maxPageSize.assert().isEqualTo(100)
+                http.maxPageWindow.assert().isEqualTo(10_000L)
+                http.maxFilterNodes.assert().isEqualTo(128)
+                http.maxFilterValues.assert().isEqualTo(1000)
+                http.allowExpensiveOperators.assert().isTrue()
             }
     }
 

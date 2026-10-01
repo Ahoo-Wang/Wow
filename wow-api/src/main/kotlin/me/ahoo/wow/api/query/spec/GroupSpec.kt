@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.api.query.spec
 
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.query.AggregationGroup
 import me.ahoo.wow.api.query.inputExpression
 import me.ahoo.wow.api.query.schema.QueryCapability
@@ -23,6 +24,7 @@ import me.ahoo.wow.api.query.schema.QueryCapability
  * and the descriptor read it, so a new group type is added here and every exhaustive `when` over [AggregationGroup]
  * fails to compile until handled.
  */
+@InternalWowApi
 enum class GroupSpec(
     val capability: QueryCapability,
     /** The cost of the group type in general; [cost] refines it for one group. */
@@ -64,5 +66,6 @@ enum class GroupSpec(
     }
 }
 
+@InternalWowApi
 val AggregationGroup.spec: GroupSpec
     get() = GroupSpec.of(this)

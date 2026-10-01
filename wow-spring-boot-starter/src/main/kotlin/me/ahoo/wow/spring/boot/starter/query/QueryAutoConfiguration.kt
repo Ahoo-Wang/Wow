@@ -52,11 +52,11 @@ import org.springframework.core.env.Environment
 class QueryAutoConfiguration {
     @Bean
     @ConditionalOnMissingBean
-    fun queryEntryPolicy(queryProperties: QueryProperties): QueryEntryPolicy =
+    fun queryEntryPolicy(queryProperties: QueryProperties, environment: Environment): QueryEntryPolicy =
         QueryEntryPolicy(
             requireExplicitEntry = queryProperties.requireExplicitEntry,
             requireAuthenticatedScope = queryProperties.requireAuthenticatedScope,
-            http = queryProperties.http.toBudget(),
+            http = queryProperties.http.withLegacyKeys(environment).toBudget(),
         )
 
     /** The options an application's `AbacQueryPolicy` takes in its constructor. */
@@ -99,6 +99,7 @@ class QueryAutoConfiguration {
         sensitivity: ObjectProvider<QuerySensitivityPolicy>,
         meterRegistry: ObjectProvider<MeterRegistry>,
         environment: Environment,
+        queryProperties: QueryProperties,
     ): QuerySchemaCatalog = QuerySchemaCatalog(
         snapshots = snapshotQueryBackendFactories.getIfAvailable { UnavailableSnapshotQueryBackendFactory },
         eventStreams = eventStreamQueryBackendFactories.getIfAvailable { UnavailableEventStreamQueryBackendFactory },
@@ -106,6 +107,7 @@ class QueryAutoConfiguration {
             QueryModelCompiler.of(
                 sources = sources.orderedStream().toList(),
                 sensitivity = sensitivity.getIfAvailable { QuerySensitivityPolicy.DEFAULT },
+                legacyDeclarations = queryProperties.schema.legacyDeclarations,
             )
         },
         aggregates = MetadataSearcher.namedAggregateType.keys,

@@ -13,11 +13,13 @@
 
 package me.ahoo.wow.api.query.spec
 
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.query.AggregationExpression
 import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.schema.QueryCapability
 
 /** What an aggregation metric reads from each record. */
+@InternalWowApi
 enum class MetricInput {
     /** No field: `COUNT` counts records and `DERIVED` combines other metrics of the group. */
     NONE,
@@ -33,6 +35,7 @@ enum class MetricInput {
 }
 
 /** The type of a metric's value. */
+@InternalWowApi
 enum class MetricResult {
     /** A record count: an integer, zero for a group without records. */
     COUNT,
@@ -50,6 +53,7 @@ enum class MetricResult {
  * it costs. Admission, the entry gate, the descriptor and empty-group values read it, so a new metric type is added
  * here and every exhaustive `when` over [AggregationMetric] fails to compile until handled.
  */
+@InternalWowApi
 enum class MetricSpec(
     val input: MetricInput,
     /** The capabilities a field input may be read with, the first one the field grants; empty when it reads none. */
@@ -150,5 +154,6 @@ enum class MetricSpec(
     }
 }
 
+@InternalWowApi
 val AggregationMetric.spec: MetricSpec
     get() = MetricSpec.of(this)

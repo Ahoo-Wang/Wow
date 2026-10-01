@@ -39,7 +39,7 @@ import reactor.util.context.ContextView
  * Other aggregates, and in-process queries, pass untouched. A point read admitted without the raw request fails
  * closed.
  */
-class ViewStoreQueryPolicy(private val namedAggregates: Set<NamedAggregate>) : QueryPolicy {
+internal class ViewStoreQueryPolicy(private val namedAggregates: Set<NamedAggregate>) : QueryPolicy {
     companion object {
         const val APP_ID_FIELD = "appId"
     }

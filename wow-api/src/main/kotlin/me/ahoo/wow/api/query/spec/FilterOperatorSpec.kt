@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.api.query.spec
 
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.query.AggregateIdsFilter
 import me.ahoo.wow.api.query.AndFilter
 import me.ahoo.wow.api.query.ContainsAllFilter
@@ -38,6 +39,7 @@ import me.ahoo.wow.api.query.schema.QueryCapability
 import tools.jackson.databind.node.JsonNodeFactory
 
 /** What a filter operator applies to. */
+@InternalWowApi
 enum class OperatorTarget {
     /** Matches everything or nothing; names no field. */
     NONE,
@@ -62,6 +64,7 @@ enum class OperatorTarget {
 }
 
 /** System fields a filter operator can target without naming them. */
+@InternalWowApi
 enum class SystemField {
     IDENTITY,
     AGGREGATE_ID,
@@ -72,6 +75,7 @@ enum class SystemField {
 }
 
 /** How a filter's values are checked against the field's declared value domain. */
+@InternalWowApi
 enum class ValueRule {
     /** The operator carries no values to check. */
     NONE,
@@ -95,6 +99,7 @@ enum class ValueRule {
     ELEMENT_SCOPE,
 }
 
+@InternalWowApi
 enum class OperatorCost {
     NORMAL,
 
@@ -103,6 +108,7 @@ enum class OperatorCost {
 }
 
 /** How many literal values a filter operator carries. */
+@InternalWowApi
 enum class ValueArity {
     /** None: presence, empty-string, relative-time, logical and element-scope operators. */
     NONE,
@@ -118,9 +124,11 @@ enum class ValueArity {
 }
 
 /** The values a filter operator carries; the fields it names follow from its [target][FilterOperatorSpec.target]. */
+@InternalWowApi
 data class Arity(val values: ValueArity)
 
 /** How normalization lowers an operator to the operators backends implement. */
+@InternalWowApi
 sealed interface Lowering {
     /**
      * Rewrites a node on its own field into operators every backend implements, independently of the schema or the
@@ -139,6 +147,7 @@ sealed interface Lowering {
  * its values are checked, what it costs and how normalization lowers it. Validation, entry gates, normalization and
  * backends read this table instead of restating it.
  */
+@InternalWowApi
 class FilterOperatorSpec private constructor(
     val operator: FilterOperator,
     val target: OperatorTarget,
@@ -481,8 +490,10 @@ class FilterOperatorSpec private constructor(
     }
 }
 
+@InternalWowApi
 val FilterOperator.spec: FilterOperatorSpec
     get() = FilterOperatorSpec.of(this)
 
+@InternalWowApi
 val FilterExpression.spec: FilterOperatorSpec
     get() = operator.spec

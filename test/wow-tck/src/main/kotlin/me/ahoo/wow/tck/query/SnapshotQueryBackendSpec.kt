@@ -163,7 +163,7 @@ abstract class SnapshotQueryBackendSpec {
     protected abstract fun writeStateValue(aggregateId: String, stateField: String, value: JsonNode?)
 
     /**
-     * Semantic cases ([me.ahoo.wow.api.query.spec.FilterSemantics]) this backend is known to diverge on; each one is
+     * Semantic cases ([FilterSemantics]) this backend is known to diverge on; each one is
      * skipped and reported, never silently passed.
      */
     protected open val semanticDivergences: Set<String> = emptySet()

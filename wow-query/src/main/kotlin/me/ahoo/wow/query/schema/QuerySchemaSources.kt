@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.query.schema
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.schema.QuerySemanticType
 import me.ahoo.wow.api.query.schema.QueryValueKind
@@ -66,6 +67,10 @@ class WorkingDirectoryQuerySchemaSource(
             ?: return@defer Flux.empty()
         Flux.just(readConventionDeclaration(resource.location, resource::readText))
     }.subscribeOn(Schedulers.boundedElastic())
+
+    /** compat(wow<9.2): the 9.1 declaration file of [context] in this directory, which 9.2 does not read. */
+    internal fun legacyDeclarations(context: QuerySchemaContext): List<String> =
+        listOf(basePath.resolve(context.legacyResourcePath())).filter(Files::exists).map(Path::toString)
 }
 
 class ClasspathQuerySchemaSource(
@@ -103,11 +108,33 @@ class ClasspathQuerySchemaSource(
             readConventionDeclaration(resource.location, resource::readText)
         }
     }
+
+    /**
+     * compat(wow<9.2): the 9.1 declaration files of [context] on the classpath, which 9.2 does not read. Listing them
+     * is only a report, so a failure to list is logged rather than failing the schema.
+     */
+    @Suppress("TooGenericExceptionCaught")
+    internal fun legacyDeclarations(context: QuerySchemaContext): List<String> = try {
+        classLoader.getResources(context.legacyResourcePath()).toList().map { it.toExternalForm() }.sorted()
+    } catch (error: Exception) {
+        legacyLog.warn(error) { "Unable to list 9.1 query schema declarations [${context.legacyResourcePath()}]." }
+        emptyList()
+    }
 }
 
-private const val QUERY_SCHEMA_FEATURE = "query-schema"
+/*
+ * compat(wow<9.2): 9.1 fell back to `wow-query-schema/{context}/{aggregate}/{model}.json`, in a format 9.2 does not
+ * read. The sources only list such files; [checkLegacyDeclarations] decides what they mean across every source.
+ */
+internal fun QuerySchemaContext.legacyResourcePath(): String =
+    "wow-query-schema/${namedAggregate.contextName}/${namedAggregate.aggregateName}/" +
+        "${model.value.lowercase(Locale.ROOT)}.json"
 
-private fun QuerySchemaContext.resourceKey(): String {
+private val legacyLog = KotlinLogging.logger { }
+
+internal const val QUERY_SCHEMA_FEATURE = "query-schema"
+
+internal fun QuerySchemaContext.resourceKey(): String {
     val segments = listOf(namedAggregate.contextName, namedAggregate.aggregateName, model.value)
     segments.forEach { segment ->
         require(segment.isNotBlank() && '/' !in segment && '\\' !in segment && segment != "." && segment != "..") {

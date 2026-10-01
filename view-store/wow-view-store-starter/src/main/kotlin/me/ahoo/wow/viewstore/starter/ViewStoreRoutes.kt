@@ -18,7 +18,7 @@ import org.springframework.web.reactive.function.server.RouterFunctions
 import org.springframework.web.reactive.function.server.ServerResponse
 
 /** The view store's own routes; Wow generates the aggregates' command and query routes beside them. */
-object ViewStoreRoutes {
+internal object ViewStoreRoutes {
     fun routerFunction(
         paths: ViewStorePaths,
         handlers: ViewStoreHandlers,

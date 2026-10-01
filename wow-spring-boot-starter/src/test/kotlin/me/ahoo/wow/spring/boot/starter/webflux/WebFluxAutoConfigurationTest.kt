@@ -215,6 +215,48 @@ internal class WebFluxAutoConfigurationTest {
         )
     }
 
+    @Suppress("DEPRECATION")
+    @Test
+    fun `the 9_1 refresh routes reload only their own model`() {
+        val catalog = mockk<QuerySchemaCatalog> {
+            every { revalidate(any(), any()) } returns Flux.empty()
+        }
+        // The route describes after it reloads; only the reload matters here.
+        val described = IllegalStateException("described")
+        val beanFactory = mockk<BeanFactory> {
+            every { getBeanProvider(QuerySchemaCatalog::class.java) } returns mockk<ObjectProvider<QuerySchemaCatalog>> {
+                every { ifAvailable } returns catalog
+            }
+            every { getBean(any<String>(), SnapshotQueryGateway::class.java) } returns
+                mockk<SnapshotQueryGateway<Any>> {
+                    every { entryPolicy } returns me.ahoo.wow.query.QueryEntryPolicy.DEFAULT
+                    every { describe(any(), any()) } returns Mono.error(described)
+                }
+            every { getBean(any<String>(), EventStreamQueryGateway::class.java) } returns
+                mockk<EventStreamQueryGateway> {
+                    every { entryPolicy } returns me.ahoo.wow.query.QueryEntryPolicy.DEFAULT
+                    every { describe(any(), any()) } returns Mono.error(described)
+                }
+        }
+        val factories = QueryRouteModule(
+            beanFactory = beanFactory,
+            queryRequestScope = DefaultQueryRequestScope,
+            exceptionHandler = WebFluxRequestExceptionHandler(),
+        ).httpFactories
+        fun refresh(handlerKey: String) {
+            val handler = factories.single { it.handlerKey == handlerKey }.create(
+                queryContract("order", Order::class.java.aggregateRouteMetadata()).copy(handlerKey = handlerKey),
+            )
+            handler.handle(MockServerRequest.builder().build()).block(java.time.Duration.ofSeconds(10))
+        }
+
+        refresh(BuiltInHttpRouteHandlerKeys.Snapshot.SCHEMA_REFRESH)
+        verify(exactly = 1) { catalog.revalidate("example.order", QueryModel.SNAPSHOT) }
+        refresh(BuiltInHttpRouteHandlerKeys.Event.SCHEMA_REFRESH)
+        verify(exactly = 1) { catalog.revalidate("example.order", QueryModel.EVENT_STREAM) }
+        verify(exactly = 0) { catalog.revalidate(any(), null) }
+    }
+
     @Test
     fun `query route should resolve each aggregate gateway once during construction`() {
         val orderGateway = mockk<SnapshotQueryGateway<Any>> {

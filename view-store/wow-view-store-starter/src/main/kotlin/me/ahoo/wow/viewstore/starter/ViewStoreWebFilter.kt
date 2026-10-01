@@ -46,7 +46,7 @@ import reactor.core.publisher.Mono
  *
  * Other requests pass untouched.
  */
-class ViewStoreWebFilter(
+internal class ViewStoreWebFilter(
     private val paths: ViewStorePaths,
     private val systemViewProvider: SystemViewProvider,
     private val routeGuard: ViewStoreRouteGuard,

@@ -72,7 +72,7 @@ flowchart LR
 
 - `System` 为 Snapshot 和 EventStream 提供各自的系统字段。扩展只能位于 Snapshot 的 `state` 或 EventStream 的 `body.body` 根下；已经由系统设置的字段叶不能被覆盖。
 - `InferredQuerySchemaSource (100)` 从聚合状态的 JSON 形状推断 Snapshot 字段，并从领域事件 payload 推断 EventStream 的 `body.body.*` 字段：每种事件一个变体，并以 `bodyType` 标记。类型推断是一个 `QueryModelSource` Bean：默认的 `JsonQueryModelSource`（wow-schema）只报告序列化 JSON 的原始事实（路径、类型、可空、枚举、格式提示、成员注解），这些事实对查询的含义由 wow-query 决定。标准时间类型自动识别为时间；`@QueryTemporal(unit = TimeUnit.SECONDS)` 声明整数时间戳，`@QueryTemporal(pattern = "yyyy-MM-dd")` 声明格式化的字符串时间；`@QueryDecimal` 与 `@QueryMoney` 声明[小数与金额精度](#decimal-money)，`@QueryDuration` 与 `@QueryReference` 声明[时长与引用](#duration-reference)（都在 `me.ahoo.wow.api.query.annotation`）；类型为 `AggregateId` 的属性无需注解即是引用。`@Sensitive` 见[字段脱敏](./masking.md)。
-- `ClasspathQuerySchemaSource (200)` 读取 `META-INF/wow/query-schema/{context}.{aggregate}.{model}.json`；`WorkingDirectoryQuerySchemaSource (400)` 读取 `config/wow/query-schema/{context}.{aggregate}.{model}.json`。模型段为小写的 `snapshot` 或 `event_stream`；点号是 Wow 命名聚合保留的分隔符。旧位置 `wow-query-schema/{context}/{aggregate}/{model}.json` 不再读取。
+- `ClasspathQuerySchemaSource (200)` 读取 `META-INF/wow/query-schema/{context}.{aggregate}.{model}.json`；`WorkingDirectoryQuerySchemaSource (400)` 读取 `config/wow/query-schema/{context}.{aggregate}.{model}.json`。模型段为小写的 `snapshot` 或 `event_stream`；点号是 Wow 命名聚合保留的分隔符。9.1 的备用位置 `wow-query-schema/{context}/{aggregate}/{model}.json` 不再读取。若没有任何来源（classpath、工作目录或注册 Bean）以 9.2 格式声明该模型，那里的文件会产生一条警告日志，写明 9.2 文件应放在哪里，该模型使用推断的 schema；设置 `wow.query.schema.legacy-declarations=fail` 则改为让该模型的 schema 不可用。见下文[迁移 9.1 的声明文件](#declaration-91)。
 - `BeanQuerySchemaSource (300)` 合并当前上下文注册的 `QuerySchemaRegistration`。
 
 ### 声明文件与代码注册
@@ -100,6 +100,31 @@ flowchart LR
 | `properties`、`items`、`values` | 对象的具名属性、数组的元素、Map 中每个键的取值 |
 
 其他键一律拒绝。敏感等级、别名与弃用只能在领域字段上声明（`@Sensitive`、`@QueryAlias`、`@Deprecated`）；显示名属于视图定义。`querySchemaRegistration { field(...) { … } }` 使用同一套词汇：`kind`、`types`、`nullable`、`enumValue(value, description)`、`semantic`/`temporalEpoch`/`temporalFormatted`、`description`、`property`、`items`、`values`。
+
+#### 迁移 9.1 的声明文件 {#declaration-91}
+
+9.1.5 先读取 `META-INF/wow/query-schema/{context}.{aggregate}.{model}.json`（以及工作目录中的 `config/wow/query-schema/…`），两者都不存在时才回退到 `wow-query-schema/{context}/{aggregate}/{model}.json`；这些文件都是 9.1 格式。9.2 只读取前两个路径，且只接受 9.2 格式。两个版本都拒绝不认识的键，因此当 9.1 与 9.2 节点同时运行，或同一个领域模块被两个版本读取时：
+
+- 位于 `META-INF/wow/query-schema/…` 或 `config/wow/query-schema/…` 的 9.1 格式文件，9.2 同样无法读取：它会让 9.2 节点上该模型的 schema 不可用（`Unknown query schema properties`）；
+- 位于这些路径的 9.2 格式文件会让 9.1 节点上该模型的 schema 不可用，除非它只使用两个版本都能读取的 `kind`、`nullable`、`description`、`properties` 与 `items`；
+- 位于 `wow-query-schema/…` 的文件只有 9.1 节点读取；9.2 节点记录警告，并使用该模型推断的 schema（默认 `wow.query.schema.legacy-declarations=warn`）。
+
+升级期间若要让两边都保留该模型的声明，可以任选其一：
+
+1. **逐节点：** 9.1 文件只保留在 `wow-query-schema/{context}/{aggregate}/{model}.json`（不要放在 `META-INF/wow/query-schema/…`），并为每个 9.2 节点在其工作目录的 `config/wow/query-schema/{context}.{aggregate}.{model}.json` 放置 9.2 文件。9.1 节点回退读取 9.1 文件；9.2 节点读取工作目录中的文件，只记录 9.1 文件被忽略。
+2. **共同子集：** 在 `META-INF/wow/query-schema/{context}.{aggregate}.{model}.json` 放一个只使用上述两版共有键、且不含 `null` 值的文件。
+
+不再有 9.1 节点读取后，把文件以 9.2 格式移到 `META-INF/wow/query-schema/{context}.{aggregate}.{model}.json`（或 `config/wow/query-schema/…`），删除 9.1 文件；可再设置 `wow.query.schema.legacy-declarations=fail`，让遗漏的 9.1 文件使其模型不可用。键的变化如下；9.2 不接受 `null` 值（改为省略该键）：
+
+| 9.1 键 | 9.2 键 |
+|---|---|
+| `valueTypes` | `types`（可声明：`STRING`、`INTEGER`、`DECIMAL`、`BOOLEAN`） |
+| `enumValues: [v, …]` | `enum: [{ "value": v }, …]` |
+| `semanticType` | `semantic` |
+| `additionalProperties` | `values` |
+| `kind`、`nullable`、`description`、`properties`、`items` | 不变；`kind` 取 `SCALAR`、`OBJECT` 或 `ARRAY` |
+| `title` | 删除：显示名属于视图定义 |
+| `required`、`alternatives` | 删除：由推断得出，不再声明 |
 
 `QuerySchemaMerger` 按数字从小到大合并，后来的高优先级来源只覆盖其显式设置的叶，未设置的叶沿用低优先级值。同一优先级的多个声明若对同一叶给出不同值会抛出 Schema conflict，而不是依赖加载顺序。刷新只重新加载当前进程中的来源与后端事实并替换缓存；它不会修改索引、mapping、validator 或历史数据。
 
@@ -174,7 +199,7 @@ MongoDB adapter 读取索引与可选 validator；数组/items/additionalPropert
 
 ## HTTP 与 OpenAPI 扩展
 
-`GET snapshot/schema` 与 `GET event/schema` 返回模型在 HTTP 入口上的能力描述：这个模型经 HTTP 能被怎样查询。存储事实（索引、mapping、validator）会在部署之外变化，所以每个实例按 `wow.query.schema.revalidate-interval`（默认 `5m`，`0s` 关闭）定期重新加载全部查询 schema；编译失败时保留上一个版本并记录日志。引入 Spring Boot Actuator 后，`wowQuerySchema` 端点可以查看本实例各 schema 的版本（读操作），也可以立即重新校验，可只针对一个 `aggregate`（写操作）。不再提供 HTTP 刷新路由。描述只发布结论，不发布存储事实：
+`GET snapshot/schema` 与 `GET event/schema` 返回模型在 HTTP 入口上的能力描述：这个模型经 HTTP 能被怎样查询。存储事实（索引、mapping、validator）会在部署之外变化，所以每个实例按 `wow.query.schema.revalidate-interval`（默认 `5m`，`0s` 关闭）定期重新加载全部查询 schema；编译失败时保留上一个版本并记录日志。引入 Spring Boot Actuator 后，`wowQuerySchema` 端点可以查看本实例各 schema 的版本（读操作），也可以立即重新校验，可只针对一个 `aggregate`（写操作）。9.1 的 `POST /{aggregate}/snapshot/schema/refresh` 与 `POST /{aggregate}/event/schema/refresh` 作为弃用别名保留到 10.0.0：在作答的实例上只重新加载该聚合对应的模型（Snapshot 或 EventStream），并发请求共用同一次进行中的加载，再像 `GET …/schema` 那样返回能力描述。描述只发布结论，不发布存储事实：
 
 - `fields`：每个逻辑路径一条（元素内字段写完整路径，并在 `scope` 中给出所在元素），包含 `role`（系统字段才有：系统字段过滤的目标，如 `AGGREGATE_ID`、`TENANT_ID`，或模型的时间：Snapshot 的 `eventTime` 与 EventStream 的 `createTime` 为 `EVENT_TIME`，Snapshot 的 `firstEventTime` 为 `FIRST_EVENT_TIME`）、`types`、`kind`、`semantic`、`enum`、`sensitivity`、`deprecated`、`aliases`、允许的 `filter.operators`、`sort`（`paged`、`cursor`）与 `aggregate`（分组、函数、`distinctCount`、`percentile`、`any`、`inMetricFilter` 等）；
 - `record`：身份字段、分页方式、默认删除范围、根运算符与全文检索（`search.modes` 为模型级 `SEARCH` 可用的方式，`search.fields` 为记录级字段）；

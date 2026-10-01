@@ -22,7 +22,7 @@ import { matches, memorySource } from '../src/testing/index.js';
 
 /**
  * Wow's semantics matrix, case for case: `FilterSemantics.CASES` in
- * `wow-api/src/main/kotlin/me/ahoo/wow/api/query/spec/FilterSemantics.kt`,
+ * `test/wow-tck/src/main/kotlin/me/ahoo/wow/tck/query/FilterSemantics.kt`,
  * which the TCK (`test/wow-tck/.../FilterSemanticsMatrix.kt`) runs against
  * every backend with one stored record per probe. The expected matches are
  * MongoDB's, the canonical backend. A change there is copied here.

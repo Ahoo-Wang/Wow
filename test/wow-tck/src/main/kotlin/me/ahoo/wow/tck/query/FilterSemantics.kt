@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.api.query.spec
+package me.ahoo.wow.tck.query
 
 import me.ahoo.wow.api.query.BetweenFilter
 import me.ahoo.wow.api.query.ContainsAllFilter
@@ -37,6 +37,8 @@ import me.ahoo.wow.api.query.NotInFilter
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.StartsWithFilter
 import me.ahoo.wow.api.query.StringComparison
+import me.ahoo.wow.api.query.spec.FilterOperatorSpec
+import me.ahoo.wow.api.query.spec.ValueRule
 import tools.jackson.databind.JsonNode
 import tools.jackson.databind.node.JsonNodeFactory
 

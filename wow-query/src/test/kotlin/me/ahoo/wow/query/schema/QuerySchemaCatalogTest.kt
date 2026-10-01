@@ -101,6 +101,43 @@ class QuerySchemaCatalogTest {
     }
 
     @Test
+    fun `a model's revalidation reloads only that model and concurrent ones share the reload in flight`() {
+        val reloads = mutableMapOf<QueryModel, AtomicInteger>()
+        val pending = reactor.core.publisher.Sinks.one<QueryModelSchema>()
+        val catalog = QuerySchemaCatalog(
+            snapshots = snapshots { SequenceStorage(exact) },
+            eventStreams = object : AbstractEventStreamQueryBackendFactory() {
+                override fun createBinding(namedAggregate: NamedAggregate) =
+                    QueryBackendBinding<EventStreamQueryBackend>(
+                        NoOpEventStreamQueryBackend(namedAggregate),
+                        SequenceStorage(exact),
+                    )
+            },
+            compiler = { context, _ ->
+                val count = reloads.getOrPut(context.model) { AtomicInteger() }
+                object : QueryModelSchemaProvider {
+                    override fun schema(): Mono<QueryModelSchema> = Mono.error(IllegalStateException("not loaded"))
+
+                    override fun refresh(): Mono<QueryModelSchema> = Mono.defer {
+                        count.incrementAndGet()
+                        pending.asMono()
+                    }
+                }
+            },
+            aggregates = listOf(order),
+        )
+
+        val first = catalog.revalidate("example.order", QueryModel.SNAPSHOT).collectList().toFuture()
+        val second = catalog.revalidate("example.order", QueryModel.SNAPSHOT).collectList().toFuture()
+        pending.tryEmitError(IllegalStateException("reloaded"))
+
+        first.get()!!.map { it.model to it.error }.assert().containsExactly(QueryModel.SNAPSHOT to "reloaded")
+        second.get()!!.map { it.model to it.error }.assert().containsExactly(QueryModel.SNAPSHOT to "reloaded")
+        reloads[QueryModel.SNAPSHOT]!!.get().assert().isOne()
+        reloads[QueryModel.EVENT_STREAM]!!.get().assert().isZero()
+    }
+
+    @Test
     fun `the catalog compiles each model once, from its sources and storage facts`() {
         val storage = SequenceStorage(exact)
         val catalog = QuerySchemaCatalog(snapshots = snapshots { storage })

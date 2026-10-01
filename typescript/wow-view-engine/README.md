@@ -839,7 +839,7 @@ const view = projectRecord(orders, config, page);
 
 ## Testing a host: an in-memory source
 
-A host's own tests — a page that opens a view, a board, a demo without a backend — need a source that answers the queries the engine really sends. `@ahoo-wang/wow-view-engine/testing` has one: `memorySource(documents, options?)` is a `ViewSource` over JSON documents held in memory that filters, sorts, pages, projects and aggregates the way a Wow service over MongoDB does. Its answers are held to the server's own semantics — the `FilterSemantics` matrix in `wow-api` and the aggregation cases of the query TCK — by this package's suites, so a test sees the engine's query answered as production answers it, not a canned result that shows rows the filter excludes.
+A host's own tests — a page that opens a view, a board, a demo without a backend — need a source that answers the queries the engine really sends. `@ahoo-wang/wow-view-engine/testing` has one: `memorySource(documents, options?)` is a `ViewSource` over JSON documents held in memory that filters, sorts, pages, projects and aggregates the way a Wow service over MongoDB does. Its answers are held to the server's own semantics — the `FilterSemantics` matrix in `wow-tck` and the aggregation cases of the query TCK — by this package's suites, so a test sees the engine's query answered as production answers it, not a canned result that shows rows the filter excludes.
 
 <!-- typecheck-context
 import { orders } from './orders';

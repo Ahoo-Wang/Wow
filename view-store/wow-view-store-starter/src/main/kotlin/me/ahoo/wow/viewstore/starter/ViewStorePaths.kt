@@ -26,7 +26,7 @@ import org.springframework.web.util.pattern.PathPatternParser
  * own context is another, so a host (and the standalone server, whose context is not `view-store`) serves them under
  * `/view-store`; the custom routes follow the same rule.
  */
-class ViewStorePaths(currentContext: NamedBoundedContext) {
+internal class ViewStorePaths(currentContext: NamedBoundedContext) {
     companion object {
         const val TENANT_ID = MessageRecords.TENANT_ID
         const val OWNER_ID = MessageRecords.OWNER_ID
@@ -111,4 +111,4 @@ private val EXACT_PATH_PARSER = PathPatternParser()
 
 internal fun String.toExactPattern(): PathPattern = EXACT_PATH_PARSER.parse(this)
 
-data class ViewTarget(val tenantId: String, val viewId: String)
+internal data class ViewTarget(val tenantId: String, val viewId: String)

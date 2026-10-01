@@ -314,7 +314,11 @@ data class BindingError(
         ],
     )
     val code: String? = null,
-) : Named
+) : Named {
+    /** compat(wow<9.2): the 9.1 constructor, kept for callers compiled against it. */
+    @Deprecated("Scheduled for removal in 10.0.0. Use the constructor with code.", level = DeprecationLevel.HIDDEN)
+    constructor(name: String, msg: String) : this(name, msg, null)
+}
 
 /**
  * Default implementation of the [ErrorInfo] interface.

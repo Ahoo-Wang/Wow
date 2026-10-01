@@ -137,6 +137,14 @@ sealed interface AggregationGroup {
                 require(expression == null) { "terms missingKey requires a field input." }
             }
         }
+
+        /** compat(wow<9.2): the 9.1 constructor, kept for callers compiled against it. */
+        @Deprecated(
+            "Scheduled for removal in 10.0.0. Use the constructor with expression.",
+            level = DeprecationLevel.HIDDEN,
+        )
+        constructor(field: QueryField, alias: String, missingKey: String? = null) :
+            this(field = field, alias = alias, missingKey = missingKey, expression = null)
     }
 
     /** Buckets the numeric value of [field], or of [expression] when the group names one instead. */
@@ -156,6 +164,14 @@ sealed interface AggregationGroup {
                 "histogram interval must be finite and greater than 0."
             }
         }
+
+        /** compat(wow<9.2): the 9.1 constructor, kept for callers compiled against it. */
+        @Deprecated(
+            "Scheduled for removal in 10.0.0. Use the constructor with expression.",
+            level = DeprecationLevel.HIDDEN,
+        )
+        constructor(field: QueryField, alias: String, interval: Double) :
+            this(field = field, alias = alias, interval = interval, expression = null)
     }
 
     data class DateHistogram(

@@ -31,6 +31,66 @@
       "name": "wow.eventsourcing.storage-routing.aggregates.*.snapshot.binding",
       "type": "java.lang.String",
       "description": "Named SnapshotStore binding for this aggregate. The binding must be provided by application code or auto-configuration."
+    },
+    {
+      "name": "wow.webflux.query.max-list-size",
+      "type": "java.lang.Integer",
+      "description": "Deprecated 9.1 location of wow.query.http.max-list-size; still applied, with a warning, when wow.query.http.max-list-size is not set.",
+      "deprecation": {
+        "level": "warning",
+        "replacement": "wow.query.http.max-list-size",
+        "reason": "The HTTP query budget moved to wow.query.http in 9.2. Scheduled for removal in 10.0.0."
+      }
+    },
+    {
+      "name": "wow.webflux.query.max-page-size",
+      "type": "java.lang.Integer",
+      "description": "Deprecated 9.1 location of wow.query.http.max-page-size; still applied, with a warning, when wow.query.http.max-page-size is not set.",
+      "deprecation": {
+        "level": "warning",
+        "replacement": "wow.query.http.max-page-size",
+        "reason": "The HTTP query budget moved to wow.query.http in 9.2. Scheduled for removal in 10.0.0."
+      }
+    },
+    {
+      "name": "wow.webflux.query.max-page-window",
+      "type": "java.lang.Long",
+      "description": "Deprecated 9.1 location of wow.query.http.max-page-window; still applied, with a warning, when wow.query.http.max-page-window is not set.",
+      "deprecation": {
+        "level": "warning",
+        "replacement": "wow.query.http.max-page-window",
+        "reason": "The HTTP query budget moved to wow.query.http in 9.2. Scheduled for removal in 10.0.0."
+      }
+    },
+    {
+      "name": "wow.webflux.query.max-filter-nodes",
+      "type": "java.lang.Integer",
+      "description": "Deprecated 9.1 location of wow.query.http.max-filter-nodes; still applied, with a warning, when wow.query.http.max-filter-nodes is not set.",
+      "deprecation": {
+        "level": "warning",
+        "replacement": "wow.query.http.max-filter-nodes",
+        "reason": "The HTTP query budget moved to wow.query.http in 9.2. Scheduled for removal in 10.0.0."
+      }
+    },
+    {
+      "name": "wow.webflux.query.max-filter-values",
+      "type": "java.lang.Integer",
+      "description": "Deprecated 9.1 location of wow.query.http.max-filter-values; still applied, with a warning, when wow.query.http.max-filter-values is not set.",
+      "deprecation": {
+        "level": "warning",
+        "replacement": "wow.query.http.max-filter-values",
+        "reason": "The HTTP query budget moved to wow.query.http in 9.2. Scheduled for removal in 10.0.0."
+      }
+    },
+    {
+      "name": "wow.webflux.query.allow-expensive-operators",
+      "type": "java.lang.Boolean",
+      "description": "Deprecated 9.1 location of wow.query.http.allow-expensive-operators; still applied, with a warning, when wow.query.http.allow-expensive-operators is not set.",
+      "deprecation": {
+        "level": "warning",
+        "replacement": "wow.query.http.allow-expensive-operators",
+        "reason": "The HTTP query budget moved to wow.query.http in 9.2. Scheduled for removal in 10.0.0."
+      }
     }
   ],
   "hints": [

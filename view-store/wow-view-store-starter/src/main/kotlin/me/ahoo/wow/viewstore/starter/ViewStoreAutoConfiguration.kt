@@ -80,23 +80,23 @@ class ViewStoreAutoConfiguration {
             ViewPreferences::class.java.aggregateRouteMetadata().aggregateMetadata.namedAggregate
     }
 
-    @Bean
-    fun viewStoreErrorStatuses(): ViewStoreErrorStatuses {
+    @Bean("viewStoreErrorStatuses")
+    internal fun viewStoreErrorStatuses(): ViewStoreErrorStatuses {
         ViewStoreErrorStatuses.register()
         return ViewStoreErrorStatuses
     }
 
-    @Bean
-    fun viewStorePaths(
+    @Bean("viewStorePaths")
+    internal fun viewStorePaths(
         @Qualifier(WOW_CURRENT_BOUNDED_CONTEXT) currentContext: NamedBoundedContext
     ): ViewStorePaths = ViewStorePaths(currentContext)
 
-    @Bean
-    fun viewStoreAppIdHeaderAppender(viewStorePaths: ViewStorePaths): ViewStoreAppIdHeaderAppender =
+    @Bean("viewStoreAppIdHeaderAppender")
+    internal fun viewStoreAppIdHeaderAppender(viewStorePaths: ViewStorePaths): ViewStoreAppIdHeaderAppender =
         ViewStoreAppIdHeaderAppender(viewStorePaths)
 
-    @Bean
-    fun viewStoreQueryPolicy(): ViewStoreQueryPolicy =
+    @Bean("viewStoreQueryPolicy")
+    internal fun viewStoreQueryPolicy(): ViewStoreQueryPolicy =
         ViewStoreQueryPolicy(setOf(viewNamedAggregate, preferencesNamedAggregate))
 
     @Bean
@@ -115,9 +115,9 @@ class ViewStoreAutoConfiguration {
         beanFactory.getBean(viewNamedAggregate.snapshotQueryGatewayBeanName()) as SnapshotQueryGateway<ViewState>
     }
 
-    @Bean
+    @Bean("viewStoreHandlers")
     @Suppress("LongParameterList")
-    fun viewStoreHandlers(
+    internal fun viewStoreHandlers(
         systemViewProvider: SystemViewProvider,
         stateAggregateRepository: StateAggregateRepository,
         commandGateway: CommandGateway,
@@ -138,9 +138,9 @@ class ViewStoreAutoConfiguration {
         exceptionHandler = exceptionHandler,
     )
 
-    @Bean
+    @Bean("viewStoreAudienceHandlers")
     @Suppress("LongParameterList")
-    fun viewStoreAudienceHandlers(
+    internal fun viewStoreAudienceHandlers(
         viewStorePaths: ViewStorePaths,
         viewStoreRouteGuard: ViewStoreRouteGuard,
         routeHandlerFunctionRegistrar: RouteHandlerFunctionRegistrar,
@@ -166,15 +166,15 @@ class ViewStoreAutoConfiguration {
 
     @Bean(ROUTER_FUNCTION_BEAN_NAME)
     @Order(0)
-    fun viewStoreRouterFunction(
+    internal fun viewStoreRouterFunction(
         viewStorePaths: ViewStorePaths,
         viewStoreHandlers: ViewStoreHandlers,
         viewStoreAudienceHandlers: ViewAudienceHandlers,
     ): RouterFunction<ServerResponse> =
         ViewStoreRoutes.routerFunction(viewStorePaths, viewStoreHandlers, viewStoreAudienceHandlers)
 
-    @Bean
-    fun viewStoreRouteGuard(
+    @Bean("viewStoreRouteGuard")
+    internal fun viewStoreRouteGuard(
         viewStorePaths: ViewStorePaths,
         routerSpecs: RouterSpecs,
     ): ViewStoreRouteGuard = ViewStoreRouteGuard(
@@ -183,8 +183,8 @@ class ViewStoreAutoConfiguration {
         setOf(viewNamedAggregate, preferencesNamedAggregate)
     )
 
-    @Bean
-    fun viewStoreWebFilter(
+    @Bean("viewStoreWebFilter")
+    internal fun viewStoreWebFilter(
         viewStorePaths: ViewStorePaths,
         systemViewProvider: SystemViewProvider,
         viewStoreRouteGuard: ViewStoreRouteGuard,
@@ -202,8 +202,10 @@ class ViewStoreAutoConfiguration {
     class ViewStoreKafkaConfiguration {
         companion object {
             @JvmStatic
-            @Bean
-            fun viewStoreTopicConverterPostProcessor(environment: Environment): ViewStoreTopicConverterPostProcessor =
+            @Bean("viewStoreTopicConverterPostProcessor")
+            internal fun viewStoreTopicConverterPostProcessor(
+                environment: Environment,
+            ): ViewStoreTopicConverterPostProcessor =
                 ViewStoreTopicConverterPostProcessor(requireNotNull(environment.viewStoreTopicPrefix()))
 
             /**
@@ -220,8 +222,8 @@ class ViewStoreAutoConfiguration {
     @Configuration(proxyBeanMethods = false)
     @ConditionalOnClass(name = ["org.springdoc.core.customizers.OpenApiCustomizer"])
     class ViewStoreOpenApiConfiguration {
-        @Bean
-        fun viewStoreOpenApiCustomizer(
+        @Bean("viewStoreOpenApiCustomizer")
+        internal fun viewStoreOpenApiCustomizer(
             @Qualifier(WOW_CURRENT_BOUNDED_CONTEXT) currentContext: NamedBoundedContext,
             viewStorePaths: ViewStorePaths,
             viewStoreRouteGuard: ViewStoreRouteGuard,

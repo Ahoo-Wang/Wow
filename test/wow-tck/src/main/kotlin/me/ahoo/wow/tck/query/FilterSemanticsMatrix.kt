@@ -20,10 +20,6 @@ import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.schema.QueryValueKind
 import me.ahoo.wow.api.query.schema.QueryValueType
-import me.ahoo.wow.api.query.spec.FilterSemantics
-import me.ahoo.wow.api.query.spec.SemanticCase
-import me.ahoo.wow.api.query.spec.SemanticProbe
-import me.ahoo.wow.api.query.spec.SemanticShape
 import me.ahoo.wow.query.schema.DeclarationValue
 import me.ahoo.wow.query.schema.QueryFieldDeclaration
 import org.junit.jupiter.api.Assumptions

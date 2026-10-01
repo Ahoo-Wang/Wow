@@ -59,7 +59,7 @@ import reactor.kotlin.core.publisher.switchIfEmpty
  */
 private const val MAX_REPLAY_CANDIDATES = 20
 
-class ViewStoreHandlers(
+internal class ViewStoreHandlers(
     private val systemViewProvider: SystemViewProvider,
     private val stateAggregateRepository: StateAggregateRepository,
     private val commandHandler: CommandHandler,

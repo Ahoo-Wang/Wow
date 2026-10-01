@@ -18,7 +18,7 @@ import me.ahoo.wow.webflux.exception.ErrorHttpStatusMapping
 import org.springframework.http.HttpStatus
 
 /** The HTTP status of each of the view store's error codes. */
-object ViewStoreErrorStatuses {
+internal object ViewStoreErrorStatuses {
     val STATUSES: Map<String, HttpStatus> = mapOf(
         ViewStoreErrorCodes.VIEW_INVALID to HttpStatus.BAD_REQUEST,
         ViewStoreErrorCodes.VIEW_APP_REQUIRED to HttpStatus.BAD_REQUEST,

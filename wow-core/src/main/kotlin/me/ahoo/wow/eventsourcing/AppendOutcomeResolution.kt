@@ -40,7 +40,7 @@ private enum class SlotHolder {
  *   slot decides between the retry and a write still in flight, then it is read again.
  * - nobody, otherwise, or the store cannot be read: the original failure is returned.
  */
-fun EventStore.appendResolvingOutcome(eventStream: DomainEventStream): Mono<Void> =
+internal fun EventStore.appendResolvingOutcome(eventStream: DomainEventStream): Mono<Void> =
     append(eventStream).onErrorResume { failure ->
         slotHolder(eventStream, failure).flatMap { holder ->
             when (holder) {

@@ -78,6 +78,7 @@ object SnapshotRouteContributor : RouteContributor {
     ): List<HttpRouteContract> {
         return buildList {
             add(snapshotSchemaRoute(currentContext, aggregateRouteMetadata, componentContext))
+            add(snapshotSchemaRefreshRoute(currentContext, aggregateRouteMetadata, componentContext))
             aggregateRouteMetadata.tenantOwnerVariants().forEach { variant ->
                 addAll(queryRoutes(currentContext, aggregateRouteMetadata, componentContext, variant))
             }
@@ -86,6 +87,30 @@ object SnapshotRouteContributor : RouteContributor {
             add(batchRegenerateSnapshotRoute(currentContext, aggregateRouteMetadata, componentContext))
         }
     }
+
+    /*
+     * compat(wow<9.2): `POST …/snapshot/schema/refresh`, removed in 9.2 when revalidation moved to the `wowQuerySchema` actuator
+     * endpoint. Operators' scripts still call it, so it revalidates this aggregate's schemas and answers as
+     * `GET …/schema` does.
+     */
+    private fun snapshotSchemaRefreshRoute(
+        currentContext: NamedBoundedContext,
+        aggregateRouteMetadata: AggregateRouteMetadata<*>,
+        componentContext: OpenAPIComponentContext,
+    ): HttpRouteContract = snapshotRoute(
+        currentContext = currentContext,
+        aggregateRouteMetadata = aggregateRouteMetadata,
+        componentContext = componentContext,
+        handlerKey = BuiltInHttpRouteHandlerKeys.Snapshot.SCHEMA_REFRESH,
+        resourceName = "snapshot_schema",
+        operation = "refresh",
+        operationSummary = "Refresh Snapshot Schema (deprecated: use the wowQuerySchema actuator endpoint)",
+        method = Https.Method.POST,
+        appendTenantPath = false,
+        appendOwnerPath = false,
+        appendPathSuffix = "snapshot/schema/refresh",
+        responses = componentContext.querySchemaResponses(),
+    )
 
     private fun snapshotSchemaRoute(
         currentContext: NamedBoundedContext,

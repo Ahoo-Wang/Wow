@@ -48,7 +48,7 @@ import org.springframework.web.util.pattern.PathPattern
  * their commands: it takes the aggregate id, the owner and the headers from the caller and passes none of the
  * view store's own routes.
  */
-class ViewStoreRouteGuard(
+internal class ViewStoreRouteGuard(
     paths: ViewStorePaths,
     routerSpecs: RouterSpecs,
     private val namedAggregates: Set<NamedAggregate>,

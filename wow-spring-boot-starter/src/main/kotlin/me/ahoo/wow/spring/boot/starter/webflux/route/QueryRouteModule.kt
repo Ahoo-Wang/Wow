@@ -13,9 +13,12 @@
 
 package me.ahoo.wow.spring.boot.starter.webflux.route
 
+import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.modeling.metadata.AggregateMetadata
+import me.ahoo.wow.modeling.toStringWithAlias
 import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
 import me.ahoo.wow.query.event.EventStreamQueryGateway
+import me.ahoo.wow.query.schema.QuerySchemaCatalog
 import me.ahoo.wow.query.snapshot.SnapshotQueryGateway
 import me.ahoo.wow.spring.query.eventStreamQueryGatewayBeanName
 import me.ahoo.wow.spring.query.snapshotQueryGatewayBeanName
@@ -30,6 +33,7 @@ import me.ahoo.wow.webflux.route.event.PagedQueryEventStreamHandlerFunctionFacto
 import me.ahoo.wow.webflux.route.query.AggregationQueryHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.query.HttpQueryGuard
 import me.ahoo.wow.webflux.route.query.QueryRequestScope
+import me.ahoo.wow.webflux.route.query.QuerySchemaRefreshHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.snapshot.CountSnapshotHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.snapshot.CursorQuerySnapshotHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.snapshot.CursorQuerySnapshotStateHandlerFunctionFactory
@@ -42,7 +46,9 @@ import me.ahoo.wow.webflux.route.snapshot.SingleSnapshotHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.snapshot.SingleSnapshotStateHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.snapshot.SnapshotSchemaHandlerFunctionFactory
 import org.springframework.beans.factory.BeanFactory
+import reactor.core.publisher.Mono
 
+@Suppress("DEPRECATION")
 class QueryRouteModule(
     private val beanFactory: BeanFactory,
     queryRequestScope: QueryRequestScope,
@@ -81,7 +87,27 @@ class QueryRouteModule(
         PagedQueryEventStreamHandlerFunctionFactory(::eventStreamGateway, queryRequestScope, exceptionHandler, guard),
         CursorQueryEventStreamHandlerFunctionFactory(::eventStreamGateway, queryRequestScope, exceptionHandler, guard),
         CountEventStreamHandlerFunctionFactory(::eventStreamGateway, queryRequestScope, exceptionHandler, guard),
+        QuerySchemaRefreshHandlerFunctionFactory(
+            BuiltInHttpRouteHandlerKeys.Snapshot.SCHEMA_REFRESH,
+            ::snapshotGateway,
+            { revalidate(it, QueryModel.SNAPSHOT) },
+            exceptionHandler,
+            guard,
+        ),
+        QuerySchemaRefreshHandlerFunctionFactory(
+            BuiltInHttpRouteHandlerKeys.Event.SCHEMA_REFRESH,
+            ::eventStreamGateway,
+            { revalidate(it, QueryModel.EVENT_STREAM) },
+            exceptionHandler,
+            guard,
+        ),
     )
+
+    // compat(wow<9.2): what the 9.1 `POST …/schema/refresh` routes did, through the catalog: reload the one model.
+    private fun revalidate(metadata: AggregateMetadata<*, *>, model: QueryModel): Mono<Void> {
+        val catalog = beanFactory.getBeanProvider(QuerySchemaCatalog::class.java).ifAvailable ?: return Mono.empty()
+        return catalog.revalidate(metadata.namedAggregate.toStringWithAlias(), model).then()
+    }
 
     @Suppress("UNCHECKED_CAST")
     private fun snapshotGateway(metadata: AggregateMetadata<*, *>): SnapshotQueryGateway<Any> =

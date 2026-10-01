@@ -59,6 +59,7 @@ class QuerySchemaCatalog(
 ) {
     private val aggregates = aggregates.map { it.materialize() }.distinct()
     private val providers = ConcurrentHashMap<Pair<MaterializedNamedAggregate, QueryModel>, QueryModelSchemaProvider>()
+    private val inFlight = ConcurrentHashMap<QueryModelSchemaProvider, Mono<Status>>()
 
     /** One schema provider of one aggregate's model. */
     private data class Entry(
@@ -110,18 +111,30 @@ class QuerySchemaCatalog(
         entry.status(entry.provider.schema())
     }
 
-    /** Reloads every schema (or [aggregate]'s) now; a schema that fails to compile keeps its previous version. */
-    fun revalidate(aggregate: String? = null): Flux<Status> = select(aggregate).concatMap { entry ->
-        val previous = entry.status(entry.provider.schema()).map { it.version.orEmpty() }
-        previous.flatMap { before ->
-            val started = System.nanoTime()
-            entry.status(entry.provider.refresh()).doOnNext { status ->
-                status.error?.let { error ->
-                    log.warn { "Query schema [${status.aggregate}/${status.model}] kept its previous version: $error" }
+    /**
+     * Reloads every schema now, only [aggregate]'s and only its [model]'s when given; a schema that fails to compile
+     * keeps its previous version. Concurrent reloads of one model share the one in flight.
+     */
+    fun revalidate(aggregate: String? = null, model: QueryModel? = null): Flux<Status> =
+        select(aggregate).filter { model == null || it.model == model }.concatMap(::reload)
+
+    private fun reload(entry: Entry): Mono<Status> {
+        val key = entry.provider
+        inFlight[key]?.let { return it }
+        lateinit var candidate: Mono<Status>
+        candidate = Mono.defer { entry.status(entry.provider.schema()).map { it.version.orEmpty() } }
+            .flatMap { before ->
+                val started = System.nanoTime()
+                entry.status(entry.provider.refresh()).doOnNext { status ->
+                    status.error?.let { error ->
+                        log.warn { "Query schema [${status.aggregate}/${status.model}] kept its previous version: $error" }
+                    }
+                    entry.record(status, before, Duration.ofNanos(System.nanoTime() - started))
                 }
-                entry.record(status, before, Duration.ofNanos(System.nanoTime() - started))
             }
-        }
+            .doFinally { inFlight.remove(key, candidate) }
+            .cache()
+        return inFlight.putIfAbsent(key, candidate) ?: candidate
     }
 
     private fun Entry.record(status: Status, before: String, elapsed: Duration) {
@@ -161,16 +174,24 @@ fun interface QueryModelCompiler {
     companion object {
         /**
          * Merges the declarations of [sources] into the logical model under [sensitivity] and compiles the storage's
-         * facts about it (design §5.2).
+         * facts about it (design §5.2). [legacyDeclarations] is what a 9.1 declaration file means when no source
+         * declares that model in 9.2.
          */
         @JvmStatic
         fun of(
             sources: List<QuerySchemaSource> = emptyList(),
             sensitivity: QuerySensitivityPolicy = QuerySensitivityPolicy.DEFAULT,
+            legacyDeclarations: LegacyQuerySchemaDeclarationPolicy = LegacyQuerySchemaDeclarationPolicy.WARN,
         ): QueryModelCompiler {
             val declared = sources.toList()
             return QueryModelCompiler { context, storage ->
-                DefaultQueryModelSchemaProvider(context, declared, storage, sensitivity)
+                DefaultQueryModelSchemaProvider(
+                    context = context,
+                    sources = declared,
+                    adapter = storage,
+                    sensitivity = sensitivity,
+                    legacyDeclarationPolicy = legacyDeclarations,
+                )
             }
         }
     }

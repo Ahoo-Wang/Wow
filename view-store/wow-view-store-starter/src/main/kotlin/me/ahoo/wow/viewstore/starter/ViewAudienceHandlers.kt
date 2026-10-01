@@ -60,7 +60,7 @@ import reactor.core.publisher.Mono
  * already has the audience. Every other request goes to the command, so its rules and errors are Wow's and the
  * domain's.
  */
-class ViewAudienceHandlers(
+internal class ViewAudienceHandlers(
     private val stateAggregateRepository: StateAggregateRepository,
     private val shareDispatch: HandlerFunction<ServerResponse>,
     private val commandHandler: CommandHandler,

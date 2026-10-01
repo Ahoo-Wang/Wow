@@ -831,7 +831,7 @@ const view = projectRecord(orders, config, page);
 
 ## 测试宿主：内存数据源
 
-宿主自己的测试——打开一个视图或一块板的页面、没有后端的演示——需要一个按引擎实际发出的查询作答的数据源。`@ahoo-wang/wow-view-engine/testing` 提供了它：`memorySource(documents, options?)` 是一个 `ViewSource`，对内存里的 JSON 文档像 MongoDB 上的 Wow 服务那样筛选、排序、分页、投影与聚合。它的答案由本包的测试对照服务端自己的语义——`wow-api` 的 `FilterSemantics` 语义矩阵与查询 TCK 的聚合用例——逐条守着，所以测试看到的是引擎的查询按生产环境的方式得到的回答，而不是一份把被筛掉的行也显示出来的罐头结果。
+宿主自己的测试——打开一个视图或一块板的页面、没有后端的演示——需要一个按引擎实际发出的查询作答的数据源。`@ahoo-wang/wow-view-engine/testing` 提供了它：`memorySource(documents, options?)` 是一个 `ViewSource`，对内存里的 JSON 文档像 MongoDB 上的 Wow 服务那样筛选、排序、分页、投影与聚合。它的答案由本包的测试对照服务端自己的语义——`wow-tck` 的 `FilterSemantics` 语义矩阵与查询 TCK 的聚合用例——逐条守着，所以测试看到的是引擎的查询按生产环境的方式得到的回答，而不是一份把被筛掉的行也显示出来的罐头结果。
 
 <!-- typecheck-context
 import { orders } from './orders';
