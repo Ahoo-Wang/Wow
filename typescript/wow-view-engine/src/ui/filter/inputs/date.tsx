@@ -15,12 +15,14 @@ import { useEffect, useState } from 'react';
 import { sameJson, type FilterValue } from '../../../model/index.js';
 import {
   DATE_TIME_PRESETS,
+  resolveDateTimeRange,
   writeValue,
   type DateTimeFilterValue,
   type DateTimePreset,
 } from '../../../filter/index.js';
 import { ONE_DAY_PRESETS } from '../../../dashboard/index.js';
 import { useViewMessages } from '../../kit/MessagesProvider.js';
+import { useSurfaceDisplay } from '../../kit/ViewSurface.js';
 import { AbsoluteDate } from './daterange.js';
 import { PresetDate, RelativeDate } from './relative.js';
 import { ChoiceValue, type ValueProps } from './shared.js';
@@ -85,6 +87,7 @@ export function DateValue({
   onAwaiting?: (awaiting: boolean) => void;
 }) {
   const messages = useViewMessages();
+  const display = useSurfaceDisplay();
   const stored = readDateValue(value);
   const unsettable = blank !== undefined && !required;
   const empty: DateShape | typeof UNSET = unsettable ? UNSET : 'absolute';
@@ -149,9 +152,23 @@ export function DateValue({
             if (stored !== null) write(null);
             return;
           }
+          // A required one-day date turned to 「指定日期」 starts on the day
+          // in force — 「昨天」 is that day off the calendar — so the board
+          // goes on reading what it read rather than blanking every panel
+          // to 「请选择日期」 until a day is picked (R2-41). A span has no
+          // one day to start on, and waits for its two.
+          const seeded =
+            picked === 'absolute' &&
+            required &&
+            oneDay &&
+            stored !== null &&
+            stored.type !== 'absolute'
+              ? daysInForce(stored, display)
+              : null;
+          if (seeded) write(writeValue(seeded));
           // Back to the shape the value in force is in: that value again,
           // not the shape's default over it.
-          if (picked !== stored?.type) write(shapeDefault(picked));
+          else if (picked !== stored?.type) write(shapeDefault(picked));
         }}
       />
       {current?.type === 'absolute' && (
@@ -222,4 +239,29 @@ function blankDateValue(shape: DateShape): DateTimeFilterValue {
  */
 function shapeDefault(shape: DateShape): FilterValue {
   return shape === 'absolute' ? null : writeValue(blankDateValue(shape));
+}
+
+/**
+ * The days a window or a period names now, as a calendar value: its first
+ * and its last day on the surface's clock and zone.
+ */
+function daysInForce(
+  value: DateTimeFilterValue,
+  display: { timeZone?: string; clock?: { now(): Date } },
+): DateTimeFilterValue {
+  const zone =
+    display.timeZone ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const { from, to } = resolveDateTimeRange(
+    value,
+    display.clock?.now() ?? new Date(),
+    zone,
+  );
+  const day = (instant: string) =>
+    new Intl.DateTimeFormat('en-CA', {
+      timeZone: zone,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).format(new Date(instant));
+  return { type: 'absolute', from: day(from), to: day(to ?? from) };
 }

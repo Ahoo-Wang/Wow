@@ -74,6 +74,8 @@ export const viewMessages = {
   'label.drill.span-hint':
     'Hold Shift and pick a second row to follow up on the period between the two.',
   'label.drill.tap-again': 'Tap again to follow up',
+  'label.drill.press-hint': 'Click to follow up',
+  'label.drill.press-brush-hint': 'Click to follow up · drag to select a span',
   // A view opened from a group, named by what it is: `{subject}` is the
   // records' name (the definition's) or the view it narrows, `{group}` the
   // group pressed as the menu heads it.

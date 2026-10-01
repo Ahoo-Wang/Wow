@@ -284,6 +284,39 @@ describe('a tap on a touch screen', () => {
     await tap(container, 'mouse');
     expect(onPick).toHaveBeenCalledTimes(2);
   });
+
+  /**
+   * Nothing in the analysis workbench said a group could be pressed to
+   * follow up (R2-40): a pointer's tooltip says so where the press is a
+   * follow-up, and says nothing where it is not (a board's press filters,
+   * and its badge says that).
+   */
+  it("says under a pointer's tooltip that a press follows up, where it does", () => {
+    const { container, rerender } = render(
+      <ViewSurface>
+        <AnalysisChart data={data} spec={spec} onPick={vi.fn()} pressHint />
+      </ViewSurface>,
+    );
+    const frame = () =>
+      container.querySelector<HTMLElement>('[data-slot="chart"]')!;
+    expect(frame().getAttribute('data-press-hint')).toBe('true');
+    expect(frame().style.getPropertyValue('--_fve-press-hint')).toBe(
+      `"${defaultMessages['label.drill.press-hint']}"`,
+    );
+
+    rerender(
+      <ViewSurface>
+        <AnalysisChart data={data} spec={spec} onPick={vi.fn()} />
+      </ViewSurface>,
+    );
+    expect(frame().hasAttribute('data-press-hint')).toBe(false);
+    rerender(
+      <ViewSurface>
+        <AnalysisChart data={data} spec={spec} pressHint />
+      </ViewSurface>,
+    );
+    expect(frame().hasAttribute('data-press-hint')).toBe(false);
+  });
 });
 
 describe('a funnel staged by a dimension', () => {

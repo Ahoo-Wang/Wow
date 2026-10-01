@@ -490,13 +490,17 @@ export function WorkbenchShell({
   // in place of another takes the keyboard when it has nowhere else to be —
   // on `<body>`, never out of a control that still holds it (the list the
   // view was chosen in keeps it). The first view of all is not a swap: a
-  // page that has just loaded keeps its focus where the host put it.
+  // page that has just loaded keeps its focus where the host put it —
+  // unless a board handed it over (「在工作台中打开」, a press on a group,
+  // D26 Q30): that press took the keyboard off the board's page, and it
+  // lands on the title of what it opened, as a drill does.
   const openedId = runtime?.id ?? null;
+  const { handedOver } = workbench;
   const shownId = useRef<string | null>(null);
   const swapped = useRef(false);
   useLayoutEffect(() => {
     if (openedId !== null && openedId !== shownId.current) {
-      swapped.current = shownId.current !== null;
+      swapped.current = shownId.current !== null || handedOver;
       shownId.current = openedId;
     }
     if (!open || openedId === null) return;
@@ -508,7 +512,7 @@ export function WorkbenchShell({
     if (!created.current && !fell) return;
     created.current = false;
     viewTitle.current?.focus();
-  }, [open, openedId]);
+  }, [open, openedId, handedOver]);
 
   const folded = editorLabel !== undefined && editor != null;
   // A caught failure belongs to the view it happened in: opening another

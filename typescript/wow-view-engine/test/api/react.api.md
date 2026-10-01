@@ -4284,6 +4284,7 @@ export interface WorkbenchController {
     drill(conditions: readonly FilterNode[], title: string, subject?: string): void;
     filter: FilterEditorController;
     follow(config: ViewConfig, title: string, conditions: readonly FilterNode[], subject?: string): void;
+    handedOver: boolean;
     held: HeldView | null;
     kinds: readonly ViewKind[];
     // (undocumented)

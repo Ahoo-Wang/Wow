@@ -142,6 +142,7 @@ export interface AnalysisChartProps {
     image?: ChartImageSlot;
     menuOpen?: boolean;
     onPick?: OnPick;
+    pressHint?: boolean;
     spec?: ChartSpec;
     zoomGestures?: boolean;
 }
@@ -3225,6 +3226,8 @@ export const en: {
     readonly 'label.drill.spanned': "Selected {group}. Follow-up menu open.";
     readonly 'label.drill.span-hint': "Hold Shift and pick a second row to follow up on the period between the two.";
     readonly 'label.drill.tap-again': "Tap again to follow up";
+    readonly 'label.drill.press-hint': "Click to follow up";
+    readonly 'label.drill.press-brush-hint': "Click to follow up · drag to select a span";
     readonly 'label.drill.titled': "{subject} · {group}";
     readonly 'runtime.kind.not-declared': "{definition} does not offer a {kind} view.";
     readonly 'runtime.source.unresolved': "No source is registered for {source}.";
@@ -8637,6 +8640,7 @@ interface WorkbenchController {
     drill(conditions: readonly FilterNode[], title: string, subject?: string): void;
     filter: FilterEditorController;
     follow(config: ViewConfig, title: string, conditions: readonly FilterNode[], subject?: string): void;
+    handedOver: boolean;
     held: HeldView | null;
     kinds: readonly ViewKind[];
     // (undocumented)

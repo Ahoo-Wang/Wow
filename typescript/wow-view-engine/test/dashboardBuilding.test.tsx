@@ -487,9 +487,11 @@ describe('adding to a board (D22 A, B)', () => {
       defaultPanelSize({ kind: 'view' }, byWarehouse.config),
     );
     expect(screen.getByText('Added “By warehouse”')).toBeTruthy();
-    // Back where it was asked from.
+    // On to the panel it added, not back on 「＋ 添加」 (R2-38).
     await waitFor(() =>
-      expect(document.activeElement).toBe(slot('dashboard-add')),
+      expect(document.activeElement).toBe(
+        screen.getByRole('button', { name: 'Actions for “By warehouse”' }),
+      ),
     );
   });
 

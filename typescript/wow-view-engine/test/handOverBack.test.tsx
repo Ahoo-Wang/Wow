@@ -163,3 +163,36 @@ describe('going back to a view handed over (the host’s history)', () => {
     expect(applied().text).toMatch(/PENDING/);
   });
 });
+
+/**
+ * 「在工作台中打开」 on a board's panel: the press that sent the view took
+ * the keyboard off the board's page with it, and the workbench drawn in its
+ * place left it on `<body>` — a drill lands on the new title, a hand-over
+ * did not (2.4.3).
+ */
+describe('a view handed over takes the keyboard', () => {
+  it('lands on its title when the keyboard fell with the page it came from', async () => {
+    (document.activeElement as HTMLElement | null)?.blur();
+    setup();
+
+    const title = await screen.findByRole('heading', {
+      level: 2,
+      name: 'Order list',
+    });
+    await waitFor(() => expect(document.activeElement).toBe(title));
+  });
+
+  it('leaves a page that opens on its own view where the host put it', async () => {
+    const engine = new ViewEngine({
+      resources: resourcesOf([ordersDefinition()], () => testSource()),
+      store: new MemoryViewStore({ instances: views }),
+    });
+    (document.activeElement as HTMLElement | null)?.blur();
+    render(
+      <DataWorkbench engine={engine} definitionId="orders" instanceId="list" />,
+    );
+
+    await screen.findByRole('heading', { level: 2, name: 'Order list' });
+    expect(document.activeElement).toBe(document.body);
+  });
+});

@@ -385,6 +385,43 @@ describe('the date control', () => {
     expect(screen.queryByRole('button', { name: 'Day' })).toBeNull();
   });
 
+  /**
+   * 「指定日期」 on a required date started with no day on it, and every
+   * panel the filter reaches blanked to 「请选择日期」 until one was picked
+   * (R2-41): it starts on the day in force — 「昨天」 off the calendar.
+   */
+  it('turns to a calendar day on the day in force', async () => {
+    pinClock(new Date(Date.UTC(2026, 8, 30, 12)));
+    const onChange = control({
+      value: YESTERDAY,
+      oneDay: true,
+      required: true,
+    });
+    await pick('Day kind', 'Specific dates');
+    expect(onChange).toHaveBeenLastCalledWith({
+      type: 'absolute',
+      from: '2026-09-29',
+      to: '2026-09-29',
+    });
+  });
+
+  it('closes the calendar on a picked day, the keyboard back on its button', async () => {
+    control({
+      value: { type: 'absolute', from: '2026-09-20', to: '2026-09-20' },
+      oneDay: true,
+      required: true,
+    });
+    const trigger = screen.getByRole('button', { name: 'Day' });
+    await userEvent.click(trigger);
+    await userEvent.click(
+      within(await screen.findByRole('dialog')).getByRole('button', {
+        name: /September 21/,
+      }),
+    );
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    await waitFor(() => expect(document.activeElement).toBe(trigger));
+  });
+
   it('tells whether it waits for a day, and stops when it goes', async () => {
     const onAwaiting = vi.fn();
     control({ value: YESTERDAY, required: true, onAwaiting });
@@ -398,7 +435,9 @@ describe('the date control', () => {
 
 describe('a board whose date waits for a day', () => {
   it('has the panels wired to it say so, and show numbers once a day is picked', async () => {
-    setup();
+    // A required span has no one day in force to start the calendar on:
+    // it waits for its two.
+    setup(board({ ...DAY_FILTER, oneDay: undefined }));
     await screen.findByRole('combobox', { name: 'Day kind' });
     expect(awaiting()).toHaveLength(0);
     await pick('Day kind', 'Specific dates');
@@ -410,6 +449,14 @@ describe('a board whose date waits for a day', () => {
     expect(awaiting()[0].textContent).toContain('Pick a date');
     await pick('Day kind', 'A period');
     await waitFor(() => expect(awaiting()).toHaveLength(0));
+  });
+
+  it('keeps its numbers when a one-day date turns to 「指定日期」', async () => {
+    setup();
+    await screen.findByRole('combobox', { name: 'Day kind' });
+    await pick('Day kind', 'Specific dates');
+    await screen.findByRole('button', { name: 'Day' });
+    expect(awaiting()).toHaveLength(0);
   });
 
   it('says an optional date holding nothing reads each panel’s own dates', async () => {

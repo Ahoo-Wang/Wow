@@ -138,6 +138,7 @@ export function EmbeddedAnalysis({
               cutShort={view.truncated || view.atLimit !== undefined}
               onPick={onPick}
               menuOpen={followUp !== null && pick !== null}
+              pressHint={pressable}
               // The reader's own chart in the interactive tier; static,
               // the wheel is the host page's.
               zoomGestures={interactive}

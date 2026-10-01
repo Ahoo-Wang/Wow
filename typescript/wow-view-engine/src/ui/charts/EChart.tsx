@@ -20,7 +20,6 @@ import {
   useLayoutEffect,
   useRef,
   useState,
-  type CSSProperties,
   type ReactNode,
 } from 'react';
 import { useViewMessages } from '../kit/MessagesProvider.js';
@@ -28,7 +27,7 @@ import { useSurfaceTheme, useSurfaceTokens } from '../kit/ViewSurface.js';
 import { BRUSH_CLEAR, BRUSH_CURSOR } from './cartesianBrush.js';
 import type { LegendEntry } from './ChartLegend.js';
 import { ChartFailure } from '../kit/chartFailure.js';
-import { frameClass } from './frameClass.js';
+import { frameClass, hintStyle } from './frameClass.js';
 import { ChartImageTarget, pictureTheme } from './image.js';
 import type { ZoomWindow } from './cartesianZoom.js';
 import { loadCharts, loadedCharts, type ChartChunk } from './load.js';
@@ -78,6 +77,14 @@ export const ChartMenuOpen = createContext(false);
  * down by `AnalysisChart`, which reads it off the same data the marks are.
  */
 export const ChartSentence = createContext<string | undefined>(undefined);
+
+/**
+ * Whether a press on a mark is a follow-up here (`DrillMenu`): the tooltip
+ * then says so under its rows — and that a time axis is brushed by a drag,
+ * where it is — since nothing else on the page did (R2-40). A board, whose
+ * press filters and says so on its badge, leaves it off.
+ */
+export const ChartPressHint = createContext(false);
 
 /** What a press on a mark hands back: which one, and where the pointer was. */
 export interface ChartClick {
@@ -233,6 +240,7 @@ export function EChart({
 
   const chart = useRef<ECharts>(undefined);
   const menuOpen = useContext(ChartMenuOpen);
+  const pressHint = useContext(ChartPressHint) && onClick !== undefined;
   // Whether a brush's cover stands on the drawing, waiting for its menu.
   const brushed = useRef(false);
   const menuShown = useRef(menuOpen);
@@ -558,19 +566,10 @@ export function EChart({
       data-legend={placed ?? 'none'}
       data-menu-open={menuOpen || undefined}
       data-patterns={patterned ? 'on' : 'off'}
+      data-press-hint={pressHint || undefined}
       {...data}
-      // What a first tap's tooltip adds under its rows: tap again to follow
-      // up. A string the stylesheet writes after the tooltip's own content
-      // (`data-tap-armed`), so no family's tooltip has to know of taps.
-      style={
-        onClick
-          ? ({
-              '--_fve-tap-hint': cssString(
-                messages.label('label.drill.tap-again'),
-              ),
-            } as CSSProperties)
-          : undefined
-      }
+      // What a tooltip adds under its rows (`hintStyle`).
+      style={hintStyle(messages, !!onClick, pressHint, !!onBrush)}
       className={frameClass(placed, hugged, !!plotHeight, className)}
     >
       {placed === 'top' && legendNode}
@@ -709,11 +708,6 @@ function disarm(
 ) {
   armed.current = undefined;
   frame?.removeAttribute('data-tap-armed');
-}
-
-/** Text as a CSS string, for `content` to write. */
-function cssString(text: string): string {
-  return `"${text.replace(/["\\]/g, '\\$&').replace(/\n/g, ' ')}"`;
 }
 
 /**

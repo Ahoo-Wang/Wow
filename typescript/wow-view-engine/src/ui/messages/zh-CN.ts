@@ -656,6 +656,8 @@ export const zhCN: Readonly<Record<string, string>> = {
   'label.drill.spanned': '已选中 {group}，追问菜单已打开。',
   'label.drill.span-hint': '按住 Shift 再选一行，追问两行之间的这段时间。',
   'label.drill.tap-again': '再点一下追问',
+  'label.drill.press-hint': '点击追问',
+  'label.drill.press-brush-hint': '点击追问 · 拖动框选一段',
   'label.drill.titled': '{subject} · {group}',
   'runtime.kind.not-declared': '{definition} 不提供 {kind} 视图。',
   'runtime.source.unresolved': '{source} 没有注册数据源。',
