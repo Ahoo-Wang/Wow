@@ -40,6 +40,9 @@ jobs:
       # the ones it lacks (dispatch events are the one kind GITHUB_TOKEN may
       # start workflows with).
       actions: write
+      # The breaking-change labels of the pull requests since the previous
+      # release.
+      pull-requests: read
     steps:
       - name: Require a release tag
         env:
@@ -74,7 +77,9 @@ jobs:
 
       # The commit is on main or release-x.y; full runs of the TypeScript,
       # contract and Storybook workflows passed on it (dispatched if missing);
-      # breaking commits since the previous v* tag ship only in x.Y.0.
+      # breaking changes since the previous v* tag (a `!` title, a BREAKING
+      # CHANGE footer, or a pull request labelled breaking-change) ship only
+      # in x.Y.0, and the release notes of an x.Y.0 name each of them.
       - name: Admit release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -294,7 +299,7 @@ jobs:
           name: npm-tarballs
           path: ${{ runner.temp }}/npm-tarballs
 
-      # Publishes wow-client, wow-react and wow-generator; skips versions
+      # Publishes every package in PUBLISHED (publish-npm.mjs); skips versions
       # already on npm, so re-running after a partial failure is safe.
       - name: Publish to npm
         run: node .github/scripts/publish-npm.mjs --tarballs "$RUNNER_TEMP/npm-tarballs"
@@ -302,8 +307,10 @@ jobs:
   # What a user gets from npm, minutes after the publish: waits (bounded) until
   # the registry serves every published package at the release version and its
   # dist-tag points at it, then installs name@version into a clean project,
-  # imports and requires every entry point, runs the generator bins with
-  # --version and type-checks consumers. It needs no build and no secrets. A
+  # imports every entry point (and requires those CommonJS users get),
+  # resolves the view engine's style sheets, runs the bins (the generator's
+  # --version, the view engine's theme-check --help) and type-checks
+  # consumers. It needs no build and no secrets. A
   # failure here means the release is live and broken: follow "出错时" in
   # typescript/RELEASING.md.
   npm-smoke:

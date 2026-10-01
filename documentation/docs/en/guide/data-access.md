@@ -132,6 +132,15 @@ For a spaced aggregate, WebFlux reads `Wow-Space-Id`: commands are written into 
 
 An aggregate without `spaced = true` ignores the header on every route: its commands carry the default space (`""`) and its queries get no space filter, whatever the client sends. The same holds for commands from any other source: a saga reacting to an event of a spaced aggregate does not pass that space on to a non-spaced one, and a non-spaced aggregate never checks or records a command's space. Clients such as fetcher-cosec send a space header on every request, so a deployment that relied on the header to isolate a non-spaced aggregate must declare `spaced = true` on it.
 
+### Upgrading from 9.1
+
+Wow 9.1 took the space from the request for every aggregate; 9.2 takes it only for a spaced one. This is an approved exception to the v9 compatibility freeze, listed under "Breaking" (server behaviour) in the 9.2.0 release notes.
+
+1. **Before upgrading**, declare `spaced = true` on every aggregate whose data a space header was meant to keep apart. Build and roll out that declaration as part of the 9.2 upgrade.
+2. **During a rolling upgrade**, 9.1 and 9.2 nodes disagree on a non-spaced aggregate: a 9.1 node stamps the header's space into a command and filters a query by it, and a 9.2 node writes the default space and does not filter. The same query can therefore return different rows depending on the node that answers. Upgrade the gateways, the aggregate nodes and the query nodes together, and keep the mixed window short.
+3. **After upgrading**, data a 9.1 node already wrote with a space keeps it. Its later commands neither check nor change that space, and its queries are no longer filtered by the request's space.
+4. **Rolling back** to 9.1: records 9.2 wrote in the default space are rejected (commands) or hidden (queries) for clients that send a space header.
+
 ### Space Transfer
 
 An event implementing `SpaceTransferred` changes the state aggregate's space metadata:

@@ -70,7 +70,7 @@ export async function countActive<S>(snapshots: SnapshotQueryClient<S>, signal: 
 
 - **Server Components and Route Handlers** can call `wow-client` and generated clients directly, with a per-request Fetcher as above, and pass plain data to the page.
 - **Hooks run only in Client Components.** `@ahoo-wang/wow-react` exports hooks, and its build carries no `"use client"` directive, so the file that calls them starts with `'use client'`. See the [wow-react reference](../../reference/typescript/wow-react/) for the hooks themselves.
-- **Components of `@ahoo-wang/wow-view-engine/ui`** (not released yet) use hooks too and also carry no directive. Re-export the ones you render from a file marked `'use client'`, and import them from there:
+- **Components of `@ahoo-wang/wow-view-engine/ui`** use hooks too and also carry no directive. Re-export the ones you render from a file marked `'use client'`, and import them from there:
 
 ```tsx
 'use client';

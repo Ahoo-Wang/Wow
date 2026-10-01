@@ -18,8 +18,12 @@ on:
   push:
     branches:
       - main
+    # A release tag pushes `X.Y.Z`, `X.Y` and `latest`. A pre-release tag
+    # (`v9.2.0-rc.0`) pushes no image: an rc ships npm only
+    # (typescript/RELEASING.md C).
     tags:
       - 'v*.*.*'
+      - '!v*.*.*-*'
     paths:
       - '.github/workflows/compensation-deploy.yml'
       - 'build.gradle.kts'

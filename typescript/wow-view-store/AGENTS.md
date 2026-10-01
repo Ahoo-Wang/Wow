@@ -2,6 +2,10 @@
 
 `WowViewStore`: the view engine's `ViewStore` port on the Wow view store server (`view-store/`). Workspace rules live in `typescript/AGENTS.md`; the design is `typescript/wow-view-engine/docs/design/view-store-backend.md` (section 6), and where this file and it disagree, the design wins.
 
+## Status
+
+Published on npm from Wow 9.2.0, with the view engine and the view store's Maven modules (`wow-view-store-api`, `-domain`, `-starter`). The view engine's rule holds here too (`typescript/wow-view-engine/AGENTS.md`「Status」): a patch release never breaks the public surface (`test/surface/root.txt`, `test/api/root.api.md`, `WowViewStoreErrorCodes`); a minor may, with a `!` title or the PR template's **Breaking** box and a `## Breaking` section; never a compatibility layer. The server it talks to is a Wow server of the same minor: a route, shape or error code changed on `view-store/` is a REST change of an existing aggregate, frozen within v9 like any other.
+
 ## Commands
 
 ```bash

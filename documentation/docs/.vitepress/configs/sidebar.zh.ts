@@ -29,7 +29,7 @@ const typescriptZh: DefaultTheme.SidebarItem[] = [
             {text: 'SSR 与 Node.js', link: 'ssr-and-node'},
             {text: '兼容性与版本', link: 'compatibility'},
             {text: '排障', link: 'troubleshooting'},
-            {text: '视图引擎（未发布）', link: 'view-engine'},
+            {text: '视图引擎', link: 'view-engine'},
             {text: '视图引擎的主题', link: 'view-engine-theming'},
             {text: '视图引擎的可访问性', link: 'view-engine-accessibility'},
             {text: '从 Fetcher 包迁移', link: 'migration'},
@@ -81,7 +81,7 @@ const typescriptZh: DefaultTheme.SidebarItem[] = [
     },
     {
         base: '/zh/reference/typescript/wow-view-engine/',
-        text: 'wow-view-engine（未发布）',
+        text: 'wow-view-engine',
         collapsed: true,
         items: [
             {text: '入口与契约', link: 'index.html'},
@@ -89,7 +89,7 @@ const typescriptZh: DefaultTheme.SidebarItem[] = [
     },
     {
         base: '/zh/reference/typescript/wow-view-store/',
-        text: 'wow-view-store（未发布）',
+        text: 'wow-view-store',
         collapsed: true,
         items: [
             {text: 'Store 与合同', link: 'index.html'},
@@ -334,8 +334,8 @@ export const sidebarZh: DefaultTheme.Sidebar = {
                 {text: 'wow-client', link: 'wow-client/index.html'},
                 {text: 'wow-generator', link: 'wow-generator/index.html'},
                 {text: 'wow-react', link: 'wow-react/index.html'},
-                {text: 'wow-view-engine（未发布）', link: 'wow-view-engine/index.html'},
-                {text: 'wow-view-store（未发布）', link: 'wow-view-store/index.html'},
+                {text: 'wow-view-engine', link: 'wow-view-engine/index.html'},
+                {text: 'wow-view-store', link: 'wow-view-store/index.html'},
             ],
         },
         {

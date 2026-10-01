@@ -1,12 +1,12 @@
 ---
 title: Theming the View Engine
-description: How the unreleased wow-view-engine takes a host's look — three layers of variables, presets, a brand colour as an input, the engine's roles and links, the charts' roles, light, dark and system mode, pinning, embeds and popups, the shadcn bridge, and the contrast an override owes.
+description: How wow-view-engine takes a host's look — three layers of variables, presets, a brand colour as an input, the engine's roles and links, the charts' roles, light, dark and system mode, pinning, embeds and popups, the shadcn bridge, and the contrast an override owes.
 ---
 
 # Theming the View Engine
 
-::: warning Not released
-`@ahoo-wang/wow-view-engine` has not been published to npm and carries no compatibility promise. This page describes theming as it stands in the repository.
+::: info Released with Wow 9.2.0
+`@ahoo-wang/wow-view-engine` is released with Wow 9.2.0; it is not on npm before that. A patch release never breaks the CSS contract in [What is public](#what-is-public); the other compatibility rules are on the [View Engine](./view-engine.md) page.
 :::
 
 The theme is the host's look, not a way of observing: nothing about it is saved in a view, a dashboard or a preference, and the workbench has no theme switch. The host picks a preset, a brand colour and a mode; the engine follows. Everything below is CSS custom properties — there is no theme object.

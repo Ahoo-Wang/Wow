@@ -8,15 +8,15 @@ The packages that move here from [fetcher](https://github.com/Ahoo-Wang/fetcher)
 
 ## Packages
 
-| Directory           | Package                                                                               | Published                                  | Moved from fetcher                                                       |
-| ------------------- | ------------------------------------------------------------------------------------- | ------------------------------------------ | ------------------------------------------------------------------------ |
-| `wow-client/`       | `@ahoo-wang/wow-client`                                                               | yes                                        | `@ahoo-wang/fetcher-wow`                                                 |
-| `wow-react/`        | `@ahoo-wang/wow-react`                                                                | yes                                        | Wow hooks of `@ahoo-wang/fetcher-react`                                  |
-| `wow-generator/`    | `@ahoo-wang/wow-generator` (CLI `wow-generator`, alias `fetcher-generator` until v10) | yes                                        | `@ahoo-wang/fetcher-generator`                                           |
-| `wow-view-engine/`  | `@ahoo-wang/wow-view-engine`                                                          | not yet (`HELD_BACK` in `publish-npm.mjs`) | `@ahoo-wang/fetcher-view-engine`                                         |
-| `wow-view-store/`   | `@ahoo-wang/wow-view-store`                                                           | not yet (`HELD_BACK` in `publish-npm.mjs`) | — (new: the view engine's `ViewStore` on the `view-store/` server)       |
-| `storybook/`        | `wow-storybook`                                                                       | never                                      | fetcher's `.storybook` and the view-engine, shared and Wow query stories |
-| `integration-test/` | `wow-integration-test`                                                                | never                                      | wow cases of fetcher's `integration-test`                                |
+| Directory           | Package                                                                               | Published       | Moved from fetcher                                                       |
+| ------------------- | ------------------------------------------------------------------------------------- | --------------- | ------------------------------------------------------------------------ |
+| `wow-client/`       | `@ahoo-wang/wow-client`                                                               | yes             | `@ahoo-wang/fetcher-wow`                                                 |
+| `wow-react/`        | `@ahoo-wang/wow-react`                                                                | yes             | Wow hooks of `@ahoo-wang/fetcher-react`                                  |
+| `wow-generator/`    | `@ahoo-wang/wow-generator` (CLI `wow-generator`, alias `fetcher-generator` until v10) | yes             | `@ahoo-wang/fetcher-generator`                                           |
+| `wow-view-engine/`  | `@ahoo-wang/wow-view-engine`                                                          | yes, from 9.2.0 | `@ahoo-wang/fetcher-view-engine`                                         |
+| `wow-view-store/`   | `@ahoo-wang/wow-view-store`                                                           | yes, from 9.2.0 | — (new: the view engine's `ViewStore` on the `view-store/` server)       |
+| `storybook/`        | `wow-storybook`                                                                       | never           | fetcher's `.storybook` and the view-engine, shared and Wow query stories |
+| `integration-test/` | `wow-integration-test`                                                                | never           | wow cases of fetcher's `integration-test`                                |
 
 Each package keeps its own `AGENTS.md` with package-specific rules. Generated code imports `@ahoo-wang/wow-client`.
 
@@ -58,7 +58,8 @@ pnpm --filter <package> exec vitest run --maxWorkers=3 <file>
 - Breaking changes ship only in an `x.Y.0` release, for Kotlin and TypeScript alike. Mark them with `!` in the conventional commit. Release admission (`.github/scripts/release-admission.mjs`) enforces this.
 - `pnpm set-version <version>` rewrites `gradle.properties` and every workspace `package.json`; `pnpm check:versions` (run by `quality`) fails when they disagree.
 - Compatibility kept until v10 is listed in `docs/compat-debt.md`. Mark it with `@deprecated … Removed in v10.` or `// compat(wow<9): <reason>` / `// compat(fetcher): <reason>`; the ledger check in `quality` pairs markers with entries.
-- A new public package must be added to `PUBLISHED` or `HELD_BACK` in `.github/scripts/publish-npm.mjs`; view-engine and view-store start in `HELD_BACK`.
+- A new public package must be added to `PUBLISHED` or `HELD_BACK` in `.github/scripts/publish-npm.mjs`. All five public packages are `PUBLISHED` from 9.2.0; every list of "the published packages" (package check, rollback, audit, Trusted Publisher) is that one.
+- A pull request that breaks a published package's surface, or REST, configuration, storage or wire behaviour, says so: a `!` title, or the PR template's **Breaking** box, which labels it `breaking-change`, plus a `## Breaking` section (for an approved v9 exception, also the step before upgrading and what a mixed 9.x cluster does). A `## Behaviour changes` section is for what is visible but not breaking and adds no label. Release admission reads the title and the label: it keeps the change out of a patch release and requires the x.Y.0 release notes to name it.
 - A peer is only a package the built code loads or the published declarations reference. A package used only for types that the build erases (wow-generator's `@ahoo-wang/fetcher-openapi`) is a devDependency, and a package declares no peer it never imports just because a package it uses needs it (wow-react does not declare wow-client's `@ahoo-wang/fetcher-eventstream`).
 - TypeScript 6 is the minimum, and CI tests 6.0 through the latest 7.x: `package-check.mjs` compiles the consumers of the packed packages under both (`TYPESCRIPT_VERSIONS`). No package declares a `typescript` peer; the range lives in the docs (compatibility page, READMEs).
 - Public packages declare `engines.node` equal to the root's (`>=22.12.0`) and take every external peer range from the named catalog `catalog:peers`, never the default catalog: peer ranges are a published contract that Renovate only widens. Raise a lower bound by hand, and only in an `x.Y.0` release.

@@ -14,7 +14,8 @@ This page answers: **which versions of the Wow TypeScript packages work with whi
 | `@ahoo-wang/wow-client` | Released with Wow **9.2.0**; not yet on npm until then |
 | `@ahoo-wang/wow-generator` | Released with Wow **9.2.0**; not yet on npm until then |
 | `@ahoo-wang/wow-react` | Released with Wow **9.2.0**; not yet on npm until then |
-| `@ahoo-wang/wow-view-engine` | Not released; no date and no compatibility promise yet |
+| `@ahoo-wang/wow-view-engine` | Released with Wow **9.2.0**; not yet on npm until then |
+| `@ahoo-wang/wow-view-store` | Released with Wow **9.2.0**; not yet on npm until then |
 
 Until Wow 9.2.0 is out, `pnpm add @ahoo-wang/wow-client` fails with `E404`. A release candidate may appear under the `next` dist-tag first (`pnpm add @ahoo-wang/wow-client@next`); `latest` starts with 9.2.0. Before that, applications keep using `@ahoo-wang/fetcher-wow` and `@ahoo-wang/fetcher-generator` 5.x, and move with the [migration guide](./migration.md) once 9.2.0 is published.
 

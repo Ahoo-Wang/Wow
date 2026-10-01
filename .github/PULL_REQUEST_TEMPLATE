@@ -14,7 +14,8 @@ List the commands that were run and their results.
 
 ## Compatibility and risks
 
-- [ ] This change preserves public API and generated contract compatibility.
+- [ ] This change preserves public API (Kotlin and the published npm packages), REST behaviour, configuration, storage and wire formats, and generated contracts.
+- [ ] **Breaking**: it does not, and the title has `!`. Add a `## Breaking` section: who is affected and how to migrate; for an approved v9 exception (REST, storage or wire behaviour) also the step before upgrading and what a mixed 9.x cluster does. Ticking this box labels the PR `breaking-change`; release admission keeps it out of patch releases and the next x.Y.0 release notes must name it. A `## Behaviour changes` section is for user-visible changes that are not breaking and adds no label.
 - [ ] Tests cover the changed behavior or the verification alternative is explained.
 - [ ] Documentation is updated when user-visible behavior changes.
 - [ ] Comments and API documentation explain non-obvious constraints and remain accurate after this change.

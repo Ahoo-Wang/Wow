@@ -11,12 +11,14 @@
  * limitations under the License.
  */
 
+// The published libraries only (root build.gradle.kts): a constraint on a module that is not on Maven Central
+// would make the BOM point at coordinates nobody can resolve.
 @Suppress("UNCHECKED_CAST")
-val libraryProjects = rootProject.ext.get("libraryProjects") as Iterable<Project>
+val bomConstrainedProjects = rootProject.ext.get("bomConstrainedProjects") as Iterable<Project>
 
 dependencies {
     constraints {
-        libraryProjects.forEach {
+        bomConstrainedProjects.forEach {
             api(it)
         }
     }

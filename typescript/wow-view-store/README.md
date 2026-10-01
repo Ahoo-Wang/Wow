@@ -8,9 +8,14 @@ of [`@ahoo-wang/wow-view-engine`](../wow-view-engine/README.md), kept by the
 standalone `wow-view-store-server` or by any Wow service that embeds
 `wow-view-store-starter`.
 
-> **Not released.** Like the view engine, this package is not published to npm
-> yet and carries no compatibility promise. It is released with the view engine,
-> from the same tag and with the same version as Wow.
+Released with Wow 9.2.0, from the same tag and with the same version, together
+with the view engine and the view store's server modules.
+
+> **Compatibility.** From 9.2.0 on, a patch release never breaks the public
+> surface (the exports of the entry and the error codes); a minor release may,
+> and its release notes list every break with the steps to follow. Keep the Wow
+> packages on one minor, as [version ranges](https://wow.ahoo.me/guide/typescript/compatibility#version-ranges)
+> explains.
 
 ## Use
 

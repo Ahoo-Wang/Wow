@@ -29,7 +29,7 @@ const typescriptEn: DefaultTheme.SidebarItem[] = [
             {text: 'SSR and Node.js', link: 'ssr-and-node'},
             {text: 'Compatibility and Versions', link: 'compatibility'},
             {text: 'Troubleshooting', link: 'troubleshooting'},
-            {text: 'View Engine (Unreleased)', link: 'view-engine'},
+            {text: 'View Engine', link: 'view-engine'},
             {text: 'Theming the View Engine', link: 'view-engine-theming'},
             {text: 'Accessibility of the View Engine', link: 'view-engine-accessibility'},
             {text: 'Migrate from Fetcher Packages', link: 'migration'},
@@ -81,7 +81,7 @@ const typescriptEn: DefaultTheme.SidebarItem[] = [
     },
     {
         base: '/reference/typescript/wow-view-engine/',
-        text: 'wow-view-engine (Unreleased)',
+        text: 'wow-view-engine',
         collapsed: true,
         items: [
             {text: 'Entries and Contracts', link: 'index.html'},
@@ -89,7 +89,7 @@ const typescriptEn: DefaultTheme.SidebarItem[] = [
     },
     {
         base: '/reference/typescript/wow-view-store/',
-        text: 'wow-view-store (Unreleased)',
+        text: 'wow-view-store',
         collapsed: true,
         items: [
             {text: 'Store and Contract', link: 'index.html'},
@@ -334,8 +334,8 @@ export const sidebarEn: DefaultTheme.Sidebar = {
                 {text: 'wow-client', link: 'wow-client/index.html'},
                 {text: 'wow-generator', link: 'wow-generator/index.html'},
                 {text: 'wow-react', link: 'wow-react/index.html'},
-                {text: 'wow-view-engine (Unreleased)', link: 'wow-view-engine/index.html'},
-                {text: 'wow-view-store (Unreleased)', link: 'wow-view-store/index.html'},
+                {text: 'wow-view-engine', link: 'wow-view-engine/index.html'},
+                {text: 'wow-view-store', link: 'wow-view-store/index.html'},
             ],
         },
         {

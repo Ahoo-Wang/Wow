@@ -23,7 +23,20 @@ import {
 //    commit has no dispatch run yet, admission dispatches one on the release
 //    tag and waits for it.
 // 3. Breaking changes ship only in x.Y.0: when any commit since the previous
-//    v* tag is a breaking conventional commit, the release must be x.Y.0.
+//    v* tag is a breaking conventional commit, or its pull request carries the
+//    `breaking-change` label, the release must be x.Y.0. The label catches
+//    what a title does not say: pr-labeler adds it for a `!` title, a
+//    BREAKING CHANGE footer, the PR template's breaking box or a
+//    `## Breaking` section in the description (breaking-label.mjs), and a
+//    reviewer adds it by hand to a break the author did not mark.
+// 4. An x.Y.0 release names every breaking change in its notes: each
+//    breaking pull request's `#number` appears in the body of the GitHub
+//    release of the tag (outside HTML comments), so none is left out of
+//    "Breaking". Only the commits on main itself count (first parent), not
+//    history imported through a merge. A commit is tied to its pull request
+//    by the `(#N)` a squash merge appends to the subject: a rebase merge, or
+//    a subject whose `(#N)` was edited away, is caught only by its own `!` or
+//    BREAKING CHANGE footer (typescript/RELEASING.md「发版准入」).
 //
 // The Gradle workflows are not in REQUIRED: the release workflow's preflight
 // runs `./gradlew build allIntegrationTest` (unit, contract and integration
@@ -104,12 +117,31 @@ export function previousReleaseTag(tags, version) {
     .sort((a, b) => compareVersions(b.version, a.version))[0]?.tag;
 }
 
+/** The pull request a squash commit came from: the last `(#123)` of its subject. */
+export function pullRequestOf(message) {
+  const match = /\(#(\d+)\)\s*$/.exec(message.split('\n')[0]);
+  return match ? Number(match[1]) : undefined;
+}
+
+/**
+ * A commit is breaking when it says so (`!`, BREAKING CHANGE footer) or its
+ * pull request is in `labelled`, the pull requests carrying `breaking-change`.
+ */
+export function isBreakingCommit(commit, labelled = new Set()) {
+  const pr = pullRequestOf(commit.message);
+  return isBreaking(commit.message) || (pr !== undefined && labelled.has(pr));
+}
+
 /**
  * Breaking commits may only ship in x.Y.0. Returns the offending commit
  * subjects so the failure names them.
  */
-export function requireBreakingChangesInMinor(version, commits) {
-  const breaking = commits.filter(commit => isBreaking(commit.message));
+export function requireBreakingChangesInMinor(
+  version,
+  commits,
+  labelled = new Set(),
+) {
+  const breaking = commits.filter(commit => isBreakingCommit(commit, labelled));
   const parsed = parseVersion(version);
   assert.ok(parsed, `not a version: ${version}`);
   assert.ok(
@@ -124,11 +156,52 @@ export function requireBreakingChangesInMinor(version, commits) {
   return breaking;
 }
 
-/** Commits in previous..HEAD, excluding merge commits themselves. */
-function commitsSince(previous) {
+/**
+ * The breaking commits the release notes do not name: a commit's pull request
+ * number (`#123`), or its short SHA when it has none, must appear in `notes`
+ * outside an HTML comment, which the release page does not show.
+ */
+export function missingFromNotes(breaking, rawNotes) {
+  const notes = rawNotes.replace(/<!--[\s\S]*?(?:-->|$)/g, '');
+  return breaking.filter(commit => {
+    const pr = pullRequestOf(commit.message);
+    return pr === undefined
+      ? !notes.includes(commit.sha.slice(0, 9))
+      : !new RegExp(`#${pr}(?!\\d)`).test(notes);
+  });
+}
+
+/** Every breaking change of an x.Y.0 is named in its release notes. */
+export function requireBreakingChangesInNotes(version, breaking, notes) {
+  const missing = missingFromNotes(breaking, notes ?? '');
+  assert.ok(
+    notes !== undefined || breaking.length === 0,
+    `${version}: ${breaking.length} breaking change(s) since the previous release, and the tag has no GitHub release with notes; create it from typescript/RELEASE_NOTES_TEMPLATE.md first`,
+  );
+  assert.ok(
+    missing.length === 0,
+    `${version}: the release notes do not name these breaking changes; list each under "Breaking", or on its "Pre-release changes" line (typescript/RELEASING.md「发布说明」), then re-run:\n${missing
+      .map(
+        commit =>
+          `  ${commit.sha.slice(0, 9)} ${commit.message.split('\n')[0]}`,
+      )
+      .join('\n')}`,
+  );
+}
+
+/**
+ * Commits in previous..HEAD, excluding merge commits themselves; with
+ * `firstParent`, only the commits on the release branch itself.
+ */
+function commitsSince(previous, { firstParent = false } = {}) {
   const log = execFileSync(
     'git',
-    ['log', '--no-merges', '--format=%H%x00%B%x1e', `${previous}..HEAD`],
+    [
+      'log',
+      firstParent ? '--first-parent' : '--no-merges',
+      '--format=%H%x00%B%x1e',
+      `${previous}..HEAD`,
+    ],
     { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 },
   );
   return log
@@ -252,13 +325,63 @@ if (
     .filter(Boolean);
   const previous = previousReleaseTag(tags, version);
   if (previous) {
+    // Merged pull requests labelled breaking-change since the previous
+    // release; a squash commit names its pull request in its subject.
+    const since = execFileSync('git', ['log', '-1', '--format=%cs', previous], {
+      encoding: 'utf8',
+    }).trim();
+    const labelled = new Set(
+      JSON.parse(
+        execFileSync(
+          'gh',
+          [
+            'api',
+            '--method',
+            'GET',
+            'search/issues',
+            '-f',
+            `q=repo:${repo} is:pr is:merged label:breaking-change merged:>=${since}`,
+            '-f',
+            'per_page=100',
+            '--paginate',
+            '--slurp',
+          ],
+          { encoding: 'utf8', maxBuffer: 20 * 1024 * 1024 },
+        ),
+      )
+        .flatMap(page => page.items)
+        .map(item => item.number),
+    );
     const breaking = requireBreakingChangesInMinor(
       version,
       commitsSince(previous),
+      labelled,
     );
     console.log(
       `${version}: ${breaking.length} breaking commit(s) since ${previous}`,
     );
+    if (parseVersion(version).prerelease === undefined) {
+      const tag = ref.slice('refs/tags/'.length);
+      let notes;
+      try {
+        notes = JSON.parse(
+          execFileSync('gh', ['api', `repos/${repo}/releases/tags/${tag}`], {
+            encoding: 'utf8',
+            stdio: ['ignore', 'pipe', 'pipe'],
+          }),
+        ).body;
+      } catch (error) {
+        if (!/\b404\b|Not Found/.test(`${error.stderr ?? error.message}`))
+          throw error;
+      }
+      const onMain = commitsSince(previous, { firstParent: true }).filter(
+        commit => isBreakingCommit(commit, labelled),
+      );
+      requireBreakingChangesInNotes(version, onMain, notes);
+      console.log(
+        `${version}: the release notes name all ${onMain.length} breaking pull request(s)`,
+      );
+    }
   } else {
     console.log(`${version}: no earlier v* tag; breaking-change rule skipped`);
   }

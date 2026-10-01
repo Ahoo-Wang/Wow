@@ -10,9 +10,11 @@ import { join } from 'node:path';
 import { after, test } from 'node:test';
 import {
   distTag,
+  HELD_BACK,
   isPublished,
   PUBLISHED,
   publishArgs,
+  publishedNames,
   publishPlan,
   publishRefusal,
   tarballName,
@@ -41,14 +43,21 @@ const published = Object.fromEntries(
   ]),
 );
 
-test('the repository publishes wow-client, wow-react and wow-generator only', () => {
+test('the repository publishes its five public packages, dependencies first', () => {
   assert.deepEqual(
     publishPlan().map(({ name }) => name),
     [
       '@ahoo-wang/wow-client',
       '@ahoo-wang/wow-react',
       '@ahoo-wang/wow-generator',
+      '@ahoo-wang/wow-view-engine',
+      '@ahoo-wang/wow-view-store',
     ],
+  );
+  assert.deepEqual(HELD_BACK, []);
+  assert.deepEqual(
+    publishedNames(),
+    publishPlan().map(({ name }) => name),
   );
 });
 
@@ -61,23 +70,14 @@ test('private packages stay out; an unlisted public package is refused', () => {
       private: true,
     },
   });
-  assert.deepEqual(publishPlan(root), [
-    {
-      dir: 'typescript/wow-client',
-      name: '@ahoo-wang/wow-client',
+  assert.deepEqual(
+    publishPlan(root),
+    PUBLISHED.map(dir => ({
+      dir,
+      name: `@ahoo-wang/${dir.split('/')[1]}`,
       version: '9.1.6',
-    },
-    {
-      dir: 'typescript/wow-react',
-      name: '@ahoo-wang/wow-react',
-      version: '9.1.6',
-    },
-    {
-      dir: 'typescript/wow-generator',
-      name: '@ahoo-wang/wow-generator',
-      version: '9.1.6',
-    },
-  ]);
+    })),
+  );
   assert.throws(
     () =>
       publishPlan(
@@ -97,18 +97,18 @@ test('a held-back public package is not published', () => {
   const plan = publishPlan(
     workspace({
       ...published,
-      'typescript/wow-view-engine': {
-        name: '@ahoo-wang/wow-view-engine',
-        version: '9.1.6',
-      },
-      'typescript/wow-view-store': {
-        name: '@ahoo-wang/wow-view-store',
+      'typescript/wow-incubating': {
+        name: '@ahoo-wang/wow-incubating',
         version: '9.1.6',
       },
     }),
+    '9.1.6',
+    { heldBack: ['typescript/wow-incubating'] },
   );
-  assert.ok(plan.every(entry => entry.dir !== 'typescript/wow-view-engine'));
-  assert.ok(plan.every(entry => entry.dir !== 'typescript/wow-view-store'));
+  assert.deepEqual(
+    plan.map(({ dir }) => dir),
+    PUBLISHED,
+  );
 });
 
 test('a published package must be public and on the project version', () => {

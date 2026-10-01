@@ -16,9 +16,10 @@ Wow 仓库提供 Wow HTTP 契约的 TypeScript 端。这些包位于 [`typescrip
 | `@ahoo-wang/wow-client` | 发送命令，读取快照与事件流，构造过滤、分页与聚合 | 随 Wow 9.2.0 发布 |
 | `@ahoo-wang/wow-generator` | 从 Wow OpenAPI 文档生成类型化模型、命令客户端和查询客户端 | 随 Wow 9.2.0 发布；命令为 `wow-generator` |
 | `@ahoo-wang/wow-react` | 在 React 组件中驱动 Wow 的单条、列表、分页、计数和流式查询 | 随 Wow 9.2.0 发布 |
-| `@ahoo-wang/wow-view-engine` | 让用户在 Wow 数据上筛选、按维度与指标分析、出图并保存视图 | 尚未发布 |
+| `@ahoo-wang/wow-view-engine` | 让用户在 Wow 数据上筛选、按维度与指标分析、出图并保存视图 | 随 Wow 9.2.0 发布；命令为 `wow-view-engine theme-check` |
+| `@ahoo-wang/wow-view-store` | 把视图引擎保存的视图与偏好放在 Wow 服务端上 | 随 Wow 9.2.0 发布 |
 
-这三个包的首个版本是 Wow 9.2.0；在它发布之前尚未上 npm，`pnpm add` 会返回 `E404`。发布状态、支持的服务端与运行环境、CI 验证了什么，见[兼容性与版本](./compatibility.md)。
+这些包的首个版本是 Wow 9.2.0；在它发布之前尚未上 npm，`pnpm add` 会返回 `E404`。发布状态、支持的服务端与运行环境、CI 验证了什么，见[兼容性与版本](./compatibility.md)。
 
 前三个包来自 Fetcher 仓库，原名分别是 `@ahoo-wang/fetcher-wow`、`@ahoo-wang/fetcher-generator` 以及 `@ahoo-wang/fetcher-react` 中的 Wow Hook。项目还在用旧包名时，先看[迁移指南](./migration.md)。
 
@@ -32,7 +33,7 @@ flowchart LR
         Client["wow-client"]
         Generator["wow-generator"]
         React["wow-react"]
-        Engine["wow-view-engine（未发布）"]
+        Engine["wow-view-engine"]
     end
     subgraph Fetcher["Fetcher 仓库"]
         Core["fetcher"]

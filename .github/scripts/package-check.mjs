@@ -47,9 +47,14 @@ import {
 // 2. publint (strict) on each tarball.
 // 3. A fresh npm project installs the tarballs, or with --registry the
 //    published versions (npm adds the peers), then:
-//    - ES module import and CommonJS require of every entry point; wow-react
-//      is ESM only and is required through Node's require(esm);
-//    - the `wow-generator` and `fetcher-generator` bins print the version;
+//    - ES module import of every entry point, and CommonJS require of those
+//      CommonJS users are promised; wow-react is ESM only and is required
+//      through Node's require(esm); the view engine and the view store are
+//      ESM only and are imported;
+//    - each of the view engine's style sheets resolves through its exports to
+//      a non-empty file, as a host's `@import` or bundler reaches it;
+//    - the `wow-generator` and `fetcher-generator` bins print the version, and
+//      `wow-view-engine theme-check --help` prints its usage;
 //    - LICENSE and README.md are in every package;
 //    - each of TYPESCRIPT_VERSIONS, installed in the project, compiles
 //      consumers under node16, nodenext and bundler resolution, without
@@ -59,15 +64,63 @@ import {
 //      holds `@ts-expect-error` misuses, so types that silently degrade to
 //      `any` fail the check too.
 
-/** Runtime entry points and a value each must export. */
-const ENTRIES = [
-  ['@ahoo-wang/wow-client', 'filter'],
-  ['@ahoo-wang/wow-client/dsl', 'filter'],
-  ['@ahoo-wang/wow-client/legacy', 'zh_CN'],
-  ['@ahoo-wang/wow-react', 'useFetcherPagedQuery'],
-  ['@ahoo-wang/wow-generator', 'CodeGenerator'],
+/**
+ * Runtime entry points, a value each must export, and whether CommonJS users
+ * are promised it (the view engine and the view store are ESM only).
+ */
+export const ENTRIES = [
+  ['@ahoo-wang/wow-client', 'filter', { require: true }],
+  ['@ahoo-wang/wow-client/dsl', 'filter', { require: true }],
+  ['@ahoo-wang/wow-client/legacy', 'zh_CN', { require: true }],
+  ['@ahoo-wang/wow-react', 'useFetcherPagedQuery', { require: true }],
+  ['@ahoo-wang/wow-generator', 'CodeGenerator', { require: true }],
+  ['@ahoo-wang/wow-view-engine', 'ViewEngine', { require: false }],
+  [
+    '@ahoo-wang/wow-view-engine/react',
+    'browserRuntimeEnvironment',
+    { require: false },
+  ],
+  ['@ahoo-wang/wow-view-engine/ui', 'AnalysisChart', { require: false }],
+  ['@ahoo-wang/wow-view-engine/testing', 'ActionRefused', { require: false }],
+  [
+    '@ahoo-wang/wow-view-engine/react-router',
+    'useReactRouter',
+    { require: false },
+  ],
+  ['@ahoo-wang/wow-view-store', 'WowViewStore', { require: false }],
 ];
-const BINS = ['wow-generator', 'fetcher-generator'];
+
+/** The view engine's style sheets a host imports (README「Styles」). */
+export const STYLESHEETS = [
+  '@ahoo-wang/wow-view-engine/styles.css',
+  '@ahoo-wang/wow-view-engine/themes.css',
+  '@ahoo-wang/wow-view-engine/themes/porcelain.css',
+  '@ahoo-wang/wow-view-engine/shadcn-bridge.css',
+];
+
+/** Each bin, the arguments it runs with, and what its output must start with. */
+export const bins = version => [
+  { bin: 'wow-generator', args: ['--version'], output: version, exact: true },
+  {
+    bin: 'fetcher-generator',
+    args: ['--version'],
+    output: version,
+    exact: true,
+  },
+  {
+    bin: 'wow-view-engine',
+    args: ['theme-check', '--help'],
+    output: 'Usage: wow-view-engine theme-check',
+    exact: false,
+  },
+];
+
+/**
+ * Peers the consumer installs itself: npm installs a package's required peers
+ * but never its optional ones, and the smoke imports the view engine's
+ * `/react-router` (react-router) and `/testing` (mingo) entries.
+ */
+const OPTIONAL_PEERS = ['react-router', 'mingo'];
 
 /**
  * The TypeScript versions every consumer compiles under, installed in the
@@ -102,6 +155,21 @@ const REACT = `import { useFetcherPagedQuery } from '@ahoo-wang/wow-react';
 // @ts-expect-error the hook takes options, not a number
 export const query = () => useFetcherPagedQuery(42);
 `;
+const VIEWS = `import { ViewEngine } from '@ahoo-wang/wow-view-engine';
+import { browserRuntimeEnvironment } from '@ahoo-wang/wow-view-engine/react';
+import { AnalysisChart } from '@ahoo-wang/wow-view-engine/ui';
+import { ActionRefused } from '@ahoo-wang/wow-view-engine/testing';
+import { useReactRouter } from '@ahoo-wang/wow-view-engine/react-router';
+import { WowViewStore } from '@ahoo-wang/wow-view-store';
+
+// @ts-expect-error the engine takes options, not a number
+export const engine = new ViewEngine(42);
+// @ts-expect-error the store takes options, not a number
+export const store = new WowViewStore(42);
+// @ts-expect-error the engine's exports must not be any
+export const chart: number = AnalysisChart;
+export const entries = [browserRuntimeEnvironment, ActionRefused, useReactRouter];
+`;
 const CONSUMERS = {
   'client.mts': CLIENT_AND_GENERATOR,
   'client.cts': CLIENT_AND_GENERATOR,
@@ -111,19 +179,22 @@ const CONSUMERS = {
   'react.cts': REACT,
   'client.ts': CLIENT_AND_GENERATOR,
   'react.ts': REACT,
+  // ESM only, and promised to ES module users only.
+  'views.mts': VIEWS,
+  'views.ts': VIEWS,
 };
 const MODES = {
   node16: {
     compilerOptions: { module: 'node16', moduleResolution: 'node16' },
-    files: ['client.mts', 'client.cts', 'react.mts'],
+    files: ['client.mts', 'client.cts', 'react.mts', 'views.mts'],
   },
   nodenext: {
     compilerOptions: { module: 'nodenext', moduleResolution: 'nodenext' },
-    files: ['client.mts', 'client.cts', 'react.mts', 'react.cts'],
+    files: ['client.mts', 'client.cts', 'react.mts', 'react.cts', 'views.mts'],
   },
   bundler: {
     compilerOptions: { module: 'esnext', moduleResolution: 'bundler' },
-    files: ['client.ts', 'react.ts'],
+    files: ['client.ts', 'react.ts', 'views.ts'],
   },
 };
 
@@ -390,6 +461,7 @@ function checkConsumer(plan, packages, version) {
         ...packages,
         `@types/node@${catalogVersion('@types/node')}`,
         `@types/react@${catalogVersion('@types/react')}`,
+        ...OPTIONAL_PEERS.map(name => `${name}@${catalogVersion(name)}`),
         ...Object.entries(TYPESCRIPT_VERSIONS).map(
           ([label, range]) =>
             `${typescriptAlias(label)}@npm:typescript@${range}`,
@@ -411,12 +483,12 @@ function checkConsumer(plan, packages, version) {
         );
     }
 
-    for (const [entry, exported] of ENTRIES) {
+    for (const [entry, exported, { require }] of ENTRIES) {
       const esm = `import * as m from '${entry}'; if (!m.${exported}) throw new Error('no ${exported}');`;
       const cjs = `const m = require('${entry}'); if (!m.${exported}) throw new Error('no ${exported}');`;
       for (const [kind, args] of [
         ['import', ['--input-type=module', '-e', esm]],
-        ['require', ['--input-type=commonjs', '-e', cjs]],
+        ...(require ? [['require', ['--input-type=commonjs', '-e', cjs]]] : []),
       ])
         try {
           run(process.execPath, args, { cwd: project });
@@ -427,21 +499,38 @@ function checkConsumer(plan, packages, version) {
         }
     }
 
-    for (const bin of BINS) {
-      let output;
+    for (const stylesheet of STYLESHEETS) {
+      // What a bundler or a CSS `@import` resolves: the file the exports map
+      // names, in the installed package.
+      const resolveStylesheet = `import { statSync } from 'node:fs'; import { fileURLToPath } from 'node:url'; if (statSync(fileURLToPath(import.meta.resolve('${stylesheet}'))).size === 0) throw new Error('empty');`;
       try {
-        output = run(
-          join(project, 'node_modules', '.bin', bin),
-          ['--version'],
+        run(
+          process.execPath,
+          ['--input-type=module', '-e', resolveStylesheet],
           {
             cwd: project,
           },
-        ).trim();
+        );
+      } catch (error) {
+        problems.push(
+          `@import ${stylesheet}: ${error.stderr.trim().split('\n').slice(0, 3).join(' | ')}`,
+        );
+      }
+    }
+
+    for (const { bin, args, output: expected, exact } of bins(version)) {
+      let output;
+      try {
+        output = run(join(project, 'node_modules', '.bin', bin), args, {
+          cwd: project,
+        }).trim();
       } catch (error) {
         output = error.stderr?.trim();
       }
-      if (output !== version)
-        problems.push(`${bin} --version printed ${output}, not ${version}`);
+      if (exact ? output !== expected : !output?.startsWith(expected))
+        problems.push(
+          `${bin} ${args.join(' ')} printed ${output?.split('\n')[0]}, not ${expected}`,
+        );
     }
 
     for (const [file, source] of Object.entries(CONSUMERS))

@@ -4,14 +4,16 @@
 
 Configurable data view engine for Wow-based applications: definitions in code, view configs as data, rendered as records, analyses and dashboards.
 
-## Status — active development, no compatibility obligation
+## Status — published from Wow 9.2.0; breaks only in a minor, never through a compatibility layer
 
-This package is being rebuilt from an empty tree against `docs/design/`, and it **does not owe anyone backward compatibility**. Treat every export as changeable.
+The package ships on npm with Wow 9.2.0, from the same tag and version (`PUBLISHED` in `.github/scripts/publish-npm.mjs`). Shapes from before 9.2.0 owe nothing: they were never published. From 9.2.0 on:
 
-- **Change the shape; do not add a compatibility layer.** No shims, no `*V2` names, no aliases re-exported "just in case", no `@deprecated` markers, no migration guides. The wow package carries a deprecated Condition API for external reasons — this package must never grow one.
+- **A patch release never breaks the public surface.** That surface is: the exports of every entry (D29; `test/surface/*.txt`, `test/api/*.api.md`), the CSS contract (the theming guide's "What is public": the variables, the attributes the theme reads, the boundaries `.fve-root` and `.fve-tokens`, `fve:bg-canvas`, and the style sheets' export paths; no other `fve:` class), the message keys and issue codes (`test/surface/messages.txt`, `issues.txt`), the `wow-view-engine` command (`test/surface/bin.txt`), and the `ViewStore` port a backend implements. Renaming, narrowing or deleting any of it is a breaking change.
+- **A minor release may break it, and says so.** The pull request's title carries `!` (or the PR template's **Breaking** box is ticked, which labels it `breaking-change`), and its description has a `## Breaking` section: who is affected and the steps to migrate. Release admission keeps such a change out of a patch release and requires the next x.Y.0 release notes to name it (`typescript/RELEASING.md`「发布说明」). Update the callers in this repo in the same pull request.
+- **Change the shape; do not add a compatibility layer.** No shims, no `*V2` names, no aliases re-exported "just in case", no `@deprecated` markers. A break is a clean change, shipped in an x.Y.0 and listed in its release notes. The wow package carries a deprecated Condition API for external reasons — this package must never grow one.
   - **One exception, for stored data rather than API**: dashboard configs saved in older forms are migrated on read, because they are users' saved work, not code anyone can update — approved by the user on 2026-09-23: the 12-column grid onto the 24-column one (D22; marked by `columns: 24`), and a board condition written before batch C into its filters' defaults where a filter could hold it, the rest into the board's fixed scope (D23 Q16, D26 Q31; marked by the `fixed` member being there at all, so an author's later change to the filters never migrates again), and the board's own `filter` and `filterMode`, which a board no longer has, taken out of the config (D27; marked by those members being there at all — a condition one still holds is ANDed into `fixed`, never dropped). The steps live in `migrateDashboardConfig` in the kernel and run at one read boundary, `readStored` in `runtime/storedViews.ts`, which every view out of the store passes; nothing past it migrates, and a board declared in code is code. Keep such migrations there, marked by the config itself, never by guessing.
-- **Renaming, narrowing or deleting an export is a normal change.** Update the callers in this repo and move on. The only consumers that matter are in this monorepo.
-- **When a design gets clearer, rewrite the old shape out of existence** rather than layering onto it. A clean architecture outranks a stable surface here.
+- **Adding is free.** A new export, an optional member, a new message key or a new token ships in any release. A member a host implements (`ViewStore`, `RuntimeEnvironment`, a field kind) is added as optional, or it is a break.
+- **When a design gets clearer, rewrite the old shape out of existence** rather than layering onto it — in an x.Y.0, as a listed break. A clean architecture outranks a stable surface across minors; within a minor the surface holds.
 - **`docs/design/` is the source of truth** for the model, boundaries and contracts, and it is written before the code. It is one page per layer — start at `docs/design/README.md`, which indexes the rest. When behaviour it describes changes, change the page in the same PR. Where this file and the design doc disagree, the design doc wins.
 - **Before changing behaviour, check `docs/design/todo.md`** for an entry that already covers it, and continue that one rather than opening a second front. Entries are deleted when done — never ticked. Product questions still undecided live in `docs/design/decisions.md`, not there.
 - **A rule worth having is a test, not a paragraph** (`docs/design/README.md`). Do not add an invariants index; add the test.
@@ -831,7 +833,8 @@ src/
 
 ## Boundaries
 
-- ✅ Changing, renaming or deleting any export — no compatibility obligation, just fix the callers
+- ✅ Adding an export, an optional member, a message key or a token
+- ⚠️ Changing, renaming or deleting anything on the public surface (Status) — only for an x.Y.0: `!` title or the **Breaking** box, a `## Breaking` section, the callers in this repo fixed; never in a patch, never with a compatibility layer
 - ✅ Adding a `FieldKind`, a chart family, or a `ViewStore` implementation
 - ✅ Rewriting a shape the design doc has outgrown, doc updated in the same PR
 - ⚠️ Adding a third-party dependency — it is UI-only unless `test/architecture.test.ts` says otherwise

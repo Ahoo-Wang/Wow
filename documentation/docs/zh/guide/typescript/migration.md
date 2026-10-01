@@ -17,7 +17,7 @@ Wow 的 TypeScript 包已从 [Fetcher 仓库](https://github.com/Ahoo-Wang/fetch
 | `@ahoo-wang/fetcher-generator` | `@ahoo-wang/wow-generator` | 命令改名为 `wow-generator`；`fetcher-generator` 作为别名保留到 v10 |
 | `@ahoo-wang/fetcher-react` 中的 Wow Hook | `@ahoo-wang/wow-react` | `useSingleQuery`、`useListQuery`、`usePagedQuery`、`useCountQuery`、`useListStreamQuery` 及对应的 `useFetcher*` 版本 |
 | Fetcher 5.x 版本线 | Wow 版本线 | `wow-client` 9.x.y 与 Wow 9.x.y 一起发布 |
-| `@ahoo-wang/fetcher-view-engine`（从未发布） | `@ahoo-wang/wow-view-engine` | 尚未发布，见[视图引擎](./view-engine.md) |
+| `@ahoo-wang/fetcher-view-engine`（从未发布） | `@ahoo-wang/wow-view-engine` | 随 Wow 9.2.0 发布，见[视图引擎](./view-engine.md) |
 
 Fetcher 的核心包保留原名，文档仍在 [fetcher.ahoo.me](https://fetcher.ahoo.me/zh/)：`fetcher`、`fetcher-decorator`、`fetcher-eventstream`、`fetcher-openapi`、`fetcher-react` 和 `fetcher-cosec`。`@ahoo-wang/fetcher-viewer` 与 `fetcher-react` 的 `dataMonitor` Hook 没有迁移，留在 Fetcher 5.x。
 
@@ -109,6 +109,7 @@ import { useFetcher } from '@ahoo-wang/fetcher-react';
 |---|---|
 | `ErrorCodes.isSucceeded(code)` / `ErrorCodes.isError(code)` | 已删除：改为比较 `code === ErrorCodes.SUCCEEDED`。`ErrorCodes` 由类改为冻结的 `as const` 对象，并补充了查询 schema 与批处理错误码；`SUCCEEDED_MESSAGE`、`NOT_FOUND_MESSAGE` 已删除。`ErrorInfo.errorCode` 的类型是 `ErrorCode`（Wow 的错误码或任意其他字符串）。 |
 | `DEFAULT_PROJECTION`、`defaultProjection()` | 已删除：`projection()` 不传参数，或干脆不传 `projection`，都返回全部字段。 |
+| `EMPTY_PAGED_LIST` | 已删除：`pagedList()` 每次返回一个新的空页（`{ total: 0, list: [] }`），调用方不会改到一个共享的对象。 |
 | `LogicalField` | `QueryField`：同一个类型的现行名字。 |
 | `ReadableDomainEventStream` | `ReadableStream<DomainEventStream>`，它原本就是这个类型。 |
 | `QueryEventStreamResultExtractor` / `CommandResultEventStreamResultExtractor` | 不再公开；改用端点预设，它把提取器和 `Accept: text/event-stream` 头放在一起：用 `@post(path, QUERY_STREAM_ENDPOINT)` / `@post(path, COMMAND_STREAM_ENDPOINT)`（整个类用 `@api('…', COMMAND_STREAM_ENDPOINT)`）代替 `@post(path, { headers: { Accept: 'text/event-stream' }, resultExtractor: QueryEventStreamResultExtractor })`。只需要提取器的代码读 `QUERY_STREAM_ENDPOINT.resultExtractor` / `COMMAND_STREAM_ENDPOINT.resultExtractor`。 |

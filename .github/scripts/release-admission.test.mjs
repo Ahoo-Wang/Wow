@@ -5,12 +5,19 @@
  */
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { ROOT } from './project-version.mjs';
 import {
   isBreaking,
+  isBreakingCommit,
+  missingFromNotes,
+  pullRequestOf,
   REQUIRED,
   latestRun,
   previousReleaseTag,
   requireBreakingChangesInMinor,
+  requireBreakingChangesInNotes,
   requireReleaseBranch,
   requireSuccessfulJob,
   requireSuccessfulRun,
@@ -171,4 +178,106 @@ test('a breaking commit forces an x.Y.0 release', () => {
     () => requireBreakingChangesInMinor('9.1.6', [plain, breaking]),
     /ship only in x\.Y\.0; bump to 9\.2\.0:\n {2}bbbbbbbbb refactor!: y \(#3248\)/,
   );
+});
+
+test('a pull request labelled breaking-change is breaking whatever its title says', () => {
+  const unmarked = {
+    sha: 'c'.repeat(40),
+    message: 'fix(webflux): take the space only for a spaced aggregate (#3791)',
+  };
+  const other = { sha: 'd'.repeat(40), message: 'docs: x (#3792)' };
+  const labelled = new Set([3791]);
+  assert.equal(pullRequestOf(unmarked.message), 3791);
+  assert.equal(pullRequestOf('fix: no pull request'), undefined);
+  assert.equal(pullRequestOf('fix: (#1) in the middle (#2)\n\nbody (#3)'), 2);
+  assert.equal(isBreakingCommit(unmarked), false);
+  assert.equal(isBreakingCommit(unmarked, labelled), true);
+  assert.equal(isBreakingCommit(other, labelled), false);
+  assert.deepEqual(
+    requireBreakingChangesInMinor('9.2.0', [unmarked, other], labelled),
+    [unmarked],
+  );
+  assert.throws(
+    () => requireBreakingChangesInMinor('9.2.1', [unmarked, other], labelled),
+    /bump to 9\.3\.0:\n {2}ccccccccc fix\(webflux\)/,
+  );
+});
+
+test('an x.Y.0 release names every breaking pull request in its notes', () => {
+  const marked = {
+    sha: 'a'.repeat(40),
+    message: 'refactor(query)!: x (#3502)',
+  };
+  const labelled = { sha: 'b'.repeat(40), message: 'fix(webflux): y (#3791)' };
+  const direct = { sha: 'c'.repeat(40), message: 'fix!: pushed directly' };
+  const notes = `## Breaking\n\n- cursor tokens (#3502)\n\n### Server behaviour\n\n- spaced (#3791, #35020)\n`;
+  assert.deepEqual(missingFromNotes([marked, labelled], notes), []);
+  // #3502 must not be found inside #35020, nor a PR inside a longer number.
+  assert.deepEqual(missingFromNotes([marked], 'only #35020'), [marked]);
+  assert.deepEqual(missingFromNotes([direct], notes), [direct]);
+  assert.deepEqual(missingFromNotes([direct], 'ccccccccc fixed'), []);
+  // The release page does not show an HTML comment, so it names nothing.
+  assert.deepEqual(
+    missingFromNotes([marked], '<!-- from #3502 -->\n## Breaking\n'),
+    [marked],
+  );
+  assert.deepEqual(missingFromNotes([marked], '<!-- open #3502'), [marked]);
+  assert.deepEqual(
+    missingFromNotes([marked], '<!-- x -->\n- tokens (#3502)'),
+    [],
+  );
+  assert.doesNotThrow(() =>
+    requireBreakingChangesInNotes('9.2.0', [marked, labelled], notes),
+  );
+  assert.doesNotThrow(() =>
+    requireBreakingChangesInNotes('9.2.0', [], undefined),
+  );
+  assert.throws(
+    () => requireBreakingChangesInNotes('9.2.0', [marked], undefined),
+    /no GitHub release with notes/,
+  );
+  assert.throws(
+    () =>
+      requireBreakingChangesInNotes(
+        '9.2.0',
+        [marked, labelled],
+        '## Breaking\n#3502',
+      ),
+    /do not name these breaking changes[\s\S]*bbbbbbbbb fix\(webflux\): y \(#3791\)/,
+  );
+});
+
+test('admission reads the breaking-change label and the release notes of the tag', () => {
+  const script = readFileSync(
+    join(ROOT, '.github/scripts/release-admission.mjs'),
+    'utf8',
+  );
+  assert.match(script, /label:breaking-change/);
+  assert.match(script, /releases\/tags\//);
+  assert.match(script, /firstParent: true/);
+});
+
+test('a pre-release tag pushes no Docker image', () => {
+  // An rc ships npm only (typescript/RELEASING.md C): an image pushed for it
+  // would be public before any admission or preflight ran.
+  for (const name of [
+    'compensation-deploy.yml',
+    'example-deploy.yml',
+    'view-store-deploy.yml',
+  ]) {
+    const workflow = readFileSync(
+      join(ROOT, '.github/workflows', name),
+      'utf8',
+    );
+    const tags = /^ {4}tags:\n((?: {6}- .*\n)+)/m.exec(workflow);
+    assert.ok(tags, `${name} runs on tags`);
+    assert.deepEqual(
+      tags[1]
+        .trim()
+        .split('\n')
+        .map(line => line.trim()),
+      ["- 'v*.*.*'", "- '!v*.*.*-*'"],
+      `${name}: release tags only`,
+    );
+  }
 });

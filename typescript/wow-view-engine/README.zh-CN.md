@@ -1,6 +1,8 @@
 # Wow View Engine
 
-> **状态：开发中，不承诺兼容。** Record、Analysis、Dashboard 三种视图与它们的嵌入，以及下文的 `/react` 控制器与 `/ui` 组件均已在包内。任何导出都还可能改形，改动不带兼容层；[docs/design/](https://github.com/Ahoo-Wang/Wow/tree/main/typescript/wow-view-engine/docs/design/) 是唯一的依据，本页只说现在的 API。
+随 Wow 9.2.0 发布，与 Wow 同一个 tag、同一个版本号。
+
+> **兼容性。** 从 9.2.0 起，补丁版本（`9.2.x`）不破坏公开面：每个入口的导出，包括后端实现的 `ViewStore` 端口；CSS 合同（[什么是公开的](https://wow.ahoo.me/zh/guide/typescript/view-engine-theming#什么是公开的)）；消息键与 issue code；以及 `wow-view-engine` 命令。次版本可以破坏，它的发布说明逐条列出每个破坏与迁移步骤；Wow 包请停在同一个次版本上，见[版本范围](https://wow.ahoo.me/zh/guide/typescript/compatibility#版本范围)。破坏就是干净的改动，从不带兼容层。用户以旧形状保存的视图照常打开：引擎在读取时迁移存储的配置。[docs/design/](https://github.com/Ahoo-Wang/Wow/tree/main/typescript/wow-view-engine/docs/design/) 是模型的唯一依据，本页只说现在的 API。
 
 **Wow View Engine 是面向 Wow 业务应用的数据视图引擎。** 业务应用用代码声明一份数据"能被怎样观察"：字段、类型、操作符、可用的维度与指标。用户在界面上决定"这一次怎样观察"：筛选、列、排序、维度与指标、图表、面板组合。引擎把这种观察方式编译成 Wow 查询、执行、渲染，并把有价值的观察方式保存下来供下次直接打开。
 
@@ -43,13 +45,16 @@
 
 ## 安装
 
-该包尚未在公共 registry 首次发布，稳定版发布脚本会刻意跳过它。在此之前请通过本工作区（`"@ahoo-wang/wow-view-engine": "workspace:^"`）或本地 `pnpm pack` 产物使用。发布后的安装方式为：
-
 ```bash
-pnpm add @ahoo-wang/wow-view-engine @ahoo-wang/wow-client
+pnpm add @ahoo-wang/fetcher @ahoo-wang/fetcher-decorator \
+  @ahoo-wang/fetcher-eventstream @ahoo-wang/wow-client @ahoo-wang/wow-view-engine
+# /react 与 /ui 入口
+pnpm add react react-dom
 ```
 
-`react` 与 `react-dom` 只是 `/react` 和 `/ui` 入口的 peer 依赖。根入口可在 Node 中运行。
+版本号跟随 Wow，次版本可能带有破坏性改动：用 `save-prefix=~` 或 `--save-exact` 让 Wow 包停在同一个次版本上，见[版本范围](https://wow.ahoo.me/zh/guide/typescript/compatibility#版本范围)。
+
+Peer 依赖：`@ahoo-wang/wow-client`（以及它需要的 fetcher 包）；`react` 与 `react-dom` 只用于 `/react` 和 `/ui` 入口，`react-router` 只用于 `/react-router`，`mingo` 只用于 `/testing`。根入口可在 Node 中运行。要把保存的视图放在 Wow 服务端，再加 [`@ahoo-wang/wow-view-store`](../wow-view-store/README.zh-CN.md)。只提供 ES 模块；Node `>=22.12.0` 或当前的浏览器；TypeScript 6 及以上。
 
 ## 设计原则
 

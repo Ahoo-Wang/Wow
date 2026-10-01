@@ -1,12 +1,12 @@
 ---
 title: 'wow-view-store 参考'
-description: '尚未发布的 @ahoo-wang/wow-view-store 包的 WowViewStore：视图引擎的 ViewStore 落在 Wow 视图存储服务端上。'
+description: '@ahoo-wang/wow-view-store 包的 WowViewStore：视图引擎的 ViewStore 落在 Wow 视图存储服务端上。'
 ---
 
 # wow-view-store 参考
 
-::: warning 尚未发布
-`@ahoo-wang/wow-view-store` 还没有发布到 npm，不承诺兼容；它随 [wow-view-engine](../wow-view-engine/) 一起发布。在那之前，以[包的 README](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-store/README.zh-CN.md) 与[设计文档](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/docs/design/view-store-backend.md)为准。
+::: info 随 Wow 9.2.0 发布
+`@ahoo-wang/wow-view-store` 随 Wow 9.2.0 发布，与 [wow-view-engine](../wow-view-engine/) 一起，同一个 tag、同一个版本号；在此之前不在 npm 上。补丁版本不破坏它的公开面（入口的导出与错误码）；次版本可以破坏，它的发布说明逐条列出每个破坏与迁移步骤（[版本范围](../../../guide/typescript/compatibility.md#版本范围)）。以[包的 README](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-store/README.zh-CN.md) 与[设计文档](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/docs/design/view-store-backend.md)为准。
 :::
 
 `WowViewStore` 在[视图存储](https://github.com/Ahoo-Wang/Wow/blob/main/view-store/README.md)上实现视图引擎的 [`ViewStore` 端口](../wow-view-engine/#persistence)：保存的视图与偏好是两个 Wow 聚合，由独立的 `wow-view-store-server` 提供，或由引入了 `wow-view-store-starter` 的 Wow 服务提供。

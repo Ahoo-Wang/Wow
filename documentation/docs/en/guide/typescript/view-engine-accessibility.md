@@ -1,12 +1,12 @@
 ---
 title: Accessibility of the View Engine
-description: The WCAG 2.2 AA conformance statement of the unreleased wow-view-engine — how it was evaluated, the keyboard-only and screen-reader walkthroughs, what was fixed, each criterion's level of support, and the known gaps.
+description: The WCAG 2.2 AA conformance statement of wow-view-engine — how it was evaluated, the keyboard-only and screen-reader walkthroughs, what was fixed, each criterion's level of support, and the known gaps.
 ---
 
 # Accessibility of the View Engine
 
-::: warning Not released
-`@ahoo-wang/wow-view-engine` has not been published to npm and carries no compatibility promise. This page describes the repository as it stands, and changes with the code.
+::: info Released with Wow 9.2.0
+`@ahoo-wang/wow-view-engine` is released with Wow 9.2.0; it is not on npm before that. Its compatibility rules are on the [View Engine](./view-engine.md) page. This page describes the repository as it stands, and changes with the code.
 :::
 
 This page is the conformance statement of the View Engine's interface (`@ahoo-wang/wow-view-engine/ui`: the record workbench, the analysis workbench, dashboards and both embeds) against [WCAG 2.2](https://www.w3.org/TR/WCAG22/) levels A and AA. The result first:

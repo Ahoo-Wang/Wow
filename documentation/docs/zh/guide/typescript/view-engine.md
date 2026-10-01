@@ -1,12 +1,12 @@
 ---
 title: 视图引擎
-description: 尚未发布的 wow-view-engine 包做什么、它的设计立足于哪些事实，以及 API 的大致形态。
+description: wow-view-engine 包做什么、它的设计立足于哪些事实，以及 API 的大致形态。
 ---
 
 # 视图引擎
 
-::: warning 尚未发布
-`@ahoo-wang/wow-view-engine` 还没有发布到 npm。它仍在积极开发中，不承诺兼容：任何导出都可能改变形态，改动也不附带兼容层。本页描述目标用法，供你评估；暂时不要在生产环境依赖它。
+::: info 随 Wow 9.2.0 发布
+`@ahoo-wang/wow-view-engine` 随 Wow 9.2.0 发布，与 Wow 同一个 tag、同一个版本号；在此之前不在 npm 上。从 9.2.0 起，补丁版本不破坏它的公开面：每个入口的导出，包括后端实现的 `ViewStore` 端口；[CSS 合同](./view-engine-theming.md#什么是公开的)；消息键与 issue code；以及 `wow-view-engine` 命令。次版本可以破坏，它的发布说明逐条列出每个破坏与迁移步骤；Wow 包请停在同一个次版本上（[版本范围](./compatibility.md#版本范围)）。以旧形状保存的视图照常打开：引擎在读取时迁移存储的配置。
 :::
 
 视图引擎是面向 Wow 业务应用的数据视图引擎。应用在代码中声明“这份数据能怎样观察”：字段、类型、操作符、可用的维度与指标。用户在界面上决定“这次怎样观察”：筛选、列、排序、维度与指标、图表和面板组合。引擎把这次选择编译成 Wow 查询，通过 `@ahoo-wang/wow-client` 执行，渲染结果，并把值得保留的观察方式保存下来，一键重新打开。
@@ -193,5 +193,5 @@ Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self'
 - [wow-view-engine 参考](../../reference/typescript/wow-view-engine/)：入口、概念、持久化端口与扩展点。
 - [视图引擎的主题](./view-engine-theming.md)：预设、宿主变量、亮暗与跟随系统、shadcn 桥接，以及覆盖变量要守的对比度。
 - [视图引擎的可访问性](./view-engine-accessibility.md)：WCAG 2.2 AA 符合性声明、键盘与读屏走查，以及已知缺口。
-- [设计文档](https://github.com/Ahoo-Wang/Wow/tree/main/typescript/wow-view-engine/docs/design)：包发布之前以它为准。
+- [设计文档](https://github.com/Ahoo-Wang/Wow/tree/main/typescript/wow-view-engine/docs/design)：模型以它为准。
 - [包 README](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/README.md)：API 的当前状态。
