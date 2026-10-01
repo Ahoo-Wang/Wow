@@ -23,7 +23,7 @@ import { Button } from '../components/button.js';
 import { IconButton } from '../kit/IconButton.js';
 import type { MessageFormatters } from '../kit/MessagesProvider.js';
 import { useViewMessages } from '../kit/MessagesProvider.js';
-import { useLanding } from '../kit/focus.js';
+import { focusableIn, useLanding } from '../kit/focus.js';
 import { groupReference, metricReference } from './editing.js';
 
 /**
@@ -65,8 +65,15 @@ export function DroppedNotice({
   const box = useRef<HTMLDivElement>(null);
   const land = useLanding();
   // Both buttons take the notice away, and the keyboard with it: it goes to
-  // the tray, where the edit was, rather than to the page's start.
-  const leave = () => land(() => box.current?.closest(TRAY));
+  // the row the edit was made in — the chain for a step of it, the metrics
+  // otherwise — rather than to the page's start. The row is found at the
+  // press: by the time the landing is looked up the notice is gone, and
+  // `box` with it (the second-round review found the keyboard on `<body>`).
+  const leave = () => {
+    const tray = box.current?.closest(TRAY);
+    const row = tray?.querySelector(notice?.cause ? ELEMENTS : METRICS);
+    land(() => focusableIn(row) ?? tray);
+  };
   return (
     <>
       {notice && sentence && (
@@ -113,6 +120,10 @@ export function DroppedNotice({
 
 /** Where the keyboard goes when the notice leaves: the tray it was in. */
 const TRAY = '[data-slot="analysis-tray"]';
+/** The row a step of the chain was made in: 「展开 商品」 after 撤销, the card it made after ✕. */
+const ELEMENTS = '[data-slot="analysis-slot-elements"]';
+/** The row any other edit that dropped something was made in. */
+const METRICS = '[data-slot="analysis-slot-metrics"]';
 
 /**
  * The notice's one sentence: the step it followed, then what went — the

@@ -871,6 +871,59 @@ const panelChrome = (theme: 'light' | 'dark'): Story => ({
   },
 });
 
+/**
+ * A colour variable as the cascade resolved it on an element, read through
+ * a probe's `background-color` so the browser works out any mix.
+ */
+function resolvedColor(element: Element, variable: string): string {
+  const probe = document.createElement('span');
+  probe.hidden = true;
+  probe.style.setProperty('background-color', `var(${variable})`);
+  element.append(probe);
+  const value = getComputedStyle(probe).backgroundColor;
+  probe.remove();
+  return value;
+}
+
+/**
+ * 面板「⋯」菜单的高亮项与别的菜单一样用主题的高亮色（第二轮审查）。这些
+ * 项换了自己的 `data-slot`（`panel-open`、`panel-refresh`…），高亮规则原来
+ * 按 slot 名单选，落不到它们身上，于是退回 registry 的 `accent`：contrast
+ * 下约 1.2:1 的近白灰。规则现在按角色（`menuitem`）选。
+ */
+export const PanelMenuHighlight: Story = {
+  ...DisplayAllPanels,
+  globals: { fvePreset: 'contrast' },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await findDataTable(canvasElement);
+    const [button] = await canvas.findAllByRole('button', {
+      name: (_name, element) =>
+        element.getAttribute('data-slot') === 'panel-menu',
+    });
+    button.focus();
+    await userEvent.keyboard('{Enter}');
+    const item = await waitFor(() => {
+      const active = document.activeElement as HTMLElement | null;
+      if (!active?.matches('[role^="menuitem"]'))
+        throw new Error('no item under the keyboard');
+      return active;
+    });
+    // One of the items that name themselves.
+    await expect(item.getAttribute('data-slot')).toMatch(/^panel-/);
+    await waitFor(async () => {
+      const before = getComputedStyle(item).backgroundColor;
+      await new Promise(resolve => setTimeout(resolve, 50));
+      if (getComputedStyle(item).backgroundColor !== before)
+        throw new Error('The fill is still moving.');
+    });
+    const highlight = resolvedColor(item, '--_fve-highlight');
+    await expect(highlight).not.toBe(resolvedColor(item, '--accent'));
+    await expect(getComputedStyle(item).backgroundColor).toBe(highlight);
+    await userEvent.keyboard('{Escape}');
+  },
+};
+
 export const PanelChromeInLightTheme: Story = panelChrome('light');
 export const PanelChromeInDarkTheme: Story = panelChrome('dark');
 

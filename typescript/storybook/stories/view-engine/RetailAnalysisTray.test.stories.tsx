@@ -211,7 +211,8 @@ export const TrayRowsInDependencyOrder: Story = {
  *
  * 两个 GMV 指标量的是订单的字段；展开到商品之后它们什么也不指，跟着这一步
  * 离开（D20 照旧），托盘底行上面出一句「展开 商品 后去掉了 2 个指标：本月至今
- * GMV、上月同期 GMV」，不弹确认框；「撤销」把问题恢复原样。
+ * GMV、上月同期 GMV」，不弹确认框；「撤销」把问题恢复原样。键盘始终留在
+ * 「展开」这一行：按下「展开 商品」后落到新的元素卡，撤销后回到「展开 商品」。
  */
 export const ExpansionUndo: Story = {
   ...DisplayOrderAnalysis,
@@ -263,6 +264,12 @@ export const ExpansionUndo: Story = {
       tray.querySelector('[data-slot="counting-unit"]'),
     ).toHaveAttribute('data-emphasis', 'strong');
     await expect(metricNames()).not.toEqual(before);
+    // The button went with the step (商品 is the chain's last level); the
+    // keyboard is on the card it made, not on <body> (second-round review).
+    const card = tray.querySelector('[data-slot="element-card"]')!;
+    await waitFor(() =>
+      expect(card.contains(document.activeElement)).toBe(true),
+    );
 
     await userEvent.click(
       within(notice).getByRole('button', {
@@ -274,6 +281,13 @@ export const ExpansionUndo: Story = {
       tray.querySelectorAll('[data-slot="element-card"]'),
     ).toHaveLength(0);
     await expect(tray.querySelector('[data-slot="dropped-notice"]')).toBeNull();
+    // The notice took the keyboard with it; it is back on 「展开 商品」,
+    // where the step was made — not on <body> (second-round review).
+    await waitFor(() =>
+      expect(document.activeElement).toBe(
+        tray.querySelector('[data-slot="expand-into"]'),
+      ),
+    );
     // Said to a reader, and still there after the notice's own render has
     // gone: the region is not emptied in the same breath (review round 1).
     const voice = tray.querySelector('[data-slot="dropped-voice"]');

@@ -130,7 +130,9 @@ function useSuggestions(
           data-slot="candidate-status"
           className="fve:text-muted-foreground fve:flex fve:items-center fve:gap-2 fve:px-2 fve:py-1.5 fve:text-xs"
         >
-          <Spinner />
+          {/* The words beside it say it; the vendored spinner's own name
+              is an English 「Loading」 and a second status inside this one. */}
+          <Spinner aria-hidden role={undefined} aria-label={undefined} />
           {messages.label('label.filter.values-loading')}
         </div>
       )}

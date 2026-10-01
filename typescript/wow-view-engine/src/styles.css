@@ -979,7 +979,8 @@
   /*
    * What marks a state. `highlight` is the item a menu, a select or a
    * combobox has under the keyboard or the pointer — the registry's
-   * `accent`, a tint. `item-selected` is the item it holds chosen (nothing
+   * `accent`, a tint; under the keyboard it wears the focus mark too (the
+   * highlight rule below). `item-selected` is the item it holds chosen (nothing
    * unset: the check alone marks it), in `item-selected-weight` (the
    * item's own unset). `nav-current` is the view on screen in the view
    * list, a sheet of the work area's own ground with an edge and a lift
@@ -1689,12 +1690,14 @@
    * is invalid and the item inherits, as before. Two attributes, so the
    * highlighted item (a state as well, three) still paints over it; the
    * weight it keeps.
+   *
+   * These rules read an item by its role, not its `data-slot`: a menu item
+   * the engine names for itself (`data-slot="panel-open"`, `drill-…`,
+   * `export-…`) dropped out of a slot list and was highlighted in the
+   * registry's tint, 1.2:1 off the popup in contrast (second-round review).
    */
-  :is([data-slot='select-item'], [data-slot='combobox-item'])[data-selected],
-  :is(
-    [data-slot='dropdown-menu-checkbox-item'],
-    [data-slot='dropdown-menu-radio-item']
-  )[data-checked] {
+  [role='option'][data-selected],
+  :is([role='menuitemcheckbox'], [role='menuitemradio'])[data-checked] {
     background-color: var(--_fve-item-selected);
     color: var(--_fve-item-selected-foreground);
     font-weight: var(--_fve-item-selected-weight, inherit);
@@ -1703,17 +1706,14 @@
   /*
    * The item a menu, a select or a combobox has under the keyboard or the
    * pointer, and every word and icon inside it — where the registry colours
-   * those too. A destructive item keeps its own red.
+   * those too. A destructive item keeps its own red. A combobox's option
+   * is marked, not focused: the keyboard stays in its input.
    */
-  :is([data-slot='dropdown-menu-item'], [data-slot='select-item']):not(
+  :is([role='menuitem'], [role='option']):not(
       [data-variant='destructive']
     ):focus,
-  :is(
-    [data-slot='dropdown-menu-sub-trigger'],
-    [data-slot='dropdown-menu-checkbox-item'],
-    [data-slot='dropdown-menu-radio-item']
-  ):focus,
-  [data-slot='dropdown-menu-sub-trigger']:is([data-open], [data-popup-open]),
+  :is([role='menuitemcheckbox'], [role='menuitemradio']):focus,
+  [role='menuitem']:is([data-open], [data-popup-open]),
   [data-slot='combobox-item']:not(
       [data-variant='destructive']
     )[data-highlighted] {
@@ -1721,21 +1721,40 @@
     color: var(--_fve-highlight-foreground);
   }
 
-  :is([data-slot='dropdown-menu-item'], [data-slot='select-item']):not(
+  :is([role='menuitem'], [role='option']):not(
       [data-variant='destructive']
     ):focus
     *,
-  :is(
-      [data-slot='dropdown-menu-sub-trigger'],
-      [data-slot='dropdown-menu-checkbox-item'],
-      [data-slot='dropdown-menu-radio-item']
-    ):focus
-    *,
+  :is([role='menuitemcheckbox'], [role='menuitemradio']):focus *,
+  [role='menuitem']:is([data-open], [data-popup-open]) *,
   [data-slot='combobox-item']:not(
       [data-variant='destructive']
     )[data-highlighted]
     * {
     color: var(--_fve-highlight-foreground);
+  }
+
+  /*
+   * The item a menu, a select or a combobox has under the keyboard wears
+   * the focus mark: 2px of `ring` inside its edge, as `FOCUS_INSET` draws
+   * one, over whatever fill the theme gives the highlight. The fill alone
+   * was the only mark, and in neutral and azure it is a tint 1.03–1.07:1
+   * off the popup (second-round review; D76 as amended); the ring is held
+   * to 3:1 off the popup by the contrast matrix ('highlighted item’s focus
+   * mark on its popup'). Keyboard only — `:focus-visible` — as every other
+   * focus mark here: the pointer is its own mark of where it is. A
+   * combobox's option is marked, not focused (the keyboard stays in its
+   * input), so it wears the mark whenever it is the highlighted one.
+   */
+  :is(
+    [role='menuitem'],
+    [role='menuitemcheckbox'],
+    [role='menuitemradio'],
+    [role='option']
+  ):focus-visible,
+  [data-slot='combobox-item'][data-highlighted] {
+    outline: 2px solid var(--ring);
+    outline-offset: -2px;
   }
 
   /*
@@ -3036,8 +3055,63 @@
  *   (2026-09-30 Firefox/WebKit pass, D73). A legend's entry is left out:
  *   pressed is every series drawn, and the one hidden is struck through,
  *   which the repaint keeps.
+ * - A menu's, a select's and a combobox's item under the keyboard wears
+ *   its focus mark (the ring the menu rules give it) in `Highlight`, and
+ *   the others are not framed at all. The items carry the registry's
+ *   `outline-hidden` — a transparent outline, which this mode paints — so
+ *   every item wore the same frame and the one under the keyboard was told
+ *   apart by nothing (second-round review). The popup is edged in the text colour: its edge on screen is
+ *   a `ring`, a shadow, which this mode drops, and the menu floated
+ *   edgeless over the table.
  */
 @media (forced-colors: active) {
+  .fve-root
+    :is(
+      [role='menuitem'],
+      [role='menuitemcheckbox'],
+      [role='menuitemradio'],
+      [role='option']
+    ),
+  .fve-tokens
+    :is(
+      [role='menuitem'],
+      [role='menuitemcheckbox'],
+      [role='menuitemradio'],
+      [role='option']
+    ) {
+    outline: none;
+  }
+
+  .fve-root
+    :is(
+      [role='menuitem'],
+      [role='menuitemcheckbox'],
+      [role='menuitemradio'],
+      [role='option']
+    ):focus-visible,
+  .fve-root [data-slot='combobox-item'][data-highlighted],
+  .fve-tokens
+    :is(
+      [role='menuitem'],
+      [role='menuitemcheckbox'],
+      [role='menuitemradio'],
+      [role='option']
+    ):focus-visible,
+  .fve-tokens [data-slot='combobox-item'][data-highlighted] {
+    outline: 2px solid Highlight;
+    outline-offset: -2px;
+  }
+
+  .fve-root:is(
+    [data-slot='popover-content'],
+    [data-slot='dropdown-menu-content'],
+    [data-slot='dropdown-menu-sub-content'],
+    [data-slot='select-content'],
+    [data-slot='combobox-content']
+  ) {
+    border: 1px solid CanvasText;
+  }
+
   .fve-root :focus-visible,
   .fve-tokens :focus-visible {
     outline: 2px solid CanvasText;

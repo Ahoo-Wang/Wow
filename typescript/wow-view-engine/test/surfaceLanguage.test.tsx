@@ -24,6 +24,9 @@ import { Dialog, DialogTitle } from '../src/ui/components/dialog.js';
 import { DialogContent } from '../src/ui/kit/popups.js';
 import { MessagesProvider, ViewSurface, zhCN } from '../src/ui/index.js';
 import type { ViewMessages } from '../src/ui/kit/messages.js';
+import { NumberInput } from '../src/ui/filter/FilterValueEditor.js';
+import { SurfaceCalendar } from '../src/ui/filter/inputs/calendar.js';
+import { TimeOfDay } from '../src/ui/filter/inputs/time.js';
 
 afterEach(cleanup);
 
@@ -73,5 +76,59 @@ describe('the language a surface is in', () => {
     const { surface, popup } = open({ messages: zhCN, lang: 'zh-Hant' });
     expect(surface?.getAttribute('lang')).toBe('zh-Hant');
     expect(popup.getAttribute('lang')).toBe('zh-Hant');
+  });
+});
+
+/**
+ * The words a third-party piece writes itself, in English, said in the
+ * surface's language instead (second-round review): Base UI's number field
+ * names its role 「Number field」, which a reader says in place of the role;
+ * the date picker names its arrows' bar 「Navigation bar」.
+ */
+describe('the words a vendored piece would say in English', () => {
+  it('names a number box’s role in the surface language', () => {
+    render(
+      <ViewSurface messages={zhCN}>
+        <NumberInput label="数量" value={3} onNumber={() => {}} />
+      </ViewSurface>,
+    );
+    expect(
+      screen
+        .getByRole('textbox', { name: '数量' })
+        .getAttribute('aria-roledescription'),
+    ).toBe(zhCN['label.filter.number-field']);
+  });
+
+  it('names a time’s hour and minute boxes’ role likewise', () => {
+    render(
+      <ViewSurface messages={zhCN}>
+        <TimeOfDay
+          range={false}
+          from={{ day: '2026-09-30', time: '10:30' }}
+          to={{ day: '', time: '' }}
+          onFrom={() => {}}
+          onTo={() => {}}
+        />
+      </ViewSurface>,
+    );
+    const boxes = screen.getAllByRole('textbox');
+    expect(boxes.length).toBeGreaterThan(0);
+    for (const box of boxes)
+      expect(box.getAttribute('aria-roledescription')).toBe(
+        zhCN['label.filter.number-field'],
+      );
+  });
+
+  it('names the calendar’s month navigation', () => {
+    render(
+      <ViewSurface messages={zhCN}>
+        <SurfaceCalendar mode="single" />
+      </ViewSurface>,
+    );
+    expect(
+      screen.getByRole('navigation', {
+        name: zhCN['label.date.calendar-nav'],
+      }),
+    ).toBeDefined();
   });
 });

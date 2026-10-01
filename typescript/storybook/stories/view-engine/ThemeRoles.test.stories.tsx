@@ -41,6 +41,8 @@ import displayMeta, {
   WithData as DisplayWithData,
 } from './RecordWorkbench.stories.js';
 import { matchScreenshot } from './screenshot.js';
+import { measureFocusMark } from './contrast.js';
+import { underMedia } from './media.js';
 // The host's own stylesheet, after the package's, as `HostTheme` loads it.
 import './host-theme/acme.css';
 
@@ -372,6 +374,135 @@ async function openPopup(slot: string): Promise<HTMLElement> {
     return found;
   });
 }
+
+/**
+ * 菜单里键盘所在的那一项戴着焦点标记（第二轮审查；D76 修订）：高亮的填色在
+ * neutral、azure 里只是一层浅灰，对弹层底 1.03～1.07:1，是菜单里唯一的位置
+ * 标记。现在每套预设的高亮项都在边内画 2px 的 `ring`，对弹层底 ≥3:1；填色
+ * 照旧（porcelain 暗色仍是 #0058D0 配白字）。指针悬停不画（`:focus-visible`）。
+ */
+const menuFocusMark = (preset: string, theme: 'light' | 'dark'): Story => ({
+  ...DisplayWithData,
+  args: { ...DisplayWithData.args, theme, preset },
+  play: async ({ canvasElement }) => {
+    await parts(canvasElement);
+    const trigger = [
+      ...canvasElement.querySelectorAll<HTMLElement>('[aria-haspopup="menu"]'),
+    ].find(candidate => getComputedStyle(candidate).pointerEvents !== 'none')!;
+    await userEvent.click(trigger);
+    const menu = await openPopup('dropdown-menu-content');
+    await expect(menu.closest('.fve-root')).toHaveAttribute(
+      'data-fve-preset',
+      preset,
+    );
+    await userEvent.keyboard('{ArrowDown}');
+    const item = await waitFor(() => {
+      const active = document.activeElement as HTMLElement | null;
+      if (!active?.matches('[role^="menuitem"]'))
+        throw new Error('no item under the keyboard');
+      return active;
+    });
+    await settled(() => getComputedStyle(item).outlineColor);
+    const style = getComputedStyle(item);
+    await expect(style.outlineStyle).toBe('solid');
+    await expect(style.outlineWidth).toBe('2px');
+    await expect(style.outlineOffset).toBe('-2px');
+    await expect(rgbOf(style.outlineColor)).toBe(colorOf(item, '--ring'));
+    const mark = measureFocusMark(item);
+    // Held off the popup round the item (`onSurface`), which is what the
+    // registry's pair measures; on a fill of the primary it is that fill.
+    await expect(
+      mark.onSurface,
+      `${preset} ${theme} ${JSON.stringify(mark.colors)}`,
+    ).toBeGreaterThanOrEqual(3);
+    // The others wear none.
+    const other = [
+      ...menu.querySelectorAll<HTMLElement>('[role^="menuitem"]'),
+    ].find(candidate => candidate !== item)!;
+    await expect(getComputedStyle(other).outlineStyle).toBe('none');
+    await userEvent.keyboard('{Escape}');
+  },
+});
+
+export const MenuFocusMarkNeutralLight: Story = menuFocusMark(
+  'neutral',
+  'light',
+);
+export const MenuFocusMarkNeutralDark: Story = menuFocusMark('neutral', 'dark');
+export const MenuFocusMarkAzureLight: Story = menuFocusMark('azure', 'light');
+export const MenuFocusMarkAzureDark: Story = menuFocusMark('azure', 'dark');
+export const MenuFocusMarkPorcelainLight: Story = menuFocusMark(
+  'porcelain',
+  'light',
+);
+export const MenuFocusMarkPorcelainDark: Story = menuFocusMark(
+  'porcelain',
+  'dark',
+);
+export const MenuFocusMarkContrastLight: Story = menuFocusMark(
+  'contrast',
+  'light',
+);
+export const MenuFocusMarkContrastDark: Story = menuFocusMark(
+  'contrast',
+  'dark',
+);
+
+/** Chromium and Firefox, which Playwright can repaint in forced colours. */
+const EMULATES_FORCED = /Chrome\/|Firefox\//.test(navigator.userAgent);
+
+/**
+ * 强制颜色下的菜单（第二轮审查；「强制颜色与打印」那一组的主题一览上没有
+ * 菜单，所以放在这里）：键盘所在的那一项画 `Highlight` 的框，其余项不画——
+ * registry 的 `outline-hidden` 在这个模式里会给每一项画同一个框；弹层有一道
+ * `CanvasText` 的边——屏幕上它的边是 `ring`（阴影），这个模式丢掉阴影，菜单
+ * 就没边地浮在表格上。
+ */
+export const MenuInForcedColors: Story = {
+  ...DisplayWithData,
+  args: { ...DisplayWithData.args, theme: 'light', preset: 'neutral' },
+  play: async ({ canvasElement }) => {
+    await parts(canvasElement);
+    const trigger = [
+      ...canvasElement.querySelectorAll<HTMLElement>('[aria-haspopup="menu"]'),
+    ].find(candidate => getComputedStyle(candidate).pointerEvents !== 'none')!;
+    trigger.focus();
+    await userEvent.keyboard('{Enter}');
+    const menu = await openPopup('dropdown-menu-content');
+    await userEvent.keyboard('{ArrowDown}');
+    const item = await waitFor(() => {
+      const active = document.activeElement as HTMLElement | null;
+      if (!active?.matches('[role^="menuitem"]'))
+        throw new Error('no item under the keyboard');
+      return active;
+    });
+    const other = [
+      ...menu.querySelectorAll<HTMLElement>('[role^="menuitem"]'),
+    ].find(candidate => candidate !== item)!;
+    const ran = await underMedia(
+      { forcedColors: 'active' },
+      '(forced-colors: active)',
+      async () => {
+        await waitFor(() => {
+          const focus = getComputedStyle(item);
+          expect(focus.outlineStyle).toBe('solid');
+          expect(focus.outlineWidth).toBe('2px');
+        });
+        await expect(getComputedStyle(other).outlineStyle).toBe('none');
+        // Waited for: read straight after the switch the popup still has the
+        // 0 it had on screen (the popup carries a transition, `duration-100`).
+        await waitFor(() => {
+          const edge = getComputedStyle(menu);
+          expect(edge.borderTopStyle).toBe('solid');
+          expect(edge.borderTopWidth).toBe('1px');
+        });
+      },
+    );
+    await userEvent.keyboard('{Escape}');
+    // Chromium and Firefox repaint; WebKit asserts what it could lay out.
+    if (EMULATES_FORCED) await expect(ran).toBe(true);
+  },
+};
 
 /**
  * 截图里原来没有的三块面，各留一张基线（ui/theme.md「角色：引擎自己的面」）：
