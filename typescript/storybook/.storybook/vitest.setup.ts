@@ -84,10 +84,15 @@ globalThis.storybookMedia = {
  * The emulation is the browser page's, and every story file runs in a frame
  * of that one page: a file that asked for less motion
  * (`StrictCsp.test.stories.tsx`) hands it back as each next story begins,
- * which its last story never sees. So each file begins with the browser's
- * own preference, whatever the file before it left.
+ * which its last story never sees. So each file begins with motion as a
+ * reader who asked for nothing has it, whatever the file before it left —
+ * said outright rather than left to the browser: WebKit in Playwright's
+ * Linux image (`scripts/linux-browser.mjs`) reports reduced motion on its
+ * own, and its 0.01ms transitions then stood at their first frame, so a
+ * focus mark read 3px and a highlight transparent there and nowhere else
+ * (2026-09-30).
  */
-await commands.emulateMedia({ reducedMotion: null });
+await commands.emulateMedia({ reducedMotion: 'no-preference' });
 
 declare module 'vitest/browser' {
   interface BrowserCommands {
