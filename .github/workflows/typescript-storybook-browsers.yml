@@ -32,14 +32,31 @@ concurrency:
 
 jobs:
   interactions:
-    name: Storybook interactions (${{ matrix.browser }}, ${{ matrix.shard }}/2)
-    timeout-minutes: 30
-    runs-on: ubuntu-latest
+    name: Storybook interactions (${{ matrix.browser }}, ${{ matrix.shard }}/${{ matrix.shards }})
+    # A macOS runner ran one WebKit shard in 24 minutes and both in over 29
+    # (2026-10-01): the leg reports its results rather than being cancelled.
+    timeout-minutes: 45
+    # WebKit on macOS, the engine Safari ships: on ubuntu-latest Playwright's
+    # WebKit drew a frame every few hundred milliseconds and its page
+    # connection dropped mid-run ("Browser connection was closed"), which
+    # aborted the rest of the shard — on 2026-09-29 it ran 7 and 3 of 58
+    # files, on 2026-09-30 12 — so most of the leg never ran. On
+    # macos-latest both shards run every file (2026-10-01).
+    runs-on: ${{ matrix.browser == 'webkit' && 'macos-latest' || 'ubuntu-latest' }}
+    # WebKit in four shards, Firefox in two. A macOS runner took 22 and 33
+    # minutes for the two WebKit shards, and its WebKit dropped the page
+    # once 33 minutes in ("Browser connection was closed", 2026-10-01): a
+    # quarter of the files each keeps every WebKit session short.
     strategy:
       fail-fast: false
       matrix:
-        browser: [firefox, webkit]
-        shard: [1, 2]
+        include:
+          - { browser: firefox, shard: 1, shards: 2 }
+          - { browser: firefox, shard: 2, shards: 2 }
+          - { browser: webkit, shard: 1, shards: 4 }
+          - { browser: webkit, shard: 2, shards: 4 }
+          - { browser: webkit, shard: 3, shards: 4 }
+          - { browser: webkit, shard: 4, shards: 4 }
     steps:
       - uses: actions/checkout@v7
         with:
@@ -61,7 +78,8 @@ jobs:
       - name: Cache Playwright browser
         uses: actions/cache@v6
         with:
-          path: ~/.cache/ms-playwright
+          # Where Playwright keeps its browsers on each system.
+          path: ${{ runner.os == 'macOS' && '~/Library/Caches/ms-playwright' || '~/.cache/ms-playwright' }}
           key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.version }}-${{ matrix.browser }}
       - name: Install Playwright browser
         env:
@@ -70,8 +88,14 @@ jobs:
       # Only the browser project: the node unit tests of the story data do not
       # depend on the browser and already run in typescript-storybook.yml. The
       # shards split by measured duration, as there (scripts/shard-sequencer.mjs).
+      # A longer per-test limit than the 15s of pull requests and local
+      # runs (vitest.config.ts): these runners take 3–15× as long as a Mac
+      # on the same story (19s for one that takes 1.2s locally), so 15s
+      # measured the runner, not the story. A story that is wrong still
+      # fails here on its assertion.
       - name: Test Storybook interactions
         env:
           STORYBOOK_BROWSERS: ${{ matrix.browser }}
-          SHARD: ${{ matrix.shard }}
-        run: pnpm --filter wow-storybook exec vitest run --project=storybook --shard="$SHARD/2"
+          STORYBOOK_TEST_TIMEOUT: '60000'
+          SHARD: ${{ matrix.shard }}/${{ matrix.shards }}
+        run: pnpm --filter wow-storybook exec vitest run --project=storybook --shard="$SHARD"

@@ -422,6 +422,13 @@ export function leavePlot(plot: Element): void {
  * Until every chart under `root` has landed: drawn, its marks grown into
  * place (`data-drawn`, set when the library says it has finished). What a
  * story measures before then is a bar on its way up.
+ *
+ * The wait is for that outcome, not a guess at how long it takes: the
+ * first chart of a file loads the chart chunk, then the marks sweep in for
+ * about a second. On a Mac at background priority that is 1.3–1.8s; the
+ * nightly's Firefox runner, 3–15× slower, ran out of the 4s this used to
+ * allow (TradeOrderEventConsole, 2026-10-01). A chart that never lands
+ * still fails here.
  */
 export async function chartsDrawn(root: ParentNode): Promise<void> {
   await waitFor(
@@ -433,6 +440,6 @@ export async function chartsDrawn(root: ParentNode): Promise<void> {
       );
       // The query answers first, then the marks sweep in.
     },
-    { timeout: 4_000 },
+    { timeout: 10_000 },
   );
 }

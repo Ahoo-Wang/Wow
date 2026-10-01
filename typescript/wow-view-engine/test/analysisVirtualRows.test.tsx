@@ -146,4 +146,23 @@ describe('AnalysisTable, long', () => {
     });
     expect(rows(container).length).toBeLessThan(count);
   });
+
+  // Outside `act`, which would flush whatever React had only scheduled: the
+  // browser's own events reach the table with nothing to flush them, and
+  // what React schedules waits behind a frame that lays out every row.
+  it('lets the rows go in the same task the printing ends', () => {
+    const count = VIRTUAL_ROWS_AFTER + 500;
+    const { container } = render(<AnalysisTable view={longView(count)} />);
+    const scope = globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean };
+    const actEnvironment = scope.IS_REACT_ACT_ENVIRONMENT;
+    scope.IS_REACT_ACT_ENVIRONMENT = false;
+    try {
+      window.dispatchEvent(new Event('beforeprint'));
+      expect(rows(container)).toHaveLength(count);
+      window.dispatchEvent(new Event('afterprint'));
+      expect(rows(container).length).toBeLessThan(count);
+    } finally {
+      scope.IS_REACT_ACT_ENVIRONMENT = actEnvironment;
+    }
+  });
 });

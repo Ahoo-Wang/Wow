@@ -320,6 +320,63 @@ export const BulkPartialAvailability: Story = {
   },
 };
 
+/**
+ * The command lands before the window has finished closing: the keyboard
+ * still ends on the line, not the page.
+ *
+ * The window hands the keyboard back when its closing animation has run.
+ * On a slow frame — Safari on the nightly's runner — the command had
+ * landed by then, the selection's bar had gone with the selection, and the
+ * keyboard fell to `<body>`. Here the closing is held at a second, which
+ * puts any browser in that order.
+ */
+export const BulkLandsBeforeTheWindowCloses: Story = {
+  name: '多选：命令先完成、窗口后关上',
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await loaded(canvas);
+    await userEvent.click(
+      canvas.getByLabelText(zhCN['label.record.select-all']),
+    );
+    await userEvent.click(
+      await canvas.findByRole('button', { name: '发货 3/4 条' }),
+    );
+    const dialog = within(
+      await body().findByRole('dialog', { name: '发出 4 张订单？' }),
+    );
+    await userEvent.click(
+      dialog.getByRole('button', { name: '只选能做的 3 条' }),
+    );
+    const shipping = await body().findByRole('dialog', {
+      name: '发出 3 张订单？',
+    });
+    const slow = document.createElement('style');
+    slow.textContent =
+      '[data-slot="action-dialog"][data-closed] { animation-duration: 1s !important; }';
+    document.head.append(slow);
+    try {
+      await userEvent.click(
+        within(shipping).getByRole('button', { name: '发货 3 条' }),
+      );
+      const settled = await line(canvasElement, 'settled');
+      // Landed while the window is still on its way out.
+      await expect(shipping).toHaveAttribute('data-closed');
+      await waitFor(() => expect(shipping.isConnected).toBe(false), {
+        timeout: 5_000,
+      });
+      await waitFor(() =>
+        expect(document.activeElement).toBe(
+          within(settled).getByRole('button', {
+            name: zhCN['label.bulk.dismiss'],
+          }),
+        ),
+      );
+    } finally {
+      slow.remove();
+    }
+  },
+};
+
 /** A form: the fields the command needs, drawn by the condition editor's controls. */
 export const FormInput: Story = {
   name: '表单输入',

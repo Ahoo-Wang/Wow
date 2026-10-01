@@ -114,6 +114,24 @@ export const TooltipsKeepTheirSize: Story = {
   },
 };
 
+/**
+ * The drill menu, open and laid out. Not `toBeVisible`: that reads the
+ * opacity, which the menu's fade-in starts at 0, and on the nightly's Linux
+ * WebKit — a frame every few hundred ms — the fade had not begun within the
+ * wait (2026-10-01). Open is `data-open`; on screen is `checkVisibility`,
+ * which asks display and visibility and leaves opacity to the animation.
+ */
+async function openDrillMenu(): Promise<HTMLElement> {
+  return waitFor(() => {
+    const found = document.body.querySelector<HTMLElement>(
+      '[data-slot="drill-menu"]',
+    );
+    expect(found).toHaveAttribute('data-open');
+    expect(found!.checkVisibility({ visibilityProperty: true })).toBe(true);
+    return found!;
+  });
+}
+
 /** The two days a stretch is read as: 「下单时间 介于 A ~ B」. */
 function stretchDays(text: string): string[] {
   return [...text.matchAll(/\d{4}年\d{1,2}月\d{1,2}日/g)].map(([day]) => day);
@@ -151,17 +169,11 @@ export const BrushThreeDaysOnTheReport: Story = {
       centres[20]!,
       centres[22]!,
     );
-    const menu = await waitFor(() => {
-      const found = document.body.querySelector<HTMLElement>(
-        '[data-slot="drill-menu"]',
-      );
-      expect(found).toHaveAttribute(
-        'aria-label',
-        label('label.drill.menu-span'),
-      );
-      expect(found).toBeVisible();
-      return found!;
-    });
+    const menu = await openDrillMenu();
+    await expect(menu).toHaveAttribute(
+      'aria-label',
+      label('label.drill.menu-span'),
+    );
     await expect(stretchDays(menu.textContent ?? '')).toEqual([
       days[20],
       days[22],
@@ -189,13 +201,7 @@ export const BrushThreeDaysOnTheReport: Story = {
       centres[20]!,
       centres[22]!,
     );
-    const again = await waitFor(() => {
-      const found = document.body.querySelector<HTMLElement>(
-        '[data-slot="drill-menu"]',
-      );
-      expect(found).toBeVisible();
-      return found!;
-    });
+    const again = await openDrillMenu();
     await userEvent.click(
       // Named with where it goes: 「（在工作台中打开）」.
       within(again)
