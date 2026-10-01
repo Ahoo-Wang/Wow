@@ -17,7 +17,7 @@ The Wow TypeScript packages moved from the [Fetcher repository](https://github.c
 | `@ahoo-wang/fetcher-generator` | `@ahoo-wang/wow-generator` | CLI renamed to `wow-generator`; `fetcher-generator` stays as an alias until v10 |
 | Wow hooks of `@ahoo-wang/fetcher-react` | `@ahoo-wang/wow-react` | `useSingleQuery`, `useListQuery`, `usePagedQuery`, `useCountQuery`, `useListStreamQuery` and their `useFetcher*` variants |
 | Fetcher 5.x version line | Wow version line | `wow-client` 9.x.y is released with Wow 9.x.y |
-| `@ahoo-wang/fetcher-view-engine` (never published) | `@ahoo-wang/wow-view-engine` | Not released yet; see [View Engine](./view-engine.md) |
+| `@ahoo-wang/fetcher-view-engine` (never published) | `@ahoo-wang/wow-view-engine` | Released with Wow 9.2.0; see [View Engine](./view-engine.md) |
 
 The core Fetcher packages keep their names and their documentation at [fetcher.ahoo.me](https://fetcher.ahoo.me/): `fetcher`, `fetcher-decorator`, `fetcher-eventstream`, `fetcher-openapi`, `fetcher-react`, and `fetcher-cosec`. `@ahoo-wang/fetcher-viewer` and the `dataMonitor` hooks of `fetcher-react` did not move; they stay on Fetcher 5.x.
 
@@ -109,6 +109,7 @@ The first `@ahoo-wang/wow-client` release also takes the chance to fix APIs that
 |---|---|
 | `ErrorCodes.isSucceeded(code)` / `ErrorCodes.isError(code)` | Removed: compare `code === ErrorCodes.SUCCEEDED`. `ErrorCodes` is a frozen `as const` object instead of a class, with the query schema and batch codes added; `SUCCEEDED_MESSAGE` and `NOT_FOUND_MESSAGE` are gone. `ErrorInfo.errorCode` is typed `ErrorCode` (Wow's codes, or any other string). |
 | `DEFAULT_PROJECTION`, `defaultProjection()` | Removed: `projection()` with no argument, or no `projection` at all, returns every field. |
+| `EMPTY_PAGED_LIST` | Removed: `pagedList()` returns a new empty page (`{ total: 0, list: [] }`) each time, so no caller can mutate a shared one. |
 | `LogicalField` | `QueryField`, the same type under its current name. |
 | `ReadableDomainEventStream` | `ReadableStream<DomainEventStream>`, which is what it stood for. |
 | `QueryEventStreamResultExtractor` / `CommandResultEventStreamResultExtractor` | Removed from the public API; take the endpoint presets, which carry the extractor together with the `Accept: text/event-stream` header: `@post(path, QUERY_STREAM_ENDPOINT)` / `@post(path, COMMAND_STREAM_ENDPOINT)` (or `@api('…', COMMAND_STREAM_ENDPOINT)` for a whole class) instead of `@post(path, { headers: { Accept: 'text/event-stream' }, resultExtractor: QueryEventStreamResultExtractor })`. Code that needs only the extractor reads `QUERY_STREAM_ENDPOINT.resultExtractor` / `COMMAND_STREAM_ENDPOINT.resultExtractor`. |

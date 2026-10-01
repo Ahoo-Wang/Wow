@@ -194,8 +194,15 @@ jobs:
           node-version: ${{ matrix.node-version }}
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      # Every package in PUBLISHED and its workspace dependencies, from the
+      # list package-check.mjs checks, so a newly published package is built.
       - name: Build the published packages
-        run: pnpm --filter @ahoo-wang/wow-client --filter @ahoo-wang/wow-react --filter @ahoo-wang/wow-generator build
+        run: |
+          filters=()
+          for pkg in $(node .github/scripts/publish-npm.mjs --list); do
+            filters+=(--filter "$pkg...")
+          done
+          pnpm "${filters[@]}" build
       - name: Check the packages
         run: node .github/scripts/package-check.mjs
 

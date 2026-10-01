@@ -39,7 +39,11 @@ jobs:
           sync-labels: false
 
   # actions/labeler cannot match titles. A Conventional Commit title with `!`
-  # (`type(scope)!: …`) gets `breaking-change`, which release notes list first.
+  # (`type(scope)!: …`), or a description that declares a break (a BREAKING
+  # CHANGE footer, the template's breaking box ticked, a `## Breaking` section
+  # that is not "None."), gets `breaking-change`: release notes list it first,
+  # and release admission keeps it out of a patch release and requires the
+  # x.Y.0 notes to name it. A `## Behaviour changes` section adds no label.
   breaking:
     name: Label Breaking Change
     permissions:
@@ -56,10 +60,12 @@ jobs:
           persist-credentials: false
           sparse-checkout: .github/scripts
 
-      # The title is untrusted input: it reaches the script only through env.
-      - name: Label a breaking title
+      # The title and the description are untrusted input: they reach the
+      # script only through env.
+      - name: Label a breaking change
         env:
           GH_TOKEN: ${{ github.token }}
           PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_BODY: ${{ github.event.pull_request.body }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
         run: node .github/scripts/breaking-label.mjs

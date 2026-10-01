@@ -1,12 +1,12 @@
 ---
 title: View Engine
-description: What the unreleased wow-view-engine package does, the facts its design rests on, and the shape of its API.
+description: What the wow-view-engine package does, the facts its design rests on, and the shape of its API.
 ---
 
 # View Engine
 
-::: warning Not released
-`@ahoo-wang/wow-view-engine` has not been published to npm. It is in active development with no compatibility promise: any export may still change shape, and no change carries a compatibility layer. This page describes the target usage so you can evaluate it; do not depend on it in production yet.
+::: info Released with Wow 9.2.0
+`@ahoo-wang/wow-view-engine` is released with Wow 9.2.0, from the same tag and with the same version; it is not on npm before that. From 9.2.0 on, a patch release never breaks its public surface: the exports of every entry, including the `ViewStore` port a backend implements; the [CSS contract](./view-engine-theming.md#what-is-public); the message keys and issue codes; and the `wow-view-engine` command. A minor release may, and its release notes list every break with the steps to follow; keep the Wow packages on one minor ([version ranges](./compatibility.md#version-ranges)). Views saved in an older form keep opening: the engine migrates stored configs on read.
 :::
 
 The view engine is a data view engine for Wow-based business applications. The application declares in code _how a dataset can be observed_: fields, kinds, operators, available dimensions, and metrics. Users decide in the UI _how to observe it this time_: filters, columns, sorting, dimensions and metrics, charts, and panel composition. The engine compiles that choice into Wow queries, runs them through `@ahoo-wang/wow-client`, renders the result, and saves the views worth keeping so they reopen with one click.
@@ -193,5 +193,5 @@ To see what the engine draws first, open the [chart showcase board](/storybook/?
 - [wow-view-engine reference](../../reference/typescript/wow-view-engine/): entries, concepts, persistence port, and extension points.
 - [Theming the View Engine](./view-engine-theming.md): presets, host variables, light, dark and system mode, the shadcn bridge, and the contrast an override owes.
 - [Accessibility of the View Engine](./view-engine-accessibility.md): the WCAG 2.2 AA conformance statement, the keyboard and screen-reader walkthroughs, and the known gaps.
-- [Design documents](https://github.com/Ahoo-Wang/Wow/tree/main/typescript/wow-view-engine/docs/design): the source of truth while the package is unreleased.
+- [Design documents](https://github.com/Ahoo-Wang/Wow/tree/main/typescript/wow-view-engine/docs/design): the source of truth for the model.
 - [Package README](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/README.md): the API as it stands today.

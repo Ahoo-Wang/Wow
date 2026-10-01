@@ -1,12 +1,12 @@
 ---
 title: 视图引擎的可访问性
-description: 尚未发布的 wow-view-engine 对 WCAG 2.2 AA 的符合性声明——评估方法、纯键盘与读屏走查的结果、这次修掉的问题、逐条准则的支持程度与已知缺口。
+description: wow-view-engine 对 WCAG 2.2 AA 的符合性声明——评估方法、纯键盘与读屏走查的结果、这次修掉的问题、逐条准则的支持程度与已知缺口。
 ---
 
 # 视图引擎的可访问性
 
-::: warning 尚未发布
-`@ahoo-wang/wow-view-engine` 尚未发布到 npm，也不承诺兼容。本页描述的是仓库里当前的状态，随代码一起更新。
+::: info 随 Wow 9.2.0 发布
+`@ahoo-wang/wow-view-engine` 随 Wow 9.2.0 发布，在此之前不在 npm 上；兼容规则见[视图引擎](./view-engine.md)页。本页描述的是仓库里当前的状态，随代码一起更新。
 :::
 
 本页是视图引擎界面（`@ahoo-wang/wow-view-engine/ui`：记录工作台、分析工作台、仪表盘、两种嵌入）对 [WCAG 2.2](https://www.w3.org/TR/WCAG22/) A 级与 AA 级的符合性声明。结论先说：

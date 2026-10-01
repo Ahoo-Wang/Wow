@@ -52,17 +52,18 @@ val exampleProjects =
 val testProject = project(":wow-test")
 val codeCoverageReportProject = project(":code-coverage-report")
 val benchmarksProject = project(":wow-benchmarks")
-// Libraries that build and test like the others but are not published until stable (view-store/* in phase 6).
-val incubatingProjects = setOf(
-    project(":wow-view-store-api"),
-    project(":wow-view-store-domain"),
-    project(":wow-view-store-starter"),
-)
+// Libraries that build and test like the others but are not published yet. Empty since 9.2.0, which
+// publishes view-store/* (api, domain, starter) with the view engine.
+val incubatingProjects = emptySet<Project>()
 val publishProjects =
     subprojects - exampleProjects - codeCoverageReportProject - benchmarksProject - incubatingProjects
 val libraryProjects = publishProjects - bomProjects + exampleLibraries + benchmarksProject + incubatingProjects
+// What wow-bom constrains: the published libraries only, never an example, the benchmarks or an incubating module,
+// whose coordinates are not on Maven Central.
+val bomConstrainedProjects = publishProjects - bomProjects
 val isInCI = !System.getenv("CI").isNullOrEmpty()
 ext.set("libraryProjects", libraryProjects)
+ext.set("bomConstrainedProjects", bomConstrainedProjects)
 
 enum class WowTestLayer(
     val sourceSetName: String,

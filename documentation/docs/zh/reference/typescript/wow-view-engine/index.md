@@ -1,12 +1,12 @@
 ---
 title: 'wow-view-engine 参考'
-description: '尚未发布的 @ahoo-wang/wow-view-engine 包的入口、概念、持久化端口与扩展点。'
+description: '@ahoo-wang/wow-view-engine 包的入口、概念、持久化端口与扩展点。'
 ---
 
 # wow-view-engine 参考
 
-::: warning 尚未发布
-`@ahoo-wang/wow-view-engine` 还没有发布到 npm，也不承诺兼容。本页记录入口与契约的当前状态；首次发布之前以[设计文档](https://github.com/Ahoo-Wang/Wow/tree/main/typescript/wow-view-engine/docs/design)为准。逐符号参考和完整符号索引在包发布时补上。
+::: info 随 Wow 9.2.0 发布
+`@ahoo-wang/wow-view-engine` 随 Wow 9.2.0 发布，与 Wow 同一个 tag、同一个版本号；在此之前不在 npm 上。补丁版本不破坏导出（包括 `ViewStore` 端口）、CSS 合同、消息键与 issue code，以及 `wow-view-engine` 命令；次版本的破坏逐条写进发布说明（[兼容规则](../../../guide/typescript/view-engine.md)）。模型以[设计文档](https://github.com/Ahoo-Wang/Wow/tree/main/typescript/wow-view-engine/docs/design)为准；逐符号参考还没有。
 :::
 
 引擎做什么以及目标用法的完整走读，见[视图引擎指南](../../../guide/typescript/view-engine.md)。

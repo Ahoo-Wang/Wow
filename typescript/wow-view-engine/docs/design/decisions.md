@@ -874,6 +874,13 @@
 - **没选**：旧路径保留旧响应体、新描述走新路径或按 `Accept` 协商（选项 B，多一套要维护到 v10 的旧形状）；只记例外、不恢复 refresh（选项 C，旧脚本 404）。
 - **落点**：`wow-openapi` 的 `SnapshotRouteContributor`、`EventRouteContributor`、`BuiltInHttpRouteHandlerKeys`；`wow-webflux` 的 `QuerySchemaRefreshHandlerFunctionFactory`；`wow-spring-boot-starter` 的 `QueryRouteModule`。
 
+## D78 视图存储随 9.2.0 一起发布：npm 的 wow-view-store 与 Maven 的 api、domain、starter（2026-10-01）
+
+- **来由**：第二轮审查 R2-43（FUNC-2、API-5）。按当时的配置，9.2.0 会发出引擎、`wow-view-store-server` 镜像（`view-store-deploy.yml` 随 `v*` tag 推送）和内嵌 starter 的补偿服务端，却不发 `@ahoo-wang/wow-view-store`（`HELD_BACK`）和三个 Maven 模块（`incubatingProjects`）：照 `wow-view-host` skill 写 `import { WowViewStore }` 得到 `E404`，业务服务也引入不了 starter，而镜像的路由与聚合已经是公开的线上合同。
+- **裁定**（用户 2026-10-01，选项 a）：视图存储随 9.2.0 发布。`@ahoo-wang/wow-view-engine` 与 `@ahoo-wang/wow-view-store` 都进 `publish-npm.mjs` 的 `PUBLISHED`，`HELD_BACK` 清空；`wow-view-store-api`、`-domain`、`-starter` 移出 `incubatingProjects`，发到 Maven Central；`wow-bom` 只约束发布的模块（R2-47）；镜像照旧随 `v*` tag 发布。从 9.2.0 起这五个 npm 包与三个模块按项目的兼容规则走：补丁版本不破坏，次版本的破坏逐条写进发布说明，不加兼容层（README、AGENTS.md「Status」）。
+- **没选**：都留到首发之后（选项 b：镜像只在分支与每日构建发布，文档写「Wow 后端以后再说」）。
+- **落点**：`.github/scripts/publish-npm.mjs`、`build.gradle.kts`、`wow-bom`、[RELEASING.md](../../../RELEASING.md)「首发清单」（A 对五个包逐项、C′ 试用加视图存储、D 五个包各配 Trusted Publisher）、`package-check.mjs` 的引擎与存储冒烟。
+
 ## 搁置待议
 
 尚无结论，不要当作规则执行。

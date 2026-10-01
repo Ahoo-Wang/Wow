@@ -70,7 +70,7 @@ export async function countActive<S>(snapshots: SnapshotQueryClient<S>, signal: 
 
 - **Server Component 和 Route Handler** 可以直接调用 `wow-client` 和生成的客户端（按上文每个请求一个 Fetcher），把普通数据传给页面。
 - **Hook 只能在 Client Component 中运行。** `@ahoo-wang/wow-react` 导出的是 Hook，其构建产物没有 `"use client"` 指令，所以调用它们的文件要以 `'use client'` 开头。Hook 本身见 [wow-react 参考](../../reference/typescript/wow-react/)。
-- **`@ahoo-wang/wow-view-engine/ui` 的组件**（尚未发布）同样使用 Hook，也没有该指令。在一个标了 `'use client'` 的文件里重新导出要渲染的组件，再从那里导入：
+- **`@ahoo-wang/wow-view-engine/ui` 的组件**同样使用 Hook，也没有该指令。在一个标了 `'use client'` 的文件里重新导出要渲染的组件，再从那里导入：
 
 ```tsx
 'use client';

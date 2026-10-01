@@ -1,6 +1,8 @@
 # Wow View Engine
 
-> **Status: in active development, with no compatibility promise.** Record, Analysis and Dashboard views, their embeds, the `/react` controllers and the `/ui` components below are all in the package. Any export may still change shape, and no change carries a compatibility layer; [docs/design/](https://github.com/Ahoo-Wang/Wow/tree/main/typescript/wow-view-engine/docs/design/) is the source of truth, and this page describes the API as it is now.
+Released with Wow 9.2.0, from the same tag and with the same version.
+
+> **Compatibility.** From 9.2.0 on, a patch release (`9.2.x`) never breaks the public surface: the exports of every entry, including the `ViewStore` port a backend implements; the CSS contract ([what is public](https://wow.ahoo.me/guide/typescript/view-engine-theming#what-is-public)); the message keys and issue codes; and the `wow-view-engine` command. A minor release may break it, and its release notes list every break with the steps to follow; keep the Wow packages on one minor, as [version ranges](https://wow.ahoo.me/guide/typescript/compatibility#version-ranges) explains. A break is a clean change, never a compatibility layer. Views users saved in an older form keep opening: the engine migrates stored configs on read. [docs/design/](https://github.com/Ahoo-Wang/Wow/tree/main/typescript/wow-view-engine/docs/design/) is the source of truth for the model, and this page describes the API as it is now.
 
 **Wow View Engine is a data view engine for Wow-based business applications.** The application declares in code _how a dataset can be observed_: fields, kinds, operators, available dimensions and metrics. Users decide in the UI _how to observe it this time_: filters, columns, sorting, dimensions and metrics, charts, panel composition. The engine compiles that way of observing into Wow queries, runs them, renders the result, and saves the ways worth keeping so they can be reopened with one click.
 
@@ -43,13 +45,16 @@ Not a database or compute backend, not a permission system, not a general low-co
 
 ## Install
 
-The package has not had its first public registry release; the stable release scripts skip it on purpose. Until then, consume it from this workspace (`"@ahoo-wang/wow-view-engine": "workspace:^"`) or from a local `pnpm pack` archive. Once published, installation will be:
-
 ```bash
-pnpm add @ahoo-wang/wow-view-engine @ahoo-wang/wow-client
+pnpm add @ahoo-wang/fetcher @ahoo-wang/fetcher-decorator \
+  @ahoo-wang/fetcher-eventstream @ahoo-wang/wow-client @ahoo-wang/wow-view-engine
+# the /react and /ui entries
+pnpm add react react-dom
 ```
 
-Peer dependencies `react` and `react-dom` are required only for the `/react` and `/ui` entries. The root entry runs in Node.
+The version follows Wow, so a minor release may contain breaking changes: keep the Wow packages on one minor with `save-prefix=~` or `--save-exact`, as [version ranges](https://wow.ahoo.me/guide/typescript/compatibility#version-ranges) explains.
+
+Peer dependencies: `@ahoo-wang/wow-client` (and the fetcher packages it needs); `react` and `react-dom` only for the `/react` and `/ui` entries, `react-router` only for `/react-router`, and `mingo` only for `/testing`. The root entry runs in Node. To keep saved views on a Wow server, add [`@ahoo-wang/wow-view-store`](../wow-view-store/README.md). ES modules only; Node `>=22.12.0` or a current browser; TypeScript 6 or later.
 
 ## Design principles
 

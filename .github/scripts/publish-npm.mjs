@@ -27,7 +27,11 @@ import {
 //
 //   node .github/scripts/publish-npm.mjs [--dry-run] [--no-provenance]
 //                                        [--pack <dir> | --tarballs <dir>]
+//   node .github/scripts/publish-npm.mjs --list
 //
+// - `--list` prints the name of every PUBLISHED package, one per line, and
+//   stops: the runbook's rollback, audit and verification loops read it, so
+//   they always cover what the release published.
 // - A real publish refuses a dirty working tree and a HEAD that is not the
 //   commit of `v<version>`: what goes out is exactly the tagged commit.
 // - `--pack <dir>` packs the packages and stops; `--tarballs <dir>` publishes
@@ -41,17 +45,32 @@ import {
 // - In CI, npm authenticates through OIDC trusted publishing and attaches
 //   provenance; no token is involved.
 
-/** Published to npm, in dependency order. */
+/**
+ * Published to npm, in dependency order: wow-react, wow-view-engine and
+ * wow-view-store peer on wow-client, and wow-view-store on wow-view-engine.
+ * Every list of "the published packages" (the rollback, the audit, the
+ * Trusted Publisher setup in typescript/RELEASING.md) is this one.
+ */
 export const PUBLISHED = [
   'typescript/wow-client',
   'typescript/wow-react',
   'typescript/wow-generator',
-];
-/** Public packages held back until they are stable (wow-view-engine, wow-view-store). */
-export const HELD_BACK = [
   'typescript/wow-view-engine',
   'typescript/wow-view-store',
 ];
+/**
+ * Public packages kept off npm for now. Empty since 9.2.0, which ships the
+ * view engine and the view store with the other three.
+ */
+export const HELD_BACK = [];
+/** The npm names of the PUBLISHED packages, in publish order. */
+export function publishedNames(root = ROOT, published = PUBLISHED) {
+  return published.map(
+    dir =>
+      JSON.parse(readFileSync(join(root, dir, 'package.json'), 'utf8')).name,
+  );
+}
+
 /** npm CLI version that supports OIDC trusted publishing. */
 export const MIN_NPM = '11.5.1';
 
@@ -59,11 +78,15 @@ export const MIN_NPM = '11.5.1';
  * The packages to publish, checked against the workspace: each is public and
  * on the project version, and no other public package exists unannounced.
  */
-export function publishPlan(root = ROOT, version = readProjectVersion(root)) {
+export function publishPlan(
+  root = ROOT,
+  version = readProjectVersion(root),
+  { published = PUBLISHED, heldBack = HELD_BACK } = {},
+) {
   const manifest = dir =>
     JSON.parse(readFileSync(join(root, dir, 'package.json'), 'utf8'));
   const problems = [];
-  const plan = PUBLISHED.map(dir => {
+  const plan = published.map(dir => {
     const { name, version: packageVersion, private: isPrivate } = manifest(dir);
     if (isPrivate)
       problems.push(`${dir}: private packages are never published`);
@@ -77,8 +100,8 @@ export function publishPlan(root = ROOT, version = readProjectVersion(root)) {
     const dir = `typescript/${entry.name}`;
     if (
       !entry.isDirectory() ||
-      PUBLISHED.includes(dir) ||
-      HELD_BACK.includes(dir)
+      published.includes(dir) ||
+      heldBack.includes(dir)
     )
       continue;
     let isPrivate;
@@ -225,6 +248,10 @@ if (
   import.meta.url === pathToFileURL(process.argv[1]).href
 ) {
   const args = process.argv.slice(2);
+  if (args.includes('--list')) {
+    console.log(publishedNames().join('\n'));
+    process.exit(0);
+  }
   const dryRun = args.includes('--dry-run');
   const provenance = !args.includes('--no-provenance');
   // --pack <dir>: only pack the packages into <dir>, for the package check and

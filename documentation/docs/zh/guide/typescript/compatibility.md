@@ -14,7 +14,8 @@ description: Wow TypeScript 包支持哪些 Wow 服务端、Node.js、React、Ty
 | `@ahoo-wang/wow-client` | 随 Wow **9.2.0** 发布；在此之前尚未上 npm |
 | `@ahoo-wang/wow-generator` | 随 Wow **9.2.0** 发布；在此之前尚未上 npm |
 | `@ahoo-wang/wow-react` | 随 Wow **9.2.0** 发布；在此之前尚未上 npm |
-| `@ahoo-wang/wow-view-engine` | 尚未发布；还没有日期，也没有兼容承诺 |
+| `@ahoo-wang/wow-view-engine` | 随 Wow **9.2.0** 发布；在此之前尚未上 npm |
+| `@ahoo-wang/wow-view-store` | 随 Wow **9.2.0** 发布；在此之前尚未上 npm |
 
 Wow 9.2.0 发布之前，`pnpm add @ahoo-wang/wow-client` 会以 `E404` 失败。候选版本可能先以 dist-tag `next` 出现（`pnpm add @ahoo-wang/wow-client@next`）；`latest` 从 9.2.0 开始。在此之前，应用继续使用 5.x 的 `@ahoo-wang/fetcher-wow` 和 `@ahoo-wang/fetcher-generator`，9.2.0 发布后再按[迁移指南](./migration.md)切换。
 

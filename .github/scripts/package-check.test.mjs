@@ -9,8 +9,11 @@ import { join } from 'node:path';
 import { test } from 'node:test';
 import {
   ALLOWED_FETCHER_DIAGNOSTICS,
+  ENTRIES,
+  STYLESHEETS,
   TYPESCRIPT_VERSIONS,
   annotation,
+  bins,
   applyAllowance,
   distTagProblems,
   manifestProblems,
@@ -34,6 +37,36 @@ test('the public packages take peers from catalog:peers and the root engines', (
     [],
   );
   assert.equal(manifest('.').engines.node, '>=22.12.0');
+});
+
+test('the consumer smoke reaches every entry, style sheet and bin of every published package', () => {
+  const entries = ENTRIES.map(([entry]) => entry);
+  for (const dir of PUBLISHED) {
+    const { name, exports, bin } = manifest(dir);
+    for (const [subpath, target] of Object.entries(exports)) {
+      if (subpath === './package.json') continue;
+      const specifier = subpath === '.' ? name : `${name}${subpath.slice(1)}`;
+      if (typeof target === 'string' && target.endsWith('.css')) {
+        // A pattern (`./themes/*.css`) is checked through one of its files.
+        const covered = subpath.includes('*')
+          ? STYLESHEETS.some(sheet =>
+              sheet.startsWith(specifier.slice(0, specifier.indexOf('*'))),
+            )
+          : STYLESHEETS.includes(specifier);
+        assert.ok(covered, `${specifier}: no style sheet check`);
+      } else assert.ok(entries.includes(specifier), `${specifier}: no import`);
+    }
+    for (const command of Object.keys(bin ?? {}))
+      assert.ok(
+        bins('9.2.0').some(({ bin: checked }) => checked === command),
+        `${name}: bin ${command} is never run`,
+      );
+  }
+  for (const entry of entries)
+    assert.ok(
+      PUBLISHED.some(dir => entry.startsWith(manifest(dir).name)),
+      `${entry}: not a published package`,
+    );
 });
 
 test('consumers compile on the TypeScript floor and the latest 7.x, as the docs say', () => {
@@ -168,6 +201,23 @@ test('a dist-tag that is missing or points elsewhere is a problem', () => {
       '@ahoo-wang/wow-generator: dist-tag latest is missing, not 9.2.0',
     ],
   );
+});
+
+test('the package job builds every published package before checking them', () => {
+  const workflow = readFileSync(
+    join(ROOT, '.github/workflows/typescript.yml'),
+    'utf8',
+  );
+  const job = /^ {2}package:\n(?:(?: {4}.*)?\n)+/m.exec(workflow)?.[0];
+  assert.ok(job, 'typescript.yml has no package job');
+  // The build takes its packages from PUBLISHED, the list the check reads,
+  // so a package added there cannot reach the check unbuilt.
+  const build = job.indexOf('node .github/scripts/publish-npm.mjs --list');
+  const check = job.indexOf('node .github/scripts/package-check.mjs');
+  assert.ok(build >= 0, 'the build does not read publish-npm.mjs --list');
+  assert.ok(check > build, 'the check runs before the build');
+  assert.match(job, /--filter "\$pkg\.\.\."/);
+  assert.doesNotMatch(job, /--filter @ahoo-wang\//);
 });
 
 test('a failure becomes one GitHub annotation that keeps its lines', () => {
