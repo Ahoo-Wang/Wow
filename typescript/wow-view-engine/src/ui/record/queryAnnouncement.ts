@@ -13,7 +13,8 @@
 
 import type { RecordTableController } from '../../react/index.js';
 import type { MessageFormatters } from '../kit/MessagesProvider.js';
-import { useSentence, type OwnAnnouncer } from '../kit/Announcer.js';
+import { useCallback, useEffect, useRef } from 'react';
+import type { OwnAnnouncer } from '../kit/Announcer.js';
 
 /**
  * What a query says about itself, or nothing at all.
@@ -63,6 +64,13 @@ export function querySentence(
  * matches the previous one exactly say nothing a second time: the
  * "running" sentence sits between two landings, so every query the reader
  * waited through is read back, and a render that changed nothing is not.
+ *
+ * What it returns says a sentence that leads the next result: a command's
+ * outcome, said at once and kept, so the refresh the command asked for
+ * does not say 「正在查询」 and then its count over it — a polite region is
+ * read for its last words, and the outcome was the one worth hearing. The
+ * result that lands next is said after it, in one sentence
+ * (「发货 · SO-1003 已完成；共 4 条记录」).
  */
 export function useQueryAnnouncement(
   table: RecordTableController,
@@ -70,6 +78,33 @@ export function useQueryAnnouncement(
   voice: Pick<OwnAnnouncer, 'say' | 'clear'>,
   /** What the empty result is titled on screen, when the host titles it. */
   emptyTitle?: string,
-): void {
-  useSentence(querySentence(table, messages, emptyTitle), voice);
+): (lead: string) => void {
+  const sentence = querySentence(table, messages, emptyTitle);
+  const { say, clear } = voice;
+  const said = useRef<string | null>(null);
+  const held = useRef<string | null>(null);
+  const loading = table.loading;
+  useEffect(() => {
+    if (sentence === said.current) return;
+    said.current = sentence;
+    const lead = held.current;
+    if (lead === null) {
+      if (sentence === null) clear();
+      else say(sentence);
+      return;
+    }
+    // The lead stays the last thing said while the refresh runs; a refresh
+    // that failed says so on its own strip, and the lead is spent.
+    if (loading) return;
+    held.current = null;
+    if (sentence === null) return;
+    say(messages.label('label.status.then', { first: lead, then: sentence }));
+  }, [say, clear, sentence, loading, messages]);
+  return useCallback(
+    (lead: string) => {
+      held.current = lead;
+      say(lead);
+    },
+    [say],
+  );
 }

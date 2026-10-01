@@ -2096,6 +2096,7 @@ export const zhCN: Readonly<Record<string, string>> = {
   'label.status.less': '收起',
   'label.status.loading': '加载中',
   'label.status.querying': '正在查询',
+  'label.status.then': '{first}；{then}',
   'label.status.groups': '{count} 组',
   'label.status.groups-one': '1 组',
   // 只有一条 error 时直接说出来，行尾给一条出路：记录视图自己的错几乎都是
@@ -2283,25 +2284,34 @@ export const zhCN: Readonly<Record<string, string>> = {
   // 宿主自己的批量命令做完之后那一条。量词跟着它作用的那份选择走
   // （`label.toolbar.selected` 是「已选 N 项」），说的就是那几项。
   'label.bulk.done': '{done} 项已完成',
-  'label.bulk.partial': '{done} 项完成，{failed} 项失败',
   'label.bulk.failed': '{failed} 项失败',
+  'label.bulk.unknown': '{unknown} 项结果未知，先刷新核对',
   'label.bulk.skipped': '{skipped} 项未执行',
+  'label.bulk.one-done': '{record} 已完成',
+  'label.bulk.one-failed': '{record} 失败：{reason}',
+  'label.bulk.one-refused': '{record} 未执行：{reason}',
+  'label.bulk.one-unknown': '{record} 结果未知，先刷新核对',
+  'label.bulk.one-skipped': '{record} 未执行',
   'label.bulk.reason': '{reason}（{count} 项）',
   'label.bulk.more-reasons': '另有 {count} 种原因',
   'label.bulk.more-reasons-one': '另有 1 种原因',
-  'label.bulk.left': '未完成的仍选中',
+  'label.bulk.left': '失败与未执行的仍选中',
   'label.bulk.running': '正在执行 {done}/{total}',
   'label.bulk.running-failed': '正在执行 {done}/{total}，{failed} 项失败',
   'label.bulk.stop': '停止',
   'label.bulk.stopping': '正在停止…',
+  'label.bulk.stop-waiting': '不再等待',
   'label.bulk.dismiss': '知道了',
 
   // 宿主声明的操作（host-integration.md 5）：引擎在命令周围说的话。命令本身
   // 的名字与拒绝理由是宿主的（`text(key)`）。
   'label.action.more': '{record} 的操作',
   'label.action.bulk': '{action} {count} 条',
+  'label.action.bulk-able': '{action} {able}/{count} 条',
   'label.action.confirm': '对 {count} 条记录执行「{action}」？',
-  'label.action.confirm-one': '对 {count} 条记录执行「{action}」？',
+  'label.action.confirm-record': '对 {record} 执行「{action}」？',
+  'label.action.on-record': '{action}：{record}',
+  'label.action.record': '记录 {record}',
   'label.action.left': '被拒绝的记录仍保持勾选，并写明原因。',
   'label.action.able': '{count} 条里 {able} 条能{action}。',
   'label.action.none-able': '{count} 条里没有一条现在能{action}。',
@@ -2314,6 +2324,9 @@ export const zhCN: Readonly<Record<string, string>> = {
   'label.action.unseen': '不在当前这一页上',
   'label.action.not-offered': '这条记录不提供此操作',
   'label.action.unavailable': '现在不可用',
+  'label.action.failed': '失败，未给出原因',
+  'label.action.timed-out': '超时未答复',
+  'label.action.abandoned': '已不再等待',
 
   // 点一个面板（批 D，D22 H、I）：追问菜单上的仪表盘筛选、交叉筛选、「点击时…」，
   // 以及内核与运行时关于它的发现。独立站在屏幕上的名字用「」。

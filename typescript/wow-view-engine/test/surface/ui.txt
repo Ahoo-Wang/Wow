@@ -1,4 +1,4 @@
-# @ahoo-wang/wow-view-engine/ui — 248 names, from src/ui/index.ts.
+# @ahoo-wang/wow-view-engine/ui — 249 names, from src/ui/index.ts.
 # Written by test/publicSurface.test.ts; a change here is a change to
 # the public surface (README「Entries」, docs/design/decisions.md D29).
 value AUDIENCE_ICON
@@ -26,6 +26,7 @@ value ColumnSettings
 type  ColumnSettingsProps
 value ContentPanel
 type  ContentPanelProps
+type  ControlAria
 type  ControlChromeProps
 type  DashboardEditExtensions
 value DashboardEditExtensionsContext

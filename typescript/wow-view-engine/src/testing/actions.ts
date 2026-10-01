@@ -17,6 +17,7 @@ import {
   choiceOf,
   confirmOf,
   asksFirst,
+  initialInput,
   missingInput,
   nextChange,
   offeredAt,
@@ -75,6 +76,10 @@ export interface ActionHarness {
   readonly ids: readonly string[];
   /** The ids offered at a place, in order. */
   at(place: ActionPlace): string[];
+  /**
+   * One record's state; with an input, asked as a pressed action is — the
+   * form's `initial` under it.
+   */
   state(id: string, key: RecordKey, input?: ActionInput): HarnessState;
   bulk(
     id: string,
@@ -85,6 +90,7 @@ export interface ActionHarness {
    * Whether pressing it at `place` asks before sending — a selection
    * always does — and what it asks: the declared question, or `null` when
    * the engine asks with its own words (a selection with no `confirm`).
+   * Asked as the screen asks it: the form's `initial` under `input`.
    */
   asks(
     id: string,
@@ -95,14 +101,14 @@ export interface ActionHarness {
   form(id: string): HarnessField[] | null;
   /** Whether it is a choice: a form of one field of options, offered as them. */
   choice(id: string): readonly FieldOption[] | null;
-  /** The required fields `input` leaves blank. */
+  /** The required fields `input` leaves blank, the form's `initial` under it. */
   missing(id: string, input: ActionInput): string[];
   /** The soonest time after `now` a record's availability flips on its own. */
   changesAt(key?: RecordKey): number | null;
   /**
-   * Sends one record the command as the engine would: refused with the
-   * reason (`ActionRefused`) where it does not take it, else the host's
-   * `run` itself.
+   * Sends one record the command as the engine would — with the form's
+   * `initial` under `input` — refused with the reason (`ActionRefused`)
+   * where it does not take it, else the host's `run` itself.
    */
   run(id: string, key: RecordKey, input?: ActionInput): Promise<unknown>;
 }
@@ -118,6 +124,11 @@ export function actionHarness(
     if (!action) throw new Error(`No action "${id}".`);
     return action;
   };
+  // What a press starts from: the form's `initial`, the given input over it.
+  const pressed = (action: RecordAction, input: ActionInput = {}) => ({
+    ...initialInput(action),
+    ...input,
+  });
   const rowOf = (key: RecordKey): RecordRow => {
     const row = byKey.get(key);
     if (!row) throw new Error(`No record "${String(key)}".`);
@@ -126,14 +137,21 @@ export function actionHarness(
   return {
     ids: list.map(action => action.id),
     at: place => offeredAt(list, place).map(action => action.id),
-    state: (id, key, input) =>
-      actionState(find(id), rowOf(key), input ? { now, input } : { now }),
+    state: (id, key, input) => {
+      const action = find(id);
+      return actionState(
+        action,
+        rowOf(key),
+        input ? { now, input: pressed(action, input) } : { now },
+      );
+    },
     bulk(id, keys = rows.map(row => row.key), input) {
+      const action = find(id);
       const split = splitFor(
-        find(id),
+        action,
         keys,
         key => byKey.get(key),
-        input ? { now, input } : { now },
+        input ? { now, input: pressed(action, input) } : { now },
       );
       return {
         ...split,
@@ -144,11 +162,12 @@ export function actionHarness(
         })),
       };
     },
-    asks(id, place, input = {}) {
+    asks(id, place, input) {
       const action = find(id);
+      const given = pressed(action, input);
       return {
-        asks: asksFirst(action, place, input),
-        confirm: confirmOf(action, input),
+        asks: asksFirst(action, place, given),
+        confirm: confirmOf(action, given),
       };
     },
     form(id) {
@@ -163,9 +182,15 @@ export function actionHarness(
       }));
     },
     choice: id => choiceOf(find(id))?.options ?? null,
-    missing: (id, input) => missingInput(find(id), input),
+    missing: (id, input) => {
+      const action = find(id);
+      return missingInput(action, pressed(action, input));
+    },
     changesAt: key =>
       nextChange(list, key === undefined ? rows : [rowOf(key)], now),
-    run: (id, key, input = {}) => runOne(find(id), byKey.get(key), input, now),
+    run: (id, key, input) => {
+      const action = find(id);
+      return runOne(action, byKey.get(key), pressed(action, input), now);
+    },
   };
 }

@@ -323,7 +323,7 @@ describe('an empty record panel says what it is empty of', () => {
 });
 
 describe('declared actions on a record panel (host-integration.md 5)', () => {
-  it('places a bound definition’s actions on the panel’s rows and selection, says the run above the rows and reads the board again', async () => {
+  it('places a bound definition’s actions on the panel’s rows and selection, says the run under the rows and reads the board again', async () => {
     const source = orders(2);
     const run = vi.fn(() => Promise.resolve());
     const panel = await open(source, {}, undefined, {
@@ -340,8 +340,15 @@ describe('declared actions on a record panel (host-integration.md 5)', () => {
     await waitFor(() =>
       expect(
         card.querySelector('[data-slot="bulk-status"]')?.textContent,
-      ).toContain('Nudge · 1 done'),
+      ).toContain('Nudge · o-1 done'),
     );
+    // The line sits after the rows, where the reader's eye ends up.
+    const line = card.querySelector('[data-slot="bulk-status"]')!;
+    const rows = within(card).getAllByRole('button', { name: 'Nudge' });
+    expect(
+      line.compareDocumentPosition(rows[rows.length - 1]) &
+        Node.DOCUMENT_POSITION_PRECEDING,
+    ).toBeTruthy();
     await waitFor(() =>
       expect(vi.mocked(source.aggregate).mock.calls.length).toBeGreaterThan(
         sibling,
@@ -355,9 +362,7 @@ describe('declared actions on a record panel (host-integration.md 5)', () => {
       within(card).getByRole('button', { name: 'Nudge 1' }),
     );
     expect(
-      await screen.findByRole('alertdialog', {
-        name: 'Run “Nudge” on 1 record?',
-      }),
+      await screen.findByRole('dialog', { name: /^Run “Nudge” on o-\d\?$/ }),
     ).toBeTruthy();
   });
 

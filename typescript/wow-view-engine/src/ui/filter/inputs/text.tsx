@@ -25,6 +25,7 @@ export function TextValue({
   invalid,
   multiple,
   placeholder,
+  control,
 }: ValueProps & {
   multiple: boolean;
   /** What the empty box says instead of 「未设置」: a board's search, 「搜索…」. */
@@ -51,8 +52,11 @@ export function TextValue({
 
   return (
     <PillInput
+      id={control?.id}
       aria-label={label}
       aria-invalid={invalid}
+      aria-required={control?.required}
+      aria-describedby={control?.describedBy}
       disabled={disabled}
       value={scalarText(value)}
       // A condition with no value yet is a normal editing state rather than a

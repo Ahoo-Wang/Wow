@@ -186,6 +186,39 @@ async function openMenu(canvas: ReturnType<typeof within>, id: string) {
   return within(menu);
 }
 
+/**
+ * Held off where the keyboard still finds it: `aria-disabled`, never the
+ * native `disabled` that hands the focus to the page (A11Y-1, A11Y-15).
+ */
+async function held(element: HTMLElement, yes = true) {
+  await expect(element.hasAttribute('disabled')).toBe(false);
+  if (yes) await expect(element).toHaveAttribute('aria-disabled', 'true');
+  else await expect(element).not.toHaveAttribute('aria-disabled', 'true');
+}
+
+/** What the surface's live region says last. */
+function lastSaid(canvasElement: HTMLElement) {
+  return (
+    canvasElement.querySelector('[data-slot="record-announcement"]')
+      ?.textContent ?? ''
+  );
+}
+
+/**
+ * The outcome is what the live region says last, in the surface's language,
+ * and it stays said: nothing that lands after the run (the refresh, its
+ * count) talks over it (A11Y-2).
+ */
+async function saysAndKeeps(canvasElement: HTMLElement, said: RegExp) {
+  await waitFor(() => expect(lastSaid(canvasElement)).toMatch(said));
+  const region = canvasElement.querySelector(
+    '[data-slot="record-announcement"]',
+  )!;
+  await expect(region.closest('[lang]')?.getAttribute('lang')).toMatch(/^zh/);
+  await slowly(1200);
+  await expect(lastSaid(canvasElement)).toMatch(said);
+}
+
 function line(canvasElement: HTMLElement, state: 'running' | 'settled') {
   return waitFor(() => {
     const found = canvasElement.querySelector<HTMLElement>(
@@ -209,7 +242,7 @@ export const RowPrimaryAndOverflow: Story = {
     const ship = rowOf(canvas, 'SO-1006').getByRole('button', {
       name: '发货',
     });
-    await expect(ship).toBeDisabled();
+    await held(ship);
     await expect(ship).toHaveAccessibleDescription(
       '金额不足 1000，先走人工审核',
     );
@@ -224,13 +257,20 @@ export const RowPrimaryAndOverflow: Story = {
     await userEvent.keyboard('{Escape}');
     await waitFor(() => expect(body().queryByRole('menu')).toBeNull());
 
-    // An able order ships at a press, and the line above the rows says so.
-    await userEvent.click(
-      rowOf(canvas, 'SO-1003').getByRole('button', { name: '发货' }),
-    );
+    // An able order ships at Enter, and the line under the rows names it;
+    // the keyboard stays on the button through the run and the refresh.
+    const able = rowOf(canvas, 'SO-1003').getByRole('button', {
+      name: '发货',
+    });
+    able.focus();
+    await userEvent.keyboard('{Enter}');
     await expect(await line(canvasElement, 'settled')).toHaveTextContent(
-      '发货 · 1 项已完成',
+      '发货 · SO-1003 已完成',
     );
+    // Said in the host's words, and the refresh's count after it rather
+    // than over it (A11Y-2).
+    await saysAndKeeps(canvasElement, /^发货 · SO-1003 已完成；/);
+    await waitFor(() => expect(document.activeElement).toBe(able));
   },
 };
 
@@ -246,11 +286,12 @@ export const BulkPartialAvailability: Story = {
     await userEvent.click(
       canvas.getByLabelText(zhCN['label.record.select-all']),
     );
+    // How many of the four take it, before the press.
     await userEvent.click(
-      await canvas.findByRole('button', { name: '发货 4 条' }),
+      await canvas.findByRole('button', { name: '发货 3/4 条' }),
     );
     const dialog = within(
-      await body().findByRole('alertdialog', { name: '发出 4 张订单？' }),
+      await body().findByRole('dialog', { name: '发出 4 张订单？' }),
     );
     await seen(dialog.getByText('4 条里 3 条能发货。'));
     await seen(dialog.getByText('金额不足 1000，先走人工审核（1 项）'));
@@ -258,14 +299,23 @@ export const BulkPartialAvailability: Story = {
     await userEvent.click(
       dialog.getByRole('button', { name: '只选能做的 3 条' }),
     );
-    await body().findByRole('alertdialog', { name: '发出 3 张订单？' });
+    await body().findByRole('dialog', { name: '发出 3 张订单？' });
     await userEvent.click(
-      within(body().getByRole('alertdialog')).getByRole('button', {
-        name: '发货',
+      within(body().getByRole('dialog')).getByRole('button', {
+        name: '发货 3 条',
       }),
     );
-    await expect(await line(canvasElement, 'settled')).toHaveTextContent(
-      '发货 · 3 项已完成',
+    const settled = await line(canvasElement, 'settled');
+    await expect(settled).toHaveTextContent('发货 · 3 项已完成');
+    await saysAndKeeps(canvasElement, /^发货 · 3 项已完成/);
+    // The done ones are let go, so the bar the press came from is gone:
+    // the keyboard lands on the line that says how it went, not the page.
+    await waitFor(() =>
+      expect(document.activeElement).toBe(
+        within(settled).getByRole('button', {
+          name: zhCN['label.bulk.dismiss'],
+        }),
+      ),
     );
   },
 };
@@ -278,16 +328,33 @@ export const FormInput: Story = {
     await loaded(canvas);
     const menu = await openMenu(canvas, 'SO-1001');
     await userEvent.click(menu.getByRole('menuitem', { name: '备注' }));
+    // A form is a dialog, not an alert, and names the order.
     const dialog = within(
-      await body().findByRole('alertdialog', { name: '备注' }),
+      await body().findByRole('dialog', { name: '备注：SO-1001' }),
     );
+    const note = dialog.getByLabelText('备注内容');
+    await expect(note).toHaveAttribute('aria-required', 'true');
+    await expect(note).toHaveAccessibleDescription('必填');
+    // The answer stays pressable: pressed blank, it marks the field and
+    // takes the keyboard there (A11Y-9).
     const submit = dialog.getByRole('button', { name: '备注' });
-    await expect(submit).toBeDisabled();
-    await userEvent.type(dialog.getByLabelText('备注内容'), '先电话确认地址');
-    await waitFor(() => expect(submit).toBeEnabled());
+    await expect(submit).toBeEnabled();
+    await userEvent.click(submit);
+    await waitFor(() => expect(document.activeElement).toBe(note));
+    await expect(note).toHaveAttribute('aria-invalid', 'true');
+    await userEvent.type(note, '先电话确认地址');
     await userEvent.click(submit);
     await expect(await line(canvasElement, 'settled')).toHaveTextContent(
-      '备注 · 1 项已完成',
+      '备注 · SO-1001 已完成',
+    );
+    await saysAndKeeps(canvasElement, /^备注 · SO-1001 已完成/);
+    // Answered, the keyboard is back on the menu the form was opened from.
+    await waitFor(() =>
+      expect(document.activeElement).toBe(
+        rowOf(canvas, 'SO-1001').getByRole('button', {
+          name: 'SO-1001 的操作',
+        }),
+      ),
     );
   },
 };
@@ -303,7 +370,11 @@ export const DangerConfirm: Story = {
     const dialog = within(
       await body().findByRole('alertdialog', { name: '取消 1 张订单？' }),
     );
-    await seen(dialog.getByText('订单会退款并关闭，不能撤回。'));
+    // The host's words, and the one order they are for named beside them.
+    await seen(dialog.getByText(/^订单会退款并关闭，不能撤回。/));
+    await expect(body().getByRole('alertdialog')).toHaveAccessibleDescription(
+      '订单会退款并关闭，不能撤回。 记录 SO-1005',
+    );
     const answer = dialog.getByRole('button', { name: '取消订单' });
     await expect(answer).toHaveAttribute('data-tone', 'danger');
     // The keyboard stays in the question until it is answered.
@@ -314,7 +385,15 @@ export const DangerConfirm: Story = {
     );
     await userEvent.click(answer);
     await expect(await line(canvasElement, 'settled')).toHaveTextContent(
-      '取消订单 · 1 项已完成',
+      '取消订单 · SO-1005 已完成',
+    );
+    await saysAndKeeps(canvasElement, /^取消订单 · SO-1005 已完成/);
+    await waitFor(() =>
+      expect(document.activeElement).toBe(
+        rowOf(canvas, 'SO-1005').getByRole('button', {
+          name: 'SO-1005 的操作',
+        }),
+      ),
     );
   },
 };
@@ -328,9 +407,9 @@ export const ChangesAtFlip: Story = {
     await loaded(canvas);
     const ship = () =>
       rowOf(canvas, 'SO-1003').getByRole('button', { name: '发货' });
-    await expect(ship()).toBeDisabled();
+    await held(ship());
     await expect(ship()).toHaveAccessibleDescription('仓库尚未开门，稍后再发');
-    await waitFor(() => expect(ship()).toBeEnabled(), { timeout: 4000 });
+    await waitFor(() => held(ship(), false), { timeout: 4000 });
   },
 };
 
@@ -363,7 +442,7 @@ export const ProgressStopPartialFailure: Story = {
           await body().findByRole('alertdialog', {
             name: `取消 ${count} 张订单？`,
           }),
-        ).getByRole('button', { name: '取消订单' }),
+        ).getByRole('button', { name: `取消订单 ${count} 条` }),
       );
     };
     await cancelAll();
@@ -388,7 +467,9 @@ export const ProgressStopPartialFailure: Story = {
         const found = canvasElement.querySelector<HTMLElement>(
           '[data-slot="bulk-status"][data-state="settled"]',
         );
-        expect(found?.textContent).toContain(`${count - 1} 项完成，1 项失败`);
+        expect(found?.textContent).toContain(
+          `${count - 1} 项已完成 · 1 项失败`,
+        );
         return found!;
       },
       { timeout: 5000 },
@@ -426,7 +507,7 @@ export const DetailDrawer: Story = {
     await userEvent.keyboard('{Escape}');
     await userEvent.click(detail.getByRole('button', { name: '发货' }));
     await expect(await line(canvasElement, 'settled')).toHaveTextContent(
-      '发货 · 1 项已完成',
+      '发货 · SO-1003 已完成',
     );
   },
 };

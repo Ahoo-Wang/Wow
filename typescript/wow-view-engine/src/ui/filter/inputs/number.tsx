@@ -48,6 +48,7 @@ export function NumberInput({
   placeholder,
   describedBy,
   id,
+  required,
 }: ControlChromeProps & {
   /** The number in force, if there is one. */
   value: unknown;
@@ -66,6 +67,8 @@ export function NumberInput({
   describedBy?: string;
   /** The input's id, where a visible `FieldLabel` points at it. */
   id?: string;
+  /** Said to a reader: the form cannot go without it. */
+  required?: boolean;
 }) {
   const messages = useViewMessages();
   const { locale } = useSurfaceDisplay();
@@ -87,6 +90,7 @@ export function NumberInput({
           <PillInput
             aria-label={label}
             aria-invalid={invalid}
+            aria-required={required}
             aria-describedby={describedBy}
             chrome={chrome}
             className={className}
@@ -109,6 +113,7 @@ export function NumberValue({
   invalid,
   range,
   multiple,
+  control,
 }: ValueProps & { range: boolean; multiple: boolean }) {
   // A list and a range are two different shapes and used to share one pair
   // of boxes, which capped `IN` at the two ends a range has.
@@ -141,6 +146,9 @@ export function NumberValue({
       invalid={invalid}
       value={value}
       onNumber={onChange}
+      {...(control?.id ? { id: control.id } : {})}
+      {...(control?.describedBy ? { describedBy: control.describedBy } : {})}
+      {...(control?.required ? { required: true } : {})}
     />
   );
 }

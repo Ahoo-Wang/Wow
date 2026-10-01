@@ -12,8 +12,10 @@
  */
 
 import { useCallback, useEffect, useRef, type ReactNode } from 'react';
+import type { RecordKey } from '../../model/index.js';
 import type { RecordRow } from '../../record/index.js';
 import type { RecordViewRuntime } from '../../runtime/index.js';
+import { reportError, viewPlace } from '../../runtime/failures.js';
 import {
   offeredAt,
   type ActionInput,
@@ -28,6 +30,8 @@ import {
 } from '../../react/index.js';
 import type { SelectionContext } from '../record/SelectionBar.js';
 import { useSayWith, useViewMessages } from '../kit/MessagesProvider.js';
+import type { ViewMessages } from '../kit/messages.js';
+import { focusIn, keyboardFell } from '../kit/focus.js';
 import { ActionDialog } from './ActionDialog.js';
 import { BulkActionButtons, RowActionButtons } from './ActionButtons.js';
 import { BulkStatus, outcomeSentence, runningSentence } from './BulkStatus.js';
@@ -45,6 +49,20 @@ export interface ActionSurfaceOptions {
   also?: readonly RecordRow[];
   /** The surface's voice, which says a command's start and its outcome. */
   say(message: string): void;
+  /**
+   * Says a command's outcome instead of `say`, where the surface reads its
+   * query back too: the refresh after a command would otherwise say its
+   * count over the outcome before a reader heard it
+   * (`useQueryAnnouncement`'s `lead`).
+   */
+  sayOutcome?(message: string): void;
+  /**
+   * The host's wording and language, where the surface's provider is below
+   * this hook — the record view's parts are above the surface they draw —
+   * so what is said aloud is said in the words drawn on the line.
+   */
+  messages?: ViewMessages;
+  locale?: string;
   /** Whether the selection may be acted on: a read-only board's panel may not. */
   bulk?: boolean;
 }
@@ -79,13 +97,34 @@ export function useActionSurface({
   refresh,
   also,
   say,
+  sayOutcome = say,
+  messages: wording,
+  locale,
   bulk: selectable = true,
 }: ActionSurfaceOptions): ActionSurface {
-  const messages = useViewMessages();
-  const sayWith = useSayWith();
+  const messages = useViewMessages(wording, locale);
+  const sayWith = useSayWith(wording, locale);
+  // A command that failed is the host's to hear of (D40): what was thrown,
+  // as thrown, with the action and the record it failed on.
+  const onError = useCallback(
+    (error: unknown, context: { key: RecordKey; operation: string }) => {
+      if (!runtime) return;
+      reportError(runtime.environment, {
+        kind: 'action',
+        error,
+        context: {
+          operation: context.operation,
+          recordKey: context.key,
+          ...viewPlace(runtime),
+        },
+      });
+    },
+    [runtime],
+  );
   const controller = useRecordActions({
     actions,
     table,
+    onError,
     ...(refresh ? { refresh } : {}),
     ...(also ? { also } : {}),
   });
@@ -104,18 +143,46 @@ export function useActionSurface({
     started.current = running !== null;
   }, [running, say, messages, sayWith]);
   const told = useRef(outcome);
+  // The line, where the keyboard lands when a command took away what it
+  // was pressed on — a row the refresh filtered out, a selection's bar gone
+  // with the selection — rather than falling to the page.
+  const line = useRef<HTMLDivElement>(null);
+  const landing = useRef<{ rows: readonly RecordRow[] } | null>(null);
   useEffect(() => {
-    if (outcome && outcome !== told.current)
-      say(outcomeSentence(outcome, messages, sayWith));
+    if (outcome && outcome !== told.current) {
+      sayOutcome(outcomeSentence(outcome, messages, sayWith));
+      landing.current = { rows: table.rows };
+    }
     told.current = outcome;
-  }, [outcome, say, messages, sayWith]);
+  }, [outcome, sayOutcome, messages, sayWith, table.rows]);
+  // Watched until the refresh after the command has landed and been drawn:
+  // the row a press was on goes then, not when the command settles.
+  useEffect(() => {
+    const armed = landing.current;
+    if (!armed) return;
+    if (keyboardFell()) focusIn(line.current);
+    if (table.rows !== armed.rows) landing.current = null;
+  });
 
+  // The control a question goes back to as it closes: the button pressed,
+  // or the menu's own button for an item that went with its menu.
+  const opener = useRef<HTMLElement | null>(null);
   const onStart = useCallback(
     (place: 'row' | 'detail' | 'bulk', row?: RecordRow) =>
-      (action: RecordAction, input?: ActionInput) =>
-        start(action.id, place, row, input),
+      (
+        action: RecordAction,
+        input?: ActionInput,
+        from?: HTMLElement | null,
+      ) => {
+        opener.current = from ?? null;
+        start(action.id, place, row, input);
+      },
     [start],
   );
+  const finalFocus = useCallback(() => {
+    const from = opener.current;
+    return from?.isConnected ? from : true;
+  }, []);
 
   const drawRow = (place: 'row' | 'detail') => {
     const declared = offeredAt(actions, place).length > 0;
@@ -139,10 +206,7 @@ export function useActionSurface({
             refresh: reread,
             busy,
             run: command =>
-              runCommand(
-                { keys: [row.key], select() {}, refresh: reread },
-                command,
-              ),
+              runCommand({ keys: [row.key], refresh: reread }, command),
           })}
       </>
     );
@@ -184,7 +248,7 @@ export function useActionSurface({
     ...optional('row', drawRow('row')),
     ...optional('detail', drawRow('detail')),
     ...optional('bulk', drawBulk),
-    status: <BulkStatus command={controller} />,
+    status: <BulkStatus ref={line} command={controller} />,
     dialog: (
       <ActionDialog
         pending={controller.pending}
@@ -192,6 +256,7 @@ export function useActionSurface({
         onOnlyAble={controller.onlyAble}
         onConfirm={controller.confirm}
         onCancel={controller.cancel}
+        finalFocus={finalFocus}
       />
     ),
   };

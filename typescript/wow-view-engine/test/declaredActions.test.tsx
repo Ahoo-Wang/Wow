@@ -35,9 +35,21 @@ import {
   type RecordAction,
   type RecordActions,
 } from '../src/index.js';
+import {
+  MemoryViewStore,
+  ViewEngine,
+  defaultRuntimeEnvironment,
+  type ViewErrorEvent,
+} from '../src/index.js';
 import type { RecordActionSlots } from '../src/react/index.js';
-import { DataWorkbench, MessagesProvider } from '../src/ui/index.js';
-import { deferred } from './fixtures.js';
+import { DataWorkbench, MessagesProvider, zhCN } from '../src/ui/index.js';
+import {
+  deferred,
+  mine,
+  ordersDefinition,
+  resourcesOf,
+  testSource,
+} from './fixtures.js';
 import { setup } from './fixtures/ui.js';
 
 afterEach(() => {
@@ -152,13 +164,35 @@ function status() {
   return document.querySelector<HTMLElement>('[data-slot="bulk-status"]');
 }
 
+/** What an element is described by, as a reader hears it. */
+function described(element: HTMLElement): string {
+  return (element.getAttribute('aria-describedby') ?? '')
+    .split(/\s+/)
+    .filter(Boolean)
+    .map(id => document.getElementById(id)?.textContent ?? '')
+    .join(' ');
+}
+
+/**
+ * Whether a control is held off where the keyboard still finds it
+ * (`focusableWhenDisabled`): `aria-disabled`, never the native `disabled`,
+ * which would drop the focus a press left on it.
+ */
+function held(element: HTMLElement): boolean {
+  return (
+    element.getAttribute('aria-disabled') === 'true' &&
+    !element.hasAttribute('disabled')
+  );
+}
+
 describe('a record’s declared actions', () => {
   it('puts the primary one in the row and the rest behind the record’s menu, saying why one is off', async () => {
     await open(actions([ship(), cancel(), priority()]));
 
     const shipped = rowOf('o-2');
     const button = within(shipped).getByRole('button', { name: 'Ship' });
-    expect(button).toHaveProperty('disabled', true);
+    // Held off where Tab reaches it, so its reason does too (A11Y-15).
+    expect(held(button)).toBe(true);
     expect(button.getAttribute('aria-describedby')).toBeTruthy();
     expect(
       document.getElementById(button.getAttribute('aria-describedby')!)
@@ -214,7 +248,7 @@ describe('a record’s declared actions', () => {
     expect(within(menu).queryByText('Priority')).toBeNull();
   });
 
-  it('runs a row’s primary action at once, says so above the rows and reads the view again', async () => {
+  it('runs a row’s primary action at once, says so under the rows and reads the view again', async () => {
     const run = vi.fn(() => Promise.resolve());
     const { source } = await open(actions([ship(run)]));
     const before = vi.mocked(source.paged).mock.calls.length;
@@ -231,8 +265,9 @@ describe('a record’s declared actions', () => {
       within(rowOf('o-1')).getByRole('button', { name: 'Ship' }),
     );
 
+    // One record is named, not counted.
     await waitFor(() =>
-      expect(status()?.textContent).toContain('Ship · 1 done'),
+      expect(status()?.textContent).toContain('Ship · o-1 done'),
     );
     expect(run).toHaveBeenCalledWith(
       expect.objectContaining({ key: 'o-1' }),
@@ -241,8 +276,12 @@ describe('a record’s declared actions', () => {
     await waitFor(() =>
       expect(vi.mocked(source.paged).mock.calls.length).toBeGreaterThan(before),
     );
-    // Said aloud, too: the reader's focus is on the row, not on the line.
-    await waitFor(() => expect(said).toContain('Ship · 1 done'));
+    // Said aloud, too: the reader's focus is on the row, not on the line —
+    // and the refresh's count after it, in one sentence, never over it.
+    await waitFor(() =>
+      expect(said[said.length - 1]).toMatch(/^Ship · o-1 done; .*records?/),
+    );
+    expect(said).toContain('Ship · o-1 done');
     observer.disconnect();
   });
 
@@ -259,7 +298,8 @@ describe('a record’s declared actions', () => {
     const dialog = await screen.findByRole('alertdialog', {
       name: 'Cancel 1 order?',
     });
-    expect(within(dialog).getByText('The customer is refunded.')).toBeTruthy();
+    // The host's words count; the record they are for is named beside them.
+    expect(described(dialog)).toBe('The customer is refunded. Record o-1');
     const confirm = within(dialog).getByRole('button', {
       name: 'Cancel order',
     });
@@ -294,7 +334,8 @@ describe('a record’s declared actions', () => {
     await userEvent.click(
       await screen.findByRole('menuitem', { name: 'High' }),
     );
-    const dialog = await screen.findByRole('alertdialog', {
+    // A routine question: a dialog, not an alert.
+    const dialog = await screen.findByRole('dialog', {
       name: 'Set 1 order to High?',
     });
     await userEvent.click(
@@ -307,11 +348,11 @@ describe('a record’s declared actions', () => {
       ),
     );
     await waitFor(() =>
-      expect(status()?.textContent).toContain('Set to High · 1 done'),
+      expect(status()?.textContent).toContain('Set to High · o-1 done'),
     );
   });
 
-  it('asks for a form’s fields with the condition editor’s controls, and waits until the required ones are filled', async () => {
+  it('asks for a form’s fields with the condition editor’s controls, and takes the keyboard to a required one left blank', async () => {
     const run = vi.fn(() => Promise.resolve());
     await open(
       actions([
@@ -330,17 +371,27 @@ describe('a record’s declared actions', () => {
     await userEvent.click(
       await screen.findByRole('menuitem', { name: 'Add a note' }),
     );
-    const dialog = await screen.findByRole('alertdialog', {
-      name: 'Add a note',
+    // A form is a dialog, not an alert; one record is named in its title.
+    const dialog = await screen.findByRole('dialog', {
+      name: 'Add a note: o-1',
     });
+    const note = within(dialog).getByLabelText('Note');
+    // Required, said to a reader, with 「Required」 as its description; not
+    // marked invalid before anything was pressed (A11Y-9).
+    expect(note.getAttribute('aria-required')).toBe('true');
+    expect(described(note)).toBe('Required');
+    expect(note.getAttribute('aria-invalid')).not.toBe('true');
+    // The answer stays pressable: pressed blank, it marks the field and
+    // takes the keyboard there, and sends nothing.
     const submit = within(dialog).getByRole('button', { name: 'Add a note' });
-    expect(submit).toHaveProperty('disabled', true);
-    expect(within(dialog).getByText('Required')).toBeTruthy();
+    expect(submit.hasAttribute('disabled')).toBe(false);
+    expect(submit.getAttribute('aria-disabled')).not.toBe('true');
+    await userEvent.click(submit);
+    await waitFor(() => expect(document.activeElement).toBe(note));
+    expect(note.getAttribute('aria-invalid')).toBe('true');
+    expect(run).not.toHaveBeenCalled();
 
-    fireEvent.change(within(dialog).getByLabelText('Note'), {
-      target: { value: 'Call first' },
-    });
-    await waitFor(() => expect(submit).toHaveProperty('disabled', false));
+    fireEvent.change(note, { target: { value: 'Call first' } });
     await userEvent.click(submit);
     await waitFor(() =>
       expect(run).toHaveBeenCalledWith(
@@ -370,7 +421,7 @@ describe('a record’s declared actions', () => {
       within(row).getByRole('button', { name: 'Nudge o-1' }),
     );
     await waitFor(() =>
-      expect(status()?.textContent).toContain('Nudge · 1 done'),
+      expect(status()?.textContent).toContain('Nudge · o-1 done'),
     );
     expect(each).toHaveBeenCalledWith('o-1');
   });
@@ -382,13 +433,16 @@ describe('a selection’s declared actions', () => {
     await open(actions([ship(run), cancel()]));
 
     fireEvent.click(screen.getByLabelText('Select all rows'));
+    // How many take it, before the press (UX-6).
     await userEvent.click(
-      await screen.findByRole('button', { name: 'Ship 2' }),
+      await screen.findByRole('button', { name: 'Ship 1/2' }),
     );
     // No question of the host's own: the engine's, with the count.
-    const dialog = await screen.findByRole('alertdialog', {
+    const dialog = await screen.findByRole('dialog', {
       name: 'Run “Ship” on 2 records?',
     });
+    // The answer counts what will be sent.
+    expect(within(dialog).getByRole('button', { name: 'Ship 1' })).toBeTruthy();
     expect(within(dialog).getByText('1 of 2 can take it.')).toBeTruthy();
     expect(within(dialog).getByText('Already shipped. (1)')).toBeTruthy();
     expect(within(dialog).getByText('o-2')).toBeTruthy();
@@ -396,15 +450,14 @@ describe('a selection’s declared actions', () => {
     await userEvent.click(
       within(dialog).getByRole('button', { name: 'Only the one that can' }),
     );
-    await screen.findByRole('alertdialog', { name: 'Run “Ship” on 1 record?' });
+    // One record left: named.
+    const one = await screen.findByRole('dialog', {
+      name: 'Run “Ship” on o-1?',
+    });
     expect(screen.getByText('1 selected')).toBeTruthy();
-    await userEvent.click(
-      within(screen.getByRole('alertdialog')).getByRole('button', {
-        name: 'Ship',
-      }),
-    );
+    await userEvent.click(within(one).getByRole('button', { name: 'Ship' }));
     await waitFor(() =>
-      expect(status()?.textContent).toContain('Ship · 1 done'),
+      expect(status()?.textContent).toContain('Ship · o-1 done'),
     );
     expect(run).toHaveBeenCalledTimes(1);
     expect(run).toHaveBeenCalledWith(
@@ -413,16 +466,16 @@ describe('a selection’s declared actions', () => {
     );
   });
 
-  it('asks outside the bar it was pressed in, every button its own tab stop', async () => {
+  it('asks outside the bar it was pressed in, every button of the question its own tab stop', async () => {
     // The question a bulk action asks is drawn beside the surface, not
     // under the result toolbar, so the bar's roving focus never reaches
     // its buttons (the export's window is detached for the same reason).
     await open(actions([ship(vi.fn(() => Promise.resolve())), cancel()]));
     fireEvent.click(screen.getByLabelText('Select all rows'));
-    const pressed = await screen.findByRole('button', { name: 'Ship 2' });
+    const pressed = await screen.findByRole('button', { name: 'Ship 1/2' });
     expect(pressed.closest('[role="toolbar"]')).not.toBeNull();
     await userEvent.click(pressed);
-    const dialog = await screen.findByRole('alertdialog');
+    const dialog = await screen.findByRole('dialog');
     expect(dialog.closest('[role="toolbar"]')).toBeNull();
     const buttons = within(dialog)
       .getAllByRole('button')
@@ -438,16 +491,24 @@ describe('a selection’s declared actions', () => {
 
     fireEvent.click(screen.getByLabelText('Select all rows'));
     await userEvent.click(
-      await screen.findByRole('button', { name: 'Ship 2' }),
+      await screen.findByRole('button', { name: 'Ship 1/2' }),
     );
-    const dialog = await screen.findByRole('alertdialog');
-    await userEvent.click(within(dialog).getByRole('button', { name: 'Ship' }));
+    const dialog = await screen.findByRole('dialog');
+    await userEvent.click(
+      within(dialog).getByRole('button', { name: 'Ship 1' }),
+    );
 
+    // Refused before it was sent: not run, not failed (UX-6).
     await waitFor(() =>
       expect(status()?.textContent).toContain(
-        'Ship · 1 done, 1 failed · Already shipped. (1) · the rest stay selected',
+        'Ship · 1 done · 1 not run · Already shipped. (1) · the failed and the not run stay selected',
       ),
     );
+    // Left selected, the bar's button says none of it takes the action,
+    // held off with why.
+    const bar = await screen.findByRole('button', { name: 'Ship 1' });
+    expect(held(bar)).toBe(true);
+    expect(described(bar)).toBe('Already shipped.');
     expect(run).toHaveBeenCalledTimes(1);
     expect(
       screen.getByLabelText('Select o-2').getAttribute('aria-checked'),
@@ -473,7 +534,7 @@ describe('a selection’s declared actions', () => {
     );
     await userEvent.click(
       within(await screen.findByRole('alertdialog')).getByRole('button', {
-        name: 'Cancel order',
+        name: 'Cancel order 2',
       }),
     );
     await waitFor(() =>
@@ -481,9 +542,9 @@ describe('a selection’s declared actions', () => {
     );
     expect(status()?.textContent).toContain('Cancel order · Running 0 of 2');
     // One command at a time.
-    expect(
-      screen.getByRole('button', { name: 'Cancel order 2' }),
-    ).toHaveProperty('disabled', true);
+    expect(held(screen.getByRole('button', { name: 'Cancel order 2' }))).toBe(
+      true,
+    );
     await userEvent.click(screen.getByRole('button', { name: 'Stop' }));
     await act(async () => {
       gates.get('o-1')?.reject(new Error('Locked.'));
@@ -491,7 +552,7 @@ describe('a selection’s declared actions', () => {
     });
     await waitFor(() =>
       expect(status()?.textContent).toContain(
-        'Cancel order · 1 done, 1 failed · Locked. (1) · the rest stay selected',
+        'Cancel order · 1 done · 1 failed · Locked. (1) · the failed and the not run stay selected',
       ),
     );
   });
@@ -529,10 +590,262 @@ describe('availability that changes on its own', () => {
       ]),
     );
     const button = within(rowOf('o-1')).getByRole('button', { name: 'Ship' });
-    expect(button).toHaveProperty('disabled', true);
+    expect(held(button)).toBe(true);
     await act(() => vi.advanceTimersByTimeAsync(opensAt - Date.now() + 2));
     expect(
-      within(rowOf('o-1')).getByRole('button', { name: 'Ship' }),
-    ).toHaveProperty('disabled', false);
+      held(within(rowOf('o-1')).getByRole('button', { name: 'Ship' })),
+    ).toBe(false);
+  });
+});
+
+describe('a rule whose change keeps moving', () => {
+  it('is asked again at most about once a second, not on every tick', async () => {
+    vi.useFakeTimers({
+      shouldAdvanceTime: true,
+      toFake: ['Date', 'setTimeout', 'clearTimeout'],
+    });
+    const asked = vi.fn(() => true as const);
+    await open(
+      actions([
+        {
+          id: 'ship',
+          label: text('orders.ship'),
+          primary: true,
+          available: asked,
+          // Always a moment from whatever clock it is asked at.
+          changesAt: (_row, { now }) => now + 1,
+          run: () => Promise.resolve(),
+        },
+      ]),
+    );
+    asked.mockClear();
+    // Three seconds in steps, each drawn: a timer the surface sets after a
+    // render is only set once that render has been committed.
+    for (let step = 0; step < 60; step += 1)
+      await act(() => vi.advanceTimersByTimeAsync(50));
+    // A few asks per row per second, not one per step.
+    expect(asked.mock.calls.length).toBeGreaterThan(0);
+    expect(asked.mock.calls.length).toBeLessThan(40);
+  });
+});
+
+describe('the keyboard after a command', () => {
+  it('stays on a row’s button pressed with Enter, through the run and the refresh', async () => {
+    const gate = deferred<void>();
+    await open(actions([ship(() => gate.promise)]));
+    const button = within(rowOf('o-1')).getByRole('button', { name: 'Ship' });
+    button.focus();
+    await userEvent.keyboard('{Enter}');
+    await waitFor(() =>
+      expect(status()?.getAttribute('data-state')).toBe('running'),
+    );
+    // Held while it runs, but still where the keyboard is (A11Y-1).
+    expect(held(button)).toBe(true);
+    expect(document.activeElement).toBe(button);
+    await act(async () => gate.resolve());
+    await waitFor(() =>
+      expect(status()?.textContent).toContain('Ship · o-1 done'),
+    );
+    await waitFor(() => expect(held(button)).toBe(false));
+    expect(document.activeElement).toBe(button);
+  });
+
+  it('goes back to the record’s menu button when its question closes', async () => {
+    await open(actions([ship(), cancel()]));
+    const more = within(rowOf('o-1')).getByRole('button', {
+      name: 'Actions for o-1',
+    });
+    await userEvent.click(more);
+    await userEvent.click(
+      await screen.findByRole('menuitem', { name: 'Cancel order' }),
+    );
+    const dialog = await screen.findByRole('alertdialog');
+    await userEvent.click(
+      within(dialog).getByRole('button', { name: 'Cancel order' }),
+    );
+    await waitFor(() =>
+      expect(status()?.textContent).toContain('Cancel order · o-1 done'),
+    );
+    await waitFor(() => expect(document.activeElement).toBe(more));
+  });
+
+  it('lands on the line when the selection’s bar went with the selection', async () => {
+    await open(actions([{ ...cancel(), confirm: undefined, primary: true }]));
+    fireEvent.click(screen.getByLabelText('Select all rows'));
+    await userEvent.click(
+      await screen.findByRole('button', { name: 'Cancel order 2' }),
+    );
+    await userEvent.click(
+      within(await screen.findByRole('alertdialog')).getByRole('button', {
+        name: 'Cancel order 2',
+      }),
+    );
+    await waitFor(() =>
+      expect(status()?.textContent).toContain('Cancel order · 2 done'),
+    );
+    // Every record took it, so nothing is selected and the bar is gone:
+    // the keyboard is on the line's way out, not on the page.
+    await waitFor(() =>
+      expect(document.activeElement).toBe(
+        within(status()!).getByRole('button', { name: 'Dismiss' }),
+      ),
+    );
+  });
+
+  it('keeps the selection’s actions in the toolbar’s one Tab stop, the arrows through them', async () => {
+    await open(actions([ship(), cancel(), priority()]));
+    fireEvent.click(screen.getByLabelText('Select all rows'));
+    const ship2 = await screen.findByRole('button', { name: 'Ship 1/2' });
+    const bar = ship2.closest<HTMLElement>('[role="toolbar"]')!;
+    const clear = within(bar).getByRole('button', { name: 'Clear selection' });
+    const cancelAll = within(bar).getByRole('button', { name: 'Cancel order' });
+    const choose = within(bar).getByRole('button', { name: 'Set priority' });
+    // One stop for the bar (A11Y-11).
+    for (const item of [ship2, cancelAll, choose])
+      expect(item.getAttribute('tabindex')).not.toBe('0');
+    clear.focus();
+    await userEvent.keyboard('{ArrowRight}');
+    expect(document.activeElement).toBe(ship2);
+    await userEvent.keyboard('{ArrowRight}');
+    expect(document.activeElement).toBe(cancelAll);
+    await userEvent.keyboard('{ArrowRight}');
+    expect(document.activeElement).toBe(choose);
+  });
+});
+
+describe('what the surface says, and to whom', () => {
+  it('says a command’s start and outcome in the host’s words passed as props, the count after it', async () => {
+    const harness = setup();
+    render(
+      <DataWorkbench
+        engine={harness.engine}
+        definitionId="orders"
+        instanceId="orders-1"
+        messages={{ ...zhCN, 'orders.ship': '发货' }}
+        locale="zh-CN"
+        record={{ actions: actions([ship()]) }}
+      />,
+    );
+    await waitFor(() => expect(screen.getAllByRole('row')).toHaveLength(3));
+    const region = document.querySelector('[data-slot="record-announcement"]')!;
+    const said: string[] = [];
+    const observer = new MutationObserver(() =>
+      said.push(region.textContent ?? ''),
+    );
+    observer.observe(region, { childList: true, subtree: true });
+    await userEvent.click(
+      within(
+        screen.getAllByRole('row').find(row => within(row).queryByText('o-1'))!,
+      ).getByRole('button', { name: '发货' }),
+    );
+    await waitFor(() =>
+      expect(said[said.length - 1]).toMatch(/^发货 · o-1 已完成；/),
+    );
+    observer.disconnect();
+    expect(said.some(each => /Running|done/.test(each))).toBe(false);
+    expect(said).toContain('发货 · 正在执行 0/1');
+  });
+
+  it('tells the host’s onError what a command threw, with the action and the record, and not of a refusal', async () => {
+    const events: ViewErrorEvent[] = [];
+    const engine = new ViewEngine({
+      resources: resourcesOf([ordersDefinition()], () => testSource()),
+      store: new MemoryViewStore({ instances: [mine] }),
+      environment: defaultRuntimeEnvironment({
+        onError: event => events.push(event),
+      }),
+    });
+    const failure = Object.assign(new Error('Internal'), { errorCode: 'Boom' });
+    render(
+      <MessagesProvider messages={WORDS}>
+        <DataWorkbench
+          engine={engine}
+          definitionId="orders"
+          instanceId="orders-1"
+          record={{
+            actions: actions([ship(() => Promise.reject(failure))]),
+          }}
+        />
+      </MessagesProvider>,
+    );
+    await waitFor(() => expect(screen.getAllByRole('row')).toHaveLength(3));
+    fireEvent.click(screen.getByLabelText('Select all rows'));
+    await userEvent.click(
+      await screen.findByRole('button', { name: 'Ship 1/2' }),
+    );
+    await userEvent.click(
+      within(await screen.findByRole('dialog')).getByRole('button', {
+        name: 'Ship 1',
+      }),
+    );
+    await waitFor(() =>
+      expect(status()?.textContent).toContain('1 failed · 1 not run'),
+    );
+    const told = events.filter(event => event.kind === 'action');
+    expect(told).toHaveLength(1);
+    expect(told[0]).toMatchObject({
+      kind: 'action',
+      error: failure,
+      context: {
+        operation: 'ship',
+        recordKey: 'o-1',
+        definitionId: 'orders',
+        instanceId: 'orders-1',
+      },
+    });
+  });
+});
+
+describe('a host’s question that is code', () => {
+  it('asks by the action’s name when the question throws, rather than taking the surface down', async () => {
+    const run = vi.fn(() => Promise.resolve());
+    await open(
+      actions([
+        ship(),
+        {
+          ...cancel(run),
+          confirm: () => {
+            throw new Error('host bug');
+          },
+        },
+      ]),
+    );
+    await userEvent.click(
+      within(rowOf('o-1')).getByRole('button', { name: 'Actions for o-1' }),
+    );
+    await userEvent.click(
+      await screen.findByRole('menuitem', { name: 'Cancel order' }),
+    );
+    const dialog = await screen.findByRole('alertdialog', {
+      name: 'Cancel order',
+    });
+    await userEvent.click(
+      within(dialog).getByRole('button', { name: 'Cancel order' }),
+    );
+    await waitFor(() => expect(run).toHaveBeenCalledTimes(1));
+  });
+
+  it('runs a choice at its pick when its computed question asks only a selection, the menu handing the keyboard back', async () => {
+    const run = vi.fn(() => Promise.resolve());
+    await open(
+      actions([
+        ship(),
+        {
+          ...priority(run),
+          confirm: () => ({ title: text('orders.priorityTitle'), ask: 'bulk' }),
+        },
+      ]),
+    );
+    const more = within(rowOf('o-1')).getByRole('button', {
+      name: 'Actions for o-1',
+    });
+    await userEvent.click(more);
+    await userEvent.click(
+      await screen.findByRole('menuitem', { name: 'High' }),
+    );
+    await waitFor(() => expect(run).toHaveBeenCalledTimes(1));
+    expect(screen.queryByRole('dialog')).toBeNull();
+    // The item said it opens nothing, so the menu gave the keyboard back.
+    await waitFor(() => expect(document.activeElement).toBe(more));
   });
 });

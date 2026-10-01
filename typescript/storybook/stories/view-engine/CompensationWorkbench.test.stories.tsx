@@ -266,9 +266,10 @@ export const RowCommandsAndDetail: Story = {
       within(
         canvas.getByRole('button', { name: `${id} 的操作` }).closest('tr')!,
       );
+    // Held off where the keyboard still reaches it, its reason with it.
     await expect(
       inRow('EF-4').getByRole('button', { name: '重试' }),
-    ).toBeDisabled();
+    ).toHaveAttribute('aria-disabled', 'true');
     const past = await rowMenu(canvas, 'EF-4');
     await expect(enabled(past.item('强制重试'))).toBe(true);
     await expect(enabled(past.item('不可恢复'))).toBe(false);
@@ -279,7 +280,8 @@ export const RowCommandsAndDetail: Story = {
 
     // Retrying one from its row prepares it, says so, and the row shows it.
     await userEvent.click(inRow('EF-1').getByRole('button', { name: '重试' }));
-    // The workbench says what the command came to, above the rows.
+    // The workbench says what the command came to, under the rows, naming
+    // the execution.
     const settled = await waitFor(() => {
       const found = canvasElement.querySelector<HTMLElement>(
         '[data-slot="bulk-status"][data-state="settled"]',
@@ -287,7 +289,7 @@ export const RowCommandsAndDetail: Story = {
       expect(found).not.toBeNull();
       return found!;
     });
-    await expect(settled).toHaveTextContent('重试 · 1 项已完成');
+    await expect(settled).toHaveTextContent('重试 · EF-1 已完成');
     await waitFor(() =>
       expect(readColumn(table, '状态')).toEqual([
         '已准备重试',

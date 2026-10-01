@@ -23,9 +23,14 @@ export const actionsMessages = {
   'label.action.more': 'Actions for {record}',
   // The selection's primary action counts what it is for.
   'label.action.bulk': '{action} {count}',
+  // …and how many of them take it, where not all do.
+  'label.action.bulk-able': '{action} {able}/{count}',
   // The question a selection asks when the host words none of its own.
   'label.action.confirm': 'Run “{action}” on {count} records?',
-  'label.action.confirm-one': 'Run “{action}” on {count} record?',
+  // One record is named, not counted: the reader confirms the one they meant.
+  'label.action.confirm-record': 'Run “{action}” on {record}?',
+  'label.action.on-record': '{action}: {record}',
+  'label.action.record': 'Record {record}',
   // Said under the question when a selection is asked: nothing is lost.
   'label.action.left': 'The ones refused stay selected, with the reason.',
   'label.action.able': '{able} of {count} can take it.',
@@ -42,4 +47,9 @@ export const actionsMessages = {
   'label.action.unseen': 'Not on the page in view',
   'label.action.not-offered': 'Not offered for this record',
   'label.action.unavailable': 'Not available now',
+  // A failure whose error carries no words.
+  'label.action.failed': 'Failed, with no reason given',
+  // Why a record's outcome is unknown.
+  'label.action.timed-out': 'No answer in time',
+  'label.action.abandoned': 'Stopped waiting',
 } as const;

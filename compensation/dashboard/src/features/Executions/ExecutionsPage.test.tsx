@@ -184,7 +184,7 @@ describe("ExecutionsPage", () => {
     await waitFor(() => expect(sent.prepare).toHaveBeenCalledWith("EF-1"));
     expect(
       await screen.findByText(
-        "Prepare · 1 failed · ExecutionFailed can not retry. (1) · the rest stay selected",
+        "Prepare · EF-1 failed: ExecutionFailed can not retry.",
       ),
     ).toBeInTheDocument();
   });
@@ -211,7 +211,8 @@ describe("ExecutionsPage", () => {
       ];
       renderPage();
       const prepare = await screen.findByRole("button", { name: "Prepare" });
-      expect(prepare).toBeDisabled();
+      // Held off where the keyboard still reaches it, with why.
+      expect(prepare).toHaveAttribute("aria-disabled", "true");
       expect(prepare).toHaveAccessibleDescription(
         "Execution is in progress; wait until it times out.",
       );
@@ -220,7 +221,7 @@ describe("ExecutionsPage", () => {
       await act(() => vi.advanceTimersByTimeAsync(timeoutAt - Date.now() + 1));
       expect(
         screen.getByRole("button", { name: "Prepare" }),
-      ).not.toBeDisabled();
+      ).not.toHaveAttribute("aria-disabled", "true");
     } finally {
       vi.useRealTimers();
     }
@@ -256,7 +257,7 @@ describe("ExecutionsPage", () => {
       ),
     );
     expect(
-      await screen.findByText("Mark as Unrecoverable · 1 done"),
+      await screen.findByText("Mark as Unrecoverable · EF-1 done"),
     ).toBeInTheDocument();
   });
 

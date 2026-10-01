@@ -553,6 +553,8 @@ export type BuiltInPreset = (typeof BUILT_IN_PRESETS)[number];
 interface BulkRun {
     // (undocumented)
     each(key: RecordKey): Promise<unknown>;
+    operation?: string;
+    timeout?: number;
     title: string;
     values?: Readonly<Record<string, string>>;
 }
@@ -901,6 +903,13 @@ export interface ContentPanelProps {
     headingLevel?: number;
     // (undocumented)
     panel: DashboardContentPanel;
+}
+
+// @public
+export interface ControlAria {
+    describedBy?: string;
+    id?: string;
+    required?: boolean;
 }
 
 // @public
@@ -1821,8 +1830,11 @@ export const en: {
     readonly 'label.reorder.last': "Move to the end";
     readonly 'label.action.more': "Actions for {record}";
     readonly 'label.action.bulk': "{action} {count}";
+    readonly 'label.action.bulk-able': "{action} {able}/{count}";
     readonly 'label.action.confirm': "Run “{action}” on {count} records?";
-    readonly 'label.action.confirm-one': "Run “{action}” on {count} record?";
+    readonly 'label.action.confirm-record': "Run “{action}” on {record}?";
+    readonly 'label.action.on-record': "{action}: {record}";
+    readonly 'label.action.record': "Record {record}";
     readonly 'label.action.left': "The ones refused stay selected, with the reason.";
     readonly 'label.action.able': "{able} of {count} can take it.";
     readonly 'label.action.none-able': "None of the {count} can take it now.";
@@ -1835,18 +1847,27 @@ export const en: {
     readonly 'label.action.unseen': "Not on the page in view";
     readonly 'label.action.not-offered': "Not offered for this record";
     readonly 'label.action.unavailable': "Not available now";
+    readonly 'label.action.failed': "Failed, with no reason given";
+    readonly 'label.action.timed-out': "No answer in time";
+    readonly 'label.action.abandoned': "Stopped waiting";
     readonly 'label.bulk.done': "{done} done";
-    readonly 'label.bulk.partial': "{done} done, {failed} failed";
     readonly 'label.bulk.failed': "{failed} failed";
+    readonly 'label.bulk.unknown': "{unknown} with outcome unknown, refresh to check first";
     readonly 'label.bulk.skipped': "{skipped} not run";
+    readonly 'label.bulk.one-done': "{record} done";
+    readonly 'label.bulk.one-failed': "{record} failed: {reason}";
+    readonly 'label.bulk.one-refused': "{record} not run: {reason}";
+    readonly 'label.bulk.one-unknown': "{record}: outcome unknown, refresh to check first";
+    readonly 'label.bulk.one-skipped': "{record} not run";
     readonly 'label.bulk.reason': "{reason} ({count})";
     readonly 'label.bulk.more-reasons': "{count} more reasons";
     readonly 'label.bulk.more-reasons-one': "one more reason";
-    readonly 'label.bulk.left': "the rest stay selected";
+    readonly 'label.bulk.left': "the failed and the not run stay selected";
     readonly 'label.bulk.running': "Running {done} of {total}";
     readonly 'label.bulk.running-failed': "Running {done} of {total}, {failed} failed";
     readonly 'label.bulk.stop': "Stop";
     readonly 'label.bulk.stopping': "Stopping…";
+    readonly 'label.bulk.stop-waiting': "Stop waiting";
     readonly 'label.bulk.dismiss': "Dismiss";
     readonly 'label.render.failed': "This part could not be drawn";
     readonly 'label.render.failed-hint': "The rest of the view still works. Try again to draw this part.";
@@ -1953,6 +1974,7 @@ export const en: {
     readonly 'label.status.less': "Show less";
     readonly 'label.status.loading': "Loading";
     readonly 'label.status.querying': "Running the query";
+    readonly 'label.status.then': "{first}; {then}";
     readonly 'label.status.groups': "{count} groups";
     readonly 'label.status.groups-one': "1 group";
     readonly 'label.status.open-columns': "Open column settings";
@@ -4408,6 +4430,7 @@ export function FilterValueEditor(props: FilterValueEditorProps): JSX.Element;
 export interface FilterValueEditorProps {
     blank?: string;
     candidates?: ValueCandidateSource | null;
+    control?: ControlAria;
     // (undocumented)
     disabled?: boolean;
     editor: EditorDescriptor;
@@ -5041,6 +5064,7 @@ export function NumberInput(input: ControlChromeProps & {
     placeholder?: string;
     describedBy?: string;
     id?: string;
+    required?: boolean;
 }): JSX.Element;
 
 // @public
@@ -5420,6 +5444,7 @@ interface RecordAction {
     readonly on?: readonly ActionPlace[];
     readonly primary?: boolean;
     run(row: RecordRow, input: ActionInput): Promise<unknown>;
+    readonly timeout?: number;
     // (undocumented)
     readonly tone?: ActionTone;
 }
@@ -8036,6 +8061,7 @@ interface ViewErrorContext {
     instanceId?: string;
     operation: string;
     panelId?: string;
+    recordKey?: RecordKey;
     requestId?: string;
     runtimeId?: string;
     violation?: QueryViolation;
@@ -8051,7 +8077,7 @@ interface ViewErrorEvent {
 }
 
 // @public
-type ViewErrorKind = 'query' | 'store' | 'export' | 'render' | 'chart';
+type ViewErrorKind = 'query' | 'store' | 'export' | 'render' | 'chart' | 'action';
 
 // @public
 export function ViewExpandExit(): JSX.Element;

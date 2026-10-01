@@ -29,6 +29,7 @@ import { RemoteValue } from './inputs/remote.js';
 import { BooleanValue, DeletionValue, OptionValue } from './inputs/select.js';
 import { SuggestedValue } from './inputs/suggested.js';
 import { TextValue } from './inputs/text.js';
+import type { ControlAria } from './inputs/shared.js';
 import { useMemo } from 'react';
 import { useSay } from '../kit/MessagesProvider.js';
 
@@ -101,6 +102,12 @@ export interface FilterValueEditorProps {
   blank?: string;
   /** Told whether a date control asks for a day its value does not hold. */
   onAwaiting?: (awaiting: boolean) => void;
+  /**
+   * A form's word on its control (`ControlAria`): a visible label's id, a
+   * hint, a value it cannot go without. A text, a number, a yes/no and a
+   * list of options carry it — the controls a declared action's form draws.
+   */
+  control?: ControlAria;
 }
 
 /**
@@ -158,6 +165,7 @@ function FilterValueControl({
   oneDay,
   blank,
   onAwaiting,
+  control,
 }: FilterValueEditorProps) {
   switch (editor.input) {
     case 'none':
@@ -173,6 +181,7 @@ function FilterValueControl({
           invalid={invalid}
           range={editor.range === true}
           multiple={editor.multiple === true}
+          control={control}
         />
       );
 
@@ -184,6 +193,7 @@ function FilterValueControl({
           label={label}
           disabled={disabled}
           invalid={invalid}
+          control={control}
         />
       );
 
@@ -207,6 +217,7 @@ function FilterValueControl({
           value={value}
           multiple={editor.multiple === true}
           options={editor.options ?? []}
+          control={control}
           onChange={onChange}
         />
       );
@@ -266,6 +277,7 @@ function FilterValueControl({
           invalid={invalid}
           multiple={editor.multiple === true}
           placeholder={placeholder}
+          control={control}
         />
       );
 

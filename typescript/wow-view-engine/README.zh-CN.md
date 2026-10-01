@@ -225,7 +225,7 @@ const engine = new ViewEngine({
 
 **导出的文件缺省中和公式。** CSV 会离开页面，在表格软件里被打开，打开的人常常不是导出的人；所以每一处导出——记录视图的行、分析的「导出数据…」——都把文本以 `=`、`+`、`-`、`@`、制表符或回车开头的格子写成前面带一个 `'`（OWASP CSV Injection），表头也算。值是数的格子、以及文本就是一个纯数的格子（如 `-12.5`）照写：表格软件把它读成数，从不求值。文件不进表格软件时可以关掉：`limits: { exportNeutralizeFormulas: false }`；自己调用 `serializeCsv` 时传 `{ neutralizeFormulas: false }`。
 
-**失败交给你的监控。** 查询、存储调用、导出、渲染或图表失败时，界面在出事的地方照旧说明；要记日志或送监控，就给环境一个 `onError`。每次失败它被告知一次，带着抛出来的原物和出事的位置；它抛什么都会被吞掉，不给它就什么也不记。
+**失败交给你的监控。** 查询、存储调用、导出、渲染、图表或声明式操作的命令失败时，界面在出事的地方照旧说明；要记日志或送监控，就给环境一个 `onError`。每次失败它被告知一次，带着抛出来的原物和出事的位置；它抛什么都会被吞掉，不给它就什么也不记。
 
 <!-- typecheck-context
 import { orders } from './orders';
@@ -256,6 +256,7 @@ const engine = new ViewEngine({
 | `export` | 导出的行拉不下来，或文件做不出来、交不出去                                        | `fetch`、`deliver`、`image`                                     |
 | `render` | 工作台或嵌入里的某一块画的时候抛错——常常是你的动作槽位                            | `render`                                                        |
 | `chart`  | 图表库没加载到，或绘制时抛错                                                      | `load`、`draw`                                                  |
+| `action` | 声明式操作的 `run`（或插槽的命令）在某条记录上抛错或超时——动作自己的拒绝不算      | 动作的 `id`；`context.recordKey` 是那条记录                     |
 
 `context` 在知道时还写明是哪个视图——`definitionId`、`instanceId`、`runtimeId`——`render` 与 `chart` 另有 `boundary`、`panelId` 与 React 的 `componentStack`。被叫停的请求（被下一个顶掉、被取消）不算失败，不告知。工作台、网格与嵌入上的 `onRenderFailure` 照旧：它是那一块界面自己的回调，拿到的是同一个 `error`；`onError` 是整个引擎的。引擎的 `onIssue` 只管没有抛出物的发现，比如定义准入。
 
@@ -437,6 +438,7 @@ export const orderActions = actions([
 
 - **`run` 要等读模型反映了命令再 resolve。** 引擎紧接着重读视图，跑在命令前头的刷新读到的是旧状态。Wow 命令等 `CommandStage.SNAPSHOT`（请求头写 `waitStrategy({ stage: CommandStage.SNAPSHOT })`），或宿主投影需要的阶段。它抛出的错误按服务端自己的原因读。
 - `run` 只写一条记录；多选由引擎几条一起跑，停止在两条之间生效。命令有批量版本之前不加 **runMany**。
+- **每条命令都要幂等**——带上这一行显示的聚合版本（`commandHeaders({ aggregateVersion })`，第一次已经生效时第二次按版本冲突被拒，而不是再做一遍），以及服务端据以去重同一次发送的重试的请求 id（`requestId`）。发出之后超时、被中止或断网的 `run`，结局谁也不知道：引擎报「结果未知，先刷新核对」，并取消这些行的选择，不留着诱导一次盲目的重跑；但读者核对后再按一次，也不能退两次款。动作上的 `timeout: ms` 给每条记录一个截止时间（过了就是结果未知）；没有它时，「停止」再按一次就不再等待。轮到时被动作拒绝的记录报「未执行」而不是「失败」，并留在选中里。
 - `on: ['row', 'bulk', 'detail']` 收窄出现的位置（缺省处处都有）；`hidden: row => …` 让读者不能做的记录干脆不出现这项，`available` 则是出现但置灰并说明。
 - 多个字段（或一个不带选项的字段）的 `form` 在确认框里给出表单：文字、数字或是否，每个字段缺省必填（`required: false` 例外），`initial` 是打开时的值；`run` 按字段名拿到输入。
 - 每个字都是键或文字，在显示处说出（`text(key)`，[措辞与语言](#措辞与语言)）。

@@ -671,13 +671,15 @@ test("a cluster's failures are prepared in four presses from the board", async (
     .getByRole("checkbox", { name: "Select all rows", exact: true })
     .check();
   presses += 1;
+  // 「Prepare 4/6」 where the console already knows some will be refused.
   await workbench
-    .getByRole("button", { name: new RegExp(`^Prepare ${shown}$`) })
+    .getByRole("button", { name: new RegExp(`^Prepare (\\d+/)?${shown}$`) })
     .click();
   presses += 1;
+  // A routine question is a dialog; its answer counts what will be sent.
   await page
-    .getByRole("alertdialog")
-    .getByRole("button", { name: "Prepare", exact: true })
+    .getByRole("dialog")
+    .getByRole("button", { name: /^Prepare( \d+)?$/ })
     .click();
   presses += 1;
 

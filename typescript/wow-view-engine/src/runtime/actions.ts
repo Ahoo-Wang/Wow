@@ -127,7 +127,11 @@ export interface RecordAction {
    * keeps no timer.
    */
   changesAt?(row: RecordRow, context: ActionContext): number | null | undefined;
-  /** Ask first; a function of the input, where the words depend on it. */
+  /**
+   * Ask first; a function of the input, where the words depend on it. Its
+   * words are said with `{count}` (how many records), `{value}` (a choice's
+   * option) and `{record}` (the record's key, when it is one record).
+   */
   readonly confirm?: ActionConfirm | ((input: ActionInput) => ActionConfirm);
   /**
    * What the command needs besides the record. A form of one field with
@@ -142,8 +146,20 @@ export interface RecordAction {
    * again right after, and a refresh that ran ahead of the command would
    * show the old state. It throws when the command was refused; what it
    * throws is read for the source's own reason.
+   *
+   * A command is a write, so make it idempotent — a request id or an
+   * idempotency key the service deduplicates by: a `run` that times out or
+   * loses the network after sending has an outcome nobody knows, and the
+   * reader, told to check, may press again.
    */
   run(row: RecordRow, input: ActionInput): Promise<unknown>;
+  /**
+   * How long one record's `run` is waited for, in milliseconds. Past it the
+   * engine stops waiting and reports the record's outcome as unknown — it
+   * may have taken the command — rather than holding the surface busy.
+   * No deadline by default.
+   */
+  readonly timeout?: number;
 }
 
 /** A binding's declared actions, as `actions()` hands them back. */
@@ -183,6 +199,12 @@ export const UNSEEN = text('label.action.unseen');
 export const NOT_OFFERED = text('label.action.not-offered');
 /** What a refusal without words of the host's own says. */
 export const UNAVAILABLE = text('label.action.unavailable');
+/** What a failure whose error carries no words says. */
+export const FAILED = text('label.action.failed');
+/** Why a record's outcome is unknown: its `run` outlasted the action's `timeout`. */
+export const TIMED_OUT = text('label.action.timed-out');
+/** Why a record's outcome is unknown: the reader stopped waiting for it. */
+export const ABANDONED = text('label.action.abandoned');
 
 /** One action on one record: hidden, or available, or refused and why. */
 export interface ActionState {
@@ -261,14 +283,30 @@ export function missingInput(
     .map(([name]) => name);
 }
 
-/** The question an action asks with this input, or `null`. */
+/**
+ * The question an action asks with this input, or `null`. A question the
+ * host computes and that throws is the host's bug: the action is asked by
+ * its name rather than sent unasked or taking the surface down.
+ */
 export function confirmOf(
   action: RecordAction,
   input: ActionInput,
 ): ActionConfirm | null {
   const confirm = action.confirm;
   if (!confirm) return null;
-  return typeof confirm === 'function' ? confirm(input) : confirm;
+  if (typeof confirm !== 'function') return confirm;
+  try {
+    const asked: unknown = confirm(input);
+    if (
+      typeof asked === 'object' &&
+      asked !== null &&
+      typeof (asked as ActionConfirm).title === 'string'
+    )
+      return asked as ActionConfirm;
+  } catch {
+    // Asked by name, below.
+  }
+  return { title: action.label };
 }
 
 /**
