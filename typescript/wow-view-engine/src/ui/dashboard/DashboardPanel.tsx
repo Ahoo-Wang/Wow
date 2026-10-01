@@ -608,6 +608,9 @@ function PanelBody({
     ...(wayOut || {}),
     name: nameIssue,
     owned: isOwnedPanel(panel.panel),
+    // A view that could not be read is asked for again by the same press
+    // that re-runs a panel (`refreshPanel`).
+    retry: onRetry,
   };
   if (panel.broken)
     return <PanelUnavailable issue={bodyIssue(panel)} {...out} />;

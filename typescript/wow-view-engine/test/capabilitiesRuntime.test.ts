@@ -24,7 +24,10 @@ import {
   type ViewInstance,
   type ViewSource,
 } from '../src/index.js';
-import { DESCRIPTOR_MAX_AGE_MS } from '../src/capabilities/index.js';
+import {
+  DESCRIBE_DEADLINE_MS,
+  DESCRIPTOR_MAX_AGE_MS,
+} from '../src/capabilities/index.js';
 import {
   analysisConfig,
   dashboardConfig,
@@ -341,6 +344,48 @@ describe('a source with a descriptor', () => {
         params: { source: 'orders' },
       },
     ]);
+  });
+
+  it('opens on the definition as declared when the descriptor does not answer in time, and narrows it when it does', async () => {
+    const declared = searchable();
+    const answer = deferred<ReturnType<typeof read>>();
+    const { engine, issues, source, clock } = harness({
+      definitions: [declared],
+      describe: () => answer.promise,
+    });
+
+    let opened: Awaited<ReturnType<typeof engine.open>> | null = null;
+    void engine.open('system:orders:all').then(runtime => {
+      opened = runtime;
+    });
+    await nextTask();
+    // A service that took the connection and never answered held the
+    // opening for ever.
+    expect(opened).toBeNull();
+
+    clock.advance(DESCRIBE_DEADLINE_MS);
+    await nextTask();
+    const runtime = opened as unknown as Awaited<
+      ReturnType<typeof engine.open>
+    >;
+    expect(runtime.definition).toBe(declared);
+    expect(source.paged).toHaveBeenCalledTimes(1);
+    expect(issues.map(found => found.code)).toEqual([
+      'capability.descriptor.unavailable',
+    ]);
+    expect(clock.timers).toBe(0);
+
+    answer.resolve(read(ordersDescriptor()));
+    await nextTask();
+    expect(searchFieldOf(runtime.fields)).toBeNull();
+  });
+
+  it('leaves no deadline behind once the descriptor answers', async () => {
+    const { engine, clock, issues } = harness();
+    await engine.open('system:orders:all');
+    expect(clock.timers).toBe(0);
+    clock.advance(DESCRIBE_DEADLINE_MS);
+    expect(issues).toEqual([]);
   });
 
   it('makes a view from nothing on what is held, and narrows it when the descriptor arrives', async () => {

@@ -28,6 +28,7 @@ import type {
 import { issue, type FieldKindRegistry } from '../filter/index.js';
 import { isOwnedPanel, panelsOf } from '../dashboard/index.js';
 import {
+  DESCRIBE_DEADLINE_MS,
   DescriptorCache,
   narrowDefinition,
   sourceLimits,
@@ -126,11 +127,32 @@ export class SourceCapabilities {
     await Promise.all(owned.map(entry => this.prepare(entry)));
   }
 
-  /** Reads one definition's source descriptor; see `prepareFor`. */
+  /**
+   * Reads one definition's source descriptor; see `prepareFor`. Waited for
+   * no longer than `DESCRIBE_DEADLINE_MS`: past it the view opens on the
+   * definition as declared, as it does when the read fails, and the read
+   * still in flight narrows it when it lands (`changed`).
+   */
   async prepare(definition: ViewDefinition): Promise<void> {
     if (definition.kind !== 'data') return;
-    const describe = this.describer(definition.source);
-    if (describe) await this.cache.load(definition.source, describe);
+    const { source } = definition;
+    const describe = this.describer(source);
+    if (!describe) return;
+    const { environment } = this.host;
+    let timer: unknown;
+    const late = new Promise<void>(resolve => {
+      timer = environment.setTimeout(() => {
+        this.host.report(
+          issue('capability.descriptor.unavailable', [], { source }, 'note'),
+        );
+        resolve();
+      }, DESCRIBE_DEADLINE_MS);
+    });
+    try {
+      await Promise.race([this.cache.load(source, describe), late]);
+    } finally {
+      environment.clearTimeout(timer);
+    }
   }
 
   /**

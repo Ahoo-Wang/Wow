@@ -25,6 +25,7 @@ import type { PagedList } from '@ahoo-wang/wow-client';
 import {
   MemoryViewStore,
   ViewEngine,
+  ViewStoreError,
   defaultRuntimeEnvironment,
 } from '../src/index.js';
 import type {
@@ -545,6 +546,57 @@ describe('DataWorkbench', () => {
       await waitFor(() => expect(screen.getAllByRole('row')).toHaveLength(3));
       expect(
         screen.queryByText(defaultMessages['label.view.unopenable']),
+      ).toBeNull();
+    });
+
+    /**
+     * The store answering 503, or the network dropping once, used to leave
+     * the reason and no button when the view that failed was the default
+     * itself: the page stayed stuck until it was reloaded.
+     */
+    it('offers to try again when the store could not answer, the default included', async () => {
+      const { engine, store } = setup();
+      const get = vi
+        .spyOn(store, 'get')
+        .mockRejectedValueOnce(
+          new ViewStoreError('UNAVAILABLE', 'busy', { reachable: true }),
+        );
+      render(
+        <DataWorkbench
+          engine={engine}
+          definitionId="orders"
+          instanceId="orders-1"
+        />,
+      );
+
+      const again = await screen.findByRole('button', {
+        name: defaultMessages['label.view.open-retry'],
+      });
+      expect(again.closest('[role="alert"]')).not.toBeNull();
+
+      fireEvent.click(again);
+      await waitFor(() => expect(screen.getAllByRole('row')).toHaveLength(3));
+      expect(get).toHaveBeenCalledTimes(2);
+      expect(
+        screen.queryByText(defaultMessages['label.view.unopenable']),
+      ).toBeNull();
+    });
+
+    it('offers no retry where asking again would answer the same', async () => {
+      render(
+        <DataWorkbench
+          engine={withBoth()}
+          definitionId="orders"
+          viewKinds={['record']}
+          instanceId="gone"
+        />,
+      );
+
+      await screen.findByText(defaultMessages['label.view.unopenable']);
+      expect(
+        screen.queryByRole('button', {
+          name: defaultMessages['label.view.open-retry'],
+        }),
       ).toBeNull();
     });
 

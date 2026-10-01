@@ -390,6 +390,8 @@ export class DashboardViewRuntime
   /** `refresh`, leaving out the panels `skip` names. */
   private rerun(skip?: (panel: DataViewRuntime) => boolean): void {
     if (this.disposed) return;
+    // A view a panel could not read just now is asked for again.
+    if (this.references.retryFailed()) this.store.setState({ resolving: true });
     // An anchored card's window was read off the clock at the last sync
     // (D39): 「昨日」 read again after midnight is another day, so the board
     // is brought in line first, as every other panel reads its relative
@@ -465,7 +467,11 @@ export class DashboardViewRuntime
    */
   refreshPanel(panelId: string): void {
     if (this.disposed) return;
-    this.children.runtimeOf(panelId)?.refresh();
+    // A panel whose view could not be read asks for it again: its retry.
+    const panel = this.state.panels.find(entry => entry.id === panelId);
+    if (this.references.retry(referencedInstance(panel?.panel)))
+      this.store.setState({ resolving: true });
+    else this.children.runtimeOf(panelId)?.refresh();
   }
 
   protected patch(state: Partial<DashboardRuntimeState>): void {
@@ -579,13 +585,14 @@ export class DashboardViewRuntime
    * dashboard kernel's, then each analysis the board owns through the
    * analysis kernel (`ownedRefusals`), which the dashboard kernel may not
    * import. Only what `blocksBoard` reads — a finding no panel owns —
-   * stops the board; everything under `['panels', i]` is that panel's.
+   * stops the board; everything under `['panels', i]` is that panel's. A
+   * view whose read failed is said as that failure (`restate`).
    */
   private admit(config: DashboardViewConfig, scope: ViewScope): Issue[] {
     return admitBoard(config, scope, this.references.known, this.kinds, {
       limits: this.options.limits,
       definitions: this.options.definitions,
-    });
+    }).map(found => this.references.restate(found));
   }
 
   /**
@@ -678,7 +685,10 @@ export class DashboardViewRuntime
     if (failure !== undefined)
       return {
         runtime: null,
-        issues: [...own, panelFailure(index, instanceId, failure)],
+        // Said once: a read that failed is the panel's own finding already.
+        issues: own.some(found => found.code === 'dashboard.panel.failed')
+          ? own
+          : [...own, panelFailure(index, instanceId, failure)],
       };
 
     const view = this.viewOf(panel);

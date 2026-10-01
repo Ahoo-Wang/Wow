@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import { FileQuestionMarkIcon } from 'lucide-react';
+import { FileQuestionMarkIcon, RotateCcwIcon } from 'lucide-react';
 import type { Issue } from '../../model/index.js';
 import { Button } from '../components/button.js';
 import {
@@ -25,12 +25,18 @@ import {
 import { useViewMessages } from '../kit/MessagesProvider.js';
 import { useKindIssue, useKindWord } from '../kit/kinds.js';
 
-/** The main column when the chosen view cannot be opened: the reason, and the way to the default. */
+/**
+ * The main column when the chosen view cannot be opened: the reason, and the
+ * ways on — trying again, where the failure may pass (`retryableOpen`), and
+ * the default.
+ */
 export function Unopenable({
   issue,
+  onRetry,
   onDefault,
 }: {
   issue: Issue;
+  onRetry?(): void;
   onDefault?(): void;
 }) {
   const messages = useViewMessages();
@@ -45,11 +51,26 @@ export function Unopenable({
         <EmptyTitle>{messages.label(word('label.view.unopenable'))}</EmptyTitle>
         <EmptyDescription>{messages.issue(ownWord(issue))}</EmptyDescription>
       </EmptyHeader>
-      {onDefault && (
+      {(onRetry || onDefault) && (
         <EmptyContent>
-          <Button variant="outline" size="sm" onClick={onDefault}>
-            {messages.label(word('label.view.open-default'))}
-          </Button>
+          <div className="fve:flex fve:flex-wrap fve:justify-center fve:gap-2">
+            {onRetry && (
+              <Button
+                variant="outline"
+                size="sm"
+                data-slot="view-open-retry"
+                onClick={onRetry}
+              >
+                <RotateCcwIcon data-icon="inline-start" />
+                {messages.label('label.view.open-retry')}
+              </Button>
+            )}
+            {onDefault && (
+              <Button variant="outline" size="sm" onClick={onDefault}>
+                {messages.label(word('label.view.open-default'))}
+              </Button>
+            )}
+          </div>
         </EmptyContent>
       )}
     </Empty>

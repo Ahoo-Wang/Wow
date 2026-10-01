@@ -32,6 +32,7 @@ import {
 import {
   browserRuntimeEnvironment,
   documentVisibility,
+  retryableOpen,
   toIssue,
   useOpenView,
   useViewEngine,
@@ -200,6 +201,7 @@ describe('useOpenView', () => {
       loading: false,
       error: null,
       scopeIssues: [],
+      retry: expect.any(Function),
     });
   });
 
@@ -355,6 +357,42 @@ describe('useOpenView', () => {
     );
     expect(result.current.runtime).toBeNull();
     expect(result.current.loading).toBe(false);
+  });
+
+  it('opens the id again when asked, after a failure that may pass', async () => {
+    const { engine, store } = engineWith();
+    const get = vi
+      .spyOn(store, 'get')
+      .mockRejectedValueOnce(new ViewStoreError('UNAVAILABLE', 'offline'));
+    const { result } = renderHook(() => useOpenView(engine, 'orders-1'));
+    await waitFor(() =>
+      expect(result.current.error).toMatchObject({
+        code: 'view.open.failed.unavailable',
+      }),
+    );
+    expect(retryableOpen(result.current.error)).toBe(true);
+
+    act(() => result.current.retry());
+
+    // Opening again, said as an opening rather than as the old failure.
+    expect(result.current.error).toBeNull();
+    expect(result.current.loading).toBe(true);
+    await waitFor(() => expect(result.current.runtime).not.toBeNull());
+    expect(get).toHaveBeenCalledTimes(2);
+  });
+
+  it('offers to try again only where asking again may change the answer', () => {
+    const failed = (code: string) => issue(code, []);
+    expect(retryableOpen(null)).toBe(false);
+    expect(retryableOpen(failed('view.open.failed'))).toBe(true);
+    expect(retryableOpen(failed('view.open.failed.unavailable'))).toBe(true);
+    expect(retryableOpen(failed('view.open.failed.unavailable.server'))).toBe(
+      true,
+    );
+    expect(retryableOpen(failed('view.open.failed.not_found'))).toBe(false);
+    expect(retryableOpen(failed('view.open.failed.forbidden'))).toBe(false);
+    expect(retryableOpen(failed('view.open.failed.unsupported'))).toBe(false);
+    expect(retryableOpen(failed('view.open.wrong-kind'))).toBe(false);
   });
 
   it('drops a view that arrives after it was unmounted', async () => {

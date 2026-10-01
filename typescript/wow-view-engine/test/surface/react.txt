@@ -1,4 +1,4 @@
-# @ahoo-wang/wow-view-engine/react — 115 names, from src/react/index.ts.
+# @ahoo-wang/wow-view-engine/react — 116 names, from src/react/index.ts.
 # Written by test/publicSurface.test.ts; a change here is a change to
 # the public surface (README「Entries」, docs/design/decisions.md D29).
 type  ActionFailureContext
@@ -88,6 +88,7 @@ value documentVisibility
 value failureReasons
 value kindMismatch
 value ownedNavigation
+value retryableOpen
 value toIssue
 value useAnalysisEditor
 value useAnalysisResult

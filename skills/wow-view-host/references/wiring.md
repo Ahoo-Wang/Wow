@@ -41,6 +41,8 @@ export function orderSource(fetcher: Fetcher): ViewSource {
 
 An event-stream definition takes `factory.createEventStreamQueryClient()` and `describeEventStream`. Resource attribution (tenant, owner) is the fetcher's: with CoSec's interceptors the paths are filled from the token (see $wow-client).
 
+Set a timeout on that fetcher (`fetcher.timeout = 60_000`, or `new Fetcher({ timeout })`): `@ahoo-wang/fetcher` has none by default and the engine times no query, so a server that takes the connection and never answers leaves a view opening for ever and holds the engine's query slots, starving the other panels of a board. A query past the timeout fails like any other, with its retry. The compensation console sets it in `compensation/dashboard/src/services/compensationFetcher.ts`.
+
 ## The engine: once, at the application's start
 
 <!-- typecheck: file=engine.ts -->

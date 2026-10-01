@@ -108,6 +108,28 @@ export interface OpenViewState {
    * reach the screen rather than be dropped here.
    */
   scopeIssues: Issue[];
+  /**
+   * Opens the same id again: the way back from a failure that may pass — the
+   * store unreachable, or answering with an error of its own
+   * (`retryableOpen`). Loading again until the new answer lands.
+   */
+  retry(): void;
+}
+
+/**
+ * Whether a failure to open may go away by itself, so trying again is worth
+ * offering: the store could not be reached or could not answer
+ * (`view.open.failed.unavailable`, `….server`), or what failed said nothing
+ * the engine knows (`view.open.failed`). A view that is gone, refused or of
+ * another kind answers the same the next time.
+ */
+export function retryableOpen(issue: Issue | null): boolean {
+  if (!issue) return false;
+  return (
+    issue.code === 'view.open.failed' ||
+    issue.code === 'view.open.failed.unavailable' ||
+    issue.code === 'view.open.failed.unavailable.server'
+  );
 }
 
 /**
@@ -120,6 +142,8 @@ interface OpenedView {
   instanceId: string | null;
   runtime: AnyViewRuntime | null;
   error: Issue | null;
+  /** The opening it answered (`Reopen.attempt`). */
+  attempt: number;
 }
 
 const NOT_OPENED: OpenedView = {
@@ -127,6 +151,7 @@ const NOT_OPENED: OpenedView = {
   instanceId: null,
   runtime: null,
   error: null,
+  attempt: 0,
 };
 
 /**
@@ -135,7 +160,10 @@ const NOT_OPENED: OpenedView = {
  */
 const NO_ISSUES: Issue[] = [];
 
-/** How many times a disposal forced a reopen, and the last runtime that did. */
+/**
+ * How many times the id was opened again — a disposal forced it, or the
+ * caller asked (`retry`) — and the last runtime a disposal did it for.
+ */
 interface Reopen {
   after: AnyViewRuntime | null;
   attempt: number;
@@ -212,7 +240,13 @@ export function useOpenView(
             return;
           }
           runtime = result;
-          setOpened({ engine, instanceId, runtime: result, error: null });
+          setOpened({
+            engine,
+            instanceId,
+            runtime: result,
+            error: null,
+            attempt: reopen.attempt,
+          });
         },
         (error: unknown) => {
           if (cancelled) return;
@@ -221,6 +255,7 @@ export function useOpenView(
             instanceId,
             runtime: null,
             error: toIssue(error, 'view.open.failed'),
+            attempt: reopen.attempt,
           });
         },
       );
@@ -265,8 +300,14 @@ export function useOpenView(
   if (disposed && runtime !== null && reopen.after !== runtime)
     setReopen({ after: runtime, attempt: reopen.attempt + 1 });
 
+  const retry = useCallback(
+    () => setReopen(current => ({ ...current, attempt: current.attempt + 1 })),
+    [],
+  );
+
   const answered =
     opened.instanceId === instanceId &&
+    opened.attempt === reopen.attempt &&
     (opened.engine === engine || instanceId === null) &&
     !disposed;
 
@@ -278,13 +319,15 @@ export function useOpenView(
             loading: false,
             error: opened.error,
             scopeIssues,
+            retry,
           }
         : {
             runtime: null,
             loading: instanceId !== null,
             error: null,
             scopeIssues: NO_ISSUES,
+            retry,
           },
-    [answered, opened.runtime, opened.error, instanceId, scopeIssues],
+    [answered, opened.runtime, opened.error, instanceId, scopeIssues, retry],
   );
 }

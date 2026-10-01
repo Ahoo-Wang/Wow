@@ -630,6 +630,7 @@ export const zhCN: Readonly<Record<string, string>> = {
   'label.view.new-title': '新视图',
   'label.view.unopenable': '无法打开这个视图',
   'label.view.open-default': '回到默认视图',
+  'label.view.open-retry': '重试',
   'label.view.needs-fixing': '这个视图要先修正才能运行',
   'label.view.conditions-to-fix': '条件要先修正，视图才会查询（{count} 项）',
   'label.view.show-conditions': '查看条件',
@@ -1723,6 +1724,9 @@ export const zhCN: Readonly<Record<string, string>> = {
   'label.panel.way-out.author':
     '请视图的所有者打开它修正，或者请这个仪表盘的维护者替换这个面板。',
   'label.panel.way-out.dashboard': '仪表盘修正之后，这个面板会重新运行。',
+  'label.panel.way-out.retry':
+    '请重试；一直打不开的话，请联系这个仪表盘的维护者。',
+  'label.panel.retry': '重试',
   'label.panel.finding': '「{panel}」：{finding}',
   'label.panel.resize': '调整「{title}」的大小',
   'label.panel.handle': '移动或调整「{title}」大小',

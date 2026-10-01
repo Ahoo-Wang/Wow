@@ -14,5 +14,15 @@
 import { fetcher, UrlBuilder } from "@ahoo-wang/fetcher";
 import { coSecConfigurer } from "./cosec.ts";
 
+/**
+ * How long a request waits for the server to answer. Without it a server that
+ * takes the connection and never answers holds the page for ever: a view
+ * opening stays a skeleton, and four slow queries hold every slot the view
+ * engine runs (its request runner), so the other panels of a board never ask.
+ * Timed up to the response headers, so a stream that has started is not cut.
+ */
+export const REQUEST_TIMEOUT_MS = 60_000;
+
 fetcher.urlBuilder = new UrlBuilder(import.meta.env.VITE_API_BASE_URL);
+fetcher.timeout = REQUEST_TIMEOUT_MS;
 coSecConfigurer.applyTo(fetcher);

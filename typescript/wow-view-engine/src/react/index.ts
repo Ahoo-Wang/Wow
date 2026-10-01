@@ -136,6 +136,7 @@ export {
   type OpenViewState,
   type SnapshotOf,
   type ViewRuntimeStore,
+  retryableOpen,
   useOpenView,
   useViewEngine,
   useViewRuntime,

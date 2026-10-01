@@ -2504,6 +2504,7 @@ export interface OpenViewState {
     error: Issue | null;
     // (undocumented)
     loading: boolean;
+    retry(): void;
     // (undocumented)
     runtime: AnyViewRuntime | null;
     scopeIssues: Issue[];
@@ -3327,6 +3328,9 @@ interface ResourceHost {
     // (undocumented)
     text?(key: string): string | undefined;
 }
+
+// @public
+export function retryableOpen(issue: Issue | null): boolean;
 
 // @public
 interface RiverStream {
