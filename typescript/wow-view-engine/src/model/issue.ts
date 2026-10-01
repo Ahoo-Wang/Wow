@@ -35,3 +35,17 @@ export interface Issue {
 export type IssueSeverity = 'error' | 'warning' | 'note';
 
 export type IssuePath = (string | number)[];
+
+/** What separates the items of a list parameter (`listParam`). */
+export const LIST_PARAM_SEPARATOR = '\u001E';
+
+/**
+ * A parameter that is a list — the titles of the boards that keep a view
+ * shared — as one string the model can carry. Joining it is wording: the
+ * catalogue's formatter joins the items as the surface's language joins a
+ * list (`Intl.ListFormat`, a conjunction: 「A、B和C」, "A, B, and C"), after
+ * which a title written as a key is said where it is shown (D2).
+ */
+export function listParam(items: readonly string[]): string {
+  return items.join(LIST_PARAM_SEPARATOR);
+}

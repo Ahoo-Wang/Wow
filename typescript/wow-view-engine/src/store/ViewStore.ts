@@ -79,10 +79,11 @@ export interface ViewStore {
    *   revision check, so a stale one still conflicts).
    * - **A view a shared board shows stays shared.** Made personal, it would
    *   be blank on that board for every other reader, so the store refuses
-   *   it as `INVALID`, and **the error's `message` names those boards by
-   *   title** — it is what the reader is shown (`view.changeAudience.invalid`
-   *   quotes it), so an adapter whose server answers with ids builds the
-   *   message from the titles. Only the store sees every board.
+   *   it as `INVALID` with **`boards`, those boards' titles** as stored (a
+   *   title written as a key stays one): the engine says the refusal in
+   *   its own words around them (`view.changeAudience.invalid.shared-boards`),
+   *   so an adapter whose server answers with ids reads the titles. Only the
+   *   store sees every board.
    *   Deleting such a view stays allowed (the panel alone breaks).
    */
   changeAudience?(

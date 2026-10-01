@@ -184,7 +184,7 @@ export class MemoryViewStore implements ViewStore {
    * it answers the view unchanged — no revision spent, nothing written — and
    * remembers that answer under the `requestId` like any other outcome.
    * A view a shared (or system) board shows is refused as `INVALID` when it
-   * would become personal, the message naming those boards.
+   * would become personal, `boards` naming those boards by title.
    */
   changeAudience(
     id: string,
@@ -200,6 +200,7 @@ export class MemoryViewStore implements ViewStore {
           return new ViewStoreError(
             'INVALID',
             `Shared dashboards show view ${id}: ${boards.join(', ')}`,
+            { boards },
           );
       }
       return { ...current, scope: audience };

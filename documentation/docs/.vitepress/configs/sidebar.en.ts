@@ -87,6 +87,14 @@ const typescriptEn: DefaultTheme.SidebarItem[] = [
             {text: 'Entries and Contracts', link: 'index.html'},
         ],
     },
+    {
+        base: '/reference/typescript/wow-view-store/',
+        text: 'wow-view-store (Unreleased)',
+        collapsed: true,
+        items: [
+            {text: 'Store and Contract', link: 'index.html'},
+        ],
+    },
 ]
 
 export const sidebarEn: DefaultTheme.Sidebar = {
@@ -327,6 +335,7 @@ export const sidebarEn: DefaultTheme.Sidebar = {
                 {text: 'wow-generator', link: 'wow-generator/index.html'},
                 {text: 'wow-react', link: 'wow-react/index.html'},
                 {text: 'wow-view-engine (Unreleased)', link: 'wow-view-engine/index.html'},
+                {text: 'wow-view-store (Unreleased)', link: 'wow-view-store/index.html'},
             ],
         },
         {

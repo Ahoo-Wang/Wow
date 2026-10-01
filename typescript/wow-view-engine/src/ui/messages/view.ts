@@ -225,6 +225,12 @@ export const viewMessages = {
     'This view store cannot move a view between personal and shared.',
   'view.changeAudience.invalid':
     'Who this view is for could not be changed: {reason}',
+  // The same refusal when the store names the shared boards that show the
+  // view (`ViewStoreError.boards`), by their titles, said here (D2).
+  'view.changeAudience.invalid.shared-boards':
+    'This view stays shared: shared dashboards show it ({boards}).',
+  'view.changeAudience.invalid.shared-boards-one':
+    'This view stays shared: a shared dashboard shows it ({boards}).',
   'view.delete.failed': 'This view could not be deleted.',
   // One per action the permission guard refuses (`view.<action>.forbidden`,
   // `runtime/permissions.ts`). They used to have no entry at all, so the

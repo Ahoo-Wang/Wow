@@ -87,6 +87,14 @@ const typescriptZh: DefaultTheme.SidebarItem[] = [
             {text: '入口与契约', link: 'index.html'},
         ],
     },
+    {
+        base: '/zh/reference/typescript/wow-view-store/',
+        text: 'wow-view-store（未发布）',
+        collapsed: true,
+        items: [
+            {text: 'Store 与合同', link: 'index.html'},
+        ],
+    },
 ]
 
 export const sidebarZh: DefaultTheme.Sidebar = {
@@ -327,6 +335,7 @@ export const sidebarZh: DefaultTheme.Sidebar = {
                 {text: 'wow-generator', link: 'wow-generator/index.html'},
                 {text: 'wow-react', link: 'wow-react/index.html'},
                 {text: 'wow-view-engine（未发布）', link: 'wow-view-engine/index.html'},
+                {text: 'wow-view-store（未发布）', link: 'wow-view-store/index.html'},
             ],
         },
         {

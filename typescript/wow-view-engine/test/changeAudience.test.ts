@@ -41,6 +41,7 @@ import {
   testSource,
 } from './fixtures.js';
 import { withoutAudience } from './fixtures/writes.js';
+import { listParam } from '../src/model/issue.js';
 
 const mine: ViewInstance = {
   id: 'orders-1',
@@ -290,7 +291,7 @@ describe('ViewEngine.changeAudience', () => {
       expect(engine.pendingWrites().size).toBe(0);
     });
 
-    it('says the store’s reason when a shared board keeps the view shared', async () => {
+    it('names the shared boards that keep the view shared, in its own words', async () => {
       const { engine, store } = harness({ instances: [mine, ours, teamBoard] });
 
       const failure = await failedWrite(
@@ -299,11 +300,31 @@ describe('ViewEngine.changeAudience', () => {
 
       expect(failure.state).toMatchObject({
         kind: 'rejected',
-        issue: { code: 'view.changeAudience.invalid' },
+        issue: {
+          code: 'view.changeAudience.invalid.shared-boards',
+          params: { boards: listParam(['Team board']), count: 1 },
+        },
       });
-      if (failure.state.kind === 'rejected')
-        expect(failure.state.issue.params?.reason).toContain('Team board');
       expect((await store.get('orders-2')).scope).toBe('shared');
+    });
+
+    it('says the store’s reason when an invalid move names no boards', async () => {
+      const { engine, store } = harness({ instances: [mine, ours] });
+      vi.spyOn(store, 'changeAudience').mockRejectedValueOnce(
+        new ViewStoreError('INVALID', 'not this one'),
+      );
+
+      const failure = await failedWrite(
+        engine.changeAudience('orders-2', 'personal'),
+      );
+
+      expect(failure.state).toMatchObject({
+        kind: 'rejected',
+        issue: {
+          code: 'view.changeAudience.invalid',
+          params: { reason: 'not this one' },
+        },
+      });
     });
   });
 

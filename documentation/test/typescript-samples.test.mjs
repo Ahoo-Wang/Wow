@@ -7,7 +7,7 @@ import {blocks, built, check, installedPackages, skipped} from './typescript-sam
 // typescript-samples.mjs for the directives a page uses to steer a sample.
 
 test('TypeScript samples compile against the built packages', {timeout: 300_000}, async () => {
-    for (const pkg of ['wow-client', 'wow-react', 'wow-generator', 'wow-view-engine'])
+    for (const pkg of ['wow-client', 'wow-react', 'wow-generator', 'wow-view-engine', 'wow-view-store'])
         assert.ok(built(pkg), `typescript/${pkg} is not built; run \`pnpm --filter documentation^... build\``)
     const {samples, projects, failures} = await check()
     assert.ok(samples.length > 100, `Only ${samples.length} samples found; the sources or the fence pattern changed`)

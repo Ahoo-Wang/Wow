@@ -33,6 +33,7 @@
     "@ahoo-wang/wow-generator": "workspace:*",
     "@ahoo-wang/wow-react": "workspace:*",
     "@ahoo-wang/wow-view-engine": "workspace:*",
+    "@ahoo-wang/wow-view-store": "workspace:*",
     "@types/canvas-confetti": "catalog:",
     "@types/node": "catalog:",
     "@types/react": "catalog:",

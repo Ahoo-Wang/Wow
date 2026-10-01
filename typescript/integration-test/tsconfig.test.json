@@ -2,7 +2,10 @@
   "extends": "./tsconfig.json",
   "compilerOptions": {
     "noEmit": true,
-    "rootDir": "."
+    // `..`, not `.`: the WowViewStore suite imports the view engine's port
+    // conformance suite by its workspace path
+    // (../wow-view-engine/test/conformance/), which is never published.
+    "rootDir": ".."
   },
   "include": [
     "src",

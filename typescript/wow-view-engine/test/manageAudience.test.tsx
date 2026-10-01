@@ -27,7 +27,12 @@ import {
   within,
 } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { MemoryViewStore, ViewEngine, ViewStoreError } from '../src/index.js';
+import {
+  MemoryViewStore,
+  text,
+  ViewEngine,
+  ViewStoreError,
+} from '../src/index.js';
 import { zhCN } from '../src/ui/index.js';
 import { ViewManager } from '../src/ui/manage/ViewManager.js';
 import { ViewSurface } from '../src/ui/kit/ViewSurface.js';
@@ -162,6 +167,30 @@ describe('the view manager’s move between audiences', () => {
     ).toBeDefined();
   });
 
+  it('says which shared boards keep a view shared', async () => {
+    const memory = tracked(new MemoryViewStore({ instances: instances() }));
+    vi.spyOn(memory, 'changeAudience').mockRejectedValueOnce(
+      new ViewStoreError('INVALID', 'Shared dashboards show this view', {
+        boards: ['Team board', 'Ops board', 'Region board'],
+      }),
+    );
+    const engine = new ViewEngine({
+      resources: resourcesOf([ordersDefinition()], () => testSource()),
+      store: memory,
+    });
+    await manage(engine);
+
+    fireEvent.click(
+      within(row('Ours')).getByRole('button', { name: 'Make personal' }),
+    );
+
+    await waitFor(() =>
+      expect(row('Ours').textContent).toContain(
+        'This view stays shared: shared dashboards show it (Team board, Ops board, and Region board).',
+      ),
+    );
+  });
+
   it('keeps a refused move on its row and says nothing landed', async () => {
     const memory = tracked(new MemoryViewStore({ instances: instances() }));
     vi.spyOn(memory, 'changeAudience').mockRejectedValueOnce(
@@ -198,7 +227,7 @@ describe('the words, in both catalogues', () => {
     const list = useViewList(engine, 'orders');
     const manager = useViewManager(engine, 'orders', list);
     return (
-      <ViewSurface messages={zhCN}>
+      <ViewSurface messages={{ ...zhCN, 'boards.team': '团队看板' }}>
         <ViewManager
           manager={manager}
           list={list}
@@ -223,5 +252,30 @@ describe('the words, in both catalogues', () => {
     await landed(store);
 
     await waitFor(() => expect(announcement()).toBe('Ours 已设为个人'));
+  });
+
+  it('names the shared boards that keep a view shared, a title written as a key said here', async () => {
+    const memory = new MemoryViewStore({ instances: instances() });
+    vi.spyOn(memory, 'changeAudience').mockRejectedValueOnce(
+      new ViewStoreError('INVALID', 'Shared dashboards show this view', {
+        boards: [text('boards.team'), '区域看板'],
+      }),
+    );
+    const engine = new ViewEngine({
+      resources: resourcesOf([ordersDefinition()], () => testSource()),
+      store: memory,
+    });
+    render(<Chinese engine={engine} />);
+    await waitFor(() => expect(rows()).toHaveLength(4));
+
+    fireEvent.click(
+      within(row('Ours')).getByRole('button', { name: '设为个人' }),
+    );
+
+    await waitFor(() =>
+      expect(row('Ours').textContent).toContain(
+        '这个视图仍是共享的：共享仪表盘显示着它（团队看板和区域看板）。',
+      ),
+    );
   });
 });

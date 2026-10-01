@@ -73,6 +73,10 @@ export const dashboardMessages = {
     'This store cannot move a dashboard between personal and shared.',
   'label.dashboard.audience-invalid':
     'Who this dashboard is for could not be changed: {reason}',
+  'label.dashboard.audience-shared-boards':
+    'This dashboard stays shared: shared dashboards show it ({boards}).',
+  'label.dashboard.audience-shared-boards-one':
+    'This dashboard stays shared: a shared dashboard shows it ({boards}).',
   'label.dashboard.delete-failed': 'This dashboard could not be deleted.',
   'label.dashboard.delete-forbidden':
     'You may not delete this dashboard; ask whoever owns it to remove it.',

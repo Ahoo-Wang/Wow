@@ -48,7 +48,10 @@ export const PUBLISHED = [
   'typescript/wow-generator',
 ];
 /** Public packages held back until they are stable (wow-view-engine, wow-view-store). */
-export const HELD_BACK = ['typescript/wow-view-engine'];
+export const HELD_BACK = [
+  'typescript/wow-view-engine',
+  'typescript/wow-view-store',
+];
 /** npm CLI version that supports OIDC trusted publishing. */
 export const MIN_NPM = '11.5.1';
 

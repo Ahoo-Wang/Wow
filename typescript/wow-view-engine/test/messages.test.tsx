@@ -28,6 +28,7 @@ import {
   VIEW_STORE_ERROR_CODES,
 } from '../src/index.js';
 import { INSTANCE_ACTIONS } from '../src/runtime/permissions.js';
+import { listParam } from '../src/model/issue.js';
 import type { FilterValue, ViewInstanceSummary } from '../src/index.js';
 import { QueryErrorCodes } from '@ahoo-wang/wow-client';
 import type { RecordViewRuntime } from '../src/runtime/index.js';
@@ -826,3 +827,31 @@ function listState(items: ViewInstanceSummary[]): ViewListState {
     reload: () => {},
   };
 }
+
+describe('a list parameter', () => {
+  const key = 'view.changeAudience.invalid.shared-boards';
+  const boards = listParam(['门店看板', '区域看板', '总部看板']);
+
+  it('is joined as the catalogue’s language joins a list', () => {
+    expect(formatMessage(zhCN, key, { boards })).toBe(
+      '这个视图仍是共享的：共享仪表盘显示着它（门店看板、区域看板和总部看板）。',
+    );
+    expect(
+      formatMessage(zhCN, key, {
+        boards: listParam(['门店看板', '区域看板']),
+      }),
+    ).toContain('（门店看板和区域看板）');
+    expect(formatMessage(en, key, { boards: listParam(['A', 'B', 'C']) })).toBe(
+      'This view stays shared: shared dashboards show it (A, B, and C).',
+    );
+  });
+
+  it('follows the locale set over the catalogue’s, and an unreadable one reads as English', () => {
+    expect(
+      formatMessage(en, key, { boards: listParam(['A', 'B']) }, 'zh-CN'),
+    ).toContain('(A和B)');
+    expect(
+      formatMessage(en, key, { boards: listParam(['A', 'B']) }, '!!'),
+    ).toContain('(A and B)');
+  });
+});
