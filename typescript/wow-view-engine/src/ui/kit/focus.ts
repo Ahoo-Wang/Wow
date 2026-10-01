@@ -101,7 +101,7 @@ export function useLanding(): (where: Landing) => void {
     const where = pending.current;
     if (!where) return;
     pending.current = null;
-    if (!fell()) return;
+    if (!keyboardFell()) return;
     focusableIn(where())?.focus();
   });
   return useCallback((where: Landing) => {
@@ -110,7 +110,7 @@ export function useLanding(): (where: Landing) => void {
 }
 
 /** Whether the keyboard is nowhere: on the body, or on a control gone dead. */
-function fell(): boolean {
+export function keyboardFell(): boolean {
   const active = document.activeElement;
   return (
     active === null ||

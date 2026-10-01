@@ -13,13 +13,13 @@ This page is the conformance statement of the View Engine's interface (`@ahoo-wa
 
 | Supports | Partially supports | Does not support | Not applicable |
 |---:|---:|---:|---:|
-| 36 | 5 | 0 | 14 |
+| 41 | 0 | 0 | 14 |
 
-The five criteria this statement first gave as partial — 2.4.11 Focus Not Obscured, 2.5.7 Dragging Movements, 2.5.8 Target Size, 3.1.2 Language of Parts and 4.1.3 Status Messages — are supported since the [follow-up fixes](#fixed-since). The second walkthrough on 2026-09-30 covered the interactions added after 09-25 and [fixed a batch of them](#fixed-in-the-second-walkthrough); five criteria are "partially supports" — 1.3.1, 2.4.3, 3.1.2, 3.3.2 and 4.1.3 — all because of **declared actions** (a row's primary action and ⋯ menu, the bulk bar and action forms), whose fixes are scheduled but not merged yet; see [Known gaps](#known-gaps). No criterion is "does not support", but this statement is **not** a third-party audit and **no** screen-reader software was driven — see the limits under [How it was evaluated](#how-it-was-evaluated) and [Known gaps](#known-gaps).
+The five criteria this statement first gave as partial — 2.4.11 Focus Not Obscured, 2.5.7 Dragging Movements, 2.5.8 Target Size, 3.1.2 Language of Parts and 4.1.3 Status Messages — are supported since the [follow-up fixes](#fixed-since). The second walkthrough on 2026-09-30 covered the interactions added after 09-25 and [fixed a batch of them](#fixed-in-the-second-walkthrough); the five criteria it left at "partially supports" — 1.3.1, 2.4.3, 3.1.2, 3.3.2 and 4.1.3, all because of **declared actions** (a row's primary action and ⋯ menu, the bulk bar and action forms) — are supported since [their fixes](#declared-actions-fixed) (PR #3834). No criterion is "does not support", but this statement is **not** a third-party audit and **no** screen-reader software was driven — see the limits under [How it was evaluated](#how-it-was-evaluated) and [Known gaps](#known-gaps).
 
 ## Scope
 
-- **What was evaluated**: the Wow repository's `main` (`c1494d2ed`) plus the fixes merged with this version of the page (the second walkthrough, PR #3826), the `/ui` entry of `typescript/wow-view-engine`; the first evaluation was of `b17f36a3c`. The headless root entry and `/react` draw nothing and are out of scope.
+- **What was evaluated**: the Wow repository's `main` (`c1494d2ed`) plus the fixes merged with this version of the page (the second walkthrough, PR #3826, and the declared actions' fixes, PR #3834), the `/ui` entry of `typescript/wow-view-engine`; the first evaluation was of `b17f36a3c`. The headless root entry and `/react` draw nothing and are out of scope.
 - **What the host owns**: the View Engine always sits in a host's page. The page title (2.4.2), the page language (3.1.1), a skip-to-content link, site-wide navigation, sign-in (3.3.8) and any help mechanism (3.2.6) are the host's, and a host that overrides the `--fve-*` colour variables owns their contrast (see [Theming the View Engine](./view-engine-theming.md#contrast-is-the-overrider-s-responsibility)). Most "not applicable" rows below are for this reason.
 - **Data**: the walkthrough ran in [Storybook](/storybook/)'s host shell, on the repository's retail data set and regression fixtures.
 
@@ -80,14 +80,14 @@ The five criteria this statement first gave as partial — 2.4.11 Focus Not Obsc
 
 ### Declared actions
 
-The commands a host declares with `actions()`: a row's primary action and its ⋯ menu, the bulk bar for selected rows, actions with a form and dangerous confirmations, progress and results. Added for the second pass; the fixes for the gaps below are scheduled and **not merged yet**, so the criteria they touch are "partially supports".
+The commands a host declares with `actions()`: a row's primary action and its ⋯ menu, the bulk bar for selected rows, actions with a form and dangerous confirmations, progress and results. Added for the second pass; the gaps it found are [fixed](#declared-actions-fixed), and the rows below are re-walked on the fix (keyboard in Storybook on Chromium, and jsdom).
 
 | Task | Keyboard | Screen reader |
 |---|---|---|
-| Run an action | ⚠️ The primary action and the ⋯ menu are reachable, Enter runs; **while it runs every action on the surface is disabled, focus falls to the top of the page and does not come back** (the bulk bar likewise) — to be fixed | ⚠️ On a Chinese surface "发货 · 正在执行 0/1" then "发货 · 1 项已完成"; **a host passing its wording by props hears it in English, and the result is replaced 10ms later by "N records in all"** — to be fixed |
-| A disabled action | ⚠️ Native `disabled`, out of the Tab order; the reason is in the ⋯ menu's group label and a hover tooltip | ⚠️ A screen reader meets the reason only in browse mode |
-| An action with a form | ✅ The dialog keeps focus, Esc returns to ⋯ | ⚠️ **"Required" is not exposed to assistive technology** (no `aria-required` on the input, the note not referenced by `aria-describedby`), the submit button is disabled without saying why, and the form is an `alertdialog` — to be fixed |
-| Selection and bulk | ⚠️ Each bulk button is a Tab stop of its own, outside the result toolbar's arrow-key order — to be fixed | ✅ "N selected" |
+| Run an action | 🔧 The primary action and the ⋯ menu are reachable, Enter runs. **While it ran, every action on the surface was disabled and focus fell to the top of the page**, fixed: a busy button stays focusable (`aria-disabled`), the ⋯ stays openable with its items held, a question closes back onto the button that asked, and when the refresh takes the row or the selection's bar away, focus lands on the result line's "Dismiss" | 🔧 "发货 · 正在执行 0/1", then "发货 · SO-1003 已完成；共 4 条记录". **A host passing its wording by props heard it in English, and the result was replaced 10ms later by "N records in all"**, fixed: the surface's wording is passed down, and the result leads the refresh's count in one sentence |
+| A disabled action | 🔧 **Native `disabled`, out of the Tab order**, fixed: focusable, its tooltip opens on focus | 🔧 The reason is the button's description |
+| An action with a form | ✅ The dialog keeps focus, Esc returns to ⋯; 🔧 the submit button stays pressable — pressed with a required field blank, it marks the field invalid and moves focus there | 🔧 **"Required" was not exposed to assistive technology and the form was an `alertdialog`**, fixed: the label points at its control, `aria-required`, "Required" as its description, `aria-invalid` only after a submit; a question with a form, or a routine one, is a `dialog` — only a dangerous question with nothing to fill is an `alertdialog` |
+| Selection and bulk | 🔧 **Each bulk button was a Tab stop of its own**, fixed: they are items of the result toolbar, one Tab stop with the arrows through them | ✅ "N selected"; "发货 3/4 条" says how many can take it before the press |
 
 ### Embeds
 
@@ -151,11 +151,22 @@ Merged with PR #3826, each with a regression test:
 | "Number field", "Navigation bar" and "Loading" in English on a Chinese surface (3.1.2) | From the wording catalogue; the spinner is not said twice | `test/surfaceLanguage.test.tsx`, `test/suggestedValue.test.tsx` |
 | A column header's name was the sort button's action plus the width handle's name (1.3.1, 2.4.6) | Headers are named by their column; the sort is `aria-sort`'s | `test/tableNames.test.tsx` |
 
+### Declared actions {#declared-actions-fixed}
+
+Merged with PR #3834, each with a regression test:
+
+| Problem | Fix | Test |
+|---|---|---|
+| Running an action dropped focus to the top of the page — row primary action, ⋯ menu, bulk bar (2.4.3) | Busy and unavailable buttons are `focusableWhenDisabled` (`aria-disabled`, the press swallowed); the ⋯ stays openable; a question closes onto the control that asked; focus that fell when the refresh took the row or the bar lands on the result line's "Dismiss" | `test/declaredActions.test.tsx` "the keyboard after a command"; stories `RowPrimaryAndOverflow`, `BulkPartialAvailability`, `FormInput`, `DangerConfirm` (focus and the live region asserted in Chromium) |
+| A disabled primary action could not be reached by Tab; its reason only on hover and in the ⋯ menu's group label | Focusable, the tooltip opens on focus, the reason is its description | as above |
+| A host passing its wording by props heard an action's start and result in English (3.1.2), and the result was replaced at once by "N records in all" (4.1.3) | The record view passes its wording to the action surface; the result leads the refresh's count in one sentence | `test/declaredActions.test.tsx` "what the surface says"; stories `RowPrimaryAndOverflow`, `BulkPartialAvailability`, `FormInput`, `DangerConfirm` (focus and the live region asserted in Chromium) |
+| An action form's "Required" was not exposed, its submit button disabled without saying why (1.3.1, 3.3.2), the form an `alertdialog` | `aria-required` and "Required" as the description, `aria-invalid` after a submit, the submit pressable and moving focus to the first blank field; `dialog` unless a dangerous question with no form | `test/declaredActions.test.tsx`; story `FormInput` |
+| The bulk buttons broke the result toolbar's one Tab stop | Toolbar items, in its arrow-key order | `test/declaredActions.test.tsx` |
+
 ## Known gaps
 
 The package's [todo.md](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/docs/design/todo.md) holds what is still open with its reason, done criteria and landing; when one is done, its row in the table below changes.
 
-- **Declared actions** (fixes scheduled, not merged yet): running an action drops focus to the top of the page (2.4.3); its start and result speak English on a host that passes its wording by props (3.1.2), and the result is replaced at once by "N records in all" (4.1.3); an action form's "Required" is not exposed to assistive technology and its submit button is disabled without saying why (1.3.1, 3.3.2), and the form is an `alertdialog`; the bulk buttons are outside the result toolbar's arrow-key order; a disabled primary action cannot be reached by Tab, its reason only in a hover tooltip and the ⋯ menu's group label. Once merged, those rows go back to "supports".
 - **A human screen-reader pass**: VoiceOver with Safari and NVDA with Firefox or Chrome have not been run. A 30-minute step-by-step checklist for it (the keys and the expected announcements per task, a results table and severity guidance, in Chinese) is the [screen-reader walkthrough](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/docs/design/screen-reader-walkthrough.md).
 
 ## Criterion by criterion
@@ -172,7 +183,7 @@ The package's [todo.md](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wo
 | 1.2.3 Audio Description or Media Alternative (Prerecorded) | A | Not applicable | As above |
 | 1.2.4 Captions (Live) | AA | Not applicable | As above |
 | 1.2.5 Audio Description (Prerecorded) | AA | Not applicable | As above |
-| 1.3.1 Info and Relationships | A | Partially supports | Tables use `th` and `rowheader`, headers named by their column, chart data tables have a `caption`; form controls are labelled; landmarks and two heading levels; groups are named `group`s. **Declared action forms**: "Required" is only a line of text beside the input, with no `aria-required` and no `aria-describedby` to it (fix scheduled) |
+| 1.3.1 Info and Relationships | A | Supports | Tables use `th` and `rowheader`, headers named by their column, chart data tables have a `caption`; form controls are labelled; landmarks and two heading levels; groups are named `group`s; a declared action form's required field carries `aria-required`, with "Required" as its description |
 | 1.3.2 Meaningful Sequence | A | Supports | DOM order is reading order |
 | 1.3.3 Sensory Characteristics | A | Supports | Instructions do not rely on shape, position or colour |
 | 1.3.4 Orientation | AA | Supports | No orientation lock |
@@ -199,7 +210,7 @@ The package's [todo.md](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wo
 | 2.3.1 Three Flashes or Below Threshold | A | Supports | Nothing flashes |
 | 2.4.1 Bypass Blocks | A | Supports | Named landmarks and headings; a skip-to-content link is the host's |
 | 2.4.2 Page Titled | A | Not applicable | The page title is the host's |
-| 2.4.3 Focus Order | A | Partially supports | The first pass fixed six places where focus fell to the top of the page, the second two in the analysis tray; Esc after adding a filter condition lands on its value box. **Running a declared action drops focus to the top of the page** (row primary action, ⋯ menu, bulk bar; fix scheduled) |
+| 2.4.3 Focus Order | A | Supports | The first pass fixed six places where focus fell to the top of the page, the second two in the analysis tray and the declared actions' (row primary action, ⋯ menu, bulk bar); Esc after adding a filter condition lands on its value box |
 | 2.4.4 Link Purpose (In Context) | A | Supports | Links in panels are named by their text and say they open in a new tab |
 | 2.4.5 Multiple Ways | AA | Not applicable | The View Engine is not a set of pages; site navigation is the host's |
 | 2.4.6 Headings and Labels | AA | Supports | View, panel and region names say what they are; column headers are named by their column |
@@ -217,14 +228,14 @@ The package's [todo.md](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wo
 | Criterion | Level | Result | Notes |
 |---|---|---|---|
 | 3.1.1 Language of Page | A | Not applicable | The page's `lang` is the host's |
-| 3.1.2 Language of Parts | AA | Partially supports | The surface and its popups write the wording catalogue's language as `lang` (a host may set its own); third-party English in the number box, the calendar and value suggestions now comes from the catalogue. **On a host passing its wording by props, declared actions announce their start and result in English** (fix scheduled) |
+| 3.1.2 Language of Parts | AA | Supports | The surface and its popups write the wording catalogue's language as `lang` (a host may set its own); third-party English in the number box, the calendar and value suggestions now comes from the catalogue; a declared action's start and result are said in the surface's wording, props-passed included |
 | 3.2.1 On Focus | A | Supports | Focus only opens tooltips |
 | 3.2.2 On Input | A | Supports | A record view's filter waits for Apply; the analysis tray's auto run is a visible switch; changing a value updates the result without changing context |
 | 3.2.3 Consistent Navigation | AA | Supports | The three workbenches share one frame |
 | 3.2.4 Consistent Identification | AA | Supports | One function, one name (all names come from one wording catalogue); every grip is the same component |
 | 3.2.6 Consistent Help | A | Not applicable | The View Engine offers no help mechanism; help a host adds is the host's to place consistently |
 | 3.3.1 Error Identification | A | Supports | Failing conditions are marked where they are (`aria-invalid` and text); query failures are `role=alert` |
-| 3.3.2 Labels or Instructions | A | Partially supports | Every input is labelled, with its rules beside the control. **Declared action forms**: "Required" is not exposed to assistive technology, and the submit button is disabled without saying why (fix scheduled) |
+| 3.3.2 Labels or Instructions | A | Supports | Every input is labelled, with its rules beside the control; a declared action form says which fields are required, and its submit button, pressed with one blank, says which and goes there |
 | 3.3.3 Error Suggestion | AA | Supports | Errors say how to fix them ("A whole number from 1 to 100") |
 | 3.3.4 Error Prevention (Legal, Financial, Data) | AA | Supports | Deleting a view asks first; removing a panel can be undone; leaving unsaved edits asks |
 | 3.3.7 Redundant Entry | A | Supports | Save as starts from the current name and a follow-up carries the chosen group; nothing asks for the same entry twice |
@@ -235,7 +246,7 @@ The package's [todo.md](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wo
 | Criterion | Level | Result | Notes |
 |---|---|---|---|
 | 4.1.2 Name, Role, Value | A | Supports | Chromium's accessibility tree has no unnamed interactive control; states are exposed with `aria-pressed`, `aria-expanded`, `aria-sort`, `aria-checked` and the like |
-| 4.1.3 Status Messages | AA | Partially supports | Results, errors, range selection, arranging, moving and column widths are announced; a dashboard says what a filter change came to, failed panels included; the undo notice says what an edit took and, after Undo, that it is back. **A declared action's result is replaced at once by the refresh's "N records in all"**, and a screen reader usually speaks only the last (fix scheduled) |
+| 4.1.3 Status Messages | AA | Supports | Results, errors, range selection, arranging, moving and column widths are announced; a dashboard says what a filter change came to, failed panels included; the undo notice says what an edit took and, after Undo, that it is back; a declared action's start and result are said, the result leading the refresh's count in one sentence |
 
 ## Where to read more
 

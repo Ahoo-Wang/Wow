@@ -238,7 +238,7 @@ export function RecordParts({
   const { region: announcement, ...voice } = useAnnouncer(
     'record-announcement',
   );
-  useQueryAnnouncement(table, messages, voice, emptyTitle);
+  const leadQuery = useQueryAnnouncement(table, messages, voice, emptyTitle);
 
   const fields = record?.fields ?? [];
   // The record the detail holds, which the page may not: its actions are
@@ -258,6 +258,11 @@ export function RecordParts({
     runtime: record,
     ...(detailRows ? { also: detailRows } : {}),
     say: voice.say,
+    // The outcome leads the refresh's own sentence rather than being said
+    // over by it.
+    sayOutcome: leadQuery,
+    ...(wording ? { messages: wording } : {}),
+    ...(locale ? { locale } : {}),
   });
 
   // The condition fold, held here only so the empty result can open it.
@@ -441,7 +446,6 @@ export function RecordParts({
     // said in this surface's one voice rather than a second region.
     result: (
       <SurfaceAnnouncer say={voice.say}>
-        {surface.status}
         {table.layout === 'card' ? (
           <RecordCards
             table={table}
@@ -488,6 +492,11 @@ export function RecordParts({
           title={detailOptions?.title}
           onRenderFailure={onRenderFailure}
         />
+
+        {/* Under the rows rather than over them: a line that appears above
+            the rows moves every row down under the pointer that pressed
+            one (UX-8). */}
+        {surface.status}
 
         <RecordPagination table={table} />
 

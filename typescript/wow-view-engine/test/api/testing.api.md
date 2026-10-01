@@ -71,7 +71,6 @@ export interface ActionHarness {
     readonly ids: readonly string[];
     missing(id: string, input: ActionInput): string[];
     run(id: string, key: RecordKey, input?: ActionInput): Promise<unknown>;
-    // (undocumented)
     state(id: string, key: RecordKey, input?: ActionInput): HarnessState;
 }
 
@@ -1488,6 +1487,7 @@ interface RecordAction {
     readonly on?: readonly ActionPlace[];
     readonly primary?: boolean;
     run(row: RecordRow, input: ActionInput): Promise<unknown>;
+    readonly timeout?: number;
     // (undocumented)
     readonly tone?: ActionTone;
 }

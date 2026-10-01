@@ -207,7 +207,6 @@ export function RecordPanel({
         conditionsChanged={table.conditionsChanged}
         onRetry={onRetry}
       />
-      {surface.status}
       {bulk && (
         <SelectionBar table={table} runtime={runtime} bulkActions={bulk} />
       )}
@@ -221,6 +220,8 @@ export function RecordPanel({
         rowActions={surface.row}
         {...(name === undefined ? {} : { name })}
       />
+      {/* Under the rows, which a line appearing above them would move. */}
+      {surface.status}
       {surface.dialog}
       {region}
     </div>

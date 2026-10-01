@@ -45,6 +45,12 @@ interface ActionContext {
 }
 
 // @public
+export interface ActionFailureContext {
+    key: RecordKey;
+    operation: string;
+}
+
+// @public
 type ActionForm = Readonly<Record<string, ActionFormField>>;
 
 // @public
@@ -606,10 +612,12 @@ type BuiltinFieldKindId = 'string' | 'number' | 'boolean' | 'date' | 'datetime' 
 
 // @public
 export interface BulkActionView {
+    able: number;
     // (undocumented)
     action: RecordAction;
     choices: readonly FieldOption[] | null;
     count: number;
+    reason: string | null;
 }
 
 // @public
@@ -622,13 +630,15 @@ export interface BulkFailure {
 
 // @public
 export interface BulkOutcome {
-    // (undocumented)
     failed: readonly BulkFailure[];
+    kept: readonly RecordKey[];
+    refused: readonly BulkFailure[];
     skipped: readonly RecordKey[];
     // (undocumented)
     succeeded: readonly RecordKey[];
     // (undocumented)
     title: string;
+    unknown: readonly BulkFailure[];
     // (undocumented)
     values?: Readonly<Record<string, string>>;
 }
@@ -646,6 +656,8 @@ export interface BulkProgress {
 export interface BulkRun {
     // (undocumented)
     each(key: RecordKey): Promise<unknown>;
+    operation?: string;
+    timeout?: number;
     title: string;
     values?: Readonly<Record<string, string>>;
 }
@@ -654,7 +666,6 @@ export interface BulkRun {
 export interface BulkRunning {
     // (undocumented)
     progress: BulkProgress;
-    // (undocumented)
     stopping: boolean;
     // (undocumented)
     title: string;
@@ -668,8 +679,7 @@ export interface BulkSelection {
     keys: readonly RecordKey[];
     // (undocumented)
     refresh(): void;
-    // (undocumented)
-    select(keys: readonly RecordKey[]): void;
+    select?(keys: readonly RecordKey[]): void;
 }
 
 // @public (undocumented)
@@ -2796,6 +2806,7 @@ interface RecordAction {
     readonly on?: readonly ActionPlace[];
     readonly primary?: boolean;
     run(row: RecordRow, input: ActionInput): Promise<unknown>;
+    readonly timeout?: number;
     // (undocumented)
     readonly tone?: ActionTone;
 }
@@ -2833,6 +2844,7 @@ export interface RecordActionsOptions {
     actions?: RecordActions;
     also?: readonly RecordRow[];
     concurrency?: number;
+    onError?(error: unknown, context: ActionFailureContext): void;
     refresh?(): void;
     // (undocumented)
     table: RecordActionTable;
@@ -3915,6 +3927,7 @@ interface ViewErrorContext {
     instanceId?: string;
     operation: string;
     panelId?: string;
+    recordKey?: RecordKey;
     requestId?: string;
     runtimeId?: string;
     violation?: QueryViolation;
@@ -3930,7 +3943,7 @@ interface ViewErrorEvent {
 }
 
 // @public
-type ViewErrorKind = 'query' | 'store' | 'export' | 'render' | 'chart';
+type ViewErrorKind = 'query' | 'store' | 'export' | 'render' | 'chart' | 'action';
 
 // @public
 type ViewHandOver = SavedViewTarget | UnsavedViewTarget;

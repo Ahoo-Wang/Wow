@@ -205,6 +205,7 @@ export {
   type FilterValueEditorProps,
 } from './filter/FilterValueEditor.js';
 export { NumberInput } from './filter/inputs/number.js';
+export type { ControlAria } from './filter/inputs/shared.js';
 export {
   AUDIENCE_ICON,
   KIND_ICON,

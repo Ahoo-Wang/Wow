@@ -413,13 +413,13 @@ export interface RuntimeEnvironment {
 }
 
 export interface ViewErrorEvent {
-  kind: 'query' | 'store' | 'export' | 'render' | 'chart';
+  kind: 'query' | 'store' | 'export' | 'render' | 'chart' | 'action';
   error: unknown; // 抛出来的原物
-  context: ViewErrorContext; // operation 必有；definitionId、instanceId、runtimeId、requestId、boundary、panelId、componentStack 知道就写；query 失败时带服务端原样的 errorCode，Wow 说了违反哪条规则就带 violation: { code, path, message }
+  context: ViewErrorContext; // operation 必有；definitionId、instanceId、runtimeId、requestId、boundary、panelId、componentStack、recordKey 知道就写；query 失败时带服务端原样的 errorCode，Wow 说了违反哪条规则就带 violation: { code, path, message }
 }
 ```
 
-**失败交给宿主的钩子是环境的一员（[D40](decisions.md#d40-失败交给宿主的一个钩子environmentonerror2026-09-25)）。** 界面照旧把每次失败说在它发生的地方；`onError` 是宿主的那一份，**每次失败恰好一次**：存储失败在引擎的存储门口（`runtime/failures.ts` 的 `reportingStore`，包在 `readingStore` 之外）报，不管是列表、写入账本（每次重试各一次，`requestId` 相同）、面板引用还是标签页记忆遇到的；视图自己的查询在落定处报（被顶掉的不报）；汇总、合计、拆分补查、读一条整条与条件取值各在吞下失败的那一处报（`KernelContext.queryFailed`）。`query` 类失败都**等源的响应体读完再报**（`queryFailureReporter`），仍是一次，`context.violation` 带着 Wow 说的规则与位置；报不必同步，恰好一次才是约定；导出拉行在 `exportRows` 报，交文件在调用它的钩子或部件报；渲染与图表在渲染边界报（[ui/README.md#渲染边界](ui/README.md#渲染边界)）。叫停的不算失败：`AbortError`、自己的 signal 已中止、取消的导出。钩子是宿主的代码跑在引擎自己的路径上，`reportError` 吞掉它抛的错与它返回的 promise 的拒绝，也从不写 console。`ViewEngineOptions.onIssue` 只剩没有抛出物的发现（定义准入、被丢掉的保留 id、抛错的变化监听者）。（见 test/hostErrors.test.tsx）
+**失败交给宿主的钩子是环境的一员（[D40](decisions.md#d40-失败交给宿主的一个钩子environmentonerror2026-09-25)）。** 界面照旧把每次失败说在它发生的地方；`onError` 是宿主的那一份，**每次失败恰好一次**：存储失败在引擎的存储门口（`runtime/failures.ts` 的 `reportingStore`，包在 `readingStore` 之外）报，不管是列表、写入账本（每次重试各一次，`requestId` 相同）、面板引用还是标签页记忆遇到的；视图自己的查询在落定处报（被顶掉的不报）；汇总、合计、拆分补查、读一条整条与条件取值各在吞下失败的那一处报（`KernelContext.queryFailed`）。`query` 类失败都**等源的响应体读完再报**（`queryFailureReporter`），仍是一次，`context.violation` 带着 Wow 说的规则与位置；报不必同步，恰好一次才是约定；导出拉行在 `exportRows` 报，交文件在调用它的钩子或部件报；渲染与图表在渲染边界报（[ui/README.md#渲染边界](ui/README.md#渲染边界)）；声明式操作的命令在执行器里逐条报（`action`，`operation` 是动作 id、`recordKey` 是那条记录；动作自己的拒绝不报，[host-integration.md](host-integration.md) 5.1）。叫停的不算失败：`AbortError`、自己的 signal 已中止、取消的导出。钩子是宿主的代码跑在引擎自己的路径上，`reportError` 吞掉它抛的错与它返回的 promise 的拒绝，也从不写 console。`ViewEngineOptions.onIssue` 只剩没有抛出物的发现（定义准入、被丢掉的保留 id、抛错的变化监听者）。（见 test/hostErrors.test.tsx）
 
 **`ViewSource` 是写出来的，不是从 `QueryApi` `Pick` 出来的**，理由有三条，都指向同一件事——它是每一个数据来源都要实现的那个口子，所以它得**恰好**说出本包要的东西：`QueryApi.paged` 收的是 `PagedQueryRequest`，即 `FilterPagedQuery | PagedQuery`，而 `PagedQuery` 是弃用 API——`Pick` 等于把架构测试在别处一概禁掉的东西写进这个口子；`QueryApi.aggregate` 答的是 `DynamicDocument`（`Record<string, any>`），从 `any` 里读出来的行没有任何人检查，这里答 `RecordData`，每个值都是 `unknown`、都要经字段的 kind 读一遍；`Pick` 还会把 `QueryApi` 的两个类型参数与各方法自带的泛型摊给每一个实现（包括测试里的桩），而这三个方法只在一种实例化下被用。
 

@@ -39,6 +39,7 @@ export function BooleanValue({
   label,
   disabled,
   invalid,
+  control,
 }: ValueProps) {
   const messages = useViewMessages();
   return (
@@ -46,6 +47,7 @@ export function BooleanValue({
       label={label}
       disabled={disabled}
       invalid={invalid}
+      control={control}
       value={typeof value === 'boolean' ? String(value) : null}
       placeholder={messages.label('label.filter.not-set')}
       items={[
@@ -97,6 +99,7 @@ export function OptionValue({
   value,
   multiple,
   options,
+  control,
   onChange,
 }: ValueProps & { multiple: boolean; options: readonly FieldOption[] }) {
   const messages = useViewMessages();
@@ -133,8 +136,11 @@ export function OptionValue({
           is clamped by the registry's own `*:data-[slot=select-value]:line-clamp-1`
           rather than by the pill. */}
       <PillSelectTrigger
+        id={control?.id}
         aria-label={label}
         aria-invalid={invalid}
+        aria-required={control?.required}
+        aria-describedby={control?.describedBy}
         size="sm"
         className="fve:w-full fve:min-w-0"
       >

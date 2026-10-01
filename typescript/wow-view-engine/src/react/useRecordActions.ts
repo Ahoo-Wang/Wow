@@ -35,6 +35,7 @@ import {
 } from '../runtime/actions.js';
 import {
   useActionRunner,
+  type ActionFailureContext,
   type ActionRunner,
   type BulkRun,
   type BulkSelection,
@@ -66,6 +67,11 @@ export interface RecordActionsOptions {
   also?: readonly RecordRow[];
   /** How many records are in flight at once; a handful by default. */
   concurrency?: number;
+  /**
+   * Told of what a command threw on a record, as it was thrown — not of an
+   * action's own refusal, nor of an abort (`ActionRunnerOptions.onError`).
+   */
+  onError?(error: unknown, context: ActionFailureContext): void;
 }
 
 /** One action as a record's row, menu or detail draws it. */
@@ -87,6 +93,16 @@ export interface BulkActionView {
   action: RecordAction;
   /** How many records are picked: what the primary action's button counts. */
   count: number;
+  /**
+   * How many of them take it now, before any input — 「催发货 2/4 条」; the
+   * dialog says which do not and why.
+   */
+  able: number;
+  /**
+   * Why none of them takes it, the commonest reason as the host wrote it;
+   * `null` while one does.
+   */
+  reason: string | null;
   /** A choice's options, or `null`. */
   choices: readonly FieldOption[] | null;
 }
@@ -167,6 +183,14 @@ interface Pressed {
 
 const NO_ROWS: readonly RecordRow[] = [];
 
+/**
+ * The shortest wait before a rule is asked again on its own. A `changesAt`
+ * that answers a moment ahead of every clock it is asked at — a target that
+ * moves with `now` — would otherwise wake the surface without pause; a rule
+ * that really flips sooner is seen at most this late.
+ */
+const RECHECK_FLOOR = 1_000;
+
 /** The words a choice's `{value}` is said with: the option picked. */
 function valueOf(action: RecordAction, input: ActionInput): string | null {
   const choice = choiceOf(action);
@@ -186,10 +210,12 @@ export function useRecordActions({
   refresh,
   also = NO_ROWS,
   concurrency,
+  onError,
 }: RecordActionsOptions): RecordActionsController {
-  const runner = useActionRunner(
-    concurrency === undefined ? {} : { concurrency },
-  );
+  const runner = useActionRunner({
+    ...(concurrency === undefined ? {} : { concurrency }),
+    ...(onError ? { onError } : {}),
+  });
   const [now, setNow] = useState(Date.now);
   const [pressed, setPressed] = useState<Pressed | null>(null);
   const reread = refresh ?? table.refresh;
@@ -208,7 +234,7 @@ export function useRecordActions({
     const timer = setTimeout(
       () => setNow(Date.now()),
       // The longest wait a timer holds; a later change is asked again then.
-      Math.min(Math.max(0, next - Date.now()), 2_147_483_647),
+      Math.min(Math.max(RECHECK_FLOOR, next - Date.now()), 2_147_483_647),
     );
     return () => clearTimeout(timer);
   }, [next]);
@@ -232,12 +258,14 @@ export function useRecordActions({
         {
           keys,
           // A record's own command leaves the selection as it found it.
-          select: place === 'bulk' ? select : () => {},
+          ...(place === 'bulk' ? { select } : {}),
           refresh: reread,
         },
         {
           title: confirm?.action ?? action.label,
           ...(value === null ? {} : { values: { value } }),
+          operation: action.id,
+          ...(action.timeout === undefined ? {} : { timeout: action.timeout }),
           each: key => runOne(action, rowOf(key), input, Date.now()),
         },
       );
@@ -324,12 +352,20 @@ export function useRecordActions({
             selectedRows.length < selection.length ||
             selectedRows.some(row => !actionState(action, row, { now }).hidden),
         )
-        .map(action => ({
-          action,
-          count: selection.length,
-          choices: choiceOf(action)?.options ?? null,
-        })),
-    [actions, selectedRows, selection, now],
+        .map(action => {
+          const split = splitFor(action, selection, rowOf, { now });
+          return {
+            action,
+            count: selection.length,
+            able: split.able.length,
+            reason:
+              split.able.length === 0
+                ? (refusalsByReason(split.refused)[0]?.reason ?? null)
+                : null,
+            choices: choiceOf(action)?.options ?? null,
+          };
+        }),
+    [actions, selectedRows, selection, rowOf, now],
   );
 
   const setInput = useCallback(

@@ -1,4 +1,4 @@
-# Message keys — 2044.
+# Message keys — 2057.
 # Written by test/publicSurface.test.ts; a change here is a change to
 # the public surface (README「Wording and language」, docs/design/decisions.md D29).
 analysis.alias.duplicate
@@ -379,20 +379,26 @@ filter.value.required
 filter.value.unknown-option
 filter.value.unknown-time-zone
 filter.value.unparsable-date
+label.action.abandoned
 label.action.able
 label.action.bulk
+label.action.bulk-able
 label.action.cancel
 label.action.confirm
-label.action.confirm-one
+label.action.confirm-record
+label.action.failed
 label.action.left
 label.action.more
 label.action.none-able
 label.action.not-offered
+label.action.on-record
 label.action.only-able
 label.action.only-able-one
+label.action.record
 label.action.refused
 label.action.refused-keys-more
 label.action.required
+label.action.timed-out
 label.action.unavailable
 label.action.unseen
 label.analysis.add
@@ -560,13 +566,19 @@ label.bulk.failed
 label.bulk.left
 label.bulk.more-reasons
 label.bulk.more-reasons-one
-label.bulk.partial
+label.bulk.one-done
+label.bulk.one-failed
+label.bulk.one-refused
+label.bulk.one-skipped
+label.bulk.one-unknown
 label.bulk.reason
 label.bulk.running
 label.bulk.running-failed
 label.bulk.skipped
 label.bulk.stop
+label.bulk.stop-waiting
 label.bulk.stopping
+label.bulk.unknown
 label.card.fields
 label.card.hint
 label.card.image-field
@@ -1811,6 +1823,7 @@ label.status.open-columns
 label.status.open-sort
 label.status.querying
 label.status.show
+label.status.then
 label.status.use-layout
 label.status.use-page-size
 label.summary.fn.ANY

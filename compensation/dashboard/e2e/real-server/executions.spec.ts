@@ -259,8 +259,9 @@ test("a row's prepare reaches the server, and the row reads it back", async ({
   expect(response.ok(), await response.text()).toBe(true);
   expect(response.request().headers()["command-wait-stage"]).toBe("SNAPSHOT");
 
+  // One execution: named by its id, not counted.
   await expect(workbench.locator('[data-slot="bulk-status"]')).toContainText(
-    "Prepare · 1 done",
+    /Prepare · \S+ done/,
   );
   await expect(row).toContainText("Prepared");
   // In progress now, so it cannot be prepared again until it times out.

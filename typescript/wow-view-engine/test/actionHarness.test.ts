@@ -288,3 +288,53 @@ describe('the rules the harness and the screen share', () => {
     expect(asksFirst(markRecoverable, 'row', {})).toBe(true);
   });
 });
+
+describe('a press, as the harness and the screen both start it', () => {
+  const remind: RecordAction = {
+    id: 'remind',
+    label: text('remind'),
+    form: {
+      note: { label: text('note') },
+      minutes: { label: text('minutes'), input: 'number', initial: 30 },
+    },
+    // A question that depends on the form: only a long wait asks.
+    confirm: input =>
+      Number(input.minutes) > 60
+        ? { title: text('remindLate') }
+        : { title: text('remindSoon'), ask: 'bulk' },
+    run: vi.fn(() => Promise.resolve()),
+  };
+
+  it('starts from the form’s initial values, the given input over them', async () => {
+    const harness = actionHarness(actions([remind]), ROWS, { now: T });
+    // The screen opens the form with 30 in it: only the note is missing.
+    expect(harness.missing('remind', {})).toEqual(['note']);
+    expect(harness.asks('remind', 'row').confirm).toEqual({
+      title: text('remindSoon'),
+      ask: 'bulk',
+    });
+    expect(harness.asks('remind', 'row', { minutes: 90 }).confirm).toEqual({
+      title: text('remindLate'),
+    });
+    await harness.run('remind', 'EF-1', { note: 'call' });
+    expect(remind.run).toHaveBeenCalledWith(ROWS[0], {
+      minutes: 30,
+      note: 'call',
+    });
+  });
+
+  it('asks by the action’s name where its question throws', () => {
+    const broken: RecordAction = {
+      ...remind,
+      id: 'broken',
+      confirm: () => {
+        throw new Error('host bug');
+      },
+    };
+    const harness = actionHarness(actions([broken]), ROWS, { now: T });
+    expect(harness.asks('broken', 'row')).toEqual({
+      asks: true,
+      confirm: { title: text('remind') },
+    });
+  });
+});

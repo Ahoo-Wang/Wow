@@ -23,6 +23,7 @@ import type { RecordKey } from '../src/index.js';
 import {
   failureReasons,
   type ActionRunner,
+  type BulkOutcome,
   type BulkSelection,
 } from '../src/react/index.js';
 import { useActionRunner } from '../src/react/actionRunner.js';
@@ -119,7 +120,10 @@ describe('useActionRunner', () => {
       title: 'Retry',
       succeeded: ['a', 'b'],
       failed: [],
+      refused: [],
+      unknown: [],
       skipped: [],
+      kept: [],
     });
     expect(picked.select).toHaveBeenCalledWith([]);
     expect(picked.refresh).toHaveBeenCalledTimes(1);
@@ -153,9 +157,12 @@ describe('useActionRunner', () => {
     const run = gated();
     act(() => result.current.run(selection(['a']), run.command));
     await run.settle('a', new ActionRefused(text('orders.shipped')));
-    expect(result.current.outcome?.failed).toEqual([
-      { key: 'a', reason: text('orders.shipped') },
-    ]);
+    // Not sent, so not a failure: it is counted apart, and stays picked.
+    expect(result.current.outcome).toMatchObject({
+      failed: [],
+      refused: [{ key: 'a', reason: text('orders.shipped') }],
+      kept: ['a'],
+    });
   });
 
   it('starts nothing more once stopped, and leaves what never ran selected', async () => {
@@ -173,6 +180,7 @@ describe('useActionRunner', () => {
     expect(result.current.outcome).toMatchObject({
       succeeded: ['a'],
       skipped: ['b', 'c'],
+      kept: ['b', 'c'],
     });
     expect(picked.select).toHaveBeenCalledWith(['b', 'c']);
   });
@@ -250,6 +258,150 @@ describe('useActionRunner', () => {
   });
 });
 
+/**
+ * A command whose outcome nobody knows — sent, and no answer came back —
+ * is not a failure to run again: it is let go of and checked (R2-05).
+ */
+describe('an outcome nobody knows', () => {
+  afterEach(() => vi.useRealTimers());
+
+  it('lets go of a record the network dropped or a timeout cut off, and tells the host what was thrown', async () => {
+    const onError = vi.fn();
+    const { result } = renderHook(() => useActionRunner({ onError }));
+    const run = gated();
+    const picked = selection(['a', 'b', 'c', 'd']);
+    const dropped = new TypeError('Failed to fetch');
+    const timedOut = Object.assign(new Error('Request timed out'), {
+      name: 'FetchTimeoutError',
+    });
+
+    act(() =>
+      result.current.run(picked, { ...run.command, operation: 'refund' }),
+    );
+    await run.settle('a', dropped);
+    await run.settle('b', timedOut);
+    await run.settle('c', refusal('Already refunded.'));
+    await run.settle('d');
+
+    expect(result.current.outcome).toMatchObject({
+      succeeded: ['d'],
+      failed: [{ key: 'c', reason: 'Already refunded.' }],
+      unknown: [
+        { key: 'a', reason: 'Failed to fetch' },
+        { key: 'b', reason: 'Request timed out' },
+      ],
+      kept: ['c'],
+    });
+    // The refused one stays picked; the two that may have taken do not.
+    expect(picked.select).toHaveBeenCalledWith(['c']);
+    expect(onError.mock.calls).toEqual([
+      [dropped, { key: 'a', operation: 'refund' }],
+      [timedOut, { key: 'b', operation: 'refund' }],
+      [
+        expect.objectContaining({ exchange: expect.anything() }),
+        { key: 'c', operation: 'refund' },
+      ],
+    ]);
+  });
+
+  it('reads an abort and a gateway timeout as unknown, and tells nobody of the abort', async () => {
+    const onError = vi.fn();
+    const { result } = renderHook(() => useActionRunner({ onError }));
+    const run = gated();
+    const gateway = Object.assign(new Error('Request failed'), {
+      exchange: { response: { status: 504 } },
+    });
+    act(() => result.current.run(selection(['a', 'b']), run.command));
+    await run.settle('a', new DOMException('Aborted', 'AbortError'));
+    await run.settle('b', gateway);
+    expect(result.current.outcome?.unknown.map(each => each.key)).toEqual([
+      'a',
+      'b',
+    ]);
+    expect(onError).toHaveBeenCalledTimes(1);
+    expect(onError).toHaveBeenCalledWith(gateway, {
+      key: 'b',
+      operation: 'Retry',
+    });
+  });
+
+  it('tells the host nothing of an action’s own refusal', async () => {
+    const onError = vi.fn();
+    const { result } = renderHook(() => useActionRunner({ onError }));
+    const run = gated();
+    act(() => result.current.run(selection(['a']), run.command));
+    await run.settle('a', new ActionRefused(text('orders.shipped')));
+    expect(onError).not.toHaveBeenCalled();
+  });
+
+  it('stops waiting for a record past the command’s deadline, and frees the surface', async () => {
+    vi.useFakeTimers();
+    const { result } = renderHook(() => useActionRunner({ concurrency: 1 }));
+    const picked = selection(['a', 'b']);
+    const each = vi.fn((key: RecordKey) =>
+      key === 'a' ? new Promise<void>(() => {}) : Promise.resolve(),
+    );
+    act(() =>
+      result.current.run(picked, { title: 'Refund', each, timeout: 5_000 }),
+    );
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(5_000);
+    });
+    expect(result.current.running).toBeNull();
+    expect(result.current.outcome).toMatchObject({
+      succeeded: ['b'],
+      unknown: [{ key: 'a', reason: text('label.action.timed-out') }],
+      kept: [],
+    });
+    expect(picked.select).toHaveBeenCalledWith([]);
+  });
+
+  it('settles at a second Stop though a record never answers, and runs again after', async () => {
+    const { result } = renderHook(() => useActionRunner({ concurrency: 2 }));
+    const picked = selection(['a', 'b', 'c']);
+    const each = vi.fn(() => new Promise<void>(() => {}));
+    act(() => result.current.run(picked, { title: 'Cancel', each }));
+    act(() => result.current.stop());
+    expect(result.current.running?.stopping).toBe(true);
+    await act(async () => {
+      result.current.stop();
+      await nextTask();
+    });
+    expect(result.current.running).toBeNull();
+    expect(result.current.outcome).toMatchObject({
+      unknown: [
+        { key: 'a', reason: text('label.action.abandoned') },
+        { key: 'b', reason: text('label.action.abandoned') },
+      ],
+      skipped: ['c'],
+      kept: ['c'],
+    });
+    const again = gated();
+    act(() => result.current.run(selection(['d']), again.command));
+    expect(again.started).toEqual(['d']);
+  });
+});
+
+describe('a failure read badly', () => {
+  it('gives a generic reason for an error with no words, and one whose reading throws', async () => {
+    const { result } = renderHook(() => useActionRunner());
+    const run = gated();
+    const unreadable = {
+      get exchange(): never {
+        throw new Error('no exchange here');
+      },
+    };
+    act(() => result.current.run(selection(['a', 'b']), run.command));
+    await run.settle('a', new Error('   '));
+    await run.settle('b', unreadable);
+    expect(result.current.running).toBeNull();
+    expect(result.current.outcome?.failed).toEqual([
+      { key: 'a', reason: text('label.action.failed') },
+      { key: 'b', reason: text('label.action.failed') },
+    ]);
+  });
+});
+
 describe('failureReasons', () => {
   it('counts each reason, the commonest first', () => {
     expect(
@@ -312,7 +464,10 @@ describe('BulkStatus', () => {
             title: 'Retry',
             succeeded: ['a', 'b', 'c'],
             failed: [],
+            refused: [],
+            unknown: [],
             skipped: [],
+            kept: [],
           },
         })}
       />,
@@ -337,7 +492,10 @@ describe('BulkStatus', () => {
               { key: 'd', reason: 'Gone.' },
               { key: 'e', reason: 'Late.' },
             ],
+            refused: [],
+            unknown: [],
             skipped: ['f'],
+            kept: ['b', 'c', 'd', 'e', 'f'],
           },
         })}
       />,
@@ -346,7 +504,7 @@ describe('BulkStatus', () => {
     const line = screen.getByRole('status');
     expect(line.getAttribute('data-tone')).toBe('warning');
     expect(line.textContent).toContain(
-      '1 done, 4 failed · 1 not run · Locked. (2) · Gone. (1) · one more reason · the rest stay selected',
+      'Retry · 1 done · 4 failed · 1 not run · Locked. (2) · Gone. (1) · one more reason · the failed and the not run stay selected',
     );
   });
 
@@ -357,8 +515,14 @@ describe('BulkStatus', () => {
           outcome: {
             title: 'Retry',
             succeeded: [],
-            failed: [{ key: 'a', reason: 'Locked.' }],
+            failed: [
+              { key: 'a', reason: 'Locked.' },
+              { key: 'b', reason: 'Locked.' },
+            ],
+            refused: [],
+            unknown: [],
             skipped: [],
+            kept: ['a', 'b'],
           },
         })}
       />,
@@ -377,7 +541,10 @@ describe('BulkStatus', () => {
             title: 'Retry',
             succeeded: ['a'],
             failed: [],
+            refused: [],
+            unknown: [],
             skipped: [],
+            kept: [],
           },
         })}
       />,
@@ -402,15 +569,121 @@ describe('BulkStatus', () => {
               title: text('orders.remind'),
               values: { value: text('orders.urgent') },
               succeeded: ['a'],
-              failed: [{ key: 'b', reason: text('orders.shipped') }],
+              failed: [],
+              refused: [{ key: 'b', reason: text('orders.shipped') }],
+              unknown: [],
               skipped: [],
+              kept: ['b'],
             },
           })}
         />
       </MessagesProvider>,
     );
     expect(screen.getByRole('status').textContent).toContain(
-      'Remind as urgent · 1 done, 1 failed · Already shipped. (1)',
+      'Remind as urgent · 1 done · 1 not run · Already shipped. (1)',
     );
+  });
+});
+
+describe('BulkStatus, one record and a stop', () => {
+  const settled = (outcome: Partial<BulkOutcome>): BulkOutcome => ({
+    title: 'Ship',
+    succeeded: [],
+    failed: [],
+    refused: [],
+    unknown: [],
+    skipped: [],
+    kept: [],
+    ...outcome,
+  });
+
+  it.each([
+    [{ succeeded: ['SO-1002'] }, 'Ship · SO-1002 done', 'info'],
+    [
+      { failed: [{ key: 'SO-1002', reason: 'Locked.' }] },
+      'Ship · SO-1002 failed: Locked.',
+      'error',
+    ],
+    [
+      { refused: [{ key: 'SO-1002', reason: 'Already shipped.' }] },
+      'Ship · SO-1002 not run: Already shipped.',
+      'warning',
+    ],
+    [
+      { unknown: [{ key: 'SO-1002', reason: 'Failed to fetch' }] },
+      'Ship · SO-1002: outcome unknown, refresh to check first',
+      'warning',
+    ],
+  ] as const)(
+    'names the record a command ran on: %j',
+    (outcome, said, tone) => {
+      const { container } = render(
+        <BulkStatus command={command({ outcome: settled(outcome) })} />,
+      );
+      const line = container.querySelector('[data-slot="bulk-status"]')!;
+      expect(line.textContent).toContain(said);
+      expect(line.textContent).not.toContain('selected');
+      expect(line.getAttribute('data-tone')).toBe(tone);
+    },
+  );
+
+  it('says nothing of failures a stopped run did not have', () => {
+    render(
+      <BulkStatus
+        command={command({
+          outcome: settled({
+            succeeded: ['a', 'b'],
+            skipped: ['c', 'd'],
+            kept: ['c', 'd'],
+          }),
+        })}
+      />,
+    );
+    const line = screen.getByRole('status');
+    expect(line.textContent).toContain(
+      'Ship · 2 done · 2 not run · the failed and the not run stay selected',
+    );
+    expect(line.textContent).not.toContain('failed,');
+    expect(line.textContent).not.toMatch(/\b0 failed/);
+  });
+
+  it('counts the unknown apart, and says to check before anything is sent again', () => {
+    render(
+      <BulkStatus
+        command={command({
+          outcome: settled({
+            succeeded: ['a'],
+            unknown: [
+              { key: 'b', reason: 'Failed to fetch' },
+              { key: 'c', reason: 'Failed to fetch' },
+            ],
+          }),
+        })}
+      />,
+    );
+    expect(screen.getByRole('status').textContent).toContain(
+      'Ship · 1 done · 2 with outcome unknown, refresh to check first',
+    );
+  });
+
+  it('keeps Stop pressable while stopping, to stop waiting', async () => {
+    const stop = vi.fn();
+    render(
+      <BulkStatus
+        command={command({
+          stop,
+          running: {
+            title: 'Retry',
+            progress: { total: 4, done: 1, failed: 0 },
+            stopping: true,
+          },
+        })}
+      />,
+    );
+    expect(screen.getByRole('status').textContent).toContain(
+      'Retry · Running 1 of 4 · Stopping…',
+    );
+    await userEvent.click(screen.getByRole('button', { name: 'Stop waiting' }));
+    expect(stop).toHaveBeenCalledTimes(1);
   });
 });

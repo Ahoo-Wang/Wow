@@ -121,11 +121,12 @@ test("prepares twenty in bulk; the three the server refuses stay selected", asyn
     .getByRole("checkbox", { name: "Select all rows", exact: true })
     .check();
   await workbench.getByRole("button", { name: "Prepare 20" }).click();
-  const dialog = page.getByRole("alertdialog", {
+  // A routine question: a dialog, not an alert; its answer counts.
+  const dialog = page.getByRole("dialog", {
     name: "Prepare 20 executions?",
   });
   await expect(dialog).toBeVisible();
-  await dialog.getByRole("button", { name: "Prepare", exact: true }).click();
+  await dialog.getByRole("button", { name: "Prepare 20", exact: true }).click();
   await expect(dialog).toBeHidden();
 
   // Progress while the service holds the answers, with the way to stop.
@@ -143,7 +144,7 @@ test("prepares twenty in bulk; the three the server refuses stay selected", asyn
   // the refused rows still picked — only them.
   await expect(status).toHaveAttribute("data-state", "settled");
   await expect(status).toContainText(
-    `Prepare · 17 done, 3 failed · ${REFUSED} (3) · the rest stay selected`,
+    `Prepare · 17 done · 3 failed · ${REFUSED} (3) · the failed and the not run stay selected`,
   );
   for (const document of all) {
     const id = document.aggregateId;
@@ -216,7 +217,7 @@ test("an execution still in progress cannot be prepared, and says why", async ({
   const failed = rowOf(page, "EF-03");
   await failed.getByRole("button", { name: "Prepare", exact: true }).click();
   const status = workbench.locator('[data-slot="bulk-status"]');
-  await expect(status).toContainText("Prepare · 1 done");
+  await expect(status).toContainText("Prepare · EF-03 done");
   await expect(failed).toContainText("Prepared");
   await expect(
     failed.getByRole("button", { name: "Prepare", exact: true }),
@@ -229,15 +230,17 @@ test("an execution still in progress cannot be prepared, and says why", async ({
   await workbench
     .getByRole("checkbox", { name: "Select all rows", exact: true })
     .check();
-  await workbench.getByRole("button", { name: "Prepare 5" }).click();
-  const dialog = page.getByRole("alertdialog", {
+  // How many of the five take it, before the press.
+  await workbench.getByRole("button", { name: "Prepare 2/5" }).click();
+  const dialog = page.getByRole("dialog", {
     name: "Prepare 5 executions?",
   });
   await expect(dialog.getByText("Not sent, and left selected:")).toBeVisible();
   await expect(dialog.getByText(`${IN_PROGRESS} (3)`)).toBeVisible();
-  await dialog.getByRole("button", { name: "Prepare", exact: true }).click();
+  await dialog.getByRole("button", { name: "Prepare 2", exact: true }).click();
+  // Refused before sending: not run, not failed.
   await expect(status).toContainText(
-    `Prepare · 2 done, 3 failed · ${IN_PROGRESS} (3) · the rest stay selected`,
+    `Prepare · 2 done · 3 not run · ${IN_PROGRESS} (3) · the failed and the not run stay selected`,
   );
   expect(sent.map(({ id }) => id).sort()).toEqual(["EF-03", "EF-04", "EF-05"]);
   for (const id of ["EF-01", "EF-02", "EF-03"])
@@ -279,7 +282,7 @@ test("force prepare and recoverability ask first, from a row", async ({
   });
   await force.getByRole("button", { name: "Force prepare" }).click();
   const status = workbench.locator('[data-slot="bulk-status"]');
-  await expect(status).toContainText("Force prepare · 1 done");
+  await expect(status).toContainText("Force prepare · EF-02 done");
   expect(sent).toMatchObject([
     { id: "EF-02", command: "force_prepare_compensation" },
   ]);
@@ -337,13 +340,17 @@ test("the whole errand runs from the keyboard", async ({ page }, testInfo) => {
     .focus();
   await page.keyboard.press("Enter");
   const confirm = page
-    .getByRole("alertdialog")
-    .getByRole("button", { name: "Prepare", exact: true });
+    .getByRole("dialog")
+    .getByRole("button", { name: `Prepare ${orders.length}`, exact: true });
   await confirm.focus();
   await page.keyboard.press("Enter");
+  // The question is a dialog too: let it leave before the detail's opens.
+  await expect(page.getByRole("dialog")).toHaveCount(0);
   await expect
     .poll(() => sent.map(({ id }) => id).sort())
     .toEqual(orders.map(({ aggregateId }) => aggregateId).sort());
+  // The keyboard did not fall to the page through the run.
+  await expect(page.locator("body")).not.toBeFocused();
 
   // Open a row's detail and close it: the focus is back on the row.
   const row = rowOf(page, orders[0].aggregateId);

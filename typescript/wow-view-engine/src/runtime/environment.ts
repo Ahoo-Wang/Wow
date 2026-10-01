@@ -12,6 +12,7 @@
  */
 
 import type { QueryViolation } from '@ahoo-wang/wow-client';
+import type { RecordKey } from '../model/index.js';
 
 /**
  * The only interface between a runtime and its host. Relative dates, the
@@ -29,7 +30,8 @@ export interface RuntimeEnvironment {
   visibility: VisibilitySource;
   /**
    * Told once of every failure the engine meets doing its work — a query, a
-   * store call, an export, a render, a chart — for a host to log or send to
+   * store call, an export, a render, a chart, a declared action's command —
+   * for a host to log or send to
    * its monitoring (D40). The failure is still answered on screen as it
    * always was; this is the host's copy. Whatever it throws is dropped, and
    * left out, nothing is logged anywhere.
@@ -38,7 +40,8 @@ export interface RuntimeEnvironment {
 }
 
 /** What failed, by the part of the engine it failed in (D40). */
-export type ViewErrorKind = 'query' | 'store' | 'export' | 'render' | 'chart';
+export type ViewErrorKind =
+  'query' | 'store' | 'export' | 'render' | 'chart' | 'action';
 
 /**
  * Where a failure happened. `operation` is always said; the rest only where
@@ -51,9 +54,13 @@ export interface ViewErrorContext {
    * `candidates` (a condition's values); for `store` the port's method
    * (`list`, `get`, `create`, `save`, `rename`, `delete`, `getPreferences`,
    * `setPreferences`); for `export` `fetch`, `deliver` or `image`; for
-   * `render` `render`; for `chart` `load` or `draw`.
+   * `render` `render`; for `chart` `load` or `draw`; for `action` the
+   * declared action's id (a slot's command: its `operation`, else its
+   * title).
    */
   operation: string;
+  /** For `action`: the record the command failed on. */
+  recordKey?: RecordKey;
   definitionId?: string;
   /** The saved view, when the failing one is saved. */
   instanceId?: string;

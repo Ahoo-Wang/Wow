@@ -296,11 +296,14 @@ export type SayWith = (value: string, params?: Issue['params']) => string;
  * (`text(key)`) or words, said in the wording in force, with `{name}`s
  * filled from `params` (a parameter that is a key is said too), and a key's
  * count said apart where its catalogue words it so (`key-one`), as the
- * package's own sentences are.
+ * package's own sentences are. `messages` and `locale` are merged over the
+ * wording in force, as `useViewMessages` takes them, for a part drawn above
+ * the surface whose provider holds the host's words.
  */
-export function useSayWith(): SayWith {
-  const merged = useMessages();
-  const language = useContext(LocaleContext);
+export function useSayWith(messages?: ViewMessages, locale?: string): SayWith {
+  const merged = useMerged(useMessages(), messages);
+  const inherited = useContext(LocaleContext);
+  const language = locale ?? inherited;
   const start = useContext(StartingWordsContext);
   return useMemo(() => {
     const said = sayIn(merged, start);

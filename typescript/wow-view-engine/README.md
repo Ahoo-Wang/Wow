@@ -228,7 +228,7 @@ const engine = new ViewEngine({
 
 **Exported files neutralize formulas.** A CSV leaves the page and is opened in a spreadsheet, often by someone other than whoever exported it, so every export — a record view's rows and an analysis's **Export data…** — writes a cell whose text starts with `=`, `+`, `-`, `@`, a tab or a carriage return with a leading `'` (OWASP, CSV Injection), header labels included. A cell whose value is a number, and one whose text is a plain number such as `-12.5`, is left as it is: a spreadsheet reads it as a number, never as a formula. Where the file never reaches a spreadsheet, turn it off with `limits: { exportNeutralizeFormulas: false }`, or with `{ neutralizeFormulas: false }` when you call `serializeCsv` yourself.
 
-**Hearing about failures.** A query, a store call, an export, a render or a chart that fails is said on screen where it happens; for your logs or monitoring, give the environment an `onError`. It is told once per failure, with what was thrown as it was and where it happened; whatever it throws is dropped, and without it nothing is logged anywhere.
+**Hearing about failures.** A query, a store call, an export, a render, a chart or a declared action's command that fails is said on screen where it happens; for your logs or monitoring, give the environment an `onError`. It is told once per failure, with what was thrown as it was and where it happened; whatever it throws is dropped, and without it nothing is logged anywhere.
 
 <!-- typecheck-context
 import { orders } from './orders';
@@ -259,6 +259,7 @@ const engine = new ViewEngine({
 | `export` | An export's rows could not be fetched, or its file could not be made or handed over                 | `fetch`, `deliver`, `image`                                     |
 | `render` | A part of a workbench or an embed threw while drawing — often your action slot                      | `render`                                                        |
 | `chart`  | The chart library did not load, or threw drawing                                                    | `load`, `draw`                                                  |
+| `action` | A declared action's `run` (or a slot's command) threw on a record, or timed out — not a refusal     | the action's `id`; `context.recordKey` is the record            |
 
 `context` also names the view where it is known — `definitionId`, `instanceId`, `runtimeId` — and, for `render` and `chart`, the `boundary`, the `panelId` and React's `componentStack`. A request called off (superseded by the next one, or cancelled) is not a failure and is not told. `onRenderFailure` on a workbench, a grid or an embed stays: it is that surface's own callback and receives the same `error`; `onError` is the whole engine's. `onIssue` on the engine is for findings with nothing thrown behind them, such as a definition's admission.
 
@@ -440,6 +441,7 @@ export const orderActions = actions([
 
 - **`run` resolves after the read model reflects the command.** The engine reads the view again right after, and a refresh that ran ahead of the command shows the old state. A Wow command waits for `CommandStage.SNAPSHOT` (`waitStrategy({ stage: CommandStage.SNAPSHOT })` as the request's headers), or the stage your projection needs. What it throws is read for the service's own reason.
 - `run` takes one record; a selection is run a few at a time and stopped between records. There is no **runMany** until a command has a batch form.
+- **Make each command idempotent** — send the aggregate version the row showed (`commandHeaders({ aggregateVersion })`, so a second send after the first took is refused as a conflict) and a request id the service deduplicates a retry by (`requestId`). A `run` that times out, is aborted or loses the network after sending has an outcome nobody knows: the engine reports it as 「outcome unknown, refresh to check first」 and lets go of those rows rather than leaving them selected for a blind rerun, but a reader who checks and presses again must not refund twice. `timeout: ms` on an action gives each record a deadline (past it the outcome is unknown); without one, Stop pressed a second time stops waiting. A record the action refused when its turn came is reported as not run, not as failed, and stays selected.
 - `on: ['row', 'bulk', 'detail']` narrows where one is offered (every place by default); `hidden: row => …` leaves it off a record the reader may not act on, where `available` shows it disabled with why.
 - A `form` of more than one field (or one without options) opens a form in the question: text, a number or yes/no, each field `required` unless it says `required: false`, `initial` for what it opens with; `run` gets the values by name.
 - Every word is a key or plain words, said where it is shown (`text(key)`, [Wording and language](#wording-and-language)).

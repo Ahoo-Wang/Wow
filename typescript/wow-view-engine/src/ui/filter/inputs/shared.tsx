@@ -42,6 +42,22 @@ export interface ValueProps {
    * takes to say — a range is refused for being inverted, not for either end.
    */
   invalid?: boolean;
+  /** What a form outside a condition says of the control; see `ControlAria`. */
+  control?: ControlAria;
+}
+
+/**
+ * What a form that is not a condition — a declared action's — says of a
+ * control besides its name: the id a visible label points at, the hint it
+ * is described by, and that it must be filled.
+ */
+export interface ControlAria {
+  /** The control's id, for a visible `<label htmlFor>` to point at. */
+  id?: string;
+  /** Ids of the hints the control is described by (`aria-describedby`). */
+  describedBy?: string;
+  /** It must be filled (`aria-required`). */
+  required?: boolean;
 }
 
 /**
@@ -60,11 +76,13 @@ export function ChoiceValue({
   items,
   placeholder,
   chrome,
+  control,
   onChange,
 }: ControlChromeProps & {
   label: string;
   disabled?: boolean;
   invalid?: boolean;
+  control?: ControlAria;
   /** `null` shows the placeholder: nothing has been chosen yet. */
   value: string | null;
   items: { label: string; value: string }[];
@@ -82,8 +100,11 @@ export function ChoiceValue({
       onValueChange={next => onChange(String(next))}
     >
       <PillSelectTrigger
+        id={control?.id}
         aria-label={say(label)}
         aria-invalid={invalid}
+        aria-required={control?.required}
+        aria-describedby={control?.describedBy}
         size="sm"
         chrome={chrome}
       >

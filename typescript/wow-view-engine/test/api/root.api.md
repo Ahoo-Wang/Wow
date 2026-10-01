@@ -3742,6 +3742,7 @@ export interface RecordAction {
     readonly on?: readonly ActionPlace[];
     readonly primary?: boolean;
     run(row: RecordRow, input: ActionInput): Promise<unknown>;
+    readonly timeout?: number;
     // (undocumented)
     readonly tone?: ActionTone;
 }
@@ -4835,6 +4836,7 @@ export interface ViewErrorContext {
     instanceId?: string;
     operation: string;
     panelId?: string;
+    recordKey?: RecordKey;
     requestId?: string;
     runtimeId?: string;
     violation?: QueryViolation;
@@ -4850,7 +4852,7 @@ export interface ViewErrorEvent {
 }
 
 // @public
-export type ViewErrorKind = 'query' | 'store' | 'export' | 'render' | 'chart';
+export type ViewErrorKind = 'query' | 'store' | 'export' | 'render' | 'chart' | 'action';
 
 // @public
 export type ViewHandOver = SavedViewTarget | UnsavedViewTarget;

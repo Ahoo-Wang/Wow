@@ -31,6 +31,9 @@ export const statusMessages = {
   // surface it started on. The spinner beside the refresh control says the
   // same thing to whoever can see it; this is the other channel.
   'label.status.querying': 'Running the query',
+  // A command's outcome, then the count of the refresh it asked for: one
+  // sentence, so the second does not replace the first.
+  'label.status.then': '{first}; {then}',
   // What an analysis query landed with; the record view's rows say their
   // pagination sentence instead.
   'label.status.groups': '{count} groups',

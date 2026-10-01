@@ -210,7 +210,8 @@ describe("ConsoleHost", () => {
       fireEvent.click(
         await screen.findByRole("button", { name: /^Prepare 8/ }),
       );
-      const dialog = await screen.findByRole("alertdialog");
+      // A routine question (not a danger one): a dialog, not an alert.
+      const dialog = await screen.findByRole("dialog");
       const [confirm] = within(dialog)
         .getAllByRole("button")
         .filter((button) => button.textContent !== "Cancel")

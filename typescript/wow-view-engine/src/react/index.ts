@@ -60,6 +60,7 @@ export {
   useRefreshCountdown,
 } from './useAutoRefresh.js';
 export {
+  type ActionFailureContext,
   type ActionRunner,
   type BulkFailure,
   type BulkOutcome,

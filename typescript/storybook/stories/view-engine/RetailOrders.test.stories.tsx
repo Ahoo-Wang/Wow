@@ -94,9 +94,12 @@ export const OrderWorkbenchScene: Story = {
       }),
     );
     await userEvent.click(canvas.getByRole('button', { name: '催发货 2 条' }));
-    // A selection is counted before anything is sent (declared actions).
-    const ask = await within(document.body).findByRole('alertdialog');
-    await userEvent.click(within(ask).getByRole('button', { name: '催发货' }));
+    // A selection is counted before anything is sent (declared actions): a
+    // routine question, a dialog rather than an alert, its answer counting.
+    const ask = await within(document.body).findByRole('dialog');
+    await userEvent.click(
+      within(ask).getByRole('button', { name: '催发货 2 条' }),
+    );
     const done = zhCN['label.bulk.done'].replace('{done}', '2');
     await waitFor(() => expect(canvasElement.textContent).toContain(done));
 
