@@ -31,8 +31,9 @@ import { underMedia } from './media.js';
  *
  * Both are Playwright's media emulation (`.storybook/media.ts`), which
  * re-evaluates the stylesheet's queries and a chart's `matchMedia` alike.
- * Chromium emulates both; a browser that cannot pretend one does not
- * assert on a layout it never got, and says so.
+ * Chromium emulates both and Firefox forced colours (2026-09-30
+ * Firefox/WebKit pass), so each of them must run what it emulates; WebKit
+ * emulates neither, and does not assert on a layout it never got.
  */
 const meta = {
   ...galleryMeta,
@@ -47,6 +48,9 @@ type Story = StoryObj<typeof galleryMeta>;
 
 /** Chromium, which Playwright can lay out for either medium. */
 const EMULATES = /Chrome\//.test(navigator.userAgent);
+
+/** Chromium and Firefox, which Playwright can repaint in forced colours. */
+const EMULATES_FORCED = EMULATES || /Firefox\//.test(navigator.userAgent);
 
 /** The band pinned to `mode`, with every view on it answered. */
 async function band(canvas: HTMLElement, mode: 'light' | 'dark') {
@@ -114,10 +118,16 @@ export const ForcedColors: Story = {
         button.focus();
         await userEvent.keyboard('{Shift}');
         await expect(getComputedStyle(button).outlineStyle).toBe('solid');
+        // A legend's pressed entries are every series drawn: not framed as
+        // a chosen control is (the hidden one is struck through instead).
+        const legend = light.querySelector<HTMLElement>(
+          '[data-slot="chart-legend-toggle"][aria-pressed="true"]',
+        )!;
+        await expect(getComputedStyle(legend).outlineStyle).toBe('none');
       },
     );
-    // Chromium pretends both; another browser asserts what it could lay out.
-    if (EMULATES) await expect(ran).toBe(true);
+    // Chromium and Firefox repaint; WebKit asserts what it could lay out.
+    if (EMULATES_FORCED) await expect(ran).toBe(true);
   },
 };
 

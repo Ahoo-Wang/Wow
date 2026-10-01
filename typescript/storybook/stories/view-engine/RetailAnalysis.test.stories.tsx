@@ -932,7 +932,17 @@ export const BrushADailyStretch: Story = {
     await expect(frame).toHaveAttribute('data-brush', 'on');
     const plot = frame.querySelector<HTMLElement>('[data-slot="chart-plot"]')!;
     const box = plot.getBoundingClientRect();
-    brushAcross(plot, box.left + box.width * 0.5, box.left + box.width * 0.51);
+    // 5% of the plot, about a month of its days. 1% is a few pixels in the
+    // runner's frame, next to the 6px ECharts takes for a click rather than
+    // a stroke (`UNSELECT_THRESHOLD`), and Firefox drew no stretch from it
+    // (2026-09-30 Firefox/WebKit pass).
+    const stretchAcross = () =>
+      brushAcross(
+        plot,
+        box.left + box.width * 0.5,
+        box.left + box.width * 0.55,
+      );
+    stretchAcross();
     const menu = await waitFor(() => {
       const found = document.body.querySelector<HTMLElement>(
         '[data-slot="drill-menu"]',
@@ -963,7 +973,7 @@ export const BrushADailyStretch: Story = {
 
     // The stretch's records, under the view's own 「截至昨日」 on the same
     // field: both hold, and the records come back.
-    brushAcross(plot, box.left + box.width * 0.5, box.left + box.width * 0.51);
+    stretchAcross();
     const again = await drillMenu(zhCN['label.drill.menu-span']);
     const stretch = again
       .querySelector('[data-slot="drill-group"]')!

@@ -809,6 +809,13 @@
   - **真人读屏走查（VoiceOver／NVDA）推迟到首发之后**。首发前用户自己用 VoiceOver 抽查一两个常见场景：记录工作台、分析编辑区展开带走指标后的撤销提示。首发的可访问性声明写明做过自动检查与键盘走查，读屏软件实测待做。
   - **Firefox／WebKit 的视觉回归推迟到首发之后**，首发前不下载这两种浏览器。
   - **严格 CSP 仍在首发前做**。
+- **首发前加一次多浏览器走查**（用户 2026-09-30 采纳的建议）：本机 macOS 上的 Firefox 与 WebKit 各跑一遍 Storybook 交互测试与 31 张视觉截图，Linux WebKit 抽查。结果：
+  - 31 张截图在两种引擎上都没有布局或视觉回归。
+  - 两处产品缺陷，已修：
+    - Safari 下悬停指标卡的走势，提示把卡片撑宽 5–51px，出现横向滚动。提示由库按 `transform` 移动，Safari 首次显示时的滚动范围停在旧值；绘图区改为 `contain: layout`（`styles.css`），溢出算作绘制溢出，不裁切任何东西。库给提示的 `will-change` 不是原因。
+    - 强制颜色下，侧栏的当前视图与旁边一样（Chromium 把两者的底都重绘成 `Canvas`）。当前项（`aria-current`）、按下的开关（`aria-pressed`，图例除外——它的「按下」是系列在画，隐藏的那条有删除线）与选中的标签页一律用 `Highlight` 框出，与选中行、按下的分析分组一致；焦点仍压过它。
+  - 其余是测试装置的问题，已修：Safari 里 Base UI 的焦点哨兵带 `role="button"`，`aria-required-children` 在 WebKit 下不查菜单；选择框关闭要等列表真的藏起来再开下一个、再交给 axe；Firefox 的中文后备字体比 16px 行高多出 2px，运单宽表的标签高度留 2px；框选一段日子拉到绘图区的 5%，远离 ECharts 当作点击的 6px。`强制颜色` 故事在 Firefox 上也断言，不再跳过。
+- **仍放到首发之后**：每种引擎各一套视觉基线、PR 上的 Firefox／WebKit 任务。每晚的 Firefox／WebKit 工作流（`typescript-storybook-browsers.yml`）照旧不阻塞合并。
 - **落点**：[todo.md](todo.md)「首发后再议」；[screen-reader-walkthrough.md](screen-reader-walkthrough.md)；文档站「视图引擎的可访问性」的「评估方法」。
 
 ## D74 严格 CSP 的门是一组 Storybook 故事；库加的样式一律带页面 nonce，引擎不载 `data:` 图片（2026-09-29）
