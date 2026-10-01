@@ -159,6 +159,9 @@ const RULES = [
   ],
   // Every other workflow, the release and deploy workflows included: lint it.
   [/^\.github\/workflows\/[^/]+\.ya?ml$/, [WORKFLOWS]],
+  // The view engine's Skills: the site's tests compile their samples
+  // (documentation/test/typescript-samples.mjs).
+  [/^skills\/wow-view-(?:definition|host)\/.+\.md$/, [DOCS]],
   // Other Gradle modules, the dashboard (dashboard-test.yml)
   // and prose.
   [

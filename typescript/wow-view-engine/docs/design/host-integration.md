@@ -270,8 +270,10 @@ const executionActions = (commands: ExecutionCommands) =>
 
 - `/testing` 加 `admit(resources, descriptors)`：用提交的快照把全部定义与看板过一遍准入，返回问题列表；宿主一行单测。控制台 `overview.test.ts` 的「each naming a view there is」只删一半：它还拦存储里的视图 id 与钉看板 id，准入判断不了。`admit` 连带运行时，`/testing` 的体积约与根入口相当（上限 111,000 B，只用 **memorySource** 的包摇掉它）。
 - 操作的单测：`/testing` 给一个无头的 `actionHarness(actions, rows, { now })`，断言某行可用与否、拒绝理由、确认与表单的形状，不渲染界面。**落地（H3）**：`at(place)`、`state(id, key, input?)`、`bulk(id, keys?, input?)`（能做的、被拒的、按理由分组）、`asks(id, place, input?)`、`form`、`choice`、`missing`、`changesAt(key?)`、`run(id, key, input?)`（照引擎发送：不接的记录带理由拒绝，`ActionRefused`）；读的是 `runtime/actions.ts`，与界面同一份规则。控制台的 `views/executionActions.test.ts` 用它。
-- **`wow-view-definition` 改写**：从「对着描述符抄路径、别编字段」改为只讲判断——受众、列哪些、口径、默认、系统视图与看板；自检就是 `admit`。
-- **新增 `wow-view-host`**：接入一个宿主——`resources`、**ViewHost**、`bind`、路由，以及「从命令到操作」：哪些命令上界面、可用规则从聚合状态怎么读、拒绝理由用业务话、破坏性一律确认、批量是否允许、`run` 等到哪个阶段。与定义分开，是因为写定义的人与接宿主的人常常不是同一个，两者的自检也不同。
+- **`wow-view-definition` 改写**：从「对着描述符抄路径、别编字段」改为只讲判断——受众、列哪些、口径、默认、系统视图与看板；自检就是 `admit`。**落地**（`skills/wow-view-definition`）：`SKILL.md` 只列选择（列哪些字段、键与措辞、为受众收窄、受保护与弃用、`timeField`、记录、事件流、系统视图与看板）；`references/` 三页——`choices.md`（一份 **defineView** 逐项讲怎么选）、`views-and-boards.md`（记录与分析系统视图、看板、漂移后修订）、`admit.md`（准入测试、每类发现回到哪个选择、`admit` 判断不了的复核与报告）；描述符与引擎的参考只链接 README 与本目录，不再抄一份。
+- **新增 `wow-view-host`**：接入一个宿主——`resources`、**ViewHost**、`bind`、路由，以及「从命令到操作」：哪些命令上界面、可用规则从聚合状态怎么读、拒绝理由用业务话、破坏性一律确认、批量是否允许、`run` 等到哪个阶段。与定义分开，是因为写定义的人与接宿主的人常常不是同一个，两者的自检也不同。**落地**（`skills/wow-view-host`）：`references/wiring.md`（数据源与 `describe`、一个引擎、**ViewHost**、`bind`、路由与 **useViewNavigation**、读法，主题与 CSP 只给指引）、`actions.md`（逐个命令的取舍表、命令客户端上的示例、**actionHarness** 测试）、`storage.md`（三种存储怎么选，`WowViewStore` 与 fetcher-cosec、不登录的宿主、`permissions`，以及视图存储路径的 CoSec 网关规则：claim 与 share 要 `sub == {ownerId}` 且有写共享视图的角色）；自检是 **actionHarness**、`resolveNavigation` 与 `admit`。
+- **验收（2026-10-01，通过）**：一个只拿到两个 skill 的新智能体从零给零售场景写定义与操作——`admit` 首跑中英文皆 `[]`，评分 20/20，类型检查干净。它报告的缺口（行键与命令 id、宿主测试在 Node 里跑、`dateUnits` 的枚举、相对日期与预设、指标卡、`opens` 与标题面板、看板时间与面板自身时间条件的合取、确认语里的 `{count}`／`-one`／`{value}`、**actionHarness** 的返回形状、命令客户端的等待头与路径参数）已补进 skill 的示例；补完后的第二轮验收同样通过（`admit` 首跑皆 `[]`，评分 19/19，类型检查干净），它再挖到的几处（操作文案的检查、`SystemView.timeField: null`、`--root` 与 Node 配置、例行而不可撤销的一步怎样确认、`asks` 的形状、命令客户端的测试、宿主的 tsconfig、看板的默认日期）也写进了示例。
+- **两个 skill 的示例都编译**：文档站的 `documentation/test/typescript-samples.mjs` 把它们与包 README 一样对照构建后的包编译，`ci-scope.mjs` 让这两个 skill 的 Markdown 变更跑 docs 作业。
 
 ## 7. 描述符要补的事实（交后端）
 
@@ -299,7 +301,7 @@ const executionActions = (commands: ExecutionCommands) =>
 | H1  | **defineView**（含 `text(key)` 与 `timeField`，吸收 D 的时间窗口自动绑定）；`/testing` 的 `admit`    | 控制台三份定义改用它：准入结果、全部故事与截图不变；三块板删去手写的时间绑定后数字不变；`views/` 的行数写进 PR                                                                                                      |
 | H2a | `resources`、Provider、`bind`、一个应用一个引擎、键在渲染时译、队列自动留位、`onIssue` 缺省（#3761） | 控制台里没有按 `definition.id` 写的分支，没有 `maxQueuedQueries`；三个页面共用一个引擎；换语言不重建引擎                                                                                                            |
 | H2b | **ViewHost**（4.2）：改名、路由端口与 react-router 适配器、主题两条路与明暗（4.1）；导航数据（4.3）  | 控制台接入胶水 ≤150 行（资源、路由表、命令之外没有接线）；控制台不再自写明暗、`fve-tokens` 不在 `<body>` 上；Storybook 与控制台的导航都由 **useViewNavigation** 推出；截图与对比度矩阵不变；README 主题一节约 30 行 |
-| H3  | 声明式操作、**actionHarness**；两个 skill；README「Integrating a host」                              | 控制台的操作改为声明，插槽不再使用，行为与 e2e 不变；智能体按 skill 从零给零售场景写一份定义与操作，一次通过 `admit`（H3 已落地，5.1；两个 skill 按用户的意思等引擎定稿后再写）                                     |
+| H3  | 声明式操作、**actionHarness**；两个 skill；README「Integrating a host」                              | 控制台的操作改为声明，插槽不再使用，行为与 e2e 不变；智能体按 skill 从零给零售场景写一份定义与操作，一次通过 `admit`（H3 已落地，5.1；两个 skill 已落地，第 6 节；验收已过，2026-10-01）                            |
 
 - 公开面上的破坏性改动（`definitions`、`resolveSource`、`recordPanel` 与插槽为主路）趁首发前一次改到位，不留兼容层；控制台与 Storybook 在同一个 PR 里跟上。
 - 体积：H3 把确认框与表单收进 `./ui`，它已贴近上限；按「功能优先」在 PR 里抬上限并写明。

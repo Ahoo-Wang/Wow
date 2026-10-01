@@ -4,7 +4,7 @@
     {
       "name": "ahoo-wow-skills",
       "version": "0.1.0",
-      "description": "Intent-focused Agent Skills for developing, reviewing, debugging, and migrating Wow reactive DDD, Event Sourcing, and CQRS services, plus building TypeScript clients and generating them from OpenAPI, answering business data questions from a running Wow service's read-only queries, and writing Wow View Engine view definitions within the service's query capability descriptor.",
+      "description": "Intent-focused Agent Skills for developing, reviewing, debugging, and migrating Wow reactive DDD, Event Sourcing, and CQRS services, plus building TypeScript clients and generating them from OpenAPI, answering business data questions from a running Wow service's read-only queries, writing Wow View Engine view definitions within the service's query capability descriptor, and integrating the view engine into a host application with its routes, store and declared actions.",
       "skills": {
         "include": [
           "wow-develop",
@@ -14,7 +14,8 @@
           "wow-client",
           "wow-generator",
           "wow-data-query",
-          "wow-view-definition"
+          "wow-view-definition",
+          "wow-view-host"
         ]
       },
       "keywords": [
@@ -36,7 +37,8 @@
         "data-query",
         "analytics",
         "view-definition",
-        "view-engine"
+        "view-engine",
+        "view-host"
       ],
       "category": "development",
       "interface": {

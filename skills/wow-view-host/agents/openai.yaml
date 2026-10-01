@@ -1,0 +1,4 @@
+interface:
+  display_name: "Wow View Host"
+  short_description: "Wire the Wow View Engine into a host application"
+  default_prompt: "Use $wow-view-host to register the view engine's resources and store, put ViewHost with routes around the pages, and declare the Wow commands on records as actions, checked with actionHarness, resolveNavigation and admit."
