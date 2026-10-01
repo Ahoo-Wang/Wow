@@ -2383,8 +2383,8 @@ export const en: {
     readonly 'label.picker.loading': "Loading views…";
     readonly 'label.panel.menu': "Actions for “{title}”";
     readonly 'label.panel.pagination': "Pages of “{title}”";
-    readonly 'label.panel.menu.view': "View";
-    readonly 'label.panel.menu.edit': "Change";
+    readonly 'label.panel.menu.view': "Data";
+    readonly 'label.panel.menu.edit': "Edit panel";
     readonly 'label.panel.open': "Open in the workbench";
     readonly 'label.panel.refresh': "Refresh this panel";
     readonly 'label.panel.export': "Export data…";
@@ -2510,7 +2510,7 @@ export const en: {
     readonly 'label.analysis.slot.elements': "Expand";
     readonly 'label.analysis.tip-of': "About {term}";
     readonly 'label.analysis.tip.elements': "Counts the entries of an array in each record: once {name} is expanded, each {name} counts as one, and the metrics and dimensions are chosen from its fields. You can go one level further in.";
-    readonly 'label.analysis.tip.metrics': "The numbers to work out: a record count, a sum or an average of a field, each optionally over only the records that match. Drag to reorder; a metric calculated from others stays after the ones it reads.";
+    readonly 'label.analysis.tip.metrics': "The numbers to work out: a record count, a sum or an average of a field, each optionally over only the records that match. Drag to reorder; a derived metric stays after the ones it reads.";
     readonly 'label.analysis.tip.dimensions': "What to compare by: each dimension cuts the result into groups, and several cut it in turn.";
     readonly 'label.analysis.tip.result': "Which groups to keep and in what order: keep only the groups that match, order them by a dimension or a metric, and take the top N.";
     readonly 'label.analysis.tip.range': "Which records are counted. It narrows the outermost records, and expanding does not change it.";
@@ -2578,8 +2578,8 @@ export const en: {
     readonly 'label.analysis.add-group': "Add dimension";
     readonly 'label.analysis.group-by-currency': "Group by {field}";
     readonly 'label.analysis.add-metric': "Add metric";
-    readonly 'label.analysis.add-formula': "By formula";
-    readonly 'label.analysis.add-derived': "From other metrics";
+    readonly 'label.analysis.add-formula': "Formula";
+    readonly 'label.analysis.add-derived': "Derived metric";
     readonly 'label.analysis.add-duration': "Time between two moments";
     readonly 'label.analysis.duration-from': "From which time, for {name}";
     readonly 'label.analysis.duration-to': "To which time, for {name}";

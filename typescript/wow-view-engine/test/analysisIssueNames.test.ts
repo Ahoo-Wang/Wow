@@ -126,7 +126,7 @@ const CASES: {
       ],
     }),
     en: 'Warehouse cannot be grouped this way: By number range.',
-    zh: '「Warehouse」不能按数值区间分组。',
+    zh: '「Warehouse」不能以「数值区间」方式分组。',
   },
   {
     code: 'analysis.group.unit-unsupported',

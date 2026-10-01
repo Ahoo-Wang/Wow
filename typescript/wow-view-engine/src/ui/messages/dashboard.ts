@@ -280,11 +280,13 @@ export const dashboardMessages = {
   'label.picker.none': 'No view matches.',
   'label.picker.empty': 'There is no saved record or analysis view yet.',
   'label.picker.loading': 'Loading views…',
-  // One panel's menu (D22 D): how it is looked at, and — while the board is built — how it is changed.
+  // One panel's menu (D22 D): its data — opened, refreshed, exported — and,
+  // while the board is built, the panel's own edits. Each group is headed by
+  // a name, never a bare verb (「看」「改」 read as one-character terms).
   'label.panel.menu': 'Actions for “{title}”',
   'label.panel.pagination': 'Pages of “{title}”',
-  'label.panel.menu.view': 'View',
-  'label.panel.menu.edit': 'Change',
+  'label.panel.menu.view': 'Data',
+  'label.panel.menu.edit': 'Edit panel',
   'label.panel.open': 'Open in the workbench',
   'label.panel.refresh': 'Refresh this panel',
   'label.panel.export': 'Export data…',

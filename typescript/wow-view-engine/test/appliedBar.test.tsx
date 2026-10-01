@@ -806,6 +806,44 @@ describe('the applied badge in another language', () => {
     expect(screen.getByText('创建时间 大于等于 7 天后')).toBeDefined();
   });
 
+  /**
+   * A count of months or quarters, not a month's or a quarter's name: 「过去
+   * 12 月」 read as "the past December" and 「3 月前」 as "before March"
+   * (second-round review R2-72), under a view titled 「近 12 个月」.
+   */
+  it('counts months and quarters rather than naming one', () => {
+    const relative = (amount: number, unit: 'month' | 'quarter') => ({
+      kind: 'relative' as const,
+      amount,
+      unit,
+      direction: 'past' as const,
+    });
+    inChinese([
+      when({
+        text: 'Created last 12 months',
+        path: ['children', 0],
+        operator: 'BETWEEN',
+        value: { ...relative(12, 'month'), bound: 'window' },
+      }),
+      when({
+        text: 'Created on or before 3 months ago',
+        path: ['children', 1],
+        operator: 'LTE',
+        value: { ...relative(3, 'month'), bound: 'instant' },
+      }),
+      when({
+        text: 'Created last 2 quarters',
+        path: ['children', 2],
+        operator: 'BETWEEN',
+        value: { ...relative(2, 'quarter'), bound: 'window' },
+      }),
+    ]);
+
+    expect(screen.getByText('创建时间 在 过去 12 个月')).toBeDefined();
+    expect(screen.getByText('创建时间 小于等于 3 个月前')).toBeDefined();
+    expect(screen.getByText('创建时间 在 过去 2 个季度')).toBeDefined();
+  });
+
   /** A window with no upper edge is the `GTE` it compiles to, not a range. */
   it('words an open-ended window as the bound it compiles to', () => {
     inChinese([

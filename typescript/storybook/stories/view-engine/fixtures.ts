@@ -157,7 +157,7 @@ export const ordersDefinition: DataViewDefinition = {
   analysis: {
     count: true,
     // 写得出来的指标（D20 屏 B）与「只保留」：两者都是能力说了算，
-    // 声明了托盘才长出「按公式」「按已有指标计算」与那一组比较行。
+    // 声明了托盘才长出「公式」「派生指标」与那一组比较行。
     expressions: true,
     having: true,
     fields: [

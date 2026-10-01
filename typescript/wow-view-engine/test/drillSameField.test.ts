@@ -146,7 +146,7 @@ describe('drilling into a group on the field the analysis is scoped by', () => {
     expect(narrowsTo(filter, row)).toBe(true);
   });
 
-  it('a brushed stretch inside an absolute stretch takes its place (只看这段时间)', () => {
+  it('a brushed stretch inside an absolute stretch takes its place (只显示这段时间)', () => {
     const scope = scoped(AUTUMN);
     const row = spanOf(
       scope,
@@ -216,7 +216,7 @@ describe('drilling into a group on the field the analysis is scoped by', () => {
     expect(filter).toEqual(scoped(scope.children[0], scoped(...row)));
   });
 
-  it('a status among the statuses asked about (只看这一组)', () => {
+  it('a status among the statuses asked about (只显示这一组)', () => {
     const scope = scoped({
       field: 'status',
       operator: 'IN',
@@ -246,7 +246,7 @@ describe('drilling into a group on the field the analysis is scoped by', () => {
     expect(focused.filterMode).toBe('advanced');
   });
 
-  it('只看这一组 on a day inside the stretch stays simple', () => {
+  it('只显示这一组 on a day inside the stretch stays simple', () => {
     const config = analysisConfig({ filter: scoped(AUTUMN), groups: [DAYS] });
     const row = rowOf(config.filter, [DAYS], { day: day('2025-11-11') });
 

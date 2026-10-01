@@ -481,7 +481,7 @@ describe('AnalysisChart', () => {
       container
         .querySelector('[data-slot="chart-plot"]')!
         .getAttribute('aria-label'),
-    ).toBe('柱状图：金额的总和、记录数，按创建时间（按日）');
+    ).toBe('柱状图：创建时间（按日） · 金额的总和、记录数');
   });
 
   it('writes a data-valued series name as text, never into a stylesheet', () => {

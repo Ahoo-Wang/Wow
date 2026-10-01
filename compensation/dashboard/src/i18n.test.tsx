@@ -51,8 +51,8 @@ describe("i18n", () => {
   });
 
   it("translates messages and interpolates values", () => {
-    expect(translate("zh-CN", "Page {page}", { page: 3 })).toBe("第 3 页");
-    expect(translate("en", "Page {page}", { page: 3 })).toBe("Page 3");
+    expect(translate("zh-CN", "Attempt {number}", { number: 3 })).toBe("第 3 次");
+    expect(translate("en", "Attempt {number}", { number: 3 })).toBe("Attempt 3");
   });
 
   it("persists language changes and updates the document language", () => {

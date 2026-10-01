@@ -632,12 +632,12 @@ describe('the analysis tray', () => {
       expect(screen.getByRole('region', { name })).toBeDefined();
     expect(
       document.querySelector('[data-slot="dimension-card"]')!.textContent,
-    ).toContain('按值');
+    ).toContain('原值');
 
     await add('添加维度', 'Created');
     expect(
       (await screen.findByLabelText('Created 的维度设置')).textContent,
-    ).toContain('按时间粒度');
+    ).toContain('时间粒度');
 
     await add('添加指标', 'Amount');
     expect(

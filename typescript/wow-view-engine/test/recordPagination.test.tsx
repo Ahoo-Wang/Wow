@@ -825,7 +825,7 @@ describe('RecordPagination under a source window', () => {
     );
 
     expect(
-      screen.getByText('只能翻到前 10,000 条，缩小范围看其余'),
+      screen.getByText('只能翻到前 10,000 条，其余的请缩小范围后查看'),
     ).toBeTruthy();
   });
 
