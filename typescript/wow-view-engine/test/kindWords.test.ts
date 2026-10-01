@@ -23,7 +23,6 @@
 import { describe, expect, it } from 'vitest';
 import { VIEW_STORE_ERROR_CODES, type Issue } from '../src/index.js';
 import {
-  en,
   formatIssue,
   formatMessage,
   kindIssue,
@@ -32,6 +31,7 @@ import {
   type MessageKey,
   type ViewMessages,
 } from '../src/ui/index.js';
+import { en } from '../src/ui/messages/en.js';
 
 const CATALOGUES: readonly [string, ViewMessages, RegExp, RegExp][] = [
   ['en', en, /\bviews?\b/i, /dashboard/i],

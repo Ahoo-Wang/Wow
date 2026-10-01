@@ -61,7 +61,7 @@
 ## D9 工作台只列自己画得出的那几种
 
 - **日期**：2026-09-19；2026-09-22 由 D20 改写：一个数据工作台缺省画记录与分析两种。
-- **决定**：`useViewList(engine, definitionId, { kinds })` 先按 `kinds` 过滤，再排序、再解析默认，因此侧栏与默认视图里只有这一页画得出的种类；`DataWorkbench` 缺省 `kinds = ['record', 'analysis']`，两种视图在同一张列表里切换，宿主要一页只有一种就给一种（`kinds={['record']}`），这是真的收窄——另一种既不列也开不了；宿主若显式指定了不在 `kinds` 里的 `instanceId`，工作台以 `view.open.wrong-kind` 按「打不开」呈现。
+- **决定**：`useViewList(engine, definitionId, { kinds })` 先按 `kinds` 过滤，再排序、再解析默认，因此侧栏与默认视图里只有这一页画得出的种类；`DataWorkbench` 缺省 `viewKinds = ['record', 'analysis']`（第二轮审查 R2-87 由 `kinds` 改名，与引擎的字段类型注册表 `kinds` 分开），两种视图在同一张列表里切换，宿主要一页只有一种就给一种（`viewKinds={['record']}`），这是真的收窄——另一种既不列也开不了；宿主若显式指定了不在 `viewKinds` 里的 `instanceId`，工作台以 `view.open.wrong-kind` 按「打不开」呈现。
 - **依据**：留下一张空白正文比直说打不开更难理解；而 `reorder` 提交的仍是 `all`（未经 `kinds` 过滤的完整顺序），否则收窄过的工作台调一次序就会把没列出的种类从 `order` 里抹掉。
 - **落点**：[management.md#列表偏好与默认视图](management.md#列表偏好与默认视图)、[react.md#useviewlist](react.md#useviewlist)
 
@@ -282,6 +282,9 @@
   - **运行时只经引擎打开或新建，不手搭**：`dataViewRuntime` 与 `RequestRunner` 一并收回，公开签名里原本写着类 `DataViewRuntime` 的地方（`DashboardRuntime.panelRuntime`、`DashboardPanelState.runtime`、`/react` 的 `DashboardPanelView.runtime`、`usePanelFollowUps`）改成合同 `ViewRuntime<DataViewConfig>`，`isRecordRuntime` 收窄到 `RecordViewRuntime`。条件编辑器对未注册类型的只读防护照旧由单元测试直接搭 runtime 验；故事改为引擎可达的那一条——注册了却要一个引擎没有的编辑器（`FilterPanel.stories.tsx`「UnknownEditor」）。
   - 内核与模型仍整层导出：它们是纯函数与类型，「只用内核，不用 React」就是它们的用法；清单让它们的增减同样看得见。（D64 修订：入口逐名写出每个公开名，十八个没人用的名字退出公开面。）
 - **落点**：`src/runtime/index.ts`、`test/publicSurface.test.ts`、`test/surface/`、`scripts/verify-package.mjs`、[README.md「Entries」](../../README.md#entries)、[README.md](README.md)「包入口」。
+- **第二轮审查补遗**（2026-10-01，R2-83、R2-85）：
+  - **措辞与 issue code 也是公开面**：`test/surface/messages.txt`（英文目录的每个键）与 `issues.txt`（源码能报的每个 code）由同一个测试写、同样 `-u`；改名或删掉一个，和删掉一个导出一样进 Breaking。`/ui` 导出 `MessageOverrides`（`Partial<Record<MessageKey, string>>`），宿主改写引擎自己的措辞写 `satisfies MessageOverrides`，引擎改名的键在宿主那边是编译错误；控制台的 `views/messages.ts` 已这样写。
+  - **签名也有清单**：`scripts/api-report.mjs`（与 wow-view-store 同一套 API Extractor）为五个入口写 `test/api/*.api.md`，在 `test:package` 里跑；公开签名点名的类型必须由某个入口导出，否则失败，脚本里的 `FORGOTTEN` 只放「是数据、不是宿主要写的类型」的几项（主题注册表 `TOKENS`、图表导出图片的内部接线、`questionEditing`）。为此导出了一批签名里早已出现的类型（`OptionSpec`、`DashboardViewPanelBase`、`EngineResources`、`ResourceHost` 等），`LineAlertProps` 与 `ControlChromeProps` 改为自己写出成员、不再读 vendored 的 `Alert` 与 cva 配方（`test/variants.test.tsx` 守两边一致）；`ViewEngine` 标 `@sealed`，基类不再以 `protected registry` 暴露注册表。
 
 ## D30 阶段 5 内置多主题的十条裁定（2026-09-24）
 
@@ -699,6 +702,10 @@
   - **`HeadingPanel` 留着**：README 点名，宿主单独画一张标题卡用；补一个单独渲染的故事（`Dashboard`「HeadingPanelAlone」）。
 - **没选**：入口经层的 `index.ts` 逐名转出（同一份名单写两遍）；层的 `index.ts` 也逐名写（它们只给包内用，写名单不守任何公开面）。
 - **落点**：三个入口；`test/architecture.test.ts`「names every export of an entry, with no export \*」；`test/surface/root.txt`、`ui.txt`；[README.md「Entries」](../../README.md#entries)。
+- **第二轮审查补遗**（2026-10-01，R2-84、R2-87、R2-88；用户选 R2-87 的 B）：
+  - **再收回一批没有宿主用的名字**：`/react` 的写入簿记（`settle`、`refused`、`recovered`、`unsettled`、`savesView`、`mayRefuse`、`mayReplace`、`holdsHandle`、`strandedHandle`、`blocksNewIntent`、`UNSENT`、`UNRECOVERED`，只留结局的两个类型）与 `blankView`、`PREFERENCES_KEY`、`treeController`；`/ui` 的 `crossesBoundary`、`leavesEditor`、`NO_PARTS`、`LAYOUT_LABEL`、`panelName(s)`、`tabTitle`、`describeConfig`、`featuresOf`、`downloadFile`；根入口的 `LEGACY_GRID_COLUMNS`、`migrateDashboardConfig`（存储迁移只在 `readStored` 一处跑）、`overlaid`／`sameJson`／`without`、`isFiniteNumber`／`isNonBlankString`／`isNonEmptyString`／`isPlainObject`、`freshId`。`keptKey` 留着：README 教宿主的编辑器用它。包内从各自的文件取。
+  - **改两处歧义最大的名字**：投影 `RecordView`／`AnalysisView` → `RecordProjection`／`AnalysisProjection`（`projectRecord`／`projectAnalysis` 的产物，不是组件也不是保存的视图）；`DataWorkbenchProps.kinds` → `viewKinds`（引擎的 `kinds` 是字段类型注册表）。`Spec` 的两种意思（宿主提供的 vs 视图存下的）不改名，README「Concepts」后写明。
+  - **每个目录一个名字**：`/ui` 的英文目录只叫 `en`（与 `zhCN` 对称），`defaultMessages` 退出入口，包内仍用它作回退。
 
 ## D65 内存数据源是公开入口 `/testing`（2026-09-27）
 
@@ -718,6 +725,7 @@
 - **没选**：作用域改零权重 `:where`（G16 回退：宿主后导入的 `.w-full` 又压过引擎的 `md:w-64`）；分区权重（`.fve-root` 里 +1、宿主插槽与 `.fve-tokens` 下零权重——要给每个宿主插槽打标记，选择器更复杂，引擎组件放进宿主外壳时仍看导入先后）。
 - **判据**：全部截图基线与主题故事不变；另加一个故事，宿主的断点类在引擎面里生效；控制台两处绕开的写法改回带断点的写法。体积上限若因类名变长越线，照「功能优先」在同一个 PR 里抬。
 - **落点**：`src/**/*.tsx` 的类名（codemod）、`components.json`、`src/styles.css`、`scripts/scope-utilities.mjs`、`scripts/verify-package.mjs`；[ui/theme.md#三层变量](ui/theme.md#三层变量) 随之改写。
+- **修订：工具类不公开**（2026-10-01，第二轮审查 R2-86，用户选 A）：宿主的 CSS 合同只有 token——`--fve-*`／`--fvp-*`、两道边界以 shadcn 名字声明的 token（宿主自己的 Tailwind 照 shadcn 映射）、`data-fve-*` 属性、`.fve-root`／`.fve-tokens`、`.dark`，外加 token 类 `fve:bg-canvas`（`canvas` 没有 shadcn 名字可映射；`TOKEN_CLASSES` 列着，`@source inline` 保留，`verify-package` 核对它在 `dist/styles.css` 里）。其余 `fve:` 工具类是引擎自己的：样式表只在组件写着它时才有，随时会消失；`data-slot`、其他类名与 DOM 结构同样不公开。主题指南两种语言加「什么是公开的」一节，样例改用宿主自己的类读 token，`test/themeGuide.test.ts` 守着样例不再写别的 `fve:` 类。没选 B（把工具类做成清单）：每次样式调整都要维护公开清单，内部重构会变成宿主可见的破坏。
 - **护栏**（2026-09-29）：不带前缀的类编译出来什么也没有、也不报错（`CLIPPED_CELL = 'truncate'`，#3792 修），故两层都问引擎自己的设计系统（`src/styles.css`，`test/fixtures/utilities.ts`）：`test/prefixedClasses.test.ts` 读 `src` 里每个字符串——带 `fve:` 的串、HTML 里的 `class="…"`、`cn`／`cva`／`classList` 的参数按类名读，其中加上 `fve:` 就是工具类的词、以及不是工具类的 `fve:` 词都算错；不带 `fve:` 的单词只在不是数据的位置才算（类型、比较、键、路径、调用参数、带类型或数据名的值、`data-*` 属性）；`test/setup.ts` 在每个测试后读这次落到元素上的每个类，第三方的钩子（`lucide-*`、`rdp-*`、`react-grid-*` 等）放行。已知、正在别处修的一处写在 `KNOWN_MISSES` 里并注明日期，修好后条目过期即失败。
 - **落地时定的两处**（2026-09-29，见 [ui/theme.md#三层变量](ui/theme.md#三层变量)）：Tailwind 的主题 `inline reference`，一个变量也不输出——带前缀的主题变量会叫 `--fve-*`，与宿主 token 同名（`--fve-font-sans`）；宿主传给引擎组件的 `className` 不再经 `cn` 替掉引擎同属性的类（名字不同，`cn` 不合并），两者都留在元素上按层叠定。
 

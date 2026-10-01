@@ -19,7 +19,8 @@ import {
   RotateCcwIcon,
   SaveIcon,
 } from 'lucide-react';
-import { unsettled, type SaveCommands } from '../../react/index.js';
+import type { SaveCommands } from '../../react/index.js';
+import { unsettled } from '../../react/writes.js';
 import { cn } from 'cn';
 import {
   AlertDialog,

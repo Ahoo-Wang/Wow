@@ -65,7 +65,7 @@ function LongTableDemo({
             definitionId={waybillsDefinition.id}
             instanceId={waybillPageView.id}
             {...HOST_LANGUAGE}
-            kinds={['record']}
+            viewKinds={['record']}
           />
         )}
       </StoryEngine>
@@ -98,7 +98,7 @@ function LongTableDemo({
             definitionId={salesDefinition.id}
             instanceId={view.id}
             {...HOST_LANGUAGE}
-            kinds={['analysis']}
+            viewKinds={['analysis']}
           />
         )
       }

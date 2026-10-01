@@ -53,7 +53,7 @@ function MapScene({ dataset }: { dataset: MapDataset }) {
           engine={engine}
           definitionId={exportsDefinition.id}
           instanceId={exportsMapView.id}
-          kinds={['analysis', 'record']}
+          viewKinds={['analysis', 'record']}
           {...HOST_LANGUAGE}
         />
       )}

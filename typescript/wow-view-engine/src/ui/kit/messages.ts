@@ -42,6 +42,16 @@ export type ViewMessages = Readonly<Record<string, string>>;
  */
 export type MessageKey = keyof typeof en;
 
+/**
+ * A host's rewording of the engine's own keys, checked against them: write
+ * an override as `{ … } satisfies MessageOverrides`, and a key the engine
+ * renames or drops is a compile error rather than wording that silently
+ * falls back to the engine's sentence. Keys of the host's own (a
+ * definition's `text(key)`) go beside it in a `ViewMessages`, which stays
+ * open. The keys are public surface, listed in `test/surface/messages.txt`.
+ */
+export type MessageOverrides = Partial<Record<MessageKey, string>>;
+
 /** `{field}` and friends are replaced from `Issue.params`. */
 const PLACEHOLDER = /\{(\w+)\}/g;
 

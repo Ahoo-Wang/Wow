@@ -81,7 +81,7 @@ function AnalysisWorkbenchDemo({
   pinned?: boolean;
   /**
    * 这个工作台是不是也列记录视图。列了，追问菜单才有「查看这些记录」——
-   * 下钻开出来的是一个记录视图，只在 record 也在 `kinds` 里时开得出来。
+   * 下钻开出来的是一个记录视图，只在 record 也在 `viewKinds` 里时开得出来。
    */
   records?: boolean;
   /**
@@ -247,7 +247,7 @@ function AnalysisWorkbenchDemo({
             definitionId={failedEventsDefinition.id}
             instanceId={view.id}
             {...HOST_LANGUAGE}
-            kinds={['analysis']}
+            viewKinds={['analysis']}
             features={{ visualization }}
           />
         )}
@@ -281,7 +281,7 @@ function AnalysisWorkbenchDemo({
             definitionId={waybillAnalysisDefinition.id}
             instanceId={view.id}
             {...HOST_LANGUAGE}
-            kinds={['analysis']}
+            viewKinds={['analysis']}
             features={{ visualization }}
           />
         )}
@@ -311,7 +311,7 @@ function AnalysisWorkbenchDemo({
           definitionId="orders"
           instanceId={savedViews[1].id}
           {...HOST_LANGUAGE}
-          kinds={records ? ['record', 'analysis'] : ['analysis']}
+          viewKinds={records ? ['record', 'analysis'] : ['analysis']}
           features={{ visualization }}
         />
       )}

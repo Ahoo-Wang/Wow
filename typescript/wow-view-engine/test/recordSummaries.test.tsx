@@ -35,7 +35,6 @@ import {
   type RecordTableController,
 } from '../src/react/index.js';
 import {
-  defaultMessages,
   DashboardGrid,
   RecordCards,
   RecordTable,
@@ -43,6 +42,7 @@ import {
   EmbeddedView,
   ViewSurface,
 } from '../src/ui/index.js';
+import { defaultMessages } from '../src/ui/kit/messages.js';
 import {
   INSTANT,
   ROWS,

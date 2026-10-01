@@ -20,8 +20,8 @@ import type {
   QueryDescriptorResult,
 } from '@ahoo-wang/wow-client';
 import type { FieldOption, Issue, RecordData } from '../model/index.js';
-import type { AnalysisView } from '../analysis/index.js';
-import type { RecordView, SummaryRow } from '../record/index.js';
+import type { AnalysisProjection } from '../analysis/index.js';
+import type { RecordProjection, SummaryRow } from '../record/index.js';
 
 /**
  * Where a definition's data comes from. Three of `QueryApi`'s methods, so a
@@ -125,7 +125,7 @@ export interface ProjectedBase {
 
 export interface ProjectedRecord extends ProjectedBase {
   kind: 'record';
-  view: RecordView;
+  view: RecordProjection;
   /**
    * Absent when the config asked for no summaries. Present with
    * `scope: 'page'` when the totals query failed and the visible rows were
@@ -137,7 +137,7 @@ export interface ProjectedRecord extends ProjectedBase {
 
 export interface ProjectedAnalysis extends ProjectedBase {
   kind: 'analysis';
-  view: AnalysisView;
+  view: AnalysisProjection;
 }
 
 /** The findings of the last result, or none while there is no result. */

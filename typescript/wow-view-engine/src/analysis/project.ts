@@ -190,7 +190,7 @@ export function rowCurrency(
   return column.currency && companionsReading(row, column.currency.companions);
 }
 
-export interface AnalysisView {
+export interface AnalysisProjection {
   /**
    * The table's columns: every alias the result holds, those `table.columns`
    * names first and in its order, then the rest as `schema` lists them. The
@@ -312,7 +312,7 @@ export function measureColumns(
 
 /**
  * Every alias the result holds, groups first. It is the column order the
- * table's list does not override and the source of `AnalysisView.schema`,
+ * table's list does not override and the source of `AnalysisProjection.schema`,
  * and nothing else: it was once
  * exported as "what a returned row is validated against", which nothing has
  * ever done — rows come back from Wow and are projected, never checked.
@@ -403,7 +403,7 @@ export function projectAnalysis(
   kinds?: FieldKindRegistry,
   context: ShapeContext = {},
   limits?: Pick<RuntimeLimits, 'maxAnalysisRows'>,
-): AnalysisView {
+): AnalysisProjection {
   const declared = new Map(
     config.table.columns.map(column => [column.alias, column]),
   );
@@ -605,7 +605,7 @@ export function projectAnalysis(
 
 /**
  * The rows the reader asked for, and what is known about the ones below them
- * — see `AnalysisView.truncated` and `AnalysisView.atLimit`.
+ * — see `AnalysisProjection.truncated` and `AnalysisProjection.atLimit`.
  *
  * The query asked for one row more than the limit, so a result longer than
  * the limit is the probe coming back: more groups exist, and the extra row is

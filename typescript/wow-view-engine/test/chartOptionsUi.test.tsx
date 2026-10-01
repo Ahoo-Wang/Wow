@@ -169,7 +169,7 @@ async function open(
       engine={engine}
       definitionId="orders"
       instanceId="orders-1"
-      kinds={['analysis']}
+      viewKinds={['analysis']}
     />,
   );
   const user = userEvent.setup();

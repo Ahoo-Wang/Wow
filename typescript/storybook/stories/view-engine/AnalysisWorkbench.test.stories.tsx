@@ -12,11 +12,7 @@
  */
 import type { StoryObj } from '@storybook/react-vite';
 import { expect, screen, userEvent, waitFor, within } from 'storybook/test';
-import {
-  defaultMessages,
-  formatMessage,
-  zhCN,
-} from '@ahoo-wang/wow-view-engine/ui';
+import { en, formatMessage, zhCN } from '@ahoo-wang/wow-view-engine/ui';
 import displayMeta, {
   BarChart as DisplayBarChart,
   CutShort as DisplayCutShort,
@@ -2931,7 +2927,7 @@ export const VisualizePanel: Story = {
     const mark = chartTile(panel, 'bar').querySelector<HTMLElement>(
       '[data-slot="chart-recommended"]',
     )!;
-    mark.textContent = defaultMessages['label.chart.recommended'];
+    mark.textContent = en['label.chart.recommended'];
     await expectPickerLayout(panel, 'bar', false);
     mark.textContent = zhCN['label.chart.recommended'];
 

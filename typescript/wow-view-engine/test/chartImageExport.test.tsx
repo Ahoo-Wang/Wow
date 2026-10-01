@@ -109,7 +109,7 @@ function show(
       engine={engine}
       definitionId="orders"
       instanceId="orders-1"
-      kinds={['analysis']}
+      viewKinds={['analysis']}
     />,
   );
   return { user: userEvent.setup({ pointerEventsCheck: 0 }) };

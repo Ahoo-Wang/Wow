@@ -14,7 +14,7 @@
 import { act, cleanup, render } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
 import type { VirtualItem } from '@tanstack/react-virtual';
-import type { AnalysisView } from '../src/index.js';
+import type { AnalysisProjection } from '../src/index.js';
 import { AnalysisTable } from '../src/ui/index.js';
 import {
   VIRTUAL_ROWS_AFTER,
@@ -30,7 +30,7 @@ afterEach(cleanup);
  * size and every drawn row measures nothing tall.
  */
 
-function longView(count: number, totals = true): AnalysisView {
+function longView(count: number, totals = true): AnalysisProjection {
   return {
     columns: [
       { alias: 'customer', label: 'Customer', role: 'group' },

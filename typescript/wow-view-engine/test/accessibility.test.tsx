@@ -32,7 +32,6 @@ import {
 import {
   DataWorkbench,
   DashboardWorkbench,
-  defaultMessages,
   EmbeddedView,
   formatMessage,
   RecordPagination,
@@ -40,6 +39,7 @@ import {
   useViewExpansion,
   ViewSurface,
 } from '../src/ui/index.js';
+import { defaultMessages } from '../src/ui/kit/messages.js';
 import {
   analysisConfig,
   dashboardConfig,
@@ -646,7 +646,7 @@ describe('the default workbenches pass axe', () => {
           engine={engineWith([warehouseTotals])}
           definitionId="orders"
           instanceId="totals"
-          kinds={['analysis']}
+          viewKinds={['analysis']}
         />
       </ViewSurface>,
     );
@@ -668,7 +668,7 @@ describe('the default workbenches pass axe', () => {
           engine={engineWith([warehouseChart])}
           definitionId="orders"
           instanceId="drawn"
-          kinds={['analysis']}
+          viewKinds={['analysis']}
         />
       </ViewSurface>,
     );
@@ -944,7 +944,7 @@ describe('the analysis view’s open states pass axe', () => {
           engine={engineWith([instance])}
           definitionId="orders"
           instanceId={instance.id}
-          kinds={['analysis']}
+          viewKinds={['analysis']}
         />
       </ViewSurface>,
     );

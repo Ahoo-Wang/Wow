@@ -169,7 +169,7 @@ catalogs:
       specifier: ^2.0.3
       version: 2.0.3
     echarts:
-      specifier: 6.1.0
+      specifier: ^6.1.0
       version: 6.1.0
     eslint:
       specifier: ^10.11.0
@@ -1057,6 +1057,9 @@ importers:
       '@eslint/js':
         specifier: 'catalog:'
         version: 10.0.1(eslint@10.11.0(jiti@2.7.0))
+      '@microsoft/api-extractor':
+        specifier: 'catalog:'
+        version: 7.59.3(@types/node@26.6.3)
       '@rolldown/plugin-babel':
         specifier: 'catalog:'
         version: 0.2.4(@babel/core@7.29.7)(@babel/runtime@8.0.5)(rolldown@1.2.11)(vite@8.3.1(@types/node@26.6.3)(jiti@2.7.0)(yaml@2.9.1))

@@ -698,7 +698,7 @@ describe('the analysis workbench over mixed currencies', () => {
         engine={engine}
         definitionId="orders"
         instanceId="by-warehouse"
-        kinds={['analysis']}
+        viewKinds={['analysis']}
         locale="en-US"
       />,
     );

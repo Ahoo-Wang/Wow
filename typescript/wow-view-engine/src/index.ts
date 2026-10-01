@@ -140,7 +140,6 @@ export {
   type DashboardViewConfig,
   type DashboardViewPanel,
   type DashboardWidth,
-  LEGACY_GRID_COLUMNS,
   MAX_DASHBOARD_FILTERS,
   MAX_DASHBOARD_TABS,
   MAX_HEADING_LENGTH,
@@ -155,6 +154,7 @@ export {
   boardWidth,
   filterTypeOf,
   sameFilterType,
+  type DashboardViewPanelBase,
 } from './model/dashboard.js';
 export {
   type AggregationFieldCapability,
@@ -261,13 +261,7 @@ export {
   toSummary,
 } from './model/instance.js';
 export type { Issue, IssuePath, IssueSeverity } from './model/issue.js';
-export {
-  type JsonValue,
-  type LiteralEnums,
-  overlaid,
-  sameJson,
-  without,
-} from './model/json.js';
+export type { JsonValue, LiteralEnums } from './model/json.js';
 export {
   DEFAULT_RUNTIME_LIMITS,
   MAX_TIMER_DELAY_MS,
@@ -449,12 +443,8 @@ export {
   type StringFilterValue,
   isDateTimeFilterValue,
   isDurationFilterValue,
-  isFiniteNumber,
-  isNonBlankString,
-  isNonEmptyString,
   isNumberRange,
   isOrderedRange,
-  isPlainObject,
   isReferenceFilterValue,
 } from './filter/values.js';
 // record — the record kernel.
@@ -492,7 +482,7 @@ export {
   type RecordCardView,
   type RecordColumnView,
   type RecordRow,
-  type RecordView,
+  type RecordProjection,
   type SummaryCell,
   type SummaryRow,
   type SummarySource,
@@ -717,7 +707,7 @@ export {
 } from './analysis/metricFormat.js';
 export {
   type AnalysisColumnView,
-  type AnalysisView,
+  type AnalysisProjection,
   type ColumnCurrency,
   measureColumns,
   momentColumns,
@@ -838,12 +828,10 @@ export {
   mapGlobalFilter,
   mergeGlobalFilter,
 } from './dashboard/merge.js';
-export { migrateDashboardConfig } from './dashboard/migrate.js';
 export {
   bindingsOf,
   clickOf,
   clicksFilter,
-  freshId,
   isContentPanel,
   isOwnedPanel,
   isPresentationMember,
@@ -905,7 +893,11 @@ export {
   type DefineViewOptions,
   defineView,
 } from './runtime/define/defineView.js';
-export type { DefineViewSpec, FieldSpec } from './runtime/define/spec.js';
+export type {
+  DefineViewSpec,
+  FieldSpec,
+  OptionSpec,
+} from './runtime/define/spec.js';
 export {
   type AnyViewRuntime,
   type DefinitionFor,
@@ -934,6 +926,8 @@ export {
   type RecordActions,
   type RefusalGroup,
   actions,
+  type ActionRefusal,
+  type ActionRow,
 } from './runtime/actions.js';
 export {
   ExportCancelled,
@@ -1023,3 +1017,6 @@ export {
   type WriteContext,
   emptyPreferences,
 } from './store/ViewStore.js';
+export type { DefinitionLookup } from './dashboard/declared.js';
+export type { EngineResources, ResourceHost } from './runtime/resources.js';
+export type { MetricMove, MetricMoveStop } from './analysis/metricOrder.js';

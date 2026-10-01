@@ -12,10 +12,10 @@
  */
 
 import dayjs, { type Dayjs } from 'dayjs';
-import isoWeek from 'dayjs/plugin/isoWeek';
-import quarterOfYear from 'dayjs/plugin/quarterOfYear';
-import timezone from 'dayjs/plugin/timezone';
-import utc from 'dayjs/plugin/utc';
+import isoWeek from 'dayjs/plugin/isoWeek.js';
+import quarterOfYear from 'dayjs/plugin/quarterOfYear.js';
+import timezone from 'dayjs/plugin/timezone.js';
+import utc from 'dayjs/plugin/utc.js';
 import type { AnalysisDateUnit } from '../model/index.js';
 import type {
   DateTimeFilterValue,

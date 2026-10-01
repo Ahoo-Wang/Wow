@@ -38,12 +38,8 @@ import {
   type ViewSource,
 } from '../src/index.js';
 import { resultIssues } from '../src/runtime/source.js';
-import {
-  DataWorkbench,
-  EmbeddedView,
-  defaultMessages,
-  zhCN,
-} from '../src/ui/index.js';
+import { DataWorkbench, EmbeddedView, zhCN } from '../src/ui/index.js';
+import { defaultMessages } from '../src/ui/kit/messages.js';
 import {
   analysisConfig,
   ordersDefinition,
@@ -417,7 +413,7 @@ describe('what the screen says about an analysis cut short', () => {
         engine={engineOver(config, source)}
         definitionId="orders"
         instanceId="orders-1"
-        kinds={['analysis']}
+        viewKinds={['analysis']}
       />,
     );
   }
@@ -495,7 +491,7 @@ describe('what the screen says about an analysis cut short', () => {
         engine={engine}
         definitionId="orders"
         instanceId="orders-1"
-        kinds={['analysis']}
+        viewKinds={['analysis']}
       />,
     );
     await screen.findByText(MORE);
@@ -531,7 +527,7 @@ describe('what the screen says about an analysis cut short', () => {
         engine={engine}
         definitionId="orders"
         instanceId="orders-1"
-        kinds={['analysis']}
+        viewKinds={['analysis']}
       />,
     );
     await waitFor(() =>

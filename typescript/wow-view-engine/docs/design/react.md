@@ -186,7 +186,7 @@ useViewManager(engine, definitionId, list): { rename; delete; setDefault; moveTo
 
 ## writes.ts
 
-`src/react/writes.ts` 是"一次写入结局"的唯一词汇，纯函数、不含 React，两个钩子共用一份定义，并且**在 `/react` 入口上导出**——自己画保存命令的宿主同样要知道"引擎还在为哪一次写入负责"，不摆在入口上，每个宿主都会把这条规则再推一遍，而这个模块存在就是为了不再有第二份，[management.md#冲突与未知结果](management.md#冲突与未知结果) 那张表因此只被实现一次：`settle(caught, code, intent)` 把抛出的命令变成 `{ state, handle }`（`ViewWriteError` 交出自己的结局与 handle，其余一概没发出去，记为引用意图的 `rejected` 且无 handle）；`recovered` / `UNRECOVERED` / `RecoveredWrite` 是恢复动作的答复，`savesView(action)` 说这次恢复算不算把屏幕上这份配置存下来。
+`src/react/writes.ts` 是"一次写入结局"的唯一词汇，纯函数、不含 React，两个钩子与 `/ui` 共用一份定义。它**不在 `/react` 入口上**（第二轮审查 R2-84，[D64](decisions.md#d64-入口逐名写出每个公开导出2026-09-27) 补遗）：入口只给出结局的两个类型 `SettledWrite`、`RecoveredWrite`，宿主读保存命令的状态（`SaveCommandState`）就够；规则本身是引擎的簿记，`/ui` 从这个文件取，宿主要画自己的保存命令时问钩子给出的状态，不重推规则。[management.md#冲突与未知结果](management.md#冲突与未知结果) 那张表因此只被实现一次：`settle(caught, code, intent)` 把抛出的命令变成 `{ state, handle }`（`ViewWriteError` 交出自己的结局与 handle，其余一概没发出去，记为引用意图的 `rejected` 且无 handle）；`recovered` / `UNRECOVERED` / `RecoveredWrite` 是恢复动作的答复，`savesView(action)` 说这次恢复算不算把屏幕上这份配置存下来。
 
 粗的那一问是 `unsettled(state)`：引擎还在为这次写入负责吗——`conflict` 与 `unknown` 都是（一个等用户选，一个等重试或放弃），`rejected` 不是（store 根本没收）。两个钩子只差在手里攥着几个结局，这个差别写在函数名里，不在几份重复的判断里：`blocksNewIntent(state)` 是已打开 runtime 的规矩——只有 `unknown` 挡新意图；`holdsHandle(outcome)`（管理器里叫 `blocks`）是一行一个槽位的规矩——就是 `unsettled` 再加上那个 handle，`conflict` 因此同样挡，新命令占位就会把它的 handle 丢掉；`strandedHandle` 给出新命令该先结清的那个 handle，`mayReplace(existing, incoming)` / `mayRefuse` 说什么样的结局可以顶掉槽里已有的。
 

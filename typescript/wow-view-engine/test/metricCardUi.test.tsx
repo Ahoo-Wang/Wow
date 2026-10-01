@@ -290,7 +290,7 @@ describe('the trend card’s options', () => {
         engine={engine}
         definitionId="orders"
         instanceId="orders-daily"
-        kinds={['analysis']}
+        viewKinds={['analysis']}
         messages={zhCN}
       />,
     );

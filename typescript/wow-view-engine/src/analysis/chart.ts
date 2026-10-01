@@ -150,7 +150,7 @@ function cellKey(y: unknown, x: unknown): string {
 /** What shaping reads besides the config and the rows. */
 export interface ShapeContext {
   /**
-   * The metric types the source estimates (`AnalysisView.approximate`): a
+   * The metric types the source estimates (`AnalysisProjection.approximate`): a
    * boxplot says its quartiles are approximate when percentiles are among
    * them. Percentiles when left out (`DEFAULT_APPROXIMATE_METRICS`).
    */
@@ -167,14 +167,14 @@ export interface ShapeContext {
    */
   now?: Date;
   /**
-   * The rows are the first groups of more (`AnalysisView.truncated` or
+   * The rows are the first groups of more (`AnalysisProjection.truncated` or
    * `atLimit`): a line computed across them — a running total, a moving
    * average — would be wrong, and is not drawn (`derivedGap`).
    */
   cutShort?: boolean;
   /**
    * The rows of the query grouped by a split chart's axis alone
-   * (`AnalysisView.splitWhole`): what a split past the palette folds its
+   * (`AnalysisProjection.splitWhole`): what a split past the palette folds its
    * rest into 「其他」 against (D33 Q56). Left out, nothing is folded.
    */
   splitWhole?: readonly RecordData[];

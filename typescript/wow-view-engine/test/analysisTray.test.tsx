@@ -42,12 +42,8 @@ import {
   type ViewInstance,
   type ViewSource,
 } from '../src/index.js';
-import {
-  DataWorkbench,
-  defaultMessages,
-  formatMessage,
-  zhCN,
-} from '../src/ui/index.js';
+import { DataWorkbench, formatMessage, zhCN } from '../src/ui/index.js';
+import { defaultMessages } from '../src/ui/kit/messages.js';
 import type { ViewMessages } from '../src/ui/index.js';
 import { glyphType } from '../src/ui/analysis/chartIcons.js';
 import { SPACE } from '../src/ui/kit/layout.js';
@@ -202,7 +198,7 @@ async function open({
       definitionId="orders"
       instanceId="orders-1"
       messages={messages}
-      kinds={['analysis']}
+      viewKinds={['analysis']}
     />,
   );
   await waitFor(() => expect(analysisToggle()).toBeDefined());

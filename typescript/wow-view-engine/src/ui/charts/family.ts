@@ -105,7 +105,7 @@ export interface FamilyProps<D> {
    */
   adds?: (alias: string | undefined) => boolean;
   /**
-   * The rows are the first groups of more (`AnalysisView.truncated` or
+   * The rows are the first groups of more (`AnalysisProjection.truncated` or
    * `atLimit`): a family that draws shares of a whole says they are shares
    * of the groups shown.
    */

@@ -36,6 +36,7 @@ import {
   presetVariables,
   THEME_ATTRIBUTES,
   THEME_AXES,
+  TOKEN_CLASSES,
   TOKEN_GROUPS,
   type TokenEntry,
   TOKENS,
@@ -63,6 +64,8 @@ export interface Registry {
   }[];
   readonly themeAttributes: readonly string[];
   readonly chartTokens: readonly string[];
+  /** The stylesheet's public classes (`TOKEN_CLASSES`); no other is. */
+  readonly tokenClasses: readonly string[];
   readonly grounds: readonly Ground[];
   readonly lines: Readonly<Record<PairKind, number>>;
   readonly presetLines: Readonly<
@@ -87,6 +90,7 @@ export function registryData(): Registry {
     axes: THEME_AXES,
     themeAttributes: THEME_ATTRIBUTES,
     chartTokens: CHART_TOKENS,
+    tokenClasses: TOKEN_CLASSES,
     grounds: GROUNDS,
     lines: LINES,
     presetLines: PRESET_LINES,

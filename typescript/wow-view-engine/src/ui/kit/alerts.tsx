@@ -12,7 +12,7 @@
  */
 
 import type * as React from 'react';
-import { cva, type VariantProps } from 'class-variance-authority';
+import { cva } from 'class-variance-authority';
 import { cn } from 'cn';
 import { CircleAlertIcon, InfoIcon, TriangleAlertIcon } from 'lucide-react';
 import { Alert } from '../components/alert.js';
@@ -50,7 +50,7 @@ export const TONE_ICON: Record<AlertTone, typeof InfoIcon> = {
  * each call site (D16 ruling 8): there is one callout recipe, and a second
  * one is how two callouts start disagreeing about what a warning looks like.
  */
-const lineAlertVariants = cva(
+export const lineAlertVariants = cva(
   [
     'fve:flex fve:flex-wrap fve:items-center fve:gap-2 fve:rounded-md fve:px-2 fve:py-1',
     // The width is the container's, not 100% of it. The registry's `Alert`
@@ -113,12 +113,20 @@ const lineAlertVariants = cva(
   },
 );
 
-export interface LineAlertProps
-  extends
-    Omit<React.ComponentProps<typeof Alert>, 'variant'>,
-    Omit<VariantProps<typeof lineAlertVariants>, 'tone'> {
+/**
+ * What a `LineAlert` takes: a `div`'s props, its tone and its frame. Written
+ * out rather than read off the vendored `Alert` and the class recipe, so a
+ * registry update (`shadcn add --diff`) never changes this public type
+ * (R2-85); `test/variants.test.tsx` holds the two in step.
+ */
+export interface LineAlertProps extends React.ComponentProps<'div'> {
   tone: AlertTone;
+  /** `box`, the default: a band of its own. `bare`: no frame, smaller type. */
+  frame?: LineAlertFrame | null;
 }
+
+/** How a `LineAlert` is framed; see `LineAlertProps.frame`. */
+export type LineAlertFrame = 'box' | 'bare';
 
 /**
  * One callout, one line high.

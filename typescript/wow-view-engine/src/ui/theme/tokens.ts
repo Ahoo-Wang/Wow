@@ -541,10 +541,8 @@ export const TOKENS = [
   { name: 'workbench-min-height', ...LAYOUT, kind: 'length' },
 ] as const satisfies readonly TokenEntry[];
 
-type Entry = (typeof TOKENS)[number];
-
 /** A registered token's name. */
-export type TokenName = Entry['name'];
+export type TokenName = (typeof TOKENS)[number]['name'];
 
 /**
  * Every host variable of the contract: `--fve-<token>`, and
@@ -552,7 +550,8 @@ export type TokenName = Entry['name'];
  * `:root`, any ancestor, or one surface.
  */
 export type FveToken =
-  `--fve-${TokenName}` | `--fve-dark-${Extract<Entry, { modes: 2 }>['name']}`;
+  | `--fve-${TokenName}`
+  | `--fve-dark-${Extract<(typeof TOKENS)[number], { modes: 2 }>['name']}`;
 
 /** The variables one entry is written through in a layer, light first. */
 const layer = (prefix: string, entry: TokenEntry) =>
@@ -600,6 +599,18 @@ export const THEME_AXES = [
   // (ui/theme.md「品牌色是输入，不是预设」, S4); absent, it is the preset's.
   { name: 'brand-chart', attributes: ['data-fve-brand-chart'] },
 ] as const;
+
+/**
+ * The token classes: the only classes of the stylesheet that are public
+ * (D66, second-round review R2-86). Every other `fve:` utility is the
+ * engine's own, kept in the stylesheet only while a component writes it,
+ * and changes in any release; a host's chrome reads the theme through the
+ * tokens instead. `canvas` has no shadcn name for a host's own Tailwind
+ * to map, so its ground is offered as a class, kept in the stylesheet by
+ * `@source inline` in `styles.css` and held there by
+ * `scripts/verify-package.mjs`.
+ */
+export const TOKEN_CLASSES: readonly string[] = ['fve:bg-canvas'];
 
 /**
  * Every attribute a chart watches to know its theme moved: the axes', and

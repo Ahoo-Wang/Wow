@@ -467,7 +467,7 @@ The five are `--fve-table-header-height`, `--fve-table-cell-padding-block` and `
 | `shadow-sm`                     | The low lift: a raised card                                                                                                                                                                           | Tailwind's `shadow-sm`                                | the same                          |
 | `shadow-md`                     | The middle lift: a popup                                                                                                                                                                              | Tailwind's `shadow-md`                                | the same                          |
 | `shadow-lg`                     | The high lift: a dragged panel                                                                                                                                                                        | Tailwind's `shadow-lg`                                | the same                          |
-| `canvas`                        | The grouped ground a board and a host's card-laid page stand on (`fve:bg-canvas`)                                                                                                                     | `background`                                          | `background`                      |
+| `canvas`                        | The grouped ground a board and a host's card-laid page stand on (the token class `fve:bg-canvas`)                                                                                                     | `background`                                          | `background`                      |
 | `content`                       | The ground rows and a result are written on                                                                                                                                                           | `background`                                          | `background`                      |
 | `card-edge`                     | The ring round a card: a board panel, a record card                                                                                                                                                   | `foreground` at 10%                                   | the same                          |
 | `card-shadow`                   | A card's lift off what it sits on                                                                                                                                                                     | `0 0 #0000`                                           | `0 0 #0000`                       |
@@ -597,17 +597,17 @@ It is one of ten host variables that are lengths and levels of the layout rather
 
 ## Your own chrome: `fve-tokens`
 
-Every rule of the stylesheet is scoped at build time, so the theme's tokens and even the layout utilities (`grid`, `gap-4`, `bg-background`) paint inside a style boundary and nowhere else. There are two boundaries, and only one of them is a surface:
+Every rule of the stylesheet is scoped at build time, so the theme's tokens, and the utilities the engine draws with, paint inside a style boundary and nowhere else. There are two boundaries, and only one of them is a surface:
 
 |                                       | `.fve-root`                                                  | `.fve-tokens`                                                            |
 | ------------------------------------- | ------------------------------------------------------------ | ------------------------------------------------------------------------ |
 | Rendered by                           | `ViewSurface`, and every workbench and embed                 | your own markup                                                          |
 | Tokens, utilities, preflight          | yes                                                          | yes                                                                      |
-| Paints a background and a text colour | yes                                                          | **no** — write `bg-background text-foreground` yourself if you want ours |
+| Paints a background and a text colour | yes                                                          | **no** — paint `var(--background)` and `var(--foreground)` yourself     |
 | Light or dark                         | a `.dark` ancestor, or `theme` pinning one with `data-theme` | a `.dark` ancestor, and nothing else                                     |
 | Wording, locale, time zone, tooltips  | yes, through `ViewSurface`'s props                           | no                                                                       |
 
-**What `fve-tokens` promises is the tokens and the utilities — the engine's, written with its prefix, `fve:flex` — not components.** The shadcn primitives this package renders with are vendored, updated with `shadcn add --diff`, and not part of its public surface — so build your chrome from your own components, or from your own copy of shadcn/ui, and let the boundary give them this theme's colours and spacing:
+**What `fve-tokens` promises is the tokens, not the utilities and not components.** Inside the boundary the theme's tokens are declared under their shadcn names — `--background`, `--foreground`, `--card`, `--card-foreground`, `--primary`, `--muted`, `--border`, `--radius` and the rest — resolved for the preset, your overrides and the mode. Your own Tailwind theme maps them the way shadcn/ui's does (`--color-card: var(--card)`), so your own classes (`bg-card`) and your own copy of shadcn/ui wear this theme there; plain CSS reads them with `var(--card)`. The engine's `fve:` utilities are its own: the stylesheet holds one only while a component of the engine writes it, so one that works today can be gone in the next release. The shadcn primitives this package renders with are vendored, updated with `shadcn add --diff`, and not public either — so build your chrome from your own components and classes, and let the boundary give them this theme's colours:
 
 <!-- typecheck-context
 import { ViewEngine } from '@ahoo-wang/wow-view-engine';
@@ -617,17 +617,30 @@ declare const id: string;
 -->
 
 ```tsx
-<div className="fve-tokens fve:flex fve:flex-col fve:gap-4">
-  <header className="fve:flex fve:items-center fve:gap-2 fve:rounded-lg fve:border fve:bg-card fve:p-4 fve:text-card-foreground">
-    …your own header, wearing this theme's tokens…
+<div className="fve-tokens flex flex-col gap-4">
+  <header className="flex items-center gap-2 rounded-lg border bg-card p-4 text-card-foreground">
+    …your own header, your own classes, this theme's tokens…
   </header>
   <EmbeddedView engine={engine} instanceId={id} theme="light" />
 </div>
 ```
 
-`fve-tokens` reads exactly one thing for the mode: a `.dark` class on an ancestor, the same one the surfaces follow — set it on `<html>`, on your app shell, wherever your application already keeps it. It reads no `data-theme` of its own: pinning a mode is what a surface is for. And it hands every element a surface answers for back to that surface, so the view above stays light inside a dark page, tokens and utilities together.
+One class is offered as a token: `fve:bg-canvas`, the grouped ground of a board (`canvas`), which has no shadcn name to map. A page of cards that a board sits on paints itself with it, so the page and the board are one ground. It is the only class of the stylesheet that is public.
 
-Preflight applies inside the boundary too: your own headings, lists and buttons in that region are reset the same way they would be inside a view. That is the price of the utilities, and it is why the class goes on the chrome that uses them rather than on the whole page.
+### What is public
+
+What a host may rely on, release to release, is this — a change to any of it is a breaking change:
+
+- the variables: `--fve-*` and `--fve-dark-*` that you write, `--fvp-*` and `--fvp-dark-*` that a preset writes ([Every variable](#every-variable)), and the shadcn-named tokens the two boundaries declare for you to read;
+- the attributes the theme reads: `data-fve-preset`, `data-fve-density`, `data-fve-change-colors`, `data-fve-brand-chart`, and `data-theme` on a surface;
+- the two boundaries, `.fve-root` and `.fve-tokens`, and the `.dark` class the mode follows;
+- the token class `fve:bg-canvas`.
+
+Everything else is the engine's and changes without notice: every other `fve:` class, the `data-slot` attributes on its elements, its other class names, the `--_fve-*` variables, and the DOM it renders — its elements, their order and their nesting. Do not select on them; a rule that does may stop matching in any release.
+
+`fve-tokens` reads exactly one thing for the mode: a `.dark` class on an ancestor, the same one the surfaces follow — set it on `<html>`, on your app shell, wherever your application already keeps it. It reads no `data-theme` of its own: pinning a mode is what a surface is for. And it hands every element a surface answers for back to that surface, so the view above stays light inside a dark page, every token of it.
+
+Preflight applies inside the boundary too: your own headings, lists and buttons in that region are reset the same way they would be inside a view. That is the price of the boundary, and it is why the class goes on the chrome that reads the tokens rather than on the whole page.
 
 A popup of your own leaves the shell for `<body>`, so its portal wears the class too — `<Menu.Portal className="fve-tokens">` — as the engine's own popups carry their surface's theme.
 

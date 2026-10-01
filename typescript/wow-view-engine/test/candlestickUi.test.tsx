@@ -158,7 +158,7 @@ async function open(
       engine={engine}
       definitionId="orders"
       instanceId="trades-1"
-      kinds={['analysis']}
+      viewKinds={['analysis']}
     />,
   );
   return {

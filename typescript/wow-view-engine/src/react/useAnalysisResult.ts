@@ -28,7 +28,7 @@ import {
   switchChartType,
   withStagesFrom,
   type AnalysisColumnView,
-  type AnalysisView,
+  type AnalysisProjection,
   type ChartData,
   type ChartFit,
   type Picked,
@@ -134,7 +134,7 @@ export interface FollowUp {
 
 export interface AnalysisResultController {
   /** The rows on screen, or null while there are none of an analysis. */
-  view: AnalysisView | null;
+  view: AnalysisProjection | null;
   /** The config those rows ran on: what a chart and a follow-up address. */
   ran: AnalysisViewConfig | undefined;
   /**
@@ -150,7 +150,7 @@ export interface AnalysisResultController {
   /**
    * Every column of that question, as the result names them — the rows' own
    * schema, or the same projection over no rows while none have landed —
-   * and the ones the table draws, in its order (`AnalysisView.columns`).
+   * and the ones the table draws, in its order (`AnalysisProjection.columns`).
    * Both empty while nothing has been asked. The toolbar reads the first
    * out; a skeleton standing in for the table draws a bar per the second.
    */
@@ -224,7 +224,7 @@ export function useAnalysisResult(
 ): AnalysisResultController {
   const result = workbench.state?.result;
   const data = result?.data;
-  const view: AnalysisView | null =
+  const view: AnalysisProjection | null =
     data?.kind === 'analysis' ? data.view : null;
   const ran = result?.config.kind === 'analysis' ? result.config : undefined;
   // Before the first answer, the question itself. A query that was sent was
@@ -238,7 +238,7 @@ export function useAnalysisResult(
       : undefined;
   const question = ran ?? asked;
   const definition = runtime?.definition;
-  const shape = useMemo<Pick<AnalysisView, 'columns' | 'schema'> | null>(
+  const shape = useMemo<Pick<AnalysisProjection, 'columns' | 'schema'> | null>(
     () =>
       view ??
       (asked && definition

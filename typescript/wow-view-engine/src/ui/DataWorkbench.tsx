@@ -59,9 +59,10 @@ export interface DataWorkbenchProps {
    * record views and its analysis views in one list, and the user switches
    * between them as between any two views. A host that wants a page of one
    * kind names that one (D9), which is a real narrowing — the other kind is
-   * neither listed nor openable there.
+   * neither listed nor openable there. `viewKinds`, not `kinds`: the
+   * engine's `kinds` is its field-kind registry.
    */
-  kinds?: readonly DataViewKind[];
+  viewKinds?: readonly DataViewKind[];
   /**
    * Which view is open, as `value` is on an input: leaving it out lets the
    * workbench own it from the effective default on, and passing it — a
@@ -194,7 +195,7 @@ function useBoundRecord(
   }, [binding, given]);
 }
 
-/** What the workbench draws when the host names no kinds. */
+/** What the workbench draws when the host names no `viewKinds`. */
 const DATA_KINDS: readonly DataViewKind[] = ['record', 'analysis'];
 
 /**
@@ -224,7 +225,7 @@ export function DataWorkbench(props: DataWorkbenchProps) {
 function DataWorkbenchSurface({
   engine: own,
   definitionId,
-  kinds = DATA_KINDS,
+  viewKinds: kinds = DATA_KINDS,
   instanceId,
   onInstanceChange,
   handOver,

@@ -32,7 +32,8 @@ import {
   type ViewSource,
 } from '../src/index.js';
 import { useAnalysisEditor, useOpenView } from '../src/react/index.js';
-import { DataWorkbench, defaultMessages } from '../src/ui/index.js';
+import { DataWorkbench } from '../src/ui/index.js';
+import { defaultMessages } from '../src/ui/kit/messages.js';
 import {
   analysisConfig,
   ordersDefinition,
@@ -89,7 +90,7 @@ async function open(instance?: ViewInstance, answer?: ViewSource) {
       engine={engine}
       definitionId="orders"
       instanceId="orders-1"
-      kinds={['analysis']}
+      viewKinds={['analysis']}
     />,
   );
   await waitFor(() => expect(screen.getByRole('table')).toBeDefined());
@@ -608,7 +609,7 @@ describe('a funnel is offered where it draws', () => {
         engine={engine}
         definitionId="orders"
         instanceId="orders-1"
-        kinds={['analysis']}
+        viewKinds={['analysis']}
       />,
     );
 
@@ -639,7 +640,7 @@ describe('a funnel is offered where it draws', () => {
         engine={engine}
         definitionId="orders"
         instanceId="orders-1"
-        kinds={['analysis']}
+        viewKinds={['analysis']}
       />,
     );
 

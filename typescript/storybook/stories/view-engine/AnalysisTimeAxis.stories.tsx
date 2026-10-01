@@ -185,7 +185,7 @@ function TimeAxisDemo({
             definitionId={definition.id}
             instanceId={view.id}
             {...HOST_LANGUAGE}
-            kinds={['analysis']}
+            viewKinds={['analysis']}
           />
         )}
       </StoryEngine>

@@ -79,7 +79,7 @@ expect(admit([failures], descriptors, { text })).toEqual([
 
 ## What a finding asks you to revisit
 
-Each finding has a `code`, `params`, a `path` into the definition and the `definition` it is about. The message catalogue (`defaultMessages`, `zhCN` in `@ahoo-wang/wow-view-engine/ui`) words every code.
+Each finding has a `code`, `params`, a `path` into the definition and the `definition` it is about. The message catalogues (`en`, `zhCN` in `@ahoo-wang/wow-view-engine/ui`) words every code.
 
 | Finding | Revisit |
 | --- | --- |

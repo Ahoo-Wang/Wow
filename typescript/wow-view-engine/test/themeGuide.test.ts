@@ -293,6 +293,27 @@ describe('the variables the theming pages name', () => {
   });
 });
 
+describe('the classes the theming pages write', () => {
+  /**
+   * The stylesheet's utilities are the engine's own (R2-86, D66): one is
+   * there only while a component writes it, so a sample that puts
+   * `fve:gap-4` on a host's markup teaches a class that can vanish in a
+   * patch. A sample writes the host's own classes and reads the tokens;
+   * the token classes are the only `fve:` classes it may name.
+   */
+  it('name no fve: class but a token class', () => {
+    const written = pages.flatMap(({ samples }) =>
+      samples.flatMap(({ at, code }) =>
+        [...code.matchAll(/(?<![\w-])fve:[\w:/.[\]-]+/g)]
+          .map(([name]) => name)
+          .filter(name => !REGISTRY.tokenClasses.includes(name))
+          .map(name => `${at} → ${name}`),
+      ),
+    );
+    expect(written).toEqual([]);
+  });
+});
+
 describe('the theming guide', () => {
   const roles = ENTRIES.filter(entry => entry.tier === 'role').map(
     entry => entry.name,

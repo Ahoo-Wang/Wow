@@ -78,9 +78,12 @@
 @source "./";
 
 /*
- * Offered to a host's chrome though nothing here writes it as a class: the
- * grouped ground a host paints its own card-laid page with, inside the
- * tokens boundary, so the page and the board on it are one ground.
+ * The token classes (`TOKEN_CLASSES` in `ui/theme/tokens.ts`), the only
+ * classes here a host may write: kept whether or not a component writes
+ * them. `fve:bg-canvas` is the grouped ground a host paints its own
+ * card-laid page with, inside the tokens boundary, so the page and the
+ * board on it are one ground. Every other utility is the engine's own,
+ * here only while a component writes it (D66).
  */
 @source inline("fve:bg-canvas");
 

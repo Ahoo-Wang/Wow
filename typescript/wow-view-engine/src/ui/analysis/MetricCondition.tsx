@@ -21,10 +21,8 @@ import type {
   Issue,
   IssuePath,
 } from '../../model/index.js';
-import {
-  treeController,
-  type AnalysisEditorController,
-} from '../../react/index.js';
+import type { AnalysisEditorController } from '../../react/index.js';
+import { treeController } from '../../react/useFilterEditor.js';
 import { cn } from 'cn';
 import { Button } from '../components/button.js';
 import { GroupBlock } from '../filter/GroupBlock.js';

@@ -106,7 +106,7 @@ function derivedKey(
 /**
  * Why `derived` cannot be drawn over `data`, or `undefined` when it can.
  * `cutShort` is whether the rows are the first groups of more
- * (`AnalysisView.truncated` or `atLimit`). The reasons are checked in the
+ * (`AnalysisProjection.truncated` or `atLimit`). The reasons are checked in the
  * order a reader fixes them: the chart's shape first, then the question,
  * then what came back.
  */

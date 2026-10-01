@@ -210,7 +210,7 @@ export interface RecordCardView {
   perRow?: 1 | 2 | 3 | 4;
 }
 
-export interface RecordView {
+export interface RecordProjection {
   columns: RecordColumnView[];
   /** The same result's card layout; both halves are saved side by side. */
   card: RecordCardView;
@@ -380,7 +380,7 @@ function isCursorPage(
 function drawnParts(
   definition: DataViewDefinition,
   config: RecordViewConfig,
-): Pick<RecordView, 'columns' | 'card'> & { rowKey: string } {
+): Pick<RecordProjection, 'columns' | 'card'> & { rowKey: string } {
   const rowKey = definition.record?.rowKey;
   if (!rowKey)
     throw new Error(
@@ -446,8 +446,8 @@ function drawnParts(
 export function restyleRecord(
   definition: DataViewDefinition,
   config: RecordViewConfig,
-  view: RecordView,
-): RecordView {
+  view: RecordProjection,
+): RecordProjection {
   const { columns, card } = drawnParts(definition, config);
   return { ...view, columns, card };
 }
@@ -463,7 +463,7 @@ export function projectRecord(
   page: PagedList<RecordData> | CursorPage<RecordData>,
   pageIndex = 1,
   limits: Pick<RuntimeLimits, 'maxPageWindow'> = DEFAULT_RUNTIME_LIMITS,
-): RecordView {
+): RecordProjection {
   const { columns, card, rowKey } = drawnParts(definition, config);
   const rows = page.list.map(data => ({
     key: readPath(data, rowKey) as RecordKey,

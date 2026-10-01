@@ -47,11 +47,8 @@ import {
   type DataViewDefinition,
   type ViewInstance,
 } from '../src/index.js';
-import {
-  DashboardWorkbench,
-  ViewSurface,
-  defaultMessages,
-} from '../src/ui/index.js';
+import { DashboardWorkbench, ViewSurface } from '../src/ui/index.js';
+import { defaultMessages } from '../src/ui/kit/messages.js';
 
 const OWN = defaultMessages['label.filters.date-own'];
 import { DateValue } from '../src/ui/filter/inputs/date.js';

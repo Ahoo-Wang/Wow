@@ -19,7 +19,7 @@ import {
   within,
 } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { AnalysisView } from '../src/index.js';
+import type { AnalysisProjection } from '../src/index.js';
 import { AnalysisTable, ViewSurface, zhCN } from '../src/ui/index.js';
 import { columnWidthOf } from '../src/ui/analysis/tableColumns.js';
 import { describedText } from './fixtures/ui.js';
@@ -27,7 +27,7 @@ import { describedText } from './fixtures/ui.js';
 afterEach(cleanup);
 
 describe('AnalysisTable', () => {
-  const view: AnalysisView = {
+  const view: AnalysisProjection = {
     columns: [
       { alias: 'warehouse', label: 'Warehouse', role: 'group' },
       {
@@ -188,7 +188,7 @@ describe('AnalysisTable', () => {
  * apart, and the alias is not a word anybody chose.
  */
 describe('an analysis column header', () => {
-  const view: AnalysisView = {
+  const view: AnalysisProjection = {
     columns: [
       { alias: 'wh', label: 'Warehouse', role: 'group' },
       { alias: 'm1', label: 'Amount', role: 'metric', fn: 'SUM' },
@@ -282,7 +282,7 @@ describe('an analysis number', () => {
  * 「the tray’s metric cards」 — and only the first two are on this table.
  */
 describe('the three readings a result says out loud', () => {
-  const view: AnalysisView = {
+  const view: AnalysisProjection = {
     columns: [
       { alias: 'wh', label: 'Warehouse', role: 'group' },
       { alias: 'p95', label: 'Latency', role: 'metric', fn: 'PERCENTILE' },
@@ -361,7 +361,7 @@ describe('the three readings a result says out loud', () => {
  * leaving the result had to walk one group at a time.
  */
 describe('the result rows are one tab stop', () => {
-  const view: AnalysisView = {
+  const view: AnalysisProjection = {
     columns: [
       { alias: 'warehouse', label: 'Warehouse', role: 'group' },
       { alias: 'orders', label: 'Orders', role: 'metric' },
@@ -449,7 +449,7 @@ describe('the result rows are one tab stop', () => {
  * measured in the browser (`AnalysisWorkbench` 回归 `TableReadsLikeATable`).
  */
 describe('an analysis number reads from the right', () => {
-  const view: AnalysisView = {
+  const view: AnalysisProjection = {
     columns: [
       { alias: 'wh', label: 'Warehouse', role: 'group' },
       { alias: 'total', label: 'Amount', role: 'metric', fn: 'SUM' },
@@ -543,12 +543,12 @@ describe('an identifier dimension', () => {
  * (`tableColumns.ts`) — and the rows do not enter into it.
  */
 describe('an analysis column keeps its width', () => {
-  const columns: AnalysisView['columns'] = [
+  const columns: AnalysisProjection['columns'] = [
     { alias: 'wh', label: 'Warehouse', role: 'group' },
     { alias: 'orders', label: 'Orders', role: 'metric', fn: 'COUNT' },
     { alias: 'total', label: 'Amount', role: 'metric', fn: 'SUM', width: 120 },
   ];
-  const first: AnalysisView = {
+  const first: AnalysisProjection = {
     columns,
     rows: [{ wh: 'CN', orders: 2, total: 30 }],
     truncated: false,
@@ -659,7 +659,7 @@ describe('an analysis column keeps its width', () => {
  * The cycle and the run are pinned in `test/analysisTableSort.test.tsx`.
  */
 describe('an analysis header that sorts', () => {
-  const view: AnalysisView = {
+  const view: AnalysisProjection = {
     columns: [
       { alias: 'wh', label: 'Warehouse', role: 'group' },
       { alias: 'p95', label: 'Latency', role: 'metric', fn: 'PERCENTILE' },

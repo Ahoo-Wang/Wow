@@ -25,7 +25,6 @@ import {
 import { describe, expect, it } from 'vitest';
 import {
   DASHBOARD_GRID_COLUMNS,
-  LEGACY_GRID_COLUMNS,
   MAX_DASHBOARD_TABS,
   MAX_HEADING_LENGTH,
   addPanel,
@@ -36,9 +35,7 @@ import {
   duplicatePanel,
   editContent,
   emptyDashboardConfig,
-  freshId,
   isOwnedPanel,
-  migrateDashboardConfig,
   movePanelToTab,
   moveTab,
   panelTab,
@@ -58,6 +55,9 @@ import {
   type Issue,
   type PanelDefinition,
 } from '../src/index.js';
+import { migrateDashboardConfig } from '../src/dashboard/migrate.js';
+import { freshId } from '../src/dashboard/panels.js';
+import { LEGACY_GRID_COLUMNS } from '../src/model/dashboard.js';
 import {
   analysisConfig,
   dashboardConfig,

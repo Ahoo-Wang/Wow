@@ -43,12 +43,12 @@ import { useAutoRefresh, type RefreshController } from '../src/react/index.js';
 import {
   DataWorkbench,
   DashboardWorkbench,
-  defaultMessages,
   MessagesProvider,
   RefreshControl,
   ViewSurface,
   zhCN,
 } from '../src/ui/index.js';
+import { defaultMessages } from '../src/ui/kit/messages.js';
 import {
   analysisConfig,
   dashboardConfig,
@@ -864,7 +864,7 @@ describe('every workbench offers the interval', () => {
           engine={engine}
           definitionId="orders"
           instanceId="analysis-1"
-          kinds={['analysis']}
+          viewKinds={['analysis']}
         />
       </ViewSurface>,
     );

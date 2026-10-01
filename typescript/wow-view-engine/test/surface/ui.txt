@@ -1,4 +1,4 @@
-# @ahoo-wang/wow-view-engine/ui — 235 names, from src/ui/index.ts.
+# @ahoo-wang/wow-view-engine/ui — 248 names, from src/ui/index.ts.
 # Written by test/publicSurface.test.ts; a change here is a change to
 # the public surface (README「Entries」, docs/design/decisions.md D29).
 value AUDIENCE_ICON
@@ -17,6 +17,7 @@ type  BoardFilterModes
 type  BuiltInPreset
 type  CellField
 type  CellSurface
+type  ChartImageSlot
 type  ChartMapGeoJson
 type  ChartMapSource
 type  ColorMode
@@ -25,6 +26,7 @@ value ColumnSettings
 type  ColumnSettingsProps
 value ContentPanel
 type  ContentPanelProps
+type  ControlChromeProps
 type  DashboardEditExtensions
 value DashboardEditExtensionsContext
 type  DashboardExtensionsOptions
@@ -40,15 +42,20 @@ type  DashboardWorkbenchProps
 type  DataViewKind
 value DataWorkbench
 type  DataWorkbenchProps
+type  DetachedDialog
+type  DetachedPopover
+type  DialogHandle
 type  DisplayContext
 type  DisplayField
-type  DownloadedFile
+type  EditingCommands
 value EditorBand
 type  EditorBandProps
 value EditorBandToggle
 type  EditorBandToggleProps
 value EditorFold
 type  EditorFoldProps
+type  ElementField
+type  ElementTitleField
 type  EmbedBaseProps
 type  EmbedInteraction
 type  EmbedSize
@@ -56,6 +63,7 @@ value EmbeddedDashboard
 type  EmbeddedDashboardProps
 value EmbeddedView
 type  EmbeddedViewProps
+type  EmptyWayOut
 value ErrorStrip
 type  ErrorStripProps
 value ExportButton
@@ -68,7 +76,11 @@ value FilterPanel
 type  FilterPanelProps
 value FilterValueEditor
 type  FilterValueEditorProps
+type  FinalFocus
 type  FveToken
+type  HandleMove
+type  HeaderSorting
+type  HeadingLevel
 value HeadingPanel
 type  HeadingPanelProps
 type  HostColorMode
@@ -76,10 +88,10 @@ value ImagePanel
 type  ImagePanelProps
 type  IssueStripProps
 value KIND_ICON
-value LAYOUT_LABEL
 value LeaveDialog
 type  LeaveDialogProps
 value LineAlert
+type  LineAlertFrame
 type  LineAlertProps
 value LinksPanel
 type  LinksPanelProps
@@ -87,9 +99,9 @@ value MarkdownPanel
 type  MarkdownPanelProps
 type  MessageFormatters
 type  MessageKey
+type  MessageOverrides
 value MessagesProvider
 type  MessagesProviderProps
-value NO_PARTS
 type  NewAnalysis
 value NewAnalysisDialog
 type  NewAnalysisDialogProps
@@ -99,6 +111,8 @@ value NewViewControl
 value NewViewItem
 value NoteStrip
 value NumberInput
+type  OnPick
+type  PanelCommands
 value PanelGridItem
 type  PanelGridItemProps
 value PanelHandle
@@ -106,8 +120,11 @@ type  PanelHandleProps
 type  PanelHeadingLevel
 value PanelOrder
 type  PanelOrderProps
+type  PanelPress
 value PanelResizeHandle
 type  PanelResizeHandleProps
+type  PickAnchor
+type  PopoverHandle
 value PresentationDialog
 type  PresentationDialogProps
 value QueryStrip
@@ -118,6 +135,7 @@ type  RecordCell
 type  RecordDetailOptions
 value RecordPagination
 type  RecordPaginationProps
+type  RecordPanelHost
 value RecordParts
 type  RecordPartsProps
 value RecordTable
@@ -125,6 +143,7 @@ type  RecordTableProps
 type  RecordViewProps
 value RefreshControl
 type  RefreshControlProps
+type  ReleasedPins
 value RenderBoundary
 type  RenderBoundaryName
 type  RenderBoundaryProps
@@ -146,6 +165,7 @@ type  SaveAsCommands
 value SaveAsDialog
 type  SaveAsDialogProps
 type  Say
+type  SelectionContext
 value SharedSaveConfirm
 type  SortOwner
 value SortSettings
@@ -154,6 +174,7 @@ value StatusStrip
 type  StatusStripProps
 value SurfaceKind
 value TONE_ICON
+type  TokenName
 value UnsavedMark
 type  ViewBinding
 type  ViewBindingOptions
@@ -187,6 +208,7 @@ value ViewSwitcher
 type  ViewSwitcherProps
 type  ViewTheme
 type  ViewWriteCallbacks
+type  ViewingCommands
 value WarningStrip
 type  WorkbenchFeatures
 type  WorkbenchLandmark
@@ -198,14 +220,9 @@ type  WriteOutcomeProps
 value bind
 value cellText
 value cellValue
-value crossesBoundary
 value dedupeIssues
-value defaultMessages
-value describeConfig
 value displayValue
-value downloadFile
 value en
-value featuresOf
 value fileName
 value formatIssue
 value formatIssues
@@ -213,11 +230,7 @@ value formatMessage
 value keptKey
 value kindIssue
 value kindWord
-value leavesEditor
-value panelName
-value panelNames
 value registerChartMap
-value tabTitle
 value useColorMode
 value useDashboardEditExtensions
 value useDashboardExtensions

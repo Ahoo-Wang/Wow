@@ -161,7 +161,7 @@ describe('the record workbench’s status line', () => {
         engine={engine}
         definitionId="orders"
         instanceId="mine"
-        kinds={['record']}
+        viewKinds={['record']}
       />,
     );
     const line = await screen.findByText(/cannot be sorted on/);

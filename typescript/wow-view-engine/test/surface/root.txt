@@ -1,4 +1,4 @@
-# @ahoo-wang/wow-view-engine — 849 names, from src/index.ts.
+# @ahoo-wang/wow-view-engine — 848 names, from src/index.ts.
 # Written by test/publicSurface.test.ts; a change here is a change to
 # the public surface (README「Entries」, docs/design/decisions.md D29).
 value ALWAYS_VISIBLE
@@ -14,6 +14,8 @@ type  ActionForm
 type  ActionFormField
 type  ActionInput
 type  ActionPlace
+type  ActionRefusal
+type  ActionRow
 type  ActionTone
 type  AggregationFieldCapability
 type  AnalysisCapability
@@ -36,12 +38,12 @@ type  AnalysisLimitBounds
 type  AnalysisLimits
 type  AnalysisMetric
 type  AnalysisNamed
+type  AnalysisProjection
 type  AnalysisScope
 type  AnalysisScopeElement
 type  AnalysisSort
 type  AnalysisSpec
 type  AnalysisTableSpec
-type  AnalysisView
 type  AnalysisViewConfig
 type  AnyViewRuntime
 type  ArrangeStep
@@ -142,6 +144,7 @@ type  DashboardTarget
 type  DashboardTimeGrouping
 type  DashboardViewConfig
 type  DashboardViewPanel
+type  DashboardViewPanelBase
 type  DashboardWidth
 type  DataPanelSource
 type  DataViewConfig
@@ -157,6 +160,7 @@ type  DefineViewOptions
 type  DefineViewSpec
 type  DefinitionDescribed
 type  DefinitionFor
+type  DefinitionLookup
 type  DefinitionNarrowing
 type  DerivedFormat
 type  DerivedGap
@@ -179,6 +183,7 @@ type  EditStep
 type  EditorDescriptor
 type  EditorInput
 type  ElementTitleView
+type  EngineResources
 type  EnumFilterValue
 type  EpochTemporal
 type  EpochTimeUnit
@@ -253,7 +258,6 @@ type  Issue
 type  IssuePath
 type  IssueSeverity
 type  JsonValue
-value LEGACY_GRID_COLUMNS
 type  LiteralEnums
 type  LocalStorageSnapshotOptions
 value MAX_CHART_LEVELS
@@ -288,6 +292,8 @@ type  MetricCondition
 type  MetricFacts
 type  MetricFunction
 type  MetricHeadline
+type  MetricMove
+type  MetricMoveStop
 type  MetricPeriod
 type  MetricTrend
 value NUMERIC_TYPES
@@ -305,6 +311,7 @@ value OPERATOR_SIGN
 type  OpenCapabilities
 type  OpenOptions
 type  OptionSource
+type  OptionSpec
 type  OptionsTab
 type  OrderStep
 type  OwnedView
@@ -357,11 +364,11 @@ type  RecordKey
 type  RecordLayout
 type  RecordPageTarget
 type  RecordPaging
+type  RecordProjection
 type  RecordRow
 type  RecordSort
 type  RecordSummary
 type  RecordTableSpec
-type  RecordView
 type  RecordViewConfig
 type  RecordViewRuntime
 type  ReferenceBand
@@ -375,6 +382,7 @@ type  RelativeDateDirection
 type  RelativeDateTimeValue
 type  RelativeDateUnit
 type  Rescoped
+type  ResourceHost
 type  RiverStream
 type  RowMoneyNumeric
 type  RuntimeEnvironment
@@ -596,7 +604,6 @@ value formulaFormat
 value formulaMetric
 value freeAlias
 value freeSpot
-value freshId
 value groupFacts
 value groupFieldsOf
 value groupFor
@@ -632,19 +639,15 @@ value isFilterGroup
 value isFilterGroupOperator
 value isFilterLeaf
 value isFilterNode
-value isFiniteNumber
 value isFormula
 value isGroupItem
 value isKnownEditorInput
 value isNegation
-value isNonBlankString
-value isNonEmptyString
 value isNumberRange
 value isOneDayValue
 value isOrderedRange
 value isOwnedPanel
 value isPercentStacked
-value isPlainObject
 value isPresenceOperator
 value isPresentationMember
 value isRecordRuntime
@@ -684,7 +687,6 @@ value metricMeasures
 value metricOfSummary
 value metricReferenceText
 value metricWithCondition
-value migrateDashboardConfig
 value momentColumns
 value momentMetrics
 value moveFilter
@@ -704,7 +706,6 @@ value offersStacking
 value operatorsOf
 value optionTabs
 value outOfScopeNames
-value overlaid
 value overlaps
 value pageAfterShrink
 value pageSummaries
@@ -763,7 +764,6 @@ value rowCurrency
 value sameFilterNode
 value sameFilterTree
 value sameFilterType
-value sameJson
 value say
 value scopePrefix
 value searchFieldKind
@@ -846,7 +846,6 @@ value withStacked
 value withStageOrder
 value withStagesFrom
 value withText
-value without
 value withoutLevelsFrom
 value wordReferences
 value writeValue

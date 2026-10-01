@@ -40,6 +40,23 @@ const BRIDGE = fileURLToPath(
 );
 const SOURCE = fileURLToPath(new URL('./src', import.meta.url));
 
+const MANIFEST = JSON.parse(
+  readFileSync(new URL('./package.json', import.meta.url), 'utf8'),
+) as {
+  dependencies: Record<string, string>;
+  peerDependencies: Record<string, string>;
+};
+/** The packages a host installs beside this one: never bundled. */
+const EXTERNAL = new Set([
+  ...Object.keys(MANIFEST.dependencies),
+  ...Object.keys(MANIFEST.peerDependencies),
+]);
+/** The package a bare specifier names (`@scope/name/sub` → `@scope/name`). */
+function packageOf(id: string): string {
+  const parts = id.split('/');
+  return id.startsWith('@') ? parts.slice(0, 2).join('/') : parts[0];
+}
+
 /**
  * The theme's registry as JSON (`dist/theme-tokens.json`, theme-architecture.md
  * 5.2, D46 Q13): the contract's machine form, shipped beside the stylesheets
@@ -94,7 +111,21 @@ export default defineConfig({
     tailwindcss(),
     react(),
     babel({ presets: [reactCompilerPreset()] }),
-    dts({ tsconfigPath: './tsconfig.json' }),
+    dts({
+      tsconfigPath: './tsconfig.json',
+      // The vendored components import each other through the registry's
+      // `@/ui/components/<name>` alias, which the declarations get as a
+      // relative path with no extension — an error for a host under
+      // node16 / nodenext resolution. Every relative specifier ends in
+      // `.js`, as the package's own sources write it (verify-package 17).
+      beforeWriteFile: (filePath, content) => ({
+        filePath,
+        content: content.replace(
+          /(\bfrom\s+['"])(\.{1,2}\/[^'"]+?)(?<!\.js)(['"])/g,
+          '$1$2.js$3',
+        ),
+      }),
+    }),
     optionalStylesheets(),
   ],
   // Tailwind compiles ahead of PostCSS, so this sees the utilities it emitted
@@ -117,8 +148,11 @@ export default defineConfig({
       cssFileName: 'styles',
     },
     rolldownOptions: {
-      external:
-        /^(react|react-dom|react-grid-layout|react-markdown|react-day-picker|@base-ui\/react|@ahoo-wang\/wow-client|lucide-react|class-variance-authority|clsx|tailwind-merge|echarts|zrender|mingo|react-router)(\/|$)/,
+      // Every package the manifest names, as a dependency or a peer, stays
+      // external, so a host installs one copy and dedupes it with its own;
+      // nothing the manifest names is ever inlined as well
+      // (`scripts/verify-package.mjs` 15).
+      external: id => EXTERNAL.has(packageOf(id)),
     },
   },
 });

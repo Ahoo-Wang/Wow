@@ -518,7 +518,7 @@ export function TableDisplay({
   totals: boolean;
   /**
    * The question has no dimension: its one row is every record in the
-   * range, so there is no totals row to draw (`AnalysisView.totals`). The
+   * range, so there is no totals row to draw (`AnalysisProjection.totals`). The
    * box stays, greyed and saying why, because the choice comes back with
    * the first dimension.
    */

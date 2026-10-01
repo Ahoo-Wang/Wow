@@ -33,7 +33,8 @@ import {
   type ViewSource,
 } from '../src/index.js';
 import { useAnalysisEditor, useOpenView } from '../src/react/index.js';
-import { DataWorkbench, defaultMessages } from '../src/ui/index.js';
+import { DataWorkbench } from '../src/ui/index.js';
+import { defaultMessages } from '../src/ui/kit/messages.js';
 import {
   DRAWN,
   ZONE,
@@ -318,7 +319,7 @@ describe('DataWorkbench', () => {
         engine={harness.engine}
         definitionId="orders"
         instanceId="orders-1"
-        kinds={['analysis']}
+        viewKinds={['analysis']}
       />,
     );
     await waitFor(() => expect(screen.getByRole('table')).toBeDefined());
@@ -353,7 +354,7 @@ describe('DataWorkbench', () => {
         engine={engine}
         definitionId="orders"
         instanceId="orders-1"
-        kinds={['analysis']}
+        viewKinds={['analysis']}
       />,
     );
 
@@ -383,7 +384,7 @@ describe('DataWorkbench', () => {
         engine={engine}
         definitionId="orders"
         instanceId="orders-1"
-        kinds={['analysis']}
+        viewKinds={['analysis']}
       />,
     );
     await waitFor(() => expect(screen.getByRole('table')).toBeDefined());
@@ -470,7 +471,7 @@ describe('DataWorkbench', () => {
           'label.view.unopenable': '打不开这个视图',
           'label.scope.group.personal': '仅自己',
         }}
-        kinds={['analysis']}
+        viewKinds={['analysis']}
       />,
     );
 
@@ -523,7 +524,7 @@ describe('DataWorkbench', () => {
         definitionId="orders"
         instanceId="orders-1"
         locale="zh-CN"
-        kinds={['analysis']}
+        viewKinds={['analysis']}
       />,
     );
 
@@ -557,7 +558,7 @@ describe('DataWorkbench', () => {
         engine={engine}
         definitionId="orders"
         instanceId="orders-1"
-        kinds={['analysis']}
+        viewKinds={['analysis']}
       />,
     );
     expect(await within(container).findByText('China', DRAWN)).toBeDefined();
@@ -608,7 +609,7 @@ describe('DataWorkbench', () => {
         engine={engine}
         definitionId="orders"
         instanceId="orders-1"
-        kinds={['analysis']}
+        viewKinds={['analysis']}
       />,
     );
 
@@ -664,7 +665,7 @@ describe('DataWorkbench', () => {
         engine={engine}
         definitionId="orders"
         instanceId="orders-1"
-        kinds={['analysis']}
+        viewKinds={['analysis']}
       />,
     );
     await openTray();
@@ -790,7 +791,7 @@ describe('deleting the open analysis', () => {
         engine={engine}
         definitionId="orders"
         instanceId="orders-1"
-        kinds={['analysis']}
+        viewKinds={['analysis']}
       />,
     );
     await waitFor(() =>

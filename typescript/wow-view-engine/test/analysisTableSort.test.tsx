@@ -197,7 +197,7 @@ describe('sorting an analysis from its header', () => {
         engine={engine}
         definitionId="orders"
         instanceId="orders-1"
-        kinds={['analysis']}
+        viewKinds={['analysis']}
       />,
     );
     return { source, engine };

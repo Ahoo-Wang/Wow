@@ -38,7 +38,13 @@ export {
   useAnalysisEditor,
 } from './useAnalysisEditor.js';
 export type { AnalysisFieldOption } from './analysisFields.js';
-export type { DropCause } from './analysisEditing.js';
+export type {
+  DropCause,
+  QuestionEditing,
+  QuestionEditingInput,
+  Reshape,
+  ReshapeProposal,
+} from './analysisEditing.js';
 export type { DropNotice, MetricRemoval } from './useReshape.js';
 export {
   type AnalysisResultController,
@@ -90,8 +96,6 @@ export {
 export {
   type FilterEditorController,
   type FilterTreeController,
-  type TreeControllerInput,
-  treeController,
   useFilterEditor,
 } from './useFilterEditor.js';
 export {
@@ -145,7 +149,6 @@ export {
   type ViewManagerController,
   useViewManager,
 } from './useViewManager.js';
-export { PREFERENCES_KEY } from './manager/outcomes.js';
 export type {
   ManagedInstanceAbilities,
   ViewManagerAbilities,
@@ -158,27 +161,9 @@ export {
   type WorkbenchOptions,
   useWorkbench,
 } from './useWorkbench.js';
-// The write-outcome vocabulary, on the entry rather than behind it: a surface
-// that draws the save commands has to know which outcomes the engine is still
-// answering for, and `/ui` is only the first such host. Left unexported, every
-// one of them derives the rule again — which is what this module exists to
-// stop.
-export {
-  type RecoveredWrite,
-  type SettledWrite,
-  UNRECOVERED,
-  UNSENT,
-  blocksNewIntent,
-  holdsHandle,
-  mayRefuse,
-  mayReplace,
-  recovered,
-  refused,
-  savesView,
-  settle,
-  strandedHandle,
-  unsettled,
-} from './writes.js';
+// The outcome of a write, as the save commands' state names it; the rules
+// that read one stay behind the entry (`/ui` imports them from `writes.ts`).
+export type { RecoveredWrite, SettledWrite } from './writes.js';
 export {
   type InstanceSyncOptions,
   useInstanceSync,
@@ -189,14 +174,10 @@ export {
   type LeaveGuardState,
   useLeaveGuard,
 } from './workbench/leaveGuard.js';
-export {
-  type Blank,
-  type NewViewOptions,
-  blankView,
-} from './workbench/newView.js';
 export { useReleaseDeleted } from './workbench/releaseDeleted.js';
 export {
   useHandOver,
   useHandedConditions,
   useHandedRemoval,
 } from './workbench/handOver.js';
+export type { NewViewOptions } from './workbench/newView.js';

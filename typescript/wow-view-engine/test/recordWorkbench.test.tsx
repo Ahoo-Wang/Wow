@@ -33,11 +33,11 @@ import type {
   ViewPermissions,
 } from '../src/index.js';
 import {
-  defaultMessages,
   EmbeddedDashboard,
   EmbeddedView,
   DataWorkbench,
 } from '../src/ui/index.js';
+import { defaultMessages } from '../src/ui/kit/messages.js';
 import { SPACE } from '../src/ui/kit/layout.js';
 import {
   INSTANT,
@@ -491,7 +491,7 @@ describe('DataWorkbench', () => {
         <DataWorkbench
           engine={withBoth()}
           definitionId="orders"
-          kinds={['record']}
+          viewKinds={['record']}
         />,
       );
 
@@ -517,7 +517,7 @@ describe('DataWorkbench', () => {
         <DataWorkbench
           engine={withBoth()}
           definitionId="orders"
-          kinds={['record']}
+          viewKinds={['record']}
           instanceId="orders-chart"
         />,
       );
@@ -543,7 +543,7 @@ describe('DataWorkbench', () => {
         <DataWorkbench
           engine={withBoth()}
           definitionId="orders"
-          kinds={['record']}
+          viewKinds={['record']}
           instanceId="orders-chart"
         />,
       );

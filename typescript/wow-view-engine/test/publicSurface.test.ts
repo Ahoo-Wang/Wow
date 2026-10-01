@@ -32,12 +32,14 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { COMMANDS } from '../theme-check/cli';
+import { en } from '../src/ui/messages/en.js';
 import {
   ENTRIES,
   entryExports,
   type Entry,
   type ExportKind,
 } from './fixtures/exports.js';
+import { raisedCodes } from './fixtures/issueCodes.js';
 
 /** Where each entry's list lives, beside this suite. */
 const LISTS: Record<Entry, string> = {
@@ -123,5 +125,36 @@ describe('the public surface of the command', () => {
         '',
       ].join('\n'),
     ).toMatchFileSnapshot('surface/bin.txt');
+  });
+});
+
+/**
+ * The words are surface too (ARCH-2, API-10, D29): a host rewords the
+ * engine by message key (`MessageOverrides`) and reads a finding by its
+ * issue code (`Issue.code`), so a key or a code renamed in a patch would
+ * leave a host's override dead, or its branch on a code never taken, with
+ * nothing failing. Each is kept as a list beside the entries', one key or
+ * code a line, made on purpose with `-u`: a line removed or renamed is a
+ * Breaking line in the release notes, like a removed export.
+ */
+describe('the public surface of the words', () => {
+  const heading = (what: string, count: number) => [
+    `# ${what} — ${count}.`,
+    '# Written by test/publicSurface.test.ts; a change here is a change to',
+    '# the public surface (README「Wording and language」, docs/design/decisions.md D29).',
+  ];
+
+  it('names every message key the English catalogue ships', async () => {
+    const keys = Object.keys(en).sort();
+    await expect(
+      [...heading('Message keys', keys.length), ...keys, ''].join('\n'),
+    ).toMatchFileSnapshot('surface/messages.txt');
+  });
+
+  it('names every issue code the package can raise', async () => {
+    const { codes } = raisedCodes();
+    await expect(
+      [...heading('Issue codes', codes.length), ...codes, ''].join('\n'),
+    ).toMatchFileSnapshot('surface/issues.txt');
   });
 });

@@ -25,7 +25,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { MemoryViewStore, ViewEngine } from '../src/index.js';
 import type { ViewInstance } from '../src/index.js';
 import { useWorkbench } from '../src/react/index.js';
-import { defaultMessages, WorkbenchShell } from '../src/ui/index.js';
+import { WorkbenchShell } from '../src/ui/index.js';
+import { defaultMessages } from '../src/ui/kit/messages.js';
 import type { WorkbenchShellProps } from '../src/ui/index.js';
 import {
   ordersDefinition,

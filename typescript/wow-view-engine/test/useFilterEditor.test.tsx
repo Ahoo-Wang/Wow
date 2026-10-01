@@ -29,11 +29,8 @@ import {
   type ViewInstance,
   type RecordViewRuntime,
 } from '../src/index.js';
-import {
-  treeController,
-  useFilterEditor,
-  useOpenView,
-} from '../src/react/index.js';
+import { useFilterEditor, useOpenView } from '../src/react/index.js';
+import { treeController } from '../src/react/useFilterEditor.js';
 import {
   analysisConfig,
   mine,

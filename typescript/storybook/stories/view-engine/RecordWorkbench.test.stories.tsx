@@ -12,11 +12,7 @@
  */
 import type { StoryObj } from '@storybook/react-vite';
 import { expect, userEvent, waitFor, within } from 'storybook/test';
-import {
-  defaultMessages,
-  formatMessage,
-  zhCN,
-} from '@ahoo-wang/wow-view-engine/ui';
+import { en, formatMessage, zhCN } from '@ahoo-wang/wow-view-engine/ui';
 import displayMeta, {
   CannotOpen as DisplayCannotOpen,
   EmptyResult as DisplayEmptyResult,
@@ -602,15 +598,15 @@ export const English: Story = {
     // The audience tag and the fold above the rows, both from the catalogue.
     await expect(
       canvasElement.querySelector<HTMLElement>('[data-slot="view-header"]'),
-    ).toHaveTextContent(defaultMessages['label.scope.tag.shared']);
+    ).toHaveTextContent(en['label.scope.tag.shared']);
     await expect(
       canvas.getByRole('button', {
-        name: new RegExp(`^${defaultMessages['label.filter.panel']}`),
+        name: new RegExp(`^${en['label.filter.panel']}`),
       }),
     ).toBeVisible();
     await expect(
       canvas.getByRole('button', {
-        name: defaultMessages['label.toolbar.refresh'],
+        name: en['label.toolbar.refresh'],
       }),
     ).toBeVisible();
 
@@ -618,14 +614,14 @@ export const English: Story = {
     // with numbers in them rather than numbers with words beside them.
     const bar = paginationBar(canvasElement);
     await expect(bar).toHaveTextContent(
-      formatMessage(defaultMessages, 'label.pagination.total', { count: 4 }),
+      formatMessage(en, 'label.pagination.total', { count: 4 }),
     );
     await expect(
       within(bar).getByRole('combobox', {
-        name: defaultMessages['label.pagination.page-size'],
+        name: en['label.pagination.page-size'],
       }),
     ).toHaveTextContent(
-      formatMessage(defaultMessages, 'label.pagination.page-size-option', {
+      formatMessage(en, 'label.pagination.page-size-option', {
         size: 20,
       }),
     );
@@ -639,10 +635,10 @@ export const English: Story = {
     // over as a finished English sentence: field label from the definition,
     // operator from the catalogue, option label from the definition again.
     const applied = canvas.getByRole('region', {
-      name: defaultMessages['label.applied.title'],
+      name: en['label.applied.title'],
     });
     // One value reads 'is' however it was stored (`label.relation.is`).
-    const badge = `状态 ${defaultMessages['label.relation.is']} 待出库`;
+    const badge = `状态 ${en['label.relation.is']} 待出库`;
     await expect(applied).toHaveTextContent(badge);
     await expect(applied).not.toHaveTextContent(zhCN['label.relation.is']);
 
@@ -650,18 +646,15 @@ export const English: Story = {
     // query runs again, which is what leaves every order on screen.
     await userEvent.click(
       within(applied).getByRole('button', {
-        name: defaultMessages['label.filter.unset-of'].replace(
-          '{condition}',
-          badge,
-        ),
+        name: en['label.filter.unset-of'].replace('{condition}', badge),
       }),
     );
     await waitFor(() =>
       expect(
         canvas.getByRole('region', {
-          name: defaultMessages['label.applied.title'],
+          name: en['label.applied.title'],
         }),
-      ).toHaveTextContent(defaultMessages['label.applied.all']),
+      ).toHaveTextContent(en['label.applied.all']),
     );
     await waitFor(() =>
       expect(readColumn(canvas.getByRole('table'), '订单号')).toHaveLength(6),

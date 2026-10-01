@@ -29,7 +29,8 @@ import {
   type RecordViewConfig,
   type ViewInstance,
 } from '../src/index.js';
-import { DataWorkbench, defaultMessages } from '../src/ui/index.js';
+import { DataWorkbench } from '../src/ui/index.js';
+import { defaultMessages } from '../src/ui/kit/messages.js';
 import {
   analysisConfig,
   mine,
@@ -148,7 +149,7 @@ function open(config: AnalysisViewConfig, row: Record<string, unknown>) {
       engine={engine}
       definitionId="orders"
       instanceId="by-sku"
-      kinds={['record', 'analysis']}
+      viewKinds={['record', 'analysis']}
       locale="en-GB"
     />,
   );

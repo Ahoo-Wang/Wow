@@ -34,7 +34,16 @@
  */
 
 import { cleanup, render, screen } from '@testing-library/react';
-import { afterEach, describe, expect, it } from 'vitest';
+import type { VariantProps } from 'class-variance-authority';
+import { afterEach, describe, expect, expectTypeOf, it } from 'vitest';
+import type {
+  LineAlertFrame,
+  lineAlertVariants,
+} from '../src/ui/kit/alerts.js';
+import type {
+  ControlChromeProps,
+  controlChromeVariants,
+} from '../src/ui/kit/variants.js';
 import {
   AddButton,
   PillInput,
@@ -263,5 +272,21 @@ describe('TableDataRow', () => {
       </table>,
     );
     expect(container.querySelector('tr')!.className).toContain('fve:group/row');
+  });
+});
+
+/**
+ * The public prop types are written out rather than read off the recipes
+ * (R2-85), so a registry update cannot change `/ui`'s API; these hold the
+ * written-out members to the recipes' variants, so the two cannot drift.
+ */
+describe('the variant props /ui publishes', () => {
+  it('match the recipes they draw with', () => {
+    expectTypeOf<LineAlertFrame>().toEqualTypeOf<
+      NonNullable<VariantProps<typeof lineAlertVariants>['frame']>
+    >();
+    expectTypeOf<NonNullable<ControlChromeProps['chrome']>>().toEqualTypeOf<
+      NonNullable<VariantProps<typeof controlChromeVariants>['chrome']>
+    >();
   });
 });

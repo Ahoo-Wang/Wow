@@ -68,7 +68,7 @@ async function open() {
       engine={engine}
       definitionId="orders"
       instanceId="orders-1"
-      kinds={['analysis']}
+      viewKinds={['analysis']}
     />,
   );
   return screen.findByRole('button', { name: 'Visualize' });

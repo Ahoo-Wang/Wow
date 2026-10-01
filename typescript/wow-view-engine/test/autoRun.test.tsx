@@ -34,7 +34,8 @@ import {
   type ViewSource,
 } from '../src/index.js';
 import { AUTO_APPLY_DELAY_MS } from '../src/runtime/autoApply.js';
-import { DataWorkbench, defaultMessages } from '../src/ui/index.js';
+import { DataWorkbench } from '../src/ui/index.js';
+import { defaultMessages } from '../src/ui/kit/messages.js';
 import {
   analysisConfig,
   deferred,
@@ -141,7 +142,7 @@ async function openAnalysis(
       engine={engine}
       definitionId="orders"
       instanceId={analysisView.id}
-      kinds={['analysis']}
+      viewKinds={['analysis']}
     />,
   );
   await openTray();
@@ -355,7 +356,7 @@ describe('改了就跑: the tray’s switch', () => {
         engine={engine}
         definitionId="orders"
         instanceId={mine.id}
-        kinds={['record']}
+        viewKinds={['record']}
       />,
     );
 

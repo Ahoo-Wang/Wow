@@ -147,7 +147,7 @@ describe('workbench features', () => {
         engine={analysisEngine()}
         definitionId="orders"
         instanceId="orders-2"
-        kinds={['analysis']}
+        viewKinds={['analysis']}
       />,
     );
     fireEvent.click(await screen.findByRole('button', { name: 'Visualize' }));
@@ -158,7 +158,7 @@ describe('workbench features', () => {
         engine={analysisEngine()}
         definitionId="orders"
         instanceId="orders-2"
-        kinds={['analysis']}
+        viewKinds={['analysis']}
         features={{ visualization: false }}
       />,
     );

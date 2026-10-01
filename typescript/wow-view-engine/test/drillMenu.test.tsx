@@ -32,7 +32,7 @@ import {
   defaultRuntimeEnvironment,
   describeFilter,
   type RuntimeEnvironment,
-  type AnalysisView,
+  type AnalysisProjection,
   type AnalysisViewConfig,
   type DataViewDefinition,
   type ViewInstance,
@@ -42,9 +42,9 @@ import {
   AnalysisTable,
   DataWorkbench,
   ViewSurface,
-  defaultMessages,
   zhCN,
 } from '../src/ui/index.js';
+import { defaultMessages } from '../src/ui/kit/messages.js';
 import type { DataViewKind } from '../src/ui/index.js';
 import { groupText } from '../src/ui/analysis/DrillMenu.js';
 import { useViewMessages } from '../src/ui/kit/MessagesProvider.js';
@@ -126,7 +126,7 @@ function open(
       engine={engine}
       definitionId="orders"
       instanceId={instance.id}
-      kinds={options.kinds ?? ['record', 'analysis']}
+      viewKinds={options.kinds ?? ['record', 'analysis']}
       locale="en-GB"
     />,
   );
@@ -634,7 +634,7 @@ describe('the follow-up menu on one group', () => {
    * (`FollowUpMenuFitsItsWords`); this pins what is handed to it.
    */
   it('hangs from the cell pressed, or the row’s first cell for a key — never the row', () => {
-    const view: AnalysisView = {
+    const view: AnalysisProjection = {
       columns: [
         { alias: 'warehouse', label: 'Warehouse', role: 'group' },
         { alias: 'orders', label: 'Orders', role: 'metric' },
