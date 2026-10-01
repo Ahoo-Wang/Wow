@@ -28,6 +28,7 @@ npm 首发（`9.2.0-rc.0`）之前按下面的顺序做，同时只做一件。�
 
 用户已定推迟到首发之后；排进某个版本时各自成为带判据的条目。
 
+- **Elasticsearch 索引名前缀（9.3.0）**（用户 2026-10-02：不进 9.2.0）：多个宿主共用一个 ES 集群时，`wow.view-store.*` 等快照与事件索引同名共用（读取已按 appId 隔离，不串数据；Kafka 已有 `wow.view-store.kafka.topic-prefix`）。加索引名前缀的 SPI，默认不变；view-store 自己的前缀同 PR；非默认前缀的模板名 `{prefix}snapshot-template`。判据：设了前缀的两个宿主在同一集群互不共用索引，未设前缀的宿主索引名逐字不变，9.1/9.2 混跑与存量数据有迁移说明。落点：`wow-elasticsearch` 的索引命名、模板与初始化、view-store starter；设计见 #3850。
 - **真人读屏走查（VoiceOver／NVDA）**（[D73](decisions.md#d73-真人读屏走查与多浏览器视觉回归放到首发之后2026-09-29)）：VoiceOver + Safari、NVDA + Firefox／Chrome 各走一遍记录工作台、分析、仪表盘与两种嵌入的核心任务，照 [screen-reader-walkthrough.md](screen-reader-walkthrough.md) 交回结果。判据：每个任务一行「能否完成 / 实际念出的话 / 与预期的差异」，差异修掉或各成一条；声明的「评估方法」补上读屏软件与版本。落点：文档站「视图引擎的可访问性」。
 - **Firefox／WebKit 的视觉回归基线与 PR 任务**（D73）：首发前已在本机走查过一次（2026-09-30，没有视觉回归，查出的缺陷已修）。首发后两种引擎各立一套截图基线，PR 上加 Firefox／WebKit 的交互测试任务。判据：两种引擎各有一套基线、PR 上各有一个任务，差异修掉或记下原因。落点：Storybook 的截图脚本、`.github/workflows/typescript-storybook.yml`。
 - **H：补偿控制台「每天各种结局」画成一张多序列图，由后端支持**（用户 2026-09-27）：Wow 在展开元素的聚合里够不到根字段 `createTime`；后端加「元素作用域里按上层（根）字段分组」（MongoDB 几乎不用改，Elasticsearch 要把根字段的分组放到 `nested` 外并与 composite 分页相容），TCK 两个后端都加用例，之后 TS 镜像、本包放开 `analysis.field.outside-scope`。判据：一次查询出「按天 × 事件名」，两个后端的 TCK 都过；控制台「补偿活动」板的结局是一张四条线的图。落点：`wow-query` 的 `QueryResolver`、`wow-mongo`／`wow-elasticsearch` 的聚合编译、本包 `analysis/`、控制台 `src/views/overview.ts`。
