@@ -23,13 +23,18 @@ object ViewStoreErrorCodes {
     /** The request carries no `CoSec-App-Id`. HTTP 400. */
     const val VIEW_APP_REQUIRED = "ViewAppRequired"
 
-    /** A system view is read-only: every write to one is refused. HTTP 403. */
+    /**
+     * A configured system view is read-only: every write to one is refused. A stored system view (owner `(system)`)
+     * is written through the view routes, but never shared or claimed. HTTP 403.
+     */
     const val SYSTEM_VIEW_READ_ONLY = "SystemViewReadOnly"
 
     /**
      * An HTTP query of a view store aggregate names no tenant and owner in its path: only the
      * `…/tenant/{tenantId}/owner/{ownerId}/…` query routes are open. Also any view store path whose decoded tenant or
-     * owner is empty or holds whitespace or control characters. HTTP 400.
+     * owner is empty or holds whitespace or control characters, and a request on stored system views whose path does
+     * not spell `…/tenant/(platform)/owner/(system)/…` literally (percent-encoded, a `;` parameter, another letter case).
+     * HTTP 400.
      */
     const val VIEW_SCOPE_REQUIRED = "ViewScopeRequired"
 

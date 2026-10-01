@@ -18,6 +18,12 @@ import { WriteContext } from '@ahoo-wang/wow-view-engine';
 export const SHARED_OWNER_ID = "(shared)";
 
 // @public
+export const SYSTEM_OWNER_ID = "(system)";
+
+// @public
+export const SYSTEM_TENANT_ID = "(platform)";
+
+// @public
 export class WowViewStore implements ViewStore {
     constructor(options: WowViewStoreOptions);
     changeAudience(id: string, audience: ViewAudience, revision: string, context: WriteContext): Promise<ViewInstance>;

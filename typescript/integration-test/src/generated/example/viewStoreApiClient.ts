@@ -59,7 +59,7 @@ export class ViewStoreApiClient implements ApiMetadataCapable {
   }
 
   /**
-   * One of the server's system views
+   * One of the system views: the stored one, else the configured one
    * - operationId: `view-store.systemView`
    * - path: `/view-store/tenant/{tenantId}/owner/{ownerId}/system-views/{id}`
    */
@@ -69,7 +69,7 @@ export class ViewStoreApiClient implements ApiMetadataCapable {
   }
 
   /**
-   * The server's system views, under the shared owner only
+   * The system views, under the shared owner only: the configured ones of the tenant and the views stored under tenant (platform) and owner (system), global; a stored view wins over a configured one with its id
    * - operationId: `view-store.systemViews`
    * - path: `/view-store/tenant/{tenantId}/owner/{ownerId}/system-views`
    */

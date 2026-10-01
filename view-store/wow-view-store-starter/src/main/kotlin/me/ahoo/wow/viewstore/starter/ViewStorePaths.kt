@@ -82,6 +82,31 @@ internal class ViewStorePaths(currentContext: NamedBoundedContext) {
 
     fun hasValidScope(path: String): Boolean = hasValidScope(PathContainer.parsePath(path))
 
+    /** The path every request on stored system views starts with, spelled as a gateway rule names it. */
+    val systemScope: String =
+        "$prefix/tenant/${ViewStoreService.SYSTEM_TENANT_ID}/owner/${ViewStoreService.SYSTEM_OWNER_ID}"
+
+    /**
+     * Whether [path] decodes to the tenant `(platform)` and the owner `(system)` in any letter case: a request on
+     * stored system views, or one that would be taken for it by a gateway matching without regard to case.
+     */
+    fun isSystemScope(path: PathContainer): Boolean {
+        val variables = scopePattern.matchAndExtract(path)?.uriVariables ?: return false
+        return variables[TENANT_ID].equals(ViewStoreService.SYSTEM_TENANT_ID, ignoreCase = true) &&
+            variables[OWNER_ID].equals(ViewStoreService.SYSTEM_OWNER_ID, ignoreCase = true)
+    }
+
+    /**
+     * Whether [path], one of [isSystemScope], spells [systemScope] literally: no percent-encoding, no `;` parameter,
+     * no other letter case. A gateway rule that admits writes to system views by their path then sees every one of
+     * them, whether the gateway matches the raw or the decoded path.
+     */
+    fun spellsSystemScope(path: PathContainer): Boolean = path.value().startsWith("$systemScope/")
+
+    /** Whether [path] addresses the owner `(system)` in any tenant, decoded. */
+    fun isSystemOwner(path: PathContainer): Boolean =
+        scopePattern.matchAndExtract(path)?.uriVariables?.get(OWNER_ID) == ViewStoreService.SYSTEM_OWNER_ID
+
     /** The tenant and id [path] addresses a view by, decoded, or `null` when it addresses none. */
     fun viewTarget(path: PathContainer): ViewTarget? {
         val variables = viewPattern.matchAndExtract(path)?.uriVariables ?: return null

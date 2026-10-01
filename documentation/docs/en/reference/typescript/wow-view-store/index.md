@@ -18,6 +18,7 @@ description: 'WowViewStore, the @ahoo-wang/wow-view-store package: the view engi
 | `WowViewStore` | The store: `new WowViewStore({ fetcher, permissions? })`, handed to `new ViewEngine({ store })` |
 | `WowViewStoreOptions` | `fetcher`: the fetcher whose interceptors carry the tenant, the owner and the application; `permissions`: which buttons are enabled |
 | `SHARED_OWNER_ID` | `(shared)`, the owner segment of shared views and shared preferences |
+| `SYSTEM_OWNER_ID`, `SYSTEM_TENANT_ID` | `(system)` and `(platform)`: the one path stored system views are written on, whatever the caller's tenant |
 | `WowViewStoreErrorCodes` | The view store's own error codes, beside Wow's |
 
 ```ts
@@ -37,11 +38,12 @@ export interface WowViewStoreOptions {
 | Retries | A write refused as a stale version or a repeated request id is looked up by its request id first, and a retry answers what its first attempt wrote. The server does not deduplicate a create (it generates the id); a store asks the replay route before posting a retry of its own create again, so only a retry from another store makes a second view |
 | Errors | By Wow's error code onto `CONFLICT`, `NOT_FOUND`, `FORBIDDEN`, `INVALID` and `UNAVAILABLE`; the HTTP status only when no known code came back; `UNSUPPORTED` from a server with no view store. The error keeps the server's code as `detail.code`, and an `UNAVAILABLE` the server answered says `reachable` |
 | List order | System views, then shared, then personal, each audience oldest first; at most 1,000 of each audience |
+| System views | Configured ones are read-only; stored ones (global, under `tenant/(platform)/owner/(system)`) carry `stored: true` and are created (published as a copy), saved, renamed and deleted there, never shared or claimed. Their `revision` is a content hash; the store sends the version it read beside it. The engine's `editSystem` is the host's to give, off when unsaid |
 | Shared boards | A view a shared dashboard shows stays shared: the claim is `INVALID`, its `boards` the boards' titles as stored, which the view engine says in its own words |
 
 ## Hosts
 
-The example server and the compensation service embed `wow-view-store-starter`; the compensation console keeps its views there. Nobody signs in to the console, so it adds a request interceptor of its own that fills the tenant `(0)`, the owner `(shared)` and its application (`compensation-dashboard`) where a request names none: every view and preference it keeps is shared, and its permissions turn personal views off. A host that embeds the starter gives the view store's Kafka topics a prefix of their own with `wow.view-store.kafka.topic-prefix`, which leaves the host's own topics as they are.
+The example server and the compensation service embed `wow-view-store-starter`; the compensation console keeps its views there. Nobody signs in to the console, so it adds a request interceptor of its own that fills the tenant `(platform)`, the owner `(shared)` and its application (`compensation-dashboard`) where a request names none: every view and preference it keeps is shared, and its permissions turn personal views off. A host that embeds the starter gives the view store's Kafka topics a prefix of their own with `wow.view-store.kafka.topic-prefix`, which leaves the host's own topics as they are.
 
 ## CoSec gateway rules
 
@@ -53,6 +55,7 @@ The server does not authenticate: it takes the tenant, the owner and the applica
 | `/view-store/tenant/{tenantId}/owner/(shared)/**`, reads | `{tenantId}` is the token's tenant |
 | `/view-store/tenant/{tenantId}/owner/(shared)/**`, writes | the token's tenant, and the role that may write shared views |
 | `PUT /view-store/tenant/{tenantId}/owner/{ownerId}/view/{id}/claim`, `…/share` | the token's tenant, `{ownerId}` is its `sub`, **and** the role that may write shared views |
+| `/view-store/tenant/(platform)/owner/(system)/**` | the caller administers the system views (global, so any tenant). Without this rule anyone who reaches the view store writes every tenant's system views |
 
 A claim takes a shared view out of everyone's list and a share publishes a personal one into it, so the personal rule must not admit either on its own: leave `…/view/{id}/claim` and `…/view/{id}/share` out of that rule, and only the claim-and-share rule decides (otherwise anyone could publish a shared view by creating a personal one and sharing it). `CoSec-App-Id` is authenticated by CoSec and keeps applications apart; a host gives `permissions` by the same role the gateway checks: `createShared` and `changeAudience` need the shared-write role. The full rules, with the reasons, are in the [view store README](https://github.com/Ahoo-Wang/Wow/blob/main/view-store/README.md#cosec-gateway-rules).
 

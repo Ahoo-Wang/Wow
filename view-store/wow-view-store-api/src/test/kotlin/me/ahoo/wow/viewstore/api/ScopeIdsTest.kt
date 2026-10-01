@@ -19,7 +19,7 @@ import org.junit.jupiter.api.Test
 class ScopeIdsTest {
     @Test
     fun `an id is what it displays as`() {
-        listOf("alice", "t1", "(shared)", "(0)", "张三", "alice-1_x.y@z", "😀").forEach {
+        listOf("alice", "t1", "(shared)", "(0)", "(platform)", "(system)", "张三", "alice-1_x.y@z", "😀").forEach {
             ScopeIds.isValid(it).assert().describedAs(it).isTrue()
         }
     }

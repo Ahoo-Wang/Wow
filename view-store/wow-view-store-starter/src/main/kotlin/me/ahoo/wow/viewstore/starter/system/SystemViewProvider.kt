@@ -17,8 +17,9 @@ import me.ahoo.wow.viewstore.api.SystemView
 import reactor.core.publisher.Flux
 
 /**
- * The read-only views the server offers a tenant's application, for every definition. The view store serves them
- * under the shared owner and refuses every write to one.
+ * The configured, read-only views the server offers a tenant's application, for every definition. The view store
+ * serves them under the shared owner, beside the views stored under the tenant `(platform)` and the owner `(system)` (which
+ * win over a configured one with the same id), and refuses every write to one.
  *
  * The default reads `wow.view-store.system-views`; a host's own bean replaces it. Build each view with
  * [SystemViews.of], which checks it and gives it its content-hash revision.

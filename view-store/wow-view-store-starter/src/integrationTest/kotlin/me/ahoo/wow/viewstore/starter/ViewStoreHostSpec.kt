@@ -810,4 +810,137 @@ abstract class ViewStoreHostSpec {
             .expectStatus().isForbidden
             .expectBody().jsonPath("$.errorCode").isEqualTo(ViewStoreErrorCodes.SYSTEM_VIEW_READ_ONLY)
     }
+
+    private val systemScope = "/view-store/tenant/${ViewStoreService.SYSTEM_TENANT_ID}/owner/${ViewStoreService.SYSTEM_OWNER_ID}"
+
+    private fun createSystemView(definitionId: String, title: String, tenantScope: String = systemScope): String =
+        write("POST", "$tenantScope/view", """{"definitionId":"$definitionId","title":"$title","config":{"kind":"record"}}""")
+            .expectStatus().isOk
+            .expectBody(JsonNode::class.java).returnResult().responseBody!!.get("aggregateId").stringValue()
+
+    private fun JsonNode.items(): List<JsonNode> = (0 until size()).map { get(it) }
+
+    private fun systemViews(tenantId: String, query: String = "", appId: String = APP): JsonNode =
+        client.get().uri("/view-store/tenant/$tenantId/owner/$SHARED/system-views$query")
+            .header(ViewStoreService.APP_ID_HEADER, appId).exchange()
+            .expectStatus().isOk
+            .expectBody(JsonNode::class.java).returnResult().responseBody!!
+
+    private fun systemView(tenantId: String, id: String, appId: String = APP): WebTestClient.ResponseSpec =
+        client.get().uri("/view-store/tenant/$tenantId/owner/$SHARED/system-views/$id")
+            .header(ViewStoreService.APP_ID_HEADER, appId).exchange()
+
+    @Test
+    fun `stored system views are global - every tenant reads them beside the configured ones`() {
+        val definitionId = "global-" + UUID.randomUUID()
+        val id = createSystemView(definitionId, "Everyone's")
+        listOf("t1", "t2").forEach { tenantId ->
+            val all = systemViews(tenantId)
+            all.items().map { it.get("id").stringValue() }.assert().contains("orders-open", id)
+            all.items().first { it.get("id").stringValue() == "orders-open" }.let {
+                it.get("source").stringValue().assert().isEqualTo("configured")
+                it.get("version").isNull.assert().isTrue()
+            }
+            val views = systemViews(tenantId, "?definitionId=$definitionId")
+            views.size().assert().isEqualTo(1)
+            views[0].let {
+                it.get("id").stringValue().assert().isEqualTo(id)
+                it.get("source").stringValue().assert().isEqualTo("stored")
+                it.get("version").intValue().assert().isEqualTo(1)
+                it.get("scope").stringValue().assert().isEqualTo("system")
+                it.get("kind").stringValue().assert().isEqualTo("record")
+                it.get("title").stringValue().assert().isEqualTo("Everyone's")
+                it.get("revision").stringValue().length.assert().isEqualTo(16)
+            }
+        }
+        systemView("t1", id).expectStatus().isOk
+            .expectBody().jsonPath("$.source").isEqualTo("stored").jsonPath("$.version").isEqualTo(1)
+        // Per application.
+        systemView("t1", id, OTHER_APP).expectStatus().isNotFound
+        systemViews("t1", "?definitionId=$definitionId", OTHER_APP).size().assert().isEqualTo(0)
+        // The user's own lists never hold it.
+        query("$SCOPE/$SHARED/view/snapshot/list", listQuery { limit(1000) }.toJsonString())
+            .expectStatus().isOk
+            .expectBody(JsonNode::class.java).returnResult().responseBody!!
+            .items().map { it.get("aggregateId").stringValue() }.assert().doesNotContain(id)
+
+        // Written through the view routes, at its version, on the global path.
+        write("PUT", "$systemScope/view/$id/rename", """{"title":"Renamed"}""", version = 1).expectStatus().isOk
+        val renamed = systemView("t2", id).expectStatus().isOk
+            .expectBody(JsonNode::class.java).returnResult().responseBody!!
+        renamed.get("title").stringValue().assert().isEqualTo("Renamed")
+        renamed.get("version").intValue().assert().isEqualTo(2)
+        write("PUT", "$systemScope/view/$id/save", """{"config":{"kind":"record","pageSize":50}}""", version = 1)
+            .expectStatus().isEqualTo(HttpStatus.CONFLICT)
+        write("PUT", "$systemScope/view/$id/save", """{"config":{"kind":"record","pageSize":50}}""", version = 2)
+            .expectStatus().isOk
+        systemView("t1", id).expectBody().jsonPath("$.config.pageSize").isEqualTo(50).jsonPath("$.version").isEqualTo(3)
+
+        // It never moves audience, and no other owner path writes it.
+        write("PUT", "$systemScope/view/$id/share", "{}", version = 3)
+            .expectStatus().isForbidden
+            .expectBody().jsonPath("$.errorCode").isEqualTo(ViewStoreErrorCodes.SYSTEM_VIEW_READ_ONLY)
+        write("PUT", "/view-store/tenant/${ViewStoreService.SYSTEM_TENANT_ID}/owner/bob/view/$id/claim", null, version = 3)
+            .expectStatus().isForbidden
+        write("PUT", "/view-store/tenant/${ViewStoreService.SYSTEM_TENANT_ID}/owner/$SHARED/view/$id/rename", """{"title":"Mine"}""", version = 3)
+            .expectStatus().isForbidden
+        // In another tenant it is not that view (the storage answers it as a tenant mismatch or a missing one).
+        write("PUT", "$SCOPE/$SHARED/view/$id/rename", """{"title":"Mine"}""", version = 3)
+            .expectStatus().is4xxClientError
+
+        // Unpublished: deleted, also while a shared dashboard shows it (as a shared view).
+        val board = create(SHARED, boardReferencing(id)[0])
+        write("DELETE", "$systemScope/view/$id", "{}", version = 3).expectStatus().isOk
+        systemView("t1", id).expectStatus().isNotFound
+        single(SHARED, board).expectStatus().isOk
+    }
+
+    @Test
+    fun `a system view is created under the global tenant only, on its path spelled exactly`() {
+        // Refused in every other tenant, Wow's default tenant `(0)` included.
+        listOf("$SCOPE/(system)/view", "/view-store/tenant/(0)/owner/(system)/view").forEach { path ->
+            write("POST", path, """{"definitionId":"orders","title":"Tenant's","config":{"kind":"record"}}""")
+                .expectStatus().isBadRequest
+                .expectBody().jsonPath("$.errorCode").isEqualTo(ViewStoreErrorCodes.VIEW_INVALID)
+        }
+        listOf(
+            "/view-store/tenant/(platform)/owner/%28system%29/view",
+            "/view-store/tenant/%28platform%29/owner/(system)/view",
+            "/view-store/tenant/(platform)/owner/(system);x=1/view",
+            "/view-store/TENANT/(platform)/owner/(system)/view",
+            "/view-store/tenant/(PLATFORM)/owner/(system)/view",
+            "/view-store/tenant/%28Platform%29/owner/(System)/view",
+        ).forEach { path ->
+            write("POST", path, """{"definitionId":"orders","title":"Odd","config":{"kind":"record"}}""")
+                .expectStatus().isBadRequest
+                .expectBody().jsonPath("$.errorCode").isEqualTo(ViewStoreErrorCodes.VIEW_SCOPE_REQUIRED)
+        }
+    }
+
+    /**
+     * A stored view wins over a configured one with the same id, on reads and on writes. The server generates every
+     * id, so the clash is made in process.
+     */
+    @Test
+    fun `a stored system view wins over a configured one with its id`() {
+        val app = "clash-" + UUID.randomUUID().toString().take(8)
+        val command = CreateView(definitionId = "orders", title = "Stored", config = """{"kind":"record"}""".toObjectNode())
+            .toCommandMessage(
+                aggregateId = "orders-open",
+                tenantId = ViewStoreService.SYSTEM_TENANT_ID,
+                ownerId = ViewStoreService.SYSTEM_OWNER_ID,
+                header = DefaultHeader.empty().with(ViewStoreService.APP_ID_MESSAGE_HEADER, app),
+            )
+        commandGateway.sendAndWaitForSnapshot(command).block()!!.succeeded.assert().isTrue()
+        val views = systemViews("t1", "?definitionId=orders", app)
+        views.items().map { it.get("id").stringValue() + "=" + it.get("title").stringValue() }
+            .assert().containsExactly("orders-open=Stored")
+        systemView("t1", "orders-open", app).expectBody().jsonPath("$.source").isEqualTo("stored")
+        write("PUT", "$systemScope/view/orders-open/rename", """{"title":"Stored again"}""", appId = app, version = 1)
+            .expectStatus().isOk
+        // Another application still reads the configured one, and its write under another owner stays refused.
+        systemView("t1", "orders-open").expectBody().jsonPath("$.source").isEqualTo("configured")
+        write("PUT", "$SCOPE/$SHARED/view/orders-open/rename", """{"title":"Mine"}""", appId = app, version = 1)
+            .expectStatus().isForbidden
+    }
 }

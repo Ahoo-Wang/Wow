@@ -30,6 +30,8 @@ import type {
 } from '@ahoo-wang/wow-view-engine';
 import {
   SHARED_OWNER_ID,
+  SYSTEM_OWNER_ID,
+  SYSTEM_TENANT_ID,
   WowViewStore,
   WowViewStoreErrorCodes,
 } from '../src/index.js';
@@ -43,6 +45,33 @@ import {
 
 const ALICE = '/view-store/tenant/t1/owner/alice';
 const SHARED = `/view-store/tenant/t1/owner/${SHARED_OWNER_ID}`;
+const SYSTEM = `/view-store/tenant/${SYSTEM_TENANT_ID}/owner/${SYSTEM_OWNER_ID}`;
+
+/** A stored system view as the server's system-views routes answer it. */
+function stored(id: string, version: number, revision: string, title = 'Sys') {
+  return {
+    id,
+    definitionId: 'orders',
+    title,
+    kind: 'record',
+    revision,
+    config,
+    scope: 'system',
+    source: 'stored',
+    version,
+  };
+}
+
+function systemView(id: string, revision: string, title = 'Sys') {
+  return {
+    id,
+    definitionId: 'orders',
+    title,
+    scope: 'system',
+    revision,
+    config,
+  };
+}
 
 const config = { kind: 'record', pageSize: 20 } as unknown as ViewConfig;
 
@@ -461,17 +490,29 @@ describe('WowViewStore', () => {
       ).toHaveLength(1);
     });
 
-    it('refuses a system view before sending anything', async () => {
-      const server = fakeServer();
+    it('posts a system view to the global system path, whatever its own tenant', async () => {
+      const server = fakeServer(
+        at('POST', `${SYSTEM}/view`, () => commandResult('s9', 1)),
+        at('GET', `${SHARED}/system-views/s9`, () =>
+          json(stored('s9', 1, 'h1', 'Sys')),
+        ),
+      );
       const store = new WowViewStore({ fetcher: server.fetcher });
 
-      await expect(
-        store.create(
+      expect(
+        await store.create(
           { definitionId: 'orders', title: 'Sys', scope: 'system', config },
           write(),
         ),
-      ).rejects.toMatchObject({ code: 'INVALID' });
-      expect(server.requests).toEqual([]);
+      ).toEqual({ ...systemView('s9', 'h1', 'Sys'), stored: true });
+      expect(sent(server.requests)).toEqual([
+        `POST ${SYSTEM}/view`,
+        `GET ${SHARED}/system-views/s9`,
+      ]);
+      // Spelled literally, as the gateway's rule names the path.
+      expect(server.requests[0]!.rawPath).toBe(
+        '/view-store/tenant/(platform)/owner/(system)/view',
+      );
     });
 
     it('reads a refusal by its code', async () => {
@@ -897,6 +938,271 @@ describe('WowViewStore', () => {
           request => request.method !== 'PUT' && request.method !== 'DELETE',
         ),
       ).toBe(true);
+    });
+  });
+
+  describe('stored system views', () => {
+    /** The system views of `orders`: `open` configured, `s1` stored at version 3. */
+    function systemViews() {
+      return fakeServer(
+        at('POST', `${ALICE}/view/snapshot/list`, () => json([])),
+        at('POST', `${SHARED}/view/snapshot/list`, () => json([])),
+        at('GET', `${SHARED}/system-views`, () =>
+          json([
+            {
+              ...systemView('open', 'abc', 'Open'),
+              kind: 'record',
+              source: 'configured',
+              version: null,
+            },
+            stored('s1', 3, 'h3'),
+          ]),
+        ),
+      );
+    }
+
+    it('lists a stored one flagged, a configured one not', async () => {
+      const server = systemViews();
+      const store = new WowViewStore({ fetcher: server.fetcher });
+
+      const listed = await store.list('orders');
+      expect(listed.filter(view => view.scope === 'system')).toEqual([
+        {
+          id: 'open',
+          definitionId: 'orders',
+          title: 'Open',
+          scope: 'system',
+          kind: 'record',
+          revision: 'abc',
+        },
+        {
+          id: 's1',
+          definitionId: 'orders',
+          title: 'Sys',
+          scope: 'system',
+          kind: 'record',
+          revision: 'h3',
+          stored: true,
+        },
+      ]);
+    });
+
+    it('writes a stored one on the system path at the version its revision was read at', async () => {
+      const server = systemViews();
+      const store = new WowViewStore({ fetcher: server.fetcher });
+      await store.list('orders');
+      server.on(
+        at('PUT', `${SYSTEM}/view/s1/rename`, () => commandResult('s1', 4)),
+      );
+      server.on(
+        at('GET', `${SHARED}/system-views/s1`, () =>
+          json(stored('s1', 4, 'h4', 'Renamed')),
+        ),
+      );
+      const before = server.requests.length;
+
+      expect(await store.rename('s1', 'Renamed', 'h3', write())).toEqual({
+        ...systemView('s1', 'h4', 'Renamed'),
+        stored: true,
+      });
+      const requests = server.requests.slice(before);
+      expect(sent(requests)).toEqual([
+        `PUT ${SYSTEM}/view/s1/rename`,
+        `GET ${SHARED}/system-views/s1`,
+      ]);
+      expect(requests[0]!.headers.get('Command-Aggregate-Version')).toBe('3');
+
+      // The next write expects the version the answer was read at.
+      server.on(
+        at('DELETE', `${SYSTEM}/view/s1`, () => commandResult('s1', 5)),
+      );
+      await store.delete('s1', 'h4', write());
+      expect(
+        server.requests[server.requests.length - 1]!.headers.get(
+          'Command-Aggregate-Version',
+        ),
+      ).toBe('4');
+    });
+
+    it('reads a stale revision again and, unless a replay answers it, refuses it as a conflict before writing', async () => {
+      const server = systemViews();
+      const store = new WowViewStore({ fetcher: server.fetcher });
+      await store.list('orders');
+      server.on(
+        at('GET', `${SHARED}/system-views/s1`, () =>
+          json(stored('s1', 5, 'h5', 'Moved on')),
+        ),
+      );
+      const before = server.requests.length;
+      const context = write();
+
+      await expect(
+        store.save('s1', config, 'h3-old', context),
+      ).rejects.toMatchObject({
+        code: 'CONFLICT',
+        instance: { ...systemView('s1', 'h5', 'Moved on'), stored: true },
+      });
+      // Read again, and asked whether this request moved it on: no write.
+      expect(sent(server.requests.slice(before))).toEqual([
+        `GET ${SHARED}/system-views/s1`,
+        `GET ${SYSTEM}/view/requests/${context.requestId}`,
+      ]);
+    });
+
+    it('answers a retry the server refuses as a repeated request with the view as it is now', async () => {
+      const server = systemViews();
+      const store = new WowViewStore({ fetcher: server.fetcher });
+      await store.list('orders');
+      const context = write();
+      server.on(
+        at('PUT', `${SYSTEM}/view/s1/save`, () =>
+          wowError('DuplicateRequestId', 'repeated', 409),
+        ),
+      );
+      server.on(
+        at('GET', `${SYSTEM}/view/requests/${context.requestId}`, () =>
+          json(snapshot('s1', 4)),
+        ),
+      );
+      server.on(
+        at('GET', `${SHARED}/system-views/s1`, () =>
+          json(stored('s1', 4, 'h4')),
+        ),
+      );
+
+      expect(await store.save('s1', config, 'h3', context)).toEqual({
+        ...systemView('s1', 'h4'),
+        stored: true,
+      });
+    });
+
+    it('answers a retried create whose first answer was lost with the system view, flagged and at its hash', async () => {
+      const context = write();
+      let posts = 0;
+      const server = fakeServer(
+        at('POST', `${SYSTEM}/view`, () => {
+          posts += 1;
+          return wowError('InternalServerError', 'lost', 503);
+        }),
+      );
+      const store = new WowViewStore({ fetcher: server.fetcher });
+      const input = {
+        definitionId: 'orders',
+        title: 'Sys',
+        scope: 'system' as const,
+        config,
+      };
+      await expect(store.create(input, context)).rejects.toMatchObject({
+        code: 'UNAVAILABLE',
+      });
+      server.on(
+        at('GET', `${SYSTEM}/view/requests/${context.requestId}`, () =>
+          json(snapshot('s9', 1)),
+        ),
+      );
+      server.on(
+        at('GET', `${SHARED}/system-views/s9`, () =>
+          json(stored('s9', 1, 'h1')),
+        ),
+      );
+
+      expect(await store.create(input, context)).toEqual({
+        ...systemView('s9', 'h1'),
+        stored: true,
+      });
+      expect(posts).toBe(1);
+    });
+
+    it('answers a retry whose first attempt moved the view on from the replay route, not as a conflict', async () => {
+      const server = systemViews();
+      const store = new WowViewStore({ fetcher: server.fetcher });
+      await store.list('orders');
+      const context = write();
+      let saves = 0;
+      // The first attempt lands, but its answer is lost.
+      server.on(
+        at('PUT', `${SYSTEM}/view/s1/save`, () => {
+          saves += 1;
+          return wowError('InternalServerError', 'lost', 503);
+        }),
+      );
+      await expect(
+        store.save('s1', config, 'h3', context),
+      ).rejects.toMatchObject({ code: 'UNAVAILABLE' });
+      // A list reads the view as that attempt left it.
+      server.on(
+        at('GET', `${SHARED}/system-views`, () =>
+          json([stored('s1', 4, 'h4')]),
+        ),
+      );
+      server.on(
+        at('GET', `${SHARED}/system-views/s1`, () =>
+          json(stored('s1', 4, 'h4')),
+        ),
+      );
+      await store.list('orders');
+      server.on(
+        at('GET', `${SYSTEM}/view/requests/${context.requestId}`, () =>
+          json(snapshot('s1', 4)),
+        ),
+      );
+
+      expect(await store.save('s1', config, 'h3', context)).toEqual({
+        ...systemView('s1', 'h4'),
+        stored: true,
+      });
+      expect(saves).toBe(1);
+    });
+
+    it('refuses writes to a configured one and every audience move, before sending anything', async () => {
+      const server = systemViews();
+      const store = new WowViewStore({ fetcher: server.fetcher });
+      await store.list('orders');
+      const before = server.requests.length;
+
+      await expect(
+        store.save('open', config, 'abc', write()),
+      ).rejects.toMatchObject({ code: 'FORBIDDEN' });
+      await expect(
+        store.changeAudience('s1', 'shared', 'h3', write()),
+      ).rejects.toMatchObject({ code: 'FORBIDDEN' });
+      expect(server.requests.length).toBe(before);
+    });
+
+    it('reads a view of a server before stored system views as configured', async () => {
+      const server = fakeServer(
+        at('GET', `${SHARED}/system-views/old`, () =>
+          json({ ...systemView('old', 'r'), kind: 'record' }),
+        ),
+      );
+      const store = new WowViewStore({ fetcher: server.fetcher });
+
+      const view = await store.get('old');
+      expect(view).toEqual(systemView('old', 'r'));
+      await expect(
+        store.rename('old', 'Mine', 'r', write()),
+      ).rejects.toMatchObject({ code: 'FORBIDDEN' });
+    });
+
+    it("passes the host's editSystem through, absent when the host says nothing", () => {
+      const server = fakeServer();
+      const granted = {
+        createPersonal: true,
+        createShared: true,
+        reorder: true,
+        setDefault: true,
+        instance: () => ({ save: true, rename: true, delete: true }),
+        editSystem: true,
+      } as ViewPermissions;
+      expect(
+        new WowViewStore({
+          fetcher: server.fetcher,
+          permissions: () => granted,
+        }).permissions!('orders'),
+      ).toBe(granted);
+      expect(
+        new WowViewStore({ fetcher: server.fetcher }).permissions,
+      ).toBeUndefined();
     });
   });
 

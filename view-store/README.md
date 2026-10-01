@@ -23,8 +23,9 @@ there. The routes are served under `/view-store/tenant/{tenantId}/owner/{ownerId
   answered at the current version without a write;
 - `POST /view/snapshot/{list,single,paged,…}` and the same for `/view_preferences/`, which the query policy keeps
   in the request's application;
-- `GET /system-views`, `GET` / `PUT /definitions/{definitionId}/preferences` and `GET /view/requests/{requestId}`
-  (replay).
+- `GET /system-views` (the configured and the stored system views, under `(shared)`; see
+  [System views](#system-views)), `GET` / `PUT /definitions/{definitionId}/preferences` and
+  `GET /view/requests/{requestId}` (replay).
 
 Every other route Wow generates for the two aggregates (state, tracing, event streams, snapshot maintenance,
 compensation, recover and resource tags), and the command facade for their commands, answers 404. Commands carry no
@@ -35,7 +36,57 @@ a host that sets `PathMatchConfigurer.setUseCaseSensitiveMatch(false)` is covere
 a closed one only in its own case (on a case-sensitive host `…/view/REQUESTS/state` is Wow's closed state route for a
 view with the id `REQUESTS`, not the replay route), so on a case-insensitive host such a path answers 404; a host that replaces Spring's
 `RouterFunctionMapping` with a parser of other options must not embed the starter. Set `wow.view-store.enabled=false` to turn the starter off, and replace the default `SystemViewProvider` bean
-to serve system views from somewhere other than `wow.view-store.system-views`.
+to serve configured system views from somewhere other than `wow.view-store.system-views` (stored ones are
+[System views](#system-views)).
+
+## System views
+
+A system view is a view every user of an application reads and none of them owns. They come from three places:
+
+| Source | Where | Written by |
+| --- | --- | --- |
+| Code | the host's view definitions, ids `system:…` | nobody: read-only, never sent to the server |
+| Configured | `wow.view-store.system-views` (or a host's `SystemViewProvider` bean), per tenant and application (blank = all) | nobody: read-only; a change needs a restart |
+| Stored | View aggregates under the reserved tenant `(platform)` and owner `(system)`, per application and definition | admins, through the normal view routes, without a restart |
+
+`GET …/tenant/{tenantId}/owner/(shared)/system-views[?definitionId=]` answers, for **any** request tenant, the
+configured views that match its tenant and application followed by the stored views of its application, and
+`GET …/system-views/{id}` the stored one before the configured one. Each `SystemView` carries `source`
+(`configured` or `stored`) and, for a stored one, `version`; `revision` is a hash of its content for both. A stored
+view with the id of a configured one wins, on reads and on writes, and the server logs a warning once. The server
+generates every view id, so over HTTP such a clash does not happen by accident; a host that wants to replace a
+configured view in place creates the stored one in process with that id (`CreateView` to the aggregate
+`(platform)`/`(system)`/`<id>`).
+
+Stored system views are **global**: they live under the tenant `(platform)` (`ViewStoreService.SYSTEM_TENANT_ID`, the value of
+CoSec's platform tenant; not Wow's default tenant `(0)`, which a deployment without tenants uses)
+only, and every tenant reads them. A create under the owner `(system)` in any other tenant is refused (`ViewInvalid`).
+They are written through the routes every view has, on one path:
+
+```
+POST   /view-store/tenant/(platform)/owner/(system)/view                 create ("publish": a copy of a view's title and config)
+PUT    /view-store/tenant/(platform)/owner/(system)/view/{id}/save
+PUT    /view-store/tenant/(platform)/owner/(system)/view/{id}/rename
+DELETE /view-store/tenant/(platform)/owner/(system)/view/{id}            delete ("unpublish")
+GET    /view-store/tenant/(platform)/owner/(system)/view/requests/{requestId}   replay of a retried write
+```
+
+(without the `/view-store` prefix in a host whose own context is `view-store`). A system view never moves audience:
+`share` and `claim` are refused (`SystemViewReadOnly`). Deleting one that a shared dashboard shows is allowed, as for
+a shared view; the panel breaks. A request whose path decodes to `(platform)` / `(system)` but spells it otherwise
+(percent-encoded, with a `;` parameter, in another letter case) is refused (`ViewScopeRequired`), so a gateway rule
+on that literal path sees every write. Nothing else writes a view: Wow's command facade and every batch and
+maintenance route of the view store's aggregates are closed, and a command sent to another owner or tenant path
+fails Wow's owner check or misses the aggregate.
+
+**Who may write them is the gateway's decision** (see [CoSec gateway rules](#cosec-gateway-rules)): the server has no
+setting for it. Without a gateway rule that keeps `…/tenant/(platform)/owner/(system)/**` to administrators, every caller
+who reaches the view store can create, change and delete the system views of every tenant.
+
+The stored views are read from the view snapshots through the host's snapshot query backend (MongoDB or
+Elasticsearch), at most 1000 per application (a warning names an application past that). A host without one (in-memory
+snapshots) serves the configured views alone and logs one warning at startup: stored system views are off there. A
+`StoredSystemViewSource` bean of the host's replaces either.
 
 ### Storage
 
@@ -152,6 +203,7 @@ request names them, so the rules must tie each to the token:
 | `/view-store/tenant/{tenantId}/owner/(shared)/**` | `POST /view`, `PUT`, `DELETE` (writes) | `{tenantId}` is the token's tenant **and** the caller has the role that may write shared views |
 | `/view-store/tenant/{tenantId}/owner/{ownerId}/view/{id}/claim`, `…/view/{id}/share` | `PUT` | `{tenantId}` is the token's tenant, `{ownerId}` is the token's `sub`, **and** the caller has the role that may write shared views |
 | `/view-store/tenant/{tenantId}/owner/(shared)/definitions/{definitionId}/preferences` | `PUT` | as a shared write (a host nobody signs in to keeps its preferences there) |
+| `/view-store/tenant/(platform)/owner/(system)/**` | all | the caller is an administrator of the system views (any tenant: the views are global) |
 
 - **Claim and share need both.** Claiming moves a shared view to the caller, so it takes it out of everyone's list;
   sharing moves a personal view to `(shared)`, so it publishes it into everyone's list. Both are sent to a personal
@@ -161,13 +213,59 @@ request names them, so the rules must tie each to the token:
   view by creating a personal one and sharing it.
 - **The application comes from the token too.** CoSec authenticates `CoSec-App-Id`; reject a request whose header is
   missing or names an application the token is not for. The server keeps applications apart by that header.
-- **`(shared)` is never a user.** Do not issue a token whose `sub` is `(shared)` or holds parentheses; the server
-  refuses such an owner for a claim, and the gateway's personal rule would otherwise admit it to the shared path.
+- **`(shared)` and `(system)` are never users.** Do not issue a token whose `sub` is `(shared)` or `(system)`, or
+  holds parentheses; the server refuses such an owner for a claim, and the gateway's personal rule would otherwise
+  admit it to the shared or the system path.
+- **System views are an administrator's.** A rule on `…/tenant/(platform)/owner/(system)/**` decides who may publish,
+  change and unpublish the system views every tenant reads; the personal rule must not admit that path (a tenant `(platform)`
+  user's `sub` is never `(system)`). Reading them needs no rule of its own: clients read them through
+  `…/owner/(shared)/system-views` of their own tenant. A CoSec policy that denies the path, matched without regard to
+  case, to everyone but a user of the platform tenant with the role `admin` (who is admitted by the deployment's own
+  allow rules; the policy only refuses everyone else). It has no policy-level `condition`, since CoSec 5.2 refuses an
+  empty one:
+
+  ```json
+  {
+    "id": "view-store-system-views",
+    "name": "View store system views",
+    "category": "view-store",
+    "description": "Only platform administrators write the global system views.",
+    "type": "global",
+    "tenantId": "(platform)",
+    "statements": [
+      {
+        "name": "SystemViewsPlatformAdminOnly",
+        "effect": "deny",
+        "action": {
+          "path": {
+            "pattern": "/view-store/tenant/(platform)/owner/(system)/**",
+            "options": { "caseSensitive": false }
+          }
+        },
+        "condition": {
+          "bool": {
+            "or": [
+              { "inTenant": { "value": "platform", "negate": true } },
+              { "inRole": { "value": "admin", "negate": true } }
+            ]
+          }
+        }
+      }
+    ]
+  }
+  ```
+
+  The server refuses any other spelling of the path, so the rule sees every system-view write. Without such a rule,
+  anyone who reaches the view store writes the system views of every tenant. Two limits of any path rule: the
+  gateway must see the path as the server routes it, so merge repeated slashes before the gateway
+  (`/view-store//tenant/…` merged only after it would escape a literal rule); and a producer that writes to the
+  command bus (Kafka) directly bypasses the gateway, which is the same trust boundary as for every other view.
 - **A host's buttons follow the same role.** `WowViewStore`'s `permissions` (`createShared`, `instance(id).save`,
-  `rename`, `delete`, `changeAudience`) are the host's to give, by the same role the gateway checks: `createShared`
-  and `changeAudience` (claim and share) both need the shared-write role; the server does
-  not tell the client what it may do.
-- A host nobody signs in to (the compensation console) has no token: it fills the tenant `(0)`, the owner `(shared)`
+  `rename`, `delete`, `changeAudience`, and the engine's `editSystem` for stored system views) are the host's to give,
+  by the same role the gateway checks: `createShared` and `changeAudience` (claim and share) both need the
+  shared-write role, `editSystem` the system-view administrator's; the server does not tell the client what it may
+  do.
+- A host nobody signs in to (the compensation console) has no token: it fills the tenant `(platform)`, the owner `(shared)`
   and its application itself, and its gateway admits it by network or by a service token, as it admits the rest of
   that console.
 

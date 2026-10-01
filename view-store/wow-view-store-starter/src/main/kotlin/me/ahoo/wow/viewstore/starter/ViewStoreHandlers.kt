@@ -44,7 +44,7 @@ import me.ahoo.wow.viewstore.domain.preferences.ViewPreferencesIds
 import me.ahoo.wow.viewstore.domain.preferences.ViewPreferencesState
 import me.ahoo.wow.viewstore.domain.view.View
 import me.ahoo.wow.viewstore.domain.view.ViewState
-import me.ahoo.wow.viewstore.starter.system.SystemViewProvider
+import me.ahoo.wow.viewstore.starter.system.StoredSystemViews
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
 import me.ahoo.wow.webflux.route.command.CommandHandler
 import me.ahoo.wow.webflux.route.command.toCommandResponse
@@ -60,7 +60,7 @@ import reactor.kotlin.core.publisher.switchIfEmpty
 private const val MAX_REPLAY_CANDIDATES = 20
 
 internal class ViewStoreHandlers(
-    private val systemViewProvider: SystemViewProvider,
+    private val systemViews: StoredSystemViews,
     private val stateAggregateRepository: StateAggregateRepository,
     private val commandHandler: CommandHandler,
     private val viewEventStreamQueryGateway: () -> EventStreamQueryGateway,
@@ -76,12 +76,14 @@ internal class ViewStoreHandlers(
     private val preferencesStateMetadata =
         preferencesRouteMetadata.aggregateMetadata.state as StateAggregateMetadata<ViewPreferencesState>
 
-    /** `GET …/owner/(shared)/system-views?definitionId=`: the server's system views; all of them without one. */
+    /**
+     * `GET …/owner/(shared)/system-views?definitionId=`: the system views of the request's tenant and application,
+     * configured and stored ([StoredSystemViews]); all of them without a definition.
+     */
     fun systemViews(request: ServerRequest): Mono<ServerResponse> {
-        val definitionId = request.queryParam(ViewStorePaths.DEFINITION_ID).orElse(null)
+        val definitionId = request.queryParam(ViewStorePaths.DEFINITION_ID).orElse(null)?.ifBlank { null }
         return Mono.fromCallable { request.sharedScope() }
-            .flatMapMany { (tenantId, appId) -> systemViewProvider.systemViews(tenantId, appId) }
-            .filter { definitionId.isNullOrBlank() || it.definitionId == definitionId }
+            .flatMapMany { (tenantId, appId) -> systemViews.systemViews(tenantId, appId, definitionId) }
             .collectList()
             .toServerResponse(request, exceptionHandler)
     }
@@ -90,9 +92,7 @@ internal class ViewStoreHandlers(
     fun systemView(request: ServerRequest): Mono<ServerResponse> {
         val id = request.pathVariable(ViewStorePaths.ID)
         return Mono.fromCallable { request.sharedScope() }
-            .flatMapMany { (tenantId, appId) -> systemViewProvider.systemViews(tenantId, appId) }
-            .filter { it.id == id }
-            .next()
+            .flatMap { (tenantId, appId) -> systemViews.systemView(tenantId, appId, id) }
             .switchIfEmpty { Mono.error(NotFoundResourceException("System view [$id] is not found.")) }
             .toServerResponse(request, exceptionHandler)
     }

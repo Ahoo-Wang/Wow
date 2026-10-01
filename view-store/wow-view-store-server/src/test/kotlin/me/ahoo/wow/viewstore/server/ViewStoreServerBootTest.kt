@@ -17,6 +17,7 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.openapi.aggregate.command.CommandComponent
 import me.ahoo.wow.viewstore.ViewStoreService
 import me.ahoo.wow.viewstore.domain.view.SharedBoardReferences
+import me.ahoo.wow.viewstore.starter.system.StoredSystemViewSource
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
@@ -119,6 +120,21 @@ class ViewStoreServerBootTest {
             .expectBody()
             .jsonPath("$[0].id").isEqualTo("orders-open")
             .jsonPath("$[0].scope").isEqualTo("system")
+            .jsonPath("$[0].source").isEqualTo("configured")
+    }
+
+    /**
+     * Snapshots in memory have no query backend: stored system views are off (one warning at startup), and the
+     * configured ones are still served, the list and one by id.
+     */
+    @Test
+    fun `without a snapshot query backend the configured system views are served alone`() {
+        applicationContext.getBean(StoredSystemViewSource::class.java).assert().isSameAs(StoredSystemViewSource.NONE)
+        client.get().uri("/view-store/tenant/t1/owner/(shared)/system-views/orders-open")
+            .header(ViewStoreService.APP_ID_HEADER, "console")
+            .exchange()
+            .expectStatus().isOk
+            .expectBody().jsonPath("$.source").isEqualTo("configured")
     }
 
     private fun createShared(): String =

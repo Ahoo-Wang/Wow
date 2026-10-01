@@ -42,6 +42,7 @@ import {
 } from './errors.js';
 import { PATHS, pathAt, type Place } from './paths.js';
 import {
+  isStored,
   preferencesAt,
   preferencesInput,
   revisionOf,
@@ -94,8 +95,12 @@ const LIST_LIMIT = 1000;
 /** How many preference writes the store remembers the outcome of. */
 const REMEMBERED_WRITES = 256;
 
-/** Where a view was found: an owner path, or the server's system views. */
-type Location = Place | 'system';
+/** What a stored system view's writes expect: its version at a revision. */
+interface StoredAt {
+  /** The content hash the engine holds as the view's revision. */
+  revision: string;
+  version: number;
+}
 
 /** One instance write, as sent from the place the view is at. */
 interface InstanceWrite {
@@ -145,8 +150,12 @@ const NOT_REPLAYED = Symbol('not replayed');
  */
 export class WowViewStore implements ViewStore {
   private readonly fetcher: Fetcher;
-  /** Where each view was last seen, by id. Kept after a delete, for its retry. */
-  private readonly places = new Map<string, Location>();
+  /**
+   * Where each view was last seen, by id. Kept after a delete, for its retry.
+   * A `system` view is read through the server's system views (configured
+   * and stored) and written, when stored, on the system path.
+   */
+  private readonly places = new Map<string, Place>();
   /**
    * The preferences have no replay route, so the store keeps what each of
    * its own writes answered, and which ones it sent: a retry answers the
@@ -156,6 +165,14 @@ export class WowViewStore implements ViewStore {
   private readonly preferenceAttempts = new Remembered<true>();
   /** The request ids of the creates this store sent, for their retries. */
   private readonly createAttempts = new Remembered<true>();
+  /**
+   * The system views as last read, by id: a stored one's version at its
+   * revision (a hash of its content, while a write expects the version), or
+   * `null` for a configured one, which is read-only.
+   */
+  private readonly storedVersions = new Remembered<StoredAt | null>(
+    REMEMBERED_SYSTEM_VIEWS,
+  );
   /** The host's {@link WowViewStoreOptions.permissions}, when it gave any. */
   readonly permissions?: (definitionId: string) => ViewPermissions;
 
@@ -205,6 +222,7 @@ export class WowViewStore implements ViewStore {
           ? unsupported(thrown)
           : thrown;
       });
+      for (const view of system) this.rememberSystem(view);
       const seen = new Map<string, ViewInstanceSummary>();
       for (const summary of [
         ...personal.map(toSummary),
@@ -213,7 +231,7 @@ export class WowViewStore implements ViewStore {
       ]) {
         if (seen.has(summary.id)) continue;
         seen.set(summary.id, summary);
-        this.places.set(summary.id, locationOf(summary.scope));
+        this.places.set(summary.id, summary.scope);
       }
       // Sorted stably: within an audience, the server's order stands.
       return [...seen.values()].sort(
@@ -239,11 +257,8 @@ export class WowViewStore implements ViewStore {
     context: WriteContext,
   ): Promise<ViewInstance> {
     return guard(async () => {
-      if (input.scope === 'system')
-        throw new ViewStoreError(
-          'INVALID',
-          'System views are declared in code or served by the server',
-        );
+      // A system view is created on the system path, global (the gateway
+      // decides who may); configured and code system views stay read-only.
       const place: Place = input.scope;
       const { requestId } = context;
       if (this.createAttempts.has(requestId)) {
@@ -254,7 +269,11 @@ export class WowViewStore implements ViewStore {
             : null;
         if (snapshot?.aggregateId) {
           this.places.set(snapshot.aggregateId, place);
-          return toInstance(snapshot);
+          // A system view's revision is its content hash, which the
+          // snapshot does not carry: it is read from the system views.
+          return place === 'system'
+            ? this.readAt('system', snapshot.aggregateId, context.signal)
+            : toInstance(snapshot);
         }
       }
       this.createAttempts.set(requestId, true);
@@ -338,20 +357,22 @@ export class WowViewStore implements ViewStore {
     context: WriteContext,
   ): Promise<ViewInstance> {
     return this.write(id, revision, context, place =>
-      audience === 'shared'
-        ? {
-            method: 'PUT',
-            url: PATHS.share,
-            sentTo: place,
-            body: {},
-            landsAt: 'shared',
-          }
-        : {
-            method: 'PUT',
-            url: PATHS.claim,
-            sentTo: 'personal',
-            landsAt: 'personal',
-          },
+      place === 'system'
+        ? readOnly('A system view never moves audience')
+        : audience === 'shared'
+          ? {
+              method: 'PUT',
+              url: PATHS.share,
+              sentTo: place,
+              body: {},
+              landsAt: 'shared',
+            }
+          : {
+              method: 'PUT',
+              url: PATHS.claim,
+              sentTo: 'personal',
+              landsAt: 'personal',
+            },
     ) as Promise<ViewInstance>;
   }
 
@@ -463,9 +484,13 @@ export class WowViewStore implements ViewStore {
       let place = remembered ?? (await this.find(id, signal)).place;
       let relocated = remembered === undefined;
       for (;;) {
-        if (place === 'system')
-          throw new ViewStoreError('FORBIDDEN', 'System views are read-only');
         const write = plan(place);
+        let expected = revision;
+        if (place === 'system') {
+          const stored = await this.storedVersion(id, revision, write, context);
+          if ('answer' in stored) return stored.answer;
+          expected = stored.version;
+        }
         let result: CommandResultBody;
         try {
           result = await this.json<CommandResultBody>(
@@ -475,7 +500,7 @@ export class WowViewStore implements ViewStore {
             {
               path: { id },
               body: write.body,
-              headers: writeHeaders(context, revision),
+              headers: writeHeaders(context, expected),
               signal,
             },
           );
@@ -491,10 +516,7 @@ export class WowViewStore implements ViewStore {
             const found = (await this.find(id, signal, null)).place;
             // Only where the write would go elsewhere: a claim goes to the
             // caller's own path wherever the view is.
-            if (
-              found !== place &&
-              (found === 'system' || plan(found).sentTo !== write.sentTo)
-            ) {
+            if (found !== place && plan(found).sentTo !== write.sentTo) {
               place = found;
               continue;
             }
@@ -526,6 +548,11 @@ export class WowViewStore implements ViewStore {
       read = await this.readAt(write.landsAt, id, context.signal);
       if (typeof version !== 'number' || read.revision === revisionOf(version))
         return read;
+      // A system view's revision is its content hash: the version it was
+      // read at says whether it is this write's.
+      if (write.landsAt === 'system') {
+        if (this.storedVersions.get(id)?.version === version) return read;
+      }
     } catch (thrown) {
       failure = thrown;
     }
@@ -580,9 +607,11 @@ export class WowViewStore implements ViewStore {
     strict: boolean,
   ): Promise<ViewInstance | undefined | typeof NOT_REPLAYED> {
     const places: Place[] =
-      write.sentTo === 'personal'
-        ? ['personal', 'shared']
-        : ['shared', 'personal'];
+      write.sentTo === 'system'
+        ? ['system']
+        : write.sentTo === 'personal'
+          ? ['personal', 'shared']
+          : ['shared', 'personal'];
     for (const [index, place] of places.entries()) {
       const response = await this.probe(place, context, strict && index === 0);
       if (!response) continue;
@@ -591,6 +620,11 @@ export class WowViewStore implements ViewStore {
       const snapshot = (await response.json()) as ViewSnapshotBody;
       if (write.landsAt === null || snapshot?.aggregateId !== id)
         return NOT_REPLAYED;
+      // The replay route answers a snapshot, whose revision would be its
+      // version; a system view's is its content hash, which only the server
+      // computes: the view is answered as it is now.
+      if (write.landsAt === 'system')
+        return this.readAt('system', id, context.signal);
       return toInstance(snapshot);
     }
     return NOT_REPLAYED;
@@ -675,12 +709,12 @@ export class WowViewStore implements ViewStore {
   private async find(
     id: string,
     signal: AbortSignal | undefined,
-    first: Location | null | undefined = this.places.get(id),
-  ): Promise<{ place: Location; instance: ViewInstance }> {
+    first: Place | null | undefined = this.places.get(id),
+  ): Promise<{ place: Place; instance: ViewInstance }> {
     // Ids in `system:` are the views a host declares in code; the server
     // never issues or serves one.
     if (!isSystemInstanceId(id)) {
-      const order: Location[] = ['personal', 'shared', 'system'];
+      const order: Place[] = ['personal', 'shared', 'system'];
       if (first)
         order.sort((a, b) => Number(b === first) - Number(a === first));
       for (const place of order) {
@@ -729,17 +763,63 @@ export class WowViewStore implements ViewStore {
       : thrown;
   }
 
+  /** Keeps what a stored system view's writes expect; forgets a configured one. */
+  private rememberSystem(view: SystemViewBody): SystemViewBody {
+    this.storedVersions.set(
+      view.id,
+      isStored(view)
+        ? { revision: view.revision, version: view.version! }
+        : null,
+    );
+    return view;
+  }
+
+  /**
+   * The version a write of stored system view `id` at `revision` (its
+   * content hash) expects: as last read, else read now. A configured system
+   * view is read-only (`FORBIDDEN`; a code one is never found here). A
+   * revision other than the view's is stale — unless this write is a retry
+   * whose first attempt moved it on, which the replay route answers — and is
+   * then `CONFLICT`, carrying the view as it is.
+   */
+  private async storedVersion(
+    id: string,
+    revision: string,
+    write: InstanceWrite,
+    context: WriteContext,
+  ): Promise<{ version: string } | { answer: ViewInstance | undefined }> {
+    let known = this.storedVersions.get(id);
+    if (known === null) readOnly('Configured system views are read-only');
+    if (known?.revision !== revision) {
+      const instance = await this.readAt('system', id, context.signal);
+      known = this.storedVersions.get(id);
+      if (known && known.revision !== revision) {
+        const replayed = await this.replay(id, write, context, false);
+        if (replayed !== NOT_REPLAYED) return { answer: replayed };
+        throw new ViewStoreError(
+          'CONFLICT',
+          `System view ${id} has moved on from revision ${revision}`,
+          { instance },
+        );
+      }
+    }
+    if (!known) readOnly('Configured system views are read-only');
+    return { version: String(known.version) };
+  }
+
   private async readAt(
-    place: Location,
+    place: Place,
     id: string,
     signal: AbortSignal | undefined,
   ): Promise<ViewInstance> {
     if (place === 'system')
       return systemInstance(
-        await this.json<SystemViewBody>('GET', PATHS.systemView, 'shared', {
-          path: { id },
-          signal,
-        }),
+        this.rememberSystem(
+          await this.json<SystemViewBody>('GET', PATHS.systemView, 'shared', {
+            path: { id },
+            signal,
+          }),
+        ),
       );
     return toInstance(
       await this.json<ViewSnapshotBody>('POST', PATHS.single, place, {
@@ -830,8 +910,9 @@ const AUDIENCE_RANK: Readonly<Record<ViewInstanceSummary['scope'], number>> = {
   personal: 2,
 };
 
-function locationOf(scope: ViewInstanceSummary['scope']): Location {
-  return scope === 'system' ? 'system' : scope;
+/** Refuses a write to a system view the server or the code declares. */
+function readOnly(message: string): never {
+  throw new ViewStoreError('FORBIDDEN', message);
 }
 
 /**
@@ -858,9 +939,17 @@ async function guard<T>(run: () => Promise<T>): Promise<T> {
   }
 }
 
-/** A bounded memory by request id: the oldest entry goes first. */
+/**
+ * How many system views the store remembers the version of; one it forgot
+ * is read again before its write.
+ */
+const REMEMBERED_SYSTEM_VIEWS = 1024;
+
+/** A bounded memory by key: the oldest entry goes first. */
 class Remembered<T> {
   private readonly entries = new Map<string, T>();
+
+  constructor(private readonly limit = REMEMBERED_WRITES) {}
 
   get(key: string): T | undefined {
     return this.entries.get(key);
@@ -873,7 +962,7 @@ class Remembered<T> {
   set(key: string, value: T): void {
     this.entries.delete(key);
     this.entries.set(key, value);
-    if (this.entries.size > REMEMBERED_WRITES)
+    if (this.entries.size > this.limit)
       this.entries.delete(this.entries.keys().next().value!);
   }
 }

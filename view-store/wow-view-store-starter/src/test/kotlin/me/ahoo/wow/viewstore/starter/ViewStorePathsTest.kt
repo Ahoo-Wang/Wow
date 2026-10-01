@@ -68,6 +68,7 @@ class ViewStorePathsTest {
         hosted.hasValidScope("/view-store/tenant/t1/owner/alice/view/v1/rename").assert().isTrue()
         hosted.hasValidScope("/view-store/tenant/t1/owner/(shared)/view").assert().isTrue()
         hosted.hasValidScope("/view-store/tenant/(0)/owner/alice%2Dx/view").assert().isTrue()
+        hosted.hasValidScope("/view-store/tenant/(platform)/owner/(system)/view").assert().isTrue()
         listOf(
             "%20", "%09", "%E3%80%80", "%C2%A0", "%00", "%0A", "%20%20", "%20;x=alice", "alice%20", "%20alice", "al%20ice",
             "alice%E2%80%8B", "%EF%BB%BFalice", "al%C2%ADice", "alice%E2%81%A0", "alice%E1%A0%8E", "%E2%80%A8",

@@ -41,8 +41,12 @@ import reactor.core.publisher.Mono
  * - the tenant and owner come from the path only: a path whose tenant or owner is empty or holds whitespace or
  *   control characters is refused with [ViewStoreErrorCodes.VIEW_SCOPE_REQUIRED] (Wow would read a blank one as
  *   missing and fall back to the headers), and a `Command-Tenant-Id` or `Command-Owner-Id` a caller sends is dropped;
- * - a system view is read-only, so a write addressed to one is refused with [ViewStoreErrorCodes.SYSTEM_VIEW_READ_ONLY]
- *   instead of reading as a view that does not exist.
+ * - a configured system view is read-only, so a write addressed to one is refused with
+ *   [ViewStoreErrorCodes.SYSTEM_VIEW_READ_ONLY] instead of reading as a view that does not exist; under the owner
+ *   `(system)` a stored view wins over a configured one with the same id, so its writes pass;
+ * - a request on stored system views (tenant `(platform)`, owner `(system)`) spells that path literally
+ *   ([ViewStorePaths.systemScope]), else it is refused with [ViewStoreErrorCodes.VIEW_SCOPE_REQUIRED]: the security
+ *   gateway decides who may write system views by that path, so no other spelling may reach them.
  *
  * Other requests pass untouched.
  */
@@ -90,6 +94,14 @@ internal class ViewStoreWebFilter(
                 )
             )
         }
+        if (paths.isSystemScope(path) && !paths.spellsSystemScope(path)) {
+            return exchange.writeError(
+                ViewStoreException(
+                    ViewStoreErrorCodes.VIEW_SCOPE_REQUIRED,
+                    "System views are addressed as [${paths.systemScope}/…], spelled exactly.",
+                )
+            )
+        }
         return filterViewStore(exchange.withoutClientHeaders(), path, chain)
     }
 
@@ -97,7 +109,11 @@ internal class ViewStoreWebFilter(
         val request = filtered.request
         val target = paths.viewTarget(path)
         val appId = request.headers.getFirst(ViewStoreService.APP_ID_HEADER)
+        // Under the owner `(system)` a stored view wins over a configured one with the same id.
         if (request.method !in WRITE_METHODS || target == null || appId.isNullOrBlank()) {
+            return chain.filter(filtered)
+        }
+        if (paths.isSystemOwner(path)) {
             return chain.filter(filtered)
         }
         return systemViewProvider.systemViews(target.tenantId, appId)

@@ -20,8 +20,10 @@ import me.ahoo.wow.openapi.aggregate.command.CommandComponent
 import me.ahoo.wow.openapi.contract.BuiltInHttpRoutePaths
 import me.ahoo.wow.serialization.JsonSerializer
 import me.ahoo.wow.viewstore.ViewStoreService
+import me.ahoo.wow.viewstore.api.SystemViewSource
 import me.ahoo.wow.viewstore.api.ViewStoreErrorCodes
 import me.ahoo.wow.viewstore.domain.view.SharedBoardReferences
+import me.ahoo.wow.viewstore.starter.system.StoredSystemViewSource
 import me.ahoo.wow.viewstore.starter.system.SystemViewProvider
 import me.ahoo.wow.viewstore.starter.system.SystemViews
 import me.ahoo.wow.webflux.route.command.extractor.CommandBuilderExtractor
@@ -69,6 +71,15 @@ class ViewStoreStarterTest {
                 SystemViews.of("host-open", "orders", "Open", JsonSerializer.createObjectNode().put("kind", "record"))
             )
         }
+
+        /** Snapshots are in memory here, without a query backend: the host serves its stored views itself. */
+        @Bean
+        fun hostStoredSystemViewSource(): StoredSystemViewSource = StoredSystemViewSource { _, _, _ ->
+            Flux.just(
+                SystemViews.of("stored-1", "orders", "Stored", JsonSerializer.createObjectNode().put("kind", "record"))
+                    .copy(source = SystemViewSource.STORED, version = 2)
+            )
+        }
     }
 
     @Autowired
@@ -103,7 +114,12 @@ class ViewStoreStarterTest {
         client.get().uri("/view-store/tenant/t1/owner/(shared)/system-views")
             .header(ViewStoreService.APP_ID_HEADER, "console").exchange()
             .expectStatus().isOk
-            .expectBody().jsonPath("$[0].id").isEqualTo("host-open")
+            .expectBody()
+            .jsonPath("$[0].id").isEqualTo("host-open")
+            .jsonPath("$[0].source").isEqualTo("configured")
+            .jsonPath("$[1].id").isEqualTo("stored-1")
+            .jsonPath("$[1].source").isEqualTo("stored")
+            .jsonPath("$[1].version").isEqualTo(2)
         client.put().uri("/view-store/tenant/t1/owner/(shared)/view/host-open/rename")
             .header(ViewStoreService.APP_ID_HEADER, "console")
             .contentType(MediaType.APPLICATION_JSON).bodyValue("""{"title":"Mine"}""").exchange()
@@ -131,6 +147,12 @@ class ViewStoreStarterTest {
             "/view-store/tenant/{tenantId}/owner/{ownerId}/view/snapshot/list",
             "/view-store/tenant/{tenantId}/owner/{ownerId}/system-views",
         )
+        val systemView = document.at("/components/schemas").propertyNames().single { it.endsWith(".SystemView") }
+        document.at("/components/schemas/$systemView/properties/source/\$ref").asString()
+            .assert().isEqualTo("#/components/schemas/${systemView}Source")
+        document.at("/components/schemas/${systemView}Source/enum").toString()
+            .assert().isEqualTo("""["configured","stored"]""")
+        document.at("/components/schemas/$systemView/properties/version").isMissingNode.assert().isFalse()
     }
 
     /**

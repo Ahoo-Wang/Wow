@@ -33,6 +33,8 @@ export interface ServedRequest {
   method: string;
   /** Decoded, without the query. */
   path: string;
+  /** As sent, percent-escapes included. */
+  rawPath: string;
   query: URLSearchParams;
   headers: Headers;
   body: unknown;
@@ -78,6 +80,7 @@ export function fakeServer(...routes: Route[]): FakeServer {
       const request: ServedRequest = {
         method: init.method ?? 'GET',
         path: decodeURIComponent(url.pathname),
+        rawPath: url.pathname,
         query: url.searchParams,
         headers: new Headers(init.headers),
         body: typeof init.body === 'string' ? JSON.parse(init.body) : init.body,

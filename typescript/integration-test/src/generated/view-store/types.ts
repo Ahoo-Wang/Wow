@@ -5,7 +5,8 @@ import type { ObjectNode } from '../example/types.js';
 /** - key: view-store.ViewAudience */
 export enum ViewAudience {
   PERSONAL = 'personal',
-  SHARED = 'shared'
+  SHARED = 'shared',
+  SYSTEM = 'system'
 }
 
 /** - key: view-store.SystemView */
@@ -15,8 +16,16 @@ export interface SystemView {
   id: string;
   kind: ViewKind;
   revision: string;
+  source: SystemViewSource;
   title: string;
+  version: (null | number);
   readonly scope: string;
+}
+
+/** - key: view-store.SystemViewSource */
+export enum SystemViewSource {
+  CONFIGURED = 'configured',
+  STORED = 'stored'
 }
 
 /** - key: view-store.ViewKind */

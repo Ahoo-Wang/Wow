@@ -15,17 +15,23 @@ package me.ahoo.wow.viewstore.api
 
 import com.fasterxml.jackson.annotation.JsonValue
 import me.ahoo.wow.viewstore.ViewStoreService.SHARED_OWNER_ID
+import me.ahoo.wow.viewstore.ViewStoreService.SYSTEM_OWNER_ID
 
 /**
- * Who a saved view is for. It is the owner segment of the view's path: [SHARED_OWNER_ID] is shared, any other owner
- * is personal.
+ * Who a saved view is for. It is the owner segment of the view's path: [SHARED_OWNER_ID] is shared,
+ * [SYSTEM_OWNER_ID] a stored system view, any other owner is personal. A system view never moves audience.
  */
 enum class ViewAudience(@get:JsonValue val value: String) {
     PERSONAL("personal"),
-    SHARED("shared");
+    SHARED("shared"),
+    SYSTEM("system");
 
     companion object {
         /** The audience of a view owned by [ownerId]. */
-        fun ofOwner(ownerId: String): ViewAudience = if (ownerId == SHARED_OWNER_ID) SHARED else PERSONAL
+        fun ofOwner(ownerId: String): ViewAudience = when (ownerId) {
+            SHARED_OWNER_ID -> SHARED
+            SYSTEM_OWNER_ID -> SYSTEM
+            else -> PERSONAL
+        }
     }
 }

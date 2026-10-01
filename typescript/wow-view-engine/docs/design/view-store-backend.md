@@ -63,16 +63,16 @@ Wow 自己做这个后端也最顺：端口的两条一致性规则在 Wow 里�
 
 所有路径的前缀是 `/view-store/tenant/{tenantId}/owner/{ownerId}`，下表省略它。命令路由由 Wow 按聚合元数据生成；读的合并与偏好走自定义路由，同样带这个前缀。
 
-| 方法与路径                                           | 端口方法                                 | 说明                                                                                      |
-| ---------------------------------------------------- | ---------------------------------------- | ----------------------------------------------------------------------------------------- |
-| `POST /view`（CreateView）                           | `create`                                 | 聚合 id 由服务端生成                                                                      |
-| `PUT /view/{id}/save`、`/rename`                     | `save`、`rename`                         | 带期望版本                                                                                |
-| `PUT /view/{id}/claim`、`/share`                     | **changeAudience**（设为个人、设为共享） | 带期望版本；claim 发到自己的个人路径，share 发到视图当前所在的路径                        |
-| `DELETE /view/{id}`                                  | `delete`                                 | 带期望版本                                                                                |
-| Wow 的快照查询路由（列表、按 id 读）                 | `list`、`get`                            | 摘要只投影不含 `config` 的字段；`kind` 取自 `config.kind`                                 |
-| `GET /system-views?definitionId=…`                   | `list` 的一部分                          | 服务端配置的系统视图（只读），只挂在 `owner/(shared)` 下                                  |
-| `GET /view/requests/{requestId}`                     | 重放                                     | 这次写入落地时的实例，只在本路径的租户、所有者与请求的应用内查找；删除类答 204（第 6 节） |
-| `GET`、`PUT /definitions/{definitionId}/preferences` | `getPreferences`、`setPreferences`       | 偏好聚合的 id 由服务端按「所有者 × 应用 × 定义」算出                                      |
+| 方法与路径                                           | 端口方法                                 | 说明                                                                                                                                          |
+| ---------------------------------------------------- | ---------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| `POST /view`（CreateView）                           | `create`                                 | 聚合 id 由服务端生成                                                                                                                          |
+| `PUT /view/{id}/save`、`/rename`                     | `save`、`rename`                         | 带期望版本                                                                                                                                    |
+| `PUT /view/{id}/claim`、`/share`                     | **changeAudience**（设为个人、设为共享） | 带期望版本；claim 发到自己的个人路径，share 发到视图当前所在的路径                                                                            |
+| `DELETE /view/{id}`                                  | `delete`                                 | 带期望版本                                                                                                                                    |
+| Wow 的快照查询路由（列表、按 id 读）                 | `list`、`get`                            | 摘要只投影不含 `config` 的字段；`kind` 取自 `config.kind`                                                                                     |
+| `GET /system-views?definitionId=…`                   | `list` 的一部分                          | 服务端配置的系统视图（只读），与存储在 `tenant/(platform)/owner/(system)` 下的全局系统视图（`source`、`version`），只挂在 `owner/(shared)` 下 |
+| `GET /view/requests/{requestId}`                     | 重放                                     | 这次写入落地时的实例，只在本路径的租户、所有者与请求的应用内查找；删除类答 204（第 6 节）                                                     |
+| `GET`、`PUT /definitions/{definitionId}/preferences` | `getPreferences`、`setPreferences`       | 偏好聚合的 id 由服务端按「所有者 × 应用 × 定义」算出                                                                                          |
 
 每个写入都带 `Command-Request-Id`（端口的 `requestId`）与 `Command-Wait-Stage: SNAPSHOT`；修改类另带 `Command-Aggregate-Version`（端口的 `revision`）。**`Command-Request-Id` 必须显式给**：fetcher-cosec 每个请求都生成一个新的 `CoSec-Request-Id`，Wow 只在命令没有 requestId 时拿它来补，重试若不显式带同一个 requestId 就去不了重。
 

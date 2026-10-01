@@ -20,8 +20,11 @@ import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.api.event.DefaultAggregateDeleted
 import me.ahoo.wow.api.exception.BindingError
 import me.ahoo.wow.viewstore.ViewStoreService.SHARED_OWNER_ID
+import me.ahoo.wow.viewstore.ViewStoreService.SYSTEM_OWNER_ID
+import me.ahoo.wow.viewstore.ViewStoreService.SYSTEM_TENANT_ID
 import me.ahoo.wow.viewstore.api.ScopeIds
 import me.ahoo.wow.viewstore.api.ViewAudience
+import me.ahoo.wow.viewstore.api.ViewStoreErrorCodes
 import me.ahoo.wow.viewstore.api.view.ClaimView
 import me.ahoo.wow.viewstore.api.view.CreateView
 import me.ahoo.wow.viewstore.api.view.DeleteView
@@ -40,6 +43,10 @@ import reactor.core.publisher.Mono
 /**
  * A saved view. Wow already rejects a command whose owner is not the view's, whose expected version is stale, or
  * that addresses a deleted view; the view rejects one from another application as not found.
+ *
+ * A view of the owner `(system)` is a stored system view: it is global, so it is created under the tenant
+ * `(platform)` only (not even Wow's default tenant `(0)`), and it never moves audience (share and claim are refused). Who may write one is the security gateway's
+ * decision, by its path `…/tenant/(platform)/owner/(system)/…`.
  */
 @AggregateRoot
 @AggregateRoute(owner = AggregateRoute.Owner.ALWAYS)
@@ -50,10 +57,18 @@ class View(private val state: ViewState) {
         val appId = command.requiredAppId()
         val body = command.body
         ViewConfigs.requireValid(body.config)
+        requireCreatableOwner(command.ownerId)
+        val audience = ViewAudience.ofOwner(command.ownerId)
+        if (audience == ViewAudience.SYSTEM && command.aggregateId.tenantId != SYSTEM_TENANT_ID) {
+            throw ViewStoreException.invalid(
+                "A system view is global: it is created under the tenant [$SYSTEM_TENANT_ID] only, " +
+                    "not [${command.aggregateId.tenantId}]."
+            )
+        }
         return ViewCreated(
             definitionId = ViewConfigs.requireDefinitionId(body.definitionId),
             title = ViewConfigs.requireTitle(body.title),
-            audience = ViewAudience.ofOwner(command.ownerId),
+            audience = audience,
             appId = appId,
             config = body.config,
         )
@@ -81,6 +96,7 @@ class View(private val state: ViewState) {
     @OnCommand
     fun onShare(command: CommandMessage<ShareView>): ViewAudienceChanged {
         command.requireSameApp(state.appId)
+        requireNotSystem()
         return ViewAudienceChanged(audience = ViewAudience.SHARED, toOwnerId = SHARED_OWNER_ID)
     }
 
@@ -96,6 +112,7 @@ class View(private val state: ViewState) {
         sharedBoardReferences: SharedBoardReferences,
     ): Mono<ViewAudienceChanged> {
         command.requireSameApp(state.appId)
+        requireNotSystem()
         val toOwnerId = command.body.toOwnerId
         requireClaimable(toOwnerId, command.ownerId)
         if (state.audience == ViewAudience.PERSONAL) {
@@ -129,6 +146,26 @@ class View(private val state: ViewState) {
     }
 
     /**
+     * Parentheses mark a reserved owner, and only `(shared)` and `(system)` are ones: a view is not created under
+     * another (such as `(SYSTEM)`, which would read as a user's).
+     */
+    private fun requireCreatableOwner(ownerId: String) {
+        if (ownerId.isReserved() && ownerId != SHARED_OWNER_ID && ownerId != SYSTEM_OWNER_ID) {
+            throw ViewStoreException.invalid("A view is not created under the reserved owner [$ownerId].")
+        }
+    }
+
+    /** A system view never moves audience. */
+    private fun requireNotSystem() {
+        if (state.audience == ViewAudience.SYSTEM) {
+            throw ViewStoreException(
+                ViewStoreErrorCodes.SYSTEM_VIEW_READ_ONLY,
+                "A system view never moves audience: it is neither shared nor claimed.",
+            )
+        }
+    }
+
+    /**
      * A view is claimed by a user, never by a reserved owner or an id with anything invisible in it; and a
      * view already personal only by the owner it has
      * (which records the change to the same owner).
@@ -150,6 +187,8 @@ class View(private val state: ViewState) {
          * Whether this can be a user's id: a valid owner of a path ([ScopeIds], so nothing invisible in it), and not
          * in parentheses, which mark a reserved owner such as `(shared)`.
          */
-        private fun String.isUserId(): Boolean = ScopeIds.isValid(this) && !(startsWith("(") && endsWith(")"))
+        private fun String.isUserId(): Boolean = ScopeIds.isValid(this) && !isReserved()
+
+        private fun String.isReserved(): Boolean = startsWith("(") && endsWith(")")
     }
 }

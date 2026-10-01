@@ -67,7 +67,10 @@ const engine = new ViewEngine({
 server trusts its paths, and the CoSec gateway decides who may use which. Give
 `createShared` and `changeAudience` by the role that may write
 `owner/(shared)` — creating a shared view, claiming one and sharing a personal
-one all need it. Left out, everything is allowed.
+one all need it. Left out, everything is allowed — but the engine's
+`editSystem` (publishing, editing and unpublishing stored system views) is
+off unless the host's answer says `true`: give it by the role the gateway
+admits to `tenant/(platform)/owner/(system)` (`view-store/README.md`, 「System views」).
 
 ### A host nobody signs in to
 
@@ -111,7 +114,7 @@ a shared one on `owner/(shared)`.
 | ---------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `list`                             | The snapshot list on the caller's path and on `(shared)`, projected to the summary (`state.config.kind`, not the config), and `GET (shared)/system-views?definitionId=`, sent together |
 | `get`                              | The snapshot of one id where the view was last seen; an unknown id is looked up on the caller's path, then `(shared)`, then the system views                                           |
-| `create`                           | `POST …/view` on the path of its `scope`; the server generates the id                                                                                                                  |
+| `create`                           | `POST …/view` on the path of its `scope` (`system`: `tenant/(platform)/owner/(system)`); the server generates the id                                                                   |
 | `save`, `rename`, `delete`         | `PUT …/view/{id}/save`, `/rename`, `DELETE …/view/{id}` on the view's path                                                                                                             |
 | `changeAudience('shared')`         | `PUT …/view/{id}/share` on the view's path                                                                                                                                             |
 | `changeAudience('personal')`       | `PUT …/view/{id}/claim` on the caller's own path                                                                                                                                       |
@@ -151,6 +154,32 @@ another store instance — another tab, a reload — makes a second view.
 **A view that moved.** When another tab shared a view this store remembers as
 personal (or the other way round), the write is refused on the old path; the
 store looks the view up again and sends the write once more to where it is.
+
+**System views.** The server's system views (`GET (shared)/system-views`) are
+configured ones, read-only, and stored ones (`source: 'stored'`), which
+`WowViewStore` lists and reads with `stored: true` on the summary and the
+instance. A stored one is written on `tenant/(platform)/owner/(system)`
+(`SYSTEM_TENANT_ID`, `SYSTEM_OWNER_ID`) whatever the caller's tenant: they are
+global. `create({ scope: 'system', … })` publishes one (a copy: the source
+view stays), `save`, `rename` and `delete` edit and unpublish it;
+`changeAudience` and any write to a configured or code system view are
+`FORBIDDEN` before anything is sent.
+
+A system view's `revision` is a hash of its content, as the engine needs for
+its dirty baseline, while a write expects the aggregate version: the store
+remembers the `version` each read of a stored view gave beside its revision,
+sends that version, and when the engine holds a revision it has no version
+for, reads the view again first — a revision other than the view's is
+`CONFLICT` with the view as it is, and nothing is sent. The answer of a write
+is read back from the system-views route at the version it left. A retry the
+server refuses as a repeated request is found by the replay route on the
+system path, but that route answers a snapshot, whose content hash only the
+server computes: the store answers it with the system view **as it is now**,
+which is the retried write's outcome unless another admin wrote in between.
+A retry whose first attempt moved the view on (so the revision it holds is no
+longer the view's) asks the replay route before it is refused as `CONFLICT`,
+and a retried create of a system view answers the view from the system
+views, flagged and at its hash.
 
 ## Errors
 

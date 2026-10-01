@@ -52,8 +52,31 @@ export interface SystemViewBody {
   definitionId: string;
   title: string;
   kind: ViewKind;
+  /** A hash of its content, whatever its source. */
   revision: string;
   config: ViewConfig;
+  /**
+   * `configured` (read-only) or `stored` (a view of `tenant/(platform)/owner/(system)`,
+   * written through the view routes); absent from a server before it,
+   * which served configured views only.
+   */
+  source?: 'configured' | 'stored';
+  /** A stored view's aggregate version, which its writes expect. */
+  version?: number | null;
+}
+
+/**
+ * The port's flag on a stored system view's summary and instance: the views
+ * an `editSystem` permission may write. Configured and code system views
+ * carry none.
+ */
+export interface StoredFlag {
+  stored?: true;
+}
+
+/** Whether the server stores `view` (else it configures it). */
+export function isStored(view: SystemViewBody): boolean {
+  return view.source === 'stored' && typeof view.version === 'number';
 }
 
 /** One owner's preferences in one definition (`ViewPreferencesView`). */
@@ -112,7 +135,9 @@ export function toSummary(snapshot: ViewSnapshotBody): ViewInstanceSummary {
   };
 }
 
-export function systemInstance(view: SystemViewBody): ViewInstance {
+export function systemInstance(
+  view: SystemViewBody,
+): ViewInstance & StoredFlag {
   return {
     id: view.id,
     definitionId: view.definitionId,
@@ -120,10 +145,13 @@ export function systemInstance(view: SystemViewBody): ViewInstance {
     scope: 'system',
     revision: view.revision,
     config: view.config,
+    ...(isStored(view) ? { stored: true as const } : {}),
   };
 }
 
-export function systemSummary(view: SystemViewBody): ViewInstanceSummary {
+export function systemSummary(
+  view: SystemViewBody,
+): ViewInstanceSummary & StoredFlag {
   return {
     id: view.id,
     definitionId: view.definitionId,
@@ -131,6 +159,7 @@ export function systemSummary(view: SystemViewBody): ViewInstanceSummary {
     scope: 'system',
     kind: view.kind,
     revision: view.revision,
+    ...(isStored(view) ? { stored: true as const } : {}),
   };
 }
 
