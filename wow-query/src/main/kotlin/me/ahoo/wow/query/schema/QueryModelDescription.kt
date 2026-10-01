@@ -322,6 +322,17 @@ private class QueryModelDescription(private val schema: QueryModelSchema, privat
         ?: FieldDescriptor.EVENT_TIME.takeIf { path == schema.profile?.eventTimeField?.path }
         ?: FieldDescriptor.FIRST_EVENT_TIME.takeIf { path == schema.profile?.firstEventTimeField?.path }
 
+    /**
+     * The furthest record an offset page may reach (`index × size`): the budget's window or the storage's own
+     * ([me.ahoo.wow.query.schema.PagingSupport.maxOffsetWindow], Elasticsearch's `index.max_result_window`),
+     * whichever is smaller, as admission enforces both. A budget of 0 sets no window of its own, so the storage's
+     * still applies; `null` only when neither sets one.
+     */
+    private fun pageWindow(): Long? = listOfNotNull(
+        budget?.maxPageWindow?.takeIf { it > 0 },
+        schema.storage.paging.maxOffsetWindow?.toLong(),
+    ).minOrNull()
+
     private fun limits(defaultListSize: Int?): LimitsDescriptor {
         fun Int.limit(): Int? = takeIf { it > 0 }
         val maxList = budget?.maxListSize?.limit()
@@ -329,7 +340,7 @@ private class QueryModelDescription(private val schema: QueryModelSchema, privat
             maxListSize = maxList,
             defaultListSize = defaultListSize?.let { if (budget == null) it.limit() else budget.listDefault(it) },
             maxPageSize = budget?.maxPageSize?.limit(),
-            maxPageWindow = budget?.maxPageWindow?.takeIf { it > 0 },
+            maxPageWindow = pageWindow(),
             maxFilterNodes = budget?.maxFilterNodes?.limit(),
             maxFilterValues = budget?.maxFilterValues?.limit(),
             maxSortFields = Sort.MAX_FIELDS,

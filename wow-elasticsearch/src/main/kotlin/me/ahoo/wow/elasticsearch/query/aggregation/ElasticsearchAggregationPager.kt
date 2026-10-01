@@ -225,7 +225,7 @@ internal class ElasticsearchAggregationPager(
                 is ElasticsearchAggregationMetric.DistinctCount -> putMetricAggregations(
                     metric,
                     metric.alias to Aggregation.of { builder ->
-                        builder.cardinality { it.field(metric.field) }
+                        builder.cardinality { it.field(metric.field).precisionThreshold(DISTINCT_COUNT_PRECISION) }
                     },
                 )
 
@@ -328,3 +328,11 @@ private fun ElasticsearchAggregationMetric.Edge.topHit(): Aggregation = Aggregat
             }
     }
 }
+
+/**
+ * The `precision_threshold` of a distinct count: Elasticsearch's maximum, below which counts are close to exact. The
+ * default (3000) made "executions per day" approximate from 3000 a day. A count above it is still an estimate, which
+ * the schema publishes (`approximateMetrics`). The memory is about 8 bytes per distinct value up to the threshold,
+ * per bucket.
+ */
+internal const val DISTINCT_COUNT_PRECISION = 40_000

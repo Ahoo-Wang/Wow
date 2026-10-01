@@ -232,6 +232,28 @@ class ElasticsearchAggregationPagerTest {
     }
 
     @Test
+    fun `distinct count should request the highest precision threshold`() {
+        val requests = mutableListOf<SearchRequest>()
+        stubPointInTime()
+        every { client.search(capture(requests), Map::class.java) } returns Mono.just(
+            groupResponse("pit-2", emptyList()),
+        )
+        val plan = compileAggregation(
+            aggregation {
+                terms("state.product", "product")
+                distinctCount("state.productId", "customers")
+            },
+        )
+
+        pager().execute(plan).test().verifyComplete()
+
+        requests.single().aggregations().values.single().aggregations().getValue("customers").cardinality().apply {
+            field().assert().isEqualTo("state.productId")
+            precisionThreshold().assert().isEqualTo(40_000)
+        }
+    }
+
+    @Test
     fun `metric ties should preserve native composite group order`() {
         stubPointInTime()
         every { client.search(any<SearchRequest>(), Map::class.java) } returns Mono.just(

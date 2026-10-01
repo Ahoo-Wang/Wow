@@ -18,6 +18,7 @@ import me.ahoo.wow.api.query.schema.QueryCapability
 import me.ahoo.wow.api.query.schema.QueryCardinality
 import me.ahoo.wow.api.query.schema.Temporal
 import me.ahoo.wow.query.schema.QueryFieldSchema
+import me.ahoo.wow.query.schema.QueryStorageType
 
 /**
  * One field reference of an [AdmittedQuery], resolved once by admission for this request.
@@ -65,6 +66,14 @@ class ResolvedField internal constructor(
      */
     val physicalScope: QueryField?
         get() = capability?.let(definition::binding)?.physicalScope
+
+    /**
+     * The storage's own types of [physicalField] in the binding admitted for [capability] (an Elasticsearch field
+     * kind such as `long` or `date`), so a backend can pick a native operation for them; `null` when the storage did
+     * not state them or the field is projected.
+     */
+    val storageTypes: Set<QueryStorageType>?
+        get() = capability?.let(definition::binding)?.storageTypes
 
     /** [physicalField] relative to [physicalParent]; the physical field itself at the root. */
     val relativePhysicalField: QueryField

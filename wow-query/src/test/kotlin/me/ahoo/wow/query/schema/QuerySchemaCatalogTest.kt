@@ -26,6 +26,7 @@ import me.ahoo.wow.query.snapshot.SnapshotQueryBackend
 import me.ahoo.wow.tck.query.NoOpEventStreamQueryBackend
 import me.ahoo.wow.tck.query.NoOpSnapshotQueryBackend
 import org.junit.jupiter.api.Test
+import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.kotlin.test.test
 import java.util.concurrent.atomic.AtomicInteger
@@ -74,6 +75,26 @@ class QuerySchemaCatalogTest {
         timer("failure")!!.count().assert().isEqualTo(1)
         // Only first → second changed the version; second → second and the failed reload did not.
         registry.find(QuerySchemaCatalog.SCHEMA_VERSION_CHANGES).counter()!!.count().assert().isEqualTo(1.0)
+    }
+
+    /**
+     * A reload leaves the in-flight set before its result is delivered: a revalidation its caller starts on that
+     * result (here, synchronously from the completion) reloads again rather than receiving the finished one.
+     */
+    @Test
+    fun `a revalidation started when the previous one completes reloads again`() {
+        val registry = io.micrometer.core.instrument.simple.SimpleMeterRegistry()
+        val catalog = QuerySchemaCatalog(
+            snapshots = snapshots { SequenceStorage(exact, sortable, null) },
+            aggregates = listOf(order),
+            meterRegistry = registry,
+        )
+        catalog.versions().blockLast()
+
+        val statuses = catalog.revalidate().concatWith(Flux.defer { catalog.revalidate() }).collectList().block()!!
+
+        statuses.map { it.error }.assert().containsExactly(null, "storage unreachable")
+        registry.find(QuerySchemaCatalog.SCHEMA_REFRESH).timers().sumOf { it.count() }.assert().isEqualTo(2L)
     }
 
     @Test
