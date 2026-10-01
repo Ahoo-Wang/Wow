@@ -17,6 +17,7 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.exception.BindingError
 import me.ahoo.wow.api.exception.ErrorInfo
 import me.ahoo.wow.exception.ErrorCodes
+import me.ahoo.wow.openapi.CommonComponent
 import org.springframework.core.Ordered
 import org.springframework.http.server.reactive.ServerHttpRequest
 import org.springframework.validation.BindingResult
@@ -29,11 +30,29 @@ class DefaultGlobalExceptionHandler(
 ) : WebExceptionHandler, Ordered {
     private val log = KotlinLogging.logger {}
 
+    /**
+     * Writes the error and logs it by the status it was answered with ([requestFailure]): a 404 for a missing static
+     * resource is one line, a 5xx keeps its stack trace. A response committed before the error, or one whose status
+     * cannot be read, is logged with the stack trace.
+     */
     override fun handle(exchange: ServerWebExchange, ex: Throwable): Mono<Void> {
-        log.warn(ex) {
-            exchange.request.formatRequest()
+        val request = exchange.request.formatRequest()
+        if (exchange.response.isCommitted) {
+            log.warn(ex) { "$request - Response already committed." }
+            return errorStrategy.writeToExchange(exchange, ex)
         }
-        return errorStrategy.writeToExchange(exchange, ex)
+        return Mono.defer { errorStrategy.writeToExchange(exchange, ex) }
+            .doFinally {
+                val response = exchange.response
+                val status = runCatching { response.statusCode }.getOrNull()
+                if (status == null) {
+                    log.warn(ex) { request }
+                } else {
+                    val errorCode = runCatching { response.headers.getFirst(CommonComponent.Header.ERROR_CODE) }
+                        .getOrNull()
+                    log.requestFailure(request, status, errorCode, ex)
+                }
+            }
     }
 
     fun ServerHttpRequest.formatRequest(): String {

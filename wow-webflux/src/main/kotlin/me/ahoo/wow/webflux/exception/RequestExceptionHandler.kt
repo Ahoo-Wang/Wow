@@ -13,9 +13,11 @@
 
 package me.ahoo.wow.webflux.exception
 
+import io.github.oshai.kotlinlogging.KLogger
 import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.exception.ErrorCodes
 import me.ahoo.wow.openapi.CommonComponent
+import org.springframework.http.HttpStatusCode
 import org.springframework.web.reactive.function.server.ServerRequest
 import org.springframework.web.reactive.function.server.ServerResponse
 import reactor.core.publisher.Mono
@@ -40,11 +42,12 @@ class WebFluxRequestExceptionHandler(
             Mono.defer { errorStrategy.toServerResponse(request, throwable) }
                 .doOnNext { response ->
                     if (logged.compareAndSet(false, true)) {
-                        if (response.statusCode().is4xxClientError && !response.isServerFault()) {
-                            log.warn { "${request.formatRequest()} - ${throwable.singleLineMessage()}" }
-                        } else {
-                            log.warn(throwable) { request.formatRequest() }
-                        }
+                        log.requestFailure(
+                            request.formatRequest(),
+                            response.statusCode(),
+                            response.headers().getFirst(CommonComponent.Header.ERROR_CODE),
+                            throwable
+                        )
                     }
                 }
                 .switchIfEmpty(
@@ -68,13 +71,31 @@ class WebFluxRequestExceptionHandler(
                 }
         }
     }
-
-    /**
-     * A 400 whose code is `IllegalState`: the server reached a state it did not expect (a backend timeout, a broken
-     * invariant), not a request it refused, so its stack trace is logged although the wire answer stays a 400.
-     */
-    private fun ServerResponse.isServerFault(): Boolean =
-        headers().getFirst(CommonComponent.Header.ERROR_CODE) == ErrorCodes.ILLEGAL_STATE
-
-    private fun Throwable.singleLineMessage(): String = message.orEmpty().replace('\r', ' ').replace('\n', ' ')
 }
+
+/**
+ * Logs a request's failure by what the server answered, so that the failures an operator acts on carry their stack
+ * trace and the ones a client caused do not flood the log:
+ *
+ * - a 5xx is the server's fault: `ERROR`, with the stack trace;
+ * - a 4xx whose code is `IllegalState` is too: the server reached a state it did not expect (a backend timeout, a
+ *   broken invariant), not a request it refused, so it is logged at `WARN` with its stack trace, although the answer
+ *   stays a 400 (the status of existing routes is part of the v9 REST contract);
+ * - any other 4xx is the request's: one `WARN` line with the message, no stack trace.
+ */
+internal fun KLogger.requestFailure(
+    request: String,
+    status: HttpStatusCode,
+    errorCode: String?,
+    throwable: Throwable,
+) {
+    when {
+        status.is5xxServerError -> error(throwable) { request }
+        status.is4xxClientError && errorCode != ErrorCodes.ILLEGAL_STATE ->
+            warn { "$request - ${throwable.singleLineMessage()}" }
+
+        else -> warn(throwable) { request }
+    }
+}
+
+internal fun Throwable.singleLineMessage(): String = message.orEmpty().replace('\r', ' ').replace('\n', ' ')

@@ -71,16 +71,17 @@ class WebFluxRequestExceptionHandlerTest {
     }
 
     @Test
-    fun `should retain stack trace for server error`() {
-        val warnings = captureWarnings {
+    fun `should log a server error at error level with its stack trace`() {
+        val events = captureWarnings {
             WebFluxRequestExceptionHandler().handle(
                 MockServerRequest.builder().build(),
                 RuntimeException("server error"),
-            ).block()
+            ).block()!!.statusCode().value().assert().isEqualTo(500)
         }
 
-        warnings.assert().hasSize(1)
-        warnings.single().throwableProxy.assert().isNotNull()
+        events.assert().hasSize(1)
+        events.single().level.assert().isEqualTo(Level.ERROR)
+        events.single().throwableProxy.assert().isNotNull()
     }
 
     @Test
@@ -178,7 +179,7 @@ class WebFluxRequestExceptionHandlerTest {
         logger.addAppender(appender)
         return try {
             block()
-            appender.list.filter { it.level == Level.WARN }
+            appender.list.filter { it.level.isGreaterOrEqual(Level.WARN) }
         } finally {
             logger.detachAppender(appender)
             appender.stop()
