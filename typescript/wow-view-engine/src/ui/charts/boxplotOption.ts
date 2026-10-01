@@ -92,7 +92,7 @@ export function boxplotOption(
     categories: boxes.map(box => box.name),
     categoryTitle: column(boxplot?.category),
     valueTitle: column(measured),
-    valueTick: value => label(measured, value, true),
+    valueTick: value => label(measured, value, 'tick'),
     scaled: true,
   });
   return {

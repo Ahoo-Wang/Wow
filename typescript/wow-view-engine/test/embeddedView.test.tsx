@@ -192,7 +192,8 @@ describe('EmbeddedView', () => {
       <EmbeddedView engine={engine} instanceId="orders-1" locale="en-GB" />,
     );
 
-    expect(await screen.findByText(inZone(INSTANT))).toBeDefined();
+    // A table cell is short; the whole time is its title (R2-23).
+    expect(await screen.findByTitle(inZone(INSTANT))).toBeDefined();
   });
 
   it("takes the host's wording, for its own alerts and everything inside", async () => {

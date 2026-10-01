@@ -19,12 +19,13 @@ import { badgeEntries, type BadgeEntry } from '../kit/badges.js';
 import {
   cellText,
   displayValue,
-  formatNumber,
   heldReading,
   labelsOf,
+  tableTime,
   type DisplayContext,
   type DisplayField,
 } from '../kit/display.js';
+import { formatNumber } from '../kit/numbers.js';
 import type { MessageFormatters } from '../kit/MessagesProvider.js';
 import { ToneBadge } from '../kit/variants.js';
 import { IDENTIFIER_FACE } from './columns.js';
@@ -212,6 +213,17 @@ export function cellValue(
   // it — the same line the CSV writes.
   if (Array.isArray(value)) return cellText(value, field, messages, display);
 
+  // A time in a table is short — to the minute, the year only when it is
+  // not this one — and whole one hover away; the detail, a card and a file
+  // read it whole (`tableTime`, R2-23).
+  const short = surface === 'table' && tableTime(value, field, display);
+  if (short)
+    return (
+      <span data-slot="cell-time" title={displayValue(value, field, display)}>
+        {short}
+      </span>
+    );
+
   // A time, a date or an enum shows as the field says; a number keeps its
   // format and a boolean its wording below.
   const shown = displayValue(value, field, display);
@@ -221,7 +233,8 @@ export function cellValue(
   if (typeof value === 'boolean')
     return messages.label(value ? 'label.value.yes' : 'label.value.no');
   if (typeof value === 'string') return value;
-  if (typeof value === 'bigint') return value.toString();
+  if (typeof value === 'bigint')
+    return formatNumber(value, field.numberFormat, display.locale);
   // Structure was read above, so what is left — a function, a symbol — is
   // nothing a record holds and nothing a reader could use.
   return null;

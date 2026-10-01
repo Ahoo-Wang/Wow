@@ -87,6 +87,7 @@ export function EmbedFrame({
       messages={wording}
       locale={locale}
       timeZone={engine.environment.timeZone}
+      clock={engine.environment}
       className={className}
       data-embed-size={size}
       data-kind={runtime?.kind ?? kind}

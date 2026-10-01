@@ -412,7 +412,12 @@ describe('DataWorkbench', () => {
           },
         ],
       }),
-      environment: defaultRuntimeEnvironment({ timeZone: ZONE }),
+      environment: defaultRuntimeEnvironment({
+        timeZone: ZONE,
+        // The engine's clock, not the machine's, says which year is this
+        // one: a cell names the year of a time outside it (R2-23).
+        now: () => new Date('2027-02-01T00:00:00Z'),
+      }),
     });
 
     render(
@@ -429,9 +434,16 @@ describe('DataWorkbench', () => {
       expect(found).not.toBeNull();
       return found!;
     });
-    expect(document.querySelector('tbody')!.textContent).toContain(
-      inZone(INSTANT),
-    );
+    // The cell is short, the whole time its title (R2-23); a summary
+    // reads whole.
+    expect(
+      document
+        .querySelector('tbody [data-slot="cell-time"]')!
+        .getAttribute('title'),
+    ).toBe(inZone(INSTANT));
+    expect(
+      document.querySelector('tbody [data-slot="cell-time"]')!.textContent,
+    ).toMatch(/^18 Sept 2026, 15:06$/);
     // Both scopes read the column's way, under the word a moment takes.
     expect(footer.textContent).toContain(
       defaultMessages['label.summary.fn.date.MIN'],

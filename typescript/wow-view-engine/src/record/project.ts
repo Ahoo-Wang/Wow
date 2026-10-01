@@ -103,6 +103,11 @@ export interface RecordColumnView {
   elementTitle?: ElementTitleView;
   /** A time kept in epoch seconds; milliseconds when unsaid. */
   timeUnit?: EpochTimeUnit;
+  /**
+   * How finely the cell writes a time of day, where the field asks for its
+   * seconds (`FieldDefinition.timePrecision`); to the minute when unsaid.
+   */
+  timePrecision?: 'second';
 }
 
 /**
@@ -293,6 +298,11 @@ function columnView(
     ...(field.options ? { options: field.options } : {}),
     ...elementTitleOf(field),
     ...timeUnitOf(field),
+    // The default is the minute, and only a table cell is ever short, so
+    // the column carries the one thing that changes it.
+    ...(field.timePrecision === 'second'
+      ? { timePrecision: 'second' as const }
+      : {}),
   };
 }
 

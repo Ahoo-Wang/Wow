@@ -1276,7 +1276,7 @@ describe('AnalysisChart', () => {
     );
 
     expect(screen.getByText('40%')).toBeDefined();
-    expect(screen.getByText('+25%')).toBeDefined();
+    expect(screen.getByText('+25.0%')).toBeDefined();
   });
 
   /**

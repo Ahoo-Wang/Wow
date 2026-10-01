@@ -353,6 +353,23 @@ export const TEMPORAL_FIELD_KIND_IDS: readonly FieldKindId[] = [
 ];
 
 /**
+ * How finely a table cell writes a time of day (`FieldDefinition.timePrecision`).
+ *
+ * - `minute`, the default: a column of times is read for when something
+ *   happened, and the seconds made every such column some 180 pixels wide —
+ *   the largest source of sideways scrolling in a record workbench (second
+ *   review R2-23). The cell drops the year within the current one, too.
+ * - `second`: for a field whose seconds are the point, an event stream's
+ *   times above all, where two events a few seconds apart are the story.
+ *
+ * Only the table's cell is short. Its title, the record's detail, a card and
+ * a file keep the whole time, seconds included.
+ */
+export type TimePrecision = 'minute' | 'second';
+
+export const TIME_PRECISIONS: readonly TimePrecision[] = ['minute', 'second'];
+
+/**
  * What a time field that declares nothing is: epoch milliseconds.
  *
  * The default is the engine's audience rather than the fixtures' habit. A
@@ -600,6 +617,13 @@ export interface FieldDefinition {
    * query schema.
    */
   temporal?: FieldTemporal;
+  /**
+   * For a field read as a `datetime`, how finely a table cell writes the time
+   * of day: to the minute when unsaid, `'second'` for a field whose seconds
+   * matter (`TimePrecision`). The cell's title and the record's detail always
+   * say the seconds.
+   */
+  timePrecision?: TimePrecision;
   /**
    * For an array of objects, what each of its elements holds.
    *

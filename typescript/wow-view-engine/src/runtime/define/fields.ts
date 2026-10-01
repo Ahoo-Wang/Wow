@@ -168,6 +168,8 @@ function buildField(
   }
   if (spec.elementTitle !== undefined) field.elementTitle = spec.elementTitle;
   if (spec.cell !== undefined) field.cell = spec.cell;
+  if (spec.timePrecision !== undefined)
+    field.timePrecision = spec.timePrecision;
   Object.assign(field, spec.more);
   return {
     field,

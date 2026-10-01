@@ -110,9 +110,10 @@ export const DataConsole: Story = {
     await expect(contacts[4]).toContain('联系人乙');
     await expect(contacts[4]).toContain('联系人丙');
     await expect(contacts.join('')).not.toMatch(/[{}[\]]/);
-    // The creation time reads as a date, not as epoch milliseconds.
+    // The creation time reads as a date, not as epoch milliseconds: to the
+    // minute in the table (R2-23).
     await expect(readColumn(table, '创建时间')[0]).toMatch(
-      /\d{4}年\d{1,2}月\d{1,2}日/,
+      /^(\d{4}-)?\d{2}-\d{2} \d{2}:\d{2}$/,
     );
 
     // What changed since it was created, the latest change first.

@@ -86,7 +86,7 @@ export function candlestickOption(
     categories: candles.map(candle => candle.name),
     categoryTitle: column(candlestick?.x),
     valueTitle: column(measured),
-    valueTick: value => label(measured, value, true),
+    valueTick: value => label(measured, value, 'tick'),
     scaled: true,
   });
   return {

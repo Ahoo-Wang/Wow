@@ -179,6 +179,30 @@ describe('shapeChart: a split past the palette', () => {
     expect(data.crowded).toBeUndefined();
   });
 
+  it('draws no 「其他」 where the parts make up the whole, float residue and all', () => {
+    // Seven parts that add up to the whole, and two more that are nothing:
+    // summed in another order, the whole less the seven left 9.3e-12, and
+    // the recommended bar chart drew 「-¥0.0000000000349」 (R2-19).
+    const amounts = [1234567.89, 0.1, 0.2, 0.3, 123.45, 67.89, 0.07, 0, 0];
+    const parts = amounts.map((amount, index) => ({
+      warehouse: 'CN',
+      status: `s${index}`,
+      amount,
+    }));
+    const total = [...amounts].reverse().reduce((sum, part) => sum + part, 0);
+    const data = shapeChart(split(), parts, undefined, {
+      splitWhole: [{ warehouse: 'CN', amount: total }],
+    }) as CartesianData;
+    expect(data.points.map(point => point.values[OTHER_SERIES_KEY])).toEqual([
+      0,
+    ]);
+    // A rest that is there is kept, to the cent.
+    const more = shapeChart(split(), parts, undefined, {
+      splitWhole: [{ warehouse: 'CN', amount: total + 0.01 }],
+    }) as CartesianData;
+    expect(more.points[0].values[OTHER_SERIES_KEY]).toBeCloseTo(0.01, 9);
+  });
+
   it('draws nothing for a rest it cannot know', () => {
     const data = shapeChart(split(), rows(9), undefined, {
       splitWhole: [{ warehouse: 'CN', amount: 100 }],

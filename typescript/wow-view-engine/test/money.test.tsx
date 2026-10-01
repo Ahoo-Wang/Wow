@@ -43,7 +43,8 @@ import {
 import { narrowDefinition } from '../src/capabilities/index.js';
 import { numericOf, semanticText } from '../src/capabilities/fields.js';
 import { currencyIssues } from '../src/analysis/currency.js';
-import { cellText, csvCellText, formatNumber } from '../src/ui/kit/display.js';
+import { cellText, csvCellText } from '../src/ui/kit/display.js';
+import { formatNumber } from '../src/ui/kit/numbers.js';
 import { inRowCurrency } from '../src/ui/kit/currency.js';
 import { analysisCellText } from '../src/ui/analysis/tableColumns.js';
 import { analysisFile } from '../src/ui/analysis/exportOffer.js';

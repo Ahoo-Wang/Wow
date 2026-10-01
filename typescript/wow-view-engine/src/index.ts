@@ -219,6 +219,8 @@ export {
   type SummaryFunction,
   TEMPORAL_FIELD_KIND_IDS,
   TEMPORAL_TYPES,
+  TIME_PRECISIONS,
+  type TimePrecision,
   aggregationFunctionsOf,
   currencyPathOf,
   epochUnitOf,

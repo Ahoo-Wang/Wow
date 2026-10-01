@@ -14,7 +14,7 @@
 import type { EChartsCoreOption } from 'echarts/core';
 import type { CartesianData } from '../../analysis/index.js';
 import type { AxisSpec } from '../../model/index.js';
-import { formatValue, logBounds, measuredTitle, sideTitle } from './axis.js';
+import { logBounds, measuredTitle, sideTitle, specTick } from './axis.js';
 import {
   cartesianPlan,
   type CartesianContext,
@@ -178,10 +178,10 @@ export function optionOf(
     shares = false,
   ) =>
     axis?.format && axis.format !== 'auto'
-      ? formatValue(value, axis.format, locale)
+      ? specTick(value, axis.format, locale)
       : shares
-        ? formatValue(value, 'percent', locale)
-        : label(metric, value, true);
+        ? specTick(value, 'percent', locale)
+        : label(metric, value, 'tick');
 
   const dimension = column(cartesian?.x);
   const categoryAxis = {

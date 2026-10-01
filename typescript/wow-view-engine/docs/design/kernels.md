@@ -75,6 +75,7 @@ filtersOnTab(panels, tab): Set<string>                         // 在一个标�
 - 配置中引用 element 字段一律写成从根起的完整路径（`state.orders.lines.sku`），因此与同名根字段不会混淆，能力查找也有确定归属；发给 Wow 时再按作用域剥成相对名；
 - 反过来，声明按自身作用域写相对名——`elements[].aggregations[].field` 写元素内的名字，路径由 `qualify` 唯一合成，它一律加前缀，不再放过「已经以路径开头」的名字（两种拼写都接受等于没有约定，还会让 `items.sku` 在元素根部和在一个恰好同名的嵌套对象里含义不同）；
 - `elements[].aggregations[].field` 必须是该元素声明过的字段，与根字段的同名检查对齐；
+- `timePrecision` 只能写在读作 `datetime` 的字段上（kind 或 `cell`；否则 `definition.field.time-precision-misplaced`），取值只有 `'minute'`／`'second'`（否则 `definition.field.time-precision-invalid`）——拼错的值会悄悄按缺省读；
 - `temporal` 只能写在 `date`／`datetime` 字段上（否则 `definition.field.temporal-misplaced`：写在不写时间的字段上是一句什么也不做的声明），且必须是引擎写得出的一种——`{ type: 'epoch', timeUnit?: 'MILLISECONDS' | 'SECONDS' }` 或 `{ type: 'date' }`（否则 `definition.field.temporal-invalid`）。它决定每一条日期条件发出去是什么，读不懂的声明不会报错，只会按缺省发出、然后被服务拒绝或什么也匹配不到；元素字段同样检查；
 - `numeric` 必须是引擎写得出的一种——`{ type: 'decimal', scale }`、`{ type: 'money', scale, currency }` 或 `{ type: 'money', scale, currencyField }`，`scale` 是 0～20 的整数（`MAX_NUMERIC_SCALE`），币种是三个字母（`CURRENCY_CODE_PATTERN`），`currencyField` 是字段名（否则 `definition.field.numeric-invalid`）：写不出的币种不会报错，只会让数不带格式地显示（[D50](decisions.md#d50-金额与小数按描述的语义读2026-09-25)）；
 - `cell` 必须是 `FieldCellId` 里的一个（`definition.field.cell-invalid`），`options[].tone` 必须是四档语气里的一档（`definition.field.tone-invalid`，Issue 落在那一项选项上而不是字段上，好让一个有八个状态的定义知道该去改哪一个）。两者都是闭合取值：`/ui` 没有渲染器注册表，没人分派的键不会报错，只会悄悄走默认渲染，于是一列声明成链接的 URL 仍旧是一串点不动的字——正是这类沉默让"引擎给得出的，定义才写得出"（D4）在这里也成立；
@@ -145,7 +146,7 @@ filtersOnTab(panels, tab): Set<string>                         // 在一个标�
 
 ## FieldKind 与时钟
 
-`FieldKindRegistry` 是 filter 的核心扩展点，见 [extension.md](extension.md)。相对时间条件在 `compile*` 中依据注入的 `ctx.now` 求值，纯内核不读系统时钟。
+`FieldKindRegistry` 是 filter 的核心扩展点，见 [extension.md](extension.md)。相对时间条件在 `compile*` 中依据注入的 `ctx.now` 求值，纯内核不读系统时钟。「过去／未来 N 天、周、月」按那个时区的**日历**走（`filter/time.ts` 的 `relativeWindow`：在日期上加减，再在时区里取零点），跨夏令时的窗口两端仍是当地零点——在带偏移的时刻上加减会留着旧偏移，纽约、柏林的边差一小时；仪表盘的「上一周期」（`runtime/dashboard/anchor.ts` 的 `periodBefore`）用的是同一个（第二轮评审 R2-20，test/filterTime.test.ts、test/boardAnchor.test.ts）。
 
 **「早于现在」「晚于现在」不用 `ctx.now`**：`date`／`datetime` kind 的 `BEFORE_NOW`／`AFTER_NOW`（Wow 的 N6，服务端 9.2.0 起）原样编译成 `filter.beforeNow`／`filter.afterNow`，「此刻」由服务端在每次查询时读自己的时钟，所以存下的「已超时」不会过期，也不取决于哪台浏览器的钟。两者都是严格的（`<`／`>`），要含那一刻就写 `nor` 包住另一个（「未超时」= `NOR BEFORE_NOW`）。它们与 `IS_NULL` 一类一样不读叶子的值，编辑器是 `none`，摘要只说操作符（「到期时间 早于现在」）；时刻按字段的 `temporal` 带单位（秒存的带 `timeUnit: SECONDS`，其余用 Wow 缺省的毫秒）。偏移（`-PT30M`）暂不开放：还没有要它的视图。（见 test/fieldKinds.test.ts「compares with the service's clock」、test/nowConditions.test.tsx）
 

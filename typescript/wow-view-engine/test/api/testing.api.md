@@ -859,6 +859,7 @@ interface FieldDefinition {
     stringComparison?: StringComparisonName;
     summary?: SummaryFunction[];
     temporal?: FieldTemporal;
+    timePrecision?: TimePrecision;
     variantKey?: string;
     variants?: string[];
 }
@@ -1726,6 +1727,9 @@ interface ThemeRiverSpec {
     value: string;
     x: string;
 }
+
+// @public
+type TimePrecision = 'minute' | 'second';
 
 // @public
 interface TreemapSpec {

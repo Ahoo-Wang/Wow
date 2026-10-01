@@ -105,7 +105,8 @@ export const SnapshotConsole: Story = {
       ]),
     );
     const [cancelsAt] = readColumn(canvas.getByRole('table'), '自动取消时间');
-    await expect(cancelsAt).toMatch(/\d{4}年\d{1,2}月\d{1,2}日/);
+    // To the minute in the table (R2-23).
+    await expect(cancelsAt).toMatch(/^(\d{4}-)?\d{2}-\d{2} \d{2}:\d{2}$/);
 
     await userEvent.click(view('已取消'));
     await waitFor(() =>

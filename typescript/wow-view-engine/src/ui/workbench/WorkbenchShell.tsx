@@ -90,6 +90,8 @@ export interface WorkbenchShellProps {
    * clock a relative condition was filtered by.
    */
   timeZone?: string;
+  /** The clock "now" is read from — the engine's `environment`. */
+  clock?: ViewSurfaceProps['clock'];
   /** The host's own global actions, at the end of the right-hand group. */
   actions?: ReactNode;
   /**
@@ -348,6 +350,7 @@ export function WorkbenchShell({
   messages: wording,
   locale,
   timeZone,
+  clock,
   actions,
   freshness,
   build,
@@ -615,6 +618,7 @@ export function WorkbenchShell({
         messages={wording}
         locale={locale}
         timeZone={timeZone}
+        clock={clock}
         // The container's height, always: the result takes what the parts
         // above it leave and the footer sits at the bottom, whatever the rows
         // (`styles.css`, "A workbench fills its container"). A container of

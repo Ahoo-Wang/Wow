@@ -25,6 +25,7 @@ import { useDateTicks } from '../charts/dateTicks.js';
 import {
   useAdds,
   useFilledNote,
+  useChangeAmount,
   useColumnTitle,
   useSeriesName,
   useToneOf,
@@ -130,6 +131,7 @@ export function AnalysisChart({
   );
   const label = useValueLabel(columns);
   const column = useColumnTitle(columns);
+  const change = useChangeAmount(columns, label);
   const seriesName = useSeriesName(columns, label);
   const toneOf = useToneOf(columns);
   const adds = useAdds(columns);
@@ -154,6 +156,7 @@ export function AnalysisChart({
     spec,
     className,
     label,
+    change,
     column,
     seriesName,
     toneOf,

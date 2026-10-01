@@ -24,6 +24,7 @@ import {
   STRING_COMPARISONS,
   TEMPORAL_FIELD_KIND_IDS,
   TEMPORAL_TYPES,
+  TIME_PRECISIONS,
   type FieldDefinition,
   type Issue,
   type IssuePath,
@@ -107,6 +108,7 @@ export function validateFields(
       );
 
     issues.push(...validateTemporal(field, [...at, 'temporal']));
+    issues.push(...validateTimePrecision(field, [...at, 'timePrecision']));
     issues.push(...validateNumeric(field, [...at, 'numeric']));
 
     // The renderers are a closed set `RecordTable` switches over, so a key
@@ -309,6 +311,33 @@ function validateTemporal(field: FieldDefinition, at: IssuePath): Issue[] {
         issue('definition.field.temporal-invalid', at, {
           field: field.name,
           value: JSON.stringify(temporal),
+        }),
+      ];
+}
+
+/**
+ * `timePrecision` says how a table cell writes a time of day, so it means
+ * something only where the field reads as one — a `datetime`, by its kind or
+ * its `cell`. Anywhere else it is a declaration that does nothing, and a
+ * value outside the two is a typo that would silently read as the default.
+ */
+function validateTimePrecision(field: FieldDefinition, at: IssuePath): Issue[] {
+  const precision: unknown = field.timePrecision;
+  if (precision === undefined) return [];
+  if (!TIME_PRECISIONS.includes(precision as never))
+    return [
+      issue('definition.field.time-precision-invalid', at, {
+        field: field.name,
+        value: JSON.stringify(precision),
+      }),
+    ];
+  const cell = field.cell ?? field.kind;
+  return cell === 'datetime'
+    ? []
+    : [
+        issue('definition.field.time-precision-misplaced', at, {
+          field: field.name,
+          cell,
         }),
       ];
 }

@@ -1417,6 +1417,7 @@ export const zhCN: Readonly<Record<string, string>> = {
   'label.chart.compare.against': '较「{metric}」',
   'label.chart.compare.unmatched':
     '「{metric}」的时段与所选日期对不上，不作比较',
+  'label.chart.change.points': '{amount} 个百分点',
   'label.chart.change.none': '没有上一期可比',
   'label.chart.change.unknown': '上一期没有可比的数',
   'label.chart.change.unmatched':
@@ -2154,6 +2155,10 @@ export const zhCN: Readonly<Record<string, string>> = {
     '{field} 声明的数值格式引擎写不出来：{value}。',
   'definition.field.temporal-misplaced':
     '{field} 声明了时间存储方式，但它的类型 {kind} 不写时间。',
+  'definition.field.time-precision-invalid':
+    '{field} 声明了未知的时间精度：{value}。',
+  'definition.field.time-precision-misplaced':
+    '{field} 声明了时间精度，但它读作 {cell}，没有时刻。',
   'definition.field.tone-invalid': '{field} 声明了未知的选项语气：{value}。',
   'definition.field.duplicate': '字段 {field} 声明了两次。',
   'definition.fieldGroup.duplicate': '分组 {group} 声明了两次。',

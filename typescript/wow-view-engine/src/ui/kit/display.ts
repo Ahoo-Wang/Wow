@@ -32,6 +32,7 @@ import {
 } from '../../analysis/index.js';
 import { recordValue } from '../../record/index.js';
 import { datePartValue } from './datePart.js';
+import { formatNumber } from './numbers.js';
 import type { MessageKey } from './messages.js';
 import type { MessageFormatters } from './MessagesProvider.js';
 import { badgeEntries, optionLabel, type BadgeEntry } from './badges.js';
@@ -51,6 +52,13 @@ export interface DisplayContext {
    * it already).
    */
   say?: (value: string) => string;
+  /**
+   * The clock "now" is read from: a table cell leaves out the year of a
+   * time in the current one (`tableTime`). A workbench and an embed pass
+   * their engine's `environment`, so a page whose clock is pinned reads
+   * the same every day; the runtime's own when left out.
+   */
+  clock?: { now(): Date };
 }
 
 /** What a column knows about the field behind it. */
@@ -92,13 +100,19 @@ export interface DisplayField {
   /** A time field kept in epoch seconds (`epochUnitOf`); milliseconds when unsaid. */
   timeUnit?: EpochTimeUnit;
   /**
-   * How finely a time of day is read. A filter's times are set to the minute
-   * (用户 2026-09-25), so a condition says 「09:05」, not 「09:05:00」 —
-   * `'minute'`, used by the date control's trigger and the condition's
-   * summary. A time that does carry seconds still says them, so no bound is
-   * ever shown other than it runs. A record's own values keep the seconds.
+   * How finely a time of day is read where the reading is short.
+   *
+   * A filter's times are set to the minute (用户 2026-09-25), so a condition
+   * says 「09:05」, not 「09:05:00」 — `'minute'`, used by the date control's
+   * trigger and the condition's summary (`displayValue`). A time that does
+   * carry seconds still says them, so no bound is ever shown other than it
+   * runs.
+   *
+   * A table cell is short by default (`tableTime`): to the minute, unless
+   * the column says `'second'` (`RecordColumnView.timePrecision`). Every
+   * other reading of a record's value keeps the seconds.
    */
-  timePrecision?: 'minute';
+  timePrecision?: 'minute' | 'second';
 }
 
 /** One field of an element, by its name within the element. */
@@ -200,6 +214,98 @@ function readTime(
   return instant.dayOnly
     ? { date, timeZone: 'UTC', dayOnly: true }
     : { date, timeZone: 'UTC' };
+}
+
+/**
+ * A time as a table cell writes it: short, and numeric where the language
+ * writes it so — `09-17 21:19` in Chinese, `Sep 17, 9:19 PM` in English —
+ * with the year only when it is not the current one (`2025-09-17 21:19`,
+ * `Sep 17, 2025, 9:19 PM`), and the seconds only when the column asks for
+ * them (`timePrecision: 'second'`). `undefined` for anything that is not a
+ * moment read as a `datetime`, or a day that names no time of day, which
+ * reads as `displayValue` says.
+ *
+ * The whole time, seconds and year included, is what `displayValue` says,
+ * and the cell carries it as its title (second review R2-23: two columns of
+ * 「2026年9月17日 21:19:08」 were 360px of a 1440px table).
+ */
+export function tableTime(
+  value: unknown,
+  field: DisplayField,
+  context: DisplayContext,
+): string | undefined {
+  if (
+    value === null ||
+    value === undefined ||
+    (field.cell ?? field.kind) !== 'datetime' ||
+    field.dateUnit !== undefined ||
+    field.datePart !== undefined ||
+    (field.options !== undefined && field.options.length > 0)
+  )
+    return undefined;
+  const time = readTime(value, context.timeZone, field.timeUnit);
+  if (!time || time.dayOnly) return undefined;
+  const now = context.clock?.now() ?? new Date();
+  const thisYear =
+    yearOf(time.date, time.timeZone) === yearOf(now, context.timeZone);
+  const seconds = field.timePrecision === 'second';
+  if (writesNumeric(context.locale)) {
+    const parts = numericParts(time.date, time.timeZone);
+    const day = `${parts.month}-${parts.day}`;
+    const clock = `${parts.hour}:${parts.minute}${seconds ? `:${parts.second}` : ''}`;
+    return `${thisYear ? day : `${parts.year}-${day}`} ${clock}`;
+  }
+  return format(time.date, context.locale, {
+    ...(thisYear ? {} : { year: 'numeric' }),
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+    ...(seconds ? { second: '2-digit' } : {}),
+    timeZone: time.timeZone,
+  });
+}
+
+/** The Gregorian year of a moment on a clock. */
+function yearOf(date: Date, timeZone: string | undefined): string {
+  return format(date, 'en-US', gregorianYear(timeZone));
+}
+
+/**
+ * Whether the language writes a short date in numbers: Chinese writes
+ * 「09-17 21:19」 where English writes a month's name.
+ */
+function writesNumeric(locale: string | undefined): boolean {
+  const resolved = formatter(locale, {}).resolvedOptions().locale;
+  return resolved.split('-')[0] === 'zh';
+}
+
+/** A moment's calendar and clock fields, two digits each, on a 24-hour clock. */
+function numericParts(
+  date: Date,
+  timeZone: string | undefined,
+): Record<'year' | 'month' | 'day' | 'hour' | 'minute' | 'second', string> {
+  const parts = formatter('en-US', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hourCycle: 'h23',
+    calendar: 'gregory',
+    timeZone,
+  }).formatToParts(date);
+  const part = (type: Intl.DateTimeFormatPartTypes) =>
+    parts.find(one => one.type === type)?.value ?? '';
+  return {
+    year: part('year'),
+    month: part('month'),
+    day: part('day'),
+    hour: part('hour'),
+    minute: part('minute'),
+    second: part('second'),
+  };
 }
 
 /**
@@ -380,78 +486,6 @@ export function readingTime(
 }
 
 /**
- * A number as this surface prints it: in the format its field declared, and
- * grouped in the surface's language when it declared none.
- *
- * It is the one fallback for every number the UI writes — a record cell, a
- * summary, an analysis cell, a chart's axis, a count inside a sentence — so a
- * total reads 「534,897」 in the record view and in the analysis view alike,
- * where the record side used to print 「534897」. A field whose numbers are
- * names rather than quantities (a year, an employee number) says so with
- * `numberFormat: { useGrouping: false }`. A format Intl refuses to build gives
- * way to the same plain grouping.
- *
- * `locale` is the surface's language, and it is not optional in spirit: a
- * number left to `toLocaleString()` is grouped for whatever machine the page
- * happens to run on, which is the one language nobody chose. It stays optional
- * in the signature because a format may pin its own.
- */
-export function formatNumber(
-  value: number,
-  format?: NumberFormat,
-  locale?: string,
-): string {
-  const formatter =
-    (format && numberFormatter(format, locale)) ?? numberFormatter({}, locale);
-  return formatter ? formatter.format(value) : String(value);
-}
-
-/**
- * A number format written short: the same style, currency or unit, in the
- * language's own compact notation — 万 and 亿 in Chinese, K, M and B in
- * English, which is what Intl's `compact` already knows — to three
- * significant digits, as Metabase writes it: 10,230 reads 「1.02万」 and
- * `10.2K`, and 49,818 beside 50,000 reads 「4.98万」 beside 「5万」 — one
- * decimal made them 「1万」 and 「5万」, and a week of 4.9万s hid its ups
- * and downs (audit P1-4). No zero is added to reach three (「5万」, not
- * 「5.00万」), and none is invented either: a whole part longer than three
- * digits is written whole (`morePrecision`), so 4,885 reads 「4,885」 and
- * 12,345,678 「1,235万」 rather than 「4,890」 and 「1,230万」. The whole
- * part is grouped as every other number on the page is — Chinese has no
- * short word below 万, and 4,880 was the one 「4880」 beside the table's
- * 「4,880」 (audit P2-3) — unless the format says its numbers are names
- * that take no grouping. What the format said about decimals is dropped,
- * since it was said about the whole number: two fraction digits on a
- * compact figure would ask for 「1110.00万」.
- */
-export function compactFormat(format: NumberFormat | undefined): NumberFormat {
-  const short: NumberFormat = { ...format };
-  delete short.minimumSignificantDigits;
-  delete short.maximumSignificantDigits;
-  // `roundingPriority` is ES2023's; the Intl types this builds against
-  // predate it, and every engine the package runs on reads it.
-  const compact: NumberFormat & { roundingPriority: 'morePrecision' } = {
-    ...short,
-    notation: 'compact',
-    // `true` is 「always」: compact's own default groups nothing under five
-    // digits.
-    useGrouping: format?.useGrouping ?? true,
-    minimumSignificantDigits: 1,
-    maximumSignificantDigits: 3,
-    // Both fraction ends said, and said as none: what follows the point is
-    // the significant digits' to give. An older ICU (Node 20's) keeps a
-    // currency's two minimum decimals unless the minimum is spelled out —
-    // it wrote 「¥1110.0万」. An engine without `roundingPriority` reads
-    // the significant digits alone: the same figure, short of the rare
-    // whole part longer than three.
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-    roundingPriority: 'morePrecision',
-  };
-  return compact;
-}
-
-/**
  * The bucket of records with no value, in the surface's words — 「（空）」 —
  * when `value` is the engine's sentinel key for a group that keeps one
  * (`AnalysisColumnView.missingKey`); `undefined` for any other value.
@@ -477,6 +511,8 @@ export function missingText(
     : undefined;
 }
 
+const WHOLE_DIGITS = /^-?(?:0|[1-9]\d{0,299})$/;
+
 /**
  * A value an analysis shows when its field's kind has nothing to add: a number
  * as `formatNumber` prints it; a boolean in the catalogue's words; anything
@@ -490,10 +526,17 @@ export function valueText(
   locale?: string,
 ): string {
   if (value === null || value === undefined) return '';
-  if (typeof value === 'number') return formatNumber(value, format, locale);
+  if (typeof value === 'number' || typeof value === 'bigint')
+    return formatNumber(value, format, locale);
   if (typeof value === 'boolean')
     return messages.label(value ? 'label.value.yes' : 'label.value.no');
-  if (typeof value === 'string') return value;
+  // A whole number past 2^53 a source sent as digits, to keep them exact, in
+  // a column that declared a number format: grouped as that format says,
+  // every digit kept (Intl reads a string of digits exactly).
+  if (typeof value === 'string')
+    return format && WHOLE_DIGITS.test(value)
+      ? formatNumber(BigInt(value), format, locale)
+      : value;
   return JSON.stringify(value) ?? '';
 }
 
@@ -533,9 +576,8 @@ export function cellText(
       .join(messages.label('label.filter.join'));
   const shown = displayValue(value, field, context);
   if (shown !== undefined) return shown;
-  if (typeof value === 'number')
+  if (typeof value === 'number' || typeof value === 'bigint')
     return formatNumber(value, field.numberFormat, context.locale);
-  if (typeof value === 'bigint') return value.toString();
   return valueText(value, messages, field.numberFormat, context.locale);
 }
 
@@ -719,47 +761,6 @@ function format(
   options: Intl.DateTimeFormatOptions,
 ): string {
   return formatter(locale, options).format(date);
-}
-
-const numberFormatters = new Map<string, Intl.NumberFormat | null>();
-
-/**
- * The formatter a field's `numberFormat` asks for, built once, or `null` when
- * Intl will not build it. The type admits what Intl refuses — a locale such
- * as `zh_CN`, a currency style with no currency — and the throw used to take
- * the whole table down mid-render. The language gives way first, as a date's
- * does; a format that still fails is dropped, and the number shows unformatted.
- */
-export function numberFormatter(
-  format: NumberFormat,
-  surfaceLocale?: string,
-): Intl.NumberFormat | null {
-  // The format's own language first, then the surface's: a definition that
-  // names one has a reason, and a surface in zh-CN showing `CN¥` where the
-  // page around it says 「¥」 is a number formatted for somebody else.
-  const key = JSON.stringify([format, surfaceLocale ?? null]);
-  let found = numberFormatters.get(key);
-  if (found === undefined) {
-    const { locale, ...options } = format;
-    found =
-      buildNumber(locale ?? surfaceLocale, options) ??
-      buildNumber(surfaceLocale, options) ??
-      buildNumber(undefined, options) ??
-      null;
-    numberFormatters.set(key, found);
-  }
-  return found;
-}
-
-function buildNumber(
-  locale: string | undefined,
-  options: Intl.NumberFormatOptions,
-): Intl.NumberFormat | undefined {
-  try {
-    return new Intl.NumberFormat(locale, options);
-  } catch {
-    return undefined;
-  }
 }
 
 const formatters = new Map<string, Intl.DateTimeFormat>();

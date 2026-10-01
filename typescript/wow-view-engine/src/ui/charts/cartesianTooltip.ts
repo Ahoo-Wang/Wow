@@ -12,7 +12,7 @@
  */
 
 import { bucketChange, type BucketChange } from '../../analysis/index.js';
-import { formatShare, formatValue } from './axis.js';
+import { formatChange, formatShare } from './axis.js';
 import type { CartesianPlan, DrawnSeries } from './cartesianPlan.js';
 import type { ChartTheme } from './theme.js';
 import { tooltipFrame, tooltipHtml, type TooltipRow } from './tooltip.js';
@@ -126,9 +126,8 @@ export function cartesianTooltip(
     change: BucketChange,
     amount: (delta: number) => string,
   ): string {
-    const sign = change.delta > 0 ? '+' : '';
     return change.ratio === null
-      ? `${sign}${amount(change.delta)}`
-      : `${sign}${formatValue(change.ratio, 'percent', locale)}`;
+      ? `${change.delta > 0 ? '+' : ''}${amount(change.delta)}`
+      : formatChange(change.ratio, locale);
   }
 }

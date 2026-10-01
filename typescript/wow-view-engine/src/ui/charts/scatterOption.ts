@@ -15,7 +15,7 @@ import type { EChartsCoreOption } from 'echarts/core';
 import type { ScatterData } from '../../analysis/index.js';
 import type { AxisSpec, ChartSpec } from '../../model/index.js';
 import { logScaleFits } from '../../analysis/logScale.js';
-import { allWhole, formatValue, logBounds, sideTitle } from './axis.js';
+import { allWhole, logBounds, sideTitle, specTick } from './axis.js';
 import type { ColumnTitle, ValueLabel } from './family.js';
 import { color } from './palette.js';
 import { emphasized, type ChartTheme, chartText } from './theme.js';
@@ -96,8 +96,8 @@ export function scatterOption(
     const log = scatterLogOn(data, spec, which);
     const text = (value: number) =>
       set?.format && set.format !== 'auto'
-        ? formatValue(value, set.format, locale)
-        : label(alias, value, true);
+        ? specTick(value, set.format, locale)
+        : label(alias, value, 'tick');
     return {
       type: log ? 'log' : 'value',
       // The vertical one set flat at its head where it is Chinese.

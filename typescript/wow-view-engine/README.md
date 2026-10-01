@@ -1061,7 +1061,7 @@ const store = new MemoryViewStore({
 
 The model carries `code` and `params` and no copy, so `/ui` owns the words. `en` gives every issue an English sentence, and `messages` — on `ViewSurface` and on every workbench — is merged over the wording already in force, the same seam for rewording and translation. A `ViewHost` (or a bare `MessagesProvider`) around the application sets it once for every view inside, with the language values show in (`locale`). `zhCN` is a second catalogue, key for key: hand it over whole, or spread it and change what you like (`{ ...zhCN, 'label.filter.apply': '确定' }`).
 
-Values show as their fields say: an enum by its option's label, a `datetime` or a `date` through `Intl.DateTimeFormat`, a date-histogram key as the year, quarter, month or day it starts. `locale` is the language they show in, the runtime's when left out; it is the same choice as `messages`, made for values rather than words:
+Values show as their fields say: an enum by its option's label, a `datetime` or a `date` through `Intl.DateTimeFormat`, a date-histogram key as the year, quarter, month or day it starts. A table cell writes a `datetime` short — to the minute, the year only outside the current one (`Sep 17, 9:19 PM`, Chinese `09-17 21:19`) — with the whole time in its `title` and in the record's detail; a field whose seconds matter, an event stream's time, declares `timePrecision: 'second'`. `locale` is the language they show in, the runtime's when left out; it is the same choice as `messages`, made for values rather than words:
 
 <!-- typecheck-context
 import { ViewEngine } from '@ahoo-wang/wow-view-engine';

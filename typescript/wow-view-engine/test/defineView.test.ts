@@ -131,6 +131,20 @@ describe('defineView', () => {
     ]);
   });
 
+  it('keeps a moment’s seconds in a table cell where the host asks', () => {
+    const { fields } = define({
+      fields: {
+        id: 'Order',
+        createdAt: { label: 'Created', timePrecision: 'second' },
+      },
+    });
+    expect(fields[1]).toMatchObject({
+      name: 'createdAt',
+      kind: 'datetime',
+      timePrecision: 'second',
+    });
+  });
+
   it('lists a category’s values, the host’s first in its words, one hidden', () => {
     const [status] = define({
       fields: {

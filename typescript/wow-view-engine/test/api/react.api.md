@@ -1602,6 +1602,7 @@ interface FieldDefinition {
     stringComparison?: StringComparisonName;
     summary?: SummaryFunction[];
     temporal?: FieldTemporal;
+    timePrecision?: TimePrecision;
     variantKey?: string;
     variants?: string[];
 }
@@ -2961,6 +2962,7 @@ interface RecordColumnView {
     primary?: true;
     // (undocumented)
     sortable: boolean;
+    timePrecision?: 'second';
     timeUnit?: EpochTimeUnit;
     // (undocumented)
     width?: number;
@@ -3628,6 +3630,9 @@ interface ThemeRiverSpec {
     value: string;
     x: string;
 }
+
+// @public
+type TimePrecision = 'minute' | 'second';
 
 // @public
 export interface ToggleSelectionOptions {

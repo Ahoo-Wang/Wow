@@ -21,7 +21,7 @@ import {
   FieldLabel,
   FieldTitle,
 } from '../components/field.js';
-import { formatNumber } from '../kit/display.js';
+import { formatNumber } from '../kit/numbers.js';
 import { NumberInput } from '../filter/FilterValueEditor.js';
 import { useViewMessages } from '../kit/MessagesProvider.js';
 import { SortSettings } from '../sort/SortSettings.js';

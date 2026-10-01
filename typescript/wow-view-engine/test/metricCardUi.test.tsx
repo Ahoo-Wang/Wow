@@ -110,7 +110,7 @@ describe('a trend card read as its last period', () => {
     expect(change.getAttribute('data-direction')).toBe('up');
     // Against the period it is compared with, by its unit: 「较前一日」, not
     // 「较上一期」 (retail home, scenarios.md 4.2).
-    expect(change.textContent).toBe('+2 · +20%vs the day before');
+    expect(change.textContent).toBe('+2 · +20.0%vs the day before');
     // A rise is good unless the card says otherwise.
     expect(
       change.querySelector('[data-slot="badge"]')?.getAttribute('data-tone'),
@@ -129,10 +129,10 @@ describe('a trend card read as its last period', () => {
     ).toBe('1.44');
     const badge = slot('metric-change')!.querySelector('[data-slot="badge"]')!;
     // The share a narrow card draws in its place, and the whole for a pointer.
-    expect(badge.getAttribute('data-share')).toBe('+20%');
-    expect(badge.getAttribute('title')).toBe('+2 · +20%');
+    expect(badge.getAttribute('data-share')).toBe('+20.0%');
+    expect(badge.getAttribute('title')).toBe('+2 · +20.0%');
     // The words stay the badge's text: a screen reader still reads them.
-    expect(badge.textContent).toBe('+2 · +20%');
+    expect(badge.textContent).toBe('+2 · +20.0%');
   });
 
   it('colours a fall as good where a fall is the good way', () => {
@@ -142,7 +142,7 @@ describe('a trend card read as its last period', () => {
     ]);
     const change = slot('metric-change')!;
     expect(change.getAttribute('data-direction')).toBe('down');
-    expect(change.textContent).toContain('-4 · -40%');
+    expect(change.textContent).toContain('-4 · -40.0%');
     expect(
       change.querySelector('[data-slot="badge"]')?.getAttribute('data-tone'),
     ).toBe('success');
@@ -474,7 +474,7 @@ describe('a card compared with another metric', () => {
   it('says what it is compared with, and colours a rise as good', () => {
     card(compared('percent'), [{ orders: 12, before: 10 }]);
     const said = slot('metric-compare')!;
-    expect(said.textContent).toBe('+20%vs Last month');
+    expect(said.textContent).toBe('+20.0%vs Last month');
     expect(said.getAttribute('data-direction')).toBe('up');
     expect(
       said.querySelector('[data-slot="badge"]')?.getAttribute('data-tone'),
@@ -495,5 +495,80 @@ describe('a card compared with another metric', () => {
   it('says there is nothing to compare with rather than a bare dash', () => {
     card(compared('percent'), [{ orders: 12, before: null }]);
     expect(slot('metric-compare')!.textContent).toBe('—vs Last month');
+  });
+});
+
+/**
+ * A rate's change is a difference of two percentages: in points, beside the
+ * relative change, so 「-14.4% · -15%」 no longer reads as two versions of
+ * one number (the second review, R2-22).
+ */
+describe('a rate’s change against the period before', () => {
+  const rate = (locale: string, messages?: typeof zhCN) =>
+    render(
+      <ViewSurface locale={locale} timeZone="UTC" messages={messages}>
+        <AnalysisChart
+          data={{
+            type: 'metric',
+            value: 0.656,
+            period: {
+              at: day(22),
+              unit: 'DAY',
+              change: { delta: -0.144, ratio: -0.18 },
+            },
+          }}
+          spec={{ type: 'metric', metric: { metric: 'rate' } }}
+          columns={[
+            {
+              alias: 'rate',
+              label: 'On time',
+              role: 'metric',
+              numberFormat: {
+                style: 'percent',
+                minimumFractionDigits: 1,
+                maximumFractionDigits: 1,
+              },
+            },
+          ]}
+        />
+      </ViewSurface>,
+    );
+
+  it('writes the difference in points, beside the share', () => {
+    rate('en-US');
+    const badge = slot('metric-change')!.querySelector('[data-slot="badge"]')!;
+    expect(badge.textContent).toBe('-14.4 pp · -18.0%');
+    expect(slot('metric-value')?.textContent).toBe('65.6%');
+  });
+
+  it('says 个百分点 in Chinese', () => {
+    rate('zh-CN', zhCN);
+    const badge = slot('metric-change')!.querySelector('[data-slot="badge"]')!;
+    expect(badge.textContent).toBe('-14.4 个百分点 · -18.0%');
+  });
+
+  it('writes a card formatted as a percentage in points too', () => {
+    render(
+      <ViewSurface locale="en-US" timeZone="UTC">
+        <AnalysisChart
+          data={{
+            type: 'metric',
+            value: 0.4,
+            period: {
+              at: day(22),
+              unit: 'DAY',
+              change: { delta: 0.0001, ratio: 0.0003 },
+            },
+          }}
+          spec={{
+            type: 'metric',
+            metric: { metric: 'rate', format: 'percent' },
+          }}
+        />
+      </ViewSurface>,
+    );
+    const badge = slot('metric-change')!.querySelector('[data-slot="badge"]')!;
+    // Too small for a tenth: a bound, not 「+0%」 under an arrow.
+    expect(badge.textContent).toBe('<+0.1 pp · <+0.1%');
   });
 });

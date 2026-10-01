@@ -722,7 +722,8 @@ describe('DashboardWorkbench', () => {
       />,
     );
 
-    expect(await screen.findByText(inZone(INSTANT))).toBeTruthy();
+    // A table cell is short; the whole time is its title (R2-23).
+    expect(await screen.findByTitle(inZone(INSTANT))).toBeTruthy();
   });
 
   it("names a chart panel's categories as their field names its values", async () => {

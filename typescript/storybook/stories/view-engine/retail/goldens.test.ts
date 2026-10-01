@@ -52,8 +52,9 @@ const yuan = (value: number) =>
 const percent = (value: number) =>
   `${(Math.round(value * 1000) / 10).toString()}%`;
 const change = (now: number, before: number) => {
+  // One fixed decimal, as a change badge writes it (R2-21).
   const ratio = Math.round(((now - before) / before) * 1000) / 10;
-  return `${ratio > 0 ? '+' : ''}${ratio}%`;
+  return `${ratio > 0 ? '+' : ''}${ratio.toFixed(1)}%`;
 };
 
 /** The daily numbers of one Shanghai day, in the daily report's own terms. */

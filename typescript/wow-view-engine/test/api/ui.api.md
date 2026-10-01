@@ -1597,6 +1597,9 @@ export type DialogHandle = Dialog.Handle<unknown>;
 
 // @public
 export interface DisplayContext {
+    clock?: {
+        now(): Date;
+    };
     locale?: string;
     say?: (value: string) => string;
     timeZone?: string;
@@ -1616,7 +1619,7 @@ export interface DisplayField {
     numeric?: FieldNumeric;
     // (undocumented)
     options?: readonly FieldOption[];
-    timePrecision?: 'minute';
+    timePrecision?: 'minute' | 'second';
     timeUnit?: EpochTimeUnit;
     timeZone?: string;
 }
@@ -1929,6 +1932,8 @@ export const en: {
     readonly 'definition.field.temporal-invalid': "{field} declares a time storage the engine cannot write: {value}.";
     readonly 'definition.field.numeric-invalid': "{field} declares a number format the engine cannot write: {value}.";
     readonly 'definition.field.temporal-misplaced': "{field} declares a time storage, but its type {kind} writes no time.";
+    readonly 'definition.field.time-precision-invalid': "{field} declares an unknown time precision: {value}.";
+    readonly 'definition.field.time-precision-misplaced': "{field} declares a time precision, but reads as {cell}, which has no time of day.";
     readonly 'definition.field.tone-invalid': "{field} declares an unknown option tone: {value}.";
     readonly 'definition.field.duplicate': "The field {field} is declared twice.";
     readonly 'definition.fieldGroup.duplicate': "The group {group} is declared twice.";
@@ -3012,6 +3017,7 @@ export const en: {
     readonly 'label.chart.change.against.SECOND': "vs the second before";
     readonly 'label.chart.compare.against': "vs {metric}";
     readonly 'label.chart.compare.unmatched': "The span of {metric} does not match the dates picked; not compared";
+    readonly 'label.chart.change.points': "{amount} pp";
     readonly 'label.chart.change.none': "No previous period to compare with";
     readonly 'label.chart.change.unknown': "No number in the previous period to compare with";
     readonly 'label.chart.change.unmatched': "The dates picked cover this period and the one before unequally; not compared";
@@ -4036,6 +4042,7 @@ interface FieldDefinition {
     stringComparison?: StringComparisonName;
     summary?: SummaryFunction[];
     temporal?: FieldTemporal;
+    timePrecision?: TimePrecision;
     variantKey?: string;
     variants?: string[];
 }
@@ -5586,6 +5593,7 @@ interface RecordColumnView {
     primary?: true;
     // (undocumented)
     sortable: boolean;
+    timePrecision?: 'second';
     timeUnit?: EpochTimeUnit;
     // (undocumented)
     width?: number;
@@ -6438,6 +6446,9 @@ interface SystemView {
 }
 
 // @public
+export function tableTime(value: unknown, field: DisplayField, context: DisplayContext): string | undefined;
+
+// @public
 type TextResolver = (key: string) => string | undefined;
 
 // @public (undocumented)
@@ -6459,6 +6470,9 @@ interface ThemeRiverSpec {
     value: string;
     x: string;
 }
+
+// @public
+type TimePrecision = 'minute' | 'second';
 
 // @public
 interface ToggleSelectionOptions {
@@ -8526,6 +8540,9 @@ export function ViewSurface(input: ViewSurfaceProps): React_2.JSX.Element;
 
 // @public (undocumented)
 export interface ViewSurfaceProps extends React_2.ComponentProps<'div'> {
+    clock?: {
+        now(): Date;
+    };
     density?: ViewDensity;
     engine?: {
         startingWord(key: string): string | undefined;
@@ -8666,6 +8683,7 @@ export interface WorkbenchShellProps {
     besideResult?: readonly string[];
     build?: ReactNode;
     className?: string;
+    clock?: ViewSurfaceProps['clock'];
     commitElsewhere?: boolean;
     defaultEditorOpen?: boolean;
     defaultSidebarOpen?: boolean;

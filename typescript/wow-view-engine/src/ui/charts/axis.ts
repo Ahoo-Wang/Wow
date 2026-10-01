@@ -11,8 +11,13 @@
  * limitations under the License.
  */
 
-import type { AxisSpec, ValueFormat } from '../../model/index.js';
-import { compactFormat, formatNumber } from '../kit/display.js';
+import type { AxisSpec, NumberFormat, ValueFormat } from '../../model/index.js';
+import { writesExactly } from '../kit/band.js';
+import {
+  compactFormat,
+  formatNumber,
+  numberFormatter,
+} from '../kit/numbers.js';
 
 /**
  * A number as the spec asks for it, in the surface's language — through the
@@ -26,45 +31,103 @@ export function formatValue(
   format: ValueFormat | undefined,
   locale: string | undefined,
 ): string {
-  if (format === 'percent')
-    return formatNumber(
-      value,
-      { style: 'percent', maximumFractionDigits: 1 },
-      locale,
-    );
-  if (format === 'compact')
-    return formatNumber(value, compactFormat(undefined), locale);
-  return formatNumber(value, undefined, locale);
+  return formatNumber(value, valueFormat(format), locale);
 }
 
-/** The finest step a share is written to: a tenth of a percent. */
-const SHARE_STEP = 0.001;
+/** A tick on an axis the spec formats: `formatValue`, as `formatTick` writes it. */
+export function specTick(
+  value: number,
+  format: ValueFormat | undefined,
+  locale: string | undefined,
+): string {
+  return formatTick(value, valueFormat(format) ?? {}, locale);
+}
+
+function valueFormat(
+  format: ValueFormat | undefined,
+): NumberFormat | undefined {
+  if (format === 'percent')
+    return { style: 'percent', maximumFractionDigits: 1 };
+  if (format === 'compact') return compactFormat(undefined);
+  return undefined;
+}
+
+/**
+ * A tick written to as many more digits as it takes to be itself, up to
+ * three: ticks are round numbers, so a format that rounds one rounds it
+ * into its neighbour — a trend between 99.95% and 100% labelled every tick
+ * 「100%」 (R2-21) — where 「99.95%」 is the tick it is.
+ */
+export function formatTick(
+  value: number,
+  format: NumberFormat,
+  locale: string | undefined,
+): string {
+  let used = format;
+  for (let more = 1; more <= 3 && !writesExactly(value, used, locale); more++)
+    used = finer(format, more, locale);
+  return formatNumber(value, used, locale);
+}
+
+/** `format` with `more` digits than it writes: significant ones, or decimals. */
+function finer(
+  format: NumberFormat,
+  more: number,
+  locale: string | undefined,
+): NumberFormat {
+  const written = numberFormatter(format, locale)?.resolvedOptions();
+  if (format.maximumSignificantDigits !== undefined)
+    return {
+      ...format,
+      maximumSignificantDigits: Math.min(
+        21,
+        format.maximumSignificantDigits + more,
+      ),
+    };
+  return {
+    ...format,
+    maximumFractionDigits: Math.min(
+      20,
+      (written?.maximumFractionDigits ?? 0) + more,
+    ),
+  };
+}
 
 /**
  * A part of a whole — a slice of a pie — as a percentage with one decimal,
  * always the one: 「36.0%」 beside 「32.5%」, so a column of shares lines
  * up and none reads rounder than it is. A part too small to reach the
- * first decimal is 「<0.1%」, not 「0.0%」: 51 records out of 1.8 million
- * are few, and 「0%」 reads as none — the rare kinds are the ones an
- * operator came to the pie for (audit P1-5, as Metabase writes it). Short
- * of the whole by less than that is 「>99.9%」 for the same reason: a
- * 「100.0%」 beside a 「<0.1%」 would add up to more than everything.
+ * first decimal is 「<0.1%」 and one short of the whole by less is
+ * 「>99.9%」, as every percentage is (`formatNumber`): 51 records out of
+ * 1.8 million are few, and 「0%」 reads as none — the rare kinds are the
+ * ones an operator came to the pie for (audit P1-5, as Metabase writes it).
  */
 export function formatShare(share: number, locale: string | undefined): string {
-  const percent = (value: number) =>
-    formatNumber(
-      value,
-      {
-        style: 'percent',
-        minimumFractionDigits: 1,
-        maximumFractionDigits: 1,
-      },
-      locale,
-    );
-  if (share > 0 && share < SHARE_STEP / 2) return `<${percent(SHARE_STEP)}`;
-  if (share < 1 && share >= 1 - SHARE_STEP / 2)
-    return `>${percent(1 - SHARE_STEP)}`;
-  return percent(share);
+  return formatNumber(share, ONE_DECIMAL_PERCENT, locale);
+}
+
+/** A percentage to one decimal, always written. */
+const ONE_DECIMAL_PERCENT = {
+  style: 'percent',
+  minimumFractionDigits: 1,
+  maximumFractionDigits: 1,
+} as const;
+
+/**
+ * A change, signed, as a ratio to one decimal always written — 「-15.0%」
+ * beside an amount of 「-14.4」, not 「-15%」 that reads as rounder than it
+ * is — and one too small for that decimal 「<+0.1%」, not 「+0%」 under an
+ * arrow (R2-21).
+ */
+export function formatChange(
+  ratio: number,
+  locale: string | undefined,
+): string {
+  return formatNumber(
+    ratio,
+    { ...ONE_DECIMAL_PERCENT, signDisplay: 'exceptZero' },
+    locale,
+  );
 }
 
 /**
