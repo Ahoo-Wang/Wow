@@ -40,6 +40,12 @@ import {
   type SeededOrder,
 } from './salesOrders';
 
+/**
+ * Where the example server keeps its snapshots: `WOW_EXAMPLE_STORAGE`,
+ * `mongo` unless CI's Elasticsearch leg names `elasticsearch`.
+ */
+const storage = process.env.WOW_EXAMPLE_STORAGE ?? 'mongo';
+
 const COLUMNS = [
   'aggregateId',
   'state.status',
@@ -244,7 +250,7 @@ describe('record view against the example server', () => {
     runtime.dispose();
   });
 
-  it('applies an edited condition, and reports a search the backend refuses', async () => {
+  it('applies an edited condition, and runs a search or reports the backend refusing it', async () => {
     const { runtime, state } = await open(recordConfig());
 
     runtime.edit({
@@ -265,11 +271,6 @@ describe('record view against the example server', () => {
       expected(order => order.province === 'Shanghai'),
     );
 
-    // The example stores snapshots in MongoDB, which has no full-text
-    // capability: the server refuses the search, and the view says what it
-    // said while the rows it had stay on screen — the rule it named, and the
-    // field by its label (D40). The search condition is on no field of its
-    // own, so no condition is pointed at.
     runtime.edit({
       filter: {
         op: 'and',
@@ -277,6 +278,21 @@ describe('record view against the example server', () => {
       },
     });
     runtime.apply();
+    if (storage === 'elasticsearch') {
+      // Wow's snapshot template maps a dynamic string as text with a keyword
+      // beside it, so the search matches the word in the address.
+      const searched = await nextResult(runtime, narrowed.result);
+      expect(ids(searched)).toEqual(
+        expected(order => /\bLane\b/.test(order.detail)),
+      );
+      runtime.dispose();
+      return;
+    }
+    // On MongoDB, which has no full-text capability, the server refuses the
+    // search, and the view says what it said while the rows it had stay on
+    // screen — the rule it named, and the field by its label (D40). The
+    // search condition is on no field of its own, so no condition is pointed
+    // at.
     const refused = await nextResult(runtime, narrowed.result).then(
       () => null,
       (error: unknown) => error,

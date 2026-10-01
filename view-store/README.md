@@ -56,9 +56,10 @@ and of the view's event stream (`wow.view-store.view.es.json`), which Wow create
 exist yet, beside its own templates:
 
 - the queried paths are `keyword` without `ignore_above` (`state.definitionId`, `state.appId`, `state.config.kind`
-  and the panel references), so that the query schema admits the filters the view store sends: on Wow's template
-  alone, the `*Id` strings are queryable (their `ignore_above` is 8191), but `state.config.kind` is mapped as `text`
-  with a `keyword` capped at 256 and is refused;
+  and the panel references), so that the query schema admits the filters the view store sends whatever Wow's
+  template infers: on the template alone, the `*Id` strings are queryable (their `ignore_above` is 8191), and
+  `state.config.kind` is `text` with a `keyword` sub-field, capped at 8191 on an index created by 9.2 but at 256 (and
+  refused) on one a 9.1 template created;
 - `state.config` is `dynamic: false`: it holds whatever the engine's config holds, values of several types under
   one key included, and only `kind` and `panels` (a `nested` array, for the shared-board check, with `instanceId`,
   `opens` and `click.instanceId`) are fields. The server refuses a config whose `panels` is not an array of at most
@@ -77,10 +78,13 @@ otherwise: on such a snapshot index the view lists are refused, on such an event
 Delete it while it is empty, or reindex it into an index created from the definition, before the host starts: Wow does
 not change an existing index's mapping. For the event stream, that is (with the host stopped):
 
-1. `PUT wow.view-store.view.es-new` with the body of `wow.view-store.view.es.json`, and `POST _reindex` from
-   `wow.view-store.view.es` into it;
-2. delete `wow.view-store.view.es`, `PUT` it again with the same body, and `POST _reindex` back from
-   `wow.view-store.view.es-new`;
+1. `PUT wow.view-store.view.es-new` with the body `{"mappings":{"enabled":false}}`, and `POST _reindex` from
+   `wow.view-store.view.es` into it. The temporary index matches no Wow template (`wow.*.es`), so nothing but its body
+   maps it: a body that maps only part of the documents (such as the definition alone) lets Elasticsearch map the
+   rest dynamically, and the reindex fails on an event whose payload has another shape. With the mapping disabled it
+   only keeps `_source`, which is all the way back needs;
+2. delete `wow.view-store.view.es`, `PUT` it again with the body of `wow.view-store.view.es.json` (Wow's template
+   supplies the rest), and `POST _reindex` back from `wow.view-store.view.es-new`;
 3. delete `wow.view-store.view.es-new` and start the host: the warning is gone.
 
 The snapshot index names carry no prefix of the deployment: two hosts that embed the starter on one Elasticsearch
@@ -173,6 +177,10 @@ instances:
 | MongoDB | event streams and snapshots (Wow's default storage) | `spring.mongodb.uri` |
 | Kafka | the command, event and state-event buses (Wow's default buses) | `wow.kafka.bootstrap-servers`, `wow.kafka.topic-prefix` |
 | Redis | CosId machine ids shared by the instances | `spring.data.redis.url`, `cosid.machine.distributor.type: redis` |
+
+**MongoDB only in 9.2.0.** The standalone server is built without Wow's Elasticsearch support, so it stores events
+and snapshots on MongoDB alone. To keep views on Elasticsearch, embed the starter in a host that runs on Elasticsearch:
+the index definitions above ship with the starter, not with the server.
 
 **Run it only behind the CoSec gateway**: the server trusts the tenant and owner of every path, so it must never be
 reachable without the gateway's path rules in front of it. `src/dist/config/application.yaml` is the template for

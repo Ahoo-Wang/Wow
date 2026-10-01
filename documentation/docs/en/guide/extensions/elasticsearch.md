@@ -69,7 +69,13 @@ The storage adapter (`ElasticsearchQuerySchemaAdapter`, a `QueryStorageAdapter`)
 
 A `keyword` whose `ignore_above` is 8191 or more counts as indexing every value and has the operators of an uncapped keyword: exact match, `in`/`notIn`, prefix and contains, range, sorting and terms aggregation. Wow's default templates give `tags.*` (the ABAC tags), `id`, `*Id` and the event stream's dynamic strings exactly this cap, the most characters that fit Lucene's 32766-byte term limit; without it, a longer value would fail the whole document write. The limit: a value longer than `ignore_above` is kept in `_source` but not indexed, so no filter matches it (`eq`, `in`, prefix or contains with that value find nothing; `ne` and `notIn` include the document), it sorts as missing and it falls into no terms bucket. Presence filters (`exists`, `isNull`, `isEmpty`) still see the value through Elasticsearch's `_ignored` field, so a resource whose ABAC tag is over-long never reads as untagged, that is public; inside a `nested` element such a value reads as missing. `_ignored` also names a field whose value `ignore_malformed` dropped (a number or date that did not parse), so `isNull`, `notExists` and `isEmpty` treat that value as present as well. A `flattened` field records nothing in `_ignored`, so one with `ignore_above` offers no presence filter.
 
-A smaller `ignore_above`, such as the `text` + `keyword` (`ignore_above: 256`) Elasticsearch infers for an unmapped string, can drop values a query would need, so the field has no query operators; a string enum whose every declared value fits the cap is the exception. Map such fields explicitly (see [String field aggregability](../query/aggregation-query.md#es-string-aggregability)). Wow 9.1.x refuses every keyword with `ignore_above` apart from such enums.
+A smaller `ignore_above`, such as the `keyword` sub-field (`ignore_above: 256`) Elasticsearch's own dynamic mapping puts under an unmapped string's `text`, can drop values a query would need, so the field has no query operators; a string enum whose every declared value fits the cap is the exception. Map such fields explicitly (see [String field aggregability](../query/aggregation-query.md#es-string-aggregability)). Wow 9.1.x refuses every keyword with `ignore_above` apart from such enums.
+
+From 9.2, Wow's snapshot template maps a dynamic string under `state` as `text` with a `keyword` sub-field capped at 8191 (the `string_as_text_with_keyword` rule): its `.keyword` has the operators above, and full-text search on the `text` is unchanged for 9.1 nodes. A dynamic floating-point value is mapped as `double` (`floating_as_double`) instead of Elasticsearch's 32-bit `float`. Templates apply when an index is created: an index created before the upgrade keeps its 256 cap and its `float` fields until it is reindexed (see [Reindex an existing index](#reindex-existing-index)).
+
+### Decimals on integral fields {#decimal-fields}
+
+A value the logical model declares as a decimal (a JSON Schema `number`, such as a `BigDecimal` amount) is filtered, sorted and aggregated only on a floating field: `double`, `float`, `half_float` or `scaled_float`. On an integral field (`long`, `integer`, …) Elasticsearch truncates the decimals it indexes, so a sum of `10` and `12.75` reads `22`; dynamic mapping makes such a field when the first value it sees is integral. That path offers presence only: any other operator on it is refused as `UNSUPPORTED_CAPABILITY`, and the server logs one warning per index and path naming the field. Map decimal amounts as `scaled_float` (with a `scaling_factor`, such as `100` for cents) or `double` in an [index definition](#configure-snapshot-index-template).
 
 ## Before the First Write
 
@@ -108,6 +114,26 @@ The generic snapshot template is the fallback for storage-only snapshots. Querya
 ```
 
 The resource key is the final index name computed by Wow. The working-directory file replaces classpath files; without a working file, duplicate classpath files fail startup. Missing resources keep the generic-template behavior. Existing indexes are skipped, so mapping changes require explicit reindex or migration: when an existing index maps a path of its definition otherwise (an index created from the template alone, before the definition shipped), startup logs a warning naming those paths and carries on. Resource JSON follows Elasticsearch client and cluster validation semantics. Resource presence requests creation regardless of storage-routing configuration.
+
+The drift check compares `properties` only, path by path with each field's own parameters (its type, `ignore_above`, `scaling_factor`, `dynamic` of an object, …); root parameters of the mapping, such as a root `dynamic`, and the index settings are not compared.
+
+**Privileges.** Startup reads and creates the indices that have a definition, so the host's Elasticsearch user needs, on those indices, `view_index_metadata` (whether the index exists, and its `_mapping` for the drift check) and `create_index`. With `auto-init-template=true` it needs the cluster privilege `manage_index_templates` as well, which also lets the query schema of a missing index be simulated from the templates (see [Before the First Write](#before-the-first-write)). Reading and writing documents need their usual privileges.
+
+### Reindex an existing index {#reindex-existing-index}
+
+Wow does not change an existing index's mapping. To give an index the mapping of a new definition or template, reindex it through a temporary index with the application stopped:
+
+1. `PUT <index>-new` with the body `{"mappings":{"enabled":false}}`, and `POST _reindex` from `<index>` into it. The temporary name matches no Wow template (`wow.*.es`, `wow.*.snapshot`), so only its body maps it: a body that maps part of the documents (the definition alone, say) lets Elasticsearch map the rest dynamically, and the reindex fails on a document whose fields have another shape. With the mapping disabled, it keeps `_source` only, which is all the way back needs.
+2. Delete `<index>`, `PUT` it again with the body of its definition (the template supplies the rest; an index without a definition can be left to the first write, or created with an empty body), and `POST _reindex` back from `<index>-new`.
+3. Delete `<index>-new` and start the application: the drift warning is gone.
+
+### Checklist for a host on Elasticsearch {#host-checklist}
+
+- Ship an index definition under `META-INF/wow/elasticsearch/` for each aggregate whose state (or events) the application queries; startup creates it before the first write.
+- Map an array of objects that is filtered or expanded element by element as `nested`: Elasticsearch flattens a plain object array, so conditions on two fields could match two different elements.
+- Map decimals as `scaled_float` or `double` ([Decimals on integral fields](#decimal-fields)).
+- Existing indices keep their mapping: a new definition or Wow's newer template rules reach an index only through a [reindex](#reindex-existing-index); the startup warning names the paths that differ.
+- Grant the [privileges](#configure-snapshot-index-template) the startup needs.
 
 ## Full-Text Search
 

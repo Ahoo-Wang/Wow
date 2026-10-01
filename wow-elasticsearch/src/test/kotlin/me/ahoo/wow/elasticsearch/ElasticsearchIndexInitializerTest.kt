@@ -38,7 +38,7 @@ import java.net.URLClassLoader
 import java.nio.file.Files
 import java.nio.file.Path
 
-class ElasticsearchSnapshotIndexInitializerTest {
+class ElasticsearchIndexInitializerTest {
     @TempDir
     lateinit var tempDir: Path
 

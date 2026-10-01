@@ -210,6 +210,165 @@ jobs:
           if-no-files-found: ignore
           retention-days: 7
 
+  # The view engine's runtime (test/view-engine/) and WowViewStore
+  # (test/view-store/) against the example server with its events and
+  # snapshots on Elasticsearch: on Wow's own index templates and the index
+  # definitions the server ships (the view store's, and the example order's
+  # nested items and scaled decimals), never a mapping made by hand. The
+  # standalone view store server has no Elasticsearch support and stays on
+  # MongoDB. The client, the generator and released servers are the Mongo
+  # job's.
+  contract-elasticsearch:
+    name: Same-source contract / Elasticsearch
+    needs: scope
+    if: needs.scope.outputs.contract == 'true'
+    timeout-minutes: 40
+    runs-on: ubuntu-latest
+    services:
+      mongo:
+        image: mongo:8.3.11
+        ports:
+          - 27017:27017
+        env:
+          MONGO_INITDB_ROOT_USERNAME: root
+          MONGO_INITDB_ROOT_PASSWORD: root
+          # SERVER-121912: see the contract job.
+          GLIBC_TUNABLES: glibc.pthread.rseq=1
+        options: >-
+          --health-cmd="mongosh -u root -p root --authenticationDatabase admin --eval 'db.adminCommand(\"ping\")'"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+      # The version the Elasticsearch integration tests run
+      # (test/wow-tck ContainerImages), without security: only this job
+      # reaches it.
+      elasticsearch:
+        image: docker.elastic.co/elasticsearch/elasticsearch:9.2.6
+        ports:
+          - 9200:9200
+        env:
+          discovery.type: single-node
+          xpack.security.enabled: 'false'
+          ES_JAVA_OPTS: -Xms1g -Xmx1g
+        options: >-
+          --health-cmd="curl -sf http://localhost:9200/_cluster/health?wait_for_status=yellow"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=12
+    env:
+      SERVER_HOME: example/example-server/build/install/example-server
+      SERVER_LOG: ${{ github.workspace }}/example-server.log
+      VIEW_STORE_HOME: view-store/wow-view-store-server/build/install/wow-view-store-server
+      VIEW_STORE_LOG: ${{ github.workspace }}/view-store-server.log
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@v5
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+      - uses: gradle/actions/setup-gradle@v6
+      - name: Build the example and view store servers
+        run: ./gradlew :example-server:installDist :wow-view-store-server:installDist --stacktrace
+      # SPRING_AUTOCONFIGURE_EXCLUDE replaces the install's exclusion list
+      # (config/application.yaml), so Elasticsearch's client is configured;
+      # Wow initializes its templates and the shipped index definitions at
+      # startup.
+      - name: Start the example server on Elasticsearch
+        working-directory: ${{ env.SERVER_HOME }}
+        env:
+          SPRING_AUTOCONFIGURE_EXCLUDE: org.springframework.boot.mongodb.autoconfigure.MongoAutoConfiguration
+          SPRING_MONGODB_URI: mongodb://root:root@localhost:27017/wow_example_db?authSource=admin&maxIdleTimeMS=60000
+          SPRING_ELASTICSEARCH_URIS: http://localhost:9200
+          WOW_EVENTSOURCING_STORE_STORAGE: elasticsearch
+          WOW_EVENTSOURCING_SNAPSHOT_STORAGE: elasticsearch
+        run: |
+          mkdir -p logs data
+          nohup bin/example-server \
+            '--wow.view-store.system-views[0].definition-id=conformance-system' \
+            '--wow.view-store.system-views[0].id=conformance-open' \
+            '--wow.view-store.system-views[0].title=Open' \
+            '--wow.view-store.system-views[0].config={"kind":"record"}' \
+            > "$SERVER_LOG" 2>&1 &
+          echo "SERVER_PID=$!" >> "$GITHUB_ENV"
+      - name: Start the view store server
+        working-directory: ${{ env.VIEW_STORE_HOME }}
+        env:
+          SERVER_PORT: 8090
+          SPRING_MONGODB_URI: mongodb://root:root@localhost:27017/wow_view_store_db?authSource=admin&maxIdleTimeMS=60000
+          WOW_KAFKA_ENABLED: 'false'
+          WOW_COMMAND_BUS_TYPE: in_memory
+          WOW_EVENT_BUS_TYPE: in_memory
+          WOW_EVENTSOURCING_STATE_BUS_TYPE: in_memory
+          COSID_MACHINE_DISTRIBUTOR_TYPE: manual
+          COSID_MACHINE_DISTRIBUTOR_MANUAL_MACHINE_ID: 1
+          MANAGEMENT_HEALTH_REDIS_ENABLED: 'false'
+        run: |
+          mkdir -p logs data
+          nohup bin/wow-view-store-server \
+            '--wow.view-store.system-views[0].definition-id=conformance-system' \
+            '--wow.view-store.system-views[0].id=conformance-open' \
+            '--wow.view-store.system-views[0].title=Open' \
+            '--wow.view-store.system-views[0].config={"kind":"record"}' \
+            > "$VIEW_STORE_LOG" 2>&1 &
+          echo "VIEW_STORE_PID=$!" >> "$GITHUB_ENV"
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24.21.0
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Build packages
+        run: pnpm --filter wow-integration-test... build
+      - name: Wait for the example server
+        run: |
+          for _ in $(seq 1 60); do
+            if curl -sf http://localhost:8080/actuator/health > /dev/null; then
+              exit 0
+            fi
+            if ! kill -0 "$SERVER_PID" 2> /dev/null; then
+              echo "::error::The example server exited during startup."
+              tail -n 100 "$SERVER_LOG"
+              exit 1
+            fi
+            sleep 5
+          done
+          echo "::error::The example server was not healthy after 5 minutes."
+          tail -n 100 "$SERVER_LOG"
+          exit 1
+      - name: Wait for the view store server
+        run: |
+          for _ in $(seq 1 60); do
+            if curl -sf http://localhost:8090/actuator/health > /dev/null; then
+              exit 0
+            fi
+            if ! kill -0 "$VIEW_STORE_PID" 2> /dev/null; then
+              echo "::error::The view store server exited during startup."
+              tail -n 100 "$VIEW_STORE_LOG"
+              exit 1
+            fi
+            sleep 5
+          done
+          echo "::error::The view store server was not healthy after 5 minutes."
+          tail -n 100 "$VIEW_STORE_LOG"
+          exit 1
+      - name: Test the view engine and WowViewStore against the server
+        working-directory: typescript/integration-test
+        env:
+          WOW_EXAMPLE_STORAGE: elasticsearch
+        run: pnpm exec vitest run --maxWorkers=2 test/view-engine test/view-store
+      - name: Upload the server logs
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: example-server-elasticsearch-log
+          path: |
+            ${{ env.SERVER_LOG }}
+            ${{ env.VIEW_STORE_LOG }}
+          if-no-files-found: ignore
+          retention-days: 7
+
   # Released example server images: the code generated from each still
   # type-checks against the current client, and (from 8.11 on) the client runs
   # a smoke test against it, holding a list query without a limit to what the
@@ -299,7 +458,7 @@ jobs:
 
   typescript-contract-gate:
     name: typescript-contract-gate
-    needs: [scope, contract, legacy-contract]
+    needs: [scope, contract, contract-elasticsearch, legacy-contract]
     if: always()
     timeout-minutes: 5
     runs-on: ubuntu-latest

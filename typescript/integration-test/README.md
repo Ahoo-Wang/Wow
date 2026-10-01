@@ -166,13 +166,44 @@ Start the example server with the same four `--wow.view-store.system-views[0].â€
 arguments. `test` waits for both servers, and warms the view store's two
 aggregates up on each first.
 
+## On Elasticsearch
+
+`test/view-engine/` and `test/view-store/` also run against an example server
+whose events and snapshots are on Elasticsearch: set
+`WOW_EXAMPLE_STORAGE=elasticsearch` for the tests (the default is `mongo`). It
+selects what differs by backend: the search in `recordView.test.ts` runs and
+its rows are checked instead of the refusal. `PERCENTILE(50)` is held between
+the two middle values on either backend (MongoDB answers the lower one,
+Elasticsearch interpolates). Start Elasticsearch 9.2.6 without security, and the
+example server with Wow's templates and the index definitions it ships
+(`wow.example.order.snapshot.json`, the view store's):
+
+```bash
+docker run -d --name wow-it-es -p 9200:9200 -e discovery.type=single-node \
+  -e xpack.security.enabled=false -e ES_JAVA_OPTS='-Xms1g -Xmx1g' \
+  docker.elastic.co/elasticsearch/elasticsearch:9.2.6
+cd example/example-server/build/install/example-server
+mkdir -p logs data
+SPRING_AUTOCONFIGURE_EXCLUDE=org.springframework.boot.mongodb.autoconfigure.MongoAutoConfiguration \
+SPRING_ELASTICSEARCH_URIS=http://localhost:9200 \
+WOW_EVENTSOURCING_STORE_STORAGE=elasticsearch WOW_EVENTSOURCING_SNAPSHOT_STORAGE=elasticsearch \
+bin/example-server # with the four --wow.view-store.system-views[0].â€¦ arguments
+```
+
+`SPRING_AUTOCONFIGURE_EXCLUDE` replaces the install's exclusion list, so the
+Elasticsearch client is configured. The view store server stays on MongoDB: it
+has no Elasticsearch support in 9.2.0.
+
 ## CI
 
 `.github/workflows/typescript-contract.yml` runs these steps against an example
 server built from the same commit, whenever the Kotlin sources, the example, the
 Gradle build, these packages, the sources of `wow-view-engine` or its port conformance suite, `wow-view-store` or
 `view-store/` change, and a view store server beside it (port 8090, same MongoDB); both serve the system view the
-`WowViewStore` suites read. It fails when regenerating changes
+`WowViewStore` suites read. Its `contract-elasticsearch` job, part of the gate,
+runs `test/view-engine/` and `test/view-store/` again
+[on Elasticsearch](#on-elasticsearch), with the view store server on MongoDB.
+It fails when regenerating changes
 `src/generated`, and uploads the servers' logs when a step fails. For changes to
 `wow-client`, `wow-generator` or this package it also generates code from the
 `wow-example-server` images 8.10.8, 8.11.5, 9.1.3 and 9.1.5 and type-checks it,
