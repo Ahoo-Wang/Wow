@@ -64,7 +64,9 @@ class Caller implements RequestInterceptor {
 
 /**
  * Installs a fake global `fetch`. A request no route answers is a `404`
- * with Wow's `NotFound`, as the server answers a view it does not hold.
+ * with Wow's `NotFound`, as the server answers a view it does not hold —
+ * bar the list of system views, which a server with a view store always
+ * answers (empty).
  */
 export function fakeServer(...routes: Route[]): FakeServer {
   const requests: ServedRequest[] = [];
@@ -86,6 +88,10 @@ export function fakeServer(...routes: Route[]): FakeServer {
         const answer = await route(request);
         if (answer) return answer;
       }
+      // A server with a view store serves its system views, none by
+      // default; a test of one released before it answers them 404.
+      if (request.method === 'GET' && request.path.endsWith('/system-views'))
+        return json([]);
       return wowError('NotFound', `${request.method} ${request.path}`, 404);
     }),
   );

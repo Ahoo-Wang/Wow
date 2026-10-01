@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import {
   CheckIcon,
   ChevronDownIcon,
@@ -46,6 +46,7 @@ import { AlertDialogContent, DropdownMenuContent } from '../kit/popups.js';
 import { SaveAsDialog } from './SaveAsDialog.js';
 import type { ViewWriteCallbacks } from './WriteOutcome.js';
 import { useKindWord } from '../kit/kinds.js';
+import { isBarred, type FinalFocus } from '../kit/focus.js';
 
 /**
  * How long the button says a save landed. Long enough to be read, short
@@ -104,6 +105,36 @@ export function SaveActions({
   const [copying, setCopying] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const { can, state } = commands;
+  const group = useRef<HTMLDivElement>(null);
+  const confirmed = useRef(false);
+  // Where the keyboard goes as the shared save's question closes. Cancelled,
+  // back to the Save button it was asked from (the dialog's own choice).
+  // Answered 「更新给所有人」, the write it starts takes that button — it is
+  // disabled while the write is out, and after it with nothing left to
+  // save — so the view's own title in the header, which takes focus when
+  // it is sent there; left to the dialog, the keyboard went back to the
+  // disabled button and fell to <body> (UX-1, WCAG 2.4.3).
+  const titleOf = () =>
+    group.current
+      ?.closest('[data-slot="view-header"]')
+      ?.querySelector<HTMLElement>('[data-slot="view-title"]') ?? null;
+  const afterConfirm: FinalFocus = () =>
+    (confirmed.current && titleOf()) || true;
+  // The dialog hands the keyboard back as it closes, and may do so before
+  // the write has disabled the button it hands it to; so each render until
+  // the write settles looks once more, and a keyboard that fell — onto
+  // <body>, or a control gone dead — goes to the title.
+  useEffect(() => {
+    if (!confirmed.current || confirming) return;
+    const active = document.activeElement;
+    const fell =
+      !(active instanceof HTMLElement) ||
+      active === document.body ||
+      !active.isConnected ||
+      isBarred(active);
+    if (fell) titleOf()?.focus();
+    if (fell || !state.pending) confirmed.current = false;
+  });
 
   // The moment a save landed, said only as long as it is worth saying. What
   // is held is the moment that has run out rather than a flag, so the effect
@@ -201,6 +232,7 @@ export function SaveActions({
 
   return (
     <div
+      ref={group}
       data-slot="save-actions"
       className="fve:flex fve:items-center fve:gap-2"
     >
@@ -220,8 +252,10 @@ export function SaveActions({
           }
           onClick={() => {
             if (!saves) setCopying(true);
-            else if (state.audience === 'shared') setConfirming(true);
-            else write();
+            else if (state.audience === 'shared') {
+              confirmed.current = false;
+              setConfirming(true);
+            } else write();
           }}
         >
           <PrimaryFace
@@ -277,7 +311,11 @@ export function SaveActions({
         open={confirming}
         title={title}
         onOpenChange={setConfirming}
-        onConfirm={write}
+        onConfirm={() => {
+          confirmed.current = true;
+          write();
+        }}
+        finalFocus={afterConfirm}
       />
     </div>
   );
@@ -295,17 +333,23 @@ export function SharedSaveConfirm({
   title,
   onOpenChange,
   onConfirm,
+  finalFocus,
 }: {
   open: boolean;
   title: string;
   onOpenChange(open: boolean): void;
   onConfirm(): void;
+  /** Where the keyboard goes as it closes (`FinalFocus`); Base UI's choice when left out. */
+  finalFocus?: FinalFocus;
 }) {
   const messages = useViewMessages();
   const word = useKindWord();
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
-      <AlertDialogContent data-slot="shared-save-confirm">
+      <AlertDialogContent
+        data-slot="shared-save-confirm"
+        {...(finalFocus ? { finalFocus } : {})}
+      >
         <AlertDialogHeader>
           <AlertDialogTitle>
             {messages.label(word('label.save.shared-heading'))}

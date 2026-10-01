@@ -792,6 +792,8 @@ export const zhCN: Readonly<Record<string, string>> = {
   'view.save.forbidden': '你不能保存对这个视图的改动，另存一份自己的吧。',
   'view.system.read-only': '系统视图不能改（{action}）。',
   'view.title.empty': '视图需要一个标题。',
+  'view.title.too-long': '视图标题最多 {max} 个字。',
+  'view.config.too-large': '这个视图太大，存不下：{size} KB，上限是 {max} KB。',
   'view.field.deprecated': '这个视图用到了「{field}」，数据源已弃用它。',
   'view.field.deprecated-because':
     '这个视图用到了「{field}」，数据源已弃用它：{reason}',
@@ -803,15 +805,23 @@ export const zhCN: Readonly<Record<string, string>> = {
     '上一次 {action} 还没有确认。先重试或搁置它，再写下一次。',
   'view.write.conflict': '别人先保存了这个视图。',
   'view.write.forbidden': '你不能写这个视图。',
-  'view.write.invalid': '服务端拒绝了这次写入。',
+  'view.write.invalid': '服务端拒绝了这次写入：{reason}',
   'view.write.not_found': '这个视图已不存在。',
   'view.write.unavailable': '无法连接服务端。',
+  'view.write.unavailable.server': '服务端暂时无法处理这次写入：{reason}',
+  'view.write.unsupported': '服务端未提供视图存储。',
   'view.write.storage': '这个浏览器没能把这次修改存下来（存储已满或被禁用）。',
   'record.detail.forbidden': '你没有权限查看这条记录。',
   'view.open.failed.not_found': '这个视图已不存在。',
   'view.open.failed.forbidden': '你不能打开这个视图。',
   'view.open.failed.unavailable': '无法加载这个视图：无法连接服务端。',
   'view.list.failed.unavailable': '视图列表加载失败：无法连接服务端。',
+  'view.open.failed.unavailable.server':
+    '无法加载这个视图：服务端暂时无法处理（{reason}）。',
+  'view.list.failed.unavailable.server':
+    '视图列表加载失败：服务端暂时无法处理（{reason}）。',
+  'view.open.failed.unsupported': '无法加载这个视图：服务端未提供视图存储。',
+  'view.list.failed.unsupported': '视图列表加载失败：服务端未提供视图存储。',
 
   // 管理视图。
   'label.manage.open': '管理视图',
@@ -1643,6 +1653,10 @@ export const zhCN: Readonly<Record<string, string>> = {
     '你不能删除这个仪表盘，请联系它的归属人。',
   'label.dashboard.list-failed': '仪表盘列表加载失败。',
   'label.dashboard.list-unavailable': '仪表盘列表加载失败：无法连接服务端。',
+  'label.dashboard.list-unavailable-server':
+    '仪表盘列表加载失败：服务端暂时无法处理（{reason}）。',
+  'label.dashboard.list-unsupported':
+    '仪表盘列表加载失败：服务端不保存仪表盘。',
   'label.dashboard.reserved-id': '存储的仪表盘 {id} 用了保留 id，已跳过。',
   'label.dashboard.notify-failed':
     '仪表盘变化的订阅者出错：{reason}。列表可能慢一拍。',
@@ -1654,6 +1668,11 @@ export const zhCN: Readonly<Record<string, string>> = {
   'label.dashboard.gone': '这个仪表盘已不存在。',
   'label.dashboard.open-forbidden': '你不能打开这个仪表盘。',
   'label.dashboard.open-unavailable': '无法加载这个仪表盘：无法连接服务端。',
+  'label.dashboard.open-unavailable-server':
+    '无法加载这个仪表盘：服务端暂时无法处理（{reason}）。',
+  'label.dashboard.open-unsupported':
+    '无法加载这个仪表盘：服务端不保存仪表盘。',
+  'label.dashboard.write-unsupported': '服务端不保存仪表盘。',
   'label.dashboard.default-forbidden': '你不能设置默认仪表盘。',
   'label.dashboard.preferences-failed': '仪表盘偏好保存失败。',
   'label.dashboard.preferences-load-failed':
@@ -1669,6 +1688,9 @@ export const zhCN: Readonly<Record<string, string>> = {
     '你不能保存对这个仪表盘的改动，另存一份自己的吧。',
   'label.dashboard.system-read-only': '系统仪表盘不能改（{action}）。',
   'label.dashboard.title-empty': '仪表盘需要一个标题。',
+  'label.dashboard.title-too-long': '仪表盘标题最多 {max} 个字。',
+  'label.dashboard.config-too-large':
+    '这个仪表盘太大，存不下：{size} KB，上限是 {max} KB。',
   'label.dashboard.write-in-flight': '这个仪表盘正在保存，等它结束。',
   'label.dashboard.write-forbidden': '你不能写这个仪表盘。',
   'label.dashboard.unreadable': '这个仪表盘无法读取。',

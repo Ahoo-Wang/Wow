@@ -112,7 +112,11 @@ a shared one on `owner/(shared)`.
 | `changeAudience('personal')`       | `PUT …/view/{id}/claim` on the caller's own path                                                                                                                                       |
 | `getPreferences`, `setPreferences` | `GET`, `PUT …/definitions/{definitionId}/preferences` on the caller's path                                                                                                             |
 
-A list reads at most 1,000 views of each audience, the server's query budget.
+A list answers in the port's order — the system views, then the shared views,
+then the caller's, each audience oldest first (the server sorts it by
+`firstEventTime`) — and reads at most 1,000 views of each audience, the server's
+query budget: the oldest 1,000. A view past the cut is still read by its id, and
+the workbench asks for one an address names before it sets it aside.
 
 **Writes** send the port's `requestId` as `Command-Request-Id`, the `revision`
 as `Command-Aggregate-Version` (`'0'` for preferences never written), and wait
@@ -155,6 +159,14 @@ HTTP status only when an answer carries no code the store knows:
 | `IllegalAccessOwnerAggregate`, `IllegalAccessSpaceAggregate`, `IllegalAccessQueryScope`, `SystemViewReadOnly`, `ViewEventStreamClosed`; without a known code, 401 and 403                                                                                                  | `FORBIDDEN`   |
 | `ViewInvalid`, `ViewAppRequired`, `ViewScopeRequired`, `BadRequest`, `CommandValidation`, `IllegalArgument`, `DuplicateAggregateId`, `QuerySchemaValidation`; without a known code, 400 and 422; a path variable the fetcher's interceptors never filled (nothing is sent) | `INVALID`     |
 | `IllegalState`, `RequestTimeout`, `TooManyRequests`, `InternalServerError`, `QuerySchemaUnavailable`, `QuerySchemaConflict`; without a known code, any other status; no answer at all                                                                                      | `UNAVAILABLE` |
+| `404` from a server with no view store at all (one released before it): a list, or a read whose every place is `404` while the server's system views are too                                                                                                               | `UNSUPPORTED` |
+
+Every `ViewStoreError` keeps what it was read from: the request's failure as
+`cause`, the server's `errorCode` as `detail.code` (so a host tells
+`ViewAppRequired` from `ViewInvalid`, both `INVALID`), and on an `UNAVAILABLE`
+the server answered — a 5xx, a timeout it reported, a page that is not JSON —
+`reachable: true`, which the engine says as 「服务端暂时无法处理」 rather than
+「无法连接服务端」.
 
 A repeated request id (`DuplicateRequestId`) is not an error of its own: the
 store looks the first attempt up (above). A path variable left unfilled is the
@@ -168,7 +180,7 @@ the refusal in its own words around them: a title written as a key stays a key,
 said where the refusal is shown. The `message` keeps the server's words, for
 logs.
 
-`ViewStoreErrorCodes` names the view store's own codes.
+`WowViewStoreErrorCodes` names the view store's own codes.
 
 ## Testing
 

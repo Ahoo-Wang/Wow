@@ -317,6 +317,21 @@ describe('the history of building a board', () => {
     expect(runtime.getSnapshot().draft.panels[0].title).toBe('Two');
   });
 
+  it('keeps its history through a rename and an audience change from the list', async () => {
+    const board = harness();
+    const runtime = await board.open(dashboardConfig({ panels: [saved('a')] }));
+    const id = runtime.getSnapshot().saved!.id;
+
+    runtime.renamePanel('a', 'One');
+    await board.engine.rename(id, 'Renamed');
+    await board.engine.changeAudience(id, 'shared');
+
+    // Neither carries the draft, so neither is where building starts again.
+    expect(runtime.getSnapshot().title).toBe('Renamed');
+    expect(runtime.getSnapshot().dirty).toBe(true);
+    expect(runtime.undo()).toEqual({ command: 'renamePanel', subject: 'a' });
+  });
+
   it('does nothing once disposed', async () => {
     const runtime = await harness().open(
       dashboardConfig({ panels: [saved('a')] }),

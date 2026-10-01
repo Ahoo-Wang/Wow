@@ -83,6 +83,10 @@ export const dashboardMessages = {
   'label.dashboard.list-failed': 'The list of dashboards could not be loaded.',
   'label.dashboard.list-unavailable':
     'The list of dashboards could not be loaded: the server could not be reached.',
+  'label.dashboard.list-unavailable-server':
+    'The list of dashboards could not be loaded: the server could not handle it ({reason}).',
+  'label.dashboard.list-unsupported':
+    'The list of dashboards could not be loaded: this server keeps no dashboards.',
   'label.dashboard.reserved-id':
     'The stored dashboard {id} uses a reserved id and was skipped.',
   'label.dashboard.notify-failed':
@@ -99,6 +103,11 @@ export const dashboardMessages = {
   'label.dashboard.open-forbidden': 'You may not open this dashboard.',
   'label.dashboard.open-unavailable':
     'This dashboard could not be loaded: the server could not be reached.',
+  'label.dashboard.open-unavailable-server':
+    'This dashboard could not be loaded: the server could not handle it ({reason}).',
+  'label.dashboard.open-unsupported':
+    'This dashboard could not be loaded: this server keeps no dashboards.',
+  'label.dashboard.write-unsupported': 'This server keeps no dashboards.',
   'label.dashboard.default-forbidden': 'You may not set the default dashboard.',
   'label.dashboard.preferences-failed':
     'Your dashboard preferences could not be saved.',
@@ -117,6 +126,10 @@ export const dashboardMessages = {
   'label.dashboard.system-read-only':
     'A built-in dashboard cannot be changed ({action}).',
   'label.dashboard.title-empty': 'A dashboard needs a title.',
+  'label.dashboard.title-too-long':
+    'A dashboard’s title can be at most {max} characters.',
+  'label.dashboard.config-too-large':
+    'This dashboard is too large to save: {size} KB, where the store keeps at most {max} KB.',
   'label.dashboard.write-in-flight':
     'This dashboard is already being saved; wait for that to finish.',
   'label.dashboard.write-forbidden': 'You may not write to this dashboard.',

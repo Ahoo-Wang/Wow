@@ -20,7 +20,7 @@
 import { describe, expect, it } from 'vitest';
 import { ErrorCodes } from '@ahoo-wang/wow-client';
 import { portCodeOf } from '../src/errors.js';
-import { ViewStoreErrorCodes } from '../src/index.js';
+import { WowViewStoreErrorCodes } from '../src/index.js';
 
 describe('portCodeOf', () => {
   it.each([
@@ -32,11 +32,11 @@ describe('portCodeOf', () => {
     [ErrorCodes.ILLEGAL_ACCESS_OWNER_AGGREGATE, 'FORBIDDEN'],
     [ErrorCodes.ILLEGAL_ACCESS_SPACE_AGGREGATE, 'FORBIDDEN'],
     [ErrorCodes.ILLEGAL_ACCESS_QUERY_SCOPE, 'FORBIDDEN'],
-    [ViewStoreErrorCodes.SYSTEM_VIEW_READ_ONLY, 'FORBIDDEN'],
-    [ViewStoreErrorCodes.VIEW_EVENT_STREAM_CLOSED, 'FORBIDDEN'],
-    [ViewStoreErrorCodes.VIEW_INVALID, 'INVALID'],
-    [ViewStoreErrorCodes.VIEW_APP_REQUIRED, 'INVALID'],
-    [ViewStoreErrorCodes.VIEW_SCOPE_REQUIRED, 'INVALID'],
+    [WowViewStoreErrorCodes.SYSTEM_VIEW_READ_ONLY, 'FORBIDDEN'],
+    [WowViewStoreErrorCodes.VIEW_EVENT_STREAM_CLOSED, 'FORBIDDEN'],
+    [WowViewStoreErrorCodes.VIEW_INVALID, 'INVALID'],
+    [WowViewStoreErrorCodes.VIEW_APP_REQUIRED, 'INVALID'],
+    [WowViewStoreErrorCodes.VIEW_SCOPE_REQUIRED, 'INVALID'],
     [ErrorCodes.COMMAND_VALIDATION, 'INVALID'],
     [ErrorCodes.ILLEGAL_ARGUMENT, 'INVALID'],
     [ErrorCodes.BAD_REQUEST, 'INVALID'],

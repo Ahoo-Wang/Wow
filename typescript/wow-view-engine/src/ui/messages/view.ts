@@ -267,6 +267,9 @@ export const viewMessages = {
     'You may not save changes to this view; save a copy of your own instead.',
   'view.system.read-only': 'A built-in view cannot be changed ({action}).',
   'view.title.empty': 'A view needs a title.',
+  'view.title.too-long': 'A view’s title can be at most {max} characters.',
+  'view.config.too-large':
+    'This view is too large to save: {size} KB, where the store keeps at most {max} KB.',
   'view.field.deprecated':
     'This view uses {field}, which its data source deprecates.',
   'view.field.deprecated-because':
@@ -281,9 +284,15 @@ export const viewMessages = {
     'The last {action} has not been confirmed yet. Retry it or abandon it before writing again.',
   'view.write.conflict': 'Someone else saved this view first.',
   'view.write.forbidden': 'You may not write to this view.',
-  'view.write.invalid': 'The server refused this write.',
+  'view.write.invalid': 'The server refused this write: {reason}',
   'view.write.not_found': 'This view no longer exists.',
   'view.write.unavailable': 'The server could not be reached.',
+  // The server answered, with an error of its own (a 5xx, a timeout it
+  // reported): not the network, so the reader is not sent to check theirs.
+  'view.write.unavailable.server':
+    'The server could not handle this write: {reason}',
+  // A server with no view store at all (one released before it).
+  'view.write.unsupported': 'This server has no view store.',
   // The browser's own storage would not keep the write (a local store's
   // quota, or storage turned off): the title of the retry-or-abandon line in
   // place of 「The result never came back」, which told the reader nothing
@@ -304,4 +313,12 @@ export const viewMessages = {
     'This view could not be loaded: the server could not be reached.',
   'view.list.failed.unavailable':
     'The list of views could not be loaded: the server could not be reached.',
+  'view.open.failed.unavailable.server':
+    'This view could not be loaded: the server could not handle it ({reason}).',
+  'view.list.failed.unavailable.server':
+    'The list of views could not be loaded: the server could not handle it ({reason}).',
+  'view.open.failed.unsupported':
+    'This view could not be loaded: this server has no view store.',
+  'view.list.failed.unsupported':
+    'The list of views could not be loaded: this server has no view store.',
 } as const satisfies Record<string, string>;

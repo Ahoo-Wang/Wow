@@ -16,16 +16,63 @@
  * nothing here asks the store or a permission.
  */
 
-import type { Issue } from '../model/index.js';
+import {
+  configBytes,
+  MAX_VIEW_CONFIG_BYTES,
+  MAX_VIEW_TITLE_LENGTH,
+  titleProblem,
+  type Issue,
+  type ViewConfig,
+} from '../model/index.js';
 import { issue } from '../filter/index.js';
 import { stopsSave } from './dashboardRuntime.js';
 import type { ManagedViewRuntime } from './viewRuntimeTypes.js';
 import { ViewCommandError } from './write.js';
 
-/** A view needs a title: a blank one is refused (`view.title.empty`). */
-export function requireTitle(title: string): void {
-  if (title.trim().length === 0)
-    throw new ViewCommandError(issue('view.title.empty', ['title']));
+/**
+ * A view needs a title, and the store keeps one of at most
+ * `MAX_VIEW_TITLE_LENGTH` (`view.title.empty`, `view.title.too-long`): the
+ * engine refuses it here rather than send what the store refuses. Answers
+ * the title as it is stored, trimmed.
+ */
+export function requireTitle(title: string): string {
+  switch (titleProblem(title)) {
+    case 'empty':
+      throw new ViewCommandError(issue('view.title.empty', ['title']));
+    case 'too-long':
+      throw new ViewCommandError(
+        issue('view.title.too-long', ['title'], { max: MAX_VIEW_TITLE_LENGTH }),
+      );
+    default:
+      return title.trim();
+  }
+}
+
+/**
+ * The draft as a runtime writes it to the store (`stored`, where its kind
+ * stores less than it reads), refused when the store would not keep it.
+ */
+export function storable(
+  runtime: ManagedViewRuntime,
+  draft: ViewConfig,
+): ViewConfig {
+  return requireStorable(runtime.stored?.(draft) ?? draft);
+}
+
+/**
+ * A config the store keeps: at most `MAX_VIEW_CONFIG_BYTES` of JSON
+ * (`view.config.too-large`). A board of many panels is what reaches it.
+ */
+export function requireStorable<C extends ViewConfig>(config: C): C {
+  const bytes = configBytes(config);
+  if (bytes > MAX_VIEW_CONFIG_BYTES)
+    throw new ViewCommandError(
+      issue('view.config.too-large', [], {
+        size: Math.ceil(bytes / 1024),
+        max: MAX_VIEW_CONFIG_BYTES / 1024,
+      }),
+    );
+  return config;
 }
 
 /** What stops a save of this runtime's kind (`stopsSave`). */

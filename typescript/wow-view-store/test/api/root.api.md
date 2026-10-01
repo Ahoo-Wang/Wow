@@ -18,15 +18,6 @@ import { WriteContext } from '@ahoo-wang/wow-view-engine';
 export const SHARED_OWNER_ID = "(shared)";
 
 // @public
-export const ViewStoreErrorCodes: Readonly<{
-    readonly VIEW_INVALID: "ViewInvalid";
-    readonly VIEW_APP_REQUIRED: "ViewAppRequired";
-    readonly SYSTEM_VIEW_READ_ONLY: "SystemViewReadOnly";
-    readonly VIEW_SCOPE_REQUIRED: "ViewScopeRequired";
-    readonly VIEW_EVENT_STREAM_CLOSED: "ViewEventStreamClosed";
-}>;
-
-// @public
 export class WowViewStore implements ViewStore {
     constructor(options: WowViewStoreOptions);
     changeAudience(id: string, audience: ViewAudience, revision: string, context: WriteContext): Promise<ViewInstance>;
@@ -35,11 +26,20 @@ export class WowViewStore implements ViewStore {
     get(id: string, signal?: AbortSignal): Promise<ViewInstance>;
     getPreferences(definitionId: string, signal?: AbortSignal): Promise<ViewPreferences>;
     list(definitionId: string, signal?: AbortSignal): Promise<ViewInstanceSummary[]>;
-    permissions?: (definitionId: string) => ViewPermissions;
+    readonly permissions?: (definitionId: string) => ViewPermissions;
     rename(id: string, title: string, revision: string, context: WriteContext): Promise<ViewInstance>;
     save(id: string, config: ViewConfig, revision: string, context: WriteContext): Promise<ViewInstance>;
     setPreferences(definitionId: string, preferences: ViewPreferences, context: WriteContext): Promise<ViewPreferences>;
 }
+
+// @public
+export const WowViewStoreErrorCodes: Readonly<{
+    readonly VIEW_INVALID: "ViewInvalid";
+    readonly VIEW_APP_REQUIRED: "ViewAppRequired";
+    readonly SYSTEM_VIEW_READ_ONLY: "SystemViewReadOnly";
+    readonly VIEW_SCOPE_REQUIRED: "ViewScopeRequired";
+    readonly VIEW_EVENT_STREAM_CLOSED: "ViewEventStreamClosed";
+}>;
 
 // @public
 export interface WowViewStoreOptions {

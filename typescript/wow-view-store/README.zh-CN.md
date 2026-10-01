@@ -99,7 +99,9 @@ fetcher.interceptors.request.use(new ConsoleDefaults());
 | `changeAudience('personal')`       | 在调用者自己的路径上 `PUT …/view/{id}/claim`                                                                                                            |
 | `getPreferences`、`setPreferences` | 调用者路径上的 `GET`、`PUT …/definitions/{definitionId}/preferences`                                                                                    |
 
-列表每种受众最多读 1000 个视图，即服务端的查询上限。
+列表按端口规定的顺序作答——系统视图、共享视图、调用者的个人视图，每种受众按创建先后（服务端按 `firstEventTime`
+排序）——每种受众最多读 1000 个，即服务端的查询上限：最早的 1000 个。截断之外的视图仍可按 id 读到，地址里点名的
+视图工作台会先按 id 问一次，再决定是不是别的定义的。
 
 **写入**把端口的 `requestId` 作为 `Command-Request-Id`、`revision` 作为 `Command-Aggregate-Version`
 （从没写过的偏好是 `'0'`）发送，并等到快照落地。作答的是按这次写入留下的版本读回的视图。`share` 与 `delete`
@@ -131,6 +133,11 @@ store 重新找到视图，把写入再发一次到它现在所在的地方。
 | `IllegalAccessOwnerAggregate`、`IllegalAccessSpaceAggregate`、`IllegalAccessQueryScope`、`SystemViewReadOnly`、`ViewEventStreamClosed`；没有认得的错误码时 401、403                                                                     | `FORBIDDEN`   |
 | `ViewInvalid`、`ViewAppRequired`、`ViewScopeRequired`、`BadRequest`、`CommandValidation`、`IllegalArgument`、`DuplicateAggregateId`、`QuerySchemaValidation`；没有认得的错误码时 400、422；fetcher 的拦截器没填的路径变量（什么都没发） | `INVALID`     |
 | `IllegalState`、`RequestTimeout`、`TooManyRequests`、`InternalServerError`、`QuerySchemaUnavailable`、`QuerySchemaConflict`；没有认得的错误码时其余状态；根本没有回答                                                                   | `UNAVAILABLE` |
+| 没有视图存储的服务端（早于它发布的）答的 `404`：列表，或每处都 `404` 且服务端的系统视图也 `404` 的读写                                                                                                                                  | `UNSUPPORTED` |
+
+每个 `ViewStoreError` 都留着它的来处：请求本身的失败是 `cause`，服务端的 `errorCode` 是 `detail.code`（宿主据此分辨同为
+`INVALID` 的 `ViewAppRequired` 与 `ViewInvalid`）；服务端答了话的 `UNAVAILABLE`——5xx、它报的超时、不是 JSON 的页面——带
+`reachable: true`，引擎据此说「服务端暂时无法处理」，而不是「无法连接服务端」。
 
 重复的请求 id（`DuplicateRequestId`）本身不是错误：store 去查第一次的结果（见上）。没填的路径变量是宿主的配置问题——
 拦截器没填 `{tenantId}`，或个人路径上的 `{ownerId}`——所以与服务端自己的 `ViewScopeRequired` 一样是 `INVALID`：
@@ -139,7 +146,7 @@ store 重新找到视图，把写入再发一次到它现在所在的地方。
 服务端因为有共享仪表盘显示着视图而拒绝收为个人时，错误的 `boards` 原样带上那几块看板的**标题**，由视图引擎用自己的话
 说出这次拒绝：以键写的标题仍是键，在显示拒绝的地方说成话。`message` 保留服务端的原话，供日志。
 
-`ViewStoreErrorCodes` 列出视图存储自己的错误码。
+`WowViewStoreErrorCodes` 列出视图存储自己的错误码。
 
 ## 测试
 

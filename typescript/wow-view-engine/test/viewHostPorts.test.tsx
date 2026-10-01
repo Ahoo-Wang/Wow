@@ -59,6 +59,7 @@ import { useAddressedBoard } from '../src/ui/workbench/address.js';
 import { useRoutedNavigate } from '../src/ui/workbench/ViewEngineProvider.js';
 import {
   mine,
+  nextTask,
   ordersDefinition,
   overviewDefinition,
   recordConfig,
@@ -333,6 +334,41 @@ describe('the address: two workbenches on one page', () => {
     await waitFor(() => expect(at().search).toBe('?view=orders-2'));
     await waitFor(() => expect(openIn('Orders')).toBe('Other'));
     expect(openIn('Overview')).toMatch(/^Home board/);
+  });
+
+  it('asks for a view its list did not hold before setting it aside', async () => {
+    const engine = engineOf();
+    // A store that cut its list short (WowViewStore lists 1000 of an
+    // audience): the view the address names is past the cut.
+    const list = engine.store.list.bind(engine.store);
+    vi.spyOn(engine.store, 'list').mockImplementation(async definitionId =>
+      (await list(definitionId)).filter(item => item.id !== 'orders-2'),
+    );
+    const asked = vi.spyOn(engine.store, 'get');
+    hosted(
+      {
+        '/': (
+          <>
+            <DataWorkbench definitionId="orders" />
+            <DashboardWorkbench definitionId="overview" />
+          </>
+        ),
+      },
+      '/?view=orders-2',
+      { engine },
+    );
+
+    await waitFor(() => expect(openIn('Overview')).toMatch(/^Home board/));
+    // The orders workbench opened it, though its list never named it.
+    const titles = () =>
+      [...document.querySelectorAll('[data-slot="view-title"]')].map(
+        title => title.textContent,
+      );
+    await waitFor(() => expect(asked).toHaveBeenCalledWith('orders-2'));
+    // Its answer, and the render it causes.
+    await act(nextTask);
+    await act(nextTask);
+    expect(titles()).toContain('Other');
   });
 
   it('sets a declared view of another definition aside by its id alone', async () => {

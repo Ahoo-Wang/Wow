@@ -11,12 +11,13 @@
  * limitations under the License.
  */
 
-import type {
-  Issue,
-  ViewAudience,
-  ViewConfig,
-  ViewInstance,
-  ViewPreferences,
+import {
+  isNamedError,
+  type Issue,
+  type ViewAudience,
+  type ViewConfig,
+  type ViewInstance,
+  type ViewPreferences,
 } from '../model/index.js';
 
 /**
@@ -95,8 +96,12 @@ export class ViewWriteError extends Error {
   }
 }
 
+/** By name, as every guard of the engine's errors (`isViewStoreError`). */
 export function isViewWriteError(error: unknown): error is ViewWriteError {
-  return error instanceof ViewWriteError;
+  return (
+    isNamedError(error, 'ViewWriteError') &&
+    typeof (error as { state?: unknown }).state === 'object'
+  );
 }
 
 /**
@@ -114,6 +119,10 @@ export class ViewCommandError extends Error {
   }
 }
 
+/** By name, as every guard of the engine's errors (`isViewStoreError`). */
 export function isViewCommandError(error: unknown): error is ViewCommandError {
-  return error instanceof ViewCommandError;
+  return (
+    isNamedError(error, 'ViewCommandError') &&
+    typeof (error as { issue?: unknown }).issue === 'object'
+  );
 }

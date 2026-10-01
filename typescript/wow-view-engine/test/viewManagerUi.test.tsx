@@ -379,10 +379,11 @@ describe('ViewManager rows', () => {
     // moved: the store keeps one list per definition.
     await landed(store);
     expect((await store.getPreferences('orders')).order).toEqual([
+      // The store lists shared before personal (the port's order).
       'system:orders:all',
+      'orders-3',
       'orders-2',
       'orders-1',
-      'orders-3',
     ]);
     await waitFor(() => expect(rows()[0]).toContain('Yours'));
     // And it is said once, where a reader who cannot see the list will hear

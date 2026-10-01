@@ -115,9 +115,26 @@ export class WriteLedger {
     return this.replay(state.payload, requestId, this.owners.get(requestId));
   }
 
-  /** Drops the outcome and keeps the draft; a later save is a new intent. */
+  /**
+   * Drops the outcome and keeps the draft; a later save is a new intent.
+   *
+   * A conflict told the engine what the store holds now, and that stays
+   * true whatever the reader chose: the cached summary and preferences take
+   * the store's revision, so the next command given only an id — a rename
+   * from the list, a reorder — is not refused against a revision already
+   * known to be gone. An open view keeps its baseline: its draft was written
+   * against that one, and only the reader's choice moves it.
+   */
   abandonWrite(target: WriteTarget): void {
-    const { requestId } = this.requireWrite(target);
+    const { requestId, state } = this.requireWrite(target);
+    if (state.kind === 'conflict') {
+      if (state.payload.action === 'preferences')
+        this.host.notePreferences(
+          state.payload.definitionId,
+          state.remote as ViewPreferences,
+        );
+      else this.host.noteInstance(state.remote as ViewInstance);
+    }
     this.settle(requestId);
   }
 
@@ -182,11 +199,34 @@ export class WriteLedger {
     } catch (error) {
       const state = await this.toWriteState(error, requestId, payload);
       this.writes.set(requestId, state);
-      runtime?.setWrite(state);
+      if (runtime && this.mayShow(runtime, payload, requestId))
+        runtime.setWrite(state);
       throw new ViewWriteError(state);
     } finally {
       this.inFlight.delete(key);
     }
+  }
+
+  /**
+   * Whether an outcome takes the open view's place for its write. The view's
+   * own writes (a save, a first save, a save as) always do — the latest one
+   * is what the reader is looking at. A write the manager sent through the
+   * view (a rename, a change of audience, a delete) does only where nothing
+   * of the view's own is waiting: a conflict the reader has not resolved yet
+   * is theirs, and a failed rename from the list must not hide it.
+   */
+  private mayShow(
+    runtime: ManagedViewRuntime,
+    payload: WritePayload,
+    requestId: string,
+  ): boolean {
+    if (payload.action === 'create' || payload.action === 'save') return true;
+    const shown = runtime.getSnapshot().write;
+    return (
+      !shown ||
+      shown.requestId === requestId ||
+      !this.writes.has(shown.requestId)
+    );
   }
 
   /**
@@ -214,12 +254,16 @@ export class WriteLedger {
         this.host.noteInstance(instance);
         // Every open view of this instance moves to the new baseline, not
         // only the one the command came through: the same view open twice
-        // would otherwise keep a revision nobody can write against. Only the
-        // view this write belongs to has its outcome settled; another's
-        // unsettled write is still its own to retry or abandon.
-        runtime?.markSaved(instance);
+        // would otherwise keep a revision nobody can write against. Only a
+        // save is the view's own write, and only it is marked saved — which
+        // settles the view's outcome and, on a board, starts its history
+        // again. A rename or a change of audience carries no config: it
+        // moves the baseline and leaves the draft, the board's undo and any
+        // write of the view's own still waiting exactly as they were.
+        if (payload.action === 'save') runtime?.markSaved(instance);
         for (const holder of this.host.holders(instance.id))
-          if (holder !== runtime) holder.moveBaseline(instance);
+          if (payload.action !== 'save' || holder !== runtime)
+            holder.moveBaseline(instance);
         this.announce(payload.action, instance);
         return;
       }
@@ -324,6 +368,18 @@ export class WriteLedger {
             requestId,
             payload,
             issue: issue('view.write.storage', [], { reason: error.message }),
+          };
+        // The server answered with an error of its own: the outcome is
+        // still unknown — a 5xx may come after the write — but the reader
+        // is told it was the server, with its reason, not the network.
+        if (error.reachable === true)
+          return {
+            kind: 'unknown',
+            requestId,
+            payload,
+            issue: issue('view.write.unavailable.server', [], {
+              reason: error.message,
+            }),
           };
         return { kind: 'unknown', requestId, payload };
       case 'CONFLICT': {

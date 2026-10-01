@@ -60,6 +60,8 @@ export interface RenameInputProps {
    * only thing that says it is being edited.
    */
   answers?: { confirm: string; cancel: string };
+  /** The longest name the field takes: a view's title is held to the store's. */
+  maxLength?: number;
   className?: string;
   'data-slot'?: string;
 }
@@ -93,6 +95,7 @@ export function RenameInput({
   held = false,
   returnTo,
   answers,
+  maxLength,
   className,
   'data-slot': slot,
 }: RenameInputProps) {
@@ -134,6 +137,7 @@ export function RenameInput({
     onFocus: (event: FocusEvent<HTMLInputElement>) =>
       event.currentTarget.select(),
     'aria-label': label,
+    ...(maxLength === undefined ? {} : { maxLength }),
     value,
     onChange: (event: { target: { value: string } }) =>
       setValue(event.target.value),

@@ -73,6 +73,44 @@ export interface ViewInstance {
 export const CODE_REVISION = 'code';
 
 /**
+ * The longest title a saved view may have, counted in UTF-16 code units
+ * after trimming. One rule on both sides of the port: the server's
+ * `ViewConfigs.MAX_TITLE_LENGTH` (`view-store/wow-view-store-domain`) is
+ * the source, this mirrors it (`test/storeLimits.test.ts` reads both), the
+ * engine refuses a longer one before sending (`view.title.too-long`), and
+ * `MemoryViewStore` refuses it as the server does.
+ */
+export const MAX_VIEW_TITLE_LENGTH = 120;
+
+/**
+ * The largest config a saved view may store, in UTF-8 bytes of its JSON:
+ * the server's `ViewConfigs.MAX_CONFIG_BYTES`, mirrored as the title's
+ * limit is — below the 256 KB request body a WebFlux server buffers by
+ * default, so the server's refusal is the one a larger config meets.
+ */
+export const MAX_VIEW_CONFIG_BYTES = 240 * 1024;
+
+/**
+ * What is wrong with a view's title, if anything: blank once trimmed, or
+ * longer than `MAX_VIEW_TITLE_LENGTH`. A title is stored trimmed.
+ */
+export function titleProblem(title: string): 'empty' | 'too-long' | null {
+  const trimmed = title.trim();
+  if (trimmed.length === 0) return 'empty';
+  return trimmed.length > MAX_VIEW_TITLE_LENGTH ? 'too-long' : null;
+}
+
+/** The size a config is stored at: the UTF-8 bytes of its JSON. */
+export function configBytes(config: ViewConfig): number {
+  let bytes = 0;
+  for (const char of JSON.stringify(config)) {
+    const point = char.codePointAt(0)!;
+    bytes += point < 0x80 ? 1 : point < 0x800 ? 2 : point < 0x10000 ? 3 : 4;
+  }
+  return bytes;
+}
+
+/**
  * What a list returns: enough to render the sidebar, without the config.
  *
  * It is not "an instance minus its config": `kind` is the config's own tag,

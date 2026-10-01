@@ -169,19 +169,34 @@ export interface WriteContext {
   signal?: AbortSignal;
 }
 export class ViewStoreError extends Error {
-  code: 'CONFLICT' | 'NOT_FOUND' | 'FORBIDDEN' | 'UNAVAILABLE' | 'INVALID';
+  code:
+    | 'CONFLICT'
+    | 'NOT_FOUND'
+    | 'FORBIDDEN'
+    | 'UNAVAILABLE'
+    | 'INVALID'
+    | 'UNSUPPORTED'; // 后端根本没有视图存储（早于它发布的服务端）
   /** 实例写入冲突时服务端持有的那个实例。 */
   instance?: ViewInstance;
   /** 偏好写入冲突时服务端持有的那份偏好。 */
   preferences?: ViewPreferences;
   /** 改成个人被拒（`INVALID`）时，显示着它的共享仪表盘的标题，原样。 */
   boards?: readonly string[];
+  /** `UNAVAILABLE` 时服务端答了话（5xx、它报的超时），不是网络不通。 */
+  reachable?: true;
+  /** 后端自己的错误码（Wow 的 `errorCode`），只供诊断。 */
+  detail?: { code: string };
+  // cause：适配器捕获的原始失败，即标准的 Error.cause
 }
 ```
 
+**「无法连接」只说给真连不上的。** `UNAVAILABLE` 而 `reachable` 时，Engine 的 Issue 是 `<命令>.unavailable.server`（「服务端暂时无法处理：{reason}」），写入的结局未知照旧、附 Issue `view.write.unavailable.server`；没有 `reachable` 才是「无法连接服务端」。`UNSUPPORTED` 说「服务端未提供视图存储」，不说「这个视图已不存在」。（见 test/store.test.ts、test/engine.test.ts「says why the store refused a write」；`@ahoo-wang/wow-view-store` 的单元测试「a server with no view store」）
+
+**列表顺序是端口的一部分**：系统视图、共享视图、个人视图，每种受众按创建先后。没有偏好时默认打开列表第一个，各 store 于是开同一个。**标题与配置大小的上限**也是：标题去空白后非空、至多 `MAX_VIEW_TITLE_LENGTH`（120），配置的 JSON 至多 `MAX_VIEW_CONFIG_BYTES`（240 KB，低于 WebFlux 默认缓冲的 256 KB 请求体，过大的配置于是遇到的是领域的拒绝而不是编解码器的 `IllegalState`）；服务端 `ViewConfigs` 是源头，`model/instance.ts` 照抄（test/storeLimits.test.ts 读 Kotlin 源码核对），Engine 发送前就拒绝（`view.title.too-long`、`view.config.too-large`），`MemoryViewStore` 与服务端一样拒为 `INVALID`，一致性套件两边都考。
+
 **冲突状态分两个成员，不是一个联合。** 一个 `remote?: ViewInstance | ViewPreferences` 编译得过，代价是每个用处都要 cast 一次：偏好冲突带回一个实例照样一路读作偏好。store 只填自己这次写的那一个；Engine 按 `payload.action` 读对应的那个成员，填错的那个读作没填，于是回落到自己回读一次（`store.getPreferences` 或 `store.get`），而不是被当真。构造函数第三个参数因此是 `{ instance }` 或 `{ preferences }`。（见 test/store.test.ts、test/writeLedger.test.ts「ignores a conflict state the write was not about」）
 
-`ViewStoreError` 与其判定函数放在 `model/`：端口两侧都要说这门语言，运行时据此分类写入结局，却不能依赖任何 store 实现（[分层规则](README.md#分层与依赖规则)第 4 条要求 `runtime → store` 只取端口类型）。判定按结构而非 `instanceof`，因此第二份包副本或自行构造该形状的适配器同样被识别。
+`ViewStoreError` 与其判定函数放在 `model/`：端口两侧都要说这门语言，运行时据此分类写入结局，却不能依赖任何 store 实现（[分层规则](README.md#分层与依赖规则)第 4 条要求 `runtime → store` 只取端口类型）。判定按结构而非 `instanceof`——`name` 为 `ViewStoreError` 且 `code` 是端口的码——因此第二份包副本或自行构造该形状的适配器同样被识别，而 HTTP 库里恰好带 `code: 'NOT_FOUND'` 的错误不会。引擎的其余错误（`ViewWriteError`、`ViewCommandError`、`ExportCancelled`）的判定同一规则。
 
 一致性策略两条：
 

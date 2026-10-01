@@ -131,10 +131,11 @@ describe('ViewManager outcomes', () => {
     // It lands this time, and the line goes with it.
     await landed(store);
     expect((await store.getPreferences('orders')).order).toEqual([
+      // The store lists shared before personal (the port's order).
       'system:orders:all',
+      'orders-3',
       'orders-2',
       'orders-1',
-      'orders-3',
     ]);
     await waitFor(() =>
       expect(
