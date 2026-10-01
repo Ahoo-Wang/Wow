@@ -30,6 +30,7 @@ import {
   parseTime,
   writeTime,
 } from '../src/ui/filter/inputs/timeOfDay.js';
+import { pinClock } from './fixtures/clock.js';
 
 afterEach(cleanup);
 
@@ -157,6 +158,7 @@ describe('the time beside the calendar', () => {
   });
 
   it('keeps the day and the time apart, with no offset, when the day moves', async () => {
+    pinClock();
     const user = userEvent.setup();
     const day = editor({ input: 'date', withTime: true }, {
       type: 'absolute',
