@@ -832,6 +832,21 @@
   - **验证宿主**：`typescript/integration-test` 连示例服务端，外加内存实现与 Wow 实现共用的端口一致性测试；**补偿控制台也迁移**——补偿服务引入 starter，控制台不登录，由自己插入的 fetcher 拦截器注入缺省的租户、所有者、应用。
 - **落点**：[view-store-backend.md](view-store-backend.md)、[todo.md](todo.md)「首发前」、[management.md](management.md)。
 
+## D76 主题机制的余项：三条落地、两条不做（2026-09-29）
+
+- **来由**：首发前第二轮审查「主题机制」里的五条余项（S8、S9、S11 重调报出的机制缺口，今在 [ui/theme.md](ui/theme.md#角色引擎自己的面)，[D43](#d43-主题可以说面怎样分层控件怎样画2026-09-25)）。判据：每条落地或在这里写明不做；每套 × 明暗过对比度矩阵与色板门，neutral 在默认密度、默认约定下像素不变。
+- **落地**：
+  - **暗色下更深一档的品牌色**：新 token `primary-fill`／`primary-fill-foreground`（引擎自己的语义色，`--_fve-*`）——「主色作为承载文字的填色」，不设就是 `primary`／`primary-foreground`；预设可给更深的一档，给了品牌色时按预设的边界（`brand-primary-fill-l-min`／`-max`，与焦点环同一种「给了边界才派生」）取品牌色相。`highlight-link`、`highlight-foreground-link` 的目标从 `primary`／`primary-foreground` 改成它们，所以没给这一档的预设逐字不变。porcelain 暗色给回 `#0058D0` 配白字（边界 0.46～0.52），亮色仍是主色；这一档是字面量，宿主在 porcelain 暗色上写自己的 `--fve-dark-primary` 时，也写 `--fve-dark-primary-fill`（品牌色则自动跟）。
+  - **引擎的三个焦点配方读 `focus-width`／`focus-offset`**（WCAG 2.4.11／2.4.13）：`FOCUS_ROW` 的内描边是 `focus-width` 宽、光晕在它外 2px；`FOCUS_CARD` 的轮廓 `focus-width` 宽、离边 `focus-offset`（不设时是自身宽度的负值，即原来压在边上）；`FOCUS_INSET` 画在边内，`focus-offset` 作为边内的间隔（`-(宽 + max(0, 偏移))`）。不设 `focus-width` 时读 1px，逐像素是原来的 1px 边加 3px 光晕。卡片与滚动体的光晕也改读 `focus-halo`（原来是固定的 `ring` 50%，不设时同值），与控件和 `FOCUS_ROW` 一致。设了 `focus-width` 的两套预设因此变了：contrast 的行、卡片、看板面板滚动体都是 2px、没有光晕，卡片离边 2px、滚动体边内留 2px；azure（`focus-width` 2px、`focus-offset` -1px，原来只有控件读）的行、卡片、滚动体也是 2px，卡片压着自己的 1px 边、滚动体画在边内，光晕是它自己的淡蓝。
+  - **选中行颜色以外的标记**（WCAG 1.4.1）：新角色 `row-selected-mark`（颜色，不设没有）与链接 `row-selected-mark-link`（→ `primary`）：选中的记录行、按下的分析分组，第一格左边一道 3px 的色条（引擎只有从左到右的排版），用背景图画，不压字；获焦行的内描边是画在背景之上的阴影，获焦时盖住色条靠里的 `focus-width`，其余仍露着。对比度矩阵加「marked selected row」（选中行上的色条 ≥3:1，只在设了时量）。contrast 链到主色（`100%`）。
+  - **contrast 的菜单高亮跟品牌色**：`highlight-link`／`highlight-foreground-link` `100%`，删掉四个字面量。亮色逐字相同（原字面量就是主色与白字）；暗色从 `oklch(0.8 0.13 253)` 变成主色 `oklch(0.84 0.1 250)`，黑字。
+  - **角色截图「提示框」**截面里的触发器：原来取画布里第一个提示框触发器，取到了故事外壳顶栏（在 `<html>` 的预设下渲染）的那个；现在只在视图面里找，并断言它所在的根钉的是 neutral。基线 `role-tooltip` 因此重截（内容换成了面内的提示框，是本条要的变化）。
+- **不做**：
+  - **描边按钮在元素上说出 variant**：上游 registry 的 `Button` 仍不写 `data-variant`（2026-09-29 `shadcn add button --diff` 确认）。自己包一层只能标到我们的调用处；registry 自己的组件（对话框与警示框的取消、分页、日历、输入组、组合框、提示）渲染的仍是 vendored 的 `Button`，按 variant 选就把描边按钮分成两群，比今天一个类名钩子（`border-border`，`shadcn add --diff` 时要看）覆盖全部更糟，而改 vendored 文件不允许。「以文字或图标自明的按钮填色」本身已由 D59 第 7 条在工具栏落地（产品只在那里定了填色）；描边按钮仍按 `fve:border-border` 认，与 [ui/theme.md](ui/theme.md#角色引擎自己的面)「施加不改 vendored 组件」一致。
+  - **看板筛选芯片里打字的框去掉 `input` 边**：先要论证填色本身能当边界（WCAG 1.4.11：认出一个输入框所需的边界对相邻底 ≥3:1）。量了芯片的填色（设了 `control` 的用它，否则 `muted` 的 40%）对它可能站的三块底（`canvas`、`background`、`card`），每套 × 明暗最高 1.50:1（porcelain 暗色，`canvas` 上），neutral 1.03～1.09、azure 1.02～1.07、contrast 1.05——没有一套过 3:1，论证不成立，所以不给配方加角色，打字的框保留 `input` 边；D63 也已把 porcelain 的边都还原。
+- **证据**：`resolveTokens` 快照只有 porcelain 暗色的 `highlight`／`highlight-foreground` 与 contrast 的 `highlight`（暗）与两个链接值变了，其余只多了新 token；两个 jsdom 对比度套件与品牌扫描（每套 × 明暗 × 两种回到色域）全过；`test/themeLinks.test.ts` 加 porcelain 暗色的深一档、contrast 的高亮与色条随品牌；浏览器故事 `ThemeMechanism.test.stories.tsx` 加 `FocusMarks*`（contrast 下三个配方 2px、偏移 2px／-4px、没有光晕、色条是主色；azure 下 2px、偏移 -1px／-2px、光晕是它的 `focus-halo`、没有色条；neutral 下 1px／-1px、没有色条；卡片与滚动体的光晕都等于面上的 `focus-halo`），porcelain 菜单故事改量 `primary-fill`；截图基线只变了三张：contrast 主题一览的记录块亮暗两张（选中行起始边多了主色的色条，行线随之有 1 级通道的抗锯齿差）与 `role-tooltip`（改截面内的「管理视图」）；neutral、azure、porcelain 与其余角色、首页、分析台的基线逐字节不变。
+- **落点**：`src/ui/theme/{tokens,tokenDocs,stateDocs,brandDocs,pairs}.ts`、`src/styles.css`、`src/themes/{porcelain,contrast}.css`、`src/ui/kit/variants.tsx`；主题指南中英（生成的表与「角色的链接」）；Storybook `ThemeRoles.test.stories.tsx`、`ThemeMechanism.test.stories.tsx`。[ui/theme.md](ui/theme.md#角色引擎自己的面) 的角色表、焦点、打字的框与链接几条随之改写。
+
 ## 搁置待议
 
 尚无结论，不要当作规则执行。

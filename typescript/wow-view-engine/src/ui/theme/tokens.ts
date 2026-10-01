@@ -13,7 +13,7 @@
 
 /**
  * The theme's contract, as data: every host variable a host or a preset may
- * write, and what the engine does with it (theme-architecture.md 5, D46).
+ * write, and what the engine does with it (ui/theme.md「登记表：合同只有一个来源」, D46).
  *
  * This is the one source the rest is made from or held to — the README's
  * token tables (`test/themeFiles.test.ts`, with the words in `tokenDocs.ts`),
@@ -28,7 +28,7 @@
  * tests hold the two together — every entry the stylesheet declares where
  * this says, every `--fve-*` the package reads is here.
  *
- * Three layers write a token (theme-architecture.md 3, S2): the host writes
+ * Three layers write a token (ui/theme.md「三层变量」, S2): the host writes
  * `--fve-<name>`, a preset — a built-in one, a host's own or the shadcn
  * bridge — writes `--fvp-<name>`, and the stylesheet reads
  * `var(--fve-<name>, var(--fvp-<name>, <built-in>))`, so the host is read
@@ -37,7 +37,7 @@
  */
 
 /**
- * Who a token is for, by what it describes (theme-architecture.md 5.2):
+ * Who a token is for, by what it describes (ui/theme.md「登记表：合同只有一个来源」):
  *
  * - `semantic` — shadcn's colour names and the engine's own derived ones.
  * - `role` — one surface of the engine's own, falling back to a semantic
@@ -56,13 +56,13 @@ export type TokenKind =
  * A preset's optional parameter sets (D35 Q62): a palette, a ladder of
  * lifts, a font stack, a switch, a step and the bounds a brand colour is
  * held to on its grounds — none of them one surface of the engine's. The groups that were surfaces (`canvas`, `card`,
- * `controls`, `title`, D43) are roles since S3 (theme-architecture.md 4.2).
+ * `controls`, `title`, D43) are roles since S3 (ui/theme.md「角色：引擎自己的面」).
  */
 export type TokenGroup =
   'chart' | 'shadow' | 'font' | 'patterns' | 'density' | 'brand';
 
 /**
- * Which part of the surface a role paints (theme-architecture.md 4.2): the
+ * Which part of the surface a role paints (ui/theme.md「角色：引擎自己的面」): the
  * grounds and the cards on them, the tables, what marks a state, focus, the
  * controls, the shapes, the type, what floats over the rest, and the charts
  * (6.2), which the library draws off the cascade and so read theirs back.
@@ -95,7 +95,7 @@ export interface TokenEntry {
    * The block declares it under the engine's own name, `--_fve-<name>`,
    * rather than `--<name>`: a name of this package's, not one of shadcn's,
    * so the tokens boundary on a host's chrome does not shadow a variable of
-   * the host's that happens to share it (theme-architecture.md 3.2).
+   * the host's that happens to share it (ui/theme.md「三层变量」).
    */
   readonly own?: boolean;
   /**
@@ -115,7 +115,7 @@ export interface TokenEntry {
   readonly fallback?: string;
   /**
    * Derived from the host's brand colour (`--fve-brand`) when there is one
-   * (theme-architecture.md 2, S4): the block reads
+   * (ui/theme.md「品牌色是输入，不是预设」, S4): the block reads
    * `var(--fve-<name>, var(--_fve-brand-<name>, var(--fvp-<name>, …)))`, so
    * the host's own value beats the brand and the brand beats the preset's
    * literal. With no brand colour the derived value is invalid and the
@@ -123,7 +123,7 @@ export interface TokenEntry {
    */
   readonly brand?: boolean;
   /**
-   * A link (theme-architecture.md 9.3): this token says how much of a token
+   * A link (ui/theme.md「链接：角色跟着面上解析出的 token」): this token says how much of a token
    * the surface has resolved — `to` — the role `role` is drawn in. The
    * stylesheet's link rule declares
    * `--_fve-link-<role>: color-mix(in oklab, var(<to>) var(--_fve-<name>),
@@ -150,7 +150,7 @@ export interface TokenEntry {
  * measured against each other for colour-vision distance, and the three
  * lifts are one ladder. Any other member a preset leaves out is the
  * built-in value, since the reset rule clears what an outer preset gave
- * (theme-architecture.md 3.6).
+ * (ui/theme.md「三层变量」).
  */
 export const TOKEN_GROUPS: Readonly<
   Record<TokenGroup, { readonly whole: boolean }>
@@ -196,7 +196,7 @@ const LIFT = {
 } as const;
 
 /**
- * A role (theme-architecture.md 4): one surface of the engine's own, under
+ * A role (ui/theme.md「角色：引擎自己的面」): one surface of the engine's own, under
  * the engine's name, which a host and a preset may both set. Unset it is
  * the token named as its `fallback`, or the value drawn before the role
  * existed, so a theme that sets no role looks as it did.
@@ -217,9 +217,9 @@ const measure = (area: RoleArea, kind: 'length' | 'number' | 'keyword') =>
   ({ ...role(area), kind, modes: 1 }) as const;
 
 /**
- * One of the bounds a preset holds a brand colour to (theme-architecture.md
- * 2.2): numbers the derivation in `styles.css` reads, measured against the
- * preset's own grounds. Unset, the stylesheet's own bound applies.
+ * One of the bounds a preset holds a brand colour to
+ * (ui/theme.md「品牌色是输入，不是预设」): numbers the derivation in
+ * `styles.css` reads, measured against the preset's own grounds. Unset, the stylesheet's own bound applies.
  */
 const BOUND = {
   tier: 'group',
@@ -230,7 +230,7 @@ const BOUND = {
 } as const;
 
 /**
- * A link (theme-architecture.md 9.3): the share of the resolved `to` a
+ * A link (ui/theme.md「链接：角色跟着面上解析出的 token」): the share of the resolved `to` a
  * colour role is drawn in, one number for both modes — `to` resolves in
  * each. No built-in value: unset, the role is what it was.
  */
@@ -280,6 +280,16 @@ export const TOKENS = [
   { name: 'ring', ...OWN, brand: true },
   { name: 'destructive-foreground', ...OWN, fallback: 'background' },
   { name: 'quiet-foreground', ...ENGINE },
+  // The primary as a filled area under words — a menu's highlighted item
+  // linked to the brand: the primary itself unless a preset gives a deeper
+  // step (dark, where the primary is light enough to be text on the dark
+  // grounds and too light to carry white words).
+  { name: 'primary-fill', ...ENGINE, brand: true, fallback: 'primary' },
+  {
+    name: 'primary-fill-foreground',
+    ...ENGINE,
+    fallback: 'primary-foreground',
+  },
   { name: 'pin-shadow', ...ENGINE, preset: false },
   { name: 'chart-1', ...SLOT, brand: true },
   { name: 'chart-2', ...SLOT },
@@ -318,6 +328,8 @@ export const TOKENS = [
   { name: 'brand-c-max', ...BOUND },
   { name: 'brand-ring-l-min', ...BOUND },
   { name: 'brand-ring-l-max', ...BOUND },
+  { name: 'brand-primary-fill-l-min', ...BOUND },
+  { name: 'brand-primary-fill-l-max', ...BOUND },
   { name: 'brand-accent-lc', ...BOUND },
   { name: 'brand-sidebar-accent-lc', ...BOUND },
   { name: 'brand-row-selected-lc', ...BOUND },
@@ -335,7 +347,7 @@ export const TOKENS = [
   { name: 'shadow-sm', ...LIFT },
   { name: 'shadow-md', ...LIFT },
   { name: 'shadow-lg', ...LIFT },
-  // The roles (theme-architecture.md 4.2), by the part of the surface each
+  // The roles (ui/theme.md「角色：引擎自己的面」), by the part of the surface each
   // paints. The grounds and the cards on them.
   { name: 'canvas', ...role('surface'), fallback: 'background' },
   { name: 'content', ...role('surface'), fallback: 'background' },
@@ -363,6 +375,13 @@ export const TOKENS = [
     fallback: 'foreground',
   },
   { name: 'row-hover', ...role('table') },
+  // A mark on a selected row that is not its colour: a bar down its leading
+  // edge (none unset), for a table with no checkbox to say it (WCAG 1.4.1).
+  { name: 'row-selected-mark', ...role('table') },
+  {
+    name: 'row-selected-mark-link',
+    ...link('table', 'row-selected-mark', 'primary'),
+  },
   { name: 'row-stripe', ...role('table'), fallback: 'content' },
   { name: 'row-divider', ...role('table'), fallback: 'border' },
   { name: 'table-sort-idle', ...measure('table', 'number') },
@@ -374,10 +393,10 @@ export const TOKENS = [
     ...role('state'),
     fallback: 'accent-foreground',
   },
-  { name: 'highlight-link', ...link('state', 'highlight', 'primary') },
+  { name: 'highlight-link', ...link('state', 'highlight', 'primary-fill') },
   {
     name: 'highlight-foreground-link',
-    ...link('state', 'highlight-foreground', 'primary-foreground'),
+    ...link('state', 'highlight-foreground', 'primary-fill-foreground'),
   },
   // The item a menu or a select holds chosen, under the pointer or not.
   { name: 'item-selected', ...role('state') },
@@ -465,7 +484,7 @@ export const TOKENS = [
   // What floats over the rest.
   { name: 'tooltip', ...role('float'), fallback: 'foreground' },
   { name: 'tooltip-foreground', ...role('float'), fallback: 'background' },
-  // The charts (theme-architecture.md 6): the library draws off the
+  // The charts (ui/theme.md「图表从主题读外观」): the library draws off the
   // cascade, so each is read back off the chart's element (`readChartTheme`)
   // — a colour, a length or a number, whichever the browser computes it to.
   // Unset, each is what the charts were drawn with before it existed.
@@ -507,10 +526,9 @@ export const TOKENS = [
     kind: 'shadow',
     fallback: 'shadow-md',
   },
-  // The density's lengths (themes.md 2.4): the step gives each its default,
+  // The density's lengths (ui/theme.md「密度」): the step gives each its default,
   // and a host's own value wins over the step. A preset only recommends the
-  // step (`preset-density`) and writes none of them (theme-architecture.md
-  // 4.6).
+  // step (`preset-density`) and writes none of them (ui/theme.md「角色：引擎自己的面」).
   { name: 'table-header-height', ...LAYOUT, kind: 'length' },
   { name: 'table-cell-padding-block', ...LAYOUT, kind: 'length' },
   { name: 'table-cell-padding-inline', ...LAYOUT, kind: 'length' },
@@ -567,7 +585,7 @@ export function declaredVariable(entry: TokenEntry): string | undefined {
 
 /**
  * The attributes, on a surface or an ancestor, that move what the tokens
- * resolve to, by the axis each carries (theme-architecture.md 1): the mode
+ * resolve to, by the axis each carries (ui/theme.md「五条轴」): the mode
  * (`class` for `.dark`, and any class a host themes by; `data-theme`, a
  * pinned mode), the preset, the change convention, the density — which
  * moves no colour, but a chart's cell, and so is watched too — and whether
@@ -578,8 +596,8 @@ export const THEME_AXES = [
   { name: 'preset', attributes: ['data-fve-preset'] },
   { name: 'change-colors', attributes: ['data-fve-change-colors'] },
   { name: 'density', attributes: ['data-fve-density'] },
-  // Present, the first chart slot takes the brand's hue (theme-architecture.md
-  // 2, S4); absent, it is the preset's.
+  // Present, the first chart slot takes the brand's hue
+  // (ui/theme.md「品牌色是输入，不是预设」, S4); absent, it is the preset's.
   { name: 'brand-chart', attributes: ['data-fve-brand-chart'] },
 ] as const;
 

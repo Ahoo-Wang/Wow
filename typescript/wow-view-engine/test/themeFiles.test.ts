@@ -13,13 +13,13 @@
 
 /**
  * The built-in presets are written in the host's contract and nothing else
- * (themes.md 1.1): whatever a built-in preset does, a host's own preset can
+ * (ui/theme.md「前提」): whatever a built-in preset does, a host's own preset can
  * do with the same words, and a preset that needed more would be a gap in
  * the mechanism, fixed there — never a private selector, a component's
  * internals or a code path for one preset.
  *
  * "The contract" is the theme's registry (`src/ui/theme/tokens.ts`,
- * theme-architecture.md 5): each token a host's `--fve-<token>` and a
+ * ui/theme.md「登记表：合同只有一个来源」): each token a host's `--fve-<token>` and a
  * preset's `--fvp-<token>` and, where it has a dark half, the `-dark-` pair
  * of those. This holds the registry to what the package really reads —
  * every `--fve-*` the stylesheet or the UI's code names is registered, and
@@ -106,15 +106,14 @@ describe('the registry is the contract', () => {
 
   it('is read: every variable of it is read somewhere', () => {
     // By the stylesheet or the UI's code — the brand colour and its bounds
-    // by the derivation in `styles.css` (theme-architecture.md 2).
+    // by the derivation in `styles.css` (ui/theme.md「品牌色是输入，不是预设」).
     const read = new Set(hostReads().map(({ variable }) => variable));
     const unread = [...REGISTERED].filter(variable => !read.has(variable));
     expect(unread).toEqual([]);
   });
 
   it('writes no variable of the public prefix for itself', () => {
-    // What the engine derives or measures is `--_fve-*` (theme-architecture.md
-    // 3.2): a `--fve-*` a component sets would be a host variable the host
+    // What the engine derives or measures is `--_fve-*` (ui/theme.md「三层变量」): a `--fve-*` a component sets would be a host variable the host
     // cannot own. The one the stylesheet sets is on paper, where the chart
     // patterns are pinned on over any host's pin.
     const written: string[] = [];
@@ -144,7 +143,7 @@ describe('the registry is the contract', () => {
         // `var(--fve-x, var(--fvp-x, <built-in>))`, or with no built-in
         // value; a token no preset owns reads the host alone. A token the
         // brand colour derives reads the derivation between the two,
-        // `var(--_fve-brand-[dark-]x, …)` (theme-architecture.md 2).
+        // `var(--_fve-brand-[dark-]x, …)` (ui/theme.md「品牌色是输入，不是预设」).
         // A role a link can draw in another token reads its link there,
         // `var(--_fve-link-x, …)`, one for both halves (9.3).
         const preset = presets[half];
@@ -216,7 +215,7 @@ describe('the registry is the contract', () => {
   });
 
   it('links each linked role to the token the registry names, at its share', () => {
-    // theme-architecture.md 9.3: the links' rule declares one
+    // ui/theme.md「链接：角色跟着面上解析出的 token」: the links' rule declares one
     // `--_fve-link-<role>` per link — the token it names, at the share the
     // link token gives, over `transparent` — and nothing else.
     const rule = new Map<string, string>();
@@ -281,7 +280,7 @@ describe.each(presetSources())('preset $name', ({ name, text }) => {
   });
 
   // The brand's relative colours are the stylesheet's, in its one feature
-  // query (theme-architecture.md 2.6): a preset only gives numbers.
+  // query (ui/theme.md「品牌色是输入，不是预设」): a preset only gives numbers.
   it('holds no at-rule', () => {
     const atRules: string[] = [];
     sheet.walkAtRules(rule => {

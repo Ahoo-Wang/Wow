@@ -322,7 +322,7 @@ export async function renderThemePage(
 
 /**
  * `styles.css` with its reset rule's list written from the registry — every
- * preset variable back to `initial` (theme-architecture.md 3.2) — between
+ * preset variable back to `initial` (ui/theme.md「三层变量」) — between
  * its `fve-reset:begin` / `fve-reset:end` comments, formatted as the
  * repository formats CSS: what the file should be.
  */

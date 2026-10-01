@@ -49,7 +49,7 @@ import { measureBorderContrast, measureTextContrast } from './contrast.js';
 
 /**
  * The variable a registry token is declared as: `--primary`, or under the
- * engine's own name, `--_fve-row-hover` (theme-architecture.md 3.2).
+ * engine's own name, `--_fve-row-hover` (ui/theme.md「三层变量」).
  */
 const variableOf = (token: string) => {
   const entry = (TOKENS as readonly TokenEntry[]).find(
@@ -136,21 +136,35 @@ function Probe({ pair }: { pair: ContrastPair }) {
 
 /** Measures every probe under `root`, read off the elements. */
 function measureAll(root: HTMLElement): Measurement[] {
-  return [...root.querySelectorAll<HTMLElement>('[data-probe]')].map(cell => {
-    const ink = cell.querySelector('[data-ink]')!;
-    const kind = cell.dataset.kind as PairKind;
-    const measured =
-      kind === 'text' ? measureTextContrast(ink) : measureBorderContrast(ink);
-    return {
-      preset: cell.dataset.preset!,
-      mode: cell.dataset.mode as MeasuredMode,
-      pair: cell.dataset.probe!,
-      kind,
-      line: Number(cell.dataset.line),
-      ratio: measured.ratio,
-      colors: measured.colors,
-    };
-  });
+  return [...root.querySelectorAll<HTMLElement>('[data-probe]')].flatMap(
+    cell => {
+      const ink = cell.querySelector<HTMLElement>('[data-ink]')!;
+      const kind = cell.dataset.kind as PairKind;
+      // A pair painted only where a theme sets a token, whose ink is that
+      // token (a selected row's bar, D76): where it is unset the probe draws
+      // no border, as the surface draws no bar, and there is nothing to
+      // measure — the arithmetic leaves it out the same way.
+      if (
+        cell.dataset.requires !== undefined &&
+        kind !== 'text' &&
+        parseFloat(getComputedStyle(ink).borderTopWidth) === 0
+      )
+        return [];
+      const measured =
+        kind === 'text' ? measureTextContrast(ink) : measureBorderContrast(ink);
+      return [
+        {
+          preset: cell.dataset.preset!,
+          mode: cell.dataset.mode as MeasuredMode,
+          pair: cell.dataset.probe!,
+          kind,
+          line: Number(cell.dataset.line),
+          ratio: measured.ratio,
+          colors: measured.colors,
+        },
+      ];
+    },
+  );
 }
 
 /**
@@ -159,7 +173,10 @@ function measureAll(root: HTMLElement): Measurement[] {
  * play function reports every pair that fell short and what it saw.
  */
 export function readMatrix(root: Element): Measurement[] {
-  return [...root.querySelectorAll<HTMLElement>('[data-probe]')].map(row => ({
+  // A row left unmeasured (a pair its preset does not paint) says no ratio.
+  return [
+    ...root.querySelectorAll<HTMLElement>('[data-probe][data-ratio]'),
+  ].map(row => ({
     preset: row.dataset.preset!,
     mode: row.dataset.mode as MeasuredMode,
     pair: row.dataset.probe!,
@@ -168,6 +185,20 @@ export function readMatrix(root: Element): Measurement[] {
     ratio: Number(row.dataset.ratio),
     colors: JSON.parse(row.dataset.colors ?? '{}'),
   }));
+}
+
+/**
+ * The rows a drawn matrix left unmeasured, by pair name: only a pair its
+ * preset does not paint — one that `requires` a token the preset leaves
+ * unset — may be one.
+ */
+export function unmeasured(root: Element): {
+  pair: string;
+  requires: string | undefined;
+}[] {
+  return [
+    ...root.querySelectorAll<HTMLElement>('[data-probe]:not([data-ratio])'),
+  ].map(row => ({ pair: row.dataset.probe!, requires: row.dataset.requires }));
 }
 
 /**
@@ -246,6 +277,7 @@ export function ContrastMatrix({
                     data-preset={preset}
                     data-mode={mode}
                     data-kind={pair.kind}
+                    data-requires={pair.requires}
                     data-line={linesOf(preset)[pair.kind]}
                     data-ratio={found?.ratio}
                     data-colors={found && JSON.stringify(found.colors)}

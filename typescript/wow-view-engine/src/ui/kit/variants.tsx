@@ -548,9 +548,11 @@ export function PillSelectTrigger({
  * they read as one ring round the row.
  *
  * The edge is the recipe every control wears (`Button`, `FOCUS_INSET`): a
- * 1px `--ring` line at full strength, which holds the 3:1 WCAG 1.4.11 asks
+ * `--ring` line at full strength, which holds the 3:1 WCAG 1.4.11 asks
  * of a focus indicator, and the half-strength halo inside it as emphasis.
- * It used to be the halo alone, 2px of `--ring` at 50%, which measured
+ * It is `focus-width` wide (1px unset, the registry's edge; D76), so a
+ * theme that owes 2px (WCAG 2.4.13) gets 2px on a row too. It used to be
+ * the halo alone, 2px of `--ring` at 50%, which measured
  * 1.74:1 on the light page and 2.38:1 on the dark one (`FocusMarks*` in
  * `stories/view-engine/ThemeTokens.test.stories.tsx`; phase 5, 5A). The
  * full-strength shadows come first, so they are painted over the halo.
@@ -560,23 +562,27 @@ export const FOCUS_ROW = cn(
   'fve:focus-visible:*:bg-row-hover',
   // The ring, then the halo every control here wears (`--_fve-focus-halo`,
   // the registry's `ring-ring/50` unset), written out: Tailwind reads class
-  // names, not code.
-  'fve:focus-visible:*:shadow-[inset_0_1px_0_var(--ring),inset_0_-1px_0_var(--ring),inset_0_3px_0_var(--_fve-focus-halo),inset_0_-3px_0_var(--_fve-focus-halo)]',
-  'fve:focus-visible:*:first:shadow-[inset_0_1px_0_var(--ring),inset_0_-1px_0_var(--ring),inset_1px_0_0_var(--ring),inset_0_3px_0_var(--_fve-focus-halo),inset_0_-3px_0_var(--_fve-focus-halo),inset_3px_0_0_var(--_fve-focus-halo)]',
-  'fve:focus-visible:*:last:shadow-[inset_0_1px_0_var(--ring),inset_0_-1px_0_var(--ring),inset_-1px_0_0_var(--ring),inset_0_3px_0_var(--_fve-focus-halo),inset_0_-3px_0_var(--_fve-focus-halo),inset_-3px_0_0_var(--_fve-focus-halo)]',
+  // names, not code, so each is spelled whole. `focus-width` is read with
+  // the registry's 1px behind it, and the halo is 2px beyond the edge.
+  'fve:focus-visible:*:shadow-[inset_0_var(--_fve-focus-width,1px)_0_var(--ring),inset_0_calc(var(--_fve-focus-width,1px)*-1)_0_var(--ring),inset_0_calc(var(--_fve-focus-width,1px)_+_2px)_0_var(--_fve-focus-halo),inset_0_calc((var(--_fve-focus-width,1px)_+_2px)*-1)_0_var(--_fve-focus-halo)]',
+  'fve:focus-visible:*:first:shadow-[inset_0_var(--_fve-focus-width,1px)_0_var(--ring),inset_0_calc(var(--_fve-focus-width,1px)*-1)_0_var(--ring),inset_var(--_fve-focus-width,1px)_0_0_var(--ring),inset_0_calc(var(--_fve-focus-width,1px)_+_2px)_0_var(--_fve-focus-halo),inset_0_calc((var(--_fve-focus-width,1px)_+_2px)*-1)_0_var(--_fve-focus-halo),inset_calc(var(--_fve-focus-width,1px)_+_2px)_0_0_var(--_fve-focus-halo)]',
+  'fve:focus-visible:*:last:shadow-[inset_0_var(--_fve-focus-width,1px)_0_var(--ring),inset_0_calc(var(--_fve-focus-width,1px)*-1)_0_var(--ring),inset_calc(var(--_fve-focus-width,1px)*-1)_0_0_var(--ring),inset_0_calc(var(--_fve-focus-width,1px)_+_2px)_0_var(--_fve-focus-halo),inset_0_calc((var(--_fve-focus-width,1px)_+_2px)*-1)_0_var(--_fve-focus-halo),inset_calc((var(--_fve-focus-width,1px)_+_2px)*-1)_0_0_var(--_fve-focus-halo)]',
 );
 
 /**
  * The mark on a card the keyboard is on — the one every control wears: a
- * 1px `--ring` edge at full strength, drawn on the card's own edge (the
- * outline pulled inside it, as `Button`'s border is), and the 3px halo at
- * half strength outside, which takes the place of the card's own faint
- * ring while it is focused. The halo alone measured 1.77:1 on the light
- * page and 2.15:1 on the dark one (phase 5, 5A; `FocusMarks*`).
+ * `--ring` edge at full strength, `focus-width` wide (1px unset), drawn on
+ * the card's own edge (the outline pulled inside it by its own width, as
+ * `Button`'s border is) unless the theme's `focus-offset` stands it off,
+ * and the 3px halo outside (`--_fve-focus-halo`, `ring` at half strength
+ * unset, as on every control), which takes
+ * the place of the card's own faint ring while it is focused (D76). The
+ * halo alone measured 1.77:1 on the light page and 2.15:1 on the dark one
+ * (phase 5, 5A; `FocusMarks*`).
  */
 export const FOCUS_CARD = cn(
-  'fve:outline-none fve:focus-visible:outline-solid fve:focus-visible:outline-1 fve:focus-visible:-outline-offset-1 fve:focus-visible:outline-ring',
-  'fve:focus-visible:ring-[3px] fve:focus-visible:ring-ring/50',
+  'fve:outline-none fve:focus-visible:outline-solid fve:focus-visible:outline-[length:var(--_fve-focus-width,1px)] fve:focus-visible:outline-offset-[var(--fve-focus-offset,var(--fvp-focus-offset,calc(var(--_fve-focus-width,1px)*-1)))] fve:focus-visible:outline-ring',
+  'fve:focus-visible:ring-[3px] fve:focus-visible:ring-(color:--_fve-focus-halo)',
 );
 
 /**
@@ -584,12 +590,14 @@ export const FOCUS_CARD = cn(
  * dashboard panel's body (U-03) — drawn *inside* its edge: the region is
  * as wide as the card that clips it (`overflow-hidden`), so a ring drawn
  * outside lost both sides and left a grey hairline at 1.77:1. It is the
- * one recipe every control wears (`Button`: a 1px `--ring` edge, which
- * holds 3:1, and the 3px halo at half strength), turned inward.
+ * one recipe every control wears (`Button`: a `--ring` edge, which holds
+ * 3:1, and the 3px halo, `--_fve-focus-halo`), turned inward: `focus-width`
+ * wide (1px unset), and a `focus-offset` the theme gives is kept as a gap
+ * inside the edge rather than outside it (D76).
  */
 export const FOCUS_INSET = cn(
-  'fve:outline-none fve:focus-visible:outline-solid fve:focus-visible:outline-1 fve:focus-visible:-outline-offset-1 fve:focus-visible:outline-ring',
-  'fve:focus-visible:ring-[3px] fve:focus-visible:ring-inset fve:focus-visible:ring-ring/50',
+  'fve:outline-none fve:focus-visible:outline-solid fve:focus-visible:outline-[length:var(--_fve-focus-width,1px)] fve:focus-visible:outline-offset-[calc(var(--_fve-focus-width,1px)*-1_-_max(0px,var(--_fve-focus-offset)))] fve:focus-visible:outline-ring',
+  'fve:focus-visible:ring-[3px] fve:focus-visible:ring-inset fve:focus-visible:ring-(color:--_fve-focus-halo)',
 );
 
 /**

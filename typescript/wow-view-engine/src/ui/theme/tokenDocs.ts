@@ -13,7 +13,7 @@
 
 import { BRAND_BOUND_DOCS } from './brandDocs.js';
 import { DENSITY_LENGTH_DOCS } from './densityDocs.js';
-import { OWN_CONTROL, STATE_DOCS } from './stateDocs.js';
+import { MARK_DOCS, OWN_CONTROL, STATE_DOCS } from './stateDocs.js';
 import type { TokenName } from './tokens.js';
 
 /** One phrase, in both of the READMEs' languages. */
@@ -292,6 +292,7 @@ export const TOKEN_DOCS: Readonly<Record<TokenName, TokenDoc>> = {
   },
 
   ...STATE_DOCS,
+  ...MARK_DOCS,
   'focus-width': {
     role: {
       en: "The width of a focused control's outline",

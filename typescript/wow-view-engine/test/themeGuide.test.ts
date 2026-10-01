@@ -13,7 +13,7 @@
 
 /**
  * What the theming pages tell a host to write is the contract, and runs
- * (theme-architecture.md 9, S6): the theming guide in both languages, the
+ * (ui/theme.md「登记表：合同只有一个来源」, S6): the theming guide in both languages, the
  * READMEs and the quick start. Their TypeScript samples compile in the
  * documentation package (`documentation/test/typescript-samples.mjs`); this
  * suite holds the rest — every CSS and HTML sample, and every variable and

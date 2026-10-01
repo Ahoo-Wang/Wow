@@ -13,7 +13,7 @@
 
 /**
  * The theme's three layers and the host's import order, measured in a
- * browser (theme-architecture.md 3, S2; the compensation console's G16).
+ * browser (ui/theme.md「三层变量」, S2; the compensation console's G16).
  *
  * - The host's `--fve-*` on `:root` beat every preset, one pinned on the
  *   surface included, and so do the values a surface is handed (`tokens`),
@@ -242,7 +242,7 @@ function Pair({ preset, outer }: { preset: string; outer: string }) {
 const PRESETS = [...BUILT_IN_PRESETS, HOST_PRESET];
 
 /**
- * 钉住的预设完整替换外层的预设（theme-architecture.md 3.2 的复位规则）。
+ * 钉住的预设完整替换外层的预设（ui/theme.md「三层变量」的复位规则）。
  *
  * 每一套预设（加一套宿主写的、一行 `initial` 也没有的）各画两块面：一块在不挂
  * 预设的页面上，一块在挂了 `porcelain` 的包裹层里。两块解析出的每个 token 都一样

@@ -12,7 +12,7 @@
  */
 
 /**
- * The chart palette's gates (themes.md 5.2, D35 Q62), for the default eight
+ * The chart palette's gates (ui/theme.md「质量门」, D35 Q62), for the default eight
  * and every palette a preset brings, in both modes.
  *
  * Series are told apart by their colours first, so every two slots that can
@@ -22,7 +22,7 @@
  * at full strength): 15 to a full-colour eye, 8 under protanopia and
  * deuteranopia, 6 under tritanopia. The tritan line is 6 rather than 8
  * because the default dark palette, shipped and clearing the other two,
- * measures 6.1 there (themes.md 5.2).
+ * measures 6.1 there (ui/theme.md「质量门」).
  *
  * A mark also has to stand off the card it is drawn on, at 3:1 (WCAG
  * 1.4.11). The dark slots all do; a light palette may name exceptions — the
@@ -135,7 +135,7 @@ describe('every slot stands off the card, bar the listed light ones', () => {
 });
 
 /**
- * `contrast` promises more of its marks (themes.md 3.4.5): every slot, in
+ * `contrast` promises more of its marks (ui/theme.md「内置预设」): every slot, in
  * both modes, stands off the card at 5:1 in light and 7:1 in dark, with no
  * exception for patterns to answer.
  */

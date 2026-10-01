@@ -14,7 +14,7 @@
 /**
  * The pairs the surface paints — ink on ground, edge on ground — and the
  * line each owes: the half of the theme's registry that says what a preset
- * is measured on (theme-architecture.md 5.2).
+ * is measured on (ui/theme.md「登记表：合同只有一个来源」).
  *
  * Two suites measure them, each in its own way: the jsdom one by arithmetic
  * over the values the shipped stylesheets resolve to
@@ -29,9 +29,9 @@
  * Every pair is written as tokens and the opacity the call site gives them:
  * a selected row is its role, `row-selected`, over the rows' `content`; a
  * toned badge writes its token on a 10% wash of it (`ToneBadge`); the dark
- * theme gives a control a `bg-input/30` fill. A role (theme-architecture.md
- * 4) is a ground of its own here, so a theme that parts it from the token
- * it falls back to is measured on what it painted.
+ * theme gives a control a `bg-input/30` fill. A role
+ * (ui/theme.md「角色：引擎自己的面」) is a ground of its own here, so a theme
+ * that parts it from the token it falls back to is measured on what it painted.
  */
 
 /** What a pair is, and so which line it owes. */
@@ -40,7 +40,7 @@ export type PairKind = 'text' | 'edge' | 'mark';
 /**
  * The lines a preset holds, by kind: text at 4.5:1 (WCAG 1.4.3); the edge
  * of a control and the focus indicator (1.4.11), and a mark or a fill that
- * carries state, at 3:1. A preset may promise more (themes.md 5.1); the
+ * carries state, at 3:1. A preset may promise more (ui/theme.md「质量门」); the
  * numbers live here, never in its CSS.
  */
 export const LINES: Readonly<Record<PairKind, number>> = {
@@ -63,7 +63,7 @@ export const PRESET_LINES: Readonly<
   Record<string, Partial<Record<PairKind, number>>>
 > = {
   // AAA text (1.4.6), and an edge, a focus mark or a filled state that
-  // stands off its ground as far as AA text does (themes.md 3.4.5).
+  // stands off its ground as far as AA text does (ui/theme.md「内置预设」).
   contrast: { text: 7, edge: 4.5, mark: 4.5 },
 };
 
@@ -164,7 +164,7 @@ const STATUS = texts('destructive', 'success', 'warning');
 /**
  * A chart's quiet text — its ticks, its axis titles, the names beside its
  * marks (`chart-axis`) — on each ground a chart stands on: a workbench's
- * page and result, a panel's card (theme-architecture.md 6).
+ * page and result, a panel's card (ui/theme.md「图表从主题读外观」).
  */
 const CHART_TEXT = texts('chart-axis');
 
@@ -321,6 +321,15 @@ export const GROUNDS: readonly Ground[] = [
     ],
   },
   {
+    // The bar down a selected row's left edge, where a theme draws one
+    // (`row-selected-mark`, D76): a mark of the selection, held to 3:1 off
+    // the selected row it stands on (1.4.11).
+    name: 'marked selected row',
+    layers: [{ token: 'content' }, { token: 'row-selected' }],
+    pairs: marks('row-selected-mark'),
+    requires: 'row-selected-mark',
+  },
+  {
     // Every other row, where a theme stripes them.
     name: 'striped row',
     layers: [{ token: 'content' }, { token: 'row-stripe' }],
@@ -371,7 +380,8 @@ export const GROUNDS: readonly Ground[] = [
     pairs: texts('highlight-foreground'),
   },
   {
-    // The item a menu or a select holds chosen (theme-architecture.md 9.3).
+    // The item a menu or a select holds chosen
+    // (ui/theme.md「角色：引擎自己的面」).
     name: 'selected item',
     layers: [{ token: 'popover' }, { token: 'item-selected' }],
     pairs: texts('item-selected-foreground'),
@@ -479,7 +489,7 @@ export const GROUNDS: readonly Ground[] = [
 
 /**
  * A pair a preset is known to fall short on, owed by the batch that retunes
- * it (theme-architecture.md 9). Both suites hold such a pair to still being
+ * it (ui/theme.md「质量门」). Both suites hold such a pair to still being
  * short, so the entry goes the moment the batch lands; nothing else is
  * excused, and a new shortfall is a failure.
  */

@@ -13,7 +13,7 @@
 
 /*
  * `contrast` — high contrast, for low-vision readers, bright rooms and wall
- * screens, and customers who ask for WCAG AAA (themes.md 3.4.5).
+ * screens, and customers who ask for WCAG AAA (ui/theme.md「内置预设」).
  *
  * - **The lines are a step higher** than every other preset's: all text at
  *   7:1 (1.4.6), a control's edge and the focus mark at 4.5:1, and a mark
@@ -29,10 +29,13 @@
  * - **What the eye reads first (S11)**: every control's edge 2px
  *   (`edge-width`), a 2px solid focus outline 2px off the control
  *   (`focus-*`, no halo, so the gap is the ground and the mark reads on a
- *   filled button too), a grey header band (#DEDEDE / #161616) in bold
- *   with the divider between its columns, a selected row tinted blue
- *   (#D7E5FF / #021738) that the row's checkbox also says, a menu's
- *   highlighted item filled with the primary under white ink, a toned
+ *   filled button too — and a table row, a record card and a board panel's
+ *   body draw the same 2px, D76), a grey header band (#DEDEDE / #161616)
+ *   in bold with the divider between its columns, a selected row tinted blue
+ *   (#D7E5FF / #021738) with a bar of the primary down its left edge
+ *   (`row-selected-mark`, linked: the selection said by more than colour
+ *   where no checkbox says it, D76), a menu's highlighted item filled with
+ *   the primary under its ink (linked, so a brand colour fills it), a toned
  *   badge edged in its full tone, bold titles and bands, and a hovered or
  *   pressed control a clear step darker (black 10% / 18%).
  * - **The dark control wash** (`bg-input/30`) is what set the dark edge,
@@ -54,7 +57,7 @@
  * - **No shadows**: a lift is an edge here, never a blur. Radius 0.25rem.
  *
  * It is not switched on by the reader's "increase contrast" setting: which
- * preset a page wears is the host's call (themes.md 4.3). That setting
+ * preset a page wears is the host's call (ui/theme.md「内置预设」). That setting
  * already turns the patterns on under every preset (Q57).
  */
 :where([data-fve-preset='contrast']) {
@@ -143,12 +146,11 @@
   --fvp-dark-totals: oklch(0.22 0 0deg);
   --fvp-row-selected: oklch(0.92 0.04 264deg);
   --fvp-dark-row-selected: oklch(0.21 0.07 258deg);
+  --fvp-row-selected-mark-link: 100%;
   --fvp-row-hover: oklch(0.955 0 0deg);
   --fvp-dark-row-hover: oklch(0.2 0 0deg);
-  --fvp-highlight: oklch(0.38 0.23 264deg);
-  --fvp-highlight-foreground: oklch(1 0 0deg);
-  --fvp-dark-highlight: oklch(0.8 0.13 253deg);
-  --fvp-dark-highlight-foreground: oklch(0 0 0deg);
+  --fvp-highlight-link: 100%;
+  --fvp-highlight-foreground-link: 100%;
   --fvp-control-hover: oklch(0 0 0deg / 10%);
   --fvp-dark-control-hover: oklch(1 0 0deg / 16%);
   --fvp-control-pressed: oklch(0 0 0deg / 18%);

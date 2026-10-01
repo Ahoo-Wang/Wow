@@ -58,11 +58,19 @@ describe('the pairs measured', () => {
       const names = contrastPairs(mode).map(({ name }) => name);
       expect(new Set(names).size).toBe(names.length);
       // `porcelain` fills its controls, so every pair a filled control
-      // paints applies to it — all but the hover fill it leaves unset.
+      // paints applies to it — all but the hover fill and the selected
+      // row's bar, which it leaves unset.
       expect(measure('porcelain', mode).map(({ name }) => name)).toEqual(
         contrastPairs(mode)
-          .filter(({ requires }) => requires !== 'control-hover')
+          .filter(
+            ({ requires }) =>
+              requires !== 'control-hover' && requires !== 'row-selected-mark',
+          )
           .map(({ name }) => name),
+      );
+      // `contrast` draws the bar, so it is measured off the selected row.
+      expect(measure('contrast', mode).map(({ name }) => name)).toContain(
+        'row-selected-mark mark on marked selected row',
       );
       // `azure` gives the hover fill, so what is painted on it is measured.
       expect(measure('azure', mode).map(({ name }) => name)).toContain(
@@ -98,7 +106,7 @@ describe('the built-in presets', () => {
 
   it('leave neutral to the stylesheet: it writes nothing', () => {
     // The reset empties the preset layer where a preset is named, so neutral
-    // has nothing to put back (theme-architecture.md 3, S2).
+    // has nothing to put back (ui/theme.md「三层变量」, S2).
     expect(presets().get('neutral')!.size).toBe(0);
   });
 
@@ -164,7 +172,7 @@ describe('the pending pairs', () => {
 /**
  * `red-up` crosses the pair and nothing else: a rise is the destructive
  * colour and a fall the success one, and the default and `green-up` keep
- * them the other way round (themes.md 2.6).
+ * them the other way round (ui/theme.md「涨跌色约定」).
  */
 describe('the change convention decides a rise and a fall', () => {
   it.each(

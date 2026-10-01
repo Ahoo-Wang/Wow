@@ -293,12 +293,42 @@
         )
         min(c, var(--fve-brand-c-max, var(--fvp-brand-c-max, 0.37))) h
     );
+    --_fve-brand-primary-fill: oklch(
+      from var(--fve-brand)
+        clamp(
+          var(
+            --fve-brand-primary-fill-l-min,
+            var(--fvp-brand-primary-fill-l-min)
+          ),
+          l,
+          var(
+            --fve-brand-primary-fill-l-max,
+            var(--fvp-brand-primary-fill-l-max)
+          )
+        )
+        min(c, var(--fve-brand-c-max, var(--fvp-brand-c-max, 0.37))) h
+    );
     --_fve-brand-dark-primary: oklch(
       from var(--fve-dark-brand, var(--fve-brand))
         clamp(
           var(--fve-dark-brand-l-min, var(--fvp-dark-brand-l-min, 0.68)),
           l,
           var(--fve-dark-brand-l-max, var(--fvp-dark-brand-l-max, 0.8))
+        )
+        min(c, var(--fve-dark-brand-c-max, var(--fvp-dark-brand-c-max, 0.18))) h
+    );
+    --_fve-brand-dark-primary-fill: oklch(
+      from var(--fve-dark-brand, var(--fve-brand))
+        clamp(
+          var(
+            --fve-dark-brand-primary-fill-l-min,
+            var(--fvp-dark-brand-primary-fill-l-min)
+          ),
+          l,
+          var(
+            --fve-dark-brand-primary-fill-l-max,
+            var(--fvp-dark-brand-primary-fill-l-max)
+          )
         )
         min(c, var(--fve-dark-brand-c-max, var(--fvp-dark-brand-c-max, 0.18))) h
     );
@@ -386,12 +416,17 @@
 :where(.fve-root, .fve-tokens) {
   --_fve-link-highlight: color-mix(
     in oklab,
-    var(--primary) var(--_fve-highlight-link),
+    var(--_fve-primary-fill) var(--_fve-highlight-link),
     transparent
   );
   --_fve-link-highlight-foreground: color-mix(
     in oklab,
-    var(--primary-foreground) var(--_fve-highlight-foreground-link),
+    var(--_fve-primary-fill-foreground) var(--_fve-highlight-foreground-link),
+    transparent
+  );
+  --_fve-link-row-selected-mark: color-mix(
+    in oklab,
+    var(--primary) var(--_fve-row-selected-mark-link),
     transparent
   );
   --_fve-link-item-selected: color-mix(
@@ -621,6 +656,22 @@
       --fvp-quiet-foreground,
       color-mix(in oklab, var(--foreground) 70%, transparent)
     )
+  );
+  /*
+   * The primary as a filled area under words (`primary-fill`): what a
+   * menu's highlighted item is linked to (ui/theme.md, D76).
+   * The primary itself unless a preset gives a deeper step — in the dark,
+   * where the primary is light enough to be text on the dark grounds and
+   * so too light to carry white words. With a brand colour it is derived
+   * only where the preset gives its band, as the ring is.
+   */
+  --_fve-primary-fill: var(
+    --fve-primary-fill,
+    var(--_fve-brand-primary-fill, var(--fvp-primary-fill, var(--primary)))
+  );
+  --_fve-primary-fill-foreground: var(
+    --fve-primary-fill-foreground,
+    var(--fvp-primary-fill-foreground, var(--primary-foreground))
   );
 
   /*
@@ -905,6 +956,20 @@
   --_fve-row-selected-foreground: var(
     --fve-row-selected-foreground,
     var(--fvp-row-selected-foreground, var(--foreground))
+  );
+  /*
+   * A bar down a selected row's left edge (`row-selected-mark`), so the
+   * selection is said by more than its colour where no checkbox says it
+   * (WCAG 1.4.1) — none unset: the value is invalid and the rule that
+   * draws it paints nothing. A link can draw it in the primary.
+   */
+  --_fve-row-selected-mark: var(
+    --fve-row-selected-mark,
+    var(--_fve-link-row-selected-mark, var(--fvp-row-selected-mark))
+  );
+  --_fve-row-selected-mark-link: var(
+    --fve-row-selected-mark-link,
+    var(--fvp-row-selected-mark-link)
   );
   --_fve-row-stripe: var(
     --fve-row-stripe,
@@ -1557,6 +1622,27 @@
     background-repeat: no-repeat;
     background-size: 1px 1.6em;
   }
+  /*
+   * A selected row's mark that is not its colour (`row-selected-mark`,
+   * D76): a 3px bar down the left edge of its first cell (the engine lays
+   * out left to right only), a background image so it sits under the cell's
+   * words. A focused row's ring is an inset shadow, painted over the
+   * background, so it covers the bar's inner `focus-width` while the row has
+   * focus and the rest of the bar still shows. A record row says selected by `data-state`, an
+   * analysis group pressed by `data-pressed`. Unset, the gradient is
+   * invalid, `background-image` is `none`, and nothing is drawn.
+   */
+  [data-slot='table-row']:is([data-state='selected'], [data-pressed])
+    > :first-child {
+    background-image: linear-gradient(
+      var(--_fve-row-selected-mark),
+      var(--_fve-row-selected-mark)
+    );
+    background-position: 0 0;
+    background-repeat: no-repeat;
+    background-size: 3px 100%;
+  }
+
   /* The line between body rows, the preset's (`row-divider`). */
   [data-slot='table-body'] > [data-slot='table-row'] {
     border-bottom-color: var(--_fve-row-divider);
@@ -2257,6 +2343,17 @@
         color-mix(in oklab, var(--foreground) 70%, transparent)
       )
     );
+    --_fve-primary-fill: var(
+      --fve-dark-primary-fill,
+      var(
+        --_fve-brand-dark-primary-fill,
+        var(--fvp-dark-primary-fill, var(--primary))
+      )
+    );
+    --_fve-primary-fill-foreground: var(
+      --fve-dark-primary-fill-foreground,
+      var(--fvp-dark-primary-fill-foreground, var(--primary-foreground))
+    );
     /* White, not black — see the light half: over the dark card black tops
        out at 1.48:1 however much of it is spent. */
     --_fve-pin-shadow: var(--fve-dark-pin-shadow, oklch(1 0 0deg / 10%));
@@ -2400,6 +2497,10 @@
     --_fve-row-selected-foreground: var(
       --fve-dark-row-selected-foreground,
       var(--fvp-dark-row-selected-foreground, var(--foreground))
+    );
+    --_fve-row-selected-mark: var(
+      --fve-dark-row-selected-mark,
+      var(--_fve-link-row-selected-mark, var(--fvp-dark-row-selected-mark))
     );
     --_fve-row-stripe: var(
       --fve-dark-row-stripe,
@@ -2598,6 +2699,10 @@
     --fvp-dark-destructive-foreground: initial;
     --fvp-quiet-foreground: initial;
     --fvp-dark-quiet-foreground: initial;
+    --fvp-primary-fill: initial;
+    --fvp-dark-primary-fill: initial;
+    --fvp-primary-fill-foreground: initial;
+    --fvp-dark-primary-fill-foreground: initial;
     --fvp-chart-1: initial;
     --fvp-dark-chart-1: initial;
     --fvp-chart-2: initial;
@@ -2627,6 +2732,10 @@
     --fvp-dark-brand-ring-l-min: initial;
     --fvp-brand-ring-l-max: initial;
     --fvp-dark-brand-ring-l-max: initial;
+    --fvp-brand-primary-fill-l-min: initial;
+    --fvp-dark-brand-primary-fill-l-min: initial;
+    --fvp-brand-primary-fill-l-max: initial;
+    --fvp-dark-brand-primary-fill-l-max: initial;
     --fvp-brand-accent-lc: initial;
     --fvp-dark-brand-accent-lc: initial;
     --fvp-brand-sidebar-accent-lc: initial;
@@ -2667,6 +2776,9 @@
     --fvp-dark-row-selected-foreground: initial;
     --fvp-row-hover: initial;
     --fvp-dark-row-hover: initial;
+    --fvp-row-selected-mark: initial;
+    --fvp-dark-row-selected-mark: initial;
+    --fvp-row-selected-mark-link: initial;
     --fvp-row-stripe: initial;
     --fvp-dark-row-stripe: initial;
     --fvp-row-divider: initial;
@@ -2909,7 +3021,8 @@
  * as the page: the checkbox alone said it.
  *
  * - Focus is an outline in the text colour, which the browser keeps.
- * - A selected row is framed in the system's selection colour, `Highlight`
+ * - A selected row and a pressed analysis group (`data-pressed`) are
+ *   framed in the system's selection colour, `Highlight`
  *   — a system colour, so the browser keeps it too. A frame rather than the
  *   `Highlight` fill the platform's own lists use: a filled row would have
  *   to opt its cells out of the repaint, and everything inside them — the
@@ -2923,8 +3036,9 @@
     outline-offset: 2px;
   }
 
-  .fve-root [data-slot='table-row'][data-state='selected'],
-  .fve-tokens [data-slot='table-row'][data-state='selected'] {
+  .fve-root [data-slot='table-row']:is([data-state='selected'], [data-pressed]),
+  .fve-tokens
+    [data-slot='table-row']:is([data-state='selected'], [data-pressed]) {
     outline: 2px solid Highlight;
     outline-offset: -2px;
   }

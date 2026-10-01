@@ -153,6 +153,17 @@ Storybook 的[宿主自定义主题](/storybook/?path=/story/view-engine-能力-
 
 按[三层](#三层)的规则，它们赢过你选的预设，也赢过钉在面上的预设——所以每一套预设上都要量：这里的主色够深，过得了 `contrast` 的 7:1，也过得了其余各套的 4.5:1；你的主题也由 [`theme-check`](#检查一套主题) 这样量。只给某一块面的，把 `tokens` 传给 `ViewSurface`、工作台或嵌入组件，而不是写在包裹层上：弹层 portal 到 `<body>`，不在包裹层下，`tokens` 会写在面上以及它打开的每个弹层上。它的类型是 `/ui` 导出的 `FveToken`，即登记表里的每一个宿主变量。
 
+有一个 token 不会自己跟着你的主色：`primary-fill`，主色作为承载文字的填色（菜单的高亮项）。预设可以在主色浅到托不住白字的地方给它更深一档——`porcelain` 的暗色就给了，是一个固定的颜色——所以在这样的预设上，写暗色主色时也写上它，并像任何一对那样在它的字下量：
+
+```css
+:root {
+  --fve-dark-primary-fill: oklch(0.44 0.2 265deg);
+  --fve-dark-primary-fill-foreground: oklch(0.99 0 0deg);
+}
+```
+
+给品牌色（`--fve-brand`）时这一档会自己跟上；只有直接写主色时才需要它。
+
 <!-- typecheck-context
 import type { ViewEngine } from '@ahoo-wang/wow-view-engine';
 import { DataWorkbench } from '@ahoo-wang/wow-view-engine/ui';
@@ -190,7 +201,7 @@ declare const engine: ViewEngine;
 | 面的哪一部分 | 角色                                                                                                                                                                                                                                                                                                                                                                                              |
 | ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 底与卡片     | `canvas`（看板的分组底）、`content`（行的底）、`card-edge`、`card-shadow`、`scrim`                                                                                                                                                                                                                                                                                                                |
-| 表格         | `table-header`、`table-header-foreground`、`table-header-weight`、`table-header-divider`、`totals`、`row-selected`、`row-selected-foreground`、`row-hover`、`row-stripe`（不设就关）、`row-divider`（表体行线，不设就是 `border`）、`table-sort-idle`（未排序列的标记在指针设备上显示多少，不设是 1）                                                                                                                                                                                                              |
+| 表格         | `table-header`、`table-header-foreground`、`table-header-weight`、`table-header-divider`、`totals`、`row-selected`、`row-selected-foreground`、`row-selected-mark`（选中行左边的色条，不设就没有）、`row-hover`、`row-stripe`（不设就关）、`row-divider`（表体行线，不设就是 `border`）、`table-sort-idle`（未排序列的标记在指针设备上显示多少，不设是 1）                                                                                                                                                                                                              |
 | 状态         | `highlight`、`highlight-foreground`（菜单、选择框、组合框里键盘所在的那一项）；`item-selected`、`item-selected-foreground`、`item-selected-weight`（其中已选中的那一项）；`nav-current`、`nav-current-foreground`、`nav-current-edge`、`nav-current-shadow`（视图列表里正在看的那一个）；`control-hover`、`control-pressed`；`outline-hover-edge`、`outline-hover-foreground`（指针下的描边按钮） |
 | 焦点         | `focus-width`、`focus-offset`、`focus-style`、`focus-halo`                                                                                                                                                                                                                                                                                                                                        |
 | 控件         | `control`、`control-edge`、`control-thumb`、`control-thumb-shadow`、`control-height`、`control-height-sm`、`filter-height`（看板的筛选芯片）、`edge-width`、`badge-edge`、`badge-fill`                                                                                                                                                                                                            |
@@ -205,15 +216,16 @@ declare const engine: ViewEngine;
 
 预设写的颜色在挂预设的元素上（通常是 `<html>`）就定下来了，所以预设说不出「菜单高亮就是主色」：那个主色要到视图上才从你的品牌色或你自己的 `--fve-primary` 解析出来。**链接**替它说。`<角色>-link` 是视图上解析出的另一个 token 取多少：`100%` 就是那个 token 本身，少于它是把它半透明地铺在底上。
 
-| 链接                            | 画的角色                   | 取自                 |
-| ------------------------------- | -------------------------- | -------------------- |
-| `highlight-link`                | `highlight`                | `primary`            |
-| `highlight-foreground-link`     | `highlight-foreground`     | `primary-foreground` |
-| `item-selected-link`            | `item-selected`            | `row-selected`       |
-| `nav-current-link`              | `nav-current`              | `row-selected`       |
-| `nav-current-foreground-link`   | `nav-current-foreground`   | `primary`            |
-| `outline-hover-edge-link`       | `outline-hover-edge`       | `primary`            |
-| `outline-hover-foreground-link` | `outline-hover-foreground` | `primary`            |
+| 链接                            | 画的角色                   | 取自                      |
+| ------------------------------- | -------------------------- | ------------------------- |
+| `highlight-link`                | `highlight`                | `primary-fill`            |
+| `highlight-foreground-link`     | `highlight-foreground`     | `primary-fill-foreground` |
+| `item-selected-link`            | `item-selected`            | `row-selected`            |
+| `nav-current-link`              | `nav-current`              | `row-selected`            |
+| `nav-current-foreground-link`   | `nav-current-foreground`   | `primary`                 |
+| `outline-hover-edge-link`       | `outline-hover-edge`       | `primary`                 |
+| `outline-hover-foreground-link` | `outline-hover-foreground` | `primary`                 |
+| `row-selected-mark-link`        | `row-selected-mark`        | `primary`                 |
 
 ```css
 :root {
@@ -222,7 +234,7 @@ declare const engine: ViewEngine;
 }
 ```
 
-写了这两行，菜单、选择框与组合框的高亮项都用主色填充、主色的字——就是你的品牌色，亮暗都对。链接一个数管两种明暗，因为它指向的 token 在每种明暗下各自解析。你写的角色颜色赢过链接，链接（你的或预设的）赢过预设自己的颜色；不设时角色照旧。`porcelain` 链了菜单高亮，`azure` 链了当前视图、已选项与描边按钮悬停时的边——所以它们会跟着品牌色。
+写了这两行，菜单、选择框与组合框的高亮项都用主色填充、主色的字——就是你的品牌色，亮暗都对。`primary-fill` 就是主色本身，除非预设在主色浅到托不住白字的地方给了更深一档（`porcelain` 的暗色，并给了边界，所以仍跟品牌色；你在它上面写了自己的 `--fve-dark-primary` 时，也写 `--fve-dark-primary-fill`，见[宿主覆盖](#宿主覆盖)）。链接一个数管两种明暗，因为它指向的 token 在每种明暗下各自解析。你写的角色颜色赢过链接，链接（你的或预设的）赢过预设自己的颜色；不设时角色照旧。`porcelain` 与 `contrast` 链了菜单高亮，`contrast` 还链了选中行的色条，`azure` 链了当前视图、已选项与描边按钮悬停时的边——所以它们会跟着品牌色。
 
 ## 图表的角色
 
@@ -422,6 +434,8 @@ pnpm exec wow-view-engine theme-check src/theme.css --preset azure --preset porc
 | `ring`                          | 焦点环                                                                                                                              | `oklch(0.62 0 0deg)`                   | `oklch(0.66 0 0deg)`              |
 | `destructive-foreground`        | 危险填充上的文字（推导）                                                                                                            | `background`                           | `background`                      |
 | `quiet-foreground`              | 汇总行里弱的那一半（推导）                                                                                                          | `foreground` 的 70%                    | 同左                              |
+| `primary-fill`                  | 主色作为承载文字的填色——链到它的高亮项；主色浅到托不住白字时（暗色）由预设给更深一档                                                | `primary`                              | `primary`                         |
+| `primary-fill-foreground`       | 那块填色上的文字                                                                                                                    | `primary-foreground`                   | `primary-foreground`              |
 | `pin-shadow`                    | 冻结列的柔边；归明暗，不归预设                                                                                                      | `oklch(0 0 0deg / 12%)`                | `oklch(1 0 0deg / 10%)`           |
 | `chart-1`                       | 图表第 1 个色位：第 1 个系列                                                                                                        | `oklch(0.565 0.1626 255.532deg)`       | `oklch(0.6221 0.1612 255.053deg)` |
 | `chart-2`                       | 图表第 2 个色位：第 2 个系列                                                                                                        | `oklch(0.6708 0.175 40.642deg)`        | `oklch(0.6221 0.1726 40.112deg)`  |
@@ -439,8 +453,10 @@ pnpm exec wow-view-engine theme-check src/theme.css --preset azure --preset porc
 | `brand-l-min`                   | 主色亮度的下限：比它暗的品牌色被提到这里                                                                                            | `0.4`                                  | `0.68`                            |
 | `brand-l-max`                   | 主色亮度的上限：比它亮的品牌色被压到这里                                                                                            | `0.5`                                  | `0.8`                             |
 | `brand-c-max`                   | 主色与焦点环的彩度上限                                                                                                              | `0.37`                                 | `0.18`                            |
-| `brand-ring-l-min`              | 焦点环亮度的下限；两个焦点边界都不设时焦点环不跟品牌色                                                                              | 不设                                   | 同左                              |
+| `brand-ring-l-min`              | 焦点环亮度的下限；两个焦点边界都给了焦点环才跟品牌色                                                                                | 不设                                   | 同左                              |
 | `brand-ring-l-max`              | 焦点环亮度的上限                                                                                                                    | 不设                                   | 同左                              |
+| `brand-primary-fill-l-min`      | 主色填色亮度的下限；两个边界都给了填色才跟品牌色                                                                                    | 不设                                   | 同左                              |
+| `brand-primary-fill-l-max`      | 主色填色亮度的上限                                                                                                                  | 不设                                   | 同左                              |
 | `brand-accent-lc`               | `accent` 取品牌色相时的亮度与彩度（两个数）                                                                                         | `0.96 0.02`                            | `0.3 0.03`                        |
 | `brand-sidebar-accent-lc`       | `sidebar-accent` 取品牌色相时的亮度与彩度                                                                                           | `0.92 0.03`                            | `0.3 0.03`                        |
 | `brand-row-selected-lc`         | 选中行取品牌色相时的亮度与彩度                                                                                                      | `0.965 0.02`                           | `0.28 0.03`                       |
@@ -464,13 +480,15 @@ pnpm exec wow-view-engine theme-check src/theme.css --preset azure --preset porc
 | `row-selected`                  | 选中的行、按下的分组                                                                                                                | `muted`                                | `muted`                           |
 | `row-selected-foreground`       | 选中行上的文字                                                                                                                      | `foreground`                           | `foreground`                      |
 | `row-hover`                     | 悬停的行（推导）                                                                                                                    | `muted` 与 `background` 各半           | 同左                              |
+| `row-selected-mark`             | 选中行左边的一道色条：不只靠颜色说出选中                                                                                            | 不设：没有                             | 同左                              |
+| `row-selected-mark-link`        | `row-selected-mark` 取解析后的 `primary` 多少：`100%` 就是 `primary` 本身，随品牌色与明暗                                           | 不设：不链接                           | —                                 |
 | `row-stripe`                    | 隔行的底（关：行自己的底）                                                                                                          | `content`                              | `content`                         |
 | `row-divider`                   | 表体两行之间的分隔线（`transparent`：没有，隔行已有条纹时）                                                                         | `border`                               | `border`                          |
 | `table-sort-idle`               | 可排序列未排序时的标记在有指针的设备上显示多少（`0`：只在指针下或聚焦时出现）                                                       | `1`                                    | —                                 |
 | `highlight`                     | 菜单、选择框、组合框里键盘或指针所在的那一项                                                                                        | `accent`                               | `accent`                          |
 | `highlight-foreground`          | 那一项上的文字                                                                                                                      | `accent-foreground`                    | `accent-foreground`               |
-| `highlight-link`                | `highlight` 取解析后的 `primary` 多少：`100%` 就是 `primary` 本身，随品牌色与明暗                                                   | 不设：不链接                           | —                                 |
-| `highlight-foreground-link`     | `highlight-foreground` 取解析后的 `primary-foreground` 多少：`100%` 就是 `primary-foreground` 本身，随品牌色与明暗                  | 不设：不链接                           | —                                 |
+| `highlight-link`                | `highlight` 取解析后的 `primary-fill` 多少：`100%` 就是 `primary-fill` 本身，随品牌色与明暗                                         | 不设：不链接                           | —                                 |
+| `highlight-foreground-link`     | `highlight-foreground` 取解析后的 `primary-fill-foreground` 多少：`100%` 就是 `primary-fill-foreground` 本身，随品牌色与明暗        | 不设：不链接                           | —                                 |
 | `item-selected`                 | 菜单、选择框、组合框里已选中的那一项                                                                                                | `transparent`                          | `transparent`                     |
 | `item-selected-foreground`      | 那一项上的文字                                                                                                                      | `popover-foreground`                   | `popover-foreground`              |
 | `item-selected-weight`          | 那些文字的字重                                                                                                                      | 不设：那一项原样                       | —                                 |

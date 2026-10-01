@@ -71,23 +71,27 @@ const NOT_BRIDGED = [
   'warning',
 ];
 
-/** Derived from bridged tokens rather than set. */
-const DERIVED = ['quiet-foreground'];
+/**
+ * Derived from bridged tokens rather than set: the quiet grey, and the
+ * primary as a fill, which is the host's `--primary` unless a preset gives
+ * a deeper step (D76).
+ */
+const DERIVED = ['quiet-foreground', 'primary-fill', 'primary-fill-foreground'];
 
 /**
  * A preset's optional groups the bridge leaves alone: shadcn's chart colours
  * are five and start on red, it has no standard name for a shadow, and
  * the chart patterns' pin, a preset's recommended density and the bounds it
- * holds a brand colour to (`brand-*`, theme-architecture.md 2) are not
+ * holds a brand colour to (`brand-*`, ui/theme.md「品牌色是输入，不是预设」) are not
  * colours a theme has at all. The font stack is bridged (`--font-sans`,
- * themes.md 2.8).
+ * ui/theme.md「shadcn 桥接」).
  */
 const UNBRIDGED_GROUPS =
   /^(chart-\d+|shadow-(sm|md|lg)|chart-patterns|preset-density|brand-[\w-]+)$/;
 
 /**
  * Nor has shadcn a word for one of the engine's own surfaces — a role
- * (theme-architecture.md 4): the grouped ground, a card's lift, a header
+ * (ui/theme.md「角色：引擎自己的面」): the grouped ground, a card's lift, a header
  * band, a selected row, a filled control, focus, a part's corner, a weight
  * (D43, S3). Each falls back to the shadcn token the bridge does set, so a
  * host's shadcn theme reaches them through it, and they stay the surface's
@@ -109,7 +113,7 @@ describe('the shadcn bridge', () => {
   });
 
   it('points each preset variable at the shadcn token of the same name, in both modes', () => {
-    // It writes the preset layer (theme-architecture.md 3, S2), so a host's
+    // It writes the preset layer (ui/theme.md「三层变量」, S2), so a host's
     // own `--fve-*` are still read first.
     for (const [variable, value] of bridged) {
       const token = variable.replace(/^--fvp-(dark-)?/, '');

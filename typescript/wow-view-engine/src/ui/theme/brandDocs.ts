@@ -15,8 +15,8 @@ import type { TokenDoc, Words } from './tokenDocs.js';
 
 /**
  * The README's words for the bounds a preset holds a brand colour to
- * (theme-architecture.md 2.2), beside `tokenDocs.ts` so that catalogue stays
- * one screenful of files: the brand group is nine entries of its own.
+ * (ui/theme.md「品牌色是输入，不是预设」), beside `tokenDocs.ts` so that catalogue stays
+ * one screenful of files: the brand group is eleven entries of its own.
  *
  * A bound's default is read off the stylesheet's derivation; a bound with
  * none is unset, and what it bounds is not derived.
@@ -39,8 +39,8 @@ export const BRAND_BOUND_DOCS = {
   }),
   'brand-ring-l-min': bound(
     {
-      en: "The focus ring's lower lightness bound; with both ring bounds unset the ring is not derived",
-      zh: '焦点环亮度的下限；两个焦点边界都不设时焦点环不跟品牌色',
+      en: "The focus ring's lower lightness bound; the ring is derived only when both ring bounds are given",
+      zh: '焦点环亮度的下限；两个焦点边界都给了焦点环才跟品牌色',
     },
     true,
   ),
@@ -48,6 +48,20 @@ export const BRAND_BOUND_DOCS = {
     {
       en: "The focus ring's upper lightness bound",
       zh: '焦点环亮度的上限',
+    },
+    true,
+  ),
+  'brand-primary-fill-l-min': bound(
+    {
+      en: "The primary fill's lower lightness bound; the fill is derived only when both bounds are given",
+      zh: '主色填色亮度的下限；两个边界都给了填色才跟品牌色',
+    },
+    true,
+  ),
+  'brand-primary-fill-l-max': bound(
+    {
+      en: "The primary fill's upper lightness bound",
+      zh: '主色填色亮度的上限',
     },
     true,
   ),

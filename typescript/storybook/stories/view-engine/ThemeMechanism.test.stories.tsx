@@ -12,7 +12,7 @@
  */
 
 /**
- * The mechanism the retunes asked for (theme-architecture.md 9.3), measured
+ * The mechanism the retunes asked for (ui/theme.md「角色：引擎自己的面」, D76), measured
  * in a browser: what the S8 and S9 retunes could not say with the contract
  * and reported instead of working round.
  *
@@ -35,6 +35,7 @@
 import type { StoryObj } from '@storybook/react-vite';
 import { expect, userEvent, waitFor, within } from 'storybook/test';
 import { converter, parse } from 'culori';
+import { FOCUS_CARD, FOCUS_INSET, FOCUS_ROW } from '@/ui/kit/variants';
 import displayMeta, {
   WithData as DisplayWithData,
 } from './RecordWorkbench.stories.js';
@@ -204,8 +205,7 @@ async function mouseAway(): Promise<void> {
 
 /**
  * 什么都不设：侧栏当前项仍是 `border` 的边与 `shadow-xs`，已选中的选项没有底、
- * 字重与旁边一样，描边按钮悬停时边不变、字是 `foreground`（theme-architecture.md
- * 9.3）。截图基线逐像素相同是同一件事的像素证据。
+ * 字重与旁边一样，描边按钮悬停时边不变、字是 `foreground`（ui/theme.md「角色：引擎自己的面」）。截图基线逐像素相同是同一件事的像素证据。
  */
 export const UnsetMechanismDrawsTheRegistry: Story = {
   ...DisplayWithData,
@@ -247,8 +247,9 @@ export const UnsetMechanismDrawsTheRegistry: Story = {
 
 /**
  * porcelain 挂在 `<html>` 上、品牌色给在面上：菜单的高亮项是面上解析出的
- * 主色与它的字——紫色，与按钮同一个紫。此前 porcelain 只能写字面量，品牌色到
- * 不了菜单。
+ * 主色填色（`primary-fill`）与它的字——紫色。亮色就是按钮的主色；暗色是比
+ * 暗色主色深一档的紫、白字（D76），不是浅紫配深字。此前 porcelain 只能写
+ * 字面量，品牌色到不了菜单。
  */
 const porcelainMenu = (theme: 'light' | 'dark'): Story => ({
   ...DisplayWithData,
@@ -269,10 +270,17 @@ const porcelainMenu = (theme: 'light' | 'dark'): Story => ({
     const item = await highlightedMenuItem(canvasElement);
     const ground = rgbOf(getComputedStyle(item).backgroundColor);
     await expect(violet(ground), ground).toBe(true);
-    await expect(ground).toBe(colorOf(surface, '--primary'));
-    await expect(rgbOf(getComputedStyle(item).color)).toBe(
-      colorOf(surface, '--primary-foreground'),
-    );
+    await expect(ground).toBe(colorOf(surface, '--_fve-primary-fill'));
+    const ink = rgbOf(getComputedStyle(item).color);
+    await expect(ink).toBe(colorOf(surface, '--_fve-primary-fill-foreground'));
+    if (theme === 'light')
+      await expect(ground).toBe(colorOf(surface, '--primary'));
+    else {
+      // A step deeper than the dark primary, under white words.
+      await expect(ground).not.toBe(colorOf(surface, '--primary'));
+      await expect(toOklch(parse(ground)!)!.l).toBeLessThan(0.55);
+      await expect(ink).toBe('rgb(255, 255, 255)');
+    }
     await userEvent.keyboard('{Escape}');
   },
 });
@@ -335,3 +343,105 @@ const azureMarks = (theme: 'light' | 'dark'): Story => ({
 
 export const AzureMarksFollowTheBrandInLight: Story = azureMarks('light');
 export const AzureMarksFollowTheBrandInDark: Story = azureMarks('dark');
+
+/**
+ * 引擎自己的三个焦点配方——表格行、卡片、看板面板的滚动体——读主题的
+ * `focus-width`／`focus-offset`（D76）：contrast 下是 2px，卡片离边 2px，
+ * 滚动体画在边内并留 2px 的间隔；azure 也是 2px，卡片压着自己的边（-1px）；
+ * 不设时（neutral）仍是 1px 与原来的偏移。卡片与滚动体的光晕是面上的
+ * `focus-halo`（contrast 透明，azure 淡蓝，neutral 是 `ring` 的一半）。
+ * 选中行左边的色条（`row-selected-mark`）contrast 链到主色，neutral 没有。
+ */
+const FOCUS_MARKS = {
+  // Width, a card's offset, a scrolling body's offset, a bar on the row.
+  contrast: { wide: '2px', card: '2px', inset: '-4px', bar: true },
+  azure: { wide: '2px', card: '-1px', inset: '-2px', bar: false },
+  neutral: { wide: '1px', card: '-1px', inset: '-1px', bar: false },
+} as const;
+
+const focusMarks = (preset: keyof typeof FOCUS_MARKS): Story => ({
+  ...DisplayWithData,
+  render: () => (
+    <div className="fve-root" data-fve-preset={preset} data-theme="light">
+      <table>
+        <tbody>
+          <tr data-testid="row" tabIndex={0} className={FOCUS_ROW}>
+            <td>一</td>
+            <td>二</td>
+          </tr>
+          <tr data-slot="table-row" data-state="selected" data-testid="chosen">
+            <td>三</td>
+            <td>四</td>
+          </tr>
+        </tbody>
+      </table>
+      <div data-testid="card" tabIndex={0} className={FOCUS_CARD}>
+        卡片
+      </div>
+      <div data-testid="inset" tabIndex={0} className={FOCUS_INSET}>
+        滚动体
+      </div>
+      <div
+        data-testid="halo"
+        style={{ boxShadow: '0 0 0 3px var(--_fve-focus-halo)' }}
+      />
+    </div>
+  ),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const root = canvasElement.querySelector<HTMLElement>('.fve-root')!;
+    const expected = FOCUS_MARKS[preset];
+    const wide = expected.wide;
+    // The surface's halo, as the browser serialises a shadow's colour: the
+    // card's and the body's 3px ring are drawn in it, as a control's is.
+    const halo = getComputedStyle(canvas.getByTestId('halo')).boxShadow.replace(
+      / 0px 0px 0px 3px$/,
+      '',
+    );
+
+    // A key first, so focus moved from here on is the keyboard's
+    // (`:focus-visible`); the story shell's own controls come before these
+    // in the tab order, so each mark is focused directly.
+    await userEvent.tab();
+    const focus = async (element: HTMLElement) => {
+      element.focus();
+      await expect(element.matches(':focus-visible')).toBe(true);
+    };
+    const row = canvas.getByTestId('row');
+    await focus(row);
+    const cell = row.querySelector('td')!;
+    await settled(() => getComputedStyle(cell).boxShadow);
+    await expect(getComputedStyle(cell).boxShadow).toContain(
+      `0px ${wide} 0px 0px inset`,
+    );
+
+    const card = canvas.getByTestId('card');
+    await focus(card);
+    await expect(getComputedStyle(card).outlineWidth).toBe(wide);
+    await expect(getComputedStyle(card).outlineOffset).toBe(expected.card);
+    await expect(getComputedStyle(card).boxShadow).toContain(
+      `${halo} 0px 0px 0px 3px`,
+    );
+
+    const inset = canvas.getByTestId('inset');
+    await focus(inset);
+    await expect(getComputedStyle(inset).outlineWidth).toBe(wide);
+    await expect(getComputedStyle(inset).outlineOffset).toBe(expected.inset);
+    await expect(getComputedStyle(inset).boxShadow).toContain(
+      `${halo} 0px 0px 0px 3px inset`,
+    );
+
+    const first = canvas.getByTestId('chosen').querySelector('td')!;
+    const bar = getComputedStyle(first).backgroundImage;
+    if (expected.bar) {
+      await expect(bar).toContain('linear-gradient');
+      await expect(colorOf(root, '--_fve-row-selected-mark')).toBe(
+        colorOf(root, '--primary'),
+      );
+    } else await expect(bar).toBe('none');
+  },
+});
+
+export const FocusMarksReadTheThemeInContrast: Story = focusMarks('contrast');
+export const FocusMarksReadTheThemeInAzure: Story = focusMarks('azure');
+export const FocusMarksKeepTheRegistryInNeutral: Story = focusMarks('neutral');

@@ -17,7 +17,7 @@ import type { TokenDoc, Words } from './tokenDocs.js';
  * The README's words for the roles that mark a state — a highlighted item,
  * a chosen one, the view on screen, a control under the pointer or pressed,
  * an outline button under the pointer — and their links
- * (theme-architecture.md 4.2, 9.3), beside `tokenDocs.ts` so that catalogue
+ * (ui/theme.md「角色：引擎自己的面」), beside `tokenDocs.ts` so that catalogue
  * stays one screenful of files.
  */
 
@@ -28,7 +28,7 @@ export const OWN_CONTROL: Words = {
 };
 
 /**
- * A link (theme-architecture.md 9.3): the share of a resolved token a role
+ * A link (ui/theme.md「链接：角色跟着面上解析出的 token」): the share of a resolved token a role
  * is drawn in, and unset, not linked.
  */
 const linked = (role: string, to: string): TokenDoc => ({
@@ -49,10 +49,10 @@ export const STATE_DOCS = {
   'highlight-foreground': {
     role: { en: 'The words on that item', zh: '那一项上的文字' },
   },
-  'highlight-link': linked('highlight', 'primary'),
+  'highlight-link': linked('highlight', 'primary-fill'),
   'highlight-foreground-link': linked(
     'highlight-foreground',
-    'primary-foreground',
+    'primary-fill-foreground',
   ),
   'item-selected': {
     role: {
@@ -117,4 +117,28 @@ export const STATE_DOCS = {
     'outline-hover-foreground',
     'primary',
   ),
+} as const satisfies Record<string, TokenDoc>;
+
+/**
+ * The primary as a fill under words, which a highlighted item links to, and
+ * a selected row's mark that is not its colour (D76).
+ */
+export const MARK_DOCS = {
+  'primary-fill': {
+    role: {
+      en: 'The primary as a filled area under words — a highlighted item linked to it; a preset gives a deeper step where the primary is too light to carry white words (dark)',
+      zh: '主色作为承载文字的填色——链到它的高亮项；主色浅到托不住白字时（暗色）由预设给更深一档',
+    },
+  },
+  'primary-fill-foreground': {
+    role: { en: 'The words on that fill', zh: '那块填色上的文字' },
+  },
+  'row-selected-mark': {
+    role: {
+      en: "A bar down a selected row's left edge: the selection said by more than its colour",
+      zh: '选中行左边的一道色条：不只靠颜色说出选中',
+    },
+    light: { en: 'unset: none', zh: '不设：没有' },
+  },
+  'row-selected-mark-link': linked('row-selected-mark', 'primary'),
 } as const satisfies Record<string, TokenDoc>;

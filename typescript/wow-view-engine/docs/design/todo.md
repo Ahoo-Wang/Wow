@@ -67,17 +67,6 @@ npm 首发（`9.2.0-rc.0`）之前按下面的顺序做，同时只做一件。�
   - 判据：复现并修掉，或确认复现不了后删掉这一条。
   - 落点：`src/ui/dashboard/DashboardGrid.tsx`。
 
-#### 主题机制
-
-- **主题机制的余项**（[ui/theme.md](ui/theme.md) 的角色与链接，[D43](decisions.md#d43-主题可以说面怎样分层控件怎样画2026-09-25)）：
-  - 描边按钮也能填色（先让按钮在元素上说出 variant）；
-  - porcelain 暗色的菜单高亮链了主色后是浅字配深底——面上缺「暗色下更深一档的品牌色」，要两全得加一个角色或派生；
-  - 看板筛选芯片里打字的框必有 `input` 边：要无边先论证填色本身能当边界，再给配方一个角色；
-  - 引擎的三个焦点配方（`FOCUS_ROW`、`FOCUS_CARD`、`FOCUS_INSET`）不读 `focus-width`／`focus-offset`，contrast 下是 1px；选中行没有颜色以外的标记角色；contrast 的菜单高亮不跟品牌色（要跟时加 `highlight-link`）；
-  - 角色截图「提示框」（`ThemeRoles.test.stories.tsx` 的 `TooltipChip`）截到了故事外壳顶栏的提示框，应改截面内的触发器。
-  - 判据：每条落地或写进 decisions 不做；每套 × 每种明暗过对比度矩阵与色板门，neutral 在默认密度、默认约定下像素不变。
-  - 落点：[ui/theme.md](ui/theme.md)、`src/themes/`、`src/ui/theme/`。
-
 ## 首发后再议
 
 用户已定推迟到首发之后；排进某个版本时各自成为带判据的条目。
