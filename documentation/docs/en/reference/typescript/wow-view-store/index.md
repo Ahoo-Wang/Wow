@@ -18,7 +18,7 @@ description: 'WowViewStore, the unreleased @ahoo-wang/wow-view-store package: th
 | `WowViewStore` | The store: `new WowViewStore({ fetcher, permissions? })`, handed to `new ViewEngine({ store })` |
 | `WowViewStoreOptions` | `fetcher`: the fetcher whose interceptors carry the tenant, the owner and the application; `permissions`: which buttons are enabled |
 | `SHARED_OWNER_ID` | `(shared)`, the owner segment of shared views and shared preferences |
-| `ViewStoreErrorCodes` | The view store's own error codes, beside Wow's |
+| `WowViewStoreErrorCodes` | The view store's own error codes, beside Wow's |
 
 ```ts
 export interface WowViewStoreOptions {
@@ -35,7 +35,8 @@ export interface WowViewStoreOptions {
 | Audience | The owner segment of the path: a personal view on the caller's path, a shared one on `owner/(shared)`. 设为共享 is `share` on the view's path, 设为个人 is `claim` on the caller's own path |
 | Writes | `Command-Request-Id` is the port's `requestId`, `Command-Aggregate-Version` its `revision`; each waits for the snapshot and answers the view read back |
 | Retries | A write refused as a stale version or a repeated request id is looked up by its request id first, and a retry answers what its first attempt wrote. The server does not deduplicate a create (it generates the id); a store asks the replay route before posting a retry of its own create again, so only a retry from another store makes a second view |
-| Errors | By Wow's error code onto `CONFLICT`, `NOT_FOUND`, `FORBIDDEN`, `INVALID` and `UNAVAILABLE`; the HTTP status only when no known code came back |
+| Errors | By Wow's error code onto `CONFLICT`, `NOT_FOUND`, `FORBIDDEN`, `INVALID` and `UNAVAILABLE`; the HTTP status only when no known code came back; `UNSUPPORTED` from a server with no view store. The error keeps the server's code as `detail.code`, and an `UNAVAILABLE` the server answered says `reachable` |
+| List order | System views, then shared, then personal, each audience oldest first; at most 1,000 of each audience |
 | Shared boards | A view a shared dashboard shows stays shared: the claim is `INVALID`, its `boards` the boards' titles as stored, which the view engine says in its own words |
 
 ## Hosts

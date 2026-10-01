@@ -31,6 +31,15 @@ import type {
  * `permissions` only drives which buttons a UI enables.
  */
 export interface ViewStore {
+  /**
+   * The definition's views this user sees, as summaries, **in a fixed
+   * order**: the backend's system views first, as it declares them, then
+   * the shared views, then the user's personal ones, each audience oldest
+   * first (the order they were created in; a view moved to the other
+   * audience keeps its place by age there). With no preferences, the first
+   * of the list is the view that opens by default (`resolveDefault`), so
+   * every store answers the same one.
+   */
   list(
     definitionId: string,
     signal?: AbortSignal,
@@ -46,6 +55,13 @@ export interface ViewStore {
     revision: string,
     context: WriteContext,
   ): Promise<ViewInstance>;
+  /**
+   * Stores the title trimmed. A title blank once trimmed, or longer than
+   * `MAX_VIEW_TITLE_LENGTH`, is refused as `INVALID` — so is one passed to
+   * `create`, and a config of more than `MAX_VIEW_CONFIG_BYTES` passed to
+   * `create` or `save`. The engine refuses both before sending; the store
+   * keeps them for every other caller.
+   */
   rename(
     id: string,
     title: string,

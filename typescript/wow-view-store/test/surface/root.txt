@@ -2,6 +2,6 @@
 # Written by test/publicSurface.test.ts; a change here is a change to
 # the public surface.
 value SHARED_OWNER_ID
-value ViewStoreErrorCodes
 value WowViewStore
+value WowViewStoreErrorCodes
 type  WowViewStoreOptions

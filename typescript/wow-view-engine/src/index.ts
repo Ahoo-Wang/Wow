@@ -245,6 +245,8 @@ export {
 } from './model/filter.js';
 export {
   CODE_REVISION,
+  MAX_VIEW_CONFIG_BYTES,
+  MAX_VIEW_TITLE_LENGTH,
   VIEW_AUDIENCES,
   VIEW_SCOPES,
   type ViewAudience,
@@ -253,7 +255,9 @@ export {
   type ViewPreferences,
   type ViewScope,
   audienceOf,
+  configBytes,
   isSystemScope,
+  titleProblem,
   toSummary,
 } from './model/instance.js';
 export type { Issue, IssuePath, IssueSeverity } from './model/issue.js';

@@ -295,6 +295,11 @@ interface DashboardViewPanelBase extends DashboardPanelBase {
    * What a press on one group of the panel does (D22 H, I): left out, the
    * analysis view's own follow-up menu, whose destinations open in the
    * host's workbench. Only an analysis panel has groups to press.
+   *
+   * **Stored format the view store server reads**: `click.instanceId` is one
+   * of the three references (`ViewConfigs.PANEL_REFERENCES` in
+   * `view-store/wow-view-store-domain`) it finds a shared board's views by,
+   * so renaming or moving it is a change on both sides of the port.
    */
   click?: PanelClick;
   /**
@@ -306,6 +311,9 @@ interface DashboardViewPanelBase extends DashboardPanelBase {
    * fields as for the panel's own view (D26 Q30).
    * Left out, the panel's own view opens, as before. A view the reader
    * cannot open is the workbench's to say, as for any view opened by id.
+   *
+   * **Stored format the view store server reads**, as `click.instanceId`
+   * and the panel's own `instanceId` are (`ViewConfigs.PANEL_REFERENCES`).
    */
   opens?: string;
   /**
@@ -380,6 +388,12 @@ export type BoardValueSource = { dimension: string } | { filter: string };
  * Data panel: shows a record or analysis view and is filtered by the board.
  * The view is either a saved one (`instanceId`) or one the board owns
  * (`owned`) — exactly one of the two.
+ *
+ * `instanceId`, `opens` and `click.instanceId` are the panel's references to
+ * saved views, and **the view store server reads all three by name**
+ * (`ViewConfigs.PANEL_REFERENCES`): a view a shared board references stays
+ * shared. They are stored format two languages read; the port's conformance
+ * suite holds a board referencing a view through each of them alone.
  */
 export type DashboardViewPanel = DashboardViewPanelBase &
   (

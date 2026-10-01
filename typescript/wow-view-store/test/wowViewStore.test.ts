@@ -28,7 +28,11 @@ import type {
   ViewPermissions,
   WriteContext,
 } from '@ahoo-wang/wow-view-engine';
-import { SHARED_OWNER_ID, WowViewStore } from '../src/index.js';
+import {
+  SHARED_OWNER_ID,
+  WowViewStore,
+  WowViewStoreErrorCodes,
+} from '../src/index.js';
 import {
   at,
   fakeServer,
@@ -160,14 +164,15 @@ describe('WowViewStore', () => {
       );
       const store = new WowViewStore({ fetcher: server.fetcher });
 
+      // In the port's order: system, shared, personal.
       expect(await store.list('orders')).toEqual([
         {
-          id: 'v1',
+          id: 'open',
           definitionId: 'orders',
-          title: 'Mine',
-          scope: 'personal',
-          kind: 'record',
-          revision: '2',
+          title: 'Open',
+          scope: 'system',
+          kind: 'analysis',
+          revision: 'abc',
         },
         {
           id: 'v2',
@@ -178,19 +183,25 @@ describe('WowViewStore', () => {
           revision: '1',
         },
         {
-          id: 'open',
+          id: 'v1',
           definitionId: 'orders',
-          title: 'Open',
-          scope: 'system',
-          kind: 'analysis',
-          revision: 'abc',
+          title: 'Mine',
+          scope: 'personal',
+          kind: 'record',
+          revision: '2',
         },
       ]);
       const query = server.requests[0]!.body as {
         filter: unknown;
         projection: { include: string[] };
+        sort: unknown;
         limit: number;
       };
+      // Each audience oldest first, as the server sorts it.
+      expect(query.sort).toEqual([
+        { field: 'firstEventTime', direction: 'ASC' },
+        { field: 'aggregateId', direction: 'ASC' },
+      ]);
       expect(query.filter).toEqual({
         field: 'state.definitionId',
         op: 'EQ',
@@ -220,6 +231,57 @@ describe('WowViewStore', () => {
       await expect(
         store.save('open', config, 'abc', write()),
       ).rejects.toMatchObject({ code: 'FORBIDDEN' });
+    });
+  });
+
+  describe('a server with no view store (one released before it)', () => {
+    /** Every view store route 404s, with Wow's own `NotFound`. */
+    function released() {
+      return fakeServer(request =>
+        request.path.endsWith('/system-views')
+          ? wowError('NotFound', 'No static resource', 404)
+          : undefined,
+      );
+    }
+
+    it('says so for a list, a read, a create and the preferences, not that a view is gone', async () => {
+      const store = new WowViewStore({ fetcher: released().fetcher });
+
+      // One at a time: a refusal nobody awaits yet is an unhandled one.
+      for (const ask of [
+        () => store.list('orders'),
+        () => store.get('v1'),
+        () =>
+          store.create(
+            {
+              definitionId: 'orders',
+              title: 'Mine',
+              scope: 'personal',
+              config,
+            },
+            write(),
+          ),
+        () => store.save('v1', config, '1', write()),
+        () => store.getPreferences('orders'),
+        () =>
+          store.setPreferences(
+            'orders',
+            { order: [], defaultInstanceId: null, revision: '0' },
+            write(),
+          ),
+      ])
+        await expect(ask()).rejects.toMatchObject({
+          name: 'ViewStoreError',
+          code: 'UNSUPPORTED',
+        });
+    });
+
+    it('still answers a missing view as NOT_FOUND on a server that has one', async () => {
+      const store = new WowViewStore({ fetcher: fakeServer().fetcher });
+
+      await expect(
+        store.save('v1', config, '1', write()),
+      ).rejects.toMatchObject({ code: 'NOT_FOUND' });
     });
   });
 
@@ -265,11 +327,13 @@ describe('WowViewStore', () => {
       await expect(store.get('missing')).rejects.toMatchObject({
         code: 'NOT_FOUND',
       });
-      expect(server.requests).toHaveLength(3);
+      // Three places, then whether there is a view store at all.
+      expect(sent(server.requests)[3]).toBe(`GET ${SHARED}/system-views`);
+      expect(server.requests).toHaveLength(4);
       await expect(store.get('system:orders:open')).rejects.toMatchObject({
         code: 'NOT_FOUND',
       });
-      expect(server.requests).toHaveLength(3);
+      expect(server.requests).toHaveLength(4);
     });
 
     it('stops at a failure that is not a missing view', async () => {
@@ -1133,6 +1197,52 @@ describe('WowViewStore', () => {
       await expect(store.getPreferences('orders')).rejects.toMatchObject({
         name: 'ViewStoreError',
         code: 'UNAVAILABLE',
+      });
+      // Nothing came back from the first; the second came back unreadable.
+      const unreached = await store.get('v1').catch((error: unknown) => error);
+      expect(unreached).not.toHaveProperty('reachable');
+      expect((unreached as { cause?: unknown }).cause).toBeDefined();
+      await expect(store.getPreferences('orders')).rejects.toMatchObject({
+        reachable: true,
+      });
+    });
+
+    it('say a failure the server answered as reachable, with its own code', async () => {
+      const server = fakeServer(
+        at('POST', `${ALICE}/view/snapshot/single`, () =>
+          wowError('InternalServerError', 'Mongo timed out', 500),
+        ),
+        at(
+          'GET',
+          `${ALICE}/definitions/orders/preferences`,
+          () => new Response('Bad gateway', { status: 502 }),
+        ),
+        at('POST', `${ALICE}/view`, () =>
+          wowError('ViewAppRequired', 'No CoSec-App-Id', 400),
+        ),
+      );
+      const store = new WowViewStore({ fetcher: server.fetcher });
+
+      const answered = await store.get('v1').catch((error: unknown) => error);
+      expect(answered).toMatchObject({
+        code: 'UNAVAILABLE',
+        reachable: true,
+        detail: { code: 'InternalServerError' },
+      });
+      expect((answered as { cause?: unknown }).cause).toBeDefined();
+      await expect(store.getPreferences('orders')).rejects.toMatchObject({
+        code: 'UNAVAILABLE',
+        reachable: true,
+      });
+      // A host tells a missing application from a bad view by the detail.
+      await expect(
+        store.create(
+          { definitionId: 'orders', title: 'Mine', scope: 'personal', config },
+          write(),
+        ),
+      ).rejects.toMatchObject({
+        code: 'INVALID',
+        detail: { code: WowViewStoreErrorCodes.VIEW_APP_REQUIRED },
       });
     });
 

@@ -35,7 +35,17 @@ object ViewConfigs {
      * opens (`click.instanceId`). A board's tabs hold no panels, and a view it owns (`owned`) is not a reference.
      */
     val PANEL_REFERENCES: List<String> = listOf("instanceId", "opens", "click.instanceId")
-    const val MAX_CONFIG_BYTES = 256 * 1024
+
+    /**
+     * The largest config, in UTF-8 bytes of its JSON. Below the request body a WebFlux server buffers by default
+     * (`spring.codec.max-in-memory-size`, 256 KB), with room for the rest of a create, so a config past it meets this
+     * refusal ([ViewStoreException.invalid]) rather than the codec's `IllegalState`.
+     *
+     * This and [MAX_TITLE_LENGTH] are the port's limits on both sides: the view engine's `MAX_VIEW_CONFIG_BYTES` and
+     * `MAX_VIEW_TITLE_LENGTH` (`typescript/wow-view-engine/src/model/instance.ts`) mirror them, held to this file by
+     * that package's `test/storeLimits.test.ts`.
+     */
+    const val MAX_CONFIG_BYTES = 240 * 1024
     const val MAX_TITLE_LENGTH = 120
 
     /**

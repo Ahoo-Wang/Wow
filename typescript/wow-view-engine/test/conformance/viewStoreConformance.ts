@@ -44,9 +44,10 @@
  * `..` (or drops it); vitest itself resolves the path as it is.
  *
  * Its imports are kept to what that path can reach: `vitest`, and from the
- * engine's source only the model's structural `isViewStoreError` (a module
- * with no runtime imports) and types — no build of the engine and no
- * `exports` entry are needed, and nothing is published.
+ * engine's source only the model's structural `isViewStoreError` and the
+ * store's limits on a title and a config (modules with no runtime imports)
+ * and types — no build of the engine and no `exports` entry are needed, and
+ * nothing is published.
  *
  * **What it assumes of the backend, and nothing more.** Every test works in a
  * definition of its own (a fresh id), so a shared server needs no reset.
@@ -61,8 +62,14 @@
 
 import { describe, expect, it } from 'vitest';
 import { isViewStoreError } from '../../src/model/storeError.js';
+import {
+  MAX_VIEW_CONFIG_BYTES,
+  MAX_VIEW_TITLE_LENGTH,
+} from '../../src/model/instance.js';
 import type { ViewStoreErrorCode } from '../../src/model/storeError.js';
 import type {
+  DashboardViewConfig,
+  DashboardViewPanel,
   ViewAudience,
   ViewConfig,
   ViewInstance,
@@ -143,8 +150,44 @@ function recordConfig(pageSize = 20): ViewConfig {
   };
 }
 
-/** A board whose one panel shows the saved view `instanceId`. */
-function boardShowing(instanceId: string): ViewConfig {
+/**
+ * How a board's panel references a saved view: the three members the view
+ * store server reads (`ViewConfigs.PANEL_REFERENCES`) — the view it shows,
+ * the view 「在工作台中打开」 opens, the view a press opens.
+ */
+type Reference = 'instanceId' | 'opens' | 'click';
+
+/**
+ * A board whose one panel references the saved view `instanceId` through
+ * `through` alone: typed as the engine's own config, so a reference renamed
+ * or moved in the model fails to compile here, and the server is asked
+ * about the name the engine stores.
+ */
+function boardShowing(
+  instanceId: string,
+  through: Reference = 'instanceId',
+): DashboardViewConfig {
+  const base = {
+    id: 'panel-1',
+    kind: 'view',
+    title: 'Shown',
+    layout: { x: 0, y: 0, w: 12, h: 6 },
+    bindings: [],
+  } as const;
+  // A panel that references the view by `opens` or by its press shows
+  // another one: a view of no store, whose id nothing else matches.
+  const elsewhere = `elsewhere-${crypto.randomUUID()}`;
+  const panel: DashboardViewPanel =
+    through === 'instanceId'
+      ? { ...base, bindings: [], instanceId }
+      : through === 'opens'
+        ? { ...base, bindings: [], instanceId: elsewhere, opens: instanceId }
+        : {
+            ...base,
+            bindings: [],
+            instanceId: elsewhere,
+            click: { kind: 'view', instanceId },
+          };
   return {
     kind: 'dashboard',
     refresh: { interval: null },
@@ -153,17 +196,8 @@ function boardShowing(instanceId: string): ViewConfig {
     fixed: { op: 'and', children: [] },
     tabs: [],
     fields: [],
-    panels: [
-      {
-        id: 'panel-1',
-        kind: 'view',
-        title: 'Shown',
-        instanceId,
-        layout: { x: 0, y: 0, w: 12, h: 6 },
-        bindings: [],
-      },
-    ],
-  } as unknown as ViewConfig;
+    panels: [panel],
+  };
 }
 
 function write(): WriteContext {
@@ -289,6 +323,58 @@ export function describeViewStoreConformance(
         const { alice } = await setup();
         await refusal(alice.get(`missing-${crypto.randomUUID()}`), 'NOT_FOUND');
       });
+
+      it.skipIf(!personal)(
+        'lists shared views before personal ones, each oldest first',
+        async () => {
+          const { alice, definitionId, create } = await setup();
+          const made: ViewInstance[] = [];
+          // One at a time: the order made is the order asked of the list.
+          for (const [title, scope] of [
+            ['First mine', 'personal'],
+            ['First ours', 'shared'],
+            ['Second mine', 'personal'],
+            ['Second ours', 'shared'],
+          ] as const)
+            made.push(await create(title, scope));
+          const [mine1, ours1, mine2, ours2] = made.map(view => view.id);
+
+          const listed = ids(await alice.list(definitionId)).filter(id =>
+            made.some(view => view.id === id),
+          );
+
+          expect(listed).toEqual([ours1, ours2, mine1, mine2]);
+        },
+      );
+
+      it.skipIf(capabilities.systemViews === undefined)(
+        'lists the system views before every saved one',
+        async () => {
+          const open = await subject.connect();
+          const alice = open(ALICE);
+          const definitionId = capabilities.systemViews!.definitionId;
+          const made = await alice.create(
+            {
+              definitionId,
+              title: 'Saved',
+              scope: own,
+              config: recordConfig(),
+            },
+            write(),
+          );
+          try {
+            const scopes = (await alice.list(definitionId)).map(
+              summary => summary.scope,
+            );
+            expect(scopes[0]).toBe('system');
+            expect(scopes.lastIndexOf('system')).toBeLessThan(
+              scopes.findIndex(scope => scope !== 'system'),
+            );
+          } finally {
+            await alice.delete(made.id, made.revision, write());
+          }
+        },
+      );
     });
 
     describe('who sees what', () => {
@@ -377,6 +463,84 @@ export function describeViewStoreConformance(
           expect(failure.preferences).toBeUndefined();
         }
         expect(await alice.get(made.id)).toEqual(moved);
+      });
+
+      it('stores a title trimmed, and refuses one blank or too long as INVALID', async () => {
+        const { alice, definitionId, create } = await setup();
+        const made = await create('  Padded  ');
+        expect(made.title).toBe('Padded');
+        expect(
+          (await alice.list(definitionId)).find(item => item.id === made.id)
+            ?.title,
+        ).toBe('Padded');
+
+        const longest = 'x'.repeat(MAX_VIEW_TITLE_LENGTH);
+        const renamed = await alice.rename(
+          made.id,
+          ` ${longest} `,
+          made.revision,
+          write(),
+        );
+        expect(renamed.title).toBe(longest);
+
+        await refusal(create('   '), 'INVALID');
+        await refusal(create(`${longest}x`), 'INVALID');
+        await refusal(
+          alice.rename(made.id, ' ', renamed.revision, write()),
+          'INVALID',
+        );
+        await refusal(
+          alice.rename(made.id, `${longest}x`, renamed.revision, write()),
+          'INVALID',
+        );
+        expect(await alice.get(made.id)).toEqual(renamed);
+      });
+
+      it('refuses a config larger than the store keeps as INVALID', async () => {
+        const { alice, create } = await setup();
+        const made = await create('Mine');
+        // A card title long enough to take the config past the limit.
+        const large = recordConfig();
+        if (large.kind === 'record')
+          large.card.title = 'x'.repeat(MAX_VIEW_CONFIG_BYTES);
+
+        await refusal(create('Large', own, alice, large), 'INVALID');
+        await refusal(
+          alice.save(made.id, large, made.revision, write()),
+          'INVALID',
+        );
+        expect(await alice.get(made.id)).toEqual(made);
+      });
+
+      it('answers a write to a view another client deleted as NOT_FOUND', async () => {
+        const { open, alice, create } = await setup();
+        const made = await create('Mine');
+        // Read by this client first, so it knows where the view was.
+        await alice.get(made.id);
+        await open(ALICE).delete(made.id, made.revision, write());
+
+        await refusal(
+          alice.save(made.id, recordConfig(50), made.revision, write()),
+          'NOT_FOUND',
+        );
+        await refusal(
+          alice.rename(made.id, 'Late', made.revision, write()),
+          'NOT_FOUND',
+        );
+        if (alice.changeAudience)
+          await refusal(
+            alice.changeAudience(
+              made.id,
+              personal ? 'shared' : own,
+              made.revision,
+              write(),
+            ),
+            'NOT_FOUND',
+          );
+        await refusal(
+          alice.delete(made.id, made.revision, write()),
+          'NOT_FOUND',
+        );
       });
 
       it('answers a write to a missing view as NOT_FOUND', async () => {
@@ -702,9 +866,9 @@ export function describeViewStoreConformance(
         },
       );
 
-      it.skipIf(!personal)(
-        'keeps shared a view a shared board shows, and names the board',
-        async () => {
+      it.skipIf(!personal).each<Reference>(['instanceId', 'opens', 'click'])(
+        'keeps shared a view a shared board references by %s, and names the board',
+        async through => {
           const { alice, definitionId, create } = await setup();
           const shown = await create('Shown', 'shared');
           const board = await alice.create(
@@ -712,7 +876,7 @@ export function describeViewStoreConformance(
               definitionId: `${definitionId}-boards`,
               title: 'Team board',
               scope: 'shared',
-              config: boardShowing(shown.id),
+              config: boardShowing(shown.id, through),
             },
             write(),
           );

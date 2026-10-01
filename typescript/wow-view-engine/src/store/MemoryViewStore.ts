@@ -13,8 +13,12 @@
 
 import {
   audienceOf,
+  configBytes,
   isSystemInstanceId,
   isSystemScope,
+  MAX_VIEW_CONFIG_BYTES,
+  MAX_VIEW_TITLE_LENGTH,
+  titleProblem,
   toSummary,
   ViewStoreError,
   type ViewAudience,
@@ -72,7 +76,9 @@ export interface MemoryState {
  * It keeps the two consistency rules honest rather than convenient. A write
  * with a stale revision conflicts, and a replayed `requestId` returns the
  * first outcome instead of writing twice, so code written against it behaves
- * the same against a real backend.
+ * the same against a real backend — as do the port's list order and the
+ * server's limits on a title and a config, which it refuses as the server
+ * does (`INVALID`).
  *
  * With a snapshot, several stores may share one stored state — two tabs over
  * one `localStorage`. The rule between them is the backend's: **re-read, then
@@ -94,7 +100,7 @@ export class MemoryViewStore implements ViewStore {
   /** The same rule for preferences, whose outcome is no instance. */
   private readonly preferenceOutcomes = new Map<string, ViewPreferences>();
   private readonly snapshot?: MemorySnapshot;
-  permissions?: (definitionId: string) => ViewPermissions;
+  readonly permissions?: (definitionId: string) => ViewPermissions;
   private sequence = 0;
 
   constructor(options: MemoryViewStoreOptions = {}) {
@@ -111,10 +117,16 @@ export class MemoryViewStore implements ViewStore {
     options.snapshot?.subscribe?.(() => this.reload());
   }
 
+  /**
+   * In the port's order: system, shared, personal, each oldest first. The
+   * map keeps insertion order — the order views were created or seeded in,
+   * which a change of audience does not move — and the sort is stable.
+   */
   list(definitionId: string): Promise<ViewInstanceSummary[]> {
     const summaries = [...this.instances.values()]
       .filter(instance => instance.definitionId === definitionId)
-      .map(toSummary);
+      .map(toSummary)
+      .sort((a, b) => AUDIENCE_RANK[a.scope] - AUDIENCE_RANK[b.scope]);
     return Promise.resolve(summaries);
   }
 
@@ -135,6 +147,8 @@ export class MemoryViewStore implements ViewStore {
       return Promise.reject(
         new ViewStoreError('INVALID', 'System views are declared in code'),
       );
+    const refused = titleRefusal(input.title) ?? configRefusal(input.config);
+    if (refused) return Promise.reject(refused);
     this.reload();
 
     // Seeded instances occupy ids too, so the counter walks past anything
@@ -149,7 +163,12 @@ export class MemoryViewStore implements ViewStore {
         new ViewStoreError('INVALID', `Reserved id namespace: ${id}`),
       );
 
-    const instance: ViewInstance = { ...copy(input), id, revision: '1' };
+    const instance: ViewInstance = {
+      ...copy(input),
+      title: input.title.trim(),
+      id,
+      revision: '1',
+    };
     this.instances.set(id, instance);
     return this.commit(context, instance, () => this.instances.delete(id));
   }
@@ -160,10 +179,13 @@ export class MemoryViewStore implements ViewStore {
     revision: string,
     context: WriteContext,
   ): Promise<ViewInstance> {
-    return this.update(id, revision, context, current => ({
-      ...current,
-      config: copy(config),
-    }));
+    return this.update(
+      id,
+      revision,
+      context,
+      current => ({ ...current, config: copy(config) }),
+      configRefusal(config),
+    );
   }
 
   rename(
@@ -172,10 +194,13 @@ export class MemoryViewStore implements ViewStore {
     revision: string,
     context: WriteContext,
   ): Promise<ViewInstance> {
-    return this.update(id, revision, context, current => ({
-      ...current,
-      title,
-    }));
+    return this.update(
+      id,
+      revision,
+      context,
+      current => ({ ...current, title: title.trim() }),
+      titleRefusal(title),
+    );
   }
 
   /**
@@ -262,7 +287,7 @@ export class MemoryViewStore implements ViewStore {
 
     const next: ViewPreferences = {
       ...preferences,
-      revision: String(Number(current.revision) + 1),
+      revision: nextRevision(current.revision),
     };
     this.preferences.set(definitionId, next);
     const refused = this.persist(() =>
@@ -276,19 +301,23 @@ export class MemoryViewStore implements ViewStore {
   }
 
   /**
-   * One instance write: replay, re-read, the three refusals every instance
-   * write shares, then `change`. It may answer `null` for a write that
-   * changes nothing — the view is answered as it is and the revision is not
-   * spent — or a `ViewStoreError` for a refusal of its own.
+   * One instance write: replay, the refusal of its input (`refused`, as the
+   * server validates a command before it reaches the view), re-read, the
+   * three refusals every instance write shares, then `change`. It may answer
+   * `null` for a write that changes nothing — the view is answered as it is
+   * and the revision is not spent — or a `ViewStoreError` for a refusal of
+   * its own.
    */
   private update(
     id: string,
     revision: string,
     context: WriteContext,
     change: (current: ViewInstance) => ViewInstance | ViewStoreError | null,
+    refused?: ViewStoreError,
   ): Promise<ViewInstance> {
     const replayed = this.outcomes.get(context.requestId);
     if (replayed) return Promise.resolve(copy(replayed));
+    if (refused) return Promise.reject(refused);
     this.reload();
 
     const current = this.instances.get(id);
@@ -311,7 +340,7 @@ export class MemoryViewStore implements ViewStore {
     }
     const next: ViewInstance = {
       ...changed,
-      revision: String(Number(current.revision) + 1),
+      revision: nextRevision(current.revision),
     };
     this.instances.set(id, next);
     return this.commit(context, next, () => this.instances.set(id, current));
@@ -407,14 +436,73 @@ export class MemoryViewStore implements ViewStore {
   }
 }
 
-/** Whether a stored panel shows the saved view `id` (not one the board owns). */
+/**
+ * Whether a stored panel references the saved view `id`, by any of the
+ * three members the server reads (`ViewConfigs.PANEL_REFERENCES`, and
+ * `DashboardPanel`): the view it shows (`instanceId`, unless the board owns
+ * the view, `owned`), the view 「在工作台中打开」 opens (`opens`), and the
+ * one a press opens (`click.instanceId`).
+ */
 function shows(panel: unknown, id: string): boolean {
   if (typeof panel !== 'object' || panel === null) return false;
-  const { instanceId, owned } = panel as {
+  const { instanceId, owned, opens, click } = panel as {
     instanceId?: unknown;
     owned?: unknown;
+    opens?: unknown;
+    click?: unknown;
   };
-  return owned === undefined && instanceId === id;
+  if (owned === undefined && instanceId === id) return true;
+  if (opens === id) return true;
+  return (
+    typeof click === 'object' &&
+    click !== null &&
+    (click as { instanceId?: unknown }).instanceId === id
+  );
+}
+
+/** System views first, then shared, then personal: the port's list order. */
+const AUDIENCE_RANK: Readonly<Record<ViewInstance['scope'], number>> = {
+  system: 0,
+  shared: 1,
+  personal: 2,
+};
+
+/**
+ * The revision after `current`. Revisions are opaque to the port, and a host
+ * may seed any string; one this store did not write as a count (`'ops-1'`)
+ * starts the count again at `'1'`, which it can never have been, so a write
+ * against it still conflicts. A count goes on counting.
+ */
+function nextRevision(current: string): string {
+  return /^(0|[1-9]\d{0,14})$/.test(current)
+    ? String(Number(current) + 1)
+    : '1';
+}
+
+/** A title the server refuses (`ViewConfigs.requireTitle`), in its words. */
+function titleRefusal(title: string): ViewStoreError | undefined {
+  switch (titleProblem(title)) {
+    case 'empty':
+      return new ViewStoreError('INVALID', "A view's title must not be blank.");
+    case 'too-long':
+      return new ViewStoreError(
+        'INVALID',
+        `A view's title is longer than ${MAX_VIEW_TITLE_LENGTH} characters.`,
+      );
+    default:
+      return undefined;
+  }
+}
+
+/** A config larger than the server keeps, in its words. */
+function configRefusal(config: ViewConfig): ViewStoreError | undefined {
+  const bytes = configBytes(config);
+  return bytes > MAX_VIEW_CONFIG_BYTES
+    ? new ViewStoreError(
+        'INVALID',
+        `A view's config is ${bytes} bytes; the limit is ${MAX_VIEW_CONFIG_BYTES}.`,
+      )
+    : undefined;
 }
 
 /** What a refusal said — a `DOMException` is an `Error` only in some realms. */

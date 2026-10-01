@@ -13,6 +13,7 @@
 
 import { ResultExtractors, type Fetcher } from '@ahoo-wang/fetcher';
 import {
+  asc,
   CommandHeaders,
   CommandStage,
   filter,
@@ -156,7 +157,7 @@ export class WowViewStore implements ViewStore {
   /** The request ids of the creates this store sent, for their retries. */
   private readonly createAttempts = new Remembered<true>();
   /** The host's {@link WowViewStoreOptions.permissions}, when it gave any. */
-  permissions?: (definitionId: string) => ViewPermissions;
+  readonly permissions?: (definitionId: string) => ViewPermissions;
 
   constructor(options: WowViewStoreOptions) {
     this.fetcher = options.fetcher;
@@ -167,7 +168,13 @@ export class WowViewStore implements ViewStore {
 
   /**
    * The caller's personal views, the shared views and the server's system
-   * views of the definition, in that order: three requests, sent together.
+   * views of the definition: three requests, sent together, answered in the
+   * port's order — system, shared, personal, each oldest first (the server
+   * sorts each audience by the time its first event was written).
+   *
+   * A server with no view store at all (one released before it) answers
+   * every route `404`, where a list on one that has it never does: that is
+   * `UNSUPPORTED`, not a missing view.
    */
   list(
     definitionId: string,
@@ -177,6 +184,7 @@ export class WowViewStore implements ViewStore {
       const query = listQuery({
         filter: filter.eq('state.definitionId', definitionId),
         projection: { include: SUMMARY_FIELDS },
+        sort: LIST_ORDER,
         limit: LIST_LIMIT,
       });
       const [personal, shared, system] = await Promise.all([
@@ -192,7 +200,11 @@ export class WowViewStore implements ViewStore {
           query: { definitionId },
           signal,
         }),
-      ]);
+      ]).catch((thrown: unknown) => {
+        throw thrown instanceof Failure && thrown.code === 'NOT_FOUND'
+          ? unsupported(thrown)
+          : thrown;
+      });
       const seen = new Map<string, ViewInstanceSummary>();
       for (const summary of [
         ...personal.map(toSummary),
@@ -203,7 +215,10 @@ export class WowViewStore implements ViewStore {
         seen.set(summary.id, summary);
         this.places.set(summary.id, locationOf(summary.scope));
       }
-      return [...seen.values()];
+      // Sorted stably: within an audience, the server's order stands.
+      return [...seen.values()].sort(
+        (a, b) => AUDIENCE_RANK[a.scope] - AUDIENCE_RANK[b.scope],
+      );
     });
   }
 
@@ -260,7 +275,9 @@ export class WowViewStore implements ViewStore {
           headers: writeHeaders(context),
           signal: context.signal,
         },
-      );
+      ).catch(async (thrown: unknown) => {
+        throw await this.unsupportedOr(thrown, context.signal);
+      });
       const landed = await this.landed(
         result.aggregateId,
         write,
@@ -363,6 +380,8 @@ export class WowViewStore implements ViewStore {
         await this.json<PreferencesBody>('GET', PATHS.preferences, 'personal', {
           path: { definitionId },
           signal,
+        }).catch(async (thrown: unknown) => {
+          throw await this.unsupportedOr(thrown, signal);
         }),
       ),
     );
@@ -407,7 +426,7 @@ export class WowViewStore implements ViewStore {
           !(thrown instanceof Failure) ||
           (thrown.code !== 'CONFLICT' && !isDuplicateRequest(thrown))
         )
-          throw thrown;
+          throw await this.unsupportedOr(thrown, signal);
         const current = await this.getPreferences(definitionId, signal);
         // A retry the server refuses because its first attempt landed: what
         // is stored says what it wrote, unless another writer moved it on.
@@ -418,6 +437,7 @@ export class WowViewStore implements ViewStore {
           answer = current;
         else
           throw new ViewStoreError('CONFLICT', thrown.message, {
+            ...thrown.held(),
             preferences: current,
           });
       }
@@ -604,7 +624,10 @@ export class WowViewStore implements ViewStore {
     signal: AbortSignal | undefined,
   ): Promise<ViewStoreError> {
     const { instance } = await this.find(id, signal, null);
-    return new ViewStoreError('CONFLICT', failure.message, { instance });
+    return new ViewStoreError('CONFLICT', failure.message, {
+      ...failure.held(),
+      instance,
+    });
   }
 
   /**
@@ -625,7 +648,10 @@ export class WowViewStore implements ViewStore {
     const titles = await Promise.all(
       boards.map(board => this.boardTitle(board, signal)),
     );
-    return new ViewStoreError('INVALID', failure.message, { boards: titles });
+    return new ViewStoreError('INVALID', failure.message, {
+      ...failure.held(),
+      boards: titles,
+    });
   }
 
   private async boardTitle(
@@ -668,8 +694,39 @@ export class WowViewStore implements ViewStore {
           throw thrown;
         }
       }
+      // Every place answered `404`: a view that is not there, or no view
+      // store there at all (a server released before it) — the one
+      // question the server's system views tell apart.
+      if (!(await this.served(signal)))
+        throw new ViewStoreError('UNSUPPORTED', NO_VIEW_STORE);
     }
     throw new ViewStoreError('NOT_FOUND', `No such view: ${id}`);
+  }
+
+  /**
+   * Whether the server has a view store at all: its system views answer
+   * on one that has (an empty list included), and `404` on one released
+   * before it. Any other failure is no answer to that, and reads as served.
+   */
+  private async served(signal: AbortSignal | undefined): Promise<boolean> {
+    try {
+      await this.send('GET', PATHS.systemViews, 'shared', { signal });
+      return true;
+    } catch (thrown) {
+      return !(thrown instanceof Failure && thrown.code === 'NOT_FOUND');
+    }
+  }
+
+  /** A `404` from a server with no view store is `UNSUPPORTED`; else as it was. */
+  private async unsupportedOr(
+    thrown: unknown,
+    signal: AbortSignal | undefined,
+  ): Promise<unknown> {
+    return thrown instanceof Failure &&
+      thrown.code === 'NOT_FOUND' &&
+      !(await this.served(signal))
+      ? unsupported(thrown)
+      : thrown;
   }
 
   private async readAt(
@@ -753,6 +810,26 @@ function writeHeaders(
   };
 }
 
+/** What a server without a view store is told as. */
+const NO_VIEW_STORE = 'This server has no view store';
+
+function unsupported(failure: Failure): ViewStoreError {
+  return new ViewStoreError('UNSUPPORTED', NO_VIEW_STORE, failure.held());
+}
+
+/**
+ * The port's list order, asked of the server per audience: oldest first, by
+ * the time a view's first event was written, its id breaking a tie.
+ */
+const LIST_ORDER = [asc('firstEventTime'), asc('aggregateId')];
+
+/** System views first, then shared, then personal: the port's list order. */
+const AUDIENCE_RANK: Readonly<Record<ViewInstanceSummary['scope'], number>> = {
+  system: 0,
+  shared: 1,
+  personal: 2,
+};
+
 function locationOf(scope: ViewInstanceSummary['scope']): Location {
   return scope === 'system' ? 'system' : scope;
 }
@@ -768,9 +845,15 @@ async function guard<T>(run: () => Promise<T>): Promise<T> {
   } catch (thrown) {
     if (thrown instanceof Failure) throw thrown.toStoreError();
     if (isViewStoreError(thrown)) throw thrown;
+    // A body that did not parse came back from something — a login wall's
+    // page, a proxy's: answered, so not "could not be reached".
     throw new ViewStoreError(
       'UNAVAILABLE',
       thrown instanceof Error ? thrown.message : String(thrown),
+      {
+        cause: thrown,
+        ...(thrown instanceof SyntaxError ? { reachable: true as const } : {}),
+      },
     );
   }
 }

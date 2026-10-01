@@ -269,8 +269,10 @@ jobs:
           node-version: 24.21.0
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - name: Build the client and the generator
-        run: pnpm --filter @ahoo-wang/wow-client... --filter @ahoo-wang/wow-generator... build
+      # test/released/viewStore.test.ts runs WowViewStore and the engine
+      # against the released server: both are imported from their dist/.
+      - name: Build the client, the generator and the view store
+        run: pnpm --filter @ahoo-wang/wow-client... --filter @ahoo-wang/wow-generator... --filter @ahoo-wang/wow-view-store... build
       # test-output/ is ignored scratch space inside integration-test, so the
       # generated imports resolve from that package's node_modules.
       - name: Generate clients from Wow ${{ matrix.wow-version }}

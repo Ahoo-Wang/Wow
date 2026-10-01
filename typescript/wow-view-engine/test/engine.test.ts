@@ -17,6 +17,8 @@ import {
   emptyDashboardConfig,
   isViewCommandError,
   isViewWriteError,
+  MAX_VIEW_CONFIG_BYTES,
+  MAX_VIEW_TITLE_LENGTH,
   MemoryViewStore,
   toSummary,
   ViewEngine,
@@ -33,6 +35,7 @@ import { orderSummaries } from '../src/runtime/preferences.js';
 import { systemInstances } from '../src/runtime/definitions.js';
 import {
   analysisConfig,
+  deferred,
   nextTask,
   ordersDefinition,
   overviewDefinition,
@@ -502,6 +505,80 @@ describe('ViewEngine list commands', () => {
     );
   });
 
+  it('refuses a title the store would refuse, and sends one trimmed', async () => {
+    const { engine, store } = harness();
+    const runtime = await engine.open('orders-1');
+    const write = vi.spyOn(store, 'rename');
+    const tooLong = 'x'.repeat(MAX_VIEW_TITLE_LENGTH + 1);
+
+    const issue = await refused(engine.rename('orders-1', tooLong));
+    expect(issue).toMatchObject({
+      code: 'view.title.too-long',
+      params: { max: MAX_VIEW_TITLE_LENGTH },
+    });
+    expect(
+      (
+        await refused(
+          engine.saveAs(runtime, { title: tooLong, scope: 'personal' }),
+        )
+      ).code,
+    ).toBe('view.title.too-long');
+    expect(write).not.toHaveBeenCalled();
+
+    const renamed = await engine.rename('orders-1', '  Padded  ');
+    expect(renamed.title).toBe('Padded');
+    expect(write.mock.calls[0][1]).toBe('Padded');
+  });
+
+  it('refuses to send a config larger than the store keeps', async () => {
+    const { engine, store } = harness();
+    const runtime = await engine.open('orders-1');
+    const save = vi.spyOn(store, 'save');
+    const create = vi.spyOn(store, 'create');
+    // A condition whose value alone takes the config past the limit.
+    runtime.edit({
+      filter: {
+        op: 'and',
+        children: [
+          {
+            field: 'warehouse',
+            operator: 'EQ',
+            value: 'x'.repeat(MAX_VIEW_CONFIG_BYTES),
+          },
+        ],
+      },
+    } as never);
+
+    const issue = await refused(engine.save(runtime));
+    expect(issue.code).toBe('view.config.too-large');
+    expect(
+      (
+        await refused(
+          engine.saveAs(runtime, { title: 'Copy', scope: 'personal' }),
+        )
+      ).code,
+    ).toBe('view.config.too-large');
+    expect(save).not.toHaveBeenCalled();
+    expect(create).not.toHaveBeenCalled();
+  });
+
+  it('says why the store refused a write', async () => {
+    const { engine, store } = harness();
+    vi.spyOn(store, 'rename').mockRejectedValueOnce(
+      new ViewStoreError('INVALID', "A view's title is longer than 120"),
+    );
+
+    const failure = await failedWrite(engine.rename('orders-1', 'New'));
+
+    expect(failure.state).toMatchObject({
+      kind: 'rejected',
+      issue: {
+        code: 'view.write.invalid',
+        params: { reason: "A view's title is longer than 120" },
+      },
+    });
+  });
+
   it('deletes a view and disposes the runtime that held it', async () => {
     const { engine, store } = harness();
     const runtime = await engine.open('orders-1');
@@ -528,6 +605,23 @@ describe('ViewEngine list commands', () => {
 
     expect(written).toMatchObject({ order: ['orders-1'], revision: '1' });
     await expect(engine.preferences('orders')).resolves.toEqual(written);
+  });
+
+  it('keeps preferences a write confirmed over a read that left before it', async () => {
+    const { engine, store } = harness();
+    const before = await store.getPreferences('orders');
+    const late = deferred<ViewPreferences>();
+    const read = vi.spyOn(store, 'getPreferences');
+    read.mockReturnValueOnce(late.promise);
+
+    const reading = engine.preferences('orders');
+    const written = await engine.reorder('orders', ['orders-1']);
+    // The read's answer is the state before the reorder.
+    late.resolve(before);
+
+    await expect(reading).resolves.toEqual(written);
+    const next = await engine.setDefault('orders', 'orders-1');
+    expect(next).toMatchObject({ order: ['orders-1'], revision: '2' });
   });
 
   it('sets and clears the default view', async () => {

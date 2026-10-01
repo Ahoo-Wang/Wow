@@ -236,6 +236,8 @@ const CODE_TREES = [
   join(ROOT, 'test'),
   STORIES,
   join(ROOT, '../wow-client/src'),
+  // The view store's client, which view-store-backend.md describes.
+  join(ROOT, '../wow-view-store/src'),
 ];
 
 /**

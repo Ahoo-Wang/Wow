@@ -473,11 +473,13 @@ export const SaveRefusedByTheStore: Story = {
     await dirtyTheDraft(canvasElement);
     await save(canvas);
 
-    const band = await outcomeBand(canvasElement, zhCN['view.write.invalid']);
-    // The catalogue's sentence, and the store's own reason after it: an open
-    // view has room for both, and the reason is the only part that says
-    // *what* was wrong.
-    await expect(band).toHaveTextContent('这个视图由运维托管，不接受修改');
+    // The catalogue's sentence carries the store's own reason — the only
+    // part that says *what* was wrong — and says it once.
+    const reason = '这个视图由运维托管，不接受修改';
+    const refused = zhCN['view.write.invalid'].replace('{reason}', reason);
+    const band = await outcomeBand(canvasElement, refused);
+    await expect(band).toHaveTextContent(refused);
+    await expect(band.textContent?.split(reason)).toHaveLength(2);
     await expect(
       [...band.querySelectorAll('button')].map(button =>
         button.textContent?.trim(),
@@ -491,7 +493,7 @@ export const SaveRefusedByTheStore: Story = {
     );
     await waitFor(() =>
       expect(
-        canvas.queryByText(zhCN['view.write.invalid'], {
+        canvas.queryByText(refused, {
           exact: false,
         }),
       ).toBeNull(),

@@ -1,4 +1,4 @@
-# @ahoo-wang/wow-view-engine — 845 names, from src/index.ts.
+# @ahoo-wang/wow-view-engine — 849 names, from src/index.ts.
 # Written by test/publicSurface.test.ts; a change here is a change to
 # the public surface (README「Entries」, docs/design/decisions.md D29).
 value ALWAYS_VISIBLE
@@ -267,6 +267,8 @@ value MAX_NUMERIC_SCALE
 value MAX_PANEL_LINKS
 value MAX_RELATIVE_DATE_AMOUNT
 value MAX_TIMER_DELAY_MS
+value MAX_VIEW_CONFIG_BYTES
+value MAX_VIEW_TITLE_LENGTH
 value METADATA_FIELD_KINDS
 value METADATA_FIELD_KIND_IDS
 value METRIC_HEADLINES
@@ -527,6 +529,7 @@ value compileRecord
 value compileSummaries
 value conditionOf
 value conditions
+value configBytes
 value countLeaves
 value coversScope
 value createFieldKindRegistry
@@ -793,6 +796,7 @@ value takesGroup
 value temporalOf
 value text
 value textKeyOf
+value titleProblem
 value toSummary
 value unbindPanels
 value unknownOrOutside

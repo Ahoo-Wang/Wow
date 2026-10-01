@@ -64,7 +64,10 @@ function fakeRuntime(id = 'runtime-1'): FakeRuntime {
     setWrite: vi.fn((write: { requestId: string } | null) => {
       if (!stopped) state.write = write;
     }),
-    markSaved: vi.fn(),
+    // As the real runtimes do: marking saved settles what the view shows.
+    markSaved: vi.fn(() => {
+      if (!stopped) state.write = null;
+    }),
     moveBaseline: vi.fn(),
     adoptSaved: vi.fn(),
     dispose: () => {
@@ -78,6 +81,7 @@ interface Harness {
   ledger: WriteLedger;
   store: {
     save: ReturnType<typeof vi.fn>;
+    rename: ReturnType<typeof vi.fn>;
     get: ReturnType<typeof vi.fn>;
     getPreferences: ReturnType<typeof vi.fn>;
     setPreferences: ReturnType<typeof vi.fn>;
@@ -93,6 +97,7 @@ interface Harness {
 function harness(holders: ManagedViewRuntime[] = []): Harness {
   const store = {
     save: vi.fn(async () => ({ ...mine, revision: '2' })),
+    rename: vi.fn(async () => ({ ...mine, title: 'Renamed', revision: '2' })),
     get: vi.fn(async () => ({ ...mine, revision: '9' })),
     getPreferences: vi.fn(async () => preferences),
     setPreferences: vi.fn(async () => preferences),
@@ -478,6 +483,124 @@ describe('WriteLedger effects', () => {
     );
     expect(runtime.markSaved).toHaveBeenCalledWith(mine);
     expect(ledger.pendingWrites().size).toBe(0);
+  });
+});
+
+describe('WriteLedger writes the manager sends through an open view', () => {
+  const rename = (revision = mine.revision) => ({
+    action: 'rename' as const,
+    id: mine.id,
+    revision,
+    title: 'Renamed',
+  });
+
+  async function conflicted(h: Harness, runtime: FakeRuntime) {
+    const remote = { ...mine, revision: '9', title: 'Theirs' };
+    h.store.save.mockRejectedValueOnce(
+      new ViewStoreError('CONFLICT', 'moved', { instance: remote }),
+    );
+    return expectWriteError(h.ledger.dispatch(savePayload(), runtime));
+  }
+
+  it('moves the baseline of a rename and marks nothing saved', async () => {
+    const runtime = fakeRuntime();
+    const h = harness([runtime]);
+
+    await h.ledger.dispatch(rename(), runtime);
+
+    const renamed = { ...mine, title: 'Renamed', revision: '2' };
+    // Marking saved would settle the view's own outcome and, on a board,
+    // forget its undo history; a rename carries no config.
+    expect(runtime.markSaved).not.toHaveBeenCalled();
+    expect(runtime.moveBaseline).toHaveBeenCalledWith(renamed);
+  });
+
+  it("leaves the view's own conflict in place when a rename lands", async () => {
+    const runtime = fakeRuntime();
+    const h = harness([runtime]);
+    const conflict = await conflicted(h, runtime);
+
+    await h.ledger.dispatch(rename(), runtime);
+
+    expect(runtime.getSnapshot().write).toBe(conflict.state);
+    expect(h.ledger.pendingWrites().get(conflict.handle.id)).toBe(
+      conflict.state,
+    );
+  });
+
+  it("does not replace the view's own conflict with a failed rename", async () => {
+    const runtime = fakeRuntime();
+    const h = harness([runtime]);
+    const conflict = await conflicted(h, runtime);
+    h.store.rename.mockRejectedValueOnce(new ViewStoreError('INVALID', 'no'));
+
+    const failed = await expectWriteError(h.ledger.dispatch(rename(), runtime));
+
+    expect(runtime.getSnapshot().write).toBe(conflict.state);
+    // The rename's outcome is still held, and its handle reaches it.
+    expect(h.ledger.pendingWrites().get(failed.handle.id)).toBe(failed.state);
+    h.ledger.abandonWrite(failed.handle);
+    expect(runtime.getSnapshot().write).toBe(conflict.state);
+  });
+
+  it('shows a failed rename on a view with nothing of its own waiting', async () => {
+    const runtime = fakeRuntime();
+    const h = harness([runtime]);
+    h.store.rename.mockRejectedValueOnce(new ViewStoreError('INVALID', 'no'));
+
+    const failed = await expectWriteError(h.ledger.dispatch(rename(), runtime));
+
+    expect(runtime.getSnapshot().write).toBe(failed.state);
+  });
+});
+
+describe('WriteLedger abandoning a conflict', () => {
+  it('remembers the instance the store holds, and leaves the view alone', async () => {
+    const runtime = fakeRuntime();
+    const { ledger, store, noted } = harness([runtime]);
+    const remote = { ...mine, revision: '9', title: 'Theirs' };
+    store.save.mockRejectedValueOnce(
+      new ViewStoreError('CONFLICT', 'moved', { instance: remote }),
+    );
+    const failure = await expectWriteError(
+      ledger.dispatch(savePayload(), runtime),
+    );
+
+    ledger.abandonWrite(failure.handle);
+
+    expect(noted).toEqual([remote]);
+    expect(runtime.moveBaseline).not.toHaveBeenCalled();
+    expect(runtime.adoptSaved).not.toHaveBeenCalled();
+  });
+
+  it('remembers the preferences the store holds', async () => {
+    const { ledger, store, notedPreferences } = harness();
+    const remote = { ...preferences, revision: '9' };
+    store.setPreferences.mockRejectedValueOnce(
+      new ViewStoreError('CONFLICT', 'moved', { preferences: remote }),
+    );
+    const failure = await expectWriteError(
+      ledger.dispatch(
+        { action: 'preferences', definitionId: 'orders', next: preferences },
+        undefined,
+      ),
+    );
+
+    ledger.abandonWrite(failure.handle);
+
+    expect(notedPreferences).toEqual([remote]);
+  });
+
+  it('remembers nothing for an outcome that was not a conflict', async () => {
+    const { ledger, store, noted } = harness();
+    store.save.mockRejectedValueOnce(new ViewStoreError('UNAVAILABLE', 'down'));
+    const failure = await expectWriteError(
+      ledger.dispatch(savePayload(), undefined),
+    );
+
+    ledger.abandonWrite(failure.handle);
+
+    expect(noted).toEqual([]);
   });
 });
 

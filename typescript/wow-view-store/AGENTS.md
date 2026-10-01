@@ -18,7 +18,7 @@ The port's conformance suite runs over this package against a real server in `ty
 
 ```
 src/
-  index.ts          — the entry: WowViewStore, WowViewStoreOptions, SHARED_OWNER_ID, ViewStoreErrorCodes, by name
+  index.ts          — the entry: WowViewStore, WowViewStoreOptions, SHARED_OWNER_ID, WowViewStoreErrorCodes, by name
   wowViewStore.ts   — the store: where a view lives (the owner segment), the writes, the replay, the read back
   paths.ts          — the routes under /view-store/tenant/{tenantId}/owner/{ownerId}, and the owner `(shared)`
   errors.ts         — Failure (a request that did not succeed) and the server's error codes onto the port's

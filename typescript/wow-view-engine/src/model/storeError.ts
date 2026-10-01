@@ -20,8 +20,16 @@ export type ViewStoreErrorCode =
   | 'FORBIDDEN'
   /** Reached but refused; the payload is wrong. */
   | 'INVALID'
-  /** Not reached, or reached with an unknown outcome. */
-  | 'UNAVAILABLE';
+  /**
+   * Not reached, or reached with an unknown outcome. `reachable` tells the
+   * two apart: the server answered with an error of its own.
+   */
+  | 'UNAVAILABLE'
+  /**
+   * The backend has no view store at all — a server released before it —
+   * so no view can be read or written there, and none is "gone".
+   */
+  | 'UNSUPPORTED';
 
 export const VIEW_STORE_ERROR_CODES: readonly ViewStoreErrorCode[] = [
   'CONFLICT',
@@ -29,11 +37,14 @@ export const VIEW_STORE_ERROR_CODES: readonly ViewStoreErrorCode[] = [
   'FORBIDDEN',
   'INVALID',
   'UNAVAILABLE',
+  'UNSUPPORTED',
 ];
 
 /**
  * The single failure type of the persistence port. A backend adapter maps its
- * transport errors, HTTP status codes included, onto these five codes.
+ * transport errors, HTTP status codes included, onto these six codes, and
+ * keeps what it mapped from: the error it caught as `cause`, the backend's
+ * own error code as `detail`.
  *
  * It lives in `model` rather than next to the port because both sides of the
  * port speak it: a store raises it, and the runtime classifies a write outcome
@@ -61,6 +72,20 @@ export class ViewStoreError extends Error {
    * store's own, for logs.
    */
   readonly boards?: readonly string[];
+  /**
+   * With `UNAVAILABLE`: the server answered, with an error of its own (a
+   * 5xx, a timeout or a refusal it reported) — not the network. The reader
+   * is told the server could not handle it, with its reason, rather than
+   * that it could not be reached, and an operator looks at the server's log.
+   */
+  readonly reachable?: true;
+  /**
+   * The backend's own word for the failure, where it gave one — a Wow
+   * server's `errorCode` (`ViewAppRequired`, `ViewInvalid`, …) — so a host
+   * can tell apart what the port's code folds together. Diagnostics only:
+   * the engine decides by `code`.
+   */
+  readonly detail?: { readonly code: string };
 
   constructor(
     code: ViewStoreErrorCode,
@@ -68,6 +93,10 @@ export class ViewStoreError extends Error {
     held: ConflictingState & {
       storage?: true;
       boards?: readonly string[];
+      reachable?: true;
+      detail?: { readonly code: string };
+      /** What the store caught, kept as the standard `Error.cause`. */
+      cause?: unknown;
     } = {},
   ) {
     super(message);
@@ -77,6 +106,11 @@ export class ViewStoreError extends Error {
     this.preferences = held.preferences;
     if (held.storage) this.storage = true;
     if (held.boards) this.boards = held.boards;
+    if (held.reachable) this.reachable = true;
+    if (held.detail) this.detail = held.detail;
+    // `Error.cause` (ES2022), set as the standard property is.
+    if (held.cause !== undefined)
+      (this as { cause?: unknown }).cause = held.cause;
   }
 }
 
@@ -96,13 +130,30 @@ export interface ConflictingState {
 
 /**
  * Structural, so an error raised by a second copy of this package, or by a
- * store that builds the shape itself, is still recognised.
+ * store that builds the shape itself, is still recognised: an `Error` named
+ * `ViewStoreError` with one of the port's codes. The name is what keeps a
+ * stray `{ code: 'NOT_FOUND' }` from an HTTP library out. Every guard of
+ * the engine's errors reads them so (`isViewWriteError`,
+ * `isViewCommandError`, `isExportCancelled`).
  */
 export function isViewStoreError(error: unknown): error is ViewStoreError {
-  if (typeof error !== 'object' || error === null) return false;
+  if (!isNamedError(error, 'ViewStoreError')) return false;
   const code = (error as { code?: unknown }).code;
   return (
     typeof code === 'string' &&
     (VIEW_STORE_ERROR_CODES as readonly string[]).includes(code)
+  );
+}
+
+/**
+ * Whether `error` is an error of this `name` — the rule every guard of the
+ * engine's errors keeps, rather than `instanceof`, which a second install of
+ * the package (or a bundle that inlined one) fails.
+ */
+export function isNamedError(error: unknown, name: string): boolean {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    (error as { name?: unknown }).name === name
   );
 }

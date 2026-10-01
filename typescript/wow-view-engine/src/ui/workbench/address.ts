@@ -30,6 +30,7 @@ import {
   useState,
 } from 'react';
 import {
+  isViewStoreError,
   parseSystemInstanceId,
   type DashboardFilters,
   type RecordKey,
@@ -201,10 +202,26 @@ export function useAddressedInstance(
       }));
     };
     void engine.list(definitionId).then(
-      listing =>
-        answer(
-          listing.failed ? null : new Set(listing.items.map(item => item.id)),
-        ),
+      async listing => {
+        if (listing.failed) return answer(null);
+        const listed = new Set(listing.items.map(item => item.id));
+        if (listed.has(named)) return answer(listed);
+        // A list holds what the store answers of it — a store may cut a
+        // long one (WowViewStore lists 1000 of each audience) — so a view not in
+        // it is asked for by id before it is judged another's: a link to
+        // the 1001st shared view is this workbench's all the same.
+        try {
+          const found = await engine.store.get(named);
+          if (found.definitionId === definitionId) listed.add(named);
+          answer(listed);
+        } catch (error) {
+          answer(
+            isViewStoreError(error) && error.code === 'NOT_FOUND'
+              ? listed
+              : null,
+          );
+        }
+      },
       () => answer(null),
     );
     return () => {

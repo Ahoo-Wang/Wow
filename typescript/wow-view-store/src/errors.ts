@@ -26,10 +26,12 @@ import {
  * The view store's own error codes, beside Wow's (`ErrorCodes` of
  * `@ahoo-wang/wow-client`).
  *
- * Mirrors `ViewStoreErrorCodes` in
+ * Named apart from the engine's `ViewStoreErrorCode` (the port's six codes): these
+ * are the server's `errorCode` strings, which a `ViewStoreError` carries as
+ * `detail.code`. Mirrors `ViewStoreErrorCodes` in
  * `view-store/wow-view-store-api/src/main/kotlin/me/ahoo/wow/viewstore/api/ViewStoreErrorCodes.kt`.
  */
-export const ViewStoreErrorCodes = Object.freeze({
+export const WowViewStoreErrorCodes = Object.freeze({
   /** A write that is not a valid view or preferences write (HTTP 400). */
   VIEW_INVALID: 'ViewInvalid',
   /** The request carries no `CoSec-App-Id` (HTTP 400). */
@@ -59,11 +61,11 @@ const CODES: Readonly<Record<string, ViewStoreErrorCode>> = {
   [ErrorCodes.ILLEGAL_ACCESS_OWNER_AGGREGATE]: 'FORBIDDEN',
   [ErrorCodes.ILLEGAL_ACCESS_SPACE_AGGREGATE]: 'FORBIDDEN',
   [ErrorCodes.ILLEGAL_ACCESS_QUERY_SCOPE]: 'FORBIDDEN',
-  [ViewStoreErrorCodes.SYSTEM_VIEW_READ_ONLY]: 'FORBIDDEN',
-  [ViewStoreErrorCodes.VIEW_EVENT_STREAM_CLOSED]: 'FORBIDDEN',
-  [ViewStoreErrorCodes.VIEW_INVALID]: 'INVALID',
-  [ViewStoreErrorCodes.VIEW_APP_REQUIRED]: 'INVALID',
-  [ViewStoreErrorCodes.VIEW_SCOPE_REQUIRED]: 'INVALID',
+  [WowViewStoreErrorCodes.SYSTEM_VIEW_READ_ONLY]: 'FORBIDDEN',
+  [WowViewStoreErrorCodes.VIEW_EVENT_STREAM_CLOSED]: 'FORBIDDEN',
+  [WowViewStoreErrorCodes.VIEW_INVALID]: 'INVALID',
+  [WowViewStoreErrorCodes.VIEW_APP_REQUIRED]: 'INVALID',
+  [WowViewStoreErrorCodes.VIEW_SCOPE_REQUIRED]: 'INVALID',
   [ErrorCodes.BAD_REQUEST]: 'INVALID',
   [ErrorCodes.ILLEGAL_ARGUMENT]: 'INVALID',
   // The server's own state, not the request: what a retry may get past.
@@ -129,6 +131,15 @@ export class Failure {
     return portCodeOf(this.errorCode, this.status);
   }
 
+  /**
+   * Whether the server (or something in front of it) answered at all: a
+   * response came back. An `UNAVAILABLE` that was answered is the server's
+   * own error — a 5xx, a timeout it reported — and not the network.
+   */
+  get reached(): boolean {
+    return this.wow !== undefined || this.status !== undefined;
+  }
+
   get message(): string {
     if (this.wow) return this.wow.message;
     const unfilled = this.unfilled;
@@ -139,9 +150,30 @@ export class Failure {
     return `The view store could not be reached: ${reasonOf(this.cause)}`;
   }
 
-  /** The port's error, with nothing held. */
+  /**
+   * The port's error, holding what it was read from: the request's own
+   * failure as `cause`, the server's error code as `detail` (a host tells
+   * `ViewAppRequired` from `ViewInvalid` by it), and for `UNAVAILABLE`
+   * whether the server answered (`reachable`).
+   */
   toStoreError(): ViewStoreError {
-    return new ViewStoreError(this.code, this.message);
+    return new ViewStoreError(this.code, this.message, this.held());
+  }
+
+  /** {@link toStoreError} with another code: the same failure, read further. */
+  held(): {
+    cause: unknown;
+    detail?: { code: string };
+    reachable?: true;
+  } {
+    const code = this.errorCode;
+    return {
+      cause: this.cause,
+      ...(code === undefined ? {} : { detail: { code } }),
+      ...(this.code === 'UNAVAILABLE' && this.reached
+        ? { reachable: true as const }
+        : {}),
+    };
   }
 }
 

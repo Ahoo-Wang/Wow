@@ -16,6 +16,7 @@ import { useSortable } from '@dnd-kit/react/sortable';
 import { PencilIcon, StarIcon, TrashIcon } from 'lucide-react';
 import {
   audienceOf,
+  MAX_VIEW_TITLE_LENGTH,
   isSystemScope,
   toSummary,
   type ViewAudience,
@@ -214,6 +215,7 @@ export function ViewManagerRow({
                 title: item.title,
               })}
               required
+              maxLength={MAX_VIEW_TITLE_LENGTH}
               held={busy}
               answers={{
                 confirm: messages.label('label.manage.rename-confirm'),

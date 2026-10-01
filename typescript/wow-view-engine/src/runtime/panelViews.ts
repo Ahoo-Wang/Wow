@@ -19,6 +19,7 @@ import type {
 } from '../model/index.js';
 import { isOwnedPanel, isViewPanel } from '../dashboard/index.js';
 import { issue, type FieldKindRegistry } from '../filter/index.js';
+import { requireStorable, requireTitle } from './commandChecks.js';
 import { DashboardViewRuntime } from './dashboardRuntime.js';
 import type { DefinitionRegistry } from './definitions.js';
 import { validateDataConfig } from './execute.js';
@@ -77,8 +78,7 @@ export class PanelViews {
       throw new ViewCommandError(issue(REFUSED[from], [], { panel: panelId }));
     const { definitionId, config } = view;
     const definition = this.host.registry.require(definitionId);
-    if (input.title.trim().length === 0)
-      throw new ViewCommandError(issue('view.title.empty', ['title']));
+    const title = requireTitle(input.title);
     if (definition.kind !== 'data' || config.kind === 'dashboard')
       throw new ViewCommandError(
         issue('runtime.kind.not-declared', [], {
@@ -92,7 +92,8 @@ export class PanelViews {
       throw new ViewCommandError(issue('view.config.invalid', []));
     this.host.guard.requireCreate(definitionId, input.scope);
 
-    const { title, scope } = input;
+    const { scope } = input;
+    requireStorable(config);
     const instance = (await this.host.ledger.dispatch(
       {
         action: 'create',

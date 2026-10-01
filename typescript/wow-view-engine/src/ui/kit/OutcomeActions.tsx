@@ -221,15 +221,23 @@ export function RefusalLine({
   // A refusal is about the thing open, or a row of its list: on a board,
   // said as a board's (Q34).
   const ownWord = useKindIssue();
+  const sentence = messages.issue(ownWord(issue));
+  const reason =
+    issue.params?.reason === undefined
+      ? undefined
+      : String(issue.params.reason);
   return (
     <OutcomeLine surface={surface} tone="error">
       <AlertTitle>
-        {messages.issue(ownWord(issue))}
-        {/* The store's own words, where there is room for them. A manager row
-            is one line among many in a dialog and carries the sentence only. */}
+        {sentence}
+        {/* The store's own words, where there is room for them and the
+            sentence does not already say them (`view.write.invalid` does, on
+            every surface). A manager row is one line among many in a dialog
+            and carries the sentence only. */}
         {surface === 'view' &&
-          issue.params?.reason !== undefined &&
-          ` ${String(issue.params.reason)}`}
+          reason !== undefined &&
+          !sentence.includes(reason) &&
+          ` ${reason}`}
       </AlertTitle>
       {onDismiss && (
         <AlertAction>

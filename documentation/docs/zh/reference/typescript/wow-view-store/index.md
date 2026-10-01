@@ -18,7 +18,7 @@ description: '尚未发布的 @ahoo-wang/wow-view-store 包的 WowViewStore：�
 | `WowViewStore` | store 本身：`new WowViewStore({ fetcher, permissions? })`，交给 `new ViewEngine({ store })` |
 | `WowViewStoreOptions` | `fetcher`：由它的拦截器带上租户、所有者与应用；`permissions`：哪些按钮可用 |
 | `SHARED_OWNER_ID` | `(shared)`，共享视图与共享偏好的所有者段 |
-| `ViewStoreErrorCodes` | 视图存储自己的错误码，与 Wow 的并列 |
+| `WowViewStoreErrorCodes` | 视图存储自己的错误码，与 Wow 的并列 |
 
 ```ts
 export interface WowViewStoreOptions {
@@ -35,7 +35,8 @@ export interface WowViewStoreOptions {
 | 受众 | 路径的所有者段：个人视图在调用者的路径上，共享视图在 `owner/(shared)` 上。设为共享是在视图所在路径上 `share`，设为个人是在调用者自己的路径上 `claim` |
 | 写入 | `Command-Request-Id` 是端口的 `requestId`，`Command-Aggregate-Version` 是它的 `revision`；每次写入等到快照落地，以读回的视图作答 |
 | 重试 | 以过期版本或重复请求 id 被拒的写入，先按请求 id 查一次，重试答第一次写下的结果。服务端不对创建去重（id 由它生成）；store 重发自己的创建前先问重放路由，只有从别的 store 发出的重试才会再建一个视图 |
-| 错误 | 按 Wow 的错误码映射到 `CONFLICT`、`NOT_FOUND`、`FORBIDDEN`、`INVALID` 与 `UNAVAILABLE`；只有没回来认得的错误码时才看 HTTP 状态 |
+| 错误 | 按 Wow 的错误码映射到 `CONFLICT`、`NOT_FOUND`、`FORBIDDEN`、`INVALID` 与 `UNAVAILABLE`；只有没回来认得的错误码时才看 HTTP 状态；没有视图存储的服务端是 `UNSUPPORTED`。错误把服务端的错误码留在 `detail.code`，服务端答了话的 `UNAVAILABLE` 带 `reachable` |
+| 列表顺序 | 系统视图、共享视图、个人视图，每种受众按创建先后；每种受众至多 1000 个 |
 | 共享看板 | 被共享仪表盘显示着的视图保持共享：收为个人是 `INVALID`，`boards` 原样带上那几块看板的标题，由视图引擎用自己的话说出来 |
 
 ## 宿主

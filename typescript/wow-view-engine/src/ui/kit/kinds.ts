@@ -122,6 +122,9 @@ const DASHBOARD_WORDS: Partial<Record<MessageKey, MessageKey>> = {
   'view.delete.forbidden': 'label.dashboard.delete-forbidden',
   'view.list.failed': 'label.dashboard.list-failed',
   'view.list.failed.unavailable': 'label.dashboard.list-unavailable',
+  'view.list.failed.unavailable.server':
+    'label.dashboard.list-unavailable-server',
+  'view.list.failed.unsupported': 'label.dashboard.list-unsupported',
   'view.list.reserved-id': 'label.dashboard.reserved-id',
   'view.change.notify-failed': 'label.dashboard.notify-failed',
   'view.open.failed': 'label.dashboard.open-failed',
@@ -131,6 +134,9 @@ const DASHBOARD_WORDS: Partial<Record<MessageKey, MessageKey>> = {
   'view.open.failed.not_found': 'label.dashboard.gone',
   'view.open.failed.forbidden': 'label.dashboard.open-forbidden',
   'view.open.failed.unavailable': 'label.dashboard.open-unavailable',
+  'view.open.failed.unavailable.server':
+    'label.dashboard.open-unavailable-server',
+  'view.open.failed.unsupported': 'label.dashboard.open-unsupported',
   'view.preferences.default-forbidden': 'label.dashboard.default-forbidden',
   'view.preferences.failed': 'label.dashboard.preferences-failed',
   'view.preferences.load-failed': 'label.dashboard.preferences-load-failed',
@@ -143,10 +149,13 @@ const DASHBOARD_WORDS: Partial<Record<MessageKey, MessageKey>> = {
   'view.save.forbidden': 'label.dashboard.save-forbidden',
   'view.system.read-only': 'label.dashboard.system-read-only',
   'view.title.empty': 'label.dashboard.title-empty',
+  'view.title.too-long': 'label.dashboard.title-too-long',
+  'view.config.too-large': 'label.dashboard.config-too-large',
   'view.write.conflict': 'label.dashboard.write-conflict',
   'view.write.forbidden': 'label.dashboard.write-forbidden',
   'view.write.in-flight': 'label.dashboard.write-in-flight',
   'view.write.not_found': 'label.dashboard.gone',
+  'view.write.unsupported': 'label.dashboard.write-unsupported',
   // The part of a config every kind stores, judged for the board as for
   // any view (a board has no conditions of its own, D27, so the two about
   // them never reach one); and a definition that offers no board at all.

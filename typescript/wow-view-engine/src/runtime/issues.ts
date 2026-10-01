@@ -12,7 +12,11 @@
  */
 
 import { issue } from '../filter/index.js';
-import { isViewStoreError, type Issue } from '../model/index.js';
+import {
+  isViewStoreError,
+  type Issue,
+  type ViewStoreError,
+} from '../model/index.js';
 import { sourceReason } from './sourceReason.js';
 import { isViewCommandError, isViewWriteError } from './write.js';
 
@@ -53,10 +57,24 @@ function commandIssue(error: unknown, code: string): Issue | null {
       ? error.state.issue
       : issue(`${code}.${error.state.kind}`, []);
   if (isViewStoreError(error))
-    return issue(`${code}.${error.code.toLowerCase()}`, [], {
+    return issue(`${code}.${storeOutcome(error)}`, [], {
       reason: error.message,
     });
   return null;
+}
+
+/**
+ * The outcome a store failure is said by: its code, and for `UNAVAILABLE`
+ * whether the server answered (`unavailable.server`, 「服务端暂时无法处理」)
+ * or nothing came back (`unavailable`, 「无法连接服务端」) — the two send an
+ * operator to different places. A catalogue without the longer key falls
+ * back along the dots.
+ */
+export function storeOutcome(error: ViewStoreError): string {
+  const outcome = error.code.toLowerCase();
+  return error.code === 'UNAVAILABLE' && error.reachable
+    ? `${outcome}.server`
+    : outcome;
 }
 
 function messageIssue(error: unknown, code: string): Issue {

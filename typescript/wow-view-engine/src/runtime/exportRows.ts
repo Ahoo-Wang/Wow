@@ -21,6 +21,7 @@ import {
 import type { FilterCompileContext } from '../filter/index.js';
 import {
   DEFAULT_RUNTIME_LIMITS,
+  isNamedError,
   type RecordCapability,
   type RecordData,
   type RecordPageTarget,
@@ -61,8 +62,9 @@ export class ExportCancelled extends Error {
   }
 }
 
+/** By name, as every guard of the engine's errors (`isViewStoreError`). */
 export function isExportCancelled(error: unknown): error is ExportCancelled {
-  return error instanceof ExportCancelled;
+  return isNamedError(error, 'ExportCancelled');
 }
 
 /**

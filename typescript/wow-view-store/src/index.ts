@@ -14,4 +14,4 @@
 // The public surface, name by name (test/surface/root.txt).
 export { WowViewStore, type WowViewStoreOptions } from './wowViewStore.js';
 export { SHARED_OWNER_ID } from './paths.js';
-export { ViewStoreErrorCodes } from './errors.js';
+export { WowViewStoreErrorCodes } from './errors.js';

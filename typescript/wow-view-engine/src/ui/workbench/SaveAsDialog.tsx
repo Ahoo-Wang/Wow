@@ -12,7 +12,12 @@
  */
 
 import { useId, useState } from 'react';
-import type { Issue, ViewAudience, ViewInstance } from '../../model/index.js';
+import {
+  MAX_VIEW_TITLE_LENGTH,
+  type Issue,
+  type ViewAudience,
+  type ViewInstance,
+} from '../../model/index.js';
 import type {
   SaveAbilities,
   SaveCommands,
@@ -267,7 +272,14 @@ function SaveAsForm({
           <Input
             id={`${fieldId}-title`}
             value={next}
+            // The store keeps a title of at most this many characters; the
+            // field takes no more, rather than a refusal after the write.
+            maxLength={MAX_VIEW_TITLE_LENGTH}
             aria-invalid={named.length === 0}
+            // The title it opens on is a proposal: selected as the dialog
+            // hands the field the keyboard, so typing replaces it rather
+            // than landing after 「… 副本」.
+            onFocus={event => event.currentTarget.select()}
             onChange={event => setNext(event.target.value)}
             onKeyDown={event => {
               if (event.key === 'Enter' && !stopped) submit();

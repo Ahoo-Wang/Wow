@@ -74,7 +74,7 @@ import { readingStore } from './storedViews.js';
 import { SourceCapabilities } from './capabilities.js';
 import { EngineResources } from './resources.js';
 import { reportingStore } from './failures.js';
-import { requireSavable, requireTitle } from './commandChecks.js';
+import { requireSavable, requireTitle, storable } from './commandChecks.js';
 
 /**
  * One thing a host registers (host-integration.md 4): a definition, and
@@ -412,9 +412,9 @@ export class ViewEngine extends EngineResources {
     if (!state.saved) {
       const input = {
         definitionId: target.definition.id,
-        title: state.title,
+        title: requireTitle(state.title),
         scope: state.scope,
-        config: target.stored?.(state.draft) ?? state.draft,
+        config: storable(target, state.draft),
       };
       this.guard.requireCreate(target.definition.id, state.scope);
       return (await this.ledger.dispatch(
@@ -429,7 +429,7 @@ export class ViewEngine extends EngineResources {
       action: 'save',
       id: saved.id,
       revision: saved.revision,
-      config: target.stored?.(state.draft) ?? state.draft,
+      config: storable(target, state.draft),
     };
     return (await this.ledger.dispatch(payload, target)) as ViewInstance;
   }
@@ -443,7 +443,7 @@ export class ViewEngine extends EngineResources {
     const state = target.getSnapshot();
     // Judged at the scope it is going to, not the one it came from.
     requireSavable(target, target.issuesAt(input.scope));
-    requireTitle(input.title);
+    const title = requireTitle(input.title);
     this.guard.requireCreate(target.definition.id, input.scope);
 
     return (await this.ledger.dispatch(
@@ -451,9 +451,9 @@ export class ViewEngine extends EngineResources {
         action: 'create',
         input: {
           definitionId: target.definition.id,
-          title: input.title,
+          title,
           scope: input.scope,
-          config: target.stored?.(state.draft) ?? state.draft,
+          config: storable(target, state.draft),
         },
         intent: 'save-as',
       },
@@ -502,7 +502,7 @@ export class ViewEngine extends EngineResources {
 
   /** Renaming carries no config, so a draft with errors does not block it. */
   async rename(id: string, title: string): Promise<ViewInstance> {
-    requireTitle(title);
+    title = requireTitle(title);
     const { revision, runtime } = await this.locate(id, 'rename');
     const payload: WritePayload = { action: 'rename', id, revision, title };
     return (await this.ledger.dispatch(payload, runtime)) as ViewInstance;

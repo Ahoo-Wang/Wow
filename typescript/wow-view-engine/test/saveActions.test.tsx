@@ -22,6 +22,7 @@ import {
 } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
+  MAX_VIEW_TITLE_LENGTH,
   MemoryViewStore,
   ViewEngine,
   ViewStoreError,
@@ -263,6 +264,44 @@ describe('SaveActions, the split button group', () => {
     await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull());
     await waitFor(async () =>
       expect((await store.get('orders-9')).revision).toBe('2'),
+    );
+  });
+
+  it('leaves the keyboard on the view title once the shared save is confirmed', async () => {
+    const store = tracked(
+      new MemoryViewStore({
+        instances: [
+          { ...mine, id: 'orders-9', title: 'Ours', scope: 'shared' },
+        ],
+        permissions: permitting(),
+      }),
+    );
+    const engine = new ViewEngine({
+      resources: resourcesOf([ordersDefinition()], () => testSource()),
+      store,
+    });
+    const runtime = await engine.open('orders-9');
+    render(<Harness engine={engine} runtime={runtime} />);
+    editIt(runtime);
+
+    const save = screen.getByRole('button', { name: 'Save' });
+    save.focus();
+    fireEvent.click(save);
+    fireEvent.click(
+      within(
+        await screen.findByRole('alertdialog', {
+          name: 'Update it for everyone?',
+        }),
+      ).getByRole('button', { name: 'Update for everyone' }),
+    );
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull());
+    await waitFor(() => expect(runtime.getSnapshot().dirty).toBe(false));
+
+    // Not the Save button, which the write disabled, and not <body>.
+    await waitFor(() =>
+      expect(document.activeElement?.getAttribute('data-slot')).toBe(
+        'view-title',
+      ),
     );
   });
 
@@ -543,6 +582,20 @@ describe('the save-as dialog', () => {
         .getByRole('button', { name: 'Create view' })
         .hasAttribute('disabled'),
     ).toBe(true);
+  });
+
+  it('opens on the proposed title selected, and takes no longer one than the store keeps', async () => {
+    await open();
+
+    const dialog = await openCopy();
+    const field = within(dialog).getByLabelText('Title') as HTMLInputElement;
+    field.blur();
+    field.focus();
+
+    // Typing replaces 「… copy」 rather than landing after it.
+    expect(field.selectionStart).toBe(0);
+    expect(field.selectionEnd).toBe(field.value.length);
+    expect(field.maxLength).toBe(MAX_VIEW_TITLE_LENGTH);
   });
 
   it('forgets the last answer the next time it is asked', async () => {

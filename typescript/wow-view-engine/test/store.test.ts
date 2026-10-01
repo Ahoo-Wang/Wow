@@ -155,6 +155,38 @@ describe('MemoryViewStore', () => {
     expect(renamed.config).toEqual(recordConfig({ pageSize: 50 }));
   });
 
+  it('moves on from a revision it did not count, and still conflicts against it', async () => {
+    const store = new MemoryViewStore({
+      instances: [instance({ revision: 'ops-1' })],
+      preferences: {
+        orders: { order: [], defaultInstanceId: null, revision: 'seeded' },
+      },
+    });
+
+    const saved = await store.save('orders-1', recordConfig(), 'ops-1', {
+      requestId: 'a',
+    });
+    const renamed = await store.rename('orders-1', 'Two', saved.revision, {
+      requestId: 'b',
+    });
+
+    expect(saved.revision).not.toBe('ops-1');
+    expect(renamed.revision).not.toBe(saved.revision);
+    for (const stale of ['ops-1', saved.revision]) {
+      const failure = await store
+        .rename('orders-1', 'Late', stale, { requestId: `late-${stale}` })
+        .catch((error: unknown) => error);
+      expect(failure).toMatchObject({ code: 'CONFLICT' });
+    }
+    const preferences = await store.setPreferences(
+      'orders',
+      { order: ['orders-1'], defaultInstanceId: null, revision: 'seeded' },
+      { requestId: 'c' },
+    );
+    expect(preferences.revision).not.toBe('seeded');
+    expect(preferences.revision).not.toBe('NaN');
+  });
+
   it('replays a save under the same requestId without advancing again', async () => {
     const store = new MemoryViewStore({ instances: [instance()] });
     const config = recordConfig({ pageSize: 50 });
@@ -338,9 +370,30 @@ describe('MemoryViewStore', () => {
 
   it('recognises a store error raised by a second copy of the package', () => {
     expect(isViewStoreError(new ViewStoreError('INVALID', 'no'))).toBe(true);
-    expect(isViewStoreError({ code: 'CONFLICT' })).toBe(true);
-    expect(isViewStoreError({ code: 'TEAPOT' })).toBe(false);
+    // A second copy's error is another class with the same name and code.
+    const copied = Object.assign(new Error('moved'), {
+      name: 'ViewStoreError',
+      code: 'CONFLICT',
+    });
+    expect(isViewStoreError(copied)).toBe(true);
+    // An HTTP library's error that happens to carry a code like one is not.
+    expect(isViewStoreError({ code: 'NOT_FOUND' })).toBe(false);
+    expect(isViewStoreError({ name: 'ViewStoreError', code: 'TEAPOT' })).toBe(
+      false,
+    );
     expect(isViewStoreError(null)).toBe(false);
+  });
+
+  it('keeps what a store mapped from: the cause and the backend code', () => {
+    const cause = new Error('HTTP 400');
+    const error = new ViewStoreError('INVALID', 'no app', {
+      cause,
+      detail: { code: 'ViewAppRequired' },
+    });
+
+    expect((error as { cause?: unknown }).cause).toBe(cause);
+    expect(error.detail).toEqual({ code: 'ViewAppRequired' });
+    expect(new ViewStoreError('INVALID', 'no')).not.toHaveProperty('cause');
   });
 });
 

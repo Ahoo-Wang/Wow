@@ -531,9 +531,20 @@ describe('useViewManager', () => {
    * anybody can see, which is the one outcome a gesture must never have.
    */
   describe('moving within an audience group', () => {
-    /** The two personal views, the system view, and a shared one. */
+    /**
+     * The two personal views, the system view, and a shared one — in a
+     * stored order that puts the two personal views between the two shared
+     * ones, as a reorder written before the groups were drawn could have.
+     */
     async function grouped() {
       const store = new MemoryViewStore({
+        preferences: {
+          orders: {
+            order: ['system:orders:all', 'orders-1', 'orders-2', 'orders-3'],
+            defaultInstanceId: null,
+            revision: '1',
+          },
+        },
         instances: [
           ...instances(),
           {

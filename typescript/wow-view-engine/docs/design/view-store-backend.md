@@ -116,7 +116,7 @@ data class ViewState(
 | **ShareView**（`…/owner/{ownerId}/view/{id}/share`）   | **ViewAudienceChanged** + 转移所有者 | 同上；发往视图当前所在的个人路径，转给 `(shared)`；已共享则原样答当前版本，不发命令                                                                                                                    |
 | **DeleteView**（删除聚合）                             | **ViewDeleted**（聚合已删除）        | 同上；软删，之后读作不存在                                                                                                                                                                             |
 
-- `config` 只做形状与大小的检查（是对象、`kind` 为记录／分析／仪表盘之一、不超过 256 KB；有 `panels` 时是对象数组，其中的引用 `instanceId`、`opens`、`click.instanceId` 是不超过 256 字的字符串——按类型建映射的存储（Elasticsearch）索引这几条路径，别的类型会让整条快照写不进去）；`definitionId` 不超过 256 字；语义由引擎打开时准入。
+- `config` 只做形状与大小的检查（是对象、`kind` 为记录／分析／仪表盘之一、不超过 240 KB——低于 WebFlux 默认缓冲的 256 KB 请求体；有 `panels` 时是对象数组，其中的引用 `instanceId`、`opens`、`click.instanceId` 是不超过 256 字的字符串——按类型建映射的存储（Elasticsearch）索引这几条路径，别的类型会让整条快照写不进去）；`definitionId` 不超过 256 字；语义由引擎打开时准入。
 - 所有者不符由 Wow 自己拒绝（命令里的所有者与状态不符）；应用不符由领域拒绝为不存在，不暴露它在别的应用里存在。
 - 「被共享看板引用」由领域内一个快照查询回答：同租户、同应用、所有者为 `(shared)` 的仪表盘里，面板引用了这个 id 的。
 
@@ -201,7 +201,8 @@ export class WowViewStore implements ViewStore {
 
 - **不生成客户端**：路由只有十来条，路径变量要留给拦截器填、重放要分辨 `204`、错误要按错误码读，生成的装饰器客户端这几样都帮不上，还要多一份与服务端逐字节核对的生成代码；所以请求在 **WowViewStore** 里手写，查询体用 wow-client 的 DSL。依赖不因此变：wow-client 本来就以 `fetcher-decorator` 与 `fetcher-eventstream` 为对等依赖，宿主随它一并安装（README 的「Use」列出）。
 - **路径参数**：`{tenantId}` 与个人视图的 `{ownerId}` 留空，由 fetcher 的拦截器填——fetcher-cosec 按令牌的 `tenantId` 与 `sub`；不登录的宿主（如补偿控制台）插入自己的拦截器注入缺省值。共享视图显式填 `(shared)`（拦截器只填没给的参数）。**WowViewStore** 不收租户、用户这类选项。
-- **列表**：个人与共享各查一次（快照列表，只投影摘要的字段，`kind` 取 `state.config.kind`，每种受众至多 1000 个，即服务端的查询上限），再合并系统视图，三个请求一起发。
+- **列表**：个人与共享各查一次（快照列表，只投影摘要的字段，`kind` 取 `state.config.kind`，按 `firstEventTime`、`aggregateId` 升序，每种受众至多 1000 个——最早的 1000 个，即服务端的查询上限），再合并系统视图，三个请求一起发；按端口的顺序作答：系统、共享、个人。截断之外的视图仍可按 id 读，地址里点名而列表里没有的视图，工作台先按 id 问一次再判断归属。
+- **错误的来处**：`ViewStoreError` 带 `cause`（请求本身的失败）与 `detail.code`（服务端的 `errorCode`），宿主据此分辨同为 `INVALID` 的 `ViewAppRequired` 与 `ViewInvalid`。服务端自己的错误码常量在客户端叫 `WowViewStoreErrorCodes`，与引擎的 `ViewStoreErrorCode`（端口的码）分开。
 - **按 id 读写要知道是个人还是共享**：端口只给 id。客户端记住列表、读取、创建时得到的「id → 受众」；没见过的 id 依次按个人、共享、服务端系统视图去读。系统视图的 id 由系统视图接口给出，客户端认得。
 - 写入：显式带 `Command-Request-Id` 与期望版本，等到 `SNAPSHOT`，成功后按 id 读回实例作答；读回的版本已被别人推过时，按 `requestId` 重放读回这次写入留下的那一版。`share` 与删除发 `{}`，`claim` 不带请求体。
 - **挪了地方的视图**：记着在个人路径上的视图被别的标签页设为了共享（或反过来），写入在旧路径上被拒（所有者不符或找不到）；客户端重新找到它，把同一个写入（同一个 `requestId`）再发一次到它现在的路径。
@@ -215,7 +216,8 @@ export class WowViewStore implements ViewStore {
 | 未认证、所有者不符、CoSec 拒绝（401、403）    | `FORBIDDEN`                                                                              |
 | 校验失败、参数非法、领域的 **ViewInvalid**    | `INVALID`                                                                                |
 | 拦截器没填的路径变量（请求没有发出）          | `INVALID`（宿主的配置错了，与服务端缺租户或所有者时的回答同；重试发出的还是同一个）      |
-| `IllegalState`、等待超时、限流、5xx、网络失败 | `UNAVAILABLE`（结局未知，重试复用同一个 `requestId`）                                    |
+| `IllegalState`、等待超时、限流、5xx、网络失败 | `UNAVAILABLE`（结局未知，重试复用同一个 `requestId`）；服务端答了话的带 `reachable`      |
+| 没有视图存储的服务端（早于它发布）答的 `404`  | `UNSUPPORTED`（列表的路由 `404`；按 id 读写时各处都 `404` 且系统视图列表也 `404`）       |
 
 **重放**：端口要求重试答第一次的结果，Wow 对重复的 `requestId` 报错。客户端收到「重复」——或期望版本冲突、找不到，重试遇到的正是这几种——时调 `GET /view/requests/{requestId}`：服务端按 `requestId` 在事件流里找到那次写入的聚合与版本，读回当时的实例作答（删除类答 204）。它只在写入者自己的路径上找得到，而重试可能发往与第一次不同的路径（设为共享的重试发往 `(shared)`，第一次发往个人路径），所以客户端先查这次发往的路径，再查另一条。这次发往的路径查不了（非「找不到」的失败）时结局未知，答 `UNAVAILABLE`；另一条路径查不了（没有共享角色的调用者在 `(shared)` 被拒）就当没有重放，原来的拒绝照旧；已经落地的写入回读时查不了，以读回的作答。事件流查询不对外开放，因为事件里有别人个人视图的配置。
 
