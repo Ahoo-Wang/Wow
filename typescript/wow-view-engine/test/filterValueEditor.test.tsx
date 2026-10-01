@@ -730,7 +730,6 @@ describe('FilterValueEditor', () => {
    * zone was ever applied, and a range lost its last day.
    */
   it('picks a day from the calendar and stores the day, not an instant', async () => {
-    pinClock();
     const { changes } = editor({ input: 'date', withTime: false }, {
       type: 'absolute',
       from: '2026-09-16',
@@ -760,7 +759,6 @@ describe('FilterValueEditor', () => {
    * `Sunday, August 30th, 2026` and `Go to the Next Month`.
    */
   it('draws the calendar in the surface language, its chrome included', async () => {
-    pinClock();
     const user = userEvent.setup();
     // A day that is neither the selected one nor today, so its name is the
     // bare date; the selected one is checked below, wording and all.
@@ -823,13 +821,45 @@ describe('FilterValueEditor', () => {
   });
 
   /**
+   * react-day-picker opens on today's month unless told otherwise, and it
+   * does not look at what is selected: a condition on 16 September opened on
+   * whatever month the reader's clock was in, the day it held out of sight.
+   * Today here is months away from the value, on purpose.
+   */
+  it('opens the calendar on the month of the value it holds', async () => {
+    pinClock(new Date(2027, 0, 15, 12));
+    const user = userEvent.setup();
+    editor({ input: 'date', withTime: false }, {
+      type: 'absolute',
+      from: '2026-09-16',
+    } as unknown as FilterValue);
+    await user.click(screen.getByLabelText('amount'));
+    expect(
+      await screen.findByRole('grid', { name: 'September 2026' }),
+    ).toBeTruthy();
+    expect(screen.queryByRole('grid', { name: 'January 2027' })).toBeNull();
+    cleanup();
+
+    // A range opens on the month it starts in.
+    editor({ input: 'dateRange', range: true, withTime: false }, {
+      type: 'absolute',
+      from: '2026-03-30',
+      to: '2026-04-02',
+    } as unknown as FilterValue);
+    await user.click(screen.getByLabelText('amount'));
+    expect(
+      await screen.findByRole('grid', { name: 'March 2026' }),
+    ).toBeTruthy();
+    expect(screen.queryByRole('grid', { name: 'January 2027' })).toBeNull();
+  });
+
+  /**
    * The registry's calendar makes its parts anew on each of its renders, so
    * a render of the calendar is a new calendar. A board renders whenever a
    * panel answers; a render that reached the calendar mid-pick took the day
    * under the pointer out of the document, and the pick went nowhere.
    */
   it('keeps the calendar it drew while its host renders again', async () => {
-    pinClock();
     const day = editor({ input: 'dateRange', range: true, withTime: true }, {
       type: 'absolute',
       from: '2026-09-16',
@@ -853,7 +883,6 @@ describe('FilterValueEditor', () => {
   });
 
   it('stores both ends of a day range as days', async () => {
-    pinClock();
     const { changes } = editor(
       { input: 'dateRange', range: true, withTime: false },
       { type: 'absolute', from: '2026-09-16' } as unknown as FilterValue,
@@ -880,7 +909,6 @@ describe('FilterValueEditor', () => {
    * itself is the condition.
    */
   it('offers no time of day on a plain date field, and keeps none', async () => {
-    pinClock();
     const { changes } = editor({ input: 'date', withTime: false }, {
       type: 'absolute',
       from: new Date(2026, 8, 16, 9, 30).toISOString(),
@@ -956,7 +984,6 @@ describe('FilterValueEditor', () => {
 
   /** Taking the last day back off the calendar is blank, not half a range. */
   it('blanks the leaf when the calendar is emptied', async () => {
-    pinClock();
     const { changes } = editor({ input: 'date', withTime: false }, {
       type: 'absolute',
       from: '2026-09-20',

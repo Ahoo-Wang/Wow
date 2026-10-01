@@ -158,7 +158,6 @@ describe('the time beside the calendar', () => {
   });
 
   it('keeps the day and the time apart, with no offset, when the day moves', async () => {
-    pinClock();
     const user = userEvent.setup();
     const day = editor({ input: 'date', withTime: true }, {
       type: 'absolute',
@@ -172,6 +171,21 @@ describe('the time beside the calendar', () => {
       await screen.findByRole('button', { name: /September 20/ }),
     );
     expect(day.last()).toEqual({ type: 'absolute', from: '2026-09-20T09:30' });
+  });
+
+  it('opens the calendar above the time on the month of the value', async () => {
+    pinClock(new Date(2027, 0, 15, 12));
+    const user = userEvent.setup();
+    editor({ input: 'date', withTime: true }, {
+      type: 'absolute',
+      from: '2026-09-16T09:30',
+    } as never);
+    await user.click(screen.getByRole('button', { name: 'Signed' }));
+    expect(
+      await screen.findByRole('grid', { name: 'September 2026' }),
+    ).toBeTruthy();
+    expect(screen.queryByRole('grid', { name: 'January 2027' })).toBeNull();
+    expect(box('Time hour').value).toBe('09');
   });
 
   it('clears one bound back to the whole day, and removes the time from both', async () => {

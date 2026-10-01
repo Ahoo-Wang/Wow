@@ -14,9 +14,9 @@
 import { onTestFinished, vi } from 'vitest';
 
 /**
- * The day the calendar tests take for today: a local noon in September 2026,
- * the month their values sit in, and none of the days they pick or name
- * (16, 18, 20, 21) so a day's accessible name is never 「Today, …」.
+ * A today for a calendar with nothing picked: a local noon in September
+ * 2026, and none of the days the tests pick or name (16, 18, 20, 21), so a
+ * day's accessible name is never 「Today, …」.
  */
 export const CALENDAR_TODAY = new Date(2026, 8, 25, 12, 0, 0);
 
@@ -24,11 +24,9 @@ export const CALENDAR_TODAY = new Date(2026, 8, 25, 12, 0, 0);
  * Pins `Date` — and only `Date`, so user-event and the popups keep their real
  * timers — to `at` for the rest of the current test.
  *
- * The picker opens on today's month (react-day-picker's default, with no
- * `defaultMonth` given): a test that looks for 「September 20」 found it only
- * while the wall clock was in September 2026, and every one of them broke on
- * 1 October. That includes the tests whose value is already in September —
- * the calendar does not open on the month of the value it holds.
+ * A calendar holding a value opens on the value's month and needs no pin; one
+ * with nothing picked opens on today's, so a test that picks a day there by
+ * name pins today, and a test of the value's month pins today elsewhere.
  */
 export function pinClock(at: Date = CALENDAR_TODAY): void {
   vi.useFakeTimers({ toFake: ['Date'] });

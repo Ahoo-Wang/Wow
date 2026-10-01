@@ -319,7 +319,6 @@ describe('the date control', () => {
   });
 
   it('writes a picked day as both ends of a one-day filter', async () => {
-    pinClock();
     const onChange = control({
       value: { type: 'absolute', from: '2026-09-20', to: '2026-09-20' },
       oneDay: true,
@@ -339,6 +338,23 @@ describe('the date control', () => {
       from: '2026-09-21',
       to: '2026-09-21',
     });
+  });
+
+  it('opens the calendar on the month of the day it holds', async () => {
+    pinClock(new Date(2027, 0, 15, 12));
+    control({
+      value: { type: 'absolute', from: '2026-09-20', to: '2026-09-20' },
+      oneDay: true,
+      required: true,
+    });
+    await userEvent.click(screen.getByRole('button', { name: 'Day' }));
+    const dialog = await screen.findByRole('dialog');
+    expect(
+      within(dialog).getByRole('grid', { name: 'September 2026' }),
+    ).toBeTruthy();
+    expect(
+      within(dialog).queryByRole('grid', { name: 'January 2027' }),
+    ).toBeNull();
   });
 
   it('reads a range of one day as that day, and a longer one as two', () => {

@@ -125,6 +125,11 @@ export function AbsoluteDate({
     [from.day, to.day],
   );
   const day = useMemo(() => parseDay(from.day), [from.day]);
+  // The month the calendar opens on: the value's own, so a day picked in
+  // March is shown in March and not wherever today happens to be. Given as
+  // the starting month only, so the user still pages freely; with nothing
+  // picked the library opens on today.
+  const opensOn = range ? (days.from ?? days.to) : day;
 
   return (
     <Popover>
@@ -161,6 +166,7 @@ export function AbsoluteDate({
             mode="range"
             autoFocus
             selected={days}
+            defaultMonth={opensOn}
             onSelect={onRange}
           />
         ) : (
@@ -168,6 +174,7 @@ export function AbsoluteDate({
             mode="single"
             autoFocus
             selected={day}
+            defaultMonth={opensOn}
             onSelect={onDay}
           />
         )}

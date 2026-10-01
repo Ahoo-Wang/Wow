@@ -27,7 +27,6 @@ import displayMeta, {
   UnknownEditor as DisplayUnknownEditor,
   WithTime as DisplayWithTime,
 } from './FilterPanel.stories.js';
-import { clockAt } from './clock.js';
 import { colorsSettled, measureTextContrast } from './contrast.js';
 import { amountOf, readColumn, readTotal } from './readTable.js';
 
@@ -59,14 +58,6 @@ const yuan = (value: number) =>
 const JOIN = zhCN['label.filter.join'];
 
 export default meta;
-
-/**
- * Today for the stories that open the calendar on the stored range, 15–17
- * September 2026: the calendar opens on today's month, not the month of the
- * value it holds, so these read the days of September only while today is in
- * it. A day none of them picks, names or hovers.
- */
-const SEPTEMBER_TODAY = new Date(2026, 8, 25, 12);
 
 type Story = StoryObj<typeof displayMeta>;
 
@@ -654,7 +645,6 @@ export const TheValueStaysInsideItsPill: Story = {
  */
 export const TheCalendarSpeaksTheSurfaceLanguage: Story = {
   ...DisplayWithTime,
-  beforeEach: () => clockAt(SEPTEMBER_TODAY),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await userEvent.click(
@@ -819,7 +809,6 @@ async function hovered(button: HTMLElement): Promise<{
  */
 export const ASelectedDayKeepsItsColoursUnderThePointer: Story = {
   ...DisplayWithTime,
-  beforeEach: () => clockAt(SEPTEMBER_TODAY),
   play: async ({ canvasElement }) => {
     // Storybook's own panel has no hold of the browser's mouse, and a built
     // event would prove nothing here.
