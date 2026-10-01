@@ -450,6 +450,9 @@ const KINDS: PopupKind[] = [
   {
     name: 'alert dialog',
     slot: 'alert-dialog-content',
+    // A dialog never runs past the viewport: a taller one scrolls inside
+    // (a view manager with 30-odd views ran off both edges).
+    adds: ['fve:max-h-[calc(100dvh-2rem)]', 'fve:overflow-y-auto'],
     vendored: (
       <AlertDialog open>
         <VendoredAlertDialogContent>
@@ -482,6 +485,9 @@ const KINDS: PopupKind[] = [
   {
     name: 'dialog',
     slot: 'dialog-content',
+    // A dialog never runs past the viewport: a taller one scrolls inside
+    // (a view manager with 30-odd views ran off both edges).
+    adds: ['fve:max-h-[calc(100dvh-2rem)]', 'fve:overflow-y-auto'],
     vendored: (
       <Dialog open>
         <VendoredDialogContent>
