@@ -90,6 +90,7 @@ npm 首发（`9.2.0-rc.0`）之前按下面的顺序做，同时只做一件。�
 - **与上一期整段、去年同期对比（Q59）与注释**：要第二条查询与运行时路径；注释要存储，随阶段 6。D71 里「对比上一期一步生成两个指标」一并在此。落点：`src/analysis/`、运行时（第二条查询）、[ui/analysis.md](ui/analysis.md)。
 - **Storybook 审查（2026-09-26）的 P2**：P0、P1 已全部处置。落点：`typescript/storybook/docs/review-2026-09-26.md`。
 - **搜索在真服务端上命中**：示例服务端的快照在 MongoDB 上，没有全文能力，端到端只验证了 `SEARCH` 被拒且如实报出。判据：契约作业有了 Elasticsearch 快照后，搜索用例改为断言命中。落点：Wow 仓端到端的 `view-engine/recordView` 用例（`typescript/integration-test/`）。
+- **Wow 框架：路径里的 owner／tenant 为空白时不得回退到请求头**（用户 2026-09-30：9.2.0 发版后处理）：`wow-webflux` 的 `getOwnerId()`／`getTenantId()`（`route/command/AggregateRequest.kt`）把空白的路径值（如 `%20`、`%09`、`%E3%80%80`）当作没给，改读 `Command-Owner-Id`／`Command-Tenant-Id` 请求头，两者都没有时 owner 为空、跳过 owner 检查；凡路由带 `{ownerId}`／`{tenantId}` 的聚合都如此。view-store 已在自己的过滤器里拒绝空白与不可见的范围值并剥掉这两个头（#3795），框架本身未改。判据：路由声明了 owner／tenant 路径变量时，空白值答 400、不再读请求头；请求头只用于路径里没有该变量的路由；发版说明写明这一 REST 行为变化（与 `spaced` 同属契约修正）。落点：`wow-webflux` 的命令与查询路由取值、对应测试。
 - **阶段 7：文档站**（用户 2026-09-29：首发后再维护）：视图引擎在文档站（`documentation/docs/{zh,en}`）只有「视图引擎」指南与可访问性声明两页。补齐面向使用者的一套：入门（从零接入一个业务对象）、概念（定义、视图、看板、系统视图与用户视图、存储）、指南（宿主接入、声明式操作、Wow 存储后端与 CoSec 路径规则、主题、CSP、可访问性）、API 参考，中英两版。
 
 ## 线索
