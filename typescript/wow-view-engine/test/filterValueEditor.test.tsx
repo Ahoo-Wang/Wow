@@ -35,6 +35,7 @@ import {
   ViewSurface,
   zhCN,
 } from '../src/ui/index.js';
+import { pinClock } from './fixtures/clock.js';
 
 afterEach(cleanup);
 
@@ -729,6 +730,7 @@ describe('FilterValueEditor', () => {
    * zone was ever applied, and a range lost its last day.
    */
   it('picks a day from the calendar and stores the day, not an instant', async () => {
+    pinClock();
     const { changes } = editor({ input: 'date', withTime: false }, {
       type: 'absolute',
       from: '2026-09-16',
@@ -758,6 +760,7 @@ describe('FilterValueEditor', () => {
    * `Sunday, August 30th, 2026` and `Go to the Next Month`.
    */
   it('draws the calendar in the surface language, its chrome included', async () => {
+    pinClock();
     const user = userEvent.setup();
     // A day that is neither the selected one nor today, so its name is the
     // bare date; the selected one is checked below, wording and all.
@@ -826,6 +829,7 @@ describe('FilterValueEditor', () => {
    * under the pointer out of the document, and the pick went nowhere.
    */
   it('keeps the calendar it drew while its host renders again', async () => {
+    pinClock();
     const day = editor({ input: 'dateRange', range: true, withTime: true }, {
       type: 'absolute',
       from: '2026-09-16',
@@ -849,6 +853,7 @@ describe('FilterValueEditor', () => {
   });
 
   it('stores both ends of a day range as days', async () => {
+    pinClock();
     const { changes } = editor(
       { input: 'dateRange', range: true, withTime: false },
       { type: 'absolute', from: '2026-09-16' } as unknown as FilterValue,
@@ -875,6 +880,7 @@ describe('FilterValueEditor', () => {
    * itself is the condition.
    */
   it('offers no time of day on a plain date field, and keeps none', async () => {
+    pinClock();
     const { changes } = editor({ input: 'date', withTime: false }, {
       type: 'absolute',
       from: new Date(2026, 8, 16, 9, 30).toISOString(),
@@ -899,6 +905,7 @@ describe('FilterValueEditor', () => {
    * already narrowed to everything from this moment on.
    */
   it('does not read the clock for a date nobody has picked', async () => {
+    pinClock();
     const day = editor({ input: 'dateRange', range: true, withTime: false });
 
     const trigger = screen.getByLabelText('amount');
@@ -949,6 +956,7 @@ describe('FilterValueEditor', () => {
 
   /** Taking the last day back off the calendar is blank, not half a range. */
   it('blanks the leaf when the calendar is emptied', async () => {
+    pinClock();
     const { changes } = editor({ input: 'date', withTime: false }, {
       type: 'absolute',
       from: '2026-09-20',

@@ -64,6 +64,7 @@ import {
   testSource,
   resourcesOf,
 } from './fixtures.js';
+import { pinClock } from './fixtures/clock.js';
 
 afterEach(cleanup);
 
@@ -318,6 +319,7 @@ describe('the date control', () => {
   });
 
   it('writes a picked day as both ends of a one-day filter', async () => {
+    pinClock();
     const onChange = control({
       value: { type: 'absolute', from: '2026-09-20', to: '2026-09-20' },
       oneDay: true,
