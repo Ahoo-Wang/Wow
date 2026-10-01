@@ -39,6 +39,14 @@ class AdmittedQuery<out Q : Any> internal constructor(
     val model: QueryModel
         get() = schema.model
 
+    /**
+     * Whether the query was admitted against a [provisional][QueryModelSchema.provisional] schema, compiled for
+     * storage that did not exist yet: a backend that finds the storage refuses it rather than run it on bindings the
+     * storage never proved.
+     */
+    val provisional: Boolean
+        get() = schema.provisional
+
     /** The resolution of one field reference of [query], by the identity of its [QueryField] instance. */
     fun field(reference: QueryField): ResolvedField = resolved(reference)
 

@@ -60,9 +60,11 @@ which Wow creates at startup when the index does not exist yet, beside its own s
   with a `keyword` capped at 256 and is refused;
 - `state.config` is `dynamic: false`: it holds whatever the engine's config holds, values of several types under
   one key included, and only `kind` and `panels` (a `nested` array, for the shared-board check, with `instanceId`,
-  `opens` and `click.instanceId`) are fields. The server refuses a config whose `panels` is not an array of objects
-  or whose references are not strings of at most 256 characters, and a `definitionId` longer than 256 characters,
-  since a store refuses a document it cannot index;
+  `opens` and `click.instanceId`) are fields. The server refuses a config whose `panels` is not an array of at most
+  1000 objects (each panel is a nested document, and Elasticsearch caps them at 10000 per document) or whose
+  references are not strings of at most 256 characters, and a `definitionId` longer than 256 characters; the
+  preferences' `definitionId`, `order` and `defaultInstanceId` hold ids of at most 256 characters as well, since a
+  store refuses a document it cannot index;
 - `state.lastTabs` of the preferences is not indexed (`enabled: false`): its keys are the host's.
 
 An index Wow already created for these aggregates from its template alone (a host that wrote views before it ran a

@@ -22,6 +22,7 @@ import me.ahoo.wow.viewstore.api.preferences.ViewPreferencesSet
 import me.ahoo.wow.viewstore.domain.ViewApps.requireSameApp
 import me.ahoo.wow.viewstore.domain.ViewApps.requiredAppId
 import me.ahoo.wow.viewstore.domain.ViewStoreException
+import me.ahoo.wow.viewstore.domain.view.ViewConfigs
 
 /**
  * One owner's preferences for one definition. The preferences route derives its id and dispatches
@@ -46,6 +47,9 @@ class ViewPreferences(private val state: ViewPreferencesState) {
         if (state.definitionId.isNotEmpty() && state.definitionId != body.definitionId) {
             throw ViewStoreException.invalid("The preferences belong to definition [${state.definitionId}].")
         }
+        requireId("definitionId", body.definitionId)
+        body.defaultInstanceId?.let { requireId("defaultInstanceId", it) }
+        body.order.forEach { requireId("order", it) }
         return ViewPreferencesSet(
             definitionId = body.definitionId,
             appId = appId,
@@ -54,5 +58,18 @@ class ViewPreferences(private val state: ViewPreferencesState) {
             autoRun = body.autoRun,
             lastTabs = body.lastTabs,
         )
+    }
+
+    /**
+     * The ids the preferences hold are indexed whole as exact values (keywords in Elasticsearch, which refuses a whole
+     * document whose keyword passes 32766 bytes), so each is at most [ViewConfigs.MAX_ID_LENGTH] characters, as a
+     * view's definition id and panel references are.
+     */
+    private fun requireId(name: String, id: String) {
+        if (id.length > ViewConfigs.MAX_ID_LENGTH) {
+            throw ViewStoreException.invalid(
+                "The preferences' $name holds an id longer than ${ViewConfigs.MAX_ID_LENGTH} characters."
+            )
+        }
     }
 }

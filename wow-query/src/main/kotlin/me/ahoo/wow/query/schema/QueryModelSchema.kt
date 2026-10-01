@@ -154,6 +154,8 @@ class QueryModelSchema(
     approximateMetrics: Set<String> = emptySet(),
     /** How the storage pages and aggregates, as its adapter declares it. */
     val storage: StorageSupport = StorageSupport.NATIVE,
+    /** Compiled from [QueryStorageFacts.provisional] facts: the storage does not exist yet. */
+    val provisional: Boolean = false,
 ) {
     val approximateMetrics: Set<String> = Collections.unmodifiableSet(LinkedHashSet(approximateMetrics))
     val capabilities: Set<QueryCapability> = Collections.unmodifiableSet(LinkedHashSet(capabilities))

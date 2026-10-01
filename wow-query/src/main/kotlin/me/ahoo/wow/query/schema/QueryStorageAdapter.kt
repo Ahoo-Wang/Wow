@@ -57,6 +57,12 @@ class QueryStorageFacts(
     val approximateMetrics: Set<String> = emptySet(),
     /** How the storage pages and aggregates. */
     val storage: StorageSupport = StorageSupport.NATIVE,
+    /**
+     * Whether the facts describe storage that does not exist yet, such as an index before its first write, from what
+     * it will be created with. A provisional schema is never published: the next load asks the storage again, so the
+     * schema follows the storage as soon as it exists.
+     */
+    val provisional: Boolean = false,
 ) {
     /**
      * Compiles these facts about [logicalSchema] into the [model]'s schema. The storage-independent capability rules
@@ -75,6 +81,7 @@ class QueryStorageFacts(
         fullProjectionAvailable = fullProjectionAvailable,
         approximateMetrics = approximateMetrics,
         storage = storage,
+        provisional = provisional,
     )
 
     private fun QueryValueBindings.compile(path: QueryPathTemplate, value: QueryValueSchema?): QueryValueBindings {

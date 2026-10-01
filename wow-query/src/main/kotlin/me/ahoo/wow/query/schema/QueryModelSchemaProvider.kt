@@ -16,7 +16,9 @@ package me.ahoo.wow.query.schema
 import me.ahoo.wow.query.forInProcessQuery
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
+import java.time.Duration
 import java.util.concurrent.atomic.AtomicReference
+import java.util.function.LongSupplier
 
 interface QueryModelSchemaProvider {
     fun schema(): Mono<QueryModelSchema>
@@ -41,22 +43,30 @@ class UnavailableQueryModelSchemaProvider(
  * The Catalog's compilation of one aggregate model (design §5.2): merges the declarations of [sources] into the
  * logical model under [sensitivity], asks the storage [adapter] for its facts about it, and compiles them into the
  * published [QueryModelSchema]. The first load is shared by concurrent callers; a refresh reloads the sources and the
- * storage's native structures and replaces the published schema only when it compiles.
+ * storage's native structures and replaces the published schema only when it compiles. A
+ * [provisional][QueryModelSchema.provisional] schema is never published: it is answered for `provisionalTtl`, so a
+ * storage that is never written is not asked again on every query, and the first load after that compiles the
+ * storage again. Once the storage exists its schema is the one published, at most `provisionalTtl` after it does.
  */
 class DefaultQueryModelSchemaProvider(
     private val context: QuerySchemaContext,
     sources: List<QuerySchemaSource>,
     private val adapter: QueryStorageAdapter,
     private val sensitivity: QuerySensitivityPolicy = QuerySensitivityPolicy.DEFAULT,
+    private val provisionalTtl: Duration = DEFAULT_PROVISIONAL_TTL,
+    /** The monotonic clock, in nanoseconds, `provisionalTtl` is measured with. */
+    private val nanoTime: LongSupplier = LongSupplier(System::nanoTime),
 ) : QueryModelSchemaProvider {
     private val sources = sources.toList()
     private val published = AtomicReference<QueryModelSchema>()
+    private val kept = AtomicReference<Provisional?>()
     private val firstLoad = AtomicReference<Mono<QueryModelSchema>>()
     private val refreshLoad = AtomicReference<Mono<QueryModelSchema>>()
     private val merger = QuerySchemaMerger()
 
     override fun schema(): Mono<QueryModelSchema> {
         published.get()?.let { return Mono.just(it) }
+        currentProvisional()?.let { return Mono.just(it) }
         firstLoad.get()?.let { return it }
 
         lateinit var candidate: Mono<QueryModelSchema>
@@ -65,7 +75,7 @@ class DefaultQueryModelSchemaProvider(
                 ?: resolve(refresh = false)
         }
             .doOnSuccess { schema ->
-                schema?.let { published.compareAndSet(null, it) }
+                schema?.let { if (it.provisional) keepProvisional(it) else published.compareAndSet(null, it) }
                 firstLoad.compareAndSet(candidate, null)
             }
             .doOnError { firstLoad.compareAndSet(candidate, null) }
@@ -81,13 +91,31 @@ class DefaultQueryModelSchemaProvider(
         lateinit var candidate: Mono<QueryModelSchema>
         candidate = Mono.defer { resolve(refresh = true) }
             .doOnSuccess { schema ->
-                schema?.let(published::set)
+                schema?.let {
+                    published.set(it.takeUnless(QueryModelSchema::provisional))
+                    if (it.provisional) keepProvisional(it) else kept.set(null)
+                }
                 refreshLoad.compareAndSet(candidate, null)
             }
             .doOnError { refreshLoad.compareAndSet(candidate, null) }
             .contextWrite { it.forInProcessQuery() }
             .share()
         return refreshLoad.compareAndExchange(null, candidate) ?: candidate
+    }
+
+    private fun currentProvisional(): QueryModelSchema? =
+        kept.get()?.takeIf { nanoTime.asLong - it.expiresAt < 0 }?.schema
+
+    private fun keepProvisional(schema: QueryModelSchema) {
+        kept.set(Provisional(schema, nanoTime.asLong + provisionalTtl.toNanos()))
+    }
+
+    private class Provisional(val schema: QueryModelSchema, val expiresAt: Long)
+
+    companion object {
+        /** How long a provisional schema is answered before the storage is asked again. */
+        @JvmField
+        val DEFAULT_PROVISIONAL_TTL: Duration = Duration.ofSeconds(2)
     }
 
     private fun resolve(refresh: Boolean): Mono<QueryModelSchema> =

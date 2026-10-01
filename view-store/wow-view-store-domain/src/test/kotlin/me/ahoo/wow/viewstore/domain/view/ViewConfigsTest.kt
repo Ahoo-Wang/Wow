@@ -75,6 +75,16 @@ class ViewConfigsTest {
     }
 
     @Test
+    fun `a dashboard holds at most the panel limit`() {
+        fun dashboard(count: Int) = JsonSerializer.createObjectNode().put("kind", "dashboard").also { config ->
+            val panels = config.putArray(ViewConfigs.PANELS)
+            repeat(count) { panels.addObject() }
+        }
+        ViewConfigs.requireValid(dashboard(ViewConfigs.MAX_PANELS)).assert().isEqualTo(ViewKind.DASHBOARD)
+        assertThrownBy<ViewStoreException> { ViewConfigs.requireValid(dashboard(ViewConfigs.MAX_PANELS + 1)) }
+    }
+
+    @Test
     fun `a definition id is at most the id length`() {
         val id = "d".repeat(ViewConfigs.MAX_ID_LENGTH)
         ViewConfigs.requireDefinitionId(id).assert().isEqualTo(id)

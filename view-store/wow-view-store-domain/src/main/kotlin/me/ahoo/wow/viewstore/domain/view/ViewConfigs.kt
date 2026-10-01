@@ -44,6 +44,13 @@ object ViewConfigs {
      */
     const val MAX_ID_LENGTH = 256
 
+    /**
+     * The most [PANELS] a config holds. Each panel is a nested document of the view's snapshot in Elasticsearch, which
+     * refuses a document of more than 10000 (`index.mapping.nested_objects.limit`). The engine's own limit
+     * (`maxDashboardPanels`, 24 by default) is a host setting; this bound leaves it room.
+     */
+    const val MAX_PANELS = 1000
+
     /** The kind of [config], after checking its shape and size. */
     fun requireValid(config: JsonNode?): ViewKind {
         if (config !is ObjectNode) {
@@ -61,19 +68,28 @@ object ViewConfigs {
     /**
      * The paths the shared-board check matches ([PANELS] and its [PANEL_REFERENCES]) are mapped by type in a store
      * with typed mappings (Elasticsearch), where a value of another type would fail the whole snapshot write: when
-     * present, `panels` is an array of objects, `click` an object, and each reference a string of at most
-     * [MAX_ID_LENGTH] characters. The rest of the config is not read.
+     * present, `panels` is an array of at most [MAX_PANELS] objects, `click` an object, and each reference a string of
+     * at most [MAX_ID_LENGTH] characters. The rest of the config is not read.
      */
     private fun requireReferences(config: ObjectNode) {
         val panels = config.get(PANELS)?.takeUnless { it.isNull } ?: return
-        if (!panels.isArray) {
-            throw ViewStoreException.invalid("A view's config $PANELS must be an array.")
-        }
+        requirePanelArray(panels)
         panels.forEach { panel ->
             if (!panel.isObject) {
                 throw ViewStoreException.invalid("Each of a view's config $PANELS must be an object.")
             }
             PANEL_REFERENCES.forEach { path -> requireReference(panel, path) }
+        }
+    }
+
+    private fun requirePanelArray(panels: JsonNode) {
+        if (!panels.isArray) {
+            throw ViewStoreException.invalid("A view's config $PANELS must be an array.")
+        }
+        if (panels.size() > MAX_PANELS) {
+            throw ViewStoreException.invalid(
+                "A view's config holds ${panels.size()} $PANELS; the limit is $MAX_PANELS."
+            )
         }
     }
 
