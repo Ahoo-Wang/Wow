@@ -510,6 +510,41 @@ describe('FilterValueEditor', () => {
     expect(screen.queryByRole('button')).toBeNull();
   });
 
+  /**
+   * The select read 「待发货, 部分发货」 while the applied chip under it read
+   * 「待发货、部分发货」: the library joins with an ASCII comma whatever the
+   * language (second review R2-78). It joins as the catalogue does now.
+   */
+  it('joins the chosen labels as the catalogue joins a list', () => {
+    const descriptor: EditorDescriptor = {
+      input: 'select',
+      multiple: true,
+      options: [
+        { value: 'PENDING', label: '待发货' },
+        { value: 'PARTIAL', label: '部分发货' },
+      ],
+    };
+    const shown = () =>
+      screen
+        .getByLabelText('amount')
+        .querySelector('[data-slot="select-value"]')?.textContent;
+    render(
+      <ViewSurface locale="zh-CN" messages={zhCN}>
+        <FilterValueEditor
+          kind="enum"
+          editor={descriptor}
+          value={['PENDING', 'PARTIAL']}
+          label="amount"
+          onChange={() => {}}
+        />
+      </ViewSurface>,
+    );
+    expect(shown()).toBe('待发货、部分发货');
+    cleanup();
+    editor(descriptor, ['PENDING', 'PARTIAL']);
+    expect(shown()).toBe(`待发货${en['label.filter.join']}部分发货`);
+  });
+
   it('says a blank yes-or-no is not set, like every other blank value', () => {
     editor({ input: 'boolean' });
 

@@ -816,7 +816,7 @@ export const zhCN: Readonly<Record<string, string>> = {
   'view.write.storage': '这个浏览器没能把这次修改存下来（存储已满或被禁用）。',
   'record.detail.forbidden': '你没有权限查看这条记录。',
   'view.open.failed.not_found': '这个视图已不存在。',
-  'view.open.failed.forbidden': '你不能打开这个视图。',
+  'view.open.failed.forbidden': '你没有这个视图的权限，请联系管理员开通。',
   'view.open.failed.unavailable': '无法加载这个视图：无法连接服务端。',
   'view.list.failed.unavailable': '视图列表加载失败：无法连接服务端。',
   'view.open.failed.unavailable.server':
@@ -1670,7 +1670,8 @@ export const zhCN: Readonly<Record<string, string>> = {
   'label.dashboard.other-definition':
     '这个仪表盘属于另一个页面，这个页面无法显示。',
   'label.dashboard.gone': '这个仪表盘已不存在。',
-  'label.dashboard.open-forbidden': '你不能打开这个仪表盘。',
+  'label.dashboard.open-forbidden':
+    '你没有这个仪表盘的权限，请联系管理员开通。',
   'label.dashboard.open-unavailable': '无法加载这个仪表盘：无法连接服务端。',
   'label.dashboard.open-unavailable-server':
     '无法加载这个仪表盘：服务端暂时无法处理（{reason}）。',

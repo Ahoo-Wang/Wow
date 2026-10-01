@@ -14,20 +14,19 @@
 import { useEffect, type ReactNode } from 'react';
 import type { ViewKind } from '../../model/index.js';
 import type { AnyViewRuntime, ViewEngine } from '../../runtime/index.js';
-import { RotateCcwIcon } from 'lucide-react';
 import {
   kindMismatch,
   retryableOpen,
   type OpenViewState,
 } from '../../react/index.js';
 import { Alert, AlertDescription, AlertTitle } from '../components/alert.js';
-import { Button } from '../components/button.js';
 import { Skeleton } from '../components/skeleton.js';
-import { kindIssue, kindWord, SurfaceKind } from '../kit/kinds.js';
+import { kindWord, SurfaceKind } from '../kit/kinds.js';
 import { useViewMessages } from '../kit/MessagesProvider.js';
 import { RenderBoundary } from '../kit/RenderBoundary.js';
 import { FailureSink } from '../kit/failureSink.js';
 import { ViewSurface } from '../kit/ViewSurface.js';
+import { Unopenable } from '../workbench/Unopenable.js';
 import type { EmbedBaseProps } from './options.js';
 
 /**
@@ -102,30 +101,17 @@ export function EmbedFrame({
           below, through `SurfaceKind`; its own lines, which the provider
           does not reach, by `kind` directly. */}
       <SurfaceKind.Provider value={kind}>
+        {/* The same face the workbenches give a view they cannot open —
+            an icon, the line, the reason and the way on — rather than a
+            red strip: on a host's landing page, a reader without access
+            otherwise met what read as a crash (second review R2-80). */}
         {unopenable && (
-          <Alert variant="destructive">
-            <AlertTitle>
-              {messages.label(kindWord('label.view.unopenable', kind))}
-            </AlertTitle>
-            <AlertDescription>
-              <p>{messages.issue(kindIssue(unopenable, kind))}</p>
-              {/* A store that could not be reached or answer may well the
-                  next time; a page has no other way back short of a reload. */}
-              {retryableOpen(opened.error) && (
-                <div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    data-slot="view-open-retry"
-                    onClick={opened.retry}
-                  >
-                    <RotateCcwIcon data-icon="inline-start" />
-                    {messages.label('label.view.open-retry')}
-                  </Button>
-                </div>
-              )}
-            </AlertDescription>
-          </Alert>
+          <Unopenable
+            issue={unopenable}
+            // A store that could not be reached or answer may well the next
+            // time; a page has no other way back short of a reload.
+            onRetry={retryableOpen(opened.error) ? opened.retry : undefined}
+          />
         )}
         {/*
           A refused narrowing leaves the wider result running, which is the

@@ -76,6 +76,36 @@ export function offscreenHint(
 }
 
 /**
+ * How a row's hint words whose number it is (R2-79). Two rows naming the
+ * same column's same function, with as many more out of view, say it once
+ * — 「申请金额 总和 等 2 项」 — over the first row's number:
+ * `leads` writes it on a line of its own above that row's scope and number,
+ * `follows` leaves it to that line and keeps to one line of its own — the
+ * footer of a laptop-height workbench is a line shorter, and nothing it
+ * said is gone. `own` is a row whose hint names its number alone.
+ */
+export type HintCaption = 'own' | 'leads' | 'follows';
+
+/** Each row's caption, by whether its neighbours name the same number. */
+export function hintCaptions(
+  hints: readonly (OffscreenHint | null)[],
+): HintCaption[] {
+  const same = (a: OffscreenHint | null, b: OffscreenHint | null) =>
+    a !== null &&
+    b !== null &&
+    a.column.field === b.column.field &&
+    a.cell.fn === b.cell.fn &&
+    a.count === b.count;
+  return hints.map((hint, index) =>
+    index > 0 && same(hints[index - 1], hint)
+      ? 'follows'
+      : same(hint, hints[index + 1] ?? null)
+        ? 'leads'
+        : 'own',
+  );
+}
+
+/**
  * The footer cell that carries the hint, as the summary rows lay it out.
  *
  * `at` is {@link SELECT_HOST} for the selection column's cell, otherwise a field.

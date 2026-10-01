@@ -311,7 +311,8 @@ export const viewMessages = {
   // `/react` composes `<command>.<outcome>`; these say more than the command
   // alone, and anything not named here falls back along the dots.
   'view.open.failed.not_found': 'This view no longer exists.',
-  'view.open.failed.forbidden': 'You may not open this view.',
+  'view.open.failed.forbidden':
+    'You do not have access to this view. Ask an administrator to grant it.',
   'view.open.failed.unavailable':
     'This view could not be loaded: the server could not be reached.',
   'view.list.failed.unavailable':

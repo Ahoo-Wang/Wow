@@ -32,6 +32,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   MemoryViewStore,
   ViewEngine,
+  ViewStoreError,
   type DashboardFilters,
   type DashboardPanel,
   type DashboardViewConfig,
@@ -323,6 +324,40 @@ describe('EmbeddedDashboard', () => {
     expect(alert.textContent).toContain('无法打开这个仪表盘');
     expect(alert.textContent).toContain('这个仪表盘已不存在。');
     expect(alert.textContent).not.toContain('视图');
+  });
+
+  /**
+   * R2-80: a reader without access lands on a host's page with this board on
+   * it. The workbenches' face for a view they cannot open — a lock, the
+   * line, a reason that says who can change it — not a red strip whose two
+   * lines said the same thing and read as a crash.
+   */
+  it('meets a board the reader may not open with a lock, not an error', async () => {
+    const engine = engineOf();
+    vi.spyOn(MemoryViewStore.prototype, 'get').mockRejectedValue(
+      new ViewStoreError('FORBIDDEN', 'no', {}),
+    );
+    render(
+      <EmbeddedDashboard engine={engine} instanceId="board" messages={zhCN} />,
+    );
+
+    const said = await screen.findByRole('alert');
+    expect(said.dataset.slot).toBe('view-unopenable');
+    expect(said.dataset.issue).toBe('view.open.failed.forbidden');
+    // Not the destructive alert it was: neutral, with nothing to retry.
+    expect(said.hasAttribute('data-tone')).toBe(false);
+    expect(said.querySelector('[data-slot="alert"]')).toBeNull();
+    expect(said.querySelector('[data-slot="view-open-retry"]')).toBeNull();
+    expect(said.textContent).toContain('无法打开这个仪表盘');
+    // The reason adds to the line rather than repeating it.
+    expect(said.textContent).toContain(
+      '你没有这个仪表盘的权限，请联系管理员开通。',
+    );
+    // Surviving class assertion: lucide names its glyph by class, the one
+    // witness on the element of which picture is drawn.
+    expect(said.querySelector('svg')?.classList.contains('lucide-lock')).toBe(
+      true,
+    );
   });
 
   it('answers no press and offers no way off the board in the static tier', async () => {

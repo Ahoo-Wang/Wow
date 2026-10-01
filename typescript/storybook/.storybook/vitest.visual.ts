@@ -12,6 +12,7 @@
  */
 
 import { expect } from 'vitest';
+import { page } from 'vitest/browser';
 // The global a story hands its pictures to is declared there.
 import type {} from '../stories/view-engine/screenshot.js';
 
@@ -22,9 +23,16 @@ import type {} from '../stories/view-engine/screenshot.js';
  * or different picture fails the story, and `-u` writes the new one.
  */
 globalThis.storybookScreenshot = async (element, name) => {
-  // Well inside the story's own 15 s: a page that never holds still says
-  // so, with its pictures, rather than timing the whole story out.
+  // A locator, not the element: `expect.element` compares a locator once,
+  // but an element it polls — a different picture was taken, compared and
+  // written again every 50 ms until the story's 15 s ran out (vitest
+  // 4.1.11 marks the matcher "assert once" only on the locator path), so a
+  // mismatch read as a timeout. With the locator it fails on its first
+  // comparison, its reference, actual and diff written next to the
+  // baseline (`.vitest-attachments`). The 6 s is the matcher's own wait for
+  // a page that holds still: one that never does says so, with its
+  // pictures, rather than timing the whole story out.
   await expect
-    .element(element as HTMLElement)
+    .element(page.elementLocator(element))
     .toMatchScreenshot(name, { timeout: 6_000 });
 };

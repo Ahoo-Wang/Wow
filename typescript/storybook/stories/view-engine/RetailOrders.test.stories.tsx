@@ -330,3 +330,52 @@ export const HostNavigation: Story = {
     );
   },
 };
+
+/**
+ * The operator select is as wide as its longest word, whichever is chosen:
+ * a fixed 6rem cut 「含有其中任一」 mid-glyph to 「含有其中仁」 (second review
+ * R2-78), and the chosen values read as the chip under them does,
+ * 「礼品、加急」 rather than the library's 「礼品, 加急」.
+ */
+export const OperatorReadsWhole: Story = {
+  ...DisplayOrderWorkbench,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await userEvent.click(
+      await canvas.findByRole('button', { name: /^礼品加急/ }),
+    );
+    await waitFor(async () => expect(await total(canvasElement)).toBe(36));
+    await userEvent.click(
+      await canvas.findByRole('button', {
+        name: new RegExp(`^${zhCN['label.filter.panel']}`),
+      }),
+    );
+    const operator = await canvas.findByRole('combobox', {
+      name: zhCN['label.filter.operator-of'].replace('{field}', '标记'),
+    });
+    const pill = operator.closest<HTMLElement>(
+      '[data-slot="filter-condition"]',
+    )!;
+    await expect(
+      pill.querySelector(
+        '[data-slot="filter-value"] [data-slot="select-value"]',
+      ),
+    ).toHaveTextContent(/^礼品、加急$/);
+    for (const word of [
+      zhCN['label.relation.has-any'],
+      zhCN['label.relation.has-none'],
+    ]) {
+      await userEvent.click(operator);
+      await userEvent.click(await screen.findByRole('option', { name: word }));
+      const value = await waitFor(() => {
+        const found = operator.querySelector<HTMLElement>(
+          '[data-slot="select-value"]',
+        );
+        expect(found).toHaveTextContent(word);
+        return found!;
+      });
+      // Not one glyph cut: the text fits the box it is drawn in.
+      await expect(value.scrollWidth).toBeLessThanOrEqual(value.clientWidth);
+    }
+  },
+};

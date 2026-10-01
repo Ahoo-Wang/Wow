@@ -99,8 +99,21 @@ describe('cartesianFit: the value labels over the bars', () => {
     expect(patch.grid.top).toBe(24);
   });
 
-  it('turns every label to run up from the bar where flat ones do not fit', () => {
+  /**
+   * Second review R2-74: a row of amounts written on their sides
+   * (「¥3.49万」 read from the bottom up over ten grouped bars) was the
+   * hardest text on the board. Unasked, a label that does not fit flat is
+   * not written; the numbers stay in the tooltip and the accessible table.
+   */
+  it('writes none, unasked, where flat ones do not fit', () => {
     const patch = fit(wide, bar(), 260) as Loose;
+    expect(patch.series[0].label).toEqual({ show: false });
+    expect(patch.grid.top).toBe(16);
+  });
+
+  it('turns every label to run up from the bar only where every number was asked for', () => {
+    const asked = { ...bar(), labels: true } as ChartSpec;
+    const patch = fit(wide, asked, 260) as Loose;
     expect(patch.series[0].label).toMatchObject({
       show: true,
       rotate: 90,

@@ -40,6 +40,7 @@ import { useViewMessages } from '../kit/MessagesProvider.js';
 import { Skeleton } from '../components/skeleton.js';
 import { Tooltip, TooltipTrigger } from '../components/tooltip.js';
 import { TooltipContent } from '../kit/popups.js';
+import { Truncated } from '../kit/Truncated.js';
 
 export interface ViewListProps {
   list: ViewListState;
@@ -161,14 +162,16 @@ export function ViewList({
               view's name is the `h2` in the title bar): a definition is the
               thing this whole screen is about, and a heading the size of
               the group labels under it read as one more of them. */}
-          <h1
+          <Truncated
+            as="h1"
             id={headingId}
             data-slot="view-list-title"
-            className="fve:min-w-0 fve:flex-1 fve:truncate fve:px-1.5 fve:text-base fve:font-semibold"
-          >
-            {(title && messages.say(title)) ||
-              messages.label(word('label.view.list'))}
-          </h1>
+            className="fve:min-w-0 fve:flex-1 fve:px-1.5 fve:text-base fve:font-semibold"
+            text={
+              (title && messages.say(title)) ||
+              messages.label(word('label.view.list'))
+            }
+          />
           {create && (
             <NewViewControl
               command={create}
@@ -442,7 +445,7 @@ function ViewListItem({
           {messages.label(`label.kind.${item.kind}`)}
         </TooltipContent>
       </Tooltip>
-      <span className="fve:truncate">{messages.say(item.title)}</span>
+      <Truncated text={messages.say(item.title)} />
       {/* The row's end holds the facts about the view rather than its name:
           the star when it opens first, and the lock when it came with the
           definition (`SystemMark`). One group pushed to the end, so a

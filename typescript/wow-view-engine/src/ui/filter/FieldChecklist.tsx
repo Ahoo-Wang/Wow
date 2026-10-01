@@ -48,6 +48,7 @@ import { useViewMessages } from '../kit/MessagesProvider.js';
 import { FOCUSABLE, isBarred } from '../kit/focus.js';
 import { PopoverContent } from '../kit/popups.js';
 import { conditionAt, ownerOf } from './conditionFocus.js';
+import { Truncated } from '../kit/Truncated.js';
 
 /**
  * The fields of a group, as a grid of checkboxes to tick rather than a menu
@@ -197,7 +198,7 @@ export function FieldChecklist({
             htmlFor={`${ids}-${field.name}`}
             className="fve:min-w-0 fve:font-normal"
           >
-            <span className="fve:truncate">{messages.say(field.label)}</span>
+            <Truncated text={messages.say(field.label)} />
             {/* Still offered, and said: its source is moving off it
                 (#3519). The reason, where there is one, is its title. */}
             {field.deprecated && (

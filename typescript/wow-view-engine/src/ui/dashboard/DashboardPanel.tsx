@@ -77,6 +77,7 @@ import {
 import type { MessageKey } from '../kit/messages.js';
 import { FOCUS_INSET, PanelCard } from '../kit/variants.js';
 import { CardContent, CardHeader, CardTitle } from '../components/card.js';
+import { Truncated } from '../kit/Truncated.js';
 
 /** Where a panel title may sit in a page's outline — never above a page title. */
 export type PanelHeadingLevel = 2 | 3 | 4 | 5 | 6;
@@ -520,15 +521,12 @@ function PanelHeader({
             returnTo={menuTrigger}
           />
         ) : (
-          <Title
+          <Truncated
+            as={Title}
             data-slot="panel-title"
-            className={cn(
-              'fve:min-w-0 fve:truncate',
-              untitled && 'fve:sr-only',
-            )}
-          >
-            {name}
-          </Title>
+            className={cn('fve:min-w-0', untitled && 'fve:sr-only')}
+            text={name}
+          />
         )}
         {/* A 24px target hung in the title's own line (`-my-1`): the
           menu is on every panel a reader sees, and a header grown by

@@ -378,7 +378,28 @@ export function ConditionPill({
       {pending && <PendingDot named className={PENDING_AT_CORNER} />}
       {name}
       {negatedWord}
-      <div className="fve:w-24 fve:shrink-0">{operatorSelect}</div>
+      {/* As wide as the longest operator it offers, whichever is chosen:
+          a fixed 6rem cut 「含有其中任一」 mid-glyph to 「含有其中仁」 (second
+          review R2-78), and a width that followed the chosen word would move
+          the value beside it each time the operator changed. Every label is
+          laid, unseen and unheard, in the select's own grid cell, and the
+          widest sets the column; the padding is the trigger's and its
+          chevron's. */}
+      <div data-slot="filter-operator" className="fve:grid fve:shrink-0">
+        <div className="fve:col-start-1 fve:row-start-1 fve:min-w-24">
+          {operatorSelect}
+        </div>
+        {operators.map(operator => (
+          <span
+            key={operator.value}
+            aria-hidden
+            data-slot="filter-operator-sizer"
+            className="fve:invisible fve:col-start-1 fve:row-start-1 fve:h-0 fve:overflow-hidden fve:pr-7 fve:pl-1 fve:text-sm fve:whitespace-nowrap"
+          >
+            {operator.label}
+          </span>
+        ))}
+      </div>
       {/* One border per condition (D12): the pill is the field, so the
           value control inside it draws none of its own — like the operator
           select beside it — and shows focus by the ring alone. That used to

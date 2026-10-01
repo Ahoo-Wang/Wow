@@ -421,3 +421,97 @@ export const HostBreakpointInsideTheSurface: Story = {
     }
   },
 };
+
+/**
+ * A host's Tailwind build as it opens: its layers, named before anything is
+ * in them — and, to see where the engine's reset lands among them, one
+ * preset value written inside the host's `utilities` layer, which a theme
+ * written by the guide never does (`wow-view-engine theme-check` refuses it).
+ */
+const HOST_TAILWIND = `@layer theme, base, components, utilities;
+@layer base {
+  :root { --fve-ring: rgb(4, 5, 6); }
+}
+@layer utilities {
+  .w-full { width: 100%; }
+  .flex-col { flex-direction: column; }
+  [data-layered-preset] { --fvp-radius: 3px; }
+}`;
+
+/**
+ * 宿主的样式表排在引擎的 `styles.css` 之前，主题照常（发布前复核 (a)）。
+ *
+ * 层的先后由第一次出现定：宿主的 Tailwind 先声明 `theme, base, components,
+ * utilities`，引擎随后声明的 `fve-reset` 就排在它们之后、宿主的 `utilities`
+ * 之上——引擎的样式先到时它在最底下。这里把宿主的样式表放到 `<head>` 最前面，
+ * 量出这个翻转确实发生：写在宿主 `utilities` 层里的预设值，引擎在前时生效，
+ * 宿主在前时被复位清掉。
+ *
+ * 但按主题指南写的主题不受影响：复位只把 `--fvp-*` 设回 `initial`，而预设写在
+ * 任何层之外（层外永远赢层内），宿主的 `--fve-*` 不经它手。所以四套内置预设与
+ * 一套宿主预设、宿主写在自己 `base` 层里的 `--fve-*`，宿主在前与在后解析出的值
+ * 一样。主题指南「加载顺序」一节写明了这一点。
+ */
+export const HostStylesheetBeforeTheEngine: Story = {
+  globals: { fvePreset: ENGINE_PRESET },
+  render: () => (
+    <div>
+      {PRESETS.map(preset => (
+        <ViewSurface key={preset} preset={preset} theme="light">
+          {preset}
+        </ViewSurface>
+      ))}
+      {/* `neutral` writes nothing, so nothing outside a layer covers it. */}
+      <ViewSurface preset="neutral" theme="light" data-layered-preset="">
+        layered
+      </ViewSurface>
+    </div>
+  ),
+  play: async ({ canvasElement }) => {
+    const hostPreset = withStyle(HOST_PRESET_CSS);
+    const style = document.createElement('style');
+    style.dataset.themeLayers = '';
+    style.textContent = HOST_TAILWIND;
+    const surfaces = [
+      ...canvasElement.querySelectorAll<HTMLElement>(
+        '[data-slot="view-surface"]:not([data-layered-preset])',
+      ),
+    ];
+    const layered = canvasElement.querySelector<HTMLElement>(
+      '[data-layered-preset]',
+    )!;
+    const radius = (element: Element) =>
+      getComputedStyle(element).getPropertyValue('--fvp-radius').trim();
+    /** What each surface resolves, by preset. */
+    const resolved = () =>
+      surfaces.map(surface => ({
+        preset: surface.getAttribute('data-fve-preset'),
+        primary: colorOf(surface, '--primary'),
+        background: colorOf(surface, '--background'),
+        ring: colorOf(surface, '--ring'),
+        radius: getComputedStyle(surface).getPropertyValue('--radius').trim(),
+      }));
+    try {
+      await expect(surfaces).toHaveLength(PRESETS.length);
+      // After the engine's stylesheet, as a host's own usually is.
+      document.head.append(style);
+      await expect(radius(layered)).toBe('3px');
+      const after = resolved();
+      // The host's `--fve-*`, written in its own `base` layer, reaches
+      // every surface whatever preset it pins.
+      for (const surface of after)
+        await expect(surface.ring).toBe('rgb(4, 5, 6)');
+
+      // Before it: the reset now sits above the host's layers, and the
+      // value written inside one is emptied.
+      document.head.prepend(style);
+      await expect(document.head.firstElementChild).toBe(style);
+      await waitFor(() => expect(radius(layered)).toBe(''));
+      // Everything the guide has a host write resolves as it did.
+      await expect(resolved()).toEqual(after);
+    } finally {
+      style.remove();
+      hostPreset();
+    }
+  },
+};

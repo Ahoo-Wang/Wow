@@ -888,6 +888,16 @@
 - **裁定**（2026-09-25，按推荐）：`DataWorkbench`、`DashboardWorkbench`（与 `WorkbenchShell`）加 `landmark: 'main' | 'region'`，缺省 `main`（工作台通常就是页面的主体）；`region` 画成 `<section>`，名字与 `main` 同（开着的视图名，没开视图时是定义名）。样式表按 `data-slot="workbench-main"` 找主列、不按标签，两种画法像素一致。嵌入一直没有 `main`，不变。
 - **落点**：[ui/README.md](ui/README.md)「两级标题」一条；文档站「视图引擎的可访问性」。（见 test/workbenchLandmark.test.tsx，与回归 story「工作台地标」的 `InsideHostMain`、`SameLayoutEitherWay`）
 
+## D80 图上的字不转：峰谷字平放，没问的数放不下就不写（2026-10-01）
+
+- **来由**：第二轮审查 R2-74。十根分组柱上一排侧着写的「¥3.49万」、长长一排柱里竖着写的「最高 5」「最低 1」，是最常打开的看板上最难读的字。
+- **裁定**（用户 2026-10-01）：取代 #3802 定下的「峰谷字比柱宽时顺着柱竖写」。
+  - **峰谷字总是平放**，写在柱端之外，靠近两端的字往绘图区里那一侧对齐、不伸出图外；比柱宽时可以横过两旁的柱身，字带一圈底色描边，读得清。只标峰谷时旁边的柱不写数，没有别的字可撞。
+  - **没人问过的数值标签**（`labels` 不写）放得下平排就全部平排，放不下就一个也不写——数在提示框与读屏表里。
+  - **只有分析者选了「每个都标」**（`labels: true`）时，平排放不下而一行字的高度放得下，才全部竖排；那是他要的每一个数。
+- **理由**：转了 90° 的字要歪头读，中文字字侧卧（与纵轴标题平放在轴顶同一个理由，[ui/analysis.md](ui/analysis.md)「轴有标题」）；没被要求的数宁可交给提示框，也不以难读的方式挤上去。
+- **落点**：`src/ui/charts/{cartesianFit,cartesianMarks}.ts`；test/cartesianFit.test.ts、test/chartAnnotations.test.ts；浏览器故事「图表读法/回归」的 `PeaksOnlyOverALongRow`、`PeaksOnlyOverALongRowNarrow`；[ui/analysis.md](ui/analysis.md)「每根柱上写它的数」「峰谷的字总是平放」。
+
 ## 搁置待议
 
 尚无结论，不要当作规则执行。

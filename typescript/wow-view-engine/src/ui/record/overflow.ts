@@ -31,21 +31,78 @@ import { useLayoutEffect, useState, type RefObject } from 'react';
 export function useOverflowing(
   port: RefObject<HTMLElement | null>,
   table: RefObject<HTMLElement | null>,
-): boolean {
-  const [overflowing, setOverflowing] = useState(false);
+  /**
+   * Whether the port is its own scroller (`stickyPort`): only then is what
+   * lies hidden past each side its scroll position's to say.
+   */
+  scrolls = false,
+): Overflow {
+  const [overflow, setOverflow] = useState<Overflow>(FITS);
 
   useLayoutEffect(() => {
     const node = port.current;
     if (!node) return;
-    const measure = () =>
-      setOverflowing(node.scrollWidth > node.clientWidth + 1);
+    const measure = () => {
+      const next = measureOverflow(node, scrolls);
+      setOverflow(previous => (sameOverflow(previous, next) ? previous : next));
+    };
     measure();
-    if (typeof ResizeObserver === 'undefined') return;
-    const observer = new ResizeObserver(measure);
-    observer.observe(node);
-    if (table.current) observer.observe(table.current);
-    return () => observer.disconnect();
-  }, [port, table]);
+    let frame: number | null = null;
+    const schedule = () => {
+      if (frame !== null) return;
+      frame = requestAnimationFrame(() => {
+        frame = null;
+        measure();
+      });
+    };
+    if (scrolls) node.addEventListener('scroll', schedule, { passive: true });
+    const observer =
+      typeof ResizeObserver === 'undefined'
+        ? null
+        : new ResizeObserver(measure);
+    observer?.observe(node);
+    if (table.current) observer?.observe(table.current);
+    return () => {
+      node.removeEventListener('scroll', schedule);
+      observer?.disconnect();
+      if (frame !== null) cancelAnimationFrame(frame);
+    };
+  }, [port, table, scrolls]);
 
-  return overflowing;
+  return overflow;
+}
+
+/**
+ * Whether the table overflows its port, and which sides have columns
+ * scrolled out of sight past them (second review R2-76): a held column's
+ * edge fades the content passing under it only while there is content
+ * under it — 「PO202609210(」 cut by the held 最近更新 read as a damaged
+ * number. The edge itself answers to `overflowing` alone (D13, P-23).
+ */
+export interface Overflow {
+  overflowing: boolean;
+  /** Columns scrolled out of sight before the start. */
+  start: boolean;
+  /** Columns not yet scrolled into sight past the end. */
+  end: boolean;
+}
+
+const FITS: Overflow = { overflowing: false, start: false, end: false };
+
+/** One reading of the port. */
+export function measureOverflow(node: HTMLElement, scrolls: boolean): Overflow {
+  const room = node.scrollWidth - node.clientWidth;
+  const overflowing = room > 1;
+  if (!overflowing || !scrolls) return { ...FITS, overflowing };
+  return {
+    overflowing,
+    start: node.scrollLeft > 1,
+    end: node.scrollLeft < room - 1,
+  };
+}
+
+function sameOverflow(a: Overflow, b: Overflow): boolean {
+  return (
+    a.overflowing === b.overflowing && a.start === b.start && a.end === b.end
+  );
 }

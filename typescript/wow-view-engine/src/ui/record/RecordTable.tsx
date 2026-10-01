@@ -20,7 +20,6 @@ import type { RecordTableController } from '../../react/index.js';
 import { recordValue } from '../../record/index.js';
 import { useOpenRows } from './openRows.js';
 import { RowActions } from './RowActions.js';
-import { Checkbox } from '../components/checkbox.js';
 import { RangeHint, RowCheckbox } from './RowCheckbox.js';
 import { useViewMessages } from '../kit/MessagesProvider.js';
 import { useSurfaceAnnouncer } from '../kit/Announcer.js';
@@ -68,6 +67,7 @@ import {
   TableHeader,
   TableRow,
 } from '../components/table.js';
+import { MixedCheckbox } from '../kit/MixedCheckbox.js';
 
 /**
  * The room a selection checkbox stands in: the box where it always stood, at
@@ -274,7 +274,7 @@ export function RecordTable({
   // Whether the middle really scrolls, which is what the held columns'
   // edges answer to (P-23). Asked before the cap, whose own observer a
   // test reaches for as the latest one created.
-  const overflowing = useOverflowing(port, element);
+  const overflow = useOverflowing(port, element, scrolls);
   const released = usePinnedCap(port, element, slots);
   useEffect(() => onReleasedPins?.(released), [onReleasedPins, released]);
   const pins = useMemo(
@@ -350,7 +350,9 @@ export function RecordTable({
       // Its own scroll port, or none where something around it scrolls
       // (`stickyPort`), said on the element as `data-scrolls`.
       {...stickyPort(scrolls)}
-      data-overflowing={overflowing ? '' : undefined}
+      data-overflowing={overflow.overflowing ? '' : undefined}
+      data-more-start={overflow.start ? '' : undefined}
+      data-more-end={overflow.end ? '' : undefined}
     >
       {/* Its own region only where widths can change and nobody lent it a
           voice (an interactive embed); a workbench and a board lend theirs. */}
@@ -379,7 +381,7 @@ export function RecordTable({
                   })}
                 >
                   <span className={SELECT_BOX}>
-                    <Checkbox
+                    <MixedCheckbox
                       aria-label={messages.label('label.record.select-all')}
                       checked={allSelected}
                       indeterminate={

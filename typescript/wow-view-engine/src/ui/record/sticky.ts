@@ -86,6 +86,26 @@ const EDGE = {
 } as const;
 
 /**
+ * The content passing under a held column's edge, faded out into the row's
+ * own fill — only while there is content under it, which the port says
+ * (`data-more-start`, `data-more-end`, from `useOverflowing`). Cut hard at
+ * the edge, 「PO202609210(」 under the held 最近更新 read as a damaged number
+ * (second review R2-76), as the dashboard's panels already fade a table's
+ * columns out towards a side with more (`scrollMore.ts`).
+ *
+ * A pseudo-element of the held cell — it is positioned, being sticky — laid
+ * over the cells beside it, in the cell's own fill (`bg-inherit`, so hover
+ * and selection carry) and masked from whole at the edge to nothing
+ * 1.5rem away; it takes no pointer, so the cells under it stay
+ * pressable.
+ */
+const FADE = {
+  left: "fve:in-data-[more-start]:before:pointer-events-none fve:in-data-[more-start]:before:absolute fve:in-data-[more-start]:before:inset-y-0 fve:in-data-[more-start]:before:left-full fve:in-data-[more-start]:before:w-6 fve:in-data-[more-start]:before:bg-inherit fve:in-data-[more-start]:before:[mask-image:linear-gradient(to_right,#000,transparent)] fve:in-data-[more-start]:before:content-['']",
+  right:
+    "fve:in-data-[more-end]:before:pointer-events-none fve:in-data-[more-end]:before:absolute fve:in-data-[more-end]:before:inset-y-0 fve:in-data-[more-end]:before:right-full fve:in-data-[more-end]:before:w-6 fve:in-data-[more-end]:before:bg-inherit fve:in-data-[more-end]:before:[mask-image:linear-gradient(to_left,#000,transparent)] fve:in-data-[more-end]:before:content-['']",
+} as const;
+
+/**
  * The recipe itself.
  *
  * `bg-inherit`, because a held cell takes its fill from the row it is in:
@@ -113,6 +133,7 @@ function held(pin: StickyPin): string {
       ? 'fve:right-0'
       : pin.offset === undefined && 'fve:left-0',
     pin.edge && EDGE[pin.side],
+    pin.edge && FADE[pin.side],
   );
 }
 

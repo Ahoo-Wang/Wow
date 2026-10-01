@@ -55,3 +55,79 @@ describe('the port says whether its table overflows', () => {
     expect(port().hasAttribute('data-overflowing')).toBe(false);
   });
 });
+
+/**
+ * R2-76: a held column's edge fades the content passing under it only while
+ * there is content under it, so the port says which sides have columns
+ * scrolled out of sight — `data-more-start`, `data-more-end` — and only
+ * where it is the scroller itself.
+ */
+describe('the port says which sides hide columns', () => {
+  function scrolledTo(scrollLeft: number) {
+    vi.spyOn(HTMLElement.prototype, 'scrollLeft', 'get').mockReturnValue(
+      scrollLeft,
+    );
+  }
+
+  function sides() {
+    return {
+      start: port().hasAttribute('data-more-start'),
+      end: port().hasAttribute('data-more-end'),
+    };
+  }
+
+  it('says more lies past the end before it is scrolled', () => {
+    portOf(1200, 800);
+    scrolledTo(0);
+    render(<RecordTable table={recordTableController()} />);
+
+    expect(sides()).toEqual({ start: false, end: true });
+  });
+
+  it('says both sides hide columns halfway along', () => {
+    portOf(1200, 800);
+    scrolledTo(200);
+    render(<RecordTable table={recordTableController()} />);
+
+    expect(sides()).toEqual({ start: true, end: true });
+  });
+
+  it('says only the start hides columns once scrolled to the end', () => {
+    portOf(1200, 800);
+    scrolledTo(400);
+    render(<RecordTable table={recordTableController()} />);
+
+    expect(sides()).toEqual({ start: true, end: false });
+  });
+
+  it('says nothing while the table fits', () => {
+    portOf(800, 800);
+    scrolledTo(0);
+    render(<RecordTable table={recordTableController()} />);
+
+    expect(sides()).toEqual({ start: false, end: false });
+  });
+
+  it('says nothing where something around it scrolls', () => {
+    portOf(1200, 800);
+    scrolledTo(200);
+    render(<RecordTable table={recordTableController()} scrolls={false} />);
+
+    expect(port().hasAttribute('data-overflowing')).toBe(true);
+    expect(sides()).toEqual({ start: false, end: false });
+  });
+
+  it('reads the sides again as the port scrolls', async () => {
+    portOf(1200, 800);
+    scrolledTo(0);
+    render(<RecordTable table={recordTableController()} />);
+    expect(sides()).toEqual({ start: false, end: true });
+
+    scrolledTo(400);
+    port().dispatchEvent(new Event('scroll'));
+
+    await vi.waitFor(() =>
+      expect(sides()).toEqual({ start: true, end: false }),
+    );
+  });
+});

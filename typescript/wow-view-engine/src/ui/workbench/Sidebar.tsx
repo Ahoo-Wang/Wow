@@ -20,6 +20,7 @@ import { useViewMessages } from '../kit/MessagesProvider.js';
 import { ViewList, type ViewListProps } from './ViewList.js';
 import { ViewSwitcher, type ViewSwitcherProps } from './ViewSwitcher.js';
 import { useKindWord } from '../kit/kinds.js';
+import { Truncated } from '../kit/Truncated.js';
 
 export interface SidebarColumnProps extends Omit<ViewListProps, 'onRetry'> {
   /**
@@ -214,12 +215,12 @@ export function FoldedSidebar({
               does not demote it. At `text-sm` it was 14 over a 13px
               switcher — two heading levels squashed into one and a half,
               and the page's own name set smaller than the view it holds. */}
-          <h1
+          <Truncated
+            as="h1"
             data-slot="definition-title"
-            className="fve:hidden fve:min-w-0 fve:truncate fve:text-base fve:font-semibold fve:@md/header:block"
-          >
-            {messages.say(title)}
-          </h1>
+            className="fve:hidden fve:min-w-0 fve:text-base fve:font-semibold fve:@md/header:block"
+            text={messages.say(title)}
+          />
           <span
             aria-hidden
             data-slot="definition-separator"

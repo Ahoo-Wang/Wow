@@ -205,9 +205,12 @@ export type LabelFit = 'flat' | 'upright' | 'none';
  * no value (2026-09-23 audit). The rule here is one a reader can predict:
  *
  * - **over the bars' ends**, every label is written flat where the widest
- *   of them fits the room a bar has; turned to run up from the bar's end
- *   where it does not but a line of text still does, as Metabase turns
- *   them; and none at all where not even that fits. All or none, per chart.
+ *   of them fits the room a bar has, and none where it does not — the
+ *   numbers stay in the tooltip and the accessible table, and a long row's
+ *   highest and lowest keep their flat words. Only where the analyst asked
+ *   for every number (`labels: true`) are they turned to run up from the
+ *   bar's end when a line of text still fits (second review R2-74). All or
+ *   none, per chart.
  * - **inside a stacked segment**, a part is written where the segment is
  *   tall enough for a line and wide enough for the number — judged against
  *   the scale the chart owns (`sharedScales`), so it is the segment's real
@@ -327,7 +330,11 @@ export function cartesianFit(
       : 'none'
     : widestOuter + 2 <= room
       ? 'flat'
-      : room >= LABEL_LINE
+      : // Turned on their sides only where the analyst asked for every
+        // number (`labels: true`): unasked, a row of sideways amounts was the
+        // hardest text on the board (second review R2-74), and the numbers
+        // stay in the tooltip and the accessible table.
+        room >= LABEL_LINE && plan.context.spec?.labels === true
         ? 'upright'
         : 'none';
   const outerPatch =
@@ -364,30 +371,6 @@ export function cartesianFit(
       : size >= LABEL_LINE + 2 && thickness >= words + 2;
   };
 
-  // A bar's highest and lowest word, where its mark writes it: turned to
-  // run along the bar where the widest of them is wider than a bar's room,
-  // as a value label is — flat, 「最低 ¥1,940」 over a short bar ran over the
-  // taller bars on either side (the pre-release review). All or none, per
-  // chart, and the plot's head keeps the length of the turned word.
-  // Whether a bar's mark writes its word, rather than the bar's own label
-  // (`carriedExtremes`, or every bar's number zoomed in).
-  const markSpeaks = (entry: DrawnSeries) =>
-    entry.kind === 'bar' &&
-    plan.extremesOf(entry) !== undefined &&
-    (!plan.labelled(entry) ||
-      outer === 'none' ||
-      (plan.peaksOnly(entry) && !everyBar));
-  const markTexts = horizontal
-    ? []
-    : series
-        .filter(markSpeaks)
-        .flatMap(entry => [...(extremeWords(plan, entry)?.values() ?? [])]);
-  const widestMark = Math.max(0, ...markTexts.map(labelWidth));
-  // A word wider than a bar's room turns to run along its bar. A bar
-  // narrower than one line of type still turns it, and is not left blank as
-  // a value label is: the highest and the lowest are the two things a long
-  // row still says, so they are written, over a neighbour if need be.
-  const marksUpright = markTexts.length > 0 && widestMark + 2 > room;
   // Whether the highest and lowest point's mark writes its word: where the
   // series' own labels do not (`carriedExtremes`) — spelled out either way,
   // since a resize merges this over the last one (second review R2-P1-8).
@@ -400,11 +383,7 @@ export function cartesianFit(
             label: { show: !labelsShown },
             ...(entry.kind === 'bar'
               ? {
-                  data: extremePoints(
-                    plan,
-                    entry,
-                    marksUpright && !labelsShown,
-                  ),
+                  data: extremePoints(plan, entry),
                 }
               : {}),
           },
@@ -499,15 +478,13 @@ export function cartesianFit(
           grid: {
             // A line of text over the tallest mark for a value label or the
             // highest point's word, as the option keeps before the fit.
-            top: Math.max(
+            top:
               wrote && outer === 'upright'
                 ? Math.ceil(widestOuter) + LABEL_DISTANCE + 8
                 : wrote ||
                     series.some(entry => plan.extremesOf(entry) !== undefined)
                   ? 24
                   : 16,
-              marksUpright ? Math.ceil(widestMark) + LABEL_DISTANCE + 8 : 0,
-            ),
             right: captions.right,
           },
         }),

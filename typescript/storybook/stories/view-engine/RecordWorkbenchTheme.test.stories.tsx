@@ -1183,3 +1183,42 @@ export const ToolbarButtonsFillInPorcelain: Story =
   toolbarButtonsIn('porcelain');
 export const ToolbarButtonsOutlinedInNeutral: Story =
   toolbarButtonsIn('neutral');
+
+/**
+ * 只选了几行时，全选框画成一道横线，而不是勾：从前 20 行选了 2 行，全选框是白底
+ * 上一个深色的 ✓，看起来像全选了，可它的 `aria-checked` 是 `mixed`（第二轮审查
+ * R2-81）。填色与勾选的行一样，勾藏起来，横线在它的位置上。
+ */
+export const SelectAllSaysSome: Story = {
+  ...DisplayWithData,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const table = await canvas.findByRole('table');
+    const rows = await waitFor(() => {
+      const found = within(table.querySelector('tbody')!).getAllByRole(
+        'checkbox',
+      );
+      expect(found.length).toBeGreaterThan(2);
+      return found;
+    });
+    await userEvent.click(rows[0]!);
+    await userEvent.click(rows[1]!);
+    const all = canvas.getByRole('checkbox', {
+      name: zhCN['label.record.select-all'],
+    });
+    await waitFor(() => expect(all).toHaveAttribute('aria-checked', 'mixed'));
+    // Filled as a ticked row's box is — once the boxes' colour transitions
+    // end: read at once, the fill is still on its way from transparent.
+    await waitFor(() =>
+      expect(getComputedStyle(all).backgroundColor).toBe(
+        getComputedStyle(rows[0]!).backgroundColor,
+      ),
+    );
+    // No check in it: a dash, as wide as half the box.
+    const check = all.querySelector('svg');
+    if (check) await expect(getComputedStyle(check).display).toBe('none');
+    const dash = getComputedStyle(all, '::before');
+    await expect(parseFloat(dash.width)).toBeGreaterThan(4);
+    await expect(parseFloat(dash.height)).toBeGreaterThan(0);
+  },
+};

@@ -55,9 +55,12 @@ export const WaybillWideTable: Story = {
     await waitFor(async () => expect(await total(canvasElement)).toBe(18976));
 
     // D51 on a table twenty columns wide: each summary row names the
-    // columns it holds out of view, and neither line of it is cut — the
-    // number on its own line, the label above it (second review R1-P1-2:
-    // on one line 「本页 · 件数 总和 86 等 3 项」 did not fit its cell).
+    // columns it holds out of view, and no line of it is cut — the number
+    // on its own line, whose it is above it (second review R1-P1-2: on one
+    // line 「本页 · 件数 总和 86 等 3 项」 did not fit its cell). The two
+    // rows name the same column's same function, so that line is written
+    // once, over the page's number, and the total keeps to one line
+    // (R2-79): the footer is a line shorter and says all it said.
     const hints = await waitFor(() => {
       const found = [
         ...table.querySelectorAll<HTMLElement>(
@@ -67,27 +70,53 @@ export const WaybillWideTable: Story = {
       expect(found).toHaveLength(2);
       return found;
     });
-    for (const hint of hints) {
+    const [page, all] = hints;
+    const caption = page.querySelector<HTMLElement>(
+      '[data-slot="summary-offscreen-label"]',
+    )!;
+    await expect(caption.textContent).toBe('件数 总和 等 3 项');
+    await expect(
+      all.querySelector('[data-slot="summary-offscreen-label"]'),
+    ).toBeNull();
+    for (const [hint, scope] of [
+      [page, '本页'],
+      [all, '全部'],
+    ] as const) {
       const value = hint.querySelector<HTMLElement>(
         '[data-slot="summary-offscreen-value"]',
       )!;
-      const label = hint.querySelector<HTMLElement>(
-        '[data-slot="summary-offscreen-label"]',
-      )!;
       await expect(value.textContent).toMatch(/^[\d,]+$/);
       await expect(value.scrollWidth).toBeLessThanOrEqual(value.clientWidth);
-      await expect(label.scrollWidth).toBeLessThanOrEqual(label.clientWidth);
-      // 2px of give in height: Firefox's fallback CJK font draws its glyphs
-      // 2px past a 16px line (scrollHeight 18) with nothing cut on screen
-      // (2026-09-30 Firefox/WebKit pass). A second line would be 16px more.
-      await expect(label.scrollHeight).toBeLessThanOrEqual(
-        label.clientHeight + 2,
-      );
+      // The scope opens the number's line, whole.
+      const line = value.parentElement!;
+      await expect(
+        line.querySelector('[data-slot="summary-scope"]')?.textContent,
+      ).toBe(scope);
+      await expect(line.scrollWidth).toBeLessThanOrEqual(line.clientWidth);
       // Still within the cell it was given: the column is not widened.
       await expect(hint.getBoundingClientRect().right).toBeLessThanOrEqual(
         hint.closest('td')!.getBoundingClientRect().right,
       );
     }
+    // A reader hears the whole of it on either row, starting with the
+    // words the button shows (WCAG 2.5.3).
+    await expect(page).toHaveAccessibleName(
+      /^件数 总和 等 3 项 本页 · [\d,]+ ?，不在视野内，滚动到件数$/,
+    );
+    await expect(all).toHaveAccessibleName(
+      /^全部 · [\d,]+ 件数 总和 等 3 项，不在视野内，滚动到件数$/,
+    );
+    await expect(caption.scrollWidth).toBeLessThanOrEqual(caption.clientWidth);
+    // 2px of give in height: Firefox's fallback CJK font draws its glyphs
+    // 2px past a 16px line (scrollHeight 18) with nothing cut on screen
+    // (2026-09-30 Firefox/WebKit pass). A second line would be 16px more.
+    await expect(caption.scrollHeight).toBeLessThanOrEqual(
+      caption.clientHeight + 2,
+    );
+    // The total's row is a line shorter than the page's.
+    const height = (hint: HTMLElement) =>
+      hint.closest('tr')!.getBoundingClientRect().height;
+    await expect(height(page) - height(all)).toBeGreaterThanOrEqual(14);
 
     await userEvent.click(view('在途包裹'));
     await waitFor(async () => expect(await total(canvasElement)).toBe(56));
