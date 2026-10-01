@@ -13,13 +13,21 @@
 
 package me.ahoo.wow.elasticsearch.query
 
+import co.elastic.clients.elasticsearch._types.ElasticsearchException
+import co.elastic.clients.elasticsearch._types.ErrorResponse
 import co.elastic.clients.elasticsearch._types.mapping.Property
 import co.elastic.clients.elasticsearch._types.mapping.RuntimeFieldType
 import co.elastic.clients.elasticsearch._types.mapping.TypeMapping
 import co.elastic.clients.elasticsearch.indices.GetIndicesSettingsRequest
 import co.elastic.clients.elasticsearch.indices.GetMappingRequest
 import co.elastic.clients.elasticsearch.indices.GetMappingResponse
+import co.elastic.clients.elasticsearch.indices.SimulateIndexTemplateRequest
+import co.elastic.clients.elasticsearch.indices.SimulateIndexTemplateResponse
 import co.elastic.clients.elasticsearch.indices.get_mapping.IndexMappingRecord
+import co.elastic.clients.transport.ElasticsearchTransport
+import co.elastic.clients.transport.Endpoint
+import co.elastic.clients.transport.TransportOptions
+import co.elastic.clients.util.MissingRequiredPropertyException
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
@@ -30,13 +38,20 @@ import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchIn
 import reactor.core.publisher.Mono
 import reactor.core.publisher.Sinks
 import reactor.kotlin.test.test
+import java.util.concurrent.CompletableFuture
+
+private typealias SimulateEndpoint = Endpoint<SimulateIndexTemplateRequest, SimulateIndexTemplateResponse, *>
 
 class ElasticsearchIndexMappingResolverTest {
     private val client = mockk<ReactiveElasticsearchClient>()
     private val indicesClient = mockk<ReactiveElasticsearchIndicesClient>()
 
+    private val transport = mockk<ElasticsearchTransport>()
+
     init {
         every { client.indices() } returns indicesClient
+        every { client._transport() } returns transport
+        every { client._transportOptions() } returns mockk<TransportOptions>()
         every { indicesClient.getSettings(any<GetIndicesSettingsRequest>()) } returns Mono.just(indexSettingsResponse())
     }
 
@@ -121,6 +136,86 @@ class ElasticsearchIndexMappingResolverTest {
     }
 
     @Test
+    fun `a missing index has the mapping its templates will create it with, and is read again on the next load`() {
+        every { indicesClient.getMapping(any<GetMappingRequest>()) } returnsMany listOf(
+            Mono.error(indexNotFound()),
+            Mono.just(mappingResponse(field = "code")),
+        )
+        simulation(
+            CompletableFuture.completedFuture(
+                SimulateIndexTemplateResponse.of { response ->
+                    response.template { template ->
+                        template.mappings(mapping("name"))
+                            .settings { settings -> settings.index { index -> index.maxResultWindow(50) } }
+                            .aliases(emptyMap())
+                    }.overlapping(emptyList())
+                },
+            )
+        )
+        val resolver = ElasticsearchIndexMappingResolver(client)
+
+        val provisional = resolver.currentOrLoad(INDEX).block()!!
+        provisional.fields.assert().containsOnlyKeys("name")
+        provisional.maxResultWindow.assert().isEqualTo(50)
+        resolver.currentOrLoad(INDEX).block()!!.fields.assert().containsOnlyKeys("code")
+        resolver.currentOrLoad(INDEX).block()!!.fields.assert().containsOnlyKeys("code")
+
+        verify(exactly = 2) { indicesClient.getMapping(any<GetMappingRequest>()) }
+        verify(exactly = 1) {
+            transport.performRequestAsync(any<SimulateIndexTemplateRequest>(), any<SimulateEndpoint>(), any())
+        }
+    }
+
+    @Test
+    fun `a missing index no template matches maps no field`() {
+        every { indicesClient.getMapping(any<GetMappingRequest>()) } returns Mono.error(indexNotFound())
+        simulation(
+            CompletableFuture.failedFuture(
+                RuntimeException(
+                    MissingRequiredPropertyException(SimulateIndexTemplateResponse::class.java, "template")
+                ),
+            )
+        )
+
+        val mapping = ElasticsearchIndexMappingResolver(client).currentOrLoad(INDEX).block()!!
+
+        mapping.fields.assert().isEmpty()
+        mapping.maxResultWindow.assert().isEqualTo(DEFAULT_MAX_RESULT_WINDOW)
+    }
+
+    @Test
+    fun `a failed simulation of a missing index fails the load`() {
+        every { indicesClient.getMapping(any<GetMappingRequest>()) } returns Mono.error(indexNotFound())
+        simulation(
+            CompletableFuture.failedFuture(
+                IllegalStateException("forbidden"),
+            )
+        )
+
+        ElasticsearchIndexMappingResolver(client).currentOrLoad(INDEX).test().expectErrorMessage("forbidden").verify()
+    }
+
+    @Test
+    fun `a deleted index drops its cached mapping`() {
+        every { indicesClient.getMapping(any<GetMappingRequest>()) } returnsMany listOf(
+            Mono.just(mappingResponse(field = "code")),
+            Mono.error(indexNotFound()),
+        )
+        simulation(
+            CompletableFuture.failedFuture(
+                MissingRequiredPropertyException(SimulateIndexTemplateResponse::class.java, "template"),
+            )
+        )
+        val resolver = ElasticsearchIndexMappingResolver(client)
+        resolver.currentOrLoad(INDEX).block()
+
+        resolver.refresh(INDEX).block()!!.fields.assert().isEmpty()
+        resolver.currentOrLoad(INDEX).block()!!.fields.assert().isEmpty()
+
+        verify(exactly = 3) { indicesClient.getMapping(any<GetMappingRequest>()) }
+    }
+
+    @Test
     fun `concurrent initial loads should share one mapping request`() {
         val response = Sinks.one<GetMappingResponse>()
         every { indicesClient.getMapping(any<GetMappingRequest>()) } returns response.asMono()
@@ -193,6 +288,11 @@ class ElasticsearchIndexMappingResolverTest {
         fields.getValue("runtime.code").projectionPath.assert().isNull()
     }
 
+    private fun simulation(response: CompletableFuture<SimulateIndexTemplateResponse>) {
+        every { transport.performRequestAsync(any<SimulateIndexTemplateRequest>(), any<SimulateEndpoint>(), any()) } returns
+            response
+    }
+
     private fun mappingResponse(field: String): GetMappingResponse = GetMappingResponse.of { response ->
         response.mappings(INDEX, IndexMappingRecord.of { record -> record.mappings(mapping(field)) })
     }
@@ -203,5 +303,12 @@ class ElasticsearchIndexMappingResolverTest {
 
     companion object {
         private const val INDEX = "wow.catalog.sku.snapshot"
+
+        internal fun indexNotFound(): ElasticsearchException = ElasticsearchException(
+            "indices.get_mapping",
+            ErrorResponse.of { response ->
+                response.status(404).error { error -> error.type("index_not_found_exception").reason("no such index") }
+            },
+        )
     }
 }

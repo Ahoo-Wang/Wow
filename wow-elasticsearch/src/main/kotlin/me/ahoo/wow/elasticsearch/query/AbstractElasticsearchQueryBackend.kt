@@ -45,6 +45,11 @@ import reactor.core.publisher.Mono
 import tools.jackson.databind.node.ObjectNode
 import java.time.Duration
 
+/**
+ * A query backend over one index. Before the aggregate's first write its index does not exist yet; every read of a
+ * missing index answers nothing (no rows, a count of `0`, no groups), as the snapshot store's load does, rather than
+ * failing.
+ */
 abstract class AbstractElasticsearchQueryBackend : QueryBackend {
     abstract val elasticsearchClient: ReactiveElasticsearchClient
     abstract val indexName: String
@@ -61,7 +66,10 @@ abstract class AbstractElasticsearchQueryBackend : QueryBackend {
 
     override val cursorPositions: CursorPositionCodec = ElasticsearchCursorCodec
 
-    override fun stream(query: AdmittedQuery<IListQuery>): Flux<ObjectNode> {
+    override fun stream(query: AdmittedQuery<IListQuery>): Flux<ObjectNode> =
+        streamIndex(query).onErrorResume(Throwable::isIndexNotFound) { Flux.empty() }
+
+    private fun streamIndex(query: AdmittedQuery<IListQuery>): Flux<ObjectNode> {
         val listQuery = query.query
         require(listQuery.limit >= 0) { "limit must be greater than or equal to 0." }
         if (listQuery.limit == 0 || listQuery.limit > queryBatchSize) {
@@ -79,7 +87,24 @@ abstract class AbstractElasticsearchQueryBackend : QueryBackend {
         }.flatMap(::search).flatMapIterable { it.rows }
     }
 
-    override fun page(query: AdmittedQuery<Queryable<*>>, window: PageWindow): Mono<BackendPage> = when (window) {
+    override fun page(query: AdmittedQuery<Queryable<*>>, window: PageWindow): Mono<BackendPage> =
+        pageIndex(query, window).onErrorResume(Throwable::isIndexNotFound) {
+            Mono.fromSupplier {
+                when (window) {
+                    is PageWindow.Offset -> if (window.withTotal) {
+                        BackendPage(
+                            emptyList(),
+                            0
+                        )
+                    } else {
+                        BackendPage(emptyList())
+                    }
+                    is PageWindow.Keyset -> BackendPage(emptyList(), positions = emptyList())
+                }
+            }
+        }
+
+    private fun pageIndex(query: AdmittedQuery<Queryable<*>>, window: PageWindow): Mono<BackendPage> = when (window) {
         is PageWindow.Offset -> Mono.fromSupplier {
             searchRequest(query, query.query, ElasticsearchSortCompiler.compile(query.query.sort, query)) {
                 it.from(window.offset).size(window.limit)
@@ -167,10 +192,13 @@ abstract class AbstractElasticsearchQueryBackend : QueryBackend {
                     .query(ElasticsearchFilterCompiler.compile(query))
             }
         }.flatMap(elasticsearchClient::count).map { it.requireComplete().count() }
+            .onErrorResume(Throwable::isIndexNotFound) { Mono.just(0L) }
     }
 
+    /** A missing index has no groups; without any, the core emits the empty summary, as it does over no records. */
     override fun aggregate(query: AdmittedQuery<AggregationQuery>, window: GroupWindow): Flux<ObjectNode> =
         aggregationPager.execute(ElasticsearchAggregationCompiler.compile(query), window)
+            .onErrorResume(Throwable::isIndexNotFound) { Flux.empty() }
 }
 
 /** Converts an aggregation row built from response values; the core checks that it is standard JSON. */

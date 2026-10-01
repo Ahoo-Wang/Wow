@@ -65,6 +65,12 @@ EventStore batch 使用 Bulk `create`；SnapshotStore direct/batch 都以 `_sour
 
 存储适配器（`ElasticsearchQuerySchemaAdapter`，一个 `QueryStorageAdapter`）读取目标索引 mapping，把它报告为存储事实：为 exact match、range、sort、presence、projection 等绑定的物理路径；`QuerySchemaCatalog` 把这些事实与逻辑模型编译成 `QueryModelSchema`；准入按这些 binding 解析每个字段引用，编译器消费得到的 `ResolvedField`。multi-field、runtime field 和禁用 object 服从 Elasticsearch mapping；不要在 HTTP 层猜测 `.keyword`。
 
+## 首次写入之前
+
+Wow 在聚合首次写入时创建它的索引，所以新聚合在此之前没有索引。查询不存在的索引不返回任何记录：列表、分页和游标为空，计数为 `0`，没有分组的聚合返回空汇总，与快照加载不存在的索引时一致。不存在的索引的查询 schema 由该索引将被创建时的 mapping 编译：即 Elasticsearch 为该索引名模拟出的匹配索引模板（`POST _index_template/_simulate_index/<index>`），没有模板匹配时则没有字段。这需要 `manage_index_templates` 集群权限，`auto-init-template` 同样需要；没有该权限时，schema 在索引存在前保持不可用（`QuerySchemaUnavailable`，HTTP 503）。
+
+模拟出的 mapping 不缓存。首批文档经动态 mapping 新增的字段在下次重新校验时发布，与 schema 加载后才首次写入的任何字段相同。有索引定义（见下文）的聚合在启动时即有索引，不会走到这条路径。
+
 ## 重新校验运行时查询 Schema
 
 mapping 变化后，运行时 schema 必须重新解析。每个实例按 `wow.query.schema.revalidate-interval` 定期重新校验查询 schema；需要立即生效时，在每个实例上调用 `wowQuerySchema` actuator 端点。重新校验只更新内存 schema，不回填历史文档或修改 mapping。

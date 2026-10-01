@@ -65,6 +65,12 @@ Default event indexes are `wow.${contextAlias}.${aggregateName}.es`; snapshot in
 
 The storage adapter (`ElasticsearchQuerySchemaAdapter`, a `QueryStorageAdapter`) reads the target mappings and reports them as storage facts: the physical paths bound for exact match, range, sorting, presence, and projection. `QuerySchemaCatalog` compiles those facts with the logical model into the `QueryModelSchema`; admission resolves each field reference against those bindings, and the compilers consume the resulting `ResolvedField`s. Multi-fields, runtime fields, and disabled objects follow Elasticsearch mappings; do not guess `.keyword` in the HTTP layer.
 
+## Before the First Write
+
+Wow creates an aggregate's index on its first write, so a new aggregate has no index until then. Queries of a missing index answer nothing: lists, pages and cursors are empty, counts are `0`, and an aggregation without groups answers its empty summary, as a snapshot load of a missing index does. The query schema of a missing index is compiled from the mapping the index will be created with: the matching index templates, as Elasticsearch simulates them for the index name (`POST _index_template/_simulate_index/<index>`), or no field when no template matches. That needs the `manage_index_templates` cluster privilege, which `auto-init-template` needs as well; without it the schema stays unavailable (`QuerySchemaUnavailable`, HTTP 503) until the index exists.
+
+The simulated mapping is not cached. Fields the first documents add through dynamic mapping are published at the next revalidation, as for any field first written after the schema was loaded. An aggregate with an index definition (below) has its index from startup and never reaches this path.
+
 ## Revalidate the Runtime Query Schema
 
 After mappings change, the runtime schema must be resolved again. Each instance revalidates its query schemas every `wow.query.schema.revalidate-interval`; to pick up a change now, call the `wowQuerySchema` actuator endpoint on every instance. Revalidation updates the in-memory schema only; it does not backfill documents or change mappings.
