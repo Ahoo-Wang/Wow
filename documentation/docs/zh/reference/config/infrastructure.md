@@ -141,7 +141,7 @@ spring:
 
 批处理校验与 MongoDB 相同。EventStore batch 使用 Bulk `create`；SnapshotStore 的 direct/batch 两条路径都以 `_source.version` 做原子保护更新，避免旧快照覆盖新版本。`auto-init-template=true` 时，模板请求失败、空响应或未确认会让启动失败；仅在外部平台明确拥有模板时关闭它，并保留模板版本与验证证据。
 
-当 Elasticsearch 被选为 SnapshotStore 时，Wow 还会查找 `META-INF/wow/elasticsearch/{indexName}.json` 或 `config/wow/elasticsearch/{indexName}.json` 下的具体索引资源。具体资源在通用模板之后、SnapshotStore 创建之前处理。该机制独立于 `auto-init-template`；资源缺失时不执行任何操作。
+当 Elasticsearch 被选为 SnapshotStore 或 EventStore 时，Wow 还会查找 `META-INF/wow/elasticsearch/{indexName}.json` 或 `config/wow/elasticsearch/{indexName}.json` 下的具体索引资源（`wow.{context}.{aggregate}.snapshot`、`wow.{context}.{aggregate}.es`）。具体资源在通用模板之后、对应存储创建之前处理；已有索引保持不变，其 mapping 与资源不同时记录警告。该机制独立于 `auto-init-template`；资源缺失时不执行任何操作。
 
 ## 查询 {#query}
 

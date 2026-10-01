@@ -71,7 +71,7 @@ dependencies {
     api("io.projectreactor.kotlin:reactor-kotlin-extensions")
     implementation("org.springdoc:springdoc-openapi-starter-webflux-ui")
     implementation(project(":wow-elasticsearch"))
-    implementation("org.springframework.boot:spring-boot-starter-elasticsearch")
+    implementation("org.springframework.boot:spring-boot-starter-data-elasticsearch")
     implementation("me.ahoo.cosid:cosid-mongo")
     implementation("me.ahoo.cosid:cosid-spring-boot-starter")
     implementation("org.springframework.cloud:spring-cloud-starter-loadbalancer")

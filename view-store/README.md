@@ -51,8 +51,9 @@ the collections (the queries keep tenants, owners and applications apart, the st
 own database, as the compensation service and the standalone server do.
 
 **Elasticsearch.** The starter ships the index definitions of its two snapshot indices
-(`META-INF/wow/elasticsearch/wow.view-store.view.snapshot.json` and `wow.view-store.view_preferences.snapshot.json`),
-which Wow creates at startup when the index does not exist yet, beside its own snapshot template:
+(`META-INF/wow/elasticsearch/wow.view-store.view.snapshot.json` and `wow.view-store.view_preferences.snapshot.json`)
+and of the view's event stream (`wow.view-store.view.es.json`), which Wow creates at startup when the index does not
+exist yet, beside its own templates:
 
 - the queried paths are `keyword` without `ignore_above` (`state.definitionId`, `state.appId`, `state.config.kind`
   and the panel references), so that the query schema admits the filters the view store sends: on Wow's template
@@ -65,18 +66,25 @@ which Wow creates at startup when the index does not exist yet, beside its own s
   references are not strings of at most 256 characters, and a `definitionId` longer than 256 characters; the
   preferences' `definitionId`, `order` and `defaultInstanceId` hold ids of at most 256 characters as well, since a
   store refuses a document it cannot index;
-- `state.lastTabs` of the preferences is not indexed (`enabled: false`): its keys are the host's.
+- `state.lastTabs` of the preferences is not indexed (`enabled: false`): its keys are the host's;
+- in the view's events, `body.body` (an event's payload, which Wow's event-stream template does not index) is
+  `dynamic: false` with `audience` and `toOwnerId` as keywords: the replay route (`GET …/view/requests/{requestId}`)
+  finds a claim by them. A config in a `ViewCreated` or `ViewSaved` event adds no field.
 
-An index Wow already created for these aggregates from its template alone (a host that wrote views before it ran a
-starter with these definitions) keeps its mapping, and its view lists are refused. Delete it while it is empty, or
-reindex it into an index created from the definition, before the host starts: Wow does not change an existing
-index's mapping.
+An index Wow already created for these aggregates from its templates alone (a host that wrote views before it ran a
+starter with these definitions) keeps its mapping, and the host logs a warning at startup naming the paths it maps
+otherwise: on such a snapshot index the view lists are refused, on such an event-stream index the replay answers 400.
+Delete it while it is empty, or reindex it into an index created from the definition, before the host starts: Wow does
+not change an existing index's mapping. For the event stream, that is (with the host stopped):
+
+1. `PUT wow.view-store.view.es-new` with the body of `wow.view-store.view.es.json`, and `POST _reindex` from
+   `wow.view-store.view.es` into it;
+2. delete `wow.view-store.view.es`, `PUT` it again with the same body, and `POST _reindex` back from
+   `wow.view-store.view.es-new`;
+3. delete `wow.view-store.view.es-new` and start the host: the warning is gone.
 
 The snapshot index names carry no prefix of the deployment: two hosts that embed the starter on one Elasticsearch
 cluster share `wow.view-store.view.snapshot` (the queries keep their applications apart, the storage does not).
-The replay route (`GET …/view/requests/{requestId}`) queries the view's event stream by fields of its events
-(`body.body.audience`), which Wow's event-stream template does not index: keep the view store's events on MongoDB
-(Wow's default event store); on an Elasticsearch event store the replay answers 400.
 
 ### Writes, identity and topics
 

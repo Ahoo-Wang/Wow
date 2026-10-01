@@ -85,6 +85,8 @@ After mappings change, the runtime schema must be resolved again. Each instance 
 
 With `auto-init-template=true`, `IndexTemplateInitializer` verifies the event template. Request failure, empty response, or missing acknowledgment fails storage wiring. If the platform owns templates, disable initialization only with versioned template and deployment evidence.
 
+The event template stores each event's `body` unindexed (`enabled: false`). An application that queries the fields of its events (`body.body.*`) ships a concrete index definition for that aggregate's event stream, `META-INF/wow/elasticsearch/wow.sales.order.es.json` or `config/wow/elasticsearch/wow.sales.order.es.json`, with the same rules as the snapshot definitions below. Map `body.body` as an object with `dynamic: false` and only the fields queried, so the bodies of the other events add no field.
+
 ## Configure Snapshot Index Template
 
 The snapshot template defines system fields and the dynamic-state baseline. A template affects new indexes or later mapping behavior; it does not repair an existing index.
@@ -105,7 +107,7 @@ The generic snapshot template is the fallback for storage-only snapshots. Querya
 }
 ```
 
-The resource key is the final index name computed by Wow. The working-directory file replaces classpath files; without a working file, duplicate classpath files fail startup. Missing resources keep the generic-template behavior. Existing indexes are skipped, so mapping changes require explicit reindex or migration. Resource JSON follows Elasticsearch client and cluster validation semantics. Resource presence requests creation regardless of storage-routing configuration.
+The resource key is the final index name computed by Wow. The working-directory file replaces classpath files; without a working file, duplicate classpath files fail startup. Missing resources keep the generic-template behavior. Existing indexes are skipped, so mapping changes require explicit reindex or migration: when an existing index maps a path of its definition otherwise (an index created from the template alone, before the definition shipped), startup logs a warning naming those paths and carries on. Resource JSON follows Elasticsearch client and cluster validation semantics. Resource presence requests creation regardless of storage-routing configuration.
 
 ## Full-Text Search
 

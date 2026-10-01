@@ -85,6 +85,8 @@ mapping 变化后，运行时 schema 必须重新解析。每个实例按 `wow.q
 
 `auto-init-template=true` 时，`IndexTemplateInitializer` 确认 event template；请求失败、空响应或未确认会使存储装配失败。若平台外部管理模板，关闭自动初始化前要保留模板版本与部署证据。
 
+event template 不索引事件的 `body`（`enabled: false`）。需要查询事件字段（`body.body.*`）的应用为该聚合的事件流提供具体索引定义：`META-INF/wow/elasticsearch/wow.sales.order.es.json` 或 `config/wow/elasticsearch/wow.sales.order.es.json`，规则与下文快照索引定义相同。把 `body.body` 映射为 `dynamic: false` 的 object，只列出要查询的字段，其他事件的 body 不会新增字段。
+
 ## 配置快照索引模板
 
 snapshot template 定义系统字段与动态状态映射基线。模板只影响新索引或后续 mapping 行为，不会自动修复已有索引。
@@ -105,7 +107,7 @@ snapshot template 定义系统字段与动态状态映射基线。模板只影�
 }
 ```
 
-资源键是 Wow 计算出的最终索引名。工作目录文件会替换 classpath 文件；没有工作目录文件时，重复的 classpath 文件会导致启动失败。资源缺失时仍使用通用模板行为。已有索引会被跳过，因此 mapping 变更需要显式 reindex 或迁移。资源 JSON 遵循 Elasticsearch client 与集群的校验语义。无论 storage routing 如何配置，只要资源存在就会请求创建索引。
+资源键是 Wow 计算出的最终索引名。工作目录文件会替换 classpath 文件；没有工作目录文件时，重复的 classpath 文件会导致启动失败。资源缺失时仍使用通用模板行为。已有索引会被跳过，因此 mapping 变更需要显式 reindex 或迁移：已有索引对定义中某些路径的映射与定义不同时（例如定义发布之前仅由模板创建的索引），启动时记录一条列出这些路径的警告，然后继续启动。资源 JSON 遵循 Elasticsearch client 与集群的校验语义。无论 storage routing 如何配置，只要资源存在就会请求创建索引。
 
 ## 全文搜索
 
