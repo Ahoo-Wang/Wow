@@ -33,7 +33,8 @@ import type {
   RecordData,
 } from '../src/index.js';
 import { emptyWayOut } from '../src/ui/record/emptyWayOut.js';
-import { defaultMessages, DataWorkbench } from '../src/ui/index.js';
+import { DataWorkbench } from '../src/ui/index.js';
+import { defaultMessages } from '../src/ui/kit/messages.js';
 import type { DataWorkbenchProps } from '../src/ui/index.js';
 import {
   deferred,

@@ -181,7 +181,7 @@ describe('a new view, from the work area to the list', () => {
       <DataWorkbench
         engine={engine}
         definitionId="orders"
-        kinds={['record']}
+        viewKinds={['record']}
       />,
     );
     await waitFor(() => workArea());

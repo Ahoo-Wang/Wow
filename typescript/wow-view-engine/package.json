@@ -3,9 +3,20 @@
   "version": "9.1.5",
   "description": "Configurable data view engine for Wow-based business applications: definitions in code, view configs as data, records, analyses and dashboards.",
   "type": "module",
+  "keywords": [
+    "wow",
+    "wow-view-engine",
+    "view-engine",
+    "data-view",
+    "dashboard",
+    "analytics",
+    "react",
+    "cqrs",
+    "typescript"
+  ],
   "license": "Apache-2.0",
   "author": "Ahoo-Wang",
-  "homepage": "https://github.com/Ahoo-Wang/Wow/tree/main/typescript/wow-view-engine",
+  "homepage": "https://wow.ahoo.me/reference/typescript/wow-view-engine/",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/Ahoo-Wang/Wow.git",
@@ -22,35 +33,40 @@
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
-      "import": "./dist/index.js"
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
     },
     "./react": {
       "types": "./dist/react/index.d.ts",
-      "import": "./dist/react.js"
+      "import": "./dist/react.js",
+      "default": "./dist/react.js"
     },
     "./ui": {
       "types": "./dist/ui/index.d.ts",
-      "import": "./dist/ui.js"
+      "import": "./dist/ui.js",
+      "default": "./dist/ui.js"
     },
     "./testing": {
       "types": "./dist/testing/index.d.ts",
-      "import": "./dist/testing.js"
+      "import": "./dist/testing.js",
+      "default": "./dist/testing.js"
     },
     "./react-router": {
       "types": "./dist/react-router/index.d.ts",
-      "import": "./dist/react-router.js"
+      "import": "./dist/react-router.js",
+      "default": "./dist/react-router.js"
     },
     "./styles.css": "./dist/styles.css",
     "./themes.css": "./dist/themes.css",
     "./themes/*.css": "./dist/themes/*.css",
-    "./shadcn-bridge.css": "./dist/shadcn-bridge.css"
+    "./shadcn-bridge.css": "./dist/shadcn-bridge.css",
+    "./package.json": "./package.json"
   },
   "bin": {
     "wow-view-engine": "./dist/theme-check.mjs"
   },
   "files": [
     "dist",
-    "docs/design",
     "README.md",
     "README.zh-CN.md",
     "THIRD_PARTY_NOTICES.md"
@@ -64,11 +80,12 @@
     "test:no-coverage": "vitest run --coverage.enabled=false && pnpm test:type",
     "test:docs": "vitest run --coverage.enabled=false test/docsReferences.test.ts test/agentsStructure.test.ts test/quickstart.test.ts test/themeGuide.test.ts",
     "test:type": "tsc --noEmit -p tsconfig.json && tsc -p tsconfig.headless.json && tsc -p tsconfig.test.json",
-    "test:package": "node scripts/verify-package.mjs",
+    "test:package": "node scripts/verify-package.mjs && node scripts/api-report.mjs",
     "theme:docs": "vitest run --coverage.enabled=false test/themeFiles.test.ts -u",
     "lint": "eslint . --fix",
     "lint:check": "eslint . --max-warnings 0",
-    "clean": "rm -rf dist"
+    "clean": "rm -rf dist",
+    "test:api": "node scripts/api-report.mjs"
   },
   "dependencies": {
     "@base-ui/react": "catalog:",
@@ -114,6 +131,7 @@
     "@ahoo-wang/fetcher-eventstream": "catalog:",
     "@ahoo-wang/wow-client": "workspace:~",
     "@eslint/js": "catalog:",
+    "@microsoft/api-extractor": "catalog:",
     "@rolldown/plugin-babel": "catalog:",
     "@tailwindcss/node": "catalog:",
     "@tailwindcss/vite": "catalog:",

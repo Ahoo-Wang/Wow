@@ -24,12 +24,12 @@ import {
   type ViewPermissions,
 } from '../src/index.js';
 import {
-  PREFERENCES_KEY,
   useViewList,
   useViewManager,
   type ViewListState,
   type ViewManagerController,
 } from '../src/react/index.js';
+import { PREFERENCES_KEY } from '../src/react/manager/outcomes.js';
 import {
   analysisConfig,
   deferred,

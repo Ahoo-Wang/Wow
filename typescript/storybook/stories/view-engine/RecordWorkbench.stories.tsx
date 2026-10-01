@@ -888,7 +888,7 @@ export const ManageViews: Story = { args: { behaviour: 'data' } };
 /**
  * 英文目录。这些故事的数据是中文的（订单号、待出库、华东仓），所以整册默认把
  * 包里带的 `zhCN` 交给 `messages`、把 `locale` 设成 `zh-CN`；这一条是唯一反过
- * 来的——什么都不传，于是用的是包自己的 `defaultMessages` 与 `en-US`。
+ * 来的——什么都不传，于是用的是包自己的 `en` 与 `en-US`。
  *
  * 它存在是为了让英文目录仍然有人看着：`messages` 是本地化的入口，两本目录里
  * 任何一本掉了键，都应该有一屏能看出来。要改其中几句，铺开再覆盖：

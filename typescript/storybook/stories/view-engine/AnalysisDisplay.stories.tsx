@@ -260,7 +260,7 @@ function DisplayDemo({ scene = 'log-scale' }: { scene?: DisplayScene }) {
           definitionId={citySalesDefinition.id}
           instanceId={view.id}
           {...HOST_LANGUAGE}
-          kinds={['analysis']}
+          viewKinds={['analysis']}
         />
       )}
     </StoryEngine>

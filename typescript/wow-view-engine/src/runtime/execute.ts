@@ -19,7 +19,7 @@ import {
   projectRecord,
   projectSummaries,
   validateRecord,
-  type RecordView,
+  type RecordProjection,
   type SummaryRow,
 } from '../record/index.js';
 import {
@@ -27,7 +27,7 @@ import {
   compileAnalysisTotals,
   projectAnalysis,
   validateAnalysis,
-  type AnalysisView,
+  type AnalysisProjection,
 } from '../analysis/index.js';
 import { currencyIssues } from '../analysis/currency.js';
 import { foldsSplit, splitWholeConfig } from '../analysis/splitOther.js';
@@ -238,7 +238,7 @@ async function executeRecord(
 export async function executeSummaries(
   context: KernelContext,
   config: RecordViewConfig,
-  view: RecordView,
+  view: RecordProjection,
   controller: AbortController,
 ): Promise<ProjectedView> {
   const filterContext: FilterCompileContext = {
@@ -485,11 +485,11 @@ export const CUT_SHORT_CODES: readonly string[] = [
  * the limit, so this is normally a fact rather than a guess
  * (`analysis.result.more-groups`); only where no probe was possible is it
  * still said as a maybe (`analysis.result.at-limit`), and the two are never
- * both true. See `analysisProbeLimit` and `AnalysisView.truncated`.
+ * both true. See `analysisProbeLimit` and `AnalysisProjection.truncated`.
  */
 function cutShortIssues(
   config: AnalysisViewConfig,
-  view: Pick<AnalysisView, 'truncated' | 'atLimit'>,
+  view: Pick<AnalysisProjection, 'truncated' | 'atLimit'>,
 ): Issue[] {
   // Only shares of a whole mislead when the whole is cut short: a pie's
   // slices are fractions of the groups shown. Elsewhere every row is its

@@ -34,7 +34,8 @@ import {
 import { DashboardViewRuntime } from '../src/runtime/dashboardRuntime.js';
 import { queryFailureIssue } from '../src/runtime/queryFailure.js';
 import { sourceFailure } from '../src/runtime/sourceReason.js';
-import { en, formatIssue, QueryStrip, zhCN } from '../src/ui/index.js';
+import { formatIssue, QueryStrip, zhCN } from '../src/ui/index.js';
+import { en } from '../src/ui/messages/en.js';
 import {
   dashboardConfig,
   mine,

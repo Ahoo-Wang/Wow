@@ -39,12 +39,8 @@ import {
   type ViewInstance,
 } from '../src/index.js';
 import type { FollowUp } from '../src/react/index.js';
-import {
-  AnalysisChart,
-  DataWorkbench,
-  ViewSurface,
-  defaultMessages,
-} from '../src/ui/index.js';
+import { AnalysisChart, DataWorkbench, ViewSurface } from '../src/ui/index.js';
+import { defaultMessages } from '../src/ui/kit/messages.js';
 import { DrillMenu, pickOf } from '../src/ui/analysis/DrillMenu.js';
 import {
   analysisConfig,

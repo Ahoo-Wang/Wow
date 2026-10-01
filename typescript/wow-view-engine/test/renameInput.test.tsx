@@ -23,7 +23,7 @@ import {
   StyleInjector,
 } from '@dnd-kit/dom';
 import { OptimisticSortingPlugin } from '@dnd-kit/dom/sortable';
-import { sameJson } from '../src/index.js';
+import { sameJson } from '../src/model/json.js';
 import { RenameInput } from '../src/ui/kit/RenameInput.js';
 import { ViewSurface } from '../src/ui/kit/ViewSurface.js';
 import { dragAccessibility } from '../src/ui/kit/dragAnnounce.js';

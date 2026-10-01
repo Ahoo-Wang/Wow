@@ -29,6 +29,7 @@ function ErrorFallback({ error, retry }: { error?: Error; retry: () => void }) {
   const { t } = useI18n();
 
   return (
+    // The board's ground, through the engine's token class `fve:bg-canvas`.
     <div role="alert" className="flex min-h-svh items-center justify-center fve:bg-canvas p-6">
       <div className="w-full max-w-md rounded-xl border border-destructive/30 bg-card p-6 text-center text-card-foreground shadow-sm">
         <CircleAlert aria-hidden="true" className="mx-auto size-8 text-destructive" />

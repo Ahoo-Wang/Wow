@@ -287,7 +287,8 @@ export interface OwnedView {
   config: AnalysisViewConfig;
 }
 
-interface DashboardViewPanelBase extends DashboardPanelBase {
+/** What a data panel holds whichever view it shows; see `DashboardViewPanel`. */
+export interface DashboardViewPanelBase extends DashboardPanelBase {
   kind: 'view';
   bindings: PanelBinding[];
   presentation?: PanelPresentation;

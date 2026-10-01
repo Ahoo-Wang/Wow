@@ -1,6 +1,6 @@
 # Wow View Engine
 
-> **状态：开发中，不承诺兼容。** Record、Analysis、Dashboard 三种视图与它们的嵌入，以及下文的 `/react` 控制器与 `/ui` 组件均已在包内。任何导出都还可能改形，改动不带兼容层；[docs/design/](docs/design/) 是唯一的依据，本页只说现在的 API。
+> **状态：开发中，不承诺兼容。** Record、Analysis、Dashboard 三种视图与它们的嵌入，以及下文的 `/react` 控制器与 `/ui` 组件均已在包内。任何导出都还可能改形，改动不带兼容层；[docs/design/](https://github.com/Ahoo-Wang/Wow/tree/main/typescript/wow-view-engine/docs/design/) 是唯一的依据，本页只说现在的 API。
 
 **Wow View Engine 是面向 Wow 业务应用的数据视图引擎。** 业务应用用代码声明一份数据"能被怎样观察"：字段、类型、操作符、可用的维度与指标。用户在界面上决定"这一次怎样观察"：筛选、列、排序、维度与指标、图表、面板组合。引擎把这种观察方式编译成 Wow 查询、执行、渲染，并把有价值的观察方式保存下来供下次直接打开。
 
@@ -462,7 +462,7 @@ export function OrdersPage() {
 
 主题跟随宿主：祖先上带 `.dark` class 即为暗色；给 `ViewSurface`（或工作台、嵌入组件）传 `theme="light"` 或 `theme="dark"` 可以把某一处视图钉住，传 `theme="system"` 则跟随读者系统的 `prefers-color-scheme` 并随它实时切换，适合自己没有明暗开关的页面。弹层 portal 到 `<body>` 时带着面从级联里解析出的模式，`.dark` 不必放在 `<html>` 上。预设也是这样选的，见[预设](https://wow.ahoo.me/zh/guide/typescript/view-engine-theming#预设)。
 
-**导入次序无关，宿主的类在面里照样生效。** `styles.css` 放在宿主自己的 Tailwind 样式之前或之后都行。它的工具类带前缀 `fve:`（`fve:flex`、`fve:md:w-64`），与宿主的不同名：我们的 `fve:md:w-64` 与宿主全局的 `.w-full` 不管次序都是两条规则；宿主写在面里、自己标记上的断点类（`sm:grid-cols-3`）只与宿主自己的规则比。样式表其余部分——preflight、base 与 token——仍收在两个边界里，不加权重（`scripts/verify-package.mjs` 核对每个被样式化的类都带前缀、其余每条规则都在作用域里）。
+**导入次序无关，宿主的类在面里照样生效。** `styles.css` 放在宿主自己的 Tailwind 样式之前或之后都行。它的工具类带前缀 `fve:`（`fve:flex`、`fve:md:w-64`），与宿主的不同名：我们的 `fve:md:w-64` 与宿主全局的 `.w-full` 不管次序都是两条规则；宿主写在面里、自己标记上的断点类（`sm:grid-cols-3`）只与宿主自己的规则比。样式表其余部分——preflight、base 与 token——仍收在两个边界里，不加权重（`scripts/verify-package.mjs` 核对每个被样式化的类都带前缀、其余每条规则都在作用域里）。`fve:` 工具类是引擎自己的，不给宿主的标记用：样式表只在引擎某个组件写着它时才有这一条。公开的是 token——见[什么是公开的](https://wow.ahoo.me/zh/guide/typescript/view-engine-theming#什么是公开的)。
 
 #### 页面自己已有 `main`
 
@@ -472,7 +472,7 @@ export function OrdersPage() {
 | ---------- | -------- | --------------------------------------------------------------------------------------------- |
 | `landmark` | `'main'` | `'main'`：以开着的视图命名的 `<main>`。`'region'`：同名的 `<section>`，没开视图时以定义名命名 |
 
-两种画法布局一样：样式表按主列的 `data-slot="workbench-main"` 找它，从不按标签。嵌入本来就不画 `main`，没有这个属性。
+两种画法布局一样：样式表按主列自己的一个属性找它，从不按标签。这个属性和所有 `data-slot` 一样是引擎自己的，不是给宿主样式表用的选择器。嵌入本来就不画 `main`，没有这个属性。
 
 <!-- typecheck-context
 import { ViewEngine } from '@ahoo-wang/wow-view-engine';
@@ -493,7 +493,7 @@ export function OrdersPage() {
 
 #### 开着哪个视图，与宿主的路由
 
-一个数据定义同时装着它的记录视图与分析视图，`DataWorkbench` 把它们列在一张列表里：用户在一张订单表与一张订单图之间切换，就像在任意两个视图之间切换一样，「新建视图」会先问要建哪一种。宿主要一页只有一种，就收窄——`kinds={['record']}`——另一种在这一页既不列出也打不开。
+一个数据定义同时装着它的记录视图与分析视图，`DataWorkbench` 把它们列在一张列表里：用户在一张订单表与一张订单图之间切换，就像在任意两个视图之间切换一样，「新建视图」会先问要建哪一种。宿主要一页只有一种，就收窄——`viewKinds={['record']}`——另一种在这一页既不列出也打不开。
 
 一个人打开的视图，就是他可以发出去的一条链接。两个工作台因此都收 `instanceId` 与 `onInstanceChange`——进出你的路由的两个方向，`DataWorkbench` 与 `DashboardWorkbench` 契约完全一致。`ViewHost` 带了 `router` 时这两个都不用写：工作台自己把开着的视图记在地址的 `?view=` 里。它们留给把视图记在别处的宿主，或者要决定的不止是视图的页面（控制台的失败执行按链接的 `?cluster=` 收窄视图）。
 
@@ -651,7 +651,7 @@ import '@ahoo-wang/wow-view-engine/shadcn-bridge.css';
 
 **明暗归 `ViewHost`。** 缺省的 `colorMode="system"` 在第一次绘制前写 `<html>` 的 `.dark` 与 `color-scheme`，跟随系统；`light`／`dark` 从钉住开始；读者经 `useColorMode()` 选的，按 `rememberColorMode` 记在本机；`host` 如上，跟宿主的 `.dark`。面上的 `theme="light"`、`"dark"`、`"system"` 仍可钉住某一个视图。宿主自己的暗色值写 `--fve-dark-*`，不写 `.dark` 下的 `--fve-*`：钉在浅色的视图会继承到它。
 
-**宿主自己的外壳**挂 `className="fve-tokens"` 穿上主题——挂在用到它的外壳上，不挂 `<body>`：边界里有 preflight——宿主自己的每个弹层离开外壳到了 `<body>`，它的 portal 也挂上（`<Menu.Portal className="fve-tokens">`）。
+**宿主自己的外壳**挂 `className="fve-tokens"` 穿上主题——挂在用到它的外壳上，不挂 `<body>`：边界里有 preflight——宿主自己的每个弹层离开外壳到了 `<body>`，它的 portal 也挂上（`<Menu.Portal className="fve-tokens">`）。边界里，你自己的类按 shadcn 的名字读主题的 token（`bg-card` 映射到 `var(--card)`）；引擎的 `fve:` 工具类不公开（[什么是公开的](https://wow.ahoo.me/zh/guide/typescript/view-engine-theming#什么是公开的)）。
 
 其余的——逐个 `--fve-*` 覆盖与完整的 token 表、只给一块面的 `tokens`、逐套预设、品牌色的边界、角色与链接、密度、涨跌色、桥接的细则、覆盖变量要守的线、给 CI 用的 `theme-check`——都在文档站的[视图引擎的主题](https://wow.ahoo.me/zh/guide/typescript/view-engine-theming)。
 
@@ -927,6 +927,12 @@ expect(orders.asks('cancel', 'row').asks).toBe(true);
 | `ViewStore`      | 八个方法（外加可选的 `changeAudience`）的持久化端口。业务应用为自己的后端实现它。                                                                                                                                                                                                                                                            | 应用   |
 | `FieldKind`      | 一种字段类型的操作符、校验、编译与编辑器描述。                                                                                                                                                                                                                                                                                               | 注册表 |
 
+有三个名字各有两种读法，这里说清哪个是哪个：
+
+- **`*Spec`** 要么是宿主提供的，要么是视图存下的。`DefineViewSpec`、`FieldSpec`、`FieldAnalysisSpec` 与 `AnalysisSpec` 是宿主交给 `defineView` 的输入——它提供的字段、操作符与分析；`ChartSpec`、`RecordTableSpec`、`AnalysisTableSpec` 与各图型的 `*Spec` 是存下的 `ViewConfig` 的部件。
+- **`RecordProjection` / `AnalysisProjection`** 是 `projectRecord` / `projectAnalysis` 从结果投影出来的东西：界面画的列、行与系列。「视图」指保存的 `ViewInstance`；`/ui` 的 `RecordViewProps` 是工作台的 `record` 属性，不是投影的。
+- **`kinds`** 在 `ViewEngineOptions` 与 `ViewEngine` 上是字段类型注册表；`DataWorkbench` 的 `viewKinds` 是它列出哪几种视图（`'record'`、`'analysis'`）。
+
 ## 视图管理
 
 - **生命周期。** 新建、保存、另存、改名、删除全部是 `ViewEngine` 命令，默认 UI 与自定义组合走同一路径。保存的只有配置，不含选择、页码与结果。
@@ -938,21 +944,21 @@ expect(orders.asks('cancel', 'row').asks).toBe(true);
 - **冲突与未知结果。** 版本冲突时二选一：重新加载或覆盖，另加"另存"；请求已发出但结果未知时可用同一 `requestId` 重试，草稿始终保留。
 - **离开保护。** 有未保存草稿或未知写入的视图关闭前确认；导航不取消在途写入。
 
-细节见 [docs/design/management.md](docs/design/management.md)。
+细节见 [docs/design/management.md](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/docs/design/management.md)。
 
 ## 入口
 
-| 入口                         | 导出                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
-| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `@ahoo-wang/wow-view-engine` | 模型类型与常量；四个纯内核（`validate*` / `compile*` / `project*` 及其旁边的读法）；运行时只导出宿主要握的，不导出它由什么搭成——`ViewEngine`、`validateDefinition`、运行时合同 `ViewRuntime`、`RecordViewRuntime`、`DashboardRuntime`、`AnyViewRuntime` 连同它们签名里出现的每一个类型、`hasResult`、`hasAsked`、`isRecordRuntime`、`actions` 连同声明式操作的类型、写入错误 `ViewWriteError` 与 `ViewCommandError`、`ExportCancelled`、`RuntimeEnvironment`、`defaultRuntimeEnvironment`、`ViewSource`、`OptionSource`；`ViewStore` 端口、`MemoryViewStore` 与 `localStorageSnapshot`                                                                                                |
-| `/react`                     | 钩子与无样式控制器，连同它们交出的类型：`useViewEngine`、`useOpenView`、`useViewRuntime`、`useViewList`、`useViewManager`、`useWorkbench`、`useLeaveGuard`、`useFilterEditor`、`useRecordTable`、`useAnalysisEditor`、`useAnalysisResult`、`useDashboard`、`useSaveCommands`、`useRecordActions`（一个记录面上的声明式操作：每条记录与选中的能做什么、等读者回答的确认或表单、唯一的执行器）、`RecordActionSlots`，以及保存命令与管理器共用的写入结局词汇                                                                                                                                                                                                                             |
-| `/ui`                        | 默认组件、视图与工作台，连同它们的 props：`DataWorkbench`、`DashboardWorkbench`、`DashboardEditExtensions`、`useDashboardExtensions`、`EmbeddedView`、`EmbeddedDashboard`、`ViewHost`、`bind`、`useEngine`、`useViewNavigation`、`useColorMode`、`ViewHeader`、`SaveActions`、`ViewManager`、`LeaveDialog`、`EditorBand`、`FilterPanel`、`StatusStrip`、`AppliedBar`、`ResultToolbar`、`RowActions`、`RecordTable`、`RecordCards`、`RecordPagination`、`AnalysisTable`、`AnalysisChart`、`DashboardGrid`、`HeadingPanel`、`MarkdownPanel`、`ImagePanel`、`LinksPanel`、`MessagesProvider`；措辞目录 `defaultMessages` 与 `zhCN`；一个值的读法 `cellValue`、`cellText`、`displayValue` |
-| `/testing`                   | `memorySource` 与 `matches`：带 Wow 查询语义的内存 `ViewSource`；`resolveNavigation`：引擎自己按宿主绑定解析离开的路，供宿主测路由；`admit`：按提交的描述符准入宿主的声明；`actionHarness`：按引擎的规则读宿主声明的操作，不画界面——供宿主测试使用（[测试宿主](#测试宿主内存数据源)）                                                                                                                                                                                                                                                                                                                                                                                                 |
-| `/react-router`              | `useReactRouter`：把 React Router 接成视图宿主的路由端口。React Router 是可选 peer，只有这个入口加载它                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
-| `/styles.css`                | 主题。显式导入；任何 JS 入口都不会引入 CSS，产物也不会在 `.fve-root`／`.fve-tokens` 两个样式边界之外绘制任何东西（preflight 与 base 在构建时收进边界内、不加权重，工具类一律带 `fve:` 前缀、与宿主的不同名，所以宿主的导入次序无关）——预设的复位规则除外，它只在挂了预设的元素上清空 `--fvp-*` 层——`scripts/verify-package.mjs` 在每次构建时逐条核对。                                                                                                                                                                                                                                                                                                                                |
-| `/themes.css`                | 预设，可选：只有按 `data-fve-preset` 选中的 `--fvp-*` 赋值（[预设](https://wow.ahoo.me/zh/guide/typescript/view-engine-theming#预设)），由同一个脚本核对。                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
-| `/themes/<名>.css`           | 单独一套预设，给只用一套的宿主：就是 `themes.css` 里它那一块（[预设](https://wow.ahoo.me/zh/guide/typescript/view-engine-theming#预设)）。                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
-| `/shadcn-bridge.css`         | 可选：把宿主的 shadcn token 读进 `--fvp-*` 变量，`input`、`ring`、状态色、图表色与阴影除外，且只在没挂预设时生效（[桥接](https://wow.ahoo.me/zh/guide/typescript/view-engine-theming#shadcn-桥接)），由同一个脚本核对。                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| 入口                         | 导出                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `@ahoo-wang/wow-view-engine` | 模型类型与常量；四个纯内核（`validate*` / `compile*` / `project*` 及其旁边的读法）；运行时只导出宿主要握的，不导出它由什么搭成——`ViewEngine`、`validateDefinition`、运行时合同 `ViewRuntime`、`RecordViewRuntime`、`DashboardRuntime`、`AnyViewRuntime` 连同它们签名里出现的每一个类型、`hasResult`、`hasAsked`、`isRecordRuntime`、`actions` 连同声明式操作的类型、写入错误 `ViewWriteError` 与 `ViewCommandError`、`ExportCancelled`、`RuntimeEnvironment`、`defaultRuntimeEnvironment`、`ViewSource`、`OptionSource`；`ViewStore` 端口、`MemoryViewStore` 与 `localStorageSnapshot`                                                                                   |
+| `/react`                     | 钩子与无样式控制器，连同它们交出的类型：`useViewEngine`、`useOpenView`、`useViewRuntime`、`useViewList`、`useViewManager`、`useWorkbench`、`useLeaveGuard`、`useFilterEditor`、`useRecordTable`、`useAnalysisEditor`、`useAnalysisResult`、`useDashboard`、`useSaveCommands`、`useRecordActions`（一个记录面上的声明式操作：每条记录与选中的能做什么、等读者回答的确认或表单、唯一的执行器）、`RecordActionSlots`，以及保存命令报告的两个写入结局类型（`SettledWrite`、`RecoveredWrite`）                                                                                                                                                                                |
+| `/ui`                        | 默认组件、视图与工作台，连同它们的 props：`DataWorkbench`、`DashboardWorkbench`、`DashboardEditExtensions`、`useDashboardExtensions`、`EmbeddedView`、`EmbeddedDashboard`、`ViewHost`、`bind`、`useEngine`、`useViewNavigation`、`useColorMode`、`ViewHeader`、`SaveActions`、`ViewManager`、`LeaveDialog`、`EditorBand`、`FilterPanel`、`StatusStrip`、`AppliedBar`、`ResultToolbar`、`RowActions`、`RecordTable`、`RecordCards`、`RecordPagination`、`AnalysisTable`、`AnalysisChart`、`DashboardGrid`、`HeadingPanel`、`MarkdownPanel`、`ImagePanel`、`LinksPanel`、`MessagesProvider`；措辞目录 `en` 与 `zhCN`；一个值的读法 `cellValue`、`cellText`、`displayValue` |
+| `/testing`                   | `memorySource` 与 `matches`：带 Wow 查询语义的内存 `ViewSource`；`resolveNavigation`：引擎自己按宿主绑定解析离开的路，供宿主测路由；`admit`：按提交的描述符准入宿主的声明；`actionHarness`：按引擎的规则读宿主声明的操作，不画界面——供宿主测试使用（[测试宿主](#测试宿主内存数据源)）                                                                                                                                                                                                                                                                                                                                                                                    |
+| `/react-router`              | `useReactRouter`：把 React Router 接成视图宿主的路由端口。React Router 是可选 peer，只有这个入口加载它                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| `/styles.css`                | 主题。显式导入；任何 JS 入口都不会引入 CSS，产物也不会在 `.fve-root`／`.fve-tokens` 两个样式边界之外绘制任何东西（preflight 与 base 在构建时收进边界内、不加权重，工具类一律带 `fve:` 前缀、与宿主的不同名，所以宿主的导入次序无关）——预设的复位规则除外，它只在挂了预设的元素上清空 `--fvp-*` 层——`scripts/verify-package.mjs` 在每次构建时逐条核对。                                                                                                                                                                                                                                                                                                                   |
+| `/themes.css`                | 预设，可选：只有按 `data-fve-preset` 选中的 `--fvp-*` 赋值（[预设](https://wow.ahoo.me/zh/guide/typescript/view-engine-theming#预设)），由同一个脚本核对。                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| `/themes/<名>.css`           | 单独一套预设，给只用一套的宿主：就是 `themes.css` 里它那一块（[预设](https://wow.ahoo.me/zh/guide/typescript/view-engine-theming#预设)）。                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| `/shadcn-bridge.css`         | 可选：把宿主的 shadcn token 读进 `--fvp-*` 变量，`input`、`ring`、状态色、图表色与阴影除外，且只在没挂预设时生效（[桥接](https://wow.ahoo.me/zh/guide/typescript/view-engine-theming#shadcn-桥接)），由同一个脚本核对。                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 
 这就是公开面，而且逐个名字守着。每个入口把它导出的名字逐个写出，按声明它的文件分组，不整模块转出（`test/architecture.test.ts`），所以文件为包内邻居写的 `export` 不会意外变成公开的。每个代码入口的完整清单——每一个名字，以及它是类型还是值——在 `test/surface/`（`root.txt`、`react.txt`、`ui.txt`、`testing.txt`、`react-router.txt`）：入口多导出了清单上没有的名字、或不再导出清单上有的名字，`test/publicSurface.test.ts` 就失败；`scripts/verify-package.mjs` 再拿同一份清单核对构建出的每个 JS 入口。往清单里加一个名字或拿掉一个，就是改公开面，按改公开面来审。命令也是公开面：`test/surface/bin.txt` 列出 `bin`（`wow-view-engine`）与它认的每个子命令（[`theme-check`](https://wow.ahoo.me/zh/guide/typescript/view-engine-theming#检查一套主题)）。
 
@@ -1038,7 +1044,7 @@ const store = new MemoryViewStore({
 
 ### 措辞与语言
 
-模型只带 `code` 与 `params`，措辞归 `/ui`。`defaultMessages`（即 `en`）给每个 issue 一句英文，`ViewSurface` 与每个工作台的 `messages` 按 key 合并在已生效的措辞之上——改写与本地化是同一个入口；在应用外层放一个 `ViewHost`（或单独的 `MessagesProvider`），就能对其中所有视图一次设定，连同值显示的语言（`locale`）。包里另带一份逐键对应的简体中文 `zhCN`：整份交给 `messages` 即可，要改其中几句就铺开再覆盖（`{ ...zhCN, 'label.filter.apply': '确定' }`）。
+模型只带 `code` 与 `params`，措辞归 `/ui`。`en`（英文目录）给每个 issue 一句英文，`ViewSurface` 与每个工作台的 `messages` 按 key 合并在已生效的措辞之上——改写与本地化是同一个入口；在应用外层放一个 `ViewHost`（或单独的 `MessagesProvider`），就能对其中所有视图一次设定，连同值显示的语言（`locale`）。包里另带一份逐键对应的简体中文 `zhCN`：整份交给 `messages` 即可，要改其中几句就铺开再覆盖（`{ ...zhCN, 'label.filter.apply': '确定' }`）。
 
 值按字段显示：枚举显示选项的标签，`datetime`／`date` 经 `Intl.DateTimeFormat` 格式化，日期直方图的键显示为它起始的年、季度、月或日。`locale` 决定这些值用什么语言显示，缺省为运行环境的语言；它和 `messages` 是同一个选择，一个管文字，一个管值：
 
@@ -1061,6 +1067,16 @@ import { DataWorkbench, zhCN } from '@ahoo-wang/wow-view-engine/ui';
 时间按引擎的时钟 `environment.timeZone` 显示：相对日期"今天"按它解析，未声明 `timeZone` 的日期直方图也按它切桶，所以一行按什么时钟被筛选、被分组，就按什么时钟显示。
 
 找不到的 key 会沿点号回退到最长的已知前缀，再退回 key 本身，因此不会渲染空白。新增 issue code 却没有对应措辞时，测试会失败。组件能取的 key 是 `MessageKey` 这个联合类型，删掉一个键就是编译错误；宿主自己的 `messages` 仍是开放的字符串映射。
+
+消息键与 issue code 都是公开面，列在 `test/surface/messages.txt` 与 `test/surface/issues.txt`：改名或删掉一个，和删掉一个导出一样是破坏性变更。改写引擎自己的措辞时用 `satisfies MessageOverrides`，引擎改了名的键会让你的构建失败，而不是悄悄回落到引擎自己的句子；你自己的键（定义里的 `text(key)`）另放在普通的 `ViewMessages` 里：
+
+```ts
+import type { MessageOverrides } from '@ahoo-wang/wow-view-engine/ui';
+
+const wording = {
+  'label.filter.apply': '确定',
+} satisfies MessageOverrides;
+```
 
 ## 扩展点
 

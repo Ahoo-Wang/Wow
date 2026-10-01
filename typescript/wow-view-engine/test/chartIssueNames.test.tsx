@@ -338,7 +338,7 @@ describe('the workbench’s status line', () => {
         engine={engine}
         definitionId="orders"
         instanceId="charted"
-        kinds={['analysis']}
+        viewKinds={['analysis']}
       />,
     );
     const line = await screen.findByText(
@@ -355,7 +355,7 @@ describe('the workbench’s status line', () => {
         engine={engine}
         definitionId="orders"
         instanceId="charted"
-        kinds={['analysis']}
+        viewKinds={['analysis']}
       />,
     );
     const line = await screen.findByText(

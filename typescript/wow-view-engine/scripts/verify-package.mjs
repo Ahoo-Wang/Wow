@@ -48,6 +48,12 @@
 // 13. `mingo`, an optional peer, is imported by `/testing` and by no other entry.
 // 14. `react-router`, an optional peer, is imported by `/react-router` and by
 //    no other entry.
+// 15. Every package the built code imports is declared, and every dependency
+//    is imported rather than inlined.
+// 16. The package shape: `default` beside `import`, `./package.json`
+//    exported, and only dist, the READMEs and the notices in `files`.
+// 17. Every relative import of the declarations ends in `.js`, so a host's
+//    compiler under node16 / nodenext resolution resolves it.
 import assert from 'node:assert/strict';
 import {
   readdirSync,
@@ -501,6 +507,22 @@ const registry = JSON.parse(
 assert.ok(
   Array.isArray(registry.tokens) && registry.tokens.length > 0,
   'dist/theme-tokens.json holds no tokens; the build writes it from src/ui/theme/tokens.ts',
+);
+// The token classes are the only classes a host may write (R2-86): every
+// one of them is in the stylesheet whatever the components happen to use,
+// so none disappears from a release the way an internal utility may.
+const styledClasses = new Set(
+  [...stylesheet.matchAll(/\.((?:\\.|[\w-])+)/g)].map(([, name]) =>
+    name.replace(/\\(.)/g, '$1'),
+  ),
+);
+const missingTokenClasses = registry.tokenClasses.filter(
+  name => !styledClasses.has(name),
+);
+assert.deepEqual(
+  missingTokenClasses,
+  [],
+  `token classes missing from styles.css: ${missingTokenClasses.join(', ')} — keep them with @source inline`,
 );
 const hostVariables = value => value.match(/--fve-[\w-]+/g) ?? [];
 // The minifier may split one token block of the source into several rules
@@ -1117,6 +1139,98 @@ for (const entry of ['.', './react', './ui', './testing']) {
     `${entry} loads react-router, an optional peer only /react-router may import: ${offending.join(', ')}`,
   );
 }
+
+// 15. The manifest says what a host installs, and the build keeps to it:
+// every package the built JavaScript imports is a dependency or a peer, and
+// every dependency is imported, never inlined — a package listed and bundled
+// both would install a copy the code never loads (vite.config.ts makes every
+// listed package external).
+const distJs = dir =>
+  readdirSync(dir, { withFileTypes: true }).flatMap(entry => {
+    const path = join(dir, entry.name);
+    if (entry.isDirectory()) return distJs(path);
+    return /\.(m?js)$/.test(entry.name) ? [path] : [];
+  });
+const BARE =
+  /(?:\bfrom\s*|\bimport\s*\(\s*|\bimport\s+)["']((?:@[\w.-]+\/)?\w[\w.-]*)(?:\/[^"']*)?["']/g;
+const imported = new Set();
+for (const file of distJs(fileURLToPath(new URL('dist/', packageRoot)))) {
+  // The theme's command bundles PostCSS on purpose and runs under Node.
+  if (file.endsWith('theme-check.mjs')) continue;
+  for (const [, pkg] of readFileSync(file, 'utf8').matchAll(BARE))
+    if (!pkg.startsWith('node:') && pkg !== name) imported.add(pkg);
+}
+const declared = new Set([
+  ...Object.keys(manifest.dependencies),
+  ...Object.keys(manifest.peerDependencies),
+]);
+const undeclared = [...imported].filter(pkg => !declared.has(pkg)).sort();
+assert.deepEqual(
+  undeclared,
+  [],
+  `the built entries import packages the manifest does not declare: ${undeclared.join(', ')}`,
+);
+const inlined = Object.keys(manifest.dependencies)
+  .filter(pkg => !imported.has(pkg))
+  .sort();
+assert.deepEqual(
+  inlined,
+  [],
+  `dependencies the built code never imports (inlined, or unused): ${inlined.join(', ')} — make them external or move them to devDependencies`,
+);
+
+// 17. Every relative import of the declarations names its file, `.js`
+// included: under node16 and nodenext resolution a host's compiler refuses
+// one that does not, and the vendored components write theirs through an
+// alias with no extension (vite.config.ts rewrites them).
+const declarations = dir =>
+  readdirSync(dir, { withFileTypes: true }).flatMap(entry => {
+    const path = join(dir, entry.name);
+    if (entry.isDirectory()) return declarations(path);
+    return entry.name.endsWith('.d.ts') ? [path] : [];
+  });
+const bareRelative = declarations(
+  fileURLToPath(new URL('dist/', packageRoot)),
+).flatMap(file =>
+  [
+    ...readFileSync(file, 'utf8').matchAll(
+      /\bfrom\s+['"](\.{1,2}\/[^'"]+)['"]/g,
+    ),
+  ]
+    .map(([, specifier]) => specifier)
+    .filter(specifier => !specifier.endsWith('.js'))
+    .map(specifier => `${file.slice(file.indexOf('dist/'))}: ${specifier}`),
+);
+assert.deepEqual(
+  bareRelative,
+  [],
+  `declarations import relative paths without .js: ${bareRelative.join(', ')}`,
+);
+
+// 16. The package's shape, as its siblings have it: every code entry carries
+// `default` beside `import`, so a resolver asking another condition still
+// finds it; `./package.json` is exported for a tool reading the version; and
+// only what a host uses ships — never the design pages, whose working notes
+// would stay frozen on npm.
+for (const [specifier, paths] of targets)
+  if (paths.import)
+    assert.equal(
+      paths.default,
+      paths.import,
+      `${specifier} must carry a default condition equal to its import`,
+    );
+assert.equal(
+  manifest.exports['./package.json'],
+  './package.json',
+  './package.json must be exported',
+);
+assert.deepEqual(
+  manifest.files.filter(
+    file => !/^(dist|README(\.zh-CN)?\.md|THIRD_PARTY_NOTICES\.md)$/.test(file),
+  ),
+  [],
+  'files ships only dist, the READMEs and the notices',
+);
 
 const sizes = checkSizes({
   packageName: name,

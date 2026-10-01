@@ -19,10 +19,10 @@ import {
   type ViewAudience,
   type ViewInstanceSummary,
 } from '../../model/index.js';
-import {
-  PREFERENCES_KEY,
-  type ViewListState,
-  type ViewManagerController,
+import { PREFERENCES_KEY } from '../../react/manager/outcomes.js';
+import type {
+  ViewListState,
+  ViewManagerController,
 } from '../../react/index.js';
 import {
   Dialog,

@@ -410,7 +410,7 @@ export function SectionDivider({
  * and silently undone by any registry rename. It is the control's own class
  * now.
  */
-const controlChromeVariants = cva('', {
+export const controlChromeVariants = cva('', {
   variants: {
     chrome: {
       box: '',
@@ -420,8 +420,15 @@ const controlChromeVariants = cva('', {
   defaultVariants: { chrome: 'none' },
 });
 
-/** What a control inside a pill takes on top of the vendored component's. */
-export type ControlChromeProps = VariantProps<typeof controlChromeVariants>;
+/**
+ * What a control inside a pill takes on top of the vendored component's,
+ * written out rather than read off the class recipe so the public type does
+ * not follow it (R2-85); `test/variants.test.tsx` holds the two in step.
+ */
+export interface ControlChromeProps {
+  /** `none`, the default: no edge, fill or shadow. `box`: the registry's. */
+  chrome?: 'box' | 'none' | null;
+}
 
 /**
  * The text box of a condition pill.

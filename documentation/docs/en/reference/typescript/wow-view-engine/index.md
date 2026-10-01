@@ -92,7 +92,7 @@ Architecture tests enforce the dependency rules: `model` imports nothing; `filte
 | Persistence | Implement `ViewStore` |
 | Actions | Declare them with `actions()` and bind them (`bind(id, { actions })`): the engine places, confirms, runs and reports them; `slots` (`global`, `bulk`, `row` render functions) are the escape hatch. They are code and are never saved |
 | Appearance | CSS variables, presets and the shadcn bridge (see [Theming the View Engine](../../../guide/typescript/view-engine-theming.md)); replace components by composing the `/react` hooks |
-| Wording | `defaultMessages` (English) and `zhCN` catalogues, merged through the `messages` prop or `MessagesProvider` |
+| Wording | `en` and `zhCN` catalogues, merged through the `messages` prop or `MessagesProvider` |
 
 ## Source
 

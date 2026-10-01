@@ -467,7 +467,7 @@ pnpm exec wow-view-engine theme-check src/theme.css --preset azure --preset porc
 | `shadow-sm`                     | 低的一档浮起：浮起的卡片                                                                                                            | Tailwind 的 `shadow-sm`                | 同左                              |
 | `shadow-md`                     | 中的一档浮起：弹层                                                                                                                  | Tailwind 的 `shadow-md`                | 同左                              |
 | `shadow-lg`                     | 高的一档浮起：拖动中的面板                                                                                                          | Tailwind 的 `shadow-lg`                | 同左                              |
-| `canvas`                        | 分组底：看板与宿主按卡片排的页面站在它上面（`fve:bg-canvas`）                                                                       | `background`                           | `background`                      |
+| `canvas`                        | 分组底：看板与宿主按卡片排的页面站在它上面（token 类 `fve:bg-canvas`）                                                              | `background`                           | `background`                      |
 | `content`                       | 行与结果写在上面的底                                                                                                                | `background`                           | `background`                      |
 | `card-edge`                     | 卡片的一圈边：看板面板、记录卡片                                                                                                    | `foreground` 的 10%                    | 同左                              |
 | `card-shadow`                   | 卡片离开底的浮起                                                                                                                    | `0 0 #0000`                            | `0 0 #0000`                       |
@@ -597,17 +597,17 @@ pnpm exec wow-view-engine theme-check src/theme.css --preset azure --preset porc
 
 ## 宿主自己的外壳
 
-样式表的每一条规则都在构建时被收进样式边界，所以主题的 token，连 `grid`、`gap-4`、`bg-background` 这样的 utility，都只在边界里才画得出来。边界有两个，其中只有一个是 surface：
+样式表的每一条规则都在构建时被收进样式边界，所以主题的 token，以及引擎作画所用的 utility，都只在边界里才画得出来。边界有两个，其中只有一个是 surface：
 
 |                           | `.fve-root`                                       | `.fve-tokens`                                                    |
 | ------------------------- | ------------------------------------------------- | ---------------------------------------------------------------- |
 | 谁渲染                    | `ViewSurface`，以及各工作台与嵌入                 | 你自己的 DOM                                                     |
 | token、utility、preflight | 有                                                | 有                                                               |
-| 涂底色与文字色            | 涂                                                | **不涂**——想要本包那张底，自己写 `bg-background text-foreground` |
+| 涂底色与文字色            | 涂                                                | **不涂**——想要本包那张底，自己涂 `var(--background)` 与 `var(--foreground)` |
 | 明暗                      | 祖先上的 `.dark`，或 `theme` 用 `data-theme` 钉住 | 只认祖先上的 `.dark`                                             |
 | 措辞、语言、时区、tooltip | 有，走 `ViewSurface` 的 props                     | 没有                                                             |
 
-**`fve-tokens` 许诺的是 token 与 utility（引擎的，带它的前缀写：`fve:flex`），不是组件。** 本包渲染所用的 shadcn 原语是 vendored 的，靠 `shadcn add --diff` 升级，不属于公开 API——所以请用你自己的组件、或你自己那份 shadcn/ui 搭 chrome，由这道边界把本主题的配色与间距交给它们：
+**`fve-tokens` 许诺的是 token，不是 utility，也不是组件。** 边界里，主题的 token 以 shadcn 的名字声明——`--background`、`--foreground`、`--card`、`--card-foreground`、`--primary`、`--muted`、`--border`、`--radius` 等等——已按预设、你的覆盖与明暗解析好。你自己的 Tailwind 主题照 shadcn/ui 的做法映射它们（`--color-card: var(--card)`），你自己的类（`bg-card`）与你自己那份 shadcn/ui 在这里就穿上本主题；纯 CSS 用 `var(--card)` 读。引擎的 `fve:` utility 是引擎自己的：样式表只在引擎某个组件写着它的时候才有这一条，今天可用的，下一个版本可能就没了。本包渲染所用的 shadcn 原语是 vendored 的，靠 `shadcn add --diff` 升级，同样不公开——所以请用你自己的组件与类搭 chrome，由这道边界把本主题的配色交给它们：
 
 <!-- typecheck-context
 import { ViewEngine } from '@ahoo-wang/wow-view-engine';
@@ -617,17 +617,30 @@ declare const id: string;
 -->
 
 ```tsx
-<div className="fve-tokens fve:flex fve:flex-col fve:gap-4">
-  <header className="fve:flex fve:items-center fve:gap-2 fve:rounded-lg fve:border fve:bg-card fve:p-4 fve:text-card-foreground">
-    ……你自己的页头，穿着本主题的 token……
+<div className="fve-tokens flex flex-col gap-4">
+  <header className="flex items-center gap-2 rounded-lg border bg-card p-4 text-card-foreground">
+    ……你自己的页头，你自己的类，本主题的 token……
   </header>
   <EmbeddedView engine={engine} instanceId={id} theme="light" />
 </div>
 ```
 
-`fve-tokens` 判断明暗只读一样东西：祖先上的 `.dark` class，和各个面读的是同一个——放在 `<html>` 上、放在应用外壳上都行，你的应用本来放在哪儿就放哪儿。它**不读**自己身上的 `data-theme`：钉模式是 surface 的事。它还会把凡是归某块面管的元素原样交还给那块面，所以上面那个钉成亮色的视图，在暗色页面里 token 与 utility 一路都是亮的。
+有一个类作为 token 提供：`fve:bg-canvas`，看板的分组底（`canvas`），它没有可映射的 shadcn 名字。承载看板的卡片页用它涂底，页面与看板就是同一张底。它是样式表里唯一公开的类。
 
-preflight 同样在边界里生效：这片区域内你自己的标题、列表与按钮，会像在视图里一样被重置。这是换取这套 utility 的代价，也正是这个类该戴在用到它们的那块 chrome 上、而不是整页上的原因。
+### 什么是公开的
+
+宿主能跨版本依赖的只有下面这些，改动其中任何一项都是破坏性变更：
+
+- 变量：你写的 `--fve-*` 与 `--fve-dark-*`，预设写的 `--fvp-*` 与 `--fvp-dark-*`（[全部变量](#全部变量)），以及两道边界声明、供你读取的 shadcn 名字的 token；
+- 主题读的属性：`data-fve-preset`、`data-fve-density`、`data-fve-change-colors`、`data-fve-brand-chart`，以及面上的 `data-theme`；
+- 两道边界 `.fve-root` 与 `.fve-tokens`，以及明暗所跟随的 `.dark` 类；
+- token 类 `fve:bg-canvas`。
+
+其余都是引擎自己的，随时会变：其他所有 `fve:` 类、元素上的 `data-slot` 属性、其他类名、`--_fve-*` 变量，以及它渲染的 DOM——有哪些元素、次序与嵌套。不要以它们为选择器；这样写的规则在任何一个版本里都可能不再命中。
+
+`fve-tokens` 判断明暗只读一样东西：祖先上的 `.dark` class，和各个面读的是同一个——放在 `<html>` 上、放在应用外壳上都行，你的应用本来放在哪儿就放哪儿。它**不读**自己身上的 `data-theme`：钉模式是 surface 的事。它还会把凡是归某块面管的元素原样交还给那块面，所以上面那个钉成亮色的视图，在暗色页面里每一个 token 都是亮的。
+
+preflight 同样在边界里生效：这片区域内你自己的标题、列表与按钮，会像在视图里一样被重置。这是这道边界的代价，也正是这个类该戴在读这些 token 的那块 chrome 上、而不是整页上的原因。
 
 宿主自己的弹层离开外壳到了 `<body>`，它的 portal 也挂上这个类——`<Menu.Portal className="fve-tokens">`——就像引擎自己的弹层带着所在面的主题出去一样。
 

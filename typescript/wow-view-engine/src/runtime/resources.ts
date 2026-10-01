@@ -18,7 +18,7 @@ import {
   type ViewDefinition,
 } from '../model/index.js';
 import { issue } from '../filter/index.js';
-import { sayDefinition, type DefinitionRegistry } from './definitions.js';
+import { sayDefinition } from './definitions.js';
 import type { OptionSource, ViewSource } from './source.js';
 import { EngineText } from './text.js';
 import { defaultIssueReporter, type IssueReporter } from './issueReport.js';
@@ -42,10 +42,14 @@ export interface ResourceHost {
  * (`EngineText`, D2).
  */
 export abstract class EngineResources {
-  /** The definitions as registered, keys and all. */
-  protected abstract readonly registry: DefinitionRegistry;
+  /**
+   * The definitions as registered, keys and all: the registry's map rather
+   * than the registry, so the engine's public type names nothing it does
+   * not export (R2-85).
+   */
+  protected abstract readonly registered: ReadonlyMap<string, ViewDefinition>;
   /** The words the definitions' keys are checked against; see `EngineText`. */
-  protected readonly text: EngineText;
+  private readonly text: EngineText;
   private readonly sources = new Map<string, ViewSource>();
   /** What was told to lack words, by language, code and key; see `setText`. */
   private readonly lacking = new Set<string>();
@@ -59,7 +63,7 @@ export abstract class EngineResources {
       : defaultIssueReporter();
     // Called on the host's object, which a catalogue's method may read.
     this.text = new EngineText(host.text && (key => host.text?.(key)), () =>
-      textKeysIn([...this.registry.definitions.values()]),
+      textKeysIn([...this.registered.values()]),
     );
     for (const { definition, source } of host.resources)
       if (
@@ -75,7 +79,7 @@ export abstract class EngineResources {
    * (`text(key)`) are said where they are shown (`useSay`, `say`).
    */
   get definitions(): ReadonlyMap<string, ViewDefinition> {
-    return this.registry.definitions;
+    return this.registered;
   }
 
   /**
@@ -104,13 +108,12 @@ export abstract class EngineResources {
    */
   setText(text: TextResolver | undefined, language = ''): void {
     if (!this.text.set(text) || !text) return;
-    const findings = [...this.registry.definitions.values()].flatMap(
-      definition =>
-        sayDefinition(definition, text).findings.map(found => ({
-          found,
-          definition: definition.id,
-          key: String(found.params?.key),
-        })),
+    const findings = [...this.registered.values()].flatMap(definition =>
+      sayDefinition(definition, text).findings.map(found => ({
+        found,
+        definition: definition.id,
+        key: String(found.params?.key),
+      })),
     );
     const says = this.text.saysAny(text);
     const lacking = new Set<string>();

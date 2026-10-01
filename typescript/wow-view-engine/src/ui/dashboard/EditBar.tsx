@@ -14,7 +14,8 @@
 import { useId, useRef, useState, type ReactNode, type RefObject } from 'react';
 import { CheckIcon, PencilRulerIcon, Redo2Icon, Undo2Icon } from 'lucide-react';
 import type { ViewInstance } from '../../model/index.js';
-import { unsettled, type SaveCommands } from '../../react/index.js';
+import type { SaveCommands } from '../../react/index.js';
+import { unsettled } from '../../react/writes.js';
 import { Button } from '../components/button.js';
 import { ButtonGroup } from '../components/button-group.js';
 import { IconButton } from '../kit/IconButton.js';

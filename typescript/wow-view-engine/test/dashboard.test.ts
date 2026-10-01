@@ -24,7 +24,6 @@ import {
   isViewPanel,
   mapGlobalFilter,
   mergeGlobalFilter,
-  overlaid,
   panelsOf,
   presentationMembersOf,
   tabsOf,
@@ -38,6 +37,7 @@ import {
   type ViewDefinition,
   type ViewScope,
 } from '../src/index.js';
+import { overlaid } from '../src/model/json.js';
 import {
   analysisConfig,
   dashboardConfig,

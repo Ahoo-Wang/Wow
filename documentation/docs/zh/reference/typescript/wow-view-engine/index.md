@@ -92,7 +92,7 @@ flowchart LR
 | 持久化 | 实现 `ViewStore` |
 | 操作 | 用 `actions()` 声明并绑到定义上（`bind(id, { actions })`）：放在哪、确认、执行与汇报由引擎负责；`slots`（`global`、`bulk`、`row` 三个渲染函数）是逃生口。它们是代码，从不保存 |
 | 外观 | CSS 变量、预设与 shadcn 桥接（见[视图引擎的主题](../../../guide/typescript/view-engine-theming.md)）；通过组合 `/react` Hook 替换组件 |
-| 文案 | `defaultMessages`（英文）与 `zhCN` 两套文案，通过 `messages` 属性或 `MessagesProvider` 合并 |
+| 文案 | `en`（英文）与 `zhCN` 两套文案，通过 `messages` 属性或 `MessagesProvider` 合并 |
 
 ## 源码
 

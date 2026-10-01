@@ -29,12 +29,12 @@ import type {
 } from '../src/index.js';
 import { SurfaceCalendar } from '../src/ui/filter/inputs/calendar.js';
 import {
-  en,
   FilterValueEditor,
   formatMessage,
   ViewSurface,
   zhCN,
 } from '../src/ui/index.js';
+import { en } from '../src/ui/messages/en.js';
 import { pinClock } from './fixtures/clock.js';
 
 afterEach(cleanup);

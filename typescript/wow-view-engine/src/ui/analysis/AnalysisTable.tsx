@@ -36,7 +36,7 @@ import { SortableHeader } from '../record/SortableHeader.js';
 import { stickyBand, stickyPort } from '../record/sticky.js';
 import { onlyWhereText } from '../kit/summary.js';
 import { useSurfaceDisplay } from '../kit/ViewSurface.js';
-import type { AnalysisView } from '../../analysis/index.js';
+import type { AnalysisProjection } from '../../analysis/index.js';
 import {
   isApproximate,
   type AnalysisSort,
@@ -63,7 +63,7 @@ import {
 } from '../components/table.js';
 
 export interface AnalysisTableProps {
-  view: AnalysisView;
+  view: AnalysisProjection;
   /**
    * Makes the rows pressable: a row opens the follow-up menu on the group
    * it is. This is the keyboard's path to the menu the chart's marks open
@@ -201,8 +201,10 @@ export function AnalysisTable({
   // its field's values do; the rest, and anything the field's kind has
   // nothing to say about, as before.
   // The one reading the exported file shares (`analysisCellText`).
-  const show = (row: RecordData, column: AnalysisView['columns'][number]) =>
-    analysisCellText(row[column.alias], column, messages, display, row);
+  const show = (
+    row: RecordData,
+    column: AnalysisProjection['columns'][number],
+  ) => analysisCellText(row[column.alias], column, messages, display, row);
   const titled = view.columns.map(column => ({
     column,
     title: columnTitle(column, messages, view.approximate),
@@ -247,7 +249,7 @@ export function AnalysisTable({
    * said even when the analyst's own name took the header's place.
    */
   const headerNote = (
-    column: AnalysisView['columns'][number],
+    column: AnalysisProjection['columns'][number],
     index: number,
   ): { id: string; text: string } | undefined => {
     const notes = [

@@ -1,11 +1,10 @@
-# @ahoo-wang/wow-view-engine/react — 127 names, from src/react/index.ts.
+# @ahoo-wang/wow-view-engine/react — 114 names, from src/react/index.ts.
 # Written by test/publicSurface.test.ts; a change here is a change to
 # the public surface (README「Entries」, docs/design/decisions.md D29).
 type  ActionRunner
 type  AnalysisEditorController
 type  AnalysisFieldOption
 type  AnalysisResultController
-type  Blank
 type  BulkActionView
 type  BulkFailure
 type  BulkOutcome
@@ -34,8 +33,9 @@ type  ManagedInstanceAbilities
 type  MetricRemoval
 type  NewViewOptions
 type  OpenViewState
-value PREFERENCES_KEY
 type  PendingAction
+type  QuestionEditing
+type  QuestionEditingInput
 type  RecordActionSlots
 type  RecordActionTable
 type  RecordActionsController
@@ -57,6 +57,8 @@ type  RecordRowActionContext
 type  RecordTableController
 type  RecoveredWrite
 type  RefreshController
+type  Reshape
+type  ReshapeProposal
 type  RowActionView
 type  SaveAbilities
 type  SaveCommandState
@@ -68,9 +70,6 @@ type  SnapshotOf
 type  SplitOption
 type  ToggleSelectionOptions
 type  ToggleSortOptions
-type  TreeControllerInput
-value UNRECOVERED
-value UNSENT
 type  UnavailableController
 value VALUE_CANDIDATE_DEBOUNCE_MS
 type  ValueCandidatesController
@@ -83,24 +82,12 @@ type  ViewOrigin
 type  ViewRuntimeStore
 type  WorkbenchController
 type  WorkbenchOptions
-value blankView
-value blocksNewIntent
 value browserRuntimeEnvironment
 value documentVisibility
 value failureReasons
-value holdsHandle
 value kindMismatch
-value mayRefuse
-value mayReplace
 value ownedNavigation
-value recovered
-value refused
-value savesView
-value settle
-value strandedHandle
 value toIssue
-value treeController
-value unsettled
 value useAnalysisEditor
 value useAnalysisResult
 value useAutoRefresh

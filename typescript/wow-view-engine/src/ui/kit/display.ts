@@ -238,7 +238,7 @@ export function summaryFunctionKey(
  *
  * A metric the source estimates wears 「≈」 in front of it (D20 口径): the
  * types in `estimated`, which the projection reads off what the source says
- * it estimates (`AnalysisView.approximate`, from
+ * it estimates (`AnalysisProjection.approximate`, from
  * `AnalysisCapability.approximate` — a descriptor's `analysis.approximate`,
  * percentiles when nothing says otherwise). A p95
  * that prints to two decimals beside an exact sum reads as exact — the sign
@@ -274,7 +274,7 @@ export function columnTitle(
   },
   messages: MessageFormatters,
   /**
-   * The metric types the source estimates (`AnalysisView.approximate`);
+   * The metric types the source estimates (`AnalysisProjection.approximate`);
    * percentiles where the caller holds no view.
    */
   estimated: readonly string[] = DEFAULT_APPROXIMATE_METRICS,

@@ -141,7 +141,7 @@ function ReferencesDemo({
           definitionId={shipmentsDefinition.id}
           instanceId={view.id}
           {...HOST_LANGUAGE}
-          kinds={['analysis']}
+          viewKinds={['analysis']}
         />
       )}
     </StoryEngine>

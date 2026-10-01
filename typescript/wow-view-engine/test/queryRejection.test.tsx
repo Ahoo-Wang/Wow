@@ -30,7 +30,8 @@ import {
 } from '../src/runtime/queryFailure.js';
 import { sourceFailure } from '../src/runtime/sourceReason.js';
 import { useFilterEditor } from '../src/react/index.js';
-import { en, FilterPanel, formatIssue, zhCN } from '../src/ui/index.js';
+import { FilterPanel, formatIssue, zhCN } from '../src/ui/index.js';
+import { en } from '../src/ui/messages/en.js';
 import {
   mine,
   ordersDefinition,

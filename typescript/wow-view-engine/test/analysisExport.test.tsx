@@ -269,7 +269,7 @@ function show({
       engine={engine}
       definitionId="orders"
       instanceId="orders-1"
-      kinds={['analysis']}
+      viewKinds={['analysis']}
       {...(features ? { features } : {})}
     />,
   );

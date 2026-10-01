@@ -106,7 +106,7 @@ async function open(analysis: Partial<AnalysisCapability> = {}) {
       engine={engine}
       definitionId="orders"
       instanceId="orders-1"
-      kinds={['analysis']}
+      viewKinds={['analysis']}
     />,
   );
   const tray = await openTray();

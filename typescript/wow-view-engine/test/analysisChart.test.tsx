@@ -14,7 +14,7 @@
 import { cleanup, render, screen, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type {
-  AnalysisView,
+  AnalysisProjection,
   AnalysisViewConfig,
   ChartData,
   ChartSpec,
@@ -69,7 +69,7 @@ describe('AnalysisChart', () => {
     series: [{ key: 'orders', label: 'orders', metric: 'orders' }],
   };
 
-  const statuses: AnalysisView['columns'] = [
+  const statuses: AnalysisProjection['columns'] = [
     {
       alias: 'status',
       label: 'Status',
@@ -375,7 +375,7 @@ describe('AnalysisChart', () => {
    * two readings of one number, and only one of them is the column's.
    */
   it('reads a numeric axis through the metric on it', () => {
-    const money: AnalysisView['columns'] = [
+    const money: AnalysisProjection['columns'] = [
       { alias: 'warehouse', label: 'Warehouse', role: 'group' },
       {
         alias: 'orders',
@@ -431,7 +431,7 @@ describe('AnalysisChart', () => {
    * axis, in the legend and in the figure's name alike.
    */
   it('titles a time axis, a legend and the figure as the table heads them', () => {
-    const dated: AnalysisView['columns'] = [
+    const dated: AnalysisProjection['columns'] = [
       {
         alias: 'created',
         label: '创建时间',
@@ -765,7 +765,7 @@ describe('AnalysisChart', () => {
   });
 
   describe('a scatter', () => {
-    const regions: AnalysisView['columns'] = [
+    const regions: AnalysisProjection['columns'] = [
       { alias: 'region', label: 'Region', role: 'group' },
       { alias: 'orders', label: 'Orders', role: 'metric' },
       {

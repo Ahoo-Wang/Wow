@@ -27,12 +27,12 @@ import type { ViewInstance, ViewSource } from '../src/index.js';
 import { useWorkbench } from '../src/react/index.js';
 import {
   DataWorkbench,
-  defaultMessages,
   EmbeddedView,
   useViewExpansion,
   WorkbenchShell,
   zhCN,
 } from '../src/ui/index.js';
+import { defaultMessages } from '../src/ui/kit/messages.js';
 import {
   analysisConfig,
   deferred,
@@ -761,7 +761,7 @@ describe('the states a view can be expanded in', () => {
         engine={engineWith(testSource({ aggregate: () => pending.promise }))}
         definitionId="orders"
         instanceId="by-warehouse"
-        kinds={['analysis']}
+        viewKinds={['analysis']}
       />,
     );
     const toggle = await screen.findByRole('button', { name: FILL });

@@ -35,7 +35,8 @@ import {
   type ViewInstance,
   type ViewSource,
 } from '../src/index.js';
-import { DataWorkbench, defaultMessages } from '../src/ui/index.js';
+import { DataWorkbench } from '../src/ui/index.js';
+import { defaultMessages } from '../src/ui/kit/messages.js';
 import {
   analysisConfig,
   ordersDefinition,
@@ -186,7 +187,7 @@ function open({
       engine={engine}
       definitionId="orders"
       instanceId="orders-1"
-      kinds={['analysis']}
+      viewKinds={['analysis']}
     />,
   );
   return engine;

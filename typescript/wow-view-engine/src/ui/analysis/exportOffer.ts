@@ -15,7 +15,7 @@ import { useCallback, useMemo, useState } from 'react';
 import {
   rowCurrency,
   type AnalysisColumnView,
-  type AnalysisView,
+  type AnalysisProjection,
 } from '../../analysis/index.js';
 import type { Issue, RecordData } from '../../model/index.js';
 import {
@@ -64,7 +64,7 @@ export interface AnalysisFile {
  * the first N, never the probe row that said there are more; and the totals
  * row last where the table shows one, 「合计」 in its first column.
  *
- * It is read off the view (`AnalysisView`), never off the chart's
+ * It is read off the view (`AnalysisProjection`), never off the chart's
  * projection: the 0 a chart fills into a missing combination and the
  * 「其他」 a pie folds its tail into are drawn, not measured (D23 Q14), so
  * the file is the same whether the table or the chart is showing.
@@ -75,7 +75,7 @@ export interface AnalysisFile {
  * the file writes the figure the reader saw rather than a second, rawer one.
  */
 export function analysisFile(
-  view: AnalysisView,
+  view: AnalysisProjection,
   messages: MessageFormatters,
   display: DisplayContext,
   options: CsvOptions = {},
@@ -158,7 +158,7 @@ export function analysisFile(
  * is shown.
  */
 function holding(
-  view: AnalysisView,
+  view: AnalysisProjection,
   messages: MessageFormatters,
 ): NonNullable<ExportWindowProps['holds']> {
   const count = view.rows.length;

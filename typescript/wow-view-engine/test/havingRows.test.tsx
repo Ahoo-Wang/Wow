@@ -35,11 +35,11 @@ import {
 } from '../src/index.js';
 import {
   DataWorkbench,
-  defaultMessages,
   formatMessage,
   zhCN,
   type ViewMessages,
 } from '../src/ui/index.js';
+import { defaultMessages } from '../src/ui/kit/messages.js';
 import {
   analysisConfig,
   ordersDefinition,
@@ -153,7 +153,7 @@ async function open(
       engine={engine}
       definitionId="orders"
       instanceId="orders-1"
-      kinds={['analysis']}
+      viewKinds={['analysis']}
     />,
   );
   await openTray();
@@ -585,7 +585,7 @@ describe("the result's reading says which groups were kept", () => {
         engine={engine}
         definitionId="orders"
         instanceId="orders-1"
-        kinds={['analysis']}
+        viewKinds={['analysis']}
         messages={messages}
         locale={locale}
       />,

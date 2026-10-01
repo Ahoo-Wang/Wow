@@ -142,7 +142,7 @@ async function open(chart: ChartSpec, overrides: Partial<AnalysisViewConfig>) {
       engine={engine}
       definitionId="orders"
       instanceId="orders-1"
-      kinds={['analysis']}
+      viewKinds={['analysis']}
     />,
   );
   fireEvent.click(await screen.findByRole('button', { name: 'Visualize' }));

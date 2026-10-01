@@ -289,7 +289,7 @@ describe('every icon-only button says its name on hover', () => {
           engine={engineWith([totals])}
           definitionId="orders"
           instanceId="totals-1"
-          kinds={['analysis']}
+          viewKinds={['analysis']}
         />
       </ViewSurface>,
     );

@@ -28,7 +28,7 @@ import {
   MemoryViewStore,
   ViewEngine,
   shapeChart,
-  type AnalysisView,
+  type AnalysisProjection,
   type AnalysisViewConfig,
   type DataViewDefinition,
 } from '../src/index.js';
@@ -54,7 +54,7 @@ import { openTray } from './fixtures/workbench.js';
 afterEach(cleanup);
 
 /** The latest creation time per warehouse, as the projection describes it. */
-const latest: AnalysisView['columns'][number] = {
+const latest: AnalysisProjection['columns'][number] = {
   alias: 'latest',
   label: 'Created',
   role: 'metric',
@@ -231,7 +231,7 @@ async function open(config: Partial<AnalysisViewConfig>) {
       engine={engine}
       definitionId="orders"
       instanceId="orders-1"
-      kinds={['analysis']}
+      viewKinds={['analysis']}
     />,
   );
   return { engine };

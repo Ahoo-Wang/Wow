@@ -30,6 +30,7 @@ export {
   LineAlert,
   type LineAlertProps,
   TONE_ICON,
+  type LineAlertFrame,
 } from './kit/alerts.js';
 export {
   AnalysisChart,
@@ -67,8 +68,6 @@ export {
   DashboardPanel,
   type DashboardPanelProps,
   type PanelHeadingLevel,
-  panelName,
-  panelNames,
 } from './dashboard/DashboardPanel.js';
 export {
   ContentPanel,
@@ -97,7 +96,6 @@ export {
 export {
   DashboardTabs,
   type DashboardTabsProps,
-  tabTitle,
 } from './dashboard/DashboardTabs.js';
 export {
   type DashboardExtensionsOptions,
@@ -112,7 +110,6 @@ export {
   PresentationDialog,
   type PresentationDialogProps,
 } from './dashboard/PresentationDialog.js';
-export { describeConfig } from './workbench/describeConfig.js';
 /**
  * How this package reads one value, so a host that renders a cell itself can
  * fall back to it instead of reimplementing it.
@@ -144,8 +141,10 @@ export {
   displayValue,
   type DisplayContext,
   type DisplayField,
+  type ElementField,
+  type ElementTitleField,
 } from './kit/display.js';
-export { type DownloadedFile, downloadFile, fileName } from './kit/download.js';
+export { fileName } from './kit/download.js';
 export {
   EditorBand,
   type EditorBandProps,
@@ -175,23 +174,20 @@ export {
   type ExportOffer,
   type ExportWindowProps,
 } from './kit/ExportDialog.js';
-export {
-  FilterPanel,
-  type FilterPanelProps,
-  crossesBoundary,
-  leavesEditor,
-} from './filter/FilterPanel.js';
+export { FilterPanel, type FilterPanelProps } from './filter/FilterPanel.js';
 export {
   type MessageKey,
+  type MessageOverrides,
   type ViewMessages,
-  defaultMessages,
   formatIssue,
   formatIssues,
   formatMessage,
 } from './kit/messages.js';
 // The catalogues ship beside the formatters so a host can compose one:
-// `{ ...zhCN, 'label.filter.apply': '确定' }`. `zh-CN` is a leaf module no
-// component imports, so a bundle that only pulls in components drops it.
+// `{ ...zhCN, 'label.filter.apply': '确定' }`. One name each, `en` and
+// `zhCN` (R2-88); English is what every component reads until a host says
+// otherwise. `zh-CN` is a leaf module no component imports, so a bundle
+// that only pulls in components drops it.
 export { en } from './messages/en.js';
 export { zhCN } from './messages/zh-CN.js';
 export {
@@ -235,7 +231,7 @@ export {
   DataWorkbench,
   type DataWorkbenchProps,
 } from './DataWorkbench.js';
-export { type WorkbenchFeatures, featuresOf } from './kit/features.js';
+export type { WorkbenchFeatures } from './kit/features.js';
 export {
   RenderBoundary,
   type RenderBoundaryName,
@@ -252,7 +248,7 @@ export {
 } from './kit/presets.js';
 // The theme's contract as a type: every `--fve-*` a host may set (the
 // registry itself is not public; its machine form is `theme-tokens.json`).
-export type { FveToken } from './theme/tokens.js';
+export type { FveToken, TokenName } from './theme/tokens.js';
 export {
   RefreshControl,
   type RefreshControlProps,
@@ -263,7 +259,6 @@ export {
 } from './workbench/ResultToolbar.js';
 // The words per record layout, which the toolbar's switch and a finding
 // about a layout both say.
-export { LAYOUT_LABEL } from './record/issueNames.js';
 export { RowActions, type RowActionsProps } from './record/RowActions.js';
 export {
   SaveActions,
@@ -309,6 +304,7 @@ export {
   ViewHeader,
   type ViewHeaderProps,
   type ViewHeaderState,
+  type HeadingLevel,
 } from './workbench/ViewHeader.js';
 export { ViewList, type ViewListProps } from './workbench/ViewList.js';
 export {
@@ -359,11 +355,7 @@ export {
   WorkbenchShell,
   type WorkbenchShellProps,
 } from './workbench/WorkbenchShell.js';
-export {
-  NO_PARTS,
-  type RenderParts,
-  type WorkbenchParts,
-} from './workbench/parts.js';
+export { type RenderParts, type WorkbenchParts } from './workbench/parts.js';
 export {
   type RecordDetailOptions,
   RecordParts,
@@ -386,3 +378,26 @@ export {
   WriteOutcome,
   type WriteOutcomeProps,
 } from './workbench/WriteOutcome.js';
+export type { ChartImageSlot } from './charts/image.js';
+export type { ControlChromeProps } from './kit/variants.js';
+export type {
+  DetachedDialog,
+  DetachedPopover,
+  PopoverHandle,
+  DialogHandle,
+} from './kit/toolbar.js';
+export type { EmptyWayOut } from './record/emptyWayOut.js';
+export type { FinalFocus } from './kit/focus.js';
+export type { HandleMove } from './kit/DragHandle.js';
+export type { HeaderSorting } from './analysis/headerSort.js';
+export type { OnPick } from './charts/family.js';
+export type {
+  PanelCommands,
+  ViewingCommands,
+  EditingCommands,
+} from './dashboard/commands.js';
+export type { PanelPress } from './dashboard/press.js';
+export type { RecordPanelHost } from './dashboard/PanelBodies.js';
+export type { ReleasedPins } from './record/pinCap.js';
+export type { SelectionContext } from './record/SelectionBar.js';
+export type { PickAnchor } from './kit/anchor.js';

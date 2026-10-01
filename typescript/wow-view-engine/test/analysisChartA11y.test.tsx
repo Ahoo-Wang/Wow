@@ -13,7 +13,7 @@
 
 import { cleanup, render } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
-import type { AnalysisView, ChartData, ChartSpec } from '../src/index.js';
+import type { AnalysisProjection, ChartData, ChartSpec } from '../src/index.js';
 import { AnalysisChart, ViewSurface, zhCN } from '../src/ui/index.js';
 
 /**
@@ -129,7 +129,7 @@ function valuesOf(data: ChartData): string[] {
 function draw(
   data: ChartData,
   spec?: ChartSpec,
-  columns?: AnalysisView['columns'],
+  columns?: AnalysisProjection['columns'],
 ) {
   return render(
     <ViewSurface>
@@ -138,7 +138,7 @@ function draw(
   );
 }
 
-const columns: AnalysisView['columns'] = [
+const columns: AnalysisProjection['columns'] = [
   {
     alias: 'warehouse',
     label: 'Warehouse',

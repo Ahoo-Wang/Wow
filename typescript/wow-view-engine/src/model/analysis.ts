@@ -352,11 +352,12 @@ const VALUE_METRIC_TYPES = [
   'ANY',
   'FIRST',
   'LAST',
-] as const satisfies readonly AnalysisMetric['type'][];
+] as const satisfies readonly ValueMetric['type'][];
 
+/** A metric whose value is one record's value (`VALUE_METRIC_TYPES`). */
 export type ValueMetric = Extract<
   AnalysisMetric,
-  { type: (typeof VALUE_METRIC_TYPES)[number] }
+  { type: 'ANY' | 'FIRST' | 'LAST' }
 >;
 
 /** Whether a metric is one record's value (`VALUE_METRIC_TYPES`). */

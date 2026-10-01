@@ -50,7 +50,7 @@ function BrushDemo({ surface = 'workbench' }: { surface?: Surface }) {
             engine={engine}
             definitionId={shipmentsDefinition.id}
             instanceId={dailyView.id}
-            kinds={['analysis', 'record']}
+            viewKinds={['analysis', 'record']}
             {...HOST_LANGUAGE}
           />
         ) : (

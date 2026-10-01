@@ -17,12 +17,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { MemoryViewStore, ViewEngine } from '../src/index.js';
 import type { RecordSort, ViewInstance, ViewSource } from '../src/index.js';
 import type { SummaryRow } from '../src/record/index.js';
-import {
-  defaultMessages,
-  RecordTable,
-  DataWorkbench,
-  ViewSurface,
-} from '../src/ui/index.js';
+import { RecordTable, DataWorkbench, ViewSurface } from '../src/ui/index.js';
+import { defaultMessages } from '../src/ui/kit/messages.js';
 import {
   INSTANT,
   ZONE,

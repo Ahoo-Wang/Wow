@@ -30,12 +30,12 @@ import {
   compileRecord,
   recordProjection,
   validateDefinition,
-  without,
   type DataViewDefinition,
   type RecordViewConfig,
   type RecordViewRuntime,
   type ViewSource,
 } from '../src/index.js';
+import { without } from '../src/model/json.js';
 import { useOpenView, useRecordTable } from '../src/react/index.js';
 import { NOW, recordConfig, testSource, resourcesOf } from './fixtures.js';
 

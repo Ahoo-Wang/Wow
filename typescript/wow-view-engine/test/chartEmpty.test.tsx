@@ -27,12 +27,8 @@ import {
   type DashboardRuntime,
 } from '../src/index.js';
 import { useDashboard } from '../src/react/index.js';
-import {
-  AnalysisChart,
-  DashboardGrid,
-  ViewSurface,
-  defaultMessages,
-} from '../src/ui/index.js';
+import { AnalysisChart, DashboardGrid, ViewSurface } from '../src/ui/index.js';
+import { defaultMessages } from '../src/ui/kit/messages.js';
 import {
   analysisConfig,
   dashboardConfig,

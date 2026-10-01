@@ -31,10 +31,8 @@ import {
   type FilterPath,
 } from '../../filter/index.js';
 import { holdsTime } from '../../filter/kinds/duration.js';
-import {
-  treeController,
-  type FilterTreeController,
-} from '../../react/index.js';
+import type { FilterTreeController } from '../../react/index.js';
+import { treeController } from '../../react/useFilterEditor.js';
 import { IconButton, IconTooltip } from '../kit/IconButton.js';
 import { Badge } from '../components/badge.js';
 import { Toggle } from '../components/toggle.js';

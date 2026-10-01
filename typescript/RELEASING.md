@@ -57,7 +57,7 @@ Gradle 流水线不在准入里：preflight 自己在这个提交上跑 `./gradl
 - [x] fetcher 5.1.5（`Response` 全局扩展的 getter → readonly 属性）：把下限抬到 `^5.1.5`，删掉包检查里的放行。2026-09-24 完成：5.1.5 发到 npm 后，main 上的全量 CI 因放行过期而失败（包检查从 npm 装到 5.1.5），当天把下限抬到 `^5.1.5 || ^6.0.0`，`ALLOWED_FETCHER_DIAGNOSTICS` 清空。2026-09-25 按第二轮审查决定 5 去掉 `^6.0.0`，两个 catalog 都是 `^5.1.5`，见「peer 范围」。5.1.4 的 fetcher-eventstream 在 `responses.d.ts` 与 `responses.d.cts` 里都用 getter 扩展全局 `Response`，同一次编译里同时有 ESM 与 CJS 消费者时，`contentType`、`isEventStream` 报 TS2300。
 - [x] 发布工程（P1）：发布说明模板 [RELEASE_NOTES_TEMPLATE.md](RELEASE_NOTES_TEMPLATE.md) 与 `.github/release.yml` 的分类（Breaking 在前、TypeScript 单列），标题带 `!` 的 PR 自动加 `breaking-change`；`npm-deploy` 之后的 `npm-smoke` 从 npm 装包冒烟（同一套 fetcher 诊断放行）；「出错时」的回滚手册。
 - [x] 文档（R4）：兼容性矩阵、快速开始、错误处理、认证、SSR/Node、CI 重新生成、排障；包 README 写「随 Wow 9.2.0 发布」，站点与 README 的 TypeScript 样例由 `documentation/test/typescript-samples.test.mjs` 对构建产物做类型检查。
-- [ ] 视图引擎进首发：`HELD_BACK` → `PUBLISHED`；元数据与 README、`homepage`、keywords、`engines.node`、peer 范围、`.d.cts`/ESM 形状、公开面快照、包检查与 `npm-smoke` 都覆盖第四个包（用户 2026-09-25 定）。
+- [ ] 视图引擎进首发：`HELD_BACK` → `PUBLISHED`；元数据与 README、`homepage`、keywords、`engines.node`、peer 范围、`.d.cts`/ESM 形状、公开面快照、包检查与 `npm-smoke` 都覆盖第四个包（用户 2026-09-25 定）。2026-10-01 第二轮审查 R2-82 已做形状与元数据：每个代码入口带 `default`、导出 `./package.json`、`homepage` 指参考页、keywords、`files` 不再带 `docs/design`、依赖一律外置（`verify-package.mjs` 15、16 守着），视图引擎与 wow-view-store 的 `homepage` 都指参考页；剩下的是发版 PR 里挪进 `PUBLISHED`，以及包检查与 `npm-smoke` 覆盖它。
 - [ ] 发版 PR `chore(release): prepare 9.2.0-rc.0`：`pnpm set-version 9.2.0-rc.0`，按根 `AGENTS.md` 更新 README 版本表、文档和 openapi 快照，`pnpm check:versions`。
 
 ### B. 仓库设置（维护者在 GitHub 上操作，一次）

@@ -179,6 +179,11 @@ export interface CreateInput<C extends ViewConfig> {
  * that it composes other instances, so the engine hands it the two things it
  * cannot reach itself: how to read a referenced instance, and how to build a
  * child runtime for it.
+ *
+ * Construct it; do not extend it. Its base class is how the file is split,
+ * not an extension point.
+ *
+ * @sealed
  */
 export class ViewEngine extends EngineResources {
   /**
@@ -195,7 +200,8 @@ export class ViewEngine extends EngineResources {
   private readonly runner: RequestRunner;
   /** What each source admits; see `capabilities.ts`. */
   private readonly capabilities: SourceCapabilities;
-  protected readonly registry: DefinitionRegistry;
+  private readonly registry: DefinitionRegistry;
+  protected readonly registered: ReadonlyMap<string, ViewDefinition>;
   private readonly guard: PermissionGuard;
   private readonly preferenceCache: PreferenceCache;
   private readonly runtimes = new OpenRuntimes();
@@ -247,6 +253,7 @@ export class ViewEngine extends EngineResources {
       this.limits,
       (found, resource) => this.report(found, resource),
     );
+    this.registered = this.registry.definitions;
     this.panelViews = new PanelViews({
       registry: this.registry,
       kinds: this.kinds,

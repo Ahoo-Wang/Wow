@@ -35,7 +35,6 @@ import {
   isFilterGroup,
   isFilterLeaf,
   isNumberRange,
-  isPlainObject,
   isReferenceFilterValue,
   numberFieldKind,
   operatorsOf,
@@ -50,6 +49,7 @@ import {
   type FilterOperatorName,
   type FilterTree,
 } from '../src/index.js';
+import { isPlainObject } from '../src/filter/values.js';
 
 const now = new Date('2026-09-16T10:30:00.000Z');
 const timeZone = 'UTC';

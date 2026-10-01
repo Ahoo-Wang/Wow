@@ -283,9 +283,12 @@ export type ReferenceSemantic = {
  * reference to an aggregate. A field has one; an array field's is its
  * items'.
  *
- * A server newer than this client may send a `type` not listed here. The
- * descriptor is read as JSON, not parsed, so it arrives as it is: treat a
- * `type` you do not know as no semantic at all.
+ * The union grows in minor releases, as the server learns a semantic, and a
+ * server newer than this client may send a `type` not listed here. The
+ * descriptor is read as JSON, not parsed, so it arrives as it is: keep a
+ * `default` branch in a `switch` over `type`, and treat a `type` you do not
+ * know as no semantic at all. The union stays closed so that narrowing on
+ * `type` still works.
  */
 export type QuerySemanticType =
   | TemporalDate

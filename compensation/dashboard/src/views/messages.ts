@@ -11,7 +11,11 @@
  * limitations under the License.
  */
 
-import { zhCN, type ViewMessages } from "@ahoo-wang/wow-view-engine/ui";
+import {
+  zhCN,
+  type MessageOverrides,
+  type ViewMessages,
+} from "@ahoo-wang/wow-view-engine/ui";
 import type { Locale } from "@/i18n.tsx";
 import { definitionWords } from "./text.ts";
 
@@ -19,9 +23,11 @@ import { definitionWords } from "./text.ts";
  * The engine's words in the console's language. Saved views and boards live
  * in the compensation service and are shared: nobody signs in to the
  * console, so everyone who opens it sees the same ones. The save dialog says
- * so, so nobody takes a view for their own.
+ * so, so nobody takes a view for their own. Checked against the engine's
+ * keys (`MessageOverrides`), so a key the engine renames fails the build
+ * rather than quietly falling back to the engine's sentence.
  */
-const WORDING: Record<Locale, ViewMessages> = {
+const WORDING = {
   en: {
     "label.scope.shared.description":
       "Saved in the compensation service. Everyone who opens this console sees it.",
@@ -31,7 +37,7 @@ const WORDING: Record<Locale, ViewMessages> = {
     "label.scope.shared.description":
       "保存于补偿服务，打开这个控制台的人都看得到。",
   },
-};
+} satisfies Record<Locale, MessageOverrides>;
 
 /**
  * Everything the engine says in `locale`: its own wording, and the words of
