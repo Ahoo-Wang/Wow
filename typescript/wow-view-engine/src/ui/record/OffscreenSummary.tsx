@@ -19,7 +19,7 @@ import { useSurfaceDisplay } from '../kit/ViewSurface.js';
 import { Button } from '../components/button.js';
 import { Tooltip, TooltipTrigger } from '../components/tooltip.js';
 import { TooltipContent } from '../kit/popups.js';
-import type { OffscreenHint } from './offscreenSummaries.js';
+import type { HintCaption, OffscreenHint } from './offscreenSummaries.js';
 import { summaryText } from './summaryText.js';
 
 export interface OffscreenSummaryProps {
@@ -30,6 +30,12 @@ export interface OffscreenSummaryProps {
    * itself: 「全部 · 实付 总和 ¥1,401.49 →」.
    */
   withScope: boolean;
+  /**
+   * Whether this row words whose number it is, or shares that line with the
+   * row beside it that names the same column's same function
+   * (`hintCaptions`, R2-79). Its own by default.
+   */
+  caption?: HintCaption;
   onReveal: () => void;
 }
 
@@ -54,11 +60,16 @@ export interface OffscreenSummaryProps {
  * name and its tooltip. A number is short and is cut last. The cell stays as wide as
  * before; the row is one line taller while the hint shows, which is the
  * room the reading needs and costs no column its place.
+ *
+ * Two rows naming the same number say whose it is once (`caption`,
+ * R2-79): over the page's number, and the total's row keeps to the one
+ * line its scope and number take.
  */
 export function OffscreenSummary({
   hint,
   scope,
   withScope,
+  caption = 'own',
   onReveal,
 }: OffscreenSummaryProps) {
   const messages = useViewMessages();
@@ -87,6 +98,20 @@ export function OffscreenSummary({
   // tooltip say them in.
   const label = `${field} ${fn}`;
   const shown = [label, value, more].filter(Boolean).join(' ');
+  // The row's scope, where the hint shares the scope's cell: still the
+  // scope label, in its own quiet colour, ahead of whichever line opens
+  // with the row's own words.
+  const scopeLabel = (
+    <>
+      <span
+        data-slot="summary-scope"
+        className="fve:text-quiet-foreground fve:font-normal"
+      >
+        {scopeWord}
+      </span>
+      {' · '}
+    </>
+  );
 
   return (
     <Tooltip>
@@ -112,25 +137,23 @@ export function OffscreenSummary({
         {/* The label wraps at its words, two lines at most, before it is
             cut: a narrow key column (82px in the compensation console) cut
             「Retries Sum」 to 「Retries …」 on one line. A wide cell keeps
-            it on one. */}
-        <span
-          data-slot="summary-offscreen-label"
-          className="fve:text-quiet-foreground fve:line-clamp-2 fve:w-full fve:text-left fve:font-normal fve:break-words fve:whitespace-normal"
-        >
-          {withScope && (
-            <>
-              {/* Still the row's scope label, in its own quiet colour. */}
-              <span
-                data-slot="summary-scope"
-                className="fve:text-quiet-foreground fve:font-normal"
-              >
-                {scopeWord}
-              </span>
-              {' · '}
-            </>
-          )}
-          {label}
-        </span>
+            it on one. Shared with the row below (`leads`), it is that
+            row's caption too and leaves the scope to the number's line;
+            shared with the row above (`follows`), that line says it and
+            this row keeps to one line — a reader still hears it, after the
+            number. */}
+        {caption !== 'follows' && (
+          <span
+            data-slot="summary-offscreen-label"
+            className="fve:text-quiet-foreground fve:line-clamp-2 fve:w-full fve:text-left fve:font-normal fve:break-words fve:whitespace-normal"
+          >
+            {withScope && caption === 'own' && scopeLabel}
+            {label}
+            {/* A caption two rows share counts the columns out of view for
+                both, and their numbers keep their lines to themselves. */}
+            {caption === 'leads' && more && ` ${more}`}
+          </span>
+        )}
         {/* The two lines are two spans, and a name computed from them runs
             them together (「总和¥1,401.49」) without a space between; in a
             flex column the space takes no room on screen. */}{' '}
@@ -140,6 +163,11 @@ export function OffscreenSummary({
               data-icon="inline-start"
               className="fve:text-quiet-foreground"
             />
+          )}
+          {withScope && caption !== 'own' && (
+            <>
+              <span className="fve:shrink-0">{scopeLabel}</span>{' '}
+            </>
           )}
           {/* The number keeps its room and 「等 N 项」 gives way first: a
               count of more columns is worth less than the number itself. */}
@@ -151,12 +179,15 @@ export function OffscreenSummary({
           </span>
           {/* A word apart from the number where there is a word to add;
               the tail's own punctuation needs none. */}
-          {more && ' '}
+          {(caption === 'follows' || (caption === 'own' && more)) && ' '}
           <span className="fve:min-w-0 fve:truncate">
-            {more}
+            {caption === 'own' && more}
             {/* Inside the words it follows, so a reader hears one
                 sentence; out of the flow, so it never takes their room. */}
-            <span className="fve:sr-only">{tail}</span>
+            <span className="fve:sr-only">
+              {caption === 'follows' && [label, more].filter(Boolean).join(' ')}
+              {tail}
+            </span>
           </span>
           {hint.side === 'right' && (
             <Arrow

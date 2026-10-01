@@ -742,6 +742,47 @@ describe('the sticky chrome recipe', () => {
     expect(right.style).toEqual({});
   });
 
+  it('fades the content under a boundary only while some is hidden there', () => {
+    const left = stickyCell({
+      side: 'left',
+      index: 1,
+      offset: '8px',
+      edge: true,
+    });
+    const right = stickyCell({ side: 'right', edge: true });
+    const inner = stickyCell({
+      side: 'left',
+      index: 0,
+      offset: '0px',
+      edge: false,
+    });
+
+    // R2-76: a `::before` laid over the cells beside the boundary, in the
+    // row's own fill, masked out away from the edge — answering to the
+    // port's `data-more-start` / `data-more-end` (`useOverflowing`), so a
+    // table scrolled to its start fades nothing on the left.
+    expect(left.className).toContain(
+      'fve:in-data-[more-start]:before:left-full',
+    );
+    expect(left.className).toContain(
+      'fve:in-data-[more-start]:before:[mask-image:linear-gradient(to_right,#000,transparent)]',
+    );
+    expect(left.className).toContain(
+      'fve:in-data-[more-start]:before:bg-inherit',
+    );
+    expect(right.className).toContain(
+      'fve:in-data-[more-end]:before:right-full',
+    );
+    expect(right.className).toContain(
+      'fve:in-data-[more-end]:before:[mask-image:linear-gradient(to_left,#000,transparent)]',
+    );
+    expect(right.className).toContain(
+      'fve:in-data-[more-end]:before:pointer-events-none',
+    );
+    // A held column that is no boundary has nothing pass under its side.
+    expect(inner.className).not.toContain('before:');
+  });
+
   it('sits against the port edge where nothing was measured', () => {
     // The selection column, and every column on the right: no offset,
     // because there is nothing outside them to clear, so the place is a

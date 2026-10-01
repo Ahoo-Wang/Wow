@@ -646,6 +646,7 @@ src/
       HandOffMenu.tsx         — A menu whose items may open a dialog: `HandOffMenu`, `HandOffMenuContent`, and `DialogMenuItem`, which keeps the menu closing after it from taking the keyboard back to its trigger
       IconButton.tsx          — An icon-only control and the tooltip saying its name; the one place the two are paired — and `BadgeTooltip`, a badge whose note is a tooltip focus and a tap open too
       MessagesProvider.tsx    — `MessagesProvider`: the wording every default component reads, each provider merging over the one above it; `useSay` / `messages.say`, a definition's keys said in it — else in the engine's starting words (`StartingWords`) — where they are shown (D2); `keptKey` / `useSaidText`, an editor showing a key in words and giving the key back; `sayAll`, a drawing's input said as it comes in
+      MixedCheckbox.tsx       — The vendored checkbox drawing a dash when it is mixed (`indeterminate`): the table's select-all when some rows are picked (R2-81)
       OutcomeActions.tsx      — One outcome as a line and its buttons, shared by the two above and the manager
       PendingDot.tsx          — The "changed, not applied" dot pinned to a pill or a group
       presets.ts              — `BUILT_IN_PRESETS`, the names `themes.css` ships, and the `preset` prop's type `ViewPreset`; `ViewDensity`, the `density` prop's three steps
@@ -655,6 +656,7 @@ src/
       RowItem.tsx             — One row of a list over the registry's `Item`; the five lists share it
       SystemMark.tsx          — The lock a view that came with the definition wears in the sidebar and the switcher
       StatusStrip.tsx         — One-line findings: warning, error, failed query (+ `dedupeIssues`)
+      Truncated.tsx           — Text that may be cut: the whole of it in a tooltip, opened only while it is cut (`scrollWidth > clientWidth`), `as` for a heading (R2-75)
       ViewExpansion.tsx       — Filling the screen: `useViewExpansion`, `ViewExpandToggle`, the document's scroll lock
       ViewSurface.tsx         — The boundary every view renders inside: the theme, the wording, the locale and the zone a time reads on; `useSurfaceAttributes`, the mode, preset and change convention a popup copies; `useSurfaceFont`, the surface's computed type a popup is set in
       anchor.ts               — `PickAnchor`, where a menu hangs from: the mark or row pressed, or the point (`pointAnchor`); every chart family hands one to the follow-up menu
@@ -775,7 +777,7 @@ src/
       StatusLine.tsx          — The status line under the title bar: the errors, then the warnings — the view's, its result's, the definition's and failed preferences (D12 Ⅰ′)
       SearchBox.tsx           — The search box at the applied band's end: typing edits the draft, Enter applies (not while an input method composes), ✕ clears and asks again
       TitleBar.tsx            — The title bar's ruled-off block: `ViewHeader` with the host's actions behind a boundary and the view-level controls — the editor's toggle, the refresh, filling the screen
-      Unopenable.tsx          — The work area when the chosen view cannot be opened
+      Unopenable.tsx          — The work area, or an embed, when the chosen view cannot be opened; a lock where the reader has no access
       useEditorFold.ts        — The editor's fold, per opening; `filled`
       useSidebarFold.ts       — The sidebar's fold, following the surface's width until the user presses; `useNarrowSurface`, whether there is room for a column beside the view at all
       useWorkbenchFolds.ts    — The shell's two folds as one hook: the list beside the view, the view filling the screen, and where a press sends focus

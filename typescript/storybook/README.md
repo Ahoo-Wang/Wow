@@ -228,7 +228,7 @@ pnpm --filter wow-storybook test:visual
 - **有意改了样子时更新基线**：改动要改图时，在同一个 PR 里更新基线，并在 PR 里说哪几张变了、为什么。两种办法，出的图相同：
   - 本机：`pnpm --filter wow-storybook test:visual --update`，看过 `git diff --stat baselines/` 与图，再只 `git add` 这些 PNG；
   - CI：手动触发 `TypeScript Storybook` 工作流（`gh workflow run typescript-storybook.yml --ref <分支> -f update-screenshots=true`），下载产物 `storybook-screenshot-baselines`，看过再提交。
-- **CI 里失败时**：`visual` 作业把参考图、实际图与差异图作为产物 `storybook-screenshot-diffs` 上传。
+- **不一样时**：那张图第一次比对就失败（不重试、不拖到故事的 15 秒超时），实际图与差异图写在 `.vitest-attachments/<故事文件>/<名字>-{actual,diff}-chromium-<本机平台>.png`，失败信息里有三张图的路径。`.storybook/vitest.visual.ts` 因此交给 `expect.element` 的是定位器（`page.elementLocator`）而不是元素：给元素时 Vitest 4.1 不把这条断言当作「只比一次」，每 50ms 重截、重比、重写一遍，直到故事超时。CI 里 `visual` 作业把参考图、实际图与差异图作为产物 `storybook-screenshot-diffs` 上传。
 - 不要在本机不经容器截图，也不要把 macOS 的截图当基线提交。
 
 ## CI

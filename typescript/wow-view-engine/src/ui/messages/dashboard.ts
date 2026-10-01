@@ -100,7 +100,8 @@ export const dashboardMessages = {
   'label.dashboard.other-definition':
     'This dashboard belongs to another page, so this page cannot show it.',
   'label.dashboard.gone': 'This dashboard no longer exists.',
-  'label.dashboard.open-forbidden': 'You may not open this dashboard.',
+  'label.dashboard.open-forbidden':
+    'You do not have access to this dashboard. Ask an administrator to grant it.',
   'label.dashboard.open-unavailable':
     'This dashboard could not be loaded: the server could not be reached.',
   'label.dashboard.open-unavailable-server':

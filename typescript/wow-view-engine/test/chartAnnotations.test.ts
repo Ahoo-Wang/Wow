@@ -182,45 +182,33 @@ describe('a long row of bars writes its peak and trough (review P1-6)', () => {
   });
 
   /**
-   * 「最低 ¥1,940」 flat over a short bar was wider than the bar, and ran over
-   * the taller bars on either side (the pre-release review): where the
-   * widest word is wider than a bar's room, both are turned to run along
-   * their bars, as a value label too wide for its bar is, and the plot's
-   * head keeps the turned word's length.
+   * 「最高 5」 and 「最低 1」 turned on their sides over a row of thirty bars
+   * (second review R2-74): the two are the only words on the row, so they
+   * are written flat at any width — the outline in the ground's colour
+   * keeps the lower one legible where it crosses a taller neighbour — and
+   * one near either end of the row is set off towards the plot.
    */
-  it('turns the words to run along their bars where one is wider than a bar', () => {
+  it('writes the two words flat however narrow the bars', () => {
     const labels = (width: number) =>
       fit(series(THIRTY), spec('bar'), width).series[0].markPoint.data.map(
         (point: Loose) => point.label,
       );
     // 30 bars in 1400px: some 35px a bar, and 「high 90」 is 45px.
-    expect(labels(1400)).toEqual([
-      expect.objectContaining({
-        formatter: 'high 90',
-        position: 'top',
-        rotate: 90,
-        align: 'left',
-        verticalAlign: 'middle',
-      }),
-      expect.objectContaining({ formatter: 'low 5', rotate: 90 }),
-    ]);
-    const head = fit(series(THIRTY), spec('bar'), 1400).grid.top;
-    expect(head).toBeGreaterThanOrEqual(Math.ceil((49 * 11) / 12));
-    // Room enough, and they stand flat as before.
-    expect(labels(2400)).toEqual([
-      expect.objectContaining({ formatter: 'high 90', rotate: 0 }),
-      expect.objectContaining({ formatter: 'low 5', rotate: 0 }),
-    ]);
+    for (const width of [600, 1400, 2400])
+      for (const label of labels(width))
+        expect(label).toMatchObject({ rotate: 0, verticalAlign: 'bottom' });
+    // Only a line of text over the highest bar, not a turned word's length.
+    expect(fit(series(THIRTY), spec('bar'), 1400).grid.top).toBe(24);
   });
 
-  it('reads a turned word under a bar that goes below zero downward', () => {
+  it('writes a word under a bar that goes below zero, flat', () => {
     const below = THIRTY.map((value, index) => (index === 19 ? -30 : value));
     const [, low] = fit(series(below), spec('bar'), 1400).series[0].markPoint
       .data;
     expect(low.label).toMatchObject({
       position: 'bottom',
-      rotate: 90,
-      align: 'right',
+      rotate: 0,
+      verticalAlign: 'top',
     });
   });
 });

@@ -25,7 +25,13 @@ import displayMeta, {
   Trend as DisplayTrend,
 } from './Showcase.stories.js';
 import { redUp } from './changeColors.js';
-import { chartsDrawn, drawnMarks, pressMark } from './chartDom.js';
+import {
+  chartsDrawn,
+  drawnMarks,
+  overlaps,
+  pressMark,
+  typeBox,
+} from './chartDom.js';
 import { expectMetricCardsFit } from './metricFit.js';
 import { SHOWCASE_MAP, showcasePanels, type Tab } from './retail/showcase.js';
 import { noPanelOut, panelOf } from './retail/twins.js';
@@ -160,6 +166,22 @@ export const TrendDrawn: Story = {
   play: async ({ canvasElement }) => {
     await expect(window.innerWidth).toBe(1440);
     await expectTabDrawn(canvasElement, 'trend');
+    // The gauge's words stand apart: 「达成目标的 87.7%」 once ran into the
+    // scale's end 「¥20万」 at a third of the board (second review R2-77).
+    const gauge = showcasePanels().find(panel => panel.type === 'gauge')!;
+    const words = [...panelOf(gauge.title).querySelectorAll('svg text')]
+      .filter(text => (text.textContent ?? '').trim() !== '')
+      .map(text => ({
+        text: text.textContent,
+        box: typeBox(text as SVGTextElement),
+      }));
+    await expect(words.length).toBeGreaterThanOrEqual(4);
+    for (const [index, one] of words.entries())
+      for (const other of words.slice(index + 1))
+        await expect(
+          overlaps(one.box, other.box),
+          `${one.text} / ${other.text}`,
+        ).toBe(false);
     // The candlestick reads red up: the board's page says so.
     await expect(document.documentElement).toHaveAttribute(
       'data-fve-change-colors',

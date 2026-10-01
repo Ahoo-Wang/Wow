@@ -28,6 +28,7 @@ import { ItemContent, ItemDescription, ItemTitle } from '../components/item.js';
 import type { PanelHeadingLevel } from './DashboardPanel.js';
 import { RowItem } from '../kit/RowItem.js';
 import { cn } from 'cn';
+import { Truncated } from '../kit/Truncated.js';
 
 export interface ContentPanelProps {
   panel: DashboardContentPanel;
@@ -98,12 +99,12 @@ export function HeadingPanel({ content, headingLevel }: HeadingPanelProps) {
   const Title: 'p' | `h${PanelHeadingLevel}` =
     headingLevel === undefined ? 'p' : `h${headingLevel}`;
   return (
-    <Title
+    <Truncated
+      as={Title}
       data-slot="panel-heading"
-      className="fve:truncate fve:text-base fve:font-semibold"
-    >
-      {say(content)}
-    </Title>
+      className="fve:text-base fve:font-semibold"
+      text={say(content)}
+    />
   );
 }
 
@@ -365,16 +366,17 @@ export function LinksPanel({ items }: LinksPanelProps) {
                     rel="noopener noreferrer"
                     className="fve:flex fve:min-w-0 fve:items-center fve:gap-1 fve:underline-offset-4 fve:hover:underline"
                   >
-                    <span className="fve:truncate">{say(item.label)}</span>
+                    <Truncated text={say(item.label)} />
                     <ExternalLinkIcon className="fve:size-3" aria-hidden />
                     <NewTabNote />
                   </a>
                 ) : (
                   // A destination this package refuses costs the link, not
                   // the words: what is left is a line of quiet text.
-                  <span className="fve:text-muted-foreground fve:truncate">
-                    {say(item.label)}
-                  </span>
+                  <Truncated
+                    text={say(item.label)}
+                    className="fve:text-muted-foreground"
+                  />
                 )}
               </ItemTitle>
               {item.description && (

@@ -108,6 +108,19 @@ export function OptionValue({
     value: String(option.value),
   }));
   const byText = new Map(options.map(option => [String(option.value), option]));
+  const labelOf = new Map(items.map(item => [item.value, item.label]));
+  const notSet = messages.label('label.filter.not-set');
+  // Several chosen read as the applied chip under the editor reads them,
+  // joined as the catalogue joins a list (「待发货、部分发货」): the library's
+  // own join is an ASCII 「, 」 whatever the language (second review R2-78).
+  const chosenText = (chosen: unknown) => {
+    const texts = (Array.isArray(chosen) ? chosen : [chosen])
+      .filter((entry): entry is string => typeof entry === 'string')
+      .map(entry => labelOf.get(entry) ?? entry);
+    return texts.length === 0
+      ? notSet
+      : texts.join(messages.label('label.filter.join'));
+  };
   const selected = (Array.isArray(value) ? value : [value])
     .map(scalarText)
     .filter(entry => entry.length > 0);
@@ -150,7 +163,7 @@ export function OptionValue({
          * empty `data-placeholder` span — a box saying nothing, beside a
          * text and a number field that both said `Not set`.
          */}
-        <SelectValue placeholder={messages.label('label.filter.not-set')} />
+        <SelectValue placeholder={notSet}>{chosenText}</SelectValue>
       </PillSelectTrigger>
       <SelectContent>
         <SelectGroup>

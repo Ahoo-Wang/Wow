@@ -35,11 +35,13 @@ import { FillerCell } from './Filler.js';
 import { TEXT_UI } from '../kit/layout.js';
 import { summaryText } from './summaryText.js';
 import {
+  hintCaptions,
   hintHost,
   offscreenHint,
   SELECT_HOST,
+  type HintCaption,
   type HintHost,
-  type OffscreenColumns,
+  type OffscreenHint,
 } from './offscreenSummaries.js';
 import {
   revealCell,
@@ -101,6 +103,8 @@ export function SummaryRows({
     );
     return hintHost(columns, selectable, pins, summarised);
   }, [rows, columns, selectable, pins]);
+  const hints = rows.map(row => offscreenHint(row, columns, offscreen));
+  const captions = hintCaptions(hints);
   return (
     // A layer of its own: opaque muted, so the summaries separate from the
     // rows above without looking like two more records, and pinned to the
@@ -115,7 +119,7 @@ export function SummaryRows({
       data-slot="record-summaries"
       {...stickyBand('bottom')}
     >
-      {rows.map(row => (
+      {rows.map((row, index) => (
         <SummaryLine
           key={row.scope}
           row={row}
@@ -124,7 +128,8 @@ export function SummaryRows({
           actions={actions}
           pins={pins}
           host={host}
-          offscreen={offscreen}
+          hint={hints[index]}
+          caption={captions[index]}
         />
       ))}
     </TableFooter>
@@ -138,15 +143,16 @@ function SummaryLine({
   actions,
   pins,
   host,
-  offscreen,
+  hint,
+  caption,
 }: Omit<SummaryRowsProps, 'rows'> & {
   row: SummaryRow;
   host: HintHost | null;
-  offscreen: OffscreenColumns;
+  hint: OffscreenHint | null;
+  caption: HintCaption;
 }) {
   const messages = useViewMessages();
   const line = useRef<HTMLTableRowElement>(null);
-  const hint = offscreenHint(row, columns, offscreen);
   // A field may carry several functions — `amount` summed and averaged — and
   // the kernel projects a cell for each, so they are grouped rather than
   // keyed, which would keep only the last one configured.
@@ -183,6 +189,7 @@ function SummaryLine({
         hint={hint}
         scope={row.scope}
         withScope={host.withScope}
+        caption={caption}
         onReveal={() => {
           const target = [
             ...(line.current?.querySelectorAll(`[${SUMMARY_READING}]`) ?? []),

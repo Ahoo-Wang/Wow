@@ -387,7 +387,8 @@ export const ValueLabelsAllOrNoneNarrow: Story = {
 /**
  * 柱多时只标峰谷：二十一天的柱没人说过写不写数，就不在每根柱上写一个竖排的数，
  * 只在最高、最低的那两根上写「最高 4」「最低 1」（Storybook 审查 P1-6）；说了
- * 「写数」的仍每根都写（`ValueLabelsAllOrNone`）。
+ * 「写数」的仍每根都写（`ValueLabelsAllOrNone`）。这两个字总是平放，柱再窄也
+ * 不转成竖排（第二轮审查 R2-74：从前「最高 5」竖着写）。
  */
 export const PeaksOnlyOverALongRow: Story = {
   ...DisplayDailyNewestFirst,
@@ -396,9 +397,11 @@ export const PeaksOnlyOverALongRow: Story = {
     await waitFor(() =>
       expect(drawnMarks(canvasElement).length).toBeGreaterThanOrEqual(12),
     );
-    const written = valueLabels(canvasElement)
-      .map(label => (label.textContent ?? '').trim())
-      .filter(text => text !== '');
+    const words = valueLabels(canvasElement).filter(
+      label => (label.textContent ?? '').trim() !== '',
+    );
+    await expect(words.some(turned)).toBe(false);
+    const written = words.map(label => (label.textContent ?? '').trim());
     await expect(written).toHaveLength(2);
     await expect(written.filter(text => /^最高 \d+$/.test(text))).toHaveLength(
       1,
@@ -406,6 +409,44 @@ export const PeaksOnlyOverALongRow: Story = {
     await expect(written.filter(text => /^最低 \d+$/.test(text))).toHaveLength(
       1,
     );
+  },
+};
+
+/**
+ * The same days in a column a phone wide: each bar narrower than 「最高 4」,
+ * which once turned both words on their sides (R2-74). They stay flat, and
+ * inside the plot.
+ */
+export const PeaksOnlyOverALongRowNarrow: Story = {
+  ...DisplayDailyNewestFirst,
+  decorators: [
+    Story => (
+      <div style={{ width: 360 }}>
+        <Story />
+      </div>
+    ),
+  ],
+  play: async ({ canvasElement }) => {
+    await chartsDrawn(canvasElement);
+    await waitFor(() =>
+      expect(drawnMarks(canvasElement).length).toBeGreaterThanOrEqual(12),
+    );
+    const words = await waitFor(() => {
+      const found = valueLabels(canvasElement).filter(
+        label => (label.textContent ?? '').trim() !== '',
+      );
+      expect(found).toHaveLength(2);
+      return found;
+    });
+    await expect(words.some(turned)).toBe(false);
+    const plot = canvasElement
+      .querySelector('[data-slot="chart-plot"] svg')!
+      .getBoundingClientRect();
+    for (const word of words) {
+      const box = word.getBoundingClientRect();
+      await expect(box.left).toBeGreaterThanOrEqual(plot.left);
+      await expect(box.right).toBeLessThanOrEqual(plot.right);
+    }
   },
 };
 

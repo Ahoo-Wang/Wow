@@ -36,6 +36,7 @@ import { SystemMark } from '../kit/SystemMark.js';
 import { useSay, useViewMessages } from '../kit/MessagesProvider.js';
 import { DropdownMenuContent } from '../kit/popups.js';
 import { NewViewItem, type NewViewCommand } from './NewView.js';
+import { Truncated } from '../kit/Truncated.js';
 
 export interface ViewSwitcherProps {
   /** The same list the sidebar draws, already narrowed to the kinds drawn. */
@@ -241,7 +242,7 @@ function SwitcherItem({ item }: { item: ViewInstanceSummary }) {
   return (
     <DropdownMenuRadioItem value={item.id} closeOnClick>
       <Kind aria-hidden />
-      <span className="fve:truncate">{say(item.title)}</span>
+      <Truncated text={say(item.title)} />
       {isSystemScope(item.scope) && (
         <SystemMark className="fve:mr-4 fve:ml-auto" />
       )}

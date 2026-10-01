@@ -829,14 +829,33 @@ export const PanelError: Story = {
   },
 };
 
-/** Not shared with this reader: the embed says it cannot open the board. */
+/**
+ * Not shared with this reader: the embed says it cannot open the board, in
+ * the face every surface gives a view it cannot open — a lock, the line and
+ * a reason that says who can change it, in the page's own neutral ink
+ * rather than a red strip that read as a crash (R2-80).
+ */
 export const NoPermission: Story = {
   ...DisplayNoPermission,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(
-      await canvas.findByText(zhCN['label.dashboard.open-forbidden']),
-    ).toBeInTheDocument();
+    const reason = await canvas.findByText(
+      zhCN['label.dashboard.open-forbidden'],
+    );
+    const said = reason.closest<HTMLElement>('[data-slot="view-unopenable"]')!;
+    await expect(said).toHaveAttribute('role', 'alert');
+    await expect(said).toHaveAttribute(
+      'data-issue',
+      'view.open.failed.forbidden',
+    );
+    await expect(said.querySelector('svg.lucide-lock')).not.toBeNull();
+    await expect(said).toHaveTextContent(zhCN['label.dashboard.unopenable']);
+    // Neutral: the line in the page's ink, the reason in its muted one.
+    const surface = said.closest<HTMLElement>('.fve-root')!;
+    const title = said.querySelector<HTMLElement>('[data-slot="empty-title"]')!;
+    await expect(getComputedStyle(title).color).toBe(
+      getComputedStyle(surface).color,
+    );
     await expect(
       canvasElement.querySelector('[data-slot="dashboard-panel"]'),
     ).toBeNull();

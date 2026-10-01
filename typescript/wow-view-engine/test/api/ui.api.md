@@ -2255,7 +2255,7 @@ export const en: {
     readonly 'label.dashboard.wrong-kind': "This is not a dashboard ({kind}), so this page cannot show it.";
     readonly 'label.dashboard.other-definition': "This dashboard belongs to another page, so this page cannot show it.";
     readonly 'label.dashboard.gone': "This dashboard no longer exists.";
-    readonly 'label.dashboard.open-forbidden': "You may not open this dashboard.";
+    readonly 'label.dashboard.open-forbidden': "You do not have access to this dashboard. Ask an administrator to grant it.";
     readonly 'label.dashboard.open-unavailable': "This dashboard could not be loaded: the server could not be reached.";
     readonly 'label.dashboard.open-unavailable-server': "This dashboard could not be loaded: the server could not handle it ({reason}).";
     readonly 'label.dashboard.open-unsupported': "This dashboard could not be loaded: this server keeps no dashboards.";
@@ -3339,7 +3339,7 @@ export const en: {
     readonly 'view.write.storage': "This browser could not keep the change: its storage is full or turned off.";
     readonly 'record.detail.forbidden': "You do not have permission to read this record.";
     readonly 'view.open.failed.not_found': "This view no longer exists.";
-    readonly 'view.open.failed.forbidden': "You may not open this view.";
+    readonly 'view.open.failed.forbidden': "You do not have access to this view. Ask an administrator to grant it.";
     readonly 'view.open.failed.unavailable': "This view could not be loaded: the server could not be reached.";
     readonly 'view.list.failed.unavailable': "The list of views could not be loaded: the server could not be reached.";
     readonly 'view.open.failed.unavailable.server': "This view could not be loaded: the server could not handle it ({reason}).";

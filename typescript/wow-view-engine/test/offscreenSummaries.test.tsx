@@ -26,6 +26,7 @@ import {
 } from '../src/record/index.js';
 import { RecordTable, ViewSurface, zhCN } from '../src/ui/index.js';
 import {
+  hintCaptions,
   hintHost,
   offscreenHint,
   SELECT_HOST,
@@ -110,6 +111,52 @@ describe('what a summary row says about the columns out of view', () => {
     );
     expect(hint?.column.field).toBe('d');
     expect(hint?.count).toBe(1);
+  });
+});
+
+/**
+ * R2-79: two rows naming the same column's same function, with as many
+ * more out of view, say whose numbers they are once — a line shorter at
+ * the foot of a laptop-height workbench, nothing it said gone.
+ */
+describe('which rows word whose number it is', () => {
+  const where = hidden(['b', 'right'], ['d', 'right']);
+  const hintOf = (summary: SummaryRow) =>
+    offscreenHint(summary, COLUMNS, where);
+  const averaged = (summary: SummaryRow): SummaryRow => ({
+    ...summary,
+    cells: summary.cells.map(cell => ({ ...cell, fn: 'AVG' })),
+  });
+
+  it('says it once over two rows naming the same number', () => {
+    const page = { ...row('b', 'd'), scope: 'page' as const };
+    expect(hintCaptions([hintOf(page), hintOf(row('b', 'd'))])).toEqual([
+      'leads',
+      'follows',
+    ]);
+  });
+
+  it('keeps each row its own where they name different numbers', () => {
+    // Another column, another function, or another count of the rest.
+    expect(hintCaptions([hintOf(row('b', 'd')), hintOf(row('d'))])).toEqual([
+      'own',
+      'own',
+    ]);
+    expect(
+      hintCaptions([hintOf(row('b', 'd')), hintOf(averaged(row('b', 'd')))]),
+    ).toEqual(['own', 'own']);
+    expect(hintCaptions([hintOf(row('b', 'd')), hintOf(row('b'))])).toEqual([
+      'own',
+      'own',
+    ]);
+  });
+
+  it('keeps a row alone, or beside one with nothing out of view, its own', () => {
+    expect(hintCaptions([hintOf(row('b'))])).toEqual(['own']);
+    expect(hintCaptions([hintOf(row('a')), hintOf(row('b'))])).toEqual([
+      'own',
+      'own',
+    ]);
   });
 });
 
@@ -241,15 +288,14 @@ describe('the hint in a record table', () => {
     });
 
   /**
-   * What the button shows, its two lines joined: its words less the part
-   * only a reader hears.
+   * What the button shows, its lines joined: its words less the part only a
+   * reader hears.
    */
   const shown = (button: HTMLElement) => {
     const words = button.cloneNode(true) as Element;
     words.querySelector('.fve\\:sr-only')?.remove();
     words.querySelector('svg')?.remove();
-    const label = words.querySelector('[data-slot="summary-offscreen-label"]');
-    return `${label?.textContent ?? ''} ${label?.nextElementSibling?.textContent?.trim() ?? ''}`;
+    return words.textContent!.replace(/\s+/g, ' ').trim();
   };
 
   /** The button a query by its whole accessible name finds. */
@@ -305,15 +351,22 @@ describe('the hint in a record table', () => {
 
     ObserverDouble.latest!.report({ amount: 'right' });
     const [page, total] = buttons(container);
-    // Each row its own number, the scope inside the narrow selection cell;
-    // the name starts with the words the button shows (WCAG 2.5.3).
+    // Each row its own number, the scope inside the narrow selection cell.
+    // Both name the same column's same function, so the first row says
+    // whose they are on a line over its number and the second keeps to one
+    // line (R2-79); the name starts with the words the button shows (WCAG
+    // 2.5.3), and the second row's reader still hears whose it is.
     expect(
-      named('This page · Amount Sum CN¥10.00, out of view. Scroll to Amount'),
+      named('Amount Sum This page · CN¥10.00, out of view. Scroll to Amount'),
     ).toBe(page);
     expect(
-      named('All rows · Amount Sum CN¥900.00, out of view. Scroll to Amount'),
+      named('All rows · CN¥900.00 Amount Sum, out of view. Scroll to Amount'),
     ).toBe(total);
-    expect(shown(total)).toBe('All rows · Amount Sum CN¥900.00');
+    expect(shown(page)).toBe('Amount Sum This page · CN¥10.00');
+    expect(
+      total.querySelector('[data-slot="summary-offscreen-label"]'),
+    ).toBeNull();
+    expect(shown(total)).toBe('All rows · CN¥900.00');
     expect(total.dataset.side).toBe('right');
     // Held against the left edge for the footer alone.
     expect(total.closest('td')?.dataset.pin).toBe('left');

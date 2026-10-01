@@ -59,6 +59,7 @@ import { useViewMessages } from '../kit/MessagesProvider.js';
 import { DialogContent, SelectContent } from '../kit/popups.js';
 import { RowItem } from '../kit/RowItem.js';
 import { SystemMark } from '../kit/SystemMark.js';
+import { Truncated } from '../kit/Truncated.js';
 
 /** What the picker is for: a new panel, or another view for one panel. */
 export type PickerIntent =
@@ -429,7 +430,7 @@ function PickerRow({
       </ItemMedia>
       <ItemContent className="fve:min-w-0">
         <ItemTitle className="fve:max-w-full">
-          <span className="fve:truncate">{messages.say(view.title)}</span>
+          <Truncated text={messages.say(view.title)} />
           {isSystemScope(view.scope) && <SystemMark />}
         </ItemTitle>
         <ItemDescription>

@@ -374,7 +374,7 @@ export function extremeMarks(
   fill: string,
   theme: ChartTheme,
 ): object {
-  const points = extremePoints(plan, entry, false);
+  const points = extremePoints(plan, entry);
   if (!points) return {};
   // Where the bar's or the point's own label says it, the word is the mark:
   // a dot there sat on the label's first glyph.
@@ -404,15 +404,18 @@ export function extremeMarks(
 }
 
 /**
- * The highest and the lowest point's marks, each with its word. `upright`
- * turns a bar's word to run from the bar's end along it, as a value label
- * too wide for its bar is turned (`cartesianFit`): flat, 「最低 ¥1,940」 over
- * a short bar was wider than the bar and ran over the taller bars beside it.
+ * The highest and the lowest point's marks, each with its word, always flat
+ * (second review R2-74): the two are the only words on a row whose own
+ * numbers are not written, so nothing beside them can collide, and a word
+ * turned on its side — 「最高 5」 read from the bottom up — was the hardest
+ * text on the busiest charts. Over a short bar the word may cross a taller
+ * neighbour's body; its ground-coloured outline keeps it legible there. A
+ * word near either end of the row is set off to the side the plot has room
+ * on, so it stays inside the plot.
  */
 export function extremePoints(
   plan: CartesianPlan,
   entry: DrawnSeries,
-  upright: boolean,
 ): object[] | undefined {
   const found = plan.extremesOf(entry);
   if (!found) return undefined;
@@ -421,8 +424,8 @@ export function extremePoints(
   const count = data.points.length;
   const bar = entry.kind === 'bar';
   const { min, max } = plan.span(entry.side);
-  // Upright, a word over a point near either end would hang past the plot:
-  // it is set off to the side the plot has room on.
+  // A word over a point near either end would hang past the plot: it is
+  // set off to the side the plot has room on.
   const align = (index: number) =>
     horizontal || count < 3
       ? undefined
@@ -440,7 +443,6 @@ export function extremePoints(
     const value = plan.drawnAt(entry, index) ?? 0;
     const text = context.label(entry.metric, value, true);
     const far = beyond(value, high);
-    const turned = upright && bar && !horizontal;
     return {
       coord: horizontal ? [value, index] : [index, value],
       value,
@@ -453,24 +455,15 @@ export function extremePoints(
             ? 'top'
             : 'bottom',
         formatter: word === undefined ? text : `${word} ${text}`,
-        // Spelled out either way — flat, as the library places a word at
-        // that position — since a resize merges one over the other.
-        ...(turned
-          ? {
-              rotate: 90,
-              // Read upward from over the bar's end, downward from under it.
-              align: far ? 'left' : 'right',
-              verticalAlign: 'middle',
-            }
-          : {
-              rotate: 0,
-              align: horizontal
-                ? far
-                  ? 'left'
-                  : 'right'
-                : (align(index) ?? 'center'),
-              verticalAlign: horizontal ? 'middle' : far ? 'bottom' : 'top',
-            }),
+        // Spelled out — flat, as the library places a word at that position
+        // — since a resize merges one option over the last.
+        rotate: 0,
+        align: horizontal
+          ? far
+            ? 'left'
+            : 'right'
+          : (align(index) ?? 'center'),
+        verticalAlign: horizontal ? 'middle' : far ? 'bottom' : 'top',
       },
     };
   };

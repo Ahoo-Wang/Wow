@@ -15,6 +15,7 @@ import { useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { cn } from 'cn';
 import { Button } from '../components/button.js';
 import { useViewMessages } from '../kit/MessagesProvider.js';
+import { Truncated } from '../kit/Truncated.js';
 
 export interface LegendEntry {
   key: string;
@@ -197,9 +198,10 @@ function EntryText({ entry }: { entry: LegendEntry }) {
           }}
         />
       )}
-      <span className={cn('fve:truncate', entry.hidden && 'fve:line-through')}>
-        {entry.label}
-      </span>
+      <Truncated
+        text={entry.label}
+        className={cn(entry.hidden && 'fve:line-through')}
+      />
       {entry.value !== undefined && (
         <span className="fve:text-foreground fve:ml-auto fve:pl-1 fve:tabular-nums">
           {entry.value}

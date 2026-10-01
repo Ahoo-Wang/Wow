@@ -41,6 +41,17 @@ const DIAL = 14;
 /** The number in the dial's middle, on the chart's type scale: 28 over 12. */
 const FIGURE = 7 / 3;
 
+/**
+ * Where the number and the caption under it stand, as shares of the dial's
+ * radius below its centre. The scale's ends are written inside the arc's
+ * two ends, half a radius below the centre less the band and their
+ * distance: the caption at 30% stood on their line, and at a third of the
+ * board 「达成目标的 87.7%」 ran into 「¥20万」 (second review R2-77). Both
+ * move up, the caption to clear the ends' line by a line of text.
+ */
+const FIGURE_AT = '-12%';
+const CAPTION_AT = '14%';
+
 /** Where the dial starts and ends, in degrees: an open arc, 240° round. */
 const START = 210;
 const END = -30;
@@ -120,13 +131,13 @@ export function gaugeOption(
         },
         title: {
           show: reached !== undefined,
-          offsetCenter: [0, '30%'],
+          offsetCenter: [0, CAPTION_AT],
           color: theme.axis.color,
           fontSize: theme.text.size,
         },
         detail: {
           valueAnimation: animate,
-          offsetCenter: [0, '0%'],
+          offsetCenter: [0, FIGURE_AT],
           color: theme.foreground,
           fontSize: theme.text.size * FIGURE,
           fontWeight: 600,

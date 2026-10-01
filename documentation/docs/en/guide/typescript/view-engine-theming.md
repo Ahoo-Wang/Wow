@@ -33,6 +33,10 @@ A host makes one choice, on `ViewHost` (the package README's quick start):
 
 The optional files only assign preset variables (`--fvp-*`): they paint nothing and never touch a variable of yours. The package's build checks that on every release.
 
+### Load order
+
+Your stylesheet may load before `styles.css` or after it. Cascade layers are ordered by where their names first appear, so when yours — a Tailwind build, say — comes first, the engine's lowest layer, `fve-reset`, lands above your `theme`, `base`, `components` and `utilities` instead of below them. Nothing a theme written as this guide says can tell the difference: the reset only sets `--fvp-*` back to `initial` where a preset is named, a preset sits [outside any layer](#your-own-preset), and your `--fve-*` never pass through it, in a layer of yours or not. The engine's utilities carry the `fve:` prefix, so its classes and yours never share a name in either order.
+
 ## Three layers
 
 Three parties write the theme, each under a prefix of its own, and every token reads them in one fixed order:

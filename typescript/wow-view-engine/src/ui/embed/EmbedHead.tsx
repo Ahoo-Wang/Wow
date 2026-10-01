@@ -24,6 +24,7 @@ import { useSurfaceDisplay } from '../kit/ViewSurface.js';
 import type { PanelHeadingLevel } from '../dashboard/DashboardPanel.js';
 import { useSay, useViewMessages } from '../kit/MessagesProvider.js';
 import { useViewExpansion, ViewExpandToggle } from '../kit/ViewExpansion.js';
+import { Truncated } from '../kit/Truncated.js';
 
 /**
  * An embed's first row, when it has one: its title as a heading at the
@@ -72,12 +73,12 @@ export function EmbedHead({
           data-slot="embed-heading"
           className="fve:flex fve:min-w-0 fve:flex-col fve:gap-1"
         >
-          <Title
+          <Truncated
+            as={Title}
             data-slot="embed-title"
-            className="fve:min-w-0 fve:truncate fve:text-base fve:font-semibold"
-          >
-            {say(title)}
-          </Title>
+            className="fve:min-w-0 fve:text-base fve:font-semibold"
+            text={say(title)}
+          />
           {caption != null && caption !== false && (
             <div
               data-slot="embed-caption"

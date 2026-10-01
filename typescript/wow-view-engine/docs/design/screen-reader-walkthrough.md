@@ -184,7 +184,7 @@
 
 没有权限，两处各看一眼：
 
-4. [首页 · 没有权限](https://wow.ahoo.me/storybook/iframe.html?viewMode=story&id=view-engine-首页--no-permission)（`view-engine-首页--no-permission`）：嵌入的板打不开，**应听到**一条警示，「无法打开这个仪表盘」，大意是「你不能打开这个仪表盘。」
+4. [首页 · 没有权限](https://wow.ahoo.me/storybook/iframe.html?viewMode=story&id=view-engine-首页--no-permission)（`view-engine-首页--no-permission`）：嵌入的板打不开，**应听到**一条警示，「无法打开这个仪表盘」，大意是「你没有这个仪表盘的权限，请联系管理员开通。」
 5. [记录详情 · 没有权限](https://wow.ahoo.me/storybook/iframe.html?viewMode=story&id=view-engine-组件状态-记录工作台-记录详情--linked-forbidden)（`view-engine-组件状态-记录工作台-记录详情--linked-forbidden`）：抽屉以 SO-1002 打开，**应听到**「你没有权限查看这条记录。」，没有「重试」（再试也是被拒）。
 
 **失败**：错误出现时什么也不念；条件上没有「无效数据」，无从知道是哪一条；无权限时只有空白或一直在「加载中」。

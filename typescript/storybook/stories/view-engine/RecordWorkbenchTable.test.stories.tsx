@@ -934,6 +934,44 @@ export const WideTable: Story = {
       await expect(held().keyLeft).toBe(resting.keyLeft);
     }
 
+    // The content passing under a held edge fades out into the row's fill,
+    // and only while some is hidden on that side (R2-76): 「PO202609210(」
+    // cut hard by a held column read as a damaged number. At the start the
+    // key's side fades nothing, at the end the actions' side fades nothing.
+    // Read on a body cell's `::before`, which is the fade.
+    const fades = () => {
+      const row = table.querySelector<HTMLTableRowElement>('tbody tr')!;
+      const fading = (column: HTMLTableCellElement) =>
+        getComputedStyle(row.cells[column.cellIndex], '::before').content !==
+        'none';
+      return {
+        start: area.hasAttribute('data-more-start'),
+        end: area.hasAttribute('data-more-end'),
+        key: fading(key),
+        actions: fading(actions),
+      };
+    };
+    for (const [left, start, end] of [
+      [0, false, true],
+      [area.scrollWidth / 2, true, true],
+      [area.scrollWidth, true, false],
+      [0, false, true],
+    ] as const) {
+      area.scrollLeft = left;
+      await waitFor(() =>
+        expect(fades()).toEqual({ start, end, key: start, actions: end }),
+      );
+    }
+    // The middle never fades: it is no edge.
+    await expect(
+      getComputedStyle(
+        table.querySelector<HTMLTableRowElement>('tbody tr')!.cells[
+          middle.cellIndex
+        ],
+        '::before',
+      ).content,
+    ).toBe('none');
+
     // And down past the fortieth row, which is the half no five-column story
     // could reach: the header is still at the top of the box.
     area.scrollTop = area.scrollHeight;
