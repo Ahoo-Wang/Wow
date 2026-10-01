@@ -543,9 +543,9 @@ export function AppShell({
 
       {/* Not a `main`: the workbench draws its own, and a page has one. */}
       <div
-        className="story-app-page"
+        // `fve:bg-canvas` is the one token class the engine offers a host.
+        className={grouped ? 'story-app-page fve:bg-canvas' : 'story-app-page'}
         data-padded={padded || undefined}
-        data-grouped={grouped || undefined}
       >
         {children}
       </div>

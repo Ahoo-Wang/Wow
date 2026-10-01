@@ -570,6 +570,15 @@ export type DashboardContentPanel = DashboardPanelBase &
 - 编辑器状态不进配置：折叠、当前标签页、未完成的输入、拖动中的临时位置归控制器；节点在编辑期的稳定 key 由控制器分配，不持久化；Issue 用路径定位节点。保存要求配置无 error，因此不存在保存半成品再恢复的问题。
 - 两种缺失要分开：**FieldKind 未注册**时内核没有它的 `validate` 与 `compile`，因此报 error 级 Issue，视图进入待修复，`apply` 被拒绝；**kind 已注册但缺少 React 渲染器**只影响编辑，配置照常校验与编译，UI 以只读方式显示原值并给出 warning。
 
+### 新引擎写的配置在旧引擎里
+
+旧的配置由新引擎在读取边界迁移（`readStored`，见上「24 列与旧布局」）；反方向没有迁移可做，规则是**旧引擎从不丢新引擎写下的东西**。Wow 的次版本混跑（9.2 与 9.3 的节点、两个应用、没刷新的标签页共用一个视图存储），所以从 9.2.0 起每一次改配置形状都按这两条来：
+
+1. **不认识的成员原样带过「打开 → 编辑 → 保存」**。内核按成员名读、不认识的不读，形状校验不因多出的成员报错；编辑按补丁改（`edit(patch)` 与各编辑器都是展开原对象再改那一项），所以配置上、配置里某一部分（一列、一个面板）上多出的成员，保存时照原样写回。用户拿掉的那一部分（删一列）连同它的成员一起走——那是用户的编辑，不是引擎丢的。唯一闭合的成员集是面板的展示覆盖（`presentation`，只收 `layout`、`chart`、`table`）：多出的成员是 warning（`dashboard.panel.presentation-dropped`），画的时候不读，存下的那份照留，直到用户改这块面板的展示——那一次按三个成员整份重写。新增展示成员因此要在同一个次版本里进 `PANEL_PRESENTATION_MEMBERS`。
+2. **闭合取值集里不认识的值是准入 error，视图按存下的样子留着**。新的图型、操作符、布局、面板种类……旧引擎报这个值自己的 code（`chart.type.unknown`、`filter.operator.unsupported`、`record.layout.unsupported` 等），视图进待修复；保存要求配置没有 error，所以旧引擎写不回它，存储里那一份不变，换到新引擎的节点上照常打开。不猜、不降级成一个认识的值（例如把新图型画成柱图后存下）。
+
+因此新增成员一律可选、缺省时就是今天的行为（与 [extension.md「宿主实现的接口怎样长」](extension.md#宿主实现的接口怎样长) 第 1 条同理），新增的取值只加在闭合集合里、不改已有取值的意思；要改已有成员的意思，用一个新成员说新的意思，再像 `columns: 24` 那样在新引擎的读取边界迁移，不写版本号。（见 test/newerConfig.test.ts）
+
 ## `RuntimeLimits` 的源预算
 
 `maxPageSize`（缺省 100）、`maxPageWindow`（缺省 10 000）与 `maxAnalysisRows`（缺省 1 000）说的是**数据源收多大的一次请求**，缺省就是一台保持缺省配置的 Wow 服务端的 HTTP 查询守卫（Gateway 准入时的 HTTP 预算：`wow.query.http.max-page-size`、`max-page-window`、`max-list-size`；#3454 之前在 `wow.webflux.query.*`）收的（[D42](decisions.md#d42-引擎的缺省预算不超过缺省配置的-wow-服务端2026-09-25)）。引擎发出的每一条查询都在它们之内：记录一页不超过 `maxPageSize`；分页条与导出都不越过 `pageWindow(record, limits)`（运行时的 `maxPageWindow`，定义的 `maxWindow` 更小时取它）；分析的「前 N 组」、探针行、拆分「其他」的整体查询与值候选都不超过 `limitBounds(capability, limits).max`（定义的 `maxLimit`、`maxAnalysisRows`、Wow 的 `AGGREGATION_LIMITS.MAX_LIMIT` 取小）。

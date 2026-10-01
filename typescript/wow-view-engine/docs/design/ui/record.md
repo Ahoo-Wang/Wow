@@ -32,7 +32,7 @@ Record 工作台的结果区组件。三种视图共用的骨架、状态条、�
 - **拖动覆盖配置里的每一列**；配置从未提到的字段没有位置，手柄禁用、列在可滚动区末尾，勾上接在末尾。提交的是两个区域按绘制顺序拼出的完整列序，与 `projectRecord` 是同一份列表；区内不可拖的行（主键、失效列）留在原位；
 - 汇总下拉的选项是"不汇总"加字段声明的函数，写入 `config.summaries`；配置可一字段多函数（表格照画），控件一列只给一个，选中即替换；
 - 固定开关写入 `table.columns[].pinned`；取消时**删掉**那个键而不是置 `undefined`——`dequal` 会把 `{ pinned: undefined }` 读成改动，视图一直"未保存"；
-- **拖放用现成的库**（`@dnd-kit/react` + `@dnd-kit/dom`，走 catalog）。只有可拖的行注册成 sortable item。`OptimisticSortingPlugin` 按 [interaction-primitives 设计](../../../../docs/superpowers/specs/2026-09-13-view-engine-interaction-primitives-design.md) 关掉——它在指针移动时重排 DOM，让落点下标失效；落点由 drop 报出的 source／target 两个 id 算出。真指针链路只能在浏览器里跑（jsdom 里盒子都是 0×0），是 `stories/view-engine/RecordWorkbenchTableSettings.test.stories.tsx` 的一条故事，断言表头列序与保存后的 `table.columns`；
+- **拖放用现成的库**（`@dnd-kit/react` + `@dnd-kit/dom`，走 catalog）。只有可拖的行注册成 sortable item。`OptimisticSortingPlugin` 关掉（2026-09-13 交互原语的设计）——它在指针移动时重排 DOM，让落点下标失效；落点由 drop 报出的 source／target 两个 id 算出。真指针链路只能在浏览器里跑（jsdom 里盒子都是 0×0），是 `stories/view-engine/RecordWorkbenchTableSettings.test.stories.tsx` 的一条故事，断言表头列序与保存后的 `table.columns`；
 - **键盘与一次点击**：手柄可聚焦，方向键在区内移一位；点一下手柄弹出「移到…」菜单（WCAG 2.5.7，[ui/README.md](README.md)「一列行只有一个配方」）；空格拾起后方向键交给库（`isDragging` 时本地让路），各有单一播报源，库的英文句子换成目录里的，落定由设置自己的 live region 说一次。**手柄只有一份**：`ui/kit/DragHandle.tsx`，列设置、排序编辑器、视图管理器共用；放下由 `ui/kit/dragDrop.ts` 的 `dropped()` 判定（test/dragHandle.test.tsx；test/accessibility.test.tsx「record, with the column settings open」）。
 
 ### 列设置的目录分组与搜索

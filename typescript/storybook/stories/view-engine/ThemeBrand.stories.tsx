@@ -138,7 +138,7 @@ function Swatches({
 function BrandPage() {
   return (
     <div
-      className="fve-tokens fve:bg-background fve:text-foreground"
+      className="fve-tokens host:bg-background host:text-foreground"
       style={{ display: 'flex', flexDirection: 'column', gap: 16, padding: 16 }}
     >
       {/* The brand on a wrapper, as a host that themes one part of its page
@@ -282,7 +282,7 @@ function WrapperSurface({ title, note }: { title: string; note: string }) {
   return (
     <ViewSurface
       theme="light"
-      className="fve:bg-card fve:text-card-foreground"
+      className="host:bg-card host:text-card-foreground"
       style={{
         padding: 12,
         borderRadius: 8,
@@ -317,7 +317,7 @@ function WrapperSurface({ title, note }: { title: string; note: string }) {
         </span>
       </div>
       <p
-        className="fve:text-muted-foreground"
+        className="host:text-muted-foreground"
         style={{ margin: 0, fontSize: 12 }}
       >
         {note}
@@ -336,7 +336,7 @@ function WrapperPage() {
   const [charted, setCharted] = useState(true);
   return (
     <div
-      className="fve-tokens fve:bg-background fve:text-foreground"
+      className="fve-tokens host:bg-background host:text-foreground"
       style={{ display: 'flex', flexDirection: 'column', gap: 12, padding: 16 }}
     >
       <div data-where="inside" style={branded({ '--fve-brand-chart': '1' })}>

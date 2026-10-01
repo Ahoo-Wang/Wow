@@ -123,7 +123,7 @@ function GalleryPage({ preset }: { preset: string }) {
         // chose it alone would see it.
         <div
           data-fve-preset={ENGINE_PRESET}
-          className="fve-tokens fve:bg-background fve:text-foreground gallery-page"
+          className="fve-tokens host:bg-background host:text-foreground gallery-page"
         >
           {BAND_MODES.map(mode => (
             <Band key={mode} engine={engine} preset={preset} mode={mode} />

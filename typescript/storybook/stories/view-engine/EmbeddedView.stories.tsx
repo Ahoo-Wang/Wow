@@ -170,14 +170,14 @@ function HostPage({
       data-host-page
       // The page itself, not a card: the host's page area around it gives
       // the gutter, as a host's content region does.
-      className="fve-tokens fve:bg-background fve:text-foreground fve:flex fve:min-h-0 fve:flex-col fve:gap-4"
+      className="fve-tokens host:bg-background host:text-foreground host:flex host:min-h-0 host:flex-col host:gap-4"
     >
-      <div className="fve:flex fve:flex-wrap fve:items-center fve:justify-between fve:gap-2">
-        <div className="fve:flex fve:min-w-0 fve:flex-col fve:gap-0.5">
-          <p className="fve:text-muted-foreground fve:text-xs">
+      <div className="host:flex host:flex-wrap host:items-center host:justify-between host:gap-2">
+        <div className="host:flex host:min-w-0 host:flex-col host:gap-0.5">
+          <p className="host:text-muted-foreground host:text-xs">
             订单中心 / 客户 / 明远商贸
           </p>
-          <h3 className="fve:truncate fve:text-base fve:font-semibold">
+          <h3 className="host:truncate host:text-base host:font-semibold">
             明远商贸 · 客户详情
           </h3>
         </div>
@@ -186,7 +186,7 @@ function HostPage({
         </Button>
       </div>
       <Separator />
-      <div className="fve:grid fve:min-w-0 fve:gap-4 fve:md:grid-cols-[minmax(180px,220px)_minmax(0,1fr)]">
+      <div className="host:grid host:min-w-0 host:gap-4 host:md:grid-cols-[minmax(180px,220px)_minmax(0,1fr)]">
         <Card>
           <CardHeader>
             <CardTitle>客户资料</CardTitle>
@@ -195,18 +195,18 @@ function HostPage({
               <Badge variant="secondary">月结</Badge>
             </CardAction>
           </CardHeader>
-          <CardContent className="fve:flex fve:flex-col fve:gap-3">
+          <CardContent className="host:flex host:flex-col host:gap-3">
             {CUSTOMER_FACTS.map(([label, value]) => (
-              <div key={label} className="fve:flex fve:flex-col fve:gap-0.5">
-                <span className="fve:text-muted-foreground fve:text-xs">
+              <div key={label} className="host:flex host:flex-col host:gap-0.5">
+                <span className="host:text-muted-foreground host:text-xs">
                   {label}
                 </span>
-                <span className="fve:text-sm">{value}</span>
+                <span className="host:text-sm">{value}</span>
               </div>
             ))}
           </CardContent>
         </Card>
-        <Card className="fve:min-w-0" style={ON_CARD}>
+        <Card className="host:min-w-0" style={ON_CARD}>
           <CardHeader>
             <CardTitle>最近运单</CardTitle>
             <CardDescription>{caption}</CardDescription>
@@ -222,7 +222,7 @@ function HostPage({
               </Button>
             </CardAction>
           </CardHeader>
-          <CardContent className="fve:flex fve:min-w-0 fve:flex-col fve:gap-3">
+          <CardContent className="host:flex host:min-w-0 host:flex-col host:gap-3">
             {onScope && (
               <ToggleGroup
                 value={[scopeChoice ?? 'none']}
@@ -234,7 +234,7 @@ function HostPage({
                 variant="outline"
                 size="sm"
                 aria-label="页面范围"
-                className="fve:flex-wrap"
+                className="host:flex-wrap"
               >
                 {SCOPE_ORDER.map(choice => (
                   <ToggleGroupItem key={choice} value={choice}>
@@ -258,13 +258,13 @@ function HostPage({
         </Card>
       </div>
       <Separator />
-      <p className="fve:text-muted-foreground fve:text-xs">
+      <p className="host:text-muted-foreground host:text-xs">
         数据来自运单中心 · 每 5 分钟同步一次
       </p>
       {route && (
         <p
           data-host-route
-          className="fve:text-muted-foreground fve:font-mono fve:text-xs fve:break-all"
+          className="host:text-muted-foreground host:font-mono host:text-xs host:break-all"
         >
           宿主路由：
           {/* The page's narrowing goes as the scope (D26 Q30): locked in

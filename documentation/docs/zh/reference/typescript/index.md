@@ -12,7 +12,7 @@ description: 各个 Wow TypeScript 包的参考，以及它们的状态与入口
 | `@ahoo-wang/wow-client` | 随 Wow 9.2.0 发布 | `@ahoo-wang/wow-client`、`/dsl`（不含 HTTP 的查询 DSL）、`/legacy`（供 Wow 8.10 使用的 Condition API，v10 移除） | [wow-client](./wow-client/) |
 | `@ahoo-wang/wow-generator` | 随 Wow 9.2.0 发布 | 命令 `wow-generator`；`CodeGenerator` | [wow-generator](./wow-generator/) |
 | `@ahoo-wang/wow-react` | 随 Wow 9.2.0 发布 | `@ahoo-wang/wow-react` | [wow-react](./wow-react/) |
-| `@ahoo-wang/wow-view-engine` | 随 Wow 9.2.0 发布 | `@ahoo-wang/wow-view-engine`、`/react`、`/ui` | [wow-view-engine](./wow-view-engine/) |
+| `@ahoo-wang/wow-view-engine` | 随 Wow 9.2.0 发布 | `@ahoo-wang/wow-view-engine`、`/react`、`/ui`、`/testing`、`/react-router` 与样式表；命令行 `wow-view-engine theme-check` | [wow-view-engine](./wow-view-engine/) |
 | `@ahoo-wang/wow-view-store` | 随 Wow 9.2.0 发布 | `@ahoo-wang/wow-view-store` | [wow-view-store](./wow-view-store/) |
 
 Wow 9.2.0 发布之前，随它发布的包尚未上 npm。

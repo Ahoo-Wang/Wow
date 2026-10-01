@@ -53,7 +53,7 @@ function ShipmentsTimeAxis({
   const view = shipmentsView(shipmentsConfig(scene, chart));
   return (
     <div
-      className="fve:h-full"
+      className="host:h-full"
       style={
         patterns === 'auto'
           ? undefined

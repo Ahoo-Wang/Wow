@@ -15,15 +15,17 @@ For what the engine does and a walkthrough of the target usage, read the [View E
 
 | Entry | Exports |
 |---|---|
-| `@ahoo-wang/wow-view-engine` | Model types, pure kernels (`validate*`, `compile*`, `project*`), runtime, the `ViewStore` port, `MemoryViewStore` |
+| `@ahoo-wang/wow-view-engine` | Model types, pure kernels (`validate*`, `compile*`, `project*`), runtime, the `ViewStore` port, `MemoryViewStore`, `localStorageSnapshot` |
 | `/react` | `useViewEngine`, `useOpenView`, `useViewRuntime`, `useViewList`, `useViewManager`, `useWorkbench`, `useLeaveGuard`, `useFilterEditor`, `useRecordTable`, `useAnalysisEditor`, `useAnalysisResult`, `useDashboard`, `useSaveCommands`, `useRecordActions`, `RecordActionSlots` |
-| `/ui` | Workbenches (`DataWorkbench`, `DashboardWorkbench`), embeds (`EmbeddedView`, `EmbeddedDashboard`), view management (`ViewHeader`, `SaveActions`, `ViewManager`, `LeaveDialog`), editing and results (`FilterPanel`, `RecordTable`, `RecordCards`, `RecordPagination`, `AnalysisTable`, `AnalysisChart`, `DashboardGrid`), content panels, and `MessagesProvider` |
+| `/ui` | Workbenches (`DataWorkbench`, `DashboardWorkbench`), embeds (`EmbeddedView`, `EmbeddedDashboard`), the host's wiring (`ViewHost`, `bind`, `useViewNavigation`, `useColorMode`), view management (`ViewHeader`, `SaveActions`, `ViewManager`, `LeaveDialog`), editing and results (`FilterPanel`, `RecordTable`, `RecordCards`, `RecordPagination`, `AnalysisTable`, `AnalysisChart`, `DashboardGrid`), content panels, and `MessagesProvider` |
+| `/testing` | For a host's tests: `memorySource` and `matches` (an in-memory `ViewSource` with Wow's query semantics), `resolveNavigation`, `admit`, `actionHarness` |
+| `/react-router` | `useReactRouter`: React Router as the router port a host hands its `ViewHost` |
 | `/styles.css` | The theme. Import it explicitly; no JavaScript entry imports CSS |
 | `/themes.css` | Optional presets, selected by `data-fve-preset` |
 | `/themes/<name>.css` | One optional preset alone |
 | `/shadcn-bridge.css` | Optional: a host's shadcn tokens read into the view's variables, except `input`, `ring`, the status and the chart colours |
 
-The root entry has no React or DOM dependency. `react` and `react-dom` are peer dependencies needed only by `/react` and `/ui`.
+The root entry has no React or DOM dependency. `react` and `react-dom` are peer dependencies needed only by `/react` and `/ui`; `react-router` only by `/react-router`, and `mingo` only by `/testing`; all four are optional peers. The package's command, `wow-view-engine theme-check`, checks a host's theme against the registry ([checking a theme](../../../guide/typescript/view-engine-theming.md#checking-a-theme)).
 
 ## Concepts
 
@@ -34,7 +36,7 @@ The root entry has no React or DOM dependency. `react` and `react-dom` are peer 
 | `ViewInstance` | A saved `ViewConfig` plus id, title, scope (`system`, `shared`, or `personal`), and an opaque `revision` | Store |
 | `ViewRuntime` | One open view: draft, applied config, result, status, and selection, exposed through `subscribe` and `getSnapshot` | Memory |
 | `ViewEngine` | Registry of definitions, the store, and open runtimes; the entry point for open, save, and list commands | Memory |
-| `ViewStore` | The persistence port a backend implements | Application |
+| `ViewStore` | The persistence port: `WowViewStore` on a Wow server, a backend's own implementation elsewhere | Application |
 | `FieldKind` | Operators, validation, compilation to `FilterExpression`, and the editor descriptor of one field type | Registry |
 
 Built-in field kinds: `string`, `number`, `boolean`, `date`, `datetime`, `enum`, `reference`, `array`, `elementMatch`, `search`, and the kinds backed by Wow's metadata filters: `documentId`, `aggregateId`, `tenantId`, `ownerId`, `spaceId`, and `deletion`.
@@ -51,6 +53,8 @@ interface ViewStore {
   save(id: string, config: ViewConfig, revision: string, ctx: WriteContext): Promise<ViewInstance>;
   rename(id: string, title: string, revision: string, ctx: WriteContext): Promise<ViewInstance>;
   delete(id: string, revision: string, ctx: WriteContext): Promise<void>;
+  // Optional: without it the view manager offers no "Make shared" / "Make personal".
+  changeAudience?(id: string, audience: ViewAudience, revision: string, ctx: WriteContext): Promise<ViewInstance>;
   getPreferences(definitionId: string, signal?: AbortSignal): Promise<ViewPreferences>;
   setPreferences(definitionId: string, prefs: ViewPreferences, ctx: WriteContext): Promise<ViewPreferences>;
   permissions?(definitionId: string): ViewPermissions;
@@ -62,8 +66,9 @@ interface ViewStore {
 | Optimistic revision | Writes carry the expected `revision`; a mismatch throws `ViewStoreError` with code `CONFLICT`, and the UI offers reload, overwrite, or save as |
 | Idempotent `requestId` | Each logical write gets one `requestId` in `WriteContext`; a retry after a timeout reuses it and the server deduplicates |
 | Permissions | `permissions` only drives button availability. Authorization, visibility filtering, and deduplication are server responsibilities |
+| Changing the audience | `changeAudience` moves a saved view between personal and shared in place, keeping its id, under the same two rules. A request for the audience the view already has answers it unchanged; a view a shared dashboard shows cannot become personal (`INVALID`, the dashboards' titles in `boards`) |
 
-`MemoryViewStore` is for tests, examples, and query-only use. The Wow-backed one is [`WowViewStore`](../wow-view-store/), in its own package, over the view store server.
+`MemoryViewStore` is for tests, examples, and query-only use. On a Wow server, use [`WowViewStore`](../wow-view-store/) from `@ahoo-wang/wow-view-store`, over the view store server; only a backend that is not Wow implements the port itself.
 
 ## Layering
 
@@ -89,7 +94,7 @@ Architecture tests enforce the dependency rules: `model` imports nothing; `filte
 |---|---|
 | Field type | Register a `FieldKind`: operators, validation, `compile` to `FilterExpression`, and an editor descriptor that names one of the built-in value inputs |
 | Data source | Each entry of `resources` pairs a definition with its source, a `wow-client` query client |
-| Persistence | Implement `ViewStore` |
+| Persistence | `WowViewStore` on a Wow server; implement `ViewStore` for any other backend |
 | Actions | Declare them with `actions()` and bind them (`bind(id, { actions })`): the engine places, confirms, runs and reports them; `slots` (`global`, `bulk`, `row` render functions) are the escape hatch. They are code and are never saved |
 | Appearance | CSS variables, presets and the shadcn bridge (see [Theming the View Engine](../../../guide/typescript/view-engine-theming.md)); replace components by composing the `/react` hooks |
 | Wording | `en` and `zhCN` catalogues, merged through the `messages` prop or `MessagesProvider` |

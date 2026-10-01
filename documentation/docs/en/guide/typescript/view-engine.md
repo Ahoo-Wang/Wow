@@ -57,13 +57,13 @@ flowchart LR
 
 ## Target usage
 
-The package is not installable yet. Once published, installation will be:
+From Wow 9.2.0 on, install it with the Wow client:
 
 ```sh
 pnpm add @ahoo-wang/wow-view-engine @ahoo-wang/wow-client
 ```
 
-`react` and `react-dom` are needed only for the `/react` and `/ui` entries; the root entry runs in Node.
+`react` and `react-dom` are needed only for the `/react` and `/ui` entries, `react-router` only for `/react-router`, and `mingo` only for `/testing`; the root entry runs in Node. To keep saved views on a Wow server, add `@ahoo-wang/wow-view-store`.
 
 ### 1. Declare a definition
 
@@ -115,7 +115,7 @@ const engine = new ViewEngine({
 });
 ```
 
-`MemoryViewStore` suits tests and examples. A business application implements the `ViewStore` port against its own backend; see the [reference](../../reference/typescript/wow-view-engine/#persistence).
+`MemoryViewStore` suits tests and examples. A Wow application keeps its views on the Wow view store server with [`WowViewStore`](../../reference/typescript/wow-view-store/) from `@ahoo-wang/wow-view-store`; only a backend that is not Wow implements the `ViewStore` port itself ([persistence](../../reference/typescript/wow-view-engine/#persistence)).
 
 ### 3. Render the workbench, or compose your own UI
 
@@ -154,7 +154,7 @@ Or put `data-fve-preset="azure"` on `<html>` and every view and popup takes it. 
 
 A custom layout uses the headless hooks of the `/react` entry, such as `useOpenView`, `useViewRuntime`, `useFilterEditor`, and `useRecordTable`, and renders any markup from them without reaching into engine internals.
 
-The first complete example walks through the record view workbench: filter pending orders, adjust columns and sorting, save a personal view, and reopen it. It is published together with the package.
+The [integration walk-through](/storybook/?path=/docs/view-engine-接入导览--docs) in Storybook takes a host through the recommended wiring in five steps — declare a definition, connect the data, mount `ViewHost`, declare the actions, render the page — with the real source files of a working example.
 
 ## Content Security Policy
 
@@ -191,6 +191,7 @@ To see what the engine draws first, open the [chart showcase board](/storybook/?
 ## Where to read more
 
 - [wow-view-engine reference](../../reference/typescript/wow-view-engine/): entries, concepts, persistence port, and extension points.
+- [wow-view-store reference](../../reference/typescript/wow-view-store/): `WowViewStore`, the saved views on a Wow server, and the CoSec gateway rules it needs.
 - [Theming the View Engine](./view-engine-theming.md): presets, host variables, light, dark and system mode, the shadcn bridge, and the contrast an override owes.
 - [Accessibility of the View Engine](./view-engine-accessibility.md): the WCAG 2.2 AA conformance statement, the keyboard and screen-reader walkthroughs, and the known gaps.
 - [Design documents](https://github.com/Ahoo-Wang/Wow/tree/main/typescript/wow-view-engine/docs/design): the source of truth for the model.

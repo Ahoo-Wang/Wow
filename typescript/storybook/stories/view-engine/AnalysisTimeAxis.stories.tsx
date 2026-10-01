@@ -166,7 +166,7 @@ function TimeAxisDemo({
   const view = timeAxisView(scene, chart);
   return (
     <div
-      className="fve:h-full"
+      className="host:h-full"
       style={
         patterns === 'auto'
           ? undefined
