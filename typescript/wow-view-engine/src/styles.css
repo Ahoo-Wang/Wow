@@ -3028,12 +3028,36 @@
  *   to opt its cells out of the repaint, and everything inside them — the
  *   checkbox, a status badge — would then keep colours picked for the
  *   theme, not for the reader's.
+ * - So is a control that says it is the one chosen: the sidebar's current
+ *   view and a board's current tab (`aria-current`), a pressed toggle
+ *   (`aria-pressed`), a selected tab. On screen each is a fill, a lifted
+ *   edge or a bar under it; repainted, the fill went to `Canvas` like its
+ *   neighbours' and Chromium drew the current view exactly as the rest
+ *   (2026-09-30 Firefox/WebKit pass, D73). A legend's entry is left out:
+ *   pressed is every series drawn, and the one hidden is struck through,
+ *   which the repaint keeps.
  */
 @media (forced-colors: active) {
   .fve-root :focus-visible,
   .fve-tokens :focus-visible {
     outline: 2px solid CanvasText;
     outline-offset: 2px;
+  }
+
+  .fve-root
+    :is(
+      [aria-current]:not([aria-current='false']),
+      [aria-pressed='true']:not([data-slot='chart-legend-toggle']),
+      [role='tab'][aria-selected='true']
+    ),
+  .fve-tokens
+    :is(
+      [aria-current]:not([aria-current='false']),
+      [aria-pressed='true']:not([data-slot='chart-legend-toggle']),
+      [role='tab'][aria-selected='true']
+    ) {
+    outline: 2px solid Highlight;
+    outline-offset: -2px;
   }
 
   .fve-root [data-slot='table-row']:is([data-state='selected'], [data-pressed]),
@@ -3057,6 +3081,22 @@
   .fve-tokens [data-slot='table-row']:focus-visible {
     outline-color: CanvasText;
     outline-offset: -2px;
+  }
+
+  /* And on a chosen control, inside its edge as the frame was. */
+  .fve-root
+    :is(
+      [aria-current]:not([aria-current='false']),
+      [aria-pressed='true'],
+      [role='tab'][aria-selected='true']
+    ):focus-visible,
+  .fve-tokens
+    :is(
+      [aria-current]:not([aria-current='false']),
+      [aria-pressed='true'],
+      [role='tab'][aria-selected='true']
+    ):focus-visible {
+    outline-color: CanvasText;
   }
 }
 
@@ -3378,6 +3418,20 @@
 .fve-root [data-slot='chart-tooltip-swatch'] {
   width: 10px;
   height: 10px;
+}
+
+/*
+ * Nothing the library puts in the plot scrolls what holds it. The tooltip
+ * is kept inside the chart (`confine`) and moved by `transform`; Safari left
+ * the scroll range of its first showing stale until the next style change,
+ * so a metric card's trend widened its card by 5–51px — a horizontal scroll
+ * under the pointer (2026-09-30 Firefox/WebKit pass, D73; the library's
+ * `will-change` was ruled out). Layout containment counts what overflows
+ * the plot as ink, not as scrollable overflow, and clips nothing, so a
+ * tooltip near the edge keeps its shadow.
+ */
+.fve-root [data-slot='chart-plot'] {
+  contain: layout;
 }
 
 /*

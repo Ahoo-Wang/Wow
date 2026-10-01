@@ -558,6 +558,10 @@ export const PicksASpecificDay: Story = {
       (await screen.findAllByRole('option')).map(option => option.textContent),
     ).toEqual(['今天', '昨天', '前天']);
     await userEvent.keyboard('{Escape}');
+    // The first list gone before the second opens: its options leave by an
+    // exit transition, and Linux WebKit read them as the second list's
+    // (2026-09-30 Firefox/WebKit pass).
+    await waitFor(() => expect(screen.queryByRole('listbox')).toBeNull());
     const kind = within(date).getByRole('combobox', {
       name: label('label.date.shape-of', { field: '日期' }),
     });

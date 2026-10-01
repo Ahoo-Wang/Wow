@@ -158,6 +158,21 @@ function argsKey(args: Record<string, unknown>): string {
   }
 }
 
+/**
+ * In Safari those sentinels stop being hidden: Base UI's `FocusGuard` gives
+ * them `role="button"` there (VoiceOver's virtual cursor only fires focus on
+ * a button), so a menu holding them fails `aria-required-children` — a menu
+ * may own menu items, not buttons — though excluding the guards above keeps
+ * them out of every other rule. Under WebKit that one rule skips menus; it
+ * still runs on every other role, and on menus in Chromium and Firefox
+ * (2026-09-30 Firefox/WebKit pass, D73).
+ */
+const WEBKIT_GUARD_RULES =
+  /AppleWebKit/.test(navigator.userAgent) &&
+  !/Chrome\//.test(navigator.userAgent)
+    ? [{ id: 'aria-required-children', selector: '[role]:not([role=menu])' }]
+    : [];
+
 const preview: Preview = {
   parameters: {
     a11y: {
@@ -173,6 +188,7 @@ const preview: Preview = {
           ['[data-base-ui-focus-guard]'],
         ],
       },
+      config: { rules: WEBKIT_GUARD_RULES },
       test: 'error',
     },
     controls: {

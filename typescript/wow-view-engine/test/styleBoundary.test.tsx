@@ -188,6 +188,19 @@ describe('the theme has two boundaries and only one of them is a surface', () =>
     expect(outline(/\[data-pressed\]/)).toContain(
       'outline: 2px solid Highlight',
     );
+    // So is a chosen control: the sidebar's current view, a pressed toggle,
+    // a selected tab (2026-09-30 Firefox/WebKit pass, D73) — and focus
+    // still outranks it.
+    for (const chosen of [
+      /\[aria-current\]:not\(\[aria-current='false'\]\)/,
+      /\[aria-pressed='true'\]/,
+      /\[role='tab'\]\[aria-selected='true'\]/,
+    ]) {
+      expect(outline(chosen)).toContain('outline: 2px solid Highlight');
+      expect(
+        outline(new RegExp(`${chosen.source}[^]*:focus-visible`)),
+      ).toContain('outline-color: CanvasText');
+    }
   });
 
   it('prints in the light half: the dark tokens and utilities hold off paper only (T5)', () => {

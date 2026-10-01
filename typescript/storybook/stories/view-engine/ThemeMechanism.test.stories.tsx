@@ -33,7 +33,7 @@
  */
 
 import type { StoryObj } from '@storybook/react-vite';
-import { expect, userEvent, waitFor, within } from 'storybook/test';
+import { expect, screen, userEvent, waitFor, within } from 'storybook/test';
 import { converter, parse } from 'culori';
 import { FOCUS_CARD, FOCUS_INSET, FOCUS_ROW } from '@/ui/kit/variants';
 import displayMeta, {
@@ -173,6 +173,18 @@ async function chosenOption(canvasElement: HTMLElement): Promise<HTMLElement> {
 }
 
 /**
+ * Escape, and the popup of `role` hidden. A select's list leaves by an exit
+ * transition and then stays mounted under a `hidden` positioner; axe runs
+ * after the play function, and in WebKit it read the page-size list
+ * mid-close — no longer labelled by its trigger — as an unnamed listbox
+ * (2026-09-30 Firefox/WebKit pass). `queryByRole` skips what is hidden.
+ */
+async function escapeFrom(role: 'listbox' | 'menu'): Promise<void> {
+  await userEvent.keyboard('{Escape}');
+  await waitFor(() => expect(screen.queryByRole(role)).toBeNull());
+}
+
+/**
  * An outline button of the toolbar under the browser's own mouse: a built
  * event puts no real `:hover` on it (`pointerDrag.ts`), and `:hover` is
  * what the rule is written on.
@@ -241,7 +253,7 @@ export const UnsetMechanismDrawsTheRegistry: Story = {
     await expect(getComputedStyle(option).fontWeight).toBe(
       getComputedStyle(option.parentElement!).fontWeight,
     );
-    await userEvent.keyboard('{Escape}');
+    await escapeFrom('listbox');
   },
 };
 
@@ -281,7 +293,7 @@ const porcelainMenu = (theme: 'light' | 'dark'): Story => ({
       await expect(toOklch(parse(ground)!)!.l).toBeLessThan(0.55);
       await expect(ink).toBe('rgb(255, 255, 255)');
     }
-    await userEvent.keyboard('{Escape}');
+    await escapeFrom('menu');
   },
 });
 
@@ -337,7 +349,7 @@ const azureMarks = (theme: 'light' | 'dark'): Story => ({
     const option = await chosenOption(canvasElement);
     await expect(rgbOf(getComputedStyle(option).backgroundColor)).toBe(tint);
     await expect(getComputedStyle(option).fontWeight).toBe('600');
-    await userEvent.keyboard('{Escape}');
+    await escapeFrom('listbox');
   },
 });
 

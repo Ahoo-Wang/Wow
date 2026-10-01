@@ -43,7 +43,7 @@ npm 首发（`9.2.0-rc.0`）之前按下面的顺序做，同时只做一件。�
 用户已定推迟到首发之后；排进某个版本时各自成为带判据的条目。
 
 - **真人读屏走查（VoiceOver／NVDA）**（[D73](decisions.md#d73-真人读屏走查与多浏览器视觉回归放到首发之后2026-09-29)）：VoiceOver + Safari、NVDA + Firefox／Chrome 各走一遍记录工作台、分析、仪表盘与两种嵌入的核心任务，照 [screen-reader-walkthrough.md](screen-reader-walkthrough.md) 交回结果。判据：每个任务一行「能否完成 / 实际念出的话 / 与预期的差异」，差异修掉或各成一条；声明的「评估方法」补上读屏软件与版本。落点：文档站「视图引擎的可访问性」。
-- **Firefox／WebKit 的视觉回归基线**（D73）：视觉回归在 Firefox 与 WebKit 上各跑一次（要下载这两种浏览器）。判据：两种引擎各有一套基线，差异修掉或记下原因。落点：Storybook 的截图脚本。
+- **Firefox／WebKit 的视觉回归基线与 PR 任务**（D73）：首发前已在本机走查过一次（2026-09-30，没有视觉回归，查出的缺陷已修）。首发后两种引擎各立一套截图基线，PR 上加 Firefox／WebKit 的交互测试任务。判据：两种引擎各有一套基线、PR 上各有一个任务，差异修掉或记下原因。落点：Storybook 的截图脚本、`.github/workflows/typescript-storybook.yml`。
 - **H：补偿控制台「每天各种结局」画成一张多序列图，由后端支持**（用户 2026-09-27）：Wow 在展开元素的聚合里够不到根字段 `createTime`；后端加「元素作用域里按上层（根）字段分组」（MongoDB 几乎不用改，Elasticsearch 要把根字段的分组放到 `nested` 外并与 composite 分页相容），TCK 两个后端都加用例，之后 TS 镜像、本包放开 `analysis.field.outside-scope`。判据：一次查询出「按天 × 事件名」，两个后端的 TCK 都过；控制台「补偿活动」板的结局是一张四条线的图。落点：`wow-query` 的 `QueryResolver`、`wow-mongo`／`wow-elasticsearch` 的聚合编译、本包 `analysis/`、控制台 `src/views/overview.ts`。
 - **E：看板布局不用手算坐标**：面板位置是手写的 `x/y/w/h`，插一个面板要重算后面的 `y`。加按行排布的辅助，或 `y` 省略时自动接在上一行后。判据：控制台的三块板改用它后布局不变。落点：`src/dashboard/layout.ts`。
 - **G：枚举字段宽容 `EQ`**：字段从字符串改成枚举时，已存的 `EQ` 条件全部失效。写的时候对枚举上的 `EQ` 按一个值的 `IN` 读。判据：枚举字段上存下的 `EQ` 条件照常准入与编译。落点：`src/filter/kinds/enum.ts`。

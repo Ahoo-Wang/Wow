@@ -77,7 +77,12 @@ export const WaybillWideTable: Story = {
       await expect(value.textContent).toMatch(/^[\d,]+$/);
       await expect(value.scrollWidth).toBeLessThanOrEqual(value.clientWidth);
       await expect(label.scrollWidth).toBeLessThanOrEqual(label.clientWidth);
-      await expect(label.scrollHeight).toBeLessThanOrEqual(label.clientHeight);
+      // 2px of give in height: Firefox's fallback CJK font draws its glyphs
+      // 2px past a 16px line (scrollHeight 18) with nothing cut on screen
+      // (2026-09-30 Firefox/WebKit pass). A second line would be 16px more.
+      await expect(label.scrollHeight).toBeLessThanOrEqual(
+        label.clientHeight + 2,
+      );
       // Still within the cell it was given: the column is not widened.
       await expect(hint.getBoundingClientRect().right).toBeLessThanOrEqual(
         hint.closest('td')!.getBoundingClientRect().right,
