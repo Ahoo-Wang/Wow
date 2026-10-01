@@ -679,24 +679,44 @@ class ElasticsearchSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
     }
 
     @Test
-    fun `all modes should reject dynamic ABAC before ignored values can fail open`() {
-        updateDocument(
-            mapOf(
-                "tags" to mapOf(
-                    "department" to listOf("x".repeat(9000)),
-                ),
-            ),
-        )
-        val mismatchedPrincipal = mapOf("department" to listOf("eng")).toFilterExpression()
+    fun `ABAC tags on the default template filter, and an over-long tag never reads as an untagged resource`() {
+        // Wow's snapshot template maps tags.* as keyword with ignore_above 8191: a longer value is not indexed.
+        updateDocument(mapOf("tags" to mapOf("department" to listOf("x".repeat(9000)))))
+        currentMapping().properties().getValue("tags").`object`().properties().getValue("department")
+            .keyword().ignoreAbove().assert().isEqualTo(8191)
+        fun visible(service: QueryTarget<SnapshotQueryBackend>, principal: Map<String, List<String>>): Long =
+            ListQuery(filter = principal.toFilterExpression(), limit = 10).query(service).count().block()!!
 
-        listOf(
-            queryBackendBinding,
-            strictService(),
-        ).forEach { service ->
-            assertThrows<QuerySchemaValidationException> {
-                validated(service, ListQuery(filter = mismatchedPrincipal, limit = 10))
-            }
+        listOf(compatibleService(), strictService()).forEach { service ->
+            visible(service, mapOf("department" to listOf("eng"))).assert().isZero()
+            visible(service, mapOf("department" to listOf("*"))).assert().isOne()
         }
+        updateDocument(mapOf("tags" to mapOf("department" to listOf("eng"))))
+        listOf(compatibleService(), strictService()).forEach { service ->
+            visible(service, mapOf("department" to listOf("eng"))).assert().isOne()
+            visible(service, mapOf("department" to listOf("ops"))).assert().isZero()
+        }
+    }
+
+    @Test
+    fun `an Id suffixed string on the default template filters, sorts and groups`() {
+        updateState(mapOf("customerId" to "customer-1"))
+        currentMapping().properties().getValue("state").`object`().properties().getValue("customerId")
+            .keyword().ignoreAbove().assert().isEqualTo(8191)
+        val service = strictService(querySchemaSources + source(stringField("state.customerId")))
+        val sort = listOf(Sort(QueryField("state.customerId"), Sort.Direction.ASC))
+
+        ListQuery(filter = filterExpression { "state.customerId" eq "customer-1" }, sort = sort, limit = 10)
+            .query(service).test().expectNextCount(1).verifyComplete()
+        ListQuery(filter = filterExpression { "state.customerId" isIn listOf("customer-2") }, limit = 10)
+            .query(service).test().verifyComplete()
+        ListQuery(filter = filterExpression { "state.customerId".startsWithText("customer-") }, limit = 10)
+            .query(service).test().expectNextCount(1).verifyComplete()
+        aggregation { terms("state.customerId", "customerId"); count("count") }.query(service).test()
+            .assertNext { row ->
+                row.path("customerId").asString().assert().isEqualTo("customer-1")
+                row.path("count").asLong().assert().isOne()
+            }.verifyComplete()
     }
 
     @Test

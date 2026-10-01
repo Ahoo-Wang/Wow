@@ -65,6 +65,12 @@ EventStore batch 使用 Bulk `create`；SnapshotStore direct/batch 都以 `_sour
 
 存储适配器（`ElasticsearchQuerySchemaAdapter`，一个 `QueryStorageAdapter`）读取目标索引 mapping，把它报告为存储事实：为 exact match、range、sort、presence、projection 等绑定的物理路径；`QuerySchemaCatalog` 把这些事实与逻辑模型编译成 `QueryModelSchema`；准入按这些 binding 解析每个字段引用，编译器消费得到的 `ResolvedField`。multi-field、runtime field 和禁用 object 服从 Elasticsearch mapping；不要在 HTTP 层猜测 `.keyword`。
 
+### 带 `ignore_above` 的 keyword {#keyword-ignore-above}
+
+`ignore_above` 不小于 8191 的 `keyword` 视为索引了全部值，拥有无上限 keyword 的全部操作：精确匹配、`in`/`notIn`、前缀与包含、范围、排序和 terms 聚合。Wow 的默认模板正是给 `tags.*`（ABAC 标签）、`id`、`*Id` 和事件流的动态字符串设了这个上限，它是能放进 Lucene 32766 字节词项上限的最多字符数；没有它，一个更长的值会让整个文档写入失败。限制是：长于 `ignore_above` 的值保留在 `_source` 中但不进索引，因此没有过滤条件能匹配它（以该值做 `eq`、`in`、前缀或包含都查不到；`ne` 和 `notIn` 会包含该文档），排序时按缺失处理，也不进入任何 terms 桶。存在性过滤（`exists`、`isNull`、`isEmpty`）仍通过 Elasticsearch 的 `_ignored` 字段看到该值，因此 ABAC 标签超长的资源不会被当作无标签的公开资源；在 `nested` 元素内，这样的值按缺失处理。
+
+更小的 `ignore_above`（例如 Elasticsearch 为未映射字符串推断的 `text` + `keyword`，`ignore_above: 256`）可能丢掉查询需要的值，因此该字段没有查询操作；例外是每个声明值都在上限内的字符串枚举。这类字段请显式映射（见[字符串字段的可聚合性](../query/aggregation-query.md#es-string-aggregability)）。Wow 9.1.x 拒绝除这类枚举之外所有带 `ignore_above` 的 keyword。
+
 ## 首次写入之前
 
 Wow 在聚合首次写入时创建它的索引，所以新聚合在此之前没有索引。查询不存在的索引不返回任何记录：列表、分页和游标为空，计数为 `0`，没有分组的聚合返回空汇总，与快照加载不存在的索引时一致。不存在的索引的查询 schema 由该索引将被创建时的 mapping 编译：即 Elasticsearch 为该索引名模拟出的匹配索引模板（`POST _index_template/_simulate_index/<index>`），没有模板匹配时则没有字段。这需要 `manage_index_templates` 集群权限，`auto-init-template` 同样需要；没有该权限时，schema 在索引存在前保持不可用（`QuerySchemaUnavailable`，HTTP 503）。
