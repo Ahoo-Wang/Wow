@@ -79,6 +79,7 @@ import me.ahoo.wow.query.snapshot.SnapshotQueryGateway
 import me.ahoo.wow.serialization.JsonSerializer
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.spring.boot.starter.ENABLED_SUFFIX_KEY
+import me.ahoo.wow.spring.boot.starter.bi.BiScriptAggregateExclusion
 import me.ahoo.wow.spring.boot.starter.bi.BiScriptProperties
 import me.ahoo.wow.spring.boot.starter.command.CommandAutoConfiguration
 import me.ahoo.wow.spring.boot.starter.command.CommandGatewayAutoConfiguration
@@ -492,6 +493,22 @@ internal class WebFluxAutoConfigurationTest {
                     "'kafka.example.order.command'",
                 )
                 script.assert().doesNotContain("localhost:9093", "'wow.example.order.command'")
+            }
+    }
+
+    @Test
+    fun `should leave the aggregates an exclusion names out of the BI script`() {
+        webFluxContextRunner().run { context ->
+            context.generateBiScript().assert().contains("'wow.example.order.command'", "'wow.example.cart.command'")
+        }
+        webFluxContextRunner()
+            .withBean(BiScriptAggregateExclusion::class.java, {
+                BiScriptAggregateExclusion { it.aggregateName == "order" }
+            })
+            .run { context ->
+                val script = context.generateBiScript()
+                script.assert().contains("'wow.example.cart.command'")
+                script.assert().doesNotContain("'wow.example.order.command'")
             }
     }
 

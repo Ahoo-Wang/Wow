@@ -69,6 +69,7 @@ dependencies {
     ksp(project(":wow-compiler"))
     implementation("io.netty:netty-all")
     implementation(project(":wow-compensation-domain"))
+    implementation(project(":wow-view-store-starter"))
     implementation(project(":wow-opentelemetry"))
     implementation(project(":wow-webflux"))
     implementation(project(":wow-cosec"))

@@ -15,6 +15,7 @@ package me.ahoo.wow.viewstore.starter
 
 import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.command.CommandGateway
+import me.ahoo.wow.modeling.getContextAliasPrefix
 import me.ahoo.wow.modeling.state.StateAggregateRepository
 import me.ahoo.wow.openapi.RouterSpecs
 import me.ahoo.wow.openapi.metadata.aggregateRouteMetadata
@@ -24,6 +25,7 @@ import me.ahoo.wow.query.snapshot.SnapshotQueryGateway
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
 import me.ahoo.wow.spring.boot.starter.WowAutoConfiguration
 import me.ahoo.wow.spring.boot.starter.WowAutoConfiguration.Companion.WOW_CURRENT_BOUNDED_CONTEXT
+import me.ahoo.wow.spring.boot.starter.bi.BiScriptAggregateExclusion
 import me.ahoo.wow.spring.boot.starter.openapi.OpenAPIAutoConfiguration
 import me.ahoo.wow.spring.boot.starter.webflux.ConditionalOnWebfluxEnabled
 import me.ahoo.wow.spring.boot.starter.webflux.WebFluxAutoConfiguration
@@ -48,8 +50,10 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnClass
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean
+import org.springframework.context.annotation.Conditional
 import org.springframework.context.annotation.Configuration
 import org.springframework.core.annotation.Order
+import org.springframework.core.env.Environment
 import org.springframework.http.HttpMethod
 import org.springframework.web.reactive.function.server.RouterFunction
 import org.springframework.web.reactive.function.server.ServerResponse
@@ -186,15 +190,43 @@ class ViewStoreAutoConfiguration {
         viewStoreRouteGuard: ViewStoreRouteGuard,
     ): ViewStoreWebFilter = ViewStoreWebFilter(viewStorePaths, systemViewProvider, viewStoreRouteGuard)
 
+    /**
+     * The view store's own Kafka topic prefix, when [ViewStoreKafkaProperties.TOPIC_PREFIX] is set to text (a blank
+     * prefix is no prefix). Its beans are static, so that Spring creates the `BeanPostProcessor` before, and without,
+     * this class.
+     */
+    @Suppress("UtilityClassWithPublicConstructor")
+    @Configuration(proxyBeanMethods = false)
+    @ConditionalOnClass(name = ["me.ahoo.wow.kafka.CommandTopicConverter"])
+    @Conditional(OnViewStoreTopicPrefixCondition::class)
+    class ViewStoreKafkaConfiguration {
+        companion object {
+            @JvmStatic
+            @Bean
+            fun viewStoreTopicConverterPostProcessor(environment: Environment): ViewStoreTopicConverterPostProcessor =
+                ViewStoreTopicConverterPostProcessor(requireNotNull(environment.viewStoreTopicPrefix()))
+
+            /**
+             * The BI script reads every aggregate's topics under BI's one `topic-prefix`, which does not name the
+             * view store's topics under their own: the view store is left out of it.
+             */
+            @JvmStatic
+            @Bean
+            fun viewStoreBiScriptAggregateExclusion(): BiScriptAggregateExclusion =
+                BiScriptAggregateExclusion { it.isViewStoreAggregate() }
+        }
+    }
+
     @Configuration(proxyBeanMethods = false)
     @ConditionalOnClass(name = ["org.springdoc.core.customizers.OpenApiCustomizer"])
     class ViewStoreOpenApiConfiguration {
         @Bean
         fun viewStoreOpenApiCustomizer(
+            @Qualifier(WOW_CURRENT_BOUNDED_CONTEXT) currentContext: NamedBoundedContext,
             viewStorePaths: ViewStorePaths,
             viewStoreRouteGuard: ViewStoreRouteGuard,
         ): OpenApiCustomizer {
-            val openApi = ViewStoreOpenApi(viewStorePaths)
+            val openApi = ViewStoreOpenApi(viewStorePaths, currentContext.getContextAliasPrefix())
             return OpenApiCustomizer {
                 openApi.withoutClosedRoutes(it, viewStoreRouteGuard.closedContracts)
                 openApi.merge(it)

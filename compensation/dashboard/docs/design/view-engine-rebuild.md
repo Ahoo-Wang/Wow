@@ -307,12 +307,12 @@ flowchart LR
 ## 4 持久化
 
 - **系统视图与系统板是代码**（`definition.views`，`revision: 'code'`），打开不经过存储——七个队列、分析、首页的板都不需要后端。这是控制台的主体。
-- **现在：`MemoryViewStore` 加 `snapshot` 钩子存 `localStorage`**（[management.md](../../../../typescript/wow-view-engine/docs/design/management.md) 里约三十行的那一种，不是第二个实现）：
-  - 个人视图、排序、默认视图、「改了就跑」只存在**这台机器的这个浏览器**里。视图管理器上要说清「存在本机」，这是真话，也避免读者以为同事看得见。
-  - `ViewPermissions`：`createPersonal: true`、`createShared: false`、系统视图只读（引擎本来就拒）。共享视图不给，因为本机存储没有「别人」。
+- **现在：Wow 存储后端（阶段 6，[view-store-backend.md](../../../../typescript/wow-view-engine/docs/design/view-store-backend.md)）**：补偿服务内嵌 `wow-view-store-starter`，控制台的 store 是 `WowViewStore`（`src/views/viewStore.ts`），页面不动：
+  - 控制台不登录：它自己的请求拦截器在请求没给时填租户 `(0)`、所有者 `(shared)`、应用 `compensation-dashboard`。视图、排序、默认视图、「改了就跑」都是共享的，打开控制台的人都看得到；保存对话框这样说，改共享视图前引擎先确认。
+  - `ViewPermissions`：`createPersonal: false`、`createShared: true`、排序与默认视图可改、`changeAudience: false`（没有个人视图，也就没有受众可改）、系统视图只读。
   - 首页嵌入不写任何东西（D36），只有工作台写。
-- **阶段 6（Wow 存储后端）**：须等第二轮全面审查经用户明确通过才开工（view-engine todo「首发前的门」）。它落地后控制台只换 `store` 与 `permissions`（共享视图由服务端许可决定），不动页面；本机存下的个人视图提供一次「上传到服务端」的迁移（阶段 6 的事，这里只留线索）。
-- **不为控制台另造存储**：不写补偿服务里的视图表，不用 IndexedDB——引擎文档已说明浏览器本地库不是保存视图的真实归宿，阶段 6 才是。
+  - 以前存在本机的个人视图（`localStorage` 键 `wow-compensation-dashboard:views`）不迁移：本机存储只在未发布的开发版里有过（#3472 起），协调会话 2026-09-30 定为不导入，键留着不动。
+- **不为控制台另造存储**：不写补偿服务里的视图表，不用 IndexedDB——视图存在 Wow 存储后端的两个聚合里，补偿服务只是引入 starter。
 
 ## 5 分批（绞杀者模式）
 

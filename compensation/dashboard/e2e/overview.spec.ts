@@ -15,7 +15,8 @@ import {
   AggregationDateUnit,
   type AggregationQuery,
 } from "@ahoo-wang/wow-client";
-import { expect, test, type Locator, type Page } from "@playwright/test";
+import type { Locator, Page } from "@playwright/test";
+import { expect, test } from "./support/test.ts";
 import {
   mongoDescriptors,
   stubDescriptors,
@@ -576,6 +577,36 @@ test("the board opens in the dashboard workbench", async ({ page }) => {
         .getByRole("link", { name: "Boards" }),
     ).toHaveAttribute("aria-current", "page");
   await expect(panel(page, "Actionable now")).toBeVisible();
+});
+
+test("a board saved from the workbench is shared in the compensation service, and still there after a reload", async ({
+  page,
+  viewStore,
+}) => {
+  await stub(page);
+  await page.goto("/boards?view=system%3Aoverview%3Ahome");
+  await expect(panel(page, "Actionable now")).toBeVisible();
+
+  await page.getByRole("button", { name: "Save as" }).click();
+  const dialog = page.getByRole("dialog");
+  await dialog.getByRole("textbox", { name: "Title" }).fill("On-call board");
+  await expect(
+    dialog.getByText(
+      "Saved in the compensation service. Everyone who opens this console sees it.",
+    ),
+  ).toBeVisible();
+  await dialog.getByRole("button", { name: /^Create/ }).click();
+  await expect(page).toHaveURL(/[?&]view=view-1/);
+  const [board] = [...viewStore.views.values()];
+  expect(board.state).toMatchObject({
+    title: "On-call board",
+    audience: "shared",
+    config: { kind: "dashboard" },
+  });
+
+  await page.reload();
+  await expect(panel(page, "Actionable now")).toBeVisible();
+  await expect(page).toHaveURL(/[?&]view=view-1/);
 });
 
 test("the board and the workbench fill the screen over the top bar", async ({

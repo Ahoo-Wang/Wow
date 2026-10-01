@@ -17,7 +17,12 @@ import { boundedContextFilePath, modelFilePath } from '../naming/paths';
 import type { OpenApiDocument } from '../openapi/document';
 import { isReference } from '../openapi/references';
 import { isComposition } from '../openapi/schemas';
-import { aggregatedTypeNames, isWowSchema } from '../wow/conventions';
+import { COMPONENTS_PREFIX } from '../openapi/components';
+import {
+  aggregatedTypeNames,
+  IGNORED_API_CLIENT_TAGS,
+  isWowSchema,
+} from '../wow/conventions';
 import type { WowModel } from '../wow/model';
 import { withDocOverride } from '../wow/model';
 import type { BoundedContextModel, ModelDeclaration } from './model';
@@ -52,8 +57,15 @@ export function analyzeModels(
   const schemas = document.components?.schemas;
   if (!schemas) return [];
   const derived = derivedTypeNames(wow);
+  const ofApiClients = apiClientSchemaKeys(document, wow);
   const keys = Object.keys(schemas).filter(
-    key => !isWowSchema(key, () => resolveModelInfo(key).name, derived),
+    key =>
+      !isWowSchema(key, () => resolveModelInfo(key).name, derived) ||
+      // A type derived from an aggregate's state that an API client returns
+      // or takes (a service's own route answering a snapshot): the query
+      // clients name it by wow-client's generics, but the API client by the
+      // schema, so it is generated like any other model.
+      (!key.startsWith('wow.') && ofApiClients.has(key)),
   );
   assertUniqueModelNames(keys);
   const bodies = messageBodyKeys(wow);
@@ -71,6 +83,52 @@ export function analyzeModels(
       emptyMessageBody: bodies.has(key) && isEmptyMessageBody(schema),
     };
   });
+}
+
+/**
+ * The schemas the operations of the API clients reach: those of their
+ * parameters, bodies and responses, and every schema those reach in turn.
+ * An API client holds the operations whose tags are all neither Wow's own,
+ * the actuator's nor an aggregate's (`analyzeApiClients`).
+ */
+function apiClientSchemaKeys(
+  document: OpenApiDocument,
+  wow: WowModel,
+): Set<string> {
+  const keys = new Set<string>();
+  const seen = new Set<unknown>();
+  const components = (document.components ?? {}) as Record<
+    string,
+    Record<string, unknown> | undefined
+  >;
+  const visit = (node: unknown): void => {
+    if (node === null || typeof node !== 'object' || seen.has(node)) return;
+    seen.add(node);
+    if (Array.isArray(node)) {
+      node.forEach(visit);
+      return;
+    }
+    const { $ref } = node as { $ref?: unknown };
+    if (typeof $ref === 'string' && $ref.startsWith(COMPONENTS_PREFIX)) {
+      const [kind, ...name] = $ref.slice(COMPONENTS_PREFIX.length).split('/');
+      const key = name.join('/');
+      if (kind === 'schemas') keys.add(key);
+      visit(components[kind]?.[key]);
+    }
+    Object.values(node).forEach(visit);
+  };
+  for (const { operation } of document.endpoints) {
+    const tags = operation.tags ?? [];
+    if (
+      tags.length > 0 &&
+      tags.every(
+        tag => !IGNORED_API_CLIENT_TAGS.has(tag) && !wow.aggregateTags.has(tag),
+      )
+    ) {
+      visit(operation);
+    }
+  }
+  return keys;
 }
 
 /** The types wow-client derives from the state of every aggregate. */

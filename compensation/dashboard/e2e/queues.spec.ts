@@ -11,7 +11,8 @@
  * limitations under the License.
  */
 
-import { expect, test, type Page } from "@playwright/test";
+import type { Page } from "@playwright/test";
+import { expect, test } from "./support/test.ts";
 import { FindCategory } from "./support/legacy/FindCategory.ts";
 import { RetryConditions } from "./support/legacy/RetryConditions.ts";
 import type { FilterExpression } from "@ahoo-wang/wow-client";

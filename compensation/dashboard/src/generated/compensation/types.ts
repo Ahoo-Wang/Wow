@@ -13,12 +13,19 @@ export interface StringLinkMap {
 
 /** - key: compensation.JsonNode */
 export type JsonNode = any;
+/** - key: compensation.ObjectNode */
+export type ObjectNode = globalThis.Record<string, any>;
 /** - key: compensation.StringObjectMap */
 export type StringObjectMap = globalThis.Record<string, any>;
 
 /** - key: compensation.StringStringListMap */
 export interface StringStringListMap {
   [key: string]: string[];
+}
+
+/** - key: compensation.StringStringMap */
+export interface StringStringMap {
+  [key: string]: string;
 }
 
 /** - key: compensation.TimeUnit */

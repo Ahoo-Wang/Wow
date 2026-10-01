@@ -26,9 +26,9 @@ import { browserRuntimeEnvironment } from "@ahoo-wang/wow-view-engine/react";
 import type { Locale } from "@/i18n.tsx";
 import { EXECUTION_FAILED_SOURCE, executionFailed } from "./executionFailed.ts";
 import { executionHistory } from "./executionHistory.ts";
-import { createLocalViewStore } from "./localViewStore.ts";
 import { overview } from "./overview.ts";
 import { definitionText } from "./text.ts";
+import { createConsoleViewStore } from "./viewStore.ts";
 
 /** The compensation service's clients, on the console's own fetcher. */
 const service = { basePath: EXECUTION_FAILED_SOURCE, fetcher };
@@ -101,8 +101,8 @@ export function createExecutionEngine({
 
 let shared: ViewEngine | undefined;
 
-/** The console's one engine, over the service and this browser's store. */
+/** The console's one engine, over the service and the views it keeps. */
 export function consoleEngine(): ViewEngine {
-  shared ??= createExecutionEngine({ store: createLocalViewStore() });
+  shared ??= createExecutionEngine({ store: createConsoleViewStore() });
   return shared;
 }

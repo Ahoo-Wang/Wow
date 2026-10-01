@@ -52,7 +52,7 @@ const engine = new ViewEngine({
 ```
 
 `permissions` 只决定哪些按钮可用，从不决定一次写入能不能做：服务端信任路径，谁能用哪条路径由 CoSec
-网关决定。`changeAudience` 按能写 `owner/(shared)` 的角色给——把共享视图收为个人需要它。不给则全部允许。
+网关决定。`createShared` 与 `changeAudience` 按能写 `owner/(shared)` 的角色给——新建共享视图、收为个人、设为共享都需要它。不给则全部允许。
 
 ### 不登录的宿主
 

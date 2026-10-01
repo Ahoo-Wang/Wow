@@ -358,6 +358,9 @@ importers:
       '@ahoo-wang/wow-view-engine':
         specifier: workspace:*
         version: link:../../typescript/wow-view-engine
+      '@ahoo-wang/wow-view-store':
+        specifier: workspace:*
+        version: link:../../typescript/wow-view-store
       '@base-ui/react':
         specifier: 'catalog:'
         version: 1.8.0(@date-fns/tz@1.5.0)(@types/react@19.3.0)(date-fns@4.4.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)

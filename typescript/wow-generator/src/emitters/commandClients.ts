@@ -46,6 +46,9 @@ const DEFAULT_COMMAND_CLIENT_OPTIONS = 'DEFAULT_COMMAND_CLIENT_OPTIONS';
  * Writes the command client of an aggregate: the enum of its command routes,
  * a type per command body whose name does not already end in `Command`, the client, whose methods send the commands, and
  * the streaming client, which waits on their results as server-sent events.
+ * An aggregate the document routes no command to (every command route
+ * disabled or closed by the service) gets none: a client without a method
+ * sends nothing, and its result type would go unused.
  *
  * @param aggregate - The aggregate
  * @param target - Where it is written
@@ -55,6 +58,7 @@ export function emitCommandClient(
   target: EmitTarget,
 ): void {
   const client = aggregate.commandClient;
+  if (client.commands.length === 0) return;
   const module = target.modules.module(client.file);
   module.add<EnumDeclarationStructure>({
     kind: StructureKind.Enum,

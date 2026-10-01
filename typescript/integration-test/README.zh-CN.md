@@ -16,7 +16,7 @@
   `SnapshotQueryClient` 本身的 `ViewEngine`，查询套件用命令写入的销售订单。见
   [视图引擎对真服务端](#视图引擎对真服务端)。
 - `@ahoo-wang/wow-view-store`（`test/view-store/`）：视图引擎端口的一致性测试套件跑在 `WowViewStore` 上，
-  另有租户与应用的隔离，对着视图存储服务端。见
+  另有租户与应用的隔离、视图引擎自己的写入端到端；独立的视图存储服务端与内嵌了视图存储的示例服务端各跑一遍。见
   [WowViewStore 对视图存储服务端](#wowviewstore-对视图存储服务端)。
 
 ## 前置条件
@@ -32,7 +32,9 @@
 `SPRING_MONGODB_URI` 指向 MongoDB，用 `SERVER_PORT` 指定端口，并设置
 `WOW_EVENTSOURCING_STORE_STORAGE=mongo`、`WOW_EVENTSOURCING_SNAPSHOT_STORAGE=mongo`。
 
-另有一个视图存储服务端，在 8090 端口、连同一个 MongoDB，供 `test/view-store/` 使用；换地址时由
+示例服务端内嵌了视图存储（`wow-view-store-starter`），启动时带上 `test/view-store/` 读取的系统视图（下面那四个
+`--wow.view-store.system-views[0].…` 参数）。另有一个视图存储服务端，在 8090 端口、连同一个 MongoDB，也供
+`test/view-store/` 使用；换地址时由
 `WOW_VIEW_STORE_URL` 指定。见 [WowViewStore 对视图存储服务端](#wowviewstore-对视图存储服务端)。
 
 ## 生成与测试
@@ -102,7 +104,10 @@ MongoDB 8.x 在 Linux 内核 6.19～7.0.13 上会退出（SERVER-121912），Doc
 `test/view-store/` 在 `WowViewStore` 上跑视图引擎的 `ViewStore` 一致性测试套件
 （`../wow-view-engine/test/conformance/viewStoreConformance.ts`，按工作区路径引入，所以 `tsconfig.test.json`
 把 `rootDir` 设为 `..`）：两个用户、共享与个人视图、改受众、重放与系统视图；每个用例用自己的定义，每次运行用
-自己的租户。`isolation.test.ts` 守着：一个租户或一个应用的视图与偏好，另一个租户或应用的调用者看不到。调用者是
+自己的租户。`isolation.test.ts` 守着：一个租户或一个应用的视图与偏好，另一个租户或应用的调用者看不到。
+`engine.test.ts` 让 `ViewEngine` 配 `WowViewStore` 走一遍：保存、另存、两个标签页的冲突后重载与覆盖、结局未知
+（服务端收下写入后丢掉回答）后按原请求 id 重试、把个人视图设为共享给同事打开。每套用例对每个服务端
+（`viewStoreServers`）各跑一遍：独立服务端与示例服务端。调用者是
 带 fetcher-cosec 的 `ResourceAttributionRequestInterceptor` 的 fetcher，令牌不签名（`viewStoreServer.ts`）：
 服务端前面没有谁校验它。
 
@@ -126,13 +131,14 @@ bin/wow-view-store-server \
   '--wow.view-store.system-views[0].config={"kind":"record"}'
 ```
 
-`test` 像等示例服务端一样等它，并先把它的两个聚合各预热一次。
+示例服务端同样带上这四个 `--wow.view-store.system-views[0].…` 参数启动。`test` 等两个服务端都就绪，并先在每个
+服务端上把视图存储的两个聚合各预热一次。
 
 ## CI
 
 `.github/workflows/typescript-contract.yml` 在 Kotlin 源码、示例、Gradle 构建、这几个包、`wow-view-engine` 的源码或
 其端口一致性套件、`wow-view-store` 或 `view-store/` 有改动时，对着同一提交构建出来的示例服务端，以及旁边的视图存储服务端
-（8090 端口、同一个 MongoDB）跑上面这些步骤。重新生成后 `src/generated` 有任何变化就失败，任一步失败都会上传服务端日志。改到 `wow-client`、`wow-generator` 或本包时，还会从
+（8090 端口、同一个 MongoDB）跑上面这些步骤，两者都提供 `WowViewStore` 套件读取的系统视图。重新生成后 `src/generated` 有任何变化就失败，任一步失败都会上传服务端日志。改到 `wow-client`、`wow-generator` 或本包时，还会从
 `wow-example-server` 镜像 8.10.8、8.11.5、9.1.3 和 9.1.5 生成代码并做类型检查；除 8.10.8 外，还对每个镜像
 跑 `test/released/`（`vitest.released.config.ts`）：一条命令、快照读取，以及不带 `limit` 的列表和列表流，
 逐一对照兼容性页为该版本写明的结果（`WOW_SERVER_VERSION`）。同源作业也跑 `test/released/`，按当前版本对照。

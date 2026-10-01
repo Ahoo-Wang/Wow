@@ -13,12 +13,19 @@ export interface StringLinkMap {
 
 /** - key: example.JsonNode */
 export type JsonNode = any;
+/** - key: example.ObjectNode */
+export type ObjectNode = globalThis.Record<string, any>;
 /** - key: example.StringObjectMap */
 export type StringObjectMap = globalThis.Record<string, any>;
 
 /** - key: example.StringStringListMap */
 export interface StringStringListMap {
   [key: string]: string[];
+}
+
+/** - key: example.StringStringMap */
+export interface StringStringMap {
+  [key: string]: string;
 }
 
 /** - key: example.TimeUnit */

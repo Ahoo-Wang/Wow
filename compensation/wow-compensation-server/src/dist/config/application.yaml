@@ -50,3 +50,8 @@ wow:
       max-filter-nodes: 128
   kafka:
     bootstrap-servers: PLAINTEXT://localhost:58526
+  # The embedded view store (wow-view-store-starter, /view-store/...). Its topics get a prefix of their own, so another
+  # deployment of the view store on this Kafka cluster does not share them; the service's own topics keep wow.kafka's.
+  view-store:
+    kafka:
+      topic-prefix: wow.compensation-service.

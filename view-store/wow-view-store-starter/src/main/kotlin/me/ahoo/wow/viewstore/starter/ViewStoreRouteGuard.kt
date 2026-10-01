@@ -13,7 +13,6 @@
 
 package me.ahoo.wow.viewstore.starter
 
-import me.ahoo.wow.api.command.DefaultDeleteAggregate
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.configuration.requiredAggregateType
 import me.ahoo.wow.configuration.requiredNamedAggregate
@@ -28,6 +27,7 @@ import me.ahoo.wow.openapi.contract.HttpRouteHandlerMetadata
 import me.ahoo.wow.viewstore.ViewStoreService
 import me.ahoo.wow.viewstore.ViewStoreService.VIEW_AGGREGATE_NAME
 import me.ahoo.wow.viewstore.api.view.CreateView
+import me.ahoo.wow.viewstore.api.view.DeleteView
 import me.ahoo.wow.viewstore.api.view.RenameView
 import me.ahoo.wow.viewstore.api.view.SaveView
 import me.ahoo.wow.viewstore.api.view.ShareView
@@ -174,7 +174,7 @@ class ViewStoreRouteGuard(
             SaveView::class.java,
             RenameView::class.java,
             ShareView::class.java,
-            DefaultDeleteAggregate::class.java,
+            DeleteView::class.java,
         )
 
         /** Wow's snapshot query routes: the only query routes of the view store that are open. */

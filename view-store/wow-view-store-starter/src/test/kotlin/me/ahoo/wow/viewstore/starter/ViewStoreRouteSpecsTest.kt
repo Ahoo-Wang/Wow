@@ -15,6 +15,7 @@ package me.ahoo.wow.viewstore.starter
 
 import io.swagger.v3.oas.models.OpenAPI
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.modeling.getContextAliasPrefix
 import me.ahoo.wow.naming.MaterializedNamedBoundedContext
 import me.ahoo.wow.openapi.RouterSpecs
 import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
@@ -34,6 +35,7 @@ class ViewStoreRouteSpecsTest {
     private val hostContext = MaterializedNamedBoundedContext("example-service")
     private val routerSpecs = RouterSpecs(hostContext).build()
     private val paths = ViewStorePaths(hostContext)
+    private val hostPrefix = hostContext.getContextAliasPrefix()
     private val scope = "/view-store/tenant/{tenantId}/owner/{ownerId}"
     private val namedAggregates = setOf(
         View::class.java.aggregateRouteMetadata().aggregateMetadata.namedAggregate,
@@ -240,8 +242,8 @@ class ViewStoreRouteSpecsTest {
     fun `OpenAPI shows the custom and the scoped routes`() {
         val openApi = OpenAPI()
         routerSpecs.mergeOpenAPIFromCatalog(openApi)
-        ViewStoreOpenApi(paths).withoutClosedRoutes(openApi, guard.closedContracts)
-        ViewStoreOpenApi(paths).merge(openApi)
+        ViewStoreOpenApi(paths, hostPrefix).withoutClosedRoutes(openApi, guard.closedContracts)
+        ViewStoreOpenApi(paths, hostPrefix).merge(openApi)
         openApi.paths.keys.assert().doesNotContain(
             "$scope/view/{id}/state",
             "/view-store/tenant/{tenantId}/view/{id}/state/tracing",
@@ -269,7 +271,28 @@ class ViewStoreRouteSpecsTest {
         openApi.paths["$scope/view/requests/{requestId}"]!!.get.responses.keys.assert().contains("200", "204")
         openApi.components.schemas.keys.any { it.endsWith("SystemView") }.assert().isTrue()
         openApi.tags.count { it.name == ViewStoreOpenApi.TAG }.assert().isEqualTo(1)
-        ViewStoreOpenApi(paths).merge(openApi)
+        ViewStoreOpenApi(paths, hostPrefix).merge(openApi)
         openApi.tags.count { it.name == ViewStoreOpenApi.TAG }.assert().isEqualTo(1)
+    }
+
+    /**
+     * The starter names the types it adds the way the host's document does, so a type the host already has (a map,
+     * a JSON node) is not added again at the root under a bare name; a client generated from the host stays as it was.
+     */
+    @Test
+    fun `OpenAPI adds no unprefixed schema at the root`() {
+        val openApi = OpenAPI()
+        routerSpecs.mergeOpenAPIFromCatalog(openApi)
+        val before = openApi.components.schemas.keys.toSet()
+        ViewStoreOpenApi(paths, hostPrefix).merge(openApi)
+        val added = openApi.components.schemas.keys - before
+        added.assert().isNotEmpty()
+        added.filterNot { it.contains('.') }.assert().isEmpty()
+        openApi.components.schemas.keys.assert().doesNotContain(
+            "ObjectNode",
+            "StringObjectMap",
+            "StringStringListMap",
+            "StringStringMap",
+        )
     }
 }

@@ -77,9 +77,9 @@ type KeptStorage = ReturnType<
  *
  * A missing, unreadable or malformed document reads as nothing stored — the
  * store starts empty rather than the page breaking — and the next write
- * replaces it. The format is the one the compensation console has always
- * written under `wow-compensation-dashboard:views`, so what it stored loads
- * as it is.
+ * replaces it. The format is `{ instances, preferences }`, the one the
+ * compensation console wrote under `wow-compensation-dashboard:views` before
+ * it moved to the view store server.
  */
 export function localStorageSnapshot(
   key: string,

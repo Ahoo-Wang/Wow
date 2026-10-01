@@ -12,7 +12,8 @@
  */
 
 import { readFile } from "node:fs/promises";
-import { expect, test, type Page } from "@playwright/test";
+import type { Page } from "@playwright/test";
+import { expect, test } from "./support/test.ts";
 import {
   executions,
   stubExecutionFailedService,
@@ -168,8 +169,9 @@ test("filters, pages, switches to cards and exports", async ({ page }) => {
   expect(lines[0]).toContain("Processor");
 });
 
-test("saves a personal view that is still there after a reload", async ({
+test("saves a shared view in the compensation service, saves a change to it, and keeps both across a reload", async ({
   page,
+  viewStore,
 }) => {
   await stubExecutionFailedService(page, DOCUMENTS);
   const workbench = await openPage(page);
@@ -178,25 +180,58 @@ test("saves a personal view that is still there after a reload", async ({
   await workbench.getByRole("button", { name: "Save as" }).click();
   const dialog = page.getByRole("dialog");
   await dialog.getByRole("textbox", { name: "Title" }).fill("My failures");
-  // Saved in this browser: the only audience local storage can offer.
-  await expect(dialog.getByText("Saved in this browser")).toBeVisible();
+  // Nobody signs in to the console: a view is everyone's, and says so.
+  await expect(
+    dialog.getByText(
+      "Saved in the compensation service. Everyone who opens this console sees it.",
+    ),
+  ).toBeVisible();
   await dialog.getByRole("button", { name: "Create view" }).click();
 
   const saved = page.getByRole("region", { name: "My failures" });
   await expect(saved).toBeVisible();
   await expect(page).toHaveURL(/[?&]view=/);
-  // Listed among the views of this browser, and nowhere shared.
+  // Listed among the shared views, in the console's own tenant, owner and
+  // application.
   await showViewList(page);
-  await expect(page.getByText("My views (this browser)")).toBeVisible();
+  await expect(page.getByText("Shared views")).toBeVisible();
+  await expect(page.getByText("My views")).toHaveCount(0);
   await expect(
     page.getByRole("button", { name: /^My failures/ }),
   ).toBeVisible();
+  const [created] = [...viewStore.views.values()];
+  expect(created.state).toMatchObject({
+    title: "My failures",
+    audience: "shared",
+    config: { layout: "card" },
+  });
+  expect(
+    viewStore.requests.filter(
+      ({ method, path }) => method === "POST" && path === "view",
+    ),
+  ).toEqual([
+    {
+      method: "POST",
+      path: "view",
+      tenantId: "(0)",
+      ownerId: "(shared)",
+      appId: "compensation-dashboard",
+    },
+  ]);
+
+  // A change saved over it: back to the table, at the version it was read.
+  await saved.getByRole("button", { name: "Table" }).click();
+  await saved.getByRole("button", { name: "Save", exact: true }).click();
+  // A shared view is everyone's: the engine asks before it changes it.
+  await page.getByRole("button", { name: "Update for everyone" }).click();
+  await expect.poll(() => created.version).toBe(2);
+  expect(created.state.config).toMatchObject({ layout: "table" });
 
   await page.reload();
   const reopened = page.getByRole("region", { name: "My failures" });
   await expect(reopened).toBeVisible();
-  // It opens as it was saved: cards, not the table.
-  await expect(reopened.getByRole("table")).toHaveCount(0);
+  // It opens as it was last saved: the table.
+  await expect(reopened.getByRole("table")).toBeVisible();
   await showViewList(page);
   await expect(
     page.getByRole("button", { name: /^My failures/ }),
