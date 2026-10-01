@@ -54,6 +54,13 @@ export interface FieldContext {
    * (`NULL_OR_EMPTY_AS_MISSING`, #3515).
    */
   emptyIsMissing: ReadonlySet<string>;
+  /**
+   * The paths whose comparisons a `defineView` host left open
+   * (`OpenCapabilities.operators`), as written: cut to what the source
+   * grants without a finding, because nothing the host wrote went missing
+   * (host-integration.md 3, D67).
+   */
+  openOperators: ReadonlySet<string>;
   findings: Issue[];
 }
 
@@ -73,26 +80,36 @@ export function narrowFields(
   context: FieldContext,
 ): FieldDefinition[] {
   return fields.map((field, index) =>
-    narrowField(field, ['fields', index], undefined, context),
+    narrowField(field, ['fields', index], undefined, undefined, context),
   );
 }
 
+/**
+ * One field as the descriptor admits it. `scope` is the path the source
+ * answers its parent by, `written` the parent's path as the definition
+ * writes it, which is how `openOperators` names a path.
+ */
 function narrowField(
   field: FieldDefinition,
   at: IssuePath,
   scope: string | undefined,
+  written: string | undefined,
   context: FieldContext,
 ): FieldDefinition {
   if (field.kind === 'search') return narrowSearch(field, at, scope, context);
   const kind = context.kinds.get(field.kind);
   // Admission already refused a kind nobody registered; nothing to narrow.
   if (!kind) return field;
+  const asWritten =
+    written === undefined ? field.name : `${written}.${field.name}`;
+  const open = context.openOperators.has(asWritten);
   if (isFieldlessKind(field.kind, kind))
     return narrowOperators(
       field,
       kind,
       new Set(context.descriptor.record.rootOperators),
       at,
+      open,
       context,
     );
 
@@ -146,13 +163,20 @@ function narrowField(
       context,
     ),
     at,
+    open,
     quiet,
   );
   if (field.elements)
     next = {
       ...next,
       elements: field.elements.map((element, index) =>
-        narrowField(element, [...at, 'elements', index], path, context),
+        narrowField(
+          element,
+          [...at, 'elements', index],
+          path,
+          asWritten,
+          context,
+        ),
       ),
     };
   // The element whose fields differ by variant, and the field that names
@@ -252,11 +276,17 @@ function admittedOperators(
   return admitted;
 }
 
+/**
+ * The field's operators cut to what the path admits. A cut is a finding
+ * only where the host wrote the operators: one left open follows the
+ * source silently, to whatever it grants, none included.
+ */
 function narrowOperators(
   field: FieldDefinition,
   kind: FieldKind,
   admitted: ReadonlySet<string>,
   at: IssuePath,
+  open: boolean,
   context: FieldContext,
 ): FieldDefinition {
   const offered = operatorsOf(field, kind);
@@ -268,7 +298,7 @@ function narrowOperators(
     ),
   );
   if (kept.length === offered.length) return field;
-  context.findings.push(dropped(field.name, offered, kept, at));
+  if (!open) context.findings.push(dropped(field.name, offered, kept, at));
   return { ...field, operators: kept };
 }
 
