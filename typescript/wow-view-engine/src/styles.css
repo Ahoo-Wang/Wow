@@ -3116,8 +3116,15 @@
  * filling the screen is the same chain with the viewport as the container,
  * and nothing is measured:
  *
- * - the view list and the work column each scroll on their own, so a long
- *   list or a tall editor scrolls its column and not the host's page;
+ * - the view list, the visualization panel that takes its place and the
+ *   work column each scroll on their own, so a long list, the chart
+ *   picker's twenty-odd tiles or a tall editor scroll their column and not
+ *   the host's page. The panel was missing here: it painted its tiles past
+ *   the surface's bottom edge, over the page under it (2026-09-30). Focus
+ *   scrolling keeps a step clear of the column's edges, the panel's own
+ *   inset (`p-3`), so a tile reached by the arrow keys shows its ring and
+ *   the 「推荐」 mark hanging under it rather than stopping flush at the
+ *   edge;
  * - the result block takes whatever the parts above it left, and never less
  *   than its own content (`flex: 1 0 auto`), so under a tall editor the
  *   column scrolls rather than the block collapsing to its toolbar;
@@ -3138,9 +3145,14 @@
  * own `main` (`landmark`, Q64), and the layout is the same in both.
  */
 .fve-root > [data-slot='view-sidebar'],
+.fve-root > [data-slot='view-panel'],
 .fve-root > [data-slot='workbench-main'] {
   min-height: 0;
   overflow-y: auto;
+}
+
+.fve-root > :is([data-slot='view-sidebar'], [data-slot='view-panel']) {
+  scroll-padding-block: 0.75rem;
 }
 
 .fve-root > [data-slot='workbench-main'] > [data-slot='result-block'] {
@@ -3722,6 +3734,7 @@
  * it does with the height it is handed.
  */
 .fve-root[data-view-expanded='true'] > [data-slot='view-sidebar'],
+.fve-root[data-view-expanded='true'] > [data-slot='view-panel'],
 .fve-root[data-view-expanded='true'] > [data-slot='workbench-main'] {
   /* `min-height: auto` is the default for a flex item, so without this the
      column refuses to shrink below its content and the surface's own
