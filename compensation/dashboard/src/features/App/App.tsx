@@ -272,8 +272,13 @@ export default function App({ places: named }: AppProps) {
         >
           {t("Skip to main content")}
         </a>
-        <div className="flex min-h-svh flex-col">
-          <header className="sticky top-0 z-10 flex h-13 shrink-0 items-center gap-4 border-b border-sidebar-border bg-sidebar px-4 text-sidebar-foreground">
+        {/* The viewport's height, not at least it (`h-svh`): the workbench
+          fills a definite height and keeps its pager at the bottom of the
+          screen; a page taller than the room scrolls inside itself, under
+          the bar, never the document (the view engine's
+          host-integration.md 4.3). */}
+        <div className="flex h-svh flex-col overflow-hidden">
+          <header className="relative z-10 flex h-13 shrink-0 items-center gap-4 border-b border-sidebar-border bg-sidebar px-4 text-sidebar-foreground">
             {/* A phone's way to the places: a button, whose menu is the
               navigation; one landmark on the page, not two. */}
             <PlacesMenu places={places} />

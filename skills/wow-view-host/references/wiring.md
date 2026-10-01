@@ -189,7 +189,17 @@ export function Places() {
 }
 ```
 
-Use the host's own link and sidebar components in place of `<a>`; the engine has no page shell. A page that already has a `<main>` passes `landmark="region"` to the workbench. To show a decided view inside a business page, embed it (`EmbeddedView`, `EmbeddedDashboard`; README [Embedding](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/README.md#embedding-a-view-or-a-dashboard)); an embed never writes, and a page's lock is not a security boundary.
+Use the host's own link and sidebar components in place of `<a>`; the engine has no page shell. A page that already has a `<main>` passes `landmark="region"` to the workbench.
+
+Give the workbench a definite height — `height`, not `min-height`. It fills its container and keeps its pager at the bottom; in a container that only grows with its content it falls back to a 36rem floor (`--fve-workbench-min-height`) and the document scrolls on top of the table. Make the shell the viewport's height, the top bar fixed, and the content area the rest:
+
+```css
+.app { display: flex; flex-direction: column; height: 100svh; overflow: hidden; } /* bar: flex: none; content: flex: 1; min-height: 0 */
+```
+
+A page taller than the screen (a dashboard, a form) scrolls inside its own container (`overflow-y: auto`), never the document.
+
+To show a decided view inside a business page, embed it (`EmbeddedView`, `EmbeddedDashboard`; README [Embedding](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/README.md#embedding-a-view-or-a-dashboard)); an embed never writes, and a page's lock is not a security boundary.
 
 ## The record reading
 

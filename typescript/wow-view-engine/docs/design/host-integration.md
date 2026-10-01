@@ -188,6 +188,19 @@ H2a 的 Provider 解决了「按资源注册」，但宿主周围的胶水还在
 
 不做整页布局组件：引擎画视图、宿主管页面（D17 的 `fve-tokens` 就是给宿主外壳的）；做成可配的外壳就成了后台框架，也加重首发前的公开面与 `./ui` 的体积。做的是导航**数据**：**useViewNavigation** 从 **ViewHost** 的资源、路由、系统视图与看板推出 `{ id, title, path, current, kind, views }`，宿主用自己的组件画（shadcn `Sidebar`、顶栏都行）；标题按渲染时译，资源一改导航跟着变。Storybook 的外壳与控制台的外壳改用它作示范，文档给 shadcn `Sidebar` 的例子。
 
+**页面的高度是宿主的事，而且必须是确定的高度**（2026-09-30）：工作台永远填满它的容器、页脚贴底（[ui/record.md](ui/record.md)「工作台永远填满它的容器」），所以容器要有一个确定的高（`height`，不是 `min-height`）。外壳写成视口那么高、顶栏不动、内容区拿余下的高度，比屏幕高的页面在自己的容器里滚：
+
+```css
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100svh;
+  overflow: hidden;
+} /* 顶栏 flex: none；内容区 flex: 1; min-height: 0 */
+```
+
+只写 `min-height: 100svh` 时内容区跟着内容长，工作台落到 36rem 的保底（`--fve-workbench-min-height`）或更高，文档会滚——控制台曾在 863px 高的视口下多滚 70px，分页在折线下面，读者要先滚页面、再滚表格。Storybook 的外壳（`.story-app`，`height: 100dvh`）与控制台（`App.tsx`，`h-svh`）是示范；`compensation/dashboard/e2e/layout.spec.ts` 量文档高等于视口、分页整个在屏幕内。
+
 落地（H2b）：**useViewNavigation()** 返回每个绑了 `route` 的资源，按注册的次序：`{ id, kind, title, path, current, views }`，`path` 是 `route(null)`，`views` 是它的系统视图（看板定义的就是系统看板），各带 `{ id, title, path, current }`，`path` 是 `route(instanceId)`；标题经 **useSay** 说成最近一层的措辞，换语言即重画。`current` 读路由端口的地址：路径相同、且那条路径自己写的每个参数地址里都一样——所以按路径分页的宿主（控制台）与按查询参数分页的宿主（Storybook 的 `?path=`）都认得出；没有路由端口时都不是当前。没有 `route` 的资源不是一个去处，不出现。存储里的共享视图与看板不在其中（要异步读存储，交给宿主自己的视图列表）。宿主给地方起自己的名字（控制台的「事件流」「看板」），数据给去处与「在不在这里」：控制台顶栏的四处——概览是 `overview` 的系统板 `home`、看板是 `overview` 的页——与 Storybook 左栏「业务场景」里五个零售工作台都由它推出。
 
 ## 5. 声明式操作：宿主声明做什么，引擎负责怎样做

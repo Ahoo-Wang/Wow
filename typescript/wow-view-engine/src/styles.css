@@ -3143,10 +3143,19 @@
  * The work column is read by its slot, `workbench-main`, never by its tag: it
  * is a `main` by default and a named `section` where the host's page has its
  * own `main` (`landmark`, Q64), and the layout is the same in both.
+ *
+ * Each column is also the containing block of what it holds (`relative`). A
+ * scroll container that is not one lets an absolutely placed descendant —
+ * every `sr-only` word of the view list, a system view's 「系统」 — escape it
+ * and be laid out where the list runs on below the screen, against the
+ * host's page: the column scrolled, and so did the document, by the height
+ * of the list past the fold (2026-09-30: the console at 1280×720 scrolled by
+ * 114px with its pager already on the screen).
  */
 .fve-root > [data-slot='view-sidebar'],
 .fve-root > [data-slot='view-panel'],
 .fve-root > [data-slot='workbench-main'] {
+  position: relative;
   min-height: 0;
   overflow-y: auto;
 }
