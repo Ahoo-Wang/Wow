@@ -252,6 +252,24 @@ export const FooterStaysAtTheBottom: Story = {
     ).toBeLessThanOrEqual(1);
     // The room row is not a row: the rows' own body still holds only rows.
     await expect(table.tBodies[0].rows).toHaveLength(PENDING_BY_AMOUNT.length);
+
+    // Nothing a column holds is placed against the host's page: every
+    // absolutely placed descendant — the view list's `sr-only` words above
+    // all — has its containing block inside the column that scrolls it, so
+    // a list longer than the screen scrolls its column and never the
+    // document (2026-09-30: the console scrolled by 114px).
+    const columns = canvasElement.querySelectorAll<HTMLElement>(
+      '.fve-root > :is([data-slot="view-sidebar"], [data-slot="workbench-main"])',
+    );
+    await expect(columns).toHaveLength(2);
+    for (const column of columns) {
+      const placed = [...column.querySelectorAll<HTMLElement>('*')].filter(
+        element => getComputedStyle(element).position === 'absolute',
+      );
+      await expect(placed.length).toBeGreaterThan(0);
+      for (const element of placed)
+        await expect(column.contains(element.offsetParent)).toBe(true);
+    }
   },
 };
 
