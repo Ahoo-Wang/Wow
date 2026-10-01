@@ -17,6 +17,7 @@ import { DecoratorHelpers } from '@storybook/addon-themes';
 import { useEffect, useMemo } from 'storybook/preview-api';
 import '@ahoo-wang/wow-view-engine/themes.css';
 import './preview.css';
+import './host.css';
 import { DocsPage } from './DocsPage.js';
 import { ThemedDocsContainer } from './ThemedDocsContainer.js';
 import {

@@ -34,6 +34,7 @@ flowchart LR
         Generator["wow-generator"]
         React["wow-react"]
         Engine["wow-view-engine"]
+        Store["wow-view-store"]
     end
     subgraph Fetcher["Fetcher repository"]
         Core["fetcher"]
@@ -43,6 +44,9 @@ flowchart LR
     Generator --> Client
     React --> Client
     Engine --> Client
+    Store --> Engine
+    Store --> Client
+    Store --> Core
     Client --> Core
     Client --> Decorator
     Client --> EventStream
@@ -54,6 +58,7 @@ flowchart LR
 | `@ahoo-wang/fetcher`, `fetcher-decorator`, `fetcher-eventstream` | `^5.1.5` |
 | `react` (for `wow-react`) | `^19.3.0`; React 18 is not supported |
 | `@ahoo-wang/wow-client` (for the other Wow packages) | Same minor version, `~x.y.z` |
+| `@ahoo-wang/wow-view-engine` (for `wow-view-store`) | Same minor version, `~x.y.z` |
 
 ## Versions
 

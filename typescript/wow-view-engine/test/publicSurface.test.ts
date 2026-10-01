@@ -120,7 +120,7 @@ describe('the public surface of the command', () => {
       [
         "# The package's command — its bin and subcommands.",
         '# Written by test/publicSurface.test.ts; a change here is a change to',
-        '# the public surface (README「Checking a theme」, theme-architecture.md 5.2).',
+        '# the public surface (the theming guide「Checking a theme」, docs/design/ui/theme.md).',
         ...lines,
         '',
       ].join('\n'),

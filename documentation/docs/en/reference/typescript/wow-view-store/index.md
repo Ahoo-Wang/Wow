@@ -32,7 +32,7 @@ export interface WowViewStoreOptions {
 | Rule | Behavior |
 |---|---|
 | Who is asking | The store takes no tenant, user or application. The fetcher's interceptors fill the path's `{tenantId}` and, on a personal path, `{ownerId}` (fetcher-cosec's `ResourceAttributionRequestInterceptor`, from the token) and send `CoSec-App-Id`; a host nobody signs in to fills defaults with an interceptor of its own |
-| Audience | The owner segment of the path: a personal view on the caller's path, a shared one on `owner/(shared)`. 设为共享 is `share` on the view's path, 设为个人 is `claim` on the caller's own path |
+| Audience | The owner segment of the path: a personal view on the caller's path, a shared one on `owner/(shared)`. "Make shared" is `share` on the view's path, "Make personal" is `claim` on the caller's own path |
 | Writes | `Command-Request-Id` is the port's `requestId`, `Command-Aggregate-Version` its `revision`; each waits for the snapshot and answers the view read back |
 | Retries | A write refused as a stale version or a repeated request id is looked up by its request id first, and a retry answers what its first attempt wrote. The server does not deduplicate a create (it generates the id); a store asks the replay route before posting a retry of its own create again, so only a retry from another store makes a second view |
 | Errors | By Wow's error code onto `CONFLICT`, `NOT_FOUND`, `FORBIDDEN`, `INVALID` and `UNAVAILABLE`; the HTTP status only when no known code came back; `UNSUPPORTED` from a server with no view store. The error keeps the server's code as `detail.code`, and an `UNAVAILABLE` the server answered says `reachable` |

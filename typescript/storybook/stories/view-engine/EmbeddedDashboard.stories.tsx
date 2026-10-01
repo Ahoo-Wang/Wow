@@ -106,18 +106,18 @@ function CustomerPage({ engine }: { engine: ViewEngine }) {
   return (
     <div
       data-host-page
-      className="fve-tokens fve:bg-canvas fve:text-foreground fve:flex fve:min-h-0 fve:flex-col fve:gap-4"
+      className="fve-tokens fve:bg-canvas host:text-foreground host:flex host:min-h-0 host:flex-col host:gap-4"
     >
-      <div className="fve:flex fve:min-w-0 fve:flex-col fve:gap-0.5">
-        <p className="fve:text-muted-foreground fve:text-xs">
+      <div className="host:flex host:min-w-0 host:flex-col host:gap-0.5">
+        <p className="host:text-muted-foreground host:text-xs">
           订单中心 / 客户 / {CUSTOMER.label}
         </p>
-        <h1 className="fve:truncate fve:text-base fve:font-semibold">
+        <h1 className="host:truncate host:text-base host:font-semibold">
           {CUSTOMER.label} · 客户详情
         </h1>
       </div>
       <Separator />
-      <div className="fve:grid fve:min-w-0 fve:gap-4 fve:lg:grid-cols-[minmax(180px,220px)_minmax(0,1fr)]">
+      <div className="host:grid host:min-w-0 host:gap-4 host:lg:grid-cols-[minmax(180px,220px)_minmax(0,1fr)]">
         <Card>
           <CardHeader>
             <CardTitle>客户资料</CardTitle>
@@ -125,25 +125,25 @@ function CustomerPage({ engine }: { engine: ViewEngine }) {
               <Badge variant="secondary">月结</Badge>
             </CardAction>
           </CardHeader>
-          <CardContent className="fve:flex fve:flex-col fve:gap-3">
+          <CardContent className="host:flex host:flex-col host:gap-3">
             {CUSTOMER_FACTS.map(([label, value]) => (
-              <div key={label} className="fve:flex fve:flex-col fve:gap-0.5">
-                <span className="fve:text-muted-foreground fve:text-xs">
+              <div key={label} className="host:flex host:flex-col host:gap-0.5">
+                <span className="host:text-muted-foreground host:text-xs">
                   {label}
                 </span>
-                <span className="fve:text-sm">{value}</span>
+                <span className="host:text-sm">{value}</span>
               </div>
             ))}
           </CardContent>
         </Card>
-        <Card className="fve:min-w-0" style={ON_CARD}>
+        <Card className="host:min-w-0" style={ON_CARD}>
           <CardHeader>
             <CardTitle>订单</CardTitle>
             <CardDescription>
               这块板锁定在这位客户上；下单时间可以换。
             </CardDescription>
           </CardHeader>
-          <CardContent className="fve:flex fve:min-w-0 fve:flex-col fve:gap-3">
+          <CardContent className="host:flex host:min-w-0 host:flex-col host:gap-3">
             <EmbeddedDashboard
               className="host-embed"
               engine={engine}
@@ -162,21 +162,21 @@ function CustomerPage({ engine }: { engine: ViewEngine }) {
         </Card>
       </div>
       <Separator />
-      <dl className="fve:text-muted-foreground fve:grid fve:gap-1 fve:text-xs">
-        <div className="fve:flex fve:gap-2">
+      <dl className="host:text-muted-foreground host:grid host:gap-1 host:text-xs">
+        <div className="host:flex host:gap-2">
           <dt>宿主地址</dt>
           <dd
             data-host-address
-            className="fve:min-w-0 fve:font-mono fve:break-all"
+            className="host:min-w-0 host:font-mono host:break-all"
           >
             {addressOf(address)}
           </dd>
         </div>
-        <div className="fve:flex fve:gap-2">
+        <div className="host:flex host:gap-2">
           <dt>宿主路由</dt>
           <dd
             data-host-route
-            className="fve:min-w-0 fve:font-mono fve:break-all"
+            className="host:min-w-0 host:font-mono host:break-all"
           >
             {routeOf(route)}
           </dd>
@@ -197,15 +197,15 @@ function WallScreen({ engine }: { engine: ViewEngine }) {
     <div className="dark">
       <div
         data-host-page
-        className="fve-tokens fve:bg-canvas fve:text-foreground fve:flex fve:h-[720px] fve:min-h-0 fve:flex-col fve:gap-3 fve:rounded-lg fve:p-4"
+        className="fve-tokens fve:bg-canvas host:text-foreground host:flex host:h-[720px] host:min-h-0 host:flex-col host:gap-3 host:rounded-lg host:p-4"
       >
-        <div className="fve:flex fve:items-baseline fve:justify-between fve:gap-2">
-          <h1 className="fve:text-lg fve:font-semibold">华东仓 · 出库大屏</h1>
-          <span className="fve:text-muted-foreground fve:text-xs">
+        <div className="host:flex host:items-baseline host:justify-between host:gap-2">
+          <h1 className="host:text-lg host:font-semibold">华东仓 · 出库大屏</h1>
+          <span className="host:text-muted-foreground host:text-xs">
             每分钟刷新
           </span>
         </div>
-        <div data-wall className="fve:min-h-0 fve:flex-1">
+        <div data-wall className="host:min-h-0 host:flex-1">
           <EmbeddedDashboard
             className="host-embed"
             engine={engine}
@@ -227,16 +227,16 @@ function PanelOutPage({ engine }: { engine: ViewEngine }) {
   return (
     <div
       data-host-page
-      className="fve-tokens fve:bg-background fve:text-foreground"
+      className="fve-tokens host:bg-background host:text-foreground"
     >
-      <Card className="fve:min-w-0" style={ON_CARD}>
+      <Card className="host:min-w-0" style={ON_CARD}>
         <CardHeader>
           <CardTitle>出库概览</CardTitle>
           <CardDescription>
             一块共享仪表盘，其中一个面板指向的视图已经删了。
           </CardDescription>
         </CardHeader>
-        <CardContent className="fve:min-w-0">
+        <CardContent className="host:min-w-0">
           <EmbeddedDashboard
             className="host-embed"
             engine={engine}
@@ -258,9 +258,9 @@ function RefreshPage({ engine }: { engine: ViewEngine }) {
   return (
     <div
       data-host-page
-      className="fve-tokens fve:bg-background fve:text-foreground fve:flex fve:min-w-0 fve:flex-col fve:gap-3"
+      className="fve-tokens host:bg-background host:text-foreground host:flex host:min-w-0 host:flex-col host:gap-3"
     >
-      <h1 className="fve:text-base fve:font-semibold">订单概览</h1>
+      <h1 className="host:text-base host:font-semibold">订单概览</h1>
       <EmbeddedDashboard
         className="host-embed"
         engine={engine}

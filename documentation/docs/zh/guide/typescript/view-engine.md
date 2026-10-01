@@ -57,13 +57,13 @@ flowchart LR
 
 ## 目标用法
 
-这个包目前还不能安装。发布之后的安装方式是：
+从 Wow 9.2.0 起，与 Wow 客户端一起安装：
 
 ```sh
 pnpm add @ahoo-wang/wow-view-engine @ahoo-wang/wow-client
 ```
 
-只有 `/react` 和 `/ui` 入口需要 `react` 与 `react-dom`；根入口可以在 Node 中运行。
+只有 `/react` 和 `/ui` 入口需要 `react` 与 `react-dom`，只有 `/react-router` 需要 `react-router`，只有 `/testing` 需要 `mingo`；根入口可以在 Node 中运行。要把保存的视图放在 Wow 服务端，再加 `@ahoo-wang/wow-view-store`。
 
 ### 1. 声明定义
 
@@ -115,7 +115,7 @@ const engine = new ViewEngine({
 });
 ```
 
-`MemoryViewStore` 适合测试和示例。业务应用要针对自己的后端实现 `ViewStore` 端口，见[参考](../../reference/typescript/wow-view-engine/#persistence)。
+`MemoryViewStore` 适合测试和示例。Wow 应用把视图存在 Wow 的视图存储服务端上，用 `@ahoo-wang/wow-view-store` 的 [`WowViewStore`](../../reference/typescript/wow-view-store/)；只有不是 Wow 的后端才自己实现 `ViewStore` 端口（[持久化](../../reference/typescript/wow-view-engine/#persistence)）。
 
 ### 3. 渲染工作台，或组合自己的界面
 
@@ -154,7 +154,7 @@ export function OrdersPage() {
 
 自定义布局使用 `/react` 入口的无头 Hook，例如 `useOpenView`、`useViewRuntime`、`useFilterEditor` 和 `useRecordTable`，用它们渲染任意标记，不需要接触引擎内部。
 
-第一个完整示例围绕记录视图工作台展开：筛选待处理订单，调整列和排序，保存个人视图，再重新打开。它会随包一起发布。
+Storybook 的[接入导览](/storybook/?path=/docs/view-engine-接入导览--docs)按推荐的接法分五步带宿主走一遍——声明定义、接上数据、挂上 `ViewHost`、声明操作、画出页面——页上引用的是一个能跑的示例的真实源文件。
 
 ## 内容安全策略（CSP）
 
@@ -191,6 +191,7 @@ Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self'
 ## 延伸阅读
 
 - [wow-view-engine 参考](../../reference/typescript/wow-view-engine/)：入口、概念、持久化端口与扩展点。
+- [wow-view-store 参考](../../reference/typescript/wow-view-store/)：`WowViewStore`、Wow 服务端上的保存视图，以及它需要的 CoSec 网关规则。
 - [视图引擎的主题](./view-engine-theming.md)：预设、宿主变量、亮暗与跟随系统、shadcn 桥接，以及覆盖变量要守的对比度。
 - [视图引擎的可访问性](./view-engine-accessibility.md)：WCAG 2.2 AA 符合性声明、键盘与读屏走查，以及已知缺口。
 - [设计文档](https://github.com/Ahoo-Wang/Wow/tree/main/typescript/wow-view-engine/docs/design)：模型以它为准。

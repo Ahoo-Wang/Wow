@@ -55,6 +55,14 @@ export interface FieldKind {
 - `FieldKind` 的四个上下文（blank、validate、compile、describe）因此带上 `kinds`，validate 另带 `limits`：嵌套谓词按**外层的**预算准入，且不重复走一遍骨架检查：持有树的 kind 要用**外层正在用的那份**注册表，自定义 kind 才能在元素谓词里按同样的条件被准入。
 - 自定义 kind 由应用注册到 `FieldKindRegistry`，自行定义值的形状，但**编辑器本身不是扩展点**：`EditorDescriptor.input` 是封闭联合（成员以值的形式列在 `filter/fieldKind.ts` 的 `EDITOR_INPUTS`），`ui/filter/FilterValueEditor.tsx` 对它做穷尽 switch，自定义 kind 只能从现成的 input 里挑一个。要了引擎没有的 `input`，准入就以 `filter.kind.unknown-editor` 拒掉这条条件（`validateFilter`，Apply 被挡），未注册的 kind 同理以 `filter.kind.unregistered` 拒掉；两种情形下 pill 画的是 `ui/filter/inputs/unsupported.tsx` 的只读原值加原因（F-06），不再静默退回文本框。按 kind 注册渲染器将来要从这个 switch 切开，那条缝记在 [ui/README.md#FilterPanel 的布局](ui/README.md#filterpanel-的布局)。（见 test/unregisteredKind.test.tsx「a registered kind that asks for an editor nobody wrote」「is refused by admission rather than drawn as a text box」「a condition on a field whose kind is not registered」）
 
+## 宿主实现的接口怎样长
+
+宿主写来交给引擎的对象——`ViewStore` 与它答的 `ViewPermissions`／`InstancePermissions`、`ViewSource`、`OptionSource`、`FieldKind`、`RuntimeEnvironment`、`ViewRouter`、`ChartMapSource`——是反方向的公开面：引擎读它们，宿主实现它们。三条约定，评审按 [D29](decisions.md#d29-公开面逐名守着运行时只导出宿主要握的2026-09-24) 的公开面一并看：
+
+1. **9.2.0 之后新增的成员一律可选，缺省就是今天的行为**。引擎读不到它时照没有这项能力办，像 `ViewStore.changeAudience`（没有就没有改受众的按钮）、`ViewSource.describe`（没有就按定义与缺省预算跑）、`RuntimeEnvironment.onError`、`ViewStore.permissions`（没有就全部允许）。下一个权限（比如导出）、下一个 kind 钩子都照此：新增必填成员会让每一个宿主编译失败，那是只能进次版本、带 `## Breaking` 的改动，不为它加兼容层（README「Status」）。今天已经必填的成员（`ViewPermissions` 的四个布尔、`FieldKind` 的七项、`RuntimeEnvironment` 的五项）不受影响。存下的配置同一条理，见 [model.md「新引擎写的配置在旧引擎里」](model.md#新引擎写的配置在旧引擎里)。
+2. **`ViewSource` 收 `AbortController`，别的端口收 `AbortSignal`**。这个端口的形状就是 wow-client 的 `QueryApi`（`paged`／`cursor`／`aggregate`／`describe` 的第三个参数），为的是快照查询客户端不经适配直接交给 `resources`，`test/architecture.test.ts` 的「Wow protocol」断言 `QueryApi` 一直是 `ViewSource`。控制器是引擎的：新请求顶替旧请求、引擎释放时由它 `abort()`；手写的数据源读 `abortController?.signal`，自己不去 abort。wow-client 哪天改收 signal，这个端口在同一个次版本里跟着改（`src/runtime/source.ts` 的接口注释）。
+3. **地图注册表是页面全局的**。`registerChartMap`（`/ui`）登记在模块级的表里，不属于哪个引擎、哪个 `ViewHost`——ECharts 自己的 `registerMap` 本来就是全局的。同一页上用同一份包的两个宿主（微前端）共用这张表：同名的地图**后注册的生效**；`registerChartMap` 返回的撤销函数只撤它自己那一次注册，名字已被别人的注册顶替时什么也不做，所以一方撤销不会拿掉另一方的地图。两个宿主要不同的地理数据，就用不同的名字（图表配置里 `MapSpec.map` 写名字）。字段 kind 则相反，是每个引擎自己的注册表（`ViewEngineOptions.kinds`）。
+
 ## 与 Wow 协议的对应
 
 | 内核输出                              | Wow 类型（`@ahoo-wang/wow-client`）                                                                                                       | 执行入口           |

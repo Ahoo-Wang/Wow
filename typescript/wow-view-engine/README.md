@@ -941,7 +941,7 @@ expect(orders.asks('cancel', 'row').asks).toBe(true);
 | `ViewInstance`   | A saved `ViewConfig` plus id, title, scope and an opaque `revision`. Scope is system, shared or personal.                                                                                                                                                                                                                                                                                                                                          | store    |
 | `ViewRuntime`    | One open view: draft, applied config, result, status, selection. `subscribe` / `getSnapshot`.                                                                                                                                                                                                                                                                                                                                                      | memory   |
 | `ViewEngine`     | Registry of definitions, the store and open runtimes; entry point for open, save, list commands.                                                                                                                                                                                                                                                                                                                                                   | memory   |
-| `ViewStore`      | Eight-method persistence port, plus an optional `changeAudience`. Ship your own for your backend.                                                                                                                                                                                                                                                                                                                                                  | app      |
+| `ViewStore`      | Eight-method persistence port, plus an optional `changeAudience`. On a Wow server, `WowViewStore` from `@ahoo-wang/wow-view-store`; for any other backend, your own.                                                                                                                                                                                                                                                                               | app      |
 | `FieldKind`      | Operators, validation, compilation and editor descriptor for one field type.                                                                                                                                                                                                                                                                                                                                                                       | registry |
 
 Three names read two ways, so here is which is which:
@@ -1038,11 +1038,11 @@ Two rules make it consistent:
 
 A store implementation can run the port's conformance suite, `test/conformance/viewStoreConformance.ts` in this package's repository (not published): `describeViewStoreConformance({ name, capabilities, connect })` registers the cases every store must pass — lists, visibility, the writes, stale revisions, system views, replays, preferences — and skips those a declared capability rules out.
 
-The package ships `MemoryViewStore` for tests, examples and query-only use. Business applications implement `ViewStore` against their own API with their own fetcher; mapping HTTP status codes to `ViewStoreError.code` belongs there. Authorization, visibility filtering and deduplication are server responsibilities; `permissions` only drives button availability.
+The package ships `MemoryViewStore` for tests, examples and query-only use. A Wow application keeps its views on the Wow view store server with [`WowViewStore`](../wow-view-store/README.md) from `@ahoo-wang/wow-view-store`; do not write a store of your own for a Wow backend. Any other backend implements `ViewStore` against its own API with its own fetcher, and mapping its HTTP status codes to `ViewStoreError.code` belongs there. Authorization, visibility filtering and deduplication are server responsibilities; `permissions` only drives button availability.
 
 ### Local storage, until a backend holds the views
 
-For development and single-user hosts, `localStorageSnapshot(key)` keeps a `MemoryViewStore` in the browser's `localStorage`, as one JSON document under `key`. It is one browser's views, not shared ones; the real home of saved views is a backend behind `ViewStore` (phase 6).
+For development and single-user hosts, `localStorageSnapshot(key)` keeps a `MemoryViewStore` in the browser's `localStorage`, as one JSON document under `key`. It is one browser's views, not shared ones; views people share live on a server, behind `ViewStore` — on a Wow server, `WowViewStore`.
 
 ```ts
 import {
@@ -1101,7 +1101,7 @@ const wording = {
 | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Field type  | Register a `FieldKind` (operators, validation, `compile` to `FilterExpression`, editor descriptor). Its editor is one of the value controls `/ui` already has (`EDITOR_INPUTS`): there is no renderer registry, and a kind asking for another input is refused rather than guessed at                                                                                                                                                                   |
 | Data source | Each entry of `resources` pairs a definition with its source, a Wow query client                                                                                                                                                                                                                                                                                                                                                                        |
-| Persistence | Implement `ViewStore`                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| Persistence | `WowViewStore` (`@ahoo-wang/wow-view-store`) on a Wow server; implement `ViewStore` for any other backend                                                                                                                                                                                                                                                                                                                                               |
 | Actions     | Declare them (`actions()`) and bind them (`bind(id, { actions })`), or pass `record.actions` to a workbench; `slots` — `global`, `bulk` and `row` render functions — are the escape hatch beside them. They are code, so they are handed over rather than named in a config, and nothing about them is saved. A page fetches only the fields its view shows, so a field an action reads beyond those is declared in the definition's `record.rowFields` |
 | Appearance  | CSS variables and theme files; replace components by composing `/react` hooks                                                                                                                                                                                                                                                                                                                                                                           |
 | Maps        | `registerChartMap` from `/ui` offers the map chart a geography — see [Maps](#maps)                                                                                                                                                                                                                                                                                                                                                                      |
@@ -1171,9 +1171,12 @@ pnpm --filter @ahoo-wang/wow-view-engine test:package  # entries, DOM-free types
 pnpm storybook                                             # every state of every surface, under "View Engine"
 ```
 
-`examples/` holds two consumers written against the public contracts rather
-than against the internals: `PlainRecordWorkbench.tsx` drives the whole loop
-with unstyled HTML, and `FetcherViewStore.ts` implements the `ViewStore` port
-over HTTP with `@ahoo-wang/fetcher`.
+`examples/` in this repository (not in the npm package) holds three consumers
+written against the public contracts rather than against the internals:
+`quickstart.ts` is the quick start's definition as code, admitted by a test,
+`PlainRecordWorkbench.tsx` drives the whole loop with unstyled HTML, and
+`FetcherViewStore.ts` implements the `ViewStore` port with
+`@ahoo-wang/fetcher` for a backend that is not Wow (a REST API with `If-Match`
+revisions) — a Wow server's store is `WowViewStore`.
 
 `@ahoo-wang/fetcher-viewer` is deprecated in favor of this package. The two use different models and APIs.

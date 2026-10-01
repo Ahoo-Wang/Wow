@@ -933,7 +933,7 @@ expect(orders.asks('cancel', 'row').asks).toBe(true);
 | `ViewInstance`   | 一份保存的 `ViewConfig`，加 id、标题、范围与不透明 `revision`。范围为系统、共享或个人。                                                                                                                                                                                                                                                      | 存储   |
 | `ViewRuntime`    | 一个打开的视图：草稿、已应用配置、结果、状态、选择。提供 `subscribe` / `getSnapshot`。                                                                                                                                                                                                                                                       | 内存   |
 | `ViewEngine`     | 定义、存储与已打开运行时的注册表；打开、保存、列表等命令的入口。                                                                                                                                                                                                                                                                             | 内存   |
-| `ViewStore`      | 八个方法（外加可选的 `changeAudience`）的持久化端口。业务应用为自己的后端实现它。                                                                                                                                                                                                                                                            | 应用   |
+| `ViewStore`      | 八个方法（外加可选的 `changeAudience`）的持久化端口。Wow 服务端用 `@ahoo-wang/wow-view-store` 的 `WowViewStore`；别的后端自己实现。                                                                                                                                                                                                          | 应用   |
 | `FieldKind`      | 一种字段类型的操作符、校验、编译与编辑器描述。                                                                                                                                                                                                                                                                                               | 注册表 |
 
 有三个名字各有两种读法，这里说清哪个是哪个：
@@ -1030,11 +1030,11 @@ interface ViewStore {
 
 实现 store 时可以跑端口一致性测试 `test/conformance/viewStoreConformance.ts`（在本包的仓库里，不随包发布）：`describeViewStoreConformance({ name, capabilities, connect })` 登记每个 store 都要通过的用例——列表、可见性、各种写入、过期 revision、系统视图、重放、偏好——声明不具备的能力对应的用例跳过。
 
-本包提供 `MemoryViewStore`，用于测试、示例与只查询不持久化的场景。业务应用用自己的 fetcher 针对自己的 API 实现 `ViewStore`，HTTP 状态码到 `ViewStoreError.code` 的映射在应用侧完成。授权、可见性过滤与去重是服务端职责，`permissions` 只决定按钮可用性。
+本包提供 `MemoryViewStore`，用于测试、示例与只查询不持久化的场景。Wow 应用把视图存在 Wow 的视图存储服务端上，用 `@ahoo-wang/wow-view-store` 的 [`WowViewStore`](../wow-view-store/README.zh-CN.md)；不要为 Wow 后端自己写 store。别的后端用自己的 fetcher 针对自己的 API 实现 `ViewStore`，HTTP 状态码到 `ViewStoreError.code` 的映射在那里完成。授权、可见性过滤与去重是服务端职责，`permissions` 只决定按钮可用性。
 
 ### 本地存储：在后端接手之前
 
-开发与单用户宿主可以用 `localStorageSnapshot(key)` 把 `MemoryViewStore` 存进浏览器的 `localStorage`，整份作为一个 JSON 文档放在 `key` 下。它只是这一个浏览器的视图，不是共享的；保存视图真正的归宿是 `ViewStore` 背后的后端（阶段 6）。
+开发与单用户宿主可以用 `localStorageSnapshot(key)` 把 `MemoryViewStore` 存进浏览器的 `localStorage`，整份作为一个 JSON 文档放在 `key` 下。它只是这一个浏览器的视图，不是共享的；大家共享的视图存在服务端、`ViewStore` 背后——Wow 服务端上就是 `WowViewStore`。
 
 ```ts
 import {
@@ -1093,7 +1093,7 @@ const wording = {
 | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | 字段类型 | 注册 `FieldKind`（操作符、校验、编译到 `FilterExpression`、编辑器描述）。编辑器从 `/ui` 已有的值控件里选一种（`EDITOR_INPUTS`）：没有渲染器注册表，要别的控件的类型会被拒绝而不是猜着画                                                                                              |
 | 数据来源 | `resources` 的每一项把一份定义与它的数据源（Wow 查询客户端）配成对                                                                                                                                                                                                                   |
-| 持久化   | 实现 `ViewStore`                                                                                                                                                                                                                                                                     |
+| 持久化   | Wow 服务端用 `WowViewStore`（`@ahoo-wang/wow-view-store`）；别的后端实现 `ViewStore`                                                                                                                                                                                                 |
 | 动作     | 写成声明（`actions()`）并绑到定义上（`bind(id, { actions })`），或向工作台传 `record.actions`；`slots`——`global`、`bulk`、`row` 三个渲染函数——是旁边的逃生口。动作是代码，由宿主交出来，不进配置、不入库。一页只取视图显示的字段，动作要读的其他字段写在定义的 `record.rowFields` 里 |
 | 外观     | CSS 变量与主题文件；通过组合 `/react` 钩子替换组件                                                                                                                                                                                                                                   |
 | 地图     | `/ui` 的 `registerChartMap` 给地图图型提供地理数据，见[地图](#地图)                                                                                                                                                                                                                  |
@@ -1163,8 +1163,9 @@ pnpm --filter @ahoo-wang/wow-view-engine test:package  # 入口可导入、核�
 pnpm storybook                                             # 每个界面的每种状态，见导航「View Engine」
 ```
 
-`examples/` 下是两个只依赖公开合同、不依赖内部实现的消费者：
-`PlainRecordWorkbench.tsx` 用无样式 HTML 跑通整个闭环，
-`FetcherViewStore.ts` 用 `@ahoo-wang/fetcher` 把 `ViewStore` 端口实现在 HTTP 上。
+本仓库的 `examples/`（不在 npm 包里）是三个只依赖公开合同、不依赖内部实现的消费者：
+`quickstart.ts` 是快速上手里那份定义的代码，由测试准入；
+`PlainRecordWorkbench.tsx` 用无样式 HTML 跑通整个闭环；
+`FetcherViewStore.ts` 用 `@ahoo-wang/fetcher` 为一个不是 Wow 的后端（带 `If-Match` revision 的 REST API）实现 `ViewStore` 端口——Wow 服务端的 store 是 `WowViewStore`。
 
 `@ahoo-wang/fetcher-viewer` 已弃用，新项目使用本包。两者模型与 API 不同。

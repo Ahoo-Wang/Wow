@@ -28,8 +28,14 @@ import type { RecordProjection, SummaryRow } from '../record/index.js';
  * Wow snapshot client satisfies it as it is; anything else can be written by
  * hand for a test or for a non-Wow backend.
  *
- * Cancellation is an `AbortController` rather than a signal because that is
- * what `QueryApi` accepts.
+ * Cancellation is an `AbortController` rather than the `AbortSignal` every
+ * other port takes (`OptionSource`, `ViewStore`) because that is what
+ * `QueryApi` accepts, and this port exists so that a wow-client query client
+ * plugs in unchanged. The controller is the engine's: it aborts it when a
+ * newer request takes this one's place, or when it is disposed. A source
+ * written by hand reads `abortController?.signal` and never aborts it. Should
+ * wow-client move to a signal, this port follows in the same minor
+ * (extension.md「宿主实现的接口怎样长」).
  *
  * Written out rather than `Pick<QueryApi, 'paged' | 'cursor' | 'aggregate'>`,
  * for three reasons that all point the same way — this is the one type every

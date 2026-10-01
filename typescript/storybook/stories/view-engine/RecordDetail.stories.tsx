@@ -199,8 +199,8 @@ function hostSections(
 function Handling({ id, refresh }: { id: string; refresh(): void }) {
   const [reviewed, setReviewed] = useState(false);
   return (
-    <div className="fve:flex fve:flex-wrap fve:items-center fve:gap-2">
-      <p className="fve:text-muted-foreground">
+    <div className="host:flex host:flex-wrap host:items-center host:gap-2">
+      <p className="host:text-muted-foreground">
         {reviewed ? `${id} 已复核。` : `${id} 还没有复核。`}
       </p>
       <Button

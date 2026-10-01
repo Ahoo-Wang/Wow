@@ -34,7 +34,10 @@ import {
 } from '../src/index.js';
 
 /**
- * A `ViewStore` over HTTP, written with `@ahoo-wang/fetcher`.
+ * A `ViewStore` over HTTP, written with `@ahoo-wang/fetcher`, for a backend
+ * that is not Wow. A Wow server keeps views in its view store, and its store
+ * is `WowViewStore` from `@ahoo-wang/wow-view-store`: copy this file only for
+ * a backend of your own.
  *
  * It is the port's second consumer after `MemoryViewStore`, and it exists to
  * show that the contract needs nothing of a backend beyond two headers. Both

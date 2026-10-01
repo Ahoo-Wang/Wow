@@ -205,20 +205,20 @@ export class ViewStoreError extends Error {
 
 `ViewStore` 签发的实例 id 不得以 `system:` 开头，该前缀保留给代码声明的系统视图；Engine 合并列表时丢弃此类条目并报告 Issue，`MemoryViewStore` 在 `create` 时直接拒绝。
 
-本包只提供一个实现：`MemoryViewStore`。它是同步 Map 加自增 revision，服务测试、示例、Storybook 与"只查询不持久化"的场景；可选的 `snapshot: { load(); save(all); subscribe? }` 钩子把整份数据放进别处，不是第二个实现。
+本包只提供一个实现：`MemoryViewStore`。它是同步 Map 加自增 revision，服务测试、示例、Storybook 与"只查询不持久化"的场景；可选的 `snapshot: { load(); save(all); subscribe? }` 钩子把整份数据放进别处，不是第二个实现。Wow 后端的实现是另一个包 `@ahoo-wang/wow-view-store` 的 `WowViewStore`（[view-store-backend.md](view-store-backend.md)），Wow 宿主用它，不自己写；`examples/FetcherViewStore.ts` 只是给**不是 Wow** 的后端（带 `If-Match` revision 的 REST API）看的示例，下面说到它的两处都是这个意思。
 
 **本地存储快照 `localStorageSnapshot(key)`**（2026-09-28 定）：开发与单用户宿主在没有后端时用它；补偿控制台在阶段 6 之前用过它，现在改用 `WowViewStore`（V3b）。它把整份状态作为一个 JSON 文档放进 `localStorage`，格式是 `{ instances, preferences }`，即控制台当时写在 `wow-compensation-dashboard:views` 下的那份。两条规则：
 
 1. **写不进去就是写失败。** `save` 把 `setItem` 抛出的（配额满、存储被禁）照样抛出；`MemoryViewStore` 撤回内存里这次改动，以 `ViewStoreError('UNAVAILABLE')` 拒绝，不记结局，所以同一 `requestId` 的重试会再写一次。选 `UNAVAILABLE` 而非 `INVALID`：负载没有错，写入确定没落地，恢复办法正是重试；运行时把它记为结局未知、给出重试，`reportingStore` 同时把它作为一次 `store` 失败交给 `onError`。端口不用改。错误带 `storage: true`（`ViewStoreError` 上可选的一项，只增不改），运行时据此给这条结局未知的写入附上 Issue `view.write.storage`，结局行的标题说「这个浏览器没能把这次修改存下来（存储已满或被禁用）。」而不是泛泛的「结果一直没有回来」；重试与搁置照旧。（见 test/localStorageSnapshot.test.ts「is a failed save on screen and a store failure to onError」、test/saveActions.test.tsx「says a browser store that would not keep the write, and still offers the retry」）
 2. **标签页之间先重读、再按 revision 比。** 版本戳就是状态里本来就有的 revision——每个实例一个，每个定义的偏好一个。每次写入前 `MemoryViewStore` 同步重读快照（`load` 保持同步），写入于是逐实例合并进另一个标签页存下的内容（新 id 也不会撞上），而基于已被越过的 revision 的写入照常是 `CONFLICT`，带着存着的那份，走已有的冲突流程；从不因为自己那份旧而覆盖。`storage` 事件（本 key 或 `clear()`）让 store 重载，不必等下一次写。读不懂的文档读作"没有"：构造时从空开始，写入前则保留内存里的那份，下一次写入替换它。
 
-`localStorage` 没有跨标签页的原子读改写，重读与写在同一个同步任务里完成，窗口只剩浏览器自己的调度；对单用户足够，对多用户不够——那正是阶段 6 的事。
+`localStorage` 没有跨标签页的原子读改写，重读与写在同一个同步任务里完成，窗口只剩浏览器自己的调度；对单用户足够，对多用户不够——多用户要服务端，Wow 上就是 `WowViewStore`。
 
 不提供 IndexedDB 实现。Wow 业务应用总有后端，浏览器本地库不是保存视图的真实归宿；它需要事务内版本比较与浏览器测试矩阵，却没有一个消费者。
 
 `getPreferences` 对**从未排序也从未设过默认**的定义答 `emptyPreferences()`（revision `'0'`）而不是抛错：这个 revision 就是第一次 `setPreferences` 的 `If-Match`，两个实现必须给同一个，否则同一份宿主代码对两个 store 发出的第一个请求就不一样。`MemoryViewStore` 一直如此，`examples/FetcherViewStore.ts` 把服务端的 404 映射成它。
 
-`permissions` 是端口里唯一同步的方法——Engine 每次派发命令前都要问一次，问不起一个来回。HTTP 实现因此先取后答：`examples/FetcherViewStore.ts` 用 `loadPermissions(definitionId)` 取一次并存下，`permissions()` 从存下的那份同步作答；**没取过的定义答"全部允许"**，与端口对"根本没实现 `permissions` 的 store"的缺省一致——服务端才是可信边界，这里只决定按钮亮不亮。服务端答复里没说到的那一项同样读作允许（沉默不是拒绝），只把它明确说到的那些收窄；答复没点名的实例（包括这次答复之后新建的）按 `instanceDefault` 算。
+`permissions` 是端口里唯一同步的方法——Engine 每次派发命令前都要问一次，问不起一个来回。HTTP 实现因此先取后答：示例 `examples/FetcherViewStore.ts` 用 `loadPermissions(definitionId)` 取一次并存下，`permissions()` 从存下的那份同步作答；**没取过的定义答"全部允许"**，与端口对"根本没实现 `permissions` 的 store"的缺省一致——服务端才是可信边界，这里只决定按钮亮不亮。服务端答复里没说到的那一项同样读作允许（沉默不是拒绝），只把它明确说到的那些收窄；答复没点名的实例（包括这次答复之后新建的）按 `instanceDefault` 算。
 
 **改受众的端口规则**（`changeAudience`，全部由端口一致性测试守着）：与别的实例写入一样带期望 revision（过期是 `CONFLICT`，带 `instance`）、同一 `requestId` 的重放答第一次的结果、系统视图 `FORBIDDEN`、不存在 `NOT_FOUND`；另有两条自己的——**没变就是没写**：要求改成视图已有的受众时（先过 revision 检查）原样答回，revision 不动；**共享看板显示着的视图不改成个人**：`INVALID`，`boards` 是那几块看板的**标题**（原样，以键写的仍是键）——读者看到的句子由引擎说（`view.changeAudience.invalid.shared-boards`），`message` 只是 store 自己的话、供日志；服务端只给 id 的适配器要自己读出标题。`MemoryViewStore` 按存着的配置找「共享（或系统）仪表盘的面板里 `instanceId` 是它、且不是看板自己拥有的视图」。
 

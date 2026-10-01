@@ -43,7 +43,7 @@ function MatrixPage() {
   const custom = applied.trim();
   return (
     <div
-      className="fve-tokens fve:bg-background fve:text-foreground"
+      className="fve-tokens host:bg-background host:text-foreground"
       style={{ display: 'flex', flexDirection: 'column', gap: 16, padding: 16 }}
     >
       <Field>

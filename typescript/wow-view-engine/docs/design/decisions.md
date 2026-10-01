@@ -285,6 +285,7 @@
 - **第二轮审查补遗**（2026-10-01，R2-83、R2-85）：
   - **措辞与 issue code 也是公开面**：`test/surface/messages.txt`（英文目录的每个键）与 `issues.txt`（源码能报的每个 code）由同一个测试写、同样 `-u`；改名或删掉一个，和删掉一个导出一样进 Breaking。`/ui` 导出 `MessageOverrides`（`Partial<Record<MessageKey, string>>`），宿主改写引擎自己的措辞写 `satisfies MessageOverrides`，引擎改名的键在宿主那边是编译错误；控制台的 `views/messages.ts` 已这样写。
   - **签名也有清单**：`scripts/api-report.mjs`（与 wow-view-store 同一套 API Extractor）为五个入口写 `test/api/*.api.md`，在 `test:package` 里跑；公开签名点名的类型必须由某个入口导出，否则失败，脚本里的 `FORGOTTEN` 只放「是数据、不是宿主要写的类型」的几项（主题注册表 `TOKENS`、图表导出图片的内部接线、`questionEditing`）。为此导出了一批签名里早已出现的类型（`OptionSpec`、`DashboardViewPanelBase`、`EngineResources`、`ResourceHost` 等），`LineAlertProps` 与 `ControlChromeProps` 改为自己写出成员、不再读 vendored 的 `Alert` 与 cva 配方（`test/variants.test.tsx` 守两边一致）；`ViewEngine` 标 `@sealed`，基类不再以 `protected registry` 暴露注册表。
+  - **宿主实现的接口也是公开面，只往可选的方向长**（R2-69）：`ViewStore`、`ViewPermissions`、`ViewSource`、`OptionSource`、`FieldKind`、`RuntimeEnvironment`、`ViewRouter`、`ChartMapSource` 在 9.2.0 之后新增的成员一律可选、缺省即今天的行为；新增必填成员是 Breaking。连同 `ViewSource` 收 `AbortController` 的原因与地图注册表页面全局，写在 [extension.md「宿主实现的接口怎样长」](extension.md#宿主实现的接口怎样长)。
 
 ## D30 阶段 5 内置多主题的十条裁定（2026-09-24）
 
@@ -881,11 +882,18 @@
 - **没选**：都留到首发之后（选项 b：镜像只在分支与每日构建发布，文档写「Wow 后端以后再说」）。
 - **落点**：`.github/scripts/publish-npm.mjs`、`build.gradle.kts`、`wow-bom`、[RELEASING.md](../../../RELEASING.md)「首发清单」（A 对五个包逐项、C′ 试用加视图存储、D 五个包各配 Trusted Publisher）、`package-check.mjs` 的引擎与存储冒烟。
 
+## D79 工作台的主列可以不是 `main`（2026-09-25，原 Q64）
+
+- **来由**：2026-09-25 可访问性走查。`WorkbenchShell` 的主列画成 `<main>`（以视图名命名）；宿主页面自己已有 `<main>` 再把工作台放进去，就是嵌套的 `main`（axe `landmark-main-is-top-level`、`landmark-no-duplicate-main`）。
+- **裁定**（2026-09-25，按推荐）：`DataWorkbench`、`DashboardWorkbench`（与 `WorkbenchShell`）加 `landmark: 'main' | 'region'`，缺省 `main`（工作台通常就是页面的主体）；`region` 画成 `<section>`，名字与 `main` 同（开着的视图名，没开视图时是定义名）。样式表按 `data-slot="workbench-main"` 找主列、不按标签，两种画法像素一致。嵌入一直没有 `main`，不变。
+- **落点**：[ui/README.md](ui/README.md)「两级标题」一条；文档站「视图引擎的可访问性」。（见 test/workbenchLandmark.test.tsx，与回归 story「工作台地标」的 `InsideHostMain`、`SameLayoutEitherWay`）
+
 ## 搁置待议
 
 尚无结论，不要当作规则执行。
 
 - **Q3 提交的措辞**：「应用／未应用」还是「查询／未生效」？现状是措辞集中在 `ui/kit/messages.ts`，按 key 可覆盖，换词不动行为（[ui/README.md#措辞与-messagesprovider](ui/README.md#措辞与-messagesprovider)）。
 - **Q7 「还有更多未列出」的精确组数**：要多发一次 DISTINCT_COUNT(维度)，两个维度时口径难定义；D20 先做探针行。
-- **Q8 透视表**：两个维度只做平铺表 + 图；透视表留线索。
-- **Q64 工作台占不占 `main` 地标**：`WorkbenchShell` 画的是 `<main>`（以视图名命名）。宿主自己已有 `<main>` 再把工作台放进去，就是嵌套的 `main`（axe `landmark-main-is-top-level`、`landmark-no-duplicate-main`）。推荐：默认仍是 `main`（工作台通常就是页面的主体），加一个属性让宿主改成有名字的 `region`；嵌入一直没有 `main`，不变。2026-09-25 可访问性走查提出，见文档站「视图引擎的可访问性」。**已定（2026-09-25，按推荐）**：`DataWorkbench`、`DashboardWorkbench`（与 `WorkbenchShell`）加 `landmark: 'main' | 'region'`，缺省 `main`；`region` 画成 `<section>`，名字与 `main` 同（开着的视图名，没开视图时是定义名）。样式表按 `data-slot="workbench-main"` 找主列、不按标签，两种画法像素一致。落点见 [ui/README.md](ui/README.md)「两级标题」一条。
+- **Q8 透视表**：两个维度只做平铺表 + 图；要不要透视表、做成什么样，待有真实需要再议。
+- **Q65 准入发现里的字段用 `field.name` 还是显示名**：今天整个包的发现都写字段名（「给 status 一个值」），宿主读得懂、用户未必；改成显示名是包级的决定（措辞、`params`、宿主的覆盖都受影响），不在某一处单改。
+- **Q66 分析表冻结列**：记录表首尾两列固定（D13），分析表没有；维度多、指标多时要不要冻结维度列，待有真实的宽分析表再议。

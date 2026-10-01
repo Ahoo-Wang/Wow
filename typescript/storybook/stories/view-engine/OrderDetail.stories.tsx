@@ -124,14 +124,14 @@ function OrderDetail({ orderNo }: { orderNo: string }) {
   return (
     <div
       data-host-page
-      className="fve-tokens fve:bg-background fve:text-foreground fve:flex fve:min-w-0 fve:flex-col fve:gap-4"
+      className="fve-tokens host:bg-background host:text-foreground host:flex host:min-w-0 host:flex-col host:gap-4"
     >
-      <div className="fve:flex fve:flex-wrap fve:items-end fve:justify-between fve:gap-3">
-        <div className="fve:flex fve:min-w-0 fve:flex-col fve:gap-1">
-          <p className="fve:text-muted-foreground fve:text-xs">
+      <div className="host:flex host:flex-wrap host:items-end host:justify-between host:gap-3">
+        <div className="host:flex host:min-w-0 host:flex-col host:gap-1">
+          <p className="host:text-muted-foreground host:text-xs">
             订单中心 / 订单 / {orderNo}
           </p>
-          <h1 className="fve:flex fve:flex-wrap fve:items-center fve:gap-2 fve:text-xl fve:font-semibold">
+          <h1 className="host:flex host:flex-wrap host:items-center host:gap-2 host:text-xl host:font-semibold">
             订单 {orderNo}
             <Badge variant={overdue ? 'destructive' : 'secondary'}>
               {nameOf(ORDER_STATUSES, state.status)}
@@ -155,26 +155,26 @@ function OrderDetail({ orderNo }: { orderNo: string }) {
       </div>
       <NudgeStatus nudges={nudges} />
       <Separator />
-      <dl className="fve:grid fve:min-w-0 fve:grid-cols-[repeat(auto-fill,minmax(180px,1fr))] fve:gap-x-6 fve:gap-y-3">
+      <dl className="host:grid host:min-w-0 host:grid-cols-[repeat(auto-fill,minmax(180px,1fr))] host:gap-x-6 host:gap-y-3">
         {facts.map(([label, value]) => (
           <div
             key={label}
-            className="fve:flex fve:min-w-0 fve:flex-col fve:gap-0.5"
+            className="host:flex host:min-w-0 host:flex-col host:gap-0.5"
           >
-            <dt className="fve:text-muted-foreground fve:text-xs">{label}</dt>
-            <dd className="fve:text-sm fve:tabular-nums">{value}</dd>
+            <dt className="host:text-muted-foreground host:text-xs">{label}</dt>
+            <dd className="host:text-sm host:tabular-nums">{value}</dd>
           </div>
         ))}
       </dl>
       <StoryEngine create={() => createBoardEngine()}>
         {engine => (
-          <div className="fve:grid fve:min-w-0 fve:gap-4 fve:xl:grid-cols-2">
-            <Card className="fve:min-w-0" style={ON_CARD}>
+          <div className="host:grid host:min-w-0 host:gap-4 host:xl:grid-cols-2">
+            <Card className="host:min-w-0" style={ON_CARD}>
               <CardHeader>
                 <CardTitle>商品</CardTitle>
                 <CardDescription>这张单的每一行，含已退金额。</CardDescription>
               </CardHeader>
-              <CardContent className="fve:min-w-0">
+              <CardContent className="host:min-w-0">
                 <EmbeddedView
                   className="host-embed"
                   engine={engine}
@@ -185,14 +185,14 @@ function OrderDetail({ orderNo }: { orderNo: string }) {
                 />
               </CardContent>
             </Card>
-            <Card className="fve:min-w-0" style={ON_CARD}>
+            <Card className="host:min-w-0" style={ON_CARD}>
               <CardHeader>
                 <CardTitle>订单历史</CardTitle>
                 <CardDescription>
                   这张单的事件流，按版本从早到晚；没有「包裹发出」，就是还没发货。
                 </CardDescription>
               </CardHeader>
-              <CardContent className="fve:min-w-0">
+              <CardContent className="host:min-w-0">
                 <EmbeddedView
                   className="host-embed"
                   engine={engine}

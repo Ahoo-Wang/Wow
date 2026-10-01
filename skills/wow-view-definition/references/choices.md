@@ -1,6 +1,6 @@
 # Choices
 
-What `defineView` takes and what it leaves to you is in the engine's README, [Defining a view from the descriptor](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/README.md#defining-a-view-from-the-descriptor), and the rules behind it in [host-integration.md §3](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/docs/design/host-integration.md#3-defineview事实从描述符来宿主只能收窄). Confirm members against the installed typings (`DefineViewSpec`, `FieldSpec`); the package is pre-release. This page is about deciding what to write.
+What `defineView` takes and what it leaves to you is in the engine's README, [Defining a view from the descriptor](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/README.md#defining-a-view-from-the-descriptor), and the rules behind it in [host-integration.md §3](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/docs/design/host-integration.md#3-defineview事实从描述符来宿主只能收窄). Confirm members against the installed typings (`DefineViewSpec`, `FieldSpec`): the package is published from Wow 9.2.0, and a minor release may change its surface. This page is about deciding what to write.
 
 ## A definition, choice by choice
 

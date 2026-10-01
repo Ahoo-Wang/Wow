@@ -91,18 +91,18 @@ function MemberDetail({ memberId }: { memberId: string }) {
   return (
     <div
       data-host-page
-      className="fve-tokens fve:bg-background fve:text-foreground fve:flex fve:min-w-0 fve:flex-col fve:gap-4"
+      className="fve-tokens host:bg-background host:text-foreground host:flex host:min-w-0 host:flex-col host:gap-4"
     >
-      <div className="fve:flex fve:min-w-0 fve:flex-col fve:gap-0.5">
-        <p className="fve:text-muted-foreground fve:text-xs">
+      <div className="host:flex host:min-w-0 host:flex-col host:gap-0.5">
+        <p className="host:text-muted-foreground host:text-xs">
           会员中心 / 会员 / {name}
         </p>
-        <h1 className="fve:truncate fve:text-xl fve:font-semibold">
+        <h1 className="host:truncate host:text-xl host:font-semibold">
           {state.nick} · 会员详情
         </h1>
       </div>
       <Separator />
-      <div className="fve:flex fve:min-w-0 fve:flex-col fve:gap-4">
+      <div className="host:flex host:min-w-0 host:flex-col host:gap-4">
         <Card>
           <CardHeader>
             <CardTitle>会员资料</CardTitle>
@@ -115,29 +115,29 @@ function MemberDetail({ memberId }: { memberId: string }) {
           {/* A row of facts over the board, so the board has the page's
               width: beside it, a 1280 screen left the board a phone's column. */}
           <CardContent>
-            <dl className="fve:grid fve:grid-cols-[repeat(auto-fill,minmax(140px,1fr))] fve:gap-x-6 fve:gap-y-3">
+            <dl className="host:grid host:grid-cols-[repeat(auto-fill,minmax(140px,1fr))] host:gap-x-6 host:gap-y-3">
               {facts.map(([label, value]) => (
                 <div
                   key={label}
-                  className="fve:flex fve:min-w-0 fve:flex-col fve:gap-0.5"
+                  className="host:flex host:min-w-0 host:flex-col host:gap-0.5"
                 >
-                  <dt className="fve:text-muted-foreground fve:text-xs">
+                  <dt className="host:text-muted-foreground host:text-xs">
                     {label}
                   </dt>
-                  <dd className="fve:text-sm fve:tabular-nums">{value}</dd>
+                  <dd className="host:text-sm host:tabular-nums">{value}</dd>
                 </div>
               ))}
             </dl>
           </CardContent>
         </Card>
-        <Card className="fve:min-w-0" style={ON_CARD}>
+        <Card className="host:min-w-0" style={ON_CARD}>
           <CardHeader>
             <CardTitle>消费与售后</CardTitle>
             <CardDescription>
               这块板锁定在这位会员上；下单时间可以换。
             </CardDescription>
           </CardHeader>
-          <CardContent className="fve:flex fve:min-w-0 fve:flex-col fve:gap-3">
+          <CardContent className="host:flex host:min-w-0 host:flex-col host:gap-3">
             <StoryEngine create={() => createBoardEngine()}>
               {engine => (
                 <RoutedBoard

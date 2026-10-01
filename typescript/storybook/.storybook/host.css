@@ -1,0 +1,35 @@
+/*
+ * The host's own utilities, as a host that builds its chrome with Tailwind
+ * writes them (the theming guide's「Your own chrome: fve-tokens」): its own
+ * classes, prefixed `host:` here so a reader of a story tells the host's
+ * markup from the engine's at a glance, and a theme that maps the shadcn-named
+ * tokens the `fve-tokens` boundary declares (`--color-card: var(--card)`).
+ *
+ * The engine's `fve:` utilities are its own (D66): its stylesheet holds one
+ * only while a component of the engine writes it, so host markup never
+ * writes one — bar `fve:bg-canvas`, the one token class it offers. No
+ * preflight: inside the boundary the engine's applies, and outside it the
+ * page is Storybook's.
+ *
+ * Only the stories are scanned, and the theme declares no variable
+ * (`reference`), so this adds the classes the host markup writes and nothing
+ * else to the page. Unlayered: Storybook loads this file before any story
+ * imports the engine's stylesheet, and a layer named here first would take
+ * its place ahead of the engine's own layers.
+ */
+/* stylelint-disable import-notation */
+@import 'tailwindcss/theme.css' prefix(host) theme(inline reference);
+@import 'tailwindcss/utilities.css' source(none);
+/* stylelint-enable import-notation */
+
+@source '../stories';
+
+@theme inline reference {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-border: var(--border);
+  --radius-lg: var(--radius);
+}
