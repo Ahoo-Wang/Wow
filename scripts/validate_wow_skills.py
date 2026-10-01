@@ -19,6 +19,7 @@ EXPECTED_SKILLS = {
     "wow-migrate",
     "wow-review",
     "wow-view-definition",
+    "wow-view-host",
 }
 NAME_PATTERN = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 RESOURCE_PATTERN = re.compile(

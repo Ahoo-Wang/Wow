@@ -1,12 +1,12 @@
 # Wow Agent Skills
 
-本目录提供八个按用户主要交付结果划分的 Wow Agent Skills：四个面向 Kotlin/Java 服务，两个面向调用 Wow 服务的 TypeScript 应用，一个面向运行中 Wow 服务的数据问答，一个面向 Wow View Engine 的视图定义。每次任务只选择一个 Primary Skill，由它负责从取证到完成验证，不在执行过程中切换到其他 Wow Skill。
+本目录提供九个按用户主要交付结果划分的 Wow Agent Skills：四个面向 Kotlin/Java 服务，两个面向调用 Wow 服务的 TypeScript 应用，一个面向运行中 Wow 服务的数据问答，两个面向 Wow View Engine：一个写视图定义，一个接入宿主。每次任务只选择一个 Primary Skill，由它负责从取证到完成验证，不在执行过程中切换到其他 Wow Skill。
 
 这些 Skills 不复制框架 API 文档，而是补充工作流、架构不变量、授权边界和完成证据。具体 API、配置、默认值、模块名和生成契约必须在目标 checkout 或精确目标 tag 中重新确认。
 
-所有 Skill 仅服务于使用或引入 Wow 的下游应用，Wow 框架仓库自身一律不激活，唯一的例外见下一段。下游任务还必须确认主要交付对象确实是 Wow 行为、代码或迁移：目标应用源码存在 `me.ahoo.wow` import 或 `wow-*` Gradle/Maven dependency/starter，或任务明确要引入、使用、解释或迁移到 Wow。TypeScript 侧的对应标记是 `@ahoo-wang/wow-client`、`@ahoo-wang/wow-react`、`@ahoo-wang/wow-generator` 依赖或 import，或迁移前的 `@ahoo-wang/fetcher-wow`、`@ahoo-wang/fetcher-generator`。Wow 仓库 `typescript/` 下这些包自身的开发同样不激活本包。视图定义的对应标记是 `@ahoo-wang/wow-view-engine` 依赖或 import。仅在否定、比较或排除语境中提到 Wow 不能触发本包；DDD、CQRS、Event Sourcing、aggregate、saga、projection、command gateway、Spring、Reactor、Kotlin 或 Java 等通用词也不能。
+所有 Skill 仅服务于使用或引入 Wow 的下游应用，Wow 框架仓库自身一律不激活，唯一的例外见下一段。下游任务还必须确认主要交付对象确实是 Wow 行为、代码或迁移：目标应用源码存在 `me.ahoo.wow` import 或 `wow-*` Gradle/Maven dependency/starter，或任务明确要引入、使用、解释或迁移到 Wow。TypeScript 侧的对应标记是 `@ahoo-wang/wow-client`、`@ahoo-wang/wow-react`、`@ahoo-wang/wow-generator` 依赖或 import，或迁移前的 `@ahoo-wang/fetcher-wow`、`@ahoo-wang/fetcher-generator`。Wow 仓库 `typescript/` 下这些包自身的开发同样不激活本包。视图定义与宿主接入的对应标记是 `@ahoo-wang/wow-view-engine`（或 `@ahoo-wang/wow-view-store`）依赖或 import。仅在否定、比较或排除语境中提到 Wow 不能触发本包；DDD、CQRS、Event Sourcing、aggregate、saga、projection、command gateway、Spring、Reactor、Kotlin 或 Java 等通用词也不能。
 
-例外（D10）：Wow 仓库内的视图定义可以激活 `wow-view-definition`，即 Storybook 场景中的定义、系统视图与故事（`typescript/storybook/stories/view-engine/`），以及补偿控制台的视图定义（`compensation/dashboard/src/views/`）。修改视图引擎本身（`typescript/wow-view-engine/`）仍不激活任何 Skill。
+例外（D10）：Wow 仓库内的视图定义可以激活 `wow-view-definition`，即 Storybook 场景中的定义、系统视图与故事（`typescript/storybook/stories/view-engine/`），以及补偿控制台的视图定义（`compensation/dashboard/src/views/`）；这两处的宿主接线（引擎与资源、`ViewHost`、路由、存储与声明式操作，如控制台的 `src/views/engine.ts`、`routes.ts`、`executionActions.ts`、`viewStore.ts` 与 `src/features/App/ConsoleHost.tsx`）可以激活 `wow-view-host`。修改视图引擎本身（`typescript/wow-view-engine/`）或 `@ahoo-wang/wow-view-store` 包仍不激活任何 Skill。
 
 V9 是当前维护基线和默认术语。`wow-develop`、`wow-review` 与 `wow-debug` 仍可服务 V8 下游应用，但必须先从目标构建与解析依赖确认实际 Wow 版本，再应用精确符号、默认值或 V9 规则；无法确认时标记版本结论未验证。V8 到 V9 的旧类型、配置和行为映射只保存在 `wow-migrate`。
 
@@ -23,11 +23,12 @@ V9 是当前维护基线和默认术语。`wow-develop`、`wow-review` 与 `wow-
 | `wow-generator` | 用 `wow-generator` CLI 或 `CodeGenerator` 从 OpenAPI 生成 TypeScript 模型与 Wow CQRS 客户端，或从 `@ahoo-wang/fetcher-generator` 换过来 | 不用于手写运行时客户端代码或 Kotlin/Java 服务端工作 |
 | `wow-client` | 用 `@ahoo-wang/wow-client`、`@ahoo-wang/wow-react` 编写 TypeScript 命令、查询与 React 查询 hook 代码，或从 `@ahoo-wang/fetcher-wow` 换过来 | 不用于 OpenAPI 代码生成或 Kotlin/Java 服务端工作 |
 | `wow-data-query` | 读取运行中 Wow 服务的查询能力描述，执行只读查询回答业务数据问题，交付答案、所用查询与注意事项 | 不交付代码（属于 `wow-client`）；查询报错或结果异常的诊断属于 `wow-debug` |
-| `wow-view-definition` | 依据业务场景与查询能力描述，编写或修订 Wow View Engine 的视图定义（记录、分析、仪表盘）、系统视图及其故事；定义只收窄描述允许的能力 | 不写运行时客户端代码（属于 `wow-client`），不回答数据问题（属于 `wow-data-query`），不改视图引擎本身 |
+| `wow-view-definition` | 依据业务场景与已提交的查询能力描述，用 `defineView` 决定并写出视图定义：列哪些字段、用什么词、收窄什么、系统视图（记录、分析）与看板；自检就是引擎的 `admit` | 不接入宿主（属于 `wow-view-host`），不写运行时客户端代码（属于 `wow-client`），不回答数据问题（属于 `wow-data-query`），不改视图引擎本身 |
+| `wow-view-host` | 把视图引擎接入宿主应用：一个引擎与它的资源（定义 + Wow 查询源与描述）、视图存储（`MemoryViewStore`、`localStorageSnapshot`、`WowViewStore` 与 CoSec 网关规则）、`ViewHost`、`bind` 与路由，以及把 Wow 命令声明成操作；以 `actionHarness`、`resolveNavigation` 与 `admit` 自检 | 不决定定义里声明什么（属于 `wow-view-definition`），不写引擎之外的客户端代码（属于 `wow-client`），不改视图引擎本身 |
 
 ## Selection order
 
-交付物是来自运行中服务数据的答案而非代码时，选 `wow-data-query`。交付物是视图引擎的视图定义、系统视图、仪表盘或它们的故事时，选 `wow-view-definition`。交付物是下游 TypeScript 应用中的代码时，先按交付物选择：生成代码或生成器配置选 `wow-generator`；在运行时使用客户端或查询 hook 的代码（包括从 fetcher 旧包名换过来）选 `wow-client`。下列顺序只用于 Kotlin/Java 服务。
+交付物是来自运行中服务数据的答案而非代码时，选 `wow-data-query`。交付物是视图引擎的视图定义、系统视图、仪表盘或它们的故事时，选 `wow-view-definition`；交付物是引擎在宿主里的接线（资源与数据源、视图存储、`ViewHost`、路由、记录上的命令操作）时，选 `wow-view-host`。交付物是下游 TypeScript 应用中的代码时，先按交付物选择：生成代码或生成器配置选 `wow-generator`；在运行时使用客户端或查询 hook 的代码（包括从 fetcher 旧包名换过来）选 `wow-client`。下列顺序只用于 Kotlin/Java 服务。
 
 按主要交付结果选择，不按涉及的组件名选择：
 
@@ -48,7 +49,7 @@ V9 是当前维护基线和默认术语。`wow-develop`、`wow-review` 与 `wow-
 - `evals/activation.jsonl` 保存 `prompt`、可选 raw setup `fixture` 与 evaluator-hidden `expectedSkills`；`evals/behavior.jsonl` 保存 `prompt`、目标 `skill`、人工 rubric `expectedBehavior` 和可选 raw setup `fixture`。
 - eval 数据不属于安装后工作流，也不由 Skill 加载；维护者可将其交给标准 Agent eval 工具，或在全新任务中执行人工前向评估。
 
-安装后的八个 Skill 仅依赖各自目录中的 `SKILL.md`、`agents/` 和按需资源，不依赖仓库根目录的维护脚本。
+安装后的九个 Skill 仅依赖各自目录中的 `SKILL.md`、`agents/` 和按需资源，不依赖仓库根目录的维护脚本。
 
 ## Validation
 
@@ -63,15 +64,17 @@ validator 只使用 Python 标准库，检查：
 
 - `SKILL.md` frontmatter、Skill 名称和目录一致性；
 - `agents/openai.yaml` 必需字段及 `$skill-name` 默认提示；
-- `plugins.json` include 与八个 Skill 目录的一致性；
+- `plugins.json` include 与九个 Skill 目录的一致性；
 - `references/`、`assets/`、`scripts/` 引用存在且不能越出 Skill 目录；
 - 运行时 Skill 内容不能引用父目录或本机绝对文件系统路径；
 - activation/behavior JSONL 可解析、ID 全局唯一且 Skill 引用有效。
+
+`wow-view-definition` 与 `wow-view-host` 的 TypeScript 示例另由文档站的测试对照构建后的包编译（`documentation/test/typescript-samples.mjs`，与包 README 的示例同一机制；`typescript.yml` 的 docs 作业在这两个 Skill 的 Markdown 变更时运行）。
 
 静态校验不会证明自然语言触发一定正确，也不会执行行为用例或证明 API、脚本和生产迁移正确。行为质量应通过全新任务进行前向评估：只把 prompt 与必要 setup 提供给 Agent，隐藏期望项，再由维护者或标准 eval 工具根据真实 diff、命令结果和最终证据评分。不要为执行这些数据重新建设仓库专属 runner。
 
 ## Distribution
 
-`plugins.json` 显式列出可分发的八个 Skill。Ahoo Skills Hub 负责同步、生成和验证插件产物；Wow 仓库拥有并维护 Skill 内容。本架构不分发旧名称或兼容别名；发布后，既有安装必须刷新或重新安装插件，再确认八个 Skill 均可发现。
+`plugins.json` 显式列出可分发的九个 Skill。Ahoo Skills Hub 负责同步、生成和验证插件产物；Wow 仓库拥有并维护 Skill 内容。本架构不分发旧名称或兼容别名；发布后，既有安装必须刷新或重新安装插件，再确认九个 Skill 均可发现。
 
 框架版本与 Skill 插件版本独立。仓库源码修订不代表 Hub 已分发，也不会更新既有安装；源码验证、插件发布和安装刷新应分别报告状态。

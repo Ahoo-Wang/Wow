@@ -244,6 +244,21 @@ test('package READMEs also run the site, which compiles their samples', () => {
     assert.deepEqual(on([path]), ['docs', 'packageDocs'], path);
 });
 
+test("the view engine's Skills run the site, which compiles their samples", () => {
+  for (const path of [
+    'skills/wow-view-definition/SKILL.md',
+    'skills/wow-view-definition/references/choices.md',
+    'skills/wow-view-host/references/actions.md',
+  ])
+    assert.deepEqual(on([path]), ['docs'], path);
+  for (const path of [
+    'skills/wow-view-host/evals/behavior.jsonl',
+    'skills/wow-view-definition/agents/openai.yaml',
+    'skills/wow-client/SKILL.md',
+  ])
+    assert.ok(none([path]), path);
+});
+
 test('other Markdown under typescript/ alone runs only its format check', () => {
   for (const path of [
     'typescript/MIGRATION.md',

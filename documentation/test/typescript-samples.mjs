@@ -4,7 +4,8 @@ import {dirname, join, relative} from 'node:path'
 import {fileURLToPath, pathToFileURL} from 'node:url'
 import ts from 'typescript'
 
-// The TypeScript samples of the TypeScript pages and the package READMEs,
+// The TypeScript samples of the TypeScript pages, the package READMEs and the
+// view engine's Skills,
 // checked against the built packages so that a sample that drifts from the API
 // fails CI instead of its reader. Build the packages first:
 // `pnpm --filter documentation^... build`.
@@ -65,6 +66,8 @@ export const SOURCES = [
     ...['wow-client', 'wow-generator', 'wow-view-engine', 'wow-view-store'].flatMap((pkg) =>
         ['README.md', 'README.zh-CN.md'].map((readme) => join(repository, 'typescript', pkg, readme)),
     ),
+    // The view engine's Skills teach by example; their samples compile too.
+    ...['wow-view-definition', 'wow-view-host'].flatMap((skill) => markdown(join(repository, 'skills', skill))),
 ].sort()
 
 /** Entry points a signature may take names from, by package. */
@@ -91,6 +94,7 @@ const ENTRIES = {
 
 /** The package a page documents, whose entries come first. */
 function packageOf(page) {
+    if (/^skills\/wow-view-/.test(page)) return 'wow-view-engine'
     const match = /(?:reference\/typescript\/|^typescript\/)(wow-[a-z-]+)/.exec(page)
     return match && ENTRIES[match[1]] ? match[1] : 'wow-client'
 }

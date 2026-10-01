@@ -152,7 +152,7 @@ class WowSkillsValidatorTest(unittest.TestCase):
             agents.symlink_to(outside, target_is_directory=True)
             self.assert_error("agents and openai.yaml must stay inside the Skill")
 
-    def test_the_package_ships_exactly_the_eight_primary_skills(self) -> None:
+    def test_the_package_ships_exactly_the_nine_primary_skills(self) -> None:
         self.assertEqual(
             {
                 "wow-client",
@@ -163,6 +163,7 @@ class WowSkillsValidatorTest(unittest.TestCase):
                 "wow-migrate",
                 "wow-review",
                 "wow-view-definition",
+                "wow-view-host",
             },
             EXPECTED_SKILLS,
         )
