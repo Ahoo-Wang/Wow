@@ -24,6 +24,7 @@ import {
   ViewEngine,
 } from '../src/index.js';
 import { narrowDefinition } from '../src/capabilities/index.js';
+import { admit } from '../src/runtime/admission.js';
 import {
   describedField,
   ordersDescriptor,
@@ -200,5 +201,68 @@ describe('a definition built from one store’s snapshot', () => {
     };
     expect(await open(ELASTIC)).toBe(true);
     expect(await open(MONGO)).toBeUndefined();
+  });
+
+  describe('comparisons left open', () => {
+    const PRESENCE = ['EXISTS', 'NOT_EXISTS', 'IS_NULL', 'IS_NOT_NULL'];
+    const snapshot = ordersDescriptor({
+      fields: [
+        describedField('id'),
+        describedField('remark'),
+        describedField('title'),
+      ],
+    });
+    const remarks = defineView(snapshot, {
+      id: 'orders',
+      source: 'orders',
+      title: 'Orders',
+      fields: {
+        id: 'Order',
+        remark: 'Remark',
+        title: { label: 'Title', operators: ['EQ', 'CONTAINS'] },
+      },
+    });
+    /** A store that grants `remark` presence alone, or nothing at all, and `title` what is given. */
+    const runtime = (remark: string[], title: string[]) => ({
+      ...snapshot,
+      fields: snapshot.fields.map(entry =>
+        entry.path === 'remark'
+          ? { ...entry, filter: { operators: remark as never } }
+          : entry.path === 'title'
+            ? { ...entry, filter: { operators: title as never } }
+            : entry,
+      ),
+    });
+
+    it('follow a store that grants fewer, and say nothing of it', () => {
+      const descriptor = runtime(PRESENCE, ['EQ', 'CONTAINS']);
+      expect(admit([remarks], { orders: descriptor })).toEqual([]);
+      const operators = field(
+        narrowDefinition(remarks, descriptor, builtinFieldKinds).definition,
+        'remark',
+      )?.operators;
+      expect(operators?.length).toBeGreaterThan(0);
+      expect(operators?.every(one => PRESENCE.includes(one))).toBe(true);
+    });
+
+    it('follow a store that grants none, and say nothing of it', () => {
+      const descriptor = runtime([], ['EQ', 'CONTAINS']);
+      expect(admit([remarks], { orders: descriptor })).toEqual([]);
+      expect(
+        field(
+          narrowDefinition(remarks, descriptor, builtinFieldKinds).definition,
+          'remark',
+        )?.operators,
+      ).toEqual([]);
+    });
+
+    it('are not the host’s written ones, which are still said where the store grants fewer', () => {
+      const findings = admit([remarks], {
+        orders: runtime(PRESENCE, ['EQ']),
+      });
+      expect(findings.map(one => [one.code, one.params?.field])).toEqual([
+        ['capability.field.operators-narrowed', 'title'],
+      ]);
+    });
   });
 });

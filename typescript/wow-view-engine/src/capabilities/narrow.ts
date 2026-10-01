@@ -152,6 +152,7 @@ export function narrowDefinition(
     emptyIsMissing: new Set(
       constrained(descriptor, 'NULL_OR_EMPTY_AS_MISSING').flat(),
     ),
+    openOperators: new Set(definition.described?.open?.operators),
     findings,
   });
   // What the definition names by an alias it names by the path from here

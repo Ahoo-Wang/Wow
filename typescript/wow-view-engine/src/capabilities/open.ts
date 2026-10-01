@@ -239,9 +239,11 @@ export function sortsAt(
  * `descriptor` rather than the snapshot it was built from, for the
  * narrowing to cut as it cuts any definition: each open comparison back to
  * its kind's, each open sort offered where this source sorts, the analyses
- * this source grants within the host's plan added to the snapshot's. What
- * this source lacks is then taken away by the narrowing, with the same
- * findings a definition written by hand gets. Anything else — and a
+ * this source grants within the host's plan added to the snapshot's. The
+ * narrowing then cuts each to what this source grants, and says nothing of
+ * what it cut from a capability left open — that follows the source, as
+ * the host asked (host-integration.md 3, D67); only what the host wrote
+ * beyond what the source grants is a finding. Anything else — and a
  * definition written by hand — as it is.
  */
 export function reopened(
