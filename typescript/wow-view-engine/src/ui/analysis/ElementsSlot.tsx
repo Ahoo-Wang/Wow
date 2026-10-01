@@ -18,6 +18,7 @@ import type { AnalysisElement, FieldOption } from '../../model/index.js';
 import type { AnalysisEditorController } from '../../react/index.js';
 import { cn } from 'cn';
 import { Button } from '../components/button.js';
+import { useLanding } from '../kit/focus.js';
 import { IconButton } from '../kit/IconButton.js';
 import { TEXT_UI } from '../kit/layout.js';
 import { useViewMessages } from '../kit/MessagesProvider.js';
@@ -55,10 +56,15 @@ export function ElementsSlot({
   // index is the level before it — and that is where the keyboard lands
   // (`listFocus.ts`), or on 「再展开」 when the chain is gone entirely.
   const focus = useListFocus({
-    list: '[data-slot="analysis-slot-elements"]',
-    item: '[data-slot="element-card"]',
+    list: ROW,
+    item: CARD,
     add: '[data-slot="expand-into"]',
   });
+  // A step to the chain's last level takes 「展开 商品」 with it, and the
+  // keyboard on it fell to `<body>` (the second-round review): it lands on
+  // the card that press made, the one thing on screen the press was about.
+  // A step with a level still after it keeps the button, and the keyboard.
+  const land = useLanding();
   const title = messages.label('label.analysis.slot.elements');
   const expanded = analysis.elements.length > 0;
   const unit = analysis.unit ?? messages.label('label.analysis.records');
@@ -116,7 +122,14 @@ export function ElementsSlot({
             aria-label={messages.label('label.analysis.expand-into', {
               name: messages.say(next.label),
             })}
-            onClick={() => analysis.expand(next.path)}
+            onClick={event => {
+              const row = event.currentTarget.closest(ROW);
+              land(() => {
+                const cards = row?.querySelectorAll(CARD);
+                return cards?.[cards.length - 1];
+              });
+              analysis.expand(next.path);
+            }}
           >
             <PlusIcon data-icon="inline-start" />
             {messages.say(next.label)}
@@ -126,6 +139,9 @@ export function ElementsSlot({
     </EditorSlot>
   );
 }
+
+const ROW = '[data-slot="analysis-slot-elements"]';
+const CARD = '[data-slot="element-card"]';
 
 /**
  * One level of the chain: the array it expands, its gate, and the way out.

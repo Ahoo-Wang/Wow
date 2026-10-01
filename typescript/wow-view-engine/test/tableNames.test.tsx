@@ -49,6 +49,26 @@ describe('the record table', () => {
   });
 });
 
+describe('a column header', () => {
+  /**
+   * Its name is the column's label. Computed from what it holds, it was the
+   * sort button's action and the width handle's — 「按订单号升序排序 调整
+   * 订单号 宽度」 — and a reader hears the header's name in every cell it
+   * walks into (second-round review, A11Y-10). The sort is `aria-sort`'s,
+   * and the button keeps the action as its own name.
+   */
+  it('is called by the column’s label alone', () => {
+    render(<RecordTable table={twoColumnTable()} name="Orders" />);
+    expect(screen.getByRole('columnheader', { name: 'Amount' })).toBeDefined();
+    expect(
+      screen.getByRole('columnheader', { name: 'Warehouse' }),
+    ).toBeDefined();
+    expect(
+      document.querySelector('[data-slot="column-resizer"]'),
+    ).not.toBeNull();
+  });
+});
+
 describe('a metric card’s sparkline', () => {
   const spec: ChartSpec = {
     metric: { metric: 'gmv', trend: { x: 'month' } },

@@ -54,6 +54,10 @@ export const filterMessages = {
   // error, so the pill says what is missing rather than that anything is
   // wrong.
   'label.filter.not-set': 'Not set',
+  // What a reader is told a number box is: Base UI writes the role
+  // description itself, in English, and a screen reader says it in place of
+  // the role — 「Number field」 on a Chinese surface (second-round review).
+  'label.filter.number-field': 'Number field',
   // An edited condition changes nothing until it is applied, and a condition
   // with an error stops the whole submission; both are marked where they are.
   'label.filter.pending': 'Not applied yet',
@@ -245,12 +249,15 @@ export const filterMessages = {
   // The calendar's own chrome. Everything it draws that is a date — the
   // caption, the weekday heads, the day numbers, the name a day button
   // answers to — is formatted through `Intl` in the surface's language
-  // (`ui/filter/inputs/calendar.tsx`); these four are the words around them,
+  // (`ui/filter/inputs/calendar.tsx`); these five are the words around them,
   // which no formatter can produce. `react-day-picker` says them in English
   // whatever locale it is given, so leaving them to it left `Go to the Next
   // Month` on a 简体中文 surface.
   'label.date.calendar-previous': 'Go to the previous month',
   'label.date.calendar-next': 'Go to the next month',
+  // The name of the bar the two arrows stand in, a `nav` landmark: left to
+  // the library it was 「Navigation bar」 on a Chinese surface.
+  'label.date.calendar-nav': 'Month navigation',
   'label.date.calendar-today': 'Today, {date}',
   'label.date.calendar-selected': '{date}, selected',
 

@@ -168,6 +168,7 @@ export function SortableHeader({
         // still a column to widen, so the cell is the group's item here.
         ref={attach}
         {...stop}
+        aria-label={said}
         aria-describedby={note?.id}
         onKeyDown={rove}
       >
@@ -201,6 +202,11 @@ export function SortableHeader({
       data-note={note ? '' : undefined}
       data-numeric={numeric ? '' : undefined}
       {...head}
+      // The column's name is its label. Computed from the content it was
+      // the sort button's action and the width handle's, 「按订单号升序排序
+      // 调整 订单号 宽度」, said as the column's name in every cell a reader
+      // walked into (second-round review). The order is `aria-sort`'s.
+      aria-label={said}
       aria-sort={ariaSort(direction, at === 0)}
     >
       <Button

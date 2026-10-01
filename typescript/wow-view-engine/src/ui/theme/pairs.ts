@@ -380,6 +380,16 @@ export const GROUNDS: readonly Ground[] = [
     pairs: texts('highlight-foreground'),
   },
   {
+    // The item under the keyboard is told by a mark, not by its fill: the
+    // fill is a tint in most presets (neutral's 1.03:1 off the popup), so
+    // the item wears the focus mark inside its edge (`ring`, styles.css),
+    // held to 3:1 off the popup it stands in (1.4.11, 2.4.11; second-round
+    // review).
+    name: 'highlighted item’s focus mark on its popup',
+    layers: one('popover'),
+    pairs: marks('ring'),
+  },
+  {
     // The item a menu or a select holds chosen
     // (ui/theme.md「角色：引擎自己的面」).
     name: 'selected item',

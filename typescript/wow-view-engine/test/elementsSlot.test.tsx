@@ -481,6 +481,34 @@ describe('the expansion slot', () => {
   });
 });
 
+describe('the keyboard after a step along the chain', () => {
+  /**
+   * A step to the chain's last level takes 「Expand into …」 with it, and
+   * the keyboard on it fell to `<body>` (second-round review, A11Y-4). It
+   * lands on the card the step made; a step with a level after it keeps
+   * the button, and the keyboard stays on it.
+   */
+  it('lands on the new card when the button goes with the step', async () => {
+    await open();
+    const first = screen.getByRole('button', {
+      name: label('label.analysis.expand-into', { name: 'Items' }),
+    });
+    first.focus();
+    await expand('Items');
+    expect(document.activeElement).toBe(expandInto());
+
+    expandInto()!.focus();
+    await expand('Batches');
+    expect(expandInto()).toBeNull();
+    const cards = document.querySelectorAll('[data-slot="element-card"]');
+    await waitFor(() =>
+      expect(cards[cards.length - 1]!.contains(document.activeElement)).toBe(
+        true,
+      ),
+    );
+  });
+});
+
 describe('what an expansion takes away (D71)', () => {
   const notice = () =>
     document.querySelector<HTMLElement>('[data-slot="dropped-notice"]');
@@ -567,6 +595,36 @@ describe('what an expansion takes away (D71)', () => {
     await waitFor(() => expect(voice()?.textContent).toBe(undone));
     await settle();
     expect(voice()?.textContent).toBe(undone);
+  });
+
+  /**
+   * Both buttons take the notice away, and the keyboard on it fell to
+   * `<body>`: the landing was looked up from the notice once it had gone
+   * (second-round review, A11Y-3). It stays in the chain's row — on
+   * 「Expand into Items」 after 撤销, on the card the step made after ✕.
+   */
+  it('keeps the keyboard in the chain’s row when the notice goes', async () => {
+    await open();
+    await expand('Items');
+    const undo = within(notice()!).getByRole('button', {
+      name: defaultMessages['label.analysis.dropped.undo'],
+    });
+    undo.focus();
+    fireEvent.click(undo);
+    await waitFor(() => expect(levels()).toEqual([]));
+    await waitFor(() => expect(document.activeElement).toBe(expandInto()));
+
+    await expand('Items');
+    const dismiss = within(notice()!).getByRole('button', {
+      name: defaultMessages['label.analysis.dropped.dismiss'],
+    });
+    dismiss.focus();
+    fireEvent.click(dismiss);
+    await waitFor(() => expect(notice()).toBeNull());
+    const card = document.querySelector('[data-slot="element-card"]')!;
+    await waitFor(() =>
+      expect(card.contains(document.activeElement)).toBe(true),
+    );
   });
 
   /** The notice is about the edit that made the draft; the next edit ends it. */

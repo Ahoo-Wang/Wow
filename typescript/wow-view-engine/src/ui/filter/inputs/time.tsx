@@ -309,6 +309,7 @@ function Segment({
   onValue(value: number | null): void;
   onText?(text: string): void;
 }) {
+  const messages = useViewMessages();
   return (
     <NumberFieldPrimitive.Root
       value={value}
@@ -323,6 +324,7 @@ function Segment({
       <NumberFieldPrimitive.Input
         ref={inputRef}
         aria-label={label}
+        aria-roledescription={messages.label('label.filter.number-field')}
         placeholder="--"
         maxLength={2}
         // On the key's way up, once the field has taken the digit: moving

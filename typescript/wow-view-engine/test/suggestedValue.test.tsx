@@ -205,6 +205,33 @@ describe('a text value offered from the data', () => {
     await waitFor(() => expect(calls).toHaveLength(2));
   });
 
+  /**
+   * While the values are read the list says so once, in the surface's
+   * words. The vendored spinner beside the words is a status of its own
+   * named 「Loading」 in English (second-round review): it is drawn and not
+   * said.
+   */
+  it('says it is reading the values once, in the surface language', async () => {
+    const user = userEvent.setup();
+    const source: ValueCandidateSource = {
+      field: 'processor',
+      search: () => new Promise<ValueCandidates>(() => {}),
+    };
+    editor(source, { zh: true });
+    await user.click(screen.getByRole('combobox', { name: 'processor' }));
+    const status = await waitFor(() => {
+      const found = document.querySelector<HTMLElement>(
+        '[data-slot="candidate-status"]',
+      );
+      expect(found).not.toBeNull();
+      return found!;
+    });
+    expect(status.getAttribute('role')).toBe('status');
+    expect(within(status).queryByRole('status')).toBeNull();
+    expect(within(status).queryByLabelText('Loading')).toBeNull();
+    expect(status.textContent).toBe(zhCN['label.filter.values-loading']);
+  });
+
   it('speaks the surface language, counts included', async () => {
     const user = userEvent.setup();
     const { source } = fakeSource({ '': PROCESSORS });

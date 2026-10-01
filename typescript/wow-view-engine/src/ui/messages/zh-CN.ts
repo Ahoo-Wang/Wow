@@ -338,6 +338,7 @@ export const zhCN: Readonly<Record<string, string>> = {
   'label.filter.pick-done': '完成',
   'label.filter.add-group': '添加分组',
   'label.filter.not-set': '未设置',
+  'label.filter.number-field': '数字输入框',
   'label.filter.pending': '尚未应用',
   'label.filter.blocked': '{count} 项待修正',
   'label.filter.needs-condition': '先添加一个条件才能查询',
@@ -441,6 +442,7 @@ export const zhCN: Readonly<Record<string, string>> = {
     '留空表示整天：起点算 00:00:00，终点算 23:59:59.999。',
   'label.date.calendar-previous': '上个月',
   'label.date.calendar-next': '下个月',
+  'label.date.calendar-nav': '月份切换',
   'label.date.calendar-today': '今天，{date}',
   'label.date.calendar-selected': '{date}，已选中',
 

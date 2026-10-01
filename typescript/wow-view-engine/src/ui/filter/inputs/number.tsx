@@ -29,7 +29,8 @@ import { RangeRow, type ValueProps } from './shared.js';
  * that could never be part of a number, reports the parsed number as it is
  * typed and `null` once the field is empty, formats on blur in the surface's
  * locale, and carries the `inputmode`, `aria-roledescription` and arrow-key
- * stepping a number field owes (D16). The box itself is the vendored `Input`,
+ * stepping a number field owes (D16) — the role description in the
+ * surface's words, where the primitive's own is English. The box itself is the vendored `Input`,
  * rendered through the primitive so it looks like every other field here.
  *
  * Chromeless by default, because a condition pill is the field around it
@@ -81,6 +82,7 @@ export function NumberInput({
       className="fve:contents"
     >
       <NumberFieldPrimitive.Input
+        aria-roledescription={messages.label('label.filter.number-field')}
         render={
           <PillInput
             aria-label={label}

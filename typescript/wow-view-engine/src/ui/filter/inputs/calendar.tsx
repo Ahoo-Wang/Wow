@@ -101,6 +101,7 @@ function calendarLocale(
     labels: {
       labelPrevious: () => messages.label('label.date.calendar-previous'),
       labelNext: () => messages.label('label.date.calendar-next'),
+      labelNav: () => messages.label('label.date.calendar-nav'),
       labelGrid: date => caption.format(date),
       labelWeekday: date => weekdayLong.format(date),
       // The name a day button answers to: the date in words, and the two

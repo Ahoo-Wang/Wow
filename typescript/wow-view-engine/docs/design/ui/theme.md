@@ -171,12 +171,12 @@ ECharts 画在级联够不到的地方，所以 `readChartTheme`（`ui/charts/th
 ## 打印与强制颜色
 
 - **打印**：暗色的变体与暗色 token 块包在 `@media not print` 里，纸上读当前预设的亮色一半，每套预设天然有一份打印样子，不需要打印预设；`@media print` 把三级阴影、卡片的浮起、钉住列的边影与行悬停色设成透明，把 `--fve-chart-patterns` 设成 `on`（黑白打印时系列只能靠花纹区分；这是 `styles.css` 唯一有意写公开前缀的地方），图表、徽章与变化徽标 `print-color-adjust: exact`。
-- **强制颜色**（`forced-colors: active`）：vendored 控件的焦点（叠在 `outline-none` 上的阴影）与获焦行的光晕会被丢掉、选中行的底被重画成页底。`@media (forced-colors: active)` 给 `:focus-visible` 画 2px `CanvasText` 的轮廓，选中行与按下的分析分组画 2px `Highlight` 的内框（系统色，浏览器不重画；不用 `Highlight` 填满——那要让格子退出重画，里面的复选框与徽章就留着为主题挑的颜色），说自己被选中的控件也一样：侧栏与板上标签的当前项（`aria-current`）、按下的开关（`aria-pressed`，图例除外：按下即系列在画，隐藏的那条有删除线）、选中的标签页（D73）；焦点的轮廓压过这些框。
+- **强制颜色**（`forced-colors: active`）：vendored 控件的焦点（叠在 `outline-none` 上的阴影）与获焦行的光晕会被丢掉、选中行的底被重画成页底。`@media (forced-colors: active)` 给 `:focus-visible` 画 2px `CanvasText` 的轮廓，选中行与按下的分析分组画 2px `Highlight` 的内框（系统色，浏览器不重画；不用 `Highlight` 填满——那要让格子退出重画，里面的复选框与徽章就留着为主题挑的颜色），说自己被选中的控件也一样：侧栏与板上标签的当前项（`aria-current`）、按下的开关（`aria-pressed`，图例除外：按下即系列在画，隐藏的那条有删除线）、选中的标签页（D73）；焦点的轮廓压过这些框。菜单、选择框与组合框里键盘所在的那一项画 2px `Highlight` 的内框（与屏幕上那道 `ring` 走同一条路），其余项不画——registry 的 `outline-hidden` 在这个模式里会给每一项画同一个框；弹层（菜单、子菜单、选择框、组合框、浮层）画 1px `CanvasText` 的边，因为屏幕上它的边是 `ring` 阴影，会被丢掉（第二轮审查）。
 - （见浏览器故事 `PaperAndContrast.test.stories.tsx`「ForcedColors」「Print」）
 
 ## 质量门
 
-- **对比度矩阵**：`test/presetContrast.test.ts` 按两份样式表解析出的值，对每套 × 每种明暗 × 每种涨跌约定量登记表的每一对（字 ≥4.5:1、控件边与焦点 ≥3:1、标记，`contrast` 按 `PRESET_LINES` 更高），底包括页底、分组底、卡片、弹层、内容底、表头带、合计带、选中行、隔行、悬停行、侧栏、菜单高亮、提示框、控件填色与暗色的 `input/30` 洗色；新预设按名字自动进矩阵。浏览器里的矩阵（`ThemeContrast.stories.tsx`）量级联后的真实颜色，抓得到 jsdom 看不到的（阴影描边、相对颜色真的解析了没有）；页面上能粘贴一段 `--fve-*` 当场一起量。
+- **对比度矩阵**：`test/presetContrast.test.ts` 按两份样式表解析出的值，对每套 × 每种明暗 × 每种涨跌约定量登记表的每一对（字 ≥4.5:1、控件边与焦点 ≥3:1、标记，`contrast` 按 `PRESET_LINES` 更高），底包括页底、分组底、卡片、弹层、内容底、表头带、合计带、选中行、隔行、悬停行、侧栏、菜单高亮（字对高亮底；高亮项的焦点标记 `ring` 对弹层底 ≥3:1——高亮的填色在多数预设里只是浅色，不当标记量）、提示框、控件填色与暗色的 `input/30` 洗色；新预设按名字自动进矩阵。浏览器里的矩阵（`ThemeContrast.stories.tsx`）量级联后的真实颜色，抓得到 jsdom 看不到的（阴影描边、相对颜色真的解析了没有）；页面上能粘贴一段 `--fve-*` 当场一起量。
 - **色板门**（`test/paletteDistance.test.ts`，每套自带的与默认八色、每种明暗；相邻含第 8 与第 1 色，饼图首尾相接；culori 的色觉模拟，强度 1）：
 
   | 检查                | 门槛                                                                   |
