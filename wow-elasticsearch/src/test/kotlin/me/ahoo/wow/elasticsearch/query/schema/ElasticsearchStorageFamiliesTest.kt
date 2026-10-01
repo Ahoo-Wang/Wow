@@ -108,7 +108,7 @@ private fun QueryValueSchema.legacyValueRequirements(): List<Set<Property.Kind>>
         when (it) {
             QueryValueType.STRING -> STRING_KINDS
             QueryValueType.INTEGER -> INTEGER_KINDS
-            QueryValueType.DECIMAL -> NUMERIC_KINDS
+            QueryValueType.DECIMAL -> FLOATING_KINDS
             QueryValueType.BOOLEAN -> BOOLEAN_KINDS
             else -> emptySet()
         }
@@ -124,7 +124,7 @@ private fun QueryValueSchema.legacyNumericRequirements(): List<Set<Property.Kind
     Temporal.Date -> emptyList()
     is Temporal.Epoch -> legacyTemporalRequirements()
     else -> if (valueTypes.all { it == QueryValueType.INTEGER || it == QueryValueType.DECIMAL }) {
-        valueTypes.map { if (it == QueryValueType.INTEGER) INTEGER_KINDS else NUMERIC_KINDS }
+        valueTypes.map { if (it == QueryValueType.INTEGER) INTEGER_KINDS else FLOATING_KINDS }
     } else {
         emptyList()
     }

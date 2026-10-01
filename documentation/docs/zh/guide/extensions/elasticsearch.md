@@ -69,7 +69,13 @@ EventStore batch 使用 Bulk `create`；SnapshotStore direct/batch 都以 `_sour
 
 `ignore_above` 不小于 8191 的 `keyword` 视为索引了全部值，拥有无上限 keyword 的全部操作：精确匹配、`in`/`notIn`、前缀与包含、范围、排序和 terms 聚合。Wow 的默认模板正是给 `tags.*`（ABAC 标签）、`id`、`*Id` 和事件流的动态字符串设了这个上限，它是能放进 Lucene 32766 字节词项上限的最多字符数；没有它，一个更长的值会让整个文档写入失败。限制是：长于 `ignore_above` 的值保留在 `_source` 中但不进索引，因此没有过滤条件能匹配它（以该值做 `eq`、`in`、前缀或包含都查不到；`ne` 和 `notIn` 会包含该文档），排序时按缺失处理，也不进入任何 terms 桶。存在性过滤（`exists`、`isNull`、`isEmpty`）仍通过 Elasticsearch 的 `_ignored` 字段看到该值，因此 ABAC 标签超长的资源不会被当作无标签的公开资源；在 `nested` 元素内，这样的值按缺失处理。`_ignored` 同样记录被 `ignore_malformed` 丢弃值的字段（无法解析的数字或日期），因此 `isNull`、`notExists` 和 `isEmpty` 也把这样的值视为存在。`flattened` 字段不在 `_ignored` 中记录任何内容，因此带 `ignore_above` 的 `flattened` 字段不提供存在性过滤。
 
-更小的 `ignore_above`（例如 Elasticsearch 为未映射字符串推断的 `text` + `keyword`，`ignore_above: 256`）可能丢掉查询需要的值，因此该字段没有查询操作；例外是每个声明值都在上限内的字符串枚举。这类字段请显式映射（见[字符串字段的可聚合性](../query/aggregation-query.md#es-string-aggregability)）。Wow 9.1.x 拒绝除这类枚举之外所有带 `ignore_above` 的 keyword。
+更小的 `ignore_above`（例如 Elasticsearch 自身的动态映射为未映射字符串在 `text` 下生成的 `keyword` 子字段，`ignore_above: 256`）可能丢掉查询需要的值，因此该字段没有查询操作；例外是每个声明值都在上限内的字符串枚举。这类字段请显式映射（见[字符串字段的可聚合性](../query/aggregation-query.md#es-string-aggregability)）。Wow 9.1.x 拒绝除这类枚举之外所有带 `ignore_above` 的 keyword。
+
+自 9.2 起，Wow 的 snapshot template 把 `state` 下的动态字符串映射为 `text`，并带一个上限为 8191 的 `keyword` 子字段（`string_as_text_with_keyword` 规则）：其 `.keyword` 拥有上述操作，`text` 上的全文搜索对 9.1 节点保持不变。动态浮点值映射为 `double`（`floating_as_double`），而不是 Elasticsearch 默认的 32 位 `float`。模板只在创建索引时生效：升级之前创建的索引保留 256 的上限和 `float` 字段，直到重建索引（见[重建已有索引](#reindex-existing-index)）。
+
+### 整数字段上的小数 {#decimal-fields}
+
+逻辑模型声明为小数的值（JSON Schema 的 `number`，例如 `BigDecimal` 金额）只在浮点字段上支持过滤、排序和聚合：`double`、`float`、`half_float` 或 `scaled_float`。在整数字段（`long`、`integer` 等）上，Elasticsearch 会截断写入索引的小数，`10` 与 `12.75` 之和读作 `22`；动态映射在首个值为整数时就会生成这样的字段。这样的路径只提供存在性过滤：其他操作都以 `UNSUPPORTED_CAPABILITY` 拒绝，服务端对每个索引和路径记录一条指出该字段的警告。请在[索引定义](#配置快照索引模板)中把小数金额映射为 `scaled_float`（带 `scaling_factor`，例如以分计时取 `100`）或 `double`。
 
 ## 首次写入之前
 
@@ -108,6 +114,26 @@ snapshot template 定义系统字段与动态状态映射基线。模板只影�
 ```
 
 资源键是 Wow 计算出的最终索引名。工作目录文件会替换 classpath 文件；没有工作目录文件时，重复的 classpath 文件会导致启动失败。资源缺失时仍使用通用模板行为。已有索引会被跳过，因此 mapping 变更需要显式 reindex 或迁移：已有索引对定义中某些路径的映射与定义不同时（例如定义发布之前仅由模板创建的索引），启动时记录一条列出这些路径的警告，然后继续启动。资源 JSON 遵循 Elasticsearch client 与集群的校验语义。无论 storage routing 如何配置，只要资源存在就会请求创建索引。
+
+差异检查只比较 `properties`：逐个路径比较每个字段自身的参数（类型、`ignore_above`、`scaling_factor`、对象的 `dynamic` 等）；mapping 的根参数（例如根上的 `dynamic`）和索引 settings 不参与比较。
+
+**权限。** 启动时会读取并创建带定义的索引，因此宿主使用的 Elasticsearch 用户需要对这些索引拥有 `view_index_metadata`（判断索引是否存在，以及差异检查读取 `_mapping`）和 `create_index`。`auto-init-template=true` 时还需要集群权限 `manage_index_templates`，它同时让缺失索引的查询 Schema 能从模板模拟得到（见[首次写入之前](#首次写入之前)）。读写文档需要各自通常的权限。
+
+### 重建已有索引 {#reindex-existing-index}
+
+Wow 不会修改已有索引的 mapping。要让索引获得新定义或新模板的 mapping，请在应用停止时通过一个临时索引重建：
+
+1. 以请求体 `{"mappings":{"enabled":false}}` 执行 `PUT <index>-new`，再从 `<index>` `POST _reindex` 到它。临时索引名不匹配任何 Wow 模板（`wow.*.es`、`wow.*.snapshot`），只有请求体为它定义 mapping：只映射部分字段的请求体（例如只用定义本身）会让 Elasticsearch 动态映射其余字段，遇到字段形状不同的文档时重建失败。禁用 mapping 后它只保存 `_source`，而回迁只需要 `_source`。
+2. 删除 `<index>`，用其定义的请求体重新 `PUT`（其余部分由模板补齐；没有定义的索引可以留给首次写入创建，或以空请求体创建），再从 `<index>-new` `POST _reindex` 回来。
+3. 删除 `<index>-new` 并启动应用：差异警告消失。
+
+### 宿主使用 Elasticsearch 的检查清单 {#host-checklist}
+
+- 应用查询其状态（或事件）的每个聚合，都在 `META-INF/wow/elasticsearch/` 下提供索引定义；启动时会在首次写入之前创建索引。
+- 需要逐元素过滤或展开的对象数组映射为 `nested`：Elasticsearch 会把普通对象数组拍平，两个字段上的条件可能匹配到两个不同的元素。
+- 小数映射为 `scaled_float` 或 `double`（见[整数字段上的小数](#decimal-fields)）。
+- 已有索引保留原有 mapping：新的定义或 Wow 更新的模板规则只能通过[重建索引](#reindex-existing-index)作用到它；启动警告会列出不一致的路径。
+- 授予启动所需的[权限](#配置快照索引模板)。
 
 ## 全文搜索
 

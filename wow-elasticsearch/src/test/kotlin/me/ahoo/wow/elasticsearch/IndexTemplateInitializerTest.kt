@@ -48,10 +48,20 @@ class IndexTemplateInitializerTest {
 
         val snapshotMappings = readMappings("wow-snapshot-template")
         snapshotMappings["date_detection"].asBoolean().assert().isEqualTo(false)
-        snapshotMappings["dynamic_templates"].forEach { template ->
-            template.properties().single().value["mapping"]["ignore_above"]
-                .asInt().assert().isEqualTo(8191)
+        // Every dynamic string keeps a keyword whose ignore_above indexes every value Lucene can hold; ES's own
+        // dynamic mapping would cap it at 256, which the query schema refuses.
+        val snapshotTemplates = snapshotMappings["dynamic_templates"].associate { template ->
+            template.properties().single().let { it.key to it.value["mapping"] }
         }
+        listOf("tags_strings_as_keyword", "id_string_as_keyword", "id_suffix_string_as_keyword").forEach {
+            snapshotTemplates.getValue(it)["ignore_above"].asInt().assert().isEqualTo(8191)
+        }
+        val text = snapshotTemplates.getValue("string_as_text_with_keyword")
+        text["type"].asString().assert().isEqualTo("text")
+        text["fields"]["keyword"]["ignore_above"].asInt().assert().isEqualTo(8191)
+        // A dynamic floating value is a double, not ES's default 32-bit float.
+        snapshotTemplates.getValue("floating_as_double")["type"].asString().assert().isEqualTo("double")
+        snapshotTemplates.keys.last().assert().isEqualTo("floating_as_double")
     }
 
     @Test

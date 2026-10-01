@@ -248,6 +248,34 @@ class ElasticsearchQuerySchemaAdapterTest {
     }
 
     @Test
+    fun `a decimal on an integral field is neither filtered, sorted nor aggregated`() {
+        // Dynamic mapping makes a decimal `long` when the first value it sees is integral; Elasticsearch then truncates
+        // 12.75 to 12 in the index, so a sum, a range or a sort of it would be silently wrong.
+        val logical = logical("price" to scalar(QueryValueType.DECIMAL), "count" to scalar(QueryValueType.INTEGER))
+        fun keys(mapping: TypeMapping, path: String) = bind(logical, mapping).field(QueryField(path))!!.bindings.keys
+        val truncating = TypeMapping.of {
+            it.properties("price") { p -> p.long_ { l -> l } }.properties("count") { p -> p.long_ { l -> l } }
+        }
+
+        keys(truncating, "price").assert().containsOnly(QueryCapability.PRESENCE)
+        keys(truncating, "count").assert().contains(QueryCapability.AGGREGATE_NUMERIC, QueryCapability.RANGE)
+        val floating = listOf(
+            TypeMapping.of { it.properties("price") { p -> p.double_ { d -> d } } },
+            TypeMapping.of { it.properties("price") { p -> p.float_ { f -> f } } },
+            TypeMapping.of { it.properties("price") { p -> p.scaledFloat { f -> f.scalingFactor(100.0) } } },
+        )
+        floating.forEach { mapping ->
+            keys(mapping, "price").assert()
+                .contains(
+                    QueryCapability.EXACT_MATCH,
+                    QueryCapability.RANGE,
+                    QueryCapability.SORT,
+                    QueryCapability.AGGREGATE_NUMERIC,
+                )
+        }
+    }
+
+    @Test
     fun `a numeric format keeps the numeric capabilities and grants no temporal one`() {
         val mapping = TypeMapping.of { it.properties("amount") { it.scaledFloat { f -> f.scalingFactor(100.0) } } }
         val money = QueryValueSchema(

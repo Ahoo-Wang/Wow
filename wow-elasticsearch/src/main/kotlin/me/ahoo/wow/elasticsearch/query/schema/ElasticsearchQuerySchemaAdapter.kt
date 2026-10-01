@@ -14,6 +14,7 @@
 package me.ahoo.wow.elasticsearch.query.schema
 
 import co.elastic.clients.elasticsearch._types.mapping.Property
+import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.schema.QueryCapability
 import me.ahoo.wow.api.query.schema.QueryModel
@@ -45,6 +46,7 @@ import me.ahoo.wow.query.schema.isElementScope
 import me.ahoo.wow.query.schema.operationValues
 import me.ahoo.wow.query.schema.storageFamilies
 import reactor.core.publisher.Mono
+import java.util.concurrent.ConcurrentHashMap
 
 class ElasticsearchQuerySchemaAdapter(
     private val indexName: String,
@@ -108,6 +110,7 @@ class ElasticsearchQuerySchemaAdapter(
             val invalidNested = nestedPaths.filterTo(linkedSetOf()) { path ->
                 logicalSchema.value(path.template())?.isElementScope() != true
             }
+            mapping.warnTruncatedDecimals(logicalSchema, paths)
             val rootSearchFields = mapping.fields.filterKeys { path ->
                 nestedPaths.none { path.startsWith("$it.") }
             }.values
@@ -176,6 +179,36 @@ class ElasticsearchQuerySchemaAdapter(
                         ?: binding(source, value, capability, invalidNested, nestedPaths, arrayPaths)
                     )?.let { capability to it }
             }.toMap()
+        }
+
+        private val log = KotlinLogging.logger {}
+
+        /** The `index:path` pairs already warned of: the schema is revalidated periodically. */
+        private val truncatedDecimalWarnings = ConcurrentHashMap.newKeySet<String>()
+
+        /**
+         * Warns once of each decimal path the index maps as an integral field (dynamic mapping makes one `long` when
+         * the first value it sees is integral): Elasticsearch truncates the decimals it indexes there, so the path
+         * offers no filter, sort or aggregate (see [storageKinds]).
+         */
+        private fun ElasticsearchIndexMapping.warnTruncatedDecimals(
+            logicalSchema: LogicalQuerySchema,
+            paths: Collection<QueryPathTemplate>,
+        ) {
+            if (provisional) return
+            paths.forEach { path ->
+                if (path.segments.any { it is QueryPathSegment.Key }) return@forEach
+                val decimal = logicalSchema.value(path)?.scalarValueTypes()?.contains(QueryValueType.DECIMAL) == true
+                if (!decimal) return@forEach
+                val source = path.field(emptyList()).path
+                val mapped = fields[source] ?: return@forEach
+                if (mapped.kind !in INTEGER_KINDS || !truncatedDecimalWarnings.add("$indexName:$source")) return@forEach
+                log.warn {
+                    "Elasticsearch index [$indexName] maps the decimal [$source] as [${mapped.kind.jsonValue()}], " +
+                        "which truncates the decimals it indexes: it is not filtered, sorted or aggregated. " +
+                        "Map it as scaled_float or double in the index definition."
+                }
+            }
         }
 
         private val METADATA_FIELDS = setOf(DOCUMENT_ID, "_score", "_doc", "_shard_doc")
@@ -458,6 +491,9 @@ private fun QueryValueSchema.provesSomeKind(capability: QueryCapability): Boolea
     }
 }
 
+private fun QueryValueSchema.scalarValueTypes(): Set<QueryValueType> =
+    scalarBranches().flatMapTo(linkedSetOf()) { it.valueTypes }
+
 private fun QueryValueSchema.scalarBranches(): List<QueryValueSchema> =
     alternativesOrSelf().filter { it.kind != QueryValueKind.NULL }.flatMap {
         if (it.kind == QueryValueKind.ARRAY) checkNotNull(it.items).alternativesOrSelf() else listOf(it)
@@ -485,7 +521,8 @@ internal val QueryStorageFamily.kinds: Set<Property.Kind>
         QueryStorageFamily.EXACT_STRING -> KEYWORD_KINDS
         QueryStorageFamily.INTEGRAL -> INTEGER_KINDS
         QueryStorageFamily.SIGNED_INTEGRAL -> SIGNED_INTEGER_KINDS
-        QueryStorageFamily.NUMERIC -> NUMERIC_KINDS
+        // A decimal on an integral field is truncated when indexed (`coerce`): its sums, ranges and sorts are wrong.
+        QueryStorageFamily.NUMERIC -> FLOATING_KINDS
         QueryStorageFamily.BOOLEAN -> BOOLEAN_KINDS
         QueryStorageFamily.DATE -> DATE_KINDS
     }
@@ -515,12 +552,14 @@ internal val INTEGER_KINDS = SIGNED_INTEGER_KINDS + setOf(
     Property.Kind.UnsignedLong,
 )
 
-internal val NUMERIC_KINDS = INTEGER_KINDS + setOf(
+internal val FLOATING_KINDS = setOf(
     Property.Kind.HalfFloat,
     Property.Kind.Float,
     Property.Kind.Double,
     Property.Kind.ScaledFloat,
 )
+
+internal val NUMERIC_KINDS = INTEGER_KINDS + FLOATING_KINDS
 
 internal val KEYWORD_KINDS = setOf(
     Property.Kind.Keyword,

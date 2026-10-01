@@ -168,6 +168,8 @@ Gradle 流水线不在准入里：preflight 自己在这个提交上跑 `./gradl
    gh run list --repo Ahoo-Wang/Wow --event workflow_dispatch --limit 3
    ```
 
+   在 `typescript-contract.yml` 的这次运行里确认 `contract-elasticsearch` 确实跑了并且通过（它在 `typescript-contract-gate` 里）：视图引擎和 WowViewStore 对着事件与快照都在 Elasticsearch 9.2.6 上的示例服务端，只有这个 job 检查。补偿控制台的试用（C′）只走 MongoDB。
+
 4. 在临时目录做全新 clone 并发布。脚本在真实发布时会拒绝不干净的工作区和不是 tag 提交的 HEAD；预发布版本自动打 dist-tag `next`。
 
    ```bash

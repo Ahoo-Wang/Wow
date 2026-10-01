@@ -179,6 +179,8 @@ abstract class ElasticsearchIndexInitializer(
  * The paths a definition maps differently from an index: each field of the definition (object and nested fields,
  * their properties and multi-fields) whose own parameters are not those of the index's field at the same path, or that
  * the index does not map. Fields only the index maps (added by dynamic mapping or the templates) are not drift.
+ * Only `properties` are compared: the mapping's root parameters (a root `dynamic`, `_source`, dynamic templates) and
+ * the index settings are not.
  */
 internal object IndexMappingDrift {
     private val CHILDREN = setOf("properties", "fields")

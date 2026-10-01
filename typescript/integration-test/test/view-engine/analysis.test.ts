@@ -128,10 +128,21 @@ function byKey(
   );
 }
 
-/** The nearest-rank percentile of `values`: a value the data holds. */
-function nearestRank(values: readonly number[], percentile: number): number {
+/**
+ * What `PERCENTILE(50)` of `values` may answer. Both backends estimate it with
+ * t-digest (aggregation-query.md), which reads a small group exactly up to the
+ * two middle values of an even group: MongoDB answers the lower one,
+ * Elasticsearch interpolates between them.
+ */
+function median(values: readonly number[]): unknown {
   const sorted = [...values].sort((a, b) => a - b);
-  return sorted[Math.ceil((percentile / 100) * sorted.length) - 1];
+  const lower = sorted[Math.ceil(sorted.length / 2) - 1];
+  const upper = sorted[Math.floor(sorted.length / 2)];
+  return expect.toSatisfy(
+    (value: unknown) =>
+      typeof value === 'number' && value >= lower && value <= upper,
+    `a median between ${lower} and ${upper}`,
+  );
 }
 
 describe('analysis against the example server', () => {
@@ -193,7 +204,7 @@ describe('analysis against the example server', () => {
             amount: sum(totals),
             average: sum(totals) / group.length,
             cities: new Set(group.map(order => order.city)).size,
-            median: nearestRank(totals, 50),
+            median: median(totals),
             unpaid: sum(totals) - sum(group.map(paid)),
           },
         ];
@@ -216,7 +227,7 @@ describe('analysis against the example server', () => {
       amount: sum(totals),
       average: sum(totals) / orders.length,
       cities: new Set(orders.map(order => order.city)).size,
-      median: nearestRank(totals, 50),
+      median: median(totals),
       unpaid: sum(totals) - sum(orders.map(paid)),
     });
   });
