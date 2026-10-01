@@ -17,6 +17,7 @@ import displayMeta, {
   WithData as DisplayWithData,
 } from './RecordWorkbench.stories.js';
 import { addSort, paginationBar, say } from './recordWorkbenchTest.js';
+import { outage } from './fixtures.js';
 
 /**
  * The condition editor and the query: its fold and modes, picking fields, and
@@ -283,4 +284,92 @@ export const PickSeveralFields: Story = {
       expect(document.body.querySelector('[role="dialog"]')).toBeNull(),
     );
   },
+};
+
+/**
+ * Changed conditions whose query fails, in each filter mode: the rows stay,
+ * and the failure's line says they are the result of the conditions before
+ * the change — not only an older result of these (the pre-release review's
+ * 「查询失败时仍显示上一次的结果」). Above them the editor already holds the
+ * new conditions; without the line, the rows read as their answer.
+ */
+async function conditionsChangeThenFail(
+  canvasElement: HTMLElement,
+  mode: 'simple' | 'advanced',
+) {
+  const canvas = within(canvasElement);
+  outage.down = false;
+  try {
+    const table = await canvas.findByRole('table');
+    await waitFor(() =>
+      expect(table.querySelectorAll('tbody tr').length).toBeGreaterThan(0),
+    );
+    const rows = table.querySelectorAll('tbody tr').length;
+    await userEvent.click(
+      canvas.getByRole('button', {
+        name: new RegExp(`^${zhCN['label.filter.panel']}`),
+      }),
+    );
+    if (mode === 'advanced') {
+      await userEvent.click(
+        canvas.getByRole('button', {
+          name: zhCN['label.workbench.editor-modes'],
+        }),
+      );
+      const modes = await within(document.body).findByRole('menu');
+      await userEvent.click(
+        within(modes).getByRole('menuitemradio', {
+          name: zhCN['label.filter.advanced'],
+        }),
+      );
+      await waitFor(() =>
+        expect(
+          canvasElement.querySelector('[data-slot="filter-group"]'),
+        ).not.toBeNull(),
+      );
+      await waitFor(() =>
+        expect(document.body.querySelector('[role="menu"]')).toBeNull(),
+      );
+    }
+
+    outage.down = true;
+    await userEvent.click(
+      await canvas.findByRole('button', {
+        name: say('label.filter.remove-of', { field: '状态' }),
+      }),
+    );
+    await userEvent.click(
+      canvas.getByRole('button', { name: zhCN['label.filter.apply'] }),
+    );
+
+    const alert = await canvas.findByRole('alert');
+    await waitFor(() =>
+      expect(alert).toHaveTextContent(
+        zhCN['label.query.stale-conditions'].replace('{error} · ', ''),
+      ),
+    );
+    await expect(alert).not.toHaveTextContent(
+      zhCN['label.query.stale'].replace('{error} · ', ''),
+    );
+    // The rows of the old conditions are still there to read.
+    await expect(table.querySelectorAll('tbody tr')).toHaveLength(rows);
+  } finally {
+    outage.down = false;
+  }
+}
+
+export const ChangedConditionsFailSimple: Story = {
+  ...DisplayWithData,
+  args: { ...DisplayWithData.args, behaviour: 'outage' },
+  tags: ['!dev', '!autodocs', 'test'],
+  play: ({ canvasElement }) =>
+    conditionsChangeThenFail(canvasElement, 'simple'),
+};
+
+export const ChangedConditionsFailAdvanced: Story = {
+  ...DisplayWithData,
+  args: { ...DisplayWithData.args, behaviour: 'outage' },
+  tags: ['!dev', '!autodocs', 'test'],
+  play: ({ canvasElement }) =>
+    conditionsChangeThenFail(canvasElement, 'advanced'),
 };

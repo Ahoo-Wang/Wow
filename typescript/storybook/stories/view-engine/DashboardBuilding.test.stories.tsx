@@ -1369,3 +1369,36 @@ export const MenuItemsHandTheKeyboardToTheirDialog: Story = {
     }
   },
 };
+
+/**
+ * A dialog keeps a focus that moved on while it closed (the #3547 race, the
+ * todo's 「对话框与弹层的函数式 `finalFocus`」). The board's dialogs hand the
+ * keyboard back by a function — the panel's 「⋯」, or 「＋ 添加」 — and Base UI
+ * takes a function's answer as explicit: it moved the focus there when the
+ * exit ended, whatever had taken the focus in the meantime. Here a panel's
+ * 「⋯」 is focused while the picker is still fading out; it keeps the focus.
+ */
+export const DialogHandBackKeepsMovedFocus: Story = {
+  ...DisplayBuilding,
+  decorators: [DESK],
+  tags: ['!dev', '!autodocs', 'test'],
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await canvas.findByRole('heading', { level: 3, name: '按仓库汇总' });
+    await startBuilding(canvasElement);
+    await addFromBar(canvasElement, zhCN['label.dashboard.add.saved-view']);
+    const picker = await screen.findByRole('dialog', {
+      name: zhCN['label.picker.add-heading'],
+    });
+    await userEvent.keyboard('{Escape}');
+    // Still closing: the hand-back is ahead, not behind.
+    await expect(picker).toHaveAttribute('data-ending-style');
+    const elsewhere = canvas.getByRole('button', {
+      name: label('label.panel.menu', { title: '按仓库汇总' }),
+    });
+    elsewhere.focus();
+
+    await waitFor(() => expect(picker).not.toBeInTheDocument());
+    await expect(elsewhere).toHaveFocus();
+  },
+};

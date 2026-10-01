@@ -649,6 +649,54 @@ describe('the record workbench layout', () => {
     expect(screen.getAllByRole('row')).toHaveLength(3);
   });
 
+  it('says the rows are from before the change when changed conditions fail', async () => {
+    let fail = false;
+    const source = testSource({
+      paged: vi.fn(() =>
+        fail
+          ? Promise.reject(new Error('gateway down'))
+          : Promise.resolve({ total: 2, list: [...ROWS] }),
+      ),
+    });
+    workbench([filtered], {}, source);
+    await waitFor(() => expect(screen.getAllByRole('row')).toHaveLength(3));
+
+    // The condition taken out of force is a new question, and it fails: the
+    // rows on screen are the answer to the one before it, not an older
+    // answer to this one.
+    fail = true;
+    const bar = screen.getByRole('region', { name: 'Showing' });
+    fireEvent.click(within(bar).getByRole('button', { name: /^Unset/ }));
+
+    const strip = await screen.findByRole('alert');
+    expect(screen.getAllByRole('row')).toHaveLength(3);
+    expect(strip.textContent).toContain(
+      'gateway down · Showing the result from before the conditions changed',
+    );
+
+    // The same conditions failing again are only older rows: said as such.
+    fireEvent.click(screen.getByRole('button', { name: /Refresh/ }));
+    await waitFor(() =>
+      expect(screen.getByRole('alert').textContent).toContain(
+        'gateway down · Showing the result from before the conditions changed',
+      ),
+    );
+    fail = false;
+    fireEvent.click(
+      within(screen.getByRole('alert')).getByRole('button', {
+        name: 'Try again',
+      }),
+    );
+    await waitFor(() => expect(screen.queryByRole('alert')).toBeNull());
+    fail = true;
+    fireEvent.click(screen.getByRole('button', { name: /Refresh/ }));
+    await waitFor(() =>
+      expect(screen.getByRole('alert').textContent).toContain(
+        'gateway down · Showing the last successful result',
+      ),
+    );
+  });
+
   it("offers the host's bulk action only while rows are picked", async () => {
     workbench([mine], {
       record: {

@@ -43,6 +43,7 @@ export function TimeCharts({
   label,
   column,
   seriesName,
+  toneOf,
   name,
   onPick,
   highlight,
@@ -59,6 +60,7 @@ export function TimeCharts({
         label,
         column,
         seriesName,
+        toneOf,
         locale,
         animate,
         pickable,
@@ -77,6 +79,7 @@ export function TimeCharts({
       label,
       column,
       seriesName,
+      toneOf,
       locale,
       animate,
       pickable,
@@ -88,9 +91,9 @@ export function TimeCharts({
   const streams = useMemo(
     () =>
       data.type === 'themeRiver'
-        ? drawnStreams(data, { spec, label, seriesName, other })
+        ? drawnStreams(data, { spec, label, seriesName, other, toneOf })
         : [],
-    [data, spec, label, seriesName, other],
+    [data, spec, label, seriesName, other, toneOf],
   );
   const onClick = useMemo(
     () =>

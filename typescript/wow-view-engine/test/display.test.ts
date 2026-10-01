@@ -1177,6 +1177,12 @@ describe('columnTitle', () => {
       // 「合计」 of the groups drawn, as a donut's centre is (D33 Q55).
       'label.chart.waterfall.total',
       'label.chart.waterfall.total-basis',
+      // What 「自动」 writes over a stack: its 「合计」, the chart's own sum
+      // of the segments drawn, as the waterfall's closing bar is.
+      'label.chart.labels.auto.totals',
+      'label.chart.labels.auto.totals.lines',
+      'label.chart.labels.auto.stacks',
+      'label.chart.labels.auto.stacks.lines',
     ]);
     const others = Object.entries(zhCN)
       .filter(([key, text]) => text.includes('合计') && !totalsKeys.has(key))

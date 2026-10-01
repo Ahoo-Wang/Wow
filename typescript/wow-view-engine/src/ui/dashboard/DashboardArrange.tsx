@@ -29,6 +29,7 @@ import { DragHandle, type HandleMove } from '../kit/DragHandle.js';
 import { withoutOptimisticSorting } from '../kit/dragPlugins.js';
 import { IconButton, IconTooltip } from '../kit/IconButton.js';
 import { useViewMessages } from '../kit/MessagesProvider.js';
+import { gateTouchStart, type TouchGate } from './touchGate.js';
 
 /*
  * Placing a panel without a pointer.
@@ -209,6 +210,12 @@ export interface PanelGridItemProps extends React.ComponentProps<'div'> {
   name: string;
   /** The board's voice, which the panel's handle says its steps in. */
   say?(message: string): void;
+  /**
+   * Whether the panel may be moved, and so whether the drag's `touchstart`
+   * listener is on the item at all (`gateTouchStart`): not on a board that
+   * is only read.
+   */
+  touch: boolean;
 }
 
 /**
@@ -220,23 +227,54 @@ export interface PanelGridItemProps extends React.ComponentProps<'div'> {
  * after whatever it already held). So the corner renders inside this
  * component, and a context provided here reaches it: that is how one corner
  * knows it is 「北区订单」's and not the next panel's. Whatever the grid puts
- * on the item — its class, its position, its ref, the drag listeners —
- * passes through to the `div` untouched.
+ * on the item — its class, its position, its ref, the mouse handlers —
+ * passes through to the `div` untouched; the drag's `touchstart` listener
+ * waits until the board is built (`touch`).
  */
 export function PanelGridItem({
   panelId,
   name,
   say,
+  touch,
   children,
+  ref,
   ...item
 }: PanelGridItemProps) {
+  const gate = useRef<TouchGate | null>(null);
+  const open = useRef(touch);
+  // Gated as the element is attached, before the library's `DraggableCore`
+  // mounts over it and adds its listener; the library's ref after.
+  const attach = useCallback(
+    (node: HTMLDivElement | null) => {
+      if (node) {
+        gate.current = gateTouchStart(node);
+        gate.current.set(open.current);
+      }
+      assignRef(ref, node);
+      return () => {
+        gate.current?.release();
+        gate.current = null;
+        assignRef(ref, null);
+      };
+    },
+    [ref],
+  );
+  useLayoutEffect(() => {
+    open.current = touch;
+    gate.current?.set(touch);
+  }, [touch]);
   return (
-    <div data-panel-id={panelId} {...item}>
+    <div data-panel-id={panelId} ref={attach} {...item}>
       <PanelItemContext.Provider value={{ id: panelId, name, say }}>
         {children}
       </PanelItemContext.Provider>
     </div>
   );
+}
+
+function assignRef<T>(ref: React.Ref<T> | undefined, value: T | null): void {
+  if (typeof ref === 'function') ref(value);
+  else if (ref) ref.current = value;
 }
 
 export interface PanelResizeHandleProps extends Pick<

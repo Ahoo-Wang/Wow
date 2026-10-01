@@ -577,6 +577,7 @@ export function WorkbenchShell({
           <QueryStrip
             error={failed}
             stale={viewHasResult(state)}
+            conditionsChanged={state?.query.conditionsChanged === true}
             onRetry={() => runtime?.refresh()}
           />
         );

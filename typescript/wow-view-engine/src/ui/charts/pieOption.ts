@@ -20,7 +20,7 @@ import {
 import type { ChartSpec } from '../../model/index.js';
 import { formatShare } from './axis.js';
 import type { SeriesName, ToneOf, ValueLabel } from './family.js';
-import { OTHER_COLOR, color, pinnedColor, toneColor } from './palette.js';
+import { OTHER_COLOR, color, heldTones, pinnedColor } from './palette.js';
 import {
   CHART_FALLBACK,
   chartText,
@@ -100,13 +100,11 @@ export function drawnSlices(
 ): DrawnSlice[] {
   const whole = wholeOf(data);
   const category = spec?.pie?.category;
-  const tones = data.slices.map(slice =>
-    slice.other === true
-      ? undefined
-      : toneColor(toneOf?.(category, slice.category)),
+  const tones = heldTones(
+    data.slices.map(slice =>
+      slice.other === true ? undefined : toneOf?.(category, slice.category),
+    ),
   );
-  const held = (tone: string | undefined) =>
-    tone !== undefined && tones.filter(each => each === tone).length === 1;
   return data.slices.map((slice, index) => ({
     key: `p${index}`,
     name:
@@ -119,7 +117,7 @@ export function drawnSlices(
       slice.other === true
         ? OTHER_COLOR
         : (pinnedColor(spec, groupKeyText(slice.category)) ??
-          (held(tones[index]) ? tones[index] : undefined) ??
+          tones[index] ??
           color(index)),
   }));
 }

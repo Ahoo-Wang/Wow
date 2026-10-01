@@ -113,7 +113,12 @@ export function EmbeddedAnalysis({
   else
     body = (
       <>
-        <QueryStrip error={error} stale onRetry={retry} />
+        <QueryStrip
+          error={error}
+          stale
+          conditionsChanged={state?.query.conditionsChanged === true}
+          onRetry={retry}
+        />
         {/* The layout switch is the reader's in the interactive tier; the
             static one shows what the author saved. */}
         {interactive && (

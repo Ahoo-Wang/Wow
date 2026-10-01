@@ -21,11 +21,11 @@ import { absenceReader, num } from './chartRows.js';
 import {
   appliedWindow,
   bucketSpan,
+  knownWindow,
   forwardInTime,
   timeGroup,
   withoutHoles,
   type DateGroup,
-  type TimeWindow,
 } from './timeAxis.js';
 import { metricReach } from './metricWindow.js';
 import { isAdditiveMetric, readsOffSums } from './validateChart.js';
@@ -261,7 +261,7 @@ const FILLED = new WeakSet<RecordData>();
  * known to have had no records (`absenceReader`), nothing otherwise — so a
  * hole read as the headline's period says the number it draws.
  *
- * The run reaches out to the card's own window (`cardWindow`), not only
+ * The run reaches out to the card's own window (`knownWindow`), not only
  * between the buckets that came back: a card over 「近 7 天」 is seven days,
  * and with orders on the last day alone the six before it are six known
  * zeros — the one right before is what 「较前一日」 compares with (D39).
@@ -294,38 +294,8 @@ function trendRows(
         hole[metric.alias] = empty && isAdditiveMetric(metric) ? 0 : null;
       return hole;
     },
-    cardWindow(axis, config, rows, context),
+    knownWindow(axis, config, rows.length, context.now, timeZone),
   );
-}
-
-/**
- * The window a trend card's buckets run to, when every bucket of it the
- * rows lack is known to have had no records: what its conditions pin on the
- * axis's field — its own 「近 7 天」, or the window a board anchored it to,
- * which reaches it as a condition too — read at the moment it was asked,
- * and never past that moment's bucket, since a day that has not come yet
- * had no records only so far.
- *
- * Known empty is the whole result's to say (D14): no 「只保留」 to have
- * dropped a bucket by its numbers, and fewer rows than the limit, so none
- * was cut off an end. Otherwise, or with no moment to read the conditions
- * at, or no lower bound to start from, there is no window, and the run
- * stays between the buckets that came back.
- */
-function cardWindow(
-  axis: DateGroup,
-  config: AnalysisViewConfig,
-  rows: readonly RecordData[],
-  context: MetricContext,
-): TimeWindow | undefined {
-  const { now, timeZone } = context;
-  if (!now || config.having) return undefined;
-  if (!Number.isInteger(config.limit) || rows.length >= config.limit)
-    return undefined;
-  const { from, to } = appliedWindow(config.filter, axis.field, now, timeZone);
-  if (from === null) return undefined;
-  const asked = now.getTime() + 1;
-  return { from, to: to === null ? asked : Math.min(to, asked) };
 }
 
 /** `row` with every metric that adds and came back null read as a filled 0. */

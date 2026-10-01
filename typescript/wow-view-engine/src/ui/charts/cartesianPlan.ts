@@ -21,7 +21,7 @@ import {
   type PlacedLine,
 } from '../../analysis/index.js';
 import { isRunning } from '../../analysis/derived.js';
-import type { CartesianSeries, ChartSpec } from '../../model/index.js';
+import type { ChartSpec } from '../../model/index.js';
 import { logScaleFits } from '../../analysis/logScale.js';
 import { allWhole, axisId, categoryTick, formatShare } from './axis.js';
 import { LARGE_FROM } from './cartesianZoom.js';
@@ -29,12 +29,21 @@ import type {
   ColumnTitle,
   FilledNote,
   SeriesName,
+  ToneOf,
   ValueLabel,
 } from './family.js';
 import type { MarkWords } from './markWords.js';
 import { measureText } from './measure.js';
-import { colorOf, OTHER_COLOR } from './palette.js';
 import { sharedScales, type NiceScale } from './scale.js';
+import {
+  drawnSeries,
+  peaksOf,
+  stackSums,
+  withoutHidden,
+  type DrawnSeries,
+} from './cartesianSeries.js';
+
+export { drawnSeries, withoutHidden, type DrawnSeries };
 
 /** What a cartesian drawing reads besides its data. */
 export interface CartesianContext {
@@ -46,6 +55,12 @@ export interface CartesianContext {
    * split by a yes/no field; left out, its value as its column reads it.
    */
   seriesName?: SeriesName;
+  /**
+   * The tone a split value's option gives it (`useToneOf`): a series split
+   * by a toned enum wears its tone's colour, as the pie's slice and the
+   * value's badge do (`heldTones`).
+   */
+  toneOf?: ToneOf;
   locale?: string;
   /** Whether the marks grow into place (`useChartMotion`). */
   animate: boolean;
@@ -102,89 +117,10 @@ export interface CartesianContext {
   words?: MarkWords;
 }
 
-/**
- * `data` without the series `hidden` names — what the marks, the scales and
- * the reading table say once the legend switched them off. The same object
- * when nothing is hidden.
- */
-export function withoutHidden(
-  data: CartesianData,
-  hidden: ReadonlySet<string> | undefined,
-): CartesianData {
-  if (!hidden || hidden.size === 0) return data;
-  const series = data.series.filter(series => !hidden.has(series.key));
-  // A derived line goes with the series it is computed from, and on its own.
-  const derived = data.derived?.filter(
-    line =>
-      !hidden.has(line.key) && series.some(entry => entry.key === line.metric),
-  );
-  return { ...data, series, ...(data.derived ? { derived } : {}) };
-}
-
-/** One series as drawn: the kernel's, and what the spec says about it. */
-export interface DrawnSeries {
-  key: string;
-  metric: string;
-  /** Its name in the legend and the tooltip. */
-  name: string;
-  /** A CSS colour: a theme slot or the one the spec pinned. */
-  color: string;
-  side: 'left' | 'right';
-  configured?: CartesianSeries;
-  /** The mark: the chart's own, or — in a combo — the one the spec names. */
-  kind: 'bar' | 'line' | 'area';
-}
-
 type Side = 'left' | 'right';
 
 /** What decides the stack a series stands in. */
 type Stackable = Pick<DrawnSeries, 'side' | 'configured' | 'kind'>;
-
-/** The series as the legend, the tooltip and the marks all name them. */
-export function drawnSeries(
-  data: CartesianData,
-  {
-    spec,
-    label,
-    column,
-    seriesName = label,
-    words,
-  }: Pick<
-    CartesianContext,
-    'spec' | 'label' | 'column' | 'seriesName' | 'words'
-  >,
-): DrawnSeries[] {
-  const bySeries = new Map(
-    (spec?.cartesian?.series ?? []).map(series => [series.metric, series]),
-  );
-  return data.series.map((series, index) => {
-    const configured = bySeries.get(series.metric);
-    return {
-      key: series.key,
-      metric: series.metric,
-      // A pivoted series shows its split value as that field shows it —
-      // with the field, where the value alone says nothing of what (a yes
-      // or a no); an unpivoted one is its column's title — 「金额的总和」,
-      // never the alias, which names the query.
-      name:
-        series.other === true
-          ? (words?.other ?? series.label)
-          : series.value === undefined
-            ? (column(series.metric) ?? series.label)
-            : seriesName(spec?.cartesian?.splitBy, series.value),
-      // The spec names a pivoted series by its split value as the kernel
-      // labels it, and an unpivoted one by its metric alias. The folded
-      // rest is the pie's grey: no category, so nothing pins its colour.
-      color:
-        series.other === true
-          ? OTHER_COLOR
-          : colorOf(spec, index, series.label, series.metric),
-      side: axisId(configured?.axis),
-      configured,
-      kind: seriesMark(data.chart, configured),
-    };
-  });
-}
 
 /**
  * The widest a category name is drawn upright before the bars lie on their
@@ -359,8 +295,20 @@ export interface CartesianPlan {
    * has, which is its total and is written over it.
    */
   insideText(entry: DrawnSeries, index: number): string;
-  /** The bar stacks that write a total over themselves, and each total. */
-  totals: { members: DrawnSeries[]; texts: string[] }[];
+  /**
+   * The bar stacks that write a total over themselves, and each total:
+   * `every` is each stack's sum, `texts` what is written over it — the same,
+   * or on a long upright row of stacks left to its default only its highest
+   * and lowest, with their words (「最高 ¥4.5万」), as a long row of single
+   * bars writes only its peak and trough (`peaksOnly`). Zoomed to fewer
+   * stacks than that, `cartesianFit` writes `every` again.
+   */
+  totals: {
+    members: DrawnSeries[];
+    texts: string[];
+    every: string[];
+    peaksOnly: boolean;
+  }[];
   /** Every value label written past a mark's end, a total's included. */
   outerTexts: string[];
   /**
@@ -403,6 +351,34 @@ export interface CartesianPlan {
    * no mark to hang one on.
    */
   extremesOf(entry: DrawnSeries): { high: number; low: number } | undefined;
+}
+
+/**
+ * Whether 「自动」 writes only the highest and the lowest total over some
+ * stack of these bars: one of more than one bar whose totals differ. Where
+ * none does, every total is written (`CartesianPlan.totals`).
+ */
+export function stackPeaksFound(
+  data: CartesianData,
+  spec: ChartSpec | undefined,
+): boolean {
+  const { stackOf } = stackPlan(data, spec);
+  const bySeries = new Map(
+    (spec?.cartesian?.series ?? []).map(series => [series.metric, series]),
+  );
+  const stacks = new Map<string, { key: string }[]>();
+  for (const series of data.series) {
+    const configured = bySeries.get(series.metric);
+    const kind = seriesMark(data.chart, configured);
+    const stack = stackOf({ side: axisId(configured?.axis), configured, kind });
+    if (stack !== undefined && kind === 'bar')
+      stacks.set(stack, [...(stacks.get(stack) ?? []), series]);
+  }
+  return [...stacks.values()].some(
+    members =>
+      members.length > 1 &&
+      peaksOf(stackSums(members, data.points)) !== undefined,
+  );
 }
 
 /** A derived line as drawn: the kernel's, its name and its axis. */
@@ -645,26 +621,36 @@ export function cartesianPlan(
     return bars.length > 1 && labelled(bars[0]) && !asShares(bars[0]);
   }
 
+  // Past `PEAKS_ONLY_FROM` upright stacks left to their default, a total
+  // over each is a row of numbers turned on their sides and read as noise:
+  // only the highest and the lowest are written, and say which they are.
+  const totalPeaksOnly =
+    !horizontal && peaksOnlyLabels(spec, data.points.length);
   const totals = [...stacks.values()]
     .map(members => members.filter(member => member.kind === 'bar'))
     .filter(members => totalsOn(members))
-    .map(members => ({
-      members,
-      // A stack made only of filled parts measured nothing: no total.
-      texts: data.points.map(point => {
-        const parts = members
-          .filter(member => !point.filled?.includes(member.key))
-          .map(member => point.values[member.key])
-          .filter((value): value is number => typeof value === 'number');
-        return parts.length > 0
-          ? label(
-              members[0].metric,
-              parts.reduce((sum, value) => sum + value, 0),
-              true,
-            )
-          : '';
-      }),
-    }));
+    .map(members => {
+      const sums = stackSums(members, data.points);
+      const every = sums.map(sum =>
+        sum === null ? '' : label(members[0].metric, sum, true),
+      );
+      // Totals all equal, or one stack among window-filled ones, have no
+      // highest and lowest to tell apart: each is written, as bars are.
+      const peaks = totalPeaksOnly ? peaksOf(sums) : undefined;
+      if (peaks === undefined)
+        return { members, texts: every, every, peaksOnly: false };
+      const words = context.words;
+      const said = (index: number, word: string | undefined) =>
+        word === undefined ? every[index] : `${word} ${every[index]}`;
+      const texts = every.map((_text, index) =>
+        index === peaks.high
+          ? said(index, words?.high)
+          : index === peaks.low
+            ? said(index, words?.low)
+            : '',
+      );
+      return { members, texts, every, peaksOnly: true };
+    });
 
   const outerTexts = [
     ...series

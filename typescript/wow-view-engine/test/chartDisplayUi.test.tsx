@@ -527,6 +527,58 @@ describe('the value labels, as the chart draws them (review P1-6)', () => {
     expect(describedText(choice())).toContain('lines and areas are not');
   });
 
+  it('offers 「auto」 over stacks, whose totals thin past twelve', async () => {
+    await open(
+      upright({
+        splitBy: 'status',
+        series: [{ metric: 'orders', stack: 's' }],
+      }),
+      { groups: [WAREHOUSE, STATUS] },
+    );
+    await displayPage('bar');
+    expect(choices()).toEqual(['Auto', 'Every value', 'None']);
+    expect(pressed()).toEqual(['Auto']);
+    expect(describedText(choice())).toBe(
+      'Each part is labelled; under 12 stacks every total, from 12 on only the highest and the lowest',
+    );
+  });
+
+  it('says every total is written over a long row of stacks with no highest', async () => {
+    const stacksOf = (total: (index: number) => number) =>
+      Array.from({ length: 14 }, (_, index) => [
+        { warehouse: `W${index}`, status: 'OPEN', orders: total(index) - 1 },
+        { warehouse: `W${index}`, status: 'DONE', orders: 1 },
+      ]).flat();
+    const stacked = upright({
+      splitBy: 'status',
+      series: [{ metric: 'orders', stack: 's' }],
+    });
+    await open(
+      stacked,
+      { groups: [WAREHOUSE, STATUS] },
+      stacksOf(() => 5),
+    );
+    await displayPage('bar');
+    await waitFor(() =>
+      expect(describedText(choice())).toBe(
+        'Each part is labelled; under 12 stacks every total, from 12 on only the highest and the lowest',
+      ),
+    );
+    cleanup();
+
+    await open(
+      stacked,
+      { groups: [WAREHOUSE, STATUS] },
+      stacksOf(index => (index === 3 ? 9 : 5)),
+    );
+    await displayPage('bar');
+    await waitFor(() =>
+      expect(describedText(choice())).toBe(
+        '14 stacks: each part is labelled, and only the highest and the lowest total',
+      ),
+    );
+  });
+
   it('offers two choices where 「auto」 is one of them whatever the rows', async () => {
     // Lying on its side, a row of bars writes a number on every row.
     await open(
@@ -539,11 +591,12 @@ describe('the value labels, as the chart draws them (review P1-6)', () => {
     expect(pressed()).toEqual(['Every value']);
     cleanup();
 
-    // Stacked: every segment and every total.
+    // Stacked to 100%: every segment, and no total to thin.
     await open(
       upright({
         splitBy: 'status',
         series: [{ metric: 'orders', stack: 's' }],
+        percentStack: true,
       }),
       { groups: [WAREHOUSE, STATUS] },
     );

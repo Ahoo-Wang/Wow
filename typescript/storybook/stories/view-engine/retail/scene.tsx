@@ -19,6 +19,14 @@ export const RETAIL_FIXTURE =
   '栖木生活 · 零售示例数据（钉在 2026-09-22 10:00）';
 
 /**
+ * The service line of the scenes that open a retail board, and the data
+ * source their docs page names; its count is held to the data with
+ * `RETAIL_DATA_NOTE`'s (`guide.test.ts`).
+ */
+export const BOARD_FIXTURE =
+  '内存 ViewStore · 栖木生活 2 万张子订单（示例数据）';
+
+/**
  * The host application around a retail scene: its bar and navigation, and
  * the fixture it talks to. A workbench fills the page area, as it would a
  * screen.

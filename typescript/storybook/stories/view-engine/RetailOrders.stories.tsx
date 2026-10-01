@@ -21,6 +21,7 @@ import { bind, DataWorkbench, ViewHost } from '@ahoo-wang/wow-view-engine/ui';
 import { HOST_LANGUAGE } from './fixtures.js';
 import { StoryEngine } from './StoryEngine.js';
 import { RETAIL_DATA_NOTE, retailShell } from './retail/scene.js';
+import { OVERDUE_ORDERS } from './retail/goldens.js';
 import { createRetailEngine } from './retail/source.js';
 import {
   ORDER_WORKBENCH_VIEWS,
@@ -109,8 +110,8 @@ ${RETAIL_DATA_NOTE}
 
 - **系统视图**（跟着定义发布）：**发货超时**（值班队列，每 30 秒刷新，打开就是它）、全部订单、昨日订单、礼品加急（标记「全都包含」礼品与加急）、全额退款关闭。
 - **共享与个人视图**：客服组的「留言提到改地址」（全文搜索框）；品控组的「浴巾退款单（近 3 个月）」（商品行上的元素匹配：同一行既是竹纤维浴巾 70×140 · 米白、又退过款，A1）；个人的「我跟的大客户」（按买家筛，买家是远程搜索的引用字段，卡片布局）。
-- **看什么**：打开「发货超时」——付款 48 小时仍未发出、不是预售的单，最早付款的在前。这一刻有 11 张，**发货仓一列全是华东（嘉兴）**：那是 9 月 20 日起分拣线故障卡住的包裹（埋下的异常 A7）。勾几张按「催发货」，结果条逐条说成了几单；已经发出的单会被拒并说明原因。
-- **还能做**：点任一行看分组后的全部字段；列设置、冻结、多重排序；本页与全部两行汇总（实付合计、最早下单时间）；在筛选里加「买家」搜「林」，从 6700 个会员里挑；表格与卡片切换；导出 CSV；另存为自己的视图。`;
+- **看什么**：打开「发货超时」——付款 48 小时仍未发出、不是预售的单，最早付款的在前。这一刻有 ${OVERDUE_ORDERS.length} 张，**发货仓一列全是华东（嘉兴）**：那是 9 月 20 日起分拣线故障卡住的包裹（埋下的异常 A7）。勾几张按「催发货」，结果条逐条说成了几单；已经发出的单会被拒并说明原因。
+- **还能做**：点任一行看分组后的全部字段；列设置、冻结、多重排序；本页与全部两行汇总（实付合计、最早下单时间）；在筛选里加「买家」搜「林」，从全部会员里挑；表格与卡片切换；导出 CSV；另存为自己的视图。`;
 
 /** What 「Show code」 shows on this page (`hostSource.ts`). */
 const HOST_CODE = hostSource(['RetailOrders.stories.tsx', sceneSource]);

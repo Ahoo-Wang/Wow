@@ -211,6 +211,12 @@ export interface QueryStripProps {
    * that are one refresh out of date another — and only the caller knows.
    */
   stale: boolean;
+  /**
+   * Whether that result was asked under other conditions than the query
+   * that failed (`ViewQueryState.conditionsChanged`): the line then says
+   * the rows are from before the change, not only from before now.
+   */
+  conditionsChanged?: boolean;
   /** Given, the line ends in a retry; an embed that offers none leaves it out. */
   onRetry?(): void;
   className?: string;
@@ -226,6 +232,7 @@ export interface QueryStripProps {
 export function QueryStrip({
   error,
   stale,
+  conditionsChanged = false,
   onRetry,
   className,
 }: QueryStripProps) {
@@ -244,7 +251,14 @@ export function QueryStrip({
       // of the line itself, never folded behind a 「还有 1 项」 toggle where
       // the rows would be read as current until somebody opened it.
       title={
-        stale ? messages.label('label.query.stale', { error: failed }) : failed
+        stale
+          ? messages.label(
+              conditionsChanged
+                ? 'label.query.stale-conditions'
+                : 'label.query.stale',
+              { error: failed },
+            )
+          : failed
       }
       className={className}
       action={

@@ -45,6 +45,8 @@ import { RETAIL_ZONE, retailData } from './retail/source.js';
 import '@ahoo-wang/wow-view-engine/styles.css';
 import sceneSource from './OrderDetail.stories.tsx?raw';
 import { hostSource } from './hostSource.js';
+import { BOARD_FIXTURE } from './retail/scene.js';
+import { OVERDUE_ORDERS } from './retail/goldens.js';
 
 /**
  * The order the page opens on: one of the eleven the East China sorting
@@ -209,13 +211,13 @@ function OrderDetail({ orderNo }: { orderNo: string }) {
   );
 }
 
-const FIXTURE = '内存 ViewStore · 栖木生活 2 万张子订单（示例数据）';
+const FIXTURE = BOARD_FIXTURE;
 
 const description = `**业务场景 · 订单详情页**
 
 宿主自己的订单详情页，嵌两块视图（\`EmbeddedView\`）。
 
-- **数据源**：${FIXTURE}；时钟钉在 2026-09-22 上午 10 点。默认打开的是华东（嘉兴）仓分拣线故障卡住的那 11 张单里的一张（A7）；运营日报 → 超时明细 → 「在工作台中打开」 → 行上的「订单详情」就走到这里，地址里带着订单号（\`args=orderNo:…\`）。
+- **数据源**：${FIXTURE}；时钟钉在 2026-09-22 上午 10 点。默认打开的是华东（嘉兴）仓分拣线故障卡住的那 ${OVERDUE_ORDERS.length} 张单里的一张（A7）；运营日报 → 超时明细 → 「在工作台中打开」 → 行上的「订单详情」就走到这里，地址里带着订单号（\`args=orderNo:…\`）。
 - **订单头**：宿主从自己的订单接口读、自己画；发货超时时有宿主的「催发货」。
 - **商品**：只读的表（\`static\` 一档）：展开 \`items\`，每个商品一行，带合计行。
 - **订单历史**：事件流的模板视图，由页面填上这张单的订单号（\`scopeFilter\`），按版本排序；可交互一档，能排序、翻页。这张单只有「下单」「付款」两条——包裹一直没发出。`;

@@ -11,17 +11,10 @@
  * limitations under the License.
  */
 
-import {
-  useEffect,
-  useLayoutEffect,
-  useState,
-  type ReactNode,
-  type Ref,
-} from 'react';
+import { useEffect, useState, type ReactNode, type Ref } from 'react';
 import { cn } from 'cn';
 import GridLayout, {
   getBreakpointFromWidth,
-  useContainerWidth,
   type Layout,
   type ResizeHandleAxis,
 } from 'react-grid-layout';
@@ -40,11 +33,7 @@ import type {
   DashboardController,
   DashboardPanelView,
 } from '../../react/index.js';
-import {
-  hasFixedHeight,
-  type DashboardWidth,
-  type PanelLayout,
-} from '../../model/index.js';
+import { hasFixedHeight, type PanelLayout } from '../../model/index.js';
 import type { ViewNavigation } from '../../runtime/index.js';
 import { useSurfaceAnnouncer } from '../kit/Announcer.js';
 import { PanelGridItem, PanelResizeHandle } from './DashboardArrange.js';
@@ -66,6 +55,7 @@ import { panelCommands, readerCommands, useBoardBuilding } from './commands.js';
 import { useDashboardEditExtensions } from './extensions.js';
 import { tabTitle } from './DashboardTabs.js';
 import { useGridPlacement } from './gridPlacement.js';
+import { useGridWidth } from './gridWidth.js';
 import { FIXED_BOARD_WIDTH } from '../kit/layout.js';
 import type { RenderFailureHandler } from '../kit/RenderBoundary.js';
 import { useViewMessages } from '../kit/MessagesProvider.js';
@@ -444,22 +434,20 @@ export function DashboardGrid({
               }}
               resizeConfig={{
                 enabled: arranging,
-                // The corner is a named, focusable control while the layout may
-                // be edited, and nothing at all while it may not — upstream's
-                // bare `span` has no name to give and no key to answer.
+                // No corner at all while the board is only read: each is a
+                // `DraggableCore` of its own, with a non-passive `touchstart`
+                // listener on it (`gateTouchStart` holds the item's back).
+                // Added and taken away at the end of the item's children,
+                // so the panel before them is never remounted.
+                handles: arranging ? ['se'] : [],
+                // The corner is a named, focusable control — upstream's bare
+                // `span` has no name to give and no key to answer.
                 handleComponent: (
                   axis: ResizeHandleAxis,
                   ref: Ref<HTMLElement>,
-                ) =>
-                  arranging ? (
-                    <PanelResizeHandle axis={axis} ref={ref} onStep={arrange} />
-                  ) : (
-                    <span
-                      ref={ref}
-                      aria-hidden="true"
-                      className={`react-resizable-handle react-resizable-handle-${axis}`}
-                    />
-                  ),
+                ) => (
+                  <PanelResizeHandle axis={axis} ref={ref} onStep={arrange} />
+                ),
               }}
               compactor={placement.compactor}
               // The gestures are off in the one-column reading, and so are the
@@ -483,6 +471,7 @@ export function DashboardGrid({
                   panelId={panel.id}
                   name={names.get(panel.id) ?? ''}
                   say={say}
+                  touch={arranging}
                   className="fve:min-h-0"
                   // Sized by hand (D68): drawn at its size, never grown.
                   data-fixed-height={hasFixedHeight(panel.layout) || undefined}
@@ -575,41 +564,6 @@ export function DashboardGrid({
       {region}
     </div>
   );
-}
-
-/**
- * The grid's width, known before the first paint.
- *
- * The measuring is `react-grid-layout`'s own `useContainerWidth` rather than
- * a second `ResizeObserver` written here: it is the same observer the grid
- * would have used, it survives an environment without `ResizeObserver`, and
- * it coalesces a burst of resizes into one frame. But it starts at 1280px
- * and first measures in a passive effect, so the grid was first handed the
- * wide 24-column layout at 1280px — on a phone too — and the library drew it
- * (in percentages, until it has mounted) until that effect ran. React runs
- * passive effects after the commit, and the browser may paint in between
- * when the commit's task ran long, as a big board's does on a slow phone.
- *
- * So the grid is measured in a layout effect, whose update React applies
- * before it paints, and the panels are not drawn until it has been: no
- * layout is ever handed to the library at a width it does not have, and
- * the first frame is the right one whatever the scheduling. On the server,
- * where no effect runs, the panels are left out rather than drawn at a
- * guessed width (the client's first render matches, so hydration does
- * too); where the container measures 0 — hidden, or a DOM without layout —
- * the library's starting width stands, as it always did.
- *
- * The same goes for the board's own width switched (D31, `boardWidth`): the
- * container is narrower or wider at once, and is measured before that paints
- * rather than a frame after, with the panels spilling out of it meanwhile.
- */
-function useGridWidth(boardWidth: DashboardWidth) {
-  // `mounted` is the library's word for "measured at least once".
-  const { containerRef, width, mounted, measureWidth } = useContainerWidth({
-    measureBeforeMount: true,
-  });
-  useLayoutEffect(() => measureWidth(), [measureWidth, boardWidth]);
-  return { containerRef, width, measured: mounted };
 }
 
 /**

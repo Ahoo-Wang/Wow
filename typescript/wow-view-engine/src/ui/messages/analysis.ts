@@ -423,6 +423,14 @@ export const analysisMessages = {
     'Under {from} bars, every bar is labelled; from {from} on, only the highest and the lowest',
   'label.chart.labels.auto.bars.lines':
     'Under {from} bars, every bar is labelled; from {from} on, only the highest and the lowest; lines and areas are not',
+  'label.chart.labels.auto.totals':
+    '{count} stacks: each part is labelled, and only the highest and the lowest total',
+  'label.chart.labels.auto.totals.lines':
+    '{count} stacks: each part is labelled, and only the highest and the lowest total; lines and areas are not',
+  'label.chart.labels.auto.stacks':
+    'Each part is labelled; under {from} stacks every total, from {from} on only the highest and the lowest',
+  'label.chart.labels.auto.stacks.lines':
+    'Each part is labelled; under {from} stacks every total, from {from} on only the highest and the lowest; lines and areas are not',
   'label.chart.stacked': 'Stacked',
   'label.chart.stacked-alone': 'Stacking needs two or more bar or area series',
   'label.chart.percent-stack': 'Stacked to 100%',

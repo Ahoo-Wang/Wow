@@ -796,6 +796,61 @@ describe('DashboardGrid', () => {
     ).toBeTruthy();
   });
 
+  it('puts no touch listener on a panel while the board is only read, and keeps the panel', async () => {
+    // Every `touchstart` listener the DOM really holds, by element: what the
+    // browser has to wait on before it scrolls under a finger.
+    const held = new Map<EventTarget, Set<unknown>>();
+    const add = EventTarget.prototype.addEventListener;
+    const remove = EventTarget.prototype.removeEventListener;
+    vi.spyOn(EventTarget.prototype, 'addEventListener').mockImplementation(
+      function (this: EventTarget, type, listener, options) {
+        if (type === 'touchstart')
+          held.set(this, (held.get(this) ?? new Set()).add(listener));
+        return add.call(this, type, listener, options);
+      },
+    );
+    vi.spyOn(EventTarget.prototype, 'removeEventListener').mockImplementation(
+      function (this: EventTarget, type, listener, options) {
+        if (type === 'touchstart') held.get(this)?.delete(listener);
+        return remove.call(this, type, listener, options);
+      },
+    );
+    const onPanels = () =>
+      [...held]
+        .filter(
+          ([target, listeners]) =>
+            listeners.size > 0 &&
+            target instanceof Element &&
+            target.closest('[data-slot="dashboard-grid"]') !== null,
+        )
+        .map(([target]) => target);
+    const { controller } = await openDashboard(
+      dashboardConfig({ panels: [panel()] }),
+    );
+
+    const { rerender } = render(<DashboardGrid dashboard={controller()} />);
+    const title = screen.getByRole('heading', { name: 'Pending orders' });
+    // `react-draggable` adds one to every item as it mounts, and one to
+    // every resize corner, whatever `enabled` says.
+    expect(onPanels()).toEqual([]);
+
+    rerender(<DashboardGrid dashboard={controller()} editable />);
+    // Built, the item takes the library's drag listener, and the corner
+    // its own.
+    const item = document.querySelector('.react-grid-item');
+    expect(onPanels()).toContain(item);
+    expect(onPanels()).toContain(
+      document.querySelector('[data-slot="panel-resize"]'),
+    );
+
+    rerender(<DashboardGrid dashboard={controller()} />);
+    expect(onPanels()).toEqual([]);
+    // In and out of the building, the panel is the one it was: nothing was
+    // remounted, so nothing ran its query again.
+    expect(screen.getByRole('heading', { name: 'Pending orders' })).toBe(title);
+    expect(document.querySelector('.react-grid-item')).toBe(item);
+  });
+
   it('offers the placing controls only when the layout may be edited', async () => {
     const { controller } = await openDashboard(
       dashboardConfig({ panels: [panel()] }),
@@ -805,14 +860,10 @@ describe('DashboardGrid', () => {
 
     const { rerender } = render(<DashboardGrid dashboard={controller()} />);
     expect(slot('panel-grip')).toBeNull();
-    // The library draws its corner whatever `enabled` says, so a read-only
-    // dashboard gets the ornament rather than a control nothing answers.
+    // No corner at all on a board that is only read: not a control nothing
+    // answers, and not the library's drag listener on an ornament either.
     expect(slot('panel-resize')).toBeNull();
-    expect(
-      document
-        .querySelector('.react-resizable-handle')
-        ?.getAttribute('aria-hidden'),
-    ).toBe('true');
+    expect(document.querySelector('.react-resizable-handle')).toBeNull();
 
     rerender(<DashboardGrid dashboard={controller()} editable />);
     // Both are named: one handle that moves and resizes (V-02) — there is
@@ -1314,19 +1365,18 @@ describe('DashboardGrid', () => {
     );
     act(() => grid!.resize(900));
 
-    // The measuring is `react-grid-layout`'s own `useContainerWidth`, which
-    // coalesces a burst of measurements into one animation frame, so the new
-    // width lands on the next paint rather than on the call itself.
-    await waitFor(() => expect(item.style.width).not.toBe(initial));
+    // Laid out at the new width inside the observer's own callback, which a
+    // browser runs before it paints — not a frame later. The library's
+    // `useContainerWidth` put the width off to the next animation frame, and
+    // the grid was painted wider than a container that had just narrowed
+    // (on a resize, and on a board opened again from 「返回」).
     const measured = item.style.width;
+    expect(measured).not.toBe(initial);
 
     // A measurement of zero is what a hidden container reports; the panels
-    // keep the last width they could be drawn at. The old hand-written hook
-    // dropped the zero before it reached the grid, the library's passes it
-    // on and the grid declines it — the panels are the same either way.
+    // keep the last width they could be drawn at: the width reaches the grid
+    // and the grid declines it.
     act(() => grid!.resize(0));
-    // The frame the library coalesces into: a frame callback asked for now
-    // runs after every one asked for before it.
     await act(
       () =>
         new Promise<void>(resolve => requestAnimationFrame(() => resolve())),

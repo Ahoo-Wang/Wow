@@ -14,9 +14,9 @@
 import type { EChartsCoreOption } from 'echarts/core';
 import type { CalendarData, ThemeRiverData } from '../../analysis/index.js';
 import type { ChartSpec, RecordData } from '../../model/index.js';
-import type { ColumnTitle, SeriesName, ValueLabel } from './family.js';
+import type { ColumnTitle, SeriesName, ToneOf, ValueLabel } from './family.js';
 import { FADED_OPACITY } from './highlight.js';
-import { color, colorOf, OTHER_COLOR } from './palette.js';
+import { color, heldTones, OTHER_COLOR, pinnedColor } from './palette.js';
 import { mixColor, type ChartTheme, chartText } from './theme.js';
 import { tooltipFrame, tooltipHtml } from './tooltip.js';
 
@@ -26,6 +26,11 @@ export interface TimeContext {
   label: ValueLabel;
   column: ColumnTitle;
   seriesName?: SeriesName;
+  /**
+   * The tone a split value's option gives it (`useToneOf`): a stream of a
+   * toned value wears its tone's colour (`heldTones`), as a split series does.
+   */
+  toneOf?: ToneOf;
   /** The surface's language: the weekday and month names are its. */
   locale?: string;
   animate: boolean;
@@ -220,13 +225,21 @@ export function drawnStreams(
     label,
     seriesName,
     other,
-  }: Pick<TimeContext, 'spec' | 'label' | 'seriesName' | 'other'>,
+    toneOf,
+  }: Pick<TimeContext, 'spec' | 'label' | 'seriesName' | 'other' | 'toneOf'>,
 ): DrawnStream[] {
   const split = spec?.themeRiver?.splitBy;
+  const tones = heldTones(
+    data.streams.map(stream =>
+      stream.other ? undefined : toneOf?.(split, stream.value),
+    ),
+  );
   return data.streams.map((stream, index) => ({
     key: stream.key,
     name: stream.other ? other : (seriesName ?? label)(split, stream.value),
-    color: stream.other ? OTHER_COLOR : colorOf(spec, index, stream.key),
+    color: stream.other
+      ? OTHER_COLOR
+      : (pinnedColor(spec, stream.key) ?? tones[index] ?? color(index)),
     other: stream.other === true,
   }));
 }

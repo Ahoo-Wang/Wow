@@ -128,6 +128,13 @@ export interface RecordTableController {
   /** True while a query is in flight and rows are still the previous ones. */
   loading: boolean;
   /**
+   * The query failed, and the rows still on screen were fetched under other
+   * conditions than the ones it asked (`ViewQueryState.conditionsChanged`):
+   * the rows of the old conditions, not merely older rows. Left out — a
+   * controller a host builds itself — it is `false`.
+   */
+  conditionsChanged?: boolean;
+  /**
    * Whether a result ever came back for this view — the last one that did,
    * however old it is by now.
    *
@@ -527,6 +534,7 @@ export function useRecordTable(
     status: state?.query.status ?? 'idle',
     error: state?.query.error ?? null,
     loading: state?.query.status === 'loading',
+    conditionsChanged: state?.query.conditionsChanged === true,
     hasResult: hasResult(state),
     filterRequired: (state?.issues ?? []).some(
       found => found.code === 'record.filter.required',

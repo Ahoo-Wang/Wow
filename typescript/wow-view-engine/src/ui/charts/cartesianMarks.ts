@@ -374,8 +374,48 @@ export function extremeMarks(
   fill: string,
   theme: ChartTheme,
 ): object {
+  const points = extremePoints(plan, entry, false);
+  if (!points) return {};
+  // Where the bar's or the point's own label says it, the word is the mark:
+  // a dot there sat on the label's first glyph.
+  const carried = carriedExtremes(plan, entry) !== undefined;
+  return {
+    markPoint: {
+      symbol: 'circle',
+      symbolSize: carried ? 0 : EXTREME_DOT,
+      silent: true,
+      animation: false,
+      itemStyle: { color: fill, borderColor: theme.ground, borderWidth: 2 },
+      label: {
+        show: true,
+        color: theme.foreground,
+        fontSize: theme.text.labelSize,
+        distance: 6,
+        textBorderColor: theme.ground,
+        textBorderWidth: 2,
+        // Where the series writes every value, its own labels say these two
+        // (`carriedExtremes`); `cartesianFit` shows these again where the
+        // size writes none.
+        ...(carried ? { show: false } : {}),
+      },
+      data: points,
+    },
+  };
+}
+
+/**
+ * The highest and the lowest point's marks, each with its word. `upright`
+ * turns a bar's word to run from the bar's end along it, as a value label
+ * too wide for its bar is turned (`cartesianFit`): flat, 「最低 ¥1,940」 over
+ * a short bar was wider than the bar and ran over the taller bars beside it.
+ */
+export function extremePoints(
+  plan: CartesianPlan,
+  entry: DrawnSeries,
+  upright: boolean,
+): object[] | undefined {
   const found = plan.extremesOf(entry);
-  if (!found) return {};
+  if (!found) return undefined;
   const { horizontal, context, data } = plan;
   const words = context.words;
   const count = data.points.length;
@@ -400,6 +440,7 @@ export function extremeMarks(
     const value = plan.drawnAt(entry, index) ?? 0;
     const text = context.label(entry.metric, value, true);
     const far = beyond(value, high);
+    const turned = upright && bar && !horizontal;
     return {
       coord: horizontal ? [value, index] : [index, value],
       value,
@@ -412,38 +453,31 @@ export function extremeMarks(
             ? 'top'
             : 'bottom',
         formatter: word === undefined ? text : `${word} ${text}`,
-        ...(align(index) ? { align: align(index) } : {}),
+        // Spelled out either way — flat, as the library places a word at
+        // that position — since a resize merges one over the other.
+        ...(turned
+          ? {
+              rotate: 90,
+              // Read upward from over the bar's end, downward from under it.
+              align: far ? 'left' : 'right',
+              verticalAlign: 'middle',
+            }
+          : {
+              rotate: 0,
+              align: horizontal
+                ? far
+                  ? 'left'
+                  : 'right'
+                : (align(index) ?? 'center'),
+              verticalAlign: horizontal ? 'middle' : far ? 'bottom' : 'top',
+            }),
       },
     };
   };
-  // Where the bar's or the point's own label says it, the word is the mark:
-  // a dot there sat on the label's first glyph.
-  const carried = carriedExtremes(plan, entry) !== undefined;
-  return {
-    markPoint: {
-      symbol: 'circle',
-      symbolSize: carried ? 0 : EXTREME_DOT,
-      silent: true,
-      animation: false,
-      itemStyle: { color: fill, borderColor: theme.ground, borderWidth: 2 },
-      label: {
-        show: true,
-        color: theme.foreground,
-        fontSize: theme.text.labelSize,
-        distance: 6,
-        textBorderColor: theme.ground,
-        textBorderWidth: 2,
-        // Where the series writes every value, its own labels say these two
-        // (`carriedExtremes`); `cartesianFit` shows these again where the
-        // size writes none.
-        ...(carried ? { show: false } : {}),
-      },
-      data: [
-        point(found.high, words?.high, true),
-        point(found.low, words?.low, false),
-      ],
-    },
-  };
+  return [
+    point(found.high, words?.high, true),
+    point(found.low, words?.low, false),
+  ];
 }
 
 /** The dot on the highest and the lowest point, in pixels. */

@@ -18,6 +18,7 @@ import type { CartesianPlan, DrawnSeries } from './cartesianPlan.js';
 import {
   EXTREME_DOT,
   carriedTexts,
+  extremePoints,
   extremeWords,
   referenceCaptions,
 } from './cartesianMarks.js';
@@ -269,9 +270,21 @@ export function cartesianFit(
         return texts;
       })
     : [];
+  // A long row of stacks writes its highest and lowest total; zoomed to
+  // fewer, every total on screen, as the single bars do.
+  const zoomedTotals = everyBar
+    ? plan.totals
+        .filter(total => total.peaksOnly)
+        .flatMap(total => total.every.slice(first, first + shown))
+    : [];
   // The words the highest and lowest points' own labels carry.
   const carried = carriedTexts(plan);
-  const outerTexts = [...plan.outerTexts, ...carried, ...zoomedTexts];
+  const outerTexts = [
+    ...plan.outerTexts,
+    ...carried,
+    ...zoomedTexts,
+    ...zoomedTotals,
+  ];
   const widestOuter = Math.max(0, ...outerTexts.map(labelWidth));
 
   // The plot, as near as the axes' text lets it be said before drawing: the
@@ -351,6 +364,30 @@ export function cartesianFit(
       : size >= LABEL_LINE + 2 && thickness >= words + 2;
   };
 
+  // A bar's highest and lowest word, where its mark writes it: turned to
+  // run along the bar where the widest of them is wider than a bar's room,
+  // as a value label is — flat, 「最低 ¥1,940」 over a short bar ran over the
+  // taller bars on either side (the pre-release review). All or none, per
+  // chart, and the plot's head keeps the length of the turned word.
+  // Whether a bar's mark writes its word, rather than the bar's own label
+  // (`carriedExtremes`, or every bar's number zoomed in).
+  const markSpeaks = (entry: DrawnSeries) =>
+    entry.kind === 'bar' &&
+    plan.extremesOf(entry) !== undefined &&
+    (!plan.labelled(entry) ||
+      outer === 'none' ||
+      (plan.peaksOnly(entry) && !everyBar));
+  const markTexts = horizontal
+    ? []
+    : series
+        .filter(markSpeaks)
+        .flatMap(entry => [...(extremeWords(plan, entry)?.values() ?? [])]);
+  const widestMark = Math.max(0, ...markTexts.map(labelWidth));
+  // A word wider than a bar's room turns to run along its bar. A bar
+  // narrower than one line of type still turns it, and is not left blank as
+  // a value label is: the highest and the lowest are the two things a long
+  // row still says, so they are written, over a neighbour if need be.
+  const marksUpright = markTexts.length > 0 && widestMark + 2 > room;
   // Whether the highest and lowest point's mark writes its word: where the
   // series' own labels do not (`carriedExtremes`) — spelled out either way,
   // since a resize merges this over the last one (second review R2-P1-8).
@@ -361,11 +398,21 @@ export function cartesianFit(
           markPoint: {
             symbolSize: labelsShown ? 0 : EXTREME_DOT,
             label: { show: !labelsShown },
+            ...(entry.kind === 'bar'
+              ? {
+                  data: extremePoints(
+                    plan,
+                    entry,
+                    marksUpright && !labelsShown,
+                  ),
+                }
+              : {}),
           },
         };
+
   const patches = [
     ...series.map(entry => {
-      if (!plan.labelled(entry)) return {};
+      if (!plan.labelled(entry)) return marksSay(entry, false);
       if (entry.kind !== 'bar') {
         const shown = lineFit(entry);
         return { label: { show: shown }, ...marksSay(entry, shown) };
@@ -403,7 +450,16 @@ export function cartesianFit(
         },
       };
     }),
-    ...plan.totals.map(() => ({ label: outerPatch })),
+    ...plan.totals.map(total => {
+      const texts = total.peaksOnly && everyBar ? total.every : total.texts;
+      return {
+        label: {
+          ...outerPatch,
+          formatter: ({ dataIndex }: { dataIndex: number }) =>
+            texts[dataIndex] ?? '',
+        },
+      };
+    }),
     ...captions.series,
   ];
   const wrote = outer !== 'none' && outerTexts.some(text => text !== '');
@@ -443,13 +499,15 @@ export function cartesianFit(
           grid: {
             // A line of text over the tallest mark for a value label or the
             // highest point's word, as the option keeps before the fit.
-            top:
+            top: Math.max(
               wrote && outer === 'upright'
                 ? Math.ceil(widestOuter) + LABEL_DISTANCE + 8
                 : wrote ||
                     series.some(entry => plan.extremesOf(entry) !== undefined)
                   ? 24
                   : 16,
+              marksUpright ? Math.ceil(widestMark) + LABEL_DISTANCE + 8 : 0,
+            ),
             right: captions.right,
           },
         }),

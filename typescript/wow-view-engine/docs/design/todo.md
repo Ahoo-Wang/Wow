@@ -38,35 +38,6 @@ npm 首发（`9.2.0-rc.0`）之前按下面的顺序做，同时只做一件。�
 
 走查记录与逐条符合性表在文档站「视图引擎的可访问性」（`documentation/docs/{zh,en}/guide/typescript/view-engine-accessibility.md`）。真人读屏走查已推迟到首发后（[D73](decisions.md#d73-真人读屏走查与多浏览器视觉回归放到首发之后2026-09-29)）：首发前由用户用 VoiceOver 抽查记录工作台与分析编辑区的撤销提示，声明写明读屏软件实测待做。
 
-#### 界面与图表
-
-- **查询失败时仍显示上一次的结果**：条件改了而新查询失败，表格留着旧条件的行。
-  - 为什么：刷新失败时保留旧行是对的；条件变了时，要让人看出眼前是旧条件的结果。
-  - 判据：逐个筛选模式在真浏览器里改条件后让查询失败，界面说清「显示的是改之前的结果」或不再显示旧行。
-  - 落点：`src/react/useRecordTable.ts`、`src/ui/record/`。
-- **对话框与弹层的函数式 `finalFocus`**：#3547 修了下拉菜单关闭时抢回已移走的焦点（Base UI 1.8 在 `finalFocus` 是函数时不看焦点是否已离开）；对话框、弹层也传函数时可能是同一个竞态。
-  - 判据：逐个查过，同样处理或说明不受影响，并有一个回归故事。
-  - 落点：`src/ui/kit/popups.tsx`、`src/ui/kit/ExportDialog.tsx`、`src/ui/record/RecordDetail.tsx`。
-- **图上的字还有两处压盖**：长柱上「最低 …」比柱子宽时压到两旁柱身；多段堆叠柱多时栈顶合计仍每根都写。
-  - 判据：各自定下做法并落地（如也只标峰谷），或写进 decisions 不做。
-  - 落点：`src/ui/charts/cartesianMarks.ts`、`src/analysis/chartFamilies.ts`。
-- **直角坐标图的拆分系列读选项的 `tone`**：饼已按语气取色（[ui/analysis.md](ui/analysis.md)「饼的类别穿选项的语气」），按带语气的枚举拆开的柱与线仍按次序取色位。
-  - 为什么：同一个状态在饼上是红的、在柱上是某个色位，读者要重新对一遍图例。
-  - 判据：按带 `tone` 的枚举拆分时系列颜色与徽标同语气，同语气的两条取色位。
-  - 落点：`src/ui/charts/cartesianPlan.ts`、`src/ui/charts/timeOption.ts`（`toneColor`）。
-- **分析视图的时间轴只补首尾之间的洞**：走势卡已补到自己的窗口（`cardWindow`，D39），柱、线、面积与热力图仍只补回来的首尾两桶之间——「近 30 天」前五天没有记录时，轴从第六天开始。
-  - 判据：条件在时间轴字段上钉住窗口、且结果完整（`absenceReader` 能担保）时，这几种图补到窗口两端，可加的指标补 0 并标 `filled`；拆分与热力图按组合补。
-  - 落点：`src/analysis/cartesian.ts`、`src/analysis/chart.ts`，[kernels.md](kernels.md)。
-- **场景描述里的手写数字**：如运营日报的「约 82%」「11 张」，数据一变就说错。
-  - 判据：照 `retail/guide.ts` 的做法从数据读出，或删掉数字。
-  - 落点：`typescript/storybook/stories/view-engine/` 各场景的 docs 描述。
-- **只读的板不挂拖动的触摸监听**：react-grid-layout 在拖动与缩放都关着时仍给每块面板挂两个非 passive 的 `touchstart`，触屏上从面板开始的滚动要等主线程。
-  - 判据：读板时面板上没有 `touchstart`／`touchmove` 监听，摆放逐像素不变，进出搭建不重挂面板；截图基线不变。
-  - 落点：`src/ui/dashboard/DashboardGrid.tsx`、[ui/dashboard.md](ui/dashboard.md)。
-- **网格第一帧比容器宽**：改变窗口尺寸或从板子「返回」重新挂载时，网格短暂比容器宽、随即恢复。
-  - 判据：复现并修掉，或确认复现不了后删掉这一条。
-  - 落点：`src/ui/dashboard/DashboardGrid.tsx`。
-
 ## 首发后再议
 
 用户已定推迟到首发之后；排进某个版本时各自成为带判据的条目。

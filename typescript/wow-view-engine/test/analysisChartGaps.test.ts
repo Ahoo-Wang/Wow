@@ -538,3 +538,170 @@ describe('shapeChart', () => {
     });
   });
 });
+
+/**
+ * A chart's time axis runs out to the window its conditions pin, as a trend
+ * card's sparkline does (D39): 「近 7 天」 with records on one day alone is
+ * seven days on the axis, the six quiet ones filled — not an axis of one day
+ * (the pre-release review's 「分析视图的时间轴只补首尾之间的洞」).
+ */
+describe('a time axis over its own window', () => {
+  const day = (n: number) => Date.UTC(2026, 8, n);
+  const DAY: AnalysisGroup = {
+    type: 'DATE_HISTOGRAM',
+    field: 'createdAt',
+    alias: 'day',
+    unit: 'DAY',
+    timeZone: 'UTC',
+  };
+  const STATUS: AnalysisGroup = {
+    type: 'TERMS',
+    field: 'status',
+    alias: 'status',
+  };
+  const lastWeek: AnalysisViewConfig['filter'] = {
+    op: 'and',
+    children: [
+      {
+        field: 'createdAt',
+        operator: 'BETWEEN',
+        value: { type: 'relative', amount: 7, unit: 'day' },
+      } as never,
+    ],
+  };
+  // Asked a moment into the 23rd: the window is the 17th to the 23rd.
+  const ASKED = { timeZone: 'UTC', now: new Date(Date.UTC(2026, 8, 23, 0, 5)) };
+  const WEEK = [17, 18, 19, 20, 21, 22, 23].map(day);
+
+  const bars = (
+    metrics: AnalysisMetric[] = [METRICS.orders, METRICS.average],
+    patch: Partial<AnalysisViewConfig> = {},
+  ): AnalysisViewConfig => ({
+    ...config(
+      {
+        type: 'bar',
+        cartesian: {
+          x: 'day',
+          series: metrics.map(metric => ({ metric: metric.alias })),
+        },
+      },
+      [DAY],
+      metrics,
+    ),
+    filter: lastWeek,
+    ...patch,
+  });
+  const ONE_DAY: RecordData[] = [{ day: day(21), orders: 4, average: 25 }];
+
+  it('fills the axis to both ends: 0 for what adds, filled; nothing for the rest', () => {
+    const data = shapeChart(bars(), ONE_DAY, undefined, ASKED) as CartesianData;
+    expect(data.points.map(point => point.x)).toEqual(WEEK);
+    expect(data.points.map(point => point.values.orders)).toEqual([
+      0, 0, 0, 0, 4, 0, 0,
+    ]);
+    expect(data.points.map(point => point.values.average)).toEqual([
+      null,
+      null,
+      null,
+      null,
+      25,
+      null,
+      null,
+    ]);
+    expect(data.points.filter(point => point.filled)).toHaveLength(6);
+    expect(data.points[0].filled).toEqual(['orders']);
+  });
+
+  it('fills a split one combination at a time', () => {
+    const split: AnalysisViewConfig = {
+      ...config(
+        {
+          type: 'bar',
+          cartesian: {
+            x: 'day',
+            splitBy: 'status',
+            series: [{ metric: 'orders' }],
+          },
+        },
+        [DAY, STATUS],
+      ),
+      filter: lastWeek,
+    };
+    const data = shapeChart(
+      split,
+      [
+        { day: day(20), status: 'open', orders: 2 },
+        { day: day(22), status: 'shipped', orders: 1 },
+      ],
+      undefined,
+      ASKED,
+    ) as CartesianData;
+    expect(data.points.map(point => point.x)).toEqual(WEEK);
+    expect(data.points[0].values).toEqual({ open: 0, shipped: 0 });
+    expect(data.points[0].filled).toEqual(['open', 'shipped']);
+  });
+
+  it('runs a heatmap’s time rows to the window, their cells empty', () => {
+    const matrix = shapeChart(
+      {
+        ...config(
+          { type: 'heatmap', heatmap: { x: 'wh', y: 'day', value: 'orders' } },
+          [GROUPS.wh, DAY],
+        ),
+        filter: lastWeek,
+      },
+      [{ wh: 'SH', day: day(21), orders: 3 }],
+      undefined,
+      ASKED,
+    ) as HeatmapData;
+    expect(matrix.ys).toEqual(WEEK);
+    expect(matrix.cells).toEqual([
+      [null],
+      [null],
+      [null],
+      [null],
+      [3],
+      [null],
+      [null],
+    ]);
+  });
+
+  it('stays between the buckets that came back where the result may be cut', () => {
+    const between = (data: ChartData | undefined) =>
+      (data as CartesianData).points.map(point => point.x);
+    // A limit reached may have cut buckets off an end.
+    expect(
+      between(
+        shapeChart(bars(undefined, { limit: 1 }), ONE_DAY, undefined, ASKED),
+      ),
+    ).toEqual([day(21)]);
+    // 「只保留」 dropped buckets by their numbers.
+    expect(
+      between(
+        shapeChart(
+          bars(undefined, {
+            having: {
+              op: 'and',
+              children: [{ metric: 'orders', operator: 'GT', value: 0 }],
+            } as never,
+          }),
+          ONE_DAY,
+          undefined,
+          ASKED,
+        ),
+      ),
+    ).toEqual([day(21)]);
+    // No moment to read 「近 7 天」 at, or no window on the axis's field.
+    expect(between(shapeChart(bars(), ONE_DAY))).toEqual([day(21)]);
+    expect(
+      between(
+        shapeChart(
+          bars(undefined, { filter: { op: 'and', children: [] } }),
+          ONE_DAY,
+          undefined,
+          ASKED,
+        ),
+      ),
+    ).toEqual([day(21)]);
+  });
+});

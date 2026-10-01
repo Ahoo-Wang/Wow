@@ -18,8 +18,52 @@ import type {
   Issue,
   IssuePath,
 } from '../model/index.js';
+import { dequal } from 'dequal';
 import { isFilterGroup, issue } from '../filter/index.js';
-import { isForbiddenFailure, type SourceFailure } from './sourceReason.js';
+import { RequestQueueFullError } from './requestRunner.js';
+import {
+  isForbiddenFailure,
+  sourceFailure,
+  type SourceFailure,
+} from './sourceReason.js';
+import type { ViewQueryState } from './viewRuntimeTypes.js';
+
+/**
+ * The Issue a failed execution reports: a request the queue turned away,
+ * or what the source said (`queryFailureIssue`), read against the view's
+ * own filter.
+ */
+export async function failedExecutionIssue(
+  error: unknown,
+  definition: DataViewDefinition,
+  filter: FilterTree | undefined,
+): Promise<Issue> {
+  if (error instanceof RequestQueueFullError)
+    return issue('runtime.query.queue-full', []);
+  return queryFailureIssue(await sourceFailure(error), definition, filter);
+}
+
+/**
+ * The query state a failure leaves. The rows it keeps on screen answer the
+ * conditions they were asked under (`kept`, the result on screen); when those are not the ones
+ * that just failed (`asked`), the screen has to say so
+ * (`ViewQueryState.conditionsChanged`). Scope included, so a board's filter
+ * counts.
+ */
+export function failedQuery(
+  error: Issue,
+  requestId: string,
+  kept: { config: { filter?: FilterTree } } | null | undefined,
+  asked: { filter?: FilterTree },
+): ViewQueryState {
+  const changed = kept != null && !dequal(kept.config.filter, asked.filter);
+  return {
+    status: 'error',
+    error,
+    requestId,
+    ...(changed ? { conditionsChanged: true as const } : {}),
+  };
+}
 
 /**
  * The Issue a failed query shows, from what the source said.

@@ -39,7 +39,7 @@ import {
   useViewMessages,
   type MessageFormatters,
 } from '../kit/MessagesProvider.js';
-import { drawsHorizontal } from '../charts/cartesianPlan.js';
+import { drawsHorizontal, stackPeaksFound } from '../charts/cartesianPlan.js';
 import { logScaleFits } from '../../analysis/logScale.js';
 import { Field, FieldDescription } from '../components/field.js';
 import { WaterfallDisplay } from './CompositionOptions.js';
@@ -101,9 +101,13 @@ export function DisplayTab(props: OptionsPageProps) {
  * while only two bars had a number, and every number took an untick and a
  * tick.
  *
+ * Stacked bars are the same choice over their totals: each part is written
+ * inside its segment, and past `PEAKS_ONLY_FROM` stacks only the highest and
+ * the lowest total over its stack (`CartesianPlan.totals`).
+ *
  * Anywhere else the automatic choice is one of the other two whatever the
  * rows — a line and an area write none; a heatmap (where its cells hold
- * them), a waterfall, bars lying on their side and stacked bars write
+ * them), a waterfall, bars lying on their side and a 100% stack write
  * every one — so a third button would
  * repeat one of them: two choices, each written as the value it names. A
  * pie always writes each slice's share, and the choice is whether its value
@@ -142,8 +146,14 @@ function ValueLabelsField({
   const marks = chartMarks(chart);
   const stackable =
     spec?.series.filter(series => stacks(chart.type, series)) ?? [];
-  // Whether the bars may write only their peak and trough: upright, and
-  // standing on their own rather than in a stack of more than one.
+  // In a stack of more than one, a bar writes its part inside itself and
+  // the stack its total over it; a 100% stack has no total to write.
+  const inStacks =
+    spec !== undefined &&
+    isStacked(spec, chart.type) &&
+    (stackable.length > 1 || spec.splitBy !== undefined);
+  // Whether the bars — or the stacks' totals — may write only their peak
+  // and trough: upright, and with a number over each bar or stack to thin.
   const peaks =
     spec !== undefined &&
     CHART_FAMILY[chart.type] === 'cartesian' &&
@@ -153,10 +163,7 @@ function ValueLabelsField({
       rows.map(row => label(spec.x, row[spec.x])),
       shape.dated?.has(spec.x) === true,
     ) &&
-    !(
-      isStacked(spec, chart.type) &&
-      (stackable.length > 1 || spec.splitBy !== undefined)
-    );
+    !(inStacks && isPercentStacked(spec, chart.type));
   if (!peaks)
     return (
       <ChoiceField
@@ -175,11 +182,22 @@ function ValueLabelsField({
   // What 「自动」 does here: the bars on screen, and whether they are past
   // the count — found by the kernel only where they are.
   const count = data?.type === 'cartesian' ? data.points.length : rows.length;
+  // Over stacks, a highest and a lowest total told apart (`stackPeaksFound`).
   const found =
-    data?.type !== 'cartesian' || Object.keys(data.extremes ?? {}).length > 0;
+    data?.type !== 'cartesian' ||
+    (inStacks
+      ? stackPeaksFound(data, chart)
+      : Object.keys(data.extremes ?? {}).length > 0);
   const lines = marks.some(mark => mark !== 'bar') ? '.lines' : '';
-  const hint =
-    peaksOnlyLabels({ ...chart, labels: undefined }, count) && found
+  const thinned =
+    peaksOnlyLabels({ ...chart, labels: undefined }, count) && found;
+  const hint = inStacks
+    ? thinned
+      ? messages.label(`label.chart.labels.auto.totals${lines}`, { count })
+      : messages.label(`label.chart.labels.auto.stacks${lines}`, {
+          from: PEAKS_ONLY_FROM,
+        })
+    : thinned
       ? messages.label(`label.chart.labels.auto.peaks${lines}`, { count })
       : messages.label(`label.chart.labels.auto.bars${lines}`, {
           from: PEAKS_ONLY_FROM,
