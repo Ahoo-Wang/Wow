@@ -88,15 +88,12 @@ class ElasticsearchIndexMappingResolver(
         Mono.defer { elasticsearchClient.indices().getMapping(GetMappingRequest.of { it.index(indexName) }) },
         Mono.defer { elasticsearchClient.indices().getSettings(maxResultWindowRequest(indexName)) },
     ).map { responses ->
-        val response = responses.t1
-        require(response.mappings().size == 1) {
-            "Elasticsearch index [$indexName] must resolve to exactly one physical index, " +
-                "but resolved to ${response.mappings().keys}."
-        }
-        ElasticsearchIndexMapping.from(
+        val maxResultWindow = responses.t2.maxResultWindow()
+        ElasticsearchIndexMapping.common(
             indexName,
-            response.mappings().values.single().mappings(),
-            maxResultWindow = responses.t2.maxResultWindow(),
+            responses.t1.mappings().mapValues { (_, record) ->
+                ElasticsearchIndexMapping.from(indexName, record.mappings(), maxResultWindow = maxResultWindow)
+            },
         )
     }
 
@@ -217,6 +214,32 @@ data class ElasticsearchIndexMapping private constructor(
     }
 
     companion object {
+        /**
+         * The mapping of a name that resolves to several physical indices (an alias over rollover indices, a data
+         * stream): the fields every index maps the same way. A field one index lacks or maps otherwise is left out,
+         * so no query sorts, filters or groups on a field some of the indices cannot serve the same way; it becomes
+         * queryable once every index behind the name maps it alike. The indices must agree on `_source`, which
+         * decides what a projection returns; otherwise the name fails closed.
+         */
+        internal fun common(
+            indexName: String,
+            mappings: Map<String, ElasticsearchIndexMapping>,
+        ): ElasticsearchIndexMapping {
+            require(mappings.isNotEmpty()) { "Elasticsearch index [$indexName] resolved to no physical index." }
+            val first = mappings.values.first()
+            if (mappings.size == 1) return first
+            val sources = mappings.mapValues { (_, mapping) ->
+                Triple(mapping.sourceEnabled, mapping.sourceIncludes, mapping.sourceExcludes)
+            }
+            require(sources.values.distinct().size == 1) {
+                "Elasticsearch index [$indexName] resolves to physical indices whose _source settings differ: $sources."
+            }
+            val fields = first.fields.filter { (path, field) ->
+                mappings.values.all { it.fields[path]?.mapsAlike(field) == true }
+            }
+            return first.copy(fields = fields)
+        }
+
         @Suppress(
             "CyclomaticComplexMethod"
         ) // One mapping walk carries ancestor facts into properties, multifields and aliases.
@@ -303,7 +326,11 @@ internal data class ElasticsearchMappedField(
     val nullValue: JsonData? = null,
     val normalizer: String? = null,
     val enabled: Boolean = true,
-)
+) {
+    /** The same mapping in another index; [JsonData] has no value equality, so [nullValue] compares by its text. */
+    fun mapsAlike(other: ElasticsearchMappedField): Boolean =
+        copy(nullValue = null) == other.copy(nullValue = null) && nullValue?.toString() == other.nullValue?.toString()
+}
 
 private fun RuntimeFieldType.toMappedField(physicalPath: String): ElasticsearchMappedField? {
     val kind = when (this) {

@@ -45,6 +45,8 @@ import me.ahoo.wow.query.schema.QuerySchemaValidationException
 import me.ahoo.wow.query.schema.QueryValueSchema
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import java.time.ZoneId
+import java.time.ZoneOffset
 import java.util.concurrent.TimeUnit
 
 @Suppress("LargeClass")
@@ -169,6 +171,80 @@ class ElasticsearchAggregationCompilerTest {
         requireNotNull(script.source()).scriptString().assert().contains("doc.containsKey").contains("size() == 1")
             .contains("Double.isFinite").contains("Long.MAX_VALUE")
         compiler.compile(aggregation { count("count") }, schema).runtimeMappings.assert().isEmpty()
+    }
+
+    /**
+     * A single-valued epoch in milliseconds stored as an integral number, grouped in UTC, groups on the field itself:
+     * `date_histogram` reads it as epoch milliseconds, so no script runs per document, and it sends no `time_zone`,
+     * which a numeric field refuses. Another zone, an array or a nested element keeps the runtime date field (a
+     * floating-point field is not admitted for an epoch at all).
+     */
+    @Test
+    fun `epoch millis on an integral field groups natively in UTC while other epochs keep the runtime date`() {
+        val millis = QueryValueSchema(
+            QueryValueKind.SCALAR,
+            valueTypes = setOf(QueryValueType.INTEGER),
+            semanticType = Temporal.Epoch(TimeUnit.MILLISECONDS),
+        )
+        val bound = ElasticsearchQuerySchemaAdapter.bind(
+            LogicalQuerySchema(
+                obj(
+                    mapOf(
+                        "deleted" to QueryValueSchema(QueryValueKind.SCALAR, valueTypes = setOf(QueryValueType.BOOLEAN)),
+                        "createdAt" to millis,
+                        "seenAt" to array(millis),
+                        "orders" to array(obj(mapOf("createdAt" to millis))),
+                    )
+                )
+            ),
+            ElasticsearchIndexMapping.from(
+                "test",
+                TypeMapping.of {
+                    it.properties("deleted") { it.boolean_ { it } }
+                        .properties("createdAt") { it.long_ { it } }
+                        .properties("seenAt") { it.long_ { it } }
+                        .properties("orders") {
+                            it.nested { orders -> orders.properties("createdAt") { it.long_ { it } } }
+                        }
+                }
+            ),
+        )
+        fun daily(field: String, zone: ZoneId = ZoneOffset.UTC) = compiler.compile(
+            aggregation {
+                dateHistogram(field, AggregationDateUnit.DAY, "day", zone)
+                count("count")
+            },
+            bound,
+        )
+        listOf(ZoneOffset.UTC, ZoneId.of("UTC"), ZoneId.of("Etc/UTC")).forEach { zone ->
+            val native = daily("createdAt", zone)
+            native.groupSources.single().value().dateHistogram().apply {
+                field().assert().isEqualTo("createdAt")
+                timeZone().assert().isNull()
+            }
+            native.runtimeMappings.assert().isEmpty()
+        }
+
+        val zoned = daily("createdAt", ZoneId.of("Asia/Shanghai"))
+        zoned.groupSources.single().value().dateHistogram().apply {
+            field().assert().isEqualTo("__wow_date_histogram_0")
+            timeZone().assert().isEqualTo("Asia/Shanghai")
+        }
+
+        val array = daily("seenAt")
+        array.groupSources.single().value().dateHistogram().field().assert().isEqualTo("__wow_date_histogram_0")
+        array.runtimeMappings.keys.assert().containsExactly("__wow_date_histogram_0")
+
+        val nested = compiler.compile(
+            aggregation {
+                expand("orders")
+                dateHistogram("createdAt", AggregationDateUnit.DAY, "day")
+                count("count")
+            },
+            bound,
+        )
+        nested.groupSources.single().value().dateHistogram().field().assert().isEqualTo("__wow_date_histogram_0")
+        nested.runtimeMappings.keys.assert().containsExactly("__wow_date_histogram_0")
     }
 
     @Test

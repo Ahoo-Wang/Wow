@@ -85,7 +85,7 @@ Wow 在聚合首次写入时创建它的索引，所以新聚合在此之前没�
 
 ## 重新校验运行时查询 Schema
 
-mapping 变化后，运行时 schema 必须重新解析。每个实例按 `wow.query.schema.revalidate-interval` 定期重新校验查询 schema；需要立即生效时，在每个实例上调用 `wowQuerySchema` actuator 端点。重新校验只更新内存 schema，不回填历史文档或修改 mapping。
+mapping 变化后，运行时 schema 必须重新解析。每个实例按 `wow.query.schema.revalidate-interval`（默认 5 分钟）定期重新校验查询 schema，所以动态 mapping 给已有索引新增的字段、alias 背后新加入的索引，最长要这么久才能查询；需要立即生效时，在每个实例上调用 `wowQuerySchema` actuator 端点。重新校验只更新内存 schema，不回填历史文档或修改 mapping。
 
 ## 配置事件流索引模板
 
@@ -151,6 +151,15 @@ Wow 不会修改已有索引的 mapping。要让索引获得新定义或新模�
 
 Wow aggregation AST 编译为 Elasticsearch aggregation。嵌套元素、数值/时间类型与缺失值语义由公共合同和 mapping 共同决定；使用真实后端 TCK/集成测试验证。
 
+多数分组和指标直接在映射字段上执行。以下几类改为执行 Painless 脚本：
+
+- 逐文档执行（请求内的 runtime field）：`DATE_PART` 分组；以 `DATE_DIFF` 或算术表达式为输入的分组、指标和指标过滤；以及 epoch 字段上的 `DATE_HISTOGRAM`。例外是以毫秒存储、单值、映射为 `long`（或其他整数类型）且按 UTC 分组的字段。数值字段不接受 `time_zone`，所以 epoch 毫秒字段按其他时区分组时同样执行脚本；
+- 逐桶执行：派生指标的 `bucket_script`，开销远小于逐文档脚本。
+
+限制内联脚本的集群（`script.allowed_types`、`script.allowed_contexts`）会拒绝这些聚合；设置 `search.allow_expensive_queries: false` 时，runtime field 上的过滤也会被拒绝。把字段映射为原生类型（例如 epoch 毫秒映射为 `long`），其聚合就不需要脚本。
+
+去重计数（`cardinality`）在每个桶 40000 个不同值以内是精确的（`precision_threshold`，Elasticsearch 的上限），超过后为估算值，schema 在 `approximateMetrics` 中声明这一点。每个桶在阈值内约为每个不同值占用 8 字节。
+
 ## 索引设计建议
 
 从查询、写入、保留和恢复目标设计索引，不要为每个状态字段默认增加 text/keyword 双映射。
@@ -177,6 +186,8 @@ batch options 必须满足 `max-size>1`、正 `max-delay`、pending 不小于 ba
 
 偏移分页要读 `from + size` 条记录，Elasticsearch 以索引的 `index.max_result_window`（索引未设置时为 10000）为上限。`page × size` 超过它的分页查询在检索前就被拒绝，报 `pagination` 上的 `SIZE_OUT_OF_RANGE`（HTTP 400）；更深的数据请用游标查询。
 
+查询 schema 以 `limits.maxPageWindow` 报告这个上限：取查询预算的窗口与索引 `index.max_result_window` 中较小的一个。预算窗口为 0 表示预算本身不设上限，索引的上限仍然生效。
+
 ## 故障排查
 
 已验证失败包括 template 请求失败/空/未确认、非法 query/batch 参数、bulk item error、旧快照版本保护和 mapping/schema 冲突。
@@ -195,7 +206,7 @@ batch options 必须满足 `max-size>1`、正 `max-delay`、pending 不小于 ba
 
 #### 3. alias 或 data stream 无法解析
 
-当前 converter 生成具体索引名。若平台改为 alias/data stream，必须提供与读取、写入、mapping resolver 一致的迁移设计。
+当前 converter 生成具体索引名，写入也落在这些索引上。名称解析到多个索引时（rollover 索引上的 alias、data stream），查询只能使用其后每个索引都以相同方式映射的字段；某个索引缺少或映射不同的字段，在所有索引映射一致之前保持不可查询。`_source` 设置不一致的索引按失败处理。若把写入改为 alias/data stream，仍须提供与读取、写入、mapping resolver 一致的迁移设计。
 
 #### 4. 更新索引模板并重新校验后，历史数据仍无法查询
 

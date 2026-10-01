@@ -241,23 +241,53 @@ class ElasticsearchIndexMappingResolverTest {
         verify(exactly = 1) { indicesClient.getMapping(any<GetMappingRequest>()) }
     }
 
+    /**
+     * An alias over rollover indices, or a data stream: the fields every index maps alike are queryable; one that a
+     * newer index added, or that two indices map differently, is left out until every index maps it the same way.
+     */
     @Test
-    fun `multiple physical indices should fail closed`() {
+    fun `several physical indices share the fields they map alike`() {
+        val older = TypeMapping.of { type ->
+            type.properties("name") { it.keyword { keyword -> keyword } }
+                .properties("token") { it.keyword { keyword -> keyword.nullValue("NULL") } }
+                .properties("amount") { it.long_ { long -> long } }
+        }
+        val newer = TypeMapping.of { type ->
+            type.properties("name") { it.keyword { keyword -> keyword } }
+                .properties("token") { it.keyword { keyword -> keyword.nullValue("NULL") } }
+                .properties("amount") { it.double_ { double -> double } }
+                .properties("added") { it.keyword { keyword -> keyword } }
+        }
         every { indicesClient.getMapping(any<GetMappingRequest>()) } returns Mono.just(
             GetMappingResponse.of { response ->
-                response.mappings(
-                    "$INDEX-000001",
-                    IndexMappingRecord.of { record -> record.mappings(mapping("name")) },
-                ).mappings(
-                    "$INDEX-000002",
-                    IndexMappingRecord.of { record -> record.mappings(mapping("name")) },
-                )
+                response.mappings("$INDEX-000001", IndexMappingRecord.of { it.mappings(older) })
+                    .mappings("$INDEX-000002", IndexMappingRecord.of { it.mappings(newer) })
+            },
+        )
+
+        ElasticsearchIndexMappingResolver(client).currentOrLoad(INDEX).test()
+            .consumeNextWith { mapping ->
+                mapping.indexName.assert().isEqualTo(INDEX)
+                mapping.fields.keys.assert().containsExactlyInAnyOrder("name", "token")
+                mapping.provisional.assert().isFalse()
+            }.verifyComplete()
+    }
+
+    @Test
+    fun `physical indices whose source settings differ fail closed`() {
+        val excluded = TypeMapping.of { type ->
+            type.source { it.excludes("secret") }.properties("name") { it.keyword { keyword -> keyword } }
+        }
+        every { indicesClient.getMapping(any<GetMappingRequest>()) } returns Mono.just(
+            GetMappingResponse.of { response ->
+                response.mappings("$INDEX-000001", IndexMappingRecord.of { it.mappings(mapping("name")) })
+                    .mappings("$INDEX-000002", IndexMappingRecord.of { it.mappings(excluded) })
             },
         )
 
         ElasticsearchIndexMappingResolver(client).currentOrLoad(INDEX).test()
             .expectErrorMatches {
-                it.message!!.startsWith("Elasticsearch index [$INDEX] must resolve to exactly one physical index")
+                it.message!!.startsWith("Elasticsearch index [$INDEX] resolves to physical indices whose _source")
             }.verify()
     }
 

@@ -25,10 +25,14 @@ import me.ahoo.wow.api.query.AggregationExpression
 import me.ahoo.wow.api.query.AggregationGroup
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.api.query.inputExpression
+import me.ahoo.wow.api.query.schema.QueryCardinality
 import me.ahoo.wow.api.query.schema.Temporal
 import me.ahoo.wow.elasticsearch.query.ElasticsearchSortCompiler.toSortOrder
 import me.ahoo.wow.query.AdmittedQuery
 import me.ahoo.wow.query.ResolvedField
+import java.time.Instant
+import java.time.ZoneId
+import java.time.ZoneOffset
 import java.util.concurrent.TimeUnit
 
 internal fun AggregationGroup.toSource(
@@ -71,13 +75,18 @@ internal fun AggregationGroup.toSource(
 
         is AggregationGroup.DateHistogram -> CompositeAggregationSource.of {
             it.dateHistogram { dateHistogram ->
-                dateHistogram.field(dateField(index, admitted, runtimeMappings))
+                val native = groupsNatively(admitted)
+                dateHistogram.field(
+                    if (native) admitted.physicalPath(field) else dateField(index, admitted, runtimeMappings)
+                )
                 if (unit == AggregationDateUnit.SECOND) {
                     dateHistogram.fixedInterval { interval -> interval.time("1s") }
                 } else {
                     dateHistogram.calendarInterval { interval -> interval.time(unit.name.lowercase()) }
                 }
-                dateHistogram.timeZone(timeZone).order(sort.direction.toSortOrder())
+                // A numeric field refuses any `time_zone`, even `UTC`; without one it buckets in UTC.
+                if (!native) dateHistogram.timeZone(timeZone)
+                dateHistogram.order(sort.direction.toSortOrder())
             }
         }
 
@@ -173,6 +182,32 @@ private fun AggregationGroup.DateHistogram.dateField(
         is Temporal.Formatted, null -> resolved.noInstantEncoding()
     }
 }
+
+/**
+ * Whether a date histogram can run on the field itself rather than on a Painless runtime date computed per document:
+ * a single-valued epoch in milliseconds that Elasticsearch stores as an integral number (Wow's `createTime`,
+ * `eventTime` and the like are `long`), grouped in UTC. `date_histogram` reads a numeric field's values as epoch
+ * milliseconds, and the buckets are those of the script (an integral value has no fraction to floor). A numeric field
+ * takes no `time_zone`, so a group in any other zone keeps the script, as does any other epoch (another unit, an
+ * array, a field inside a nested element).
+ */
+private fun AggregationGroup.DateHistogram.groupsNatively(admitted: AdmittedQuery<*>): Boolean =
+    admitted.field(field).isNativeEpochMillis() && ZoneId.of(timeZone).isUtc()
+
+private fun ZoneId.isUtc(): Boolean = rules.isFixedOffset && rules.getOffset(Instant.EPOCH) == ZoneOffset.UTC
+
+internal fun ResolvedField.isNativeEpochMillis(): Boolean {
+    val epoch = temporal as? Temporal.Epoch ?: return false
+    val types = storageTypes
+    return epoch.timeUnit == TimeUnit.MILLISECONDS &&
+        cardinality == QueryCardinality.SINGLE &&
+        physicalScope == null &&
+        elementAncestors.isEmpty() &&
+        !types.isNullOrEmpty() &&
+        types.all { it.value in INTEGRAL_STORAGE_TYPES }
+}
+
+private val INTEGRAL_STORAGE_TYPES = setOf("long", "integer", "short", "byte")
 
 private fun epochDateRuntimeField(physicalPath: String, timeUnit: TimeUnit): RuntimeField {
     val (multiplier, divisor) = timeUnit.epochFactors

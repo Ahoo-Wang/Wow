@@ -132,7 +132,9 @@ class QuerySchemaCatalog(
                     entry.record(status, before, Duration.ofNanos(System.nanoTime() - started))
                 }
             }
-            .doFinally { inFlight.remove(key, candidate) }
+            // Leave the in-flight set before the result reaches anyone: `doFinally` runs only after delivery, so a
+            // revalidation started on that result, or by a caller woken on another thread, got the finished reload.
+            .doOnTerminate { inFlight.remove(key, candidate) }
             .cache()
         return inFlight.putIfAbsent(key, candidate) ?: candidate
     }

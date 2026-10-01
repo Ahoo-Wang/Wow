@@ -258,6 +258,31 @@ class QueryModelDescriptionTest {
         unbudgeted.limits.aggregation.maxLimit.assert().isEqualTo(10_000)
     }
 
+    /**
+     * The page window is the smaller of the budget's and the storage's (Elasticsearch's `max_result_window`): admission
+     * enforces both, so a pager offered more would offer pages it cannot reach. A budget of 0 sets no window of its
+     * own, and the storage's still holds.
+     */
+    @Test
+    fun `the page window is the smaller of the budget and the storage window`() {
+        fun windowed(maxOffsetWindow: Int?) = QueryModelSchema(
+            schema.model,
+            schema.capabilities,
+            schema.definition,
+            schema.bindings,
+            storage = StorageSupport(paging = PagingSupport(maxOffsetWindow = maxOffsetWindow)),
+        )
+        val budget = QueryBudget(QueryBudget.HTTP_LABEL, maxPageWindow = 10_000)
+        windowed(5_000).describe(budget, 100).limits.maxPageWindow.assert().isEqualTo(5_000L)
+        windowed(50_000).describe(budget, 100).limits.maxPageWindow.assert().isEqualTo(10_000L)
+        windowed(null).describe(budget, 100).limits.maxPageWindow.assert().isEqualTo(10_000L)
+
+        val unwindowed = QueryBudget(QueryBudget.HTTP_LABEL, maxPageWindow = 0)
+        windowed(5_000).describe(unwindowed, 100).limits.maxPageWindow.assert().isEqualTo(5_000L)
+        windowed(5_000).describe(null, null).limits.maxPageWindow.assert().isEqualTo(5_000L)
+        windowed(null).describe(unwindowed, 100).limits.maxPageWindow.assert().isNull()
+    }
+
     @Test
     fun `a gated entry lists no expensive operators and states the gates as constraints`() {
         val strict = schema.describe(QueryBudget(QueryBudget.HTTP_LABEL, allowExpensiveOperators = false), 100)

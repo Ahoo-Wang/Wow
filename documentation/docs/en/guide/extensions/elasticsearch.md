@@ -85,7 +85,7 @@ A field the simulated mapping does not map yet (one dynamic mapping will add, or
 
 ## Revalidate the Runtime Query Schema
 
-After mappings change, the runtime schema must be resolved again. Each instance revalidates its query schemas every `wow.query.schema.revalidate-interval`; to pick up a change now, call the `wowQuerySchema` actuator endpoint on every instance. Revalidation updates the in-memory schema only; it does not backfill documents or change mappings.
+After mappings change, the runtime schema must be resolved again. Each instance revalidates its query schemas every `wow.query.schema.revalidate-interval` (5 minutes by default), so a field that dynamic mapping adds to an existing index, or a new index behind an alias, is not queryable for up to that long; to pick up a change now, call the `wowQuerySchema` actuator endpoint on every instance. Revalidation updates the in-memory schema only; it does not backfill documents or change mappings.
 
 ## Configure Event Stream Index Template
 
@@ -151,6 +151,15 @@ Use a field through the Wow query API only when runtime schema publishes the cor
 
 The Wow aggregation AST compiles to Elasticsearch aggregations. Nested elements, numeric/time types, and missing-value semantics depend on both the public contract and mappings. Verify them with real backend TCK/integration tests.
 
+Most groups and metrics run on the mapped fields themselves. These run a Painless script instead:
+
+- per document, as a request-local runtime field: `DATE_PART` groups; groups, metrics and metric filters over a `DATE_DIFF` or arithmetic expression; and a `DATE_HISTOGRAM` on an epoch field unless the field is a single-valued `long` (or another integral type) in milliseconds grouped in UTC. A numeric field takes no `time_zone`, so an epoch-millis histogram in any other zone also runs the script;
+- per bucket: `bucket_script` for derived metrics, which costs far less than a per-document script.
+
+A cluster that restricts inline scripts (`script.allowed_types`, `script.allowed_contexts`) refuses these aggregations, and with `search.allow_expensive_queries: false` it refuses the filters on runtime fields. Map a field natively, for example epoch milliseconds as `long`, to keep its aggregations script-free.
+
+A distinct count (`cardinality`) is exact up to 40000 distinct values per bucket (`precision_threshold`, Elasticsearch's maximum) and an estimate above, which the schema states in `approximateMetrics`. Each bucket keeps about 8 bytes per distinct value up to that threshold.
+
 ## Index Design Recommendations
 
 Design indexes from query, write, retention, and recovery objectives. Do not add text/keyword multi-fields to every state field by default.
@@ -177,6 +186,8 @@ Full scans use PIT plus `search_after`, with configured batch size and keep-aliv
 
 An offset page reads `from + size` records, which Elasticsearch caps at the index's `index.max_result_window` (10000 unless the index sets it). A paged query whose `page × size` passes it is rejected before the search as `SIZE_OUT_OF_RANGE` (HTTP 400) on `pagination`; read deeper with a cursor query.
 
+The query schema reports this bound as `limits.maxPageWindow`: the smaller of the query budget's window and the index's `index.max_result_window`. A budget window of 0 sets no bound of its own, so the index's still applies.
+
 ## Troubleshooting
 
 Verified failures include template request/empty/unacknowledged responses, invalid query or batch bounds, bulk item errors, stale-snapshot guards, and mapping/schema conflicts.
@@ -195,7 +206,7 @@ Verify that Spring Boot Actuator is on the classpath and exposes the `wowQuerySc
 
 #### 3. An alias or data stream cannot be resolved
 
-The current converter emits concrete index names. Introducing aliases or data streams requires a migration consistent across reads, writes, and mapping resolution.
+The current converter emits concrete index names, and writes go to them. When a name resolves to several indices (an alias over rollover indices, a data stream), queries see only the fields every index behind it maps the same way; a field one index lacks or maps differently stays unqueryable until every index maps it alike. Indices whose `_source` settings differ fail closed. Moving writes to aliases or data streams still requires a migration consistent across reads, writes, and mapping resolution.
 
 #### 4. Old data is still unqueryable after updating a template and revalidating
 
