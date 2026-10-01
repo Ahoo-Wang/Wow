@@ -487,7 +487,7 @@ GitHub release 的正文就是变更记录，不另外维护 `CHANGELOG.md`。�
   - 「the registry does not serve …」：npm 在 5 分钟里还没给出新版本，多半是 registry 延迟。本机 `npm view <包>@<版本> version` 能查到以后，只重跑 `npm-smoke`（Re-run failed jobs）。查不到就回到 `npm-deploy` 的日志看是哪个包没发出去。
   - 「dist-tag … is …, not …」：包已经上去，但默认安装拿不到它，或者拿到的是别的版本。用 `npm dist-tag ls <包>` 核对，把 dist-tag 改对（命令同下面的回退），再重跑 `npm-smoke`。
   - 安装、import、require、样式表解析、bin（`--version`、`theme-check --help`）或类型检查失败：发布已经上线而且是坏的，按下一条处理。
-- **镜像先于准入发出**：三个镜像工作流在 tag 创建时就推 `X.Y.Z`、`X.Y`、`latest`，不等 `admission`、`preflight`。准入或 preflight 失败、这次发布作废时，镜像已经在三个仓库里：按下面「回退步骤」里的镜像一段把 `X.Y`、`latest` 指回上一个版本。
+- **镜像先于准入发出**：三个镜像工作流在 tag 创建时就推 `X.Y.Z`、`X.Y`（是最高的稳定版本时还有 `latest`），不等 `admission`、`preflight`。准入或 preflight 失败、这次发布作废时，镜像已经在三个仓库里：按下面「回退步骤」里的镜像一段把 `X.Y`、`latest` 指回上一个版本。
 - **npm 发布以后发现问题**：发出去的版本不能覆盖；unpublish 只在 72 小时内、没人依赖时可行，而且这个版本号永远不能再用，还会让已有的锁文件装不上。所以**不 unpublish**，只有泄露了密钥或者发出了恶意内容才考虑，同时联系 npm 支持并发安全公告。能用的手段是移动 dist-tag、`npm deprecate`、发补丁。
 
 ### 发补丁还是回退
@@ -539,7 +539,7 @@ for pkg in $PACKAGES; do npm dist-tag ls "$pkg"; done                           
   done
   ```
 
-  坏版本是老版本线的补丁时，metadata-action 同样给它打了 `latest`（它给每个非预发布的 semver tag 都打）：`latest` 指回最新的稳定版本，`X.Y` 指回这条线上一个补丁。没有上一个版本的镜像（首发 9.2.0 的 view store 服务端），不回退，尽快发补丁。
+  坏版本是老版本线的补丁时，它没有移动 `latest`（`.github/scripts/docker-latest.mjs` 只让最高的稳定版本打 `latest`，和 npm 的 dist-tag 同一条规则）：只把 `X.Y` 指回这条线上一个补丁，命令里去掉 `-t "$registry/$image:latest"`。没有上一个版本的镜像（首发 9.2.0 的 view store 服务端），不回退，尽快发补丁。
 
 - **`release-x.y`**（老版本线的补丁，不会动 `latest`）：`TAG=release-x.y`，`PREV` 是这条线上一个补丁。坏版本是这条线第一个打了 `release-x.y` 的补丁时，没有可以指回的版本：对每个发布包执行 `npm dist-tag rm "$pkg" "release-x.y"` 并 deprecate，修好后的补丁会重新建这个 tag。无论哪种情况都不要碰 `latest`。
 

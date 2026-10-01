@@ -19,8 +19,10 @@ COPY --from=build --chown=appuser:appgroup ${WORK_HOME} ${WORK_HOME}
 
 WORKDIR ${WORK_HOME}
 EXPOSE 8080
-HEALTHCHECK --interval=30s --timeout=3s --retries=3 \
-  CMD curl -f http://localhost:8080/actuator/health || exit 1
+# Liveness, not the aggregate health: a backend that is down (or one the deployment does not use but Spring still
+# configures) must not mark the process unhealthy. Plain bash, so the check needs no curl in the base image.
+HEALTHCHECK --interval=30s --timeout=3s --start-period=60s --retries=3 \
+  CMD ["bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/8080 && printf 'GET /actuator/health/liveness HTTP/1.1\\r\\nHost: localhost\\r\\nConnection: close\\r\\n\\r\\n' >&3 && head -n 1 <&3 | grep -q ' 200 '"]
 
 USER appuser
 STOPSIGNAL SIGTERM

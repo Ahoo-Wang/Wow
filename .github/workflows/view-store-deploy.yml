@@ -18,7 +18,8 @@ on:
   push:
     branches:
       - main
-    # A release tag pushes `X.Y.Z`, `X.Y` and `latest`. A pre-release tag
+    # A release tag pushes `X.Y.Z` and `X.Y`, and `latest` when it is the
+    # highest stable release (docker-latest.mjs). A pre-release tag
     # (`v9.2.0-rc.0`) pushes no image: an rc ships npm only
     # (typescript/RELEASING.md C).
     tags:
@@ -26,6 +27,9 @@ on:
       - '!v*.*.*-*'
     paths:
       - '.github/workflows/view-store-deploy.yml'
+      - '.github/scripts/docker-latest.mjs'
+      - '.github/scripts/publish-npm.mjs'
+      - '.github/scripts/project-version.mjs'
       - 'build.gradle.kts'
       - 'settings.gradle.kts'
       - 'gradle.properties'
@@ -90,6 +94,12 @@ jobs:
           username: ${{ secrets.ALIYUN_CR_USERNAME }}
           password: ${{ secrets.ALIYUN_CR_TOKEN }}
 
+      # `latest` follows the highest stable release, as npm's does: a patch to
+      # an older line pushes its `X.Y.Z` and `X.Y` but leaves `latest` alone.
+      - name: Decide whether latest moves
+        id: latest
+        run: node .github/scripts/docker-latest.mjs
+
       - name: Docker meta
         id: meta
         uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
@@ -98,10 +108,16 @@ jobs:
             ahoowang/wow-view-store-server
             ghcr.io/ahoo-wang/wow-view-store-server
             registry.cn-shanghai.aliyuncs.com/ahoo/wow-view-store-server
+          flavor: |
+            latest=${{ steps.latest.outputs.latest }}
           tags: |
             type=ref,event=branch
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
+          # The image carries its auth posture in its description label (not an
+          # annotation: that needs OCI manifests, which AliyunCR refuses).
+          labels: |
+            org.opencontainers.image.description=Wow view store server. It does no authentication and trusts the tenant and owner of every path: run it only behind the CoSec gateway (view-store/README.md).
 
       - name: Build and push
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0

@@ -6,6 +6,7 @@
 import { execFileSync } from 'node:child_process';
 import { appendFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
+import { PUBLISHED } from './publish-npm.mjs';
 
 // typescript.yml: the static checks (format, lint, types, versions, ledger).
 const TYPESCRIPT = 'typescript';
@@ -34,6 +35,12 @@ const WORKFLOWS = 'workflows';
 // sources that turns on no TypeScript check: the ledger pairs their removal
 // markers too (#3755), and quality, which runs it otherwise, is off then.
 const COMPAT_DEBT = 'compatDebt';
+// typescript.yml: the Package job, which packs the PUBLISHED npm packages and
+// checks them as a consumer gets them. On with sdk, and for any path inside a
+// PUBLISHED package, view-engine's included, without rerunning the unit
+// matrix: a change to what a tarball holds is checked before the release
+// preflight finds it.
+const PACKAGE = 'package';
 // A Kotlin source a removal marker may sit in.
 const KOTLIN_MAIN = /(?:^|\/)src\/main\/kotlin\/.+\.kt$/;
 
@@ -221,6 +228,7 @@ export function scopes(paths) {
     LEGACY_CONTRACT,
     WORKFLOWS,
     COMPAT_DEBT,
+    PACKAGE,
   ];
   const result = Object.fromEntries(keys.map(key => [key, false]));
   // Light scopes a path asks for alongside their full scope (the workflow
@@ -242,6 +250,10 @@ export function scopes(paths) {
   // scopes it has and adds this one, unless quality already checks the ledger.
   result[COMPAT_DEBT] =
     !result[TYPESCRIPT] && paths.some(path => KOTLIN_MAIN.test(path));
+  // Also apart from RULES: a published package's path keeps its scopes.
+  result[PACKAGE] =
+    result[SDK] ||
+    paths.some(path => PUBLISHED.some(dir => path.startsWith(`${dir}/`)));
   return result;
 }
 

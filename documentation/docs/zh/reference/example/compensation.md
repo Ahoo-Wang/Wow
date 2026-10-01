@@ -189,6 +189,17 @@ curl -X PUT \
 
 持久化环境继续使用 distribution 的直接 `java` 启动路径，配置真实 MongoDB、Redis、Kafka、scheduler 与通知，然后移除本地示例中的 in-memory / disable 覆盖。仓库提供服务宿主和 Dashboard 构建，不提供可直接投产的集群策略。
 
+镜像读取 `/opt/wow-compensation-server/config/application.yaml`，即 distribution 的 `src/dist/config/application.yaml`，其中的后端都在 `localhost`。漏设下面任何一个变量的 pod 照样启动，并连向 `localhost`，所以每个都要设置（Spring 把它们映射到右侧的配置项）：
+
+| 环境变量 | 配置项 |
+| --- | --- |
+| `SPRING_MONGODB_URI` | `spring.mongodb.uri`（事件流与快照） |
+| `SPRING_DATA_REDIS_URL` | `spring.data.redis.url`（CosId 机器号） |
+| `WOW_KAFKA_BOOTSTRAPSERVERS` | `wow.kafka.bootstrap-servers`（命令、事件与状态事件总线） |
+| `SPRING_ELASTICSEARCH_URIS`、`SPRING_ELASTICSEARCH_USERNAME`、`SPRING_ELASTICSEARCH_PASSWORD` | `spring.elasticsearch.*`，事件或快照存放在 Elasticsearch 时 |
+
+镜像的 `HEALTHCHECK` 与 liveness 探针读取 `/actuator/health/liveness`，它只说明进程在运行；后端不可用体现在 `/actuator/health`。模板里该端点只回答状态（`show-details: when-authorized`）：详情会列出后端，请在运维网络内查看，或在那里设置 `management.endpoint.health.show-details`。
+
 最小 Kubernetes 形状如下；镜像摘要、资源、副本与 Secret 名称必须由实际发布和容量验证决定：
 
 ```yaml
@@ -217,11 +228,11 @@ spec:
               containerPort: 8080
           readinessProbe:
             httpGet:
-              path: /actuator/health
+              path: /actuator/health/readiness
               port: http
           livenessProbe:
             httpGet:
-              path: /actuator/health
+              path: /actuator/health/liveness
               port: http
 ```
 
