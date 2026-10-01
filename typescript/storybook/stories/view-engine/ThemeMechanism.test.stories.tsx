@@ -91,10 +91,20 @@ function violet(value: string): boolean {
 }
 
 /**
- * Resolves once a transitioning value has stopped changing: two reads 50ms
- * apart that agree (the vendored controls carry `transition-all`).
+ * Resolves once a transitioning value has stopped changing: the page's
+ * transitions over, then two reads 50ms apart that agree (the vendored
+ * controls carry `transition-all`). Two reads alone are not enough where
+ * the browser paints rarely: Playwright's Linux WebKit drew about one frame
+ * a second, a transition stood still at its first frame between the reads,
+ * and a neutral grey passed for the brand's violet (2026-09-30).
  */
 async function settled(read: () => string): Promise<void> {
+  await waitFor(() => {
+    const moving = document
+      .getAnimations()
+      .filter(animation => animation instanceof CSSTransition);
+    if (moving.length > 0) throw new Error('A transition is running.');
+  });
   await waitFor(async () => {
     const before = read();
     await new Promise(resolve => setTimeout(resolve, 50));

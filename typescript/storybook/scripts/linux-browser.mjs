@@ -28,6 +28,15 @@
 // on CI amd64. The two drew every baseline to the same pixel (T5, checked
 // both ways); forcing amd64 under emulation made the heaviest story three
 // times slower. LINUX_BROWSER_CPUS caps the container (default 2).
+//
+// WebKit here paints rarely: on a busy page it ran about one
+// requestAnimationFrame a second (2026-09-30, with timers on time and the
+// preset tokens resolved as everywhere else), so an animation or a
+// transition stands still between frames. A wait that reads a style must
+// wait for the page's transitions to end, not for two equal reads; a popup's
+// exit can outlast the 1s default of `waitFor` — `DashboardBuilding › Build
+// From Empty` times out here and passes on the nightly's Linux runner and on
+// macOS. Check WebKit's timing there, its layout and fonts here.
 import { spawn, spawnSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { createServer } from 'node:net';
