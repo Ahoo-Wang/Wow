@@ -76,4 +76,17 @@ class QueryGatewayApiTest {
             QueryGateway::class.java.getMethod("dynamicCursor", ICursorQuery::class.java),
         ).all { Modifier.isAbstract(it.modifiers) }.assert().isTrue()
     }
+
+    @Test
+    fun `members added after 9_1 have default bodies so a 9_1 gateway still links`() {
+        listOf(
+            QueryGateway::class.java.getMethod("getEntryPolicy"),
+            QueryGateway::class.java.getMethod("describe", QueryEntry::class.java, Integer::class.java),
+        ).all { it.isDefault }.assert().isTrue()
+        QueryGateway::class.java.methods.filter { Modifier.isAbstract(it.modifiers) }.map { it.name }.toSet()
+            .assert().containsExactlyInAnyOrder(
+                "getNamedAggregate", "single", "dynamicSingle", "list", "dynamicList", "paged", "dynamicPaged",
+                "cursor", "dynamicCursor", "count", "aggregate",
+            )
+    }
 }

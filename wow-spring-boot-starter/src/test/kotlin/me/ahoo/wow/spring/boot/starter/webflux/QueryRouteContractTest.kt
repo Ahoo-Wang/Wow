@@ -358,6 +358,8 @@ class QueryRouteContractTest {
         val NON_GATEWAY_KEYS = setOf(
             BuiltInHttpRouteHandlerKeys.Snapshot.SCHEMA,
             BuiltInHttpRouteHandlerKeys.Event.SCHEMA,
+            BuiltInHttpRouteHandlerKeys.Snapshot.SCHEMA_REFRESH,
+            BuiltInHttpRouteHandlerKeys.Event.SCHEMA_REFRESH,
         )
 
         /** Single-result routes answer an empty backend result with 404. */

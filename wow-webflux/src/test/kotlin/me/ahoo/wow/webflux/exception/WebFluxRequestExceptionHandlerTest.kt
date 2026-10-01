@@ -58,6 +58,19 @@ class WebFluxRequestExceptionHandlerTest {
     }
 
     @Test
+    fun `should retain stack trace for an illegal state answered as 400`() {
+        val warnings = captureWarnings {
+            WebFluxRequestExceptionHandler().handle(
+                MockServerRequest.builder().build(),
+                IllegalStateException("backend timed out"),
+            ).block()!!.statusCode().value().assert().isEqualTo(400)
+        }
+
+        warnings.assert().hasSize(1)
+        warnings.single().throwableProxy.assert().isNotNull()
+    }
+
+    @Test
     fun `should retain stack trace for server error`() {
         val warnings = captureWarnings {
             WebFluxRequestExceptionHandler().handle(

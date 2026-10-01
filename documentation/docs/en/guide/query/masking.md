@@ -139,7 +139,7 @@ Both are suitable only for storage extensions, Backend contract tests, and trust
 
 ## Migration and Verification
 
-`@Mask`, `@KeepMask`, `@Masking` and the old `MaskStrategy<A>` were removed; code that still uses them no longer compiles. Replace them as follows:
+`@Mask`, `@KeepMask`, `@Masking` and the old `MaskStrategy<A>` (`me.ahoo.wow.api.query.mask`) are deprecated and removed in 10.0.0. A jar compiled against 9.1 keeps its masking: schema discovery reads each of them as the `@Sensitive(SensitivityLevel.DISPLAY)` mask below, and a custom `@Masking` annotation as a `DISPLAY` field masked by its strategy. Replace them as follows:
 
 | Before | After |
 |---|---|
@@ -147,7 +147,7 @@ Both are suitable only for storage extensions, Backend contract tests, and trust
 | `@field:KeepMask(prefix = 3, suffix = 4)` | `@field:Sensitive(SensitivityLevel.DISPLAY, mask = Mask(keepPrefix = 3, keepSuffix = 4))` |
 | Custom annotation with `@Masking(strategy)` | `mask = Mask(strategy = MyStrategy::class)`, with `MyStrategy : MaskStrategy` masking one value |
 
-`DISPLAY` keeps the behavior of the removed annotations. Choose `CONFIDENTIAL` for values that must never be compared. When migrating from V8 Registry/filter masking, first follow [V9 Query Migration](./v9-query-migration.md) to remove old types and move rules onto domain fields, then complete these checks:
+`DISPLAY` keeps the behavior of the deprecated annotations. Choose `CONFIDENTIAL` for values that must never be compared. When migrating from V8 Registry/filter masking, first follow [V9 Query Migration](./v9-query-migration.md) to remove old types and move rules onto domain fields, then complete these checks:
 
 1. Use the [Query Model Schema](./query-model-schema.md) endpoint to confirm the target field reports `sensitivity`, without exposing a strategy or parameters.
 2. Verify Snapshot/EventStream typed, dynamic, and state-only/aggregate-state load responses separately.

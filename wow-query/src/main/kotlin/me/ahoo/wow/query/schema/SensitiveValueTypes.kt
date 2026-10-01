@@ -28,21 +28,23 @@ import me.ahoo.wow.infra.reflection.MergedAnnotation.Companion.toMergedAnnotatio
 private val log = KotlinLogging.logger { }
 
 /**
- * The effective sensitivity of this member: its own `@Sensitive` (directly or through a meta-annotation), else the
- * one of its [value type][QueryMemberFact.valueType].
+ * The effective sensitivity of this member as its mask rule: its own `@Sensitive` (directly or through a
+ * meta-annotation) or 9.1 mask annotation, else the `@Sensitive` of its [value type][QueryMemberFact.valueType].
  *
  * @throws QuerySchemaConflictException when the member declares two, when its value type is annotated but is not
  * serialized as a string, or when the member's level is looser than its type's.
  */
-internal fun QueryMemberFact.effectiveSensitive(): Sensitive? {
+internal fun QueryMemberFact.effectiveMaskRule(): MaskRule? {
     val declared = annotations.flatMap { annotation ->
         listOf(annotation) + annotation.annotationClass.toMergedAnnotation().mergedAnnotations
-    }.filterIsInstance<Sensitive>().distinct()
+    }.mapNotNull { annotation ->
+        if (annotation is Sensitive) MaskRule.of(annotation) else annotation.legacyMaskRule()
+    }.distinct()
     if (declared.size > 1) {
         throw QuerySchemaConflictException("Multiple effective @Sensitive annotations are not allowed.")
     }
     val own = declared.singleOrNull()
-    val inherited = valueType.sensitiveValueType() ?: return own
+    val inherited = valueType.sensitiveValueType()?.let(MaskRule::of) ?: return own
     if (own == null) return inherited
     if (own.level < inherited.level) {
         throw QuerySchemaConflictException(
@@ -97,7 +99,7 @@ private data class SensitivityLeaf(
 
 private fun QueryTypeFact.leaves(path: String): List<SensitivityLeaf> = buildList {
     member?.let { member ->
-        add(SensitivityLeaf(path, path.substringAfterLast('.'), member.valueType, member.effectiveSensitive()?.level))
+        add(SensitivityLeaf(path, path.substringAfterLast('.'), member.valueType, member.effectiveMaskRule()?.level))
     }
     properties.forEach { (name, child) -> addAll(child.leaves("$path.$name")) }
     items?.let { addAll(it.leaves(path)) }

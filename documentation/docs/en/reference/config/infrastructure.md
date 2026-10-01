@@ -161,7 +161,10 @@ Configuration class: `QueryProperties` (prefix `wow.query`); it is bound wheneve
 | `wow.query.abac.require-principal-tags` | Boolean | `false` | Rejects (`403 IllegalAccessQueryScope`) an `HTTP` snapshot query whose principal has no ABAC tags; applies to an `AbacQueryPolicy` constructed with the `AbacQueryOptions` bean |
 | `wow.query.abac.match-missing-tag-key` | Boolean | `true` | Lets a resource lacking one of the principal's tag keys match as public; `false` requires the key with a value the principal holds |
 | `wow.query.schema.revalidate-interval` | Duration | `5m` | How often each instance reloads its query schemas to pick up storage changes; `0s` disables it. The `wowQuerySchema` actuator endpoint revalidates on demand |
+| `wow.query.schema.legacy-declarations` | `warn` \| `fail` | `warn` | What a 9.1 declaration file (`wow-query-schema/{context}/{aggregate}/{model}.json`) means when no source declares that model in 9.2: `warn` serves the inferred schema and logs where the 9.2 file goes; `fail` makes that model's schema unavailable. See [moving a 9.1 declaration](../../guide/query/query-model-schema.md#declaration-91) |
 | `wow.query.sensitivity.display-comparable` | Boolean | `true` | Whether filters and paged sorts may compare the raw value of a `DISPLAY` sensitive field; `false` rejects them like `CONFIDENTIAL` fields (see [Field Masking](../../guide/query/masking.md)) |
+
+Before 9.2 these limits were `wow.webflux.query.{max-list-size, max-page-size, max-page-window, max-filter-nodes, max-filter-values, allow-expensive-operators}`. Those keys are deprecated (removed in 10.0.0) and still apply, with a startup warning, to each limit whose `wow.query.http.*` key is not set. A configuration shared by 9.1 and 9.2 nodes can keep the old keys; rename them once every node runs 9.2.
 
 All numeric query caps must be non-negative. Ordinary page size must still be at least `1`, and page offset cannot exceed `Int.MAX_VALUE`. `allow-expensive-operators=true` is the compatibility default, not capacity evidence. Test existing requests and the upgrade path before tightening it.
 

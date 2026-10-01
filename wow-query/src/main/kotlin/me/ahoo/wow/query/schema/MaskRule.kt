@@ -25,17 +25,29 @@ import java.lang.reflect.InvocationTargetException
  * Two rules are equal when they declare the same level and mask, so the same declaration reached through different
  * members is one rule.
  */
-class MaskRule(val level: SensitivityLevel, val mask: Mask = Mask()) {
-    val compiled: MaskStrategy = compile(mask)
+class MaskRule private constructor(
+    val level: SensitivityLevel,
+    val mask: Mask,
+    /** The 9.1 custom mask annotation this rule was compiled from, or `null`; part of the rule's identity. */
+    private val legacy: Annotation?,
+    val compiled: MaskStrategy,
+) {
+    constructor(level: SensitivityLevel, mask: Mask = Mask()) : this(level, mask, null, compile(mask))
 
-    override fun equals(other: Any?): Boolean = other is MaskRule && level == other.level && mask == other.mask
+    override fun equals(other: Any?): Boolean =
+        other is MaskRule && level == other.level && mask == other.mask && legacy == other.legacy
 
-    override fun hashCode(): Int = 31 * level.hashCode() + mask.hashCode()
+    override fun hashCode(): Int = 31 * (31 * level.hashCode() + mask.hashCode()) + legacy.hashCode()
 
-    override fun toString(): String = "MaskRule(level=$level, mask=$mask)"
+    override fun toString(): String =
+        legacy?.let { "MaskRule(level=$level, legacy=$it)" } ?: "MaskRule(level=$level, mask=$mask)"
 
     companion object {
         fun of(sensitive: Sensitive): MaskRule = MaskRule(sensitive.level, sensitive.mask)
+
+        /** A [SensitivityLevel.DISPLAY] rule masked by [compiled], compiled from a 9.1 custom mask [annotation]. */
+        internal fun legacy(annotation: Annotation, compiled: MaskStrategy): MaskRule =
+            MaskRule(SensitivityLevel.DISPLAY, Mask(), annotation, compiled)
 
         private fun compile(mask: Mask): MaskStrategy {
             if (mask.strategy == MaskStrategy::class) {
@@ -55,7 +67,7 @@ class MaskRule(val level: SensitivityLevel, val mask: Mask = Mask()) {
 
         // A failing strategy keeps its original error as the cause of a schema conflict; errors propagate unchanged.
         @Suppress("TooGenericExceptionCaught")
-        private inline fun <T> conflictOnFailure(message: String, operation: () -> T): T = try {
+        internal inline fun <T> conflictOnFailure(message: String, operation: () -> T): T = try {
             operation()
         } catch (error: Throwable) {
             when (val failure = (error as? InvocationTargetException)?.targetException ?: error) {

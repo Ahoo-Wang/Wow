@@ -41,7 +41,7 @@ import org.springframework.beans.factory.config.BeanPostProcessor
  *
  * A blank prefix is no prefix: the starter registers this only for a prefix with text in it.
  */
-class ViewStoreTopicConverterPostProcessor(private val topicPrefix: String) : BeanPostProcessor {
+internal class ViewStoreTopicConverterPostProcessor(private val topicPrefix: String) : BeanPostProcessor {
     init {
         require(topicPrefix.isNotBlank()) { "The view store's topic prefix must not be blank." }
     }
@@ -79,9 +79,9 @@ private fun Any.isViewStoreTopicConverter(): Boolean =
         this is ViewStoreStateEventTopicConverter
 
 /** Whether this is one of the view store's aggregates (`view`, `view_preferences`). */
-fun NamedAggregate.isViewStoreAggregate(): Boolean = contextName == ViewStoreService.SERVICE_NAME
+internal fun NamedAggregate.isViewStoreAggregate(): Boolean = contextName == ViewStoreService.SERVICE_NAME
 
-class ViewStoreCommandTopicConverter(
+internal class ViewStoreCommandTopicConverter(
     private val host: CommandTopicConverter,
     private val viewStore: AggregateTopicConverter,
 ) : CommandTopicConverter {
@@ -89,7 +89,7 @@ class ViewStoreCommandTopicConverter(
         if (namedAggregate.isViewStoreAggregate()) viewStore.convert(namedAggregate) else host.convert(namedAggregate)
 }
 
-class ViewStoreEventStreamTopicConverter(
+internal class ViewStoreEventStreamTopicConverter(
     private val host: EventStreamTopicConverter,
     private val viewStore: AggregateTopicConverter,
 ) : EventStreamTopicConverter {
@@ -97,7 +97,7 @@ class ViewStoreEventStreamTopicConverter(
         if (namedAggregate.isViewStoreAggregate()) viewStore.convert(namedAggregate) else host.convert(namedAggregate)
 }
 
-class ViewStoreStateEventTopicConverter(
+internal class ViewStoreStateEventTopicConverter(
     private val host: StateEventTopicConverter,
     private val viewStore: AggregateTopicConverter,
 ) : StateEventTopicConverter {

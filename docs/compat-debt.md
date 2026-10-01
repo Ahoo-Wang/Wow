@@ -11,6 +11,7 @@ This ledger lists every piece of that debt. Each entry says what is kept compati
 - Any other compatibility code carries a line comment `// compat(<scope>): <reason>`:
   - `compat(wow<9)`: kept for Wow 8.x servers, or for code and requests written against the deprecated Condition API.
   - `compat(fetcher)`: kept for names the packages had in fetcher.
+  - `compat(wow<9.2)`: kept for code compiled, configuration written, or links sent against Wow 9.1, which 9.2 runs mixed with.
 - `.github/scripts/compat-debt.mjs` (`pnpm check:compat-debt`) runs in the `quality` job of `typescript.yml`. It reads `typescript/*/src` and every Kotlin main source set (`*/src/main/kotlin`), and fails when:
   - a `@deprecated` comment in `typescript/*/src` lacks `Removed in v10.`;
   - a Kotlin `@Deprecated("…")` in `*/src/main/kotlin` lacks `Scheduled for removal in 10.0.0.`;
@@ -106,3 +107,45 @@ When you add compatibility code, add its marker and list the file under an entry
 - **Markers**: `typescript/wow-generator/src/input/configuration.ts`, `typescript/wow-generator/src/output/outputStore.ts`
 - **Replacement**: `wow-generator.config.json` and `.wow-generator.json`.
 - **Removal in v10**: delete `LEGACY_CONFIG_PATH`, `LEGACY_GENERATION_MANIFEST` and the fallbacks that read them. A project that still has only `fetcher-generator.config.json` must rename it, and output last generated before 9.x must be regenerated once with 9.x or cleaned by hand; the migration guide says so.
+
+### Wow 9.1 Query Annotations
+
+- **Kept compatible**: domain and API jars compiled against 9.1 name the 9.1 annotations, and the JVM silently drops an annotation whose class is missing, so removing them would serve masked fields unmasked. `@Masking`, `MaskStrategy<A>`, `CompiledMask`, `@Mask`, `@KeepMask`, `FullMaskStrategy` and `KeepMaskStrategy` (`me.ahoo.wow.api.query.mask`) and `me.ahoo.wow.api.query.schema.QueryTemporal(timeUnit)` stay. Schema discovery reads `@Mask` as `@Sensitive(SensitivityLevel.DISPLAY)`, `@KeepMask(prefix, suffix)` as `@Sensitive(DISPLAY, mask = Mask(prefix, suffix))`, any other annotation carrying `@Masking` as a `DISPLAY` field masked by its strategy (9.1 let filters and sorts compare the raw value, which `DISPLAY` keeps), and the old `QueryTemporal` as `@QueryTemporal(unit = timeUnit)`.
+- **Markers**: `wow-api/src/main/kotlin/me/ahoo/wow/api/query/mask/Masking.kt`, `wow-api/src/main/kotlin/me/ahoo/wow/api/query/schema/QueryTemporal.kt`, `wow-query/src/main/kotlin/me/ahoo/wow/query/schema/LegacyQueryAnnotations.kt`
+- **Replacement**: `@Sensitive` with `SensitivityLevel` and `Mask`, and `me.ahoo.wow.api.query.annotation.QueryTemporal(unit, pattern)`.
+- **Removal in v10**: delete the two files in `wow-api` and `LegacyQueryAnnotations.kt`; `effectiveMaskRule` reads only `@Sensitive`, `withMember` only the new `@QueryTemporal`, and `MaskRule` loses its `legacy` constructor. A jar still compiled against the old annotations then loses its masking, so the migration guide tells users to recompile against 9.2 first.
+
+### Wow 9.1 HTTP Query Limit Keys
+
+- **Kept compatible**: 9.1 read the HTTP query limits from `wow.webflux.query.{max-list-size, max-page-size, max-page-window, max-filter-nodes, max-filter-values, allow-expensive-operators}`. Each still applies, with a startup warning, where its `wow.query.http.*` key is not set, so an unchanged 9.1 configuration (or one shared by 9.1 and 9.2 nodes) keeps its limits. The configuration metadata marks them deprecated with `deprecation.replacement`.
+- **Markers**: `wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/query/LegacyHttpQueryKeys.kt`
+- **Replacement**: `wow.query.http.*`.
+- **Removal in v10**: delete `LegacyHttpQueryKeys.kt`, its call in `QueryAutoConfiguration.queryEntryPolicy` and the six `wow.webflux.query.*` entries in `additional-spring-configuration-metadata.json`.
+
+### Wow 9.1 Constructors In `wow-api`
+
+- **Kept compatible**: the 9.1.5 JVM constructors `BindingError(name, msg)`, `AggregationGroup.Terms(field, alias, missingKey)` (and its `$default` form) and `AggregationGroup.Histogram(field, alias, interval)`, which a library compiled against 9.1.5 calls. They are `DeprecationLevel.HIDDEN`: in the bytecode, invisible to new source.
+- **Markers**: `wow-api/src/main/kotlin/me/ahoo/wow/api/exception/ErrorInfo.kt`, `wow-api/src/main/kotlin/me/ahoo/wow/api/query/AggregationQuery.kt`
+- **Replacement**: the primary constructors (`code`, `expression`).
+- **Removal in v10**: delete the three hidden constructors. Source never sees them; binaries compiled against 9.1 fail with `NoSuchMethodError`, which the release notes say.
+
+### Wow 9.1 Query Schema Declaration Location
+
+- **Kept compatible**: 9.1 fell back to `wow-query-schema/{context}/{aggregate}/{model}.json`, in a format 9.2 does not read, and 9.1 nodes may still need the file while 9.1 and 9.2 run side by side. When no source (classpath, working directory or bean) declares that model in 9.2, a file there is logged as a warning naming the 9.2 location and the model uses its inferred schema; `wow.query.schema.legacy-declarations=fail` (`LegacyQuerySchemaDeclarationPolicy.FAIL`) fails the model instead. Beside a 9.2 declaration it is only logged.
+- **Markers**: `wow-query/src/main/kotlin/me/ahoo/wow/query/schema/QuerySchemaSources.kt`, `wow-query/src/main/kotlin/me/ahoo/wow/query/schema/LegacyQuerySchemaDeclarations.kt`, `wow-query/src/main/kotlin/me/ahoo/wow/query/schema/QueryModelSchemaProvider.kt`
+- **Replacement**: `META-INF/wow/query-schema/{context}.{aggregate}.{model}.json` and `config/wow/query-schema/…`, in the 9.2 format (the key mapping and the mixed-cluster routes are in the query-model-schema guide).
+- **Removal in v10**: delete `legacyResourcePath`, the sources' `legacyDeclarations`, `LegacyQuerySchemaDeclarations.kt` (with `LegacyQuerySchemaDeclarationPolicy` and `wow.query.schema.legacy-declarations`) and the provider's check.
+
+### Wow 9.1 Schema Refresh Routes
+
+- **Kept compatible**: `POST /{aggregate}/snapshot/schema/refresh` and `POST /{aggregate}/event/schema/refresh` (route ids `….snapshot_schema.refresh`, `….event_schema.refresh`), which 9.2 replaced by the `wowQuerySchema` actuator endpoint. Each revalidates its own model of the aggregate through `QuerySchemaCatalog.revalidate(aggregate, model)` (concurrent calls share the reload in flight) and answers as `GET …/schema` (decision D77 of the view engine's design record).
+- **Markers**: `wow-openapi/src/main/kotlin/me/ahoo/wow/openapi/contract/BuiltInHttpRoutes.kt`, `wow-openapi/src/main/kotlin/me/ahoo/wow/openapi/contributor/aggregate/snapshot/SnapshotRouteContributor.kt`, `wow-openapi/src/main/kotlin/me/ahoo/wow/openapi/contributor/aggregate/event/EventRouteContributor.kt`, `wow-webflux/src/main/kotlin/me/ahoo/wow/webflux/route/query/QuerySchemaRefreshHandlerFunction.kt`, `wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/webflux/route/QueryRouteModule.kt`
+- **Replacement**: the `wowQuerySchema` actuator endpoint, and periodic revalidation (`wow.query.schema.revalidate-interval`).
+- **Removal in v10**: delete the two route contracts, the `SCHEMA_REFRESH` keys, `QuerySchemaRefreshHandlerFunctionFactory` and its two registrations, then update the OpenAPI snapshots and the route inventory.
+
+### Wow 9.1 Compensation Console Links
+
+- **Kept compatible**: alert messages sent by 9.1 link to the 9.1 console's pages (`/to-retry?id=…`, `/unrecoverable?id=…`, `/active`, …). Each redirects (302) to `/executions` on the system view of the same name, with the same execution open.
+- **Markers**: `compensation/wow-compensation-server/src/main/kotlin/me/ahoo/wow/compensation/server/dashboard/DashboardConfiguration.kt`
+- **Replacement**: the links 9.2 sends, `/executions?view=system:execution-failed:<view>&id=<id>`.
+- **Removal in v10**: delete `legacyNav`. Alerts sent before the 9.2 upgrade then open a 404, so v10's release notes say so.

@@ -298,8 +298,11 @@ internal class ExampleDomainOpenAPITest {
                     .assert().isEqualTo("#/components/schemas/wow.api.query.QueryModelDescriptor")
                 openAPI.paths.keys.filter { it.endsWith("/cart/$model/schema") }.assert()
                     .containsExactly("/cart/$model/schema")
-                // Schemas are revalidated by the server and refreshed through the wowQuerySchema actuator endpoint.
-                openAPI.paths.keys.none { it.endsWith("/$model/schema/refresh") }.assert().isTrue()
+                // The 9.1 refresh route stays as a deprecated alias of the wowQuerySchema actuator's revalidation.
+                val refresh = requireNotNull(openAPI.paths["/cart/$model/schema/refresh"]?.post)
+                refresh.operationId.assert().isEqualTo("example.cart.${model}_schema.refresh")
+                refresh.responses["200"]!!.content[Https.MediaType.APPLICATION_JSON]!!.schema.`$ref`
+                    .assert().isEqualTo("#/components/schemas/wow.api.query.QueryModelDescriptor")
                 openAPI.paths.keys.filter { it.contains("/$model/schema") }.none { path ->
                     path.contains("{tenantId}") || path.contains("{ownerId}") || path.contains("{id}")
                 }.assert().isTrue()

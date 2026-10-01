@@ -25,6 +25,7 @@ import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.api.io.TempDir
+import reactor.core.publisher.Mono
 import reactor.test.StepVerifier
 import java.io.ByteArrayInputStream
 import java.net.URL
@@ -66,8 +67,10 @@ class QuerySchemaSourcesTest {
 
     @Test
     fun `working directory source should read the convention path only`() {
-        writeLegacyFile(tempDir, conventionJson("Legacy"))
+        val legacy = writeLegacyFile(tempDir, conventionJson("Legacy"))
         StepVerifier.create(WorkingDirectoryQuerySchemaSource(basePath = tempDir).load(ORDER_CONTEXT)).verifyComplete()
+        WorkingDirectoryQuerySchemaSource(basePath = tempDir).legacyDeclarations(ORDER_CONTEXT).assert()
+            .containsExactly(legacy.toString())
 
         writeWorkingFile(conventionJson("Unified"))
         WorkingDirectoryQuerySchemaSource(basePath = tempDir).load(ORDER_CONTEXT)
@@ -108,6 +111,8 @@ class QuerySchemaSourcesTest {
         writeLegacyFile(root, conventionJson("Legacy"))
         URLClassLoader(arrayOf(root.toUri().toURL()), null).use { loader ->
             ClasspathQuerySchemaSource(loader).load(ORDER_CONTEXT).collectList().block()!!.assert().isEmpty()
+            ClasspathQuerySchemaSource(loader).legacyDeclarations(ORDER_CONTEXT).single().assert()
+                .endsWith("wow-query-schema/test-context/order/snapshot.json")
         }
 
         writeClasspathFile(root, conventionJson("Unified"))
@@ -115,6 +120,55 @@ class QuerySchemaSourcesTest {
             ClasspathQuerySchemaSource(loader).load(ORDER_CONTEXT)
                 .single().block()!!.text().assert().isEqualTo(DeclarationValue.Set("Unified"))
         }
+    }
+
+    @Test
+    fun `a 9_1 declaration alone only warns by default and the model serves its inferred schema`() {
+        writeLegacyFile(tempDir, conventionJson("Legacy"))
+        val schema = provider(listOf(WorkingDirectoryQuerySchemaSource(basePath = tempDir))).schema().block()!!
+        schema.model.assert().isEqualTo(QueryModel.SNAPSHOT)
+        schema.field(QueryField("state.name")).assert().isNull()
+    }
+
+    @Test
+    fun `the strict policy fails a model whose only declaration is a 9_1 file`() {
+        val root = tempDir.resolve("root")
+        writeLegacyFile(root, conventionJson("Legacy"))
+        URLClassLoader(arrayOf(root.toUri().toURL()), null).use { loader ->
+            StepVerifier.create(provider(listOf(ClasspathQuerySchemaSource(loader)), FAIL).schema())
+                .verifyErrorSatisfies { error ->
+                    error.assert().isInstanceOf(QuerySchemaUnavailableException::class.java)
+                    error.message.assert().contains("9.1 location")
+                        .contains("query-schema/test-context.order.snapshot.json")
+                }
+        }
+    }
+
+    @Test
+    fun `a 9_2 declaration in any source covers a 9_1 file in another`() {
+        val root = tempDir.resolve("root")
+        writeLegacyFile(root, conventionJson("Legacy"))
+        URLClassLoader(arrayOf(root.toUri().toURL()), null).use { loader ->
+            // The 9.1 file on the classpath, the 9.2 one in the working directory (the per-node route).
+            writeWorkingFile(EMPTY_DECLARATION)
+            provider(
+                listOf(ClasspathQuerySchemaSource(loader), WorkingDirectoryQuerySchemaSource(basePath = tempDir)),
+                FAIL,
+            ).schema().block()!!.model.assert().isEqualTo(QueryModel.SNAPSHOT)
+        }
+
+        // The 9.1 file in the working directory, the 9.2 declaration a registration bean.
+        val working = tempDir.resolve("working")
+        writeLegacyFile(working, conventionJson("Legacy"))
+        provider(
+            listOf(
+                WorkingDirectoryQuerySchemaSource(basePath = working),
+                BeanQuerySchemaSource(
+                    listOf(QuerySchemaRegistration(ORDER_CONTEXT, QuerySchemaDeclaration(emptyMap())))
+                ),
+            ),
+            FAIL,
+        ).schema().block()!!.model.assert().isEqualTo(QueryModel.SNAPSHOT)
     }
 
     @Test
@@ -370,6 +424,21 @@ class QuerySchemaSourcesTest {
             .isEqualTo(DeclarationValue.Set(Temporal.Formatted("yyyy-MM-dd")))
     }
 
+    private fun provider(
+        sources: List<QuerySchemaSource>,
+        policy: LegacyQuerySchemaDeclarationPolicy = LegacyQuerySchemaDeclarationPolicy.WARN,
+    ) = DefaultQueryModelSchemaProvider(
+        context = ORDER_CONTEXT,
+        sources = sources,
+        adapter = object : QueryStorageAdapter {
+            override fun facts(logicalSchema: LogicalQuerySchema): Mono<QueryStorageFacts> {
+                val bound = boundSchemaFixture(logicalSchema.root)
+                return Mono.just(QueryStorageFacts(bound.bindings, bound.capabilities))
+            }
+        },
+        legacyDeclarationPolicy = policy,
+    )
+
     private fun writeWorkingFile(json: String): Path {
         val file = tempDir.resolve(ORDER_CONTEXT.workingPathForTest())
         Files.createDirectories(file.parent)
@@ -386,7 +455,7 @@ class QuerySchemaSourcesTest {
         return Files.writeString(file, json)
     }
 
-    /** The retired `wow-query-schema/{context}/{aggregate}/{model}.json` location, which nothing reads any more. */
+    /** The 9.1 `wow-query-schema/{context}/{aggregate}/{model}.json` location, which 9.2 only reports. */
     private fun writeLegacyFile(root: Path, json: String): Path {
         val file = root.resolve(
             "wow-query-schema/${ORDER_CONTEXT.namedAggregate.contextName}/" +
@@ -428,6 +497,8 @@ class QuerySchemaSourcesTest {
 
     companion object {
         private const val CALLER_THREAD = "query-schema-caller"
+        private const val EMPTY_DECLARATION = """{"fields":{}}"""
+        private val FAIL = LegacyQuerySchemaDeclarationPolicy.FAIL
         private val ORDER_CONTEXT = QuerySchemaContext(
             MaterializedNamedAggregate("test-context", "order"),
             QueryModel.SNAPSHOT,

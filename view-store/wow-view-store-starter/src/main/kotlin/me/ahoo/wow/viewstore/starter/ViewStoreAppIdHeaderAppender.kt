@@ -26,7 +26,7 @@ import org.springframework.web.reactive.function.server.ServerRequest
  *
  * Appenders run in no fixed order, so [ViewStoreWebFilter] also drops every `Command-Header-*` from the request.
  */
-class ViewStoreAppIdHeaderAppender(private val paths: ViewStorePaths) : CommandRequestHeaderAppender {
+internal class ViewStoreAppIdHeaderAppender(private val paths: ViewStorePaths) : CommandRequestHeaderAppender {
     override fun append(request: ServerRequest, header: Header) {
         if (!paths.isViewStorePath(request.requestPath().pathWithinApplication())) {
             return

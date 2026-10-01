@@ -34,9 +34,6 @@ import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.SpaceIdFilter
 import me.ahoo.wow.api.query.TenantIdFilter
 import me.ahoo.wow.api.query.annotation.SensitivityLevel
-import me.ahoo.wow.api.query.spec.FilterSemantics
-import me.ahoo.wow.api.query.spec.SemanticProbe
-import me.ahoo.wow.api.query.spec.SemanticShape
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.query.filter.QueryContext
 import me.ahoo.wow.query.filter.QueryType
@@ -48,6 +45,9 @@ import me.ahoo.wow.query.schema.objectFixture
 import me.ahoo.wow.query.schema.scalarFixture
 import me.ahoo.wow.query.snapshot.filter.AbacQueryPolicy.Companion.toFilterExpression
 import me.ahoo.wow.serialization.toJsonNode
+import me.ahoo.wow.tck.query.FilterSemantics
+import me.ahoo.wow.tck.query.SemanticProbe
+import me.ahoo.wow.tck.query.SemanticShape
 import org.junit.jupiter.api.DynamicTest
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestFactory

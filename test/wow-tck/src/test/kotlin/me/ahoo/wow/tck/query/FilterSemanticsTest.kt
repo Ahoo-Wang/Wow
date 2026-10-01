@@ -11,11 +11,13 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.api.query.spec
+package me.ahoo.wow.tck.query
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.FilterOperator
 import me.ahoo.wow.api.query.QueryField
+import me.ahoo.wow.api.query.spec.FilterOperatorSpec
+import me.ahoo.wow.api.query.spec.OperatorTarget
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 

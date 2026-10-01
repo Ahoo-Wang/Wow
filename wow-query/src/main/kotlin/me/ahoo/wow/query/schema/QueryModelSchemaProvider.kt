@@ -16,6 +16,7 @@ package me.ahoo.wow.query.schema
 import me.ahoo.wow.query.forInProcessQuery
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
+import reactor.core.scheduler.Schedulers
 import java.time.Duration
 import java.util.concurrent.atomic.AtomicReference
 import java.util.function.LongSupplier
@@ -56,8 +57,11 @@ class DefaultQueryModelSchemaProvider(
     private val provisionalTtl: Duration = DEFAULT_PROVISIONAL_TTL,
     /** The monotonic clock, in nanoseconds, `provisionalTtl` is measured with. */
     private val nanoTime: LongSupplier = LongSupplier(System::nanoTime),
+    /** compat(wow<9.2): what a 9.1 declaration file of this model means when no source declares it in 9.2. */
+    legacyDeclarationPolicy: LegacyQuerySchemaDeclarationPolicy = LegacyQuerySchemaDeclarationPolicy.WARN,
 ) : QueryModelSchemaProvider {
     private val sources = sources.toList()
+    private val legacyDeclarations = LegacyQuerySchemaDeclarations(context, legacyDeclarationPolicy)
     private val published = AtomicReference<QueryModelSchema>()
     private val kept = AtomicReference<Provisional?>()
     private val firstLoad = AtomicReference<Mono<QueryModelSchema>>()
@@ -122,14 +126,21 @@ class DefaultQueryModelSchemaProvider(
         Flux.fromIterable(sources)
             .concatMap { source ->
                 val declarations = if (refresh) source.refresh(context) else source.load(context)
-                declarations.map { PrioritizedQuerySchemaDeclaration(source.priority, it) }
+                declarations.map { source to PrioritizedQuerySchemaDeclaration(source.priority, it) }
             }
             .collectList()
-            .map { declarations ->
-                merger.merge(SystemQuerySchemaSource.declaration(context.model), declarations, sensitivity)
+            .zipWith(legacyFiles()) { loaded, legacy ->
+                // A 9.2 declaration is one any source but inference supplied: classpath, working directory or bean.
+                legacyDeclarations.check(legacy, declared = loaded.any { it.first !is InferredQuerySchemaSource })
+                merger.merge(SystemQuerySchemaSource.declaration(context.model), loaded.map { it.second }, sensitivity)
             }
             .flatMap { logicalSchema ->
                 val facts = if (refresh) adapter.refresh(logicalSchema) else adapter.facts(logicalSchema)
                 facts.map { it.compile(context.model, logicalSchema) }
             }
+
+    /** compat(wow<9.2): the 9.1 declaration files of this model across every source. */
+    private fun legacyFiles(): Mono<List<String>> =
+        Mono.fromCallable { sources.flatMap { it.listLegacyDeclarations(context) } }
+            .subscribeOn(Schedulers.boundedElastic())
 }

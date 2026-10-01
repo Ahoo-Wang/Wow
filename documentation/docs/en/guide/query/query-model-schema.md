@@ -72,7 +72,7 @@ flowchart LR
 
 - `System` supplies model-specific fields for Snapshot and EventStream. Extensions must remain under the Snapshot `state` root or the EventStream `body.body` root; a field leaf already set by System cannot be overwritten.
 - `InferredQuerySchemaSource (100)` infers Snapshot fields from the aggregate state's JSON shape and EventStream `body.body.*` fields from domain-event payloads, one variant per event type tagged with its `bodyType`. Type inference is a `QueryModelSource` bean: the default `JsonQueryModelSource` (wow-schema) reports only raw facts of the serialized JSON (paths, types, nullability, enums, format hints, member annotations); what they mean for queries is decided in wow-query. Standard time types are temporal automatically; `@QueryTemporal(unit = TimeUnit.SECONDS)` declares an integer epoch timestamp and `@QueryTemporal(pattern = "yyyy-MM-dd")` a formatted string time; `@QueryDecimal` and `@QueryMoney` declare [decimal and money precision](#decimal-money), `@QueryDuration` and `@QueryReference` [durations and references](#duration-reference) (all from `me.ahoo.wow.api.query.annotation`); a property of type `AggregateId` is a reference without an annotation. `@Sensitive` is described in [Field Masking](./masking.md).
-- `ClasspathQuerySchemaSource (200)` reads `META-INF/wow/query-schema/{context}.{aggregate}.{model}.json`; `WorkingDirectoryQuerySchemaSource (400)` reads `config/wow/query-schema/{context}.{aggregate}.{model}.json`. The model segment is lowercase: `snapshot` or `event_stream`; the dot is the reserved Wow named-aggregate delimiter. The former `wow-query-schema/{context}/{aggregate}/{model}.json` location is no longer read.
+- `ClasspathQuerySchemaSource (200)` reads `META-INF/wow/query-schema/{context}.{aggregate}.{model}.json`; `WorkingDirectoryQuerySchemaSource (400)` reads `config/wow/query-schema/{context}.{aggregate}.{model}.json`. The model segment is lowercase: `snapshot` or `event_stream`; the dot is the reserved Wow named-aggregate delimiter. The 9.1 fallback location `wow-query-schema/{context}/{aggregate}/{model}.json` is not read. When no source (classpath, working directory or registration bean) declares that model in 9.2, a file there is logged as a warning naming where the 9.2 file goes, and the model uses its inferred schema; `wow.query.schema.legacy-declarations=fail` fails that model's schema instead. See [moving a 9.1 declaration](#declaration-91) below.
 - `BeanQuerySchemaSource (300)` merges `QuerySchemaRegistration` entries for the current context.
 
 ### Declaration files and code registration
@@ -100,6 +100,31 @@ A declaration only supplements what inference cannot know — mostly values behi
 | `properties`, `items`, `values` | Named properties of an object, the element of an array, the value of every key of a map |
 
 Any other key is rejected. Sensitivity, aliases and deprecation are only declared on the domain field (`@Sensitive`, `@QueryAlias`, `@Deprecated`); display names belong to view definitions. `querySchemaRegistration { field(...) { … } }` uses the same vocabulary: `kind`, `types`, `nullable`, `enumValue(value, description)`, `semantic`/`temporalEpoch`/`temporalFormatted`, `description`, `property`, `items`, `values`.
+
+#### Moving a 9.1 declaration file {#declaration-91}
+
+9.1.5 reads `META-INF/wow/query-schema/{context}.{aggregate}.{model}.json` (and `config/wow/query-schema/…` in the working directory) first, and only when neither exists falls back to `wow-query-schema/{context}/{aggregate}/{model}.json`; every file is in the 9.1 format. 9.2 reads only the first two paths, only in the 9.2 format. Both versions reject keys they do not know, so in a cluster that runs 9.1 and 9.2 nodes side by side, or with a domain module read by both:
+
+- a 9.1-format file at `META-INF/wow/query-schema/…` or `config/wow/query-schema/…` is not read by 9.2 either: it fails that model's schema on a 9.2 node (`Unknown query schema properties`);
+- a 9.2-format file at those paths fails it on a 9.1 node, unless it uses only `kind`, `nullable`, `description`, `properties` and `items`, which both versions read;
+- a file at `wow-query-schema/…` is read by 9.1 nodes only; a 9.2 node logs a warning and serves the model's inferred schema (the default `wow.query.schema.legacy-declarations=warn`).
+
+To keep a model declared on both sides during the upgrade, either:
+
+1. **Per node:** keep the 9.1 file at `wow-query-schema/{context}/{aggregate}/{model}.json` only (not at `META-INF/wow/query-schema/…`), and give each 9.2 node its 9.2 file in its working directory at `config/wow/query-schema/{context}.{aggregate}.{model}.json`. 9.1 nodes fall back to the 9.1 file; 9.2 nodes read the working-directory file and only log that the 9.1 file is ignored.
+2. **Shared subset:** write one file at `META-INF/wow/query-schema/{context}.{aggregate}.{model}.json` that uses only the keys both versions read (above), without `null` values.
+
+Once no 9.1 node reads it, move the file to `META-INF/wow/query-schema/{context}.{aggregate}.{model}.json` (or `config/wow/query-schema/…`) in the 9.2 format, delete the 9.1 file, and optionally set `wow.query.schema.legacy-declarations=fail` so a forgotten 9.1 file fails its model. The keys change as follows; 9.2 accepts no `null` values (omit the key instead):
+
+| 9.1 key | 9.2 key |
+|---|---|
+| `valueTypes` | `types` (declarable: `STRING`, `INTEGER`, `DECIMAL`, `BOOLEAN`) |
+| `enumValues: [v, …]` | `enum: [{ "value": v }, …]` |
+| `semanticType` | `semantic` |
+| `additionalProperties` | `values` |
+| `kind`, `nullable`, `description`, `properties`, `items` | unchanged; `kind` is `SCALAR`, `OBJECT` or `ARRAY` |
+| `title` | removed: display names belong to view definitions |
+| `required`, `alternatives` | removed: inferred, never declared |
 
 `QuerySchemaMerger` processes priorities from low to high. A later, higher-priority source overrides only leaves that it explicitly sets; unset leaves keep their lower-priority values. Different values for the same leaf at the same priority raise a Schema conflict instead of depending on load order. Refresh reloads sources and backend facts for the current process and replaces its cache; it does not change indexes, mappings, validators, or historical data.
 
@@ -174,7 +199,7 @@ Each Gateway subscription uses one Schema version: preparation, admission and re
 
 ## HTTP and OpenAPI
 
-`GET snapshot/schema` and `GET event/schema` return the model's capability descriptor for the HTTP entry: how this model can be queried over HTTP. Storage facts (indexes, mappings, validators) change outside deployments, so each instance reloads every query schema every `wow.query.schema.revalidate-interval` (default `5m`, `0s` disables); a schema that fails to compile keeps its previous version and the failure is logged. With Spring Boot Actuator, the `wowQuerySchema` endpoint lists this instance's schema versions (read) and revalidates now, optionally for one `aggregate` (write). There is no HTTP refresh route. The descriptor publishes conclusions, not storage facts:
+`GET snapshot/schema` and `GET event/schema` return the model's capability descriptor for the HTTP entry: how this model can be queried over HTTP. Storage facts (indexes, mappings, validators) change outside deployments, so each instance reloads every query schema every `wow.query.schema.revalidate-interval` (default `5m`, `0s` disables); a schema that fails to compile keeps its previous version and the failure is logged. With Spring Boot Actuator, the `wowQuerySchema` endpoint lists this instance's schema versions (read) and revalidates now, optionally for one `aggregate` (write). The 9.1 routes `POST /{aggregate}/snapshot/schema/refresh` and `POST /{aggregate}/event/schema/refresh` remain as deprecated aliases until 10.0.0: each reloads its own model (Snapshot or EventStream) of that aggregate on the instance that answers, concurrent calls sharing the reload in flight, then returns the descriptor as `GET …/schema` does. The descriptor publishes conclusions, not storage facts:
 
 - `fields`: one entry per logical path (element fields use their full path and name their element in `scope`), with its `role` (on a system field: a system-field filter target such as `AGGREGATE_ID` or `TENANT_ID`, or one of the model's times, `EVENT_TIME` on a Snapshot's `eventTime` and an EventStream's `createTime`, `FIRST_EVENT_TIME` on a Snapshot's `firstEventTime`), `types`, `kind`, `semantic`, `enum`, `sensitivity`, `deprecated`, `aliases`, the `filter.operators` it admits, `sort` (`paged`, `cursor`) and `aggregate` (groups, functions, `distinctCount`, `percentile`, `any`, `inMetricFilter`, …);
 - `record`: identity, paging modes, default deletion scope, root operators and full-text search (`search.modes` for a model-wide `SEARCH`, `search.fields` for record-level fields);

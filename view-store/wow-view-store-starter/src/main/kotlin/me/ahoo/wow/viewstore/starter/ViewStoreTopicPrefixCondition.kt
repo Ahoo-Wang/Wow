@@ -20,13 +20,13 @@ import org.springframework.core.env.Environment
 import org.springframework.core.type.AnnotatedTypeMetadata
 
 /** [ViewStoreKafkaProperties.TOPIC_PREFIX], or null when it is unset or blank: a blank prefix is no prefix. */
-fun Environment.viewStoreTopicPrefix(): String? = Binder.get(this)
+internal fun Environment.viewStoreTopicPrefix(): String? = Binder.get(this)
     .bind(ViewStoreKafkaProperties.TOPIC_PREFIX, String::class.java)
     .orElse(null)
     ?.takeIf { it.isNotBlank() }
 
 /** Matches when the view store has a Kafka topic prefix of its own ([viewStoreTopicPrefix]). */
-class OnViewStoreTopicPrefixCondition : Condition {
+internal class OnViewStoreTopicPrefixCondition : Condition {
     override fun matches(context: ConditionContext, metadata: AnnotatedTypeMetadata): Boolean =
         context.environment.viewStoreTopicPrefix() != null
 }

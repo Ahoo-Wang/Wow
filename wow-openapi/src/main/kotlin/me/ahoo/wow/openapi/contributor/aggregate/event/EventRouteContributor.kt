@@ -73,6 +73,7 @@ object EventRouteContributor : RouteContributor {
     ): List<HttpRouteContract> {
         return buildList {
             add(eventSchemaRoute(currentContext, aggregateRouteMetadata, componentContext))
+            add(eventSchemaRefreshRoute(currentContext, aggregateRouteMetadata, componentContext))
             aggregateRouteMetadata.tenantOwnerVariants().forEach { variant ->
                 addAll(queryRoutes(currentContext, aggregateRouteMetadata, componentContext, variant))
             }
@@ -81,6 +82,30 @@ object EventRouteContributor : RouteContributor {
             add(resendStateEventRoute(currentContext, aggregateRouteMetadata, componentContext))
         }
     }
+
+    /*
+     * compat(wow<9.2): `POST …/event/schema/refresh`, removed in 9.2 when revalidation moved to the `wowQuerySchema` actuator
+     * endpoint. Operators' scripts still call it, so it revalidates this aggregate's schemas and answers as
+     * `GET …/schema` does.
+     */
+    private fun eventSchemaRefreshRoute(
+        currentContext: NamedBoundedContext,
+        aggregateRouteMetadata: AggregateRouteMetadata<*>,
+        componentContext: OpenAPIComponentContext,
+    ): HttpRouteContract = eventRoute(
+        currentContext = currentContext,
+        aggregateRouteMetadata = aggregateRouteMetadata,
+        componentContext = componentContext,
+        handlerKey = BuiltInHttpRouteHandlerKeys.Event.SCHEMA_REFRESH,
+        resourceName = "event_schema",
+        operation = "refresh",
+        operationSummary = "Refresh Event Stream Schema (deprecated: use the wowQuerySchema actuator endpoint)",
+        method = Https.Method.POST,
+        appendTenantPath = false,
+        appendOwnerPath = false,
+        appendPathSuffix = "event/schema/refresh",
+        responses = componentContext.querySchemaResponses(),
+    )
 
     private fun eventSchemaRoute(
         currentContext: NamedBoundedContext,

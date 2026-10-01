@@ -235,7 +235,7 @@ private val DATE_FORMATS = setOf("date", "date-time")
 
 private fun String.isQueryPathSegment(): Boolean = '.' !in this && runCatching { QueryField(this) }.isSuccess
 
-private fun QueryMemberFact.sensitive(): Sensitive? = effectiveSensitive()
+private fun QueryMemberFact.sensitive(): MaskRule? = effectiveMaskRule()
 
 private fun QueryTypeFact.hasSensitiveMembers(): Boolean =
     member?.sensitive() != null || omitted.any { it.sensitive() != null } ||
@@ -247,7 +247,7 @@ private fun QueryFieldDeclaration.withMember(
     field: QueryField,
     contextName: String?,
 ): QueryFieldDeclaration {
-    val temporal = member.annotations.filterIsInstance<QueryTemporal>().distinct()
+    val temporal = member.annotations.mapNotNull { it.asQueryTemporal() }.distinct()
     if (temporal.size > 1) {
         throw QuerySchemaConflictException("Multiple @QueryTemporal annotations are not allowed.")
     }
@@ -392,14 +392,14 @@ private fun QueryFieldDeclaration.withNames(member: QueryMemberFact, field: Quer
 private const val JAVA_DEPRECATED = "java.lang.Deprecated"
 
 private fun QueryFieldDeclaration.withSensitive(
-    sensitive: Sensitive,
+    rule: MaskRule,
     member: QueryMemberFact,
     field: QueryField,
 ): QueryFieldDeclaration {
     if (!member.holdsMaskableValue()) {
         throw QuerySchemaConflictException("Sensitive query schema member [${member.name}] must have String JVM type.")
     }
-    return withMaskRule(MaskRule.of(sensitive), member, field)
+    return withMaskRule(rule, member, field)
 }
 
 /**

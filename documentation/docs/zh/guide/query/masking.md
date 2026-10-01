@@ -140,7 +140,7 @@ Event projection 完全没有顶层 `body`，或把该事件数组投影为 `nul
 
 ## 迁移与验证
 
-`@Mask`、`@KeepMask`、`@Masking` 与旧的 `MaskStrategy<A>` 已删除，仍使用它们的代码无法编译。按下表替换：
+`@Mask`、`@KeepMask`、`@Masking` 与旧的 `MaskStrategy<A>`（`me.ahoo.wow.api.query.mask`）已弃用，10.0.0 删除。按 9.1 编译的 jar 仍然脱敏：schema 发现把它们读作下表右列的 `@Sensitive(SensitivityLevel.DISPLAY)`，自定义的 `@Masking` 注解读作按其策略脱敏的 `DISPLAY` 字段。按下表替换：
 
 | 之前 | 之后 |
 |---|---|
@@ -148,7 +148,7 @@ Event projection 完全没有顶层 `body`，或把该事件数组投影为 `nul
 | `@field:KeepMask(prefix = 3, suffix = 4)` | `@field:Sensitive(SensitivityLevel.DISPLAY, mask = Mask(keepPrefix = 3, keepSuffix = 4))` |
 | 带 `@Masking(strategy)` 的自定义注解 | `mask = Mask(strategy = MyStrategy::class)`，`MyStrategy : MaskStrategy` 负责遮挡单个取值 |
 
-`DISPLAY` 保持已删除注解的行为；绝不能被比较的取值使用 `CONFIDENTIAL`。从 V8 Registry/Filter Mask 迁移时，先按 [V9 查询迁移](./v9-query-migration.md)删除旧类型并把规则移到领域字段，再完成以下检查：
+`DISPLAY` 保持旧注解的行为；绝不能被比较的取值使用 `CONFIDENTIAL`。从 V8 Registry/Filter Mask 迁移时，先按 [V9 查询迁移](./v9-query-migration.md)删除旧类型并把规则移到领域字段，再完成以下检查：
 
 1. 通过[查询模型 Schema](./query-model-schema.md)端点确认目标字段报告了 `sensitivity`，没有公开策略或参数。
 2. 分别验证 Snapshot/EventStream 的 typed、dynamic 与 state-only/aggregate-state load 响应。

@@ -31,7 +31,7 @@ import reactor.core.publisher.Flux
  * `(shared)`, not deleted (the snapshot model's default), kind dashboard, and the view among their panels'
  * references.
  */
-class SnapshotSharedBoardReferences(
+internal class SnapshotSharedBoardReferences(
     private val snapshotQueryGateway: () -> SnapshotQueryGateway<ViewState>,
 ) : SharedBoardReferences {
     companion object {

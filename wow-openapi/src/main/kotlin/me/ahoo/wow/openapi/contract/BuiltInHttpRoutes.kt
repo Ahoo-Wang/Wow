@@ -56,6 +56,9 @@ object BuiltInHttpRouteHandlerKeys {
         const val AGGREGATION = "$AGGREGATE_SNAPSHOT.aggregation"
         const val COUNT = "$AGGREGATE_SNAPSHOT.count"
         const val SCHEMA = "$AGGREGATE_SNAPSHOT.schema"
+
+        // compat(wow<9.2): the 9.1 refresh route, kept as an alias of the catalog's revalidation.
+        const val SCHEMA_REFRESH = "$AGGREGATE_SNAPSHOT.schema.refresh"
         const val LIST_QUERY = "$AGGREGATE_SNAPSHOT.list-query"
         const val LIST_QUERY_STATE = "$AGGREGATE_SNAPSHOT.list-query-state"
         const val PAGED_QUERY = "$AGGREGATE_SNAPSHOT.paged-query"
@@ -73,6 +76,9 @@ object BuiltInHttpRouteHandlerKeys {
         const val AGGREGATION = "$AGGREGATE_EVENT.aggregation"
         const val COUNT = "$AGGREGATE_EVENT.count"
         const val SCHEMA = "$AGGREGATE_EVENT.schema"
+
+        // compat(wow<9.2): the 9.1 refresh route, kept as an alias of the catalog's revalidation.
+        const val SCHEMA_REFRESH = "$AGGREGATE_EVENT.schema.refresh"
         const val LIST_QUERY = "$AGGREGATE_EVENT.list-query"
         const val PAGED_QUERY = "$AGGREGATE_EVENT.paged-query"
         const val CURSOR_QUERY = "$AGGREGATE_EVENT.cursor-query"

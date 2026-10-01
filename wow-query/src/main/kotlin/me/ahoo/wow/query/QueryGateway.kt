@@ -33,6 +33,7 @@ import me.ahoo.wow.query.filter.QueryType
 import me.ahoo.wow.query.mask.SchemaMasker
 import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QueryModelSchemaProvider
+import me.ahoo.wow.query.schema.QuerySchemaUnavailableException
 import me.ahoo.wow.query.schema.describe
 import me.ahoo.wow.serialization.toObject
 import org.reactivestreams.Publisher
@@ -57,15 +58,25 @@ interface QueryGateway<R : Any> : NamedAggregateDecorator {
     fun count(filter: FilterExpression): Mono<Long>
     fun aggregate(query: AggregationQuery): Flux<ObjectNode>
 
-    /** The entry policy this gateway admits every query under: the one source of each entry's budget. */
+    /**
+     * The entry policy this gateway admits every query under: the one source of each entry's budget. The default, for
+     * a gateway compiled against 9.1 that does not declare one, is [QueryEntryPolicy.DEFAULT].
+     */
     val entryPolicy: QueryEntryPolicy
+        get() = QueryEntryPolicy.DEFAULT
 
     /**
      * How this model can be queried on [entry] (design §7): the capability descriptor of the schema this gateway
      * admits against, under the budget [entryPolicy] gives [entry]. [defaultListSize] is the list size the entry's
      * adapter applies when a list query sends none, or `null`.
+     *
+     * The default, for a gateway compiled against 9.1 that does not implement it, fails with
+     * [QuerySchemaUnavailableException]: such a gateway has no schema to describe.
      */
-    fun describe(entry: QueryEntry, defaultListSize: Int? = null): Mono<QueryModelDescriptor>
+    fun describe(entry: QueryEntry, defaultListSize: Int? = null): Mono<QueryModelDescriptor> =
+        Mono.error(
+            QuerySchemaUnavailableException("Query gateway [${this::class.qualifiedName}] does not describe its model.")
+        )
 }
 
 abstract class AbstractQueryGateway<R : Any>(

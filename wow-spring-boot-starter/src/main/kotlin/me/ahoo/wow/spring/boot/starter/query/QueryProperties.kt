@@ -15,6 +15,7 @@ package me.ahoo.wow.spring.boot.starter.query
 
 import me.ahoo.wow.api.Wow
 import me.ahoo.wow.query.QueryBudget
+import me.ahoo.wow.query.schema.LegacyQuerySchemaDeclarationPolicy
 import me.ahoo.wow.query.schema.QuerySensitivityPolicy
 import me.ahoo.wow.query.snapshot.filter.AbacQueryOptions
 import org.springframework.beans.factory.annotation.Autowired
@@ -75,10 +76,15 @@ constructor(
     /**
      * @property revalidateInterval how often each query schema is reloaded so storage changes made outside a
      * deployment (indexes, mappings, validators) are picked up; `0s` disables periodic revalidation.
+     * @property legacyDeclarations what a 9.1 declaration file (`wow-query-schema/{context}/{aggregate}/{model}.json`)
+     * means when no source declares that model in 9.2: `warn` (default, while 9.1 nodes may still read it) serves the
+     * inferred schema and logs where the 9.2 declaration goes; `fail` makes that model's schema unavailable.
      */
     data class Schema(
         @DefaultValue("5m")
         var revalidateInterval: java.time.Duration = java.time.Duration.ofMinutes(5),
+        @DefaultValue("warn")
+        var legacyDeclarations: LegacyQuerySchemaDeclarationPolicy = LegacyQuerySchemaDeclarationPolicy.WARN,
     )
 
     /** Limits of `0` are disabled. */

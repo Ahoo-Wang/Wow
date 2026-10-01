@@ -161,7 +161,10 @@ spring:
 | `wow.query.abac.require-principal-tags` | Boolean | `false` | 拒绝主体没有 ABAC 标签的 `HTTP` 快照查询（`403 IllegalAccessQueryScope`）；作用于以 `AbacQueryOptions` Bean 构造的 `AbacQueryPolicy` |
 | `wow.query.abac.match-missing-tag-key` | Boolean | `true` | 资源缺少主体的某个标签键时仍作为公开资源匹配；`false` 要求资源带有该键且取值落在主体的值中 |
 | `wow.query.schema.revalidate-interval` | Duration | `5m` | 每个实例定期重新加载查询 schema 以发现存储变化的间隔；`0s` 关闭。`wowQuerySchema` actuator 端点可按需立即重新校验 |
+| `wow.query.schema.legacy-declarations` | `warn` \| `fail` | `warn` | 某模型没有任何 9.2 声明、却有 9.1 声明文件（`wow-query-schema/{context}/{aggregate}/{model}.json`）时的处理：`warn` 使用推断的 schema，并在日志中写明 9.2 文件应放在哪里；`fail` 让该模型的 schema 不可用。见[迁移 9.1 的声明文件](../../guide/query/query-model-schema.md#declaration-91) |
 | `wow.query.sensitivity.display-comparable` | Boolean | `true` | 是否允许过滤与分页排序比较 `DISPLAY` 敏感字段的原值；`false` 时与 `CONFIDENTIAL` 字段一样拒绝（见[字段脱敏](../../guide/query/masking.md)） |
+
+9.2 之前这些上限的键是 `wow.webflux.query.{max-list-size, max-page-size, max-page-window, max-filter-nodes, max-filter-values, allow-expensive-operators}`。旧键已弃用（10.0.0 删除），对未设置对应 `wow.query.http.*` 键的上限仍然生效，启动时告警。9.1 与 9.2 节点共用的配置可以继续用旧键，所有节点升到 9.2 后再改为新键。
 
 所有数值型查询上限必须非负；普通 page size 仍至少为 `1`，page offset 仍不得超过 `Int.MAX_VALUE`。`allow-expensive-operators=true` 是兼容性默认值，不是容量证明；收紧前需验证现有请求和升级路径。
 

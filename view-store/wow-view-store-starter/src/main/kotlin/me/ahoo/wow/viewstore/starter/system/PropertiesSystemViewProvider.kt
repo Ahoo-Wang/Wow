@@ -23,7 +23,7 @@ import tools.jackson.databind.node.ObjectNode
  * The system views of `wow.view-store.system-views`, checked once at startup. An entry with a blank tenant or
  * application is for every tenant or application.
  */
-class PropertiesSystemViewProvider(properties: List<SystemViewProperties>) : SystemViewProvider {
+internal class PropertiesSystemViewProvider(properties: List<SystemViewProperties>) : SystemViewProvider {
     private val entries: List<Entry> = properties.map { property ->
         val config = runCatching { property.config.toObject<ObjectNode>() }.getOrElse {
             throw IllegalArgumentException("System view [${property.id}]'s config is not a JSON object.", it)

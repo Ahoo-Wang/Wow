@@ -36,7 +36,7 @@ import me.ahoo.wow.viewstore.domain.view.ViewConfigs
  * Delete this and declare the fields with the plain DSL once Wow lets a declaration open an opaque object field
  * (inference leaving an unknown kind unset would do it).
  */
-object ViewConfigQuerySchema {
+internal object ViewConfigQuerySchema {
     const val CONFIG_FIELD = "state.config"
 
     fun registration(): QuerySchemaRegistration {

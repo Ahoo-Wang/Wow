@@ -14,6 +14,8 @@
 package me.ahoo.wow.webflux.exception
 
 import io.github.oshai.kotlinlogging.KotlinLogging
+import me.ahoo.wow.exception.ErrorCodes
+import me.ahoo.wow.openapi.CommonComponent
 import org.springframework.web.reactive.function.server.ServerRequest
 import org.springframework.web.reactive.function.server.ServerResponse
 import reactor.core.publisher.Mono
@@ -38,7 +40,7 @@ class WebFluxRequestExceptionHandler(
             Mono.defer { errorStrategy.toServerResponse(request, throwable) }
                 .doOnNext { response ->
                     if (logged.compareAndSet(false, true)) {
-                        if (response.statusCode().is4xxClientError) {
+                        if (response.statusCode().is4xxClientError && !response.isServerFault()) {
                             log.warn { "${request.formatRequest()} - ${throwable.singleLineMessage()}" }
                         } else {
                             log.warn(throwable) { request.formatRequest() }
@@ -66,6 +68,13 @@ class WebFluxRequestExceptionHandler(
                 }
         }
     }
+
+    /**
+     * A 400 whose code is `IllegalState`: the server reached a state it did not expect (a backend timeout, a broken
+     * invariant), not a request it refused, so its stack trace is logged although the wire answer stays a 400.
+     */
+    private fun ServerResponse.isServerFault(): Boolean =
+        headers().getFirst(CommonComponent.Header.ERROR_CODE) == ErrorCodes.ILLEGAL_STATE
 
     private fun Throwable.singleLineMessage(): String = message.orEmpty().replace('\r', ' ').replace('\n', ' ')
 }

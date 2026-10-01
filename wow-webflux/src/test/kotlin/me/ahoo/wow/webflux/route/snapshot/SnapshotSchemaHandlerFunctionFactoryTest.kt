@@ -36,6 +36,7 @@ import me.ahoo.wow.serialization.JsonSerializer
 import me.ahoo.wow.serialization.toJsonNode
 import me.ahoo.wow.tck.query.NoOpSnapshotQueryBackend
 import me.ahoo.wow.webflux.exception.WebFluxRequestExceptionHandler
+import me.ahoo.wow.webflux.route.query.QuerySchemaRefreshHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.testAggregateRouteContract
 import org.junit.jupiter.api.Test
 import org.springframework.test.web.reactive.server.WebTestClient
@@ -72,6 +73,34 @@ class SnapshotSchemaHandlerFunctionFactoryTest {
 
         provider.schemaCalls.get().assert().isOne()
         provider.refreshCalls.get().assert().isZero()
+    }
+
+    @Suppress("DEPRECATION")
+    @Test
+    fun `the 9_1 refresh route revalidates the aggregate then answers with the descriptor`() {
+        val provider = RecordingSchemaProvider(SCHEMA)
+        val revalidated = mutableListOf<String>()
+        val handler = QuerySchemaRefreshHandlerFunctionFactory(
+            handlerKey = BuiltInHttpRouteHandlerKeys.Snapshot.SCHEMA_REFRESH,
+            queryGateway = RecordingSnapshotQueryBackendFactory(provider)::gateway,
+            revalidate = { metadata ->
+                Mono.fromRunnable {
+                    provider.schemaCalls.get().assert().isZero()
+                    revalidated += metadata.aggregateName
+                }
+            },
+            exceptionHandler = WebFluxRequestExceptionHandler(),
+        ).create(testAggregateRouteContract(BuiltInHttpRouteHandlerKeys.Snapshot.SCHEMA_REFRESH))
+
+        val body = client(handler).post().uri("/").exchange()
+            .expectStatus().isOk
+            .expectBody(String::class.java)
+            .returnResult()
+            .responseBody!!
+
+        revalidated.assert().hasSize(1)
+        body.toJsonNode<tools.jackson.databind.JsonNode>()["model"].stringValue().assert().isEqualTo("SNAPSHOT")
+        provider.schemaCalls.get().assert().isOne()
     }
 
     @Test

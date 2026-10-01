@@ -48,7 +48,7 @@ import me.ahoo.wow.viewstore.domain.view.ViewState
  * uses), so a type the host's document already has (`example.StringStringMap`) keeps its one name instead of gaining
  * an unprefixed twin at the root.
  */
-class ViewStoreOpenApi(private val paths: ViewStorePaths, private val schemaNamePrefix: String) {
+internal class ViewStoreOpenApi(private val paths: ViewStorePaths, private val schemaNamePrefix: String) {
     companion object {
         const val TAG = ViewStoreService.SERVICE_ALIAS
         private const val JSON = "application/json"
