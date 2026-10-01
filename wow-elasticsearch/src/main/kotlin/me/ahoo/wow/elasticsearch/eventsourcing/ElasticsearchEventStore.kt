@@ -22,7 +22,7 @@ import co.elastic.clients.json.JsonData
 import jakarta.json.JsonString
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.api.modeling.NamedAggregate
-import me.ahoo.wow.elasticsearch.IndexNameConverter.toEventStreamIndexName
+import me.ahoo.wow.elasticsearch.ElasticsearchIndexNaming
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.eventsourcing.AbstractEventStore
 import me.ahoo.wow.infra.batch.BatchOptions
@@ -39,18 +39,30 @@ class ElasticsearchEventStore(
     private val refreshPolicy: Refresh = Refresh.True,
     private val batchSize: Int = DEFAULT_BATCH_SIZE,
     metrics: WowMetrics = WowMetrics.NONE,
+    private val indexNaming: ElasticsearchIndexNaming,
 ) : AbstractEventStore() {
+    /** The constructor from before the index prefix, kept for binary compatibility: Wow's unprefixed names. */
+    constructor(
+        elasticsearchClient: ReactiveElasticsearchClient,
+        batchOptions: BatchOptions? = null,
+        refreshPolicy: Refresh = Refresh.True,
+        batchSize: Int = DEFAULT_BATCH_SIZE,
+        metrics: WowMetrics = WowMetrics.NONE,
+    ) : this(elasticsearchClient, batchOptions, refreshPolicy, batchSize, metrics, ElasticsearchIndexNaming.DEFAULT)
+
     private val appender: ElasticsearchEventStreamAppender = if (batchOptions != null) {
         BatchElasticsearchEventStreamAppender(
             elasticsearchClient = elasticsearchClient,
             refreshPolicy = refreshPolicy,
             options = batchOptions,
             metrics = metrics,
+            indexNaming = indexNaming,
         )
     } else {
         DirectElasticsearchEventStreamAppender(
             elasticsearchClient = elasticsearchClient,
             refreshPolicy = refreshPolicy,
+            indexNaming = indexNaming,
         )
     }
 
@@ -142,7 +154,7 @@ class ElasticsearchEventStore(
         return elasticsearchClient
             .search({ request ->
                 request
-                    .index(aggregateId.toEventStreamIndexName())
+                    .index(indexNaming.eventStreamIndexName(aggregateId))
                     .query(query)
                     .size(size)
                     .routing(aggregateId.id)
@@ -180,7 +192,7 @@ class ElasticsearchEventStore(
         return elasticsearchClient
             .search({
                 it
-                    .index(namedAggregate.toEventStreamIndexName())
+                    .index(indexNaming.eventStreamIndexName(namedAggregate))
                     .query(EventStreamSearches.initialStreamsAfter(afterId))
                     .source { sourceBuilder -> sourceBuilder.fetch(false) }
                     .docvalueFields { field -> field.field(MessageRecords.AGGREGATE_ID) }

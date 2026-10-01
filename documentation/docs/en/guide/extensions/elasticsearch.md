@@ -43,7 +43,7 @@ wow:
       storage: elasticsearch
 ```
 
-Defaults are `wow.elasticsearch.enabled=true`, `auto-init-template=true`, `query.batch-size=10000`, and `query.keep-alive=1m`; `compatibility-version` is unset. Event/snapshot batching is disabled. Enabled defaults are `max-size=128`, `max-delay=1ms`, `max-pending-*=4096`, and `lane-count=1`.
+Defaults are `wow.elasticsearch.enabled=true`, `auto-init-template=true`, `query.batch-size=10000`, and `query.keep-alive=1m`; `compatibility-version` and `index-prefix` are unset. Event/snapshot batching is disabled. Enabled defaults are `max-size=128`, `max-delay=1ms`, `max-pending-*=4096`, and `lane-count=1`.
 
 ### Spring Data Elasticsearch Configuration
 
@@ -60,6 +60,31 @@ EventStore batching uses Bulk `create`. Both direct and batched SnapshotStore wr
 ## Index Naming Rules
 
 Default event indexes are `wow.${contextAlias}.${aggregateName}.es`; snapshot indexes are `wow.${contextAlias}.${aggregateName}.snapshot`. Names participate in storage and query routing, so renaming is a data migration.
+
+### Several deployments on one cluster {#index-prefix}
+
+The names are fixed per aggregate, so two deployments of the same service on one cluster (dev and staging, say) would read and write each other's indices. Give each one a prefix with `wow.elasticsearch.index-prefix`:
+
+```yaml
+wow:
+  elasticsearch:
+    index-prefix: staging.
+```
+
+The prefix is put verbatim before every name Wow derives, on the write path, the event store and snapshot reads, the query backends and their schema:
+
+| What | Unset (default) | `index-prefix: staging.` |
+| --- | --- | --- |
+| Event stream index | `wow.sales.order.es` | `staging.wow.sales.order.es` |
+| Snapshot index | `wow.sales.order.snapshot` | `staging.wow.sales.order.snapshot` |
+| Event stream template | `wow-event-stream-template` (`wow.*.es`) | `staging.wow-event-stream-template` (`staging.wow.*.es`) |
+| Snapshot template | `wow-snapshot-template` (`wow.*.snapshot`) | `staging.wow-snapshot-template` (`staging.wow.*.snapshot`) |
+
+Unset or blank, every name is exactly as before. An [index definition](#configure-snapshot-index-template) keeps its unprefixed file name (`wow.sales.order.snapshot.json`) and creates the prefixed index; aliases a definition declares are created as written, so give them per-deployment names yourself. The view store's indices follow the same prefix.
+
+The prefix must be lowercase, contain none of `\ / * ? " < > | , # :` or whitespace, and not start with `-`, `_`, `+` or `.`; an invalid prefix fails startup. It may not start with `wow.` either: its template patterns would overlap the unprefixed ones at the same priority, which Elasticsearch refuses. For the same reason, two prefixes on one cluster must not be one another plus `wow.` (`dev.` and `dev.wow.`).
+
+Setting or changing the prefix of a running deployment moves it to new, empty indices; reindex the old ones first (`POST _reindex` from `wow.sales.order.snapshot` into `staging.wow.sales.order.snapshot`, after the prefixed templates and definitions exist). Index privileges granted by name or pattern must cover the prefixed names, and the template privileges the prefixed templates.
 
 ## Snapshot Query Field Resolution
 
@@ -113,7 +138,7 @@ The generic snapshot template is the fallback for storage-only snapshots. Querya
 }
 ```
 
-The resource key is the final index name computed by Wow. The working-directory file replaces classpath files; without a working file, duplicate classpath files fail startup. Missing resources keep the generic-template behavior. Existing indexes are skipped, so mapping changes require explicit reindex or migration: when an existing index maps a path of its definition otherwise (an index created from the template alone, before the definition shipped), startup logs a warning naming those paths and carries on. Resource JSON follows Elasticsearch client and cluster validation semantics. Resource presence requests creation regardless of storage-routing configuration.
+The resource key is the index name Wow computes without `index-prefix`; with a prefix, the index created is the prefixed one. The working-directory file replaces classpath files; without a working file, duplicate classpath files fail startup. Missing resources keep the generic-template behavior. Existing indexes are skipped, so mapping changes require explicit reindex or migration: when an existing index maps a path of its definition otherwise (an index created from the template alone, before the definition shipped), startup logs a warning naming those paths and carries on. Resource JSON follows Elasticsearch client and cluster validation semantics. Resource presence requests creation regardless of storage-routing configuration.
 
 The drift check compares `properties` only, path by path with each field's own parameters (its type, `ignore_above`, `scaling_factor`, `dynamic` of an object, …); root parameters of the mapping, such as a root `dynamic`, and the index settings are not compared.
 

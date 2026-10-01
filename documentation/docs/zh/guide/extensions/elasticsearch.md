@@ -43,7 +43,7 @@ wow:
       storage: elasticsearch
 ```
 
-`wow.elasticsearch.enabled=true`、`auto-init-template=true`、`query.batch-size=10000`、`query.keep-alive=1m`；`compatibility-version` 默认为空。event/snapshot batch 默认关闭，启用后默认 `max-size=128`、`max-delay=1ms`、`max-pending-*=4096`、`lane-count=1`。
+`wow.elasticsearch.enabled=true`、`auto-init-template=true`、`query.batch-size=10000`、`query.keep-alive=1m`；`compatibility-version` 与 `index-prefix` 默认为空。event/snapshot batch 默认关闭，启用后默认 `max-size=128`、`max-delay=1ms`、`max-pending-*=4096`、`lane-count=1`。
 
 ### Spring Data Elasticsearch 配置
 
@@ -60,6 +60,31 @@ EventStore batch 使用 Bulk `create`；SnapshotStore direct/batch 都以 `_sour
 ## 索引命名规则
 
 默认事件索引为 `wow.${contextAlias}.${aggregateName}.es`，快照索引为 `wow.${contextAlias}.${aggregateName}.snapshot`。索引名参与存储与查询路由，重命名属于数据迁移。
+
+### 多个部署共用一个集群 {#index-prefix}
+
+索引名按聚合固定，因此同一服务的两个部署（例如 dev 与 staging）共用一个集群时会读写对方的索引。用 `wow.elasticsearch.index-prefix` 给每个部署一个前缀：
+
+```yaml
+wow:
+  elasticsearch:
+    index-prefix: staging.
+```
+
+前缀原样加在 Wow 推导出的每个名称之前，覆盖写入路径、事件存储与快照读取、查询后端及其 schema：
+
+| 对象 | 未设置（默认） | `index-prefix: staging.` |
+| --- | --- | --- |
+| 事件流索引 | `wow.sales.order.es` | `staging.wow.sales.order.es` |
+| 快照索引 | `wow.sales.order.snapshot` | `staging.wow.sales.order.snapshot` |
+| 事件流模板 | `wow-event-stream-template`（`wow.*.es`） | `staging.wow-event-stream-template`（`staging.wow.*.es`） |
+| 快照模板 | `wow-snapshot-template`（`wow.*.snapshot`） | `staging.wow-snapshot-template`（`staging.wow.*.snapshot`） |
+
+未设置或为空白时，所有名称与以前完全相同。[索引定义](#配置快照索引模板)保留不带前缀的文件名（`wow.sales.order.snapshot.json`），创建的是带前缀的索引；定义中声明的 alias 按原样创建，需要自行为每个部署取不同的名称。视图存储的索引同样使用该前缀。
+
+前缀必须小写，不含 `\ / * ? " < > | , # :` 或空白，且不以 `-`、`_`、`+` 或 `.` 开头；无效前缀使启动失败。前缀也不能以 `wow.` 开头：其模板 pattern 会与不带前缀的模板在同一优先级上重叠，Elasticsearch 会拒绝。同理，同一集群上的两个前缀不能是另一个加上 `wow.`（`dev.` 与 `dev.wow.`）。
+
+为运行中的部署设置或修改前缀会使其改用新的空索引；请先 reindex 旧索引（在带前缀的模板与索引定义就绪后，`POST _reindex` 从 `wow.sales.order.snapshot` 到 `staging.wow.sales.order.snapshot`）。按名称或 pattern 授予的索引权限必须覆盖带前缀的名称，模板权限须覆盖带前缀的模板。
 
 ## 快照查询字段解析
 
@@ -113,7 +138,7 @@ snapshot template 定义系统字段与动态状态映射基线。模板只影�
 }
 ```
 
-资源键是 Wow 计算出的最终索引名。工作目录文件会替换 classpath 文件；没有工作目录文件时，重复的 classpath 文件会导致启动失败。资源缺失时仍使用通用模板行为。已有索引会被跳过，因此 mapping 变更需要显式 reindex 或迁移：已有索引对定义中某些路径的映射与定义不同时（例如定义发布之前仅由模板创建的索引），启动时记录一条列出这些路径的警告，然后继续启动。资源 JSON 遵循 Elasticsearch client 与集群的校验语义。无论 storage routing 如何配置，只要资源存在就会请求创建索引。
+资源键是 Wow 计算出的不含 `index-prefix` 的索引名；设置前缀后，创建的是带前缀的索引。工作目录文件会替换 classpath 文件；没有工作目录文件时，重复的 classpath 文件会导致启动失败。资源缺失时仍使用通用模板行为。已有索引会被跳过，因此 mapping 变更需要显式 reindex 或迁移：已有索引对定义中某些路径的映射与定义不同时（例如定义发布之前仅由模板创建的索引），启动时记录一条列出这些路径的警告，然后继续启动。资源 JSON 遵循 Elasticsearch client 与集群的校验语义。无论 storage routing 如何配置，只要资源存在就会请求创建索引。
 
 差异检查只比较 `properties`：逐个路径比较每个字段自身的参数（类型、`ignore_above`、`scaling_factor`、对象的 `dynamic` 等）；mapping 的根参数（例如根上的 `dynamic`）和索引 settings 不参与比较。
 

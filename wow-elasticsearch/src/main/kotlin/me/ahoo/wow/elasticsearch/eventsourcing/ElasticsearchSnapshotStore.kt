@@ -15,7 +15,7 @@ package me.ahoo.wow.elasticsearch.eventsourcing
 import co.elastic.clients.elasticsearch._types.ElasticsearchException
 import co.elastic.clients.elasticsearch._types.Refresh
 import me.ahoo.wow.api.modeling.AggregateId
-import me.ahoo.wow.elasticsearch.IndexNameConverter.toSnapshotIndexName
+import me.ahoo.wow.elasticsearch.ElasticsearchIndexNaming
 import me.ahoo.wow.eventsourcing.snapshot.Snapshot
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotStore
 import me.ahoo.wow.infra.batch.BatchOptions
@@ -29,18 +29,29 @@ class ElasticsearchSnapshotStore(
     val batchOptions: BatchOptions? = null,
     private val refreshPolicy: Refresh = Refresh.True,
     metrics: WowMetrics = WowMetrics.NONE,
+    private val indexNaming: ElasticsearchIndexNaming,
 ) : SnapshotStore {
+    /** The constructor from before the index prefix, kept for binary compatibility: Wow's unprefixed names. */
+    constructor(
+        elasticsearchClient: ReactiveElasticsearchClient,
+        batchOptions: BatchOptions? = null,
+        refreshPolicy: Refresh = Refresh.True,
+        metrics: WowMetrics = WowMetrics.NONE,
+    ) : this(elasticsearchClient, batchOptions, refreshPolicy, metrics, ElasticsearchIndexNaming.DEFAULT)
+
     private val saver: ElasticsearchSnapshotSaver = if (batchOptions != null) {
         BatchElasticsearchSnapshotSaver(
             elasticsearchClient = elasticsearchClient,
             refreshPolicy = refreshPolicy,
             options = batchOptions,
             metrics = metrics,
+            indexNaming = indexNaming,
         )
     } else {
         DirectElasticsearchSnapshotSaver(
             elasticsearchClient = elasticsearchClient,
             refreshPolicy = refreshPolicy,
+            indexNaming = indexNaming,
         )
     }
 
@@ -55,7 +66,7 @@ class ElasticsearchSnapshotStore(
     @Suppress("UNCHECKED_CAST")
     override fun <S : Any> load(aggregateId: AggregateId): Mono<Snapshot<S>> {
         return elasticsearchClient.get({
-            it.index(aggregateId.toSnapshotIndexName())
+            it.index(indexNaming.snapshotIndexName(aggregateId))
                 .id(aggregateId.id)
         }, Snapshot::class.java)
             .mapNotNull<Snapshot<S>> {

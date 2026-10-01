@@ -14,6 +14,7 @@
 package me.ahoo.wow.elasticsearch.eventsourcing
 
 import co.elastic.clients.elasticsearch._types.Refresh
+import me.ahoo.wow.elasticsearch.ElasticsearchIndexNaming
 import me.ahoo.wow.eventsourcing.snapshot.Snapshot
 import me.ahoo.wow.infra.batch.BatchCoordinator
 import me.ahoo.wow.infra.batch.BatchOptions
@@ -29,6 +30,7 @@ internal class BatchElasticsearchSnapshotSaver(
     options: BatchOptions,
     private val closeTimeout: Duration = DEFAULT_CLOSE_TIMEOUT,
     metrics: WowMetrics = WowMetrics.NONE,
+    private val indexNaming: ElasticsearchIndexNaming = ElasticsearchIndexNaming.DEFAULT,
 ) : ElasticsearchSnapshotSaver {
     init {
         require(!closeTimeout.isNegative && !closeTimeout.isZero) {
@@ -53,7 +55,7 @@ internal class BatchElasticsearchSnapshotSaver(
 
     override fun <S : Any> save(snapshot: Snapshot<S>): Mono<Void> {
         return coordinator.submit {
-            snapshot.toElasticsearchSnapshotWrite()
+            snapshot.toElasticsearchSnapshotWrite(indexNaming)
         }
     }
 

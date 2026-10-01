@@ -129,6 +129,27 @@ class ElasticsearchIndexInitializerTest {
     }
 
     @Test
+    fun `a prefix should create the prefixed index from the unprefixed definition`() {
+        writeWorkingResource(indexJson())
+        val existsRequest = slot<ExistsRequest>()
+        every { indices.exists(capture(existsRequest)) } returns Mono.just(BooleanResponse(false))
+        val request = slot<CreateIndexRequest>()
+        every { indices.create(capture(request)) } returns Mono.just(response(acknowledged = true))
+
+        ElasticsearchSnapshotIndexInitializer(
+            client,
+            WowResourceLocator(configDirectory = tempDir, classLoader = object : ClassLoader(null) {}),
+            listOf(MOCK_AGGREGATE_METADATA),
+            ElasticsearchIndexNaming("staging."),
+        ).ensureAll().block()
+
+        existsRequest.captured.index().assert().containsExactly("staging.$INDEX")
+        request.captured.index().assert().isEqualTo("staging.$INDEX")
+        request.captured.mappings()!!.properties()["state"]!!.`object`()
+            .properties()["status"]!!._kind().jsonValue().assert().isEqualTo("keyword")
+    }
+
+    @Test
     fun `working resource should suppress duplicate classpath resources`() {
         writeWorkingResource(indexJson())
         val first = tempDir.resolve("a")

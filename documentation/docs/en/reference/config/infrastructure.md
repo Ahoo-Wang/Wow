@@ -113,6 +113,7 @@ Configuration classes: `ElasticsearchProperties`, `ElasticsearchQueryProperties`
 | `wow.elasticsearch.enabled` | Boolean | `true` | Enables Elasticsearch auto-configuration |
 | `wow.elasticsearch.auto-init-template` | Boolean | `true` | Creates/confirms Wow event and snapshot index templates |
 | `wow.elasticsearch.compatibility-version` | Int? | `null` | Adds REST compatibility media-type headers when configured |
+| `wow.elasticsearch.index-prefix` | String? | `null` | Put before every index, index template and template pattern Wow names, so several deployments share one cluster |
 | `wow.elasticsearch.query.batch-size` | Int | `10000` | Batch size for PIT + `search_after` |
 | `wow.elasticsearch.query.keep-alive` | Duration | `1m` | PIT keep-alive refreshed by every full-query request |
 
@@ -123,6 +124,8 @@ spring:
   elasticsearch:
     uris: ${ELASTICSEARCH_URIS}
 ```
+
+`index-prefix` unset or blank keeps Wow's own names. Set, it is put verbatim before each of them: `{prefix}wow.{context}.{aggregate}.snapshot|es`, the templates `{prefix}wow-snapshot-template` and `{prefix}wow-event-stream-template`, and their patterns `{prefix}wow.*.snapshot` and `{prefix}wow.*.es`. It must be lowercase, contain none of `\ / * ? " < > | , # :` or whitespace, and not start with `-`, `_`, `+`, `.` or `wow.` (whose patterns would overlap the unprefixed templates); an invalid prefix fails startup. See [index naming rules](../../guide/extensions/elasticsearch.md#index-prefix).
 
 `compatibility-version` has no default. Set it only when the deployed topology requires Elasticsearch REST compatibility headers, and verify the value against that server. This documentation does not pin a server major version.
 
@@ -141,7 +144,7 @@ spring:
 
 Batch validation matches MongoDB. EventStore batching uses Bulk `create`. Both direct and batch SnapshotStore paths use an atomic `_source.version` guarded update so an older snapshot cannot overwrite a newer one. With `auto-init-template=true`, a failed, empty, or unacknowledged template request fails startup. Disable it only when an external platform explicitly owns templates, and retain template version and validation evidence.
 
-When Elasticsearch is selected for SnapshotStore or EventStore, Wow also looks for concrete index resources under `META-INF/wow/elasticsearch/{indexName}.json` or `config/wow/elasticsearch/{indexName}.json` (`wow.{context}.{aggregate}.snapshot`, `wow.{context}.{aggregate}.es`). Concrete resources are processed after the generic template and before the store's creation; an existing index is left as it is, with a warning when its mapping differs from the resource. This mechanism is independent of `auto-init-template`; missing resources remain a no-op.
+When Elasticsearch is selected for SnapshotStore or EventStore, Wow also looks for concrete index resources under `META-INF/wow/elasticsearch/{indexName}.json` or `config/wow/elasticsearch/{indexName}.json` (`wow.{context}.{aggregate}.snapshot`, `wow.{context}.{aggregate}.es`, without `index-prefix`; the index created carries it). Concrete resources are processed after the generic template and before the store's creation; an existing index is left as it is, with a warning when its mapping differs from the resource. This mechanism is independent of `auto-init-template`; missing resources remain a no-op.
 
 ## Query {#query}
 

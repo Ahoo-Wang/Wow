@@ -18,6 +18,7 @@ import co.elastic.clients.json.jackson.Jackson3JsonpMapper
 import co.elastic.clients.transport.rest5_client.Rest5ClientOptions
 import co.elastic.clients.transport.rest5_client.SafeResponseConsumer
 import me.ahoo.wow.elasticsearch.ElasticsearchEventStreamIndexInitializer
+import me.ahoo.wow.elasticsearch.ElasticsearchIndexNaming
 import me.ahoo.wow.elasticsearch.ElasticsearchSnapshotIndexInitializer
 import me.ahoo.wow.elasticsearch.IndexTemplateInitializer
 import me.ahoo.wow.elasticsearch.WowJsonpMapper
@@ -72,7 +73,29 @@ class ElasticsearchEventSourcingAutoConfiguration @Autowired constructor(
     private val eventStoreBatchProperties: ElasticsearchEventStoreBatchProperties,
     private val snapshotStoreBatchProperties: ElasticsearchSnapshotStoreBatchProperties,
     private val queryProperties: ElasticsearchQueryProperties = ElasticsearchQueryProperties(),
+    indexNamingProvider: ObjectProvider<ElasticsearchIndexNaming>?,
 ) {
+    /** The constructor from before the index prefix, kept for binary compatibility: names from the properties. */
+    constructor(
+        elasticsearchProperties: ElasticsearchProperties,
+        eventStoreBatchProperties: ElasticsearchEventStoreBatchProperties,
+        snapshotStoreBatchProperties: ElasticsearchSnapshotStoreBatchProperties,
+        queryProperties: ElasticsearchQueryProperties = ElasticsearchQueryProperties(),
+    ) : this(elasticsearchProperties, eventStoreBatchProperties, snapshotStoreBatchProperties, queryProperties, null)
+
+    /**
+     * The [ElasticsearchIndexNaming] bean (a host's own, or [elasticsearchIndexNaming]), resolved on first use so that
+     * this configuration does not depend on a bean it declares; without a provider, the properties' naming.
+     */
+    private val indexNaming: ElasticsearchIndexNaming by lazy {
+        indexNamingProvider?.getIfAvailable { elasticsearchProperties.toIndexNaming() }
+            ?: elasticsearchProperties.toIndexNaming()
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    fun elasticsearchIndexNaming(): ElasticsearchIndexNaming = elasticsearchProperties.toIndexNaming()
+
     @Bean
     @ConditionalOnProperty(ElasticsearchProperties.COMPATIBILITY_VERSION_KEY)
     @ConditionalOnMissingBean(Rest5ClientOptions::class)
@@ -109,6 +132,7 @@ class ElasticsearchEventSourcingAutoConfiguration @Autowired constructor(
             elasticsearchClient = elasticsearchClient,
             batchOptions = eventStoreBatchProperties.toOptions(),
             metrics = metrics.getIfAvailable { WowMetrics.NONE },
+            indexNaming = indexNaming,
         )
     }
 
@@ -123,21 +147,23 @@ class ElasticsearchEventSourcingAutoConfiguration @Autowired constructor(
 
     @Bean
     fun indexTemplateInitializer(elasticsearchOperations: ReactiveElasticsearchOperations): IndexTemplateInitializer {
-        return IndexTemplateInitializer(elasticsearchOperations)
+        return IndexTemplateInitializer(elasticsearchOperations, indexNaming)
     }
 
     @Bean
     @ConditionalOnEventStoreStorage(StorageType.ELASTICSEARCH)
     fun elasticsearchEventStreamIndexInitializer(
         elasticsearchClient: ReactiveElasticsearchClient,
-    ): ElasticsearchEventStreamIndexInitializer = ElasticsearchEventStreamIndexInitializer(elasticsearchClient)
+    ): ElasticsearchEventStreamIndexInitializer =
+        ElasticsearchEventStreamIndexInitializer(elasticsearchClient, indexNaming = indexNaming)
 
     @Bean
     @ConditionalOnSnapshotEnabled
     @ConditionalOnSnapshotStoreStorage(StorageType.ELASTICSEARCH)
     fun elasticsearchSnapshotIndexInitializer(
         elasticsearchClient: ReactiveElasticsearchClient,
-    ): ElasticsearchSnapshotIndexInitializer = ElasticsearchSnapshotIndexInitializer(elasticsearchClient)
+    ): ElasticsearchSnapshotIndexInitializer =
+        ElasticsearchSnapshotIndexInitializer(elasticsearchClient, indexNaming = indexNaming)
 
     @Bean
     @ConditionalOnEventStoreStorage(StorageType.ELASTICSEARCH)
@@ -151,6 +177,7 @@ class ElasticsearchEventSourcingAutoConfiguration @Autowired constructor(
             queryProperties.batchSize,
             queryProperties.keepAlive,
             elasticsearchIndexMappingResolver,
+            indexNaming,
         )
     }
 
@@ -180,6 +207,7 @@ class ElasticsearchEventSourcingAutoConfiguration @Autowired constructor(
             elasticsearchClient = elasticsearchClient,
             batchOptions = snapshotStoreBatchProperties.toOptions(),
             metrics = metrics.getIfAvailable { WowMetrics.NONE },
+            indexNaming = indexNaming,
         )
     }
 
@@ -205,6 +233,7 @@ class ElasticsearchEventSourcingAutoConfiguration @Autowired constructor(
             queryBatchSize = queryProperties.batchSize,
             queryKeepAlive = queryProperties.keepAlive,
             indexMappingResolver = elasticsearchIndexMappingResolver,
+            indexNaming = indexNaming,
         )
     }
 

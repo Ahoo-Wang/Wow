@@ -14,6 +14,7 @@
 package me.ahoo.wow.elasticsearch.eventsourcing
 
 import co.elastic.clients.elasticsearch._types.Refresh
+import me.ahoo.wow.elasticsearch.ElasticsearchIndexNaming
 import me.ahoo.wow.eventsourcing.snapshot.Snapshot
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
 import reactor.core.publisher.Mono
@@ -27,6 +28,7 @@ internal interface ElasticsearchSnapshotSaver : AutoCloseable {
 internal class DirectElasticsearchSnapshotSaver(
     elasticsearchClient: ReactiveElasticsearchClient,
     refreshPolicy: Refresh,
+    private val indexNaming: ElasticsearchIndexNaming = ElasticsearchIndexNaming.DEFAULT,
 ) : ElasticsearchSnapshotSaver {
     private val versionGuardedWriter = ElasticsearchSnapshotVersionGuardedWriter(
         elasticsearchClient = elasticsearchClient,
@@ -34,5 +36,5 @@ internal class DirectElasticsearchSnapshotSaver(
     )
 
     override fun <S : Any> save(snapshot: Snapshot<S>): Mono<Void> =
-        versionGuardedWriter.write(snapshot.toElasticsearchSnapshotWrite())
+        versionGuardedWriter.write(snapshot.toElasticsearchSnapshotWrite(indexNaming))
 }

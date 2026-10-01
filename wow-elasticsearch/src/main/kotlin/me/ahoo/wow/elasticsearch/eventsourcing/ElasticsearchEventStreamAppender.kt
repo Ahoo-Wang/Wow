@@ -17,7 +17,7 @@ import co.elastic.clients.elasticsearch._types.ElasticsearchException
 import co.elastic.clients.elasticsearch._types.OpType
 import co.elastic.clients.elasticsearch._types.Refresh
 import co.elastic.clients.elasticsearch.core.IndexRequest
-import me.ahoo.wow.elasticsearch.IndexNameConverter.toEventStreamIndexName
+import me.ahoo.wow.elasticsearch.ElasticsearchIndexNaming
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.eventsourcing.EventVersionConflictException
 import me.ahoo.wow.serialization.toLinkedHashMap
@@ -33,10 +33,11 @@ internal interface ElasticsearchEventStreamAppender : AutoCloseable {
 internal class DirectElasticsearchEventStreamAppender(
     private val elasticsearchClient: ReactiveElasticsearchClient,
     private val refreshPolicy: Refresh,
+    private val indexNaming: ElasticsearchIndexNaming = ElasticsearchIndexNaming.DEFAULT,
 ) : ElasticsearchEventStreamAppender {
     override fun append(eventStream: DomainEventStream): Mono<Void> {
         val request = IndexRequest.of<Map<String, Any?>> {
-            it.index(eventStream.aggregateId.toEventStreamIndexName())
+            it.index(indexNaming.eventStreamIndexName(eventStream.aggregateId))
                 .id(eventStream.toDocId())
                 .document(eventStream.toLinkedHashMap())
                 .routing(eventStream.aggregateId.id)

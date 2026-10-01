@@ -23,6 +23,7 @@ import io.mockk.verify
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.elasticsearch.ElasticsearchEventStreamIndexInitializer
+import me.ahoo.wow.elasticsearch.ElasticsearchIndexNaming
 import me.ahoo.wow.elasticsearch.ElasticsearchSnapshotIndexInitializer
 import me.ahoo.wow.elasticsearch.IndexTemplateInitializer
 import me.ahoo.wow.elasticsearch.WowJsonpMapper
@@ -527,6 +528,86 @@ internal class ElasticsearchEventSourcingAutoConfigurationTest {
             )
             .run { context ->
                 context.startupFailure.assert().isNotNull()
+            }
+    }
+
+    @Test
+    fun `index prefix should name the templates and their patterns`() {
+        val indexOperations = successfulIndexOperations()
+        elasticsearchContextRunner(indexOperations)
+            .withPropertyValues(
+                "${EventStoreProperties.STORAGE}=${StorageType.ELASTICSEARCH_NAME}",
+                "${SnapshotProperties.STORAGE}=${StorageType.ELASTICSEARCH_NAME}",
+                "${ElasticsearchProperties.PREFIX}.index-prefix=staging.",
+            )
+            .run { context ->
+                context.assert().hasNotFailed()
+                context.getBean(ElasticsearchIndexNaming::class.java).prefix.assert().isEqualTo("staging.")
+                verify(exactly = 1) {
+                    indexOperations.putIndexTemplate(
+                        match {
+                            it.name() == "staging.wow-event-stream-template" &&
+                                it.indexPatterns().toList() == listOf("staging.wow.*.es")
+                        },
+                    )
+                }
+                verify(exactly = 1) {
+                    indexOperations.putIndexTemplate(
+                        match {
+                            it.name() == "staging.wow-snapshot-template" &&
+                                it.indexPatterns().toList() == listOf("staging.wow.*.snapshot")
+                        },
+                    )
+                }
+            }
+    }
+
+    @Test
+    fun `unset or blank index prefix should keep Wow's own names`() {
+        listOf(null, "", "  ").forEach { prefix ->
+            ElasticsearchProperties().apply { indexPrefix = prefix }.toIndexNaming().assert()
+                .isSameAs(ElasticsearchIndexNaming.DEFAULT)
+        }
+        val indexOperations = successfulIndexOperations()
+        elasticsearchContextRunner(indexOperations)
+            .withPropertyValues(
+                "${EventStoreProperties.STORAGE}=${StorageType.ELASTICSEARCH_NAME}",
+                "${SnapshotProperties.STORAGE}=${StorageType.ELASTICSEARCH_NAME}",
+            )
+            .run { context ->
+                context.assert().hasNotFailed()
+                context.getBean(ElasticsearchIndexNaming::class.java).prefix.assert().isEmpty()
+                verify(exactly = 1) {
+                    indexOperations.putIndexTemplate(
+                        match {
+                            it.name() == "wow-event-stream-template" &&
+                                it.indexPatterns().toList() == listOf("wow.*.es")
+                        },
+                    )
+                }
+                verify(exactly = 1) {
+                    indexOperations.putIndexTemplate(
+                        match {
+                            it.name() == "wow-snapshot-template" &&
+                                it.indexPatterns().toList() == listOf("wow.*.snapshot")
+                        },
+                    )
+                }
+            }
+    }
+
+    @Test
+    fun `invalid index prefix should fail startup`() {
+        val indexOperations = successfulIndexOperations()
+        elasticsearchContextRunner(indexOperations)
+            .withPropertyValues(
+                "${EventStoreProperties.STORAGE}=${StorageType.ELASTICSEARCH_NAME}",
+                "${SnapshotProperties.STORAGE}=${StorageType.MONGO_NAME}",
+                "${ElasticsearchProperties.PREFIX}.index-prefix=Staging.",
+            )
+            .run { context ->
+                context.startupFailure.assert().rootCause().hasMessageContaining("[Staging.] must be lowercase")
+                verify(exactly = 0) { indexOperations.putIndexTemplate(any()) }
             }
     }
 
