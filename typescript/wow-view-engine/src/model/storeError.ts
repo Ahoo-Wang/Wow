@@ -52,11 +52,23 @@ export class ViewStoreError extends Error {
    * told what to free rather than that the result never came back.
    */
   readonly storage?: true;
+  /**
+   * With `INVALID` from `changeAudience`: the shared dashboards that show
+   * the view and so keep it shared, by **title** as stored — a title
+   * written as a key stays one, said where it is shown (D2). The engine
+   * says the refusal in its own words around them
+   * (`view.changeAudience.invalid.shared-boards`); `message` stays the
+   * store's own, for logs.
+   */
+  readonly boards?: readonly string[];
 
   constructor(
     code: ViewStoreErrorCode,
     message: string,
-    held: ConflictingState & { storage?: true } = {},
+    held: ConflictingState & {
+      storage?: true;
+      boards?: readonly string[];
+    } = {},
   ) {
     super(message);
     this.name = 'ViewStoreError';
@@ -64,6 +76,7 @@ export class ViewStoreError extends Error {
     this.instance = held.instance;
     this.preferences = held.preferences;
     if (held.storage) this.storage = true;
+    if (held.boards) this.boards = held.boards;
   }
 }
 

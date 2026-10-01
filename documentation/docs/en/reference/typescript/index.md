@@ -13,5 +13,6 @@ One reference per package. Start with the [TypeScript guide](../../guide/typescr
 | `@ahoo-wang/wow-generator` | Released with Wow 9.2.0 | CLI `wow-generator`; `CodeGenerator` | [wow-generator](./wow-generator/) |
 | `@ahoo-wang/wow-react` | Released with Wow 9.2.0 | `@ahoo-wang/wow-react` | [wow-react](./wow-react/) |
 | `@ahoo-wang/wow-view-engine` | Not released | `@ahoo-wang/wow-view-engine`, `/react`, `/ui` | [wow-view-engine](./wow-view-engine/) |
+| `@ahoo-wang/wow-view-store` | Not released | `@ahoo-wang/wow-view-store` | [wow-view-store](./wow-view-store/) |
 
 Until Wow 9.2.0 is published, the packages released with it are not yet on npm.

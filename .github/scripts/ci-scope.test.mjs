@@ -31,7 +31,6 @@ test('workspace configuration, CI scripts and unknown paths run every gate', () 
     'patches/jsdom@29.1.1.patch',
     'tsconfig.base.json',
     '.github/scripts/ci-scope.mjs',
-    'view-store/wow-view-store-api/build.gradle.kts',
     'new-directory/index.ts',
   ])
     assert.ok(all([path]), path);
@@ -96,8 +95,36 @@ test('example server sources and the Gradle build run only the same-source contr
     'settings.gradle.kts',
     'gradle/libs.versions.toml',
     'gradlew',
+    // The view store server the contract starts for WowViewStore.
+    'view-store/wow-view-store-api/build.gradle.kts',
+    'view-store/wow-view-store-starter/src/main/kotlin/ViewStoreRoutes.kt',
   ])
     assert.deepEqual(on([path]), ['contract'], path);
+});
+
+test('the view store client runs its unit tests, the site and the contract', () => {
+  for (const path of [
+    'typescript/wow-view-store/src/wowViewStore.ts',
+    'typescript/wow-view-store/package.json',
+  ])
+    assert.deepEqual(
+      on([path]),
+      ['typescript', 'sdk', 'docs', 'contract'],
+      path,
+    );
+  assert.deepEqual(on(['typescript/wow-view-store/test/errors.test.ts']), [
+    'typescript',
+    'sdk',
+  ]);
+  assert.deepEqual(on(['typescript/wow-view-store/README.md']), [
+    'docs',
+    'packageDocs',
+  ]);
+  // The engine's port conformance suite runs over WowViewStore in the contract.
+  assert.deepEqual(
+    on(['typescript/wow-view-engine/test/conformance/viewStoreConformance.ts']),
+    ['typescript', 'viewEngine', 'contract'],
+  );
 });
 
 test('the version source and the compat-debt ledger run the static checks', () => {
@@ -368,7 +395,7 @@ test('the command reads the diff and runs everything without a base', () => {
         .join('') +
       // Everything runs quality, which checks the ledger itself.
       'compatDebt=false\n' +
-      `unitPackages=${value ? '["wow-client","wow-react","wow-generator"]' : '[]'}\n`;
+      `unitPackages=${value ? '["wow-client","wow-react","wow-generator","wow-view-store"]' : '[]'}\n`;
     assert.equal(run({ BASE_SHA: base, HEAD_SHA: head }), output(false));
     assert.equal(
       run({ BASE_SHA: '0'.repeat(40), HEAD_SHA: head }),
@@ -401,9 +428,9 @@ test("a library's own tests, goldens and scripts rerun only that package", () =>
 });
 
 test('the unit matrix reruns a package and the packages built on it', () => {
-  const every = ['wow-client', 'wow-react', 'wow-generator'];
-  // The client's sources reach the hooks and the generator, which import its
-  // dist; theirs reach only themselves.
+  const every = ['wow-client', 'wow-react', 'wow-generator', 'wow-view-store'];
+  // The client's sources reach the hooks, the generator and the view store,
+  // which import its dist; theirs reach only themselves.
   assert.deepEqual(unitPackages(['typescript/wow-client/src/index.ts']), every);
   assert.deepEqual(unitPackages(['typescript/wow-client/package.json']), every);
   assert.deepEqual(unitPackages(['typescript/wow-react/src/index.ts']), [
@@ -412,6 +439,10 @@ test('the unit matrix reruns a package and the packages built on it', () => {
   assert.deepEqual(unitPackages(['typescript/wow-generator/src/cli.ts']), [
     'wow-generator',
   ]);
+  assert.deepEqual(
+    unitPackages(['typescript/wow-view-store/src/wowViewStore.ts']),
+    ['wow-view-store'],
+  );
   // A library's own tests, goldens and scripts rerun only that library.
   assert.deepEqual(
     unitPackages(['typescript/wow-client/test/dsl/filter.test.ts']),
@@ -424,7 +455,7 @@ test('the unit matrix reruns a package and the packages built on it', () => {
     ]),
     ['wow-react', 'wow-generator'],
   );
-  // Whatever else turns the sdk scope on reruns all three.
+  // Whatever else turns the sdk scope on reruns them all.
   for (const path of [
     '.github/workflows/typescript.yml',
     'pnpm-lock.yaml',

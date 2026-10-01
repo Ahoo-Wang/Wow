@@ -32,6 +32,7 @@ test-output/
 # Baselines tests write and compare byte for byte: API Extractor's reports and
 # the golden files wow-client's tests write with -u.
 typescript/wow-client/test/api/
+typescript/wow-view-store/test/api/
 typescript/wow-client/test/golden/
 
 # Vendored from the shadcn registry and updated with `shadcn add --diff`;

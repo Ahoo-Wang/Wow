@@ -63,7 +63,7 @@ interface ViewStore {
 | 幂等 `requestId` | 每次逻辑写入在 `WriteContext` 中有一个 `requestId`；超时后重试沿用同一个值，由服务端去重 |
 | 权限 | `permissions` 只决定按钮是否可用。授权、可见性过滤和去重都是服务端的职责 |
 
-`MemoryViewStore` 用于测试、示例和只读查询场景。基于 Wow 的 `ViewStore` 服务及其 TypeScript 适配器计划作为单独的包提供。
+`MemoryViewStore` 用于测试、示例和只读查询场景。基于 Wow 的是单独一个包里的 [`WowViewStore`](../wow-view-store/)，对接视图存储服务端。
 
 ## 分层
 

@@ -13,11 +13,13 @@
 
 import {
   isViewStoreError,
+  type Issue,
   type ViewInstance,
   type ViewStoreError,
   type ViewPreferences,
 } from '../model/index.js';
 import { issue } from '../filter/index.js';
+import { listParam } from '../model/issue.js';
 import type { ViewStore, WriteContext } from '../store/ViewStore.js';
 import type { ManagedViewRuntime, ViewRuntime } from './viewRuntimeTypes.js';
 import type { ViewChange } from './viewChanges.js';
@@ -353,9 +355,7 @@ export class WriteLedger {
           kind: 'rejected',
           requestId,
           payload,
-          issue: issue(refusalCode(payload, error), [], {
-            reason: error.message,
-          }),
+          issue: refusalIssue(payload, error),
         };
     }
   }
@@ -443,13 +443,25 @@ export class WriteLedger {
 /**
  * The sentence a refusal is said in. An audience change the store finds
  * invalid has one reason the reader can act on — a shared board shows the
- * view — and the store's message names the boards, so it is said with it
- * rather than as the bare 「服务端拒绝了这次写入」.
+ * view — so it is said with the store's reason rather than as the bare
+ * 「服务端拒绝了这次写入」, and in the engine's own words around the boards'
+ * titles when the store names them (`boards`): the titles stay as stored,
+ * keys included, said where the sentence is shown (D2). `reason` rides along
+ * for a catalogue without the sentence, which falls back to
+ * `view.changeAudience.invalid`.
  */
-function refusalCode(payload: WritePayload, error: ViewStoreError): string {
-  return payload.action === 'changeAudience' && error.code === 'INVALID'
-    ? 'view.changeAudience.invalid'
-    : `view.write.${error.code.toLowerCase()}`;
+function refusalIssue(payload: WritePayload, error: ViewStoreError): Issue {
+  const reason = { reason: error.message };
+  if (payload.action !== 'changeAudience' || error.code !== 'INVALID')
+    return issue(`view.write.${error.code.toLowerCase()}`, [], reason);
+  const boards = error.boards ?? [];
+  return boards.length > 0
+    ? issue('view.changeAudience.invalid.shared-boards', [], {
+        ...reason,
+        boards: listParam(boards),
+        count: boards.length,
+      })
+    : issue('view.changeAudience.invalid', [], reason);
 }
 
 function isRuntime(target: WriteTarget): target is ViewRuntime {

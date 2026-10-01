@@ -52,7 +52,7 @@ const RULES = [
     [PACKAGE_DOCS, VIEW_ENGINE_DOCS, DOCS],
   ],
   [
-    /^typescript\/wow-(?:client|generator)\/README(?:\.zh-CN)?\.md$/,
+    /^typescript\/wow-(?:client|generator|view-store)\/README(?:\.zh-CN)?\.md$/,
     [PACKAGE_DOCS, DOCS],
   ],
   // Prose inside a package. No build, story or site reads it; view-engine
@@ -63,8 +63,14 @@ const RULES = [
   // A library's own tests, goldens and build scripts can't change what another
   // package sees: they rerun that package, not everything built on it.
   [
-    /^typescript\/wow-(?:client|react|generator)\/(?:test|expected|scripts)\//,
+    /^typescript\/wow-(?:client|react|generator|view-store)\/(?:test|expected|scripts)\//,
     [TYPESCRIPT, SDK],
+  ],
+  // The port's conformance suite runs over WowViewStore in the same-source
+  // contract (integration-test/test/view-store/) too.
+  [
+    /^typescript\/wow-view-engine\/test\/conformance\//,
+    [TYPESCRIPT, VIEW_ENGINE, CONTRACT],
   ],
   [/^typescript\/wow-view-engine\/test\//, [TYPESCRIPT, VIEW_ENGINE]],
   // View-engine and the stories build on the client and the React hooks; the
@@ -97,6 +103,9 @@ const RULES = [
     /^typescript\/wow-view-engine\//,
     [TYPESCRIPT, VIEW_ENGINE, STORYBOOK, DOCS, CONTRACT],
   ],
+  // The same-source contract runs WowViewStore against the view store server
+  // (integration-test/test/view-store/); the site lists the package.
+  [/^typescript\/wow-view-store\//, [TYPESCRIPT, SDK, DOCS, CONTRACT]],
   // The static checks lint the stories and check their formatting.
   [/^typescript\/storybook\//, [TYPESCRIPT, STORYBOOK, DOCS]],
   [/^typescript\//, [TYPESCRIPT, SDK]],
@@ -107,6 +116,9 @@ const RULES = [
     /^(?:wow-[^/]+|schema|example|build-logic|gradle|test\/wow-mock|compensation\/wow-compensation-(?:api|core))\//,
     [CONTRACT],
   ],
+  // The view store server the same-source contract starts beside the example
+  // server, for WowViewStore.
+  [/^view-store\//, [CONTRACT]],
   // The single version source: quality checks every package.json against it.
   [/^gradle\.properties$/, [TYPESCRIPT, CONTRACT]],
   [/^(?:build\.gradle\.kts|settings\.gradle\.kts|gradlew)$/, [CONTRACT]],
@@ -163,17 +175,23 @@ const RULES = [
 
 // typescript.yml's unit matrix, which the sdk scope turns on: the packages a
 // path reruns. A library's own tests, goldens and build scripts rerun that
-// library; the client's sources rerun it and the two packages built on it;
-// react's and the generator's rerun themselves. Any other path that turns sdk
-// on (the workflow, the workspace, an unknown path) reruns all three.
-const UNIT_PACKAGES = ['wow-client', 'wow-react', 'wow-generator'];
+// library; the client's sources rerun it and the packages built on it;
+// react's, the generator's and the view store's rerun themselves. Any other
+// path that turns sdk on (the workflow, the workspace, an unknown path)
+// reruns them all.
+const UNIT_PACKAGES = [
+  'wow-client',
+  'wow-react',
+  'wow-generator',
+  'wow-view-store',
+];
 const UNIT_RULES = [
   [
-    /^typescript\/(wow-(?:client|react|generator))\/(?:test|expected|scripts)\//,
+    /^typescript\/(wow-(?:client|react|generator|view-store))\/(?:test|expected|scripts)\//,
     match => [match[1]],
   ],
   [/^typescript\/wow-client\//, () => UNIT_PACKAGES],
-  [/^typescript\/(wow-(?:react|generator))\//, match => [match[1]]],
+  [/^typescript\/(wow-(?:react|generator|view-store))\//, match => [match[1]]],
 ];
 
 export function unitPackages(paths) {

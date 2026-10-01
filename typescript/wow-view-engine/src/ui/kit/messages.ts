@@ -12,6 +12,7 @@
  */
 
 import type { Issue } from '../../model/index.js';
+import { LIST_PARAM_SEPARATOR } from '../../model/issue.js';
 import { formatNumber } from './display.js';
 import { en } from '../messages/en.js';
 
@@ -67,10 +68,49 @@ export function formatMessage(
   return template.replace(PLACEHOLDER, (whole, name: string) => {
     const value = params[name];
     if (value === undefined) return whole;
-    return typeof value === 'number'
-      ? formatNumber(value, undefined, locale)
+    if (typeof value === 'number')
+      return formatNumber(value, undefined, locale);
+    // A list parameter (`listParam`), joined as the wording's language joins
+    // a list: the locale set, else the catalogue's own language.
+    return value.includes(LIST_PARAM_SEPARATOR)
+      ? listFormat(locale ?? messages['label.language']).format(
+          value.split(LIST_PARAM_SEPARATOR),
+        )
       : value;
   });
+}
+
+/**
+ * `Intl.ListFormat`, typed here: the package compiles against a library
+ * older than ES2021, which declares it, and every runtime it supports
+ * ships it. One without it joins with `, `.
+ */
+interface ListFormatter {
+  format(items: readonly string[]): string;
+}
+type ListFormatConstructor = new (
+  locale: string,
+  options: { type: 'conjunction' },
+) => ListFormatter;
+
+const LIST_FORMAT = (Intl as unknown as { ListFormat?: ListFormatConstructor })
+  .ListFormat;
+
+const LISTS = new Map<string, ListFormatter>();
+
+/** A conjunction list in `locale`, English where it is unset or unreadable. */
+function listFormat(locale = 'en'): ListFormatter {
+  let found = LISTS.get(locale);
+  if (!found) {
+    if (!LIST_FORMAT) return { format: items => items.join(', ') };
+    try {
+      found = new LIST_FORMAT(locale, { type: 'conjunction' });
+    } catch {
+      found = new LIST_FORMAT('en', { type: 'conjunction' });
+    }
+    LISTS.set(locale, found);
+  }
+  return found;
 }
 
 /**

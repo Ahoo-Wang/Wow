@@ -531,6 +531,9 @@ importers:
       '@ahoo-wang/wow-view-engine':
         specifier: workspace:*
         version: link:../typescript/wow-view-engine
+      '@ahoo-wang/wow-view-store':
+        specifier: workspace:*
+        version: link:../typescript/wow-view-store
       '@types/canvas-confetti':
         specifier: 'catalog:'
         version: 1.9.0
@@ -595,6 +598,9 @@ importers:
       '@ahoo-wang/wow-view-engine':
         specifier: workspace:*
         version: link:../wow-view-engine
+      '@ahoo-wang/wow-view-store':
+        specifier: workspace:*
+        version: link:../wow-view-store
       '@eslint/js':
         specifier: 'catalog:'
         version: 10.0.1(eslint@10.11.0(jiti@2.7.0))
@@ -1129,6 +1135,57 @@ importers:
       tw-animate-css:
         specifier: 'catalog:'
         version: 1.4.0
+      typescript:
+        specifier: 'catalog:'
+        version: 6.0.3
+      typescript-eslint:
+        specifier: 'catalog:'
+        version: 8.70.1(eslint@10.11.0(jiti@2.7.0))(typescript@6.0.3)
+      unplugin-dts:
+        specifier: 'catalog:'
+        version: 1.1.1(@microsoft/api-extractor@7.59.2(@types/node@26.6.3))(rolldown@1.2.11)(rollup@4.63.4)(typescript@6.0.3)(vite@8.3.1(@types/node@26.6.3)(jiti@2.7.0)(yaml@2.9.1))
+      vite:
+        specifier: 'catalog:'
+        version: 8.3.1(@types/node@26.6.3)(jiti@2.7.0)(yaml@2.9.1)
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@types/node@26.6.3)(@vitest/browser-playwright@4.1.11)(@vitest/coverage-v8@4.1.11)(@vitest/ui@4.1.11)(jsdom@29.1.1(patch_hash=e3cc832b737c64812e91aeec5b51dcfc530c129436ae2ff992ee9655591e0962))(vite@8.3.1(@types/node@26.6.3)(jiti@2.7.0)(yaml@2.9.1))
+
+  typescript/wow-view-store:
+    devDependencies:
+      '@ahoo-wang/fetcher':
+        specifier: 'catalog:'
+        version: 5.1.5
+      '@ahoo-wang/fetcher-decorator':
+        specifier: 'catalog:'
+        version: 5.1.5(@ahoo-wang/fetcher@5.1.5)
+      '@ahoo-wang/fetcher-eventstream':
+        specifier: 'catalog:'
+        version: 5.1.5(@ahoo-wang/fetcher@5.1.5)
+      '@ahoo-wang/wow-client':
+        specifier: workspace:~
+        version: link:../wow-client
+      '@ahoo-wang/wow-view-engine':
+        specifier: workspace:~
+        version: link:../wow-view-engine
+      '@eslint/js':
+        specifier: 'catalog:'
+        version: 10.0.1(eslint@10.11.0(jiti@2.7.0))
+      '@microsoft/api-extractor':
+        specifier: 'catalog:'
+        version: 7.59.2(@types/node@26.6.3)
+      '@types/node':
+        specifier: 'catalog:'
+        version: 26.6.3
+      '@vitest/coverage-v8':
+        specifier: 'catalog:'
+        version: 4.1.11(@vitest/browser@4.1.11)(vitest@4.1.11)
+      eslint:
+        specifier: 'catalog:'
+        version: 10.11.0(jiti@2.7.0)
+      globals:
+        specifier: 'catalog:'
+        version: 17.12.0
       typescript:
         specifier: 'catalog:'
         version: 6.0.3

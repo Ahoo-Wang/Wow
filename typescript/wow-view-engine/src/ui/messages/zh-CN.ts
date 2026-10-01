@@ -764,6 +764,10 @@ export const zhCN: Readonly<Record<string, string>> = {
   'view.changeAudience.unsupported':
     '当前的视图存储不支持在个人与共享之间移动视图。',
   'view.changeAudience.invalid': '没能改变这个视图给谁看：{reason}',
+  'view.changeAudience.invalid.shared-boards':
+    '这个视图仍是共享的：共享仪表盘显示着它（{boards}）。',
+  'view.changeAudience.invalid.shared-boards-one':
+    '这个视图仍是共享的：一个共享仪表盘显示着它（{boards}）。',
   'view.delete.failed': '这个视图删不掉。',
   'view.delete.forbidden': '你不能删除这个视图，请联系它的归属人。',
   'view.list.failed': '视图列表加载失败。',
@@ -1620,6 +1624,10 @@ export const zhCN: Readonly<Record<string, string>> = {
   'label.dashboard.audience-unsupported':
     '当前的存储不支持在个人与共享之间移动仪表盘。',
   'label.dashboard.audience-invalid': '没能改变这个仪表盘给谁看：{reason}',
+  'label.dashboard.audience-shared-boards':
+    '这个仪表盘仍是共享的：共享仪表盘显示着它（{boards}）。',
+  'label.dashboard.audience-shared-boards-one':
+    '这个仪表盘仍是共享的：一个共享仪表盘显示着它（{boards}）。',
   'label.dashboard.delete-failed': '这个仪表盘删不掉。',
   'label.dashboard.delete-forbidden':
     '你不能删除这个仪表盘，请联系它的归属人。',

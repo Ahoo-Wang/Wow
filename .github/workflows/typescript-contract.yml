@@ -51,7 +51,8 @@ jobs:
         run: node .github/scripts/ci-scope.mjs
 
   # The client, the generator and the committed generated code against an
-  # example server built from this commit.
+  # example server built from this commit, and WowViewStore against a view
+  # store server built from it.
   contract:
     name: Same-source contract
     needs: scope
@@ -79,6 +80,8 @@ jobs:
     env:
       SERVER_HOME: example/example-server/build/install/example-server
       SERVER_LOG: ${{ github.workspace }}/example-server.log
+      VIEW_STORE_HOME: view-store/wow-view-store-server/build/install/wow-view-store-server
+      VIEW_STORE_LOG: ${{ github.workspace }}/view-store-server.log
       GENERATED: typescript/integration-test/src/generated
     steps:
       - uses: actions/checkout@v7
@@ -89,8 +92,8 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
       - uses: gradle/actions/setup-gradle@v6
-      - name: Build the example server
-        run: ./gradlew :example-server:installDist --stacktrace
+      - name: Build the example and view store servers
+        run: ./gradlew :example-server:installDist :wow-view-store-server:installDist --stacktrace
       # bin/example-server reads ./config/application.yaml, so it starts from
       # its install directory. That file keeps the in-memory stores and
       # excludes the Mongo auto-configuration; SPRING_AUTOCONFIGURE_EXCLUDE
@@ -106,6 +109,31 @@ jobs:
           mkdir -p logs data
           nohup bin/example-server > "$SERVER_LOG" 2>&1 &
           echo "SERVER_PID=$!" >> "$GITHUB_ENV"
+      # The view store on the same MongoDB, with in-memory buses and a fixed
+      # machine id in place of its Kafka and Redis. It serves one system view,
+      # which the WowViewStore conformance suite reads
+      # (typescript/integration-test/test/view-store/).
+      - name: Start the view store server
+        working-directory: ${{ env.VIEW_STORE_HOME }}
+        env:
+          SERVER_PORT: 8090
+          SPRING_MONGODB_URI: mongodb://root:root@localhost:27017/wow_view_store_db?authSource=admin&maxIdleTimeMS=60000
+          WOW_KAFKA_ENABLED: 'false'
+          WOW_COMMAND_BUS_TYPE: in_memory
+          WOW_EVENT_BUS_TYPE: in_memory
+          WOW_EVENTSOURCING_STATE_BUS_TYPE: in_memory
+          COSID_MACHINE_DISTRIBUTOR_TYPE: manual
+          COSID_MACHINE_DISTRIBUTOR_MANUAL_MACHINE_ID: 1
+          MANAGEMENT_HEALTH_REDIS_ENABLED: 'false'
+        run: |
+          mkdir -p logs data
+          nohup bin/wow-view-store-server \
+            '--wow.view-store.system-views[0].definition-id=conformance-system' \
+            '--wow.view-store.system-views[0].id=conformance-open' \
+            '--wow.view-store.system-views[0].title=Open' \
+            '--wow.view-store.system-views[0].config={"kind":"record"}' \
+            > "$VIEW_STORE_LOG" 2>&1 &
+          echo "VIEW_STORE_PID=$!" >> "$GITHUB_ENV"
       - uses: pnpm/action-setup@v6
       - uses: actions/setup-node@v6
         with:
@@ -130,6 +158,22 @@ jobs:
           echo "::error::The example server was not healthy after 5 minutes."
           tail -n 100 "$SERVER_LOG"
           exit 1
+      - name: Wait for the view store server
+        run: |
+          for _ in $(seq 1 60); do
+            if curl -sf http://localhost:8090/actuator/health > /dev/null; then
+              exit 0
+            fi
+            if ! kill -0 "$VIEW_STORE_PID" 2> /dev/null; then
+              echo "::error::The view store server exited during startup."
+              tail -n 100 "$VIEW_STORE_LOG"
+              exit 1
+            fi
+            sleep 5
+          done
+          echo "::error::The view store server was not healthy after 5 minutes."
+          tail -n 100 "$VIEW_STORE_LOG"
+          exit 1
       - name: Generate clients from the server
         run: pnpm --filter wow-integration-test generate
       - name: Check generated and test types
@@ -147,12 +191,14 @@ jobs:
           fi
       - name: Test against the server
         run: pnpm --filter wow-integration-test test
-      - name: Upload the server log
+      - name: Upload the server logs
         if: failure()
         uses: actions/upload-artifact@v7
         with:
           name: example-server-log
-          path: ${{ env.SERVER_LOG }}
+          path: |
+            ${{ env.SERVER_LOG }}
+            ${{ env.VIEW_STORE_LOG }}
           if-no-files-found: ignore
           retention-days: 7
 

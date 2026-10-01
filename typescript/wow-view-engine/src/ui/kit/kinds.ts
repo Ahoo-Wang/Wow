@@ -111,6 +111,10 @@ const DASHBOARD_WORDS: Partial<Record<MessageKey, MessageKey>> = {
   'view.changeAudience.failed': 'label.dashboard.audience-failed',
   'view.changeAudience.forbidden': 'label.dashboard.audience-forbidden',
   'view.changeAudience.invalid': 'label.dashboard.audience-invalid',
+  'view.changeAudience.invalid.shared-boards':
+    'label.dashboard.audience-shared-boards',
+  'view.changeAudience.invalid.shared-boards-one':
+    'label.dashboard.audience-shared-boards-one',
   'view.changeAudience.unsupported': 'label.dashboard.audience-unsupported',
   'view.config.invalid': 'label.dashboard.config-invalid',
   'view.create.forbidden': 'label.dashboard.create-forbidden',

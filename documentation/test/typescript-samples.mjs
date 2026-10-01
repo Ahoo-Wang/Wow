@@ -62,7 +62,7 @@ export const SOURCES = [
         ...markdown(join(documentation, `docs/${locale}/guide/typescript`)),
         ...markdown(join(documentation, `docs/${locale}/reference/typescript`)),
     ]),
-    ...['wow-client', 'wow-generator', 'wow-view-engine'].flatMap((pkg) =>
+    ...['wow-client', 'wow-generator', 'wow-view-engine', 'wow-view-store'].flatMap((pkg) =>
         ['README.md', 'README.zh-CN.md'].map((readme) => join(repository, 'typescript', pkg, readme)),
     ),
 ].sort()
@@ -78,6 +78,7 @@ const ENTRIES = {
         '@ahoo-wang/wow-view-engine/ui',
         '@ahoo-wang/wow-view-engine/testing',
     ],
+    'wow-view-store': ['@ahoo-wang/wow-view-store'],
     fetcher: [
         '@ahoo-wang/fetcher',
         '@ahoo-wang/fetcher-decorator',

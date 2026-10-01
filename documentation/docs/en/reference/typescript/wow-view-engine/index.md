@@ -63,7 +63,7 @@ interface ViewStore {
 | Idempotent `requestId` | Each logical write gets one `requestId` in `WriteContext`; a retry after a timeout reuses it and the server deduplicates |
 | Permissions | `permissions` only drives button availability. Authorization, visibility filtering, and deduplication are server responsibilities |
 
-`MemoryViewStore` is for tests, examples, and query-only use. A Wow-backed `ViewStore` service and its TypeScript adapter are planned as a separate package.
+`MemoryViewStore` is for tests, examples, and query-only use. The Wow-backed one is [`WowViewStore`](../wow-view-store/), in its own package, over the view store server.
 
 ## Layering
 

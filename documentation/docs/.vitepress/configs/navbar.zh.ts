@@ -64,6 +64,7 @@ export const navbarZh: DefaultTheme.NavItem[] = [
                     {text: 'wow-generator', link: '/zh/reference/typescript/wow-generator/'},
                     {text: 'wow-react', link: '/zh/reference/typescript/wow-react/'},
                     {text: 'wow-view-engine（未发布）', link: '/zh/reference/typescript/wow-view-engine/'},
+                    {text: 'wow-view-store（未发布）', link: '/zh/reference/typescript/wow-view-store/'},
                 ],
             },
         ],

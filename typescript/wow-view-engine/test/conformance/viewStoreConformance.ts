@@ -30,7 +30,7 @@
  *     owners: true,
  *     personalViews: true,
  *     changeAudience: true,
- *     idempotentCreate: false,
+ *     idempotentCreate: true,
  *     systemViews: { definitionId: 'conformance-system' },
  *   },
  *   // One server for the whole file is fine: every test uses fresh ids.
@@ -95,11 +95,14 @@ export interface ConformanceCapabilities {
   changeAudience: boolean;
   /**
    * A `create` replayed under its `requestId` answers the first outcome
-   * rather than making a second view. The port asks it of every write, and
-   * `MemoryViewStore` keeps it; the Wow store does not yet for `create`
-   * alone (its request-id index cannot be scoped to the view aggregates, a
-   * decision taken 2026-09-29), so it declares `false` and the create
-   * replay case is skipped. Every other write's replay stays mandatory.
+   * rather than making a second view, retried through the same store. The
+   * port asks it of every write, and `MemoryViewStore` keeps it; the Wow
+   * server does not deduplicate `create` (its request-id index cannot be
+   * scoped to the view aggregates, a decision taken 2026-09-29), and
+   * `WowViewStore` keeps it within one store by asking the replay route
+   * before posting a retry of its own create again. A store that keeps it
+   * not even so declares `false`, and the create replay case is skipped.
+   * Every other write's replay stays mandatory.
    */
   idempotentCreate: boolean;
   /**
@@ -179,6 +182,7 @@ async function refusal(
   Error & {
     code: ViewStoreErrorCode;
     instance?: ViewInstance;
+    boards?: readonly string[];
     preferences?: ViewPreferences;
   }
 > {
@@ -195,6 +199,7 @@ async function refusal(
   const failure = error as Error & {
     code: ViewStoreErrorCode;
     instance?: ViewInstance;
+    boards?: readonly string[];
     preferences?: ViewPreferences;
   };
   expect(codes).toContain(failure.code);
@@ -359,12 +364,14 @@ export function describeViewStoreConformance(
           write(),
         );
 
+        // One at a time: a write sent before the previous refusal is read
+        // would reject with nobody awaiting it yet, over a network.
         for (const stale of [
-          alice.save(made.id, recordConfig(50), made.revision, write()),
-          alice.rename(made.id, 'Late', made.revision, write()),
-          alice.delete(made.id, made.revision, write()),
+          () => alice.save(made.id, recordConfig(50), made.revision, write()),
+          () => alice.rename(made.id, 'Late', made.revision, write()),
+          () => alice.delete(made.id, made.revision, write()),
         ]) {
-          const failure = await refusal(stale, 'CONFLICT');
+          const failure = await refusal(stale(), 'CONFLICT');
           expect(failure.instance?.id).toBe(made.id);
           expect(failure.instance?.revision).toBe(moved.revision);
           expect(failure.preferences).toBeUndefined();
@@ -714,8 +721,9 @@ export function describeViewStoreConformance(
             change(alice, shown.id, 'personal', shown.revision),
             'INVALID',
           );
-          // By title, not id: the message is what the reader is shown.
-          expect(failure.message).toContain(board.title);
+          // By title, not id, as stored: the engine says the refusal around
+          // them, and the reader is shown the titles.
+          expect(failure.boards).toEqual([board.title]);
           expect(await alice.get(shown.id)).toEqual(shown);
 
           // Deleting it stays allowed: the panel alone breaks (9).

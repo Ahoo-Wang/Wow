@@ -83,13 +83,13 @@ test('private packages stay out; an unlisted public package is refused', () => {
       publishPlan(
         workspace({
           ...published,
-          'typescript/wow-view-store': {
-            name: '@ahoo-wang/wow-view-store',
+          'typescript/wow-unannounced': {
+            name: '@ahoo-wang/wow-unannounced',
             version: '9.1.6',
           },
         }),
       ),
-    /typescript\/wow-view-store: public but neither PUBLISHED nor HELD_BACK/,
+    /typescript\/wow-unannounced: public but neither PUBLISHED nor HELD_BACK/,
   );
 });
 
@@ -101,9 +101,14 @@ test('a held-back public package is not published', () => {
         name: '@ahoo-wang/wow-view-engine',
         version: '9.1.6',
       },
+      'typescript/wow-view-store': {
+        name: '@ahoo-wang/wow-view-store',
+        version: '9.1.6',
+      },
     }),
   );
   assert.ok(plan.every(entry => entry.dir !== 'typescript/wow-view-engine'));
+  assert.ok(plan.every(entry => entry.dir !== 'typescript/wow-view-store'));
 });
 
 test('a published package must be public and on the project version', () => {

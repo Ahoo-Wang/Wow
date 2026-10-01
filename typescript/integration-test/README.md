@@ -19,6 +19,10 @@ from the deterministic unit tests of each package.
   `ViewEngine` whose source is the Wow `SnapshotQueryClient` itself, over
   sales orders the suite seeds through commands. See
   [View engine against the server](#view-engine-against-the-server).
+- `@ahoo-wang/wow-view-store` (`test/view-store/`): the view engine's port
+  conformance suite over `WowViewStore`, and tenant and application isolation,
+  against a view store server. See
+  [WowViewStore against the view store server](#wowviewstore-against-the-view-store-server).
 
 ## Prerequisites
 
@@ -35,6 +39,10 @@ or run the published image `ghcr.io/ahoo-wang/wow-example-server:<version>`.
 Point it at MongoDB with `SPRING_MONGODB_URI`, choose its port with
 `SERVER_PORT`, and set
 `WOW_EVENTSOURCING_STORE_STORAGE=mongo` and `WOW_EVENTSOURCING_SNAPSHOT_STORAGE=mongo`.
+
+A view store server on port 8090, on the same MongoDB, for `test/view-store/`;
+`WOW_VIEW_STORE_URL` names another address. See
+[WowViewStore against the view store server](#wowviewstore-against-the-view-store-server).
 
 ## Generate and test
 
@@ -111,12 +119,50 @@ any kernel; the image is the one CI runs. The suite takes about five
 seconds on a warm server, two of them a pause that puts the dense
 histogram's orders seconds apart.
 
+## WowViewStore against the view store server
+
+`test/view-store/` runs the view engine's `ViewStore` conformance suite
+(`../wow-view-engine/test/conformance/viewStoreConformance.ts`, imported by its
+workspace path, so `tsconfig.test.json` sets `rootDir` to `..`) over
+`WowViewStore`, with two users, shared and personal views, audience changes,
+replays and the system views; every case works in a definition of its own, and
+each run in a tenant of its own. `isolation.test.ts` holds that a view and
+preferences of one tenant or one application are not there for a caller of
+another. The callers are fetchers with fetcher-cosec's
+`ResourceAttributionRequestInterceptor` over an unsigned token
+(`viewStoreServer.ts`): nothing in front of the server checks it.
+
+Build and start the standalone server with in-memory buses and a fixed machine
+id instead of its Kafka and Redis, on the MongoDB above, serving the one system
+view the suite reads:
+
+```bash
+./gradlew :wow-view-store-server:installDist
+cd view-store/wow-view-store-server/build/install/wow-view-store-server
+mkdir -p logs data
+SERVER_PORT=8090 \
+SPRING_MONGODB_URI='mongodb://root:root@localhost:27017/wow_view_store_db?authSource=admin' \
+WOW_KAFKA_ENABLED=false WOW_COMMAND_BUS_TYPE=in_memory WOW_EVENT_BUS_TYPE=in_memory \
+WOW_EVENTSOURCING_STATE_BUS_TYPE=in_memory \
+COSID_MACHINE_DISTRIBUTOR_TYPE=manual COSID_MACHINE_DISTRIBUTOR_MANUAL_MACHINE_ID=1 \
+MANAGEMENT_HEALTH_REDIS_ENABLED=false \
+bin/wow-view-store-server \
+  '--wow.view-store.system-views[0].definition-id=conformance-system' \
+  '--wow.view-store.system-views[0].id=conformance-open' \
+  '--wow.view-store.system-views[0].title=Open' \
+  '--wow.view-store.system-views[0].config={"kind":"record"}'
+```
+
+`test` waits for it as for the example server, and warms both of its
+aggregates up first.
+
 ## CI
 
 `.github/workflows/typescript-contract.yml` runs these steps against an example
 server built from the same commit, whenever the Kotlin sources, the example, the
-Gradle build, these packages or the sources of `wow-view-engine` change. It fails when regenerating changes
-`src/generated`, and uploads the server log when a step fails. For changes to
+Gradle build, these packages, the sources of `wow-view-engine` or its port conformance suite, `wow-view-store` or
+`view-store/` change, and a view store server beside it (port 8090, same MongoDB). It fails when regenerating changes
+`src/generated`, and uploads the servers' logs when a step fails. For changes to
 `wow-client`, `wow-generator` or this package it also generates code from the
 `wow-example-server` images 8.10.8, 8.11.5, 9.1.3 and 9.1.5 and type-checks it,
 and against every image but 8.10.8 runs `test/released/`
@@ -135,7 +181,8 @@ without waiting for the contract job.
 
 1. Build first; unresolved workspace imports usually mean stale or missing
    package output.
-2. Check `http://localhost:8080/actuator/health` before generating or testing.
+2. Check `http://localhost:8080/actuator/health` (and `http://localhost:8090/actuator/health`
+   for the view store) before generating or testing.
 3. Regenerate after a server-contract change.
 
 [中文](./README.zh-CN.md)

@@ -52,7 +52,7 @@ export interface ViewPermissions {
 }
 ```
 
-**就地改受众**（设为共享／设为个人，[D18](decisions.md) 第 10 条，[view-store-backend.md](view-store-backend.md) 6.1）：`ViewStore.changeAudience` 是端口上唯一可选的写入方法——没有它的 store，Engine 以 `view.changeAudience.unsupported` 拒绝命令，`engine.permissions` 把每个实例的 `changeAudience` 答成 `false`，管理器里就没有这颗按钮（D4）。有它时，一次改受众要过两道许可：实例的 `changeAudience`（沉默不是拒绝，与其余几项同一读法），以及**去往那个受众的创建许可**——设为共享问 `createShared`，设为个人问 `createPersonal`：共享就是把视图摆到所有人面前，这正是 `createShared` 守的事，与视图当初怎么来的无关。两道都在 `instanceAbilities` 里一处读出，守卫与管理器的按钮问的是同一个答案。id 不变，所以显示它的仪表盘不断。仪表盘的引用约束（上一段）在两个方向上的落点不同：**把被共享仪表盘显示着的视图改成个人**由 store 拒绝（`INVALID`，消息里点出是哪几块看板）——只有 store 看得见所有定义下的所有看板；Engine 把它记为 `rejected`，句子是 `view.changeAudience.invalid` 带上 store 的理由。**把显示着个人视图的仪表盘设为共享**不拒绝，与共享看板的保存一致（D22 B）：面板对别的读者是空的，打开着的看板随受众重新准入，面板上出 `dashboard.panel.scope-too-narrow` 的 warning，「复制为共享视图并替换…」照常可用。删除一个被共享看板显示的视图仍然允许（那块面板只坏自己）。
+**就地改受众**（设为共享／设为个人，[D18](decisions.md) 第 10 条，[view-store-backend.md](view-store-backend.md) 6.1）：`ViewStore.changeAudience` 是端口上唯一可选的写入方法——没有它的 store，Engine 以 `view.changeAudience.unsupported` 拒绝命令，`engine.permissions` 把每个实例的 `changeAudience` 答成 `false`，管理器里就没有这颗按钮（D4）。有它时，一次改受众要过两道许可：实例的 `changeAudience`（沉默不是拒绝，与其余几项同一读法），以及**去往那个受众的创建许可**——设为共享问 `createShared`，设为个人问 `createPersonal`：共享就是把视图摆到所有人面前，这正是 `createShared` 守的事，与视图当初怎么来的无关。两道都在 `instanceAbilities` 里一处读出，守卫与管理器的按钮问的是同一个答案。id 不变，所以显示它的仪表盘不断。仪表盘的引用约束（上一段）在两个方向上的落点不同：**把被共享仪表盘显示着的视图改成个人**由 store 拒绝（`INVALID`，`boards` 带上那几块看板的标题）——只有 store 看得见所有定义下的所有看板；Engine 把它记为 `rejected`，句子是引擎自己的 `view.changeAudience.invalid.shared-boards`（`{boards}` 是那些标题，以键写的标题在显示处说成话，D2）；store 没给 `boards` 时退回 `view.changeAudience.invalid` 带上 store 的理由。**把显示着个人视图的仪表盘设为共享**不拒绝，与共享看板的保存一致（D22 B）：面板对别的读者是空的，打开着的看板随受众重新准入，面板上出 `dashboard.panel.scope-too-narrow` 的 warning，「复制为共享视图并替换…」照常可用。删除一个被共享看板显示的视图仍然允许（那块面板只坏自己）。
 
 `store.permissions(definitionId)` 同步返回；缺省全部允许。Engine 在每个命令派发前检查一次，并通过 `useSaveCommands().can` 暴露给 UI 决定按钮可用性。对无权修改的共享视图，用户仍可 `saveAs` 到个人范围。服务端返回 `FORBIDDEN` 时以 Issue 呈现，不伪装成配置错误。不建设角色模型，不在前端做授权推导。
 
@@ -174,6 +174,8 @@ export class ViewStoreError extends Error {
   instance?: ViewInstance;
   /** 偏好写入冲突时服务端持有的那份偏好。 */
   preferences?: ViewPreferences;
+  /** 改成个人被拒（`INVALID`）时，显示着它的共享仪表盘的标题，原样。 */
+  boards?: readonly string[];
 }
 ```
 
@@ -203,8 +205,8 @@ export class ViewStoreError extends Error {
 
 `permissions` 是端口里唯一同步的方法——Engine 每次派发命令前都要问一次，问不起一个来回。HTTP 实现因此先取后答：`examples/FetcherViewStore.ts` 用 `loadPermissions(definitionId)` 取一次并存下，`permissions()` 从存下的那份同步作答；**没取过的定义答"全部允许"**，与端口对"根本没实现 `permissions` 的 store"的缺省一致——服务端才是可信边界，这里只决定按钮亮不亮。服务端答复里没说到的那一项同样读作允许（沉默不是拒绝），只把它明确说到的那些收窄；答复没点名的实例（包括这次答复之后新建的）按 `instanceDefault` 算。
 
-**改受众的端口规则**（`changeAudience`，全部由端口一致性测试守着）：与别的实例写入一样带期望 revision（过期是 `CONFLICT`，带 `instance`）、同一 `requestId` 的重放答第一次的结果、系统视图 `FORBIDDEN`、不存在 `NOT_FOUND`；另有两条自己的——**没变就是没写**：要求改成视图已有的受众时（先过 revision 检查）原样答回，revision 不动；**共享看板显示着的视图不改成个人**：`INVALID`，`message` **按标题**点出那几块看板——读者看到的就是它（`view.changeAudience.invalid` 引用它），服务端只给 id 的适配器要自己拼出标题。`MemoryViewStore` 按存着的配置找「共享（或系统）仪表盘的面板里 `instanceId` 是它、且不是看板自己拥有的视图」。
+**改受众的端口规则**（`changeAudience`，全部由端口一致性测试守着）：与别的实例写入一样带期望 revision（过期是 `CONFLICT`，带 `instance`）、同一 `requestId` 的重放答第一次的结果、系统视图 `FORBIDDEN`、不存在 `NOT_FOUND`；另有两条自己的——**没变就是没写**：要求改成视图已有的受众时（先过 revision 检查）原样答回，revision 不动；**共享看板显示着的视图不改成个人**：`INVALID`，`boards` 是那几块看板的**标题**（原样，以键写的仍是键）——读者看到的句子由引擎说（`view.changeAudience.invalid.shared-boards`），`message` 只是 store 自己的话、供日志；服务端只给 id 的适配器要自己读出标题。`MemoryViewStore` 按存着的配置找「共享（或系统）仪表盘的面板里 `instanceId` 是它、且不是看板自己拥有的视图」。
 
-**端口一致性测试**（[view-store-backend.md](view-store-backend.md) 第 7、9 节）：`test/conformance/viewStoreConformance.ts` 的 `describeViewStoreConformance({ name, capabilities, connect })`，`connect()` 为每个用例给出一个后端，返回 `(ctx: { owner }) => ViewStore`——同一后端上两个 owner 是两个用户，同一 owner 开两次是两个客户端（两个标签页）；`capabilities` 声明 `owners`（多用户）、`personalViews`、`changeAudience`、`idempotentCreate`（`create` 的重放是否答第一次的结果——Wow 存储暂不做，用户 2026-09-29 接受；其余写入的重放一律必考）与 `systemViews: { definitionId }`，不具备的能力对应的用例按名跳过。每个用例用新的定义 id，revision 只比变与不变（未写过的偏好是 `'0'` 除外）。本包在 `test/viewStoreConformance.test.ts` 上对 `MemoryViewStore` 与它的 `localStorage` 快照各跑一遍；`typescript/integration-test` 按工作区路径引入同一个文件去跑 **WowViewStore**（V3）；那边的 `tsconfig.test.json` 要把 `rootDir` 放宽到 `..`，否则 `tsc` 报 TS6059。它不进 `/testing`：那会把测试框架带进发布的入口。
+**端口一致性测试**（[view-store-backend.md](view-store-backend.md) 第 7、9 节）：`test/conformance/viewStoreConformance.ts` 的 `describeViewStoreConformance({ name, capabilities, connect })`，`connect()` 为每个用例给出一个后端，返回 `(ctx: { owner }) => ViewStore`——同一后端上两个 owner 是两个用户，同一 owner 开两次是两个客户端（两个标签页）；`capabilities` 声明 `owners`（多用户）、`personalViews`、`changeAudience`、`idempotentCreate`（`create` 经同一个 store 重试时是否答第一次的结果——Wow 服务端不去重，用户 2026-09-29 接受，**WowViewStore** 在同一个实例里先问重放路由，声明 `true`；其余写入的重放一律必考）与 `systemViews: { definitionId }`，不具备的能力对应的用例按名跳过。每个用例用新的定义 id，revision 只比变与不变（未写过的偏好是 `'0'` 除外）。本包在 `test/viewStoreConformance.test.ts` 上对 `MemoryViewStore` 与它的 `localStorage` 快照各跑一遍；`typescript/integration-test` 按工作区路径引入同一个文件去跑 **WowViewStore**（V3）；那边的 `tsconfig.test.json` 要把 `rootDir` 放宽到 `..`，否则 `tsc` 报 TS6059。它不进 `/testing`：那会把测试框架带进发布的入口。
 
 不在本包内提供 HTTP 实现。`ViewStore` 只有八个方法（外加可选的 `changeAudience`），业务应用用自己的 fetcher 实现它约一百行，HTTP 状态码到 `ViewStoreError.code` 的映射在应用侧完成。官方后端若落地，其客户端随后端合同一起发布，而不是先在前端猜一份 REST 形状。服务端的授权、可见性过滤与 requestId 去重是可信边界，前端 `permissions` 只用于按钮可用性。

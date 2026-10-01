@@ -1,0 +1,77 @@
+{
+  "name": "@ahoo-wang/wow-view-store",
+  "version": "9.1.5",
+  "description": "The Wow view store as the view engine's ViewStore: saved views and preferences of @ahoo-wang/wow-view-engine on a Wow server (https://github.com/Ahoo-Wang/Wow).",
+  "keywords": [
+    "wow",
+    "wow-view-store",
+    "view-engine",
+    "view-store",
+    "cqrs",
+    "typescript"
+  ],
+  "author": "Ahoo-Wang",
+  "license": "Apache-2.0",
+  "homepage": "https://github.com/Ahoo-Wang/Wow/tree/main/typescript/wow-view-store",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Ahoo-Wang/Wow.git",
+    "directory": "typescript/wow-view-store"
+  },
+  "bugs": {
+    "url": "https://github.com/Ahoo-Wang/Wow/issues"
+  },
+  "type": "module",
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "module": "./dist/index.es.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.es.js",
+      "default": "./dist/index.es.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "README.zh-CN.md"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "vite build && pnpm test:package",
+    "test:package": "node scripts/verify-package.mjs",
+    "test": "vitest run --coverage && pnpm test:type && pnpm test:api",
+    "test:no-coverage": "vitest run --coverage.enabled=false && pnpm test:type && pnpm test:api",
+    "test:type": "tsc --noEmit -p test/tsconfig.types.json",
+    "test:api": "node scripts/api-report.mjs",
+    "lint": "eslint . --fix",
+    "clean": "rm -rf dist"
+  },
+  "peerDependencies": {
+    "@ahoo-wang/fetcher": "catalog:peers",
+    "@ahoo-wang/wow-client": "workspace:~",
+    "@ahoo-wang/wow-view-engine": "workspace:~"
+  },
+  "devDependencies": {
+    "@ahoo-wang/fetcher": "catalog:",
+    "@ahoo-wang/fetcher-decorator": "catalog:",
+    "@ahoo-wang/fetcher-eventstream": "catalog:",
+    "@ahoo-wang/wow-client": "workspace:~",
+    "@ahoo-wang/wow-view-engine": "workspace:~",
+    "@eslint/js": "catalog:",
+    "@microsoft/api-extractor": "catalog:",
+    "@types/node": "catalog:",
+    "@vitest/coverage-v8": "catalog:",
+    "eslint": "catalog:",
+    "globals": "catalog:",
+    "typescript": "catalog:",
+    "typescript-eslint": "catalog:",
+    "unplugin-dts": "catalog:",
+    "vite": "catalog:",
+    "vitest": "catalog:"
+  }
+}

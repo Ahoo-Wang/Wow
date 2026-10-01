@@ -12,8 +12,9 @@
  */
 
 /*
- * The example server is ready before the first test starts, so no test pays
- * for a cold server and none needs a budget of its own for it.
+ * The example server, and the view store server the `WowViewStore` suites
+ * use (test/view-store/), are ready before the first test starts, so no test
+ * pays for a cold server and none needs a budget of its own for it.
  *
  * Ready is two things, in this order:
  *
@@ -33,6 +34,7 @@
 
 import { CommandHeaders, CommandStage } from '@ahoo-wang/wow-client';
 import { exampleServerURL } from '../src/wow/exampleFetcher';
+import { viewStoreServerURL } from './view-store/viewStoreServer';
 
 /** How long a server may take to come up: the CI job's own wait. */
 const HEALTH_DEADLINE_MS = 5 * 60_000;
@@ -40,16 +42,20 @@ const HEALTH_POLL_MS = 1_000;
 /** How long one warm-up command may take to reach its snapshot. */
 const COMMAND_DEADLINE_MS = 2 * 60_000;
 
-function url(path: string): string {
-  return new URL(path, exampleServerURL).toString();
+function url(path: string, server = exampleServerURL): string {
+  return new URL(path, server).toString();
 }
 
-async function healthy(): Promise<void> {
+async function healthy(
+  name: string,
+  server: string,
+  start: string,
+): Promise<void> {
   const deadline = Date.now() + HEALTH_DEADLINE_MS;
   let last = 'no answer yet';
   while (Date.now() < deadline) {
     try {
-      const response = await fetch(url('actuator/health'), {
+      const response = await fetch(url('actuator/health', server), {
         signal: AbortSignal.timeout(HEALTH_POLL_MS * 5),
       });
       const body = (await response.json()) as { status?: string };
@@ -61,9 +67,9 @@ async function healthy(): Promise<void> {
     await new Promise(resolve => setTimeout(resolve, HEALTH_POLL_MS));
   }
   throw new Error(
-    `The example server at ${exampleServerURL} was not UP after ${
+    `The ${name} at ${server} was not UP after ${
       HEALTH_DEADLINE_MS / 1000
-    } s (last: ${last}). Start it first: typescript/integration-test/README.md.`,
+    } s (last: ${last}). Start it first: typescript/integration-test/README.md${start}.`,
   );
 }
 
@@ -73,9 +79,10 @@ async function command(
   path: string,
   body: unknown,
   headers: Record<string, string> = {},
+  { server = exampleServerURL, method = 'POST' } = {},
 ): Promise<void> {
-  const response = await fetch(url(path), {
-    method: 'POST',
+  const response = await fetch(url(path, server), {
+    method,
     headers: {
       'Content-Type': 'application/json',
       [CommandHeaders.WAIT_STAGE]: CommandStage.SNAPSHOT,
@@ -86,14 +93,21 @@ async function command(
   });
   if (!response.ok)
     throw new Error(
-      `Warming up the example server: ${name} answered HTTP ${
+      `Warming up ${name} answered HTTP ${
         response.status
       }: ${await response.text()}`,
     );
 }
 
 export default async function setup(): Promise<void> {
-  await healthy();
+  await Promise.all([
+    healthy('example server', exampleServerURL, ''),
+    healthy(
+      'view store server',
+      viewStoreServerURL,
+      '#wowviewstore-against-the-view-store-server',
+    ),
+  ]);
   const run = `warmup-${Date.now()}`;
   // One command per aggregate the suite drives; the ids are this run's own,
   // so nothing a test reads is touched.
@@ -117,5 +131,22 @@ export default async function setup(): Promise<void> {
       fromCart: false,
     },
     { [CommandHeaders.SPACE_ID]: run },
+  );
+  // The view store's two aggregates, in a tenant of this run's own.
+  const viewStore = { server: viewStoreServerURL };
+  const app = { 'CoSec-App-Id': 'warmup' };
+  await command(
+    'view',
+    `view-store/tenant/${run}/owner/${run}/view`,
+    { definitionId: run, title: run, config: { kind: 'record' } },
+    app,
+    viewStore,
+  );
+  await command(
+    'view preferences',
+    `view-store/tenant/${run}/owner/${run}/definitions/${run}/preferences`,
+    { order: [] },
+    { ...app, [CommandHeaders.AGGREGATE_VERSION]: '0' },
+    { ...viewStore, method: 'PUT' },
   );
 }
