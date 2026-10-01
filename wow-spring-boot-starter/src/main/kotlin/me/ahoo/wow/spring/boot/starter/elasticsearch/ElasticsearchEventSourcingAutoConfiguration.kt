@@ -17,6 +17,7 @@ import co.elastic.clients.json.JsonpMapper
 import co.elastic.clients.json.jackson.Jackson3JsonpMapper
 import co.elastic.clients.transport.rest5_client.Rest5ClientOptions
 import co.elastic.clients.transport.rest5_client.SafeResponseConsumer
+import me.ahoo.wow.elasticsearch.ElasticsearchEventStreamIndexInitializer
 import me.ahoo.wow.elasticsearch.ElasticsearchSnapshotIndexInitializer
 import me.ahoo.wow.elasticsearch.IndexTemplateInitializer
 import me.ahoo.wow.elasticsearch.WowJsonpMapper
@@ -97,11 +98,13 @@ class ElasticsearchEventSourcingAutoConfiguration @Autowired constructor(
     fun elasticsearchEventStore(
         elasticsearchClient: ReactiveElasticsearchClient,
         indexTemplateInitializer: IndexTemplateInitializer,
+        eventStreamIndexInitializer: ElasticsearchEventStreamIndexInitializer,
         metrics: ObjectProvider<WowMetrics>,
     ): ElasticsearchEventStore {
         if (elasticsearchProperties.autoInitTemplate) {
             indexTemplateInitializer.ensureEventStreamTemplate().block()
         }
+        eventStreamIndexInitializer.ensureAll().block()
         return ElasticsearchEventStore(
             elasticsearchClient = elasticsearchClient,
             batchOptions = eventStoreBatchProperties.toOptions(),
@@ -122,6 +125,12 @@ class ElasticsearchEventSourcingAutoConfiguration @Autowired constructor(
     fun indexTemplateInitializer(elasticsearchOperations: ReactiveElasticsearchOperations): IndexTemplateInitializer {
         return IndexTemplateInitializer(elasticsearchOperations)
     }
+
+    @Bean
+    @ConditionalOnEventStoreStorage(StorageType.ELASTICSEARCH)
+    fun elasticsearchEventStreamIndexInitializer(
+        elasticsearchClient: ReactiveElasticsearchClient,
+    ): ElasticsearchEventStreamIndexInitializer = ElasticsearchEventStreamIndexInitializer(elasticsearchClient)
 
     @Bean
     @ConditionalOnSnapshotEnabled

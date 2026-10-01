@@ -22,6 +22,7 @@ import io.mockk.mockk
 import io.mockk.verify
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
+import me.ahoo.wow.elasticsearch.ElasticsearchEventStreamIndexInitializer
 import me.ahoo.wow.elasticsearch.ElasticsearchSnapshotIndexInitializer
 import me.ahoo.wow.elasticsearch.IndexTemplateInitializer
 import me.ahoo.wow.elasticsearch.WowJsonpMapper
@@ -82,7 +83,12 @@ internal class ElasticsearchEventSourcingAutoConfigurationTest {
         val elasticsearchClient = mock(ReactiveElasticsearchClient::class.java)
         val indexTemplateInitializer = mockk<IndexTemplateInitializer>()
 
-        autoConfiguration.elasticsearchEventStore(elasticsearchClient, indexTemplateInitializer, metricsProvider)
+        autoConfiguration.elasticsearchEventStore(
+            elasticsearchClient,
+            indexTemplateInitializer,
+            mockk<ElasticsearchEventStreamIndexInitializer> { every { ensureAll() } returns Mono.empty() },
+            metricsProvider,
+        )
             .use { eventStore ->
                 eventStore.batchOptions.assert()
                     .isNull()
@@ -121,6 +127,51 @@ internal class ElasticsearchEventSourcingAutoConfigurationTest {
         ).close()
 
         order.assert().containsExactly("template", "indexes")
+    }
+
+    @Test
+    fun `event store should initialize template then concrete indexes`() {
+        val order = mutableListOf<String>()
+        val template = mockk<IndexTemplateInitializer> {
+            every { ensureEventStreamTemplate() } returns Mono.fromRunnable { order += "template" }
+        }
+        val indexes = mockk<ElasticsearchEventStreamIndexInitializer> {
+            every { ensureAll() } returns Mono.fromRunnable { order += "indexes" }
+        }
+
+        ElasticsearchEventSourcingAutoConfiguration(
+            ElasticsearchProperties(autoInitTemplate = true),
+            ElasticsearchEventStoreBatchProperties(),
+            ElasticsearchSnapshotStoreBatchProperties(),
+        ).elasticsearchEventStore(
+            mock(ReactiveElasticsearchClient::class.java),
+            template,
+            indexes,
+            metricsProvider,
+        ).close()
+
+        order.assert().containsExactly("template", "indexes")
+    }
+
+    @Test
+    fun `event stream index initialization failure should fail store creation`() {
+        val expected = IllegalStateException("index initialization failed")
+        val indexes = mockk<ElasticsearchEventStreamIndexInitializer> {
+            every { ensureAll() } returns Mono.error(expected)
+        }
+
+        assertThrownBy<IllegalStateException> {
+            ElasticsearchEventSourcingAutoConfiguration(
+                ElasticsearchProperties(autoInitTemplate = false),
+                ElasticsearchEventStoreBatchProperties(),
+                ElasticsearchSnapshotStoreBatchProperties(),
+            ).elasticsearchEventStore(
+                mock(ReactiveElasticsearchClient::class.java),
+                mockk(),
+                indexes,
+                metricsProvider,
+            )
+        }.isSameAs(expected)
     }
 
     @Test
@@ -191,6 +242,7 @@ internal class ElasticsearchEventSourcingAutoConfigurationTest {
                     .hasSingleBean(ReactiveElasticsearchOperations::class.java)
                     .hasSingleBean(IndexTemplateInitializer::class.java)
                     .hasSingleBean(ElasticsearchEventStore::class.java)
+                    .hasSingleBean(ElasticsearchEventStreamIndexInitializer::class.java)
                     .hasSingleBean(JsonpMapper::class.java)
                 context.getBean(JsonpMapper::class.java).assert().isSameAs(WowJsonpMapper)
             }

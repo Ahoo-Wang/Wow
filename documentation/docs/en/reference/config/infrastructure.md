@@ -141,7 +141,7 @@ spring:
 
 Batch validation matches MongoDB. EventStore batching uses Bulk `create`. Both direct and batch SnapshotStore paths use an atomic `_source.version` guarded update so an older snapshot cannot overwrite a newer one. With `auto-init-template=true`, a failed, empty, or unacknowledged template request fails startup. Disable it only when an external platform explicitly owns templates, and retain template version and validation evidence.
 
-When Elasticsearch is selected for SnapshotStore, Wow also looks for concrete index resources under `META-INF/wow/elasticsearch/{indexName}.json` or `config/wow/elasticsearch/{indexName}.json`. Concrete resources are processed after the generic template and before SnapshotStore creation. This mechanism is independent of `auto-init-template`; missing resources remain a no-op.
+When Elasticsearch is selected for SnapshotStore or EventStore, Wow also looks for concrete index resources under `META-INF/wow/elasticsearch/{indexName}.json` or `config/wow/elasticsearch/{indexName}.json` (`wow.{context}.{aggregate}.snapshot`, `wow.{context}.{aggregate}.es`). Concrete resources are processed after the generic template and before the store's creation; an existing index is left as it is, with a warning when its mapping differs from the resource. This mechanism is independent of `auto-init-template`; missing resources remain a no-op.
 
 ## Query {#query}
 

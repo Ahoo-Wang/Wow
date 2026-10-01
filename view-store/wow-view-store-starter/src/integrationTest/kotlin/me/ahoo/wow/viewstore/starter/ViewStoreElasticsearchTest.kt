@@ -30,8 +30,8 @@ import org.springframework.test.context.DynamicPropertySource
 import java.util.UUID
 
 /**
- * [ViewStoreHostSpec] with the snapshots on Elasticsearch (the events on MongoDB), on Wow's own index templates and
- * the view store's index definitions only: no mapping is made by hand.
+ * [ViewStoreHostSpec] with the events and the snapshots on Elasticsearch, on Wow's own index templates and the view
+ * store's index definitions only: no mapping is made by hand. The replay queries the view's event stream.
  */
 @SpringBootTest(
     classes = [ViewStoreHostApplication::class],
@@ -46,7 +46,7 @@ import java.util.UUID
         "cosid.machine.distributor.type=manual",
         "cosid.machine.distributor.manual.machine-id=1",
         "cosid.generator.enabled=true",
-        "wow.eventsourcing.store.storage=mongo",
+        "wow.eventsourcing.store.storage=elasticsearch",
         "wow.eventsourcing.snapshot.storage=elasticsearch",
         "wow.view-store.system-views[0].definition-id=orders",
         "wow.view-store.system-views[0].id=orders-open",
@@ -59,6 +59,7 @@ class ViewStoreElasticsearchTest : ViewStoreHostSpec() {
         private val DATABASE = "view_store_es_it_" + UUID.randomUUID().toString().replace("-", "").take(12)
         private const val VIEW_INDEX = "wow.view-store.view.snapshot"
         private const val PREFERENCES_INDEX = "wow.view-store.view_preferences.snapshot"
+        private const val VIEW_EVENTS_INDEX = "wow.view-store.view.es"
 
         @JvmStatic
         @DynamicPropertySource
@@ -113,6 +114,14 @@ class ViewStoreElasticsearchTest : ViewStoreHostSpec() {
                 view.at(path).keyword().ignoreAbove().assert().isNull()
             }
         properties(PREFERENCES_INDEX).at("state.lastTabs").`object`().enabled().assert().isFalse()
+        // The replay's filters: Wow's event-stream template stores an event's body unindexed.
+        val events = properties(VIEW_EVENTS_INDEX)
+        events.at("body").isNested.assert().isTrue()
+        events.at("body.body").`object`().dynamic().assert().isNotNull()
+        listOf("requestId", "tenantId", "ownerId", "body.bodyType", "body.body.audience", "body.body.toOwnerId")
+            .forEach { path ->
+                events.at(path).keyword().ignoreAbove().assert().isNull()
+            }
     }
 
     @Test

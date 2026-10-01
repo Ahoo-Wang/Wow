@@ -16,6 +16,8 @@ package me.ahoo.wow.elasticsearch
 import co.elastic.clients.elasticsearch.indices.CreateIndexRequest
 import co.elastic.clients.elasticsearch.indices.CreateIndexResponse
 import co.elastic.clients.elasticsearch.indices.ExistsRequest
+import co.elastic.clients.elasticsearch.indices.GetMappingRequest
+import co.elastic.clients.elasticsearch.indices.GetMappingResponse
 import co.elastic.clients.transport.endpoints.BooleanResponse
 import io.mockk.every
 import io.mockk.mockk
@@ -23,6 +25,7 @@ import io.mockk.slot
 import io.mockk.verify
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.configuration.WowResourceLocator
+import me.ahoo.wow.elasticsearch.IndexNameConverter.toEventStreamIndexName
 import me.ahoo.wow.elasticsearch.IndexNameConverter.toSnapshotIndexName
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import org.junit.jupiter.api.Test
@@ -57,10 +60,56 @@ class ElasticsearchSnapshotIndexInitializerTest {
     fun `existing index should skip create`() {
         writeWorkingResource(indexJson())
         every { indices.exists(any<ExistsRequest>()) } returns Mono.just(BooleanResponse(true))
+        val mappingRequest = slot<GetMappingRequest>()
+        every { indices.getMapping(capture(mappingRequest)) } returns Mono.just(
+            GetMappingResponse.of { response ->
+                response.mappings(INDEX) { record ->
+                    record.mappings { mapping ->
+                        mapping.properties("state") { state ->
+                            state.`object` { it.properties("status") { status -> status.text { text -> text } } }
+                        }
+                    }
+                }
+            },
+        )
 
         initializer().ensureAll().block()
 
         verify(exactly = 0) { indices.create(any<CreateIndexRequest>()) }
+        // The existing mapping is read to compare it with the definition (a warning, never a failure).
+        mappingRequest.captured.index().assert().containsExactly(INDEX)
+    }
+
+    @Test
+    fun `existing index whose mapping cannot be read should not fail startup`() {
+        writeWorkingResource(indexJson())
+        every { indices.exists(any<ExistsRequest>()) } returns Mono.just(BooleanResponse(true))
+        every { indices.getMapping(any<GetMappingRequest>()) } returns Mono.error(IllegalStateException("forbidden"))
+
+        initializer().ensureAll().block()
+
+        verify(exactly = 0) { indices.create(any<CreateIndexRequest>()) }
+    }
+
+    @Test
+    fun `event stream initializer should create the event stream index from its definition`() {
+        val eventStreamIndex = MOCK_AGGREGATE_METADATA.toEventStreamIndexName()
+        val file = tempDir.resolve("wow/elasticsearch/$eventStreamIndex.json")
+        Files.createDirectories(file.parent)
+        Files.writeString(file, indexJson())
+        every { indices.exists(any<ExistsRequest>()) } returns Mono.just(BooleanResponse(false))
+        val request = slot<CreateIndexRequest>()
+        every { indices.create(capture(request)) } returns Mono.just(response(acknowledged = true))
+
+        ElasticsearchEventStreamIndexInitializer(
+            client,
+            WowResourceLocator(configDirectory = tempDir, classLoader = object : ClassLoader(null) {}),
+            listOf(MOCK_AGGREGATE_METADATA),
+        ).ensureAll().block()
+
+        request.captured.index().assert().isEqualTo(eventStreamIndex)
+        // The snapshot definition beside it is not the event stream's.
+        verify(exactly = 1) { indices.create(any<CreateIndexRequest>()) }
     }
 
     @Test
