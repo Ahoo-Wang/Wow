@@ -1179,3 +1179,115 @@ export const CutShortFollowsTheChart: Story = {
     await expect(cutShort()).toBeNull();
   },
 };
+
+/** The desktop the panel was reported at (2026-09-30). */
+const PANEL_VIEWPORT = {
+  viewport: {
+    options: {
+      laptop: {
+        name: '1280×720',
+        styles: { width: '1280px', height: '720px' },
+      },
+    },
+  },
+};
+
+/**
+ * 「可视化」面板在自己那一栏里滚（2026-09-30）。1280×720 下打开面板：二十多块
+ * 磁贴从前一直画到工作台底边以下、压在宿主页面上——侧栏的视图列表在
+ * `styles.css` 里有 `min-height: 0` + `overflow-y: auto`，顶替它的面板没有。
+ * 这里量：面板的框在表面之内、自己裁切并且真的要滚，宿主的页面区没有因为它
+ * 变高；滚到底能看见最后一块磁贴；面板滚到底之后 Tab 回到选中的磁贴，它连
+ * 焦点环一起回到视野里；侧栏两列，每块磁贴的名字与理由各占一行。
+ */
+export const PanelScrollsItsColumn: Story = {
+  ...DisplayOrderAnalysis,
+  name: '可视化面板在自己那一栏里滚',
+  parameters: { ...DisplayOrderAnalysis.parameters, ...PANEL_VIEWPORT },
+  globals: { viewport: { value: 'laptop' } },
+  play: async ({ canvasElement }) => {
+    await expect(window.innerWidth).toBe(1280);
+    const canvas = within(canvasElement);
+    await canvas.findByText('¥145,394.65', {}, { timeout: 4_000 });
+    const surface = canvasElement.querySelector<HTMLElement>('.fve-root')!;
+    // The host's page area: what would have scrolled under the tiles.
+    const page = surface.parentElement!;
+    const pageHeight = page.scrollHeight;
+
+    await userEvent.click(
+      canvas.getByRole('button', { name: zhCN['label.analysis.visualize'] }),
+    );
+    const panel = await waitFor(() => {
+      const found = canvasElement.querySelector<HTMLElement>(
+        'aside[data-slot="view-panel"]',
+      );
+      expect(
+        found?.querySelectorAll('[data-slot="chart-tile"]').length,
+      ).toBeGreaterThan(20);
+      return found!;
+    });
+    const heading = panel.querySelector<HTMLElement>(
+      '[data-slot="chart-picker"] h2',
+    )!;
+    await waitFor(() => expect(heading).toHaveFocus());
+
+    // The column is the surface's height and clips what it holds: nothing
+    // in it paints past the surface, and it is the one that scrolls.
+    const surfaceBox = surface.getBoundingClientRect();
+    const panelBox = panel.getBoundingClientRect();
+    await expect(panelBox.top).toBeGreaterThanOrEqual(surfaceBox.top - 0.5);
+    await expect(panelBox.bottom).toBeLessThanOrEqual(surfaceBox.bottom + 0.5);
+    await expect(getComputedStyle(panel).overflowY).toBe('auto');
+    await expect(panel.scrollHeight).toBeGreaterThan(panel.clientHeight);
+    await expect(page.scrollHeight).toBe(pageHeight);
+    await expect(document.documentElement.scrollHeight).toBeLessThanOrEqual(
+      window.innerHeight,
+    );
+
+    // Two tiles a row in the 16rem column, each name and reason one line.
+    const tiles = [
+      ...panel.querySelectorAll<HTMLElement>('[data-slot="chart-tile"]'),
+    ];
+    const grids = panel.querySelectorAll<HTMLElement>(
+      '[data-slot="chart-group"] > :has(> [data-slot="chart-cell"])',
+    );
+    await expect(grids.length).toBe(2);
+    for (const grid of grids)
+      await expect(
+        getComputedStyle(grid).gridTemplateColumns.split(' '),
+      ).toHaveLength(2);
+    for (const tile of tiles)
+      for (const line of tile.querySelectorAll<HTMLElement>(
+        'span[id]:not([data-slot="chart-recommended"])',
+      ))
+        await expect(
+          line.getClientRects().length,
+          `${tile.dataset.chartType}: ${line.textContent}`,
+        ).toBe(1);
+
+    // The last tile is reached by scrolling the panel, inside its box.
+    const last = tiles.at(-1)!;
+    panel.scrollTop = panel.scrollHeight;
+    await waitFor(() => {
+      const box = last.getBoundingClientRect();
+      const port = panel.getBoundingClientRect();
+      expect(box.top).toBeGreaterThanOrEqual(port.top);
+      expect(box.bottom).toBeLessThanOrEqual(port.bottom);
+    });
+    await expect(page.scrollHeight).toBe(pageHeight);
+
+    // From the bottom, the keyboard goes back to the chosen tile at the
+    // top, and the panel scrolls it into view with its ring clear of the
+    // edge (`scroll-padding-block`): the ring is 3px.
+    await userEvent.tab();
+    const chosen = panel.querySelector<HTMLElement>(
+      '[data-slot="chart-tile"][aria-checked="true"]',
+    )!;
+    await expect(chosen).toHaveFocus();
+    await waitFor(() =>
+      expect(chosen.getBoundingClientRect().top).toBeGreaterThanOrEqual(
+        panel.getBoundingClientRect().top + 3,
+      ),
+    );
+  },
+};

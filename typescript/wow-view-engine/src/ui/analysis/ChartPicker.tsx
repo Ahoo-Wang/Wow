@@ -218,8 +218,16 @@ export function ChartPicker({
                   A tile centres what it holds in the height its row gives
                   it (`ChartTile`). The rows stand a step further apart than
                   the columns: the 「推荐」 mark hangs across its tile's
-                  bottom edge, into that gap. */}
-              <div className="fve:grid fve:grid-cols-3 fve:gap-x-2 fve:gap-y-3 fve:*:min-w-0">
+                  bottom edge, into that gap.
+
+                  As many columns as tiles of at least 6rem fit: wide
+                  enough for a five-character name and a seven-character
+                  reason on one line each. Three to a 16rem column left a
+                  tile 62px inside, so 「日历热力图」 broke after 热力,
+                  「只能有一个维度」 wrapped, and a classic scrollbar — the
+                  panel scrolls its column — took the rest (2026-09-30).
+                  So the column holds two, a phone's drawer three. */}
+              <div className="fve:grid fve:grid-cols-[repeat(auto-fill,minmax(6rem,1fr))] fve:gap-x-2 fve:gap-y-3 fve:*:min-w-0">
                 {section.map(value => {
                   const fit = fitOf(value);
                   const index = tiles.findIndex(tile => tile.value === value);
