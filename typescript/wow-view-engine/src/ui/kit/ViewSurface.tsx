@@ -93,6 +93,13 @@ export interface ViewSurfaceProps extends React.ComponentProps<'div'> {
    * it was filtered by.
    */
   timeZone?: string;
+  /**
+   * The clock "now" is read from — the engine's `environment`, which a
+   * workbench and an embed pass. A table cell leaves out the year of a time
+   * in the current one, so a page whose clock is pinned reads the same every
+   * day; the runtime's own clock when left out.
+   */
+  clock?: { now(): Date };
 }
 
 /**
@@ -422,6 +429,7 @@ function Surface({
   messages,
   locale,
   timeZone,
+  clock,
   children,
   style,
   ref,
@@ -444,8 +452,8 @@ function Surface({
   const catalogue = useMergedMessages(messages);
   const wordsIn = lang ?? catalogue['label.language'];
   const display = React.useMemo(
-    () => ({ locale: language, timeZone, say }),
-    [language, timeZone, say],
+    () => ({ locale: language, timeZone, say, clock }),
+    [language, timeZone, say, clock],
   );
   // The surface keeps its own handle on the root — the resolved theme is read
   // off it — and hands the caller the same element. A caller's ref cannot

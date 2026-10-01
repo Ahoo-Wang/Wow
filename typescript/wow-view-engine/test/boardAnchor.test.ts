@@ -115,6 +115,7 @@ function panel(id: string, config: AnalysisViewConfig, x: number) {
 async function harness(
   filters?: DashboardFilters,
   extra: readonly DashboardPanel[] = [],
+  timeZone = 'UTC',
 ) {
   const clock = testEnvironment();
   const source = testSource({ aggregate: vi.fn(() => Promise.resolve([])) });
@@ -122,7 +123,7 @@ async function harness(
   const engine = new ViewEngine({
     resources: resourcesOf([orders(), overviewDefinition()], () => source),
     store,
-    environment: clock.environment,
+    environment: { ...clock.environment, timeZone },
   });
   const config = dashboardConfig({
     fields: [
@@ -241,6 +242,23 @@ describe('a board date of one day anchors its trend cards (D39)', () => {
     clock.advance(AUTO_APPLY_DELAY_MS);
     expect(window('bare')).toEqual(
       scoped(between('2026-08-30T00:00:00.000Z', '2026-08-31T23:59:59.999Z')),
+    );
+  });
+
+  it('steps the zone’s calendar back across a clock change', async () => {
+    // 2 November in New York is standard time (-05:00), the day after the
+    // clocks went back; the days before it are daylight time (-04:00).
+    const { window } = await harness(
+      { values: { date: between('2026-11-02', '2026-11-02') } },
+      [],
+      'America/New_York',
+    );
+
+    expect(window('bare')).toEqual(
+      scoped(between('2026-11-01T04:00:00.000Z', '2026-11-03T04:59:59.999Z')),
+    );
+    expect(window('week')).toEqual(
+      scoped(between('2026-10-27T04:00:00.000Z', '2026-11-03T04:59:59.999Z')),
     );
   });
 

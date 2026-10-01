@@ -56,6 +56,10 @@ export const definitionMessages = {
     '{field} declares a number format the engine cannot write: {value}.',
   'definition.field.temporal-misplaced':
     '{field} declares a time storage, but its type {kind} writes no time.',
+  'definition.field.time-precision-invalid':
+    '{field} declares an unknown time precision: {value}.',
+  'definition.field.time-precision-misplaced':
+    '{field} declares a time precision, but reads as {cell}, which has no time of day.',
   'definition.field.tone-invalid':
     '{field} declares an unknown option tone: {value}.',
   'definition.field.duplicate': 'The field {field} is declared twice.',

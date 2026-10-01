@@ -107,7 +107,8 @@ describe('RecordTable on its own', () => {
       </ViewSurface>,
     );
 
-    expect(screen.getByText(inZone(INSTANT))).toBeDefined();
+    // A table cell is short; the whole time is its title (R2-23).
+    expect(screen.getByTitle(inZone(INSTANT))).toBeDefined();
     expect(screen.getByText('Failed')).toBeDefined();
   });
 

@@ -71,6 +71,7 @@ export type RangeEdge = 'start' | 'end';
 function relativeWindow(
   reference: Dayjs,
   value: RelativeDateTimeValue,
+  timeZone: string,
 ): ClosedInstantRange {
   const amount = value.unit === 'quarter' ? value.amount * 3 : value.amount;
   const unit = value.unit === 'quarter' ? 'month' : value.unit;
@@ -83,11 +84,35 @@ function relativeWindow(
   }
   const today = reference.startOf('day');
   return future
-    ? bounds(today, today.add(amount, unit).subtract(1, 'millisecond'))
+    ? bounds(today, beforeDay(stepDays(today, amount, unit, timeZone)))
     : bounds(
-        today.add(1, 'day').subtract(amount, unit),
+        stepDays(stepDays(today, 1, 'day', timeZone), -amount, unit, timeZone),
         reference.endOf('day'),
       );
+}
+
+/**
+ * The first moment of the day `amount` units of calendar from `day`, in the
+ * zone. The step is taken on the date and the day re-anchored: dayjs steps a
+ * zoned value with the offset it started with, so the last 7 days read on
+ * the far side of a clock change began an hour off midnight.
+ */
+function stepDays(
+  day: Dayjs,
+  amount: number,
+  unit: 'day' | 'week' | 'month' | 'year',
+  timeZone: string,
+): Dayjs {
+  const date = dayjs
+    .utc(day.format('YYYY-MM-DD'))
+    .add(amount, unit)
+    .format('YYYY-MM-DD');
+  return dayjs.tz(date, timeZone);
+}
+
+/** The last millisecond before `day` begins. */
+function beforeDay(day: Dayjs): Dayjs {
+  return dayjs(day.valueOf() - 1);
 }
 
 /** A named calendar window: which period, and how far from this one. */
@@ -236,7 +261,7 @@ function windowAt(
 ): ClosedInstantRange {
   const reference = dayjs(now).tz(timeZone);
   return value.type === 'relative'
-    ? relativeWindow(reference, value)
+    ? relativeWindow(reference, value, timeZone)
     : period(reference, value);
 }
 

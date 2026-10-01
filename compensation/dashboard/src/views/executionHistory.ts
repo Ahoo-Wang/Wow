@@ -163,6 +163,9 @@ export const executionHistory = defineView(EXECUTION_HISTORY_DESCRIPTOR, {
     version: { label: t.version, analysis: false },
     createTime: {
       label: t.createTime,
+      // A stream's events land seconds apart, and that is what its history
+      // is read for: the table keeps the seconds.
+      timePrecision: "second",
       analysis: {
         dateUnits: [
           AggregationDateUnit.HOUR,

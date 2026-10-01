@@ -1,4 +1,4 @@
-# Message keys — 2057.
+# Message keys — 2060.
 # Written by test/publicSurface.test.ts; a change here is a change to
 # the public surface (README「Wording and language」, docs/design/decisions.md D29).
 analysis.alias.duplicate
@@ -309,6 +309,8 @@ definition.field.string-comparison-invalid
 definition.field.summary-wider
 definition.field.temporal-invalid
 definition.field.temporal-misplaced
+definition.field.time-precision-invalid
+definition.field.time-precision-misplaced
 definition.field.tone-invalid
 definition.field.undescribed
 definition.field.unlabelled
@@ -626,6 +628,7 @@ label.chart.change.against.SECOND
 label.chart.change.against.WEEK
 label.chart.change.against.YEAR
 label.chart.change.none
+label.chart.change.points
 label.chart.change.unknown
 label.chart.change.unmatched
 label.chart.column.category

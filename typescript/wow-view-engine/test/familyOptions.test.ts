@@ -31,8 +31,11 @@ const theme: ChartTheme = {
   resolve: color => `resolved(${color})`,
 };
 
-const label = (alias: string | undefined, value: unknown, compact?: boolean) =>
-  `${compact ? 'short ' : ''}${alias}=${String(value)}`;
+const label = (
+  alias: string | undefined,
+  value: unknown,
+  compact?: boolean | 'tick',
+) => `${compact ? 'short ' : ''}${alias}=${String(value)}`;
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Loose = Record<string, any>;

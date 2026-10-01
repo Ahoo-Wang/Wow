@@ -31,6 +31,7 @@ import type {
   SearchModeName,
   SummaryFunction,
   SystemView,
+  TimePrecision,
 } from '../../model/index.js';
 
 /** One data definition's choices over its descriptor. */
@@ -77,6 +78,12 @@ export interface FieldSpec {
    */
   kind?: FieldKindId;
   cell?: FieldCellId;
+  /**
+   * How finely a table cell writes its time of day: `'second'` where the
+   * seconds are the point, an event stream's times; the minute when left
+   * out (`FieldDefinition.timePrecision`).
+   */
+  timePrecision?: TimePrecision;
   /** The comparisons offered, a subset of the path's. */
   operators?: FilterOperatorName[];
   /** `false` offers no sort on a path that sorts. */

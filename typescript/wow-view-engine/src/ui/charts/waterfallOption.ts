@@ -133,7 +133,7 @@ export function waterfallOption(
     categories: bars.map(bar => bar.name),
     categoryTitle: column(spec?.waterfall?.x),
     valueTitle: column(alias),
-    valueTick: value => label(alias, value, true),
+    valueTick: value => label(alias, value, 'tick'),
     scaled: false,
     bottom: 8,
   });

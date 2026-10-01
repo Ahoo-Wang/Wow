@@ -1954,6 +1954,7 @@ export interface FieldDefinition {
     stringComparison?: StringComparisonName;
     summary?: SummaryFunction[];
     temporal?: FieldTemporal;
+    timePrecision?: TimePrecision;
     variantKey?: string;
     variants?: string[];
 }
@@ -2107,6 +2108,7 @@ export interface FieldSpec {
     };
     sortable?: boolean;
     summary?: SummaryFunction[];
+    timePrecision?: TimePrecision;
 }
 
 // @public
@@ -3835,6 +3837,7 @@ export interface RecordColumnView {
     primary?: true;
     // (undocumented)
     sortable: boolean;
+    timePrecision?: 'second';
     timeUnit?: EpochTimeUnit;
     // (undocumented)
     width?: number;
@@ -4486,6 +4489,12 @@ export interface ThemeRiverSpec {
     value: string;
     x: string;
 }
+
+// @public (undocumented)
+export const TIME_PRECISIONS: readonly TimePrecision[];
+
+// @public
+export type TimePrecision = 'minute' | 'second';
 
 // @public
 export function titleProblem(title: string): 'empty' | 'too-long' | null;

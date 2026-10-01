@@ -1053,7 +1053,7 @@ const store = new MemoryViewStore({
 
 模型只带 `code` 与 `params`，措辞归 `/ui`。`en`（英文目录）给每个 issue 一句英文，`ViewSurface` 与每个工作台的 `messages` 按 key 合并在已生效的措辞之上——改写与本地化是同一个入口；在应用外层放一个 `ViewHost`（或单独的 `MessagesProvider`），就能对其中所有视图一次设定，连同值显示的语言（`locale`）。包里另带一份逐键对应的简体中文 `zhCN`：整份交给 `messages` 即可，要改其中几句就铺开再覆盖（`{ ...zhCN, 'label.filter.apply': '确定' }`）。
 
-值按字段显示：枚举显示选项的标签，`datetime`／`date` 经 `Intl.DateTimeFormat` 格式化，日期直方图的键显示为它起始的年、季度、月或日。`locale` 决定这些值用什么语言显示，缺省为运行环境的语言；它和 `messages` 是同一个选择，一个管文字，一个管值：
+值按字段显示：枚举显示选项的标签，`datetime`／`date` 经 `Intl.DateTimeFormat` 格式化，日期直方图的键显示为它起始的年、季度、月或日。表格单元格里的 `datetime` 写得短——到分，今年之内不写年（`09-17 21:19`，英文 `Sep 17, 9:19 PM`），整份时刻在单元格的 `title` 与记录详情里；秒要紧的字段（事件流的时间）声明 `timePrecision: 'second'`。`locale` 决定这些值用什么语言显示，缺省为运行环境的语言；它和 `messages` 是同一个选择，一个管文字，一个管值：
 
 <!-- typecheck-context
 import { ViewEngine } from '@ahoo-wang/wow-view-engine';

@@ -308,7 +308,7 @@ describe('the tooltip on a time axis', () => {
     const tip: string = drawn.tooltip.formatter([{ dataIndex: 1 }]);
     // 100 → 101.
     expect(tip).toContain('data-slot="chart-tooltip-note"');
-    expect(tip).toContain('+1%');
+    expect(tip).toContain('+1.0%');
     expect(tip).toContain('较上一期');
   });
 
@@ -340,7 +340,7 @@ describe('the tooltip on a time axis', () => {
     };
     const drawn = option(fromZero, { against: '较上一期' });
     expect(drawn.tooltip.formatter([{ dataIndex: 1 }])).toContain('>+5<');
-    expect(drawn.tooltip.formatter({ dataIndex: 2 })).toContain('-60%');
+    expect(drawn.tooltip.formatter({ dataIndex: 2 })).toContain('-60.0%');
   });
 });
 

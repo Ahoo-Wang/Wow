@@ -12,11 +12,8 @@
  */
 
 import type { NumberFormat } from '../../model/index.js';
-import {
-  compactFormat,
-  numberFormatter,
-  type DisplayContext,
-} from './display.js';
+import { type DisplayContext } from './display.js';
+import { compactFormat, numberFormatter } from './numbers.js';
 import type { MessageFormatters } from './MessagesProvider.js';
 
 /**
@@ -170,7 +167,7 @@ function fullFormat(
  * is the number. A rounded figure — 1,250 as 「1.3K」 — is not; nor is
  * anything written in digits this cannot read, which then prints in full.
  */
-function writesExactly(
+export function writesExactly(
   value: number,
   format: NumberFormat,
   locale: string | undefined,

@@ -336,6 +336,9 @@ export const customerEventsDefinition: DataViewDefinition = {
       name: 'createTime',
       label: '事件时间',
       kind: 'datetime',
+      // Events a few seconds apart are the story of a stream: the table
+      // keeps the seconds (R2-23).
+      timePrecision: 'second',
       sortable: true,
     },
     // Presence alone, as the schema declares the header's members.

@@ -213,7 +213,7 @@ export function foldOther(
       ? 0
       : typeof total === 'number' &&
           parts.every(part => typeof part === 'number')
-        ? exact(parts.reduce<number>((rest, part) => rest - part, total))
+        ? remainder(total, parts)
         : null;
     const filled = [
       ...(point.filled ?? []).filter(key => keys.has(key)),
@@ -233,7 +233,17 @@ export function foldOther(
   };
 }
 
-/** A difference as the decimal it stands for, without a float's residue. */
-function exact(value: number): number {
-  return Number(value.toPrecision(12));
+/**
+ * What the whole leaves once the parts are taken from it, as the decimal it
+ * stands for. A float's residue is relative to the numbers it came from, not
+ * to the difference: three parts that make up a whole of ¥1,234,567.89 left
+ * -3.49e-11, which twelve significant digits keep, and the recommended bar
+ * chart drew 「-¥0.0000000000349」 with its axis pushed below zero (the
+ * second review, R2-19). A rest within a billionth of the largest number in
+ * the sum is nothing.
+ */
+function remainder(total: number, parts: readonly number[]): number {
+  const rest = parts.reduce((left, part) => left - part, total);
+  const scale = Math.max(Math.abs(total), ...parts.map(Math.abs));
+  return Math.abs(rest) <= scale * 1e-9 ? 0 : Number(rest.toPrecision(12));
 }

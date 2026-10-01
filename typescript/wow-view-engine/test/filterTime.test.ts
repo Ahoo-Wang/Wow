@@ -264,6 +264,57 @@ describe('relative windows and named periods', () => {
     );
   });
 
+  it('starts and ends on the zone’s midnight across a clock change', () => {
+    const window = (value: unknown, now: string, zone: string) =>
+      resolveDateTimeRange(value as never, new Date(now), zone);
+
+    // New York's clocks went back on 1 November: the last 7 days read on
+    // the 3rd begin at midnight of 28 October, still daylight time (-04:00),
+    // not an hour later because the 3rd is standard time.
+    expect(
+      window(
+        { type: 'relative', amount: 7, unit: 'day' },
+        '2026-11-03T15:00:00Z',
+        'America/New_York',
+      ),
+    ).toEqual({
+      from: '2026-10-28T04:00:00.000Z',
+      to: '2026-11-04T04:59:59.999Z',
+    });
+    // Berlin's went back on 25 October: the last 3 days read on the 27th
+    // begin at midnight of the 25th, summer time (+02:00).
+    expect(
+      window(
+        { type: 'relative', amount: 3, unit: 'day' },
+        '2026-10-27T10:00:00Z',
+        'Europe/Berlin',
+      ),
+    ).toEqual({
+      from: '2026-10-24T22:00:00.000Z',
+      to: '2026-10-27T22:59:59.999Z',
+    });
+    // Forwards over the spring change, New York's on 8 March: the next 7
+    // days end the moment 12 March's daylight-time midnight begins.
+    expect(
+      window(
+        { type: 'relative', amount: 7, unit: 'day', direction: 'future' },
+        '2026-03-05T15:00:00Z',
+        'America/New_York',
+      ),
+    ).toEqual({
+      from: '2026-03-05T05:00:00.000Z',
+      to: '2026-03-12T03:59:59.999Z',
+    });
+    // A month back over Berlin's spring change, on 31 March.
+    expect(
+      window(
+        { type: 'relative', amount: 1, unit: 'month' },
+        '2026-04-10T10:00:00Z',
+        'Europe/Berlin',
+      ).from,
+    ).toBe('2026-03-10T23:00:00.000Z');
+  });
+
   it('refuses a direction it does not know', () => {
     expect(
       errors(

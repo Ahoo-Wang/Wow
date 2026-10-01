@@ -23,9 +23,9 @@ import {
 } from '../kit/MessagesProvider.js';
 import { useSurfaceDisplay } from '../kit/ViewSurface.js';
 import { ChangeBadge, type ChangeBadgeProps } from '../kit/variants.js';
-import { formatValue } from './axis.js';
+import { formatChange, formatValue } from './axis.js';
 import { EChart } from './EChart.js';
-import type { FamilyProps, ValueLabel } from './family.js';
+import { pointsText, type FamilyProps, type ValueLabel } from './family.js';
 import { spanName } from './periodSpan.js';
 import { sparklineOption } from './sparklineOption.js';
 import type { ChartTheme } from './theme.js';
@@ -34,17 +34,19 @@ import type { ChartTheme } from './theme.js';
  * The comparison, signed. In `percent` mode the kernel divides, so the delta
  * is a ratio: printing it as it stands turned a quarter more than last week
  * into "+0.25". In `delta` mode it is a difference of two headlines, and
- * reads as the headline does (`show`).
+ * reads as a change of the headline does (`amount`).
  */
 function formatDelta(
   delta: number,
   mode: 'delta' | 'percent' | undefined,
   locale: string | undefined,
-  show: (value: number) => string,
+  amount: (delta: number) => string,
 ) {
-  const sign = delta > 0 ? '+' : '';
-  return `${sign}${mode === 'percent' ? formatValue(delta, 'percent', locale) : show(delta)}`;
+  return mode === 'percent' ? formatChange(delta, locale) : amount(delta);
 }
+
+/** A card's `percent` format, as `formatValue` writes it. */
+const PERCENT = { style: 'percent', maximumFractionDigits: 1 } as const;
 
 /**
  * How much of the target the value has reached, out of a hundred.
@@ -146,11 +148,11 @@ const CHANGE_WRAPS =
 
 function PeriodChange({
   period,
-  show,
+  amountOf,
   lowerIsBetter,
 }: {
   period: MetricPeriod;
-  show: (value: number) => string;
+  amountOf: (delta: number) => string;
   lowerIsBetter: boolean;
 }) {
   const messages = useViewMessages();
@@ -176,11 +178,9 @@ function PeriodChange({
     );
   const { direction, tone } = directionOf(change.delta, lowerIsBetter);
   const Icon = DIRECTION_ICON[direction];
-  const amount = `${change.delta > 0 ? '+' : ''}${show(change.delta)}`;
+  const amount = amountOf(change.delta);
   const ratio =
-    change.ratio === null
-      ? undefined
-      : `${change.ratio > 0 ? '+' : ''}${formatValue(change.ratio, 'percent', locale)}`;
+    change.ratio === null ? undefined : formatChange(change.ratio, locale);
   return (
     <span
       data-slot="metric-change"
@@ -223,14 +223,14 @@ function CompareChange({
   unmatched,
   mode,
   against,
-  show,
+  amountOf,
   lowerIsBetter,
 }: {
   delta: number | null;
   unmatched: boolean;
   mode: 'delta' | 'percent' | undefined;
   against: string;
-  show: (value: number) => string;
+  amountOf: (delta: number) => string;
   lowerIsBetter: boolean;
 }) {
   const messages = useViewMessages();
@@ -270,7 +270,7 @@ function CompareChange({
     >
       <ChangeBadge direction={direction} tone={tone} className={CHANGE_WRAPS}>
         <Icon data-icon="inline-start" />
-        {formatDelta(delta, mode, locale, show)}
+        {formatDelta(delta, mode, locale, amountOf)}
       </ChangeBadge>
       {said}
     </span>
@@ -282,6 +282,7 @@ export function MetricCard({
   spec,
   className,
   label,
+  change,
   column,
   name,
   filled,
@@ -317,6 +318,14 @@ export function MetricCard({
     card?.format === undefined || typeof value === 'string'
       ? label(card?.metric, value)
       : formatValue(value, card.format, locale);
+  // A change of the headline, signed, as `show` writes the headline — and a
+  // percentage's in points (`ChangeAmount`).
+  const amountOf = (delta: number) =>
+    card?.format === 'percent'
+      ? pointsText(delta, PERCENT, locale, messages)
+      : card?.format === undefined && change
+        ? change(card?.metric, delta)
+        : `${delta > 0 ? '+' : ''}${show(delta)}`;
   const period = data.period;
   const periodOf = (key: unknown) =>
     periodName(period?.unit, key, card?.trend?.x, label, messages);
@@ -368,7 +377,7 @@ export function MetricCard({
       {period && !period.partial && (
         <PeriodChange
           period={period}
-          show={show}
+          amountOf={amountOf}
           lowerIsBetter={card?.lowerIsBetter === true}
         />
       )}
@@ -389,7 +398,7 @@ export function MetricCard({
           unmatched={data.compare.unmatched === true}
           mode={card?.compare?.mode}
           against={column(card?.compare?.metric) ?? card?.compare?.metric ?? ''}
-          show={show}
+          amountOf={amountOf}
           lowerIsBetter={card?.lowerIsBetter === true}
         />
       )}

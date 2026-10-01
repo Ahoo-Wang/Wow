@@ -13,7 +13,7 @@
 
 import type { Issue } from '../../model/index.js';
 import { LIST_PARAM_SEPARATOR } from '../../model/issue.js';
-import { formatNumber } from './display.js';
+import { formatNumber } from './numbers.js';
 import { en } from '../messages/en.js';
 
 /**

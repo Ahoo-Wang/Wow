@@ -23,13 +23,13 @@ import {
   cellText,
   csvCellText,
   displayValue,
-  formatNumber,
   heldReading,
   isoDay,
   valueText,
   type DisplayField,
   columnTitle,
 } from '../src/ui/kit/display.js';
+import { formatNumber } from '../src/ui/kit/numbers.js';
 import { badgeEntries } from '../src/ui/kit/badges.js';
 import { summaryText } from '../src/ui/kit/summary.js';
 import { en } from '../src/ui/messages/en.js';
@@ -517,7 +517,10 @@ describe('cellText', () => {
     );
     expect(text('two\nlines', { cell: 'text' })).toBe('two\nlines');
     expect(text(['a', 'b'])).toBe('a, b');
-    expect(text(9007199254740993n)).toBe('9007199254740993');
+    expect(text(9007199254740993n)).toBe('9,007,199,254,740,993');
+    expect(
+      text(9007199254740993n, { numberFormat: { useGrouping: false } }),
+    ).toBe('9007199254740993');
   });
 });
 

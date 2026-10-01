@@ -823,6 +823,8 @@ export const analysisMessages = {
   'label.chart.compare.against': 'vs {metric}',
   'label.chart.compare.unmatched':
     'The span of {metric} does not match the dates picked; not compared',
+  // A change of a percentage, in percentage points.
+  'label.chart.change.points': '{amount} pp',
   'label.chart.change.none': 'No previous period to compare with',
   'label.chart.change.unknown':
     'No number in the previous period to compare with',

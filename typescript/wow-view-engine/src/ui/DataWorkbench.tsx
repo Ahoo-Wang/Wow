@@ -308,6 +308,7 @@ function DataWorkbenchSurface({
               messages={wording}
               locale={locale}
               timeZone={engine.environment.timeZone}
+              clock={engine.environment}
               defaultSidebarOpen={defaultSidebarOpen}
               onSidebarOpenChange={onSidebarOpenChange}
               expandable={expandable}

@@ -19,7 +19,8 @@ import type {
 } from '../../model/index.js';
 import { inCurrency, isCurrencyCode } from '../../model/currency.js';
 import { recordValue } from '../../record/index.js';
-import { formatNumber, type DisplayField } from './display.js';
+import { type DisplayField } from './display.js';
+import { formatNumber } from './numbers.js';
 import type { MessageFormatters } from './MessagesProvider.js';
 
 /**

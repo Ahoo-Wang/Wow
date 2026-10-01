@@ -29,7 +29,7 @@ import {
   useComboboxAnchor,
 } from '../../components/combobox.js';
 import { Spinner } from '../../components/spinner.js';
-import { formatNumber } from '../../kit/display.js';
+import { formatNumber } from '../../kit/numbers.js';
 import { IconTooltip } from '../../kit/IconButton.js';
 import { useViewMessages } from '../../kit/MessagesProvider.js';
 import { ComboboxContent } from '../../kit/popups.js';

@@ -37,7 +37,7 @@ import {
   readChartTheme,
 } from '../src/ui/charts/theme.js';
 import { CHART_COLOR_SLOTS } from '../src/model/index.js';
-import { compactFormat, formatNumber } from '../src/ui/kit/display.js';
+import { compactFormat, formatNumber } from '../src/ui/kit/numbers.js';
 import { measureText } from '../src/ui/charts/measure.js';
 import { declared } from './fixtures/themeTokens';
 import { merged } from '../src/ui/charts/optionMerge.js';

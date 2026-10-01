@@ -17,20 +17,24 @@ import type {
   ChartSpec,
   FieldTone,
   FunnelStages,
+  NumberFormat,
   RecordData,
 } from '../../model/index.js';
 import type { PickAnchor } from '../kit/anchor.js';
 import { bandText } from '../kit/band.js';
 import {
   columnTitle,
-  compactFormat,
   displayValue,
-  formatNumber,
   missingText,
   valueText,
 } from '../kit/display.js';
-import { useViewMessages } from '../kit/MessagesProvider.js';
+import { compactFormat, formatNumber, formatPoints } from '../kit/numbers.js';
+import {
+  useViewMessages,
+  type MessageFormatters,
+} from '../kit/MessagesProvider.js';
 import { useSurfaceDisplay } from '../kit/ViewSurface.js';
+import { formatTick } from './axis.js';
 import type { DateTicks } from './dateTicks.js';
 
 /**
@@ -48,9 +52,10 @@ export type ValueLabel = (
    * Written short, where room is scarce: a tick, a label over a bar. Only a
    * number is shortened, and still in its column's format — 「¥1,110万」 in
    * Chinese and `CN¥11.1M` in English (`compactFormat`); a tooltip, the
-   * reading table and the table layout keep the whole number.
+   * reading table and the table layout keep the whole number. A `tick` is
+   * short too, with the digits it takes to be itself (`formatTick`).
    */
-  compact?: boolean,
+  compact?: boolean | 'tick',
 ) => string;
 
 /** What `AnalysisChart` hands whichever family the data asked for. */
@@ -84,6 +89,11 @@ export interface FamilyProps<D> {
   className?: string;
   onPick?: OnPick;
   label: ValueLabel;
+  /**
+   * A change in a column's own terms, signed (`useChangeAmount`); left
+   * out, the value as its column reads it, with its sign.
+   */
+  change?: ChangeAmount;
   /** An alias as its column is titled; `undefined` when no column holds it. */
   column: ColumnTitle;
   /**
@@ -165,7 +175,7 @@ export function useValueLabel(
             bandText(value, column, messages, display) ??
             displayValue(value, column, display))) ??
         (compact && typeof value === 'number'
-          ? formatNumber(
+          ? (compact === 'tick' ? formatTick : formatNumber)(
               value,
               compactFormat(column?.numberFormat),
               display.locale,
@@ -236,6 +246,47 @@ export function useFilledNote(
       );
     };
   }, [columns, messages]);
+}
+
+/**
+ * A difference of two values of a column, signed, in the column's own terms
+ * — 「+¥1,230.00」, 「-12」 — but a percentage's in points: 发货及时率 from
+ * 80.0% to 65.6% fell 「-14.4 个百分点」, which beside the relative change
+ * 「-18.0%」 reads as a second measure, where 「-14.4%」 read as another
+ * version of the same number (R2-22).
+ */
+export type ChangeAmount = (alias: string | undefined, delta: number) => string;
+
+export function useChangeAmount(
+  columns: readonly AnalysisColumnView[] | undefined,
+  label: ValueLabel,
+): ChangeAmount {
+  const messages = useViewMessages();
+  const { locale } = useSurfaceDisplay();
+  return useMemo(() => {
+    const byAlias = new Map(
+      (columns ?? []).map(column => [column.alias, column]),
+    );
+    return (alias, delta) => {
+      const format =
+        alias === undefined ? undefined : byAlias.get(alias)?.numberFormat;
+      return format?.style === 'percent'
+        ? pointsText(delta, format, locale, messages)
+        : `${delta > 0 ? '+' : ''}${label(alias, delta)}`;
+    };
+  }, [columns, label, locale, messages]);
+}
+
+/** A difference of two percentages, in points, signed. */
+export function pointsText(
+  delta: number,
+  format: NumberFormat | undefined,
+  locale: string | undefined,
+  messages: MessageFormatters,
+): string {
+  return messages.label('label.chart.change.points', {
+    amount: formatPoints(delta, format, locale),
+  });
 }
 
 /** Whether a column's numbers add up across groups: a count or a sum. */

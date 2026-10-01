@@ -13,7 +13,8 @@
 
 import { useId, useLayoutEffect, useRef } from 'react';
 import { cn } from 'cn';
-import { columnTitle, formatNumber } from '../kit/display.js';
+import { columnTitle } from '../kit/display.js';
+import { formatNumber } from '../kit/numbers.js';
 import { useViewMessages } from '../kit/MessagesProvider.js';
 import {
   moveStop,

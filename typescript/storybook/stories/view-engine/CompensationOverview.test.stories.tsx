@@ -233,9 +233,12 @@ export const EveryPanel: Story = {
     // The newest active failures, newest first.
     const table = await findDataTable(panel('最近的活动失败'));
     await waitFor(() => expect(readColumn(table, '处理器')).toHaveLength(10));
-    await expect(readColumn(table, '最近更新')[0]).toBe(
-      '2026年9月22日 06:00:00',
-    );
+    // A table's time is short, to the minute; the whole of it is the
+    // cell's title (R2-23).
+    await expect(readColumn(table, '最近更新')[0]).toBe('09-22 06:00');
+    await expect(
+      table.querySelector('tbody [data-slot="cell-time"]'),
+    ).toHaveAttribute('title', '2026年9月22日 06:00:00');
 
     // No column sits under a held one where the panel is read, at rest.
     // Five columns overflow this seven-twelfths panel, and a last column
@@ -276,8 +279,8 @@ function titles(canvasElement: HTMLElement): string[] {
 }
 
 /**
- * 1280 宽下「最近的活动失败」比面板宽（W13：macOS 默认藏起滚动条，最后一列
- * 像是不存在）。面板的正文朝还有列的那一侧淡出：未滚时右侧淡出，滚到头时换成
+ * 1152 宽下「最近的活动失败」比面板宽（W13：macOS 默认藏起滚动条，最后一列
+ * 像是不存在；表格里的时刻写到分之后，1280 宽已放得下，R2-23）。面板的正文朝还有列的那一侧淡出：未滚时右侧淡出，滚到头时换成
  * 左侧；最后一列的右缘在正文里，不被面板的边距切掉；表头仍粘在顶上。
  */
 export const WideTableFades: Story = {
@@ -286,15 +289,15 @@ export const WideTableFades: Story = {
     viewport: {
       options: {
         laptop: {
-          name: '1280×800',
-          styles: { width: '1280px', height: '800px' },
+          name: '1152×800',
+          styles: { width: '1152px', height: '800px' },
         },
       },
     },
   },
   globals: { viewport: { value: 'laptop' } },
   play: async ({ canvasElement }) => {
-    await expect(window.innerWidth).toBe(1280);
+    await expect(window.innerWidth).toBe(1152);
     const body = await waitFor(() => {
       const found = within(canvasElement).getByRole('group', {
         name: '最近的活动失败',

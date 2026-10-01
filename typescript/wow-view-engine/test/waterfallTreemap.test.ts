@@ -82,8 +82,11 @@ const theme: ChartTheme = {
     })[color] ?? 'rgb(0, 131, 0)',
 };
 
-const label = (alias: string | undefined, value: unknown, compact?: boolean) =>
-  `${compact ? '~' : ''}${String(value)}`;
+const label = (
+  alias: string | undefined,
+  value: unknown,
+  compact?: boolean | 'tick',
+) => `${compact ? '~' : ''}${String(value)}`;
 const column = (alias: string | undefined) => alias && `title:${alias}`;
 const words = {
   total: '合计',
