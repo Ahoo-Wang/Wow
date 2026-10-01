@@ -148,7 +148,12 @@ export function EmbeddedRecord({
   else
     body = (
       <>
-        <QueryStrip error={failed ? table.error : null} stale onRetry={retry} />
+        <QueryStrip
+          error={failed ? table.error : null}
+          stale
+          conditionsChanged={table.conditionsChanged}
+          onRetry={retry}
+        />
         {table.layout === 'card' ? (
           <RecordCards
             table={table}

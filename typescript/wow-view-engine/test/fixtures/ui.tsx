@@ -202,6 +202,7 @@ export function twoColumnTable(
     status: 'success',
     error: null,
     loading: false,
+    conditionsChanged: false,
     hasResult: true,
     sort: [],
     // Settled: nothing waits for Apply, so the rows ran on the sort the

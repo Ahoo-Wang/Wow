@@ -22,7 +22,7 @@ import {
   type RuntimeLimits,
   type ViewInstance,
 } from '../model/index.js';
-import { issue, type FieldKindRegistry } from '../filter/index.js';
+import type { FieldKindRegistry } from '../filter/index.js';
 import { periodRollover } from '../analysis/index.js';
 import {
   NO_REFUSAL,
@@ -40,7 +40,11 @@ import {
 import { hasError, RuntimeStore } from './runtimeStore.js';
 import { AUTO_APPLY_DELAY_MS, autoApplyDue } from './autoApply.js';
 import { sourceFailure, type SourceFailure } from './sourceReason.js';
-import { isForbiddenQuery, queryFailureIssue } from './queryFailure.js';
+import {
+  failedExecutionIssue,
+  failedQuery,
+  isForbiddenQuery,
+} from './queryFailure.js';
 import { RefreshTimer } from './refreshTimer.js';
 import {
   isRequestSuperseded,
@@ -632,7 +636,7 @@ export class DataViewRuntime<
             options.keepSelection,
             askedAt,
           ),
-        error => this.onFailure(requestId, own, error),
+        error => this.onFailure(requestId, own, config, error),
       );
   }
 
@@ -660,11 +664,16 @@ export class DataViewRuntime<
     });
   }
 
-  private onFailure(requestId: string, own: C, error: unknown): void {
+  private onFailure(
+    requestId: string,
+    own: C,
+    config: C,
+    error: unknown,
+  ): void {
     // A superseded request is the normal outcome of typing; it is not an error.
     if (isRequestSuperseded(error) || !this.isCurrent(requestId)) return;
     if (error instanceof RequestQueueFullError) {
-      this.failed(requestId, own, error);
+      this.failed(requestId, own, config, error);
       return;
     }
     // The query stays in flight until the body is read, and a newer
@@ -690,19 +699,21 @@ export class DataViewRuntime<
         this.execute({ keepSelection: false });
         return;
       }
-      this.failed(requestId, own, error);
+      this.failed(requestId, own, config, error);
     });
   }
 
-  private failed(requestId: string, own: C, error: unknown): void {
+  private failed(requestId: string, own: C, config: C, error: unknown): void {
     // Told once, of a failure that was current when it landed: the host
     // hears of no request that had already been replaced. The report waits
     // for the body the source answered with, so it can say which rule a Wow
     // service said the query broke (D40); the Issue reads the same body.
     void this.context.queryFailed('query', error);
-    void this.queryIssue(own, error).then(error => {
+    const { definition } = this.context;
+    void failedExecutionIssue(error, definition, own.filter).then(issue => {
       if (!this.isCurrent(requestId)) return;
-      this.store.setState({ query: { status: 'error', error, requestId } });
+      const query = failedQuery(issue, requestId, this.state.result, config);
+      this.store.setState({ query });
     });
   }
 
@@ -714,17 +725,6 @@ export class DataViewRuntime<
   protected recovers(failure: SourceFailure): boolean {
     void failure;
     return false;
-  }
-
-  /** Turns a failed execution into the Issue the UI reports. */
-  private async queryIssue(own: C, error: unknown): Promise<Issue> {
-    if (error instanceof RequestQueueFullError)
-      return issue('runtime.query.queue-full', []);
-    return queryFailureIssue(
-      await sourceFailure(error),
-      this.context.definition,
-      own.filter,
-    );
   }
 
   /**

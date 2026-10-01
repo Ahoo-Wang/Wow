@@ -47,6 +47,8 @@ import '@ahoo-wang/wow-view-engine/styles.css';
 import sceneSource from './Home.stories.tsx?raw';
 import hostShell from './retail/RetailHost.tsx?raw';
 import { hostSource } from './hostSource.js';
+import { BOARD_FIXTURE } from './retail/scene.js';
+import { DAILY_GOLDEN, OVERDUE_ORDERS } from './retail/goldens.js';
 
 /**
  * The host application's home page: 栖木生活's operations daily report
@@ -227,7 +229,7 @@ function HomePage({ state }: { state: HomeState }) {
 }
 
 /** What the page answers from, said in the host's service line and below. */
-const FIXTURE = '内存 ViewStore · 栖木生活 2 万张子订单（示例数据）';
+const FIXTURE = BOARD_FIXTURE;
 
 const description = `**首页 · 运营日报**
 
@@ -236,7 +238,7 @@ const description = `**首页 · 运营日报**
 - **数据源**：${FIXTURE}，按种子在浏览器里生成；时钟钉在 2026-09-22 上午 10 点（Asia/Shanghai），「昨日」就是 9 月 21 日。
 - **准备**：每次挂载都新建引擎与存储。板子是运营组共享的「运营日报」，由 \`EmbeddedDashboard\` 以 \`interaction="interactive"\` 嵌入。
 - **操作**：顶栏、左侧导航、「运营日报」标题与「催发货」是宿主的；下面整块是视图引擎。改「日期」「渠道」「店铺」，或在「搜索订单」里打订单号、买家昵称、商品名；点「渠道分布」的一根柱把整块板筛到那个渠道；「付款超过 48 小时仍未发货」的「⋯ → 在工作台中打开」进宿主的订单工作台，每行有「催发货」与「订单详情」；右上角「铺满屏幕」。这些只影响这一次观看，什么也不存——嵌入一律不写（D36），没有「编辑」、保存与另存为。
-- **观察**：9 月 21 日华东（嘉兴）仓分拣线故障（A7）：「发货及时率」掉到约 82%，低于 95% 的目标；明细里有 11 张付款超过 48 小时仍未发出的单，全在华东仓。「退款率最高的 5 个商品」里竹纤维浴巾排在前面（A1）；点它进销售复盘的「品类」页，日期一并带过去。
+- **观察**：9 月 21 日华东（嘉兴）仓分拣线故障（A7）：「发货及时率」掉到 ${DAILY_GOLDEN.onTime.value}，低于 95% 的目标；明细里有 ${OVERDUE_ORDERS.length} 张付款超过 48 小时仍未发出的单，全在华东仓。「退款率最高的 5 个商品」里竹纤维浴巾排在前面（A1）；点它进销售复盘的「品类」页，日期一并带过去。
 - **状态**：「加载中」「一个面板出错」「没有权限」「没有数据」各是一个变体。`;
 
 /** What 「Show code」 shows on this page (`hostSource.ts`). */

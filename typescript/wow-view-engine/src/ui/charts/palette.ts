@@ -99,3 +99,23 @@ export function toneColor(tone: FieldTone | undefined): string | undefined {
     ? undefined
     : TONE_COLORS[tone];
 }
+
+/**
+ * The tone colour each of a chart's categories wears — a pie's slice, a
+ * split series, a stream — in their order: its tone's (`toneColor`) where it
+ * is the only one of them wearing it, nothing otherwise. A chart is read by
+ * telling its categories apart, and two categories sharing a tone would be
+ * one colour, so each of those takes its slot instead, as a category with
+ * no tone does. The tone is what the badge of the same value is tinted
+ * with, so 「不可恢复」 is red in the table, the pie and the bars alike.
+ */
+export function heldTones(
+  tones: readonly (FieldTone | undefined)[],
+): (string | undefined)[] {
+  const colors = tones.map(toneColor);
+  return colors.map(color =>
+    color !== undefined && colors.filter(each => each === color).length === 1
+      ? color
+      : undefined,
+  );
+}

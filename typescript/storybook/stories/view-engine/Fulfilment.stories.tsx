@@ -19,6 +19,7 @@ import '@ahoo-wang/wow-view-engine/styles.css';
 import sceneSource from './Fulfilment.stories.tsx?raw';
 import hostShell from './retail/RetailHost.tsx?raw';
 import { hostSource } from './hostSource.js';
+import { BOARD_FIXTURE } from './retail/scene.js';
 
 /** 履约与售后 in the dashboard workbench, on its two tabs. */
 function Fulfilment({
@@ -37,7 +38,7 @@ function Fulfilment({
   );
 }
 
-const FIXTURE = '内存 ViewStore · 栖木生活 2 万张子订单（示例数据）';
+const FIXTURE = BOARD_FIXTURE;
 
 const description = `**业务场景 · 履约与售后**
 

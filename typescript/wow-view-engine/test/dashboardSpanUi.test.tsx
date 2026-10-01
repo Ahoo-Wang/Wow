@@ -42,6 +42,7 @@ import {
   type DataViewDefinition,
   type ViewInstance,
   type ViewNavigation,
+  type ViewSource,
 } from '../src/index.js';
 import { DashboardViewRuntime } from '../src/runtime/dashboardRuntime.js';
 import { DashboardWorkbench } from '../src/ui/index.js';
@@ -50,6 +51,7 @@ import {
   dashboardConfig,
   ordersDefinition,
   overviewDefinition,
+  deferred,
   recordConfig,
   testSource,
   resourcesOf,
@@ -145,8 +147,10 @@ function board(trend: Partial<DashboardPanel> = {}): DashboardViewConfig {
 function setup(
   config: DashboardViewConfig,
   onNavigate?: (to: ViewNavigation) => void,
+  paged?: ViewSource['paged'],
 ) {
   const source = testSource({
+    ...(paged ? { paged } : {}),
     aggregate: vi.fn(() =>
       Promise.resolve([0, 1, 2, 3].map(n => ({ day: day(n), orders: n + 1 }))),
     ),
@@ -211,7 +215,16 @@ const menu = () =>
 describe('a stretch of a panel’s time axis on a board (D33 Q52)', () => {
   it('adds 「设为〈筛选〉」 to the menu; set, the panel marks the days inside it', async () => {
     const onNavigate = vi.fn();
-    const { runtime, user } = setup(board(), onNavigate);
+    // The list's answer to the filter is held, so what the press says at
+    // once stays on screen until the test has read it: the outcome takes
+    // its place, and under load it did before the test looked.
+    const held = deferred<void>();
+    let holding = false;
+    const list = testSource().paged;
+    const { runtime, user } = setup(board(), onNavigate, async query => {
+      if (holding) await held.promise;
+      return list(query);
+    });
     const rows = await days();
     await user.click(rows[1]!);
     await user.keyboard('{Escape}');
@@ -230,6 +243,7 @@ describe('a stretch of a panel’s time axis on a board (D33 Q52)', () => {
       'Only this period(opens in the workbench)',
       'Set “Created” to this period',
     ]);
+    holding = true;
     await user.click(
       within(open).getByRole('menuitem', {
         name: 'Set “Created” to this period',
@@ -260,6 +274,7 @@ describe('a stretch of a panel’s time axis on a board (D33 Q52)', () => {
     );
     // Then what it came to: the list re-ran; the trend it was pressed on
     // keeps its days and runs nothing, so it is not counted.
+    held.resolve();
     await waitFor(() =>
       expect(document.body.textContent).toContain(
         'Filtered by Created; 1 panel updated.',

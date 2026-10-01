@@ -87,6 +87,15 @@ describe('the data note every retail scene opens with', () => {
     ])
       expect(note).toContain(phrase);
   });
+
+  it('says the board scenes’ size too', () => {
+    // `BOARD_FIXTURE`, the service line of every board scene.
+    const scene = readFileSync(new URL('./scene.tsx', import.meta.url), 'utf8');
+    const fixture = /BOARD_FIXTURE =\s*'([^']*)'/.exec(scene)?.[1];
+    expect(fixture).toContain(
+      `栖木生活 ${about(answers.sizes.orders, '张')}子订单`,
+    );
+  });
 });
 
 describe('how the guide says a number', () => {

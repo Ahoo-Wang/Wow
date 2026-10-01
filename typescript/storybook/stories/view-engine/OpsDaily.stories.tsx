@@ -18,6 +18,8 @@ import '@ahoo-wang/wow-view-engine/styles.css';
 import sceneSource from './OpsDaily.stories.tsx?raw';
 import hostShell from './retail/RetailHost.tsx?raw';
 import { hostSource } from './hostSource.js';
+import { BOARD_FIXTURE } from './retail/scene.js';
+import { DAILY_GOLDEN, OVERDUE_ORDERS } from './retail/goldens.js';
 
 /**
  * 运营日报 in the dashboard workbench: the board the home page embeds as a
@@ -27,7 +29,7 @@ function OpsDaily() {
   return <RetailBoardScene instanceId={OPS_DAILY} />;
 }
 
-const FIXTURE = '内存 ViewStore · 栖木生活 2 万张子订单（示例数据）';
+const FIXTURE = BOARD_FIXTURE;
 
 const description = `**业务场景 · 运营日报**
 
@@ -40,7 +42,7 @@ const description = `**业务场景 · 运营日报**
 - **第四行**：「付款超过 48 小时仍未发货」明细（此刻的队列，不跟日期；最早付款的在前，接搜索）；售后退款最多的 5 个商品（近 30 天）——点一个，打开销售复盘的「品类」页，带上这块板的渠道。
 - **第五行**：近 30 天的日 GMV（截至昨日，日均线与峰谷；自带 30 天、不跟日期）——沿横轴拖过几天，弹出这段时间的追问菜单（框选，批 C）。
 - **第六行**：值班手册。
-- **观察**：华东（嘉兴）仓分拣线故障（A7）让 9 月 21 日的发货及时率掉到约 82%，明细里 11 张超时单都在华东仓；竹纤维浴巾的退款率远高于其他商品（A1）。`;
+- **观察**：华东（嘉兴）仓分拣线故障（A7）让 9 月 21 日的发货及时率掉到 ${DAILY_GOLDEN.onTime.value}，明细里 ${OVERDUE_ORDERS.length} 张超时单都在华东仓；竹纤维浴巾的退款率远高于其他商品（A1）。`;
 
 /** What 「Show code」 shows on this page (`hostSource.ts`). */
 const HOST_CODE = hostSource(

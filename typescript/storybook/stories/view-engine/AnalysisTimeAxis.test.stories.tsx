@@ -252,6 +252,27 @@ const dayTicks = (root: HTMLElement) =>
     )
     .map(text => (text.textContent ?? '').trim());
 
+/** Whether the axis names seven days in a row, 「9月1日」 to 「9月7日」. */
+function isAWeek(ticks: string[]): boolean {
+  const days = ticks.map(tick => {
+    const [, month, day] = /(\d+)月(\d+)日/.exec(tick) ?? [];
+    return Date.UTC(2001, Number(month) - 1, Number(day));
+  });
+  return (
+    days.length === 7 &&
+    days.every(
+      (day, index) =>
+        index === 0 ||
+        // The day after, or New Year's Day after 31 December.
+        day - (days[index - 1] ?? 0) === 86_400_000 ||
+        (tickIs(ticks[index], 1, 1) && tickIs(ticks[index - 1], 12, 31)),
+    )
+  );
+}
+
+const tickIs = (tick: string | undefined, month: number, day: number) =>
+  (tick ?? '').includes(`${month}月${day}日`);
+
 /** The reading table's column headers. */
 const readingHeaders = (root: HTMLElement) =>
   [
@@ -279,14 +300,15 @@ export const ZoomsAYearToAWeek: Story = {
     await pause(200);
     await expect(frame).not.toHaveAttribute('data-zoomed');
 
-    // Down to the zoom's floor: a week, seven days.
+    // Down to the zoom's floor: a week, seven days side by side. Seven
+    // names alone are not the floor — a fortnight names every other day.
     for (let turn = 0; turn < 60; turn += 1) {
       await expect(wheel(canvasElement, true)).toBe(true);
       await pause(110);
-      if (turn > 10 && dayTicks(canvasElement).length === 7) break;
+      if (turn > 10 && isAWeek(dayTicks(canvasElement))) break;
     }
     await expect(frame).toHaveAttribute('data-zoomed', 'true');
-    await waitFor(() => expect(dayTicks(canvasElement)).toHaveLength(7));
+    await waitFor(() => expect(isAWeek(dayTicks(canvasElement))).toBe(true));
     const week = dayTicks(canvasElement);
     await expect(week).not.toEqual(before.slice(0, 7));
     // Every day's total over its stack.

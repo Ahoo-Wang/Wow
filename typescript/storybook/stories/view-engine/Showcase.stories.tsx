@@ -22,6 +22,8 @@ import sceneSource from './Showcase.stories.tsx?raw';
 import hostShell from './retail/RetailHost.tsx?raw';
 import boardSource from './retail/showcase.ts?raw';
 import { hostSource } from './hostSource.js';
+import { BOARD_FIXTURE } from './retail/scene.js';
+import { GUIDE_COUNTS } from './retail/guide.js';
 
 /**
  * 图型全景 in the dashboard workbench: every one of the engine's chart
@@ -31,11 +33,11 @@ function Showcase({ tab }: { tab?: Tab }) {
   return <RetailBoardScene instanceId={SHOWCASE} initialTab={tab} />;
 }
 
-const FIXTURE = '内存 ViewStore · 栖木生活 2 万张子订单（示例数据）';
+const FIXTURE = BOARD_FIXTURE;
 
 const description = `**业务场景 · 图型全景**
 
-一块看板，引擎的 22 种图型各用一次，每张图的标题就是它回答的分析问题（\`retail/showcase.ts\`）。第二轮审查里「能回答」的图引用分析工作台与图型陈列里已存的分析；「部分／不能」的换成了它真正答得了的问题，建成板上自有的面板：只取完整月、完整周，雷达的四根轴都是比率，平行坐标只画 5 个有名字的渠道，K 线看近一年卖得最多的一件商品每周的成交单价。
+一块看板，引擎的 ${GUIDE_COUNTS.chartTypes} 种图型各用一次，每张图的标题就是它回答的分析问题（\`retail/showcase.ts\`）。第二轮审查里「能回答」的图引用分析工作台与图型陈列里已存的分析；「部分／不能」的换成了它真正答得了的问题，建成板上自有的面板：只取完整月、完整周，雷达的四根轴都是比率，平行坐标只画 5 个有名字的渠道，K 线看近一年卖得最多的一件商品每周的成交单价。
 
 - **数据源**：${FIXTURE}；时钟钉在 2026-09-22 上午 10 点。
 - **筛选**：下单时间（可选，不设就各图读各自问题的范围）、渠道、省份、支付方式。

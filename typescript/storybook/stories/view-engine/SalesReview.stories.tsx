@@ -19,6 +19,7 @@ import '@ahoo-wang/wow-view-engine/styles.css';
 import sceneSource from './SalesReview.stories.tsx?raw';
 import hostShell from './retail/RetailHost.tsx?raw';
 import { hostSource } from './hostSource.js';
+import { BOARD_FIXTURE } from './retail/scene.js';
 
 /**
  * 销售复盘 in the dashboard workbench: the monthly review, on four tabs, and
@@ -41,7 +42,7 @@ function SalesReview({
   );
 }
 
-const FIXTURE = '内存 ViewStore · 栖木生活 2 万张子订单（示例数据）';
+const FIXTURE = BOARD_FIXTURE;
 
 const description = `**业务场景 · 销售复盘（月度）**
 
@@ -51,7 +52,7 @@ const description = `**业务场景 · 销售复盘（月度）**
 - **筛选**：日期（可选，不设就是全部 25 个月）、渠道、会员等级；整板「按月｜按周｜按日」。
 - **概览**：六张卡读最近一个过完的月（8 月）较 7 月（A-01）；按月的 GMV 与客单价（A-02）；8 月较 7 月按渠道拆的瀑布（A-03）。整板改成「按日」，卡片读昨日较前一日——与运营日报同一个口径。
 - **品类**：品类构成的矩形树图（A-04）、价格带（A-16）、退款率最高的 10 个商品（A-07，点一个打开订单明细，带上这个商品）。竹纤维浴巾 70×140 排第一（A1）。
-- **渠道与地域**：渠道份额按月（A-05，点一个渠道整板筛到它）、省份前 15、城市等级 × 渠道（「（未上报）」那一行是旧版小程序没报城市，A5）、各活动的 GMV 与客单价（A-11）。
+- **渠道与地域**：渠道份额按月（A-05，点一个渠道整板筛到它）、省份前 15、城市等级 × 渠道（「（空）」那一行是旧版小程序没报城市，A5）、各活动的 GMV 与客单价（A-11）。
 - **客户**：GMV 前 20 的买家带合计（A-08）、新老客（A-15）、按首单月的复购率（A-18，会员数据，日期与渠道接不上它，面板头会说）。`;
 
 /** What 「Show code」 shows on this page (`hostSource.ts`). */

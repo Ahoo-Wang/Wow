@@ -12,7 +12,7 @@
  */
 
 import type * as React from 'react';
-import { useRef } from 'react';
+import { useCallback, useRef } from 'react';
 import { Combobox as ComboboxPrimitive } from '@base-ui/react';
 import { AlertDialog as AlertDialogPrimitive } from '@base-ui/react/alert-dialog';
 import { CSPProvider } from '@base-ui/react/csp-provider';
@@ -271,9 +271,11 @@ export function AlertDialogContent({
   className,
   size = 'default',
   style,
+  finalFocus,
   ...props
 }: React.ComponentProps<typeof VendoredAlertDialogContent>) {
   const surface = useSurfaceAttributes();
+  const kept = useKeptFocus(finalFocus, props.ref);
   return (
     <AlertDialogPortal>
       <AlertDialogOverlay
@@ -293,6 +295,7 @@ export function AlertDialogContent({
         data-slot="alert-dialog-content"
         data-size={size}
         {...props}
+        {...kept}
         className={withClass(
           `${ALERT_DIALOG_POPUP_CLASS} ${ALERT_DIALOG_RAISED}`,
           themedClass(className),
@@ -354,9 +357,11 @@ export function DialogContent({
   children,
   style,
   showCloseButton = true,
+  finalFocus,
   ...props
 }: React.ComponentProps<typeof VendoredDialogContent>) {
   const surface = useSurfaceAttributes();
+  const kept = useKeptFocus(finalFocus, props.ref);
   const messages = useViewMessages();
   return (
     <DialogPortal>
@@ -368,6 +373,7 @@ export function DialogContent({
       <DialogPrimitive.Popup
         data-slot="dialog-content"
         {...props}
+        {...kept}
         className={withClass(DIALOG_POPUP_CLASS, themedClass(className))}
         style={useSurfaceType(layered(style))}
         {...surface}
@@ -418,6 +424,7 @@ export function SheetContent({
   side = 'right',
   showCloseButton = true,
   overlayClassName,
+  finalFocus,
   ...props
 }: DialogPrimitive.Popup.Props & {
   side?: 'right' | 'bottom';
@@ -428,6 +435,7 @@ export function SheetContent({
 }) {
   const surface = useSurfaceAttributes();
   const messages = useViewMessages();
+  const kept = useKeptFocus(finalFocus, props.ref);
   return (
     <DialogPortal>
       <DialogOverlay
@@ -439,6 +447,7 @@ export function SheetContent({
         data-slot="sheet-content"
         data-side={side}
         {...props}
+        {...kept}
         className={withClass(SHEET_POPUP_CLASS[side], themedClass(className))}
         style={useSurfaceType(layered(style))}
         {...surface}
@@ -504,7 +513,7 @@ export function DropdownMenuContent({
    */
   anchor?: MenuPrimitive.Positioner.Props['anchor'];
 }) {
-  const popup = useRef<HTMLDivElement>(null);
+  const kept = useKeptFocus(finalFocus, props.ref);
   return (
     <MenuPrimitive.Portal>
       <MenuPrimitive.Positioner
@@ -519,13 +528,7 @@ export function DropdownMenuContent({
         <MenuPrimitive.Popup
           data-slot="dropdown-menu-content"
           {...props}
-          ref={popup}
-          finalFocus={
-            typeof finalFocus === 'function'
-              ? closeType =>
-                  focusMovedOn(popup.current) ? false : finalFocus(closeType)
-              : finalFocus
-          }
+          {...kept}
           className={withClass(MENU_POPUP_CLASS, themedClass(className))}
           style={useSurfaceType(style)}
           {...useSurfaceAttributes()}
@@ -536,17 +539,64 @@ export function DropdownMenuContent({
 }
 
 /**
- * Whether the keyboard has already gone somewhere else while a menu closed:
- * not left inside the menu or one of its submenus, and not dropped on
- * `<body>` by the menu's own removal.
+ * What a popup is given for `finalFocus`, and the ref it reads it with: a
+ * function or a ref is asked only while the focus is still the popup's to
+ * give (`focusMovedOn`); `true`, `false` and nothing pass as they are.
  *
- * Base UI keeps a focus that moved on where it went when a menu's
- * `finalFocus` is `true`, but it takes a function's answer as explicit and
- * sends the focus there regardless. A menu hands the focus back only once its
- * exit animation ends, so a press on another control in that time — a select
- * opened right after picking a dimension — had the focus pulled out from
- * under it, and the select, still opening, closed. So a function's answer
- * is asked only while the focus is still the menu's to give.
+ * Base UI keeps a focus that moved on where it went when `finalFocus` is
+ * `true`, but it takes a function's answer — or a ref's element — as
+ * explicit and sends the focus there regardless. A popup hands the focus
+ * back only once its exit animation ends, so a press on another control in
+ * that time had the focus pulled out from under it: a select opened right
+ * after picking a dimension closed again (#3547, a menu). A dialog, a side
+ * panel and a popover close the same way and take the same kind of
+ * `finalFocus` — the board's dialogs hand the keyboard to a panel's 「⋯」,
+ * the record's detail to its row, the field list to the condition it added —
+ * so each of them keeps a focus that moved on, too.
+ */
+function useKeptFocus<Close>(
+  finalFocus:
+    | boolean
+    | React.RefObject<HTMLElement | null>
+    | ((closeType: Close) => boolean | HTMLElement | null | void)
+    | undefined,
+  /** The caller's own ref on the popup, which is given the element too. */
+  outer: React.Ref<HTMLDivElement> | undefined,
+): {
+  ref: React.RefCallback<HTMLDivElement>;
+  finalFocus?:
+    boolean | ((closeType: Close) => boolean | HTMLElement | null | void);
+} {
+  const popup = useRef<HTMLDivElement | null>(null);
+  const ref = useCallback(
+    (node: HTMLDivElement | null) => {
+      popup.current = node;
+      assignRef(outer, node);
+    },
+    [outer],
+  );
+  if (finalFocus === undefined) return { ref };
+  if (typeof finalFocus === 'boolean') return { ref, finalFocus };
+  return {
+    ref,
+    finalFocus: closeType =>
+      focusMovedOn(popup.current)
+        ? false
+        : typeof finalFocus === 'function'
+          ? finalFocus(closeType)
+          : (finalFocus.current ?? true),
+  };
+}
+
+function assignRef<T>(ref: React.Ref<T> | undefined, value: T | null): void {
+  if (typeof ref === 'function') ref(value);
+  else if (ref) ref.current = value;
+}
+
+/**
+ * Whether the keyboard has already gone somewhere else while a popup closed:
+ * not left inside it or one of a menu's submenus, and not dropped on
+ * `<body>` by the popup's own removal.
  */
 function focusMovedOn(popup: HTMLElement | null): boolean {
   const doc = popup?.ownerDocument ?? document;
@@ -591,8 +641,10 @@ export function PopoverContent({
   side = 'bottom',
   sideOffset = 4,
   style,
+  finalFocus,
   ...props
 }: React.ComponentProps<typeof VendoredPopoverContent>) {
+  const kept = useKeptFocus(finalFocus, props.ref);
   return (
     <PopoverPrimitive.Portal>
       <PopoverPrimitive.Positioner
@@ -606,6 +658,7 @@ export function PopoverContent({
         <PopoverPrimitive.Popup
           data-slot="popover-content"
           {...props}
+          {...kept}
           className={withClass(POPOVER_POPUP_CLASS, themedClass(className))}
           style={useSurfaceType(style)}
           {...useSurfaceAttributes()}

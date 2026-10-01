@@ -53,6 +53,10 @@ export const statusMessages = {
   // result that did come back, and saying so is the only way to know. It is
   // said on the failure's own line, after the failure (`{error}`).
   'label.query.stale': '{error} · Showing the last successful result',
+  // The rows on screen were fetched under the conditions before the change
+  // that just failed: not only older, but the answer to another question.
+  'label.query.stale-conditions':
+    '{error} · Showing the result from before the conditions changed',
   'label.query.retry': 'Try again',
   'label.write.conflict': 'Someone else saved this view first',
   'label.write.unknown': 'The result never came back',

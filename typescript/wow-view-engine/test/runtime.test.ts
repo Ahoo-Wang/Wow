@@ -548,6 +548,36 @@ describe('DataViewRuntime scope filter', () => {
     });
   });
 
+  it('says on a failure whether the rows kept were asked under other conditions', async () => {
+    let fail = false;
+    const source = testSource({
+      paged: vi.fn(() =>
+        fail
+          ? Promise.reject(new Error('down'))
+          : Promise.resolve({ total: 0, list: [] }),
+      ),
+    });
+    const { runtime } = harness({ source });
+    runtime.apply();
+    await nextTask();
+    expect(runtime.getSnapshot().query.status).toBe('success');
+
+    // The same conditions again: the rows are only older.
+    fail = true;
+    runtime.refresh();
+    await vi.waitFor(() =>
+      expect(runtime.getSnapshot().query.status).toBe('error'),
+    );
+    expect(runtime.getSnapshot().query.conditionsChanged).toBeUndefined();
+
+    // A board's filter reaching the view is a change of conditions too.
+    runtime.setScopeFilter(scope);
+    await vi.waitFor(() =>
+      expect(runtime.getSnapshot().query.conditionsChanged).toBe(true),
+    );
+    expect(runtime.getSnapshot().query.status).toBe('error');
+  });
+
   it('refuses a condition the definition does not admit', () => {
     const { runtime, source } = harness();
 

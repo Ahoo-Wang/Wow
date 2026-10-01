@@ -201,7 +201,12 @@ export function RecordPanel({
   if (table.loading && table.rows.length === 0) return <PanelLoading />;
   return (
     <div className="fve:flex fve:flex-col fve:gap-2">
-      <QueryStrip error={failed ? table.error : null} stale onRetry={onRetry} />
+      <QueryStrip
+        error={failed ? table.error : null}
+        stale
+        conditionsChanged={table.conditionsChanged}
+        onRetry={onRetry}
+      />
       {surface.status}
       {bulk && (
         <SelectionBar table={table} runtime={runtime} bulkActions={bulk} />
@@ -400,7 +405,12 @@ export function AnalysisPanel({
     );
   return (
     <div className="fve:flex fve:h-full fve:flex-col fve:gap-2">
-      <QueryStrip error={state.query.error} stale onRetry={onRetry} />
+      <QueryStrip
+        error={state.query.error}
+        stale
+        conditionsChanged={state.query.conditionsChanged === true}
+        onRetry={onRetry}
+      />
       {body}
       {menu}
     </div>

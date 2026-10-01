@@ -29,6 +29,7 @@ import {
   consecutive,
   forwardInTime,
   inNumberOrder,
+  knownWindow,
   partGroup,
   timeGroup,
   withoutHoles,
@@ -136,7 +137,12 @@ function adds(config: AnalysisViewConfig, alias: string): boolean {
  * a stacked area of lone dots floating at the stack's height — and nothing
  * otherwise: an average of no records is no number, and a combination the
  * limit or 「只保留」 cut is not known to be empty. A time x runs without
- * holes (`withoutHoles`), each hole filled by the same rule. The spec's
+ * holes (`withoutHoles`), each hole filled by the same rule — and out to
+ * the window its conditions pin on the axis's field, when the result is
+ * whole (`knownWindow`, the trend card's rule): 「近 30 天」 with no records
+ * on the first five is thirty days, the first five known zeros, not an axis
+ * that starts on the sixth. A split fills each of its series there, one
+ * combination at a time, as it does between the buckets. The spec's
  * `missing: 'gap'` fills every one of them with nothing instead; the holes
  * still stand on the axis, where their time is.
  */
@@ -148,6 +154,8 @@ export function shapeCartesian(
   timeZone: string,
   cutShort = false,
   splitWhole?: readonly RecordData[],
+  /** When the question was asked: the moment its conditions resolved at. */
+  now?: Date,
 ): CartesianData {
   const byX = new Map<unknown, Record<string, number | null>>();
   const seriesKeys = new Map<
@@ -243,6 +251,7 @@ export function shapeCartesian(
       axis,
       timeZone,
       x => pointAt(x, {}),
+      knownWindow(axis, config, rows.length, now, timeZone),
     );
   const shaped: CartesianData = {
     type: 'cartesian',

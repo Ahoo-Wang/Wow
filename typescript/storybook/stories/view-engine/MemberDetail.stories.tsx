@@ -38,6 +38,7 @@ import { RETAIL_ZONE, retailData } from './retail/source.js';
 import '@ahoo-wang/wow-view-engine/styles.css';
 import sceneSource from './MemberDetail.stories.tsx?raw';
 import { hostSource } from './hostSource.js';
+import { BOARD_FIXTURE } from './retail/scene.js';
 
 /** The member the page opens on: the shop's largest buyer this year. */
 const MEMBER_ID = 'M101795';
@@ -167,7 +168,7 @@ function MemberDetail({ memberId }: { memberId: string }) {
   );
 }
 
-const FIXTURE = '内存 ViewStore · 栖木生活 2 万张子订单（示例数据）';
+const FIXTURE = BOARD_FIXTURE;
 
 const description = `**业务场景 · 会员详情页**
 

@@ -31,7 +31,7 @@ import {
   within,
 } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { AggregationGroupType } from '@ahoo-wang/wow-client';
+import { AggregationGroupType, FilterOperator } from '@ahoo-wang/wow-client';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   MemoryViewStore,
@@ -281,5 +281,42 @@ describe('NewAnalysisDialog', () => {
       expect(vi.mocked(source.aggregate).mock.calls.length).toBe(asked + 1),
     );
     await named(dialog);
+  });
+
+  it('says the rows are from before the change when changed conditions fail', async () => {
+    let fail = false;
+    const source = testSource({
+      aggregate: vi.fn(() =>
+        fail
+          ? Promise.reject(new Error('down'))
+          : Promise.resolve([{ warehouse: 'CN', orders: 2 }]),
+      ),
+    });
+    const engine = engineOf([ordersDefinition()], source);
+    const create = engine.create.bind(engine);
+    let runtime: ReturnType<ViewEngine['create']> | undefined;
+    vi.spyOn(engine, 'create').mockImplementation((...args) => {
+      runtime = create(...args);
+      return runtime;
+    });
+    render(<Harness engine={engine} />);
+    const dialog = await screen.findByRole('dialog');
+    await named(dialog);
+
+    fail = true;
+    runtime!.edit({
+      filter: {
+        op: 'and',
+        children: [
+          { field: 'warehouse', operator: `${FilterOperator.EQ}`, value: 'CN' },
+        ],
+      },
+    });
+    runtime!.apply();
+    await waitFor(() =>
+      expect(within(dialog).getByRole('alert').textContent).toContain(
+        'Showing the result from before the conditions changed',
+      ),
+    );
   });
 });

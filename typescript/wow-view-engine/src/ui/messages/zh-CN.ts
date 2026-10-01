@@ -1109,6 +1109,14 @@ export const zhCN: Readonly<Record<string, string>> = {
     '柱不到 {from} 根，每根都标；{from} 根及以上只标最高与最低',
   'label.chart.labels.auto.bars.lines':
     '柱不到 {from} 根，每根都标；{from} 根及以上只标最高与最低；折线与面积不标',
+  'label.chart.labels.auto.totals':
+    '共 {count} 摞，各段都标，合计只标最高与最低',
+  'label.chart.labels.auto.totals.lines':
+    '共 {count} 摞，各段都标，合计只标最高与最低；折线与面积不标',
+  'label.chart.labels.auto.stacks':
+    '各段都标；不到 {from} 摞时每摞标合计，{from} 摞及以上只标最高与最低',
+  'label.chart.labels.auto.stacks.lines':
+    '各段都标；不到 {from} 摞时每摞标合计，{from} 摞及以上只标最高与最低；折线与面积不标',
   'label.chart.stacked': '堆叠',
   'label.chart.stacked-alone': '堆叠需要两个以上的柱或面积系列',
   'label.chart.percent-stack': '百分比堆叠',
@@ -2077,6 +2085,7 @@ export const zhCN: Readonly<Record<string, string>> = {
   'label.query.failed': '查询失败',
   'label.query.forbidden': '无权限',
   'label.query.stale': '{error} · 显示的是上一次成功的结果',
+  'label.query.stale-conditions': '{error} · 显示的是改条件之前的结果',
   'label.query.retry': '重试',
   'label.write.conflict': '别人先保存了这个视图',
   'label.write.unknown': '结果一直没有回来',

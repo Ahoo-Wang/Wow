@@ -368,6 +368,9 @@ function NewAnalysisForm({
                           <QueryStrip
                             error={state.query.error}
                             stale={state.result !== null}
+                            conditionsChanged={
+                              state.query.conditionsChanged === true
+                            }
                             onRetry={() => runtime.refresh()}
                           />
                         )

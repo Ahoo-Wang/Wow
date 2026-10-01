@@ -256,18 +256,9 @@ export function FieldChecklist({
         // by a press elsewhere (the empty result's 「添加条件」), a trigger
         // the keyboard never came from. Nothing ticked: the trigger, as
         // before. A keyboard something else took while the list closed
-        // stays where it went (the race `focusMovedOn` guards for menus).
+        // stays where it went: `PopoverContent` asks this only while the
+        // focus is still the list's to give (`useKeptFocus`).
         finalFocus={() => {
-          const active = document.activeElement;
-          const popup = search.current?.closest(
-            '[data-slot="popover-content"]',
-          );
-          if (
-            active instanceof HTMLElement &&
-            active !== document.body &&
-            !popup?.contains(active)
-          )
-            return false;
           const first = added.current.find(name => held.has(name));
           added.current = [];
           const path = first === undefined ? undefined : held.get(first);

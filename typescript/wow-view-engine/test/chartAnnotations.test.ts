@@ -17,6 +17,7 @@ import { cartesianFit } from '../src/ui/charts/cartesianFit.js';
 import { cartesianOption } from '../src/ui/charts/cartesianOption.js';
 import {
   cartesianPlan,
+  stackPeaksFound,
   type CartesianContext,
 } from '../src/ui/charts/cartesianPlan.js';
 import { CHART_FALLBACK, type ChartTheme } from '../src/ui/charts/theme.js';
@@ -176,7 +177,143 @@ describe('a long row of bars writes its peak and trough (review P1-6)', () => {
   });
 
   it('keeps a line of text over the highest bar for its word', () => {
-    expect(fit(series(THIRTY), spec('bar'), 1400).grid.top).toBe(24);
+    // Wide enough that 「high 90」 fits a bar's room flat.
+    expect(fit(series(THIRTY), spec('bar'), 2400).grid.top).toBe(24);
+  });
+
+  /**
+   * 「最低 ¥1,940」 flat over a short bar was wider than the bar, and ran over
+   * the taller bars on either side (the pre-release review): where the
+   * widest word is wider than a bar's room, both are turned to run along
+   * their bars, as a value label too wide for its bar is, and the plot's
+   * head keeps the turned word's length.
+   */
+  it('turns the words to run along their bars where one is wider than a bar', () => {
+    const labels = (width: number) =>
+      fit(series(THIRTY), spec('bar'), width).series[0].markPoint.data.map(
+        (point: Loose) => point.label,
+      );
+    // 30 bars in 1400px: some 35px a bar, and 「high 90」 is 45px.
+    expect(labels(1400)).toEqual([
+      expect.objectContaining({
+        formatter: 'high 90',
+        position: 'top',
+        rotate: 90,
+        align: 'left',
+        verticalAlign: 'middle',
+      }),
+      expect.objectContaining({ formatter: 'low 5', rotate: 90 }),
+    ]);
+    const head = fit(series(THIRTY), spec('bar'), 1400).grid.top;
+    expect(head).toBeGreaterThanOrEqual(Math.ceil((49 * 11) / 12));
+    // Room enough, and they stand flat as before.
+    expect(labels(2400)).toEqual([
+      expect.objectContaining({ formatter: 'high 90', rotate: 0 }),
+      expect.objectContaining({ formatter: 'low 5', rotate: 0 }),
+    ]);
+  });
+
+  it('reads a turned word under a bar that goes below zero downward', () => {
+    const below = THIRTY.map((value, index) => (index === 19 ? -30 : value));
+    const [, low] = fit(series(below), spec('bar'), 1400).series[0].markPoint
+      .data;
+    expect(low.label).toMatchObject({
+      position: 'bottom',
+      rotate: 90,
+      align: 'right',
+    });
+  });
+});
+
+/**
+ * A stack's total over each of thirty stacks was a row of numbers on their
+ * sides over every bar (the pre-release review): a long upright row of
+ * stacks left to its default writes only its highest and its lowest total,
+ * with their words, as a long row of single bars writes its peak and trough.
+ */
+describe('a long row of stacks writes its highest and lowest total', () => {
+  const stacked = (count: number): CartesianData => ({
+    type: 'cartesian',
+    chart: 'bar',
+    points: Array.from({ length: count }, (_, index) => ({
+      x: `c${index}`,
+      values: {
+        a: index === 4 ? 60 : index === 9 ? 1 : 20,
+        b: index === 9 ? 1 : 10,
+      },
+    })),
+    series: [
+      { key: 'a', label: 'a', metric: 'amount', value: 'a' },
+      { key: 'b', label: 'b', metric: 'amount', value: 'b' },
+    ],
+  });
+  const STACKED = {
+    series: [{ metric: 'amount', stack: 'all' }],
+    splitBy: 'kind',
+  };
+  const chart = spec('bar', STACKED);
+  const totalsOf = (data: CartesianData, chartSpec = chart) =>
+    cartesianPlan(data, context(chartSpec)).totals[0];
+
+  it('writes the two, with their words, past twelve stacks', () => {
+    const total = totalsOf(stacked(30));
+    expect(total.texts.filter(text => text !== '')).toEqual([
+      'high 70',
+      'low 2',
+    ]);
+    expect(total.texts[4]).toBe('high 70');
+    expect(total.texts[9]).toBe('low 2');
+    expect(total.every[0]).toBe('30');
+  });
+
+  it('writes every total under twelve stacks, or where the analyst asked', () => {
+    expect(totalsOf(stacked(11)).texts.every(text => text !== '')).toBe(true);
+    const asked = spec('bar', STACKED, { labels: true });
+    expect(totalsOf(stacked(30), asked).texts.every(text => text !== '')).toBe(
+      true,
+    );
+  });
+
+  it('writes every total where none is highest or lowest', () => {
+    // Fourteen stacks of one total: no two to tell apart.
+    const equal: CartesianData = {
+      ...stacked(14),
+      points: stacked(14).points.map(point => ({
+        ...point,
+        values: { a: 20, b: 10 },
+      })),
+    };
+    const flat = totalsOf(equal);
+    expect(flat.peaksOnly).toBe(false);
+    expect(flat.texts).toEqual(Array(14).fill('30'));
+    expect(stackPeaksFound(equal, chart)).toBe(false);
+    expect(stackPeaksFound(stacked(30), chart)).toBe(true);
+  });
+
+  it('writes the one real stack among window-filled ones, and its part', () => {
+    // Thirty days of a window, one with a record: the rest filled with 0.
+    const filled: CartesianData = {
+      ...stacked(30),
+      points: stacked(30).points.map((point, index) =>
+        index === 29
+          ? { ...point, values: { a: 7, b: null } }
+          : { ...point, values: { a: 0, b: 0 }, filled: ['a', 'b'] },
+      ),
+    };
+    const plan = cartesianPlan(filled, context(chart));
+    expect(plan.totals[0].peaksOnly).toBe(false);
+    expect(plan.totals[0].texts.filter(text => text !== '')).toEqual(['7']);
+    expect(stackPeaksFound(filled, chart)).toBe(false);
+  });
+
+  it('writes every total on screen again once a zoom leaves fewer than twelve', () => {
+    const plan = cartesianPlan(stacked(70), context(chart));
+    const at = (window?: { start: number; end: number }) =>
+      (cartesianFit(plan, 1400, 400, measure, window) as Loose).series[2].label
+        .formatter as (at: { dataIndex: number }) => string;
+    expect(at({ start: 0, end: 10 })({ dataIndex: 0 })).toBe('30');
+    expect(at()({ dataIndex: 0 })).toBe('');
+    expect(at()({ dataIndex: 4 })).toBe('high 70');
   });
 });
 
@@ -186,14 +323,14 @@ describe('the extremes’ words where every value is written (R2-P1-8)', () => {
   it('writes them in the bars’ own labels while those are written, and on the mark where none are', () => {
     const wide = fit(series(THIRTY), every, 1400);
     expect(wide.series[0].label.show).toBe(true);
-    expect(wide.series[0].markPoint).toEqual({
+    expect(wide.series[0].markPoint).toMatchObject({
       symbolSize: 0,
       label: { show: false },
     });
     // Thirty bars in 200px write no number at all: the mark says the two.
     const narrow = fit(series(THIRTY), every, 200);
     expect(narrow.series[0].label).toEqual({ show: false });
-    expect(narrow.series[0].markPoint).toEqual({
+    expect(narrow.series[0].markPoint).toMatchObject({
       symbolSize: 8,
       label: { show: true },
     });
@@ -217,12 +354,12 @@ describe('the extremes’ words where every value is written (R2-P1-8)', () => {
     expect(week.series[0].label.formatter({ value: 90, dataIndex: 3 })).toBe(
       'high 90',
     );
-    expect(week.series[0].markPoint).toEqual({
+    expect(week.series[0].markPoint).toMatchObject({
       symbolSize: 0,
       label: { show: false },
     });
     const whole = fit(series(year), spec('bar'), 1400, 400);
-    expect(whole.series[0].markPoint).toEqual({
+    expect(whole.series[0].markPoint).toMatchObject({
       symbolSize: 8,
       label: { show: true },
     });
@@ -233,7 +370,7 @@ describe('the extremes’ words where every value is written (R2-P1-8)', () => {
     const drawn = option(series([40, 90, 30, 60], 'line'), line).series[0];
     expect(drawn.label.formatter({ value: 30, dataIndex: 2 })).toBe('low 30');
     const wide = fit(series([40, 90, 30, 60], 'line'), line, 1400);
-    expect(wide.series[0].markPoint).toEqual({
+    expect(wide.series[0].markPoint).toMatchObject({
       symbolSize: 0,
       label: { show: false },
     });

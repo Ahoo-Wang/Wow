@@ -19,7 +19,8 @@ import {
   waitFor,
 } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import type { ReactElement } from 'react';
+import { createRef, type ReactElement } from 'react';
+import type * as React from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { MemoryViewStore, ViewEngine } from '../src/index.js';
 import { useFilterEditor } from '../src/react/index.js';
@@ -590,6 +591,82 @@ function popupOf(slot: string): HTMLElement {
  * `stories/view-engine/RecordWorkbenchTheme.test.stories.tsx` is the same claim
  * measured in a browser, where the layers actually exist.
  */
+/**
+ * A popup that keeps a moved focus (`useKeptFocus`) reads its own element
+ * through a ref; a caller's ref on it is given that element too, not
+ * dropped for the popup's own.
+ */
+describe("a popup hands a caller's ref its element", () => {
+  const popups: [string, (ref: React.Ref<HTMLDivElement>) => ReactElement][] = [
+    [
+      'alert-dialog-content',
+      ref => (
+        <AlertDialog open>
+          <AlertDialogContent ref={ref} finalFocus={() => true}>
+            <AlertDialogTitle>Delete</AlertDialogTitle>
+          </AlertDialogContent>
+        </AlertDialog>
+      ),
+    ],
+    [
+      'dialog-content',
+      ref => (
+        <Dialog open>
+          <DialogContent ref={ref} finalFocus={() => true}>
+            <DialogTitle>Confirm</DialogTitle>
+          </DialogContent>
+        </Dialog>
+      ),
+    ],
+    [
+      'sheet-content',
+      ref => (
+        <Dialog open>
+          <SheetContent ref={ref}>
+            <DialogTitle>Record</DialogTitle>
+          </SheetContent>
+        </Dialog>
+      ),
+    ],
+    [
+      'popover-content',
+      ref => (
+        <Popover open>
+          <PopoverContent ref={ref} finalFocus={() => true}>
+            Fields
+          </PopoverContent>
+        </Popover>
+      ),
+    ],
+    [
+      'dropdown-menu-content',
+      ref => (
+        <DropdownMenu open>
+          <DropdownMenuContent ref={ref} finalFocus={() => true}>
+            <DropdownMenuItem>Advanced</DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      ),
+    ],
+  ];
+
+  it.each(popups)('on a %s', async (slot, popup) => {
+    const ref = createRef<HTMLDivElement>();
+    const called = vi.fn();
+    render(<ViewSurface theme="light">{popup(ref)}</ViewSurface>);
+    await waitFor(() => expect(ref.current).not.toBeNull());
+    expect(ref.current?.getAttribute('data-slot')).toBe(slot);
+    cleanup();
+
+    render(<ViewSurface theme="light">{popup(called)}</ViewSurface>);
+    await waitFor(() =>
+      expect(called).toHaveBeenCalledWith(
+        document.querySelector(`[data-slot="${slot}"]`),
+      ),
+    );
+  });
+});
+
 describe('every popup opens on the popup layer', () => {
   const LAYER = 'var(--fve-popup-z-index, 50)';
 

@@ -41,10 +41,12 @@ import {
   alongPart,
   forwardInTime,
   hostTimeZone,
+  knownWindow,
   partGroup,
   timeGroup,
   unfinishedBucket,
   withoutHoles,
+  type DateGroup,
 } from './timeAxis.js';
 import {
   shapeCalendar,
@@ -215,6 +217,7 @@ export function shapeChart(
             timeZone,
             context.cutShort,
             context.splitWhole,
+            context.now,
           ),
           data =>
             data.timeline === true
@@ -231,7 +234,10 @@ export function shapeChart(
     case 'pie':
       return chart.pie && pie(chart.pie, rows);
     case 'heatmap':
-      return chart.heatmap && heatmap(chart.heatmap, config, rows, timeZone);
+      return (
+        chart.heatmap &&
+        heatmap(chart.heatmap, config, rows, timeZone, context.now)
+      );
     case 'scatter':
       return chart.scatter && scatter(chart.scatter, rows);
     case 'funnel':
@@ -354,15 +360,18 @@ function pie(
 }
 
 /**
- * A time row or column runs without holes too, as any time axis does; the
- * cells of a bucket that had no rows are empty, as every cell the query
- * returned no row for is — a heatmap draws "no group" as no cell.
+ * A time row or column runs without holes too, as any time axis does, and
+ * out to the window its conditions pin when the result is whole
+ * (`knownWindow`, as a cartesian axis); the cells of a bucket that had no
+ * rows are empty, as every cell the query returned no row for is — a heatmap
+ * draws "no group" as no cell, one combination at a time.
  */
 function heatmap(
   spec: NonNullable<AnalysisViewConfig['chart']['heatmap']>,
   config: AnalysisViewConfig,
   rows: readonly RecordData[],
   timeZone: string,
+  now?: Date,
 ): HeatmapData {
   let xs: unknown[] = [];
   let ys: unknown[] = [];
@@ -380,10 +389,26 @@ function heatmap(
   const across = timeGroup(config, spec.x);
   const down = timeGroup(config, spec.y);
   const same = (key: unknown) => key;
+  const window = (axis: DateGroup) =>
+    knownWindow(axis, config, rows.length, now, timeZone);
   if (across)
-    xs = withoutHoles(forwardInTime(xs, same), same, across, timeZone, same);
+    xs = withoutHoles(
+      forwardInTime(xs, same),
+      same,
+      across,
+      timeZone,
+      same,
+      window(across),
+    );
   if (down)
-    ys = withoutHoles(forwardInTime(ys, same), same, down, timeZone, same);
+    ys = withoutHoles(
+      forwardInTime(ys, same),
+      same,
+      down,
+      timeZone,
+      same,
+      window(down),
+    );
   // A calendar part runs its whole cycle: 星期 × 时段 is seven rows of
   // twenty-four columns whichever hours had orders.
   const cycleAcross = partGroup(config, spec.x);

@@ -284,6 +284,16 @@ export interface ViewQueryState {
   status: QueryStatus;
   error?: Issue;
   requestId?: string;
+  /**
+   * On a failure: the result still on screen was asked under other
+   * conditions than the query that failed — the reader changed them (in
+   * either filter mode) or a board's filter did, and the new ones did not
+   * come back. A failed refresh of the same conditions leaves it out: its
+   * rows are only older. The rows stay either way (a view that empties
+   * itself on a dropped connection loses what the user was reading), and
+   * this is what lets the screen say which conditions they belong to.
+   */
+  conditionsChanged?: true;
 }
 
 export interface ViewResult<C> {

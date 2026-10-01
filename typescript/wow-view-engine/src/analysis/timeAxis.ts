@@ -254,6 +254,36 @@ export interface TimeWindow {
 }
 
 /**
+ * The window a time axis runs to, when every bucket of it the rows lack is
+ * known to have had no records: what the conditions pin on the axis's field
+ * — a view's own 「近 30 天」, or the window a board anchored it to, which
+ * reaches it as a condition too — read at the moment the question was
+ * asked, and never past that moment's bucket, since a day that has not come
+ * yet had no records only so far.
+ *
+ * Known empty is the whole result's to say (D14, `absenceReader`): no
+ * 「只保留」 to have dropped a bucket by its numbers, and fewer rows than the
+ * limit, so none was cut off an end. Otherwise, or with no moment to read
+ * the conditions at, or no lower bound to start from, there is no window,
+ * and the axis runs between the buckets that came back. A trend card's
+ * sparkline (D39) and a chart's time axis ask the same question here.
+ */
+export function knownWindow(
+  axis: DateGroup,
+  config: AnalysisViewConfig,
+  rows: number,
+  now: Date | undefined,
+  timeZone: string,
+): TimeWindow | undefined {
+  if (!now || config.having) return undefined;
+  if (!Number.isInteger(config.limit) || rows >= config.limit) return undefined;
+  const { from, to } = appliedWindow(config.filter, axis.field, now, timeZone);
+  if (from === null) return undefined;
+  const asked = now.getTime() + 1;
+  return { from, to: to === null ? asked : Math.min(to, asked) };
+}
+
+/**
  * The window the applied conditions pin on `field`: the latest lower bound
  * and the earliest upper bound among the conditions the tree ANDs together
  * at any depth — a condition under an OR is one alternative, not a bound —
