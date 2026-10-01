@@ -314,6 +314,24 @@ export const OnlyApplyIsPrimary: Story = {
 };
 
 /**
+ * Waits for a window Escape has closed to leave the page.
+ *
+ * Escape closes it at once (`data-closed`); it leaves the page when its
+ * fade-out has run, and a fade runs on frames — on the nightly's WebKit
+ * runner a second was not enough of them. So the close is asserted, the
+ * fade waited for, and then the window must be gone.
+ */
+async function gone(dialog: HTMLElement): Promise<void> {
+  await waitFor(() => expect(dialog).toHaveAttribute('data-closed'));
+  await Promise.allSettled(
+    dialog.getAnimations({ subtree: true }).map(({ finished }) => finished),
+  );
+  await waitFor(() =>
+    expect(within(document.body).queryByRole('dialog')).toBeNull(),
+  );
+}
+
+/**
  * The export window: one button, one window, the whole journey (D14).
  *
  * Nothing is actually exported here. The file itself — its name, its header
@@ -353,9 +371,7 @@ export const ExportWindow: Story = {
       }),
     );
     await userEvent.keyboard('{Escape}');
-    await waitFor(() =>
-      expect(within(document.body).queryByRole('dialog')).toBeNull(),
-    );
+    await gone(unpicked);
 
     // The picked scope exists only once something is picked (D4), and it is
     // the one the window opens on.
@@ -413,9 +429,7 @@ export const ExportRunningWindow: Story = {
     );
 
     await userEvent.keyboard('{Escape}');
-    await waitFor(() =>
-      expect(within(document.body).queryByRole('dialog')).toBeNull(),
-    );
+    await gone(dialog);
     // A cancel says nothing: it is the answer the user gave.
     await expect(
       canvasElement.querySelector('[data-slot="status-strip"]'),

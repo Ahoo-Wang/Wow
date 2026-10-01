@@ -1783,6 +1783,24 @@
   }
 
   /*
+   * The focus mark is there the moment the keyboard lands, not 150ms
+   * later. The registry's controls carry `transition-all`, so the edge,
+   * the halo and a dimmed control's opacity (the applied bar's ✕ rests at
+   * 60%) used to fade in — and a transition only moves on a rendered
+   * frame: until the next one the control is drawn, and computed, as it
+   * was before focus. Safari on a busy machine draws a frame every few
+   * hundred ms, so its ✕ measured 1.00:1 there — a ghost button's
+   * transparent edge on the badge (nightly WebKit, 2026-10-01). Leaving
+   * focus still fades out: this rule holds only while focus is here.
+   */
+  :is(
+    .fve\:focus-visible\:ring-3,
+    .fve\:focus-visible\:ring-\[3px\]
+  ):focus-visible {
+    transition-duration: 0s;
+  }
+
+  /*
    * The two heights of a control, on every registry control drawn at them:
    * a button, a toggle, a text box, a group around one, a select.
    */

@@ -136,6 +136,7 @@ export const EventStreamConsole: Story = {
       readColumn(canvas.getByRole('table'), '涉及订单').every(
         count => Number(count) > 0,
       ),
+      'every day touches an order',
     ).toBe(true);
 
     // The order handled most, and when it last was — read as a date, not

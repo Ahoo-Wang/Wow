@@ -83,7 +83,7 @@ shadcn 的语义名描述「颜色的用途类别」，一个名字身兼数职�
 - **徽标的边默认保留**（D46）：`badge-edge`／`badge-fill` 是取徽标自己色调的多少（默认 30%／10%）；去掉边，淡色徽标在选中行上只剩约 1.2:1，低于「在行上仍是一个徽标」的 1.5:1，所以预设改用填色须在自己的 `row-selected` 上仍过 1.5:1，门守着。
 - **打字的框仍有 3:1 的边**：WCAG 1.4.11 不要求以文字或图标自明的控件有边界（选择框有字和箭头），要求输入框有；所以 `ControlFrame` 装着输入框的筛选芯片不管主题怎么说都保留 `input` 边。要让它无边，得先有一套预设的芯片填色对底 ≥3:1——量过（D76）每套最高 1.50:1，所以不给配方加角色。
 - **neutral 的选中、悬停、焦点保持原样**（D46）：neutral 的焦点在 AA 上成立，「机制的改动 neutral 逐像素不变」是硬约束；更强的默认值由各预设设；neutral 要不要变强是另一次视觉决定。
-- **焦点**：不设 `focus-width` 时是 vendored 的 1px `border-ring` 加 `focus-halo`（`ring` 的 50%）的光晕，AA 成立；设了时控件画一道 `outline`，宽度与偏移读角色，光晕只改「本来就是 `ring` 的 50%」的那些（危险按钮与无效控件的红光晕不受影响）。引擎自己的三个焦点配方也读它（D76）：`FOCUS_ROW` 的内描边 `focus-width` 宽、光晕在它外 2px；`FOCUS_CARD` 的轮廓 `focus-width` 宽、离边 `focus-offset`（不设时压在自己的边上）；`FOCUS_INSET` 画在边内、`focus-offset` 作边内的间隔；三个的光晕都读 `focus-halo`。不设时读 1px，逐像素是原来的 1px `ring` 加光晕。
+- **焦点**：不设 `focus-width` 时是 vendored 的 1px `border-ring` 加 `focus-halo`（`ring` 的 50%）的光晕，AA 成立；设了时控件画一道 `outline`，宽度与偏移读角色，光晕只改「本来就是 `ring` 的 50%」的那些（危险按钮与无效控件的红光晕不受影响）。引擎自己的三个焦点配方也读它（D76）：`FOCUS_ROW` 的内描边 `focus-width` 宽、光晕在它外 2px；`FOCUS_CARD` 的轮廓 `focus-width` 宽、离边 `focus-offset`（不设时压在自己的边上）；`FOCUS_INSET` 画在边内、`focus-offset` 作边内的间隔；三个的光晕都读 `focus-halo`。不设时读 1px，逐像素是原来的 1px `ring` 加光晕。焦点标记在键盘落下的那一刻就在：registry 控件的 `transition-all` 不作用于获焦的那一刻（只淡出、不淡入），否则一帧来得慢的浏览器在过渡走完之前画的、量的都还是获焦前的样子（夜间 WebKit 上已应用条的 ✕ 量到 1.00:1）。
 - **选中不只靠颜色**（WCAG 1.4.1，D76）：`row-selected-mark` 是选中的记录行、按下的分析分组第一格左边一道 3px 的色条（引擎只有从左到右的排版；背景图，不压字，获焦时行的内描边盖住它靠里的 `focus-width`），不设就没有；对比度矩阵在设了时量它在选中行上 ≥3:1。contrast 链到主色。
 
 ### 链接：角色跟着面上解析出的 token

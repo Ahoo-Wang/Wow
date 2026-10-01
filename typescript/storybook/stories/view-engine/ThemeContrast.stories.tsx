@@ -108,13 +108,38 @@ type Story = StoryObj<typeof meta>;
 /**
  * 每套预设 × 每种明暗 × 每一对 token 的对比度，量出来。
  *
- * 字 ≥4.5:1（WCAG 1.4.3），控件边与焦点 ≥3:1（1.4.11）；不达标的一格标「不足」，
- * 这个故事就红。预设读自 `BUILT_IN_PRESETS`：包里多一套，这里就多量一套。
+ * 字 ≥4.5:1（WCAG 1.4.3），控件边与焦点 ≥3:1（1.4.11）；不达标的一格标「不足」。
+ * 预设读自 `BUILT_IN_PRESETS`：包里多一套，这里就多量一套。这一页给人看；
+ * 断言在下面每套预设一个的故事里——四套一起量，在夜间任务的 Firefox 上要 17 秒，
+ * 超过了 15 秒（2026-10-01）。
  */
 export const Contrast: Story = {
   name: '对比度矩阵',
+  tags: ['!test'],
   render: () => <MatrixPage />,
+};
+
+/** The matrix and the palettes of one preset, measured and held to their lines. */
+const contrastOf = (preset: string): Story => ({
+  name: `对比度矩阵 · ${preset}`,
+  tags: ['!dev', '!autodocs'],
+  render: () => (
+    <div
+      className="fve-tokens fve:bg-background fve:text-foreground"
+      style={{ display: 'flex', flexDirection: 'column', gap: 16, padding: 16 }}
+    >
+      <ContrastMatrix presets={[preset]} />
+      <PaletteGates presets={[preset]} />
+    </div>
+  ),
   play: async ({ canvasElement }) => {
+    // The four stories below are every built-in preset.
+    await expect([...PRESETS].sort()).toEqual([
+      'azure',
+      'contrast',
+      'neutral',
+      'porcelain',
+    ]);
     const matrix = await waitFor(() => {
       const found = canvasElement.querySelector<HTMLElement>('[data-matrix]');
       if (!found || found.dataset.matrix === 'measuring')
@@ -122,14 +147,13 @@ export const Contrast: Story = {
       return found;
     });
     const measured = readMatrix(matrix);
-    // Every preset, both modes, every pair — and nothing measured twice.
-    // A pair a preset does not paint (it leaves the token it requires
-    // unset) is left unmeasured, as the arithmetic leaves it out.
+    // Both modes, every pair — and nothing measured twice. A pair the
+    // preset does not paint (it leaves the token it requires unset) is left
+    // unmeasured, as the arithmetic leaves it out.
     const skipped = unmeasured(matrix);
     await expect(skipped.filter(({ requires }) => !requires)).toEqual([]);
     await expect(measured.length + skipped.length).toBe(
-      PRESETS.length *
-        MEASURED_MODES.reduce((n, mode) => n + PAIRS[mode].length, 0),
+      MEASURED_MODES.reduce((n, mode) => n + PAIRS[mode].length, 0),
     );
     // A shortfall the registry lists as owed by a retuning batch
     // (`PENDING`) is excused while it is still short, and only then.
@@ -140,17 +164,20 @@ export const Contrast: Story = {
           `${m.preset}/${m.mode} ${m.pair} ${m.ratio.toFixed(2)}:1 < ${m.line}:1 ${JSON.stringify(m.colors)}`,
       );
     await expect(short, short.join('\n')).toEqual([]);
-    const settled = PENDING.filter(({ preset, mode, pair }) =>
-      measured.some(
-        m =>
-          m.preset === preset &&
-          m.mode === mode &&
-          m.pair === pair &&
-          passes(m),
-      ),
-    ).map(({ preset, mode, pair }) => `${preset}/${mode} ${pair}`);
+    const settled = PENDING.filter(
+      pending =>
+        pending.preset === preset &&
+        measured.some(
+          m =>
+            m.preset === pending.preset &&
+            m.mode === pending.mode &&
+            m.pair === pending.pair &&
+            passes(m),
+        ),
+    ).map(({ mode, pair }) => `${preset}/${mode} ${pair}`);
     await expect(settled, 'pending pairs that now pass').toEqual([]);
-    // And every palette clears its gates (ui/theme.md, quality gates), in the browser.
+    // And its palette clears its gates (ui/theme.md, quality gates), in the
+    // browser.
     const palettes = await waitFor(() => {
       const found = canvasElement.querySelector<HTMLElement>('[data-palettes]');
       if (!found || found.dataset.palettes === 'measuring')
@@ -158,10 +185,16 @@ export const Contrast: Story = {
       return found;
     });
     const readings = readPalettes(palettes);
-    await expect(readings.length).toBe(PRESETS.length * MEASURED_MODES.length);
+    await expect(readings.length).toBe(MEASURED_MODES.length);
     const failing = readings
       .filter(reading => !clears(reading))
       .map(reading => JSON.stringify(reading));
     await expect(failing, failing.join('\n')).toEqual([]);
   },
-};
+});
+
+// One story per built-in preset.
+export const ContrastNeutral: Story = contrastOf('neutral');
+export const ContrastAzure: Story = contrastOf('azure');
+export const ContrastPorcelain: Story = contrastOf('porcelain');
+export const ContrastContrast: Story = contrastOf('contrast');

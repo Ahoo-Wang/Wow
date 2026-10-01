@@ -315,13 +315,20 @@ function scrollsItself(node: Element): boolean {
  * Whether the page is being printed: every row is drawn from the moment
  * the browser says it will print, synchronously, so the sheet it lays out
  * holds them.
+ *
+ * And back to the rows in view the moment it says it is done, as
+ * synchronously. Left to React's scheduler, the update waited behind the
+ * browser's next frame — which laid out all of them on screen first: 2.1s
+ * of a frozen page in WebKit on a Mac before the table let go of a single
+ * row, and long enough on the nightly's runner that the table was still
+ * whole when it was read (2026-10-01).
  */
 function usePrinting(): boolean {
   const [printing, setPrinting] = useState(false);
   useLayoutEffect(() => {
     if (typeof window === 'undefined') return;
     const before = () => flushSync(() => setPrinting(true));
-    const after = () => setPrinting(false);
+    const after = () => flushSync(() => setPrinting(false));
     window.addEventListener('beforeprint', before);
     window.addEventListener('afterprint', after);
     return () => {

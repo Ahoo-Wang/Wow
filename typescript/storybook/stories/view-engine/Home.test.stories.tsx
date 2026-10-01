@@ -37,6 +37,7 @@ import {
   panelParts,
 } from './panelFit.js';
 import { expectMetricCardsFit } from './metricFit.js';
+import { nextFrame } from './panelEdges.js';
 import { noPanelOut } from './retail/twins.js';
 
 /**
@@ -93,6 +94,15 @@ async function boardDrawn(canvasElement: HTMLElement) {
   );
 }
 
+/**
+ * How many times slower than a pull request's runner this one says it is:
+ * the nightly legs' per-test limit over Vitest's 15s default, 1 elsewhere.
+ */
+function slowRunner(): number {
+  const limit = Number(import.meta.env.STORYBOOK_TEST_TIMEOUT);
+  return limit > 15_000 ? limit / 15_000 : 1;
+}
+
 async function findOverdue() {
   return findDataTable(panelOf('付款超过 48 小时仍未发货'));
 }
@@ -122,11 +132,18 @@ export const DailyReport: Story = {
     // generating the data set (when this iframe had not yet), building the
     // engine, every query and every chart. Budget 1 s (6.3), measured
     // locally; the assertion is a guard against an order-of-magnitude
-    // regression, since a CI runner is several times slower.
+    // regression, since a CI runner is several times slower. The nightly's
+    // Firefox and WebKit runners are slower again — the same board took
+    // 3.0–6.6s there (2026-10-01) — and say so by the longer per-test limit
+    // they set (`STORYBOOK_TEST_TIMEOUT`, vitest.config.ts): the guard is
+    // scaled by the same factor there, and nowhere else.
     const page = canvasElement.querySelector<HTMLElement>('[data-host-page]')!;
     const drawnIn = performance.now() - Number(page.dataset.startedAt);
-    console.info(`Home daily report drawn in ${drawnIn.toFixed(0)} ms`);
-    await expect(drawnIn).toBeLessThan(6_000);
+    const budget = 6_000 * slowRunner();
+    console.info(
+      `Home daily report drawn in ${drawnIn.toFixed(0)} ms (budget ${budget} ms)`,
+    );
+    await expect(drawnIn).toBeLessThan(budget);
 
     // The golden numbers of 2026-09-21: each card its value, in its unit.
     for (const [name, value] of Object.entries(DAILY_GOLDEN.cards))
@@ -472,6 +489,16 @@ export const SearchesTheOverdueList: Story = {
  * 在面板里滚，表头与「全部」那一行都粘在滚动口的两头。浏览器把获得焦点的控件
  * 刚好滚进滚动口，从前最底下几行的「复制」整个落在「全部」那一行底下。每一颗
  * 按顺序聚焦，它正中那一点上必须就是它自己。
+ *
+ * 面板在板上随行数长高，自己从不滚动，就什么也没测（去掉表格的
+ * `scroll-padding` 照样通过）：这里把面板的正文限高到 16rem，让它在两条之间滚，
+ * 去掉 `scroll-padding` 三个浏览器都会报出被遮住的按钮。
+ *
+ * 先把面板滚进视口；每颗聚焦后等下一帧再读——WebKit 把获焦控件滚进滚动口要等
+ * 下一帧（Chromium、Firefox 当场就滚），当场读会读到滚动之前。只等帧，不用
+ * `waitFor` 轮询：从前每颗一次 `waitFor`，Linux 上的 WebKit 一帧要几百毫秒，
+ * 22 颗加起来超过了 15 秒（2026-09-30 夜间任务）。提示本身不算遮挡：它是这颗
+ * 按钮自己的（或上一颗正在退场的）说明，不是粘性的表头表尾。
  */
 export const FocusClearsTheStickyBands: Story = {
   ...DisplayDailyReport,
@@ -483,17 +510,35 @@ export const FocusClearsTheStickyBands: Story = {
       ...panel.querySelectorAll<HTMLElement>('button[aria-label^="复制 "]'),
     ];
     await expect(copies.length).toBeGreaterThan(5);
-    for (const copy of [...copies, ...[...copies].reverse()]) {
-      copy.focus();
-      await waitFor(() => {
+    // The panel's body (the group) held to a height, so it scrolls under
+    // the bands: on the board it grows with its rows and never scrolls.
+    panel.style.maxBlockSize = '16rem';
+    await expect(panel.scrollHeight).toBeGreaterThan(panel.clientHeight * 2);
+    // A tooltip is passed through, not counted: hit-testing skips what
+    // takes no pointer, and only for as long as this reads.
+    const through = document.createElement('style');
+    through.textContent =
+      ':has(> [data-slot="tooltip-content"]), [data-slot="tooltip-content"] { pointer-events: none !important; }';
+    document.head.append(through);
+    const obscured: string[] = [];
+    panel.scrollIntoView({ block: 'center' });
+    try {
+      for (const copy of [...copies, ...[...copies].reverse()]) {
+        copy.focus();
+        // WebKit scrolls the focused control into the port a frame later.
+        await nextFrame();
         const box = copy.getBoundingClientRect();
         const hit = document.elementFromPoint(
           box.left + box.width / 2,
           box.top + box.height / 2,
         );
-        expect(hit !== null && (hit === copy || copy.contains(hit))).toBe(true);
-      });
+        if (!(hit !== null && (hit === copy || copy.contains(hit))))
+          obscured.push(copy.getAttribute('aria-label')!);
+      }
+    } finally {
+      through.remove();
     }
+    await expect(obscured).toEqual([]);
   },
 };
 

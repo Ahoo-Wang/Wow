@@ -190,7 +190,9 @@ export const KeyboardWalksTenThousandRows: Story = {
 
 /**
  * 打印时每一行都画出来：纸上没有滚动位置。浏览器说要打印（`beforeprint`）的那
- * 一刻同步画齐一万行，打印完（`afterprint`）再回到只画看得见的。
+ * 一刻同步画齐一万行，打印完（`afterprint`）的那一刻也同步回到只画看得见的——
+ * 交给调度器排队时，WebKit 先把一万行在屏上排一遍版（本机 2.1s），夜间跑道上
+ * 读到的还是整张表。
  */
 export const PrintingDrawsEveryRow: Story = {
   ...DisplayTenThousandRows,
@@ -202,9 +204,7 @@ export const PrintingDrawsEveryRow: Story = {
       portOf(canvasElement).querySelector('table'),
     ).not.toHaveAttribute('aria-rowcount');
     window.dispatchEvent(new Event('afterprint'));
-    await waitFor(() =>
-      expect(drawnRows(canvasElement).length).toBeLessThan(DRAWN_AT_MOST),
-    );
+    await expect(drawnRows(canvasElement).length).toBeLessThan(DRAWN_AT_MOST);
   },
 };
 

@@ -243,7 +243,7 @@ gh run download <run-id> -p 'storybook-durations-*' -D "$tmp"
 node scripts/test-durations.mjs "$tmp"/*/*.json
 ```
 
-`.github/workflows/typescript-storybook-browsers.yml` 每晚（UTC 18:00）和手动触发时在 Firefox 与 WebKit 里跑同样的交互测试（只跑 `storybook` 工程，每种浏览器两片，同样按测得的时长分片，`STORYBOOK_BROWSERS` 选浏览器）。它不在拉取请求上运行，不是合并信号，发布准入也不读它；失败说明是某个浏览器特有的问题，按 [`typescript/AGENTS.md`](../AGENTS.md#flaky-tests) 的「Flaky Tests」处理，不重试。本地复现：
+`.github/workflows/typescript-storybook-browsers.yml` 每晚（UTC 18:00）和手动触发时在 Firefox 与 WebKit 里跑同样的交互测试（只跑 `storybook` 工程，Firefox 两片、WebKit 四片（在 macOS 上），同样按测得的时长分片，`STORYBOOK_BROWSERS` 选浏览器）。单个故事的时限在这里是 60 秒（`STORYBOOK_TEST_TIMEOUT`，`vitest.config.ts` 读它），拉取请求与本地仍是 15 秒：这两条腿的 CI 机器跑同一个故事比 Mac 慢 3～15 倍，15 秒量的是机器而不是故事；故事本身错了，照样在断言上失败。它不在拉取请求上运行，不是合并信号，发布准入也不读它；失败说明是某个浏览器特有的问题，按 [`typescript/AGENTS.md`](../AGENTS.md#flaky-tests) 的「Flaky Tests」处理，不重试。本地复现：
 
 ```bash
 PLAYWRIGHT_BROWSERS_PATH=$HOME/Library/Caches/ms-playwright-user pnpm --filter wow-storybook exec playwright install firefox webkit

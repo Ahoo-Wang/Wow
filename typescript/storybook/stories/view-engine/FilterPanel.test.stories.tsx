@@ -804,12 +804,21 @@ async function hovered(button: HTMLElement): Promise<{
  * `hover:bg-muted`（暗色 `dark:hover:bg-muted/50`）与 `dark:hover:text-foreground`
  * 按源码顺序压过选中的 `bg-primary`／`text-primary-foreground`：选中的那天一悬停
  * 就成了浅灰底上的白字。区间的两端同样；区间中间保持自己的 `muted` 底。
- * 每套内置预设 × 明暗：悬停前后画的一样、字对底 ≥4.5:1；没选中的日子悬停照常变底
+ * 每套内置预设一个故事，各自明暗两遍：悬停前后画的一样、字对底 ≥4.5:1；没选中的日子悬停照常变底
  * ——也证明这里的悬停是真的 `:hover`。
  */
-export const ASelectedDayKeepsItsColoursUnderThePointer: Story = {
+const aSelectedDayKeepsItsColours = (
+  preset: (typeof BUILT_IN_PRESETS)[number],
+): Story => ({
   ...DisplayWithTime,
   play: async ({ canvasElement }) => {
+    // The four stories below are every built-in preset.
+    await expect([...BUILT_IN_PRESETS].sort()).toEqual([
+      'azure',
+      'contrast',
+      'neutral',
+      'porcelain',
+    ]);
     // Storybook's own panel has no hold of the browser's mouse, and a built
     // event would prove nothing here.
     if (!globalThis.storybookRealMouse) return;
@@ -828,7 +837,7 @@ export const ASelectedDayKeepsItsColoursUnderThePointer: Story = {
     await expect(middle).toHaveAttribute('data-range-middle', 'true');
     await expect(end).toHaveAttribute('data-range-end', 'true');
 
-    await keepsItsColours([
+    await keepsItsColours(preset, [
       ['range start', start],
       ['range middle', middle],
       ['range end', end],
@@ -859,17 +868,30 @@ export const ASelectedDayKeepsItsColoursUnderThePointer: Story = {
       expect(found).not.toBeNull();
       return found!;
     });
-    await keepsItsColours([['single', selected]]);
+    await keepsItsColours(preset, [['single', selected]]);
     await closeCalendar();
   },
-};
+});
+
+// One story per preset, both modes each: all four in one ran 9s in local
+// WebKit and past the 15s budget on the nightly's Linux runner
+// (2026-09-30), every hover a real mouse move and a settle.
+export const ASelectedDayKeepsItsColoursInNeutral: Story =
+  aSelectedDayKeepsItsColours('neutral');
+export const ASelectedDayKeepsItsColoursInAzure: Story =
+  aSelectedDayKeepsItsColours('azure');
+export const ASelectedDayKeepsItsColoursInPorcelain: Story =
+  aSelectedDayKeepsItsColours('porcelain');
+export const ASelectedDayKeepsItsColoursInContrast: Story =
+  aSelectedDayKeepsItsColours('contrast');
 
 /**
- * Each preset in each mode: every selected day paints the same under the
+ * The preset in each mode: every selected day paints the same under the
  * browser's own mouse as at rest, its words ≥4.5:1 on its fill; and a day
  * nobody chose still hovers — the witness that the `:hover` is real.
  */
 async function keepsItsColours(
+  name: (typeof BUILT_IN_PRESETS)[number],
   days: readonly (readonly [string, HTMLElement])[],
 ): Promise<void> {
   const mouse = globalThis.storybookRealMouse!;
@@ -881,27 +903,26 @@ async function keepsItsColours(
   const preset = html.getAttribute('data-fve-preset');
   const dark = html.classList.contains('dark');
   try {
-    for (const name of BUILT_IN_PRESETS)
-      for (const mode of [false, true]) {
-        html.setAttribute('data-fve-preset', name);
-        html.classList.toggle('dark', mode);
-        const tag = `${name} ${mode ? 'dark' : 'light'}`;
-        await mouse.away();
-        await colorsSettled();
-        for (const [role, day] of days) {
-          const resting = paintOf(day);
-          await expect(await hovered(day), `${tag} ${role}`).toEqual(resting);
-          await expect(
-            measureTextContrast(day).ratio,
-            `${tag} ${role}`,
-          ).toBeGreaterThanOrEqual(4.5);
-        }
-        const resting = paintOf(unselected);
+    for (const mode of [false, true]) {
+      html.setAttribute('data-fve-preset', name);
+      html.classList.toggle('dark', mode);
+      const tag = `${name} ${mode ? 'dark' : 'light'}`;
+      await mouse.away();
+      await colorsSettled();
+      for (const [role, day] of days) {
+        const resting = paintOf(day);
+        await expect(await hovered(day), `${tag} ${role}`).toEqual(resting);
         await expect(
-          (await hovered(unselected)).fill,
-          `${tag} unselected`,
-        ).not.toBe(resting.fill);
+          measureTextContrast(day).ratio,
+          `${tag} ${role}`,
+        ).toBeGreaterThanOrEqual(4.5);
       }
+      const resting = paintOf(unselected);
+      await expect(
+        (await hovered(unselected)).fill,
+        `${tag} unselected`,
+      ).not.toBe(resting.fill);
+    }
   } finally {
     await mouse.away();
     if (preset === null) html.removeAttribute('data-fve-preset');

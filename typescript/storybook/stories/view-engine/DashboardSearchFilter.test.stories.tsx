@@ -67,6 +67,24 @@ async function pendingOrders(canvasElement: HTMLElement): Promise<string[]> {
 }
 
 /**
+ * The lists narrowed to what was typed. The board runs a typed value
+ * `AUTO_APPLY_DELAY_MS` (300ms) after the last keystroke, and every wired
+ * panel then asks its source, so `waitFor`'s default second held the
+ * debounce too: on the nightly's Firefox runner the lists were still whole
+ * when it ran out (2026-10-01). This waits for the outcome itself, for as
+ * long as a slow runner takes to get there, not for one second.
+ */
+async function listsNarrowTo(
+  canvasElement: HTMLElement,
+  orders: string[],
+): Promise<void> {
+  await waitFor(
+    async () => expect(await pendingOrders(canvasElement)).toEqual(orders),
+    { timeout: 10_000 },
+  );
+}
+
+/**
  * 「添加筛选」 → 搜索: its box says 「搜索…」 while empty; wired on the
  * pending list, the other list follows on its own and the chart has
  * nothing to take it; typing an order number runs the lists alone.
@@ -152,9 +170,7 @@ export const AddSearchWiresTheLists: Story = {
       within(canvas.getByRole('group', { name: search })).getByRole('textbox'),
       'SO-1001',
     );
-    await waitFor(async () =>
-      expect(await pendingOrders(canvasElement)).toEqual(['SO-1001']),
-    );
+    await listsNarrowTo(canvasElement, ['SO-1001']);
     // The chart says the search does not reach it.
     await waitFor(() =>
       expect(badgeOn(canvasElement, '按仓库汇总')).toBe(
@@ -189,8 +205,6 @@ export const SearchNarrowsInAnEmbed: Story = {
       expect((await pendingOrders(canvasElement)).length).toBeGreaterThan(1),
     );
     await userEvent.type(box, 'SO-1001');
-    await waitFor(async () =>
-      expect(await pendingOrders(canvasElement)).toEqual(['SO-1001']),
-    );
+    await listsNarrowTo(canvasElement, ['SO-1001']);
   },
 };

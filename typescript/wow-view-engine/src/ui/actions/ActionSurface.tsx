@@ -31,7 +31,7 @@ import {
 import type { SelectionContext } from '../record/SelectionBar.js';
 import { useSayWith, useViewMessages } from '../kit/MessagesProvider.js';
 import type { ViewMessages } from '../kit/messages.js';
-import { focusIn, keyboardFell } from '../kit/focus.js';
+import { focusIn, focusableIn, keyboardFell } from '../kit/focus.js';
 import { ActionDialog } from './ActionDialog.js';
 import { BulkActionButtons, RowActionButtons } from './ActionButtons.js';
 import { BulkStatus, outcomeSentence, runningSentence } from './BulkStatus.js';
@@ -179,9 +179,16 @@ export function useActionSurface({
       },
     [start],
   );
+  // The window hands the keyboard back when its closing has run, which can
+  // be after the command it asked for has landed: on a slow frame (Safari,
+  // the nightly's runner) the selection's bar was gone by then, the line's
+  // landing had been and passed, and the keyboard fell to the page. So a
+  // press whose control went meanwhile lands where the landing would have
+  // put it — on the line.
   const finalFocus = useCallback(() => {
     const from = opener.current;
-    return from?.isConnected ? from : true;
+    if (from?.isConnected) return from;
+    return focusableIn(line.current) ?? true;
   }, []);
 
   const drawRow = (place: 'row' | 'detail') => {

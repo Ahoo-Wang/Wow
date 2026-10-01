@@ -418,17 +418,17 @@ const focusIndicators = (theme: 'light' | 'dark'): Story => ({
       name: new RegExp(`^${zhCN['label.filter.unset-of'].split(' ')[0]}`),
     })[0];
 
+    // Each mark is read the moment Tab lands, before a frame is drawn: the
+    // mark is owed then, not after a fade. The vendored button's
+    // `transition-all` used to fade it in over 150ms, and a transition moves
+    // only on a frame — so on a slow one (nightly WebKit) the ✕ measured
+    // its own transparent edge, 1.00:1, while waiting for the fade.
     const measured: { name: string; ratio: number; colors: object }[] = [];
     await tabTo(columnsButton);
-    // The vendored button has `transition-all`: its border reaches the ring
-    // colour over 150ms, so the steady state is what is measured.
-    await settled(() => getComputedStyle(columnsButton).borderTopColor);
     measured.push({ name: 'button', ...measureBorderContrast(columnsButton) });
     await tabTo(unset);
-    await settled(() => getComputedStyle(unset).borderTopColor);
     measured.push({ name: 'unset', ...measureBorderContrast(unset) });
     await tabTo(sortButton);
-    await settled(() => getComputedStyle(sortButton).borderTopColor);
     measured.push({ name: 'sort', ...measureBorderContrast(sortButton) });
 
     const report = measured
@@ -446,7 +446,6 @@ const focusIndicators = (theme: 'light' | 'dark'): Story => ({
     const border = getComputedStyle(sortButton).borderTopColor;
     const halo = getComputedStyle(sortButton).boxShadow;
     await tabTo(columnsButton);
-    await settled(() => getComputedStyle(columnsButton).borderTopColor);
     await expect(getComputedStyle(columnsButton).borderTopColor).toBe(border);
     await expect(getComputedStyle(columnsButton).boxShadow).toBe(halo);
   },
