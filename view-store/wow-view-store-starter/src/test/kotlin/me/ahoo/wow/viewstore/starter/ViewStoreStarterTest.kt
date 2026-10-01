@@ -14,7 +14,10 @@
 package me.ahoo.wow.viewstore.starter
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.command.DefaultDeleteAggregate
+import me.ahoo.wow.configuration.namedAggregate
 import me.ahoo.wow.openapi.aggregate.command.CommandComponent
+import me.ahoo.wow.openapi.contract.BuiltInHttpRoutePaths
 import me.ahoo.wow.serialization.JsonSerializer
 import me.ahoo.wow.viewstore.ViewStoreService
 import me.ahoo.wow.viewstore.api.ViewStoreErrorCodes
@@ -110,16 +113,59 @@ class ViewStoreStarterTest {
 
     @Test
     fun `the host's own routes stay where they were`() {
-        val paths = client.get().uri("/v3/api-docs").exchange()
+        val document = client.get().uri("/v3/api-docs").exchange()
             .expectStatus().isOk
             .expectBody(JsonNode::class.java).returnResult().responseBody!!
-            .get("paths").propertyNames().toList()
+        val paths = document.get("paths").propertyNames().toList()
+        // The host's delete keeps Wow's own command schema: the view store deletes with a command of its own, so it
+        // does not claim DefaultDeleteAggregate (which would name the schema after the view store in the host).
+        document.at("/paths/~1owner~1{ownerId}~1cart/delete/requestBody/content/application~1json/schema/\$ref")
+            .asString().assert().isEqualTo("#/components/schemas/wow.api.command.DefaultDeleteAggregate")
+        document.at(
+            "/paths/~1view-store~1tenant~1{tenantId}~1owner~1{ownerId}~1view~1{id}/delete/requestBody/content/" +
+                "application~1json/schema/\$ref"
+        ).asString().assert().isEqualTo("#/components/schemas/view-store.view.DeleteView")
         paths.assert().contains(
             "/owner/{ownerId}/cart/add_cart_item",
             "/view-store/tenant/{tenantId}/owner/{ownerId}/view",
             "/view-store/tenant/{tenantId}/owner/{ownerId}/view/snapshot/list",
             "/view-store/tenant/{tenantId}/owner/{ownerId}/system-views",
         )
+    }
+
+    /**
+     * The view store refuses its own commands on the command facade, but `DefaultDeleteAggregate` is Wow's, not the
+     * view store's (the view store deletes with `DeleteView`): the host's delete through the facade reaches the host.
+     */
+    @Test
+    fun `the host's delete through the command facade reaches the host's aggregate`() {
+        // No aggregate claims Wow's delete command: the facade names the aggregate from the headers alone.
+        DefaultDeleteAggregate::class.java.namedAggregate().assert().isNull()
+        val cartId = "facade-delete-cart"
+        client.post().uri("/owner/$cartId/cart/add_cart_item")
+            .header(CommandComponent.Header.WAIT_STAGE, "SNAPSHOT")
+            .contentType(MediaType.APPLICATION_JSON)
+            .bodyValue("""{"productId":"p1","quantity":1}""")
+            .exchange()
+            .expectStatus().isOk
+        client.post().uri(BuiltInHttpRoutePaths.Global.COMMAND_SEND)
+            .header(CommandComponent.Header.COMMAND_TYPE, DefaultDeleteAggregate::class.java.name)
+            .header(CommandComponent.Header.COMMAND_AGGREGATE_CONTEXT, "example-service")
+            .header(CommandComponent.Header.COMMAND_AGGREGATE_NAME, "cart")
+            .header(CommandComponent.Header.AGGREGATE_ID, cartId)
+            .header(CommandComponent.Header.OWNER_ID, cartId)
+            .header(CommandComponent.Header.WAIT_STAGE, "SNAPSHOT")
+            .contentType(MediaType.APPLICATION_JSON)
+            .bodyValue("{}")
+            .exchange()
+            .expectStatus().isOk
+            .expectBody()
+            .jsonPath("$.aggregateName").isEqualTo("cart")
+            .jsonPath("$.aggregateId").isEqualTo(cartId)
+            .jsonPath("$.errorCode").isEqualTo("Ok")
+        client.get().uri("/owner/$cartId/cart/$cartId/state")
+            .exchange()
+            .expectStatus().isNotFound
     }
 
     @Test

@@ -130,7 +130,7 @@ The system views of Failed executions:
 "Now" is the server's clock, read at each query (`BEFORE_NOW` / `AFTER_NOW`, which need a Wow 9.2.0 server or later), the same boundary the command side's timeout check uses.
 
 - **Filters**: any field of the definition, combined with the operators its kind offers (and / or / not). "Search errors" is a full-text search of the error message and stack trace and **appears only where the storage supports it**: an Elasticsearch snapshot store does; a MongoDB snapshot store lists it in its descriptor only once the collection has a text index.
-- **Views**: columns, sort, the card layout and conditions can be saved as a personal view, kept in **this browser on this computer** (`localStorage`) and not visible to colleagues.
+- **Views**: columns, sort, the card layout and conditions can be saved as a view, and boards as well. Nobody signs in to the console, so views and boards are **shared**: they are kept in the view store the compensation service embeds (`wow-view-store-starter`, `/view-store/tenant/(0)/owner/(shared)/…`), and everyone who opens the console sees and can change them.
 - **Export**: CSV of the current condition or the selection, with formulas neutralised by default.
 - **Detail**: a row (or Enter) opens a side drawer that reads the record in full by field group, with the stack trace (line numbers, wrap, copy), the "Change function" and "Apply retry specification" forms, and the execution history; a history row opens that event's full payload. The open record is in the address (`?id=`), so it can be sent as a link.
 

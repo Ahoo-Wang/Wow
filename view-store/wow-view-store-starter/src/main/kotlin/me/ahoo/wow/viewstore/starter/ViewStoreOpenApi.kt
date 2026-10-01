@@ -43,8 +43,12 @@ import me.ahoo.wow.viewstore.domain.view.ViewState
 
 /**
  * The view store's own routes in OpenAPI, beside the ones Wow renders from the aggregates.
+ *
+ * [schemaNamePrefix] is the host's own schema name prefix (its context alias, as [me.ahoo.wow.openapi.RouterSpecs]
+ * uses), so a type the host's document already has (`example.StringStringMap`) keeps its one name instead of gaining
+ * an unprefixed twin at the root.
  */
-class ViewStoreOpenApi(private val paths: ViewStorePaths) {
+class ViewStoreOpenApi(private val paths: ViewStorePaths, private val schemaNamePrefix: String) {
     companion object {
         const val TAG = ViewStoreService.SERVICE_ALIAS
         private const val JSON = "application/json"
@@ -63,7 +67,7 @@ class ViewStoreOpenApi(private val paths: ViewStorePaths) {
     }
 
     fun merge(openApi: OpenAPI) {
-        val context = OpenAPIComponentContext.default()
+        val context = OpenAPIComponentContext.default(defaultSchemaNamePrefix = schemaNamePrefix)
         val errorInfo = context.schema(DefaultErrorInfo::class.java)
         val operations = linkedMapOf(
             paths.systemViews to PathItem().get(systemViews(context, errorInfo)),

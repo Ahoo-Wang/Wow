@@ -13,7 +13,8 @@
 
 /**
  * The `ViewStore` port's conformance suite (view-store-backend.md 7, 9) over
- * `WowViewStore` and the view store server: the cases `MemoryViewStore`
+ * `WowViewStore` and each view store server (the standalone one and the
+ * example server that embeds the starter): the cases `MemoryViewStore`
  * passes in the engine's own suite, against MongoDB. Every case works in a
  * definition of its own, so one server serves the whole run; each run is a
  * tenant of its own besides.
@@ -28,23 +29,28 @@
 
 import { WowViewStore } from '@ahoo-wang/wow-view-store';
 import { describeViewStoreConformance } from '../../../wow-view-engine/test/conformance/viewStoreConformance.js';
-import { actingAs, SYSTEM_VIEW_DEFINITION } from './viewStoreServer';
+import {
+  actingAs,
+  SYSTEM_VIEW_DEFINITION,
+  viewStoreServers,
+} from './viewStoreServer';
 
 const tenantId = `conformance-${Date.now()}`;
 
-describeViewStoreConformance({
-  name: 'WowViewStore',
-  capabilities: {
-    owners: true,
-    personalViews: true,
-    changeAudience: true,
-    idempotentCreate: true,
-    systemViews: { definitionId: SYSTEM_VIEW_DEFINITION },
-  },
-  connect:
-    () =>
-    ({ owner }) =>
-      new WowViewStore({
-        fetcher: actingAs({ tenantId, owner, appId: 'conformance' }),
-      }),
-});
+for (const server of viewStoreServers)
+  describeViewStoreConformance({
+    name: `WowViewStore on ${server.name}`,
+    capabilities: {
+      owners: true,
+      personalViews: true,
+      changeAudience: true,
+      idempotentCreate: true,
+      systemViews: { definitionId: SYSTEM_VIEW_DEFINITION },
+    },
+    connect:
+      () =>
+      ({ owner }) =>
+        new WowViewStore({
+          fetcher: actingAs({ tenantId, owner, appId: 'conformance' }, server),
+        }),
+  });

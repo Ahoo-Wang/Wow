@@ -80,6 +80,85 @@ describe('models', () => {
     );
   });
 
+  it("declares a wrapper of an aggregate's state that an API client answers or takes, and what it reaches", () => {
+    const spec = wowDocument({ context: 'example', aggregate: 'order' }) as {
+      paths: Record<string, unknown>;
+      components: { schemas: Record<string, unknown> };
+    };
+    const schemas = spec.components.schemas;
+    const ref = (key: string) => ({ $ref: `#/components/schemas/${key}` });
+    schemas['example.order.OrderStateMaterializedSnapshot'] = {
+      type: 'object',
+      properties: { state: ref('example.order.OrderStatePagedList') },
+    };
+    schemas['example.order.OrderStatePagedList'] = {
+      type: 'object',
+      properties: { error: ref('wow.api.DefaultErrorInfo') },
+    };
+    schemas['example.order.OrderStateMaterializedSnapshotPagedList'] = {
+      type: 'object',
+    };
+    schemas['wow.api.DefaultErrorInfo'] = { type: 'object' };
+    spec.components['responses' as 'schemas'] = {
+      Replayed: {
+        description: 'OK',
+        content: {
+          'application/json': {
+            schema: ref('example.order.OrderStateMaterializedSnapshot'),
+          },
+        },
+      },
+    };
+    spec.paths['/orders/requests/{requestId}'] = {
+      get: {
+        operationId: 'replays.replay',
+        tags: ['replays'],
+        responses: { '200': { $ref: '#/components/responses/Replayed' } },
+      },
+    };
+    const keys = modelsOf(spec as unknown as OpenAPI).map(model => model.key);
+    expect(keys).toContain('example.order.OrderStateMaterializedSnapshot');
+    expect(keys).toContain('example.order.OrderStatePagedList');
+    // Wow's own schemas stay wow-client's, and what no API client reaches
+    // stays left out.
+    expect(keys).not.toContain('wow.api.DefaultErrorInfo');
+    expect(keys).not.toContain(
+      'example.order.OrderStateMaterializedSnapshotPagedList',
+    );
+  });
+
+  it("leaves out a wrapper only an aggregate's or Wow's own route reaches", () => {
+    const spec = wowDocument({ context: 'example', aggregate: 'order' }) as {
+      paths: Record<string, unknown>;
+      components: { schemas: Record<string, unknown> };
+    };
+    spec.components.schemas['example.order.OrderStateMaterializedSnapshot'] = {
+      type: 'object',
+    };
+    const answer = {
+      responses: {
+        '200': {
+          description: 'OK',
+          content: {
+            'application/json': {
+              schema: {
+                $ref: '#/components/schemas/example.order.OrderStateMaterializedSnapshot',
+              },
+            },
+          },
+        },
+      },
+    };
+    spec.paths['/wow/orders/{id}'] = {
+      get: { operationId: 'wow.snapshot', tags: ['wow'], ...answer },
+    };
+    spec.paths['/untagged/{id}'] = {
+      get: { operationId: 'untagged', ...answer },
+    };
+    const keys = modelsOf(spec as unknown as OpenAPI).map(model => model.key);
+    expect(keys).not.toContain('example.order.OrderStateMaterializedSnapshot');
+  });
+
   it('fails on schemas that generate the same model', () => {
     const analysis = () =>
       modelsOf(

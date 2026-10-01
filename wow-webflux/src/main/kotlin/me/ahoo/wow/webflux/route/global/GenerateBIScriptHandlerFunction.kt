@@ -14,6 +14,7 @@
 package me.ahoo.wow.webflux.route.global
 
 import io.github.oshai.kotlinlogging.KotlinLogging
+import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.bi.BiDeploymentInspectionException
 import me.ahoo.wow.bi.BiDeploymentInspector
 import me.ahoo.wow.bi.BiScriptDiagnostic
@@ -40,6 +41,7 @@ import reactor.core.publisher.Mono
 import reactor.core.scheduler.Scheduler
 import reactor.core.scheduler.Schedulers
 import java.util.concurrent.RejectedExecutionException
+import java.util.function.Predicate
 
 private val APPLICATION_SQL_MEDIA_TYPE = MediaType.parseMediaType("application/sql")
 private val SUPPORTED_RESPONSE_MEDIA_TYPES = listOf(APPLICATION_SQL_MEDIA_TYPE, MediaType.APPLICATION_JSON)
@@ -54,12 +56,29 @@ private val BI_SCRIPT_GENERATION_SCHEDULER: Scheduler = Schedulers.newBoundedEla
     true,
 )
 
+private val ALL_AGGREGATES: Predicate<NamedAggregate> = Predicate { true }
+
+/**
+ * Generates the BI script; [aggregateFilter] picks the local aggregates the script covers.
+ */
 class GenerateBIScriptHandlerFunction(
     private val options: BiScriptOptions,
     private val deploymentInspector: BiDeploymentInspector,
     private val exceptionHandler: RequestExceptionHandler,
-    private val generationScheduler: Scheduler = BI_SCRIPT_GENERATION_SCHEDULER,
+    private val generationScheduler: Scheduler,
+    private val aggregateFilter: Predicate<NamedAggregate>,
 ) : HandlerFunction<ServerResponse> {
+
+    /**
+     * The 9.1.x constructor (and, with its default, the synthetic one Kotlin callers compiled against 9.1.x use):
+     * every local aggregate.
+     */
+    constructor(
+        options: BiScriptOptions,
+        deploymentInspector: BiDeploymentInspector,
+        exceptionHandler: RequestExceptionHandler,
+        generationScheduler: Scheduler = BI_SCRIPT_GENERATION_SCHEDULER,
+    ) : this(options, deploymentInspector, exceptionHandler, generationScheduler, ALL_AGGREGATES)
 
     override fun handle(request: ServerRequest): Mono<ServerResponse> {
         return request.bodyToMono(BiScriptRequest::class.java).mapRequestBodyDecodingException()
@@ -81,7 +100,9 @@ class GenerateBIScriptHandlerFunction(
         responseMediaType: MediaType,
     ): Mono<ServerResponse> {
         val generator = BiScriptGenerator(requestOptions)
-        return Mono.fromCallable { generator.prepare(MetadataSearcher.localAggregates) }
+        return Mono.fromCallable {
+            generator.prepare(MetadataSearcher.localAggregates.filterTo(linkedSetOf()) { aggregateFilter.test(it) })
+        }
             .subscribeOn(generationScheduler)
             .mapGenerationOverload()
             .flatMap { preparation ->
@@ -141,15 +162,33 @@ class GenerateBIScriptHandlerFunction(
     }
 }
 
+/**
+ * Creates the BI script route's handler; [aggregateFilter] picks the local aggregates the script covers.
+ */
 class GenerateBIScriptHandlerFunctionFactory(
     private val options: BiScriptOptions,
     private val deploymentInspector: BiDeploymentInspector,
     private val exceptionHandler: RequestExceptionHandler,
+    private val aggregateFilter: Predicate<NamedAggregate>,
 ) :
     NoMetadataRouteHandlerFunctionFactorySupport(BuiltInHttpRouteHandlerKeys.Global.BI_SCRIPT) {
+
+    /** The 9.1.x constructor: every local aggregate. */
+    constructor(
+        options: BiScriptOptions,
+        deploymentInspector: BiDeploymentInspector,
+        exceptionHandler: RequestExceptionHandler,
+    ) : this(options, deploymentInspector, exceptionHandler, ALL_AGGREGATES)
+
     override fun create(
         contract: HttpRouteContract
     ): HandlerFunction<ServerResponse> {
-        return GenerateBIScriptHandlerFunction(options, deploymentInspector, exceptionHandler)
+        return GenerateBIScriptHandlerFunction(
+            options = options,
+            deploymentInspector = deploymentInspector,
+            exceptionHandler = exceptionHandler,
+            generationScheduler = BI_SCRIPT_GENERATION_SCHEDULER,
+            aggregateFilter = aggregateFilter,
+        )
     }
 }

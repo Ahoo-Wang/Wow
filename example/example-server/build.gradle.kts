@@ -59,6 +59,7 @@ dependencies {
     ksp(project(":wow-compiler"))
     implementation("io.netty:netty-all")
     implementation(project(":example-domain"))
+    implementation(project(":wow-view-store-starter"))
     implementation(project(":wow-mongo"))
     implementation(project(":wow-mock"))
     implementation(project(":wow-kafka"))

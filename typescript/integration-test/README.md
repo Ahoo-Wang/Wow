@@ -20,8 +20,9 @@ from the deterministic unit tests of each package.
   sales orders the suite seeds through commands. See
   [View engine against the server](#view-engine-against-the-server).
 - `@ahoo-wang/wow-view-store` (`test/view-store/`): the view engine's port
-  conformance suite over `WowViewStore`, and tenant and application isolation,
-  against a view store server. See
+  conformance suite over `WowViewStore`, tenant and application isolation, and
+  the view engine's own writes end to end, against the standalone view store
+  server and against the example server, which embeds the view store. See
   [WowViewStore against the view store server](#wowviewstore-against-the-view-store-server).
 
 ## Prerequisites
@@ -40,7 +41,10 @@ Point it at MongoDB with `SPRING_MONGODB_URI`, choose its port with
 `SERVER_PORT`, and set
 `WOW_EVENTSOURCING_STORE_STORAGE=mongo` and `WOW_EVENTSOURCING_SNAPSHOT_STORAGE=mongo`.
 
-A view store server on port 8090, on the same MongoDB, for `test/view-store/`;
+The example server embeds the view store (`wow-view-store-starter`); start it
+with the system view `test/view-store/` reads (the four
+`--wow.view-store.system-views[0].…` arguments below). A view store server on
+port 8090, on the same MongoDB, for `test/view-store/` as well;
 `WOW_VIEW_STORE_URL` names another address. See
 [WowViewStore against the view store server](#wowviewstore-against-the-view-store-server).
 
@@ -128,7 +132,12 @@ workspace path, so `tsconfig.test.json` sets `rootDir` to `..`) over
 replays and the system views; every case works in a definition of its own, and
 each run in a tenant of its own. `isolation.test.ts` holds that a view and
 preferences of one tenant or one application are not there for a caller of
-another. The callers are fetchers with fetcher-cosec's
+another. `engine.test.ts` drives a `ViewEngine` on `WowViewStore`: save, save
+as, a conflict between two tabs reloaded and overwritten, an unknown outcome
+(the answer dropped after the server took the write) retried under its request
+id, and a personal view set shared for a colleague. Each suite runs once per
+server (`viewStoreServers`): the standalone one and the example server. The
+callers are fetchers with fetcher-cosec's
 `ResourceAttributionRequestInterceptor` over an unsigned token
 (`viewStoreServer.ts`): nothing in front of the server checks it.
 
@@ -153,15 +162,17 @@ bin/wow-view-store-server \
   '--wow.view-store.system-views[0].config={"kind":"record"}'
 ```
 
-`test` waits for it as for the example server, and warms both of its
-aggregates up first.
+Start the example server with the same four `--wow.view-store.system-views[0].…`
+arguments. `test` waits for both servers, and warms the view store's two
+aggregates up on each first.
 
 ## CI
 
 `.github/workflows/typescript-contract.yml` runs these steps against an example
 server built from the same commit, whenever the Kotlin sources, the example, the
 Gradle build, these packages, the sources of `wow-view-engine` or its port conformance suite, `wow-view-store` or
-`view-store/` change, and a view store server beside it (port 8090, same MongoDB). It fails when regenerating changes
+`view-store/` change, and a view store server beside it (port 8090, same MongoDB); both serve the system view the
+`WowViewStore` suites read. It fails when regenerating changes
 `src/generated`, and uploads the servers' logs when a step fails. For changes to
 `wow-client`, `wow-generator` or this package it also generates code from the
 `wow-example-server` images 8.10.8, 8.11.5, 9.1.3 and 9.1.5 and type-checks it,

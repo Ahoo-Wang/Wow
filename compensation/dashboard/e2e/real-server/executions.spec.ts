@@ -444,3 +444,57 @@ test("the overview board counts what the server holds", async ({
     await expect(page.getByText(recordsInAll(actionable))).toBeVisible();
   expect(failures).toEqual([]);
 });
+
+test("a view saved here is kept, shared, in the service's view store", async ({
+  page,
+  request,
+}) => {
+  const failures: string[] = [];
+  page.on("response", (response) => {
+    if (response.status() >= 400)
+      failures.push(`${response.status()} ${response.url()}`);
+  });
+  page.on("pageerror", (error) => failures.push(error.message));
+  await page.addInitScript(() =>
+    localStorage.setItem("wow-dashboard-locale", "en"),
+  );
+  const title = `Views smoke ${RUN}`;
+
+  await page.goto("/executions");
+  const workbench = page.getByRole("region", { name: "Active" });
+  await expect(workbench).toBeVisible();
+  await workbench.getByRole("button", { name: "Cards" }).click();
+  await workbench.getByRole("button", { name: "Save as" }).click();
+  const dialog = page.getByRole("dialog");
+  await dialog.getByRole("textbox", { name: "Title" }).fill(title);
+  await dialog.getByRole("button", { name: "Create view" }).click();
+  await expect(page.getByRole("region", { name: title })).toBeVisible();
+
+  // Read straight off the service: the console's tenant, the shared owner and
+  // its application, as its own interceptor filled them.
+  const listed = await request.post(
+    "/view-store/tenant/(0)/owner/(shared)/view/snapshot/list",
+    {
+      headers: { "CoSec-App-Id": "compensation-dashboard" },
+      data: {
+        filter: { field: "state.title", op: "EQ", value: title },
+        limit: 10,
+      },
+    },
+  );
+  expect(listed.ok(), await listed.text()).toBe(true);
+  expect(await listed.json()).toEqual([
+    expect.objectContaining({
+      state: expect.objectContaining({
+        title,
+        audience: "shared",
+        definitionId: "execution-failed",
+      }),
+    }),
+  ]);
+
+  // Another visit opens it from the service.
+  await page.reload();
+  await expect(page.getByRole("region", { name: title })).toBeVisible();
+  expect(failures).toEqual([]);
+});

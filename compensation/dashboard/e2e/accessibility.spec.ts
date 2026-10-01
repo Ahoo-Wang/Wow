@@ -11,7 +11,8 @@
  * limitations under the License.
  */
 
-import { expect, test, type Page, type Route } from "@playwright/test";
+import type { Page, Route } from "@playwright/test";
+import { expect, test } from "./support/test.ts";
 import { expectNoAxeViolations } from "./support/axe.ts";
 import { stubExecutionFailedService } from "./support/executionFailedService.ts";
 import {

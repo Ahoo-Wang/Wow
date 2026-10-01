@@ -6,3 +6,4 @@ export * from './cartApiClient.js';
 export * from './order/index.js';
 export * from './orderApiClient.js';
 export * from './types.js';
+export * from './viewStoreApiClient.js';

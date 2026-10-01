@@ -98,6 +98,9 @@ jobs:
       # its install directory. That file keeps the in-memory stores and
       # excludes the Mongo auto-configuration; SPRING_AUTOCONFIGURE_EXCLUDE
       # replaces the whole exclusion list, so only Elasticsearch stays off.
+      # It embeds the view store (wow-view-store-starter) and serves the same
+      # system view as the view store server below, so the WowViewStore
+      # suites run against both (typescript/integration-test/test/view-store/).
       - name: Start the example server
         working-directory: ${{ env.SERVER_HOME }}
         env:
@@ -107,7 +110,12 @@ jobs:
           WOW_EVENTSOURCING_SNAPSHOT_STORAGE: mongo
         run: |
           mkdir -p logs data
-          nohup bin/example-server > "$SERVER_LOG" 2>&1 &
+          nohup bin/example-server \
+            '--wow.view-store.system-views[0].definition-id=conformance-system' \
+            '--wow.view-store.system-views[0].id=conformance-open' \
+            '--wow.view-store.system-views[0].title=Open' \
+            '--wow.view-store.system-views[0].config={"kind":"record"}' \
+            > "$SERVER_LOG" 2>&1 &
           echo "SERVER_PID=$!" >> "$GITHUB_ENV"
       # The view store on the same MongoDB, with in-memory buses and a fixed
       # machine id in place of its Kafka and Redis. It serves one system view,

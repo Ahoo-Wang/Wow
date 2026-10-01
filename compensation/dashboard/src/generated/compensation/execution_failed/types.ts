@@ -242,6 +242,7 @@ export enum ExecutionFailedAggregatedFields {
   STATE = 'state',
   STATE_ERROR = 'state.error',
   STATE_ERROR_BINDING_ERRORS = 'state.error.bindingErrors',
+  STATE_ERROR_BINDING_ERRORS_CODE = 'state.error.bindingErrors.code',
   STATE_ERROR_BINDING_ERRORS_MSG = 'state.error.bindingErrors.msg',
   STATE_ERROR_BINDING_ERRORS_NAME = 'state.error.bindingErrors.name',
   STATE_ERROR_ERROR_CODE = 'state.error.errorCode',

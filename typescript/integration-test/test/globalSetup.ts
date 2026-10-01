@@ -12,8 +12,8 @@
  */
 
 /*
- * The example server, and the view store server the `WowViewStore` suites
- * use (test/view-store/), are ready before the first test starts, so no test
+ * The example server, and the standalone view store server the
+ * `WowViewStore` suites use beside it (test/view-store/), are ready before the first test starts, so no test
  * pays for a cold server and none needs a budget of its own for it.
  *
  * Ready is two things, in this order:
@@ -34,7 +34,10 @@
 
 import { CommandHeaders, CommandStage } from '@ahoo-wang/wow-client';
 import { exampleServerURL } from '../src/wow/exampleFetcher';
-import { viewStoreServerURL } from './view-store/viewStoreServer';
+import {
+  viewStoreServerURL,
+  viewStoreServers,
+} from './view-store/viewStoreServer';
 
 /** How long a server may take to come up: the CI job's own wait. */
 const HEALTH_DEADLINE_MS = 5 * 60_000;
@@ -132,21 +135,23 @@ export default async function setup(): Promise<void> {
     },
     { [CommandHeaders.SPACE_ID]: run },
   );
-  // The view store's two aggregates, in a tenant of this run's own.
-  const viewStore = { server: viewStoreServerURL };
+  // The view store's two aggregates on each server that serves them (the
+  // example server embeds the starter), in a tenant of this run's own.
   const app = { 'CoSec-App-Id': 'warmup' };
-  await command(
-    'view',
-    `view-store/tenant/${run}/owner/${run}/view`,
-    { definitionId: run, title: run, config: { kind: 'record' } },
-    app,
-    viewStore,
-  );
-  await command(
-    'view preferences',
-    `view-store/tenant/${run}/owner/${run}/definitions/${run}/preferences`,
-    { order: [] },
-    { ...app, [CommandHeaders.AGGREGATE_VERSION]: '0' },
-    { ...viewStore, method: 'PUT' },
-  );
+  for (const { name, url: server } of viewStoreServers) {
+    await command(
+      `view on ${name}`,
+      `view-store/tenant/${run}/owner/${run}/view`,
+      { definitionId: run, title: run, config: { kind: 'record' } },
+      app,
+      { server },
+    );
+    await command(
+      `view preferences on ${name}`,
+      `view-store/tenant/${run}/owner/${run}/definitions/${run}/preferences`,
+      { order: [] },
+      { ...app, [CommandHeaders.AGGREGATE_VERSION]: '0' },
+      { server, method: 'PUT' },
+    );
+  }
 }

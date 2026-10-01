@@ -66,6 +66,7 @@ import org.springframework.web.reactive.function.server.ServerRequest
 import org.springframework.web.reactive.function.server.ServerResponse
 import org.springframework.web.server.ServerWebExchange
 import reactor.core.publisher.Mono
+import reactor.core.scheduler.Scheduler
 import reactor.core.scheduler.Schedulers
 import reactor.kotlin.core.publisher.toMono
 import reactor.kotlin.test.test
@@ -564,6 +565,94 @@ class GenerateBIScriptHandlerFunctionTest {
             warnings.map(ILoggingEvent::getFormattedMessage).assert().isEqualTo(
                 generated.diagnostics.map(::diagnosticLogMessage)
             )
+        } finally {
+            unmockkObject(MetadataSearcher)
+        }
+    }
+
+    @Test
+    fun `should leave out the aggregates the filter refuses`() {
+        val kept = MaterializedNamedAggregate("webflux-bi-test", "kept")
+        val excluded = MaterializedNamedAggregate("webflux-bi-test", "excluded")
+        mockkObject(MetadataSearcher)
+        try {
+            every { MetadataSearcher.localAggregates } returns linkedSetOf(kept, excluded)
+            every { MetadataSearcher.namedAggregateType } returns NamedAggregateTypeSearcher(
+                mapOf(kept to DiagnosticAggregate::class.java, excluded to DiagnosticAggregate::class.java)
+            )
+            every { MetadataSearcher.typeNamedAggregate } returns TypeNamedAggregateSearcher(
+                mapOf(DiagnosticAggregate::class.java to kept)
+            )
+            val options = BiScriptOptions(topology = ClickHouseTopology.Standalone, consumerGroupNamespace = "test")
+            val factory = GenerateBIScriptHandlerFunctionFactory(
+                options = options,
+                deploymentInspector = NoOpBiDeploymentInspector,
+                exceptionHandler = WebFluxRequestExceptionHandler(),
+                aggregateFilter = { it != excluded },
+            )
+            val response = factory.create(testGlobalRouteContract(BuiltInHttpRouteHandlerKeys.Global.BI_SCRIPT))
+                .handle(MockServerRequest.builder().body(BiScriptRequest().toMono()))
+                .block()!!
+
+            response.statusCode().assert().isEqualTo(HttpStatus.OK)
+            val script = response.writeBody()
+            script.assert().isEqualTo(BiScriptGenerator(options).generate(setOf(kept)).script)
+            script.assert().doesNotContain("excluded")
+        } finally {
+            unmockkObject(MetadataSearcher)
+        }
+    }
+
+    @Test
+    fun `should keep the 9_1 JVM constructors`() {
+        val defaultMarker = Class.forName("kotlin.jvm.internal.DefaultConstructorMarker")
+        GenerateBIScriptHandlerFunctionFactory::class.java.getConstructor(
+            BiScriptOptions::class.java,
+            BiDeploymentInspector::class.java,
+            RequestExceptionHandler::class.java,
+        ).assert().isNotNull()
+        GenerateBIScriptHandlerFunction::class.java.getConstructor(
+            BiScriptOptions::class.java,
+            BiDeploymentInspector::class.java,
+            RequestExceptionHandler::class.java,
+            Scheduler::class.java,
+        ).assert().isNotNull()
+        val synthetic = GenerateBIScriptHandlerFunction::class.java.getDeclaredConstructor(
+            BiScriptOptions::class.java,
+            BiDeploymentInspector::class.java,
+            RequestExceptionHandler::class.java,
+            Scheduler::class.java,
+            Int::class.javaPrimitiveType,
+            defaultMarker,
+        )
+        synthetic.isSynthetic.assert().isTrue()
+        Modifier.isPublic(synthetic.modifiers).assert().isTrue()
+    }
+
+    @Test
+    fun `should cover every aggregate through the 9_1 factory constructor`() {
+        val aggregate = MaterializedNamedAggregate("webflux-bi-test", "all")
+        mockkObject(MetadataSearcher)
+        try {
+            every { MetadataSearcher.localAggregates } returns linkedSetOf(aggregate)
+            every { MetadataSearcher.namedAggregateType } returns NamedAggregateTypeSearcher(
+                mapOf(aggregate to DiagnosticAggregate::class.java)
+            )
+            every { MetadataSearcher.typeNamedAggregate } returns TypeNamedAggregateSearcher(
+                mapOf(DiagnosticAggregate::class.java to aggregate)
+            )
+            val options = BiScriptOptions(topology = ClickHouseTopology.Standalone, consumerGroupNamespace = "test")
+            val factory = GenerateBIScriptHandlerFunctionFactory(
+                options,
+                NoOpBiDeploymentInspector,
+                WebFluxRequestExceptionHandler(),
+            )
+            val response = factory.create(testGlobalRouteContract(BuiltInHttpRouteHandlerKeys.Global.BI_SCRIPT))
+                .handle(MockServerRequest.builder().body(BiScriptRequest().toMono()))
+                .block()!!
+
+            response.statusCode().assert().isEqualTo(HttpStatus.OK)
+            response.writeBody().assert().isEqualTo(BiScriptGenerator(options).generate(setOf(aggregate)).script)
         } finally {
             unmockkObject(MetadataSearcher)
         }

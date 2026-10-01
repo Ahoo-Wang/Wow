@@ -12,7 +12,7 @@
  */
 
 /*
- * The view store server the `WowViewStore` suites run against, and the
+ * The view store servers the `WowViewStore` suites run against, and the
  * callers they act as.
  *
  * A caller is a fetcher as a signed-in host has one: fetcher-cosec's
@@ -31,16 +31,34 @@ import {
   ResourceAttributionRequestInterceptor,
   TokenStorage,
 } from '@ahoo-wang/fetcher-cosec';
+import { exampleServerURL } from '../../src/wow/exampleFetcher';
 
 /**
- * The view store server: `WOW_VIEW_STORE_URL`, or `http://localhost:8090/`
- * as in CI.
+ * The standalone view store server (`wow-view-store-server`):
+ * `WOW_VIEW_STORE_URL`, or `http://localhost:8090/` as in CI.
  */
 export const viewStoreServerURL =
   process.env.WOW_VIEW_STORE_URL ?? 'http://localhost:8090/';
 
+/** A server that serves the view store's routes. */
+export interface ViewStoreServer {
+  /** How the suites name it. */
+  name: string;
+  url: string;
+}
+
 /**
- * The definition the server serves a system view for: CI starts it with
+ * Every server the suites run against: the standalone view store server, and
+ * the example server, which embeds `wow-view-store-starter` beside its own
+ * aggregates (and wow-cosec). Both are started with the same system view.
+ */
+export const viewStoreServers: readonly ViewStoreServer[] = [
+  { name: 'the view store server', url: viewStoreServerURL },
+  { name: 'the example server', url: exampleServerURL },
+];
+
+/**
+ * The definition the servers serve a system view for: CI starts each with
  * `wow.view-store.system-views[0]` set to it (README.md).
  */
 export const SYSTEM_VIEW_DEFINITION = 'conformance-system';
@@ -92,8 +110,8 @@ class AppId implements RequestInterceptor {
   }
 }
 
-/** A fetcher on the view store server that asks as `caller`. */
-export function actingAs(caller: Caller): Fetcher {
+/** A fetcher on `server` that asks as `caller`. */
+export function actingAs(caller: Caller, server: ViewStoreServer): Fetcher {
   const tokenStorage = new TokenStorage({
     key: `cosec-token-${caller.tenantId}-${caller.owner}`,
     storage: new MemoryStorage(),
@@ -103,7 +121,7 @@ export function actingAs(caller: Caller): Fetcher {
     accessToken: token({ sub: caller.owner, tenantId: caller.tenantId, exp }),
     refreshToken: token({ sub: caller.owner, exp }),
   });
-  const fetcher = new Fetcher({ baseURL: viewStoreServerURL });
+  const fetcher = new Fetcher({ baseURL: server.url });
   fetcher.interceptors.request.use(
     new ResourceAttributionRequestInterceptor({ tokenStorage }),
   );

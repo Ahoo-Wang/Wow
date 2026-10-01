@@ -52,6 +52,18 @@ describe('command clients', () => {
     ).toEqual([]);
   });
 
+  it('writes no command client for an aggregate the document routes no command to', () => {
+    const { project, file } = emitDocument(
+      wowDocument({ commands: [] }) as OpenAPI,
+    );
+    expect(project.getSourceFile('/out/shop/order/commandClient.ts')).toBe(
+      undefined,
+    );
+    expect(file('shop/order/queryClient.ts').getText()).toContain(
+      'orderQueryClientFactory',
+    );
+  });
+
   it('declares no type for a body whose name ends in Command: the method takes CommandBody of it', () => {
     const file = generate(wowDocument({ commands: ['mounted_command'] }));
     expect(file.getTypeAlias('MountedCommandCommand')).toBeUndefined();

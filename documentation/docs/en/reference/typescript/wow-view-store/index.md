@@ -38,6 +38,23 @@ export interface WowViewStoreOptions {
 | Errors | By Wow's error code onto `CONFLICT`, `NOT_FOUND`, `FORBIDDEN`, `INVALID` and `UNAVAILABLE`; the HTTP status only when no known code came back |
 | Shared boards | A view a shared dashboard shows stays shared: the claim is `INVALID`, its `boards` the boards' titles as stored, which the view engine says in its own words |
 
+## Hosts
+
+The example server and the compensation service embed `wow-view-store-starter`; the compensation console keeps its views there. Nobody signs in to the console, so it adds a request interceptor of its own that fills the tenant `(0)`, the owner `(shared)` and its application (`compensation-dashboard`) where a request names none: every view and preference it keeps is shared, and its permissions turn personal views off. A host that embeds the starter gives the view store's Kafka topics a prefix of their own with `wow.view-store.kafka.topic-prefix`, which leaves the host's own topics as they are.
+
+## CoSec gateway rules
+
+The server does not authenticate: it takes the tenant, the owner and the application as the request names them, so every deployment runs behind the CoSec gateway, whose path rules tie each to the token:
+
+| Path | Allow when |
+|---|---|
+| `/view-store/tenant/{tenantId}/owner/{ownerId}/**`, except `…/view/{id}/claim` and `…/view/{id}/share` | `{tenantId}` is the token's tenant and `{ownerId}` is its `sub` |
+| `/view-store/tenant/{tenantId}/owner/(shared)/**`, reads | `{tenantId}` is the token's tenant |
+| `/view-store/tenant/{tenantId}/owner/(shared)/**`, writes | the token's tenant, and the role that may write shared views |
+| `PUT /view-store/tenant/{tenantId}/owner/{ownerId}/view/{id}/claim`, `…/share` | the token's tenant, `{ownerId}` is its `sub`, **and** the role that may write shared views |
+
+A claim takes a shared view out of everyone's list and a share publishes a personal one into it, so the personal rule must not admit either on its own: leave `…/view/{id}/claim` and `…/view/{id}/share` out of that rule, and only the claim-and-share rule decides (otherwise anyone could publish a shared view by creating a personal one and sharing it). `CoSec-App-Id` is authenticated by CoSec and keeps applications apart; a host gives `permissions` by the same role the gateway checks: `createShared` and `changeAudience` need the shared-write role. The full rules, with the reasons, are in the [view store README](https://github.com/Ahoo-Wang/Wow/blob/main/view-store/README.md#cosec-gateway-rules).
+
 ## Source
 
 [typescript/wow-view-store](https://github.com/Ahoo-Wang/Wow/tree/main/typescript/wow-view-store) · [README](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-store/README.md) · [view store server](https://github.com/Ahoo-Wang/Wow/blob/main/view-store/README.md)

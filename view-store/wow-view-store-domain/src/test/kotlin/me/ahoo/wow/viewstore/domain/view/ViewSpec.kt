@@ -16,7 +16,6 @@ package me.ahoo.wow.viewstore.domain.view
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.abac.DefaultApplyResourceTags
 import me.ahoo.wow.api.abac.ResourceTagsApplied
-import me.ahoo.wow.api.command.DefaultDeleteAggregate
 import me.ahoo.wow.api.command.DefaultRecoverAggregate
 import me.ahoo.wow.api.event.DefaultAggregateDeleted
 import me.ahoo.wow.api.event.DefaultAggregateRecovered
@@ -32,6 +31,7 @@ import me.ahoo.wow.viewstore.api.ViewKind
 import me.ahoo.wow.viewstore.api.ViewStoreErrorCodes
 import me.ahoo.wow.viewstore.api.view.ClaimView
 import me.ahoo.wow.viewstore.api.view.CreateView
+import me.ahoo.wow.viewstore.api.view.DeleteView
 import me.ahoo.wow.viewstore.api.view.RenameView
 import me.ahoo.wow.viewstore.api.view.SaveView
 import me.ahoo.wow.viewstore.api.view.ShareView
@@ -187,7 +187,7 @@ class ViewSpec : AggregateSpec<View, ViewState>({
                 }
             }
             fork("delete") {
-                whenCommand(DefaultDeleteAggregate, appHeader(), ALICE) {
+                whenCommand(DeleteView, appHeader(), ALICE) {
                     expectNoError()
                     expectEventType(DefaultAggregateDeleted::class)
                     expectStateAggregate {
@@ -219,7 +219,7 @@ class ViewSpec : AggregateSpec<View, ViewState>({
                 }
             }
             fork("delete from another application reads as not found") {
-                whenCommand(DefaultDeleteAggregate, appHeader(OTHER_APP), ALICE) {
+                whenCommand(DeleteView, appHeader(OTHER_APP), ALICE) {
                     expectErrorType(NotFoundResourceException::class)
                 }
             }
@@ -303,7 +303,7 @@ class ViewSpec : AggregateSpec<View, ViewState>({
                 }
             }
             fork("a referenced view can still be deleted") {
-                whenCommand(DefaultDeleteAggregate, appHeader(), SHARED_OWNER_ID) {
+                whenCommand(DeleteView, appHeader(), SHARED_OWNER_ID) {
                     expectNoError()
                     expectEventType(DefaultAggregateDeleted::class)
                 }

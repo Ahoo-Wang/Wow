@@ -12,6 +12,7 @@
  */
 package me.ahoo.wow.spring.boot.starter.webflux
 
+import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.bi.BiDeploymentInspector
 import me.ahoo.wow.command.CommandGateway
@@ -31,6 +32,7 @@ import me.ahoo.wow.query.schema.QuerySchemaCatalog
 import me.ahoo.wow.query.snapshot.SnapshotQueryBackendFactory
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
 import me.ahoo.wow.spring.boot.starter.ENABLED_SUFFIX_KEY
+import me.ahoo.wow.spring.boot.starter.bi.BiScriptAggregateExclusion
 import me.ahoo.wow.spring.boot.starter.bi.BiScriptProperties
 import me.ahoo.wow.spring.boot.starter.bi.toBiScriptOptions
 import me.ahoo.wow.spring.boot.starter.command.CommandAutoConfiguration
@@ -81,6 +83,7 @@ import org.springframework.core.annotation.Order
 import org.springframework.web.reactive.function.server.RouterFunction
 import org.springframework.web.reactive.function.server.ServerResponse
 import org.springframework.web.server.WebExceptionHandler
+import java.util.function.Predicate
 
 /**
  * WebFlux Auto Configuration .
@@ -346,6 +349,7 @@ class WebFluxAutoConfiguration {
         biScriptProperties: BiScriptProperties,
         biDeploymentInspector: ObjectProvider<BiDeploymentInspector>,
         exceptionHandler: RequestExceptionHandler,
+        biScriptAggregateExclusions: ObjectProvider<BiScriptAggregateExclusion>,
     ): GlobalRouteModule {
         if (!biScriptProperties.enabled) {
             return GlobalRouteModule(biScriptHandlerFunctionFactory = null)
@@ -359,6 +363,7 @@ class WebFluxAutoConfiguration {
                 options = biScriptProperties.toBiScriptOptions(kafkaProperties.getIfAvailable()),
                 deploymentInspector = deploymentInspector,
                 exceptionHandler = exceptionHandler,
+                aggregateFilter = biScriptAggregateExclusions.orderedStream().toList().toAggregateFilter(),
             )
         )
     }
@@ -391,3 +396,6 @@ class WebFluxAutoConfiguration {
         ).build()
     }
 }
+
+private fun List<BiScriptAggregateExclusion>.toAggregateFilter(): Predicate<NamedAggregate> =
+    Predicate { namedAggregate -> none { it.excludes(namedAggregate) } }

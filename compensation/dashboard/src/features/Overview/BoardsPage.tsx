@@ -15,9 +15,9 @@ import { DashboardWorkbench } from "@ahoo-wang/wow-view-engine/ui";
 import { OVERVIEW } from "@/views/overview.ts";
 
 /**
- * The dashboard workbench: the overview board and the reader's own boards
- * beside it, built and saved here — in this browser until the Wow storage
- * backend (stage 6). The home page's 「在工作台中打开」 opens the overview
+ * The dashboard workbench: the overview board and the boards built and saved
+ * here beside it — shared, in the compensation service's view store, as every
+ * view of the console is. The home page's 「在工作台中打开」 opens the overview
  * here; the board to open, and the filters it was left under, are the
  * address's, as the engine keeps it.
  */

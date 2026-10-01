@@ -17,20 +17,19 @@ import { definitionWords } from "./text.ts";
 
 /**
  * The engine's words in the console's language. Saved views and boards live
- * in this browser until the Wow storage backend (stage 6); the view lists
- * and the save dialogs say so, so nobody expects a colleague to see them.
+ * in the compensation service and are shared: nobody signs in to the
+ * console, so everyone who opens it sees the same ones. The save dialog says
+ * so, so nobody takes a view for their own.
  */
 const WORDING: Record<Locale, ViewMessages> = {
   en: {
-    "label.scope.group.personal": "My views (this browser)",
-    "label.scope.personal.description":
-      "Saved in this browser on this computer. Only you see it.",
+    "label.scope.shared.description":
+      "Saved in the compensation service. Everyone who opens this console sees it.",
   },
   "zh-CN": {
     ...zhCN,
-    "label.scope.group.personal": "我的视图（本机）",
-    "label.scope.personal.description":
-      "存在这台电脑的这个浏览器里，只有你看得到。",
+    "label.scope.shared.description":
+      "保存于补偿服务，打开这个控制台的人都看得到。",
   },
 };
 

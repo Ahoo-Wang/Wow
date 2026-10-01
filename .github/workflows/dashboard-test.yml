@@ -27,6 +27,7 @@ on:
       - 'typescript/wow-client/**'
       - 'typescript/wow-react/**'
       - 'typescript/wow-view-engine/**'
+      - 'typescript/wow-view-store/**'
       - 'typescript/wow-generator/**'
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}

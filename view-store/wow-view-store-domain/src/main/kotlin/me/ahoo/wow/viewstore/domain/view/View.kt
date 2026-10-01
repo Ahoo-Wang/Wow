@@ -17,7 +17,6 @@ import me.ahoo.wow.api.annotation.AggregateRoot
 import me.ahoo.wow.api.annotation.AggregateRoute
 import me.ahoo.wow.api.annotation.OnCommand
 import me.ahoo.wow.api.command.CommandMessage
-import me.ahoo.wow.api.command.DefaultDeleteAggregate
 import me.ahoo.wow.api.event.DefaultAggregateDeleted
 import me.ahoo.wow.api.exception.BindingError
 import me.ahoo.wow.viewstore.ViewStoreService.SHARED_OWNER_ID
@@ -25,6 +24,7 @@ import me.ahoo.wow.viewstore.api.ScopeIds
 import me.ahoo.wow.viewstore.api.ViewAudience
 import me.ahoo.wow.viewstore.api.view.ClaimView
 import me.ahoo.wow.viewstore.api.view.CreateView
+import me.ahoo.wow.viewstore.api.view.DeleteView
 import me.ahoo.wow.viewstore.api.view.RenameView
 import me.ahoo.wow.viewstore.api.view.SaveView
 import me.ahoo.wow.viewstore.api.view.ShareView
@@ -118,12 +118,12 @@ class View(private val state: ViewState) {
     }
 
     /**
-     * Wow's own delete command (`DELETE …/view/{id}`), handled here only to add the application rule: a view of
+     * The delete (`DELETE …/view/{id}`), in place of Wow's default one, adding the application rule: a view of
      * another application reads as not found. Wow's recover and resource-tags commands are left to Wow; their routes
      * are closed for the view store, so they are in-process only.
      */
     @OnCommand
-    fun onDelete(command: CommandMessage<DefaultDeleteAggregate>): DefaultAggregateDeleted {
+    fun onDelete(command: CommandMessage<DeleteView>): DefaultAggregateDeleted {
         command.requireSameApp(state.appId)
         return DefaultAggregateDeleted
     }

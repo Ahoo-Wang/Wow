@@ -22,14 +22,31 @@ import org.springframework.boot.context.properties.ConfigurationProperties
  * @property enabled whether the starter adds the view store to the host.
  * @property systemViews the read-only views the default [me.ahoo.wow.viewstore.starter.system.SystemViewProvider]
  * serves; a `SystemViewProvider` bean of the host's replaces it.
+ * @property kafka the Kafka topics of the view store's aggregates.
  */
 @ConfigurationProperties(prefix = ViewStoreProperties.PREFIX)
 class ViewStoreProperties(
     override var enabled: Boolean = true,
     var systemViews: List<SystemViewProperties> = emptyList(),
+    var kafka: ViewStoreKafkaProperties = ViewStoreKafkaProperties(),
 ) : EnabledCapable {
     companion object {
         const val PREFIX = "wow.view-store"
+    }
+}
+
+/**
+ * The Kafka topics of the view store's aggregates.
+ *
+ * @property topicPrefix the topic prefix of the view store's aggregates only, in place of `wow.kafka.topic-prefix`.
+ * Unset or blank, they share the host's prefix. Set it when another deployment of the view store uses the same Kafka cluster
+ * under the same prefix; the host's own aggregates keep their topics either way.
+ */
+class ViewStoreKafkaProperties(
+    var topicPrefix: String? = null,
+) {
+    companion object {
+        const val TOPIC_PREFIX = "${ViewStoreProperties.PREFIX}.kafka.topic-prefix"
     }
 }
 

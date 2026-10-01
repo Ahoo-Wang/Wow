@@ -3,3 +3,4 @@
 export * from './boundedContext.js';
 export * from './execution_failed/index.js';
 export * from './types.js';
+export * from './viewStoreApiClient.js';

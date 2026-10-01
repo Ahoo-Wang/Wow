@@ -7,13 +7,24 @@
     "example/cart/queryClient.ts": "2c44fa21381eff68d1865991fe3bb423cf44bdb5c8058f3523239265401cd70f",
     "example/cart/types.ts": "dad512eb27e9716e59d629f553ff6534b4e61a3fc15e30c8b02519a83d0ff402",
     "example/cartApiClient.ts": "62fe12245d1e8b0895558b35a8472bc2c3aceabc741d63e7eb5e8a94032df7c6",
-    "example/index.ts": "85f0ed3b499962dace724d9f18e8edba1841cb5708de5584bcb50925738d31c5",
+    "example/index.ts": "a4769dd87c3d4a6915cd3a587d1dfeb18880676924cb9e51f4bf8c519b21acad",
     "example/order/commandClient.ts": "ead5f98238cee8289cb9ec4f2e6fe051aa01ad95618dd2b6c2d14a804dd44039",
     "example/order/index.ts": "a6374d67005954a1295108bb7dd5b9a54884ee8b59277d0deb30ce35d2136d9e",
     "example/order/queryClient.ts": "4bd12d48ae1773fd15e797ca8c7a13e38779a4567bad87d7a93c936d597e8295",
     "example/order/types.ts": "c7777684d7dba3c030fff878e157b5d00ab5415f84673bec0a40063d7c147a26",
     "example/orderApiClient.ts": "470576de400c0f53a29e12de3a1ef96e63fe302e4f90e7dd183e0ea233534c87",
-    "example/types.ts": "270f71884f3f8ba46f9457b20f13b982f4c78b59c38616b63e9ffba37946fb13",
-    "index.ts": "a038f2638a1400632f624de0a6409f14e75a36544496f7b7ad39bcf350bc9204"
+    "example/types.ts": "4ce77e7bdd896ce93217d67f973b516702e085989e1b6a14f71647fb2b1af33e",
+    "example/viewStoreApiClient.ts": "fff60966ac6b2ac7309914fd71fa40fb49ec6e6a9100e35a5734869ef541da81",
+    "index.ts": "b04f8badccb544f71031e2bdf00af5b1c31d61d3b67a3c3604300a0f0db7aef6",
+    "view-store/boundedContext.ts": "1deef0b96ee911005ec05621bc07c461852b8785c4a65052591204cf76667b0c",
+    "view-store/index.ts": "549291b49434a769bd6b826a4ec4796c2b7d4e02d132691107cdd2ce04f33c47",
+    "view-store/types.ts": "6c53e8940275f06b3acbf8601b72219c03c1fda1e8024f9b6cb43cffdf0e125c",
+    "view-store/view/commandClient.ts": "8032eba0dd9642ac264a9fe3cd2b6fdcff87309dfe1b31bf55b48577f86e3ab6",
+    "view-store/view/index.ts": "a6374d67005954a1295108bb7dd5b9a54884ee8b59277d0deb30ce35d2136d9e",
+    "view-store/view/queryClient.ts": "7a203b2caf76f30e2b10290bc122e40ee65307e4bf55d22095f0a4075703a0c8",
+    "view-store/view/types.ts": "ea0007aeb73ce01e10da47cf8335e5e1343a1d1b86d6a9aa73054e6b8b3f4e9c",
+    "view-store/view_preferences/index.ts": "9290d80d831fb97b4a2ba6876347ca6a02eec9a34eeb3b0a93ab19eb9a205a32",
+    "view-store/view_preferences/queryClient.ts": "7ea59d55bcdd6eb2f9f60b832bbeee55ba91274dc497bb818d6bdf831b6ba7bb",
+    "view-store/view_preferences/types.ts": "ae07b1585a509293bc406893ad59883366e304409e3444e9d6483de454655969"
   }
 }

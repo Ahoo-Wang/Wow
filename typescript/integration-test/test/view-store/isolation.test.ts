@@ -21,7 +21,12 @@
 import { describe, expect, it } from 'vitest';
 import type { ViewConfig } from '@ahoo-wang/wow-view-engine';
 import { WowViewStore } from '@ahoo-wang/wow-view-store';
-import { actingAs, type Caller } from './viewStoreServer';
+import {
+  actingAs,
+  type Caller,
+  type ViewStoreServer,
+  viewStoreServers,
+} from './viewStoreServer';
 
 const run = Date.now();
 const ALICE: Caller = {
@@ -30,8 +35,8 @@ const ALICE: Caller = {
   appId: 'console',
 };
 
-function storeOf(caller: Caller): WowViewStore {
-  return new WowViewStore({ fetcher: actingAs(caller) });
+function storeOf(caller: Caller, server: ViewStoreServer): WowViewStore {
+  return new WowViewStore({ fetcher: actingAs(caller, server) });
 }
 
 const config: ViewConfig = {
@@ -50,47 +55,52 @@ function write() {
   return { requestId: `isolation-${crypto.randomUUID()}` };
 }
 
-describe.each([
-  ['another tenant', { ...ALICE, tenantId: `isolation-b-${run}` }],
-  ['another application', { ...ALICE, appId: 'portal' }],
-])('a caller of %s', (_, other: Caller) => {
-  it('neither lists, reads nor writes the views and preferences', async () => {
-    const alice = storeOf(ALICE);
-    const stranger = storeOf(other);
-    const definitionId = `isolation-${crypto.randomUUID()}`;
-    const mine = await alice.create(
-      { definitionId, title: 'Mine', scope: 'personal', config },
-      write(),
-    );
-    const ours = await alice.create(
-      { definitionId, title: 'Ours', scope: 'shared', config },
-      write(),
-    );
-    const preferences = await alice.setPreferences(
-      definitionId,
-      { order: [ours.id], defaultInstanceId: ours.id, revision: '0' },
-      write(),
-    );
+describe.each(viewStoreServers.map(server => [server.name, server] as const))(
+  'on %s',
+  (_, server) => {
+    describe.each([
+      ['another tenant', { ...ALICE, tenantId: `isolation-b-${run}` }],
+      ['another application', { ...ALICE, appId: 'portal' }],
+    ])('a caller of %s', (_, other: Caller) => {
+      it('neither lists, reads nor writes the views and preferences', async () => {
+        const alice = storeOf(ALICE, server);
+        const stranger = storeOf(other, server);
+        const definitionId = `isolation-${crypto.randomUUID()}`;
+        const mine = await alice.create(
+          { definitionId, title: 'Mine', scope: 'personal', config },
+          write(),
+        );
+        const ours = await alice.create(
+          { definitionId, title: 'Ours', scope: 'shared', config },
+          write(),
+        );
+        const preferences = await alice.setPreferences(
+          definitionId,
+          { order: [ours.id], defaultInstanceId: ours.id, revision: '0' },
+          write(),
+        );
 
-    expect(await stranger.list(definitionId)).toEqual([]);
-    for (const view of [mine, ours]) {
-      await expect(stranger.get(view.id)).rejects.toMatchObject({
-        code: 'NOT_FOUND',
+        expect(await stranger.list(definitionId)).toEqual([]);
+        for (const view of [mine, ours]) {
+          await expect(stranger.get(view.id)).rejects.toMatchObject({
+            code: 'NOT_FOUND',
+          });
+          await expect(
+            stranger.rename(view.id, 'Taken', view.revision, write()),
+          ).rejects.toMatchObject({ code: 'NOT_FOUND' });
+        }
+        await expect(
+          stranger.changeAudience(ours.id, 'personal', ours.revision, write()),
+        ).rejects.toMatchObject({ code: 'NOT_FOUND' });
+        expect(await stranger.getPreferences(definitionId)).toMatchObject({
+          order: [],
+          revision: '0',
+        });
+
+        expect(await alice.get(mine.id)).toEqual(mine);
+        expect(await alice.get(ours.id)).toEqual(ours);
+        expect(await alice.getPreferences(definitionId)).toEqual(preferences);
       });
-      await expect(
-        stranger.rename(view.id, 'Taken', view.revision, write()),
-      ).rejects.toMatchObject({ code: 'NOT_FOUND' });
-    }
-    await expect(
-      stranger.changeAudience(ours.id, 'personal', ours.revision, write()),
-    ).rejects.toMatchObject({ code: 'NOT_FOUND' });
-    expect(await stranger.getPreferences(definitionId)).toMatchObject({
-      order: [],
-      revision: '0',
     });
-
-    expect(await alice.get(mine.id)).toEqual(mine);
-    expect(await alice.get(ours.id)).toEqual(ours);
-    expect(await alice.getPreferences(definitionId)).toEqual(preferences);
-  });
-});
+  },
+);

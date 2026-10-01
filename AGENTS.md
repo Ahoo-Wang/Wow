@@ -39,7 +39,7 @@ pnpm install
 
 Compensation dashboard:
 
-The dashboard uses the workspace packages `@ahoo-wang/wow-client`, `@ahoo-wang/wow-react` and `@ahoo-wang/wow-view-engine` through their `dist`, so build them before running it and again after changing them:
+The dashboard uses the workspace packages `@ahoo-wang/wow-client`, `@ahoo-wang/wow-react`, `@ahoo-wang/wow-view-engine` and `@ahoo-wang/wow-view-store` through their `dist`, so build them before running it and again after changing them:
 
 ```bash
 pnpm --filter wow-compensation-dashboard^... build

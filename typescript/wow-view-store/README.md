@@ -60,8 +60,9 @@ const engine = new ViewEngine({
 
 `permissions` decides which buttons are enabled, never what a write may do: the
 server trusts its paths, and the CoSec gateway decides who may use which. Give
-`changeAudience` by the role that may write `owner/(shared)` — claiming a
-shared view needs it. Left out, everything is allowed.
+`createShared` and `changeAudience` by the role that may write
+`owner/(shared)` — creating a shared view, claiming one and sharing a personal
+one all need it. Left out, everything is allowed.
 
 ### A host nobody signs in to
 

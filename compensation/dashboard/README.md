@@ -16,7 +16,7 @@ VITE_API_BASE_URL=http://127.0.0.1:18083/ \
 pnpm --dir compensation/dashboard dev --host 127.0.0.1
 ```
 
-Wow 客户端与视图引擎来自同仓的工作区包 `@ahoo-wang/wow-client`、`@ahoo-wang/wow-react`、`@ahoo-wang/wow-view-engine`（`workspace:*`），它们通过 `dist` 被引用，所以第二行先构建 Dashboard 依赖的工作区包；修改 `typescript/` 下的 SDK 后重新执行这一行，SDK 与视图引擎的改动在同一个 PR 里由 Dashboard 的构建与测试验证。`src/main.tsx` 引入视图引擎的 `styles.css` 与 porcelain 预设（`themes/porcelain.css`）；控制台是视图引擎的宿主（`src/features/App/ConsoleHost.tsx` 的 `ViewHost`：引擎、React Router、语言、路由表 `src/views/routes.ts`，以及 porcelain 与品牌色），它把预设与明暗写在 `<html>` 上——缺省跟随系统，顶栏可钉亮或暗、记在本机；控制台自己的外壳与弹层挂 `fve-tokens`，与引擎的视图读同一组角色（[重写方案](docs/design/console-redesign.md) §6）。其余 Fetcher 包来自 npm。
+Wow 客户端、视图引擎与视图存储客户端来自同仓的工作区包 `@ahoo-wang/wow-client`、`@ahoo-wang/wow-react`、`@ahoo-wang/wow-view-engine`、`@ahoo-wang/wow-view-store`（`workspace:*`），它们通过 `dist` 被引用，所以第二行先构建 Dashboard 依赖的工作区包；修改 `typescript/` 下的 SDK 后重新执行这一行，SDK 与视图引擎的改动在同一个 PR 里由 Dashboard 的构建与测试验证。`src/main.tsx` 引入视图引擎的 `styles.css` 与 porcelain 预设（`themes/porcelain.css`）；控制台是视图引擎的宿主（`src/features/App/ConsoleHost.tsx` 的 `ViewHost`：引擎、React Router、语言、路由表 `src/views/routes.ts`，以及 porcelain 与品牌色），它把预设与明暗写在 `<html>` 上——缺省跟随系统，顶栏可钉亮或暗、记在本机；控制台自己的外壳与弹层挂 `fve-tokens`，与引擎的视图读同一组角色（[重写方案](docs/design/console-redesign.md) §6）。其余 Fetcher 包来自 npm。
 
 `VITE_API_BASE_URL` 是所有 Fetcher 请求的基地址。`.env.development` 默认指向开发集群服务；连接本地服务时必须像上面一样显式覆盖。本地补偿服务的安全启动命令见[补偿参考案例](../../documentation/docs/zh/reference/example/compensation.md#本地服务启动、健康与路由验证)。
 
@@ -30,7 +30,7 @@ Wow 客户端与视图引擎来自同仓的工作区包 `@ahoo-wang/wow-client`�
 - **失败集中度**：前 5 个集群，面板只读七列（上下文、处理器、函数、错误码、活动失败、最早执行、最早下次重试；只省去由前三者决定的函数类型）；面板的「在工作台中打开」开系统视图「失败集中度」，五维身份与按状态拆开的全部十列；点一个集群进「失败执行」的「活动中」视图，带着这个集群与时间范围作为条件，「返回 补偿概览」回到板上。
 - **可恢复性构成**与**重试次数分布**（0、1–2、3–5、6 次及以上）。
 - **最需要处理的记录**：「已到重试时间」队列，按下次重试时刻升序，行上与勾选后的命令与「失败执行」一致（D39 的记录面板）；「在工作台中打开」进那张队列。
-- 右上角「在仪表盘工作台中打开」进 `/boards`：视图引擎的 `DashboardWorkbench`，可以另存、搭自己的板（存在本机）。事件流的面板「在工作台中打开」进 `/events`：事件流的工作台，缺省打开「全部事件流」（按时间降序，每行带执行 ID），另有单条执行的「执行历史」。
+- 右上角「在仪表盘工作台中打开」进 `/boards`：视图引擎的 `DashboardWorkbench`，可以另存、搭新的板（共享，存在补偿服务里）。事件流的面板「在工作台中打开」进 `/events`：事件流的工作台，缺省打开「全部事件流」（按时间降序，每行带执行 ID），另有单条执行的「执行历史」。
 - 板与工作台都能「铺满屏幕」：`index.css` 把引擎的 `--fve-expanded-z-index` 设为 20，铺满的面盖住控制台吸顶的顶栏（`z-index: 10`），仍在引擎的弹层（50）之下。
 
 ## 失败执行
@@ -46,7 +46,7 @@ Wow 客户端与视图引擎来自同仓的工作区包 `@ahoo-wang/wow-client`�
 - **打开的是哪一条在地址的 `id` 参数里**（`?id=`，旧页面的告警链接同样带它）：按行或关掉都改写地址；不在当前页上的也能打开，读取中、已不在、无权限、读取失败（可重试）四种状态由引擎说。整条读到之前只画执行历史，表单与堆栈等整条到了再画。
 - **复制 ID** 是定义里 `copyable` 字段旁的按钮（ID、事件 ID、事件聚合 ID），纯 HTTP 部署没有剪贴板 API 时退回文档的 `copy` 命令。
 - 打开的视图在地址的 `view` 参数里，视图可以当链接发出去。
-- 条件、搜索、列、排序、分页、卡片、导出都是引擎的。个人视图存在**这台电脑的这个浏览器**里（`MemoryViewStore` 的快照写 `localStorage`，键 `wow-compensation-dashboard:views`），视图列表与保存对话框都这样说；共享视图等 Wow 存储后端（阶段 6）。
+- 条件、搜索、列、排序、分页、卡片、导出都是引擎的。存下的视图与看板在补偿服务内嵌的视图存储里（`wow-view-store-starter`；`src/views/viewStore.ts` 的 `WowViewStore`）。控制台不登录，由自己的请求拦截器在请求没给时填上租户 `(0)`、所有者 `(shared)` 与应用 `compensation-dashboard`，所以视图与偏好都是共享的：权限只开「新建共享」，没有个人视图，也没有改受众；保存对话框说「打开这个控制台的人都看得到」，改共享视图前引擎先确认。以前存在本机的个人视图（键 `wow-compensation-dashboard:views`）不再读取、也不迁移——它只在未发布的开发版里有过。
 - 定义的显示名只有一种语言，所以中英各建一份定义，换语言时重建引擎（方案 G12）。
 - **能用什么由服务端说**（N5 C6）：`src/views/engine.ts` 的两个数据源带上 `describe`（wow-client 的 `QueryDescriptorClient.describeSnapshot`／`describeEventStream`，同一个 `fetcher`），引擎先读 `execution_failed/snapshot/schema` 与 `execution_failed/event/schema` 的能力描述，把定义收窄到描述准入的算子、排序、分组与上限，再发第一条查询；描述每个源读一次，之后按引擎的节奏带版本重新验证（304）。定义不再替服务端写上限（页大小、窗口、分析组数都读描述）。服务端没有描述（Wow 9.2 之前）时照定义运行。
 - 「搜索错误」是全文检索，**只在存储答得出时出现**：Elasticsearch 快照存储按短语检索；MongoDB 快照存储只在集合上建了文本索引时才描述全文能力，没建时搜索框不画、也不会发出注定被拒的检索（方案 G15，随 C6 关闭）。

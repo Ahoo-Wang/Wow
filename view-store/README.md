@@ -12,10 +12,12 @@ preferences as two Wow aggregates. Design: [view-store-backend.md](../typescript
 
 ## Embedding the starter
 
-Add `wow-view-store-starter` to a Wow WebFlux service. The routes are served under
-`/view-store/tenant/{tenantId}/owner/{ownerId}/…`:
+Add `wow-view-store-starter` to a Wow WebFlux service. The example server (`example/example-server`) and the
+compensation service (`compensation/wow-compensation-server`) embed it; the compensation console keeps its views
+there. The routes are served under `/view-store/tenant/{tenantId}/owner/{ownerId}/…`:
 
-- `POST /view` (create), `PUT /view/{id}/save` and `/rename`, and `DELETE /view/{id}` (Wow's own delete);
+- `POST /view` (create), `PUT /view/{id}/save` and `/rename`, and `DELETE /view/{id}` (the view store's own
+  `DeleteView`, so that the host's `DefaultDeleteAggregate` keeps its schema name in the host's OpenAPI);
 - `PUT /view/{id}/share` on the view's personal path moves it to `owner/(shared)`, and `PUT /view/{id}/claim` on the
   caller's own personal path moves a shared view to that owner. A change to the audience the view already has is
   answered at the current version without a write;
@@ -47,12 +49,10 @@ aggregate would share those collections: do not embed the starter in it, or rena
 renames, audience changes, deletes and preferences are idempotent by `Command-Request-Id`, and the replay route
 answers what a request id's write left.
 
-**Identity is the path.** The server does not authenticate: the `{ownerId}` of a path is the user (or `(shared)`).
-The CoSec gateway must let a caller use `owner/{ownerId}` only when it is their own id (the token's `sub`), and decide
-by role or permission who may use `owner/(shared)`. Claiming changes a shared view but is sent to the caller's own
-path, so it needs both: `PUT …/tenant/{tenantId}/owner/{ownerId}/view/{id}/claim` requires `sub == {ownerId}` **and**
-the role that may write `owner/(shared)`. A host gives `permissions.instance(id).changeAudience` by the same role.
-The tenant and owner come from the path only: `Command-Tenant-Id` and `Command-Owner-Id` are dropped, and a path
+**Identity is the path.** The server does not authenticate: the `{ownerId}` of a path is the user (or `(shared)`),
+and the tenant and the application are the path's `{tenantId}` and the `CoSec-App-Id` header. Who may use which path
+is the CoSec gateway's to decide; see [CoSec gateway rules](#cosec-gateway-rules). The tenant and owner come from the
+path only: `Command-Tenant-Id` and `Command-Owner-Id` are dropped, and a path
 whose decoded tenant or owner is empty or holds a character that shows as nothing or a blank (whitespace, control and
 format characters such as U+200B, surrogates, private-use and unassigned code points (by the JDK's Unicode version),
 and invisible characters of other categories: the combining grapheme joiner, variation selectors, Hangul fillers,
@@ -67,8 +67,58 @@ check queries the dashboards' snapshots, so a board saved a moment before may no
 **One deployment per Kafka topic namespace.** Wow names the Kafka topics by context and aggregate
 (`wow.view-store.view.command`, …), so two deployments of the view store on one Kafka cluster (the standalone server
 and a host embedding the starter, or two hosts) would consume each other's commands and events. Give each deployment
-its own `wow.kafka.topic-prefix` (the standalone server uses `wow.view-store-server.`), or run one view store per
-Kafka cluster. The prefix applies to every aggregate of the deployment.
+a prefix of its own:
+
+- a host that embeds the starter sets `wow.view-store.kafka.topic-prefix`, which applies to the view store's two
+  aggregates only (`<prefix>view-store.view.command`, …); the host's own aggregates keep exactly the topics
+  `wow.kafka.topic-prefix` gives them. The compensation service sets `wow.compensation-service.`. Unset or blank, the
+  view store's topics follow `wow.kafka.topic-prefix`, as before. With it set, each of the host's topic converter
+  beans must be one kind (command, event stream or state event), as Wow's own are: a bean that is several at once
+  cannot say which kind it is asked for, so the host refuses to start;
+- the standalone server sets `wow.kafka.topic-prefix` itself (`wow.view-store-server.`): it has no other aggregates.
+
+Changing either prefix of a running deployment moves the view store to new, empty topics; drain the old ones first.
+
+On a Kafka cluster that does not create topics on first use (`auto.create.topics.enable=false`), create the view
+store's six topics before the host starts: `<prefix>view-store.view.{command,event,state}` and
+`<prefix>view-store.view_preferences.{command,event,state}`. For the compensation service that is
+`wow.compensation-service.view-store.view.command` and the five beside it.
+
+A host with its own view store prefix leaves the view store out of the BI script it generates (`wow.bi.script`): the
+script reads every aggregate's topics under BI's one `topic-prefix`, which does not name the view store's. A host
+without one keeps the view store in it, on the same prefix as its own aggregates.
+
+## CoSec gateway rules
+
+Every deployment of the view store, embedded or standalone, runs behind the CoSec gateway, and the gateway's rules
+are what keep one user out of another's views. The server takes the tenant, the owner and the application as the
+request names them, so the rules must tie each to the token:
+
+| Path (under the service's base path) | Methods | Allow when |
+| --- | --- | --- |
+| `/view-store/tenant/{tenantId}/owner/{ownerId}/**`, except `…/view/{id}/claim` and `…/view/{id}/share` | all | `{tenantId}` is the token's tenant **and** `{ownerId}` is the token's `sub` |
+| `/view-store/tenant/{tenantId}/owner/(shared)/**` | `GET`, and `POST …/snapshot/**` (reads) | `{tenantId}` is the token's tenant |
+| `/view-store/tenant/{tenantId}/owner/(shared)/**` | `POST /view`, `PUT`, `DELETE` (writes) | `{tenantId}` is the token's tenant **and** the caller has the role that may write shared views |
+| `/view-store/tenant/{tenantId}/owner/{ownerId}/view/{id}/claim`, `…/view/{id}/share` | `PUT` | `{tenantId}` is the token's tenant, `{ownerId}` is the token's `sub`, **and** the caller has the role that may write shared views |
+| `/view-store/tenant/{tenantId}/owner/(shared)/definitions/{definitionId}/preferences` | `PUT` | as a shared write (a host nobody signs in to keeps its preferences there) |
+
+- **Claim and share need both.** Claiming moves a shared view to the caller, so it takes it out of everyone's list;
+  sharing moves a personal view to `(shared)`, so it publishes it into everyone's list. Both are sent to a personal
+  path (`sub == {ownerId}`: claim to the caller's own, share to the view's, which is the caller's) and need the
+  shared-write role as well. The personal-path rule must not admit either on its own: leave `…/view/{id}/claim` and
+  `…/view/{id}/share` out of it, so only the claim-and-share rule decides; otherwise anyone could publish a shared
+  view by creating a personal one and sharing it.
+- **The application comes from the token too.** CoSec authenticates `CoSec-App-Id`; reject a request whose header is
+  missing or names an application the token is not for. The server keeps applications apart by that header.
+- **`(shared)` is never a user.** Do not issue a token whose `sub` is `(shared)` or holds parentheses; the server
+  refuses such an owner for a claim, and the gateway's personal rule would otherwise admit it to the shared path.
+- **A host's buttons follow the same role.** `WowViewStore`'s `permissions` (`createShared`, `instance(id).save`,
+  `rename`, `delete`, `changeAudience`) are the host's to give, by the same role the gateway checks: `createShared`
+  and `changeAudience` (claim and share) both need the shared-write role; the server does
+  not tell the client what it may do.
+- A host nobody signs in to (the compensation console) has no token: it fills the tenant `(0)`, the owner `(shared)`
+  and its application itself, and its gateway admits it by network or by a service token, as it admits the rest of
+  that console.
 
 ## The standalone server
 
