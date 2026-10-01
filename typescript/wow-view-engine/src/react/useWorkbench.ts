@@ -480,7 +480,14 @@ export function useWorkbench(
     opensHere,
   );
   const opened: OpenViewState = held
-    ? { runtime: held.runtime, loading: false, error: null, scopeIssues: [] }
+    ? {
+        runtime: held.runtime,
+        loading: false,
+        error: null,
+        scopeIssues: [],
+        // Never offered: a view held here was made, and did not fail to open.
+        retry: byId.retry,
+      }
     : byId;
   const wrongKind = held ? null : kindMismatch(byId.runtime, kinds);
   const runtime = held ? held.runtime : wrongKind ? null : byId.runtime;

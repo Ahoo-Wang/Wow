@@ -31,6 +31,14 @@ export type Describe = (previous?: string) => Promise<QueryDescriptorResult>;
  */
 export const DESCRIPTOR_MAX_AGE_MS = 5 * 60 * 1000;
 
+/**
+ * How long the first view over a source waits for its descriptor before it
+ * opens on the definition as declared (capabilities.md 6「取不到时」). A
+ * service that takes the connection and never answers would otherwise hold
+ * the opening for ever; the read goes on, and narrows the view when it lands.
+ */
+export const DESCRIBE_DEADLINE_MS = 10 * 1000;
+
 export interface DescriptorCacheOptions {
   /** Milliseconds since the epoch; the runtime environment's clock. */
   now(): number;

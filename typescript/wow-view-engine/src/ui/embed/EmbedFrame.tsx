@@ -14,8 +14,14 @@
 import { useEffect, type ReactNode } from 'react';
 import type { ViewKind } from '../../model/index.js';
 import type { AnyViewRuntime, ViewEngine } from '../../runtime/index.js';
-import { kindMismatch, type OpenViewState } from '../../react/index.js';
+import { RotateCcwIcon } from 'lucide-react';
+import {
+  kindMismatch,
+  retryableOpen,
+  type OpenViewState,
+} from '../../react/index.js';
 import { Alert, AlertDescription, AlertTitle } from '../components/alert.js';
+import { Button } from '../components/button.js';
 import { Skeleton } from '../components/skeleton.js';
 import { kindIssue, kindWord, SurfaceKind } from '../kit/kinds.js';
 import { useViewMessages } from '../kit/MessagesProvider.js';
@@ -102,7 +108,22 @@ export function EmbedFrame({
               {messages.label(kindWord('label.view.unopenable', kind))}
             </AlertTitle>
             <AlertDescription>
-              {messages.issue(kindIssue(unopenable, kind))}
+              <p>{messages.issue(kindIssue(unopenable, kind))}</p>
+              {/* A store that could not be reached or answer may well the
+                  next time; a page has no other way back short of a reload. */}
+              {retryableOpen(opened.error) && (
+                <div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    data-slot="view-open-retry"
+                    onClick={opened.retry}
+                  >
+                    <RotateCcwIcon data-icon="inline-start" />
+                    {messages.label('label.view.open-retry')}
+                  </Button>
+                </div>
+              )}
             </AlertDescription>
           </Alert>
         )}

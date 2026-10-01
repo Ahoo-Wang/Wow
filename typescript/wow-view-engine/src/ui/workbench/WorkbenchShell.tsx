@@ -25,7 +25,7 @@ import {
   hasAsked as viewHasAsked,
   hasResult as viewHasResult,
 } from '../../runtime/index.js';
-import type { WorkbenchController } from '../../react/index.js';
+import { retryableOpen, type WorkbenchController } from '../../react/index.js';
 import { AppliedBar } from '../filter/AppliedBar.js';
 import { EditorFold } from './EditorBand.js';
 import { SurfaceKind } from '../kit/kinds.js';
@@ -673,6 +673,9 @@ export function WorkbenchShell({
           {unopenable && (
             <Unopenable
               issue={unopenable}
+              // A store that could not be reached or could not answer may
+              // well answer the next time; nothing else changes by asking.
+              onRetry={retryableOpen(opened.error) ? opened.retry : undefined}
               // The way back is the view the user would have got without
               // asking for this one — and only where that is somewhere else,
               // because an action that re-opens the view that just failed is

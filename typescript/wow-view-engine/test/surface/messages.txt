@@ -1,4 +1,4 @@
-# Message keys — 2060.
+# Message keys — 2063.
 # Written by test/publicSurface.test.ts; a change here is a change to
 # the public surface (README「Wording and language」, docs/design/decisions.md D29).
 analysis.alias.duplicate
@@ -1622,6 +1622,7 @@ label.panel.reordered
 label.panel.replace
 label.panel.resize
 label.panel.resize-any
+label.panel.retry
 label.panel.rows
 label.panel.rows-one
 label.panel.save-as-view
@@ -1644,6 +1645,7 @@ label.panel.way-out.dashboard
 label.panel.way-out.edit
 label.panel.way-out.edit-content
 label.panel.way-out.maintainer
+label.panel.way-out.retry
 label.panel.way-out.share
 label.panel.way-out.widen
 label.picker.add-heading
@@ -1906,6 +1908,7 @@ label.view.new-title
 label.view.none
 label.view.none-hint
 label.view.open-default
+label.view.open-retry
 label.view.remove-unavailable
 label.view.show-conditions
 label.view.unavailable

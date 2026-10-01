@@ -189,6 +189,9 @@ export const dashboardMessages = {
     "Ask the view's owner to open it and fix it, or whoever maintains this dashboard to replace this panel.",
   'label.panel.way-out.dashboard':
     'This panel runs again once the dashboard is fixed.',
+  'label.panel.way-out.retry':
+    'Try again. If it keeps failing, ask whoever maintains this dashboard.',
+  'label.panel.retry': 'Try again',
   // A finding about one panel, said where the panel is not in view.
   'label.panel.finding': '{panel}: {finding}',
   // Placing a panel: the two handles, the menu that says the same commands

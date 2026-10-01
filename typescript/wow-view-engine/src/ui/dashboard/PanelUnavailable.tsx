@@ -13,6 +13,7 @@
 
 import {
   ArrowRightLeftIcon,
+  RotateCcwIcon,
   SquarePenIcon,
   Trash2Icon,
   UnplugIcon,
@@ -177,6 +178,13 @@ export interface PanelUnavailableProps {
   name?(found: Issue): Issue;
   /** Whether the panel shows a view the board owns, whose way out is its maintainer. */
   owned?: boolean;
+  /**
+   * Asks for the panel's view again (`DashboardController.refreshPanel`).
+   * Offered only where the view could not be read (`dashboard.panel.failed`)
+   * — the store unreachable, say — which asking again may change; a view
+   * that is gone or refused answers the same.
+   */
+  retry?(): void;
 }
 
 function same(found: Issue): Issue {
@@ -195,13 +203,18 @@ export function PanelUnavailable({
   editContent,
   name = same,
   owned = false,
+  retry,
 }: PanelUnavailableProps) {
   const messages = useViewMessages();
   const outage = outageOf(issue, messages, name, owned);
+  const again = issue?.code === 'dashboard.panel.failed' ? retry : undefined;
   // Whoever builds the board is the one the sentence would send a reader
   // to; they are given the way itself, and the sentence says what it does.
+  // A view that could not be read is tried again first, by anyone.
   const wayOut = !remove
-    ? outage.wayOut
+    ? again
+      ? messages.label('label.panel.way-out.retry')
+      : outage.wayOut
     : messages.label(
         replace
           ? 'label.panel.way-out.edit'
@@ -221,9 +234,20 @@ export function PanelUnavailable({
         )}
         <EmptyDescription>{wayOut}</EmptyDescription>
       </EmptyHeader>
-      {remove && (
+      {(remove || again) && (
         <EmptyContent>
           <div className="fve:flex fve:flex-wrap fve:justify-center fve:gap-2">
+            {again && (
+              <Button
+                variant="outline"
+                size="sm"
+                data-slot="panel-retry"
+                onClick={again}
+              >
+                <RotateCcwIcon data-icon="inline-start" />
+                {messages.label('label.panel.retry')}
+              </Button>
+            )}
             {replace && (
               <Button variant="outline" size="sm" onClick={replace}>
                 <ArrowRightLeftIcon data-icon="inline-start" />
@@ -236,10 +260,12 @@ export function PanelUnavailable({
                 {messages.label('label.panel.edit-content')}
               </Button>
             )}
-            <Button variant="outline" size="sm" onClick={remove}>
-              <Trash2Icon data-icon="inline-start" />
-              {messages.label('label.panel.remove')}
-            </Button>
+            {remove && (
+              <Button variant="outline" size="sm" onClick={remove}>
+                <Trash2Icon data-icon="inline-start" />
+                {messages.label('label.panel.remove')}
+              </Button>
+            )}
           </div>
         </EmptyContent>
       )}

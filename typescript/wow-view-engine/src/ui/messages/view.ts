@@ -31,6 +31,7 @@ export const viewMessages = {
   'label.view.new-title': 'Untitled view',
   'label.view.unopenable': 'This view could not be opened',
   'label.view.open-default': 'Open the default view',
+  'label.view.open-retry': 'Try again',
   'label.view.needs-fixing': 'This view needs fixing before it runs',
   // Said while the pills that carry the findings are folded away.
   'label.view.conditions-to-fix':

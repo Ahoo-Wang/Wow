@@ -24,6 +24,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   MemoryViewStore,
   ViewEngine,
+  ViewStoreError,
   defaultRuntimeEnvironment,
 } from '../src/index.js';
 import type {
@@ -552,6 +553,22 @@ describe('EmbeddedView', () => {
     await waitFor(() =>
       expect(screen.getByText(/could not be opened/i)).toBeDefined(),
     );
+    // Gone stays gone: asking again would only say so again.
+    expect(screen.queryByRole('button', { name: 'Try again' })).toBeNull();
+  });
+
+  it('offers to try again when the store could not be reached', async () => {
+    const { engine, store } = setup();
+    vi.spyOn(store, 'get').mockRejectedValueOnce(
+      new ViewStoreError('UNAVAILABLE', 'offline'),
+    );
+    const user = userEvent.setup();
+
+    render(<EmbeddedView engine={engine} instanceId="orders-1" />);
+
+    await user.click(await screen.findByRole('button', { name: 'Try again' }));
+    expect(await screen.findAllByRole('row')).not.toHaveLength(0);
+    expect(screen.queryByText(/could not be opened/i)).toBeNull();
   });
 
   /**

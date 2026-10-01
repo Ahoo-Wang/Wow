@@ -191,6 +191,7 @@ export interface ViewSource {
   - 源没有 `describe`：安静地按定义与 `FALLBACK_SOURCE_LIMITS` 运行；
   - 服务端答 404（Wow 9.2 之前）：同上，另经 `onIssue` 报一条 note `capability.descriptor.unavailable`；
   - 其他错误（网络、5xx）：同上并报 note，下一次按第 1 条的时机重试。
+  - 迟迟不答（接了连接却不应答）：首次打开最多等 `DESCRIBE_DEADLINE_MS`（10 秒），过了就同上报 note、照定义打开；那次读取并不取消，答到时按「版本变了」收窄已打开的视图。否则打开的骨架屏永远不消失。
   - 三种都不给最终用户看任何东西。用户看到的只有查询真被拒时的那条错误，与今天相同。
 - **副本漂移**：各副本的版本可能暂时不同。缓存只认最后一次拿到的版本，不做版本比较。按「最后答的为准」处理，最坏是一次多余的重新收窄。
 
@@ -262,7 +263,7 @@ C2～C6 在首发之前完成（[todo.md](todo.md)「首发前的门」的 N5 �
 
 - `ViewSource.describe?`（第 3 节，签名与 wow-client 的 `describeSnapshot` 相同）；没有它的源与今天逐字节相同：运行时拿到的就是声明的那份定义、引擎的 `limits`（`test/capabilitiesRuntime.test.ts`「a source without a descriptor」，现有测试全部不改）。
 - `src/capabilities/`：`narrowDefinition`（第 4 节，4.1～4.4 中不需要新成员的各行）、`sourceLimits`（4.5）、`DescriptorCache`（第 6 节）。与四个内核平级，只引 `model` 与 `filter`：收窄要用 `operatorsOf` 与 `FieldKindRegistry`（第 4 节原写「只引 `model/`」，按此修订，`test/architecture.test.ts` 守着）。
-- `runtime/capabilities.ts` 的 `SourceCapabilities`：`open` 先读描述再发第一条查询（看板的自有视图在 `open` 里读，引用的已保存视图在面板解析时读）；按（定义, 描述版本）收窄一次、发现报一次；刷新、页面切回来时超过 5 分钟就带版本重新验证；读不到时报 note `capability.descriptor.unavailable`，照定义运行。
+- `runtime/capabilities.ts` 的 `SourceCapabilities`：`open` 先读描述再发第一条查询（看板的自有视图在 `open` 里读，引用的已保存视图在面板解析时读）；按（定义, 描述版本）收窄一次、发现报一次；刷新、页面切回来时超过 5 分钟就带版本重新验证；读不到、或首次读超过 `DESCRIBE_DEADLINE_MS` 时报 note `capability.descriptor.unavailable`，照定义运行（见 test/capabilitiesRuntime.test.ts「opens on the definition as declared when the descriptor does not answer in time」）。
 - 界面只改两处读法，不加分支（第 5 节）：`searchFieldOf` 跳过收窄成没有算子的检索字段（G15：MongoDB 上检索框不出现），`useFilterEditor.fieldsFor` 不列没有算子的字段（「添加」清单与高级编辑器都读它）。Storybook「能力/随部署收窄」是同一份定义配两份描述的 G15 对照，孪生故事在浏览器里断言。
 - `capability.*` 发现码与中英文案（`ui/messages/capabilities.ts`）。
 

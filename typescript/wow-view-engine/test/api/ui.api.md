@@ -2308,6 +2308,8 @@ export const en: {
     readonly 'label.panel.way-out.widen': "Ask the view's owner to share it as widely as this dashboard, or whoever maintains this dashboard to replace or remove this panel.";
     readonly 'label.panel.way-out.author': "Ask the view's owner to open it and fix it, or whoever maintains this dashboard to replace this panel.";
     readonly 'label.panel.way-out.dashboard': "This panel runs again once the dashboard is fixed.";
+    readonly 'label.panel.way-out.retry': "Try again. If it keeps failing, ask whoever maintains this dashboard.";
+    readonly 'label.panel.retry': "Try again";
     readonly 'label.panel.finding': "{panel}: {finding}";
     readonly 'label.panel.resize': "Resize “{title}”";
     readonly 'label.panel.handle': "Move or resize “{title}”";
@@ -3199,6 +3201,7 @@ export const en: {
     readonly 'label.view.new-title': "Untitled view";
     readonly 'label.view.unopenable': "This view could not be opened";
     readonly 'label.view.open-default': "Open the default view";
+    readonly 'label.view.open-retry': "Try again";
     readonly 'label.view.needs-fixing': "This view needs fixing before it runs";
     readonly 'label.view.conditions-to-fix': "Fix its conditions before this view runs ({count})";
     readonly 'label.view.show-conditions': "Show conditions";
@@ -5105,6 +5108,7 @@ interface OpenViewState {
     error: Issue | null;
     // (undocumented)
     loading: boolean;
+    retry(): void;
     // (undocumented)
     runtime: AnyViewRuntime | null;
     scopeIssues: Issue[];
