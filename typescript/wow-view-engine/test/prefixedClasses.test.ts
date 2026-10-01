@@ -297,6 +297,14 @@ describe('every Tailwind class in src carries the prefix fve: (D66)', () => {
   let isUtility: UtilityCheck;
   let findings: Finding[];
 
+  // The scan is CPU work, not a wait: every file of `src` parsed by
+  // TypeScript and each distinct word asked of the design system once. It
+  // measured 0.7 s bare and 2.1 s under coverage on a laptop (two thirds of
+  // it parsing; no single class, the long `shadow-[…]` ones of `FOCUS_ROW`
+  // included, took over 3 ms), and past the 10 s hook default on a CI shard
+  // whose runner was running three other suites under coverage. So the hook
+  // gets the budget `vitest.config.ts` gives a whole-flow test for the same
+  // reason, doubled for a hook that does a suite's worth of work.
   beforeAll(async () => {
     isUtility = await utilityCheck();
     findings = sources(SRC).flatMap(path =>
@@ -306,7 +314,7 @@ describe('every Tailwind class in src carries the prefix fve: (D66)', () => {
         isUtility,
       ),
     );
-  });
+  }, 30_000);
 
   it('no string in src holds a utility without fve:, nor a fve: word that is none', () => {
     const known = (finding: Finding) =>
