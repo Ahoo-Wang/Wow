@@ -6,7 +6,8 @@ server:
 management:
   endpoint:
     health:
-      show-details: always
+      # Status only: the details name the backends and their addresses.
+      show-details: when-authorized
       probes:
         enabled: true
   endpoints:

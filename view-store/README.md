@@ -125,6 +125,8 @@ a prefix of its own:
 - the standalone server sets `wow.kafka.topic-prefix` itself (`wow.view-store-server.`): it has no other aggregates.
 
 Changing either prefix of a running deployment moves the view store to new, empty topics; drain the old ones first.
+A host whose view store topics are Wow's default ones (neither prefix set, and a bus on Kafka) logs a warning at
+startup naming `wow.view-store.kafka.topic-prefix`: nothing tells it whether another deployment shares the cluster.
 
 On a Kafka cluster that does not create topics on first use (`auto.create.topics.enable=false`), create the view
 store's six topics before the host starts: `<prefix>view-store.view.{command,event,state}` and
@@ -203,10 +205,21 @@ and pushes it as:
 - `registry.cn-shanghai.aliyuncs.com/ahoo/wow-view-store-server`
 
 A `v<version>` tag publishes `<version>` and `<major>.<minor>`; a push to `main` (and the daily run) publishes
-`main`. The image runs `/opt/wow-view-store-server/bin/wow-view-store-server` as a non-root user on port 8080, with
-the health check on `/actuator/health`. It reads its configuration from `/opt/wow-view-store-server/config/`, which
+`main`. A patch to an older line (a `v9.2.3` tag after `v9.3.0`) does not move `latest`, which stays on the highest
+stable release.
+
+**The image does no authentication.** It trusts the tenant and owner of every path and the `CoSec-App-Id` header
+(see [Identity is the path](#writes-identity-and-topics)): deploy it only behind the CoSec gateway with the
+[gateway rules](#cosec-gateway-rules), on a network nothing else reaches it from. Its port must never be published to
+users directly.
+
+The image runs `/opt/wow-view-store-server/bin/wow-view-store-server` as a non-root user on port 8080. Its
+`HEALTHCHECK` reads `/actuator/health/liveness` (the process runs); a backend that is down shows in `/actuator/health`,
+which the template answers with the status alone (`show-details: when-authorized`), so that the port does not name
+the backends. It reads its configuration from `/opt/wow-view-store-server/config/`, which
 holds the `src/dist/config/application.yaml` template (everything on `localhost`): mount your own `application.yaml`
-there, or override the settings with environment variables:
+there, or override the settings with environment variables. Set the three backend addresses (MongoDB, Kafka, Redis): a
+container that misses one starts, points at `localhost` and fails only when it first uses that backend.
 
 | Variable | Setting | Template value |
 | --- | --- | --- |

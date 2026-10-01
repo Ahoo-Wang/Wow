@@ -189,6 +189,17 @@ After configuring WeCom, use controlled failure and success events to verify bot
 
 For a durable environment, keep the distribution's direct `java` startup path, configure real MongoDB, Redis, Kafka, scheduler, and notification infrastructure, and remove the local example's in-memory/disable overrides. The repository supplies the service host and Dashboard build, not a production-ready cluster policy.
 
+The image reads `/opt/wow-compensation-server/config/application.yaml`, the distribution's `src/dist/config/application.yaml`, whose backends are all on `localhost`. A pod that misses one of these variables starts and points at `localhost`, so set every one of them (Spring maps each to the setting beside it):
+
+| Variable | Setting |
+| --- | --- |
+| `SPRING_MONGODB_URI` | `spring.mongodb.uri` (event streams and snapshots) |
+| `SPRING_DATA_REDIS_URL` | `spring.data.redis.url` (CosId machine ids) |
+| `WOW_KAFKA_BOOTSTRAPSERVERS` | `wow.kafka.bootstrap-servers` (command, event and state-event buses) |
+| `SPRING_ELASTICSEARCH_URIS`, `SPRING_ELASTICSEARCH_USERNAME`, `SPRING_ELASTICSEARCH_PASSWORD` | `spring.elasticsearch.*`, when events or snapshots are on Elasticsearch |
+
+The image's `HEALTHCHECK` and the liveness probe read `/actuator/health/liveness`, which says only that the process runs; a backend that is down shows in `/actuator/health`. The template answers that endpoint with the status alone (`show-details: when-authorized`): its details name the backends, so read them on the operator network, or set `management.endpoint.health.show-details` there.
+
 The smallest Kubernetes shape is below. An actual release and capacity check must determine the image digest, resources, replica count, and Secret names:
 
 ```yaml
@@ -217,11 +228,11 @@ spec:
               containerPort: 8080
           readinessProbe:
             httpGet:
-              path: /actuator/health
+              path: /actuator/health/readiness
               port: http
           livenessProbe:
             httpGet:
-              path: /actuator/health
+              path: /actuator/health/liveness
               port: http
 ```
 

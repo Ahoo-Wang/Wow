@@ -45,6 +45,7 @@ jobs:
       view-engine-docs: ${{ steps.scope.outputs.viewEngineDocs }}
       workflows: ${{ steps.scope.outputs.workflows }}
       compat-debt: ${{ steps.scope.outputs.compatDebt }}
+      package: ${{ steps.scope.outputs.package }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -174,10 +175,12 @@ jobs:
   # under node16, nodenext and bundler resolution, and a fresh npm project that
   # installs, imports and requires them and runs the bins. Node 22.12.0 is the
   # floor engines.node promises; the release preflight runs the same check.
+  # The scope turns it on with sdk and for any change inside a PUBLISHED
+  # package (view-engine's too), without the unit matrix.
   package:
     name: Package / Node ${{ matrix.node-version }}
     needs: scope
-    if: needs.scope.outputs.sdk == 'true'
+    if: needs.scope.outputs.package == 'true'
     timeout-minutes: 20
     runs-on: ubuntu-latest
     strategy:

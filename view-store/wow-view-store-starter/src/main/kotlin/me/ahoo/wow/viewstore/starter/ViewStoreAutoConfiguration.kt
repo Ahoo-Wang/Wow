@@ -219,6 +219,18 @@ class ViewStoreAutoConfiguration {
         }
     }
 
+    /**
+     * Warns at startup when the view store's Kafka topics are Wow's default ones, which every other deployment of the
+     * view store left at its defaults shares ([viewStoreSharedTopicsWarning]).
+     */
+    @Configuration(proxyBeanMethods = false)
+    @ConditionalOnClass(name = ["me.ahoo.wow.kafka.KafkaCommandBus"])
+    class ViewStoreSharedTopicsConfiguration {
+        @Bean("viewStoreSharedTopicsWarning")
+        internal fun viewStoreSharedTopicsWarning(environment: Environment): ViewStoreSharedTopicsWarning =
+            ViewStoreSharedTopicsWarning(environment)
+    }
+
     @Configuration(proxyBeanMethods = false)
     @ConditionalOnClass(name = ["org.springdoc.core.customizers.OpenApiCustomizer"])
     class ViewStoreOpenApiConfiguration {

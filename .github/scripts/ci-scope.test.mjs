@@ -12,9 +12,12 @@ import { test } from 'node:test';
 import { scopes, unitPackages } from './ci-scope.mjs';
 
 const script = new URL('./ci-scope.mjs', import.meta.url).pathname;
-// The workflow scopes; `compatDebt` is derived from them and has its own test.
+// The workflow scopes; `compatDebt` and `package` are derived from them and
+// have their own tests.
 const gates = paths =>
-  Object.entries(scopes(paths)).filter(([key]) => key !== 'compatDebt');
+  Object.entries(scopes(paths)).filter(
+    ([key]) => key !== 'compatDebt' && key !== 'package',
+  );
 const all = paths => gates(paths).every(([, value]) => value);
 const none = paths => gates(paths).every(([, value]) => !value);
 const on = paths =>
@@ -411,6 +414,7 @@ test('the command reads the diff and runs everything without a base', () => {
         .join('') +
       // Everything runs quality, which checks the ledger itself.
       'compatDebt=false\n' +
+      `package=${value}\n` +
       `unitPackages=${value ? '["wow-client","wow-react","wow-generator","wow-view-store"]' : '[]'}\n`;
     assert.equal(run({ BASE_SHA: base, HEAD_SHA: head }), output(false));
     assert.equal(
@@ -508,4 +512,33 @@ test('a Kotlin main source runs the compat-debt ledger unless quality does', () 
     !scopes(['wow-api/src/test/kotlin/me/ahoo/wow/api/query/ConditionTest.kt'])
       .compatDebt,
   );
+});
+
+test('a path inside a published package runs the Package job without the unit matrix', () => {
+  for (const path of [
+    'typescript/wow-view-engine/src/index.ts',
+    'typescript/wow-view-engine/package.json',
+    'typescript/wow-view-engine/README.md',
+    'typescript/wow-view-engine/test/setup.ts',
+    'typescript/wow-react/README.md',
+  ]) {
+    assert.ok(scopes([path]).package, path);
+    assert.ok(!scopes([path]).sdk, path);
+    assert.deepEqual(unitPackages([path]), [], path);
+  }
+  // Whatever turns sdk on runs it too; a package nobody publishes does not.
+  for (const path of [
+    'typescript/wow-client/src/index.ts',
+    'pnpm-lock.yaml',
+    'new-directory/index.ts',
+  ])
+    assert.ok(scopes([path]).package, path);
+  for (const path of [
+    'typescript/storybook/stories/view-engine/Home.stories.tsx',
+    'typescript/integration-test/test/view-store/wowViewStore.test.ts',
+    'typescript/AGENTS.md',
+    'wow-core/src/main/kotlin/A.kt',
+    'documentation/docs/en/index.md',
+  ])
+    assert.ok(!scopes([path]).package, path);
 });

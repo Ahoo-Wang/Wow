@@ -26,9 +26,13 @@ import me.ahoo.wow.viewstore.ViewStoreService
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import org.junit.jupiter.api.extension.ExtendWith
 import org.springframework.boot.autoconfigure.AutoConfigurations
 import org.springframework.boot.test.context.assertj.AssertableApplicationContext
 import org.springframework.boot.test.context.runner.ApplicationContextRunner
+import org.springframework.boot.test.system.CapturedOutput
+import org.springframework.boot.test.system.OutputCaptureExtension
+import org.springframework.mock.env.MockEnvironment
 
 /**
  * `wow.view-store.kafka.topic-prefix` moves the view store's topics and nothing else: the host's own aggregates keep
@@ -207,5 +211,43 @@ class ViewStoreKafkaTopicsTest {
         val plain = AggregateTopicConverter { "plain" }
         ViewStoreTopicConverterPostProcessor("views.").postProcessAfterInitialization(plain, "plain")
             .assert().isSameAs(plain)
+    }
+
+    private fun warning(vararg properties: Pair<String, String>): String? =
+        MockEnvironment().apply { properties.forEach { (key, value) -> setProperty(key, value) } }
+            .viewStoreSharedTopicsWarning()
+
+    /**
+     * Two deployments that leave both prefixes at their defaults share `wow.view-store.view.*`: the host is told at
+     * startup, and is not when either prefix makes the topics its own or no bus is on Kafka.
+     */
+    @Test
+    fun `default topics on Kafka are warned about`() {
+        warning().assert().contains("wow.view-store.kafka.topic-prefix").contains("wow.view-store.view.command")
+        warning("wow.view-store.kafka.topic-prefix" to " ").assert().isNotNull()
+        warning("wow.kafka.topic-prefix" to "wow.").assert().isNotNull()
+        warning("wow.command.bus.type" to "in_memory", "wow.event.bus.type" to "in_memory").assert().isNotNull()
+
+        warning("wow.view-store.kafka.topic-prefix" to "wow.compensation-service.").assert().isNull()
+        warning("wow.kafka.topic-prefix" to "wow.view-store-server.").assert().isNull()
+        warning("wow.kafka.enabled" to "false").assert().isNull()
+        warning(
+            "wow.command.bus.type" to "in_memory",
+            "wow.event.bus.type" to "no_op",
+            "wow.eventsourcing.state.bus.type" to "in_memory",
+        ).assert().isNull()
+    }
+
+    @Test
+    @ExtendWith(OutputCaptureExtension::class)
+    fun `the host logs the warning at startup`(output: CapturedOutput) {
+        val contextRunner = ApplicationContextRunner()
+            .withUserConfiguration(ViewStoreAutoConfiguration.ViewStoreSharedTopicsConfiguration::class.java)
+        contextRunner.withPropertyValues("wow.view-store.kafka.topic-prefix=views.").run { context ->
+            context.getBean(ViewStoreSharedTopicsWarning::class.java).assert().isNotNull()
+        }
+        output.out.assert().doesNotContain("wow.view-store.kafka.topic-prefix")
+        contextRunner.run { }
+        output.out.assert().contains("WARN").contains("Set wow.view-store.kafka.topic-prefix")
     }
 }
