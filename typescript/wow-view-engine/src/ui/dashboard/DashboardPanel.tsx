@@ -371,7 +371,7 @@ export function DashboardPanel({
           data-scroll-below={scroll.below || undefined}
           style={scroll.style}
           className={cn(
-            'fve:min-h-0 fve:flex-1 fve:overflow-auto fve:px-(--_fve-panel-padding)',
+            'fve:relative fve:min-h-0 fve:flex-1 fve:overflow-auto fve:px-(--_fve-panel-padding)',
             FOCUS_INSET,
           )}
         >

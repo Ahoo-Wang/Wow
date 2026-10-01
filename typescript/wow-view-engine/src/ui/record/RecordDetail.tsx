@@ -212,7 +212,7 @@ export function RecordDetail({
               </div>
             )}
           </SheetHeader>
-          <div className="fve:flex fve:min-h-0 fve:flex-1 fve:flex-col fve:gap-4 fve:overflow-y-auto fve:px-4 fve:pb-4">
+          <div className="fve:relative fve:flex fve:min-h-0 fve:flex-1 fve:flex-col fve:gap-4 fve:overflow-y-auto fve:px-4 fve:pb-4">
             {error && (
               <LineAlert
                 tone="error"

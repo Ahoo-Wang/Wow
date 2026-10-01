@@ -232,7 +232,9 @@ function SuggestedText({
       />
       <ComboboxContent className={VALUE_LIST}>
         {empty}
-        <ComboboxList aria-label={label}>{item}</ComboboxList>
+        <ComboboxList aria-label={label} className="fve:relative">
+          {item}
+        </ComboboxList>
         {footer}
       </ComboboxContent>
     </Combobox>
@@ -340,7 +342,9 @@ function SuggestedList({
       </PillChips>
       <ComboboxContent anchor={anchor} className={VALUE_LIST}>
         {empty}
-        <ComboboxList aria-label={label}>{item}</ComboboxList>
+        <ComboboxList aria-label={label} className="fve:relative">
+          {item}
+        </ComboboxList>
         {footer}
       </ComboboxContent>
     </Combobox>

@@ -256,7 +256,7 @@ function LookEditor({
   const focus = useVisualizationFocus(level);
 
   return (
-    <div className="fve:-mx-4 fve:flex fve:min-h-0 fve:flex-1 fve:flex-col fve:gap-4 fve:overflow-y-auto fve:px-4 fve:sm:flex-row">
+    <div className="fve:relative fve:-mx-4 fve:flex fve:min-h-0 fve:flex-1 fve:flex-col fve:gap-4 fve:overflow-y-auto fve:px-4 fve:sm:flex-row">
       <section
         data-slot="panel-presentation-preview"
         aria-label={messages.label('label.panel.presentation.preview')}

@@ -376,7 +376,7 @@ export function ColumnSettings({
 
         <div
           data-slot="column-list"
-          className="fve:-mx-2.5 fve:flex fve:min-h-0 fve:flex-1 fve:flex-col fve:overflow-y-auto fve:px-2.5"
+          className="fve:relative fve:-mx-2.5 fve:flex fve:min-h-0 fve:flex-1 fve:flex-col fve:overflow-y-auto fve:px-2.5"
         >
           {listed.length === 0 ? (
             // Nothing matched, which is what `Empty` is for — the same shape

@@ -254,10 +254,14 @@ export function ViewManager({
 
         {/* The body scrolls, the heading stays: a list longer than the
             screen (30-odd system views) scrolls here rather than pushing the
-            dialog past the viewport's edges. */}
+            dialog past the viewport's edges. It is the rows' containing
+            block too (`relative`): the screen-reader words a row carries
+            (`sr-only`, absolute) would otherwise hang off the transformed
+            dialog, outside this clip, and give the dialog a second
+            scrollbar of its own once the list is long. */}
         <div
           data-slot="view-manager-body"
-          className="fve:-mx-1 fve:flex fve:min-h-0 fve:flex-col fve:gap-4 fve:overflow-y-auto fve:px-1 fve:py-0.5"
+          className="fve:relative fve:-mx-1 fve:flex fve:min-h-0 fve:flex-col fve:gap-4 fve:overflow-y-auto fve:px-1 fve:py-0.5"
         >
           {/* The order and the default are one record, so their outcome belongs
             to the list rather than to any row that moved. */}

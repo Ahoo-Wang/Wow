@@ -98,7 +98,7 @@ export function ChartLegend({
       className={cn(
         'fve:text-muted-foreground fve:flex fve:min-w-0 fve:gap-2',
         at === 'right'
-          ? 'fve:max-w-[40%] fve:shrink-0 fve:flex-col fve:justify-center fve:overflow-y-auto'
+          ? 'fve:relative fve:max-w-[40%] fve:shrink-0 fve:flex-col fve:justify-center fve:overflow-y-auto'
           : 'fve:items-start',
       )}
     >

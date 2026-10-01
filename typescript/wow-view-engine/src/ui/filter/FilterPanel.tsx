@@ -193,7 +193,7 @@ export function FilterPanel({
             // included, inside 424px and puts the toolbar at 640px.
             <div
               data-slot="filter-tree"
-              className="fve:max-h-[40vh] fve:min-h-0 fve:overflow-y-auto"
+              className="fve:relative fve:max-h-[40vh] fve:min-h-0 fve:overflow-y-auto"
             >
               {tree}
             </div>

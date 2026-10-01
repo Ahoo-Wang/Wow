@@ -506,6 +506,8 @@ const KINDS: PopupKind[] = [
   {
     name: 'dropdown menu',
     slot: 'dropdown-menu-content',
+    // The scroll port is its words' containing block (`MENU_POPUP_CLASS`).
+    adds: ['fve:relative'],
     vendored: (
       <DropdownMenu open>
         <VendoredDropdownMenuContent>
@@ -527,7 +529,12 @@ const KINDS: PopupKind[] = [
     // A popover this package opens can be a list as long as the definition
     // has fields, so it gets the scroll port the select, the menu and the
     // combobox already have.
-    adds: ['fve:max-h-(--available-height)', 'fve:overflow-y-auto'],
+    // And it is its words' containing block (`MENU_POPUP_CLASS`).
+    adds: [
+      'fve:max-h-(--available-height)',
+      'fve:overflow-y-auto',
+      'fve:relative',
+    ],
     vendored: (
       <Popover open>
         <VendoredPopoverContent>Fields</VendoredPopoverContent>

@@ -221,8 +221,17 @@ const COMBOBOX_POPUP_CLASS =
  */
 const DIALOG_POPUP_CLASS =
   'fve:fixed fve:top-1/2 fve:left-1/2 fve:z-50 fve:grid fve:w-full fve:max-w-[calc(100%-2rem)] fve:max-h-[calc(100dvh-2rem)] fve:overflow-y-auto fve:-translate-x-1/2 fve:-translate-y-1/2 fve:gap-4 fve:rounded-xl fve:bg-popover fve:p-4 fve:text-sm fve:text-popover-foreground fve:ring-1 fve:ring-foreground/10 fve:duration-100 fve:outline-none fve:sm:max-w-sm fve:data-open:animate-in fve:data-open:fade-in-0 fve:data-open:zoom-in-95 fve:data-closed:animate-out fve:data-closed:fade-out-0 fve:data-closed:zoom-out-95';
+/**
+ * The menu and the popover depart from the registry by one more class each:
+ * `relative`. Each is a scroll port, and Base UI positions the positioner
+ * around it and leaves the popup static, so an absolute descendant — an
+ * `sr-only` word — is placed against the positioner, outside the popup's
+ * clip: a long one's last words hang below it and make the page scroll (a
+ * menu 2000px long made a 640px page 2515px tall). The select's and the
+ * combobox's popups are `relative` in the registry already.
+ */
 const MENU_POPUP_CLASS =
-  'fve:z-50 fve:max-h-(--available-height) fve:w-(--anchor-width) fve:min-w-32 fve:origin-(--transform-origin) fve:overflow-x-hidden fve:overflow-y-auto fve:rounded-lg fve:bg-popover fve:p-1 fve:text-popover-foreground fve:shadow-md fve:ring-1 fve:ring-foreground/10 fve:duration-100 fve:outline-none fve:data-[side=bottom]:slide-in-from-top-2 fve:data-[side=inline-end]:slide-in-from-left-2 fve:data-[side=inline-start]:slide-in-from-right-2 fve:data-[side=left]:slide-in-from-right-2 fve:data-[side=right]:slide-in-from-left-2 fve:data-[side=top]:slide-in-from-bottom-2 fve:data-open:animate-in fve:data-open:fade-in-0 fve:data-open:zoom-in-95 fve:data-closed:animate-out fve:data-closed:overflow-hidden fve:data-closed:fade-out-0 fve:data-closed:zoom-out-95';
+  'fve:relative fve:z-50 fve:max-h-(--available-height) fve:w-(--anchor-width) fve:min-w-32 fve:origin-(--transform-origin) fve:overflow-x-hidden fve:overflow-y-auto fve:rounded-lg fve:bg-popover fve:p-1 fve:text-popover-foreground fve:shadow-md fve:ring-1 fve:ring-foreground/10 fve:duration-100 fve:outline-none fve:data-[side=bottom]:slide-in-from-top-2 fve:data-[side=inline-end]:slide-in-from-left-2 fve:data-[side=inline-start]:slide-in-from-right-2 fve:data-[side=left]:slide-in-from-right-2 fve:data-[side=right]:slide-in-from-left-2 fve:data-[side=top]:slide-in-from-bottom-2 fve:data-open:animate-in fve:data-open:fade-in-0 fve:data-open:zoom-in-95 fve:data-closed:animate-out fve:data-closed:overflow-hidden fve:data-closed:fade-out-0 fve:data-closed:zoom-out-95';
 /**
  * The one place the copy is deliberately not the registry's: a popover that
  * is taller than the room under its trigger scrolls instead of running off
@@ -241,7 +250,7 @@ const MENU_POPUP_CLASS =
  * else.
  */
 const POPOVER_POPUP_CLASS =
-  'fve:z-50 fve:flex fve:max-h-(--available-height) fve:w-72 fve:origin-(--transform-origin) fve:flex-col fve:gap-2.5 fve:overflow-y-auto fve:rounded-lg fve:bg-popover fve:p-2.5 fve:text-sm fve:text-popover-foreground fve:shadow-md fve:ring-1 fve:ring-foreground/10 fve:outline-hidden fve:duration-100 fve:data-[side=bottom]:slide-in-from-top-2 fve:data-[side=inline-end]:slide-in-from-left-2 fve:data-[side=inline-start]:slide-in-from-right-2 fve:data-[side=left]:slide-in-from-right-2 fve:data-[side=right]:slide-in-from-left-2 fve:data-[side=top]:slide-in-from-bottom-2 fve:data-open:animate-in fve:data-open:fade-in-0 fve:data-open:zoom-in-95 fve:data-closed:animate-out fve:data-closed:fade-out-0 fve:data-closed:zoom-out-95';
+  'fve:relative fve:z-50 fve:flex fve:max-h-(--available-height) fve:w-72 fve:origin-(--transform-origin) fve:flex-col fve:gap-2.5 fve:overflow-y-auto fve:rounded-lg fve:bg-popover fve:p-2.5 fve:text-sm fve:text-popover-foreground fve:shadow-md fve:ring-1 fve:ring-foreground/10 fve:outline-hidden fve:duration-100 fve:data-[side=bottom]:slide-in-from-top-2 fve:data-[side=inline-end]:slide-in-from-left-2 fve:data-[side=inline-start]:slide-in-from-right-2 fve:data-[side=left]:slide-in-from-right-2 fve:data-[side=right]:slide-in-from-left-2 fve:data-[side=top]:slide-in-from-bottom-2 fve:data-open:animate-in fve:data-open:fade-in-0 fve:data-open:zoom-in-95 fve:data-closed:animate-out fve:data-closed:fade-out-0 fve:data-closed:zoom-out-95';
 const SELECT_POPUP_CLASS =
   'fve:relative fve:isolate fve:z-50 fve:max-h-(--available-height) fve:w-(--anchor-width) fve:min-w-36 fve:origin-(--transform-origin) fve:overflow-x-hidden fve:overflow-y-auto fve:rounded-lg fve:bg-popover fve:text-popover-foreground fve:shadow-md fve:ring-1 fve:ring-foreground/10 fve:duration-100 fve:data-[align-trigger=true]:animate-none fve:data-[side=bottom]:slide-in-from-top-2 fve:data-[side=inline-end]:slide-in-from-left-2 fve:data-[side=inline-start]:slide-in-from-right-2 fve:data-[side=left]:slide-in-from-right-2 fve:data-[side=right]:slide-in-from-left-2 fve:data-[side=top]:slide-in-from-bottom-2 fve:data-open:animate-in fve:data-open:fade-in-0 fve:data-open:zoom-in-95 fve:data-closed:animate-out fve:data-closed:fade-out-0 fve:data-closed:zoom-out-95';
 const TOOLTIP_POPUP_CLASS =

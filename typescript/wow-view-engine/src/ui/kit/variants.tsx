@@ -1033,7 +1033,7 @@ export function LongText({ className, ...props }: React.ComponentProps<'pre'>) {
       data-slot="long-text"
       tabIndex={0}
       className={cn(
-        'fve:max-h-80 fve:overflow-auto fve:rounded-md fve:bg-muted/60 fve:p-2 fve:font-mono fve:text-xs fve:leading-relaxed fve:whitespace-pre-wrap fve:[overflow-wrap:anywhere] fve:text-foreground',
+        'fve:relative fve:max-h-80 fve:overflow-auto fve:rounded-md fve:bg-muted/60 fve:p-2 fve:font-mono fve:text-xs fve:leading-relaxed fve:whitespace-pre-wrap fve:[overflow-wrap:anywhere] fve:text-foreground',
         'fve:focus-visible:ring-ring/50 fve:outline-none fve:focus-visible:ring-[3px]',
         className,
       )}

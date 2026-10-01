@@ -291,7 +291,7 @@ function NewAnalysisForm({
         </Field>
       )}
 
-      <div className="fve:-mx-4 fve:min-h-0 fve:flex-1 fve:overflow-y-auto fve:px-4">
+      <div className="fve:relative fve:-mx-4 fve:min-h-0 fve:flex-1 fve:overflow-y-auto fve:px-4">
         {definitions.length > 0 && !definition && (
           <Empty data-slot="new-analysis-pick">
             <EmptyHeader>

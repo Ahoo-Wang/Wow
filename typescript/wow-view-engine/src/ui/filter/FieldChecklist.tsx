@@ -313,7 +313,7 @@ export function FieldChecklist({
             fields that fit. */}
         <div
           data-slot="field-checklist"
-          className="fve:-mx-2.5 fve:-my-2 fve:flex fve:min-h-0 fve:flex-1 fve:flex-col fve:gap-3 fve:overflow-y-auto fve:px-2.5 fve:py-2"
+          className="fve:relative fve:-mx-2.5 fve:-my-2 fve:flex fve:min-h-0 fve:flex-1 fve:flex-col fve:gap-3 fve:overflow-y-auto fve:px-2.5 fve:py-2"
         >
           {sections.length === 0 ? (
             <Empty data-slot="field-checklist-none" className="fve:p-0">

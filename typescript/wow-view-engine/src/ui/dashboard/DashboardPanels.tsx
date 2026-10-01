@@ -232,7 +232,7 @@ export function MarkdownPanel({
     <div
       data-slot="markdown-panel"
       className={cn(
-        'fve:flex fve:h-full fve:flex-col fve:gap-2 fve:overflow-auto',
+        'fve:relative fve:flex fve:h-full fve:flex-col fve:gap-2 fve:overflow-auto',
         MARKDOWN_PROSE,
       )}
     >
@@ -352,7 +352,7 @@ export function LinksPanel({ items }: LinksPanelProps) {
   return (
     <ul
       data-slot="links-panel"
-      className="fve:flex fve:flex-col fve:overflow-auto"
+      className="fve:relative fve:flex fve:flex-col fve:overflow-auto"
     >
       {items.map(item => (
         <li key={`${item.href}:${item.label}`}>
