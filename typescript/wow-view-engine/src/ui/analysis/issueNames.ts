@@ -68,7 +68,7 @@ const ALIAS_ITSELF = 'analysis.alias.';
  * - a time unit (`unit`) as the dimension's granularity reads, 「按月」, and
  *   a calendar part (`part`) as its cycle reads, 「按星期」;
  * - a dimension type (`type` of `analysis.group.unsupported`) as the
- *   dimension card offers it, 「按数值区间」;
+ *   dimension card offers it, 「数值区间」;
  * - a condition's operator (`operator`) as its operator select says it.
  *
  * `chart.as-table` is said with the chart and its reason, the tile's own

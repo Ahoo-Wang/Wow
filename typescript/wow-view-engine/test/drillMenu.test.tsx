@@ -311,7 +311,7 @@ describe('the follow-up menu on one group', () => {
   });
 
   /**
-   * 「只看这一组」 is a question of its own beside the one it came from
+   * 「只显示这一组」 is a question of its own beside the one it came from
    * (2026-09-23 audit): it used to write the group into this view's range
    * and run, with no way back but undoing it by hand. Now the narrowed
    * question opens as an unsaved view, named by what it is, with the same

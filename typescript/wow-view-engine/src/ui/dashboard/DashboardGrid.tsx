@@ -80,7 +80,7 @@ export interface DashboardGridProps {
   dashboard: DashboardController;
   /**
    * Whether the board is being built (D22 A): panels may be dragged,
-   * resized and placed by keyboard, and each panel's menu offers 「改」.
+   * resized and placed by keyboard, and each panel's menu offers 「编辑面板」.
    * Read-only by default — nothing on a board being read moves it.
    */
   editable?: boolean;

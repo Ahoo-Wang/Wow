@@ -541,7 +541,7 @@ export function OrdersPage() {
 离开这块板的每一条路都经过你给的一个路由 `onNavigate(to)`——包本身从不碰地址。不给，就一条都没有：
 
 - 面板「⋯」里的「在工作台中打开」：`{ kind: 'view', definitionId, instanceId, scopeFilter, filter, from }`，面板显示的已保存视图，已经换成那个视图自己的字段名。不归读者的——板子的固定范围，以及页面持有的锁定或隐藏的筛选——是 `scopeFilter`：视图在它之下跑，是作用域，到了工作台谁也拿不掉。读者在板上设的是 `filter`：成为视图自己的条件，于是视图开着就是「已修改」，每一条都能拿掉——全拿掉就回到保存时的样子，不再「已修改」——「还原」一次全拿掉。板内自建的分析交的是 `{ kind: 'unsaved', … }`，读者的值在它的条件里，页面持有的是它的 `scopeFilter`。
-- **点一组**（柱、扇区、表格的一行）打开分析视图的追问菜单（查看这些记录、按其他维度细分、只看这一组）。每一项都是一个没保存的视图：`{ kind: 'unsaved', definitionId, title, config, scopeFilter, named, from }`，读者的值与这一组已经在它的条件里，页面持有的是作用域；`named` 是标题里那一组，读者把它拿掉后工作台的名字就不再带它。
+- **点一组**（柱、扇区、表格的一行）打开分析视图的追问菜单（查看这些记录、按其他维度细分、只显示这一组）。每一项都是一个没保存的视图：`{ kind: 'unsaved', definitionId, title, config, scopeFilter, named, from }`，读者的值与这一组已经在它的条件里，页面持有的是作用域；`named` 是标题里那一组，读者把它拿掉后工作台的名字就不再带它。
 - 每一条路交法相同，`from` 是回去的路：把目标交给 `DataWorkbench` 的 `handOver` 属性（每个新对象打开一次），再给同一个 `onNavigate`，工作台就在标题栏下画「返回〈仪表盘〉」，按下交出 `{ kind: 'dashboard', definitionId, instanceId, filters, tab }`——离开时的那块板；只有读者在板子交来的之外又改过，才先问一句。宿主不必自己画返回键。
 - **「点击时…」**（编辑中）：面板也可以改为用点中的一组设置仪表盘筛选（交叉筛选——不需要路由；其余接线的面板跟着筛，被点的面板只标出这一组，再点一次撤销），或者去另一个已保存的视图（`{ kind: 'view' }`，交法同上，这一组在它自己的条件里）、另一块仪表盘，或你的一个页面（`{ kind: 'url', url }`，`{{字段}}` 换成点中的值并编码）。
 - **另一块仪表盘**：作者逐个列出目的板的筛选，每个映射到这块面板的一个维度、这块板上一个同类型的筛选，或者不带——不按名字猜。点一组时交给你 `{ kind: 'dashboard', definitionId, instanceId, filters }`：`filters` 就是那块板的 `DashboardFilters`，映射了的筛选是这一组的值或这块板那个筛选点的那一刻的值，其余是它们的默认值。把它交给 `DashboardWorkbench` 的 `initialFilters`（或 `ViewEngine.open` 的 `filters`）——它是读者的，不写进任何一块板的配置。映射失效（筛选或维度被删、那块板被删）时面板上挂 warning，点一组改为打开追问菜单。

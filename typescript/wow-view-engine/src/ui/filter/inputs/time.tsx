@@ -42,7 +42,7 @@ import {
 
 /**
  * The clock half of the calendar (用户 2026-09-25): a date is a whole day
- * until a time is asked for. Folded, it says 「按整天」 and offers
+ * until a time is asked for. Folded, it says 「整天」 and offers
  * 「+ 指定时刻」; open, one field a bound — 「起始时刻」 and 「截止时刻」 on a
  * range — each typed as hours and minutes, each cleared back to the whole
  * day by its ×, and 「移除时刻」 clears both and folds it again.

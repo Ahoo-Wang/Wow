@@ -62,7 +62,7 @@ const count: AnalysisColumnView = {
 describe('the reading line', () => {
   it('says a time dimension with its granularity, as its header does', () => {
     expect(analysisReading([byDay, count], formatters(zhCN))).toBe(
-      '按创建时间（按日） · 记录数',
+      '创建时间（按日） · 记录数',
     );
     expect(
       analysisReading([byDay, byWarehouse, count], formatters(defaultMessages)),
@@ -75,6 +75,6 @@ describe('the reading line', () => {
         [{ ...byDay, label: '下单日', named: true }, count],
         formatters(zhCN),
       ),
-    ).toBe('按下单日 · 记录数');
+    ).toBe('下单日 · 记录数');
   });
 });

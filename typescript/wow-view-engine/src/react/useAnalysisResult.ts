@@ -445,7 +445,7 @@ export function useAnalysisResult(
         runtime.kinds,
       ),
     }));
-    // Over elements only the records: 「只看这一组」 and 「按…拆开」 would
+    // Over elements only the records: 「只显示这一组」 and 「按…拆开」 would
     // narrow the range the elements are counted under, which is the
     // expansion's gate and not the view's conditions — not offered yet.
     if (expanded)

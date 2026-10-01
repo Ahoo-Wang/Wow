@@ -378,7 +378,7 @@ export const DeletionReading: Story = {
 
 /**
  * A `withTime` field's condition carries a time of day, in the same control
- * as the calendar and with one submission (D17-1) — folded to 「按整天」
+ * as the calendar and with one submission (D17-1) — folded to 「整天」
  * until 「指定时刻」 is pressed (用户 2026-09-25), then typed to the minute,
  * an hour box and a minute box a bound. Each bound's × takes it back to the
  * whole day, 「移除时刻」 folds the section again, and the summary says the

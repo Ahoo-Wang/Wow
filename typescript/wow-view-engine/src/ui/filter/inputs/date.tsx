@@ -58,7 +58,7 @@ const UNSET = 'unset';
  *
  * `blank` words a value of nothing as a shape of its own, for a filter that
  * may hold nothing: a board's optional date filter left unset narrows no
- * panel, and its control says that — 「按各面板自己的范围」 — rather than
+ * panel, and its control says that — 「各面板自己的范围」 — rather than
  * 「指定日期 · 选择日期 – 选择日期」 over panels reading last month.
  *
  * `oneDay` holds it to one day (`DashboardField.oneDay`): one calendar day,

@@ -184,6 +184,36 @@ describe('the Chinese catalogue', () => {
     expect(zhCN['label.operator.EARLIER_DAYS']).toBe('几天前');
   });
 
+  /**
+   * A heading, an option or a field label is a name. 「看」「改」 heading a
+   * menu read as one-character terms (a screen reader said 「看，组」), and
+   * 「按值」「看谁的分布」「谁可以看到」 made a verb stand for a concept
+   * (second-round review R2-70, R2-71; user ruling 2026-10-01). Natural
+   * sentences keep their verbs: 「按月」, 「按{field}升序排序」,
+   * 「{field} 在 {period}」, 「在工作台中打开」.
+   */
+  it('names a thing rather than using 看, 按 or 改 as its word', () => {
+    const terms = Object.entries(zhCN).filter(
+      ([, words]) =>
+        /^[看按改在]$/.test(words) ||
+        /看谁|只看|开始看|范围看|给谁看|谁可以看到|按整天/.test(words),
+    );
+    expect(terms).toEqual([]);
+
+    const named = [
+      'label.analysis.add-formula',
+      'label.analysis.add-derived',
+      'label.filters.date-own',
+      'label.date.time-whole-day',
+      'label.save.audience',
+      ...Object.keys(zhCN).filter(key => key.startsWith('label.group.type.')),
+    ] as const;
+    expect(
+      named.filter(key => zhCN[key as keyof typeof zhCN].startsWith('按')),
+    ).toEqual([]);
+    expect(zhCN['label.analysis.reading']).toBe('{dimensions} · {metrics}');
+  });
+
   it('serves a component through the provider', () => {
     render(
       <MessagesProvider messages={zhCN}>

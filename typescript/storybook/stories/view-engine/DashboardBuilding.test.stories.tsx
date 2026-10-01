@@ -552,7 +552,7 @@ export const EditIsThePrimaryAtTheEnd: Story = {
 
 /**
  * A board being read moves under nothing (D22 A): no grip, no corner, no
- * arrange menu, and the panel's 「⋯」 holds 「看」 alone — until 编辑.
+ * arrange menu, and the panel's 「⋯」 holds 「数据」 alone — until 编辑.
  */
 export const NoGripsUntilBuilding: Story = {
   ...DisplayAllPanels,
@@ -875,7 +875,7 @@ export const CreateOwnedAnalysis: Story = {
     const title = inside.getByRole('textbox', {
       name: zhCN['label.panel.new-analysis.title'],
     });
-    await waitFor(() => expect(title).toHaveValue('按仓库 · 记录数'));
+    await waitFor(() => expect(title).toHaveValue('仓库 · 记录数'));
     // Held inside while it is open: the keyboard starts on the first
     // question, which data.
     await waitFor(() =>

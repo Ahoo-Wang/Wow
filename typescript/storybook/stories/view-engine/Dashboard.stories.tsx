@@ -814,7 +814,7 @@ export const GlobalFilter: Story = { args: { variant: 'filtered' } };
 
 /**
  * Press 「编辑」 to build the board (D22 A): the edit bar comes up with
- * 「＋ 添加」, 取消 and 保存, every panel's 「⋯」 gains 「改」, and panels can be
+ * 「＋ 添加」, 取消 and 保存, every panel's 「⋯」 gains 「编辑面板」, and panels can be
  * dragged by their grip or resized by their corner — or either from the
  * keyboard: both handles answer the arrow keys, and the menu beside the grip
  * says the same eight commands in words. Panels run as the board changes;

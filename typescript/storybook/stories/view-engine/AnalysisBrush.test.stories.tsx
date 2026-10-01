@@ -208,7 +208,7 @@ export const BrushThreeDaysToRecords: Story = {
 };
 
 /**
- * 「只看这段时间」：同一个问题只问这一段，开在旁边——图上只剩那三天。
+ * 「只显示这段时间」：同一个问题只问这一段，开在旁边——图上只剩那三天。
  */
 export const BrushThenOnlyThisPeriod: Story = {
   ...DisplayInTheWorkbench,

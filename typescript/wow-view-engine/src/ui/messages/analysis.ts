@@ -47,7 +47,7 @@ export const analysisMessages = {
   'label.analysis.tip.elements':
     'Counts the entries of an array in each record: once {name} is expanded, each {name} counts as one, and the metrics and dimensions are chosen from its fields. You can go one level further in.',
   'label.analysis.tip.metrics':
-    'The numbers to work out: a record count, a sum or an average of a field, each optionally over only the records that match. Drag to reorder; a metric calculated from others stays after the ones it reads.',
+    'The numbers to work out: a record count, a sum or an average of a field, each optionally over only the records that match. Drag to reorder; a derived metric stays after the ones it reads.',
   'label.analysis.tip.dimensions':
     'What to compare by: each dimension cuts the result into groups, and several cut it in turn.',
   'label.analysis.tip.result':
@@ -150,8 +150,8 @@ export const analysisMessages = {
   'label.analysis.group-by-currency': 'Group by {field}',
   'label.analysis.add-metric': 'Add metric',
   // The two metrics written rather than picked (D20 屏 B), and their cards.
-  'label.analysis.add-formula': 'By formula',
-  'label.analysis.add-derived': 'From other metrics',
+  'label.analysis.add-formula': 'Formula',
+  'label.analysis.add-derived': 'Derived metric',
   // A time between two moments (N3, DATE_DIFF): built on its card from the
   // two times and a unit, and cut into bands as a dimension from its menu.
   'label.analysis.add-duration': 'Time between two moments',

@@ -671,7 +671,7 @@ describe("the result's reading says which groups were kept", () => {
     );
 
     expect(reading()!.textContent).toBe(
-      '按Warehouse · 记录数、Amount的总和、Amount的任一值 · 只保留 Amount的总和 大于 2,000 并且 记录数 不大于 5',
+      'Warehouse · 记录数、Amount的总和、Amount的任一值 · 只保留 Amount的总和 大于 2,000 并且 记录数 不大于 5',
     );
 
     cleanup();
@@ -680,7 +680,7 @@ describe("the result's reading says which groups were kept", () => {
       { messages: zhCN, locale: 'zh-CN' },
     );
     expect(reading()!.textContent).toBe(
-      '按Warehouse · 记录数、Amount的总和、Amount的任一值 · 只保留符合自定义规则的组',
+      'Warehouse · 记录数、Amount的总和、Amount的任一值 · 只保留符合自定义规则的组',
     );
   });
 

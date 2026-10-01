@@ -284,7 +284,7 @@ export interface WorkbenchController {
   /**
    * Opens `config` as a view of its own, held with the open view as its
    * origin: the follow-up that narrows an analysis to one group (D20 追问
-   * 「只看这一组」) is a new question beside the one it came from, not an
+   * 「只显示这一组」) is a new question beside the one it came from, not an
    * edit that writes over it. The origin stays open with its result, so
    * `back()` shows that result again without running it; the view opened is
    * unsaved, named `title`, under the origin's injected scope, and saving it

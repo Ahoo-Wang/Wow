@@ -72,12 +72,12 @@ export function useBoardBuilding(): BoardBuilding | null {
 
 /**
  * What one panel's menu offers, each present only when it can be done
- * (D4): 「看」 always (`ViewingCommands`), 「改」 while the board is being
+ * (D4): 「数据」 always (`ViewingCommands`), 「编辑面板」 while the board is being
  * built (`EditingCommands`).
  */
 export type PanelCommands = ViewingCommands & EditingCommands;
 
-/** 「看」: what a panel offers whoever reads the board. */
+/** 「数据」: what a panel offers whoever reads the board. */
 export interface ViewingCommands {
   /**
    * 在工作台中打开: the view it shows, under the board's filters mapped onto
@@ -95,7 +95,7 @@ export interface ViewingCommands {
   exportRows?: ViewRuntime<DataViewConfig>;
 }
 
-/** 「改」: what a panel offers while the board is being built. */
+/** 「编辑面板」: what a panel offers while the board is being built. */
 export interface EditingCommands {
   /**
    * 复制为共享视图并替换…: the personal view a shared board stands on,
@@ -195,7 +195,7 @@ function hasOwnLook(panel: DashboardPanelView['panel']): boolean {
   return presentationMembersOf(panel).length > 0;
 }
 
-/** One panel's commands, read off the board as it stands: 「看」 and 「改」. */
+/** One panel's commands, read off the board as it stands: 「数据」 and 「编辑面板」. */
 export function panelCommands(input: PanelCommandInput): PanelCommands {
   return { ...viewingCommands(input), ...editingCommands(input) };
 }
@@ -212,7 +212,7 @@ function opensInstead(panel: unknown): string | undefined {
     : undefined;
 }
 
-/** 「看」: open it where views are worked on, refresh it, export its rows. */
+/** 「数据」: open it where views are worked on, refresh it, export its rows. */
 function viewingCommands({
   panel,
   name,
@@ -259,7 +259,7 @@ function viewingCommands({
 }
 
 /**
- * 「改」, only while the board is being built: renaming and removing
+ * 「编辑面板」, only while the board is being built: renaming and removing
  * everywhere, and — not in the one-column reading, where a copy or a new
  * tab would be a placement — what a data or a content panel is changed by,
  * copying it and moving it to another tab.

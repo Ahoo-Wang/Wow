@@ -232,9 +232,10 @@ export function AnalysisToolbar({
 }
 
 /**
- * What a result's numbers are, in one line: 「按仓库 · 记录数」 — the
- * dimensions, then the metrics, each as its column is headed: a time
- * dimension with its granularity, 「按创建时间（按日） · 记录数」, since the
+ * What a result's numbers are, in one line: 「仓库 · 记录数」 — the
+ * dimensions, then the metrics, as the table's columns run, each as its
+ * column is headed (a name, not 「按仓库」: 按 is no term of its own): a time
+ * dimension with its granularity, 「创建时间（按日） · 记录数」, since the
  * axis and the header under it say 「创建时间（按日）」 and a line that
  * dropped it read as a different question. The toolbar
  * says it over the rows; a new analysis in a dashboard is named by it until

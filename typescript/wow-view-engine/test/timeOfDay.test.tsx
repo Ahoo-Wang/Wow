@@ -282,6 +282,6 @@ describe('the time beside the calendar', () => {
     );
     expect(
       document.querySelector('[data-slot="date-time-status"]')?.textContent,
-    ).toBe('已清除起始时刻，按整天');
+    ).toBe('已清除起始时刻，改为整天');
   });
 });

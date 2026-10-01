@@ -289,7 +289,7 @@ describe('a waterfall', () => {
       column: alias => (alias === 'amount' ? '金额的总和' : '仓库'),
       locale: 'zh-CN',
     });
-    expect(reading.name).toBe('瀑布图：金额的总和，按仓库');
+    expect(reading.name).toBe('瀑布图：仓库 · 金额的总和');
     expect(reading.header).toEqual(['仓库', '变化', '累计']);
     expect(reading.rows).toEqual([
       ['期初', '+100', '100'],
@@ -556,7 +556,7 @@ describe('a treemap', () => {
         ({ orders: '记录数', region: '地区', warehouse: '仓库' })[alias ?? ''],
       locale: 'zh-CN',
     });
-    expect(reading.name).toBe('矩形树图：记录数，按地区、仓库');
+    expect(reading.name).toBe('矩形树图：地区、仓库 · 记录数');
     expect(reading.header).toEqual(['地区', '仓库', '记录数', '占比']);
     expect(reading.rows).toEqual([
       ['华东', 'C', '3', '75.0%'],

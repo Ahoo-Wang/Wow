@@ -919,7 +919,7 @@ export const EveryValueWithItsExtremes: Story = {
 /**
  * 批 C in A-02: dragging across a stretch of the 25 months of daily GMV
  * opens the follow-up menu for that stretch — 「下单时间 介于 A ～ B」 — with
- * 「查看这些记录」 and 「只看这段时间」. The saved view stays as it was.
+ * 「查看这些记录」 and 「只显示这段时间」. The saved view stays as it was.
  */
 export const BrushADailyStretch: Story = {
   ...DisplayOrderAnalysis,
@@ -995,12 +995,12 @@ export const BrushADailyStretch: Story = {
  * A-11 is scoped to 2025-10-15 ~ 11-20 on the very field it buckets by, so
  * a day of it is a range on a field the view already bounds. 「查看这些记录」
  * opens that day's orders — the day taking the stretch's place, since the
- * stretch holds it whole — and 「只看这一组」 asks the same question of the
+ * stretch holds it whole — and 「只显示这一组」 asks the same question of the
  * day alone: one bar.
  */
 export const DrillIntoADayOfDouble11: Story = {
   ...DisplayOrderAnalysis,
-  name: '双 11 当天：查看这些记录与只看这一组（A-11）',
+  name: '双 11 当天：查看这些记录与只显示这一组（A-11）',
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     const title = '2025 双 11 前后的日 GMV';
