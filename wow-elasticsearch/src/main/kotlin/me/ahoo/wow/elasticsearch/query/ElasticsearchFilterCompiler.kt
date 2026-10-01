@@ -165,22 +165,10 @@ object ElasticsearchFilterCompiler {
                     .terms(values).minimumShouldMatch(values.size.toString())
             }
         }
-        is IsNullFilter -> bool {
-            it.mustNot { query ->
-                query.exists { exists ->
-                    exists.field(admitted.physicalPath(filter.field))
-                }
-            }
-        }
-        is IsNotNullFilter -> exists { it.field(admitted.physicalPath(filter.field)) }
-        is ExistsFilter -> exists { it.field(admitted.physicalPath(filter.field)) }
-        is NotExistsFilter -> bool {
-            it.mustNot { query ->
-                query.exists { exists ->
-                    exists.field(admitted.physicalPath(filter.field))
-                }
-            }
-        }
+        is IsNullFilter -> bool { it.mustNot(present(admitted.physicalPath(filter.field), nested)) }
+        is IsNotNullFilter -> present(admitted.physicalPath(filter.field), nested)
+        is ExistsFilter -> present(admitted.physicalPath(filter.field), nested)
+        is NotExistsFilter -> bool { it.mustNot(present(admitted.physicalPath(filter.field), nested)) }
         is ElementMatchFilter -> nested {
             val nestedPath = admitted.physicalPath(filter.field)
             it.path(nestedPath).query(compileNormalized(filter.predicate, admitted, nested = true))
@@ -207,17 +195,27 @@ object ElasticsearchFilterCompiler {
             }
             DeletionState.ALL -> matchAll { it }
         }
-        is IsEmptyFilter -> bool {
-            it.mustNot { query ->
-                query.exists { exists ->
-                    exists.field(admitted.physicalPath(filter.field))
-                }
-            }
-        }
+        is IsEmptyFilter -> bool { it.mustNot(present(admitted.physicalPath(filter.field), nested)) }
 
         is IsEmptyStringFilter, is IsNotEmptyStringFilter, is RelativeTimeFilter ->
             throw QueryExecutionException("Filter [${filter.operator}] must be normalized before compilation.")
     }
+
+    /**
+     * Whether the document holds a value at [path]. A value longer than a keyword's `ignore_above` (or one
+     * `ignore_malformed` drops) is not indexed, so `exists` misses it; Elasticsearch names such fields in the root
+     * document's `_ignored`, which counts them as present. Without it a resource whose ABAC tag is over-long would
+     * read as untagged, a public resource. Inside a nested query `_ignored`, a root document field, cannot be read.
+     */
+    private fun present(path: String, nested: Boolean): Query {
+        val exists = exists { it.field(path) }
+        if (nested) return exists
+        return bool {
+            it.should(exists, term { ignored -> ignored.field(IGNORED_FIELD).value(path) }).minimumShouldMatch("1")
+        }
+    }
+
+    private const val IGNORED_FIELD = "_ignored"
 
     /** Inside a nested query the document id is not addressable by `_id`. */
     private fun String.addressesDocumentId(nested: Boolean): Boolean = !nested && this == DOCUMENT_ID_FIELD

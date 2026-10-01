@@ -362,9 +362,29 @@ private fun String.sourceTemplate(arrayPaths: Set<String>): QueryPathTemplate {
     )
 }
 
-/** A length-limited index can represent a logical domain only when every declared value fits. */
+/**
+ * The smallest `ignore_above` read as indexing every value: Wow's default index templates cap their keywords at
+ * 8191 characters, the most that fit Lucene's 32766-byte term limit at four UTF-8 bytes per character. Without the cap
+ * a longer value fails the whole document write.
+ *
+ * A keyword capped at this length or more has the operators of an uncapped keyword. Its limit: a value longer than
+ * `ignore_above` is stored in `_source` but not indexed, so no filter matches it (an `eq`, `in`, `contains` or prefix
+ * with that value finds nothing; `ne` and `notIn` include the document), it sorts as missing, it falls into no terms
+ * bucket and an expression reads no value. `exists` and `isNull` still see it through `_ignored`
+ * (`ElasticsearchFilterCompiler`), so an over-long ABAC tag never reads as an untagged, public resource; inside a
+ * nested element it reads as missing.
+ */
+internal const val UNCAPPED_IGNORE_ABOVE = 8191
+
+/** Whether a keyword with [ignoreAbove] counts as indexing every value (see [UNCAPPED_IGNORE_ABOVE]). */
+private fun indexesEveryValue(ignoreAbove: Int?): Boolean = ignoreAbove == null || ignoreAbove >= UNCAPPED_IGNORE_ABOVE
+
+/**
+ * A field indexing every value ([UNCAPPED_IGNORE_ABOVE]) represents any logical domain; a field with a smaller
+ * `ignore_above` only a string enum whose every declared value fits.
+ */
 private fun QueryValueSchema.provesIndexedValues(ignoreAbove: Int?): Boolean {
-    if (ignoreAbove == null) return true
+    if (ignoreAbove == null || indexesEveryValue(ignoreAbove)) return true
     return operationValues().all { value ->
         if (value.kind == QueryValueKind.NULL) return@all true
         if (value.kind != QueryValueKind.SCALAR || value.valueTypes != setOf(QueryValueType.STRING)) return@all false
@@ -406,7 +426,7 @@ private val ElasticsearchMappedField.queryable: Boolean
     get() = indexed || (sortable && kind in DOC_VALUE_QUERY_KINDS)
 
 private fun ElasticsearchMappedField.supportsModelFullText(): Boolean {
-    if (ignoreAbove != null || nullValue != null) return false
+    if (!indexesEveryValue(ignoreAbove) || nullValue != null) return false
     return indexed && kind in MATCH_KINDS
 }
 

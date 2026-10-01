@@ -99,7 +99,8 @@ flowchart LR
 
 Elasticsearch 后端的能力判定派生自**实际索引映射**，动态推断的字符串映射（`text` + `keyword` 子字段，`ignore_above: 256`）存在长度上限——超过上限的值不进入 `keyword` 子字段。在这类字段上做 `TERMS` 分组、`ANY` 指标或精确匹配，超长值会被**静默丢桶**，因此 schema 校验直接拒绝（错误信息为该字段不支持 `AGGREGATE_TERMS`/`EXACT_MATCH`），而不是返回不完整的结果。MongoDB 无此概念，逻辑 schema 直接放行——这是两端有意的语义差异，不是缺陷。
 
-- 需要聚合或精确匹配的字符串字段应声明**显式 `keyword` 映射**（无 `ignore_above`），例如快照元数据中的函数名字段。
+- 需要聚合或精确匹配的字符串字段应声明**显式 `keyword` 映射**（无 `ignore_above`，或 `ignore_above` 不小于 8191），例如快照元数据中的函数名字段。
+- `ignore_above` 不小于 8191 的 `keyword`（Wow 默认模板为 `tags.*`、`id`、`*Id` 设为 8191）按无上限 keyword 放行；长于上限的值不进索引，因此匹配不到任何过滤条件，也不进入任何桶（见[带 `ignore_above` 的 keyword](../extensions/elasticsearch.md#keyword-ignore-above)）。
 - 已由枚举值完整声明（能证明全部值在上限内）的受限字符串不受影响。
 
 ## Metric：指标

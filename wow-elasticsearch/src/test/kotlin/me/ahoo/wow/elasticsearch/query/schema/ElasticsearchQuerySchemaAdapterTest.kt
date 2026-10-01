@@ -495,7 +495,7 @@ class ElasticsearchQuerySchemaAdapterTest {
     }
 
     @Test
-    fun `ignore above retracts native operations while preserving source and bounded enum proof`() {
+    fun `ignore above below the default templates' cap retracts native operations while preserving source and bounded enum proof`() {
         val bounded = QueryValueSchema(
             QueryValueKind.SCALAR,
             valueTypes = setOf(QueryValueType.STRING),
@@ -519,6 +519,81 @@ class ElasticsearchQuerySchemaAdapterTest {
         schema.path("state.bounded", QueryCapability.EXACT_MATCH).assert().isEqualTo("state.bounded")
         schema.path("state.bounded", QueryCapability.PRESENCE).assert().isEqualTo("state.bounded")
         schema.path("state.bounded", QueryCapability.CURSOR_SORT).assert().isEqualTo("state.bounded")
+    }
+
+    @Test
+    fun `a keyword capped at the default templates' ignore above has the operators of an uncapped keyword`() {
+        val definition = logical(
+            "state" to objectValue(
+                mapOf(
+                    "definitionId" to scalar(QueryValueType.STRING),
+                    "capped" to scalar(QueryValueType.STRING),
+                    "uncapped" to scalar(QueryValueType.STRING),
+                )
+            )
+        )
+        val schema = bind(
+            definition,
+            TypeMapping.of {
+                it.properties("state.definitionId") { it.keyword { it.ignoreAbove(UNCAPPED_IGNORE_ABOVE) } }
+                    .properties("state.capped") { it.keyword { it.ignoreAbove(UNCAPPED_IGNORE_ABOVE - 1) } }
+                    .properties("state.uncapped") { it.keyword { it } }
+            }
+        )
+        val uncapped = schema.field(QueryField("state.uncapped"))!!.bindings.keys
+        uncapped.assert().contains(
+            QueryCapability.PRESENCE,
+            QueryCapability.EXACT_MATCH,
+            QueryCapability.LITERAL_MATCH,
+            QueryCapability.SORT,
+            QueryCapability.CURSOR_SORT,
+            QueryCapability.AGGREGATE_TERMS,
+        )
+        schema.field(QueryField("state.definitionId"))!!.bindings.keys.assert().isEqualTo(uncapped)
+        uncapped.forEach { capability ->
+            schema.path("state.definitionId", capability).assert().isEqualTo("state.definitionId")
+        }
+        schema.field(QueryField("state.capped"))!!.bindings.assert().isEmpty()
+        schema.field(QueryField("state.capped"))!!.projectionField.assert().isEqualTo(QueryField("state.capped"))
+    }
+
+    @Test
+    fun `an enum keeps its bounded proof below the cap and is admitted at it`() {
+        val enum = QueryValueSchema(
+            QueryValueKind.SCALAR,
+            valueTypes = setOf(QueryValueType.STRING),
+            enumValues = listOf(tools.jackson.databind.node.JsonNodeFactory.instance.stringNode("longer")),
+        )
+        val schema = bind(
+            logical("state" to objectValue(mapOf("short" to enum, "long" to enum))),
+            TypeMapping.of {
+                it.properties("state.short") { it.keyword { it.ignoreAbove(3) } }
+                    .properties("state.long") { it.keyword { it.ignoreAbove(UNCAPPED_IGNORE_ABOVE) } }
+            }
+        )
+        schema.field(QueryField("state.short"))!!.bindings.assert().isEmpty()
+        schema.path("state.long", QueryCapability.EXACT_MATCH).assert().isEqualTo("state.long")
+    }
+
+    @Test
+    fun `ABAC filters compile on tags capped at the default templates' ignore above and see over-long tags`() {
+        val schema = bind(
+            logical(
+                "tags" to objectValue(additional = array(scalar(QueryValueType.STRING))),
+                "deleted" to scalar(QueryValueType.BOOLEAN)
+            ),
+            TypeMapping.of {
+                it.properties("tags.department") { it.keyword { it.ignoreAbove(UNCAPPED_IGNORE_ABOVE) } }
+                    .properties("deleted") { it.boolean_ { it } }
+            }
+        )
+        val access = with(me.ahoo.wow.query.snapshot.filter.AbacQueryPolicy) {
+            mapOf("department" to listOf("eng")).toFilterExpression()
+        }
+        val compiled = me.ahoo.wow.elasticsearch.query.ElasticsearchFilterCompiler.compile(access, schema).toString()
+        compiled.assert().contains("\"tags.department\"")
+        // A tag longer than ignore_above is not indexed: `_ignored` keeps it from reading as an untagged resource.
+        compiled.assert().contains("\"_ignored\"")
     }
 
     @Test

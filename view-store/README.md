@@ -56,7 +56,8 @@ which Wow creates at startup when the index does not exist yet, beside its own s
 
 - the queried paths are `keyword` without `ignore_above` (`state.definitionId`, `state.appId`, `state.config.kind`
   and the panel references), so that the query schema admits the filters the view store sends: on Wow's template
-  alone, `*Id` strings carry `ignore_above` and are refused;
+  alone, the `*Id` strings are queryable (their `ignore_above` is 8191), but `state.config.kind` is mapped as `text`
+  with a `keyword` capped at 256 and is refused;
 - `state.config` is `dynamic: false`: it holds whatever the engine's config holds, values of several types under
   one key included, and only `kind` and `panels` (a `nested` array, for the shared-board check, with `instanceId`,
   `opens` and `click.instanceId`) are fields. The server refuses a config whose `panels` is not an array of objects

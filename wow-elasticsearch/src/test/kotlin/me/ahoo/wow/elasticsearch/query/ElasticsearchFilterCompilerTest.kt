@@ -214,11 +214,13 @@ class ElasticsearchFilterCompilerTest {
                     it.field("state.tags").terms(FieldValue.of(1), FieldValue.of(2))
                         .minimumShouldMatch("2")
                 },
-            IsEmptyFilter(tagsField) to bool { it.mustNot(exists { exists -> exists.field("state.tags") }) },
-            IsNullFilter(field) to bool { it.mustNot(exists { exists -> exists.field("state.value") }) },
-            IsNotNullFilter(field) to exists { it.field("state.value") },
-            ExistsFilter(field) to exists { it.field("state.value") },
-            NotExistsFilter(field) to bool { it.mustNot(exists { exists -> exists.field("state.value") }) },
+            IsEmptyFilter(tagsField) to bool { it.mustNot(present("state.tags")) },
+            IsNullFilter(field) to bool { it.mustNot(present("state.value")) },
+            IsNotNullFilter(field) to present("state.value"),
+            ExistsFilter(field) to present("state.value"),
+            NotExistsFilter(field) to bool { it.mustNot(present("state.value")) },
+            ElementMatchFilter(QueryField("state.items"), ExistsFilter(QueryField("name"))) to
+                nested { it.path("storage.items").query(exists { exists -> exists.field("storage.items.name") }) },
             ElementMatchFilter(QueryField("state.items"), EqualFilter(QueryField("name"), text)) to
                 nested {
                     it.path("storage.items").query(term { term -> term.field("storage.items.name").value("value") })
@@ -329,7 +331,11 @@ class ElasticsearchFilterCompilerTest {
                 )
                 put(
                     QueryField("state.items.name"),
-                    nativeBindings(QueryField("storage.items.name"), QueryCapability.EXACT_MATCH),
+                    nativeBindings(
+                        QueryField("storage.items.name"),
+                        QueryCapability.EXACT_MATCH,
+                        QueryCapability.PRESENCE,
+                    ),
                 )
                 put(
                     QueryField("state.items._id"),
@@ -352,6 +358,12 @@ class ElasticsearchFilterCompilerTest {
         )
 
         private fun json(value: Any?): JsonNode = JsonSerializer.valueToTree(value)
+
+        /** A value at [path]: indexed, or named in `_ignored` when `ignore_above` kept it out of the index. */
+        private fun present(path: String): Query = bool {
+            it.should(exists { exists -> exists.field(path) }, term { term -> term.field("_ignored").value(path) })
+                .minimumShouldMatch("1")
+        }
 
         /** Admits [filter] against [SCHEMA] and compiles it, exactly as a backend does. */
         private fun ElasticsearchFilterCompiler.compileAdmitted(filter: FilterExpression): Query =
