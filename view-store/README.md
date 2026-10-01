@@ -141,3 +141,37 @@ mkdir -p "$service_dir/logs" "$service_dir/data" "$service_dir/config"
 test -e "$service_dir/config/application.yaml" || cp "$service_dir/src/dist/config/application.yaml" "$service_dir/config/application.yaml"
 ./gradlew :wow-view-store-server:run
 ```
+
+### Docker image
+
+`.github/workflows/view-store-deploy.yml` builds the image from `installDist` for `linux/amd64` and `linux/arm64`
+and pushes it as:
+
+- `ahoowang/wow-view-store-server`
+- `ghcr.io/ahoo-wang/wow-view-store-server`
+- `registry.cn-shanghai.aliyuncs.com/ahoo/wow-view-store-server`
+
+A `v<version>` tag publishes `<version>` and `<major>.<minor>`; a push to `main` (and the daily run) publishes
+`main`. The image runs `/opt/wow-view-store-server/bin/wow-view-store-server` as a non-root user on port 8080, with
+the health check on `/actuator/health`. It reads its configuration from `/opt/wow-view-store-server/config/`, which
+holds the `src/dist/config/application.yaml` template (everything on `localhost`): mount your own `application.yaml`
+there, or override the settings with environment variables:
+
+| Variable | Setting | Template value |
+| --- | --- | --- |
+| `SPRING_MONGODB_URI` | `spring.mongodb.uri` | `mongodb://root:root@localhost:27017/wow_view_store_db?authSource=admin&maxIdleTimeMS=60000` |
+| `WOW_KAFKA_BOOTSTRAPSERVERS` | `wow.kafka.bootstrap-servers` | `PLAINTEXT://localhost:9092` |
+| `WOW_KAFKA_TOPICPREFIX` | `wow.kafka.topic-prefix` | `wow.view-store-server.` |
+| `SPRING_DATA_REDIS_URL` | `spring.data.redis.url` (CosId machine ids) | `redis://localhost:6379` |
+
+The JVM options (`-Xms512M -Xmx512M`, ZGC, GC log under `logs/`, heap dumps under `data/`) come from the
+`installDist` start script; set `JAVA_OPTS` to add to them. As with every deployment of the view store, the
+container must be reachable only through the CoSec gateway.
+
+```bash
+docker run -d -p 8080:8080 \
+  -e SPRING_MONGODB_URI='mongodb://root:root@mongo:27017/wow_view_store_db?authSource=admin' \
+  -e WOW_KAFKA_BOOTSTRAPSERVERS='PLAINTEXT://kafka:9092' \
+  -e SPRING_DATA_REDIS_URL='redis://redis:6379' \
+  ahoowang/wow-view-store-server:<version>
+```
