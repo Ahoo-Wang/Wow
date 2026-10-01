@@ -297,6 +297,7 @@ src/
     queryFailure.ts           — `queryFailureIssue`: the Issue of a failed query — `runtime.query.failed`, `runtime.query.failed.<code>` for a rule a Wow service named, with the field's label and the condition on it, or `runtime.query.forbidden` for a source that refused the reader (403, `IllegalAccess*`); `isForbiddenQuery` (D40)
     refreshTimer.ts           — The one auto-refresh timer both runtimes arm; `refreshIntervalOf`, `refreshDelayOf`; `MomentTimer`, one refresh at a moment (a metric card's period ending)
     autoApply.ts              — 「改了就跑」: whether the draft is due to run on its own (`autoApplyDue`) and the delay that merges a burst of edits into one query
+    requestId.ts              — `newRequestId`: a write's request id, a v4 UUID — `crypto.randomUUID` where the page is a secure context, random bytes otherwise (plain HTTP)
     requestRunner.ts          — Scheduling; a newer request supersedes a key, and an open board holds room in the queue for its panels (`reserve`)
     routes.ts                 — `resolveNavigation`: a way off a board or a view through the route of the definition it leads to (`ViewRoute`), pure; `ViewHost` and `/testing` both use it (host-integration.md 4); and the router port's types, `ViewRouter` and `ViewLocation` (4.2), type-only for `/react-router`
     issueReport.ts            — The development default of `onIssue`: findings grouped by resource on the console, each with how to fix it; silent in production and under a test runner
