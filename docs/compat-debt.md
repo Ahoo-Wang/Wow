@@ -149,3 +149,9 @@ When you add compatibility code, add its marker and list the file under an entry
 - **Markers**: `compensation/wow-compensation-server/src/main/kotlin/me/ahoo/wow/compensation/server/dashboard/DashboardConfiguration.kt`
 - **Replacement**: the links 9.2 sends, `/executions?view=system:execution-failed:<view>&id=<id>`.
 - **Removal in v10**: delete `legacyNav`. Alerts sent before the 9.2 upgrade then open a 404, so v10's release notes say so.
+
+## Held Until v10
+
+Behaviour that is not compatibility code, so it carries no marker, but that 9.x keeps as it is because changing it changes a frozen REST or wire format. v10 changes each one; until then nothing here is touched, not even in an `x.Y.0` release.
+
+- **SSE error events say `BadRequest` with the exception's own message.** On an event-stream route, an error mid-stream goes out as an SSE event built by the core converter (`toErrorInfo()` in `errorResume`, `wow-webflux/src/main/kotlin/me/ahoo/wow/webflux/route/response/WebFluxResponseStrategy.kt`): an unmapped exception becomes event `BadRequest` and its raw message reaches the client. The JSON path answers the same exception with 500 `InternalServerError` and "Unexpected server error" (`WebFluxErrorStrategy`). 9.1.5 behaves the same, and 9.1 and 9.2 run mixed in one cluster, so a change in 9.2 alone would give one route two error shapes depending on the node that answers (#3845, user decision 2026-10-01). v10: build the SSE error event with the HTTP error strategy, so an unmapped exception is event `InternalServerError` with the generic message, and say so in the release notes.
