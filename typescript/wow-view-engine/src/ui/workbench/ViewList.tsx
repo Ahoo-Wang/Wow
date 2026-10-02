@@ -27,6 +27,7 @@ import {
   type ViewInstanceSummary,
 } from '../../model/index.js';
 import type { ViewListState } from '../../react/index.js';
+import { instanceAbilities } from '../../runtime/permissions.js';
 import { AlertAction, AlertTitle } from '../components/alert.js';
 import { Button } from '../components/button.js';
 import { LineAlert } from '../kit/alerts.js';
@@ -316,6 +317,9 @@ function ViewListBody({
             items={items}
             currentId={currentId}
             defaultId={list.preferences?.defaultInstanceId ?? null}
+            editable={item =>
+              !instanceAbilities(item, list.permissions).readOnly
+            }
             onOpen={onOpen}
           />
         );
@@ -338,6 +342,7 @@ function ViewGroup({
   items,
   currentId,
   defaultId,
+  editable,
   onOpen,
 }: {
   audience: ViewAudience;
@@ -345,6 +350,8 @@ function ViewGroup({
   currentId: string | null;
   /** The view that opens first, which wears the star. */
   defaultId: string | null;
+  /** Whether this user may change a view: its lock says so (D81). */
+  editable(item: ViewInstanceSummary): boolean;
   onOpen(instanceId: string): void;
 }) {
   const messages = useViewMessages();
@@ -381,6 +388,7 @@ function ViewGroup({
           item={item}
           current={item.id === currentId}
           isDefault={item.id === defaultId}
+          editable={editable(item)}
           onOpen={onOpen}
         />
       ))}
@@ -406,11 +414,13 @@ function ViewListItem({
   item,
   current,
   isDefault,
+  editable,
   onOpen,
 }: {
   item: ViewInstanceSummary;
   current: boolean;
   isDefault: boolean;
+  editable: boolean;
   onOpen(instanceId: string): void;
 }) {
   const Icon = KIND_ICON[item.kind];
@@ -466,7 +476,9 @@ function ViewListItem({
               </span>
             </>
           )}
-          {isSystemScope(item.scope) && <SystemMark />}
+          {isSystemScope(item.scope) && (
+            <SystemMark editable={editable} stored={item.stored === true} />
+          )}
         </span>
       )}
     </SidebarItem>

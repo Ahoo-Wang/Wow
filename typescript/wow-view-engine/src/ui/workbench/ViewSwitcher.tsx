@@ -20,6 +20,7 @@ import {
   type ViewKind,
 } from '../../model/index.js';
 import type { ViewListState } from '../../react/index.js';
+import { instanceAbilities } from '../../runtime/permissions.js';
 import { Button } from '../components/button.js';
 import {
   DropdownMenu,
@@ -198,7 +199,11 @@ export function ViewSwitcher({
                 {messages.label(word(`label.scope.group.${audience}`))}
               </DropdownMenuLabel>
               {items.map(item => (
-                <SwitcherItem key={item.id} item={item} />
+                <SwitcherItem
+                  key={item.id}
+                  item={item}
+                  editable={!instanceAbilities(item, list.permissions).readOnly}
+                />
               ))}
             </DropdownMenuRadioGroup>
           );
@@ -236,7 +241,14 @@ export function ViewSwitcher({
  * The lock stands clear of the radio's check at the item's end (`mr-4`) —
  * the open view's check is drawn there by the vendored item.
  */
-function SwitcherItem({ item }: { item: ViewInstanceSummary }) {
+function SwitcherItem({
+  item,
+  editable,
+}: {
+  item: ViewInstanceSummary;
+  /** Whether this user may change the view: its lock says so (D81). */
+  editable: boolean;
+}) {
   const Kind = KIND_ICON[item.kind];
   const say = useSay();
   return (
@@ -244,7 +256,11 @@ function SwitcherItem({ item }: { item: ViewInstanceSummary }) {
       <Kind aria-hidden />
       <Truncated text={say(item.title)} />
       {isSystemScope(item.scope) && (
-        <SystemMark className="fve:mr-4 fve:ml-auto" />
+        <SystemMark
+          className="fve:mr-4 fve:ml-auto"
+          editable={editable}
+          stored={item.stored === true}
+        />
       )}
     </DropdownMenuRadioItem>
   );

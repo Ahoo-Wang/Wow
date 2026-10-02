@@ -85,6 +85,13 @@ export const buildingMessages = {
   'label.panel.copy-shared.saved':
     '“{title}” was copied as a shared view; this panel shows it now',
 
+  // A system board's panel on a view that is not a system view, copied as one (D81).
+  'label.panel.copy-system.heading': 'Copy as a system view and replace',
+  'label.panel.copy-system.description':
+    '“{view}” is not a system view, so readers in other tenants see nothing in this panel of a system dashboard. It is copied as a system view of {definition}, saved right away, and this panel shows the copy — looking and filtering as it does now. The original view stays as it is. Done saves the dashboard.',
+  'label.panel.copy-system.saved':
+    '“{title}” was copied as a system view; this panel shows it now',
+
   // A panel's own look (D22 D).
   'label.panel.presentation.reset': 'Look as the view does',
   'label.panel.presentation.heading': 'How “{title}” looks here',

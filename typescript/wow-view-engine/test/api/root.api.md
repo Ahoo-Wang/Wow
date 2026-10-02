@@ -1050,7 +1050,7 @@ export function coversScope(dashboard: ViewScope, instance: ViewScope): boolean;
 // @public (undocumented)
 export function createFieldKindRegistry(kinds: readonly FieldKind[]): FieldKindRegistry;
 
-// @public (undocumented)
+// @public
 export interface CreateInput<C extends ViewConfig> {
     // (undocumented)
     config: C;
@@ -4773,7 +4773,7 @@ export class ViewEngine extends EngineResources {
     close(runtime: ViewRuntime): void;
     copyPanelView(dashboard: ViewRuntime, panelId: string, input: {
         title: string;
-        scope: ViewAudience;
+        scope: ViewScope;
     }): Promise<ViewInstance>;
     create<C extends ViewConfig>(definitionId: string, input: CreateInput<C>): RuntimeFor<C>;
     definitionIssues(definitionId: string): Issue[];
@@ -4795,6 +4795,7 @@ export class ViewEngine extends EngineResources {
     permissions(definitionId: string): ViewPermissions;
     // (undocumented)
     preferences(definitionId: string): Promise<ViewPreferences>;
+    publishAsSystem(id: string): Promise<ViewInstance>;
     // (undocumented)
     protected readonly registered: ReadonlyMap<string, ViewDefinition>;
     rememberTab(definitionId: string, instanceId: string, tabId: string): Promise<void>;
@@ -4806,11 +4807,11 @@ export class ViewEngine extends EngineResources {
     save(runtime: ViewRuntime): Promise<ViewInstance>;
     saveAs(runtime: ViewRuntime, input: {
         title: string;
-        scope: ViewAudience;
+        scope: ViewScope;
     }): Promise<ViewInstance>;
     saveOwnedView(dashboard: ViewRuntime, panelId: string, input: {
         title: string;
-        scope: ViewAudience;
+        scope: ViewScope;
     }): Promise<ViewInstance>;
     setAutoRun(definitionId: string, autoRun: boolean): Promise<ViewPreferences>;
     // (undocumented)
@@ -4877,6 +4878,7 @@ export interface ViewInstance {
     revision: string;
     // (undocumented)
     scope: ViewScope;
+    stored?: true;
     // (undocumented)
     title: string;
 }
@@ -4892,6 +4894,7 @@ export interface ViewInstanceSummary {
     revision: string;
     // (undocumented)
     scope: ViewScope;
+    stored?: true;
     // (undocumented)
     title: string;
 }
@@ -4921,6 +4924,7 @@ export interface ViewPermissions {
     createPersonal: boolean;
     // (undocumented)
     createShared: boolean;
+    editSystem?: boolean;
     // (undocumented)
     instance(id: string): InstancePermissions;
     // (undocumented)
@@ -5047,7 +5051,6 @@ export interface ViewSource {
 // @public
 export interface ViewStore {
     changeAudience?(id: string, audience: ViewAudience, revision: string, context: WriteContext): Promise<ViewInstance>;
-    // (undocumented)
     create(input: Omit<ViewInstance, 'id' | 'revision'>, context: WriteContext): Promise<ViewInstance>;
     // (undocumented)
     delete(id: string, revision: string, context: WriteContext): Promise<void>;

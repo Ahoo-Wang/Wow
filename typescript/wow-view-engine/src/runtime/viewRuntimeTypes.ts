@@ -27,6 +27,7 @@ import type {
   RecordPageTarget,
   RecordViewConfig,
   RuntimeLimits,
+  ViewAudience,
   ViewConfig,
   ViewInstance,
   ViewScope,
@@ -450,6 +451,20 @@ export interface RuntimeCapabilities {
    * for a capability (`checksDescriptorAgain`); resolves whether it changed.
    */
   recheck(code: string | undefined): Promise<boolean>;
+}
+
+/** What `ViewEngine.create` makes a view from: nothing is saved until `save`. */
+export interface CreateInput<C extends ViewConfig> {
+  title: string;
+  /** A user creates for an audience; only a definition declares a system view. */
+  scope: ViewAudience;
+  config: C;
+  /**
+   * The host's injected condition, as `open` takes it: a view made from an
+   * open one — a drill-through — inherits the scope its origin ran under,
+   * so it never shows a row the page around it was narrowed away from.
+   */
+  scopeFilter?: FilterTree | null;
 }
 
 /** How `ViewEngine.open` opens a view, beyond which one. */

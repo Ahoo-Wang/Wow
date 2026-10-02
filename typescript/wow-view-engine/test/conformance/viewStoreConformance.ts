@@ -118,6 +118,13 @@ export interface ConformanceCapabilities {
    * every write to one is refused is skipped.
    */
   systemViews?: { definitionId: string };
+  /**
+   * The store keeps system views of its own (D81): `create` with
+   * `scope: 'system'` makes one, answered and listed with `stored: true`,
+   * which is saved, renamed and deleted like a shared view and never moved
+   * to another audience. Left out or false, the case is skipped.
+   */
+  storedSystemViews?: boolean;
 }
 
 export interface ViewStoreConformance {
@@ -564,8 +571,10 @@ export function describeViewStoreConformance(
           const open = await subject.connect();
           const alice = open(ALICE);
           const definitionId = capabilities.systemViews!.definitionId;
+          // A configured one: a system view the store keeps is written by
+          // whoever the host lets (D81), and is the case below.
           const system = (await alice.list(definitionId)).find(
-            summary => summary.scope === 'system',
+            summary => summary.scope === 'system' && !summary.stored,
           );
           expect(system, 'the backend serves a system view').toBeDefined();
           const { id, revision } = system!;
@@ -588,6 +597,59 @@ export function describeViewStoreConformance(
             summary => summary.id === id,
           );
           expect(after).toEqual(system);
+        },
+      );
+
+      it.skipIf(!capabilities.storedSystemViews)(
+        'keeps a system view it was asked to create, written like a shared one and never moved',
+        async () => {
+          const { alice, definitionId } = await setup();
+          const made = await alice.create(
+            {
+              definitionId,
+              title: 'For everyone',
+              scope: 'system',
+              config: recordConfig(),
+            },
+            write(),
+          );
+          expect(made).toMatchObject({ scope: 'system', stored: true });
+          expect(made.id.startsWith('system:')).toBe(false);
+          const listed = (await alice.list(definitionId)).find(
+            summary => summary.id === made.id,
+          );
+          expect(listed).toMatchObject({ scope: 'system', stored: true });
+
+          const saved = await alice.save(
+            made.id,
+            recordConfig(50),
+            made.revision,
+            write(),
+          );
+          expect(saved).toMatchObject({ stored: true });
+          const renamed = await alice.rename(
+            made.id,
+            'For all',
+            saved.revision,
+            write(),
+          );
+          expect(renamed).toMatchObject({
+            title: 'For all',
+            scope: 'system',
+            stored: true,
+          });
+          if (alice.changeAudience)
+            await refusal(
+              alice.changeAudience(
+                made.id,
+                'personal',
+                renamed.revision,
+                write(),
+              ),
+              'FORBIDDEN',
+            );
+          await alice.delete(made.id, renamed.revision, write());
+          await refusal(alice.get(made.id), 'NOT_FOUND');
         },
       );
     });

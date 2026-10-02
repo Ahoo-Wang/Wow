@@ -103,6 +103,11 @@ export interface EditingCommands {
    * (D22 B).
    */
   copyAsShared?(): void;
+  /**
+   * 复制为系统视图并替换…: the same on a system board (D81), where the copy
+   * is a system view; offered only where `editSystem` is granted.
+   */
+  copyAsSystem?(): void;
   /** 改标题: its title (a heading's words) edited in place. */
   rename?(): void;
   /** While the title is being edited in place: take or drop the new one. */
@@ -344,7 +349,8 @@ function dataEdits(
     standsOnPersonalView(panel) &&
     share.offered(source.definitionId)
   )
-    commands.copyAsShared = () => share.open(id);
+    commands[share.system ? 'copyAsSystem' : 'copyAsShared'] = () =>
+      share.open(id);
   return commands;
 }
 

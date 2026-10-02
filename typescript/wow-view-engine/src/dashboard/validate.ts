@@ -19,6 +19,7 @@ import {
   MAX_MARKDOWN_LENGTH,
   MAX_PANEL_LINKS,
   audienceOf,
+  isSystemScope,
   sameFilterType,
   type DashboardContentPanel,
   type DashboardPanel,
@@ -661,16 +662,19 @@ function validateLinks(
 
 /**
  * Whether an instance is visible wherever the dashboard is. A personal
- * dashboard may reference anything its owner can read; a shared or system one
- * is seen by others, so it may only reference views they can read too.
+ * dashboard may reference anything its owner can read; a shared one is seen
+ * by others, so it may only reference views they can read too — shared or
+ * system ones.
  *
- * The question is one of audience alone — that a system view passes it is
- * `audienceOf` answering, not a case spelled out here.
+ * A system board reaches further still: system views are global, read in
+ * every tenant, while a shared view is one tenant's (D81). So a system board
+ * may reference system views alone.
  */
 export function coversScope(
   dashboard: ViewScope,
   instance: ViewScope,
 ): boolean {
+  if (isSystemScope(dashboard)) return isSystemScope(instance);
   return (
     audienceOf(dashboard) === 'personal' || audienceOf(instance) === 'shared'
   );

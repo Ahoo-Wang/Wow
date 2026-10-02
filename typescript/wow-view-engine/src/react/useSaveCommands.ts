@@ -14,10 +14,10 @@
 import { useCallback, useRef, useState } from 'react';
 import {
   audienceOf,
-  isSystemScope,
   type Issue,
   type ViewAudience,
   type ViewInstance,
+  type ViewScope,
 } from '../model/index.js';
 import type {
   ConflictChoice,
@@ -26,6 +26,7 @@ import type {
   WriteState,
 } from '../runtime/index.js';
 import { stopsSave } from '../runtime/dashboard/panels.js';
+import { instanceAbilities, mayCreate } from '../runtime/permissions.js';
 import { useViewRuntime } from './useViewEngine.js';
 import { toIssue } from './issues.js';
 import {
@@ -45,7 +46,8 @@ export type { RecoveredWrite } from './writes.js';
 
 export interface SaveTargetInput {
   title: string;
-  scope: ViewAudience;
+  /** `system` makes the copy a stored system view; it needs `createSystem`. */
+  scope: ViewScope;
 }
 
 export interface SaveAbilities {
@@ -63,6 +65,11 @@ export interface SaveAbilities {
    */
   createPersonal: boolean;
   createShared: boolean;
+  /**
+   * Whether a copy may be made a system view everyone sees: the host grants
+   * `editSystem` (D81), whose silence is a refusal.
+   */
+  createSystem: boolean;
 }
 
 export interface SaveCommandState {
@@ -253,17 +260,23 @@ export function useSaveCommands(
   const permissions = runtime
     ? engine.permissions(runtime.definition.id)
     : null;
+  // Asked of `instanceAbilities`, the one reading the engine's guard refuses
+  // by (D4): a system view is read-only unless the store keeps it and the
+  // host grants `editSystem` (D81).
   const instance =
-    permissions && instanceId ? permissions.instance(instanceId) : null;
+    permissions && state?.saved
+      ? instanceAbilities(state.saved, permissions)
+      : null;
   const creating =
-    state && audienceOf(state.scope) === 'shared'
-      ? permissions?.createShared
-      : permissions?.createPersonal;
-  const system = state !== null && isSystemScope(state.scope);
+    state !== null &&
+    permissions !== null &&
+    mayCreate(permissions, state.scope);
   // A copy is a create, so it needs the create permission of the scope it is
   // headed for — not of the scope the open view happens to sit in.
   const createPersonal = state !== null && permissions?.createPersonal === true;
   const createShared = state !== null && permissions?.createShared === true;
+  const createSystem =
+    state !== null && permissions !== null && mayCreate(permissions, 'system');
 
   const save = useCallback(
     () =>
@@ -400,15 +413,16 @@ export function useSaveCommands(
     can: {
       // An unsaved view needs the create permission for its own scope; a saved
       // one needs the permission that belongs to the instance.
-      save: !system && (state?.saved ? instance?.save : creating) === true,
-      saveAs: createPersonal || createShared,
-      rename: !system && instance?.rename === true,
-      delete: !system && instance?.delete === true,
+      save: (state?.saved ? instance?.save : creating) === true,
+      saveAs: createPersonal || createShared || createSystem,
+      rename: instance?.rename === true,
+      delete: instance?.delete === true,
       // Reverting writes nothing and needs no permission — it only puts back
       // what the store already holds.
       revert: state?.dirty === true && state.saved !== null,
       createPersonal,
       createShared,
+      createSystem,
     },
     state: {
       pending: own.pending,

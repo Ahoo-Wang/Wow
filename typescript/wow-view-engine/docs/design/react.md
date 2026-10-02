@@ -182,7 +182,7 @@ useViewManager(engine, definitionId, list): { rename; delete; setDefault; moveTo
 - moveTo 还在 ref 里记住已提交的乐观顺序（完整顺序与移动后的可见顺序各一份）——列表要等落地后的 reload 才追上，同一行连动两次否则第二次会被送到第一次已经把它放到的那个位置（同组的 `[A,B,C]` 中 C 连续上移两次提交 `[A,C,B]` 与 `[C,A,B]`）——算位置走它记住的可见顺序，重写走它记住的完整顺序，两份必须出自同一次移动；
 - 列表身份一变（reload 已落地）即回到渲染顺序，未落地的 moveTo 也把它撤回；`placeOf(id)` 读的是同一份「此刻的顺序」，因此**要在下手那一刻问，不要在渲染里读**——排队中还没落地的那一次移动屏幕上看不见，而下一次移动必须用它那一份的下标；
 - 偏好冲突按 [management.md#列表偏好与默认视图](management.md#列表偏好与默认视图) 重载后保留本次意图待再次确认（`canResubmit` 为真，按 `resubmit` 以刚读回的 revision 重新提交，它同走这条队列，且因为是一次新写入而照样受未结清守卫约束），改名／删除冲突按 [management.md#冲突与未知结果](management.md#冲突与未知结果) 推进基线后清除；
-- can 取自 list.permissions，系统视图恒不可改名、删除。（见 test/viewManager.test.tsx）
+- can 取自 list.permissions，系统视图不可改名、删除——store 存着的（`stored`）、宿主给了 `editSystem` 的除外（D81）；`publishAsSystem(id)` 把个人或共享视图复制成存着的系统视图，`can.publishSystem` 与每行的 `publish` 说按钮在不在。（见 test/viewManager.test.tsx、test/storedSystemViews.test.tsx）
 
 ## writes.ts
 

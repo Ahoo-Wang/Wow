@@ -309,6 +309,7 @@ describe('ViewManager outcomes', () => {
       rename: () => Promise.resolve(false),
       changeAudience: () => Promise.resolve(false),
       delete: () => Promise.resolve(false),
+      publishAsSystem: () => Promise.resolve(false),
       setDefault: () => Promise.resolve(false),
       moveTo: () => Promise.resolve(false),
       placeOf: () => -1,
@@ -337,7 +338,13 @@ describe('ViewManager outcomes', () => {
       can: {
         reorder: true,
         setDefault: true,
-        instance: () => ({ rename: true, delete: true, changeAudience: false }),
+        publishSystem: false,
+        instance: () => ({
+          rename: true,
+          delete: true,
+          changeAudience: false,
+          publish: false,
+        }),
         anything: true,
       },
     };

@@ -1,4 +1,4 @@
-# Issue codes — 405.
+# Issue codes — 407.
 # Written by test/publicSurface.test.ts; a change here is a change to
 # the public surface (README「Wording and language」, docs/design/decisions.md D29).
 analysis.alias.duplicate
@@ -198,6 +198,7 @@ dashboard.panel.view-unknown
 dashboard.panels.too-many
 dashboard.scope.unsupported
 dashboard.shape.invalid
+dashboard.system.non-system-panels
 dashboard.tab.id-duplicate
 dashboard.tab.id-empty
 dashboard.tab.title-empty
@@ -387,6 +388,7 @@ view.list.reserved-id
 view.open.not-found
 view.open.other-definition
 view.open.wrong-kind
+view.publish.forbidden
 view.rename.forbidden
 view.runtime.not-owned
 view.save.forbidden

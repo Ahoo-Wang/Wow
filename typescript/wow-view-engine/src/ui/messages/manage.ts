@@ -51,6 +51,8 @@ export const manageMessages = {
   'label.manage.make-personal': 'Make personal',
   'label.manage.shared': '{title} is now shared',
   'label.manage.made-personal': '{title} is now personal',
+  'label.manage.publish': 'Publish as a system view',
+  'label.manage.published': '{title} is published as a system view',
   // A preference conflict that was reloaded keeps what the user meant and
   // puts it to them once more (design/management.md), so the button offers the write
   // again rather than a recovery of the one that lost.

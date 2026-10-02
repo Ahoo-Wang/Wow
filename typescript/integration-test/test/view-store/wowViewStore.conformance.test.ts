@@ -46,6 +46,9 @@ for (const server of viewStoreServers)
       changeAudience: true,
       idempotentCreate: true,
       systemViews: { definitionId: SYSTEM_VIEW_DEFINITION },
+      // Stored system views (D81, #3854): written under
+      // `tenant/(platform)/owner/(system)`, whatever this run's tenant.
+      storedSystemViews: true,
     },
     connect:
       () =>

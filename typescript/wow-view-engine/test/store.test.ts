@@ -91,19 +91,35 @@ describe('MemoryViewStore', () => {
     await expect(store.list('orders')).resolves.toHaveLength(2);
   });
 
-  it('refuses to create a system view', async () => {
+  it('creates a system view as one it keeps, and keeps the flag its own (D81)', async () => {
     const store = new MemoryViewStore();
-    await expect(
-      store.create(
-        {
-          definitionId: 'orders',
-          title: 'Base',
-          scope: 'system',
-          config: recordConfig(),
-        },
-        ctx,
-      ),
-    ).rejects.toMatchObject({ code: 'INVALID' });
+    const made = await store.create(
+      {
+        definitionId: 'orders',
+        title: 'Base',
+        scope: 'system',
+        config: recordConfig(),
+      },
+      ctx,
+    );
+    expect(made).toMatchObject({ scope: 'system', stored: true });
+    expect((await store.list('orders'))[0]).toMatchObject({
+      id: made.id,
+      stored: true,
+    });
+
+    // A caller cannot make a personal or shared view "stored".
+    const mine = await store.create(
+      {
+        definitionId: 'orders',
+        title: 'Mine',
+        scope: 'personal',
+        config: recordConfig(),
+        stored: true,
+      },
+      { requestId: 'r-mine' },
+    );
+    expect(mine).not.toHaveProperty('stored');
   });
 
   it('refuses to issue an id in the reserved namespace', async () => {

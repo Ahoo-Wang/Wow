@@ -12,7 +12,11 @@
  */
 
 import type { RefObject } from 'react';
-import { audienceOf, type ViewInstanceSummary } from '../../model/index.js';
+import {
+  audienceOf,
+  isSystemScope,
+  type ViewInstanceSummary,
+} from '../../model/index.js';
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -67,7 +71,14 @@ export function DeleteDialog({
   const consequences = [
     messages.label(kindWord('label.delete.consequence', item.kind)),
   ];
-  if (audienceOf(item.scope) === 'shared')
+  // A system view (D81, the one kind a delete reaches when it is stored)
+  // says the larger cost: it goes from every user's list, not only from
+  // those who opened it.
+  if (isSystemScope(item.scope))
+    consequences.push(
+      messages.label(kindWord('label.delete.system-consequence', item.kind)),
+    );
+  else if (audienceOf(item.scope) === 'shared')
     consequences.push(messages.label('label.delete.shared-consequence'));
   if (dirty)
     consequences.push(messages.label('label.delete.dirty-consequence'));

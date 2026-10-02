@@ -31,7 +31,6 @@
 // The engine: the one way a host opens, creates and writes views.
 export {
   ViewEngine,
-  type CreateInput,
   type ViewEngineOptions,
   type ViewListing,
 } from './viewEngine.js';
@@ -46,6 +45,7 @@ export {
   hasAsked,
   hasResult,
   type AnyViewRuntime,
+  type CreateInput,
   type DefinitionFor,
   type OpenOptions,
   type QueryStatus,

@@ -15,6 +15,7 @@ import { useCallback, useMemo, useRef } from 'react';
 import {
   audienceOf,
   type ViewAudience,
+  type ViewConfig,
   type ViewPreferences,
 } from '../model/index.js';
 import type {
@@ -52,6 +53,12 @@ export interface ViewManagerController {
    */
   changeAudience(id: string, audience: ViewAudience): Promise<boolean>;
   delete(id: string): Promise<boolean>;
+  /**
+   * 「发布为系统视图」 (D81): a copy of the saved view, as a stored system
+   * view everyone sees; the view itself stays where it is. The list reloads
+   * and draws the copy among the system views.
+   */
+  publishAsSystem(id: string): Promise<boolean>;
   setDefault(id: string | null): Promise<boolean>;
   /**
    * Puts a view at one place inside its own audience group, counted over the
@@ -207,6 +214,35 @@ export function useViewManager(
         () => engine.delete(id),
       ),
     [definitionId, engine, run],
+  );
+
+  const publishAsSystem = useCallback(
+    (id: string) => {
+      const row = all.find(item => item.id === id);
+      return run(
+        id,
+        {
+          action: 'create',
+          // Never sent. The row holds no config, and the one written is
+          // read off the saved view by `engine.publishAsSystem` itself.
+          // This intent is kept only for a refusal before sending
+          // (`refused`), which reads its action and nothing else; a write
+          // that left is reported with the engine's own payload
+          // (`ViewWriteError.state`). So `config` is a stand-in of the
+          // row's kind, not a copy of the view.
+          input: {
+            definitionId,
+            title: row?.title ?? '',
+            scope: 'system',
+            config: { kind: row?.kind ?? 'record' } as ViewConfig,
+          },
+          intent: 'save-as',
+        },
+        'view.publish.failed',
+        () => engine.publishAsSystem(id),
+      );
+    },
+    [all, definitionId, engine, run],
   );
 
   const setDefault = useCallback(
@@ -386,6 +422,7 @@ export function useViewManager(
     rename,
     changeAudience,
     delete: remove,
+    publishAsSystem,
     setDefault,
     moveTo,
     placeOf,

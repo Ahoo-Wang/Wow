@@ -880,7 +880,6 @@ export {
 // runtime — the engine, the runtime contracts and the types their
 // signatures name; never a part the runtime is built from.
 export {
-  type CreateInput,
   ViewEngine,
   type ViewEngineOptions,
   type ViewResource,
@@ -902,6 +901,7 @@ export type {
 } from './runtime/define/spec.js';
 export {
   type AnyViewRuntime,
+  type CreateInput,
   type DefinitionFor,
   type OpenOptions,
   type QueryStatus,

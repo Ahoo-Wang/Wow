@@ -16,7 +16,9 @@ import type { ViewConfig, ViewKind } from './config.js';
 /**
  * Who configured a view, who sees it and who may change it.
  *
- * - `system`: developers or operators; read-only for everyone else.
+ * - `system`: developers or operators; read-only for everyone else — but a
+ *   system view a store keeps (`stored`) is edited by whoever the host lets
+ *   (`ViewPermissions.editSystem`, D81).
  * - `shared`: a user with permission; visible across the definition.
  * - `personal`: its owner only.
  *
@@ -67,6 +69,14 @@ export interface ViewInstance {
   /** Opaque; compared for equality only. Code-declared system views use `code`. */
   revision: string;
   config: ViewConfig;
+  /**
+   * Set by a store on a system view it keeps and can write (D81): an admin
+   * saved, renamed or published it there, and may save, rename and delete
+   * it again when the host grants `ViewPermissions.editSystem`. Absent on
+   * every other view — a system view declared in code (`system:` ids) or
+   * in the backend's configuration stays read-only whatever is granted.
+   */
+  stored?: true;
 }
 
 /** Revision of a system view that ships with the definition. */
@@ -127,12 +137,22 @@ export interface ViewInstanceSummary {
   /** Always equal to the `kind` of the config this summary names. */
   kind: ViewKind;
   revision: string;
+  /** A system view the store keeps and can write; see `ViewInstance.stored`. */
+  stored?: true;
 }
 
 /** What a list shows: an instance without the config it holds. */
 export function toSummary(instance: ViewInstance): ViewInstanceSummary {
-  const { id, definitionId, title, scope, revision, config } = instance;
-  return { id, definitionId, title, scope, kind: config.kind, revision };
+  const { id, definitionId, title, scope, revision, config, stored } = instance;
+  return {
+    id,
+    definitionId,
+    title,
+    scope,
+    kind: config.kind,
+    revision,
+    ...(stored ? { stored } : {}),
+  };
 }
 
 /** One user's ordering and default view for one definition. */

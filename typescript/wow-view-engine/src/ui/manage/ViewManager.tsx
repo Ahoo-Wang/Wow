@@ -172,6 +172,18 @@ export function ViewManager({
     });
   };
 
+  /**
+   * Publishes a copy of a view as a system view (D81) and says so once the
+   * store has taken it. The row stays where it is — it was copied, not
+   * moved — and so does focus; the copy joins the system views below.
+   */
+  const publish = (id: string) => {
+    const title = titleOf(id);
+    void manager.publishAsSystem(id).then(landed => {
+      if (landed) announce(messages.label('label.manage.published', { title }));
+    });
+  };
+
   const rows = (
     <div data-slot="view-manager" className="fve:flex fve:flex-col fve:gap-3">
       {groups.map(group => (
@@ -199,6 +211,7 @@ export function ViewManager({
               place: { index, total: group.items.length },
               onChangeAudience: (audience: ViewAudience) =>
                 changeAudience(item.id, audience),
+              onPublish: () => publish(item.id),
               arrived:
                 arriving?.id === item.id &&
                 audienceOf(item.scope) === arriving.audience,

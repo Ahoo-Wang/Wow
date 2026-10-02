@@ -13,7 +13,7 @@
 
 import { useEffect, useRef, useState, type RefObject } from 'react';
 import { useSortable } from '@dnd-kit/react/sortable';
-import { PencilIcon, StarIcon, TrashIcon } from 'lucide-react';
+import { PencilIcon, StarIcon, TrashIcon, UploadIcon } from 'lucide-react';
 import {
   audienceOf,
   MAX_VIEW_TITLE_LENGTH,
@@ -24,6 +24,7 @@ import {
 } from '../../model/index.js';
 import type { ViewInstance, ViewPreferences } from '../../model/index.js';
 import type { WriteState } from '../../runtime/index.js';
+import { instanceAbilities } from '../../runtime/permissions.js';
 import type {
   ViewListState,
   ViewManagerController,
@@ -69,6 +70,13 @@ import { RenameInput } from '../kit/RenameInput.js';
  */
 const ACTION_CELLS = 'fve:grid fve:grid-cols-4';
 
+/**
+ * The same grid with a fifth cell, for a user who may publish a view as a
+ * system view (D81): every row of their list then lays out five, so the
+ * column still holds, and nobody else's rows grow a cell they never fill.
+ */
+const ACTION_CELLS_PUBLISHING = 'fve:grid fve:grid-cols-5';
+
 /** The audience a row's move button sends it to: the one it is not in. */
 function otherAudience(item: ViewInstanceSummary): ViewAudience {
   return audienceOf(item.scope) === 'personal' ? 'shared' : 'personal';
@@ -94,6 +102,8 @@ export interface ViewManagerRowProps {
   onMove(move: HandleMove): void;
   /** Moves the view to the other audience (设为共享／设为个人). */
   onChangeAudience(audience: ViewAudience): void;
+  /** Publishes a copy of the view as a system view (D81). */
+  onPublish?(): void;
   /**
    * True once this row has just arrived in its group by a move of audience.
    * The button that sent it here was on a row that is gone — the row is
@@ -127,6 +137,7 @@ export function ViewManagerRow({
   place,
   onMove,
   onChangeAudience,
+  onPublish,
   arrived = false,
   onFocused,
   dragging,
@@ -244,7 +255,12 @@ export function ViewManagerRow({
             is the star — the star button below when the default can be set
             here, and the sidebar's drawn star when it cannot, rather than a
             「默认」 badge beside a star that already says it. */}
-        {isSystemScope(item.scope) && <SystemMark />}
+        {isSystemScope(item.scope) && (
+          <SystemMark
+            editable={!instanceAbilities(item, list.permissions).readOnly}
+            stored={item.stored === true}
+          />
+        )}
         {isDefault && !manager.can.setDefault && (
           <>
             <StarIcon
@@ -267,9 +283,14 @@ export function ViewManagerRow({
             {(manager.can.setDefault ||
               can.rename ||
               can.changeAudience ||
+              can.publish ||
               can.delete) && (
               <ButtonGroup
-                className={ACTION_CELLS}
+                className={
+                  manager.can.publishSystem
+                    ? ACTION_CELLS_PUBLISHING
+                    : ACTION_CELLS
+                }
                 aria-label={messages.label(word('label.manage.view-group'))}
               >
                 {manager.can.setDefault && (
@@ -331,6 +352,21 @@ export function ViewManagerRow({
                     onClick={() => onChangeAudience(target)}
                   >
                     <Audience />
+                  </IconButton>
+                )}
+                {/* A copy, so the row stays. Not the lock: the lock says
+                    "this is a system view" (`SystemMark`), and on a
+                    personal or shared row it would read as "locked". */}
+                {can.publish && onPublish && (
+                  <IconButton
+                    label={messages.label(word('label.manage.publish'))}
+                    variant="ghost"
+                    size="icon-sm"
+                    data-publish=""
+                    disabled={busy}
+                    onClick={onPublish}
+                  >
+                    <UploadIcon />
                   </IconButton>
                 )}
                 {can.delete && (
