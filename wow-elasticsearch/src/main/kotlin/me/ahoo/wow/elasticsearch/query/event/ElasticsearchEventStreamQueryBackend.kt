@@ -14,7 +14,7 @@
 package me.ahoo.wow.elasticsearch.query.event
 
 import me.ahoo.wow.api.modeling.NamedAggregate
-import me.ahoo.wow.elasticsearch.IndexNameConverter.toEventStreamIndexName
+import me.ahoo.wow.elasticsearch.ElasticsearchIndexNaming
 import me.ahoo.wow.elasticsearch.query.AbstractElasticsearchQueryBackend
 import me.ahoo.wow.elasticsearch.query.DEFAULT_PIT_KEEP_ALIVE
 import me.ahoo.wow.elasticsearch.query.DEFAULT_SEARCH_BATCH_SIZE
@@ -27,7 +27,16 @@ class ElasticsearchEventStreamQueryBackend(
     override val elasticsearchClient: ReactiveElasticsearchClient,
     override val queryBatchSize: Int = DEFAULT_SEARCH_BATCH_SIZE,
     override val queryKeepAlive: Duration = DEFAULT_PIT_KEEP_ALIVE,
+    indexNaming: ElasticsearchIndexNaming,
 ) : AbstractElasticsearchQueryBackend(),
     EventStreamQueryBackend {
-    override val indexName: String = namedAggregate.toEventStreamIndexName()
+    /** The constructor from before the index prefix, kept for binary compatibility: Wow's unprefixed names. */
+    constructor(
+        namedAggregate: NamedAggregate,
+        elasticsearchClient: ReactiveElasticsearchClient,
+        queryBatchSize: Int = DEFAULT_SEARCH_BATCH_SIZE,
+        queryKeepAlive: Duration = DEFAULT_PIT_KEEP_ALIVE,
+    ) : this(namedAggregate, elasticsearchClient, queryBatchSize, queryKeepAlive, ElasticsearchIndexNaming.DEFAULT)
+
+    override val indexName: String = indexNaming.eventStreamIndexName(namedAggregate)
 }

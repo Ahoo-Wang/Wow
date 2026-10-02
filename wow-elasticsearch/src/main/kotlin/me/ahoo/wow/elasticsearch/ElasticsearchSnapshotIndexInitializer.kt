@@ -19,12 +19,23 @@ import me.ahoo.wow.configuration.WowResourceLocator
 import me.ahoo.wow.elasticsearch.IndexNameConverter.toSnapshotIndexName
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
 
-/** Creates the snapshot indices (`wow.{context}.{aggregate}.snapshot`) whose definitions are shipped. */
+/**
+ * Creates the snapshot indices (`wow.{context}.{aggregate}.snapshot`) whose definitions are shipped, behind
+ * the deployment's index prefix.
+ */
 class ElasticsearchSnapshotIndexInitializer(
     elasticsearchClient: ReactiveElasticsearchClient,
     resourceLocator: WowResourceLocator = WowResourceLocator(),
     namedAggregates: Iterable<NamedAggregate> = MetadataSearcher.namedAggregateType.keys,
-) : ElasticsearchIndexInitializer(elasticsearchClient, resourceLocator, namedAggregates) {
+    indexNaming: ElasticsearchIndexNaming,
+) : ElasticsearchIndexInitializer(elasticsearchClient, resourceLocator, namedAggregates, indexNaming) {
+    /** The constructor from before the index prefix, kept for binary compatibility: Wow's unprefixed names. */
+    constructor(
+        elasticsearchClient: ReactiveElasticsearchClient,
+        resourceLocator: WowResourceLocator = WowResourceLocator(),
+        namedAggregates: Iterable<NamedAggregate> = MetadataSearcher.namedAggregateType.keys,
+    ) : this(elasticsearchClient, resourceLocator, namedAggregates, ElasticsearchIndexNaming.DEFAULT)
+
     override val indexKind: String = "snapshot"
 
     override fun indexName(namedAggregate: NamedAggregate): String = namedAggregate.toSnapshotIndexName()

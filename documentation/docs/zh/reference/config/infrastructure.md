@@ -113,6 +113,7 @@ pending recovery 只处理 Wow Redis Streams Bus 的 consumer-group pending entr
 | `wow.elasticsearch.enabled` | Boolean | `true` | 启用 Elasticsearch 自动配置 |
 | `wow.elasticsearch.auto-init-template` | Boolean | `true` | 创建/确认 Wow event 与 snapshot index template |
 | `wow.elasticsearch.compatibility-version` | Int? | `null` | 配置后为 REST client 添加兼容媒体类型 header |
+| `wow.elasticsearch.index-prefix` | String? | `null` | 加在 Wow 命名的每个索引、索引模板与模板 pattern 之前，使多个部署共用一个集群 |
 | `wow.elasticsearch.query.batch-size` | Int | `10000` | PIT + `search_after` 的单批大小 |
 | `wow.elasticsearch.query.keep-alive` | Duration | `1m` | 每次全量查询请求刷新的 PIT keep-alive |
 
@@ -123,6 +124,8 @@ spring:
   elasticsearch:
     uris: ${ELASTICSEARCH_URIS}
 ```
+
+`index-prefix` 未设置或为空白时保持 Wow 自己的名称。设置后原样加在每个名称之前：`{prefix}wow.{context}.{aggregate}.snapshot|es`、模板 `{prefix}wow-snapshot-template` 与 `{prefix}wow-event-stream-template`，以及它们的 pattern `{prefix}wow.*.snapshot` 与 `{prefix}wow.*.es`。前缀必须小写，不含 `\ / * ? " < > | , # :` 或空白，且不以 `-`、`_`、`+`、`.` 或 `wow.` 开头（`wow.` 开头的 pattern 会与不带前缀的模板重叠）；无效前缀使启动失败。见[索引命名规则](../../guide/extensions/elasticsearch.md#index-prefix)。
 
 `compatibility-version` 没有默认值。只有部署拓扑确实要求 Elasticsearch REST compatibility header 时才设置，并由应用验证该值与服务端兼容；文档不固定某个服务端主版本。
 
@@ -141,7 +144,7 @@ spring:
 
 批处理校验与 MongoDB 相同。EventStore batch 使用 Bulk `create`；SnapshotStore 的 direct/batch 两条路径都以 `_source.version` 做原子保护更新，避免旧快照覆盖新版本。`auto-init-template=true` 时，模板请求失败、空响应或未确认会让启动失败；仅在外部平台明确拥有模板时关闭它，并保留模板版本与验证证据。
 
-当 Elasticsearch 被选为 SnapshotStore 或 EventStore 时，Wow 还会查找 `META-INF/wow/elasticsearch/{indexName}.json` 或 `config/wow/elasticsearch/{indexName}.json` 下的具体索引资源（`wow.{context}.{aggregate}.snapshot`、`wow.{context}.{aggregate}.es`）。具体资源在通用模板之后、对应存储创建之前处理；已有索引保持不变，其 mapping 与资源不同时记录警告。该机制独立于 `auto-init-template`；资源缺失时不执行任何操作。
+当 Elasticsearch 被选为 SnapshotStore 或 EventStore 时，Wow 还会查找 `META-INF/wow/elasticsearch/{indexName}.json` 或 `config/wow/elasticsearch/{indexName}.json` 下的具体索引资源（`wow.{context}.{aggregate}.snapshot`、`wow.{context}.{aggregate}.es`，不含 `index-prefix`；创建的索引带上前缀）。具体资源在通用模板之后、对应存储创建之前处理；已有索引保持不变，其 mapping 与资源不同时记录警告。该机制独立于 `auto-init-template`；资源缺失时不执行任何操作。
 
 ## 查询 {#query}
 

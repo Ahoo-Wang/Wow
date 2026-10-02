@@ -24,7 +24,19 @@ import org.springframework.data.elasticsearch.core.mapping.IndexCoordinates
 import reactor.core.publisher.Mono
 import tools.jackson.databind.JsonNode
 
-class IndexTemplateInitializer(private val elasticsearchOperations: ReactiveElasticsearchOperations) {
+/**
+ * Puts Wow's event stream and snapshot index templates. [indexNaming] prefixes the template names and their
+ * `index_patterns`; with [ElasticsearchIndexNaming.DEFAULT] they are `wow-event-stream-template` (`wow.*.es`) and
+ * `wow-snapshot-template` (`wow.*.snapshot`).
+ */
+class IndexTemplateInitializer(
+    private val elasticsearchOperations: ReactiveElasticsearchOperations,
+    private val indexNaming: ElasticsearchIndexNaming,
+) {
+    /** The constructor from before the index prefix, kept for binary compatibility: Wow's unprefixed names. */
+    constructor(elasticsearchOperations: ReactiveElasticsearchOperations) :
+        this(elasticsearchOperations, ElasticsearchIndexNaming.DEFAULT)
+
     companion object {
         private val log = KotlinLogging.logger {}
         private const val EVENT_STREAM_TEMPLATE_NAME = "wow-event-stream-template"
@@ -42,21 +54,28 @@ class IndexTemplateInitializer(private val elasticsearchOperations: ReactiveElas
         ClassPathResource("templates/$SNAPSHOT_TEMPLATE_NAME.json").inputStream.use {
             JsonSerializer.readValue(it, JsonNode::class.java)
         }
+    private val eventStreamTemplateName = indexNaming.resolve(EVENT_STREAM_TEMPLATE_NAME)
+    private val snapshotTemplateName = indexNaming.resolve(SNAPSHOT_TEMPLATE_NAME)
 
     fun initEventStreamTemplate(): Mono<Boolean> {
-        return initTemplate(EVENT_STREAM_TEMPLATE_NAME, eventStreamTemplate)
+        return putTemplate(eventStreamTemplateName, eventStreamTemplate, indexNaming)
     }
 
     fun initSnapshotTemplate(): Mono<Boolean> {
-        return initTemplate(SNAPSHOT_TEMPLATE_NAME, snapshotTemplate)
+        return putTemplate(snapshotTemplateName, snapshotTemplate, indexNaming)
     }
 
+    /** Puts [template] under [name] as it is: its `index_patterns` are not prefixed. */
     fun initTemplate(name: String, template: JsonNode): Mono<Boolean> {
+        return putTemplate(name, template, ElasticsearchIndexNaming.DEFAULT)
+    }
+
+    private fun putTemplate(name: String, template: JsonNode, naming: ElasticsearchIndexNaming): Mono<Boolean> {
         log.info {
             "initTemplate - name:$name ."
         }
         val indexPatterns = template.get(INDEX_PATTERNS_KEY).values().map {
-            it.asString()
+            naming.resolve(it.asString())
         }.toList().toTypedArray()
         val mappings = template.get(TEMPLATE_KEY).get(MAPPINGS_KEY).toJsonString().let {
             Document.parse(it)
@@ -75,11 +94,11 @@ class IndexTemplateInitializer(private val elasticsearchOperations: ReactiveElas
     }
 
     fun ensureEventStreamTemplate(): Mono<Void> {
-        return initEventStreamTemplate().requireAcknowledged(EVENT_STREAM_TEMPLATE_NAME)
+        return initEventStreamTemplate().requireAcknowledged(eventStreamTemplateName)
     }
 
     fun ensureSnapshotTemplate(): Mono<Void> {
-        return initSnapshotTemplate().requireAcknowledged(SNAPSHOT_TEMPLATE_NAME)
+        return initSnapshotTemplate().requireAcknowledged(snapshotTemplateName)
     }
 
     fun ensureAllTemplates(): Mono<Void> {

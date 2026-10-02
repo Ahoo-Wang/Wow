@@ -36,7 +36,7 @@ import reactor.core.publisher.Mono
  * `META-INF/wow/elasticsearch/{indexName}.json` on the classpath or `config/wow/elasticsearch/{indexName}.json` in the
  * working directory, a native create-index request (settings, mappings, aliases). An index that does not exist yet is
  * created from it; the index templates matching its name still apply beneath it, the definition winning where both map
- * a field.
+ * a field. The definition is found under the index's unprefixed name and creates the index [indexNaming] names.
  *
  * An existing index keeps its mapping: Wow never changes it. When the mapping differs from its definition at a path the
  * definition maps (an index created from the templates alone, before the definition shipped), startup logs a warning
@@ -46,19 +46,31 @@ abstract class ElasticsearchIndexInitializer(
     private val elasticsearchClient: ReactiveElasticsearchClient,
     private val resourceLocator: WowResourceLocator,
     private val namedAggregates: Iterable<NamedAggregate>,
+    private val indexNaming: ElasticsearchIndexNaming,
 ) {
+    /** The constructor from before the index prefix, kept for binary compatibility: Wow's unprefixed names. */
+    constructor(
+        elasticsearchClient: ReactiveElasticsearchClient,
+        resourceLocator: WowResourceLocator,
+        namedAggregates: Iterable<NamedAggregate>,
+    ) : this(elasticsearchClient, resourceLocator, namedAggregates, ElasticsearchIndexNaming.DEFAULT)
+
     /** What the indices hold, for messages: `snapshot` or `event stream`. */
     protected abstract val indexKind: String
 
-    /** The index of [namedAggregate] this initializer creates. */
+    /**
+     * The unprefixed name of the index of [namedAggregate] this initializer creates: the name its definition is found
+     * under. The index created is that name as [ElasticsearchIndexNaming.resolve] gives it.
+     */
     protected abstract fun indexName(namedAggregate: NamedAggregate): String
 
     fun ensureAll(): Mono<Void> = Flux.defer {
         Flux.fromIterable(namedAggregates.map(::indexName).sorted())
     }.concatMap(::ensureIndex).then()
 
-    private fun ensureIndex(indexName: String): Mono<Void> = Mono.defer {
-        val resource = findResource(indexName) ?: return@defer Mono.empty()
+    private fun ensureIndex(definitionName: String): Mono<Void> = Mono.defer {
+        val resource = findResource(definitionName) ?: return@defer Mono.empty()
+        val indexName = indexNaming.resolve(definitionName)
         val request = parseRequest(indexName, resource)
         elasticsearchClient.indices().exists(ExistsRequest.Builder().index(indexName).build())
             .switchIfEmpty(Mono.error(failure(indexName, resource, null)))

@@ -13,7 +13,7 @@
 
 package me.ahoo.wow.elasticsearch.eventsourcing
 
-import me.ahoo.wow.elasticsearch.IndexNameConverter.toSnapshotIndexName
+import me.ahoo.wow.elasticsearch.ElasticsearchIndexNaming
 import me.ahoo.wow.eventsourcing.snapshot.Snapshot
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.serialization.toLinkedHashMap
@@ -30,10 +30,12 @@ internal data class ElasticsearchSnapshotWrite(
     val version: Int,
 )
 
-internal fun Snapshot<*>.toElasticsearchSnapshotWrite(): ElasticsearchSnapshotWrite {
+internal fun Snapshot<*>.toElasticsearchSnapshotWrite(
+    indexNaming: ElasticsearchIndexNaming = ElasticsearchIndexNaming.DEFAULT,
+): ElasticsearchSnapshotWrite {
     val document = toLinkedHashMap()
     return ElasticsearchSnapshotWrite(
-        index = aggregateId.toSnapshotIndexName(),
+        index = indexNaming.snapshotIndexName(aggregateId),
         id = aggregateId.id,
         document = document,
         version = document.requiredSnapshotVersion(),

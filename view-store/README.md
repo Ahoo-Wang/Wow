@@ -87,8 +87,10 @@ not change an existing index's mapping. For the event stream, that is (with the 
    supplies the rest), and `POST _reindex` back from `wow.view-store.view.es-new`;
 3. delete `wow.view-store.view.es-new` and start the host: the warning is gone.
 
-The snapshot index names carry no prefix of the deployment: two hosts that embed the starter on one Elasticsearch
-cluster share `wow.view-store.view.snapshot` (the queries keep their applications apart, the storage does not).
+The view store's indices have no prefix of their own: two hosts that embed the starter on one Elasticsearch cluster
+share `wow.view-store.view.snapshot` (the queries keep their applications apart, the storage does not), unless each
+host sets `wow.elasticsearch.index-prefix`, which moves all of its indices and templates, the view store's included
+(`<prefix>wow.view-store.view.snapshot`, …); the definitions above keep their file names.
 
 ### Writes, identity and topics
 

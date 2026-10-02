@@ -14,7 +14,7 @@
 package me.ahoo.wow.elasticsearch.query.snapshot
 
 import me.ahoo.wow.api.modeling.NamedAggregate
-import me.ahoo.wow.elasticsearch.IndexNameConverter.toSnapshotIndexName
+import me.ahoo.wow.elasticsearch.ElasticsearchIndexNaming
 import me.ahoo.wow.elasticsearch.eventsourcing.ElasticsearchSnapshotStore
 import me.ahoo.wow.elasticsearch.query.AbstractElasticsearchQueryBackend
 import me.ahoo.wow.elasticsearch.query.DEFAULT_PIT_KEEP_ALIVE
@@ -28,9 +28,18 @@ class ElasticsearchSnapshotQueryBackend(
     override val elasticsearchClient: ReactiveElasticsearchClient,
     override val queryBatchSize: Int = DEFAULT_SEARCH_BATCH_SIZE,
     override val queryKeepAlive: Duration = DEFAULT_PIT_KEEP_ALIVE,
+    indexNaming: ElasticsearchIndexNaming,
 ) : AbstractElasticsearchQueryBackend(),
     SnapshotQueryBackend {
+    /** The constructor from before the index prefix, kept for binary compatibility: Wow's unprefixed names. */
+    constructor(
+        namedAggregate: NamedAggregate,
+        elasticsearchClient: ReactiveElasticsearchClient,
+        queryBatchSize: Int = DEFAULT_SEARCH_BATCH_SIZE,
+        queryKeepAlive: Duration = DEFAULT_PIT_KEEP_ALIVE,
+    ) : this(namedAggregate, elasticsearchClient, queryBatchSize, queryKeepAlive, ElasticsearchIndexNaming.DEFAULT)
+
     override val name: String
         get() = ElasticsearchSnapshotStore.NAME
-    override val indexName: String = namedAggregate.toSnapshotIndexName()
+    override val indexName: String = indexNaming.snapshotIndexName(namedAggregate)
 }

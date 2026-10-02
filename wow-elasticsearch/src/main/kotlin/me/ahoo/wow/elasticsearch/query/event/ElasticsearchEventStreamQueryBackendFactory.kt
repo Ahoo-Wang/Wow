@@ -15,7 +15,7 @@ package me.ahoo.wow.elasticsearch.query.event
 
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.query.schema.QueryModel
-import me.ahoo.wow.elasticsearch.IndexNameConverter.toEventStreamIndexName
+import me.ahoo.wow.elasticsearch.ElasticsearchIndexNaming
 import me.ahoo.wow.elasticsearch.query.DEFAULT_PIT_KEEP_ALIVE
 import me.ahoo.wow.elasticsearch.query.DEFAULT_SEARCH_BATCH_SIZE
 import me.ahoo.wow.elasticsearch.query.ElasticsearchIndexMappingResolver
@@ -32,13 +32,29 @@ class ElasticsearchEventStreamQueryBackendFactory(
     private val queryKeepAlive: Duration = DEFAULT_PIT_KEEP_ALIVE,
     private val indexMappingResolver: ElasticsearchIndexMappingResolver =
         ElasticsearchIndexMappingResolver(elasticsearchClient),
+    private val indexNaming: ElasticsearchIndexNaming,
 ) : AbstractEventStreamQueryBackendFactory() {
+    /** The constructor from before the index prefix, kept for binary compatibility: Wow's unprefixed names. */
+    constructor(
+        elasticsearchClient: ReactiveElasticsearchClient,
+        queryBatchSize: Int = DEFAULT_SEARCH_BATCH_SIZE,
+        queryKeepAlive: Duration = DEFAULT_PIT_KEEP_ALIVE,
+        indexMappingResolver: ElasticsearchIndexMappingResolver =
+            ElasticsearchIndexMappingResolver(elasticsearchClient),
+    ) : this(
+        elasticsearchClient,
+        queryBatchSize,
+        queryKeepAlive,
+        indexMappingResolver,
+        ElasticsearchIndexNaming.DEFAULT,
+    )
+
     override fun createBinding(
         namedAggregate: NamedAggregate,
     ): QueryBackendBinding<ElasticsearchEventStreamQueryBackend> {
         val materialized = namedAggregate.materialize()
         val storage = ElasticsearchQuerySchemaAdapter(
-            materialized.toEventStreamIndexName(),
+            indexNaming.eventStreamIndexName(materialized),
             indexMappingResolver,
             QueryModel.EVENT_STREAM,
         )
@@ -48,6 +64,7 @@ class ElasticsearchEventStreamQueryBackendFactory(
                 elasticsearchClient = elasticsearchClient,
                 queryBatchSize = queryBatchSize,
                 queryKeepAlive = queryKeepAlive,
+                indexNaming = indexNaming,
             ),
             storage,
         )

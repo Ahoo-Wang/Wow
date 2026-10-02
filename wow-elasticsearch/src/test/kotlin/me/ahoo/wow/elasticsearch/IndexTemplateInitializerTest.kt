@@ -23,6 +23,7 @@ import org.junit.jupiter.api.assertThrows
 import org.springframework.core.io.ClassPathResource
 import org.springframework.data.elasticsearch.core.ReactiveElasticsearchOperations
 import org.springframework.data.elasticsearch.core.ReactiveIndexOperations
+import org.springframework.data.elasticsearch.core.index.PutIndexTemplateRequest
 import org.springframework.data.elasticsearch.core.mapping.IndexCoordinates
 import reactor.core.publisher.Mono
 import tools.jackson.databind.JsonNode
@@ -80,6 +81,44 @@ class IndexTemplateInitializerTest {
         verify(exactly = 1) {
             indexOperations.putIndexTemplate(match { it.name == "wow-snapshot-template" })
         }
+    }
+
+    @Test
+    fun `default template names and patterns are Wow's own`() {
+        val requests = mutableListOf<PutIndexTemplateRequest>()
+        every { indexOperations.putIndexTemplate(capture(requests)) } returns Mono.just(true)
+
+        initializer.initAll()
+
+        requests.associate { it.name() to it.indexPatterns().toList() }.assert().isEqualTo(
+            mapOf(
+                "wow-event-stream-template" to listOf("wow.*.es"),
+                "wow-snapshot-template" to listOf("wow.*.snapshot"),
+            ),
+        )
+    }
+
+    @Test
+    fun `a prefix should name the templates and their patterns`() {
+        val requests = mutableListOf<PutIndexTemplateRequest>()
+        val coordinates = mutableListOf<IndexCoordinates>()
+        val operations = mockk<ReactiveElasticsearchOperations> {
+            every { indexOps(capture(coordinates)) } returns indexOperations
+        }
+        every { indexOperations.putIndexTemplate(capture(requests)) } returns Mono.just(true)
+
+        IndexTemplateInitializer(operations, ElasticsearchIndexNaming("staging.")).initAll()
+
+        requests.associate { it.name() to it.indexPatterns().toList() }.assert().isEqualTo(
+            mapOf(
+                "staging.wow-event-stream-template" to listOf("staging.wow.*.es"),
+                "staging.wow-snapshot-template" to listOf("staging.wow.*.snapshot"),
+            ),
+        )
+        coordinates.map { it.indexName }.assert()
+            .containsExactly("staging.wow-event-stream-template", "staging.wow-snapshot-template")
+        // The mappings are the templates' own.
+        requests.first().mapping()!!["date_detection"].assert().isEqualTo(false)
     }
 
     @Test

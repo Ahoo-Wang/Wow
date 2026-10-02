@@ -14,7 +14,7 @@
 package me.ahoo.wow.elasticsearch.eventsourcing
 
 import co.elastic.clients.elasticsearch._types.Refresh
-import me.ahoo.wow.elasticsearch.IndexNameConverter.toEventStreamIndexName
+import me.ahoo.wow.elasticsearch.ElasticsearchIndexNaming
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.infra.batch.BatchCoordinator
 import me.ahoo.wow.infra.batch.BatchOptions
@@ -31,6 +31,7 @@ internal class BatchElasticsearchEventStreamAppender(
     options: BatchOptions,
     private val closeTimeout: Duration = DEFAULT_CLOSE_TIMEOUT,
     metrics: WowMetrics = WowMetrics.NONE,
+    private val indexNaming: ElasticsearchIndexNaming = ElasticsearchIndexNaming.DEFAULT,
 ) : ElasticsearchEventStreamAppender {
     init {
         require(!closeTimeout.isNegative && !closeTimeout.isZero) {
@@ -57,7 +58,7 @@ internal class BatchElasticsearchEventStreamAppender(
         return coordinator.submit {
             ElasticsearchEventStreamAppend(
                 eventStream = eventStream,
-                index = eventStream.aggregateId.toEventStreamIndexName(),
+                index = indexNaming.eventStreamIndexName(eventStream.aggregateId),
                 id = eventStream.toDocId(),
                 document = eventStream.toLinkedHashMap(),
                 routing = eventStream.aggregateId.id,

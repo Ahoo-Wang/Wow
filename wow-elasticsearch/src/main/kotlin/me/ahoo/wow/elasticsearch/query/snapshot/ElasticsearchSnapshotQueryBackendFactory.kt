@@ -14,7 +14,7 @@
 package me.ahoo.wow.elasticsearch.query.snapshot
 
 import me.ahoo.wow.api.modeling.NamedAggregate
-import me.ahoo.wow.elasticsearch.IndexNameConverter.toSnapshotIndexName
+import me.ahoo.wow.elasticsearch.ElasticsearchIndexNaming
 import me.ahoo.wow.elasticsearch.query.DEFAULT_PIT_KEEP_ALIVE
 import me.ahoo.wow.elasticsearch.query.DEFAULT_SEARCH_BATCH_SIZE
 import me.ahoo.wow.elasticsearch.query.ElasticsearchIndexMappingResolver
@@ -31,10 +31,26 @@ class ElasticsearchSnapshotQueryBackendFactory(
     private val queryKeepAlive: Duration = DEFAULT_PIT_KEEP_ALIVE,
     private val indexMappingResolver: ElasticsearchIndexMappingResolver =
         ElasticsearchIndexMappingResolver(elasticsearchClient),
+    private val indexNaming: ElasticsearchIndexNaming,
 ) : AbstractSnapshotQueryBackendFactory() {
+    /** The constructor from before the index prefix, kept for binary compatibility: Wow's unprefixed names. */
+    constructor(
+        elasticsearchClient: ReactiveElasticsearchClient,
+        queryBatchSize: Int = DEFAULT_SEARCH_BATCH_SIZE,
+        queryKeepAlive: Duration = DEFAULT_PIT_KEEP_ALIVE,
+        indexMappingResolver: ElasticsearchIndexMappingResolver =
+            ElasticsearchIndexMappingResolver(elasticsearchClient),
+    ) : this(
+        elasticsearchClient,
+        queryBatchSize,
+        queryKeepAlive,
+        indexMappingResolver,
+        ElasticsearchIndexNaming.DEFAULT,
+    )
+
     override fun createBinding(namedAggregate: NamedAggregate): QueryBackendBinding<ElasticsearchSnapshotQueryBackend> {
         val materialized = namedAggregate.materialize()
-        val indexName = materialized.toSnapshotIndexName()
+        val indexName = indexNaming.snapshotIndexName(materialized)
         val storage = ElasticsearchQuerySchemaAdapter(indexName, indexMappingResolver)
         return QueryBackendBinding(
             ElasticsearchSnapshotQueryBackend(
@@ -42,6 +58,7 @@ class ElasticsearchSnapshotQueryBackendFactory(
                 elasticsearchClient = elasticsearchClient,
                 queryBatchSize = queryBatchSize,
                 queryKeepAlive = queryKeepAlive,
+                indexNaming = indexNaming,
             ),
             storage,
         )
