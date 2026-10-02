@@ -26,6 +26,8 @@ import me.ahoo.wow.modeling.command.IllegalAccessOwnerAggregateException
 import me.ahoo.wow.serialization.JsonSerializer
 import me.ahoo.wow.test.AggregateSpec
 import me.ahoo.wow.viewstore.ViewStoreService.SHARED_OWNER_ID
+import me.ahoo.wow.viewstore.ViewStoreService.SYSTEM_OWNER_ID
+import me.ahoo.wow.viewstore.ViewStoreService.SYSTEM_TENANT_ID
 import me.ahoo.wow.viewstore.api.ViewAudience
 import me.ahoo.wow.viewstore.api.ViewKind
 import me.ahoo.wow.viewstore.api.ViewStoreErrorCodes
@@ -344,6 +346,112 @@ class ViewSpec : AggregateSpec<View, ViewState>({
         whenCommand(CreateView("orders", "Open orders", tooLarge), appHeader(), ALICE) {
             expectError<ViewStoreException> {
                 errorCode.assert().isEqualTo(ViewStoreErrorCodes.VIEW_INVALID)
+            }
+        }
+    }
+    on(tenantId = SYSTEM_TENANT_ID) {
+        inject {
+            register(
+                SharedBoardReferences { _, _, viewId -> Flux.just(BoardReference("board-1", "Sales $viewId")) }
+            )
+        }
+        whenCommand(CreateView("orders", "Everyone's orders", recordConfig()), appHeader(), SYSTEM_OWNER_ID) {
+            expectNoError()
+            expectEventBody<ViewCreated> {
+                audience.assert().isEqualTo(ViewAudience.SYSTEM)
+            }
+            expectStateAggregate {
+                ownerId.assert().isEqualTo(SYSTEM_OWNER_ID)
+                aggregateId.tenantId.assert().isEqualTo(SYSTEM_TENANT_ID)
+            }
+            expectState {
+                audience.assert().isEqualTo(ViewAudience.SYSTEM)
+            }
+            fork("a system view is saved and renamed like any other") {
+                val config = recordConfig().put("pageSize", 50)
+                whenCommand(SaveView(config), appHeader(), SYSTEM_OWNER_ID) {
+                    expectNoError()
+                    expectState {
+                        this.config.assert().isEqualTo(config)
+                        audience.assert().isEqualTo(ViewAudience.SYSTEM)
+                    }
+                    fork("rename") {
+                        whenCommand(RenameView("All orders"), appHeader(), SYSTEM_OWNER_ID) {
+                            expectNoError()
+                            expectState {
+                                title.assert().isEqualTo("All orders")
+                            }
+                        }
+                    }
+                }
+            }
+            fork("a system view is not shared") {
+                whenCommand(ShareView, appHeader(), SYSTEM_OWNER_ID) {
+                    expectError<ViewStoreException> {
+                        errorCode.assert().isEqualTo(ViewStoreErrorCodes.SYSTEM_VIEW_READ_ONLY)
+                    }
+                    expectStateAggregate {
+                        ownerId.assert().isEqualTo(SYSTEM_OWNER_ID)
+                    }
+                }
+            }
+            fork("a system view is not claimed, even in process") {
+                whenCommand(ClaimView(BOB), appHeader(), SYSTEM_OWNER_ID) {
+                    expectError<ViewStoreException> {
+                        errorCode.assert().isEqualTo(ViewStoreErrorCodes.SYSTEM_VIEW_READ_ONLY)
+                    }
+                }
+            }
+            fork("a system view is not claimed through the shared owner") {
+                whenCommand(ClaimView(BOB), appHeader(), SHARED_OWNER_ID) {
+                    expectErrorType(IllegalAccessOwnerAggregateException::class)
+                }
+            }
+            fork("a system view is not written under another owner") {
+                whenCommand(SaveView(recordConfig()), appHeader(), ALICE) {
+                    expectErrorType(IllegalAccessOwnerAggregateException::class)
+                }
+            }
+            fork("a system view a shared dashboard references can still be deleted, as a shared one") {
+                whenCommand(DeleteView, appHeader(), SYSTEM_OWNER_ID) {
+                    expectNoError()
+                    expectEventType(DefaultAggregateDeleted::class)
+                }
+            }
+        }
+    }
+    // Parentheses mark a reserved owner; only `(shared)` and `(system)` are ones.
+    listOf("(SYSTEM)", "(Shared)", "(platform)", "(0)", "()").forEach { owner ->
+        on(tenantId = SYSTEM_TENANT_ID) {
+            whenCommand(CreateView("orders", "Reserved", recordConfig()), appHeader(), owner) {
+                expectError<ViewStoreException> {
+                    errorCode.assert().isEqualTo(ViewStoreErrorCodes.VIEW_INVALID)
+                }
+            }
+        }
+    }
+    // Global: refused in every other tenant, Wow's default tenant `(0)` included.
+    listOf("t1", "(0)").forEach { tenantId ->
+        on(tenantId = tenantId) {
+            whenCommand(CreateView("orders", "Everyone's orders", recordConfig()), appHeader(), SYSTEM_OWNER_ID) {
+                expectError<ViewStoreException> {
+                    errorCode.assert().isEqualTo(ViewStoreErrorCodes.VIEW_INVALID)
+                }
+            }
+        }
+    }
+    on(tenantId = "t1") {
+        inject {
+            register(NO_BOARDS)
+        }
+        whenCommand(CreateView("orders", "Team orders", recordConfig()), appHeader(), SHARED_OWNER_ID) {
+            expectNoError()
+            fork("a shared view is not claimed by the system owner") {
+                whenCommand(ClaimView(SYSTEM_OWNER_ID), appHeader(), SHARED_OWNER_ID) {
+                    expectError<ViewStoreException> {
+                        errorCode.assert().isEqualTo(ViewStoreErrorCodes.VIEW_INVALID)
+                    }
+                }
             }
         }
     }

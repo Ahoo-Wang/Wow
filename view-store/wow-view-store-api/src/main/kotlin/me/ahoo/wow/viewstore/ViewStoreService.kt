@@ -22,7 +22,7 @@ import me.ahoo.wow.viewstore.api.view.CreateView
  *
  * Neither aggregate has a static tenant, so every route carries `tenant/{tenantId}`; both require an owner, so every
  * route carries `owner/{ownerId}` too. The owner segment is the audience: a user id for a personal view,
- * [SHARED_OWNER_ID] for a shared one. Neither aggregate is spaced.
+ * [SHARED_OWNER_ID] for a shared one, [SYSTEM_OWNER_ID] for a stored system view. Neither aggregate is spaced.
  */
 @BoundedContext(
     name = ViewStoreService.SERVICE_NAME,
@@ -49,6 +49,21 @@ object ViewStoreService {
      * The reserved owner of shared views and shared preferences. The parentheses keep it apart from every user id.
      */
     const val SHARED_OWNER_ID = "(shared)"
+
+    /**
+     * The reserved owner of stored system views: the views every user of an application reads, whatever their
+     * tenant. They live under [SYSTEM_TENANT_ID] only, so every write of one is a request under
+     * `…/tenant/(platform)/owner/(system)/…`; the security gateway decides who may send it.
+     */
+    const val SYSTEM_OWNER_ID = "(system)"
+
+    /**
+     * The one tenant stored system views live under. System views are global; each request tenant reads them beside
+     * the configured ones. It is not Wow's default tenant `(0)`, the tenant of a deployment without tenants: its
+     * value is CoSec's platform tenant (`Tenant.PLATFORM_TENANT_ID`), matched by value, without a dependency on
+     * CoSec, so a gateway rule and a platform administrator's token name the same tenant.
+     */
+    const val SYSTEM_TENANT_ID = "(platform)"
 
     /** The request header naming the calling application; CoSec authenticates it. */
     const val APP_ID_HEADER = "CoSec-App-Id"

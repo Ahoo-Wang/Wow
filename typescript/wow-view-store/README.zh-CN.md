@@ -54,7 +54,9 @@ const engine = new ViewEngine({
 ```
 
 `permissions` 只决定哪些按钮可用，从不决定一次写入能不能做：服务端信任路径，谁能用哪条路径由 CoSec
-网关决定。`createShared` 与 `changeAudience` 按能写 `owner/(shared)` 的角色给——新建共享视图、收为个人、设为共享都需要它。不给则全部允许。
+网关决定。`createShared` 与 `changeAudience` 按能写 `owner/(shared)` 的角色给——新建共享视图、收为个人、设为共享都需要它。不给则全部允许——
+但引擎的 `editSystem`（发布、编辑、取消发布存储的系统视图）只在宿主明确答 `true` 时打开：按网关放行
+`tenant/(platform)/owner/(system)` 的角色给（`view-store/README.md`「System views」）。
 
 ### 不登录的宿主
 
@@ -95,7 +97,7 @@ fetcher.interceptors.request.use(new ConsoleDefaults());
 | ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `list`                             | 调用者路径与 `(shared)` 上的快照列表，只投影摘要的字段（`state.config.kind`，不含配置），以及 `GET (shared)/system-views?definitionId=`，三个请求一起发 |
 | `get`                              | 在上次见到这个视图的地方按 id 读快照；没见过的 id 依次在调用者路径、`(shared)`、系统视图上找                                                            |
-| `create`                           | 在其 `scope` 对应的路径上 `POST …/view`；id 由服务端生成                                                                                                |
+| `create`                           | 在其 `scope` 对应的路径上 `POST …/view`（`system`：`tenant/(platform)/owner/(system)`）；id 由服务端生成                                                |
 | `save`、`rename`、`delete`         | 在视图所在路径上 `PUT …/view/{id}/save`、`/rename`，`DELETE …/view/{id}`                                                                                |
 | `changeAudience('shared')`         | 在视图所在路径上 `PUT …/view/{id}/share`                                                                                                                |
 | `changeAudience('personal')`       | 在调用者自己的路径上 `PUT …/view/{id}/claim`                                                                                                            |
@@ -123,6 +125,19 @@ store 以自己第一次得到的结果回答重试；第一次的回答丢了�
 
 **挪了地方的视图。** 另一个标签页把这个 store 记作个人的视图设为了共享（或反过来），写入在旧路径上被拒；
 store 重新找到视图，把写入再发一次到它现在所在的地方。
+
+**系统视图。** 服务端的系统视图（`GET (shared)/system-views`）有配置的，只读；也有存储的（`source: 'stored'`），
+`WowViewStore` 列出、读取它们时在摘要与实例上带 `stored: true`。存储的系统视图是全局的，不管调用者在哪个租户，
+都写在 `tenant/(platform)/owner/(system)`（`SYSTEM_TENANT_ID`、`SYSTEM_OWNER_ID`）上。`create({ scope: 'system', … })`
+发布一个（是复制，源视图不变），`save`、`rename`、`delete` 编辑与取消发布；`changeAudience`，以及对配置的或
+代码声明的系统视图的任何写入，都在发出请求之前就是 `FORBIDDEN`。
+
+系统视图的 `revision` 是内容的散列，引擎的「已改动」基线靠它；而写入要的是聚合版本：store 记着每次读到的存储视图
+在那个 revision 上的 `version`，写入时发这个版本；引擎拿着一个 store 没有版本的 revision 时，先重读一次——
+与视图当前不符的 revision 是 `CONFLICT`，带上视图现在的样子，什么都不发。写入的答复按它留下的版本从系统视图路由
+读回。服务端以重复请求拒绝的重试，会在系统路径上的重放路由里找到，但那条路由答的是快照，内容散列只有服务端算得出：
+store 以系统视图**现在的样子**作答——除非这期间另一位管理员写过，那就是这次重试的结果。第一次已经把视图推过、手里的 revision 已不是视图当前的那个的重试，
+先问重放路由，再以 `CONFLICT` 拒绝；重试的系统视图创建，从系统视图路由读回作答，带标记、用内容散列。
 
 ## 错误
 

@@ -30,6 +30,7 @@ import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
 import org.springframework.http.HttpMethod
 import org.springframework.http.HttpStatus
+import org.springframework.http.server.PathContainer
 import org.springframework.mock.http.server.reactive.MockServerHttpRequest
 import org.springframework.mock.web.server.MockServerWebExchange
 import org.springframework.web.server.ServerWebExchange
@@ -89,6 +90,60 @@ class ViewStoreWebFilterTest {
         chain.exchange.assert().isNull()
         exchange.response.statusCode.assert().isEqualTo(HttpStatus.FORBIDDEN)
         exchange.response.bodyAsString.block()!!.assert().contains(ViewStoreErrorCodes.SYSTEM_VIEW_READ_ONLY)
+    }
+
+    @Test
+    fun `passes a write under the system owner to an id a configured view has - the stored view wins`() {
+        run(
+            MockServerHttpRequest.put("/view-store/tenant/t1/owner/(system)/view/open/rename")
+                .header(ViewStoreService.APP_ID_HEADER, "console").build()
+        ).second.exchange.assert().isNotNull()
+    }
+
+    @Test
+    fun `passes a request on stored system views spelled as the gateway names it`() {
+        listOf(
+            MockServerHttpRequest.post("/view-store/tenant/(platform)/owner/(system)/view"),
+            MockServerHttpRequest.put("/view-store/tenant/(platform)/owner/(system)/view/v1/save"),
+            MockServerHttpRequest.delete("/view-store/tenant/(platform)/owner/(system)/view/v1"),
+            MockServerHttpRequest.post("/view-store/tenant/(platform)/owner/(system)/view/snapshot/list"),
+        ).forEach {
+            run(it.header(ViewStoreService.APP_ID_HEADER, "console").build()).second.exchange.assert().isNotNull()
+        }
+    }
+
+    @Test
+    fun `the system owner in another tenant is no system scope - the domain refuses its create`() {
+        run(
+            MockServerHttpRequest.post("/view-store/tenant/(0)/owner/(system)/view")
+                .header(ViewStoreService.APP_ID_HEADER, "console").build()
+        ).second.exchange.assert().isNotNull()
+        paths.isSystemScope(PathContainer.parsePath("/view-store/tenant/(0)/owner/(system)/view")).assert().isFalse()
+        paths.isSystemScope(PathContainer.parsePath("/view-store/tenant/(platform)/owner/(system)/view"))
+            .assert().isTrue()
+    }
+
+    @Test
+    fun `refuses a request on stored system views spelled otherwise`() {
+        listOf(
+            "/view-store/tenant/(platform)/owner/%28system%29/view",
+            "/view-store/tenant/%28PLATFORM%29/owner/(system)/view",
+            "/view-store/tenant/(Platform)/owner/(SYSTEM)/view",
+            "/view-store/tenant/(platform)/OWNER/(system)/view",
+            "/view-store/tenant/%28platform%29/owner/(system)/view",
+            "/view-store/tenant/(platform)/owner/(system);x=1/view",
+            "/view-store/tenant/(platform);x=1/owner/(system)/view/v1/save",
+            "/VIEW-STORE/tenant/(platform)/owner/(system)/view",
+            "/view-store/TENANT/(platform)/Owner/(system)/view/v1",
+        ).forEach { path ->
+            val (exchange, chain) = run(
+                MockServerHttpRequest.method(HttpMethod.POST, URI.create(path))
+                    .header(ViewStoreService.APP_ID_HEADER, "console").build()
+            )
+            chain.exchange.assert().describedAs(path).isNull()
+            exchange.response.statusCode.assert().describedAs(path).isEqualTo(HttpStatus.BAD_REQUEST)
+            exchange.response.bodyAsString.block()!!.assert().contains(ViewStoreErrorCodes.VIEW_SCOPE_REQUIRED)
+        }
     }
 
     @Test

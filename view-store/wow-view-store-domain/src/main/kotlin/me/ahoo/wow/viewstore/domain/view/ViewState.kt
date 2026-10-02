@@ -31,7 +31,7 @@ class ViewState(val id: String) {
     var title: String = ""
         private set
 
-    /** Follows the owner: `(shared)` is shared, any other owner is personal. */
+    /** Follows the owner: `(shared)` is shared, `(system)` system, any other owner is personal. */
     var audience: ViewAudience = ViewAudience.PERSONAL
         private set
 

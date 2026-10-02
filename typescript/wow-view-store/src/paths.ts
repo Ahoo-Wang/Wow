@@ -24,12 +24,30 @@
 export const SHARED_OWNER_ID = '(shared)';
 
 /**
+ * The reserved owner of stored system views
+ * (`ViewStoreService.SYSTEM_OWNER_ID` on the server).
+ */
+export const SYSTEM_OWNER_ID = '(system)';
+
+/**
+ * The one tenant stored system views live under
+ * (`ViewStoreService.SYSTEM_TENANT_ID`): the value of CoSec's platform
+ * tenant, not the default tenant `(0)`. System views are global, so the
+ * store writes them on `tenant/(platform)/owner/(system)` whatever the
+ * caller's own tenant, and the security gateway decides who may, by that
+ * path.
+ */
+export const SYSTEM_TENANT_ID = '(platform)';
+
+/**
  * Where a view lives on the server: the owner segment of its path. `personal`
  * leaves `{ownerId}` to the fetcher's interceptors (fetcher-cosec's resource
  * attribution fills it from the token's `sub`); `shared` names
- * {@link SHARED_OWNER_ID}, which the interceptors never replace.
+ * {@link SHARED_OWNER_ID}, which the interceptors never replace; `system`
+ * names both the tenant and the owner of stored system views,
+ * {@link SYSTEM_TENANT_ID} and {@link SYSTEM_OWNER_ID}.
  */
-export type Place = 'personal' | 'shared';
+export type Place = 'personal' | 'shared' | 'system';
 
 /** Every route starts here; the tenant and owner are path variables. */
 const SCOPE = '/view-store/tenant/{tenantId}/owner/{ownerId}';
@@ -50,21 +68,34 @@ export const PATHS = {
   list: `${SCOPE}/view/snapshot/list`,
   /** The view as the write with this request id left it; `204` for a delete. */
   replay: `${SCOPE}/view/requests/{requestId}`,
-  /** Served under `(shared)` only. */
+  /**
+   * Served under `(shared)` only: the configured system views of the
+   * caller's tenant and the stored ones, global.
+   */
   systemViews: `${SCOPE}/system-views`,
   systemView: `${SCOPE}/system-views/{id}`,
   preferences: `${SCOPE}/definitions/{definitionId}/preferences`,
 } as const;
 
 /**
- * The path variables of a request at `place`. The tenant is always the
- * interceptors'; the owner is theirs for a personal path.
+ * The path variables of a request at `place`. The tenant is the
+ * interceptors' but on the system path; the owner is theirs for a personal
+ * path.
  */
 export function pathAt(
   place: Place,
   variables: Record<string, string> = {},
 ): Record<string, string> {
-  return place === 'shared'
-    ? { ...variables, ownerId: SHARED_OWNER_ID }
-    : { ...variables };
+  switch (place) {
+    case 'shared':
+      return { ...variables, ownerId: SHARED_OWNER_ID };
+    case 'system':
+      return {
+        ...variables,
+        tenantId: SYSTEM_TENANT_ID,
+        ownerId: SYSTEM_OWNER_ID,
+      };
+    default:
+      return { ...variables };
+  }
 }

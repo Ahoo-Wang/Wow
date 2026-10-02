@@ -98,7 +98,8 @@ internal class ViewStoreOpenApi(private val paths: ViewStorePaths, private val s
 
     private fun systemViews(context: OpenAPIComponentContext, errorInfo: Schema<*>): Operation = operation(
         "view-store.systemViews",
-        "The server's system views, under the shared owner only",
+        "The system views, under the shared owner only: the configured ones of the tenant and the views stored " +
+            "under tenant (platform) and owner (system), global; a stored view wins over a configured one with its id",
         errorInfo,
         ok(ArraySchema().items(context.schema(SystemView::class.java))),
     ).addParametersItem(
@@ -107,7 +108,7 @@ internal class ViewStoreOpenApi(private val paths: ViewStorePaths, private val s
 
     private fun systemView(context: OpenAPIComponentContext, errorInfo: Schema<*>): Operation = operation(
         "view-store.systemView",
-        "One of the server's system views",
+        "One of the system views: the stored one, else the configured one",
         errorInfo,
         ok(context.schema(SystemView::class.java)),
     ).addParametersItem(pathParameter(ViewStorePaths.ID))

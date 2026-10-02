@@ -35,9 +35,13 @@ class ViewStoreApiTest {
     }
 
     @Test
-    fun `the shared owner is shared and any other owner personal`() {
+    fun `the shared owner is shared, the system owner system and any other owner personal`() {
         ViewAudience.ofOwner(ViewStoreService.SHARED_OWNER_ID).assert().isEqualTo(ViewAudience.SHARED)
+        ViewAudience.ofOwner(ViewStoreService.SYSTEM_OWNER_ID).assert().isEqualTo(ViewAudience.SYSTEM)
+        ViewAudience.ofOwner("(SYSTEM)").assert().isEqualTo(ViewAudience.PERSONAL)
         ViewAudience.ofOwner("alice").assert().isEqualTo(ViewAudience.PERSONAL)
+        ViewStoreService.SYSTEM_TENANT_ID.assert().isEqualTo("(platform)")
+        mapper.writeValueAsString(ViewAudience.SYSTEM).assert().isEqualTo("\"system\"")
     }
 
     @Test
@@ -51,5 +55,19 @@ class ViewStoreApiTest {
     fun `a system view is always of the system scope`() {
         SystemView("id", "orders", "Open", ViewKind.RECORD, "r", mapper.createObjectNode()).scope
             .assert().isEqualTo(SystemView.SYSTEM_SCOPE)
+    }
+
+    @Test
+    fun `a system view says where it comes from, and a stored one its version`() {
+        val configured = SystemView("id", "orders", "Open", ViewKind.RECORD, "r", mapper.createObjectNode())
+        mapper.valueToTree<tools.jackson.databind.JsonNode>(configured).let {
+            it["source"].asString().assert().isEqualTo("configured")
+            it["version"].isNull.assert().isTrue()
+        }
+        val stored = configured.copy(source = SystemViewSource.STORED, version = 3)
+        mapper.valueToTree<tools.jackson.databind.JsonNode>(stored).let {
+            it["source"].asString().assert().isEqualTo("stored")
+            it["version"].asInt().assert().isEqualTo(3)
+        }
     }
 }

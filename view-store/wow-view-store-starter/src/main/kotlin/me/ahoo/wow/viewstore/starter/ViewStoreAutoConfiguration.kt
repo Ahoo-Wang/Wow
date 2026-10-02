@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.viewstore.starter
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.command.CommandGateway
 import me.ahoo.wow.modeling.getContextAliasPrefix
@@ -21,6 +22,8 @@ import me.ahoo.wow.openapi.RouterSpecs
 import me.ahoo.wow.openapi.metadata.aggregateRouteMetadata
 import me.ahoo.wow.query.event.EventStreamQueryGateway
 import me.ahoo.wow.query.schema.QuerySchemaRegistration
+import me.ahoo.wow.query.schema.UnavailableQueryStorageAdapter
+import me.ahoo.wow.query.snapshot.SnapshotQueryBackendFactory
 import me.ahoo.wow.query.snapshot.SnapshotQueryGateway
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
 import me.ahoo.wow.spring.boot.starter.WowAutoConfiguration
@@ -36,6 +39,9 @@ import me.ahoo.wow.viewstore.domain.view.SharedBoardReferences
 import me.ahoo.wow.viewstore.domain.view.View
 import me.ahoo.wow.viewstore.domain.view.ViewState
 import me.ahoo.wow.viewstore.starter.system.PropertiesSystemViewProvider
+import me.ahoo.wow.viewstore.starter.system.SnapshotStoredSystemViewSource
+import me.ahoo.wow.viewstore.starter.system.StoredSystemViewSource
+import me.ahoo.wow.viewstore.starter.system.StoredSystemViews
 import me.ahoo.wow.viewstore.starter.system.SystemViewProvider
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
 import me.ahoo.wow.webflux.route.RouteHandlerFunctionRegistrar
@@ -44,6 +50,7 @@ import me.ahoo.wow.webflux.route.command.extractor.CommandMessageExtractor
 import me.ahoo.wow.webflux.route.policy.CommandWaitPolicy
 import org.springdoc.core.customizers.OpenApiCustomizer
 import org.springframework.beans.factory.BeanFactory
+import org.springframework.beans.factory.ObjectProvider
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass
@@ -74,6 +81,7 @@ import org.springframework.web.reactive.function.server.ServerResponse
 @EnableConfigurationProperties(ViewStoreProperties::class)
 class ViewStoreAutoConfiguration {
     companion object {
+        private val log = KotlinLogging.logger {}
         const val ROUTER_FUNCTION_BEAN_NAME = "viewStoreRouterFunction"
         private val viewNamedAggregate = View::class.java.aggregateRouteMetadata().aggregateMetadata.namedAggregate
         private val preferencesNamedAggregate =
@@ -115,10 +123,42 @@ class ViewStoreAutoConfiguration {
         beanFactory.getBean(viewNamedAggregate.snapshotQueryGatewayBeanName()) as SnapshotQueryGateway<ViewState>
     }
 
+    /**
+     * The system views stored under `(platform)/(system)`, from the view snapshots, when the host has a snapshot
+     * query backend for views; otherwise none (Wow's fallback backend answers every query with an error, which would
+     * take the configured system views down with it), with one warning.
+     */
+    @Suppress("UNCHECKED_CAST")
+    @Bean
+    @ConditionalOnMissingBean
+    fun storedSystemViewSource(
+        snapshotQueryBackendFactories: ObjectProvider<SnapshotQueryBackendFactory>,
+        beanFactory: BeanFactory,
+    ): StoredSystemViewSource {
+        val factory = snapshotQueryBackendFactories.ifAvailable
+        if (factory == null || factory.create(viewNamedAggregate).storage is UnavailableQueryStorageAdapter) {
+            log.warn {
+                "The view store has no snapshot query backend for [$viewNamedAggregate]: stored system views are " +
+                    "off. Only the configured system views are served, and views written to " +
+                    "[tenant/(platform)/owner/(system)] are not served as system views."
+            }
+            return StoredSystemViewSource.NONE
+        }
+        return SnapshotStoredSystemViewSource {
+            beanFactory.getBean(viewNamedAggregate.snapshotQueryGatewayBeanName()) as SnapshotQueryGateway<ViewState>
+        }
+    }
+
+    @Bean("viewStoreStoredSystemViews")
+    internal fun viewStoreStoredSystemViews(
+        systemViewProvider: SystemViewProvider,
+        storedSystemViewSource: StoredSystemViewSource,
+    ): StoredSystemViews = StoredSystemViews(systemViewProvider, storedSystemViewSource)
+
     @Bean("viewStoreHandlers")
     @Suppress("LongParameterList")
     internal fun viewStoreHandlers(
-        systemViewProvider: SystemViewProvider,
+        viewStoreStoredSystemViews: StoredSystemViews,
         stateAggregateRepository: StateAggregateRepository,
         commandGateway: CommandGateway,
         commandMessageExtractor: CommandMessageExtractor,
@@ -126,7 +166,7 @@ class ViewStoreAutoConfiguration {
         exceptionHandler: RequestExceptionHandler,
         beanFactory: BeanFactory,
     ): ViewStoreHandlers = ViewStoreHandlers(
-        systemViewProvider = systemViewProvider,
+        systemViews = viewStoreStoredSystemViews,
         stateAggregateRepository = stateAggregateRepository,
         commandHandler = CommandHandler(commandGateway, commandMessageExtractor, commandWaitPolicy),
         viewEventStreamQueryGateway = {
