@@ -1115,3 +1115,40 @@ export const SystemViewsReadOnlyForOthers: Story = {
     await expect(document.querySelector('[data-publish]')).toBeNull();
   },
 };
+
+/**
+ * The shared save's question answered from the keyboard (R2-33): the write
+ * takes the Save button it was asked from, so the keyboard goes to the
+ * view's title — in a browser, where the question hands focus back only once
+ * its exit animation ends, after a quick store has already settled the
+ * write. Left to the dialog, it went back to the disabled Save button and
+ * fell to <body> (2026-10-01 accessibility re-walk).
+ */
+export const SharedSaveKeepsTheKeyboard: Story = {
+  ...DisplayManageViews,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await dirtyTheDraft(canvasElement);
+    const saveButton = canvas.getByRole('button', {
+      name: zhCN['label.save.save'],
+    });
+    await waitFor(() => expect(saveButton).toBeEnabled());
+    saveButton.focus();
+    await userEvent.keyboard('{Enter}');
+    const question = await within(document.body).findByRole('alertdialog', {
+      name: zhCN['label.save.shared-heading'],
+    });
+    within(question)
+      .getByRole('button', { name: zhCN['label.save.shared-confirm'] })
+      .focus();
+    await userEvent.keyboard('{Enter}');
+    await waitFor(() =>
+      expect(within(document.body).queryByRole('alertdialog')).toBeNull(),
+    );
+    const title = canvasElement.querySelector('[data-slot="view-title"]');
+    await waitFor(() => expect(document.activeElement).toBe(title));
+    // And it stays there once the write has settled.
+    await new Promise(resolve => setTimeout(resolve, 300));
+    await expect(document.activeElement).toBe(title);
+  },
+};

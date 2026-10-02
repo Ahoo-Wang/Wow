@@ -108,6 +108,12 @@ export function SaveActions({
   const { can, state } = commands;
   const group = useRef<HTMLDivElement>(null);
   const confirmed = useRef(false);
+  // Whether the question now closing was answered 「更新给所有人」. Kept apart
+  // from `confirmed`, which the effect below lets go of once the write
+  // settles: in a browser the dialog hands the keyboard back only when its
+  // exit animation ends, and a quick store has settled the write by then
+  // (R2-33, the 2026-10-01 re-walk).
+  const answered = useRef(false);
   // Where the keyboard goes as the shared save's question closes. Cancelled,
   // back to the Save button it was asked from (the dialog's own choice).
   // Answered 「更新给所有人」, the write it starts takes that button — it is
@@ -120,7 +126,7 @@ export function SaveActions({
       ?.closest('[data-slot="view-header"]')
       ?.querySelector<HTMLElement>('[data-slot="view-title"]') ?? null;
   const afterConfirm: FinalFocus = () =>
-    (confirmed.current && titleOf()) || true;
+    (answered.current && titleOf()) || true;
   // The dialog hands the keyboard back as it closes, and may do so before
   // the write has disabled the button it hands it to; so each render until
   // the write settles looks once more, and a keyboard that fell — onto
@@ -255,6 +261,7 @@ export function SaveActions({
             if (!saves) setCopying(true);
             else if (state.audience === 'shared') {
               confirmed.current = false;
+              answered.current = false;
               setConfirming(true);
             } else write();
           }}
@@ -314,6 +321,7 @@ export function SaveActions({
         onOpenChange={setConfirming}
         onConfirm={() => {
           confirmed.current = true;
+          answered.current = true;
           write();
         }}
         finalFocus={afterConfirm}
