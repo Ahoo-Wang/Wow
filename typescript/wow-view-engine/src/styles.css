@@ -3083,7 +3083,11 @@
  *   every item wore the same frame and the one under the keyboard was told
  *   apart by nothing (second-round review). The popup is edged in the text colour: its edge on screen is
  *   a `ring`, a shadow, which this mode drops, and the menu floated
- *   edgeless over the table.
+ *   edgeless over the table. So is a dialog: its ring and its dimmed
+ *   backdrop both went, and Save as floated edgeless over the workbench
+ *   (2026-10-01 accessibility re-walk).
+ * - A radio's dot is a fill, repainted as the page: every audience in Save
+ *   as looked unpicked. It keeps the text colour.
  */
 @media (forced-colors: active) {
   .fve-root
@@ -3128,9 +3132,17 @@
     [data-slot='dropdown-menu-content'],
     [data-slot='dropdown-menu-sub-content'],
     [data-slot='select-content'],
-    [data-slot='combobox-content']
+    [data-slot='combobox-content'],
+    [data-slot='dialog-content'],
+    [data-slot='alert-dialog-content']
   ) {
     border: 1px solid CanvasText;
+  }
+
+  .fve-root [data-slot='radio-group-indicator'] > span,
+  .fve-tokens [data-slot='radio-group-indicator'] > span {
+    forced-color-adjust: none;
+    background-color: CanvasText;
   }
 
   .fve-root :focus-visible,

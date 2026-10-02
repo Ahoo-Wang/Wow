@@ -197,8 +197,15 @@ function CalendarDayButton({
   // `dark:hover:text-foreground` outrank the selected fills, so a hovered
   // selected day lost its colour. The `data-[…]:hover:` pairs restate each
   // selected fill with one more condition. See docs/design/ui/README.md.
+  //
+  // Local change, kept across `shadcn add --diff calendar`: the ref above
+  // is handed to the button, so the effect can move the keyboard to the day
+  // the arrows reached. Without it the arrows marked another day but left
+  // focus where it was, and no other day could be picked from the keyboard
+  // (WCAG 2.1.1). See docs/design/ui/README.md.
   return (
     <Button
+      ref={ref}
       variant="ghost"
       size="icon"
       data-day={day.date.toLocaleDateString(locale?.code)}

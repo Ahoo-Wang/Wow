@@ -505,6 +505,52 @@ export const MenuInForcedColors: Story = {
 };
 
 /**
+ * 强制颜色下的对话框与单选（2026-10-01 可访问性重走查）：对话框在屏幕上的边
+ * 是 `ring`（阴影），遮罩是半透明的底，这个模式两样都丢，「另存为」就没边地
+ * 浮在工作台上；单选选中的那一点是背景色，被重绘成 `Canvas`，三个可见范围
+ * 看上去都没选。现在对话框画 `CanvasText` 的边，选中的点画 `CanvasText`。
+ */
+export const DialogInForcedColors: Story = {
+  ...DisplayWithData,
+  args: { ...DisplayWithData.args, theme: 'light', preset: 'neutral' },
+  play: async ({ canvasElement }) => {
+    const { canvas } = await parts(canvasElement);
+    canvas.getByRole('button', { name: zhCN['label.header.more'] }).focus();
+    await userEvent.keyboard('{Enter}');
+    await openPopup('dropdown-menu-content');
+    await userEvent.keyboard('{Enter}');
+    const dialog = await openPopup('dialog-content');
+    const checked = await waitFor(() => {
+      const found = dialog.querySelector<HTMLElement>(
+        '[role="radio"][aria-checked="true"]',
+      );
+      expect(found).not.toBeNull();
+      return found!;
+    });
+    const dot = checked.querySelector<HTMLElement>(
+      '[data-slot="radio-group-indicator"] > span',
+    )!;
+    const ran = await underMedia(
+      { forcedColors: 'active' },
+      '(forced-colors: active)',
+      async () => {
+        await waitFor(() => {
+          const edge = getComputedStyle(dialog);
+          expect(edge.borderTopStyle).toBe('solid');
+          expect(edge.borderTopWidth).toBe('1px');
+        });
+        // The dot is drawn in the text colour, not repainted to the page.
+        await expect(getComputedStyle(dot).backgroundColor).not.toBe(
+          getComputedStyle(checked).backgroundColor,
+        );
+      },
+    );
+    await userEvent.keyboard('{Escape}');
+    if (EMULATES_FORCED) await expect(ran).toBe(true);
+  },
+};
+
+/**
  * 截图里原来没有的三块面，各留一张基线（ui/theme.md「角色：引擎自己的面」）：
  * 菜单的高亮项、提示框、对话框背后的遮罩——neutral，什么角色都不设，
  * 以后的重调批改它们时才有「改前」可比。

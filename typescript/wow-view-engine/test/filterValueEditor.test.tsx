@@ -1084,4 +1084,32 @@ describe('SurfaceCalendar', () => {
 
     expect(document.querySelectorAll('th[aria-label]').length).toBe(7);
   });
+
+  it('moves the keyboard from day to day with the arrows', async () => {
+    // The grid is one Tab stop; the arrows walk it. The library marks the
+    // day the arrows reached and the day button takes the focus there — a
+    // button with no ref left the keyboard on the day it started from, so
+    // no other day could be reached without a pointer (2026-10-01
+    // accessibility re-walk, WCAG 2.1.1).
+    const user = userEvent.setup();
+    render(
+      <ViewSurface locale="zh-CN">
+        <SurfaceCalendar
+          mode="single"
+          selected={new Date(2026, 8, 21)}
+          month={new Date(2026, 8, 1)}
+        />
+      </ViewSurface>,
+    );
+    const day = (date: number) =>
+      document.querySelector<HTMLElement>(
+        `[data-day="${new Date(2026, 8, date).toLocaleDateString()}"]`,
+      )!;
+    day(21).focus();
+
+    await user.keyboard('{ArrowLeft}');
+    expect(document.activeElement).toBe(day(20));
+    await user.keyboard('{ArrowDown}');
+    expect(document.activeElement).toBe(day(27));
+  });
 });
