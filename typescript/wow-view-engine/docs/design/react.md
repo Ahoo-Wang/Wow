@@ -320,8 +320,8 @@ RecordActionsController {
 
 - **钟**：`now` 是引擎的钟；页上的行与 `also`（详情里那条）里最早的 `changesAt` 开一个定时器，到点拨到现在。时钟落后只会让规则早问、拒绝并报出翻转时刻，于是立即更正；按下时钟先拨到现在。
 - **按下**（`start`）：选择的选项作为 `input` 进来；`asksFirst`——多选、要填的表单、单条且声明了 `confirm`（`ask` 不是 `bulk`）——进 `pending`，否则直接跑。
-- **`pending`** 每次渲染按当前的行与钟重算 `able`／`refused`（按理由分组）与缺的必填项；`onlyAble` 把目标（多选时连同表格的选择）收窄到能做的；`confirm` 在缺项或一条都不能做时什么也不做，否则跑全部目标——被拒的在跑的时候再问一次（`runOne`），记为未执行（`refused`），不发送。`forSelection` 给每个多选动作 `able`（现在能做的条数）与一条都不能做时最常见的 `reason`。`onError` 收到命令抛出的原错误（`ActionRefused` 与中止除外）。
-- **执行器**（`react/actionRunner.ts` 的 `useActionRunner`，原 **useBulkCommand**）：几条几条地跑（缺省 4）、进度、可停止（没开始的记在 `skipped`）、逐条原因（`ActionRefused` 保留宿主写的理由——键还是键——其余交给 `sourceReason` 读出数据源自己的话，读不出或是空白时用通用理由）、结局分四类：`succeeded`、`failed`（发出被拒）、`refused`（没发：动作轮到时拒绝）、`unknown`（发出没回音：超时、中止、断网、504、过了 `timeout`、「不再等待」）与没开始的 `skipped`；失败、未执行与没开始的留在选中（`kept`；单条的命令不传 `select`，不动选择），结果未知的取消选择；跑完刷新，落定在 `finally` 里；一次只跑一趟；第二次 `stop()` 不再等待；面卸下后不再开始新的。结局不自行消失，`dismiss()` 是它唯一的出口。`title` 与 `values` 是键或文字，在状态条上才说出（`useSayWith`）。（见 test/actionRunner.test.tsx「useActionRunner」「BulkStatus」、test/declaredActions.test.tsx）
+- **`pending`** 每次渲染按当前的行与钟重算 `able`／`refused`（按理由分组）与缺的必填项；`onlyAble` 把目标（多选时连同表格的选择）收窄到能做的；`confirm` 在缺项或一条都不能做时什么也不做，否则跑全部目标——被拒的在跑的时候再问一次（`runOne`），记为未执行（`refused`），不发送。`forSelection` 给每个多选动作 `able`（现在能做的条数）与一条都不能做时最常见的 `reason`。`onError` 收到命令抛出的原错误（`ActionRefusedError` 与中止除外）。
+- **执行器**（`react/actionRunner.ts` 的 `useActionRunner`，原 **useBulkCommand**）：几条几条地跑（缺省 4）、进度、可停止（没开始的记在 `skipped`）、逐条原因（`ActionRefusedError` 保留宿主写的理由——键还是键——其余交给 `sourceReason` 读出数据源自己的话，读不出或是空白时用通用理由）、结局分四类：`succeeded`、`failed`（发出被拒）、`refused`（没发：动作轮到时拒绝）、`unknown`（发出没回音：超时、中止、断网、504、过了 `timeout`、「不再等待」）与没开始的 `skipped`；失败、未执行与没开始的留在选中（`kept`；单条的命令不传 `select`，不动选择），结果未知的取消选择；跑完刷新，落定在 `finally` 里；一次只跑一趟；第二次 `stop()` 不再等待；面卸下后不再开始新的。结局不自行消失，`dismiss()` 是它唯一的出口。`title` 与 `values` 是键或文字，在状态条上才说出（`useSayWith`）。（见 test/actionRunner.test.tsx「useActionRunner」「BulkStatus」、test/declaredActions.test.tsx）
 
 ## useSearchBox
 

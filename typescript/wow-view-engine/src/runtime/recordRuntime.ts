@@ -24,7 +24,7 @@ import { pageAfterShrink, restyleRecord } from '../record/index.js';
 import { executeSummaries, firstPageOf } from './execute.js';
 import {
   fetchExportRows,
-  isExportCancelled,
+  isExportCancelledError,
   type ExportRowsOptions,
   type ExportedRows,
 } from './exportRows.js';
@@ -102,8 +102,8 @@ export class RecordDataViewRuntime
       withScopeFilter(this.state.applied, this.scopeFilter),
       options,
     ).catch((error: unknown) => {
-      // A cancel is the user's answer, not a failure (`isExportCancelled`).
-      if (!isExportCancelled(error) && !isCalledOff(error, options.signal))
+      // A cancel is the user's answer, not a failure (`isExportCancelledError`).
+      if (!isExportCancelledError(error) && !isCalledOff(error, options.signal))
         this.exportFailed('fetch', error);
       throw error;
     });

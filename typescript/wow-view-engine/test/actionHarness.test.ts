@@ -19,7 +19,7 @@
 
 import { describe, expect, it, vi } from 'vitest';
 import { actions, text, type RecordAction } from '../src/index.js';
-import { actionHarness, ActionRefused } from '../src/testing/index.js';
+import { actionHarness, ActionRefusedError } from '../src/testing/index.js';
 import {
   actionState,
   asksFirst,
@@ -236,7 +236,7 @@ describe('actionHarness', () => {
 
   it('sends as the engine does: refused with the reason where a record does not take it', async () => {
     await expect(harness.run('prepare', 'EF-3')).rejects.toBeInstanceOf(
-      ActionRefused,
+      ActionRefusedError,
     );
     await expect(harness.run('prepare', 'EF-3')).rejects.toMatchObject({
       reason: text('succeeded'),

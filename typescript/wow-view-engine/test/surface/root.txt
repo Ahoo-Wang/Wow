@@ -187,7 +187,7 @@ type  EngineResources
 type  EnumFilterValue
 type  EpochTemporal
 type  EpochTimeUnit
-value ExportCancelled
+value ExportCancelledError
 type  ExportColumn
 type  ExportFormat
 type  ExportRowsOptions
@@ -634,7 +634,7 @@ value isDuration
 value isDurationFilterValue
 value isEmptyFilter
 value isExecutableFilter
-value isExportCancelled
+value isExportCancelledError
 value isFieldName
 value isFieldlessKind
 value isFilterGroup

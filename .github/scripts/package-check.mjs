@@ -81,7 +81,11 @@ export const ENTRIES = [
     { require: false },
   ],
   ['@ahoo-wang/wow-view-engine/ui', 'AnalysisChart', { require: false }],
-  ['@ahoo-wang/wow-view-engine/testing', 'ActionRefused', { require: false }],
+  [
+    '@ahoo-wang/wow-view-engine/testing',
+    'ActionRefusedError',
+    { require: false },
+  ],
   [
     '@ahoo-wang/wow-view-engine/react-router',
     'useReactRouter',
@@ -158,7 +162,7 @@ export const query = () => useFetcherPagedQuery(42);
 const VIEWS = `import { ViewEngine } from '@ahoo-wang/wow-view-engine';
 import { browserRuntimeEnvironment } from '@ahoo-wang/wow-view-engine/react';
 import { AnalysisChart } from '@ahoo-wang/wow-view-engine/ui';
-import { ActionRefused } from '@ahoo-wang/wow-view-engine/testing';
+import { ActionRefusedError } from '@ahoo-wang/wow-view-engine/testing';
 import { useReactRouter } from '@ahoo-wang/wow-view-engine/react-router';
 import { WowViewStore } from '@ahoo-wang/wow-view-store';
 
@@ -168,7 +172,7 @@ export const engine = new ViewEngine(42);
 export const store = new WowViewStore(42);
 // @ts-expect-error the engine's exports must not be any
 export const chart: number = AnalysisChart;
-export const entries = [browserRuntimeEnvironment, ActionRefused, useReactRouter];
+export const entries = [browserRuntimeEnvironment, ActionRefusedError, useReactRouter];
 `;
 const CONSUMERS = {
   'client.mts': CLIENT_AND_GENERATOR,

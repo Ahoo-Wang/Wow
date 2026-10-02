@@ -932,10 +932,10 @@ export {
   type ActionRow,
 } from './runtime/actions.js';
 export {
-  ExportCancelled,
+  ExportCancelledError,
   type ExportRowsOptions,
   type ExportedRows,
-  isExportCancelled,
+  isExportCancelledError,
 } from './runtime/exportRows.js';
 export type { ValueCandidateSource } from './runtime/valueCandidates.js';
 export type {

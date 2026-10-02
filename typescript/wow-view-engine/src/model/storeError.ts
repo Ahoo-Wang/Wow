@@ -134,7 +134,7 @@ export interface ConflictingState {
  * `ViewStoreError` with one of the port's codes. The name is what keeps a
  * stray `{ code: 'NOT_FOUND' }` from an HTTP library out. Every guard of
  * the engine's errors reads them so (`isViewWriteError`,
- * `isViewCommandError`, `isExportCancelled`).
+ * `isViewCommandError`, `isExportCancelledError`).
  */
 export function isViewStoreError(error: unknown): error is ViewStoreError {
   if (!isNamedError(error, 'ViewStoreError')) return false;

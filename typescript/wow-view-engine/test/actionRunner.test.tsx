@@ -27,7 +27,7 @@ import {
   type BulkSelection,
 } from '../src/react/index.js';
 import { useActionRunner } from '../src/react/actionRunner.js';
-import { ActionRefused } from '../src/runtime/actions.js';
+import { ActionRefusedError } from '../src/runtime/actions.js';
 import { text } from '../src/index.js';
 import { BulkStatus } from '../src/ui/actions/BulkStatus.js';
 import { MessagesProvider } from '../src/ui/index.js';
@@ -156,7 +156,7 @@ describe('useActionRunner', () => {
     const { result } = renderHook(() => useActionRunner());
     const run = gated();
     act(() => result.current.run(selection(['a']), run.command));
-    await run.settle('a', new ActionRefused(text('orders.shipped')));
+    await run.settle('a', new ActionRefusedError(text('orders.shipped')));
     // Not sent, so not a failure: it is counted apart, and stays picked.
     expect(result.current.outcome).toMatchObject({
       failed: [],
@@ -330,7 +330,7 @@ describe('an outcome nobody knows', () => {
     const { result } = renderHook(() => useActionRunner({ onError }));
     const run = gated();
     act(() => result.current.run(selection(['a']), run.command));
-    await run.settle('a', new ActionRefused(text('orders.shipped')));
+    await run.settle('a', new ActionRefusedError(text('orders.shipped')));
     expect(onError).not.toHaveBeenCalled();
   });
 

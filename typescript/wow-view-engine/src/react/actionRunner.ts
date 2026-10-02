@@ -15,7 +15,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { RecordKey } from '../model/index.js';
 import {
   ABANDONED,
-  ActionRefused,
+  ActionRefusedError,
   FAILED,
   TIMED_OUT,
   UNAVAILABLE,
@@ -80,7 +80,7 @@ export interface BulkOutcome {
   failed: readonly BulkFailure[];
   /**
    * Not sent: the action refused the record when its turn came
-   * (`ActionRefused`), with the action's reason as written.
+   * (`ActionRefusedError`), with the action's reason as written.
    */
   refused: readonly BulkFailure[];
   /**
@@ -157,7 +157,7 @@ export interface ActionRunnerOptions {
   /**
    * Told of what a record's command threw — a failure, or a timeout or a
    * lost connection whose outcome is unknown — as it was thrown. Not of an
-   * action's own refusal (`ActionRefused`) nor of an abort: neither is a
+   * action's own refusal (`ActionRefusedError`) nor of an abort: neither is a
    * failure.
    */
   onError?(error: unknown, context: ActionFailureContext): void;
@@ -290,7 +290,7 @@ export function useActionRunner(
         error: unknown,
         key: RecordKey,
       ): Promise<Settled> => {
-        if (error instanceof ActionRefused)
+        if (error instanceof ActionRefusedError)
           return { kind: 'refused', reason: error.reason || UNAVAILABLE };
         const failure = await readSafely(error);
         if (!isCalledOff(error))

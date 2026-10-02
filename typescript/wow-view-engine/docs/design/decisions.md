@@ -278,7 +278,7 @@
 - **来由**：审查 A-16。根入口一层层 `export *`，连运行时的内部件（`RuntimeStore`、`RequestRunner`、`listenerSet` 等）一起导出；首发之后每一个多余的导出都是兼容负担，而 README 的入口表只守「列出的名字真从那个入口导出」，不守入口多导出了什么。
 - **裁定**（首发前，按 [README.md「Entries」](../../README.md#entries) 与本目录各页定）：
   - **每个代码入口的导出逐名记成清单**（`test/surface/root.txt`、`react.txt`、`ui.txt`，每行一个名字、注明类型还是值），`test/publicSurface.test.ts` 从源码入口读出来比对，`scripts/verify-package.mjs` 再拿它核对构建出的 JS 入口。改清单就是改公开面，在评审里单独看得见；用 `vitest -u` 有意更新。
-  - **运行时逐名导出，只导出宿主要握的**：`ViewEngine` 与它的选项、运行时合同（`ViewRuntime`、`RecordViewRuntime`、`DashboardRuntime`、`AnyViewRuntime` 与它们签名里出现的每一个类型）、`hasResult`／`hasAsked`／`isRecordRuntime` 三个读法、写入错误与 `ExportCancelled`、`RuntimeEnvironment` 与 `ViewSource`／`OptionSource` 两个端口、`validateDefinition`。其余 60 个名字不出包：调度器（`RequestRunner` 一族）、`RuntimeStore`、计时器、`listenerSet`、运行时的类与 `dataViewRuntime`、`ManagedViewRuntime`／`ViewRuntimeOptions` 这类只给引擎的合同，以及 `/react`、`/ui` 共用的读法（`comparePending`、`boardFindings`、`sourceReason` 等）——这两层从各自的文件取，不经入口。
+  - **运行时逐名导出，只导出宿主要握的**：`ViewEngine` 与它的选项、运行时合同（`ViewRuntime`、`RecordViewRuntime`、`DashboardRuntime`、`AnyViewRuntime` 与它们签名里出现的每一个类型）、`hasResult`／`hasAsked`／`isRecordRuntime` 三个读法、写入错误与 `ExportCancelledError`、`RuntimeEnvironment` 与 `ViewSource`／`OptionSource` 两个端口、`validateDefinition`。其余 60 个名字不出包：调度器（`RequestRunner` 一族）、`RuntimeStore`、计时器、`listenerSet`、运行时的类与 `dataViewRuntime`、`ManagedViewRuntime`／`ViewRuntimeOptions` 这类只给引擎的合同，以及 `/react`、`/ui` 共用的读法（`comparePending`、`boardFindings`、`sourceReason` 等）——这两层从各自的文件取，不经入口。
   - **运行时只经引擎打开或新建，不手搭**：`dataViewRuntime` 与 `RequestRunner` 一并收回，公开签名里原本写着类 `DataViewRuntime` 的地方（`DashboardRuntime.panelRuntime`、`DashboardPanelState.runtime`、`/react` 的 `DashboardPanelView.runtime`、`usePanelFollowUps`）改成合同 `ViewRuntime<DataViewConfig>`，`isRecordRuntime` 收窄到 `RecordViewRuntime`。条件编辑器对未注册类型的只读防护照旧由单元测试直接搭 runtime 验；故事改为引擎可达的那一条——注册了却要一个引擎没有的编辑器（`FilterPanel.stories.tsx`「UnknownEditor」）。
   - 内核与模型仍整层导出：它们是纯函数与类型，「只用内核，不用 React」就是它们的用法；清单让它们的增减同样看得见。（D64 修订：入口逐名写出每个公开名，十八个没人用的名字退出公开面。）
 - **落点**：`src/runtime/index.ts`、`test/publicSurface.test.ts`、`test/surface/`、`scripts/verify-package.mjs`、[README.md「Entries」](../../README.md#entries)、[README.md](README.md)「包入口」。
@@ -443,7 +443,7 @@
   - **与 `onRenderFailure` 的关系**：保留。它是**这一块界面**的回调（宿主想在旁边做点什么），`onError` 是**整个引擎**的监控出口；同一次渲染失败两者各得一次，交出的 `error` 是同一个对象。边界在工作台（`DataWorkbench`、`DashboardWorkbench`）与嵌入（`EmbedFrame`）之下才找得到 `onError`（`ui/kit/failureSink.tsx`，内部 context）；单独用的 `RenderBoundary` 只告诉自己的 `onFailure`。
   - **与 `onIssue` 的分工**：`onIssue` 只剩没有抛出物的「发现」——定义准入、列表里被丢掉的保留 id、抛错的变化监听者；`engine.list` 的存储失败不再经 `onIssue`（它已经作为 `store` 报过一次）。
   - **图表画坏了现在也落到边界**：从前 `setOption` 在尺寸观察者的回调里抛，谁也接不住，同一帧里其余图表也不画了；现在创建与绘制都被接住，交给边界。
-- **声明式操作的命令失败也走这里**（2026-10-01 补，第二轮复审 ARCH-1）：H3 的操作在 D40 之后才加，`run` 失败只在状态条上留一句理由、原错误丢了。现在执行器把每条记录失败或结果未知时抛出的原物报为 `kind: 'action'`，`context.operation` 是动作 id（插槽的命令是它的 `operation`，否则标题），`context.recordKey` 是那条记录，`definitionId`／`instanceId`／`runtimeId` 照常；动作自己的拒绝（`ActionRefused`）与中止（`AbortError`）不报。在首发前加进联合类型，免得首发后再加打断穷举 `switch` 的宿主。
+- **声明式操作的命令失败也走这里**（2026-10-01 补，第二轮复审 ARCH-1）：H3 的操作在 D40 之后才加，`run` 失败只在状态条上留一句理由、原错误丢了。现在执行器把每条记录失败或结果未知时抛出的原物报为 `kind: 'action'`，`context.operation` 是动作 id（插槽的命令是它的 `operation`，否则标题），`context.recordKey` 是那条记录，`definitionId`／`instanceId`／`runtimeId` 照常；动作自己的拒绝（`ActionRefusedError`）与中止（`AbortError`）不报。在首发前加进联合类型，免得首发后再加打断穷举 `switch` 的宿主。
 - **公开面**：根入口多三个类型名 `ViewErrorEvent`、`ViewErrorKind`、`ViewErrorContext`；`RuntimeEnvironment` 多可选的 `onError`。`ViewErrorContext` 多可选的 `violation`（wow-client 的 `QueryViolation`）与 `errorCode`；`ViewErrorKind` 多 `'action'`，`ViewErrorContext` 多可选的 `recordKey`（2026-10-01）。`reportError`、`reportingStore`、`ChartFailure`、`FailureSink` 都不出包。
 - **落点**：`src/runtime/environment.ts`、`src/runtime/failures.ts`、`src/runtime/sourceReason.ts`、`src/runtime/queryFailure.ts`、`src/runtime/viewEngine.ts`、`src/runtime/viewRuntime.ts`、`src/runtime/execute.ts`、`src/runtime/recordRuntime.ts`、`src/runtime/valueCandidates.ts`、`src/react/useRecordExport.ts`、`src/ui/kit/RenderBoundary.tsx`、`src/ui/kit/failureSink.tsx`、`src/ui/kit/chartFailure.ts`、`src/ui/charts/EChart.tsx`、`src/ui/analysis/exportOffer.ts`、`src/ui/analysis/imageExport.ts`；[runtime.md#环境](runtime.md#环境)、[ui/README.md#渲染边界](ui/README.md#渲染边界)、[management.md](management.md)。（见 test/hostErrors.test.tsx、test/queryRejection.test.tsx「tells the host once, after the body is read, with the violation」、test/queryForbidden.test.tsx、test/chartLoad.test.tsx「says it could not be drawn when the library does not arrive」）
 
@@ -913,6 +913,12 @@
 - **界面**：锁（`SystemMark`）照旧挂在每个系统视图上；能编辑的那个悬停改说「所有人都看得到；你可以修改，改动对所有人生效」，不能编辑的存着的那个说「所有人都看得到；只有获准的人能修改」。另存为的第三个受众是「所有人（系统视图）」。能发布的用户每行多一格（`UploadIcon`，不用锁——锁说「这是系统视图」，画在个人或共享行上会读成「已锁」）；删除系统视图的确认说「删除后，所有人都不再看到这个系统视图」（仪表盘说「系统仪表盘」）。不能编辑的用户看不到任何编辑入口。
 - **落点**：`src/store/ViewStore.ts`、`src/model/instance.ts`、`src/runtime/{permissions,publish}.ts`、`src/store/MemoryViewStore.ts`、`src/react/{useViewManager,useSaveCommands}.ts`、`src/ui/manage/`、`src/ui/workbench/SaveAsDialog.tsx`；[management.md](management.md)「存着的系统视图」；test/storedSystemViews.test.tsx、端口一致性套件的 `storedSystemViews`；浏览器故事「Record 工作台/视图」的 `EditStoredSystemView`、`PublishAsSystemView`、`SystemViewsReadOnlyForOthers`。
 
+## D82 `ExportCancelled`、`ActionRefused` 改名为 `ExportCancelledError`、`ActionRefusedError`（2026-10-02，原 Q67）
+
+- **来由**：第二轮审查 R2-95。其余错误类都带 `Error` 后缀（`ViewStoreError`、`ViewWriteError`、`ViewCommandError`、`RequestSupersededError`），这两个没有；它们在公开面上（`ExportCancelled` 在根入口，`ActionRefused` 在 `/testing`），首发后再改只能在 x.Y.0 里作 Breaking。
+- **裁定**（用户 2026-10-02）：首发（9.2.0-rc.0）之前改名，不留别名：`ExportCancelledError`、`ActionRefusedError`，`.name` 与类名一致；判定函数 `isExportCancelled` 随类改为 `isExportCancelledError`（与 `isViewWriteError`、`isViewCommandError` 同形）。失败类的文件归位（`runtime/failure/`）不在此列，留在 [todo.md](todo.md)。
+- **落点**：`src/runtime/exportRows.ts`、`src/runtime/actions.ts`、三个入口；`test/surface/root.txt`、`testing.txt`，`test/api/root.api.md`、`testing.api.md`；`.github/scripts/package-check.mjs` 的 `/testing` 冒烟。
+
 ## 搁置待议
 
 尚无结论，不要当作规则执行。
@@ -922,4 +928,3 @@
 - **Q8 透视表**：两个维度只做平铺表 + 图；要不要透视表、做成什么样，待有真实需要再议。
 - **Q65 准入发现里的字段用 `field.name` 还是显示名**：今天整个包的发现都写字段名（「给 status 一个值」），宿主读得懂、用户未必；改成显示名是包级的决定（措辞、`params`、宿主的覆盖都受影响），不在某一处单改。
 - **Q66 分析表冻结列**：记录表首尾两列固定（D13），分析表没有；维度多、指标多时要不要冻结维度列，待有真实的宽分析表再议。
-- **Q67 `ExportCancelled`、`ActionRefused` 要不要改名为 `*Error`**（第二轮审查 R2-95）：其余错误类都带 `Error` 后缀，这两个没有；它们在公开面上（`ExportCancelled` 在根入口，`ActionRefused` 在 `/testing`），首发后改名只能在 x.Y.0 里作 Breaking。文件归位（`runtime/failure/`）不待议，在 [todo.md](todo.md)。

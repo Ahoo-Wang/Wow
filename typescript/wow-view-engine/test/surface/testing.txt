@@ -3,7 +3,7 @@
 # the public surface (README「Entries」, docs/design/decisions.md D29).
 type  ActionHarness
 type  ActionHarnessOptions
-value ActionRefused
+value ActionRefusedError
 type  Admissible
 type  AdmitFinding
 type  AdmitOptions

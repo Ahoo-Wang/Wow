@@ -21,7 +21,7 @@ import {
   builtinFieldKinds,
   isRecordRuntime,
   DEFAULT_RUNTIME_LIMITS,
-  isExportCancelled,
+  isExportCancelledError,
   type DataViewDefinition,
   type RecordData,
   type RecordViewRuntime,
@@ -295,7 +295,7 @@ describe('exporting every row the applied config matches', () => {
       .exportRows({ signal: controller.signal })
       .catch((error: unknown) => error);
 
-    expect(isExportCancelled(caught)).toBe(true);
+    expect(isExportCancelledError(caught)).toBe(true);
     expect(asked).toEqual([1, 2]);
   });
 
@@ -307,7 +307,7 @@ describe('exporting every row the applied config matches', () => {
       .exportRows({ signal: AbortSignal.abort() })
       .catch((error: unknown) => error);
 
-    expect(isExportCancelled(caught)).toBe(true);
+    expect(isExportCancelledError(caught)).toBe(true);
     expect(source.paged).not.toHaveBeenCalled();
   });
 

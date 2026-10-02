@@ -15,7 +15,7 @@ import { RecoverableType } from "@ahoo-wang/wow-client";
 import { text, type RecordRow } from "@ahoo-wang/wow-view-engine";
 import {
   actionHarness,
-  ActionRefused,
+  ActionRefusedError,
 } from "@ahoo-wang/wow-view-engine/testing";
 import { describe, expect, it, vi } from "vitest";
 import type { ExecutionCommands } from "@/features/Executions/executionCommands.ts";
@@ -153,7 +153,7 @@ describe("running them", () => {
       now: 1_000,
     });
     await expect(harness.run("prepare", "EF-1")).rejects.toBeInstanceOf(
-      ActionRefused,
+      ActionRefusedError,
     );
     await harness.run("prepare", "EF-4");
     await harness.run("forcePrepare", "EF-5");

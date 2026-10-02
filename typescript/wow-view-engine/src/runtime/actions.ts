@@ -417,11 +417,11 @@ export function nextChange(
  * gave it (a key stays a key), where a thrown error is read for the
  * source's words.
  */
-export class ActionRefused extends Error {
+export class ActionRefusedError extends Error {
   readonly reason: string;
   constructor(reason: string) {
     super(reason);
-    this.name = 'ActionRefused';
+    this.name = 'ActionRefusedError';
     this.reason = reason;
   }
 }
@@ -437,8 +437,9 @@ export async function runOne(
   input: ActionInput,
   now: number,
 ): Promise<unknown> {
-  if (!row) throw new ActionRefused(UNSEEN);
+  if (!row) throw new ActionRefusedError(UNSEEN);
   const state = actionState(action, row, { now, input });
-  if (!state.available) throw new ActionRefused(state.reason ?? UNAVAILABLE);
+  if (!state.available)
+    throw new ActionRefusedError(state.reason ?? UNAVAILABLE);
   return action.run(row, input);
 }
