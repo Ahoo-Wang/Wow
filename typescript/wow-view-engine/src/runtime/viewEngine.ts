@@ -44,6 +44,7 @@ import { RequestRunner } from './requestRunner.js';
 import type { OptionSource, ViewSource } from './source.js';
 import type {
   AnyViewRuntime,
+  CreateInput,
   ManagedViewRuntime,
   OpenOptions,
   RuntimeFor,
@@ -75,6 +76,7 @@ import { SourceCapabilities } from './capabilities.js';
 import { EngineResources } from './resources.js';
 import { reportingStore } from './failures.js';
 import { requireSavable, requireTitle, storable } from './commandChecks.js';
+import { publishCopy, readReferences } from './publish.js';
 
 /**
  * One thing a host registers (host-integration.md 4): a definition, and
@@ -129,12 +131,6 @@ export interface ViewEngineOptions {
   onIssue?(issue: Issue): void;
 }
 
-/** The ledger names what a write command is addressed to; the engine takes it. */
-export type { ConflictChoice, WriteTarget } from './writeLedger.js';
-
-/** Instances a definition declares in code, and the order a user put them in. */
-export { systemInstances } from './definitions.js';
-
 /**
  * What a definition's list is right now: every view that could be read, and
  * the reason the rest could not. The declared system views are always in
@@ -143,20 +139,6 @@ export { systemInstances } from './definitions.js';
 export interface ViewListing {
   items: ViewInstanceSummary[];
   failed: Issue | null;
-}
-export { orderSummaries } from './preferences.js';
-
-export interface CreateInput<C extends ViewConfig> {
-  title: string;
-  /** A user creates for an audience; only a definition declares a system view. */
-  scope: ViewAudience;
-  config: C;
-  /**
-   * The host's injected condition, as `open` takes it: a view made from an
-   * open one — a drill-through — inherits the scope its origin ran under,
-   * so it never shows a row the page around it was narrowed away from.
-   */
-  scopeFilter?: FilterTree | null;
 }
 
 /**
@@ -441,10 +423,14 @@ export class ViewEngine extends EngineResources {
     return (await this.ledger.dispatch(payload, target)) as ViewInstance;
   }
 
-  /** A copy under a new title and scope; the source runtime is untouched. */
+  /**
+   * A copy under a new title and scope; the source runtime is untouched.
+   * `scope: 'system'` makes it a stored system view, which needs
+   * `editSystem` (D81).
+   */
   async saveAs(
     runtime: ViewRuntime,
-    input: { title: string; scope: ViewAudience },
+    input: { title: string; scope: ViewScope },
   ): Promise<ViewInstance> {
     const target = this.runtimes.require(runtime);
     const state = target.getSnapshot();
@@ -476,7 +462,7 @@ export class ViewEngine extends EngineResources {
   saveOwnedView(
     dashboard: ViewRuntime,
     panelId: string,
-    input: { title: string; scope: ViewAudience },
+    input: { title: string; scope: ViewScope },
   ): Promise<ViewInstance> {
     return this.panelViews.save(
       this.runtimes.require(dashboard),
@@ -497,7 +483,7 @@ export class ViewEngine extends EngineResources {
   copyPanelView(
     dashboard: ViewRuntime,
     panelId: string,
-    input: { title: string; scope: ViewAudience },
+    input: { title: string; scope: ViewScope },
   ): Promise<ViewInstance> {
     return this.panelViews.save(
       this.runtimes.require(dashboard),
@@ -505,6 +491,21 @@ export class ViewEngine extends EngineResources {
       'saved',
       input,
     );
+  }
+
+  /**
+   * 「发布为系统视图」 (D81): a copy of the saved view `id`, as it is saved —
+   * not the draft of an open one — under its own title, created as a stored
+   * system view. The view it was made from is left as it is; the copy is
+   * the one everyone sees, and the one an admin edits from then on.
+   *
+   * Asked before anything is sent: `editSystem` (`view.create.forbidden`),
+   * and the config's size, as for any create. The manager offers it on
+   * personal and shared rows only; a system view is published already.
+   */
+  publishAsSystem(id: string): Promise<ViewInstance> {
+    const read = async () => this.runtimes.saved(id) ?? this.store.get(id);
+    return publishCopy(this.guard, this.ledger, id, read);
   }
 
   /** Renaming carries no config, so a draft with errors does not block it. */
@@ -745,6 +746,7 @@ export class ViewEngine extends EngineResources {
         this.preferenceCache.note(definitionId, preferences),
       readPreferences: definitionId => this.preferences(definitionId),
       holders: id => this.runtimes.holders(id),
+      referenceOf: readReferences(this.summaries, this.store),
       noteChange: change => this.changes.emit(change),
     };
   }

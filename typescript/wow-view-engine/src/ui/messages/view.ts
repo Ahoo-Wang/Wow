@@ -265,6 +265,9 @@ export const viewMessages = {
   'view.retry.failed': 'That write could not be retried.',
   'view.runtime.not-owned': 'This view is not open here any more.',
   'view.save-as.failed': 'This view could not be saved as a copy.',
+  'view.publish.failed': 'This view could not be published as a system view.',
+  'view.publish.forbidden':
+    'You may not publish system views; ask an administrator.',
   'view.save.failed': 'This view could not be saved.',
   'view.save.forbidden':
     'You may not save changes to this view; save a copy of your own instead.',

@@ -23,6 +23,7 @@ import displayMeta, {
   SaveResultUnknown as DisplaySaveResultUnknown,
 } from './RecordWorkbench.stories.js';
 import { outcomesStore } from './outcomesStore.js';
+import { storedSystemView, tableSettingsStore } from './fixtures.js';
 import { dragHandleOnto } from './pointerDrag.js';
 import { readColumn } from './readTable.js';
 import {
@@ -899,5 +900,218 @@ export const ManagerFitsAShortScreen: Story = {
     await expect(heading.getBoundingClientRect().top).toBeGreaterThanOrEqual(
       dialog.getBoundingClientRect().top,
     );
+  },
+};
+
+/**
+ * What the lock on a list row says on pointing: the tooltip it opens, read
+ * off the screen, then let go.
+ */
+async function lockSays(element: HTMLElement): Promise<string> {
+  const lock = element.querySelector<HTMLElement>(
+    '[data-slot="view-system-tag"]',
+  )!;
+  const tip = () =>
+    document.body.querySelector<HTMLElement>('[data-slot="tooltip-content"]');
+  await userEvent.hover(lock);
+  const said = await waitFor(() => {
+    const found = tip();
+    expect(found).not.toBeNull();
+    return found!.textContent?.trim() ?? '';
+  });
+  await userEvent.unhover(lock);
+  await waitFor(() => expect(tip()).toBeNull());
+  return said;
+}
+
+/** Whether a list row or a manager row wears the lock that says it can be changed. */
+function editableLock(element: HTMLElement): boolean | undefined {
+  return element
+    .querySelector('[data-slot="view-system-tag"]')
+    ?.hasAttribute('data-editable');
+}
+
+/**
+ * A system view the store keeps, edited by an admin (D81): the host grants
+ * `editSystem`, so the view saves with the usual split button and the
+ * shared-save question, and the manager renames and deletes it like a
+ * shared one — but never moves it to another audience. The lock stays;
+ * pointed at, it says the view can be changed, for everyone.
+ */
+export const EditStoredSystemView: Story = {
+  ...DisplayManageViews,
+  args: {
+    ...DisplayManageViews.args,
+    systemViews: 'admin',
+    instanceId: storedSystemView.id,
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(editableLock(listItem(canvasElement, '全员待出库'))).toBe(
+      true,
+    );
+    await expect(await lockSays(listItem(canvasElement, '全员待出库'))).toBe(
+      zhCN['label.scope.system-editable'],
+    );
+
+    await dirtyTheDraft(canvasElement);
+    await save(canvas);
+    await waitFor(async () =>
+      expect(
+        (await tableSettingsStore.current!.get(storedSystemView.id)).revision,
+      ).toBe('2'),
+    );
+
+    const row = await openManager(canvas, '全员待出库');
+    await expect(editableLock(row)).toBe(true);
+    // Rename and delete as on a shared row; no move of audience, and no
+    // publish — it is a system view already.
+    await expect(row.querySelector('[data-audience-target]')).toBeNull();
+    await expect(row.querySelector('[data-publish]')).toBeNull();
+    await userEvent.click(
+      within(row).getByRole('button', { name: zhCN['label.manage.rename'] }),
+    );
+    const title = within(managerRow('全员待出库')).getByLabelText(
+      say('label.manage.rename-of', { title: '全员待出库' }),
+    );
+    await userEvent.clear(title);
+    await userEvent.type(title, '全员待出库单');
+    await userEvent.keyboard('{Enter}');
+    await waitFor(async () =>
+      expect(
+        (await tableSettingsStore.current!.get(storedSystemView.id)).title,
+      ).toBe('全员待出库单'),
+    );
+
+    // Deleting it says it goes for everyone; kept here.
+    await userEvent.click(
+      within(managerRow('全员待出库单')).getByRole('button', {
+        name: zhCN['label.manage.delete'],
+      }),
+    );
+    const dialog = await deleteDialog();
+    await expect(dialog.textContent).toContain(
+      zhCN['label.delete.system-consequence'],
+    );
+    await userEvent.click(
+      within(dialog).getByRole('button', { name: zhCN['label.delete.keep'] }),
+    );
+    await waitFor(() =>
+      expect(within(document.body).queryByRole('alertdialog')).toBeNull(),
+    );
+  },
+};
+
+/**
+ * 「发布为系统视图」 (D81): an admin's personal and shared rows carry one
+ * more cell, an upload icon — not the lock, which says "a system view".
+ * Pressing it copies the view into the system views everyone reads; the
+ * row it was pressed on stays where it was, and so does focus.
+ */
+export const PublishAsSystemView: Story = {
+  ...DisplayManageViews,
+  args: { ...DisplayManageViews.args, systemViews: 'admin' },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await canvas.findByRole('table');
+    const row = await openManager(canvas, '我盯的大额单');
+    const publish = within(row).getByRole('button', {
+      name: zhCN['label.manage.publish'],
+    });
+    // One column of icons: the delete sits in the same cell of a personal
+    // and a shared row, both of which can be published.
+    const deleteOf = (title: string) =>
+      within(managerRow(title)).getByRole('button', {
+        name: zhCN['label.manage.delete'],
+      });
+    await expect(
+      Math.round(deleteOf('我盯的大额单').getBoundingClientRect().x),
+    ).toBe(Math.round(deleteOf('待出库订单').getBoundingClientRect().x));
+    // Nothing to publish on a system row.
+    await expect(managerRow('全员待出库').querySelector('[data-publish]')).toBe(
+      null,
+    );
+    // Drawn with its own icon, not the lock a system view wears: a lock on
+    // a personal row would read as "locked".
+    const lock = managerRow('全员待出库').querySelector(
+      '[data-slot="view-system-tag"] svg',
+    );
+    await expect(publish.querySelector('svg')?.innerHTML).not.toBe(
+      lock?.innerHTML,
+    );
+
+    await userEvent.click(publish);
+    await waitFor(() =>
+      expect(
+        document.querySelector('[data-slot="view-manager-announcement"]')
+          ?.textContent,
+      ).toBe(say('label.manage.published', { title: '我盯的大额单' })),
+    );
+    const listed = await tableSettingsStore.current!.list('orders');
+    await expect(
+      listed
+        .filter(item => item.title === '我盯的大额单')
+        .map(item => [item.scope, item.stored ?? false]),
+    ).toEqual([
+      ['system', true],
+      ['personal', false],
+    ]);
+    await expect(document.activeElement).toBe(publish);
+
+    await userEvent.keyboard('{Escape}');
+    if (document.body.querySelector('[role="dialog"]'))
+      await userEvent.keyboard('{Escape}');
+    await waitFor(() =>
+      expect(document.body.querySelector('[role="dialog"]')).toBeNull(),
+    );
+    // The copy is in the sidebar's shared group with the lock; the original
+    // is still the reader's own.
+    await waitFor(() =>
+      expect(
+        [
+          ...canvasElement.querySelectorAll<HTMLElement>(
+            '[data-slot="view-list"] [data-slot="view-group"] button',
+          ),
+        ].filter(item => item.textContent?.includes('我盯的大额单')),
+      ).toHaveLength(2),
+    );
+  },
+};
+
+/**
+ * The same store for a reader the host grants nothing more (D81): the
+ * stored system view opens read-only — Save as, no Save — and the manager
+ * offers no rename, no delete and no publish on any system view.
+ */
+export const SystemViewsReadOnlyForOthers: Story = {
+  ...DisplayManageViews,
+  args: {
+    ...DisplayManageViews.args,
+    systemViews: 'reader',
+    instanceId: storedSystemView.id,
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await canvas.findByRole('table');
+    await expect(editableLock(listItem(canvasElement, '全员待出库'))).toBe(
+      false,
+    );
+    // Stored, not shipped with the definition: it says who may change it.
+    await expect(await lockSays(listItem(canvasElement, '全员待出库'))).toBe(
+      zhCN['label.scope.system-stored'],
+    );
+    await expect(
+      canvas.queryByRole('button', { name: zhCN['label.save.save'] }),
+    ).toBeNull();
+
+    const row = await openManager(canvas, '全员待出库');
+    await expect(editableLock(row)).toBe(false);
+    await expect(
+      within(row).queryByRole('button', { name: zhCN['label.manage.rename'] }),
+    ).toBeNull();
+    await expect(
+      within(row).queryByRole('button', { name: zhCN['label.manage.delete'] }),
+    ).toBeNull();
+    await expect(document.querySelector('[data-publish]')).toBeNull();
   },
 };

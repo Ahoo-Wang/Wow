@@ -22,6 +22,7 @@
 export const scopeMessages = {
   'label.scope.only-me': 'Only me',
   'label.scope.everyone': 'Everyone',
+  'label.scope.as-system': 'Everyone, as a system view',
   // The two headings that divide the navigation column (D12). They name what
   // is under them — views — rather than the audience in the abstract: a lone
   // "Personal" above a list of names reads as a property of the heading, and
@@ -36,6 +37,12 @@ export const scopeMessages = {
   'label.scope.tag.shared': 'shared',
   'label.scope.personal.description': 'Only you see it.',
   'label.scope.shared.description': 'Everyone who uses this data sees it.',
+  'label.scope.system.description':
+    'Everyone who uses this data sees it among the system views; only those allowed can change it.',
+  'label.scope.system-stored':
+    'Everyone sees it; only those allowed can change it',
+  'label.scope.system-editable':
+    'Everyone sees it; you may change it, and the change reaches everyone',
   // A scope the user cannot create in is offered and disabled rather than
   // hidden: an option that is missing looks like an option that is gone.
   'label.scope.no-permission': '(no permission to create)',

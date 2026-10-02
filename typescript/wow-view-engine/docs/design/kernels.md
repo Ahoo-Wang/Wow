@@ -436,4 +436,4 @@ D20 屏 B 的两件事各有一个内核文件，都只是纯函数——托盘�
 - 映射后的树——固定范围，AND 上每个接上的筛选的默认值——还要以被引用定义的字段与 `kinds` 再跑一次 `validateFilter`，因为目标字段可能限制了操作符或候选，类型相同不等于可接受同一条件（一个 `enum` 字段收不下它选项之外的默认值）；
 - 该次校验同时重新核对深度与节点预算，两棵各自合规的树 AND 合并后仍可能超限，超限记为该面板的 error 而不进入编译；
 - 被引用实例必须是 Record 或 Analysis；
-- **被引用实例的可见范围必须覆盖 Dashboard 自身的范围**：`personal` Dashboard 可以引用任何可读实例，`shared` 或 `system` Dashboard 只能引用 `shared` 或 `system` 实例，否则产生 error 级 Issue，UI 提示先把被引用视图另存为共享。打开时若某个被引用实例不可读（已删除或无权限），只有该面板显示"不可访问"，其余面板照常工作。内容面板规则见 [Dashboard 骨架与内容面板](#dashboard-骨架与内容面板)。
+- **被引用实例的可见范围必须覆盖 Dashboard 自身的范围**：`personal` Dashboard 可以引用任何可读实例，`shared` Dashboard 只能引用 `shared` 或 `system` 实例，`system` Dashboard 只能引用 `system` 实例（系统视图全局可读，共享视图只属于一个租户，D81；`coversScope`），否则产生 error 级 Issue，UI 提示先把被引用视图另存为共享。打开时若某个被引用实例不可读（已删除或无权限），只有该面板显示"不可访问"，其余面板照常工作。内容面板规则见 [Dashboard 骨架与内容面板](#dashboard-骨架与内容面板)。

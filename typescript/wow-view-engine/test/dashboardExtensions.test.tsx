@@ -95,18 +95,35 @@ const tabbed = dashboardConfig({
   ],
 });
 
-function setup(config: DashboardViewConfig = tabbed) {
+function setup(
+  config: DashboardViewConfig = tabbed,
+  /** A stored system board, for an admin the host grants `editSystem` (D81). */
+  system = false,
+) {
   const source = testSource();
   const board: ViewInstance = {
     id: 'board',
     definitionId: 'overview',
     title: 'Operations',
-    scope: 'shared',
+    scope: system ? 'system' : 'shared',
     revision: '1',
     config,
+    ...(system ? { stored: true as const } : {}),
   };
   const store = new MemoryViewStore({
     instances: [pending, byWarehouse, board],
+    ...(system
+      ? {
+          permissions: () => ({
+            createPersonal: true,
+            createShared: true,
+            reorder: true,
+            setDefault: true,
+            editSystem: true,
+            instance: () => ({ save: true, rename: true, delete: true }),
+          }),
+        }
+      : {}),
   });
   const engine = new ViewEngine({
     resources: resourcesOf(
@@ -618,6 +635,47 @@ describe('a new analysis made in the dashboard', () => {
       instanceId: saved?.id,
     });
   });
+  it('opens on the system audience on a system board an admin edits (D81)', async () => {
+    const user = userEvent.setup({ pointerEventsCheck: 0 });
+    const { engine, store } = setup(
+      dashboardConfig({
+        panels: [
+          {
+            id: 'mine',
+            kind: 'view',
+            title: 'Mine',
+            owned: { definitionId: 'orders', config: analysisConfig() },
+            bindings: [],
+            layout: { x: 0, y: 0, w: 12, h: 4 },
+          } as DashboardPanel,
+        ],
+      }),
+      true,
+    );
+    render(
+      <DashboardWorkbench
+        engine={engine}
+        definitionId="overview"
+        instanceId="board"
+      />,
+    );
+    await startBuilding(user);
+    await panelMenu(user, 'Mine', 'Save as a view…');
+    const dialog = await screen.findByRole('dialog');
+    // A system board's panels may show system views alone.
+    expect(
+      within(dialog)
+        .getByRole('radio', { name: 'Everyone, as a system view' })
+        .getAttribute('aria-checked'),
+    ).toBe('true');
+    await user.click(within(dialog).getByRole('button', { name: 'Save view' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    const saved = (await store.list('orders')).find(
+      summary => summary.title === 'Mine',
+    );
+    expect(saved).toMatchObject({ scope: 'system', stored: true });
+  });
+
   /**
    * D26 Q34 names the board 仪表盘 wherever the chrome reports on it; what
    * this dialog makes is a view, so its refusal still says view.

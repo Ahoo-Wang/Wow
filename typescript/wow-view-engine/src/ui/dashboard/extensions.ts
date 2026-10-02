@@ -60,6 +60,12 @@ export interface DashboardEditExtensions {
   copyAsShared?: {
     offered(definitionId: string): boolean;
     open(panelId: string): void;
+    /**
+     * True on a system board (D81): the copy is a system view —
+     * 「复制为系统视图并替换…」 — since a system board's panels may show
+     * system views alone, and `offered` asks `editSystem` instead.
+     */
+    system?: boolean;
   };
   /**
    * The tab bar, drawn between the edit bar and the panels. Which tab is on

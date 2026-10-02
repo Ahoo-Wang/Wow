@@ -13,9 +13,9 @@
 
 import type {
   RuntimeLimits,
-  ViewAudience,
   ViewConfig,
   ViewInstance,
+  ViewScope,
 } from '../model/index.js';
 import { isOwnedPanel, isViewPanel } from '../dashboard/index.js';
 import { issue, type FieldKindRegistry } from '../filter/index.js';
@@ -70,7 +70,7 @@ export class PanelViews {
     target: unknown,
     panelId: string,
     from: PanelViewSource,
-    input: { title: string; scope: ViewAudience },
+    input: { title: string; scope: ViewScope },
   ): Promise<ViewInstance> {
     const board = target instanceof DashboardViewRuntime ? target : null;
     const view = board && sourceOf(board, panelId, from);

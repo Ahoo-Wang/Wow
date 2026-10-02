@@ -15,8 +15,8 @@ import { useId, useState } from 'react';
 import {
   MAX_VIEW_TITLE_LENGTH,
   type Issue,
-  type ViewAudience,
   type ViewInstance,
+  type ViewScope,
 } from '../../model/index.js';
 import type {
   SaveAbilities,
@@ -57,7 +57,12 @@ import type { FinalFocus } from '../kit/focus.js';
  * it owns as a view of its own (D22 C) hands in another.
  */
 export interface SaveAsCommands {
-  can: Pick<SaveAbilities, 'createPersonal' | 'createShared'>;
+  /**
+   * `createSystem` adds the system audience to the choices (D81); left out,
+   * it is not offered.
+   */
+  can: Pick<SaveAbilities, 'createPersonal' | 'createShared'> &
+    Partial<Pick<SaveAbilities, 'createSystem'>>;
   state: Pick<SaveCommandState, 'pending' | 'error'>;
   saveAs: SaveCommands['saveAs'];
 }
@@ -79,13 +84,17 @@ export interface SaveAsDialogProps {
    * for the board's readers (D22 B): it opens on the view's own name — the
    * copy lands in the shared group, apart from the original, and a panel
    * named after its view keeps its name on the board — and asks no
-   * audience, since shared is the whole point.
+   * audience, since shared is the whole point. A `share-system` is the
+   * same on a system board (D81): the copy is a system view.
    */
-  intent?: 'copy' | 'first' | 'promote' | 'share';
+  intent?: 'copy' | 'first' | 'promote' | 'share' | 'share-system';
   /** The sentence under the heading, where the intent's own does not say enough. */
   description?: string;
-  /** The audience picked at first; the user's own when they may make one. */
-  defaultScope?: ViewAudience;
+  /**
+   * The audience picked at first; the user's own when they may make one. A
+   * system board's panel opens on `system` where it is granted (D81).
+   */
+  defaultScope?: ViewScope;
   /** Called with the copy once the store took it. */
   onSaved?(instance: ViewInstance): void;
   /**
@@ -98,7 +107,7 @@ export interface SaveAsDialogProps {
 
 /** One audience on offer, still unworded: the catalogue says all of it. */
 interface ScopeChoice {
-  value: ViewAudience;
+  value: ViewScope;
   labelKey: MessageKey;
   descriptionKey: MessageKey;
 }
@@ -114,7 +123,23 @@ const SCOPES: readonly ScopeChoice[] = [
     labelKey: 'label.scope.everyone',
     descriptionKey: 'label.scope.shared.description',
   },
+  {
+    value: 'system',
+    labelKey: 'label.scope.as-system',
+    descriptionKey: 'label.scope.system.description',
+  },
 ];
+
+/**
+ * The choices this user is shown. The system audience is offered only where
+ * it is granted (D81): unlike the two audiences every user has, an option
+ * nobody but an admin may pick would only say there are admins.
+ */
+function offered(can: SaveAsCommands['can']): readonly ScopeChoice[] {
+  return can.createSystem === true
+    ? SCOPES
+    : SCOPES.filter(choice => choice.value !== 'system');
+}
 
 /** The heading, the sentence under it and the button, by intent. */
 const WORDS: Record<
@@ -141,10 +166,16 @@ const WORDS: Record<
     description: 'label.panel.copy-shared.description',
     submit: 'label.panel.copy-shared.submit',
   },
+  'share-system': {
+    heading: 'label.panel.copy-system.heading',
+    description: 'label.panel.copy-system.description',
+    submit: 'label.panel.copy-shared.submit',
+  },
 };
 
 /** Whether a copy may be created in this audience. */
-function allows(can: SaveAsCommands['can'], scope: ViewAudience): boolean {
+function allows(can: SaveAsCommands['can'], scope: ViewScope): boolean {
+  if (scope === 'system') return can.createSystem === true;
   return scope === 'personal' ? can.createPersonal : can.createShared;
 }
 
@@ -203,15 +234,17 @@ function SaveAsForm({
   // The scope a copy lands in when the user picks nothing: their own, unless
   // they may only publish. Both are offered either way — an option that is
   // simply missing reads as a scope this view cannot have.
-  const asksAudience = intent !== 'share';
-  const [scope, setScope] = useState<ViewAudience>(
-    !asksAudience
-      ? 'shared'
-      : defaultScope && allows(can, defaultScope)
-        ? defaultScope
-        : can.createPersonal
-          ? 'personal'
-          : 'shared',
+  const asksAudience = intent !== 'share' && intent !== 'share-system';
+  const [scope, setScope] = useState<ViewScope>(
+    intent === 'share-system'
+      ? 'system'
+      : !asksAudience
+        ? 'shared'
+        : defaultScope && allows(can, defaultScope)
+          ? defaultScope
+          : can.createPersonal
+            ? 'personal'
+            : 'shared',
   );
   const first = intent !== 'copy';
   // A copy and a first save name the thing open — on a board, 仪表盘 (Q34).
@@ -231,7 +264,7 @@ function SaveAsForm({
   const [next, setNext] = useState(shown);
 
   const named = next.trim();
-  const offered = allows(can, scope);
+  const allowed = allows(can, scope);
   // Nothing here is gated on `state.blocked`: that is the open draft judged
   // for the audience it already sits in, and a copy is judged for the one it
   // is headed for — a shared dashboard referencing a personal view is
@@ -239,7 +272,7 @@ function SaveAsForm({
   // so it decides, and a refusal is shown below with the dialog still open.
   // What does stop the button is what is true of this form alone: a write in
   // flight, no title, or a scope this user may not create in.
-  const stopped = state.pending || named.length === 0 || !offered;
+  const stopped = state.pending || named.length === 0 || !allowed;
   const submit = () => {
     const kept = first
       ? keptKey(named, title, messages.say, shown.trim())
@@ -296,11 +329,13 @@ function SaveAsForm({
               aria-labelledby={`${fieldId}-scope`}
               value={scope}
               onValueChange={value => {
-                const picked = SCOPES.find(choice => choice.value === value);
+                const picked = offered(can).find(
+                  choice => choice.value === value,
+                );
                 if (picked) setScope(picked.value);
               }}
             >
-              {SCOPES.map(choice => {
+              {offered(can).map(choice => {
                 const permitted = allows(can, choice.value);
                 return (
                   <Field key={choice.value} orientation="horizontal">

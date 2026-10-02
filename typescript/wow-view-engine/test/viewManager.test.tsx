@@ -1171,11 +1171,13 @@ describe('useViewManager', () => {
       rename: true,
       delete: false,
       changeAudience: true,
+      publish: false,
     });
     expect(result.current.manager.can.instance('orders-2')).toEqual({
       rename: false,
       delete: false,
       changeAudience: false,
+      publish: false,
     });
   });
 
@@ -1188,11 +1190,13 @@ describe('useViewManager', () => {
       rename: true,
       delete: true,
       changeAudience: true,
+      publish: false,
     });
     expect(result.current.manager.can.instance('system:orders:all')).toEqual({
       rename: false,
       delete: false,
       changeAudience: false,
+      publish: false,
     });
 
     await act(async () => {

@@ -27,12 +27,30 @@ import { TooltipContent } from './popups.js';
  * sidebar and the switcher draw the same view, so they draw it with this
  * one mark; the title bar, which has room, keeps the word beside the lock.
  *
+ * A system view the store keeps and this user may edit (D81) keeps the
+ * lock — it is still everyone's view, not this user's — and only the
+ * sentence on pointing changes (`editable`): it can be changed, by whoever
+ * the host lets, and the change reaches everyone.
+ *
  * The glyph hangs off a span rather than being the tooltip's trigger itself,
  * for the reason `ViewList` gives for the kind icon: a row that is a
  * `Button` or a menu item draws `pointer-events: none` over every `<svg>`
  * inside it.
  */
-export function SystemMark({ className }: { className?: string }) {
+export function SystemMark({
+  className,
+  editable = false,
+  stored = false,
+}: {
+  className?: string;
+  /** True when this user may change the view (D81); the sentence says so. */
+  editable?: boolean;
+  /**
+   * True for a view the store keeps (D81): it did not come with the
+   * definition, so a reader who may not change it is told only that.
+   */
+  stored?: boolean;
+}) {
   const messages = useViewMessages();
   const Icon = SYSTEM_ICON;
   return (
@@ -41,6 +59,7 @@ export function SystemMark({ className }: { className?: string }) {
         render={
           <span
             data-slot="view-system-tag"
+            data-editable={editable || undefined}
             className={cn('fve:flex fve:shrink-0 fve:opacity-70', className)}
           />
         }
@@ -50,7 +69,15 @@ export function SystemMark({ className }: { className?: string }) {
           {messages.label('label.scope.tag.system')}
         </span>
       </TooltipTrigger>
-      <TooltipContent>{messages.label('label.scope.system')}</TooltipContent>
+      <TooltipContent>
+        {messages.label(
+          editable
+            ? 'label.scope.system-editable'
+            : stored
+              ? 'label.scope.system-stored'
+              : 'label.scope.system',
+        )}
+      </TooltipContent>
     </Tooltip>
   );
 }

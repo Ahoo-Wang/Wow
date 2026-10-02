@@ -909,7 +909,7 @@ type ColumnEdge = 'left' | 'right';
 // @public (undocumented)
 type ConflictChoice = 'reload' | 'overwrite';
 
-// @public (undocumented)
+// @public
 interface CreateInput<C extends ViewConfig> {
     // (undocumented)
     config: C;
@@ -2292,6 +2292,7 @@ export interface ManagedInstanceAbilities {
     changeAudience: boolean;
     // (undocumented)
     delete: boolean;
+    publish: boolean;
     // (undocumented)
     rename: boolean;
 }
@@ -3441,6 +3442,7 @@ export interface SaveAbilities {
     createPersonal: boolean;
     // (undocumented)
     createShared: boolean;
+    createSystem: boolean;
     // (undocumented)
     delete: boolean;
     // (undocumented)
@@ -3497,8 +3499,7 @@ interface SavedViewTarget extends HandOver {
 
 // @public (undocumented)
 export interface SaveTargetInput {
-    // (undocumented)
-    scope: ViewAudience;
+    scope: ViewScope;
     // (undocumented)
     title: string;
 }
@@ -3864,7 +3865,7 @@ class ViewEngine extends EngineResources {
     close(runtime: ViewRuntime): void;
     copyPanelView(dashboard: ViewRuntime, panelId: string, input: {
         title: string;
-        scope: ViewAudience;
+        scope: ViewScope;
     }): Promise<ViewInstance>;
     create<C extends ViewConfig>(definitionId: string, input: CreateInput<C>): RuntimeFor<C>;
     definitionIssues(definitionId: string): Issue[];
@@ -3886,6 +3887,7 @@ class ViewEngine extends EngineResources {
     permissions(definitionId: string): ViewPermissions;
     // (undocumented)
     preferences(definitionId: string): Promise<ViewPreferences>;
+    publishAsSystem(id: string): Promise<ViewInstance>;
     // (undocumented)
     protected readonly registered: ReadonlyMap<string, ViewDefinition>;
     rememberTab(definitionId: string, instanceId: string, tabId: string): Promise<void>;
@@ -3897,11 +3899,11 @@ class ViewEngine extends EngineResources {
     save(runtime: ViewRuntime): Promise<ViewInstance>;
     saveAs(runtime: ViewRuntime, input: {
         title: string;
-        scope: ViewAudience;
+        scope: ViewScope;
     }): Promise<ViewInstance>;
     saveOwnedView(dashboard: ViewRuntime, panelId: string, input: {
         title: string;
-        scope: ViewAudience;
+        scope: ViewScope;
     }): Promise<ViewInstance>;
     setAutoRun(definitionId: string, autoRun: boolean): Promise<ViewPreferences>;
     // (undocumented)
@@ -3968,6 +3970,7 @@ interface ViewInstance {
     revision: string;
     // (undocumented)
     scope: ViewScope;
+    stored?: true;
     // (undocumented)
     title: string;
 }
@@ -3983,6 +3986,7 @@ interface ViewInstanceSummary {
     revision: string;
     // (undocumented)
     scope: ViewScope;
+    stored?: true;
     // (undocumented)
     title: string;
 }
@@ -4032,6 +4036,7 @@ export interface ViewManagerAbilities {
     anything: boolean;
     // (undocumented)
     instance(id: string): ManagedInstanceAbilities;
+    publishSystem: boolean;
     // (undocumented)
     reorder: boolean;
     // (undocumented)
@@ -4052,6 +4057,7 @@ export interface ViewManagerController {
     outcomes: ReadonlyMap<string, WriteState>;
     pending: string | null;
     placeOf(id: string): number;
+    publishAsSystem(id: string): Promise<boolean>;
     // (undocumented)
     rename(id: string, title: string): Promise<boolean>;
     // (undocumented)
@@ -4085,6 +4091,7 @@ interface ViewPermissions {
     createPersonal: boolean;
     // (undocumented)
     createShared: boolean;
+    editSystem?: boolean;
     // (undocumented)
     instance(id: string): InstancePermissions;
     // (undocumented)
@@ -4219,7 +4226,6 @@ interface ViewSource {
 // @public
 interface ViewStore {
     changeAudience?(id: string, audience: ViewAudience, revision: string, context: WriteContext): Promise<ViewInstance>;
-    // (undocumented)
     create(input: Omit<ViewInstance, 'id' | 'revision'>, context: WriteContext): Promise<ViewInstance>;
     // (undocumented)
     delete(id: string, revision: string, context: WriteContext): Promise<void>;

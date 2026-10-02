@@ -66,15 +66,10 @@ export interface SystemViewBody {
 }
 
 /**
- * The port's flag on a stored system view's summary and instance: the views
- * an `editSystem` permission may write. Configured and code system views
- * carry none.
+ * Whether the server stores `view` (else it configures it). A stored one
+ * carries the port's `stored: true` (D81), the views an `editSystem`
+ * permission may write; configured and code system views carry none.
  */
-export interface StoredFlag {
-  stored?: true;
-}
-
-/** Whether the server stores `view` (else it configures it). */
 export function isStored(view: SystemViewBody): boolean {
   return view.source === 'stored' && typeof view.version === 'number';
 }
@@ -135,9 +130,7 @@ export function toSummary(snapshot: ViewSnapshotBody): ViewInstanceSummary {
   };
 }
 
-export function systemInstance(
-  view: SystemViewBody,
-): ViewInstance & StoredFlag {
+export function systemInstance(view: SystemViewBody): ViewInstance {
   return {
     id: view.id,
     definitionId: view.definitionId,
@@ -149,9 +142,7 @@ export function systemInstance(
   };
 }
 
-export function systemSummary(
-  view: SystemViewBody,
-): ViewInstanceSummary & StoredFlag {
+export function systemSummary(view: SystemViewBody): ViewInstanceSummary {
   return {
     id: view.id,
     definitionId: view.definitionId,

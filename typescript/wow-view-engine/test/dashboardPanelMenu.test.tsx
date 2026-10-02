@@ -79,6 +79,11 @@ interface Setup {
   features?: { export?: boolean };
   store?: (store: MemoryViewStore) => void;
   source?: ViewSource;
+  /**
+   * Which definitions this reader may make system views of (D81). A system
+   * board is stored, so whoever may edit system views of `overview` builds it.
+   */
+  editSystem?: (definitionId: string) => boolean;
 }
 
 function open({
@@ -89,6 +94,7 @@ function open({
   features,
   store: adjust,
   source = testSource(),
+  editSystem,
 }: Setup = {}) {
   const store = tracked(
     new MemoryViewStore({
@@ -103,13 +109,15 @@ function open({
           scope,
           revision: '1',
           config: dashboardConfig({ panels, ...config }),
+          ...(scope === 'system' ? { stored: true as const } : {}),
         },
       ],
-      permissions: () => ({
+      permissions: definitionId => ({
         createPersonal: true,
         createShared,
         reorder: true,
         setDefault: true,
+        ...(editSystem ? { editSystem: editSystem(definitionId) } : {}),
         instance: () => ({ save: true, rename: true, delete: true }),
       }),
     }),
@@ -418,5 +426,78 @@ describe('复制为共享视图并替换… (D22 B)', () => {
     expect(await items(setup.user, 'Pending')).not.toContain(
       'Copy as a shared view and replace…',
     );
+  });
+});
+
+describe('复制为系统视图并替换… (D81)', () => {
+  const onShared = () =>
+    panel({
+      title: undefined,
+      instanceId: 'pending',
+    } as Partial<DashboardPanel>);
+
+  it('copies a shared view a system board stands on as a system view, for an admin', async () => {
+    const { engine, store, user } = open({
+      scope: 'system',
+      panels: [onShared()],
+      editSystem: () => true,
+    });
+    await enter(user);
+    const offered = await items(user, 'Pending orders');
+    expect(offered).toContain('Copy as a system view and replace…');
+    expect(offered).not.toContain('Copy as a shared view and replace…');
+    await user.click(
+      screen.getByRole('menuitem', {
+        name: 'Copy as a system view and replace…',
+      }),
+    );
+    const dialog = await screen.findByRole('dialog', {
+      name: 'Copy as a system view and replace',
+    });
+    expect(within(dialog).queryByRole('radio')).toBeNull();
+    await user.click(
+      within(dialog).getByRole('button', { name: 'Copy and replace' }),
+    );
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    const copies = (await store.list('orders')).filter(
+      view => view.title === 'Pending orders' && view.scope === 'system',
+    );
+    expect(copies).toMatchObject([{ stored: true }]);
+    expect(boardOf(engine).getSnapshot().draft.panels[0]).toMatchObject({
+      instanceId: copies[0].id,
+    });
+    // The board now stands on system views alone, so it saves in place.
+    await expect(engine.save(boardOf(engine))).resolves.toMatchObject({
+      scope: 'system',
+    });
+  });
+
+  it('is not offered to whoever may not make a system view of that data', async () => {
+    const { user } = open({
+      scope: 'system',
+      panels: [onShared()],
+      editSystem: definitionId => definitionId === 'overview',
+    });
+    await enter(user);
+    const offered = await items(user, 'Pending orders');
+    expect(offered).not.toContain('Copy as a system view and replace…');
+    expect(offered).not.toContain('Copy as a shared view and replace…');
+  });
+
+  it('refuses to save a system board in place while a panel shows a view that is not a system view', async () => {
+    const { engine, store, user } = open({
+      scope: 'system',
+      panels: [onShared()],
+      editSystem: () => true,
+    });
+    await enter(user);
+    const save = vi.spyOn(store, 'save');
+    await expect(engine.save(boardOf(engine))).rejects.toMatchObject({
+      issue: {
+        code: 'dashboard.system.non-system-panels',
+        params: { count: 1 },
+      },
+    });
+    expect(save).not.toHaveBeenCalled();
   });
 });

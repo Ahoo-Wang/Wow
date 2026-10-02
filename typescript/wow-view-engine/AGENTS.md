@@ -294,8 +294,9 @@ src/
     openRuntimes.ts           — The views one engine has open, and who holds an instance
     panelViews.ts             — `PanelViews`: a dashboard panel's view saved as a view of its own and the panel pointed at it — the analysis it owns (`saveOwnedView`) or the saved view it shows, copied for another audience (`copyPanelView`)
     pending.ts                — `comparePending`: what the draft says that the applied config does not (D17-6), presentation members excepted
-    permissions.ts            — What a command is allowed to do; `instanceAbilities`, the one reading of "a system view is read-only", which the manager's buttons ask as well
+    permissions.ts            — What a command is allowed to do; `instanceAbilities`, the one reading of "a system view is read-only" — bar a stored one where the host grants `editSystem` (D81) — which the manager's buttons ask as well; `mayCreate`, the create permission of a scope (`system` asks `editSystem`)
     preferences.ts            — The preference cache, the list order and the default view
+    publish.ts                — `publishCopy`: 「发布为系统视图」 (D81), a saved view copied as a stored system view, `editSystem` asked first, a system view refused; `requireSystemPanels`, which the write ledger asks of every create into the system scope: a board whose panels reference a non-system view is refused, naming them (internal, not exported)
     queryFailure.ts           — `queryFailureIssue`: the Issue of a failed query — `runtime.query.failed`, `runtime.query.failed.<code>` for a rule a Wow service named, with the field's label and the condition on it, or `runtime.query.forbidden` for a source that refused the reader (403, `IllegalAccess*`); `isForbiddenQuery` (D40)
     refreshTimer.ts           — The one auto-refresh timer both runtimes arm; `refreshIntervalOf`, `refreshDelayOf`; `MomentTimer`, one refresh at a moment (a metric card's period ending)
     autoApply.ts              — 「改了就跑」: whether the draft is due to run on its own (`autoApplyDue`) and the delay that merges a burst of edits into one query
@@ -348,7 +349,7 @@ src/
       press.ts                — `PanelPresses`: a press on a panel's group worked out (D22 H, I), the click read off the panel state and never judged again (A-11) — the group's value in a board filter's shape set from the panel (`crossFilter`, a second press clears), a brushed span set into a date filter wired to the panel (`spanFilters`, `pressSpan`, D33 Q52), whether a group is one pressed (`pressed`, a bucket inside a brushed span included), and where a custom destination goes carrying it (`destination`: a filled URL, a saved view taking what the panel takes off the board (`handOver`) and the group's conditions, on the fields its data has too, or another board with its mapped filters set and the rest at their defaults — a click set aside, or a mapping the board read at the press finds stale, falls back to the follow-up menu); `board`, another board read only when asked
       references.ts           — PanelReferences: loading what panels point at
   store/                      — Persistence port — imports model only
-    MemoryViewStore.ts        — In-memory implementation for examples and tests; with a snapshot it re-reads before every write and undoes a write the snapshot refused (`UNAVAILABLE`); `changeAudience` in place, refusing to make personal a view a shared board shows (`INVALID`)
+    MemoryViewStore.ts        — In-memory implementation for examples and tests; with a snapshot it re-reads before every write and undoes a write the snapshot refused (`UNAVAILABLE`); `changeAudience` in place, refusing to make personal a view a shared board shows (`INVALID`); a seeded system view is configured and read-only, one created with `scope: 'system'` (or seeded `stored: true`) is stored and written like a shared view (D81)
     localStorageSnapshot.ts   — `localStorageSnapshot(key)`: its snapshot in `localStorage` for development and single-user hosts — a refused write fails, tabs merge by revision or conflict, a `storage` event reloads
     ViewStore.ts              — The only port a backend must satisfy: eight methods and the optional `changeAudience`
     index.ts                  — Persistence is one port with eight methods
@@ -391,7 +392,7 @@ src/
     useValueCandidates.ts     — A condition's values offered from the data: asked when the list opens, a typed fragment once typing pauses, aborted on change and on close; loading, the source's reason on failure, retry
     useViewEngine.ts          — Creates and disposes one engine
     useViewList.ts            — View summaries in the user's order
-    useViewManager.ts         — Rename, delete, reorder, default; outcomes per row
+    useViewManager.ts         — Rename, delete, reorder, default, publish as a system view (D81); outcomes per row
     useWorkbench.ts           — One workbench's shell: list, open, leave, the header's outcomes, a view nobody saved a host hands it (`unsaved`)
     writes.ts                 — One write-outcome vocabulary, shared by the save commands and the manager
     index.ts                  — The `/react` entry: hooks and headless controllers over the runtime
@@ -654,7 +655,7 @@ src/
       RenderBoundary.tsx      — The boundary each part of a view renders behind, so one failing leaves the rest standing; what it catches told to `onFailure` and to the host's `onError`, a chart's as a chart (D40)
       failureSink.tsx         — `FailureSink`: the way the boundaries below reach the engine's `onError`, set by the workbenches and the embeds with the open view named (internal, not exported)
       RowItem.tsx             — One row of a list over the registry's `Item`; the five lists share it
-      SystemMark.tsx          — The lock a view that came with the definition wears in the sidebar and the switcher
+      SystemMark.tsx          — The lock a view that came with the definition wears in the sidebar and the switcher; on a stored one this user may edit (D81) it says so on pointing (`editable`)
       StatusStrip.tsx         — One-line findings: warning, error, failed query (+ `dedupeIssues`)
       Truncated.tsx           — Text that may be cut: the whole of it in a tooltip, opened only while it is cut (`scrollWidth > clientWidth`), `as` for a heading (R2-75)
       ViewExpansion.tsx       — Filling the screen: `useViewExpansion`, `ViewExpandToggle`, the document's scroll lock
@@ -687,9 +688,9 @@ src/
     lib/utils.ts              — shadcn cn() helper — vendored
     manage/
       drag.ts                 — What the manager makes of a drag: which drop it will take, and what a screen reader hears while one is under way
-      DeleteDialog.tsx        — What a delete costs, said before it happens — a dashboard's, that the analyses made inside it go with it
+      DeleteDialog.tsx        — What a delete costs, said before it happens — a dashboard's, that the analyses made inside it go with it; a system view's, that it goes for everyone (D81)
       ViewManager.tsx         — Rename, delete, reorder and the default view, from the sidebar
-      ViewManagerRow.tsx      — One managed view: drag handle, rename in place, default, delete
+      ViewManagerRow.tsx      — One managed view: drag handle, rename in place, default, move of audience, publish as a system view (D81), delete
     messages/                 — the catalogue, one file per prefix family
       analysis.ts             — the analysis editor and its charts, with the two kernels behind them
       building.ts             — building a board, batch B3: tabs, a new analysis in a dashboard, saving it as a view, a panel's own look
@@ -790,7 +791,7 @@ src/
       RefreshControl.tsx      — Refresh now, and the auto-refresh cadence menu, as one split button
       ResultToolbar.tsx       — Selection, bulk slot, layout, columns, refresh
       SaveActions.tsx         — The split save button group: save in place, and the menu of the other ways to save
-      SaveAsDialog.tsx        — What the create is: a copy of a saved view, the first save of one made from nothing, a board's own analysis promoted, or a personal view on a shared board copied for its readers (`share`, no audience asked)
+      SaveAsDialog.tsx        — What the create is: a copy of a saved view, the first save of one made from nothing, a board's own analysis promoted, or a personal view on a shared board copied for its readers (`share`, no audience asked); the system audience offered only where `createSystem` is granted (D81)
       ViewHeader.tsx          — Title bar: kind, audience, title, unsaved mark, save commands
       ViewList.tsx            — What this list is a list of — the definition's own title
       ViewSwitcher.tsx        — The view list as one control, for when the sidebar is folded away

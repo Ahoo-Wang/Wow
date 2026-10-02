@@ -35,6 +35,7 @@ import {
   savedViews,
   savedWaybillViews,
   storyExportSource,
+  systemViewsStore,
   tableSettingsStore,
   waybillSource,
   waybillsDefinition,
@@ -259,8 +260,15 @@ function RecordWorkbenchDemo({
   wide = false,
   noViews = false,
   opening = false,
+  systemViews,
 }: {
   behaviour?: SourceBehaviour;
+  /**
+   * Adds a system view the store keeps (D81), and who is looking: an admin
+   * the host grants `editSystem`, or a reader it does not. The store is
+   * published on `tableSettingsStore`, for a play to read.
+   */
+  systemViews?: 'admin' | 'reader';
   /** Holds the view open-but-not-opened, to show the opening skeleton. */
   opening?: boolean;
   /**
@@ -401,6 +409,11 @@ function RecordWorkbenchDemo({
               instances: savedWaybillViews,
               source: waybillSource(behaviour),
             });
+          if (systemViews) {
+            const store = systemViewsStore(systemViews);
+            tableSettingsStore.current = store;
+            return createStoryEngine({ behaviour, store });
+          }
           if (writeOutcome) {
             const staged = new OutcomeViewStore({ instances: savedViews });
             staged.stage(writeOutcome);
@@ -752,6 +765,7 @@ const meta = {
     withActions: { table: { disable: true } },
     english: { table: { disable: true } },
     keepStore: { table: { disable: true } },
+    systemViews: { table: { disable: true } },
     collapsed: { table: { disable: true } },
     transformedHost: { table: { disable: true } },
     refreshing: { table: { disable: true } },

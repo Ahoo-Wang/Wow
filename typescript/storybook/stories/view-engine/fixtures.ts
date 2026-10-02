@@ -782,6 +782,38 @@ export const tableSettingsStore: { current: MemoryViewStore | null } = {
   current: null,
 };
 
+/**
+ * A system view the store keeps (D81): an admin published the pending
+ * orders as one, so it carries their config under a title of its own and
+ * `stored: true`, which only the store sets. Whoever the host grants
+ * `editSystem` saves, renames and deletes it; everyone else reads it.
+ */
+export const storedSystemView: ViewInstance = {
+  ...savedViews[0],
+  id: 'orders-system-pending',
+  title: '全员待出库',
+  scope: 'system',
+  stored: true,
+};
+
+/**
+ * The store of the system-view stories, with `editSystem` granted to an
+ * admin and left out for a reader — left out is a refusal (D81).
+ */
+export function systemViewsStore(role: 'admin' | 'reader'): MemoryViewStore {
+  return new MemoryViewStore({
+    instances: [...savedViews, storedSystemView],
+    permissions: () => ({
+      createPersonal: true,
+      createShared: true,
+      reorder: true,
+      setDefault: true,
+      ...(role === 'admin' ? { editSystem: true } : {}),
+      instance: () => ({ save: true, rename: true, delete: true }),
+    }),
+  });
+}
+
 export interface StoryEngineOptions {
   behaviour?: SourceBehaviour;
   instances?: ViewInstance[];

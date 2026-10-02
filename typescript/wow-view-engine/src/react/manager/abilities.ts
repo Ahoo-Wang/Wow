@@ -16,9 +16,9 @@
  * the store handed out and from the rows actually on screen.
  */
 
-import type { ViewInstanceSummary } from '../../model/index.js';
+import { isSystemScope, type ViewInstanceSummary } from '../../model/index.js';
 import type { ViewPermissions } from '../../store/ViewStore.js';
-import { instanceAbilities } from '../../runtime/permissions.js';
+import { instanceAbilities, mayCreate } from '../../runtime/permissions.js';
 
 /** What may be done to one row. `save` is not among them: nothing here edits a config. */
 export interface ManagedInstanceAbilities {
@@ -30,11 +30,22 @@ export interface ManagedInstanceAbilities {
    * creating in the audience it would go to.
    */
   changeAudience: boolean;
+  /**
+   * Whether a copy of the row may be published as a system view
+   * (「发布为系统视图」, D81): a personal or shared row, and `editSystem`
+   * granted. The row itself is left as it is.
+   */
+  publish: boolean;
 }
 
 export interface ViewManagerAbilities {
   reorder: boolean;
   setDefault: boolean;
+  /**
+   * Whether this user may publish views as system views at all (D81,
+   * `editSystem`): a list-wide answer, so every row lays out the same cells.
+   */
+  publishSystem: boolean;
   instance(id: string): ManagedInstanceAbilities;
   /**
    * Whether anything at all can be managed: the order, the default, or the
@@ -49,25 +60,27 @@ export function abilitiesOf(
   items: readonly ViewInstanceSummary[],
   permissions: ViewPermissions,
 ): ViewManagerAbilities {
+  const publishSystem = mayCreate(permissions, 'system');
   const instance = (id: string): ManagedInstanceAbilities => {
     // Asked of `instanceAbilities`, which is where "a system view ships with
     // the definition, so no store write reaches it" is decided — the same
     // reading the permission guard refuses by, so a button exists exactly
     // where the command would be allowed (D4). Deciding it here as well is
     // how a Rename came to be offered on a row the guard then refused.
-    const granted = instanceAbilities(
-      { id, scope: items.find(item => item.id === id)?.scope },
-      permissions,
-    );
+    // The row whole, so a stored system view is read as one (D81).
+    const row = items.find(item => item.id === id);
+    const granted = instanceAbilities(row ?? { id }, permissions);
     return {
       rename: granted.rename,
       delete: granted.delete,
       changeAudience: granted.changeAudience,
+      publish: publishSystem && row !== undefined && !isSystemScope(row.scope),
     };
   };
   return {
     reorder: permissions.reorder,
     setDefault: permissions.setDefault,
+    publishSystem,
     instance,
     // Asked of the rows on screen rather than of the permissions alone: a
     // list whose every row is a system view answers "nothing", however freely
@@ -77,7 +90,12 @@ export function abilitiesOf(
       permissions.setDefault ||
       items.some(item => {
         const granted = instance(item.id);
-        return granted.rename || granted.delete || granted.changeAudience;
+        return (
+          granted.rename ||
+          granted.delete ||
+          granted.changeAudience ||
+          granted.publish
+        );
       }),
   };
 }

@@ -20,6 +20,7 @@
  * instance may be open more than once.
  */
 
+import type { ViewInstance } from '../model/index.js';
 import { issue } from '../filter/index.js';
 import { DataViewRuntime } from './viewRuntime.js';
 import type { ManagedViewRuntime, ViewRuntime } from './viewRuntimeTypes.js';
@@ -82,6 +83,15 @@ export class OpenRuntimes {
   disposeAll(): void {
     for (const runtime of [...this.runtimes]) runtime.dispose();
     this.runtimes.clear();
+  }
+
+  /**
+   * The instance an open view of `id` was last saved as — its saved config,
+   * never its draft — or null when none is open.
+   */
+  saved(id: string): ViewInstance | null {
+    this.prune();
+    return this.holders(id)[0]?.getSnapshot().saved ?? null;
   }
 
   /** Drops runtimes a caller disposed directly, which the registry cannot see. */

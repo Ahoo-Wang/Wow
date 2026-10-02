@@ -49,6 +49,8 @@ export const saveMessages = {
   // Said only when they apply, and always after the sentence above: a shared
   // view is somebody else's too, and a dirty one takes edits down with it.
   'label.delete.shared-consequence': 'Everyone who uses it loses it.',
+  'label.delete.system-consequence':
+    'Once it is deleted, no one sees this system view any more.',
   'label.delete.dirty-consequence': 'Unsaved changes go with it.',
   'label.delete.keep': 'Keep it',
   'label.dialog.cancel': 'Cancel',

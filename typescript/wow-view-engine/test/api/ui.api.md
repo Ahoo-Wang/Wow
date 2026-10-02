@@ -918,7 +918,7 @@ export interface ControlChromeProps {
     chrome?: 'box' | 'none' | null;
 }
 
-// @public (undocumented)
+// @public
 interface CreateInput<C extends ViewConfig> {
     // (undocumented)
     config: C;
@@ -1056,6 +1056,7 @@ export interface DashboardEditExtensions {
     copyAsShared?: {
         offered(definitionId: string): boolean;
         open(panelId: string): void;
+        system?: boolean;
     };
     onAddOwnedAnalysis?(spot: NewPanelSpot): void;
     onEditPresentation?(panelId: string): void;
@@ -1649,6 +1650,7 @@ interface EditHistoryState {
 export interface EditingCommands {
     click?(): void;
     copyAsShared?(): void;
+    copyAsSystem?(): void;
     // (undocumented)
     duplicate?(): void;
     // (undocumented)
@@ -2191,6 +2193,9 @@ export const en: {
     readonly 'label.panel.copy-shared.description': "“{view}” is a personal view, so the other readers of this shared dashboard see nothing in this panel. It is copied as a shared view of {definition}, saved right away, and this panel shows the copy — looking and filtering as it does now. The personal view stays as it is. Done saves the dashboard.";
     readonly 'label.panel.copy-shared.submit': "Copy and replace";
     readonly 'label.panel.copy-shared.saved': "“{title}” was copied as a shared view; this panel shows it now";
+    readonly 'label.panel.copy-system.heading': "Copy as a system view and replace";
+    readonly 'label.panel.copy-system.description': "“{view}” is not a system view, so readers in other tenants see nothing in this panel of a system dashboard. It is copied as a system view of {definition}, saved right away, and this panel shows the copy — looking and filtering as it does now. The original view stays as it is. Done saves the dashboard.";
+    readonly 'label.panel.copy-system.saved': "“{title}” was copied as a system view; this panel shows it now";
     readonly 'label.panel.presentation.reset': "Look as the view does";
     readonly 'label.panel.presentation.heading': "How “{title}” looks here";
     readonly 'label.panel.presentation.description': "Only this panel changes. The view it shows keeps its own look, and what it asks stays the same.";
@@ -2211,6 +2216,10 @@ export const en: {
     readonly 'label.dashboard.refresh-on': "This dashboard refreshes itself every {interval}.";
     readonly 'label.dashboard.list': "Dashboards";
     readonly 'label.dashboard.manage-group': "What to do with this dashboard";
+    readonly 'label.dashboard.publish': "Publish as a system dashboard";
+    readonly 'label.dashboard.publish-failed': "This dashboard could not be published as a system dashboard.";
+    readonly 'label.dashboard.publish-forbidden': "You may not publish system dashboards; ask an administrator.";
+    readonly 'label.dashboard.delete-system-consequence': "Once it is deleted, no one sees this system dashboard any more.";
     readonly 'label.dashboard.collapse-sidebar': "Hide the dashboard list";
     readonly 'label.dashboard.expand-sidebar': "Show the dashboard list";
     readonly 'label.dashboard.switch': "Switch dashboard";
@@ -2396,6 +2405,7 @@ export const en: {
     readonly 'label.panel.edit-content': "Edit content…";
     readonly 'label.panel.replace': "Replace view…";
     readonly 'label.panel.copy-shared': "Copy as a shared view and replace…";
+    readonly 'label.panel.copy-system': "Copy as a system view and replace…";
     readonly 'label.panel.duplicate': "Duplicate";
     readonly 'label.panel.move-to-tab': "Move to tab";
     readonly 'label.panel.arrange-menu': "Move or resize";
@@ -2487,6 +2497,7 @@ export const en: {
     readonly 'dashboard.panel.opens-elsewhere': "The view this panel was set to open in the workbench, “{view}”, is over “{definition}”, not this panel's data, so it opens the panel's own view.";
     readonly 'dashboard.panel.opens-invalid': "The view this panel was set to open in the workbench is not named properly, so it opens the panel's own view.";
     readonly 'dashboard.panel.presentation-dropped': "How this panel was set to look no longer fits its view, so it shows the view's own look.";
+    readonly 'dashboard.system.non-system-panels': "These panels reference views that are not system views; publish those as system views first: {panels}";
     readonly 'dashboard.panel.scope-too-narrow': "The view this panel shows is not open to everyone who reads this dashboard.";
     readonly 'dashboard.panel.source-invalid': "This panel should show either a saved view or an analysis of its own.";
     readonly 'dashboard.panel.tab-unknown': "This panel is on no tab of this dashboard, so it is shown on the first.";
@@ -3190,6 +3201,8 @@ export const en: {
     readonly 'label.manage.make-personal': "Make personal";
     readonly 'label.manage.shared': "{title} is now shared";
     readonly 'label.manage.made-personal': "{title} is now personal";
+    readonly 'label.manage.publish': "Publish as a system view";
+    readonly 'label.manage.published': "{title} is published as a system view";
     readonly 'label.manage.resubmit': "Apply again";
     readonly 'label.manage.reload': "Reload list";
     readonly 'label.kind.record': "Record view";
@@ -3316,6 +3329,8 @@ export const en: {
     readonly 'view.retry.failed': "That write could not be retried.";
     readonly 'view.runtime.not-owned': "This view is not open here any more.";
     readonly 'view.save-as.failed': "This view could not be saved as a copy.";
+    readonly 'view.publish.failed': "This view could not be published as a system view.";
+    readonly 'view.publish.forbidden': "You may not publish system views; ask an administrator.";
     readonly 'view.save.failed': "This view could not be saved.";
     readonly 'view.save.forbidden': "You may not save changes to this view; save a copy of your own instead.";
     readonly 'view.system.read-only': "A built-in view cannot be changed ({action}).";
@@ -3348,6 +3363,7 @@ export const en: {
     readonly 'view.list.failed.unsupported': "The list of views could not be loaded: this server has no view store.";
     readonly 'label.scope.only-me': "Only me";
     readonly 'label.scope.everyone': "Everyone";
+    readonly 'label.scope.as-system': "Everyone, as a system view";
     readonly 'label.scope.group.personal': "My views";
     readonly 'label.scope.group.shared': "Shared views";
     readonly 'label.scope.group.system': "System views";
@@ -3357,6 +3373,9 @@ export const en: {
     readonly 'label.scope.tag.shared': "shared";
     readonly 'label.scope.personal.description': "Only you see it.";
     readonly 'label.scope.shared.description': "Everyone who uses this data sees it.";
+    readonly 'label.scope.system.description': "Everyone who uses this data sees it among the system views; only those allowed can change it.";
+    readonly 'label.scope.system-stored': "Everyone sees it; only those allowed can change it";
+    readonly 'label.scope.system-editable': "Everyone sees it; you may change it, and the change reaches everyone";
     readonly 'label.scope.no-permission': "(no permission to create)";
     readonly 'label.scope.refused': "This page could not narrow this view";
     readonly 'config.refresh.missing': "This view has no refresh setting.";
@@ -3859,6 +3878,7 @@ export const en: {
     readonly 'label.delete.confirm': "Delete “{title}”?";
     readonly 'label.delete.consequence': "Only the view is removed; its records stay.";
     readonly 'label.delete.shared-consequence': "Everyone who uses it loses it.";
+    readonly 'label.delete.system-consequence': "Once it is deleted, no one sees this system view any more.";
     readonly 'label.delete.dirty-consequence': "Unsaved changes go with it.";
     readonly 'label.delete.keep': "Keep it";
     readonly 'label.dialog.cancel': "Cancel";
@@ -4810,6 +4830,7 @@ interface ManagedInstanceAbilities {
     changeAudience: boolean;
     // (undocumented)
     delete: boolean;
+    publish: boolean;
     // (undocumented)
     rename: boolean;
 }
@@ -6214,6 +6235,7 @@ interface SaveAbilities {
     createPersonal: boolean;
     // (undocumented)
     createShared: boolean;
+    createSystem: boolean;
     // (undocumented)
     delete: boolean;
     // (undocumented)
@@ -6238,8 +6260,7 @@ export interface SaveActionsProps extends Pick<ViewWriteCallbacks, 'onSaved' | '
 
 // @public
 export interface SaveAsCommands {
-    // (undocumented)
-    can: Pick<SaveAbilities, 'createPersonal' | 'createShared'>;
+    can: Pick<SaveAbilities, 'createPersonal' | 'createShared'> & Partial<Pick<SaveAbilities, 'createSystem'>>;
     // (undocumented)
     saveAs: SaveCommands['saveAs'];
     // (undocumented)
@@ -6253,10 +6274,10 @@ export function SaveAsDialog(input: SaveAsDialogProps): JSX.Element;
 export interface SaveAsDialogProps {
     // (undocumented)
     commands: SaveAsCommands;
-    defaultScope?: ViewAudience;
+    defaultScope?: ViewScope;
     description?: string;
     finalFocus?: FinalFocus;
-    intent?: 'copy' | 'first' | 'promote' | 'share';
+    intent?: 'copy' | 'first' | 'promote' | 'share' | 'share-system';
     // (undocumented)
     onOpenChange(open: boolean): void;
     onSaved?(instance: ViewInstance): void;
@@ -6311,8 +6332,7 @@ interface SavedViewTarget extends HandOver {
 
 // @public (undocumented)
 interface SaveTargetInput {
-    // (undocumented)
-    scope: ViewAudience;
+    scope: ViewScope;
     // (undocumented)
     title: string;
 }
@@ -8010,7 +8030,7 @@ class ViewEngine extends EngineResources {
     close(runtime: ViewRuntime): void;
     copyPanelView(dashboard: ViewRuntime, panelId: string, input: {
         title: string;
-        scope: ViewAudience;
+        scope: ViewScope;
     }): Promise<ViewInstance>;
     create<C extends ViewConfig>(definitionId: string, input: CreateInput<C>): RuntimeFor<C>;
     definitionIssues(definitionId: string): Issue[];
@@ -8032,6 +8052,7 @@ class ViewEngine extends EngineResources {
     permissions(definitionId: string): ViewPermissions;
     // (undocumented)
     preferences(definitionId: string): Promise<ViewPreferences>;
+    publishAsSystem(id: string): Promise<ViewInstance>;
     // (undocumented)
     protected readonly registered: ReadonlyMap<string, ViewDefinition>;
     rememberTab(definitionId: string, instanceId: string, tabId: string): Promise<void>;
@@ -8043,11 +8064,11 @@ class ViewEngine extends EngineResources {
     save(runtime: ViewRuntime): Promise<ViewInstance>;
     saveAs(runtime: ViewRuntime, input: {
         title: string;
-        scope: ViewAudience;
+        scope: ViewScope;
     }): Promise<ViewInstance>;
     saveOwnedView(dashboard: ViewRuntime, panelId: string, input: {
         title: string;
-        scope: ViewAudience;
+        scope: ViewScope;
     }): Promise<ViewInstance>;
     setAutoRun(definitionId: string, autoRun: boolean): Promise<ViewPreferences>;
     // (undocumented)
@@ -8187,6 +8208,7 @@ interface ViewInstance {
     revision: string;
     // (undocumented)
     scope: ViewScope;
+    stored?: true;
     // (undocumented)
     title: string;
 }
@@ -8202,6 +8224,7 @@ interface ViewInstanceSummary {
     revision: string;
     // (undocumented)
     scope: ViewScope;
+    stored?: true;
     // (undocumented)
     title: string;
 }
@@ -8275,6 +8298,7 @@ interface ViewManagerAbilities {
     anything: boolean;
     // (undocumented)
     instance(id: string): ManagedInstanceAbilities;
+    publishSystem: boolean;
     // (undocumented)
     reorder: boolean;
     // (undocumented)
@@ -8295,6 +8319,7 @@ interface ViewManagerController {
     outcomes: ReadonlyMap<string, WriteState>;
     pending: string | null;
     placeOf(id: string): number;
+    publishAsSystem(id: string): Promise<boolean>;
     // (undocumented)
     rename(id: string, title: string): Promise<boolean>;
     // (undocumented)
@@ -8362,6 +8387,7 @@ interface ViewPermissions {
     createPersonal: boolean;
     // (undocumented)
     createShared: boolean;
+    editSystem?: boolean;
     // (undocumented)
     instance(id: string): InstancePermissions;
     // (undocumented)
@@ -8525,7 +8551,6 @@ interface ViewSource {
 // @public
 interface ViewStore {
     changeAudience?(id: string, audience: ViewAudience, revision: string, context: WriteContext): Promise<ViewInstance>;
-    // (undocumented)
     create(input: Omit<ViewInstance, 'id' | 'revision'>, context: WriteContext): Promise<ViewInstance>;
     // (undocumented)
     delete(id: string, revision: string, context: WriteContext): Promise<void>;

@@ -15,14 +15,16 @@
  * What a command is allowed to do, asked before it is dispatched.
  *
  * The store answers synchronously and may answer nothing at all, in which
- * case everything is allowed. A system view is read-only whatever the store
- * says: it lives in code, and no store write can reach it — and that reading
- * is {@link instanceAbilities}, which the view manager's buttons ask as well
- * (D4).
+ * case everything is allowed — bar the system views. A system view is
+ * read-only unless the store keeps it (`stored`) and the host grants
+ * `editSystem` (D81), whose silence is a refusal; one declared in code is
+ * read-only always. That reading is {@link instanceAbilities}, which the
+ * view manager's buttons ask as well (D4).
  */
 
 import {
   audienceOf,
+  isSystemInstanceId,
   isSystemScope,
   type ViewInstanceSummary,
   type ViewScope,
@@ -35,7 +37,10 @@ import type {
 } from '../store/ViewStore.js';
 import { ViewCommandError } from './write.js';
 
-/** Everything is allowed when a store declares no permissions. */
+/**
+ * Everything is allowed when a store declares no permissions — everything a
+ * silence allows: `editSystem` is not among it (D81).
+ */
 export const ALLOW_ALL: ViewPermissions = {
   createPersonal: true,
   createShared: true,
@@ -49,7 +54,7 @@ export const ALLOW_ALL: ViewPermissions = {
   }),
 };
 
-/** Nothing may be written, which is what a system view answers to all of them. */
+/** Nothing may be written, which is what a read-only system view answers to all of them. */
 const NO_INSTANCE_WRITES: Required<InstancePermissions> = {
   save: false,
   rename: false,
@@ -88,8 +93,12 @@ export interface InstanceAbilities extends Required<InstancePermissions> {
 
 /**
  * What may be done to one instance: the store's answer for its id, with a
- * system view read-only whatever that answer is — it lives in code, and no
- * store write can reach it.
+ * system view read-only whatever that answer is — it lives in code or in
+ * the backend's configuration, and no store write can reach it — unless it
+ * is one the store keeps (`stored`), its id is not a code view's
+ * (`system:`), and the host grants `editSystem` (D81). Then the store's
+ * answer applies to it as to a shared view, bar `changeAudience`, which is
+ * always false: a system view never moves audience.
  *
  * **One reading, for both callers.** D4 has a manager's button exist exactly
  * where the command would be allowed, so the guard and the manager asking
@@ -109,11 +118,24 @@ export interface InstanceAbilities extends Required<InstancePermissions> {
  * `createShared` guards, however the view came to exist.
  */
 export function instanceAbilities(
-  summary: { id: string; scope?: ViewScope },
+  summary: { id: string; scope?: ViewScope; stored?: boolean },
   permissions: ViewPermissions,
 ): InstanceAbilities {
-  if (summary.scope !== undefined && isSystemScope(summary.scope))
-    return { ...NO_INSTANCE_WRITES, readOnly: true };
+  if (summary.scope !== undefined && isSystemScope(summary.scope)) {
+    if (!editableSystemView(summary, permissions))
+      return { ...NO_INSTANCE_WRITES, readOnly: true };
+    const { save, rename, delete: remove } = permissions.instance(summary.id);
+    // Read-only still when the store grants none of the three: the lock and
+    // its sentence read this one field, so they never say "you may change
+    // it" over a view nothing can be done to.
+    return {
+      save,
+      rename,
+      delete: remove,
+      changeAudience: false,
+      readOnly: !(save || rename || remove),
+    };
+  }
   const granted = permissions.instance(summary.id);
   const into =
     summary.scope === undefined
@@ -128,6 +150,22 @@ export function instanceAbilities(
     changeAudience: granted.changeAudience !== false && into,
     readOnly: false,
   };
+}
+
+/**
+ * Whether a system view is one this user may write: kept by the store
+ * (`stored`), not declared in code (a `system:` id never is, whatever a
+ * store says of it), and `editSystem` granted — absent is false (D81).
+ */
+function editableSystemView(
+  summary: { id: string; stored?: boolean },
+  permissions: ViewPermissions,
+): boolean {
+  return (
+    summary.stored === true &&
+    permissions.editSystem === true &&
+    !isSystemInstanceId(summary.id)
+  );
 }
 
 export class PermissionGuard {
@@ -150,6 +188,9 @@ export class PermissionGuard {
       createShared: permissions.createShared,
       reorder: permissions.reorder,
       setDefault: permissions.setDefault,
+      ...(permissions.editSystem === undefined
+        ? {}
+        : { editSystem: permissions.editSystem }),
       instance: id => ({
         ...permissions.instance(id),
         changeAudience: false,
@@ -157,19 +198,23 @@ export class PermissionGuard {
     };
   }
 
+  /** A system view is created only where `editSystem` is granted (D81). */
   requireCreate(definitionId: string, scope: ViewScope): void {
-    const permissions = this.of(definitionId);
     this.require(
-      audienceOf(scope) === 'shared'
-        ? permissions.createShared
-        : permissions.createPersonal,
+      mayCreate(this.of(definitionId), scope),
       'view.create.forbidden',
     );
   }
 
-  /** Asks for identity and scope alone, so an instance answers as well as a summary. */
+  /**
+   * Asks for identity, scope and whether the store keeps it, so an instance
+   * answers as well as a summary.
+   */
   requireInstance(
-    instance: Pick<ViewInstanceSummary, 'id' | 'definitionId' | 'scope'>,
+    instance: Pick<
+      ViewInstanceSummary,
+      'id' | 'definitionId' | 'scope' | 'stored'
+    >,
     action: keyof InstancePermissions,
   ): void {
     const abilities = instanceAbilities(
@@ -191,4 +236,18 @@ export class PermissionGuard {
   require(allowed: boolean, code: string): void {
     if (!allowed) throw new ViewCommandError(issue(code, []));
   }
+}
+
+/**
+ * Whether a view may be created in `scope`: the audience's create
+ * permission, and for a system view `editSystem`, whose silence refuses.
+ */
+export function mayCreate(
+  permissions: ViewPermissions,
+  scope: ViewScope,
+): boolean {
+  if (isSystemScope(scope)) return permissions.editSystem === true;
+  return audienceOf(scope) === 'shared'
+    ? permissions.createShared
+    : permissions.createPersonal;
 }

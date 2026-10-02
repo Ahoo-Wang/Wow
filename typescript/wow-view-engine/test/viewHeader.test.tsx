@@ -122,6 +122,7 @@ const NOTHING: SaveCommands = {
     revert: false,
     createPersonal: false,
     createShared: false,
+    createSystem: false,
   },
   state: {
     pending: false,

@@ -54,6 +54,7 @@ describe('useSaveCommands', () => {
       revert: false,
       createPersonal: false,
       createShared: false,
+      createSystem: false,
     });
     expect(result.current.state).toEqual({
       pending: false,

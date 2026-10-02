@@ -80,6 +80,15 @@ export interface MemoryState {
  * server's limits on a title and a config, which it refuses as the server
  * does (`INVALID`).
  *
+ * System views come two ways (D81). One seeded with `scope: 'system'` and
+ * no `stored` is a configured one, as the backend's configuration serves
+ * it: every write to it is refused (`FORBIDDEN`). One created with
+ * `scope: 'system'` — 「发布为系统视图」 — or seeded with `stored: true` is
+ * a stored one: saved, renamed and deleted like a shared view, never moved
+ * to another audience (`FORBIDDEN`). Like the server, the store asks no
+ * permission of its own; `editSystem` is the host's to grant and the
+ * engine's to ask.
+ *
  * With a snapshot, several stores may share one stored state — two tabs over
  * one `localStorage`. The rule between them is the backend's: **re-read, then
  * compare revisions, one instance (or one definition's preferences) at a
@@ -143,10 +152,6 @@ export class MemoryViewStore implements ViewStore {
   ): Promise<ViewInstance> {
     const replayed = this.outcomes.get(context.requestId);
     if (replayed) return Promise.resolve(copy(replayed));
-    if (isSystemScope(input.scope))
-      return Promise.reject(
-        new ViewStoreError('INVALID', 'System views are declared in code'),
-      );
     const refused = titleRefusal(input.title) ?? configRefusal(input.config);
     if (refused) return Promise.reject(refused);
     this.reload();
@@ -163,11 +168,16 @@ export class MemoryViewStore implements ViewStore {
         new ViewStoreError('INVALID', `Reserved id namespace: ${id}`),
       );
 
+    // `stored` is the store's to say, never the caller's: a system view
+    // created here is one it keeps, and nothing else is one.
+    const given = copy(input);
+    delete given.stored;
     const instance: ViewInstance = {
-      ...copy(input),
+      ...given,
       title: input.title.trim(),
       id,
       revision: '1',
+      ...(isSystemScope(input.scope) ? { stored: true as const } : {}),
     };
     this.instances.set(id, instance);
     return this.commit(context, instance, () => this.instances.delete(id));
@@ -209,7 +219,8 @@ export class MemoryViewStore implements ViewStore {
    * it answers the view unchanged — no revision spent, nothing written — and
    * remembers that answer under the `requestId` like any other outcome.
    * A view a shared (or system) board shows is refused as `INVALID` when it
-   * would become personal, `boards` naming those boards by title.
+   * would become personal, `boards` naming those boards by title. A system
+   * view, stored or not, never moves (`FORBIDDEN`).
    */
   changeAudience(
     id: string,
@@ -218,6 +229,8 @@ export class MemoryViewStore implements ViewStore {
     context: WriteContext,
   ): Promise<ViewInstance> {
     return this.update(id, revision, context, current => {
+      if (isSystemScope(current.scope))
+        return new ViewStoreError('FORBIDDEN', 'System views stay system');
       if (audienceOf(current.scope) === audience) return null;
       if (audience === 'personal') {
         const boards = this.sharedBoardsShowing(id);
@@ -240,9 +253,10 @@ export class MemoryViewStore implements ViewStore {
       return Promise.reject(
         new ViewStoreError('NOT_FOUND', `No such view: ${id}`),
       );
-    // Deleting a system view is refused exactly as overwriting one is: it is
-    // declared in code or by operations, and no user write reaches it.
-    if (isSystemScope(current.scope))
+    // Deleting a configured system view is refused exactly as overwriting
+    // one is: it is declared in code or by operations, and no user write
+    // reaches it. A stored one is deleted like a shared view (unpublished).
+    if (readOnlySystem(current))
       return Promise.reject(
         new ViewStoreError('FORBIDDEN', 'System views are read-only'),
       );
@@ -325,7 +339,7 @@ export class MemoryViewStore implements ViewStore {
       return Promise.reject(
         new ViewStoreError('NOT_FOUND', `No such view: ${id}`),
       );
-    if (isSystemScope(current.scope))
+    if (readOnlySystem(current))
       return Promise.reject(
         new ViewStoreError('FORBIDDEN', 'System views are read-only'),
       );
@@ -458,6 +472,11 @@ function shows(panel: unknown, id: string): boolean {
     click !== null &&
     (click as { instanceId?: unknown }).instanceId === id
   );
+}
+
+/** A system view no write reaches: configured, not one this store keeps. */
+function readOnlySystem(instance: ViewInstance): boolean {
+  return isSystemScope(instance.scope) && instance.stored !== true;
 }
 
 /** System views first, then shared, then personal: the port's list order. */

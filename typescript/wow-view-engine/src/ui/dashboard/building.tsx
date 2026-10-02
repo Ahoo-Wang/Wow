@@ -13,7 +13,8 @@
 
 import { useCallback, useMemo, useRef, useState, type ReactNode } from 'react';
 import { isOwnedPanel } from '../../dashboard/index.js';
-import type { Issue, ViewAudience, ViewInstance } from '../../model/index.js';
+import type { Issue, ViewInstance, ViewScope } from '../../model/index.js';
+import { mayCreate } from '../../runtime/permissions.js';
 import { toIssue, type DashboardController } from '../../react/index.js';
 import type { DashboardRuntime, ViewEngine } from '../../runtime/index.js';
 import { panelNames } from './DashboardPanel.js';
@@ -127,8 +128,13 @@ export function useDashboardExtensions({
               ask({ kind: 'promote', panelId });
             },
             copyAsShared: {
+              // On a system board the copy is a system view (D81), and only
+              // an admin can make one: nobody else is offered the entry.
+              system: board.getSnapshot().scope === 'system',
               offered: definitionId =>
-                engine.permissions(definitionId).createShared,
+                board.getSnapshot().scope === 'system'
+                  ? mayCreate(engine.permissions(definitionId), 'system')
+                  : engine.permissions(definitionId).createShared,
               open: panelId => {
                 // The view as it was when asked: the copy lands before the
                 // dialog closes, and the panel then shows the copy.
@@ -178,14 +184,24 @@ export function useDashboardExtensions({
   const ownedDefinition = owned
     ? engine.definitions.get(owned.definitionId)
     : undefined;
-  const can = owned
-    ? engine.permissions(owned.definitionId)
+  const permissions = owned ? engine.permissions(owned.definitionId) : null;
+  // The system audience too, where it is granted (D81): a system board's
+  // panels may show system views alone.
+  const can = permissions
+    ? { ...permissions, createSystem: mayCreate(permissions, 'system') }
     : { createPersonal: false, createShared: false };
   // The saved view a shared board's panel stands on, while it is copied.
   const sharing = open?.kind === 'share' ? open : null;
+  // A system board's copy is a system view (D81).
+  const toSystem = board?.getSnapshot().scope === 'system';
   const source = sharing?.view ?? null;
-  const boardScope: ViewAudience =
-    board?.getSnapshot().scope === 'personal' ? 'personal' : 'shared';
+  const scope = board?.getSnapshot().scope;
+  const boardScope: ViewScope =
+    scope === 'personal'
+      ? 'personal'
+      : scope === 'system' && 'createSystem' in can && can.createSystem
+        ? 'system'
+        : 'shared';
 
   const dialogs = board && (
     <>
@@ -253,17 +269,28 @@ export function useDashboardExtensions({
         open={source !== null}
         onOpenChange={close}
         finalFocus={finalFocus}
-        intent="share"
+        intent={toSystem ? 'share-system' : 'share'}
         title={source?.title ?? ''}
-        description={messages.label('label.panel.copy-shared.description', {
-          view: source?.title ?? '',
-          definition: source
-            ? (engine.definitions.get(source.definitionId)?.title ?? '')
-            : '',
-        })}
+        description={messages.label(
+          toSystem
+            ? 'label.panel.copy-system.description'
+            : 'label.panel.copy-shared.description',
+          {
+            view: source?.title ?? '',
+            definition: source
+              ? (engine.definitions.get(source.definitionId)?.title ?? '')
+              : '',
+          },
+        )}
         commands={{
           can: source
-            ? engine.permissions(source.definitionId)
+            ? {
+                ...engine.permissions(source.definitionId),
+                createSystem: mayCreate(
+                  engine.permissions(source.definitionId),
+                  'system',
+                ),
+              }
             : { createPersonal: false, createShared: false },
           state: saving,
           saveAs: async ({ title, scope }) => {
@@ -279,7 +306,14 @@ export function useDashboardExtensions({
                 },
               );
               setSaving({ pending: false, error: null });
-              say(messages.label('label.panel.copy-shared.saved', { title }));
+              say(
+                messages.label(
+                  toSystem
+                    ? 'label.panel.copy-system.saved'
+                    : 'label.panel.copy-shared.saved',
+                  { title },
+                ),
+              );
               return instance;
             } catch (error) {
               setSaving({

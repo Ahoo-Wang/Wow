@@ -28,6 +28,7 @@ import {
   SquarePenIcon,
   Trash2Icon,
   Undo2Icon,
+  UploadIcon,
   UsersIcon,
 } from 'lucide-react';
 import { Button } from '../components/button.js';
@@ -236,6 +237,15 @@ export function PanelMenu({
               >
                 <UsersIcon />
                 {messages.label('label.panel.copy-shared')}
+              </DialogMenuItem>
+            )}
+            {commands.copyAsSystem && (
+              <DialogMenuItem
+                data-slot="panel-copy-system"
+                onClick={() => commands.copyAsSystem?.()}
+              >
+                <UploadIcon />
+                {messages.label('label.panel.copy-system')}
               </DialogMenuItem>
             )}
             {commands.duplicate && (

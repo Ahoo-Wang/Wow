@@ -40,6 +40,7 @@ export const zhCN: Readonly<Record<string, string>> = {
   'label.delete.confirm': '删除「{title}」？',
   'label.delete.consequence': '只删除视图，记录仍然保留。',
   'label.delete.shared-consequence': '用到它的人都会失去它。',
+  'label.delete.system-consequence': '删除后，所有人都不再看到这个系统视图。',
   'label.delete.dirty-consequence': '未保存的修改会一并删掉。',
   'label.delete.keep': '保留',
   'label.dialog.cancel': '取消',
@@ -607,6 +608,7 @@ export const zhCN: Readonly<Record<string, string>> = {
   // 视图的可见范围。
   'label.scope.only-me': '仅自己',
   'label.scope.everyone': '所有人',
+  'label.scope.as-system': '所有人（系统视图）',
   'label.scope.group.personal': '我的视图',
   'label.scope.group.shared': '共享视图',
   'label.scope.group.system': '系统视图',
@@ -616,6 +618,10 @@ export const zhCN: Readonly<Record<string, string>> = {
   'label.scope.tag.shared': '共享',
   'label.scope.personal.description': '只有你看得到。',
   'label.scope.shared.description': '用这份数据的人都看得到。',
+  'label.scope.system.description':
+    '用这份数据的人都看得到，列在系统视图里；只有获准的人能修改。',
+  'label.scope.system-stored': '所有人都看得到；只有获准的人能修改',
+  'label.scope.system-editable': '所有人都看得到；你可以修改，改动对所有人生效',
   'label.scope.no-permission': '（没有创建权限）',
   'label.scope.refused': '页面的作用域条件对这个视图不适用',
 
@@ -791,6 +797,8 @@ export const zhCN: Readonly<Record<string, string>> = {
   'view.retry.failed': '重试失败。',
   'view.runtime.not-owned': '这个视图在这里已经不是打开着的了。',
   'view.save-as.failed': '这个视图存不成副本。',
+  'view.publish.failed': '这个视图没能发布为系统视图。',
+  'view.publish.forbidden': '你没有发布系统视图的权限，请联系管理员。',
   'view.save.failed': '视图保存失败。',
   'view.save.forbidden': '你不能保存对这个视图的改动，另存一份自己的吧。',
   'view.system.read-only': '系统视图不能改（{action}）。',
@@ -847,6 +855,8 @@ export const zhCN: Readonly<Record<string, string>> = {
   'label.manage.make-personal': '设为个人',
   'label.manage.shared': '{title} 已设为共享',
   'label.manage.made-personal': '{title} 已设为个人',
+  'label.manage.publish': '发布为系统视图',
+  'label.manage.published': '{title} 已发布为系统视图',
   'label.manage.resubmit': '再应用一次',
   'label.manage.reload': '重新加载列表',
 
@@ -1614,6 +1624,12 @@ export const zhCN: Readonly<Record<string, string>> = {
   'label.dashboard.refresh-on': '这个仪表盘每 {interval}自动刷新一次。',
   'label.dashboard.list': '仪表盘',
   'label.dashboard.manage-group': '处置这个仪表盘',
+  'label.dashboard.publish': '发布为系统仪表盘',
+  'label.dashboard.publish-failed': '这个仪表盘没能发布为系统仪表盘。',
+  'label.dashboard.publish-forbidden':
+    '你没有发布系统仪表盘的权限，请联系管理员。',
+  'label.dashboard.delete-system-consequence':
+    '删除后，所有人都不再看到这个系统仪表盘。',
   'label.dashboard.collapse-sidebar': '收起仪表盘列表',
   'label.dashboard.expand-sidebar': '展开仪表盘列表',
   'label.dashboard.switch': '切换仪表盘',
@@ -1886,6 +1902,11 @@ export const zhCN: Readonly<Record<string, string>> = {
   'label.panel.copy-shared.description':
     '「{view}」是个人视图，这块共享仪表盘的其他读者在这个面板里什么也看不到。它会复制成「{definition}」的一个共享视图并立即保存，这块面板改为显示副本，样子与筛选都和现在一样；你的个人视图保持不变。按「完成」保存仪表盘。',
   'label.panel.copy-shared.submit': '复制并替换',
+  'label.panel.copy-system.heading': '复制为系统视图并替换',
+  'label.panel.copy-system.description':
+    '「{view}」不是系统视图，其他租户的读者在这块系统仪表盘的这个面板里什么也看不到。它会复制成「{definition}」的一个系统视图并立即保存，这块面板改为显示副本，样子与筛选都和现在一样；原来的视图保持不变。按「完成」保存仪表盘。',
+  'label.panel.copy-system.saved':
+    '已复制为系统视图「{title}」，这块面板改为显示它',
   'label.panel.copy-shared.saved':
     '已复制为共享视图「{title}」，这块面板改为显示它',
   'label.panel.presentation.reset': '恢复为视图的样子',
@@ -1970,6 +1991,7 @@ export const zhCN: Readonly<Record<string, string>> = {
   'label.panel.edit-content': '改内容…',
   'label.panel.replace': '替换视图…',
   'label.panel.copy-shared': '复制为共享视图并替换…',
+  'label.panel.copy-system': '复制为系统视图并替换…',
   'label.panel.duplicate': '复制',
   'label.panel.move-to-tab': '移到标签页',
   'label.panel.arrange-menu': '移动或调整大小',
@@ -2079,6 +2101,8 @@ export const zhCN: Readonly<Record<string, string>> = {
     '这个面板设定在工作台中打开的视图写得不对，改为打开面板自己的视图。',
   'dashboard.panel.presentation-dropped':
     '这个面板改过的展示已经不适用于它的视图，按视图本来的样子显示。',
+  'dashboard.system.non-system-panels':
+    '这些面板引用了非系统视图，先把它们发布为系统视图：{panels}',
   'dashboard.panel.scope-too-narrow':
     '这个面板显示的视图并不对这个仪表盘的所有读者开放。',
   'dashboard.panel.source-invalid':

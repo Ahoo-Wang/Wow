@@ -122,6 +122,7 @@ function harness(holders: ManagedViewRuntime[] = []): Harness {
     },
     holders: () => holders,
     noteChange: change => void changes.push(change),
+    referenceOf: () => Promise.resolve(undefined),
   };
 
   return {
@@ -463,6 +464,7 @@ describe('WriteLedger effects', () => {
       readPreferences: async () => preferences,
       holders: () => [],
       noteChange: () => {},
+      referenceOf: () => Promise.resolve(undefined),
     });
     const input = {
       definitionId: 'orders',

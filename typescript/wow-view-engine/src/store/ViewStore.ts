@@ -45,6 +45,14 @@ export interface ViewStore {
     signal?: AbortSignal,
   ): Promise<ViewInstanceSummary[]>;
   get(id: string, signal?: AbortSignal): Promise<ViewInstance>;
+  /**
+   * Creates a view for the scope `input` names. `scope: 'system'` creates a
+   * **stored system view** (D81) — what 「发布为系统视图」 and 另存为 send
+   * when the host grants `editSystem` — and answers it with `stored: true`;
+   * a store that keeps no system views refuses it (`FORBIDDEN` or
+   * `INVALID`). Publishing is a copy: the view it was made from is not
+   * touched. The engine never sends `stored` itself; the store sets it.
+   */
   create(
     input: Omit<ViewInstance, 'id' | 'revision'>,
     context: WriteContext,
@@ -87,7 +95,8 @@ export interface ViewStore {
    * (`view.changeAudience.unsupported`). One that has it keeps the rules of
    * every other instance write — the expected `revision` (`CONFLICT`
    * carrying `instance`), a replayed `requestId` answering the first
-   * outcome, a system view refused (`FORBIDDEN`), a missing one
+   * outcome, a system view refused (`FORBIDDEN`) — a stored one too: a
+   * system view never moves audience — a missing one
    * `NOT_FOUND` — and two of its own:
    *
    * - **No change is no write.** Asked for the audience the view already
@@ -127,6 +136,17 @@ export interface ViewPermissions {
   createShared: boolean;
   reorder: boolean;
   setDefault: boolean;
+  /**
+   * Whether this user edits the definition's **stored** system views
+   * (`stored: true`) and creates new ones (`create({ scope: 'system' })`,
+   * 「发布为系统视图」), D81. **Absent is false** — unlike everything else
+   * here, where silence allows: a system view reaches every user, so only a
+   * host that says so opens it, and `ALLOW_ALL` does not. When true, the
+   * `instance(id)` answer below applies to a stored system view (save,
+   * rename, delete); a system view never moves audience, and one declared
+   * in code or in the backend's configuration stays read-only.
+   */
+  editSystem?: boolean;
   instance(id: string): InstancePermissions;
 }
 

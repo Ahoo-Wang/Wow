@@ -898,6 +898,21 @@
 - **理由**：转了 90° 的字要歪头读，中文字字侧卧（与纵轴标题平放在轴顶同一个理由，[ui/analysis.md](ui/analysis.md)「轴有标题」）；没被要求的数宁可交给提示框，也不以难读的方式挤上去。
 - **落点**：`src/ui/charts/{cartesianFit,cartesianMarks}.ts`；test/cartesianFit.test.ts、test/chartAnnotations.test.ts；浏览器故事「图表读法/回归」的 `PeaksOnlyOverALongRow`、`PeaksOnlyOverALongRowNarrow`；[ui/analysis.md](ui/analysis.md)「每根柱上写它的数」「峰谷的字总是平放」。
 
+## D81 系统视图可以存，存着的由管理员编辑；配置与代码声明的照旧只读（2026-10-01）
+
+- **来由**：系统视图只来自代码（`definition.views`）与服务端配置（`wow.view-store.system-views`，启动时读一次），改一个就要发版或重启。用户要求不重启就能热更新系统视图，复用 View 聚合（9.2.0 一起发）。
+- **裁定**（用户 2026-10-01，服务端一半见 `view-store/` 与 `@ahoo-wang/wow-view-store`）：
+  - **系统视图可以存**：store 存着的系统视图在摘要与实例上带 `stored: true`（store 标，引擎不发）；新建是 `ViewStore.create({ scope: 'system', … })`。
+  - **管理员编辑**：`ViewPermissions.editSystem` 为 true 时，存着的系统视图照共享视图那样保存、改名、删除（仍问 `instance(id)`），**改受众永远不行**——系统视图不换受众。
+  - **`editSystem` 沉默即 false**：别的许可沉默即允许，这一项相反——系统视图到达每一个用户，只有宿主明说才开；`ALLOW_ALL` 不含它。
+  - **配置的与代码声明的照旧只读**：没有 `stored` 的系统视图、`system:` 开头的 id，给了 `editSystem` 也只读。
+  - **系统看板只引用系统视图**：系统视图全局（租户 `(platform)`），共享视图只属于一个租户，所以 `coversScope(system, x)` 只在 x 也是系统视图时为真；发布、另存为系统、首次保存与就地保存一块系统看板时（写入账本对每一次写进系统范围的配置都问一遍），任何面板引用了非系统的已存视图（显示的、「在工作台中打开」的、点击打开的）就拒绝，并点出那几块面板（`dashboard.system.non-system-panels`）；看板自己拥有的分析与系统视图都可以。系统看板上「另存为视图」在给了 `editSystem` 时默认选系统受众；「复制为共享视图并替换」在系统看板上换成「复制为系统视图并替换」，副本是系统视图，只对能新建那份数据的系统视图的人出现。
+  - **发布是复制**：管理器个人与共享行上的「发布为系统视图」（`publishAsSystem`）以源视图的标题与已保存的配置新建一个存着的系统视图，源视图不动；「取消发布」就是删除。另存为在给了 `editSystem` 时多一个「系统」受众。
+  - **判定一处**：`instanceAbilities` 与 `mayCreate`（`runtime/permissions.ts`），守卫、管理器与保存命令问同一个函数（D4）；`instance(id)` 一项都不给时仍是 `readOnly`，锁与悬停句只读它。已经是系统视图的不能再发布。网关拒绝发布时说「你没有发布系统视图的权限，请联系管理员。」（`view.publish.forbidden`）。
+  - **谁能写由网关定**：没有服务端开关；写系统视图的请求都落在一条字面路径上，CoSec 按路径放行管理员。前端的许可只决定按钮。
+- **界面**：锁（`SystemMark`）照旧挂在每个系统视图上；能编辑的那个悬停改说「所有人都看得到；你可以修改，改动对所有人生效」，不能编辑的存着的那个说「所有人都看得到；只有获准的人能修改」。另存为的第三个受众是「所有人（系统视图）」。能发布的用户每行多一格（`UploadIcon`，不用锁——锁说「这是系统视图」，画在个人或共享行上会读成「已锁」）；删除系统视图的确认说「删除后，所有人都不再看到这个系统视图」（仪表盘说「系统仪表盘」）。不能编辑的用户看不到任何编辑入口。
+- **落点**：`src/store/ViewStore.ts`、`src/model/instance.ts`、`src/runtime/{permissions,publish}.ts`、`src/store/MemoryViewStore.ts`、`src/react/{useViewManager,useSaveCommands}.ts`、`src/ui/manage/`、`src/ui/workbench/SaveAsDialog.tsx`；[management.md](management.md)「存着的系统视图」；test/storedSystemViews.test.tsx、端口一致性套件的 `storedSystemViews`；浏览器故事「Record 工作台/视图」的 `EditStoredSystemView`、`PublishAsSystemView`、`SystemViewsReadOnlyForOthers`。
+
 ## 搁置待议
 
 尚无结论，不要当作规则执行。

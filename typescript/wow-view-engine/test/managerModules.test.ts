@@ -190,12 +190,14 @@ describe('manager/abilities', () => {
       rename: false,
       delete: false,
       changeAudience: false,
+      publish: false,
     });
     // A row the list does not hold is the store's to answer for.
     expect(can.instance('gone')).toEqual({
       rename: true,
       delete: true,
       changeAudience: true,
+      publish: false,
     });
     expect(can.anything).toBe(false);
   });

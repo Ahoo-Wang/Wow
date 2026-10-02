@@ -1,4 +1,4 @@
-# Message keys — 2065.
+# Message keys — 2083.
 # Written by test/publicSurface.test.ts; a change here is a change to
 # the public surface (README「Wording and language」, docs/design/decisions.md D29).
 analysis.alias.duplicate
@@ -271,6 +271,7 @@ dashboard.panel.view-unknown
 dashboard.panels.too-many
 dashboard.scope.unsupported
 dashboard.shape.invalid
+dashboard.system.non-system-panels
 dashboard.tab.id-duplicate
 dashboard.tab.id-empty
 dashboard.tab.title-empty
@@ -1067,6 +1068,7 @@ label.dashboard.default-forbidden
 label.dashboard.delete-consequence
 label.dashboard.delete-failed
 label.dashboard.delete-forbidden
+label.dashboard.delete-system-consequence
 label.dashboard.duplicated
 label.dashboard.edit
 label.dashboard.editing
@@ -1112,6 +1114,9 @@ label.dashboard.panels-need-fixing
 label.dashboard.panels-need-fixing-one
 label.dashboard.preferences-failed
 label.dashboard.preferences-load-failed
+label.dashboard.publish
+label.dashboard.publish-failed
+label.dashboard.publish-forbidden
 label.dashboard.refresh-missing
 label.dashboard.refresh-on
 label.dashboard.removed
@@ -1195,6 +1200,7 @@ label.delete.consequence
 label.delete.dirty-consequence
 label.delete.keep
 label.delete.shared-consequence
+label.delete.system-consequence
 label.deletion.active
 label.deletion.all
 label.deletion.deleted
@@ -1465,6 +1471,8 @@ label.manage.make-personal
 label.manage.moved
 label.manage.open
 label.manage.picked
+label.manage.publish
+label.manage.published
 label.manage.reload
 label.manage.rename
 label.manage.rename-cancel
@@ -1555,6 +1563,10 @@ label.panel.copy-shared.description
 label.panel.copy-shared.heading
 label.panel.copy-shared.saved
 label.panel.copy-shared.submit
+label.panel.copy-system
+label.panel.copy-system.description
+label.panel.copy-system.heading
+label.panel.copy-system.saved
 label.panel.duplicate
 label.panel.edit-content
 label.panel.edit-presentation
@@ -1777,6 +1789,7 @@ label.save.shared-confirm
 label.save.shared-description
 label.save.shared-heading
 label.save.title
+label.scope.as-system
 label.scope.everyone
 label.scope.group.personal
 label.scope.group.shared
@@ -1787,6 +1800,9 @@ label.scope.personal.description
 label.scope.refused
 label.scope.shared.description
 label.scope.system
+label.scope.system-editable
+label.scope.system-stored
+label.scope.system.description
 label.scope.tag.personal
 label.scope.tag.shared
 label.scope.tag.system
@@ -2042,6 +2058,8 @@ view.preferences.default-forbidden
 view.preferences.failed
 view.preferences.load-failed
 view.preferences.reorder-forbidden
+view.publish.failed
+view.publish.forbidden
 view.rename.failed
 view.rename.forbidden
 view.resolve.failed

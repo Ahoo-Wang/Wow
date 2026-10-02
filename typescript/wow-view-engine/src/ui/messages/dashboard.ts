@@ -31,6 +31,13 @@ export const dashboardMessages = {
     'This dashboard refreshes itself every {interval}.',
   'label.dashboard.list': 'Dashboards',
   'label.dashboard.manage-group': 'What to do with this dashboard',
+  'label.dashboard.publish': 'Publish as a system dashboard',
+  'label.dashboard.publish-failed':
+    'This dashboard could not be published as a system dashboard.',
+  'label.dashboard.publish-forbidden':
+    'You may not publish system dashboards; ask an administrator.',
+  'label.dashboard.delete-system-consequence':
+    'Once it is deleted, no one sees this system dashboard any more.',
   'label.dashboard.collapse-sidebar': 'Hide the dashboard list',
   'label.dashboard.expand-sidebar': 'Show the dashboard list',
   'label.dashboard.switch': 'Switch dashboard',
@@ -299,6 +306,7 @@ export const dashboardMessages = {
   'label.panel.edit-content': 'Edit content…',
   'label.panel.replace': 'Replace view…',
   'label.panel.copy-shared': 'Copy as a shared view and replace…',
+  'label.panel.copy-system': 'Copy as a system view and replace…',
   'label.panel.duplicate': 'Duplicate',
   'label.panel.move-to-tab': 'Move to tab',
   // The panel's place and size, one step a click, from its 「⋯」 menu while
@@ -430,6 +438,8 @@ export const dashboardMessages = {
     "The view this panel was set to open in the workbench is not named properly, so it opens the panel's own view.",
   'dashboard.panel.presentation-dropped':
     "How this panel was set to look no longer fits its view, so it shows the view's own look.",
+  'dashboard.system.non-system-panels':
+    'These panels reference views that are not system views; publish those as system views first: {panels}',
   'dashboard.panel.scope-too-narrow':
     'The view this panel shows is not open to everyone who reads this dashboard.',
   'dashboard.panel.source-invalid':

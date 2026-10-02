@@ -24,6 +24,7 @@ import { newRequestId } from './requestId.js';
 import type { ViewStore, WriteContext } from '../store/ViewStore.js';
 import type { ManagedViewRuntime, ViewRuntime } from './viewRuntimeTypes.js';
 import type { ViewChange } from './viewChanges.js';
+import { requireSystemPanels, type ReferenceOf } from './publish.js';
 import {
   ViewCommandError,
   ViewWriteError,
@@ -69,6 +70,8 @@ export interface WriteLedgerHost {
    * announce what the first attempt would have.
    */
   noteChange(change: ViewChange): void;
+  /** A panel's saved view, read for a board headed for the system views. */
+  referenceOf: ReferenceOf;
 }
 
 /**
@@ -103,10 +106,21 @@ export class WriteLedger {
   }
 
   /** A new logical write: a fresh `requestId`, then the one path out. */
-  dispatch(
+  async dispatch(
     payload: WritePayload,
     runtime: ManagedViewRuntime | undefined,
   ): Promise<WriteResult> {
+    // Every write of a config into the system scope — a first save, a
+    // 另存为, a publish, a save in place of a system board — passes here, so
+    // a system board's rule is asked once (D81).
+    const into =
+      payload.action === 'create'
+        ? payload.input
+        : payload.action === 'save'
+          ? { config: payload.config, scope: runtime?.getSnapshot().scope }
+          : null;
+    if (into?.scope)
+      await requireSystemPanels(into.config, this.host.referenceOf, into.scope);
     return this.replay(payload, this.newId(), runtime);
   }
 
@@ -498,8 +512,10 @@ export class WriteLedger {
 }
 
 /**
- * The sentence a refusal is said in. An audience change the store finds
- * invalid has one reason the reader can act on — a shared board shows the
+ * The sentence a refusal is said in. A system view the store would not
+ * create is a permission the reader lacks (`view.publish.forbidden`). An
+ * audience change the store finds invalid has one reason the reader can act
+ * on — a shared board shows the
  * view — so it is said with the store's reason rather than as the bare
  * 「服务端拒绝了这次写入」, and in the engine's own words around the boards'
  * titles when the store names them (`boards`): the titles stay as stored,
@@ -509,6 +525,15 @@ export class WriteLedger {
  */
 function refusalIssue(payload: WritePayload, error: ViewStoreError): Issue {
   const reason = { reason: error.message };
+  // A create into the system scope the gateway refused (D81): the reader
+  // may not publish system views, which is not "you may not write this
+  // view" said under a view of their own.
+  if (
+    payload.action === 'create' &&
+    payload.input.scope === 'system' &&
+    error.code === 'FORBIDDEN'
+  )
+    return issue('view.publish.forbidden', [], reason);
   if (payload.action !== 'changeAudience' || error.code !== 'INVALID')
     return issue(`view.write.${error.code.toLowerCase()}`, [], reason);
   const boards = error.boards ?? [];

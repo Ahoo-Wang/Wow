@@ -52,6 +52,7 @@ const MEMORY: ConformanceCapabilities = {
   changeAudience: true,
   idempotentCreate: true,
   systemViews: { definitionId: SYSTEM_DEFINITION },
+  storedSystemViews: true,
 };
 
 describeViewStoreConformance({
