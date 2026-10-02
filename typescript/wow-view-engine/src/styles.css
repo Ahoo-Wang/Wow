@@ -3239,13 +3239,16 @@
  * is a `main` by default and a named `section` where the host's page has its
  * own `main` (`landmark`, Q64), and the layout is the same in both.
  *
- * Each column is also the containing block of what it holds (`relative`). A
- * scroll container that is not one lets an absolutely placed descendant —
- * every `sr-only` word of the view list, a system view's 「系统」 — escape it
- * and be laid out where the list runs on below the screen, against the
- * host's page: the column scrolled, and so did the document, by the height
+ * Each column is also the containing block of what it holds (`relative`),
+ * and so is every other region the engine scrolls, here and in `src/ui`
+ * (`test/scrollers.test.ts`). A scroll container that is not one lets an
+ * absolutely placed descendant — every `sr-only` word of the view list, a
+ * system view's 「系统」, a card's reason its command is off — escape it and
+ * be laid out where the list runs on below the screen, against the next
+ * region out: the column scrolled, and so did the document, by the height
  * of the list past the fold (2026-09-30: the console at 1280×720 scrolled by
- * 114px with its pager already on the screen).
+ * 114px with its pager already on the screen; 2026-10-01: its cards gave
+ * the work column 2930px of blank space under the pager).
  */
 .fve-root > [data-slot='view-sidebar'],
 .fve-root > [data-slot='view-panel'],
@@ -3280,6 +3283,7 @@
  */
 .fve-root > [data-slot='workbench-main'] [data-slot='editor-band'],
 .fve-root > [data-slot='workbench-main'] [data-slot='condition-block'] {
+  position: relative;
   flex-shrink: 0;
   max-height: 50%;
   overflow-y: auto;
@@ -3326,6 +3330,7 @@
   > [data-slot='workbench-main']
   [data-slot='result-block']
   > [data-slot='record-cards'] {
+  position: relative;
   overflow-y: auto;
 }
 
@@ -3731,6 +3736,9 @@
  * none, `100%` is nothing and the embed reads as `content`.
  */
 .fve-root[data-embed-size='fill'] {
+  /* Fixed instead while the embed fills the screen: that rule comes later
+     at the same weight. */
+  position: relative;
   height: 100%;
   min-height: 0;
   overflow: hidden;
@@ -3743,6 +3751,7 @@
 }
 
 .fve-root[data-embed-size='fill'] > [data-slot='record-cards'] {
+  position: relative;
   flex: 1 1 auto;
   min-height: 0;
   overflow-y: auto;

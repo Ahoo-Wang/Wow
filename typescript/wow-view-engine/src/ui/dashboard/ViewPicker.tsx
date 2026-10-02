@@ -329,7 +329,7 @@ function Catalogue({
 
       <div
         data-slot="picker-list"
-        className="fve:-mx-1 fve:flex fve:max-h-[min(24rem,50vh)] fve:flex-col fve:gap-3 fve:overflow-y-auto fve:px-1"
+        className="fve:relative fve:-mx-1 fve:flex fve:max-h-[min(24rem,50vh)] fve:flex-col fve:gap-3 fve:overflow-y-auto fve:px-1"
       >
         {loading ? (
           <div

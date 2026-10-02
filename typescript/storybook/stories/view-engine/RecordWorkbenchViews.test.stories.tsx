@@ -872,6 +872,19 @@ export const ManagerFitsAShortScreen: Story = {
       name: zhCN['label.manage.heading'],
     });
     await expect(heading.getBoundingClientRect().top).toBeGreaterThanOrEqual(0);
+    // The list is the one scroller: the dialog itself does not scroll, so
+    // there is never a second scrollbar beside the list's. The rows'
+    // screen-reader words are absolute; were they placed against the dialog
+    // rather than the list, the long list's last ones would hang below the
+    // dialog and make it scroll too (the dev console's 30-odd views).
+    const hidden = list.querySelectorAll<HTMLElement>('.fve\\:sr-only');
+    await expect(hidden.length).toBeGreaterThan(0);
+    for (const word of hidden) {
+      await expect(list.contains(word.offsetParent)).toBe(true);
+    }
+    await expect(dialog.scrollHeight).toBeLessThanOrEqual(
+      dialog.clientHeight + 1,
+    );
     // The list is the scroller, and its last row can be reached.
     await expect(list.scrollHeight).toBeGreaterThan(list.clientHeight);
     list.scrollTop = list.scrollHeight;

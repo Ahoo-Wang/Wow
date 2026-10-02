@@ -310,7 +310,7 @@ function ContentForm({
       }}
       className="fve:flex fve:min-h-0 fve:flex-col fve:gap-4"
     >
-      <FieldGroup className="fve:max-h-[min(28rem,60vh)] fve:overflow-y-auto fve:p-0.5">
+      <FieldGroup className="fve:relative fve:max-h-[min(28rem,60vh)] fve:overflow-y-auto fve:p-0.5">
         {kind === 'markdown' && (
           <Field data-invalid={(tried && problems.content) || undefined}>
             <FieldLabel htmlFor={`${ids}-content`}>

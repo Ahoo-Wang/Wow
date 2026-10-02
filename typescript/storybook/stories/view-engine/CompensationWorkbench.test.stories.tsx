@@ -437,3 +437,66 @@ export const SearchesTheErrors: Story = {
     await expect(box).toHaveValue('');
   },
 };
+
+/**
+ * 卡片排不下时，只有卡片区滚动：工作列不滚，分页下面没有空白。
+ *
+ * 一次执行到了重试上限，它的 「重试」 是灰的，理由读给读屏器听——一个
+ * `sr-only`、绝对定位的词。卡片区若不是它的包含块，屏幕下方那几张卡的这个
+ * 词就挂到工作列上，在卡片区的裁剪之外把工作列撑高：工作列出现第二根滚动条，
+ * 往下滚是一大片空白（控制台 2026-10-01：3741px 的内容装在 811px 里）。
+ */
+export const CardsScrollAlone: Story = {
+  name: '卡片：只有卡片区滚动',
+  globals: { viewport: { value: 'short' } },
+  parameters: {
+    viewport: {
+      options: {
+        short: {
+          name: '760×640',
+          styles: { width: '760px', height: '640px' },
+        },
+      },
+    },
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await canvas.findByRole('table');
+    await userEvent.click(
+      canvas.getByRole('button', { name: zhCN['label.layout.cards'] }),
+    );
+    const cards = await waitFor(() => {
+      const found = canvasElement.querySelector<HTMLElement>(
+        '[data-slot="record-cards"]',
+      );
+      expect(found?.querySelectorAll('[data-slot="card"]')).toHaveLength(4);
+      return found!;
+    });
+    const main = canvasElement.querySelector<HTMLElement>(
+      '[data-slot="workbench-main"]',
+    )!;
+    // The case in question: more cards than room, and a reason read out on
+    // a card past the region's bottom edge.
+    const words = await waitFor(() => {
+      const found = [...cards.querySelectorAll<HTMLElement>('.fve\\:sr-only')];
+      expect(found.length).toBeGreaterThan(0);
+      return found;
+    });
+    await expect(cards.scrollHeight).toBeGreaterThan(cards.clientHeight + 1);
+    const edge = cards.getBoundingClientRect().bottom;
+    await expect(
+      words.some(word => word.getBoundingClientRect().top > edge),
+    ).toBe(true);
+    // Every such word is placed inside the region that scrolls it…
+    for (const word of words)
+      await expect(
+        cards.contains(word.offsetParent),
+        "a card's hidden word is placed inside the cards",
+      ).toBe(true);
+    // …so the work column holds what it shows and does not scroll itself.
+    await expect(
+      main.scrollHeight,
+      'the work column does not scroll',
+    ).toBeLessThanOrEqual(main.clientHeight + 1);
+  },
+};

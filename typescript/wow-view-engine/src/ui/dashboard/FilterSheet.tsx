@@ -87,7 +87,7 @@ export function FilterSheet({
             <div
               ref={listRef}
               data-slot="dashboard-filter-list"
-              className="fve:flex fve:min-h-0 fve:flex-col fve:items-start fve:gap-2 fve:overflow-y-auto fve:px-4 fve:pb-4"
+              className="fve:relative fve:flex fve:min-h-0 fve:flex-col fve:items-start fve:gap-2 fve:overflow-y-auto fve:px-4 fve:pb-4"
             >
               {children}
             </div>

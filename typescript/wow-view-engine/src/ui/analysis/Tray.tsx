@@ -137,7 +137,7 @@ export function Tray({
         // From `md` up, a grid of two columns every row is a subgrid of
         // (`EditorSlot`): the terms, as wide as the widest, and the rows.
         className={cn(
-          'fve:-mx-1 fve:flex fve:min-h-0 fve:flex-col fve:overflow-y-auto fve:px-1 fve:py-0.5',
+          'fve:relative fve:-mx-1 fve:flex fve:min-h-0 fve:flex-col fve:overflow-y-auto fve:px-1 fve:py-0.5',
           'fve:md:grid fve:md:grid-cols-[max-content_minmax(0,1fr)] fve:md:content-start fve:md:gap-x-3',
           SPACE.ROWS,
         )}
