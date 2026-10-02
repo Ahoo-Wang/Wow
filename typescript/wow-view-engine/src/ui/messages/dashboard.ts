@@ -30,7 +30,7 @@ export const dashboardMessages = {
   'label.dashboard.refresh-on':
     'This dashboard refreshes itself every {interval}.',
   'label.dashboard.list': 'Dashboards',
-  'label.dashboard.manage-group': 'What to do with this dashboard',
+  'label.dashboard.manage-group': 'Actions for the dashboard “{title}”',
   'label.dashboard.publish': 'Publish as a system dashboard',
   'label.dashboard.publish-failed':
     'This dashboard could not be published as a system dashboard.',

@@ -322,7 +322,12 @@ describe('DashboardWorkbench', () => {
     ).find(candidate =>
       candidate.textContent?.includes('Operations'),
     ) as HTMLElement;
-    fireEvent.click(within(row).getByRole('button', { name: 'Delete' }));
+    // A board's row is named after the board, as a view's row is after the
+    // view, so the short 「删除」 inside it says which one it deletes.
+    const actions = within(row).getByRole('group', {
+      name: 'Actions for the dashboard “Operations”',
+    });
+    fireEvent.click(within(actions).getByRole('button', { name: 'Delete' }));
     const confirm = await screen.findByRole('alertdialog');
     // What deleting a board costs, said as a board's (D26 Q34): the
     // analyses made inside it go with it.

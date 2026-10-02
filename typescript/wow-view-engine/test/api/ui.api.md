@@ -2215,7 +2215,7 @@ export const en: {
     readonly 'label.dashboard.leave-heading': "Leave this dashboard?";
     readonly 'label.dashboard.refresh-on': "This dashboard refreshes itself every {interval}.";
     readonly 'label.dashboard.list': "Dashboards";
-    readonly 'label.dashboard.manage-group': "What to do with this dashboard";
+    readonly 'label.dashboard.manage-group': "Actions for the dashboard “{title}”";
     readonly 'label.dashboard.publish': "Publish as a system dashboard";
     readonly 'label.dashboard.publish-failed': "This dashboard could not be published as a system dashboard.";
     readonly 'label.dashboard.publish-forbidden': "You may not publish system dashboards; ask an administrator.";
@@ -3185,7 +3185,7 @@ export const en: {
     readonly 'label.manage.heading': "Manage views";
     readonly 'label.manage.description': "Rename, reorder and delete views, and choose which one opens first.";
     readonly 'label.manage.default': "Default";
-    readonly 'label.manage.view-group': "What to do with this view";
+    readonly 'label.manage.view-group': "Actions for “{title}”";
     readonly 'label.manage.set-default': "Open this one first";
     readonly 'label.manage.unset-default': "Stop opening this one first";
     readonly 'label.manage.drag': "Reorder {title}";

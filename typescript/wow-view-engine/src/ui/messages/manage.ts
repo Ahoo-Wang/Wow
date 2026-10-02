@@ -27,7 +27,10 @@ export const manageMessages = {
   'label.manage.default': 'Default',
   // What is to become of a view, as against where it sits in the list — the
   // latter is the handle a row is dragged by, which needs no group of its own.
-  'label.manage.view-group': 'What to do with this view',
+  // Named after the view, as a panel's menu is: a manager is a list of these
+  // groups, and a reader tabbing into one hears which view it acts on before
+  // the buttons' short names (「改名」「删除」) say what.
+  'label.manage.view-group': 'Actions for “{title}”',
   'label.manage.set-default': 'Open this one first',
   'label.manage.unset-default': 'Stop opening this one first',
   // Where a view sits in the list. The order is the user's, and it is made by

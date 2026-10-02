@@ -35,6 +35,7 @@ import {
 import { ViewList } from '../../src/ui/workbench/ViewList.js';
 import { ViewManager } from '../../src/ui/manage/ViewManager.js';
 import { ViewSurface } from '../../src/ui/kit/ViewSurface.js';
+import type { ViewMessages } from '../../src/ui/kit/messages.js';
 import {
   ordersDefinition,
   recordConfig,
@@ -108,15 +109,18 @@ export function setup(permissions = permitting()) {
 export function Sidebar({
   engine,
   withManager = true,
+  messages,
 }: {
   engine: ViewEngine;
   withManager?: boolean;
+  /** The wording the surface is drawn in; English when left out. */
+  messages?: ViewMessages;
 }) {
   const list = useViewList(engine, 'orders');
   const manager = useViewManager(engine, 'orders', list);
   const [open, setOpen] = useState(false);
   return (
-    <ViewSurface>
+    <ViewSurface messages={messages}>
       <ViewList
         list={list}
         currentId={null}
