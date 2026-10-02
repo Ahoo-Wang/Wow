@@ -291,7 +291,9 @@ export function ViewManagerRow({
                     ? ACTION_CELLS_PUBLISHING
                     : ACTION_CELLS
                 }
-                aria-label={messages.label(word('label.manage.view-group'))}
+                aria-label={messages.label(word('label.manage.view-group'), {
+                  title: item.title,
+                })}
               >
                 {manager.can.setDefault && (
                   <IconButton

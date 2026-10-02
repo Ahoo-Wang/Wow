@@ -28,6 +28,7 @@ import {
   type ViewInstance,
 } from '../src/index.js';
 import { defaultMessages } from '../src/ui/kit/messages.js';
+import { zhCN } from '../src/ui/messages/zh-CN.js';
 import { manageDragAccessibility, managerDrop } from '../src/ui/manage/drag.js';
 import { DataWorkbench } from '../src/ui/DataWorkbench.js';
 import { formattersFor } from './fixtures/columns.js';
@@ -501,6 +502,37 @@ describe('ViewManager rows', () => {
   });
 
   /**
+   * A manager is a list of these groups, and 「处置这个视图」 was the same
+   * name on every one of them: a reader tabbing into a group heard neither
+   * which view it was nor, in the buttons' short names, which view a press
+   * would rename or delete (WCAG 2.4.6, 4.1.2). The group is named after its
+   * view, as a panel's menu is; the buttons keep their short names inside it.
+   */
+  it.each([
+    [
+      'English',
+      undefined,
+      'Manage views',
+      (title: string) => `Actions for “${title}”`,
+    ],
+    ['Chinese', zhCN, '管理视图', (title: string) => `「${title}」的操作`],
+  ] as const)(
+    'names each row’s actions after its view, in %s',
+    async (_language, messages, open, group) => {
+      const { engine } = setup();
+      render(<Sidebar engine={engine} messages={messages} />);
+      fireEvent.click(await screen.findByRole('button', { name: open }));
+      await screen.findByRole('dialog');
+      await waitFor(() => expect(rows()).toHaveLength(4));
+
+      for (const title of ['Mine', 'Yours', 'Ours', 'All orders'])
+        expect(
+          within(row(title)).getByRole('group', { name: group(title) }),
+        ).toBeDefined();
+    },
+  );
+
+  /**
    * A row's two jobs are in two places: where the view sits in the list is
    * the handle it is carried by, at the head of the row where a reader looks
    * for one, and what is to become of it is one `ButtonGroup` at the end.
@@ -518,7 +550,7 @@ describe('ViewManager rows', () => {
     const names = (title: string) =>
       within(
         within(row(title)).getByRole('group', {
-          name: 'What to do with this view',
+          name: `Actions for “${title}”`,
         }),
       )
         .getAllByRole('button')

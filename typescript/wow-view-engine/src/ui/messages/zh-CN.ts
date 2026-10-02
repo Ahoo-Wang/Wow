@@ -839,7 +839,7 @@ export const zhCN: Readonly<Record<string, string>> = {
   'label.manage.heading': '管理视图',
   'label.manage.description': '改名、排序、删除视图，并选择默认打开的视图。',
   'label.manage.default': '默认',
-  'label.manage.view-group': '处置这个视图',
+  'label.manage.view-group': '「{title}」的操作',
   'label.manage.set-default': '设为默认',
   'label.manage.unset-default': '取消默认',
   'label.manage.drag': '拖动排序：{title}',
@@ -1623,7 +1623,7 @@ export const zhCN: Readonly<Record<string, string>> = {
   'label.dashboard.leave-heading': '离开这个仪表盘？',
   'label.dashboard.refresh-on': '这个仪表盘每 {interval}自动刷新一次。',
   'label.dashboard.list': '仪表盘',
-  'label.dashboard.manage-group': '处置这个仪表盘',
+  'label.dashboard.manage-group': '仪表盘「{title}」的操作',
   'label.dashboard.publish': '发布为系统仪表盘',
   'label.dashboard.publish-failed': '这个仪表盘没能发布为系统仪表盘。',
   'label.dashboard.publish-forbidden':
