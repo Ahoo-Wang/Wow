@@ -60,6 +60,8 @@ import org.springframework.core.type.AnnotationMetadata
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import tools.jackson.databind.node.ObjectNode
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
 import java.util.function.Supplier
@@ -67,6 +69,9 @@ import java.util.function.Supplier
 class QueryGatewayRegistrarTest {
     private val snapshotObserverCalls = AtomicInteger()
     private val eventObserverCalls = AtomicInteger()
+
+    // The gateway tells its observers in doFinally, after the subscriber has its value: block() can return first.
+    private val observed = CountDownLatch(2)
 
     @Test
     fun `should register aggregate bound gateways with state generic`() {
@@ -115,6 +120,7 @@ class QueryGatewayRegistrarTest {
             eventStorage.factsCalls.get().assert().isOne()
             eventBackend.backendModel.get().assert().isEqualTo(QueryModel.EVENT_STREAM)
             filterCalls.get().assert().isEqualTo(2)
+            observed.await(5, TimeUnit.SECONDS).assert().isTrue()
             snapshotObserverCalls.get().assert().isOne()
             eventObserverCalls.get().assert().isOne()
             // Once for the gateway's backend and once for the Catalog's storage adapter; singletons thereafter.
@@ -224,6 +230,7 @@ class QueryGatewayRegistrarTest {
                 object : QueryObserver {
                     override fun onComplete(namedAggregate: NamedAggregate, queryType: QueryType) {
                         snapshotObserverCalls.incrementAndGet()
+                        observed.countDown()
                     }
                 }
             },
@@ -235,6 +242,7 @@ class QueryGatewayRegistrarTest {
                 object : QueryObserver {
                     override fun onComplete(namedAggregate: NamedAggregate, queryType: QueryType) {
                         eventObserverCalls.incrementAndGet()
+                        observed.countDown()
                     }
                 }
             },
