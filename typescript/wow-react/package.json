@@ -1,6 +1,6 @@
 {
   "name": "@ahoo-wang/wow-react",
-  "version": "9.1.5",
+  "version": "9.2.0-rc.0",
   "description": "React hooks for Wow (https://github.com/Ahoo-Wang/Wow) queries: single, list, paged, count and list-stream. Requires React 19.3 or later.",
   "keywords": [
     "wow",

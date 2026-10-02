@@ -133,7 +133,10 @@ describe("App", () => {
     const version = screen.getByRole("link", {
       name: /^Version \d+\.\d+\.\d+/,
     });
-    expect(version).toHaveTextContent(/^v\d+\.\d+\.\d+[0-9a-f]{7}$/);
+    // A pre-release version (9.2.0-rc.0) carries its suffix before the commit.
+    expect(version).toHaveTextContent(
+      /^v\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?[0-9a-f]{7}$/,
+    );
     expect(version).toHaveAttribute(
       "href",
       expect.stringMatching(
