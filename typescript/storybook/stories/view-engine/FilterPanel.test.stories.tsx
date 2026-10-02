@@ -28,6 +28,7 @@ import displayMeta, {
   WithTime as DisplayWithTime,
 } from './FilterPanel.stories.js';
 import { colorsSettled, measureTextContrast } from './contrast.js';
+import { nextFrame } from './panelEdges.js';
 import { amountOf, readColumn, readTotal } from './readTable.js';
 
 const meta = {
@@ -783,9 +784,42 @@ function paintOf(element: HTMLElement): { fill: string; ink: string } {
 }
 
 /**
+ * The calendar at rest after a preset or a mode is put on `<html>`: its
+ * colours settled, and its days where they stay. A preset moves them — the
+ * pill's `transition-all` eases its height and border widths for 150ms, and
+ * the popup follows its trigger a frame behind (measured: azure carries the
+ * days 36px down, the last of it after the colours have settled) — so a day
+ * measured before the popup has come to rest is aimed at where it was, and
+ * the mouse lands on its neighbour: `:hover` never comes (the flake on PR
+ * #3855's CI). At rest means two reads a frame apart agree with no
+ * transition running after them; a move that has only just begun has not
+ * shown in a frame yet, but its transition has.
+ */
+async function calendarAtRest(popover: HTMLElement): Promise<void> {
+  const boxes = () =>
+    [...popover.querySelectorAll('button[data-day]')]
+      .map(day => {
+        const { x, y, width, height } = day.getBoundingClientRect();
+        return `${x},${y},${width},${height}`;
+      })
+      .join(' ');
+  await waitFor(async () => {
+    await colorsSettled();
+    const before = boxes();
+    await nextFrame();
+    const moving = document
+      .getAnimations()
+      .some(animation => animation instanceof CSSTransition);
+    if (moving || boxes() !== before)
+      throw new Error('The calendar is still moving.');
+  });
+}
+
+/**
  * One day button under the browser's own mouse — a built event puts no real
  * `:hover` on it (`pointerDrag.ts`), and the defect lived in `:hover` — and
- * what it paints there, once its colour transition has run.
+ * what it paints there, once its colour transition has run, read while the
+ * mouse is still on it.
  */
 async function hovered(button: HTMLElement): Promise<{
   fill: string;
@@ -796,6 +830,7 @@ async function hovered(button: HTMLElement): Promise<{
   await mouse.move(box.x + box.width / 2, box.y + box.height / 2);
   await waitFor(() => expect(button.matches(':hover')).toBe(true));
   await colorsSettled();
+  await expect(button.matches(':hover')).toBe(true);
   return paintOf(button);
 }
 
@@ -908,7 +943,7 @@ async function keepsItsColours(
       html.classList.toggle('dark', mode);
       const tag = `${name} ${mode ? 'dark' : 'light'}`;
       await mouse.away();
-      await colorsSettled();
+      await calendarAtRest(popover);
       for (const [role, day] of days) {
         const resting = paintOf(day);
         await expect(await hovered(day), `${tag} ${role}`).toEqual(resting);
