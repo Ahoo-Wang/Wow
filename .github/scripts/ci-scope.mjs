@@ -116,6 +116,13 @@ const RULES = [
   // The static checks lint the stories and check their formatting.
   [/^typescript\/storybook\//, [TYPESCRIPT, STORYBOOK, DOCS]],
   [/^typescript\//, [TYPESCRIPT, SDK]],
+  // The site's view-engine pages that view-engine's own tests read
+  // (test:docs): the guides the theme and quickstart tests hold, and the API
+  // reference, whose symbol index and issue-code tables are generated.
+  [
+    /^documentation\/docs\/(?:en|zh)\/(?:guide\/typescript\/view-engine[\w-]*\.md$|reference\/typescript\/wow-view-engine\/)/,
+    [DOCS, VIEW_ENGINE_DOCS],
+  ],
   [/^documentation\//, [DOCS]],
   // Sources and build of the example server the same-source contract runs:
   // every project on its runtime classpath, plus the Gradle build.

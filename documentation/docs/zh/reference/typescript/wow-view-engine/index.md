@@ -6,7 +6,7 @@ description: '@ahoo-wang/wow-view-engine 包的入口、概念、持久化端口
 # wow-view-engine 参考
 
 ::: info Wow 9.2.0 起在 npm 上
-`@ahoo-wang/wow-view-engine` 从 Wow 9.2.0 起在 npm 上，与 Wow 同一个 tag、同一个版本号发布。补丁版本不破坏导出（包括 `ViewStore` 端口）、CSS 合同、消息键与 issue code，以及 `wow-view-engine` 命令；次版本的破坏逐条写进发布说明（[兼容规则](../../../guide/typescript/view-engine.md)）。模型以[设计文档](https://github.com/Ahoo-Wang/Wow/tree/main/typescript/wow-view-engine/docs/design)为准；逐符号参考还没有。
+`@ahoo-wang/wow-view-engine` 从 Wow 9.2.0 起在 npm 上，与 Wow 同一个 tag、同一个版本号发布。补丁版本不破坏导出（包括 `ViewStore` 端口）、CSS 合同、消息键与 issue code，以及 `wow-view-engine` 命令；次版本的破坏逐条写进发布说明（[兼容规则](../../../guide/typescript/view-engine.md)）。模型以[设计文档](https://github.com/Ahoo-Wang/Wow/tree/main/typescript/wow-view-engine/docs/design)为准。宿主常用的符号在下面的[专题页](#topics)里手写说明；每个入口导出的全部名字见生成的[符号索引](/reference/typescript/wow-view-engine/symbols)（英文）。
 :::
 
 引擎做什么，见[视图引擎指南](../../../guide/typescript/view-engine.md)；从零接入一个业务对象的完整走读，见[视图引擎入门](../../../guide/typescript/view-engine-getting-started.md)。
@@ -60,6 +60,8 @@ interface ViewStore {
 | 权限 | `permissions` 只决定按钮是否可用。授权、可见性过滤和去重都是服务端的职责 |
 | 改受众 | `changeAudience` 就地把保存的视图在个人与共享之间移动，id 不变，同样守上面两条规则。要改成视图已有的受众时原样答回；共享仪表盘显示着的视图不能改成个人（`INVALID`，`boards` 是那几块仪表盘的标题） |
 
+每个方法的要点、`ViewStoreError` 的六个代码、`ViewPermissions` 与 `editSystem`，见[持久化端口](./store)。
+
 `MemoryViewStore` 用于测试、示例和只读查询场景。Wow 服务端用 `@ahoo-wang/wow-view-store` 的 [`WowViewStore`](../wow-view-store/)，对接视图存储服务端；只有不是 Wow 的后端才自己实现这个端口。
 
 ## 分层
@@ -90,6 +92,20 @@ flowchart LR
 | 操作 | 用 `actions()` 声明并绑到定义上（`bind(id, { actions })`）：放在哪、确认、执行与汇报由引擎负责；`slots`（`global`、`bulk`、`row` 三个渲染函数）是逃生口。它们是代码，从不保存 |
 | 外观 | CSS 变量、预设与 shadcn 桥接（见[视图引擎的主题](../../../guide/typescript/view-engine-theming.md)）；通过组合 `/react` Hook 替换组件 |
 | 文案 | `en`（英文）与 `zhCN` 两套文案，通过 `messages` 属性或 `MessagesProvider` 合并 |
+
+## 专题 {#topics}
+
+| 专题 | 内容 |
+|---|---|
+| [引擎与资源](./engine) | `ViewEngine`、它的选项与 `resources`、`ViewSource`、`RuntimeEnvironment` |
+| [定义与字段类型](./definitions) | `defineView` 与它的规格、`rowFields`、`text` 键、`FieldKind` 与登记表 |
+| [宿主接线](./host) | `ViewHost`、`bind`、路由端口与 `useReactRouter`、声明的操作 `actions()`、`MessagesProvider` 与措辞 |
+| [工作台与嵌入](./components) | `DataWorkbench`、`DashboardWorkbench`、`EmbeddedView`、`EmbeddedDashboard` 的属性 |
+| [React Hooks](./react) | `/react` 的 Hooks |
+| [持久化端口](./store) | `ViewStore`、`ViewStoreError` 的代码、`ViewPermissions`、`MemoryViewStore`、`localStorageSnapshot` |
+| [测试工具](./testing) | `/testing` 的 `admit`、`actionHarness`、`memorySource`、`resolveNavigation`，以及端口一致性测试 |
+| [Issue code](./issues) | 引擎能报的每个 code 与它的缺省措辞，由公开面清单生成 |
+| [符号索引](/reference/typescript/wow-view-engine/symbols)（英文） | 每个入口导出的全部名字、种类与 TSDoc 首句，由构建出的声明生成 |
 
 ## 源码
 

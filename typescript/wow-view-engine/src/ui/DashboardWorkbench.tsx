@@ -172,19 +172,18 @@ export interface DashboardWorkbenchProps {
   onRenderFailure?: RenderFailureHandler;
 }
 
+/** The one kind a dashboard workbench draws, held once so the list is not re-narrowed per render. */
+const DASHBOARD = ['dashboard'] as const;
+
 /**
- * The default Dashboard workbench: the view list, the global filter, the
+ * The default Dashboard workbench: the view list, the board's filters, the
  * panels and the save commands.
  *
  * The board's filters are a bar of their own over the panels (D22 F,
  * `FilterBar`): each value runs on its own a moment after it changes, and
  * reaches the panels wired to it through their own fields.
- */
-/** The one kind a dashboard workbench draws, held once so the list is not re-narrowed per render. */
-const DASHBOARD = ['dashboard'] as const;
-
-/**
- * The words the engine was built with, under the surface, where its own
+ *
+ * The words the engine was built with sit under the surface, where its own
  * engine names them (`useSay`).
  */
 export function DashboardWorkbench(props: DashboardWorkbenchProps) {

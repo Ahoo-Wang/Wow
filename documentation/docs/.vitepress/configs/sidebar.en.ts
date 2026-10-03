@@ -52,6 +52,25 @@ const viewEngineReference: DefaultTheme.SidebarItem[] = [
         collapsed: true,
         items: [
             {text: 'Entries and Contracts', link: 'index.html'},
+            {text: 'Engine and Resources', link: 'engine'},
+            {text: 'Definitions and Field Kinds', link: 'definitions'},
+            {text: 'Host Wiring', link: 'host'},
+            {text: 'Workbenches and Embeds', link: 'components'},
+            {text: 'React Hooks', link: 'react'},
+            {text: 'Persistence Port', link: 'store'},
+            {text: 'Testing Helpers', link: 'testing'},
+            {text: 'Issue Codes', link: 'issues'},
+            {
+                text: 'Symbol Index',
+                collapsed: true,
+                items: [
+                    {text: 'Root entry', link: 'symbols'},
+                    {text: '/react', link: 'symbols-react'},
+                    {text: '/ui', link: 'symbols-ui'},
+                    {text: '/testing', link: 'symbols-testing'},
+                    {text: '/react-router', link: 'symbols-react-router'},
+                ],
+            },
         ],
     },
     {

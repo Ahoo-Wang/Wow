@@ -262,6 +262,22 @@ test("the view engine's Skills run the site, which compiles their samples", () =
     assert.ok(none([path]), path);
 });
 
+test("the site's view-engine pages also run the tests that read them", () => {
+  for (const path of [
+    'documentation/docs/en/reference/typescript/wow-view-engine/store.md',
+    'documentation/docs/zh/reference/typescript/wow-view-engine/issues.md',
+    'documentation/docs/en/reference/typescript/wow-view-engine/symbols-ui.md',
+    'documentation/docs/en/guide/typescript/view-engine-theming.md',
+    'documentation/docs/zh/guide/typescript/view-engine.md',
+  ])
+    assert.deepEqual(on([path]), ['docs', 'viewEngineDocs'], path);
+  for (const path of [
+    'documentation/docs/en/reference/typescript/wow-view-store/index.md',
+    'documentation/docs/en/guide/typescript/quick-start.md',
+  ])
+    assert.deepEqual(on([path]), ['docs'], path);
+});
+
 test('other Markdown under typescript/ alone runs only its format check', () => {
   for (const path of [
     'typescript/MIGRATION.md',

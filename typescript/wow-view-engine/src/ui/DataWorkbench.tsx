@@ -209,9 +209,8 @@ const DATA_KINDS: readonly DataViewKind[] = ['record', 'analysis'];
  * drawing (D18-1). Both parts stay mounted whatever is open, so the shell is
  * drawn at one place in the tree and keeps the screen's posture across a
  * switch (`workbench/parts.ts`).
- */
-/**
- * The words the engine was built with, under the surface, where its own
+ *
+ * The words the engine was built with sit under the surface, where its own
  * engine names them (`useSay`).
  */
 export function DataWorkbench(props: DataWorkbenchProps) {

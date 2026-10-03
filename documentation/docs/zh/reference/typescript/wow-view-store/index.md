@@ -28,6 +28,41 @@ export interface WowViewStoreOptions {
 }
 ```
 
+### WowViewStore {#api-WowViewStore}
+
+视图引擎的 [`ViewStore`](../wow-view-engine/store#api-ViewStore) 落在 Wow 视图存储上：端口的方法全部实现，包括可选的 `changeAudience`；`permissions` 只在宿主给了 `options.permissions` 时才有。端口只按 id 称呼视图，所以 store 记住它上次在哪里见到每个视图（一次列表、一次读取、一次写入），不认识的 id 依次在个人路径、共享路径与服务端的系统视图里查找。
+
+- `fetcher` 走的基础 URL 要能提供 `/view-store/…`：视图存储服务端前面的 CoSec 网关，或引入了 starter 的服务。它的拦截器携带是谁在请求，store 自己从不携带。
+- `permissions` 决定一份定义的视图哪些按钮可用，缺省全部允许，和不带 `permissions` 的存储一样。服务端不做授权，CoSec 网关做；宿主按它在网关上持有的角色回答——`changeAudience` 要能写 `owner/(shared)` 的角色，认领视图需要它。
+
+```ts
+export declare class WowViewStore implements ViewStore {
+  constructor(options: WowViewStoreOptions);
+  changeAudience(id: string, audience: ViewAudience, revision: string, context: WriteContext): Promise<ViewInstance>;
+  create(input: Omit<ViewInstance, 'id' | 'revision'>, context: WriteContext): Promise<ViewInstance>;
+  delete(id: string, revision: string, context: WriteContext): Promise<void>;
+  get(id: string, signal?: AbortSignal): Promise<ViewInstance>;
+  getPreferences(definitionId: string, signal?: AbortSignal): Promise<ViewPreferences>;
+  list(definitionId: string, signal?: AbortSignal): Promise<ViewInstanceSummary[]>;
+  readonly permissions?: (definitionId: string) => ViewPermissions;
+  rename(id: string, title: string, revision: string, context: WriteContext): Promise<ViewInstance>;
+  save(id: string, config: ViewConfig, revision: string, context: WriteContext): Promise<ViewInstance>;
+  setPreferences(definitionId: string, preferences: ViewPreferences, context: WriteContext): Promise<ViewPreferences>;
+}
+```
+
+`WowViewStoreErrorCodes` 是服务端的 `errorCode` 字符串，`ViewStoreError` 把它带在 `detail.code` 上；它与引擎的 `ViewStoreErrorCode`（端口的六个代码）分开命名：
+
+```ts
+export declare const WowViewStoreErrorCodes: Readonly<{
+  readonly VIEW_INVALID: 'ViewInvalid';
+  readonly VIEW_APP_REQUIRED: 'ViewAppRequired';
+  readonly SYSTEM_VIEW_READ_ONLY: 'SystemViewReadOnly';
+  readonly VIEW_SCOPE_REQUIRED: 'ViewScopeRequired';
+  readonly VIEW_EVENT_STREAM_CLOSED: 'ViewEventStreamClosed';
+}>;
+```
+
 ## 合同
 
 | 规则 | 行为 |
