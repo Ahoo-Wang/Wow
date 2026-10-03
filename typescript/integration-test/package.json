@@ -1,6 +1,6 @@
 {
   "name": "wow-integration-test",
-  "version": "9.2.0-rc.0",
+  "version": "9.2.0",
   "private": true,
   "description": "Integration tests of the Wow TypeScript client and generated code against a Wow example server",
   "keywords": [
