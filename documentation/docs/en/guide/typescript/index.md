@@ -88,6 +88,7 @@ For the React hooks, add `react`, `react-dom`, and `@ahoo-wang/wow-react`. `wow-
 | Run on a server, in Node.js or with Next.js | [SSR and Node.js](./ssr-and-node.md) | [Compatibility and Versions](./compatibility.md) |
 | Show query results in React | [wow-react query hooks](../../reference/typescript/wow-react/) | [Snapshot queries](../../reference/typescript/wow-client/snapshot-queries.md) |
 | Evaluate saved data views | [View Engine](./view-engine.md) | [wow-view-engine reference](../../reference/typescript/wow-view-engine/) |
+| Wire a business object into the view engine | [Getting Started with the View Engine](./view-engine-getting-started.md) | [Integration walk-through (Storybook)](/storybook/?path=/docs/view-engine-接入导览--docs) |
 | Move off the Fetcher package names | [Migration from Fetcher packages](./migration.md) | The reference page of each package |
 | Find why something fails | [Troubleshooting](./troubleshooting.md) | [Error Handling](./error-handling.md) |
 

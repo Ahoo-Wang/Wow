@@ -1,6 +1,6 @@
 ---
 title: 视图引擎
-description: wow-view-engine 包做什么、它的设计立足于哪些事实，以及 API 的大致形态。
+description: wow-view-engine 包做什么、它的设计立足于哪些事实，以及从哪里开始读。
 ---
 
 # 视图引擎
@@ -12,6 +12,16 @@ description: wow-view-engine 包做什么、它的设计立足于哪些事实，
 视图引擎是面向 Wow 业务应用的数据视图引擎。应用在代码中声明“这份数据能怎样观察”：字段、类型、操作符、可用的维度与指标。用户在界面上决定“这次怎样观察”：筛选、列、排序、维度与指标、图表和面板组合。引擎把这次选择编译成 Wow 查询，通过 `@ahoo-wang/wow-client` 执行，渲染结果，并把值得保留的观察方式保存下来，一键重新打开。
 
 它是 `@ahoo-wang/fetcher-viewer` 的后继者；`fetcher-viewer` 留在 Fetcher 5.x，本站不再介绍。
+
+## 从哪里开始
+
+| 想做什么 | 阅读 |
+|---|---|
+| 从零接入一个业务对象：安装、查询描述、`defineView`、引擎、`ViewHost`、一个操作，对着示例服务端跑起来 | [视图引擎入门](./view-engine-getting-started.md) |
+| 换一套内置外观、用品牌色、接上宿主的 shadcn 主题 | [视图引擎的主题](./view-engine-theming.md) |
+| 键盘、读屏与 WCAG 2.2 AA 符合性 | [视图引擎的可访问性](./view-engine-accessibility.md) |
+| 不用工作台，用 `/react` 的无头 Hook（`useOpenView`、`useViewRuntime`、`useFilterEditor`、`useRecordTable`）画自己的界面 | [wow-view-engine 参考](../../reference/typescript/wow-view-engine/) |
+| 把保存的视图存在 Wow 服务端 | [wow-view-store 参考](../../reference/typescript/wow-view-store/) |
 
 ## 要解决的问题
 
@@ -55,107 +65,6 @@ flowchart LR
 | 嵌入视图或仪表盘 | 在业务页面里展示一个已保存的视图，例如某个客户的订单，不需要工作台 |
 | 系统视图 | 在定义里声明“全部”“待处理”“本周新增”，用户一打开就有可用的视图 |
 
-## 目标用法
-
-从 Wow 9.2.0 起，与 Wow 客户端一起安装：
-
-```sh
-pnpm add @ahoo-wang/wow-view-engine @ahoo-wang/wow-client
-```
-
-只有 `/react` 和 `/ui` 入口需要 `react` 与 `react-dom`，只有 `/react-router` 需要 `react-router`，只有 `/testing` 需要 `mingo`；根入口可以在 Node 中运行。要把保存的视图放在 Wow 服务端，再加 `@ahoo-wang/wow-view-store`。
-
-### 1. 声明定义
-
-<!-- typecheck: file=orders.ts -->
-
-```ts
-import type { ViewDefinition } from '@ahoo-wang/wow-view-engine';
-
-export const orders: ViewDefinition = {
-  id: 'orders',
-  title: 'Orders',
-  kind: 'data',
-  source: 'orders',
-  fields: [
-    { name: 'id', label: 'Order', kind: 'string', sortable: true },
-    {
-      name: 'status',
-      label: 'Status',
-      kind: 'enum',
-      options: [
-        { value: 'PENDING', label: 'Pending' },
-        { value: 'SHIPPED', label: 'Shipped' },
-      ],
-    },
-    { name: 'warehouse', label: 'Warehouse', kind: 'string' },
-    { name: 'amount', label: 'Amount', kind: 'number', summary: ['SUM', 'AVG'] },
-    { name: 'createdAt', label: 'Created', kind: 'datetime', sortable: true },
-  ],
-  // 行键必须可排序：每个记录视图查询的排序最后都以它收尾。
-  record: { rowKey: 'id', paging: 'paged', layouts: ['table', 'card'] },
-};
-```
-
-### 2. 创建引擎
-
-<!-- typecheck-context
-import type { ViewSource } from '@ahoo-wang/wow-view-engine';
-import { orders } from './orders';
-declare const queryClients: Record<string, ViewSource>;
--->
-
-```ts
-import { MemoryViewStore, ViewEngine } from '@ahoo-wang/wow-view-engine';
-
-const engine = new ViewEngine({
-  store: new MemoryViewStore(),
-  // 来自 @ahoo-wang/wow-client 的 Pick<QueryApi, 'paged' | 'cursor' | 'aggregate'>
-  resources: [{ definition: orders, source: queryClients.orders }],
-});
-```
-
-`MemoryViewStore` 适合测试和示例。Wow 应用把视图存在 Wow 的视图存储服务端上，用 `@ahoo-wang/wow-view-store` 的 [`WowViewStore`](../../reference/typescript/wow-view-store/)；只有不是 Wow 的后端才自己实现 `ViewStore` 端口（[持久化](../../reference/typescript/wow-view-engine/#persistence)）。
-
-### 3. 渲染工作台，或组合自己的界面
-
-<!-- typecheck-context
-import type { ViewEngine } from '@ahoo-wang/wow-view-engine';
-declare const engine: ViewEngine;
--->
-
-```tsx
-import '@ahoo-wang/wow-view-engine/styles.css';
-import { DataWorkbench } from '@ahoo-wang/wow-view-engine/ui';
-
-export function OrdersPage() {
-  return <DataWorkbench engine={engine} definitionId="orders" />;
-}
-```
-
-视图跟随页面的明暗，颜色取自 CSS 变量。想穿一套内置外观，多引一个文件、写上它的名字——这里是中国企业后台风格的 `azure`；另有桌面原生的 `porcelain` 与高对比的 `contrast`：
-
-<!-- typecheck-context
-import type { ViewEngine } from '@ahoo-wang/wow-view-engine';
-declare const engine: ViewEngine;
--->
-
-```tsx
-import '@ahoo-wang/wow-view-engine/styles.css';
-import '@ahoo-wang/wow-view-engine/themes/azure.css';
-import { DataWorkbench } from '@ahoo-wang/wow-view-engine/ui';
-
-export function OrdersPage() {
-  return <DataWorkbench engine={engine} definitionId="orders" preset="azure" />;
-}
-```
-
-也可以在 `<html>` 上写 `data-fve-preset="azure"`，所有视图与弹层都换上它。有品牌色？在 `<html>` 上写 `--fve-brand: <你的颜色>`，挂哪一套预设都行：主色与淡色都从这一个颜色派生，那一套的每一条对比度线都守得住（[我有品牌色](./view-engine-theming.md#我有品牌色)）。预设目录、「我的品牌该选哪套」、宿主变量、`theme="system"`、钉住与 shadcn 桥接见[视图引擎的主题](./view-engine-theming.md)。
-
-自定义布局使用 `/react` 入口的无头 Hook，例如 `useOpenView`、`useViewRuntime`、`useFilterEditor` 和 `useRecordTable`，用它们渲染任意标记，不需要接触引擎内部。
-
-Storybook 的[接入导览](/storybook/?path=/docs/view-engine-接入导览--docs)按推荐的接法分五步带宿主走一遍——声明定义、接上数据、挂上 `ViewHost`、声明操作、画出页面——页上引用的是一个能跑的示例的真实源文件。
-
 ## 内容安全策略（CSP）
 
 引擎可以在严格的内容安全策略下运行：`script-src 'self'`、`style-src 'self'`，既不开 `'unsafe-inline'`，也不开 `'unsafe-eval'`。要放行的只有三件事：
@@ -178,6 +87,8 @@ Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self'
 
 每种视图都在 [Storybook](/storybook/) 里用内存夹具运行，放在一个宿主应用外壳中。保存、改名和删除都写入每次打开时新建的内存存储。
 
+Storybook 的[接入导览](/storybook/?path=/docs/view-engine-接入导览--docs)按推荐的接法分五步带宿主走一遍——声明定义、接上数据、挂上 `ViewHost`、声明操作、画出页面——页上引用的是一个能跑的示例的真实源文件。
+
 想先看引擎能画什么，打开[图型全景](/storybook/?path=/docs/view-engine-业务场景-图型全景--docs)：一块零售看板，22 种图型各用一次，每张图的标题就是它回答的分析问题，分走势、构成、分布与关系、地域与转化四个页签；点地图、省份或支付方式整板联动，文档页的「Show code」是这块板的全部配置。
 
 | 视图 | Storybook |
@@ -190,6 +101,7 @@ Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self'
 
 ## 延伸阅读
 
+- [视图引擎入门](./view-engine-getting-started.md)：把示例服务端的销售订单从零接进来，一步一个文件。
 - [wow-view-engine 参考](../../reference/typescript/wow-view-engine/)：入口、概念、持久化端口与扩展点。
 - [wow-view-store 参考](../../reference/typescript/wow-view-store/)：`WowViewStore`、Wow 服务端上的保存视图，以及它需要的 CoSec 网关规则。
 - [视图引擎的主题](./view-engine-theming.md)：预设、宿主变量、亮暗与跟随系统、shadcn 桥接，以及覆盖变量要守的对比度。

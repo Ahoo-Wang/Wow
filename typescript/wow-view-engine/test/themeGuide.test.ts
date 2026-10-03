@@ -14,8 +14,9 @@
 /**
  * What the theming pages tell a host to write is the contract, and runs
  * (ui/theme.md「登记表：合同只有一个来源」, S6): the theming guide in both languages, the
- * READMEs and the quick start. Their TypeScript samples compile in the
- * documentation package (`documentation/test/typescript-samples.mjs`); this
+ * READMEs, the guide and its getting started. Their TypeScript samples
+ * compile in the documentation package
+ * (`documentation/test/typescript-samples.mjs`); this
  * suite holds the rest — every CSS and HTML sample, and every variable and
  * attribute the prose names — to the theme's registry
  * (`src/ui/theme/tokens.ts`):
@@ -65,6 +66,11 @@ const GUIDE = (language: string) =>
 const QUICK_START = (language: string) =>
   join(
     REPOSITORY,
+    `documentation/docs/${language}/guide/typescript/view-engine-getting-started.md`,
+  );
+const LANDING = (language: string) =>
+  join(
+    REPOSITORY,
     `documentation/docs/${language}/guide/typescript/view-engine.md`,
   );
 const ACME = join(ROOT, '../storybook/stories/view-engine/host-theme/acme.css');
@@ -74,6 +80,7 @@ const GUIDES = ['en', 'zh'].map(GUIDE);
 const PAGES = [
   ...GUIDES,
   ...['en', 'zh'].map(QUICK_START),
+  ...['en', 'zh'].map(LANDING),
   join(ROOT, 'README.md'),
   join(ROOT, 'README.zh-CN.md'),
 ];

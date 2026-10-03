@@ -24,7 +24,7 @@ import { readable } from './hostSource';
 pnpm add @ahoo-wang/wow-view-engine @ahoo-wang/wow-client @ahoo-wang/fetcher @ahoo-wang/fetcher-decorator @ahoo-wang/fetcher-eventstream
 ```
 
-`@ahoo-wang/wow-view-engine` 还没有首次发布到公共仓库，发布之前从这个工作区取（`"@ahoo-wang/wow-view-engine": "workspace:^"`）或用本地 `pnpm pack` 的包。三个 `fetcher` 包是 wow-client 的对等依赖；`react`、`react-dom` 是 `/react` 与 `/ui` 入口的对等依赖，`react-router` 只有 `/react-router` 入口要（可选）。
+`@ahoo-wang/wow-view-engine` 从 Wow 9.2.0 起在 npm 上，与 Wow 同一个版本号发布；Wow 的包都停在同一个次版本上（`~` 范围，见文档站的[兼容性与版本](https://wow.ahoo.me/zh/guide/typescript/compatibility#版本范围)）。从零接一个业务对象、对着示例服务端跑起来，见文档站的[视图引擎入门](https://wow.ahoo.me/zh/guide/typescript/view-engine-getting-started)。三个 `fetcher` 包是 wow-client 的对等依赖；`react`、`react-dom` 是 `/react` 与 `/ui` 入口的对等依赖，`react-router` 只有 `/react-router` 入口要（可选）。
 
 ## 1. 声明定义：`defineView` 与文字键
 
