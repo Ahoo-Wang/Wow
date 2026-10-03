@@ -24,6 +24,7 @@ import me.ahoo.wow.viewstore.ViewStoreService
 import me.ahoo.wow.viewstore.api.ViewStoreErrorCodes
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.extension.ExtendWith
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.context.ApplicationContext
@@ -60,6 +61,7 @@ import java.util.UUID
         "wow.view-store.system-views[0].config={\"kind\":\"record\"}",
     ],
 )
+@ExtendWith(ConnectionDiagnostics::class)
 class ViewStoreCaseInsensitiveHostTest {
     companion object {
         private val DATABASE = "view_store_it_" + UUID.randomUUID().toString().replace("-", "").take(12)
@@ -88,9 +90,7 @@ class ViewStoreCaseInsensitiveHostTest {
 
     private val port: String by lazy { applicationContext.environment.getRequiredProperty("local.server.port") }
 
-    private val client: WebTestClient by lazy {
-        WebTestClient.bindToServer().baseUrl("http://localhost:$port").build()
-    }
+    private val client: WebTestClient by lazy { viewStoreTestClient(port) }
 
     /** [path] sent exactly as written, `;` parameters and `%xx` escapes included. */
     private fun raw(path: String): URI = URI.create("http://localhost:$port$path")
