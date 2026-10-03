@@ -29,7 +29,17 @@ TypeScript 包与 Kotlin 模块共用一个版本号，从同一个 tag 发布�
 
 ### 版本范围
 
-版本号跟随 Wow，不遵循 semver：次版本（`x.Y.0`）可能带来 TypeScript API 的破坏性改动，只有补丁版本（`x.y.Z`）保证兼容。`pnpm add` 和 `npm install` 默认保存插入符范围（`^x.y.z`），之后的某次安装就可能在没人决定升级的情况下装上下一个次版本。安装 Wow 包之前，在项目的 `.npmrc` 里加上这一行，改为保存只接受同一次版本补丁的波浪号范围；pnpm 和 npm 都认这个设置：
+版本号跟随 Wow，不遵循 semver：次版本（`x.Y.0`）可能带来 TypeScript API 的破坏性改动，只有补丁版本（`x.y.Z`）保证兼容。`pnpm add` 和 `npm install` 默认保存插入符范围（`^x.y.z`），之后的某次安装就可能在没人决定升级的情况下装上下一个次版本。安装 Wow 包之前，在项目里改为保存只接受同一次版本补丁的波浪号范围；写在哪里取决于包管理器。
+
+pnpm 从 `pnpm-workspace.yaml` 读取它的设置（pnpm 11 不再从 `.npmrc` 读取）。在项目的 `pnpm-workspace.yaml` 里加上这一行，项目里没有这个文件就新建一个；pnpm 10 和 11 都认这个设置：
+
+```yaml
+savePrefix: '~'
+```
+
+`pnpm config set save-prefix '~' --location project` 写入的就是这一行。不带 `--location project` 时，设置会写进你的用户配置，对这台机器上的所有项目生效。
+
+npm 从项目的 `.npmrc` 读取：
 
 ```ini
 save-prefix=~
