@@ -1,6 +1,6 @@
 # Storage
 
-Saved views and preferences live behind the `ViewStore` port; definitions and system views are code and never stored. Reference: README [Persistence](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/README.md#persistence), the [`@ahoo-wang/wow-view-store` README](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-store/README.md), and the server's [view store README](https://github.com/Ahoo-Wang/Wow/blob/main/view-store/README.md).
+Saved views and preferences live behind the `ViewStore` port; definitions and system views are code and never stored. Reference: README [Persistence](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/README.md#persistence), the [`@ahoo-wang/wow-view-store` README](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-store/README.md), and the docs site's [Where Views Live](https://wow.ahoo.me/guide/typescript/view-engine-storage) and [View Store](https://wow.ahoo.me/guide/extensions/view-store) pages.
 
 ## Choose by who must see a saved view
 
@@ -106,7 +106,7 @@ The compensation console is this case (`compensation/dashboard/src/views/viewSto
 
 ## The CoSec gateway rules
 
-The view store does not authenticate: it trusts the tenant and owner of every path and the `CoSec-App-Id` header. Every deployment runs behind the CoSec gateway; hand whoever configures it the server README's [CoSec gateway rules](https://github.com/Ahoo-Wang/Wow/blob/main/view-store/README.md#cosec-gateway-rules) table, the authority on paths and methods. What a host author must not get wrong:
+The view store does not authenticate: it trusts the tenant and owner of every path and the `CoSec-App-Id` header. Every deployment runs behind the CoSec gateway; hand whoever configures it the gateway rules of the [View Store security model](https://wow.ahoo.me/guide/extensions/view-store#security-model), the authority on paths and methods. What a host author must not get wrong:
 
 - A personal path (`owner/{ownerId}`) needs the token's tenant and `sub == {ownerId}`; a shared path (`owner/(shared)`) reads with the tenant and writes only with the shared-write role.
 - **Claim and share need the tenant, `sub == {ownerId}` and the shared-write role**, and both paths are excluded from the personal rule: otherwise anyone could publish by creating a personal view and sharing it.

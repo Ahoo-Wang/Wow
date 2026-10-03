@@ -9,7 +9,7 @@ description: '@ahoo-wang/wow-view-store 包的 WowViewStore：视图引擎的 Vi
 `@ahoo-wang/wow-view-store` 从 Wow 9.2.0 起在 npm 上，与 [wow-view-engine](../wow-view-engine/) 一起，同一个 tag、同一个版本号发布。补丁版本不破坏它的公开面（入口的导出与错误码）；次版本可以破坏，它的发布说明逐条列出每个破坏与迁移步骤（[版本范围](../../../guide/typescript/compatibility.md#版本范围)）。以[包的 README](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-store/README.zh-CN.md) 与[设计文档](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/docs/design/view-store-backend.md)为准。
 :::
 
-`WowViewStore` 在[视图存储](https://github.com/Ahoo-Wang/Wow/blob/main/view-store/README.md)上实现视图引擎的 [`ViewStore` 端口](../wow-view-engine/#persistence)：保存的视图与偏好是两个 Wow 聚合，由独立的 `wow-view-store-server` 提供，或由引入了 `wow-view-store-starter` 的 Wow 服务提供。
+`WowViewStore` 在[视图存储](../../../guide/extensions/view-store.md)上实现视图引擎的 [`ViewStore` 端口](../wow-view-engine/#persistence)：保存的视图与偏好是两个 Wow 聚合，由独立的 `wow-view-store-server` 提供，或由引入了 `wow-view-store-starter` 的 Wow 服务提供。
 
 ## 入口
 
@@ -41,24 +41,10 @@ export interface WowViewStoreOptions {
 | 系统视图 | 配置的只读；存储的（全局，在 `tenant/(platform)/owner/(system)` 下）带 `stored: true`，在那里新建（以复制的方式发布）、保存、改名、删除，从不设为共享或收为个人。它们的 `revision` 是内容散列，store 写入时发它读到的版本。引擎的 `editSystem` 由宿主给，不说即关 |
 | 共享看板 | 被共享仪表盘显示着的视图保持共享：收为个人是 `INVALID`，`boards` 原样带上那几块看板的标题，由视图引擎用自己的话说出来 |
 
-## 宿主
+## 宿主与网关
 
-示例服务端与补偿服务引入了 `wow-view-store-starter`，补偿控制台的视图就存在那里。控制台不登录，于是它插入自己的请求拦截器：请求没给租户、所有者与应用时，填上租户 `(0)`、所有者 `(shared)` 与它的应用（`compensation-dashboard`）——它存下的视图与偏好都是共享的，权限里关掉个人视图。引入 starter 的宿主用 `wow.view-store.kafka.topic-prefix` 给视图存储的 Kafka 主题一个自己的前缀，宿主自己的主题不变。
-
-## CoSec 网关规则
-
-服务端不做认证：租户、所有者与应用按请求写的取，所以每个部署都放在 CoSec 网关后面，由网关的路径规则把它们与令牌对上：
-
-| 路径 | 放行条件 |
-|---|---|
-| `/view-store/tenant/{tenantId}/owner/{ownerId}/**`，`…/view/{id}/claim` 与 `…/view/{id}/share` 除外 | `{tenantId}` 是令牌的租户，且 `{ownerId}` 是令牌的 `sub` |
-| `/view-store/tenant/{tenantId}/owner/(shared)/**` 的读 | `{tenantId}` 是令牌的租户 |
-| `/view-store/tenant/{tenantId}/owner/(shared)/**` 的写 | 令牌的租户，且具备写共享视图的角色 |
-| `PUT /view-store/tenant/{tenantId}/owner/{ownerId}/view/{id}/claim`、`…/share` | 令牌的租户，`{ownerId}` 是令牌的 `sub`，**且**具备写共享视图的角色 |
-| `/view-store/tenant/(platform)/owner/(system)/**` | 调用者是系统视图的管理员（系统视图是全局的，任何租户皆可）。没有这条规则，能连到视图存储的人都能改写所有租户的系统视图 |
-
-设为个人会把共享视图从所有人的列表里拿走，设为共享会把个人视图发布到所有人的列表里，所以个人规则不能单独放行它们：个人规则里排除 `…/view/{id}/claim` 与 `…/view/{id}/share`，只由改受众那一条规则决定（否则谁都能先建个人视图再设为共享，发布共享视图）。`CoSec-App-Id` 由 CoSec 认证，服务端按它隔离应用；宿主按网关校验的同一个角色给出 `permissions`：`createShared` 与 `changeAudience` 需要写共享视图的角色。完整的规则与理由见[视图存储的 README](https://github.com/Ahoo-Wang/Wow/blob/main/view-store/README.md#cosec-gateway-rules)。
+宿主怎样接上 `WowViewStore`、怎样给出 `permissions`、不登录的页面怎样用它，见[视图存在哪里](../../../guide/typescript/view-engine-storage.md#wowviewstore-视图存在-wow-服务上)。服务端不做认证，每个部署都放在 CoSec 网关后面；网关的路径规则，包括只让平台管理员写系统视图的那一条，见[视图存储](../../../guide/extensions/view-store.md#安全模型)。
 
 ## 源码
 
-[typescript/wow-view-store](https://github.com/Ahoo-Wang/Wow/tree/main/typescript/wow-view-store) · [README](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-store/README.zh-CN.md) · [视图存储服务端](https://github.com/Ahoo-Wang/Wow/blob/main/view-store/README.md)
+[typescript/wow-view-store](https://github.com/Ahoo-Wang/Wow/tree/main/typescript/wow-view-store) · [README](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-store/README.zh-CN.md) · [视图存储服务端](https://github.com/Ahoo-Wang/Wow/tree/main/view-store)

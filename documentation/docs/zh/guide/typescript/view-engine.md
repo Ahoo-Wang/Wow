@@ -103,7 +103,7 @@ Storybook 的[接入导览](/storybook/?path=/docs/view-engine-接入导览--doc
 
 - [视图引擎入门](./view-engine-getting-started.md)：把示例服务端的销售订单从零接进来，一步一个文件。
 - [wow-view-engine 参考](../../reference/typescript/wow-view-engine/)：入口、概念、持久化端口与扩展点。
-- [wow-view-store 参考](../../reference/typescript/wow-view-store/)：`WowViewStore`、Wow 服务端上的保存视图，以及它需要的 CoSec 网关规则。
+- [wow-view-store 参考](../../reference/typescript/wow-view-store/)：`WowViewStore`、Wow 服务端上的保存视图。怎样选、怎样接一个 store 见[视图存在哪里](./view-engine-storage.md)；服务端需要的 CoSec 网关规则见[视图存储](../extensions/view-store.md#安全模型)。
 - [视图引擎的主题](./view-engine-theming.md)：预设、宿主变量、亮暗与跟随系统、shadcn 桥接，以及覆盖变量要守的对比度。
 - [视图引擎的可访问性](./view-engine-accessibility.md)：WCAG 2.2 AA 符合性声明、键盘与读屏走查，以及已知缺口。
 - [设计文档](https://github.com/Ahoo-Wang/Wow/tree/main/typescript/wow-view-engine/docs/design)：模型以它为准。
