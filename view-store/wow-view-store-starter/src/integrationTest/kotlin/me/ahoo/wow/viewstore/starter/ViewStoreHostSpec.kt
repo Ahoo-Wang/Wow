@@ -27,6 +27,7 @@ import me.ahoo.wow.viewstore.ViewStoreService
 import me.ahoo.wow.viewstore.api.ViewStoreErrorCodes
 import me.ahoo.wow.viewstore.api.view.CreateView
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.extension.ExtendWith
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.context.ApplicationContext
 import org.springframework.http.HttpStatus
@@ -41,6 +42,7 @@ import java.util.UUID
  * policy keep, the replay, preferences and system views, end to end over HTTP. Each storage runs it as a subclass
  * ([ViewStoreMongoTest], [ViewStoreElasticsearchTest]).
  */
+@ExtendWith(ConnectionDiagnostics::class)
 abstract class ViewStoreHostSpec {
     companion object {
         const val SCOPE = "/view-store/tenant/t1/owner"
@@ -54,9 +56,7 @@ abstract class ViewStoreHostSpec {
 
     private val port: String by lazy { applicationContext.environment.getRequiredProperty("local.server.port") }
 
-    private val client: WebTestClient by lazy {
-        WebTestClient.bindToServer().baseUrl("http://localhost:$port").build()
-    }
+    private val client: WebTestClient by lazy { viewStoreTestClient(port) }
 
     /** [path] sent exactly as written, `;` parameters and `%xx` escapes included. */
     private fun raw(path: String): URI = URI.create("http://localhost:$port$path")
