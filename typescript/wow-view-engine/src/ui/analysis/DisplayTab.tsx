@@ -11,6 +11,7 @@
  * limitations under the License.
  */
 
+import type { ComponentType } from 'react';
 import { GaugeDisplay } from './StatisticalOptions.js';
 import {
   CHART_FAMILIES,
@@ -33,6 +34,7 @@ import {
   CHART_COLOR_SLOTS,
   CHART_FAMILY,
   type CartesianSpec,
+  type ChartFamily,
 } from '../../model/index.js';
 import { without } from '../../model/index.js';
 import {
@@ -66,6 +68,7 @@ export function DisplayTab(props: OptionsPageProps) {
   const { chart, onChange } = props;
   const family = CHART_FAMILY[chart.type];
   const { legend, labels } = CHART_FAMILIES[family];
+  const Section = DISPLAY_SECTIONS[family];
   return (
     <>
       {legend && (
@@ -80,16 +83,37 @@ export function DisplayTab(props: OptionsPageProps) {
         />
       )}
       {labels && <ValueLabelsField {...props} />}
-      {family === 'cartesian' && <CartesianDisplay {...props} />}
-      {family === 'pie' && <PieDisplay {...props} />}
-      {family === 'heatmap' && <HeatmapDisplay {...props} />}
-      {family === 'funnel' && <FunnelDisplay {...props} />}
-      {family === 'metric' && <MetricDisplay {...props} />}
-      {family === 'waterfall' && <WaterfallDisplay {...props} />}
-      {family === 'gauge' && <GaugeDisplay {...props} />}
+      {Section && <Section {...props} />}
     </>
   );
 }
+
+/**
+ * The section each family adds below the legend and the value labels; none
+ * for a family whose display page is only those two. The compiler holds it
+ * to `ChartFamily`, as it holds `DATA_PAGES`.
+ */
+const DISPLAY_SECTIONS = {
+  cartesian: CartesianDisplay,
+  pie: PieDisplay,
+  heatmap: HeatmapDisplay,
+  scatter: null,
+  funnel: FunnelDisplay,
+  metric: MetricDisplay,
+  waterfall: WaterfallDisplay,
+  treemap: null,
+  boxplot: null,
+  candlestick: null,
+  gauge: GaugeDisplay,
+  radar: null,
+  parallel: null,
+  sunburst: null,
+  tree: null,
+  sankey: null,
+  calendar: null,
+  themeRiver: null,
+  map: null,
+} satisfies Record<ChartFamily, ComponentType<OptionsPageProps> | null>;
 
 /**
  * The value labels, as the chart draws them (Storybook review P1-6

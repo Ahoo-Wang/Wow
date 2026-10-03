@@ -60,7 +60,7 @@ import {
   type AnalysisScope,
 } from './capability.js';
 import { companionMetrics, currencyCompanions } from './currency.js';
-import { limitBounds } from './defaults.js';
+import { limitBounds } from './limitBounds.js';
 
 /**
  * Compilation is a mapping, not a translation: the configuration is

@@ -26,6 +26,7 @@ export * from './chartFamilies.js';
 export * from './chartOptions.js';
 export * from './chartSlots.js';
 export * from './chartSwitch.js';
+export { comboAxis, comboMark } from './familySlots.js';
 export * from './compile.js';
 export * from './defaults.js';
 // By name: `drillSpan` is the follow-up hook's and the board's, read from
@@ -43,6 +44,7 @@ export { drillFilter, narrowsTo } from './drillFilter.js';
 export * from './fitCharts.js';
 export * from './formula.js';
 export * from './freeAlias.js';
+export { limitBounds, type AnalysisLimitBounds } from './limitBounds.js';
 export * from './expand.js';
 export * from './granularity.js';
 export * from './having.js';

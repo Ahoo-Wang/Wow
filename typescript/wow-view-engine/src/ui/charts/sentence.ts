@@ -20,223 +20,275 @@ import type { ReadingContext } from './reading.js';
 import { fittedDirection, highLow, said, type Named } from './sentenceParts.js';
 
 /**
- * A chart in one sentence, said after its name (analysis-echarts.md 2.3):
- * what a sighted reader takes in at a glance before reading any number —
- * how many groups, which is highest and which lowest, and over a time axis
- * where it starts, where it ends and which way it went. 「共 12 组，最高 华东
- * ¥1.2万，最低 西南 ¥980」. The table beside it (`ChartReadingTable`) has
- * every number; this is the reading a screen reader hears first.
- *
- * Built from `ChartData`, as the table is, so it says what is drawn: a
- * filled-in 0 is no measured group and is not the lowest, and 「其他」 is
- * named as the chart names it. A metric card says its number in words on
- * its own face, and its sentence is its sparkline's; a chart of no number
- * has none.
+ * Each family's sentence (`chartSentence`, which reaches it through the
+ * family's row of `FAMILY_VIEWS`): what a sighted reader takes in at a
+ * glance, said after the drawing's name. Built from `ChartData`, as the
+ * table is, so it says what is drawn; `undefined` where there is no number
+ * to say.
  */
-export function chartSentence(
-  data: ChartData,
+
+/** A pie: its slices and their extremes, 「其他」 named as the chart names it. */
+export function pieSentence(
+  data: Extract<ChartData, { type: 'pie' }>,
   spec: ChartSpec | undefined,
   ctx: ReadingContext,
 ): string | undefined {
-  switch (data.type) {
-    case 'cartesian':
-      return cartesianSentence(data, spec, ctx);
-    case 'pie':
-      return extremes(
-        ctx,
-        data.slices.length,
-        data.slices.map(slice => ({
-          name:
-            slice.other === true
-              ? ctx.messages.label('label.chart.other')
-              : ctx.label(spec?.pie?.category, slice.category),
-          value: slice.value,
-          alias: spec?.pie?.value,
-        })),
-      );
-    case 'heatmap': {
-      const heatmap = spec?.heatmap;
-      const cells = data.ys.flatMap((y, row) =>
-        data.xs.map((x, column) => ({
-          name: `${ctx.label(heatmap?.y, y)} · ${ctx.label(heatmap?.x, x)}`,
-          value: data.cells[row]?.[column] ?? null,
-          alias: heatmap?.value,
-        })),
-      );
-      return extremes(
-        ctx,
-        cells.filter(cell => cell.value !== null).length,
-        cells,
-      );
-    }
-    case 'scatter':
-      return scatterSentence(data, spec, ctx);
-    case 'funnel':
-      return funnelSentence(data, spec, ctx);
-    case 'waterfall':
-      return extremes(
-        ctx,
-        data.steps.length,
-        data.steps.map(step => ({
-          name: ctx.label(spec?.waterfall?.x, step.x),
-          value: step.value,
-          alias: spec?.waterfall?.value,
-        })),
-      );
-    case 'treemap': {
-      const treemap = spec?.treemap;
-      const tiles = data.tiles.flatMap(tile =>
-        tile.tiles
-          ? tile.tiles.map(inner => ({
-              name: `${ctx.label(treemap?.parent, tile.group)} · ${ctx.label(treemap?.category, inner.group)}`,
-              value: inner.value,
-              alias: treemap?.value,
-            }))
-          : [
-              {
-                name: ctx.label(treemap?.category, tile.group),
-                value: tile.value,
-                alias: treemap?.value,
-              },
-            ],
-      );
-      return extremes(ctx, tiles.length, tiles);
-    }
-    case 'boxplot': {
-      const boxplot = spec?.boxplot;
-      const bounds = highLow(
-        data.boxes.map(box => ({
-          name: ctx.label(boxplot?.category, box.group),
-          value: box.median,
-          alias: boxplot?.median,
-        })),
-      );
-      return bounds
-        ? ctx.messages.label('label.chart.sentence.boxplot', {
-            count: data.boxes.length,
-            ...said(ctx, bounds),
-          })
-        : undefined;
-    }
-    case 'candlestick': {
-      const candlestick = spec?.candlestick;
-      const first = data.candles[0];
-      const last = data.candles[data.candles.length - 1];
-      if (!first || !last) return undefined;
-      const value = (slot: 'open' | 'high' | 'low' | 'close', at: number) =>
-        ctx.label(candlestick?.[slot], at);
-      return ctx.messages.label('label.chart.sentence.candlestick', {
-        count: data.candles.length,
-        first: ctx.label(candlestick?.x, first.x),
-        last: ctx.label(candlestick?.x, last.x),
-        open: value('open', first.open),
-        close: value('close', last.close),
-        high: value('high', Math.max(...data.candles.map(one => one.high))),
-        low: value('low', Math.min(...data.candles.map(one => one.low))),
+  return extremes(
+    ctx,
+    data.slices.length,
+    data.slices.map(slice => ({
+      name:
+        slice.other === true
+          ? ctx.messages.label('label.chart.other')
+          : ctx.label(spec?.pie?.category, slice.category),
+      value: slice.value,
+      alias: spec?.pie?.value,
+    })),
+  );
+}
+
+/** A heatmap: its measured cells and their extremes, each named row · column. */
+export function heatmapSentence(
+  data: Extract<ChartData, { type: 'heatmap' }>,
+  spec: ChartSpec | undefined,
+  ctx: ReadingContext,
+): string | undefined {
+  const heatmap = spec?.heatmap;
+  const cells = data.ys.flatMap((y, row) =>
+    data.xs.map((x, column) => ({
+      name: `${ctx.label(heatmap?.y, y)} · ${ctx.label(heatmap?.x, x)}`,
+      value: data.cells[row]?.[column] ?? null,
+      alias: heatmap?.value,
+    })),
+  );
+  return extremes(ctx, cells.filter(cell => cell.value !== null).length, cells);
+}
+
+/** A waterfall: its steps and their extremes. */
+export function waterfallSentence(
+  data: Extract<ChartData, { type: 'waterfall' }>,
+  spec: ChartSpec | undefined,
+  ctx: ReadingContext,
+): string | undefined {
+  return extremes(
+    ctx,
+    data.steps.length,
+    data.steps.map(step => ({
+      name: ctx.label(spec?.waterfall?.x, step.x),
+      value: step.value,
+      alias: spec?.waterfall?.value,
+    })),
+  );
+}
+
+/** A treemap: its tiles — the inner ones where it nests — and their extremes. */
+export function treemapSentence(
+  data: Extract<ChartData, { type: 'treemap' }>,
+  spec: ChartSpec | undefined,
+  ctx: ReadingContext,
+): string | undefined {
+  const treemap = spec?.treemap;
+  const tiles = data.tiles.flatMap(tile =>
+    tile.tiles
+      ? tile.tiles.map(inner => ({
+          name: `${ctx.label(treemap?.parent, tile.group)} · ${ctx.label(treemap?.category, inner.group)}`,
+          value: inner.value,
+          alias: treemap?.value,
+        }))
+      : [
+          {
+            name: ctx.label(treemap?.category, tile.group),
+            value: tile.value,
+            alias: treemap?.value,
+          },
+        ],
+  );
+  return extremes(ctx, tiles.length, tiles);
+}
+
+/** A boxplot: how many boxes, the highest and the lowest median. */
+export function boxplotSentence(
+  data: Extract<ChartData, { type: 'boxplot' }>,
+  spec: ChartSpec | undefined,
+  ctx: ReadingContext,
+): string | undefined {
+  const boxplot = spec?.boxplot;
+  const bounds = highLow(
+    data.boxes.map(box => ({
+      name: ctx.label(boxplot?.category, box.group),
+      value: box.median,
+      alias: boxplot?.median,
+    })),
+  );
+  return bounds
+    ? ctx.messages.label('label.chart.sentence.boxplot', {
+        count: data.boxes.length,
+        ...said(ctx, bounds),
+      })
+    : undefined;
+}
+
+/** A candlestick: its span, where it opened and closed, its high and its low. */
+export function candlestickSentence(
+  data: Extract<ChartData, { type: 'candlestick' }>,
+  spec: ChartSpec | undefined,
+  ctx: ReadingContext,
+): string | undefined {
+  const candlestick = spec?.candlestick;
+  const first = data.candles[0];
+  const last = data.candles[data.candles.length - 1];
+  if (!first || !last) return undefined;
+  const value = (slot: 'open' | 'high' | 'low' | 'close', at: number) =>
+    ctx.label(candlestick?.[slot], at);
+  return ctx.messages.label('label.chart.sentence.candlestick', {
+    count: data.candles.length,
+    first: ctx.label(candlestick?.x, first.x),
+    last: ctx.label(candlestick?.x, last.x),
+    open: value('open', first.open),
+    close: value('close', last.close),
+    high: value('high', Math.max(...data.candles.map(one => one.high))),
+    low: value('low', Math.min(...data.candles.map(one => one.low))),
+  });
+}
+
+/** A gauge: its number on its scale, or against its target. */
+export function gaugeSentence(
+  data: Extract<ChartData, { type: 'gauge' }>,
+  spec: ChartSpec | undefined,
+  ctx: ReadingContext,
+): string | undefined {
+  if (data.value === null) return undefined;
+  const text = (value: number) =>
+    gaugeText(value, { spec, label: ctx.label, locale: ctx.locale });
+  const share = reachedShare(data, ctx.locale);
+  return share === undefined || data.target === undefined
+    ? ctx.messages.label('label.chart.sentence.gauge', {
+        value: text(data.value),
+        min: text(data.min),
+        max: text(data.max),
+      })
+    : ctx.messages.label('label.chart.sentence.gauge-target', {
+        value: text(data.value),
+        target: text(data.target),
+        share,
       });
-    }
-    case 'gauge': {
-      if (data.value === null) return undefined;
-      const text = (value: number) =>
-        gaugeText(value, { spec, label: ctx.label, locale: ctx.locale });
-      const share = reachedShare(data, ctx.locale);
-      return share === undefined || data.target === undefined
-        ? ctx.messages.label('label.chart.sentence.gauge', {
-            value: text(data.value),
-            min: text(data.min),
-            max: text(data.max),
-          })
-        : ctx.messages.label('label.chart.sentence.gauge-target', {
-            value: text(data.value),
-            target: text(data.target),
-            share,
-          });
-    }
-    case 'radar':
-    case 'parallel':
-      return data.profiles.length === 0
-        ? undefined
-        : ctx.messages.label('label.chart.sentence.profiles', {
-            count: data.profiles.length,
-            metrics: data.metrics.length,
-          }) + profileReadings(data, spec?.[data.type]?.category, ctx);
-    case 'sunburst':
-    case 'tree': {
-      const leaves = drawnParts(data, {
-        spec,
-        label: ctx.label,
-        locale: ctx.locale,
-      }).filter(part => part.leaf);
-      const value = (data.type === 'sunburst' ? spec?.sunburst : spec?.tree)
-        ?.value;
-      return extremes(
-        ctx,
-        leaves.length,
-        leaves.map(part => ({
-          name: part.path,
-          value: part.value,
-          alias: value,
-        })),
-      );
-    }
-    case 'sankey': {
-      const { bands } = drawnFlow(data, { spec, label: ctx.label });
-      const largest = bands[0];
-      return largest
-        ? ctx.messages.label('label.chart.sentence.sankey', {
-            count: bands.length,
-            high: `${largest.from} → ${largest.to}`,
-            highValue: largest.text,
-          })
-        : undefined;
-    }
-    case 'calendar': {
-      const days = data.days.filter(day => !ongoing(data, day.at));
-      const line = extremes(
-        ctx,
-        days.length,
-        days.map(day => ({
-          name: ctx.label(spec?.calendar?.date, day.at),
-          value: day.value,
-          alias: spec?.calendar?.value,
-        })),
-      );
-      return line && line + unfinishedClause(ctx, data, spec?.calendar?.date);
-    }
-    case 'themeRiver': {
-      const river = spec?.themeRiver;
-      const times = data.times.flatMap((at, index) =>
-        ongoing(data, at) ? [] : [{ at, index }],
-      );
-      const count = times.length;
-      if (count < 2) return undefined;
-      const whole = ({ index }: { index: number }) =>
-        (data.values[index] ?? []).reduce((sum, value) => sum + value, 0);
-      return (
-        ctx.messages.label('label.chart.sentence.themeRiver', {
-          count,
-          streams: data.streams.length,
-          first: ctx.label(river?.x, times[0].at),
-          last: ctx.label(river?.x, times[count - 1].at),
-          trend: ctx.messages.label(
-            `label.chart.sentence.${fittedDirection(times.map(whole))}`,
-          ),
-        }) + unfinishedClause(ctx, data, river?.x)
-      );
-    }
-    case 'map':
-      return extremes(
-        ctx,
-        data.regions.length,
-        data.regions.map(region => ({
-          name: ctx.label(spec?.map?.region, region.group),
-          value: region.value,
-          alias: spec?.map?.value,
-        })),
-      );
-    case 'metric':
-      return trendSentence(data, spec, ctx);
-  }
+}
+
+/** A radar or parallel axes: how many groups and axes, then each axis's extremes. */
+export function profileSentence(
+  data: Extract<ChartData, { type: 'radar' | 'parallel' }>,
+  spec: ChartSpec | undefined,
+  ctx: ReadingContext,
+): string | undefined {
+  return data.profiles.length === 0
+    ? undefined
+    : ctx.messages.label('label.chart.sentence.profiles', {
+        count: data.profiles.length,
+        metrics: data.metrics.length,
+      }) + profileReadings(data, spec?.[data.type]?.category, ctx);
+}
+
+/** A sunburst or a tree: its leaves and their extremes, each named by its path. */
+export function partsSentence(
+  data: Extract<ChartData, { type: 'sunburst' | 'tree' }>,
+  spec: ChartSpec | undefined,
+  ctx: ReadingContext,
+): string | undefined {
+  const leaves = drawnParts(data, {
+    spec,
+    label: ctx.label,
+    locale: ctx.locale,
+  }).filter(part => part.leaf);
+  const value = (data.type === 'sunburst' ? spec?.sunburst : spec?.tree)?.value;
+  return extremes(
+    ctx,
+    leaves.length,
+    leaves.map(part => ({
+      name: part.path,
+      value: part.value,
+      alias: value,
+    })),
+  );
+}
+
+/** A sankey: how many bands, and the widest. */
+export function sankeySentence(
+  data: Extract<ChartData, { type: 'sankey' }>,
+  spec: ChartSpec | undefined,
+  ctx: ReadingContext,
+): string | undefined {
+  const { bands } = drawnFlow(data, { spec, label: ctx.label });
+  const largest = bands[0];
+  return largest
+    ? ctx.messages.label('label.chart.sentence.sankey', {
+        count: bands.length,
+        high: `${largest.from} → ${largest.to}`,
+        highValue: largest.text,
+      })
+    : undefined;
+}
+
+/** A calendar: its ended days and their extremes, and the day still under way. */
+export function calendarSentence(
+  data: Extract<ChartData, { type: 'calendar' }>,
+  spec: ChartSpec | undefined,
+  ctx: ReadingContext,
+): string | undefined {
+  const days = data.days.filter(day => !ongoing(data, day.at));
+  const line = extremes(
+    ctx,
+    days.length,
+    days.map(day => ({
+      name: ctx.label(spec?.calendar?.date, day.at),
+      value: day.value,
+      alias: spec?.calendar?.value,
+    })),
+  );
+  return line && line + unfinishedClause(ctx, data, spec?.calendar?.date);
+}
+
+/** A theme river: its span, its streams and which way the whole went. */
+export function riverSentence(
+  data: Extract<ChartData, { type: 'themeRiver' }>,
+  spec: ChartSpec | undefined,
+  ctx: ReadingContext,
+): string | undefined {
+  const river = spec?.themeRiver;
+  const times = data.times.flatMap((at, index) =>
+    ongoing(data, at) ? [] : [{ at, index }],
+  );
+  const count = times.length;
+  if (count < 2) return undefined;
+  const whole = ({ index }: { index: number }) =>
+    (data.values[index] ?? []).reduce((sum, value) => sum + value, 0);
+  return (
+    ctx.messages.label('label.chart.sentence.themeRiver', {
+      count,
+      streams: data.streams.length,
+      first: ctx.label(river?.x, times[0].at),
+      last: ctx.label(river?.x, times[count - 1].at),
+      trend: ctx.messages.label(
+        `label.chart.sentence.${fittedDirection(times.map(whole))}`,
+      ),
+    }) + unfinishedClause(ctx, data, river?.x)
+  );
+}
+
+/** A map: its shaded regions and their extremes. */
+export function mapSentence(
+  data: Extract<ChartData, { type: 'map' }>,
+  spec: ChartSpec | undefined,
+  ctx: ReadingContext,
+): string | undefined {
+  return extremes(
+    ctx,
+    data.regions.length,
+    data.regions.map(region => ({
+      name: ctx.label(spec?.map?.region, region.group),
+      value: region.value,
+      alias: spec?.map?.value,
+    })),
+  );
 }
 
 /**
@@ -246,7 +298,7 @@ export function chartSentence(
  * was a picture nobody could read, named and nothing more. No trend, or one
  * of a single period, says nothing — the face already has.
  */
-function trendSentence(
+export function trendSentence(
   data: Extract<ChartData, { type: 'metric' }>,
   spec: ChartSpec | undefined,
   ctx: ReadingContext,
@@ -337,7 +389,7 @@ function extremes(
  * its first bucket to its last and which way the whole went between the two
  * (every series added up).
  */
-function cartesianSentence(
+export function cartesianSentence(
   data: Extract<ChartData, { type: 'cartesian' }>,
   spec: ChartSpec | undefined,
   ctx: ReadingContext,
@@ -473,7 +525,7 @@ function standing(
 }
 
 /** A scatter: how many points, and the span each axis's metric runs over. */
-function scatterSentence(
+export function scatterSentence(
   data: Extract<ChartData, { type: 'scatter' }>,
   spec: ChartSpec | undefined,
   ctx: ReadingContext,
@@ -508,7 +560,7 @@ function scatterSentence(
  * whole funnel's conversion, and the step that loses the most — what the
  * drawing says with its taper and its one heavier drop.
  */
-function funnelSentence(
+export function funnelSentence(
   data: Extract<ChartData, { type: 'funnel' }>,
   spec: ChartSpec | undefined,
   ctx: ReadingContext,

@@ -27,7 +27,7 @@ import {
 import { operatorsOf, type FieldKindRegistry } from '../filter/index.js';
 import { fitChartSlots } from './chartSlots.js';
 import { analysisProbeLimit } from './compile.js';
-import { limitBounds } from './defaults.js';
+import { limitBounds } from './limitBounds.js';
 
 /**
  * How many of a field's values a condition is offered, most frequent first:

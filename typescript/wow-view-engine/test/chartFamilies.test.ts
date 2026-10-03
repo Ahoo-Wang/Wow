@@ -35,6 +35,8 @@ import {
   type ChartSpec,
   type ChartType,
 } from '../src/model/index.js';
+import { FAMILY_RULES } from '../src/analysis/familyRules.js';
+import { FAMILY_VIEWS } from '../src/ui/charts/familyViews.js';
 import { analysisConfig } from './fixtures.js';
 
 const terms = (alias: string): AnalysisGroup => ({
@@ -431,5 +433,17 @@ describe('seriesMark and chartMarks', () => {
       }),
     ).toEqual(['area', 'bar']);
     expect(chartMarks({ type: 'combo' })).toEqual(['bar']);
+  });
+});
+
+describe('the family tables (R2-94)', () => {
+  // What a family is, what the kernel runs for it and how `/ui` draws it are
+  // three tables keyed alike, each checked against `ChartFamily` by the
+  // compiler; this holds them to the families the model's types belong to.
+  it('give every family of the model one row, in the kernel and in the drawing alike', () => {
+    const families = [...new Set(Object.values(CHART_FAMILY))].sort();
+    expect(Object.keys(CHART_FAMILIES).sort()).toEqual(families);
+    expect(Object.keys(FAMILY_RULES).sort()).toEqual(families);
+    expect(Object.keys(FAMILY_VIEWS).sort()).toEqual(families);
   });
 });

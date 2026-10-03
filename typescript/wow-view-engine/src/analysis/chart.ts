@@ -11,51 +11,21 @@
  * limitations under the License.
  */
 
-import {
-  DEFAULT_APPROXIMATE_METRICS,
-  CHART_COLOR_SLOTS,
-  type AnalysisViewConfig,
-  type RecordData,
-} from '../model/index.js';
-import { shapeBoxplot, type BoxplotData } from './boxplot.js';
-import { shapeCandlestick, type CandlestickData } from './candlestick.js';
-import { shapeCartesian, type CartesianData } from './cartesian.js';
-import { num, seriesKey } from './chartRows.js';
-import { shapeFunnel, type FunnelData } from './funnel.js';
-import { shapeGauge, type GaugeData } from './gauge.js';
-import { shapeMap, type MapData } from './map.js';
-import {
-  shapeHierarchy,
-  shapeSankey,
-  type HierarchyData,
-  type SankeyData,
-} from './hierarchy.js';
-import { metricCard, type MetricCardData } from './metricCard.js';
-import {
-  shapeParallel,
-  shapeRadar,
-  type ParallelData,
-  type RadarData,
-} from './profiles.js';
-import {
-  alongPart,
-  forwardInTime,
-  hostTimeZone,
-  knownWindow,
-  partGroup,
-  timeGroup,
-  unfinishedBucket,
-  withoutHoles,
-  type DateGroup,
-} from './timeAxis.js';
-import {
-  shapeCalendar,
-  shapeThemeRiver,
-  type CalendarData,
-  type ThemeRiverData,
-} from './timeCharts.js';
-import { shapeTreemap, type TreemapData } from './treemap.js';
-import { shapeWaterfall, type WaterfallData } from './waterfall.js';
+import type { AnalysisViewConfig, RecordData } from '../model/index.js';
+import type { BoxplotData } from './boxplot.js';
+import type { CandlestickData } from './candlestick.js';
+import type { CartesianData } from './cartesian.js';
+import { familyRules } from './familyRules.js';
+import type { FunnelData } from './funnel.js';
+import type { GaugeData } from './gauge.js';
+import type { MapData } from './map.js';
+import type { HierarchyData, SankeyData } from './hierarchy.js';
+import type { MetricCardData } from './metricCard.js';
+import type { ParallelData, RadarData } from './profiles.js';
+import { hostTimeZone } from './timeAxis.js';
+import type { CalendarData, ThemeRiverData } from './timeCharts.js';
+import type { TreemapData } from './treemap.js';
+import type { WaterfallData } from './waterfall.js';
 
 /**
  * What a renderer receives. The shaping a chart needs happens here rather than
@@ -137,16 +107,6 @@ export interface ScatterData {
   points: { category: unknown; x: number; y: number; size?: number }[];
 }
 
-/**
- * Composite key of a heatmap cell. The row key is length-prefixed rather than
- * separated by a character, because no character is barred from a group value
- * and a separator one of them held would split the pair somewhere else.
- */
-function cellKey(y: unknown, x: unknown): string {
-  const row = seriesKey(y);
-  return `${row.length}:${row}${seriesKey(x)}`;
-}
-
 /** What shaping reads besides the config and the rows. */
 export interface ShapeContext {
   /**
@@ -201,240 +161,11 @@ export function shapeChart(
 ): ChartData | undefined {
   const chart = config.chart;
   const timeZone = context.timeZone ?? hostTimeZone();
-  switch (chart.type) {
-    case 'bar':
-    case 'line':
-    case 'area':
-    case 'combo':
-      return (
-        chart.cartesian &&
-        withUnfinished(
-          shapeCartesian(
-            chart.type,
-            chart.cartesian,
-            config,
-            rows,
-            timeZone,
-            context.cutShort,
-            context.splitWhole,
-            context.now,
-          ),
-          data =>
-            data.timeline === true
-              ? unfinishedBucket(
-                  config,
-                  chart.cartesian?.x,
-                  data.points.map(point => point.x),
-                  timeZone,
-                  context.now,
-                )
-              : undefined,
-        )
-      );
-    case 'pie':
-      return chart.pie && pie(chart.pie, rows);
-    case 'heatmap':
-      return (
-        chart.heatmap &&
-        heatmap(chart.heatmap, config, rows, timeZone, context.now)
-      );
-    case 'scatter':
-      return chart.scatter && scatter(chart.scatter, rows);
-    case 'funnel':
-      return chart.funnel && shapeFunnel(chart.funnel, rows);
-    case 'metric':
-      return (
-        chart.metric &&
-        metricCard(chart.metric, config, rows, totals, {
-          timeZone,
-          now: context.now,
-          cutShort: context.cutShort,
-        })
-      );
-    case 'waterfall':
-      return chart.waterfall && shapeWaterfall(chart.waterfall, config, rows);
-    case 'treemap':
-      return chart.treemap && shapeTreemap(chart.treemap, rows);
-    case 'boxplot':
-      return (
-        chart.boxplot &&
-        shapeBoxplot(
-          chart.boxplot,
-          config,
-          rows,
-          (context.approximate ?? DEFAULT_APPROXIMATE_METRICS).includes(
-            'PERCENTILE',
-          ),
-        )
-      );
-    case 'candlestick':
-      return chart.candlestick && shapeCandlestick(chart.candlestick, rows);
-    case 'gauge':
-      return chart.gauge && shapeGauge(chart.gauge, rows);
-    case 'radar':
-      return chart.radar && shapeRadar(chart.radar, config, rows);
-    case 'parallel':
-      return chart.parallel && shapeParallel(chart.parallel, config, rows);
-    case 'sunburst':
-    case 'tree': {
-      const spec = chart[chart.type];
-      return spec && shapeHierarchy(chart.type, spec, config, rows);
-    }
-    case 'sankey':
-      return chart.sankey && shapeSankey(chart.sankey, config, rows);
-    case 'calendar':
-      return (
-        chart.calendar &&
-        withUnfinished(
-          shapeCalendar(chart.calendar, config, rows, timeZone),
-          data =>
-            unfinishedBucket(
-              config,
-              chart.calendar?.date,
-              data.days.map(day => day.at),
-              timeZone,
-              context.now,
-            ),
-        )
-      );
-    case 'map':
-      return chart.map && shapeMap(chart.map, rows);
-    case 'themeRiver':
-      return (
-        chart.themeRiver &&
-        withUnfinished(
-          shapeThemeRiver(chart.themeRiver, config, rows, timeZone),
-          data =>
-            unfinishedBucket(
-              config,
-              chart.themeRiver?.x,
-              data.times,
-              timeZone,
-              context.now,
-            ),
-        )
-      );
-  }
-}
-
-/** The chart's data, with the period still under way named when there is one. */
-function withUnfinished<T extends { unfinished?: { at: unknown } }>(
-  data: T,
-  find: (data: T) => { at: unknown } | undefined,
-): T {
-  const unfinished = find(data);
-  return unfinished ? { ...data, unfinished } : data;
-}
-
-/**
- * A pie folds its tail into "other" at `maxSlices`, and at the palette's size
- * when nothing says otherwise — and never past it. The palette holds
- * `CHART_COLOR_SLOTS` colours and a ninth slice would wear the first one
- * again: two wedges one colour, and a legend that cannot say which is which.
- * Folding is only a sum, which every pie can take: its metric adds up, or it
- * is no pie (`chart.pie.not-additive`, D33 Q56).
- *
- * A pie has no axis, so its slices keep the rows' order even over time;
- * once folded they go largest first, since "the rest" means the smallest.
- */
-function pie(
-  spec: NonNullable<AnalysisViewConfig['chart']['pie']>,
-  rows: readonly RecordData[],
-): PieData {
-  const slices: PieSlice[] = rows.map(row => ({
-    category: row[spec.category],
-    value: num(row, spec.value) ?? 0,
-  }));
-  const cap = Math.min(spec.maxSlices ?? CHART_COLOR_SLOTS, CHART_COLOR_SLOTS);
-  if (slices.length <= cap) return { type: 'pie', slices };
-
-  const sorted = [...slices].sort((a, b) => b.value - a.value);
-  const kept = sorted.slice(0, cap - 1);
-  const other = sorted
-    .slice(cap - 1)
-    .reduce((total, slice) => total + slice.value, 0);
-  return {
-    type: 'pie',
-    slices: [...kept, { category: null, value: other, other: true }],
-  };
-}
-
-/**
- * A time row or column runs without holes too, as any time axis does, and
- * out to the window its conditions pin when the result is whole
- * (`knownWindow`, as a cartesian axis); the cells of a bucket that had no
- * rows are empty, as every cell the query returned no row for is — a heatmap
- * draws "no group" as no cell, one combination at a time.
- */
-function heatmap(
-  spec: NonNullable<AnalysisViewConfig['chart']['heatmap']>,
-  config: AnalysisViewConfig,
-  rows: readonly RecordData[],
-  timeZone: string,
-  now?: Date,
-): HeatmapData {
-  let xs: unknown[] = [];
-  let ys: unknown[] = [];
-  const cells = new Map<string, number | null>();
-
-  for (const row of rows) {
-    const x = row[spec.x];
-    const y = row[spec.y];
-    if (!xs.includes(x)) xs.push(x);
-    if (!ys.includes(y)) ys.push(y);
-    cells.set(cellKey(y, x), num(row, spec.value));
-  }
-  // Columns run left to right and rows top to bottom, so either one over
-  // time reads forward; the cells follow, being looked up by key.
-  const across = timeGroup(config, spec.x);
-  const down = timeGroup(config, spec.y);
-  const same = (key: unknown) => key;
-  const window = (axis: DateGroup) =>
-    knownWindow(axis, config, rows.length, now, timeZone);
-  if (across)
-    xs = withoutHoles(
-      forwardInTime(xs, same),
-      same,
-      across,
-      timeZone,
-      same,
-      window(across),
-    );
-  if (down)
-    ys = withoutHoles(
-      forwardInTime(ys, same),
-      same,
-      down,
-      timeZone,
-      same,
-      window(down),
-    );
-  // A calendar part runs its whole cycle: 星期 × 时段 is seven rows of
-  // twenty-four columns whichever hours had orders.
-  const cycleAcross = partGroup(config, spec.x);
-  const cycleDown = partGroup(config, spec.y);
-  if (cycleAcross) xs = alongPart(xs, same, cycleAcross, same);
-  if (cycleDown) ys = alongPart(ys, same, cycleDown, same);
-
-  return {
-    type: 'heatmap',
-    xs,
-    ys,
-    cells: ys.map(y => xs.map(x => cells.get(cellKey(y, x)) ?? null)),
-  };
-}
-
-function scatter(
-  spec: NonNullable<AnalysisViewConfig['chart']['scatter']>,
-  rows: readonly RecordData[],
-): ScatterData {
-  return {
-    type: 'scatter',
-    points: rows.map(row => ({
-      category: row[spec.category],
-      x: num(row, spec.x) ?? 0,
-      y: num(row, spec.y) ?? 0,
-      ...(spec.size === undefined ? {} : { size: num(row, spec.size) ?? 0 }),
-    })),
-  };
+  return familyRules(chart.type)?.shape(chart, {
+    config,
+    rows,
+    totals,
+    context,
+    timeZone,
+  });
 }

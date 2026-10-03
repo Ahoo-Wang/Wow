@@ -14,9 +14,7 @@
 import { useCallback, useContext, useMemo, useState } from 'react';
 import type { AnalysisColumnView, ChartData } from '../../analysis/index.js';
 import type { ChartSpec, RecordData } from '../../model/index.js';
-import { Boxplot } from '../charts/Boxplot.js';
-import { Candlestick } from '../charts/Candlestick.js';
-import { Cartesian } from '../charts/Cartesian.js';
+import type { Cartesian } from '../charts/Cartesian.js';
 import { withoutHidden } from '../charts/cartesianPlan.js';
 import {
   ChartMenuOpen,
@@ -36,19 +34,8 @@ import {
   useValueLabel,
   type OnPick,
 } from '../charts/family.js';
-import { Funnel } from '../charts/Funnel.js';
-import { Gauge } from '../charts/Gauge.js';
-import { GeoMap } from '../charts/GeoMap.js';
-import { Hierarchy } from '../charts/Hierarchy.js';
-import { Heatmap } from '../charts/Heatmap.js';
-import { MetricCard } from '../charts/MetricCard.js';
-import { PieSlices } from '../charts/PieSlices.js';
-import { Profiles } from '../charts/Profiles.js';
+import { viewOf } from '../charts/familyViews.js';
 import { readChart } from '../charts/reading.js';
-import { ScatterPoints } from '../charts/ScatterPoints.js';
-import { TimeCharts } from '../charts/TimeCharts.js';
-import { Treemap } from '../charts/Treemap.js';
-import { Waterfall } from '../charts/Waterfall.js';
 import { AnalysisEmpty } from './EmptyResult.js';
 import { sayAll, useViewMessages } from '../kit/MessagesProvider.js';
 import { useSurfaceDisplay } from '../kit/ViewSurface.js';
@@ -233,53 +220,16 @@ function useHiddenSeries(
 
 const NONE: ReadonlySet<string> = new Set();
 
-/** The one renderer this data asked for. */
+/** The one renderer this data asked for: its family's (`FAMILY_VIEWS`). */
 function family(
   data: ChartData,
   props: Omit<Parameters<typeof Cartesian>[0], 'data'>,
 ) {
-  switch (data.type) {
-    case 'cartesian':
-      return <Cartesian data={data} {...props} />;
-    case 'pie':
-      // No slice is no pie: the library drew a grey ring, and the legend
-      // its lead alone. A result of no groups says so wherever the pie is
-      // drawn. Said here rather than in the family, which would otherwise
-      // reach into the analysis folder that draws it.
-      return data.slices.length === 0 ? (
-        <AnalysisEmpty />
-      ) : (
-        <PieSlices data={data} {...props} />
-      );
-    case 'heatmap':
-      return <Heatmap data={data} {...props} />;
-    case 'scatter':
-      return <ScatterPoints data={data} {...props} />;
-    case 'funnel':
-      return <Funnel data={data} {...props} />;
-    case 'metric':
-      return <MetricCard data={data} {...props} />;
-    case 'waterfall':
-      return <Waterfall data={data} {...props} />;
-    case 'treemap':
-      return <Treemap data={data} {...props} />;
-    case 'boxplot':
-      return <Boxplot data={data} {...props} />;
-    case 'candlestick':
-      return <Candlestick data={data} {...props} />;
-    case 'gauge':
-      return <Gauge data={data} {...props} />;
-    case 'radar':
-    case 'parallel':
-      return <Profiles data={data} {...props} />;
-    case 'sunburst':
-    case 'tree':
-    case 'sankey':
-      return <Hierarchy data={data} {...props} />;
-    case 'calendar':
-    case 'themeRiver':
-      return <TimeCharts data={data} {...props} />;
-    case 'map':
-      return <GeoMap data={data} {...props} />;
-  }
+  // No slice is no pie: the library drew a grey ring, and the legend
+  // its lead alone. A result of no groups says so wherever the pie is
+  // drawn. Said here rather than in the family, which would otherwise
+  // reach into the analysis folder that draws it.
+  if (data.type === 'pie' && data.slices.length === 0) return <AnalysisEmpty />;
+  const Draw = viewOf(data).draw;
+  return <Draw data={data} {...props} />;
 }

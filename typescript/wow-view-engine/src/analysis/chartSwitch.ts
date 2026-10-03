@@ -16,6 +16,7 @@ import {
   type ChartSpec,
   type ChartType,
 } from '../model/index.js';
+import { familyRules } from './familyRules.js';
 
 /**
  * The metric a chart is about: the one its first mark measures.
@@ -27,49 +28,7 @@ import {
  * the family has not been filled yet.
  */
 export function leadMetric(chart: ChartSpec): string | undefined {
-  switch (CHART_FAMILY[chart.type]) {
-    case 'cartesian':
-      return chart.cartesian?.series[0]?.metric;
-    case 'pie':
-      return chart.pie?.value;
-    case 'heatmap':
-      return chart.heatmap?.value;
-    case 'scatter':
-      return chart.scatter?.x;
-    case 'funnel':
-      return chart.funnel?.stages.from === 'group'
-        ? chart.funnel.stages.value
-        : chart.funnel?.stages.items[0]?.metric;
-    case 'metric':
-      return chart.metric?.metric;
-    case 'waterfall':
-      return chart.waterfall?.value;
-    case 'treemap':
-      return chart.treemap?.value;
-    case 'boxplot':
-      return chart.boxplot?.median;
-    case 'candlestick':
-      return chart.candlestick?.close;
-    case 'gauge':
-      return chart.gauge?.metric;
-    case 'radar':
-      return chart.radar?.metrics[0];
-    case 'parallel':
-      return chart.parallel?.metrics[0];
-    case 'calendar':
-      return chart.calendar?.value;
-    case 'map':
-      return chart.map?.value;
-    case 'themeRiver':
-      return chart.themeRiver?.value;
-    case 'sunburst':
-    case 'tree':
-    case 'sankey':
-      return chart[CHART_FAMILY[chart.type] as 'sunburst' | 'tree' | 'sankey']
-        ?.value;
-    default:
-      return undefined;
-  }
+  return familyRules(chart.type)?.lead(chart);
 }
 
 /**
@@ -109,98 +68,5 @@ export function switchChartType(chart: ChartSpec, type: ChartType): ChartSpec {
       : { ...chart, type, legend: undefined };
   const lead = leadMetric(chart);
   if (lead === undefined || lead === '' || type === chart.type) return next;
-  switch (CHART_FAMILY[type]) {
-    case 'cartesian': {
-      const spec = chart.cartesian;
-      if (!spec) return next;
-      if (spec.splitBy !== undefined)
-        return {
-          ...next,
-          cartesian: {
-            ...spec,
-            series: [{ ...spec.series[0], metric: lead }],
-          },
-        };
-      if (spec.series.some(series => series.metric === lead)) return next;
-      return {
-        ...next,
-        cartesian: { ...spec, series: [{ metric: lead }, ...spec.series] },
-      };
-    }
-    case 'pie':
-      return chart.pie
-        ? { ...next, pie: { ...chart.pie, value: lead } }
-        : { ...next, pie: { category: '', value: lead } };
-    case 'heatmap':
-      return chart.heatmap
-        ? { ...next, heatmap: { ...chart.heatmap, value: lead } }
-        : { ...next, heatmap: { x: '', y: '', value: lead } };
-    case 'scatter':
-      return chart.scatter && chart.scatter.y !== lead
-        ? { ...next, scatter: { ...chart.scatter, x: lead } }
-        : next;
-    case 'funnel':
-      return chart.funnel?.stages.from === 'group'
-        ? {
-            ...next,
-            funnel: {
-              ...chart.funnel,
-              stages: { ...chart.funnel.stages, value: lead },
-            },
-          }
-        : next;
-    case 'metric':
-      return {
-        ...next,
-        metric: { ...chart.metric, metric: lead },
-      };
-    case 'waterfall':
-      return {
-        ...next,
-        waterfall: { x: '', ...chart.waterfall, value: lead },
-      };
-    case 'treemap':
-      return {
-        ...next,
-        treemap: { category: '', ...chart.treemap, value: lead },
-      };
-    case 'gauge':
-      return { ...next, gauge: { ...chart.gauge, metric: lead } };
-    case 'map':
-      return { ...next, map: { region: '', ...chart.map, value: lead } };
-    case 'calendar':
-      return {
-        ...next,
-        calendar: { date: '', ...chart.calendar, value: lead },
-      };
-    case 'themeRiver':
-      return {
-        ...next,
-        themeRiver: { x: '', splitBy: '', ...chart.themeRiver, value: lead },
-      };
-    case 'sunburst':
-    case 'tree':
-    case 'sankey': {
-      const family = CHART_FAMILY[type];
-      return {
-        ...next,
-        [family]: { levels: [], ...chart[family], value: lead },
-      };
-    }
-    case 'radar':
-    case 'parallel': {
-      // The lead joins the axes at the front, as it joins a cartesian
-      // chart's series; a family never visited draws every metric.
-      const family = CHART_FAMILY[type];
-      const spec = chart[family];
-      if (!spec || spec.metrics.includes(lead)) return next;
-      return {
-        ...next,
-        [family]: { ...spec, metrics: [lead, ...spec.metrics] },
-      };
-    }
-    default:
-      // A box is five numbers of one field, not one metric carried over.
-      return next;
-  }
+  return familyRules(type)?.carry(chart, next, lead) ?? next;
 }
