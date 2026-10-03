@@ -9,7 +9,7 @@ description: '@ahoo-wang/wow-view-engine 包的入口、概念、持久化端口
 `@ahoo-wang/wow-view-engine` 从 Wow 9.2.0 起在 npm 上，与 Wow 同一个 tag、同一个版本号发布。补丁版本不破坏导出（包括 `ViewStore` 端口）、CSS 合同、消息键与 issue code，以及 `wow-view-engine` 命令；次版本的破坏逐条写进发布说明（[兼容规则](../../../guide/typescript/view-engine.md)）。模型以[设计文档](https://github.com/Ahoo-Wang/Wow/tree/main/typescript/wow-view-engine/docs/design)为准；逐符号参考还没有。
 :::
 
-引擎做什么以及目标用法的完整走读，见[视图引擎指南](../../../guide/typescript/view-engine.md)。
+引擎做什么，见[视图引擎指南](../../../guide/typescript/view-engine.md)；从零接入一个业务对象的完整走读，见[视图引擎入门](../../../guide/typescript/view-engine-getting-started.md)。
 
 ## 入口
 

@@ -1,6 +1,6 @@
 ---
 title: View Engine
-description: What the wow-view-engine package does, the facts its design rests on, and the shape of its API.
+description: What the wow-view-engine package does, the facts its design rests on, and where to start reading.
 ---
 
 # View Engine
@@ -12,6 +12,16 @@ description: What the wow-view-engine package does, the facts its design rests o
 The view engine is a data view engine for Wow-based business applications. The application declares in code _how a dataset can be observed_: fields, kinds, operators, available dimensions, and metrics. Users decide in the UI _how to observe it this time_: filters, columns, sorting, dimensions and metrics, charts, and panel composition. The engine compiles that choice into Wow queries, runs them through `@ahoo-wang/wow-client`, renders the result, and saves the views worth keeping so they reopen with one click.
 
 It succeeds `@ahoo-wang/fetcher-viewer`, which stays on Fetcher 5.x and is not documented here.
+
+## Where to start
+
+| To | Read |
+|---|---|
+| Wire one business object from zero: install, the query descriptor, `defineView`, the engine, `ViewHost`, one action, run against the example server | [Getting Started with the View Engine](./view-engine-getting-started.md) |
+| Wear a built-in look, use a brand colour, or follow the host's shadcn theme | [Theming the View Engine](./view-engine-theming.md) |
+| Keyboard, screen readers and WCAG 2.2 AA conformance | [Accessibility of the View Engine](./view-engine-accessibility.md) |
+| Draw your own UI instead of the workbench, with the headless hooks of `/react` (`useOpenView`, `useViewRuntime`, `useFilterEditor`, `useRecordTable`) | [wow-view-engine reference](../../reference/typescript/wow-view-engine/) |
+| Keep saved views on a Wow server | [wow-view-store reference](../../reference/typescript/wow-view-store/) |
 
 ## The problem it solves
 
@@ -55,107 +65,6 @@ flowchart LR
 | Embedded view or dashboard | Show a saved view inside a business page, for example a customer's orders, without the workbench |
 | System views | Declare "All", "Pending", and "New this week" in the definition so users open a usable view at once |
 
-## Target usage
-
-From Wow 9.2.0 on, install it with the Wow client:
-
-```sh
-pnpm add @ahoo-wang/wow-view-engine @ahoo-wang/wow-client
-```
-
-`react` and `react-dom` are needed only for the `/react` and `/ui` entries, `react-router` only for `/react-router`, and `mingo` only for `/testing`; the root entry runs in Node. To keep saved views on a Wow server, add `@ahoo-wang/wow-view-store`.
-
-### 1. Declare a definition
-
-<!-- typecheck: file=orders.ts -->
-
-```ts
-import type { ViewDefinition } from '@ahoo-wang/wow-view-engine';
-
-export const orders: ViewDefinition = {
-  id: 'orders',
-  title: 'Orders',
-  kind: 'data',
-  source: 'orders',
-  fields: [
-    { name: 'id', label: 'Order', kind: 'string', sortable: true },
-    {
-      name: 'status',
-      label: 'Status',
-      kind: 'enum',
-      options: [
-        { value: 'PENDING', label: 'Pending' },
-        { value: 'SHIPPED', label: 'Shipped' },
-      ],
-    },
-    { name: 'warehouse', label: 'Warehouse', kind: 'string' },
-    { name: 'amount', label: 'Amount', kind: 'number', summary: ['SUM', 'AVG'] },
-    { name: 'createdAt', label: 'Created', kind: 'datetime', sortable: true },
-  ],
-  // The row key must be sortable: every record query ends its sort on it.
-  record: { rowKey: 'id', paging: 'paged', layouts: ['table', 'card'] },
-};
-```
-
-### 2. Create an engine
-
-<!-- typecheck-context
-import type { ViewSource } from '@ahoo-wang/wow-view-engine';
-import { orders } from './orders';
-declare const queryClients: Record<string, ViewSource>;
--->
-
-```ts
-import { MemoryViewStore, ViewEngine } from '@ahoo-wang/wow-view-engine';
-
-const engine = new ViewEngine({
-  store: new MemoryViewStore(),
-  // Pick<QueryApi, 'paged' | 'cursor' | 'aggregate'> from @ahoo-wang/wow-client
-  resources: [{ definition: orders, source: queryClients.orders }],
-});
-```
-
-`MemoryViewStore` suits tests and examples. A Wow application keeps its views on the Wow view store server with [`WowViewStore`](../../reference/typescript/wow-view-store/) from `@ahoo-wang/wow-view-store`; only a backend that is not Wow implements the `ViewStore` port itself ([persistence](../../reference/typescript/wow-view-engine/#persistence)).
-
-### 3. Render the workbench, or compose your own UI
-
-<!-- typecheck-context
-import type { ViewEngine } from '@ahoo-wang/wow-view-engine';
-declare const engine: ViewEngine;
--->
-
-```tsx
-import '@ahoo-wang/wow-view-engine/styles.css';
-import { DataWorkbench } from '@ahoo-wang/wow-view-engine/ui';
-
-export function OrdersPage() {
-  return <DataWorkbench engine={engine} definitionId="orders" />;
-}
-```
-
-Views follow your page's light or dark mode and take their colours from CSS variables. To wear a built-in look, add one import and name it — here `azure`, the Chinese enterprise admin style; `porcelain` (native desktop) and `contrast` (high contrast) are the others:
-
-<!-- typecheck-context
-import type { ViewEngine } from '@ahoo-wang/wow-view-engine';
-declare const engine: ViewEngine;
--->
-
-```tsx
-import '@ahoo-wang/wow-view-engine/styles.css';
-import '@ahoo-wang/wow-view-engine/themes/azure.css';
-import { DataWorkbench } from '@ahoo-wang/wow-view-engine/ui';
-
-export function OrdersPage() {
-  return <DataWorkbench engine={engine} definitionId="orders" preset="azure" />;
-}
-```
-
-Or put `data-fve-preset="azure"` on `<html>` and every view and popup takes it. Have a brand colour? Put `--fve-brand: <your colour>` on `<html>` beside any preset: the primary and its tints derive from that one colour, every contrast line of that preset held ([I have a brand colour](./view-engine-theming.md#i-have-a-brand-colour)). The catalogue, a "which preset fits my brand" table, host variables, `theme="system"`, pinning and the shadcn bridge are in [Theming the View Engine](./view-engine-theming.md).
-
-A custom layout uses the headless hooks of the `/react` entry, such as `useOpenView`, `useViewRuntime`, `useFilterEditor`, and `useRecordTable`, and renders any markup from them without reaching into engine internals.
-
-The [integration walk-through](/storybook/?path=/docs/view-engine-接入导览--docs) in Storybook takes a host through the recommended wiring in five steps — declare a definition, connect the data, mount `ViewHost`, declare the actions, render the page — with the real source files of a working example.
-
 ## Content Security Policy
 
 The engine runs under a strict Content Security Policy: `script-src 'self'` and `style-src 'self'`, with neither `'unsafe-inline'` nor `'unsafe-eval'`. Three things need allowing:
@@ -178,6 +87,8 @@ Two test runs hold the engine to exactly this policy and fail on a single violat
 
 Each view runs in [Storybook](/storybook/) against in-memory fixtures, inside a host application shell. Saving, renaming, and deleting write to a fresh in-memory store on every visit. The Storybook is written in Chinese only.
 
+The [integration walk-through](/storybook/?path=/docs/view-engine-接入导览--docs) in Storybook takes a host through the recommended wiring in five steps — declare a definition, connect the data, mount `ViewHost`, declare the actions, render the page — with the real source files of a working example.
+
 To see what the engine draws first, open the [chart showcase board](/storybook/?path=/docs/view-engine-业务场景-图型全景--docs): one retail dashboard that uses each of the 22 chart types once, every chart titled with the analytical question it answers, on four tabs (trend, mix, spread and relationships, regions and conversion). Pressing a province on the map or the bar chart, or a payment method on the pie, filters the whole board; the docs page's "Show code" holds the board's whole configuration.
 
 | View | Storybook |
@@ -190,6 +101,7 @@ To see what the engine draws first, open the [chart showcase board](/storybook/?
 
 ## Where to read more
 
+- [Getting Started with the View Engine](./view-engine-getting-started.md): the example server's sales orders wired in from zero, one file a step.
 - [wow-view-engine reference](../../reference/typescript/wow-view-engine/): entries, concepts, persistence port, and extension points.
 - [wow-view-store reference](../../reference/typescript/wow-view-store/): `WowViewStore`, the saved views on a Wow server, and the CoSec gateway rules it needs.
 - [Theming the View Engine](./view-engine-theming.md): presets, host variables, light, dark and system mode, the shadcn bridge, and the contrast an override owes.

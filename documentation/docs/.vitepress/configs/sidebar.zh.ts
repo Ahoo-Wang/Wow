@@ -13,6 +13,58 @@
 
 import {DefaultTheme} from "vitepress/types/default-theme";
 
+// 视图引擎在 TypeScript 客户端区域里自成四组：入门、概念、指南、参考。
+// 阶段 7 的 B2～B5 各自只往自己的那一组里加页面（概念归 B2，宿主、操作与 CSP 归 B3，
+// 存储归 B4，API 参考归 B5），互不改动别的组。
+const viewEngineStart: DefaultTheme.SidebarItem = {
+    base: '/zh/guide/typescript/',
+    text: '视图引擎',
+    items: [
+        {text: '概览', link: 'view-engine'},
+        {text: '入门：接入一个业务对象', link: 'view-engine-getting-started'},
+    ],
+}
+
+const viewEngineConcepts: DefaultTheme.SidebarItem = {
+    base: '/zh/guide/typescript/',
+    text: '视图引擎：概念',
+    items: [],
+}
+
+const viewEngineGuides: DefaultTheme.SidebarItem = {
+    base: '/zh/guide/typescript/',
+    text: '视图引擎：指南',
+    items: [
+        {text: '主题', link: 'view-engine-theming'},
+        {text: '可访问性', link: 'view-engine-accessibility'},
+    ],
+}
+
+const viewEngineReference: DefaultTheme.SidebarItem[] = [
+    {
+        base: '/zh/reference/typescript/wow-view-engine/',
+        text: 'wow-view-engine',
+        collapsed: true,
+        items: [
+            {text: '入口与契约', link: 'index.html'},
+        ],
+    },
+    {
+        base: '/zh/reference/typescript/wow-view-store/',
+        text: 'wow-view-store',
+        collapsed: true,
+        items: [
+            {text: 'Store 与合同', link: 'index.html'},
+        ],
+    },
+]
+
+// 还没有页面的组不出现在侧边栏里。
+const viewEngine: DefaultTheme.SidebarItem[] = [
+    ...[viewEngineStart, viewEngineConcepts, viewEngineGuides].filter((group) => group.items?.length),
+    ...viewEngineReference,
+]
+
 // TypeScript 客户端区域共用一个侧边栏：指南加上各个包的参考。
 const typescriptZh: DefaultTheme.SidebarItem[] = [
     {
@@ -29,9 +81,6 @@ const typescriptZh: DefaultTheme.SidebarItem[] = [
             {text: 'SSR 与 Node.js', link: 'ssr-and-node'},
             {text: '兼容性与版本', link: 'compatibility'},
             {text: '排障', link: 'troubleshooting'},
-            {text: '视图引擎', link: 'view-engine'},
-            {text: '视图引擎的主题', link: 'view-engine-theming'},
-            {text: '视图引擎的可访问性', link: 'view-engine-accessibility'},
             {text: '从 Fetcher 包迁移', link: 'migration'},
         ],
     },
@@ -79,22 +128,7 @@ const typescriptZh: DefaultTheme.SidebarItem[] = [
             {text: '查询 Hook', link: 'index.html'},
         ],
     },
-    {
-        base: '/zh/reference/typescript/wow-view-engine/',
-        text: 'wow-view-engine',
-        collapsed: true,
-        items: [
-            {text: '入口与契约', link: 'index.html'},
-        ],
-    },
-    {
-        base: '/zh/reference/typescript/wow-view-store/',
-        text: 'wow-view-store',
-        collapsed: true,
-        items: [
-            {text: 'Store 与合同', link: 'index.html'},
-        ],
-    },
+    ...viewEngine,
 ]
 
 export const sidebarZh: DefaultTheme.Sidebar = {

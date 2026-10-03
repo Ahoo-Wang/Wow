@@ -13,6 +13,59 @@
 
 import {DefaultTheme} from "vitepress/types/default-theme";
 
+// The view engine has four groups of its own in the TypeScript client area:
+// start, concepts, guides and reference. Batches B2–B5 of phase 7 each add
+// pages to their own group only (concepts in B2; host, actions and CSP in B3;
+// storage in B4; the API reference in B5) and leave the others alone.
+const viewEngineStart: DefaultTheme.SidebarItem = {
+    base: '/guide/typescript/',
+    text: 'View Engine',
+    items: [
+        {text: 'Overview', link: 'view-engine'},
+        {text: 'Getting Started: Wire One Business Object', link: 'view-engine-getting-started'},
+    ],
+}
+
+const viewEngineConcepts: DefaultTheme.SidebarItem = {
+    base: '/guide/typescript/',
+    text: 'View Engine Concepts',
+    items: [],
+}
+
+const viewEngineGuides: DefaultTheme.SidebarItem = {
+    base: '/guide/typescript/',
+    text: 'View Engine Guides',
+    items: [
+        {text: 'Theming', link: 'view-engine-theming'},
+        {text: 'Accessibility', link: 'view-engine-accessibility'},
+    ],
+}
+
+const viewEngineReference: DefaultTheme.SidebarItem[] = [
+    {
+        base: '/reference/typescript/wow-view-engine/',
+        text: 'wow-view-engine',
+        collapsed: true,
+        items: [
+            {text: 'Entries and Contracts', link: 'index.html'},
+        ],
+    },
+    {
+        base: '/reference/typescript/wow-view-store/',
+        text: 'wow-view-store',
+        collapsed: true,
+        items: [
+            {text: 'Store and Contract', link: 'index.html'},
+        ],
+    },
+]
+
+// A group with no page yet stays out of the sidebar.
+const viewEngine: DefaultTheme.SidebarItem[] = [
+    ...[viewEngineStart, viewEngineConcepts, viewEngineGuides].filter((group) => group.items?.length),
+    ...viewEngineReference,
+]
+
 // One sidebar for the TypeScript client area: its guides and the reference of each package.
 const typescriptEn: DefaultTheme.SidebarItem[] = [
     {
@@ -29,9 +82,6 @@ const typescriptEn: DefaultTheme.SidebarItem[] = [
             {text: 'SSR and Node.js', link: 'ssr-and-node'},
             {text: 'Compatibility and Versions', link: 'compatibility'},
             {text: 'Troubleshooting', link: 'troubleshooting'},
-            {text: 'View Engine', link: 'view-engine'},
-            {text: 'Theming the View Engine', link: 'view-engine-theming'},
-            {text: 'Accessibility of the View Engine', link: 'view-engine-accessibility'},
             {text: 'Migrate from Fetcher Packages', link: 'migration'},
         ],
     },
@@ -79,22 +129,7 @@ const typescriptEn: DefaultTheme.SidebarItem[] = [
             {text: 'Query Hooks', link: 'index.html'},
         ],
     },
-    {
-        base: '/reference/typescript/wow-view-engine/',
-        text: 'wow-view-engine',
-        collapsed: true,
-        items: [
-            {text: 'Entries and Contracts', link: 'index.html'},
-        ],
-    },
-    {
-        base: '/reference/typescript/wow-view-store/',
-        text: 'wow-view-store',
-        collapsed: true,
-        items: [
-            {text: 'Store and Contract', link: 'index.html'},
-        ],
-    },
+    ...viewEngine,
 ]
 
 export const sidebarEn: DefaultTheme.Sidebar = {

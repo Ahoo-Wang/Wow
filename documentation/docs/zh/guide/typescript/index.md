@@ -88,6 +88,7 @@ pnpm add -D @ahoo-wang/wow-generator typescript
 | 在服务端、Node.js 或 Next.js 中运行 | [SSR 与 Node.js](./ssr-and-node.md) | [兼容性与版本](./compatibility.md) |
 | 在 React 中展示查询结果 | [wow-react 查询 Hook](../../reference/typescript/wow-react/) | [快照查询](../../reference/typescript/wow-client/snapshot-queries.md) |
 | 评估可保存的数据视图 | [视图引擎](./view-engine.md) | [wow-view-engine 参考](../../reference/typescript/wow-view-engine/) |
+| 把一个业务对象接进视图引擎 | [视图引擎入门](./view-engine-getting-started.md) | [接入导览（Storybook）](/storybook/?path=/docs/view-engine-接入导览--docs) |
 | 从 Fetcher 旧包名迁移 | [从 Fetcher 包迁移](./migration.md) | 各包的参考页 |
 | 找出失败原因 | [排障](./troubleshooting.md) | [错误处理](./error-handling.md) |
 

@@ -34,8 +34,10 @@ import ts from 'typescript'
 // written to `src/` beside that tsconfig.json, with a package.json of
 // `"type": "module"` (what such a page asks for), and compiled with exactly
 // the page's compiler options; the packages its imports name, and the
-// `@types/*` its `types` names, must appear in a `pnpm add` of the page. So a
-// page whose instructions do not work as written fails here.
+// `@types/*` its `types` names (or, for a subpath such as `vite/client`, the
+// package that ships it), must appear in a `pnpm add` of the page. So a page
+// whose instructions do not work as written fails here. A `file=` may name a
+// subdirectory (`src/descriptor.json`) to put a data file beside the sources.
 //
 // Anywhere in a page:
 //
@@ -80,6 +82,7 @@ const ENTRIES = {
         '@ahoo-wang/wow-view-engine/react',
         '@ahoo-wang/wow-view-engine/ui',
         '@ahoo-wang/wow-view-engine/testing',
+        '@ahoo-wang/wow-view-engine/react-router',
     ],
     'wow-view-store': ['@ahoo-wang/wow-view-store'],
     fetcher: [
@@ -95,6 +98,8 @@ const ENTRIES = {
 /** The package a page documents, whose entries come first. */
 function packageOf(page) {
     if (/^skills\/wow-view-/.test(page)) return 'wow-view-engine'
+    // The view engine's guides (`view-engine`, `view-engine-*`) document that package.
+    if (/guide\/typescript\/view-engine(?:-[a-z-]+)?\.md$/.test(page)) return 'wow-view-engine'
     const match = /(?:reference\/typescript\/|^typescript\/)(wow-[a-z-]+)/.exec(page)
     return match && ENTRIES[match[1]] ? match[1] : 'wow-client'
 }
@@ -279,9 +284,12 @@ function checkProject({page, dir, installed}, failures) {
     if (!config) return []
     for (const error of config.errors)
         failures.push(`${page}: ${PROJECT_CONFIG}: TS${error.code} ${ts.flattenDiagnosticMessageText(error.messageText, '\n')}`)
-    for (const types of config.options.types ?? [])
-        if (!installed.has(`@types/${types}`))
-            failures.push(`${page}: ${PROJECT_CONFIG} names the types "${types}", but no install command of the page adds @types/${types}`)
+    for (const types of config.options.types ?? []) {
+        // `node` comes from `@types/node`; `vite/client` from `vite` itself.
+        const from = types.includes('/') ? packageName(types) : `@types/${types}`
+        if (!installed.has(from))
+            failures.push(`${page}: ${PROJECT_CONFIG} names the types "${types}", but no install command of the page adds ${from}`)
+    }
     const project = ts.createProgram({rootNames: config.fileNames, options: config.options})
     const imported = new Set()
     for (const file of project.getSourceFiles().filter((file) => file.fileName.startsWith(dir)))
@@ -317,7 +325,7 @@ async function prepare() {
         let count = 0
         for (const block of pageBlocks) {
             if (block.file && !TYPESCRIPT.has(block.language)) {
-                mkdirSync(dir, {recursive: true})
+                mkdirSync(dirname(join(dir, block.file)), {recursive: true})
                 writeFileSync(join(dir, block.file), block.code)
                 continue
             }
