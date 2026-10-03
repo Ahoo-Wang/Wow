@@ -20,7 +20,7 @@ import type {
 import type { CartesianData } from './cartesian.js';
 import { isPercentStacked } from './chartOptions.js';
 import { timeGroup } from './timeAxis.js';
-import { isAdditiveMetric } from './validateChart.js';
+import { isAdditiveMetric } from './additive.js';
 
 /**
  * Why a derived series cannot be computed over this result (D33 Q53). Wow's

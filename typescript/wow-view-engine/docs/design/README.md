@@ -83,6 +83,8 @@ src/
 
 `model` 到 `store` 六个目录不出现 React、DOM、`window`、`document`。第三方库落点固定，清单在 `test/architecture.test.ts` 的 `HEADLESS_DEPENDENCIES`，未列出的依赖一律只许在 `ui`：`@ahoo-wang/wow-client` 只在根入口与 `model`、`filter`、`record`、`analysis`、`runtime`（`dashboard`、`store` 都没有），且不导入其弃用的 `Condition` 系符号；`dayjs` 在 `filter`、`record`、`analysis`、`runtime`、`ui`；`dequal` 只在 `runtime`；`culori` 在 `analysis` 与 `ui`（`ui` 用它把主题色转成图表库认的 `rgb()`）。只在 `ui` 的是 `@base-ui/react`、`@dnd-kit/dom`、`@dnd-kit/react`、`class-variance-authority`、`cn`、`lucide-react`、`react-day-picker`、`react-error-boundary`、`react-grid-layout`、`react-markdown`、`echarts`；`react`／`react-dom` 是可选 peer，只在 `react` 与 `ui`。表格库不在其中——D16 裁定 1 否掉了 `@tanstack/react-table`，Record 表格用 registry 的 `Table` 加本包自己的列模型。
 
+文件夹内无值环（R2-94）：同一文件夹里的文件按值 import 只走一个方向，两个文件共用的辅助函数放进旁边的叶子文件；`import type` 不算。互相渲染的组件（`ConditionPill` 与 `GroupBlock`）由上层把组件作为 prop 交给下层，不互相 import。确有必要的环只能写进 `test/architecture.test.ts` 的 `ALLOWED_FOLDER_CYCLES` 并注明理由，今天为空。
+
 包入口：
 
 | 入口                         | 内容                                                                                                                             |

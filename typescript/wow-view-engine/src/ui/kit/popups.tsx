@@ -50,7 +50,7 @@ import {
   useSurfaceAttributes,
   useSurfaceFont,
   useSurfaceHostTokens,
-} from './ViewSurface.js';
+} from './surfaceContext.js';
 
 /**
  * The popups this package renders, themed and on a layer of their own.

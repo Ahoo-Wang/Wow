@@ -32,7 +32,7 @@ import { boxSet, fiveNumberSets, type FiveNumbers } from './boxplot.js';
 import { ohlcSet, ohlcSets, type Ohlc } from './candlestick.js';
 import { chartLevels } from './hierarchy.js';
 import { profileAxes } from './profiles.js';
-import { isAdditiveMetric, readsOffSums } from './validateChart.js';
+import { isAdditiveMetric, readsOffSums } from './additive.js';
 
 /**
  * The chart, with the family its `type` asks for filled in from the groups and

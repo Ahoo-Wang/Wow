@@ -19,7 +19,7 @@ import type {
   AnalysisFunction,
   AnalysisMetric,
 } from '../model/index.js';
-import { freeAlias } from './defaults.js';
+import { freeAlias } from './freeAlias.js';
 import type { MetricCondition } from './metricCondition.js';
 import type { MetricFunction } from './metricFormat.js';
 

@@ -231,6 +231,7 @@ export function ConditionStrip({
             isPending={isPending}
             negatable
             negated
+            Group={GroupBlock}
           />
         ) : isFilterGroup(child) ? (
           <div key={index} className="fve:col-span-full">
@@ -254,6 +255,7 @@ export function ConditionStrip({
             optionsFor={optionsFor}
             isPending={isPending}
             negatable={negatable}
+            Group={GroupBlock}
           />
         ) : null;
       })}

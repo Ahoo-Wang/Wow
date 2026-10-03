@@ -677,6 +677,86 @@ describe('architecture', () => {
     },
   );
 
+  /**
+   * 文件夹内无值环 (R2-94): the files of one folder import each other by
+   * value one way only. A circle of value imports inside a folder works
+   * until the evaluation order turns on it — a binding read during module
+   * evaluation is still in its temporal dead zone — and it means no file of
+   * the circle can be read, tested or moved without the others: each one
+   * was a helper living in the file that happened to use it first. A helper
+   * two files share goes into a leaf file beside them. A type-only import
+   * evaluates nothing and is free; a dynamic `import()` counts like a static
+   * one.
+   *
+   * `ALLOWED_FOLDER_CYCLES` is where a circle that is genuinely needed would
+   * be written down, one entry per circle with the reason beside it, as the
+   * cycle's files sorted and joined by ` <-> `. It is empty, and should stay
+   * so.
+   */
+  it('has no value-import cycle within a folder', () => {
+    const ALLOWED_FOLDER_CYCLES: readonly string[] = [];
+    const byPath = new Map(files.map(file => [file.path, file]));
+    const resolveSource = (from: SourceFile, specifier: string) => {
+      const target = targetOf(from, specifier);
+      if (target === null) return null;
+      const base = join(src, target.replace(/\.(tsx?|js)$/, ''));
+      return (
+        [`${base}.ts`, `${base}.tsx`, join(base, 'index.ts')].find(path =>
+          byPath.has(path),
+        ) ?? null
+      );
+    };
+    const edges = new Map(
+      files.map(file => [
+        file.path,
+        file.imports
+          .filter(({ typeOnly }) => !typeOnly)
+          .map(({ specifier }) => resolveSource(file, specifier))
+          .filter(
+            (target): target is string =>
+              target !== null && dirname(target) === dirname(file.path),
+          ),
+      ]),
+    );
+    // Tarjan's strongly connected components: every component of more than
+    // one file, or a file importing itself, is a circle.
+    const index = new Map<string, number>();
+    const low = new Map<string, number>();
+    const stack: string[] = [];
+    const cycles: string[] = [];
+    const connect = (path: string) => {
+      index.set(path, index.size);
+      low.set(path, index.get(path)!);
+      stack.push(path);
+      for (const next of edges.get(path) ?? []) {
+        if (!index.has(next)) {
+          connect(next);
+          low.set(path, Math.min(low.get(path)!, low.get(next)!));
+        } else if (stack.includes(next)) {
+          low.set(path, Math.min(low.get(path)!, index.get(next)!));
+        }
+      }
+      if (low.get(path) !== index.get(path)) return;
+      const component: string[] = [];
+      let member: string;
+      do {
+        member = stack.pop()!;
+        component.push(member);
+      } while (member !== path);
+      if (component.length > 1 || edges.get(path)!.includes(path))
+        cycles.push(
+          component
+            .map(file => relative(src, file))
+            .sort()
+            .join(' <-> '),
+        );
+    };
+    for (const file of files) if (!index.has(file.path)) connect(file.path);
+    expect(
+      cycles.filter(cycle => !ALLOWED_FOLDER_CYCLES.includes(cycle)).sort(),
+    ).toEqual([]);
+  });
+
   describe('ui folders', () => {
     /** The folder under `src/ui` a path is in; `null` at the ui root or outside `ui`. */
     const folderOf = (path: string): string | null => {

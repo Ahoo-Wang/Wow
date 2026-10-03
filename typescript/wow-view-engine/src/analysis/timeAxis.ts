@@ -26,7 +26,7 @@ import {
   type DateInstant,
   type DateTimeFilterValue,
 } from '../filter/index.js';
-import { bucketRange, bucketStart, wallClockAt } from './drill.js';
+import { bucketRange, bucketStart, wallClockAt } from './buckets.js';
 
 /**
  * A time axis as the chart projection draws one: earliest first whatever

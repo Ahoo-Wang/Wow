@@ -16,7 +16,7 @@ import {
   type DataViewDefinition,
   type SummaryFunction,
 } from '../model/index.js';
-import { summaryAlias } from './compile.js';
+import { summaryAlias } from './summaryAlias.js';
 
 /**
  * For a summary of money whose currency each record holds, what tells the

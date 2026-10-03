@@ -11,21 +11,10 @@
  * limitations under the License.
  */
 
-/**
- * The record kernel: a definition and a config in, a Wow query or a rendered
- * view out. Pure functions with no React, DOM, network or clock of their own.
- */
-export * from './compile.js';
-export * from './defaults.js';
-export * from './detail.js';
-export {
-  CSV_BOM,
-  serializeCsv,
-  type CsvOptions,
-  type ExportColumn,
-  type ExportFormat,
-} from './export.js';
-export * from './paging.js';
-export * from './project.js';
-export * from './summaryAlias.js';
-export * from './validate.js';
+import { fieldAliasSegment, type SummaryFunction } from '../model/index.js';
+
+/** Alias of one summary cell; the projection reads the result back by it. */
+export function summaryAlias(field: string, fn: SummaryFunction): string {
+  // Aliases are single-segment in Wow, so a field path becomes one token.
+  return `${fieldAliasSegment(field)}_${fn.toLowerCase()}`;
+}

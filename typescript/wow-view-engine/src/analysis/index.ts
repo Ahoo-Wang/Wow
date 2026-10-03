@@ -16,7 +16,9 @@
  * protocol, so compilation is a mapping and the interesting work is admission
  * and the shaping each chart family needs.
  */
+export { isAdditiveMetric } from './additive.js';
 export * from './bucketChange.js';
+export { bucketRange, wallClockAt, type BucketRange } from './buckets.js';
 export * from './candidates.js';
 export * from './capability.js';
 export * from './chart.js';
@@ -29,20 +31,18 @@ export * from './defaults.js';
 // By name: `drillSpan` is the follow-up hook's and the board's, read from
 // `drill.js` itself, and no part of the root entry.
 export {
-  bucketRange,
   drillConditions,
   drillGroups,
   focusOn,
   groupFor,
   splitBy,
-  wallClockAt,
-  type BucketRange,
   type DrillContext,
   type DrilledGroup,
 } from './drill.js';
 export { drillFilter, narrowsTo } from './drillFilter.js';
 export * from './fitCharts.js';
 export * from './formula.js';
+export * from './freeAlias.js';
 export * from './expand.js';
 export * from './granularity.js';
 export * from './having.js';
@@ -68,8 +68,4 @@ export {
 } from './metricFormat.js';
 export * from './project.js';
 export * from './validate.js';
-export {
-  isAdditiveMetric,
-  isChartColor,
-  validateChart,
-} from './validateChart.js';
+export { isChartColor, validateChart } from './validateChart.js';

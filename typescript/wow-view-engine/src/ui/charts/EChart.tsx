@@ -23,7 +23,8 @@ import {
   type ReactNode,
 } from 'react';
 import { useViewMessages } from '../kit/MessagesProvider.js';
-import { useSurfaceTheme, useSurfaceTokens } from '../kit/ViewSurface.js';
+import { useSurfaceTheme } from '../kit/surfaceContext.js';
+import { useSurfaceTokens } from '../kit/ViewSurface.js';
 import { BRUSH_CLEAR, BRUSH_CURSOR } from './cartesianBrush.js';
 import type { LegendEntry } from './ChartLegend.js';
 import { ChartFailure } from '../kit/chartFailure.js';

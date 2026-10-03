@@ -455,8 +455,8 @@ export {
   compileRecord,
   compileSummaries,
   recordProjection,
-  summaryAlias,
 } from './record/compile.js';
+export { summaryAlias } from './record/summaryAlias.js';
 export { defaultRecordConfig, recordCapabilityOf } from './record/defaults.js';
 export { type DetailSection, detailSections } from './record/detail.js';
 export {
@@ -625,7 +625,6 @@ export {
   aliasOf,
   defaultAnalysisConfig,
   firstMetric,
-  freeAlias,
   groupFacts,
   groupOfType,
   groupableFields,
@@ -637,15 +636,17 @@ export {
 } from './analysis/defaults.js';
 export {
   type BucketRange,
+  bucketRange,
+  wallClockAt,
+} from './analysis/buckets.js';
+export {
   type DrillContext,
   type DrilledGroup,
-  bucketRange,
   drillConditions,
   drillGroups,
   focusOn,
   groupFor,
   splitBy,
-  wallClockAt,
 } from './analysis/drill.js';
 export { drillFilter, narrowsTo } from './analysis/drillFilter.js';
 export {
@@ -670,6 +671,7 @@ export {
   metricReferenceText,
   wordReferences,
 } from './analysis/formula.js';
+export { freeAlias } from './analysis/freeAlias.js';
 export {
   type Dropped,
   type Rescoped,
@@ -720,11 +722,8 @@ export {
   type ValidateAnalysisOptions,
   validateAnalysis,
 } from './analysis/validate.js';
-export {
-  isAdditiveMetric,
-  isChartColor,
-  validateChart,
-} from './analysis/validateChart.js';
+export { isAdditiveMetric } from './analysis/additive.js';
+export { isChartColor, validateChart } from './analysis/validateChart.js';
 // dashboard — the dashboard kernel.
 export {
   type BoardClick,

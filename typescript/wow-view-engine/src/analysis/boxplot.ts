@@ -19,7 +19,7 @@ import {
   type RecordData,
 } from '../model/index.js';
 import { num } from './chartRows.js';
-import { freeAlias } from './defaults.js';
+import { freeAlias } from './freeAlias.js';
 import { forwardInTime, timeGroup } from './timeAxis.js';
 
 /** The five numbers of a box, by the slot each fills. */

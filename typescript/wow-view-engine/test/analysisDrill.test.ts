@@ -22,7 +22,7 @@ import {
   narrowsTo,
   splitBy,
 } from '../src/analysis/index.js';
-import { bucketStart } from '../src/analysis/drill.js';
+import { bucketStart } from '../src/analysis/buckets.js';
 import { builtinFieldKinds } from '../src/filter/index.js';
 import type {
   AnalysisDateUnit,

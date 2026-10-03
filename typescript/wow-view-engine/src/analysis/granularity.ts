@@ -18,7 +18,7 @@ import type {
   RecordData,
 } from '../model/index.js';
 import { readInstant } from '../filter/index.js';
-import { bucketRange } from './drill.js';
+import { bucketRange } from './buckets.js';
 import { appliedWindow } from './timeAxis.js';
 
 /**

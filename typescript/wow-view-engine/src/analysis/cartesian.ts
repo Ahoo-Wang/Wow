@@ -43,7 +43,7 @@ import {
 } from './references.js';
 import { peaksOnlyLabels } from './chartFamilies.js';
 import { bySize, foldOther, splitFoldable } from './splitOther.js';
-import { isAdditiveMetric } from './validateChart.js';
+import { isAdditiveMetric } from './additive.js';
 
 export interface CartesianData {
   type: 'cartesian';
