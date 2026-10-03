@@ -4,12 +4,9 @@
 
 ## 现在到哪了（2026-10-03）
 
-六个阶段都已落地：记录视图、分析视图、仪表盘、嵌入视图、内置多主题（四套预设 `neutral`、`azure`、`porcelain`、`contrast`，主题架构 S1～S11），分析视图释放 ECharts（批 A～E、D41 全部图型、Wow 查询 N1～N6 的采用）。本包已迁入 Wow 仓，补偿控制台以它为基础重写，是第一个真实宿主。首发前的收口也已完成：宿主接入 H1～H3（[host-integration.md](host-integration.md)，[D67](decisions.md#d67-宿主接入事实归机器选择归宿主2026-09-28)）、工具类前缀 `fve:`（[D66](decisions.md)）、ui 根目录拆成三层、架构与代码质量审查（含查询后端与 wow-react）、Storybook 的两轮审查与零售场景、严格 CSP 下整个引擎零违规（[D74](decisions.md#d74-严格-csp-的门是一组-storybook-故事库加的样式一律带页面-nonce引擎不载-data-图片2026-09-29)）。阶段 6 的 Wow 存储后端也已落地（[view-store-backend.md](view-store-backend.md)）：视图与偏好是两个 Wow 聚合，示例服务端与补偿服务内嵌、另有独立服务端，`WowViewStore` 在两种服务端上过端口一致性套件、隔离测试与引擎端到端，补偿控制台的视图存进补偿服务（共享，不登录）。两个 skill 也已写好（[host-integration.md](host-integration.md) 第 6 节）：`wow-view-definition` 改写为只讲判断、自检就是 `admit`，新增 `wow-view-host`（资源、**ViewHost**、`bind`、路由、存储与「从命令到操作」），示例随文档站测试编译。第二轮全面审查已由用户 2026-10-01 明确通过，推迟的条目在 [todo.md](todo.md)「首发后再议」。**本包已随 Wow 9.2.0 发布**（2026-10-03，npm `latest`，带 provenance），与 `@ahoo-wang/wow-view-store` 一起。
+六个阶段都已落地：记录视图、分析视图、仪表盘、嵌入视图、内置多主题（四套预设 `neutral`、`azure`、`porcelain`、`contrast`，主题架构 S1～S11），分析视图释放 ECharts（批 A～E、D41 全部图型、Wow 查询 N1～N6 的采用）。本包已迁入 Wow 仓，补偿控制台以它为基础重写，是第一个真实宿主。首发前的收口也已完成：宿主接入 H1～H3（[host-integration.md](host-integration.md)，[D67](decisions.md#d67-宿主接入事实归机器选择归宿主2026-09-28)）、工具类前缀 `fve:`（[D66](decisions.md)）、ui 根目录拆成三层、架构与代码质量审查（含查询后端与 wow-react）、Storybook 的两轮审查与零售场景、严格 CSP 下整个引擎零违规（[D74](decisions.md#d74-严格-csp-的门是一组-storybook-故事库加的样式一律带页面-nonce引擎不载-data-图片2026-09-29)）。阶段 6 的 Wow 存储后端也已落地（[view-store-backend.md](view-store-backend.md)）：视图与偏好是两个 Wow 聚合，示例服务端与补偿服务内嵌、另有独立服务端，`WowViewStore` 在两种服务端上过端口一致性套件、隔离测试与引擎端到端，补偿控制台的视图存进补偿服务（共享，不登录）。两个 skill 也已写好（[host-integration.md](host-integration.md) 第 6 节）：`wow-view-definition` 改写为只讲判断、自检就是 `admit`，新增 `wow-view-host`（资源、**ViewHost**、`bind`、路由、存储与「从命令到操作」），示例随文档站测试编译。第二轮全面审查已由用户 2026-10-01 明确通过，推迟的条目在 [todo.md](todo.md)「首发后再议」。**本包已随 Wow 9.2.0 发布**（2026-10-03，npm `latest`，带 provenance），与 `@ahoo-wang/wow-view-store` 一起。阶段 7 的文档站也已落地：文档站上有面向宿主研发的一整套页，中英两版，从入门、概念、定义、宿主接入、操作、CSP、存储到 Kotlin 的视图存储与 API 参考。
 
-接下来（用户 2026-09-29 的顺序：存储后端 → skills → 发版 → 文档；前三项已完成）：
-
-1. 阶段 7 文档站（[todo.md](todo.md)「首发后再议」）；
-2. 推迟到首发之后的两项：真人读屏走查与 Firefox／WebKit 视觉回归（[D73](decisions.md#d73-真人读屏走查与多浏览器视觉回归放到首发之后2026-09-29)）。
+接下来（用户 2026-09-29 的顺序：存储后端 → skills → 发版 → 文档；四项都已完成）：推迟到首发之后的两项，真人读屏走查与 Firefox／WebKit 视觉回归（[D73](decisions.md#d73-真人读屏走查与多浏览器视觉回归放到首发之后2026-09-29)）。文档站的两项后续——面向最终用户的使用文档、9.3 精简包 README——在 [todo.md](todo.md)「首发后再议」。
 
 从 9.2.0 起，补丁版本不破坏本包的公开面（导出、CSS 合同、消息键与 issue code、`wow-view-engine` 命令）；破坏性改动只进 `x.Y.0`，并写进发布说明的「Breaking」。
 
@@ -31,6 +28,7 @@
 - **两个 skill**（2026-09-30～10-01）：`wow-view-definition` 改写、`wow-view-host` 新增，示例由文档站编译；验收通过——只凭 skill 写零售场景，`admit` 首跑中英文皆 `[]`（host-integration.md 第 6 节）。
 - **第二轮全面审查**（2026-09-30～10-02）：各批修复 #3826～#3863；视图存储随 9.2.0 发布（[D78](decisions.md)）、存储的系统视图（[D81](decisions.md)，#3854、#3855）；用户 2026-10-01 明确通过，推迟的条目进 [todo.md](todo.md)「首发后再议」（#3857）；可访问性声明在 rc 上重走一遍（#3858）。
 - **首发 9.2.0**（2026-10-03）：`9.2.0-rc.0` 手工发到 npm（`next`），用户的 VoiceOver 抽查通过（D73）；补偿控制台在 rc 上试用通过（`typescript/RELEASING.md`「C′」，#3870 修掉 rc 之外的问题）；CI 带 provenance 发出 9.2.0（[release](https://github.com/Ahoo-Wang/Wow/releases/tag/v9.2.0)，#3869）。记录在 `typescript/MIGRATION.md`「进度」。
+- **阶段 7 文档站**（2026-10-03）：面向宿主研发，中英两版，侧边栏里视图引擎自成入门、概念、指南、参考四组。B1 #3872 落地页改写与「视图引擎入门」（`guide/typescript/view-engine`、`view-engine-getting-started`）；B2 #3873「核心概念」「写好一份定义」（`view-engine-concepts`、`view-engine-definitions`）；B3 #3875「把视图引擎接进宿主」「声明式操作」「内容安全策略」（`view-engine-host`、`view-engine-actions`、`view-engine-csp`）；B4 #3874「视图存在哪里」与 Kotlin 的「视图存储」（`view-engine-storage`、`guide/extensions/view-store`）；B5 #3876 API 参考（`reference/typescript/wow-view-engine/` 的八个手写专题页、按入口生成的英文符号索引及其过期检查、由公开面清单生成的 issue code 表）。收尾 #3881：页面互链（落地页、参考与指南、入门的下一步），入门里「只取显示的列」改为一行实际带回的字段，`model-shapes.md`、`view-store-backend.md` 5.3、`management.md` 对齐代码，主题页的令牌表检查进 `test:docs`。
 
 ## 协作规则
 

@@ -22,6 +22,8 @@ description: 'DataWorkbench、DashboardWorkbench、EmbeddedView 与 EmbeddedDash
 <DataWorkbench definitionId="orders" />
 ```
 
+相关指南：[把视图引擎接进宿主](../../../guide/typescript/view-engine-host.md#embeds)（嵌入在业务页面里展示决定好的视图）、[视图引擎入门](../../../guide/typescript/view-engine-getting-started.md)（第 8 步把 `DataWorkbench` 放进页面）、[视图引擎的主题](../../../guide/typescript/view-engine-theming.md)（四个界面的外观）。
+
 ## DataWorkbench {#api-DataWorkbench}
 
 一份数据定义的工作台：记录视图与分析视图在同一个列表里，用户像在任意两个视图之间一样切换。

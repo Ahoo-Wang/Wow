@@ -9,6 +9,8 @@ description: 'ViewEngine、它的选项与 resources、ViewSource 与 RuntimeEnv
 
 直接构造它，不要继承：它标了 `@sealed`，基类 `EngineResources` 只是文件的拆法，不是扩展点。
 
+相关指南：[视图引擎入门](../../../guide/typescript/view-engine-getting-started.md)（第 6 步建出引擎与资源）、[把视图引擎接进宿主](../../../guide/typescript/view-engine-host.md)（为什么整个应用只有一个引擎）、[视图引擎的核心概念](../../../guide/typescript/view-engine-concepts.md)（引擎管理的视图与运行时）。
+
 ## 建一个引擎
 
 每个资源把一份定义和它的数据来源配成一对；同一个来源上的所有页面共用查询、偏好与查询描述。`MemoryViewStore` 刷新就忘，开发与测试够用；在 Wow 服务上换成 [`WowViewStore`](../wow-view-store/)。

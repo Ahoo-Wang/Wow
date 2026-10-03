@@ -7,6 +7,8 @@ description: 'Every issue code the view engine reports, with its default wording
 
 Every kernel of the engine reports a problem in one shape: `Issue`. Wording is not in the model: `code` is the stable key to branch on, `params` carries the values a sentence needs, and the UI layer looks the sentence up in the catalogue by `code`. So a host can branch on a `code` (to handle one kind of failure its own way) and reword by key ([wording](./host#api-MessagesProvider)).
 
+Guides: [Writing a Definition](../../../guide/typescript/view-engine-definitions.md) (reading and fixing what `admit` reports); [Fitting the View Engine into a Host](../../../guide/typescript/view-engine-host.md#messages) (rewording by key).
+
 ## Issue {#api-Issue}
 
 - `severity`: `error` blocks apply and save; `warning` is reported without blocking — something is wrong, or the answer could be misread; `note` is something true about the answer a reader should know, with nothing wrong — the groups a view's own limit left out, say.

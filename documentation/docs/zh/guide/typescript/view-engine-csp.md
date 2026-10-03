@@ -39,5 +39,5 @@ nonce 每次响应都要新生成，由服务端（或渲染 HTML 的那一层�
 | 接下来 | 阅读 |
 |---|---|
 | 样式表有哪些、各什么时候引 | [视图引擎的主题](./view-engine-theming.md) |
-| `ViewHost`、路由与嵌入 | [把引擎接进宿主](./view-engine-host.md) |
+| [`ViewHost`](../../reference/typescript/wow-view-engine/host.md#api-ViewHost)、路由与嵌入 | [把引擎接进宿主](./view-engine-host.md) |
 | 视图引擎是什么 | [视图引擎](./view-engine.md) |

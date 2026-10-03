@@ -39,5 +39,5 @@ Two test runs hold the engine to exactly this policy and fail on a single violat
 | Next | Read |
 |---|---|
 | Which stylesheets there are, and when to import each | [Theming the View Engine](./view-engine-theming.md) |
-| `ViewHost`, routes and embeds | [Fitting the View Engine into a Host](./view-engine-host.md) |
+| [`ViewHost`](../../reference/typescript/wow-view-engine/host.md#api-ViewHost), routes and embeds | [Fitting the View Engine into a Host](./view-engine-host.md) |
 | What the view engine is | [View Engine](./view-engine.md) |

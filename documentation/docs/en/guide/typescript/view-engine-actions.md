@@ -159,7 +159,7 @@ export const orderActions = (commands: OrderCommands) =>
   ]);
 ```
 
-Bind them on the resource: `bind('orders', { route, actions: orderActions(orderCommands(fetcher)) })` ([Fitting the View Engine into a Host](./view-engine-host.md#bind)). Wherever the resource shows, its actions come along.
+Bind them on the resource: [`bind('orders', { route, actions: orderActions(orderCommands(fetcher)) })`](../../reference/typescript/wow-view-engine/host.md#api-bind) ([Fitting the View Engine into a Host](./view-engine-host.md#bind)). Wherever the resource shows, its actions come along.
 
 | Member | What it is |
 |---|---|
@@ -211,7 +211,7 @@ This is the trap most hosts step in first. **The engine queries only what a view
 
 So where the "To ship" view shows no status column, `stateOf(row).status` is `undefined`, the ship rule answers "Only a paid order can ship", and every row's button is disabled — while in "All orders", which shows the status, the same order ships.
 
-List the fields the rules read in the definition's `record.rowFields`, and every row carries them whatever the view shows:
+List the fields the rules read in the definition's [`record.rowFields`](../../reference/typescript/wow-view-engine/definitions.md#api-RecordCapability), and every row carries them whatever the view shows:
 
 <!-- typecheck-context
 import type { QueryModelDescriptor } from '@ahoo-wang/wow-client';
@@ -250,7 +250,7 @@ Each must be a field the definition declares and a row holds, which admission ch
 
 - **A disabled button stays focusable.** It is not native `disabled` but `aria-disabled`: in the Tab order, opening the hint with its reason on focus, the reason also its accessible description; the menu lists the reasons, deduplicated, at its top.
 - While a command runs the ⋯ menu still opens with its items disabled; when the question closes, focus goes back to the button pressed.
-- `EmbeddedView` draws no declared actions: its row commands are only the host's own `rowActions`.
+- [`EmbeddedView`](../../reference/typescript/wow-view-engine/components.md#api-EmbeddedView) draws no declared actions: its row commands are only the host's own `rowActions`.
 
 ## Confirmation and forms {#confirm}
 
@@ -309,7 +309,7 @@ What a declaration cannot say — a link out, a control of the host's own — is
 
 ## Testing with `actionHarness` {#harness}
 
-`actionHarness(actions, rows, { now })` from `/testing` reads the declarations by the engine's own rules, without a screen — the same rules the UI reads. Cover each rule on representative rows, what each place offers, what a press asks, and that `run` sends the right command to the right id:
+[`actionHarness(actions, rows, { now })`](../../reference/typescript/wow-view-engine/testing.md#api-actionHarness) from `/testing` reads the declarations by the engine's own rules, without a screen — the same rules the UI reads. Cover each rule on representative rows, what each place offers, what a press asks, and that `run` sends the right command to the right id:
 
 <!-- typecheck-context
 import { orderActions } from './orderActions';
@@ -371,6 +371,6 @@ expect(commands.cancel).toHaveBeenCalledWith('O-1', 3, 'Buyer asked');
 
 | Next | Read |
 |---|---|
-| `ViewHost`, `bind`, routes and embeds | [Fitting the View Engine into a Host](./view-engine-host.md) |
+| [`ViewHost`](../../reference/typescript/wow-view-engine/host.md#api-ViewHost), `bind`, routes and embeds | [Fitting the View Engine into a Host](./view-engine-host.md) |
 | How keyboard and screen-reader users walk through declared actions | [Accessibility of the View Engine](./view-engine-accessibility.md) |
 | Wire one business object from zero, with one action | [Getting Started with the View Engine](./view-engine-getting-started.md) |

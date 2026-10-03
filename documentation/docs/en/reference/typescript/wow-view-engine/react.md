@@ -32,6 +32,8 @@ export function ToShipCount() {
 }
 ```
 
+Guides: [View Engine Core Concepts](../../../guide/typescript/view-engine-concepts.md) (the views and runtimes these hooks open and follow); [Declared Actions](../../../guide/typescript/view-engine-actions.md#slots) (the slots, when only one cell or button changes).
+
 ## Opening and subscribing {#api-useOpenView}
 
 | Hook | Role |

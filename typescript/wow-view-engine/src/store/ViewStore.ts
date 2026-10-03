@@ -23,7 +23,8 @@ import type {
  * The only port a backend must satisfy. Its failure type is `ViewStoreError`
  * from `model`, so both sides of the port speak it.
  *
- * Eight methods, and one a store may leave out (`changeAudience`); two
+ * Eight methods, and two a store may leave out (`changeAudience`, and
+ * `permissions`, whose absence allows everything but `editSystem`); two
  * consistency rules: a write carries the revision it expects, and a retry
  * reuses its `requestId` so the server can recognise the same intent.
  *
@@ -141,10 +142,10 @@ export interface ViewPermissions {
    * (`stored: true`) and creates new ones (`create({ scope: 'system' })`,
    * 「发布为系统视图」), D81. **Absent is false** — unlike everything else
    * here, where silence allows: a system view reaches every user, so only a
-   * host that says so opens it, and `ALLOW_ALL` does not. When true, the
-   * `instance(id)` answer below applies to a stored system view (save,
-   * rename, delete); a system view never moves audience, and one declared
-   * in code or in the backend's configuration stays read-only.
+   * host that says so opens it, and a store without `permissions` does not.
+   * When true, the `instance(id)` answer below applies to a stored system
+   * view (save, rename, delete); a system view never moves audience, and
+   * one declared in code or in the backend's configuration stays read-only.
    */
   editSystem?: boolean;
   instance(id: string): InstancePermissions;

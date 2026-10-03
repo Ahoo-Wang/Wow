@@ -34,14 +34,14 @@ flowchart LR
 
 | 类型 | 作用 | 住在哪 |
 |---|---|---|
-| `ViewDefinition` | 一份数据**能**怎样观察：字段、类型、操作符，以及记录视图与分析视图的能力。用 `defineView` 从查询描述写出，或手写；运行时从不编辑 | 代码 |
+| `ViewDefinition` | 一份数据**能**怎样观察：字段、类型、操作符，以及记录视图与分析视图的能力。用 [`defineView`](../../reference/typescript/wow-view-engine/definitions.md#api-defineView) 从查询描述写出，或手写；运行时从不编辑 | 代码 |
 | `ViewConfig` | 一次观察**怎样**看：`RecordViewConfig`、`AnalysisViewConfig` 或 `DashboardViewConfig`。保存的是意图（「最近 7 天」），不是编译后的值，也从不写组件名 | 数据 |
 | `ViewInstance` | 已保存的 `ViewConfig`，加上 id、标题、范围（`system`、`shared` 或 `personal`）与不透明的 `revision`；store 存着的系统视图另带 `stored: true` | 存储 |
 | `ViewPreferences` | 一个用户在一份定义上的习惯：视图的顺序、默认视图、分析的「改了就跑」、仪表盘上次看的标签页 | 存储 |
 | `ViewRuntime` | 一个打开的视图：草稿、已应用的配置、结果、状态与选择，通过 `subscribe` 与 `getSnapshot` 暴露 | 内存 |
-| `ViewEngine` | 定义、存储与已打开运行时的注册表；打开、保存、列出等命令的唯一入口，默认界面与自己拼的界面走同一条路 | 内存 |
-| `ViewStore` | 持久化端口：Wow 服务端上是 `@ahoo-wang/wow-view-store` 的 `WowViewStore`，别的后端自己实现 | 应用 |
-| `FieldKind` | 一种字段类型的操作符、校验、到 `FilterExpression` 的编译以及编辑器描述 | 注册表 |
+| [`ViewEngine`](../../reference/typescript/wow-view-engine/engine.md#api-ViewEngine) | 定义、存储与已打开运行时的注册表；打开、保存、列出等命令的唯一入口，默认界面与自己拼的界面走同一条路 | 内存 |
+| [`ViewStore`](../../reference/typescript/wow-view-engine/store.md#api-ViewStore) | 持久化端口：Wow 服务端上是 `@ahoo-wang/wow-view-store` 的 `WowViewStore`，别的后端自己实现 | 应用 |
+| [`FieldKind`](../../reference/typescript/wow-view-engine/definitions.md#api-FieldKind) | 一种字段类型的操作符、校验、到 `FilterExpression` 的编译以及编辑器描述 | 注册表 |
 
 ## 定义
 
@@ -111,7 +111,7 @@ export const PAID_THIS_WEEK: RecordViewConfig = {
 - **面板**落在一张 24 列的栅格上，可以分标签页。数据面板显示一个已保存的视图（`instanceId`），或一个**看板自己拥有**的分析（`owned`，只活在这块板里）；内容面板是标题、Markdown 文本、图片与链接。
 - **板子的筛选**由配置声明，因为它们跨定义：日期、文本、ID、数字、布尔与搜索，各接到面板上同类的字段。日期筛选经每份定义的 `timeField` 自动接到面板上；面板可以声明 `ignoresTime` 不跟随。板子还有一个读者改不了的**固定范围**（`fixed`）。
 - **引用有范围约束。** 共享仪表盘只能引用共享视图或系统视图，否则别的读者看到的是一块空面板；系统仪表盘只能引用系统视图（见下一节）。
-- **嵌入**：`/ui` 的 `EmbeddedView` 与 `EmbeddedDashboard` 把一个已保存的视图或仪表盘放进业务页面，不带工作台。
+- **嵌入**：`/ui` 的 [`EmbeddedView`](../../reference/typescript/wow-view-engine/components.md#api-EmbeddedView) 与 [`EmbeddedDashboard`](../../reference/typescript/wow-view-engine/components.md#api-EmbeddedDashboard) 把一个已保存的视图或仪表盘放进业务页面，不带工作台。
 
 ## 系统、共享与个人视图
 
@@ -176,7 +176,7 @@ export const store = new WowViewStore({
 
 几个人、几个标签页同时改同一个视图是常态。引擎不加锁，靠两条规则保持一致：
 
-- **乐观 revision。** 每个保存的视图带一个不透明的 `revision`，只做相等比较。每次写入都带上它期望的 `revision`；store 里的已经变了，写入以 `CONFLICT` 被拒，`ViewStoreError` 带回 store 当下持有的那份。
+- **乐观 revision。** 每个保存的视图带一个不透明的 `revision`，只做相等比较。每次写入都带上它期望的 `revision`；store 里的已经变了，写入以 `CONFLICT` 被拒，[`ViewStoreError`](../../reference/typescript/wow-view-engine/store.md#api-ViewStoreError) 带回 store 当下持有的那份。
 - **幂等的 `requestId`。** 每次逻辑写入在 `WriteContext` 里有一个 `requestId`；超时后的重试沿用同一个值与同一份正文，由服务端去重，所以重试不会多建出一个视图。
 
 一次写入有四种结局，草稿在每一种里都留着：
@@ -194,7 +194,7 @@ export const store = new WowViewStore({
 
 ## 存储
 
-`ViewStore` 是后端唯一要满足的端口：八个方法（列出、读取、新建、保存、改名、删除视图，读写偏好），外加可选的 `changeAudience` 与同步的 `permissions`。签名与规则见 [wow-view-engine 参考](../../reference/typescript/wow-view-engine/#persistence)。
+`ViewStore` 是后端唯一要满足的端口：八个方法（列出、读取、新建、保存、改名、删除视图，读写偏好），外加两个可选的：`changeAudience`，与同步的 `permissions`（不实现时除 `editSystem` 外全部允许）。签名与规则见 [wow-view-engine 参考](../../reference/typescript/wow-view-engine/#persistence)。
 
 - **只存两样东西。** 保存的视图（`ViewInstance`）与每个用户在每份定义上的偏好（`ViewPreferences`）。定义不存，运行时状态不存。
 - **列表顺序是端口的一部分。** 系统视图、共享视图、个人视图，各组按创建先后；没有偏好时打开第一个，所以换一个 store 打开的仍是同一个默认视图。
@@ -203,7 +203,7 @@ export const store = new WowViewStore({
 
 | 实现 | 用在哪 |
 |---|---|
-| `MemoryViewStore` | 测试、示例与只读查询；加上 `localStorageSnapshot(key)` 就把一个浏览器的视图存进 `localStorage` |
+| [`MemoryViewStore`](../../reference/typescript/wow-view-engine/store.md#api-MemoryViewStore) | 测试、示例与只读查询；加上 [`localStorageSnapshot(key)`](../../reference/typescript/wow-view-engine/store.md#api-localStorageSnapshot) 就把一个浏览器的视图存进 `localStorage` |
 | `WowViewStore`（`@ahoo-wang/wow-view-store`） | Wow 应用：视图与偏好是视图存储服务端上的两个 Wow 聚合，见 [wow-view-store 参考](../../reference/typescript/wow-view-store/) |
 | 自己实现 `ViewStore` | 不是 Wow 的后端：用它自己的 API，把 HTTP 状态映射到 `ViewStoreError` 的 code |
 

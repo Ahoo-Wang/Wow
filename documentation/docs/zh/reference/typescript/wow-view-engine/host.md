@@ -7,6 +7,8 @@ description: 'ViewHost、bind、路由端口、声明的操作 actions() 与措�
 
 宿主在页面外面写一次 `ViewHost`，把几个端口填上：数据（`engine`）、路由（`router`）、主题、语言、每个资源在这个宿主里的行为（`bindings`）。其下的每个界面——工作台、嵌入、看板——只取自己所在处不同的东西：`<DataWorkbench definitionId="orders" />`。路由、国际化与主题仍然归宿主，端口只是通向它们的桥。
 
+相关指南：[把视图引擎接进宿主](../../../guide/typescript/view-engine-host.md)（`ViewHost`、[`bind`](../../../guide/typescript/view-engine-host.md#bind)、[路由端口](../../../guide/typescript/view-engine-host.md#router-port)、[措辞与语言](../../../guide/typescript/view-engine-host.md#messages)）、[声明式操作](../../../guide/typescript/view-engine-actions.md)（怎样[声明一个操作](../../../guide/typescript/view-engine-actions.md#declare)、放在哪、确认与结局）。
+
 ## ViewHost {#api-ViewHost}
 
 `ViewHost` 可以嵌套，内层盖在外层之上——一个页面自己的绑定、第二个引擎——而界面自己的 `engine`、`messages`、`locale`、`onNavigate` 或 `record` 仍然优先。只有最外层的宿主去画 `<html>`：明暗模式、预设、品牌色。

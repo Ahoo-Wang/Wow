@@ -323,7 +323,7 @@ curl -o src/salesOrderDescriptor.json http://localhost:8080/sales-order/snapshot
 
 ## 5. 声明定义：`defineView`
 
-定义说这份数据**能**怎样观察。事实——路径、类型、枚举值——从查询描述读；`defineView` 只写选择：列出哪些字段、按什么次序、叫什么、状态用什么语气，以及随定义发布的系统视图。没列出的字段不出现；列了描述里没有的路径或值，准入会指出来，而不是抛错。
+定义说这份数据**能**怎样观察。事实——路径、类型、枚举值——从查询描述读；[`defineView`](../../reference/typescript/wow-view-engine/definitions.md#api-defineView) 只写选择：列出哪些字段、按什么次序、叫什么、状态用什么语气，以及随定义发布的系统视图。没列出的字段不出现；列了描述里没有的路径或值，准入会指出来，而不是抛错。
 
 <!-- typecheck: file=orders.ts -->
 
@@ -360,8 +360,9 @@ export const ordersDefinition = defineView(
       'state.totalAmount': { label: text('orders.total'), summary: ['SUM'] },
       firstEventTime: text('orders.placedAt'),
     },
-    // 第 7 步的「发货」读每一行的状态，列表里显示不显示它都一样：
-    // 引擎只查询显示的列，行里要读的字段写在这里。
+    // 第 7 步的「发货」读每一行的状态，列表里显示不显示它都一样。
+    // 一行不是整个文档：只带回显示的列、行键、卡片布局的字段（定义允许
+    // 卡片时）与排序、合计读的字段；行里还要读的字段写在这里。
     record: { rowFields: ['state.status'] },
     // 系统视图：随定义部署，所有人只读，是读者另存自己视图的起点。
     views: [
@@ -496,7 +497,7 @@ export const engine = new ViewEngine({
 });
 ```
 
-`MemoryViewStore` 让本页不依赖存储。要让保存的视图留下来，换成 `@ahoo-wang/wow-view-store` 的 [`WowViewStore`](../../reference/typescript/wow-view-store/)，把视图存在 Wow 的视图存储服务端上——示例服务端已经内嵌了它。
+[`MemoryViewStore`](../../reference/typescript/wow-view-engine/store.md#api-MemoryViewStore) 让本页不依赖存储。要让保存的视图留下来，换成 `@ahoo-wang/wow-view-store` 的 [`WowViewStore`](../../reference/typescript/wow-view-store/)，把视图存在 Wow 的视图存储服务端上——示例服务端已经内嵌了它。
 
 ## 7. 声明一个操作
 
@@ -551,7 +552,7 @@ export const orderActions = actions([
 
 ## 8. `ViewHost` 与页面
 
-`ViewHost` 是宿主包在页面外面的唯一一层：数据（引擎）、路由、语言与措辞、主题，以及每个资源在这个宿主里做什么（`bind`：去哪个路由、带哪些操作）。工作台只要定义的 id。
+[`ViewHost`](../../reference/typescript/wow-view-engine/host.md#api-ViewHost) 是宿主包在页面外面的唯一一层：数据（引擎）、路由、语言与措辞、主题，以及每个资源在这个宿主里做什么（[`bind`](../../reference/typescript/wow-view-engine/host.md#api-bind)：去哪个路由、带哪些操作）。工作台只要定义的 id。
 
 <!-- typecheck: file=App.tsx -->
 
@@ -618,7 +619,7 @@ createRoot(document.getElementById('root')!).render(
 );
 ```
 
-- **路由**：`useReactRouter()` 要在 React Router 的路由组件里面调用。有了路由，引擎自己管地址：工作台打开的视图写在 `?view=`，记录详情跟着 `?id=`。用别的路由库时照 `ViewRouter` 的两个成员（`location` 与 `go`）自己写一个。
+- **路由**：`useReactRouter()` 要在 React Router 的路由组件里面调用。有了路由，引擎自己管地址：工作台打开的视图写在 `?view=`，记录详情跟着 `?id=`。用别的路由库时照 [`ViewRouter`](../../reference/typescript/wow-view-engine/host.md#api-ViewRouter) 的两个成员（`location` 与 `go`）自己写一个。
 - **主题**：`preset="porcelain"` 用引擎的一套内置外观，它的样式表要导入；已有 shadcn 主题的宿主改写 `theme="host"` 并导入 `shadcn-bridge.css`。见[视图引擎的主题](./view-engine-theming.md)。
 - **明暗**：`colorMode` 缺省 `system`，跟随系统，给 `<html>` 挂 `.dark`。
 - **高度**：工作台填满它的容器，所以容器要有高度。
@@ -639,7 +640,7 @@ pnpm dev
 ## 完整的可运行版本
 
 - Storybook 的[接入导览](/storybook/?path=/docs/view-engine-接入导览--docs)用同样的五步接一个订单对象，多了导航、多语言措辞、第二个操作与内存路由，页面下方就是它跑起来的样子。
-- 它的源文件：[`ordersDefinition.ts`](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/storybook/stories/view-engine/integration/ordersDefinition.ts)、[`wowSource.ts`](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/storybook/stories/view-engine/integration/wowSource.ts)、[`ordersEngine.ts`](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/storybook/stories/view-engine/integration/ordersEngine.ts)、[`OrdersHost.tsx`](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/storybook/stories/view-engine/integration/OrdersHost.tsx)、[`orderActions.ts`](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/storybook/stories/view-engine/integration/orderActions.ts)、[`wowCommands.ts`](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/storybook/stories/view-engine/integration/wowCommands.ts)、[`OrdersPage.tsx`](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/storybook/stories/view-engine/integration/OrdersPage.tsx)，以及用 `/testing` 的 `admit` 与 `actionHarness` 核对它们的 [`integration.test.ts`](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/storybook/stories/view-engine/integration/integration.test.ts)。
+- 它的源文件：[`ordersDefinition.ts`](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/storybook/stories/view-engine/integration/ordersDefinition.ts)、[`wowSource.ts`](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/storybook/stories/view-engine/integration/wowSource.ts)、[`ordersEngine.ts`](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/storybook/stories/view-engine/integration/ordersEngine.ts)、[`OrdersHost.tsx`](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/storybook/stories/view-engine/integration/OrdersHost.tsx)、[`orderActions.ts`](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/storybook/stories/view-engine/integration/orderActions.ts)、[`wowCommands.ts`](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/storybook/stories/view-engine/integration/wowCommands.ts)、[`OrdersPage.tsx`](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/storybook/stories/view-engine/integration/OrdersPage.tsx)，以及用 `/testing` 的 [`admit`](../../reference/typescript/wow-view-engine/testing.md#api-admit) 与 [`actionHarness`](../../reference/typescript/wow-view-engine/testing.md#api-actionHarness) 核对它们的 [`integration.test.ts`](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/storybook/stories/view-engine/integration/integration.test.ts)。
 - 一个真实的宿主：补偿控制台的 [`src/views/`](https://github.com/Ahoo-Wang/Wow/tree/main/compensation/dashboard/src/views)。
 
 ## 下一步
@@ -647,7 +648,12 @@ pnpm dev
 | 接下来 | 阅读 |
 |---|---|
 | 视图引擎是什么、立足于哪些事实 | [视图引擎](./view-engine.md) |
+| 这一页用到的词：定义、记录与分析视图、看板、系统／共享／个人视图、revision、存储 | [视图引擎的核心概念](./view-engine-concepts.md) |
+| 把第 5 步的定义写完整：措辞的键、收窄、[`rowFields`](../../reference/typescript/wow-view-engine/definitions.md#api-RecordCapability)、系统视图与看板、用 `admit` 自检 | [写好一份定义](./view-engine-definitions.md) |
+| 第 8 步之外的接线：`bind`、路由端口、导航、嵌入、措辞与语言、用 `/testing` 测 | [把视图引擎接进宿主](./view-engine-host.md) |
+| 第 7 步之外的操作：放在哪、确认与表单、多选、结局 | [声明式操作](./view-engine-actions.md) |
+| 把保存的视图存在 Wow 服务端，或自己写一个 store | [视图存在哪里](./view-engine-storage.md) |
+| 在严格的内容安全策略下运行 | [视图引擎的内容安全策略](./view-engine-csp.md) |
 | 换一套外观、用品牌色、接上 shadcn 主题 | [视图引擎的主题](./view-engine-theming.md) |
 | 键盘、读屏与 WCAG 2.2 AA | [视图引擎的可访问性](./view-engine-accessibility.md) |
-| 把保存的视图存在 Wow 服务端 | [wow-view-store 参考](../../reference/typescript/wow-view-store/) |
-| 入口、持久化端口与扩展点 | [wow-view-engine 参考](../../reference/typescript/wow-view-engine/) |
+| 每个公开名字的签名与 issue code | [wow-view-engine 参考](../../reference/typescript/wow-view-engine/) |
