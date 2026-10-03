@@ -279,7 +279,7 @@ C′ 试用记录（2026-10-03，[RELEASING.md](RELEASING.md)「C′」第 7 步
 - **npm**：wow-client、wow-react、wow-generator、wow-view-engine、wow-view-store 的 9.2.0 由 CI 经 OIDC 可信发布、带 provenance；dist-tag 是 `latest: 9.2.0`、`next: 9.2.0-rc.0`。`npm-smoke` 在 Node 22.12.0 与 24 上从 npm 安装、导入、类型检查都通过。
 - **Maven**：GitHub Packages 与 Maven Central 都有 9.2.0，包括第一次发布的 `wow-view-store-api`、`-domain`、`-starter`。
 - **Docker**：`wow-example-server`、`wow-compensation-server`、`wow-view-store-server` 的 `9.2.0`、`9.2`、`latest` 推到 Docker Hub、ghcr、阿里云，digest 一致。
-- **流水线**：[Packages Deploy](https://github.com/Ahoo-Wang/Wow/actions/runs/37092332830) 的 admission、preflight、github-deploy、central-deploy、npm-deploy、两个 npm-smoke 全部成功。还没做的是 RELEASING「E」第 5 步（重跑 `npm-deploy` 验证幂等，要维护者再审批一次）与「F」第 3 步。
+- **流水线**：[Packages Deploy](https://github.com/Ahoo-Wang/Wow/actions/runs/37092332830) 的 admission、preflight、github-deploy、central-deploy、npm-deploy、两个 npm-smoke 全部成功。RELEASING「E」第 5 步同日完成：重跑的 `npm-deploy` 对五个包都输出「already on npm; skipped」。还没做的是「F」第 3 步（随 fetcher 6.0 一起做）。
 - **文档**（RELEASING「F」第 1、2 步）：文档站的 TypeScript 页面翻成「已在 npm 上」。然后在仓库外的空目录里照快速开始走一遍：示例服务端从 main（与 `v9.2.0` 同一个提交）构建，存储用 MongoDB 8.3.11；按兼容性页在 `pnpm-workspace.yaml` 写 `savePrefix: '~'`；页面上的两条 `pnpm add`、生成、`tsc`、`node dist/main.js` 退出码都为 0，打印出页面上的三行，生成器报 `9.2.0`，两个 Wow 包存成 `~9.2.0`，TypeScript 7.0.2 与 6.0.3 都编译通过，`fetcher-openapi` 不存在。pnpm 11.22.0 的 `minimumReleaseAge` 默认一天：9.2.0 发出十几分钟时照页面安装，pnpm 选了一天之内唯一可选的 `9.2.0-rc.0`，还存成了不带 `~` 的精确版本（其余步骤同样通过）；所以上面那一遍在 `pnpm-workspace.yaml` 里另加了 `minimumReleaseAge: 0`。发布一天以后照页面原样安装就是 9.2.0。排障页「安装」加了一行写这个现象与两种处理（等一天，或 `minimumReleaseAgeExclude: ['@ahoo-wang/*']`；`minimumReleaseAge: 0` 对所有包关掉延迟；设置名按本机 pnpm 11.22.0 离线核对过）。
 
 W1 的具体做法（W2 起沿用）：
@@ -308,7 +308,7 @@ W2a、W2b 的具体做法与决定：
 
 ### 下一步
 
-1. **npm 首发**：2026-10-03 完成（9.2.0，见「已完成」的「首发记录」）。剩下 [RELEASING.md](RELEASING.md)「E」第 5 步：重跑 `npm-deploy` 验证幂等，要维护者在 environment `npm-publish` 里再点一次审批。
+1. **npm 首发**：2026-10-03 完成（9.2.0，见「已完成」的「首发记录」），[RELEASING.md](RELEASING.md)「E」第 5 步的幂等验证同日通过。
 2. 第 4a 步：`9.2.0-rc.0`（2026-10-03 已发，Trusted Publisher 已配）→ 补偿控制台的临时分支 `chore/compensation-9.2.0-rc.0` 在 rc 上端到端跑通（发 `latest` 的前置条件，RELEASING「C′」；2026-10-03 通过，见「已完成」）→ Wow 首个稳定版 9.2.0（2026-10-03 已发）→ 删掉该分支（不合并，main 保持 `workspace:*`）→ fetcher 6.0，并对 fetcher-wow、fetcher-generator 执行 `npm deprecate`（对外操作，先问用户）。
 3. 第 4b 步：view-engine 随 9.2.0 正式发布后，停止维护 fetcher `5.x`，对 fetcher-viewer 执行 `npm deprecate`（对外操作，先问用户）。
 
