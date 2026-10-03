@@ -311,7 +311,7 @@ W2a、W2b 的具体做法与决定：
 
 1. **npm 首发**：2026-10-03 完成（9.2.0，见「已完成」的「首发记录」），[RELEASING.md](RELEASING.md)「E」第 5 步的幂等验证同日通过。
 2. 第 4a 步：`9.2.0-rc.0`（2026-10-03 已发，Trusted Publisher 已配）→ 补偿控制台的临时分支 `chore/compensation-9.2.0-rc.0` 在 rc 上端到端跑通（发 `latest` 的前置条件，RELEASING「C′」；2026-10-03 通过，见「已完成」）→ Wow 首个稳定版 9.2.0（2026-10-03 已发）→ 删掉该分支（不合并，main 保持 `workspace:*`）→ **接 fetcher 6**（2026-10-03 新增，fetcher 6.0 的发版阻塞）→ fetcher 6.0，并对 fetcher-wow、fetcher-generator 执行 `npm deprecate`（对外操作，先问用户）。
-   接 fetcher 6 要做的（依据 fetcher 侧 `downstream-wow.yml` 在 Ahoo-Wang/fetcher#1957～#1959 上的失败；第 1、2 条由 #3887、#3889 完成，第 3 条的 peer 放宽由 #3886 完成，Ahoo-Wang/fetcher 的 downstream-wow 以 fetcher main 对本分支跑通；剩发 9.2.x）：
+   接 fetcher 6 要做的（依据 fetcher 侧 `downstream-wow.yml` 在 Ahoo-Wang/fetcher#1957～#1959 上的失败；第 1、2 条由 #3887、#3889 完成，第 3 条的 peer 放宽由 #3896 完成，Ahoo-Wang/fetcher 的 downstream-wow 以 fetcher main 对本分支跑通；剩发 9.2.x）：
    1. wow-generator 的测试夹具补上 OpenAPI 6 类型要求的字段（`Info.title`/`version`、`Response.description`）；
    2. 在 fetcher 6 下重跑 wow-client 的 `golden/client-endpoints.json`，对照服务端确认新请求（查询参数按 `ids=1&ids=2` 序列化、`undefined`/`null` 省略、不再默认 `Content-Type`）后更新；
    3. catalog 的 fetcher peers 放宽为 `^5.1.5 || ^6`，发 9.2.x（9.2.0 在 npm 上是 `^5.1.5`）；React 的 peer 下限已在 9.2.x 放宽到 `^19.0.0`（R2-96，见 RELEASING「peer 范围」）；
