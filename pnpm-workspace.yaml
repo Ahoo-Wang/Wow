@@ -20,9 +20,11 @@ patchedDependencies:
 # unnoticed. Development and tests use the default catalog below.
 catalogs:
   peers:
-    '@ahoo-wang/fetcher': '^5.1.5'
-    '@ahoo-wang/fetcher-decorator': '^5.1.5'
-    '@ahoo-wang/fetcher-eventstream': '^5.1.5'
+    # fetcher 6 changes no API Wow uses; fetcher's downstream-wow.yml runs
+    # Wow's tests against it. Development and tests stay on 5.x.
+    '@ahoo-wang/fetcher': '^5.1.5 || ^6.0.0'
+    '@ahoo-wang/fetcher-decorator': '^5.1.5 || ^6.0.0'
+    '@ahoo-wang/fetcher-eventstream': '^5.1.5 || ^6.0.0'
     # Optional: only the view engine's /testing entry loads it (D65).
     mingo: ^7.2.4
     react: ^19.0.0
