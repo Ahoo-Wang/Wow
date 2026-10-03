@@ -220,8 +220,8 @@ catalogs:
       specifier: 3.9.9
       version: 3.9.9
     publint:
-      specifier: ^0.3.24
-      version: 0.3.24
+      specifier: ^0.3.25
+      version: 0.3.25
     react:
       specifier: ^19.3.0
       version: 19.3.0
@@ -327,7 +327,7 @@ importers:
         version: 3.9.9
       publint:
         specifier: 'catalog:'
-        version: 0.3.24
+        version: 0.3.25
       typescript:
         specifier: 'catalog:'
         version: 6.0.3
@@ -5903,8 +5903,8 @@ packages:
     resolution: {integrity: sha512-llQsMLSUDUPT44jdrU/O37qlnifitDP+ZwrmmZcoSKyLKvtZxpyV0n2/bD/N4tBAAZ/gJEdZU7KMraoK1+XYAg==}
     engines: {node: '>= 0.10'}
 
-  publint@0.3.24:
-    resolution: {integrity: sha512-9zS56KrKBoqi5Qt8h92uMP8TTM9AYZSgnmCo4u2priMqkOZvQnTsziZ2p5LJ2ywbYkAjoCDp2jda9u4cgFefIw==}
+  publint@0.3.25:
+    resolution: {integrity: sha512-WMMbn/d7JqRlfXQL/JUI4n5skC8cJ5WVr8/wT5mmiYWkUdENkZr1I5rgs2+dQPVRgoJd+JRYtB46MTsuDylw9g==}
     engines: {node: '>=18'}
     hasBin: true
 
@@ -11772,7 +11772,7 @@ snapshots:
       forwarded: 0.2.0
       ipaddr.js: 1.9.1
 
-  publint@0.3.24:
+  publint@0.3.25:
     dependencies:
       '@publint/pack': 0.1.7
       package-manager-detector: 1.8.0
