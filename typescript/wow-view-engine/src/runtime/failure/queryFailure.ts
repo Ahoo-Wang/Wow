@@ -17,16 +17,16 @@ import type {
   FilterTree,
   Issue,
   IssuePath,
-} from '../model/index.js';
+} from '../../model/index.js';
 import { dequal } from 'dequal';
-import { isFilterGroup, issue } from '../filter/index.js';
-import { RequestQueueFullError } from './requestRunner.js';
+import { isFilterGroup, issue } from '../../filter/index.js';
+import { RequestQueueFullError } from '../requestRunner.js';
 import {
   isForbiddenFailure,
   sourceFailure,
   type SourceFailure,
 } from './sourceReason.js';
-import type { ViewQueryState } from './viewRuntimeTypes.js';
+import type { ViewQueryState } from '../viewRuntimeTypes.js';
 
 /**
  * The Issue a failed execution reports: a request the queue turned away,

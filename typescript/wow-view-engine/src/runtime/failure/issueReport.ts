@@ -19,7 +19,7 @@
  * fix it. In production, and under a test runner, it says nothing.
  */
 
-import type { Issue } from '../model/index.js';
+import type { Issue } from '../../model/index.js';
 
 /** Told of one finding, with the resource it is about where there is one. */
 export type IssueReporter = (found: Issue, resource?: string) => void;

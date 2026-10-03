@@ -47,7 +47,7 @@ import {
 import { panelOf } from './panels.js';
 
 /** One owned analysis the kernel refused, and why. */
-export interface OwnedRefusal {
+interface OwnedRefusal {
   /** The panel's index in the board's `panels`. */
   index: number;
   /** The panel's id, or its index for one without a usable id. */

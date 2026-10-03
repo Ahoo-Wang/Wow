@@ -85,7 +85,7 @@ export function panelMarks({
 }
 
 /** Whether the line of badges under the title has anything on it. */
-export function hasBadges(marks: PanelMarkSet): boolean {
+function hasBadges(marks: PanelMarkSet): boolean {
   return (
     marks.unreached.length > 0 ||
     marks.pressesFilter !== undefined ||

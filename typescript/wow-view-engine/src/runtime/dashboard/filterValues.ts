@@ -49,7 +49,7 @@ import {
 import { panelScope } from './panelRun.js';
 
 /** What the filter values need of the runtime that holds the board. */
-export interface FilterValuesHost {
+interface FilterValuesHost {
   kinds: FieldKindRegistry;
   environment: RuntimeEnvironment;
   candidateSources?: CandidateSourceFactory;

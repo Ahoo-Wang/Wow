@@ -17,13 +17,10 @@
  * which waits until every chart given a size in the same frame has done the
  * first part.
  */
-export type SizeHandler = (
-  width: number,
-  height: number,
-) => (() => void) | undefined;
+type SizeHandler = (width: number, height: number) => (() => void) | undefined;
 
 /** A chart that threw being created or drawn, and what it threw. */
-export type SizeFailure = (error: unknown) => void;
+type SizeFailure = (error: unknown) => void;
 
 const watched = new Map<
   Element,

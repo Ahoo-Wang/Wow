@@ -18,7 +18,7 @@ import type { OptionSource } from '../../../runtime/index.js';
 /** How long typing may pause before the source is asked. */
 const SEARCH_DEBOUNCE_MS = 250;
 
-export interface CandidateState {
+interface CandidateState {
   /** `idle` until the first search is asked for; `failed` keeps the last page. */
   status: 'idle' | 'loading' | 'success' | 'failed';
   items: FieldOption[];

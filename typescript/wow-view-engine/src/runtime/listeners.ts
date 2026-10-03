@@ -28,7 +28,7 @@
  * bare function: `useSyncExternalStore(store.subscribe, …)` calls it with no
  * receiver, which a method reading `this.listeners` does not survive.
  */
-export interface Listeners<A extends unknown[] = []> {
+interface Listeners<A extends unknown[] = []> {
   /** Starts listening; the returned function stops. */
   subscribe(listener: (...args: A) => void): () => void;
   /** Tells everyone listening, over a copy of the set. */

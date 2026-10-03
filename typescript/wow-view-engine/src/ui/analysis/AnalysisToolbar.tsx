@@ -35,7 +35,7 @@ import { ExportMenu, ImageFailed } from './ExportMenu.js';
 import { useAnalysisExportOffer } from './exportOffer.js';
 import { useChartImageOffer } from './imageExport.js';
 
-export interface AnalysisToolbarProps {
+interface AnalysisToolbarProps {
   analysis: AnalysisEditorController;
   /**
    * The columns the reading names: the result's, or — while the first

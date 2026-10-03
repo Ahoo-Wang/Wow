@@ -21,7 +21,7 @@ import {
   type ReactNode,
 } from 'react';
 
-export interface Announcer {
+interface Announcer {
   /**
    * Say this, out loud, once. The same words again are said again: a
    * second press that did what the first did is still a press to hear.

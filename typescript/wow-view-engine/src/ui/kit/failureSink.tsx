@@ -17,7 +17,7 @@ import type {
   ViewErrorEvent,
   ViewRuntime,
 } from '../../runtime/index.js';
-import { reportError, viewPlace } from '../../runtime/failures.js';
+import { reportError, viewPlace } from '../../runtime/failure/failures.js';
 
 type Sink = (event: ViewErrorEvent) => void;
 

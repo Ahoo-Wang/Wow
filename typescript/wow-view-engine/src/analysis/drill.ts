@@ -275,7 +275,7 @@ export function drillConditions(
  * records behind it (D38): its counting unit is an element of an element,
  * and a condition over root documents reaches one level of an array only.
  */
-export type DrillGap = 'nested-elements';
+type DrillGap = 'nested-elements';
 
 export function drillGap(
   config: Pick<AnalysisViewConfig, 'elements'>,

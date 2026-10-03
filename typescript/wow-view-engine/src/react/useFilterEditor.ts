@@ -592,7 +592,7 @@ export interface FilterTreeController {
   valueCandidates?(path: FilterPath): ValueCandidateSource | null;
 }
 
-export interface TreeControllerInput {
+interface TreeControllerInput {
   tree: FilterTree;
   fields: readonly FieldDefinition[];
   fieldGroups?: readonly FieldGroupDefinition[];

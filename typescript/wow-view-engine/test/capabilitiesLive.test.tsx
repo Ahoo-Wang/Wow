@@ -33,7 +33,7 @@ import {
   type ViewSource,
 } from '../src/index.js';
 import { DataWorkbench, EmbeddedView, RecordTable } from '../src/ui/index.js';
-import { withoutFirstUnavailable } from '../src/runtime/unavailable.js';
+import { withoutFirstUnavailable } from '../src/runtime/failure/unavailable.js';
 import {
   analysisConfig,
   deferred,

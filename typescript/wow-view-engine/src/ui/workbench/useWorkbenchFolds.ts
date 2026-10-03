@@ -16,7 +16,7 @@ import type { ViewExpansion } from '../kit/ViewExpansion.js';
 import { useViewExpansion } from '../kit/ViewExpansion.js';
 import { useSidebarFold } from './useSidebarFold.js';
 
-export interface WorkbenchFoldsOptions {
+interface WorkbenchFoldsOptions {
   /**
    * Whether the workbench offers to fill the screen at all. A page that is
    * already a full-screen view of one thing has nothing to gain from it.
@@ -32,7 +32,7 @@ export interface WorkbenchFoldsOptions {
   onSidebarOpenChange?(open: boolean): void;
 }
 
-export interface WorkbenchFolds {
+interface WorkbenchFolds {
   /** The shell's own root, which the fill expands where it already is. */
   surfaceRef: RefObject<HTMLDivElement | null>;
   /** The title bar's fill toggle, which the expansion returns focus to. */

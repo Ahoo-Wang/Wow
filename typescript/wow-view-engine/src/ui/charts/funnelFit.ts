@@ -33,7 +33,7 @@ const STAGE_LINES = 4.5;
  * The most stages a standing funnel's plot is as tall as: some 560px at the
  * page's text. More stages share that height.
  */
-export const TALLEST_STAGES = 10;
+const TALLEST_STAGES = 10;
 /** Lying down, the longest a stage runs along, in lines of the text. */
 const STAGE_ALONG = 16;
 /** A line of the chart's text, as a multiple of its size. */
@@ -76,7 +76,7 @@ export function funnelPlotHeight(stages: number, horizontal: boolean): string {
 }
 
 /** Where a funnel's parts land in a plot of one size. */
-export interface FunnelLayout {
+interface FunnelLayout {
   /** The series' box, the unseen foot's room included. */
   box: { left: number; top: number; width: number; height: number };
   /** Each stage: its extent along the funnel, its widths, its words. */

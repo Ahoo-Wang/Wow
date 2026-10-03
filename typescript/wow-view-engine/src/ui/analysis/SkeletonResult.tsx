@@ -17,7 +17,7 @@ import { Skeleton } from '../components/skeleton.js';
 import { Table, TableBody, TableCell, TableRow } from '../components/table.js';
 import { SKELETON_ROWS, barWidth } from '../record/SkeletonRows.js';
 
-export interface AnalysisSkeletonProps {
+interface AnalysisSkeletonProps {
   /** The layout the answer will be drawn in: the draft's, as the result's is. */
   layout: AnalysisLayout;
   /** The columns the table will draw (`useAnalysisResult().tableColumns`). */

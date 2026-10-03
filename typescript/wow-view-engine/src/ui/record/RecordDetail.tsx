@@ -48,7 +48,7 @@ import { cellValue } from './cells.js';
 import { blockOf } from './DetailStructure.js';
 import { placeSections } from './detailPlacement.js';
 
-export interface RecordDetailProps {
+interface RecordDetailProps {
   detail: RecordDetailController;
   /** The row's own commands, as the list offers them, in the panel's header. */
   actions?(row: RecordRow): ReactNode;

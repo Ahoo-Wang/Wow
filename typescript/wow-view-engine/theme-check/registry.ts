@@ -28,7 +28,7 @@ import {
   TARGET_FLOOR,
 } from '../src/ui/theme/pairs';
 import type { Ground, PairKind } from '../src/ui/theme/pairs';
-import { TOKEN_DOCS } from '../src/ui/theme/tokenDocs';
+import { TOKEN_DOCS } from './tokenDocs';
 import {
   CHART_TOKENS,
   declaredVariable,

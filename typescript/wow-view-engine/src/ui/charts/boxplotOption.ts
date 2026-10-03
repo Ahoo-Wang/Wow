@@ -22,7 +22,7 @@ import { emphasized, mixColor, type ChartTheme } from './theme.js';
 import { tooltipHtml } from './tooltip.js';
 
 /** What a boxplot reads besides its boxes. */
-export interface BoxplotContext {
+interface BoxplotContext {
   spec?: ChartSpec;
   label: ValueLabel;
   column: ColumnTitle;
@@ -42,7 +42,7 @@ const FIVE = ['low', 'q1', 'median', 'q3', 'high'] as const;
 const BOX_FILL = 0.25;
 
 /** One drawn box, as the tooltip, the press and the reading take it. */
-export interface DrawnBox {
+interface DrawnBox {
   /** The group value it stands for, keyed by the dimension's alias. */
   row: RecordData;
   /** Its name, as its column reads it. */

@@ -446,7 +446,7 @@ export function optionOf(
 }
 
 /** The library's bounds on a bar's width, from the theme's. */
-export function barBounds(theme: ChartTheme): {
+function barBounds(theme: ChartTheme): {
   barMaxWidth: number;
   barMinWidth?: number;
 } {

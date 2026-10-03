@@ -14,7 +14,7 @@
 import { BRAND_BOUND_DOCS } from './brandDocs.js';
 import { DENSITY_LENGTH_DOCS } from './densityDocs.js';
 import { MARK_DOCS, OWN_CONTROL, STATE_DOCS } from './stateDocs.js';
-import type { TokenName } from './tokens.js';
+import type { TokenName } from '../src/ui/theme/tokens.js';
 
 /** One phrase, in both of the READMEs' languages. */
 export interface Words {

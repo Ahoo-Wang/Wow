@@ -20,7 +20,7 @@ import { color } from './palette.js';
 import { mixColor, type ChartTheme, chartText } from './theme.js';
 
 /** What a gauge reads besides its number. */
-export interface GaugeContext {
+interface GaugeContext {
   spec?: ChartSpec;
   label: ValueLabel;
   locale?: string;

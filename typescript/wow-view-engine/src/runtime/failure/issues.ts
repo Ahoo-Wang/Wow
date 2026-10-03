@@ -11,14 +11,14 @@
  * limitations under the License.
  */
 
-import { issue } from '../filter/index.js';
+import { issue } from '../../filter/index.js';
 import {
   isViewStoreError,
   type Issue,
   type ViewStoreError,
-} from '../model/index.js';
+} from '../../model/index.js';
 import { sourceReason } from './sourceReason.js';
-import { isViewCommandError, isViewWriteError } from './write.js';
+import { isViewCommandError, isViewWriteError } from '../write.js';
 
 /**
  * One Issue for whatever a command threw, so a caller renders a single
@@ -70,7 +70,7 @@ function commandIssue(error: unknown, code: string): Issue | null {
  * operator to different places. A catalogue without the longer key falls
  * back along the dots.
  */
-export function storeOutcome(error: ViewStoreError): string {
+function storeOutcome(error: ViewStoreError): string {
   const outcome = error.code.toLowerCase();
   return error.code === 'UNAVAILABLE' && error.reachable
     ? `${outcome}.server`

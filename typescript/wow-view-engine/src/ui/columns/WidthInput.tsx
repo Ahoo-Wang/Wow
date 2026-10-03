@@ -16,7 +16,7 @@ import { Input } from '../components/input.js';
 import { useViewMessages } from '../kit/MessagesProvider.js';
 import { MAX_COLUMN_WIDTH, MIN_COLUMN_WIDTH } from '../record/ColumnResizer.js';
 
-export interface WidthInputProps {
+interface WidthInputProps {
   /** The column's name, as the row shows it. */
   label: string;
   /** Its width in pixels; `undefined` while it sizes itself. */

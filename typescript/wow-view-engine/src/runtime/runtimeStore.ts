@@ -40,7 +40,7 @@ export function hasError(issues: readonly Issue[]): boolean {
  * into line. The rest is the same both times, and therefore lives in the
  * store rather than in two copies of it.
  */
-export interface RuntimeStoreHost<S extends ViewRuntimeState<ViewConfig>> {
+interface RuntimeStoreHost<S extends ViewRuntimeState<ViewConfig>> {
   /** Admission of a draft as it would run, scope filter included. */
   admit(draft: S['draft']): Issue[];
   /** Promotes the draft and puts it in force; `revert` re-applies through it. */

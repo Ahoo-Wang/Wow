@@ -22,7 +22,7 @@ import { placePanel, type PlacedPanel } from '../../dashboard/index.js';
 import type { PanelLayout } from '../../model/index.js';
 
 /** What `DashboardGrid` hands the grid so a pointer places by the kernel's rules. */
-export interface GridPlacement {
+interface GridPlacement {
   compactor: Compactor;
   onDragStart: EventCallback;
   onDragStop: EventCallback;

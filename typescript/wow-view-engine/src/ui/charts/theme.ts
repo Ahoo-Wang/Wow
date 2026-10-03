@@ -118,7 +118,7 @@ export function chartText(theme: ChartTheme) {
  * `--fvp-chart-patterns` (theme-architecture.md 3, S2). Read off the chart's
  * element like every colour, so either is set on any ancestor.
  */
-export const PATTERNS_TOKENS = [
+const PATTERNS_TOKENS = [
   '--fve-chart-patterns',
   '--fvp-chart-patterns',
 ] as const;

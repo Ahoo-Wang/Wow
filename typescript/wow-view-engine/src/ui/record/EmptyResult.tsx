@@ -26,7 +26,7 @@ import type { MessageKey } from '../kit/messages.js';
 import type { FilterEditorController } from '../../react/index.js';
 import type { EmptyWayOut } from './emptyWayOut.js';
 
-export interface EmptyResultProps {
+interface EmptyResultProps {
   /** Overrides the catalogue's own wording. */
   title?: string;
   description?: string;

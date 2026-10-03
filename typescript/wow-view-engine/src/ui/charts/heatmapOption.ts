@@ -38,7 +38,7 @@ const PALEST = 0.2;
 type Cell = [number, number, number, number];
 
 /** What a heatmap reads besides its cells. */
-export interface HeatmapContext {
+interface HeatmapContext {
   spec?: ChartSpec;
   label: ValueLabel;
   column: ColumnTitle;

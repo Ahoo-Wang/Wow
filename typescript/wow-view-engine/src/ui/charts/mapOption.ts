@@ -22,7 +22,7 @@ import { tooltipFrame, tooltipHtml } from './tooltip.js';
 import { MAP_FILLS } from '../theme/pairs.js';
 
 /** What a map reads besides its regions. */
-export interface MapContext {
+interface MapContext {
   spec?: ChartSpec;
   label: ValueLabel;
   column: ColumnTitle;
@@ -42,7 +42,7 @@ export interface MapContext {
 const { palest: PALEST, land: LAND } = MAP_FILLS;
 
 /** One measured region as drawn: its group, its name on the map, its number. */
-export interface DrawnRegion {
+interface DrawnRegion {
   row: RecordData;
   /** The region as its column shows it: the name the map's area carries. */
   name: string;

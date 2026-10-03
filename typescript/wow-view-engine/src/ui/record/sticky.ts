@@ -191,7 +191,7 @@ export interface RightPin {
 export type StickyPin = LeftPin | RightPin;
 
 /** What one cell of the table wears, held or not. */
-export interface StickyCellProps {
+interface StickyCellProps {
   className: string;
   style?: CSSProperties;
   'data-pin'?: PinSide;
@@ -200,7 +200,7 @@ export interface StickyCellProps {
 }
 
 /** Anything the cell carries for reasons of its own: width, alignment, … */
-export interface CellStyling {
+interface CellStyling {
   className?: string;
   style?: CSSProperties;
 }
@@ -299,7 +299,7 @@ export const BAND_ROW = {
 } as const;
 
 /** What a band wears, and which end of the scroll port it holds. */
-export interface StickyBandProps {
+interface StickyBandProps {
   className: string;
   'data-sticky': 'top' | 'bottom';
 }
@@ -333,7 +333,7 @@ export function stickyBand(at: 'top' | 'bottom'): StickyBandProps {
  * is how the analysis table's header and totals came to scroll away with a
  * dashboard panel's body (2026-09-25).
  */
-export interface StickyPortProps {
+interface StickyPortProps {
   className: string;
   /**
    * Said on the element rather than left to the class list: the workbench,

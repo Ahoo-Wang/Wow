@@ -104,7 +104,7 @@ export type PressDestination =
 export type DestinationBoard = ViewInstance & { config: DashboardViewConfig };
 
 /** What the presses need of the runtime that holds the board. */
-export interface PressHost {
+interface PressHost {
   kinds: FieldKindRegistry;
   applied(): DashboardViewConfig;
   filters(): DashboardFilters;

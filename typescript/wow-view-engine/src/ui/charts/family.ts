@@ -255,7 +255,7 @@ export function useFilledNote(
  * 「-18.0%」 reads as a second measure, where 「-14.4%」 read as another
  * version of the same number (R2-22).
  */
-export type ChangeAmount = (alias: string | undefined, delta: number) => string;
+type ChangeAmount = (alias: string | undefined, delta: number) => string;
 
 export function useChangeAmount(
   columns: readonly AnalysisColumnView[] | undefined,

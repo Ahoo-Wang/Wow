@@ -22,7 +22,7 @@ import { ViewSwitcher, type ViewSwitcherProps } from './ViewSwitcher.js';
 import { useKindWord } from '../kit/kinds.js';
 import { Truncated } from '../kit/Truncated.js';
 
-export interface SidebarColumnProps extends Omit<ViewListProps, 'onRetry'> {
+interface SidebarColumnProps extends Omit<ViewListProps, 'onRetry'> {
   /**
    * What stands in the column in place of the list while it is given — the
    * shell's `panel` slot, read as React reads a child. It shows whether or
@@ -138,7 +138,7 @@ export function SidebarColumn({
   );
 }
 
-export interface FoldedSidebarProps extends ViewSwitcherProps {
+interface FoldedSidebarProps extends ViewSwitcherProps {
   /** The definition's title, which the folded list leaves in the bar. */
   title?: string;
   /** The unfold button, focused when collapsing took the list away. */

@@ -47,7 +47,7 @@ import { fiveNumberSets } from '../../analysis/boxplot.js';
 import { ohlcSets } from '../../analysis/candlestick.js';
 import type { OptionsPageProps, OptionsShape } from './optionControls.js';
 
-export interface ChartOptionsProps {
+interface ChartOptionsProps {
   picked: Picked;
   /** The chart, fitted to the shape that ran. */
   chart: ChartSpec;

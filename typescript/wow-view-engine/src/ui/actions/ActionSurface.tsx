@@ -15,7 +15,7 @@ import { useCallback, useEffect, useRef, type ReactNode } from 'react';
 import type { RecordKey } from '../../model/index.js';
 import type { RecordRow } from '../../record/index.js';
 import type { RecordViewRuntime } from '../../runtime/index.js';
-import { reportError, viewPlace } from '../../runtime/failures.js';
+import { reportError, viewPlace } from '../../runtime/failure/failures.js';
 import {
   offeredAt,
   type ActionInput,
@@ -36,7 +36,7 @@ import { ActionDialog } from './ActionDialog.js';
 import { BulkActionButtons, RowActionButtons } from './ActionButtons.js';
 import { BulkStatus, outcomeSentence, runningSentence } from './BulkStatus.js';
 
-export interface ActionSurfaceOptions {
+interface ActionSurfaceOptions {
   /** The host's declared actions on this surface's records. */
   actions?: RecordActions;
   /** The host's own markup, drawn after the declared actions. */
@@ -68,7 +68,7 @@ export interface ActionSurfaceOptions {
 }
 
 /** What a record surface draws of its actions, each where it goes. */
-export interface ActionSurface {
+interface ActionSurface {
   controller: RecordActionsController;
   /** A record's actions, in its row or card; `undefined` when it has none. */
   row?(row: RecordRow): ReactNode;

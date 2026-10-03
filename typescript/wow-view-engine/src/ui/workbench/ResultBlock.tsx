@@ -18,7 +18,7 @@ import { RenderBoundary } from '../kit/RenderBoundary.js';
 import { resultFrameChrome } from '../kit/variants.js';
 import type { WorkbenchShellProps } from './WorkbenchShell.js';
 
-export interface ResultBlockContents {
+interface ResultBlockContents {
   /** Whether the block would be the framed one. */
   framed: boolean;
   /** Whether a result is on screen for it to hold. */
@@ -115,7 +115,7 @@ export function ResultBlock({
   );
 }
 
-export interface ShellResultProps extends Pick<
+interface ShellResultProps extends Pick<
   WorkbenchShellProps,
   'toolbar' | 'result' | 'onRenderFailure'
 > {

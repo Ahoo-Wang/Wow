@@ -33,7 +33,7 @@ import { tooltipFrame, tooltipHtml } from './tooltip.js';
 import { levelColors, PALEST } from './treemapOption.js';
 
 /** What a hierarchy or a sankey reads besides its data. */
-export interface HierarchyContext {
+interface HierarchyContext {
   spec?: ChartSpec;
   label: ValueLabel;
   column: ColumnTitle;
@@ -45,7 +45,7 @@ export interface HierarchyContext {
 }
 
 /** One drawn part: where it sits, what it is called, and its share. */
-export interface DrawnPart {
+interface DrawnPart {
   /** The group values from the outermost level down to it. */
   row: RecordData;
   /** Its own level's value, as its column reads it. */
@@ -342,7 +342,7 @@ function flatFills(nodes: readonly object[]): string[] {
 }
 
 /** One drawn band of a sankey, as the tooltip, the press and the reading take it. */
-export interface DrawnBand {
+interface DrawnBand {
   /** Both ends' group values, by alias. */
   row: RecordData;
   from: string;

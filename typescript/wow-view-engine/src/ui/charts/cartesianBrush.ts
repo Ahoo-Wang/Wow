@@ -116,7 +116,7 @@ export const BRUSH_CURSOR = {
 export const BRUSH_CLEAR = { type: 'brush', areas: [] } as const;
 
 /** The first and the last category a brush covers, by index. */
-export interface BrushedSpan {
+interface BrushedSpan {
   from: number;
   to: number;
 }

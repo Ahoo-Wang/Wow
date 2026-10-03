@@ -81,7 +81,7 @@ const FLAGS = [
  * Where a narrowing asks for more than the descriptor grants: the field
  * (`null` for the analyses as a whole) and what.
  */
-export type Wider = (field: string | null, what: string) => void;
+type Wider = (field: string | null, what: string) => void;
 
 /** The analyses the plan offers over `descriptor`; `undefined` for none. */
 export function describedAnalysis(
@@ -224,7 +224,7 @@ function aggregation(
 }
 
 /** Whether a root path sorts at the source, by the paging in force. */
-export function sortsAt(
+function sortsAt(
   descriptor: QueryModelDescriptor,
   path: string,
   paging: 'paged' | 'cursor',

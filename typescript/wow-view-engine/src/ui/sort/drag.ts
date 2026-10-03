@@ -28,7 +28,7 @@ import { dropped, type DropOperation } from '../kit/dragDrop.js';
 import type { MessageFormatters } from '../kit/MessagesProvider.js';
 
 /** The two places one drop is between, as positions in the sort. */
-export interface SortDrop {
+interface SortDrop {
   from: number;
   to: number;
 }

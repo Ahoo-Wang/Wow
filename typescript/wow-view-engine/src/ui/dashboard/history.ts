@@ -82,7 +82,7 @@ export interface BoardHistory {
   land(): void;
 }
 
-export interface BoardHistoryInput {
+interface BoardHistoryInput {
   dashboard: DashboardController;
   /** Every panel's name by id, as the board names them now. */
   names: ReadonlyMap<string, string>;

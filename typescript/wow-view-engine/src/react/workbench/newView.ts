@@ -44,7 +44,7 @@ export interface NewViewOptions {
 }
 
 /** What `create` will hand the engine, or null where no view can be made. */
-export interface Blank {
+interface Blank {
   scope: ViewAudience;
   config: ViewConfig;
 }

@@ -94,7 +94,7 @@ const TONE_COLORS: Readonly<Record<Exclude<FieldTone, 'neutral'>, string>> = {
 };
 
 /** The role colour a tone paints with; `undefined` for none or neutral. */
-export function toneColor(tone: FieldTone | undefined): string | undefined {
+function toneColor(tone: FieldTone | undefined): string | undefined {
   return tone === undefined || tone === 'neutral'
     ? undefined
     : TONE_COLORS[tone];

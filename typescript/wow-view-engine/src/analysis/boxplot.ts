@@ -40,7 +40,7 @@ export const FIVE_NUMBER_SLOTS = [
  * P90 box — is read by them: the tooltip and the reading table name every
  * number by its column, never as 「四分位」.
  */
-export const BOX_PERCENTILES = [25, 50, 75] as const;
+const BOX_PERCENTILES = [25, 50, 75] as const;
 
 /**
  * What one metric is, as a box reads it: which number of the five it can

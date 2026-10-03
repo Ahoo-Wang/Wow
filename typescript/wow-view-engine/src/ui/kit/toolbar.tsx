@@ -57,7 +57,7 @@ export function Toolbar({ className, ...props }: ToolbarPrimitive.Root.Props) {
  */
 const InToolbar = React.createContext(false);
 
-export interface ToolbarItemProps extends React.ComponentProps<'button'> {
+interface ToolbarItemProps extends React.ComponentProps<'button'> {
   /**
    * The control this item is. Every one of them is already a button of some
    * kind — a popup's trigger, a tooltip's trigger over one — so the element

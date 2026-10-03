@@ -193,7 +193,7 @@ function datedFit(
  * How the value labels past the marks' ends are written: flat, turned to
  * run up from the bar's end, or not at all.
  */
-export type LabelFit = 'flat' | 'upright' | 'none';
+type LabelFit = 'flat' | 'upright' | 'none';
 
 /**
  * What the plot's size changes about a cartesian chart: how its category

@@ -26,7 +26,7 @@ import { useViewMessages } from '../kit/MessagesProvider.js';
 import type { MessageKey } from '../kit/messages.js';
 import type { EmptyWayOut } from '../record/emptyWayOut.js';
 
-export interface AnalysisEmptyProps {
+interface AnalysisEmptyProps {
   /**
    * Which way out the query that matched no group has (`emptyWayOut`, the
    * record view's own rule). Left out — a table drawn on its own, a

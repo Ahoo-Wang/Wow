@@ -70,7 +70,7 @@ export function pickOf(
   };
 }
 
-export interface DrillMenuProps {
+interface DrillMenuProps {
   /** The group pressed; null closes the menu. */
   pick: Pick | null;
   onClose(): void;

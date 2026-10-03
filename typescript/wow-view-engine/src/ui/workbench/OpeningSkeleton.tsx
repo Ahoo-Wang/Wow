@@ -24,7 +24,7 @@ const ROWS = 3;
 /** How many bordered icon buttons the toolbar's right-hand block holds. */
 const CONTROLS = 3;
 
-export interface OpeningSkeletonProps {
+interface OpeningSkeletonProps {
   /**
    * Whether the block that is coming is the framed one, so the skeleton
    * wears the frame the result will (D12). A dashboard's is not.

@@ -46,7 +46,7 @@ import { usePanelReveal } from './reveal.js';
 const ROW_HEIGHT = 80;
 const ROW_GAP = 10;
 
-export interface DashboardBoardProps {
+interface DashboardBoardProps {
   engine: ViewEngine;
   dashboard: DashboardController;
   /** The board's save commands: 保存 is their save. */

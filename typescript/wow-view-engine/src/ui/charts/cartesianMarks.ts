@@ -19,7 +19,7 @@ import type { ChartTheme } from './theme.js';
 type Side = 'left' | 'right';
 
 /** How a mark names the value axis it stands on, for the plan's direction. */
-export type AxisIndex = (side: Side) => object;
+type AxisIndex = (side: Side) => object;
 
 /**
  * What a cartesian chart draws over its marks (D33 batch B), every number
@@ -184,7 +184,7 @@ export function ongoingSeries(
 const CAPTION_SHARE = 0.25;
 
 /** How far a name beside the plot stands off the plot's edge. */
-export const CAPTION_DISTANCE = 6;
+const CAPTION_DISTANCE = 6;
 
 /** One name beside the plot: whose it is, what it says, and its height. */
 interface Caption {

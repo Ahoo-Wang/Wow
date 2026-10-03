@@ -21,7 +21,10 @@ import { issue } from '../filter/index.js';
 import { sayDefinition } from './definitions.js';
 import type { OptionSource, ViewSource } from './source.js';
 import { EngineText } from './text.js';
-import { defaultIssueReporter, type IssueReporter } from './issueReport.js';
+import {
+  defaultIssueReporter,
+  type IssueReporter,
+} from './failure/issueReport.js';
 import { ViewCommandError } from './write.js';
 
 /** What the engine's resources are read from; see `ViewEngineOptions`. */

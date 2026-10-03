@@ -32,14 +32,14 @@ import { moveStop, settleStop, takeStop } from '../kit/roving.js';
  * `null` for `open` gives rows that are not members of anything: no stop,
  * no hint, no cursor — the surface without a detail reads as it did.
  */
-export interface OpenRows {
+interface OpenRows {
   /** The id of the one hint the surface renders, while rows open. */
   readonly hintId: string | undefined;
   /** The props that make one row open. */
   row(row: RecordRow): OpenRowProps;
 }
 
-export interface OpenRowProps {
+interface OpenRowProps {
   'data-openable'?: '';
   /**
    * The row's key, as text: where the detail hands focus back when it

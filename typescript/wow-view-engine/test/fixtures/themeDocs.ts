@@ -13,8 +13,8 @@
 
 /**
  * The theme contract as the theming guide prints it, rendered from the registry
- * (`src/ui/theme/tokens.ts` and its words in `tokenDocs.ts`), and the host
- * variables the package's source reads, found where they are read.
+ * (`src/ui/theme/tokens.ts` and its words in `theme-check/tokenDocs.ts`), and
+ * the host variables the package's source reads, found where they are read.
  *
  * Three regions of each language's theming guide are generated, each between a pair of
  * `<!-- name:begin -->` / `<!-- name:end -->` markers: the token table, the
@@ -32,7 +32,7 @@ import { join, relative } from 'node:path';
 import postcss from 'postcss';
 import { format, resolveConfig } from 'prettier';
 import ts from 'typescript';
-import { TOKEN_DOCS, type Words } from '../../src/ui/theme/tokenDocs';
+import { TOKEN_DOCS, type Words } from '../../theme-check/tokenDocs';
 import {
   presetVariables,
   THEME_ATTRIBUTES,

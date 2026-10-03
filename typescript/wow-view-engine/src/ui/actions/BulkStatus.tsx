@@ -28,7 +28,7 @@ import {
   useViewMessages,
 } from '../kit/MessagesProvider.js';
 
-export interface BulkStatusProps {
+interface BulkStatusProps {
   /** The surface's runner; nothing is drawn while it is idle. */
   command: Pick<ActionRunner, 'running' | 'outcome' | 'stop' | 'dismiss'>;
   /** The line, for the surface to land the keyboard on its button. */

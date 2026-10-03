@@ -29,7 +29,7 @@ import {
   consoleIssueReporter,
   issueHint,
   type IssueConsole,
-} from '../src/runtime/issueReport.js';
+} from '../src/runtime/failure/issueReport.js';
 import {
   dashboardConfig,
   deferred,

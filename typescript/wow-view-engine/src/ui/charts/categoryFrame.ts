@@ -16,7 +16,7 @@ import { chartText, type ChartTheme } from './theme.js';
 import { tooltipFrame } from './tooltip.js';
 
 /** What a chart of one mark per category tells the frame around it. */
-export interface CategoryFrameInput {
+interface CategoryFrameInput {
   theme: ChartTheme;
   animate: boolean;
   /** The names along the bottom, one a mark, in the order drawn. */

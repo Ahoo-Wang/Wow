@@ -65,7 +65,7 @@ const MENU: readonly {
   { move: 'last', key: 'label.reorder.last' },
 ];
 
-export interface DragHandleProps {
+interface DragHandleProps {
   /**
    * The handle element the library holds — `handleRef` from `useSortable`,
    * which is what makes this button the one place a row can be picked up

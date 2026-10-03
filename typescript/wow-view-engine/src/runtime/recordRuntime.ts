@@ -29,10 +29,10 @@ import {
   type ExportedRows,
 } from './exportRows.js';
 import { fetchRecord } from './fetchRecord.js';
-import { isCalledOff } from './failures.js';
+import { isCalledOff } from './failure/failures.js';
 import { restyledOnly } from './restyle.js';
 import { withScopeFilter } from './scope.js';
-import type { SourceFailure } from './sourceReason.js';
+import type { SourceFailure } from './failure/sourceReason.js';
 import type { ProjectedView } from './source.js';
 import { DataViewRuntime } from './viewRuntime.js';
 import type {

@@ -55,7 +55,7 @@ import type {
 const NO_REFUSAL: Issue[] = [];
 
 /** What the rules across the board's parts need of the runtime holding them. */
-export interface BoardRulesHost {
+interface BoardRulesHost {
   readonly limits: RuntimeLimits;
   readonly edits: BoardEdits;
   readonly values: FilterValues;

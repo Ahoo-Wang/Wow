@@ -37,7 +37,7 @@ export const MAX_COLUMN_WIDTH = 2000;
 const STEP = 8;
 const LEAP = 32;
 
-export interface ColumnResizerProps {
+interface ColumnResizerProps {
   column: RecordColumnView;
   /** Commits a width in pixels, or `null` to let the column size itself. */
   onResize(field: string, width: number | null): void;

@@ -42,7 +42,7 @@ import { focusIn, type FinalFocus } from '../kit/focus.js';
 import { AlertDialogContent } from '../kit/popups.js';
 import { DestructiveAction } from '../kit/variants.js';
 
-export interface ActionDialogProps {
+interface ActionDialogProps {
   /** What is waiting on the reader; nothing is open while `null`. */
   pending: PendingAction | null;
   onInput(name: string, value: unknown): void;

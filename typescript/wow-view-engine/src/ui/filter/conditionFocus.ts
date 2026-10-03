@@ -76,7 +76,7 @@ export function fell(): boolean {
   );
 }
 
-export interface ConditionFocus {
+interface ConditionFocus {
   /**
    * Said from the press that takes a condition or a group out: the entry
    * holding `control` is going.

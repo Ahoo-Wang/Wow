@@ -32,7 +32,7 @@ export {
   documentVisibility,
 } from './environment.js';
 export { kindMismatch } from './issues.js';
-export { toIssue } from '../runtime/issues.js';
+export { toIssue } from '../runtime/failure/issues.js';
 export {
   type AnalysisEditorController,
   useAnalysisEditor,

@@ -85,7 +85,7 @@ const rowItemVariants = cva(
   },
 );
 
-export type RowItemProps = React.ComponentProps<typeof Item> &
+type RowItemProps = React.ComponentProps<typeof Item> &
   VariantProps<typeof rowItemVariants>;
 
 /**

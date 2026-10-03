@@ -81,7 +81,7 @@ export function hasMenu(commands: PanelCommands): boolean {
   );
 }
 
-export interface PanelMenuProps {
+interface PanelMenuProps {
   /** What the panel is called on screen, which the trigger is named after. */
   name: string;
   commands: PanelCommands;
@@ -335,7 +335,7 @@ export function PanelMenu({
   );
 }
 
-export interface PanelTitleInputProps {
+interface PanelTitleInputProps {
   /**
    * The title as the board holds it, keys and all — a heading's words, or
    * the panel's own title; `undefined` for a panel without one, which the

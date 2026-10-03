@@ -55,7 +55,7 @@
 
 - **登记表不带值**：值若也写在登记表里，就有 TS 与 CSS 两份，或者 CSS 成了生成物、宿主读不到带理由的源；所以 CSS 是值的真相源，登记表只写结构，测试检查两者对得上。
 - `tokens.ts`：每个 token 一条（`tier`：`semantic`／`role`／`group`／`axis`／`layout`；`kind`；有没有暗色一半；预设能不能写；桥接取不取；图表读不读；落回哪个 token；是否随品牌派生；链接到哪），外加 `TOKEN_GROUPS`、`THEME_AXES`，由它推出 `FveToken` 类型、`CHART_TOKENS` 与 `THEME_ATTRIBUTES`；构建写出 `dist/theme-tokens.json`（随包发出、不进 `exports`），`verify-package` 与 `theme-check` 读它。
-- `tokenDocs.ts`（与 `brandDocs.ts`、`densityDocs.ts`、`stateDocs.ts`）：主题指南里生成的几张表的中英措辞，与结构分开，运行时不带。
+- `theme-check/tokenDocs.ts`（与同目录的 `brandDocs.ts`、`densityDocs.ts`、`stateDocs.ts`）：主题指南里生成的几张表的中英措辞，与结构分开，放在 `src` 之外，哪个入口都不带。
 - `pairs.ts`：底的列表、每一对、每套的线（`PRESET_LINES`：`contrast` 字 7、边与标记 4.5）与欠账（`PENDING`，今天是空的）；jsdom 的 `test/presetContrast.test.ts` 与 Storybook 的对比度矩阵都从它展开，两边永远量同一组对。
 - **从它生成、或在测试里与它比对**：主题指南（中英）的 token 表、布局变量与让图表重读的属性三段（`pnpm --filter @ahoo-wang/wow-view-engine theme:docs` 重写，`test/themeFiles.test.ts` 比对）；复位规则的名单；`verify-package` 的每条主题断言（预设层集合、`whole` 的组、桥接的集合与例外、先读宿主再读预设的形状）；`styles.css` 与 `src/ui` 读的每个 `--fve-*` 都登记过、每个登记的都有读者（「一个没人读的 token 是一份没人守的合同」——`--info` 因此删掉，D30 Q45）。
 - **`theme-check`**（包的命令 `wow-view-engine theme-check`，D46 修订 D30 Q50）：宿主在 CI 里对自己的 CSS 跑，用测试夹具同一份解析器（`theme-check/resolve.ts`）算出每套、每种明暗与约定下的 token，量登记表的每一对与色板三道门，并报未登记的变量、包在 `@layer` 里的预设、Tailwind v3 的 HSL 通道（给出换算写法）、品牌边界的越界与颠倒、低于 24px 的点击目标（D57：样式表不夹值，与颜色同一份合同，量出来、报出来）。

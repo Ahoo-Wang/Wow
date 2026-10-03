@@ -47,7 +47,7 @@ export interface FunnelContext {
 }
 
 /** What a stage lost against the one before it, as it is written. */
-export interface DrawnDrop {
+interface DrawnDrop {
   /** The one before's value minus this one's; negative where it grew. */
   value: number;
   /** The count, signed: 「−1,625」, 「+120」, 「0」. */

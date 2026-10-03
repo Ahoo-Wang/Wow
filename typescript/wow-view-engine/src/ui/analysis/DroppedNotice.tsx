@@ -130,7 +130,7 @@ const METRICS = '[data-slot="analysis-slot-metrics"]';
  * dimensions, then the metrics, each counted and named as their columns
  * were headed before the edit.
  */
-export function droppedSentence(
+function droppedSentence(
   notice: DropNotice,
   messages: MessageFormatters,
 ): string {

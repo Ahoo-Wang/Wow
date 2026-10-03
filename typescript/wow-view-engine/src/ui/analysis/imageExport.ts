@@ -13,7 +13,7 @@
 
 import { useMemo, useState } from 'react';
 import type { ViewRuntime } from '../../runtime/index.js';
-import { reportViewFailure } from '../../runtime/failures.js';
+import { reportViewFailure } from '../../runtime/failure/failures.js';
 import { useFilterEditor } from '../../react/index.js';
 import {
   chartImageSvg,

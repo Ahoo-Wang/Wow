@@ -14,7 +14,7 @@
 import { useLayoutEffect, useState, type CSSProperties } from 'react';
 
 /** Which of a scroll port's sides have more of its content past them. */
-export type ScrollMore = 'start' | 'end' | 'both';
+type ScrollMore = 'start' | 'end' | 'both';
 
 /** How far in from an edge the content fades out. */
 export const SCROLL_FADE = 32;
@@ -53,7 +53,7 @@ export interface ScrollState {
 }
 
 /** The mask that fades the sides across; nothing when no side has more. */
-export interface ScrollMoreResult extends ScrollState {
+interface ScrollMoreResult extends ScrollState {
   style?: CSSProperties;
 }
 

@@ -382,7 +382,7 @@ export function stackPeaksFound(
 }
 
 /** A derived line as drawn: the kernel's, its name and its axis. */
-export interface DrawnDerived extends DerivedLine {
+interface DrawnDerived extends DerivedLine {
   name: string;
   side: Side;
 }

@@ -29,7 +29,7 @@ import {
 } from '../kit/StatusStrip.js';
 import type { WorkbenchShellProps } from './WorkbenchShell.js';
 
-export interface StatusLineProps extends Pick<
+interface StatusLineProps extends Pick<
   WorkbenchShellProps,
   'warnings' | 'besideResult' | 'nameIssue'
 > {

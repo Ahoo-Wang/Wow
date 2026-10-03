@@ -45,7 +45,7 @@ import {
 } from './FilterWiring.js';
 
 /** What the board draws of its filters, and where. */
-export interface BoardFilterParts {
+interface BoardFilterParts {
   /**
    * The filter bar, over everything else on the board (D22 F); in the
    * one-column reading, one button and a sheet (D26 Q38). `trailing` is
@@ -245,7 +245,7 @@ const NONE_REFUSED: readonly Issue[] = [];
  * once read it is only in the way of the board. A board opened again, with
  * a new refusal, says it again.
  */
-export function FiltersRefused({ issues }: { issues: readonly Issue[] }) {
+function FiltersRefused({ issues }: { issues: readonly Issue[] }) {
   const messages = useViewMessages();
   const [dismissed, setDismissed] = useState<readonly Issue[] | null>(null);
   const land = useLanding();

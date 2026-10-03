@@ -67,7 +67,7 @@ import {
 } from './landing.js';
 import { useLanding } from '../kit/focus.js';
 
-export interface FilterBarProps {
+interface FilterBarProps {
   dashboard: DashboardController;
   /**
    * While the board is built: each filter's settings, and the grouping's

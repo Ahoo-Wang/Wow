@@ -17,7 +17,7 @@ import type { RecordTableController } from '../../react/index.js';
 import { Checkbox } from '../components/checkbox.js';
 import { useViewMessages } from '../kit/MessagesProvider.js';
 
-export interface RowCheckboxProps {
+interface RowCheckboxProps {
   table: RecordTableController;
   row: RecordRow;
   /** The surface's one {@link RangeHint}, which every row checkbox names. */

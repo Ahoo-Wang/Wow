@@ -147,7 +147,7 @@ const toneBadgeVariants = cva('', {
   defaultVariants: { tone: 'neutral', dot: true },
 });
 
-export interface ToneBadgeProps extends Omit<
+interface ToneBadgeProps extends Omit<
   React.ComponentProps<typeof Badge>,
   'variant'
 > {
@@ -771,7 +771,7 @@ const sidebarItemVariants = cva(
   },
 );
 
-export interface SidebarItemProps extends Omit<
+interface SidebarItemProps extends Omit<
   React.ComponentProps<typeof Button>,
   'variant' | 'size'
 > {
@@ -861,7 +861,7 @@ const RESULT_SLOTS = {
 } as const;
 
 /** One part of a kind's result, by the job it does inside the frame. */
-export type ResultSlot = keyof typeof RESULT_SLOTS;
+type ResultSlot = keyof typeof RESULT_SLOTS;
 
 /** One kind's slot recipe, for `ResultBlock.slots`. */
 export function resultSlots(...slots: readonly ResultSlot[]): string {

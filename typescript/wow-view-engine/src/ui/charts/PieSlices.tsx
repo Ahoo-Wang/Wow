@@ -32,7 +32,7 @@ import type { ChartTheme } from './theme.js';
  * circle and room either side for the shares written outside it. Wider, the
  * legend stood a hand's width from the slices it names.
  */
-export const PIE_HUG = 1.3;
+const PIE_HUG = 1.3;
 
 /**
  * A pie or a donut, drawn by ECharts from `pieOption` (D21).

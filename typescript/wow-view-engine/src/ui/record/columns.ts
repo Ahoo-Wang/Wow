@@ -273,7 +273,7 @@ export function isNumeric(column: RecordColumnView): boolean {
 }
 
 /** What the table adds to the columns, and what it holds of them. */
-export interface TableLayout {
+interface TableLayout {
   /** Whether the rows carry the selection column. */
   selectable: boolean;
   /** Whether the rows carry the host's action column. */

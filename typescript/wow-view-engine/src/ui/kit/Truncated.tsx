@@ -18,7 +18,7 @@ import { TooltipContent } from './popups.js';
 /** The elements a one-line text of user content is drawn as. */
 type TruncatedTag = 'span' | 'p' | 'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6';
 
-export type TruncatedProps = Omit<
+type TruncatedProps = Omit<
   HTMLAttributes<HTMLElement>,
   'children' | 'title'
 > & {

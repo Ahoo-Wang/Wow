@@ -29,7 +29,7 @@ import { useKindIssue, useKindWord } from './kinds.js';
  * A row is one of many inside a dialog, so it is drawn as a plain line in the
  * smaller type and with the smaller buttons; the view's is a framed band.
  */
-export type OutcomeSurface = 'row' | 'view';
+type OutcomeSurface = 'row' | 'view';
 
 /**
  * The ways out this outcome is allowed to offer, as callbacks.
@@ -38,7 +38,7 @@ export type OutcomeSurface = 'row' | 'view';
  * what it can actually do: the manager has nowhere to copy a view to, and the
  * view offers a copy or an overwrite only where the user may make one.
  */
-export interface OutcomeActionSet {
+interface OutcomeActionSet {
   /** Conflict: adopt the server's copy and drop the local one. */
   reload?(): void;
   /** Conflict: put the local one over the server's. */
@@ -60,7 +60,7 @@ export interface OutcomeActionSet {
   dismiss?(): void;
 }
 
-export interface OutcomeActionsProps {
+interface OutcomeActionsProps {
   /** What the write came to; a write that landed has none of these. */
   state: WriteState;
   actions: OutcomeActionSet;

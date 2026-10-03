@@ -21,7 +21,7 @@ import type { ChartTheme } from './theme.js';
 import { tooltipHtml } from './tooltip.js';
 
 /** What a candlestick reads besides its candles. */
-export interface CandlestickContext {
+interface CandlestickContext {
   spec?: ChartSpec;
   label: ValueLabel;
   column: ColumnTitle;
@@ -34,7 +34,7 @@ export interface CandlestickContext {
 }
 
 /** One drawn candle, as the tooltip, the press and the reading take it. */
-export interface DrawnCandle {
+interface DrawnCandle {
   /** The period it stands for, keyed by the dimension's alias. */
   row: RecordData;
   /** Its name, as its column reads it. */

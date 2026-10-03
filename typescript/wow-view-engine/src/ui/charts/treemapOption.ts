@@ -29,7 +29,7 @@ import {
 import { tooltipFrame, tooltipHtml } from './tooltip.js';
 
 /** What a treemap reads besides its tiles. */
-export interface TreemapContext {
+interface TreemapContext {
   spec?: ChartSpec;
   label: ValueLabel;
   column: ColumnTitle;
@@ -47,7 +47,7 @@ export interface TreemapContext {
 export const PALEST = 0.4;
 
 /** One drawn tile, as the tooltip, the press and the reading take it. */
-export interface DrawnTile {
+interface DrawnTile {
   /** The group values it stands for: its own, and its outer tile's. */
   row: RecordData;
   /** Its name, and its outer tile's first where it has one. */

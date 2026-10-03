@@ -77,14 +77,14 @@ export function blockHeight(rowHeight: number, column: number): number {
 }
 
 /** What the grid is laid out at: the width it was handed, its columns, its row. */
-export interface GridBlocksInput {
+interface GridBlocksInput {
   width: number;
   cols: number;
   rowHeight: number;
 }
 
 /** One block of the row, in the grid's own pixels. */
-export interface GridBlock {
+interface GridBlock {
   x: number;
   y: number;
   width: number;

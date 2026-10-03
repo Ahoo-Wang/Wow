@@ -56,7 +56,7 @@ import { presentedConfig } from './presentation.js';
 import { panelAnchor, type AnchorClock, type PanelAnchor } from './anchor.js';
 
 /** What a panel's child is handed by the board it sits on. */
-export interface PanelRun {
+interface PanelRun {
   /** The view, its config the view's own as the board presents it. */
   view: PanelView;
   /** The condition the board narrows it by, in the view's own field names. */
@@ -207,7 +207,7 @@ function panelHandOver(
 }
 
 /** A panel's child as the board left it, and what the panel reports. */
-export interface PanelOutcome {
+interface PanelOutcome {
   runtime: DataViewRuntime | null;
   issues: Issue[];
 }
@@ -217,7 +217,7 @@ export interface PanelOutcome {
  * what the runtime knows of it, and its two ways of treating a data panel's
  * child — `run` for one on the tab shown, `hold` for one elsewhere.
  */
-export interface BoardPanelsHost {
+interface BoardPanelsHost {
   applied: DashboardViewConfig;
   /** Admission of `applied`. */
   issues: readonly Issue[];

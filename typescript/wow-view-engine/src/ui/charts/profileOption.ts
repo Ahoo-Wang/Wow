@@ -24,7 +24,7 @@ import { emphasized, type ChartTheme, chartText } from './theme.js';
 import { tooltipFrame, tooltipHtml } from './tooltip.js';
 
 /** What a radar or parallel axes read besides their profiles. */
-export interface ProfileContext {
+interface ProfileContext {
   spec?: ChartSpec;
   label: ValueLabel;
   column: ColumnTitle;
@@ -36,7 +36,7 @@ export interface ProfileContext {
 }
 
 /** One drawn shape or line: its group, name and colour. */
-export interface DrawnProfile {
+interface DrawnProfile {
   row: RecordData;
   key: string;
   name: string;

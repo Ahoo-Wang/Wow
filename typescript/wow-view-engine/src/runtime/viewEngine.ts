@@ -74,7 +74,7 @@ import { RuntimeFactory, type RuntimeIdentity } from './runtimeFactory.js';
 import { readingStore } from './storedViews.js';
 import { SourceCapabilities } from './capabilities.js';
 import { EngineResources } from './resources.js';
-import { reportingStore } from './failures.js';
+import { reportingStore } from './failure/failures.js';
 import { requireSavable, requireTitle, storable } from './commandChecks.js';
 import { publishCopy, readReferences } from './publish.js';
 

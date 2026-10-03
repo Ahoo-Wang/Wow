@@ -81,7 +81,7 @@ export const INSTANCE_ACTIONS = Object.keys(
 ) as readonly (keyof InstancePermissions)[];
 
 /** What may be done to one instance, and — when nothing may — why not. */
-export interface InstanceAbilities extends Required<InstancePermissions> {
+interface InstanceAbilities extends Required<InstancePermissions> {
   /**
    * True when the refusal is the view's own nature rather than the store's
    * answer. The guard words that refusal differently

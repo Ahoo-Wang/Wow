@@ -27,8 +27,8 @@ import {
 import {
   isForbiddenQuery,
   queryFailureIssue,
-} from '../src/runtime/queryFailure.js';
-import { sourceFailure } from '../src/runtime/sourceReason.js';
+} from '../src/runtime/failure/queryFailure.js';
+import { sourceFailure } from '../src/runtime/failure/sourceReason.js';
 import { useFilterEditor } from '../src/react/index.js';
 import { FilterPanel, formatIssue, zhCN } from '../src/ui/index.js';
 import { en } from '../src/ui/messages/en.js';

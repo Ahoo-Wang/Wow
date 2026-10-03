@@ -22,13 +22,13 @@ import { EditorCard } from '../kit/variants.js';
 import { chartDragAccessibility, listDrop } from './drag.js';
 
 /** One row of an ordered list: what it is kept by, and what it reads as. */
-export interface OrderedCard {
+interface OrderedCard {
   key: string;
   /** The row as it reads on screen, which the handle and the voice name. */
   name: string;
 }
 
-export interface OrderedCardsProps<T extends OrderedCard> {
+interface OrderedCardsProps<T extends OrderedCard> {
   /** Each card's `data-slot`: `stage-card`, `level-card`. */
   slot: string;
   /** The attribute each card carries its key under: `stage`, `level`. */
