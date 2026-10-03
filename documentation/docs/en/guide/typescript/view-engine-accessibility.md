@@ -83,7 +83,7 @@ The five criteria this statement first gave as partial — 2.4.11 Focus Not Obsc
 
 ### Declared actions
 
-The commands a host declares with `actions()`: a row's primary action and its ⋯ menu, the bulk bar for selected rows, actions with a form and dangerous confirmations, progress and results. Added for the second pass; the gaps it found are [fixed](#declared-actions-fixed), and the rows below are re-walked on the fix (keyboard in Storybook on Chromium, and jsdom).
+The commands a host declares with `actions()`: a row's primary action and its ⋯ menu, the bulk bar for selected rows, actions with a form and dangerous confirmations, progress and results. Added for the second pass; the gaps it found are [fixed](#declared-actions-fixed), and the rows below are re-walked on the fix (keyboard in Storybook on Chromium, and jsdom). How actions are declared, and where the engine places them, is in [Declared Actions](./view-engine-actions.md).
 
 | Task | Keyboard | Screen reader |
 |---|---|---|
@@ -268,4 +268,6 @@ The package's [todo.md](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wo
 
 - [View Engine](./view-engine.md): the problem it solves and how to use it.
 - [Theming the View Engine](./view-engine-theming.md): the contrast an override owes.
+- [Fitting the View Engine into a Host](./view-engine-host.md): `landmark="region"` on a page that has its own `main`, the page's height, and embeds.
+- [Declared Actions](./view-engine-actions.md): why a disabled action stays focusable, when it asks, and whether the question is a `dialog` or an `alertdialog`.
 - [Design documents](https://github.com/Ahoo-Wang/Wow/tree/main/typescript/wow-view-engine/docs/design): the focus and announcement rules are in `ui/README.md`.

@@ -42,6 +42,9 @@ const viewEngineGuides: DefaultTheme.SidebarItem = {
         {text: 'Theming', link: 'view-engine-theming'},
         {text: 'Accessibility', link: 'view-engine-accessibility'},
         {text: 'Where Views Live', link: 'view-engine-storage'},
+        {text: 'Fitting It into a Host', link: 'view-engine-host'},
+        {text: 'Declared Actions', link: 'view-engine-actions'},
+        {text: 'Content Security Policy', link: 'view-engine-csp'},
     ],
 }
 

@@ -20,7 +20,7 @@ A host makes one choice, on `ViewHost` (the package README's quick start):
 | The engine follows you | A host with a shadcn theme (Tailwind v4)            | `theme="host"`, and import `shadcn-bridge.css` ([the bridge](#the-shadcn-bridge))  |
 | You follow the engine  | A host with no theme, or happy to wear the engine's | `preset="porcelain"` (import its file), optionally `brand="#1d4ed8"` ([presets](#presets), [a brand colour](#i-have-a-brand-colour)); your own chrome wears [`fve-tokens`](#your-own-chrome-fve-tokens) |
 
-`ViewHost` names the preset and the brand on `<html>` and paints light or dark there (`colorMode`, [below](#light-dark-and-system)). The rest of this page is what those two lines stand on, and what to reach for past them.
+`ViewHost` names the preset and the brand on `<html>` and paints light or dark there (`colorMode`, [below](#light-dark-and-system)). The rest of this page is what those two lines stand on, and what to reach for past them. The rest of `ViewHost`'s ports — the router, the language and each resource's `bind` — are in [Fitting the View Engine into a Host](./view-engine-host.md); how the stylesheets load under a strict Content Security Policy is in [Content Security Policy for the View Engine](./view-engine-csp.md).
 
 ## Stylesheets
 
@@ -286,7 +286,7 @@ declare const id: string;
 
 ## Embeds and popups
 
-Menus, selects, popovers, tooltips and dialogs are portalled to `<body>`, outside the part of the page the view sits in. They carry what the surface resolved — its mode as `data-theme`, its preset as `data-fve-preset`, and the density, change convention and brand-chart switch it found — so a pinned embed's popups match it.
+Menus, selects, popovers, tooltips and dialogs are portalled to `<body>`, outside the part of the page the view sits in. They carry what the surface resolved — its mode as `data-theme`, its preset as `data-fve-preset`, and the density, change convention and brand-chart switch it found — so a pinned embed's popups match it. The embeds themselves — their tiers, their switches and a board's filters — are in [Fitting the View Engine into a Host](./view-engine-host.md#embeds).
 
 - **Use an attribute, not a stylesheet swap.** A chart reads its look off the tokens and is told to read it again when one of these attributes changes on the surface or an ancestor: `class`, `data-theme`, `data-fve-preset`, `data-fve-change-colors`, `data-fve-density`, `data-fve-brand-chart` or `style`. A stylesheet replaced with no attribute changing leaves charts in the old colours.
 - **Variables set on one element stop at `<body>`.** `--fve-*` set on a card around an embed reach the embed but not its popups, which are not inside the card. Put page-wide values on `:root`; use `tokens` or `preset` for one view.
