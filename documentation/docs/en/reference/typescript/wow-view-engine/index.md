@@ -5,8 +5,8 @@ description: 'Entries, concepts, persistence port, and extension points of the @
 
 # wow-view-engine reference
 
-::: info Released with Wow 9.2.0
-`@ahoo-wang/wow-view-engine` is released with Wow 9.2.0, from the same tag and with the same version; it is not on npm before that. A patch release never breaks the exports (the `ViewStore` port among them), the CSS contract, the message keys and issue codes, or the `wow-view-engine` command; a minor release lists every break in its release notes ([compatibility](../../../guide/typescript/view-engine.md)). The [design documents](https://github.com/Ahoo-Wang/Wow/tree/main/typescript/wow-view-engine/docs/design) are the source of truth for the model; there is no per-symbol reference yet.
+::: info On npm since Wow 9.2.0
+`@ahoo-wang/wow-view-engine` is on npm since Wow 9.2.0, released from the same tag and with the same version as Wow. A patch release never breaks the exports (the `ViewStore` port among them), the CSS contract, the message keys and issue codes, or the `wow-view-engine` command; a minor release lists every break in its release notes ([compatibility](../../../guide/typescript/view-engine.md)). The [design documents](https://github.com/Ahoo-Wang/Wow/tree/main/typescript/wow-view-engine/docs/design) are the source of truth for the model; there is no per-symbol reference yet.
 :::
 
 For what the engine does and a walkthrough of the target usage, read the [View Engine guide](../../../guide/typescript/view-engine.md).

@@ -19,8 +19,8 @@ flowchart LR
     App -->|"snapshot query"| Service
 ```
 
-::: tip Not on npm yet
-The Wow TypeScript packages are released with Wow **9.2.0**. Until that release, the install commands below fail with `E404`; see [Compatibility and Versions](./compatibility.md#release-status).
+::: tip On npm since Wow 9.2.0
+The Wow TypeScript packages are on npm since Wow **9.2.0**, and the install commands below take the `latest` release. Choose the version that matches your service; see [Compatibility and Versions](./compatibility.md#release-status).
 :::
 
 ## 1. Prerequisites

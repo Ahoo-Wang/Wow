@@ -2,7 +2,7 @@
 
 Maven 和 npm 用同一个版本号、同一个 `v*` tag 一起发布（见 [MIGRATION.md](MIGRATION.md)「发布策略」）。本文是维护者照做的手册：发布流水线怎么把关、首发怎么做、日常发版和出错时怎么处理。
 
-**下一个版本是 9.2.0。** `v9.1.5` 以来有带 `!` 的提交（查询子系统的 SPI，以及五个发布包在首发前的若干个），还有两项批准的 v9 例外（`spaced` #3791、`/schema` 响应体 D77），发版准入会拒绝 9.1.6。9.2.0 本来也适合做首发：它新增了一条 npm 产品线。发布说明的草稿在 [release-notes/v9.2.0.md](release-notes/v9.2.0.md)，随 PR 一起更新，E.2 照它写 release。
+**9.2.0 已发布**（2026-10-03，tag `v9.2.0` → `7fe4934b5`，[GitHub release](https://github.com/Ahoo-Wang/Wow/releases/tag/v9.2.0)）：五个发布包在 npm 上的首发，首发清单只剩 E 第 5 步与 F 第 3 步。它的发布说明就是那个 release，草稿已删。下一个版本按「发版准入」第 3 条定：`v9.2.0` 以来没有破坏性改动就是 9.2.1；有就只能是 9.3.0，准入拒绝 9.2.1。
 
 「发布包」在本文里一律指 `.github/scripts/publish-npm.mjs` 的 `PUBLISHED`，9.2.0 起是五个：wow-client、wow-react、wow-generator、wow-view-engine、wow-view-store。下面的循环都从 `node .github/scripts/publish-npm.mjs --list` 取包名，不在文中手写名单。
 
@@ -68,7 +68,7 @@ Gradle 流水线不在准入里：preflight 自己在这个提交上跑 `./gradl
 - [x] 兼容承诺（R2-46）：视图引擎与视图存储的 README 写「随 Wow 9.2.0 发布」与兼容规则（补丁版本不破坏公开面，次版本的破坏逐条写进发布说明，不加兼容层），安装照 wow-client 写；两个包的 AGENTS.md「Status」改成首发后的规则，保留存储数据迁移的例外。npm 页面上的 README 冻结在 tarball 里，所以这一条必须在 rc 之前。
 - [x] 没标 `!` 的破坏也挡得住（R2-45）：PR 模板的 **Breaking** 框、正文不是「None.」的 `## Breaking` 一节、`BREAKING CHANGE:` 行都让 pr-labeler 加 `breaking-change`（`## Behaviour changes` 不加）；准入按标签拒绝补丁版本，并要求 `x.Y.0` 的发布说明点名每个破坏性 PR（见「发版准入」）。
 - [x] 给 9.2.0 里没标 `!` 的破坏性 PR 补上标签，让准入也替它们把关（它们都写在草稿的「Breaking」里）：`for pr in 3429 3451 3461 3483 3485 3539 3570 3581 3595 3626 3791 3798 3823 3824 3825 3827 3832 3835; do gh pr edit "$pr" --repo Ahoo-Wang/Wow --add-label breaking-change; done`。2026-10-01 已运行（用户批准）。之后合并的、没标 `!` 的破坏性 PR 由 pr-labeler 或评审加标签。
-- [x] 发布说明草稿 [release-notes/v9.2.0.md](release-notes/v9.2.0.md)：打 tag 之前按「发布说明」的命令补上草稿之后合并的 PR，填完占位符。2026-10-02 完成（到 #3866）：`v9.1.5` 以来的 54 个破坏性 PR 都在「Breaking」里点名；视图存储系统视图的网关规则写在 Highlights 下面的提示框里。2026-10-03 的 9.2.0 发版 PR 补到 #3870（rc 之后合并的 #3867、#3868、#3870 只改测试、控制台、文档与手册，不进说明；#3870 改了兼容性页的 pnpm 写法，说明里迁移步骤的 `save-prefix` 跟着改成 pnpm 的 `savePrefix` 与 npm 的 `save-prefix`），rc 的措辞改成正式版的，`missingFromNotes` 重跑仍是 54 个都点名。之后再合并的 PR，E.2 照同一套命令补上。
+- [x] 发布说明草稿 `release-notes/v9.2.0.md`（发布后按 F 第 1 步删掉，正文留在 [v9.2.0 的 release](https://github.com/Ahoo-Wang/Wow/releases/tag/v9.2.0)）：打 tag 之前按「发布说明」的命令补上草稿之后合并的 PR，填完占位符。2026-10-02 完成（到 #3866）：`v9.1.5` 以来的 54 个破坏性 PR 都在「Breaking」里点名；视图存储系统视图的网关规则写在 Highlights 下面的提示框里。2026-10-03 的 9.2.0 发版 PR 补到 #3870（rc 之后合并的 #3867、#3868、#3870 只改测试、控制台、文档与手册，不进说明；#3870 改了兼容性页的 pnpm 写法，说明里迁移步骤的 `save-prefix` 跟着改成 pnpm 的 `savePrefix` 与 npm 的 `save-prefix`），rc 的措辞改成正式版的，`missingFromNotes` 重跑仍是 54 个都点名。之后再合并的 PR，E.2 照同一套命令补上。
 - [x] 依赖审计的一条发现（2026-10-01，见「日常发版」第 1 步）：wow-generator 经 ts-morph 带进 `brace-expansion` 5.0.9（两条 high、一条 moderate）。处置：锁文件更新到 5.0.12（`pnpm update -r brace-expansion`，minimatch 10.2.6 的范围 `^5.0.8` 本来就允许，没有 override），`pnpm audit --prod` 回到 0。
 - [x] Docker 镜像（example、compensation、view store 服务端）不在预发布 tag 上构建推送：三个工作流的 tag 过滤排除 `v*.*.*-*`（`release-admission.test.mjs` 守着），rc 只发 npm（C.2）。
 - [x] 发版 PR `chore(release): prepare 9.2.0-rc.0`：`pnpm set-version 9.2.0-rc.0`，更新 openapi 快照，`pnpm check:versions`。**rc 只改版本文件**（`gradle.properties`、各 `package.json`、openapi 快照，准入与测试要它们一致）；README 版本表与文档里给用户看的 Maven 版本（`existing-project.md`、`getting-started.md`）留在 9.1.5，因为 rc 不发 Maven Central，`wow-bom:9.2.0-rc.0` 不存在。它们在 9.2.0 的发版 PR 里按根 `AGENTS.md` 一起改。
@@ -378,8 +378,10 @@ Gradle 流水线不在准入里：preflight 自己在这个提交上跑 `./gradl
 
 ### E. CI 发布 `9.2.0`
 
+**已完成**（2026-10-03），第 5 步除外：GitHub release `v9.2.0`（`7fe4934b5`）触发的 [Packages Deploy](https://github.com/Ahoo-Wang/Wow/actions/runs/37092332830) 每个 job 都成功——`admission`（三条完整运行与破坏性 PR 点名）、`preflight`、`github-deploy`（GitHub Packages）、`central-deploy`（Maven Central，包括 `wow-view-store-api`、`-domain`、`-starter`）、`npm-deploy`（五个发布包都带 provenance，dist-tag 是 `latest: 9.2.0`、`next: 9.2.0-rc.0`）、`npm-smoke`（Node 22.12.0 与 24 都绿）。三个镜像的 `9.2.0`、`9.2`、`latest` 已推到 Docker Hub、ghcr、阿里云，同一个镜像的三个 tag 在三个仓库里 digest 一致。**第 5 步还没做**：重跑 `npm-deploy` 同样要维护者在 environment `npm-publish` 里再点一次审批。
+
 1. 前提：C′（补偿控制台试用）在最后一个 rc 上通过，A 里的 fetcher peer 下限已处理。发版 PR `chore(release): prepare 9.2.0`：`pnpm set-version 9.2.0`，按根 `AGENTS.md` 更新 README 版本表、`existing-project.md`、`getting-started.md`（中英文）与 openapi 快照，合并。
-2. GitHub → Releases → Draft a new release：tag `v9.2.0`（在 main 上新建），正文就是草稿 [release-notes/v9.2.0.md](release-notes/v9.2.0.md)（去掉开头的注释）。**在这个页面上直接 Publish release，不要先 Save draft**：`package-deploy.yml` 由 release 的 `created` 事件触发，先存成草稿、以后再发布的 release 只发出 `published`，不会有 `created`，发布流水线就不运行。已经存成草稿再发布的，在 tag 上手动运行 Packages Deploy（「发布流水线」第一段）。`v9.1.5..HEAD` 里有约 1370 个从 fetcher 导入的提交，不能直接用自动生成的说明（R3-29）；`--first-parent` 只剩 main 上的几百个合并提交。草稿已经写好的几块，发之前再核对一遍：
+2. GitHub → Releases → Draft a new release：tag `v9.2.0`（在 main 上新建），正文就是草稿 `release-notes/v9.2.0.md`（去掉开头的注释；发布后按 F 第 1 步删掉，正文留在 release 上）。**在这个页面上直接 Publish release，不要先 Save draft**：`package-deploy.yml` 由 release 的 `created` 事件触发，先存成草稿、以后再发布的 release 只发出 `published`，不会有 `created`，发布流水线就不运行。已经存成草稿再发布的，在 tag 上手动运行 Packages Deploy（「发布流水线」第一段）。`v9.1.5..HEAD` 里有约 1370 个从 fetcher 导入的提交，不能直接用自动生成的说明（R3-29）；`--first-parent` 只剩 main 上的几百个合并提交。草稿已经写好的几块，发之前再核对一遍：
    - **Breaking / TypeScript**：三个客户端包在 npm 上是首发，它们的 `!` 提交改的是还没发布的代码，所以这一节写的是**相对 `@ahoo-wang/fetcher-wow`、`fetcher-generator`、`fetcher-react` 的迁移**（包名、入口、Condition 查询移到 `/legacy`、生成器 CLI 与文件名等），逐条给出步骤，详细内容链接[迁移指南](../documentation/docs/zh/guide/typescript/migration.md)。
    - **Breaking / Kotlin / JVM**：查询子系统的 SPI 与类型、9.1 编译的自定义 `QueryGateway`（`describe` 抛 `QuerySchemaUnavailableException`）、改名的 bean、9.1 的 schema 声明文件、新的启动检查（R2-45 的清单，#3827 的「For B7」一节）；开头一段写明 9.1 与 9.2 混跑时已知的差别。
    - **Breaking / Server behaviour**：`spaced`（#3791，批准的 v9 例外：升级前给要隔离的聚合声明 `spaced = true`；进程内的来源与 saga 也不再带 space；9.1 与 9.2 混跑时同一个查询可能随节点返回不同的行）、`/schema` 响应体（D77，弃用的 refresh 别名，混跑时退回宿主的定义）、游标 token、Elasticsearch（启动时创建随包的索引定义与所需权限、整数映射字段上的小数、存在性过滤读 `_ignored`）。
@@ -418,9 +420,11 @@ Gradle 流水线不在准入里：preflight 自己在这个提交上跑 `./gradl
    # 每个镜像的三行 digest 相同；ghcr.io/ahoo-wang/ 与 registry.cn-shanghai.aliyuncs.com/ahoo/ 同样核对
    ```
 
-5. 在运行页面重跑 `npm-deploy`（Re-run failed jobs 或 Re-run job），每个包都应输出「already on npm; skipped」，验证幂等。
+5. 在运行页面重跑 `npm-deploy`（Re-run failed jobs 或 Re-run job），每个包都应输出「already on npm; skipped」，验证幂等。重跑的 job 仍在 environment `npm-publish` 里等审批，要维护者再点一次 Review deployments → Approve。
 
 ### F. 发布以后
+
+**第 1、2 步已完成**（2026-10-03）：首发记在 MIGRATION「进度」的「首发记录」，草稿已删，文档翻成已发布；照快速开始从 npm 安装、生成、编译、运行都通过（结果与 pnpm 11 `minimumReleaseAge` 的一处观察也在「首发记录」里）。第 3 步还没做。
 
 1. 在 [MIGRATION.md](MIGRATION.md)「进度」里记下首发；删掉草稿 `release-notes/v9.2.0.md`（GitHub release 就是记录）。
 2. 翻转文档状态：`documentation/docs/{en,zh}/guide/typescript/` 的 `index.md`、`compatibility.md`「发布状态」、`quick-start.md` 的提示框和 `troubleshooting.md` 的 `E404` 一行，视图引擎与视图存储各页顶部「随 Wow 9.2.0 发布」提示框里的「在此之前不在 npm 上／it is not on npm before that」，以及 `reference/typescript/index.md`，把「尚未上 npm／not yet on npm」改成已发布；包 README 已冻结在 tarball 里，只写了「随 Wow 9.2.0 发布」与兼容规则，不用改。然后在一个空目录里照[快速开始](../documentation/docs/zh/guide/typescript/quick-start.md)从 npm 安装、生成、编译一遍，确认页面上的安装命令能用。

@@ -5,8 +5,8 @@ description: 'WowViewStore, the @ahoo-wang/wow-view-store package: the view engi
 
 # wow-view-store reference
 
-::: info Released with Wow 9.2.0
-`@ahoo-wang/wow-view-store` is released with Wow 9.2.0, together with [wow-view-engine](../wow-view-engine/), from the same tag and with the same version; it is not on npm before that. A patch release never breaks its public surface (the exports of the entry and the error codes); a minor release may, and its release notes list every break with the steps to follow ([version ranges](../../../guide/typescript/compatibility.md#version-ranges)). The [package README](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-store/README.md) and the [design](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/docs/design/view-store-backend.md) are the source of truth.
+::: info On npm since Wow 9.2.0
+`@ahoo-wang/wow-view-store` is on npm since Wow 9.2.0, released together with [wow-view-engine](../wow-view-engine/) from the same tag and with the same version as Wow. A patch release never breaks its public surface (the exports of the entry and the error codes); a minor release may, and its release notes list every break with the steps to follow ([version ranges](../../../guide/typescript/compatibility.md#version-ranges)). The [package README](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-store/README.md) and the [design](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/docs/design/view-store-backend.md) are the source of truth.
 :::
 
 `WowViewStore` implements the view engine's [`ViewStore` port](../wow-view-engine/#persistence) on the [view store](https://github.com/Ahoo-Wang/Wow/blob/main/view-store/README.md): saved views and preferences as two Wow aggregates, served by the standalone `wow-view-store-server` or by a Wow service that embeds `wow-view-store-starter`.

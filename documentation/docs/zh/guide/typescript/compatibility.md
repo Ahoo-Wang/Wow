@@ -11,13 +11,13 @@ description: Wow TypeScript 包支持哪些 Wow 服务端、Node.js、React、Ty
 
 | 包 | 状态 |
 |---|---|
-| `@ahoo-wang/wow-client` | 随 Wow **9.2.0** 发布；在此之前尚未上 npm |
-| `@ahoo-wang/wow-generator` | 随 Wow **9.2.0** 发布；在此之前尚未上 npm |
-| `@ahoo-wang/wow-react` | 随 Wow **9.2.0** 发布；在此之前尚未上 npm |
-| `@ahoo-wang/wow-view-engine` | 随 Wow **9.2.0** 发布；在此之前尚未上 npm |
-| `@ahoo-wang/wow-view-store` | 随 Wow **9.2.0** 发布；在此之前尚未上 npm |
+| `@ahoo-wang/wow-client` | Wow **9.2.0**（2026-10-03）起在 npm 上 |
+| `@ahoo-wang/wow-generator` | Wow **9.2.0**（2026-10-03）起在 npm 上 |
+| `@ahoo-wang/wow-react` | Wow **9.2.0**（2026-10-03）起在 npm 上 |
+| `@ahoo-wang/wow-view-engine` | Wow **9.2.0**（2026-10-03）起在 npm 上 |
+| `@ahoo-wang/wow-view-store` | Wow **9.2.0**（2026-10-03）起在 npm 上 |
 
-Wow 9.2.0 发布之前，`pnpm add @ahoo-wang/wow-client` 会以 `E404` 失败。候选版本可能先以 dist-tag `next` 出现（`pnpm add @ahoo-wang/wow-client@next`）；`latest` 从 9.2.0 开始。在此之前，应用继续使用 5.x 的 `@ahoo-wang/fetcher-wow` 和 `@ahoo-wang/fetcher-generator`，9.2.0 发布后再按[迁移指南](./migration.md)切换。
+每个版本都由 CI 带 [npm provenance](https://docs.npmjs.com/generating-provenance-statements) 发布。`latest` 指向最新的稳定版；有候选版本时，它发在 dist-tag `next` 上（`pnpm add @ahoo-wang/wow-client@next`）。还在用 5.x 的 `@ahoo-wang/fetcher-wow` 和 `@ahoo-wang/fetcher-generator` 的应用，按[迁移指南](./migration.md)切换。
 
 ## 版本
 

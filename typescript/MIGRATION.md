@@ -2,7 +2,7 @@
 
 ## 状态与依据
 
-方案已与用户逐条确认（2026-09-23），经两轮自审，补充项均已并入。**迁移已完成**（第 0～3′ 步都已合并），剩下的是首发与第 4a、4b 步，见文末「进度」的「下一步」。
+方案已与用户逐条确认（2026-09-23），经两轮自审，补充项均已并入。**迁移已完成**（第 0～3′ 步都已合并），**首发也已完成**（Wow 9.2.0，2026-10-03）；剩下的是第 4a 步的收尾与第 4b 步，见文末「进度」的「下一步」。
 
 本文从 fetcher 仓 `docs/superpowers/specs/2026-09-23-wow-packages-migration-design.md` 复制而来（取自 Ahoo-Wang/fetcher#1899 分支 `bb0a9dabd`，含 2026-09-24 补的 `/fetcher` 子路径与 5.x 流水线两处），**此后以本仓这份为准**，迁移进度也只记在这里。用户 2026-09-24 定：放在 `typescript/MIGRATION.md`，不放 `docs/superpowers/`（那里在 Wow 被 `.gitignore` 忽略，且根目录 `AGENTS.md` 规定不再新增文件）。文中的 `#编号` 除 #2170、#3248、#3277 以外都指 fetcher 仓的 PR。
 
@@ -264,6 +264,7 @@ Wow 文档站（wow.ahoo.me，VitePress）已经这样挂了一份 dokka：放�
 | F2 = 第 3′ 步             | fetcher 删掉迁走的路径、viewer、dataMonitor、generator-test.yml；CI 只剩 core；依赖方向检查与 `downstream-wow.yml`；冻结解除，main 在 6.0 前不发布                                                                                                                                                           | Ahoo-Wang/fetcher#1905         |
 | ruleset                   | 16907411 的 `allowed_merge_methods` 恢复为 `[squash, rebase]`，与备份逐条一致（2026-09-24，用户确认）                                                                                                                                                                                                        | —                              |
 | C′ = 第 4a 步之 rc 试用   | 2026-10-03 在 `9.2.0-rc.0` 上通过，9.2.0 照发；记录见表下「C′ 试用记录」                                                                                                                                                                                                                                     |
+| 首发 = 第 4a 步之 9.2.0   | 2026-10-03 发布 Wow 9.2.0，五个发布包在 npm 上的首个正式版；记录见表下「首发记录」                                                                                                                                                                                                                           | Wow #3869                      |
 
 C′ 试用记录（2026-10-03，[RELEASING.md](RELEASING.md)「C′」第 7 步）：
 
@@ -271,6 +272,15 @@ C′ 试用记录（2026-10-03，[RELEASING.md](RELEASING.md)「C′」第 7 步
 - **结果**：解析核对通过（只用 npm 上的 rc 包，没有任何工作区 `dist`）；generate、tsc、lint、build、coverage（176 个）、打桩的 `test:browser`（129 个）退出码都为 0；用 `@next` 照快速开始走一遍，打印出页面上的三行，TypeScript 7.0.2 与 6.0.3 都编译通过，生成器报 `9.2.0-rc.0`，`fetcher-openapi` 不存在；视图存储端口一致性在独立服务端与示例服务端上都是 82/82；对着真实服务端人工走查通过：首页、`/active`、带尝试记录与全部事件的详情，一个共享视图另存、改名、刷新后仍在，没有 4xx、5xx，控制台没有错误。
 - **发现的问题**：都在发布包之外，已在 main 上由 #3870 修好——两条真实服务端冒烟用例还对着 #3710 之前的详情面板；控制台提交的生成客户端自 #3854 起过期；pnpm 11 不认 `.npmrc` 里的 `save-prefix`（文档改为在 `pnpm-workspace.yaml` 里写 `savePrefix`）；手册里的两步。
 - **结论**：按用户的决定（不发 rc.1，规则写进 C′ 第 7 步），在同一台 rc.0 服务端上重跑真实服务端冒烟：9/9。9.2.0 照发。
+
+首发记录（2026-10-03，[RELEASING.md](RELEASING.md)「E」）：
+
+- **版本与 tag**：Wow 9.2.0，tag `v9.2.0` → `7fe4934b5`（#3869 的合并提交），[GitHub release](https://github.com/Ahoo-Wang/Wow/releases/tag/v9.2.0) 2026-10-03 发布，正文就是发布说明（草稿 `release-notes/v9.2.0.md` 随后删掉）。之前的 `9.2.0-rc.0`（`d7ace5e46`）由维护者手工发到 npm，见「C′ 试用记录」。
+- **npm**：wow-client、wow-react、wow-generator、wow-view-engine、wow-view-store 的 9.2.0 由 CI 经 OIDC 可信发布、带 provenance；dist-tag 是 `latest: 9.2.0`、`next: 9.2.0-rc.0`。`npm-smoke` 在 Node 22.12.0 与 24 上从 npm 安装、导入、类型检查都通过。
+- **Maven**：GitHub Packages 与 Maven Central 都有 9.2.0，包括第一次发布的 `wow-view-store-api`、`-domain`、`-starter`。
+- **Docker**：`wow-example-server`、`wow-compensation-server`、`wow-view-store-server` 的 `9.2.0`、`9.2`、`latest` 推到 Docker Hub、ghcr、阿里云，digest 一致。
+- **流水线**：[Packages Deploy](https://github.com/Ahoo-Wang/Wow/actions/runs/37092332830) 的 admission、preflight、github-deploy、central-deploy、npm-deploy、两个 npm-smoke 全部成功。还没做的是 RELEASING「E」第 5 步（重跑 `npm-deploy` 验证幂等，要维护者再审批一次）与「F」第 3 步。
+- **文档**（RELEASING「F」第 1、2 步）：文档站的 TypeScript 页面翻成「已在 npm 上」。然后在仓库外的空目录里照快速开始走一遍：示例服务端从 main（与 `v9.2.0` 同一个提交）构建，存储用 MongoDB 8.3.11；按兼容性页在 `pnpm-workspace.yaml` 写 `savePrefix: '~'`；页面上的两条 `pnpm add`、生成、`tsc`、`node dist/main.js` 退出码都为 0，打印出页面上的三行，生成器报 `9.2.0`，两个 Wow 包存成 `~9.2.0`，TypeScript 7.0.2 与 6.0.3 都编译通过，`fetcher-openapi` 不存在。pnpm 11.22.0 的 `minimumReleaseAge` 默认一天：9.2.0 发出十几分钟时照页面安装，pnpm 选了一天之内唯一可选的 `9.2.0-rc.0`，还存成了不带 `~` 的精确版本（其余步骤同样通过）；所以上面那一遍在 `pnpm-workspace.yaml` 里另加了 `minimumReleaseAge: 0`。发布一天以后照页面原样安装就是 9.2.0。排障页「安装」加了一行写这个现象与两种处理（等一天，或 `minimumReleaseAgeExclude: ['@ahoo-wang/*']`；`minimumReleaseAge: 0` 对所有包关掉延迟；设置名按本机 pnpm 11.22.0 离线核对过）。
 
 W1 的具体做法（W2 起沿用）：
 
@@ -284,7 +294,7 @@ W1 的具体做法（W2 起沿用）：
 
 ### 在飞
 
-没有在飞的迁移 PR（2026-10-02）。原先列在这里的三项：发布加固 #3323 已合并；W3d（R3 不改行为的界面重构）随迁入里程碑合并（view-engine D28）；view-engine 测试偶发的 `Cannot read properties of null (reading 'resize')` 没有留下待办，再出现时另开任务。
+没有在飞的迁移 PR（2026-10-03）。原先列在这里的三项：发布加固 #3323 已合并；W3d（R3 不改行为的界面重构）随迁入里程碑合并（view-engine D28）；view-engine 测试偶发的 `Cannot read properties of null (reading 'resize')` 没有留下待办，再出现时另开任务。
 
 W2a、W2b 的具体做法与决定：
 
@@ -298,8 +308,8 @@ W2a、W2b 的具体做法与决定：
 
 ### 下一步
 
-1. **npm 首发（用户操作）**：照 [RELEASING.md](RELEASING.md)「首发清单」做。2026-09-24 用户定：首个版本是 **9.2.0**（`v9.1.5` 以来有 `!` 提交，9.1.6 过不了准入）；先在全新 clone 的 `v9.2.0-rc.0` tag 上手工发 `9.2.0-rc.0`（dist-tag `next`），配好 Trusted Publisher（environment `npm-publish`）后由 CI 带 provenance 发 `9.2.0`；三个包 `engines.node` 为 `>=22.12.0`；wow-react 只出 ESM；三个 gate 设为必需检查。
-2. 第 4a 步：`9.2.0-rc.0`（2026-10-03 已发，Trusted Publisher 已配）→ 补偿控制台的临时分支 `chore/compensation-9.2.0-rc.0` 在 rc 上端到端跑通（发 `latest` 的前置条件，RELEASING「C′」；2026-10-03 通过，见「已完成」）→ Wow 首个稳定版 9.2.0 → 删掉该分支（不合并，main 保持 `workspace:*`）→ fetcher 6.0，并对 fetcher-wow、fetcher-generator 执行 `npm deprecate`（对外操作，先问用户）。
+1. **npm 首发**：2026-10-03 完成（9.2.0，见「已完成」的「首发记录」）。剩下 [RELEASING.md](RELEASING.md)「E」第 5 步：重跑 `npm-deploy` 验证幂等，要维护者在 environment `npm-publish` 里再点一次审批。
+2. 第 4a 步：`9.2.0-rc.0`（2026-10-03 已发，Trusted Publisher 已配）→ 补偿控制台的临时分支 `chore/compensation-9.2.0-rc.0` 在 rc 上端到端跑通（发 `latest` 的前置条件，RELEASING「C′」；2026-10-03 通过，见「已完成」）→ Wow 首个稳定版 9.2.0（2026-10-03 已发）→ 删掉该分支（不合并，main 保持 `workspace:*`）→ fetcher 6.0，并对 fetcher-wow、fetcher-generator 执行 `npm deprecate`（对外操作，先问用户）。
 3. 第 4b 步：view-engine 随 9.2.0 正式发布后，停止维护 fetcher `5.x`，对 fetcher-viewer 执行 `npm deprecate`（对外操作，先问用户）。
 
 里程碑收尾的全量门禁由首发清单代替：rc 的 tag 上手动触发三条流水线全开（RELEASING「C」第 3 步），`preflight` 跑 Gradle 全量构建与集成测试。阶段 5 的两项产品口径已定：分析「导出数据…」（view-engine Q28）、仪表盘缺省固定宽度（D31）。

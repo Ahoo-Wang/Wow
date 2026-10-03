@@ -206,7 +206,7 @@ A remaining `@ahoo-wang/fetcher-wow` import fails type checking once the package
 
 - The Wow TypeScript packages follow Wow releases. Choose the version that matches the Wow server, and upgrade `wow-client`, `wow-generator`, and `wow-react` together; they declare each other with `~x.y.z`.
 - Breaking changes ship only in an `x.Y.0` release, and the release notes list each one with its migration.
-- The first release of the Wow packages is 9.2.0; until it is published they are not yet on npm, and an application stays on `fetcher-wow` and `fetcher-generator` 5.x.
+- The first release of the Wow packages on npm is 9.2.0 (2026-10-03); an application that cannot move yet stays on `fetcher-wow` and `fetcher-generator` 5.x, which keep receiving fixes on Fetcher's 5.x branch.
 - Throughout Wow 9.x, the client and the generator still work against Wow 8.x servers (8.11 and later with `FilterExpression`, 8.10 through `@ahoo-wang/wow-client/legacy`; see the [compatibility matrix](./compatibility.md) for what CI verifies against each), the `fetcher-generator` alias and the `fetcher-generator.config.json` fallback work, and the deprecated `Condition` API is available from `/legacy`. All of them are removed in v10; switch to `FilterExpression` and the `filter.*` builders before then, see [filters](../../reference/typescript/wow-client/filters.md).
 - New features land only in the Wow packages. Fetcher keeps a 5.x branch for fixes, and `fetcher-wow` and `fetcher-generator` are planned to be deprecated on npm when Fetcher 6.0 is released.
 
