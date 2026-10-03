@@ -11,13 +11,13 @@ This page answers: **which versions of the Wow TypeScript packages work with whi
 
 | Package | Status |
 |---|---|
-| `@ahoo-wang/wow-client` | Released with Wow **9.2.0**; not yet on npm until then |
-| `@ahoo-wang/wow-generator` | Released with Wow **9.2.0**; not yet on npm until then |
-| `@ahoo-wang/wow-react` | Released with Wow **9.2.0**; not yet on npm until then |
-| `@ahoo-wang/wow-view-engine` | Released with Wow **9.2.0**; not yet on npm until then |
-| `@ahoo-wang/wow-view-store` | Released with Wow **9.2.0**; not yet on npm until then |
+| `@ahoo-wang/wow-client` | On npm since Wow **9.2.0** (2026-10-03) |
+| `@ahoo-wang/wow-generator` | On npm since Wow **9.2.0** (2026-10-03) |
+| `@ahoo-wang/wow-react` | On npm since Wow **9.2.0** (2026-10-03) |
+| `@ahoo-wang/wow-view-engine` | On npm since Wow **9.2.0** (2026-10-03) |
+| `@ahoo-wang/wow-view-store` | On npm since Wow **9.2.0** (2026-10-03) |
 
-Until Wow 9.2.0 is out, `pnpm add @ahoo-wang/wow-client` fails with `E404`. A release candidate may appear under the `next` dist-tag first (`pnpm add @ahoo-wang/wow-client@next`); `latest` starts with 9.2.0. Before that, applications keep using `@ahoo-wang/fetcher-wow` and `@ahoo-wang/fetcher-generator` 5.x, and move with the [migration guide](./migration.md) once 9.2.0 is published.
+Every version is published from CI with [npm provenance](https://docs.npmjs.com/generating-provenance-statements). `latest` points to the newest stable release; a release candidate, when there is one, goes to the `next` dist-tag (`pnpm add @ahoo-wang/wow-client@next`). Applications still on `@ahoo-wang/fetcher-wow` and `@ahoo-wang/fetcher-generator` 5.x move with the [migration guide](./migration.md).
 
 ## Versions
 

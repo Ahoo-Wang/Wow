@@ -5,8 +5,8 @@ description: wow-view-engine 怎样穿上宿主的外观——三层变量、预
 
 # 视图引擎的主题
 
-::: info 随 Wow 9.2.0 发布
-`@ahoo-wang/wow-view-engine` 随 Wow 9.2.0 发布，在此之前不在 npm 上。补丁版本不破坏[什么是公开的](#什么是公开的)里的 CSS 合同；其余兼容规则见[视图引擎](./view-engine.md)页。
+::: info Wow 9.2.0 起在 npm 上
+`@ahoo-wang/wow-view-engine` 从 Wow 9.2.0 起在 npm 上。补丁版本不破坏[什么是公开的](#什么是公开的)里的 CSS 合同；其余兼容规则见[视图引擎](./view-engine.md)页。
 :::
 
 主题是宿主的外观，不是观察方式：它不存进视图、仪表盘或个人偏好，工作台里也没有主题开关。预设、品牌色与明暗都由宿主选，引擎跟随。下面的一切都是 CSS 自定义属性——没有主题对象。

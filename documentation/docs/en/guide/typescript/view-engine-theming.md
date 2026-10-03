@@ -5,8 +5,8 @@ description: How wow-view-engine takes a host's look — three layers of variabl
 
 # Theming the View Engine
 
-::: info Released with Wow 9.2.0
-`@ahoo-wang/wow-view-engine` is released with Wow 9.2.0; it is not on npm before that. A patch release never breaks the CSS contract in [What is public](#what-is-public); the other compatibility rules are on the [View Engine](./view-engine.md) page.
+::: info On npm since Wow 9.2.0
+`@ahoo-wang/wow-view-engine` is on npm since Wow 9.2.0. A patch release never breaks the CSS contract in [What is public](#what-is-public); the other compatibility rules are on the [View Engine](./view-engine.md) page.
 :::
 
 The theme is the host's look, not a way of observing: nothing about it is saved in a view, a dashboard or a preference, and the workbench has no theme switch. The host picks a preset, a brand colour and a mode; the engine follows. Everything below is CSS custom properties — there is no theme object.

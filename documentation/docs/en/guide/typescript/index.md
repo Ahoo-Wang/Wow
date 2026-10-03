@@ -13,13 +13,13 @@ The Wow repository ships the TypeScript side of the Wow HTTP contract. The packa
 
 | Package | Use it to | Status |
 |---|---|---|
-| `@ahoo-wang/wow-client` | Send commands, read snapshots and event streams, and build filters, pagination, and aggregations | Released with Wow 9.2.0 |
-| `@ahoo-wang/wow-generator` | Generate typed models, command clients, and query clients from a Wow OpenAPI document | Released with Wow 9.2.0; CLI `wow-generator` |
-| `@ahoo-wang/wow-react` | Drive Wow single, list, paged, count, and stream queries from React components | Released with Wow 9.2.0 |
-| `@ahoo-wang/wow-view-engine` | Let users filter, analyse by dimensions and metrics, chart, and save views over Wow data | Released with Wow 9.2.0; CLI `wow-view-engine theme-check` |
-| `@ahoo-wang/wow-view-store` | Keep the view engine's saved views and preferences on a Wow server | Released with Wow 9.2.0 |
+| `@ahoo-wang/wow-client` | Send commands, read snapshots and event streams, and build filters, pagination, and aggregations | On npm since Wow 9.2.0 |
+| `@ahoo-wang/wow-generator` | Generate typed models, command clients, and query clients from a Wow OpenAPI document | On npm since Wow 9.2.0; CLI `wow-generator` |
+| `@ahoo-wang/wow-react` | Drive Wow single, list, paged, count, and stream queries from React components | On npm since Wow 9.2.0 |
+| `@ahoo-wang/wow-view-engine` | Let users filter, analyse by dimensions and metrics, chart, and save views over Wow data | On npm since Wow 9.2.0; CLI `wow-view-engine theme-check` |
+| `@ahoo-wang/wow-view-store` | Keep the view engine's saved views and preferences on a Wow server | On npm since Wow 9.2.0 |
 
-Wow 9.2.0 is the first release of these packages; until it is out they are not yet on npm, and `pnpm add` answers `E404`. See [Compatibility and Versions](./compatibility.md) for the release status, the supported servers and runtimes, and what CI verifies.
+Wow 9.2.0 (2026-10-03) is the first release of these packages on npm, published with provenance; `pnpm add` installs them from the `latest` dist-tag. See [Compatibility and Versions](./compatibility.md) for the release status, the supported servers and runtimes, and what CI verifies.
 
 The first three came from the Fetcher repository, where they were `@ahoo-wang/fetcher-wow`, `@ahoo-wang/fetcher-generator`, and the Wow hooks of `@ahoo-wang/fetcher-react`. If a project still uses those names, start with the [migration guide](./migration.md).
 

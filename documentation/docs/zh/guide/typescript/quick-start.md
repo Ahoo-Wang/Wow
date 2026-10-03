@@ -19,8 +19,8 @@ flowchart LR
     App -->|"快照查询"| Service
 ```
 
-::: tip 尚未上 npm
-Wow 的 TypeScript 包随 Wow **9.2.0** 发布。在此之前，下面的安装命令会以 `E404` 失败；见[兼容性与版本](./compatibility.md#发布状态)。
+::: tip Wow 9.2.0 起在 npm 上
+Wow 的 TypeScript 包从 Wow **9.2.0** 起在 npm 上，下面的安装命令装的是 `latest` 版本。版本要与你的服务一致；见[兼容性与版本](./compatibility.md#发布状态)。
 :::
 
 ## 1. 前提

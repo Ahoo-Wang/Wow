@@ -206,7 +206,7 @@ pnpm test
 
 - Wow 的 TypeScript 包跟随 Wow 发版。选择与 Wow 服务端一致的版本，并同时升级 `wow-client`、`wow-generator` 和 `wow-react`；它们之间以 `~x.y.z` 互相声明。
 - 破坏性改动只在 `x.Y.0` 版本发布，发布说明逐条列出并写明迁移方法。
-- Wow 包的首个版本是 9.2.0；发布之前它们尚未上 npm，应用继续使用 5.x 的 `fetcher-wow` 和 `fetcher-generator`。
+- Wow 包在 npm 上的首个版本是 9.2.0（2026-10-03）；暂时不能迁移的应用继续使用 5.x 的 `fetcher-wow` 和 `fetcher-generator`，它们在 Fetcher 的 5.x 分支上继续收到修复。
 - 在 Wow 9.x 期间，客户端和生成器仍能连接 Wow 8.x 服务端（8.11 及以后用 `FilterExpression`，8.10 通过 `@ahoo-wang/wow-client/legacy`；CI 对各版本验证了什么，见[兼容性矩阵](./compatibility.md)），`fetcher-generator` 别名和 `fetcher-generator.config.json` 回退读取可用，已弃用的 `Condition` API 也可以从 `/legacy` 导入。它们都在 v10 移除；在此之前请改用 `FilterExpression` 和 `filter.*` 构造器，见[过滤器](../../reference/typescript/wow-client/filters.md)。
 - 新功能只进 Wow 的包。Fetcher 保留 5.x 分支只做修复，计划在 Fetcher 6.0 发布时对 `fetcher-wow` 和 `fetcher-generator` 执行 npm deprecate。
 
