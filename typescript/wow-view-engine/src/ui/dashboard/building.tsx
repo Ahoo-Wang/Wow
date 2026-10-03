@@ -105,10 +105,10 @@ export function useDashboardExtensions({
     back.current = opener();
     setOpen(next);
   }, []);
-  const [saving, setSaving] = useState<{
-    pending: boolean;
-    error: Issue | null;
-  }>({ pending: false, error: null });
+  const [saving, setSaving] = useState<Saving>({
+    pending: false,
+    error: null,
+  });
   const names = panelNames(dashboard.panels, messages);
   const panelOf = (panelId: string | undefined) =>
     dashboard.panels.find(panel => panel.id === panelId) ?? null;
@@ -187,9 +187,7 @@ export function useDashboardExtensions({
   const permissions = owned ? engine.permissions(owned.definitionId) : null;
   // The system audience too, where it is granted (D81): a system board's
   // panels may show system views alone.
-  const can = permissions
-    ? { ...permissions, createSystem: mayCreate(permissions, 'system') }
-    : { createPersonal: false, createShared: false };
+  const can = permissions ? withSystem(permissions) : NO_AUDIENCE;
   // The saved view a shared board's panel stands on, while it is copied.
   const sharing = open?.kind === 'share' ? open : null;
   // A system board's copy is a system view (D81).
@@ -246,22 +244,12 @@ export function useDashboardExtensions({
           state: saving,
           saveAs: async ({ title, scope }) => {
             if (!promoted) return null;
-            setSaving({ pending: true, error: null });
-            try {
-              const instance = await engine.saveOwnedView(board, promoted.id, {
-                title,
-                scope,
-              });
-              setSaving({ pending: false, error: null });
-              say(messages.label('label.panel.save-owned.saved', { title }));
-              return instance;
-            } catch (error) {
-              setSaving({
-                pending: false,
-                error: toIssue(error, 'view.save.failed'),
-              });
-              return null;
-            }
+            return saveWith(setSaving, {
+              save: () =>
+                engine.saveOwnedView(board, promoted.id, { title, scope }),
+              saved: () =>
+                say(messages.label('label.panel.save-owned.saved', { title })),
+            });
           },
         }}
       />
@@ -284,48 +272,65 @@ export function useDashboardExtensions({
         )}
         commands={{
           can: source
-            ? {
-                ...engine.permissions(source.definitionId),
-                createSystem: mayCreate(
-                  engine.permissions(source.definitionId),
-                  'system',
-                ),
-              }
-            : { createPersonal: false, createShared: false },
+            ? withSystem(engine.permissions(source.definitionId))
+            : NO_AUDIENCE,
           state: saving,
           saveAs: async ({ title, scope }) => {
             if (!sharing) return null;
-            setSaving({ pending: true, error: null });
-            try {
-              const instance = await engine.copyPanelView(
-                board,
-                sharing.panelId,
-                {
-                  title,
-                  scope,
-                },
-              );
-              setSaving({ pending: false, error: null });
-              say(
-                messages.label(
-                  toSystem
-                    ? 'label.panel.copy-system.saved'
-                    : 'label.panel.copy-shared.saved',
-                  { title },
+            return saveWith(setSaving, {
+              save: () =>
+                engine.copyPanelView(board, sharing.panelId, { title, scope }),
+              saved: () =>
+                say(
+                  messages.label(
+                    toSystem
+                      ? 'label.panel.copy-system.saved'
+                      : 'label.panel.copy-shared.saved',
+                    { title },
+                  ),
                 ),
-              );
-              return instance;
-            } catch (error) {
-              setSaving({
-                pending: false,
-                error: toIssue(error, 'view.save.failed'),
-              });
-              return null;
-            }
+            });
           },
         }}
       />
     </>
   );
   return { extensions, dialogs };
+}
+
+/** Where a dialog's save stands, which the dialog says. */
+interface Saving {
+  pending: boolean;
+  error: Issue | null;
+}
+
+/**
+ * One save from a dialog: pending while it runs, `saved` told once it
+ * landed, and the error it ended in kept for the dialog to say, answered
+ * as `null`.
+ */
+async function saveWith<T>(
+  setSaving: (saving: Saving) => void,
+  { save, saved }: { save(): Promise<T>; saved(): void },
+): Promise<T | null> {
+  setSaving({ pending: true, error: null });
+  try {
+    const instance = await save();
+    setSaving({ pending: false, error: null });
+    saved();
+    return instance;
+  } catch (error) {
+    setSaving({ pending: false, error: toIssue(error, 'view.save.failed') });
+    return null;
+  }
+}
+
+/** The audiences offered where nothing is being saved. */
+const NO_AUDIENCE = { createPersonal: false, createShared: false };
+
+/** Permissions with the system audience too, where it is granted (D81). */
+function withSystem<P extends Parameters<typeof mayCreate>[0]>(
+  permissions: P,
+): P & { createSystem: boolean } {
+  return { ...permissions, createSystem: mayCreate(permissions, 'system') };
 }

@@ -75,213 +75,268 @@ export function validateMetrics(
   const derivedNodes: BudgetCounter = { nodes: 0 };
   const moments = momentMetrics(config.metrics, scope.fields);
 
+  const checks: MetricChecks = {
+    config,
+    capability,
+    scope,
+    kinds,
+    limits,
+    earlier,
+    expressionsAllowed,
+    units,
+    expressionNodes,
+    derivedNodes,
+    moments,
+  };
+
   config.metrics.forEach((metric, index) => {
     const path: IssuePath = ['metrics', index];
-    const declared = (field: string) => scope.aggregations.get(field);
-    issues.push(...displayNameIssues(metric, path));
-
-    // A metric's own filter was compiled and never admitted, so it could name
-    // a field that does not exist and reach `compileFilter`, which answers
-    // that by throwing.
-    //
-    // `DERIVED` is the exception. It carries no filter in the protocol and
-    // `compileMetric` never emits one, but a stored config can still hold a
-    // stale `filter` from before the metric was switched to `DERIVED`.
-    // Refusing it would block a config over a property that changes nothing.
-    if (metric.type !== 'DERIVED' && 'filter' in metric && metric.filter)
-      issues.push(
-        ...queryFilterIssues({
-          tree: metric.filter,
-          fields: withOutOfScope(scope, scope.fields),
-          outOfScope: outOfScopeNames(scope, scope.fields),
-          kinds,
-          limits,
-          position: 'metric',
-          path: [...path, 'filter'],
-        }),
-        // The source may keep some fields out of a metric's condition (its
-        // descriptor's `inMetricFilter`).
-        ...filterFields(metric.filter)
-          .filter(field => declared(field)?.inMetricFilter === false)
-          .map(field =>
-            issue(
-              'analysis.metric.filter-field-unsupported',
-              [...path, 'filter'],
-              {
-                field,
-              },
-            ),
-          ),
-      );
-
-    switch (metric.type) {
-      case 'COUNT':
-        if (!capability.count)
-          issues.push(issue('analysis.count.undeclared', path));
-        break;
-      case 'NUMERIC': {
-        issues.push(
-          ...budgetedExpressionIssues(
-            metric.expression,
-            scope,
-            [...path, 'expression'],
-            expressionsAllowed,
-            limits,
-            expressionNodes,
-            units,
-          ),
-        );
-        if (metric.expression?.type === 'FIELD') {
-          const entry = declared(metric.expression.field);
-          if (entry && !entry.functions.includes(metric.function as never))
-            issues.push(
-              issue('analysis.function.unsupported', [...path, 'function'], {
-                field: metric.expression.field,
-                fn: metric.function,
-              }),
-            );
-        }
-        break;
-      }
-      case 'ANY': {
-        const entry = declared(metric.field);
-        if (!entry)
-          issues.push(
-            issue(unknownOrOutside(scope, metric.field), [...path, 'field'], {
-              field: metric.field,
-            }),
-          );
-        else if (!entry.any)
-          issues.push(
-            issue('analysis.any.undeclared', path, { field: metric.field }),
-          );
-        break;
-      }
-      case 'FIRST':
-      case 'LAST': {
-        const entry = declared(metric.field);
-        if (!entry)
-          issues.push(
-            issue(unknownOrOutside(scope, metric.field), [...path, 'field'], {
-              field: metric.field,
-            }),
-          );
-        else if (!entry.firstLast)
-          issues.push(
-            issue('analysis.first-last.undeclared', path, {
-              field: metric.field,
-            }),
-          );
-        // The earliest and the latest are by a time the records carry: the
-        // model's event time at the root when none is named, but an
-        // element has no event time of its own, so it must name one.
-        if (metric.orderBy === undefined) {
-          if (scope.elements.length > 0)
-            issues.push(
-              issue('analysis.first-last.order-by-required', [
-                ...path,
-                'orderBy',
-              ]),
-            );
-        } else if (!scope.fields.has(metric.orderBy))
-          issues.push(
-            issue(
-              unknownOrOutside(scope, metric.orderBy),
-              [...path, 'orderBy'],
-              { field: metric.orderBy },
-            ),
-          );
-        break;
-      }
-      case 'DISTINCT_COUNT': {
-        issues.push(
-          ...budgetedExpressionIssues(
-            metric.expression,
-            scope,
-            [...path, 'expression'],
-            expressionsAllowed,
-            limits,
-            expressionNodes,
-            units,
-          ),
-        );
-        if (metric.expression?.type === 'FIELD') {
-          const entry = declared(metric.expression.field);
-          if (entry && !entry.distinctCount)
-            issues.push(
-              issue('analysis.distinctCount.undeclared', path, {
-                field: metric.expression.field,
-              }),
-            );
-        }
-        break;
-      }
-      case 'PERCENTILE': {
-        issues.push(
-          ...budgetedExpressionIssues(
-            metric.expression,
-            scope,
-            [...path, 'expression'],
-            expressionsAllowed,
-            limits,
-            expressionNodes,
-            units,
-          ),
-        );
-        if (metric.expression?.type === 'FIELD') {
-          const entry = declared(metric.expression.field);
-          if (entry && !entry.percentile)
-            issues.push(
-              issue('analysis.percentile.undeclared', path, {
-                field: metric.expression.field,
-              }),
-            );
-        }
-        // Wow accepts the open interval only.
-        if (
-          !Number.isFinite(metric.percentile) ||
-          metric.percentile <= 0 ||
-          metric.percentile >= 100
-        )
-          issues.push(
-            issue('analysis.percentile.out-of-range', [...path, 'percentile']),
-          );
-        break;
-      }
-      case 'DERIVED': {
-        if (!expressionsAllowed)
-          issues.push(issue('analysis.expressions.undeclared', path));
-        issues.push(
-          ...budgetedDerivedIssues(
-            metric.expression,
-            earlier,
-            [...path, 'expression'],
-            limits,
-            derivedNodes,
-            moments,
-          ),
-        );
-        if ('format' in metric && metric.format !== undefined)
-          issues.push(
-            ...derivedFormatIssues(metric, config, scope, [...path, 'format']),
-          );
-        break;
-      }
-      default:
-        // A type this version does not know is a finding, not a fall-through:
-        // `compileMetric` has no mapping for it and must never be reached.
-        issues.push(
-          issue('analysis.metric.type-unknown', [...path, 'type'], {
-            type: String((metric as { type: unknown }).type),
-          }),
-        );
-    }
+    issues.push(
+      ...displayNameIssues(metric, path),
+      ...metricFilterIssues(metric, path, checks),
+      ...metricTypeIssues(metric, path, checks),
+    );
 
     // A derived metric reads numbers computed over the group; Wow lets none
     // read a record's value (ANY, FIRST, LAST).
     if (!isValueMetric(metric)) earlier.add(metric.alias);
   });
 
+  return issues;
+}
+
+/** What every metric's checks read, and the node budgets they share. */
+interface MetricChecks {
+  config: AnalysisViewConfig;
+  capability: NonNullable<DataViewDefinition['analysis']>;
+  scope: AnalysisScope;
+  kinds: FieldKindRegistry;
+  limits: RuntimeLimits;
+  /** The aliases a derived metric may reach: those declared before it. */
+  earlier: Set<string>;
+  expressionsAllowed: boolean;
+  units: ReturnType<typeof dateDiffUnitsOf>;
+  expressionNodes: BudgetCounter;
+  derivedNodes: BudgetCounter;
+  moments: ReturnType<typeof momentMetrics>;
+}
+
+function metricFilterIssues(
+  metric: AnalysisMetric,
+  path: IssuePath,
+  { scope, kinds, limits }: MetricChecks,
+): Issue[] {
+  // A metric's own filter was compiled and never admitted, so it could name
+  // a field that does not exist and reach `compileFilter`, which answers
+  // that by throwing.
+  //
+  // `DERIVED` is the exception. It carries no filter in the protocol and
+  // `compileMetric` never emits one, but a stored config can still hold a
+  // stale `filter` from before the metric was switched to `DERIVED`.
+  // Refusing it would block a config over a property that changes nothing.
+  if (metric.type === 'DERIVED' || !('filter' in metric) || !metric.filter)
+    return [];
+  return [
+    ...queryFilterIssues({
+      tree: metric.filter,
+      fields: withOutOfScope(scope, scope.fields),
+      outOfScope: outOfScopeNames(scope, scope.fields),
+      kinds,
+      limits,
+      position: 'metric',
+      path: [...path, 'filter'],
+    }),
+    // The source may keep some fields out of a metric's condition (its
+    // descriptor's `inMetricFilter`).
+    ...filterFields(metric.filter)
+      .filter(field => scope.aggregations.get(field)?.inMetricFilter === false)
+      .map(field =>
+        issue('analysis.metric.filter-field-unsupported', [...path, 'filter'], {
+          field,
+        }),
+      ),
+  ];
+}
+
+function metricTypeIssues(
+  metric: AnalysisMetric,
+  path: IssuePath,
+  checks: MetricChecks,
+): Issue[] {
+  const {
+    config,
+    capability,
+    scope,
+    limits,
+    earlier,
+    expressionsAllowed,
+    units,
+    expressionNodes,
+    derivedNodes,
+    moments,
+  } = checks;
+  const issues: Issue[] = [];
+  const declared = (field: string) => scope.aggregations.get(field);
+  switch (metric.type) {
+    case 'COUNT':
+      if (!capability.count)
+        issues.push(issue('analysis.count.undeclared', path));
+      break;
+    case 'NUMERIC': {
+      issues.push(
+        ...budgetedExpressionIssues(
+          metric.expression,
+          scope,
+          [...path, 'expression'],
+          expressionsAllowed,
+          limits,
+          expressionNodes,
+          units,
+        ),
+      );
+      if (metric.expression?.type === 'FIELD') {
+        const entry = declared(metric.expression.field);
+        if (entry && !entry.functions.includes(metric.function as never))
+          issues.push(
+            issue('analysis.function.unsupported', [...path, 'function'], {
+              field: metric.expression.field,
+              fn: metric.function,
+            }),
+          );
+      }
+      break;
+    }
+    case 'ANY': {
+      const entry = declared(metric.field);
+      if (!entry)
+        issues.push(
+          issue(unknownOrOutside(scope, metric.field), [...path, 'field'], {
+            field: metric.field,
+          }),
+        );
+      else if (!entry.any)
+        issues.push(
+          issue('analysis.any.undeclared', path, { field: metric.field }),
+        );
+      break;
+    }
+    case 'FIRST':
+    case 'LAST': {
+      const entry = declared(metric.field);
+      if (!entry)
+        issues.push(
+          issue(unknownOrOutside(scope, metric.field), [...path, 'field'], {
+            field: metric.field,
+          }),
+        );
+      else if (!entry.firstLast)
+        issues.push(
+          issue('analysis.first-last.undeclared', path, {
+            field: metric.field,
+          }),
+        );
+      // The earliest and the latest are by a time the records carry: the
+      // model's event time at the root when none is named, but an
+      // element has no event time of its own, so it must name one.
+      if (metric.orderBy === undefined) {
+        if (scope.elements.length > 0)
+          issues.push(
+            issue('analysis.first-last.order-by-required', [
+              ...path,
+              'orderBy',
+            ]),
+          );
+      } else if (!scope.fields.has(metric.orderBy))
+        issues.push(
+          issue(unknownOrOutside(scope, metric.orderBy), [...path, 'orderBy'], {
+            field: metric.orderBy,
+          }),
+        );
+      break;
+    }
+    case 'DISTINCT_COUNT': {
+      issues.push(
+        ...budgetedExpressionIssues(
+          metric.expression,
+          scope,
+          [...path, 'expression'],
+          expressionsAllowed,
+          limits,
+          expressionNodes,
+          units,
+        ),
+      );
+      if (metric.expression?.type === 'FIELD') {
+        const entry = declared(metric.expression.field);
+        if (entry && !entry.distinctCount)
+          issues.push(
+            issue('analysis.distinctCount.undeclared', path, {
+              field: metric.expression.field,
+            }),
+          );
+      }
+      break;
+    }
+    case 'PERCENTILE': {
+      issues.push(
+        ...budgetedExpressionIssues(
+          metric.expression,
+          scope,
+          [...path, 'expression'],
+          expressionsAllowed,
+          limits,
+          expressionNodes,
+          units,
+        ),
+      );
+      if (metric.expression?.type === 'FIELD') {
+        const entry = declared(metric.expression.field);
+        if (entry && !entry.percentile)
+          issues.push(
+            issue('analysis.percentile.undeclared', path, {
+              field: metric.expression.field,
+            }),
+          );
+      }
+      // Wow accepts the open interval only.
+      if (
+        !Number.isFinite(metric.percentile) ||
+        metric.percentile <= 0 ||
+        metric.percentile >= 100
+      )
+        issues.push(
+          issue('analysis.percentile.out-of-range', [...path, 'percentile']),
+        );
+      break;
+    }
+    case 'DERIVED': {
+      if (!expressionsAllowed)
+        issues.push(issue('analysis.expressions.undeclared', path));
+      issues.push(
+        ...budgetedDerivedIssues(
+          metric.expression,
+          earlier,
+          [...path, 'expression'],
+          limits,
+          derivedNodes,
+          moments,
+        ),
+      );
+      if ('format' in metric && metric.format !== undefined)
+        issues.push(
+          ...derivedFormatIssues(metric, config, scope, [...path, 'format']),
+        );
+      break;
+    }
+    default:
+      // A type this version does not know is a finding, not a fall-through:
+      // `compileMetric` has no mapping for it and must never be reached.
+      issues.push(
+        issue('analysis.metric.type-unknown', [...path, 'type'], {
+          type: String((metric as { type: unknown }).type),
+        }),
+      );
+  }
   return issues;
 }
 

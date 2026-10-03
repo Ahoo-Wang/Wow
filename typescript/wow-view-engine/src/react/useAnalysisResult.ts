@@ -411,97 +411,22 @@ export function useAnalysisResult(
       gap !== undefined ||
       drillRecordConditions(ran, runtime.fields, runtime.kinds, []) !== null);
 
-  const followUp = (row: RecordData, through?: RecordData): FollowUp | null => {
-    if (!pickable || !ran || !runtime) return null;
-    const context = { timeZone: runtime.environment.timeZone };
-    const drilled = through
-      ? drillSpan(ran, runtime.fields, runtime.kinds, row, through, context)
-      : drillGroups(ran, runtime.fields, runtime.kinds, row, context);
-    if (!drilled) return null;
-    const conditions =
-      drillRecordConditions(ran, runtime.fields, runtime.kinds, drilled) ?? [];
-    const actions: FollowUpAction[] = [];
-    // Each view opened is named by its subject and the group, and called
-    // by its subject alone once the reader takes the group off it.
-    if (workbench.canDrill) {
-      const records = runtime.definition.title;
-      actions.push(
-        gap
-          ? { kind: 'records', subject: records, gap, run: () => {} }
-          : {
-              kind: 'records',
-              subject: records,
-              run: title => workbench.drill(conditions, title, records),
-            },
-      );
-    }
-    // The group named as the menu heads it, by the fields its conditions
-    // name: the root's, or the counted element's.
-    const named = [...(drilledFields(ran, runtime.fields)?.values() ?? [])];
-    const heading = drilled.map(entry => ({
-      conditions: describeFilter(
-        named,
-        { op: 'and', children: entry.conditions },
-        runtime.kinds,
-      ),
-    }));
-    // Over elements only the records: 「只显示这一组」 and 「按…拆开」 would
-    // narrow the range the elements are counted under, which is the
-    // expansion's gate and not the view's conditions — not offered yet.
-    if (expanded)
-      return actions.length > 0 ? { groups: heading, actions } : null;
-    // Groupable fields the result is not already grouped by — the list the
-    // tray adds a dimension from (`groupableFields`) — read off the config
-    // that ran, for the reason the conditions are.
-    const options: SplitOption[] = groupableFields(
-      analysis.fields,
-      ran.groups,
-    ).map(option => ({ field: option.field, label: option.label }));
-    // Both open beside this view: the question that ran, drawn as the screen
-    // draws it — the layout and the chart are the draft's, and nothing else
-    // the draft holds is applied by a gesture that did not ask for it.
-    const drawn: AnalysisViewConfig = {
-      ...ran,
-      layout: analysis.layout,
-      chart,
-    };
-    const subject = workbench.state?.title ?? '';
-    if (options.length > 0)
-      actions.push({
-        kind: 'split',
-        subject,
-        options,
-        run: (name, title) => {
-          const patch = split(
-            runtime,
-            analysis,
-            drawn,
-            conditions,
-            name,
-            moments,
-          );
-          if (patch)
-            workbench.follow(
-              { ...drawn, ...patch },
-              title,
-              conditions,
-              subject,
-            );
-        },
-      });
-    actions.push({
-      kind: 'focus',
-      subject,
-      run: title =>
-        workbench.follow(
-          { ...drawn, ...focusOn(ran, conditions) },
-          title,
-          conditions,
-          subject,
-        ),
-    });
-    return { groups: heading, actions };
-  };
+  const followUp = (row: RecordData, through?: RecordData): FollowUp | null =>
+    followUpOf(
+      {
+        pickable,
+        ran,
+        runtime,
+        workbench,
+        analysis,
+        chart,
+        gap,
+        expanded,
+        moments,
+      },
+      row,
+      through,
+    );
 
   return {
     view,
@@ -517,6 +442,127 @@ export function useAnalysisResult(
     pickable,
     followUp,
   };
+}
+
+/** What a follow-up is read off: the result that ran and the screen over it. */
+interface FollowUpSource {
+  pickable: boolean;
+  ran: AnalysisViewConfig | undefined;
+  runtime: ViewRuntime<AnalysisViewConfig> | null;
+  workbench: Pick<
+    WorkbenchController,
+    'state' | 'canDrill' | 'drill' | 'follow'
+  >;
+  analysis: AnalysisEditorController;
+  chart: ChartSpec;
+  gap: ReturnType<typeof drillGap> | undefined;
+  expanded: boolean;
+  moments: ReadonlySet<string>;
+}
+
+/**
+ * What a press on `row` (or on the span from `row` to `through`) offers:
+ * the records behind the group, the group split by another field, the
+ * group alone (`AnalysisResultController.followUp`).
+ */
+function followUpOf(
+  {
+    pickable,
+    ran,
+    runtime,
+    workbench,
+    analysis,
+    chart,
+    gap,
+    expanded,
+    moments,
+  }: FollowUpSource,
+  row: RecordData,
+  through?: RecordData,
+): FollowUp | null {
+  if (!pickable || !ran || !runtime) return null;
+  const context = { timeZone: runtime.environment.timeZone };
+  const drilled = through
+    ? drillSpan(ran, runtime.fields, runtime.kinds, row, through, context)
+    : drillGroups(ran, runtime.fields, runtime.kinds, row, context);
+  if (!drilled) return null;
+  const conditions =
+    drillRecordConditions(ran, runtime.fields, runtime.kinds, drilled) ?? [];
+  const actions: FollowUpAction[] = [];
+  // Each view opened is named by its subject and the group, and called
+  // by its subject alone once the reader takes the group off it.
+  if (workbench.canDrill) {
+    const records = runtime.definition.title;
+    actions.push(
+      gap
+        ? { kind: 'records', subject: records, gap, run: () => {} }
+        : {
+            kind: 'records',
+            subject: records,
+            run: title => workbench.drill(conditions, title, records),
+          },
+    );
+  }
+  // The group named as the menu heads it, by the fields its conditions
+  // name: the root's, or the counted element's.
+  const named = [...(drilledFields(ran, runtime.fields)?.values() ?? [])];
+  const heading = drilled.map(entry => ({
+    conditions: describeFilter(
+      named,
+      { op: 'and', children: entry.conditions },
+      runtime.kinds,
+    ),
+  }));
+  // Over elements only the records: 「只显示这一组」 and 「按…拆开」 would
+  // narrow the range the elements are counted under, which is the
+  // expansion's gate and not the view's conditions — not offered yet.
+  if (expanded) return actions.length > 0 ? { groups: heading, actions } : null;
+  // Groupable fields the result is not already grouped by — the list the
+  // tray adds a dimension from (`groupableFields`) — read off the config
+  // that ran, for the reason the conditions are.
+  const options: SplitOption[] = groupableFields(
+    analysis.fields,
+    ran.groups,
+  ).map(option => ({ field: option.field, label: option.label }));
+  // Both open beside this view: the question that ran, drawn as the screen
+  // draws it — the layout and the chart are the draft's, and nothing else
+  // the draft holds is applied by a gesture that did not ask for it.
+  const drawn: AnalysisViewConfig = {
+    ...ran,
+    layout: analysis.layout,
+    chart,
+  };
+  const subject = workbench.state?.title ?? '';
+  if (options.length > 0)
+    actions.push({
+      kind: 'split',
+      subject,
+      options,
+      run: (name, title) => {
+        const patch = split(
+          runtime,
+          analysis,
+          drawn,
+          conditions,
+          name,
+          moments,
+        );
+        if (patch)
+          workbench.follow({ ...drawn, ...patch }, title, conditions, subject);
+      },
+    });
+  actions.push({
+    kind: 'focus',
+    subject,
+    run: title =>
+      workbench.follow(
+        { ...drawn, ...focusOn(ran, conditions) },
+        title,
+        conditions,
+        subject,
+      ),
+  });
+  return { groups: heading, actions };
 }
 
 /**

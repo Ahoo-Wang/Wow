@@ -192,38 +192,12 @@ export function CardSettings({
             </Select>
           </Field>
 
-          <FieldSet data-slot="card-body-fields">
-            <FieldTitle>{messages.label('label.card.fields')}</FieldTitle>
-            <FieldGroup className="fve:gap-2">
-              {offered
-                .filter(field => field.name !== spec.title)
-                .map(field => {
-                  const on = spec.fields.includes(field.name);
-                  const id = `${ids}-${field.name}`;
-                  return (
-                    <Field
-                      key={field.name}
-                      orientation="horizontal"
-                      data-field={field.name}
-                    >
-                      {/* Named by the label beside it, which `Field` wires
-                          up: the fieldset already says these are the body,
-                          so the name is the field's own. */}
-                      <Checkbox
-                        id={id}
-                        checked={on}
-                        onCheckedChange={checked => toggle(field.name, checked)}
-                      />
-                      <FieldContent>
-                        <FieldLabel htmlFor={id} className="fve:font-normal">
-                          {field.label}
-                        </FieldLabel>
-                      </FieldContent>
-                    </Field>
-                  );
-                })}
-            </FieldGroup>
-          </FieldSet>
+          <CardBodyFields
+            offered={offered}
+            spec={spec}
+            ids={ids}
+            onToggle={toggle}
+          />
 
           <Field data-slot="card-image-field">
             <FieldLabel id={`${ids}-image`}>
@@ -299,5 +273,57 @@ export function CardSettings({
         </FieldGroup>
       </PopoverContent>
     </Popover>
+  );
+}
+
+/**
+ * The fields a card's body shows, one checkbox each, the title's field left
+ * out: it names the card already.
+ */
+function CardBodyFields({
+  offered,
+  spec,
+  ids,
+  onToggle,
+}: {
+  offered: readonly { name: string; label: string }[];
+  spec: RecordCardSpec;
+  ids: string;
+  onToggle: (name: string, on: boolean) => void;
+}) {
+  const messages = useViewMessages();
+  return (
+    <FieldSet data-slot="card-body-fields">
+      <FieldTitle>{messages.label('label.card.fields')}</FieldTitle>
+      <FieldGroup className="fve:gap-2">
+        {offered
+          .filter(field => field.name !== spec.title)
+          .map(field => {
+            const on = spec.fields.includes(field.name);
+            const id = `${ids}-${field.name}`;
+            return (
+              <Field
+                key={field.name}
+                orientation="horizontal"
+                data-field={field.name}
+              >
+                {/* Named by the label beside it, which `Field` wires
+                    up: the fieldset already says these are the body,
+                    so the name is the field's own. */}
+                <Checkbox
+                  id={id}
+                  checked={on}
+                  onCheckedChange={checked => onToggle(field.name, checked)}
+                />
+                <FieldContent>
+                  <FieldLabel htmlFor={id} className="fve:font-normal">
+                    {field.label}
+                  </FieldLabel>
+                </FieldContent>
+              </Field>
+            );
+          })}
+      </FieldGroup>
+    </FieldSet>
   );
 }

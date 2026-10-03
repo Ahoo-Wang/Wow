@@ -261,33 +261,7 @@ export function cartesianFit(
   // A long row of bars writes its peak and trough as marks; zoomed to fewer
   // bars than that, it writes every number on screen, as a short row does.
   const everyBar = shown < PEAKS_ONLY_FROM;
-  const zoomedTexts = everyBar
-    ? series.filter(plan.peaksOnly).flatMap(entry => {
-        const texts: string[] = [];
-        const words = extremeWords(plan, entry);
-        for (let index = first; index < first + shown; index += 1) {
-          const value = plan.drawnAt(entry, index);
-          if (value !== null && !plan.filledAt(entry, index))
-            texts.push(words?.get(index) ?? plan.drawnText(entry, value));
-        }
-        return texts;
-      })
-    : [];
-  // A long row of stacks writes its highest and lowest total; zoomed to
-  // fewer, every total on screen, as the single bars do.
-  const zoomedTotals = everyBar
-    ? plan.totals
-        .filter(total => total.peaksOnly)
-        .flatMap(total => total.every.slice(first, first + shown))
-    : [];
-  // The words the highest and lowest points' own labels carry.
-  const carried = carriedTexts(plan);
-  const outerTexts = [
-    ...plan.outerTexts,
-    ...carried,
-    ...zoomedTexts,
-    ...zoomedTotals,
-  ];
+  const outerTexts = onScreenOuterTexts(plan, first, shown, everyBar);
   const widestOuter = Math.max(0, ...outerTexts.map(labelWidth));
 
   // The plot, as near as the axes' text lets it be said before drawing: the
@@ -337,18 +311,7 @@ export function cartesianFit(
         room >= LABEL_LINE && plan.context.spec?.labels === true
         ? 'upright'
         : 'none';
-  const outerPatch =
-    outer === 'none'
-      ? { show: false }
-      : outer === 'upright'
-        ? { show: true, rotate: 90, align: 'left', verticalAlign: 'middle' }
-        : // Spelled out: a resize merges this over an upright one.
-          {
-            show: true,
-            rotate: 0,
-            align: horizontal ? 'left' : 'center',
-            verticalAlign: horizontal ? 'middle' : 'bottom',
-          };
+  const outerPatch = outerPatchOf(outer, horizontal);
   // The numbers on screen, not the ones zoomed out of it.
   const lineFit = (entry: DrawnSeries) => {
     let widest = 0;
@@ -371,23 +334,8 @@ export function cartesianFit(
       : size >= LABEL_LINE + 2 && thickness >= words + 2;
   };
 
-  // Whether the highest and lowest point's mark writes its word: where the
-  // series' own labels do not (`carriedExtremes`) — spelled out either way,
-  // since a resize merges this over the last one (second review R2-P1-8).
   const marksSay = (entry: DrawnSeries, labelsShown: boolean) =>
-    plan.extremesOf(entry) === undefined
-      ? {}
-      : {
-          markPoint: {
-            symbolSize: labelsShown ? 0 : EXTREME_DOT,
-            label: { show: !labelsShown },
-            ...(entry.kind === 'bar'
-              ? {
-                  data: extremePoints(plan, entry),
-                }
-              : {}),
-          },
-        };
+    extremeMarksSaid(plan, entry, labelsShown);
 
   const patches = [
     ...series.map(entry => {
@@ -505,4 +453,79 @@ function nameOf(plan: CartesianPlan, side: 'left' | 'right') {
       plan.context.join ?? ', ',
     )
   );
+}
+
+/**
+ * The value labels written past the marks' ends, with the numbers a zoom
+ * brings back on screen.
+ */
+function onScreenOuterTexts(
+  plan: CartesianPlan,
+  first: number,
+  shown: number,
+  everyBar: boolean,
+): string[] {
+  const { series } = plan;
+  const zoomedTexts = everyBar
+    ? series.filter(plan.peaksOnly).flatMap(entry => {
+        const texts: string[] = [];
+        const words = extremeWords(plan, entry);
+        for (let index = first; index < first + shown; index += 1) {
+          const value = plan.drawnAt(entry, index);
+          if (value !== null && !plan.filledAt(entry, index))
+            texts.push(words?.get(index) ?? plan.drawnText(entry, value));
+        }
+        return texts;
+      })
+    : [];
+  // A long row of stacks writes its highest and lowest total; zoomed to
+  // fewer, every total on screen, as the single bars do.
+  const zoomedTotals = everyBar
+    ? plan.totals
+        .filter(total => total.peaksOnly)
+        .flatMap(total => total.every.slice(first, first + shown))
+    : [];
+  // The words the highest and lowest points' own labels carry.
+  const carried = carriedTexts(plan);
+  return [...plan.outerTexts, ...carried, ...zoomedTexts, ...zoomedTotals];
+}
+
+/** How the labels past the marks' ends are set, for one `LabelFit`. */
+function outerPatchOf(outer: LabelFit, horizontal: boolean) {
+  return outer === 'none'
+    ? { show: false }
+    : outer === 'upright'
+      ? { show: true, rotate: 90, align: 'left', verticalAlign: 'middle' }
+      : // Spelled out: a resize merges this over an upright one.
+        {
+          show: true,
+          rotate: 0,
+          align: horizontal ? 'left' : 'center',
+          verticalAlign: horizontal ? 'middle' : 'bottom',
+        };
+}
+
+/**
+ * Whether the highest and lowest point's mark writes its word: where the
+ * series' own labels do not (`carriedExtremes`) — spelled out either way,
+ * since a resize merges this over the last one (second review R2-P1-8).
+ */
+function extremeMarksSaid(
+  plan: CartesianPlan,
+  entry: DrawnSeries,
+  labelsShown: boolean,
+) {
+  return plan.extremesOf(entry) === undefined
+    ? {}
+    : {
+        markPoint: {
+          symbolSize: labelsShown ? 0 : EXTREME_DOT,
+          label: { show: !labelsShown },
+          ...(entry.kind === 'bar'
+            ? {
+                data: extremePoints(plan, entry),
+              }
+            : {}),
+        },
+      };
 }
