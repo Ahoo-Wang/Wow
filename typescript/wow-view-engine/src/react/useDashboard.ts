@@ -305,6 +305,9 @@ export function useDashboard(
       children.some(child => child.getSnapshot().query.status === 'loading'),
     [children],
   );
+  // The server reads the same getters, here and for `readAt`: the panels'
+  // runtimes open in effects, so there are none on the server or on the
+  // first client frame — not loading, nothing read — and the two agree.
   const loading = useSyncExternalStore(watch, anyLoading, anyLoading);
   const tabNow = state?.tab ?? null;
   const earliest = useCallback(() => {

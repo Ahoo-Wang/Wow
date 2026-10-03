@@ -78,6 +78,8 @@ export async function countActive<S>(snapshots: SnapshotQueryClient<S>, signal: 
 export { DataWorkbench, EmbeddedView } from '@ahoo-wang/wow-view-engine/ui';
 ```
 
+- **A Client Component is still rendered on the server** for the first paint. There a workbench or an embed draws its opening state: the skeletons and the status "Opening the view" (or "Opening the dashboard"). It asks nothing of its source or its store, since a view opens in an effect and the server runs none. The browser hydrates that markup and then opens the view. Wow 9.2.0 cannot do this: its server render throws "Missing getServerSnapshot". The release after it renders the opening state.
+
 - A Client Component that sends requests in the browser uses the browser's Fetcher and its CoSec configuration, as in [Authentication and Interceptors](./authentication.md). Create those module-level instances only in client code, so the server bundle never shares them between users.
 
 ## Where to read more

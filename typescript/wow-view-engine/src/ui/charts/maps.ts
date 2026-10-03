@@ -83,7 +83,17 @@ export function chartMaps(): readonly ChartMapSource[] {
   return snapshot;
 }
 
-/** The maps registered, kept current as a host adds or takes one back. */
+/** No maps: what a server render and the frame hydrating it read. */
+const NO_MAPS: readonly ChartMapSource[] = [];
+
+/**
+ * The maps registered, kept current as a host adds or takes one back.
+ *
+ * A server render reads none, and so does the first client frame that
+ * hydrates it: a host may well register its maps in browser code alone, so
+ * the server's registry is no guide to the browser's, and the maps arrive on
+ * the render after.
+ */
 export function useChartMaps(): readonly ChartMapSource[] {
   return useSyncExternalStore(
     listener => {
@@ -91,7 +101,7 @@ export function useChartMaps(): readonly ChartMapSource[] {
       return () => listeners.delete(listener);
     },
     chartMaps,
-    chartMaps,
+    () => NO_MAPS,
   );
 }
 

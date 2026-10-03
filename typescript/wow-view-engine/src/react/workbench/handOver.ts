@@ -148,6 +148,8 @@ export function useHandedConditions(
   runtime: AnyViewRuntime | null,
 ): ViewConfig | null {
   const landing = useState(landingStore)[0];
+  // The server reads the same store: only the effect below writes it, so
+  // it holds nothing on the server and on the first client frame alike.
   const landed = useSyncExternalStore(
     landing.subscribe,
     landing.get,
