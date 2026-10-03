@@ -46,7 +46,7 @@ catalog:
   '@babel/plugin-syntax-decorators': 7.29.7
   '@base-ui/react': ^1.8.0
   canvas-confetti: ^1.9.4
-  '@chromatic-com/storybook': ^5.3.1
+  '@chromatic-com/storybook': ^5.4.0
   class-variance-authority: ^0.7.1
   clsx: ^2.1.1
   cn: ^0.4.0
