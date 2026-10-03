@@ -62,6 +62,7 @@ describe('OpenAPI contracts the generated code keeps', () => {
               operationId: 'message',
               responses: {
                 '200': {
+                  description: 'OK',
                   content: {
                     'application/json': { schema: { type: 'string' } },
                   },
@@ -105,6 +106,7 @@ describe('OpenAPI contracts the generated code keeps', () => {
         responses: {
           Alias: { $ref: '#/components/responses/Base' },
           Base: {
+            description: 'OK',
             content: { [contentType]: { schema: { type: 'string' as const } } },
           },
         },
@@ -177,7 +179,7 @@ describe('OpenAPI contracts the generated code keeps', () => {
       ];
       const openAPI: OpenAPI = {
         openapi: '3.0.4',
-        info: {},
+        info: { title: 'Test', version: '1.0.0' },
         tags: [{ name: 'example.pet' }],
         paths: {
           '/tenant/{tenantId}/owner/{ownerId}/pets/{region}/{id}/rename': {
@@ -209,6 +211,7 @@ describe('OpenAPI contracts the generated code keeps', () => {
               operationId: 'example.pet.snapshot_state.single',
               responses: {
                 '200': {
+                  description: 'OK',
                   content: {
                     'application/json': {
                       schema: { $ref: '#/components/schemas/Pet' },

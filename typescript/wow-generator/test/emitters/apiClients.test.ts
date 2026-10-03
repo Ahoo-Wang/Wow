@@ -200,6 +200,7 @@ describe('API clients', () => {
       expect(
         returnType({
           '200': {
+            description: 'OK',
             content: {
               'application/json': {
                 schema: {
@@ -216,7 +217,10 @@ describe('API clients', () => {
     it('reads a string under */* as text', () => {
       expect(
         returnType({
-          '200': { content: { '*/*': { schema: { type: 'string' } } } },
+          '200': {
+            description: 'OK',
+            content: { '*/*': { schema: { type: 'string' } } },
+          },
         }),
       ).toBe('Promise<string>');
     });
@@ -226,6 +230,7 @@ describe('API clients', () => {
         returnType(
           {
             '200': {
+              description: 'OK',
               content: {
                 'text/event-stream': {
                   schema: { $ref: '#/components/schemas/Events' },
@@ -252,6 +257,7 @@ describe('API clients', () => {
       expect(
         returnType({
           '200': {
+            description: 'OK',
             content: { 'text/event-stream': { schema: { type: 'string' } } },
           },
         }),

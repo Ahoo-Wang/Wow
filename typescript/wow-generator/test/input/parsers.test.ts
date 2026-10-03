@@ -168,10 +168,19 @@ describe('openAPIParser', () => {
     it('accepts a 3.1 document without paths', () => {
       expect(
         validateOpenAPIDocument(
-          { openapi: '3.1.0', info: {}, components: {} },
+          {
+            openapi: '3.1.0',
+            info: { title: 'Test', version: '1.0.0' },
+            components: {},
+          },
           'spec.json',
         ),
-      ).toEqual({ openapi: '3.1.0', info: {}, components: {}, paths: {} });
+      ).toEqual({
+        openapi: '3.1.0',
+        info: { title: 'Test', version: '1.0.0' },
+        components: {},
+        paths: {},
+      });
     });
   });
 
