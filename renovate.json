@@ -194,6 +194,13 @@
       "dependencyDashboardApproval": true,
       "groupName": "npm peer ranges",
       "commitMessageTopic": "npm peer ranges"
+    },
+    {
+      "description": "Leave `engines` alone: the published packages' Node range (`>=22.12.0`, R3-05) is a compatibility promise changed on purpose, not by a dependency bump. Node itself is still updated where it is a tool version (workflows, `.nvmrc`).",
+      "matchDepTypes": [
+        "engines"
+      ],
+      "enabled": false
     }
   ]
 }
