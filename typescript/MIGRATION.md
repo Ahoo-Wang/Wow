@@ -263,6 +263,14 @@ Wow 文档站（wow.ahoo.me，VitePress）已经这样挂了一份 dokka：放�
 | W3c、W3e                  | view-engine 公开面快照（根入口去掉 60 个内部导出，D29）；仪表盘报错句子说「仪表盘」                                                                                                                                                                                                                          | Wow #3298、#3297               |
 | F2 = 第 3′ 步             | fetcher 删掉迁走的路径、viewer、dataMonitor、generator-test.yml；CI 只剩 core；依赖方向检查与 `downstream-wow.yml`；冻结解除，main 在 6.0 前不发布                                                                                                                                                           | Ahoo-Wang/fetcher#1905         |
 | ruleset                   | 16907411 的 `allowed_merge_methods` 恢复为 `[squash, rebase]`，与备份逐条一致（2026-09-24，用户确认）                                                                                                                                                                                                        | —                              |
+| C′ = 第 4a 步之 rc 试用   | 2026-10-03 在 `9.2.0-rc.0` 上通过，9.2.0 照发；记录见表下「C′ 试用记录」                                                                                                                                                                                                                                     |
+
+C′ 试用记录（2026-10-03，[RELEASING.md](RELEASING.md)「C′」第 7 步）：
+
+- **服务端**：补偿服务端与示例服务端都从 tag `v9.2.0-rc.0`（`d7ace5e46`）构建，Wow 版本 `9.2.0-rc.0`；MongoDB 分别是 7.0 与 8.3.11。
+- **结果**：解析核对通过（只用 npm 上的 rc 包，没有任何工作区 `dist`）；generate、tsc、lint、build、coverage（176 个）、打桩的 `test:browser`（129 个）退出码都为 0；用 `@next` 照快速开始走一遍，打印出页面上的三行，TypeScript 7.0.2 与 6.0.3 都编译通过，生成器报 `9.2.0-rc.0`，`fetcher-openapi` 不存在；视图存储端口一致性在独立服务端与示例服务端上都是 82/82；对着真实服务端人工走查通过：首页、`/active`、带尝试记录与全部事件的详情，一个共享视图另存、改名、刷新后仍在，没有 4xx、5xx，控制台没有错误。
+- **发现的问题**：都在发布包之外，已在 main 上由 #3870 修好——两条真实服务端冒烟用例还对着 #3710 之前的详情面板；控制台提交的生成客户端自 #3854 起过期；pnpm 11 不认 `.npmrc` 里的 `save-prefix`（文档改为在 `pnpm-workspace.yaml` 里写 `savePrefix`）；手册里的两步。
+- **结论**：按用户的决定（不发 rc.1，规则写进 C′ 第 7 步），在同一台 rc.0 服务端上重跑真实服务端冒烟：9/9。9.2.0 照发。
 
 W1 的具体做法（W2 起沿用）：
 
@@ -291,7 +299,7 @@ W2a、W2b 的具体做法与决定：
 ### 下一步
 
 1. **npm 首发（用户操作）**：照 [RELEASING.md](RELEASING.md)「首发清单」做。2026-09-24 用户定：首个版本是 **9.2.0**（`v9.1.5` 以来有 `!` 提交，9.1.6 过不了准入）；先在全新 clone 的 `v9.2.0-rc.0` tag 上手工发 `9.2.0-rc.0`（dist-tag `next`），配好 Trusted Publisher（environment `npm-publish`）后由 CI 带 provenance 发 `9.2.0`；三个包 `engines.node` 为 `>=22.12.0`；wow-react 只出 ESM；三个 gate 设为必需检查。
-2. 第 4a 步：`9.2.0-rc.0` → 补偿控制台的临时分支 `chore/compensation-9.2.0-rc.0` 在 rc 上端到端跑通（发 `latest` 的前置条件，RELEASING「C′」）→ Wow 首个稳定版 9.2.0 → 删掉该分支（不合并，main 保持 `workspace:*`）→ fetcher 6.0，并对 fetcher-wow、fetcher-generator 执行 `npm deprecate`（对外操作，先问用户）。
+2. 第 4a 步：`9.2.0-rc.0`（2026-10-03 已发，Trusted Publisher 已配）→ 补偿控制台的临时分支 `chore/compensation-9.2.0-rc.0` 在 rc 上端到端跑通（发 `latest` 的前置条件，RELEASING「C′」；2026-10-03 通过，见「已完成」）→ Wow 首个稳定版 9.2.0 → 删掉该分支（不合并，main 保持 `workspace:*`）→ fetcher 6.0，并对 fetcher-wow、fetcher-generator 执行 `npm deprecate`（对外操作，先问用户）。
 3. 第 4b 步：view-engine 随 9.2.0 正式发布后，停止维护 fetcher `5.x`，对 fetcher-viewer 执行 `npm deprecate`（对外操作，先问用户）。
 
 里程碑收尾的全量门禁由首发清单代替：rc 的 tag 上手动触发三条流水线全开（RELEASING「C」第 3 步），`preflight` 跑 Gradle 全量构建与集成测试。阶段 5 的两项产品口径已定：分析「导出数据…」（view-engine Q28）、仪表盘缺省固定宽度（D31）。
