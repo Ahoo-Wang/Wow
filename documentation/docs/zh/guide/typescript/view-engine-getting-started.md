@@ -21,7 +21,7 @@ flowchart LR
 
 ## 1. 前提
 
-- Node.js **22.12** 或更高版本，TypeScript **6** 或更高版本，React **19.3** 或更高版本（视图引擎 `/react`、`/ui` 入口的 peer 范围，见[兼容性与版本](./compatibility.md#运行环境与-peer-依赖)）。
+- Node.js **22.12** 或更高版本，TypeScript **6** 或更高版本，React **19.0** 或更高版本（视图引擎 `/react`、`/ui` 入口的 peer 范围，见[兼容性与版本](./compatibility.md#运行环境与-peer-依赖)）。
 - 一个 Vite + React + TypeScript 项目。没有的话，用 Vite 的 `react-ts` 模板新建一个：`pnpm create vite orders-console --template react-ts`。
 - Docker，用来运行示例服务端和它的 MongoDB。
 

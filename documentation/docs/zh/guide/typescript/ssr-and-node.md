@@ -18,7 +18,7 @@ description: 在 Node.js 脚本和服务端、以及 Next.js App Router 等服�
 | Node.js | **22.12** 或更高：各包声明了 `engines.node >=22.12.0` |
 | 模块格式 | `wow-client` 与 `wow-generator` 同时提供 ESM 和 CommonJS；`wow-react` 与 `wow-view-engine` 只提供 ESM |
 | TypeScript | 生成的客户端需要 `experimentalDecorators: true`；`module`/`moduleResolution` 用 `NodeNext` 或 `Bundler` |
-| React（`wow-react`） | **19.3** 或更高，构建产物导入 `react/compiler-runtime`；见[兼容性](./compatibility.md) |
+| React（`wow-react`） | **19.0** 或更高，构建产物导入 `react/compiler-runtime`；见[兼容性](./compatibility.md) |
 
 用 Node 运行编译产物的脚本需要 `"type": "module"` 才能使用顶层 `await`，[快速开始](./quick-start.md)就是这样运行的。
 

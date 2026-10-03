@@ -6,7 +6,7 @@
 
 ## 环境要求
 
-- **React 19.3 及以上。** 本包用 React Compiler 编译，产物导入只有 React 19 才有的
+- **React 19.0 及以上。** 本包用 React Compiler 编译，产物导入只有 React 19 才有的
   `react/compiler-runtime`；不支持 React 18。
 - 工具链与服务端渲染需要 Node.js 22.12 及以上；浏览器以 React 19 支持的为准。
 - `@ahoo-wang/wow-client` 与本包的次版本号一致。

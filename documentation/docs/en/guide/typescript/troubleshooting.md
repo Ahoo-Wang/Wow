@@ -16,7 +16,7 @@ Most request failures reach your code as the fetcher's `ExchangeError`; its `mes
 | `404 Not Found - GET https://registry.npmjs.org/@ahoo-wang%2fwow-client` (`E404`) | The package name is misspelled: the Wow packages are `@ahoo-wang/wow-*`, on npm since Wow 9.2.0, and `@ahoo-wang/fetcher-view-engine` was never published | Check the name against [release status](./compatibility.md#release-status). A version that does not exist answers `ETARGET` (pnpm: `ERR_PNPM_NO_MATCHING_VERSION`) instead; the first is 9.2.0 |
 | pnpm 11 or later, right after a release: `pnpm add` installs the previous version or a pre-release (such as `9.2.0-rc.0`) and saves it as an exact version | pnpm's `minimumReleaseAge` defaults to one day (1440 minutes): it does not resolve versions published less than a day ago | Wait a day, or add `minimumReleaseAgeExclude: ['@ahoo-wang/*']` to `pnpm-workspace.yaml` (`minimumReleaseAge: 0` turns the delay off for every package) |
 | `WARN … unmet peer @ahoo-wang/wow-client@~9.2.0: found 9.3.0` | The Wow packages of the application are on different minor versions | Install one version of `wow-client`, `wow-generator` and `wow-react` |
-| `Cannot find module 'react/compiler-runtime'` | React older than 19 | `wow-react` needs React 19.3 or later; React 18 is not supported |
+| `Cannot find module 'react/compiler-runtime'` | React older than 19 | `wow-react` needs React 19.0 or later; React 18 is not supported |
 | `Unsupported engine … wanted: {"node":">=22.12.0"}` | Node.js older than 22.12 | Upgrade Node.js |
 
 ## Compiling

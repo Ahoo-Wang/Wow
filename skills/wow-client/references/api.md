@@ -1282,7 +1282,7 @@ The React Wow query hooks moved out of `@ahoo-wang/fetcher-react` into `@ahoo-wa
 pnpm add @ahoo-wang/wow-react @ahoo-wang/wow-client
 ```
 
-- `@ahoo-wang/wow-react` runs its own request state machine and does not depend on `@ahoo-wang/fetcher-react`; its peers are `react` 19.3+, `@ahoo-wang/fetcher`, `@ahoo-wang/fetcher-eventstream` and `@ahoo-wang/wow-client`.
+- `@ahoo-wang/wow-react` runs its own request state machine and does not depend on `@ahoo-wang/fetcher-react`; its peers are `react` 19.0+, `@ahoo-wang/fetcher`, `@ahoo-wang/fetcher-eventstream` and `@ahoo-wang/wow-client`.
 - State: an error and `abort()` keep the last `result`; `reset()` aborts the request in flight and clears `result` and `error`; the first frame of a hook that runs on mount is `loading`, on the server too. A `useFetcher*` hook runs again when `url` changes or the Fetcher's name (or `baseURL` when unnamed) changes.
 - With a generated client, pass its fields type as the second type argument (`usePagedQuery<CartState, CartFields>(…)`): TypeScript does not infer `FIELDS` from `execute` once `R` is written.
 - Query hooks wrap an `execute` function you supply: `useSingleQuery`, `useListQuery`, `usePagedQuery`, `useCountQuery`, `useListStreamQuery`.
@@ -1371,4 +1371,4 @@ for await (const state of stream) {
 - `@ahoo-wang/fetcher-eventstream` - SSE streaming support (peer dependency, loaded by wow-client)
 - `@ahoo-wang/fetcher-decorator` - ApiMetadata type, decorators for auto-implemented methods
 - `@ahoo-wang/wow-client` - Wow CQRS/DDD types and clients
-- `@ahoo-wang/wow-react` - React Wow query hooks (optional; React 19.3 or later)
+- `@ahoo-wang/wow-react` - React Wow query hooks (optional; React 19.0 or later)

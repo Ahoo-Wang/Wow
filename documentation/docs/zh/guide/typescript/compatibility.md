@@ -97,7 +97,8 @@ CI 任务在 [`typescript-contract.yml`](https://github.com/Ahoo-Wang/Wow/blob/m
 |---|---|---|
 | Node.js | `>=22.12.0` | 每个包的 `engines` 都这样声明；生成器 CLI 同样需要 |
 | 浏览器 | 当前的常青浏览器 | 各包使用 `fetch`、`ReadableStream` 和 `TextDecoderStream` |
-| React（`wow-react`、`wow-view-engine` 的 UI） | `^19.3.0` | 不支持 React 18：构建产物导入 `react/compiler-runtime` |
+| React 与 React DOM（`wow-react`、`wow-view-engine` 的 UI） | `^19.0.0` | 不支持 React 18：构建产物导入 `react/compiler-runtime`。19.0.0 以使用者身份冒烟过（类型检查、服务端渲染、客户端渲染）；CI 在当前的 19.x 上构建和测试 |
+| React Router（只有 `wow-view-engine/react-router`） | `^7.0.0 \|\| ^8.0.0` | 可选 peer：只有这个入口导入它。7.0.0 以使用者身份冒烟过；CI 在当前的 8.x 上构建和测试 |
 | TypeScript | `>=6.0` | 最低 6；CI 以使用者身份在 TypeScript 6.0 和最新的 7.x 上对打包后的包做类型检查。生成的客户端需要 `experimentalDecorators: true`；`moduleResolution` 用 `Bundler`、`NodeNext` 或 `Node16` |
 | `@ahoo-wang/fetcher`、`fetcher-decorator`、`fetcher-eventstream` | `^5.1.5` | peer 依赖：由应用安装；5.1.4 起类型声明在 `require`（Node16、NodeNext）下能正确解析；5.1.5 起同一次编译里同时有 ESM 与 CJS 消费者也能通过类型检查。Fetcher 6 尚未发布，范围不对它做承诺；6.0 发布并验证后，在一个补丁版本里放宽 |
 | `@ahoo-wang/wow-client`（其他 Wow 包依赖它） | `~x.y.z` | 同一个次版本 |

@@ -6,7 +6,7 @@ as React state, on the query types of `@ahoo-wang/wow-client`.
 
 ## Requirements
 
-- **React 19.3 or later.** The package is compiled with the React Compiler and
+- **React 19.0 or later.** The package is compiled with the React Compiler and
   imports `react/compiler-runtime`, which only React 19 has; React 18 is not
   supported.
 - Node.js 22.12 or later for tooling and server rendering; any browser React 19
