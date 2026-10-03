@@ -32,6 +32,8 @@ export function ToShipCount() {
 }
 ```
 
+相关指南：[视图引擎的核心概念](../../../guide/typescript/view-engine-concepts.md)（这些 Hook 打开与订阅的视图与运行时）、[声明式操作](../../../guide/typescript/view-engine-actions.md#slots)（只换一个单元格或按钮时的插槽）。
+
 ## 打开与订阅 {#api-useOpenView}
 
 | Hook | 作用 |

@@ -7,7 +7,7 @@ description: The view engine's saved views and preferences go through the ViewSt
 
 This page answers: **where do the views, boards and preferences readers save end up, how does a host choose and wire that, and once it is wired, who decides who may write?**
 
-Definitions, and the system views declared in code, are code: they ship with the front end and never pass through storage. What is stored is what readers make on the page: saved views (`ViewInstance`: the whole config of a record view, an analysis view or a dashboard), and each definition's preferences (the order of the views, the default view, auto-run, the tab last opened). The engine reads and writes them through one port only, `ViewStore`, so changing the storage changes no page.
+Definitions, and the system views declared in code, are code: they ship with the front end and never pass through storage. What is stored is what readers make on the page: saved views (`ViewInstance`: the whole config of a record view, an analysis view or a dashboard), and each definition's preferences (the order of the views, the default view, auto-run, the tab last opened). The engine reads and writes them through one port only, [`ViewStore`](../../reference/typescript/wow-view-engine/store.md#api-ViewStore), so changing the storage changes no page.
 
 ```mermaid
 flowchart LR
@@ -24,14 +24,14 @@ flowchart LR
 
 | Store | For | Note |
 |---|---|---|
-| `MemoryViewStore` | Tests, demos, a query-only page | Forgets on reload |
+| [`MemoryViewStore`](../../reference/typescript/wow-view-engine/store.md#api-MemoryViewStore) | Tests, demos, a query-only page | Forgets on reload |
 | `new MemoryViewStore({ snapshot: localStorageSnapshot(key) })` | Development, a single-user tool | One browser's views; another tab's write is merged or a `CONFLICT` |
 | `WowViewStore` (`@ahoo-wang/wow-view-store`) | Everyone else: personal and shared views kept by a Wow service | The service embeds `wow-view-store-starter`, or the standalone `wow-view-store-server` runs behind the CoSec gateway ([View Store server](../extensions/view-store.md)) |
 | Your own `ViewStore` | Views that must live in another backend | Only when the backend is not Wow ([Write a ViewStore of your own](#write-a-viewstore-of-your-own)) |
 
 Whichever you choose, the port keeps two rules, and the engine's conflict handling and retries rest on them (the port's signature is in the [wow-view-engine reference](../../reference/typescript/wow-view-engine/#persistence)):
 
-1. **Optimistic revision.** Every write carries the `revision` it read; a mismatch is refused with `ViewStoreError` (`code: 'CONFLICT'`), carrying what storage holds now. The screen offers reload, overwrite and save as.
+1. **Optimistic revision.** Every write carries the `revision` it read; a mismatch is refused with [`ViewStoreError`](../../reference/typescript/wow-view-engine/store.md#api-ViewStoreError) (`code: 'CONFLICT'`), carrying what storage holds now. The screen offers reload, overwrite and save as.
 2. **Idempotent `requestId`.** One logical write has one `requestId` (`WriteContext`), and a retry after a timeout reuses it; storage answers a repeated `requestId` with the first outcome and does not write twice.
 
 ## `MemoryViewStore`
@@ -81,7 +81,7 @@ export const memoryStore = new MemoryViewStore({
 
 ## `localStorageSnapshot`: views in the browser, for now
 
-Until a backend keeps the views (development, a single-user tool), `localStorageSnapshot(key)` keeps a `MemoryViewStore` in the browser's `localStorage`, the whole state as one JSON document under `key`. It is one browser's views, not shared ones; to share views with others, they live on a server.
+Until a backend keeps the views (development, a single-user tool), [`localStorageSnapshot(key)`](../../reference/typescript/wow-view-engine/store.md#api-localStorageSnapshot) keeps a `MemoryViewStore` in the browser's `localStorage`, the whole state as one JSON document under `key`. It is one browser's views, not shared ones; to share views with others, they live on a server.
 
 <!-- typecheck: file=devStore.ts -->
 

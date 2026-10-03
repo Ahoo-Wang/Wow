@@ -32,7 +32,7 @@ Why commit a snapshot rather than read it at run time:
 
 ## 2. Facts, capabilities and choices
 
-`defineView(descriptor, spec)` splits what the descriptor says into two kinds, and the definition adds a third:
+[`defineView(descriptor, spec)`](../../reference/typescript/wow-view-engine/definitions.md#api-defineView) splits what the descriptor says into two kinds, and the definition adds a third:
 
 | Kind | What | From | What the definition may do |
 |---|---|---|---|
@@ -163,7 +163,7 @@ For a long definition, `fieldGroups: [{ id, label, fields }]` groups the picker 
 
 ### Words
 
-Every title, label, option, system view name and metric display name is written `text(key)`, with the words in one table per language, handed to the host (`ViewHost`'s `messages`, or the engine's `text`). The definition, the configs and the store keep the keys; they are said only where something is shown, so one app has one engine and switching languages is only a redraw — nothing reopens, re-queries or turns "modified". A single-language host may still write plain strings.
+Every title, label, option, system view name and metric display name is written `text(key)`, with the words in one table per language, handed to the host ([`ViewHost`](../../reference/typescript/wow-view-engine/host.md#api-ViewHost)'s `messages`, or the engine's `text`). The definition, the configs and the store keep the keys; they are said only where something is shown, so one app has one engine and switching languages is only a redraw — nothing reopens, re-queries or turns "modified". A single-language host may still write plain strings.
 
 <!-- typecheck: file=words.ts -->
 
@@ -250,7 +250,7 @@ The engine guards two kinds of field for you: a field with `sensitivity` stays o
 
 ## 5. Records: the row's identity and `rowFields`
 
-`record.rowKey` is each row's identity, by default the descriptor's `identity` (`aggregateId` for a Wow snapshot). It must be a listed, sortable field: every record query ends on it, so pages neither repeat nor skip a row. You may switch it to the business number people look orders up by; commands still address the aggregate id, though, so list the aggregate id too and put it in `rowFields`.
+`record.rowKey` is each row's identity, by default the descriptor's `identity` (`aggregateId` for a Wow snapshot). It must be a listed, sortable field: every record query ends on it, so pages neither repeat nor skip a row. You may switch it to the business number people look orders up by; commands still address the aggregate id, though, so list the aggregate id too and put it in [`rowFields`](../../reference/typescript/wow-view-engine/definitions.md#api-RecordCapability).
 
 **The engine queries only what a view shows.** A page asks for the visible columns, the card's fields, the fields its sort and summaries read, and the row's identity. A hidden column is not fetched, nor exported — which keeps every page of a wide table light. The price: when the host's code (a declared action's `available`, a bulk action, a custom cell) reads a field this view does not show, the row simply does not have it. "Ship" reads `state.status` to decide whether an order can ship; a reader hides the status column, or opens a system view that never showed it, and the check reads `undefined` — the button stays disabled.
 
@@ -394,7 +394,7 @@ export const SALES_ORDER_VIEWS: SystemView[] = [
 
 - **The id** is unique within the definition and holds no `:`. The engine makes `system:<definition id>:<view id>` its instance id; `systemInstanceId('sales-orders', 'to-ship')` composes the same value, which boards and routes refer to it by.
 - **Time is intent.** A period is a `BETWEEN` that moves with the calendar (`{ type: 'preset', preset: 'yesterday' }`, `{ type: 'relative', amount: 7, unit: 'day' }`); never write today's date into a config. A category offers `IN` and `NOT_IN`, not `EQ`.
-- **`timeField`** goes on the `SystemView`: another moment, or `null` for a view read whole, out of reach of a board's date filter.
+- **`timeField`** goes on the [`SystemView`](../../reference/typescript/wow-view-engine/definitions.md#api-SystemView): another moment, or `null` for a view read whole, out of reach of a board's date filter.
 - **Name an analysis by its question** ("Sales by city"), give every dimension and metric a display name, sort by the metric that answers the question, and pick the chart that answers it rather than the most striking one.
 
 ### Boards: the page readers glance at first
@@ -545,7 +545,7 @@ export const overview: DashboardDefinition = {
 
 ## 7. Self-check with `admit`
 
-A definition has no compile-time check of its paths: a path is a string, and only the descriptor knows whether it is right. `admit` from `/testing` adds that check: it admits your declarations by the rules the engine registers them by — every key said in the words given, each definition's own rules and every system view config, a board's references to the other definitions, and each data definition narrowed to the committed snapshot of its `source`. When all of it holds it returns `[]`.
+A definition has no compile-time check of its paths: a path is a string, and only the descriptor knows whether it is right. [`admit`](../../reference/typescript/wow-view-engine/testing.md#api-admit) from `/testing` adds that check: it admits your declarations by the rules the engine registers them by — every key said in the words given, each definition's own rules and every system view config, a board's references to the other definitions, and each data definition narrowed to the committed snapshot of its `source`. When all of it holds it returns `[]`.
 
 One test admits everything the host registers, in every language the host serves:
 

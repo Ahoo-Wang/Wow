@@ -18,13 +18,18 @@ It succeeds `@ahoo-wang/fetcher-viewer`, which stays on Fetcher 5.x and is not d
 | To | Read |
 |---|---|
 | Wire one business object from zero: install, the query descriptor, `defineView`, the engine, `ViewHost`, one action, run against the example server | [Getting Started with the View Engine](./view-engine-getting-started.md) |
+| Learn the words first: definition, record and analysis views, boards, system / shared / personal views, revision and the store, and how they connect | [View Engine Core Concepts](./view-engine-concepts.md) |
+| Write a definition: the descriptor's facts, text keys, narrowing, `rowFields`, system views and boards, checking it with `admit` | [Writing a Definition](./view-engine-definitions.md) |
 | Wear a built-in look, use a brand colour, or follow the host's shadcn theme | [Theming the View Engine](./view-engine-theming.md) |
 | Keyboard, screen readers and WCAG 2.2 AA conformance | [Accessibility of the View Engine](./view-engine-accessibility.md) |
 | Fit the engine into an app: `ViewHost`, `bind`, the router port, navigation, embeds, messages and locale, testing with `/testing` | [Fitting the View Engine into a Host](./view-engine-host.md) |
 | Commands on records: availability rules, placement, confirmation and forms, bulk, outcomes | [Declared Actions](./view-engine-actions.md) |
 | Run under a strict Content Security Policy | [Content Security Policy for the View Engine](./view-engine-csp.md) |
-| Draw your own UI instead of the workbench, with the headless hooks of `/react` (`useOpenView`, `useViewRuntime`, `useFilterEditor`, `useRecordTable`) | [wow-view-engine reference](../../reference/typescript/wow-view-engine/) |
-| Keep saved views on a Wow server | [wow-view-store reference](../../reference/typescript/wow-view-store/) |
+| Choose a store: in memory, a snapshot in the browser, a Wow server, or your own `ViewStore` checked by the conformance suite | [Where Views Live](./view-engine-storage.md) |
+| Embed the view store in a Kotlin service, or run the standalone server: properties, storage, system views, gateway rules | [View Store](../extensions/view-store.md) |
+| Draw your own UI instead of the workbench, with the headless hooks of `/react` (`useOpenView`, `useViewRuntime`, `useFilterEditor`, `useRecordTable`) | [React Hooks](../../reference/typescript/wow-view-engine/react.md) |
+| Look up a public name's signature | The [wow-view-engine reference](../../reference/typescript/wow-view-engine/)'s topics: [Engine and Resources](../../reference/typescript/wow-view-engine/engine.md), [Definitions and Field Kinds](../../reference/typescript/wow-view-engine/definitions.md), [Host Wiring](../../reference/typescript/wow-view-engine/host.md), [Workbenches and Embeds](../../reference/typescript/wow-view-engine/components.md), [Persistence Port](../../reference/typescript/wow-view-engine/store.md), [Testing Helpers](../../reference/typescript/wow-view-engine/testing.md), [Issue Codes](../../reference/typescript/wow-view-engine/issues.md) |
+| Reach the Wow server's view store from the browser with `WowViewStore` | [wow-view-store reference](../../reference/typescript/wow-view-store/) |
 
 ## The problem it solves
 
@@ -91,11 +96,15 @@ To see what the engine draws first, open the [chart showcase board](/storybook/?
 ## Where to read more
 
 - [Getting Started with the View Engine](./view-engine-getting-started.md): the example server's sales orders wired in from zero, one file a step.
+- [View Engine Core Concepts](./view-engine-concepts.md): definitions, views, boards, system / shared / personal views, revision and the store — what each is and why they are split this way.
+- [Writing a Definition](./view-engine-definitions.md): start from the descriptor's facts, make each choice, write the words and the system views, and check it with `admit`.
 - [Fitting the View Engine into a Host](./view-engine-host.md): one engine, the ports of `ViewHost`, `bind`, the router, embeds, messages and locale, and testing the wiring with `/testing`.
 - [Declared Actions](./view-engine-actions.md): how commands on records are declared, and how the engine places, confirms, runs in bulk and reports them.
 - [Content Security Policy for the View Engine](./view-engine-csp.md): the three things a strict policy must allow, and the tests that hold the engine to it.
-- [wow-view-engine reference](../../reference/typescript/wow-view-engine/): entries, concepts, persistence port, and extension points.
-- [wow-view-store reference](../../reference/typescript/wow-view-store/): `WowViewStore`, the saved views on a Wow server. How to choose and wire a store is in [Where Views Live](./view-engine-storage.md); the CoSec gateway rules the server needs are in the [View Store](../extensions/view-store.md#security-model) page.
+- [Where Views Live](./view-engine-storage.md): choose a store by who must see the saved views, wire `WowViewStore`, or write your own and run the conformance suite.
+- [View Store](../extensions/view-store.md): the Kotlin server — the starter or the standalone server, the Docker image, properties, system views, and the [CoSec gateway rules](../extensions/view-store.md#security-model) it needs.
+- [wow-view-engine reference](../../reference/typescript/wow-view-engine/): entries, concepts, persistence port, and extension points; its [topics](../../reference/typescript/wow-view-engine/#topics) give the signatures a host uses, one by one, and [Issue Codes](../../reference/typescript/wow-view-engine/issues.md) lists every code the engine can report.
+- [wow-view-store reference](../../reference/typescript/wow-view-store/): `WowViewStore`, the saved views on a Wow server.
 - [Theming the View Engine](./view-engine-theming.md): presets, host variables, light, dark and system mode, the shadcn bridge, and the contrast an override owes.
 - [Accessibility of the View Engine](./view-engine-accessibility.md): the WCAG 2.2 AA conformance statement, the keyboard and screen-reader walkthroughs, and the known gaps.
 - [Design documents](https://github.com/Ahoo-Wang/Wow/tree/main/typescript/wow-view-engine/docs/design): the source of truth for the model.

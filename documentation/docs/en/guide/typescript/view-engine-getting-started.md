@@ -323,7 +323,7 @@ The definition is built from this file when its module loads, and a test builds 
 
 ## 5. Declare the definition: `defineView`
 
-A definition says how this data **can** be observed. The facts — paths, types, enumeration values — are read from the query descriptor; `defineView` writes only the choices: which fields to list, in what order, under what names, the tone of each status, and the system views that ship with the definition. A field not listed does not appear; a path or a value the descriptor lacks is reported by admission rather than thrown.
+A definition says how this data **can** be observed. The facts — paths, types, enumeration values — are read from the query descriptor; [`defineView`](../../reference/typescript/wow-view-engine/definitions.md#api-defineView) writes only the choices: which fields to list, in what order, under what names, the tone of each status, and the system views that ship with the definition. A field not listed does not appear; a path or a value the descriptor lacks is reported by admission rather than thrown.
 
 <!-- typecheck: file=orders.ts -->
 
@@ -361,8 +361,10 @@ export const ordersDefinition = defineView(
       firstEventTime: text('orders.placedAt'),
     },
     // Step 7's "Ship" reads every row's status, whether the list shows it
-    // or not: the engine queries only the columns shown, and the fields
-    // a row must carry are named here.
+    // or not. A row is not the whole document: it carries the shown
+    // columns, the row key, the card layout's fields (when the definition
+    // allows cards) and the fields sorts and summaries read; the fields a
+    // row must carry besides are named here.
     record: { rowFields: ['state.status'] },
     // System views: deployed with the definition, read-only for everyone,
     // the starting points readers save their own views from.
@@ -501,7 +503,7 @@ export const engine = new ViewEngine({
 });
 ```
 
-`MemoryViewStore` keeps this page free of storage. To keep saved views, use [`WowViewStore`](../../reference/typescript/wow-view-store/) from `@ahoo-wang/wow-view-store`, which keeps them on Wow's view store server — the example server already embeds it.
+[`MemoryViewStore`](../../reference/typescript/wow-view-engine/store.md#api-MemoryViewStore) keeps this page free of storage. To keep saved views, use [`WowViewStore`](../../reference/typescript/wow-view-store/) from `@ahoo-wang/wow-view-store`, which keeps them on Wow's view store server — the example server already embeds it.
 
 ## 7. Declare one action
 
@@ -557,7 +559,7 @@ Shipping is the example server's `ShipOrder` command (`POST /tenant/{tenantId}/s
 
 ## 8. `ViewHost` and the page
 
-`ViewHost` is the one layer the host writes around its pages: the data (the engine), the router, the language and its words, the theme, and what each resource does in this host (`bind`: which route it lives on, which actions it carries). The workbench needs only the definition's id.
+[`ViewHost`](../../reference/typescript/wow-view-engine/host.md#api-ViewHost) is the one layer the host writes around its pages: the data (the engine), the router, the language and its words, the theme, and what each resource does in this host ([`bind`](../../reference/typescript/wow-view-engine/host.md#api-bind): which route it lives on, which actions it carries). The workbench needs only the definition's id.
 
 <!-- typecheck: file=App.tsx -->
 
@@ -625,7 +627,7 @@ createRoot(document.getElementById('root')!).render(
 );
 ```
 
-- **Router**: call `useReactRouter()` inside a React Router router component. With a router the engine keeps the address itself: the workbench's open view is in `?view=`, a record's detail follows `?id=`. Over another router library, write the two members of `ViewRouter` (`location` and `go`) yourself.
+- **Router**: call `useReactRouter()` inside a React Router router component. With a router the engine keeps the address itself: the workbench's open view is in `?view=`, a record's detail follows `?id=`. Over another router library, write the two members of [`ViewRouter`](../../reference/typescript/wow-view-engine/host.md#api-ViewRouter) (`location` and `go`) yourself.
 - **Theme**: `preset="porcelain"` wears one of the engine's built-in looks, whose stylesheet is imported; a host with a shadcn theme writes `theme="host"` and imports `shadcn-bridge.css` instead. See [Theming the View Engine](./view-engine-theming.md).
 - **Light and dark**: `colorMode` is `system` by default; the engine follows the system and puts `.dark` on `<html>`.
 - **Height**: the workbench fills its container, so the container needs a height.
@@ -646,7 +648,7 @@ Open `http://localhost:5173/orders`:
 ## The full working version
 
 - Storybook's [integration walk-through](/storybook/?path=/docs/view-engine-接入导览--docs) wires an order object in the same five steps, with navigation, words in more than one language, a second action and an in-memory router; the bottom of the page is it running.
-- Its source files: [`ordersDefinition.ts`](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/storybook/stories/view-engine/integration/ordersDefinition.ts), [`wowSource.ts`](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/storybook/stories/view-engine/integration/wowSource.ts), [`ordersEngine.ts`](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/storybook/stories/view-engine/integration/ordersEngine.ts), [`OrdersHost.tsx`](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/storybook/stories/view-engine/integration/OrdersHost.tsx), [`orderActions.ts`](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/storybook/stories/view-engine/integration/orderActions.ts), [`wowCommands.ts`](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/storybook/stories/view-engine/integration/wowCommands.ts), [`OrdersPage.tsx`](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/storybook/stories/view-engine/integration/OrdersPage.tsx), and [`integration.test.ts`](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/storybook/stories/view-engine/integration/integration.test.ts), which holds them to `/testing`'s `admit` and `actionHarness`.
+- Its source files: [`ordersDefinition.ts`](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/storybook/stories/view-engine/integration/ordersDefinition.ts), [`wowSource.ts`](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/storybook/stories/view-engine/integration/wowSource.ts), [`ordersEngine.ts`](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/storybook/stories/view-engine/integration/ordersEngine.ts), [`OrdersHost.tsx`](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/storybook/stories/view-engine/integration/OrdersHost.tsx), [`orderActions.ts`](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/storybook/stories/view-engine/integration/orderActions.ts), [`wowCommands.ts`](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/storybook/stories/view-engine/integration/wowCommands.ts), [`OrdersPage.tsx`](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/storybook/stories/view-engine/integration/OrdersPage.tsx), and [`integration.test.ts`](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/storybook/stories/view-engine/integration/integration.test.ts), which holds them to `/testing`'s [`admit`](../../reference/typescript/wow-view-engine/testing.md#api-admit) and [`actionHarness`](../../reference/typescript/wow-view-engine/testing.md#api-actionHarness).
 - A real host: the compensation console's [`src/views/`](https://github.com/Ahoo-Wang/Wow/tree/main/compensation/dashboard/src/views).
 
 ## Next steps
@@ -654,7 +656,12 @@ Open `http://localhost:5173/orders`:
 | Next | Read |
 |---|---|
 | What the view engine is and the facts it rests on | [View Engine](./view-engine.md) |
+| The words this page used: definition, record and analysis views, boards, system / shared / personal views, revision, the store | [View Engine Core Concepts](./view-engine-concepts.md) |
+| Finish step 5's definition: text keys, narrowing, [`rowFields`](../../reference/typescript/wow-view-engine/definitions.md#api-RecordCapability), system views and boards, checking it with `admit` | [Writing a Definition](./view-engine-definitions.md) |
+| Wiring beyond step 8: `bind`, the router port, navigation, embeds, messages and locale, testing with `/testing` | [Fitting the View Engine into a Host](./view-engine-host.md) |
+| Actions beyond step 7: placement, confirmation and forms, bulk, outcomes | [Declared Actions](./view-engine-actions.md) |
+| Keep saved views on a Wow server, or write a store of your own | [Where Views Live](./view-engine-storage.md) |
+| Run under a strict Content Security Policy | [Content Security Policy for the View Engine](./view-engine-csp.md) |
 | Another look, a brand colour, a shadcn theme | [Theming the View Engine](./view-engine-theming.md) |
 | Keyboard, screen readers and WCAG 2.2 AA | [Accessibility of the View Engine](./view-engine-accessibility.md) |
-| Keep saved views on a Wow server | [wow-view-store reference](../../reference/typescript/wow-view-store/) |
-| Entries, the persistence port and extension points | [wow-view-engine reference](../../reference/typescript/wow-view-engine/) |
+| Every public name's signature, and the issue codes | [wow-view-engine reference](../../reference/typescript/wow-view-engine/) |

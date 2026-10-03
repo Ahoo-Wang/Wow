@@ -256,6 +256,7 @@ export interface ViewInstance {
   scope: 'system' | 'shared' | 'personal';
   revision: string; // 不透明，只做相等比较；代码声明的系统视图固定为 'code'
   config: ViewConfig;
+  stored?: true; // 存储保管、能写的系统视图（D81）；有 editSystem 时可再保存、改名、删除。其余视图都没有它：代码声明（system: id）与后端配置的系统视图总是只读
 }
 export interface ViewInstanceSummary {
   id: string;
@@ -264,10 +265,13 @@ export interface ViewInstanceSummary {
   scope: 'system' | 'shared' | 'personal';
   kind: ViewConfig['kind']; // 该实例配置的种类；摘要不带 config，列表据此区分记录与分析
   revision: string;
+  stored?: true; // 同 ViewInstance.stored
 }
 export interface ViewPreferences {
-  order: string[];
+  order: string[]; // 显式排过序的实例 id；没列出的按服务端的次序跟在后面
   defaultInstanceId: string | null;
+  autoRun?: boolean; // 分析改了问题是否自己重跑（D20 改了就跑）；不写即开。时间范围仍等「应用」
+  lastTabs?: Record<string, string>; // 读者在该定义的每个看板上最后看的页签，按实例 id（D22 E）。属于读者，不属于看板
   revision: string;
 }
 ```

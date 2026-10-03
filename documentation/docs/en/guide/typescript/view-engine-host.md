@@ -7,7 +7,7 @@ description: One engine, the ports of ViewHost, bind, the router port and naviga
 
 This page answers: **once the definitions are written, what does the host application write around them so the engine does the right thing on every page?**
 
-The [getting started](./view-engine-getting-started.md) wired one business object in from zero. This page takes the wiring behind those steps one piece at a time: why the data is registered on the engine and the behaviour in React, what of the host's each port of `ViewHost` bridges to, which parts of the address the engine keeps for the host, how far an embed goes, and how to test the wiring without a browser.
+The [getting started](./view-engine-getting-started.md) wired one business object in from zero. This page takes the wiring behind those steps one piece at a time: why the data is registered on the engine and the behaviour in React, what of the host's each port of [`ViewHost`](../../reference/typescript/wow-view-engine/host.md#api-ViewHost) bridges to, which parts of the address the engine keeps for the host, how far an embed goes, and how to test the wiring without a browser.
 
 ```mermaid
 flowchart LR
@@ -66,7 +66,7 @@ export const engine = new ViewEngine({
 - Two definitions over one model share a source key (the definition's `source`) and one source.
 - Leave `limits` alone: the query queue makes room for a board's panels by itself, and the descriptor supplies the server's budgets. Pass a limit only to go lower.
 - Give the source's `Fetcher` a timeout (`new Fetcher({ timeout })`). `@ahoo-wang/fetcher` has none by default and the engine times no query, so a server that takes the connection and never answers leaves a view opening for ever and holds the engine's query slots, starving a board's other panels.
-- In a development build without `onIssue`, the engine prints admission findings per resource, each with how to fix it. They belong in the definition's `admit` test ([below](#testing)), not in a handler that swallows them.
+- In a development build without `onIssue`, the engine prints admission findings per resource, each with how to fix it. They belong in the definition's [`admit`](../../reference/typescript/wow-view-engine/testing.md#api-admit) test ([below](#testing)), not in a handler that swallows them.
 
 How to choose the source and the store: [step 6 of the getting started](./view-engine-getting-started.md) and [Where Views Live](./view-engine-storage.md).
 
@@ -77,10 +77,10 @@ How to choose the source and the store: [step 6 of the getting started](./view-e
 | Prop | Port | What it does |
 |---|---|---|
 | `engine` | data | The application's engine |
-| `router` | router | Your router: `useReactRouter()` from `/react-router`, or the two members of `ViewRouter` written over another ([below](#router-port)) |
+| `router` | router | Your router: `useReactRouter()` from `/react-router`, or the two members of [`ViewRouter`](../../reference/typescript/wow-view-engine/host.md#api-ViewRouter) written over another ([below](#router-port)) |
 | `navigate` | router | Every way off in your own hands; it wins over `router` |
 | `locale`, `messages` | language | The language values show in, and the wording merged over what is in force ([below](#messages)) |
-| `bindings` | commands | One `bind(id, …)` per resource: its route, actions and reading ([below](#bind)) |
+| `bindings` | commands | One [`bind(id, …)`](../../reference/typescript/wow-view-engine/host.md#api-bind) per resource: its route, actions and reading ([below](#bind)) |
 | `theme`, `preset`, `brand` | theme | One of two paths: `theme="host"` follows the host's shadcn theme, or a `preset` wears the engine's ([Theming the View Engine](./view-engine-theming.md)) |
 | `colorMode`, `rememberColorMode` | theme | Light or dark: `system` by default, the engine writing `<html>`'s `.dark` and `color-scheme` before the first paint and following the system live; `light` / `dark` start pinned; `host` where the host paints its own mode (as next-themes does) and the engine leaves `<html>` alone. The reader changes it through `useColorMode()`'s `{ mode, setMode }`, kept on this machine under the `localStorage` key `rememberColorMode` names |
 
@@ -175,7 +175,7 @@ Keep the bindings stable: at module scope, or under a `useMemo` over what they c
 
 With a router port, the engine keeps the address and the host syncs nothing:
 
-- **The open view is `?view=`.** A workbench (`DataWorkbench`, `DashboardWorkbench`) given no `instanceId` / `onInstanceChange` opens the address's `?view=` and writes the reader's pick back, a new history entry per view. It **reads only its own definition's views**: two workbenches on one page share one `?view=`, each leaves the other's view alone, and neither writes its own default over the other's.
+- **The open view is `?view=`.** A workbench ([`DataWorkbench`](../../reference/typescript/wow-view-engine/components.md#api-DataWorkbench), [`DashboardWorkbench`](../../reference/typescript/wow-view-engine/components.md#api-DashboardWorkbench)) given no `instanceId` / `onInstanceChange` opens the address's `?view=` and writes the reader's pick back, a new history entry per view. It **reads only its own definition's views**: two workbenches on one page share one `?view=`, each leaves the other's view alone, and neither writes its own default over the other's.
 - **The open record is `?id=`.** A bound resource's record detail follows the address's `?id=` (replacing the current entry, adding none), unless its `reading` holds `open` itself.
 - **What is handed over, a board's filters and its tab are the history entry's state.** **Open in the workbench** on a board, a follow-up, a panel's destination: each goes to the route of the resource it leads to, with a `ViewRouteState` — the view handed over (`handOver`), a board's `filters` and `tab`. Several boards on one page each keep their own, and each finds it again after a reload.
 - **Elsewhere.** A host path (starting with `/`) goes through the router too; another site opens in a new window.
@@ -270,7 +270,7 @@ With only a `min-height`, the workbench falls back to its 36rem floor (`--fve-wo
 
 ## Embeds: a decided view inside a business page {#embeds}
 
-A business page that shows what somebody already decided — a customer's orders, a warehouse's board — embeds it: the result and nothing else, no view list, no condition editor, no save. There are two entries, split by resource as the workbenches are: `EmbeddedView` for a record or analysis view, `EmbeddedDashboard` for a board.
+A business page that shows what somebody already decided — a customer's orders, a warehouse's board — embeds it: the result and nothing else, no view list, no condition editor, no save. There are two entries, split by resource as the workbenches are: [`EmbeddedView`](../../reference/typescript/wow-view-engine/components.md#api-EmbeddedView) for a record or analysis view, [`EmbeddedDashboard`](../../reference/typescript/wow-view-engine/components.md#api-EmbeddedDashboard) for a board.
 
 **An embed never writes**: not a view, not a board, not a preference. What a reader does on it lasts for that viewing. A page whose readers should build boards embeds `DashboardWorkbench` instead.
 
@@ -348,9 +348,9 @@ The wiring is worth testing, and it needs no browser. `@ahoo-wang/wow-view-engin
 | Function | What it tests |
 |---|---|
 | `admit(definitions, descriptors, { text })` | Definitions and boards admitted over the committed descriptors, every key worded; `[]` when all of it holds |
-| `resolveNavigation(to, bindingOf)` | What a way off resolves to through the bound `route`, by the engine's own resolution |
-| `actionHarness(actions, rows, { now })` | The declared actions read by the engine's rules, without a screen ([Declared Actions](./view-engine-actions.md#harness)) |
-| `memorySource(documents, options?)` | A `ViewSource` in memory that filters, sorts, pages, projects and aggregates the way a Wow service over MongoDB does, for page tests and demos |
+| [`resolveNavigation(to, bindingOf)`](../../reference/typescript/wow-view-engine/testing.md#api-resolveNavigation) | What a way off resolves to through the bound `route`, by the engine's own resolution |
+| [`actionHarness(actions, rows, { now })`](../../reference/typescript/wow-view-engine/testing.md#api-actionHarness) | The declared actions read by the engine's rules, without a screen ([Declared Actions](./view-engine-actions.md#harness)) |
+| [`memorySource(documents, options?)`](../../reference/typescript/wow-view-engine/testing.md#api-memorySource) | A [`ViewSource`](../../reference/typescript/wow-view-engine/engine.md#api-ViewSource) in memory that filters, sorts, pages, projects and aggregates the way a Wow service over MongoDB does, for page tests and demos |
 
 Test the route table with the engine's own resolution:
 

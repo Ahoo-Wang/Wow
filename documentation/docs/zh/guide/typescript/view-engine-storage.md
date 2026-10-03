@@ -7,7 +7,7 @@ description: 视图引擎保存的视图与偏好经 ViewStore 端口落地：�
 
 本页回答：**读者保存的视图、看板与偏好存到哪里，宿主怎样选、怎样接，接上以后谁来决定谁能写？**
 
-定义与代码里声明的系统视图是代码，随前端发版，从不经过存储。存下来的是读者在页面上做出来的东西：保存的视图（`ViewInstance`：记录视图、分析视图或仪表盘的整份配置），以及每个定义下的偏好（视图顺序、默认视图、自动运行、上次打开的标签页）。引擎只经由一个端口读写它们——`ViewStore`，所以换一种存储不用改页面。
+定义与代码里声明的系统视图是代码，随前端发版，从不经过存储。存下来的是读者在页面上做出来的东西：保存的视图（`ViewInstance`：记录视图、分析视图或仪表盘的整份配置），以及每个定义下的偏好（视图顺序、默认视图、自动运行、上次打开的标签页）。引擎只经由一个端口读写它们——[`ViewStore`](../../reference/typescript/wow-view-engine/store.md#api-ViewStore)，所以换一种存储不用改页面。
 
 ```mermaid
 flowchart LR
@@ -24,14 +24,14 @@ flowchart LR
 
 | store | 适合 | 说明 |
 |---|---|---|
-| `MemoryViewStore` | 测试、演示、只查询不保存的页面 | 刷新即忘 |
+| [`MemoryViewStore`](../../reference/typescript/wow-view-engine/store.md#api-MemoryViewStore) | 测试、演示、只查询不保存的页面 | 刷新即忘 |
 | `new MemoryViewStore({ snapshot: localStorageSnapshot(key) })` | 开发期、单人使用的工具 | 一个浏览器里的视图；另一个标签页的写入会被合并，或成为 `CONFLICT` |
 | `WowViewStore`（`@ahoo-wang/wow-view-store`） | 其余所有情况：个人视图与共享视图由 Wow 服务保管 | 服务引入 `wow-view-store-starter`，或在 CoSec 网关后面运行独立的 `wow-view-store-server`（[视图存储服务端](../extensions/view-store.md)） |
 | 自己实现 `ViewStore` | 视图必须存在别的后端 | 只在后端不是 Wow 时才这样做（[自己写一个 ViewStore](#自己写一个-viewstore)） |
 
 无论选哪一种，端口都守着两条规则，引擎的冲突处理与重试都建立在它们上面（端口的签名见 [wow-view-engine 参考](../../reference/typescript/wow-view-engine/#persistence)）：
 
-1. **乐观版本。** 每次写入带上读到的 `revision`；对不上就以 `ViewStoreError`（`code: 'CONFLICT'`）拒绝，并带上存储里现在的样子。界面据此给出「重新载入」「覆盖」「另存为」。
+1. **乐观版本。** 每次写入带上读到的 `revision`；对不上就以 [`ViewStoreError`](../../reference/typescript/wow-view-engine/store.md#api-ViewStoreError)（`code: 'CONFLICT'`）拒绝，并带上存储里现在的样子。界面据此给出「重新载入」「覆盖」「另存为」。
 2. **幂等的 `requestId`。** 一次逻辑上的写入只有一个 `requestId`（`WriteContext`），超时后的重试沿用它；存储对同一个 `requestId` 答第一次的结果，不写第二遍。
 
 ## `MemoryViewStore`
@@ -80,7 +80,7 @@ export const memoryStore = new MemoryViewStore({
 
 ## `localStorageSnapshot`：视图暂时存在浏览器里
 
-还没有后端保管视图时（开发期、单人工具），`localStorageSnapshot(key)` 把一个 `MemoryViewStore` 存进浏览器的 `localStorage`，整个状态是 `key` 下的一份 JSON。它是一个浏览器里的视图，不是共享的视图；要与别人共享，视图得存在服务端。
+还没有后端保管视图时（开发期、单人工具），[`localStorageSnapshot(key)`](../../reference/typescript/wow-view-engine/store.md#api-localStorageSnapshot) 把一个 `MemoryViewStore` 存进浏览器的 `localStorage`，整个状态是 `key` 下的一份 JSON。它是一个浏览器里的视图，不是共享的视图；要与别人共享，视图得存在服务端。
 
 <!-- typecheck: file=devStore.ts -->
 

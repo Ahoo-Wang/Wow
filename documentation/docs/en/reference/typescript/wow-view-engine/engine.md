@@ -9,6 +9,8 @@ description: 'ViewEngine, its options and resources, ViewSource and RuntimeEnvir
 
 Construct it; do not extend it. It is `@sealed`, and its base class `EngineResources` is how the file is split, not an extension point.
 
+Guides: [Getting Started with the View Engine](../../../guide/typescript/view-engine-getting-started.md) (step 6 builds the engine and its resources); [Fitting the View Engine into a Host](../../../guide/typescript/view-engine-host.md) (why one engine serves the whole application); [View Engine Core Concepts](../../../guide/typescript/view-engine-concepts.md) (the views and runtimes the engine manages).
+
 ## Building an engine
 
 Each resource pairs a definition with the source of its data; every page over one source shares its queries, preferences and descriptors. `MemoryViewStore` forgets on reload, which is enough for development and tests; on a Wow service use [`WowViewStore`](../wow-view-store/) instead.

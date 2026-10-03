@@ -159,7 +159,7 @@ export const orderActions = (commands: OrderCommands) =>
   ]);
 ```
 
-在资源上绑定它们：`bind('orders', { route, actions: orderActions(orderCommands(fetcher)) })`（[把引擎接进宿主](./view-engine-host.md#bind)）。资源在哪里出现，操作就跟到哪里。
+在资源上绑定它们：[`bind('orders', { route, actions: orderActions(orderCommands(fetcher)) })`](../../reference/typescript/wow-view-engine/host.md#api-bind)（[把引擎接进宿主](./view-engine-host.md#bind)）。资源在哪里出现，操作就跟到哪里。
 
 | 成员 | 是什么 |
 |---|---|
@@ -211,7 +211,7 @@ export const holdActions = actions([
 
 所以，「待发货」视图没有显示状态列时，`stateOf(row).status` 是 `undefined`，「发货」的规则答「只有已付款的订单能发货」，每一行的按钮都停用——而切到显示状态列的「全部订单」，同一张订单又能发了。
 
-规则要读的字段，在定义里写进 `record.rowFields`，不管视图显示不显示，每一行都带着它们：
+规则要读的字段，在定义里写进 [`record.rowFields`](../../reference/typescript/wow-view-engine/definitions.md#api-RecordCapability)，不管视图显示不显示，每一行都带着它们：
 
 <!-- typecheck-context
 import type { QueryModelDescriptor } from '@ahoo-wang/wow-client';
@@ -250,7 +250,7 @@ export const ordersDefinition = defineView(descriptor, {
 
 - **停用的按钮仍可获焦。** 它不用原生的 `disabled`，而是 `aria-disabled`：在 Tab 序里，获焦就打开写着理由的提示，理由也是按钮的无障碍描述；菜单顶端去重后列出各条理由。
 - 命令运行时「⋯」照样能开，菜单里的项停用；问题框关上时焦点回到按下的那个按钮。
-- `EmbeddedView` 不画声明的操作：它的行命令只有宿主自己的 `rowActions`。
+- [`EmbeddedView`](../../reference/typescript/wow-view-engine/components.md#api-EmbeddedView) 不画声明的操作：它的行命令只有宿主自己的 `rowActions`。
 
 ## 确认与表单 {#confirm}
 
@@ -309,7 +309,7 @@ export const ordersDefinition = defineView(descriptor, {
 
 ## 用 `actionHarness` 测 {#harness}
 
-`/testing` 的 `actionHarness(actions, rows, { now })` 按引擎自己的规则读声明，不画界面——读的是界面用的同一份规则。在有代表性的行上覆盖每条规则、每个位置提供什么、按下问什么，以及 `run` 把哪条命令发给哪个 id：
+`/testing` 的 [`actionHarness(actions, rows, { now })`](../../reference/typescript/wow-view-engine/testing.md#api-actionHarness) 按引擎自己的规则读声明，不画界面——读的是界面用的同一份规则。在有代表性的行上覆盖每条规则、每个位置提供什么、按下问什么，以及 `run` 把哪条命令发给哪个 id：
 
 <!-- typecheck-context
 import { orderActions } from './orderActions';
@@ -371,6 +371,6 @@ expect(commands.cancel).toHaveBeenCalledWith('O-1', 3, '买家要求');
 
 | 接下来 | 阅读 |
 |---|---|
-| `ViewHost`、`bind`、路由与嵌入 | [把引擎接进宿主](./view-engine-host.md) |
+| [`ViewHost`](../../reference/typescript/wow-view-engine/host.md#api-ViewHost)、`bind`、路由与嵌入 | [把引擎接进宿主](./view-engine-host.md) |
 | 键盘与读屏怎样走一遍声明式操作 | [视图引擎的可访问性](./view-engine-accessibility.md) |
 | 从零接一个业务对象，带一个操作 | [视图引擎入门](./view-engine-getting-started.md) |

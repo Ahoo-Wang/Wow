@@ -22,6 +22,8 @@ All four may leave out `engine`, `messages` and `locale`: they take the [`ViewHo
 <DataWorkbench definitionId="orders" />
 ```
 
+Guides: [Fitting the View Engine into a Host](../../../guide/typescript/view-engine-host.md#embeds) (embeds that show a decided view inside a business page); [Getting Started with the View Engine](../../../guide/typescript/view-engine-getting-started.md) (step 8 puts `DataWorkbench` on a page); [Theming the View Engine](../../../guide/typescript/view-engine-theming.md) (how the four surfaces look).
+
 ## DataWorkbench {#api-DataWorkbench}
 
 The workbench of one data definition: its record views and analysis views in one list, which the user switches between as between any two views.

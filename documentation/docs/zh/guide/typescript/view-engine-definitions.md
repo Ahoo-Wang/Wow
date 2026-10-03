@@ -32,7 +32,7 @@ export const salesOrderDescriptor = snapshot as unknown as QueryModelDescriptor;
 
 ## 2. 事实、能力与选择
 
-`defineView(descriptor, spec)` 把描述符里的东西分成两类，加上定义自己的一类：
+[`defineView(descriptor, spec)`](../../reference/typescript/wow-view-engine/definitions.md#api-defineView) 把描述符里的东西分成两类，加上定义自己的一类：
 
 | 哪一类 | 包括 | 从哪来 | 定义能做什么 |
 |---|---|---|---|
@@ -160,7 +160,7 @@ export const salesOrders = defineView(salesOrderDescriptor, {
 
 ### 措辞
 
-每个标题、标签、选项、系统视图名与指标的显示名都写成 `text(key)`，措辞放在每种语言一张的表里，交给宿主（`ViewHost` 的 `messages`，或引擎的 `text`）。定义、配置与存储里始终是键，只在显示的地方才说成话，所以一个应用一个引擎，换语言只是重画：不重开、不重查，也不把视图标成「已修改」。单语的宿主仍可以直接写字符串。
+每个标题、标签、选项、系统视图名与指标的显示名都写成 `text(key)`，措辞放在每种语言一张的表里，交给宿主（[`ViewHost`](../../reference/typescript/wow-view-engine/host.md#api-ViewHost) 的 `messages`，或引擎的 `text`）。定义、配置与存储里始终是键，只在显示的地方才说成话，所以一个应用一个引擎，换语言只是重画：不重开、不重查，也不把视图标成「已修改」。单语的宿主仍可以直接写字符串。
 
 <!-- typecheck: file=words.ts -->
 
@@ -247,7 +247,7 @@ export const SALES_ORDER_WORDS = {
 
 ## 5. 记录：行的身份与 `rowFields`
 
-`record.rowKey` 是每一行的身份，缺省是描述符的 `identity`（Wow 快照是 `aggregateId`）。它必须是列出的字段、可以排序：每次记录查询都以它收尾，分页才不重不漏。人们按业务编号查找时可以换成它；但命令仍按聚合 id 寻址，这时把聚合 id 也列出来，放进 `rowFields`。
+`record.rowKey` 是每一行的身份，缺省是描述符的 `identity`（Wow 快照是 `aggregateId`）。它必须是列出的字段、可以排序：每次记录查询都以它收尾，分页才不重不漏。人们按业务编号查找时可以换成它；但命令仍按聚合 id 寻址，这时把聚合 id 也列出来，放进 [`rowFields`](../../reference/typescript/wow-view-engine/definitions.md#api-RecordCapability)。
 
 **引擎只查询视图显示的字段。** 一页要的只有：显示的列、卡片的字段、排序与汇总读的字段，以及行的身份。没显示的列不取，导出也不带——这让宽表的每一页都轻。代价是：宿主的代码（声明的操作的 `available`、批量操作、自定义单元格）读一个这个视图没显示的字段时，行上根本没有它。比如「发货」读 `state.status` 判断能不能发，而读者把状态列隐藏了，或者打开的系统视图本来就不显示状态：判断读到 `undefined`，按钮就一直是停用的。
 
@@ -390,7 +390,7 @@ export const SALES_ORDER_VIEWS: SystemView[] = [
 
 - **id** 在定义内唯一、不含 `:`。引擎以 `system:<定义 id>:<视图 id>` 作它的实例 id，`systemInstanceId('sales-orders', 'to-ship')` 拼出同一个值，看板与路由按它引用。
 - **时间是意图。** 一段时间写成跟着日历走的 `BETWEEN`（`{ type: 'preset', preset: 'yesterday' }`、`{ type: 'relative', amount: 7, unit: 'day' }`），绝不把今天的日期写进配置。类别给 `IN`、`NOT_IN`，没有 `EQ`。
-- **`timeField`** 写在 `SystemView` 上：换一个时刻，或 `null` 让这张视图整体读、不受看板的日期筛选影响。
+- **`timeField`** 写在 [`SystemView`](../../reference/typescript/wow-view-engine/definitions.md#api-SystemView) 上：换一个时刻，或 `null` 让这张视图整体读、不受看板的日期筛选影响。
 - **分析视图按问题命名**（「各城市销售额」），每个维度与指标有显示名，按回答问题的那个指标排序，图型选能回答问题的那种，而不是最醒目的那种。
 
 ### 看板：读者先扫一眼的那一页
@@ -540,7 +540,7 @@ export const overview: DashboardDefinition = {
 
 ## 7. 用 `admit` 自检
 
-定义没有编译期的路径检查：路径是字符串，描述符才知道它对不对。补上这一道的是 `/testing` 的 `admit`：它按引擎注册时的同一套规则准入你的声明——每个键在给定的措辞里说不说得出、定义自己的规则与每一份系统视图配置、看板对其他定义的引用，以及每份数据定义按它的 `source` 对着提交的描述快照收窄。全部站得住时返回 `[]`。
+定义没有编译期的路径检查：路径是字符串，描述符才知道它对不对。补上这一道的是 `/testing` 的 [`admit`](../../reference/typescript/wow-view-engine/testing.md#api-admit)：它按引擎注册时的同一套规则准入你的声明——每个键在给定的措辞里说不说得出、定义自己的规则与每一份系统视图配置、看板对其他定义的引用，以及每份数据定义按它的 `source` 对着提交的描述快照收窄。全部站得住时返回 `[]`。
 
 一个测试准入宿主注册的全部定义，覆盖宿主服务的每种语言：
 

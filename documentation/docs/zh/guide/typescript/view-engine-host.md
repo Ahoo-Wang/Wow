@@ -7,7 +7,7 @@ description: 一个引擎、ViewHost 的几个端口、bind、路由端口与导
 
 本页回答：**定义写好之后，宿主应用外面要写什么，引擎才在每个页面上做对的事？**
 
-[入门](./view-engine-getting-started.md)把一个业务对象从零接了进来。这里把那几步背后的接线逐个讲清楚：为什么数据注册在引擎上、行为注册在 React 里，`ViewHost` 的每个端口桥接宿主的什么，引擎替宿主管了地址里的哪些东西，嵌入能做到哪一步，以及怎样不开浏览器就测这些接线。
+[入门](./view-engine-getting-started.md)把一个业务对象从零接了进来。这里把那几步背后的接线逐个讲清楚：为什么数据注册在引擎上、行为注册在 React 里，[`ViewHost`](../../reference/typescript/wow-view-engine/host.md#api-ViewHost) 的每个端口桥接宿主的什么，引擎替宿主管了地址里的哪些东西，嵌入能做到哪一步，以及怎样不开浏览器就测这些接线。
 
 ```mermaid
 flowchart LR
@@ -66,7 +66,7 @@ export const engine = new ViewEngine({
 - 同一个模型上的两份定义共用一个数据源键（定义的 `source`）和一个数据源。
 - 不必调 `limits`：查询队列按看板的面板数自己留位，服务端的预算从查询描述里来。只在要更低时传。
 - 给数据源用的 `Fetcher` 设一个超时（`new Fetcher({ timeout })`）。`@ahoo-wang/fetcher` 缺省不超时，引擎也不给查询计时；一个接了连接却不答的服务端会让视图一直在打开中，还占着引擎的查询位，看板的其他面板跟着饿着。
-- 开发构建里没有接 `onIssue` 时，引擎按资源把准入发现打印出来，每条带改法。它们该进定义的 `admit` 测试（[下文](#testing)），不该被一个处理函数吞掉。
+- 开发构建里没有接 `onIssue` 时，引擎按资源把准入发现打印出来，每条带改法。它们该进定义的 [`admit`](../../reference/typescript/wow-view-engine/testing.md#api-admit) 测试（[下文](#testing)），不该被一个处理函数吞掉。
 
 数据源与存储怎样选，见[入门的第 6 步](./view-engine-getting-started.md)与[视图存在哪里](./view-engine-storage.md)。
 
@@ -77,10 +77,10 @@ export const engine = new ViewEngine({
 | prop | 端口 | 做什么 |
 |---|---|---|
 | `engine` | 数据 | 应用的那个引擎 |
-| `router` | 路由 | 宿主的路由：`/react-router` 的 `useReactRouter()`，或照 `ViewRouter` 的两个成员自己写（[下文](#router-port)） |
+| `router` | 路由 | 宿主的路由：`/react-router` 的 `useReactRouter()`，或照 [`ViewRouter`](../../reference/typescript/wow-view-engine/host.md#api-ViewRouter) 的两个成员自己写（[下文](#router-port)） |
 | `navigate` | 路由 | 想亲手接每一条去处时写它，优先于 `router` |
 | `locale`、`messages` | 语言 | 值显示所用的语言，以及合并在现行措辞之上的措辞表（[下文](#messages)） |
-| `bindings` | 命令 | 每个资源一条 `bind(id, …)`：路由、操作、读法（[下文](#bind)） |
+| `bindings` | 命令 | 每个资源一条 [`bind(id, …)`](../../reference/typescript/wow-view-engine/host.md#api-bind)：路由、操作、读法（[下文](#bind)） |
 | `theme`、`preset`、`brand` | 主题 | 两条路选一条：`theme="host"` 跟宿主的 shadcn 主题，或 `preset` 穿引擎的预设（[视图引擎的主题](./view-engine-theming.md)） |
 | `colorMode`、`rememberColorMode` | 主题 | 亮暗：缺省 `system`，引擎在第一次绘制前给 `<html>` 写 `.dark` 与 `color-scheme` 并跟随系统；`light`／`dark` 从钉住开始；宿主自己管亮暗（如 next-themes）时写 `host`，引擎不碰 `<html>`。读者经 `useColorMode()` 的 `{ mode, setMode }` 换模式，`rememberColorMode` 给一个 `localStorage` 键就记在这台机器上 |
 
@@ -175,7 +175,7 @@ export const BINDINGS = [
 
 有了路由端口，引擎自己管地址，宿主不必同步任何东西：
 
-- **打开的视图在 `?view=`。** 宿主没给 `instanceId`／`onInstanceChange` 的工作台（`DataWorkbench`、`DashboardWorkbench`）打开地址里的 `?view=`，读者换视图时写回去，一个视图一条历史。它**只认自己定义的视图**：一页上两个工作台共用一个 `?view=`，另一个定义的视图它搁着不管，也不把自己的缺省写回去盖掉别人的。
+- **打开的视图在 `?view=`。** 宿主没给 `instanceId`／`onInstanceChange` 的工作台（[`DataWorkbench`](../../reference/typescript/wow-view-engine/components.md#api-DataWorkbench)、[`DashboardWorkbench`](../../reference/typescript/wow-view-engine/components.md#api-DashboardWorkbench)）打开地址里的 `?view=`，读者换视图时写回去，一个视图一条历史。它**只认自己定义的视图**：一页上两个工作台共用一个 `?view=`，另一个定义的视图它搁着不管，也不把自己的缺省写回去盖掉别人的。
 - **打开的记录在 `?id=`。** 绑定了的资源，记录详情跟着地址的 `?id=`（替换当前历史，不加新的），除非 `reading` 自己管着 `open`。
 - **交接、筛选与标签页在历史条目的 state 里。** 看板「在工作台中打开」、追问、面板的去处，都按目标资源的 `route` 去，带着 `ViewRouteState`：交接过去的视图（`handOver`），看板的 `filters` 与 `tab`。一页上几块看板各记各的，刷新后各自找回自己的。
 - **别的地方。** 以 `/` 开头的宿主路径也走路由；别的站点另开一个窗口。
@@ -270,7 +270,7 @@ export function Places() {
 
 ## 嵌入：在业务页面里展示决定好的视图 {#embeds}
 
-业务页面要展示别人已经定下的东西——某个客户的订单、某个仓库的看板——就嵌入它：只有结果，没有视图列表、条件编辑器和保存。两个入口按资源分，和工作台一样：`EmbeddedView` 嵌记录或分析视图，`EmbeddedDashboard` 嵌看板。
+业务页面要展示别人已经定下的东西——某个客户的订单、某个仓库的看板——就嵌入它：只有结果，没有视图列表、条件编辑器和保存。两个入口按资源分，和工作台一样：[`EmbeddedView`](../../reference/typescript/wow-view-engine/components.md#api-EmbeddedView) 嵌记录或分析视图，[`EmbeddedDashboard`](../../reference/typescript/wow-view-engine/components.md#api-EmbeddedDashboard) 嵌看板。
 
 **嵌入从不写入**：不写视图，不写看板，不写偏好。读者在上面做的事只在这一次查看里有效。要读者自己搭看板的页面，嵌的是 `DashboardWorkbench`。
 
@@ -348,9 +348,9 @@ export const ENGINE_WORDS = { ...zhCN, ...wording };
 | 函数 | 测什么 |
 |---|---|
 | `admit(definitions, descriptors, { text })` | 定义与看板在提交的查询描述上过一遍准入，每个键都有措辞；全都成立时返回 `[]` |
-| `resolveNavigation(to, bindingOf)` | 一条去处经绑定的 `route` 解析成什么，用的是引擎自己的解析 |
-| `actionHarness(actions, rows, { now })` | 声明的操作按引擎的规则读，不画界面（[声明式操作](./view-engine-actions.md#harness)） |
-| `memorySource(documents, options?)` | 内存里的 `ViewSource`，按 Wow 服务端在 MongoDB 上的语义筛选、排序、分页、投影与聚合，给页面测试与演示用 |
+| [`resolveNavigation(to, bindingOf)`](../../reference/typescript/wow-view-engine/testing.md#api-resolveNavigation) | 一条去处经绑定的 `route` 解析成什么，用的是引擎自己的解析 |
+| [`actionHarness(actions, rows, { now })`](../../reference/typescript/wow-view-engine/testing.md#api-actionHarness) | 声明的操作按引擎的规则读，不画界面（[声明式操作](./view-engine-actions.md#harness)） |
+| [`memorySource(documents, options?)`](../../reference/typescript/wow-view-engine/testing.md#api-memorySource) | 内存里的 [`ViewSource`](../../reference/typescript/wow-view-engine/engine.md#api-ViewSource)，按 Wow 服务端在 MongoDB 上的语义筛选、排序、分页、投影与聚合，给页面测试与演示用 |
 
 路由表就用引擎自己的解析来测：
 

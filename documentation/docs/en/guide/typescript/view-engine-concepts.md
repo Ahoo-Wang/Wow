@@ -34,14 +34,14 @@ flowchart LR
 
 | Type | Role | Lives in |
 |---|---|---|
-| `ViewDefinition` | How a dataset **can** be looked at: fields, kinds, operators, and the record and analysis capabilities. Written from the query descriptor with `defineView`, or by hand; never edited at run time | Code |
+| `ViewDefinition` | How a dataset **can** be looked at: fields, kinds, operators, and the record and analysis capabilities. Written from the query descriptor with [`defineView`](../../reference/typescript/wow-view-engine/definitions.md#api-defineView), or by hand; never edited at run time | Code |
 | `ViewConfig` | **How** one look looks: a `RecordViewConfig`, `AnalysisViewConfig` or `DashboardViewConfig`. It stores intent ("last 7 days"), never compiled values, and never a component name | Data |
 | `ViewInstance` | A saved `ViewConfig` plus an id, a title, a scope (`system`, `shared` or `personal`) and an opaque `revision`; a system view the store keeps also carries `stored: true` | Store |
 | `ViewPreferences` | One user's habits on one definition: the order of the views, the default view, an analysis's "run on change", the tab a dashboard was last read on | Store |
 | `ViewRuntime` | One open view: draft, applied config, result, status and selection, exposed through `subscribe` and `getSnapshot` | Memory |
-| `ViewEngine` | Registry of the definitions, the store and the open runtimes; the one entry point for open, save and list commands, shared by the default UI and a UI you compose | Memory |
-| `ViewStore` | The persistence port: `WowViewStore` from `@ahoo-wang/wow-view-store` on a Wow server, a backend's own implementation elsewhere | Application |
-| `FieldKind` | Operators, validation, compilation to `FilterExpression` and the editor descriptor of one field type | Registry |
+| [`ViewEngine`](../../reference/typescript/wow-view-engine/engine.md#api-ViewEngine) | Registry of the definitions, the store and the open runtimes; the one entry point for open, save and list commands, shared by the default UI and a UI you compose | Memory |
+| [`ViewStore`](../../reference/typescript/wow-view-engine/store.md#api-ViewStore) | The persistence port: `WowViewStore` from `@ahoo-wang/wow-view-store` on a Wow server, a backend's own implementation elsewhere | Application |
+| [`FieldKind`](../../reference/typescript/wow-view-engine/definitions.md#api-FieldKind) | Operators, validation, compilation to `FilterExpression` and the editor descriptor of one field type | Registry |
 
 ## Definitions
 
@@ -113,7 +113,7 @@ A dashboard (a board) puts several views on one page and holds them to a common 
 - **Panels** sit on a 24-column grid and may be split into tabs. A data panel shows a saved view (`instanceId`) or an analysis **the board owns** (`owned`, living only in that board); a content panel is a heading, Markdown text, an image or links.
 - **The board's filters** are declared by its config, because they cross definitions: date, text, ID, number, boolean and search, each wired to fields of its kind on the panels. A date filter reaches each panel through its definition's `timeField`; a panel declares `ignoresTime` to stay out of it. A board also has a **fixed scope** (`fixed`) its readers cannot change.
 - **References are scoped.** A shared dashboard references only shared or system views, or other readers would see a blank panel; a system dashboard references only system views (next section).
-- **Embedding**: `/ui`'s `EmbeddedView` and `EmbeddedDashboard` put a saved view or dashboard on a business page, without the workbench.
+- **Embedding**: `/ui`'s [`EmbeddedView`](../../reference/typescript/wow-view-engine/components.md#api-EmbeddedView) and [`EmbeddedDashboard`](../../reference/typescript/wow-view-engine/components.md#api-EmbeddedDashboard) put a saved view or dashboard on a business page, without the workbench.
 
 ## System, shared and personal views
 
@@ -179,7 +179,7 @@ export const store = new WowViewStore({
 
 Several people and several tabs changing one view at once is ordinary. The engine takes no locks; two rules keep things consistent:
 
-- **Optimistic revision.** Every saved view carries an opaque `revision`, only ever compared for equality. Every write carries the `revision` it expects; when the store's has moved on, the write is refused as `CONFLICT`, and the `ViewStoreError` carries what the store holds now.
+- **Optimistic revision.** Every saved view carries an opaque `revision`, only ever compared for equality. Every write carries the `revision` it expects; when the store's has moved on, the write is refused as `CONFLICT`, and the [`ViewStoreError`](../../reference/typescript/wow-view-engine/store.md#api-ViewStoreError) carries what the store holds now.
 - **Idempotent `requestId`.** Each logical write has one `requestId` in its `WriteContext`; a retry after a timeout reuses it with the same body, the server deduplicates, and a retry never creates a second view.
 
 A write ends one of four ways, and the draft survives every one of them:
@@ -197,7 +197,7 @@ Preferences carry a `revision` too. When a preference write conflicts, the engin
 
 ## The store
 
-`ViewStore` is the one port a backend satisfies: eight methods (list, get, create, save, rename and delete views; read and write preferences), plus an optional `changeAudience` and a synchronous `permissions`. The signatures and rules are in the [wow-view-engine reference](../../reference/typescript/wow-view-engine/#persistence).
+`ViewStore` is the one port a backend satisfies: eight methods (list, get, create, save, rename and delete views; read and write preferences), plus two optional ones: `changeAudience`, and a synchronous `permissions` (left out, everything but `editSystem` is allowed). The signatures and rules are in the [wow-view-engine reference](../../reference/typescript/wow-view-engine/#persistence).
 
 - **Only two things are stored.** Saved views (`ViewInstance`) and each user's preferences on each definition (`ViewPreferences`). Definitions are not stored, nor is runtime state.
 - **The list order is part of the port.** System views, shared views, personal views, each in order of creation; without preferences the first one opens, so a different store still opens the same default view.
@@ -206,7 +206,7 @@ Preferences carry a `revision` too. When a preference write conflicts, the engin
 
 | Implementation | Where |
 |---|---|
-| `MemoryViewStore` | Tests, examples and query-only use; with `localStorageSnapshot(key)` it keeps one browser's views in `localStorage` |
+| [`MemoryViewStore`](../../reference/typescript/wow-view-engine/store.md#api-MemoryViewStore) | Tests, examples and query-only use; with [`localStorageSnapshot(key)`](../../reference/typescript/wow-view-engine/store.md#api-localStorageSnapshot) it keeps one browser's views in `localStorage` |
 | `WowViewStore` (`@ahoo-wang/wow-view-store`) | A Wow application: views and preferences are two Wow aggregates on the view store server; see the [wow-view-store reference](../../reference/typescript/wow-view-store/) |
 | Your own `ViewStore` | A backend that is not Wow: against its own API, mapping its HTTP statuses to `ViewStoreError` codes |
 

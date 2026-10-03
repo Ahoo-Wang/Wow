@@ -18,7 +18,7 @@
  * carries the values a message needs, so the model stays free of copy.
  */
 export interface Issue {
-  /** Stable machine-readable key, e.g. `record.sort.field-not-sortable`. */
+  /** Stable machine-readable key, e.g. `record.sort.not-sortable`. */
   code: string;
   severity: IssueSeverity;
   /** Location inside the config, e.g. `['sort', 0, 'field']`. */

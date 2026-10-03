@@ -5,7 +5,13 @@
  */
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
@@ -276,6 +282,26 @@ test("the site's view-engine pages also run the tests that read them", () => {
     'documentation/docs/en/guide/typescript/quick-start.md',
   ])
     assert.deepEqual(on([path]), ['docs'], path);
+});
+
+test("every view-engine test that reads the site's pages is in test:docs", () => {
+  // A site page alone runs only test:docs of the view engine's suite
+  // (viewEngineDocs, above), so a test reading one outside it would not run
+  // when that page changes — as the theming guide's token tables once were.
+  const root = new URL('../../typescript/wow-view-engine/', import.meta.url);
+  const testDocs = JSON.parse(
+    readFileSync(new URL('package.json', root)),
+  ).scripts['test:docs'].split(/\s+/);
+  const readers = readdirSync(new URL('test/', root))
+    .filter(name => name.endsWith('.test.ts'))
+    .filter(name =>
+      /documentation\/|fixtures\/themeDocs/.test(
+        readFileSync(new URL(`test/${name}`, root), 'utf8'),
+      ),
+    );
+  assert.ok(readers.includes('themeFiles.test.ts'), readers.join(', '));
+  for (const name of readers)
+    assert.ok(testDocs.includes(`test/${name}`), `test:docs misses ${name}`);
 });
 
 test('other Markdown under typescript/ alone runs only its format check', () => {
