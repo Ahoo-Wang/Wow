@@ -60,7 +60,7 @@ export type ContentTarget =
       panel: Extract<DashboardContentPanel, { kind: EditedKind }>;
     };
 
-export interface ContentEditorProps {
+interface ContentEditorProps {
   /** What the last opening was for; kept while it closes. */
   target: ContentTarget | null;
   open: boolean;

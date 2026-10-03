@@ -234,7 +234,7 @@ export interface DashboardFilterEditing {
 }
 
 /** What the edits need of the runtime that holds the board. */
-export interface EditingHost {
+interface EditingHost {
   /** Whether the board is being built, which every edit asks first. */
   building(): boolean;
   /** The draft an edit works its ids and places out on; `null` once disposed. */

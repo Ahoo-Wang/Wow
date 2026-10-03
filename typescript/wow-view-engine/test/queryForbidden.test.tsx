@@ -32,8 +32,8 @@ import {
   type ViewInstance,
 } from '../src/index.js';
 import { DashboardViewRuntime } from '../src/runtime/dashboardRuntime.js';
-import { queryFailureIssue } from '../src/runtime/queryFailure.js';
-import { sourceFailure } from '../src/runtime/sourceReason.js';
+import { queryFailureIssue } from '../src/runtime/failure/queryFailure.js';
+import { sourceFailure } from '../src/runtime/failure/sourceReason.js';
 import { formatIssue, QueryStrip, zhCN } from '../src/ui/index.js';
 import { en } from '../src/ui/messages/en.js';
 import {

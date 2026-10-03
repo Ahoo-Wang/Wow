@@ -66,7 +66,7 @@ const Context = createContext<EngineContext>({
   hosted: false,
 });
 
-export interface ViewEngineProviderProps {
+interface ViewEngineProviderProps {
   /**
    * The application's engine, built once (host-integration.md 4); an inner
    * provider without one uses the outer one's. The engine's definitions

@@ -42,7 +42,7 @@ import {
 import { describedField, type DescribedField } from './match.js';
 
 /** What narrowing the fields reads, and where it puts what it finds. */
-export interface FieldContext {
+interface FieldContext {
   descriptor: QueryModelDescriptor;
   kinds: FieldKindRegistry;
   /** The paging the definition's record view declares, which picks the sort. */

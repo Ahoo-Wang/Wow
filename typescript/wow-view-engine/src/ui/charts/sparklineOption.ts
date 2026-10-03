@@ -19,7 +19,7 @@ import { chartText, type ChartTheme } from './theme.js';
 import { tooltipFrame, tooltipHtml } from './tooltip.js';
 
 /** What a metric card's trend reads besides its points. */
-export interface SparklineContext {
+interface SparklineContext {
   label: ValueLabel;
   /** The date dimension the trend runs along. */
   x?: string;

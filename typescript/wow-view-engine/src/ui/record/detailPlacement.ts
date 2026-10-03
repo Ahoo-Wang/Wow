@@ -15,7 +15,7 @@ import type { RecordDetailSection } from '../../react/index.js';
 import type { DetailSection } from '../../record/index.js';
 
 /** One section of a record's detail, the engine's or the host's. */
-export type PlacedSection =
+type PlacedSection =
   | { host: false; section: DetailSection }
   | { host: true; section: RecordDetailSection };
 

@@ -64,7 +64,7 @@ export const NO_RELEASE: ReleasedPins = {
 const CAP = 0.5;
 
 /** The result area as the cap reads it: what is visible, and what is in it. */
-export interface PinPort {
+interface PinPort {
   /** `clientWidth` — the visible width, a scrollbar not counted as room. */
   visible: number;
   /** `scrollWidth` — how wide the columns are altogether. */

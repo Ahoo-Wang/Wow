@@ -11,18 +11,18 @@
  * limitations under the License.
  */
 
-import type { ViewStore } from '../store/ViewStore.js';
+import type { ViewStore } from '../../store/ViewStore.js';
 import { sourceFailure } from './sourceReason.js';
-import type { ViewRuntime } from './viewRuntimeTypes.js';
+import type { ViewRuntime } from '../viewRuntimeTypes.js';
 import type {
   RuntimeEnvironment,
   ViewErrorContext,
   ViewErrorEvent,
   ViewErrorKind,
-} from './environment.js';
+} from '../environment.js';
 
 /** Where a failure happened, less what it was doing. */
-export type FailurePlace = Omit<ViewErrorContext, 'operation'>;
+type FailurePlace = Omit<ViewErrorContext, 'operation'>;
 
 /**
  * Hands one failure to the host's `onError` (D40), and nothing else: no

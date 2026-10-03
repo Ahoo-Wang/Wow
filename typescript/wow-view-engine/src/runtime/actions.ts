@@ -35,7 +35,7 @@ export type ActionRow = RecordRow;
 export type ActionPlace = 'row' | 'bulk' | 'detail';
 
 /** Every place, in order: what an action that names none is offered at. */
-export const ACTION_PLACES: readonly ActionPlace[] = ['row', 'bulk', 'detail'];
+const ACTION_PLACES: readonly ActionPlace[] = ['row', 'bulk', 'detail'];
 
 /** How much an action costs: `danger` draws it (and its confirmation) red. */
 export type ActionTone = 'default' | 'danger';
@@ -194,9 +194,9 @@ export function offeredAt(
 }
 
 /** Why a record the engine does not hold is not sent: it is not on screen. */
-export const UNSEEN = text('label.action.unseen');
+const UNSEEN = text('label.action.unseen');
 /** Why a record the action is hidden on is not sent. */
-export const NOT_OFFERED = text('label.action.not-offered');
+const NOT_OFFERED = text('label.action.not-offered');
 /** What a refusal without words of the host's own says. */
 export const UNAVAILABLE = text('label.action.unavailable');
 /** What a failure whose error carries no words says. */
@@ -207,7 +207,7 @@ export const TIMED_OUT = text('label.action.timed-out');
 export const ABANDONED = text('label.action.abandoned');
 
 /** One action on one record: hidden, or available, or refused and why. */
-export interface ActionState {
+interface ActionState {
   hidden: boolean;
   available: boolean;
   /** Why not, as the host said it; `null` while it is available. */
@@ -239,7 +239,7 @@ export function actionState(
 }
 
 /** A form that is one field of options: offered as its options. */
-export interface ActionChoice {
+interface ActionChoice {
   name: string;
   field: ActionFormField;
   options: readonly FieldOption[];
@@ -333,7 +333,7 @@ export interface ActionRefusal {
 }
 
 /** A selection split by what one action says of each record. */
-export interface ActionSplit {
+interface ActionSplit {
   /** The records that take it, in the order given. */
   able: RecordKey[];
   refused: ActionRefusal[];

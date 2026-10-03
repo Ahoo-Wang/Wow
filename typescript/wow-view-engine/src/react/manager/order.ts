@@ -47,7 +47,7 @@ export interface OptimisticOrder {
  * The two orders one move produces; see {@link OptimisticOrder}. Both are
  * fresh arrays the caller owns — one of them is what it submits.
  */
-export interface MovedOrder {
+interface MovedOrder {
   order: string[];
   visible: string[];
 }

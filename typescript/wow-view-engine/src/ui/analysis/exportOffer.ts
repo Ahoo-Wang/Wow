@@ -23,8 +23,8 @@ import {
   type CsvCell,
   type CsvOptions,
 } from '../../record/export.js';
-import { toIssue } from '../../runtime/issues.js';
-import { reportViewFailure } from '../../runtime/failures.js';
+import { toIssue } from '../../runtime/failure/issues.js';
+import { reportViewFailure } from '../../runtime/failure/failures.js';
 import type { ViewRuntime } from '../../runtime/index.js';
 import {
   useFilterEditor,
@@ -45,7 +45,7 @@ import { useSurfaceDisplay } from '../kit/ViewSurface.js';
 import { analysisCellText } from './tableColumns.js';
 
 /** An analysis result as the file that takes it away holds it. */
-export interface AnalysisFile {
+interface AnalysisFile {
   /** The header row: what each column is headed in the table. */
   columns: readonly { label: string }[];
   /**

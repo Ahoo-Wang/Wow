@@ -70,7 +70,7 @@ export type PickerIntent =
   /** The board a press on a panel opens (D23 Q17, 「另一块仪表盘」). */
   | { mode: 'board'; title: string };
 
-export interface ViewPickerProps {
+interface ViewPickerProps {
   engine: ViewEngine;
   /** What the last opening was for; kept while it closes. */
   intent: PickerIntent | null;
@@ -173,7 +173,7 @@ type KindFilter = 'all' | 'record' | 'analysis';
  * Every data definition's record and analysis views, as the engine lists
  * them — or, for `boards`, every dashboard definition's boards.
  */
-export interface Listing {
+interface Listing {
   views: ViewInstanceSummary[];
   failed: Issue[];
   loading: boolean;

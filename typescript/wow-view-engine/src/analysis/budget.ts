@@ -27,7 +27,7 @@ import { issue } from '../filter/index.js';
  * tree of one kind, so a config cannot slip past by spreading a large tree
  * across many metrics.
  */
-export type BudgetOverrun = 'too-deep' | 'too-many-nodes';
+type BudgetOverrun = 'too-deep' | 'too-many-nodes';
 
 const BUDGET_ISSUE_CODES = {
   expression: {

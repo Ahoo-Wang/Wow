@@ -23,7 +23,7 @@ import type {
  * the panel it is on, the definition it belongs to, and the condition its
  * values are counted under — the host's scope, in that panel's names.
  */
-export interface CandidateTarget {
+interface CandidateTarget {
   panelId: string;
   definition: DataViewDefinition;
   field: string;

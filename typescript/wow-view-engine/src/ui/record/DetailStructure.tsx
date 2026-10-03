@@ -25,10 +25,7 @@ import type { MessageFormatters } from '../kit/MessagesProvider.js';
 import { LongText, ToneBadge } from '../kit/variants.js';
 
 /** One value read the way the detail reads a declared field. */
-export type ReadField = (
-  value: unknown,
-  field: DisplayField,
-) => React.ReactNode;
+type ReadField = (value: unknown, field: DisplayField) => React.ReactNode;
 
 /**
  * How deep a structure is laid out before the rest of it is written whole.

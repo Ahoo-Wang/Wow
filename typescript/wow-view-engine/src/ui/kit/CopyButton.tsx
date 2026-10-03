@@ -61,7 +61,7 @@ const REVEAL = [
 /** What the last press settled as; `null` while the button is just offering. */
 type Outcome = 'copied' | 'failed' | null;
 
-export interface CopyButtonProps {
+interface CopyButtonProps {
   /**
    * The text the clipboard is given — and the text the button is named
    * after, so a reader hears which of a page full of these it has landed on.

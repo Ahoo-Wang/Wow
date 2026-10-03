@@ -27,7 +27,7 @@ import type { Issue } from '../../model/index.js';
  * - `columns` — the column settings, which hold the columns and their
  *   summaries.
  */
-export type ConfigRemedy = 'page-size' | 'layout' | 'sort' | 'card' | 'columns';
+type ConfigRemedy = 'page-size' | 'layout' | 'sort' | 'card' | 'columns';
 
 const BY_PART: Readonly<Record<string, ConfigRemedy>> = {
   pageSize: 'page-size',

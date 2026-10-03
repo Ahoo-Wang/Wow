@@ -26,7 +26,7 @@ import { OWN_LAYER, stickyHead, type StickyPin } from './sticky.js';
 import { ColumnResizer } from './ColumnResizer.js';
 import { useRovingHeader } from './headerRoving.js';
 
-export interface SortableHeaderProps {
+interface SortableHeaderProps {
   column: RecordColumnView;
   /**
    * Every sorted column in priority order, which is what a header needs to

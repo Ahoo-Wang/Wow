@@ -46,18 +46,18 @@ import type { RecordDetailControl } from '../../react/index.js';
 import { useViewRouter } from './ViewEngineProvider.js';
 
 /** The search parameter naming the open view (or board). */
-export const VIEW_PARAM = 'view';
+const VIEW_PARAM = 'view';
 
 /** The search parameter naming the record open in the detail. */
-export const RECORD_PARAM = 'id';
+const RECORD_PARAM = 'id';
 
 /** A search parameter of `location`, or `null`. */
-export function paramOf(location: ViewLocation, name: string): string | null {
+function paramOf(location: ViewLocation, name: string): string | null {
   return new URLSearchParams(location.search).get(name);
 }
 
 /** `location`'s path and search with `name` set to `value`, or taken off. */
-export function withParam(
+function withParam(
   location: ViewLocation,
   name: string,
   value: string | null,
@@ -70,7 +70,7 @@ export function withParam(
 }
 
 /** What the page was handed, read defensively off the history entry. */
-export function routeStateOf(location: ViewLocation): ViewRouteState {
+function routeStateOf(location: ViewLocation): ViewRouteState {
   const { state } = location;
   return state && typeof state === 'object' ? state : {};
 }
@@ -284,7 +284,7 @@ export function useAddressedHandOver(
 }
 
 /** What a board opens on and says as it changes; see `useAddressedBoard`. */
-export interface BoardAddress {
+interface BoardAddress {
   initialFilters?: DashboardFilters | null;
   onFiltersChange?(filters: DashboardFilters): void;
   initialTab?: string | null;

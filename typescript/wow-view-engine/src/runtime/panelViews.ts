@@ -28,7 +28,7 @@ import { ViewCommandError } from './write.js';
 import type { WriteLedger } from './writeLedger.js';
 
 /** What saving a panel's view stands on: the engine's own parts. */
-export interface PanelViewsHost {
+interface PanelViewsHost {
   registry: DefinitionRegistry;
   kinds: FieldKindRegistry;
   limits: RuntimeLimits;
@@ -41,7 +41,7 @@ export interface PanelViewsHost {
  * board owns (「另存为视图」, D22 C), or the saved view it shows, copied for
  * another audience (「复制为共享视图并替换」, D22 B).
  */
-export type PanelViewSource = 'owned' | 'saved';
+type PanelViewSource = 'owned' | 'saved';
 
 /** The refusal for each source, when the panel has none. */
 const REFUSED: Record<PanelViewSource, string> = {

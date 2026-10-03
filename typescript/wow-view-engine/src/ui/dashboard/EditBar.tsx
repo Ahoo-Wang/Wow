@@ -30,7 +30,7 @@ import { AddMenu, type AddCommands } from './AddMenu.js';
 import { REDO_KEYS, UNDO_KEYS, type BoardHistory } from './history.js';
 import { cn } from 'cn';
 
-export interface EditBarProps extends AddCommands {
+interface EditBarProps extends AddCommands {
   commands: SaveCommands;
   /** The board's title, which the shared-save question names. */
   title: string;

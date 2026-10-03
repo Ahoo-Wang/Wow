@@ -21,7 +21,7 @@ import { useLayoutEffect, useRef, useState, type RefObject } from 'react';
  * shell is a row and the column stands next to the work area; below it the
  * shell is a column and the list is a block on top of the result.
  */
-export const NARROW = 768;
+const NARROW = 768;
 
 /**
  * The sidebar's fold as the *page* has it, and the measurement that answers

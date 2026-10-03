@@ -43,7 +43,7 @@ export function emptyWayOut(
 }
 
 /** What `wayOutOf` reads and acts on; a record view and an analysis alike. */
-export interface WayOutTarget {
+interface WayOutTarget {
   /** The open view's state: what is in force, and what it was saved as. */
   state: Pick<ViewRuntimeState<ViewConfig>, 'applied' | 'saved'> | null;
   /** Whether conditions of the view's own are in force on the rows. */

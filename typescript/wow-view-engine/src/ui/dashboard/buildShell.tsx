@@ -18,7 +18,7 @@ import type { DashboardController } from '../../react/index.js';
 import { Button } from '../components/button.js';
 import type { MessageFormatters } from '../kit/MessagesProvider.js';
 
-export interface BuildShellOptions {
+interface BuildShellOptions {
   dashboard: DashboardController;
   messages: MessageFormatters;
   /** Whether 「编辑」 is offered: a board is open and this reader may save it. */
@@ -36,7 +36,7 @@ export interface BuildShellOptions {
   onFiltersChange?(filters: DashboardFilters): void;
 }
 
-export interface BuildShell {
+interface BuildShell {
   /**
    * 「编辑」, the primary button, for the surface to draw last among its
    * controls; nothing when not offered or while building.

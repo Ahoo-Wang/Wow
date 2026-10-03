@@ -45,7 +45,7 @@ import { chartDragAccessibility, listDrop } from './drag.js';
 import { useListFocus, type ListFocus } from './listFocus.js';
 import { OptionsSection, type Choice } from './optionControls.js';
 
-export interface SeriesListProps {
+interface SeriesListProps {
   /** The chart type, which decides whether a series picks its own mark. */
   type: ChartType;
   spec: CartesianSpec;

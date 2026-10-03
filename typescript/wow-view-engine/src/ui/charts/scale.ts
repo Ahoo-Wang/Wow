@@ -12,7 +12,7 @@
  */
 
 /** What one value axis has to reach: its marks, lines and whether it counts. */
-export interface AxisReach {
+interface AxisReach {
   /** The lowest a mark or a line reaches; 0 or below, since bars start at 0. */
   low: number;
   /** The highest a mark or a line reaches; 0 or above. */

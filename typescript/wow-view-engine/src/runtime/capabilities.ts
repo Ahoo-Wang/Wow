@@ -40,7 +40,7 @@ import type { ViewSource } from './source.js';
 import { ViewCommandError } from './write.js';
 
 /** What the capabilities read from the engine that owns them. */
-export interface CapabilityHost {
+interface CapabilityHost {
   readonly kinds: FieldKindRegistry;
   /** The host's own limits, as it gave them; the source budgets may be left out. */
   readonly limits: Partial<RuntimeLimits> | undefined;
@@ -53,7 +53,7 @@ export interface CapabilityHost {
 }
 
 /** A definition and the limits a runtime over it runs under. */
-export interface EffectiveDefinition {
+interface EffectiveDefinition {
   definition: DataViewDefinition;
   limits: RuntimeLimits;
 }

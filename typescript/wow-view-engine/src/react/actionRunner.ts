@@ -20,8 +20,11 @@ import {
   TIMED_OUT,
   UNAVAILABLE,
 } from '../runtime/actions.js';
-import { isCalledOff } from '../runtime/failures.js';
-import { sourceFailure, type SourceFailure } from '../runtime/sourceReason.js';
+import { isCalledOff } from '../runtime/failure/failures.js';
+import {
+  sourceFailure,
+  type SourceFailure,
+} from '../runtime/failure/sourceReason.js';
 
 /**
  * One command over records, as the surface's runner takes it — a declared
@@ -147,7 +150,7 @@ export interface ActionFailureContext {
   operation: string;
 }
 
-export interface ActionRunnerOptions {
+interface ActionRunnerOptions {
   /**
    * How many records are in flight at once. A command writes, and a
    * selection of a hundred sent in one burst is a hundred writes landing on

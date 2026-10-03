@@ -88,9 +88,7 @@ export function readsOffSums(
 }
 
 /** Every metric a derived expression names, left to right. */
-export function derivedOperands(
-  expression: AnalysisDerivedExpression,
-): string[] {
+function derivedOperands(expression: AnalysisDerivedExpression): string[] {
   switch (expression.type) {
     case 'METRIC_REF':
       return [expression.metric];

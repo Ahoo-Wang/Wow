@@ -40,7 +40,7 @@ import {
  * root.
  */
 /** Where a filter sits, which decides what it may say and how it is reported. */
-export type QueryFilterPosition = 'metric' | 'element';
+type QueryFilterPosition = 'metric' | 'element';
 
 const QUERY_FILTER_CODES = {
   metric: {
@@ -53,7 +53,7 @@ const QUERY_FILTER_CODES = {
   },
 } as const;
 
-export interface QueryFilterCheck {
+interface QueryFilterCheck {
   tree: FilterTree;
   /**
    * The fields this filter may name, plus the ones it may not but that exist

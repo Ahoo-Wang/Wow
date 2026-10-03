@@ -190,7 +190,7 @@ function Reasoned({
   );
 }
 
-export interface RowActionButtonsProps {
+interface RowActionButtonsProps {
   row: RecordRow;
   views: readonly RowActionView[];
   place: 'row' | 'detail';
@@ -340,7 +340,7 @@ function ChoiceGroup({
   );
 }
 
-export interface BulkActionButtonsProps {
+interface BulkActionButtonsProps {
   views: readonly BulkActionView[];
   busy: boolean;
   onStart: Start;

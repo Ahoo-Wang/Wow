@@ -53,7 +53,7 @@ import {
 import { useViewMessages } from '../kit/MessagesProvider.js';
 import { ToolbarItem, type DetachedPopover } from '../kit/toolbar.js';
 
-export interface CardSettingsProps {
+interface CardSettingsProps {
   table: RecordTableController;
   /** The fields the definition offers, in its order. */
   fields: readonly FieldDefinition[];

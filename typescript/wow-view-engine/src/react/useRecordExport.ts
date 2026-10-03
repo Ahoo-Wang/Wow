@@ -17,8 +17,8 @@ import {
   isExportCancelledError,
   type RecordViewRuntime,
 } from '../runtime/index.js';
-import { sourceIssue } from '../runtime/issues.js';
-import { reportViewFailure } from '../runtime/failures.js';
+import { sourceIssue } from '../runtime/failure/issues.js';
+import { reportViewFailure } from '../runtime/failure/failures.js';
 import { toIssue } from './issues.js';
 import type { RecordTableController } from './useRecordTable.js';
 

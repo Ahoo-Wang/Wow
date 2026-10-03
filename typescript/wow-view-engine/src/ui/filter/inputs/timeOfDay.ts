@@ -21,7 +21,7 @@ export interface TimeSegments {
 }
 
 /** The largest value each segment takes: 00–23 and 00–59. */
-export const SEGMENT_MAX = { hour: 23, minute: 59 } as const;
+const SEGMENT_MAX = { hour: 23, minute: 59 } as const;
 
 const TIME = /^(\d{2}):(\d{2})(?::\d{2}(?:\.\d+)?)?$/;
 

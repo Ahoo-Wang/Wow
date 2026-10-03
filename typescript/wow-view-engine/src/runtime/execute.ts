@@ -49,9 +49,9 @@ import type {
   RuntimeLimits,
 } from '../model/index.js';
 import type { RuntimeEnvironment } from './environment.js';
-import { isCalledOff, type QueryFailureReporter } from './failures.js';
+import { isCalledOff, type QueryFailureReporter } from './failure/failures.js';
 import { resultIssues, type ProjectedView, type ViewSource } from './source.js';
-import { sourceReason } from './sourceReason.js';
+import { sourceReason } from './failure/sourceReason.js';
 import { deprecatedUses } from './deprecated.js';
 import {
   aggregationWeight,

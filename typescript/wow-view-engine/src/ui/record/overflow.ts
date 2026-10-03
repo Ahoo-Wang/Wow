@@ -79,7 +79,7 @@ export function useOverflowing(
  * under it — 「PO202609210(」 cut by the held 最近更新 read as a damaged
  * number. The edge itself answers to `overflowing` alone (D13, P-23).
  */
-export interface Overflow {
+interface Overflow {
   overflowing: boolean;
   /** Columns scrolled out of sight before the start. */
   start: boolean;
@@ -90,7 +90,7 @@ export interface Overflow {
 const FITS: Overflow = { overflowing: false, start: false, end: false };
 
 /** One reading of the port. */
-export function measureOverflow(node: HTMLElement, scrolls: boolean): Overflow {
+function measureOverflow(node: HTMLElement, scrolls: boolean): Overflow {
   const room = node.scrollWidth - node.clientWidth;
   const overflowing = room > 1;
   if (!overflowing || !scrolls) return { ...FITS, overflowing };

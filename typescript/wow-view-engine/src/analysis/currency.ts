@@ -37,7 +37,7 @@ import { metricFieldOf, metricFunctionOf } from './metricFormat.js';
  * They carry the metric's own condition, so a conditioned metric is told
  * about the records it counted, not the whole group.
  */
-export interface CurrencyCompanion {
+interface CurrencyCompanion {
   /** The metric it tells about. */
   metric: string;
   /** The currency field, as the config spells a field. */

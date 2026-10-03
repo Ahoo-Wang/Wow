@@ -28,7 +28,7 @@ import {
 } from '../components/input-group.js';
 import { IconTooltip } from './IconButton.js';
 
-export interface RenameInputProps {
+interface RenameInputProps {
   /**
    * What the name says now; the field opens holding it, selected. Read as
    * it opens: a name left as it opened is unchanged, even where the words

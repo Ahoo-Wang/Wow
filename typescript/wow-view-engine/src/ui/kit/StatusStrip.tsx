@@ -14,7 +14,7 @@
 import { useState, type ReactNode } from 'react';
 import { cn } from 'cn';
 import type { Issue } from '../../model/index.js';
-import { isForbiddenQuery } from '../../runtime/queryFailure.js';
+import { isForbiddenQuery } from '../../runtime/failure/queryFailure.js';
 import { LineAlert, type AlertTone } from './alerts.js';
 import { AlertAction, AlertTitle } from '../components/alert.js';
 import { Button } from '../components/button.js';

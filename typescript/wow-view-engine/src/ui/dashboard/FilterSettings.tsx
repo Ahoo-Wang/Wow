@@ -181,7 +181,7 @@ export function AddFilterMenu({
   );
 }
 
-export interface FilterSettingsProps {
+interface FilterSettingsProps {
   field: DashboardField;
   dashboard: DashboardController;
   open: boolean;

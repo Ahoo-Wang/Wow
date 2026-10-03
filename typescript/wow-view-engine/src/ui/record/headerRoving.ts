@@ -26,12 +26,12 @@ const STOP = 'data-header-stop';
 const RESIZE_KEYS = 'Alt+ArrowLeft Alt+ArrowRight';
 
 /** What marks an element as this row's item, and what claims the stop. */
-export type RovingItem = { [K in typeof STOP]: '' } & {
+type RovingItem = { [K in typeof STOP]: '' } & {
   'aria-keyshortcuts'?: string;
   onFocus(): void;
 };
 
-export interface RovingHeader {
+interface RovingHeader {
   /** Goes on the header's focusable element — the sort button, or the cell. */
   attach(node: HTMLElement | null): void;
   /** Spread on that same element. */

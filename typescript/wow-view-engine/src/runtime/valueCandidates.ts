@@ -29,7 +29,7 @@ import {
 } from '../analysis/index.js';
 import type { KernelContext } from './execute.js';
 import { abortWith } from './abort.js';
-import { isCalledOff } from './failures.js';
+import { isCalledOff } from './failure/failures.js';
 import { hasError } from './runtimeStore.js';
 import { withScopeFilter } from './scope.js';
 

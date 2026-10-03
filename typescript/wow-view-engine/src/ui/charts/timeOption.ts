@@ -21,7 +21,7 @@ import { mixColor, type ChartTheme, chartText } from './theme.js';
 import { tooltipFrame, tooltipHtml } from './tooltip.js';
 
 /** What a calendar or a theme river reads besides its data. */
-export interface TimeContext {
+interface TimeContext {
   spec?: ChartSpec;
   label: ValueLabel;
   column: ColumnTitle;
@@ -210,7 +210,7 @@ export function dayOf(datum: { id?: unknown } | undefined): number | undefined {
 }
 
 /** One drawn stream: its key, its name as the legend says it, its colour. */
-export interface DrawnStream {
+interface DrawnStream {
   key: string;
   name: string;
   color: string;

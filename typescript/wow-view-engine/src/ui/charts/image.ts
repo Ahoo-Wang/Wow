@@ -90,7 +90,7 @@ export function pictureTheme(theme: ChartTheme): ChartTheme {
 }
 
 /** What the head says over the drawing. */
-export interface ImageHead {
+interface ImageHead {
   title: string;
   /** One line: the conditions the numbers came back under. */
   range: string;

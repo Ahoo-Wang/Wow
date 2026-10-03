@@ -133,7 +133,7 @@ export interface EditingCommands {
   remove?(): void;
 }
 
-export interface PanelCommandInput {
+interface PanelCommandInput {
   panel: DashboardPanelView;
   name: string;
   dashboard: DashboardController;

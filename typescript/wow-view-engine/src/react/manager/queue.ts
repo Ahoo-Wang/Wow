@@ -37,7 +37,7 @@
  */
 
 /** Whether two tags name the same inputs. */
-export type TagEquality<Tag> = (one: Tag, other: Tag) => boolean;
+type TagEquality<Tag> = (one: Tag, other: Tag) => boolean;
 
 export interface CommandQueue<Tag> {
   /**

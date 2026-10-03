@@ -13,10 +13,10 @@
 
 import { DEFAULT_RUNTIME_LIMITS, type RuntimeLimits } from '../model/index.js';
 
-export type RequestTask<T> = (controller: AbortController) => Promise<T>;
+type RequestTask<T> = (controller: AbortController) => Promise<T>;
 
 /** A newer request took this key; the caller drops the result silently. */
-export class RequestSupersededError extends Error {
+class RequestSupersededError extends Error {
   readonly key: string;
 
   constructor(key: string) {

@@ -79,7 +79,7 @@ export interface Layer {
 }
 
 /** What is measured on a ground. */
-export interface InkSpec {
+interface InkSpec {
   readonly ink: string;
   readonly kind: PairKind;
   /** The ink at an opacity: the view list's headings at 70%. */
@@ -503,7 +503,7 @@ export const GROUNDS: readonly Ground[] = [
  * short, so the entry goes the moment the batch lands; nothing else is
  * excused, and a new shortfall is a failure.
  */
-export interface PendingPair {
+interface PendingPair {
   readonly preset: string;
   readonly mode: 'light' | 'dark';
   /** The pair's name, as `contrastPairs` files it. */

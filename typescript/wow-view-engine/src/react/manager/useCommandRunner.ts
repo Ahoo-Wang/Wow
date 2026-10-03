@@ -44,7 +44,7 @@ export interface ManagerTag {
   definitionId: string;
 }
 
-export function sameTag(one: ManagerTag, other: ManagerTag): boolean {
+function sameTag(one: ManagerTag, other: ManagerTag): boolean {
   return one.engine === other.engine && one.definitionId === other.definitionId;
 }
 
@@ -71,7 +71,7 @@ const NOTHING_RUN: RunnerState = {
  * command at all — and they are independent: `resubmit` carries an intent and
  * is still an ordinary write, so the `unknown` guard applies to it.
  */
-export interface RunOptions {
+interface RunOptions {
   /**
    * Kept with the outcome so the same intent can be put again later. Only
    * the preference commands pass one: everything else recovers through its
@@ -91,7 +91,7 @@ export interface RunOptions {
   guard?: () => boolean;
 }
 
-export interface CommandRunner {
+interface CommandRunner {
   /**
    * Runs one command, resolving whether it landed rather than rejecting: what
    * happened is recorded under `key`, so a click handler needs no try/catch.

@@ -19,7 +19,7 @@ import {
   type RecordRow,
 } from '../record/index.js';
 import type { RecordViewRuntime } from '../runtime/index.js';
-import { recordReadIssue } from '../runtime/issues.js';
+import { recordReadIssue } from '../runtime/failure/issues.js';
 import { rowsOnScreen } from './recordSelection.js';
 import { useViewRuntime } from './useViewEngine.js';
 

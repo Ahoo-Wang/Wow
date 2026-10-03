@@ -39,7 +39,7 @@ export type WriteTarget = ViewRuntime | WriteHandle;
 export type ConflictChoice = 'reload' | 'overwrite';
 
 /** Everything a write can hand back, by action. */
-export type WriteResult = ViewInstance | ViewPreferences | void;
+type WriteResult = ViewInstance | ViewPreferences | void;
 
 /**
  * What the ledger cannot reach on its own.

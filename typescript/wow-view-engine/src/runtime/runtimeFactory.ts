@@ -23,7 +23,7 @@
  * runtime for either — so this is also where those are built.
  */
 
-import { queryFailureReporter } from './failures.js';
+import { queryFailureReporter } from './failure/failures.js';
 import { panelsOf, type PanelDefinition } from '../dashboard/index.js';
 import type {
   DataViewConfig,
@@ -65,7 +65,7 @@ export interface RuntimeIdentity {
 }
 
 /** What the factory needs from the engine that owns it. */
-export interface RuntimeFactoryHost {
+interface RuntimeFactoryHost {
   readonly definitions: DefinitionRegistry;
   readonly kinds: FieldKindRegistry;
   readonly limits: RuntimeLimits;

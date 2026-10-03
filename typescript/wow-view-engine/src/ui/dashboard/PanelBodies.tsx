@@ -65,7 +65,7 @@ import { emptyHintOf } from '../record/EmptyResult.js';
 import type { RecordViewProps } from '../workbench/RecordParts.js';
 import type { ViewBinding } from '../workbench/bindings.js';
 import { QueryStrip } from '../kit/StatusStrip.js';
-import { isForbiddenQuery } from '../../runtime/queryFailure.js';
+import { isForbiddenQuery } from '../../runtime/failure/queryFailure.js';
 import {
   useViewMessages,
   type MessageFormatters,

@@ -42,7 +42,7 @@ import {
 } from './dashboard/canonical.js';
 import { boardHandOver, boardPanels, panelRun } from './dashboard/panelRun.js';
 import type { PanelAnchor } from './dashboard/anchor.js';
-import { isForbiddenQuery } from './queryFailure.js';
+import { isForbiddenQuery } from './failure/queryFailure.js';
 import { FilterValues } from './dashboard/filterValues.js';
 import { PanelPresses } from './dashboard/press.js';
 import { boardEditing, type BoardEdits } from './dashboard/editing.js';

@@ -21,7 +21,7 @@ import { ViewExpandToggle, type ViewExpansion } from '../kit/ViewExpansion.js';
 import { ViewHeader, type ViewHeaderState } from './ViewHeader.js';
 import type { WorkbenchShellProps } from './WorkbenchShell.js';
 
-export interface TitleBarProps extends Pick<
+interface TitleBarProps extends Pick<
   WorkbenchShellProps,
   | 'actions'
   | 'freshness'

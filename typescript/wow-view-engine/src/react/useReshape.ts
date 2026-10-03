@@ -50,7 +50,7 @@ export interface DropNotice extends Dropped {
  */
 export type MetricRemoval = 'ok' | 'last' | 'cascade';
 
-export interface ReshapeInput {
+interface ReshapeInput {
   runtime: ViewRuntime | null;
   /** The draft on screen: the notice lasts while it is the one an edit made. */
   draft: ViewConfig | undefined;

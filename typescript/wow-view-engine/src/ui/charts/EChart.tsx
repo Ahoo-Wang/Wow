@@ -58,7 +58,7 @@ export type LegendPlace = 'top' | 'bottom' | 'right';
  * 47.7% to 「4」 (audit P0-6). Under the plot, the pie gets the width, as
  * Metabase moves a narrow chart's legend below it.
  */
-export const LEGEND_BESIDE_MIN = 480;
+const LEGEND_BESIDE_MIN = 480;
 
 /**
  * Whether a menu stands over the chart — the follow-up menu on a pressed
@@ -97,7 +97,7 @@ export interface ChartClick {
   event?: { event?: { clientX: number; clientY: number } };
 }
 
-export interface EChartProps {
+interface EChartProps {
   /** What is drawn, in one line: the name of the `role="img"`. */
   name: string;
   className?: string;
@@ -604,7 +604,7 @@ export function composed(
  * carries it, an inside zoom's carries a batch of them, and a drawing lists
  * its zooms (`dataZoom`), all moving the one axis together.
  */
-export interface ZoomEvent {
+interface ZoomEvent {
   start?: unknown;
   end?: unknown;
   batch?: unknown;

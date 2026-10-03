@@ -60,7 +60,7 @@ import { OffscreenSummary } from './OffscreenSummary.js';
  */
 const QUIET = `fve:text-quiet-foreground fve:block fve:font-normal ${TEXT_UI}`;
 
-export interface SummaryRowsProps {
+interface SummaryRowsProps {
   /**
    * One row per scope, in reading order: the rows on screen first, then
    * everything the conditions match. One alone is the page, which is what is

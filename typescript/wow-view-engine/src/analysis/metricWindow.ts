@@ -27,7 +27,7 @@ import { appliedWindow } from './timeAxis.js';
  * `clipped` where the question's dates cut the metric's short, so it
  * counts only part of the span its name says.
  */
-export type MetricReach = 'out' | 'clipped';
+type MetricReach = 'out' | 'clipped';
 
 /**
  * Each metric whose own conditions pin a date the question's conditions

@@ -35,7 +35,7 @@ export function barWidth(label: string): string {
   return `${Math.min(Math.max(label.length, 4), 16)}ch`;
 }
 
-export interface SkeletonRowsProps {
+interface SkeletonRowsProps {
   /** The last known columns; empty on a first load, which has none yet. */
   columns: readonly RecordColumnView[];
   selectable: boolean;

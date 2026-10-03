@@ -52,7 +52,7 @@ export interface PieContext {
 }
 
 /** One slice as every part of the pie names it. */
-export interface DrawnSlice {
+interface DrawnSlice {
   key: string;
   name: string;
   value: number;

@@ -98,7 +98,7 @@ function paint(root: HTMLElement, dark: boolean): void {
   root.style.colorScheme = dark ? 'dark' : 'light';
 }
 
-export interface ColorModeHostProps {
+interface ColorModeHostProps {
   /** Who paints, and from which mode; `system` by default. */
   colorMode?: HostColorMode;
   /** Where the reader's pick is kept (a `localStorage` key); not kept when left out. */

@@ -57,7 +57,7 @@ const OVERSCAN = 12;
 type Scroller = Element | Window;
 
 /** One piece of the body as drawn: a row, or the room rows not drawn take. */
-export type BodySegment =
+type BodySegment =
   | { kind: 'row'; index: number; key: VirtualItem['key'] }
   | { kind: 'gap'; key: string; height: number };
 
@@ -91,7 +91,7 @@ export function bodySegments(
 }
 
 /** What the table needs to draw its rows virtually. */
-export interface VirtualRows {
+interface VirtualRows {
   /** The body as drawn; `null` when every row is drawn. */
   segments: BodySegment[] | null;
   /** Hands a drawn row to the virtualizer, which measures it. */

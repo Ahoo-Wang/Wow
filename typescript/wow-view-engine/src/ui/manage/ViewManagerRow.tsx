@@ -82,7 +82,7 @@ function otherAudience(item: ViewInstanceSummary): ViewAudience {
   return audienceOf(item.scope) === 'personal' ? 'shared' : 'personal';
 }
 
-export interface ViewManagerRowProps {
+interface ViewManagerRowProps {
   item: ViewInstanceSummary;
   manager: ViewManagerController;
   list: ViewListState;

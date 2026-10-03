@@ -64,7 +64,7 @@ import {
 } from './BoardDestination.js';
 import { useCatalogue, ViewPicker } from './ViewPicker.js';
 
-export interface ClickSettingsProps {
+interface ClickSettingsProps {
   engine: ViewEngine;
   dashboard: DashboardController;
   /** The panel whose press is set, and its name; kept while it closes. */

@@ -20,7 +20,7 @@ import { tabsOf } from '../dashboard/index.js';
 import { isViewWriteError, type WriteHandle } from './write.js';
 
 /** What the memory borrows of the engine: the preferences and their writes. */
-export interface TabMemoryHost {
+interface TabMemoryHost {
   /** The preferences a write starts from (`PreferenceCache.current`). */
   current(definitionId: string): Promise<ViewPreferences>;
   /** One preference write through the ledger. */

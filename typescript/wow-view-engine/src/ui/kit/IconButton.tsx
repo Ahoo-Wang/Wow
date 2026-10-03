@@ -38,7 +38,7 @@ import { TooltipContent } from './popups.js';
  * takes that element as it is; `IconButton` is the shorthand for the common
  * case where there is nothing between the tooltip and the button.
  */
-export interface IconTooltipProps {
+interface IconTooltipProps {
   /** The control's name, said to a reader and shown to a pointer. */
   label: string;
   /** The element the tooltip hangs off — already a button of some kind. */
@@ -80,7 +80,7 @@ export function IconTooltip({
   );
 }
 
-export interface IconButtonProps extends Omit<
+interface IconButtonProps extends Omit<
   React.ComponentProps<typeof Button>,
   'render'
 > {
@@ -118,7 +118,7 @@ export function IconButton({
   );
 }
 
-export interface BadgeTooltipProps {
+interface BadgeTooltipProps {
   /** What the badge's words leave out, said on hover, focus and a tap. */
   note: string;
   /** The badge, rendering a button so the keyboard and a tap reach it. */

@@ -117,7 +117,7 @@ export function useHaving(analysis: AnalysisEditorController) {
   };
 }
 
-export type Having = ReturnType<typeof useHaving>;
+type Having = ReturnType<typeof useHaving>;
 
 /**
  * The way to a first row, where there is none: 「只保留…」 on the result's

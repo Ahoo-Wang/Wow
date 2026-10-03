@@ -19,14 +19,14 @@ import {
 } from '../model/index.js';
 
 /** What a metric may be read by, beyond its being there. */
-export interface DanglingFacts {
+interface DanglingFacts {
   /** The metrics that are moments (`momentMetrics`): no operand, no having. */
   moments?: ReadonlySet<string>;
   /** The metric types 「只保留」 may compare (`havingMetrics`); all when absent. */
   havingMetrics?: readonly string[];
 }
 
-export interface WithoutDangling {
+interface WithoutDangling {
   metrics: AnalysisViewConfig['metrics'];
   /** The same object when nothing in it moved; `undefined` when none is left. */
   having: AnalysisHavingExpression | undefined;
@@ -37,7 +37,7 @@ export interface WithoutDangling {
 type Shape = Pick<AnalysisViewConfig, 'groups' | 'metrics' | 'having'>;
 
 /** The config an edit started from, and what its metrics were read by. */
-export interface DanglingBefore {
+interface DanglingBefore {
   shape: Pick<AnalysisViewConfig, 'groups' | 'metrics'>;
   facts?: DanglingFacts;
 }

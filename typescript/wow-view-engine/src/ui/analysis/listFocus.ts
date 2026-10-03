@@ -15,7 +15,7 @@ import { useEffect, useRef } from 'react';
 import { focusIn, isBarred } from '../kit/focus.js';
 
 /** Which list a press is in, as three selectors read from the press up. */
-export interface ListShape {
+interface ListShape {
   /** The element holding the items, as a selector above the press. */
   list: string;
   /** One item of it: `[data-slot="metric-card"]`. */
@@ -25,7 +25,7 @@ export interface ListShape {
 }
 
 /** The half of a press this needs, which is a click's own `currentTarget`. */
-export interface Press {
+interface Press {
   currentTarget: HTMLElement;
 }
 

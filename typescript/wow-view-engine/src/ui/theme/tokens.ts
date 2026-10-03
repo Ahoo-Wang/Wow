@@ -16,12 +16,12 @@
  * write, and what the engine does with it (ui/theme.md「登记表：合同只有一个来源」, D46).
  *
  * This is the one source the rest is made from or held to — the README's
- * token tables (`test/themeFiles.test.ts`, with the words in `tokenDocs.ts`),
- * the `FveToken` type, the rules `scripts/verify-package.mjs` checks the
- * built stylesheets by (through `dist/theme-tokens.json`, written from here
- * at build time), the contrast pairs both the jsdom suite and the browser
- * matrix measure (`pairs.ts`), and the tokens a chart reads and the
- * attributes it watches (below).
+ * token tables (`test/themeFiles.test.ts`, with the words in
+ * `theme-check/tokenDocs.ts`), the `FveToken` type, the rules
+ * `scripts/verify-package.mjs` checks the built stylesheets by (through
+ * `dist/theme-tokens.json`, written from here at build time), the contrast
+ * pairs both the jsdom suite and the browser matrix measure (`pairs.ts`),
+ * and the tokens a chart reads and the attributes it watches (below).
  *
  * It holds structure and never a value: the values are in `styles.css` and
  * the preset sources, which stay the runtime's one source of truth, and the
@@ -46,11 +46,10 @@
  * - `axis` — an input a host gives beside any preset (the brand colour).
  * - `layout` — a host's length or level, not the theme's at all.
  */
-export type TokenTier = 'semantic' | 'role' | 'group' | 'axis' | 'layout';
+type TokenTier = 'semantic' | 'role' | 'group' | 'axis' | 'layout';
 
 /** What a token's value is, and so how a tool reads it. */
-export type TokenKind =
-  'color' | 'length' | 'number' | 'shadow' | 'font' | 'keyword';
+type TokenKind = 'color' | 'length' | 'number' | 'shadow' | 'font' | 'keyword';
 
 /**
  * A preset's optional parameter sets (D35 Q62): a palette, a ladder of
@@ -58,7 +57,7 @@ export type TokenKind =
  * held to on its grounds — none of them one surface of the engine's. The groups that were surfaces (`canvas`, `card`,
  * `controls`, `title`, D43) are roles since S3 (ui/theme.md「角色：引擎自己的面」).
  */
-export type TokenGroup =
+type TokenGroup =
   'chart' | 'shadow' | 'font' | 'patterns' | 'density' | 'brand';
 
 /**

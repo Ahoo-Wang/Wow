@@ -36,15 +36,15 @@ import {
   queryFailureReporter,
   viewPlace,
   type FailureReporter,
-} from './failures.js';
+} from './failure/failures.js';
 import { hasError, RuntimeStore } from './runtimeStore.js';
 import { AUTO_APPLY_DELAY_MS, autoApplyDue } from './autoApply.js';
-import { sourceFailure, type SourceFailure } from './sourceReason.js';
+import { sourceFailure, type SourceFailure } from './failure/sourceReason.js';
 import {
   failedExecutionIssue,
   failedQuery,
   isForbiddenQuery,
-} from './queryFailure.js';
+} from './failure/queryFailure.js';
 import { RefreshTimer } from './refreshTimer.js';
 import {
   isRequestSuperseded,
@@ -62,12 +62,15 @@ import {
   type ValueCandidateSource,
 } from './valueCandidates.js';
 import type { WriteState } from './write.js';
-import { toIssue } from './issues.js';
+import { toIssue } from './failure/issues.js';
 import {
   checksDescriptorAgain,
   withCanonicalState,
 } from '../capabilities/index.js';
-import { unavailableIssues, withoutFirstUnavailable } from './unavailable.js';
+import {
+  unavailableIssues,
+  withoutUnavailable,
+} from './failure/unavailable.js';
 import type {
   DefinitionFor,
   ManagedViewRuntime,
@@ -78,9 +81,6 @@ import type {
 } from './viewRuntimeTypes.js';
 
 const IDLE: ViewQueryState = { status: 'idle' };
-
-/** Enough for any config a person wrote; a bound on a loop, not a budget. */
-const MAX_REMOVALS = 256;
 
 /**
  * The runtime of a data view: an Analysis view as it is, and the shared
@@ -481,14 +481,9 @@ export class DataViewRuntime<
   /** See `ViewRuntime.removeUnavailable`. */
   removeUnavailable(): void {
     if (this.disposed) return;
-    let draft = this.state.draft;
-    // One at a time, judged again after each: a condition taken out moves
-    // the paths of the ones after it, and may take another finding with it.
-    for (let step = 0; step < MAX_REMOVALS; step += 1) {
-      const next = withoutFirstUnavailable(draft, this.unavailableOf(draft));
-      if (!next) break;
-      draft = next;
-    }
+    const draft = withoutUnavailable(this.state.draft, config =>
+      this.unavailableOf(config),
+    );
     if (draft === this.state.draft) return;
     this.store.setState({
       draft,

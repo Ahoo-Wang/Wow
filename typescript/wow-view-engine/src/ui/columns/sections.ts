@@ -23,7 +23,7 @@ import {
  * One block of rows inside an area: the catalogue group it is listed under,
  * or none for the rows no group lists.
  */
-export interface ColumnSection {
+interface ColumnSection {
   group: FieldGroupDefinition | undefined;
   rows: ColumnSettingRow[];
 }

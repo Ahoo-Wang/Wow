@@ -41,7 +41,7 @@ import { hasError } from './runtimeStore.js';
  */
 export const AUTO_APPLY_DELAY_MS = 300;
 
-export interface AutoApplyState {
+interface AutoApplyState {
   draft: ViewConfig;
   applied: ViewConfig;
   issues: readonly Issue[];

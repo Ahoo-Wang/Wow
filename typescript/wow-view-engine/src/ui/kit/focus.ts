@@ -27,7 +27,7 @@ export const FOCUSABLE =
   'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
 
 /** Where the keyboard should go, looked up once the press has been drawn. */
-export type Landing = () => Element | null | undefined;
+type Landing = () => Element | null | undefined;
 
 /**
  * Where a dialog the board opened hands the keyboard back as it closes. A

@@ -159,7 +159,7 @@ export function outPanelNamer(
   return found => byAnalysis(byField(found));
 }
 
-export interface PanelUnavailableProps {
+interface PanelUnavailableProps {
   /** The finding that put the panel out; none when the dashboard holds it back. */
   issue: Issue | undefined;
   /**

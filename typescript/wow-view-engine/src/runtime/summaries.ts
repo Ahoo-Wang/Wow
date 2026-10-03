@@ -37,7 +37,7 @@ import {
   type ViewInstanceSummary,
 } from '../model/index.js';
 import type { ViewStore } from '../store/ViewStore.js';
-import { toIssue } from './issues.js';
+import { toIssue } from './failure/issues.js';
 
 /**
  * The stored half of a definition's list, which may fail on its own: a

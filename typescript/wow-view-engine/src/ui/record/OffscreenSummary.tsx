@@ -22,7 +22,7 @@ import { TooltipContent } from '../kit/popups.js';
 import type { HintCaption, OffscreenHint } from './offscreenSummaries.js';
 import { summaryText } from './summaryText.js';
 
-export interface OffscreenSummaryProps {
+interface OffscreenSummaryProps {
   hint: OffscreenHint;
   scope: SummaryRow['scope'];
   /**

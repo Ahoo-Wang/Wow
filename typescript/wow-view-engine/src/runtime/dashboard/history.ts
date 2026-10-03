@@ -221,7 +221,7 @@ export class EditHistory {
 }
 
 /** What an undo or a redo lays over the two configs. */
-export interface Rewind {
+interface Rewind {
   step: EditStep;
   draft: Partial<DashboardViewConfig>;
   applied: Partial<DashboardViewConfig>;

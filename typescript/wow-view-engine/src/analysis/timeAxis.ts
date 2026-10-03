@@ -51,7 +51,7 @@ export function timeGroup(
   );
 }
 
-export type PartGroup = Extract<AnalysisGroup, { type: 'DATE_PART' }>;
+type PartGroup = Extract<AnalysisGroup, { type: 'DATE_PART' }>;
 
 /** The calendar part dimension — the weekday, the hour — `alias` names, if it names one. */
 export function partGroup(
@@ -248,7 +248,7 @@ export function withoutHoles<T>(
 }
 
 /** Instants `[from, to)` in epoch milliseconds: what a question was over. */
-export interface TimeWindow {
+interface TimeWindow {
   from: number;
   to: number;
 }

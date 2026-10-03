@@ -123,7 +123,7 @@ export function splitWholeConfig(
  * Computed from the drawn points, so the order is the engine's own and does
  * not rest on the order a source answers groups in.
  */
-export function seriesSizes(
+function seriesSizes(
   data: Pick<CartesianData, 'points' | 'series'>,
   additive: boolean,
 ): number[] {

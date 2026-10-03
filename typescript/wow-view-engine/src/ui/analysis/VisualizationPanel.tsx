@@ -23,7 +23,7 @@ import type { OptionsPageProps } from './optionControls.js';
 export type VisualizationLevel = 'picker' | 'options';
 
 /** Where the keyboard is put as the panel's level moves. */
-export interface VisualizationFocus {
+interface VisualizationFocus {
   /** The heading of the level on screen. */
   heading: RefObject<HTMLHeadingElement | null>;
   /**
@@ -73,7 +73,7 @@ export function useVisualizationFocus(
   return { heading, optionsButton, visualizeRef };
 }
 
-export interface VisualizationPanelProps {
+interface VisualizationPanelProps {
   /** The level on screen; nothing is drawn for `null`. */
   level: VisualizationLevel | null;
   focus: VisualizationFocus;

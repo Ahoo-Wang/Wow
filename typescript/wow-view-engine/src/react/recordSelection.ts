@@ -25,7 +25,7 @@ import type { RecordViewRuntime } from '../runtime/index.js';
  * new object exactly when `apply` promotes a draft — a condition, a sort — and
  * the same one across every refresh of it.
  */
-export interface RowsMark {
+interface RowsMark {
   readonly question: unknown;
   readonly page: number | string | null;
 }

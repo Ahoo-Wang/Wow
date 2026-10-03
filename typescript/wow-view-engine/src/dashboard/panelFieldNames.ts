@@ -29,12 +29,12 @@ import { isViewPanel, panelsOf } from './panels.js';
 import { URL_PLACEHOLDER } from './placeholders.js';
 
 /** Each field a panel's definition names by an alias, by that alias. */
-export type PanelRenames = (
+type PanelRenames = (
   panel: DashboardViewPanel,
 ) => Readonly<Record<string, string>> | null | undefined;
 
 /** A view the board owns, read under the paths `renamed` maps to. */
-export type OwnedViewRename = (
+type OwnedViewRename = (
   config: AnalysisViewConfig,
   renamed: Readonly<Record<string, string>>,
 ) => AnalysisViewConfig;

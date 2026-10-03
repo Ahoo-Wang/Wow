@@ -12,7 +12,7 @@
  */
 
 /** A file the user is being handed, before the browser is asked to take it. */
-export interface DownloadedFile {
+interface DownloadedFile {
   name: string;
   /** What the file holds: text — a CSV, an SVG — or bytes, a PNG. */
   content: string | Blob;

@@ -39,7 +39,7 @@ import {
 import type { FieldSpec, OptionSpec } from './spec.js';
 
 /** What building the fields reads, and where it says what it found. */
-export interface FieldBuild {
+interface FieldBuild {
   descriptor: QueryModelDescriptor;
   paging: PagingMode;
   findings: Issue[];

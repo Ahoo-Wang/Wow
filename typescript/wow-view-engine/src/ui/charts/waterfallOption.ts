@@ -21,7 +21,7 @@ import { emphasized, type ChartTheme } from './theme.js';
 import { tooltipHtml } from './tooltip.js';
 
 /** What a waterfall reads besides its steps. */
-export interface WaterfallContext {
+interface WaterfallContext {
   spec?: ChartSpec;
   label: ValueLabel;
   column: ColumnTitle;
@@ -37,7 +37,7 @@ export interface WaterfallContext {
 }
 
 /** One bar as drawn: a step, or the closing total. */
-export interface DrawnBar {
+interface DrawnBar {
   /** The name under it: the step's group, or 「合计」. */
   name: string;
   /** Where it runs from and to on the value axis. */

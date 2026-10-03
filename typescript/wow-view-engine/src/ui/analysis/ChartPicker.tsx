@@ -28,9 +28,7 @@ import { useChartMaps } from '../charts/maps.js';
 import { CHART_ICON } from './chartIcons.js';
 import { ChartTile } from '../kit/variants.js';
 
-export type { Picked };
-
-export interface ChartPickerProps {
+interface ChartPickerProps {
   /** How each type fits the result on hand (`fitCharts`). */
   fits: Record<ChartType, ChartFit>;
   picked: Picked;

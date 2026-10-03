@@ -112,7 +112,7 @@ export interface ColumnSettingRow {
   summaryOnly: boolean;
 }
 
-export interface ColumnSettingInput {
+interface ColumnSettingInput {
   /** The definition's fields, in its order. */
   fields: readonly FieldDefinition[];
   /** The draft's columns, in the order the table shows them. */

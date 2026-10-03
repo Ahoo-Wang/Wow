@@ -12,7 +12,7 @@
  */
 
 /** Where a chart failed: its library never arrived, or it threw drawing. */
-export type ChartStage = 'load' | 'draw';
+type ChartStage = 'load' | 'draw';
 
 /**
  * A chart that could not be drawn, carrying what the library threw.

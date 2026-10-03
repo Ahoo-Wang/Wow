@@ -104,7 +104,7 @@ const NOTES = {
 
 type NoteKind = keyof typeof NOTES;
 
-export interface ColumnRowProps {
+interface ColumnRowProps {
   row: ColumnSettingRow;
   onToggle(): void;
   onPin(): void;

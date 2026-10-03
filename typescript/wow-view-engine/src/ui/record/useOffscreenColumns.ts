@@ -33,7 +33,7 @@ const WHOLE = 0.99;
  * table turns that off — whatever around it clips it, a board panel's body.
  * `null` is the viewport.
  */
-export function scrollRootOf(node: Element): Element | null {
+function scrollRootOf(node: Element): Element | null {
   for (let parent = node.parentElement; parent; parent = parent.parentElement) {
     const { overflowX } = getComputedStyle(parent);
     if (overflowX !== 'visible' && overflowX !== '') return parent;

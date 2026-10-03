@@ -29,7 +29,7 @@ import {
   type FilterTree,
   type Issue,
   type IssuePath,
-} from '../model/index.js';
+} from '../../model/index.js';
 import {
   isEmptyFilter,
   isFilterGroup,
@@ -40,7 +40,7 @@ import {
   updateAt,
   walkFilter,
   type FilterPath,
-} from '../filter/index.js';
+} from '../../filter/index.js';
 
 /** The errors of `effective` that `declared` does not have. */
 export function unavailableIssues(
@@ -75,6 +75,28 @@ export function withoutFirstUnavailable<C extends DataViewConfig>(
     if (next) return next;
   }
   return null;
+}
+
+/** Enough for any config a person wrote; a bound on a loop, not a budget. */
+const MAX_REMOVALS = 256;
+
+/**
+ * The config with every finding that can be taken out taken out, one at a
+ * time and judged again after each (`judge`): a condition taken out moves
+ * the paths of the ones after it, and may take another finding with it.
+ * The config itself when nothing could go.
+ */
+export function withoutUnavailable<C extends DataViewConfig>(
+  config: C,
+  judge: (config: C) => readonly Issue[],
+): C {
+  let current = config;
+  for (let step = 0; step < MAX_REMOVALS; step += 1) {
+    const next = withoutFirstUnavailable(current, judge(current));
+    if (!next) break;
+    current = next;
+  }
+  return current;
 }
 
 function without1<C extends DataViewConfig>(config: C, found: Issue): C | null {

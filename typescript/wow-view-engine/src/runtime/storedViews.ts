@@ -38,7 +38,7 @@ import type { ViewStore } from '../store/ViewStore.js';
  * `migrateDashboardConfig`; the same instance when it already is, so a view
  * in this form is never a different object for having been read.
  */
-export function readStored(instance: ViewInstance): ViewInstance {
+function readStored(instance: ViewInstance): ViewInstance {
   const config: unknown = instance.config;
   if (!isPlainObject(config) || config.kind !== 'dashboard') return instance;
   const read = migrateDashboardConfig(config as unknown as DashboardViewConfig);

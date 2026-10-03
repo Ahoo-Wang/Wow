@@ -33,7 +33,7 @@ import { RangeSlot } from './RangeSlot.js';
 import { ResultSlot } from './ResultSlot.js';
 import { TermTip } from './TermTip.js';
 
-export interface TrayProps {
+interface TrayProps {
   filter: FilterEditorController;
   analysis: AnalysisEditorController;
   optionsFor?(remote: string): FieldOption[] | undefined;

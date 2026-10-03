@@ -86,7 +86,7 @@ export function panelPress(
  * from the board, so they are there only with a route to go by (D22 H:
  * 「宿主没给路由钩子时，不出追问菜单」).
  */
-export type PressMode = 'menu' | 'filter' | 'go';
+type PressMode = 'menu' | 'filter' | 'go';
 
 export function pressMode(press: PanelPress | undefined): PressMode | null {
   if (!press) return null;
