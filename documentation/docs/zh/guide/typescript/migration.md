@@ -33,7 +33,7 @@ flowchart LR
 
 ### 1. 替换依赖
 
-先升级 peer 依赖：`wow-react` 需要 React 19.3 或更高版本（`react` 为 `^19.3.0`），不支持 React 18。它不再需要 `@ahoo-wang/fetcher-react`：只有还要用它的其他 Hook 时才保留，并且版本不低于 5.1.5，这样它对 `fetcher-wow` 的 peer 依赖是可选的。然后替换迁走的包：
+先升级 peer 依赖：`wow-react` 需要 React 19.0 或更高版本（`react` 为 `^19.0.0`），不支持 React 18。它不再需要 `@ahoo-wang/fetcher-react`：只有还要用它的其他 Hook 时才保留，并且版本不低于 5.1.5，这样它对 `fetcher-wow` 的 peer 依赖是可选的。然后替换迁走的包：
 
 ```sh
 pnpm remove @ahoo-wang/fetcher-wow @ahoo-wang/fetcher-generator
@@ -49,7 +49,7 @@ pnpm add react react-dom @ahoo-wang/wow-react
 | `wow-generator` | `fetcher`、`fetcher-decorator`、`fetcher-eventstream` | `^5.1.5` |
 | `wow-generator`、`wow-react` | `wow-client` | `~x.y.z`，即同一个小版本 |
 | `wow-react` | `fetcher` | `^5.1.5` |
-| `wow-react` | `react` | `^19.3.0`，不支持 React 18 |
+| `wow-react` | `react` | `^19.0.0`，不支持 React 18 |
 
 `fetcher-generator` 把 `fetcher-openapi` 作为 peer，`wow-generator` 不再需要它：除非应用自己导入 `@ahoo-wang/fetcher-openapi`，否则可以移除。`fetcher-eventstream` 仍要保留，`wow-client` 需要它。
 

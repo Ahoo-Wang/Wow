@@ -18,7 +18,7 @@ This page answers: **can the Wow clients run on a server, and what changes when 
 | Node.js | **22.12** or later: the packages declare `engines.node >=22.12.0` |
 | Module format | `wow-client` and `wow-generator` ship ESM and CommonJS; `wow-react` and `wow-view-engine` ship ESM only |
 | TypeScript | `experimentalDecorators: true` for generated clients; `module`/`moduleResolution` `NodeNext` or `Bundler` |
-| React (for `wow-react`) | **19.3** or later, which the build imports as `react/compiler-runtime`; see [Compatibility](./compatibility.md) |
+| React (for `wow-react`) | **19.0** or later, which the build imports as `react/compiler-runtime`; see [Compatibility](./compatibility.md) |
 
 A script that runs the compiled output with Node needs `"type": "module"` for top-level `await`, as in the [Quick Start](./quick-start.md), which also runs there.
 

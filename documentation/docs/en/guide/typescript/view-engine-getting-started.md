@@ -21,7 +21,7 @@ flowchart LR
 
 ## 1. Prerequisites
 
-- Node.js **22.12** or later, TypeScript **6** or later, React **19.3** or later (the peer range of the view engine's `/react` and `/ui` entries; see [Compatibility and Versions](./compatibility.md#runtimes-and-peers)).
+- Node.js **22.12** or later, TypeScript **6** or later, React **19.0** or later (the peer range of the view engine's `/react` and `/ui` entries; see [Compatibility and Versions](./compatibility.md#runtimes-and-peers)).
 - A Vite + React + TypeScript project. If you have none, create one from Vite's `react-ts` template: `pnpm create vite orders-console --template react-ts`.
 - Docker, to run the example server and its MongoDB.
 

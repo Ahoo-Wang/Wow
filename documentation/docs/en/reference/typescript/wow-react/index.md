@@ -142,7 +142,7 @@ The effect's cleanup is what the hooks do for you: it aborts the request of the 
 
 ## Install
 
-React 19.3 or later is required (peer `react ^19.3.0`). The package is built with the React Compiler and its bundle imports `react/compiler-runtime`, which only React 19 has; React 18 is not supported.
+React 19.0 or later is required (peer `react ^19.0.0`). The package is built with the React Compiler and its bundle imports `react/compiler-runtime`, which only React 19 has; React 18 is not supported.
 
 ```sh
 pnpm add react react-dom @ahoo-wang/fetcher @ahoo-wang/fetcher-eventstream \

@@ -41,7 +41,7 @@ The same-source contract runs the hooks against the example server:
 
 ## Boundaries
 
-- React 19.3 or later only: the build runs the React Compiler and imports `react/compiler-runtime`. Do not add the `react-compiler-runtime` polyfill.
+- React 19.0 or later only: the build runs the React Compiler and imports `react/compiler-runtime`. Do not add the `react-compiler-runtime` polyfill.
 - Do not depend on `@ahoo-wang/fetcher-react`: the request state machine is this package's own (`src/internal/useQueryRunner.ts`), so its semantics are Wow's to freeze. `verify-package.mjs` fails a declaration that imports fetcher-react.
 - The behaviour of every hook is the table in section 3 of `docs/design/architecture.md` (the design; `refactor-2026-09.md` beside it is the historical plan), pinned by `requestStateTable`, `streamStateTable`, `queryIdentity`, `callbacks`, `ssr` and `hydration`. Change a cell only on purpose, and say which in the pull request.
 - Query types come from `@ahoo-wang/wow-client`; do not redefine them here.

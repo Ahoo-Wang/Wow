@@ -142,7 +142,7 @@ effect 的清理函数做的正是 Hook 替你做的事：中止上一组参数�
 
 ## 安装
 
-需要 React 19.3 或更高版本（peer `react ^19.3.0`）。本包用 React Compiler 构建，产物导入 `react/compiler-runtime`，只有 React 19 提供它；不支持 React 18。
+需要 React 19.0 或更高版本（peer `react ^19.0.0`）。本包用 React Compiler 构建，产物导入 `react/compiler-runtime`，只有 React 19 提供它；不支持 React 18。
 
 ```sh
 pnpm add react react-dom @ahoo-wang/fetcher @ahoo-wang/fetcher-eventstream \

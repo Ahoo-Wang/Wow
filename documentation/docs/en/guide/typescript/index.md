@@ -56,7 +56,7 @@ flowchart LR
 | Peer | Range |
 |---|---|
 | `@ahoo-wang/fetcher`, `fetcher-decorator`, `fetcher-eventstream` | `^5.1.5` |
-| `react` (for `wow-react`) | `^19.3.0`; React 18 is not supported |
+| `react` (for `wow-react`) | `^19.0.0`; React 18 is not supported |
 | `@ahoo-wang/wow-client` (for the other Wow packages) | Same minor version, `~x.y.z` |
 | `@ahoo-wang/wow-view-engine` (for `wow-view-store`) | Same minor version, `~x.y.z` |
 
@@ -64,7 +64,7 @@ flowchart LR
 
 The TypeScript packages share one version with the Kotlin modules and are released from the same tag: `@ahoo-wang/wow-client` 9.2.0 is released together with Wow 9.2.0. Use one version for all Wow packages of an application, preferably the version of the service it calls. Breaking changes ship only in an `x.Y.0` release and are listed under "Breaking" in the [release notes](https://github.com/Ahoo-Wang/Wow/releases).
 
-Supported servers are Wow 8.11 and later through the `filter` API, and Wow 8.10 through `@ahoo-wang/wow-client/legacy` (the deprecated `Condition` API). CI runs the client against a server built from the same commit and smoke-tests it against Wow 8.11.5; for Wow 8.10.8 it only type-checks the generated code. Both 8.x lines and `/legacy` are removed in v10. The [compatibility matrix](./compatibility.md) has the details, along with Node.js (22.12 or later), React (19.3 or later) and TypeScript.
+Supported servers are Wow 8.11 and later through the `filter` API, and Wow 8.10 through `@ahoo-wang/wow-client/legacy` (the deprecated `Condition` API). CI runs the client against a server built from the same commit and smoke-tests it against Wow 8.11.5; for Wow 8.10.8 it only type-checks the generated code. Both 8.x lines and `/legacy` are removed in v10. The [compatibility matrix](./compatibility.md) has the details, along with Node.js (22.12 or later), React (19.0 or later) and TypeScript.
 
 ## Install
 
@@ -73,7 +73,7 @@ pnpm add @ahoo-wang/fetcher @ahoo-wang/fetcher-decorator @ahoo-wang/fetcher-even
 pnpm add -D @ahoo-wang/wow-generator typescript
 ```
 
-For the React hooks, add `react`, `react-dom`, and `@ahoo-wang/wow-react`. `wow-react` requires React 19.3 or later: it is built with the React Compiler and imports `react/compiler-runtime`, which React 18 does not have. Each reference page lists the exact install command for its package.
+For the React hooks, add `react`, `react-dom`, and `@ahoo-wang/wow-react`. `wow-react` requires React 19.0 or later: it is built with the React Compiler and imports `react/compiler-runtime`, which React 18 does not have. Each reference page lists the exact install command for its package.
 
 ## Continue by task
 

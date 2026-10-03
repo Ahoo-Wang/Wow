@@ -56,7 +56,7 @@ flowchart LR
 | peer 依赖 | 范围 |
 |---|---|
 | `@ahoo-wang/fetcher`、`fetcher-decorator`、`fetcher-eventstream` | `^5.1.5` |
-| `react`（`wow-react` 需要） | `^19.3.0`，不支持 React 18 |
+| `react`（`wow-react` 需要） | `^19.0.0`，不支持 React 18 |
 | `@ahoo-wang/wow-client`（其他 Wow 包需要） | 同一个小版本，`~x.y.z` |
 | `@ahoo-wang/wow-view-engine`（`wow-view-store` 需要） | 同一个小版本，`~x.y.z` |
 
@@ -64,7 +64,7 @@ flowchart LR
 
 TypeScript 包与 Kotlin 模块共用一个版本号，从同一个 tag 发布：`@ahoo-wang/wow-client` 9.2.0 与 Wow 9.2.0 一起发布。一个应用的所有 Wow 包使用同一个版本，最好就是所调用服务的版本。破坏性改动只在 `x.Y.0` 版本发布，并在[发布说明](https://github.com/Ahoo-Wang/Wow/releases)的 “Breaking” 一节列出。
 
-支持的服务端：Wow 8.11 及以后通过 `filter` API，Wow 8.10 通过 `@ahoo-wang/wow-client/legacy`（已弃用的 `Condition` API）。CI 用同一提交构建的服务端运行客户端，并对 Wow 8.11.5 做冒烟测试；对 Wow 8.10.8 只检查生成代码的类型。两条 8.x 线和 `/legacy` 都在 v10 移除。详情见[兼容性矩阵](./compatibility.md)，其中也列出了 Node.js（22.12 或更高）、React（19.3 或更高）与 TypeScript 的要求。
+支持的服务端：Wow 8.11 及以后通过 `filter` API，Wow 8.10 通过 `@ahoo-wang/wow-client/legacy`（已弃用的 `Condition` API）。CI 用同一提交构建的服务端运行客户端，并对 Wow 8.11.5 做冒烟测试；对 Wow 8.10.8 只检查生成代码的类型。两条 8.x 线和 `/legacy` 都在 v10 移除。详情见[兼容性矩阵](./compatibility.md)，其中也列出了 Node.js（22.12 或更高）、React（19.0 或更高）与 TypeScript 的要求。
 
 ## 安装
 
@@ -73,7 +73,7 @@ pnpm add @ahoo-wang/fetcher @ahoo-wang/fetcher-decorator @ahoo-wang/fetcher-even
 pnpm add -D @ahoo-wang/wow-generator typescript
 ```
 
-使用 React Hook 时再加上 `react`、`react-dom` 和 `@ahoo-wang/wow-react`。`wow-react` 需要 React 19.3 或更高版本：它用 React Compiler 构建，会导入 React 18 没有的 `react/compiler-runtime`。各包的参考页给出了精确的安装命令。
+使用 React Hook 时再加上 `react`、`react-dom` 和 `@ahoo-wang/wow-react`。`wow-react` 需要 React 19.0 或更高版本：它用 React Compiler 构建，会导入 React 18 没有的 `react/compiler-runtime`。各包的参考页给出了精确的安装命令。
 
 ## 按任务继续
 

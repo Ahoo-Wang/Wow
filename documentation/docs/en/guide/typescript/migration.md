@@ -33,7 +33,7 @@ flowchart LR
 
 ### 1. Swap dependencies
 
-Upgrade the peers first: `wow-react` requires React 19.3 or later (`react` `^19.3.0`); React 18 is not supported. It no longer needs `@ahoo-wang/fetcher-react`: keep that package only for its other hooks, 5.1.5 or later, whose peer dependency on `fetcher-wow` is optional. Then replace the moved packages:
+Upgrade the peers first: `wow-react` requires React 19.0 or later (`react` `^19.0.0`); React 18 is not supported. It no longer needs `@ahoo-wang/fetcher-react`: keep that package only for its other hooks, 5.1.5 or later, whose peer dependency on `fetcher-wow` is optional. Then replace the moved packages:
 
 ```sh
 pnpm remove @ahoo-wang/fetcher-wow @ahoo-wang/fetcher-generator
@@ -49,7 +49,7 @@ pnpm add react react-dom @ahoo-wang/wow-react
 | `wow-generator` | `fetcher`, `fetcher-decorator`, `fetcher-eventstream` | `^5.1.5` |
 | `wow-generator`, `wow-react` | `wow-client` | `~x.y.z`, the same minor version |
 | `wow-react` | `fetcher` | `^5.1.5` |
-| `wow-react` | `react` | `^19.3.0`; React 18 is not supported |
+| `wow-react` | `react` | `^19.0.0`; React 18 is not supported |
 
 `fetcher-generator` had `fetcher-openapi` as a peer; `wow-generator` does not, so remove `@ahoo-wang/fetcher-openapi` unless the application imports it itself. `fetcher-eventstream` stays: `wow-client` needs it.
 

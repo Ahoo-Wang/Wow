@@ -16,7 +16,7 @@ description: 按报错信息找出 wow-client、wow-generator 与 wow-react 常�
 | `404 Not Found - GET https://registry.npmjs.org/@ahoo-wang%2fwow-client`（`E404`） | 包名写错了：Wow 的包是 `@ahoo-wang/wow-*`，从 Wow 9.2.0 起在 npm 上；`@ahoo-wang/fetcher-view-engine` 从未发布 | 对照[发布状态](./compatibility.md#发布状态)核对包名。不存在的版本报的是 `ETARGET`（pnpm 是 `ERR_PNPM_NO_MATCHING_VERSION`），不是这个错；首个版本是 9.2.0 |
 | pnpm 11 及以后，刚发版时：`pnpm add` 装到的是上一个版本或预发布版（如 `9.2.0-rc.0`），而且存成精确版本 | pnpm 的 `minimumReleaseAge` 默认一天（1440 分钟）：发布不到一天的版本不解析 | 等一天，或者在 `pnpm-workspace.yaml` 里加 `minimumReleaseAgeExclude: ['@ahoo-wang/*']`（`minimumReleaseAge: 0` 对所有包关掉这道延迟） |
 | `WARN … unmet peer @ahoo-wang/wow-client@~9.2.0: found 9.3.0` | 应用里的 Wow 包处于不同的次版本 | 让 `wow-client`、`wow-generator` 和 `wow-react` 使用同一个版本 |
-| `Cannot find module 'react/compiler-runtime'` | React 低于 19 | `wow-react` 需要 React 19.3 或更高；不支持 React 18 |
+| `Cannot find module 'react/compiler-runtime'` | React 低于 19 | `wow-react` 需要 React 19.0 或更高；不支持 React 18 |
 | `Unsupported engine … wanted: {"node":">=22.12.0"}` | Node.js 低于 22.12 | 升级 Node.js |
 
 ## 编译
