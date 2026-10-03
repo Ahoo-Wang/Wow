@@ -38,7 +38,7 @@ Gradle 流水线不在准入里：preflight 自己在这个提交上跑 `./gradl
 
 ## 首发清单
 
-首发分两步：先由维护者在本机手工发 `9.2.0-rc.0`（dist-tag `next`，没有 provenance），让五个包名在 npm 上存在，才能给它们配置 Trusted Publisher；再由 CI 带 provenance 发 `9.2.0`，作为第一个 `latest`。没有配 Trusted Publisher 的包，CI 的 OIDC 发布会失败（D）。
+首发分两步：先由维护者在本机手工发 `9.2.0-rc.0`（dist-tag `next`，没有 provenance），让五个包名在 npm 上存在，才能给它们配置 Trusted Publisher；再由 CI 带 provenance 发 `9.2.0`，`latest` 从这时起指向正式版（rc 期间 `latest` 也是 rc，见 C 第 5 步）。没有配 Trusted Publisher 的包，CI 的 OIDC 发布会失败（D）。
 
 **时机（用户 2026-09-25 定）**：发布包和 Wow 9.2.0 服务端**一起**发，不先单发；并且**等补偿控制台重构全部完成（[view-engine-rebuild.md](../compensation/dashboard/docs/design/view-engine-rebuild.md) 批 0～7，旧页面都被引擎接管；它第 2 节以后由 [console-redesign.md](../compensation/dashboard/docs/design/console-redesign.md) 取代，那份的批 1～4 也已合并，#3706～#3711）之后再发**，连 `9.2.0-rc.0` 也在那之后。用户原话：「这样能提前发现真实环境问题、验证真实 API。」控制台完成后，rc 试用（C′）只剩核对 npm 产物，真实 API 已经在控制台上验证过。
 
@@ -163,6 +163,14 @@ Gradle 流水线不在准入里：preflight 自己在这个提交上跑 `./gradl
 
 ### C. 手工发布 `9.2.0-rc.0`（维护者本机，只做一次）
 
+**已完成**（2026-10-03）：维护者在本机从 tag `v9.2.0-rc.0`（`d7ace5e46`）手工发布，五个发布包都有 `9.2.0-rc.0`。
+
+这次首发的教训：
+
+- 发布在真正的终端里跑：每个包的 OTP 是交互式提示。agent 会话里的 `!` 命令和 Run 按钮在 agent 的目录里执行，不在临时 clone 里。
+- `~/.npm` 里有 root 的文件（`EACCES`）时，不用 sudo，换一个一次性缓存：`export npm_config_cache=$(mktemp -d)`。
+- 新包刚发出的几分钟里，`npm view` 可能答 404，registry 还在传播；等一会儿再核对。
+
 1. 确认 npm 账号是组织 `ahoo-wang` 的成员、有发布权限、开了 2FA；本机 `npm -v` 不低于 11.5.1，`node -v` 不低于 22.12.0。
 2. A 里的发版 PR 合并以后，在它的合并提交上打 tag 并推送。**不创建 GitHub release**：release 会触发 Maven 发布，rc 只发 npm。所以 rc 的发版 PR 只改版本文件，README 与文档里的 Maven 版本仍指最近一个正式版，到 9.2.0（E）的发版 PR 才改。三个镜像工作流（`example-deploy.yml`、`compensation-deploy.yml`、`view-store-deploy.yml`）在 `v*.*.*` tag 上推镜像，但排除了带 `-` 的预发布 tag，所以推 rc 的 tag 不会推镜像，也不会移动 `X.Y`、`latest`。
 
@@ -202,13 +210,15 @@ Gradle 流水线不在准入里：preflight 自己在这个提交上跑 `./gradl
    ```bash
    PACKAGES=$(node .github/scripts/publish-npm.mjs --list)        # 在 wow-release 里运行
    for pkg in $PACKAGES; do npm view "$pkg@9.2.0-rc.0" version; npm dist-tag ls "$pkg"; done
-   # 每个包都有 9.2.0-rc.0，dist-tag 只有 next: 9.2.0-rc.0
+   # 每个包都有 9.2.0-rc.0，dist-tag 是 latest: 9.2.0-rc.0 和 next: 9.2.0-rc.0
    mkdir ../rc-check && cd ../rc-check && npm init -y >/dev/null
    npm i $(for pkg in $PACKAGES; do printf '%s@next ' "$pkg"; done) react react-dom react-router mingo
    npx wow-generator --version                                    # 9.2.0-rc.0
    npx wow-view-engine theme-check --help | head -1               # Usage: wow-view-engine theme-check …
    node --input-type=module -e "await import('@ahoo-wang/wow-view-engine/ui'); await import('@ahoo-wang/wow-view-store'); console.log('ok')"
    ```
+
+   `latest` 也指向 rc，不是脚本的错：npm 给一个全新的包的第一个版本总是打上 `latest`，不管发布时指定的 dist-tag。所以在 9.2.0 之前，不带版本的 `npm i <包>` 装到的是 rc。CI 发 9.2.0 时 `latest` 移到 9.2.0（E 第 4 步），在那之前不手动改它。
 
 ### C′. 在补偿控制台上试用 rc（发 `latest` 的前置条件）
 
@@ -347,6 +357,8 @@ Gradle 流水线不在准入里：preflight 自己在这个提交上跑 `./gradl
 7. 记录与重来。把结果记进 [MIGRATION.md](MIGRATION.md)「进度」，写明两台服务端的 Wow 版本（补偿服务端、示例服务端都从 rc 的 tag 构建）。发现问题就在 Wow 的 main 上修复，发 `9.2.0-rc.1`，从新 tag 开新分支，从第 1 步重来。分支可以推到远端留证，但**不开 PR、不合并**；9.2.0 发布以后删掉它（`git push origin --delete chore/compensation-9.2.0-rc.0`），停掉两个服务端，`docker rm -f wow-rc-mongo wow-rc-example-mongo`。
 
 ### D. 配置 Trusted Publisher（每个发布包各一次）
+
+**已完成**（2026-10-03，用户确认）：五个发布包都配好了 Trusted Publisher。
 
 对 `node .github/scripts/publish-npm.mjs --list` 列出的每个包（9.2.0：wow-client、wow-react、wow-generator、wow-view-engine、wow-view-store）各做一遍；漏掉一个，CI 的 `npm-deploy` 就会在它那里因 OIDC 失败（前面的包已经发出，重跑会跳过它们，补上配置后重跑即可）。以后 `PUBLISHED` 再加包，同样先手工发一个 rc 让包名存在，再配这里。
 
