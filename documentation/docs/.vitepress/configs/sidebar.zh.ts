@@ -28,13 +28,16 @@ const viewEngineStart: DefaultTheme.SidebarItem = {
 const viewEngineConcepts: DefaultTheme.SidebarItem = {
     base: '/zh/guide/typescript/',
     text: '视图引擎：概念',
-    items: [],
+    items: [
+        {text: '核心概念', link: 'view-engine-concepts'},
+    ],
 }
 
 const viewEngineGuides: DefaultTheme.SidebarItem = {
     base: '/zh/guide/typescript/',
     text: '视图引擎：指南',
     items: [
+        {text: '写好一份定义', link: 'view-engine-definitions'},
         {text: '主题', link: 'view-engine-theming'},
         {text: '可访问性', link: 'view-engine-accessibility'},
     ],

@@ -29,15 +29,7 @@ description: '@ahoo-wang/wow-view-engine 包的入口、概念、持久化端口
 
 ## 概念
 
-| 类型 | 作用 | 所在 |
-|---|---|---|
-| `ViewDefinition` | 字段、类型、操作符，以及记录视图与分析视图的能力。声明或生成，运行时从不编辑 | 代码 |
-| `ViewConfig` | `RecordViewConfig`、`AnalysisViewConfig` 或 `DashboardViewConfig`。共享的 `FilterTree` 描述范围，保存的是“最近 7 天”这类意图而不是编译后的值 | 数据 |
-| `ViewInstance` | 已保存的 `ViewConfig`，加上 id、标题、范围（`system`、`shared` 或 `personal`）和不透明的 `revision` | 存储 |
-| `ViewRuntime` | 一个打开的视图：草稿、已应用的配置、结果、状态与选择，通过 `subscribe` 和 `getSnapshot` 暴露 | 内存 |
-| `ViewEngine` | 定义、存储与已打开运行时的注册表；打开、保存、列出等命令的入口 | 内存 |
-| `ViewStore` | 持久化端口：Wow 服务端上是 `WowViewStore`，别的后端自己实现 | 应用 |
-| `FieldKind` | 一种字段类型的操作符、校验、到 `FilterExpression` 的编译以及编辑器描述 | 注册表 |
+每个类型做什么、住在哪里——代码、数据、存储还是内存——以及系统、共享与个人视图、revision 与冲突，见[视图引擎的核心概念](../../../guide/typescript/view-engine-concepts.md)。
 
 内置字段类型：`string`、`number`、`boolean`、`date`、`datetime`、`enum`、`reference`、`array`、`elementMatch`、`search`，以及由 Wow 元数据过滤支撑的 `documentId`、`aggregateId`、`tenantId`、`ownerId`、`spaceId` 和 `deletion`。
 

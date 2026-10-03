@@ -29,15 +29,7 @@ The root entry has no React or DOM dependency. `react` and `react-dom` are peer 
 
 ## Concepts
 
-| Type | Role | Lives in |
-|---|---|---|
-| `ViewDefinition` | Fields, kinds, operators, and record and analysis capabilities. Declared or generated, never edited at runtime | Code |
-| `ViewConfig` | A `RecordViewConfig`, `AnalysisViewConfig`, or `DashboardViewConfig`. A shared `FilterTree` describes scope and stores intent such as "last 7 days", not compiled values | Data |
-| `ViewInstance` | A saved `ViewConfig` plus id, title, scope (`system`, `shared`, or `personal`), and an opaque `revision` | Store |
-| `ViewRuntime` | One open view: draft, applied config, result, status, and selection, exposed through `subscribe` and `getSnapshot` | Memory |
-| `ViewEngine` | Registry of definitions, the store, and open runtimes; the entry point for open, save, and list commands | Memory |
-| `ViewStore` | The persistence port: `WowViewStore` on a Wow server, a backend's own implementation elsewhere | Application |
-| `FieldKind` | Operators, validation, compilation to `FilterExpression`, and the editor descriptor of one field type | Registry |
+What each type does and where it lives — code, data, the store or memory — together with system, shared and personal views, revisions and conflicts: [View Engine Core Concepts](../../../guide/typescript/view-engine-concepts.md).
 
 Built-in field kinds: `string`, `number`, `boolean`, `date`, `datetime`, `enum`, `reference`, `array`, `elementMatch`, `search`, and the kinds backed by Wow's metadata filters: `documentId`, `aggregateId`, `tenantId`, `ownerId`, `spaceId`, and `deletion`.
 

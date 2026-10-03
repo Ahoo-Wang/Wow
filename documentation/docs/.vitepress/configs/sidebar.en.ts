@@ -29,13 +29,16 @@ const viewEngineStart: DefaultTheme.SidebarItem = {
 const viewEngineConcepts: DefaultTheme.SidebarItem = {
     base: '/guide/typescript/',
     text: 'View Engine Concepts',
-    items: [],
+    items: [
+        {text: 'Core Concepts', link: 'view-engine-concepts'},
+    ],
 }
 
 const viewEngineGuides: DefaultTheme.SidebarItem = {
     base: '/guide/typescript/',
     text: 'View Engine Guides',
     items: [
+        {text: 'Writing a Definition', link: 'view-engine-definitions'},
         {text: 'Theming', link: 'view-engine-theming'},
         {text: 'Accessibility', link: 'view-engine-accessibility'},
     ],
