@@ -347,13 +347,15 @@ export {
   ViewSurface,
   type ViewSurfaceProps,
   type ViewTheme,
-  useSurfaceAttributes,
   useSurfaceDisplay,
+  useSurfaceTokens,
+} from './kit/ViewSurface.js';
+export {
+  useSurfaceAttributes,
   useSurfaceFont,
   useSurfaceHostTokens,
   useSurfaceTheme,
-  useSurfaceTokens,
-} from './kit/ViewSurface.js';
+} from './kit/surfaceContext.js';
 export {
   type WorkbenchLandmark,
   WorkbenchShell,

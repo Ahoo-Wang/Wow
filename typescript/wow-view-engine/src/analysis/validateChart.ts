@@ -26,8 +26,6 @@ import {
 } from 'culori/fn';
 import {
   CHART_FAMILY,
-  type AnalysisDerivedExpression,
-  type AnalysisMetric,
   type AnalysisViewConfig,
   type AxisSpec,
   type ChartSpec,
@@ -51,56 +49,7 @@ import {
   candlestickIssues,
 } from './validateLevels.js';
 import { referenceIssues } from './validateReferences.js';
-
-/**
- * Metrics the projection may add up across rows: a pie's "other" slice and a
- * metric card's trend headline are both sums of queried buckets, which only
- * means something for a metric that adds. AVG, MIN, MAX, DISTINCT_COUNT and a
- * percentile cannot be re-aggregated from their parts. A funnel's stages are
- * counts of what entered and remained, so they are these too.
- */
-export function isAdditiveMetric(metric: AnalysisMetric | undefined): boolean {
-  if (!metric) return false;
-  if (metric.type === 'COUNT') return true;
-  return metric.type === 'NUMERIC' && metric.function === 'SUM';
-}
-
-/**
- * Whether a metric's number over any span is read off sums over that span
- * (D38): one that adds, or a derived metric computed from such metrics and
- * numbers alone — 客单价 = GMV ÷ 订单数. The source computes a derived metric
- * from each row's own operands, so a bucket's is its own sums divided and
- * the whole's the whole's sums divided — which is what a metric card's
- * trend and its whole need, though the ratios themselves never add.
- * `metricOf` finds an operand by alias.
- */
-export function readsOffSums(
-  metric: AnalysisMetric | undefined,
-  metricOf: (alias: string) => AnalysisMetric | undefined,
-  through: ReadonlySet<string> = new Set(),
-): boolean {
-  if (isAdditiveMetric(metric)) return true;
-  if (metric?.type !== 'DERIVED' || through.has(metric.alias)) return false;
-  const inside = new Set(through).add(metric.alias);
-  return derivedOperands(metric.expression).every(alias =>
-    readsOffSums(metricOf(alias), metricOf, inside),
-  );
-}
-
-/** Every metric a derived expression names, left to right. */
-function derivedOperands(expression: AnalysisDerivedExpression): string[] {
-  switch (expression.type) {
-    case 'METRIC_REF':
-      return [expression.metric];
-    case 'BINARY':
-      return [
-        ...derivedOperands(expression.left),
-        ...derivedOperands(expression.right),
-      ];
-    default:
-      return [];
-  }
-}
+import { isAdditiveMetric, readsOffSums } from './additive.js';
 
 /**
  * The colour spaces `parse` is taught to read. `culori/fn` is the

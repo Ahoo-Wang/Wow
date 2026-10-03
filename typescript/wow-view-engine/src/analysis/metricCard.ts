@@ -28,7 +28,7 @@ import {
   type DateGroup,
 } from './timeAxis.js';
 import { metricReach } from './metricWindow.js';
-import { isAdditiveMetric, readsOffSums } from './validateChart.js';
+import { isAdditiveMetric, readsOffSums } from './additive.js';
 
 export interface MetricCardData {
   type: 'metric';

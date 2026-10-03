@@ -24,7 +24,7 @@ import { fiveNumberSets } from './boxplot.js';
 import { ohlcSets } from './candlestick.js';
 import { familyOf, type ChartUnfit, type ShapeFacts } from './chartFamilies.js';
 import { stageValues } from './chartOptions.js';
-import { isAdditiveMetric } from './validateChart.js';
+import { isAdditiveMetric } from './additive.js';
 
 export interface ChartFit {
   available: boolean;

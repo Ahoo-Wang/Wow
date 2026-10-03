@@ -42,6 +42,7 @@ import { emptyFilter } from '../filter/index.js';
 import { fitChartSlots } from './chartSlots.js';
 import { analysisScope } from './capability.js';
 import { momentMetrics } from './metricFormat.js';
+import { freeAlias } from './freeAlias.js';
 
 const DEFAULT_LIMIT = 100;
 
@@ -439,22 +440,6 @@ export function defaultAnalysisConfig(
       moments,
     ),
   };
-}
-
-/**
- * A name no group or metric is using: `base`'s stem plus the first free
- * number. Numbering by the row count collided as soon as a row was removed,
- * so the first free number it is, however rows were added and removed.
- * Aliases are single-segment in Wow, so a field path becomes one token, and
- * a copy of `amount_2` is `amount_<next>` rather than `amount_2_1`.
- */
-export function freeAlias(base: string, taken: readonly string[]): string {
-  const stem = base.split('.').join('_').replace(/_\d+$/, '');
-  const used = new Set(taken);
-  for (let index = 1; ; index += 1) {
-    const alias = `${stem}_${index}`;
-    if (!used.has(alias)) return alias;
-  }
 }
 
 /**

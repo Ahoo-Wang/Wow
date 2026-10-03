@@ -21,10 +21,10 @@ import {
   type FilterPagedQuery,
   type Projection,
 } from '@ahoo-wang/wow-client';
+import { summaryAlias } from './summaryAlias.js';
 import { summaryCurrency } from './summaryCurrency.js';
 import {
   columnHidden,
-  fieldAliasSegment,
   currencyPathOf,
   isFieldlessKind,
   type DataViewDefinition,
@@ -246,12 +246,6 @@ const SUMMARY_METRIC: Readonly<
   MIN: (field, alias) => aggregation.min(aggregation.field(field), alias),
   MAX: (field, alias) => aggregation.max(aggregation.field(field), alias),
 });
-
-/** Alias of one summary cell; the projection reads the result back by it. */
-export function summaryAlias(field: string, fn: SummaryFunction): string {
-  // Aliases are single-segment in Wow, so a field path becomes one token.
-  return `${fieldAliasSegment(field)}_${fn.toLowerCase()}`;
-}
 
 /**
  * Totals over the whole filtered range, as one ungrouped aggregation. Page

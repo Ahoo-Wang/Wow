@@ -52,7 +52,7 @@ import { FilterValueEditor } from './FilterValueEditor.js';
 import { PendingDot, PENDING_AT_CORNER } from '../kit/PendingDot.js';
 import { PillSelectTrigger } from '../kit/variants.js';
 import { UnsupportedValue } from './inputs/unsupported.js';
-import { GroupBlock } from './GroupBlock.js';
+import type { GroupBlock } from './GroupBlock.js';
 import { useConditionFocus } from './conditionFocus.js';
 import { recordIssueNamer } from '../record/issueNames.js';
 
@@ -86,6 +86,7 @@ export function ConditionPill({
   isPending,
   negatable,
   negated,
+  Group,
 }: {
   filter: FilterTreeController;
   leaf: FilterLeaf;
@@ -106,6 +107,14 @@ export function ConditionPill({
    * whole of it without this component knowing there is a wrapper.
    */
   negated?: boolean;
+  /**
+   * What a condition that holds a tree draws that tree with: `GroupBlock`,
+   * handed down by the group that draws this pill. A group draws its pills
+   * and such a pill draws a group, so one of the two has to be told the
+   * other rather than import it — a circle of imports inside a folder is
+   * what the architecture suite refuses (R2-94).
+   */
+  Group: typeof GroupBlock;
 }) {
   const messages = useViewMessages();
   const focus = useConditionFocus();
@@ -351,6 +360,7 @@ export function ConditionPill({
           path={path}
           disabled={disabled}
           optionsFor={optionsFor}
+          Group={Group}
         />
       </div>
     );
@@ -504,12 +514,14 @@ function NestedPredicate({
   path,
   disabled,
   optionsFor,
+  Group,
 }: {
   filter: FilterTreeController;
   leaf: FilterLeaf;
   path: FilterPath;
   disabled?: boolean;
   optionsFor?: (remote: string) => FieldOption[] | undefined;
+  Group: typeof GroupBlock;
 }) {
   const messages = useViewMessages();
   const field = filter.fields.find(entry => entry.name === leaf.field);
@@ -532,7 +544,7 @@ function NestedPredicate({
 
   return (
     <div className="fve:min-w-0">
-      <GroupBlock
+      <Group
         filter={nested}
         group={nested.tree}
         path={[]}

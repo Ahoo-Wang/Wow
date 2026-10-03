@@ -12,13 +12,14 @@
  */
 
 import type { ChartData } from '../../analysis/index.js';
-import type { ChartSpec, ChartType, ValueFormat } from '../../model/index.js';
+import type { ChartSpec } from '../../model/index.js';
 import type { MessageFormatters } from '../kit/MessagesProvider.js';
-import { formatShare, formatValue } from './axis.js';
+import { formatShare } from './axis.js';
 import { stackPlan } from './cartesianPlan.js';
 import { type FilledNote, type SeriesName, type ValueLabel } from './family.js';
 import { drawnStages, dropText } from './funnelOption.js';
 import { derivedName } from './markWords.js';
+import { nameOf, number } from './readingParts.js';
 import {
   readBoxplot,
   readCandlestick,
@@ -145,51 +146,6 @@ function readFamily(
     case 'map':
       return readMap(data, spec, ctx);
   }
-}
-
-/**
- * `{type}: {measures} by {category}`, and without the tail when nothing
- * names a category — a metric card is one number, not one number per
- * anything. With neither, the family's own name is still better than the
- * `role="application"` and the empty `<title>` this replaced.
- */
-export function nameOf(
-  ctx: ReadingContext,
-  type: ChartType,
-  measures: readonly (string | undefined)[],
-  category?: string,
-): string {
-  const kind = ctx.messages.label(`label.chart.type.${type}`, undefined, type);
-  const named = measures.filter(
-    (measure): measure is string => measure !== undefined,
-  );
-  if (named.length === 0) return kind;
-  const params = {
-    type: kind,
-    measures: named.join(ctx.messages.label('label.filter.join')),
-  };
-  return category === undefined
-    ? ctx.messages.label('label.chart.figure.plain', params)
-    : ctx.messages.label('label.chart.figure', { ...params, category });
-}
-
-/**
- * A measured number, read as its own column reads it — the reading table and
- * the marks beside it are the same numbers, so they are the same text. An
- * axis that pinned a `ValueFormat` still wins: that is an instruction about
- * this axis, and a ratio drawn as 25% must not be read out as 0.25.
- */
-export function number(
-  value: number | null | undefined,
-  ctx: ReadingContext,
-  format?: ValueFormat,
-  alias?: string,
-): string {
-  if (value === null || value === undefined)
-    return ctx.messages.label('label.summary.unavailable');
-  return format === undefined
-    ? ctx.label(alias, value)
-    : formatValue(value, format, ctx.locale);
 }
 
 function readCartesian(

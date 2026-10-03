@@ -39,7 +39,7 @@ import {
 } from '../model/index.js';
 import { companionReading, currencyOfRows } from '../model/currency.js';
 import { readInstant } from '../filter/index.js';
-import { summaryAlias } from './compile.js';
+import { summaryAlias } from './summaryAlias.js';
 import { summaryCurrency } from './summaryCurrency.js';
 import {
   cursorPaging,

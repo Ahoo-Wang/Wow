@@ -17,12 +17,8 @@ import { gaugeText, reachedShare } from './gaugeOption.js';
 import { drawnFlow, drawnParts } from './hierarchyOption.js';
 import { drawnProfiles } from './profileOption.js';
 import { drawnStreams } from './timeOption.js';
-import {
-  nameOf,
-  number,
-  type ChartReading,
-  type ReadingContext,
-} from './reading.js';
+import type { ChartReading, ReadingContext } from './reading.js';
+import { nameOf, number } from './readingParts.js';
 
 /*
  * The statistical families read as text (D41): a boxplot's five numbers,

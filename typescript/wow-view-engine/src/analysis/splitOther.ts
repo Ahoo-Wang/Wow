@@ -22,7 +22,7 @@ import {
 import type { CartesianData } from './cartesian.js';
 import { num, OTHER_SERIES_KEY, seriesKey } from './chartRows.js';
 import { limitBounds } from './defaults.js';
-import { isAdditiveMetric } from './validateChart.js';
+import { isAdditiveMetric } from './additive.js';
 
 /**
  * A split into more series than the palette has colours (D33 Q56, which

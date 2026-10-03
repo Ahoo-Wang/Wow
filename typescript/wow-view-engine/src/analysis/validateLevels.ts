@@ -19,7 +19,7 @@ import {
 } from '../model/index.js';
 import { issue } from '../filter/index.js';
 import { consumesAll, group, measure, type ChartContext } from './chartRefs.js';
-import { isAdditiveMetric } from './validateChart.js';
+import { isAdditiveMetric } from './additive.js';
 import { isOhlcSet, OHLC_SLOTS } from './candlestick.js';
 
 /**
