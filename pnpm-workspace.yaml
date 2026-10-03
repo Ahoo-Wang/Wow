@@ -111,7 +111,7 @@ catalog:
   '@types/canvas-confetti': ^1.9.0
   '@types/culori': ^4.0.1
   '@types/d3-random': ^3.0.4
-  '@types/node': ^26.6.3
+  '@types/node': ^26.6.4
   '@types/react': ^19.3.0
   '@types/react-dom': ^19.3.0
   '@types/react-syntax-highlighter': ^15.5.13
