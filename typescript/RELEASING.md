@@ -68,7 +68,7 @@ Gradle 流水线不在准入里：preflight 自己在这个提交上跑 `./gradl
 - [x] 兼容承诺（R2-46）：视图引擎与视图存储的 README 写「随 Wow 9.2.0 发布」与兼容规则（补丁版本不破坏公开面，次版本的破坏逐条写进发布说明，不加兼容层），安装照 wow-client 写；两个包的 AGENTS.md「Status」改成首发后的规则，保留存储数据迁移的例外。npm 页面上的 README 冻结在 tarball 里，所以这一条必须在 rc 之前。
 - [x] 没标 `!` 的破坏也挡得住（R2-45）：PR 模板的 **Breaking** 框、正文不是「None.」的 `## Breaking` 一节、`BREAKING CHANGE:` 行都让 pr-labeler 加 `breaking-change`（`## Behaviour changes` 不加）；准入按标签拒绝补丁版本，并要求 `x.Y.0` 的发布说明点名每个破坏性 PR（见「发版准入」）。
 - [x] 给 9.2.0 里没标 `!` 的破坏性 PR 补上标签，让准入也替它们把关（它们都写在草稿的「Breaking」里）：`for pr in 3429 3451 3461 3483 3485 3539 3570 3581 3595 3626 3791 3798 3823 3824 3825 3827 3832 3835; do gh pr edit "$pr" --repo Ahoo-Wang/Wow --add-label breaking-change; done`。2026-10-01 已运行（用户批准）。之后合并的、没标 `!` 的破坏性 PR 由 pr-labeler 或评审加标签。
-- [x] 发布说明草稿 [release-notes/v9.2.0.md](release-notes/v9.2.0.md)：打 tag 之前按「发布说明」的命令补上草稿之后合并的 PR，填完占位符。2026-10-02 完成（到 #3866）：`v9.1.5` 以来的 54 个破坏性 PR 都在「Breaking」里点名；视图存储系统视图的网关规则写在 Highlights 下面的提示框里。2026-10-03 的 9.2.0 发版 PR 补到 #3868（rc 之后合并的 #3867、#3868 只改测试与文档，不进说明），rc 的措辞改成正式版的，`missingFromNotes` 重跑仍是 54 个都点名。之后再合并的 PR，E.2 照同一套命令补上。
+- [x] 发布说明草稿 [release-notes/v9.2.0.md](release-notes/v9.2.0.md)：打 tag 之前按「发布说明」的命令补上草稿之后合并的 PR，填完占位符。2026-10-02 完成（到 #3866）：`v9.1.5` 以来的 54 个破坏性 PR 都在「Breaking」里点名；视图存储系统视图的网关规则写在 Highlights 下面的提示框里。2026-10-03 的 9.2.0 发版 PR 补到 #3870（rc 之后合并的 #3867、#3868、#3870 只改测试、控制台、文档与手册，不进说明；#3870 改了兼容性页的 pnpm 写法，说明里迁移步骤的 `save-prefix` 跟着改成 pnpm 的 `savePrefix` 与 npm 的 `save-prefix`），rc 的措辞改成正式版的，`missingFromNotes` 重跑仍是 54 个都点名。之后再合并的 PR，E.2 照同一套命令补上。
 - [x] 依赖审计的一条发现（2026-10-01，见「日常发版」第 1 步）：wow-generator 经 ts-morph 带进 `brace-expansion` 5.0.9（两条 high、一条 moderate）。处置：锁文件更新到 5.0.12（`pnpm update -r brace-expansion`，minimatch 10.2.6 的范围 `^5.0.8` 本来就允许，没有 override），`pnpm audit --prod` 回到 0。
 - [x] Docker 镜像（example、compensation、view store 服务端）不在预发布 tag 上构建推送：三个工作流的 tag 过滤排除 `v*.*.*-*`（`release-admission.test.mjs` 守着），rc 只发 npm（C.2）。
 - [x] 发版 PR `chore(release): prepare 9.2.0-rc.0`：`pnpm set-version 9.2.0-rc.0`，更新 openapi 快照，`pnpm check:versions`。**rc 只改版本文件**（`gradle.properties`、各 `package.json`、openapi 快照，准入与测试要它们一致）；README 版本表与文档里给用户看的 Maven 版本（`existing-project.md`、`getting-started.md`）留在 9.1.5，因为 rc 不发 Maven Central，`wow-bom:9.2.0-rc.0` 不存在。它们在 9.2.0 的发版 PR 里按根 `AGENTS.md` 一起改。
@@ -221,6 +221,8 @@ Gradle 流水线不在准入里：preflight 自己在这个提交上跑 `./gradl
    `latest` 也指向 rc，不是脚本的错：npm 给一个全新的包的第一个版本总是打上 `latest`，不管发布时指定的 dist-tag。所以在 9.2.0 之前，不带版本的 `npm i <包>` 装到的是 rc。CI 发 9.2.0 时 `latest` 移到 9.2.0（E 第 4 步），在那之前不手动改它。
 
 ### C′. 在补偿控制台上试用 rc（发 `latest` 的前置条件）
+
+**已完成**（2026-10-03）：在 `9.2.0-rc.0` 上通过，结果记在 [MIGRATION.md](MIGRATION.md)「进度」的「C′ 试用记录」。发现的问题都在发布包之外，#3870 在 main 上修好，按第 7 步只在 rc.0 上重跑了受影响的步骤，不发 rc.1。
 
 `9.2.0-rc.0` 发到 npm 以后，把补偿控制台（`compensation/dashboard`）依赖的发布包从工作区换成 npm 上的 rc，端到端跑通：生成、类型检查、lint、构建、单元测试、浏览器测试，再对着真实的补偿服务端走查一遍；然后在一个空目录里用 `@next` 逐字照快速开始做一遍（第 6 步）。**任何一步退出码不为 0，或者走查发现问题，都不发 9.2.0。** 控制台同时用全部五个发布包（wow-client、wow-react、wow-generator、wow-view-engine、wow-view-store），是它们在仓库里唯一的真实应用（integration-test 与 storybook 只是测试）（用户 2026-09-25 定：「不需要在 wow-project-template 中使用，补偿控制台就是真实案例」；[MIGRATION.md](MIGRATION.md) 第 4a 步判据③）。
 
