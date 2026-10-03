@@ -12,6 +12,7 @@
  */
 
 import { XIcon } from 'lucide-react';
+import type { ComponentType } from 'react';
 import {
   withMovedTo,
   withSlot,
@@ -21,6 +22,7 @@ import {
 import {
   CHART_FAMILY,
   METRIC_HEADLINES,
+  type ChartFamily,
   type FunnelSpec,
   type MetricCardSpec,
 } from '../../model/index.js';
@@ -57,46 +59,36 @@ import {
  * changes the one that is not to their liking.
  */
 export function DataTab(props: OptionsPageProps) {
-  switch (CHART_FAMILY[props.chart.type]) {
-    case 'cartesian':
-      return <CartesianData {...props} />;
-    case 'pie':
-      return <PieData {...props} />;
-    case 'heatmap':
-      return <HeatmapData {...props} />;
-    case 'scatter':
-      return <ScatterData {...props} />;
-    case 'funnel':
-      return <FunnelData {...props} />;
-    case 'metric':
-      return <MetricData {...props} />;
-    case 'waterfall':
-      return <WaterfallSlots {...props} />;
-    case 'treemap':
-      return <TreemapSlots {...props} />;
-    case 'boxplot':
-      return <BoxplotSlots {...props} />;
-    case 'candlestick':
-      return <CandlestickSlots {...props} />;
-    case 'gauge':
-      return <GaugeSlots {...props} />;
-    case 'radar':
-    case 'parallel':
-      return <ProfileSlots {...props} />;
-    case 'sunburst':
-    case 'tree':
-    case 'sankey':
-      return <LevelSlots {...props} />;
-    case 'calendar':
-      return <CalendarSlots {...props} />;
-    case 'themeRiver':
-      return <RiverSlots {...props} />;
-    case 'map':
-      return <MapSlots {...props} />;
-    default:
-      return null;
-  }
+  const Page = DATA_PAGES[CHART_FAMILY[props.chart.type]];
+  return Page ? <Page {...props} /> : null;
 }
+
+/**
+ * Each family's data page. The compiler holds it to `ChartFamily`, as it
+ * holds the kernel's `FAMILY_RULES` and the drawing's `FAMILY_VIEWS`; a type
+ * this package does not have has no page.
+ */
+const DATA_PAGES = {
+  cartesian: CartesianData,
+  pie: PieData,
+  heatmap: HeatmapData,
+  scatter: ScatterData,
+  funnel: FunnelData,
+  metric: MetricData,
+  waterfall: WaterfallSlots,
+  treemap: TreemapSlots,
+  boxplot: BoxplotSlots,
+  candlestick: CandlestickSlots,
+  gauge: GaugeSlots,
+  radar: ProfileSlots,
+  parallel: ProfileSlots,
+  sunburst: LevelSlots,
+  tree: LevelSlots,
+  sankey: LevelSlots,
+  calendar: CalendarSlots,
+  themeRiver: RiverSlots,
+  map: MapSlots,
+} satisfies Record<ChartFamily, ComponentType<OptionsPageProps>>;
 
 function CartesianData({ chart, shape, onChange }: OptionsPageProps) {
   const messages = useViewMessages();

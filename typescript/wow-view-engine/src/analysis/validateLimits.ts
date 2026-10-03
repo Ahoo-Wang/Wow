@@ -20,7 +20,7 @@ import type {
   RuntimeLimits,
 } from '../model/index.js';
 import { issue } from '../filter/index.js';
-import { limitBounds } from './defaults.js';
+import { limitBounds } from './limitBounds.js';
 
 export function validateLimits(
   config: AnalysisViewConfig,

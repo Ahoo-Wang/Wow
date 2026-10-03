@@ -21,7 +21,7 @@ import {
 } from '../model/index.js';
 import type { CartesianData } from './cartesian.js';
 import { num, OTHER_SERIES_KEY, seriesKey } from './chartRows.js';
-import { limitBounds } from './defaults.js';
+import { limitBounds } from './limitBounds.js';
 import { isAdditiveMetric } from './additive.js';
 
 /**

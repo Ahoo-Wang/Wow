@@ -36,6 +36,7 @@ import { fitChartSlots } from './chartSlots.js';
 import { switchChartType } from './chartSwitch.js';
 import { chartUnfit, fitCharts } from './fitCharts.js';
 import { drillFilter } from './drillFilter.js';
+import { familyRules } from './familyRules.js';
 import { aliasOf, groupFacts, groupOfType } from './defaults.js';
 import { bucketRange } from './buckets.js';
 
@@ -462,13 +463,7 @@ function readsValuesOf(
   config: AnalysisViewConfig,
   group: AnalysisGroup,
 ): boolean {
-  const { chart } = config;
-  const bound =
-    chart.type === 'map'
-      ? chart.map?.region
-      : chart.type === 'funnel' && chart.funnel?.stages.from === 'group'
-        ? chart.funnel.stages.category
-        : undefined;
+  const bound = familyRules(config.chart.type)?.boundTo(config.chart);
   if (bound === undefined) return false;
   const field = config.groups.find(entry => entry.alias === bound)?.field;
   return field !== group.field;

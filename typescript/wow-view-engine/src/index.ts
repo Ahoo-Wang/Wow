@@ -607,7 +607,8 @@ export {
   withStageOrder,
   withStagesFrom,
 } from './analysis/chartOptions.js';
-export { comboAxis, comboMark, fitChartSlots } from './analysis/chartSlots.js';
+export { fitChartSlots } from './analysis/chartSlots.js';
+export { comboAxis, comboMark } from './analysis/familySlots.js';
 export { leadMetric, switchChartType } from './analysis/chartSwitch.js';
 export {
   analysisProbeLimit,
@@ -616,7 +617,6 @@ export {
   compileAnalysisTotals,
 } from './analysis/compile.js';
 export {
-  type AnalysisLimitBounds,
   DEFAULT_MISSING_KEY,
   DEFAULT_PERCENTILE,
   type GroupFacts,
@@ -628,12 +628,15 @@ export {
   groupFacts,
   groupOfType,
   groupableFields,
-  limitBounds,
   metricOfSummary,
   metricWithCondition,
   summaryChoices,
   summaryOf,
 } from './analysis/defaults.js';
+export {
+  type AnalysisLimitBounds,
+  limitBounds,
+} from './analysis/limitBounds.js';
 export {
   type BucketRange,
   bucketRange,
