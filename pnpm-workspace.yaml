@@ -88,7 +88,7 @@ catalog:
   react-router: ^8.4.0
   react-syntax-highlighter: ^16.1.1
   '@rolldown/plugin-babel': ^0.2.4
-  shadcn: ^4.21.0
+  shadcn: ^4.21.1
   storybook: ^10.6.1
   '@storybook/addon-a11y': ^10.6.1
   '@storybook/addon-docs': ^10.6.1
