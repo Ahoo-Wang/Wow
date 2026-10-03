@@ -53,9 +53,15 @@ export function stubFetch(respond: Responder = () => jsonResponse({})) {
   return { requests, fetchMock };
 }
 
-/** A fetcher on {@link BASE_URL} whose requests go to the stubbed `fetch`. */
+/**
+ * A fetcher on {@link BASE_URL} whose requests go to the stubbed `fetch`.
+ *
+ * It sends no default headers, so what the tests record is Wow's own wire:
+ * fetcher 5 adds `Content-Type: application/json` to every request by
+ * default, fetcher 6 only to a request with a body.
+ */
 export function testFetcher(): Fetcher {
-  return new Fetcher({ baseURL: BASE_URL });
+  return new Fetcher({ baseURL: BASE_URL, headers: {} });
 }
 
 export function jsonResponse(data: unknown, status = 200): Response {

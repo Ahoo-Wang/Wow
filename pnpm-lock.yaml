@@ -598,9 +598,6 @@ importers:
         specifier: workspace:*
         version: link:../wow-client
     devDependencies:
-      '@ahoo-wang/fetcher-react':
-        specifier: 'catalog:'
-        version: 5.1.5(@ahoo-wang/fetcher-cosec@5.1.5(@ahoo-wang/fetcher-eventbus@5.0.0(@ahoo-wang/fetcher@5.1.5))(@ahoo-wang/fetcher-storage@5.0.0(@ahoo-wang/fetcher-eventbus@5.0.0(@ahoo-wang/fetcher@5.1.5)))(@ahoo-wang/fetcher@5.1.5))(@ahoo-wang/fetcher-eventbus@5.0.0(@ahoo-wang/fetcher@5.1.5))(@ahoo-wang/fetcher-eventstream@5.1.5(@ahoo-wang/fetcher@5.1.5))(@ahoo-wang/fetcher-storage@5.0.0(@ahoo-wang/fetcher-eventbus@5.0.0(@ahoo-wang/fetcher@5.1.5)))(@ahoo-wang/fetcher@5.1.5)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       '@ahoo-wang/wow-generator':
         specifier: workspace:*
         version: link:../wow-generator
@@ -682,9 +679,6 @@ importers:
       '@ahoo-wang/fetcher-eventstream':
         specifier: 'catalog:'
         version: 5.1.5(@ahoo-wang/fetcher@5.1.5)
-      '@ahoo-wang/fetcher-react':
-        specifier: 'catalog:'
-        version: 5.1.5(@ahoo-wang/fetcher-cosec@5.1.5(@ahoo-wang/fetcher-eventbus@5.0.0(@ahoo-wang/fetcher@5.1.5))(@ahoo-wang/fetcher-storage@5.0.0(@ahoo-wang/fetcher-eventbus@5.0.0(@ahoo-wang/fetcher@5.1.5)))(@ahoo-wang/fetcher@5.1.5))(@ahoo-wang/fetcher-eventbus@5.0.0(@ahoo-wang/fetcher@5.1.5))(@ahoo-wang/fetcher-eventstream@5.1.5(@ahoo-wang/fetcher@5.1.5))(@ahoo-wang/fetcher-storage@5.0.0(@ahoo-wang/fetcher-eventbus@5.0.0(@ahoo-wang/fetcher@5.1.5)))(@ahoo-wang/fetcher@5.1.5)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       '@ahoo-wang/wow-client':
         specifier: workspace:*
         version: link:../wow-client
