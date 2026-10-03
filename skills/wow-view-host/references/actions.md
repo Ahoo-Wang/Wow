@@ -10,7 +10,7 @@ A command on a record is declared, not drawn. The host says **what**: which comm
 | Which one is pressed most? | The next step of the queue (ship a paid order, retry a failure). At most one per resource. | `primary: true` |
 | When is it available? | The aggregate's own rule, read from the record's state: the same condition the command handler checks. Do not invent a stricter one; the server keeps the last word. | `available: (row, { now, input }) => true \| reason` |
 | What does a refusal say? | Why not, in the audience's words, and what to do instead where there is something (「只有已付款的订单能发货」). Never a code or a constant. | a `text(key)` reason |
-| Does it read fields the view may not show? | The rule reads state fields; a page fetches only the columns shown. | the definition's `record.rowFields` (ask `wow-view-definition`) |
+| Does it read fields the view may not show? | The rule reads state fields; a row carries only the shown columns, the row key, card fields and the fields sorts and summaries read. | the definition's `record.rowFields` (ask `wow-view-definition`) |
 | Does availability change with time alone? | A hold that expires, a timeout passing. | `changesAt: (row, { now }) => ms \| null`; the engine asks again then, keep no timer |
 | May this person do it at all? | A role the host knows. | `hidden: row => …` (absent), as against `available` (disabled with why) |
 | Does it lose something? | Cancelling, refunding, deleting, forcing past a limit: what is lost does not come back. | `tone: 'danger'` and `confirm: { title, body }` saying the consequence; `ask` left out (`'always'`), so one record is asked too |
