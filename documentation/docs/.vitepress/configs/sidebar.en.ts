@@ -38,6 +38,7 @@ const viewEngineGuides: DefaultTheme.SidebarItem = {
     items: [
         {text: 'Theming', link: 'view-engine-theming'},
         {text: 'Accessibility', link: 'view-engine-accessibility'},
+        {text: 'Where Views Live', link: 'view-engine-storage'},
     ],
 }
 
@@ -316,6 +317,7 @@ export const sidebarEn: DefaultTheme.Sidebar = {
                 {text: 'API Client', link: 'apiclient'},
                 {text: 'Spring-Boot-Starter', link: 'spring-boot-starter'},
                 {text: 'Compatibility Test Suite', link: 'tck'},
+                {text: 'View Store', link: 'view-store'},
             ],
         },
         {

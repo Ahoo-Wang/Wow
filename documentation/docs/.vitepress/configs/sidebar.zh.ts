@@ -37,6 +37,7 @@ const viewEngineGuides: DefaultTheme.SidebarItem = {
     items: [
         {text: '主题', link: 'view-engine-theming'},
         {text: '可访问性', link: 'view-engine-accessibility'},
+        {text: '视图存在哪里', link: 'view-engine-storage'},
     ],
 }
 
@@ -315,6 +316,7 @@ export const sidebarZh: DefaultTheme.Sidebar = {
                 {text: 'API 客户端', link: 'apiclient'},
                 {text: 'Spring-Boot-Starter', link: 'spring-boot-starter'},
                 {text: '兼容性测试套件', link: 'tck'},
+                {text: '视图存储', link: 'view-store'},
             ],
         },
         {
