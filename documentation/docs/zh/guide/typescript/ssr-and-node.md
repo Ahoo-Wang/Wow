@@ -78,6 +78,8 @@ export async function countActive<S>(snapshots: SnapshotQueryClient<S>, signal: 
 export { DataWorkbench, EmbeddedView } from '@ahoo-wang/wow-view-engine/ui';
 ```
 
+- **Client Component 仍会在服务端渲染**出首屏。在服务端，工作台或嵌入组件画出的是打开中的状态：骨架屏，以及状态提示“正在打开视图”（仪表盘为“正在打开仪表盘”）。它不向数据源或视图存储发出任何请求：视图在 effect 里打开，而服务端不运行 effect。浏览器对这份标记做 hydration，随后才打开视图。Wow 9.2.0 做不到这一点：它在服务端渲染时抛出 "Missing getServerSnapshot"；之后的版本渲染出打开中的状态。
+
 - 在浏览器里发请求的 Client Component 使用浏览器端的 Fetcher 及其 CoSec 配置，见[认证与拦截器](./authentication.md)。这些模块级实例只在客户端代码里创建，服务端的打包产物就不会在用户之间共享它们。
 
 ## 延伸阅读

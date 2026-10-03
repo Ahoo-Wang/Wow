@@ -60,8 +60,18 @@ class IntersectionObserverStub {
 
 const globals = globalThis as Record<string, unknown>;
 
-globals.ResizeObserver ??= ResizeObserverStub;
-globals.IntersectionObserver ??= IntersectionObserverStub;
+/**
+ * Whether this file runs in jsdom. A suite that runs as a server does
+ * (`@vitest-environment node`, `serverRender.test.tsx`) gets none of the
+ * browser stand-ins below and no class check, since it has no document: what
+ * it proves is that the engine renders without them.
+ */
+const inBrowser = typeof document !== 'undefined';
+
+if (inBrowser) {
+  globals.ResizeObserver ??= ResizeObserverStub;
+  globals.IntersectionObserver ??= IntersectionObserverStub;
+}
 
 /**
  * jsdom has no `matchMedia`. The suites run as a reader who asked for
@@ -70,17 +80,18 @@ globals.IntersectionObserver ??= IntersectionObserverStub;
  * stretches past any timeout — which is what made the value-label test fail
  * one run in several. A suite about the preference itself stubs its own.
  */
-globals.matchMedia ??= (query: string): MediaQueryList =>
-  ({
-    matches: query.includes('prefers-reduced-motion: reduce'),
-    media: query,
-    onchange: null,
-    addEventListener: () => {},
-    removeEventListener: () => {},
-    addListener: () => {},
-    removeListener: () => {},
-    dispatchEvent: () => false,
-  }) as MediaQueryList;
+if (inBrowser)
+  globals.matchMedia ??= (query: string): MediaQueryList =>
+    ({
+      matches: query.includes('prefers-reduced-motion: reduce'),
+      media: query,
+      onchange: null,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+      addListener: () => {},
+      removeListener: () => {},
+      dispatchEvent: () => false,
+    }) as MediaQueryList;
 
 /**
  * jsdom has a `<canvas>` but no drawing context, and says so on the console
@@ -88,8 +99,9 @@ globals.matchMedia ??= (query: string): MediaQueryList =>
  * estimates the width when told there is no context, so it is told that
  * quietly — the estimate is what every jsdom chart is laid out with.
  */
-HTMLCanvasElement.prototype.getContext = (() =>
-  null) as typeof HTMLCanvasElement.prototype.getContext;
+if (inBrowser)
+  HTMLCanvasElement.prototype.getContext = (() =>
+    null) as typeof HTMLCanvasElement.prototype.getContext;
 
 /**
  * The chart chunk is loaded on a chart's first use (`charts/load.ts`), a
@@ -161,10 +173,11 @@ function recordAll(records: readonly MutationRecord[]): void {
   }
 }
 
-const classes = new MutationObserver(recordAll);
+const classes = inBrowser ? new MutationObserver(recordAll) : null;
 
 beforeEach(() => {
   seen.clear();
+  if (!classes) return;
   classes.observe(document, {
     subtree: true,
     childList: true,
@@ -174,6 +187,7 @@ beforeEach(() => {
 });
 
 afterEach(async () => {
+  if (!classes) return;
   recordAll(classes.takeRecords());
   classes.disconnect();
   for (const { token } of KNOWN_MISSES) seen.delete(token);

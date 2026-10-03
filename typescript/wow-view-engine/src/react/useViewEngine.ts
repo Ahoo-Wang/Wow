@@ -75,6 +75,9 @@ export function useViewRuntime<R extends ViewRuntimeStore<unknown>>(
     () => (runtime?.getSnapshot() ?? null) as SnapshotOf<R> | null,
     [runtime],
   );
+  // The server reads the same snapshot: a runtime's state is plain data,
+  // the same wherever it is read, and a runtime opened in an effect is null
+  // on the server and on the first client frame alike.
   return useSyncExternalStore(subscribe, snapshot, snapshot);
 }
 
@@ -277,23 +280,37 @@ export function useOpenView(
   // from there rather than caught from the injection above: a scope refused
   // as the view opened went in at construction, where no caller was holding
   // a return value to look at.
+  //
+  // The server reads the same getter (React requires one there): a view
+  // opens in an effect, which no server runs, so `runtime` is null on the
+  // server and on the first client frame alike, and both answer `NO_ISSUES`
+  // — the markup hydrates as it was sent.
+  const refusedScope = useCallback(
+    () => runtime?.refusedScope ?? NO_ISSUES,
+    [runtime],
+  );
   const scopeIssues = useSyncExternalStore(
     useCallback(
       (listener: () => void) => runtime?.subscribe(listener) ?? NO_OP,
       [runtime],
     ),
-    useCallback(() => runtime?.refusedScope ?? NO_ISSUES, [runtime]),
+    refusedScope,
+    refusedScope,
   );
 
   // A runtime is disposed without a notification — `dispose` drops its
   // listeners — so the subscription alone would never fire. The snapshot is
   // read on every render as well, which is where the disposal is seen.
+  // The server reads the same getter, for the reason above: no runtime there
+  // or on the first client frame, so nothing is disposed on either side.
+  const isDisposed = useCallback(() => runtime?.disposed === true, [runtime]);
   const disposed = useSyncExternalStore(
     useCallback(
       (listener: () => void) => runtime?.subscribe(listener) ?? NO_OP,
       [runtime],
     ),
-    useCallback(() => runtime?.disposed === true, [runtime]),
+    isDisposed,
+    isDisposed,
   );
   // Adjusted during render, as state derived from a value that changed: React
   // re-renders at once with the new attempt and the effect above reopens.

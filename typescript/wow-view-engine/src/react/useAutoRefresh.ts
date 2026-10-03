@@ -273,6 +273,8 @@ export function useRefreshCountdown(refresh: RefreshController): number | null {
     const tick = setInterval(() => ticker.set(remaining()), TICK_MS);
     return () => clearInterval(tick);
   }, [dueAt, remaining, ticker]);
+  // The server reads the same value: the store holds what the first render
+  // computed, and only the effect above, which no server runs, ticks it.
   return useSyncExternalStore(ticker.subscribe, ticker.get, ticker.get);
 }
 
