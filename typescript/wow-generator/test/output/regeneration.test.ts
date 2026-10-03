@@ -112,7 +112,7 @@ function regenerationFixture() {
 function namespaceSpec(namespace: string): OpenAPI {
   return {
     openapi: '3.0.4',
-    info: {},
+    info: { title: 'Test', version: '1' },
     paths: {
       '/item': {
         get: {
@@ -120,6 +120,7 @@ function namespaceSpec(namespace: string): OpenAPI {
           operationId: 'getItem',
           responses: {
             '200': {
+              description: 'OK',
               content: {
                 'application/json': {
                   schema: { $ref: `#/components/schemas/${namespace}.User` },
