@@ -17,10 +17,8 @@ import {
   seriesMark,
   valueLabelsOn,
   type CartesianData,
-  type DerivedLine,
   type PlacedLine,
 } from '../../analysis/index.js';
-import { isRunning } from '../../analysis/derived.js';
 import type { ChartSpec } from '../../model/index.js';
 import { logScaleFits } from '../../analysis/logScale.js';
 import { allWhole, axisId, categoryTick, formatShare } from './axis.js';
@@ -36,10 +34,15 @@ import type { MarkWords } from './markWords.js';
 import { measureText } from './measure.js';
 import { sharedScales, type NiceScale } from './scale.js';
 import {
+  derivedLines,
   drawnSeries,
   peaksOf,
+  reachOf,
   stackSums,
+  stackTotals,
   withoutHidden,
+  type CartesianBands,
+  type DrawnDerived,
   type DrawnSeries,
 } from './cartesianSeries.js';
 
@@ -381,10 +384,128 @@ export function stackPeaksFound(
   );
 }
 
-/** A derived line as drawn: the kernel's, its name and its axis. */
-interface DrawnDerived extends DerivedLine {
-  name: string;
-  side: Side;
+/**
+ * The reference lines where the kernel placed them: a statistic at its
+ * number. Only a constant is the analyst's number, and only it may decide
+ * that an axis steps in whole numbers.
+ * Data shaped elsewhere than `shapeChart` carries none: its constant lines
+ * are the spec's as written, a statistic having no number to stand at.
+ */
+function placedLines(
+  data: CartesianData,
+  spec: ChartSpec | undefined,
+): PlacedLine[] {
+  return (
+    data.references ??
+    (spec?.cartesian?.referenceLines ?? []).flatMap(line =>
+      line.statistic === undefined && typeof line.value === 'number'
+        ? [{ ...line, value: line.value }]
+        : [],
+    )
+  );
+}
+
+/**
+ * The value labels written past the marks' ends: each labelled series' that
+ * is not a stacked bar or written only at its peaks, and the stacks' totals.
+ */
+function outerTextsOf(
+  {
+    data,
+    series,
+    labelled,
+    stacked,
+    peaksOnly,
+    drawnAt,
+    filledAt,
+    drawnText,
+  }: Pick<
+    CartesianPlan,
+    | 'data'
+    | 'series'
+    | 'labelled'
+    | 'stacked'
+    | 'peaksOnly'
+    | 'drawnAt'
+    | 'filledAt'
+    | 'drawnText'
+  >,
+  totals: CartesianPlan['totals'],
+): string[] {
+  return [
+    ...series
+      // A stacked bar writes its part inside its segment, and a long row
+      // of bars only its peak and trough, which their marks write.
+      .filter(
+        entry => labelled(entry) && !(entry.kind === 'bar' && stacked(entry)),
+      )
+      .filter(entry => !peaksOnly(entry))
+      .flatMap(entry =>
+        data.points.map((_point, index) => {
+          const value = drawnAt(entry, index);
+          return value === null || filledAt(entry, index)
+            ? ''
+            : drawnText(entry, value);
+        }),
+      ),
+    ...totals.flatMap(total => total.texts),
+  ];
+}
+
+/**
+ * A category's tick: the short one given for it, the first where a name
+ * repeats, else the name itself cut to a tick (`categoryTick`).
+ */
+function tickNamer(
+  names: readonly string[],
+  ticks: CartesianContext['ticks'],
+): (name: string) => string {
+  const shortTick = new Map<string, string>();
+  names.forEach((name, index) => {
+    const short = ticks?.[index];
+    if (short !== undefined && !shortTick.has(name)) shortTick.set(name, short);
+  });
+  return (name: string) => shortTick.get(name) ?? categoryTick(name);
+}
+
+/** The value axes drawn: the left, and the right where anything stands on it. */
+function sidesOf(
+  series: readonly DrawnSeries[],
+  lines: readonly PlacedLine[],
+  derived: readonly DrawnDerived[],
+  bands: CartesianBands,
+): Side[] {
+  const hasRight =
+    series.some(entry => entry.side === 'right') ||
+    lines.some(line => axisId(line.axis) === 'right') ||
+    derived.some(line => line.side === 'right') ||
+    bands.some(band => axisId(band.axis) === 'right');
+  return hasRight ? ['left', 'right'] : ['left'];
+}
+
+/** The series of each stack, by the stack's name, in the series' order. */
+function stacksOf(
+  series: readonly DrawnSeries[],
+  stackOf: (entry: DrawnSeries) => string | undefined,
+): Map<string, DrawnSeries[]> {
+  const stacks = new Map<string, DrawnSeries[]>();
+  for (const entry of series) {
+    const stack = stackOf(entry);
+    if (stack !== undefined)
+      stacks.set(stack, [...(stacks.get(stack) ?? []), entry]);
+  }
+  return stacks;
+}
+
+/** The scales the chart owns, each under the side it was worked out for. */
+function bySide(
+  sides: readonly Side[],
+  owned: readonly NiceScale[],
+): Partial<Record<Side, NiceScale>> {
+  const scales: Partial<Record<Side, NiceScale>> = {};
+  for (const [index, side] of sides.entries())
+    if (owned[index]) scales[side] = owned[index];
+  return scales;
 }
 
 export function cartesianPlan(
@@ -403,67 +524,22 @@ export function cartesianPlan(
     hidden && hidden.size > 0
       ? legend.filter(entry => !hidden.has(entry.key))
       : legend;
-  // The reference lines where the kernel placed them: a statistic at its
-  // number. Only a constant is the analyst's number, and only it may decide
-  // that an axis steps in whole numbers.
-  // Data shaped elsewhere than `shapeChart` carries none: its constant lines
-  // are the spec's as written, a statistic having no number to stand at.
-  const lines: PlacedLine[] =
-    data.references ??
-    (cartesian?.referenceLines ?? []).flatMap(line =>
-      line.statistic === undefined && typeof line.value === 'number'
-        ? [{ ...line, value: line.value }]
-        : [],
-    );
-  const bands = cartesian?.referenceBands ?? [];
-  const sideOf = (metric: string) =>
-    legend.find(entry => entry.metric === metric)?.side ?? 'left';
-  // A running total outgrows the numbers it adds up — ninety days of sales
-  // flattened every day's bar to the floor under it — so it takes the other
-  // axis, on a scale of its own, where no series stands there; a running
-  // share is no quantity of the series at all, and takes it the same way,
-  // as a scale of shares (the Pareto line, D38). A trend and a moving
-  // average keep their series' scale: they are read against it.
-  const other = (side: Side): Side => (side === 'left' ? 'right' : 'left');
-  const derivedSide = (line: DerivedLine): Side => {
-    const own = sideOf(line.metric);
-    return isRunning(line.kind) &&
-      !legend.some(entry => entry.side === other(own))
-      ? other(own)
-      : own;
-  };
-  const derivedLegend: DrawnDerived[] = (data.derived ?? []).map(line => ({
-    ...line,
-    side: derivedSide(line),
-    name:
-      context.words?.derived(
-        line,
-        series.length + (hidden?.size ?? 0) > 1
-          ? legend.find(entry => entry.key === line.metric)?.name
-          : undefined,
-      ) ?? line.metric,
-  }));
-  const derived = derivedLegend.filter(
-    line =>
-      !hidden?.has(line.key) && series.some(entry => entry.key === line.metric),
+  const lines = placedLines(data, spec);
+  const bands: CartesianBands = cartesian?.referenceBands ?? [];
+  const { derivedLegend, derived } = derivedLines(
+    data,
+    legend,
+    series,
+    hidden,
+    context.words,
   );
-  const hasRight =
-    series.some(entry => entry.side === 'right') ||
-    lines.some(line => axisId(line.axis) === 'right') ||
-    derived.some(line => line.side === 'right') ||
-    bands.some(band => axisId(band.axis) === 'right');
-  const sides: Side[] = hasRight ? ['left', 'right'] : ['left'];
+  const sides = sidesOf(series, lines, derived, bands);
   const {
     stackOf,
     percent,
     shareAt: shareOf,
   } = stackPlan(withoutHidden(data, hidden), spec);
-  const stacks = new Map<string, DrawnSeries[]>();
-  for (const entry of series) {
-    const stack = stackOf(entry);
-    if (stack !== undefined)
-      stacks.set(stack, [...(stacks.get(stack) ?? []), entry]);
-  }
+  const stacks = stacksOf(series, stackOf);
   const stacked = (entry: DrawnSeries) =>
     (stacks.get(stackOf(entry) ?? '')?.length ?? 0) > 1;
   const asShares = (entry: DrawnSeries) =>
@@ -517,54 +593,16 @@ export function cartesianPlan(
       )
       .map(line => line.value),
   ];
-  /**
-   * The highest and the lowest a mark or a reference line reaches on one
-   * axis: a stack reaches the sum of its parts on either side of zero,
-   * anything else its value. The axis starts at zero, so neither is ever
-   * past it the wrong way. A line past the marks is a threshold the reader
-   * set, and the axis stretches to it rather than letting it fall off.
-   */
-  const reachOn = (side: Side, withLines = true) => {
-    let high = 0;
-    let low = 0;
-    for (const [index] of data.points.entries()) {
-      const sums = new Map<string | undefined, { up: number; down: number }>();
-      for (const entry of series.filter(one => one.side === side)) {
-        const value = drawnAt(entry, index);
-        if (typeof value !== 'number') continue;
-        const stack = stackOf(entry);
-        if (stack === undefined) {
-          high = Math.max(high, value);
-          low = Math.min(low, value);
-          continue;
-        }
-        const sum = sums.get(stack) ?? { up: 0, down: 0 };
-        if (value > 0) sum.up += value;
-        else sum.down += value;
-        sums.set(stack, sum);
-      }
-      for (const { up, down } of sums.values()) {
-        high = Math.max(high, up);
-        low = Math.min(low, down);
-      }
-    }
-    if (!withLines) return { high, low };
-    const over = [
-      ...lines.filter(one => axisId(one.axis) === side).map(one => one.value),
-      ...bands
-        .filter(band => axisId(band.axis) === side)
-        .flatMap(band => [band.from, band.to]),
-      ...derived
-        .filter(line => line.side === side)
-        .flatMap(line => line.values)
-        .filter((value): value is number => value !== null),
-    ].filter(Number.isFinite);
-    for (const value of over) {
-      high = Math.max(high, value);
-      low = Math.min(low, value);
-    }
-    return { high, low };
-  };
+  const reachOn = (side: Side, withLines = true) =>
+    reachOf(side, withLines, {
+      data,
+      series,
+      drawnAt,
+      stackOf,
+      lines,
+      bands,
+      derived,
+    });
   const wholeOn = (side: Side) => !sharesOn(side) && allWhole(valuesOn(side));
   const logAsked = (side: Side) => cartesian?.yAxis?.[side]?.scale === 'log';
   const logOn = (side: Side) => logAsked(side) && logScaleFits(valuesOn(side));
@@ -584,9 +622,7 @@ export function cartesianPlan(
             : { ...reachOn(side), whole: wholeOn(side) },
         ),
       );
-  const scales: Partial<Record<Side, NiceScale>> = {};
-  for (const [index, side] of sides.entries())
-    if (owned[index]) scales[side] = owned[index];
+  const scales = bySide(sides, owned);
 
   const span = (side: Side) => {
     const scale = scales[side];
@@ -626,57 +662,30 @@ export function cartesianPlan(
   // only the highest and the lowest are written, and say which they are.
   const totalPeaksOnly =
     !horizontal && peaksOnlyLabels(spec, data.points.length);
-  const totals = [...stacks.values()]
-    .map(members => members.filter(member => member.kind === 'bar'))
-    .filter(members => totalsOn(members))
-    .map(members => {
-      const sums = stackSums(members, data.points);
-      const every = sums.map(sum =>
-        sum === null ? '' : label(members[0].metric, sum, true),
-      );
-      // Totals all equal, or one stack among window-filled ones, have no
-      // highest and lowest to tell apart: each is written, as bars are.
-      const peaks = totalPeaksOnly ? peaksOf(sums) : undefined;
-      if (peaks === undefined)
-        return { members, texts: every, every, peaksOnly: false };
-      const words = context.words;
-      const said = (index: number, word: string | undefined) =>
-        word === undefined ? every[index] : `${word} ${every[index]}`;
-      const texts = every.map((_text, index) =>
-        index === peaks.high
-          ? said(index, words?.high)
-          : index === peaks.low
-            ? said(index, words?.low)
-            : '',
-      );
-      return { members, texts, every, peaksOnly: true };
-    });
+  const totals = stackTotals(
+    [...stacks.values()],
+    totalsOn,
+    totalPeaksOnly,
+    data,
+    label,
+    context.words,
+  );
 
-  const outerTexts = [
-    ...series
-      // A stacked bar writes its part inside its segment, and a long row
-      // of bars only its peak and trough, which their marks write.
-      .filter(
-        entry => labelled(entry) && !(entry.kind === 'bar' && stacked(entry)),
-      )
-      .filter(entry => !peaksOnly(entry))
-      .flatMap(entry =>
-        data.points.map((_point, index) => {
-          const value = drawnAt(entry, index);
-          return value === null || filledAt(entry, index)
-            ? ''
-            : drawnText(entry, value);
-        }),
-      ),
-    ...totals.flatMap(total => total.texts),
-  ];
+  const outerTexts = outerTextsOf(
+    {
+      data,
+      series,
+      labelled,
+      stacked,
+      peaksOnly,
+      drawnAt,
+      filledAt,
+      drawnText,
+    },
+    totals,
+  );
 
-  const shortTick = new Map<string, string>();
-  names.forEach((name, index) => {
-    const short = ticks?.[index];
-    if (short !== undefined && !shortTick.has(name)) shortTick.set(name, short);
-  });
-  const tickOf = (name: string) => shortTick.get(name) ?? categoryTick(name);
+  const tickOf = tickNamer(names, ticks);
   const extremesOf = (entry: DrawnSeries) =>
     (cartesian?.extremes !== true && !peaksOnly(entry)) ||
     stacked(entry) ||

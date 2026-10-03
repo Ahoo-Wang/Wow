@@ -11,10 +11,17 @@
  * limitations under the License.
  */
 
-import { seriesMark, type CartesianData } from '../../analysis/index.js';
-import type { CartesianSeries } from '../../model/index.js';
+import {
+  seriesMark,
+  type CartesianData,
+  type DerivedLine,
+} from '../../analysis/index.js';
+import { isRunning } from '../../analysis/derived.js';
+import type { CartesianSeries, ChartSpec } from '../../model/index.js';
 import { axisId } from './axis.js';
-import type { CartesianContext } from './cartesianPlan.js';
+import type { CartesianContext, CartesianPlan } from './cartesianPlan.js';
+import type { ValueLabel } from './family.js';
+import type { MarkWords } from './markWords.js';
 import { color, heldTones, OTHER_COLOR, pinnedColor } from './palette.js';
 
 /**
@@ -35,6 +42,9 @@ export function withoutHidden(
   );
   return { ...data, series, ...(data.derived ? { derived } : {}) };
 }
+
+/** A side of the plot, and so of a value axis. */
+type Side = 'left' | 'right';
 
 /** One series as drawn: the kernel's, and what the spec says about it. */
 export interface DrawnSeries {
@@ -144,4 +154,163 @@ export function peaksOf(
     if (low === -1 || value < (values[low] ?? 0)) low = index;
   });
   return high === -1 || high === low ? undefined : { high, low };
+}
+
+/** The target bands a cartesian spec draws. */
+export type CartesianBands = NonNullable<
+  NonNullable<ChartSpec['cartesian']>['referenceBands']
+>;
+
+/**
+ * The highest and the lowest a mark or a reference line reaches on one
+ * axis: a stack reaches the sum of its parts on either side of zero,
+ * anything else its value. The axis starts at zero, so neither is ever
+ * past it the wrong way. A line past the marks is a threshold the reader
+ * set, and the axis stretches to it rather than letting it fall off.
+ */
+export function reachOf(
+  side: Side,
+  withLines: boolean,
+  {
+    data,
+    series,
+    drawnAt,
+    stackOf,
+    lines,
+    bands,
+    derived,
+  }: Pick<
+    CartesianPlan,
+    'data' | 'series' | 'drawnAt' | 'stackOf' | 'lines' | 'derived'
+  > & { bands: CartesianBands },
+): { high: number; low: number } {
+  let high = 0;
+  let low = 0;
+  for (const [index] of data.points.entries()) {
+    const sums = new Map<string | undefined, { up: number; down: number }>();
+    for (const entry of series.filter(one => one.side === side)) {
+      const value = drawnAt(entry, index);
+      if (typeof value !== 'number') continue;
+      const stack = stackOf(entry);
+      if (stack === undefined) {
+        high = Math.max(high, value);
+        low = Math.min(low, value);
+        continue;
+      }
+      const sum = sums.get(stack) ?? { up: 0, down: 0 };
+      if (value > 0) sum.up += value;
+      else sum.down += value;
+      sums.set(stack, sum);
+    }
+    for (const { up, down } of sums.values()) {
+      high = Math.max(high, up);
+      low = Math.min(low, down);
+    }
+  }
+  if (!withLines) return { high, low };
+  const over = [
+    ...lines.filter(one => axisId(one.axis) === side).map(one => one.value),
+    ...bands
+      .filter(band => axisId(band.axis) === side)
+      .flatMap(band => [band.from, band.to]),
+    ...derived
+      .filter(line => line.side === side)
+      .flatMap(line => line.values)
+      .filter((value): value is number => value !== null),
+  ].filter(Number.isFinite);
+  for (const value of over) {
+    high = Math.max(high, value);
+    low = Math.min(low, value);
+  }
+  return { high, low };
+}
+
+/**
+ * The total over each stack of bars that writes one, every total or, where
+ * only the peaks are written, the highest and the lowest with their words.
+ */
+export function stackTotals(
+  stacks: DrawnSeries[][],
+  totalsOn: (members: readonly DrawnSeries[]) => boolean,
+  totalPeaksOnly: boolean,
+  data: CartesianData,
+  label: ValueLabel,
+  words: MarkWords | undefined,
+): CartesianPlan['totals'] {
+  return stacks
+    .map(members => members.filter(member => member.kind === 'bar'))
+    .filter(members => totalsOn(members))
+    .map(members => {
+      const sums = stackSums(members, data.points);
+      const every = sums.map(sum =>
+        sum === null ? '' : label(members[0].metric, sum, true),
+      );
+      // Totals all equal, or one stack among window-filled ones, have no
+      // highest and lowest to tell apart: each is written, as bars are.
+      const peaks = totalPeaksOnly ? peaksOf(sums) : undefined;
+      if (peaks === undefined)
+        return { members, texts: every, every, peaksOnly: false };
+      const said = (index: number, word: string | undefined) =>
+        word === undefined ? every[index] : `${word} ${every[index]}`;
+      const texts = every.map((_text, index) =>
+        index === peaks.high
+          ? said(index, words?.high)
+          : index === peaks.low
+            ? said(index, words?.low)
+            : '',
+      );
+      return { members, texts, every, peaksOnly: true };
+    });
+}
+
+/** A derived line as drawn: the kernel's, its name and its axis. */
+export interface DrawnDerived extends DerivedLine {
+  name: string;
+  side: Side;
+}
+
+/**
+ * The derived lines as drawn, each named and on its axis: every one, as the
+ * legend lists them, and the ones drawn — not switched off, and of a series
+ * on screen.
+ */
+export function derivedLines(
+  data: CartesianData,
+  legend: DrawnSeries[],
+  series: DrawnSeries[],
+  hidden: ReadonlySet<string> | undefined,
+  words: MarkWords | undefined,
+): { derivedLegend: DrawnDerived[]; derived: DrawnDerived[] } {
+  const sideOf = (metric: string) =>
+    legend.find(entry => entry.metric === metric)?.side ?? 'left';
+  // A running total outgrows the numbers it adds up — ninety days of sales
+  // flattened every day's bar to the floor under it — so it takes the other
+  // axis, on a scale of its own, where no series stands there; a running
+  // share is no quantity of the series at all, and takes it the same way,
+  // as a scale of shares (the Pareto line, D38). A trend and a moving
+  // average keep their series' scale: they are read against it.
+  const other = (side: Side): Side => (side === 'left' ? 'right' : 'left');
+  const derivedSide = (line: DerivedLine): Side => {
+    const own = sideOf(line.metric);
+    return isRunning(line.kind) &&
+      !legend.some(entry => entry.side === other(own))
+      ? other(own)
+      : own;
+  };
+  const derivedLegend: DrawnDerived[] = (data.derived ?? []).map(line => ({
+    ...line,
+    side: derivedSide(line),
+    name:
+      words?.derived(
+        line,
+        series.length + (hidden?.size ?? 0) > 1
+          ? legend.find(entry => entry.key === line.metric)?.name
+          : undefined,
+      ) ?? line.metric,
+  }));
+  const derived = derivedLegend.filter(
+    line =>
+      !hidden?.has(line.key) && series.some(entry => entry.key === line.metric),
+  );
+  return { derivedLegend, derived };
 }

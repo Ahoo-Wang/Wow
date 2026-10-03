@@ -257,47 +257,7 @@ export function ColumnSettings({
   );
 
   const handle = detached?.handle;
-  const opener = (
-    <>
-      {/* The caller's own control, where it gave one: it already says what
-          it opens in words, so it wears neither the icon nor the tooltip
-          that stand in for them. */}
-      {trigger ? (
-        <PopoverTrigger
-          handle={handle}
-          data-control="columns"
-          render={trigger}
-        />
-      ) : (
-        /* A bordered icon button with the word in its name and its tooltip
-           (D12 Ⅳ): the control reports no state, so it carries no text. */
-        <Tooltip>
-          <TooltipTrigger
-            render={
-              // A toolbar item where a toolbar is around it, an ordinary
-              // button anywhere else: the bar owns the roving focus order
-              // and this is one of the stops in it.
-              <ToolbarItem
-                render={
-                  <PopoverTrigger
-                    handle={handle}
-                    data-control="columns"
-                    aria-label={messages.label('label.toolbar.columns')}
-                    render={<Button variant="outline" size="icon-sm" />}
-                  />
-                }
-              />
-            }
-          >
-            <Columns3Icon />
-          </TooltipTrigger>
-          <TooltipContent>
-            {messages.label('label.toolbar.columns')}
-          </TooltipContent>
-        </Tooltip>
-      )}
-    </>
-  );
+  const opener = <ColumnsOpener handle={handle} trigger={trigger} />;
   if (detached?.part === 'trigger') return opener;
 
   return (
@@ -636,4 +596,55 @@ function toggled(
         (entry.field === row.field ? !row.visible : entry.visible),
     )
     .map(entry => entry.field);
+}
+
+/** The control that opens the column settings: the caller's, or the toolbar's. */
+function ColumnsOpener({
+  handle,
+  trigger,
+}: Pick<ColumnSettingsProps, 'trigger'> & {
+  handle: DetachedPopover['handle'] | undefined;
+}) {
+  const messages = useViewMessages();
+  return (
+    <>
+      {/* The caller's own control, where it gave one: it already says what
+          it opens in words, so it wears neither the icon nor the tooltip
+          that stand in for them. */}
+      {trigger ? (
+        <PopoverTrigger
+          handle={handle}
+          data-control="columns"
+          render={trigger}
+        />
+      ) : (
+        /* A bordered icon button with the word in its name and its tooltip
+           (D12 Ⅳ): the control reports no state, so it carries no text. */
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              // A toolbar item where a toolbar is around it, an ordinary
+              // button anywhere else: the bar owns the roving focus order
+              // and this is one of the stops in it.
+              <ToolbarItem
+                render={
+                  <PopoverTrigger
+                    handle={handle}
+                    data-control="columns"
+                    aria-label={messages.label('label.toolbar.columns')}
+                    render={<Button variant="outline" size="icon-sm" />}
+                  />
+                }
+              />
+            }
+          >
+            <Columns3Icon />
+          </TooltipTrigger>
+          <TooltipContent>
+            {messages.label('label.toolbar.columns')}
+          </TooltipContent>
+        </Tooltip>
+      )}
+    </>
+  );
 }

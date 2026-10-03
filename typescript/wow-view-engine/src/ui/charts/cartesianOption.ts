@@ -76,7 +76,7 @@ export function optionOf(
   theme: ChartTheme,
 ): EChartsCoreOption {
   const { data, context, horizontal, series, sides, names } = plan;
-  const { spec, label, column, locale, animate, pickable } = context;
+  const { spec, label, column, locale, animate } = context;
   const cartesian = spec?.cartesian;
   const two = sides.length > 1;
   /**
@@ -215,25 +215,11 @@ export function optionOf(
     horizontal
       ? { xAxisIndex: side === 'right' ? 1 : 0 }
       : { yAxisIndex: side === 'right' ? 1 : 0 };
-  const large = data.points.length > LARGE_FROM;
   const zoom = zoomOption(plan, theme, context.zoomGestures === true);
   const brush = brushOption(plan, theme);
 
-  /**
-   * A value label past a mark's end. A halo of the ground under it keeps it
-   * legible over a gridline or the top of the bar beside it.
-   */
-  const outerLabel = (formatter: (params: never) => string) => ({
-    show: true,
-    position: horizontal ? 'right' : 'top',
-    distance: LABEL_DISTANCE,
-    color: theme.foreground,
-    fontSize: theme.text.labelSize,
-    textBorderColor: theme.ground,
-    textBorderWidth: 2,
-    formatter,
-  });
-  const color = (entry: DrawnSeries) => theme.resolve(entry.color);
+  const outerLabel = (formatter: (params: never) => string) =>
+    outerLabelOf(horizontal, theme, formatter);
   /**
    * How wide a bar may be (`chart-bar-min-width`, `chart-bar-max-width`).
    * A cap, because one group on a wide plot was a single slab the width of
@@ -243,125 +229,10 @@ export function optionOf(
    * slivers in a wide band (the 2026-09-25 visual review).
    */
   const barWidths = barBounds(theme);
-  /** A bar's free end rounded (`chart-bar-radius`), its base square. */
-  const { radius } = theme.bar;
-  const barEnd = horizontal ? [0, radius, radius, 0] : [radius, radius, 0, 0];
 
-  const marks = series.map((entry, index) => {
-    const fill = color(entry);
-    const common = {
-      id: `s${index}`,
-      name: entry.name,
-      ...axisIndex(entry.side),
-      data: data.points.map((_point, at) => plan.drawnAt(entry, at)),
-      stack: plan.stackOf(entry),
-      cursor: pickable ? 'pointer' : 'default',
-    };
-    // A filled-in 0 is drawn and not written (D23, Q14), and neither is a
-    // number the highest or the lowest point's mark writes already — unless
-    // the series writes every value, when its own label carries the word
-    // (`carriedExtremes`).
-    const marked = extremeIndexes(plan, entry);
-    const carried = carriedExtremes(plan, entry);
-    const written = ({
-      value,
-      dataIndex,
-    }: {
-      value: unknown;
-      dataIndex: number;
-    }) =>
-      typeof value !== 'number' || plan.filledAt(entry, dataIndex)
-        ? ''
-        : (carried?.get(dataIndex) ??
-          (marked.has(dataIndex) ? '' : plan.drawnText(entry, value)));
-    if (entry.kind === 'bar') {
-      // Inside its segment when stacked — the total goes over the stack —
-      // in the ink that stands off the segment's own colour, with no halo
-      // to blur it; over the bar's end otherwise.
-      const inside = plan.stacked(entry);
-      const ink = inkOn(theme, fill);
-      const label = inside
-        ? {
-            show: true,
-            position: 'inside',
-            color: ink,
-            fontSize: theme.text.labelSize,
-            formatter: ({ dataIndex }: { dataIndex: number }) =>
-              plan.insideText(entry, dataIndex),
-          }
-        : outerLabel(written);
-      // Past `LARGE_FROM` bars, one path draws them all and no bar is
-      // labelled: a thousand numbers a pixel apart are no reading.
-      if (large)
-        return {
-          ...common,
-          type: 'bar',
-          large: true,
-          largeThreshold: LARGE_FROM,
-          progressive: 0,
-          ...barWidths,
-          itemStyle: { color: fill },
-        };
-      return {
-        ...common,
-        type: 'bar',
-        ...barWidths,
-        itemStyle: { color: fill, borderRadius: barEnd },
-        // The bar under the pointer a step toward the ink, its label as it
-        // was: the library's own hover paled both, and the one bar being
-        // read looked like the one switched off (2026-09-23 audit).
-        emphasis: {
-          itemStyle: { color: emphasized(theme, fill) },
-          label: {
-            color: inside ? inkOn(theme, emphasized(theme, fill)) : label.color,
-          },
-        },
-        // A long row of bars writes its peak and trough as marks, not a
-        // number over each (`peaksOnly`); zoomed in, `cartesianFit` writes
-        // the numbers on screen again.
-        ...(plan.labelled(entry)
-          ? { label: plan.peaksOnly(entry) ? { ...label, show: false } : label }
-          : {}),
-        ...extremeMarks(plan, entry, fill, theme),
-      };
-    }
-    // A line or an area: a dot on each point while there are few enough to
-    // tell apart, a gap where a value is missing rather than a line drawn
-    // through it, and an area filled faintly under its own line.
-    return {
-      ...common,
-      type: 'line',
-      smooth: entry.configured?.smooth === true,
-      symbol: 'circle',
-      symbolSize: 6,
-      showSymbol: data.points.length <= DOTS_UP_TO,
-      // More points than the plot has pixels across are thinned to the ones
-      // that keep the line's shape (largest-triangle); the tooltip and the
-      // reading table still say every point, and a zoom thins no further
-      // than the window needs. A no-op while every point has a pixel.
-      sampling: 'lttb',
-      connectNulls: false,
-      lineStyle: { color: fill, width: theme.line.width },
-      itemStyle: { color: fill },
-      emphasis: {
-        itemStyle: { color: emphasized(theme, fill) },
-        lineStyle: { width: theme.line.width },
-        label: { color: theme.foreground },
-      },
-      ...(entry.kind === 'area'
-        ? { areaStyle: { color: fill, opacity: theme.line.areaOpacity } }
-        : {}),
-      ...(plan.labelled(entry)
-        ? {
-            label: outerLabel(written),
-            // Two lines' numbers at one height are moved apart rather than
-            // one of them dropped: a missing number reads as a missing value.
-            labelLayout: { moveOverlap: 'shiftY' },
-          }
-        : {}),
-      ...extremeMarks(plan, entry, fill, theme),
-    };
-  });
+  const marks = series.map((entry, index) =>
+    markOf(plan, theme, axisIndex, entry, index),
+  );
 
   /**
    * The total over each stack: a bar of nothing on top of it, labelled with
@@ -442,6 +313,159 @@ export function optionOf(
     // reference carriers (`cartesianFit`) — so the period under way comes
     // last, where it shifts none of them.
     series: [...marks, ...totals, ...references, ...derived, ...ongoing],
+  };
+}
+
+/**
+ * A value label past a mark's end. A halo of the ground under it keeps it
+ * legible over a gridline or the top of the bar beside it.
+ */
+function outerLabelOf(
+  horizontal: boolean,
+  theme: ChartTheme,
+  formatter: (params: never) => string,
+) {
+  return {
+    show: true,
+    position: horizontal ? 'right' : 'top',
+    distance: LABEL_DISTANCE,
+    color: theme.foreground,
+    fontSize: theme.text.labelSize,
+    textBorderColor: theme.ground,
+    textBorderWidth: 2,
+    formatter,
+  };
+}
+
+/** One series' marks: its bars, or its line or area, labelled as it asks. */
+function markOf(
+  plan: CartesianPlan,
+  theme: ChartTheme,
+  axisIndex: (side: 'left' | 'right') => object,
+  entry: DrawnSeries,
+  index: number,
+) {
+  const { data, horizontal } = plan;
+  const { pickable } = plan.context;
+  const large = data.points.length > LARGE_FROM;
+  const outerLabel = (formatter: (params: never) => string) =>
+    outerLabelOf(horizontal, theme, formatter);
+  const barWidths = barBounds(theme);
+  /** A bar's free end rounded (`chart-bar-radius`), its base square. */
+  const { radius } = theme.bar;
+  const barEnd = horizontal ? [0, radius, radius, 0] : [radius, radius, 0, 0];
+  const fill = theme.resolve(entry.color);
+  const common = {
+    id: `s${index}`,
+    name: entry.name,
+    ...axisIndex(entry.side),
+    data: data.points.map((_point, at) => plan.drawnAt(entry, at)),
+    stack: plan.stackOf(entry),
+    cursor: pickable ? 'pointer' : 'default',
+  };
+  // A filled-in 0 is drawn and not written (D23, Q14), and neither is a
+  // number the highest or the lowest point's mark writes already — unless
+  // the series writes every value, when its own label carries the word
+  // (`carriedExtremes`).
+  const marked = extremeIndexes(plan, entry);
+  const carried = carriedExtremes(plan, entry);
+  const written = ({
+    value,
+    dataIndex,
+  }: {
+    value: unknown;
+    dataIndex: number;
+  }) =>
+    typeof value !== 'number' || plan.filledAt(entry, dataIndex)
+      ? ''
+      : (carried?.get(dataIndex) ??
+        (marked.has(dataIndex) ? '' : plan.drawnText(entry, value)));
+  if (entry.kind === 'bar') {
+    // Inside its segment when stacked — the total goes over the stack —
+    // in the ink that stands off the segment's own colour, with no halo
+    // to blur it; over the bar's end otherwise.
+    const inside = plan.stacked(entry);
+    const ink = inkOn(theme, fill);
+    const label = inside
+      ? {
+          show: true,
+          position: 'inside',
+          color: ink,
+          fontSize: theme.text.labelSize,
+          formatter: ({ dataIndex }: { dataIndex: number }) =>
+            plan.insideText(entry, dataIndex),
+        }
+      : outerLabel(written);
+    // Past `LARGE_FROM` bars, one path draws them all and no bar is
+    // labelled: a thousand numbers a pixel apart are no reading.
+    if (large)
+      return {
+        ...common,
+        type: 'bar',
+        large: true,
+        largeThreshold: LARGE_FROM,
+        progressive: 0,
+        ...barWidths,
+        itemStyle: { color: fill },
+      };
+    return {
+      ...common,
+      type: 'bar',
+      ...barWidths,
+      itemStyle: { color: fill, borderRadius: barEnd },
+      // The bar under the pointer a step toward the ink, its label as it
+      // was: the library's own hover paled both, and the one bar being
+      // read looked like the one switched off (2026-09-23 audit).
+      emphasis: {
+        itemStyle: { color: emphasized(theme, fill) },
+        label: {
+          color: inside ? inkOn(theme, emphasized(theme, fill)) : label.color,
+        },
+      },
+      // A long row of bars writes its peak and trough as marks, not a
+      // number over each (`peaksOnly`); zoomed in, `cartesianFit` writes
+      // the numbers on screen again.
+      ...(plan.labelled(entry)
+        ? { label: plan.peaksOnly(entry) ? { ...label, show: false } : label }
+        : {}),
+      ...extremeMarks(plan, entry, fill, theme),
+    };
+  }
+  // A line or an area: a dot on each point while there are few enough to
+  // tell apart, a gap where a value is missing rather than a line drawn
+  // through it, and an area filled faintly under its own line.
+  return {
+    ...common,
+    type: 'line',
+    smooth: entry.configured?.smooth === true,
+    symbol: 'circle',
+    symbolSize: 6,
+    showSymbol: data.points.length <= DOTS_UP_TO,
+    // More points than the plot has pixels across are thinned to the ones
+    // that keep the line's shape (largest-triangle); the tooltip and the
+    // reading table still say every point, and a zoom thins no further
+    // than the window needs. A no-op while every point has a pixel.
+    sampling: 'lttb',
+    connectNulls: false,
+    lineStyle: { color: fill, width: theme.line.width },
+    itemStyle: { color: fill },
+    emphasis: {
+      itemStyle: { color: emphasized(theme, fill) },
+      lineStyle: { width: theme.line.width },
+      label: { color: theme.foreground },
+    },
+    ...(entry.kind === 'area'
+      ? { areaStyle: { color: fill, opacity: theme.line.areaOpacity } }
+      : {}),
+    ...(plan.labelled(entry)
+      ? {
+          label: outerLabel(written),
+          // Two lines' numbers at one height are moved apart rather than
+          // one of them dropped: a missing number reads as a missing value.
+          labelLayout: { moveOverlap: 'shiftY' },
+        }
+      : {}),
+    ...extremeMarks(plan, entry, fill, theme),
   };
 }
 

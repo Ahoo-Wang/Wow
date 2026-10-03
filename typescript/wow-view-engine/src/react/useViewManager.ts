@@ -321,6 +321,52 @@ export function useViewManager(
     [audiences, current, definitionId, engine, full, preferencesIntent, run],
   );
 
+  const { retry, abandon, resolveConflict, resubmit, canResubmit } =
+    useRecovery(engine, { run, outcomes, held, record });
+
+  const can = useMemo<ViewManagerAbilities>(
+    () => abilitiesOf(items, permissions),
+    [items, permissions],
+  );
+
+  const states = useMemo(() => projectStates(outcomes), [outcomes]);
+
+  return {
+    rename,
+    changeAudience,
+    delete: remove,
+    publishAsSystem,
+    setDefault,
+    moveTo,
+    placeOf,
+    outcomes: states,
+    retry,
+    abandon,
+    resolveConflict,
+    resubmit,
+    canResubmit,
+    pending,
+    can,
+  };
+}
+
+/**
+ * The recovery actions over the outcomes a command left (`retry`,
+ * `abandon`, `resolveConflict`, `resubmit`), run under the same protocol
+ * as the commands (`useCommandRunner`).
+ */
+function useRecovery(
+  engine: ViewEngine,
+  {
+    run,
+    outcomes,
+    held,
+    record,
+  }: Pick<
+    ReturnType<typeof useCommandRunner>,
+    'run' | 'outcomes' | 'held' | 'record'
+  >,
+) {
   const retry = useCallback(
     (key: string) => {
       const outcome = outcomes.get(key);
@@ -411,28 +457,5 @@ export function useViewManager(
     [outcomes],
   );
 
-  const can = useMemo<ViewManagerAbilities>(
-    () => abilitiesOf(items, permissions),
-    [items, permissions],
-  );
-
-  const states = useMemo(() => projectStates(outcomes), [outcomes]);
-
-  return {
-    rename,
-    changeAudience,
-    delete: remove,
-    publishAsSystem,
-    setDefault,
-    moveTo,
-    placeOf,
-    outcomes: states,
-    retry,
-    abandon,
-    resolveConflict,
-    resubmit,
-    canResubmit,
-    pending,
-    can,
-  };
+  return { retry, abandon, resolveConflict, resubmit, canResubmit };
 }

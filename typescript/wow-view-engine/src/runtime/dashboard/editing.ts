@@ -292,11 +292,7 @@ export function boardEditing(host: EditingHost): BoardEdits {
    */
   const draftFor = () => (host.building() ? host.draft() : null);
   /** One edit, on the draft and the screen alike, noted as one step of `command` about `subject`. */
-  const edit = (
-    command: EditCommand,
-    subject: string | null,
-    change: (config: DashboardViewConfig) => DashboardViewConfig,
-  ) => {
+  const edit: Edit = (command, subject, change) => {
     const draft = draftFor();
     const applied = host.applied();
     if (!draft || !applied) return;
@@ -463,7 +459,24 @@ export function boardEditing(host: EditingHost): BoardEdits {
         null
       );
     },
+    ...filterEditing(host, edit, draftFor),
+  };
+}
 
+/** One edit, on the draft and the screen alike (`boardEditing`). */
+type Edit = (
+  command: EditCommand,
+  subject: string | null,
+  change: (config: DashboardViewConfig) => DashboardViewConfig,
+) => void;
+
+/** The board's filter edits, each one `edit` like the panels' and tabs'. */
+function filterEditing(
+  host: EditingHost,
+  edit: Edit,
+  draftFor: () => DashboardViewConfig | null,
+): DashboardFilterEditing {
+  return {
     addFilter(filter) {
       const draft = draftFor();
       const result = draft && addFilter(draft, filter);
