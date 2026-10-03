@@ -49,7 +49,11 @@ export const ordersDefinition = defineView(ordersDescriptor, {
     'state.amount': { label: text('orders.amount'), summary: ['SUM', 'AVG'] },
     firstEventTime: text('orders.placedAt'),
   },
-  record: { layouts: ['table', 'card'] },
+  record: {
+    layouts: ['table', 'card'],
+    // The actions (step 4) read the status, which 「待发货」's table does not show.
+    rowFields: ['state.status'],
+  },
   // System views: deployed with the definition, read-only for everyone,
   // and the starting points a reader saves their own views from.
   views: [

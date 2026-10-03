@@ -14,7 +14,8 @@
 /**
  * What the theming pages tell a host to write is the contract, and runs
  * (ui/theme.md「登记表：合同只有一个来源」, S6): the theming guide in both languages, the
- * READMEs, the guide and its getting started. Their TypeScript samples
+ * READMEs, the guide, its getting started, and the host and CSP guides.
+ * Their TypeScript samples
  * compile in the documentation package
  * (`documentation/test/typescript-samples.mjs`); this
  * suite holds the rest — every CSS and HTML sample, and every variable and
@@ -73,6 +74,15 @@ const LANDING = (language: string) =>
     REPOSITORY,
     `documentation/docs/${language}/guide/typescript/view-engine.md`,
   );
+/** The guides of fitting the engine into a host, and of its CSP. */
+const HOST_GUIDES = ['host', 'csp'].flatMap(page =>
+  ['en', 'zh'].map(language =>
+    join(
+      REPOSITORY,
+      `documentation/docs/${language}/guide/typescript/view-engine-${page}.md`,
+    ),
+  ),
+);
 const ACME = join(ROOT, '../storybook/stories/view-engine/host-theme/acme.css');
 
 const GUIDES = ['en', 'zh'].map(GUIDE);
@@ -81,6 +91,7 @@ const PAGES = [
   ...GUIDES,
   ...['en', 'zh'].map(QUICK_START),
   ...['en', 'zh'].map(LANDING),
+  ...HOST_GUIDES,
   join(ROOT, 'README.md'),
   join(ROOT, 'README.zh-CN.md'),
 ];

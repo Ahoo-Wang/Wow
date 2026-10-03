@@ -41,6 +41,9 @@ const viewEngineGuides: DefaultTheme.SidebarItem = {
         {text: '主题', link: 'view-engine-theming'},
         {text: '可访问性', link: 'view-engine-accessibility'},
         {text: '视图存在哪里', link: 'view-engine-storage'},
+        {text: '接进宿主', link: 'view-engine-host'},
+        {text: '声明式操作', link: 'view-engine-actions'},
+        {text: '内容安全策略', link: 'view-engine-csp'},
     ],
 }
 

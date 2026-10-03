@@ -20,6 +20,9 @@ It succeeds `@ahoo-wang/fetcher-viewer`, which stays on Fetcher 5.x and is not d
 | Wire one business object from zero: install, the query descriptor, `defineView`, the engine, `ViewHost`, one action, run against the example server | [Getting Started with the View Engine](./view-engine-getting-started.md) |
 | Wear a built-in look, use a brand colour, or follow the host's shadcn theme | [Theming the View Engine](./view-engine-theming.md) |
 | Keyboard, screen readers and WCAG 2.2 AA conformance | [Accessibility of the View Engine](./view-engine-accessibility.md) |
+| Fit the engine into an app: `ViewHost`, `bind`, the router port, navigation, embeds, messages and locale, testing with `/testing` | [Fitting the View Engine into a Host](./view-engine-host.md) |
+| Commands on records: availability rules, placement, confirmation and forms, bulk, outcomes | [Declared Actions](./view-engine-actions.md) |
+| Run under a strict Content Security Policy | [Content Security Policy for the View Engine](./view-engine-csp.md) |
 | Draw your own UI instead of the workbench, with the headless hooks of `/react` (`useOpenView`, `useViewRuntime`, `useFilterEditor`, `useRecordTable`) | [wow-view-engine reference](../../reference/typescript/wow-view-engine/) |
 | Keep saved views on a Wow server | [wow-view-store reference](../../reference/typescript/wow-view-store/) |
 
@@ -67,21 +70,7 @@ flowchart LR
 
 ## Content Security Policy
 
-The engine runs under a strict Content Security Policy: `script-src 'self'` and `style-src 'self'`, with neither `'unsafe-inline'` nor `'unsafe-eval'`. Three things need allowing:
-
-- **The stylesheet is a file.** Serve `styles.css` (and `themes.css` if you use a preset) from an allowed origin instead of inlining it. Nothing the engine draws carries a `style` attribute in its markup: inline styles are written through the DOM's style object, which no policy blocks, and a chart tooltip's colour swatch is an SVG `fill`. Nothing loads a `data:` image either; the cells a board shows while it is built are drawn in the page.
-- **The styles the bundled libraries add carry the page's nonce.** Three libraries add a `<style>` to `<head>` while they work: the drag-and-drop library while a list is dragged (a grabbing cursor, no text selection), the grid's drag library while a dashboard panel is moved or resized (no text selection), and Base UI while a select's list is open (the scrollbar hidden behind its scroll arrows). Publish the response's nonce the way Vite's `html.cspNonce` does, as `<meta property="csp-nonce" nonce="…">` (a `content` attribute is read too), and allow `'nonce-…'` in `style-src`; the engine hands it to all three. Without the meta everything still works, but those few rules are refused and each reports a violation.
-- **The PNG export loads a `blob:` image.** The chart's SVG is loaded as an image from a `blob:` URL and drawn onto a canvas, so `img-src` must include `blob:`. Without it the PNG is not made and the toolbar says so. The SVG export needs nothing, and neither export evaluates code or writes an inline script.
-
-```text
-Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'nonce-<new every response>'; img-src 'self' blob:
-```
-
-```html
-<meta property="csp-nonce" nonce="<the same nonce>" />
-```
-
-Two test runs hold the engine to exactly this policy and fail on a single violation. In Storybook, [`StrictCsp.test.stories.tsx`](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/storybook/stories/view-engine/StrictCsp.test.stories.tsx) walks the record workbench (a column dragged, a summary picked from a select, a column widened, a record's detail opened), every chart type with its tooltip, the SVG, PNG and CSV exports, and a dashboard read, filtered from a chart, built (a panel moved and resized, a tab dragged, an analysis added) and saved; it runs in CI with the other stories. The compensation console runs its end-to-end tests under the same policy ([`e2e/csp.spec.ts`](https://github.com/Ahoo-Wang/Wow/blob/main/compensation/dashboard/e2e/csp.spec.ts)).
+The engine runs under a strict Content Security Policy: `script-src 'self'` and `style-src 'self'`, with neither `'unsafe-inline'` nor `'unsafe-eval'`. Three things need allowing — the stylesheet loaded as a file, the styles the bundled libraries add carrying the page's nonce, and a `blob:` image for the PNG export. Why each one, how to write the policy, and the tests that hold the engine to it are in [Content Security Policy for the View Engine](./view-engine-csp.md).
 
 ## Try it in Storybook
 
@@ -102,6 +91,9 @@ To see what the engine draws first, open the [chart showcase board](/storybook/?
 ## Where to read more
 
 - [Getting Started with the View Engine](./view-engine-getting-started.md): the example server's sales orders wired in from zero, one file a step.
+- [Fitting the View Engine into a Host](./view-engine-host.md): one engine, the ports of `ViewHost`, `bind`, the router, embeds, messages and locale, and testing the wiring with `/testing`.
+- [Declared Actions](./view-engine-actions.md): how commands on records are declared, and how the engine places, confirms, runs in bulk and reports them.
+- [Content Security Policy for the View Engine](./view-engine-csp.md): the three things a strict policy must allow, and the tests that hold the engine to it.
 - [wow-view-engine reference](../../reference/typescript/wow-view-engine/): entries, concepts, persistence port, and extension points.
 - [wow-view-store reference](../../reference/typescript/wow-view-store/): `WowViewStore`, the saved views on a Wow server. How to choose and wire a store is in [Where Views Live](./view-engine-storage.md); the CoSec gateway rules the server needs are in the [View Store](../extensions/view-store.md#security-model) page.
 - [Theming the View Engine](./view-engine-theming.md): presets, host variables, light, dark and system mode, the shadcn bridge, and the contrast an override owes.

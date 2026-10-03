@@ -83,7 +83,7 @@ description: wow-view-engine 对 WCAG 2.2 AA 的符合性声明——评估方�
 
 ### 声明式操作
 
-宿主用 `actions()` 声明的命令：行上的主操作与「⋯」菜单、多选后的批量栏、带表单的操作与危险确认、进度与结果。第二轮走查时加的，发现的缺口已[修掉](#声明式操作的修复)，下表按修复后的分支重走（Storybook 里 Chromium 上的纯键盘，与 jsdom）。
+宿主用 `actions()` 声明的命令：行上的主操作与「⋯」菜单、多选后的批量栏、带表单的操作与危险确认、进度与结果。第二轮走查时加的，发现的缺口已[修掉](#声明式操作的修复)，下表按修复后的分支重走（Storybook 里 Chromium 上的纯键盘，与 jsdom）。操作怎样声明、引擎把它们放在哪，见[声明式操作](./view-engine-actions.md)。
 
 | 任务 | 键盘 | 读屏 |
 |---|---|---|
@@ -268,4 +268,6 @@ description: wow-view-engine 对 WCAG 2.2 AA 的符合性声明——评估方�
 
 - [视图引擎](./view-engine.md)：它解决的问题与用法。
 - [视图引擎的主题](./view-engine-theming.md)：覆盖颜色变量时要守的对比度。
+- [把引擎接进宿主](./view-engine-host.md)：页面已有 `main` 时的 `landmark="region"`、页面的高度与嵌入。
+- [声明式操作](./view-engine-actions.md)：停用的操作为什么仍可获焦、什么时候问、问题框是 `dialog` 还是 `alertdialog`。
 - [设计文档](https://github.com/Ahoo-Wang/Wow/tree/main/typescript/wow-view-engine/docs/design)：焦点与播报的规则在 `ui/README.md`。
