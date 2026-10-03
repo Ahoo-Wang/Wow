@@ -47,6 +47,27 @@ const viewEngineReference: DefaultTheme.SidebarItem[] = [
         collapsed: true,
         items: [
             {text: '入口与契约', link: 'index.html'},
+            {text: '引擎与资源', link: 'engine'},
+            {text: '定义与字段类型', link: 'definitions'},
+            {text: '宿主接线', link: 'host'},
+            {text: '工作台与嵌入', link: 'components'},
+            {text: 'React Hooks', link: 'react'},
+            {text: '持久化端口', link: 'store'},
+            {text: '测试工具', link: 'testing'},
+            {text: 'Issue code', link: 'issues'},
+            {
+                // 生成的符号索引只有英文版。
+                base: '/reference/typescript/wow-view-engine/',
+                text: '符号索引（英文）',
+                collapsed: true,
+                items: [
+                    {text: '根入口', link: 'symbols'},
+                    {text: '/react', link: 'symbols-react'},
+                    {text: '/ui', link: 'symbols-ui'},
+                    {text: '/testing', link: 'symbols-testing'},
+                    {text: '/react-router', link: 'symbols-react-router'},
+                ],
+            },
         ],
     },
     {

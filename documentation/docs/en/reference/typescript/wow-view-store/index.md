@@ -28,6 +28,41 @@ export interface WowViewStoreOptions {
 }
 ```
 
+### WowViewStore {#api-WowViewStore}
+
+The view engine's [`ViewStore`](../wow-view-engine/store#api-ViewStore) over the Wow view store: every method of the port, the optional `changeAudience` included; `permissions` is there only when the host gave `options.permissions`. The port names a view by id alone, so the store remembers where it last saw each one (a list, a read, a write) and looks an unknown id up on the personal path, the shared path and the server's system views, in that order.
+
+- `fetcher` goes to a base URL that serves `/view-store/…`: the CoSec gateway in front of the view store server, or the service that embeds the starter. Its interceptors carry who is asking; the store never does.
+- `permissions` decides which buttons are enabled for one definition's views; everything is allowed when left out, as the port reads a store without `permissions`. The server does not authorize, the CoSec gateway does; a host answers this by the roles it holds there — `changeAudience` by the role that may write `owner/(shared)`, which claiming a view needs.
+
+```ts
+export declare class WowViewStore implements ViewStore {
+  constructor(options: WowViewStoreOptions);
+  changeAudience(id: string, audience: ViewAudience, revision: string, context: WriteContext): Promise<ViewInstance>;
+  create(input: Omit<ViewInstance, 'id' | 'revision'>, context: WriteContext): Promise<ViewInstance>;
+  delete(id: string, revision: string, context: WriteContext): Promise<void>;
+  get(id: string, signal?: AbortSignal): Promise<ViewInstance>;
+  getPreferences(definitionId: string, signal?: AbortSignal): Promise<ViewPreferences>;
+  list(definitionId: string, signal?: AbortSignal): Promise<ViewInstanceSummary[]>;
+  readonly permissions?: (definitionId: string) => ViewPermissions;
+  rename(id: string, title: string, revision: string, context: WriteContext): Promise<ViewInstance>;
+  save(id: string, config: ViewConfig, revision: string, context: WriteContext): Promise<ViewInstance>;
+  setPreferences(definitionId: string, preferences: ViewPreferences, context: WriteContext): Promise<ViewPreferences>;
+}
+```
+
+`WowViewStoreErrorCodes` are the server's `errorCode` strings, which a `ViewStoreError` carries as `detail.code`; they are named apart from the engine's `ViewStoreErrorCode` (the port's six codes):
+
+```ts
+export declare const WowViewStoreErrorCodes: Readonly<{
+  readonly VIEW_INVALID: 'ViewInvalid';
+  readonly VIEW_APP_REQUIRED: 'ViewAppRequired';
+  readonly SYSTEM_VIEW_READ_ONLY: 'SystemViewReadOnly';
+  readonly VIEW_SCOPE_REQUIRED: 'ViewScopeRequired';
+  readonly VIEW_EVENT_STREAM_CLOSED: 'ViewEventStreamClosed';
+}>;
+```
+
 ## Contract
 
 | Rule | Behavior |

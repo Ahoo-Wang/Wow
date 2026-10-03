@@ -6,7 +6,7 @@ description: 'Entries, concepts, persistence port, and extension points of the @
 # wow-view-engine reference
 
 ::: info On npm since Wow 9.2.0
-`@ahoo-wang/wow-view-engine` is on npm since Wow 9.2.0, released from the same tag and with the same version as Wow. A patch release never breaks the exports (the `ViewStore` port among them), the CSS contract, the message keys and issue codes, or the `wow-view-engine` command; a minor release lists every break in its release notes ([compatibility](../../../guide/typescript/view-engine.md)). The [design documents](https://github.com/Ahoo-Wang/Wow/tree/main/typescript/wow-view-engine/docs/design) are the source of truth for the model; there is no per-symbol reference yet.
+`@ahoo-wang/wow-view-engine` is on npm since Wow 9.2.0, released from the same tag and with the same version as Wow. A patch release never breaks the exports (the `ViewStore` port among them), the CSS contract, the message keys and issue codes, or the `wow-view-engine` command; a minor release lists every break in its release notes ([compatibility](../../../guide/typescript/view-engine.md)). The [design documents](https://github.com/Ahoo-Wang/Wow/tree/main/typescript/wow-view-engine/docs/design) are the source of truth for the model. The symbols a host uses most are described by hand in the [topic pages](#topics) below; every name each entry exports is in the generated [symbol index](./symbols).
 :::
 
 For what the engine does, read the [View Engine guide](../../../guide/typescript/view-engine.md); for a walkthrough that wires one business object from zero, [Getting Started with the View Engine](../../../guide/typescript/view-engine-getting-started.md).
@@ -68,6 +68,8 @@ interface ViewStore {
 | Permissions | `permissions` only drives button availability. Authorization, visibility filtering, and deduplication are server responsibilities |
 | Changing the audience | `changeAudience` moves a saved view between personal and shared in place, keeping its id, under the same two rules. A request for the audience the view already has answers it unchanged; a view a shared dashboard shows cannot become personal (`INVALID`, the dashboards' titles in `boards`) |
 
+What each method must do, the six `ViewStoreError` codes, and `ViewPermissions` with `editSystem` are on the [persistence port](./store) page.
+
 `MemoryViewStore` is for tests, examples, and query-only use. On a Wow server, use [`WowViewStore`](../wow-view-store/) from `@ahoo-wang/wow-view-store`, over the view store server; only a backend that is not Wow implements the port itself.
 
 ## Layering
@@ -98,6 +100,20 @@ Architecture tests enforce the dependency rules: `model` imports nothing; `filte
 | Actions | Declare them with `actions()` and bind them (`bind(id, { actions })`): the engine places, confirms, runs and reports them; `slots` (`global`, `bulk`, `row` render functions) are the escape hatch. They are code and are never saved |
 | Appearance | CSS variables, presets and the shadcn bridge (see [Theming the View Engine](../../../guide/typescript/view-engine-theming.md)); replace components by composing the `/react` hooks |
 | Wording | `en` and `zhCN` catalogues, merged through the `messages` prop or `MessagesProvider` |
+
+## Topics {#topics}
+
+| Topic | Covers |
+|---|---|
+| [Engine and Resources](./engine) | `ViewEngine`, its options and `resources`, `ViewSource`, `RuntimeEnvironment` |
+| [Definitions and Field Kinds](./definitions) | `defineView` and its spec, `rowFields`, `text` keys, `FieldKind` and the registry |
+| [Host Wiring](./host) | `ViewHost`, `bind`, the router port and `useReactRouter`, declared actions with `actions()`, `MessagesProvider` and wording |
+| [Workbenches and Embeds](./components) | The props of `DataWorkbench`, `DashboardWorkbench`, `EmbeddedView`, `EmbeddedDashboard` |
+| [React Hooks](./react) | The `/react` hooks |
+| [Persistence Port](./store) | `ViewStore`, the `ViewStoreError` codes, `ViewPermissions`, `MemoryViewStore`, `localStorageSnapshot` |
+| [Testing Helpers](./testing) | `/testing`'s `admit`, `actionHarness`, `memorySource`, `resolveNavigation`, and the port conformance suite |
+| [Issue Codes](./issues) | Every code the engine can raise with its default wording, generated from the public surface list |
+| [Symbol Index](./symbols) | Every name each entry exports, its kind and the first sentence of its TSDoc, generated from the built declarations |
 
 ## Source
 

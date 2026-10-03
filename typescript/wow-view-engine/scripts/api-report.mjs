@@ -22,17 +22,37 @@
 // is written to a temporary folder for review. With `-u` the reports are
 // rewritten from the build; commit the change on purpose.
 //
+// The same run writes each entry's doc model (API Extractor's `.api.json`)
+// to that temporary folder and renders it into the documentation site's
+// symbol index, one English page per entry (`scripts/symbol-index.mjs`):
+// a committed page that differs fails as a report does, and `-u` rewrites
+// it. A TSDoc summary changed in the source is therefore accepted here too.
+//
 // Either way, a type a public signature names must be public itself
 // (R2-85): exported by that entry or by another entry of the package, so a
 // host can name every prop's type it writes a value of, and a vendored
 // component's type never reaches a prop, where a `shadcn add --diff` would
 // change the API. `FORGOTTEN` names the few that are data rather than a
 // type to name, and the report spells their shape out all the same.
-import { mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Extractor, ExtractorConfig } from '@microsoft/api-extractor';
+import {
+  INDEX_PAGES,
+  REFERENCE,
+  curatedCoverage,
+  itemsOf,
+  renderIndex,
+} from './symbol-index.mjs';
 
 const packageRoot = fileURLToPath(new URL('../', import.meta.url));
 const update = process.argv.includes('-u');
@@ -114,7 +134,11 @@ try {
           // are spelled out, so the report holds their shape too.
           includeForgottenExports: true,
         },
-        docModel: { enabled: false },
+        // Read by the symbol index below, never committed.
+        docModel: {
+          enabled: true,
+          apiJsonFilePath: join(tempFolder, `${name}.api.json`),
+        },
         dtsRollup: { enabled: false },
         tsdocMetadata: { enabled: false },
         messages: {
@@ -187,11 +211,37 @@ try {
       // judged, so only errors decide here.
     } else if (result.errorCount > 0) failed = true;
   }
+
+  // The symbol index, from the doc models just written.
+  const coverage = curatedCoverage();
+  for (const [name, { page }] of Object.entries(INDEX_PAGES)) {
+    const model = join(tempFolder, `${name}.api.json`);
+    if (!existsSync(model)) continue;
+    const rendered = renderIndex(
+      name,
+      itemsOf(JSON.parse(readFileSync(model, 'utf8'))),
+      coverage,
+    );
+    const committed = join(REFERENCE, page);
+    if (update) writeFileSync(committed, rendered);
+    else if (
+      !existsSync(committed) ||
+      readFileSync(committed, 'utf8') !== rendered
+    ) {
+      writeFileSync(join(tempFolder, page), rendered);
+      console.error(
+        `${name}: the symbol index ${committed} differs from the build. ` +
+          `The new page is ${join(tempFolder, page)}; ` +
+          'if the change is intended, run `pnpm test:api -u` and commit it.',
+      );
+      failed = true;
+    }
+  }
 } finally {
   if (!failed) rmSync(tempFolder, { recursive: true, force: true });
 }
 
 if (failed) process.exit(1);
 console.log(
-  `${Object.keys(ENTRIES).length} API report(s) ${update ? 'written' : 'match the build'}.`,
+  `${Object.keys(ENTRIES).length} API report(s) and symbol index page(s) ${update ? 'written' : 'match the build'}.`,
 );
