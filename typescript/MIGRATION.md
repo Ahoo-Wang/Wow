@@ -2,7 +2,7 @@
 
 ## 状态与依据
 
-方案已与用户逐条确认（2026-09-23），经两轮自审，补充项均已并入。**执行中**，已完成的步骤、在飞 PR 和下一步见文末「进度」。
+方案已与用户逐条确认（2026-09-23），经两轮自审，补充项均已并入。**迁移已完成**（第 0～3′ 步都已合并），剩下的是首发与第 4a、4b 步，见文末「进度」的「下一步」。
 
 本文从 fetcher 仓 `docs/superpowers/specs/2026-09-23-wow-packages-migration-design.md` 复制而来（取自 Ahoo-Wang/fetcher#1899 分支 `bb0a9dabd`，含 2026-09-24 补的 `/fetcher` 子路径与 5.x 流水线两处），**此后以本仓这份为准**，迁移进度也只记在这里。用户 2026-09-24 定：放在 `typescript/MIGRATION.md`，不放 `docs/superpowers/`（那里在 Wow 被 `.gitignore` 忽略，且根目录 `AGENTS.md` 规定不再新增文件）。文中的 `#编号` 除 #2170、#3248、#3277 以外都指 fetcher 仓的 PR。
 
@@ -276,9 +276,7 @@ W1 的具体做法（W2 起沿用）：
 
 ### 在飞
 
-- view-engine 测试偶发 `Cannot read properties of null (reading 'resize')`（CI，Node 22 分片）：子代理在查根因。
-- W3d（R3 不改行为的界面重构，见 view-engine `docs/design/todo.md`）：上一项合并后派出。
-- 发布加固 #3323（审查 R3 的 P1、P2）：action 锁 SHA、`npm-publish` environment、完整运行准入、包检查、peer catalog、`engines >=22.12.0`、`.d.cts`；首发清单见 [RELEASING.md](RELEASING.md)。仓库设置由用户操作。
+没有在飞的迁移 PR（2026-10-02）。原先列在这里的三项：发布加固 #3323 已合并；W3d（R3 不改行为的界面重构）随迁入里程碑合并（view-engine D28）；view-engine 测试偶发的 `Cannot read properties of null (reading 'resize')` 没有留下待办，再出现时另开任务。
 
 W2a、W2b 的具体做法与决定：
 
@@ -292,9 +290,10 @@ W2a、W2b 的具体做法与决定：
 
 ### 下一步
 
-1. 里程碑收尾：本地全量门禁（空目录重装，全部包、Storybook、dashboard 浏览器测试、文档站）。
-2. **npm 首发（用户操作）**：照 [RELEASING.md](RELEASING.md)「首发清单」做。2026-09-24 用户定：首个版本是 **9.2.0**（`v9.1.5` 以来有 `!` 提交，9.1.6 过不了准入）；先在全新 clone 的 `v9.2.0-rc.0` tag 上手工发 `9.2.0-rc.0`（dist-tag `next`），配好 Trusted Publisher（environment `npm-publish`）后由 CI 带 provenance 发 `9.2.0`；三个包 `engines.node` 为 `>=22.12.0`；wow-react 只出 ESM；三个 gate 设为必需检查。
-3. 第 4a 步：`9.2.0-rc.0` → 补偿控制台的临时分支 `chore/compensation-9.2.0-rc.0` 在 rc 上端到端跑通（发 `latest` 的前置条件，RELEASING「C′」）→ Wow 首个稳定版 9.2.0 → 删掉该分支（不合并，main 保持 `workspace:*`）→ fetcher 6.0，并对 fetcher-wow、fetcher-generator 执行 `npm deprecate`（对外操作，先问用户）。
-4. 阶段 5 的产品口径待用户拍板：分析「导出数据…」、仪表盘固定宽度／全宽的缺省。
+1. **npm 首发（用户操作）**：照 [RELEASING.md](RELEASING.md)「首发清单」做。2026-09-24 用户定：首个版本是 **9.2.0**（`v9.1.5` 以来有 `!` 提交，9.1.6 过不了准入）；先在全新 clone 的 `v9.2.0-rc.0` tag 上手工发 `9.2.0-rc.0`（dist-tag `next`），配好 Trusted Publisher（environment `npm-publish`）后由 CI 带 provenance 发 `9.2.0`；三个包 `engines.node` 为 `>=22.12.0`；wow-react 只出 ESM；三个 gate 设为必需检查。
+2. 第 4a 步：`9.2.0-rc.0` → 补偿控制台的临时分支 `chore/compensation-9.2.0-rc.0` 在 rc 上端到端跑通（发 `latest` 的前置条件，RELEASING「C′」）→ Wow 首个稳定版 9.2.0 → 删掉该分支（不合并，main 保持 `workspace:*`）→ fetcher 6.0，并对 fetcher-wow、fetcher-generator 执行 `npm deprecate`（对外操作，先问用户）。
+3. 第 4b 步：view-engine 随 9.2.0 正式发布后，停止维护 fetcher `5.x`，对 fetcher-viewer 执行 `npm deprecate`（对外操作，先问用户）。
+
+里程碑收尾的全量门禁由首发清单代替：rc 的 tag 上手动触发三条流水线全开（RELEASING「C」第 3 步），`preflight` 跑 Gradle 全量构建与集成测试。阶段 5 的两项产品口径已定：分析「导出数据…」（view-engine Q28）、仪表盘缺省固定宽度（D31）。
 
 门禁节奏（2026-09-24 用户确认）：每个 PR 本地只验改到的包，相关汇总检查（`typescript-gate`、`typescript-contract-gate` 及改到的 Gradle/dashboard 工作流）全绿即合并；里程碑收尾（W3 合并后、首次发布前）再跑一次全量本地门禁。

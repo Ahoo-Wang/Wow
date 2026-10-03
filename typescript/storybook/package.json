@@ -1,6 +1,6 @@
 {
   "name": "wow-storybook",
-  "version": "9.1.5",
+  "version": "9.2.0-rc.0",
   "private": true,
   "description": "Storybook for the Wow TypeScript packages: view-engine and the Wow query hooks, with interaction tests",
   "type": "module",
