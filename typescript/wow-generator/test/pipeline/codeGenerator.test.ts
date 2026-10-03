@@ -211,7 +211,11 @@ describe('CodeGenerator', () => {
   });
 
   it('fails with an input error naming the document when it is not OpenAPI 3', async () => {
-    const inputPath = writeSpec({ swagger: '2.0', info: {}, paths: {} });
+    const inputPath = writeSpec({
+      swagger: '2.0',
+      info: { title: 'Test', version: '1.0.0' },
+      paths: {},
+    });
     const generator = createCodeGenerator(
       { inputPath, outputDir: '/out', logger: new SilentLogger() },
       new Project({ useInMemoryFileSystem: true }),

@@ -60,7 +60,7 @@ describe('regenerating into an existing output directory', () => {
       inputPath,
       JSON.stringify({
         openapi: '3.0.4',
-        info: {},
+        info: { title: 'Test', version: '1.0.0' },
         paths: {
           '/message': {
             get: {
@@ -112,7 +112,7 @@ function regenerationFixture() {
 function namespaceSpec(namespace: string): OpenAPI {
   return {
     openapi: '3.0.4',
-    info: {},
+    info: { title: 'Test', version: '1.0.0' },
     paths: {
       '/item': {
         get: {
@@ -120,6 +120,7 @@ function namespaceSpec(namespace: string): OpenAPI {
           operationId: 'getItem',
           responses: {
             '200': {
+              description: 'OK',
               content: {
                 'application/json': {
                   schema: { $ref: `#/components/schemas/${namespace}.User` },
@@ -232,7 +233,7 @@ it('cleans empty output barrels while preserving handwritten and edited generate
   writeFileSync(fixture.path('old', 'types.ts'), edited);
   fixture.write({
     openapi: '3.0.4',
-    info: {},
+    info: { title: 'Test', version: '1.0.0' },
     paths: {},
     components: { schemas: {} },
   });
@@ -268,7 +269,7 @@ it('keeps disk output and manifest on partial failure and discards drafts before
     : undefined;
   fixture.write({
     openapi: '3.0.4',
-    info: {},
+    info: { title: 'Test', version: '1.0.0' },
     paths: {},
     components: {
       schemas: {
@@ -306,7 +307,11 @@ it('rejects manifest paths outside output before deleting existing files', async
   writeFileSync(fixture.path('..', 'outside.ts'), original);
   manifest.files['../outside.ts'] = manifest.files['old/types.ts'];
   writeFileSync(manifestPath, JSON.stringify(manifest));
-  fixture.write({ openapi: '3.0.4', info: {}, paths: {} });
+  fixture.write({
+    openapi: '3.0.4',
+    info: { title: 'Test', version: '1.0.0' },
+    paths: {},
+  });
   await expect(new CodeGenerator(fixture.options).generate()).rejects.toThrow(
     expect.objectContaining({
       kind: 'output',
@@ -325,7 +330,11 @@ it('does not delete an owned path redirected outside output by a directory symli
   const moved = fixture.path('..', 'moved');
   renameSync(fixture.path('old'), moved);
   symlinkSync(moved, fixture.path('old'), 'junction');
-  fixture.write({ openapi: '3.0.4', info: {}, paths: {} });
+  fixture.write({
+    openapi: '3.0.4',
+    info: { title: 'Test', version: '1.0.0' },
+    paths: {},
+  });
   await expect(new CodeGenerator(fixture.options).generate()).rejects.toThrow(
     expect.objectContaining({
       kind: 'output',
@@ -348,7 +357,11 @@ it('tracks saved BOM bytes using the project filesystem and its relative output 
   await generator.generate();
   const fs = project.getFileSystem();
   expect(fs.readFileSync('/out/old/types.ts').charCodeAt(0)).toBe(0xfeff);
-  fixture.write({ openapi: '3.0.4', info: {}, paths: {} });
+  fixture.write({
+    openapi: '3.0.4',
+    info: { title: 'Test', version: '1.0.0' },
+    paths: {},
+  });
   await generator.generate();
   expect(fs.fileExistsSync('/out/old/types.ts')).toBe(false);
   expect(fs.fileExistsSync('/out/index.ts')).toBe(false);

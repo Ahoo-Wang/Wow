@@ -228,6 +228,22 @@ async function readStream(stream: ReadableStream<unknown>) {
   }
 }
 
+/**
+ * The headers a request carries, without the `content-type` of a bodyless
+ * request: it describes a body, so fetcher 6 sends none, while fetcher 5 sent
+ * `application/json` on every request. Wow's routes never match on it (they
+ * match path, method and `Accept`), so it is not part of the wire contract.
+ * Drop this filtering once the fetcher peer range no longer includes ^5.
+ */
+function recordedHeaders(request: { headers: Headers; body?: unknown }) {
+  const entries = [...request.headers.entries()];
+  return sortedObject(
+    request.body === undefined || request.body === null
+      ? entries.filter(([name]) => name !== 'content-type')
+      : entries,
+  );
+}
+
 async function sendRow(
   create: () => unknown,
   call: (client: unknown) => Promise<unknown>,
@@ -243,7 +259,7 @@ async function sendRow(
     requests: requests.map(request => ({
       method: request.method,
       url: request.url.slice(BASE_URL.length),
-      headers: sortedObject(request.headers.entries()),
+      headers: recordedHeaders(request),
       body: canonicalJson(request.body),
     })),
     resolves:

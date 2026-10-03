@@ -311,9 +311,9 @@ W2a、W2b 的具体做法与决定：
 
 1. **npm 首发**：2026-10-03 完成（9.2.0，见「已完成」的「首发记录」），[RELEASING.md](RELEASING.md)「E」第 5 步的幂等验证同日通过。
 2. 第 4a 步：`9.2.0-rc.0`（2026-10-03 已发，Trusted Publisher 已配）→ 补偿控制台的临时分支 `chore/compensation-9.2.0-rc.0` 在 rc 上端到端跑通（发 `latest` 的前置条件，RELEASING「C′」；2026-10-03 通过，见「已完成」）→ Wow 首个稳定版 9.2.0（2026-10-03 已发）→ 删掉该分支（不合并，main 保持 `workspace:*`）→ **接 fetcher 6**（2026-10-03 新增，fetcher 6.0 的发版阻塞）→ fetcher 6.0，并对 fetcher-wow、fetcher-generator 执行 `npm deprecate`（对外操作，先问用户）。
-   接 fetcher 6 要做的（依据 fetcher 侧 `downstream-wow.yml` 在 Ahoo-Wang/fetcher#1957～#1959 上的失败）：
+   接 fetcher 6 要做的（依据 fetcher 侧 `downstream-wow.yml` 在 Ahoo-Wang/fetcher#1957～#1959 上的失败；第 1～3 条已在 `feat/fetcher-6` 完成，本地用 fetcher main 的打包产物与 npm 上的 5.1.5 两边都跑通，剩发 9.2.x 与第 4 条）：
    1. wow-generator 的测试夹具补上 OpenAPI 6 类型要求的字段（`Info.title`/`version`、`Response.description`）；
-   2. 在 fetcher 6 下重跑 wow-client 的 `golden/client-endpoints.json`，对照服务端确认新请求（查询参数按 `ids=1&ids=2` 序列化、`undefined`/`null` 省略、不再默认 `Content-Type`）后更新；
+   2. 在 fetcher 6 下重跑 wow-client 的 `golden/client-endpoints.json`，对照服务端确认新请求（查询参数按 `ids=1&ids=2` 序列化、`undefined`/`null` 省略、不再默认 `Content-Type`）后更新。实测只有一处差异：11 个无请求体的 GET 不再带 `content-type`；服务端路由只按 path、method、`Accept` 匹配（`HttpRoutePredicateFactory`），不受影响。录制时去掉无请求体请求的 `content-type`，两条 fetcher 版本线录出同一份；
    3. catalog 的 fetcher peers 放宽为 `^5.1.5 || ^6`，发 9.2.x（9.2.0 在 npm 上是 `^5.1.5`）；顺带考虑把 wow-react 的 `react` peer 从 `^19.3.0` 放宽到 `^19.0.0`（fetcher-react 已这样做，`^19.3.0` 是 Renovate 抬高的开发版本）；
    4. fetcher 侧 `downstream-wow.yml` 变绿后，再发 fetcher 6.0。
 3. 第 4b 步：view-engine 随 9.2.0 正式发布后，停止维护 fetcher `5.x`，对 fetcher-viewer 执行 `npm deprecate`（对外操作，先问用户）。

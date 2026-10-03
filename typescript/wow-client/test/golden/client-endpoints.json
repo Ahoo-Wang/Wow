@@ -712,9 +712,7 @@
       {
         "method": "GET",
         "url": "/cart/cart-1/event/1/10",
-        "headers": {
-          "content-type": "application/json"
-        }
+        "headers": {}
       }
     ],
     "resolves": {
@@ -729,8 +727,7 @@
         "method": "GET",
         "url": "/cart/cart-1/event/1/10",
         "headers": {
-          "accept": "text/event-stream",
-          "content-type": "application/json"
+          "accept": "text/event-stream"
         }
       }
     ],
@@ -753,9 +750,7 @@
       {
         "method": "GET",
         "url": "/cart/cart-1/state",
-        "headers": {
-          "content-type": "application/json"
-        }
+        "headers": {}
       }
     ],
     "resolves": {
@@ -769,9 +764,7 @@
       {
         "method": "GET",
         "url": "/cart/cart-1/state/3",
-        "headers": {
-          "content-type": "application/json"
-        }
+        "headers": {}
       }
     ],
     "resolves": {
@@ -785,9 +778,7 @@
       {
         "method": "GET",
         "url": "/cart/cart-1/state/time/1700000000000",
-        "headers": {
-          "content-type": "application/json"
-        }
+        "headers": {}
       }
     ],
     "resolves": {
@@ -801,9 +792,7 @@
       {
         "method": "GET",
         "url": "/owner/o-1/cart/state",
-        "headers": {
-          "content-type": "application/json"
-        }
+        "headers": {}
       }
     ],
     "resolves": {
@@ -817,9 +806,7 @@
       {
         "method": "GET",
         "url": "/owner/o-1/cart/state/3",
-        "headers": {
-          "content-type": "application/json"
-        }
+        "headers": {}
       }
     ],
     "resolves": {
@@ -833,9 +820,7 @@
       {
         "method": "GET",
         "url": "/owner/o-1/cart/state/time/1700000000000",
-        "headers": {
-          "content-type": "application/json"
-        }
+        "headers": {}
       }
     ],
     "resolves": {
@@ -850,7 +835,6 @@
         "method": "GET",
         "url": "/cart/snapshot/schema",
         "headers": {
-          "content-type": "application/json",
           "if-none-match": "\"sha256:0123\""
         }
       }
@@ -870,7 +854,6 @@
         "method": "GET",
         "url": "/cart/event/schema",
         "headers": {
-          "content-type": "application/json",
           "if-none-match": "\"sha256:0123\""
         }
       }
@@ -889,9 +872,7 @@
       {
         "method": "GET",
         "url": "/wow/metadata",
-        "headers": {
-          "content-type": "application/json"
-        }
+        "headers": {}
       }
     ],
     "resolves": {

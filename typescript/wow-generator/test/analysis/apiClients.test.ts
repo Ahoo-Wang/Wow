@@ -368,6 +368,7 @@ describe('API client analysis', () => {
           get: operation({
             responses: {
               '200': {
+                description: 'OK',
                 content: {
                   'text/event-stream': {
                     schema: { $ref: '#/components/schemas/Events' },

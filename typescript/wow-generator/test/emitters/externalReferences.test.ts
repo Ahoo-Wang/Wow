@@ -28,7 +28,7 @@ it.each([false, true])(
     const foreign = { $ref: 'common.yaml#/components/responses/Success' };
     const openAPI: OpenAPI = {
       openapi: '3.0.4',
-      info: {},
+      info: { title: 'Test', version: '1.0.0' },
       paths: {
         '/items': {
           get: {
@@ -44,6 +44,7 @@ it.each([false, true])(
         responses: {
           Alias: foreign,
           Success: {
+            description: 'OK',
             content: { 'application/json': { schema: { type: 'string' } } },
           },
         },
@@ -83,7 +84,7 @@ it.each([false, true])(
   namesake => {
     const openAPI: OpenAPI = {
       openapi: '3.0.4',
-      info: {},
+      info: { title: 'Test', version: '1.0.0' },
       paths: {
         '/items/{id}': {
           parameters: [{ $ref: 'common.yaml#/components/parameters/Id' }],
@@ -121,7 +122,7 @@ it.each([false, true])(
     const reference = { $ref: 'common.yaml#/components/schemas/User' };
     const openAPI: OpenAPI = {
       openapi: '3.0.4',
-      info: {},
+      info: { title: 'Test', version: '1.0.0' },
       paths: {},
       components: {
         schemas: {
