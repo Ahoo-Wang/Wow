@@ -36,7 +36,7 @@ function specification(): OpenAPI {
   const response: Response = { description: 'Command result' };
   return {
     openapi: '3.0.4',
-    info: {},
+    info: { title: 'Test', version: '1' },
     tags: [{ name: 'example.pet' }],
     paths: {
       '/pets/rename': {
@@ -55,6 +55,7 @@ function specification(): OpenAPI {
           tags: ['example.pet'],
           responses: {
             '200': {
+              description: 'OK',
               content: {
                 'application/json': {
                   schema: { $ref: '#/components/schemas/Pet' },
