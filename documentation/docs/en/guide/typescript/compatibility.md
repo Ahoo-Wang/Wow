@@ -29,7 +29,17 @@ The TypeScript packages share one version with the Kotlin modules and are releas
 
 ### Version ranges
 
-The version follows Wow, not semver: a minor release (`x.Y.0`) may break the TypeScript API, and only patch releases (`x.y.Z`) are guaranteed compatible. By default `pnpm add` and `npm install` save a caret range (`^x.y.z`), which lets a later install pick up the next minor without anyone deciding to upgrade. Save a tilde range instead, which accepts patches of one minor only, by adding this line to the project's `.npmrc` before installing the Wow packages; pnpm and npm both honour it:
+The version follows Wow, not semver: a minor release (`x.Y.0`) may break the TypeScript API, and only patch releases (`x.y.Z`) are guaranteed compatible. By default `pnpm add` and `npm install` save a caret range (`^x.y.z`), which lets a later install pick up the next minor without anyone deciding to upgrade. Save a tilde range instead, which accepts patches of one minor only. Set it in the project before installing the Wow packages; where it goes depends on the package manager.
+
+pnpm reads its settings from `pnpm-workspace.yaml` (pnpm 11 no longer reads them from `.npmrc`). Add this line to the project's `pnpm-workspace.yaml`, creating the file if the project has none; pnpm 10 and 11 both honour it:
+
+```yaml
+savePrefix: '~'
+```
+
+`pnpm config set save-prefix '~' --location project` writes the same line. Without `--location project` the setting goes into your user configuration and applies to every project on the machine.
+
+npm reads it from the project's `.npmrc`:
 
 ```ini
 save-prefix=~

@@ -11,7 +11,12 @@
  * limitations under the License.
  */
 
-import { expect, test, type APIRequestContext } from "@playwright/test";
+import {
+  expect,
+  test,
+  type APIRequestContext,
+  type Page,
+} from "@playwright/test";
 import { recordsInAll } from "../support/wording.ts";
 
 // The smoke of the console against a real compensation server: nothing is
@@ -68,6 +73,21 @@ async function seedFailedExecution(
   const result = await response.json();
   expect(result).toMatchObject({ succeeded: true });
   return result.aggregateId;
+}
+
+/** The handler an execution is named by: `<processor>.<function>`. */
+function handlerOf(processorName: string): string {
+  return `${processorName}.onOrderCreated`;
+}
+
+/**
+ * An execution's detail: named by its handler, with its id shown above the
+ * name (as `e2e/dashboard.spec.ts` finds it).
+ */
+function detailOf(page: Page, id: string) {
+  return page.getByRole("dialog").filter({
+    has: page.locator('[data-slot="record-detail-key"]', { hasText: id }),
+  });
 }
 
 test.beforeAll(async ({ request }) => {
@@ -272,7 +292,7 @@ test("a row's prepare reaches the server, and the row reads it back", async ({
   expect(failures).toEqual([]);
 });
 
-test("a link opens an execution's detail, with its history from the event stream", async ({
+test("a link opens an execution's detail, with its attempts from the event stream", async ({
   page,
 }) => {
   const failures: string[] = [];
@@ -290,24 +310,30 @@ test("a link opens an execution's detail, with its history from the event stream
     response.url().endsWith("/execution_failed/event/paged"),
   );
   await page.goto(`/executions?id=${encodeURIComponent(id)}`);
-  const panel = page.getByRole("dialog", { name: id });
-  await expect(panel.getByRole("heading", { name: id })).toBeVisible();
+  // Named by its handler, the execution's id shown above the name.
+  const panel = detailOf(page, id);
   await expect(
-    panel.getByRole("region", { name: "Function", exact: true }),
+    panel.getByRole("heading", { name: handlerOf(PROCESSORS[0]), level: 2 }),
+  ).toBeVisible();
+  await expect(
+    panel.getByRole("region", { name: "Handler", exact: true }),
   ).toContainText(PROCESSORS[0]);
   await expect(
-    panel.getByRole("form", { name: "Apply retry specification" }),
+    panel.getByRole("button", { name: "Apply retry specification" }),
   ).toBeVisible();
   // Seeded without one.
   await expect(
     panel.getByRole("region", { name: "Stack trace", exact: true }),
   ).toContainText("No stack trace");
-  // The server's event stream answers for this execution, and its first
-  // stream is the failure that created it.
+  // The server's event stream answers for this execution, and the attempts
+  // it tells start with the failure that created it.
   expect((await history).ok()).toBe(true);
   await expect(
-    panel.locator('[data-section="history"]').getByRole("row").nth(1),
-  ).toContainText("First failed");
+    panel
+      .getByRole("region", { name: "Attempts", exact: true })
+      .getByRole("listitem")
+      .filter({ hasText: "First failed" }),
+  ).toContainText("VIEWS_SMOKE");
 
   expect(failures).toEqual([]);
 });
@@ -368,11 +394,23 @@ test("a stream of an execution's history opens with its event payload", async ({
   const id = SEEDED.get(PROCESSORS[1])!;
 
   await page.goto(`/executions?id=${encodeURIComponent(id)}`);
-  const panel = page.getByRole("dialog", { name: id });
-  const first = panel
-    .locator('[data-section="history"]')
-    .getByRole("row")
-    .filter({ hasText: "First failed" });
+  const panel = detailOf(page, id);
+  // The event streams are collapsed under the attempts, counted; expanded,
+  // they are read from the server.
+  const all = panel.getByRole("button", { name: /^All events \(\d+\)$/ });
+  await expect(all).toBeVisible();
+  const streams = page.waitForResponse((response) =>
+    response.url().endsWith("/execution_failed/event/paged"),
+  );
+  await all.click();
+  expect((await streams).ok()).toBe(true);
+  const history = panel.getByRole("region", {
+    name: "Execution history",
+    exact: true,
+  });
+  // The header row, then at least the stream that created it.
+  await expect(history.getByRole("row").nth(1)).toBeVisible();
+  const first = history.getByRole("row").filter({ hasText: "First failed" });
   await expect(first).toHaveCount(1);
   // Opened, the stream reads whole in a drawer over the execution's: the
   // payload the server stored, the failure this run seeded.

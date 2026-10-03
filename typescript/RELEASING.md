@@ -58,7 +58,7 @@ Gradle 流水线不在准入里：preflight 自己在这个提交上跑 `./gradl
 - [x] `require` 条件有自己的 `.d.cts`；generator 的声明文件相对导入带扩展名；wow-react 只出 ESM 并有 `default` 条件（R3-09、R3-10、R3-11）。
 - [x] 元数据与文案：generator 的 description 改成纯文本，三个包的 keywords 都带 `wow`，`homepage` 指向文档站各包的参考页（`https://wow.ahoo.me/reference/typescript/<包>/`），wow-react 有中文 README，wow-client 的 tarball 也带上两份 README；`repository.directory`、`bugs`、`license`、`author` 三个包一致（R3-25）。
 - [x] 公开面逐名快照（D29）：wow-client、wow-react、wow-generator 都有 `test/surface/` 与 `test/publicSurface.test.ts`，构建时 `scripts/verify-package.mjs` 让产物与清单一致，不带 declaration map。
-- [x] 版本范围（用户 2026-09-24 定）：兼容性页「版本范围」（中英文）是唯一写建议的地方——安装前在项目 `.npmrc` 加 `save-prefix=~`，或者 `--save-exact`，因为次版本可以带破坏性改动；各包 README 与快速开始只用一句话链接过去，安装命令不写版本号。「支持期」一节指向 `SECURITY.md`。
+- [x] 版本范围（用户 2026-09-24 定）：兼容性页「版本范围」（中英文）是唯一写建议的地方——安装前设好波浪号的保存前缀（pnpm 写在项目的 `pnpm-workspace.yaml`：`savePrefix: '~'`；npm 写在项目的 `.npmrc`：`save-prefix=~`。pnpm 11 不再从 `.npmrc` 读 pnpm 的设置，rc.0 试用发现后改过），或者 `--save-exact`，因为次版本可以带破坏性改动；各包 README 与快速开始只用一句话链接过去，安装命令不写版本号。「支持期」一节指向 `SECURITY.md`。
 - [x] fetcher peer 下限：fetcher 5.1.4 发到 npm 以后、发 9.2.0 之前，把 `pnpm-workspace.yaml` 里 `catalog:peers` 和默认 catalog 的 fetcher 下限抬到 `^5.1.5`（fetcher-react 同样），并让 `.github/scripts/package-check.mjs` 在 fetcher 自身声明的类型诊断（现在只作为 `upstream` 打印）上也失败。2026-09-24 完成：下限为 `^5.1.5 || ^6.0.0`；fetcher 的类型诊断现在让包检查失败，只放过 `ALLOWED_FETCHER_DIAGNOSTICS` 逐条列出的已知诊断，已知诊断不再出现时也失败。5.1.3 在 node16 下报 TS1479（CJS 声明 `require` 到 ESM 声明），5.1.4 通过。
 - [x] fetcher 5.1.5（`Response` 全局扩展的 getter → readonly 属性）：把下限抬到 `^5.1.5`，删掉包检查里的放行。2026-09-24 完成：5.1.5 发到 npm 后，main 上的全量 CI 因放行过期而失败（包检查从 npm 装到 5.1.5），当天把下限抬到 `^5.1.5 || ^6.0.0`，`ALLOWED_FETCHER_DIAGNOSTICS` 清空。2026-09-25 按第二轮审查决定 5 去掉 `^6.0.0`，两个 catalog 都是 `^5.1.5`，见「peer 范围」。5.1.4 的 fetcher-eventstream 在 `responses.d.ts` 与 `responses.d.cts` 里都用 getter 扩展全局 `Response`，同一次编译里同时有 ESM 与 CJS 消费者时，`contentType`、`isEventStream` 报 TS2300。
 - [x] 发布工程（P1）：发布说明模板 [RELEASE_NOTES_TEMPLATE.md](RELEASE_NOTES_TEMPLATE.md) 与 `.github/release.yml` 的分类（Breaking 在前、TypeScript 单列），标题带 `!` 的 PR 自动加 `breaking-change`；`npm-deploy` 之后的 `npm-smoke` 从 npm 装包冒烟（同一套 fetcher 诊断放行）；「出错时」的回滚手册。
@@ -328,9 +328,9 @@ Gradle 流水线不在准入里：preflight 自己在这个提交上跑 `./gradl
    WOW_COMPENSATION_URL=http://127.0.0.1:18083 pnpm --dir compensation/dashboard test:browser
    ```
 
-   设了 `WOW_COMPENSATION_URL` 时 Playwright 只跑 `e2e/real-server/`、不起 preview：它自己写入两条失败执行，直接打开「失败执行」`/executions`，断言真实的行渲染出来、按处理器加一个条件后只剩那一行；再打开「待重试」与「已到重试时间」，断言服务端按自己的时钟接受 `BEFORE_NOW`／`AFTER_NOW`（新写入的两条在前者、不在后者）；全程没有 4xx、5xx 与页面错误。它补上第 4 步 `test:browser` 打桩测不到的那一半——rc 包对真实服务端的查询。然后人工走查：打开 `http://127.0.0.1:18083/`，首页两类聚合都有数字，`/active`（跳到「失败执行」的「活动中」）列表里有第 3 步写入的记录，打开详情、历史，浏览器控制台没有错误，网络面板没有 4xx、5xx。
+   设了 `WOW_COMPENSATION_URL` 时 Playwright 只跑 `e2e/real-server/`、不起 preview：它自己写入两条失败执行，直接打开「失败执行」`/executions`，断言真实的行渲染出来、按处理器加一个条件后只剩那一行；再打开「待重试」与「已到重试时间」，断言服务端按自己的时钟接受 `BEFORE_NOW`／`AFTER_NOW`（新写入的两条在前者、不在后者）；全程没有 4xx、5xx 与页面错误。它补上第 4 步 `test:browser` 打桩测不到的那一半——rc 包对真实服务端的查询。然后人工走查：打开 `http://127.0.0.1:18083/`，首页两类聚合都有数字，`/active`（跳到「失败执行」的「活动中」）列表里有第 3 步写入的记录，打开详情，看「尝试记录」，展开「全部事件（n）」，浏览器控制台没有错误，网络面板没有 4xx、5xx。
 
-   视图存储一并走查：补偿服务端内嵌 `wow-view-store-starter`（从 rc 的 tag 构建），控制台经 npm 上 rc 的 `@ahoo-wang/wow-view-store` 读写。在「失败执行」里把当前视图另存为一个个人视图、改名、设为共享再改回个人，刷新页面后仍在、名字与受众都对；网络面板里 `/view-store/…` 的请求没有 4xx、5xx。
+   视图存储一并走查：补偿服务端内嵌 `wow-view-store-starter`（从 rc 的 tag 构建），控制台经 npm 上 rc 的 `@ahoo-wang/wow-view-store` 读写。补偿控制台没有登录身份，另存时「仅自己」不可选（没有创建权限），只能建共享视图；自动冒烟的最后一条也是这样存的。在「失败执行」里把当前视图另存为一个共享视图、改名，刷新页面后它仍在、名字是改过的、受众是共享；网络面板里 `/view-store/…` 的请求没有 4xx、5xx。
 
 6. 照快速开始走一遍，用 npm 上的 rc。控制台用的是仓库里的写法；这一步用的是文档写给新用户的写法，两者都通过才算数（F.2 发布后会用 `latest` 再走一遍，那时出了问题只能发补丁）。
 
@@ -349,12 +349,16 @@ Gradle 流水线不在准入里：preflight 自己在这个提交上跑 `./gradl
       bin/example-server
       ```
 
-   2. 在仓库外的空目录里，逐字照[快速开始](../documentation/docs/zh/guide/typescript/quick-start.md)第 2～5 步操作，唯一的改动是给三个 Wow 包加上 `@next`：先按「版本范围」写 `.npmrc` 的 `save-prefix=~`，`npm init -y && npm pkg set type=module`，然后是页面上的两条 `pnpm add`（`@ahoo-wang/wow-client@next`、`@ahoo-wang/wow-generator@next`，其余照抄），页面上的 `tsconfig.json`，第 3 步的生成命令，第 4、5 步的 `src/cart.ts`、`src/main.ts`。
+   2. 在仓库外的空目录里，逐字照[快速开始](../documentation/docs/zh/guide/typescript/quick-start.md)第 2～5 步操作，唯一的改动是给两个 Wow 包加上 `@next`：`npm init -y && npm pkg set type=module`，先按「版本范围」的 pnpm 写法在 `pnpm-workspace.yaml` 里写 `savePrefix: '~'`（`pnpm config get save-prefix` 应答 `~`），然后是页面上的两条 `pnpm add`（`@ahoo-wang/wow-client@next`、`@ahoo-wang/wow-generator@next`，其余照抄），页面上的 `tsconfig.json`，第 3 步的生成命令，第 4、5 步的 `src/cart.ts`、`src/main.ts`。装完 `package.json` 里两个 Wow 包的范围都以 `~` 开头。rc.0 的试用照旧页面写 `.npmrc`，pnpm 11 不读它（`pnpm config get save-prefix` 答 `undefined`），存成了 `^`；pnpm 10 两处都读。
    3. `pnpm exec tsc -p tsconfig.json` 与 `node dist/main.js` 退出码都为 0，输出的三行与页面一致（`SNAPSHOT: cart … v1`、`items: [ { productId: 'book-1', quantity: 2 } ]`、`carts holding book-1: 1`）；`pnpm exec wow-generator --version` 是 rc；`node_modules/@ahoo-wang/fetcher-openapi` 不存在（生成器不再以它为 peer，第二轮审查 P1-11）。页面上的 `typescript` 装到的是最新的 7.x；再 `pnpm add -D typescript@~6.0.0` 把 `tsc` 重跑一遍，退出码也为 0，下限 6.0 同样照页面走通（P1-15）。页面上有一处照做不通，就是文档缺陷，与代码缺陷一样挡发布。
    4. wow-react：控制台已经在第 4、5 步用 rc 的 wow-react 跑过单元测试、浏览器测试和真实服务端走查；第 5 步走查时，列表、分页和详情页的请求都经 wow-react 的 Hook 发出，确认它们在网络面板里各只发一次、切换筛选时旧请求被取消（状态为 canceled）。
    5. 视图存储的端口一致性：按 [integration-test 的 README](integration-test/README.md#wowviewstore-against-the-view-store-server) 从 rc 的 tag 构建并启动独立的视图存储服务端（`./gradlew :wow-view-store-server:installDist`，用上面示例服务端的 MongoDB，换一个库名），示例服务端重启时带上同样四个 `--wow.view-store.system-views[0].…` 参数，然后 `pnpm --dir typescript/integration-test exec vitest run test/view-store`，退出码为 0。第 2 步的 overrides 让 integration-test 用的也是 npm 上的 rc。
 
-7. 记录与重来。把结果记进 [MIGRATION.md](MIGRATION.md)「进度」，写明两台服务端的 Wow 版本（补偿服务端、示例服务端都从 rc 的 tag 构建）。发现问题就在 Wow 的 main 上修复，发 `9.2.0-rc.1`，从新 tag 开新分支，从第 1 步重来。分支可以推到远端留证，但**不开 PR、不合并**；9.2.0 发布以后删掉它（`git push origin --delete chore/compensation-9.2.0-rc.0`），停掉两个服务端，`docker rm -f wow-rc-mongo wow-rc-example-mongo`。
+7. 记录与重来。把结果记进 [MIGRATION.md](MIGRATION.md)「进度」，写明两台服务端的 Wow 版本（补偿服务端、示例服务端都从 rc 的 tag 构建）。发现问题就在 Wow 的 main 上修复，然后看问题落在哪里（用户 2026-10-03 定）：
+   - 落在发布包的内容里（五个 npm 包打进 tarball 的文件）：发下一个 rc（如 `9.2.0-rc.1`），从新 tag 开新分支，从第 1 步重来。
+   - 落在发布包的内容之外（测试、控制台自己的代码、文档、这份手册）：不发新 rc。修复合并到 main 以后，只在同一个 rc 上重跑受影响的步骤。rc.0 的试用就是这样：真实服务端冒烟的两条用例、控制台提交的生成客户端、兼容性页的 pnpm 写法与这份手册在 main 上修好（#3870），重跑第 4～6 步里失败的几项，仍用 rc.0 的包。
+
+   分支可以推到远端留证，但**不开 PR、不合并**；9.2.0 发布以后删掉它（`git push origin --delete chore/compensation-9.2.0-rc.0`），停掉两个服务端，`docker rm -f wow-rc-mongo wow-rc-example-mongo`。
 
 ### D. 配置 Trusted Publisher（每个发布包各一次）
 
