@@ -97,7 +97,7 @@ interface ActionRefusal {
 }
 
 // @public
-export class ActionRefused extends Error {
+export class ActionRefusedError extends Error {
     constructor(reason: string);
     // (undocumented)
     readonly reason: string;

@@ -58,8 +58,8 @@ export {
 } from './viewRuntimeTypes.js';
 export { isRecordRuntime } from './recordRuntime.js';
 export {
-  ExportCancelled,
-  isExportCancelled,
+  ExportCancelledError,
+  isExportCancelledError,
   type ExportedRows,
   type ExportRowsOptions,
 } from './exportRows.js';

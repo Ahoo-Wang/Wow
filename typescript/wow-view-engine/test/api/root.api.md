@@ -1844,7 +1844,7 @@ export type EpochTimeUnit = 'MILLISECONDS' | 'SECONDS';
 export function epochUnitOf(field: Pick<FieldDefinition, 'kind' | 'cell' | 'temporal'>): EpochTimeUnit | undefined;
 
 // @public
-export class ExportCancelled extends Error {
+export class ExportCancelledError extends Error {
     constructor();
 }
 
@@ -2709,7 +2709,7 @@ export function isEmptyFilter(tree: FilterTree): boolean;
 export function isExecutableFilter(fields: readonly FieldDefinition[], tree: FilterTree, kinds: FieldKindRegistry, options?: ValidateFilterOptions): boolean;
 
 // @public
-export function isExportCancelled(error: unknown): error is ExportCancelled;
+export function isExportCancelledError(error: unknown): error is ExportCancelledError;
 
 // @public
 export function isFieldlessKind(kind: FieldKindId, registered?: {

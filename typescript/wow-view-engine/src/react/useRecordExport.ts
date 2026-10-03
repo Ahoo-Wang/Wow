@@ -13,7 +13,10 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Issue, RecordData } from '../model/index.js';
-import { isExportCancelled, type RecordViewRuntime } from '../runtime/index.js';
+import {
+  isExportCancelledError,
+  type RecordViewRuntime,
+} from '../runtime/index.js';
 import { sourceIssue } from '../runtime/issues.js';
 import { reportViewFailure } from '../runtime/failures.js';
 import { toIssue } from './issues.js';
@@ -252,7 +255,7 @@ export function useRecordExport(
         // A cancel is the user's own answer, not a finding: the window
         // closes and nothing is said about it.
         settle(
-          isExportCancelled(caught)
+          isExportCancelledError(caught)
             ? IDLE
             : { ...IDLE, error: await sourceIssue(caught, 'export.failed') },
         );

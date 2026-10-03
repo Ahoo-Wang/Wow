@@ -34,4 +34,4 @@ export {
   type HarnessField,
   type HarnessState,
 } from './actions.js';
-export { ActionRefused } from '../runtime/actions.js';
+export { ActionRefusedError } from '../runtime/actions.js';

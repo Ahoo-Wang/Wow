@@ -107,7 +107,7 @@ export interface ActionHarness {
   changesAt(key?: RecordKey): number | null;
   /**
    * Sends one record the command as the engine would — with the form's
-   * `initial` under `input` — refused with the reason (`ActionRefused`)
+   * `initial` under `input` — refused with the reason (`ActionRefusedError`)
    * where it does not take it, else the host's `run` itself.
    */
   run(id: string, key: RecordKey, input?: ActionInput): Promise<unknown>;

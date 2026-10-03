@@ -31,7 +31,7 @@ import {
 import type { KernelContext } from './execute.js';
 
 export interface ExportRowsOptions {
-  /** Stops the run; the promise then rejects with an `ExportCancelled`. */
+  /** Stops the run; the promise then rejects with an `ExportCancelledError`. */
   signal?: AbortSignal;
   /**
    * How far it has got: rows in hand, and how many there are in all when the
@@ -55,16 +55,18 @@ export interface ExportedRows {
  * What a cancelled export rejects with. It is not a failure — nobody has to
  * be told about it — so the caller tells it apart rather than reporting it.
  */
-export class ExportCancelled extends Error {
+export class ExportCancelledError extends Error {
   constructor() {
     super('The export was cancelled');
-    this.name = 'ExportCancelled';
+    this.name = 'ExportCancelledError';
   }
 }
 
 /** By name, as every guard of the engine's errors (`isViewStoreError`). */
-export function isExportCancelled(error: unknown): error is ExportCancelled {
-  return isNamedError(error, 'ExportCancelled');
+export function isExportCancelledError(
+  error: unknown,
+): error is ExportCancelledError {
+  return isNamedError(error, 'ExportCancelledError');
 }
 
 /**
@@ -225,7 +227,7 @@ function done(
 }
 
 function stopIfCancelled(signal: AbortSignal | undefined): void {
-  if (signal?.aborted) throw new ExportCancelled();
+  if (signal?.aborted) throw new ExportCancelledError();
 }
 
 /** Aborts `controller` when `signal` does, and unsubscribes when it is over. */

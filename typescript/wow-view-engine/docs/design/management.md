@@ -201,7 +201,7 @@ export class ViewStoreError extends Error {
 
 **冲突状态分两个成员，不是一个联合。** 一个 `remote?: ViewInstance | ViewPreferences` 编译得过，代价是每个用处都要 cast 一次：偏好冲突带回一个实例照样一路读作偏好。store 只填自己这次写的那一个；Engine 按 `payload.action` 读对应的那个成员，填错的那个读作没填，于是回落到自己回读一次（`store.getPreferences` 或 `store.get`），而不是被当真。构造函数第三个参数因此是 `{ instance }` 或 `{ preferences }`。（见 test/store.test.ts、test/writeLedger.test.ts「ignores a conflict state the write was not about」）
 
-`ViewStoreError` 与其判定函数放在 `model/`：端口两侧都要说这门语言，运行时据此分类写入结局，却不能依赖任何 store 实现（[分层规则](README.md#分层与依赖规则)第 4 条要求 `runtime → store` 只取端口类型）。判定按结构而非 `instanceof`——`name` 为 `ViewStoreError` 且 `code` 是端口的码——因此第二份包副本或自行构造该形状的适配器同样被识别，而 HTTP 库里恰好带 `code: 'NOT_FOUND'` 的错误不会。引擎的其余错误（`ViewWriteError`、`ViewCommandError`、`ExportCancelled`）的判定同一规则。
+`ViewStoreError` 与其判定函数放在 `model/`：端口两侧都要说这门语言，运行时据此分类写入结局，却不能依赖任何 store 实现（[分层规则](README.md#分层与依赖规则)第 4 条要求 `runtime → store` 只取端口类型）。判定按结构而非 `instanceof`——`name` 为 `ViewStoreError` 且 `code` 是端口的码——因此第二份包副本或自行构造该形状的适配器同样被识别，而 HTTP 库里恰好带 `code: 'NOT_FOUND'` 的错误不会。引擎的其余错误（`ViewWriteError`、`ViewCommandError`、`ExportCancelledError`）的判定同一规则。
 
 一致性策略两条：
 

@@ -266,7 +266,7 @@ await orders.run('cancel', 'O-1', { reason: '买家要求' });
 expect(commands.cancel).toHaveBeenCalledWith('id-O-1', '买家要求');
 ```
 
-`run` on a record the action does not take rejects with `ActionRefused` and its reason, as the engine would refuse to send it.
+`run` on a record the action does not take rejects with `ActionRefusedError` and its reason, as the engine would refuse to send it.
 
 ### Every action word, in every language
 
