@@ -249,7 +249,12 @@ function takerIn(place: HTMLElement): HTMLElement | null {
  * focus is sent a moment later; whatever goes in between (the opener and
  * the popup unmounted by the same render, a button the command disabled)
  * would still drop the keyboard. So once the hand-back has run, a keyboard
- * that fell anyway is put on the landing too.
+ * that fell anyway is put on the landing too — but only when the place it
+ * was meant for is what failed: gone from the page, or disabled. A target
+ * still standing means the popup chose not to hand back (Base UI skips it
+ * on an outside press where `focus({ preventScroll })` is unsupported, so
+ * the page does not jump, and on a hover popup's mouse leaving), and that
+ * choice stands; a keyboard that went to another control is left there.
  */
 export function handBack<Asked>(
   popup: HTMLElement | null,
@@ -258,15 +263,19 @@ export function handBack<Asked>(
   if (!popup || asked === false || asked === undefined) return asked;
   const opener = openers.get(popup);
   if (!opener) return asked;
+  const target = asked instanceof HTMLElement ? asked : opener.control;
   // After the popup's own hand-back, which is queued behind this.
   queueMicrotask(() =>
     queueMicrotask(() => {
-      if (keyboardFell()) landingOf(opener)?.focus({ preventScroll: true });
+      if (keyboardFell() && failed(target))
+        landingOf(opener)?.focus({ preventScroll: true });
     }),
   );
-  const gone =
-    asked instanceof HTMLElement
-      ? !asked.isConnected
-      : !opener.control.isConnected;
+  const gone = !target.isConnected;
   return gone ? (landingFor(popup) ?? asked) : asked;
+}
+
+/** Whether `target` cannot take the keyboard: off the page, or disabled. */
+function failed(target: HTMLElement): boolean {
+  return !target.isConnected || isBarred(target);
 }

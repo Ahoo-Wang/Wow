@@ -55,6 +55,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '../src/ui/components/select.js';
+import { handBack, rememberOpener } from '../src/ui/kit/focus.js';
 import * as popups from '../src/ui/kit/popups.js';
 import {
   AlertDialogContent,
@@ -247,6 +248,7 @@ function Page({
           )}
         </div>
       </div>
+      <button type="button">Elsewhere</button>
     </ViewSurface>
   );
 }
@@ -357,5 +359,73 @@ describe('a popup closed with its opener there', () => {
     await waitFor(() => expect(closed(kind.slot)).toBe(true));
 
     await waitFor(() => expect(document.activeElement).toBe(opener));
+  });
+});
+
+describe('a keyboard the hand-back leaves alone', () => {
+  /** A popup of its own, opened from `opener` with the keyboard on it. */
+  function popupFrom(opener: HTMLElement): HTMLElement {
+    opener.focus();
+    const popup = document.createElement('div');
+    document.body.append(popup);
+    rememberOpener(popup);
+    popup.remove();
+    return popup;
+  }
+
+  /** Long enough for the hand-back's own focus and the check after it. */
+  const nextTurns = () => new Promise(resolve => setTimeout(resolve, 0));
+
+  it('stays where it went when it moved to another control while the opener was gone', async () => {
+    const kind = HANDS_BACK.find(each => each.name === 'PopoverContent')!;
+    const controls = await opened(kind);
+    act(() => controls.removeOpener());
+    const elsewhere = screen.getByRole('button', { name: 'Elsewhere' });
+    // A press outside the popover closes it and takes the keyboard.
+    await userEvent.setup().click(elsewhere);
+    await waitFor(() => expect(closed(kind.slot)).toBe(true));
+    await nextTurns();
+
+    expect(document.activeElement).toBe(elsewhere);
+  });
+
+  it('is not pulled back when the popup chose not to hand it back and its opener stands', async () => {
+    // Base UI skips the hand-back on an outside press where
+    // `focus({ preventScroll })` is unsupported (Chrome on Android), so the
+    // page does not jump, and on a hover popup's mouse leaving: the
+    // keyboard is on the body then, and the opener is still there.
+    const page = document.createElement('div');
+    page.className = 'fve-root';
+    page.innerHTML =
+      '<button type="button">Before</button><button type="button">Opener</button>';
+    document.body.append(page);
+    const [, opener] = page.querySelectorAll('button');
+    const popup = popupFrom(opener!);
+    (document.activeElement as HTMLElement | null)?.blur();
+
+    expect(handBack(popup, true)).toBe(true);
+    await nextTurns();
+
+    expect(document.activeElement).toBe(document.body);
+    page.remove();
+  });
+
+  it('lands beside the opener when the opener has gone and the keyboard fell', async () => {
+    const page = document.createElement('div');
+    page.className = 'fve-root';
+    page.innerHTML =
+      '<button type="button">Before</button><span><button type="button">Opener</button></span>';
+    document.body.append(page);
+    const opener = page.querySelector('span button') as HTMLElement;
+    const popup = popupFrom(opener);
+    opener.remove();
+    (document.activeElement as HTMLElement | null)?.blur();
+
+    const landing = handBack(popup, true);
+    await nextTurns();
+
+    expect(landing).toBe(page.querySelector('button'));
+    expect(document.activeElement).toBe(page.querySelector('button'));
+    page.remove();
   });
 });

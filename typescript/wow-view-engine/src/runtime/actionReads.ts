@@ -41,12 +41,25 @@ import type { ActionContext, RecordAction, RecordActions } from './actions.js';
 import { inDevelopment } from './failure/issueReport.js';
 import type { RecordViewRuntime } from './viewRuntimeTypes.js';
 
+/** The paths the rows on screen were fetched with, and every declared one. */
+interface Paths {
+  fetched: readonly string[];
+  declared: ReadonlySet<string>;
+}
+
 /** What one open record view watches its actions' reads with. */
 interface ReadWatch {
-  /** The paths the rows on screen were fetched with, and every declared one. */
-  paths(): { fetched: readonly string[]; declared: ReadonlySet<string> };
+  paths(): Paths;
   /** Tells of `field`, read by `action` and not fetched, once per view. */
   unfetched(field: string, action: string): void;
+  /**
+   * Each row's one proxy, while the paths it was made for hold: a rule
+   * asked twice of a row sees the same object, so a memo the host keys by
+   * row works in development as it does without the proxy.
+   */
+  readonly proxies: WeakMap<RecordRow, { paths: Paths; row: RecordRow }>;
+  /** The action whose rule is reading now, which a read is told under. */
+  reading: string | null;
 }
 
 /** Each watched runtime's watch; only ever filled in development. */
@@ -67,9 +80,11 @@ export function watchActionReads(
   let last: {
     definition: DataViewDefinition;
     applied: RecordViewConfig;
-    paths: ReturnType<ReadWatch['paths']>;
+    paths: Paths;
   } | null = null;
   watches.set(runtime, {
+    proxies: new WeakMap(),
+    reading: null,
     paths() {
       const definition = runtime.definition;
       const applied = runtime.getSnapshot().applied;
@@ -84,7 +99,9 @@ export function watchActionReads(
     },
     unfetched(field, action) {
       const definition = runtime.definition.id;
-      const view = runtime.getSnapshot().saved?.id ?? runtime.id;
+      // A view never saved is keyed by its definition, so opening it again
+      // does not tell of the same field again.
+      const view = runtime.getSnapshot().saved?.id ?? definition;
       const key = [definition, view, field].join('\u0000');
       if (told.has(key)) return;
       told.add(key);
@@ -132,36 +149,45 @@ export function watchedActions(
   const watch = runtime ? watches.get(runtime) : undefined;
   if (!list || !watch) return list;
   const fetchedRows = new Set(rows);
+  const seen = (row: RecordRow): RecordRow => {
+    if (!fetchedRows.has(row)) return row;
+    const paths = watch.paths();
+    const kept = watch.proxies.get(row);
+    if (kept?.paths === paths) return kept.row;
+    const proxied: RecordRow = {
+      key: row.key,
+      data: watchingReads(row.data, '', paths, field => {
+        if (watch.reading !== null) watch.unfetched(field, watch.reading);
+      }),
+    };
+    watch.proxies.set(row, { paths, row: proxied });
+    return proxied;
+  };
+  /** `rule` asked of `row` as seen, its reads told under `action`. */
+  const asking = <T>(action: RecordAction, rule: () => T): T => {
+    const outer = watch.reading;
+    watch.reading = action.id;
+    try {
+      return rule();
+    } finally {
+      watch.reading = outer;
+    }
+  };
   return list.map(action => {
-    const seen = (row: RecordRow): RecordRow =>
-      fetchedRows.has(row)
-        ? readsOf(row, watch.paths(), field =>
-            watch.unfetched(field, action.id),
-          )
-        : row;
     // The action itself stays underneath, so every member the surface
     // reads — the host's own, on a class's prototype too — reads through.
     const rules: Partial<Record<keyof RecordAction, unknown>> = {};
     if (action.hidden)
       rules.hidden = (row: RecordRow, context: ActionContext) =>
-        action.hidden?.(seen(row), context);
+        asking(action, () => action.hidden?.(seen(row), context));
     if (action.available)
       rules.available = (row: RecordRow, context: ActionContext) =>
-        action.available?.(seen(row), context);
+        asking(action, () => action.available?.(seen(row), context));
     if (action.changesAt)
       rules.changesAt = (row: RecordRow, context: ActionContext) =>
-        action.changesAt?.(seen(row), context);
+        asking(action, () => action.changesAt?.(seen(row), context));
     return Object.assign(Object.create(action) as RecordAction, rules);
   });
-}
-
-/** `row` with its data read through `watchingReads`, which tells of `unfetched`. */
-function readsOf(
-  row: RecordRow,
-  paths: ReturnType<ReadWatch['paths']>,
-  unfetched: (field: string) => void,
-): RecordRow {
-  return { key: row.key, data: watchingReads(row.data, '', paths, unfetched) };
 }
 
 /**
@@ -169,15 +195,19 @@ function readsOf(
  * to `value` untouched): what was fetched reads as it is,
  * what holds fetched paths under it reads through another such view, and a
  * declared path that was not fetched is told of — and reads as it is, so a
- * rule decides exactly as it would without the proxy.
+ * rule decides exactly as it would without the proxy. `made` keeps one view
+ * per object, so a nested value read twice is the same object twice.
  */
 function watchingReads<T extends object>(
   value: T,
   path: string,
-  paths: ReturnType<ReadWatch['paths']>,
+  paths: Paths,
   unfetched: (field: string) => void,
+  made: WeakMap<object, object> = new WeakMap(),
 ): T {
-  return new Proxy(value, {
+  const kept = made.get(value);
+  if (kept) return kept as T;
+  const view = new Proxy(value, {
     get(target, key, receiver) {
       const found: unknown = Reflect.get(target, key, receiver);
       if (typeof key !== 'string') return found;
@@ -192,7 +222,7 @@ function watchingReads<T extends object>(
         return found !== null &&
           typeof found === 'object' &&
           !frozenAt(target, key)
-          ? watchingReads(found, at, paths, unfetched)
+          ? watchingReads(found, at, paths, unfetched, made)
           : found;
       if (
         [...paths.declared].some(
@@ -206,6 +236,8 @@ function watchingReads<T extends object>(
       return found;
     },
   });
+  made.set(value, view);
+  return view;
 }
 
 /**

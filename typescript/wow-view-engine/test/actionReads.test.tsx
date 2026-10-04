@@ -308,6 +308,121 @@ describe('the proxy a rule reads a row through', () => {
     expect(seen[0]).toBe(ROW);
   });
 
+  it('hands a rule the same row, and the same nested object, each time it asks', () => {
+    vi.stubEnv('NODE_ENV', 'development');
+    const watched = runtime(
+      recordConfig({
+        table: { columns: [{ field: 'id' }, { field: 'state.status' }] },
+      }),
+    );
+    watchActionReads(watched, () => {}, new Set());
+    const seen: RecordRow[] = [];
+    const states: unknown[] = [];
+    const [action] = watchedActions(
+      actions([
+        {
+          id: 'look',
+          label: 'Look',
+          available: row => {
+            seen.push(row);
+            states.push(row.data.state);
+            return true;
+          },
+          run: () => Promise.resolve(),
+        },
+      ]),
+      watched,
+      [ROW],
+    )!;
+    action!.available!(ROW, { now: 0 });
+    action!.available!(ROW, { now: 1 });
+
+    expect(types.isProxy(seen[0]!.data)).toBe(true);
+    expect(seen[1]).toBe(seen[0]);
+    expect(states[1]).toBe(states[0]);
+  });
+
+  it('reads a frozen nested object without a TypeError', () => {
+    const frozen: RecordRow = Object.freeze({
+      key: 'o-1',
+      data: Object.freeze({
+        id: 'o-1',
+        state: Object.freeze({ status: 'PENDING', retries: 2 }),
+        lines: Object.freeze([Object.freeze({ sku: 'A', qty: 1 })]),
+      }),
+    });
+    vi.stubEnv('NODE_ENV', 'development');
+    const found: Issue[] = [];
+    const watched = runtime(
+      recordConfig({
+        table: {
+          columns: [
+            { field: 'id' },
+            { field: 'state.status' },
+            { field: 'lines' },
+          ],
+        },
+      }),
+    );
+    watchActionReads(watched, issue => found.push(issue), new Set());
+    let answer: unknown;
+    const [action] = watchedActions(
+      actions([
+        {
+          id: 'look',
+          label: 'Look',
+          available: row => {
+            const state = row.data.state as { status: string; retries: number };
+            const lines = row.data.lines as { qty: number }[];
+            answer = [state.status, state.retries, lines[0]!.qty];
+            return true;
+          },
+          run: () => Promise.resolve(),
+        },
+      ]),
+      watched,
+      [frozen],
+    )!;
+
+    expect(() => action!.available!(frozen, { now: 0 })).not.toThrow();
+    expect(answer).toEqual(['PENDING', 2, 1]);
+  });
+
+  it('tells of a view never saved once, however often it is opened', () => {
+    vi.stubEnv('NODE_ENV', 'development');
+    const found: Issue[] = [];
+    const told = new Set<string>();
+    for (const id of ['runtime-1', 'runtime-2']) {
+      const opened = {
+        ...runtime(recordConfig()),
+        id,
+      } as unknown as RecordViewRuntime;
+      Object.assign(opened, {
+        definition: nested(),
+        getSnapshot: () => ({ applied: recordConfig(), saved: null }),
+      });
+      watchActionReads(opened, issue => found.push(issue), told);
+      const [action] = watchedActions(
+        actions([
+          {
+            id: 'retry',
+            label: 'Retry',
+            available: row =>
+              (row.data.state as { retries: number }).retries < 3 ||
+              'Retried enough',
+            run: () => Promise.resolve(),
+          },
+        ]),
+        opened,
+        [ROW],
+      )!;
+      action!.available!(ROW, { now: 0 });
+    }
+
+    expect(found).toHaveLength(1);
+    expect(found[0]?.params?.view).toBe('orders');
+  });
+
   it('leaves the actions as declared where the runtime is not watched', () => {
     vi.stubEnv('NODE_ENV', 'production');
     const watched = runtime(recordConfig());

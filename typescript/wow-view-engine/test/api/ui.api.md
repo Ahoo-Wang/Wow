@@ -1856,7 +1856,7 @@ export const en: {
     readonly 'label.action.failed': "Failed, with no reason given";
     readonly 'label.action.timed-out': "No answer in time";
     readonly 'label.action.abandoned': "Stopped waiting";
-    readonly 'record.action.unfetched': "Action “{action}” reads {field}, which the rows of this view do not fetch: it reads as empty on every row. List it in the definition’s record.rowFields.";
+    readonly 'record.action.unfetched': "Action “{action}” reads {field}, which is not fetched for the rows of this view. List it in the definition’s record.rowFields.";
     readonly 'label.bulk.done': "{done} done";
     readonly 'label.bulk.failed': "{failed} failed";
     readonly 'label.bulk.unknown': "{unknown} with outcome unknown, refresh to check first";

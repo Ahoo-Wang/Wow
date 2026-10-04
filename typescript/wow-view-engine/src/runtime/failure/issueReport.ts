@@ -89,7 +89,7 @@ const HINTS: readonly (readonly [string, string])[] = [
   ],
   [
     'record.action.unfetched',
-    "List the field in the definition's `record.rowFields`: a row brings only the shown columns, the row key, the card's fields and what the sort and the summaries read, so the action's rule reads it as empty on every row.",
+    "List the field in the definition's `record.rowFields`: a row brings only the shown columns, the row key, the card's fields and what the sort and the summaries read, so the field the action's rule reads is not fetched.",
   ],
   [
     'view.list.reserved-id',
