@@ -1,3 +1,16 @@
+public final class me/ahoo/wow/tck/architecture/DefaultMethodContract {
+	public static final field INSTANCE Lme/ahoo/wow/tck/architecture/DefaultMethodContract;
+	public final fun assertOnlyKnownGaps (Ljava/util/Collection;Ljava/util/Map;Ljava/util/Set;)V
+	public static synthetic fun assertOnlyKnownGaps$default (Lme/ahoo/wow/tck/architecture/DefaultMethodContract;Ljava/util/Collection;Ljava/util/Map;Ljava/util/Set;ILjava/lang/Object;)V
+	public final fun concreteSubtypes (Ljava/lang/String;Ljava/lang/Class;Ljava/lang/ClassLoader;)Ljava/util/List;
+	public static synthetic fun concreteSubtypes$default (Lme/ahoo/wow/tck/architecture/DefaultMethodContract;Ljava/lang/String;Ljava/lang/Class;Ljava/lang/ClassLoader;ILjava/lang/Object;)Ljava/util/List;
+	public final fun getCONSTANT_CLASSIFIERS ()Ljava/util/Set;
+	public final fun inheritedDefaults (Ljava/lang/Class;Ljava/util/Set;)Ljava/util/List;
+	public final fun inheritedDefaults (Ljava/util/Collection;Ljava/util/Set;)Ljava/util/List;
+	public static synthetic fun inheritedDefaults$default (Lme/ahoo/wow/tck/architecture/DefaultMethodContract;Ljava/lang/Class;Ljava/util/Set;ILjava/lang/Object;)Ljava/util/List;
+	public static synthetic fun inheritedDefaults$default (Lme/ahoo/wow/tck/architecture/DefaultMethodContract;Ljava/util/Collection;Ljava/util/Set;ILjava/lang/Object;)Ljava/util/List;
+}
+
 public abstract class me/ahoo/wow/tck/command/CommandBusSpec : me/ahoo/wow/tck/messaging/MessageBusSpec {
 	public fun <init> ()V
 	protected fun createMessage ()Lme/ahoo/wow/api/command/CommandMessage;
