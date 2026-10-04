@@ -9,6 +9,6 @@ PASS only if the answer does all of these:
 
 1. Declares both with actions([...]) and binds them on the orders resource with bind, rather than drawing buttons or using slots
 2. Reads availability from the record's state with the aggregate's own rule, returns a text(key) reason in business words when refused, and lists the state fields the rules read in the definition's record.rowFields
-3. Makes cancel tone danger with a confirmation asked for one record too and a form for the reason; makes ship primary with confirm ask: 'bulk'
+3. Makes cancel tone danger with a confirmation asked for one record too and a form for the reason; makes ship primary with a confirmation asked for one record too (ask left at 'always', not 'bulk', since shipping cannot be taken back) and no danger tone
 4. Has run send through the command client to the aggregate id (read off the row where the row key is a business key), waiting for CommandStage.SNAPSHOT and resolve only after, throwing on refusal
 5. Tests the declarations with actionHarness: places, reasons, the bulk split, what a press asks, and run calling the right command

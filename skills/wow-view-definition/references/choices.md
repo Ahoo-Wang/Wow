@@ -1,6 +1,6 @@
 # Choices
 
-What `defineView` takes and what it leaves to you is in the engine's README, [Defining a view from the descriptor](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/README.md#defining-a-view-from-the-descriptor), and the rules behind it in [host-integration.md §3](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/docs/design/host-integration.md#3-defineview事实从描述符来宿主只能收窄). Confirm members against the installed typings (`DefineViewSpec`, `FieldSpec`): the package is published from Wow 9.2.0, and a minor release may change its surface. This page is about deciding what to write.
+In depth: [Writing a Definition](https://wow.ahoo.me/guide/typescript/view-engine-definitions.html) (facts, capabilities and choices, words, narrowing, `rowFields`, system views, boards, `admit`) and the [definitions reference](https://wow.ahoo.me/reference/typescript/wow-view-engine/definitions.html). Confirm members against the installed typings (`DefineViewSpec`, `FieldSpec`): a patch release never breaks the public surface, a minor release may. This page is about deciding what to write.
 
 ## A definition, choice by choice
 
@@ -53,11 +53,6 @@ export const ORDER_WORDS = {
     'orders.paidAt': '付款时间',
     'orders.placedAt': '下单时间',
     'orders.remark': '买家备注',
-    'orders.buyer': '买家',
-    'orders.level': '会员等级',
-    'orders.regular': '普通会员',
-    'orders.silver': '银卡会员',
-    'orders.gold': '金卡会员',
     'orders.items': '商品',
     'orders.sku': '商品编码',
     'orders.itemTitle': '商品名称',
@@ -72,7 +67,6 @@ export const ORDER_WORDS = {
     // The board.
     'overview.title': '订单概览',
     'overview.daily': '每日',
-    'overview.today': '今天的订单',
     'overview.dailyPaid': '每日实付',
   },
   en: {
@@ -95,11 +89,6 @@ export const ORDER_WORDS = {
     'orders.paidAt': 'Paid at',
     'orders.placedAt': 'Placed at',
     'orders.remark': 'Buyer note',
-    'orders.buyer': 'Buyer',
-    'orders.level': 'Member level',
-    'orders.regular': 'Regular',
-    'orders.silver': 'Silver',
-    'orders.gold': 'Gold',
     'orders.items': 'Items',
     'orders.sku': 'SKU',
     'orders.itemTitle': 'Product',
@@ -112,7 +101,6 @@ export const ORDER_WORDS = {
     'orders.day': 'Day',
     'overview.title': 'Order overview',
     'overview.daily': 'Daily',
-    'overview.today': 'Today\'s orders',
     'overview.dailyPaid': 'Amount paid per day',
   },
 } as const;
@@ -127,11 +115,7 @@ export const orders = defineView(orderDescriptor, {
   timeField: 'state.paidAt',
   fields: {
     // What the team looks an order up by: copied, never grouped.
-    'state.orderNo': {
-      label: text('orders.no'),
-      cell: 'copyable',
-      analysis: false,
-    },
+    'state.orderNo': { label: text('orders.no'), cell: 'copyable', analysis: false },
     'state.status': {
       label: text('orders.status'),
       cell: 'status',
@@ -175,15 +159,6 @@ export const orders = defineView(orderDescriptor, {
       sortable: false,
       analysis: false,
     },
-    'state.buyer.nick': { label: text('orders.buyer'), analysis: false },
-    'state.buyer.level': {
-      label: text('orders.level'),
-      options: {
-        REGULAR: text('orders.regular'),
-        SILVER: text('orders.silver'),
-        GOLD: text('orders.gold'),
-      },
-    },
     // The lines of an order, named by product.
     'state.items': {
       label: text('orders.items'),
@@ -196,11 +171,7 @@ export const orders = defineView(orderDescriptor, {
     },
     // The id commands address: listed so the actions can read it, last in
     // the picker; the system views leave it out of their columns.
-    aggregateId: {
-      label: text('orders.id'),
-      cell: 'copyable',
-      analysis: false,
-    },
+    aggregateId: { label: text('orders.id'), cell: 'copyable', analysis: false },
   },
   record: {
     // Looked up (and linked, `?id=`) by the order number.
@@ -212,7 +183,7 @@ export const orders = defineView(orderDescriptor, {
 });
 ```
 
-What is left out is a choice too: the tenant, the buyer's phone, ID card and income (the audience needs none of them), and `state.oldStatus` (deprecated in favour of `state.status`).
+What is left out is a choice too: the tenant, the buyer's phone, ID card and income (the audience needs none of them), and `state.oldStatus` (deprecated in favour of `state.status`). The definition declares no `kind` the facts already give: an enum, or `options` you write, makes `enum`; an array with `elements` is `elementMatch`; an object or a union the facts cannot tell needs a `kind` (`definition.field.kind-unknown`).
 
 ## Fields
 
@@ -234,7 +205,7 @@ Field groups (`fieldGroups: [{ id, label, fields }]`) arrange the picker and the
 
 ## Narrowing
 
-Capabilities you leave open follow the source at run time: the same definition offers a phrase search on Elasticsearch and none on MongoDB, and a raised server limit without a deploy. Narrow only where the audience would otherwise be offered something misleading or useless — an average of order numbers, a sort by a stack trace, a group by an id. Never narrow to repeat what the descriptor already withholds, and never restate a server limit (`record.maxWindow`, `analysis.limits`) unless the audience needs a lower one.
+Capabilities left open follow the source at run time (a phrase search on Elasticsearch and none on MongoDB; a raised server limit without a deploy). Narrow only what would mislead the audience — an average of order numbers, a sort by a stack trace, a group by an id — never to repeat what the descriptor withholds, and never restate a server limit (`record.maxWindow`, `analysis.limits`) unless the audience needs a lower one.
 
 ## Protected, deprecated, missing
 
@@ -276,8 +247,7 @@ declare const orderEventDescriptor: QueryModelDescriptor;
 ```ts
 import { defineView, text } from '@ahoo-wang/wow-view-engine';
 
-// Every `orderEvents.*` key has words per language in a table beside it, as
-// `ORDER_WORDS` above; `admit` reports the ones without.
+// Every `orderEvents.*` key has words per language beside it, as `ORDER_WORDS` above.
 export const orderEvents = defineView(orderEventDescriptor, {
   id: 'order-events',
   source: 'order/event',
@@ -287,11 +257,7 @@ export const orderEvents = defineView(orderEventDescriptor, {
   fields: {
     // The row key: the identity the store appends to every sort.
     id: { label: text('orderEvents.id'), cell: 'copyable', analysis: false },
-    aggregateId: {
-      label: text('orderEvents.order'),
-      cell: 'copyable',
-      analysis: { groups: [] },
-    },
+    aggregateId: { label: text('orderEvents.order'), cell: 'copyable', analysis: { groups: [] } },
     // Events land seconds apart: the table keeps the seconds.
     createTime: { label: text('orderEvents.time'), timePrecision: 'second' },
     body: {
@@ -325,11 +291,7 @@ export const LARGE_PAYMENTS: FilterNode = {
   value: {
     op: 'and',
     children: [
-      {
-        field: 'body.bodyType',
-        operator: 'IN',
-        value: ['com.example.order.OrderPaid'],
-      },
+      { field: 'body.bodyType', operator: 'IN', value: ['com.example.order.OrderPaid'] },
       { field: 'body.body.paidAmount', operator: 'GT', value: 1000 },
     ],
   },

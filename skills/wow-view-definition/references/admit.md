@@ -1,10 +1,10 @@
 # Admission
 
-`admit(definitions, descriptors, { text })` from `@ahoo-wang/wow-view-engine/testing` admits a host's declarations exactly as the engine does when it registers them: each definition's keys said in `text`, its own rules and every system view config, its boards against every other definition, and each data definition narrowed to the committed descriptor of its `source`. It returns every finding with the definition it is about, `[]` when all of it holds. The engine's README has the reference: [Testing a host](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/README.md#testing-a-host-an-in-memory-source).
+`admit(definitions, descriptors, { text })` from `@ahoo-wang/wow-view-engine/testing` admits a host's declarations exactly as the engine does when it registers them: each definition's keys said in `text`, its own rules and every system view config, its boards against every other definition, and each data definition narrowed to the committed descriptor of its `source`. It judges each definition as declared, keys and all (the words only reveal keys without words), and returns every finding with the definition it is about, `[]` when all of it holds. In depth: [Self-check with `admit`](https://wow.ahoo.me/guide/typescript/view-engine-definitions.html#_7-self-check-with-admit), the [testing reference](https://wow.ahoo.me/reference/typescript/wow-view-engine/testing.html) and the [issue codes](https://wow.ahoo.me/reference/typescript/wow-view-engine/issues.html).
 
 ## The test
 
-One test admits everything the host registers, in every language it serves. It takes definitions or the host's resources as they are (`{ definition, source }`), so pass the same list the engine gets.
+One test admits everything the host registers, in every language it serves. It takes definitions or the host's resources as they are; pass the same list the engine gets. **Given a full resource list** (at least one resource carries its `source`), it also reports a data resource whose `source` key no resource registers (`definition.source.unregistered`), as the engine does at start (9.2.2); a list of bare definitions or `{ definition }` alone is not checked for sources.
 
 <!-- typecheck-context
 import type { QueryModelDescriptor } from '@ahoo-wang/wow-client';
@@ -49,7 +49,7 @@ export default defineConfig({
 });
 ```
 
-Run it as `vitest run --root src/views`: Vitest takes the `vitest.config.ts` of the root it is pointed at, and `include` is relative to that root. With the config elsewhere, name both: `vitest run --config vitest.views.config.ts`. Type-check with the host's `tsconfig.json` (`wow-view-host` shows a minimal one for the views).
+Run it as `vitest run --root src/views`: Vitest takes the `vitest.config.ts` of the root it is pointed at, and `include` is relative to that root. With the config elsewhere, name both: `vitest run --config vitest.views.config.ts`. Type-check with the host's `tsconfig.json` (`wow-view-host` lists the options a minimal one for the views needs).
 
 Read every finding. Fix it at the choice it names; do not silence it by widening `text`, dropping the descriptor or filtering the result. A finding you keep on purpose is asserted exactly, with the reason beside it, so a new finding still fails the test:
 
@@ -94,6 +94,8 @@ Each finding has a `code`, `params`, a `path` into the definition and the `defin
 | `definition.record.row-key-unknown`, `row-key-unsortable`, `capability.record.*` | List the identity (or the `rowKey` you chose) and choose a key the store sorts uniquely; on a cursor, the identity the store appends. |
 | `capability.field.temporal-mismatch` | The descriptor keeps the time differently; follow the descriptor, never override `temporal`. |
 | `definition.descriptor.missing` | `admit` was not given the descriptor for that `source`; pass the committed snapshot. |
+| `definition.source.unregistered` | The definition's `source` key is registered by no resource: fix the key, or register the source (`wow-view-host`). |
+| `definition.field.kind-unknown` | An object or union the facts cannot type: give it a `kind`. |
 | `definition.view.*`, `filter.*`, `analysis.*`, `dashboard.*`, `record.*` | A system view or board config: the field, operator, alias or panel reference it names. |
 
 ## What admit cannot judge

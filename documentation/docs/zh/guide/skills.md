@@ -22,7 +22,7 @@ V9 是当前维护基线和默认术语。`wow-develop` 仍可处理 V8 下游�
 | `wow-client` | 调用 Wow 的 TypeScript 代码：用 `@ahoo-wang/wow-client` 与 `@ahoo-wang/wow-react` 编写命令、查询与 React 查询 hook，以及用 `wow-generator` CLI 从 OpenAPI 文档生成客户端；从 `@ahoo-wang/fetcher-wow` 或 `@ahoo-wang/fetcher-generator` 换过来 | Kotlin/Java 服务端工作、视图定义与宿主接入 |
 | `wow-data-query` | 读取运行中服务的查询能力描述，用只读查询回答业务数据问题，交付答案而非代码 | 编写查询代码（`wow-client`）、诊断查询报错或结果异常（`wow-develop`） |
 | `wow-view-definition` | 依据已提交的查询能力描述，用 `defineView` 决定并写出 `@ahoo-wang/wow-view-engine` 的视图定义：列哪些字段、用什么词、收窄什么、记录与分析系统视图、看板；以引擎的 `admit` 自检 | 接入宿主（`wow-view-host`）、运行时客户端代码（`wow-client`）、回答数据问题（`wow-data-query`）、修改视图引擎本身 |
-| `wow-view-host` | 把视图引擎接入宿主：一个引擎与它的资源和视图存储（`MemoryViewStore`、`localStorageSnapshot`、CoSec 网关之后的 `WowViewStore`）、`ViewHost`、`bind` 与路由，以及把 Wow 命令声明成操作；以 `actionHarness`、`resolveNavigation` 与 `admit` 自检 | 定义里声明什么（`wow-view-definition`）、引擎之外的客户端代码（`wow-client`）、修改视图引擎本身 |
+| `wow-view-host` | 把视图引擎接入宿主：一个引擎与它的资源和视图存储（`MemoryViewStore`、`localStorageSnapshot`、CoSec 网关之后的 `WowViewStore`，含存储的系统视图）、`ViewHost`、`bind` 与路由，把 Wow 命令声明成操作，以及从已弃用的 `@ahoo-wang/fetcher-viewer` 迁来；以 `actionHarness`、`resolveNavigation` 与 `admit` 自检 | 定义里声明什么（`wow-view-definition`）、引擎之外的客户端代码（`wow-client`）、修改视图引擎本身 |
 
 **插件 0.2.0 起的改名。** `wow-review` 与 `wow-debug` 并入 `wow-develop`，`wow-generator` 并入 `wow-client`。旧名称不保留别名：刷新或重新安装 `ahoo-wow-skills` 即可得到这六个 Skill。
 

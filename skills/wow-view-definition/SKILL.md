@@ -26,7 +26,7 @@ The descriptor holds the **facts**: paths, kinds, values, sensitivity, deprecati
 6. **Time.** `timeField` is the moment a board's one date filter means for this dataset (when it was paid, not when it was last touched); a system view overrides it, `null` to be read whole.
 7. **Records.** Layouts the audience scans (`table`, `card` with the field that names a card), `rowKey` when the identity is not what people look a record up by, and `rowFields` for any field the host's declared actions read beyond the visible columns, including the aggregate id their commands address when `rowKey` is a business key.
 8. **Event streams.** One record is one command's appended events: list `body` with `elementTitle: 'bodyType'`, the event types worded as business events, and payload fields from the descriptor's variants inside `elements`. A condition on an event's payload is one `ELEMENT_MATCH` on `body` holding both its `bodyType` and the payload condition.
-9. **System views, analyses and boards** are the starting points, not every possible view: see `references/views-and-boards.md`.
+9. **System views, analyses and boards** are the starting points, not every possible view: see `references/views-and-boards.md`. Those declared here are read-only code; stored system views that administrators publish on the screen belong to the store (`wow-view-host`).
 
 ## Self-check: admit
 
@@ -36,8 +36,7 @@ A definition is done when the engine admits it. The host's test calls `admit` fr
 
 ## References
 
-Links in the references point at `main` on GitHub; in a Wow checkout the same file is at the path after `blob/main/` (for example `typescript/wow-view-engine/README.md`).
-
+The references hold names, shapes, rules and gotchas; each links the page of https://wow.ahoo.me/guide/typescript/view-engine.html that covers its topic in depth. Repository paths (`compensation/…`, `typescript/…`) are in the Wow repository. A page still on the deprecated `@ahoo-wang/fetcher-viewer` is rebuilt as a definition here and a host (`wow-view-host`), not renamed.
 
 - `references/choices.md`: a `defineView` worked through choice by choice, words and keys, the analysis vocabulary, narrowing, protected, deprecated and event-stream fields. Load it before writing.
 - `references/views-and-boards.md`: system record and analysis views, derived metrics, boards and their time filter, where definitions live, and revising after descriptor drift. Load it for the views.
