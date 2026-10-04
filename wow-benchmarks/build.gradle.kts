@@ -11,6 +11,7 @@ dependencies {
     implementation(project(":wow-test"))
     implementation(project(":wow-mock"))
     implementation(project(":wow-redis"))
+    implementation(project(":wow-kafka"))
     implementation(project(":wow-mongo"))
     implementation(project(":wow-elasticsearch"))
     implementation(project(":wow-webflux"))

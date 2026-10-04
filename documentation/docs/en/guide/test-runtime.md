@@ -135,6 +135,14 @@ When locating a bottleneck, select a layer instead of running the complete catal
 
 The WebFlux suite does not start a real Netty server. The current `benchmarkQuickInfrastructureE2E` includes both Redis and Mongo workloads, so local Redis and MongoDB are both required services; either one missing leaves the suite's runtime requirements unmet. Reports must retain workload, thread, JVM, service, and source provenance; do not interpret numbers across layers as directly comparable.
 
+Work that changes a framework hot path compares two labelled runs of the refactor catalog on the same machine: one before the change and one after it. `benchmarkQuickRefactorHotPaths` needs no services and covers event dispatch (1 and 8 processors, metrics on and off, in-memory and local-first buses), local-first command send, the command HTTP edge (header appenders, full router dispatch), per-command aggregate processing and event-stream query delivery. `benchmarkQuickRefactorTransport` measures Redis Streams receive and acknowledge and needs the benchmark Redis. Kafka receive and acknowledge (`KafkaEventReceiveAckBenchmark`) is not in a Gradle suite because the benchmarks have no Kafka service; run it from the JMH jar against a broker.
+
+```bash
+./gradlew :wow-benchmarks:benchmarkQuickRefactorHotPaths \
+  :wow-benchmarks:generateQuickRefactorHotPathsBenchmarkReport \
+  -PbenchmarkRefactorReportLabel=9.2.2-baseline
+```
+
 ### Formal Regression Evidence
 
 Collect comparable evidence for exact Framework E2E workloads with:
