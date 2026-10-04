@@ -1,0 +1,414 @@
+public final class me/ahoo/wow/opentelemetry/AggregateIdAttributesExtractor : io/opentelemetry/instrumentation/api/instrumenter/AttributesExtractor {
+	public static final field INSTANCE Lme/ahoo/wow/opentelemetry/AggregateIdAttributesExtractor;
+	public synthetic fun onEnd (Lio/opentelemetry/api/common/AttributesBuilder;Lio/opentelemetry/context/Context;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Throwable;)V
+	public fun onEnd (Lio/opentelemetry/api/common/AttributesBuilder;Lio/opentelemetry/context/Context;Lme/ahoo/wow/api/modeling/AggregateId;Lkotlin/Unit;Ljava/lang/Throwable;)V
+	public synthetic fun onStart (Lio/opentelemetry/api/common/AttributesBuilder;Lio/opentelemetry/context/Context;Ljava/lang/Object;)V
+	public fun onStart (Lio/opentelemetry/api/common/AttributesBuilder;Lio/opentelemetry/context/Context;Lme/ahoo/wow/api/modeling/AggregateId;)V
+}
+
+public final class me/ahoo/wow/opentelemetry/ExchangeAttributesExtractor : io/opentelemetry/instrumentation/api/instrumenter/AttributesExtractor {
+	public fun <init> ()V
+	public synthetic fun onEnd (Lio/opentelemetry/api/common/AttributesBuilder;Lio/opentelemetry/context/Context;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Throwable;)V
+	public fun onEnd (Lio/opentelemetry/api/common/AttributesBuilder;Lio/opentelemetry/context/Context;Lme/ahoo/wow/messaging/handler/MessageExchange;Lkotlin/Unit;Ljava/lang/Throwable;)V
+	public synthetic fun onStart (Lio/opentelemetry/api/common/AttributesBuilder;Lio/opentelemetry/context/Context;Ljava/lang/Object;)V
+	public fun onStart (Lio/opentelemetry/api/common/AttributesBuilder;Lio/opentelemetry/context/Context;Lme/ahoo/wow/messaging/handler/MessageExchange;)V
+}
+
+public final class me/ahoo/wow/opentelemetry/ExchangeTraceMono : reactor/core/publisher/Mono {
+	public fun <init> (Lio/opentelemetry/context/Context;Lio/opentelemetry/instrumentation/api/instrumenter/Instrumenter;Lme/ahoo/wow/messaging/handler/MessageExchange;Lreactor/core/publisher/Mono;)V
+	public fun subscribe (Lreactor/core/CoreSubscriber;)V
+}
+
+public final class me/ahoo/wow/opentelemetry/ExchangeTraceSubscriber : me/ahoo/wow/opentelemetry/TraceSubscriber {
+	public fun <init> (Lio/opentelemetry/instrumentation/api/instrumenter/Instrumenter;Lio/opentelemetry/context/Context;Lme/ahoo/wow/messaging/handler/MessageExchange;Lreactor/core/CoreSubscriber;)V
+	public fun onComplete ()V
+}
+
+public final class me/ahoo/wow/opentelemetry/MessageAttributesExtractor : io/opentelemetry/instrumentation/api/instrumenter/AttributesExtractor {
+	public fun <init> ()V
+	public synthetic fun onEnd (Lio/opentelemetry/api/common/AttributesBuilder;Lio/opentelemetry/context/Context;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Throwable;)V
+	public fun onEnd (Lio/opentelemetry/api/common/AttributesBuilder;Lio/opentelemetry/context/Context;Lme/ahoo/wow/api/messaging/Message;Lkotlin/Unit;Ljava/lang/Throwable;)V
+	public synthetic fun onStart (Lio/opentelemetry/api/common/AttributesBuilder;Lio/opentelemetry/context/Context;Ljava/lang/Object;)V
+	public fun onStart (Lio/opentelemetry/api/common/AttributesBuilder;Lio/opentelemetry/context/Context;Lme/ahoo/wow/api/messaging/Message;)V
+}
+
+public class me/ahoo/wow/opentelemetry/TraceFilter : me/ahoo/wow/messaging/handler/ExchangeFilter {
+	public fun <init> (Lio/opentelemetry/instrumentation/api/instrumenter/Instrumenter;)V
+	public synthetic fun filter (Ljava/lang/Object;Lme/ahoo/wow/filter/FilterChain;)Lreactor/core/publisher/Mono;
+	public fun filter (Lme/ahoo/wow/messaging/handler/MessageExchange;Lme/ahoo/wow/filter/FilterChain;)Lreactor/core/publisher/Mono;
+}
+
+public final class me/ahoo/wow/opentelemetry/TraceFlux : reactor/core/publisher/Flux {
+	public fun <init> (Lio/opentelemetry/context/Context;Lio/opentelemetry/instrumentation/api/instrumenter/Instrumenter;Ljava/lang/Object;Lreactor/core/publisher/Flux;)V
+	public fun subscribe (Lreactor/core/CoreSubscriber;)V
+}
+
+public final class me/ahoo/wow/opentelemetry/TraceMono : reactor/core/publisher/Mono {
+	public fun <init> (Lio/opentelemetry/context/Context;Lio/opentelemetry/instrumentation/api/instrumenter/Instrumenter;Ljava/lang/Object;Lreactor/core/publisher/Mono;)V
+	public fun subscribe (Lreactor/core/CoreSubscriber;)V
+}
+
+public class me/ahoo/wow/opentelemetry/TraceSubscriber : reactor/core/CoreSubscriber {
+	public fun <init> (Lio/opentelemetry/instrumentation/api/instrumenter/Instrumenter;Lio/opentelemetry/context/Context;Ljava/lang/Object;Lreactor/core/CoreSubscriber;)V
+	protected final fun complete (Ljava/lang/Throwable;)V
+	public fun currentContext ()Lreactor/util/context/Context;
+	protected final fun getActual ()Lreactor/core/CoreSubscriber;
+	public fun onComplete ()V
+	public fun onError (Ljava/lang/Throwable;)V
+	public fun onNext (Ljava/lang/Object;)V
+	public fun onSubscribe (Lorg/reactivestreams/Subscription;)V
+}
+
+public abstract interface class me/ahoo/wow/opentelemetry/Traced {
+}
+
+public final class me/ahoo/wow/opentelemetry/Tracing {
+	public static final field INSTANCE Lme/ahoo/wow/opentelemetry/Tracing;
+	public final fun tracing (Ljava/lang/Object;)Ljava/lang/Object;
+	public final fun tracing (Ljava/lang/Object;Lkotlin/jvm/functions/Function1;)Ljava/lang/Object;
+	public final fun tracing (Lme/ahoo/wow/command/CommandGateway;)Lme/ahoo/wow/command/CommandGateway;
+	public final fun tracing (Lme/ahoo/wow/command/DistributedCommandBus;)Lme/ahoo/wow/command/DistributedCommandBus;
+	public final fun tracing (Lme/ahoo/wow/command/LocalCommandBus;)Lme/ahoo/wow/command/LocalCommandBus;
+	public final fun tracing (Lme/ahoo/wow/event/DistributedDomainEventBus;)Lme/ahoo/wow/event/DistributedDomainEventBus;
+	public final fun tracing (Lme/ahoo/wow/event/LocalDomainEventBus;)Lme/ahoo/wow/event/LocalDomainEventBus;
+	public final fun tracing (Lme/ahoo/wow/eventsourcing/EventStore;)Lme/ahoo/wow/eventsourcing/EventStore;
+	public final fun tracing (Lme/ahoo/wow/eventsourcing/snapshot/SnapshotStore;)Lme/ahoo/wow/eventsourcing/snapshot/SnapshotStore;
+	public final fun tracing (Lme/ahoo/wow/eventsourcing/state/DistributedStateEventBus;)Lme/ahoo/wow/eventsourcing/state/DistributedStateEventBus;
+	public final fun tracing (Lme/ahoo/wow/eventsourcing/state/LocalStateEventBus;)Lme/ahoo/wow/eventsourcing/state/LocalStateEventBus;
+}
+
+public final class me/ahoo/wow/opentelemetry/WowInstrumenter {
+	public static final field INSTANCE Lme/ahoo/wow/opentelemetry/WowInstrumenter;
+	public static final field INSTRUMENTATION_NAME_PREFIX Ljava/lang/String;
+	public final fun appendAggregateIdAttributes (Lio/opentelemetry/api/common/AttributesBuilder;Lme/ahoo/wow/api/modeling/AggregateId;)V
+	public final fun appendMessageAttributes (Lio/opentelemetry/api/common/AttributesBuilder;Lme/ahoo/wow/api/messaging/Message;)V
+}
+
+public final class me/ahoo/wow/opentelemetry/aggregate/AggregateInstrumenter {
+	public static final field INSTANCE Lme/ahoo/wow/opentelemetry/aggregate/AggregateInstrumenter;
+	public final fun getINSTRUMENTER ()Lio/opentelemetry/instrumentation/api/instrumenter/Instrumenter;
+}
+
+public final class me/ahoo/wow/opentelemetry/aggregate/AggregateSpanNameExtractor : io/opentelemetry/instrumentation/api/instrumenter/SpanNameExtractor {
+	public static final field INSTANCE Lme/ahoo/wow/opentelemetry/aggregate/AggregateSpanNameExtractor;
+	public synthetic fun extract (Ljava/lang/Object;)Ljava/lang/String;
+	public fun extract (Lme/ahoo/wow/command/ServerCommandExchange;)Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/opentelemetry/aggregate/TraceAggregateFilter : me/ahoo/wow/opentelemetry/TraceFilter, me/ahoo/wow/modeling/command/dispatcher/CommandFilter, me/ahoo/wow/opentelemetry/Traced {
+	public static final field INSTANCE Lme/ahoo/wow/opentelemetry/aggregate/TraceAggregateFilter;
+}
+
+public final class me/ahoo/wow/opentelemetry/eventprocessor/EventProcessorInstrumenter {
+	public static final field INSTANCE Lme/ahoo/wow/opentelemetry/eventprocessor/EventProcessorInstrumenter;
+	public final fun getINSTRUMENTER ()Lio/opentelemetry/instrumentation/api/instrumenter/Instrumenter;
+}
+
+public final class me/ahoo/wow/opentelemetry/eventprocessor/EventProcessorSpanNameExtractor : io/opentelemetry/instrumentation/api/instrumenter/SpanNameExtractor {
+	public static final field INSTANCE Lme/ahoo/wow/opentelemetry/eventprocessor/EventProcessorSpanNameExtractor;
+	public synthetic fun extract (Ljava/lang/Object;)Ljava/lang/String;
+	public fun extract (Lme/ahoo/wow/event/DomainEventExchange;)Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/opentelemetry/eventprocessor/TraceEventProcessorFilter : me/ahoo/wow/opentelemetry/TraceFilter, me/ahoo/wow/opentelemetry/Traced {
+	public static final field INSTANCE Lme/ahoo/wow/opentelemetry/eventprocessor/TraceEventProcessorFilter;
+}
+
+public final class me/ahoo/wow/opentelemetry/eventsourcing/EventStoreAppendSpanNameExtractor : io/opentelemetry/instrumentation/api/instrumenter/SpanNameExtractor {
+	public static final field INSTANCE Lme/ahoo/wow/opentelemetry/eventsourcing/EventStoreAppendSpanNameExtractor;
+	public synthetic fun extract (Ljava/lang/Object;)Ljava/lang/String;
+	public fun extract (Lme/ahoo/wow/event/DomainEventStream;)Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/opentelemetry/eventsourcing/EventStoreInstrumenter {
+	public static final field INSTANCE Lme/ahoo/wow/opentelemetry/eventsourcing/EventStoreInstrumenter;
+	public final fun getAPPEND_INSTRUMENTER ()Lio/opentelemetry/instrumentation/api/instrumenter/Instrumenter;
+	public final fun getLOAD_INSTRUMENTER ()Lio/opentelemetry/instrumentation/api/instrumenter/Instrumenter;
+}
+
+public final class me/ahoo/wow/opentelemetry/eventsourcing/EventStoreLoadSpanNameExtractor : io/opentelemetry/instrumentation/api/instrumenter/SpanNameExtractor {
+	public static final field INSTANCE Lme/ahoo/wow/opentelemetry/eventsourcing/EventStoreLoadSpanNameExtractor;
+	public synthetic fun extract (Ljava/lang/Object;)Ljava/lang/String;
+	public fun extract (Lme/ahoo/wow/api/modeling/AggregateId;)Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/opentelemetry/eventsourcing/TracingEventStore : me/ahoo/wow/eventsourcing/EventStore, me/ahoo/wow/infra/Decorator, me/ahoo/wow/opentelemetry/Traced {
+	public fun <init> (Lme/ahoo/wow/eventsourcing/EventStore;)V
+	public fun append (Lme/ahoo/wow/event/DomainEventStream;)Lreactor/core/publisher/Mono;
+	public fun close ()V
+	public fun existsRequestId (Lme/ahoo/wow/api/modeling/AggregateId;Ljava/lang/String;)Lreactor/core/publisher/Mono;
+	public synthetic fun getDelegate ()Ljava/lang/Object;
+	public fun getDelegate ()Lme/ahoo/wow/eventsourcing/EventStore;
+	public fun last (Lme/ahoo/wow/api/modeling/AggregateId;)Lreactor/core/publisher/Mono;
+	public fun load (Lme/ahoo/wow/api/modeling/AggregateId;II)Lreactor/core/publisher/Flux;
+	public fun load (Lme/ahoo/wow/api/modeling/AggregateId;JJ)Lreactor/core/publisher/Flux;
+	public fun scanAggregateId (Lme/ahoo/wow/api/modeling/NamedAggregate;Ljava/lang/String;I)Lreactor/core/publisher/Flux;
+	public fun single (Lme/ahoo/wow/api/modeling/AggregateId;I)Lreactor/core/publisher/Mono;
+}
+
+public final class me/ahoo/wow/opentelemetry/messaging/CommandProducerInstrumenter {
+	public static final field INSTANCE Lme/ahoo/wow/opentelemetry/messaging/CommandProducerInstrumenter;
+	public final fun getINSTRUMENTER ()Lio/opentelemetry/instrumentation/api/instrumenter/Instrumenter;
+}
+
+public final class me/ahoo/wow/opentelemetry/messaging/CommandProducerSpanNameExtractor : io/opentelemetry/instrumentation/api/instrumenter/SpanNameExtractor {
+	public static final field INSTANCE Lme/ahoo/wow/opentelemetry/messaging/CommandProducerSpanNameExtractor;
+	public synthetic fun extract (Ljava/lang/Object;)Ljava/lang/String;
+	public fun extract (Lme/ahoo/wow/api/command/CommandMessage;)Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/opentelemetry/messaging/EventProducerInstrumenter {
+	public static final field INSTANCE Lme/ahoo/wow/opentelemetry/messaging/EventProducerInstrumenter;
+	public final fun getINSTRUMENTER ()Lio/opentelemetry/instrumentation/api/instrumenter/Instrumenter;
+}
+
+public final class me/ahoo/wow/opentelemetry/messaging/EventProducerSpanNameExtractor : io/opentelemetry/instrumentation/api/instrumenter/SpanNameExtractor {
+	public static final field INSTANCE Lme/ahoo/wow/opentelemetry/messaging/EventProducerSpanNameExtractor;
+	public synthetic fun extract (Ljava/lang/Object;)Ljava/lang/String;
+	public fun extract (Lme/ahoo/wow/event/DomainEventStream;)Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/opentelemetry/messaging/MessageExchangeTextMapGetter : io/opentelemetry/context/propagation/TextMapGetter {
+	public fun <init> ()V
+	public synthetic fun get (Ljava/lang/Object;Ljava/lang/String;)Ljava/lang/String;
+	public fun get (Lme/ahoo/wow/messaging/handler/MessageExchange;Ljava/lang/String;)Ljava/lang/String;
+	public synthetic fun keys (Ljava/lang/Object;)Ljava/lang/Iterable;
+	public fun keys (Lme/ahoo/wow/messaging/handler/MessageExchange;)Ljava/lang/Iterable;
+}
+
+public final class me/ahoo/wow/opentelemetry/messaging/MessageTextMapSetter : io/opentelemetry/context/propagation/TextMapSetter {
+	public static final field Companion Lme/ahoo/wow/opentelemetry/messaging/MessageTextMapSetter$Companion;
+	public fun <init> ()V
+	public synthetic fun set (Ljava/lang/Object;Ljava/lang/String;Ljava/lang/String;)V
+	public fun set (Lme/ahoo/wow/api/messaging/Message;Ljava/lang/String;Ljava/lang/String;)V
+}
+
+public final class me/ahoo/wow/opentelemetry/messaging/MessageTextMapSetter$Companion {
+}
+
+public final class me/ahoo/wow/opentelemetry/messaging/StateEventProducerInstrumenter {
+	public static final field INSTANCE Lme/ahoo/wow/opentelemetry/messaging/StateEventProducerInstrumenter;
+	public final fun getINSTRUMENTER ()Lio/opentelemetry/instrumentation/api/instrumenter/Instrumenter;
+}
+
+public final class me/ahoo/wow/opentelemetry/messaging/StateEventProducerProducerSpanNameExtractor : io/opentelemetry/instrumentation/api/instrumenter/SpanNameExtractor {
+	public static final field INSTANCE Lme/ahoo/wow/opentelemetry/messaging/StateEventProducerProducerSpanNameExtractor;
+	public synthetic fun extract (Ljava/lang/Object;)Ljava/lang/String;
+	public fun extract (Lme/ahoo/wow/eventsourcing/state/StateEvent;)Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/opentelemetry/messaging/TracingDistributedCommandBus : me/ahoo/wow/command/DistributedCommandBus, me/ahoo/wow/opentelemetry/messaging/TracingMessageBus {
+	public fun <init> (Lme/ahoo/wow/command/DistributedCommandBus;Lio/opentelemetry/instrumentation/api/instrumenter/Instrumenter;)V
+	public synthetic fun <init> (Lme/ahoo/wow/command/DistributedCommandBus;Lio/opentelemetry/instrumentation/api/instrumenter/Instrumenter;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun close ()V
+	public synthetic fun getDelegate ()Ljava/lang/Object;
+	public fun getDelegate ()Lme/ahoo/wow/command/DistributedCommandBus;
+	public fun getProducerInstrumenter ()Lio/opentelemetry/instrumentation/api/instrumenter/Instrumenter;
+	public fun getTopicKind ()Lme/ahoo/wow/api/messaging/TopicKind;
+	public fun receive (Lme/ahoo/wow/messaging/MessageSubscription;)Lreactor/core/publisher/Flux;
+	public fun receiver (Lme/ahoo/wow/messaging/MessageSubscription;)Lme/ahoo/wow/messaging/MessageReceiver;
+	public fun runtimeReceiver (Lme/ahoo/wow/messaging/MessageSubscription;)Lme/ahoo/wow/messaging/MessageReceiver;
+	public fun send (Lme/ahoo/wow/api/command/CommandMessage;)Lreactor/core/publisher/Mono;
+	public synthetic fun send (Lme/ahoo/wow/api/messaging/Message;)Lreactor/core/publisher/Mono;
+}
+
+public final class me/ahoo/wow/opentelemetry/messaging/TracingDistributedEventBus : me/ahoo/wow/event/DistributedDomainEventBus, me/ahoo/wow/opentelemetry/messaging/TracingMessageBus {
+	public fun <init> (Lme/ahoo/wow/event/DistributedDomainEventBus;Lio/opentelemetry/instrumentation/api/instrumenter/Instrumenter;)V
+	public synthetic fun <init> (Lme/ahoo/wow/event/DistributedDomainEventBus;Lio/opentelemetry/instrumentation/api/instrumenter/Instrumenter;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun close ()V
+	public synthetic fun getDelegate ()Ljava/lang/Object;
+	public fun getDelegate ()Lme/ahoo/wow/event/DistributedDomainEventBus;
+	public fun getProducerInstrumenter ()Lio/opentelemetry/instrumentation/api/instrumenter/Instrumenter;
+	public fun getTopicKind ()Lme/ahoo/wow/api/messaging/TopicKind;
+	public fun receive (Lme/ahoo/wow/messaging/MessageSubscription;)Lreactor/core/publisher/Flux;
+	public fun receiver (Lme/ahoo/wow/messaging/MessageSubscription;)Lme/ahoo/wow/messaging/MessageReceiver;
+	public fun runtimeReceiver (Lme/ahoo/wow/messaging/MessageSubscription;)Lme/ahoo/wow/messaging/MessageReceiver;
+	public synthetic fun send (Lme/ahoo/wow/api/messaging/Message;)Lreactor/core/publisher/Mono;
+	public fun send (Lme/ahoo/wow/event/DomainEventStream;)Lreactor/core/publisher/Mono;
+}
+
+public final class me/ahoo/wow/opentelemetry/messaging/TracingDistributedStateEventBus : me/ahoo/wow/eventsourcing/state/DistributedStateEventBus, me/ahoo/wow/opentelemetry/messaging/TracingMessageBus {
+	public fun <init> (Lme/ahoo/wow/eventsourcing/state/DistributedStateEventBus;Lio/opentelemetry/instrumentation/api/instrumenter/Instrumenter;)V
+	public synthetic fun <init> (Lme/ahoo/wow/eventsourcing/state/DistributedStateEventBus;Lio/opentelemetry/instrumentation/api/instrumenter/Instrumenter;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun close ()V
+	public synthetic fun getDelegate ()Ljava/lang/Object;
+	public fun getDelegate ()Lme/ahoo/wow/eventsourcing/state/DistributedStateEventBus;
+	public fun getProducerInstrumenter ()Lio/opentelemetry/instrumentation/api/instrumenter/Instrumenter;
+	public fun getTopicKind ()Lme/ahoo/wow/api/messaging/TopicKind;
+	public fun receive (Lme/ahoo/wow/messaging/MessageSubscription;)Lreactor/core/publisher/Flux;
+	public fun receiver (Lme/ahoo/wow/messaging/MessageSubscription;)Lme/ahoo/wow/messaging/MessageReceiver;
+	public fun runtimeReceiver (Lme/ahoo/wow/messaging/MessageSubscription;)Lme/ahoo/wow/messaging/MessageReceiver;
+	public synthetic fun send (Lme/ahoo/wow/api/messaging/Message;)Lreactor/core/publisher/Mono;
+	public fun send (Lme/ahoo/wow/eventsourcing/state/StateEvent;)Lreactor/core/publisher/Mono;
+}
+
+public final class me/ahoo/wow/opentelemetry/messaging/TracingLocalCommandBus : me/ahoo/wow/command/LocalCommandBus, me/ahoo/wow/opentelemetry/messaging/TracingMessageBus {
+	public fun <init> (Lme/ahoo/wow/command/LocalCommandBus;Lio/opentelemetry/instrumentation/api/instrumenter/Instrumenter;)V
+	public synthetic fun <init> (Lme/ahoo/wow/command/LocalCommandBus;Lio/opentelemetry/instrumentation/api/instrumenter/Instrumenter;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun close ()V
+	public synthetic fun getDelegate ()Ljava/lang/Object;
+	public fun getDelegate ()Lme/ahoo/wow/command/LocalCommandBus;
+	public fun getProducerInstrumenter ()Lio/opentelemetry/instrumentation/api/instrumenter/Instrumenter;
+	public fun getTopicKind ()Lme/ahoo/wow/api/messaging/TopicKind;
+	public fun receive (Lme/ahoo/wow/messaging/MessageSubscription;)Lreactor/core/publisher/Flux;
+	public fun receiver (Lme/ahoo/wow/messaging/MessageSubscription;)Lme/ahoo/wow/messaging/MessageReceiver;
+	public fun runtimeReceiver (Lme/ahoo/wow/messaging/MessageSubscription;)Lme/ahoo/wow/messaging/MessageReceiver;
+	public fun send (Lme/ahoo/wow/api/command/CommandMessage;)Lreactor/core/publisher/Mono;
+	public synthetic fun send (Lme/ahoo/wow/api/messaging/Message;)Lreactor/core/publisher/Mono;
+	public fun sendIfSubscribed (Lme/ahoo/wow/api/command/CommandMessage;)Lreactor/core/publisher/Mono;
+	public synthetic fun sendIfSubscribed (Lme/ahoo/wow/api/messaging/Message;)Lreactor/core/publisher/Mono;
+	public fun subscriberCount (Lme/ahoo/wow/api/modeling/NamedAggregate;)I
+}
+
+public final class me/ahoo/wow/opentelemetry/messaging/TracingLocalEventBus : me/ahoo/wow/event/LocalDomainEventBus, me/ahoo/wow/opentelemetry/messaging/TracingMessageBus {
+	public fun <init> (Lme/ahoo/wow/event/LocalDomainEventBus;Lio/opentelemetry/instrumentation/api/instrumenter/Instrumenter;)V
+	public synthetic fun <init> (Lme/ahoo/wow/event/LocalDomainEventBus;Lio/opentelemetry/instrumentation/api/instrumenter/Instrumenter;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun close ()V
+	public synthetic fun getDelegate ()Ljava/lang/Object;
+	public fun getDelegate ()Lme/ahoo/wow/event/LocalDomainEventBus;
+	public fun getProducerInstrumenter ()Lio/opentelemetry/instrumentation/api/instrumenter/Instrumenter;
+	public fun getTopicKind ()Lme/ahoo/wow/api/messaging/TopicKind;
+	public fun receive (Lme/ahoo/wow/messaging/MessageSubscription;)Lreactor/core/publisher/Flux;
+	public fun receiver (Lme/ahoo/wow/messaging/MessageSubscription;)Lme/ahoo/wow/messaging/MessageReceiver;
+	public fun runtimeReceiver (Lme/ahoo/wow/messaging/MessageSubscription;)Lme/ahoo/wow/messaging/MessageReceiver;
+	public synthetic fun send (Lme/ahoo/wow/api/messaging/Message;)Lreactor/core/publisher/Mono;
+	public fun send (Lme/ahoo/wow/event/DomainEventStream;)Lreactor/core/publisher/Mono;
+	public synthetic fun sendIfSubscribed (Lme/ahoo/wow/api/messaging/Message;)Lreactor/core/publisher/Mono;
+	public fun sendIfSubscribed (Lme/ahoo/wow/event/DomainEventStream;)Lreactor/core/publisher/Mono;
+	public fun subscriberCount (Lme/ahoo/wow/api/modeling/NamedAggregate;)I
+}
+
+public final class me/ahoo/wow/opentelemetry/messaging/TracingLocalStateEventBus : me/ahoo/wow/eventsourcing/state/LocalStateEventBus, me/ahoo/wow/opentelemetry/messaging/TracingMessageBus {
+	public fun <init> (Lme/ahoo/wow/eventsourcing/state/LocalStateEventBus;Lio/opentelemetry/instrumentation/api/instrumenter/Instrumenter;)V
+	public synthetic fun <init> (Lme/ahoo/wow/eventsourcing/state/LocalStateEventBus;Lio/opentelemetry/instrumentation/api/instrumenter/Instrumenter;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun close ()V
+	public synthetic fun getDelegate ()Ljava/lang/Object;
+	public fun getDelegate ()Lme/ahoo/wow/eventsourcing/state/LocalStateEventBus;
+	public fun getProducerInstrumenter ()Lio/opentelemetry/instrumentation/api/instrumenter/Instrumenter;
+	public fun getTopicKind ()Lme/ahoo/wow/api/messaging/TopicKind;
+	public fun receive (Lme/ahoo/wow/messaging/MessageSubscription;)Lreactor/core/publisher/Flux;
+	public fun receiver (Lme/ahoo/wow/messaging/MessageSubscription;)Lme/ahoo/wow/messaging/MessageReceiver;
+	public fun runtimeReceiver (Lme/ahoo/wow/messaging/MessageSubscription;)Lme/ahoo/wow/messaging/MessageReceiver;
+	public synthetic fun send (Lme/ahoo/wow/api/messaging/Message;)Lreactor/core/publisher/Mono;
+	public fun send (Lme/ahoo/wow/eventsourcing/state/StateEvent;)Lreactor/core/publisher/Mono;
+	public synthetic fun sendIfSubscribed (Lme/ahoo/wow/api/messaging/Message;)Lreactor/core/publisher/Mono;
+	public fun sendIfSubscribed (Lme/ahoo/wow/eventsourcing/state/StateEvent;)Lreactor/core/publisher/Mono;
+	public fun subscriberCount (Lme/ahoo/wow/api/modeling/NamedAggregate;)I
+}
+
+public abstract interface class me/ahoo/wow/opentelemetry/messaging/TracingMessageBus : me/ahoo/wow/infra/Decorator, me/ahoo/wow/messaging/MessageBus, me/ahoo/wow/opentelemetry/Traced {
+	public fun close ()V
+	public abstract fun getProducerInstrumenter ()Lio/opentelemetry/instrumentation/api/instrumenter/Instrumenter;
+	public fun receive (Lme/ahoo/wow/messaging/MessageSubscription;)Lreactor/core/publisher/Flux;
+	public fun receiver (Lme/ahoo/wow/messaging/MessageSubscription;)Lme/ahoo/wow/messaging/MessageReceiver;
+	public fun runtimeReceiver (Lme/ahoo/wow/messaging/MessageSubscription;)Lme/ahoo/wow/messaging/MessageReceiver;
+	public fun send (Lme/ahoo/wow/api/messaging/Message;)Lreactor/core/publisher/Mono;
+}
+
+public final class me/ahoo/wow/opentelemetry/messaging/TracingMessageBus$DefaultImpls {
+	public static fun close (Lme/ahoo/wow/opentelemetry/messaging/TracingMessageBus;)V
+	public static fun receive (Lme/ahoo/wow/opentelemetry/messaging/TracingMessageBus;Lme/ahoo/wow/messaging/MessageSubscription;)Lreactor/core/publisher/Flux;
+	public static fun receiver (Lme/ahoo/wow/opentelemetry/messaging/TracingMessageBus;Lme/ahoo/wow/messaging/MessageSubscription;)Lme/ahoo/wow/messaging/MessageReceiver;
+	public static fun runtimeReceiver (Lme/ahoo/wow/opentelemetry/messaging/TracingMessageBus;Lme/ahoo/wow/messaging/MessageSubscription;)Lme/ahoo/wow/messaging/MessageReceiver;
+	public static fun send (Lme/ahoo/wow/opentelemetry/messaging/TracingMessageBus;Lme/ahoo/wow/api/messaging/Message;)Lreactor/core/publisher/Mono;
+}
+
+public final class me/ahoo/wow/opentelemetry/projection/ProjectionInstrumenter {
+	public static final field INSTANCE Lme/ahoo/wow/opentelemetry/projection/ProjectionInstrumenter;
+	public final fun getINSTRUMENTER ()Lio/opentelemetry/instrumentation/api/instrumenter/Instrumenter;
+}
+
+public final class me/ahoo/wow/opentelemetry/projection/TraceProjectionFilter : me/ahoo/wow/opentelemetry/TraceFilter, me/ahoo/wow/opentelemetry/Traced {
+	public static final field INSTANCE Lme/ahoo/wow/opentelemetry/projection/TraceProjectionFilter;
+}
+
+public final class me/ahoo/wow/opentelemetry/saga/StatelessSagaInstrumenter {
+	public static final field INSTANCE Lme/ahoo/wow/opentelemetry/saga/StatelessSagaInstrumenter;
+	public final fun getINSTRUMENTER ()Lio/opentelemetry/instrumentation/api/instrumenter/Instrumenter;
+}
+
+public final class me/ahoo/wow/opentelemetry/saga/TraceStatelessSagaFilter : me/ahoo/wow/opentelemetry/TraceFilter, me/ahoo/wow/opentelemetry/Traced {
+	public static final field INSTANCE Lme/ahoo/wow/opentelemetry/saga/TraceStatelessSagaFilter;
+}
+
+public final class me/ahoo/wow/opentelemetry/snapshot/SnapshotInstrumenter {
+	public static final field INSTANCE Lme/ahoo/wow/opentelemetry/snapshot/SnapshotInstrumenter;
+	public final fun getINSTRUMENTER ()Lio/opentelemetry/instrumentation/api/instrumenter/Instrumenter;
+}
+
+public final class me/ahoo/wow/opentelemetry/snapshot/SnapshotSpanNameExtractor : io/opentelemetry/instrumentation/api/instrumenter/SpanNameExtractor {
+	public static final field INSTANCE Lme/ahoo/wow/opentelemetry/snapshot/SnapshotSpanNameExtractor;
+	public synthetic fun extract (Ljava/lang/Object;)Ljava/lang/String;
+	public fun extract (Lme/ahoo/wow/eventsourcing/state/StateEventExchange;)Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/opentelemetry/snapshot/SnapshotStoreInstrumenter {
+	public static final field INSTANCE Lme/ahoo/wow/opentelemetry/snapshot/SnapshotStoreInstrumenter;
+	public final fun getLOAD_INSTRUMENTER ()Lio/opentelemetry/instrumentation/api/instrumenter/Instrumenter;
+	public final fun getSAVE_INSTRUMENTER ()Lio/opentelemetry/instrumentation/api/instrumenter/Instrumenter;
+	public final fun getVERSION_INSTRUMENTER ()Lio/opentelemetry/instrumentation/api/instrumenter/Instrumenter;
+}
+
+public final class me/ahoo/wow/opentelemetry/snapshot/SnapshotStoreLoadSpanNameExtractor : io/opentelemetry/instrumentation/api/instrumenter/SpanNameExtractor {
+	public static final field INSTANCE Lme/ahoo/wow/opentelemetry/snapshot/SnapshotStoreLoadSpanNameExtractor;
+	public synthetic fun extract (Ljava/lang/Object;)Ljava/lang/String;
+	public fun extract (Lme/ahoo/wow/api/modeling/AggregateId;)Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/opentelemetry/snapshot/SnapshotStoreSaveSpanNameExtractor : io/opentelemetry/instrumentation/api/instrumenter/SpanNameExtractor {
+	public static final field INSTANCE Lme/ahoo/wow/opentelemetry/snapshot/SnapshotStoreSaveSpanNameExtractor;
+	public synthetic fun extract (Ljava/lang/Object;)Ljava/lang/String;
+	public fun extract (Lme/ahoo/wow/api/modeling/AggregateId;)Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/opentelemetry/snapshot/SnapshotStoreVersionSpanNameExtractor : io/opentelemetry/instrumentation/api/instrumenter/SpanNameExtractor {
+	public static final field INSTANCE Lme/ahoo/wow/opentelemetry/snapshot/SnapshotStoreVersionSpanNameExtractor;
+	public synthetic fun extract (Ljava/lang/Object;)Ljava/lang/String;
+	public fun extract (Lme/ahoo/wow/api/modeling/AggregateId;)Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/opentelemetry/snapshot/TraceSnapshotFilter : me/ahoo/wow/opentelemetry/TraceFilter, me/ahoo/wow/opentelemetry/Traced {
+	public static final field INSTANCE Lme/ahoo/wow/opentelemetry/snapshot/TraceSnapshotFilter;
+}
+
+public final class me/ahoo/wow/opentelemetry/snapshot/TracingSnapshotStore : me/ahoo/wow/eventsourcing/snapshot/SnapshotStore, me/ahoo/wow/infra/Decorator, me/ahoo/wow/opentelemetry/Traced {
+	public fun <init> (Lme/ahoo/wow/eventsourcing/snapshot/SnapshotStore;)V
+	public fun close ()V
+	public synthetic fun getDelegate ()Ljava/lang/Object;
+	public fun getDelegate ()Lme/ahoo/wow/eventsourcing/snapshot/SnapshotStore;
+	public fun getName ()Ljava/lang/String;
+	public fun getVersion (Lme/ahoo/wow/api/modeling/AggregateId;)Lreactor/core/publisher/Mono;
+	public fun load (Lme/ahoo/wow/api/modeling/AggregateId;)Lreactor/core/publisher/Mono;
+	public fun save (Lme/ahoo/wow/eventsourcing/snapshot/Snapshot;)Lreactor/core/publisher/Mono;
+}
+
+public final class me/ahoo/wow/opentelemetry/wait/TracingCommandGateway : me/ahoo/wow/command/CommandGateway, me/ahoo/wow/infra/Decorator, me/ahoo/wow/opentelemetry/Traced {
+	public fun <init> (Lme/ahoo/wow/command/CommandGateway;)V
+	public fun close ()V
+	public synthetic fun getDelegate ()Ljava/lang/Object;
+	public fun getDelegate ()Lme/ahoo/wow/command/CommandGateway;
+	public fun getEnforcesCommandWaitTimeout ()Z
+	public fun getTopicKind ()Lme/ahoo/wow/api/messaging/TopicKind;
+	public fun receive (Lme/ahoo/wow/messaging/MessageSubscription;)Lreactor/core/publisher/Flux;
+	public fun receiver (Lme/ahoo/wow/messaging/MessageSubscription;)Lme/ahoo/wow/messaging/MessageReceiver;
+	public fun runtimeReceiver (Lme/ahoo/wow/messaging/MessageSubscription;)Lme/ahoo/wow/messaging/MessageReceiver;
+	public fun send (Lme/ahoo/wow/api/command/CommandMessage;)Lreactor/core/publisher/Mono;
+	public synthetic fun send (Lme/ahoo/wow/api/messaging/Message;)Lreactor/core/publisher/Mono;
+	public fun sendAndWait (Lme/ahoo/wow/api/command/CommandMessage;Lme/ahoo/wow/command/wait/WaitPlan;)Lreactor/core/publisher/Mono;
+	public fun sendAndWaitForProcessed (Lme/ahoo/wow/api/command/CommandMessage;)Lreactor/core/publisher/Mono;
+	public fun sendAndWaitForSent (Lme/ahoo/wow/api/command/CommandMessage;)Lreactor/core/publisher/Mono;
+	public fun sendAndWaitForSnapshot (Lme/ahoo/wow/api/command/CommandMessage;)Lreactor/core/publisher/Mono;
+	public fun sendAndWaitStream (Lme/ahoo/wow/api/command/CommandMessage;Lme/ahoo/wow/command/wait/WaitPlan;)Lreactor/core/publisher/Flux;
+}
+
+public final class me/ahoo/wow/opentelemetry/wait/WaitPlanInstrumenter {
+	public static final field INSTANCE Lme/ahoo/wow/opentelemetry/wait/WaitPlanInstrumenter;
+	public final fun getINSTRUMENTER ()Lio/opentelemetry/instrumentation/api/instrumenter/Instrumenter;
+}
+
+public final class me/ahoo/wow/opentelemetry/wait/WaitPlanSpaceNameExtractor : io/opentelemetry/instrumentation/api/instrumenter/SpanNameExtractor {
+	public static final field INSTANCE Lme/ahoo/wow/opentelemetry/wait/WaitPlanSpaceNameExtractor;
+	public synthetic fun extract (Ljava/lang/Object;)Ljava/lang/String;
+	public fun extract (Lme/ahoo/wow/api/command/CommandMessage;)Ljava/lang/String;
+}
+

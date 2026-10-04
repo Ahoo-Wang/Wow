@@ -1,0 +1,214 @@
+public final class me/ahoo/wow/mongo/AggregateSchemaInitializer {
+	public static final field AGGREGATE_ID_AND_VERSION_UNIQUE_INDEX_NAME Ljava/lang/String;
+	public static final field INSTANCE Lme/ahoo/wow/mongo/AggregateSchemaInitializer;
+	public static final field REQUEST_ID_UNIQUE_INDEX_NAME Ljava/lang/String;
+	public final fun ensureCollection (Lcom/mongodb/reactivestreams/client/MongoDatabase;Ljava/lang/String;)Z
+	public final fun toEventStreamCollectionName (Lme/ahoo/wow/api/modeling/NamedAggregate;)Ljava/lang/String;
+	public final fun toSnapshotCollectionName (Lme/ahoo/wow/api/modeling/NamedAggregate;)Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/mongo/Documents {
+	public static final field ID_FIELD Ljava/lang/String;
+	public static final field INSTANCE Lme/ahoo/wow/mongo/Documents;
+	public static final field SIZE_FIELD Ljava/lang/String;
+	public final fun replaceAggregateIdToPrimaryKey (Lorg/bson/Document;)Lorg/bson/Document;
+	public final fun replaceIdToPrimaryKey (Lorg/bson/Document;)Lorg/bson/Document;
+	public final fun replacePrimaryKeyTo (Lorg/bson/Document;Ljava/lang/String;)Lorg/bson/Document;
+	public final fun replacePrimaryKeyToAggregateId (Lorg/bson/Document;)Lorg/bson/Document;
+	public final fun replacePrimaryKeyToId (Lorg/bson/Document;)Lorg/bson/Document;
+	public final fun replaceToPrimaryKey (Lorg/bson/Document;Ljava/lang/String;)Lorg/bson/Document;
+}
+
+public final class me/ahoo/wow/mongo/DocumentsKt {
+	public static final fun toDocument (Lme/ahoo/wow/event/DomainEventStream;)Lorg/bson/Document;
+	public static final fun toDocument (Lme/ahoo/wow/eventsourcing/snapshot/Snapshot;)Lorg/bson/Document;
+	public static final fun toDomainEventStream (Lorg/bson/Document;)Lme/ahoo/wow/event/DomainEventStream;
+	public static final fun toMaterializedSnapshot (Lorg/bson/Document;Ltools/jackson/databind/JavaType;)Lme/ahoo/wow/api/query/MaterializedSnapshot;
+	public static final fun toMaterializedSnapshot (Lreactor/core/publisher/Flux;Ltools/jackson/databind/JavaType;)Lreactor/core/publisher/Flux;
+	public static final fun toMaterializedSnapshot (Lreactor/core/publisher/Mono;Ltools/jackson/databind/JavaType;)Lreactor/core/publisher/Mono;
+	public static final fun toObjectNode (Lorg/bson/Document;)Ltools/jackson/databind/node/ObjectNode;
+	public static final fun toSnapshot (Lorg/bson/Document;)Lme/ahoo/wow/eventsourcing/snapshot/Snapshot;
+	public static final fun toSnapshot (Lreactor/core/publisher/Flux;)Lreactor/core/publisher/Flux;
+	public static final fun toSnapshot (Lreactor/core/publisher/Mono;)Lreactor/core/publisher/Mono;
+	public static final fun toSnapshotState (Lorg/bson/Document;)Ljava/lang/Object;
+	public static final fun toSnapshotState (Lreactor/core/publisher/Flux;)Lreactor/core/publisher/Flux;
+	public static final fun toSnapshotState (Lreactor/core/publisher/Mono;)Lreactor/core/publisher/Mono;
+}
+
+public final class me/ahoo/wow/mongo/ErrorMappingKt {
+	public static final fun isRecoverableWriteError (Lcom/mongodb/WriteError;)Z
+	public static final fun toWowError (Lcom/mongodb/MongoWriteException;Lme/ahoo/wow/event/DomainEventStream;)Ljava/lang/Throwable;
+}
+
+public final class me/ahoo/wow/mongo/EventStreamSchemaInitializer {
+	public static final field Companion Lme/ahoo/wow/mongo/EventStreamSchemaInitializer$Companion;
+	public fun <init> (Lcom/mongodb/reactivestreams/client/MongoDatabase;Z)V
+	public synthetic fun <init> (Lcom/mongodb/reactivestreams/client/MongoDatabase;ZILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun initAll ()V
+	public final fun initSchema (Lme/ahoo/wow/api/modeling/NamedAggregate;)V
+}
+
+public final class me/ahoo/wow/mongo/EventStreamSchemaInitializer$Companion {
+}
+
+public final class me/ahoo/wow/mongo/MongoDatabaseContextGuard {
+	public static final field Companion Lme/ahoo/wow/mongo/MongoDatabaseContextGuard$Companion;
+	public static final field LAYOUT_VERSION_FIELD Ljava/lang/String;
+	public static final field METADATA_COLLECTION_NAME Ljava/lang/String;
+	public fun <init> (Lcom/mongodb/reactivestreams/client/MongoDatabase;)V
+	public final fun ensureContext (Ljava/lang/String;)V
+}
+
+public final class me/ahoo/wow/mongo/MongoDatabaseContextGuard$Companion {
+}
+
+public final class me/ahoo/wow/mongo/MongoEventStore : me/ahoo/wow/eventsourcing/AbstractEventStore, java/io/Closeable {
+	public fun <init> (Lcom/mongodb/reactivestreams/client/MongoDatabase;Lme/ahoo/wow/infra/batch/BatchOptions;Lme/ahoo/wow/metrics/WowMetrics;)V
+	public synthetic fun <init> (Lcom/mongodb/reactivestreams/client/MongoDatabase;Lme/ahoo/wow/infra/batch/BatchOptions;Lme/ahoo/wow/metrics/WowMetrics;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun close ()V
+	public fun existsRequestId (Lme/ahoo/wow/api/modeling/AggregateId;Ljava/lang/String;)Lreactor/core/publisher/Mono;
+	public final fun getBatchOptions ()Lme/ahoo/wow/infra/batch/BatchOptions;
+	public fun last (Lme/ahoo/wow/api/modeling/AggregateId;)Lreactor/core/publisher/Mono;
+	public fun scanAggregateId (Lme/ahoo/wow/api/modeling/NamedAggregate;Ljava/lang/String;I)Lreactor/core/publisher/Flux;
+}
+
+public final class me/ahoo/wow/mongo/MongoJacksonModule : tools/jackson/databind/module/SimpleModule {
+	public fun <init> ()V
+}
+
+public final class me/ahoo/wow/mongo/MongoRecoverableExceptionProvider : me/ahoo/wow/exception/RecoverableExceptionProvider {
+	public fun <init> ()V
+	public fun register (Lme/ahoo/wow/exception/RecoverableExceptionRegistrar;)V
+}
+
+public final class me/ahoo/wow/mongo/MongoSnapshotStore : me/ahoo/wow/eventsourcing/snapshot/SnapshotStore {
+	public static final field Companion Lme/ahoo/wow/mongo/MongoSnapshotStore$Companion;
+	public static final field NAME Ljava/lang/String;
+	public fun <init> (Lcom/mongodb/reactivestreams/client/MongoDatabase;Lme/ahoo/wow/infra/batch/BatchOptions;Lme/ahoo/wow/metrics/WowMetrics;)V
+	public synthetic fun <init> (Lcom/mongodb/reactivestreams/client/MongoDatabase;Lme/ahoo/wow/infra/batch/BatchOptions;Lme/ahoo/wow/metrics/WowMetrics;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun close ()V
+	public final fun getBatchOptions ()Lme/ahoo/wow/infra/batch/BatchOptions;
+	public fun getName ()Ljava/lang/String;
+	public fun getVersion (Lme/ahoo/wow/api/modeling/AggregateId;)Lreactor/core/publisher/Mono;
+	public fun load (Lme/ahoo/wow/api/modeling/AggregateId;)Lreactor/core/publisher/Mono;
+	public fun save (Lme/ahoo/wow/eventsourcing/snapshot/Snapshot;)Lreactor/core/publisher/Mono;
+}
+
+public final class me/ahoo/wow/mongo/MongoSnapshotStore$Companion {
+	public final fun getDEFAULT_REPLACE_OPTIONS ()Lcom/mongodb/client/model/ReplaceOptions;
+}
+
+public final class me/ahoo/wow/mongo/RecoverableMongoBulkWriteException : com/mongodb/MongoException, me/ahoo/wow/exception/RecoverableException {
+	public fun <init> (Lcom/mongodb/WriteError;Lcom/mongodb/MongoBulkWriteException;)V
+	public final fun getError ()Lcom/mongodb/WriteError;
+}
+
+public final class me/ahoo/wow/mongo/RecoverableMongoWriteException : com/mongodb/MongoException, me/ahoo/wow/exception/RecoverableException {
+	public fun <init> (Lcom/mongodb/MongoWriteException;)V
+	public final fun getError ()Lcom/mongodb/WriteError;
+}
+
+public final class me/ahoo/wow/mongo/SnapshotSchemaInitializer {
+	public static final field Companion Lme/ahoo/wow/mongo/SnapshotSchemaInitializer$Companion;
+	public fun <init> (Lcom/mongodb/reactivestreams/client/MongoDatabase;)V
+	public final fun initAll ()V
+	public final fun initSchema (Lme/ahoo/wow/api/modeling/NamedAggregate;)V
+}
+
+public final class me/ahoo/wow/mongo/SnapshotSchemaInitializer$Companion {
+}
+
+public final class me/ahoo/wow/mongo/prepare/MongoPrepareKey : me/ahoo/wow/infra/prepare/PrepareKey {
+	public static final field Companion Lme/ahoo/wow/mongo/prepare/MongoPrepareKey$Companion;
+	public fun <init> (Ljava/lang/String;Ljava/lang/Class;Lcom/mongodb/reactivestreams/client/MongoDatabase;)V
+	public fun get (Ljava/lang/String;)Lreactor/core/publisher/Mono;
+	public fun getName ()Ljava/lang/String;
+	public fun getValue (Ljava/lang/String;)Lreactor/core/publisher/Mono;
+	public fun prepare (Ljava/lang/String;Ljava/lang/Object;)Lreactor/core/publisher/Mono;
+	public fun prepare (Ljava/lang/String;Lme/ahoo/wow/infra/prepare/PreparedValue;)Lreactor/core/publisher/Mono;
+	public fun reprepare (Ljava/lang/String;Ljava/lang/Object;)Lreactor/core/publisher/Mono;
+	public fun reprepare (Ljava/lang/String;Ljava/lang/Object;Ljava/lang/Object;)Lreactor/core/publisher/Mono;
+	public fun reprepare (Ljava/lang/String;Ljava/lang/Object;Ljava/lang/String;Ljava/lang/Object;)Lreactor/core/publisher/Mono;
+	public fun reprepare (Ljava/lang/String;Ljava/lang/Object;Ljava/lang/String;Lme/ahoo/wow/infra/prepare/PreparedValue;)Lreactor/core/publisher/Mono;
+	public fun reprepare (Ljava/lang/String;Ljava/lang/Object;Lme/ahoo/wow/infra/prepare/PreparedValue;)Lreactor/core/publisher/Mono;
+	public fun reprepare (Ljava/lang/String;Lme/ahoo/wow/infra/prepare/PreparedValue;)Lreactor/core/publisher/Mono;
+	public fun rollback (Ljava/lang/String;)Lreactor/core/publisher/Mono;
+	public fun rollback (Ljava/lang/String;Ljava/lang/Object;)Lreactor/core/publisher/Mono;
+	public fun usingPrepare (Ljava/lang/String;Ljava/lang/Object;Lkotlin/jvm/functions/Function1;)Lreactor/core/publisher/Mono;
+	public fun usingPrepare (Ljava/lang/String;Lme/ahoo/wow/infra/prepare/PreparedValue;Lkotlin/jvm/functions/Function1;)Lreactor/core/publisher/Mono;
+}
+
+public final class me/ahoo/wow/mongo/prepare/MongoPrepareKey$Companion {
+	public final fun getDEFAULT_REPLACE_OPTIONS ()Lcom/mongodb/client/model/ReplaceOptions;
+}
+
+public final class me/ahoo/wow/mongo/prepare/MongoPrepareKeyFactory : me/ahoo/wow/infra/prepare/PrepareKeyFactory {
+	public fun <init> (Lcom/mongodb/reactivestreams/client/MongoDatabase;)V
+	public fun create (Ljava/lang/String;Ljava/lang/Class;)Lme/ahoo/wow/infra/prepare/PrepareKey;
+}
+
+public final class me/ahoo/wow/mongo/prepare/MongoPrepareKeyKt {
+	public static final field VALUE_FIELD Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/mongo/prepare/PrepareRecords {
+	public static final field INSTANCE Lme/ahoo/wow/mongo/prepare/PrepareRecords;
+	public static final field TTL_AT_FIELD Ljava/lang/String;
+	public static final field VALUE_FIELD Ljava/lang/String;
+	public final fun toDocument (Lme/ahoo/wow/infra/prepare/PreparedValue;)Lorg/bson/Document;
+	public final fun toPreparedValue (Lorg/bson/Document;Ljava/lang/Class;)Lme/ahoo/wow/infra/prepare/PreparedValue;
+}
+
+public abstract class me/ahoo/wow/mongo/query/AbstractMongoQueryBackend : me/ahoo/wow/query/QueryBackend {
+	public fun <init> ()V
+	public fun aggregate (Lme/ahoo/wow/query/AdmittedQuery;Lme/ahoo/wow/query/GroupWindow;)Lreactor/core/publisher/Flux;
+	public fun count (Lme/ahoo/wow/query/AdmittedQuery;)Lreactor/core/publisher/Mono;
+	public fun getAggregateName ()Ljava/lang/String;
+	public abstract fun getCollection ()Lcom/mongodb/reactivestreams/client/MongoCollection;
+	public fun getContextName ()Ljava/lang/String;
+	public fun getCursorPositions ()Lme/ahoo/wow/query/CursorPositionCodec;
+	public fun isSameAggregateName (Lme/ahoo/wow/api/modeling/NamedAggregate;)Z
+	public fun isSameBoundedContext (Lme/ahoo/wow/api/naming/NamedBoundedContext;)Z
+	public fun page (Lme/ahoo/wow/query/AdmittedQuery;Lme/ahoo/wow/query/PageWindow;)Lreactor/core/publisher/Mono;
+	public fun stream (Lme/ahoo/wow/query/AdmittedQuery;)Lreactor/core/publisher/Flux;
+	protected abstract fun toObjectNode (Lorg/bson/Document;)Ltools/jackson/databind/node/ObjectNode;
+}
+
+public final class me/ahoo/wow/mongo/query/MongoFilterCompiler {
+	public static final field INSTANCE Lme/ahoo/wow/mongo/query/MongoFilterCompiler;
+	public final fun compile (Lme/ahoo/wow/api/query/FilterExpression;Lme/ahoo/wow/query/AdmittedQuery;)Lorg/bson/conversions/Bson;
+	public final fun compile (Lme/ahoo/wow/query/AdmittedQuery;)Lorg/bson/conversions/Bson;
+}
+
+public final class me/ahoo/wow/mongo/query/event/MongoEventStreamQueryBackend : me/ahoo/wow/mongo/query/AbstractMongoQueryBackend, me/ahoo/wow/query/event/EventStreamQueryBackend {
+	public fun <init> (Lme/ahoo/wow/api/modeling/NamedAggregate;Lcom/mongodb/reactivestreams/client/MongoCollection;)V
+	public fun getCollection ()Lcom/mongodb/reactivestreams/client/MongoCollection;
+	public fun getNamedAggregate ()Lme/ahoo/wow/api/modeling/NamedAggregate;
+}
+
+public final class me/ahoo/wow/mongo/query/event/MongoEventStreamQueryBackendFactory : me/ahoo/wow/query/event/AbstractEventStreamQueryBackendFactory {
+	public fun <init> (Lcom/mongodb/reactivestreams/client/MongoDatabase;)V
+}
+
+public final class me/ahoo/wow/mongo/query/schema/MongoQuerySchemaAdapter : me/ahoo/wow/query/schema/QueryStorageAdapter {
+	public static final field Companion Lme/ahoo/wow/mongo/query/schema/MongoQuerySchemaAdapter$Companion;
+	public fun <init> (Lcom/mongodb/reactivestreams/client/MongoCollection;Lcom/mongodb/reactivestreams/client/MongoDatabase;Lme/ahoo/wow/api/query/schema/QueryModel;)V
+	public synthetic fun <init> (Lcom/mongodb/reactivestreams/client/MongoCollection;Lcom/mongodb/reactivestreams/client/MongoDatabase;Lme/ahoo/wow/api/query/schema/QueryModel;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun facts (Lme/ahoo/wow/query/schema/LogicalQuerySchema;)Lreactor/core/publisher/Mono;
+	public fun refresh (Lme/ahoo/wow/query/schema/LogicalQuerySchema;)Lreactor/core/publisher/Mono;
+}
+
+public final class me/ahoo/wow/mongo/query/schema/MongoQuerySchemaAdapter$Companion {
+}
+
+public final class me/ahoo/wow/mongo/query/snapshot/MongoSnapshotQueryBackend : me/ahoo/wow/mongo/query/AbstractMongoQueryBackend, me/ahoo/wow/query/snapshot/SnapshotQueryBackend {
+	public fun <init> (Lme/ahoo/wow/api/modeling/NamedAggregate;Lcom/mongodb/reactivestreams/client/MongoCollection;)V
+	public fun getCollection ()Lcom/mongodb/reactivestreams/client/MongoCollection;
+	public fun getName ()Ljava/lang/String;
+	public fun getNamedAggregate ()Lme/ahoo/wow/api/modeling/NamedAggregate;
+}
+
+public final class me/ahoo/wow/mongo/query/snapshot/MongoSnapshotQueryBackendFactory : me/ahoo/wow/query/snapshot/AbstractSnapshotQueryBackendFactory {
+	public fun <init> (Lcom/mongodb/reactivestreams/client/MongoDatabase;)V
+}
+

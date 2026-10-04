@@ -9,6 +9,8 @@
 ./gradlew detekt
 ./gradlew detekt --auto-correct
 ./gradlew build
+./gradlew checkKotlinAbi
+./gradlew updateKotlinAbi
 ```
 
 Use Gradle module paths from `settings.gradle.kts`, for example `:wow-api`, `:wow-core`, `:wow-spring-boot-starter`, `:wow-compensation-domain`, `:example-domain`, and `:wow-test`.
@@ -184,11 +186,22 @@ A release is prepared in one pull request (`chore(release): prepare <version>`):
 
 Breaking changes, Kotlin or TypeScript, ship only in an `x.Y.0` release. A change breaks when it changes public API (Kotlin, or a published npm package), REST behaviour, configuration, storage or wire formats; mark it with `!` in the conventional commit, or tick the PR template's **Breaking** box (it labels the PR `breaking-change`), and give the description a `## Breaking` section saying who is affected and how to migrate (for an approved v9 exception, also the step before upgrading and what a mixed 9.x cluster does). A `## Behaviour changes` section is for user-visible changes that are not breaking; it adds no label. Release admission enforces this, and requires the x.Y.0 release notes to name each such PR. Compatibility code kept until v10 is listed in `docs/compat-debt.md`; `pnpm check:compat-debt` checks its markers.
 
+### Binary Compatibility
+
+Every published Maven module except the BOMs (`publishProjects` minus `bomProjects` in `build.gradle.kts`) keeps its public JVM ABI in `<module>/api/<module>.api`: classes, constructors, methods and fields with their JVM signatures, including synthetic overloads such as a `DeprecationLevel.HIDDEN` constructor kept for old callers. Declarations marked `@InternalWowApi` are left out. The dumps come from Kotlin's built-in ABI validation (`abiValidation` in the Kotlin Gradle plugin); `check` depends on `checkKotlinAbi`, and the `local-test.yml` workflow runs `./gradlew checkKotlinAbi` before the tests, so a pull request that changes a public signature without its dump fails.
+
+When the check fails, run `./gradlew updateKotlinAbi` (or `./gradlew :<module>:updateKotlinAbi`) and commit the rewritten dumps with the change. Read the dump diff before committing it:
+
+- Only `+` lines (a new class, member or overload): additive, allowed in any 9.x release, patches included.
+- Any `-` line, or a changed one (a removed or renamed declaration, a parameter added to a constructor or function even with a default value, a changed return type): a binary break. In a patch, keep the old signature instead, for example a secondary constructor or overload marked `@Deprecated(…, level = DeprecationLevel.HIDDEN)` with a `compat(<scope>)` comment and an entry in `docs/compat-debt.md`, so the dump goes back to additive. A removal ships only in an `x.Y.0`, marked breaking as above, with a `## Breaking` section naming the removed signatures and what callers use instead; compatibility code listed in `docs/compat-debt.md` stays until v10.
+
+A module that starts publishing commits its first dump in the same pull request; the check fails while a published module has none.
+
 ## CI And Release Workflows
 
 GitHub Actions run module-level checks from `.github/workflows/`:
 
-- `local-test.yml` runs `allLocalTest` and local coverage.
+- `local-test.yml` checks every published module's Kotlin ABI against its `api/*.api` dump (`checkKotlinAbi`, see Binary Compatibility), then runs `allLocalTest` and local coverage.
 - `contract-test.yml` runs `allContractTest` and contract coverage.
 - `integration-test.yml` runs `allIntegrationTest` and integration coverage.
 - `compensation-test.yml` checks compensation core and domain modules.

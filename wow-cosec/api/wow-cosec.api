@@ -1,0 +1,33 @@
+public final class me/ahoo/wow/cosec/appender/CoSecCommandRequestHeaderAppender : me/ahoo/wow/webflux/route/command/appender/CommandRequestHeaderAppender {
+	public static final field APP_ID_KEY Ljava/lang/String;
+	public static final field DEVICE_ID_KEY Ljava/lang/String;
+	public static final field INSTANCE Lme/ahoo/wow/cosec/appender/CoSecCommandRequestHeaderAppender;
+	public fun append (Lorg/springframework/web/reactive/function/server/ServerRequest;Lme/ahoo/wow/api/messaging/Header;)V
+}
+
+public final class me/ahoo/wow/cosec/extractor/CoSecCommandBuilderExtractor : me/ahoo/wow/webflux/route/command/extractor/CommandBuilderExtractor {
+	public static final field INSTANCE Lme/ahoo/wow/cosec/extractor/CoSecCommandBuilderExtractor;
+	public static final field REQUEST_ID_KEY Ljava/lang/String;
+	public static final field SPACE_ID_KEY Ljava/lang/String;
+	public fun extract (Lme/ahoo/wow/openapi/metadata/AggregateRouteMetadata;Ljava/lang/Object;Lorg/springframework/web/reactive/function/server/ServerRequest;)Lreactor/core/publisher/Mono;
+}
+
+public final class me/ahoo/wow/cosec/propagation/CoSecMessagePropagator : me/ahoo/wow/messaging/propagation/MessagePropagator {
+	public static final field APP_ID Ljava/lang/String;
+	public static final field Companion Lme/ahoo/wow/cosec/propagation/CoSecMessagePropagator$Companion;
+	public static final field DEVICE_ID Ljava/lang/String;
+	public fun <init> ()V
+	public fun propagate (Lme/ahoo/wow/api/messaging/Header;Lme/ahoo/wow/api/messaging/Message;)V
+}
+
+public final class me/ahoo/wow/cosec/propagation/CoSecMessagePropagator$Companion {
+	public final fun getAppId (Lme/ahoo/wow/api/messaging/Header;)Ljava/lang/String;
+	public final fun getDeviceId (Lme/ahoo/wow/api/messaging/Header;)Ljava/lang/String;
+	public final fun withAppId (Lme/ahoo/wow/api/messaging/Header;Ljava/lang/String;)Lme/ahoo/wow/api/messaging/Header;
+	public final fun withDeviceId (Lme/ahoo/wow/api/messaging/Header;Ljava/lang/String;)Lme/ahoo/wow/api/messaging/Header;
+}
+
+public final class me/ahoo/wow/cosec/query/CoSecQueryRequestScope : me/ahoo/wow/webflux/route/query/AbstractQueryRequestScope {
+	public static final field INSTANCE Lme/ahoo/wow/cosec/query/CoSecQueryRequestScope;
+}
+

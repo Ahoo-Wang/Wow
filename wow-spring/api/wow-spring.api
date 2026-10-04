@@ -1,0 +1,100 @@
+public abstract class me/ahoo/wow/spring/AutoRegistrar : org/springframework/beans/factory/SmartInitializingSingleton {
+	public static final field Companion Lme/ahoo/wow/spring/AutoRegistrar$Companion;
+	public fun <init> (Ljava/lang/Class;Lorg/springframework/context/ApplicationContext;)V
+	public final fun afterSingletonsInstantiated ()V
+	public abstract fun register (Ljava/lang/Object;)V
+}
+
+public final class me/ahoo/wow/spring/AutoRegistrar$Companion {
+}
+
+public final class me/ahoo/wow/spring/SpringServiceProvider : me/ahoo/wow/infra/Decorator, me/ahoo/wow/ioc/ServiceProvider {
+	public fun <init> (Lorg/springframework/beans/factory/config/ConfigurableBeanFactory;)V
+	public synthetic fun copy ()Ljava/lang/Object;
+	public fun copy ()Lme/ahoo/wow/ioc/ServiceProvider;
+	public fun copyTo (Lme/ahoo/wow/ioc/ServiceProvider;)V
+	public synthetic fun getDelegate ()Ljava/lang/Object;
+	public fun getDelegate ()Lorg/springframework/beans/factory/config/ConfigurableBeanFactory;
+	public fun getService (Ljava/lang/String;)Ljava/lang/Object;
+	public fun getService (Lkotlin/reflect/KType;)Ljava/lang/Object;
+	public fun getServiceNames ()Ljava/util/Set;
+	public fun register (Ljava/lang/Object;Ljava/lang/String;Lkotlin/reflect/KType;)V
+}
+
+public final class me/ahoo/wow/spring/WowRuntimeLifecycle : org/springframework/context/SmartLifecycle {
+	public static final field Companion Lme/ahoo/wow/spring/WowRuntimeLifecycle$Companion;
+	public fun <init> (Lme/ahoo/wow/runtime/WowRuntime;Ljava/util/concurrent/Executor;Lkotlin/jvm/functions/Function1;)V
+	public synthetic fun <init> (Lme/ahoo/wow/runtime/WowRuntime;Ljava/util/concurrent/Executor;Lkotlin/jvm/functions/Function1;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun getPhase ()I
+	public fun isPauseable ()Z
+	public fun isRunning ()Z
+	public fun start ()V
+	public fun stop ()V
+	public fun stop (Ljava/lang/Runnable;)V
+}
+
+public final class me/ahoo/wow/spring/WowRuntimeLifecycle$Companion {
+}
+
+public final class me/ahoo/wow/spring/WowRuntimeLifecycleKt {
+	public static final field WOW_RUNTIME_PHASE I
+}
+
+public final class me/ahoo/wow/spring/event/EventProcessorAutoRegistrar : me/ahoo/wow/spring/AutoRegistrar {
+	public fun <init> (Lme/ahoo/wow/event/dispatcher/DomainEventFunctionRegistrar;Lorg/springframework/context/ApplicationContext;)V
+	public fun register (Ljava/lang/Object;)V
+}
+
+public final class me/ahoo/wow/spring/prepare/PrepareKeyFactoryBean : org/springframework/beans/factory/FactoryBean, org/springframework/context/ApplicationContextAware {
+	public fun <init> (Lme/ahoo/wow/infra/prepare/proxy/PrepareKeyMetadata;)V
+	public synthetic fun getObject ()Ljava/lang/Object;
+	public fun getObject ()Lme/ahoo/wow/infra/prepare/PrepareKey;
+	public fun getObjectType ()Ljava/lang/Class;
+	public fun setApplicationContext (Lorg/springframework/context/ApplicationContext;)V
+}
+
+public final class me/ahoo/wow/spring/projection/ProjectionProcessorAutoRegistrar : me/ahoo/wow/spring/AutoRegistrar {
+	public fun <init> (Lme/ahoo/wow/projection/ProjectionFunctionRegistrar;Lorg/springframework/context/ApplicationContext;)V
+	public fun register (Ljava/lang/Object;)V
+}
+
+public final class me/ahoo/wow/spring/query/EventStreamQueryGatewayRegistrar : me/ahoo/wow/spring/query/QueryGatewayRegistrar {
+	public static final field Companion Lme/ahoo/wow/spring/query/EventStreamQueryGatewayRegistrar$Companion;
+	public static final field EVENT_STREAM_QUERY_OBSERVER_BEAN_NAME Ljava/lang/String;
+	public fun <init> ()V
+	public fun registerQueryGateway (Ljava/util/Map$Entry;Lorg/springframework/beans/factory/support/BeanDefinitionRegistry;)V
+}
+
+public final class me/ahoo/wow/spring/query/EventStreamQueryGatewayRegistrar$Companion {
+}
+
+public final class me/ahoo/wow/spring/query/QueryGatewayBeanNamesKt {
+	public static final fun eventStreamQueryGatewayBeanName (Lme/ahoo/wow/api/modeling/NamedAggregate;)Ljava/lang/String;
+	public static final fun snapshotQueryGatewayBeanName (Lme/ahoo/wow/api/modeling/NamedAggregate;)Ljava/lang/String;
+}
+
+public abstract class me/ahoo/wow/spring/query/QueryGatewayRegistrar : org/springframework/beans/factory/BeanFactoryAware, org/springframework/context/annotation/ImportBeanDefinitionRegistrar {
+	protected field appContext Lorg/springframework/beans/factory/BeanFactory;
+	public fun <init> ()V
+	protected final fun getAppContext ()Lorg/springframework/beans/factory/BeanFactory;
+	public fun registerBeanDefinitions (Lorg/springframework/core/type/AnnotationMetadata;Lorg/springframework/beans/factory/support/BeanDefinitionRegistry;)V
+	public abstract fun registerQueryGateway (Ljava/util/Map$Entry;Lorg/springframework/beans/factory/support/BeanDefinitionRegistry;)V
+	protected final fun setAppContext (Lorg/springframework/beans/factory/BeanFactory;)V
+	public fun setBeanFactory (Lorg/springframework/beans/factory/BeanFactory;)V
+}
+
+public final class me/ahoo/wow/spring/query/SnapshotQueryGatewayRegistrar : me/ahoo/wow/spring/query/QueryGatewayRegistrar {
+	public static final field Companion Lme/ahoo/wow/spring/query/SnapshotQueryGatewayRegistrar$Companion;
+	public static final field SNAPSHOT_QUERY_OBSERVER_BEAN_NAME Ljava/lang/String;
+	public fun <init> ()V
+	public fun registerQueryGateway (Ljava/util/Map$Entry;Lorg/springframework/beans/factory/support/BeanDefinitionRegistry;)V
+}
+
+public final class me/ahoo/wow/spring/query/SnapshotQueryGatewayRegistrar$Companion {
+}
+
+public final class me/ahoo/wow/spring/saga/StatelessSagaProcessorAutoRegistrar : me/ahoo/wow/spring/AutoRegistrar {
+	public fun <init> (Lme/ahoo/wow/saga/stateless/StatelessSagaFunctionRegistrar;Lorg/springframework/context/ApplicationContext;)V
+	public fun register (Ljava/lang/Object;)V
+}
+

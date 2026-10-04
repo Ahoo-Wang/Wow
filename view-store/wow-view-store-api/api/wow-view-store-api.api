@@ -1,0 +1,292 @@
+public final class me/ahoo/wow/viewstore/ViewStoreService {
+	public static final field APP_ID_HEADER Ljava/lang/String;
+	public static final field APP_ID_MESSAGE_HEADER Ljava/lang/String;
+	public static final field INSTANCE Lme/ahoo/wow/viewstore/ViewStoreService;
+	public static final field SERVICE_ALIAS Ljava/lang/String;
+	public static final field SERVICE_NAME Ljava/lang/String;
+	public static final field SHARED_OWNER_ID Ljava/lang/String;
+	public static final field SYSTEM_OWNER_ID Ljava/lang/String;
+	public static final field SYSTEM_TENANT_ID Ljava/lang/String;
+	public static final field VIEW_AGGREGATE_NAME Ljava/lang/String;
+	public static final field VIEW_PREFERENCES_AGGREGATE_NAME Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/viewstore/api/ScopeIds {
+	public static final field INSTANCE Lme/ahoo/wow/viewstore/api/ScopeIds;
+	public final fun isValid (Ljava/lang/String;)Z
+}
+
+public final class me/ahoo/wow/viewstore/api/SystemView {
+	public static final field CODE_SYSTEM_VIEW_PREFIX Ljava/lang/String;
+	public static final field Companion Lme/ahoo/wow/viewstore/api/SystemView$Companion;
+	public static final field SYSTEM_SCOPE Ljava/lang/String;
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/viewstore/api/ViewKind;Ljava/lang/String;Ltools/jackson/databind/node/ObjectNode;Lme/ahoo/wow/viewstore/api/SystemViewSource;Ljava/lang/Integer;)V
+	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/viewstore/api/ViewKind;Ljava/lang/String;Ltools/jackson/databind/node/ObjectNode;Lme/ahoo/wow/viewstore/api/SystemViewSource;Ljava/lang/Integer;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()Ljava/lang/String;
+	public final fun component4 ()Lme/ahoo/wow/viewstore/api/ViewKind;
+	public final fun component5 ()Ljava/lang/String;
+	public final fun component6 ()Ltools/jackson/databind/node/ObjectNode;
+	public final fun component7 ()Lme/ahoo/wow/viewstore/api/SystemViewSource;
+	public final fun component8 ()Ljava/lang/Integer;
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/viewstore/api/ViewKind;Ljava/lang/String;Ltools/jackson/databind/node/ObjectNode;Lme/ahoo/wow/viewstore/api/SystemViewSource;Ljava/lang/Integer;)Lme/ahoo/wow/viewstore/api/SystemView;
+	public static synthetic fun copy$default (Lme/ahoo/wow/viewstore/api/SystemView;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/viewstore/api/ViewKind;Ljava/lang/String;Ltools/jackson/databind/node/ObjectNode;Lme/ahoo/wow/viewstore/api/SystemViewSource;Ljava/lang/Integer;ILjava/lang/Object;)Lme/ahoo/wow/viewstore/api/SystemView;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getConfig ()Ltools/jackson/databind/node/ObjectNode;
+	public final fun getDefinitionId ()Ljava/lang/String;
+	public final fun getId ()Ljava/lang/String;
+	public final fun getKind ()Lme/ahoo/wow/viewstore/api/ViewKind;
+	public final fun getRevision ()Ljava/lang/String;
+	public final fun getScope ()Ljava/lang/String;
+	public final fun getSource ()Lme/ahoo/wow/viewstore/api/SystemViewSource;
+	public final fun getTitle ()Ljava/lang/String;
+	public final fun getVersion ()Ljava/lang/Integer;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/viewstore/api/SystemView$Companion {
+}
+
+public final class me/ahoo/wow/viewstore/api/SystemViewSource : java/lang/Enum {
+	public static final field CONFIGURED Lme/ahoo/wow/viewstore/api/SystemViewSource;
+	public static final field STORED Lme/ahoo/wow/viewstore/api/SystemViewSource;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public final fun getValue ()Ljava/lang/String;
+	public static fun valueOf (Ljava/lang/String;)Lme/ahoo/wow/viewstore/api/SystemViewSource;
+	public static fun values ()[Lme/ahoo/wow/viewstore/api/SystemViewSource;
+}
+
+public final class me/ahoo/wow/viewstore/api/ViewAudience : java/lang/Enum {
+	public static final field Companion Lme/ahoo/wow/viewstore/api/ViewAudience$Companion;
+	public static final field PERSONAL Lme/ahoo/wow/viewstore/api/ViewAudience;
+	public static final field SHARED Lme/ahoo/wow/viewstore/api/ViewAudience;
+	public static final field SYSTEM Lme/ahoo/wow/viewstore/api/ViewAudience;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public final fun getValue ()Ljava/lang/String;
+	public static fun valueOf (Ljava/lang/String;)Lme/ahoo/wow/viewstore/api/ViewAudience;
+	public static fun values ()[Lme/ahoo/wow/viewstore/api/ViewAudience;
+}
+
+public final class me/ahoo/wow/viewstore/api/ViewAudience$Companion {
+	public final fun ofOwner (Ljava/lang/String;)Lme/ahoo/wow/viewstore/api/ViewAudience;
+}
+
+public final class me/ahoo/wow/viewstore/api/ViewKind : java/lang/Enum {
+	public static final field ANALYSIS Lme/ahoo/wow/viewstore/api/ViewKind;
+	public static final field Companion Lme/ahoo/wow/viewstore/api/ViewKind$Companion;
+	public static final field DASHBOARD Lme/ahoo/wow/viewstore/api/ViewKind;
+	public static final field RECORD Lme/ahoo/wow/viewstore/api/ViewKind;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public final fun getValue ()Ljava/lang/String;
+	public static fun valueOf (Ljava/lang/String;)Lme/ahoo/wow/viewstore/api/ViewKind;
+	public static fun values ()[Lme/ahoo/wow/viewstore/api/ViewKind;
+}
+
+public final class me/ahoo/wow/viewstore/api/ViewKind$Companion {
+	public final fun of (Ljava/lang/String;)Lme/ahoo/wow/viewstore/api/ViewKind;
+}
+
+public final class me/ahoo/wow/viewstore/api/ViewStoreErrorCodes {
+	public static final field INSTANCE Lme/ahoo/wow/viewstore/api/ViewStoreErrorCodes;
+	public static final field SYSTEM_VIEW_READ_ONLY Ljava/lang/String;
+	public static final field VIEW_APP_REQUIRED Ljava/lang/String;
+	public static final field VIEW_EVENT_STREAM_CLOSED Ljava/lang/String;
+	public static final field VIEW_INVALID Ljava/lang/String;
+	public static final field VIEW_SCOPE_REQUIRED Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/viewstore/api/preferences/SetViewPreferences {
+	public fun <init> (Ljava/lang/String;Ljava/util/List;Ljava/lang/String;Ljava/lang/Boolean;Ljava/util/Map;)V
+	public synthetic fun <init> (Ljava/lang/String;Ljava/util/List;Ljava/lang/String;Ljava/lang/Boolean;Ljava/util/Map;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/util/List;
+	public final fun component3 ()Ljava/lang/String;
+	public final fun component4 ()Ljava/lang/Boolean;
+	public final fun component5 ()Ljava/util/Map;
+	public final fun copy (Ljava/lang/String;Ljava/util/List;Ljava/lang/String;Ljava/lang/Boolean;Ljava/util/Map;)Lme/ahoo/wow/viewstore/api/preferences/SetViewPreferences;
+	public static synthetic fun copy$default (Lme/ahoo/wow/viewstore/api/preferences/SetViewPreferences;Ljava/lang/String;Ljava/util/List;Ljava/lang/String;Ljava/lang/Boolean;Ljava/util/Map;ILjava/lang/Object;)Lme/ahoo/wow/viewstore/api/preferences/SetViewPreferences;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getAutoRun ()Ljava/lang/Boolean;
+	public final fun getDefaultInstanceId ()Ljava/lang/String;
+	public final fun getDefinitionId ()Ljava/lang/String;
+	public final fun getLastTabs ()Ljava/util/Map;
+	public final fun getOrder ()Ljava/util/List;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/viewstore/api/preferences/ViewPreferencesInput {
+	public fun <init> ()V
+	public fun <init> (Ljava/util/List;Ljava/lang/String;Ljava/lang/Boolean;Ljava/util/Map;)V
+	public synthetic fun <init> (Ljava/util/List;Ljava/lang/String;Ljava/lang/Boolean;Ljava/util/Map;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Ljava/util/List;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()Ljava/lang/Boolean;
+	public final fun component4 ()Ljava/util/Map;
+	public final fun copy (Ljava/util/List;Ljava/lang/String;Ljava/lang/Boolean;Ljava/util/Map;)Lme/ahoo/wow/viewstore/api/preferences/ViewPreferencesInput;
+	public static synthetic fun copy$default (Lme/ahoo/wow/viewstore/api/preferences/ViewPreferencesInput;Ljava/util/List;Ljava/lang/String;Ljava/lang/Boolean;Ljava/util/Map;ILjava/lang/Object;)Lme/ahoo/wow/viewstore/api/preferences/ViewPreferencesInput;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getAutoRun ()Ljava/lang/Boolean;
+	public final fun getDefaultInstanceId ()Ljava/lang/String;
+	public final fun getLastTabs ()Ljava/util/Map;
+	public final fun getOrder ()Ljava/util/List;
+	public fun hashCode ()I
+	public final fun toCommand (Ljava/lang/String;)Lme/ahoo/wow/viewstore/api/preferences/SetViewPreferences;
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/viewstore/api/preferences/ViewPreferencesSet {
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/util/List;Ljava/lang/String;Ljava/lang/Boolean;Ljava/util/Map;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()Ljava/util/List;
+	public final fun component4 ()Ljava/lang/String;
+	public final fun component5 ()Ljava/lang/Boolean;
+	public final fun component6 ()Ljava/util/Map;
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;Ljava/util/List;Ljava/lang/String;Ljava/lang/Boolean;Ljava/util/Map;)Lme/ahoo/wow/viewstore/api/preferences/ViewPreferencesSet;
+	public static synthetic fun copy$default (Lme/ahoo/wow/viewstore/api/preferences/ViewPreferencesSet;Ljava/lang/String;Ljava/lang/String;Ljava/util/List;Ljava/lang/String;Ljava/lang/Boolean;Ljava/util/Map;ILjava/lang/Object;)Lme/ahoo/wow/viewstore/api/preferences/ViewPreferencesSet;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getAppId ()Ljava/lang/String;
+	public final fun getAutoRun ()Ljava/lang/Boolean;
+	public final fun getDefaultInstanceId ()Ljava/lang/String;
+	public final fun getDefinitionId ()Ljava/lang/String;
+	public final fun getLastTabs ()Ljava/util/Map;
+	public final fun getOrder ()Ljava/util/List;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/viewstore/api/preferences/ViewPreferencesView {
+	public fun <init> (Ljava/lang/String;Ljava/util/List;Ljava/lang/String;Ljava/lang/Boolean;Ljava/util/Map;I)V
+	public synthetic fun <init> (Ljava/lang/String;Ljava/util/List;Ljava/lang/String;Ljava/lang/Boolean;Ljava/util/Map;IILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/util/List;
+	public final fun component3 ()Ljava/lang/String;
+	public final fun component4 ()Ljava/lang/Boolean;
+	public final fun component5 ()Ljava/util/Map;
+	public final fun component6 ()I
+	public final fun copy (Ljava/lang/String;Ljava/util/List;Ljava/lang/String;Ljava/lang/Boolean;Ljava/util/Map;I)Lme/ahoo/wow/viewstore/api/preferences/ViewPreferencesView;
+	public static synthetic fun copy$default (Lme/ahoo/wow/viewstore/api/preferences/ViewPreferencesView;Ljava/lang/String;Ljava/util/List;Ljava/lang/String;Ljava/lang/Boolean;Ljava/util/Map;IILjava/lang/Object;)Lme/ahoo/wow/viewstore/api/preferences/ViewPreferencesView;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getAutoRun ()Ljava/lang/Boolean;
+	public final fun getDefaultInstanceId ()Ljava/lang/String;
+	public final fun getDefinitionId ()Ljava/lang/String;
+	public final fun getLastTabs ()Ljava/util/Map;
+	public final fun getOrder ()Ljava/util/List;
+	public final fun getVersion ()I
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/viewstore/api/view/ClaimView {
+	public fun <init> (Ljava/lang/String;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun copy (Ljava/lang/String;)Lme/ahoo/wow/viewstore/api/view/ClaimView;
+	public static synthetic fun copy$default (Lme/ahoo/wow/viewstore/api/view/ClaimView;Ljava/lang/String;ILjava/lang/Object;)Lme/ahoo/wow/viewstore/api/view/ClaimView;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getToOwnerId ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/viewstore/api/view/CreateView {
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;Ltools/jackson/databind/node/ObjectNode;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()Ltools/jackson/databind/node/ObjectNode;
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;Ltools/jackson/databind/node/ObjectNode;)Lme/ahoo/wow/viewstore/api/view/CreateView;
+	public static synthetic fun copy$default (Lme/ahoo/wow/viewstore/api/view/CreateView;Ljava/lang/String;Ljava/lang/String;Ltools/jackson/databind/node/ObjectNode;ILjava/lang/Object;)Lme/ahoo/wow/viewstore/api/view/CreateView;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getConfig ()Ltools/jackson/databind/node/ObjectNode;
+	public final fun getDefinitionId ()Ljava/lang/String;
+	public final fun getTitle ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/viewstore/api/view/DeleteView : me/ahoo/wow/api/command/DeleteAggregate {
+	public static final field INSTANCE Lme/ahoo/wow/viewstore/api/view/DeleteView;
+}
+
+public final class me/ahoo/wow/viewstore/api/view/RenameView {
+	public fun <init> (Ljava/lang/String;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun copy (Ljava/lang/String;)Lme/ahoo/wow/viewstore/api/view/RenameView;
+	public static synthetic fun copy$default (Lme/ahoo/wow/viewstore/api/view/RenameView;Ljava/lang/String;ILjava/lang/Object;)Lme/ahoo/wow/viewstore/api/view/RenameView;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getTitle ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/viewstore/api/view/SaveView {
+	public fun <init> (Ltools/jackson/databind/node/ObjectNode;)V
+	public final fun component1 ()Ltools/jackson/databind/node/ObjectNode;
+	public final fun copy (Ltools/jackson/databind/node/ObjectNode;)Lme/ahoo/wow/viewstore/api/view/SaveView;
+	public static synthetic fun copy$default (Lme/ahoo/wow/viewstore/api/view/SaveView;Ltools/jackson/databind/node/ObjectNode;ILjava/lang/Object;)Lme/ahoo/wow/viewstore/api/view/SaveView;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getConfig ()Ltools/jackson/databind/node/ObjectNode;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/viewstore/api/view/ShareView {
+	public static final field INSTANCE Lme/ahoo/wow/viewstore/api/view/ShareView;
+}
+
+public final class me/ahoo/wow/viewstore/api/view/ViewAudienceChanged : me/ahoo/wow/api/event/OwnerTransferred {
+	public fun <init> (Lme/ahoo/wow/viewstore/api/ViewAudience;Ljava/lang/String;)V
+	public final fun component1 ()Lme/ahoo/wow/viewstore/api/ViewAudience;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun copy (Lme/ahoo/wow/viewstore/api/ViewAudience;Ljava/lang/String;)Lme/ahoo/wow/viewstore/api/view/ViewAudienceChanged;
+	public static synthetic fun copy$default (Lme/ahoo/wow/viewstore/api/view/ViewAudienceChanged;Lme/ahoo/wow/viewstore/api/ViewAudience;Ljava/lang/String;ILjava/lang/Object;)Lme/ahoo/wow/viewstore/api/view/ViewAudienceChanged;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getAudience ()Lme/ahoo/wow/viewstore/api/ViewAudience;
+	public fun getToOwnerId ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/viewstore/api/view/ViewCreated {
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/viewstore/api/ViewAudience;Ljava/lang/String;Ltools/jackson/databind/node/ObjectNode;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()Lme/ahoo/wow/viewstore/api/ViewAudience;
+	public final fun component4 ()Ljava/lang/String;
+	public final fun component5 ()Ltools/jackson/databind/node/ObjectNode;
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/viewstore/api/ViewAudience;Ljava/lang/String;Ltools/jackson/databind/node/ObjectNode;)Lme/ahoo/wow/viewstore/api/view/ViewCreated;
+	public static synthetic fun copy$default (Lme/ahoo/wow/viewstore/api/view/ViewCreated;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/viewstore/api/ViewAudience;Ljava/lang/String;Ltools/jackson/databind/node/ObjectNode;ILjava/lang/Object;)Lme/ahoo/wow/viewstore/api/view/ViewCreated;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getAppId ()Ljava/lang/String;
+	public final fun getAudience ()Lme/ahoo/wow/viewstore/api/ViewAudience;
+	public final fun getConfig ()Ltools/jackson/databind/node/ObjectNode;
+	public final fun getDefinitionId ()Ljava/lang/String;
+	public final fun getTitle ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/viewstore/api/view/ViewRenamed {
+	public fun <init> (Ljava/lang/String;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun copy (Ljava/lang/String;)Lme/ahoo/wow/viewstore/api/view/ViewRenamed;
+	public static synthetic fun copy$default (Lme/ahoo/wow/viewstore/api/view/ViewRenamed;Ljava/lang/String;ILjava/lang/Object;)Lme/ahoo/wow/viewstore/api/view/ViewRenamed;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getTitle ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/viewstore/api/view/ViewSaved {
+	public fun <init> (Ltools/jackson/databind/node/ObjectNode;)V
+	public final fun component1 ()Ltools/jackson/databind/node/ObjectNode;
+	public final fun copy (Ltools/jackson/databind/node/ObjectNode;)Lme/ahoo/wow/viewstore/api/view/ViewSaved;
+	public static synthetic fun copy$default (Lme/ahoo/wow/viewstore/api/view/ViewSaved;Ltools/jackson/databind/node/ObjectNode;ILjava/lang/Object;)Lme/ahoo/wow/viewstore/api/view/ViewSaved;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getConfig ()Ltools/jackson/databind/node/ObjectNode;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+

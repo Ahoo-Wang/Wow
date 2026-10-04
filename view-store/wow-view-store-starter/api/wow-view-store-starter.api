@@ -1,0 +1,107 @@
+public abstract interface annotation class me/ahoo/wow/viewstore/starter/ConditionalOnViewStoreEnabled : java/lang/annotation/Annotation {
+	public static final field Companion Lme/ahoo/wow/viewstore/starter/ConditionalOnViewStoreEnabled$Companion;
+	public static final field ENABLED_KEY Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/viewstore/starter/ConditionalOnViewStoreEnabled$Companion {
+	public static final field ENABLED_KEY Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/viewstore/starter/SystemViewProperties {
+	public fun <init> ()V
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)V
+	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun getAppId ()Ljava/lang/String;
+	public final fun getConfig ()Ljava/lang/String;
+	public final fun getDefinitionId ()Ljava/lang/String;
+	public final fun getId ()Ljava/lang/String;
+	public final fun getTenantId ()Ljava/lang/String;
+	public final fun getTitle ()Ljava/lang/String;
+	public final fun setAppId (Ljava/lang/String;)V
+	public final fun setConfig (Ljava/lang/String;)V
+	public final fun setDefinitionId (Ljava/lang/String;)V
+	public final fun setId (Ljava/lang/String;)V
+	public final fun setTenantId (Ljava/lang/String;)V
+	public final fun setTitle (Ljava/lang/String;)V
+}
+
+public class me/ahoo/wow/viewstore/starter/ViewStoreAutoConfiguration {
+	public static final field Companion Lme/ahoo/wow/viewstore/starter/ViewStoreAutoConfiguration$Companion;
+	public static final field ROUTER_FUNCTION_BEAN_NAME Ljava/lang/String;
+	public fun <init> ()V
+	public fun sharedBoardReferences (Lorg/springframework/beans/factory/BeanFactory;)Lme/ahoo/wow/viewstore/domain/view/SharedBoardReferences;
+	public fun storedSystemViewSource (Lorg/springframework/beans/factory/ObjectProvider;Lorg/springframework/beans/factory/BeanFactory;)Lme/ahoo/wow/viewstore/starter/system/StoredSystemViewSource;
+	public fun systemViewProvider (Lme/ahoo/wow/viewstore/starter/ViewStoreProperties;)Lme/ahoo/wow/viewstore/starter/system/SystemViewProvider;
+	public fun viewStoreConfigQuerySchema ()Lme/ahoo/wow/query/schema/QuerySchemaRegistration;
+}
+
+public final class me/ahoo/wow/viewstore/starter/ViewStoreAutoConfiguration$Companion {
+}
+
+public class me/ahoo/wow/viewstore/starter/ViewStoreAutoConfiguration$ViewStoreKafkaConfiguration {
+	public static final field Companion Lme/ahoo/wow/viewstore/starter/ViewStoreAutoConfiguration$ViewStoreKafkaConfiguration$Companion;
+	public fun <init> ()V
+	public static final fun viewStoreBiScriptAggregateExclusion ()Lme/ahoo/wow/spring/boot/starter/bi/BiScriptAggregateExclusion;
+	public static final fun viewStoreTopicConverterPostProcessor$me_ahoo_wow_wow_view_store_starter (Lorg/springframework/core/env/Environment;)Lme/ahoo/wow/viewstore/starter/ViewStoreTopicConverterPostProcessor;
+}
+
+public final class me/ahoo/wow/viewstore/starter/ViewStoreAutoConfiguration$ViewStoreKafkaConfiguration$Companion {
+	public final fun viewStoreBiScriptAggregateExclusion ()Lme/ahoo/wow/spring/boot/starter/bi/BiScriptAggregateExclusion;
+}
+
+public class me/ahoo/wow/viewstore/starter/ViewStoreAutoConfiguration$ViewStoreOpenApiConfiguration {
+	public fun <init> ()V
+}
+
+public class me/ahoo/wow/viewstore/starter/ViewStoreAutoConfiguration$ViewStoreSharedTopicsConfiguration {
+	public fun <init> ()V
+}
+
+public final class me/ahoo/wow/viewstore/starter/ViewStoreKafkaProperties {
+	public static final field Companion Lme/ahoo/wow/viewstore/starter/ViewStoreKafkaProperties$Companion;
+	public static final field TOPIC_PREFIX Ljava/lang/String;
+	public fun <init> ()V
+	public fun <init> (Ljava/lang/String;)V
+	public synthetic fun <init> (Ljava/lang/String;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun getTopicPrefix ()Ljava/lang/String;
+	public final fun setTopicPrefix (Ljava/lang/String;)V
+}
+
+public final class me/ahoo/wow/viewstore/starter/ViewStoreKafkaProperties$Companion {
+}
+
+public final class me/ahoo/wow/viewstore/starter/ViewStoreProperties : me/ahoo/wow/api/naming/EnabledCapable {
+	public static final field Companion Lme/ahoo/wow/viewstore/starter/ViewStoreProperties$Companion;
+	public static final field PREFIX Ljava/lang/String;
+	public fun <init> ()V
+	public fun <init> (ZLjava/util/List;Lme/ahoo/wow/viewstore/starter/ViewStoreKafkaProperties;)V
+	public synthetic fun <init> (ZLjava/util/List;Lme/ahoo/wow/viewstore/starter/ViewStoreKafkaProperties;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun getEnabled ()Z
+	public final fun getKafka ()Lme/ahoo/wow/viewstore/starter/ViewStoreKafkaProperties;
+	public final fun getSystemViews ()Ljava/util/List;
+	public fun setEnabled (Z)V
+	public final fun setKafka (Lme/ahoo/wow/viewstore/starter/ViewStoreKafkaProperties;)V
+	public final fun setSystemViews (Ljava/util/List;)V
+}
+
+public final class me/ahoo/wow/viewstore/starter/ViewStoreProperties$Companion {
+}
+
+public abstract interface class me/ahoo/wow/viewstore/starter/system/StoredSystemViewSource {
+	public static final field Companion Lme/ahoo/wow/viewstore/starter/system/StoredSystemViewSource$Companion;
+	public abstract fun storedSystemViews (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)Lreactor/core/publisher/Flux;
+}
+
+public final class me/ahoo/wow/viewstore/starter/system/StoredSystemViewSource$Companion {
+	public final fun getNONE ()Lme/ahoo/wow/viewstore/starter/system/StoredSystemViewSource;
+}
+
+public abstract interface class me/ahoo/wow/viewstore/starter/system/SystemViewProvider {
+	public abstract fun systemViews (Ljava/lang/String;Ljava/lang/String;)Lreactor/core/publisher/Flux;
+}
+
+public final class me/ahoo/wow/viewstore/starter/system/SystemViews {
+	public static final field INSTANCE Lme/ahoo/wow/viewstore/starter/system/SystemViews;
+	public final fun of (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ltools/jackson/databind/node/ObjectNode;)Lme/ahoo/wow/viewstore/api/SystemView;
+}
+

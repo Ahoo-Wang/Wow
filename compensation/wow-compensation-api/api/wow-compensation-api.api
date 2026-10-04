@@ -1,0 +1,388 @@
+public final class me/ahoo/wow/compensation/CompensationService {
+	public static final field EXECUTION_FAILED_AGGREGATE_NAME Ljava/lang/String;
+	public static final field INSTANCE Lme/ahoo/wow/compensation/CompensationService;
+	public static final field SERVICE_ALIAS Ljava/lang/String;
+	public static final field SERVICE_NAME Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/compensation/api/ApplyExecutionFailed : me/ahoo/wow/api/Identifier, me/ahoo/wow/compensation/api/ExecutionFailedErrorInfo, me/ahoo/wow/compensation/api/IRecoverable {
+	public fun <init> (Ljava/lang/String;Lme/ahoo/wow/compensation/api/ErrorDetails;JLme/ahoo/wow/api/exception/RecoverableType;)V
+	public synthetic fun <init> (Ljava/lang/String;Lme/ahoo/wow/compensation/api/ErrorDetails;JLme/ahoo/wow/api/exception/RecoverableType;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Lme/ahoo/wow/compensation/api/ErrorDetails;
+	public final fun component3 ()J
+	public final fun component4 ()Lme/ahoo/wow/api/exception/RecoverableType;
+	public final fun copy (Ljava/lang/String;Lme/ahoo/wow/compensation/api/ErrorDetails;JLme/ahoo/wow/api/exception/RecoverableType;)Lme/ahoo/wow/compensation/api/ApplyExecutionFailed;
+	public static synthetic fun copy$default (Lme/ahoo/wow/compensation/api/ApplyExecutionFailed;Ljava/lang/String;Lme/ahoo/wow/compensation/api/ErrorDetails;JLme/ahoo/wow/api/exception/RecoverableType;ILjava/lang/Object;)Lme/ahoo/wow/compensation/api/ApplyExecutionFailed;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun getError ()Lme/ahoo/wow/compensation/api/ErrorDetails;
+	public fun getExecuteAt ()J
+	public synthetic fun getId ()Ljava/lang/Object;
+	public fun getId ()Ljava/lang/String;
+	public fun getRecoverable ()Lme/ahoo/wow/api/exception/RecoverableType;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/compensation/api/ApplyExecutionSuccess : me/ahoo/wow/api/Identifier, me/ahoo/wow/compensation/api/ExecuteAt {
+	public fun <init> (Ljava/lang/String;J)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()J
+	public final fun copy (Ljava/lang/String;J)Lme/ahoo/wow/compensation/api/ApplyExecutionSuccess;
+	public static synthetic fun copy$default (Lme/ahoo/wow/compensation/api/ApplyExecutionSuccess;Ljava/lang/String;JILjava/lang/Object;)Lme/ahoo/wow/compensation/api/ApplyExecutionSuccess;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun getExecuteAt ()J
+	public synthetic fun getId ()Ljava/lang/Object;
+	public fun getId ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/compensation/api/ApplyRetrySpec : me/ahoo/wow/api/Identifier, me/ahoo/wow/compensation/api/IRetrySpec {
+	public fun <init> (Ljava/lang/String;III)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()I
+	public final fun component3 ()I
+	public final fun component4 ()I
+	public final fun copy (Ljava/lang/String;III)Lme/ahoo/wow/compensation/api/ApplyRetrySpec;
+	public static synthetic fun copy$default (Lme/ahoo/wow/compensation/api/ApplyRetrySpec;Ljava/lang/String;IIIILjava/lang/Object;)Lme/ahoo/wow/compensation/api/ApplyRetrySpec;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun getExecutionTimeout ()I
+	public synthetic fun getId ()Ljava/lang/Object;
+	public fun getId ()Ljava/lang/String;
+	public fun getMaxRetries ()I
+	public fun getMinBackoff ()I
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/compensation/api/ChangeFunction : me/ahoo/wow/api/Identifier, me/ahoo/wow/api/messaging/function/FunctionInfo {
+	public fun <init> (Ljava/lang/String;Lme/ahoo/wow/api/messaging/function/FunctionKind;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Lme/ahoo/wow/api/messaging/function/FunctionKind;
+	public final fun component3 ()Ljava/lang/String;
+	public final fun component4 ()Ljava/lang/String;
+	public final fun component5 ()Ljava/lang/String;
+	public final fun copy (Ljava/lang/String;Lme/ahoo/wow/api/messaging/function/FunctionKind;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/compensation/api/ChangeFunction;
+	public static synthetic fun copy$default (Lme/ahoo/wow/compensation/api/ChangeFunction;Ljava/lang/String;Lme/ahoo/wow/api/messaging/function/FunctionKind;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Lme/ahoo/wow/compensation/api/ChangeFunction;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun getContextName ()Ljava/lang/String;
+	public fun getFunctionKind ()Lme/ahoo/wow/api/messaging/function/FunctionKind;
+	public synthetic fun getId ()Ljava/lang/Object;
+	public fun getId ()Ljava/lang/String;
+	public fun getName ()Ljava/lang/String;
+	public fun getProcessorName ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun isEmpty ()Z
+	public fun isSameBoundedContext (Lme/ahoo/wow/api/naming/NamedBoundedContext;)Z
+	public fun isSameFunction (Lme/ahoo/wow/api/messaging/function/FunctionInfo;)Z
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/compensation/api/CompensationPrepared : me/ahoo/wow/compensation/api/IRetryState {
+	public fun <init> (Lme/ahoo/wow/compensation/api/EventId;Lme/ahoo/wow/api/messaging/function/FunctionInfoData;Lme/ahoo/wow/compensation/api/RetryState;)V
+	public final fun component1 ()Lme/ahoo/wow/compensation/api/EventId;
+	public final fun component2 ()Lme/ahoo/wow/api/messaging/function/FunctionInfoData;
+	public final fun component3 ()Lme/ahoo/wow/compensation/api/RetryState;
+	public final fun copy (Lme/ahoo/wow/compensation/api/EventId;Lme/ahoo/wow/api/messaging/function/FunctionInfoData;Lme/ahoo/wow/compensation/api/RetryState;)Lme/ahoo/wow/compensation/api/CompensationPrepared;
+	public static synthetic fun copy$default (Lme/ahoo/wow/compensation/api/CompensationPrepared;Lme/ahoo/wow/compensation/api/EventId;Lme/ahoo/wow/api/messaging/function/FunctionInfoData;Lme/ahoo/wow/compensation/api/RetryState;ILjava/lang/Object;)Lme/ahoo/wow/compensation/api/CompensationPrepared;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getEventId ()Lme/ahoo/wow/compensation/api/EventId;
+	public final fun getFunction ()Lme/ahoo/wow/api/messaging/function/FunctionInfoData;
+	public fun getRetryState ()Lme/ahoo/wow/compensation/api/RetryState;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/compensation/api/CreateExecutionFailed : me/ahoo/wow/compensation/api/ExecutionFailedInfo {
+	public fun <init> (Lme/ahoo/wow/compensation/api/EventId;Lme/ahoo/wow/api/messaging/function/FunctionInfoData;Lme/ahoo/wow/compensation/api/ErrorDetails;JLme/ahoo/wow/compensation/api/RetrySpec;Lme/ahoo/wow/api/exception/RecoverableType;)V
+	public synthetic fun <init> (Lme/ahoo/wow/compensation/api/EventId;Lme/ahoo/wow/api/messaging/function/FunctionInfoData;Lme/ahoo/wow/compensation/api/ErrorDetails;JLme/ahoo/wow/compensation/api/RetrySpec;Lme/ahoo/wow/api/exception/RecoverableType;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Lme/ahoo/wow/compensation/api/EventId;
+	public final fun component2 ()Lme/ahoo/wow/api/messaging/function/FunctionInfoData;
+	public final fun component3 ()Lme/ahoo/wow/compensation/api/ErrorDetails;
+	public final fun component4 ()J
+	public final fun component5 ()Lme/ahoo/wow/compensation/api/RetrySpec;
+	public final fun component6 ()Lme/ahoo/wow/api/exception/RecoverableType;
+	public final fun copy (Lme/ahoo/wow/compensation/api/EventId;Lme/ahoo/wow/api/messaging/function/FunctionInfoData;Lme/ahoo/wow/compensation/api/ErrorDetails;JLme/ahoo/wow/compensation/api/RetrySpec;Lme/ahoo/wow/api/exception/RecoverableType;)Lme/ahoo/wow/compensation/api/CreateExecutionFailed;
+	public static synthetic fun copy$default (Lme/ahoo/wow/compensation/api/CreateExecutionFailed;Lme/ahoo/wow/compensation/api/EventId;Lme/ahoo/wow/api/messaging/function/FunctionInfoData;Lme/ahoo/wow/compensation/api/ErrorDetails;JLme/ahoo/wow/compensation/api/RetrySpec;Lme/ahoo/wow/api/exception/RecoverableType;ILjava/lang/Object;)Lme/ahoo/wow/compensation/api/CreateExecutionFailed;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun getError ()Lme/ahoo/wow/compensation/api/ErrorDetails;
+	public fun getEventId ()Lme/ahoo/wow/compensation/api/EventId;
+	public fun getExecuteAt ()J
+	public fun getFunction ()Lme/ahoo/wow/api/messaging/function/FunctionInfoData;
+	public fun getRecoverable ()Lme/ahoo/wow/api/exception/RecoverableType;
+	public final fun getRetrySpec ()Lme/ahoo/wow/compensation/api/RetrySpec;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/compensation/api/ErrorDetails : me/ahoo/wow/api/exception/ErrorInfo {
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/util/List;)V
+	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/util/List;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()Ljava/lang/String;
+	public final fun component4 ()Ljava/util/List;
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/util/List;)Lme/ahoo/wow/compensation/api/ErrorDetails;
+	public static synthetic fun copy$default (Lme/ahoo/wow/compensation/api/ErrorDetails;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/util/List;ILjava/lang/Object;)Lme/ahoo/wow/compensation/api/ErrorDetails;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun getBindingErrors ()Ljava/util/List;
+	public fun getErrorCode ()Ljava/lang/String;
+	public fun getErrorMsg ()Ljava/lang/String;
+	public final fun getStackTrace ()Ljava/lang/String;
+	public fun getSucceeded ()Z
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/compensation/api/EventId : me/ahoo/wow/api/Identifier, me/ahoo/wow/api/Version, me/ahoo/wow/api/modeling/AggregateIdCapable {
+	public static final field Companion Lme/ahoo/wow/compensation/api/EventId$Companion;
+	public fun <init> (Ljava/lang/String;Lme/ahoo/wow/api/modeling/AggregateId;I)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Lme/ahoo/wow/api/modeling/AggregateId;
+	public final fun component3 ()I
+	public final fun copy (Ljava/lang/String;Lme/ahoo/wow/api/modeling/AggregateId;I)Lme/ahoo/wow/compensation/api/EventId;
+	public static synthetic fun copy$default (Lme/ahoo/wow/compensation/api/EventId;Ljava/lang/String;Lme/ahoo/wow/api/modeling/AggregateId;IILjava/lang/Object;)Lme/ahoo/wow/compensation/api/EventId;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun getAggregateId ()Lme/ahoo/wow/api/modeling/AggregateId;
+	public synthetic fun getId ()Ljava/lang/Object;
+	public fun getId ()Ljava/lang/String;
+	public fun getInitialized ()Z
+	public fun getVersion ()I
+	public fun hashCode ()I
+	public fun isInitialVersion ()Z
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/compensation/api/EventId$Companion {
+	public final fun toEventId (Lme/ahoo/wow/api/event/EventMessage;)Lme/ahoo/wow/compensation/api/EventId;
+}
+
+public abstract interface class me/ahoo/wow/compensation/api/ExecuteAt {
+	public abstract fun getExecuteAt ()J
+}
+
+public final class me/ahoo/wow/compensation/api/ExecutionFailedApplied : me/ahoo/wow/compensation/api/ExecutionFailedErrorInfo, me/ahoo/wow/compensation/api/IRecoverable {
+	public fun <init> (Lme/ahoo/wow/compensation/api/ErrorDetails;JLme/ahoo/wow/api/exception/RecoverableType;)V
+	public synthetic fun <init> (Lme/ahoo/wow/compensation/api/ErrorDetails;JLme/ahoo/wow/api/exception/RecoverableType;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Lme/ahoo/wow/compensation/api/ErrorDetails;
+	public final fun component2 ()J
+	public final fun component3 ()Lme/ahoo/wow/api/exception/RecoverableType;
+	public final fun copy (Lme/ahoo/wow/compensation/api/ErrorDetails;JLme/ahoo/wow/api/exception/RecoverableType;)Lme/ahoo/wow/compensation/api/ExecutionFailedApplied;
+	public static synthetic fun copy$default (Lme/ahoo/wow/compensation/api/ExecutionFailedApplied;Lme/ahoo/wow/compensation/api/ErrorDetails;JLme/ahoo/wow/api/exception/RecoverableType;ILjava/lang/Object;)Lme/ahoo/wow/compensation/api/ExecutionFailedApplied;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun getError ()Lme/ahoo/wow/compensation/api/ErrorDetails;
+	public fun getExecuteAt ()J
+	public fun getRecoverable ()Lme/ahoo/wow/api/exception/RecoverableType;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/compensation/api/ExecutionFailedCreated : me/ahoo/wow/compensation/api/ExecutionFailedInfo, me/ahoo/wow/compensation/api/IRetryState {
+	public fun <init> (Lme/ahoo/wow/compensation/api/EventId;Lme/ahoo/wow/api/messaging/function/FunctionInfoData;Lme/ahoo/wow/compensation/api/ErrorDetails;JLme/ahoo/wow/compensation/api/RetryState;Lme/ahoo/wow/compensation/api/RetrySpec;Lme/ahoo/wow/api/exception/RecoverableType;)V
+	public synthetic fun <init> (Lme/ahoo/wow/compensation/api/EventId;Lme/ahoo/wow/api/messaging/function/FunctionInfoData;Lme/ahoo/wow/compensation/api/ErrorDetails;JLme/ahoo/wow/compensation/api/RetryState;Lme/ahoo/wow/compensation/api/RetrySpec;Lme/ahoo/wow/api/exception/RecoverableType;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Lme/ahoo/wow/compensation/api/EventId;
+	public final fun component2 ()Lme/ahoo/wow/api/messaging/function/FunctionInfoData;
+	public final fun component3 ()Lme/ahoo/wow/compensation/api/ErrorDetails;
+	public final fun component4 ()J
+	public final fun component5 ()Lme/ahoo/wow/compensation/api/RetryState;
+	public final fun component6 ()Lme/ahoo/wow/compensation/api/RetrySpec;
+	public final fun component7 ()Lme/ahoo/wow/api/exception/RecoverableType;
+	public final fun copy (Lme/ahoo/wow/compensation/api/EventId;Lme/ahoo/wow/api/messaging/function/FunctionInfoData;Lme/ahoo/wow/compensation/api/ErrorDetails;JLme/ahoo/wow/compensation/api/RetryState;Lme/ahoo/wow/compensation/api/RetrySpec;Lme/ahoo/wow/api/exception/RecoverableType;)Lme/ahoo/wow/compensation/api/ExecutionFailedCreated;
+	public static synthetic fun copy$default (Lme/ahoo/wow/compensation/api/ExecutionFailedCreated;Lme/ahoo/wow/compensation/api/EventId;Lme/ahoo/wow/api/messaging/function/FunctionInfoData;Lme/ahoo/wow/compensation/api/ErrorDetails;JLme/ahoo/wow/compensation/api/RetryState;Lme/ahoo/wow/compensation/api/RetrySpec;Lme/ahoo/wow/api/exception/RecoverableType;ILjava/lang/Object;)Lme/ahoo/wow/compensation/api/ExecutionFailedCreated;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun getError ()Lme/ahoo/wow/compensation/api/ErrorDetails;
+	public fun getEventId ()Lme/ahoo/wow/compensation/api/EventId;
+	public fun getExecuteAt ()J
+	public fun getFunction ()Lme/ahoo/wow/api/messaging/function/FunctionInfoData;
+	public fun getRecoverable ()Lme/ahoo/wow/api/exception/RecoverableType;
+	public final fun getRetrySpec ()Lme/ahoo/wow/compensation/api/RetrySpec;
+	public fun getRetryState ()Lme/ahoo/wow/compensation/api/RetryState;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public abstract interface class me/ahoo/wow/compensation/api/ExecutionFailedErrorInfo : me/ahoo/wow/compensation/api/ExecuteAt {
+	public abstract fun getError ()Lme/ahoo/wow/compensation/api/ErrorDetails;
+}
+
+public abstract interface class me/ahoo/wow/compensation/api/ExecutionFailedInfo : me/ahoo/wow/compensation/api/ExecutionFailedErrorInfo, me/ahoo/wow/compensation/api/IRecoverable {
+	public abstract fun getEventId ()Lme/ahoo/wow/compensation/api/EventId;
+	public abstract fun getFunction ()Lme/ahoo/wow/api/messaging/function/FunctionInfoData;
+}
+
+public final class me/ahoo/wow/compensation/api/ExecutionFailedStatus : java/lang/Enum {
+	public static final field FAILED Lme/ahoo/wow/compensation/api/ExecutionFailedStatus;
+	public static final field PREPARED Lme/ahoo/wow/compensation/api/ExecutionFailedStatus;
+	public static final field SUCCEEDED Lme/ahoo/wow/compensation/api/ExecutionFailedStatus;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lme/ahoo/wow/compensation/api/ExecutionFailedStatus;
+	public static fun values ()[Lme/ahoo/wow/compensation/api/ExecutionFailedStatus;
+}
+
+public final class me/ahoo/wow/compensation/api/ExecutionSuccessApplied : me/ahoo/wow/compensation/api/ExecuteAt {
+	public fun <init> (J)V
+	public final fun component1 ()J
+	public final fun copy (J)Lme/ahoo/wow/compensation/api/ExecutionSuccessApplied;
+	public static synthetic fun copy$default (Lme/ahoo/wow/compensation/api/ExecutionSuccessApplied;JILjava/lang/Object;)Lme/ahoo/wow/compensation/api/ExecutionSuccessApplied;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun getExecuteAt ()J
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/compensation/api/ForcePrepareCompensation : me/ahoo/wow/api/Identifier {
+	public fun <init> (Ljava/lang/String;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun copy (Ljava/lang/String;)Lme/ahoo/wow/compensation/api/ForcePrepareCompensation;
+	public static synthetic fun copy$default (Lme/ahoo/wow/compensation/api/ForcePrepareCompensation;Ljava/lang/String;ILjava/lang/Object;)Lme/ahoo/wow/compensation/api/ForcePrepareCompensation;
+	public fun equals (Ljava/lang/Object;)Z
+	public synthetic fun getId ()Ljava/lang/Object;
+	public fun getId ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/compensation/api/FunctionChanged : me/ahoo/wow/api/messaging/function/FunctionInfo {
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/api/messaging/function/FunctionKind;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()Ljava/lang/String;
+	public final fun component4 ()Lme/ahoo/wow/api/messaging/function/FunctionKind;
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/api/messaging/function/FunctionKind;)Lme/ahoo/wow/compensation/api/FunctionChanged;
+	public static synthetic fun copy$default (Lme/ahoo/wow/compensation/api/FunctionChanged;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/api/messaging/function/FunctionKind;ILjava/lang/Object;)Lme/ahoo/wow/compensation/api/FunctionChanged;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun getContextName ()Ljava/lang/String;
+	public fun getFunctionKind ()Lme/ahoo/wow/api/messaging/function/FunctionKind;
+	public fun getName ()Ljava/lang/String;
+	public fun getProcessorName ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun isEmpty ()Z
+	public fun isSameBoundedContext (Lme/ahoo/wow/api/naming/NamedBoundedContext;)Z
+	public fun isSameFunction (Lme/ahoo/wow/api/messaging/function/FunctionInfo;)Z
+	public fun toString ()Ljava/lang/String;
+}
+
+public abstract interface class me/ahoo/wow/compensation/api/IExecutionFailedState : me/ahoo/wow/api/Identifier, me/ahoo/wow/compensation/api/ExecutionFailedInfo, me/ahoo/wow/compensation/api/IRetryState {
+	public fun canForceRetry ()Z
+	public fun canNextRetry ()Z
+	public fun canRetry ()Z
+	public abstract fun getRetrySpec ()Lme/ahoo/wow/compensation/api/RetrySpec;
+	public abstract fun getStatus ()Lme/ahoo/wow/compensation/api/ExecutionFailedStatus;
+	public fun isBelowRetryThreshold ()Z
+	public fun isRetryable ()Z
+}
+
+public final class me/ahoo/wow/compensation/api/IExecutionFailedState$DefaultImpls {
+	public static fun canForceRetry (Lme/ahoo/wow/compensation/api/IExecutionFailedState;)Z
+	public static fun canNextRetry (Lme/ahoo/wow/compensation/api/IExecutionFailedState;)Z
+	public static fun canRetry (Lme/ahoo/wow/compensation/api/IExecutionFailedState;)Z
+	public static fun isBelowRetryThreshold (Lme/ahoo/wow/compensation/api/IExecutionFailedState;)Z
+	public static fun isRetryable (Lme/ahoo/wow/compensation/api/IExecutionFailedState;)Z
+}
+
+public abstract interface class me/ahoo/wow/compensation/api/IRecoverable {
+	public abstract fun getRecoverable ()Lme/ahoo/wow/api/exception/RecoverableType;
+}
+
+public abstract interface class me/ahoo/wow/compensation/api/IRetrySpec {
+	public abstract fun getExecutionTimeout ()I
+	public abstract fun getMaxRetries ()I
+	public abstract fun getMinBackoff ()I
+}
+
+public abstract interface class me/ahoo/wow/compensation/api/IRetryState {
+	public abstract fun getRetryState ()Lme/ahoo/wow/compensation/api/RetryState;
+}
+
+public final class me/ahoo/wow/compensation/api/MarkRecoverable : me/ahoo/wow/api/Identifier, me/ahoo/wow/compensation/api/IRecoverable {
+	public fun <init> (Ljava/lang/String;Lme/ahoo/wow/api/exception/RecoverableType;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Lme/ahoo/wow/api/exception/RecoverableType;
+	public final fun copy (Ljava/lang/String;Lme/ahoo/wow/api/exception/RecoverableType;)Lme/ahoo/wow/compensation/api/MarkRecoverable;
+	public static synthetic fun copy$default (Lme/ahoo/wow/compensation/api/MarkRecoverable;Ljava/lang/String;Lme/ahoo/wow/api/exception/RecoverableType;ILjava/lang/Object;)Lme/ahoo/wow/compensation/api/MarkRecoverable;
+	public fun equals (Ljava/lang/Object;)Z
+	public synthetic fun getId ()Ljava/lang/Object;
+	public fun getId ()Ljava/lang/String;
+	public fun getRecoverable ()Lme/ahoo/wow/api/exception/RecoverableType;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/compensation/api/PrepareCompensation : me/ahoo/wow/api/Identifier {
+	public fun <init> (Ljava/lang/String;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun copy (Ljava/lang/String;)Lme/ahoo/wow/compensation/api/PrepareCompensation;
+	public static synthetic fun copy$default (Lme/ahoo/wow/compensation/api/PrepareCompensation;Ljava/lang/String;ILjava/lang/Object;)Lme/ahoo/wow/compensation/api/PrepareCompensation;
+	public fun equals (Ljava/lang/Object;)Z
+	public synthetic fun getId ()Ljava/lang/Object;
+	public fun getId ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/compensation/api/RecoverableMarked : me/ahoo/wow/compensation/api/IRecoverable {
+	public fun <init> (Lme/ahoo/wow/api/exception/RecoverableType;)V
+	public final fun component1 ()Lme/ahoo/wow/api/exception/RecoverableType;
+	public final fun copy (Lme/ahoo/wow/api/exception/RecoverableType;)Lme/ahoo/wow/compensation/api/RecoverableMarked;
+	public static synthetic fun copy$default (Lme/ahoo/wow/compensation/api/RecoverableMarked;Lme/ahoo/wow/api/exception/RecoverableType;ILjava/lang/Object;)Lme/ahoo/wow/compensation/api/RecoverableMarked;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun getRecoverable ()Lme/ahoo/wow/api/exception/RecoverableType;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/compensation/api/RetrySpec : me/ahoo/wow/api/naming/Materialized, me/ahoo/wow/compensation/api/IRetrySpec {
+	public static final field Companion Lme/ahoo/wow/compensation/api/RetrySpec$Companion;
+	public fun <init> (III)V
+	public final fun component1 ()I
+	public final fun component2 ()I
+	public final fun component3 ()I
+	public final fun copy (III)Lme/ahoo/wow/compensation/api/RetrySpec;
+	public static synthetic fun copy$default (Lme/ahoo/wow/compensation/api/RetrySpec;IIIILjava/lang/Object;)Lme/ahoo/wow/compensation/api/RetrySpec;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun getExecutionTimeout ()I
+	public fun getMaxRetries ()I
+	public fun getMinBackoff ()I
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/compensation/api/RetrySpec$Companion {
+	public final fun materialize (Lme/ahoo/wow/compensation/api/IRetrySpec;)Lme/ahoo/wow/compensation/api/RetrySpec;
+	public final fun toSpec (Lme/ahoo/wow/api/annotation/Retry;)Lme/ahoo/wow/compensation/api/RetrySpec;
+}
+
+public final class me/ahoo/wow/compensation/api/RetrySpecApplied : me/ahoo/wow/compensation/api/IRetrySpec {
+	public fun <init> (III)V
+	public final fun component1 ()I
+	public final fun component2 ()I
+	public final fun component3 ()I
+	public final fun copy (III)Lme/ahoo/wow/compensation/api/RetrySpecApplied;
+	public static synthetic fun copy$default (Lme/ahoo/wow/compensation/api/RetrySpecApplied;IIIILjava/lang/Object;)Lme/ahoo/wow/compensation/api/RetrySpecApplied;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun getExecutionTimeout ()I
+	public fun getMaxRetries ()I
+	public fun getMinBackoff ()I
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/compensation/api/RetryState {
+	public fun <init> (IJJJ)V
+	public final fun component1 ()I
+	public final fun component2 ()J
+	public final fun component3 ()J
+	public final fun component4 ()J
+	public final fun copy (IJJJ)Lme/ahoo/wow/compensation/api/RetryState;
+	public static synthetic fun copy$default (Lme/ahoo/wow/compensation/api/RetryState;IJJJILjava/lang/Object;)Lme/ahoo/wow/compensation/api/RetryState;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getNextRetryAt ()J
+	public final fun getRetries ()I
+	public final fun getRetryAt ()J
+	public final fun getTimeoutAt ()J
+	public fun hashCode ()I
+	public final fun timeout ()Z
+	public fun toString ()Ljava/lang/String;
+}
+

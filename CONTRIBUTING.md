@@ -51,6 +51,7 @@ For an end-to-end repository introduction, start with the [contributor onboardin
 
 - Keep API contracts in `wow-api`, runtime behavior in `wow-core`, Spring integration in `wow-spring*`, and infrastructure concerns in their dedicated modules.
 - Preserve reactive `Mono` and `Flux` paths; do not introduce blocking calls into core runtime flows.
+- Keep the public JVM ABI of published modules binary compatible within a 9.x line. `./gradlew check` fails when a public signature no longer matches the module's `api/<module>.api`; run `./gradlew updateKotlinAbi` and commit the dump. Only additions are accepted in a patch; see [Binary Compatibility](AGENTS.md#binary-compatibility).
 - Add or update tests for behavior changes and defect fixes.
 - Prefer the existing Wow test DSL and FluentAssert conventions in Kotlin tests.
 - Do not edit generated dashboard clients under `compensation/dashboard/src/generated/` when the generator source can be fixed.

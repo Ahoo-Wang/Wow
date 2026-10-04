@@ -1,0 +1,145 @@
+public final class me/ahoo/wow/compiler/AggregateRootMetadata : me/ahoo/wow/api/naming/Named {
+	public fun <init> (Ljava/lang/String;Lcom/google/devtools/ksp/symbol/KSClassDeclaration;Lcom/google/devtools/ksp/symbol/KSClassDeclaration;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Lcom/google/devtools/ksp/symbol/KSClassDeclaration;
+	public final fun component3 ()Lcom/google/devtools/ksp/symbol/KSClassDeclaration;
+	public final fun copy (Ljava/lang/String;Lcom/google/devtools/ksp/symbol/KSClassDeclaration;Lcom/google/devtools/ksp/symbol/KSClassDeclaration;)Lme/ahoo/wow/compiler/AggregateRootMetadata;
+	public static synthetic fun copy$default (Lme/ahoo/wow/compiler/AggregateRootMetadata;Ljava/lang/String;Lcom/google/devtools/ksp/symbol/KSClassDeclaration;Lcom/google/devtools/ksp/symbol/KSClassDeclaration;ILjava/lang/Object;)Lme/ahoo/wow/compiler/AggregateRootMetadata;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getCommand ()Lcom/google/devtools/ksp/symbol/KSClassDeclaration;
+	public fun getName ()Ljava/lang/String;
+	public final fun getState ()Lcom/google/devtools/ksp/symbol/KSClassDeclaration;
+	public final fun getType ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/compiler/AggregateRootResolver {
+	public static final field INSTANCE Lme/ahoo/wow/compiler/AggregateRootResolver;
+	public final fun getAGGREGATE_ROOT_NAME ()Ljava/lang/String;
+	public final fun resolveAggregateRootMetadata (Lcom/google/devtools/ksp/symbol/KSClassDeclaration;)Lme/ahoo/wow/compiler/AggregateRootMetadata;
+	public final fun resolveDependencies (Lme/ahoo/wow/compiler/AggregateRootMetadata;)Ljava/util/List;
+	public final fun toName (Lcom/google/devtools/ksp/symbol/KSClassDeclaration;)Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/compiler/GeneratedFile : me/ahoo/wow/api/naming/Named {
+	public fun <init> (Lcom/google/devtools/ksp/processing/Dependencies;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)V
+	public synthetic fun <init> (Lcom/google/devtools/ksp/processing/Dependencies;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Lcom/google/devtools/ksp/processing/Dependencies;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()Ljava/lang/String;
+	public final fun component4 ()Ljava/lang/String;
+	public final fun component5 ()Ljava/lang/String;
+	public final fun copy (Lcom/google/devtools/ksp/processing/Dependencies;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/compiler/GeneratedFile;
+	public static synthetic fun copy$default (Lme/ahoo/wow/compiler/GeneratedFile;Lcom/google/devtools/ksp/processing/Dependencies;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Lme/ahoo/wow/compiler/GeneratedFile;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getCode ()Ljava/lang/String;
+	public final fun getDependencies ()Lcom/google/devtools/ksp/processing/Dependencies;
+	public final fun getExtensionName ()Ljava/lang/String;
+	public fun getName ()Ljava/lang/String;
+	public final fun getPackageName ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+	public final fun writeFile (Lcom/google/devtools/ksp/processing/CodeGenerator;)V
+}
+
+public final class me/ahoo/wow/compiler/aggregate/metadata/AggregatesMetadataProcessor : com/google/devtools/ksp/processing/SymbolProcessor {
+	public fun <init> (Lcom/google/devtools/ksp/processing/SymbolProcessorEnvironment;)V
+	public fun finish ()V
+	public fun onError ()V
+	public fun process (Lcom/google/devtools/ksp/processing/Resolver;)Ljava/util/List;
+}
+
+public final class me/ahoo/wow/compiler/aggregate/metadata/AggregatesMetadataResolver {
+	public static final field FILE_NAME Ljava/lang/String;
+	public static final field GENERATOR_NAME Ljava/lang/String;
+	public static final field INSTANCE Lme/ahoo/wow/compiler/aggregate/metadata/AggregatesMetadataResolver;
+	public final fun resolveNamedAggregates (Lcom/google/devtools/ksp/symbol/KSClassDeclaration;Ljava/util/List;)Lme/ahoo/wow/compiler/GeneratedFile;
+}
+
+public final class me/ahoo/wow/compiler/aggregate/metadata/AggregatesMetadataSymbolProcessorProvider : com/google/devtools/ksp/processing/SymbolProcessorProvider {
+	public fun <init> ()V
+	public fun create (Lcom/google/devtools/ksp/processing/SymbolProcessorEnvironment;)Lcom/google/devtools/ksp/processing/SymbolProcessor;
+}
+
+public final class me/ahoo/wow/compiler/metadata/BoundedContextResolver {
+	public static final field INSTANCE Lme/ahoo/wow/compiler/metadata/BoundedContextResolver;
+	public final fun getAnnotation (Lcom/google/devtools/ksp/symbol/KSAnnotated;Lkotlin/reflect/KClass;)Lcom/google/devtools/ksp/symbol/KSAnnotation;
+	public final fun getArgumentValue (Lcom/google/devtools/ksp/symbol/KSAnnotation;Ljava/lang/String;)Ljava/lang/Object;
+	public final fun resolveBoundedContext (Lcom/google/devtools/ksp/symbol/KSClassDeclaration;)Lme/ahoo/wow/configuration/WowMetadata;
+}
+
+public final class me/ahoo/wow/compiler/metadata/CommandAggregateRootResolver {
+	public static final field INSTANCE Lme/ahoo/wow/compiler/metadata/CommandAggregateRootResolver;
+	public final fun isCommand (Lcom/google/devtools/ksp/symbol/KSFunctionDeclaration;)Z
+	public final fun isDomainEvent (Lcom/google/devtools/ksp/symbol/KSFunctionDeclaration;)Z
+	public final fun resolveAggregateRoot (Lcom/google/devtools/ksp/symbol/KSClassDeclaration;Lcom/google/devtools/ksp/processing/Resolver;)Lme/ahoo/wow/configuration/Aggregate;
+}
+
+public final class me/ahoo/wow/compiler/metadata/MetadataSymbolProcessor : com/google/devtools/ksp/processing/SymbolProcessor {
+	public static final field Companion Lme/ahoo/wow/compiler/metadata/MetadataSymbolProcessor$Companion;
+	public static final field WOW_METADATA_RESOURCE_PATH Ljava/lang/String;
+	public fun <init> (Lcom/google/devtools/ksp/processing/SymbolProcessorEnvironment;)V
+	public fun finish ()V
+	public fun onError ()V
+	public fun process (Lcom/google/devtools/ksp/processing/Resolver;)Ljava/util/List;
+}
+
+public final class me/ahoo/wow/compiler/metadata/MetadataSymbolProcessor$Companion {
+	public final fun getBOUNDED_CONTEXT_NAME ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/compiler/metadata/MetadataSymbolProcessorProvider : com/google/devtools/ksp/processing/SymbolProcessorProvider {
+	public fun <init> ()V
+	public fun create (Lcom/google/devtools/ksp/processing/SymbolProcessorEnvironment;)Lcom/google/devtools/ksp/processing/SymbolProcessor;
+}
+
+public final class me/ahoo/wow/compiler/metadata/WowMetadataMerger {
+	public fun <init> ()V
+	public final fun getMetadata ()Lme/ahoo/wow/configuration/WowMetadata;
+	public final fun merge (Ljava/lang/String;Lme/ahoo/wow/configuration/Aggregate;)V
+	public final fun merge (Lme/ahoo/wow/configuration/WowMetadata;)V
+}
+
+public final class me/ahoo/wow/compiler/query/PropertyNav {
+	public static final field Companion Lme/ahoo/wow/compiler/query/PropertyNav$Companion;
+	public static final field NAV_DELIMITER Ljava/lang/String;
+	public static final field PROPERTY_DELIMITER Ljava/lang/String;
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;Z)V
+	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/String;ZILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()Z
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;Z)Lme/ahoo/wow/compiler/query/PropertyNav;
+	public static synthetic fun copy$default (Lme/ahoo/wow/compiler/query/PropertyNav;Ljava/lang/String;Ljava/lang/String;ZILjava/lang/Object;)Lme/ahoo/wow/compiler/query/PropertyNav;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getIgnored ()Z
+	public final fun getNav ()Ljava/lang/String;
+	public final fun getProperty ()Ljava/lang/String;
+	public fun hashCode ()I
+	public final fun toCode ()Ljava/lang/String;
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/compiler/query/PropertyNav$Companion {
+}
+
+public final class me/ahoo/wow/compiler/query/QuerySymbolProcessor : com/google/devtools/ksp/processing/SymbolProcessor {
+	public fun <init> (Lcom/google/devtools/ksp/processing/SymbolProcessorEnvironment;)V
+	public fun finish ()V
+	public fun onError ()V
+	public fun process (Lcom/google/devtools/ksp/processing/Resolver;)Ljava/util/List;
+}
+
+public final class me/ahoo/wow/compiler/query/QuerySymbolProcessorProvider : com/google/devtools/ksp/processing/SymbolProcessorProvider {
+	public fun <init> ()V
+	public fun create (Lcom/google/devtools/ksp/processing/SymbolProcessorEnvironment;)Lcom/google/devtools/ksp/processing/SymbolProcessor;
+}
+
+public final class me/ahoo/wow/compiler/query/StateAggregateRootResolver {
+	public static final field FILE_SUFFIX Ljava/lang/String;
+	public static final field GENERATOR_NAME Ljava/lang/String;
+	public static final field INSTANCE Lme/ahoo/wow/compiler/query/StateAggregateRootResolver;
+	public final fun resolveStateAggregateRoot (Lcom/google/devtools/ksp/symbol/KSClassDeclaration;)Lme/ahoo/wow/compiler/GeneratedFile;
+}
+

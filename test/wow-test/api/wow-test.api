@@ -1,0 +1,790 @@
+public abstract class me/ahoo/wow/test/AggregateSpec : me/ahoo/wow/test/dsl/AbstractDynamicTestBuilder {
+	public fun <init> (Lkotlin/jvm/functions/Function1;)V
+	public final fun execute ()Ljava/util/stream/Stream;
+	public final fun getCommandAggregateType ()Ljava/lang/Class;
+}
+
+public final class me/ahoo/wow/test/AggregateVerifier {
+	public static final field INSTANCE Lme/ahoo/wow/test/AggregateVerifier;
+	public static final fun aggregateVerifier (Ljava/lang/Class;Ljava/lang/Class;)Lme/ahoo/wow/test/aggregate/GivenStage;
+	public static final fun aggregateVerifier (Ljava/lang/Class;Ljava/lang/Class;Ljava/lang/String;)Lme/ahoo/wow/test/aggregate/GivenStage;
+	public static final fun aggregateVerifier (Ljava/lang/Class;Ljava/lang/Class;Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/test/aggregate/GivenStage;
+	public static final fun aggregateVerifier (Ljava/lang/Class;Ljava/lang/Class;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/modeling/state/StateAggregateFactory;)Lme/ahoo/wow/test/aggregate/GivenStage;
+	public static final fun aggregateVerifier (Ljava/lang/Class;Ljava/lang/Class;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/modeling/state/StateAggregateFactory;Lme/ahoo/wow/eventsourcing/EventStore;)Lme/ahoo/wow/test/aggregate/GivenStage;
+	public static final fun aggregateVerifier (Ljava/lang/Class;Ljava/lang/Class;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/modeling/state/StateAggregateFactory;Lme/ahoo/wow/eventsourcing/EventStore;Lme/ahoo/wow/ioc/ServiceProvider;)Lme/ahoo/wow/test/aggregate/GivenStage;
+	public final fun aggregateVerifier (Ljava/lang/Class;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/modeling/state/StateAggregateFactory;Lme/ahoo/wow/eventsourcing/EventStore;Lme/ahoo/wow/ioc/ServiceProvider;)Lme/ahoo/wow/test/aggregate/GivenStage;
+	public static synthetic fun aggregateVerifier$default (Ljava/lang/Class;Ljava/lang/Class;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/modeling/state/StateAggregateFactory;Lme/ahoo/wow/eventsourcing/EventStore;Lme/ahoo/wow/ioc/ServiceProvider;ILjava/lang/Object;)Lme/ahoo/wow/test/aggregate/GivenStage;
+	public static synthetic fun aggregateVerifier$default (Lme/ahoo/wow/test/AggregateVerifier;Ljava/lang/Class;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/modeling/state/StateAggregateFactory;Lme/ahoo/wow/eventsourcing/EventStore;Lme/ahoo/wow/ioc/ServiceProvider;ILjava/lang/Object;)Lme/ahoo/wow/test/aggregate/GivenStage;
+}
+
+public final class me/ahoo/wow/test/OrchestrationError : java/lang/AssertionError {
+	public static final field Companion Lme/ahoo/wow/test/OrchestrationError$Companion;
+	public fun <init> ([Ljava/lang/StackTraceElement;Ljava/lang/Throwable;)V
+}
+
+public final class me/ahoo/wow/test/OrchestrationError$Companion {
+}
+
+public final class me/ahoo/wow/test/OrchestrationErrorKt {
+	public static final fun captureDynamicTest (Ljava/lang/String;Lkotlin/jvm/functions/Function0;)Lorg/junit/jupiter/api/DynamicTest;
+}
+
+public abstract class me/ahoo/wow/test/SagaSpec : me/ahoo/wow/test/dsl/AbstractDynamicTestBuilder {
+	public fun <init> (Lkotlin/jvm/functions/Function1;)V
+	public final fun execute ()Ljava/util/stream/Stream;
+	public final fun getProcessorType ()Ljava/lang/Class;
+}
+
+public final class me/ahoo/wow/test/SagaVerifier {
+	public static final field INSTANCE Lme/ahoo/wow/test/SagaVerifier;
+	public static final fun defaultCommandGateway ()Lme/ahoo/wow/command/CommandGateway;
+	public static final fun sagaVerifier (Ljava/lang/Class;)Lme/ahoo/wow/test/saga/stateless/WhenStage;
+	public static final fun sagaVerifier (Ljava/lang/Class;Lme/ahoo/wow/ioc/ServiceProvider;)Lme/ahoo/wow/test/saga/stateless/WhenStage;
+	public static final fun sagaVerifier (Ljava/lang/Class;Lme/ahoo/wow/ioc/ServiceProvider;Lme/ahoo/wow/command/CommandGateway;)Lme/ahoo/wow/test/saga/stateless/WhenStage;
+	public static final fun sagaVerifier (Ljava/lang/Class;Lme/ahoo/wow/ioc/ServiceProvider;Lme/ahoo/wow/command/CommandGateway;Lme/ahoo/wow/command/factory/CommandMessageFactory;)Lme/ahoo/wow/test/saga/stateless/WhenStage;
+	public static synthetic fun sagaVerifier$default (Ljava/lang/Class;Lme/ahoo/wow/ioc/ServiceProvider;Lme/ahoo/wow/command/CommandGateway;Lme/ahoo/wow/command/factory/CommandMessageFactory;ILjava/lang/Object;)Lme/ahoo/wow/test/saga/stateless/WhenStage;
+}
+
+public abstract interface class me/ahoo/wow/test/aggregate/AggregateExpecter {
+	public abstract fun expect (Lkotlin/jvm/functions/Function1;)Lme/ahoo/wow/test/aggregate/AggregateExpecter;
+	public fun expectError ()Lme/ahoo/wow/test/aggregate/AggregateExpecter;
+	public fun expectError (Ljava/util/function/Consumer;)Lme/ahoo/wow/test/aggregate/AggregateExpecter;
+	public fun expectError (Lkotlin/jvm/functions/Function1;)Lme/ahoo/wow/test/aggregate/AggregateExpecter;
+	public fun expectErrorType (Ljava/lang/Class;)Lme/ahoo/wow/test/aggregate/AggregateExpecter;
+	public fun expectErrorType (Lkotlin/reflect/KClass;)Lme/ahoo/wow/test/aggregate/AggregateExpecter;
+	public fun expectEvent (Ljava/util/function/Consumer;)Lme/ahoo/wow/test/aggregate/AggregateExpecter;
+	public fun expectEvent (Lkotlin/jvm/functions/Function1;)Lme/ahoo/wow/test/aggregate/AggregateExpecter;
+	public fun expectEventBody (Ljava/util/function/Consumer;)Lme/ahoo/wow/test/aggregate/AggregateExpecter;
+	public fun expectEventBody (Lkotlin/jvm/functions/Function1;)Lme/ahoo/wow/test/aggregate/AggregateExpecter;
+	public fun expectEventCount (I)Lme/ahoo/wow/test/aggregate/AggregateExpecter;
+	public fun expectEventIterator (Ljava/util/function/Consumer;)Lme/ahoo/wow/test/aggregate/AggregateExpecter;
+	public fun expectEventIterator (Lkotlin/jvm/functions/Function1;)Lme/ahoo/wow/test/aggregate/AggregateExpecter;
+	public fun expectEventStream (Ljava/util/function/Consumer;)Lme/ahoo/wow/test/aggregate/AggregateExpecter;
+	public fun expectEventStream (Lkotlin/jvm/functions/Function1;)Lme/ahoo/wow/test/aggregate/AggregateExpecter;
+	public fun expectEventType ([Ljava/lang/Class;)Lme/ahoo/wow/test/aggregate/AggregateExpecter;
+	public fun expectEventType ([Lkotlin/reflect/KClass;)Lme/ahoo/wow/test/aggregate/AggregateExpecter;
+	public fun expectNoError ()Lme/ahoo/wow/test/aggregate/AggregateExpecter;
+	public fun expectState (Ljava/util/function/Consumer;)Lme/ahoo/wow/test/aggregate/AggregateExpecter;
+	public fun expectState (Lkotlin/jvm/functions/Function1;)Lme/ahoo/wow/test/aggregate/AggregateExpecter;
+	public fun expectStateAggregate (Lkotlin/jvm/functions/Function1;)Lme/ahoo/wow/test/aggregate/AggregateExpecter;
+}
+
+public final class me/ahoo/wow/test/aggregate/AggregateExpecter$DefaultImpls {
+	public static fun expectError (Lme/ahoo/wow/test/aggregate/AggregateExpecter;)Lme/ahoo/wow/test/aggregate/AggregateExpecter;
+	public static fun expectError (Lme/ahoo/wow/test/aggregate/AggregateExpecter;Ljava/util/function/Consumer;)Lme/ahoo/wow/test/aggregate/AggregateExpecter;
+	public static fun expectError (Lme/ahoo/wow/test/aggregate/AggregateExpecter;Lkotlin/jvm/functions/Function1;)Lme/ahoo/wow/test/aggregate/AggregateExpecter;
+	public static fun expectErrorType (Lme/ahoo/wow/test/aggregate/AggregateExpecter;Ljava/lang/Class;)Lme/ahoo/wow/test/aggregate/AggregateExpecter;
+	public static fun expectErrorType (Lme/ahoo/wow/test/aggregate/AggregateExpecter;Lkotlin/reflect/KClass;)Lme/ahoo/wow/test/aggregate/AggregateExpecter;
+	public static fun expectEvent (Lme/ahoo/wow/test/aggregate/AggregateExpecter;Ljava/util/function/Consumer;)Lme/ahoo/wow/test/aggregate/AggregateExpecter;
+	public static fun expectEvent (Lme/ahoo/wow/test/aggregate/AggregateExpecter;Lkotlin/jvm/functions/Function1;)Lme/ahoo/wow/test/aggregate/AggregateExpecter;
+	public static fun expectEventBody (Lme/ahoo/wow/test/aggregate/AggregateExpecter;Ljava/util/function/Consumer;)Lme/ahoo/wow/test/aggregate/AggregateExpecter;
+	public static fun expectEventBody (Lme/ahoo/wow/test/aggregate/AggregateExpecter;Lkotlin/jvm/functions/Function1;)Lme/ahoo/wow/test/aggregate/AggregateExpecter;
+	public static fun expectEventCount (Lme/ahoo/wow/test/aggregate/AggregateExpecter;I)Lme/ahoo/wow/test/aggregate/AggregateExpecter;
+	public static fun expectEventIterator (Lme/ahoo/wow/test/aggregate/AggregateExpecter;Ljava/util/function/Consumer;)Lme/ahoo/wow/test/aggregate/AggregateExpecter;
+	public static fun expectEventIterator (Lme/ahoo/wow/test/aggregate/AggregateExpecter;Lkotlin/jvm/functions/Function1;)Lme/ahoo/wow/test/aggregate/AggregateExpecter;
+	public static fun expectEventStream (Lme/ahoo/wow/test/aggregate/AggregateExpecter;Ljava/util/function/Consumer;)Lme/ahoo/wow/test/aggregate/AggregateExpecter;
+	public static fun expectEventStream (Lme/ahoo/wow/test/aggregate/AggregateExpecter;Lkotlin/jvm/functions/Function1;)Lme/ahoo/wow/test/aggregate/AggregateExpecter;
+	public static fun expectEventType (Lme/ahoo/wow/test/aggregate/AggregateExpecter;[Ljava/lang/Class;)Lme/ahoo/wow/test/aggregate/AggregateExpecter;
+	public static fun expectEventType (Lme/ahoo/wow/test/aggregate/AggregateExpecter;[Lkotlin/reflect/KClass;)Lme/ahoo/wow/test/aggregate/AggregateExpecter;
+	public static fun expectNoError (Lme/ahoo/wow/test/aggregate/AggregateExpecter;)Lme/ahoo/wow/test/aggregate/AggregateExpecter;
+	public static fun expectState (Lme/ahoo/wow/test/aggregate/AggregateExpecter;Ljava/util/function/Consumer;)Lme/ahoo/wow/test/aggregate/AggregateExpecter;
+	public static fun expectState (Lme/ahoo/wow/test/aggregate/AggregateExpecter;Lkotlin/jvm/functions/Function1;)Lme/ahoo/wow/test/aggregate/AggregateExpecter;
+	public static fun expectStateAggregate (Lme/ahoo/wow/test/aggregate/AggregateExpecter;Lkotlin/jvm/functions/Function1;)Lme/ahoo/wow/test/aggregate/AggregateExpecter;
+}
+
+public final class me/ahoo/wow/test/aggregate/EventIterator : java/util/Iterator, kotlin/jvm/internal/markers/KMappedMarker, me/ahoo/wow/infra/Decorator {
+	public fun <init> (Ljava/util/Iterator;)V
+	public synthetic fun getDelegate ()Ljava/lang/Object;
+	public fun getDelegate ()Ljava/util/Iterator;
+	public fun hasNext ()Z
+	public synthetic fun next ()Ljava/lang/Object;
+	public fun next ()Lme/ahoo/wow/api/event/DomainEvent;
+	public final fun nextEvent (Ljava/lang/Class;)Lme/ahoo/wow/api/event/DomainEvent;
+	public final fun nextEvent (Lkotlin/reflect/KClass;)Lme/ahoo/wow/api/event/DomainEvent;
+	public final fun nextEventBody (Ljava/lang/Class;)Ljava/lang/Object;
+	public final fun nextEventBody (Lkotlin/reflect/KClass;)Ljava/lang/Object;
+	public fun remove ()V
+	public final fun skip (I)Lme/ahoo/wow/test/aggregate/EventIterator;
+}
+
+public abstract interface class me/ahoo/wow/test/aggregate/ExpectStage : me/ahoo/wow/test/aggregate/AggregateExpecter {
+	public fun verify ()Lme/ahoo/wow/test/aggregate/VerifiedStage;
+	public abstract fun verify (Z)Lme/ahoo/wow/test/aggregate/VerifiedStage;
+}
+
+public final class me/ahoo/wow/test/aggregate/ExpectStage$DefaultImpls {
+	public static fun expectError (Lme/ahoo/wow/test/aggregate/ExpectStage;)Lme/ahoo/wow/test/aggregate/ExpectStage;
+	public static fun expectError (Lme/ahoo/wow/test/aggregate/ExpectStage;Ljava/util/function/Consumer;)Lme/ahoo/wow/test/aggregate/ExpectStage;
+	public static fun expectError (Lme/ahoo/wow/test/aggregate/ExpectStage;Lkotlin/jvm/functions/Function1;)Lme/ahoo/wow/test/aggregate/ExpectStage;
+	public static fun expectErrorType (Lme/ahoo/wow/test/aggregate/ExpectStage;Ljava/lang/Class;)Lme/ahoo/wow/test/aggregate/ExpectStage;
+	public static fun expectErrorType (Lme/ahoo/wow/test/aggregate/ExpectStage;Lkotlin/reflect/KClass;)Lme/ahoo/wow/test/aggregate/ExpectStage;
+	public static fun expectEvent (Lme/ahoo/wow/test/aggregate/ExpectStage;Ljava/util/function/Consumer;)Lme/ahoo/wow/test/aggregate/ExpectStage;
+	public static fun expectEvent (Lme/ahoo/wow/test/aggregate/ExpectStage;Lkotlin/jvm/functions/Function1;)Lme/ahoo/wow/test/aggregate/ExpectStage;
+	public static fun expectEventBody (Lme/ahoo/wow/test/aggregate/ExpectStage;Ljava/util/function/Consumer;)Lme/ahoo/wow/test/aggregate/ExpectStage;
+	public static fun expectEventBody (Lme/ahoo/wow/test/aggregate/ExpectStage;Lkotlin/jvm/functions/Function1;)Lme/ahoo/wow/test/aggregate/ExpectStage;
+	public static fun expectEventCount (Lme/ahoo/wow/test/aggregate/ExpectStage;I)Lme/ahoo/wow/test/aggregate/ExpectStage;
+	public static fun expectEventIterator (Lme/ahoo/wow/test/aggregate/ExpectStage;Ljava/util/function/Consumer;)Lme/ahoo/wow/test/aggregate/ExpectStage;
+	public static fun expectEventIterator (Lme/ahoo/wow/test/aggregate/ExpectStage;Lkotlin/jvm/functions/Function1;)Lme/ahoo/wow/test/aggregate/ExpectStage;
+	public static fun expectEventStream (Lme/ahoo/wow/test/aggregate/ExpectStage;Ljava/util/function/Consumer;)Lme/ahoo/wow/test/aggregate/ExpectStage;
+	public static fun expectEventStream (Lme/ahoo/wow/test/aggregate/ExpectStage;Lkotlin/jvm/functions/Function1;)Lme/ahoo/wow/test/aggregate/ExpectStage;
+	public static fun expectEventType (Lme/ahoo/wow/test/aggregate/ExpectStage;[Ljava/lang/Class;)Lme/ahoo/wow/test/aggregate/ExpectStage;
+	public static fun expectEventType (Lme/ahoo/wow/test/aggregate/ExpectStage;[Lkotlin/reflect/KClass;)Lme/ahoo/wow/test/aggregate/ExpectStage;
+	public static fun expectNoError (Lme/ahoo/wow/test/aggregate/ExpectStage;)Lme/ahoo/wow/test/aggregate/ExpectStage;
+	public static fun expectState (Lme/ahoo/wow/test/aggregate/ExpectStage;Ljava/util/function/Consumer;)Lme/ahoo/wow/test/aggregate/ExpectStage;
+	public static fun expectState (Lme/ahoo/wow/test/aggregate/ExpectStage;Lkotlin/jvm/functions/Function1;)Lme/ahoo/wow/test/aggregate/ExpectStage;
+	public static fun expectStateAggregate (Lme/ahoo/wow/test/aggregate/ExpectStage;Lkotlin/jvm/functions/Function1;)Lme/ahoo/wow/test/aggregate/ExpectStage;
+	public static fun verify (Lme/ahoo/wow/test/aggregate/ExpectStage;)Lme/ahoo/wow/test/aggregate/VerifiedStage;
+}
+
+public final class me/ahoo/wow/test/aggregate/ExpectedResult {
+	public fun <init> (Lme/ahoo/wow/command/ServerCommandExchange;Lme/ahoo/wow/modeling/state/StateAggregate;Lme/ahoo/wow/event/DomainEventStream;Ljava/lang/Throwable;)V
+	public synthetic fun <init> (Lme/ahoo/wow/command/ServerCommandExchange;Lme/ahoo/wow/modeling/state/StateAggregate;Lme/ahoo/wow/event/DomainEventStream;Ljava/lang/Throwable;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Lme/ahoo/wow/command/ServerCommandExchange;
+	public final fun component2 ()Lme/ahoo/wow/modeling/state/StateAggregate;
+	public final fun component3 ()Lme/ahoo/wow/event/DomainEventStream;
+	public final fun component4 ()Ljava/lang/Throwable;
+	public final fun copy (Lme/ahoo/wow/command/ServerCommandExchange;Lme/ahoo/wow/modeling/state/StateAggregate;Lme/ahoo/wow/event/DomainEventStream;Ljava/lang/Throwable;)Lme/ahoo/wow/test/aggregate/ExpectedResult;
+	public static synthetic fun copy$default (Lme/ahoo/wow/test/aggregate/ExpectedResult;Lme/ahoo/wow/command/ServerCommandExchange;Lme/ahoo/wow/modeling/state/StateAggregate;Lme/ahoo/wow/event/DomainEventStream;Ljava/lang/Throwable;ILjava/lang/Object;)Lme/ahoo/wow/test/aggregate/ExpectedResult;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getDomainEventStream ()Lme/ahoo/wow/event/DomainEventStream;
+	public final fun getError ()Ljava/lang/Throwable;
+	public final fun getExchange ()Lme/ahoo/wow/command/ServerCommandExchange;
+	public final fun getHasError ()Z
+	public final fun getStateAggregate ()Lme/ahoo/wow/modeling/state/StateAggregate;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/test/aggregate/GivenInitialization {
+	public static final field INSTANCE Lme/ahoo/wow/test/aggregate/GivenInitialization;
+}
+
+public final class me/ahoo/wow/test/aggregate/GivenInitializationCommand : me/ahoo/wow/api/command/CommandMessage, me/ahoo/wow/api/modeling/NamedAggregate {
+	public fun <init> (Lme/ahoo/wow/api/modeling/AggregateId;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ZZZLme/ahoo/wow/api/messaging/Header;)V
+	public synthetic fun <init> (Lme/ahoo/wow/api/modeling/AggregateId;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ZZZLme/ahoo/wow/api/messaging/Header;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Lme/ahoo/wow/api/modeling/AggregateId;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()Ljava/lang/String;
+	public final fun component4 ()Ljava/lang/String;
+	public final fun component5 ()Ljava/lang/String;
+	public final fun component6 ()Z
+	public final fun component7 ()Z
+	public final fun component8 ()Z
+	public final fun component9 ()Lme/ahoo/wow/api/messaging/Header;
+	public synthetic fun copy ()Ljava/lang/Object;
+	public fun copy ()Lme/ahoo/wow/api/command/CommandMessage;
+	public final fun copy (Lme/ahoo/wow/api/modeling/AggregateId;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ZZZLme/ahoo/wow/api/messaging/Header;)Lme/ahoo/wow/test/aggregate/GivenInitializationCommand;
+	public static synthetic fun copy$default (Lme/ahoo/wow/test/aggregate/GivenInitializationCommand;Lme/ahoo/wow/api/modeling/AggregateId;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ZZZLme/ahoo/wow/api/messaging/Header;ILjava/lang/Object;)Lme/ahoo/wow/test/aggregate/GivenInitializationCommand;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun getAggregateId ()Lme/ahoo/wow/api/modeling/AggregateId;
+	public fun getAggregateName ()Ljava/lang/String;
+	public fun getAggregateVersion ()Ljava/lang/Integer;
+	public fun getAllowCreate ()Z
+	public synthetic fun getBody ()Ljava/lang/Object;
+	public fun getBody ()Lme/ahoo/wow/test/aggregate/GivenInitialization;
+	public fun getCommandId ()Ljava/lang/String;
+	public fun getContextName ()Ljava/lang/String;
+	public fun getCreateTime ()J
+	public fun getHeader ()Lme/ahoo/wow/api/messaging/Header;
+	public synthetic fun getId ()Ljava/lang/Object;
+	public fun getId ()Ljava/lang/String;
+	public fun getName ()Ljava/lang/String;
+	public fun getOwnerId ()Ljava/lang/String;
+	public fun getRequestId ()Ljava/lang/String;
+	public fun getSpaceId ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun isCreate ()Z
+	public fun isReadOnly ()Z
+	public fun isSameAggregateName (Lme/ahoo/wow/api/modeling/NamedAggregate;)Z
+	public fun isSameBoundedContext (Lme/ahoo/wow/api/naming/NamedBoundedContext;)Z
+	public fun isVoid ()Z
+	public fun toString ()Ljava/lang/String;
+	public fun withHeader (Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/api/command/CommandMessage;
+	public synthetic fun withHeader (Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/api/messaging/Message;
+	public fun withHeader (Ljava/util/Map;)Lme/ahoo/wow/api/command/CommandMessage;
+	public synthetic fun withHeader (Ljava/util/Map;)Lme/ahoo/wow/api/messaging/Message;
+	public fun withReadOnly ()Lme/ahoo/wow/api/command/CommandMessage;
+	public synthetic fun withReadOnly ()Lme/ahoo/wow/api/messaging/Message;
+}
+
+public abstract interface class me/ahoo/wow/test/aggregate/GivenStage : me/ahoo/wow/test/dsl/InjectServiceCapable {
+	public fun given ([Ljava/lang/Object;)Lme/ahoo/wow/test/aggregate/WhenStage;
+	public abstract fun givenEvent ([Ljava/lang/Object;)Lme/ahoo/wow/test/aggregate/WhenStage;
+	public abstract fun givenOwnerId (Ljava/lang/String;)Lme/ahoo/wow/test/aggregate/GivenStage;
+	public abstract fun givenSpaceId (Ljava/lang/String;)Lme/ahoo/wow/test/aggregate/GivenStage;
+	public abstract fun givenState (Ljava/lang/Object;I)Lme/ahoo/wow/test/aggregate/WhenStage;
+	public abstract fun givenState (Lme/ahoo/wow/modeling/state/StateAggregate;)Lme/ahoo/wow/test/aggregate/WhenStage;
+}
+
+public final class me/ahoo/wow/test/aggregate/GivenStage$DefaultImpls {
+	public static fun given (Lme/ahoo/wow/test/aggregate/GivenStage;[Ljava/lang/Object;)Lme/ahoo/wow/test/aggregate/WhenStage;
+}
+
+public final class me/ahoo/wow/test/aggregate/GivenStageKt {
+	public static final fun whenCommand (Lme/ahoo/wow/test/aggregate/GivenStage;Ljava/lang/Object;Lme/ahoo/wow/api/messaging/Header;Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/test/aggregate/ExpectStage;
+	public static synthetic fun whenCommand$default (Lme/ahoo/wow/test/aggregate/GivenStage;Ljava/lang/Object;Lme/ahoo/wow/api/messaging/Header;Ljava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Lme/ahoo/wow/test/aggregate/ExpectStage;
+}
+
+public abstract interface class me/ahoo/wow/test/aggregate/VerifiedStage : me/ahoo/wow/test/aggregate/AggregateExpecter, me/ahoo/wow/test/aggregate/GivenStage {
+	public synthetic fun expect (Lkotlin/jvm/functions/Function1;)Lme/ahoo/wow/test/aggregate/AggregateExpecter;
+	public fun expect (Lkotlin/jvm/functions/Function1;)Lme/ahoo/wow/test/aggregate/VerifiedStage;
+	public abstract fun fork (Z)Lme/ahoo/wow/test/aggregate/VerifiedStage;
+	public fun fork (ZLkotlin/jvm/functions/Function1;)Lme/ahoo/wow/test/aggregate/VerifiedStage;
+	public static synthetic fun fork$default (Lme/ahoo/wow/test/aggregate/VerifiedStage;ZILjava/lang/Object;)Lme/ahoo/wow/test/aggregate/VerifiedStage;
+	public static synthetic fun fork$default (Lme/ahoo/wow/test/aggregate/VerifiedStage;ZLkotlin/jvm/functions/Function1;ILjava/lang/Object;)Lme/ahoo/wow/test/aggregate/VerifiedStage;
+	public fun getStateAggregate ()Lme/ahoo/wow/modeling/state/StateAggregate;
+	public fun getStateRoot ()Ljava/lang/Object;
+	public abstract fun getVerifiedResult ()Lme/ahoo/wow/test/aggregate/ExpectedResult;
+	public abstract fun then (Z)Lme/ahoo/wow/test/aggregate/VerifiedStage;
+	public static synthetic fun then$default (Lme/ahoo/wow/test/aggregate/VerifiedStage;ZILjava/lang/Object;)Lme/ahoo/wow/test/aggregate/VerifiedStage;
+}
+
+public final class me/ahoo/wow/test/aggregate/VerifiedStage$DefaultImpls {
+	public static fun expect (Lme/ahoo/wow/test/aggregate/VerifiedStage;Lkotlin/jvm/functions/Function1;)Lme/ahoo/wow/test/aggregate/VerifiedStage;
+	public static fun expectError (Lme/ahoo/wow/test/aggregate/VerifiedStage;)Lme/ahoo/wow/test/aggregate/VerifiedStage;
+	public static fun expectError (Lme/ahoo/wow/test/aggregate/VerifiedStage;Ljava/util/function/Consumer;)Lme/ahoo/wow/test/aggregate/VerifiedStage;
+	public static fun expectError (Lme/ahoo/wow/test/aggregate/VerifiedStage;Lkotlin/jvm/functions/Function1;)Lme/ahoo/wow/test/aggregate/VerifiedStage;
+	public static fun expectErrorType (Lme/ahoo/wow/test/aggregate/VerifiedStage;Ljava/lang/Class;)Lme/ahoo/wow/test/aggregate/VerifiedStage;
+	public static fun expectErrorType (Lme/ahoo/wow/test/aggregate/VerifiedStage;Lkotlin/reflect/KClass;)Lme/ahoo/wow/test/aggregate/VerifiedStage;
+	public static fun expectEvent (Lme/ahoo/wow/test/aggregate/VerifiedStage;Ljava/util/function/Consumer;)Lme/ahoo/wow/test/aggregate/VerifiedStage;
+	public static fun expectEvent (Lme/ahoo/wow/test/aggregate/VerifiedStage;Lkotlin/jvm/functions/Function1;)Lme/ahoo/wow/test/aggregate/VerifiedStage;
+	public static fun expectEventBody (Lme/ahoo/wow/test/aggregate/VerifiedStage;Ljava/util/function/Consumer;)Lme/ahoo/wow/test/aggregate/VerifiedStage;
+	public static fun expectEventBody (Lme/ahoo/wow/test/aggregate/VerifiedStage;Lkotlin/jvm/functions/Function1;)Lme/ahoo/wow/test/aggregate/VerifiedStage;
+	public static fun expectEventCount (Lme/ahoo/wow/test/aggregate/VerifiedStage;I)Lme/ahoo/wow/test/aggregate/VerifiedStage;
+	public static fun expectEventIterator (Lme/ahoo/wow/test/aggregate/VerifiedStage;Ljava/util/function/Consumer;)Lme/ahoo/wow/test/aggregate/VerifiedStage;
+	public static fun expectEventIterator (Lme/ahoo/wow/test/aggregate/VerifiedStage;Lkotlin/jvm/functions/Function1;)Lme/ahoo/wow/test/aggregate/VerifiedStage;
+	public static fun expectEventStream (Lme/ahoo/wow/test/aggregate/VerifiedStage;Ljava/util/function/Consumer;)Lme/ahoo/wow/test/aggregate/VerifiedStage;
+	public static fun expectEventStream (Lme/ahoo/wow/test/aggregate/VerifiedStage;Lkotlin/jvm/functions/Function1;)Lme/ahoo/wow/test/aggregate/VerifiedStage;
+	public static fun expectEventType (Lme/ahoo/wow/test/aggregate/VerifiedStage;[Ljava/lang/Class;)Lme/ahoo/wow/test/aggregate/VerifiedStage;
+	public static fun expectEventType (Lme/ahoo/wow/test/aggregate/VerifiedStage;[Lkotlin/reflect/KClass;)Lme/ahoo/wow/test/aggregate/VerifiedStage;
+	public static fun expectNoError (Lme/ahoo/wow/test/aggregate/VerifiedStage;)Lme/ahoo/wow/test/aggregate/VerifiedStage;
+	public static fun expectState (Lme/ahoo/wow/test/aggregate/VerifiedStage;Ljava/util/function/Consumer;)Lme/ahoo/wow/test/aggregate/VerifiedStage;
+	public static fun expectState (Lme/ahoo/wow/test/aggregate/VerifiedStage;Lkotlin/jvm/functions/Function1;)Lme/ahoo/wow/test/aggregate/VerifiedStage;
+	public static fun expectStateAggregate (Lme/ahoo/wow/test/aggregate/VerifiedStage;Lkotlin/jvm/functions/Function1;)Lme/ahoo/wow/test/aggregate/VerifiedStage;
+	public static fun fork (Lme/ahoo/wow/test/aggregate/VerifiedStage;ZLkotlin/jvm/functions/Function1;)Lme/ahoo/wow/test/aggregate/VerifiedStage;
+	public static synthetic fun fork$default (Lme/ahoo/wow/test/aggregate/VerifiedStage;ZILjava/lang/Object;)Lme/ahoo/wow/test/aggregate/VerifiedStage;
+	public static synthetic fun fork$default (Lme/ahoo/wow/test/aggregate/VerifiedStage;ZLkotlin/jvm/functions/Function1;ILjava/lang/Object;)Lme/ahoo/wow/test/aggregate/VerifiedStage;
+	public static fun getStateAggregate (Lme/ahoo/wow/test/aggregate/VerifiedStage;)Lme/ahoo/wow/modeling/state/StateAggregate;
+	public static fun getStateRoot (Lme/ahoo/wow/test/aggregate/VerifiedStage;)Ljava/lang/Object;
+	public static fun given (Lme/ahoo/wow/test/aggregate/VerifiedStage;[Ljava/lang/Object;)Lme/ahoo/wow/test/aggregate/WhenStage;
+	public static synthetic fun then$default (Lme/ahoo/wow/test/aggregate/VerifiedStage;ZILjava/lang/Object;)Lme/ahoo/wow/test/aggregate/VerifiedStage;
+}
+
+public abstract interface class me/ahoo/wow/test/aggregate/WhenStage {
+	public fun whenCommand (Ljava/lang/Object;)Lme/ahoo/wow/test/aggregate/ExpectStage;
+	public abstract fun whenCommand (Ljava/lang/Object;Lme/ahoo/wow/api/messaging/Header;Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/test/aggregate/ExpectStage;
+	public static synthetic fun whenCommand$default (Lme/ahoo/wow/test/aggregate/WhenStage;Ljava/lang/Object;Lme/ahoo/wow/api/messaging/Header;Ljava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Lme/ahoo/wow/test/aggregate/ExpectStage;
+}
+
+public final class me/ahoo/wow/test/aggregate/WhenStage$DefaultImpls {
+	public static fun whenCommand (Lme/ahoo/wow/test/aggregate/WhenStage;Ljava/lang/Object;)Lme/ahoo/wow/test/aggregate/ExpectStage;
+	public static synthetic fun whenCommand$default (Lme/ahoo/wow/test/aggregate/WhenStage;Ljava/lang/Object;Lme/ahoo/wow/api/messaging/Header;Ljava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Lme/ahoo/wow/test/aggregate/ExpectStage;
+}
+
+public abstract class me/ahoo/wow/test/aggregate/dsl/AbstractGivenStageDsl : me/ahoo/wow/test/dsl/AbstractDynamicTestBuilder, me/ahoo/wow/api/naming/Named, me/ahoo/wow/infra/Decorator, me/ahoo/wow/test/aggregate/dsl/GivenDsl {
+	public fun <init> ()V
+	public final fun getName ()Ljava/lang/String;
+	public fun givenEvent (Ljava/lang/Object;Lkotlin/jvm/functions/Function1;)V
+	public fun givenEvent ([Ljava/lang/Object;Lkotlin/jvm/functions/Function1;)V
+	public fun givenOwnerId (Ljava/lang/String;)V
+	public fun givenSpaceId (Ljava/lang/String;)V
+	public fun givenState (Ljava/lang/Object;ILkotlin/jvm/functions/Function1;)V
+	public fun inject (Lkotlin/jvm/functions/Function1;)V
+	public fun name (Ljava/lang/String;)V
+	public fun whenCommand (Ljava/lang/Object;Lme/ahoo/wow/api/messaging/Header;Ljava/lang/String;Ljava/lang/String;Lkotlin/jvm/functions/Function1;)V
+}
+
+public abstract interface class me/ahoo/wow/test/aggregate/dsl/AggregateDsl : me/ahoo/wow/test/aggregate/dsl/AggregateDslContextCapable, me/ahoo/wow/test/saga/stateless/dsl/InjectPublicServiceCapable {
+	public abstract fun fork (Ljava/lang/String;Ljava/lang/String;ZLkotlin/jvm/functions/Function1;)V
+	public static synthetic fun fork$default (Lme/ahoo/wow/test/aggregate/dsl/AggregateDsl;Ljava/lang/String;Ljava/lang/String;ZLkotlin/jvm/functions/Function1;ILjava/lang/Object;)V
+	public abstract fun on (Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/modeling/state/StateAggregateFactory;Lme/ahoo/wow/eventsourcing/EventStore;Lme/ahoo/wow/ioc/ServiceProvider;Lkotlin/jvm/functions/Function1;)V
+	public static synthetic fun on$default (Lme/ahoo/wow/test/aggregate/dsl/AggregateDsl;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/modeling/state/StateAggregateFactory;Lme/ahoo/wow/eventsourcing/EventStore;Lme/ahoo/wow/ioc/ServiceProvider;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)V
+}
+
+public final class me/ahoo/wow/test/aggregate/dsl/AggregateDsl$DefaultImpls {
+	public static synthetic fun fork$default (Lme/ahoo/wow/test/aggregate/dsl/AggregateDsl;Ljava/lang/String;Ljava/lang/String;ZLkotlin/jvm/functions/Function1;ILjava/lang/Object;)V
+	public static fun inject (Lme/ahoo/wow/test/aggregate/dsl/AggregateDsl;Lkotlin/jvm/functions/Function1;)V
+	public static synthetic fun on$default (Lme/ahoo/wow/test/aggregate/dsl/AggregateDsl;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/modeling/state/StateAggregateFactory;Lme/ahoo/wow/eventsourcing/EventStore;Lme/ahoo/wow/ioc/ServiceProvider;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)V
+}
+
+public abstract interface class me/ahoo/wow/test/aggregate/dsl/AggregateDslContext {
+	public fun getAvailableRefs ()Ljava/util/Set;
+	public abstract fun getExpectStage (Ljava/lang/String;)Lme/ahoo/wow/test/aggregate/ExpectStage;
+	public abstract fun getExpectStages ()Ljava/util/Map;
+	public abstract fun setExpectStage (Ljava/lang/String;Lme/ahoo/wow/test/aggregate/ExpectStage;)V
+}
+
+public final class me/ahoo/wow/test/aggregate/dsl/AggregateDslContext$DefaultImpls {
+	public static fun getAvailableRefs (Lme/ahoo/wow/test/aggregate/dsl/AggregateDslContext;)Ljava/util/Set;
+}
+
+public abstract interface class me/ahoo/wow/test/aggregate/dsl/AggregateDslContextCapable {
+	public abstract fun getContext ()Lme/ahoo/wow/test/aggregate/dsl/AggregateDslContext;
+}
+
+public final class me/ahoo/wow/test/aggregate/dsl/DefaultAggregateDsl : me/ahoo/wow/test/dsl/AbstractDynamicTestBuilder, me/ahoo/wow/test/aggregate/dsl/AggregateDsl {
+	public fun <init> (Ljava/lang/Class;)V
+	public fun fork (Ljava/lang/String;Ljava/lang/String;ZLkotlin/jvm/functions/Function1;)V
+	public fun getContext ()Lme/ahoo/wow/test/aggregate/dsl/AggregateDslContext;
+	public fun getPublicServiceProvider ()Lme/ahoo/wow/ioc/ServiceProvider;
+	public synthetic fun inject (Lkotlin/jvm/functions/Function1;)Ljava/lang/Object;
+	public fun inject (Lkotlin/jvm/functions/Function1;)V
+	public fun on (Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/modeling/state/StateAggregateFactory;Lme/ahoo/wow/eventsourcing/EventStore;Lme/ahoo/wow/ioc/ServiceProvider;Lkotlin/jvm/functions/Function1;)V
+}
+
+public final class me/ahoo/wow/test/aggregate/dsl/DefaultAggregateDslContext : me/ahoo/wow/test/aggregate/dsl/AggregateDslContext {
+	public fun <init> ()V
+	public fun <init> (Ljava/util/Map;)V
+	public synthetic fun <init> (Ljava/util/Map;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun getAvailableRefs ()Ljava/util/Set;
+	public fun getExpectStage (Ljava/lang/String;)Lme/ahoo/wow/test/aggregate/ExpectStage;
+	public fun getExpectStages ()Ljava/util/Map;
+	public fun setExpectStage (Ljava/lang/String;Lme/ahoo/wow/test/aggregate/ExpectStage;)V
+}
+
+public final class me/ahoo/wow/test/aggregate/dsl/DefaultExpectDsl : me/ahoo/wow/test/dsl/AbstractDynamicTestBuilder, me/ahoo/wow/infra/Decorator, me/ahoo/wow/test/aggregate/dsl/ExpectDsl {
+	public fun <init> (Lme/ahoo/wow/test/aggregate/dsl/AggregateDslContext;Lme/ahoo/wow/test/aggregate/ExpectStage;)V
+	public synthetic fun expect (Lkotlin/jvm/functions/Function1;)Lme/ahoo/wow/test/aggregate/AggregateExpecter;
+	public fun expect (Lkotlin/jvm/functions/Function1;)Lme/ahoo/wow/test/aggregate/dsl/ExpectDsl;
+	public synthetic fun expectError ()Lme/ahoo/wow/test/aggregate/AggregateExpecter;
+	public fun expectError ()Lme/ahoo/wow/test/aggregate/dsl/ExpectDsl;
+	public synthetic fun expectError (Ljava/util/function/Consumer;)Lme/ahoo/wow/test/aggregate/AggregateExpecter;
+	public fun expectError (Ljava/util/function/Consumer;)Lme/ahoo/wow/test/aggregate/dsl/ExpectDsl;
+	public synthetic fun expectError (Lkotlin/jvm/functions/Function1;)Lme/ahoo/wow/test/aggregate/AggregateExpecter;
+	public fun expectError (Lkotlin/jvm/functions/Function1;)Lme/ahoo/wow/test/aggregate/dsl/ExpectDsl;
+	public synthetic fun expectErrorType (Ljava/lang/Class;)Lme/ahoo/wow/test/aggregate/AggregateExpecter;
+	public fun expectErrorType (Ljava/lang/Class;)Lme/ahoo/wow/test/aggregate/dsl/ExpectDsl;
+	public synthetic fun expectErrorType (Lkotlin/reflect/KClass;)Lme/ahoo/wow/test/aggregate/AggregateExpecter;
+	public fun expectErrorType (Lkotlin/reflect/KClass;)Lme/ahoo/wow/test/aggregate/dsl/ExpectDsl;
+	public synthetic fun expectEvent (Ljava/util/function/Consumer;)Lme/ahoo/wow/test/aggregate/AggregateExpecter;
+	public fun expectEvent (Ljava/util/function/Consumer;)Lme/ahoo/wow/test/aggregate/dsl/ExpectDsl;
+	public synthetic fun expectEvent (Lkotlin/jvm/functions/Function1;)Lme/ahoo/wow/test/aggregate/AggregateExpecter;
+	public fun expectEvent (Lkotlin/jvm/functions/Function1;)Lme/ahoo/wow/test/aggregate/dsl/ExpectDsl;
+	public synthetic fun expectEventBody (Ljava/util/function/Consumer;)Lme/ahoo/wow/test/aggregate/AggregateExpecter;
+	public fun expectEventBody (Ljava/util/function/Consumer;)Lme/ahoo/wow/test/aggregate/dsl/ExpectDsl;
+	public synthetic fun expectEventBody (Lkotlin/jvm/functions/Function1;)Lme/ahoo/wow/test/aggregate/AggregateExpecter;
+	public fun expectEventBody (Lkotlin/jvm/functions/Function1;)Lme/ahoo/wow/test/aggregate/dsl/ExpectDsl;
+	public synthetic fun expectEventCount (I)Lme/ahoo/wow/test/aggregate/AggregateExpecter;
+	public fun expectEventCount (I)Lme/ahoo/wow/test/aggregate/dsl/ExpectDsl;
+	public synthetic fun expectEventIterator (Ljava/util/function/Consumer;)Lme/ahoo/wow/test/aggregate/AggregateExpecter;
+	public fun expectEventIterator (Ljava/util/function/Consumer;)Lme/ahoo/wow/test/aggregate/dsl/ExpectDsl;
+	public synthetic fun expectEventIterator (Lkotlin/jvm/functions/Function1;)Lme/ahoo/wow/test/aggregate/AggregateExpecter;
+	public fun expectEventIterator (Lkotlin/jvm/functions/Function1;)Lme/ahoo/wow/test/aggregate/dsl/ExpectDsl;
+	public synthetic fun expectEventStream (Ljava/util/function/Consumer;)Lme/ahoo/wow/test/aggregate/AggregateExpecter;
+	public fun expectEventStream (Ljava/util/function/Consumer;)Lme/ahoo/wow/test/aggregate/dsl/ExpectDsl;
+	public synthetic fun expectEventStream (Lkotlin/jvm/functions/Function1;)Lme/ahoo/wow/test/aggregate/AggregateExpecter;
+	public fun expectEventStream (Lkotlin/jvm/functions/Function1;)Lme/ahoo/wow/test/aggregate/dsl/ExpectDsl;
+	public synthetic fun expectEventType ([Ljava/lang/Class;)Lme/ahoo/wow/test/aggregate/AggregateExpecter;
+	public fun expectEventType ([Ljava/lang/Class;)Lme/ahoo/wow/test/aggregate/dsl/ExpectDsl;
+	public synthetic fun expectEventType ([Lkotlin/reflect/KClass;)Lme/ahoo/wow/test/aggregate/AggregateExpecter;
+	public fun expectEventType ([Lkotlin/reflect/KClass;)Lme/ahoo/wow/test/aggregate/dsl/ExpectDsl;
+	public synthetic fun expectNoError ()Lme/ahoo/wow/test/aggregate/AggregateExpecter;
+	public fun expectNoError ()Lme/ahoo/wow/test/aggregate/dsl/ExpectDsl;
+	public synthetic fun expectState (Ljava/util/function/Consumer;)Lme/ahoo/wow/test/aggregate/AggregateExpecter;
+	public fun expectState (Ljava/util/function/Consumer;)Lme/ahoo/wow/test/aggregate/dsl/ExpectDsl;
+	public synthetic fun expectState (Lkotlin/jvm/functions/Function1;)Lme/ahoo/wow/test/aggregate/AggregateExpecter;
+	public fun expectState (Lkotlin/jvm/functions/Function1;)Lme/ahoo/wow/test/aggregate/dsl/ExpectDsl;
+	public synthetic fun expectStateAggregate (Lkotlin/jvm/functions/Function1;)Lme/ahoo/wow/test/aggregate/AggregateExpecter;
+	public fun expectStateAggregate (Lkotlin/jvm/functions/Function1;)Lme/ahoo/wow/test/aggregate/dsl/ExpectDsl;
+	public fun fork (Ljava/lang/String;ZLkotlin/jvm/functions/Function1;)V
+	public fun getContext ()Lme/ahoo/wow/test/aggregate/dsl/AggregateDslContext;
+	public synthetic fun getDelegate ()Ljava/lang/Object;
+	public fun getDelegate ()Lme/ahoo/wow/test/aggregate/ExpectStage;
+	public fun ref (Ljava/lang/String;)V
+}
+
+public final class me/ahoo/wow/test/aggregate/dsl/DefaultForkedVerifiedStageDsl : me/ahoo/wow/test/aggregate/dsl/AbstractGivenStageDsl, me/ahoo/wow/test/aggregate/dsl/ForkedVerifiedStageDsl {
+	public fun <init> (Lme/ahoo/wow/test/aggregate/dsl/AggregateDslContext;Lme/ahoo/wow/test/aggregate/VerifiedStage;)V
+	public fun getContext ()Lme/ahoo/wow/test/aggregate/dsl/AggregateDslContext;
+	public synthetic fun getDelegate ()Ljava/lang/Object;
+	public fun getDelegate ()Lme/ahoo/wow/test/aggregate/VerifiedStage;
+	public fun getStateAggregate ()Lme/ahoo/wow/modeling/state/StateAggregate;
+	public fun getStateRoot ()Ljava/lang/Object;
+	public fun getVerifiedResult ()Lme/ahoo/wow/test/aggregate/ExpectedResult;
+	public fun whenCommand (Ljava/lang/Object;Lme/ahoo/wow/api/messaging/Header;Ljava/lang/String;Ljava/lang/String;Lkotlin/jvm/functions/Function1;)V
+}
+
+public final class me/ahoo/wow/test/aggregate/dsl/DefaultGivenDsl : me/ahoo/wow/test/aggregate/dsl/AbstractGivenStageDsl {
+	public fun <init> (Lme/ahoo/wow/test/aggregate/dsl/AggregateDslContext;Lme/ahoo/wow/test/aggregate/GivenStage;)V
+	public fun getContext ()Lme/ahoo/wow/test/aggregate/dsl/AggregateDslContext;
+	public synthetic fun getDelegate ()Ljava/lang/Object;
+	public fun getDelegate ()Lme/ahoo/wow/test/aggregate/GivenStage;
+}
+
+public final class me/ahoo/wow/test/aggregate/dsl/DefaultWhenDsl : me/ahoo/wow/test/dsl/AbstractDynamicTestBuilder, me/ahoo/wow/api/naming/Named, me/ahoo/wow/test/aggregate/dsl/WhenDsl {
+	public fun <init> (Lme/ahoo/wow/test/aggregate/dsl/AggregateDslContext;Lme/ahoo/wow/test/aggregate/WhenStage;)V
+	public fun getContext ()Lme/ahoo/wow/test/aggregate/dsl/AggregateDslContext;
+	public fun getName ()Ljava/lang/String;
+	public fun name (Ljava/lang/String;)V
+	public fun whenCommand (Ljava/lang/Object;Lme/ahoo/wow/api/messaging/Header;Ljava/lang/String;Ljava/lang/String;Lkotlin/jvm/functions/Function1;)V
+}
+
+public abstract interface class me/ahoo/wow/test/aggregate/dsl/ExpectDsl : me/ahoo/wow/test/aggregate/AggregateExpecter, me/ahoo/wow/test/aggregate/dsl/AggregateDslContextCapable {
+	public abstract fun fork (Ljava/lang/String;ZLkotlin/jvm/functions/Function1;)V
+	public static synthetic fun fork$default (Lme/ahoo/wow/test/aggregate/dsl/ExpectDsl;Ljava/lang/String;ZLkotlin/jvm/functions/Function1;ILjava/lang/Object;)V
+	public abstract fun ref (Ljava/lang/String;)V
+}
+
+public final class me/ahoo/wow/test/aggregate/dsl/ExpectDsl$DefaultImpls {
+	public static fun expectError (Lme/ahoo/wow/test/aggregate/dsl/ExpectDsl;)Lme/ahoo/wow/test/aggregate/dsl/ExpectDsl;
+	public static fun expectError (Lme/ahoo/wow/test/aggregate/dsl/ExpectDsl;Ljava/util/function/Consumer;)Lme/ahoo/wow/test/aggregate/dsl/ExpectDsl;
+	public static fun expectError (Lme/ahoo/wow/test/aggregate/dsl/ExpectDsl;Lkotlin/jvm/functions/Function1;)Lme/ahoo/wow/test/aggregate/dsl/ExpectDsl;
+	public static fun expectErrorType (Lme/ahoo/wow/test/aggregate/dsl/ExpectDsl;Ljava/lang/Class;)Lme/ahoo/wow/test/aggregate/dsl/ExpectDsl;
+	public static fun expectErrorType (Lme/ahoo/wow/test/aggregate/dsl/ExpectDsl;Lkotlin/reflect/KClass;)Lme/ahoo/wow/test/aggregate/dsl/ExpectDsl;
+	public static fun expectEvent (Lme/ahoo/wow/test/aggregate/dsl/ExpectDsl;Ljava/util/function/Consumer;)Lme/ahoo/wow/test/aggregate/dsl/ExpectDsl;
+	public static fun expectEvent (Lme/ahoo/wow/test/aggregate/dsl/ExpectDsl;Lkotlin/jvm/functions/Function1;)Lme/ahoo/wow/test/aggregate/dsl/ExpectDsl;
+	public static fun expectEventBody (Lme/ahoo/wow/test/aggregate/dsl/ExpectDsl;Ljava/util/function/Consumer;)Lme/ahoo/wow/test/aggregate/dsl/ExpectDsl;
+	public static fun expectEventBody (Lme/ahoo/wow/test/aggregate/dsl/ExpectDsl;Lkotlin/jvm/functions/Function1;)Lme/ahoo/wow/test/aggregate/dsl/ExpectDsl;
+	public static fun expectEventCount (Lme/ahoo/wow/test/aggregate/dsl/ExpectDsl;I)Lme/ahoo/wow/test/aggregate/dsl/ExpectDsl;
+	public static fun expectEventIterator (Lme/ahoo/wow/test/aggregate/dsl/ExpectDsl;Ljava/util/function/Consumer;)Lme/ahoo/wow/test/aggregate/dsl/ExpectDsl;
+	public static fun expectEventIterator (Lme/ahoo/wow/test/aggregate/dsl/ExpectDsl;Lkotlin/jvm/functions/Function1;)Lme/ahoo/wow/test/aggregate/dsl/ExpectDsl;
+	public static fun expectEventStream (Lme/ahoo/wow/test/aggregate/dsl/ExpectDsl;Ljava/util/function/Consumer;)Lme/ahoo/wow/test/aggregate/dsl/ExpectDsl;
+	public static fun expectEventStream (Lme/ahoo/wow/test/aggregate/dsl/ExpectDsl;Lkotlin/jvm/functions/Function1;)Lme/ahoo/wow/test/aggregate/dsl/ExpectDsl;
+	public static fun expectEventType (Lme/ahoo/wow/test/aggregate/dsl/ExpectDsl;[Ljava/lang/Class;)Lme/ahoo/wow/test/aggregate/dsl/ExpectDsl;
+	public static fun expectEventType (Lme/ahoo/wow/test/aggregate/dsl/ExpectDsl;[Lkotlin/reflect/KClass;)Lme/ahoo/wow/test/aggregate/dsl/ExpectDsl;
+	public static fun expectNoError (Lme/ahoo/wow/test/aggregate/dsl/ExpectDsl;)Lme/ahoo/wow/test/aggregate/dsl/ExpectDsl;
+	public static fun expectState (Lme/ahoo/wow/test/aggregate/dsl/ExpectDsl;Ljava/util/function/Consumer;)Lme/ahoo/wow/test/aggregate/dsl/ExpectDsl;
+	public static fun expectState (Lme/ahoo/wow/test/aggregate/dsl/ExpectDsl;Lkotlin/jvm/functions/Function1;)Lme/ahoo/wow/test/aggregate/dsl/ExpectDsl;
+	public static fun expectStateAggregate (Lme/ahoo/wow/test/aggregate/dsl/ExpectDsl;Lkotlin/jvm/functions/Function1;)Lme/ahoo/wow/test/aggregate/dsl/ExpectDsl;
+	public static synthetic fun fork$default (Lme/ahoo/wow/test/aggregate/dsl/ExpectDsl;Ljava/lang/String;ZLkotlin/jvm/functions/Function1;ILjava/lang/Object;)V
+}
+
+public abstract interface class me/ahoo/wow/test/aggregate/dsl/ForkedVerifiedStageDsl : me/ahoo/wow/test/aggregate/dsl/GivenDsl {
+	public fun getStateAggregate ()Lme/ahoo/wow/modeling/state/StateAggregate;
+	public fun getStateRoot ()Ljava/lang/Object;
+	public abstract fun getVerifiedResult ()Lme/ahoo/wow/test/aggregate/ExpectedResult;
+}
+
+public final class me/ahoo/wow/test/aggregate/dsl/ForkedVerifiedStageDsl$DefaultImpls {
+	public static fun getStateAggregate (Lme/ahoo/wow/test/aggregate/dsl/ForkedVerifiedStageDsl;)Lme/ahoo/wow/modeling/state/StateAggregate;
+	public static fun getStateRoot (Lme/ahoo/wow/test/aggregate/dsl/ForkedVerifiedStageDsl;)Ljava/lang/Object;
+}
+
+public final class me/ahoo/wow/test/aggregate/dsl/ForksKt {
+	public static final fun fork (Lme/ahoo/wow/test/aggregate/ExpectStage;Ljava/lang/String;Lme/ahoo/wow/test/aggregate/dsl/AggregateDslContext;ZLkotlin/jvm/functions/Function1;)Lorg/junit/jupiter/api/DynamicNode;
+}
+
+public abstract interface class me/ahoo/wow/test/aggregate/dsl/GivenDsl : me/ahoo/wow/test/aggregate/dsl/AggregateDslContextCapable, me/ahoo/wow/test/aggregate/dsl/WhenDsl, me/ahoo/wow/test/dsl/NameSpecCapable {
+	public abstract fun givenEvent (Ljava/lang/Object;Lkotlin/jvm/functions/Function1;)V
+	public abstract fun givenEvent ([Ljava/lang/Object;Lkotlin/jvm/functions/Function1;)V
+	public static synthetic fun givenEvent$default (Lme/ahoo/wow/test/aggregate/dsl/GivenDsl;[Ljava/lang/Object;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)V
+	public abstract fun givenOwnerId (Ljava/lang/String;)V
+	public abstract fun givenSpaceId (Ljava/lang/String;)V
+	public abstract fun givenState (Ljava/lang/Object;ILkotlin/jvm/functions/Function1;)V
+	public abstract fun inject (Lkotlin/jvm/functions/Function1;)V
+}
+
+public final class me/ahoo/wow/test/aggregate/dsl/GivenDsl$DefaultImpls {
+	public static synthetic fun givenEvent$default (Lme/ahoo/wow/test/aggregate/dsl/GivenDsl;[Ljava/lang/Object;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)V
+}
+
+public abstract interface class me/ahoo/wow/test/aggregate/dsl/WhenDsl : me/ahoo/wow/test/aggregate/dsl/AggregateDslContextCapable, me/ahoo/wow/test/dsl/NameSpecCapable {
+	public abstract fun whenCommand (Ljava/lang/Object;Lme/ahoo/wow/api/messaging/Header;Ljava/lang/String;Ljava/lang/String;Lkotlin/jvm/functions/Function1;)V
+	public static synthetic fun whenCommand$default (Lme/ahoo/wow/test/aggregate/dsl/WhenDsl;Ljava/lang/Object;Lme/ahoo/wow/api/messaging/Header;Ljava/lang/String;Ljava/lang/String;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)V
+}
+
+public final class me/ahoo/wow/test/aggregate/dsl/WhenDsl$DefaultImpls {
+	public static synthetic fun whenCommand$default (Lme/ahoo/wow/test/aggregate/dsl/WhenDsl;Ljava/lang/Object;Lme/ahoo/wow/api/messaging/Header;Ljava/lang/String;Ljava/lang/String;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)V
+}
+
+public abstract class me/ahoo/wow/test/dsl/AbstractDynamicTestBuilder : me/ahoo/wow/test/dsl/DynamicTestBuilder {
+	public fun <init> ()V
+	public fun getDynamicNodes ()Ljava/util/List;
+}
+
+public abstract interface class me/ahoo/wow/test/dsl/DynamicTestBuilder {
+	public abstract fun getDynamicNodes ()Ljava/util/List;
+}
+
+public abstract interface class me/ahoo/wow/test/dsl/InjectServiceCapable {
+	public abstract fun inject (Lkotlin/jvm/functions/Function1;)Ljava/lang/Object;
+}
+
+public abstract interface class me/ahoo/wow/test/dsl/NameSpecCapable {
+	public static final field Companion Lme/ahoo/wow/test/dsl/NameSpecCapable$Companion;
+	public abstract fun name (Ljava/lang/String;)V
+}
+
+public final class me/ahoo/wow/test/dsl/NameSpecCapable$Companion {
+	public final fun appendName (Ljava/lang/StringBuilder;Ljava/lang/String;)V
+}
+
+public abstract interface annotation class me/ahoo/wow/test/dsl/TestDslMarker : java/lang/annotation/Annotation {
+}
+
+public final class me/ahoo/wow/test/id/TestGlobalIdGeneratorFactory : me/ahoo/wow/id/GlobalIdGeneratorFactory {
+	public static final field Companion Lme/ahoo/wow/test/id/TestGlobalIdGeneratorFactory$Companion;
+	public fun <init> ()V
+	public fun create ()Lme/ahoo/cosid/cosid/CosIdGenerator;
+}
+
+public final class me/ahoo/wow/test/id/TestGlobalIdGeneratorFactory$Companion {
+}
+
+public final class me/ahoo/wow/test/saga/stateless/CommandIterator : java/util/Iterator, kotlin/jvm/internal/markers/KMappedMarker, me/ahoo/wow/infra/Decorator {
+	public fun <init> (Ljava/util/Iterator;)V
+	public synthetic fun getDelegate ()Ljava/lang/Object;
+	public fun getDelegate ()Ljava/util/Iterator;
+	public fun hasNext ()Z
+	public synthetic fun next ()Ljava/lang/Object;
+	public fun next ()Lme/ahoo/wow/api/command/CommandMessage;
+	public final fun nextCommand (Ljava/lang/Class;)Lme/ahoo/wow/api/command/CommandMessage;
+	public final fun nextCommand (Lkotlin/reflect/KClass;)Lme/ahoo/wow/api/command/CommandMessage;
+	public final fun nextCommandBody (Ljava/lang/Class;)Ljava/lang/Object;
+	public final fun nextCommandBody (Lkotlin/reflect/KClass;)Ljava/lang/Object;
+	public fun remove ()V
+	public final fun skip (I)Lme/ahoo/wow/test/saga/stateless/CommandIterator;
+}
+
+public abstract interface class me/ahoo/wow/test/saga/stateless/ExpectStage : me/ahoo/wow/test/saga/stateless/StatelessSagaExpecter {
+	public fun verify ()Lme/ahoo/wow/test/saga/stateless/ExpectedResult;
+	public abstract fun verify (Z)Lme/ahoo/wow/test/saga/stateless/ExpectedResult;
+}
+
+public final class me/ahoo/wow/test/saga/stateless/ExpectStage$DefaultImpls {
+	public static fun expectCommand (Lme/ahoo/wow/test/saga/stateless/ExpectStage;Lkotlin/jvm/functions/Function1;)Lme/ahoo/wow/test/saga/stateless/ExpectStage;
+	public static fun expectCommandBody (Lme/ahoo/wow/test/saga/stateless/ExpectStage;Lkotlin/jvm/functions/Function1;)Lme/ahoo/wow/test/saga/stateless/ExpectStage;
+	public static fun expectCommandCount (Lme/ahoo/wow/test/saga/stateless/ExpectStage;I)Lme/ahoo/wow/test/saga/stateless/ExpectStage;
+	public static fun expectCommandIterator (Lme/ahoo/wow/test/saga/stateless/ExpectStage;Lkotlin/jvm/functions/Function1;)Lme/ahoo/wow/test/saga/stateless/ExpectStage;
+	public static fun expectCommandStream (Lme/ahoo/wow/test/saga/stateless/ExpectStage;Lkotlin/jvm/functions/Function1;)Lme/ahoo/wow/test/saga/stateless/ExpectStage;
+	public static fun expectCommandType (Lme/ahoo/wow/test/saga/stateless/ExpectStage;[Ljava/lang/Class;)Lme/ahoo/wow/test/saga/stateless/ExpectStage;
+	public static fun expectCommandType (Lme/ahoo/wow/test/saga/stateless/ExpectStage;[Lkotlin/reflect/KClass;)Lme/ahoo/wow/test/saga/stateless/ExpectStage;
+	public static fun expectError (Lme/ahoo/wow/test/saga/stateless/ExpectStage;)Lme/ahoo/wow/test/saga/stateless/ExpectStage;
+	public static fun expectError (Lme/ahoo/wow/test/saga/stateless/ExpectStage;Lkotlin/jvm/functions/Function1;)Lme/ahoo/wow/test/saga/stateless/ExpectStage;
+	public static fun expectErrorType (Lme/ahoo/wow/test/saga/stateless/ExpectStage;Ljava/lang/Class;)Lme/ahoo/wow/test/saga/stateless/ExpectStage;
+	public static fun expectErrorType (Lme/ahoo/wow/test/saga/stateless/ExpectStage;Lkotlin/reflect/KClass;)Lme/ahoo/wow/test/saga/stateless/ExpectStage;
+	public static fun expectNoCommand (Lme/ahoo/wow/test/saga/stateless/ExpectStage;)Lme/ahoo/wow/test/saga/stateless/ExpectStage;
+	public static fun expectNoError (Lme/ahoo/wow/test/saga/stateless/ExpectStage;)Lme/ahoo/wow/test/saga/stateless/ExpectStage;
+	public static fun verify (Lme/ahoo/wow/test/saga/stateless/ExpectStage;)Lme/ahoo/wow/test/saga/stateless/ExpectedResult;
+}
+
+public final class me/ahoo/wow/test/saga/stateless/ExpectedResult : me/ahoo/wow/test/saga/stateless/StatelessSagaExpecter {
+	public fun <init> (Lme/ahoo/wow/event/DomainEventExchange;Ljava/lang/Object;Lme/ahoo/wow/saga/stateless/CommandStream;Ljava/lang/Throwable;)V
+	public synthetic fun <init> (Lme/ahoo/wow/event/DomainEventExchange;Ljava/lang/Object;Lme/ahoo/wow/saga/stateless/CommandStream;Ljava/lang/Throwable;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Lme/ahoo/wow/event/DomainEventExchange;
+	public final fun component2 ()Ljava/lang/Object;
+	public final fun component3 ()Lme/ahoo/wow/saga/stateless/CommandStream;
+	public final fun component4 ()Ljava/lang/Throwable;
+	public final fun copy (Lme/ahoo/wow/event/DomainEventExchange;Ljava/lang/Object;Lme/ahoo/wow/saga/stateless/CommandStream;Ljava/lang/Throwable;)Lme/ahoo/wow/test/saga/stateless/ExpectedResult;
+	public static synthetic fun copy$default (Lme/ahoo/wow/test/saga/stateless/ExpectedResult;Lme/ahoo/wow/event/DomainEventExchange;Ljava/lang/Object;Lme/ahoo/wow/saga/stateless/CommandStream;Ljava/lang/Throwable;ILjava/lang/Object;)Lme/ahoo/wow/test/saga/stateless/ExpectedResult;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun expect (Lkotlin/jvm/functions/Function1;)Lme/ahoo/wow/test/saga/stateless/ExpectedResult;
+	public synthetic fun expect (Lkotlin/jvm/functions/Function1;)Lme/ahoo/wow/test/saga/stateless/StatelessSagaExpecter;
+	public fun expectCommand (Lkotlin/jvm/functions/Function1;)Lme/ahoo/wow/test/saga/stateless/ExpectedResult;
+	public synthetic fun expectCommand (Lkotlin/jvm/functions/Function1;)Lme/ahoo/wow/test/saga/stateless/StatelessSagaExpecter;
+	public fun expectCommandBody (Lkotlin/jvm/functions/Function1;)Lme/ahoo/wow/test/saga/stateless/ExpectedResult;
+	public synthetic fun expectCommandBody (Lkotlin/jvm/functions/Function1;)Lme/ahoo/wow/test/saga/stateless/StatelessSagaExpecter;
+	public fun expectCommandCount (I)Lme/ahoo/wow/test/saga/stateless/ExpectedResult;
+	public synthetic fun expectCommandCount (I)Lme/ahoo/wow/test/saga/stateless/StatelessSagaExpecter;
+	public fun expectCommandIterator (Lkotlin/jvm/functions/Function1;)Lme/ahoo/wow/test/saga/stateless/ExpectedResult;
+	public synthetic fun expectCommandIterator (Lkotlin/jvm/functions/Function1;)Lme/ahoo/wow/test/saga/stateless/StatelessSagaExpecter;
+	public fun expectCommandStream (Lkotlin/jvm/functions/Function1;)Lme/ahoo/wow/test/saga/stateless/ExpectedResult;
+	public synthetic fun expectCommandStream (Lkotlin/jvm/functions/Function1;)Lme/ahoo/wow/test/saga/stateless/StatelessSagaExpecter;
+	public fun expectCommandType ([Ljava/lang/Class;)Lme/ahoo/wow/test/saga/stateless/ExpectedResult;
+	public synthetic fun expectCommandType ([Ljava/lang/Class;)Lme/ahoo/wow/test/saga/stateless/StatelessSagaExpecter;
+	public fun expectCommandType ([Lkotlin/reflect/KClass;)Lme/ahoo/wow/test/saga/stateless/ExpectedResult;
+	public synthetic fun expectCommandType ([Lkotlin/reflect/KClass;)Lme/ahoo/wow/test/saga/stateless/StatelessSagaExpecter;
+	public fun expectError ()Lme/ahoo/wow/test/saga/stateless/ExpectedResult;
+	public synthetic fun expectError ()Lme/ahoo/wow/test/saga/stateless/StatelessSagaExpecter;
+	public fun expectError (Lkotlin/jvm/functions/Function1;)Lme/ahoo/wow/test/saga/stateless/ExpectedResult;
+	public synthetic fun expectError (Lkotlin/jvm/functions/Function1;)Lme/ahoo/wow/test/saga/stateless/StatelessSagaExpecter;
+	public fun expectErrorType (Ljava/lang/Class;)Lme/ahoo/wow/test/saga/stateless/ExpectedResult;
+	public synthetic fun expectErrorType (Ljava/lang/Class;)Lme/ahoo/wow/test/saga/stateless/StatelessSagaExpecter;
+	public fun expectErrorType (Lkotlin/reflect/KClass;)Lme/ahoo/wow/test/saga/stateless/ExpectedResult;
+	public synthetic fun expectErrorType (Lkotlin/reflect/KClass;)Lme/ahoo/wow/test/saga/stateless/StatelessSagaExpecter;
+	public fun expectNoCommand ()Lme/ahoo/wow/test/saga/stateless/ExpectedResult;
+	public synthetic fun expectNoCommand ()Lme/ahoo/wow/test/saga/stateless/StatelessSagaExpecter;
+	public fun expectNoError ()Lme/ahoo/wow/test/saga/stateless/ExpectedResult;
+	public synthetic fun expectNoError ()Lme/ahoo/wow/test/saga/stateless/StatelessSagaExpecter;
+	public final fun getCommandStream ()Lme/ahoo/wow/saga/stateless/CommandStream;
+	public final fun getError ()Ljava/lang/Throwable;
+	public final fun getExchange ()Lme/ahoo/wow/event/DomainEventExchange;
+	public final fun getHasError ()Z
+	public final fun getProcessor ()Ljava/lang/Object;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/test/saga/stateless/GivenReadOnlyStateAggregate : me/ahoo/wow/modeling/state/ReadOnlyStateAggregate {
+	public static final field Companion Lme/ahoo/wow/test/saga/stateless/GivenReadOnlyStateAggregate$Companion;
+	public fun <init> (Lme/ahoo/wow/api/modeling/AggregateId;Ljava/lang/Object;ILjava/lang/String;Ljava/lang/String;ZLjava/lang/String;Ljava/lang/String;Ljava/lang/String;JJLjava/util/Map;)V
+	public synthetic fun <init> (Lme/ahoo/wow/api/modeling/AggregateId;Ljava/lang/Object;ILjava/lang/String;Ljava/lang/String;ZLjava/lang/String;Ljava/lang/String;Ljava/lang/String;JJLjava/util/Map;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun getAggregateId ()Lme/ahoo/wow/api/modeling/AggregateId;
+	public fun getDeleted ()Z
+	public fun getEventId ()Ljava/lang/String;
+	public fun getEventTime ()J
+	public fun getExpectedNextVersion ()I
+	public fun getFirstEventTime ()J
+	public fun getFirstOperator ()Ljava/lang/String;
+	public fun getInitialized ()Z
+	public fun getOperator ()Ljava/lang/String;
+	public fun getOwnerId ()Ljava/lang/String;
+	public fun getSpaceId ()Ljava/lang/String;
+	public fun getState ()Ljava/lang/Object;
+	public fun getTags ()Ljava/util/Map;
+	public fun getVersion ()I
+	public fun isInitialVersion ()Z
+}
+
+public final class me/ahoo/wow/test/saga/stateless/GivenReadOnlyStateAggregate$Companion {
+	public final fun toReadOnlyStateAggregate (Ljava/lang/Object;Lme/ahoo/wow/api/event/DomainEvent;)Lme/ahoo/wow/modeling/state/ReadOnlyStateAggregate;
+}
+
+public abstract interface class me/ahoo/wow/test/saga/stateless/StatelessSagaExpecter {
+	public abstract fun expect (Lkotlin/jvm/functions/Function1;)Lme/ahoo/wow/test/saga/stateless/StatelessSagaExpecter;
+	public fun expectCommand (Lkotlin/jvm/functions/Function1;)Lme/ahoo/wow/test/saga/stateless/StatelessSagaExpecter;
+	public fun expectCommandBody (Lkotlin/jvm/functions/Function1;)Lme/ahoo/wow/test/saga/stateless/StatelessSagaExpecter;
+	public fun expectCommandCount (I)Lme/ahoo/wow/test/saga/stateless/StatelessSagaExpecter;
+	public fun expectCommandIterator (Lkotlin/jvm/functions/Function1;)Lme/ahoo/wow/test/saga/stateless/StatelessSagaExpecter;
+	public fun expectCommandStream (Lkotlin/jvm/functions/Function1;)Lme/ahoo/wow/test/saga/stateless/StatelessSagaExpecter;
+	public fun expectCommandType ([Ljava/lang/Class;)Lme/ahoo/wow/test/saga/stateless/StatelessSagaExpecter;
+	public fun expectCommandType ([Lkotlin/reflect/KClass;)Lme/ahoo/wow/test/saga/stateless/StatelessSagaExpecter;
+	public fun expectError ()Lme/ahoo/wow/test/saga/stateless/StatelessSagaExpecter;
+	public fun expectError (Lkotlin/jvm/functions/Function1;)Lme/ahoo/wow/test/saga/stateless/StatelessSagaExpecter;
+	public fun expectErrorType (Ljava/lang/Class;)Lme/ahoo/wow/test/saga/stateless/StatelessSagaExpecter;
+	public fun expectErrorType (Lkotlin/reflect/KClass;)Lme/ahoo/wow/test/saga/stateless/StatelessSagaExpecter;
+	public fun expectNoCommand ()Lme/ahoo/wow/test/saga/stateless/StatelessSagaExpecter;
+	public fun expectNoError ()Lme/ahoo/wow/test/saga/stateless/StatelessSagaExpecter;
+}
+
+public final class me/ahoo/wow/test/saga/stateless/StatelessSagaExpecter$DefaultImpls {
+	public static fun expectCommand (Lme/ahoo/wow/test/saga/stateless/StatelessSagaExpecter;Lkotlin/jvm/functions/Function1;)Lme/ahoo/wow/test/saga/stateless/StatelessSagaExpecter;
+	public static fun expectCommandBody (Lme/ahoo/wow/test/saga/stateless/StatelessSagaExpecter;Lkotlin/jvm/functions/Function1;)Lme/ahoo/wow/test/saga/stateless/StatelessSagaExpecter;
+	public static fun expectCommandCount (Lme/ahoo/wow/test/saga/stateless/StatelessSagaExpecter;I)Lme/ahoo/wow/test/saga/stateless/StatelessSagaExpecter;
+	public static fun expectCommandIterator (Lme/ahoo/wow/test/saga/stateless/StatelessSagaExpecter;Lkotlin/jvm/functions/Function1;)Lme/ahoo/wow/test/saga/stateless/StatelessSagaExpecter;
+	public static fun expectCommandStream (Lme/ahoo/wow/test/saga/stateless/StatelessSagaExpecter;Lkotlin/jvm/functions/Function1;)Lme/ahoo/wow/test/saga/stateless/StatelessSagaExpecter;
+	public static fun expectCommandType (Lme/ahoo/wow/test/saga/stateless/StatelessSagaExpecter;[Ljava/lang/Class;)Lme/ahoo/wow/test/saga/stateless/StatelessSagaExpecter;
+	public static fun expectCommandType (Lme/ahoo/wow/test/saga/stateless/StatelessSagaExpecter;[Lkotlin/reflect/KClass;)Lme/ahoo/wow/test/saga/stateless/StatelessSagaExpecter;
+	public static fun expectError (Lme/ahoo/wow/test/saga/stateless/StatelessSagaExpecter;)Lme/ahoo/wow/test/saga/stateless/StatelessSagaExpecter;
+	public static fun expectError (Lme/ahoo/wow/test/saga/stateless/StatelessSagaExpecter;Lkotlin/jvm/functions/Function1;)Lme/ahoo/wow/test/saga/stateless/StatelessSagaExpecter;
+	public static fun expectErrorType (Lme/ahoo/wow/test/saga/stateless/StatelessSagaExpecter;Ljava/lang/Class;)Lme/ahoo/wow/test/saga/stateless/StatelessSagaExpecter;
+	public static fun expectErrorType (Lme/ahoo/wow/test/saga/stateless/StatelessSagaExpecter;Lkotlin/reflect/KClass;)Lme/ahoo/wow/test/saga/stateless/StatelessSagaExpecter;
+	public static fun expectNoCommand (Lme/ahoo/wow/test/saga/stateless/StatelessSagaExpecter;)Lme/ahoo/wow/test/saga/stateless/StatelessSagaExpecter;
+	public static fun expectNoError (Lme/ahoo/wow/test/saga/stateless/StatelessSagaExpecter;)Lme/ahoo/wow/test/saga/stateless/StatelessSagaExpecter;
+}
+
+public abstract interface class me/ahoo/wow/test/saga/stateless/WhenStage : me/ahoo/wow/test/dsl/InjectServiceCapable {
+	public abstract fun functionFilter (Lkotlin/jvm/functions/Function1;)Lme/ahoo/wow/test/saga/stateless/WhenStage;
+	public fun functionName (Ljava/lang/String;)Lme/ahoo/wow/test/saga/stateless/WhenStage;
+	public fun whenEvent (Ljava/lang/Object;)Lme/ahoo/wow/test/saga/stateless/ExpectStage;
+	public abstract fun whenEvent (Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/test/saga/stateless/ExpectStage;
+	public static synthetic fun whenEvent$default (Lme/ahoo/wow/test/saga/stateless/WhenStage;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Lme/ahoo/wow/test/saga/stateless/ExpectStage;
+}
+
+public final class me/ahoo/wow/test/saga/stateless/WhenStage$DefaultImpls {
+	public static fun functionName (Lme/ahoo/wow/test/saga/stateless/WhenStage;Ljava/lang/String;)Lme/ahoo/wow/test/saga/stateless/WhenStage;
+	public static fun whenEvent (Lme/ahoo/wow/test/saga/stateless/WhenStage;Ljava/lang/Object;)Lme/ahoo/wow/test/saga/stateless/ExpectStage;
+	public static synthetic fun whenEvent$default (Lme/ahoo/wow/test/saga/stateless/WhenStage;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Lme/ahoo/wow/test/saga/stateless/ExpectStage;
+}
+
+public final class me/ahoo/wow/test/saga/stateless/dsl/DefaultExpectDsl : me/ahoo/wow/test/dsl/AbstractDynamicTestBuilder, me/ahoo/wow/infra/Decorator, me/ahoo/wow/test/saga/stateless/dsl/ExpectDsl {
+	public fun <init> (Lme/ahoo/wow/test/saga/stateless/ExpectStage;)V
+	public synthetic fun expect (Lkotlin/jvm/functions/Function1;)Lme/ahoo/wow/test/saga/stateless/StatelessSagaExpecter;
+	public fun expect (Lkotlin/jvm/functions/Function1;)Lme/ahoo/wow/test/saga/stateless/dsl/ExpectDsl;
+	public synthetic fun expectCommand (Lkotlin/jvm/functions/Function1;)Lme/ahoo/wow/test/saga/stateless/StatelessSagaExpecter;
+	public fun expectCommand (Lkotlin/jvm/functions/Function1;)Lme/ahoo/wow/test/saga/stateless/dsl/ExpectDsl;
+	public synthetic fun expectCommandBody (Lkotlin/jvm/functions/Function1;)Lme/ahoo/wow/test/saga/stateless/StatelessSagaExpecter;
+	public fun expectCommandBody (Lkotlin/jvm/functions/Function1;)Lme/ahoo/wow/test/saga/stateless/dsl/ExpectDsl;
+	public synthetic fun expectCommandCount (I)Lme/ahoo/wow/test/saga/stateless/StatelessSagaExpecter;
+	public fun expectCommandCount (I)Lme/ahoo/wow/test/saga/stateless/dsl/ExpectDsl;
+	public synthetic fun expectCommandIterator (Lkotlin/jvm/functions/Function1;)Lme/ahoo/wow/test/saga/stateless/StatelessSagaExpecter;
+	public fun expectCommandIterator (Lkotlin/jvm/functions/Function1;)Lme/ahoo/wow/test/saga/stateless/dsl/ExpectDsl;
+	public synthetic fun expectCommandStream (Lkotlin/jvm/functions/Function1;)Lme/ahoo/wow/test/saga/stateless/StatelessSagaExpecter;
+	public fun expectCommandStream (Lkotlin/jvm/functions/Function1;)Lme/ahoo/wow/test/saga/stateless/dsl/ExpectDsl;
+	public synthetic fun expectCommandType ([Ljava/lang/Class;)Lme/ahoo/wow/test/saga/stateless/StatelessSagaExpecter;
+	public fun expectCommandType ([Ljava/lang/Class;)Lme/ahoo/wow/test/saga/stateless/dsl/ExpectDsl;
+	public synthetic fun expectCommandType ([Lkotlin/reflect/KClass;)Lme/ahoo/wow/test/saga/stateless/StatelessSagaExpecter;
+	public fun expectCommandType ([Lkotlin/reflect/KClass;)Lme/ahoo/wow/test/saga/stateless/dsl/ExpectDsl;
+	public synthetic fun expectError ()Lme/ahoo/wow/test/saga/stateless/StatelessSagaExpecter;
+	public fun expectError ()Lme/ahoo/wow/test/saga/stateless/dsl/ExpectDsl;
+	public synthetic fun expectError (Lkotlin/jvm/functions/Function1;)Lme/ahoo/wow/test/saga/stateless/StatelessSagaExpecter;
+	public fun expectError (Lkotlin/jvm/functions/Function1;)Lme/ahoo/wow/test/saga/stateless/dsl/ExpectDsl;
+	public synthetic fun expectErrorType (Ljava/lang/Class;)Lme/ahoo/wow/test/saga/stateless/StatelessSagaExpecter;
+	public fun expectErrorType (Ljava/lang/Class;)Lme/ahoo/wow/test/saga/stateless/dsl/ExpectDsl;
+	public synthetic fun expectErrorType (Lkotlin/reflect/KClass;)Lme/ahoo/wow/test/saga/stateless/StatelessSagaExpecter;
+	public fun expectErrorType (Lkotlin/reflect/KClass;)Lme/ahoo/wow/test/saga/stateless/dsl/ExpectDsl;
+	public synthetic fun expectNoCommand ()Lme/ahoo/wow/test/saga/stateless/StatelessSagaExpecter;
+	public fun expectNoCommand ()Lme/ahoo/wow/test/saga/stateless/dsl/ExpectDsl;
+	public synthetic fun expectNoError ()Lme/ahoo/wow/test/saga/stateless/StatelessSagaExpecter;
+	public fun expectNoError ()Lme/ahoo/wow/test/saga/stateless/dsl/ExpectDsl;
+	public synthetic fun getDelegate ()Ljava/lang/Object;
+	public fun getDelegate ()Lme/ahoo/wow/test/saga/stateless/ExpectStage;
+}
+
+public final class me/ahoo/wow/test/saga/stateless/dsl/DefaultStatelessSagaDsl : me/ahoo/wow/test/dsl/AbstractDynamicTestBuilder, me/ahoo/wow/test/saga/stateless/dsl/StatelessSagaDsl {
+	public fun <init> (Ljava/lang/Class;)V
+	public fun getPublicServiceProvider ()Lme/ahoo/wow/ioc/ServiceProvider;
+	public synthetic fun inject (Lkotlin/jvm/functions/Function1;)Ljava/lang/Object;
+	public fun inject (Lkotlin/jvm/functions/Function1;)V
+	public fun on (Lme/ahoo/wow/ioc/ServiceProvider;Lme/ahoo/wow/command/CommandGateway;Lme/ahoo/wow/command/factory/CommandMessageFactory;Lkotlin/jvm/functions/Function1;)V
+}
+
+public final class me/ahoo/wow/test/saga/stateless/dsl/DefaultWhenDsl : me/ahoo/wow/test/dsl/AbstractDynamicTestBuilder, me/ahoo/wow/api/naming/Named, me/ahoo/wow/infra/Decorator, me/ahoo/wow/test/saga/stateless/dsl/WhenDsl {
+	public fun <init> (Lme/ahoo/wow/test/saga/stateless/WhenStage;)V
+	public fun functionFilter (Lkotlin/jvm/functions/Function1;)V
+	public fun functionName (Ljava/lang/String;)V
+	public synthetic fun getDelegate ()Ljava/lang/Object;
+	public fun getDelegate ()Lme/ahoo/wow/test/saga/stateless/WhenStage;
+	public fun getName ()Ljava/lang/String;
+	public synthetic fun inject (Lkotlin/jvm/functions/Function1;)Ljava/lang/Object;
+	public fun inject (Lkotlin/jvm/functions/Function1;)V
+	public fun name (Ljava/lang/String;)V
+	public fun whenEvent (Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/String;Ljava/lang/String;Lkotlin/jvm/functions/Function1;)V
+}
+
+public abstract interface class me/ahoo/wow/test/saga/stateless/dsl/ExpectDsl : me/ahoo/wow/test/saga/stateless/StatelessSagaExpecter {
+}
+
+public final class me/ahoo/wow/test/saga/stateless/dsl/ExpectDsl$DefaultImpls {
+	public static fun expectCommand (Lme/ahoo/wow/test/saga/stateless/dsl/ExpectDsl;Lkotlin/jvm/functions/Function1;)Lme/ahoo/wow/test/saga/stateless/dsl/ExpectDsl;
+	public static fun expectCommandBody (Lme/ahoo/wow/test/saga/stateless/dsl/ExpectDsl;Lkotlin/jvm/functions/Function1;)Lme/ahoo/wow/test/saga/stateless/dsl/ExpectDsl;
+	public static fun expectCommandCount (Lme/ahoo/wow/test/saga/stateless/dsl/ExpectDsl;I)Lme/ahoo/wow/test/saga/stateless/dsl/ExpectDsl;
+	public static fun expectCommandIterator (Lme/ahoo/wow/test/saga/stateless/dsl/ExpectDsl;Lkotlin/jvm/functions/Function1;)Lme/ahoo/wow/test/saga/stateless/dsl/ExpectDsl;
+	public static fun expectCommandStream (Lme/ahoo/wow/test/saga/stateless/dsl/ExpectDsl;Lkotlin/jvm/functions/Function1;)Lme/ahoo/wow/test/saga/stateless/dsl/ExpectDsl;
+	public static fun expectCommandType (Lme/ahoo/wow/test/saga/stateless/dsl/ExpectDsl;[Ljava/lang/Class;)Lme/ahoo/wow/test/saga/stateless/dsl/ExpectDsl;
+	public static fun expectCommandType (Lme/ahoo/wow/test/saga/stateless/dsl/ExpectDsl;[Lkotlin/reflect/KClass;)Lme/ahoo/wow/test/saga/stateless/dsl/ExpectDsl;
+	public static fun expectError (Lme/ahoo/wow/test/saga/stateless/dsl/ExpectDsl;)Lme/ahoo/wow/test/saga/stateless/dsl/ExpectDsl;
+	public static fun expectError (Lme/ahoo/wow/test/saga/stateless/dsl/ExpectDsl;Lkotlin/jvm/functions/Function1;)Lme/ahoo/wow/test/saga/stateless/dsl/ExpectDsl;
+	public static fun expectErrorType (Lme/ahoo/wow/test/saga/stateless/dsl/ExpectDsl;Ljava/lang/Class;)Lme/ahoo/wow/test/saga/stateless/dsl/ExpectDsl;
+	public static fun expectErrorType (Lme/ahoo/wow/test/saga/stateless/dsl/ExpectDsl;Lkotlin/reflect/KClass;)Lme/ahoo/wow/test/saga/stateless/dsl/ExpectDsl;
+	public static fun expectNoCommand (Lme/ahoo/wow/test/saga/stateless/dsl/ExpectDsl;)Lme/ahoo/wow/test/saga/stateless/dsl/ExpectDsl;
+	public static fun expectNoError (Lme/ahoo/wow/test/saga/stateless/dsl/ExpectDsl;)Lme/ahoo/wow/test/saga/stateless/dsl/ExpectDsl;
+}
+
+public abstract interface class me/ahoo/wow/test/saga/stateless/dsl/InjectPublicServiceCapable : me/ahoo/wow/test/dsl/InjectServiceCapable {
+	public abstract fun getPublicServiceProvider ()Lme/ahoo/wow/ioc/ServiceProvider;
+	public synthetic fun inject (Lkotlin/jvm/functions/Function1;)Ljava/lang/Object;
+	public fun inject (Lkotlin/jvm/functions/Function1;)V
+}
+
+public final class me/ahoo/wow/test/saga/stateless/dsl/InjectPublicServiceCapable$DefaultImpls {
+	public static fun inject (Lme/ahoo/wow/test/saga/stateless/dsl/InjectPublicServiceCapable;Lkotlin/jvm/functions/Function1;)V
+}
+
+public abstract interface class me/ahoo/wow/test/saga/stateless/dsl/StatelessSagaDsl : me/ahoo/wow/test/saga/stateless/dsl/InjectPublicServiceCapable {
+	public abstract fun on (Lme/ahoo/wow/ioc/ServiceProvider;Lme/ahoo/wow/command/CommandGateway;Lme/ahoo/wow/command/factory/CommandMessageFactory;Lkotlin/jvm/functions/Function1;)V
+	public static synthetic fun on$default (Lme/ahoo/wow/test/saga/stateless/dsl/StatelessSagaDsl;Lme/ahoo/wow/ioc/ServiceProvider;Lme/ahoo/wow/command/CommandGateway;Lme/ahoo/wow/command/factory/CommandMessageFactory;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)V
+}
+
+public final class me/ahoo/wow/test/saga/stateless/dsl/StatelessSagaDsl$DefaultImpls {
+	public static fun inject (Lme/ahoo/wow/test/saga/stateless/dsl/StatelessSagaDsl;Lkotlin/jvm/functions/Function1;)V
+	public static synthetic fun on$default (Lme/ahoo/wow/test/saga/stateless/dsl/StatelessSagaDsl;Lme/ahoo/wow/ioc/ServiceProvider;Lme/ahoo/wow/command/CommandGateway;Lme/ahoo/wow/command/factory/CommandMessageFactory;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)V
+}
+
+public abstract interface class me/ahoo/wow/test/saga/stateless/dsl/WhenDsl : me/ahoo/wow/test/dsl/InjectServiceCapable, me/ahoo/wow/test/dsl/NameSpecCapable {
+	public abstract fun functionFilter (Lkotlin/jvm/functions/Function1;)V
+	public fun functionName (Ljava/lang/String;)V
+	public abstract fun whenEvent (Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/String;Ljava/lang/String;Lkotlin/jvm/functions/Function1;)V
+	public static synthetic fun whenEvent$default (Lme/ahoo/wow/test/saga/stateless/dsl/WhenDsl;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/String;Ljava/lang/String;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)V
+}
+
+public final class me/ahoo/wow/test/saga/stateless/dsl/WhenDsl$DefaultImpls {
+	public static fun functionName (Lme/ahoo/wow/test/saga/stateless/dsl/WhenDsl;Ljava/lang/String;)V
+	public static synthetic fun whenEvent$default (Lme/ahoo/wow/test/saga/stateless/dsl/WhenDsl;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/String;Ljava/lang/String;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)V
+}
+
+public final class me/ahoo/wow/test/validation/TestValidatorKt {
+	public static final fun getTestValidator ()Ljakarta/validation/Validator;
+	public static final fun validate (Ljava/lang/Object;)Ljava/lang/Object;
+}
+

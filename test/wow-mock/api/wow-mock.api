@@ -1,0 +1,34 @@
+public final class me/ahoo/wow/eventsourcing/mock/DelayEventStore : me/ahoo/wow/eventsourcing/EventStore, me/ahoo/wow/infra/Decorator {
+	public fun <init> ()V
+	public fun <init> (Lkotlin/jvm/functions/Function0;Lme/ahoo/wow/eventsourcing/EventStore;)V
+	public synthetic fun <init> (Lkotlin/jvm/functions/Function0;Lme/ahoo/wow/eventsourcing/EventStore;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun append (Lme/ahoo/wow/event/DomainEventStream;)Lreactor/core/publisher/Mono;
+	public fun close ()V
+	public fun existsRequestId (Lme/ahoo/wow/api/modeling/AggregateId;Ljava/lang/String;)Lreactor/core/publisher/Mono;
+	public synthetic fun getDelegate ()Ljava/lang/Object;
+	public fun getDelegate ()Lme/ahoo/wow/eventsourcing/EventStore;
+	public fun last (Lme/ahoo/wow/api/modeling/AggregateId;)Lreactor/core/publisher/Mono;
+	public fun load (Lme/ahoo/wow/api/modeling/AggregateId;II)Lreactor/core/publisher/Flux;
+	public fun load (Lme/ahoo/wow/api/modeling/AggregateId;JJ)Lreactor/core/publisher/Flux;
+	public fun scanAggregateId (Lme/ahoo/wow/api/modeling/NamedAggregate;Ljava/lang/String;I)Lreactor/core/publisher/Flux;
+	public fun single (Lme/ahoo/wow/api/modeling/AggregateId;I)Lreactor/core/publisher/Mono;
+}
+
+public final class me/ahoo/wow/eventsourcing/mock/DelaySnapshotStore : me/ahoo/wow/eventsourcing/snapshot/SnapshotStore, me/ahoo/wow/infra/Decorator {
+	public static final field Companion Lme/ahoo/wow/eventsourcing/mock/DelaySnapshotStore$Companion;
+	public static final field NAME Ljava/lang/String;
+	public fun <init> ()V
+	public fun <init> (Lkotlin/jvm/functions/Function0;Lme/ahoo/wow/eventsourcing/snapshot/SnapshotStore;)V
+	public synthetic fun <init> (Lkotlin/jvm/functions/Function0;Lme/ahoo/wow/eventsourcing/snapshot/SnapshotStore;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun close ()V
+	public synthetic fun getDelegate ()Ljava/lang/Object;
+	public fun getDelegate ()Lme/ahoo/wow/eventsourcing/snapshot/SnapshotStore;
+	public fun getName ()Ljava/lang/String;
+	public fun getVersion (Lme/ahoo/wow/api/modeling/AggregateId;)Lreactor/core/publisher/Mono;
+	public fun load (Lme/ahoo/wow/api/modeling/AggregateId;)Lreactor/core/publisher/Mono;
+	public fun save (Lme/ahoo/wow/eventsourcing/snapshot/Snapshot;)Lreactor/core/publisher/Mono;
+}
+
+public final class me/ahoo/wow/eventsourcing/mock/DelaySnapshotStore$Companion {
+}
+

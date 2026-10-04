@@ -1,0 +1,267 @@
+public abstract class me/ahoo/wow/kafka/AbstractKafkaBus : me/ahoo/wow/messaging/DistributedMessageBus {
+	public static final field Companion Lme/ahoo/wow/kafka/AbstractKafkaBus$Companion;
+	public fun <init> (Lme/ahoo/wow/kafka/AggregateTopicConverter;Lreactor/kafka/sender/SenderOptions;Lreactor/kafka/receiver/ReceiverOptions;Lme/ahoo/wow/kafka/ReceiverOptionsCustomizer;Lme/ahoo/wow/kafka/KafkaReceiverPolicy;Lme/ahoo/wow/kafka/KafkaRecordDecodeFailureHandler;)V
+	public synthetic fun <init> (Lme/ahoo/wow/kafka/AggregateTopicConverter;Lreactor/kafka/sender/SenderOptions;Lreactor/kafka/receiver/ReceiverOptions;Lme/ahoo/wow/kafka/ReceiverOptionsCustomizer;Lme/ahoo/wow/kafka/KafkaReceiverPolicy;Lme/ahoo/wow/kafka/KafkaRecordDecodeFailureHandler;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	protected fun anchorAssignedPartitions (Lorg/apache/kafka/clients/consumer/Consumer;Ljava/util/Map;Lkotlin/jvm/functions/Function1;)V
+	public fun close ()V
+	protected fun createReceiver (Lreactor/kafka/receiver/ReceiverOptions;)Lreactor/kafka/receiver/KafkaReceiver;
+	protected final fun decode (Lreactor/kafka/receiver/ReceiverRecord;)Lme/ahoo/wow/api/messaging/Message;
+	protected final fun encode (Lme/ahoo/wow/api/messaging/Message;)Lreactor/kafka/sender/SenderRecord;
+	public abstract fun getMessageType ()Ljava/lang/Class;
+	protected final fun getSender ()Lreactor/kafka/sender/KafkaSender;
+	public fun receive (Lme/ahoo/wow/messaging/MessageSubscription;)Lreactor/core/publisher/Flux;
+	public fun receiver (Lme/ahoo/wow/messaging/MessageSubscription;)Lme/ahoo/wow/messaging/MessageReceiver;
+	public fun runtimeReceiver (Lme/ahoo/wow/messaging/MessageSubscription;)Lme/ahoo/wow/messaging/MessageReceiver;
+	public fun send (Lme/ahoo/wow/api/messaging/Message;)Lreactor/core/publisher/Mono;
+	public abstract fun toExchange (Lme/ahoo/wow/api/messaging/Message;Lreactor/kafka/receiver/ReceiverOffset;)Lme/ahoo/wow/messaging/handler/MessageExchange;
+}
+
+public final class me/ahoo/wow/kafka/AbstractKafkaBus$Companion {
+}
+
+public final class me/ahoo/wow/kafka/AcknowledgeKafkaRecordDecodeFailureHandler : me/ahoo/wow/kafka/KafkaRecordDecodeFailureHandler {
+	public static final field INSTANCE Lme/ahoo/wow/kafka/AcknowledgeKafkaRecordDecodeFailureHandler;
+	public fun handle (Lme/ahoo/wow/kafka/KafkaRecordDecodeFailure;)Lreactor/core/publisher/Mono;
+}
+
+public abstract interface class me/ahoo/wow/kafka/AggregateTopicConverter {
+	public abstract fun convert (Lme/ahoo/wow/api/modeling/NamedAggregate;)Ljava/lang/String;
+}
+
+public abstract interface class me/ahoo/wow/kafka/CommandTopicConverter : me/ahoo/wow/kafka/AggregateTopicConverter {
+}
+
+public final class me/ahoo/wow/kafka/DefaultCommandTopicConverter : me/ahoo/wow/kafka/CommandTopicConverter {
+	public static final field COMMAND_TOPIC_SUFFIX Ljava/lang/String;
+	public static final field Companion Lme/ahoo/wow/kafka/DefaultCommandTopicConverter$Companion;
+	public fun <init> ()V
+	public fun <init> (Ljava/lang/String;)V
+	public synthetic fun <init> (Ljava/lang/String;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun convert (Lme/ahoo/wow/api/modeling/NamedAggregate;)Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/kafka/DefaultCommandTopicConverter$Companion {
+}
+
+public final class me/ahoo/wow/kafka/DefaultEventStreamTopicConverter : me/ahoo/wow/kafka/EventStreamTopicConverter {
+	public static final field Companion Lme/ahoo/wow/kafka/DefaultEventStreamTopicConverter$Companion;
+	public static final field EVENT_TOPIC_SUFFIX Ljava/lang/String;
+	public fun <init> ()V
+	public fun <init> (Ljava/lang/String;)V
+	public synthetic fun <init> (Ljava/lang/String;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun convert (Lme/ahoo/wow/api/modeling/NamedAggregate;)Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/kafka/DefaultEventStreamTopicConverter$Companion {
+}
+
+public final class me/ahoo/wow/kafka/DefaultStateEventTopicConverter : me/ahoo/wow/kafka/StateEventTopicConverter {
+	public static final field Companion Lme/ahoo/wow/kafka/DefaultStateEventTopicConverter$Companion;
+	public static final field STATE_EVENT_TOPIC_SUFFIX Ljava/lang/String;
+	public fun <init> ()V
+	public fun <init> (Ljava/lang/String;)V
+	public synthetic fun <init> (Ljava/lang/String;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun convert (Lme/ahoo/wow/api/modeling/NamedAggregate;)Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/kafka/DefaultStateEventTopicConverter$Companion {
+}
+
+public abstract interface class me/ahoo/wow/kafka/EventStreamTopicConverter : me/ahoo/wow/kafka/AggregateTopicConverter {
+}
+
+public final class me/ahoo/wow/kafka/FailKafkaRecordDecodeFailureHandler : me/ahoo/wow/kafka/KafkaRecordDecodeFailureHandler {
+	public static final field INSTANCE Lme/ahoo/wow/kafka/FailKafkaRecordDecodeFailureHandler;
+	public fun handle (Lme/ahoo/wow/kafka/KafkaRecordDecodeFailure;)Lreactor/core/publisher/Mono;
+}
+
+public final class me/ahoo/wow/kafka/KafkaCommandBus : me/ahoo/wow/kafka/AbstractKafkaBus, me/ahoo/wow/command/DistributedCommandBus {
+	public fun <init> (Lme/ahoo/wow/kafka/CommandTopicConverter;Lreactor/kafka/sender/SenderOptions;Lreactor/kafka/receiver/ReceiverOptions;Lme/ahoo/wow/kafka/ReceiverOptionsCustomizer;Lme/ahoo/wow/kafka/KafkaReceiverPolicy;Lme/ahoo/wow/kafka/KafkaRecordDecodeFailureHandler;)V
+	public synthetic fun <init> (Lme/ahoo/wow/kafka/CommandTopicConverter;Lreactor/kafka/sender/SenderOptions;Lreactor/kafka/receiver/ReceiverOptions;Lme/ahoo/wow/kafka/ReceiverOptionsCustomizer;Lme/ahoo/wow/kafka/KafkaReceiverPolicy;Lme/ahoo/wow/kafka/KafkaRecordDecodeFailureHandler;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun getMessageType ()Ljava/lang/Class;
+	public fun getTopicKind ()Lme/ahoo/wow/api/messaging/TopicKind;
+	public fun toExchange (Lme/ahoo/wow/api/command/CommandMessage;Lreactor/kafka/receiver/ReceiverOffset;)Lme/ahoo/wow/command/ServerCommandExchange;
+	public synthetic fun toExchange (Lme/ahoo/wow/api/messaging/Message;Lreactor/kafka/receiver/ReceiverOffset;)Lme/ahoo/wow/messaging/handler/MessageExchange;
+}
+
+public final class me/ahoo/wow/kafka/KafkaDomainEventBus : me/ahoo/wow/kafka/AbstractKafkaBus, me/ahoo/wow/event/DistributedDomainEventBus {
+	public fun <init> (Lme/ahoo/wow/kafka/EventStreamTopicConverter;Lreactor/kafka/sender/SenderOptions;Lreactor/kafka/receiver/ReceiverOptions;Lme/ahoo/wow/kafka/ReceiverOptionsCustomizer;Lme/ahoo/wow/kafka/KafkaReceiverPolicy;Lme/ahoo/wow/kafka/KafkaRecordDecodeFailureHandler;)V
+	public synthetic fun <init> (Lme/ahoo/wow/kafka/EventStreamTopicConverter;Lreactor/kafka/sender/SenderOptions;Lreactor/kafka/receiver/ReceiverOptions;Lme/ahoo/wow/kafka/ReceiverOptionsCustomizer;Lme/ahoo/wow/kafka/KafkaReceiverPolicy;Lme/ahoo/wow/kafka/KafkaRecordDecodeFailureHandler;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun getMessageType ()Ljava/lang/Class;
+	public fun getTopicKind ()Lme/ahoo/wow/api/messaging/TopicKind;
+	public synthetic fun toExchange (Lme/ahoo/wow/api/messaging/Message;Lreactor/kafka/receiver/ReceiverOffset;)Lme/ahoo/wow/messaging/handler/MessageExchange;
+	public fun toExchange (Lme/ahoo/wow/event/DomainEventStream;Lreactor/kafka/receiver/ReceiverOffset;)Lme/ahoo/wow/event/EventStreamExchange;
+}
+
+public final class me/ahoo/wow/kafka/KafkaEventStreamExchange : me/ahoo/wow/event/EventStreamExchange {
+	public fun <init> (Lme/ahoo/wow/event/DomainEventStream;Lreactor/kafka/receiver/ReceiverOffset;Ljava/util/Map;)V
+	public synthetic fun <init> (Lme/ahoo/wow/event/DomainEventStream;Lreactor/kafka/receiver/ReceiverOffset;Ljava/util/Map;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun acknowledge ()Lreactor/core/publisher/Mono;
+	public fun clearError ()V
+	public final fun component1 ()Lme/ahoo/wow/event/DomainEventStream;
+	public final fun component3 ()Ljava/util/Map;
+	public final fun copy (Lme/ahoo/wow/event/DomainEventStream;Lreactor/kafka/receiver/ReceiverOffset;Ljava/util/Map;)Lme/ahoo/wow/kafka/KafkaEventStreamExchange;
+	public static synthetic fun copy$default (Lme/ahoo/wow/kafka/KafkaEventStreamExchange;Lme/ahoo/wow/event/DomainEventStream;Lreactor/kafka/receiver/ReceiverOffset;Ljava/util/Map;ILjava/lang/Object;)Lme/ahoo/wow/kafka/KafkaEventStreamExchange;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun extractDeclared (Ljava/lang/Class;)Ljava/lang/Object;
+	public fun extractObject (Lkotlin/reflect/KType;)Ljava/lang/Object;
+	public fun getAggregateVersion ()Ljava/lang/Integer;
+	public fun getAttribute (Ljava/lang/String;)Ljava/lang/Object;
+	public fun getAttributes ()Ljava/util/Map;
+	public fun getCommandResult ()Ljava/util/Map;
+	public fun getCommandResult (Ljava/lang/String;)Ljava/lang/Object;
+	public fun getError ()Ljava/lang/Throwable;
+	public fun getFunction ()Lme/ahoo/wow/api/messaging/function/FunctionInfo;
+	public fun getFunctionAs ()Lme/ahoo/wow/api/messaging/function/FunctionInfo;
+	public synthetic fun getMessage ()Lme/ahoo/wow/api/messaging/Message;
+	public fun getMessage ()Lme/ahoo/wow/event/DomainEventStream;
+	public fun getServiceProvider ()Lme/ahoo/wow/ioc/ServiceProvider;
+	public fun hashCode ()I
+	public fun removeAttribute (Ljava/lang/String;)Lme/ahoo/wow/event/EventStreamExchange;
+	public synthetic fun removeAttribute (Ljava/lang/String;)Lme/ahoo/wow/messaging/handler/MessageExchange;
+	public fun setAttribute (Ljava/lang/String;Ljava/lang/Object;)Lme/ahoo/wow/event/EventStreamExchange;
+	public synthetic fun setAttribute (Ljava/lang/String;Ljava/lang/Object;)Lme/ahoo/wow/messaging/handler/MessageExchange;
+	public fun setCommandResult (Ljava/lang/String;Ljava/lang/Object;)V
+	public fun setError (Ljava/lang/Throwable;)V
+	public fun setFunction (Lme/ahoo/wow/api/messaging/function/FunctionInfo;)Lme/ahoo/wow/event/EventStreamExchange;
+	public synthetic fun setFunction (Lme/ahoo/wow/api/messaging/function/FunctionInfo;)Lme/ahoo/wow/messaging/handler/MessageExchange;
+	public fun setServiceProvider (Lme/ahoo/wow/ioc/ServiceProvider;)Lme/ahoo/wow/event/EventStreamExchange;
+	public synthetic fun setServiceProvider (Lme/ahoo/wow/ioc/ServiceProvider;)Lme/ahoo/wow/messaging/handler/MessageExchange;
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/kafka/KafkaReceiverPolicy {
+	public static final field Companion Lme/ahoo/wow/kafka/KafkaReceiverPolicy$Companion;
+	public static final field DEFAULT_MAX_DEFERRED_COMMITS I
+	public static final field DEFAULT_PREFETCH_BATCHES I
+	public static final field DEFAULT_RETRY_ATTEMPTS J
+	public fun <init> ()V
+	public fun <init> (IILreactor/util/retry/Retry;)V
+	public synthetic fun <init> (IILreactor/util/retry/Retry;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun getMaxDeferredCommits ()I
+	public final fun getPrefetchBatches ()I
+	public final fun getRetrySpec ()Lreactor/util/retry/Retry;
+}
+
+public final class me/ahoo/wow/kafka/KafkaReceiverPolicy$Companion {
+	public final fun defaultRetrySpec (JLjava/time/Duration;)Lreactor/util/retry/Retry;
+	public static synthetic fun defaultRetrySpec$default (Lme/ahoo/wow/kafka/KafkaReceiverPolicy$Companion;JLjava/time/Duration;ILjava/lang/Object;)Lreactor/util/retry/Retry;
+	public final fun getDEFAULT_RETRY_BACKOFF ()Ljava/time/Duration;
+}
+
+public final class me/ahoo/wow/kafka/KafkaRecordDecodeException : java/lang/RuntimeException {
+	public fun <init> (Lme/ahoo/wow/kafka/KafkaRecordDecodeFailure;)V
+}
+
+public final class me/ahoo/wow/kafka/KafkaRecordDecodeFailure {
+	public fun <init> (Lreactor/kafka/receiver/ReceiverRecord;Ljava/lang/Exception;)V
+	public final fun component1 ()Lreactor/kafka/receiver/ReceiverRecord;
+	public final fun component2 ()Ljava/lang/Exception;
+	public final fun copy (Lreactor/kafka/receiver/ReceiverRecord;Ljava/lang/Exception;)Lme/ahoo/wow/kafka/KafkaRecordDecodeFailure;
+	public static synthetic fun copy$default (Lme/ahoo/wow/kafka/KafkaRecordDecodeFailure;Lreactor/kafka/receiver/ReceiverRecord;Ljava/lang/Exception;ILjava/lang/Object;)Lme/ahoo/wow/kafka/KafkaRecordDecodeFailure;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getCause ()Ljava/lang/Exception;
+	public final fun getRecord ()Lreactor/kafka/receiver/ReceiverRecord;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public abstract interface class me/ahoo/wow/kafka/KafkaRecordDecodeFailureHandler {
+	public abstract fun handle (Lme/ahoo/wow/kafka/KafkaRecordDecodeFailure;)Lreactor/core/publisher/Mono;
+}
+
+public final class me/ahoo/wow/kafka/KafkaServerCommandExchange : me/ahoo/wow/command/ServerCommandExchange {
+	public fun <init> (Lme/ahoo/wow/api/command/CommandMessage;Lreactor/kafka/receiver/ReceiverOffset;Ljava/util/Map;)V
+	public synthetic fun <init> (Lme/ahoo/wow/api/command/CommandMessage;Lreactor/kafka/receiver/ReceiverOffset;Ljava/util/Map;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun acknowledge ()Lreactor/core/publisher/Mono;
+	public fun clearError ()V
+	public fun extractDeclared (Ljava/lang/Class;)Ljava/lang/Object;
+	public fun extractObject (Lkotlin/reflect/KType;)Ljava/lang/Object;
+	public fun getAggregateMetadata ()Lme/ahoo/wow/modeling/metadata/AggregateMetadata;
+	public fun getAggregateProcessor ()Lme/ahoo/wow/modeling/command/AggregateProcessor;
+	public fun getAggregateVersion ()Ljava/lang/Integer;
+	public fun getAttribute (Ljava/lang/String;)Ljava/lang/Object;
+	public fun getAttributes ()Ljava/util/Map;
+	public fun getCommandInvokeResult ()Ljava/lang/Object;
+	public fun getCommandResult ()Ljava/util/Map;
+	public fun getCommandResult (Ljava/lang/String;)Ljava/lang/Object;
+	public fun getError ()Ljava/lang/Throwable;
+	public fun getEventStream ()Lme/ahoo/wow/event/DomainEventStream;
+	public fun getFunction ()Lme/ahoo/wow/api/messaging/function/FunctionInfo;
+	public fun getFunctionAs ()Lme/ahoo/wow/api/messaging/function/FunctionInfo;
+	public fun getMessage ()Lme/ahoo/wow/api/command/CommandMessage;
+	public synthetic fun getMessage ()Lme/ahoo/wow/api/messaging/Message;
+	public fun getServiceProvider ()Lme/ahoo/wow/ioc/ServiceProvider;
+	public fun removeAttribute (Ljava/lang/String;)Lme/ahoo/wow/command/ServerCommandExchange;
+	public synthetic fun removeAttribute (Ljava/lang/String;)Lme/ahoo/wow/messaging/handler/MessageExchange;
+	public fun setAggregateMetadata (Lme/ahoo/wow/modeling/metadata/AggregateMetadata;)Lme/ahoo/wow/command/ServerCommandExchange;
+	public fun setAggregateProcessor (Lme/ahoo/wow/modeling/command/AggregateProcessor;)Lme/ahoo/wow/command/ServerCommandExchange;
+	public fun setAggregateVersion (I)Lme/ahoo/wow/command/ServerCommandExchange;
+	public fun setAttribute (Ljava/lang/String;Ljava/lang/Object;)Lme/ahoo/wow/command/ServerCommandExchange;
+	public synthetic fun setAttribute (Ljava/lang/String;Ljava/lang/Object;)Lme/ahoo/wow/messaging/handler/MessageExchange;
+	public fun setCommandInvokeResult (Ljava/lang/Object;)Lme/ahoo/wow/command/ServerCommandExchange;
+	public fun setCommandResult (Ljava/lang/String;Ljava/lang/Object;)V
+	public fun setError (Ljava/lang/Throwable;)V
+	public fun setEventStream (Lme/ahoo/wow/event/DomainEventStream;)Lme/ahoo/wow/command/ServerCommandExchange;
+	public fun setFunction (Lme/ahoo/wow/api/messaging/function/FunctionInfo;)Lme/ahoo/wow/command/ServerCommandExchange;
+	public synthetic fun setFunction (Lme/ahoo/wow/api/messaging/function/FunctionInfo;)Lme/ahoo/wow/messaging/handler/MessageExchange;
+	public fun setServiceProvider (Lme/ahoo/wow/ioc/ServiceProvider;)Lme/ahoo/wow/command/ServerCommandExchange;
+	public synthetic fun setServiceProvider (Lme/ahoo/wow/ioc/ServiceProvider;)Lme/ahoo/wow/messaging/handler/MessageExchange;
+}
+
+public final class me/ahoo/wow/kafka/KafkaStateEventBus : me/ahoo/wow/kafka/AbstractKafkaBus, me/ahoo/wow/eventsourcing/state/DistributedStateEventBus {
+	public fun <init> (Lme/ahoo/wow/kafka/StateEventTopicConverter;Lreactor/kafka/sender/SenderOptions;Lreactor/kafka/receiver/ReceiverOptions;Lme/ahoo/wow/kafka/ReceiverOptionsCustomizer;Lme/ahoo/wow/kafka/KafkaReceiverPolicy;Lme/ahoo/wow/kafka/KafkaRecordDecodeFailureHandler;)V
+	public synthetic fun <init> (Lme/ahoo/wow/kafka/StateEventTopicConverter;Lreactor/kafka/sender/SenderOptions;Lreactor/kafka/receiver/ReceiverOptions;Lme/ahoo/wow/kafka/ReceiverOptionsCustomizer;Lme/ahoo/wow/kafka/KafkaReceiverPolicy;Lme/ahoo/wow/kafka/KafkaRecordDecodeFailureHandler;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun getMessageType ()Ljava/lang/Class;
+	public fun getTopicKind ()Lme/ahoo/wow/api/messaging/TopicKind;
+	public synthetic fun toExchange (Lme/ahoo/wow/api/messaging/Message;Lreactor/kafka/receiver/ReceiverOffset;)Lme/ahoo/wow/messaging/handler/MessageExchange;
+	public fun toExchange (Lme/ahoo/wow/eventsourcing/state/StateEvent;Lreactor/kafka/receiver/ReceiverOffset;)Lme/ahoo/wow/eventsourcing/state/StateEventExchange;
+}
+
+public final class me/ahoo/wow/kafka/KafkaStateEventExchange : me/ahoo/wow/eventsourcing/state/StateEventExchange {
+	public fun <init> (Lme/ahoo/wow/eventsourcing/state/StateEvent;Lreactor/kafka/receiver/ReceiverOffset;Ljava/util/Map;)V
+	public synthetic fun <init> (Lme/ahoo/wow/eventsourcing/state/StateEvent;Lreactor/kafka/receiver/ReceiverOffset;Ljava/util/Map;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun acknowledge ()Lreactor/core/publisher/Mono;
+	public fun clearError ()V
+	public fun extractDeclared (Ljava/lang/Class;)Ljava/lang/Object;
+	public fun extractObject (Lkotlin/reflect/KType;)Ljava/lang/Object;
+	public fun getAggregateVersion ()Ljava/lang/Integer;
+	public fun getAttribute (Ljava/lang/String;)Ljava/lang/Object;
+	public fun getAttributes ()Ljava/util/Map;
+	public fun getCommandResult ()Ljava/util/Map;
+	public fun getCommandResult (Ljava/lang/String;)Ljava/lang/Object;
+	public fun getError ()Ljava/lang/Throwable;
+	public fun getFunction ()Lme/ahoo/wow/api/messaging/function/FunctionInfo;
+	public fun getFunctionAs ()Lme/ahoo/wow/api/messaging/function/FunctionInfo;
+	public synthetic fun getMessage ()Lme/ahoo/wow/api/messaging/Message;
+	public fun getMessage ()Lme/ahoo/wow/eventsourcing/state/StateEvent;
+	public fun getServiceProvider ()Lme/ahoo/wow/ioc/ServiceProvider;
+	public fun removeAttribute (Ljava/lang/String;)Lme/ahoo/wow/eventsourcing/state/StateEventExchange;
+	public synthetic fun removeAttribute (Ljava/lang/String;)Lme/ahoo/wow/messaging/handler/MessageExchange;
+	public fun setAttribute (Ljava/lang/String;Ljava/lang/Object;)Lme/ahoo/wow/eventsourcing/state/StateEventExchange;
+	public synthetic fun setAttribute (Ljava/lang/String;Ljava/lang/Object;)Lme/ahoo/wow/messaging/handler/MessageExchange;
+	public fun setCommandResult (Ljava/lang/String;Ljava/lang/Object;)V
+	public fun setError (Ljava/lang/Throwable;)V
+	public fun setFunction (Lme/ahoo/wow/api/messaging/function/FunctionInfo;)Lme/ahoo/wow/eventsourcing/state/StateEventExchange;
+	public synthetic fun setFunction (Lme/ahoo/wow/api/messaging/function/FunctionInfo;)Lme/ahoo/wow/messaging/handler/MessageExchange;
+	public fun setServiceProvider (Lme/ahoo/wow/ioc/ServiceProvider;)Lme/ahoo/wow/eventsourcing/state/StateEventExchange;
+	public synthetic fun setServiceProvider (Lme/ahoo/wow/ioc/ServiceProvider;)Lme/ahoo/wow/messaging/handler/MessageExchange;
+}
+
+public final class me/ahoo/wow/kafka/NoOpReceiverOptionsCustomizer : me/ahoo/wow/kafka/ReceiverOptionsCustomizer {
+	public static final field INSTANCE Lme/ahoo/wow/kafka/NoOpReceiverOptionsCustomizer;
+	public fun customize (Lreactor/kafka/receiver/ReceiverOptions;)Lreactor/kafka/receiver/ReceiverOptions;
+}
+
+public abstract interface class me/ahoo/wow/kafka/ReceiverOptionsCustomizer {
+	public abstract fun customize (Lreactor/kafka/receiver/ReceiverOptions;)Lreactor/kafka/receiver/ReceiverOptions;
+}
+
+public final class me/ahoo/wow/kafka/ReceiverOptionsCustomizerKt {
+	public static final fun getReceiverOptionsCustomizer (Lreactor/util/context/ContextView;)Lme/ahoo/wow/kafka/ReceiverOptionsCustomizer;
+	public static final fun writeReceiverOptionsCustomizer (Lreactor/util/context/Context;Lme/ahoo/wow/kafka/ReceiverOptionsCustomizer;)Lreactor/util/context/Context;
+}
+
+public abstract interface class me/ahoo/wow/kafka/StateEventTopicConverter : me/ahoo/wow/kafka/AggregateTopicConverter {
+}
+
