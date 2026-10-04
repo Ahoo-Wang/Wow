@@ -40,8 +40,7 @@ import java.time.Duration
 import java.util.concurrent.atomic.AtomicInteger
 
 /**
- * The gateway's request-ID reservation (B7): validation comes first, a failed send gives the reservation back, and
- * without an authoritative store a precheck collision does not reject the request.
+ * The gateway's request-ID reservation (B7): validation comes first, and a failed send gives the reservation back.
  */
 class DefaultCommandGatewayRequestIdTest {
     private val gateways = mutableListOf<DefaultCommandGateway>()
@@ -131,22 +130,6 @@ class DefaultCommandGatewayRequestIdTest {
             .verify()
 
         existenceChecks.get().assert().isEqualTo(1)
-    }
-
-    @Test
-    fun `send passes a precheck collision when no request id existence checker is installed`() {
-        val commandBus = FailingFirstCommandBus(failures = 0)
-        val command = TestCommandMessage(id = "precheck-collision-without-event-store")
-        val gateway = commandGateway(
-            commandBus = commandBus,
-            idempotencyChecker = IdempotencyChecker { false },
-            requestIdExistenceChecker = NoopRequestIdExistenceChecker,
-        )
-
-        StepVerifier.create(gateway.send(command))
-            .verifyComplete()
-
-        commandBus.sent.single().assert().isSameAs(command)
     }
 
     private fun countingExistenceChecker(existenceChecks: AtomicInteger) =

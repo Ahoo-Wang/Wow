@@ -180,7 +180,6 @@ internal class DefaultCommandGatewayTest : CommandGatewaySpec() {
                 DefaultAggregateIdempotencyCheckerProvider {
                     IdempotencyChecker { false }
                 },
-                requestIdExistenceChecker = { _, _ -> Mono.just(true) },
             ),
             waitCoordinator = waitCoordinator,
             commandWaitNotifier = LocalCommandWaitNotifier(waitCoordinator)

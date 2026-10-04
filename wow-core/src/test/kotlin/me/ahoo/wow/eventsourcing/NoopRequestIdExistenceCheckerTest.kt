@@ -19,9 +19,9 @@ import reactor.test.StepVerifier
 
 class NoopRequestIdExistenceCheckerTest {
     @Test
-    fun `should report request id absent when no authoritative store is available`() {
+    fun `should fail closed when request id existence is unavailable`() {
         StepVerifier.create(NoopRequestIdExistenceChecker.existsRequestId(testAggregateId(), "request-1"))
-            .expectNext(false)
+            .expectNext(true)
             .verifyComplete()
     }
 }

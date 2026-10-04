@@ -71,19 +71,19 @@ class DefaultRequestIdCheckerTest {
     }
 
     @Test
-    fun `check returns true when precheck rejects with noop existence checker`() {
+    fun `check returns false when precheck rejects with noop existence checker`() {
         val checker = defaultRequestIdChecker(
             idempotencyChecker = IdempotencyChecker { false },
             requestIdExistenceChecker = NoopRequestIdExistenceChecker,
         )
 
         StepVerifier.create(checker.check(testAggregateId(), "request-1"))
-            .expectNext(true)
+            .expectNext(false)
             .verifyComplete()
     }
 
     @Test
-    fun `check returns true with default noop existence checker when precheck rejects`() {
+    fun `check returns false with default noop existence checker when precheck rejects`() {
         val checker = DefaultRequestIdChecker(
             idempotencyCheckerProvider = AggregateIdempotencyCheckerProvider {
                 IdempotencyChecker { false }
@@ -91,7 +91,7 @@ class DefaultRequestIdCheckerTest {
         )
 
         StepVerifier.create(checker.check(testAggregateId(), "request-1"))
-            .expectNext(true)
+            .expectNext(false)
             .verifyComplete()
     }
 

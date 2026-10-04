@@ -46,7 +46,6 @@ import me.ahoo.wow.tck.mock.MockCreateAggregate
 import me.ahoo.wow.tck.mock.WrongCommandMessage
 import me.ahoo.wow.test.validation.TestValidator
 import org.junit.jupiter.api.Test
-import reactor.core.publisher.Mono
 import reactor.kotlin.test.test
 import java.time.Duration
 
@@ -85,9 +84,6 @@ abstract class CommandGatewaySpec : MessageBusSpec<CommandMessage<*>, ServerComm
             validator = TestValidator,
             requestIdChecker = DefaultRequestIdChecker(
                 DefaultAggregateIdempotencyCheckerProvider { idempotencyChecker },
-                // Stands in for the event store: a request ID the precheck rejects is confirmed as used. Without an
-                // authoritative checker the gateway lets a precheck rejection through to the commit point.
-                requestIdExistenceChecker = { _, _ -> Mono.just(true) },
             ),
             waitCoordinator = waitCoordinator,
             commandWaitNotifier = LocalCommandWaitNotifier(waitCoordinator)

@@ -48,7 +48,7 @@ Derive the stable value from a business-operation identity or create and persist
 
 ## Fast Precheck and Authoritative Confirmation
 
-`DefaultRequestIdChecker` first asks the aggregate-specific `IdempotencyChecker`. It proceeds directly when the fast check allows the request. When that check reports a possible duplicate, it asks `RequestIdExistenceChecker` to inspect persisted history. Without an authoritative checker (no `EventStore` in the process, for example a gateway-only service), the default answers "absent" and lets the request through: the request-ID uniqueness of `EventStore.append` at the commit point rejects a real duplicate, and a Bloom-filter collision no longer rejects a request ID that was never used (since 9.2.3; earlier versions rejected it).
+`DefaultRequestIdChecker` first asks the aggregate-specific `IdempotencyChecker`. It proceeds directly when the fast check allows the request. When that check reports a possible duplicate, it asks `RequestIdExistenceChecker` to inspect persisted history. Without an authoritative checker, the default rejects the request instead of risking a duplicate.
 
 The gateway validates the command before the request-ID precheck, so a command that fails validation does not consume its request ID. When the precheck passes but the send fails, the gateway releases that reservation, so a retry with the same request ID is not taken for a duplicate (since 9.2.3).
 
