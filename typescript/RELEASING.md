@@ -2,7 +2,12 @@
 
 Maven 和 npm 用同一个版本号、同一个 `v*` tag 一起发布（见 [MIGRATION.md](MIGRATION.md)「发布策略」）。本文是维护者照做的手册：发布流水线怎么把关、首发怎么做、日常发版和出错时怎么处理。
 
-**9.2.0 已发布**（2026-10-03，tag `v9.2.0` → `7fe4934b5`，[GitHub release](https://github.com/Ahoo-Wang/Wow/releases/tag/v9.2.0)）：五个发布包在 npm 上的首发，首发清单只剩 E 第 5 步与 F 第 3 步。它的发布说明就是那个 release，草稿已删。下一个版本按「发版准入」第 3 条定：`v9.2.0` 以来没有破坏性改动就是 9.2.1；有就只能是 9.3.0，准入拒绝 9.2.1。
+**9.2.0 已发布**（2026-10-03，tag `v9.2.0` → `7fe4934b5`，[GitHub release](https://github.com/Ahoo-Wang/Wow/releases/tag/v9.2.0)）：五个发布包在 npm 上的首发，首发清单只剩 E 第 5 步与 F 第 3 步。它的发布说明就是那个 release，草稿已删。此后的补丁：
+
+- **9.2.1**（2026-10-04，[release](https://github.com/Ahoo-Wang/Wow/releases/tag/v9.2.1)）：服务端渲染修复、fetcher peers 放宽到 `^5.1.5 || ^6.0.0`、React peer 下限 `^19.0.0`。
+- **9.2.2**（2026-10-04，[release](https://github.com/Ahoo-Wang/Wow/releases/tag/v9.2.2)，[Packages Deploy](https://github.com/Ahoo-Wang/Wow/actions/runs/37180601238)）：视图引擎的稳健性修复与 Kotlin ABI 基线。`npm-smoke` 第一次两路都超时——npm 接受 wow-client 之后约 13 分钟才对外提供，当时等待上限是 5 分钟；重跑后全绿。之后等待上限改为 30 分钟，`npm-deploy` 也不再需要审批，改为等 Maven 两路成功（#3908）。
+
+下一个版本按「发版准入」第 3 条定：上一个 tag 以来没有破坏性改动就是下一个补丁版本；有就只能是 9.3.0，准入拒绝补丁版本。
 
 「发布包」在本文里一律指 `.github/scripts/publish-npm.mjs` 的 `PUBLISHED`，9.2.0 起是五个：wow-client、wow-react、wow-generator、wow-view-engine、wow-view-store。下面的循环都从 `node .github/scripts/publish-npm.mjs --list` 取包名，不在文中手写名单。
 
