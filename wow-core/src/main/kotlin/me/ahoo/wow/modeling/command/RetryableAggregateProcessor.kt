@@ -17,12 +17,18 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.exception.RecoverableType
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.api.modeling.NamedTypedAggregate
+import me.ahoo.wow.command.AGGREGATE_VERSION_KEY
+import me.ahoo.wow.command.COMMAND_INVOKE_RESULT_KEY
+import me.ahoo.wow.command.EVENT_STREAM_KEY
 import me.ahoo.wow.command.ServerCommandExchange
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.exception.recoverable
+import me.ahoo.wow.messaging.handler.COMMAND_RESULT_KEY
+import me.ahoo.wow.messaging.handler.FUNCTION_KEY
 import me.ahoo.wow.modeling.metadata.AggregateMetadata
 import me.ahoo.wow.modeling.state.StateAggregateFactory
 import me.ahoo.wow.modeling.state.StateAggregateRepository
+import reactor.core.Exceptions
 import reactor.core.publisher.Mono
 import reactor.util.retry.Retry
 import java.time.Duration
@@ -42,22 +48,28 @@ class RetryableAggregateProcessor<C : Any, S : Any>(
 
     override val processorName: String = RetryableAggregateProcessor::class.simpleName!!
 
+    /**
+     * Processes [exchange], retrying recoverable failures with backoff.
+     *
+     * Every attempt starts from the exchange as it was before the first one (no error, event stream, aggregate
+     * version, command results or command aggregate of a failed attempt). The aggregate's `@OnError` function runs
+     * once, after the final failure, and only when the final attempt reached the aggregate; the retry decision uses
+     * the processing failure, not what `@OnError` makes of it.
+     */
     override fun process(exchange: ServerCommandExchange<*>): Mono<DomainEventStream> {
-        val stateAggregateMono = if (exchange.message.isCreate) {
-            aggregateFactory.createAsMono(aggregateMetadata.state, exchange.message.aggregateId)
-        } else {
-            stateAggregateRepository.load(aggregateId, aggregateMetadata.state)
-        }
-        val process = stateAggregateMono.map {
-            commandAggregateFactory.create(aggregateMetadata, it)
-        }
-            .flatMap {
-                /**
-                 * remove error for retry.
-                 */
-                exchange.clearError()
-                it.process(exchange)
+        val initialState = ExchangeAttemptState.capture(exchange)
+        val process = Mono.defer {
+            initialState.restore(exchange)
+            if (exchange.message.isCreate) {
+                aggregateFactory.createAsMono(aggregateMetadata.state, exchange.message.aggregateId)
+            } else {
+                stateAggregateRepository.load(aggregateId, aggregateMetadata.state)
             }
+        }.map {
+            commandAggregateFactory.create(aggregateMetadata, it)
+        }.flatMap {
+            if (it is SimpleCommandAggregate<C, *>) it.processAttempt(exchange) else it.process(exchange)
+        }
         return process.onErrorResume { failure ->
             var firstFailure = true
             Mono.defer {
@@ -78,6 +90,58 @@ class RetryableAggregateProcessor<C : Any, S : Any>(
                         }
                     }
             )
+        }.onErrorResume { finalError ->
+            handleFinalError(exchange, finalError)
+        }
+    }
+
+    /**
+     * Runs the `@OnError` function of the final attempt's aggregate with the processing failure (unwrapped from a
+     * retry exhaustion). The final error stays [finalError] unless the error function replaced it.
+     */
+    private fun handleFinalError(
+        exchange: ServerCommandExchange<*>,
+        finalError: Throwable
+    ): Mono<DomainEventStream> {
+        val commandAggregate = exchange.getCommandAggregate<C, Any>() as? SimpleCommandAggregate<C, *>
+            ?: return Mono.error(finalError)
+        val failure = if (Exceptions.isRetryExhausted(finalError)) finalError.cause ?: finalError else finalError
+        return commandAggregate.handleError(exchange, failure).onErrorMap {
+            if (it === failure) finalError else it
+        }
+    }
+}
+
+/** The exchange attributes one processing attempt writes, as they were before the first attempt. */
+private class ExchangeAttemptState(private val values: Map<String, Any>) {
+    companion object {
+        private val ATTEMPT_KEYS = listOf(
+            EVENT_STREAM_KEY,
+            AGGREGATE_VERSION_KEY,
+            COMMAND_INVOKE_RESULT_KEY,
+            COMMAND_RESULT_KEY,
+            COMMAND_AGGREGATE_KEY,
+            FUNCTION_KEY,
+        )
+
+        fun capture(exchange: ServerCommandExchange<*>): ExchangeAttemptState {
+            val values = HashMap<String, Any>(ATTEMPT_KEYS.size)
+            ATTEMPT_KEYS.forEach { key ->
+                exchange.getAttribute<Any>(key)?.let { values[key] = it }
+            }
+            return ExchangeAttemptState(values)
+        }
+    }
+
+    fun restore(exchange: ServerCommandExchange<*>) {
+        exchange.clearError()
+        ATTEMPT_KEYS.forEach { key ->
+            val value = values[key]
+            if (value == null) {
+                exchange.removeAttribute(key)
+            } else {
+                exchange.setAttribute(key, value)
+            }
         }
     }
 }
