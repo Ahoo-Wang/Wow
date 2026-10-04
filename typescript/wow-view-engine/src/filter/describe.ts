@@ -29,6 +29,7 @@ import {
   type FieldKind,
   type FieldKindRegistry,
 } from './fieldKind.js';
+import { readFilter } from './read.js';
 import { isFilterGroup, isFilterNode } from './tree.js';
 import type {
   DateTimePreset,
@@ -264,7 +265,13 @@ export function describeFilter(
   kinds: FieldKindRegistry,
 ): FilterSummaryItem[] {
   const byName = new Map(fields.map(field => [field.name, field]));
-  const items = describeGroup(tree, [], byName, kinds);
+  // Each leaf as its kind reads it, as it was admitted and compiled.
+  const items = describeGroup(
+    readFilter(fields, tree, kinds),
+    [],
+    byName,
+    kinds,
+  );
   // Items side by side read as "all of", and one item alone reads the same
   // under `or`; `nor` negates even a lone condition, so it always says so.
   if (tree.op === 'and' || (tree.op === 'or' && items.length < 2)) return items;

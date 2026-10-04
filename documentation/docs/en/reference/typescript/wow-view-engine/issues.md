@@ -127,6 +127,12 @@ The list holds the codes `issue('…')` raises directly and those raised through
 | `analysis.sort.unknown-alias` | The sort orders by {alias}, which this result does not have. |
 | `analysis.split.whole-failed` | Could not fold the smaller series into “Other”, so colours repeat: {reason} |
 
+### `binding.*` {#issues-binding}
+
+| Code | Default wording |
+|---|---|
+| `binding.definition.unknown` | A binding names {id}, which no resource registers: what it binds is lost. |
+
 ### `capability.*` {#issues-capability}
 
 | Code | Default wording |

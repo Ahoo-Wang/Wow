@@ -130,7 +130,7 @@ export function Host({
 
 Every surface under `ViewHost` takes only what differs where it stands: `<DataWorkbench definitionId="orders" />`, `<EmbeddedDashboard instanceId="…" />`. A surface's own `engine`, `messages`, `locale`, `onNavigate` or `record` still wins.
 
-Hosts nest: an inner host's `bindings` win over the outer one's by id, and an inner host may name another engine, so a page with two engines is written as easily. Only the outermost host paints `<html>` — the mode, the preset and the brand — and puts it back when it goes.
+Hosts nest: an inner host's `bindings` win over the outer one's by id, and an inner host may name another engine, so a page with two engines is written as easily. A binding whose id no resource of the host's engine registers — a misspelt id, most often — is reported through `onIssue` as the warning `binding.definition.unknown`. Bindings pass down to inner hosts, so a binding written on the outer host for a definition of an engine nested inside it is reported once against the outer engine too: put it on the inner host, or ignore that warning. Only the outermost host paints `<html>` — the mode, the preset and the brand — and puts it back when it goes.
 
 ## `bind`: what each resource does in this host {#bind}
 

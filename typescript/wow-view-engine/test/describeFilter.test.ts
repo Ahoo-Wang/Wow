@@ -161,9 +161,11 @@ describe('describeFilter', () => {
     // A stored value the field no longer admits: `status` is an enum, whose
     // operators take a list. Summarising it must not take the view down, and
     // must not invent a reading of it either — the label is all that is true.
+    // (An `EQ` saved before the field was an enum is read as an `IN` of its
+    // one value — test/enumEq.test.ts — so the scalar sits under `IN` here.)
     const items = describeFilter(
       fields,
-      tree({ field: 'status', operator: 'EQ', value: 'PENDING' }),
+      tree({ field: 'status', operator: 'IN', value: 'PENDING' }),
       builtinFieldKinds,
     );
 
@@ -601,7 +603,7 @@ describe('describeFilter parts', () => {
   it('says a value the kind cannot read is blank, not a reading of it', () => {
     // `status` is an enum, whose operators take a list.
     expect(
-      partsOf({ field: 'status', operator: 'EQ', value: 'PENDING' }).value,
+      partsOf({ field: 'status', operator: 'IN', value: 'PENDING' }).value,
     ).toEqual({ kind: 'blank' });
   });
 

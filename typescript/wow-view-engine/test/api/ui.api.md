@@ -1978,6 +1978,7 @@ export const en: {
     readonly 'definition.text.fallback': "The words in force give none for the key {key}; the engine’s starting words say it instead.";
     readonly 'definition.source.unregistered': "No source is registered for {source}: register this definition with its source.";
     readonly 'definition.descriptor.missing': "No descriptor was given for the source {source}, so its capabilities go unchecked.";
+    readonly 'binding.definition.unknown': "A binding names {id}, which no resource registers: what it binds is lost.";
     readonly 'label.status.show': "Show {count}";
     readonly 'label.status.less': "Show less";
     readonly 'label.status.loading': "Loading";
@@ -3917,6 +3918,7 @@ export const en: {
 // @public
 abstract class EngineResources {
     constructor(host: ResourceHost);
+    checkBinding(definitionId: string): boolean;
     get definitions(): ReadonlyMap<string, ViewDefinition>;
     protected hasSource(key: string): boolean;
     protected abstract readonly registered: ReadonlyMap<string, ViewDefinition>;
@@ -4097,6 +4099,7 @@ interface FieldKind {
     isBlank?(context: FieldKindBlankContext): boolean;
     nested?(value: unknown, field: FieldDefinition, operator: FilterOperatorName): NestedTree | null;
     operators: FilterOperatorName[];
+    readLeaf?(leaf: FilterLeaf, field: FieldDefinition): FilterLeaf;
     relations?: Partial<Record<FilterOperatorName, FilterSummaryRelation>>;
     scalar?: boolean;
     singleString?: boolean;

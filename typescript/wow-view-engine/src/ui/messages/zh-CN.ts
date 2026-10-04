@@ -2246,6 +2246,8 @@ export const zhCN: Readonly<Record<string, string>> = {
     '没有为 {source} 登记数据源：注册这份定义时带上它的数据源。',
   'definition.descriptor.missing':
     '没有给数据源 {source} 的描述，它的能力没有核对。',
+  'binding.definition.unknown':
+    '绑定指向 {id}，但没有哪份资源登记了它：它绑定的都不会生效。',
 
   // 数据源的能力描述与定义对照的结果（capabilities.md）。与定义准入一样经
   // `onIssue` 报给研发，说的是部署没有兑现定义里的哪一项。

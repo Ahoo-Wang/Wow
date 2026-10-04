@@ -49,6 +49,13 @@ interface WorkbenchProps {
  * The failed executions' workbench on the console's one engine: what an
  * execution offers — its commands, how it is read — is bound once to the
  * definition (`consoleBindings`), so the page says only which view is open.
+ *
+ * The page keeps `?view=` itself rather than leaving it to the engine's
+ * address handling: a link's narrowing leaves the address in the same step
+ * as the view it narrows, which the engine's handling (it writes `view`
+ * alone) cannot do. So a `?view=` naming a deleted view is the workbench's
+ * "cannot open" with its way to the default, not the default at once — the
+ * deviation the README records under 「失败执行」 (R2-102).
  */
 function Workbench({
   handOver,

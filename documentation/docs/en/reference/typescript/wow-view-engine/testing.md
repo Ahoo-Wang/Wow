@@ -46,7 +46,7 @@ Guides: [Fitting the View Engine into a Host](../../../guide/typescript/view-eng
 
 Every finding the engine would have about `definitions` over `descriptors` (the snapshots, by `DataViewDefinition.source`), each with the definition it is about; `[]` for a host's declarations that hold.
 
-Each definition is admitted as the engine admits it when registered — its keys said in `text`, its own rules, its boards against every other definition — and each data definition narrowed to its descriptor as a source would narrow it, what that takes away said too. A definition over a source with no descriptor given is said to be, since its capabilities go unchecked. A host's list of resources (`{ definition }`) is passed as it is.
+Each definition is admitted as the engine admits it when registered — its keys said in `text`, its own rules, its boards against every other definition, each judged as declared, keys and all — and each data definition narrowed to its descriptor as a source would narrow it, what that takes away said too. A definition over a source with no descriptor given is said to be, since its capabilities go unchecked. A host's list of resources (`{ definition, source }`) is passed as it is. When at least one resource passed carries its `source`, a data definition passed as a resource is held to the engine's start-up check too: some resource passed registers a source under its `source` key, or it is `definition.source.unregistered`. A list of `{ definition }` alone, or of bare definitions, says nothing of sources and is not checked for them.
 
 ```ts
 export declare function admit(definitions: readonly Admissible[], descriptors: Readonly<Record<string, QueryModelDescriptor>>, options?: AdmitOptions): AdmitFinding[];
@@ -57,7 +57,7 @@ export interface AdmitOptions {
   text?(key: string): string | undefined;
 }
 
-export type Admissible = ViewDefinition | { definition: ViewDefinition };
+export type Admissible = ViewDefinition | { definition: ViewDefinition; source?: ViewSource };
 
 export type AdmitFinding = Issue & { definition: string };
 ```

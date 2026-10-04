@@ -18,7 +18,7 @@ Every name `@ahoo-wang/wow-view-engine/testing` exports — 15 — with its kind
 | `ActionHarness` | interface | A host's declared actions over some records, without a screen (host-integration.md 6): the engine's own reading of them — which place offers which, whether a record takes one now and why not, how a selection splits, what the confirmation and the form ask, when the rules change on their own — so a host's unit test pins its business rules in a line each. | [Testing Helpers](./testing#api-actionHarness) |
 | `ActionHarnessOptions` | interface | — | [Testing Helpers](./testing#api-actionHarness) |
 | `ActionRefusedError` | class | A record the engine did not send the command to, because the action refused it when it came to its turn. | [Testing Helpers](./testing#api-actionHarness) |
-| `Admissible` | type | What `admit` takes one of: a definition, or a resource holding one — the shape a host registers (host-integration.md 4), so a host's list of resources is passed as it is. | [Testing Helpers](./testing#api-admit) |
+| `Admissible` | type | What `admit` takes one of: a definition, or a resource holding one — the shape a host registers (host-integration.md 4), so a host's list of resources is passed as it is, sources and all. | [Testing Helpers](./testing#api-admit) |
 | `AdmitFinding` | type | One finding, with the definition it is about. | [Testing Helpers](./testing#api-admit) |
 | `AdmitOptions` | interface | — | [Testing Helpers](./testing#api-admit) |
 | `HarnessBulk` | interface | One action over a selection, as the selection's bar and its dialog read it. | [Testing Helpers](./testing#api-actionHarness) |

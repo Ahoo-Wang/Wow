@@ -52,6 +52,10 @@ const HINTS: readonly (readonly [string, string])[] = [
     'Register the definition with its source: `resources: [{ definition, source }]`.',
   ],
   [
+    'binding.definition.unknown',
+    'Bind the definition by the id it is registered under: `bind(definition.id, …)`.',
+  ],
+  [
     'definition.time',
     'Name a time field the definition declares, of a temporal kind (`defineView` `timeField`).',
   ],

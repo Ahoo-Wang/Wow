@@ -1284,7 +1284,9 @@ describe('DashboardViewRuntime a panel in error', () => {
             analysisConfig({
               filter: {
                 op: 'and',
-                children: [{ field: 'warehouse', operator: 'EQ', value: 'CN' }],
+                children: [
+                  { field: 'warehouse', operator: 'CONTAINS', value: 'CN' },
+                ],
               },
             }),
             6,
@@ -1307,7 +1309,7 @@ describe('DashboardViewRuntime a panel in error', () => {
       expect.objectContaining({
         code: 'filter.operator.unsupported',
         path: ['panels', 1, 'filter', 'children', 0],
-        params: { field: 'warehouse', operator: 'EQ' },
+        params: { field: 'warehouse', operator: 'CONTAINS' },
       }),
     ]);
     // And the fields its finding is named by, though it has no runtime.

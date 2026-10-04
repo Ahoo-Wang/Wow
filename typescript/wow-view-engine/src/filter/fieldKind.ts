@@ -132,6 +132,16 @@ export interface FieldKind {
    * `isFieldlessKind` reads whenever the registry has resolved the kind.
    */
   fieldless?: true;
+  /**
+   * A saved leaf as this kind reads it, for a leaf written before the
+   * field was of this kind: an `EQ` saved while an enum field was a string
+   * is its one-value `IN`. Every pass over a tree — admission, compilation,
+   * the summary, a runtime opening a view — reads each leaf through it
+   * first (`readFilter`), so the condition keeps working rather than being
+   * refused for an operator the kind does not offer. Return the leaf itself
+   * where it reads as it stands. Left out, every leaf does.
+   */
+  readLeaf?(leaf: FilterLeaf, field: FieldDefinition): FilterLeaf;
   /** Reports why a value cannot be used; an empty array admits it. */
   validate(context: FieldKindValidateContext): Issue[];
   /** Maps one admitted leaf onto the Wow protocol. */

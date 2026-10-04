@@ -891,15 +891,16 @@ const paid = matches(documents[0], {
 
 What it promises: every filter operator the engine compiles, with MongoDB's treatment of a missing field, an explicit `null`, an empty string or array, array elements and case; `DELETION` over a `deleted` flag (a document with `deleted: true` is left out unless the filter asks); paging, cursor (an offset) and sort; projection; and aggregation — `elements` (paths and gate filters relative to the element), `TERMS`, `HISTOGRAM`, `DATE_HISTOGRAM` and `DATE_PART` in a zone (UTC by default), `dense`, every metric with its own filter, `DERIVED`, `having`, the order Wow gives groups (the sort, then each group alias ascending) and its default `limit` of 100. `PERCENTILE` is exact, where a server's is an estimate between the same two ranks. What it has no reading of — `ID`, `TENANT_ID`, `SPACE_ID`, the calendar filters the engine never sends — is refused with an error, so a query a test starts to send fails instead of getting a plausible wrong answer. `timeField` keeps a large set in the order of one epoch-ms column and cuts a range on it by binary search; `remember` answers a repeated aggregation from memory, for documents that never change. The entry is headless — no React, no DOM, no stylesheet. It evaluates filters with `mingo`, MongoDB's query language in JavaScript, which is an optional peer dependency: the package does not install it for you, so a host that imports `/testing` adds it to its own dev dependencies — `pnpm add -D mingo` (or `npm install -D mingo`). No other entry loads it.
 
-`admit(definitions, descriptors, { text })` admits everything a host declares as the engine would — each definition's keys said, its own rules, its boards against every other definition, and each data definition narrowed to its committed descriptor (by `source`) — and returns every finding with the definition it is about, `[]` when all of it holds. It takes definitions, or resources holding one (`{ definition }`), as they are registered:
+`admit(definitions, descriptors, { text })` admits everything a host declares as the engine would — each definition's keys said, its own rules, its boards against every other definition, and each data definition narrowed to its committed descriptor (by `source`) — and returns every finding with the definition it is about, `[]` when all of it holds. It takes definitions, or resources as they are registered — the full form is `{ definition, source }`. Given a list in which a resource carries its `source`, a data resource whose `source` key no resource registers is also reported (`definition.source.unregistered`), as the engine reports it at start; a list of `{ definition }` alone is not checked for sources:
 
 <!-- typecheck-context
 import type { QueryModelDescriptor } from '@ahoo-wang/wow-client';
-import type { DataViewDefinition, DashboardDefinition, TextResolver } from '@ahoo-wang/wow-view-engine';
+import type { DataViewDefinition, DashboardDefinition, TextResolver, ViewResource } from '@ahoo-wang/wow-view-engine';
 declare const orders: DataViewDefinition;
 declare const overview: DashboardDefinition;
 declare const ordersDescriptor: QueryModelDescriptor;
 declare const english: TextResolver;
+declare const ordersSource: NonNullable<ViewResource['source']>;
 declare function expect(value: unknown): { toEqual(expected: unknown): void };
 -->
 
@@ -908,6 +909,15 @@ import { admit } from '@ahoo-wang/wow-view-engine/testing';
 
 expect(
   admit([orders, overview], { orders: ordersDescriptor }, { text: english }),
+).toEqual([]);
+
+// The resources the application registers, sources and all.
+expect(
+  admit(
+    [{ definition: orders, source: ordersSource }, { definition: overview }],
+    { orders: ordersDescriptor },
+    { text: english },
+  ),
 ).toEqual([]);
 ```
 

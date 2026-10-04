@@ -25,6 +25,7 @@ import {
   ViewEngine,
   systemInstanceId,
   text,
+  type Issue,
   type ViewNavigation,
 } from '../src/index.js';
 import {
@@ -471,5 +472,42 @@ describe('a host whose definitions speak through ViewEngineOptions.text (third r
     expect(issues.filter(code => code.startsWith('definition.text.'))).toEqual(
       [],
     );
+  });
+});
+
+describe('a binding that names no registered definition (R2-102)', () => {
+  it('is told through onIssue, once, rather than binding nothing in silence', () => {
+    const issues: Issue[] = [];
+    const engine = new ViewEngine({
+      resources: [{ definition: ordersDefinition(), source: testSource() }],
+      store: new MemoryViewStore(),
+      onIssue: found => issues.push(found),
+    });
+    const bindings = [
+      bind('orders', { route: () => '/orders' }),
+      // Misspelt: its route would be lost.
+      bind('order', { route: () => '/orders' }),
+    ];
+    const page = (
+      <ViewHost engine={engine} bindings={bindings}>
+        <p>page</p>
+      </ViewHost>
+    );
+    const { rerender } = render(page);
+    rerender(page);
+    rerender(
+      <ViewHost engine={engine} bindings={[...bindings]}>
+        <p>page</p>
+      </ViewHost>,
+    );
+
+    expect(issues).toEqual([
+      {
+        code: 'binding.definition.unknown',
+        severity: 'warning',
+        path: [],
+        params: { id: 'order' },
+      },
+    ]);
   });
 });

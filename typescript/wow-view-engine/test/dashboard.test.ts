@@ -762,7 +762,9 @@ describe("validateDashboard, what is the board's and what a panel's", () => {
             config: recordConfig({
               filter: {
                 op: 'and',
-                children: [{ field: 'warehouse', operator: 'EQ', value: 'CN' }],
+                children: [
+                  { field: 'warehouse', operator: 'CONTAINS', value: 'CN' },
+                ],
               },
             }),
           },

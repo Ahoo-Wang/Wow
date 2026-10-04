@@ -1502,6 +1502,7 @@ interface ElementTitleView {
 // @public
 abstract class EngineResources {
     constructor(host: ResourceHost);
+    checkBinding(definitionId: string): boolean;
     get definitions(): ReadonlyMap<string, ViewDefinition>;
     protected hasSource(key: string): boolean;
     protected abstract readonly registered: ReadonlyMap<string, ViewDefinition>;
@@ -1631,6 +1632,7 @@ interface FieldKind {
     isBlank?(context: FieldKindBlankContext): boolean;
     nested?(value: unknown, field: FieldDefinition, operator: FilterOperatorName): NestedTree | null;
     operators: FilterOperatorName[];
+    readLeaf?(leaf: FilterLeaf, field: FieldDefinition): FilterLeaf;
     relations?: Partial<Record<FilterOperatorName, FilterSummaryRelation>>;
     scalar?: boolean;
     singleString?: boolean;

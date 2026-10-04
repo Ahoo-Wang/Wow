@@ -130,7 +130,7 @@ export function Host({
 
 `ViewHost` 下面的每个面只写这一处与别处不同的东西：`<DataWorkbench definitionId="orders" />`、`<EmbeddedDashboard instanceId="…" />`。面自己的 `engine`、`messages`、`locale`、`onNavigate` 或 `record` 仍然优先。
 
-`ViewHost` 可以嵌套：内层的 `bindings` 按 id 覆盖外层，也可以给内层另一个引擎，一页两个引擎照样写得出。只有最外层画 `<html>`——亮暗、预设与品牌色——卸下时把 `<html>` 还原。
+`ViewHost` 可以嵌套：内层的 `bindings` 按 id 覆盖外层，也可以给内层另一个引擎，一页两个引擎照样写得出。绑定的 id 不是宿主引擎里某份资源登记的定义时——多半是拼错了——经 `onIssue` 报 warning `binding.definition.unknown`。绑定会传给内层宿主，所以写在外层宿主上、给内层嵌套引擎的定义的绑定，也会在外层引擎那里被报一次：把它写到内层宿主上，或者不理这条 warning。只有最外层画 `<html>`——亮暗、预设与品牌色——卸下时把 `<html>` 还原。
 
 ## `bind`：每个资源在这个宿主里做什么 {#bind}
 

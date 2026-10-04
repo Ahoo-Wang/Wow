@@ -130,4 +130,6 @@ export const definitionMessages = {
     'No source is registered for {source}: register this definition with its source.',
   'definition.descriptor.missing':
     'No descriptor was given for the source {source}, so its capabilities go unchecked.',
+  'binding.definition.unknown':
+    'A binding names {id}, which no resource registers: what it binds is lost.',
 } as const satisfies Record<string, string>;

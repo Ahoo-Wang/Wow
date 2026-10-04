@@ -25,8 +25,12 @@
 
 import { queryFailureReporter } from './failure/failures.js';
 import { panelsOf, type PanelDefinition } from '../dashboard/index.js';
+import { analysisScope } from '../analysis/index.js';
 import type {
+  AnalysisCapability,
+  AnalysisViewConfig,
   DataViewConfig,
+  DataViewDefinition,
   DashboardViewConfig,
   FieldDefinition,
   FilterTree,
@@ -36,7 +40,7 @@ import type {
   ViewInstance,
   ViewScope,
 } from '../model/index.js';
-import { issue, type FieldKindRegistry } from '../filter/index.js';
+import { issue, readFilter, type FieldKindRegistry } from '../filter/index.js';
 import type { RuntimeEnvironment } from './environment.js';
 import type { RequestRunner } from './requestRunner.js';
 import type { OptionSource, ViewSource } from './source.js';
@@ -126,16 +130,15 @@ export class RuntimeFactory {
       );
 
     const effective = this.host.capabilities.effective(definition);
-    // A view saved under a field's alias is read under its path (#3519).
-    const renamed = effective.definition.narrowing?.renamed ?? {};
+    const kinds = this.host.kinds;
     return dataViewRuntime({
       id: this.newRuntimeId(),
       definition: effective.definition,
-      config: withCanonicalNames(config, renamed),
+      config: readConfig(config, effective.definition, kinds),
       title: identity.title,
       scope: identity.scope,
-      saved: canonicalInstance(identity.saved, renamed),
-      kinds: this.host.kinds,
+      saved: readSaved(identity.saved, effective.definition, kinds),
+      kinds,
       limits: effective.limits,
       environment: this.host.environment,
       source: this.host.resolveSource(definition.source),
@@ -241,10 +244,8 @@ export class RuntimeFactory {
     // The board reads the view as its child runs it: under the paths its
     // definition renames aliases to (#3519), so a press names its groups
     // as a binding names its field.
-    const renamed =
-      (definition.kind === 'data' && definition.narrowing?.renamed) || {};
     return {
-      instance: canonicalInstance(instance, renamed) ?? instance,
+      instance: readSaved(instance, definition, this.host.kinds) ?? instance,
       definition,
       fields: panelFields(definition),
     };
@@ -290,15 +291,13 @@ export class RuntimeFactory {
     scopeFilter: FilterTree | null,
   ) => {
     const { instance, definition } = view;
-    const renamed =
-      (definition.kind === 'data' && definition.narrowing?.renamed) || {};
     return dataViewRuntime({
       id: this.newRuntimeId(),
       definition,
-      config: withCanonicalNames(view.config, renamed),
+      config: readConfig(view.config, definition, this.host.kinds),
       title: view.title,
       scope: view.scope,
-      saved: canonicalInstance(instance, renamed),
+      saved: readSaved(instance, definition, this.host.kinds),
       kinds: this.host.kinds,
       limits: this.host.capabilities.effective(definition).limits,
       environment: this.host.environment,
@@ -334,13 +333,72 @@ export class RuntimeFactory {
   }
 }
 
-/** A saved instance whose data config is read under the paths it renames. */
-function canonicalInstance(
+/**
+ * A data config as a runtime over `definition` reads it: under the paths
+ * its aliases rename (#3519), and each condition as its field's kind reads
+ * it (`readFilter`) — an `EQ` saved before its field became an enum is the
+ * `IN` of its one value, in the editor and on the bar as in the query.
+ * The config itself where nothing reads differently.
+ */
+function readConfig<C extends DataViewConfig>(
+  config: C,
+  definition: ViewDefinition,
+  kinds: FieldKindRegistry,
+): C {
+  if (definition.kind !== 'data') return config;
+  const named = withCanonicalNames(config, definition.narrowing?.renamed ?? {});
+  const filter = readFilter(definition.fields, named.filter, kinds);
+  const read = filter === named.filter ? named : { ...named, filter };
+  return read.kind === 'analysis' && definition.analysis
+    ? (readAnalysisFilters(read, definition, definition.analysis, kinds) as C)
+    : read;
+}
+
+/**
+ * An analysis's own filters — each metric's and each expanded element's —
+ * read as `readFilter` reads the root one, against every field the view can
+ * name (`AnalysisScope.reachable`): the analysis editor holds them as the
+ * enum offers them too. The config itself where none reads differently; a
+ * member that is not a list is left for admission to say.
+ */
+function readAnalysisFilters(
+  config: AnalysisViewConfig,
+  definition: DataViewDefinition,
+  capability: AnalysisCapability,
+  kinds: FieldKindRegistry,
+): AnalysisViewConfig {
+  if (!Array.isArray(config.metrics)) return config;
+  const elements = Array.isArray(config.elements) ? config.elements : [];
+  const fields = [
+    ...analysisScope(definition, capability, { elements }).reachable.values(),
+  ];
+  const read = <T extends object>(entry: T): T => {
+    const held = (entry as { filter?: FilterTree } | null)?.filter;
+    if (!held) return entry;
+    const filter = readFilter(fields, held, kinds);
+    return filter === held ? entry : { ...entry, filter };
+  };
+  const metrics = config.metrics.map(metric => read(metric));
+  const readElements = elements.map(element => read(element));
+  const changed =
+    metrics.some((metric, index) => metric !== config.metrics[index]) ||
+    readElements.some((element, index) => element !== elements[index]);
+  if (!changed) return config;
+  return {
+    ...config,
+    metrics: metrics as AnalysisViewConfig['metrics'],
+    ...(config.elements ? { elements: readElements } : {}),
+  };
+}
+
+/** A saved instance whose data config is read as `readConfig` reads it. */
+function readSaved(
   instance: ViewInstance | null,
-  renamed: Readonly<Record<string, string>>,
+  definition: ViewDefinition,
+  kinds: FieldKindRegistry,
 ): ViewInstance | null {
   if (!instance || instance.config.kind === 'dashboard') return instance;
-  const config = withCanonicalNames(instance.config, renamed);
+  const config = readConfig(instance.config, definition, kinds);
   return config === instance.config ? instance : { ...instance, config };
 }
 
