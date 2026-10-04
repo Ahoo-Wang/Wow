@@ -24,7 +24,7 @@ import me.ahoo.wow.messaging.function.MessageFunction
 import me.ahoo.wow.messaging.function.MessageFunctionRegistrar
 import me.ahoo.wow.messaging.handler.ExchangeAck.finallyAck
 import me.ahoo.wow.messaging.handler.MessageExchange
-import me.ahoo.wow.messaging.handler.isAcknowledgementWithheld
+import me.ahoo.wow.messaging.handler.acknowledgementWithheldBy
 import me.ahoo.wow.messaging.handler.withholdAcknowledgement
 import me.ahoo.wow.metrics.WowMetrics
 import me.ahoo.wow.serialization.toJsonString
@@ -137,9 +137,7 @@ abstract class AbstractAggregateEventDispatcher<E : MessageExchange<*, DomainEve
                 val eventExchange = exchange.createEventExchange(event).setFunction(function)
                 eventHandler.handle(eventExchange)
                     .doOnTerminate {
-                        if (eventExchange.isAcknowledgementWithheld()) {
-                            exchange.withholdAcknowledgement()
-                        }
+                        eventExchange.acknowledgementWithheldBy()?.let(exchange::withholdAcknowledgement)
                     }
             }.then()
     }

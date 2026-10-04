@@ -26,14 +26,25 @@ private const val ACKNOWLEDGEMENT_WITHHELD_KEY = "__ACKNOWLEDGEMENT_WITHHELD__"
  * delivers it again. For a processing failure that was neither handled nor durably recorded, for example when
  * recording an event-processing failure for compensation fails.
  *
- * Set on a per-function event exchange, it applies to the event stream exchange that function belongs to.
- * Whether the message is delivered again is the bus's behaviour: Redis Streams re-claims pending entries, Kafka
- * stops committing at the offset until the partition is reassigned, and in-memory and locally handled
- * messages are not redelivered.
+ * Set on a per-function event exchange, it applies to the event stream exchange that function belongs to; the
+ * other functions of that stream still run. [withheldBy] names who withheld it (by default the exchange's
+ * function) for the log line.
+ *
+ * Whether and when the message is delivered again is the bus's behaviour:
+ * - Redis Streams: the entry stays pending and is re-claimed and redelivered.
+ * - Kafka: one Wow receiver is one consumer for all the aggregate topics of its dispatcher. Commits stop at this
+ *   offset; after `maxDeferredCommits` further acknowledgements the whole receiver (every subscribed aggregate and
+ *   partition) stops polling until a restart or rebalance redelivers from this offset, and every later rebalance
+ *   of that consumer waits the full `maxDelayRebalance` (60 s by default) for it.
+ * - In-memory buses and locally handled (local-first) messages: not redelivered.
  */
 @InternalWowApi
-fun MessageExchange<*, *>.withholdAcknowledgement() {
-    attributes[ACKNOWLEDGEMENT_WITHHELD_KEY] = true
+fun MessageExchange<*, *>.withholdAcknowledgement(
+    withheldBy: String = getFunction()?.let { "${it.processorName}.${it.name}" } ?: "unknown",
+) {
+    attributes.merge(ACKNOWLEDGEMENT_WITHHELD_KEY, withheldBy) { previous, added ->
+        if (previous.toString().split(", ").contains(added.toString())) previous else "$previous, $added"
+    }
 }
 
 /**
@@ -41,7 +52,14 @@ fun MessageExchange<*, *>.withholdAcknowledgement() {
  */
 @InternalWowApi
 fun MessageExchange<*, *>.isAcknowledgementWithheld(): Boolean =
-    attributes[ACKNOWLEDGEMENT_WITHHELD_KEY] == true
+    attributes.containsKey(ACKNOWLEDGEMENT_WITHHELD_KEY)
+
+/**
+ * Who withheld the acknowledgement of this exchange ([withholdAcknowledgement]), or `null`.
+ */
+@InternalWowApi
+fun MessageExchange<*, *>.acknowledgementWithheldBy(): String? =
+    attributes[ACKNOWLEDGEMENT_WITHHELD_KEY]?.toString()
 
 /**
  * Utilities for acknowledging message exchanges.
@@ -55,8 +73,9 @@ object ExchangeAck {
     private fun MessageExchange<*, *>.acknowledgeDefer(): Mono<Void> =
         Mono.defer {
             if (isAcknowledgementWithheld()) {
-                log.warn {
-                    "Leave message[${message.id}] unacknowledged: its acknowledgement was withheld."
+                log.error {
+                    "Leave message[${message.id}] unacknowledged: its acknowledgement was withheld by " +
+                        "[${acknowledgementWithheldBy()}]."
                 }
                 Mono.empty()
             } else {

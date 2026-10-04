@@ -99,7 +99,7 @@ Filter 从左到右进入、从右到左观察完成或错误。唯一的 `Retry
 
 ## Ack 与失败边界
 
-单个函数错误默认由对应 `Handler` 的 `ErrorHandler` 处理；事件处理器、Saga 与 Projection 的默认值是 `LogResumeErrorHandler`，会记录并恢复。领域事件流或状态事件的函数处理终止后，`AbstractAggregateEventDispatcher` 通过 `finallyAck` 确认原 exchange；Snapshot 的函数 Filter 也对自己的状态事件 exchange 使用 `finallyAck`。这些确认在成功和错误终止时都会执行，再由具体 Bus Adapter 映射到自己的确认动作。唯一的例外是补偿过滤器未能记录的函数失败：该函数 exchange 会保留确认，dispatcher 随后让整个源 exchange 保持未确认（见[事件补偿](./compensation.md)）。
+单个函数错误默认由对应 `Handler` 的 `ErrorHandler` 处理；事件处理器、Saga 与 Projection 的默认值是 `LogResumeErrorHandler`，会记录并恢复。领域事件流或状态事件的函数处理终止后，`AbstractAggregateEventDispatcher` 通过 `finallyAck` 确认原 exchange；Snapshot 的函数 Filter 也对自己的状态事件 exchange 使用 `finallyAck`。这些确认在成功和错误终止时都会执行，再由具体 Bus Adapter 映射到自己的确认动作。唯一的例外是补偿过滤器重试后仍未能记录的函数失败：该函数 exchange 会保留确认，同一事件流的其他函数仍会执行，dispatcher 随后让整个源 exchange 保持未确认。在 Kafka 上这最终会让整个接收端暂停，直到重启或再均衡（见[事件补偿](./compensation.md)）。
 
 因此需要分开理解三个边界：
 

@@ -2,6 +2,7 @@ package me.ahoo.wow.compensation.core
 
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.verify
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.annotation.Retry
 import me.ahoo.wow.api.messaging.function.FunctionInfoData
@@ -26,6 +27,10 @@ import reactor.kotlin.core.publisher.toMono
 import reactor.kotlin.test.test
 import java.time.Duration
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicInteger
+import reactor.util.retry.Retry as ReactorRetry
+
+private const val RETRIES = 3L
 
 class DomainEventCompensationFilterTest {
 
@@ -151,7 +156,7 @@ class DomainEventCompensationFilterTest {
         val commandBus = mockk<CommandBus> {
             every { send(any()) } returns Mono.error(recordFailure)
         }
-        val compensationFilter = DomainEventCompensationFilter(commandBus)
+        val compensationFilter = DomainEventCompensationFilter(commandBus).fastRetry()
         val exchange = failedFunctionExchange()
         val error = IllegalArgumentException("handler failed")
         val next: FilterChain<DomainEventExchange<*>> = mockk {
@@ -166,6 +171,71 @@ class DomainEventCompensationFilterTest {
             }
             .verify()
         exchange.isAcknowledgementWithheld().assert().isTrue()
+        verify(exactly = 1 + RETRIES.toInt()) { commandBus.send(any()) }
+    }
+
+    @Test
+    fun `should not withhold acknowledgement when a retried send records the failure`() {
+        val attempts = AtomicInteger()
+        val commandBus = mockk<CommandBus> {
+            every { send(any()) } returns Mono.defer {
+                if (attempts.incrementAndGet() < 3) {
+                    Mono.error(IllegalStateException("transient"))
+                } else {
+                    Mono.empty()
+                }
+            }
+        }
+        val compensationFilter = DomainEventCompensationFilter(commandBus).fastRetry()
+        val exchange = failedFunctionExchange()
+        val error = IllegalArgumentException("handler failed")
+        val next: FilterChain<DomainEventExchange<*>> = mockk {
+            every { filter(exchange) } returns error.toMono()
+        }
+
+        compensationFilter.filter(exchange, next)
+            .test()
+            .expectErrorSatisfies {
+                it.assert().isSameAs(error)
+                it.suppressed.assert().isEmpty()
+            }
+            .verify()
+        exchange.isAcknowledgementWithheld().assert().isFalse()
+        attempts.get().assert().isEqualTo(3)
+    }
+
+    @Test
+    fun `a shared handler error does not accumulate suppressed record failures across redeliveries`() {
+        val commandBus = mockk<CommandBus> {
+            every { send(any()) } answers { Mono.error(IllegalStateException("command bus unavailable")) }
+        }
+        val compensationFilter = DomainEventCompensationFilter(commandBus).fastRetry()
+        val sharedError = IllegalArgumentException("handler failed")
+
+        repeat(3) {
+            val exchange = failedFunctionExchange()
+            val next: FilterChain<DomainEventExchange<*>> = mockk {
+                every { filter(exchange) } returns sharedError.toMono()
+            }
+            compensationFilter.filter(exchange, next)
+                .test()
+                .expectErrorMatches { it === sharedError }
+                .verify()
+        }
+        sharedError.suppressed.assert().hasSize(1)
+    }
+
+    @Test
+    fun `the handler error is never suppressed in itself`() {
+        val error = IllegalArgumentException("handler failed")
+
+        error.addSuppressedOnce(error)
+
+        error.suppressed.assert().isEmpty()
+    }
+
+    private fun DomainEventCompensationFilter.fastRetry(): DomainEventCompensationFilter = apply {
+        recordFailureRetry = ReactorRetry.backoff(RETRIES, Duration.ofMillis(1))
     }
 
     @Test

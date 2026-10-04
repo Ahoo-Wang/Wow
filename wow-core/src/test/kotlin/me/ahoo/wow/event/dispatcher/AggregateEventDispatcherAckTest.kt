@@ -20,6 +20,7 @@ import me.ahoo.wow.event.DomainEventExchange
 import me.ahoo.wow.event.EventStreamExchange
 import me.ahoo.wow.event.toDomainEventStream
 import me.ahoo.wow.messaging.function.MessageFunction
+import me.ahoo.wow.messaging.handler.acknowledgementWithheldBy
 import me.ahoo.wow.messaging.handler.isAcknowledgementWithheld
 import me.ahoo.wow.messaging.handler.withholdAcknowledgement
 import me.ahoo.wow.modeling.aggregateId
@@ -33,6 +34,7 @@ import reactor.core.publisher.Mono
 import reactor.core.scheduler.Schedulers
 import reactor.kotlin.test.test
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.atomic.AtomicInteger
 
 class AggregateEventDispatcherAckTest {
@@ -51,14 +53,24 @@ class AggregateEventDispatcherAckTest {
     @Test
     fun `a function exchange that withholds acknowledgement leaves the event stream unacknowledged`() {
         val exchange = AckCountingExchange()
+        val handled = CopyOnWriteArrayList<String>()
 
-        dispatcher {
-            Mono.fromRunnable { it.withholdAcknowledgement() }
+        dispatcher { functionExchange ->
+            Mono.fromRunnable {
+                val name = checkNotNull(functionExchange.getFunction()).name
+                handled += name
+                if (name == WITHHOLDING_FUNCTION) {
+                    functionExchange.withholdAcknowledgement()
+                }
+            }
         }.handleExchange(exchange)
             .test()
             .verifyComplete()
 
+        handled.assert().containsExactlyInAnyOrder(WITHHOLDING_FUNCTION, SIBLING_FUNCTION)
         exchange.isAcknowledgementWithheld().assert().isTrue()
+        exchange.acknowledgementWithheldBy().assert().contains(WITHHOLDING_FUNCTION)
+            .doesNotContain(SIBLING_FUNCTION)
         exchange.ackCount.get().assert().isZero()
     }
 
@@ -68,7 +80,8 @@ class AggregateEventDispatcherAckTest {
             namedAggregate = namedAggregate,
             messageFlux = Flux.empty(),
             functionRegistrar = DomainEventFunctionRegistrar().apply {
-                register(CreatedFunction(namedAggregate))
+                register(CreatedFunction(namedAggregate, WITHHOLDING_FUNCTION))
+                register(CreatedFunction(namedAggregate, SIBLING_FUNCTION))
             },
             eventHandler = object : EventHandler {
                 override fun handle(context: DomainEventExchange<*>): Mono<Void> = onHandle(context)
@@ -90,8 +103,8 @@ class AggregateEventDispatcherAckTest {
 
     private class CreatedFunction(
         namedAggregate: NamedAggregate,
+        override val name: String,
     ) : MessageFunction<Any, DomainEventExchange<*>, Mono<*>> {
-        override val name: String = "onCreated"
         override val functionKind: FunctionKind = FunctionKind.EVENT
         override val contextName: String = namedAggregate.contextName
         override val supportedType: Class<*> = MockAggregateCreated::class.java
@@ -101,5 +114,10 @@ class AggregateEventDispatcherAckTest {
         override fun <A : Annotation> getAnnotation(annotationClass: Class<A>): A? = null
 
         override fun invoke(exchange: DomainEventExchange<*>): Mono<*> = Mono.empty<Void>()
+    }
+
+    private companion object {
+        const val WITHHOLDING_FUNCTION = "onCreatedWithholding"
+        const val SIBLING_FUNCTION = "onCreatedSibling"
     }
 }

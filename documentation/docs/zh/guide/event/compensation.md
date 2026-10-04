@@ -50,7 +50,13 @@ ExecutionFailed -> 自动调度或人工准备 -> 原事件 + 原目标函数重
 - 错误代码、消息、绑定错误与堆栈；
 - 执行时间、重试规格与恢复性分类。
 
-没有函数信息时，错误原样传播，不创建记录。显式 `@Retry(enabled = false)` 时，失败也原样传播：首次执行不发送 `CreateExecutionFailed`，带补偿 ID 的失败不发送 `ApplyExecutionFailed`。这个检查只在错误分支；带补偿 ID 的执行成功仍发送 `ApplyExecutionSuccess`。补偿命令发送成功后，原处理错误继续交给 dispatcher 的错误边界。若补偿命令本身发送失败，这次失败既没有被处理也没有被记录：原处理错误仍向外传播，发送错误作为 suppressed 异常附在其上，并且原 exchange 不被确认，由支持重投的总线再次投递（Redis Streams 重新认领 pending 条目；Kafka 在分区重新分配前不会越过该 offset 提交；内存总线和本地已处理的消息不会重投）。9.2.2 及以前，发送错误会取代原错误，且 exchange 仍被确认。Snapshot 链中 `SnapshotFunctionFilter` 在失败到达 `StateEventCompensationFilter` 之前已经确认状态事件，因此那里的 exchange 已被确认。
+没有函数信息时，错误原样传播，不创建记录。显式 `@Retry(enabled = false)` 时，失败也原样传播：首次执行不发送 `CreateExecutionFailed`，带补偿 ID 的失败不发送 `ApplyExecutionFailed`。这个检查只在错误分支；带补偿 ID 的执行成功仍发送 `ApplyExecutionSuccess`。补偿命令发送成功后，原处理错误继续交给 dispatcher 的错误边界。若补偿命令发送失败，会先重试（3 次，退避从 1 秒到最多 10 秒；只重试发送，不重新执行处理函数）。仍然失败时，这次失败既没有被处理也没有被记录：原处理错误仍向外传播，最后一次发送错误作为 suppressed 异常附在其上（只附一次，重投时再次抛出的共享异常不会不断累积），并且原 exchange 不被确认，由支持重投的总线再次投递。同一事件流的其他函数仍会执行。重投的含义取决于总线：
+
+- Redis Streams：条目保持 pending，被重新认领并重投。
+- Kafka：一个 Wow 接收端就是一个消费者，覆盖其 dispatcher 的全部聚合 topic。提交停在该 offset；再确认 `max-deferred-commits` 条之后，整个接收端（所有订阅的聚合与分区）停止拉取，直到重启或再均衡从该 offset 重投；此后该消费者的每次再均衡都要为这条未确认记录等满 `maxDelayRebalance`（默认 60 秒）。
+- 内存总线与本地已处理（local-first）的消息：不会重投。
+
+9.2.2 及以前，发送错误会取代原错误，且 exchange 仍被确认。Snapshot 链中 `SnapshotFunctionFilter` 在失败到达 `StateEventCompensationFilter` 之前已经确认状态事件，因此那里的 exchange 已被确认。
 
 重放 exchange 的 header 已带有 `compensationId`。再次失败发送 `ApplyExecutionFailed`，成功则发送 `ApplyExecutionSuccess`，两者都写回同一个 `ExecutionFailed` 聚合。
 
