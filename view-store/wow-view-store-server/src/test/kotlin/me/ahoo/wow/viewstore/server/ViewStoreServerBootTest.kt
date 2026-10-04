@@ -28,6 +28,7 @@ import org.springframework.http.MediaType
 import org.springframework.test.web.reactive.server.WebTestClient
 import reactor.core.publisher.Flux
 import tools.jackson.databind.JsonNode
+import java.time.Duration
 
 /**
  * The server boots with its own configuration and serves the view store under `/view-store`. The middleware it runs
@@ -71,9 +72,19 @@ class ViewStoreServerBootTest {
             .build()
     }
 
+    /**
+     * The first `/v3/api-docs` builds the whole document: springdoc scans the routes and every command, query and
+     * response schema is generated, on the request. That takes about 0.2 s on a warm machine but several seconds on a
+     * busy CI runner, past WebTestClient's default 5 s response timeout; later requests are served from springdoc's
+     * cache. Only this request gets the longer budget.
+     */
+    private val openApiClient: WebTestClient by lazy {
+        client.mutate().responseTimeout(OPENAPI_RESPONSE_TIMEOUT).build()
+    }
+
     @Test
     fun `serves the generated and the custom routes in its OpenAPI`() {
-        val paths = client.get().uri("/v3/api-docs").exchange()
+        val paths = openApiClient.get().uri("/v3/api-docs").exchange()
             .expectStatus().isOk
             .expectBody(JsonNode::class.java).returnResult().responseBody!!
             .get("paths").propertyNames().toList()
@@ -177,3 +188,4 @@ class ViewStoreServerBootTest {
 }
 
 private const val OPENAPI_BUFFER_BYTES = 16 * 1024 * 1024
+private val OPENAPI_RESPONSE_TIMEOUT: Duration = Duration.ofMinutes(1)
