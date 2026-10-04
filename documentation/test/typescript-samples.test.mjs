@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import {test} from 'node:test'
-import {blocks, built, check, installedPackages, skipped} from './typescript-samples.mjs'
+import {IMPORT_SOURCES, blocks, built, check, importProblems, installedPackages, skipped} from './typescript-samples.mjs'
 
 // Every TypeScript sample on the TypeScript pages and in the package READMEs
 // compiles against the built packages; see
@@ -20,6 +20,13 @@ test('TypeScript samples compile against the built packages', {timeout: 300_000}
                 `the ${locale} ${guide} page is no longer checked as a project; it lost its <!-- typecheck: file=tsconfig.json -->`,
             )
     assert.deepEqual(failures, [], `${failures.length} diagnostics:\n${failures.join('\n')}`)
+})
+
+test("the wow-client and wow-generator Skills import only names their entries export", {timeout: 300_000}, () => {
+    assert.ok(IMPORT_SOURCES.length >= 4, `Only ${IMPORT_SOURCES.length} Skill pages found`)
+    const {imports, problems} = importProblems()
+    assert.ok(imports > 100, `Only ${imports} imported names found; the sources or the import parsing changed`)
+    assert.deepEqual(problems, [], `${problems.length} problems:\n${problems.join('\n')}`)
 })
 
 test('skipped samples say why', () => {

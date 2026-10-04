@@ -174,9 +174,13 @@ const RULES = [
   ],
   // Every other workflow, the release and deploy workflows included: lint it.
   [/^\.github\/workflows\/[^/]+\.ya?ml$/, [WORKFLOWS]],
-  // The view engine's Skills: the site's tests compile their samples
-  // (documentation/test/typescript-samples.mjs).
-  [/^skills\/wow-view-(?:definition|host)\/.+\.md$/, [DOCS]],
+  // The TypeScript Skills: the site's tests compile the view engine Skills'
+  // samples and check the imports of wow-client's and wow-generator's
+  // (documentation/test/typescript-samples.mjs). Their eval cases are not read.
+  [
+    /^skills\/wow-(?:view-definition|view-host|client|generator)\/(?!evals\/).+\.md$/,
+    [DOCS],
+  ],
   // Other Gradle modules, the dashboard (dashboard-test.yml)
   // and prose.
   [

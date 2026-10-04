@@ -253,17 +253,20 @@ test('package READMEs also run the site, which compiles their samples', () => {
     assert.deepEqual(on([path]), ['docs', 'packageDocs'], path);
 });
 
-test("the view engine's Skills run the site, which compiles their samples", () => {
+test('the TypeScript Skills run the site, which checks their samples', () => {
   for (const path of [
     'skills/wow-view-definition/SKILL.md',
     'skills/wow-view-definition/references/choices.md',
     'skills/wow-view-host/references/actions.md',
+    'skills/wow-client/SKILL.md',
+    'skills/wow-generator/references/api.md',
   ])
     assert.deepEqual(on([path]), ['docs'], path);
   for (const path of [
-    'skills/wow-view-host/evals/behavior.jsonl',
+    'skills/wow-view-host/evals/b74-view-host-run-early/prompt.md',
+    'skills/wow-client/evals/a86-client-command/graders/skill-fired.md',
     'skills/wow-view-definition/agents/openai.yaml',
-    'skills/wow-client/SKILL.md',
+    'skills/wow-data-query/SKILL.md',
   ])
     assert.ok(none([path]), path);
 });
