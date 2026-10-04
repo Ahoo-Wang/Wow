@@ -28,6 +28,16 @@ fun interface IdempotencyChecker {
      * @return true if the element passes the idempotency check (is unique), false if it's a duplicate
      */
     fun check(element: String): Boolean
+
+    /**
+     * Gives back the reservation [check] made for [element] when the operation it guarded did not happen (for
+     * example the command could not be sent), so that a retry with the same element passes [check] again.
+     *
+     * The default does nothing: such a retry is then resolved by the authoritative check behind this one.
+     *
+     * @param element the element whose reservation is released
+     */
+    fun release(element: String) = Unit
 }
 
 /**

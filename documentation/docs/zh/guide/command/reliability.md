@@ -50,6 +50,8 @@ flowchart TB
 
 `DefaultRequestIdChecker` 先查询按聚合选择的 `IdempotencyChecker`。快速检查判定可以继续时直接放行；当它报告“可能重复”时，再通过 `RequestIdExistenceChecker` 查询持久历史。没有权威查询器时默认拒绝该请求，而不是冒险放行。
 
+网关先校验命令，再做 request-ID 预检，所以校验失败的命令不占用它的 request ID；预检通过后发送失败，网关释放这次预留，用同一 request ID 重试不会被当成重复（自 9.2.3 起）。
+
 这个预检用于尽早拒绝明显重复并消解概率型检查的假阳性，但不是并发提交的最终裁决。预检与持久追加之间存在竞争窗口；两个并发请求都可能通过读取检查。
 
 ## EventStore 持久约束

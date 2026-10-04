@@ -194,6 +194,7 @@ public final class me/ahoo/wow/command/DefaultRequestIdChecker : me/ahoo/wow/com
 	public fun <init> (Lme/ahoo/wow/infra/idempotency/AggregateIdempotencyCheckerProvider;Lme/ahoo/wow/eventsourcing/RequestIdExistenceChecker;)V
 	public synthetic fun <init> (Lme/ahoo/wow/infra/idempotency/AggregateIdempotencyCheckerProvider;Lme/ahoo/wow/eventsourcing/RequestIdExistenceChecker;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public fun check (Lme/ahoo/wow/api/modeling/AggregateId;Ljava/lang/String;)Lreactor/core/publisher/Mono;
+	public fun release (Lme/ahoo/wow/api/modeling/AggregateId;Ljava/lang/String;)V
 }
 
 public abstract interface class me/ahoo/wow/command/DistributedCommandBus : me/ahoo/wow/command/CommandBus, me/ahoo/wow/messaging/DistributedMessageBus {
@@ -256,6 +257,11 @@ public final class me/ahoo/wow/command/LocalFirstCommandBus : me/ahoo/wow/comman
 
 public abstract interface class me/ahoo/wow/command/RequestIdChecker {
 	public abstract fun check (Lme/ahoo/wow/api/modeling/AggregateId;Ljava/lang/String;)Lreactor/core/publisher/Mono;
+	public fun release (Lme/ahoo/wow/api/modeling/AggregateId;Ljava/lang/String;)V
+}
+
+public final class me/ahoo/wow/command/RequestIdChecker$DefaultImpls {
+	public static fun release (Lme/ahoo/wow/command/RequestIdChecker;Lme/ahoo/wow/api/modeling/AggregateId;Ljava/lang/String;)V
 }
 
 public abstract interface class me/ahoo/wow/command/ServerCommandExchange : me/ahoo/wow/command/CommandExchange {
@@ -3096,6 +3102,7 @@ public final class me/ahoo/wow/infra/idempotency/BloomFilterIdempotencyChecker :
 	public static final field Companion Lme/ahoo/wow/infra/idempotency/BloomFilterIdempotencyChecker$Companion;
 	public fun <init> (Ljava/time/Duration;Lkotlin/jvm/functions/Function0;)V
 	public fun check (Ljava/lang/String;)Z
+	public fun release (Ljava/lang/String;)V
 }
 
 public final class me/ahoo/wow/infra/idempotency/BloomFilterIdempotencyChecker$Companion {
@@ -3108,11 +3115,17 @@ public final class me/ahoo/wow/infra/idempotency/DefaultAggregateIdempotencyChec
 
 public abstract interface class me/ahoo/wow/infra/idempotency/IdempotencyChecker {
 	public abstract fun check (Ljava/lang/String;)Z
+	public fun release (Ljava/lang/String;)V
+}
+
+public final class me/ahoo/wow/infra/idempotency/IdempotencyChecker$DefaultImpls {
+	public static fun release (Lme/ahoo/wow/infra/idempotency/IdempotencyChecker;Ljava/lang/String;)V
 }
 
 public final class me/ahoo/wow/infra/idempotency/NoOpIdempotencyChecker : me/ahoo/wow/infra/idempotency/IdempotencyChecker {
 	public static final field INSTANCE Lme/ahoo/wow/infra/idempotency/NoOpIdempotencyChecker;
 	public fun check (Ljava/lang/String;)Z
+	public fun release (Ljava/lang/String;)V
 }
 
 public abstract interface class me/ahoo/wow/infra/invoker/ConstructorFunctionInvoker : me/ahoo/wow/infra/invoker/ReceiverlessFunctionInvoker {

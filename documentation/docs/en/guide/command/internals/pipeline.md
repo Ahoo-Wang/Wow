@@ -31,9 +31,9 @@ flowchart TB
 
 Every `DefaultCommandGateway` send path first runs the same `check`:
 
-1. `RequestIdChecker.check(aggregateId, requestId)` performs the request-ID precheck; `false` terminates with `DuplicateRequestIdException`.
-2. A body implementing `CommandValidator` validates itself before the Jakarta `Validator` runs.
-3. `CommandBus.send` is invoked only after both checks complete.
+1. A body implementing `CommandValidator` validates itself before the Jakarta `Validator` runs.
+2. `RequestIdChecker.check(aggregateId, requestId)` performs the request-ID precheck; `false` terminates with `DuplicateRequestIdException`. Validation runs first, so a command that fails it does not consume its request ID (since 9.2.3).
+3. `CommandBus.send` is invoked only after both checks complete; when it fails, `RequestIdChecker.release` gives the reservation back.
 
 `sendAndWait` and `sendAndWaitStream` also verify that the wait plan supports a `Void` command, register a wait handle, propagate the wait plan into the Header, and then send. `sendAndWaitForSent` is a separate fast path: it allocates no handle and propagates no wait Header, but synthesizes a `SENT` result after `CommandBus.send` succeeds.
 

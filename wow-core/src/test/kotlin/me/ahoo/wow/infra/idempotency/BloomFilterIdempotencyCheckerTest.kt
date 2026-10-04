@@ -62,6 +62,34 @@ class BloomFilterIdempotencyCheckerTest {
     }
 
     @Test
+    fun `should pass a released element once`() {
+        val checker = BloomFilterIdempotencyChecker(Duration.ofMinutes(1)) {
+            BloomFilter.create(Funnels.stringFunnel(Charsets.UTF_8), 100)
+        }
+
+        checker.check("request-1").assert().isTrue()
+        checker.release("request-1")
+        checker.check("request-1").assert().isTrue()
+        checker.check("request-1").assert().isFalse()
+    }
+
+    @Test
+    fun `should forget released elements when the filter is refreshed`() {
+        val checker = BloomFilterIdempotencyChecker(Duration.ZERO) {
+            BloomFilter.create(Funnels.stringFunnel(Charsets.UTF_8), 100)
+        }
+
+        checker.release("request-1")
+        checker.check("request-1").assert().isTrue()
+    }
+
+    @Test
+    fun `no op checker release does nothing`() {
+        NoOpIdempotencyChecker.release("request-1")
+        NoOpIdempotencyChecker.check("request-1").assert().isTrue()
+    }
+
+    @Test
     fun `should refresh cached filter after ttl expires`() {
         val creations = AtomicInteger()
         val checker = BloomFilterIdempotencyChecker(Duration.ZERO) {

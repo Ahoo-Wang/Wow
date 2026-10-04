@@ -76,7 +76,7 @@ Configuration class: `CommandProperties`; prefix: `wow.command`.
 
 ### IdempotencyProperties
 
-The Bloom filter is an in-process precheck, not the source of truth. When the precheck rejects, `DefaultCommandGateway` still confirms the duplicate through the EventStore request-id check. Disabling it installs a no-op precheck; it does not turn client retries into exactly-once delivery.
+The Bloom filter is an in-process precheck, not the source of truth. When the precheck rejects, `DefaultCommandGateway` still confirms the duplicate through the EventStore request-id check. A failed send releases its entry. Disabling it installs a no-op precheck; it does not turn client retries into exactly-once delivery.
 
 #### BloomFilter
 

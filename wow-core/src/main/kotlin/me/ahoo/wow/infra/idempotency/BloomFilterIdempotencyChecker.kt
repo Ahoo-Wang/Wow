@@ -16,6 +16,7 @@ import com.google.common.hash.BloomFilter
 import com.google.common.util.concurrent.Striped
 import io.github.oshai.kotlinlogging.KotlinLogging
 import java.time.Duration
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.locks.Lock
 import kotlin.concurrent.withLock
 
@@ -42,6 +43,9 @@ class BloomFilterIdempotencyChecker(
 ) : IdempotencyChecker {
     companion object {
         private const val ELEMENT_LOCK_STRIPES = 256
+
+        /** Upper bound of released elements kept per filter; beyond it a release is dropped (fails safe). */
+        private const val MAX_RELEASED_ELEMENTS = 65_536
         private val log = KotlinLogging.logger {}
     }
 
@@ -54,6 +58,13 @@ class BloomFilterIdempotencyChecker(
 
     @Volatile
     private var expiresAt: Long = 0
+
+    /**
+     * Elements given back by [release] since the current filter was created. A Bloom filter cannot remove an
+     * element, so a released element passes its next [check] once from here instead.
+     */
+    @Volatile
+    private var released: MutableSet<String> = ConcurrentHashMap.newKeySet()
 
     private fun currentBloomFilter(): BloomFilter<String> {
         val now = System.nanoTime()
@@ -82,6 +93,7 @@ class BloomFilterIdempotencyChecker(
         }
         return bloomFilterSupplier().also {
             expiresAt = now + ttlNanos
+            released = ConcurrentHashMap.newKeySet()
             bloomFilter = it
         }
     }
@@ -96,7 +108,22 @@ class BloomFilterIdempotencyChecker(
      */
     override fun check(element: String): Boolean {
         return elementLocks.get(element).withLock {
-            currentBloomFilter().put(element)
+            currentBloomFilter().put(element) || released.remove(element)
+        }
+    }
+
+    /**
+     * Lets the next [check] of [element] pass once, until the filter is refreshed. When too many elements are
+     * released at once the release is dropped, and the retry falls back to the authoritative check.
+     *
+     * @param element the element whose reservation is released
+     */
+    override fun release(element: String) {
+        elementLocks.get(element).withLock {
+            val current = released
+            if (current.size < MAX_RELEASED_ELEMENTS) {
+                current.add(element)
+            }
         }
     }
 }

@@ -50,6 +50,8 @@ Derive the stable value from a business-operation identity or create and persist
 
 `DefaultRequestIdChecker` first asks the aggregate-specific `IdempotencyChecker`. It proceeds directly when the fast check allows the request. When that check reports a possible duplicate, it asks `RequestIdExistenceChecker` to inspect persisted history. Without an authoritative checker, the default rejects the request instead of risking a duplicate.
 
+The gateway validates the command before the request-ID precheck, so a command that fails validation does not consume its request ID. When the precheck passes but the send fails, the gateway releases that reservation, so a retry with the same request ID is not taken for a duplicate (since 9.2.3).
+
 This precheck rejects obvious duplicates early and resolves false positives from a probabilistic checker, but it is not the final arbiter for concurrent commits. A race remains between the precheck and persistence; two concurrent requests can both pass a read check.
 
 ## EventStore Persistence Constraints

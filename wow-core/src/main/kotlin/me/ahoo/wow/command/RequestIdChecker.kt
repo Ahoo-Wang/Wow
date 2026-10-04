@@ -25,6 +25,12 @@ fun interface RequestIdChecker {
      * Returns true when the request ID can continue processing.
      */
     fun check(aggregateId: AggregateId, requestId: String): Mono<Boolean>
+
+    /**
+     * Gives back the reservation a passing [check] made when the command could not be sent, so that a retry with
+     * the same request ID is not taken for a duplicate. The default does nothing.
+     */
+    fun release(aggregateId: AggregateId, requestId: String) = Unit
 }
 
 class DefaultRequestIdChecker(
@@ -39,5 +45,11 @@ class DefaultRequestIdChecker(
         }
         requestIdExistenceChecker.existsRequestId(aggregateId, requestId)
             .map { exists -> !exists }
+    }
+
+    override fun release(aggregateId: AggregateId, requestId: String) {
+        idempotencyCheckerProvider
+            .getChecker(aggregateId.namedAggregate.materialize())
+            .release(requestId)
     }
 }

@@ -96,6 +96,27 @@ class DefaultRequestIdCheckerTest {
     }
 
     @Test
+    fun `release gives the request id back to the materialized aggregate idempotency checker`() {
+        val released = mutableListOf<String>()
+        val checker = DefaultRequestIdChecker(
+            idempotencyCheckerProvider = AggregateIdempotencyCheckerProvider { namedAggregate ->
+                namedAggregate.assert().isEqualTo(TestNamedAggregate.materialize())
+                object : IdempotencyChecker {
+                    override fun check(element: String): Boolean = true
+
+                    override fun release(element: String) {
+                        released += element
+                    }
+                }
+            },
+        )
+
+        checker.release(testAggregateId(), "request-1")
+
+        released.assert().containsExactly("request-1")
+    }
+
+    @Test
     fun `check resolves idempotency checker by materialized named aggregate`() {
         val requestedNamedAggregate = AtomicReference<Any>()
         val checker = DefaultRequestIdChecker(
