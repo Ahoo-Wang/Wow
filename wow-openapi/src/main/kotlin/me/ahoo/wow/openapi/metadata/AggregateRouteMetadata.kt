@@ -14,29 +14,54 @@
 package me.ahoo.wow.openapi.metadata
 
 import me.ahoo.wow.api.annotation.AggregateRoute
+import me.ahoo.wow.api.annotation.OwnerPolicy
 import me.ahoo.wow.api.naming.EnabledCapable
 import me.ahoo.wow.modeling.metadata.AggregateMetadata
 
 /**
- * The routing of an aggregate, parsed from its [AggregateRoute]. It shapes both the route contracts and the HTTP
- * adapter at runtime.
+ * The routing of an aggregate. It shapes both the route contracts and the HTTP adapter at runtime.
+ *
+ * [AggregateRouteMetadataParser] takes the routing ([enabled], [resourceName]) from the aggregate's [AggregateRoute]
+ * and the aggregate's own policies ([spaced], [ownerPolicy]) from its [AggregateMetadata], where core resolves them;
+ * a route contributor that serves a resource of its own may construct one directly.
  *
  * @param C the command aggregate type.
  * @property enabled whether the aggregate has routes at all.
  * @property aggregateMetadata the aggregate the routes serve.
  * @property resourceName the resource segment of the routes.
- * @property spaced [AggregateMetadata.spaced], the aggregate's own flag: whether its routes take a space from the
- * request (`Wow-Space-Id`). Only a spaced aggregate has a space written to its commands or its queries scoped by
+ * @property spaced whether the routes take a space from the request (`Wow-Space-Id`); parsed as
+ * [AggregateMetadata.spaced]. Only a spaced aggregate has a space written to its commands or its queries scoped by
  * space; for any other aggregate the adapter ignores the header.
- * @property owner the ownership policy of the routes.
+ * @property owner the ownership policy of the routes, as the deprecated `AggregateRoute.Owner`; read [ownerPolicy].
  */
 data class AggregateRouteMetadata<C : Any>(
     override val enabled: Boolean,
     val aggregateMetadata: AggregateMetadata<C, *>,
     val resourceName: String,
     val spaced: Boolean,
+    @Deprecated("Scheduled for removal in 10.0.0. Use ownerPolicy.")
+    @Suppress("DEPRECATION")
     val owner: AggregateRoute.Owner
 ) : EnabledCapable, me.ahoo.wow.metadata.Metadata {
+
+    /**
+     * Creates the routing with an [OwnerPolicy]. Since 9.3.0.
+     */
+    @Suppress("DEPRECATION")
+    constructor(
+        enabled: Boolean,
+        aggregateMetadata: AggregateMetadata<C, *>,
+        resourceName: String,
+        spaced: Boolean,
+        ownerPolicy: OwnerPolicy
+    ) : this(enabled, aggregateMetadata, resourceName, spaced, AggregateRoute.Owner.valueOf(ownerPolicy.name))
+
+    /**
+     * The ownership policy of the routes; parsed as [AggregateMetadata.owner]. Since 9.3.0.
+     */
+    @Suppress("DEPRECATION")
+    val ownerPolicy: OwnerPolicy
+        get() = OwnerPolicy.valueOf(owner.name)
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true

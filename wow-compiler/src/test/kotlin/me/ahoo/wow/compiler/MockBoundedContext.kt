@@ -23,7 +23,7 @@ import me.ahoo.wow.api.annotation.BoundedContext
         BoundedContext.Aggregate(
             "mock_compiler_aggregate",
             id = "mock",
-            tenantId = "mock",
+            tenantId = me.ahoo.wow.api.modeling.TenantId.DEFAULT_TENANT_ID,
             packageScopes = [MockCompilerAggregate::class],
         ),
     ],

@@ -117,6 +117,10 @@ public final class me/ahoo/wow/api/annotation/AggregateIdKt {
 public abstract interface annotation class me/ahoo/wow/api/annotation/AggregateName : java/lang/annotation/Annotation {
 }
 
+public abstract interface annotation class me/ahoo/wow/api/annotation/AggregateOwner : java/lang/annotation/Annotation {
+	public abstract fun value ()Lme/ahoo/wow/api/annotation/OwnerPolicy;
+}
+
 public abstract interface annotation class me/ahoo/wow/api/annotation/AggregateRoot : java/lang/annotation/Annotation {
 	public abstract fun commands ()[Ljava/lang/Class;
 }
@@ -311,6 +315,16 @@ public final class me/ahoo/wow/api/annotation/OrderKt {
 public abstract interface annotation class me/ahoo/wow/api/annotation/OwnerId : java/lang/annotation/Annotation {
 }
 
+public final class me/ahoo/wow/api/annotation/OwnerPolicy : java/lang/Enum {
+	public static final field AGGREGATE_ID Lme/ahoo/wow/api/annotation/OwnerPolicy;
+	public static final field ALWAYS Lme/ahoo/wow/api/annotation/OwnerPolicy;
+	public static final field NEVER Lme/ahoo/wow/api/annotation/OwnerPolicy;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public final fun getOwned ()Z
+	public static fun valueOf (Ljava/lang/String;)Lme/ahoo/wow/api/annotation/OwnerPolicy;
+	public static fun values ()[Lme/ahoo/wow/api/annotation/OwnerPolicy;
+}
+
 public abstract interface annotation class me/ahoo/wow/api/annotation/PreparableKey : java/lang/annotation/Annotation {
 	public abstract fun name ()Ljava/lang/String;
 }
@@ -335,6 +349,10 @@ public final class me/ahoo/wow/api/annotation/Retry$Companion {
 	public static final field DEFAULT_EXECUTION_TIMEOUT I
 	public static final field DEFAULT_MAX_RETRIES I
 	public static final field DEFAULT_MIN_BACKOFF I
+}
+
+public abstract interface annotation class me/ahoo/wow/api/annotation/Spaced : java/lang/annotation/Annotation {
+	public abstract fun value ()Z
 }
 
 public abstract interface annotation class me/ahoo/wow/api/annotation/StatelessSaga : java/lang/annotation/Annotation {

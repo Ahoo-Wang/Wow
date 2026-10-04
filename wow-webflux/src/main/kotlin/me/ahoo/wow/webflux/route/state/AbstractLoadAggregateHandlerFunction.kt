@@ -39,7 +39,7 @@ abstract class AbstractLoadAggregateHandlerFunction(
 
     override fun handle(request: ServerRequest): Mono<ServerResponse> {
         val tenantId = request.getTenantIdOrDefault(aggregateMetadata)
-        val id = requireNotNull(request.getAggregateId(aggregateRouteMetadata.owner))
+        val id = requireNotNull(request.getAggregateId(aggregateRouteMetadata.ownerPolicy))
         val aggregateId = aggregateMetadata.aggregateId(id = id, tenantId = tenantId)
         val version = getVersion(request)
         return stateAggregateRepository
@@ -49,7 +49,7 @@ abstract class AbstractLoadAggregateHandlerFunction(
             }
             .flatMap {
                 checkVersion(version, it)
-                OwnerAggregatePrecondition(request, aggregateRouteMetadata.owner).check(it)
+                OwnerAggregatePrecondition(request, aggregateRouteMetadata.ownerPolicy).check(it)
                 admission.state(aggregateMetadata, request, it)
             }
             .throwNotFoundIfEmpty()

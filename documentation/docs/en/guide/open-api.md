@@ -67,7 +67,7 @@ Use the JSON document as the source for exact paths, methods, parameters, media 
 
 ## Aggregate Resource Ownership
 
-Aggregate metadata combines `@AggregateRoute`, command-level `@CommandRoute`, tenant metadata, and generated command/event types. Route ownership affects path shape; it is not caller authorization.
+Aggregate metadata combines `@AggregateRoute`, the aggregate's policies (`@Spaced`, `@AggregateOwner`, static tenant), command-level `@CommandRoute`, tenant metadata, and generated command/event types. Route ownership affects path shape; it is not caller authorization.
 
 The route catalog also controls whether an aggregate is published at all (`@AggregateRoute(enabled = false)`). This does not remove command handling or storage behavior outside HTTP.
 
@@ -93,11 +93,12 @@ Spaced routes declare the `Wow-Space-Id` request header. Space does not add a pa
 
 ### Owner Resources
 
-`AggregateRoute.Owner.ALWAYS` adds `owner/{ownerId}` and keeps the resource ID on default owned routes; snapshot and event-stream queries publish both base and owner-scoped variants, and, when the aggregate also has a dynamic tenant, a `tenant/{tenantId}/owner/{ownerId}` variant that narrows to both:
+`@AggregateOwner(OwnerPolicy.ALWAYS)` adds `owner/{ownerId}` and keeps the resource ID on default owned routes; snapshot and event-stream queries publish both base and owner-scoped variants, and, when the aggregate also has a dynamic tenant, a `tenant/{tenantId}/owner/{ownerId}` variant that narrows to both:
 
 ```kotlin
 @AggregateRoot
-@AggregateRoute(resourceName = "orders", owner = AggregateRoute.Owner.ALWAYS)
+@AggregateRoute(resourceName = "orders")
+@AggregateOwner(OwnerPolicy.ALWAYS)
 class Order(private val state: OrderState)
 ```
 
@@ -106,7 +107,8 @@ class Order(private val state: OrderState)
 ```kotlin
 @AggregateRoot
 @StaticTenantId
-@AggregateRoute(resourceName = "cart", owner = AggregateRoute.Owner.AGGREGATE_ID)
+@AggregateRoute(resourceName = "cart")
+@AggregateOwner(OwnerPolicy.AGGREGATE_ID)
 class Cart(private val state: CartState)
 ```
 

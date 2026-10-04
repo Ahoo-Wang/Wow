@@ -1056,6 +1056,7 @@ public final class me/ahoo/wow/openapi/converter/BoundedContextSchemaNameConvert
 
 public final class me/ahoo/wow/openapi/metadata/AggregateRouteMetadata : me/ahoo/wow/api/naming/EnabledCapable, me/ahoo/wow/metadata/Metadata {
 	public fun <init> (ZLme/ahoo/wow/modeling/metadata/AggregateMetadata;Ljava/lang/String;ZLme/ahoo/wow/api/annotation/AggregateRoute$Owner;)V
+	public fun <init> (ZLme/ahoo/wow/modeling/metadata/AggregateMetadata;Ljava/lang/String;ZLme/ahoo/wow/api/annotation/OwnerPolicy;)V
 	public final fun component1 ()Z
 	public final fun component2 ()Lme/ahoo/wow/modeling/metadata/AggregateMetadata;
 	public final fun component3 ()Ljava/lang/String;
@@ -1067,6 +1068,7 @@ public final class me/ahoo/wow/openapi/metadata/AggregateRouteMetadata : me/ahoo
 	public final fun getAggregateMetadata ()Lme/ahoo/wow/modeling/metadata/AggregateMetadata;
 	public fun getEnabled ()Z
 	public final fun getOwner ()Lme/ahoo/wow/api/annotation/AggregateRoute$Owner;
+	public final fun getOwnerPolicy ()Lme/ahoo/wow/api/annotation/OwnerPolicy;
 	public final fun getResourceName ()Ljava/lang/String;
 	public final fun getSpaced ()Z
 	public fun hashCode ()I

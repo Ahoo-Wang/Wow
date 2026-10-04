@@ -13,9 +13,10 @@
 
 package me.ahoo.wow.viewstore.domain.view
 
+import me.ahoo.wow.api.annotation.AggregateOwner
 import me.ahoo.wow.api.annotation.AggregateRoot
-import me.ahoo.wow.api.annotation.AggregateRoute
 import me.ahoo.wow.api.annotation.OnCommand
+import me.ahoo.wow.api.annotation.OwnerPolicy
 import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.api.event.DefaultAggregateDeleted
 import me.ahoo.wow.api.exception.BindingError
@@ -49,7 +50,7 @@ import reactor.core.publisher.Mono
  * decision, by its path `…/tenant/(platform)/owner/(system)/…`.
  */
 @AggregateRoot
-@AggregateRoute(owner = AggregateRoute.Owner.ALWAYS)
+@AggregateOwner(OwnerPolicy.ALWAYS)
 class View(private val state: ViewState) {
 
     @OnCommand

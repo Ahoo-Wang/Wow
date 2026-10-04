@@ -14,9 +14,12 @@
 
 package me.ahoo.wow.example.domain.order
 
+import me.ahoo.wow.api.annotation.AggregateOwner
 import me.ahoo.wow.api.annotation.AggregateRoot
 import me.ahoo.wow.api.annotation.AggregateRoute
 import me.ahoo.wow.api.annotation.Name
+import me.ahoo.wow.api.annotation.OwnerPolicy
+import me.ahoo.wow.api.annotation.Spaced
 import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.api.command.CommandResultAccessor
 import me.ahoo.wow.command.ServerCommandExchange
@@ -53,7 +56,9 @@ import reactor.kotlin.core.publisher.toMono
  * @see me.ahoo.wow.modeling.state.StateAggregate
  */
 @AggregateRoot
-@AggregateRoute(resourceName = "sales-order", spaced = true, owner = AggregateRoute.Owner.ALWAYS)
+@AggregateRoute(resourceName = "sales-order")
+@Spaced
+@AggregateOwner(OwnerPolicy.ALWAYS)
 class Order(private val state: OrderState) {
     companion object {
         private val log = LoggerFactory.getLogger(Order::class.java)

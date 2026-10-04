@@ -141,6 +141,10 @@ See [v6 → v8: Atomic SnapshotStore Saves](./migration/v6-to-v8.md#atomic-snaps
 
 See [v6 → v8: Redis EventStore Canonical v2 Layout](./migration/v6-to-v8.md#redis-eventstore-canonical-v2-layout-introduced-in-v8-9-0).
 
+### Aggregate Policies Move Off `@AggregateRoute` (9.3.0)
+
+`@AggregateRoute(spaced, owner)` is deprecated in favour of `@Spaced` and `@AggregateOwner(OwnerPolicy.…)` on the aggregate, and conflicting declarations of a policy or of the static tenant now fail. See [Migrating from `@AggregateRoute(spaced, owner)`](./domain/aggregate.md#migrating-from-aggregateroute-spaced-owner).
+
 ### Mongo Ownership Guard
 
 See [v6 → v8: Mongo Ownership Guard](./migration/v6-to-v8.md#mongo-ownership-guard).

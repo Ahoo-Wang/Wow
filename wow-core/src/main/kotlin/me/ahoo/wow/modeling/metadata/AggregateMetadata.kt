@@ -12,6 +12,7 @@
  */
 package me.ahoo.wow.modeling.metadata
 
+import me.ahoo.wow.api.annotation.OwnerPolicy
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.modeling.NamedAggregateDecorator
@@ -19,6 +20,7 @@ import me.ahoo.wow.api.modeling.TenantId
 import me.ahoo.wow.configuration.requiredAggregateType
 import me.ahoo.wow.metadata.Metadata
 import me.ahoo.wow.modeling.aggregateId
+import me.ahoo.wow.modeling.annotation.AggregatePolicyResolver.resolveOwnerPolicy
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
 
 /**
@@ -56,13 +58,21 @@ data class AggregateMetadata<C : Any, S : Any>(
         get() = command.aggregateType != state.aggregateType
 
     /**
-     * Whether the aggregate is spaced (`@AggregateRoute(spaced = true)`), as parsed into
+     * Whether the aggregate is spaced (`@Spaced`, or the deprecated `@AggregateRoute(spaced = true)`), as parsed into
      * [CommandAggregateMetadata.spaced]: the one source every consumer reads. Commands to an aggregate that is not
      * spaced carry the default space whatever their source (HTTP, saga, in-process), the aggregate neither checks nor
      * records a command's space, and its queries are not scoped by a space taken from a request.
      */
     val spaced: Boolean
         get() = command.spaced
+
+    /**
+     * The aggregate's ownership policy (`@AggregateOwner`, or the deprecated `@AggregateRoute(owner = …)`, else
+     * [OwnerPolicy.NEVER]): the one source the routes, their contracts and the HTTP adapter read. Since 9.3.0.
+     *
+     * Declaring both with different policies fails here, when the aggregate's metadata is parsed.
+     */
+    val owner: OwnerPolicy = command.aggregateType.kotlin.resolveOwnerPolicy()
 
     private fun extractAggregateId(
         state: S,

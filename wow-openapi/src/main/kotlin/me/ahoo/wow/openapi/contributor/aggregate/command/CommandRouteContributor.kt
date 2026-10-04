@@ -14,8 +14,8 @@
 package me.ahoo.wow.openapi.contributor.aggregate.command
 
 import me.ahoo.wow.api.abac.DefaultApplyResourceTags
-import me.ahoo.wow.api.annotation.AggregateRoute
 import me.ahoo.wow.api.annotation.CommandRoute
+import me.ahoo.wow.api.annotation.OwnerPolicy
 import me.ahoo.wow.api.command.DefaultDeleteAggregate
 import me.ahoo.wow.api.command.DefaultRecoverAggregate
 import me.ahoo.wow.api.naming.NamedBoundedContext
@@ -238,7 +238,7 @@ private class CommandRouteContractFactory(
 
     private fun appendOwnerPath(): Boolean {
         val default = if (
-            aggregateRouteMetadata.owner == AggregateRoute.Owner.AGGREGATE_ID &&
+            aggregateRouteMetadata.ownerPolicy == OwnerPolicy.AGGREGATE_ID &&
             commandRouteMetadata.commandMetadata.isCreate
         ) {
             false
@@ -249,7 +249,7 @@ private class CommandRouteContractFactory(
     }
 
     private fun appendIdPath(): Boolean {
-        if (aggregateRouteMetadata.owner == AggregateRoute.Owner.AGGREGATE_ID) {
+        if (aggregateRouteMetadata.ownerPolicy == OwnerPolicy.AGGREGATE_ID) {
             return false
         }
         val hasIdPathVariable = commandRouteMetadata.pathVariableMetadata

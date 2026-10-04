@@ -30,8 +30,8 @@ Generated aggregate routes follow this shape where each optional segment is enab
 | Scope | Wire value | Route condition |
 |---|---|---|
 | Tenant | `tenant/{tenantId}` | Aggregate has no static tenant ID |
-| Owner | `owner/{ownerId}` | Effective `AggregateRoute.Owner` is not `NEVER` |
-| Space | `Wow-Space-Id` header | Effective route is spaced |
+| Owner | `owner/{ownerId}` | Effective owner policy (`@AggregateOwner`) is not `NEVER` |
+| Space | `Wow-Space-Id` header | Aggregate is spaced (`@Spaced`) |
 
 `AGGREGATE_ID` ownership removes the separate resource-ID segment when owner ID identifies the aggregate. Command-level `@CommandRoute` settings may override aggregate route defaults. Snapshot query contributors always publish a base aggregate route and add tenant/owner variants when applicable; an unscoped query route therefore needs an explicit security policy. Use the running OpenAPI document for the exact route; a bounded-context alias is not automatically a URL prefix.
 
@@ -92,9 +92,12 @@ Do not trust a client-supplied `userId` merely because it carries `@OwnerId`; co
 
 ```kotlin
 @AggregateRoot
-@AggregateRoute(resourceName = "orders", owner = AggregateRoute.Owner.ALWAYS)
+@AggregateRoute(resourceName = "orders")
+@AggregateOwner(OwnerPolicy.ALWAYS)
 class Order(private val state: OrderState)
 ```
+
+Since 9.3.0 the policy is declared with `@AggregateOwner`; the deprecated `@AggregateRoute(owner = AggregateRoute.Owner.…)` is still read when it is absent (see [Aggregate Policies](./domain/aggregate.md#aggregate-policies-space-and-owner)).
 
 | Policy | Owner path | Resource ID | Meaning |
 |---|---|---|---|
@@ -124,19 +127,22 @@ Space is a string namespace stored with messages and snapshots. It is independen
 
 ```kotlin
 @AggregateRoot
-@AggregateRoute(resourceName = "sales-order", spaced = true)
+@AggregateRoute(resourceName = "sales-order")
+@Spaced
 class Order(private val state: OrderState)
 ```
 
+Since 9.3.0 an aggregate is declared spaced with `@Spaced`; the deprecated `@AggregateRoute(spaced = true)` is still read when it is absent (see [Aggregate Policies](./domain/aggregate.md#aggregate-policies-space-and-owner)).
+
 For a spaced aggregate, WebFlux reads `Wow-Space-Id`: commands are written into that space, and query routes (snapshot, event stream, state and tracing reads) get a `SPACE_ID` filter. The header does not become a URL segment and does not authenticate access to the space.
 
-An aggregate without `spaced = true` ignores the header on every route: its commands carry the default space (`""`) and its queries get no space filter, whatever the client sends. The same holds for commands from any other source: a saga reacting to an event of a spaced aggregate does not pass that space on to a non-spaced one, and a non-spaced aggregate never checks or records a command's space. Clients such as fetcher-cosec send a space header on every request, so a deployment that relied on the header to isolate a non-spaced aggregate must declare `spaced = true` on it.
+An aggregate that is not spaced ignores the header on every route: its commands carry the default space (`""`) and its queries get no space filter, whatever the client sends. The same holds for commands from any other source: a saga reacting to an event of a spaced aggregate does not pass that space on to a non-spaced one, and a non-spaced aggregate never checks or records a command's space. Clients such as fetcher-cosec send a space header on every request, so a deployment that relied on the header to isolate a non-spaced aggregate must declare it spaced.
 
 ### Upgrading from 9.1
 
 Wow 9.1 took the space from the request for every aggregate; 9.2 takes it only for a spaced one. This is an approved exception to the v9 compatibility freeze, listed under "Breaking" (server behaviour) in the 9.2.0 release notes.
 
-1. **Before upgrading**, declare `spaced = true` on every aggregate whose data a space header was meant to keep apart. Build and roll out that declaration as part of the 9.2 upgrade.
+1. **Before upgrading**, declare `spaced = true` (since 9.3.0, `@Spaced`) on every aggregate whose data a space header was meant to keep apart. Build and roll out that declaration as part of the 9.2 upgrade.
 2. **During a rolling upgrade**, 9.1 and 9.2 nodes disagree on a non-spaced aggregate: a 9.1 node stamps the header's space into a command and filters a query by it, and a 9.2 node writes the default space and does not filter. The same query can therefore return different rows depending on the node that answers. Upgrade the gateways, the aggregate nodes and the query nodes together, and keep the mixed window short.
 3. **After upgrading**, data a 9.1 node already wrote with a space keeps it. Its later commands neither check nor change that space, and its queries are no longer filtered by the request's space.
 4. **Rolling back** to 9.1: records 9.2 wrote in the default space are rejected (commands) or hidden (queries) for clients that send a space header.

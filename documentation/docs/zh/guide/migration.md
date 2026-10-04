@@ -134,6 +134,10 @@ description: 选择 Wow 迁移路径，并严格区分源码、运行时、存�
 
 参见 [v6 → v8：Redis EventStore Canonical v2 布局](./migration/v6-to-v8.md#redis-eventstore-canonical-v2-布局-v8-9-0-引入)。
 
+### 聚合策略移出 `@AggregateRoute`（9.3.0）
+
+`@AggregateRoute(spaced, owner)` 已弃用，改为在聚合上声明 `@Spaced` 与 `@AggregateOwner(OwnerPolicy.…)`；同一策略或静态租户的声明不一致时会报错。见[从 `@AggregateRoute(spaced, owner)` 迁移](./domain/aggregate.md#从-aggregateroute-spaced-owner-迁移)。
+
 ### Mongo 所有权保护
 
 参见 [v6 → v8：Mongo 所有权保护](./migration/v6-to-v8.md#mongo-所有权保护)。

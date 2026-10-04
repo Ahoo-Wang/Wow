@@ -42,6 +42,43 @@ A bounded context owns a coherent business language and its aggregate names. An 
 
 `tenantId` is routing and isolation context, not a second ID namespace. Within one `NamedAggregate` (`contextName` + `aggregateName`), an `id` must be unique across tenants. See [Core Concepts](../core-concepts.md) for terminology and identity details.
 
+## Aggregate Policies: Space and Owner
+
+Since 9.3.0, an aggregate declares its own policies on the aggregate class; `@AggregateRoute` keeps only routing (`resourceName`, `enabled`):
+
+```kotlin
+@AggregateRoot
+@AggregateRoute(resourceName = "sales-order")
+@Spaced
+@AggregateOwner(OwnerPolicy.ALWAYS)
+class Order(private val state: OrderState)
+```
+
+| Declaration | Policy | When absent |
+|---|---|---|
+| `@Spaced` (`@Spaced(false)` declares the opposite) | commands and queries take a space, see [Enabling Space](../data-access.md#enabling-space) | not spaced |
+| `@AggregateOwner(OwnerPolicy.NEVER \| ALWAYS \| AGGREGATE_ID)` | ownership, see [Ownership Routing Policy](../data-access.md#ownership-routing-policy) | `NEVER` |
+| `@StaticTenantId("…")` | every instance belongs to one fixed tenant | dynamic tenant |
+
+Each policy is resolved in one place, `AggregateMetadata` (`spaced`, `owner`, `staticTenantId`): the aggregate-level declaration first, then the place 9.2 read it, then the default. The deprecated `@AggregateRoute(spaced = …, owner = …)` and its `AggregateRoute.Owner` enum are still read when the new annotation is absent, and count as declared only when they differ from their default (`spaced = true`, `owner` other than `NEVER`), so an aggregate that is not touched keeps its 9.2 behaviour.
+
+Two declarations of one policy that disagree are an error instead of one silently winning:
+
+- `@Spaced(false)` with `@AggregateRoute(spaced = true)`, or `@AggregateOwner` with a different `@AggregateRoute(owner = …)`;
+- `@StaticTenantId` with a different `tenantId` for the same aggregate in `@BoundedContext.Aggregate` or in a hand-written `META-INF/wow-metadata.json`. Before 9.3.0 these disagreed silently: the runtime used `@StaticTenantId`, while the generated metadata kept the bounded context's value.
+
+The application fails at startup, when the aggregate's metadata is parsed, and the Wow KSP processor fails the compilation with the aggregate named in the error. The processor also records a non-default policy in the generated `META-INF/wow-metadata.json` (`"spaced": true`, `"owner": "ALWAYS"`); 9.2 nodes ignore these fields and `GET /wow/metadata` does not return them.
+
+### Migrating from `@AggregateRoute(spaced, owner)`
+
+| Up to 9.2 | Since 9.3.0 |
+|---|---|
+| `@AggregateRoute(spaced = true)` | `@Spaced` |
+| `@AggregateRoute(owner = AggregateRoute.Owner.X)` | `@AggregateOwner(OwnerPolicy.X)` |
+| `@AggregateRoute(resourceName = "r", spaced = true, owner = …)` | `@AggregateRoute(resourceName = "r")` with both annotations |
+
+Remove an `@AggregateRoute` that carried nothing else. The change is declaration-only: routes, the OpenAPI document, the space and owner of commands, and storage stay the same, so nodes built before and after it run side by side. Code that reads the policy uses `AggregateMetadata.spaced` and `AggregateMetadata.owner`, `AggregateRouteMetadata.ownerPolicy` (and its `OwnerPolicy` constructor) in place of `owner`, and `getAggregateId(OwnerPolicy…)`. The deprecated forms are removed in 10.0.0.
+
 ## State, Domain Events, and Invariants
 
 `Cart` reads `CartState` and returns events; `CartState` keeps setters private and updates only in sourcing functions:

@@ -29,7 +29,7 @@ implementation("me.ahoo.wow:wow-spring-boot-starter") {
 
 #### 聚合路由模式
 
-`AggregateRoute.Owner.AGGREGATE_ID` 等 metadata 决定 owner 与 aggregate ID 是否合并；命令 handler 仍从 path/header/body 创建 `CommandMessage`。
+`@AggregateOwner(OwnerPolicy.AGGREGATE_ID)` 等 metadata 决定 owner 与 aggregate ID 是否合并；命令 handler 仍从 path/header/body 创建 `CommandMessage`。
 
 #### 拥有者路由模式
 

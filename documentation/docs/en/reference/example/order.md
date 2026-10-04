@@ -31,12 +31,12 @@ flowchart LR
 | Module | Responsibility | Exact source |
 | --- | --- | --- |
 | `example-api` | The `example-service` context, `order`/`cart` aggregates, commands, events, and values | [`ExampleService.kt`](https://github.com/Ahoo-Wang/Wow/blob/main/example/example-api/src/main/kotlin/me/ahoo/wow/example/api/ExampleService.kt#L24-L39), [`CreateOrder.kt`](https://github.com/Ahoo-Wang/Wow/blob/main/example/example-api/src/main/kotlin/me/ahoo/wow/example/api/order/CreateOrder.kt#L25-L65) |
-| `example-domain` | Invariants, command handling, sourcing, Sagas, and domain tests | [`Order.kt`](https://github.com/Ahoo-Wang/Wow/blob/main/example/example-domain/src/main/kotlin/me/ahoo/wow/example/domain/order/Order.kt#L49-L197), [`OrderState.kt`](https://github.com/Ahoo-Wang/Wow/blob/main/example/example-domain/src/main/kotlin/me/ahoo/wow/example/domain/order/OrderState.kt#L34-L108) |
+| `example-domain` | Invariants, command handling, sourcing, Sagas, and domain tests | [`Order.kt`](https://github.com/Ahoo-Wang/Wow/blob/main/example/example-domain/src/main/kotlin/me/ahoo/wow/example/domain/order/Order.kt#L54-L202), [`OrderState.kt`](https://github.com/Ahoo-Wang/Wow/blob/main/example/example-domain/src/main/kotlin/me/ahoo/wow/example/domain/order/OrderState.kt#L34-L108) |
 | `example-server` | Spring Boot wiring, generated WebFlux routes, projections, and queries | [`ExampleServer.kt`](https://github.com/Ahoo-Wang/Wow/blob/main/example/example-server/src/main/kotlin/me/ahoo/wow/example/server/ExampleServer.kt), [`OrderProjector.kt`](https://github.com/Ahoo-Wang/Wow/blob/main/example/example-server/src/main/kotlin/me/ahoo/wow/example/server/order/OrderProjector.kt) |
 
 ## 1. Declare the Context and Aggregates
 
-[`ExampleService`](https://github.com/Ahoo-Wang/Wow/blob/main/example/example-api/src/main/kotlin/me/ahoo/wow/example/api/ExampleService.kt#L24-L39) declares context name `example-service`, alias `example`, and maps order and cart contracts with `packageScopes`. The order implementation adds [`@AggregateRoute(resourceName = "sales-order", spaced = true, owner = ALWAYS)`](https://github.com/Ahoo-Wang/Wow/blob/main/example/example-domain/src/main/kotlin/me/ahoo/wow/example/domain/order/Order.kt#L54-L56).
+[`ExampleService`](https://github.com/Ahoo-Wang/Wow/blob/main/example/example-api/src/main/kotlin/me/ahoo/wow/example/api/ExampleService.kt#L24-L39) declares context name `example-service`, alias `example`, and maps order and cart contracts with `packageScopes`. The order implementation adds [`@AggregateRoute(resourceName = "sales-order")`, `@Spaced` and `@AggregateOwner(OwnerPolicy.ALWAYS)`](https://github.com/Ahoo-Wang/Wow/blob/main/example/example-domain/src/main/kotlin/me/ahoo/wow/example/domain/order/Order.kt#L58-L62).
 
 Both declarations participate in route generation. Neither `example-service` nor `order` alone is enough to infer the URL.
 
@@ -54,7 +54,7 @@ Both declarations participate in route generation. Neither `example-service` nor
 
 ## 3. Keep Business Decisions in the Aggregate
 
-[`Order.onCommand(CreateOrder)`](https://github.com/Ahoo-Wang/Wow/blob/main/example/example-domain/src/main/kotlin/me/ahoo/wow/example/domain/order/Order.kt#L93-L133) runs each item specification, assigns `OrderItem.id`, returns `OrderCreated`, and publishes `totalAmount` in the command result. It never mutates `OrderState` directly.
+[`Order.onCommand(CreateOrder)`](https://github.com/Ahoo-Wang/Wow/blob/main/example/example-domain/src/main/kotlin/me/ahoo/wow/example/domain/order/Order.kt#L98-L138) runs each item specification, assigns `OrderItem.id`, returns `OrderCreated`, and publishes `totalAmount` in the command result. It never mutates `OrderState` directly.
 
 ```text
 payable >= amount  -> OrderPaid(amount, fullyPaid)

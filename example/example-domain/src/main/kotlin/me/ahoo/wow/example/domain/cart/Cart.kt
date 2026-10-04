@@ -14,9 +14,10 @@
 package me.ahoo.wow.example.domain.cart
 
 import io.swagger.v3.oas.annotations.tags.Tag
+import me.ahoo.wow.api.annotation.AggregateOwner
 import me.ahoo.wow.api.annotation.AggregateRoot
-import me.ahoo.wow.api.annotation.AggregateRoute
 import me.ahoo.wow.api.annotation.OnCommand
+import me.ahoo.wow.api.annotation.OwnerPolicy
 import me.ahoo.wow.api.annotation.StaticTenantId
 import me.ahoo.wow.example.api.cart.AddCartItem
 import me.ahoo.wow.example.api.cart.CartItem
@@ -33,7 +34,7 @@ const val MAX_CART_ITEM_SIZE = 100
 
 @StaticTenantId
 @AggregateRoot(commands = [MountedCommand::class, ViewCart::class, MockVariableCommand::class])
-@AggregateRoute(owner = AggregateRoute.Owner.AGGREGATE_ID)
+@AggregateOwner(OwnerPolicy.AGGREGATE_ID)
 @Tag(name = "customer")
 class Cart(private val state: CartState) {
 

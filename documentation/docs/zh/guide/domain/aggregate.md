@@ -42,6 +42,43 @@ flowchart TB
 
 `tenantId` 是路由和隔离上下文，不会建立第二套 ID 命名空间。在同一个 `NamedAggregate`（`contextName` + `aggregateName`）中，`id` 必须跨租户唯一。术语与身份细节见[核心概念](../core-concepts.md)。
 
+## 聚合策略：Space 与 Owner
+
+自 9.3.0 起，聚合在聚合类上声明自己的策略；`@AggregateRoute` 只负责路由（`resourceName`、`enabled`）：
+
+```kotlin
+@AggregateRoot
+@AggregateRoute(resourceName = "sales-order")
+@Spaced
+@AggregateOwner(OwnerPolicy.ALWAYS)
+class Order(private val state: OrderState)
+```
+
+| 声明 | 策略 | 未声明时 |
+|---|---|---|
+| `@Spaced`（`@Spaced(false)` 声明相反的值） | 命令和查询带 space，见[启用命名空间](../data-access.md#启用命名空间) | 不带 space |
+| `@AggregateOwner(OwnerPolicy.NEVER \| ALWAYS \| AGGREGATE_ID)` | 拥有者策略，见[拥有者路由策略](../data-access.md#拥有者路由策略) | `NEVER` |
+| `@StaticTenantId("…")` | 所有实例属于同一个固定租户 | 动态租户 |
+
+每项策略只在一处解析，即 `AggregateMetadata`（`spaced`、`owner`、`staticTenantId`）：先读聚合级声明，再读 9.2 读取的位置，最后取默认值。已弃用的 `@AggregateRoute(spaced = …, owner = …)` 及其 `AggregateRoute.Owner` 枚举在新注解缺席时仍被读取，并且只有取值不同于默认值（`spaced = true`、`owner` 不是 `NEVER`）时才算声明，所以没有改动的聚合保持 9.2 的行为。
+
+同一项策略的两处声明不一致时报错，而不是由其中一处悄悄生效：
+
+- `@Spaced(false)` 与 `@AggregateRoute(spaced = true)` 并存，或 `@AggregateOwner` 与取值不同的 `@AggregateRoute(owner = …)` 并存；
+- `@StaticTenantId` 与同一聚合在 `@BoundedContext.Aggregate` 或手写的 `META-INF/wow-metadata.json` 中的 `tenantId` 不同。9.3.0 之前两者会悄悄不一致：运行时用 `@StaticTenantId`，生成的元数据却保留限界上下文里的值。
+
+应用在解析聚合元数据时启动失败；Wow KSP 处理器让编译失败，错误信息里写明聚合。处理器还会把非默认的策略记录到生成的 `META-INF/wow-metadata.json`（`"spaced": true`、`"owner": "ALWAYS"`）；9.2 节点忽略这些字段，`GET /wow/metadata` 也不返回它们。
+
+### 从 `@AggregateRoute(spaced, owner)` 迁移
+
+| 9.2 及之前 | 自 9.3.0 起 |
+|---|---|
+| `@AggregateRoute(spaced = true)` | `@Spaced` |
+| `@AggregateRoute(owner = AggregateRoute.Owner.X)` | `@AggregateOwner(OwnerPolicy.X)` |
+| `@AggregateRoute(resourceName = "r", spaced = true, owner = …)` | `@AggregateRoute(resourceName = "r")` 加上两个注解 |
+
+只剩这两个属性的 `@AggregateRoute` 可以删掉。这一改动只改声明：路由、OpenAPI 文档、命令的 space 与 owner、存储都不变，改动前后构建的节点可以混部。读取策略的代码改用 `AggregateMetadata.spaced` 与 `AggregateMetadata.owner`，用 `AggregateRouteMetadata.ownerPolicy`（及其 `OwnerPolicy` 构造函数）代替 `owner`，用 `getAggregateId(OwnerPolicy…)`。弃用的写法在 10.0.0 移除。
+
 ## 状态、领域事件与不变量
 
 `Cart` 读取 `CartState` 并返回事件；`CartState` 的 setter 保持私有，只在溯源函数中更新：
