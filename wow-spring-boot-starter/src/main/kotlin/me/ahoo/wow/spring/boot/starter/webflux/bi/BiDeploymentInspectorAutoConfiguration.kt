@@ -30,6 +30,7 @@ import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 
 @AutoConfiguration(before = [WebFluxAutoConfiguration::class])
+@ConditionalOnClass(name = ["me.ahoo.wow.bi.BiDeploymentInspector"])
 @ConditionalOnWowEnabled
 @ConditionalOnWebfluxEnabled
 @ConditionalOnProperty(

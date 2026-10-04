@@ -18,12 +18,24 @@ import me.ahoo.wow.cosec.appender.CoSecCommandRequestHeaderAppender
 import me.ahoo.wow.cosec.extractor.CoSecCommandBuilderExtractor
 import me.ahoo.wow.cosec.query.CoSecQueryRequestScope
 import me.ahoo.wow.spring.boot.starter.enableWow
+import me.ahoo.wow.spring.boot.starter.webflux.WebFluxAutoConfiguration
 import org.junit.jupiter.api.Test
+import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.test.context.assertj.AssertableApplicationContext
 import org.springframework.boot.test.context.runner.ApplicationContextRunner
 
 class CoSecAutoConfigurationTest {
     private val contextRunner = ApplicationContextRunner()
+
+    /**
+     * WebFlux registers its defaults with `@ConditionalOnMissingBean`, so CoSec must be processed first. That must
+     * be declared, not left to Spring Boot's alphabetical pre-sort of auto-configuration class names.
+     */
+    @Test
+    fun `should be ordered before WebFlux explicitly`() {
+        CoSecAutoConfiguration::class.java.getAnnotation(AutoConfiguration::class.java)
+            .before.toList().assert().contains(WebFluxAutoConfiguration::class)
+    }
 
     @Test
     fun `should load context with cosec beans`() {

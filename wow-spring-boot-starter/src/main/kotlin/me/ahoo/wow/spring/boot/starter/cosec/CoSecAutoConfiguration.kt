@@ -17,6 +17,7 @@ import me.ahoo.wow.cosec.appender.CoSecCommandRequestHeaderAppender
 import me.ahoo.wow.cosec.extractor.CoSecCommandBuilderExtractor
 import me.ahoo.wow.cosec.query.CoSecQueryRequestScope
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
+import me.ahoo.wow.spring.boot.starter.webflux.WebFluxAutoConfiguration
 import me.ahoo.wow.webflux.route.command.appender.CommandRequestHeaderAppender
 import me.ahoo.wow.webflux.route.command.extractor.CommandBuilderExtractor
 import me.ahoo.wow.webflux.route.query.QueryRequestScope
@@ -24,7 +25,11 @@ import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass
 import org.springframework.context.annotation.Bean
 
-@AutoConfiguration
+/**
+ * Registers CoSec's command and query extensions. Ordered before [WebFluxAutoConfiguration] so that WebFlux's
+ * `@ConditionalOnMissingBean` defaults back off instead of being registered beside these beans.
+ */
+@AutoConfiguration(before = [WebFluxAutoConfiguration::class])
 @ConditionalOnWowEnabled
 @ConditionalOnClass(CoSecCommandRequestHeaderAppender::class)
 class CoSecAutoConfiguration {

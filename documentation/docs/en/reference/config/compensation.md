@@ -66,6 +66,8 @@ The WeCom URL is a credential and should be injected through a secret. Successfu
 - `DomainEventCompensationFilter` and `StateEventCompensationFilter`;
 - `CompensationEventProcessor`.
 
+With WebFlux on, the event compensate route (`PUT …/event/{version}/compensate`) needs `EventCompensateSupporter`, so it is left out of the router and the OpenAPI document; the other routes are unchanged. Up to 9.2.2 this combination failed at startup.
+
 It does not disable Saga, change immediate retry in `RetryableFilter`, stop the standalone scheduler, or delete existing `ExecutionFailed` records. Treat shutdown as a coordinated two-sided cutover: stop the scheduler, drain in-flight `PrepareCompensation`, reconcile `FAILED` / `PREPARED`, and only then disable application-side compensation. Otherwise the scheduler can still produce `CompensationPrepared` while the application no longer has a processor to replay the source event.
 
 ## Per-function @Retry
