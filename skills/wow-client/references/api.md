@@ -124,7 +124,7 @@ A call fails in one of three ways:
 
 - **The server refuses the request** (HTTP 4xx/5xx), including a command whose handler failed: the Promise rejects with the fetcher's `ExchangeError`, never resolves with a failure. `await toWowError(error)` returns a `WowError` read from the `ErrorInfo` body (through a clone) or the `Wow-Error-Code` header.
 - **A server-sent event stream fails midway**: Wow answers 200 and sends a last event named after the error code. Every built-in stream (`listStream`, `listStateStream`, `aggregateStream`, event `loadStream`, `sendAndWaitStream`) then errors with a `WowError`, so `for await` throws.
-- **Wow never answered** (network, timeout, abort, a proxy's error page): `toWowError` returns `undefined`; handle the original error.
+- **Wow never answered** (network, timeout, abort, a proxy's error page): `toWowError` returns `undefined`; handle the original error. Only this case may resend a command, with the same `requestId`; never resend after `RequestTimeout` or `DuplicateRequestId` (see the retry rule below).
 
 ```typescript
 try {
@@ -139,7 +139,7 @@ try {
 - `WowError extends Error`: `name = 'WowError'`, `errorCode: ErrorCode`, `errorMsg` (empty when absent), `bindingErrors` (`{ name, msg }[]`, empty when absent; map them to form fields on `COMMAND_VALIDATION`), optional `status` and `cause`; construct one with `new WowError(errorInfo, { status?, cause? })`. `isErrorInfo(value)` is the `ErrorInfo` type guard.
 - `ErrorCodes` is a frozen object: `SUCCEEDED` (`'Ok'`), `NOT_FOUND`, `BAD_REQUEST`, `ILLEGAL_ARGUMENT`, `ILLEGAL_STATE`, `REQUEST_TIMEOUT`, `TOO_MANY_REQUESTS`, `DUPLICATE_REQUEST_ID`, `COMMAND_VALIDATION`, `REWRITE_NO_COMMAND`, `EVENT_VERSION_CONFLICT`, `DUPLICATE_AGGREGATE_ID`, `COMMAND_EXPECT_VERSION_CONFLICT`, `SOURCING_VERSION_CONFLICT`, `ILLEGAL_ACCESS_DELETED_AGGREGATE`, `ILLEGAL_ACCESS_OWNER_AGGREGATE`, `ILLEGAL_ACCESS_SPACE_AGGREGATE`, `INTERNAL_SERVER_ERROR`, `QUERY_SCHEMA_VALIDATION`, `QUERY_SCHEMA_CONFLICT`, `QUERY_SCHEMA_UNAVAILABLE`, `BATCH_TASK_ERROR`. There is no `isSucceeded`/`isError`: compare `errorCode === ErrorCodes.SUCCEEDED`. `WowErrorCode` is the union; `ErrorCode = WowErrorCode | (string & {})` admits application codes.
 - `RecoverableType`: `RECOVERABLE`, `UNRECOVERABLE`, `UNKNOWN`.
-- Retrying a command: resend only when Wow never answered, and with the same `requestId` (the server applies a request id once and answers a repeat with `DuplicateRequestId`). Do not resend after `RequestTimeout` (the command may still complete) or `DuplicateRequestId`; read the state instead. Guide: https://wow.ahoo.me/guide/typescript/error-handling.html.
+- **Retrying a command**: resend only when Wow never answered, and with the same `requestId` (the server applies a request id once and answers a repeat with `DuplicateRequestId`). Do not resend after `RequestTimeout` (the command may still complete) or `DuplicateRequestId`; read the state instead. Guide: https://wow.ahoo.me/guide/typescript/error-handling.html.
 
 ## Query clients
 

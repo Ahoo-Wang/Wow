@@ -1,6 +1,6 @@
 ---
 name: "wow-develop"
-description: "Build, review, debug or explain Wow behavior in downstream Kotlin/Java services: aggregates, commands, sagas, projections, queries, starter configuration; diff findings and merge readiness; failing-pipeline root cause, fixed when authorized. Covers first adoption and routine same-major upgrades. Needs me.ahoo.wow imports, wow-* dependencies or an explicit Wow request. Excludes the Wow framework repository, generic DDD/CQRS, and breaking migrations."
+description: "Build, review, debug or explain Wow behavior in downstream Kotlin/Java services with me.ahoo.wow imports, wow-* dependencies or explicit Wow requests: aggregates, commands, sagas, projections, queries, configuration; diff findings, merge readiness; failing-pipeline root cause, fixed when authorized. Includes first adoption, routine same-major upgrades. Not the Wow framework repository, generic DDD/CQRS, or breaking migrations and data cutovers, reviews and diagnosis included (wow-migrate)."
 ---
 
 # Develop, Review and Debug Wow Services

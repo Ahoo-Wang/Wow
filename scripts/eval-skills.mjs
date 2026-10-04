@@ -47,6 +47,9 @@
  * - `SKILLS_EVAL_MODEL`: `--model` for every case (default: the CLI's).
  * - `SKILLS_EVAL_ABLATION`: `--ablation` for the behavior pass, `with-without`
  *   or `none` (default `with-without`); the activation pass is always `none`.
+ * - `SKILLS_EVAL_CASE`: `--case` name glob for both passes, to re-run only
+ *   some cases: one glob with only `*` and `?`, e.g. `a07-*` (default: every
+ *   case).
  *
  * Scores are measured, not gated: each pass runs with `--threshold 0`, so a
  * case scoring below 1 does not fail it. The script exits 1 only when a pass
@@ -109,6 +112,7 @@ if (concurrency > 8) {
   process.exit(2);
 }
 const model = process.env.SKILLS_EVAL_MODEL || undefined;
+const caseGlob = process.env.SKILLS_EVAL_CASE || undefined;
 const passes = (process.env.SKILLS_EVAL_PASSES || 'activation,behavior')
   .split(',')
   .map(pass => pass.trim());
@@ -295,6 +299,7 @@ for (const skill of skills) {
         '--json',
         json,
         ...(model ? ['--model', model] : []),
+        ...(caseGlob ? ['--case', caseGlob] : []),
       ],
       { cwd, stdio: 'inherit' },
     );
