@@ -2,7 +2,7 @@
 name: a51-none-dashboard-debug
 tags: [activation, negative, wow-repository, dashboard, debug]
 runs: 3
-max_turns: 8
+max_turns: 2
 allowed_tools: [Read, Glob, Grep, Skill]
 ---
 

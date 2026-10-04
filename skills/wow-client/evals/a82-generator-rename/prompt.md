@@ -2,7 +2,7 @@
 name: a82-generator-rename
 tags: [activation, trigger, migration, package-rename]
 runs: 3
-max_turns: 8
+max_turns: 2
 allowed_tools: [Read, Glob, Grep, Skill]
 ---
 

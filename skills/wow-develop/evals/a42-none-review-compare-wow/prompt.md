@@ -2,7 +2,7 @@
 name: a42-none-review-compare-wow
 tags: [activation, negative, non-wow-project, review, vocabulary-collision, explicit-wow-exclusion]
 runs: 3
-max_turns: 8
+max_turns: 2
 allowed_tools: [Read, Glob, Grep, Skill]
 ---
 

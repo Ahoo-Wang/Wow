@@ -2,7 +2,7 @@
 name: a72-migrate-v9-cursor
 tags: [activation, trigger]
 runs: 3
-max_turns: 8
+max_turns: 2
 allowed_tools: [Read, Glob, Grep, Skill]
 ---
 

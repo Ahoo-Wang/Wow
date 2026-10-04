@@ -2,7 +2,7 @@
 name: a29-none-release-prep
 tags: [activation, negative, wow-repository, release-tooling]
 runs: 3
-max_turns: 8
+max_turns: 2
 allowed_tools: [Read, Glob, Grep, Skill]
 ---
 

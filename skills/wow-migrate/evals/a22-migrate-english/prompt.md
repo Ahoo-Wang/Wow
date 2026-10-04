@@ -2,7 +2,7 @@
 name: a22-migrate-english
 tags: [activation, trigger, migration, language-en]
 runs: 3
-max_turns: 8
+max_turns: 2
 allowed_tools: [Read, Glob, Grep, Skill]
 ---
 

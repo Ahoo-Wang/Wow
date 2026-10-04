@@ -2,7 +2,7 @@
 name: a33-none-debug-non-wow
 tags: [activation, negative, non-wow-project, debug]
 runs: 3
-max_turns: 8
+max_turns: 2
 allowed_tools: [Read, Glob, Grep, Skill]
 ---
 

@@ -2,7 +2,7 @@
 name: a88-client-react-hooks
 tags: [activation, trigger, react, package-rename]
 runs: 3
-max_turns: 8
+max_turns: 2
 allowed_tools: [Read, Glob, Grep, Skill]
 ---
 

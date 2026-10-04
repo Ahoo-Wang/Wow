@@ -2,7 +2,7 @@
 name: a04-develop-adoption
 tags: [activation, trigger, conflict]
 runs: 3
-max_turns: 8
+max_turns: 2
 allowed_tools: [Read, Glob, Grep, Skill]
 ---
 

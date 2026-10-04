@@ -2,7 +2,7 @@
 name: n02-generator-openapi-generator-java
 tags: [activation, negative, neighbour]
 runs: 3
-max_turns: 8
+max_turns: 2
 allowed_tools: [Read, Glob, Grep, Skill]
 ---
 

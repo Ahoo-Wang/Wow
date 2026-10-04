@@ -2,7 +2,7 @@
 name: a98-none-data-query-sql
 tags: [activation, negative, non-wow]
 runs: 3
-max_turns: 8
+max_turns: 2
 allowed_tools: [Read, Glob, Grep, Skill]
 ---
 

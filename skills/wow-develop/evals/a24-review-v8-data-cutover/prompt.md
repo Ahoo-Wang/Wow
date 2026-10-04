@@ -2,7 +2,7 @@
 name: a24-review-v8-data-cutover
 tags: [activation, negative, review-data-cutover, migration, conflict]
 runs: 3
-max_turns: 8
+max_turns: 2
 allowed_tools: [Read, Glob, Grep, Skill]
 ---
 

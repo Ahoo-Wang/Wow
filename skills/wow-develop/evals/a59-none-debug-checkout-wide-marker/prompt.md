@@ -2,7 +2,7 @@
 name: a59-none-debug-checkout-wide-marker
 tags: [activation, negative, checkout-wide-marker, non-wow-scope, fixture, debug]
 runs: 3
-max_turns: 8
+max_turns: 2
 allowed_tools: [Read, Glob, Grep, Skill]
 ---
 

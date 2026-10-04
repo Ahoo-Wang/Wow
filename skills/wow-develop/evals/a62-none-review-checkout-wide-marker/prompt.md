@@ -2,7 +2,7 @@
 name: a62-none-review-checkout-wide-marker
 tags: [activation, negative, checkout-wide-marker, non-wow-scope, fixture, review]
 runs: 3
-max_turns: 8
+max_turns: 2
 allowed_tools: [Read, Glob, Grep, Skill]
 ---
 

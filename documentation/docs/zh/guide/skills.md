@@ -86,7 +86,7 @@ python3 -S -m unittest scripts.test_validate_wow_skills
 node scripts/eval-skills.mjs [skill…]
 ```
 
-`SKILLS_EVAL_RUNS`、`SKILLS_EVAL_MAX_COST`（每个 Skill 的美元上限）、`SKILLS_EVAL_CONCURRENCY` 与 `CLAUDE_BIN` 调整运行；报告写入不纳入版本控制的 `skills/<name>/evals/results/`。
+`SKILLS_EVAL_RUNS`、`SKILLS_EVAL_MAX_COST`（每个 Skill 的美元上限）、`SKILLS_EVAL_CONCURRENCY`、`SKILLS_EVAL_ABLATION`（`none` 去掉 behavior 轮不加载 Skill 的对照臂，以约一半费用比较同一 Skill 的两个版本）与 `CLAUDE_BIN` 调整运行；报告写入不纳入版本控制的 `skills/<name>/evals/results/`。
 
 ## 优先下一步
 

@@ -2,7 +2,7 @@
 name: a91-none-client-plain-fetch
 tags: [activation, negative, non-wow-project]
 runs: 3
-max_turns: 8
+max_turns: 2
 allowed_tools: [Read, Glob, Grep, Skill]
 ---
 

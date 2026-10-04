@@ -86,7 +86,7 @@ These commands validate metadata, agent manifests, plugin includes, local resour
 node scripts/eval-skills.mjs [skill…]
 ```
 
-`SKILLS_EVAL_RUNS`, `SKILLS_EVAL_MAX_COST` (USD per Skill), `SKILLS_EVAL_CONCURRENCY` and `CLAUDE_BIN` tune the run; reports land in `skills/<name>/evals/results/`, which is not committed.
+`SKILLS_EVAL_RUNS`, `SKILLS_EVAL_MAX_COST` (USD per Skill), `SKILLS_EVAL_CONCURRENCY`, `SKILLS_EVAL_ABLATION` (`none` drops the behavior pass's no-Skill arm, to compare two versions of a Skill at about half the cost) and `CLAUDE_BIN` tune the run; reports land in `skills/<name>/evals/results/`, which is not committed.
 
 ## Prioritized next path
 

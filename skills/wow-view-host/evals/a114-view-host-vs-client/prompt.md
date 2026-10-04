@@ -2,7 +2,7 @@
 name: a114-view-host-vs-client
 tags: [activation, negative, code-deliverable]
 runs: 3
-max_turns: 8
+max_turns: 2
 allowed_tools: [Read, Glob, Grep, Skill]
 ---
 

@@ -2,7 +2,7 @@
 name: a86-client-command
 tags: [activation, trigger, command]
 runs: 3
-max_turns: 8
+max_turns: 2
 allowed_tools: [Read, Glob, Grep, Skill]
 ---
 

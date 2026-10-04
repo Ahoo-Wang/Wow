@@ -2,7 +2,7 @@
 name: a30-none-review-non-wow
 tags: [activation, negative, non-wow-project, review]
 runs: 3
-max_turns: 8
+max_turns: 2
 allowed_tools: [Read, Glob, Grep, Skill]
 ---
 

@@ -2,7 +2,7 @@
 name: a14-migrate-v8-routine
 tags: [activation, negative, develop, conflict]
 runs: 3
-max_turns: 8
+max_turns: 2
 allowed_tools: [Read, Glob, Grep, Skill]
 ---
 

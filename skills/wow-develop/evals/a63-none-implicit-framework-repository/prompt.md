@@ -2,7 +2,7 @@
 name: a63-none-implicit-framework-repository
 tags: [activation, negative, wow-framework-repository, implicit-repository, fixture, development]
 runs: 3
-max_turns: 8
+max_turns: 2
 allowed_tools: [Read, Glob, Grep, Skill]
 ---
 

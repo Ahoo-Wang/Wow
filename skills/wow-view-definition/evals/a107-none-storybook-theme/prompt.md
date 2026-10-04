@@ -2,7 +2,7 @@
 name: a107-none-storybook-theme
 tags: [activation, negative, wow-repository, theme]
 runs: 3
-max_turns: 8
+max_turns: 2
 allowed_tools: [Read, Glob, Grep, Skill]
 ---
 

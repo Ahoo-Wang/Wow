@@ -2,7 +2,7 @@
 name: a36-none-develop-axon
 tags: [activation, negative, non-wow-project, vocabulary-collision]
 runs: 3
-max_turns: 8
+max_turns: 2
 allowed_tools: [Read, Glob, Grep, Skill]
 ---
 

@@ -2,7 +2,7 @@
 name: a95-data-query-events
 tags: [activation, trigger, event-stream]
 runs: 3
-max_turns: 8
+max_turns: 2
 allowed_tools: [Read, Glob, Grep, Skill]
 ---
 

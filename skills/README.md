@@ -40,7 +40,7 @@ V9 是当前维护基线和默认术语。`wow-develop` 仍可服务 V8 下游�
 - `assets/` 保存可复制到输出中的模板，不作为推理资料默认加载。
 - Skill 内的 `scripts/` 只承载重复、确定且容易手写出错的操作；当前仅 `wow-migrate/scripts/audit-v6-usage.sh` 符合这一边界。
 - `evals/<case>/prompt.md` 与 `evals/<case>/graders/*.md` 是 `claude plugin eval` 的用例：`prompt.md` 是交给 Agent 的请求（setup 文件内联在请求中），frontmatter 的 `tags` 恰含 `activation` 或 `behavior` 之一。
-  - `activation` 用例只有一个 `tool_used: Skill` grader：`trigger` 用例要求本 Skill 加载；`negative` 用例（`min: 0`、`max: 0`、`arm: both`）要求它不加载，包括应由相邻 Skill 或相邻工具（Axon、Spring Data、axios、openapi-generator 等）处理的请求。
+  - `activation` 用例设 `max_turns: 2`，只有一个 `tool_used: Skill` grader：`trigger` 用例要求本 Skill 加载；`negative` 用例（`min: 0`、`max: 0`、`arm: both`）要求它不加载，包括应由相邻 Skill 或相邻工具（Axon、Spring Data、axios、openapi-generator 等）处理的请求。
   - `behavior` 用例用 `llm` grader 的 PASS 条目评判答案，可再用 `regex` grader 要求答案点出关键符号；其 `tool_used: Skill` grader 只是加载指示。
 - eval 用例不属于安装后工作流，也不由 Skill 加载。
 
@@ -75,7 +75,7 @@ node scripts/eval-skills.mjs wow-client         # 指定 Skill
 SKILLS_EVAL_RUNS=3 SKILLS_EVAL_MAX_COST=5 SKILLS_EVAL_CONCURRENCY=2 node scripts/eval-skills.mjs
 ```
 
-脚本在每个 Skill 目录内分两轮调用 `claude plugin eval`：`activation` 用例以 `--ablation none` 运行（不加载 Skill 的对照臂对触发判断没有意义），`behavior` 用例以默认的 with/without 对照运行；随后汇总每个 Skill 的触发召回率与精确率、行为通过率（含不加载 Skill 的基线）和费用。只有被测 Skill 会加载，所以相邻 Skill 的竞争不在评估范围内。环境变量：`CLAUDE_BIN`（默认 `claude`）、`SKILLS_EVAL_RUNS`（默认 1）、`SKILLS_EVAL_MAX_COST`（每个 Skill 两轮共享的美元上限，默认 2）、`SKILLS_EVAL_CONCURRENCY`（1–8，默认 1）、`SKILLS_EVAL_PASSES`（`activation`、`behavior`，默认两者）与 `SKILLS_EVAL_MODEL`。报告写入不纳入版本控制的 `skills/<name>/evals/results/`。分数只记录、不设门槛（`--threshold 0`）：脚本仅在某一轮未完成（费用上限、登录失效、错误）时退出 1，找不到 `claude` 时退出 127。
+脚本在每个 Skill 目录内分两轮调用 `claude plugin eval`：`activation` 用例以 `--ablation none` 运行（不加载 Skill 的对照臂对触发判断没有意义），且用例设 `max_turns: 2`（Skill 是否加载在第一轮就已确定，更多轮次只为无人评判的后续工作付费；达到轮次上限的运行照常评分，不计为错误）；`behavior` 用例默认以 with/without 对照运行，`SKILLS_EVAL_ABLATION=none` 去掉不加载 Skill 的对照臂（费用约减半，用于比较同一 Skill 的两个版本；此时 `tool_used: Skill` grader 计入分数）；随后汇总每个 Skill 的触发召回率与精确率、行为通过率（含不加载 Skill 的基线）和费用。只有被测 Skill 会加载，所以相邻 Skill 的竞争不在评估范围内。环境变量：`CLAUDE_BIN`（默认 `claude`）、`SKILLS_EVAL_RUNS`（默认 1）、`SKILLS_EVAL_MAX_COST`（每个 Skill 两轮共享的美元上限，默认 2）、`SKILLS_EVAL_CONCURRENCY`（1–8，默认 1）、`SKILLS_EVAL_PASSES`（`activation`、`behavior`，默认两者）、`SKILLS_EVAL_ABLATION`（behavior 轮的 `--ablation`：`with-without` 或 `none`，默认 `with-without`）与 `SKILLS_EVAL_MODEL`。报告写入不纳入版本控制的 `skills/<name>/evals/results/`。分数只记录、不设门槛（`--threshold 0`）：脚本仅在某一轮未完成（费用上限、登录失效、错误）时退出 1，找不到 `claude` 时退出 127。
 
 ## Distribution
 

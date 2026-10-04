@@ -2,7 +2,7 @@
 name: a38-none-migrate-axon
 tags: [activation, negative, non-wow-project, migration, vocabulary-collision]
 runs: 3
-max_turns: 8
+max_turns: 2
 allowed_tools: [Read, Glob, Grep, Skill]
 ---
 

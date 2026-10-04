@@ -2,7 +2,7 @@
 name: a92-none-view-engine
 tags: [activation, negative, view-engine]
 runs: 3
-max_turns: 8
+max_turns: 2
 allowed_tools: [Read, Glob, Grep, Skill]
 ---
 

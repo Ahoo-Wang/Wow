@@ -2,7 +2,7 @@
 name: a110-view-host-store
 tags: [activation, trigger, storage]
 runs: 3
-max_turns: 8
+max_turns: 2
 allowed_tools: [Read, Glob, Grep, Skill]
 ---
 

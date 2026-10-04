@@ -2,7 +2,7 @@
 name: a34-review-adoption-pr
 tags: [activation, trigger, adoption, review, conflict]
 runs: 3
-max_turns: 8
+max_turns: 2
 allowed_tools: [Read, Glob, Grep, Skill]
 ---
 

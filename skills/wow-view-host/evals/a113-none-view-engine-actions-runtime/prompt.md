@@ -2,7 +2,7 @@
 name: a113-none-view-engine-actions-runtime
 tags: [activation, negative, wow-repository, engine]
 runs: 3
-max_turns: 8
+max_turns: 2
 allowed_tools: [Read, Glob, Grep, Skill]
 ---
 

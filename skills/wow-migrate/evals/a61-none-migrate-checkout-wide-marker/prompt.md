@@ -2,7 +2,7 @@
 name: a61-none-migrate-checkout-wide-marker
 tags: [activation, negative, checkout-wide-marker, non-wow-scope, fixture, migration]
 runs: 3
-max_turns: 8
+max_turns: 2
 allowed_tools: [Read, Glob, Grep, Skill]
 ---
 
