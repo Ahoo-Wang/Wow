@@ -239,6 +239,8 @@ export const ordersDefinition = defineView(descriptor, {
 
 每个都必须是定义声明了的、一行里真有的字段，准入会检查（`definition.record.row-field-unknown`）。没有「有操作时就取整个文档」的开关：整个文档正是让补偿控制台一页失败执行重达 808 KB 的原因。
 
+漏写了也不必等到上线才发现：**开发构建里**（`NODE_ENV` 为 `development`），规则读到行上没取回的字段时，引擎经 `onIssue` 报一条警告 `record.action.unfetched`，带上字段（`field`）与操作（`action`），指向 `record.rowFields`；同一个视图的同一个字段只报一次。宿主没传 `onIssue` 时，它和别的发现一样写到控制台。这是在规则运行时察觉的——规则是函数，引擎看不出它读了哪些字段——所以要在开发时把带操作的视图打开一遍，尤其是隐藏了规则所读列的那些。生产构建不做这项检查，规则读的就是原样的行。
+
 ## 放在哪 {#placement}
 
 | 位置 | 画什么 |

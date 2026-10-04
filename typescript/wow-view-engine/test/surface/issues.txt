@@ -362,6 +362,7 @@ filter.value.required
 filter.value.unknown-option
 filter.value.unknown-time-zone
 filter.value.unparsable-date
+record.action.unfetched
 record.capability.missing
 record.card.invalid
 record.column.duplicate

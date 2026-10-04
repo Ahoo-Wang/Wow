@@ -455,6 +455,7 @@ export type IssuePath = (string | number)[];
 
 | 代码 | 默认措辞 |
 |---|---|
+| `record.action.unfetched` | 操作「{action}」的条件读了 {field}，这个视图的行没有取回它，每一行上读到的都是空。把它写进定义的 record.rowFields。 |
 | `record.capability.missing` | {definition} 不再提供记录视图。 |
 | `record.card.invalid` | 卡片设置无法读取。 |
 | `record.column.duplicate` | 列「{field}」列了两次。 |

@@ -52,4 +52,8 @@ export const actionsMessages = {
   // Why a record's outcome is unknown.
   'label.action.timed-out': 'No answer in time',
   'label.action.abandoned': 'Stopped waiting',
+  // Told to the host in development, never shown to a reader: a rule read
+  // a field the rows do not fetch, so it reads as empty on every row.
+  'record.action.unfetched':
+    'Action “{action}” reads {field}, which the rows of this view do not fetch: it reads as empty on every row. List it in the definition’s record.rowFields.',
 } as const;

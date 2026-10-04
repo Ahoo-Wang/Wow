@@ -1944,6 +1944,7 @@ label.workbench.opening
 label.workbench.switch-view
 label.write.conflict
 label.write.unknown
+record.action.unfetched
 record.capability.missing
 record.card.invalid
 record.column.duplicate

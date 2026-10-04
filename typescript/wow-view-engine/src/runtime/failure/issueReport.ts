@@ -88,6 +88,10 @@ const HINTS: readonly (readonly [string, string])[] = [
     'The source admits less than the definition declares on this deployment: narrow the definition, or accept that the control is not offered here.',
   ],
   [
+    'record.action.unfetched',
+    "List the field in the definition's `record.rowFields`: a row brings only the shown columns, the row key, the card's fields and what the sort and the summaries read, so the action's rule reads it as empty on every row.",
+  ],
+  [
     'view.list.reserved-id',
     "The store returned an id in the system views' namespace; only a definition declares one.",
   ],
@@ -156,7 +160,7 @@ function stringParam(found: Issue, name: string): string | undefined {
 declare const process: { env: { NODE_ENV?: string } };
 
 /** True in a development build: `NODE_ENV` says `development`. */
-function inDevelopment(): boolean {
+export function inDevelopment(): boolean {
   try {
     return process.env.NODE_ENV === 'development';
   } catch {
