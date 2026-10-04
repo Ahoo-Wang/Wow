@@ -81,14 +81,18 @@ try {
 
 ## Output
 
+Every path is relative to the `-o`/`outputDir` root, and the generator always adds the context-alias directory under it: an aggregate's clients are written to `<output>/<contextAlias>/<aggregateName>/`. The output directory is never treated as the context, so `-o src/generated/ecommerce` with the `ecommerce.cart` tag writes `src/generated/ecommerce/ecommerce/cart/commandClient.ts`; `-o src/generated` writes `src/generated/ecommerce/cart/commandClient.ts`.
+
 ```
-output/
+<output>/
 ├── index.ts                    # barrel at every directory level
-├── {context-alias}/
+├── .wow-generator.json         # ownership manifest
+├── {contextAlias}/
 │   ├── boundedContext.ts       # e.g. EXAMPLE_BOUNDED_CONTEXT_ALIAS
-│   ├── types.ts                # models for this schema path
+│   ├── types.ts                # models whose schema path is {contextAlias}
 │   ├── {tag}ApiClient.ts       # one per non-CQRS tag, camelCase (cartApiClient.ts)
-│   └── {aggregate}/
+│   └── {aggregateName}/
+│       ├── types.ts            # models named {contextAlias}.{aggregateName}.* (CartState, AddCartItem)
 │       ├── commandClient.ts    # CommandClient + StreamCommandClient + CommandEndpointPaths
 │       └── queryClient.ts      # QueryClientFactory + DomainEventType + DomainEventTypeMapTitle
 └── {other-schema-path}/types.ts

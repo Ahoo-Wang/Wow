@@ -1,6 +1,6 @@
 ---
 name: "wow-migrate"
-description: "Handle downstream cross-major or otherwise breaking Wow migrations across pinned releases, Wow application source/configuration/generated/runtime contracts, or Wow-managed storage/data. First adoption without history conversion belongs to wow-develop; history conversion, reconciliation, cutover, or incompatible-write rollback belongs here. Exclude the Wow framework repository, generic migrations, routine same-major non-breaking upgrades, and ordinary development/review/failures."
+description: "Handle breaking Wow migrations in downstream services with a named Wow version, me.ahoo.wow imports or wow-* dependencies: cross-major upgrades between pinned releases, Wow source/configuration/generated/runtime contract breaks, Wow-managed storage/data history conversion, reconciliation, cutover and incompatible-write rollback, plus reviews and failures of such migrations. Not the Wow framework repository, generic database migrations, first adoption without history, or routine same-major upgrades."
 ---
 
 # Migrate Wow Across Breaking Boundaries
