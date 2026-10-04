@@ -47,6 +47,9 @@
         "modeling_command_custom_internal_aggregate": {
           "type": "me.ahoo.wow.modeling.command.CustomInternalCommandAggregate"
         },
+        "modeling_command_on_error_probe_aggregate": {
+          "type": "me.ahoo.wow.modeling.command.OnErrorProbeAggregate"
+        },
         "messaging_aggregate": {
           "scopes": [
             "me.ahoo.wow.messaging"

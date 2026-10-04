@@ -63,7 +63,9 @@ ProcessedNotifierFilter
 - 创建命令直接构造空的 StateAggregate；
 - 其他命令从 `StateAggregateRepository` 恢复状态；
 - 用恢复后的状态构造 `SimpleCommandAggregate`；聚合模式下命令根接收状态对象，非聚合模式直接复用状态对象；
-- 只对标记为 recoverable 的失败按内置退避策略重建状态并重试。
+- 只对标记为 recoverable 的失败按内置退避策略重建状态并重试；
+- 每次尝试都从第一次尝试之前的 exchange 开始：失败尝试留下的错误、事件流、聚合版本、命令调用结果、命令结果和命令聚合都不带到下一次，等待信号不会报告一个没有持久化的版本（自 9.2.3 起）；
+- `@OnError` 函数只在最终失败后（重试耗尽时取其原因）在最近一次加载的聚合上执行一次：通常是最后一次尝试的聚合，最后一次尝试在加载前失败时用更早一次尝试的聚合；没有任何尝试加载到聚合时不执行，自定义的非 `SimpleCommandAggregate` 的 `CommandAggregate` 由它自己的 `process` 处理错误（自 9.2.3 起）。
 
 `SimpleCommandAggregate.process` 随后检查期望版本、创建许可、owner、space、删除/恢复状态和命令函数是否存在。检查通过后，`CommandFunctionResolver` 调用匹配函数及有序的 after-command 函数，把返回值展平为一条 `DomainEventStream` 并放入 exchange。
 

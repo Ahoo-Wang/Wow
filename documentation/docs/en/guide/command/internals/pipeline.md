@@ -63,7 +63,9 @@ The first Filter is the outermost wrapper, so it observes completion or failure 
 - constructs an empty StateAggregate for a create command;
 - restores other commands through `StateAggregateRepository`;
 - creates a `SimpleCommandAggregate` from that state; the aggregation pattern constructs a command root with the state, while the non-aggregation pattern reuses the state object;
-- rebuilds state and retries only failures marked recoverable, using the built-in backoff policy.
+- rebuilds state and retries only failures marked recoverable, using the built-in backoff policy;
+- starts every attempt from the exchange as it was before the first one: the error, event stream, aggregate version, command-invoke result, command results and command aggregate of a failed attempt are not carried over, so a wait signal never reports a version that was not stored (since 9.2.3);
+- runs the `@OnError` function once, after the final failure (unwrapped from a retry exhaustion), on the most recently loaded aggregate: the last attempt's, or an earlier attempt's when the last one failed before loading; not when no attempt loaded one, and not for a custom `CommandAggregate` that is not a `SimpleCommandAggregate`, whose own `process` handles its errors (since 9.2.3).
 
 `SimpleCommandAggregate.process` then checks expected version, create permission, owner, space, deleted/recovery state, and command-function availability. `CommandFunctionResolver` invokes the matching function and ordered after-command functions, flattens their returns into one `DomainEventStream`, and stores it on the exchange.
 

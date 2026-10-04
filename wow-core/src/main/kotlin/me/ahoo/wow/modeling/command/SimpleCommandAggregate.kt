@@ -89,7 +89,16 @@ class SimpleCommandAggregate<C : Any, S : Any>(
      * @param exchange The server command exchange to process.
      * @return A Mono containing the resulting domain event stream.
      */
-    override fun process(exchange: ServerCommandExchange<*>): Mono<DomainEventStream> {
+    override fun process(exchange: ServerCommandExchange<*>): Mono<DomainEventStream> =
+        processAttempt(exchange).onErrorResume {
+            handleError(exchange, it)
+        }
+
+    /**
+     * One processing attempt without the `@OnError` function: a caller that retries ([RetryableAggregateProcessor])
+     * runs [handleError] once, after its final failure.
+     */
+    internal fun processAttempt(exchange: ServerCommandExchange<*>): Mono<DomainEventStream> {
         exchange.setFunction(processorFunction)
         exchange.setAggregateVersion(version)
         val message = exchange.message
@@ -140,33 +149,29 @@ class SimpleCommandAggregate<C : Any, S : Any>(
                 commandState.onStore(eventStore, eventStream).doOnNext { commandState = it }
                     .doOnError { commandState = CommandState.EXPIRED }.thenReturn(eventStream)
             }
-        }.errorResume(commandType, exchange)
+        }
     }
 
     /**
-     * Extension function to handle errors during command processing using registered error functions.
+     * Handles the failure of processing [exchange] with the `@OnError` function registered for the command type.
      *
-     * If an error function is registered for the command type, it will be invoked to handle the error.
-     * Otherwise, the original error is propagated.
+     * The error is recorded on the exchange first, then the error function runs. The resulting error is the one the
+     * error function left on the exchange (it may replace it), otherwise [error]; an error thrown by the error
+     * function propagates instead. Without an error function [error] propagates.
      *
-     * @param commandType The type of the command that caused the error.
      * @param exchange The server command exchange where the error occurred.
-     * @return A Mono that either contains the error handling result or re-throws the original error.
+     * @param error The processing failure.
+     * @return A Mono that always errors.
      */
-    private fun Mono<DomainEventStream>.errorResume(
-        commandType: Class<*>,
-        exchange: ServerCommandExchange<*>
-    ): Mono<DomainEventStream> {
-        return onErrorResume {
-            exchange.setError(it)
-            val errorFunction =
-                commandFunctionResolver.errorFunction(commandType) ?: return@onErrorResume it.toMono<DomainEventStream>()
-            errorFunction.invoke(exchange).then(
-                Mono.defer {
-                    exchange.getError()?.toMono() ?: it.toMono<DomainEventStream>()
-                }
-            )
-        }
+    internal fun handleError(exchange: ServerCommandExchange<*>, error: Throwable): Mono<DomainEventStream> {
+        exchange.setError(error)
+        val errorFunction =
+            commandFunctionResolver.errorFunction(exchange.message.body.javaClass) ?: return error.toMono()
+        return errorFunction.invoke(exchange).then(
+            Mono.defer {
+                exchange.getError()?.toMono() ?: error.toMono<DomainEventStream>()
+            }
+        )
     }
 
     override fun toString(): String = "SimpleCommandAggregate(state=$state, metadata=$metadata, commandState=$commandState)"
