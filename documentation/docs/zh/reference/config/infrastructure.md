@@ -25,7 +25,7 @@ outline: deep
 | `wow.kafka.producer` | Map\<String, String\> | `{}` | 生产者覆盖；优先级高于公共属性 |
 | `wow.kafka.consumer` | Map\<String, String\> | `{}` | 消费者覆盖；优先级高于公共属性 |
 | `wow.kafka.receiver.prefetch-batches` | Int | `1` | Reactor Kafka 预取的 poll 批次数 |
-| `wow.kafka.receiver.max-deferred-commits` | Int | `1` | 为乱序提交保留的最大 deferred commit 数 |
+| `wow.kafka.receiver.max-deferred-commits` | Int | `500` | 为乱序完成保留的已确认 offset 数；达到该数量时立即提交 |
 | `wow.kafka.receiver.retry-attempts` | Long | `3` | 一次连续 receive failure burst 的最大尝试次数 |
 | `wow.kafka.receiver.retry-backoff` | Duration | `10s` | 接收重试的最小退避 |
 | `wow.kafka.receiver.decode-failure-strategy` | Enum | `fail` | `fail` 或 `acknowledge` |

@@ -51,6 +51,19 @@ internal class KafkaAutoConfigurationTest {
     }
 
     @Test
+    fun `should default receiver policy to the library defaults`() {
+        contextRunner
+            .enableWow()
+            .withPropertyValues("${KafkaProperties.PREFIX}.bootstrap-servers=kafka")
+            .withUserConfiguration(KafkaAutoConfiguration::class.java)
+            .run { context: AssertableApplicationContext ->
+                val policy = context.getBean(KafkaReceiverPolicy::class.java)
+                policy.prefetchBatches.assert().isEqualTo(KafkaReceiverPolicy.DEFAULT_PREFETCH_BATCHES)
+                policy.maxDeferredCommits.assert().isEqualTo(KafkaReceiverPolicy.DEFAULT_MAX_DEFERRED_COMMITS)
+            }
+    }
+
+    @Test
     fun `should bind receiver safety policy`() {
         contextRunner
             .enableWow()

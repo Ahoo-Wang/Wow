@@ -73,7 +73,7 @@ class KafkaProperties(
 
 class KafkaReceiverProperties(
     @DefaultValue("1") var prefetchBatches: Int = KafkaReceiverPolicy.DEFAULT_PREFETCH_BATCHES,
-    @DefaultValue("1") var maxDeferredCommits: Int = KafkaReceiverPolicy.DEFAULT_MAX_DEFERRED_COMMITS,
+    @DefaultValue("500") var maxDeferredCommits: Int = KafkaReceiverPolicy.DEFAULT_MAX_DEFERRED_COMMITS,
     @DefaultValue("3") var retryAttempts: Long = KafkaReceiverPolicy.DEFAULT_RETRY_ATTEMPTS,
     @DefaultValue("10s") var retryBackoff: Duration = KafkaReceiverPolicy.DEFAULT_RETRY_BACKOFF,
     @DefaultValue("FAIL")

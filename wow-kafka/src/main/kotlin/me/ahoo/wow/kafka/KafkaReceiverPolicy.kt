@@ -15,6 +15,17 @@ package me.ahoo.wow.kafka
 import reactor.util.retry.Retry
 import java.time.Duration
 
+/**
+ * Receive-side policy of the Kafka buses.
+ *
+ * - [prefetchBatches]: Kafka poll batches requested ahead of the downstream.
+ * - [maxDeferredCommits]: acknowledged offsets kept for out-of-order commits. Offsets are committed only up to the
+ *   earliest unacknowledged one, so an aggregate group finishing ahead of an earlier record never commits past it.
+ *   Reactor Kafka stops polling while this many acknowledged offsets wait for a commit; the buses therefore also
+ *   commit as soon as that many are waiting (Reactor Kafka's `commitBatchSize`, capped at this value), so the pause
+ *   only lasts while an earlier record is still in flight, or a commit is.
+ * - [retrySpec]: retry of the receive stream.
+ */
 class KafkaReceiverPolicy(
     val prefetchBatches: Int = DEFAULT_PREFETCH_BATCHES,
     val maxDeferredCommits: Int = DEFAULT_MAX_DEFERRED_COMMITS,
@@ -31,7 +42,13 @@ class KafkaReceiverPolicy(
 
     companion object {
         const val DEFAULT_PREFETCH_BATCHES: Int = 1
-        const val DEFAULT_MAX_DEFERRED_COMMITS: Int = 1
+
+        /**
+         * Kafka's default `max.poll.records`: one full poll can be acknowledged before a commit is due.
+         * 9.2.2 and earlier used 1, which paused the consumer after every acknowledged record until the next
+         * periodic commit (`commitInterval`, 5 s by default).
+         */
+        const val DEFAULT_MAX_DEFERRED_COMMITS: Int = 500
         const val DEFAULT_RETRY_ATTEMPTS: Long = 3
         val DEFAULT_RETRY_BACKOFF: Duration = Duration.ofSeconds(10)
 

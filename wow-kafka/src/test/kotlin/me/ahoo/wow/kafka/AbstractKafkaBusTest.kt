@@ -527,6 +527,7 @@ class AbstractKafkaBusTest {
                 baseCustomizer.customize(any())
             }
             bus.capturedOptions!!.maxDeferredCommits().assert().isEqualTo(7)
+            bus.capturedOptions!!.commitBatchSize().assert().isEqualTo(7)
             bus.capturedOptions!!.groupId().assert().isEqualTo(receiverGroup)
             bus.capturedOptions!!.subscriptionTopics().assert()
                 .isEqualTo(setOf(DefaultCommandTopicConverter().convert(message)))
