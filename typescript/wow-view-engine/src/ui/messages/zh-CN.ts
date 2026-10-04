@@ -2365,6 +2365,9 @@ export const zhCN: Readonly<Record<string, string>> = {
   'label.action.failed': '失败，未给出原因',
   'label.action.timed-out': '超时未答复',
   'label.action.abandoned': '已不再等待',
+  // 开发构建里报给宿主研发、不给读者看：操作的条件读了行上没取回的字段。
+  'record.action.unfetched':
+    '操作「{action}」的条件读了 {field}，这个视图的行不取回这个字段。把它写进定义的 record.rowFields。',
 
   // 点一个面板（批 D，D22 H、I）：追问菜单上的仪表盘筛选、交叉筛选、「点击时…」，
   // 以及内核与运行时关于它的发现。独立站在屏幕上的名字用「」。

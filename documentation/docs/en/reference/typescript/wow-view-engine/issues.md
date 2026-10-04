@@ -455,6 +455,7 @@ The list holds the codes `issue('…')` raises directly and those raised through
 
 | Code | Default wording |
 |---|---|
+| `record.action.unfetched` | Action “{action}” reads {field}, which is not fetched for the rows of this view. List it in the definition’s record.rowFields. |
 | `record.capability.missing` | {definition} does not offer a record view any more. |
 | `record.card.invalid` | The card settings could not be read. |
 | `record.column.duplicate` | The column {field} is listed twice. |

@@ -17,12 +17,19 @@ import { expect, userEvent, waitFor, within } from 'storybook/test';
 import {
   actions,
   systemInstanceId,
+  type Issue,
   type RecordActions,
   type RecordRow,
+  type ViewInstance,
 } from '@ahoo-wang/wow-view-engine';
 import { DataWorkbench, zhCN } from '@ahoo-wang/wow-view-engine/ui';
 import { AppShell } from '../shared/AppShell.js';
-import { createStoryEngine, HOST_LANGUAGE } from './fixtures.js';
+import {
+  createStoryEngine,
+  HOST_LANGUAGE,
+  recordConfig,
+  savedViews,
+} from './fixtures.js';
 import { StoryEngine } from './StoryEngine.js';
 import '@ahoo-wang/wow-view-engine/styles.css';
 
@@ -566,5 +573,114 @@ export const DetailDrawer: Story = {
     await expect(await line(canvasElement, 'settled')).toHaveTextContent(
       '发货 · SO-1003 已完成',
     );
+  },
+};
+
+/**
+ * 「待发货」hides the status column, and 「发货」 reads the status: the rows
+ * bring only what the view needs (`recordProjection`), so the rule reads
+ * nothing there — a cancelled order of 1,000 or more looks shippable. In a
+ * development build the engine tells `onIssue` once, naming the field, the
+ * action and `record.rowFields`; the list under the workbench shows what it
+ * heard. Any other build makes no such check and the list stays empty: the
+ * rules read the rows as they are (`runtime/actionReads.ts`).
+ */
+const TO_SHIP: ViewInstance = {
+  id: 'orders-to-ship',
+  definitionId: 'orders',
+  title: '待发货（不显示状态）',
+  scope: 'shared',
+  revision: '1',
+  config: recordConfig({
+    table: {
+      columns: [
+        { field: 'id', pinned: true },
+        { field: 'warehouse' },
+        { field: 'amount' },
+      ],
+    },
+    card: { title: 'id', fields: ['warehouse', 'amount'] },
+  }),
+};
+
+// Replaced by the bundler as the engine's own check is (`inDevelopment`):
+// `storybook dev` is a development build, the story tests and a built
+// Storybook are not.
+declare const process: { env: { NODE_ENV?: string } };
+
+function UnfetchedScene() {
+  const [declared] = useState(() => orderActions());
+  const [heard, setHeard] = useState<Issue[]>([]);
+  return (
+    <>
+      <StoryEngine
+        create={() =>
+          createStoryEngine({
+            instances: [...savedViews, TO_SHIP],
+            onIssue: found => setHeard(list => [...list, found]),
+          })
+        }
+      >
+        {engine => (
+          <DataWorkbench
+            engine={engine}
+            definitionId="orders"
+            instanceId={TO_SHIP.id}
+            {...HOST_LANGUAGE}
+            record={{ actions: declared }}
+          />
+        )}
+      </StoryEngine>
+      <section aria-label="onIssue" className="story-findings">
+        <h2>onIssue（开发构建才有这一条）</h2>
+        <ul>
+          {heard
+            .filter(found => found.code === 'record.action.unfetched')
+            .map(found => (
+              <li key={`${found.params?.view}-${found.params?.field}`}>
+                <code>{found.code}</code>{' '}
+                {zhCN['record.action.unfetched']
+                  .replace('{action}', String(found.params?.action))
+                  .replace('{field}', String(found.params?.field))}
+              </li>
+            ))}
+        </ul>
+      </section>
+    </>
+  );
+}
+
+export const ActionReadsUnfetchedField: Story = {
+  name: '条件读了没取回的字段：开发环境的提示',
+  render: () => <UnfetchedScene />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await waitFor(() =>
+      expect(
+        rowOf(canvas, 'SO-1006').getByRole('button', { name: '发货' }),
+      ).toBeTruthy(),
+    );
+    const findings = within(canvas.getByRole('region', { name: 'onIssue' }));
+    if (process.env.NODE_ENV === 'development') {
+      // Once for the view and the field, however many rows and renders.
+      await waitFor(() =>
+        expect(findings.getAllByRole('listitem')).toHaveLength(1),
+      );
+      await expect(findings.getByRole('listitem')).toHaveTextContent(
+        '操作「ship」的条件读了 status',
+      );
+      await expect(findings.getByRole('listitem')).toHaveTextContent(
+        'record.rowFields',
+      );
+      await slowly(300);
+      await expect(findings.getAllByRole('listitem')).toHaveLength(1);
+    } else {
+      // A production build: no proxy, nothing told, the rules as they were.
+      await slowly(300);
+      await expect(findings.queryAllByRole('listitem')).toHaveLength(0);
+    }
+    // Either way the rule decides on the row it was handed: the status is
+    // not on it, so an order is judged by its amount alone.
+    await held(rowOf(canvas, 'SO-1006').getByRole('button', { name: '发货' }));
   },
 };

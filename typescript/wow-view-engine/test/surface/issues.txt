@@ -1,4 +1,4 @@
-# Issue codes — 501.
+# Issue codes — 502.
 # Written by test/publicSurface.test.ts; a change here is a change to
 # the public surface (README「Wording and language」, docs/design/decisions.md D29).
 analysis.alias.duplicate
@@ -362,6 +362,7 @@ filter.value.required
 filter.value.unknown-option
 filter.value.unknown-time-zone
 filter.value.unparsable-date
+record.action.unfetched
 record.capability.missing
 record.card.invalid
 record.column.duplicate

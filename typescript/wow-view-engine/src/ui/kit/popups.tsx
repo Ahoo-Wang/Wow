@@ -45,6 +45,7 @@ import {
 } from '../components/select.js';
 import { type TooltipContent as VendoredTooltipContent } from '../components/tooltip.js';
 import { cspNonce } from './cspNonce.js';
+import { handBack, rememberOpener } from './focus.js';
 import { useViewMessages } from './MessagesProvider.js';
 import {
   useSurfaceAttributes,
@@ -510,6 +511,20 @@ const SHEET_POPUP_CLASS = {
     'fve:fixed fve:inset-x-0 fve:bottom-0 fve:flex fve:h-auto fve:max-h-[80dvh] fve:flex-col fve:gap-4 fve:overflow-y-auto fve:border-t fve:bg-popover fve:bg-clip-padding fve:text-sm fve:text-popover-foreground fve:shadow-lg fve:transition fve:duration-200 fve:ease-in-out fve:data-ending-style:translate-y-[2.5rem] fve:data-ending-style:opacity-0 fve:data-starting-style:translate-y-[2.5rem] fve:data-starting-style:opacity-0',
 } as const;
 
+type MenuContentProps = React.ComponentProps<
+  typeof VendoredDropdownMenuContent
+> & {
+  /**
+   * What the menu is placed against when it has no trigger of its own: a
+   * chart mark or a table row that was pressed, as an element or a point.
+   */
+  anchor?: MenuPrimitive.Positioner.Props['anchor'];
+};
+
+/**
+ * A menu's popup. `handsBack` says whether it returns the keyboard when its
+ * caller says nothing — a menu does, a submenu leaves it to its menu.
+ */
 export function DropdownMenuContent({
   align = 'start',
   alignOffset = 0,
@@ -519,15 +534,10 @@ export function DropdownMenuContent({
   className,
   style,
   finalFocus,
+  handsBack = true,
   ...props
-}: React.ComponentProps<typeof VendoredDropdownMenuContent> & {
-  /**
-   * What the menu is placed against when it has no trigger of its own: a
-   * chart mark or a table row that was pressed, as an element or a point.
-   */
-  anchor?: MenuPrimitive.Positioner.Props['anchor'];
-}) {
-  const kept = useKeptFocus(finalFocus, props.ref);
+}: MenuContentProps & { handsBack?: boolean }) {
+  const kept = useKeptFocus(finalFocus, props.ref, handsBack);
   return (
     <MenuPrimitive.Portal>
       <MenuPrimitive.Positioner
@@ -555,7 +565,7 @@ export function DropdownMenuContent({
 /**
  * What a popup is given for `finalFocus`, and the ref it reads it with: a
  * function or a ref is asked only while the focus is still the popup's to
- * give (`focusMovedOn`); `true`, `false` and nothing pass as they are.
+ * give (`focusMovedOn`); `false` passes as it is.
  *
  * Base UI keeps a focus that moved on where it went when `finalFocus` is
  * `true`, but it takes a function's answer — or a ref's element — as
@@ -567,6 +577,12 @@ export function DropdownMenuContent({
  * `finalFocus` — the board's dialogs hand the keyboard to a panel's 「⋯」,
  * the record's detail to its row, the field list to the condition it added —
  * so each of them keeps a focus that moved on, too.
+ *
+ * And each notes where it was opened from (`rememberOpener`), so a closing
+ * whose opener — or whatever the caller named — has left the page lands
+ * near it rather than on `<body>` (`handBack`, WCAG 2.4.3). Nothing given is
+ * `true`, the popup's own default, except where `handsBack` is off: a
+ * submenu hands nothing back by default, its menu holds the keyboard.
  */
 function useKeptFocus<Close>(
   finalFocus:
@@ -576,6 +592,7 @@ function useKeptFocus<Close>(
     | undefined,
   /** The caller's own ref on the popup, which is given the element too. */
   outer: React.Ref<HTMLDivElement> | undefined,
+  handsBack = true,
 ): {
   ref: React.RefCallback<HTMLDivElement>;
   finalFocus?:
@@ -585,20 +602,25 @@ function useKeptFocus<Close>(
   const ref = useCallback(
     (node: HTMLDivElement | null) => {
       popup.current = node;
+      if (node) rememberOpener(node);
       assignRef(outer, node);
     },
     [outer],
   );
-  if (finalFocus === undefined) return { ref };
-  if (typeof finalFocus === 'boolean') return { ref, finalFocus };
+  if (finalFocus === false) return { ref, finalFocus };
+  if (finalFocus === undefined && !handsBack) return { ref };
   return {
     ref,
-    finalFocus: closeType =>
-      focusMovedOn(popup.current)
-        ? false
-        : typeof finalFocus === 'function'
+    finalFocus: closeType => {
+      if (focusMovedOn(popup.current)) return false;
+      const asked =
+        typeof finalFocus === 'function'
           ? finalFocus(closeType)
-          : (finalFocus.current ?? true),
+          : typeof finalFocus === 'object'
+            ? (finalFocus.current ?? true)
+            : true;
+      return handBack(popup.current, asked);
+    },
   };
 }
 
@@ -634,9 +656,10 @@ export function DropdownMenuSubContent({
   sideOffset = 0,
   className,
   ...props
-}: React.ComponentProps<typeof DropdownMenuContent>) {
+}: MenuContentProps) {
   return (
     <DropdownMenuContent
+      handsBack={false}
       data-slot="dropdown-menu-sub-content"
       className={withClass('fve:w-auto fve:min-w-24', className)}
       align={align}
@@ -691,8 +714,10 @@ export function SelectContent({
   alignOffset = 0,
   alignItemWithTrigger = true,
   style,
+  finalFocus,
   ...props
 }: React.ComponentProps<typeof VendoredSelectContent>) {
+  const kept = useKeptFocus(finalFocus, props.ref);
   // The popup adds a `<style>` of its own (the list's scrollbar hidden
   // while its scroll arrows show); under a strict policy it carries the
   // page's nonce (`cspNonce`, D74).
@@ -712,6 +737,7 @@ export function SelectContent({
             data-slot="select-content"
             data-align-trigger={alignItemWithTrigger}
             {...props}
+            {...kept}
             className={withClass(SELECT_POPUP_CLASS, themedClass(className))}
             style={useSurfaceType(style)}
             {...useSurfaceAttributes()}

@@ -119,3 +119,163 @@ export function keyboardFell(): boolean {
     (active as HTMLButtonElement).disabled === true
   );
 }
+
+/**
+ * Where a popup was opened from, kept so its closing can still land near
+ * it once it is gone (WCAG 2.4.3). A popup hands the keyboard back to its
+ * opener — the trigger, or the control that had the keyboard — when it
+ * closes; but the opener can go while the popup is open (a row a refresh
+ * filtered out, a selection's bar gone with its selection, a panel taken
+ * off the board), and a focus sent to a control that is no longer on the
+ * page falls to `<body>`, where the next Tab starts the page again.
+ */
+interface Opener {
+  /** The control that opened the popup. */
+  readonly control: HTMLElement;
+  /**
+   * What the control sat in, nearest first: up to the popup it was in (a
+   * menu's item that opened a dialog), else up to the outermost surface,
+   * else up to the page's body (`openerAt`).
+   */
+  readonly within: readonly HTMLElement[];
+  /** The opener of the popup the control was in, where it was in one. */
+  readonly outer: Opener | undefined;
+}
+
+/** Each open popup's opener, by its popup element (`rememberOpener`). */
+const openers = new WeakMap<Element, Opener>();
+
+/**
+ * Notes where `popup` was opened from, as it is drawn: the control with
+ * the keyboard, or — when the keyboard was nowhere (a pointer press in
+ * Safari focuses nothing) — the trigger that controls it. Once known it is
+ * kept: by the next call the keyboard has moved into the popup.
+ */
+export function rememberOpener(popup: HTMLElement): void {
+  if (openers.has(popup)) return;
+  const doc = popup.ownerDocument;
+  const active = doc.activeElement;
+  const control =
+    active instanceof HTMLElement &&
+    active !== doc.body &&
+    !popup.contains(active)
+      ? active
+      : triggerOf(popup);
+  if (control) openers.set(popup, openerAt(control));
+}
+
+/** The element whose `aria-controls` names `popup` or a part of it. */
+function triggerOf(popup: HTMLElement): HTMLElement | null {
+  const doc = popup.ownerDocument;
+  for (const element of doc.querySelectorAll<HTMLElement>('[aria-controls]')) {
+    const id = element.getAttribute('aria-controls');
+    const controlled = id ? doc.getElementById(id) : null;
+    if (controlled && popup.contains(controlled)) return element;
+  }
+  return null;
+}
+
+/**
+ * The opener at `control`, with what it sits in: up to the popup it is in,
+ * else up to the outermost surface (`.fve-root`) around it — the host's
+ * page beyond is the host's to focus — or to the body where there is none.
+ */
+function openerAt(control: HTMLElement): Opener {
+  const within: HTMLElement[] = [];
+  const body = control.ownerDocument.body;
+  let surface = -1;
+  for (
+    let element = control.parentElement;
+    element && element !== body;
+    element = element.parentElement
+  ) {
+    within.push(element);
+    const outer = openers.get(element);
+    if (outer) return { control, within, outer };
+    if (element.classList.contains('fve-root')) surface = within.length;
+  }
+  return {
+    control,
+    within: surface < 0 ? within : within.slice(0, surface),
+    outer: undefined,
+  };
+}
+
+/**
+ * Where the keyboard lands when `popup` closes and the place it would go
+ * back to has gone: the first control that takes it in the nearest part of
+ * the page still standing around the opener — the opener itself while it
+ * is there, then its row, its list, its band — and past the popup it was
+ * opened from, that popup's opener's. `null` when nothing of it is left.
+ */
+export function landingFor(popup: Element): HTMLElement | null {
+  return landingOf(openers.get(popup));
+}
+
+function landingOf(first: Opener | undefined): HTMLElement | null {
+  for (let opener = first; opener; opener = opener.outer) {
+    for (const place of [opener.control, ...opener.within]) {
+      if (!place.isConnected) continue;
+      const found = takerIn(place);
+      if (found) return found;
+    }
+  }
+  return null;
+}
+
+/** `place` when it takes the keyboard, else the first shown control in it. */
+function takerIn(place: HTMLElement): HTMLElement | null {
+  const candidates = [place, ...place.querySelectorAll<HTMLElement>(FOCUSABLE)];
+  return (
+    candidates.find(
+      element =>
+        element.matches(FOCUSABLE) &&
+        !isBarred(element) &&
+        !element.hasAttribute(PASSED_OVER) &&
+        !element.closest('[hidden], [inert], [aria-hidden="true"]') &&
+        element.checkVisibility?.() !== false,
+    ) ?? null
+  );
+}
+
+/**
+ * What a closing popup hands the keyboard to (`finalFocus`), given what
+ * its caller asked for: that, while it is still on the page; otherwise the
+ * landing near the opener (`landingFor`). `true` asks for the opener, so it
+ * stands while the opener does. `false` and nothing — no hand-back — pass
+ * as they are.
+ *
+ * The answer is read while the popup is being taken off the page, and the
+ * focus is sent a moment later; whatever goes in between (the opener and
+ * the popup unmounted by the same render, a button the command disabled)
+ * would still drop the keyboard. So once the hand-back has run, a keyboard
+ * that fell anyway is put on the landing too — but only when the place it
+ * was meant for is what failed: gone from the page, or disabled. A target
+ * still standing means the popup chose not to hand back (Base UI skips it
+ * on an outside press where `focus({ preventScroll })` is unsupported, so
+ * the page does not jump, and on a hover popup's mouse leaving), and that
+ * choice stands; a keyboard that went to another control is left there.
+ */
+export function handBack<Asked>(
+  popup: HTMLElement | null,
+  asked: Asked,
+): Asked | HTMLElement {
+  if (!popup || asked === false || asked === undefined) return asked;
+  const opener = openers.get(popup);
+  if (!opener) return asked;
+  const target = asked instanceof HTMLElement ? asked : opener.control;
+  // After the popup's own hand-back, which is queued behind this.
+  queueMicrotask(() =>
+    queueMicrotask(() => {
+      if (keyboardFell() && failed(target))
+        landingOf(opener)?.focus({ preventScroll: true });
+    }),
+  );
+  const gone = !target.isConnected;
+  return gone ? (landingFor(popup) ?? asked) : asked;
+}
+
+/** Whether `target` cannot take the keyboard: off the page, or disabled. */
+function failed(target: HTMLElement): boolean {
+  return !target.isConnected || isBarred(target);
+}

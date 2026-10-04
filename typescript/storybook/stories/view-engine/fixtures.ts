@@ -22,6 +22,7 @@ import {
   type DataViewDefinition,
   type DashboardDefinition,
   type FieldOption,
+  type Issue,
   type OptionSource,
   type RecordData,
   type RecordViewConfig,
@@ -838,6 +839,8 @@ export interface StoryEngineOptions {
    * — 「本月」 — must mean the same whenever it runs.
    */
   environment?: RuntimeEnvironment;
+  /** Where the engine's findings go, for a story that shows them. */
+  onIssue?: (issue: Issue) => void;
 }
 
 /**
@@ -866,6 +869,7 @@ export function createStoryEngine(
       ? { limits: { ...DEFAULT_RUNTIME_LIMITS, ...options.limits } }
       : {}),
     ...(options.environment ? { environment: options.environment } : {}),
+    ...(options.onIssue ? { onIssue: options.onIssue } : {}),
   });
 }
 

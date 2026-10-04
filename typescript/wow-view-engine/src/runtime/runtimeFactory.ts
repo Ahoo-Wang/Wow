@@ -34,6 +34,7 @@ import type {
   DashboardViewConfig,
   FieldDefinition,
   FilterTree,
+  Issue,
   RuntimeLimits,
   ViewConfig,
   ViewDefinition,
@@ -45,7 +46,8 @@ import type { RuntimeEnvironment } from './environment.js';
 import type { RequestRunner } from './requestRunner.js';
 import type { OptionSource, ViewSource } from './source.js';
 import type { DataViewRuntime } from './viewRuntime.js';
-import { dataViewRuntime } from './recordRuntime.js';
+import { dataViewRuntime, isRecordRuntime } from './recordRuntime.js';
+import { watchActionReads } from './actionReads.js';
 import type {
   ManagedViewRuntime,
   RuntimeCapabilities,
@@ -87,6 +89,11 @@ interface RuntimeFactoryHost {
    * where the descriptor contradicts the definition).
    */
   readonly capabilities: SourceCapabilities;
+  /**
+   * A finding with nobody to reject (`onIssue`): in development, a declared
+   * action's rule that read a field its rows did not fetch (`actionReads.ts`).
+   */
+  report?(found: Issue): void;
 }
 
 /** The queries one panel may ask at once; see `RuntimeFactory.holdRoom`. */
@@ -95,6 +102,8 @@ const QUERIES_PER_PANEL = 3;
 export class RuntimeFactory {
   private readonly host: RuntimeFactoryHost;
   private sequence = 0;
+  /** The fields each view was told its actions read unfetched; see `watched`. */
+  private readonly toldUnfetched = new Set<string>();
 
   constructor(host: RuntimeFactoryHost) {
     this.host = host;
@@ -131,22 +140,35 @@ export class RuntimeFactory {
 
     const effective = this.host.capabilities.effective(definition);
     const kinds = this.host.kinds;
-    return dataViewRuntime({
-      id: this.newRuntimeId(),
-      definition: effective.definition,
-      config: readConfig(config, effective.definition, kinds),
-      title: identity.title,
-      scope: identity.scope,
-      saved: readSaved(identity.saved, effective.definition, kinds),
-      kinds,
-      limits: effective.limits,
-      environment: this.host.environment,
-      source: this.host.resolveSource(definition.source),
-      runner: this.host.runner,
-      resolveOptions: this.host.resolveOptions,
-      scopeFilter,
-      capabilities: this.follow(definition),
-    });
+    return this.watched(
+      dataViewRuntime({
+        id: this.newRuntimeId(),
+        definition: effective.definition,
+        config: readConfig(config, effective.definition, kinds),
+        title: identity.title,
+        scope: identity.scope,
+        saved: readSaved(identity.saved, effective.definition, kinds),
+        kinds,
+        limits: effective.limits,
+        environment: this.host.environment,
+        source: this.host.resolveSource(definition.source),
+        runner: this.host.runner,
+        resolveOptions: this.host.resolveOptions,
+        scopeFilter,
+        capabilities: this.follow(definition),
+      }),
+    );
+  }
+
+  /**
+   * `runtime`, its declared actions' reads watched where it is a Record
+   * view's — in development only (`watchActionReads`).
+   */
+  private watched(runtime: DataViewRuntime): DataViewRuntime {
+    const report = this.host.report;
+    if (report && isRecordRuntime(runtime))
+      watchActionReads(runtime, report, this.toldUnfetched);
+    return runtime;
   }
 
   private buildDashboard(
@@ -291,23 +313,25 @@ export class RuntimeFactory {
     scopeFilter: FilterTree | null,
   ) => {
     const { instance, definition } = view;
-    return dataViewRuntime({
-      id: this.newRuntimeId(),
-      definition,
-      config: readConfig(view.config, definition, this.host.kinds),
-      title: view.title,
-      scope: view.scope,
-      saved: readSaved(instance, definition, this.host.kinds),
-      kinds: this.host.kinds,
-      limits: this.host.capabilities.effective(definition).limits,
-      environment: this.host.environment,
-      source: this.host.resolveSource(definition.source),
-      runner: this.host.runner,
-      resolveOptions: this.host.resolveOptions,
-      scopeFilter,
-      autoRefresh: false,
-      capabilities: this.follow(definition),
-    });
+    return this.watched(
+      dataViewRuntime({
+        id: this.newRuntimeId(),
+        definition,
+        config: readConfig(view.config, definition, this.host.kinds),
+        title: view.title,
+        scope: view.scope,
+        saved: readSaved(instance, definition, this.host.kinds),
+        kinds: this.host.kinds,
+        limits: this.host.capabilities.effective(definition).limits,
+        environment: this.host.environment,
+        source: this.host.resolveSource(definition.source),
+        runner: this.host.runner,
+        resolveOptions: this.host.resolveOptions,
+        scopeFilter,
+        autoRefresh: false,
+        capabilities: this.follow(definition),
+      }),
+    );
   };
 
   /**

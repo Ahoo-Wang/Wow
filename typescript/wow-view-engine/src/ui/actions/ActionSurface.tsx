@@ -11,11 +11,12 @@
  * limitations under the License.
  */
 
-import { useCallback, useEffect, useRef, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, type ReactNode } from 'react';
 import type { RecordKey } from '../../model/index.js';
 import type { RecordRow } from '../../record/index.js';
 import type { RecordViewRuntime } from '../../runtime/index.js';
 import { reportError, viewPlace } from '../../runtime/failure/failures.js';
+import { watchedActions } from '../../runtime/actionReads.js';
 import {
   offeredAt,
   type ActionInput,
@@ -121,8 +122,15 @@ export function useActionSurface({
     },
     [runtime],
   );
+  // In development, the rules read the page's rows through a proxy that
+  // tells `onIssue` of a field they did not fetch (`actionReads.ts`); in
+  // production these are the host's actions as declared.
+  const rules = useMemo(
+    () => watchedActions(actions, runtime, table.rows),
+    [actions, runtime, table.rows],
+  );
   const controller = useRecordActions({
-    actions,
+    actions: rules,
     table,
     onError,
     ...(refresh ? { refresh } : {}),

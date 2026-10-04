@@ -257,6 +257,7 @@ export class ViewEngine extends EngineResources {
         : {}),
       readInstance: id => this.readInstance(id),
       capabilities: this.capabilities,
+      report: found => this.report(found),
     });
   }
 
