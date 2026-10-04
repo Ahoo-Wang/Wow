@@ -56,3 +56,6 @@ typescript/*/coverage/
 typescript/*/.vitest-reports/
 typescript/*/storybook-static/
 typescript/*/.vitest-attachments/
+
+# Local skill eval reports (scripts/eval-skills.mjs)
+skills/*/evals/results/

@@ -46,8 +46,10 @@ V9 是当前维护基线和默认术语。`wow-develop`、`wow-review` 与 `wow-
 - `references/` 保存稳定决策、源码发现方法和风险边界，按需加载。
 - `assets/` 保存可复制到输出中的模板，不作为推理资料默认加载。
 - Skill 内的 `scripts/` 只承载重复、确定且容易手写出错的操作；当前仅 `wow-migrate/scripts/audit-v6-usage.sh` 符合这一边界。
-- `evals/activation.jsonl` 保存 `prompt`、可选 raw setup `fixture` 与 evaluator-hidden `expectedSkills`；`evals/behavior.jsonl` 保存 `prompt`、目标 `skill`、人工 rubric `expectedBehavior` 和可选 raw setup `fixture`。
-- eval 数据不属于安装后工作流，也不由 Skill 加载；维护者可将其交给标准 Agent eval 工具，或在全新任务中执行人工前向评估。
+- `evals/<case>/prompt.md` 与 `evals/<case>/graders/*.md` 是 `claude plugin eval` 的用例：`prompt.md` 是交给 Agent 的请求（setup 文件内联在请求中），frontmatter 的 `tags` 恰含 `activation` 或 `behavior` 之一。
+  - `activation` 用例只有一个 `tool_used: Skill` grader：`trigger` 用例要求本 Skill 加载；`negative` 用例（`min: 0`、`max: 0`、`arm: both`）要求它不加载，包括应由相邻 Skill 或相邻工具（Axon、Spring Data、axios、openapi-generator 等）处理的请求。
+  - `behavior` 用例用 `llm` grader 的 PASS 条目评判答案，可再用 `regex` grader 要求答案点出关键符号；其 `tool_used: Skill` grader 只是加载指示。
+- eval 用例不属于安装后工作流，也不由 Skill 加载。
 
 安装后的九个 Skill 仅依赖各自目录中的 `SKILL.md`、`agents/` 和按需资源，不依赖仓库根目录的维护脚本。
 
@@ -67,11 +69,20 @@ validator 只使用 Python 标准库，检查：
 - `plugins.json` include 与九个 Skill 目录的一致性；
 - `references/`、`assets/`、`scripts/` 引用存在且不能越出 Skill 目录；
 - 运行时 Skill 内容不能引用父目录或本机绝对文件系统路径；
-- activation/behavior JSONL 可解析、ID 全局唯一且 Skill 引用有效。
+- 每个 Skill 的 eval 套件形状：至少 3 个用例、kebab-case 目录、`prompt.md` frontmatter 键与 `claude plugin eval` 一致、grader 类型与 `arm` 合法、至少一个加载用例和一个 `arm: both` 的不加载用例；
+- `SKILL.md` description 超过 60 个词时给出警告（暂不失败）。
 
-`wow-view-definition` 与 `wow-view-host` 的 TypeScript 示例另由文档站的测试对照构建后的包编译（`documentation/test/typescript-samples.mjs`，与包 README 的示例同一机制；`typescript.yml` 的 docs 作业在这两个 Skill 的 Markdown 变更时运行）。
+`wow-view-definition` 与 `wow-view-host` 的 TypeScript 示例另由文档站的测试对照构建后的包编译（`documentation/test/typescript-samples.mjs`，与包 README 的示例同一机制）；`wow-client` 与 `wow-generator` 的示例多为片段，不编译，但同一测试检查它们从 `@ahoo-wang/*` 入口导入的每个名称都由该入口导出。`typescript.yml` 的 docs 作业在这四个 Skill 的 Markdown（`evals/` 除外）变更时运行。
 
-静态校验不会证明自然语言触发一定正确，也不会执行行为用例或证明 API、脚本和生产迁移正确。行为质量应通过全新任务进行前向评估：只把 prompt 与必要 setup 提供给 Agent，隐藏期望项，再由维护者或标准 eval 工具根据真实 diff、命令结果和最终证据评分。不要为执行这些数据重新建设仓库专属 runner。
+静态校验不会证明自然语言触发或答案正确。用 `claude plugin eval` 在本地执行用例（每次运行都是一次真实 Agent 会话，按登录账号计费，CI 不执行）：
+
+```bash
+node scripts/eval-skills.mjs                    # 全部 Skill
+node scripts/eval-skills.mjs wow-client         # 指定 Skill
+SKILLS_EVAL_RUNS=3 SKILLS_EVAL_MAX_COST=5 SKILLS_EVAL_CONCURRENCY=2 node scripts/eval-skills.mjs
+```
+
+脚本在每个 Skill 目录内分两轮调用 `claude plugin eval`：`activation` 用例以 `--ablation none` 运行（不加载 Skill 的对照臂对触发判断没有意义），`behavior` 用例以默认的 with/without 对照运行；随后汇总每个 Skill 的触发召回率与精确率、行为通过率（含不加载 Skill 的基线）和费用。只有被测 Skill 会加载，所以相邻 Skill 的竞争不在评估范围内。环境变量：`CLAUDE_BIN`（默认 `claude`）、`SKILLS_EVAL_RUNS`（默认 1）、`SKILLS_EVAL_MAX_COST`（每个 Skill 两轮共享的美元上限，默认 2）、`SKILLS_EVAL_CONCURRENCY`（默认 1）、`SKILLS_EVAL_PASSES`（`activation`、`behavior`，默认两者）与 `SKILLS_EVAL_MODEL`。报告写入不纳入版本控制的 `skills/<name>/evals/results/`。
 
 ## Distribution
 

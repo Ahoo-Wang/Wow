@@ -1,0 +1,7 @@
+---
+type: tool_used
+tool: Skill
+input_match: '"skill"\s*:\s*"(?:[\w-]+:)?wow-view-host"'
+---
+
+The request is squarely in $wow-view-host's scope, so the skill must load.

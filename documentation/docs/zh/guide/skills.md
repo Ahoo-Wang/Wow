@@ -81,7 +81,13 @@ python3 -S scripts/validate_wow_skills.py
 python3 -S -m unittest scripts.test_validate_wow_skills
 ```
 
-这些命令验证 metadata、agent manifest、插件 include、本地资源路径和 eval JSONL 结构。它们不会执行行为用例，也不会证明自然语言触发、目标 API 或生产迁移正确；行为质量仍需在全新任务中用真实 diff 与命令结果评估。
+这些命令验证 metadata、agent manifest、插件 include、本地资源路径，以及每个 Skill 的 `claude plugin eval` 套件形状（`evals/<case>/prompt.md` 与 `graders/*.md`）。它们不执行用例。要衡量触发与答案质量，在本地运行套件；每次运行都是一次真实 Agent 会话，按你的 Claude 登录计费，CI 不执行：
+
+```bash
+node scripts/eval-skills.mjs [skill…]
+```
+
+`SKILLS_EVAL_RUNS`、`SKILLS_EVAL_MAX_COST`（每个 Skill 的美元上限）、`SKILLS_EVAL_CONCURRENCY` 与 `CLAUDE_BIN` 调整运行；报告写入不纳入版本控制的 `skills/<name>/evals/results/`。
 
 ## 优先下一步
 
