@@ -11,6 +11,8 @@
  * limitations under the License.
  */
 
+@file:Suppress("DEPRECATION")
+
 package me.ahoo.wow.webflux.route.command
 
 import io.mockk.every
@@ -299,19 +301,36 @@ class AggregateRequestTest {
     }
 
     @Test
-    fun `a declared path variable wins over the header`() {
+    fun `a declared path variable wins over a header that agrees or is absent`() {
         val request = MockServerRequest.builder()
             .pathVariable(MessageRecords.TENANT_ID, "tenant-a")
             .pathVariable(MessageRecords.OWNER_ID, "owner-a")
             .pathVariable(MessageRecords.ID, "id-a")
-            .header(CommandComponent.Header.TENANT_ID, "victim")
-            .header(CommandComponent.Header.OWNER_ID, "victim")
+            .header(CommandComponent.Header.TENANT_ID, "tenant-a")
+            // The aggregate ID is not a fact a header may contradict: the path wins, the header is ignored.
             .header(CommandComponent.Header.AGGREGATE_ID, "victim")
             .build()
 
         request.getTenantId(MOCK_AGGREGATE_METADATA).assert().isEqualTo("tenant-a")
         request.getOwnerId().assert().isEqualTo("owner-a")
         request.getAggregateId().assert().isEqualTo("id-a")
+    }
+
+    @Test
+    fun `a header contradicting a declared tenant or owner path variable is rejected`() {
+        val request = MockServerRequest.builder()
+            .pathVariable(MessageRecords.TENANT_ID, "tenant-a")
+            .pathVariable(MessageRecords.OWNER_ID, "owner-a")
+            .header(CommandComponent.Header.TENANT_ID, "victim")
+            .header(CommandComponent.Header.OWNER_ID, "victim")
+            .build()
+
+        assertThrownBy<IllegalArgumentException> {
+            request.getTenantId(MOCK_AGGREGATE_METADATA)
+        }.hasMessage("Conflicting tenantId: the route fixes [tenant-a], but the request header gives [victim].")
+        assertThrownBy<IllegalArgumentException> {
+            request.getOwnerId()
+        }.hasMessage("Conflicting ownerId: the route fixes [owner-a], but the request header gives [victim].")
     }
 
     @Test

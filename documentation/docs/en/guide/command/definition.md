@@ -39,7 +39,7 @@ The payload expresses request data; it is not the runtime envelope. To control v
 
 `CommandMetadataParser` derives a command type's name, target aggregate, aggregate ID, tenant, owner, expected version, and create, allow-create, and void flags. A command can supply its target by implementing `NamedAggregate`, or by using `@AggregateName`; `@AggregateId` selects the target ID, and an unannotated property conventionally named `id` is used as a fallback.
 
-`@TenantId`, `@OwnerId`, and `@AggregateVersion` provide their respective metadata; `@StaticAggregateId` and `@StaticTenantId` provide static values. Constructing a `CommandMessage` fails if neither the command nor the call arguments can resolve a target aggregate.
+`@TenantId`, `@OwnerId`, and `@AggregateVersion` provide their respective metadata; `@StaticAggregateId` and `@StaticTenantId` provide static values. A value the command carries comes before the one its caller passes. Over HTTP, since 9.3.0, a `@TenantId` or `@OwnerId` that contradicts the tenant or owner the route fixes is rejected with `400` (see [Request Identity](../open-api.md#request-identity)). Constructing a `CommandMessage` fails if neither the command nor the call arguments can resolve a target aggregate.
 
 ## Command Handling Functions
 

@@ -14,6 +14,8 @@
 package me.ahoo.wow.webflux.route
 
 import me.ahoo.wow.openapi.contract.HttpRouteContract
+import me.ahoo.wow.webflux.route.identity.IdentityHeaderAliases
+import me.ahoo.wow.webflux.route.identity.RouteIdentity
 import org.springframework.web.reactive.function.server.HandlerFunction
 import org.springframework.web.reactive.function.server.RequestPredicate
 import org.springframework.web.reactive.function.server.ServerResponse
@@ -25,13 +27,20 @@ internal data class HttpRouteBinding(
 
 internal class HttpRouteMaterializer(
     private val routeHandlerFunctionRegistrar: RouteHandlerFunctionRegistrar,
-    private val predicateFactory: HttpRoutePredicateFactory = HttpRoutePredicateFactory()
+    private val predicateFactory: HttpRoutePredicateFactory = HttpRoutePredicateFactory(),
+    private val identityHeaderAliases: IdentityHeaderAliases = IdentityHeaderAliases.NONE,
 ) {
     fun materialize(contract: HttpRouteContract): HttpRouteBinding {
         val factory = routeHandlerFunctionRegistrar.requireHttpFactory(contract)
+        val handlerFunction = factory.create(contract)
+        // Where each identity fact comes from is decided here, once per route, from its contract.
+        val routeIdentity = RouteIdentity.of(contract, identityHeaderAliases)
         return HttpRouteBinding(
             predicate = predicateFactory.create(contract),
-            handlerFunction = factory.create(contract)
+            handlerFunction = HandlerFunction { request ->
+                request.attributes()[RouteIdentity.ATTRIBUTE] = routeIdentity
+                handlerFunction.handle(request)
+            }
         )
     }
 }

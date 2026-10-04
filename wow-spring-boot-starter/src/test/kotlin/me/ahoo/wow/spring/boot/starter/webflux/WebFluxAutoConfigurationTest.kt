@@ -37,8 +37,7 @@ import me.ahoo.wow.bi.UnsupportedTypeStrategy
 import me.ahoo.wow.command.CommandGateway
 import me.ahoo.wow.command.wait.CommandWaitNotifier
 import me.ahoo.wow.configuration.MetadataSearcher
-import me.ahoo.wow.cosec.extractor.CoSecCommandBuilderExtractor
-import me.ahoo.wow.cosec.query.CoSecQueryRequestScope
+import me.ahoo.wow.cosec.identity.CoSecIdentityHeaders
 import me.ahoo.wow.event.DomainEventBus
 import me.ahoo.wow.event.InMemoryDomainEventBus
 import me.ahoo.wow.event.compensation.StateEventCompensator
@@ -119,6 +118,7 @@ import me.ahoo.wow.webflux.route.command.appender.CommandRequestUserAgentHeaderA
 import me.ahoo.wow.webflux.route.command.extractor.CommandBuilderExtractor
 import me.ahoo.wow.webflux.route.command.extractor.DefaultCommandBuilderExtractor
 import me.ahoo.wow.webflux.route.global.GenerateBIScriptHandlerFunctionFactory
+import me.ahoo.wow.webflux.route.identity.IdentityHeaderAliases
 import me.ahoo.wow.webflux.route.policy.BatchExecutionPolicy
 import me.ahoo.wow.webflux.route.policy.CommandWaitPolicy
 import me.ahoo.wow.webflux.route.policy.TracingPolicy
@@ -809,31 +809,33 @@ internal class WebFluxAutoConfigurationTest {
             }
     }
 
+    /**
+     * Since 9.3.0 CoSec no longer replaces the command builder extractor and the query request scope: it contributes
+     * its headers as identity header aliases, which the WebFlux defaults read through the router.
+     */
     @Test
-    fun `cosec beans replace the WebFlux defaults when both are auto-configured`() {
+    fun `cosec keeps the WebFlux defaults and contributes identity header aliases`() {
         webFluxContextRunner(autoConfigurations = listOf(CoSecAutoConfiguration::class.java))
             .run { context ->
                 context.assert().hasNotFailed()
-                context.getBean(CommandBuilderExtractor::class.java).assert().isSameAs(CoSecCommandBuilderExtractor)
-                context.getBean(QueryRequestScope::class.java).assert().isSameAs(CoSecQueryRequestScope)
+                context.getBean(CommandBuilderExtractor::class.java).assert().isSameAs(DefaultCommandBuilderExtractor)
+                context.getBean(QueryRequestScope::class.java).assert().isSameAs(DefaultQueryRequestScope)
+                context.getBean(IdentityHeaderAliases::class.java).assert().isEqualTo(CoSecIdentityHeaders.ALIASES)
             }
     }
 
-    /**
-     * The hazard the explicit ordering removes: processed after WebFlux, CoSec's beans sit beside WebFlux's
-     * `@ConditionalOnMissingBean` defaults instead of replacing them, and injection by parameter name then picks
-     * the default `commandBuilderExtractor`, silently dropping CoSec's.
-     */
+    /** With nothing left to back off, the order CoSec is processed in no longer matters. */
     @Test
-    fun `cosec processed after WebFlux sits beside the WebFlux defaults`() {
+    fun `cosec processed after WebFlux gives the same beans`() {
         webFluxContextRunner()
             .withUserConfiguration(CoSecAutoConfiguration::class.java)
             .run { context ->
                 context.assert().hasNotFailed()
                 context.getBeansOfType(CommandBuilderExtractor::class.java).values.assert()
-                    .containsExactlyInAnyOrder(DefaultCommandBuilderExtractor, CoSecCommandBuilderExtractor)
+                    .containsExactly(DefaultCommandBuilderExtractor)
                 context.getBeansOfType(QueryRequestScope::class.java).values.assert()
-                    .containsExactlyInAnyOrder(DefaultQueryRequestScope, CoSecQueryRequestScope)
+                    .containsExactly(DefaultQueryRequestScope)
+                context.getBean(IdentityHeaderAliases::class.java).assert().isEqualTo(CoSecIdentityHeaders.ALIASES)
             }
     }
 

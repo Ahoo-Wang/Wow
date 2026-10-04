@@ -86,7 +86,7 @@ data class CreateCart(
 )
 ```
 
-不要仅因客户端字段带 `@OwnerId` 就信任其 `userId`。应在应用边界用已认证 Principal 比对或替换它。
+不要仅因客户端字段带 `@OwnerId` 就信任其 `userId`。应在应用边界用已认证 Principal 比对或替换它。自 9.3.0 起，路由写了 `{ownerId}` 时，与路径不同的请求体拥有者返回 `400`（见[请求身份](./open-api.md#请求身份)）；其他路由仍以请求体的值为拥有者。
 
 ### 拥有者路由策略
 

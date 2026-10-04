@@ -15,19 +15,23 @@ package me.ahoo.wow.spring.boot.starter.cosec
 
 import me.ahoo.wow.cosec.appender.CoSecCommandRequestHeaderAppender
 import me.ahoo.wow.cosec.extractor.CoSecCommandBuilderExtractor
+import me.ahoo.wow.cosec.identity.CoSecIdentityHeaders
 import me.ahoo.wow.cosec.query.CoSecQueryRequestScope
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
 import me.ahoo.wow.spring.boot.starter.webflux.WebFluxAutoConfiguration
 import me.ahoo.wow.webflux.route.command.appender.CommandRequestHeaderAppender
 import me.ahoo.wow.webflux.route.command.extractor.CommandBuilderExtractor
+import me.ahoo.wow.webflux.route.identity.IdentityHeaderAliases
 import me.ahoo.wow.webflux.route.query.QueryRequestScope
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass
 import org.springframework.context.annotation.Bean
 
 /**
- * Registers CoSec's command and query extensions. Ordered before [WebFluxAutoConfiguration] so that WebFlux's
- * `@ConditionalOnMissingBean` defaults back off instead of being registered beside these beans.
+ * Registers CoSec's command extensions: the header appender, and `CoSec-Space-Id` / `CoSec-Request-Id` as identity
+ * header aliases, which the WebFlux routes read for commands and queries alike. Ordered before
+ * [WebFluxAutoConfiguration] so that WebFlux's `@ConditionalOnMissingBean` defaults back off instead of being
+ * registered beside these beans.
  */
 @AutoConfiguration(before = [WebFluxAutoConfiguration::class])
 @ConditionalOnWowEnabled
@@ -40,11 +44,20 @@ class CoSecAutoConfiguration {
     }
 
     @Bean
+    fun coSecIdentityHeaderAliases(): IdentityHeaderAliases {
+        return CoSecIdentityHeaders.ALIASES
+    }
+
+    /** No longer a bean since 9.3.0: CoSec's headers are [identity header aliases][coSecIdentityHeaderAliases]. */
+    @Suppress("DEPRECATION")
+    @Deprecated("Scheduled for removal in 10.0.0. Not a bean since 9.3.0; CoSec contributes identity header aliases.")
     fun coSecCommandBuilderExtractor(): CommandBuilderExtractor {
         return CoSecCommandBuilderExtractor
     }
 
-    @Bean
+    /** No longer a bean since 9.3.0: CoSec's headers are [identity header aliases][coSecIdentityHeaderAliases]. */
+    @Suppress("DEPRECATION")
+    @Deprecated("Scheduled for removal in 10.0.0. Not a bean since 9.3.0; CoSec contributes identity header aliases.")
     fun coSecQueryRequestScope(): QueryRequestScope {
         return CoSecQueryRequestScope
     }

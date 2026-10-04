@@ -81,7 +81,24 @@ The general aggregate route shape is:
 
 The default route starts at the resource name. Wow does not prepend a bounded-context alias to local paths. Do not construct paths from naming conventions in client code; inspect generated OpenAPI.
 
-On a route that declares `{tenantId}`, `{ownerId}` or `{id}`, the path segment is the value: the `Command-Tenant-Id`, `Command-Owner-Id` and `Command-Aggregate-Id` headers are not read on that route, and a segment that decodes to a blank value (such as `%20`) answers `400` with error code `IllegalArgument` instead of falling back to the header or to the default tenant. Routes that do not declare the variable keep reading the header (and a static tenant always applies).
+On a route that declares `{tenantId}`, `{ownerId}` or `{id}`, the path segment is the value: the `Command-Tenant-Id`, `Command-Owner-Id` and `Command-Aggregate-Id` headers are not read in its place, and a segment that decodes to a blank value (such as `%20`) answers `400` with error code `IllegalArgument` instead of falling back to the header or to the default tenant. Routes that do not declare the variable keep reading the header (and a static tenant always applies).
+
+### Request Identity
+
+Each route decides, once, when the router is built, where it takes each identity fact from: the path variables its contract declares, the aggregate's static tenant, ownership policy and space. Commands, queries, point reads, snapshot regeneration and event compensation all read the same binding, so every route kind follows one rule:
+
+| Fact | Source, first that applies |
+| --- | --- |
+| Tenant | the static tenant → `{tenantId}` → `Command-Tenant-Id` |
+| Owner | `{ownerId}` → `{id}` when the owner is the aggregate ID (`OwnerPolicy.AGGREGATE_ID`) → `Command-Owner-Id` |
+| Aggregate ID | owner is the aggregate ID: `{ownerId}` → `{id}` → `Command-Owner-Id` → `Command-Aggregate-Id`; otherwise `{id}` → `Command-Aggregate-Id` |
+| Space | spaced aggregate only: `Wow-Space-Id` → header aliases (CoSec's `CoSec-Space-Id`) |
+| Request ID | `Command-Request-Id` → header aliases (CoSec's `CoSec-Request-Id`) |
+| Operator | the authenticated principal |
+
+A blank header counts as absent. For a command, the body's `@TenantId` / `@OwnerId` / `@AggregateId` still comes first, as for any `CommandGateway` caller.
+
+Since 9.3.0, a request that contradicts the tenant or owner its route fixes is rejected with `400` and error code `IllegalArgument`: a `Command-Tenant-Id` header that differs from the static tenant or the `{tenantId}` segment, a `Command-Owner-Id` header that differs from the `{ownerId}` segment (or from `{id}` of an aggregate owned by its ID), and a command body whose `@TenantId` or `@OwnerId` differs from either. Before, the body silently won and the header was ignored. The same value, or no value, is accepted; where the route fixes nothing, the body still wins over a header. On an aggregate owned by its ID, a route that states `{id}` but not `{ownerId}` now takes the aggregate and its owner from the path; before 9.3.0 a `Command-Owner-Id` header replaced both.
 
 ### Tenant Resources
 

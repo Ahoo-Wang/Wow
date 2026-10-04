@@ -63,6 +63,7 @@ import me.ahoo.wow.webflux.route.command.extractor.CommandMessageExtractor
 import me.ahoo.wow.webflux.route.command.extractor.DefaultCommandBuilderExtractor
 import me.ahoo.wow.webflux.route.command.extractor.DefaultCommandMessageExtractor
 import me.ahoo.wow.webflux.route.global.GenerateBIScriptHandlerFunctionFactory
+import me.ahoo.wow.webflux.route.identity.IdentityHeaderAliases
 import me.ahoo.wow.webflux.route.policy.BatchExecutionPolicy
 import me.ahoo.wow.webflux.route.policy.CommandWaitPolicy
 import me.ahoo.wow.webflux.route.policy.TracingPolicy
@@ -386,6 +387,20 @@ class WebFluxAutoConfiguration {
     }
 
     @Bean
+    fun commandRouterFunction(
+        routerSpecs: RouterSpecs,
+        routeHandlerFunctionRegistrar: RouteHandlerFunctionRegistrar,
+        identityHeaderAliases: ObjectProvider<IdentityHeaderAliases>,
+    ): RouterFunction<ServerResponse> {
+        return RouterFunctionBuilder(
+            routerSpecs = routerSpecs,
+            routeHandlerFunctionRegistrar = routeHandlerFunctionRegistrar,
+            identityHeaderAliases = IdentityHeaderAliases.merge(identityHeaderAliases.orderedStream().toList()),
+        ).build()
+    }
+
+    // compat(wow<9.3): the factory method before identity header aliases; no longer a bean.
+    @Deprecated("Scheduled for removal in 10.0.0. Not a bean since 9.3.0; it ignores identity header aliases.")
     fun commandRouterFunction(
         routerSpecs: RouterSpecs,
         routeHandlerFunctionRegistrar: RouteHandlerFunctionRegistrar

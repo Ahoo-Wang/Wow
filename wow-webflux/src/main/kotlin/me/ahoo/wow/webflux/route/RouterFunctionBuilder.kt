@@ -14,6 +14,7 @@
 package me.ahoo.wow.webflux.route
 
 import me.ahoo.wow.openapi.RouterSpecs
+import me.ahoo.wow.webflux.route.identity.IdentityHeaderAliases
 import org.springframework.web.reactive.function.server.RouterFunction
 import org.springframework.web.reactive.function.server.RouterFunctions
 import org.springframework.web.reactive.function.server.ServerResponse
@@ -24,9 +25,18 @@ import org.springframework.web.reactive.function.server.ServerResponse
 @Suppress("LongParameterList")
 class RouterFunctionBuilder(
     private val routerSpecs: RouterSpecs,
-    routeHandlerFunctionRegistrar: RouteHandlerFunctionRegistrar
+    routeHandlerFunctionRegistrar: RouteHandlerFunctionRegistrar,
+    identityHeaderAliases: IdentityHeaderAliases,
 ) {
-    private val routeMaterializer = HttpRouteMaterializer(routeHandlerFunctionRegistrar)
+    constructor(
+        routerSpecs: RouterSpecs,
+        routeHandlerFunctionRegistrar: RouteHandlerFunctionRegistrar
+    ) : this(routerSpecs, routeHandlerFunctionRegistrar, IdentityHeaderAliases.NONE)
+
+    private val routeMaterializer = HttpRouteMaterializer(
+        routeHandlerFunctionRegistrar = routeHandlerFunctionRegistrar,
+        identityHeaderAliases = identityHeaderAliases,
+    )
 
     fun build(): RouterFunction<ServerResponse> {
         val routerFunctionBuilder = RouterFunctions.route()

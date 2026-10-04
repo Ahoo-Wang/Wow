@@ -12,6 +12,13 @@ public final class me/ahoo/wow/cosec/extractor/CoSecCommandBuilderExtractor : me
 	public fun extract (Lme/ahoo/wow/openapi/metadata/AggregateRouteMetadata;Ljava/lang/Object;Lorg/springframework/web/reactive/function/server/ServerRequest;)Lreactor/core/publisher/Mono;
 }
 
+public final class me/ahoo/wow/cosec/identity/CoSecIdentityHeaders {
+	public static final field ALIASES Lme/ahoo/wow/webflux/route/identity/IdentityHeaderAliases;
+	public static final field INSTANCE Lme/ahoo/wow/cosec/identity/CoSecIdentityHeaders;
+	public static final field REQUEST_ID Ljava/lang/String;
+	public static final field SPACE_ID Ljava/lang/String;
+}
+
 public final class me/ahoo/wow/cosec/propagation/CoSecMessagePropagator : me/ahoo/wow/messaging/propagation/MessagePropagator {
 	public static final field APP_ID Ljava/lang/String;
 	public static final field Companion Lme/ahoo/wow/cosec/propagation/CoSecMessagePropagator$Companion;

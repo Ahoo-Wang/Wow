@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.webflux.route.state
 
+import me.ahoo.wow.api.modeling.TenantId
 import me.ahoo.wow.exception.throwNotFoundIfEmpty
 import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.modeling.state.StateAggregateRepository
@@ -23,8 +24,7 @@ import me.ahoo.wow.openapi.metadata.AggregateRouteMetadata
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
 import me.ahoo.wow.webflux.route.AggregateRouteHandlerFunctionFactorySupport
-import me.ahoo.wow.webflux.route.command.getAggregateId
-import me.ahoo.wow.webflux.route.command.getTenantIdOrDefault
+import me.ahoo.wow.webflux.route.identity.identity
 import me.ahoo.wow.webflux.route.toServerResponse
 import org.springframework.web.reactive.function.server.HandlerFunction
 import org.springframework.web.reactive.function.server.ServerRequest
@@ -40,8 +40,9 @@ class LoadTimeBasedAggregateHandlerFunction(
     private val aggregateMetadata = aggregateRouteMetadata.aggregateMetadata
 
     override fun handle(request: ServerRequest): Mono<ServerResponse> {
-        val tenantId = request.getTenantIdOrDefault(aggregateMetadata)
-        val id = requireNotNull(request.getAggregateId(aggregateRouteMetadata.ownerPolicy))
+        val identity = request.identity(aggregateRouteMetadata)
+        val tenantId = identity.tenantId() ?: TenantId.DEFAULT_TENANT_ID
+        val id = requireNotNull(identity.aggregateId())
         val aggregateId = aggregateMetadata.aggregateId(id = id, tenantId = tenantId)
         val tailEventTime = request.pathVariable(MessageRecords.CREATE_TIME).toLong()
         return stateAggregateRepository
@@ -50,7 +51,7 @@ class LoadTimeBasedAggregateHandlerFunction(
                 it.initialized && !it.deleted
             }
             .flatMap {
-                OwnerAggregatePrecondition(request, aggregateRouteMetadata.ownerPolicy).check(it)
+                OwnerAggregatePrecondition(identity, aggregateRouteMetadata.ownerPolicy).check(it)
                 admission.state(aggregateMetadata, request, it)
             }
             .throwNotFoundIfEmpty()

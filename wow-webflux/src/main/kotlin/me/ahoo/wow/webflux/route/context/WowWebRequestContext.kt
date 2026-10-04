@@ -14,12 +14,13 @@
 package me.ahoo.wow.webflux.route.context
 
 import me.ahoo.wow.api.modeling.AggregateId
+import me.ahoo.wow.api.modeling.TenantId
 import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.modeling.metadata.AggregateMetadata
 import me.ahoo.wow.openapi.aggregate.command.CommandComponent
 import me.ahoo.wow.serialization.MessageRecords
-import me.ahoo.wow.webflux.route.command.getTenantIdOrDefault
 import me.ahoo.wow.webflux.route.command.isSse
+import me.ahoo.wow.webflux.route.identity.identity
 import org.springframework.web.reactive.function.server.ServerRequest
 
 internal data class WowWebRequestContext(
@@ -34,7 +35,7 @@ internal data class WowWebRequestContext(
             request: ServerRequest,
             aggregateMetadata: AggregateMetadata<*, *>
         ): WowWebRequestContext {
-            val tenantId = request.getTenantIdOrDefault(aggregateMetadata)
+            val tenantId = request.identity(aggregateMetadata).tenantId() ?: TenantId.DEFAULT_TENANT_ID
             val id = request.pathVariable(MessageRecords.ID)
             return WowWebRequestContext(
                 request = request,

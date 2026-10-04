@@ -181,14 +181,18 @@ class QueryRouteContractTest {
         call.context.queryEntry().assert().describedAs("${route.routeId} query entry").isEqualTo(QueryEntry.HTTP)
     }
 
-    /** A `{tenantId}` path variable takes precedence over the tenant header. */
+    /** A `{tenantId}` route takes its tenant from the path; any other from the tenant header. */
     private fun HttpRouteContract.requestTenant(): TenantIdFilter =
         TenantIdFilter(if ("{$TENANT_ID_VARIABLE}" in path) PATH_TENANT else HEADER_TENANT)
 
     private fun WebTestClient.send(route: HttpRouteContract): HttpStatus {
         val spec = method(HttpMethod.valueOf(route.method)).uri(route.concretePath())
-            .header(CommandComponent.Header.TENANT_ID, HEADER_TENANT)
             .accept(MediaType.APPLICATION_JSON)
+        // Since 9.3.0 a tenant header that contradicts the `{tenantId}` path is rejected (V3), so only a route without
+        // the variable gets one.
+        if ("{$TENANT_ID_VARIABLE}" !in route.path) {
+            spec.header(CommandComponent.Header.TENANT_ID, HEADER_TENANT)
+        }
         val body = BODIES[route.handlerKey]
         val exchange = if (body == null) {
             spec.exchange()

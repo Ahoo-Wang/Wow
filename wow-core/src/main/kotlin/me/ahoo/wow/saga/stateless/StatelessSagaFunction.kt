@@ -23,6 +23,10 @@ import me.ahoo.wow.command.factory.CommandBuilder
 import me.ahoo.wow.command.factory.CommandBuilder.Companion.commandBuilder
 import me.ahoo.wow.command.factory.CommandMessageFactory
 import me.ahoo.wow.event.DomainEventExchange
+import me.ahoo.wow.identity.IdentityFact
+import me.ahoo.wow.identity.IdentityHint
+import me.ahoo.wow.identity.IdentityResolver
+import me.ahoo.wow.identity.IdentitySource
 import me.ahoo.wow.infra.Decorator
 import me.ahoo.wow.messaging.function.MessageFunction
 import me.ahoo.wow.messaging.propagation.MessagePropagatorProvider.propagate
@@ -81,9 +85,22 @@ class StatelessSagaFunction(
         val commandBuilder = singleResult as? CommandBuilder ?: singleResult.commandBuilder()
         commandBuilder
             .requestIdIfAbsent("${domainEvent.id}-$index")
-            .tenantIdIfAbsent(domainEvent.aggregateId.tenantId)
+            // What the saga sets wins over the event it reacts to; the command factory then puts the body first.
+            .tenantId(
+                IdentityResolver.resolve(
+                    IdentityFact.TENANT_ID,
+                    IdentityHint.of(IdentitySource.HEADER, commandBuilder.tenantId),
+                    IdentityHint(IdentitySource.UPSTREAM, domainEvent.aggregateId.tenantId),
+                )
+            )
             // The command factory drops this space when the target aggregate is not spaced.
-            .spaceIdIfAbsent(domainEvent.spaceId)
+            .spaceId(
+                IdentityResolver.resolve(
+                    IdentityFact.SPACE_ID,
+                    IdentityHint.of(IdentitySource.HEADER, commandBuilder.spaceId),
+                    IdentityHint(IdentitySource.UPSTREAM, domainEvent.spaceId),
+                )
+            )
             .upstream(domainEvent)
             .header {
                 it.propagate(domainEvent)
