@@ -52,59 +52,73 @@ class RetryableAggregateProcessor<C : Any, S : Any>(
      * Processes [exchange], retrying recoverable failures with backoff.
      *
      * Every attempt starts from the exchange as it was before the first one (no error, event stream, aggregate
-     * version, command results or command aggregate of a failed attempt). The aggregate's `@OnError` function runs
-     * once, after the final failure, and only when the final attempt reached the aggregate; the retry decision uses
-     * the processing failure, not what `@OnError` makes of it.
+     * version, command results or command aggregate of a failed attempt). The retry decision uses the processing
+     * failure, not what `@OnError` makes of it. The aggregate's `@OnError` function runs once, after the final
+     * failure, on the most recently loaded aggregate: the final attempt's, or an earlier attempt's when the final one
+     * failed before loading. It does not run when no attempt loaded an aggregate, nor for a [CommandAggregate] that is
+     * not a [SimpleCommandAggregate] (its own `process` handles its errors).
      */
     override fun process(exchange: ServerCommandExchange<*>): Mono<DomainEventStream> {
         val initialState = ExchangeAttemptState.capture(exchange)
-        val process = Mono.defer {
-            initialState.restore(exchange)
-            if (exchange.message.isCreate) {
-                aggregateFactory.createAsMono(aggregateMetadata.state, exchange.message.aggregateId)
-            } else {
-                stateAggregateRepository.load(aggregateId, aggregateMetadata.state)
-            }
-        }.map {
-            commandAggregateFactory.create(aggregateMetadata, it)
-        }.flatMap {
-            if (it is SimpleCommandAggregate<C, *>) it.processAttempt(exchange) else it.process(exchange)
-        }
-        return process.onErrorResume { failure ->
-            var firstFailure = true
-            Mono.defer {
-                if (firstFailure) {
-                    firstFailure = false
-                    // Replay the failure so Reactor preserves the first backoff and the full retry budget.
-                    Mono.error(failure)
+        return Mono.defer {
+            // The aggregate whose `@OnError` handles the final failure; per subscription.
+            var errorHandlingAggregate: SimpleCommandAggregate<C, *>? = null
+            val process = Mono.defer {
+                initialState.restore(exchange)
+                if (exchange.message.isCreate) {
+                    aggregateFactory.createAsMono(aggregateMetadata.state, exchange.message.aggregateId)
                 } else {
-                    process
+                    stateAggregateRepository.load(aggregateId, aggregateMetadata.state)
                 }
-            }.retryWhen(
-                Retry.backoff(MAX_RETRIES, MIN_BACKOFF)
-                    .filter {
-                        it.recoverable == RecoverableType.RECOVERABLE
-                    }.doBeforeRetry {
-                        log.warn(it.failure()) {
-                            "[BeforeRetry] $aggregateId totalRetries[${it.totalRetries()}]."
-                        }
+            }.map {
+                commandAggregateFactory.create(aggregateMetadata, it)
+            }.flatMap {
+                if (it is SimpleCommandAggregate<C, *>) {
+                    errorHandlingAggregate = it
+                    it.processAttempt(exchange)
+                } else {
+                    errorHandlingAggregate = null
+                    it.process(exchange)
+                }
+            }
+            process.onErrorResume { failure ->
+                var firstFailure = true
+                Mono.defer {
+                    if (firstFailure) {
+                        firstFailure = false
+                        // Replay the failure so Reactor preserves the first backoff and the full retry budget.
+                        Mono.error(failure)
+                    } else {
+                        process
                     }
-            )
-        }.onErrorResume { finalError ->
-            handleFinalError(exchange, finalError)
+                }.retryWhen(
+                    Retry.backoff(MAX_RETRIES, MIN_BACKOFF)
+                        .filter {
+                            it.recoverable == RecoverableType.RECOVERABLE
+                        }.doBeforeRetry {
+                            log.warn(it.failure()) {
+                                "[BeforeRetry] $aggregateId totalRetries[${it.totalRetries()}]."
+                            }
+                        }
+                )
+            }.onErrorResume { finalError ->
+                val commandAggregate = errorHandlingAggregate ?: return@onErrorResume Mono.error(finalError)
+                handleFinalError(commandAggregate, exchange, finalError)
+            }
         }
     }
 
     /**
-     * Runs the `@OnError` function of the final attempt's aggregate with the processing failure (unwrapped from a
-     * retry exhaustion). The final error stays [finalError] unless the error function replaced it.
+     * Runs the `@OnError` function of [commandAggregate] with the processing failure (unwrapped from a retry
+     * exhaustion). The final error stays [finalError] unless the error function replaced it.
      */
     private fun handleFinalError(
+        commandAggregate: SimpleCommandAggregate<C, *>,
         exchange: ServerCommandExchange<*>,
         finalError: Throwable
     ): Mono<DomainEventStream> {
-        val commandAggregate = exchange.getCommandAggregate<C, Any>() as? SimpleCommandAggregate<C, *>
-            ?: return Mono.error(finalError)
+        // When the final attempt failed before loading, the exchange holds no aggregate; give @OnError the one it runs on.
+        exchange.setCommandAggregate(commandAggregate)
         val failure = if (Exceptions.isRetryExhausted(finalError)) finalError.cause ?: finalError else finalError
         return commandAggregate.handleError(exchange, failure).onErrorMap {
             if (it === failure) finalError else it

@@ -167,6 +167,7 @@ class CommandAggregateOnErrorTest {
         private fun processor(
             eventStore: EventStore,
             aggregateFactory: StateAggregateFactory = ConstructorStateAggregateFactory,
+            commandAggregateFactory: CommandAggregateFactory = SimpleCommandAggregateFactory(eventStore),
         ) = RetryableAggregateProcessor(
             aggregateId = aggregateId,
             aggregateMetadata = metadata,
@@ -176,8 +177,23 @@ class CommandAggregateOnErrorTest {
                 InMemorySnapshotStore(),
                 eventStore,
             ),
-            commandAggregateFactory = SimpleCommandAggregateFactory(eventStore),
+            commandAggregateFactory = commandAggregateFactory,
         )
+
+        /** Creates the state for the first [loads] attempts, then fails with [failure]. */
+        private fun failingAfter(loads: Int, failure: Throwable) = object : StateAggregateFactory {
+            private val creations = AtomicInteger()
+
+            override fun <S : Any> create(
+                metadata: StateAggregateMetadata<S>,
+                aggregateId: me.ahoo.wow.api.modeling.AggregateId,
+            ): StateAggregate<S> {
+                if (creations.incrementAndGet() > loads) {
+                    throw failure
+                }
+                return ConstructorStateAggregateFactory.create(metadata, aggregateId)
+            }
+        }
 
         @Test
         fun `on error runs once for a failure that is not retried`() {
@@ -240,22 +256,12 @@ class CommandAggregateOnErrorTest {
         @Test
         fun `a retry attempt does not see the state of the failed attempt`() {
             val loadFailure = IllegalStateException("state unavailable")
-            val creations = AtomicInteger()
-            val aggregateFactory = object : StateAggregateFactory {
-                override fun <S : Any> create(
-                    metadata: StateAggregateMetadata<S>,
-                    aggregateId: me.ahoo.wow.api.modeling.AggregateId,
-                ): StateAggregate<S> {
-                    if (creations.incrementAndGet() > 1) {
-                        throw loadFailure
-                    }
-                    return ConstructorStateAggregateFactory.create(metadata, aggregateId)
-                }
-            }
             val eventStore = FailingEventStore(appendFailures = List(2) { TimeoutException("timeout") })
             val exchange = exchange(ProbeCreate(AGGREGATE_ID))
 
-            StepVerifier.withVirtualTime { processor(eventStore, aggregateFactory).process(exchange) }
+            StepVerifier.withVirtualTime {
+                processor(eventStore, failingAfter(loads = 1, failure = loadFailure)).process(exchange)
+            }
                 .thenAwait(Duration.ofSeconds(10))
                 .expectErrorMatches { it === loadFailure }
                 .verify()
@@ -263,7 +269,65 @@ class CommandAggregateOnErrorTest {
             exchange.getEventStream().assert().isNull()
             exchange.getAggregateVersion().assert().isNull()
             exchange.getCommandInvokeResult<Any>().assert().isNull()
+        }
+
+        @Test
+        fun `on error runs once with the last loaded aggregate when the final attempt fails before loading`() {
+            val loadFailure = IllegalStateException("state unavailable")
+            val eventStore = FailingEventStore(appendFailures = List(2) { TimeoutException("timeout") })
+            val exchange = exchange(ProbeCreate(AGGREGATE_ID))
+
+            StepVerifier.withVirtualTime {
+                processor(eventStore, failingAfter(loads = 1, failure = loadFailure)).process(exchange)
+            }
+                .thenAwait(Duration.ofSeconds(10))
+                .expectErrorMatches { it === loadFailure }
+                .verify()
+
+            val call = OnErrorProbe.calls.single()
+            call.error.assert().isSameAs(loadFailure)
+            call.exchangeError.assert().isSameAs(loadFailure)
+            call.eventStream.assert().isNull()
+            exchange.getCommandAggregate<Any, Any>().assert().isInstanceOf(SimpleCommandAggregate::class.java)
+        }
+
+        @Test
+        fun `on error does not run when no attempt loaded an aggregate`() {
+            val loadFailure = IllegalStateException("state unavailable")
+            val exchange = exchange(ProbeCreate(AGGREGATE_ID))
+
+            StepVerifier.withVirtualTime {
+                processor(InMemoryEventStore(), failingAfter(loads = 0, failure = loadFailure)).process(exchange)
+            }
+                .thenAwait(Duration.ofSeconds(10))
+                .expectErrorMatches { it === loadFailure }
+                .verify()
+
+            OnErrorProbe.calls.assert().isEmpty()
             exchange.getCommandAggregate<Any, Any>().assert().isNull()
+        }
+
+        @Test
+        fun `a command aggregate that is not a simple one handles its own errors and gets no extra call`() {
+            val failure = TimeoutException("timeout")
+            val eventStore = FailingEventStore(appendFailures = List(16) { failure })
+            val wrapping = object : CommandAggregateFactory {
+                override fun <C : Any, S : Any> create(
+                    metadata: me.ahoo.wow.modeling.metadata.AggregateMetadata<C, S>,
+                    stateAggregate: StateAggregate<S>,
+                ): CommandAggregate<C, S> =
+                    WrappingCommandAggregate(SimpleCommandAggregateFactory(eventStore).create(metadata, stateAggregate))
+            }
+
+            StepVerifier.withVirtualTime {
+                processor(eventStore, commandAggregateFactory = wrapping).process(exchange(ProbeCreate(AGGREGATE_ID)))
+            }
+                .thenAwait(Duration.ofSeconds(10))
+                .expectErrorMatches { Exceptions.isRetryExhausted(it) && it.cause === failure }
+                .verify()
+
+            // Its own process runs @OnError on each of the 4 attempts; the processor adds no 5th call.
+            OnErrorProbe.calls.assert().hasSize(4)
         }
 
         @Test
@@ -280,6 +344,10 @@ class CommandAggregateOnErrorTest {
             exchange.getError().assert().isNull()
         }
     }
+
+    private class WrappingCommandAggregate<C : Any, S : Any>(
+        private val delegate: CommandAggregate<C, S>,
+    ) : CommandAggregate<C, S> by delegate
 
     private class FailingEventStore(private val appendFailures: List<Throwable>) : EventStore {
         private val delegate = InMemoryEventStore()
