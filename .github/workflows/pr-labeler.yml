@@ -44,6 +44,11 @@ jobs:
   # that is not "None."), gets `breaking-change`: release notes list it first,
   # and release admission keeps it out of a patch release and requires the
   # x.Y.0 notes to name it. A `## Behaviour changes` section adds no label.
+  # So does a diff that removes or changes a line of a Kotlin ABI dump
+  # (`**/api/*.api`), an API report (`typescript/*/test/api/*.api.md`) or a
+  # surface list (`typescript/*/test/surface/*.txt`); additions do not. The
+  # script reads the diff from the REST API with this job's token, so the
+  # PR's code is still never checked out.
   breaking:
     name: Label Breaking Change
     permissions:
