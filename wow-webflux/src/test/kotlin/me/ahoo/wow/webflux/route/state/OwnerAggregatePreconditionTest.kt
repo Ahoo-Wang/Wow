@@ -16,7 +16,7 @@ package me.ahoo.wow.webflux.route.state
 import io.mockk.every
 import io.mockk.mockk
 import me.ahoo.test.asserts.assertThrownBy
-import me.ahoo.wow.api.annotation.AggregateRoute
+import me.ahoo.wow.api.annotation.OwnerPolicy
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.modeling.command.IllegalAccessOwnerAggregateException
@@ -34,7 +34,7 @@ class OwnerAggregatePreconditionTest {
     fun `should pass when owner check is NEVER`() {
         val request = mockk<ServerRequest>()
         val stateAggregate = mockk<StateAggregate<Any>>()
-        OwnerAggregatePrecondition(request, AggregateRoute.Owner.NEVER).check(stateAggregate)
+        OwnerAggregatePrecondition(request, OwnerPolicy.NEVER).check(stateAggregate)
     }
 
     @Test
@@ -48,7 +48,7 @@ class OwnerAggregatePreconditionTest {
             every { ownerId } returns customerId
         }
 
-        OwnerAggregatePrecondition(request, AggregateRoute.Owner.ALWAYS).check(stateAggregate)
+        OwnerAggregatePrecondition(request, OwnerPolicy.ALWAYS).check(stateAggregate)
     }
 
     @Test
@@ -62,7 +62,7 @@ class OwnerAggregatePreconditionTest {
             every { aggregateId } returns "test.test".toNamedAggregate().aggregateId()
         }
         assertThrownBy<IllegalAccessOwnerAggregateException> {
-            OwnerAggregatePrecondition(request, AggregateRoute.Owner.ALWAYS).check(stateAggregate)
+            OwnerAggregatePrecondition(request, OwnerPolicy.ALWAYS).check(stateAggregate)
         }
     }
 
@@ -77,7 +77,7 @@ class OwnerAggregatePreconditionTest {
         }
 
         assertThrownBy<IllegalArgumentException> {
-            OwnerAggregatePrecondition(request, AggregateRoute.Owner.ALWAYS).check(stateAggregate)
+            OwnerAggregatePrecondition(request, OwnerPolicy.ALWAYS).check(stateAggregate)
         }.hasMessage("Path variable [ownerId] must not be blank.")
     }
 }

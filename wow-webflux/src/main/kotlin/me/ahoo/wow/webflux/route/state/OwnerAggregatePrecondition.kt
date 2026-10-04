@@ -13,7 +13,7 @@
 
 package me.ahoo.wow.webflux.route.state
 
-import me.ahoo.wow.api.annotation.AggregateRoute
+import me.ahoo.wow.api.annotation.OwnerPolicy
 import me.ahoo.wow.modeling.command.IllegalAccessOwnerAggregateException
 import me.ahoo.wow.modeling.state.StateAggregate
 import me.ahoo.wow.webflux.route.command.getOwnerId
@@ -21,7 +21,7 @@ import org.springframework.web.reactive.function.server.ServerRequest
 
 internal class OwnerAggregatePrecondition(
     private val request: ServerRequest,
-    private val owner: AggregateRoute.Owner
+    private val owner: OwnerPolicy
 ) {
     fun <S : Any> check(stateAggregate: StateAggregate<S>) {
         if (!owner.owned) {

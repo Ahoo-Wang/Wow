@@ -32,7 +32,7 @@ internal class AggregateConfigurationTest {
         val other = Aggregate(
             scopes = linkedSetOf("me.ahoo.order.extra"),
             type = FixtureAggregate::class.java.name,
-            tenantId = "tenant-b",
+            tenantId = "tenant-a",
             id = "other-id",
             commands = linkedSetOf("me.ahoo.order.command.extra"),
             events = linkedSetOf("me.ahoo.order.event.extra"),
@@ -56,6 +56,23 @@ internal class AggregateConfigurationTest {
         }
 
         exception.message.assert().contains("conflicts")
+    }
+
+    @Test
+    fun `merge keeps a static tenantId that only one side sets`() {
+        Aggregate(type = FixtureAggregate::class.java.name)
+            .merge(Aggregate(type = FixtureAggregate::class.java.name, tenantId = "tenant-b"))
+            .tenantId.assert().isEqualTo("tenant-b")
+    }
+
+    @Test
+    fun `merge should reject conflicting static tenantIds when both are present`() {
+        val exception = assertThrows<IllegalStateException> {
+            Aggregate(type = FixtureAggregate::class.java.name, tenantId = "tenant-a")
+                .merge(Aggregate(type = FixtureAggregate::class.java.name, tenantId = "tenant-b"))
+        }
+
+        exception.message.assert().contains("tenant-a", "tenant-b")
     }
 
     private class FixtureAggregate

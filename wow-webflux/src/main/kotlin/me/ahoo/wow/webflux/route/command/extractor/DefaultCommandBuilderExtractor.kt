@@ -13,7 +13,7 @@
 
 package me.ahoo.wow.webflux.route.command.extractor
 
-import me.ahoo.wow.api.annotation.AggregateRoute
+import me.ahoo.wow.api.annotation.OwnerPolicy
 import me.ahoo.wow.command.CommandOperator.withOperator
 import me.ahoo.wow.command.factory.CommandBuilder
 import me.ahoo.wow.command.factory.CommandBuilder.Companion.commandBuilder
@@ -46,7 +46,7 @@ object DefaultCommandBuilderExtractor : CommandBuilderExtractor {
         val tenantId = request.getTenantId(aggregateMetadata)
         val ownerId = request.getOwnerId()
         val spaceId = request.getSpaceId(aggregateRouteMetadata)
-        val aggregateId = request.getAggregateId(aggregateRouteMetadata.owner, ownerId)
+        val aggregateId = request.getAggregateId(aggregateRouteMetadata.ownerPolicy, ownerId)
         val aggregateVersion = request.headers().firstHeader(AGGREGATE_VERSION)?.toIntOrNull()
         val requestId = request.headers().firstHeader(REQUEST_ID).ifNotBlank { it }
         val commandBuilder = commandBody.commandBuilder()
@@ -57,7 +57,7 @@ object DefaultCommandBuilderExtractor : CommandBuilderExtractor {
             .aggregateVersion(aggregateVersion)
             .requestId(requestId)
             .namedAggregate(aggregateMetadata.namedAggregate)
-            .ownerIdSameAsAggregateId(aggregateRouteMetadata.owner == AggregateRoute.Owner.AGGREGATE_ID)
+            .ownerIdSameAsAggregateId(aggregateRouteMetadata.ownerPolicy == OwnerPolicy.AGGREGATE_ID)
         request.getLocalFirst()?.let {
             commandBuilder.header { header ->
                 header.withLocalFirst(it)

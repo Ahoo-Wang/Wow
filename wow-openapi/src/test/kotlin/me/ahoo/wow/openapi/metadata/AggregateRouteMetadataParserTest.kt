@@ -15,6 +15,9 @@ package me.ahoo.wow.openapi.metadata
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.annotation.AggregateRoute
+import me.ahoo.wow.api.annotation.OwnerPolicy
+import me.ahoo.wow.example.domain.cart.Cart
+import me.ahoo.wow.example.domain.cart.CartState
 import me.ahoo.wow.example.domain.order.Order
 import me.ahoo.wow.example.domain.order.OrderState
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
@@ -45,5 +48,29 @@ internal class AggregateRouteMetadataParserTest {
     fun `route spaced is the aggregate metadata's own flag`() {
         aggregateRouteMetadata<Order>().spaced.assert().isEqualTo(aggregateMetadata<Order, OrderState>().spaced)
         aggregateRouteMetadata<MockCommandAggregate>().spaced.assert().isEqualTo(MOCK_AGGREGATE_METADATA.spaced)
+    }
+
+    @Test
+    fun `route owner policy is the aggregate metadata's own policy`() {
+        aggregateRouteMetadata<Order>().ownerPolicy.assert().isEqualTo(aggregateMetadata<Order, OrderState>().owner)
+        aggregateMetadata<Order, OrderState>().owner.assert().isEqualTo(OwnerPolicy.ALWAYS)
+        aggregateRouteMetadata<Cart>().ownerPolicy.assert().isEqualTo(OwnerPolicy.AGGREGATE_ID)
+        aggregateMetadata<Cart, CartState>().owner.assert().isEqualTo(OwnerPolicy.AGGREGATE_ID)
+        aggregateRouteMetadata<MockCommandAggregate>().ownerPolicy.assert().isEqualTo(OwnerPolicy.NEVER)
+    }
+
+    @Test
+    @Suppress("DEPRECATION")
+    fun `owner policy constructor mirrors the deprecated owner`() {
+        val metadata = AggregateRouteMetadata(
+            enabled = true,
+            aggregateMetadata = MOCK_AGGREGATE_METADATA,
+            resourceName = "mock_aggregate",
+            spaced = false,
+            ownerPolicy = OwnerPolicy.AGGREGATE_ID
+        )
+        metadata.ownerPolicy.assert().isEqualTo(OwnerPolicy.AGGREGATE_ID)
+        metadata.owner.assert().isEqualTo(AggregateRoute.Owner.AGGREGATE_ID)
+        metadata.copy(owner = AggregateRoute.Owner.ALWAYS).ownerPolicy.assert().isEqualTo(OwnerPolicy.ALWAYS)
     }
 }

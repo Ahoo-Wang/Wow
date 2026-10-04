@@ -26,11 +26,14 @@ import com.google.devtools.ksp.validate
 import me.ahoo.wow.api.annotation.BoundedContext
 import me.ahoo.wow.compiler.AggregateRootResolver.AGGREGATE_ROOT_NAME
 import me.ahoo.wow.compiler.AggregateRootResolver.toName
+import me.ahoo.wow.compiler.metadata.AggregatePolicyResolver.resolveAggregatePolicy
 import me.ahoo.wow.compiler.metadata.BoundedContextResolver.resolveBoundedContext
 import me.ahoo.wow.compiler.metadata.CommandAggregateRootResolver.resolveAggregateRoot
 import me.ahoo.wow.configuration.WOW_METADATA_RESOURCE_NAME
+import me.ahoo.wow.configuration.WowMetadata
 import tools.jackson.core.StreamReadFeature
 import tools.jackson.databind.DeserializationFeature
+import tools.jackson.databind.node.ObjectNode
 import tools.jackson.module.kotlin.jsonMapper
 
 /**
@@ -55,6 +58,11 @@ class MetadataSymbolProcessor(
 
     private var wowMetadataMerger: WowMetadataMerger = WowMetadataMerger()
 
+    /**
+     * Aggregate type → its policy, for the aggregates whose policy is not the default.
+     */
+    private val aggregatePolicies = mutableMapOf<String, AggregatePolicy>()
+
     private val logger = environment.logger
     private val codeGenerator = environment.codeGenerator
 
@@ -71,7 +79,9 @@ class MetadataSymbolProcessor(
                     dependencyFiles.add(file)
                 }
                 val boundedContextMetadata = it.resolveBoundedContext()
-                wowMetadataMerger.merge(boundedContextMetadata)
+                reportConflict(it) {
+                    wowMetadataMerger.merge(boundedContextMetadata)
+                }
             }
 
         resolver
@@ -85,7 +95,13 @@ class MetadataSymbolProcessor(
                 }
                 val aggregateName = it.toName()
                 val aggregate = it.resolveAggregateRoot(resolver)
-                wowMetadataMerger.merge(aggregateName, aggregate)
+                reportConflict(it) {
+                    val policy = it.resolveAggregatePolicy()
+                    if (!policy.isDefault) {
+                        aggregatePolicies[aggregate.type!!] = policy
+                    }
+                    wowMetadataMerger.merge(aggregateName, aggregate)
+                }
             }
         if (dependencyFiles.isEmpty()) {
             return emptyList()
@@ -100,10 +116,48 @@ class MetadataSymbolProcessor(
                     extensionName = "",
                 )
         val metadataJson = KSP_SAFE_OBJECT_MAPPER.writerWithDefaultPrettyPrinter()
-            .writeValueAsString(wowMetadataMerger.metadata)
+            .writeValueAsString(wowMetadataMerger.metadata.withPolicies())
         file.write(metadataJson.toByteArray())
         file.close()
         return emptyList()
+    }
+
+    /**
+     * Two declarations of one aggregate that disagree (its spaced flag or owner policy, or its static tenant) are a
+     * compile error on the declaration, as they are a startup failure at runtime.
+     */
+    private fun reportConflict(symbol: KSClassDeclaration, block: () -> Unit) {
+        try {
+            block()
+        } catch (conflict: IllegalStateException) {
+            logger.error(conflict.message.orEmpty(), symbol)
+        }
+    }
+
+    /**
+     * The metadata as JSON, with `spaced` and `owner` recorded on each aggregate whose policy is not the default.
+     * They are written beside the fields of [me.ahoo.wow.configuration.Aggregate], not as fields of it, so the
+     * metadata the runtime reads and serves (`GET /wow/metadata`) keeps its 9.2 shape; readers ignore unknown fields.
+     */
+    private fun WowMetadata.withPolicies(): ObjectNode {
+        val tree = KSP_SAFE_OBJECT_MAPPER.valueToTree<ObjectNode>(this)
+        if (aggregatePolicies.isEmpty()) {
+            return tree
+        }
+        contexts.forEach { (contextName, context) ->
+            context.aggregates.forEach { (aggregateName, aggregate) ->
+                val policy = aggregatePolicies[aggregate.type] ?: return@forEach
+                val aggregateNode = tree.path("contexts").path(contextName).path("aggregates")
+                    .path(aggregateName) as ObjectNode
+                if (policy.spaced) {
+                    aggregateNode.put(AggregatePolicy.SPACED, true)
+                }
+                if (policy.owner.owned) {
+                    aggregateNode.put(AggregatePolicy.OWNER, policy.owner.name)
+                }
+            }
+        }
+        return tree
     }
 
     override fun finish() {

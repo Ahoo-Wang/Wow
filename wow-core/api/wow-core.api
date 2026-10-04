@@ -4557,6 +4557,7 @@ public final class me/ahoo/wow/modeling/metadata/AggregateMetadata : me/ahoo/wow
 	public final fun getCommand ()Lme/ahoo/wow/modeling/metadata/CommandAggregateMetadata;
 	public fun getContextName ()Ljava/lang/String;
 	public fun getNamedAggregate ()Lme/ahoo/wow/api/modeling/NamedAggregate;
+	public final fun getOwner ()Lme/ahoo/wow/api/annotation/OwnerPolicy;
 	public final fun getSpaced ()Z
 	public final fun getState ()Lme/ahoo/wow/modeling/metadata/StateAggregateMetadata;
 	public final fun getStaticTenantId ()Ljava/lang/String;

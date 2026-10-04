@@ -98,7 +98,7 @@ The query side works the same way: `cartQueryClientFactory.createSnapshotQueryCl
 
 ## Wow's space
 
-A spaced aggregate (`@AggregateRoute(spaced = true)`) reads its space from the `Wow-Space-Id` header, on commands and queries alike; any other aggregate ignores the header. CoSec's own `spaceIdProvider` sends `CoSec-Space-Id`, which only a server with Wow's CoSec integration reads, as a fallback, and also only for a spaced aggregate. Send Wow's header per command with `commandHeaders({ spaceId })`, or for every request of a client through its `headers`:
+A spaced aggregate (`@Spaced`) reads its space from the `Wow-Space-Id` header, on commands and queries alike; any other aggregate ignores the header. CoSec's own `spaceIdProvider` sends `CoSec-Space-Id`, which only a server with Wow's CoSec integration reads, as a fallback, and also only for a spaced aggregate. Send Wow's header per command with `commandHeaders({ spaceId })`, or for every request of a client through its `headers`:
 
 ```ts
 import { WowHeaders } from '@ahoo-wang/wow-client';

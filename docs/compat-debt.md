@@ -12,6 +12,7 @@ This ledger lists every piece of that debt. Each entry says what is kept compati
   - `compat(wow<9)`: kept for Wow 8.x servers, or for code and requests written against the deprecated Condition API.
   - `compat(fetcher)`: kept for names the packages had in fetcher.
   - `compat(wow<9.2)`: kept for code compiled, configuration written, or links sent against Wow 9.1, which 9.2 runs mixed with.
+  - `compat(wow<9.3)`: kept for code written or compiled against Wow 9.2.
 - `.github/scripts/compat-debt.mjs` (`pnpm check:compat-debt`) runs in the `quality` job of `typescript.yml`. It reads `typescript/*/src` and every Kotlin main source set (`*/src/main/kotlin`), and fails when:
   - a `@deprecated` comment in `typescript/*/src` lacks `Removed in v10.`;
   - a Kotlin `@Deprecated("…")` in `*/src/main/kotlin` lacks `Scheduled for removal in 10.0.0.`;
@@ -149,6 +150,13 @@ When you add compatibility code, add its marker and list the file under an entry
 - **Markers**: `compensation/wow-compensation-server/src/main/kotlin/me/ahoo/wow/compensation/server/dashboard/DashboardConfiguration.kt`
 - **Replacement**: the links 9.2 sends, `/executions?view=system:execution-failed:<view>&id=<id>`.
 - **Removal in v10**: delete `legacyNav`. Alerts sent before the 9.2 upgrade then open a 404, so v10's release notes say so.
+
+### Wow 9.2 Aggregate Policies On `@AggregateRoute`
+
+- **Kept compatible**: 9.2 declared whether an aggregate is spaced and its owner policy on its routing annotation, `@AggregateRoute(spaced = …, owner = AggregateRoute.Owner.…)`. 9.3 declares them on the aggregate with `@Spaced` and `@AggregateOwner(OwnerPolicy.…)`; the old attributes and the nested `AggregateRoute.Owner` enum are deprecated but still read, at runtime and by the KSP processor, whenever the new annotation is absent (an attribute counts as declared only when it is not its default, `spaced = true` or `owner != NEVER`). Declaring both with different values fails at startup and at compile time. Code that uses the old type keeps compiling: the `AggregateRouteMetadata` primary constructor and its `owner` property, and the `ServerRequest.getAggregateId(AggregateRoute.Owner…)` overloads.
+- **Markers**: `wow-api/src/main/kotlin/me/ahoo/wow/api/annotation/AggregateRoute.kt`, `wow-core/src/main/kotlin/me/ahoo/wow/modeling/annotation/AggregatePolicyResolver.kt`, `wow-compiler/src/main/kotlin/me/ahoo/wow/compiler/metadata/AggregatePolicyResolver.kt`, `wow-openapi/src/main/kotlin/me/ahoo/wow/openapi/metadata/AggregateRouteMetadata.kt`, `wow-webflux/src/main/kotlin/me/ahoo/wow/webflux/route/command/AggregateRequest.kt`
+- **Replacement**: `@Spaced` and `@AggregateOwner(OwnerPolicy.…)` on the aggregate; `AggregateMetadata.spaced` and `AggregateMetadata.owner` for readers; the `OwnerPolicy` constructor and `ownerPolicy` of `AggregateRouteMetadata`; `getAggregateId(OwnerPolicy…)`.
+- **Removal in v10**: delete `spaced`, `owner` and `Owner` from `AggregateRoute`, the legacy branches of both `AggregatePolicyResolver`s (with their conflict checks, which only exist for the old attributes), the two `AggregateRoute.Owner` overloads; `AggregateRouteMetadata`'s primary constructor takes `ownerPolicy: OwnerPolicy` in place of `owner`, and its secondary constructor and the `ownerPolicy` getter go. Code still writing the old attributes stops compiling; the migration guide maps `spaced = true` to `@Spaced` and `owner = Owner.X` to `@AggregateOwner(OwnerPolicy.X)`.
 
 ## Held Until v10
 

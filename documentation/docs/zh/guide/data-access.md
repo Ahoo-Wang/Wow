@@ -30,8 +30,8 @@ tenant/owner 路径、`Wow-Space-Id` 请求头或 ABAC 标签都是路由与过�
 | 作用域 | 线协议值 | 路由条件 |
 |---|---|---|
 | Tenant | `tenant/{tenantId}` | 聚合没有静态 tenant ID |
-| Owner | `owner/{ownerId}` | 有效 `AggregateRoute.Owner` 不是 `NEVER` |
-| Space | `Wow-Space-Id` 请求头 | 有效路由启用 spaced |
+| Owner | `owner/{ownerId}` | 有效的拥有者策略（`@AggregateOwner`）不是 `NEVER` |
+| Space | `Wow-Space-Id` 请求头 | 聚合声明了 spaced（`@Spaced`） |
 
 `AGGREGATE_ID` 拥有者策略在 owner ID 已标识聚合时移除独立 resource-ID 段。命令级 `@CommandRoute` 可以覆盖聚合路由默认值。快照查询贡献者始终发布基础聚合路由，并在适用时增加 tenant/owner 变体，因此无作用域查询路由必须有显式安全策略。准确路由以运行服务的 OpenAPI 为准；限界上下文 alias 不会自动成为 URL 前缀。
 
@@ -92,9 +92,12 @@ data class CreateCart(
 
 ```kotlin
 @AggregateRoot
-@AggregateRoute(resourceName = "orders", owner = AggregateRoute.Owner.ALWAYS)
+@AggregateRoute(resourceName = "orders")
+@AggregateOwner(OwnerPolicy.ALWAYS)
 class Order(private val state: OrderState)
 ```
+
+自 9.3.0 起，拥有者策略用 `@AggregateOwner` 声明；缺少它时仍读取已弃用的 `@AggregateRoute(owner = AggregateRoute.Owner.…)`（见[聚合策略](./domain/aggregate.md#聚合策略-space-与-owner)）。
 
 | 策略 | Owner 路径 | Resource ID | 含义 |
 |---|---|---|---|
@@ -124,19 +127,22 @@ Space 是随消息和快照存储的字符串命名空间，与 tenant、owner �
 
 ```kotlin
 @AggregateRoot
-@AggregateRoute(resourceName = "sales-order", spaced = true)
+@AggregateRoute(resourceName = "sales-order")
+@Spaced
 class Order(private val state: OrderState)
 ```
 
+自 9.3.0 起，用 `@Spaced` 声明聚合带 space；缺少它时仍读取已弃用的 `@AggregateRoute(spaced = true)`（见[聚合策略](./domain/aggregate.md#聚合策略-space-与-owner)）。
+
 对启用 spaced 的聚合，WebFlux 读取 `Wow-Space-Id`：命令写入该 space，查询路由（快照、事件流、状态与溯源读取）追加 `SPACE_ID` 过滤器。请求头不会变成 URL 段，也不会认证调用方是否有权访问该 space。
 
-未声明 `spaced = true` 的聚合在所有路由上忽略该请求头：无论客户端发送什么，其命令都使用默认 space（`""`），其查询也不追加 space 过滤器。其他来源的命令同理：Saga 响应 spaced 聚合的事件时，不会把该 space 传给非 spaced 聚合；非 spaced 聚合也从不校验或记录命令的 space。fetcher-cosec 等客户端会在每个请求上发送 space 请求头，因此依赖该请求头隔离非 spaced 聚合的部署必须为该聚合声明 `spaced = true`。
+未声明 spaced 的聚合在所有路由上忽略该请求头：无论客户端发送什么，其命令都使用默认 space（`""`），其查询也不追加 space 过滤器。其他来源的命令同理：Saga 响应 spaced 聚合的事件时，不会把该 space 传给非 spaced 聚合；非 spaced 聚合也从不校验或记录命令的 space。fetcher-cosec 等客户端会在每个请求上发送 space 请求头，因此依赖该请求头隔离非 spaced 聚合的部署必须为该聚合声明 `spaced = true`。
 
 ### 从 9.1 升级
 
 Wow 9.1 对所有聚合都从请求里取 space；9.2 只对 spaced 聚合取。这是 v9 兼容冻结的一项批准例外，9.2.0 发布说明的「Breaking」（服务端行为）一节列出了它。
 
-1. **升级之前**，给每个靠 space 请求头隔离数据的聚合声明 `spaced = true`，这项声明随 9.2 升级一起构建、上线。
+1. **升级之前**，给每个靠 space 请求头隔离数据的聚合声明 `spaced = true`（自 9.3.0 起为 `@Spaced`），这项声明随 9.2 升级一起构建、上线。
 2. **滚动升级期间**，9.1 与 9.2 节点对非 spaced 聚合的处理不同：9.1 节点把请求头的 space 写进命令、按它过滤查询；9.2 节点写默认 space、不过滤。同一个查询因此可能随应答节点不同而返回不同的行。网关、聚合节点和查询节点一起升级，混跑窗口尽量短。
 3. **升级之后**，9.1 节点已经带 space 写入的数据保留原来的 space；之后的命令既不校验也不改变它，查询也不再按请求的 space 过滤。
 4. **回退到 9.1**：9.2 以默认 space 写入的记录，对发送 space 请求头的客户端，命令会被拒绝、查询会被隐藏。

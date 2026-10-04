@@ -13,7 +13,7 @@
 
 package me.ahoo.wow.openapi.contributor.aggregate.snapshot
 
-import me.ahoo.wow.api.annotation.AggregateRoute
+import me.ahoo.wow.api.annotation.OwnerPolicy
 import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.eventsourcing.snapshot.Snapshot
 import me.ahoo.wow.openapi.BatchComponent.PathVariable.BATCH_AFTER_ID
@@ -421,7 +421,7 @@ object SnapshotRouteContributor : RouteContributor {
             method = Https.Method.GET,
             appendTenantPath = aggregateRouteMetadata.defaultAppendTenantPath(),
             appendOwnerPath = aggregateRouteMetadata.defaultAppendOwnerPath(),
-            appendIdPath = aggregateRouteMetadata.owner != AggregateRoute.Owner.AGGREGATE_ID,
+            appendIdPath = aggregateRouteMetadata.ownerPolicy != OwnerPolicy.AGGREGATE_ID,
             appendPathSuffix = "snapshot",
             responses = loadSnapshotResponses(aggregateRouteMetadata, componentContext)
         )

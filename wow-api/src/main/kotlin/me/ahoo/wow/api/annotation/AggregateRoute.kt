@@ -16,12 +16,14 @@ package me.ahoo.wow.api.annotation
 import java.lang.annotation.Inherited
 
 /**
- * Configures routing and ownership behavior for aggregate operations.
+ * Configures the routes of an aggregate.
  *
- * This annotation defines how aggregate instances are accessed and managed in terms of:
+ * This annotation defines:
  * - Resource naming for API endpoints
- * - Ownership policies for multi-tenant scenarios
- * - Route generation for REST APIs
+ * - Whether routes are generated at all
+ *
+ * Since 9.3.0 the aggregate's own policies are declared on the aggregate with [Spaced] and [AggregateOwner];
+ * [spaced] and [owner] are deprecated but still read when the new annotation is absent.
  *
  * The routing configuration affects how commands are dispatched and how API endpoints
  * are generated for the aggregate.
@@ -29,10 +31,8 @@ import java.lang.annotation.Inherited
  * Example usage:
  * ```kotlin
  * @AggregateRoot
- * @AggregateRoute(
- *     resourceName = "orders",
- *     owner = AggregateRoute.Owner.AGGREGATE_ID
- * )
+ * @AggregateRoute(resourceName = "orders")
+ * @AggregateOwner(OwnerPolicy.AGGREGATE_ID)
  * class OrderAggregate(
  *     @AggregateId
  *     val orderId: String,
@@ -47,15 +47,16 @@ import java.lang.annotation.Inherited
  *                    class name (lowercased) will be used. This affects URL generation.
  * @param enabled Whether routing is enabled for this aggregate. When false, no routes
  *               will be generated. Defaults to true.
- * @param spaced Whether the aggregate's routes take a space from the request's `Wow-Space-Id` header (it adds
+ * @param spaced Deprecated since 9.3.0, use [Spaced]. Whether the aggregate's routes take a space from the request's `Wow-Space-Id` header (it adds
  *               no path segment). Only a spaced aggregate has a space written to its commands and its queries
  *               scoped by it. A command to any other aggregate carries the default space whatever its source
  *               (HTTP, a saga reacting to a spaced aggregate's event, in-process), and that aggregate neither checks
  *               nor records a command's space. Defaults to false.
- * @param owner Ownership policy determining tenant isolation. Controls whether operations
- *             require owner context and how ownership is determined.
+ * @param owner Deprecated since 9.3.0, use [AggregateOwner]. Ownership policy determining tenant isolation.
+ *             Controls whether operations require owner context and how ownership is determined.
  *
- * @see Owner for available ownership policies
+ * @see Spaced
+ * @see AggregateOwner
  * @see AggregateRoot for marking aggregate root classes
  */
 @Target(AnnotationTarget.CLASS)
@@ -64,7 +65,10 @@ import java.lang.annotation.Inherited
 annotation class AggregateRoute(
     val resourceName: String = "",
     val enabled: Boolean = true,
+    @Deprecated("Scheduled for removal in 10.0.0. Use @Spaced on the aggregate.")
     val spaced: Boolean = false,
+    @Deprecated("Scheduled for removal in 10.0.0. Use @AggregateOwner on the aggregate.")
+    @Suppress("DEPRECATION")
     val owner: Owner = Owner.NEVER
 ) {
     /**
@@ -72,6 +76,7 @@ annotation class AggregateRoute(
      *
      * @param owned Whether this policy requires ownership context for operations.
      */
+    @Deprecated("Scheduled for removal in 10.0.0. Use OwnerPolicy with @AggregateOwner.")
     enum class Owner(
         val owned: Boolean
     ) {

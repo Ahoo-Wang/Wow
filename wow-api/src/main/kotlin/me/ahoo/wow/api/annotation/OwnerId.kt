@@ -31,7 +31,7 @@ import java.lang.annotation.Inherited
  * Example usage:
  * ```kotlin
  * @AggregateRoot
- * @AggregateRoute(owner = AggregateRoute.Owner.ALWAYS)
+ * @AggregateOwner(OwnerPolicy.ALWAYS)
  * class UserProfile(
  *     @AggregateId
  *     val profileId: String,
@@ -53,7 +53,7 @@ import java.lang.annotation.Inherited
  * ```
  *
  * @see TenantId for tenant-specific identification
- * @see AggregateRoute.Owner for ownership routing policies
+ * @see AggregateOwner for the ownership policy of an aggregate
  */
 @Target(
     AnnotationTarget.FIELD,

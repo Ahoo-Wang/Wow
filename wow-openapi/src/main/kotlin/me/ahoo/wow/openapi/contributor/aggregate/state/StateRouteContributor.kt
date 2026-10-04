@@ -15,7 +15,7 @@ package me.ahoo.wow.openapi.contributor.aggregate.state
 
 import io.swagger.v3.oas.annotations.enums.ParameterIn
 import io.swagger.v3.oas.models.media.IntegerSchema
-import me.ahoo.wow.api.annotation.AggregateRoute
+import me.ahoo.wow.api.annotation.OwnerPolicy
 import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.eventsourcing.state.StateEvent
 import me.ahoo.wow.openapi.Https
@@ -100,7 +100,7 @@ object StateRouteContributor : RouteContributor {
             operation = "load",
             summary = "Load State Aggregate",
             appendOwnerPath = aggregateRouteMetadata.defaultAppendOwnerPath(),
-            appendIdPath = aggregateRouteMetadata.owner != AggregateRoute.Owner.AGGREGATE_ID,
+            appendIdPath = aggregateRouteMetadata.ownerPolicy != OwnerPolicy.AGGREGATE_ID,
             appendPathSuffix = "state",
             responses = loadAggregateResponses(
                 "Load State Aggregate",
@@ -124,7 +124,7 @@ object StateRouteContributor : RouteContributor {
             operation = "load",
             summary = "Load Versioned State Aggregate",
             appendOwnerPath = aggregateRouteMetadata.defaultAppendOwnerPath(),
-            appendIdPath = aggregateRouteMetadata.owner != AggregateRoute.Owner.AGGREGATE_ID,
+            appendIdPath = aggregateRouteMetadata.ownerPolicy != OwnerPolicy.AGGREGATE_ID,
             appendPathSuffix = "state/{version}",
             extraParameters = listOf(componentContext.versionPathParameterRef()),
             responses = loadAggregateResponses(
@@ -149,7 +149,7 @@ object StateRouteContributor : RouteContributor {
             operation = "load",
             summary = "Load Time Based State Aggregate",
             appendOwnerPath = aggregateRouteMetadata.defaultAppendOwnerPath(),
-            appendIdPath = aggregateRouteMetadata.owner != AggregateRoute.Owner.AGGREGATE_ID,
+            appendIdPath = aggregateRouteMetadata.ownerPolicy != OwnerPolicy.AGGREGATE_ID,
             appendPathSuffix = "state/time/{createTime}",
             extraParameters = listOf(componentContext.createTimePathParameterRef()),
             responses = loadAggregateResponses(

@@ -13,9 +13,10 @@
 
 package me.ahoo.wow.viewstore.domain.preferences
 
+import me.ahoo.wow.api.annotation.AggregateOwner
 import me.ahoo.wow.api.annotation.AggregateRoot
-import me.ahoo.wow.api.annotation.AggregateRoute
 import me.ahoo.wow.api.annotation.OnCommand
+import me.ahoo.wow.api.annotation.OwnerPolicy
 import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.viewstore.api.preferences.SetViewPreferences
 import me.ahoo.wow.viewstore.api.preferences.ViewPreferencesSet
@@ -29,7 +30,7 @@ import me.ahoo.wow.viewstore.domain.view.ViewConfigs
  * [SetViewPreferences], which creates it on the first write (expected version `0`).
  */
 @AggregateRoot
-@AggregateRoute(owner = AggregateRoute.Owner.ALWAYS)
+@AggregateOwner(OwnerPolicy.ALWAYS)
 class ViewPreferences(private val state: ViewPreferencesState) {
 
     @OnCommand

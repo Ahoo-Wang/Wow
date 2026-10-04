@@ -142,7 +142,7 @@ data class Aggregate(
      *
      * @param other The other Aggregate to merge with.
      * @return A new Aggregate containing the merged configurations.
-     * @throws IllegalArgumentException if type conflicts are detected.
+     * @throws IllegalStateException if the types, or the static tenantIds (since 9.3.0), of both are set and differ.
      */
     override fun merge(other: Aggregate): Aggregate {
         val mergedScopes =
@@ -163,6 +163,13 @@ data class Aggregate(
         if (type.isNullOrBlank().not() && other.type.isNullOrBlank().not()) {
             check(type == other.type) {
                 "The current aggregate type[$type] conflicts with the aggregate[${other.type}] to be merged."
+            }
+        }
+
+        if (tenantId.isNullOrBlank().not() && other.tenantId.isNullOrBlank().not()) {
+            check(tenantId == other.tenantId) {
+                "The current aggregate[${type ?: other.type}] static tenantId[$tenantId] conflicts with " +
+                    "the tenantId[${other.tenantId}] to be merged."
             }
         }
 
@@ -233,7 +240,12 @@ internal fun <K, V : Merge<V>> Map<K, V>.merge(other: Map<K, V>): Map<K, V> {
             if (current == null) {
                 put(it.key, it.value)
             } else {
-                put(it.key, current.merge(it.value))
+                val merged = try {
+                    current.merge(it.value)
+                } catch (conflict: IllegalStateException) {
+                    throw IllegalStateException("[${it.key}] ${conflict.message}", conflict)
+                }
+                put(it.key, merged)
             }
         }
     }

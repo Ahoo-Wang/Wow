@@ -47,7 +47,7 @@ import me.ahoo.wow.modeling.annotation.acceptsCommandSpace
  * @param tenantId tenant identifier (optional, extracted from command if available)
  * @param ownerId owner identifier (optional, extracted from command if available)
  * @param spaceId space identifier (optional); ignored, in favour of the default space, when the target aggregate is
- * known here and is not spaced (`@AggregateRoute(spaced = true)`)
+ * known here and is not spaced (`@Spaced`)
  * @param aggregateVersion expected aggregate version (optional, extracted from command if available)
  * @param namedAggregate named aggregate information (optional, extracted from command if available)
  * @param header message headers (default empty)

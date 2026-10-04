@@ -31,12 +31,12 @@ flowchart LR
 | 模块 | 职责 | 精确源码 |
 | --- | --- | --- |
 | `example-api` | `example-service` 上下文、`order`/`cart` 聚合，以及命令、事件和值对象 | [`ExampleService.kt`](https://github.com/Ahoo-Wang/Wow/blob/main/example/example-api/src/main/kotlin/me/ahoo/wow/example/api/ExampleService.kt#L24-L39)、[`CreateOrder.kt`](https://github.com/Ahoo-Wang/Wow/blob/main/example/example-api/src/main/kotlin/me/ahoo/wow/example/api/order/CreateOrder.kt#L25-L65) |
-| `example-domain` | 业务不变量、命令处理、事件溯源、Saga 与领域测试 | [`Order.kt`](https://github.com/Ahoo-Wang/Wow/blob/main/example/example-domain/src/main/kotlin/me/ahoo/wow/example/domain/order/Order.kt#L49-L197)、[`OrderState.kt`](https://github.com/Ahoo-Wang/Wow/blob/main/example/example-domain/src/main/kotlin/me/ahoo/wow/example/domain/order/OrderState.kt#L34-L108) |
+| `example-domain` | 业务不变量、命令处理、事件溯源、Saga 与领域测试 | [`Order.kt`](https://github.com/Ahoo-Wang/Wow/blob/main/example/example-domain/src/main/kotlin/me/ahoo/wow/example/domain/order/Order.kt#L54-L202)、[`OrderState.kt`](https://github.com/Ahoo-Wang/Wow/blob/main/example/example-domain/src/main/kotlin/me/ahoo/wow/example/domain/order/OrderState.kt#L34-L108) |
 | `example-server` | Spring Boot 装配、生成 WebFlux 路由、投影与查询 | [`ExampleServer.kt`](https://github.com/Ahoo-Wang/Wow/blob/main/example/example-server/src/main/kotlin/me/ahoo/wow/example/server/ExampleServer.kt)、[`OrderProjector.kt`](https://github.com/Ahoo-Wang/Wow/blob/main/example/example-server/src/main/kotlin/me/ahoo/wow/example/server/order/OrderProjector.kt) |
 
 ## 1. 定义上下文与聚合
 
-[`ExampleService`](https://github.com/Ahoo-Wang/Wow/blob/main/example/example-api/src/main/kotlin/me/ahoo/wow/example/api/ExampleService.kt#L24-L39) 声明上下文名 `example-service`、别名 `example`，并用 `packageScopes` 把订单和购物车契约归入各自聚合。订单实现另用 [`@AggregateRoute(resourceName = "sales-order", spaced = true, owner = ALWAYS)`](https://github.com/Ahoo-Wang/Wow/blob/main/example/example-domain/src/main/kotlin/me/ahoo/wow/example/domain/order/Order.kt#L54-L56) 声明资源名、空间隔离和 owner 路径要求。
+[`ExampleService`](https://github.com/Ahoo-Wang/Wow/blob/main/example/example-api/src/main/kotlin/me/ahoo/wow/example/api/ExampleService.kt#L24-L39) 声明上下文名 `example-service`、别名 `example`，并用 `packageScopes` 把订单和购物车契约归入各自聚合。订单实现另用 [`@AggregateRoute(resourceName = "sales-order")`、`@Spaced` 与 `@AggregateOwner(OwnerPolicy.ALWAYS)`](https://github.com/Ahoo-Wang/Wow/blob/main/example/example-domain/src/main/kotlin/me/ahoo/wow/example/domain/order/Order.kt#L58-L62) 声明资源名、空间隔离和 owner 路径要求。
 
 这两个注解共同参与路由生成；不能只看到 `example-service` 或 `order` 就猜 URL。
 
@@ -54,7 +54,7 @@ flowchart LR
 
 ## 3. 聚合只做业务决策
 
-[`Order.onCommand(CreateOrder)`](https://github.com/Ahoo-Wang/Wow/blob/main/example/example-domain/src/main/kotlin/me/ahoo/wow/example/domain/order/Order.kt#L93-L133) 依次执行商品规格，生成稳定的 `OrderItem.id`，返回 `OrderCreated`，并把 `totalAmount` 放入命令结果。它不直接修改 `OrderState`。
+[`Order.onCommand(CreateOrder)`](https://github.com/Ahoo-Wang/Wow/blob/main/example/example-domain/src/main/kotlin/me/ahoo/wow/example/domain/order/Order.kt#L98-L138) 依次执行商品规格，生成稳定的 `OrderItem.id`，返回 `OrderCreated`，并把 `totalAmount` 放入命令结果。它不直接修改 `OrderState`。
 
 ```text
 payable >= amount  -> OrderPaid(amount, fullyPaid)

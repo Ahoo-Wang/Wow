@@ -29,7 +29,7 @@ Aggregate and command metadata determine paths and add tenant, owner, or space s
 
 #### Aggregate Route Pattern
 
-Metadata such as `AggregateRoute.Owner.AGGREGATE_ID` determines how owner and aggregate ID are represented. The command handler still builds a `CommandMessage` from path, headers, and body.
+Metadata such as `@AggregateOwner(OwnerPolicy.AGGREGATE_ID)` determines how owner and aggregate ID are represented. The command handler still builds a `CommandMessage` from path, headers, and body.
 
 #### Owner Route Pattern
 

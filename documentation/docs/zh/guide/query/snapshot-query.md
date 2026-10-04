@@ -115,7 +115,7 @@ POST /owner/{ownerId}/sales-order/snapshot/{operation}
 POST /tenant/{tenantId}/owner/{ownerId}/sales-order/snapshot/{operation}
 ```
 
-当聚合同时具有动态 tenant（无 `@StaticTenantId`）与 owner（`owner` 不为 `NEVER`）时，还会发布 tenant + owner 变体，按命令路由的路径段顺序同时收窄到二者；按路径做安全控制的网关可借此把调用方限定在其所在 tenant 内的自身 owner。TypeScript 查询客户端通过 `resourceAttribution: ResourceAttributionPathSpec.TENANT_OWNER` 访问它，`{tenantId}` 与 `{ownerId}` 的填充方式与其他变体相同。其中 `{operation}` 是上述九种操作之一。list 可以协商 JSON 或 SSE；single、paged 与 cursor 返回 JSON。聚合路由及 [Query Model Schema](./query-model-schema.md) 路由是独立合同；精确路径以运行实例生成的 [OpenAPI](../open-api.md) 为准。HTTP guard 仍可能限制本来有效的 DTO。
+当聚合同时具有动态 tenant（无 `@StaticTenantId`）与 owner（拥有者策略不为 `NEVER`）时，还会发布 tenant + owner 变体，按命令路由的路径段顺序同时收窄到二者；按路径做安全控制的网关可借此把调用方限定在其所在 tenant 内的自身 owner。TypeScript 查询客户端通过 `resourceAttribution: ResourceAttributionPathSpec.TENANT_OWNER` 访问它，`{tenantId}` 与 `{ownerId}` 的填充方式与其他变体相同。其中 `{operation}` 是上述九种操作之一。list 可以协商 JSON 或 SSE；single、paged 与 cursor 返回 JSON。聚合路由及 [Query Model Schema](./query-model-schema.md) 路由是独立合同；精确路径以运行实例生成的 [OpenAPI](../open-api.md) 为准。HTTP guard 仍可能限制本来有效的 DTO。
 
 ## 完整快照、state-only 与动态结果
 

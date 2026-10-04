@@ -61,6 +61,23 @@
         "modeling_annotation_mock_after_command_aggregate": {
           "type": "me.ahoo.wow.modeling.annotation.MockAfterCommandAggregate"
         },
+        "modeling_annotation_mock_policy_aggregate": {
+          "type": "me.ahoo.wow.modeling.annotation.MockPolicyAggregate"
+        },
+        "modeling_annotation_mock_conflicting_spaced_aggregate": {
+          "type": "me.ahoo.wow.modeling.annotation.MockConflictingSpacedAggregate"
+        },
+        "modeling_annotation_mock_conflicting_owner_aggregate": {
+          "type": "me.ahoo.wow.modeling.annotation.MockConflictingOwnerAggregate"
+        },
+        "modeling_annotation_mock_conflicting_tenant_aggregate": {
+          "type": "me.ahoo.wow.modeling.annotation.MockConflictingTenantAggregate",
+          "tenantId": "tenant-b"
+        },
+        "modeling_annotation_mock_agreeing_tenant_aggregate": {
+          "type": "me.ahoo.wow.modeling.annotation.MockAgreeingTenantAggregate",
+          "tenantId": "tenant-a"
+        },
         "modeling_annotation_mock_async_after_command_aggregate": {
           "type": "me.ahoo.wow.modeling.annotation.MockAsyncAfterCommandAggregate"
         },

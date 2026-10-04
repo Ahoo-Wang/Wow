@@ -55,7 +55,8 @@ import reactor.core.publisher.Mono
  * @property commandFunctionRegistry Map of command types to their function metadata for command handling.
  * @property errorFunctionRegistry Map of error types to their function metadata for error handling.
  * @property afterCommandFunctionRegistry List of after-command function metadata.
- * @property spaced Whether the aggregate is spaced, parsed from `@AggregateRoute(spaced = true)`. Only a spaced
+ * @property spaced Whether the aggregate is spaced, parsed from `@Spaced` (or the deprecated
+ * `@AggregateRoute(spaced = true)`). Only a spaced
  * aggregate takes a space from its commands: the command factory gives a command to any other aggregate the default
  * space, and that aggregate neither checks nor records a command's space.
  *

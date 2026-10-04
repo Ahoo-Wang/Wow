@@ -13,7 +13,7 @@
 
 package me.ahoo.wow.openapi.contributor.aggregate
 
-import me.ahoo.wow.api.annotation.AggregateRoute
+import me.ahoo.wow.api.annotation.OwnerPolicy
 import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.modeling.metadata.AggregateMetadata
 import me.ahoo.wow.modeling.toStringWithAlias
@@ -45,7 +45,7 @@ internal fun AggregateRouteMetadata<*>.defaultAppendTenantPath(): Boolean {
 }
 
 internal fun AggregateRouteMetadata<*>.defaultAppendOwnerPath(): Boolean {
-    return owner != AggregateRoute.Owner.NEVER
+    return ownerPolicy != OwnerPolicy.NEVER
 }
 
 /**

@@ -14,6 +14,7 @@
 package me.ahoo.wow.webflux.route.command
 
 import me.ahoo.wow.api.annotation.AggregateRoute
+import me.ahoo.wow.api.annotation.OwnerPolicy
 import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.api.messaging.function.NamedFunctionInfoData
 import me.ahoo.wow.api.modeling.SpaceId
@@ -89,19 +90,30 @@ fun ServerRequest.getAggregateId(): String? {
     return pathOrHeader(MessageRecords.ID, CommandComponent.Header.AGGREGATE_ID)
 }
 
-fun ServerRequest.getAggregateId(owner: AggregateRoute.Owner, ownerId: String?): String? {
-    if (owner == AggregateRoute.Owner.AGGREGATE_ID) {
+fun ServerRequest.getAggregateId(owner: OwnerPolicy, ownerId: String?): String? {
+    if (owner == OwnerPolicy.AGGREGATE_ID) {
         return ownerId ?: getAggregateId()
     }
     return getAggregateId()
 }
 
-fun ServerRequest.getAggregateId(owner: AggregateRoute.Owner): String? {
-    if (owner == AggregateRoute.Owner.AGGREGATE_ID) {
+fun ServerRequest.getAggregateId(owner: OwnerPolicy): String? {
+    if (owner == OwnerPolicy.AGGREGATE_ID) {
         return getOwnerId() ?: getAggregateId()
     }
     return getAggregateId()
 }
+
+// compat(wow<9.3): the AggregateRoute.Owner overloads, for code compiled against 9.2.
+@Suppress("DEPRECATION")
+@Deprecated("Scheduled for removal in 10.0.0. Use getAggregateId(OwnerPolicy, String?).")
+fun ServerRequest.getAggregateId(owner: AggregateRoute.Owner, ownerId: String?): String? =
+    getAggregateId(OwnerPolicy.valueOf(owner.name), ownerId)
+
+@Suppress("DEPRECATION")
+@Deprecated("Scheduled for removal in 10.0.0. Use getAggregateId(OwnerPolicy).")
+fun ServerRequest.getAggregateId(owner: AggregateRoute.Owner): String? =
+    getAggregateId(OwnerPolicy.valueOf(owner.name))
 
 fun ServerRequest.getLocalFirst(): Boolean? {
     headers().firstHeader(CommandComponent.Header.LOCAL_FIRST).ifNotBlank<String> {

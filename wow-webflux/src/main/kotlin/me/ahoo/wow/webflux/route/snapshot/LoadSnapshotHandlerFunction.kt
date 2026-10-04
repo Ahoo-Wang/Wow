@@ -47,7 +47,7 @@ class LoadSnapshotHandlerFunction(
     private val aggregateMetadata = aggregateRouteMetadata.aggregateMetadata
     override fun handle(request: ServerRequest): Mono<ServerResponse> {
         val tenantId = request.getTenantIdOrDefault(aggregateMetadata)
-        val id = requireNotNull(request.getAggregateId(aggregateRouteMetadata.owner))
+        val id = requireNotNull(request.getAggregateId(aggregateRouteMetadata.ownerPolicy))
         val ownerId = request.getOwnerId()
         val selection = filter {
             tenantId(tenantId)

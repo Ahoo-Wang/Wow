@@ -17,23 +17,22 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.annotation.sortedByOrder
 import me.ahoo.wow.api.annotation.AfterCommand
 import me.ahoo.wow.api.annotation.AggregateRoot
-import me.ahoo.wow.api.annotation.AggregateRoute
 import me.ahoo.wow.api.annotation.DEFAULT_AFTER_COMMAND_NAME
 import me.ahoo.wow.api.annotation.DEFAULT_ON_COMMAND_NAME
 import me.ahoo.wow.api.annotation.DEFAULT_ON_ERROR_NAME
 import me.ahoo.wow.api.annotation.OnCommand
 import me.ahoo.wow.api.annotation.OnError
-import me.ahoo.wow.api.annotation.StaticTenantId
 import me.ahoo.wow.configuration.MetadataSearcher
 import me.ahoo.wow.configuration.WOW_METADATA_RESOURCE_NAME
 import me.ahoo.wow.infra.accessor.constructor.DefaultConstructorAccessor
-import me.ahoo.wow.infra.reflection.AnnotationScanner.scanAnnotation
 import me.ahoo.wow.infra.reflection.ClassMetadata.visit
 import me.ahoo.wow.infra.reflection.ClassVisitor
 import me.ahoo.wow.messaging.function.FunctionAccessorMetadata
 import me.ahoo.wow.messaging.function.FunctionMetadataParser.toMonoFunctionMetadata
 import me.ahoo.wow.metadata.CacheableMetadataParser
 import me.ahoo.wow.metadata.Metadata
+import me.ahoo.wow.modeling.annotation.AggregatePolicyResolver.resolveSpaced
+import me.ahoo.wow.modeling.annotation.AggregatePolicyResolver.resolveStaticTenantId
 import me.ahoo.wow.modeling.command.after.AfterCommandFunctionMetadata
 import me.ahoo.wow.modeling.command.after.AfterCommandFunctionMetadata.Companion.toAfterCommandFunctionMetadata
 import me.ahoo.wow.modeling.metadata.AggregateMetadata
@@ -151,11 +150,12 @@ object AggregateMetadataParser : CacheableMetadataParser() {
                 commandFunctionRegistry = commandFunctionRegistry,
                 errorFunctionRegistry = errorFunctionRegistry,
                 afterCommandFunctionRegistry = afterCommandFunctionRegistry.sortedByOrder(),
-                spaced = commandAggregateType.kotlin.scanAnnotation<AggregateRoute>()?.spaced ?: false,
+                spaced = commandAggregateType.kotlin.resolveSpaced(),
             )
 
-            val staticTenantId = commandAggregateType.kotlin.scanAnnotation<StaticTenantId>()?.tenantId
-                ?: MetadataSearcher.getAggregate(namedAggregate)?.tenantId
+            val staticTenantId = commandAggregateType.kotlin.resolveStaticTenantId(
+                MetadataSearcher.getAggregate(namedAggregate)?.tenantId
+            )
             return AggregateMetadata(namedAggregate, staticTenantId, stateAggregateMetadata, commandAggregateMetadata)
         }
     }
