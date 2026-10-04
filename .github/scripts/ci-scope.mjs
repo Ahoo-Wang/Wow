@@ -41,6 +41,10 @@ const COMPAT_DEBT = 'compatDebt';
 // matrix: a change to what a tarball holds is checked before the release
 // preflight finds it.
 const PACKAGE = 'package';
+// mixed-version.yml: the released example server and the example server built
+// from this commit on one Kafka and MongoDB, each processing what the other
+// sends (test/wow-it MixedVersionClusterTest). Not a TypeScript scope.
+const MIXED_VERSION = 'mixedVersion';
 // A Kotlin source a removal marker may sit in.
 const KOTLIN_MAIN = /(?:^|\/)src\/main\/kotlin\/.+\.kt$/;
 
@@ -125,6 +129,20 @@ const RULES = [
     [DOCS, VIEW_ENGINE_DOCS],
   ],
   [/^documentation\//, [DOCS]],
+  // The modules whose bytes cross between versions (messages, buses, stores,
+  // the wait endpoint), the example cluster the mixed-version test starts, and
+  // the dependency versions (a Jackson bump can change the JSON): the
+  // same-source contract and the mixed-version test.
+  [
+    /^(?:wow-(?:api|core|kafka|redis|mongo|webflux|spring|spring-boot-starter)|example\/example-(?:api|domain|server)|gradle)\//,
+    [CONTRACT, MIXED_VERSION],
+  ],
+  // The mixed-version harness and the container images it shares with the
+  // integration tests.
+  [
+    /^test\/(?:wow-it\/|wow-tck\/src\/main\/kotlin\/me\/ahoo\/wow\/tck\/container\/)/,
+    [MIXED_VERSION],
+  ],
   // Sources and build of the example server the same-source contract runs:
   // every project on its runtime classpath, plus the Gradle build.
   [
@@ -172,6 +190,7 @@ const RULES = [
     /^\.github\/workflows\/typescript-storybook-browsers\.yml$/,
     [TYPESCRIPT, WORKFLOWS],
   ],
+  [/^\.github\/workflows\/mixed-version\.yml$/, [MIXED_VERSION, WORKFLOWS]],
   // Every other workflow, the release and deploy workflows included: lint it.
   [/^\.github\/workflows\/[^/]+\.ya?ml$/, [WORKFLOWS]],
   // The TypeScript Skills: the site's tests compile the view engine Skills'
@@ -241,6 +260,7 @@ export function scopes(paths) {
     WORKFLOWS,
     COMPAT_DEBT,
     PACKAGE,
+    MIXED_VERSION,
   ];
   const result = Object.fromEntries(keys.map(key => [key, false]));
   // Light scopes a path asks for alongside their full scope (the workflow

@@ -433,6 +433,7 @@ Gradle 流水线不在准入里：preflight 自己在这个提交上跑 `./gradl
 1. 在 [MIGRATION.md](MIGRATION.md)「进度」里记下首发；删掉草稿 `release-notes/v9.2.0.md`（GitHub release 就是记录）。
 2. 翻转文档状态：`documentation/docs/{en,zh}/guide/typescript/` 的 `index.md`、`compatibility.md`「发布状态」、`quick-start.md` 的提示框和 `troubleshooting.md` 的 `E404` 一行，视图引擎与视图存储各页顶部「随 Wow 9.2.0 发布」提示框里的「在此之前不在 npm 上／it is not on npm before that」，以及 `reference/typescript/index.md`，把「尚未上 npm／not yet on npm」改成已发布；包 README 已冻结在 tarball 里，只写了「随 Wow 9.2.0 发布」与兼容规则，不用改。然后在一个空目录里照[快速开始](../documentation/docs/zh/guide/typescript/quick-start.md)从 npm 安装、生成、编译一遍，确认页面上的安装命令能用。
 3. 删掉 C′ 的临时分支 `chore/compensation-9.2.0-rc.0`（不合并，main 上的控制台保持 `workspace:*`）。按 MIGRATION「下一步」，再对 `fetcher-wow`、`fetcher-generator` 执行 `npm deprecate`（对外操作，先问用户）。
+4. 每次 9.2.x 发布、`ahoowang/wow-example-server:<版本>` 镜像推送以后，把 `.github/workflows/mixed-version.yml` 的 `PREVIOUS_IMAGE` 改成最新的 9.2.x 镜像：混部测试守的是 9.2 与 9.3 之间的边界。
 
 ## 日常发版
 

@@ -1,0 +1,113 @@
+#
+# Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#      http://www.apache.org/licenses/LICENSE-2.0
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+# Mixed-version cluster test: the released example server image and the
+# example server built from this commit share one Kafka and one MongoDB, as in
+# a rolling upgrade, and each must process the commands, events and wait
+# signals the other sends (test/wow-it MixedVersionClusterTest). Every pull
+# request triggers this workflow; the scope job (.github/scripts/ci-scope.mjs,
+# `mixedVersion`) decides whether the test runs, and `mixed-version-gate` is
+# the merge signal.
+name: Mixed-Version
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || format('{0}-{1}', github.event_name, github.ref) }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  CI: GITHUB_ACTIONS
+  # The released version the build under test must interoperate with. Move it
+  # to the newest release of the line once that release's image is published.
+  PREVIOUS_IMAGE: ahoowang/wow-example-server:9.2.2
+
+jobs:
+  scope:
+    name: Scope
+    timeout-minutes: 5
+    runs-on: ubuntu-latest
+    outputs:
+      mixed-version: ${{ steps.scope.outputs.mixedVersion }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - id: scope
+        env:
+          BASE_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+          HEAD_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+        run: node .github/scripts/ci-scope.mjs
+
+  mixed-version:
+    name: Mixed-version cluster
+    needs: scope
+    if: needs.scope.outputs.mixed-version == 'true'
+    timeout-minutes: 40
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@v5
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+      - uses: gradle/actions/setup-gradle@v6
+      - name: Pull the released example server
+        run: docker pull "$PREVIOUS_IMAGE"
+      - name: Build the example server under test
+        run: ./gradlew :example-server:installDist --stacktrace
+      # The test starts the released image on the cluster network and the
+      # build under test as a local process (MixedVersionCluster).
+      - name: Run the mixed-version cluster test
+        env:
+          WOW_MIXED_PREVIOUS_IMAGE: ${{ env.PREVIOUS_IMAGE }}
+          WOW_MIXED_CURRENT_HOME: ${{ github.workspace }}/example/example-server/build/install/example-server
+        run: ./gradlew :wow-it:integrationTest --tests 'me.ahoo.wow.it.mixed.MixedVersionClusterTest' --stacktrace
+      - name: Upload the test report
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: mixed-version-report
+          path: test/wow-it/build/reports/tests/integrationTest/
+          retention-days: 7
+
+  mixed-version-gate:
+    name: mixed-version-gate
+    if: always()
+    needs: [scope, mixed-version]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Require the mixed-version test to pass or be out of scope
+        env:
+          SCOPE: ${{ needs.scope.result }}
+          RESULT: ${{ needs.mixed-version.result }}
+        run: |
+          if [ "$SCOPE" != "success" ]; then
+            echo "::error::The scope job did not succeed ($SCOPE)."
+            exit 1
+          fi
+          if [ "$RESULT" != "success" ] && [ "$RESULT" != "skipped" ]; then
+            echo "::error::The mixed-version cluster test did not pass ($RESULT)."
+            exit 1
+          fi

@@ -206,6 +206,7 @@ GitHub Actions run module-level checks from `.github/workflows/`:
 - `local-test.yml` checks every published module's Kotlin ABI against its `api/*.api` dump (`checkKotlinAbi`, see Binary Compatibility), then runs `allLocalTest` and local coverage.
 - `contract-test.yml` runs `allContractTest` and contract coverage.
 - `integration-test.yml` runs `allIntegrationTest` and integration coverage.
+- `mixed-version.yml` runs `MixedVersionClusterTest` (`:wow-it`): the released example server image (`PREVIOUS_IMAGE`) and the example server built from the pull request share Kafka and MongoDB and must process each other's commands, events and wait signals. Its scope (`mixedVersion` in `.github/scripts/ci-scope.mjs`) covers the wire modules, the example server, `gradle/` and the harness; `mixed-version-gate` is its merge signal. Move `PREVIOUS_IMAGE` to the newest release once its image is published.
 - `compensation-test.yml` checks compensation core and domain modules.
 - `example-java-test.yml` builds the Java transfer example modules.
 - `codecov.yml` publishes coverage.

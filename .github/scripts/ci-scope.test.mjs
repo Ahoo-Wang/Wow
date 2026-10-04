@@ -18,11 +18,12 @@ import { test } from 'node:test';
 import { scopes, unitPackages } from './ci-scope.mjs';
 
 const script = new URL('./ci-scope.mjs', import.meta.url).pathname;
-// The workflow scopes; `compatDebt` and `package` are derived from them and
-// have their own tests.
+// The TypeScript workflow scopes; `compatDebt` and `package` are derived from
+// them, and `mixedVersion` gates a Kotlin workflow; each has its own tests.
 const gates = paths =>
   Object.entries(scopes(paths)).filter(
-    ([key]) => key !== 'compatDebt' && key !== 'package',
+    ([key]) =>
+      key !== 'compatDebt' && key !== 'package' && key !== 'mixedVersion',
   );
 const all = paths => gates(paths).every(([, value]) => value);
 const none = paths => gates(paths).every(([, value]) => !value);
@@ -399,6 +400,48 @@ test('Kotlin, Gradle, dashboard and prose changes skip the TypeScript workflow j
     assert.ok(none([path]), path);
 });
 
+test('wire modules, the example cluster, dependency versions and the harness run the mixed-version test', () => {
+  for (const path of [
+    'wow-api/src/main/kotlin/me/ahoo/wow/api/command/CommandMessage.kt',
+    'wow-core/src/main/kotlin/me/ahoo/wow/command/wait/WaitHeader.kt',
+    'wow-kafka/src/main/kotlin/me/ahoo/wow/kafka/AbstractKafkaBus.kt',
+    'wow-redis/src/main/kotlin/me/ahoo/wow/redis/bus/AbstractRedisMessageBus.kt',
+    'wow-mongo/src/main/kotlin/me/ahoo/wow/mongo/MongoEventStore.kt',
+    'wow-webflux/src/main/kotlin/me/ahoo/wow/webflux/wait/CommandWaitHandlerFunction.kt',
+    'wow-spring/src/main/kotlin/A.kt',
+    'wow-spring-boot-starter/src/main/kotlin/A.kt',
+    'example/example-api/src/main/kotlin/A.kt',
+    'example/example-domain/src/main/kotlin/A.kt',
+    'example/example-server/src/dist/config/application.yaml',
+    'gradle/libs.versions.toml',
+    'test/wow-it/src/integrationTest/kotlin/me/ahoo/wow/it/mixed/MixedVersionClusterTest.kt',
+    'test/wow-tck/src/main/kotlin/me/ahoo/wow/tck/container/ContainerImages.kt',
+    // An unknown path runs everything.
+    'new-directory/index.ts',
+  ])
+    assert.ok(scopes([path]).mixedVersion, path);
+  for (const path of [
+    'wow-openapi/src/main/kotlin/Router.kt',
+    'wow-elasticsearch/src/main/kotlin/A.kt',
+    'wow-springdoc/src/main/kotlin/A.kt',
+    'example/README.md',
+    'test/wow-tck/src/main/kotlin/Spec.kt',
+    'typescript/wow-client/src/index.ts',
+    'documentation/docs/en/guide/test-runtime.md',
+    'compensation/wow-compensation-api/src/main/kotlin/Api.kt',
+    '.github/workflows/integration-test.yml',
+  ])
+    assert.ok(!scopes([path]).mixedVersion, path);
+  assert.deepEqual(
+    Object.entries(scopes(['.github/workflows/mixed-version.yml']))
+      .filter(([, value]) => value)
+      .map(([key]) => key),
+    ['workflows', 'mixedVersion'],
+  );
+  // Still only the same-source contract among the TypeScript scopes.
+  assert.deepEqual(on(['wow-kafka/src/main/kotlin/A.kt']), ['contract']);
+});
+
 test('isolated changes retain their relevant validation', () => {
   assert.deepEqual(on(['documentation/docs/index.md']), ['docs']);
   assert.deepEqual(
@@ -460,6 +503,7 @@ test('the command reads the diff and runs everything without a base', () => {
       // Everything runs quality, which checks the ledger itself.
       'compatDebt=false\n' +
       `package=${value}\n` +
+      `mixedVersion=${value}\n` +
       `unitPackages=${value ? '["wow-client","wow-react","wow-generator","wow-view-store"]' : '[]'}\n`;
     assert.equal(run({ BASE_SHA: base, HEAD_SHA: head }), output(false));
     assert.equal(
