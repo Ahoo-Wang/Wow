@@ -37,6 +37,8 @@ import me.ahoo.wow.bi.UnsupportedTypeStrategy
 import me.ahoo.wow.command.CommandGateway
 import me.ahoo.wow.command.wait.CommandWaitNotifier
 import me.ahoo.wow.configuration.MetadataSearcher
+import me.ahoo.wow.cosec.extractor.CoSecCommandBuilderExtractor
+import me.ahoo.wow.cosec.query.CoSecQueryRequestScope
 import me.ahoo.wow.event.DomainEventBus
 import me.ahoo.wow.event.InMemoryDomainEventBus
 import me.ahoo.wow.event.compensation.StateEventCompensator
@@ -52,6 +54,7 @@ import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
 import me.ahoo.wow.modeling.state.StateAggregateFactory
 import me.ahoo.wow.openapi.Https
+import me.ahoo.wow.openapi.RouterSpecs
 import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
 import me.ahoo.wow.openapi.contract.BuiltInHttpRoutePaths
 import me.ahoo.wow.openapi.contract.HttpRouteContract
@@ -83,6 +86,8 @@ import me.ahoo.wow.spring.boot.starter.bi.BiScriptAggregateExclusion
 import me.ahoo.wow.spring.boot.starter.bi.BiScriptProperties
 import me.ahoo.wow.spring.boot.starter.command.CommandAutoConfiguration
 import me.ahoo.wow.spring.boot.starter.command.CommandGatewayAutoConfiguration
+import me.ahoo.wow.spring.boot.starter.compensation.CompensationAutoConfiguration
+import me.ahoo.wow.spring.boot.starter.cosec.CoSecAutoConfiguration
 import me.ahoo.wow.spring.boot.starter.enableWow
 import me.ahoo.wow.spring.boot.starter.eventsourcing.EventSourcingAutoConfiguration
 import me.ahoo.wow.spring.boot.starter.kafka.KafkaProperties
@@ -111,18 +116,22 @@ import me.ahoo.wow.webflux.route.HttpRouteHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.RouteHandlerFunctionRegistrar
 import me.ahoo.wow.webflux.route.command.appender.CommandRequestRemoteIpHeaderAppender
 import me.ahoo.wow.webflux.route.command.appender.CommandRequestUserAgentHeaderAppender
+import me.ahoo.wow.webflux.route.command.extractor.CommandBuilderExtractor
+import me.ahoo.wow.webflux.route.command.extractor.DefaultCommandBuilderExtractor
 import me.ahoo.wow.webflux.route.global.GenerateBIScriptHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.policy.BatchExecutionPolicy
 import me.ahoo.wow.webflux.route.policy.CommandWaitPolicy
 import me.ahoo.wow.webflux.route.policy.TracingPolicy
 import me.ahoo.wow.webflux.route.query.DefaultQueryRequestScope
 import me.ahoo.wow.webflux.route.query.HttpQueryGuard
+import me.ahoo.wow.webflux.route.query.QueryRequestScope
 import me.ahoo.wow.webflux.route.state.PointReadAdmission
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.springframework.beans.factory.BeanFactory
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.beans.factory.support.DefaultListableBeanFactory
+import org.springframework.boot.autoconfigure.AutoConfigurations
 import org.springframework.boot.test.context.FilteredClassLoader
 import org.springframework.boot.test.context.assertj.AssertableApplicationContext
 import org.springframework.boot.test.context.runner.ApplicationContextRunner
@@ -770,6 +779,65 @@ internal class WebFluxAutoConfigurationTest {
     }
 
     @Test
+    fun `should start with compensation disabled and leave the event compensate route out`() {
+        webFluxContextRunner(eventCompensateSupporter = false)
+            .withPropertyValues("wow.compensation.enabled=false")
+            .withUserConfiguration(CompensationAutoConfiguration::class.java)
+            .run { context ->
+                context.assert()
+                    .hasNotFailed()
+                    .doesNotHaveBean(EventCompensateSupporter::class.java)
+                    .hasSingleBean(EventRouteModule::class.java)
+                    .hasBean("commandRouterFunction")
+                context.assertRouteFactoryRegistered(BuiltInHttpRouteHandlerKeys.Event.RESEND_STATE)
+                context.getBean(RouteHandlerFunctionRegistrar::class.java)
+                    .getHttpFactory(BuiltInHttpRouteHandlerKeys.Event.COMPENSATE)
+                    .assert().isNull()
+                context.routeHandlerKeys().assert()
+                    .contains(BuiltInHttpRouteHandlerKeys.Event.RESEND_STATE)
+                    .doesNotContain(BuiltInHttpRouteHandlerKeys.Event.COMPENSATE)
+            }
+    }
+
+    @Test
+    fun `should expose the event compensate route when an EventCompensateSupporter exists`() {
+        webFluxContextRunner()
+            .run { context ->
+                context.assert().hasNotFailed()
+                context.assertRouteFactoryRegistered(BuiltInHttpRouteHandlerKeys.Event.COMPENSATE)
+                context.routeHandlerKeys().assert().contains(BuiltInHttpRouteHandlerKeys.Event.COMPENSATE)
+            }
+    }
+
+    @Test
+    fun `cosec beans replace the WebFlux defaults when both are auto-configured`() {
+        webFluxContextRunner(autoConfigurations = listOf(CoSecAutoConfiguration::class.java))
+            .run { context ->
+                context.assert().hasNotFailed()
+                context.getBean(CommandBuilderExtractor::class.java).assert().isSameAs(CoSecCommandBuilderExtractor)
+                context.getBean(QueryRequestScope::class.java).assert().isSameAs(CoSecQueryRequestScope)
+            }
+    }
+
+    /**
+     * The hazard the explicit ordering removes: processed after WebFlux, CoSec's beans sit beside WebFlux's
+     * `@ConditionalOnMissingBean` defaults instead of replacing them, and injection by parameter name then picks
+     * the default `commandBuilderExtractor`, silently dropping CoSec's.
+     */
+    @Test
+    fun `cosec processed after WebFlux sits beside the WebFlux defaults`() {
+        webFluxContextRunner()
+            .withUserConfiguration(CoSecAutoConfiguration::class.java)
+            .run { context ->
+                context.assert().hasNotFailed()
+                context.getBeansOfType(CommandBuilderExtractor::class.java).values.assert()
+                    .containsExactlyInAnyOrder(DefaultCommandBuilderExtractor, CoSecCommandBuilderExtractor)
+                context.getBeansOfType(QueryRequestScope::class.java).values.assert()
+                    .containsExactlyInAnyOrder(DefaultQueryRequestScope, CoSecQueryRequestScope)
+            }
+    }
+
+    @Test
     fun `should build runtime routes when OpenAPI documentation is disabled`() {
         webFluxContextRunner()
             .withPropertyValues("wow.openapi.enabled=false")
@@ -1149,8 +1217,10 @@ internal class WebFluxAutoConfigurationTest {
 
     private fun webFluxContextRunner(
         base: ApplicationContextRunner = contextRunner,
+        eventCompensateSupporter: Boolean = true,
+        autoConfigurations: List<Class<*>> = emptyList(),
     ): ApplicationContextRunner {
-        return base
+        val runner = base
             .enableWow()
             .withBean(CommandWaitNotifier::class.java, { mockk() })
             .withBean(CommandGateway::class.java, { SagaVerifier.defaultCommandGateway() })
@@ -1159,8 +1229,13 @@ internal class WebFluxAutoConfigurationTest {
             .withBean(EventStore::class.java, { InMemoryEventStore() })
             .withBean(DomainEventBus::class.java, { InMemoryDomainEventBus() })
             .withBean(StateEventCompensator::class.java, { mockk() })
-            .withBean(EventCompensateSupporter::class.java, { mockk() })
             .withBean(HostAddressSupplier::class.java, { LocalHostAddressSupplier.INSTANCE })
+        val withSupporter = if (eventCompensateSupporter) {
+            runner.withBean(EventCompensateSupporter::class.java, { mockk() })
+        } else {
+            runner
+        }
+        return withSupporter
             .withUserConfiguration(
                 CommandAutoConfiguration::class.java,
                 CommandGatewayAutoConfiguration::class.java,
@@ -1169,9 +1244,19 @@ internal class WebFluxAutoConfigurationTest {
                 OpenAPIAutoConfiguration::class.java,
                 BiDeploymentInspectorAutoConfiguration::class.java,
                 QueryAutoConfiguration::class.java,
-                WebFluxAutoConfiguration::class.java,
-            )
+            ).let { runner ->
+                if (autoConfigurations.isEmpty()) {
+                    runner.withUserConfiguration(WebFluxAutoConfiguration::class.java)
+                } else {
+                    runner.withConfiguration(
+                        AutoConfigurations.of(WebFluxAutoConfiguration::class.java, *autoConfigurations.toTypedArray()),
+                    )
+                }
+            }
     }
+
+    private fun AssertableApplicationContext.routeHandlerKeys(): Set<String> =
+        getBean(RouterSpecs::class.java).toRouteCatalog().routes.map { it.handlerKey }.toSet()
 
     private fun AssertableApplicationContext.assertRouteFactoryRegistered(handlerKey: String) {
         val registrar = getBean(RouteHandlerFunctionRegistrar::class.java)

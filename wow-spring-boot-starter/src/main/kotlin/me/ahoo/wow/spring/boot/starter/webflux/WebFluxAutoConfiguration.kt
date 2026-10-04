@@ -328,7 +328,7 @@ class WebFluxAutoConfiguration {
     fun eventRouteModule(
         eventStore: EventStore,
         stateEventCompensator: StateEventCompensator,
-        eventCompensateSupporter: EventCompensateSupporter,
+        eventCompensateSupporter: EventCompensateSupporter?,
         exceptionHandler: RequestExceptionHandler,
         batchExecutionPolicy: BatchExecutionPolicy
     ): EventRouteModule {

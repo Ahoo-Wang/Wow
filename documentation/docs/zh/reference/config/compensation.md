@@ -66,6 +66,8 @@ wow:
 - `DomainEventCompensationFilter` 与 `StateEventCompensationFilter`；
 - `CompensationEventProcessor`。
 
+启用 WebFlux 时，事件补偿路由（`PUT …/event/{version}/compensate`）依赖 `EventCompensateSupporter`，因此不会出现在路由和 OpenAPI 文档中；其他路由不变。9.2.2 及以前这种组合会在启动时失败。
+
 它不会停用 Saga、改变 `RetryableFilter` 的即时重试、停止独立服务的 scheduler 或删除已有 `ExecutionFailed`。关闭必须作为两端协调切换：先停止 scheduler，排空在途 `PrepareCompensation`，对账 `FAILED` / `PREPARED`，再关闭应用侧补偿。否则 scheduler 仍可产生 `CompensationPrepared`，但应用已没有 processor 重放原事件。
 
 ## 函数级 @Retry

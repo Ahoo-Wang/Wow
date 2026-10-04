@@ -22,23 +22,33 @@ import me.ahoo.wow.webflux.route.event.EventCompensateHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.event.state.ResendStateEventFunctionFactory
 import me.ahoo.wow.webflux.route.policy.BatchExecutionPolicy
 
+/**
+ * Event routes. The event compensate route needs an [EventCompensateSupporter]; without one (for example with
+ * `wow.compensation.enabled=false`) it is left out, and the route catalog leaves its contract out too.
+ */
 class EventRouteModule(
     eventStore: EventStore,
     stateEventCompensator: StateEventCompensator,
-    eventCompensateSupporter: EventCompensateSupporter,
+    eventCompensateSupporter: EventCompensateSupporter?,
     exceptionHandler: RequestExceptionHandler,
     batchExecutionPolicy: BatchExecutionPolicy
 ) : WebFluxRouteModule {
-    override val httpFactories: List<HttpRouteHandlerFunctionFactory> = listOf(
-        ResendStateEventFunctionFactory(
-            eventStore = eventStore,
-            stateEventCompensator = stateEventCompensator,
-            exceptionHandler = exceptionHandler,
-            batchExecutionPolicy = batchExecutionPolicy
-        ),
-        EventCompensateHandlerFunctionFactory(
-            eventCompensateSupporter = eventCompensateSupporter,
-            exceptionHandler = exceptionHandler
-        ),
-    )
+    override val httpFactories: List<HttpRouteHandlerFunctionFactory> = buildList {
+        add(
+            ResendStateEventFunctionFactory(
+                eventStore = eventStore,
+                stateEventCompensator = stateEventCompensator,
+                exceptionHandler = exceptionHandler,
+                batchExecutionPolicy = batchExecutionPolicy
+            )
+        )
+        if (eventCompensateSupporter != null) {
+            add(
+                EventCompensateHandlerFunctionFactory(
+                    eventCompensateSupporter = eventCompensateSupporter,
+                    exceptionHandler = exceptionHandler
+                )
+            )
+        }
+    }
 }

@@ -41,6 +41,17 @@ class BiDeploymentInspectorAutoConfigurationTest {
     }
 
     @Test
+    fun `should back off without wow-bi on the classpath`() {
+        contextRunner
+            .withClassLoader(FilteredClassLoader("me.ahoo.wow.bi."))
+            .run { context ->
+                context.assert().hasNotFailed()
+                    .doesNotHaveBean(BiDeploymentInspectorAutoConfiguration::class.java)
+                    .doesNotHaveBean("noOpBiDeploymentInspector")
+            }
+    }
+
+    @Test
     fun `should keep the no-op inspector available without the ClickHouse client`() {
         contextRunner
             .withClassLoader(FilteredClassLoader("com.clickhouse.client.api.Client"))

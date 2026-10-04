@@ -14,14 +14,18 @@
 package me.ahoo.wow.spring.boot.starter.openapi
 
 import me.ahoo.wow.api.naming.NamedBoundedContext
+import me.ahoo.wow.messaging.compensation.EventCompensateSupporter
 import me.ahoo.wow.modeling.getContextAliasPrefix
 import me.ahoo.wow.openapi.RouterSpecs
 import me.ahoo.wow.openapi.context.OpenAPIComponentContext
+import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
 import me.ahoo.wow.openapi.contributor.DefaultRouteContributors
+import me.ahoo.wow.openapi.contributor.aggregate.event.EventRouteContributor
 import me.ahoo.wow.openapi.contributor.global.GenerateBIScriptRouteContributor
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
 import me.ahoo.wow.spring.boot.starter.WowAutoConfiguration.Companion.WOW_CURRENT_BOUNDED_CONTEXT
 import me.ahoo.wow.spring.boot.starter.bi.BiScriptProperties
+import org.springframework.beans.factory.ObjectProvider
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass
@@ -49,15 +53,56 @@ class OpenAPIAutoConfiguration {
         return openAPIComponentContext
     }
 
+    /**
+     * The route catalog. The BI script route needs `wow.bi.script.enabled`, and the event compensate route needs an
+     * [EventCompensateSupporter] (registered by the compensation auto-configuration); without them their contracts
+     * are left out, so neither the router nor the OpenAPI document offers a route that has no handler.
+     */
     @Bean
     fun routerSpecs(
         @Qualifier(WOW_CURRENT_BOUNDED_CONTEXT) boundedContext: NamedBoundedContext,
         openAPIComponentContext: OpenAPIComponentContext,
         biScriptProperties: BiScriptProperties,
+        eventCompensateSupporter: ObjectProvider<EventCompensateSupporter>,
+    ): RouterSpecs = routerSpecs(
+        boundedContext = boundedContext,
+        openAPIComponentContext = openAPIComponentContext,
+        biScriptProperties = biScriptProperties,
+        eventCompensation = eventCompensateSupporter.ifAvailable != null,
+    )
+
+    /**
+     * The route catalog with the event compensate route, as before 9.2.3. Not a bean: [routerSpecs] with an
+     * [EventCompensateSupporter] provider is.
+     */
+    fun routerSpecs(
+        boundedContext: NamedBoundedContext,
+        openAPIComponentContext: OpenAPIComponentContext,
+        biScriptProperties: BiScriptProperties,
+    ): RouterSpecs = routerSpecs(
+        boundedContext = boundedContext,
+        openAPIComponentContext = openAPIComponentContext,
+        biScriptProperties = biScriptProperties,
+        eventCompensation = true,
+    )
+
+    private fun routerSpecs(
+        boundedContext: NamedBoundedContext,
+        openAPIComponentContext: OpenAPIComponentContext,
+        biScriptProperties: BiScriptProperties,
+        eventCompensation: Boolean,
     ): RouterSpecs {
-        val contributors = DefaultRouteContributors.all().filterNot { contributor ->
-            contributor === GenerateBIScriptRouteContributor && !biScriptProperties.enabled
-        }
+        val contributors = DefaultRouteContributors.all()
+            .filterNot { contributor ->
+                contributor === GenerateBIScriptRouteContributor && !biScriptProperties.enabled
+            }
+            .map { contributor ->
+                if (contributor === EventRouteContributor && !eventCompensation) {
+                    RouteContractFilter(contributor) { it.handlerKey != BuiltInHttpRouteHandlerKeys.Event.COMPENSATE }
+                } else {
+                    contributor
+                }
+            }
         return RouterSpecs(
             boundedContext,
             componentContext = openAPIComponentContext,
