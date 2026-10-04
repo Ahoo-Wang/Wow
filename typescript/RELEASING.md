@@ -16,7 +16,7 @@ Maven 和 npm 用同一个版本号、同一个 `v*` tag 一起发布（见 [MIG
 | `preflight`      | `pnpm build:typescript` → 打出 npm tarball → 包检查（`.github/scripts/package-check.mjs`）→ `publish-npm.mjs --dry-run` → 上传 tarball；`./gradlew build allIntegrationTest`、`publishToMavenLocal`（签名）→ 上传 Maven 产物                                                                                                                                                                                    | `contents: read`                                                          |
 | `github-deploy`  | 发布到 GitHub Packages                                                                                                                                                                                                                                                                                                                                                                                          | `packages: write`                                                         |
 | `central-deploy` | 发布到 Maven Central                                                                                                                                                                                                                                                                                                                                                                                            | Sonatype 凭据                                                             |
-| `npm-deploy`     | 在 environment `npm-publish` 里等维护者审批，然后发布 preflight 检查过的**那几个 tarball**：不安装、不构建，npm 固定为精确版本，OIDC 可信发布并带 provenance                                                                                                                                                                                                                                                    | `id-token: write`，environment `npm-publish`                              |
+| `npm-deploy`     | 等 `github-deploy`、`central-deploy` 都成功后（environment `npm-publish`，不需要审批），发布 preflight 检查过的**那几个 tarball**：不安装、不构建，npm 固定为精确版本，OIDC 可信发布并带 provenance                                                                                                                                                                                                             | `id-token: write`，environment `npm-publish`                              |
 | `npm-smoke`      | `npm-deploy` 成功以后，在 Node 22.12.0 和 24 上各跑一次 `package-check.mjs --registry`：等 registry 能给出这个版本（最多 20 次、间隔 15 秒），核对 dist-tag，然后在干净项目里从 npm 装每个发布包的 `<包>@<版本>`，import 每个入口（承诺给 CommonJS 的入口再 require 一次；视图引擎与视图存储只有 ESM）、解析视图引擎的样式表、运行 generator 的 `--version` 与 `wow-view-engine theme-check --help`、做类型检查 | `contents: read`，不接触任何密钥                                          |
 
 同一个 ref 同时只跑一次发布（`concurrency`，排队而不取消）。每个 job 都有超时。
@@ -75,14 +75,13 @@ Gradle 流水线不在准入里：preflight 自己在这个提交上跑 `./gradl
 
 ### B. 仓库设置（维护者在 GitHub 上操作，一次）
 
-1. environment `npm-publish`：只允许 `v*` tag 部署，需要审批。只有一位维护者时 `prevent_self_review` 必须是 `false`，否则没人能批准自己触发的发布。
+1. environment `npm-publish`：只允许 `v*` tag 部署，不设审批人（2026-10-04 用户决定；之前要维护者审批）。npm 的 Trusted Publisher 绑定这个 environment，所以 job 仍在它里面跑；先后顺序由工作流保证：`npm-deploy` 依赖 Maven 两路成功。
 
    ```bash
    gh api -X PUT repos/Ahoo-Wang/Wow/environments/npm-publish --input - <<'JSON'
    {
      "wait_timer": 0,
-     "prevent_self_review": false,
-     "reviewers": [{ "type": "User", "id": 4384159 }],
+     "reviewers": [],
      "deployment_branch_policy": { "protected_branches": false, "custom_branch_policies": true }
    }
    JSON
@@ -90,7 +89,7 @@ Gradle 流水线不在准入里：preflight 自己在这个提交上跑 `./gradl
      -f name='v*' -f type=tag
    ```
 
-   网页操作等价：Settings → Environments → New environment `npm-publish` → Required reviewers 勾选并添加 `Ahoo-Wang` → Deployment branches and tags 选 Selected branches and tags → Add deployment branch or tag rule → Ref type 选 Tag，名称 `v*`。
+   网页操作等价：Settings → Environments → New environment `npm-publish` → Required reviewers 不勾选 → Deployment branches and tags 选 Selected branches and tags → Add deployment branch or tag rule → Ref type 选 Tag，名称 `v*`。
 
 2. 默认工作流权限改为只读。所有工作流都已经声明了自己需要的权限。
 
@@ -408,7 +407,7 @@ Gradle 流水线不在准入里：preflight 自己在这个提交上跑 `./gradl
 
    发布 release。
 
-3. `admission` 触发三条完整运行并等待，`preflight` 跑完后 `github-deploy`、`central-deploy` 直接开始，`npm-deploy` 等审批：确认 Maven Central 那一路成功以后再在运行页面 Review deployments → `npm-publish` → Approve。
+3. `admission` 触发三条完整运行并等待，`preflight` 跑完后 `github-deploy`、`central-deploy` 直接开始，两路都成功后 `npm-deploy` 自动开始，不需要审批；任一路失败则 `npm-deploy` 不运行。
 4. 核对：`npm-smoke` 两个 job 都绿；npmjs.com 上每个发布包的 9.2.0 都显示 Provenance 徽章；每个包的 dist-tag 都是 `latest: 9.2.0`、`next: 9.2.0-rc.0`（`for pkg in $(node .github/scripts/publish-npm.mjs --list); do npm dist-tag ls "$pkg"; done`）。Maven Central 上 `wow-view-store-api`、`-domain`、`-starter` 的 9.2.0 可以解析，`wow-bom` 9.2.0 的约束里有它们、没有示例模块。Docker 镜像：三个镜像工作流在 tag 创建时就运行，**不经过准入和 preflight**，所以单独核对——Actions 里 Example／Compensation／View Store Docker Image Deploy 在 `v9.2.0` 上各有一次成功的运行，三个仓库（Docker Hub `ahoowang/`、`ghcr.io/ahoo-wang/`、阿里云 `registry.cn-shanghai.aliyuncs.com/ahoo/`）里每个镜像的 `9.2.0`、`9.2`、`latest` 指向同一个 digest：
 
    ```bash
@@ -420,7 +419,7 @@ Gradle 流水线不在准入里：preflight 自己在这个提交上跑 `./gradl
    # 每个镜像的三行 digest 相同；ghcr.io/ahoo-wang/ 与 registry.cn-shanghai.aliyuncs.com/ahoo/ 同样核对
    ```
 
-5. 在运行页面重跑 `npm-deploy`（Re-run failed jobs 或 Re-run job），每个包都应输出「already on npm; skipped」，验证幂等。重跑的 job 仍在 environment `npm-publish` 里等审批，要维护者再点一次 Review deployments → Approve。
+5. 在运行页面重跑 `npm-deploy`（Re-run failed jobs 或 Re-run job），每个包都应输出「already on npm; skipped」，验证幂等。重跑不需要审批。
 
 ### F. 发布以后
 
@@ -459,7 +458,7 @@ Gradle 流水线不在准入里：preflight 自己在这个提交上跑 `./gradl
 
 2. 发版 PR：`pnpm set-version <version>`，更新版本表、文档和快照，合并。预发布版（`-rc.n`）只更新快照，版本表与文档留在上一个正式版（见「C」第 2 步）。
 3. 创建 GitHub release（tag `v<version>`，指向 main 或 `release-x.y` 上的提交），release notes 按[「发布说明」](#发布说明)用模板写。
-4. 等 `admission`、`preflight`；Maven 两路成功以后批准 `npm-deploy`；等 `npm-smoke` 变绿，这次发布才算完成。
+4. 等 `admission`、`preflight`；Maven 两路成功以后 `npm-deploy` 自动发布；等 `npm-smoke` 变绿，这次发布才算完成。
 
 维护线 `release-x.y` 没有 push 触发，不影响发版：准入在 tag 上触发完整运行。给老版本线发补丁时，dist-tag 自动是 `release-x.y`，不会动 `latest`。
 

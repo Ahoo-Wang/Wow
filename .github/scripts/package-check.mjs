@@ -372,8 +372,13 @@ export function annotation(message) {
     .replace(/\n/g, '%0A')}`;
 }
 
-/** How long the smoke test waits for npm to serve a version it accepted. */
-const REGISTRY_ATTEMPTS = 20;
+/**
+ * How long the smoke test waits for npm to serve a version it accepted:
+ * up to 30 minutes. npm took about 13 minutes to serve wow-client 9.2.2
+ * after accepting it, and with no approval step a smoke job that gives up
+ * early only needs a re-run.
+ */
+const REGISTRY_ATTEMPTS = 120;
 const REGISTRY_DELAY_MS = 15_000;
 
 /**

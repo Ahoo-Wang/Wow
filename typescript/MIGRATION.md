@@ -85,7 +85,7 @@ Wow/
   - `admission`：校验 tag 版本 = gradle 版本 = 各包 `package.json` 的版本；提交在 main 或 `release-x.y` 上；`typescript.yml`、`typescript-contract.yml`、`typescript-storybook.yml` 在这个提交上的**手动触发完整运行**与各自的 gate 通过（缺了就自动触发并等待）；破坏性提交只进 `x.Y.0`；
   - `preflight`：`pnpm build:typescript`，打出 tarball 并做包检查（publint、node16/nodenext/bundler 类型、干净项目安装导入），`./gradlew build allIntegrationTest`。
 
-  通过后三路并行发布：GitHub Packages、Maven Central、npm（npm 这一路在 environment `npm-publish` 里等审批，只发布 preflight 检查过的 tarball）。
+  通过后三路并行发布：GitHub Packages、Maven Central、npm（npm 这一路在 Maven 两路成功后自动发布，只发布 preflight 检查过的 tarball；2026-10-04 起不再需要审批）。
 
 - **npm 这一路**：
   - 走 OIDC 可信发布并带上 `--provenance`，不用长期有效的 token；

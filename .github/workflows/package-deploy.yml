@@ -261,10 +261,12 @@ jobs:
           SONATYPE_PASSWORD: ${{ secrets.SONATYPE_PASSWORD }}
 
   # Publishes the tarballs preflight packed and checked; nothing is installed
-  # or built here. The npm-publish environment waits for a maintainer's
-  # approval, and npm's trusted publisher is bound to it.
+  # or built here. It starts once both Maven publications have succeeded, so
+  # a release never reaches npm without its JVM artifacts. The npm-publish
+  # environment (v* tags only, no reviewer) is what npm's trusted publisher
+  # is bound to.
   npm-deploy:
-    needs: preflight
+    needs: [preflight, github-deploy, central-deploy]
     runs-on: ubuntu-latest
     timeout-minutes: 20
     environment: npm-publish
@@ -317,7 +319,7 @@ jobs:
     needs: npm-deploy
     name: npm smoke / Node ${{ matrix.node-version }}
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 45
     permissions:
       contents: read
     strategy:
