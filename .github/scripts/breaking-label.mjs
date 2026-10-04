@@ -19,6 +19,14 @@ import { isBreaking } from './release-admission.mjs';
 // is how a break the title does not mark still keeps a patch release out and
 // must be named in the x.Y.0 release notes. The label also puts the PR under
 // "Breaking Changes" in GitHub's generated release notes (.github/release.yml).
+//
+// It also labels a pull request whose diff takes a line out of a public
+// surface record: a Kotlin ABI dump (`<module>/api/<module>.api`), an API
+// Extractor report (`typescript/*/test/api/*.api.md`) or a surface list
+// (`typescript/*/test/surface/*.txt`). These files are one declaration per
+// line, so a removed or renamed declaration is a `-` line and a changed
+// signature is a `-`/`+` pair; a pure addition is `+` lines only. See
+// `removedSurfaceLines` for the lines that do not count.
 // Run by pr-labeler.yml:
 //
 //   PR_TITLE=… PR_BODY=… PR_NUMBER=… GITHUB_REPOSITORY=… GH_TOKEN=… node .github/scripts/breaking-label.mjs
@@ -80,6 +88,94 @@ export function isBreakingBody(body) {
   });
 }
 
+// Public surface records, one declaration per line.
+const SURFACE_FILES = [
+  /(?:^|\/)api\/[^/]+\.api$/,
+  /^typescript\/[^/]+\/test\/api\/[^/]+\.api\.md$/,
+  /^typescript\/[^/]+\/test\/surface\/[^/]+\.txt$/,
+];
+
+/** Whether a repository path is a public surface record. */
+export function isSurfaceFile(path) {
+  return SURFACE_FILES.some(pattern => pattern.test(path ?? ''));
+}
+
+const normalize = line => line.replace(/\s+/g, ' ').trim();
+
+/**
+ * The removed lines of one changed file (an entry of the REST API's
+ * "list pull request files") that take something out of the public surface.
+ * A file is judged by its own diff, so a renamed or moved record with the
+ * same content removes nothing, and a deleted one removes every line. Lines
+ * that do not count: blank lines; the `#` header of a surface list (it
+ * carries the name count, which an addition changes); the `//` comments of an
+ * API report (release tags and `(undocumented)` markers, which change when
+ * TSDoc is added; a removed declaration still shows its own line); and a
+ * removed line
+ * that comes back as an added line of the same file once whitespace is
+ * collapsed (re-indented, or moved within the file). Anything else,
+ * including half of a changed signature's `-`/`+` pair, counts. When GitHub
+ * leaves out the patch (a very large diff), a file with any deletion counts
+ * as one line, since nothing else can be read.
+ */
+export function removedSurfaceLines(file) {
+  if (!isSurfaceFile(file.filename) && !isSurfaceFile(file.previous_filename))
+    return [];
+  if (typeof file.patch !== 'string')
+    return file.status === 'removed' || file.deletions > 0
+      ? [`(${file.deletions ?? 'all'} deleted lines; no patch to read)`]
+      : [];
+  const removed = [];
+  const added = new Map();
+  for (const line of file.patch.split('\n')) {
+    if (line.startsWith('+')) {
+      const key = normalize(line.slice(1));
+      added.set(key, (added.get(key) ?? 0) + 1);
+    } else if (line.startsWith('-')) removed.push(line.slice(1));
+  }
+  const comment = /\.txt$/.test(file.filename)
+    ? '#'
+    : /\.api\.md$/.test(file.filename)
+      ? '//'
+      : null;
+  return removed.filter(line => {
+    const key = normalize(line);
+    if (key === '' || (comment !== null && key.startsWith(comment)))
+      return false;
+    const count = added.get(key) ?? 0;
+    if (count === 0) return true;
+    added.set(key, count - 1);
+    return false;
+  });
+}
+
+/** The surface records a pull request's files take lines out of. */
+export function breakingSurfaceFiles(files) {
+  return files
+    .map(file => ({ file: file.filename, lines: removedSurfaceLines(file) }))
+    .filter(({ lines }) => lines.length > 0);
+}
+
+function pullRequestFiles(repo, number) {
+  // At most 3000 files, 100 per page (the endpoint's limits).
+  const files = [];
+  for (let page = 1; page <= 30; page++) {
+    const batch = JSON.parse(
+      execFileSync(
+        'gh',
+        [
+          'api',
+          `repos/${repo}/pulls/${number}/files?per_page=100&page=${page}`,
+        ],
+        { encoding: 'utf8', maxBuffer: 256 * 1024 * 1024 },
+      ),
+    );
+    files.push(...batch);
+    if (batch.length < 100) break;
+  }
+  return files;
+}
+
 if (
   process.argv[1] &&
   import.meta.url === pathToFileURL(process.argv[1]).href
@@ -92,9 +188,18 @@ if (
   } = process.env;
   if (!/^\d+$/.test(number ?? '') || !/^[\w.-]+\/[\w.-]+$/.test(repo ?? ''))
     throw new Error('PR_NUMBER and GITHUB_REPOSITORY are required');
-  if (!isBreakingTitle(title) && !isBreakingBody(body)) {
+  let breaking = isBreakingTitle(title) || isBreakingBody(body);
+  if (!breaking) {
+    const removals = breakingSurfaceFiles(pullRequestFiles(repo, number));
+    for (const { file, lines } of removals)
+      console.log(
+        `${file}: ${lines.length} removed line(s), first: ${lines[0]}`,
+      );
+    breaking = removals.length > 0;
+  }
+  if (!breaking) {
     console.log(
-      `#${number}: neither title nor description is breaking; no label`,
+      `#${number}: neither title, description nor a surface record is breaking; no label`,
     );
   } else {
     execFileSync(
