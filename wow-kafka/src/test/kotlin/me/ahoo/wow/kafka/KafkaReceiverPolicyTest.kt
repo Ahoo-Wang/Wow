@@ -25,7 +25,7 @@ class KafkaReceiverPolicyTest {
         val policy = KafkaReceiverPolicy()
 
         policy.prefetchBatches.assert().isEqualTo(1)
-        policy.maxDeferredCommits.assert().isEqualTo(1)
+        policy.maxDeferredCommits.assert().isEqualTo(500)
         val retrySpec = policy.retrySpec as RetryBackoffSpec
         retrySpec.maxAttempts.assert().isEqualTo(3)
         retrySpec.minBackoff.assert().isEqualTo(Duration.ofSeconds(10))

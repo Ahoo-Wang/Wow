@@ -25,7 +25,7 @@ Configuration classes: `KafkaProperties`, `KafkaReceiverProperties`; required ca
 | `wow.kafka.producer` | Map\<String, String\> | `{}` | Producer overrides; higher precedence than common properties |
 | `wow.kafka.consumer` | Map\<String, String\> | `{}` | Consumer overrides; higher precedence than common properties |
 | `wow.kafka.receiver.prefetch-batches` | Int | `1` | Reactor Kafka poll batches to prefetch |
-| `wow.kafka.receiver.max-deferred-commits` | Int | `1` | Maximum deferred commits retained for out-of-order completion |
+| `wow.kafka.receiver.max-deferred-commits` | Int | `500` | Acknowledged offsets retained for out-of-order completion; a commit starts when this many are waiting |
 | `wow.kafka.receiver.retry-attempts` | Long | `3` | Maximum attempts for one consecutive receive-failure burst |
 | `wow.kafka.receiver.retry-backoff` | Duration | `10s` | Minimum receiver retry backoff |
 | `wow.kafka.receiver.decode-failure-strategy` | Enum | `fail` | `fail` or `acknowledge` |

@@ -37,6 +37,7 @@ import reactor.kotlin.test.test
 import java.time.Duration
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicLong
 
 internal class KafkaCommandBusTest : CommandBusSpec() {
 
@@ -120,12 +121,28 @@ internal class KafkaCommandBusTest : CommandBusSpec() {
 
     @Test
     fun `should preserve an earlier unacknowledged offset`() {
+        assertEarlierUnacknowledgedOffsetPreserved(KafkaReceiverPolicy())
+    }
+
+    /**
+     * With one deferred commit the acknowledgement of the second record starts a commit at once (commit batch
+     * trigger); that commit must still stop before the unacknowledged first record.
+     */
+    @Test
+    fun `an immediate commit should preserve an earlier unacknowledged offset`() {
+        assertEarlierUnacknowledgedOffsetPreserved(KafkaReceiverPolicy(maxDeferredCommits = 1))
+    }
+
+    private fun assertEarlierUnacknowledgedOffsetPreserved(receiverPolicy: KafkaReceiverPolicy) {
         val topicConverter = DefaultCommandTopicConverter("test-${generateGlobalId()}.")
         val bus = KafkaCommandBus(
             topicConverter = topicConverter,
             senderOptions = kafka.senderOptions(),
             receiverOptions = kafka.receiverOptions()
                 .consumerProperty(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest"),
+            receiverOptionsCustomizer = NoOpReceiverOptionsCustomizer,
+            receiverPolicy = receiverPolicy,
+            recordDecodeFailureHandler = FailKafkaRecordDecodeFailureHandler,
         )
         val receiverGroup = generateGlobalId()
         val aggregateId = generateGlobalId()
@@ -171,6 +188,78 @@ internal class KafkaCommandBusTest : CommandBusSpec() {
                 }
                 .expectComplete()
                 .verify(Duration.ofSeconds(10))
+        } finally {
+            bus.close()
+        }
+    }
+
+    /**
+     * One record in flight at a time: each record is sent only after the previous one was received and acknowledged.
+     * Reactor Kafka pauses polling while `maxDeferredCommits` acknowledged offsets wait for a commit, so a receiver
+     * that only commits on the periodic `commitInterval` handles one record per interval. 9.2.2 did that by default.
+     */
+    @Test
+    fun `acknowledged records do not wait for the periodic commit`() {
+        assertAcknowledgedRecordsDoNotWaitForPeriodicCommit(KafkaReceiverPolicy())
+    }
+
+    @Test
+    fun `acknowledged records do not wait for the periodic commit with one deferred commit`() {
+        assertAcknowledgedRecordsDoNotWaitForPeriodicCommit(KafkaReceiverPolicy(maxDeferredCommits = 1))
+    }
+
+    private fun assertAcknowledgedRecordsDoNotWaitForPeriodicCommit(receiverPolicy: KafkaReceiverPolicy) {
+        val topicConverter = DefaultCommandTopicConverter("test-${generateGlobalId()}.")
+        val commitInterval = Duration.ofSeconds(30)
+        val bus = KafkaCommandBus(
+            topicConverter = topicConverter,
+            senderOptions = kafka.senderOptions(),
+            receiverOptions = kafka.receiverOptions()
+                .consumerProperty(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest")
+                .commitInterval(commitInterval),
+            receiverOptionsCustomizer = NoOpReceiverOptionsCustomizer,
+            receiverPolicy = receiverPolicy,
+            recordDecodeFailureHandler = FailKafkaRecordDecodeFailureHandler,
+        )
+        val roundTrips = 10
+        val messages = List(roundTrips) { createMessage() }
+        val ready = Sinks.empty<Void>()
+        val firstReceivedAt = AtomicLong()
+        val lastReceivedAt = AtomicLong()
+
+        try {
+            bus.receive(MessageSubscription(namedAggregate, generateGlobalId()))
+                .contextWrite {
+                    it.writeReceiverOptionsCustomizer { options ->
+                        options.addAssignListener {
+                            ready.tryEmitEmpty()
+                        }
+                    }
+                }
+                .doOnSubscribe {
+                    ready.asMono()
+                        .then(bus.send(messages.first()))
+                        .subscribe()
+                }
+                .index()
+                .concatMap { indexed ->
+                    val now = System.nanoTime()
+                    firstReceivedAt.compareAndSet(0, now)
+                    lastReceivedAt.set(now)
+                    val next = messages.getOrNull(indexed.t1.toInt() + 1)
+                    indexed.t2.acknowledge()
+                        .then(next?.let(bus::send) ?: Mono.empty())
+                        .thenReturn(indexed.t2)
+                }
+                .take(roundTrips.toLong())
+                .test()
+                .expectNextCount(roundTrips.toLong())
+                .expectComplete()
+                .verify(Duration.ofMinutes(2))
+
+            Duration.ofNanos(lastReceivedAt.get() - firstReceivedAt.get())
+                .assert()
+                .isLessThan(commitInterval)
         } finally {
             bus.close()
         }

@@ -80,7 +80,7 @@ wow:
       - localhost:9092
 ```
 
-`wow.kafka.bootstrap-servers` has no default. Defaults are `enabled=true`, `topic-prefix=wow.`, `receiver.prefetch-batches=1`, `receiver.max-deferred-commits=1`, `receiver.retry-attempts=3`, `receiver.retry-backoff=10s`, and `receiver.decode-failure-strategy=FAIL`.
+`wow.kafka.bootstrap-servers` has no default. Defaults are `enabled=true`, `topic-prefix=wow.`, `receiver.prefetch-batches=1`, `receiver.max-deferred-commits=500`, `receiver.retry-attempts=3`, `receiver.retry-backoff=10s`, and `receiver.decode-failure-strategy=FAIL`.
 
 ### Bus Type Selection
 
@@ -148,7 +148,13 @@ The sender calls `message.withReadOnly()` before asynchronous delivery. This pre
 
 ### 3. Manual Offset Acknowledgment
 
-The exchange's `acknowledge()` commits handled offsets, while `max-deferred-commits` retains gaps caused by out-of-order completion. Unacknowledged messages may be delivered again, which is the expected at-least-once recovery boundary.
+The exchange's `acknowledge()` commits handled offsets, while `max-deferred-commits` retains gaps caused by out-of-order completion: a commit never moves past the earliest unacknowledged record. Unacknowledged messages may be delivered again, which is the expected at-least-once recovery boundary.
+
+Reactor Kafka stops polling while `max-deferred-commits` acknowledged offsets wait for a commit, so the buses also start a commit as soon as that many are waiting (Reactor Kafka's `commitBatchSize`, capped at `max-deferred-commits`; a smaller value set through a `ReceiverOptionsCustomizer` is kept). Otherwise offsets are committed every `commitInterval` (5 s by default). Polling pauses only while an earlier record is still in flight or a commit is running.
+
+::: info Changed in 9.2.3
+Up to 9.2.2 the default was `max-deferred-commits=1` without the commit trigger: after each acknowledged record the consumer paused until the next periodic commit, so a receiver handled about one poll per `commitInterval` (5 s). The default is now 500, Kafka's default `max.poll.records`. A deployment that set `max-deferred-commits` explicitly keeps its value and now commits after that many acknowledgements instead of pausing.
+:::
 
 ### 4. Correlation Metadata for Send Feedback
 
@@ -214,7 +220,7 @@ wow:
       auto.offset.reset: earliest
     receiver:
       prefetch-batches: 1
-      max-deferred-commits: 1
+      max-deferred-commits: 500
       retry-attempts: 3
       retry-backoff: 10s
       decode-failure-strategy: FAIL

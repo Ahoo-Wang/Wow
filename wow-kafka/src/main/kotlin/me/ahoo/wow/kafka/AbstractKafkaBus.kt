@@ -60,6 +60,18 @@ internal fun Consumer<*, *>.anchorAssignedPositions(
     commitAsync(initialOffsets) { _, error -> completion(error) }
 }
 
+/**
+ * Applies [policy] to these options: out-of-order commits keep at most [KafkaReceiverPolicy.maxDeferredCommits]
+ * acknowledged offsets, and a commit starts once that many are waiting. Reactor Kafka stops polling at that limit
+ * and otherwise commits only every `commitInterval`, so without the batch trigger a receiver would handle at most
+ * `maxDeferredCommits` records per commit interval. A smaller positive `commitBatchSize` already set is kept.
+ */
+internal fun <K, V> ReceiverOptions<K, V>.withReceiverPolicy(policy: KafkaReceiverPolicy): ReceiverOptions<K, V> {
+    val maxDeferredCommits = policy.maxDeferredCommits
+    val commitBatchSize = commitBatchSize().takeIf { it in 1..maxDeferredCommits } ?: maxDeferredCommits
+    return maxDeferredCommits(maxDeferredCommits).commitBatchSize(commitBatchSize)
+}
+
 abstract class AbstractKafkaBus<M, E>(
     private val topicConverter: AggregateTopicConverter,
     private val senderOptions: SenderOptions<String, String>,
@@ -178,7 +190,7 @@ abstract class AbstractKafkaBus<M, E>(
     ): Flux<E> {
         return Flux.deferContextual { contextView ->
             val options = receiverOptionsCustomizer.customize(
-                receiverOptions.maxDeferredCommits(receiverPolicy.maxDeferredCommits),
+                receiverOptions.withReceiverPolicy(receiverPolicy),
             )
                 .consumerProperty(
                     ConsumerConfig.GROUP_ID_CONFIG,

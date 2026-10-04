@@ -80,7 +80,7 @@ wow:
       - localhost:9092
 ```
 
-`wow.kafka.bootstrap-servers` 没有默认值。`enabled=true`、`topic-prefix=wow.`、`receiver.prefetch-batches=1`、`receiver.max-deferred-commits=1`、`receiver.retry-attempts=3`、`receiver.retry-backoff=10s`、`receiver.decode-failure-strategy=FAIL`。
+`wow.kafka.bootstrap-servers` 没有默认值。`enabled=true`、`topic-prefix=wow.`、`receiver.prefetch-batches=1`、`receiver.max-deferred-commits=500`、`receiver.retry-attempts=3`、`receiver.retry-backoff=10s`、`receiver.decode-failure-strategy=FAIL`。
 
 ### 总线类型选择
 
@@ -148,7 +148,13 @@ Wow 在 record value 中写入框架 JSON，在 Kafka client 层使用字符串 
 
 ### 3. 手动偏移量确认
 
-exchange 的 `acknowledge()` 提交处理完成的 offset，`max-deferred-commits` 保留乱序完成产生的间隙。未确认消息可被重新投递，这是预期的 at-least-once 恢复语义。
+exchange 的 `acknowledge()` 提交处理完成的 offset，`max-deferred-commits` 保留乱序完成产生的间隙：提交永远不会越过最早一条未确认的记录。未确认消息可被重新投递，这是预期的 at-least-once 恢复语义。
+
+已确认、待提交的 offset 达到 `max-deferred-commits` 时，Reactor Kafka 会暂停拉取；因此总线在达到这个数量时立即发起一次提交（Reactor Kafka 的 `commitBatchSize`，上限为 `max-deferred-commits`；通过 `ReceiverOptionsCustomizer` 设置的更小值保持不变）。其余情况按 `commitInterval`（默认 5 秒）定期提交。只有在更早的记录仍在处理或提交正在进行时，拉取才会暂停。
+
+::: info 9.2.3 起的变化
+9.2.2 及以前默认 `max-deferred-commits=1` 且没有上述提交触发：每确认一条记录，消费者都要暂停到下一次定期提交，所以接收端大约每个 `commitInterval`（5 秒）只处理一次拉取。现在默认值为 500，即 Kafka 默认的 `max.poll.records`。显式配置过 `max-deferred-commits` 的部署保留原值，但达到该数量后会立即提交，而不再暂停等待。
+:::
 
 ### 4. 用于发送反馈的相关元数据
 
@@ -214,7 +220,7 @@ wow:
       auto.offset.reset: earliest
     receiver:
       prefetch-batches: 1
-      max-deferred-commits: 1
+      max-deferred-commits: 500
       retry-attempts: 3
       retry-backoff: 10s
       decode-failure-strategy: FAIL
