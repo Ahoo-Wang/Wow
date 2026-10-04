@@ -119,6 +119,19 @@ function readResult(file) {
   }
 }
 
+/**
+ * What a pass cost: agent and judge spend of every run in both arms, or the
+ * reported total when that is higher.
+ */
+function spend(result) {
+  let runs = 0;
+  for (const testCase of result?.cases ?? [])
+    for (const arm of Object.values(testCase.arms ?? {}))
+      for (const run of arm ?? [])
+        runs += (run.costUsd ?? 0) + (run.judgeCostUsd ?? 0);
+  return Math.max(runs, result?.costUsd ?? 0);
+}
+
 const graderPassed = (run, name) =>
   run.graders?.find(grader => grader.name === name)?.passed;
 const ratio = (part, whole) => (whole === 0 ? undefined : part / whole);
@@ -242,7 +255,7 @@ for (const skill of skills) {
     if (run.error)
       console.error(`  could not start ${claude}: ${run.error.message}`);
     const result = readResult(json);
-    const cost = (result?.costUsd ?? 0) + (result?.judgeCostUsd ?? 0);
+    const cost = spend(result);
     entry.cost += cost;
     entry.passes[pass] = {
       code: run.error ? 127 : (run.status ?? 1),
@@ -281,7 +294,7 @@ for (const { skill, passes: done } of results)
   for (const [pass, { code, partial, metrics }] of Object.entries(done))
     if (code !== 0 || partial || metrics?.errors)
       console.log(
-        `  ${skill} ${pass}: exit ${code} (${meaning(code)})${partial ? `, partial: ${partial}` : ''}${metrics?.errors ? `, ${metrics.errors} run errors` : ''}`,
+        `  ${skill} ${pass}: exit ${code} (${partial ? `stopped: ${partial}` : meaning(code)})${metrics?.errors ? `, ${metrics.errors} run errors` : ''}`,
       );
 const failed = results.filter(({ passes: done }) =>
   Object.values(done).some(({ code }) => code !== 0),
