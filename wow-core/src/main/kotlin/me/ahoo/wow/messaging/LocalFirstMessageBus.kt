@@ -180,49 +180,19 @@ interface LocalFirstMessageBus<M, E : MessageExchange<*, M>> :
     /**
      * Receives messages from both local and distributed buses.
      *
-     * Local messages are received for local aggregates, while distributed messages
-     * are filtered to exclude those already handled locally.
+     * Local messages are received for local aggregates, while distributed messages are filtered to exclude those
+     * already handled locally. Both receivers get the same [MessageSubscription.runtimeOwned], so a runtime
+     * dispatcher's local receiver takes part in local-first delivery receipts.
      *
      * @param subscription The message subscription
-     * @return A merged flux of message exchanges from local and distributed sources
+     * @return One receiver over the local and distributed sources
      */
-    override fun receive(subscription: MessageSubscription): Flux<E> {
+    override fun receiver(subscription: MessageSubscription): MessageReceiver<E> {
         val localTopics = subscription.namedAggregates.filter {
             it.isLocal()
         }.toSet()
-        val localFlux = localBus.receive(subscription.copy(namedAggregates = localTopics))
-        val distributedFlux =
-            distributedBus.receive(subscription)
-                .filterThenAck {
-                    !it.message.isLocalHandled()
-                }
-        return Flux.merge(localFlux, distributedFlux)
-    }
-
-    override fun receiver(subscription: MessageSubscription): MessageReceiver<E> =
-        combinedReceiver(subscription, runtimeOwned = false)
-
-    override fun runtimeReceiver(subscription: MessageSubscription): MessageReceiver<E> =
-        combinedReceiver(subscription, runtimeOwned = true)
-
-    private fun combinedReceiver(
-        subscription: MessageSubscription,
-        runtimeOwned: Boolean,
-    ): MessageReceiver<E> {
-        val localTopics = subscription.namedAggregates.filter {
-            it.isLocal()
-        }.toSet()
-        val localSubscription = subscription.copy(namedAggregates = localTopics)
-        val localReceiver = if (runtimeOwned) {
-            localBus.runtimeReceiver(localSubscription)
-        } else {
-            localBus.receiver(localSubscription)
-        }
-        val distributedReceiver = if (runtimeOwned) {
-            distributedBus.runtimeReceiver(subscription)
-        } else {
-            distributedBus.receiver(subscription)
-        }
+        val localReceiver = localBus.receiver(subscription.copy(namedAggregates = localTopics))
+        val distributedReceiver = distributedBus.receiver(subscription)
         return MessageReceiver(
             messages = Flux.merge(
                 localReceiver.messages,

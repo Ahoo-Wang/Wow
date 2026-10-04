@@ -37,6 +37,7 @@ import reactor.test.StepVerifier
 class MetricEventBusDecoratorTest {
     private val aggregate = MaterializedNamedAggregate("sales", "Order")
     private val subscription = MessageSubscription(aggregate, receiverGroup = "order-handler")
+    private val runtimeSubscription = subscription.copy(runtimeOwned = true)
 
     @Test
     fun `local domain event bus should preserve delivery receiver lifecycle and close`() {
@@ -52,19 +53,17 @@ class MetricEventBusDecoratorTest {
             every { send(stream) } returns Mono.empty()
             every { sendIfSubscribed(stream) } returns Mono.just(true)
             every { subscriberCount(aggregate) } returns 2
-            every { receive(subscription) } returns Flux.just(exchange)
             every { receiver(subscription) } returns receiver(exchange, { opened++ }, { closed++ })
-            every { runtimeReceiver(subscription) } returns receiver(exchange, { opened++ }, { closed++ })
+            every { receiver(runtimeSubscription) } returns receiver(exchange, { opened++ }, { closed++ })
             every { close() } just Runs
         }
         val eventBus = MetricLocalDomainEventBus(delegate, WowMetrics(registry), "local-domain-event-bus")
 
         StepVerifier.create(eventBus.send(stream)).verifyComplete()
         StepVerifier.create(eventBus.sendIfSubscribed(stream)).expectNext(true).verifyComplete()
-        StepVerifier.create(eventBus.receive(subscription)).expectNext(exchange).verifyComplete()
         eventBus.subscriberCount(aggregate).assert().isEqualTo(2)
         assertReceiver(eventBus.receiver(subscription), exchange)
-        assertReceiver(eventBus.runtimeReceiver(subscription), exchange)
+        assertReceiver(eventBus.receiver(runtimeSubscription), exchange)
         eventBus.close()
 
         opened.assert().isEqualTo(2)
@@ -76,9 +75,8 @@ class MetricEventBusDecoratorTest {
             delegate.send(stream)
             delegate.sendIfSubscribed(stream)
             delegate.subscriberCount(aggregate)
-            delegate.receive(subscription)
             delegate.receiver(subscription)
-            delegate.runtimeReceiver(subscription)
+            delegate.receiver(runtimeSubscription)
             delegate.close()
         }
     }
@@ -97,19 +95,17 @@ class MetricEventBusDecoratorTest {
             every { send(stateEvent) } returns Mono.empty()
             every { sendIfSubscribed(stateEvent) } returns Mono.just(false)
             every { subscriberCount(aggregate) } returns 3
-            every { receive(subscription) } returns Flux.just(exchange)
             every { receiver(subscription) } returns receiver(exchange, { opened++ }, { closed++ })
-            every { runtimeReceiver(subscription) } returns receiver(exchange, { opened++ }, { closed++ })
+            every { receiver(runtimeSubscription) } returns receiver(exchange, { opened++ }, { closed++ })
             every { close() } just Runs
         }
         val eventBus = MetricLocalStateEventBus(delegate, WowMetrics(registry), "local-state-event-bus")
 
         StepVerifier.create(eventBus.send(stateEvent)).verifyComplete()
         StepVerifier.create(eventBus.sendIfSubscribed(stateEvent)).expectNext(false).verifyComplete()
-        StepVerifier.create(eventBus.receive(subscription)).expectNext(exchange).verifyComplete()
         eventBus.subscriberCount(aggregate).assert().isEqualTo(3)
         assertReceiver(eventBus.receiver(subscription), exchange)
-        assertReceiver(eventBus.runtimeReceiver(subscription), exchange)
+        assertReceiver(eventBus.receiver(runtimeSubscription), exchange)
         eventBus.close()
 
         opened.assert().isEqualTo(2)
@@ -121,9 +117,8 @@ class MetricEventBusDecoratorTest {
             delegate.send(stateEvent)
             delegate.sendIfSubscribed(stateEvent)
             delegate.subscriberCount(aggregate)
-            delegate.receive(subscription)
             delegate.receiver(subscription)
-            delegate.runtimeReceiver(subscription)
+            delegate.receiver(runtimeSubscription)
             delegate.close()
         }
     }

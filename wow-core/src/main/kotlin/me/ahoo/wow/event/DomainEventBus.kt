@@ -17,6 +17,7 @@ import me.ahoo.wow.api.messaging.TopicKindCapable
 import me.ahoo.wow.messaging.DistributedMessageBus
 import me.ahoo.wow.messaging.LocalMessageBus
 import me.ahoo.wow.messaging.MessageBus
+import me.ahoo.wow.messaging.MessageReceiver
 import me.ahoo.wow.messaging.MessageSubscription
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
@@ -88,10 +89,11 @@ object NoOpDomainEventBus : DomainEventBus {
     override fun send(message: DomainEventStream): Mono<Void> = Mono.empty()
 
     /**
-     * Receives domain event streams but returns an empty flux.
+     * Receives domain event streams but emits none.
      *
      * @param subscription The message subscription (ignored)
-     * @return An empty Flux of event stream exchanges
+     * @return A receiver of no event stream exchanges
      */
-    override fun receive(subscription: MessageSubscription): Flux<EventStreamExchange> = Flux.empty()
+    override fun receiver(subscription: MessageSubscription): MessageReceiver<EventStreamExchange> =
+        MessageReceiver(Flux.empty())
 }

@@ -41,7 +41,7 @@ flowchart TB
 
 ## Bus 到 Dispatcher
 
-`CommandBus.receive` 或运行时使用的 `runtimeReceiver` 产生 `ServerCommandExchange`。`CommandDispatcher` 先过滤 `isVoid` 消息：这些消息会被确认但不会进入聚合命令链；普通命令继续按 `NamedAggregate` 分派。
+`CommandBus.receiver`（运行时的 `CommandDispatcher` 使用 runtime-owned 订阅）产生 `ServerCommandExchange`。`CommandDispatcher` 先过滤 `isVoid` 消息：这些消息会被确认但不会进入聚合命令链；普通命令继续按 `NamedAggregate` 分派。
 
 每个 `AggregateCommandDispatcher` 从 metadata 得到聚合类型，并按 aggregate ID 计算 group key。同一 ID 的命令保持调度亲和性，多个 ID 可共享 worker；这避免同一聚合在本进程内并发执行，但不替代 EventStore 的持久版本约束。
 

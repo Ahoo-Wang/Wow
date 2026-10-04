@@ -309,7 +309,7 @@ class CompositeEventDispatcherLifecycleTest {
 
         override fun send(message: DomainEventStream): Mono<Void> = Mono.empty()
 
-        override fun receive(subscription: MessageSubscription): Flux<EventStreamExchange> =
+        private fun messages(): Flux<EventStreamExchange> =
             Flux.never<EventStreamExchange>()
                 .doOnSubscribe {
                     subscriptionCount.incrementAndGet()
@@ -323,9 +323,9 @@ class CompositeEventDispatcherLifecycleTest {
                     onCancel()
                 }
 
-        override fun runtimeReceiver(subscription: MessageSubscription): MessageReceiver<EventStreamExchange> =
+        override fun receiver(subscription: MessageSubscription): MessageReceiver<EventStreamExchange> =
             MessageReceiver(
-                messages = receive(subscription),
+                messages = messages(),
                 processingQuiescence = onCloseProcessing,
             )
 
@@ -342,12 +342,12 @@ class CompositeEventDispatcherLifecycleTest {
 
         override fun send(message: DomainEventStream): Mono<Void> = Mono.empty()
 
-        override fun receive(subscription: MessageSubscription): Flux<EventStreamExchange> =
+        private fun messages(): Flux<EventStreamExchange> =
             messages.asFlux()
 
         override fun receiver(subscription: MessageSubscription): MessageReceiver<EventStreamExchange> =
             MessageReceiver(
-                messages = receive(subscription),
+                messages = messages(),
                 readiness = Mono.fromRunnable {
                     if (failDuringReadiness) {
                         emitFailure()
@@ -374,7 +374,7 @@ class CompositeEventDispatcherLifecycleTest {
 
         override fun send(message: StateEvent<*>): Mono<Void> = Mono.empty()
 
-        override fun receive(subscription: MessageSubscription): Flux<StateEventExchange<*>> =
+        private fun messages(): Flux<StateEventExchange<*>> =
             Flux.never<StateEventExchange<*>>()
                 .doOnSubscribe {
                     calls += "subscribe:state"
@@ -386,9 +386,9 @@ class CompositeEventDispatcherLifecycleTest {
                     onCancel()
                 }
 
-        override fun runtimeReceiver(subscription: MessageSubscription): MessageReceiver<StateEventExchange<*>> =
+        override fun receiver(subscription: MessageSubscription): MessageReceiver<StateEventExchange<*>> =
             MessageReceiver(
-                messages = receive(subscription),
+                messages = messages(),
                 processingQuiescence = onCloseProcessing,
             )
 

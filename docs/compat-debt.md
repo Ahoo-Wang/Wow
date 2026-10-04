@@ -158,6 +158,13 @@ When you add compatibility code, add its marker and list the file under an entry
 - **Replacement**: `@Spaced` and `@AggregateOwner(OwnerPolicy.…)` on the aggregate; `AggregateMetadata.spaced` and `AggregateMetadata.owner` for readers; the `OwnerPolicy` constructor and `ownerPolicy` of `AggregateRouteMetadata`; `getAggregateId(OwnerPolicy…)`.
 - **Removal in v10**: delete `spaced`, `owner` and `Owner` from `AggregateRoute`, the legacy branches of both `AggregatePolicyResolver`s (with their conflict checks, which only exist for the old attributes), the two `AggregateRoute.Owner` overloads; `AggregateRouteMetadata`'s primary constructor takes `ownerPolicy: OwnerPolicy` in place of `owner`, and its secondary constructor and the `ownerPolicy` getter go. Code still writing the old attributes stops compiling; the migration guide maps `spaced = true` to `@Spaced` and `owner = Owner.X` to `@AggregateOwner(OwnerPolicy.X)`.
 
+### Wow 9.2 Message Bus Receive Entries
+
+- **Kept compatible**: 9.2's `MessageBus` had three receive entries: `receive` (abstract, a plain exchange stream), `receiver` (defaulting to `receive`) and `runtimeReceiver` (defaulting to `receiver`, overridden by local buses for the runtime's local delivery receipts). 9.3 keeps one, `receiver`, and says that a subscription is the runtime's with `MessageSubscription.runtimeOwned`. `receive` and `runtimeReceiver` are deprecated defaults onto it (`receive` opens processing on subscription, so a transport gating reads on it streams at once). `receiver` still defaults to `receive`, so a bus that implements only `receive` keeps working. `MessageSubscription` keeps its 9.2 JVM constructors and `copy` as hidden overloads.
+- **Markers**: `wow-core/src/main/kotlin/me/ahoo/wow/messaging/MessageBus.kt`, `wow-core/src/main/kotlin/me/ahoo/wow/messaging/MessageSubscription.kt`
+- **Replacement**: `receiver(subscription)`; `receiver(subscription.copy(runtimeOwned = true))` for a runtime-owned receiver.
+- **Removal in v10**: delete `receive` and `runtimeReceiver` from `MessageBus` and make `receiver` abstract; delete the hidden constructors and `copy` of `MessageSubscription`. A bus that implements only `receive` then stops compiling, and the release notes tell implementers to override `receiver`. Remove the deprecated-default exemption from `DefaultMethodContract` (`test/wow-tck`) if nothing else uses it.
+
 ## Held Until v10
 
 Behaviour that is not compatibility code, so it carries no marker, but that 9.x keeps as it is because changing it changes a frozen REST or wire format. v10 changes each one; until then nothing here is touched, not even in an `x.Y.0` release.

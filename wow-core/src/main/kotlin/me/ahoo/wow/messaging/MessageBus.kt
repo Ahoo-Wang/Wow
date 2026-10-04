@@ -44,36 +44,43 @@ interface MessageBus<M : Message<*, *>, E : MessageExchange<*, M>> : AutoCloseab
     fun send(message: M): Mono<Void>
 
     /**
-     * Receives messages for the specified subscription.
+     * The one receive entry: a single message source for [subscription], with an explicit transport readiness
+     * boundary and processing admission (see [MessageReceiver]).
      *
-     * @param subscription The subscription defining named aggregates and receiver group
-     * @return A [Flux] of message exchanges for the specified subscription
-     */
-    fun receive(subscription: MessageSubscription): Flux<E>
-
-    /**
-     * Creates a single message source with an explicit transport readiness
-     * boundary.
+     * Cold transports whose subscription requires asynchronous initialization complete [MessageReceiver.readiness]
+     * only when new messages can no longer be missed. A [runtime-owned][MessageSubscription.runtimeOwned]
+     * subscription is a [me.ahoo.wow.runtime.WowRuntime] dispatcher's: local buses may let it take part in
+     * local-first delivery receipts.
      *
-     * Synchronous transports may use this default. Cold transports whose
-     * subscription requires asynchronous initialization must override it and
-     * complete [MessageReceiver.readiness] only when new messages can no longer
-     * be missed.
+     * Implementations override this. The default only adapts an implementation written before 9.3.0 that overrides
+     * the deprecated [receive] instead; an implementation must override one of the two.
      */
     fun receiver(subscription: MessageSubscription): MessageReceiver<E> =
+        @Suppress("DEPRECATION")
         MessageReceiver(receive(subscription))
 
     /**
-     * Creates the message source owned by a [me.ahoo.wow.runtime.WowRuntime]
-     * dispatcher.
-     *
-     * The default preserves the ordinary receiver contract. Local buses may
-     * override this capability to participate in runtime-admission delivery
-     * receipts; custom consumers should use [receiver] unless they implement
-     * the same admission protocol.
+     * The messages of [subscription] as a plain stream: the [receiver]'s messages with processing opened on
+     * subscription, so a transport that gates consumption on [MessageReceiver.openProcessing] reads at once.
      */
+    @Deprecated(
+        "Scheduled for removal in 10.0.0. Use receiver(subscription), the single receive entry.",
+        ReplaceWith("receiver(subscription)"),
+    )
+    fun receive(subscription: MessageSubscription): Flux<E> {
+        val receiver = receiver(subscription)
+        return receiver.messages.doOnSubscribe { receiver.openProcessing() }
+    }
+
+    /**
+     * The message source owned by a [me.ahoo.wow.runtime.WowRuntime] dispatcher.
+     */
+    @Deprecated(
+        "Scheduled for removal in 10.0.0. Use receiver with a runtime-owned subscription.",
+        ReplaceWith("receiver(subscription.copy(runtimeOwned = true))"),
+    )
     fun runtimeReceiver(subscription: MessageSubscription): MessageReceiver<E> =
-        receiver(subscription)
+        receiver(subscription.copy(runtimeOwned = true))
 }
 
 /**

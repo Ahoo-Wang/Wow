@@ -70,9 +70,6 @@ abstract class AbstractRedisMessageBus<M, E>(
         }
     }
 
-    override fun receive(subscription: MessageSubscription): Flux<E> =
-        receive(subscription, onReady = {}, readAdmission = null)
-
     override fun receiver(subscription: MessageSubscription): MessageReceiver<E> {
         val readiness = Sinks.empty<Void>()
         val readAdmission = Sinks.empty<Void>()
@@ -87,7 +84,7 @@ abstract class AbstractRedisMessageBus<M, E>(
                 readiness.tryEmitError(error)
             }
         }
-        val messages = receive(subscription, ::completeReadiness, readAdmission)
+        val messages = streamMessages(subscription, ::completeReadiness, readAdmission)
             .doOnError(::failReadiness)
             .doOnCancel {
                 failReadiness(
@@ -103,10 +100,10 @@ abstract class AbstractRedisMessageBus<M, E>(
         )
     }
 
-    private fun receive(
+    private fun streamMessages(
         subscription: MessageSubscription,
         onReady: () -> Unit,
-        readAdmission: Sinks.Empty<Void>?,
+        readAdmission: Sinks.Empty<Void>,
     ): Flux<E> {
         val options = StreamReceiverOptions.builder().pollTimeout(pollTimeout)
             .build()
@@ -124,22 +121,14 @@ abstract class AbstractRedisMessageBus<M, E>(
                 receive(topic, options, consumer, group)
             }
             val readPublisher = Flux.merge(streamOffsets)
-            val effectiveReadAdmission = readAdmission ?: Sinks.empty()
-            val messages = createGroupPublisher
+            createGroupPublisher
                 .doOnSuccess {
                     onReady()
                 }
                 .thenMany(
-                    effectiveReadAdmission.asMono()
+                    readAdmission.asMono()
                         .thenMany(readPublisher),
                 )
-            if (readAdmission == null) {
-                messages.doOnRequest {
-                    effectiveReadAdmission.tryEmitEmpty()
-                }
-            } else {
-                messages
-            }
         }
     }
 

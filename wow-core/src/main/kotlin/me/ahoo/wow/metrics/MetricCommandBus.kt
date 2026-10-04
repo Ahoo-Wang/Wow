@@ -21,7 +21,6 @@ import me.ahoo.wow.command.LocalCommandBus
 import me.ahoo.wow.command.ServerCommandExchange
 import me.ahoo.wow.messaging.MessageReceiver
 import me.ahoo.wow.messaging.MessageSubscription
-import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 
 internal open class MetricCommandBus<T : CommandBus>(
@@ -36,17 +35,8 @@ internal open class MetricCommandBus<T : CommandBus>(
             messageDescriptor(message, "send"),
         )
 
-    override fun receive(subscription: MessageSubscription): Flux<ServerCommandExchange<*>> =
-        metrics.stream(
-            delegate.receive(subscription),
-            receiveDescriptor(subscription),
-        )
-
     override fun receiver(subscription: MessageSubscription): MessageReceiver<ServerCommandExchange<*>> =
         metricReceiver(delegate.receiver(subscription), subscription)
-
-    override fun runtimeReceiver(subscription: MessageSubscription): MessageReceiver<ServerCommandExchange<*>> =
-        metricReceiver(delegate.runtimeReceiver(subscription), subscription)
 
     private fun metricReceiver(
         receiver: MessageReceiver<ServerCommandExchange<*>>,

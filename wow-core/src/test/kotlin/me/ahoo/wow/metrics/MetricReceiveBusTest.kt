@@ -19,6 +19,7 @@ import io.mockk.mockk
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.event.DomainEventBus
 import me.ahoo.wow.eventsourcing.state.StateEventBus
+import me.ahoo.wow.messaging.MessageReceiver
 import me.ahoo.wow.messaging.MessageSubscription
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import org.junit.jupiter.api.Test
@@ -49,11 +50,11 @@ class MetricReceiveBusTest {
     fun `domain event receive should expose stable subscription tags`() {
         val subscription = subscription("DomainMetricAggregate", "domain-handler")
         val delegate = mockk<DomainEventBus> {
-            every { receive(subscription) } returns Flux.empty()
+            every { receiver(subscription) } returns MessageReceiver(Flux.empty())
         }
 
         assertReceiveTags("domain_event_bus", subscription) { metrics ->
-            MetricDomainEventBus(delegate, metrics, "domainEventBus").receive(subscription).blockLast()
+            MetricDomainEventBus(delegate, metrics, "domainEventBus").receiver(subscription).messages.blockLast()
         }
     }
 
@@ -61,11 +62,11 @@ class MetricReceiveBusTest {
     fun `state event receive should expose stable subscription tags`() {
         val subscription = subscription("StateMetricAggregate", "state-handler")
         val delegate = mockk<StateEventBus> {
-            every { receive(subscription) } returns Flux.empty()
+            every { receiver(subscription) } returns MessageReceiver(Flux.empty())
         }
 
         assertReceiveTags("state_event_bus", subscription) { metrics ->
-            MetricStateEventBus(delegate, metrics, "stateEventBus").receive(subscription).blockLast()
+            MetricStateEventBus(delegate, metrics, "stateEventBus").receiver(subscription).messages.blockLast()
         }
     }
 

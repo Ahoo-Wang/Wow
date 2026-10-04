@@ -22,11 +22,12 @@ flowchart TB
 
 ## CommandBus contract
 
-`CommandBus` is a `MessageBus<CommandMessage<*>, ServerCommandExchange<*>>` with `TopicKind.COMMAND`. Its three core operations expose different boundaries:
+`CommandBus` is a `MessageBus<CommandMessage<*>, ServerCommandExchange<*>>` with `TopicKind.COMMAND`. Its two core operations expose different boundaries:
 
 - `send`: its `Mono<Void>` completes when the concrete transport accepts the send;
-- `receive`: returns exchanges for a `MessageSubscription`;
-- `receiver`: exposes transport readiness as well as messages; `runtimeReceiver` also lets WowRuntime control processing admission and quiescence.
+- `receiver`: the one receive entry. It returns a `MessageReceiver` for a `MessageSubscription`: the exchanges, the transport readiness, and processing admission and quiescence. A subscription with `runtimeOwned = true` is a WowRuntime dispatcher's; local buses let only such receivers take part in local-first delivery receipts.
+
+Since 9.3.0 `receive` (the plain exchange stream, now `receiver(subscription)` with processing opened on subscription) and `runtimeReceiver` (now `receiver(subscription.copy(runtimeOwned = true))`) are deprecated and delegate to `receiver`.
 
 `LocalCommandBus` additionally exposes subscriber count and `sendIfSubscribed`. The latter may return `true` only when target local receivers have obtained processing admission and this delivery remains valid; sink acceptance or subscriber count alone is insufficient. `DistributedCommandBus` keeps the same send/receive contract, with persistence, consumer groups, and acknowledgement supplied by its backend.
 

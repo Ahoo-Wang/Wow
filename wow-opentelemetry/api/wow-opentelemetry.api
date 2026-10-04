@@ -306,9 +306,7 @@ public final class me/ahoo/wow/opentelemetry/messaging/TracingLocalStateEventBus
 public abstract interface class me/ahoo/wow/opentelemetry/messaging/TracingMessageBus : me/ahoo/wow/infra/Decorator, me/ahoo/wow/messaging/MessageBus, me/ahoo/wow/opentelemetry/Traced {
 	public fun close ()V
 	public abstract fun getProducerInstrumenter ()Lio/opentelemetry/instrumentation/api/instrumenter/Instrumenter;
-	public fun receive (Lme/ahoo/wow/messaging/MessageSubscription;)Lreactor/core/publisher/Flux;
 	public fun receiver (Lme/ahoo/wow/messaging/MessageSubscription;)Lme/ahoo/wow/messaging/MessageReceiver;
-	public fun runtimeReceiver (Lme/ahoo/wow/messaging/MessageSubscription;)Lme/ahoo/wow/messaging/MessageReceiver;
 	public fun send (Lme/ahoo/wow/api/messaging/Message;)Lreactor/core/publisher/Mono;
 }
 

@@ -95,17 +95,8 @@ class TracingCommandGateway(override val delegate: CommandGateway) : Traced, Com
         return delegate.send(message)
     }
 
-    override fun receive(subscription: MessageSubscription): Flux<ServerCommandExchange<*>> {
-        return delegate.receive(subscription)
-    }
-
     override fun receiver(
         subscription: MessageSubscription,
     ): MessageReceiver<ServerCommandExchange<*>> =
         delegate.receiver(subscription)
-
-    override fun runtimeReceiver(
-        subscription: MessageSubscription,
-    ): MessageReceiver<ServerCommandExchange<*>> =
-        delegate.runtimeReceiver(subscription)
 }

@@ -252,7 +252,7 @@ internal fun MessageExchange<*, *>.takeLocalDeliveryTicket(): LocalDeliveryTicke
 /**
  * Confirms that this receiver synchronously admitted the local exchange.
  *
- * Custom consumers of [InMemoryMessageBus.runtimeReceiver] call this only
+ * Custom [runtime-owned][MessageSubscription.runtimeOwned] receivers of [InMemoryMessageBus] call this only
  * after their runtime admission and durable in-process handoff succeed.
  * Built-in dispatchers perform the confirmation automatically. The operation
  * is idempotent and is a no-op for exchanges without a local delivery ticket.

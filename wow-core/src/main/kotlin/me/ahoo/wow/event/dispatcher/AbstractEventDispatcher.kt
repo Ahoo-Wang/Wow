@@ -60,12 +60,13 @@ abstract class AbstractEventDispatcher<E : MessageExchange<*, *>, BUS : MessageB
             .toSet()
     }
 
+    @Suppress("DEPRECATION") // Keeps the plain-stream semantics of this hook; the runtime uses createMessageReceiver.
     override fun receiveMessage(subscription: MessageSubscription): Flux<E> {
         return messageBus.receive(subscription)
     }
 
     override fun createMessageReceiver(subscription: MessageSubscription): MessageReceiver<E> =
-        messageBus.runtimeReceiver(subscription)
+        messageBus.receiver(subscription.copy(runtimeOwned = true))
 
     override fun stopManagedGracefully(): Mono<Void> =
         schedulerSupplier.stopGracefully()
