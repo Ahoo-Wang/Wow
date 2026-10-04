@@ -36,23 +36,31 @@ fun ServerRequest.getTenantId(aggregateMetadata: AggregateMetadata<*, *>): Strin
     aggregateMetadata.staticTenantId.ifNotBlank<String> {
         return it
     }
-    pathVariables()[MessageRecords.TENANT_ID].ifNotBlank<String> {
-        return it
-    }
-    headers().firstHeader(CommandComponent.Header.TENANT_ID).ifNotBlank<String> {
-        return it
-    }
-    return null
+    return pathOrHeader(MessageRecords.TENANT_ID, CommandComponent.Header.TENANT_ID)
 }
 
 fun ServerRequest.getOwnerId(): String? {
-    pathVariables()[MessageRecords.OWNER_ID].ifNotBlank<String> {
-        return it
+    return pathOrHeader(MessageRecords.OWNER_ID, CommandComponent.Header.OWNER_ID)
+}
+
+/**
+ * The value of [variable] when the matched route declares it, otherwise the [header].
+ *
+ * A route that declares the variable states the value in its path, and a gateway may authorize on that path segment,
+ * so the path is authoritative there: a blank segment (such as `%20`) is rejected with an [IllegalArgumentException]
+ * (`IllegalArgument`, 400) instead of falling back to the header, and the header is never consulted. Routes without
+ * the variable keep reading the header.
+ */
+private fun ServerRequest.pathOrHeader(variable: String, header: String): String? {
+    val pathVariables = pathVariables()
+    if (pathVariables.containsKey(variable)) {
+        val value = pathVariables[variable]
+        require(!value.isNullOrBlank()) {
+            "Path variable [$variable] must not be blank."
+        }
+        return value
     }
-    headers().firstHeader(CommandComponent.Header.OWNER_ID).ifNotBlank<String> {
-        return it
-    }
-    return null
+    return headers().firstHeader(header).ifNotBlank { it }
 }
 
 fun ServerRequest.getSpaceId(): SpaceId? {
@@ -78,13 +86,7 @@ fun ServerRequest.getTenantIdOrDefault(aggregateMetadata: AggregateMetadata<*, *
 }
 
 fun ServerRequest.getAggregateId(): String? {
-    pathVariables()[MessageRecords.ID].ifNotBlank<String> {
-        return it
-    }
-    headers().firstHeader(CommandComponent.Header.AGGREGATE_ID).ifNotBlank<String> {
-        return it
-    }
-    return null
+    return pathOrHeader(MessageRecords.ID, CommandComponent.Header.AGGREGATE_ID)
 }
 
 fun ServerRequest.getAggregateId(owner: AggregateRoute.Owner, ownerId: String?): String? {

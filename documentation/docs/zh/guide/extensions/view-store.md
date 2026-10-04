@@ -245,7 +245,7 @@ GET    /view-store/tenant/(platform)/owner/(system)/view/requests/{requestId}   
 服务端不认证，**身份就是路径**：路径的 `{ownerId}` 就是用户（或 `(shared)`），租户与应用是路径的 `{tenantId}` 与 `CoSec-App-Id` 请求头。服务端没有任何「谁能写」的设置，所有的放行都是 CoSec 网关的路径规则（[CoSec](./cosec.md)）。服务端这一侧只保证路径就是它读到的那个：
 
 - 应用只从 `CoSec-App-Id` 取；调用者发到视图存储路径的每个 `Command-Header-*` 都被丢掉（否则 Wow 会把它原样抄进命令头，`command_operator` 也在内）；`Command-Tenant-Id` 与 `Command-Owner-Id` 也被丢掉。
-- 解码后租户或所有者为空，或含有显示为空白或什么都不显示的字符（空白、控制与格式字符如 U+200B、代理项、私用区与未分配码位，以及别的不可见字符），答 400 `ViewScopeRequired`：Wow 把空白的路径值当作缺失、退回到请求头，而不可见字符会造出一个看起来像别人的所有者。被收为个人时的新所有者守同样的规则。
+- 解码后租户或所有者为空，或含有显示为空白或什么都不显示的字符（空白、控制与格式字符如 U+200B、代理项、私用区与未分配码位，以及别的不可见字符），在到达 Wow 之前答 400 `ViewScopeRequired`：Wow 自身会拒绝空白的已声明路径值（400 `IllegalArgument`），但不拒绝不可见字符，而不可见字符会造出一个看起来像别人的所有者。被收为个人时的新所有者守同样的规则。
 
 ### 网关规则
 

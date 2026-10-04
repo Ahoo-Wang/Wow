@@ -81,6 +81,8 @@ Swagger UI 是 Springdoc 应用特性，不属于路由合同本身。匹配的 
 
 默认路由从 resource name 开始。Wow 不会在本地路径前自动添加限界上下文 alias。客户端代码不应根据命名约定拼接路径，应检查生成 OpenAPI。
 
+路由声明了 `{tenantId}`、`{ownerId}` 或 `{id}` 时，取值只来自路径段：该路由不读取 `Command-Tenant-Id`、`Command-Owner-Id`、`Command-Aggregate-Id` 请求头；路径段解码后为空白（如 `%20`）时返回 `400`，错误码 `IllegalArgument`，不会退回请求头，也不会当作默认租户。未声明该变量的路由仍读取请求头（静态租户始终生效）。
+
 ### 租户资源
 
 动态 tenant 聚合的默认命令/状态路由会添加 `tenant/{tenantId}` 前缀；快照查询贡献者还会保留基础路由并增加 tenant 作用域变体。tenant 路径数据会传入运行时 Handler 与查询重写，但应用仍需把它绑定到已认证 Principal，并显式保护无作用域查询路由。

@@ -16,8 +16,10 @@ package me.ahoo.wow.webflux.route.command
 import io.mockk.every
 import io.mockk.mockk
 import me.ahoo.test.asserts.assert
+import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.annotation.AggregateRoute
 import me.ahoo.wow.api.command.CommandMessage
+import me.ahoo.wow.api.modeling.TenantId
 import me.ahoo.wow.command.wait.ChainWaitTarget
 import me.ahoo.wow.command.wait.CommandStage
 import me.ahoo.wow.command.wait.StageWaitTarget
@@ -25,7 +27,10 @@ import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.openapi.CommonComponent
 import me.ahoo.wow.openapi.aggregate.command.CommandComponent
 import me.ahoo.wow.serialization.MessageRecords
+import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.ValueSource
 import org.springframework.mock.web.reactive.function.server.MockServerRequest
 import java.time.Duration
 
@@ -268,5 +273,59 @@ class AggregateRequestTest {
         target.function.contextName.assert().isEqualTo(commandMessage.contextName)
         target.tail.stage.assert().isEqualTo(CommandStage.PROJECTED)
         target.tail.function.contextName.assert().isEqualTo(commandMessage.contextName)
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = ["", " ", "\t"])
+    fun `a declared but blank path variable is rejected instead of falling back to the header`(blank: String) {
+        val request = MockServerRequest.builder()
+            .pathVariable(MessageRecords.TENANT_ID, blank)
+            .pathVariable(MessageRecords.OWNER_ID, blank)
+            .pathVariable(MessageRecords.ID, blank)
+            .header(CommandComponent.Header.TENANT_ID, "victim")
+            .header(CommandComponent.Header.OWNER_ID, "victim")
+            .header(CommandComponent.Header.AGGREGATE_ID, "victim")
+            .build()
+
+        assertThrownBy<IllegalArgumentException> { request.getTenantId(MOCK_AGGREGATE_METADATA) }
+            .hasMessage("Path variable [tenantId] must not be blank.")
+        assertThrownBy<IllegalArgumentException> { request.getTenantIdOrDefault(MOCK_AGGREGATE_METADATA) }
+        assertThrownBy<IllegalArgumentException> { request.getOwnerId() }
+            .hasMessage("Path variable [ownerId] must not be blank.")
+        assertThrownBy<IllegalArgumentException> { request.getAggregateId() }
+            .hasMessage("Path variable [id] must not be blank.")
+        assertThrownBy<IllegalArgumentException> { request.getAggregateId(AggregateRoute.Owner.AGGREGATE_ID) }
+        assertThrownBy<IllegalArgumentException> { request.getAggregateId(AggregateRoute.Owner.NEVER, null) }
+    }
+
+    @Test
+    fun `a declared path variable wins over the header`() {
+        val request = MockServerRequest.builder()
+            .pathVariable(MessageRecords.TENANT_ID, "tenant-a")
+            .pathVariable(MessageRecords.OWNER_ID, "owner-a")
+            .pathVariable(MessageRecords.ID, "id-a")
+            .header(CommandComponent.Header.TENANT_ID, "victim")
+            .header(CommandComponent.Header.OWNER_ID, "victim")
+            .header(CommandComponent.Header.AGGREGATE_ID, "victim")
+            .build()
+
+        request.getTenantId(MOCK_AGGREGATE_METADATA).assert().isEqualTo("tenant-a")
+        request.getOwnerId().assert().isEqualTo("owner-a")
+        request.getAggregateId().assert().isEqualTo("id-a")
+    }
+
+    @Test
+    fun `a route without the variable reads the header`() {
+        val request = MockServerRequest.builder()
+            .header(CommandComponent.Header.TENANT_ID, "tenant-h")
+            .header(CommandComponent.Header.OWNER_ID, "owner-h")
+            .header(CommandComponent.Header.AGGREGATE_ID, "id-h")
+            .build()
+
+        request.getTenantId(MOCK_AGGREGATE_METADATA).assert().isEqualTo("tenant-h")
+        request.getOwnerId().assert().isEqualTo("owner-h")
+        request.getAggregateId().assert().isEqualTo("id-h")
+        MockServerRequest.builder().build().getTenantIdOrDefault(MOCK_AGGREGATE_METADATA)
+            .assert().isEqualTo(TenantId.DEFAULT_TENANT_ID)
     }
 }

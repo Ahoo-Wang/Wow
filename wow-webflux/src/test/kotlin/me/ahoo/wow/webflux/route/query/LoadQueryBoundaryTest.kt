@@ -179,8 +179,11 @@ class LoadQueryBoundaryTest {
                 QueryRequestScope { _, _ -> QueryScope(declared = SpaceIdFilter("trusted-space")) },
                 WebFluxRequestExceptionHandler(),
             )
+            // "" stands for a route without `{tenantId}`: a declared tenant segment is never blank.
             val request = MockServerRequest.builder().pathVariable("id", "specific-record")
-                .pathVariable("ownerId", "trusted-owner").pathVariable("tenantId", tenant).build()
+                .pathVariable("ownerId", "trusted-owner")
+                .apply { if (tenant.isNotEmpty()) pathVariable("tenantId", tenant) }
+                .build()
             val exchange = exchange()
             write(handler, request, exchange).block()
             exchange.response.statusCode.assert().isEqualTo(HttpStatus.NOT_FOUND)
