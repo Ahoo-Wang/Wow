@@ -50,6 +50,19 @@ Two kinds of test guard the module boundaries and the decorators. Both run in th
 - `DependencyRulesTest` (`:wow-core:test`) scans production sources. `wow-core` and `wow-query` reference no HTTP, Spring or storage-driver types. No backend module (`wow-mongo`, `wow-redis`, `wow-kafka`, `wow-elasticsearch`) references another backend or its driver. Outside their `query` packages, `wow-mongo` and `wow-elasticsearch` reference no query packages. `me.ahoo.wow.api.query` protocol types are allowed. The `test` task declares the scanned source trees as inputs, so a change in any of those modules re-runs it.
 - `MetricDecoratorContractTest` (`:wow-core:test`) and `TracingDecoratorContractTest` (`:wow-opentelemetry:test`) require every `Metric*` and `Tracing*` decorator to override each SPI member that has a default body. Otherwise a call falls back to the interface default and skips the delegate, for example `EventStore.existsRequestId`, which loads the whole stream. `ElasticsearchEventStoreContractTest` applies the same rule to `existsRequestId` on the Elasticsearch event store. Each test keeps a `KNOWN_GAPS` list of today's gaps. A new gap fails the test, and so does a fixed gap that is still listed, so the list can only shrink.
 
+## Wire-Format Golden Samples
+
+The v9 wire is frozen: during a rolling upgrade, 9.2.x and later 9.x nodes share topics, streams, stores and the command wait endpoint, so each must read what the other writes. Golden tests lock those bytes. Each one serializes a fixed sample (`me.ahoo.wow.tck.wire.WireSamples`) through the production code and compares the result byte for byte with a committed file under the module's `src/test/resources/wire/v9/`, then decodes the committed file through the production reader.
+
+| Module | Test | What it freezes |
+| --- | --- | --- |
+| `wow-core` | `WireFormatGoldenTest` | Command message JSON (stage and chain wait headers), domain event stream JSON, state event JSON |
+| `wow-kafka` | `KafkaWireFormatGoldenTest` | Kafka record topic, partition, timestamp, key, record headers and value for the command, event and state buses |
+| `wow-redis` | `RedisWireFormatGoldenTest` | Redis stream key and entry fields for the command, event and state buses |
+| `wow-spring-boot-starter` | `WaitSignalWireFormatGoldenTest` | The `WaitSignal` body posted to a remote command wait endpoint |
+
+The samples carry the headers the runtime stamps: `command_operator`, `user_agent`, `remote_ip`, `local_first`, `trace_id`, `upstream_*` and the `command_wait_*` keys from a real wait plan. The goldens were generated from 9.2.2. A failing golden test means the wire changed; do not re-generate the file to make it pass. Changing a golden needs a design decision that covers mixed-version clusters; once that is decided, rerun the test with `WOW_GOLDEN_UPDATE=true` and review the diff.
+
 ## Container-Backed Integration Tests
 
 Run all registered integration tasks with:

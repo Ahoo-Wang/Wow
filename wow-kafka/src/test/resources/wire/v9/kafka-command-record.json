@@ -1,0 +1,8 @@
+{
+  "topic" : "wow.tck.mock_aggregate.command",
+  "partition" : null,
+  "timestamp" : 1759536000000,
+  "key" : "0V7tYbLz0001003",
+  "headers" : { },
+  "value" : "{\"id\":\"0V7tYbLz0001001\",\"contextName\":\"wow-tck\",\"aggregateName\":\"mock_aggregate\",\"name\":\"mock_create_aggregate\",\"header\":{\"user_agent\":\"wire-agent/1.0\",\"remote_ip\":\"10.0.0.7\",\"local_first\":\"false\",\"command_operator\":\"operator-wire\",\"trace_id\":\"0V7tYbLz0001001\",\"command_wait_id\":\"0V7tYbLz0001004\",\"command_wait_endpoint\":\"http://10.0.0.8:8080/wow/command/wait\",\"command_wait_stage\":\"PROJECTED\",\"command_wait_context\":\"wire-context\",\"command_wait_processor\":\"WireProjector\",\"command_wait_function\":\"onEvent\"},\"tenantId\":\"tenant-wire\",\"aggregateId\":\"0V7tYbLz0001003\",\"ownerId\":\"owner-wire\",\"spaceId\":\"\",\"requestId\":\"0V7tYbLz0001002\",\"aggregateVersion\":0,\"isCreate\":true,\"isVoid\":false,\"allowCreate\":false,\"bodyType\":\"me.ahoo.wow.tck.mock.MockCreateAggregate\",\"body\":{\"id\":\"0V7tYbLz0001003\",\"data\":\"wire\"},\"createTime\":1759536000000}"
+}

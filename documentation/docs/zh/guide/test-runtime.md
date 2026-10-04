@@ -50,6 +50,19 @@ outline: deep
 - `DependencyRulesTest`（`:wow-core:test`）扫描生产源码。`wow-core` 与 `wow-query` 不引用 HTTP、Spring 或存储驱动类型。后端模块（`wow-mongo`、`wow-redis`、`wow-kafka`、`wow-elasticsearch`）互不引用，也不引用其他后端的驱动。`wow-mongo` 与 `wow-elasticsearch` 在 `query` 包之外不引用查询包；`me.ahoo.wow.api.query` 中的协议类型允许使用。`test` 任务把被扫描的源码目录声明为输入，任一模块变化都会重新运行它。
 - `MetricDecoratorContractTest`（`:wow-core:test`）与 `TracingDecoratorContractTest`（`:wow-opentelemetry:test`）要求每个 `Metric*`、`Tracing*` 装饰器覆盖 SPI 中所有带默认实现的成员。否则调用会落到接口默认实现，绕过被装饰对象，例如会加载整个事件流的 `EventStore.existsRequestId`。`ElasticsearchEventStoreContractTest` 对 Elasticsearch 事件存储的 `existsRequestId` 做同样检查。每个测试都有一份 `KNOWN_GAPS` 清单，记录当前已知缺口。新增缺口会失败，已修复但仍留在清单里的缺口也会失败，所以清单只能缩短。
 
+## 线上格式黄金样本
+
+v9 的线上格式已冻结：滚动升级期间，9.2.x 节点和更新的 9.x 节点共用主题、流、存储和命令等待端点，双方都必须能读懂对方写出的内容。黄金样本测试锁住这些字节：每个测试把固定样本（`me.ahoo.wow.tck.wire.WireSamples`）交给生产代码序列化，与模块 `src/test/resources/wire/v9/` 下提交的文件逐字节比较，再用生产代码的读取路径反序列化这个文件。
+
+| 模块 | 测试 | 锁住的内容 |
+| --- | --- | --- |
+| `wow-core` | `WireFormatGoldenTest` | 命令消息 JSON（阶段等待和链式等待的消息头）、领域事件流 JSON、状态事件 JSON |
+| `wow-kafka` | `KafkaWireFormatGoldenTest` | 命令、事件、状态事件总线的 Kafka 记录：主题、分区、时间戳、键、记录头和值 |
+| `wow-redis` | `RedisWireFormatGoldenTest` | 命令、事件、状态事件总线的 Redis 流键和条目字段 |
+| `wow-spring-boot-starter` | `WaitSignalWireFormatGoldenTest` | 发往远端命令等待端点的 `WaitSignal` 请求体 |
+
+样本带有运行时实际写入的消息头：`command_operator`、`user_agent`、`remote_ip`、`local_first`、`trace_id`、`upstream_*`，以及由真实等待计划写入的 `command_wait_*`。这些样本由 9.2.2 生成。黄金样本测试失败说明线上格式变了，不要为了让它通过而重新生成文件。修改黄金样本需要先有覆盖混部集群的设计决定；决定之后，用 `WOW_GOLDEN_UPDATE=true` 重新运行测试并审阅差异。
+
 ## 容器型集成测试
 
 运行全部已注册集成任务：

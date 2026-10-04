@@ -833,3 +833,42 @@ public final class me/ahoo/wow/tck/query/UnnecessaryAbstractClassGuardrail {
 	public final fun violations ()Ljava/util/Set;
 }
 
+public final class me/ahoo/wow/tck/wire/WireGolden {
+	public static final field INSTANCE Lme/ahoo/wow/tck/wire/WireGolden;
+	public static final field UPDATE_ENV Ljava/lang/String;
+	public final fun assertMatches (Ljava/lang/String;Ljava/lang/String;)V
+	public final fun path (Ljava/lang/String;)Ljava/nio/file/Path;
+	public final fun read (Ljava/lang/String;)Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/tck/wire/WireSamples {
+	public static final field AGGREGATE_ID Ljava/lang/String;
+	public static final field CHANGED_EVENT_ID Ljava/lang/String;
+	public static final field COMMAND_CREATE_TIME J
+	public static final field COMMAND_ID Ljava/lang/String;
+	public static final field COMMAND_WAIT_ENDPOINT Ljava/lang/String;
+	public static final field CREATED_EVENT_ID Ljava/lang/String;
+	public static final field EVENT_CREATE_TIME J
+	public static final field EVENT_STREAM_ID Ljava/lang/String;
+	public static final field INSTANCE Lme/ahoo/wow/tck/wire/WireSamples;
+	public static final field OPERATOR Ljava/lang/String;
+	public static final field OWNER_ID Ljava/lang/String;
+	public static final field REMOTE_IP Ljava/lang/String;
+	public static final field REQUEST_ID Ljava/lang/String;
+	public static final field SAGA_COMMAND_ID Ljava/lang/String;
+	public static final field SIGNAL_TIME J
+	public static final field SPACE_ID Ljava/lang/String;
+	public static final field TENANT_ID Ljava/lang/String;
+	public static final field USER_AGENT Ljava/lang/String;
+	public static final field WAIT_COMMAND_ID Ljava/lang/String;
+	public static final field WAIT_SIGNAL_ID Ljava/lang/String;
+	public final fun chainWaitCommandMessage ()Lme/ahoo/wow/api/command/CommandMessage;
+	public final fun commandMessage ()Lme/ahoo/wow/api/command/CommandMessage;
+	public final fun domainEventStream ()Lme/ahoo/wow/event/DomainEventStream;
+	public final fun failedWaitSignal ()Lme/ahoo/wow/command/wait/WaitSignal;
+	public final fun getChainWaitPlan ()Lme/ahoo/wow/command/wait/WaitPlan;
+	public final fun getStageWaitPlan ()Lme/ahoo/wow/command/wait/WaitPlan;
+	public final fun processedWaitSignal ()Lme/ahoo/wow/command/wait/WaitSignal;
+	public final fun stateEvent ()Lme/ahoo/wow/eventsourcing/state/StateEvent;
+}
+
