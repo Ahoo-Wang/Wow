@@ -98,6 +98,10 @@ curl -X POST http://order-service:8080/wow/command/send \
 
 门面只接受在本服务有聚合命令路由的命令：注册在本服务元数据中某个聚合上的命令（或该聚合未覆盖的默认删除、恢复、设置资源标签命令），且其 `@AggregateRoute` 与 `@CommandRoute` 均启用。其他 `Command-Type` 返回 `404`，错误码 `NotFound`，与禁用的路由一致；类型名只与已注册的类比对，不会按名字加载类。
 
+### 扩展请求头
+
+聚合命令路由与门面都会把每个 `Command-Header-<key>` 请求头抄进命令消息头，键为 `<key>`；前缀不区分大小写（HTTP/2 的头名是小写）。键为框架保留键时返回 `400`，错误码 `IllegalArgument`，一个也不抄：`command_operator`、`local_first`、`trace_id`、`upstream_id`、`upstream_name`、`user_agent`、`remote_ip`、`traceparent`、`tracestate`、`baggage`、CoSec 的 `app_id` 与 `device_id`，以及以 `command_wait_` 或 `compensate.` 开头的键（比较时不区分大小写）。请改用文档化的请求头（`Command-Wait-*`、`Command-Local-First`）。操作人始终是已认证的主体，在所有请求头 appender 之后确定。
+
 ## JSON 与 SSE 响应
 
 聚合命令路由同时支持两种响应：

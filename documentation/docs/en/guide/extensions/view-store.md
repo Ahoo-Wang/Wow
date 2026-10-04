@@ -244,7 +244,7 @@ GET    /view-store/tenant/(platform)/owner/(system)/view/requests/{requestId}   
 
 The server does not authenticate; **identity is the path**. The path's `{ownerId}` is the user (or `(shared)`), and the tenant and the application are the path's `{tenantId}` and the `CoSec-App-Id` header. The server has no setting for who may write: every admission is a path rule of the CoSec gateway ([CoSec](./cosec.md)). What the server guarantees is that the path is the one it reads:
 
-- The application comes from `CoSec-App-Id` only; every `Command-Header-*` a caller sends to a view store path is dropped (Wow would copy it into the command's header as it is, `command_operator` included), and so are `Command-Tenant-Id` and `Command-Owner-Id`.
+- The application comes from `CoSec-App-Id` only; every `Command-Header-*` a caller sends to a view store path is dropped (Wow rejects the keys it reserves, `command_operator` and `app_id` among them, and would copy any other key into the command's header), and so are `Command-Tenant-Id` and `Command-Owner-Id`.
 - A path whose decoded tenant or owner is empty, or holds a character that shows as nothing or a blank (whitespace, control and format characters such as U+200B, surrogates, private-use and unassigned code points, and invisible characters of other categories), answers 400 `ViewScopeRequired` before Wow sees it: Wow itself rejects a blank declared path value (400 `IllegalArgument`) but not an invisible character, which makes an owner that reads as another. A claimed owner follows the same rule.
 
 ### Gateway rules
