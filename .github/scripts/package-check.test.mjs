@@ -241,6 +241,23 @@ test('the release workflow smoke-tests npm after npm-deploy, with pinned actions
     assert.match(action, /@[0-9a-f]{40}$/, `${action} is not pinned to a SHA`);
 });
 
+test('npm-deploy publishes only after both Maven publications succeed', () => {
+  const workflow = readFileSync(
+    join(ROOT, '.github/workflows/package-deploy.yml'),
+    'utf8',
+  );
+  const job = /^ {2}npm-deploy:\n(?:(?: {4}.*)?\n)+/m.exec(workflow)?.[0];
+  assert.ok(job, 'package-deploy.yml has no npm-deploy job');
+  // No reviewer gates the npm-publish environment: this ordering is what
+  // keeps a release from reaching npm without its JVM artifacts.
+  assert.match(
+    job,
+    /^ {4}needs: \[preflight, github-deploy, central-deploy\]$/m,
+  );
+  // npm's trusted publisher is bound to this environment.
+  assert.match(job, /^ {4}environment: npm-publish$/m);
+});
+
 const responses = 'node_modules/@ahoo-wang/fetcher-eventstream/dist/responses';
 const duplicate = (extension, identifier) =>
   `${responses}${extension}(13,13): error TS2300: Duplicate identifier '${identifier}'.`;
