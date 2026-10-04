@@ -52,7 +52,7 @@ class AggregatePolicyMetadataTest {
             object BoundedContextMarker
         """
 
-        private fun aggregate(annotations: String): String = """
+        private fun aggregate(annotations: String, base: String = ""): String = """
             @file:Suppress("DEPRECATION")
             package policy
 
@@ -66,9 +66,11 @@ class AggregatePolicyMetadataTest {
             class AddItem(val id: String)
             class ItemAdded(val id: String)
 
+            $base
+
             @AggregateRoot
             $annotations
-            class Cart(val id: String) {
+            class Cart(val id: String)${if (base.isEmpty()) "" else " : Base()"} {
                 fun onCommand(command: AddItem): ItemAdded = ItemAdded(command.id)
                 fun onSourcing(event: ItemAdded) = Unit
             }
@@ -96,21 +98,25 @@ class AggregatePolicyMetadataTest {
             Arguments.of("@Spaced(false) @AggregateRoute(spaced = true)", "declares spaced twice"),
             Arguments.of(
                 "@AggregateOwner(OwnerPolicy.ALWAYS) @AggregateRoute(owner = AggregateRoute.Owner.AGGREGATE_ID)",
-                "declares its owner twice"
+                "declares owner twice"
             ),
             Arguments.of(
                 "@AggregateOwner(OwnerPolicy.NEVER) @AggregateRoute(owner = AggregateRoute.Owner.ALWAYS)",
-                "declares its owner twice"
+                "declares owner twice"
             ),
         )
     }
 
-    private fun compile(contextTenantId: String, annotations: String): Pair<KotlinCompilation, JvmCompilationResult> {
+    private fun compile(
+        contextTenantId: String,
+        annotations: String,
+        base: String = ""
+    ): Pair<KotlinCompilation, JvmCompilationResult> {
         val compilation = KotlinCompilation().apply {
             inheritClassPath = true
             sources = listOf(
                 SourceFile.kotlin("BoundedContextMarker.kt", CONTEXT.format(contextTenantId)),
-                SourceFile.kotlin("Cart.kt", aggregate(annotations)),
+                SourceFile.kotlin("Cart.kt", aggregate(annotations, base)),
             )
             configureKsp {
                 symbolProcessorProviders += MetadataSymbolProcessorProvider()
@@ -150,6 +156,27 @@ class AggregatePolicyMetadataTest {
         val (_, result) = compile("", annotations)
         result.exitCode.assert().isEqualTo(KotlinCompilation.ExitCode.COMPILATION_ERROR)
         result.messages.assert().contains(message, "policy.Cart")
+    }
+
+    @Test
+    fun `the aggregate's own declaration overrides a deprecated one on its supertype`() {
+        val (compilation, result) = compile(
+            "",
+            "@Spaced(false) @AggregateOwner(OwnerPolicy.NEVER)",
+            "@AggregateRoute(spaced = true, owner = AggregateRoute.Owner.ALWAYS) abstract class Base"
+        )
+        result.exitCode.assert().withFailMessage { result.messages }.isEqualTo(KotlinCompilation.ExitCode.OK)
+        val cart = compilation.cartNode()
+        cart.has("spaced").assert().isFalse()
+        cart.has("owner").assert().isFalse()
+
+        val (inherited, inheritedResult) = compile(
+            "",
+            "",
+            "@AggregateRoute(spaced = true, owner = AggregateRoute.Owner.ALWAYS) abstract class Base"
+        )
+        inheritedResult.exitCode.assert().isEqualTo(KotlinCompilation.ExitCode.OK)
+        inherited.cartNode().path("owner").stringValue().assert().isEqualTo("ALWAYS")
     }
 
     @Test

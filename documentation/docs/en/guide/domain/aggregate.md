@@ -62,12 +62,16 @@ class Order(private val state: OrderState)
 
 Each policy is resolved in one place, `AggregateMetadata` (`spaced`, `owner`, `staticTenantId`): the aggregate-level declaration first, then the place 9.2 read it, then the default. The deprecated `@AggregateRoute(spaced = …, owner = …)` and its `AggregateRoute.Owner` enum are still read when the new annotation is absent, and count as declared only when they differ from their default (`spaced = true`, `owner` other than `NEVER`), so an aggregate that is not touched keeps its 9.2 behaviour.
 
-Two declarations of one policy that disagree are an error instead of one silently winning:
+In a hierarchy the nearest class that declares a policy decides, so `@Spaced(false)` or `@AggregateOwner(OwnerPolicy.NEVER)` on an aggregate overrides `@AggregateRoute(spaced = true, owner = …)` on its supertype. Two declarations of one policy that disagree are an error instead of one silently winning:
 
-- `@Spaced(false)` with `@AggregateRoute(spaced = true)`, or `@AggregateOwner` with a different `@AggregateRoute(owner = …)`;
-- `@StaticTenantId` with a different `tenantId` for the same aggregate in `@BoundedContext.Aggregate` or in a hand-written `META-INF/wow-metadata.json`. Before 9.3.0 these disagreed silently: the runtime used `@StaticTenantId`, while the generated metadata kept the bounded context's value.
+- `@Spaced(false)` with `@AggregateRoute(spaced = true)` on the same class, or `@AggregateOwner` with a different `@AggregateRoute(owner = …)` on the same class;
+- `@StaticTenantId` with a different `tenantId` for the same aggregate in `@BoundedContext.Aggregate` or in a hand-written `META-INF/wow-metadata.json`. Before 9.3.0 these disagreed silently: the runtime used `@StaticTenantId`, while the generated metadata kept the bounded context's value;
+- two `META-INF/wow-metadata.json` resources on the classpath that give the same aggregate a different `tenantId` (or `type`, or a bounded context a different alias). Before 9.3.0 the second resource was logged and dropped, so the result depended on classpath order; a resource that cannot be parsed is still logged and skipped.
 
-The application fails at startup, when the aggregate's metadata is parsed, and the Wow KSP processor fails the compilation with the aggregate named in the error. The processor also records a non-default policy in the generated `META-INF/wow-metadata.json` (`"spaced": true`, `"owner": "ALWAYS"`); 9.2 nodes ignore these fields and `GET /wow/metadata` does not return them.
+The application fails at startup, naming the aggregate (and, for two resources, both resource URLs), and the Wow KSP processor fails the compilation with the aggregate named in the error. Two cases that booted on 9.2 stop:
+
+- an api module whose `@BoundedContext.Aggregate(tenantId = "a")` and a domain module whose aggregate carries `@StaticTenantId("b")`: the startup fails;
+- a bare `@StaticTenantId` (the default tenant) on an aggregate whose bounded context in the same module names another tenant: the compilation fails. The processor also records a non-default policy in the generated `META-INF/wow-metadata.json` (`"spaced": true`, `"owner": "ALWAYS"`); 9.2 nodes ignore these fields and `GET /wow/metadata` does not return them.
 
 ### Migrating from `@AggregateRoute(spaced, owner)`
 

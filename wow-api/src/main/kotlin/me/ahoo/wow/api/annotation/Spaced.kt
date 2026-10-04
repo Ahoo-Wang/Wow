@@ -25,9 +25,11 @@ import java.lang.annotation.Inherited
  * checks nor records a command's space.
  *
  * The annotation's presence is the declaration: `@Spaced` declares a spaced aggregate, `@Spaced(false)` declares one
- * that is not (for example to override a spaced supertype). Without it, the deprecated `@AggregateRoute(spaced = …)`
- * still applies, and an aggregate that declares neither is not spaced. Declaring both with different values fails at
- * startup and, under the Wow KSP processor, at compile time.
+ * that is not. Without it anywhere in the aggregate's hierarchy, the deprecated `@AggregateRoute(spaced = …)` still
+ * applies, and an aggregate that declares neither is not spaced. With it, the nearest class that declares the policy
+ * in either form decides, so `@Spaced(false)` on an aggregate overrides `@Spaced` or `@AggregateRoute(spaced = true)`
+ * on its supertype. Both forms on the same class with different values fail at startup and, under the Wow KSP
+ * processor, at compile time.
  *
  * ```kotlin
  * @AggregateRoot

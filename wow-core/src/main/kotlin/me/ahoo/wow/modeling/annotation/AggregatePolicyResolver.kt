@@ -37,33 +37,98 @@ internal object AggregatePolicyResolver {
      * `@Spaced` → `@AggregateRoute(spaced = true)` → not spaced.
      */
     @Suppress("DEPRECATION")
-    fun KClass<*>.resolveSpaced(): Boolean {
-        val declared = scanAnnotation<Spaced>()?.value
+    fun KClass<*>.resolveSpaced(): Boolean = resolvePolicy(
+        policy = "spaced",
+        declaredAt = { it.getDeclaredAnnotation(Spaced::class.java)?.value },
         // compat(wow<9.3): the deprecated AggregateRoute.spaced, read when @Spaced is absent.
-        val legacy = scanAnnotation<AggregateRoute>()?.spaced?.takeIf { it }
-        check(declared == null || legacy == null || declared == legacy) {
-            "Aggregate[$qualifiedName] declares spaced twice with different values: @Spaced($declared) and " +
-                "@AggregateRoute(spaced = $legacy). Keep @Spaced and remove the deprecated AggregateRoute.spaced."
-        }
-        return declared ?: legacy ?: false
-    }
+        legacyAt = { it.getDeclaredAnnotation(AggregateRoute::class.java)?.spaced?.takeIf { spaced -> spaced } },
+        declared = { scanAnnotation<Spaced>()?.value },
+        legacy = { scanAnnotation<AggregateRoute>()?.spaced?.takeIf { it } },
+        describe = { declared, legacy -> "@Spaced($declared) and @AggregateRoute(spaced = $legacy)" },
+        default = false
+    )
 
     /**
      * `@AggregateOwner` → `@AggregateRoute(owner != NEVER)` → [OwnerPolicy.NEVER].
      */
     @Suppress("DEPRECATION")
-    fun KClass<*>.resolveOwnerPolicy(): OwnerPolicy {
-        val declared = scanAnnotation<AggregateOwner>()?.value
+    fun KClass<*>.resolveOwnerPolicy(): OwnerPolicy = resolvePolicy(
+        policy = "owner",
+        declaredAt = { it.getDeclaredAnnotation(AggregateOwner::class.java)?.value },
         // compat(wow<9.3): the deprecated AggregateRoute.owner, read when @AggregateOwner is absent.
-        val legacy = scanAnnotation<AggregateRoute>()?.owner
-            ?.takeIf { it != AggregateRoute.Owner.NEVER }
-            ?.let { OwnerPolicy.valueOf(it.name) }
-        check(declared == null || legacy == null || declared == legacy) {
-            "Aggregate[$qualifiedName] declares its owner twice with different policies: " +
-                "@AggregateOwner(OwnerPolicy.$declared) and @AggregateRoute(owner = Owner.$legacy). " +
-                "Keep @AggregateOwner and remove the deprecated AggregateRoute.owner."
+        legacyAt = { it.getDeclaredAnnotation(AggregateRoute::class.java)?.owner.toOwnerPolicy() },
+        declared = { scanAnnotation<AggregateOwner>()?.value },
+        legacy = { scanAnnotation<AggregateRoute>()?.owner.toOwnerPolicy() },
+        describe = { declared, legacy ->
+            "@AggregateOwner(OwnerPolicy.$declared) and @AggregateRoute(owner = Owner.$legacy)"
+        },
+        default = OwnerPolicy.NEVER
+    )
+
+    @Suppress("DEPRECATION")
+    private fun AggregateRoute.Owner?.toOwnerPolicy(): OwnerPolicy? =
+        this?.takeIf { it != AggregateRoute.Owner.NEVER }?.let { OwnerPolicy.valueOf(it.name) }
+
+    /**
+     * Without the new annotation anywhere in the hierarchy, 9.2's reading: the first `@AggregateRoute` found.
+     *
+     * With it, the nearest class (the aggregate, then its supertypes) that declares the policy in either form decides,
+     * so `@Spaced(false)` on an aggregate overrides `@AggregateRoute(spaced = true)` on its supertype. Only the two
+     * forms on the same class disagreeing is a conflict.
+     */
+    @Suppress("LongParameterList")
+    private fun <T : Any> KClass<*>.resolvePolicy(
+        policy: String,
+        declaredAt: (Class<*>) -> T?,
+        legacyAt: (Class<*>) -> T?,
+        declared: () -> T?,
+        legacy: () -> T?,
+        describe: (T?, T?) -> String,
+        default: T
+    ): T {
+        val anyDeclared = declared()
+        if (anyDeclared != null) {
+            java.hierarchy().forEach { level ->
+                val declaredHere = declaredAt(level)
+                val legacyHere = legacyAt(level)
+                if (declaredHere != null || legacyHere != null) {
+                    checkAgree(level.name, policy, declaredHere, legacyHere, describe)
+                    return declaredHere ?: legacyHere!!
+                }
+            }
         }
-        return declared ?: legacy ?: OwnerPolicy.NEVER
+        // Not declared with the new annotation, or only through a meta-annotation.
+        val legacyValue = legacy()
+        checkAgree(qualifiedName, policy, anyDeclared, legacyValue, describe)
+        return anyDeclared ?: legacyValue ?: default
+    }
+
+    private fun <T : Any> checkAgree(
+        type: String?,
+        policy: String,
+        declared: T?,
+        legacy: T?,
+        describe: (T?, T?) -> String
+    ) {
+        check(declared == null || legacy == null || declared == legacy) {
+            "Aggregate[$type] declares $policy twice with different values: ${describe(declared, legacy)}. " +
+                "Keep the aggregate-level annotation and remove the deprecated AggregateRoute.$policy."
+        }
+    }
+
+    /**
+     * The class, then its superclasses and interfaces, nearest first.
+     */
+    private fun Class<*>.hierarchy(): Sequence<Class<*>> = sequence {
+        val visited = mutableSetOf<Class<*>>()
+        val queue = ArrayDeque(listOf(this@hierarchy))
+        while (queue.isNotEmpty()) {
+            val type = queue.removeFirst()
+            if (!visited.add(type)) continue
+            yield(type)
+            type.superclass?.takeIf { it != Any::class.java }?.let { queue.addLast(it) }
+            queue.addAll(type.interfaces)
+        }
     }
 
     /**

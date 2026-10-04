@@ -62,12 +62,16 @@ class Order(private val state: OrderState)
 
 每项策略只在一处解析，即 `AggregateMetadata`（`spaced`、`owner`、`staticTenantId`）：先读聚合级声明，再读 9.2 读取的位置，最后取默认值。已弃用的 `@AggregateRoute(spaced = …, owner = …)` 及其 `AggregateRoute.Owner` 枚举在新注解缺席时仍被读取，并且只有取值不同于默认值（`spaced = true`、`owner` 不是 `NEVER`）时才算声明，所以没有改动的聚合保持 9.2 的行为。
 
-同一项策略的两处声明不一致时报错，而不是由其中一处悄悄生效：
+继承层次中由最近一个声明了该策略的类决定，所以聚合上的 `@Spaced(false)` 或 `@AggregateOwner(OwnerPolicy.NEVER)` 会覆盖父类型上的 `@AggregateRoute(spaced = true, owner = …)`。同一项策略的两处声明不一致时报错，而不是由其中一处悄悄生效：
 
-- `@Spaced(false)` 与 `@AggregateRoute(spaced = true)` 并存，或 `@AggregateOwner` 与取值不同的 `@AggregateRoute(owner = …)` 并存；
-- `@StaticTenantId` 与同一聚合在 `@BoundedContext.Aggregate` 或手写的 `META-INF/wow-metadata.json` 中的 `tenantId` 不同。9.3.0 之前两者会悄悄不一致：运行时用 `@StaticTenantId`，生成的元数据却保留限界上下文里的值。
+- 同一个类上 `@Spaced(false)` 与 `@AggregateRoute(spaced = true)` 并存，或 `@AggregateOwner` 与取值不同的 `@AggregateRoute(owner = …)` 并存；
+- `@StaticTenantId` 与同一聚合在 `@BoundedContext.Aggregate` 或手写的 `META-INF/wow-metadata.json` 中的 `tenantId` 不同。9.3.0 之前两者会悄悄不一致：运行时用 `@StaticTenantId`，生成的元数据却保留限界上下文里的值；
+- classpath 上两份 `META-INF/wow-metadata.json` 给同一聚合不同的 `tenantId`（或 `type`，或给同一限界上下文不同的别名）。9.3.0 之前第二份资源只记一条错误日志就被丢弃，结果取决于 classpath 顺序；无法解析的资源仍然记日志并跳过。
 
-应用在解析聚合元数据时启动失败；Wow KSP 处理器让编译失败，错误信息里写明聚合。处理器还会把非默认的策略记录到生成的 `META-INF/wow-metadata.json`（`"spaced": true`、`"owner": "ALWAYS"`）；9.2 节点忽略这些字段，`GET /wow/metadata` 也不返回它们。
+应用启动失败，错误信息写明聚合（两份资源冲突时还写明两个资源的 URL）；Wow KSP 处理器让编译失败，错误信息里写明聚合。下面两种在 9.2 能启动的情形不再可行：
+
+- api 模块里 `@BoundedContext.Aggregate(tenantId = "a")`，domain 模块里聚合带 `@StaticTenantId("b")`：启动失败；
+- 聚合只写了 `@StaticTenantId`（默认租户），而同一模块的限界上下文声明了另一个租户：编译失败。处理器还会把非默认的策略记录到生成的 `META-INF/wow-metadata.json`（`"spaced": true`、`"owner": "ALWAYS"`）；9.2 节点忽略这些字段，`GET /wow/metadata` 也不返回它们。
 
 ### 从 `@AggregateRoute(spaced, owner)` 迁移
 

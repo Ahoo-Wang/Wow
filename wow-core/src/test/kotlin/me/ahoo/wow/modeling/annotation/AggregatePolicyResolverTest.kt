@@ -83,6 +83,22 @@ class AggregatePolicyResolverTest {
     }
 
     @Test
+    fun `the aggregate's own declaration overrides a deprecated one on its supertype`() {
+        OverridingPolicyAggregate::class.resolveSpaced().assert().isFalse()
+        OverridingPolicyAggregate::class.resolveOwnerPolicy().assert().isEqualTo(OwnerPolicy.NEVER)
+        // Only spaced is redeclared; the owner still comes from the supertype's @AggregateRoute.
+        SpacedOverLegacyOwnerAggregate::class.resolveSpaced().assert().isTrue()
+        SpacedOverLegacyOwnerAggregate::class.resolveOwnerPolicy().assert().isEqualTo(OwnerPolicy.ALWAYS)
+    }
+
+    @Test
+    fun `two forms on one supertype that disagree still fail`() {
+        assertThrows<IllegalStateException> {
+            InheritsConflictAggregate::class.resolveSpaced()
+        }.message.assert().contains("ConflictingPolicyBase")
+    }
+
+    @Test
     fun `static tenant is read from the annotation, then from the metadata resource`() {
         NoPolicyAggregate::class.resolveStaticTenantId(null).assert().isNull()
         NoPolicyAggregate::class.resolveStaticTenantId("tenant-b").assert().isEqualTo("tenant-b")

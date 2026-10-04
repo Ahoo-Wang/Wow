@@ -18,6 +18,7 @@ import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.modeling.materialize
 import me.ahoo.wow.serialization.JsonSerializer
+import java.net.URL
 
 /**
  * The resource name for Wow metadata JSON files.
@@ -38,26 +39,47 @@ object MetadataSearcher {
      * Merges metadata from multiple sources found at WOW_METADATA_RESOURCE_NAME.
      */
     val metadata: WowMetadata by lazy {
+        loadMetadata(ClassLoader.getSystemResources(WOW_METADATA_RESOURCE_NAME).toList())
+    }
+
+    /**
+     * Reads and merges the metadata [resources] in order.
+     *
+     * A resource that cannot be read or parsed is logged and skipped. Two resources that declare the same aggregate
+     * or bounded context differently (its type, static tenantId or alias) fail with an [IllegalStateException] naming
+     * both resources, so the application does not start with metadata that depends on classpath order.
+     */
+    internal fun loadMetadata(resources: List<URL>): WowMetadata {
+        val loaded = mutableListOf<Pair<URL, WowMetadata>>()
         var current = WowMetadata()
-        ClassLoader.getSystemResources(WOW_METADATA_RESOURCE_NAME)
-            .iterator()
-            .forEach { resource ->
-                log.debug {
-                    "Load metadata [$resource]."
-                }
-                @Suppress("TooGenericExceptionCaught")
-                resource.openStream().use {
-                    try {
-                        val next = JsonSerializer.readValue(it, WowMetadata::class.java)
-                        current = current.merge(next)
-                    } catch (e: Throwable) {
-                        log.error(e) {
-                            "Failed to load metadata from [$resource]."
-                        }
-                    }
-                }
+        resources.forEach { resource ->
+            log.debug {
+                "Load metadata [$resource]."
             }
-        current
+            val next = try {
+                resource.openStream().use {
+                    JsonSerializer.readValue(it, WowMetadata::class.java)
+                }
+            } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
+                log.error(e) {
+                    "Failed to load metadata from [$resource]."
+                }
+                return@forEach
+            }
+            current = try {
+                current.merge(next)
+            } catch (conflict: IllegalStateException) {
+                val conflicting = loaded.firstOrNull { (_, earlier) ->
+                    runCatching { earlier.merge(next) }.isFailure
+                }?.first
+                throw IllegalStateException(
+                    "Metadata [$resource] conflicts with [${conflicting ?: loaded.map { it.first }}]: ${conflict.message}",
+                    conflict
+                )
+            }
+            loaded.add(resource to next)
+        }
+        return current
     }
 
     /**

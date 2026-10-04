@@ -99,3 +99,20 @@ class MockConflictingTenantAggregate(val id: String)
 /** Declared `tenant-a` in the test wow-metadata.json. */
 @StaticTenantId("tenant-a")
 class MockAgreeingTenantAggregate(val id: String)
+
+// The aggregate's own declaration overrides a deprecated one on its supertype.
+@AggregateRoute(spaced = true, owner = AggregateRoute.Owner.ALWAYS)
+abstract class LegacyPolicyBase
+
+@Spaced(false)
+@AggregateOwner(OwnerPolicy.NEVER)
+class OverridingPolicyAggregate(val id: String) : LegacyPolicyBase()
+
+@Spaced
+class SpacedOverLegacyOwnerAggregate(val id: String) : LegacyPolicyBase()
+
+@Spaced(false)
+@AggregateRoute(spaced = true)
+abstract class ConflictingPolicyBase
+
+class InheritsConflictAggregate(val id: String) : ConflictingPolicyBase()

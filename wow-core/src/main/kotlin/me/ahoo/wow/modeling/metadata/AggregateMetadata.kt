@@ -68,9 +68,11 @@ data class AggregateMetadata<C : Any, S : Any>(
 
     /**
      * The aggregate's ownership policy (`@AggregateOwner`, or the deprecated `@AggregateRoute(owner = …)`, else
-     * [OwnerPolicy.NEVER]): the one source the routes, their contracts and the HTTP adapter read. Since 9.3.0.
+     * [OwnerPolicy.NEVER]), resolved once here. Since 9.3.0.
      *
-     * Declaring both with different policies fails here, when the aggregate's metadata is parsed.
+     * The routes do not read it directly: `AggregateRouteMetadataParser` copies it into the route metadata's
+     * `ownerPolicy`, which the route contracts and the HTTP adapter read (a route contributor may set its own).
+     * Declaring both forms with different policies on one class fails here, when the aggregate's metadata is parsed.
      */
     val owner: OwnerPolicy = command.aggregateType.kotlin.resolveOwnerPolicy()
 

@@ -240,7 +240,12 @@ internal fun <K, V : Merge<V>> Map<K, V>.merge(other: Map<K, V>): Map<K, V> {
             if (current == null) {
                 put(it.key, it.value)
             } else {
-                put(it.key, current.merge(it.value))
+                val merged = try {
+                    current.merge(it.value)
+                } catch (conflict: IllegalStateException) {
+                    throw IllegalStateException("[${it.key}] ${conflict.message}", conflict)
+                }
+                put(it.key, merged)
             }
         }
     }

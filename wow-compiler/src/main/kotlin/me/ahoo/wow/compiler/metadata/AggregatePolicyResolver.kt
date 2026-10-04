@@ -16,13 +16,13 @@ package me.ahoo.wow.compiler.metadata
 import com.google.devtools.ksp.getAllSuperTypes
 import com.google.devtools.ksp.symbol.KSAnnotation
 import com.google.devtools.ksp.symbol.KSClassDeclaration
+import com.google.devtools.ksp.symbol.KSDeclaration
 import com.google.devtools.ksp.symbol.KSType
 import me.ahoo.wow.api.annotation.AggregateOwner
 import me.ahoo.wow.api.annotation.AggregateRoute
 import me.ahoo.wow.api.annotation.OwnerPolicy
 import me.ahoo.wow.api.annotation.Spaced
 import me.ahoo.wow.compiler.metadata.BoundedContextResolver.getAnnotation
-import kotlin.reflect.KClass
 
 /**
  * An aggregate's effective spaced flag and owner policy, as the runtime resolves them.
@@ -42,51 +42,76 @@ internal data class AggregatePolicy(
 
 /**
  * The compile-time twin of core's `AggregatePolicyResolver`: `@Spaced` / `@AggregateOwner` first, then the
- * deprecated `@AggregateRoute(spaced, owner)` when it differs from its default, then the default. Both declared
- * with different values is an [IllegalStateException], which the processor reports as a compile error.
+ * deprecated `@AggregateRoute(spaced, owner)` when it differs from its default, then the default. With the new
+ * annotation in the hierarchy, the nearest class declaring the policy in either form decides; the two forms on one
+ * class disagreeing is an [IllegalStateException], which the processor reports as a compile error.
  */
 internal object AggregatePolicyResolver {
 
     @Suppress("DEPRECATION")
     fun KSClassDeclaration.resolveAggregatePolicy(): AggregatePolicy {
-        val aggregate = qualifiedName?.asString()
-        val route = findAnnotation(AggregateRoute::class)
-
-        val declaredSpaced = findAnnotation(Spaced::class)?.let { it.argument(Spaced::value.name) as Boolean? ?: true }
-        // compat(wow<9.3): the deprecated AggregateRoute.spaced and .owner, read when the new annotation is absent.
-        val legacySpaced = (route?.argument(AggregateRoute::spaced.name) as Boolean?)?.takeIf { it }
-        check(declaredSpaced == null || legacySpaced == null || declaredSpaced == legacySpaced) {
-            "Aggregate[$aggregate] declares spaced twice with different values: @Spaced($declaredSpaced) and " +
-                "@AggregateRoute(spaced = $legacySpaced). Keep @Spaced and remove the deprecated AggregateRoute.spaced."
-        }
-
-        val declaredOwner = findAnnotation(AggregateOwner::class)
-            ?.argument(AggregateOwner::value.name)
-            ?.enumEntryName()
-            ?.let { OwnerPolicy.valueOf(it) }
-        val legacyOwner = route?.argument(AggregateRoute::owner.name)
-            ?.enumEntryName()
-            ?.takeIf { it != OwnerPolicy.NEVER.name }
-            ?.let { OwnerPolicy.valueOf(it) }
-        check(declaredOwner == null || legacyOwner == null || declaredOwner == legacyOwner) {
-            "Aggregate[$aggregate] declares its owner twice with different policies: " +
-                "@AggregateOwner(OwnerPolicy.$declaredOwner) and @AggregateRoute(owner = Owner.$legacyOwner). " +
-                "Keep @AggregateOwner and remove the deprecated AggregateRoute.owner."
-        }
-
-        return AggregatePolicy(
-            spaced = declaredSpaced ?: legacySpaced ?: false,
-            owner = declaredOwner ?: legacyOwner ?: OwnerPolicy.NEVER
-        )
+        val spaced = resolvePolicy(
+            policy = "spaced",
+            declaredAt = { level ->
+                level.getAnnotation(Spaced::class)?.let { it.argument(Spaced::value.name) as Boolean? ?: true }
+            },
+            // compat(wow<9.3): the deprecated AggregateRoute.spaced and .owner, read when the new annotation is absent.
+            legacyAt = { level ->
+                (level.getAnnotation(AggregateRoute::class)?.argument(AggregateRoute::spaced.name) as Boolean?)
+                    ?.takeIf { it }
+            },
+            describe = { declared, legacy -> "@Spaced($declared) and @AggregateRoute(spaced = $legacy)" }
+        ) ?: false
+        val owner = resolvePolicy(
+            policy = "owner",
+            declaredAt = { level ->
+                level.getAnnotation(AggregateOwner::class)
+                    ?.argument(AggregateOwner::value.name)
+                    ?.enumEntryName()
+                    ?.let { OwnerPolicy.valueOf(it) }
+            },
+            legacyAt = { level ->
+                level.getAnnotation(AggregateRoute::class)
+                    ?.argument(AggregateRoute::owner.name)
+                    ?.enumEntryName()
+                    ?.takeIf { it != OwnerPolicy.NEVER.name }
+                    ?.let { OwnerPolicy.valueOf(it) }
+            },
+            describe = { declared, legacy ->
+                "@AggregateOwner(OwnerPolicy.$declared) and @AggregateRoute(owner = Owner.$legacy)"
+            }
+        ) ?: OwnerPolicy.NEVER
+        return AggregatePolicy(spaced = spaced, owner = owner)
     }
 
     /**
-     * The annotation on this class, else on its nearest supertype that has it (all three annotations are
-     * `@Inherited`).
+     * Without the new annotation anywhere, as the runtime reads 9.2's declaration: the first `@AggregateRoute` of the
+     * hierarchy. With it, the nearest class that declares the policy in either form decides.
      */
-    private fun KSClassDeclaration.findAnnotation(annotationClass: KClass<*>): KSAnnotation? =
-        getAnnotation(annotationClass)
-            ?: getAllSuperTypes().firstNotNullOfOrNull { it.declaration.getAnnotation(annotationClass) }
+    private fun <T : Any> KSClassDeclaration.resolvePolicy(
+        policy: String,
+        declaredAt: (KSDeclaration) -> T?,
+        legacyAt: (KSDeclaration) -> T?,
+        describe: (T?, T?) -> String
+    ): T? {
+        val levels = sequenceOf<KSDeclaration>(this) + getAllSuperTypes().map { it.declaration }
+        if (levels.none { declaredAt(it) != null }) {
+            return levels.firstOrNull { it.getAnnotation(AggregateRoute::class) != null }?.let(legacyAt)
+        }
+        levels.forEach { level ->
+            val declaredHere = declaredAt(level)
+            val legacyHere = legacyAt(level)
+            if (declaredHere != null || legacyHere != null) {
+                check(declaredHere == null || legacyHere == null || declaredHere == legacyHere) {
+                    "Aggregate[${level.qualifiedName?.asString()}] declares $policy twice with different values: " +
+                        "${describe(declaredHere, legacyHere)}. " +
+                        "Keep the aggregate-level annotation and remove the deprecated AggregateRoute.$policy."
+                }
+                return declaredHere ?: legacyHere
+            }
+        }
+        return null
+    }
 
     /**
      * The argument's value, its default included when it was not written; `null` when KSP reports neither.

@@ -21,9 +21,11 @@ import java.lang.annotation.Inherited
  * The policy decides whether the aggregate's routes take an owner (an `owner/{ownerId}` path prefix or the
  * `Wow-Owner-Id` header), whether loading its state checks that owner, and whether the owner ID is the aggregate ID.
  *
- * The annotation's presence is the declaration. Without it, the deprecated `@AggregateRoute(owner = …)` still
- * applies, and an aggregate that declares neither is [OwnerPolicy.NEVER]. Declaring both with different policies
- * fails at startup and, under the Wow KSP processor, at compile time.
+ * The annotation's presence is the declaration. Without it anywhere in the aggregate's hierarchy, the deprecated
+ * `@AggregateRoute(owner = …)` still applies, and an aggregate that declares neither is [OwnerPolicy.NEVER]. With it,
+ * the nearest class that declares the policy in either form decides, so `@AggregateOwner(OwnerPolicy.NEVER)` on an
+ * aggregate overrides an owned supertype. Both forms on the same class with different policies fail at startup and,
+ * under the Wow KSP processor, at compile time.
  *
  * ```kotlin
  * @AggregateRoot
