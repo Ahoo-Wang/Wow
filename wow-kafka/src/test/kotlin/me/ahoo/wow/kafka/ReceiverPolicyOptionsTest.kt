@@ -20,29 +20,49 @@ import reactor.kafka.receiver.ReceiverOptions
 class ReceiverPolicyOptionsTest {
 
     @Test
+    fun `the policy sets the deferred commit limit`() {
+        ReceiverOptions.create<String, String>()
+            .withReceiverPolicy(KafkaReceiverPolicy(maxDeferredCommits = 20))
+            .maxDeferredCommits().assert().isEqualTo(20)
+    }
+
+    @Test
     fun `commit starts when the deferred commit limit is reached`() {
         val options = ReceiverOptions.create<String, String>()
-            .withReceiverPolicy(KafkaReceiverPolicy(maxDeferredCommits = 20))
+            .maxDeferredCommits(20)
+            .withCommitBeforePause()
 
-        options.maxDeferredCommits().assert().isEqualTo(20)
         options.commitBatchSize().assert().isEqualTo(20)
     }
 
     @Test
     fun `a smaller commit batch size is kept`() {
         val options = ReceiverOptions.create<String, String>()
+            .maxDeferredCommits(20)
             .commitBatchSize(5)
-            .withReceiverPolicy(KafkaReceiverPolicy(maxDeferredCommits = 20))
+            .withCommitBeforePause()
 
         options.commitBatchSize().assert().isEqualTo(5)
     }
 
     @Test
-    fun `a commit batch size above the deferred commit limit is capped`() {
+    fun `a commit batch size above the deferred commit limit is capped and reported`() {
+        val capped = mutableListOf<Pair<Int, Int>>()
         val options = ReceiverOptions.create<String, String>()
+            .maxDeferredCommits(20)
             .commitBatchSize(50)
-            .withReceiverPolicy(KafkaReceiverPolicy(maxDeferredCommits = 20))
+            .withCommitBeforePause { from, to -> capped += from to to }
 
         options.commitBatchSize().assert().isEqualTo(20)
+        capped.assert().containsExactly(50 to 20)
+    }
+
+    @Test
+    fun `in-order commits are left alone`() {
+        val options = ReceiverOptions.create<String, String>()
+            .withCommitBeforePause()
+
+        options.maxDeferredCommits().assert().isZero()
+        options.commitBatchSize().assert().isZero()
     }
 }
