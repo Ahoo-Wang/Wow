@@ -18,7 +18,10 @@ import me.ahoo.wow.messaging.DefaultHeader
 import me.ahoo.wow.messaging.propagation.CommandRequestHeaderPropagator.Companion.remoteIp
 import me.ahoo.wow.webflux.route.command.appender.CommandRequestRemoteIpHeaderAppender.X_FORWARDED_FOR
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.CsvSource
 import org.springframework.mock.web.reactive.function.server.MockServerRequest
+import java.net.InetAddress
 import java.net.InetSocketAddress
 
 class CommandRequestRemoteIpHeaderAppenderTest {
@@ -57,5 +60,61 @@ class CommandRequestRemoteIpHeaderAppenderTest {
         CommandRequestRemoteIpHeaderAppender.append(request, commandHeader)
 
         commandHeader.remoteIp.assert().isEqualTo(hostName)
+    }
+
+    @Test
+    fun `should append the address literal without reverse lookup`() {
+        val loopback = InetAddress.getByAddress(byteArrayOf(127, 0, 0, 1))
+        val request = MockServerRequest.builder()
+            .remoteAddress(InetSocketAddress(loopback, 8080))
+            .build()
+        val commandHeader = DefaultHeader.empty()
+        CommandRequestRemoteIpHeaderAppender.append(request, commandHeader)
+
+        commandHeader.remoteIp.assert().isEqualTo("127.0.0.1")
+    }
+
+    @Test
+    fun `should append the ipv6 address literal without reverse lookup`() {
+        val loopback = InetAddress.getByAddress(ByteArray(16).also { it[15] = 1 })
+        val request = MockServerRequest.builder()
+            .remoteAddress(InetSocketAddress(loopback, 8080))
+            .build()
+        val commandHeader = DefaultHeader.empty()
+        CommandRequestRemoteIpHeaderAppender.append(request, commandHeader)
+
+        commandHeader.remoteIp.assert().isEqualTo(loopback.hostAddress)
+    }
+
+    @ParameterizedTest
+    @CsvSource(
+        delimiter = '|',
+        value = [
+            "203.0.113.1|203.0.113.1",
+            "203.0.113.1, 198.51.100.2|203.0.113.1",
+            "203.0.113.1,198.51.100.2,192.0.2.3|203.0.113.1",
+            "',203.0.113.1, 198.51.100.2'|203.0.113.1",
+            "' , 203.0.113.1'|' 203.0.113.1'",
+            "' 203.0.113.1 ,198.51.100.2'|' 203.0.113.1 '",
+        ],
+        ignoreLeadingAndTrailingWhitespace = false,
+    )
+    fun `should take the first non blank forwarded for entry as is`(forwardedFor: String, expected: String) {
+        val request = MockServerRequest.builder()
+            .header(X_FORWARDED_FOR, forwardedFor)
+            .remoteAddress(InetSocketAddress(InetAddress.getByAddress(byteArrayOf(127, 0, 0, 1)), 8080))
+            .build()
+        val commandHeader = DefaultHeader.empty()
+        CommandRequestRemoteIpHeaderAppender.append(request, commandHeader)
+
+        commandHeader.remoteIp.assert().isEqualTo(expected)
+    }
+
+    @Test
+    fun `should not append remote ip without forwarded for and remote address`() {
+        val commandHeader = DefaultHeader.empty()
+        CommandRequestRemoteIpHeaderAppender.append(MockServerRequest.builder().build(), commandHeader)
+
+        commandHeader.remoteIp.assert().isNull()
     }
 }

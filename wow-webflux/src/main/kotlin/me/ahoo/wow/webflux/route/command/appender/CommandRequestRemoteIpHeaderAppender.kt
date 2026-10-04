@@ -18,6 +18,14 @@ import me.ahoo.wow.messaging.propagation.CommandRequestHeaderPropagator.Companio
 import org.springframework.web.reactive.function.server.ServerRequest
 import kotlin.jvm.optionals.getOrNull
 
+/**
+ * Appends the client address as `remote_ip`: the first non-blank entry of the first `X-Forwarded-For` header, taken
+ * as is, otherwise the remote address of the connection.
+ *
+ * The remote address is written as its address literal (`hostString`), never resolved by a reverse DNS lookup: the
+ * appender runs on the event loop, where a lookup blocks every request on that loop. Since 9.2.3; earlier versions
+ * wrote the reverse-resolved host name.
+ */
 object CommandRequestRemoteIpHeaderAppender : CommandRequestHeaderAppender {
     const val X_FORWARDED_FOR = "X-Forwarded-For"
     const val DELIMITER = ','
@@ -28,24 +36,9 @@ object CommandRequestRemoteIpHeaderAppender : CommandRequestHeaderAppender {
         }
     }
 
-    private fun getRemoteIp(request: ServerRequest): String? {
-        return request.remoteAddress().getOrNull()?.hostName
-    }
-
-    private fun resolveRemoteIp(request: ServerRequest): String? {
-        val xForwardedHeaderValue = request.headers().firstHeader(X_FORWARDED_FOR)
-        if (xForwardedHeaderValue.isNullOrBlank()) {
-            return getRemoteIp(request)
-        }
-
-        val xForwardedValues = xForwardedHeaderValue
-            .split(DELIMITER)
-            .filter { it.isNotBlank() }
-            .reversed()
-        if (xForwardedValues.isEmpty()) {
-            return getRemoteIp(request)
-        }
-        val index = xForwardedValues.size.coerceAtMost(Int.MAX_VALUE) - 1
-        return xForwardedValues[index]
-    }
+    private fun resolveRemoteIp(request: ServerRequest): String? =
+        request.headers().firstHeader(X_FORWARDED_FOR)
+            ?.splitToSequence(DELIMITER)
+            ?.firstOrNull { it.isNotBlank() }
+            ?: request.remoteAddress().getOrNull()?.hostString
 }

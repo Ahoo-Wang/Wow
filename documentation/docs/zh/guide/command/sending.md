@@ -102,6 +102,10 @@ curl -X POST http://order-service:8080/wow/command/send \
 
 聚合命令路由与门面都会把每个 `Command-Header-<key>` 请求头抄进命令消息头，键为 `<key>`；前缀不区分大小写（HTTP/2 的头名是小写）。键为框架保留键时返回 `400`，错误码 `IllegalArgument`，一个也不抄：`command_operator`、`local_first`、`trace_id`、`upstream_id`、`upstream_name`、`user_agent`、`remote_ip`、`traceparent`、`tracestate`、`baggage`、CoSec 的 `app_id` 与 `device_id`，以及以 `command_wait_` 或 `compensate.` 开头的键（比较时不区分大小写）。请改用文档化的请求头（`Command-Wait-*`、`Command-Local-First`）。操作人始终是已认证的主体，在所有请求头 appender 之后确定。
 
+### 客户端地址
+
+命令路由还会把 `user_agent` 与 `remote_ip` 写进命令消息头。`remote_ip` 取第一个 `X-Forwarded-For` 请求头里第一个非空白的条目，原样写入；没有该请求头时取连接的远端地址，写成 IP 字面量，不做反向 DNS 解析（反向解析会阻塞事件循环）。自 9.2.3 起；更早的版本写入反向解析得到的主机名，所以已存储的命令与事件里两种形式都可能出现。`X-Forwarded-For` 由客户端控制，只应在会设置它的代理之后依赖它。
+
 ## JSON 与 SSE 响应
 
 聚合命令路由同时支持两种响应：

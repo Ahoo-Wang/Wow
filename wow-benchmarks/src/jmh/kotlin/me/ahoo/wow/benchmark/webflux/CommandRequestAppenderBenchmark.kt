@@ -60,12 +60,13 @@ import java.util.concurrent.atomic.AtomicInteger
  * appenders. [client] chooses where the remote IP comes from:
  * - `xff`: an `X-Forwarded-For` header (proxied traffic; no socket address is read);
  * - `loopback-reused`: no XFF; the socket address object is reused across requests, like requests on one keep-alive
- *   connection, so the reverse lookup that `getHostName()` triggers is paid once and then cached in the address;
+ *   connection;
  * - `loopback-new`: no XFF; every request carries a fresh unresolved `127.0.0.1` address, like a new connection per
- *   request; the reverse lookup is paid every time (answered from the hosts file, so this is the cheap case).
- * A reverse lookup against a real DNS server (a public client address) can take far longer; pass
- * `-p client=public-new` to measure it on a given network. It is not in the default matrix because its cost depends
- * on the resolver, not on Wow.
+ *   request.
+ * Up to 9.2.2 the appender read `getHostName()`, a reverse DNS lookup on the event loop: paid once per address object
+ * (`loopback-reused`) or on every request (`loopback-new`, answered from the hosts file, the cheap case). Since 9.2.3
+ * (E2) it reads the address literal and the three clients cost the same. `-p client=public-new` (a public client
+ * address) measured the lookup against a real resolver; it stays available to compare older builds.
  *
  * Audit 9.3.0 D §F8 (design WP G2; E2 compares against this).
  */
@@ -122,7 +123,8 @@ open class CommandRequestAppenderBenchmark {
             val expectedIp = when (client) {
                 "xff" -> CLIENT_IP
                 "public-new" -> null
-                else -> "localhost"
+                // Since 9.2.3 the appender writes the address literal; it no longer reverse-resolves it.
+                else -> "127.0.0.1"
             }
             if (expectedIp != null) {
                 check(probe.header.remoteIp == expectedIp) {
