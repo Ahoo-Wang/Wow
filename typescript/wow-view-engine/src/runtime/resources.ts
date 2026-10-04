@@ -58,6 +58,8 @@ export abstract class EngineResources {
   private readonly lacking = new Set<string>();
   /** Where findings go: the host's `onIssue`, or the development default. */
   private readonly reporter: IssueReporter | undefined;
+  /** The ids a binding named that no resource registers, each told once. */
+  private readonly unbound = new Set<string>();
 
   constructor(private readonly host: ResourceHost) {
     // Called on the host's object, as a method.
@@ -136,6 +138,34 @@ export abstract class EngineResources {
     for (const told of this.lacking)
       if (told.startsWith(`${language}\u0000`) && !lacking.has(told))
         this.lacking.delete(told);
+  }
+
+  /**
+   * Whether a binding the host made (`bind`, host-integration.md 4) names a
+   * registered definition. One that names none binds nothing — the routes,
+   * the reading and the actions it carries would be lost without a word, a
+   * misspelt id looking like a design — so it is told through `onIssue` as
+   * `binding.definition.unknown`, once per id. A warning, not an error: a
+   * binding may be meant for an engine nested further down (bindings pass
+   * to inner hosts), or for a resource a feature flag left out, and a
+   * binding that matches nothing breaks nothing. `ViewHost` asks this of
+   * every binding it is given.
+   */
+  checkBinding(definitionId: string): boolean {
+    if (this.registered.has(definitionId)) return true;
+    if (!this.unbound.has(definitionId)) {
+      this.unbound.add(definitionId);
+      this.report(
+        issue(
+          'binding.definition.unknown',
+          [],
+          { id: definitionId },
+          'warning',
+        ),
+        definitionId,
+      );
+    }
+    return false;
   }
 
   /**

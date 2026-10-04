@@ -1,4 +1,4 @@
-# Message keys — 2083.
+# Message keys — 2084.
 # Written by test/publicSurface.test.ts; a change here is a change to
 # the public surface (README「Wording and language」, docs/design/decisions.md D29).
 analysis.alias.duplicate
@@ -78,6 +78,7 @@ analysis.sort.requires-group
 analysis.sort.too-many
 analysis.sort.unknown-alias
 analysis.split.whole-failed
+binding.definition.unknown
 capability.analysis.count
 capability.analysis.dense
 capability.analysis.element-unavailable

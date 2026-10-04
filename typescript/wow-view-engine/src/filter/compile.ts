@@ -19,6 +19,7 @@ import type {
   FilterTree,
 } from '../model/index.js';
 import { isBlankLeafValue, type FieldKindRegistry } from './fieldKind.js';
+import { readFilter } from './read.js';
 import { isFilterGroup, isFilterNode } from './tree.js';
 
 /**
@@ -47,8 +48,10 @@ export function compileFilter(
   context: FilterCompileContext,
 ): FilterExpression {
   const byName = new Map(fields.map(field => [field.name, field]));
-  const compiled = isFilterGroup(tree)
-    ? compileGroup(tree, byName, kinds, context)
+  // Each leaf as its kind reads it, as `validateFilter` admitted it.
+  const read = readFilter(fields, tree, kinds);
+  const compiled = isFilterGroup(read)
+    ? compileGroup(read, byName, kinds, context)
     : null;
   // An empty tree means "no condition", which Wow spells as MATCH_ALL.
   return compiled ?? filter.matchAll();

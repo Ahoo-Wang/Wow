@@ -883,15 +883,16 @@ const paid = matches(documents[0], {
 
 它承诺的：引擎会编出的每个筛选算子，缺失字段、显式 `null`、空字符串或空数组、数组元素与大小写都按 MongoDB 的读法；`DELETION` 读 `deleted` 标记（`deleted: true` 的文档除非筛选问到，否则不答）；分页、游标（一个偏移量）与排序；投影；聚合——`elements`（路径与门槛条件都相对于元素）、`TERMS`、`HISTOGRAM`、按时区的 `DATE_HISTOGRAM` 与 `DATE_PART`（缺省 UTC）、`dense`、带自身条件的每种指标、`DERIVED`、`having`、Wow 给分组的次序（先按排序，再按每个分组别名升序）与缺省 `limit` 100。`PERCENTILE` 是精确值，服务端是落在同样两个秩之间的估计值。没有读法的——`ID`、`TENANT_ID`、`SPACE_ID`、引擎从不发出的日历筛选——直接报错，测试开始发出的新查询会失败，而不是得到一个看似合理的错误答案。`timeField` 让大数据集按一个纪元毫秒列排好、对它的范围二分切片；`remember` 让同一个聚合从记忆里作答，只用于从不改变的文档。这个入口是无头的——没有 React、DOM 与样式表。它用 `mingo`（MongoDB 查询语言的 JavaScript 实现）求值筛选，`mingo` 是可选的对等依赖：安装本包不会带上它，导入 `/testing` 的宿主要自己把它加进开发依赖——`pnpm add -D mingo`（或 `npm install -D mingo`）。别的入口都不加载它。
 
-`admit(definitions, descriptors, { text })` 按引擎的方式准入宿主声明的一切——说出每份定义的键、它自己的规则、它的看板对照其余定义、每份数据定义按提交的描述符（按 `source`）收窄——返回每条发现连同它所属的定义，全部成立时是 `[]`。它收定义，也收装着定义的资源（`{ definition }`），与注册时的写法一样：
+`admit(definitions, descriptors, { text })` 按引擎的方式准入宿主声明的一切——说出每份定义的键、它自己的规则、它的看板对照其余定义、每份数据定义按提交的描述符（按 `source`）收窄——返回每条发现连同它所属的定义，全部成立时是 `[]`。它收定义，也收与注册时写法一样的资源——完整的写法是 `{ definition, source }`。列表里有资源带着 `source` 时，`source` 键下没有哪份资源登记数据源的数据资源也会被报出（`definition.source.unregistered`），与引擎启动时一样；只有 `{ definition }` 的列表不查数据源：
 
 <!-- typecheck-context
 import type { QueryModelDescriptor } from '@ahoo-wang/wow-client';
-import type { DataViewDefinition, DashboardDefinition, TextResolver } from '@ahoo-wang/wow-view-engine';
+import type { DataViewDefinition, DashboardDefinition, TextResolver, ViewResource } from '@ahoo-wang/wow-view-engine';
 declare const orders: DataViewDefinition;
 declare const overview: DashboardDefinition;
 declare const ordersDescriptor: QueryModelDescriptor;
 declare const chinese: TextResolver;
+declare const ordersSource: NonNullable<ViewResource['source']>;
 declare function expect(value: unknown): { toEqual(expected: unknown): void };
 -->
 
@@ -900,6 +901,15 @@ import { admit } from '@ahoo-wang/wow-view-engine/testing';
 
 expect(
   admit([orders, overview], { orders: ordersDescriptor }, { text: chinese }),
+).toEqual([]);
+
+// The resources the application registers, sources and all.
+expect(
+  admit(
+    [{ definition: orders, source: ordersSource }, { definition: overview }],
+    { orders: ordersDescriptor },
+    { text: chinese },
+  ),
 ).toEqual([]);
 ```
 

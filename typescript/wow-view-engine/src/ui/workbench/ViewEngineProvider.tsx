@@ -14,6 +14,7 @@
 import {
   createContext,
   useContext,
+  useEffect,
   useLayoutEffect,
   useMemo,
   useState,
@@ -151,6 +152,8 @@ export function ViewEngineProvider({
     locale ?? inherited ?? '',
   );
 
+  useCheckedBindings(engine, bindings);
+
   const bound = useMemo(() => {
     if (!bindings?.length) return outer.bindings;
     const next = new Map(outer.bindings);
@@ -218,6 +221,22 @@ function useCheckedWords(
   useLayoutEffect(() => {
     engine?.setText(resolver, language);
   }, [engine, resolver, language]);
+}
+
+/**
+ * Tells `engine` of each binding this provider is given (`checkBinding`),
+ * so one naming no registered definition — a misspelt id — reaches the
+ * host's `onIssue` rather than binding nothing in silence. Nothing is drawn
+ * differently by it.
+ */
+function useCheckedBindings(
+  engine: ViewEngine | undefined,
+  bindings: readonly ViewBinding[] | undefined,
+): void {
+  useEffect(() => {
+    if (!engine || !bindings) return;
+    for (const binding of bindings) engine.checkBinding(binding.definitionId);
+  }, [engine, bindings]);
 }
 
 /**

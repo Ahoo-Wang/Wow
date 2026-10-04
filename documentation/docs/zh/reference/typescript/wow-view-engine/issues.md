@@ -127,6 +127,12 @@ export type IssuePath = (string | number)[];
 | `analysis.sort.unknown-alias` | 排序依据的「{alias}」不在这个结果里。 |
 | `analysis.split.whole-failed` | 没能把较小的系列并成「其他」，颜色会重复：{reason} |
 
+### `binding.*` {#issues-binding}
+
+| 代码 | 默认措辞 |
+|---|---|
+| `binding.definition.unknown` | 绑定指向 {id}，但没有哪份资源登记了它：它绑定的都不会生效。 |
+
 ### `capability.*` {#issues-capability}
 
 | 代码 | 默认措辞 |

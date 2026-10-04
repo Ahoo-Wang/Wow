@@ -112,6 +112,7 @@ type ActionTone = 'default' | 'danger';
 // @public
 export type Admissible = ViewDefinition | {
     definition: ViewDefinition;
+    source?: ViewSource;
 };
 
 // @public
@@ -888,6 +889,7 @@ interface FieldKind {
     isBlank?(context: FieldKindBlankContext): boolean;
     nested?(value: unknown, field: FieldDefinition, operator: FilterOperatorName): NestedTree | null;
     operators: FilterOperatorName[];
+    readLeaf?(leaf: FilterLeaf, field: FieldDefinition): FilterLeaf;
     relations?: Partial<Record<FilterOperatorName, FilterSummaryRelation>>;
     scalar?: boolean;
     singleString?: boolean;

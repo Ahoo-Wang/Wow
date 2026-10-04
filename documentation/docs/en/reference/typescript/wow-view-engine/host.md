@@ -89,7 +89,7 @@ export declare function ViewHost(input: ViewHostProps): import('react').JSX.Elem
 
 ## bind {#api-bind}
 
-Binds a definition's behaviour in the host: `bind(definitionId, options)`. A surface's own prop of the same name wins.
+Binds a definition's behaviour in the host: `bind(definitionId, options)`. A surface's own prop of the same name wins. The id must be one a resource registers: `ViewHost` hands each binding it is given to the engine (`checkBinding`), and one naming no registered definition — a misspelt id, whose route, reading and actions would otherwise be lost without a word — is reported through `onIssue` as `binding.definition.unknown`, once per id. It is a warning, not an error: bindings pass down to inner hosts, so a binding on an outer `ViewHost` meant for the definitions of an engine nested inside it is reported once against the outer engine, and so is a binding kept for a resource a feature flag left out. Neither breaks anything; put such a binding on the inner host, or leave it and ignore the warning.
 
 | Option | Role |
 |---|---|

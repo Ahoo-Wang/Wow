@@ -90,7 +90,7 @@ pnpm --dir compensation/dashboard dev
 | `/events` | 「事件流」：补偿事件流的工作台（概览上事件流面板的「在工作台中打开」落在这里） |
 | `/boards` | 「看板」：仪表盘工作台，另存、改排、搭自己的板 |
 
-四个去处都在顶栏；旧的队列地址（`/to-retry` 等）与 `/dashboard`、`/analytics` 已随旧外壳去掉，打开会回到总览。通知里的链接指向 `/executions?view=…&id=…`。
+四个去处都在顶栏；旧的队列地址（`/to-retry` 等）与 `/dashboard`、`/analytics` 已随旧外壳去掉，打开会回到总览。通知里的链接指向 `/executions?view=…&id=…`。「失败执行」页自己管 `?view=`，不走引擎的地址处理：链接带来的范围（`?cluster=`、`?start&end`）要与它限定的视图在同一步里离开地址。所以 `?view=` 指向已删的视图时，这一页显示「无法打开这个视图」并给「回到默认视图」，而走引擎地址处理的页（`/events`、`/boards`）直接回到默认视图。
 
 ### 如何读取概览
 

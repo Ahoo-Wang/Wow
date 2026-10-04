@@ -153,6 +153,7 @@ src/
     fieldKind.ts              — FieldKind contract and registry (extension point)
     issuePath.ts              — How an issue path reads against a tree: whose tree it is, and which node
     marks.ts                  — unmarkedErrors — the errors no condition pill can carry
+    read.ts                   — readFilter — each leaf as its field's kind reads it (`FieldKind.readLeaf`: an `EQ` saved before its field became an enum is a one-value `IN`), walked iteratively
     time.ts                   — Relative and preset values resolved at compile time, a window of days or longer in whole days (D39); `periodOf`, the one calendar period a range is exactly
     tree.ts                   — Tree node predicates, and what a node says as a condition (`conditionOf`, `conditions`, `removeConditionAt`: the negation wrapper is known here and nowhere else); trees arrive untrusted
     search.ts                 — The view's search on the tree's root: `rootSearch`, `withRootSearch` (blank takes it out; an `or` top is narrowed, not joined), `searchFieldOf`

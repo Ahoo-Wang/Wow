@@ -31,6 +31,7 @@ import {
   type FieldKindRegistry,
 } from './fieldKind.js';
 import { isPresenceOperator } from './kinds/presence.js';
+import { readFilter } from './read.js';
 import {
   isFilterGroup,
   isFilterLeaf,
@@ -80,10 +81,13 @@ export function validateFilter(
     // checked, and so does not report them a second time.
     issues.push(...duplicates);
   }
+  // Each leaf as its kind reads it (an `EQ` saved on a field since made an
+  // enum), once its shape is known to hold; the paths stay the stored ones.
+  const read = readFilter(fields, tree, kinds);
 
   const byName = new Map(fields.map(field => [field.name, field]));
 
-  for (const { node, path } of walkFilter(tree)) {
+  for (const { node, path } of walkFilter(read)) {
     if (isFilterGroup(node)) {
       // A tree from a store may carry anything under `op`.
       if (!isFilterGroupOperator(node.op))
@@ -368,7 +372,7 @@ export function isBlankFilter(
   kinds: FieldKindRegistry,
 ): boolean {
   const byName = new Map(fields.map(field => [field.name, field]));
-  for (const { node } of walkFilter(tree)) {
+  for (const { node } of walkFilter(readFilter(fields, tree, kinds))) {
     if (!isFilterLeaf(node)) continue;
     const field = byName.get(node.field);
     const kind = field ? kinds.get(field.kind) : undefined;

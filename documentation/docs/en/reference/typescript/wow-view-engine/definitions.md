@@ -189,6 +189,7 @@ export type Text = string & {
 - `editor()` answers **data**, never a component name: `EditorDescriptor.input` is a closed union whose members `EDITOR_INPUTS` lists, and `/ui`'s value editor switches over exactly them. There is no renderer registry, so a custom kind picks one of the existing inputs; asking for one the engine has no control for is refused by `validateFilter` as `filter.kind.unknown-editor`, an unregistered kind as `filter.kind.unregistered`, and Apply is blocked.
 - `emptyValue()` is the value a leaf starts from, normally "nothing yet": a field picked without a value is a normal editing state, neither validated nor compiled. Seeding a number with `0` would silently apply `amount = 0` the moment the row appeared.
 - `compile()` maps one admitted leaf onto the Wow protocol; `compiledOperators()` says which Wow operators an operator is sent as, and the descriptor must admit every one of them for the operator to be offered.
+- `readLeaf()` reads a saved leaf written before the field was of this kind, in a shape the kind offers; every pass over a tree reads each leaf through it first. The built-in `enum` reads an `EQ` saved while the field was a string as the `IN` of its one value, so the condition keeps admitting and compiling.
 - `scalar`, `singleString`, `fieldless` and `nested` tell the engine what shape a value of the kind has on the Wow side, so that a condition the engine calls usable is not refused by the server.
 
 Built-in kinds: `string`, `number`, `boolean`, `date`, `datetime`, `enum`, `reference`, `array`, `elementMatch`, `search`, and the kinds backed by Wow's metadata filters: `documentId`, `aggregateId`, `tenantId`, `ownerId`, `spaceId`, `deletion`.
@@ -206,6 +207,7 @@ export interface FieldKind {
   isBlank?(context: FieldKindBlankContext): boolean;
   nested?(value: unknown, field: FieldDefinition, operator: FilterOperatorName): NestedTree | null;
   operators: FilterOperatorName[];
+  readLeaf?(leaf: FilterLeaf, field: FieldDefinition): FilterLeaf;
   relations?: Partial<Record<FilterOperatorName, FilterSummaryRelation>>;
   scalar?: boolean;
   singleString?: boolean;

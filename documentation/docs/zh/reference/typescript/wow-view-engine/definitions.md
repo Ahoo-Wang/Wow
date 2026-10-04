@@ -188,6 +188,7 @@ export type Text = string & {
 - `editor()` 返回的是**数据**，不是组件名：`EditorDescriptor.input` 是封闭联合，成员列在 `EDITOR_INPUTS` 里，`/ui` 的值编辑器正是对它分支。没有渲染器登记表，所以自定义类型从已有的输入里挑一个；要一个引擎没有的输入，`validateFilter` 以 `filter.kind.unknown-editor` 拒绝，未登记的类型是 `filter.kind.unregistered`，应用按钮被挡住。
 - `emptyValue()` 是叶子的起始值，通常是「还没有」：选了字段却没填值是正常的编辑状态，不校验也不编译。拿 `0` 当数字的起始值会在行一出现时悄悄套上 `amount = 0`。
 - `compile()` 把一个已准入的叶子映射到 Wow 协议；`compiledOperators()` 说明某运算符实际以哪些 Wow 运算符发送，描述必须全部允许它们，该运算符才会提供。
+- `readLeaf()` 把字段还不是这个类型时存下的叶子读成这个类型提供的形状；每一遍过树都先经它读每片叶子。内置的 `enum` 把字段还是字符串时存下的 `EQ` 读成一个值的 `IN`，条件因此照常准入与编译。
 - `scalar`、`singleString`、`fieldless`、`nested` 告诉引擎这个类型的值在 Wow 那边是什么形状，以免引擎认为可用的条件被服务端拒绝。
 
 内置类型：`string`、`number`、`boolean`、`date`、`datetime`、`enum`、`reference`、`array`、`elementMatch`、`search`，以及 Wow 元数据筛选背后的 `documentId`、`aggregateId`、`tenantId`、`ownerId`、`spaceId`、`deletion`。
@@ -205,6 +206,7 @@ export interface FieldKind {
   isBlank?(context: FieldKindBlankContext): boolean;
   nested?(value: unknown, field: FieldDefinition, operator: FilterOperatorName): NestedTree | null;
   operators: FilterOperatorName[];
+  readLeaf?(leaf: FilterLeaf, field: FieldDefinition): FilterLeaf;
   relations?: Partial<Record<FilterOperatorName, FilterSummaryRelation>>;
   scalar?: boolean;
   singleString?: boolean;

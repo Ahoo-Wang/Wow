@@ -94,8 +94,9 @@ const systemOverview = {
 
 /**
  * The same board declared in code with one analysis of its own written
- * wrong: 状态 is a category, which takes 属于 and never 等于 — what the
- * compensation console's overview did to four of its cards (todo A). That
+ * wrong: 状态 is a category, which takes 属于 and never 包含 — the kind of
+ * slip the compensation console's overview made on four of its cards (todo
+ * A; theirs was 等于, which a category now reads as a one-value 属于). That
  * panel is out and says which field and why; the others draw.
  */
 const misdeclaredOverview = {
@@ -118,7 +119,11 @@ const misdeclaredOverview = {
                 filter: {
                   op: 'and',
                   children: [
-                    { field: 'status', operator: 'EQ', value: 'CANCELLED' },
+                    {
+                      field: 'status',
+                      operator: 'CONTAINS',
+                      value: 'CANCELLED',
+                    },
                   ],
                 },
               }),
@@ -868,7 +873,7 @@ export const PanelUnavailable: Story = { args: { variant: 'unavailable' } };
 
 /**
  * 一个面板配错，只坏它自己：板子随定义声明，其中一块自建分析给「状态」写了
- * 「等于」——状态是分类，只收「属于」。那一格说「这个面板用不了」，写出是哪个
+ * 「包含」——状态是分类，只收「属于」。那一格说「这个面板用不了」，写出是哪个
  * 字段、为什么，请维护者修；其余面板照画。从前整块板只剩「定义有 N 个问题，
  * 无法打开」。
  */

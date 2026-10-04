@@ -25,6 +25,7 @@ import {
   isBlankLeafValue,
   isFilterLeaf,
   operatorsOf,
+  readFilter,
   validateFilter,
   walkFilter,
   type FieldKindRegistry,
@@ -156,7 +157,8 @@ function saysNothingIssues(
 
   const byName = new Map(fields.map(field => [field.name, field]));
   const issues: Issue[] = [];
-  for (const { node, path } of walkFilter(tree)) {
+  // Each leaf as its kind reads it, as `validateFilter` judged it.
+  for (const { node, path } of walkFilter(readFilter(fields, tree, kinds))) {
     if (!isFilterLeaf(node)) continue;
     // A field outside this scope was reported as exactly that; what it says
     // about a record it cannot reach is not a second finding.

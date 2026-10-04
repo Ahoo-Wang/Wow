@@ -46,7 +46,7 @@ test('只有已付款的订单能发货，并说明原因', () => {
 
 引擎对 `definitions` 在 `descriptors`（快照，按 `DataViewDefinition.source` 索引）之上会有的每条发现，各带它所属的定义；宿主的声明都成立时答 `[]`。
 
-每份定义都像在引擎里登记时那样被准入——它的键用 `text` 说出、它自己的规则、它的看板对照其他每份定义——每份数据定义都像来源会做的那样被收窄到它的描述，收窄拿掉的东西也说出来。没给描述的来源上的定义也会被指出，因为它的能力没被检查。它接受资源列表原样传入（`{ definition }`）。
+每份定义都像在引擎里登记时那样被准入——它的键用 `text` 说出、它自己的规则、它的看板对照其他每份定义，判的都是声明时的原样（键仍是键）——每份数据定义都像来源会做的那样被收窄到它的描述，收窄拿掉的东西也说出来。没给描述的来源上的定义也会被指出，因为它的能力没被检查。它接受资源列表原样传入（`{ definition, source }`）。传入的资源里至少有一份带着 `source` 时，作为资源传入的数据定义还要过引擎启动时的那道检查：传入的某份资源在它的 `source` 键下登记了数据源，否则报 `definition.source.unregistered`。只有 `{ definition }` 或只传定义的列表没说数据从哪来，不查这一条。
 
 ```ts
 export declare function admit(definitions: readonly Admissible[], descriptors: Readonly<Record<string, QueryModelDescriptor>>, options?: AdmitOptions): AdmitFinding[];
@@ -57,7 +57,7 @@ export interface AdmitOptions {
   text?(key: string): string | undefined;
 }
 
-export type Admissible = ViewDefinition | { definition: ViewDefinition };
+export type Admissible = ViewDefinition | { definition: ViewDefinition; source?: ViewSource };
 
 export type AdmitFinding = Issue & { definition: string };
 ```

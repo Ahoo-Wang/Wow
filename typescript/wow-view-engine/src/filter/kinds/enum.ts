@@ -43,6 +43,22 @@ export const enumFieldKind: FieldKind = {
     return [] satisfies EnumFilterValue;
   },
 
+  // A field that was a string when a view was saved holds `EQ` conditions;
+  // an enum offers no `EQ`, so each is read as the `IN` of its one value
+  // rather than refused (todo G). A blank one stays blank. The view is
+  // saved back as `IN` the next time it is saved.
+  readLeaf(leaf) {
+    if (leaf.operator !== 'EQ') return leaf;
+    const { value } = leaf;
+    const values: EnumFilterValue =
+      value === null || value === undefined || value === ''
+        ? []
+        : Array.isArray(value)
+          ? (value as EnumFilterValue)
+          : [value as EnumFilterValue[number]];
+    return { ...leaf, operator: 'IN', value: values };
+  },
+
   validate({ value, operator, field, path }) {
     if (isPresenceOperator(operator)) return [];
     return validateOptionValues(

@@ -90,7 +90,7 @@ The console is built on the Wow view engine (`@ahoo-wang/wow-view-engine`): the 
 | `/events` | Event stream: the workbench over the compensation event streams (where an event-stream panel's "Open in the workbench" lands) |
 | `/boards` | Boards: the dashboard workbench, to save as, rearrange, or build boards of your own |
 
-The four places are in the top bar. The old queue addresses (`/to-retry` and the rest), `/dashboard` and `/analytics` are gone with the old shell and open the overview. Notification links point at `/executions?view=…&id=…`.
+The four places are in the top bar. The old queue addresses (`/to-retry` and the rest), `/dashboard` and `/analytics` are gone with the old shell and open the overview. Notification links point at `/executions?view=…&id=…`. The failed-executions page keeps `?view=` itself rather than through the engine's address handling, because a link's narrowing (`?cluster=`, `?start&end`) has to leave the address in the same step as the view it narrows; so a `?view=` naming a deleted view shows "This view could not be opened" with "Open the default view", where the engine's own handling (`/events`, `/boards`) goes to the default view at once.
 
 ### Reading the Overview
 

@@ -237,7 +237,7 @@ export const OneBadPanel: Story = {
     ) as HTMLElement;
     await expect(
       out.querySelector('[data-slot="panel-unavailable-detail"]'),
-    ).toHaveTextContent('「状态」不支持「等于」。');
+    ).toHaveTextContent('「状态」不支持「包含」。');
     await expect(out).toHaveTextContent(zhCN['label.panel.way-out.maintainer']);
     // Never the path a config holds.
     await expect(out.textContent).not.toContain('status');
@@ -261,7 +261,7 @@ export const OneBadPanel: Story = {
       canvas.getByRole('link', { name: /^出库异常处理/ }),
     ).toBeVisible();
     await expectPanelsToFix(canvasElement, 1, [
-      '「已取消的订单数」：「状态」不支持「等于」。',
+      '「已取消的订单数」：「状态」不支持「包含」。',
     ]);
   },
 };

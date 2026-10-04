@@ -89,7 +89,7 @@ export declare function ViewHost(input: ViewHostProps): import('react').JSX.Elem
 
 ## bind {#api-bind}
 
-把一份定义在宿主里的行为绑上：`bind(definitionId, options)`。界面自己的同名属性优先。
+把一份定义在宿主里的行为绑上：`bind(definitionId, options)`。界面自己的同名属性优先。id 必须是某份资源登记的定义：`ViewHost` 把给它的每个绑定交给引擎核对（`checkBinding`），没登记的 id——拼错的 id，它的路由、读法与操作原本会悄悄丢掉——经 `onIssue` 报 `binding.definition.unknown`，每个 id 一次。它是 warning 而不是 error：绑定会传给内层宿主，所以外层 `ViewHost` 上写给内层嵌套引擎的定义的绑定，会在外层引擎那里被报一次；按功能开关裁掉了资源、却留着它的绑定的，也一样。两者都不坏任何东西：把这样的绑定写到内层宿主上，或者留着、不理这条 warning。
 
 | 选项 | 作用 |
 |---|---|
