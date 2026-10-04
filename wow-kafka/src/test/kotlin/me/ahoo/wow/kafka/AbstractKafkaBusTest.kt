@@ -48,6 +48,7 @@ import java.time.Duration
 import java.util.concurrent.ExecutionException
 import java.util.concurrent.TimeUnit
 
+@Suppress("LargeClass")
 class AbstractKafkaBusTest {
 
     @Test
@@ -532,6 +533,33 @@ class AbstractKafkaBusTest {
             bus.capturedOptions!!.subscriptionTopics().assert()
                 .isEqualTo(setOf(DefaultCommandTopicConverter().convert(message)))
             bus.capturedOptions!!.consumerProperty(CONTEXT_CUSTOMIZED).assert().isEqualTo(true)
+        } finally {
+            bus.close()
+        }
+    }
+
+    @Test
+    fun `commit batch size is capped after the receiver options customizers`() {
+        val message = message()
+        val receiver = mockk<KafkaReceiver<String, String>>()
+        every { receiver.receive(1) } returns Flux.just(receiverRecord(message, receiverOffset = mockk()))
+        val bus = TestKafkaBus(
+            receiver = receiver,
+            receiverOptionsCustomizer = { it.commitBatchSize(50) },
+            receiverPolicy = KafkaReceiverPolicy(maxDeferredCommits = 7, retrySpec = Retry.max(0)),
+        )
+
+        try {
+            bus.receive(MessageSubscription(message, generateGlobalId()))
+                .contextWrite {
+                    it.writeReceiverOptionsCustomizer { options -> options.maxDeferredCommits(3) }
+                }
+                .test()
+                .expectNextCount(1)
+                .verifyComplete()
+
+            bus.capturedOptions!!.maxDeferredCommits().assert().isEqualTo(3)
+            bus.capturedOptions!!.commitBatchSize().assert().isEqualTo(3)
         } finally {
             bus.close()
         }

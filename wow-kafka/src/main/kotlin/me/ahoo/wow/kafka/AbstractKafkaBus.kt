@@ -62,14 +62,31 @@ internal fun Consumer<*, *>.anchorAssignedPositions(
 
 /**
  * Applies [policy] to these options: out-of-order commits keep at most [KafkaReceiverPolicy.maxDeferredCommits]
- * acknowledged offsets, and a commit starts once that many are waiting. Reactor Kafka stops polling at that limit
- * and otherwise commits only every `commitInterval`, so without the batch trigger a receiver would handle at most
- * `maxDeferredCommits` records per commit interval. A smaller positive `commitBatchSize` already set is kept.
+ * acknowledged offsets. Receiver options customizers run after this and may change it; [withCommitBeforePause]
+ * then ties the commit trigger to the final value.
  */
-internal fun <K, V> ReceiverOptions<K, V>.withReceiverPolicy(policy: KafkaReceiverPolicy): ReceiverOptions<K, V> {
-    val maxDeferredCommits = policy.maxDeferredCommits
-    val commitBatchSize = commitBatchSize().takeIf { it in 1..maxDeferredCommits } ?: maxDeferredCommits
-    return maxDeferredCommits(maxDeferredCommits).commitBatchSize(commitBatchSize)
+internal fun <K, V> ReceiverOptions<K, V>.withReceiverPolicy(policy: KafkaReceiverPolicy): ReceiverOptions<K, V> =
+    maxDeferredCommits(policy.maxDeferredCommits)
+
+/**
+ * Starts a commit once `maxDeferredCommits` acknowledged offsets are waiting. Reactor Kafka stops polling at that
+ * limit (per consumer, across all its topics and partitions) and otherwise commits only every `commitInterval`,
+ * so without the batch trigger a receiver would handle at most `maxDeferredCommits` records per commit interval.
+ * A smaller positive `commitBatchSize` is kept; a larger one is capped and reported to [onCapped]. In-order
+ * commits (`maxDeferredCommits` 0) are left alone.
+ */
+internal fun <K, V> ReceiverOptions<K, V>.withCommitBeforePause(
+    onCapped: (commitBatchSize: Int, maxDeferredCommits: Int) -> Unit = { _, _ -> },
+): ReceiverOptions<K, V> {
+    val maxDeferredCommits = maxDeferredCommits()
+    val commitBatchSize = commitBatchSize()
+    if (maxDeferredCommits <= 0 || commitBatchSize in 1..maxDeferredCommits) {
+        return this
+    }
+    if (commitBatchSize > maxDeferredCommits) {
+        onCapped(commitBatchSize, maxDeferredCommits)
+    }
+    return commitBatchSize(maxDeferredCommits)
 }
 
 abstract class AbstractKafkaBus<M, E>(
@@ -197,7 +214,8 @@ abstract class AbstractKafkaBus<M, E>(
                     subscription.receiverGroup,
                 )
                 .subscription(subscription.namedAggregates.map { topicConverter.convert(it) }.toSet())
-            val customizedOptions = contextView.getReceiverOptionsCustomizer()?.customize(options) ?: options
+            val customizedOptions = (contextView.getReceiverOptionsCustomizer()?.customize(options) ?: options)
+                .withCommitBeforePause(::logCommitBatchSizeCapped)
             val readyOptions = if (onAssigned == null) {
                 customizedOptions
             } else {
@@ -207,6 +225,18 @@ abstract class AbstractKafkaBus<M, E>(
                 .receive(receiverPolicy.prefetchBatches)
                 .retryWhen(receiverPolicy.retrySpec)
                 .concatMap(::decodeRecord)
+        }
+    }
+
+    private val commitBatchSizeCapLogged = AtomicBoolean()
+
+    private fun logCommitBatchSizeCapped(commitBatchSize: Int, maxDeferredCommits: Int) {
+        if (commitBatchSizeCapLogged.compareAndSet(false, true)) {
+            log.info {
+                "[${this.javaClass.simpleName}] Cap commitBatchSize[$commitBatchSize] at " +
+                    "maxDeferredCommits[$maxDeferredCommits]: the consumer stops polling at that many " +
+                    "acknowledged offsets, so a commit must start by then."
+            }
         }
     }
 
