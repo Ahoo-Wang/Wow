@@ -104,7 +104,7 @@ Each `Command-Header-<key>` request header is copied into the command message he
 
 ### Client Address
 
-The command routes also stamp `user_agent` and `remote_ip` into the command message header. `remote_ip` is the first non-blank entry of the first `X-Forwarded-For` request header, as sent; without one it is the remote address of the connection, written as its IP literal. The address is never resolved by a reverse DNS lookup, which would block the event loop (since 9.2.3; earlier versions wrote the reverse-resolved host name, so stored commands and events can hold either form). `X-Forwarded-For` is client-controlled: rely on it only behind a proxy that sets it.
+The command routes also stamp `user_agent` and `remote_ip` into the command message header. `remote_ip` is the first non-blank entry of the first `X-Forwarded-For` request header, as sent; without one it is the remote address of the connection, written as its IP literal (IPv6 in the full uncompressed form without brackets, e.g. `0:0:0:0:0:0:0:1`; a link-local address may carry a `%scope` suffix). The address is never resolved by a reverse DNS lookup, which would block the event loop (since 9.2.3; earlier versions wrote the reverse-resolved host name, so stored commands and events can hold either form). `X-Forwarded-For` is client-controlled: rely on it only behind a proxy that sets it.
 
 ## JSON and SSE Responses
 
