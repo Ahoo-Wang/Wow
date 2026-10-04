@@ -103,7 +103,7 @@ class RedisEventStore(
         headEventTime: Long,
         tailEventTime: Long
     ): Flux<DomainEventStream> {
-        throw UnsupportedOperationException()
+        return Flux.error(UnsupportedOperationException("RedisEventStore does not support loading by event time."))
     }
 
     override fun existsRequestId(aggregateId: AggregateId, requestId: String): Mono<Boolean> {

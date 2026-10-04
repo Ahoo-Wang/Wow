@@ -56,6 +56,26 @@ class TracingEventStore(override val delegate: EventStore) : Traced, EventStore,
         }
     }
 
+    override fun existsRequestId(aggregateId: AggregateId, requestId: String): Mono<Boolean> {
+        return Mono.deferContextual {
+            val parentContext = ReactorTraceContext.get(it)
+            val source = Mono.defer {
+                delegate.existsRequestId(aggregateId, requestId)
+            }
+            TraceMono(parentContext, EventStoreInstrumenter.EXISTS_REQUEST_ID_INSTRUMENTER, aggregateId, source)
+        }
+    }
+
+    override fun single(aggregateId: AggregateId, version: Int): Mono<DomainEventStream> {
+        return Mono.deferContextual {
+            val parentContext = ReactorTraceContext.get(it)
+            val source = Mono.defer {
+                delegate.single(aggregateId, version)
+            }
+            TraceMono(parentContext, EventStoreInstrumenter.LOAD_INSTRUMENTER, aggregateId, source)
+        }
+    }
+
     override fun last(aggregateId: AggregateId): Mono<DomainEventStream> {
         return Mono.deferContextual {
             val parentContext = ReactorTraceContext.get(it)

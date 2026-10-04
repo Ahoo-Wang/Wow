@@ -50,7 +50,7 @@ ExecutionFailed -> 自动调度或人工准备 -> 原事件 + 原目标函数重
 - 错误代码、消息、绑定错误与堆栈；
 - 执行时间、重试规格与恢复性分类。
 
-没有函数信息时，错误原样传播，不创建记录。显式 `@Retry(enabled = false)` 时，失败也原样传播：首次执行不发送 `CreateExecutionFailed`，带补偿 ID 的失败不发送 `ApplyExecutionFailed`。这个检查只在错误分支；带补偿 ID 的执行成功仍发送 `ApplyExecutionSuccess`。补偿命令发送成功后，原处理错误继续交给 dispatcher 的错误边界；若补偿命令本身发送失败，则由发送错误终止这条响应式链，不能把“原错误已记录”当作既成事实。
+没有函数信息时，错误原样传播，不创建记录。显式 `@Retry(enabled = false)` 时，失败也原样传播：首次执行不发送 `CreateExecutionFailed`，带补偿 ID 的失败不发送 `ApplyExecutionFailed`。这个检查只在错误分支；带补偿 ID 的执行成功仍发送 `ApplyExecutionSuccess`。补偿命令发送成功后，原处理错误继续交给 dispatcher 的错误边界。若补偿命令本身发送失败，这次失败既没有被处理也没有被记录：原处理错误仍向外传播，发送错误作为 suppressed 异常附在其上，并且原 exchange 不被确认，由支持重投的总线再次投递（Redis Streams 重新认领 pending 条目；Kafka 在分区重新分配前不会越过该 offset 提交；内存总线和本地已处理的消息不会重投）。9.2.2 及以前，发送错误会取代原错误，且 exchange 仍被确认。Snapshot 链中 `SnapshotFunctionFilter` 在失败到达 `StateEventCompensationFilter` 之前已经确认状态事件，因此那里的 exchange 已被确认。
 
 重放 exchange 的 header 已带有 `compensationId`。再次失败发送 `ApplyExecutionFailed`，成功则发送 `ApplyExecutionSuccess`，两者都写回同一个 `ExecutionFailed` 聚合。
 

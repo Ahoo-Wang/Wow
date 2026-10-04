@@ -51,7 +51,7 @@ Read the tags as a pipeline map:
 |---|---|---|
 | Command intake and publication | `command_bus` / `receive`, `send`, `send_if_subscribed` | The bus publisher terminated with the recorded outcome |
 | Aggregate execution | `command_handler` / `handle` | The command handler publisher terminated |
-| Event persistence | `event_store` / `append`, `load_by_version`, `load_by_time`, `last` | The selected store operation terminated; only backend acknowledgement establishes durability |
+| Event persistence | `event_store` / `append`, `load_by_version`, `load_by_time`, `single`, `last`, `exists_request_id`, `scan_aggregate_id` | The selected store operation terminated; only backend acknowledgement establishes durability |
 | Event publication and intake | `domain_event_bus`, `state_event_bus` / `send`, `receive` | A bus boundary was exercised |
 | Downstream processing | `domain_event_handler`, `projection_handler`, `stateless_saga_handler`, `snapshot_handler` / `handle` | That handler publisher terminated, not that every subscriber caught up |
 | Snapshot work | `snapshot_strategy` / `on_event`; `snapshot_store` / `load`, `get_version`, `save` | Strategy or physical snapshot-store work terminated |

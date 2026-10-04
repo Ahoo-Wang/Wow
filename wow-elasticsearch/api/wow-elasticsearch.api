@@ -89,6 +89,7 @@ public final class me/ahoo/wow/elasticsearch/eventsourcing/ElasticsearchEventSto
 	public fun <init> (Lorg/springframework/data/elasticsearch/client/elc/ReactiveElasticsearchClient;Lme/ahoo/wow/infra/batch/BatchOptions;Lco/elastic/clients/elasticsearch/_types/Refresh;ILme/ahoo/wow/metrics/WowMetrics;Lme/ahoo/wow/elasticsearch/ElasticsearchIndexNaming;)V
 	public synthetic fun <init> (Lorg/springframework/data/elasticsearch/client/elc/ReactiveElasticsearchClient;Lme/ahoo/wow/infra/batch/BatchOptions;Lco/elastic/clients/elasticsearch/_types/Refresh;ILme/ahoo/wow/metrics/WowMetrics;Lme/ahoo/wow/elasticsearch/ElasticsearchIndexNaming;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public fun close ()V
+	public fun existsRequestId (Lme/ahoo/wow/api/modeling/AggregateId;Ljava/lang/String;)Lreactor/core/publisher/Mono;
 	public final fun getBatchOptions ()Lme/ahoo/wow/infra/batch/BatchOptions;
 	public fun last (Lme/ahoo/wow/api/modeling/AggregateId;)Lreactor/core/publisher/Mono;
 	public fun scanAggregateId (Lme/ahoo/wow/api/modeling/NamedAggregate;Ljava/lang/String;I)Lreactor/core/publisher/Flux;

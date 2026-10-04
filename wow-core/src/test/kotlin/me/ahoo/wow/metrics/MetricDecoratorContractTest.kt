@@ -49,12 +49,8 @@ class MetricDecoratorContractTest {
 
     companion object {
         /**
-         * Gaps that exist today. Each entry names the 9.3.0 work item that removes it; the list may only shrink.
+         * Allowed gaps, emptied by 9.3.0 WP S5. A new entry must name the work item that removes it.
          */
-        val KNOWN_GAPS: Map<String, String> = mapOf(
-            "MetricEventStore.single(AggregateId,Int)" to S5,
-        )
-
-        private const val S5 = "9.3.0 WP S5: decorators forward SPI defaults"
+        val KNOWN_GAPS: Map<String, String> = emptyMap()
     }
 }

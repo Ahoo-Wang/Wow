@@ -170,6 +170,25 @@ class ElasticsearchEventStore(
             .onErrorResume(::missingIndexAsEmpty)
     }
 
+    /**
+     * A bounded lookup on the indexed `requestId` field instead of the interface default, which loads the whole
+     * stream. The idempotency check calls it on the command path.
+     */
+    override fun existsRequestId(aggregateId: AggregateId, requestId: String): Mono<Boolean> {
+        return elasticsearchClient
+            .search({
+                it
+                    .index(indexNaming.eventStreamIndexName(aggregateId))
+                    .query(EventStreamSearches.requestId(aggregateId, requestId))
+                    .routing(aggregateId.id)
+                    .source { sourceBuilder -> sourceBuilder.fetch(false) }
+                    .size(1)
+            }, Map::class.java)
+            .map { it.hits().hits().isNotEmpty() }
+            .onErrorResume(::missingIndexAsEmpty)
+            .defaultIfEmpty(false)
+    }
+
     override fun last(aggregateId: AggregateId): Mono<DomainEventStream> {
         return searchEventStreamHits(
             aggregateId = aggregateId,

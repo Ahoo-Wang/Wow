@@ -13,9 +13,35 @@
 
 package me.ahoo.wow.messaging.handler
 
+import io.github.oshai.kotlinlogging.KotlinLogging
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.messaging.rejectLocalDelivery
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
+
+private const val ACKNOWLEDGEMENT_WITHHELD_KEY = "__ACKNOWLEDGEMENT_WITHHELD__"
+
+/**
+ * Leaves this exchange unacknowledged when its processing ends, so a bus that redelivers unacknowledged messages
+ * delivers it again. For a processing failure that was neither handled nor durably recorded, for example when
+ * recording an event-processing failure for compensation fails.
+ *
+ * Set on a per-function event exchange, it applies to the event stream exchange that function belongs to.
+ * Whether the message is delivered again is the bus's behaviour: Redis Streams re-claims pending entries, Kafka
+ * stops committing at the offset until the partition is reassigned, and in-memory and locally handled
+ * messages are not redelivered.
+ */
+@InternalWowApi
+fun MessageExchange<*, *>.withholdAcknowledgement() {
+    attributes[ACKNOWLEDGEMENT_WITHHELD_KEY] = true
+}
+
+/**
+ * Whether [withholdAcknowledgement] was called on this exchange.
+ */
+@InternalWowApi
+fun MessageExchange<*, *>.isAcknowledgementWithheld(): Boolean =
+    attributes[ACKNOWLEDGEMENT_WITHHELD_KEY] == true
 
 /**
  * Utilities for acknowledging message exchanges.
@@ -24,9 +50,18 @@ import reactor.core.publisher.Mono
  * regardless of processing success or failure.
  */
 object ExchangeAck {
+    private val log = KotlinLogging.logger {}
+
     private fun MessageExchange<*, *>.acknowledgeDefer(): Mono<Void> =
         Mono.defer {
-            acknowledge()
+            if (isAcknowledgementWithheld()) {
+                log.warn {
+                    "Leave message[${message.id}] unacknowledged: its acknowledgement was withheld."
+                }
+                Mono.empty()
+            } else {
+                acknowledge()
+            }
         }
 
     /**
@@ -34,6 +69,7 @@ object ExchangeAck {
      *
      * If the Mono fails, acknowledges first, then re-throws the error.
      * If successful, acknowledges after completion.
+     * An exchange whose acknowledgement is withheld ([withholdAcknowledgement]) is left unacknowledged.
      *
      * @param exchange The exchange to acknowledge
      * @return A Mono that acknowledges the exchange
@@ -49,6 +85,7 @@ object ExchangeAck {
      *
      * If the Flux fails, acknowledges first, then re-throws the error.
      * If successful, acknowledges after completion.
+     * An exchange whose acknowledgement is withheld ([withholdAcknowledgement]) is left unacknowledged.
      *
      * @param exchange The exchange to acknowledge
      * @return A Mono that acknowledges the exchange

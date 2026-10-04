@@ -16,6 +16,7 @@ package me.ahoo.wow.compensation.core
 import me.ahoo.wow.api.annotation.ORDER_FIRST
 import me.ahoo.wow.api.annotation.Order
 import me.ahoo.wow.api.annotation.Retry
+import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.api.messaging.function.FunctionInfo
 import me.ahoo.wow.api.messaging.function.materialize
 import me.ahoo.wow.command.CommandBus
@@ -43,6 +44,7 @@ import me.ahoo.wow.messaging.compensation.CompensationMatcher.compensationId
 import me.ahoo.wow.messaging.function.MessageFunction
 import me.ahoo.wow.messaging.handler.ExchangeFilter
 import me.ahoo.wow.messaging.handler.RetryableFilter
+import me.ahoo.wow.messaging.handler.withholdAcknowledgement
 import me.ahoo.wow.projection.ProjectionDispatcher
 import me.ahoo.wow.saga.stateless.StatelessSagaDispatcher
 import reactor.core.publisher.Mono
@@ -105,7 +107,7 @@ abstract class EventCompensationFilter<EXCHANGE : EventExchange<*, *>>(private v
                     )
                 }
                 val commandMessage = command.toCommandMessage()
-                commandBus.send(commandMessage).then(it.toMono())
+                recordFailure(exchange, commandMessage, it)
             }
             .then(
                 Mono.defer {
@@ -117,6 +119,25 @@ abstract class EventCompensationFilter<EXCHANGE : EventExchange<*, *>>(private v
                     commandBus.send(commandMessage)
                 }
             )
+    }
+
+    /**
+     * Sends the failure record, then re-emits [handlerError]. When the record cannot be sent, the handler error
+     * stays the error of this exchange, with the send failure suppressed in it, and the exchange is left
+     * unacknowledged so the bus can deliver it again: a failure neither handled nor recorded is not acknowledged.
+     */
+    private fun recordFailure(
+        exchange: EXCHANGE,
+        commandMessage: CommandMessage<*>,
+        handlerError: Throwable,
+    ): Mono<Void> {
+        return commandBus.send(commandMessage)
+            .onErrorResume { recordError ->
+                handlerError.addSuppressed(recordError)
+                exchange.withholdAcknowledgement()
+                Mono.empty()
+            }
+            .then(Mono.error(handlerError))
     }
 }
 

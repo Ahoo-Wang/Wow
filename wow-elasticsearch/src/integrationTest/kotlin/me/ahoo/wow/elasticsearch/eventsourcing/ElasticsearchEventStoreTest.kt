@@ -22,6 +22,7 @@ import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.eventsourcing.EventVersionConflictException
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.infra.batch.BatchOptions
+import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.tck.container.ElasticsearchTestFixture
 import me.ahoo.wow.tck.event.MockDomainEventStreams.generateEventStream
@@ -46,6 +47,15 @@ class ElasticsearchEventStoreTest : EventStoreSpec() {
     }
 
     override fun appendEventStreamWhenDuplicateRequestIdException() = Unit
+
+    @Test
+    fun `existsRequestId should be false when index is missing`() {
+        val missing = MaterializedNamedAggregate("es-missing-index", "absent")
+        eventStore.existsRequestId(missing.aggregateId(generateGlobalId()), generateGlobalId())
+            .test()
+            .expectNext(false)
+            .verifyComplete()
+    }
 
     @Test
     fun `scan aggregate id should be empty when index is missing`() {

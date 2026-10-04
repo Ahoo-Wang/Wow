@@ -50,7 +50,7 @@ instrumentation。属性为 `false` 时，最高优先级
 |---|---|---|
 | 命令接收与发布 | `command_bus` / `receive`、`send`、`send_if_subscribed` | 总线 publisher 以记录的结果终止 |
 | 聚合执行 | `command_handler` / `handle` | 命令处理 publisher 已终止 |
-| 事件持久化 | `event_store` / `append`、`load_by_version`、`load_by_time`、`last` | 选中存储的调用已终止；耐久性仍以 backend acknowledgement 为准 |
+| 事件持久化 | `event_store` / `append`、`load_by_version`、`load_by_time`、`single`、`last`、`exists_request_id`、`scan_aggregate_id` | 选中存储的调用已终止；耐久性仍以 backend acknowledgement 为准 |
 | 事件发布与接收 | `domain_event_bus`、`state_event_bus` / `send`、`receive` | 消息总线边界已执行 |
 | 下游处理 | `domain_event_handler`、`projection_handler`、`stateless_saga_handler`、`snapshot_handler` / `handle` | 对应 handler publisher 已终止，不代表所有订阅者都追平 |
 | 快照工作 | `snapshot_strategy` / `on_event`；`snapshot_store` / `load`、`get_version`、`save` | 策略或物理快照存储操作已终止 |

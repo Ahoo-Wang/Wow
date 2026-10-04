@@ -120,9 +120,16 @@ public final class me/ahoo/wow/opentelemetry/eventsourcing/EventStoreAppendSpanN
 	public fun extract (Lme/ahoo/wow/event/DomainEventStream;)Ljava/lang/String;
 }
 
+public final class me/ahoo/wow/opentelemetry/eventsourcing/EventStoreExistsRequestIdSpanNameExtractor : io/opentelemetry/instrumentation/api/instrumenter/SpanNameExtractor {
+	public static final field INSTANCE Lme/ahoo/wow/opentelemetry/eventsourcing/EventStoreExistsRequestIdSpanNameExtractor;
+	public synthetic fun extract (Ljava/lang/Object;)Ljava/lang/String;
+	public fun extract (Lme/ahoo/wow/api/modeling/AggregateId;)Ljava/lang/String;
+}
+
 public final class me/ahoo/wow/opentelemetry/eventsourcing/EventStoreInstrumenter {
 	public static final field INSTANCE Lme/ahoo/wow/opentelemetry/eventsourcing/EventStoreInstrumenter;
 	public final fun getAPPEND_INSTRUMENTER ()Lio/opentelemetry/instrumentation/api/instrumenter/Instrumenter;
+	public final fun getEXISTS_REQUEST_ID_INSTRUMENTER ()Lio/opentelemetry/instrumentation/api/instrumenter/Instrumenter;
 	public final fun getLOAD_INSTRUMENTER ()Lio/opentelemetry/instrumentation/api/instrumenter/Instrumenter;
 }
 

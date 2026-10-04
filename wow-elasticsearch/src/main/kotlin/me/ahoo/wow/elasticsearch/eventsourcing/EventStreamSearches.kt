@@ -38,6 +38,10 @@ internal object EventStreamSearches {
     fun timeRange(aggregateId: AggregateId, headEventTime: Long, tailEventTime: Long): Query =
         aggregate(aggregateId, between(MessageRecords.CREATE_TIME, headEventTime, tailEventTime))
 
+    /** The streams of [aggregateId] written by the command request [requestId]. */
+    fun requestId(aggregateId: AggregateId, requestId: String): Query =
+        aggregate(aggregateId, term { term -> term.field(MessageRecords.REQUEST_ID).value(requestId) })
+
     /** Every stream of [aggregateId]. */
     fun all(aggregateId: AggregateId): Query = aggregate(aggregateId)
 

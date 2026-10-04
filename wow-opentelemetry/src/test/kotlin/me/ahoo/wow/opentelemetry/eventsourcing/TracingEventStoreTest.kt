@@ -14,20 +14,45 @@
 package me.ahoo.wow.opentelemetry.eventsourcing
 
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry
+import io.mockk.every
+import io.mockk.mockk
+import io.mockk.verify
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.eventsourcing.snapshot.NoOpSnapshotStore
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotStore
+import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.metrics.WowMetrics
 import me.ahoo.wow.metrics.metered
+import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.opentelemetry.snapshot.TracingSnapshotStore
+import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import org.junit.jupiter.api.Test
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
+import reactor.kotlin.test.test
 
 class TracingEventStoreTest {
+
+    @Test
+    fun `existsRequestId and single should use the store's own lookups instead of loading the stream`() {
+        val aggregateId = MOCK_AGGREGATE_METADATA.aggregateId(generateGlobalId())
+        val stream = mockk<DomainEventStream>()
+        val delegate = mockk<EventStore> {
+            every { existsRequestId(aggregateId, "request") } returns Mono.just(true)
+            every { single(aggregateId, 2) } returns Mono.just(stream)
+        }
+        val eventStore: EventStore = TracingEventStore(
+            delegate.metered(WowMetrics(SimpleMeterRegistry()), "eventStore")
+        )
+
+        eventStore.existsRequestId(aggregateId, "request").test().expectNext(true).verifyComplete()
+        eventStore.single(aggregateId, 2).test().expectNext(stream).verifyComplete()
+
+        verify(exactly = 0) { delegate.load(any(), any<Int>(), any<Int>()) }
+    }
 
     @Test
     fun `decorator chain should close the original EventStore exactly once`() {
