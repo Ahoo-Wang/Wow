@@ -444,6 +444,7 @@ export const ORDER_WORDS = {
   'orders.all': 'All orders',
   'orders.ship': 'Ship',
   'orders.shipTitle': 'Ship {count} orders?',
+  'orders.shipTitle-one': 'Ship this order?',
   'orders.notPaid': 'Only a paid order can ship',
 };
 ```
@@ -540,8 +541,8 @@ export const orderActions = actions([
     primary: true,
     // `true`, or why not: the reason shows on the disabled button.
     available: row => (paid(row) ? true : text('orders.notPaid')),
-    // One order ships at a press; a selection is counted and asked first.
-    confirm: { title: text('orders.shipTitle'), ask: 'bulk' },
+    // Routine, but not taken back once sent: asked for one order too, with no danger tone.
+    confirm: { title: text('orders.shipTitle') },
     // Rejects when the server refuses; the engine reports why on that order.
     run: async row => {
       await commands.send({
@@ -641,7 +642,7 @@ pnpm dev
 Open `http://localhost:5173/orders`:
 
 - The first system view, "To ship", opens with the two paid orders, and their amounts totalled under the table.
-- Press "Ship" on a row: the command is sent, the snapshot is written, the view is read again, and that order leaves "To ship". Press it on the other, or select several and press "Ship N", and the engine asks first.
+- Press "Ship" on a row and confirm "Ship this order?": the command is sent, the snapshot is written, the view is read again, and that order leaves "To ship". Select several and press "Ship N", and the engine counts them in the same question.
 - Switch to "All orders": all three are there; the third is "Awaiting payment", and its "Ship" button is disabled with the reason.
 - Add a filter (a city, say) and the title says it is not saved; "Save as" keeps it as your own view, and the address's `?view=` follows.
 

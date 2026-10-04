@@ -113,12 +113,18 @@ export const Example: Story = {
       'page',
     );
 
-    // The declared action: 「发货」 in the row sends at once (a selection
-    // would be asked first), and the order leaves 「待发货」.
+    // The declared action: 「发货」 in the row asks first (shipping is not
+    // taken back), and once confirmed the order leaves 「待发货」.
     const first = idOf(paid[0]!);
     await userEvent.click(
       rowOf(canvas, first).getByRole('button', { name: '发货' }),
     );
+    const question = within(
+      await within(document.body).findByRole('dialog', {
+        name: '发出 1 张订单？',
+      }),
+    );
+    await userEvent.click(question.getByRole('button', { name: '发货' }));
     await waitFor(() => expect(canvas.queryByText(first)).toBeNull());
 
     // Through the router: 「全部订单」 opens in `?view=`, and is current.

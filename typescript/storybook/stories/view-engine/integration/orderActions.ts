@@ -40,8 +40,9 @@ export const orderActions = (commands: OrderCommands) =>
       // `true`, or why not: the reason shows on the disabled button, and a
       // selection is split into what can and what cannot take it.
       available: row => (paid(row) ? true : text('orders.notPaid')),
-      // One order ships at a press; a selection is counted and asked first.
-      confirm: { title: text('orders.shipTitle'), ask: 'bulk' },
+      // Routine, but not taken back once sent: asked for one order too, with
+      // no danger tone; a selection is counted in the same question.
+      confirm: { title: text('orders.shipTitle') },
       run: row => commands.ship(String(row.key)),
     },
     {

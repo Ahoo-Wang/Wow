@@ -533,8 +533,8 @@ export const orderActions = actions([
     primary: true,
     // `true`，或者为什么不行：理由显示在停用的按钮上。
     available: row => (paid(row) ? true : text('orders.notPaid')),
-    // 单张一按就发；多选时先数清楚再问。
-    confirm: { title: text('orders.shipTitle'), ask: 'bulk' },
+    // 例行、但发出去收不回：一张也先问，不用危险色。
+    confirm: { title: text('orders.shipTitle') },
     // 被服务端拒绝时 reject，引擎把原因报在那张订单上。
     run: async row => {
       await commands.send({
@@ -633,7 +633,7 @@ pnpm dev
 打开 `http://localhost:5173/orders`：
 
 - 打开的是第一个系统视图「待发货」，列着两张已付款的订单，表尾是金额合计。
-- 按一行的「发货」：命令发出、快照写好后视图重读，那张订单离开「待发货」。再按一次另一张，或勾选几张后按「发货 N 条」，引擎先问。
+- 按一行的「发货」并在「发出 1 张订单？」里确认：命令发出、快照写好后视图重读，那张订单离开「待发货」。勾选几张后按「发货 N 条」，引擎在同一个问题里先数清楚。
 - 切到「全部订单」，三张都在，第三张是「待付款」，它的「发货」按钮停用并说明原因。
 - 加一个筛选（例如城市），标题会提醒还没保存；「另存为」存成你自己的视图，地址里的 `?view=` 随之改变。
 
