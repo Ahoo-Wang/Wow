@@ -2,7 +2,7 @@
 name: a68-migrate-boot3-boot4-platform
 tags: [activation, trigger, migration, spring-boot, platform-contract, configuration]
 runs: 3
-max_turns: 8
+max_turns: 2
 allowed_tools: [Read, Glob, Grep, Skill]
 ---
 

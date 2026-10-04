@@ -24,9 +24,15 @@
  * Each skill runs in two passes, split by the case's tag:
  * - `activation`: does the skill load (`trigger`) or stay out (`negative`)?
  *   Run with `--ablation none`, because a no-skill arm would only repeat the
- *   question at full price; the `tool_used: Skill` grader is the score.
- * - `behavior`: is the answer right? Run with the default
- *   `--ablation with-without`, so the score has a no-skill baseline to beat.
+ *   question at full price; the `tool_used: Skill` grader is the score. The
+ *   cases set `max_turns: 2`: the skill loads (or not) on the first turn, so
+ *   more turns only pay for work nobody grades. A run that stops at its turn
+ *   limit is still graded and counts as a result, not an error.
+ * - `behavior`: is the answer right? Run with `--ablation with-without` by
+ *   default, so the score has a no-skill baseline to beat;
+ *   `SKILLS_EVAL_ABLATION=none` drops that arm (about half the cost) when
+ *   comparing two versions of the skill rather than skill against none. Under
+ *   `none` the `tool_used: Skill` grader counts toward the score.
  *
  * Environment:
  * - `CLAUDE_BIN`: the `claude` executable (default `claude`).
@@ -39,6 +45,8 @@
  * - `SKILLS_EVAL_PASSES`: `activation`, `behavior` or both (default
  *   `activation,behavior`).
  * - `SKILLS_EVAL_MODEL`: `--model` for every case (default: the CLI's).
+ * - `SKILLS_EVAL_ABLATION`: `--ablation` for the behavior pass, `with-without`
+ *   or `none` (default `with-without`); the activation pass is always `none`.
  *
  * Scores are measured, not gated: each pass runs with `--threshold 0`, so a
  * case scoring below 1 does not fail it. The script exits 1 only when a pass
@@ -76,9 +84,18 @@ function positiveNumber(name, fallback, integer = false) {
   return value;
 }
 
+const ABLATIONS = ['with-without', 'none'];
+const ablation = process.env.SKILLS_EVAL_ABLATION || 'with-without';
+if (!ABLATIONS.includes(ablation)) {
+  console.error(
+    `SKILLS_EVAL_ABLATION must be ${ABLATIONS.join(' or ')}, got '${ablation}'`,
+  );
+  process.exit(2);
+}
+
 const PASSES = {
   activation: ['--tag', 'activation', '--ablation', 'none'],
-  behavior: ['--tag', 'behavior'],
+  behavior: ['--tag', 'behavior', '--ablation', ablation],
 };
 
 const claude = process.env.CLAUDE_BIN || 'claude';
@@ -143,6 +160,14 @@ function spend(result) {
   return Math.max(runs, result?.costUsd ?? 0);
 }
 
+/**
+ * A run that did not produce a gradable result. Reaching `max_turns` is not
+ * one: the CLI still grades the transcript, and activation cases stop at their
+ * turn limit on purpose.
+ */
+const runFailed = run =>
+  Boolean(run.error) && !/maximum number of turns/i.test(run.error);
+
 const graderPassed = (run, name) =>
   run.graders?.find(grader => grader.name === name)?.passed;
 const ratio = (part, whole) => (whole === 0 ? undefined : part / whole);
@@ -165,7 +190,7 @@ function activationMetrics(result) {
   let errors = 0;
   for (const testCase of result?.cases ?? [])
     for (const run of testCase.arms?.with ?? []) {
-      if (run.error) {
+      if (runFailed(run)) {
         errors++;
         continue;
       }
@@ -196,14 +221,14 @@ function behaviorMetrics(result) {
   let errors = 0;
   for (const testCase of result?.cases ?? []) {
     for (const run of testCase.arms?.with ?? []) {
-      if (run.error) errors++;
+      if (runFailed(run)) errors++;
       else {
         withRuns.push(run);
         if (graderPassed(run, 'skill-fired')) fired++;
       }
     }
     for (const run of testCase.arms?.without ?? [])
-      if (!run.error) withoutRuns.push(run);
+      if (!runFailed(run)) withoutRuns.push(run);
   }
   return {
     cases: result?.cases?.length ?? 0,
@@ -311,7 +336,7 @@ for (const { skill, cost, passes: done } of results) {
 }
 const total = results.reduce((sum, { cost }) => sum + cost, 0);
 console.log(
-  `\nSkill evals (runs ${runs}):\n\n${rows.join('\n')}\n\nTotal cost: $${total.toFixed(2)}`,
+  `\nSkill evals (runs ${runs}, behavior ablation ${ablation}):\n\n${rows.join('\n')}\n\nTotal cost: $${total.toFixed(2)}`,
 );
 for (const { skill, passes: done } of results)
   for (const [pass, { code, partial, metrics }] of Object.entries(done))

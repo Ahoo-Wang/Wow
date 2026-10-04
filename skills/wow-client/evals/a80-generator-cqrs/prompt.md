@@ -2,7 +2,7 @@
 name: a80-generator-cqrs
 tags: [activation, trigger, generation]
 runs: 3
-max_turns: 8
+max_turns: 2
 allowed_tools: [Read, Glob, Grep, Skill]
 ---
 

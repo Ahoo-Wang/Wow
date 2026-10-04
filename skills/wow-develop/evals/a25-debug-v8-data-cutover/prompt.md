@@ -2,7 +2,7 @@
 name: a25-debug-v8-data-cutover
 tags: [activation, negative, debug-data-cutover, migration, conflict]
 runs: 3
-max_turns: 8
+max_turns: 2
 allowed_tools: [Read, Glob, Grep, Skill]
 ---
 

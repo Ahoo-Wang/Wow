@@ -2,7 +2,7 @@
 name: a67-migrate-aggregation-runtime-contract
 tags: [activation, trigger, migration, runtime-contract, query, aggregation]
 runs: 3
-max_turns: 8
+max_turns: 2
 allowed_tools: [Read, Glob, Grep, Skill]
 ---
 

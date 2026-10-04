@@ -2,7 +2,7 @@
 name: a111-view-host-wow-console
 tags: [activation, trigger, wow-repository]
 runs: 3
-max_turns: 8
+max_turns: 2
 allowed_tools: [Read, Glob, Grep, Skill]
 ---
 

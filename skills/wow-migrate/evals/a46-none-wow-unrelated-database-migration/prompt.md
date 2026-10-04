@@ -2,7 +2,7 @@
 name: a46-none-wow-unrelated-database-migration
 tags: [activation, negative, wow-project, unrelated-database-migration]
 runs: 3
-max_turns: 8
+max_turns: 2
 allowed_tools: [Read, Glob, Grep, Skill]
 ---
 

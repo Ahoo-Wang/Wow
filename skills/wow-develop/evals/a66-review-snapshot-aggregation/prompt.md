@@ -2,7 +2,7 @@
 name: a66-review-snapshot-aggregation
 tags: [activation, trigger, review, query, aggregation]
 runs: 3
-max_turns: 8
+max_turns: 2
 allowed_tools: [Read, Glob, Grep, Skill]
 ---
 

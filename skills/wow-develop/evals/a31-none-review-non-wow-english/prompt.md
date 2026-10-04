@@ -2,7 +2,7 @@
 name: a31-none-review-non-wow-english
 tags: [activation, negative, non-wow-project, review, language-en]
 runs: 3
-max_turns: 8
+max_turns: 2
 allowed_tools: [Read, Glob, Grep, Skill]
 ---
 

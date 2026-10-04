@@ -2,7 +2,7 @@
 name: a44-migrate-adoption-with-history
 tags: [activation, trigger, adoption, data-cutover, conflict]
 runs: 3
-max_turns: 8
+max_turns: 2
 allowed_tools: [Read, Glob, Grep, Skill]
 ---
 

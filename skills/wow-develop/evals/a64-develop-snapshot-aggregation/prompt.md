@@ -2,7 +2,7 @@
 name: a64-develop-snapshot-aggregation
 tags: [activation, trigger, query, aggregation, source-marker, downstream-application]
 runs: 3
-max_turns: 8
+max_turns: 2
 allowed_tools: [Read, Glob, Grep, Skill]
 ---
 

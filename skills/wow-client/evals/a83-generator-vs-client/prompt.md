@@ -2,7 +2,7 @@
 name: a83-generator-vs-client
 tags: [activation, trigger, runtime-client]
 runs: 3
-max_turns: 8
+max_turns: 2
 allowed_tools: [Read, Glob, Grep, Skill]
 ---
 

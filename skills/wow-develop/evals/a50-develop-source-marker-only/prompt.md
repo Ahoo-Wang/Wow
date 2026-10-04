@@ -2,7 +2,7 @@
 name: a50-develop-source-marker-only
 tags: [activation, trigger, source-marker, fixture, no-wow-keyword]
 runs: 3
-max_turns: 8
+max_turns: 2
 allowed_tools: [Read, Glob, Grep, Skill]
 ---
 

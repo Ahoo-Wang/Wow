@@ -2,7 +2,7 @@
 name: a57-none-framework-migrate
 tags: [activation, negative, wow-framework-repository, migration]
 runs: 3
-max_turns: 8
+max_turns: 2
 allowed_tools: [Read, Glob, Grep, Skill]
 ---
 

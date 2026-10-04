@@ -2,7 +2,7 @@
 name: a60-none-develop-checkout-wide-marker
 tags: [activation, negative, checkout-wide-marker, non-wow-scope, fixture, development]
 runs: 3
-max_turns: 8
+max_turns: 2
 allowed_tools: [Read, Glob, Grep, Skill]
 ---
 

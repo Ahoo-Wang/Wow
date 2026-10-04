@@ -2,7 +2,7 @@
 name: a21-debug-english
 tags: [activation, trigger, projection, language-en]
 runs: 3
-max_turns: 8
+max_turns: 2
 allowed_tools: [Read, Glob, Grep, Skill]
 ---
 

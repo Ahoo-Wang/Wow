@@ -2,7 +2,7 @@
 name: a01-develop-aggregate
 tags: [activation, trigger, aggregate]
 runs: 3
-max_turns: 8
+max_turns: 2
 allowed_tools: [Read, Glob, Grep, Skill]
 ---
 

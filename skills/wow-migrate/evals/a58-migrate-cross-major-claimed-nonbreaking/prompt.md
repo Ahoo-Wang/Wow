@@ -2,7 +2,7 @@
 name: a58-migrate-cross-major-claimed-nonbreaking
 tags: [activation, trigger, routed, cross-major, claimed-non-breaking, migration, conflict]
 runs: 3
-max_turns: 8
+max_turns: 2
 allowed_tools: [Read, Glob, Grep, Skill]
 ---
 

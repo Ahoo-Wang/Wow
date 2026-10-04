@@ -2,7 +2,7 @@
 name: a81-generator-missing-aggregate
 tags: [activation, trigger, aggregate-discovery]
 runs: 3
-max_turns: 8
+max_turns: 2
 allowed_tools: [Read, Glob, Grep, Skill]
 ---
 

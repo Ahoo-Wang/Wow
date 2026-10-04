@@ -280,7 +280,7 @@ class WowSkillsValidatorTest(unittest.TestCase):
         original = prompt.read_text(encoding="utf-8")
         for change, expected in (
             (("name: a09-debug-projection", "name: other"), "must match directory 'a09-debug-projection'"),
-            (("max_turns: 8", "max_turns: 0"), "max_turns must be a positive integer"),
+            (("max_turns: 2", "max_turns: 0"), "max_turns must be a positive integer"),
             (("runs: 3", "runs: three"), "runs must be a positive integer"),
             (("allowed_tools: [Read, Glob, Grep, Skill]", "allowed_tools: Read"), "allowed_tools must be a list"),
             (("runs: 3", "rounds: 3"), "unknown key rounds"),
