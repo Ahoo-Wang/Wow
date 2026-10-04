@@ -331,6 +331,26 @@ class CommandAggregateOnErrorTest {
         }
 
         @Test
+        fun `a retry attempt starts from the exchange as it was before the first attempt`() {
+            val loadFailure = IllegalStateException("state unavailable")
+            val eventStore = FailingEventStore(appendFailures = List(2) { TimeoutException("timeout") })
+            val exchange = exchange(ProbeCreate(AGGREGATE_ID))
+            exchange.setCommandResult("upstream", "kept")
+            exchange.setCommandInvokeResult("before processing")
+
+            StepVerifier.withVirtualTime {
+                processor(eventStore, failingAfter(loads = 1, failure = loadFailure)).process(exchange)
+            }
+                .thenAwait(Duration.ofSeconds(10))
+                .expectErrorMatches { it === loadFailure }
+                .verify()
+
+            exchange.getCommandResult().assert().isEqualTo(mapOf("upstream" to "kept"))
+            exchange.getCommandInvokeResult<Any>().assert().isEqualTo("before processing")
+            exchange.getEventStream().assert().isNull()
+        }
+
+        @Test
         fun `a successful retry reports its own event stream and version`() {
             val eventStore = FailingEventStore(appendFailures = List(2) { TimeoutException("timeout") })
             val exchange = exchange(ProbeCreate(AGGREGATE_ID))
