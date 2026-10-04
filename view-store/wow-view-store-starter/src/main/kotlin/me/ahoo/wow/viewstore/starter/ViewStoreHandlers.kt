@@ -147,9 +147,9 @@ internal class ViewStoreHandlers(
     }
 
     /**
-     * Wow reads an expected version of `0` as a create, which on preferences already written fails as a duplicate
-     * aggregate. The port reads it as "never written", so a `0` against written preferences is the version conflict
-     * any other stale version is.
+     * The port reads an expected version of `0` as "never written", so a `0` against written preferences is the
+     * version conflict any other stale version is. Wow before 9.2.3 read `0` as a create, which failed here as a
+     * duplicate aggregate; since 9.2.3 the aggregate's own version check agrees, and this check keeps the message.
      */
     private fun requireNeverWritten(request: ServerRequest, aggregateId: AggregateId): Mono<Void> {
         val expectedVersion = request.headers().firstHeader(CommandComponent.Header.AGGREGATE_VERSION)?.toIntOrNull()

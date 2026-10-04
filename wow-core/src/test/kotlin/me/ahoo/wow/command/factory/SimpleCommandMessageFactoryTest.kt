@@ -70,7 +70,7 @@ class SimpleCommandMessageFactoryTest {
     }
 
     @Test
-    fun `should create message as create when builder expected version is uninitialized`() {
+    fun `should not create message as create when builder expected version is uninitialized`() {
         val factory = SimpleCommandMessageFactory(RecordingValidator(), MapCommandBuilderRewriterRegistry())
         val builder = FactoryMessageCommand("payload")
             .commandBuilder()
@@ -80,7 +80,7 @@ class SimpleCommandMessageFactoryTest {
 
         StepVerifier.create(factory.create<FactoryMessageCommand>(builder))
             .assertNext { message ->
-                message.isCreate.assert().isTrue()
+                message.isCreate.assert().isFalse()
                 message.aggregateVersion.assert().isEqualTo(Version.UNINITIALIZED_VERSION)
             }.verifyComplete()
     }

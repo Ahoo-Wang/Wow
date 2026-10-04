@@ -111,12 +111,30 @@ class CommandFactoryTest {
     }
 
     @Test
-    fun `should mark command as create when expected aggregate version is uninitialized`() {
+    fun `should not mark allow create command as create when expected aggregate version is uninitialized`() {
         val message = UpsertAccountCommand(id = "account-1")
             .toCommandMessage(aggregateVersion = Version.UNINITIALIZED_VERSION)
 
-        message.isCreate.assert().isTrue()
+        message.isCreate.assert().isFalse()
         message.allowCreate.assert().isTrue()
+        message.aggregateVersion.assert().isEqualTo(Version.UNINITIALIZED_VERSION)
+    }
+
+    @Test
+    fun `should not mark command as create when expected aggregate version is uninitialized`() {
+        val message = AccountCommand(id = "account-1")
+            .toCommandMessage(aggregateVersion = Version.UNINITIALIZED_VERSION)
+
+        message.isCreate.assert().isFalse()
+        message.allowCreate.assert().isFalse()
+        message.aggregateVersion.assert().isEqualTo(Version.UNINITIALIZED_VERSION)
+    }
+
+    @Test
+    fun `should not mark command as create when its body declares expected aggregate version uninitialized`() {
+        val message = AccountCommand(id = "account-1", version = Version.UNINITIALIZED_VERSION).toCommandMessage()
+
+        message.isCreate.assert().isFalse()
         message.aggregateVersion.assert().isEqualTo(Version.UNINITIALIZED_VERSION)
     }
 
